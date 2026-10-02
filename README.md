@@ -1,6 +1,6 @@
 # LOAM OCaml — working name
 
-**Status: Movement validation, conditional zero-origin quantity projection, and validation-only CLI. No UI or household writes.**
+**Status: Movement validation, conditional quantity projection, and correction endpoint checks. Validation-only CLI; no UI or household writes.**
 
 An independent OCaml implementation of LOAM, intended for long-lived household
 use, third-party maintenance, and presentation as an engineering portfolio to
@@ -65,6 +65,18 @@ of activity; unsupported coordinates return `Origin_unknown`, not zero. These
 quantities depend on the supplied Movement basis, not admitted current/historical
 Actual, correction selection, or purchasing power. See [contract](docs/BALANCE_SLICE.md).
 
+`application/correction_check.mli` resolves a raw correction's target/replacement
+from an identity-unique immutable Event memory, retaining both observations.
+Missing endpoints are typed refusals. General anonymous-Effect Events are not
+ordinary Movements; closure does not establish currentness or apply corrections.
+See [endpoint contract](docs/CORRECTION_ENDPOINT_SLICE.md).
+
+`application/correction_frontier.mli` qualifies a whole supplied correction list
+as closed, unique-target/unique-replacement, and acyclic. It retains original
+observations/edges and derives terminals plus untouched Events; branches, merges,
+and cycles are typed refusals, never order-selected winners. This is not admitted
+current Actual or write permission; see [contract](docs/CORRECTION_FRONTIER_SLICE.md).
+
 From the repository root:
 
 ```sh
@@ -82,9 +94,12 @@ The core uses immutable data and pure functions; process I/O is isolated at
 active in release builds too. See [functional-core review](docs/ENGINEERING_STYLE.md)
 for the actual boundary, test-only counters, and limits of these checks.
 
-On macOS x86_64, build, 23 expect tests, and three cram suites pass. Quantity,
-Movement, application replay, and conditional projection each execute 10,000
-deterministic generated cases. A clean domain/application-only build does not build presentation/CLI.
+On macOS x86_64, build, 39 expect tests, and three cram suites pass. Quantity,
+Movement, application replay, conditional projection, identity/endpoint checks,
+and correction frontiers each execute 10,000 deterministic generated cases.
+Frontier tests also enumerate all 512 directed three-Event graphs and exercise a
+10,000-node chain/cycle; these bounded checks are not universal proofs. A clean engine-only build does
+not build presentation/CLI.
 Cram suites exercise the real CLI, application-only clients, abstract type
 boundaries, and compiler-policy controls/counterexamples in dev/release. Linux and Apple
 Silicon are targets, not yet qualified platforms. This is finite executable
@@ -129,6 +144,8 @@ hiring criteria.
 
 ## Licensing and publication
 
-No license has been selected and no remote publication is authorized by this
-bootstrap. Decide licensing and source-reuse provenance before importing code or
-publishing. Do not assume this repository grants open-source reuse rights yet.
+The user authorized initial commit and private GitHub hosting at
+[shumoku88-bit/loam-ocaml](https://github.com/shumoku88-bit/loam-ocaml); private
+visibility was rechecked. This is not a public release or license selection.
+No license is selected. Resolve licensing/source-reuse provenance before importing
+code or public publication; do not assume open-source reuse rights.

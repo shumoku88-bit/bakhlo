@@ -13,6 +13,10 @@ Before substantive design or implementation, read in order:
 4. `docs/HANDOFF.md`
 
 Then read `docs/ARCHITECTURE.md` and `docs/VERIFICATION.md` for the relevant work.
+Before non-trivial work, apply the **Instrument review gate** in
+`docs/VERIFICATION.md`; record the question, evidence gap, tool choice or deferral,
+and revisit trigger in the slice contract/task note. OCaml types/tests do not
+license silently forgetting the LOAM design/verification instruments.
 For environment/dependency changes, read `docs/DEVELOPMENT.md` and ADR 0002.
 Use `./tools/bootstrap` and `./tools/check` rather than global opam/dune. Never
 commit `.tools/`, `.opam-root/`, `_opam/`, `_build/`, or generated install files.
@@ -89,6 +93,16 @@ parent workspace or private data to rediscover already-indexed decisions.
   power, or spendable today. Current anchors need qualified correction-root cuts,
   not guessed timestamps. Failed/missing data loading must never become an empty
   projection basis. Indexed totals are disposable, not canonical evidence.
+- Before Event/correction work read `docs/CORRECTION_ENDPOINT_SLICE.md`. General
+  anonymous-Effect Events are not ordinary Movements. Identity-unique memory and
+  endpoint closure do not establish current Actual/frontier authority. Never use
+  source list order, self/cyclic/competing closed edges, or guessed dates to select
+  current evidence; retain both observations and the explicit correction fact.
+  Do not import keyed Effects/independent metadata by silently dropping them.
+  `docs/CORRECTION_FRONTIER_SLICE.md` now qualifies disjoint paths only within a
+  supplied memory/relation: closure, unique targets/replacements, acyclicity.
+  Retain original facts; its derived frontier is not an Actual image, root-cut
+  witness, history-completeness assertion, or publication authorization.
 - Structural validation is not publication; preserve the validation-only preview
   label until actual write semantics exist. This phase is not visual imitation
   of Jane Street software or a claim of an official UI standard.
@@ -98,12 +112,17 @@ parent workspace or private data to rediscover already-indexed decisions.
 1. Name the observable behavior or evidence boundary being changed.
 2. Separate deterministic repository facts (D), prior evidence (P), and residual
    questions (R). A few lines in a task note suffice; no mandatory tool ritual.
-3. State assumptions and acceptance checks before implementation.
-4. Implement the smallest end-to-end change.
-5. Check adjacent correction, uncertainty, persistence, and projection boundaries
+3. Apply the instrument review gate; use the smallest set answering distinct
+   residual questions. Record why a relevant instrument is used/deferred, not a
+   blanket "the compiler/tests are enough". No mandatory all-tools pipeline.
+4. State assumptions and acceptance checks before implementation.
+5. Implement the smallest end-to-end change.
+6. Check adjacent correction, uncertainty, persistence, and projection boundaries
    where relevant; stop when no concrete seam remains.
-6. Run the relevant checks and report their exact scope and failures.
-7. Update the decision record and handoff if the result changes the next action.
+7. Run the selected checks; report actual results, model/code correspondence,
+   scope and failures. Selected/planned is not executed/qualified.
+8. Update the decision record and handoff, including deferred-tool revisit
+   triggers, if the result changes the next action.
 
 Retain design reasons, not a transcript of every work session. Do not label
 unrun tests as passing, proposals as decisions, or bounded checks as universal

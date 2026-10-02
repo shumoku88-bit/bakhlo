@@ -1,200 +1,195 @@
-# Handoff — conditional zero-origin projection; no UI implementation
+# Handoff — supplied disjoint-path correction frontier; no Actual adoption
 
 Updated: 2026-10-02.
 
-## Current user instruction and stop point
+## User intent and current stop point
 
-The user asked to continue at the professional OCaml quality target and verify
-that the code is functional rather than a mutable procedural workflow. The prior
-scope still requires future-UI preparation **without building any UI now**;
-interactive traces/screens/workbench remain superseded. Read `UI_DIRECTION.md`,
-ADR 0003, and `ENGINEERING_STYLE.md`. Do not claim an official Jane Street standard,
-certification, or affiliation.
+The user requests continued professional-quality OCaml development, aspiring to
+Jane Street-associated engineering quality. Do not repeat an earlier conversational
+claim that this small core is production-certified, universally pure, exhaustively
+tested, or guaranteed reproducible on every host. Quality is an aspiration backed
+by named evidence; important operational capabilities remain absent.
 
-No TUI, web UI, dashboard, components, speculative load/navigation/draft state,
-UI dependency, OxCaml, clock abstraction, cache, or incremental framework was
-introduced. After the user's authorization to continue engine work, a bounded
-conditional zero-origin quantity projection is implemented. Read `BALANCE_SLICE.md`:
-this is supplied-basis arithmetic, not admitted current Actual, historical
-completeness, purchasing power, or an operational replacement.
+Current UI scope still excludes TUI/web/dashboard/component implementation and
+speculative UI states/frameworks/OxCaml. No UI, storage bindings, cache, clock, or
+incremental framework was introduced. Endpoint closure is complete; the later
+`CORRECTION_FRONTIER_SLICE.md` now qualifies a whole supplied relation as closed,
+unique-target/unique-replacement, and acyclic. It materializes terminals/untouched
+Events while retaining sources. This conditional frontier is **not** a current
+Actual image, root-cut witness, correction publication, or temporal completeness.
 
-Do not ask again about initial scope (ADR 0001):
+Initial accepted scope (ADR 0001) need not be asked again:
 
-- Local single user; no initial public access, multi-user product, or sync.
-- macOS/Linux; CLI first, eventual practical UI TUI, GUI/Web only when needed.
-- Synthetic data; existing LOAM stays authority until separately approved migration.
-- Runtime Base + Zarith, test ppx_expect + Base_quickcheck.
-- Every added library needs a concrete capability reason and named consumer.
-  No Core/Async, storage bindings, or UI toolkit has been introduced.
-- Isolated opam setup is approved and complete (ADR 0002).
+- Local single user; macOS/Linux, CLI first, eventual TUI; GUI/Web deferred.
+- No initial public access, multi-user product, or synchronization.
+- Synthetic development; existing LOAM remains operational authority. No dual writes.
+- Runtime Base + Zarith; tests ppx_expect + Base_quickcheck. Every additional library
+  needs a concrete capability and named consumer; none was added this turn.
+- Isolated opam baseline is established (ADR 0002). No global environment changes.
+- User authorized initial commit and private GitHub hosting. Public publication,
+  license selection, upstream copying, and operational migration remain unapproved.
 
-## Implemented
+## Standing instrument review and next open trigger
 
-Read [Movement slice](MOVEMENT_SLICE.md) for unchanged domain/CLI contracts.
+The user explicitly requested repository memory for the LOAM tools. D21 now
+requires the [instrument review gate](VERIFICATION.md#instrument-review-gate)
+before non-trivial work; `AGENTS.md` and `CONTRIBUTING.md` point to it. Record
+relevant use/deferral reasons and concrete revisit triggers in each slice/task
+note. Do not assume OCaml types/tests replace semantic maps, D/P/R, DRAKON/D2,
+Alloy, Lean, transition models, or focused audits. No all-tools pipeline or newly
+installed tool is implied. This documentation change ran no formal tool.
 
-- `lib/quantity.*`: abstract exact signed quanta.
-- `lib/identifier.*`: distinct abstract Measure/Locus, nonempty opaque strings.
-  Preserve exact spelling; no catalog/alias/locale authority. Adapters escape text.
-- `lib/effect.*`: neutral Locus/Measure/Quantity; zero may exist before validation.
-- `lib/effect_coordinate.*`: typed neutral Locus x Measure pair; exact spelling,
-  mechanical lexicographic Base comparator, no chronology or valuation.
-- `lib/zero_origin_coverage.*`: abstract finite independent declaration; empty
-  supports nothing, first repeated coordinate is refused with its input position.
-  Constructor checks shape, not truth of the declared origin premise.
-- `lib/movement.*`: abstract validated ordinary Movement; nonempty/nonzero,
-  one Measure, exact zero total. Ordered structured refusals. No mixed-Measure
-  aggregation. Preserve represented order/multiplicity and same-Locus changes.
-- `application/movement_check.*`: pure stateless typed command, abstract semantic
-  preview, or unchanged domain refusals. Preview exposes Measure, represented
-  Effects, and exact positive total materialized once per successful command.
-  No formatting, implicit time, I/O, fake State, or publication capability.
-- `application/zero_origin_projection.*`: pure immutable coordinate totals over
-  supplied validated Movements, materialized once with existing Base Map/Set.
-  Typed query returns an abstract conditional answer or `Origin_unknown`; no scan
-  of the supplied basis per query. Never infer origin from activity or zero net
-  change. No Actual/Scheduled selection, dates, correction-root cuts, I/O, or
-  completeness/admission proof. No renderer/CLI adapter added for this question.
-- `presentation/movement_text.*`: existing CLI text projection of the structured
-  answer/refusals; no revalidation or aggregate recomputation.
-- `cli/movement_command.*`: grammar/typed input parsing, application invocation,
-  help/syntax errors, output/exit mapping. `Validated` now carries application
-  preview, not bare domain Movement; no external stable-API promise exists.
-- `bin/main.ml`: real `loam-ocaml` executable, argv/output/exit only.
-- Root `dune`: strict sequencing and fatal warnings 8/9/11 in every profile;
-  release/package mode no longer relaxes these selected checks.
-- `test/compiler_policy.t`: actual-config controls/counterexamples in dev/release.
-  The replay comparator enumerates error constructors and destructures fields,
-  making new variants/fields require a deliberate update.
+**VR-01 — OPEN; review before root-to-terminal or reflected-root-cut code.**
 
-Review found no business refs, mutable fields, assignment, or hidden I/O/time/
-randomness in the current handwritten Domain/Application. Recursive collection,
-folds, `Result.bind`, and text construction are pure. I/O/exit is the intentional
-imperative shell; four test-only refs count generated executions. Local mutation
-is not categorically banned, but needs an owner and concrete justification.
+- Question: under the qualified disjoint-path relation, does root identity and
+  whole-lineage exclusion survive later corrections without dropping independent
+  provenance or reintroducing an already reflected occurrence?
+- Prior evidence: frontier contract/tests and narrow upstream root-cut references;
+  these do not establish an OCaml root/cut operation, which is not implemented.
+- Review candidates: structural counterexamples via Alloy or finite enumeration;
+  a scoped Lean law if unrestricted root/terminal uniqueness or exclusion stability
+  earns retention. Check existing evidence before creating a duplicate model.
+- Required next action: record the chosen distinct question, tool/use-or-deferral
+  reason, scope, implementation mapping/gap, and acceptance checks **before coding**.
+  This is a review obligation, not a preselected tool or a claim of completed proof.
+- Next separate trigger: defining storage/publication retry/crash/ownership behavior
+  reopens TLA+/TLC or SPIN/fault-injection selection. Neither is current coverage.
 
-Separate Dune libraries enforce inward source dependencies. Domain/application
-build without presentation/CLI; future clients/tests call the typed operation
-without argv or text parsing. These are internal boundaries, not new packages.
+## Implemented interfaces
 
-```sh
-./tools/opam exec -- dune exec loam-ocaml -- check-movement \
-  --effect wallet jpy -1000 --effect food jpy 600 --effect transport jpy 400
-```
+Existing contracts remain in `QUANTITY_SLICE.md`, `MOVEMENT_SLICE.md`, and
+`BALANCE_SLICE.md`; no existing CLI output/exit semantics were changed.
 
-The preview says **structurally valid (not recorded)**. Raw exact quanta are not
-inferred display units. No dates, catalog-approved Loci, Event identity, relations,
-correction, household reads/writes, or persistence are implied. No-argument launch
-refuses with usage; it does not pretend a TUI exists.
+- `Quantity`: abstract exact signed quanta, independent of Measure.
+- `Identifier.Measure`/`Locus`: distinct nonempty opaque identities, exact spelling.
+- `Effect`: neutral signed anonymous change; zero can exist before Movement checks.
+- `Movement`: abstract nonempty/nonzero/single-Measure/conserving ordinary movement;
+  ordered structured refusals, preserved representation, no mixed-Measure sum.
+- `Effect_coordinate` and `Zero_origin_coverage`: typed coordinate and explicit
+  independent support set; missing support is not zero, duplicate support refused.
+- `Movement_check`: pure typed operation and abstract structured preview; existing
+  positive aggregate is materialized once, not computed by formatting.
+- `Zero_origin_projection`: immutable coordinate index over supplied Movements;
+  conditional quantity or `Origin_unknown`, not current/historical Actual,
+  completeness, correction selection, or purchasing power. No renderer/CLI added.
+- **New `Identifier.Event`**: distinct caller-supplied identity, nonempty/exact,
+  mechanical comparator for Base Map, no chronology/kind/revision rank.
+- **New `Event`**: identity plus retained anonymous neutral Effects. Empty, zero,
+  mixed-Measure, and nonconserving observations remain representable: Event is not
+  Movement. Keyed Effects/independent external metadata must not be erased to fit
+  this subset; no real-data importer exists.
+- **New `Event_memory`**: abstract retained list plus matching immutable ID index;
+  first duplicate identity refused with original/repeated input positions, even
+  for identical payloads. No latest-wins normalization or publisher retry policy.
+- **New `Event_correction`**: raw target/replacement IDs, no existence/graph claim.
+- **New `Correction_check`**: two indexed lookups in one memory, abstract `closed`
+  retaining edge and both Events, or ordered/nonempty missing-endpoint errors.
+  Self/cyclic/competing/merging edges can close without establishing authority.
+- **New `Correction_frontier`**: abstract conditional disjoint-path success;
+  retained Event memory, original correction list, and untargeted frontier Events
+  in original Event order. Fail fast on unresolved edges or repeated endpoints,
+  then reject cycles with an actual closed path witness. Identical repeated edges
+  are refused, not deduplicated. No root-to-terminal/current-quantity query yet.
+- `Movement_text`, `Movement_command`, `bin/main.ml`: pure text/argument seams and
+  explicit argv/stream/exit shell. Preview says structurally valid (not recorded).
 
-Exit codes remain 0 help/valid preview (stdout), 1 Movement refusal (stderr),
-2 syntax refusal (stderr). Each Effect has its explicit Measure. Existing CLI
-golden outputs and process assertions were preserved, not rewritten for the refactor.
+No production `ref`, mutable field, assignment, filesystem/process/time/randomness
+is introduced in Domain/Application. Six test-only refs assert generated execution
+counts. Root compiler policy preserves strict sequencing/fatal warnings 8/9/11 in
+all profiles. Use ordinary values; no generic State/command bus or effect monad.
 
-## Current qualification
+## Qualification of the current working tree
 
-macOS x86_64, isolated OCaml 5.3.0 / Dune 3.24.2:
+macOS x86_64; isolated OCaml 5.3.0 / Dune 3.24.2:
 
-- `./tools/check`: PASSED (build and forced tests).
-- Package-mode `dune runtest -p loam_ocaml --force`: PASSED; tests execute.
-- `dune build @install`: PASSED for four libraries and executable.
+- `./tools/check`: PASSED (build plus forced tests).
+- `dune runtest -p loam_ocaml --force`: PASSED; tests actually execute.
+- `dune build @install`: PASSED for four internal libraries and executable.
 - Clean `dune build --root . lib/loam_domain.cmxa application/loam_application.cmxa`:
-  PASSED; presentation/CLI CMIs and native libraries remained unbuilt.
-- 23 expect tests: Quantity 3, Movement 4, application 4, zero-origin 6, CLI 6.
-- Generated checks: 10,000 each with `loam-quantity-v1`, `loam-movement-v1`,
-  `loam-application-v1`, `loam-zero-origin-v1`; 10,000 maximum shrink attempts on
-  failure, counts asserted.
-  Application cases replay raw, paired, and foreign-Measure commands and compare
-  typed fields/refusals against Domain; this is not an independent conservation proof.
-- Application fixtures check huge split/repeated-Locus values, all four refusal
-  variants/fields/order, repeated projection, and independent client ordering.
-- `zero_origin_tests.ml`: keys preserve roles/exact spelling (including separator
-  collisions), explicit support versus unknown/activity/net-zero, duplicate support,
-  multi-Measure/negative/huge quantities, multiplicity/source preservation, replay/
-  reorder/local coverage. Generated oracle sums original Effects directly in
-  Zarith, independently of the coordinate index.
-- Three cram suites. `test/cli.t`: real success/refusal, exact quantities,
-  exit/stream assertions.
-- `test/compiler_policy.t`: complete control builds in dev/release and four
-  rejected specimens per profile, with exact-reason diagnostics: missing match
-  case, omitted record-pattern field, redundant case, implicitly discarded result.
-  Named library targets prevent empty-build false positives. Only the fixture's
-  copied Dune input is made writable; real source is not modified by specimens.
-  Separate policy-free release fixtures compiled all four bad specimens, confirming
-  guard-loss sensitivity; temporary scratch fixtures were removed afterward.
-- `test/type_boundaries.t`: valid domain/application-only clients compile;
-  swapped Measure/Locus roles in Effects/coordinates and forged Movement, preview,
-  and conditional quantity answer fail with expected diagnostics. Application-only client has no CLI/presentation CMI path.
-- Installed inventory exactly matches all 50 locked package names/versions.
-  Dependency manifests/lock, toolchain, existing Quantity/Movement semantics, and
-  CLI behavior remain unchanged. New coordinate/support/projection consumers use
-  already-approved Base; no new external dependency.
-- Links/fences across 19 documents, source whitespace (cram blank-output
-  indentation excepted), test inventory, and shell syntax: PASSED. Generated lock
-  formatting was preserved, with package versions checked separately.
-- No real data/upstream implementation copied or changed. Existing Lean repository
-  remains clean; no global environment changes, formal-tool runs, or migration.
+  PASSED; presentation/CLI native libraries and CMIs remained unbuilt.
+- **39 expect tests**: Quantity 3, Movement 4, application 4, zero-origin 6,
+  correction endpoints 7, correction frontier 9, CLI 6.
+- **60,000 generated cases**: 10,000 each with `loam-quantity-v1`,
+  `loam-movement-v1`, `loam-application-v1`, `loam-zero-origin-v1`,
+  `loam-correction-endpoints-v1`, `loam-correction-frontier-v1`;
+  maximum 10,000 shrink attempts on failure,
+  executed counts asserted. Finite cases are not universal laws or coverage metrics.
+- New fixtures cover exact Event tokens, general observations versus Movement,
+  equal/different-payload duplicate IDs, retained evidence/source order, both absent
+  roles including one ID in both roles, and closed self/cycle/competition/merge
+  without terminal selection. Generated memory/closure checks compare against an
+  independent source-list lookup oracle, replay/reorder, and reject injected duplicates.
+  Frontier tests reject branches/merges/cycles, check actual diagnostic witnesses,
+  compare with an independent list/fuel oracle, exhaust all 512 three-Event graphs,
+  and complete a 10,000-node chain/reversed chain/cycle. Enumeration is bounded,
+  not a proof for arbitrary graphs. Initial test syntax/API mistakes were corrected
+  against installed interfaces; no compiler checks were weakened.
+- Three cram suites: real CLI output/exit/stream, external type boundaries, and
+  dev/release compiler-policy positive/negative controls. New valid client needs
+  only Domain/Application CMIs. New rejected cases: wrong Event identity role,
+  inconsistent memory record, forged closed/frontier answers, and closed edge used
+  as a graph-qualified frontier; diagnostic and status checked.
+- Package inventory exactly matches all 50 locked versions; manifests/lock and
+  toolchain unchanged. New index uses the already-approved Base capability.
+- Links/fences across 21 documents, source whitespace (cram blank-output indentation
+  excepted), test inventory, and shell syntax checked. Generated lock formatting
+  retained; no private data/upstream code/global config was copied or changed.
 
-These checks do not establish operational admission, durability, terminal behavior,
-accessibility, large-history latency, or universal formal correctness. Admitted
-Actual histories, date/cycle/schedule reports, and loading are not implemented.
-Conditional arithmetic is not current-balance admission.
-Do not claim fake state/test coverage for them. Unsafe `Obj.magic` is outside
-abstract-interface protection. Linux/Apple Silicon remain unqualified.
+These checks do not establish full household admission, corrected current Actual,
+complete history, durability/recovery, terminal usability, latency/scale, formal
+correctness, or cross-platform qualification. Linux/Apple Silicon remain targets.
+Unsafe operations such as `Obj.magic` are outside abstract-interface protection.
 
-`test/dune` uses private `loam_tests` and built-in cram, no new test framework.
-Inline tests are enabled in release profile. Type-boundary cram names internal
-Dune CMI paths; update deliberately if build layout changes without weakening checks.
-Compiler-policy cram depends on actual root `dune`; do not hardcode replacement
-flags in specimens, weaken diagnostics, or silently suppress the new policy.
-Current OCaml quotes type names in diagnostics; sequence checks allow quoting but
-also require the specific left-hand-sequence reason.
+`test/dune` uses private `loam_tests`, release-enabled inline tests, built-in cram.
+Compiler boundary cases depend on internal Dune CMI paths; update deliberately.
+Compiler-policy fixtures copy actual root configuration and check exact-reason
+rejection with successful controls. Do not weaken source checks/diagnostics or
+silently suppress the selected compiler policy.
 
-## Environment and repository state
+## Reference and repository state
 
-- `./tools/bootstrap`, `./tools/opam`, `./tools/check` are standard entry points.
-- Fixed opam 2.6.0, registry `ac27950e5eac6c981ad809dff370c937820b7893`,
-  and transitive lock. Read `DEVELOPMENT.md` / ADR 0002 for isolation limits.
-- Earlier independent fresh-switch replay matched all 50 packages and passed
-  Quantity checks. It was not rerun for this dependency-unchanged preparation.
-- No license, remote, publication, or initial commit. All source remains untracked
-  in initialized Git; do not clean/reset it away or manufacture attribution.
-- Compiler/cache/build/install state is ignored. Synthetic experiments belong in
-  `scratch/`, excluded from Dune discovery as well as Git.
-- `-p` already selects the Dune root; do not combine it with `--root`.
-- `Effect` is also a standard module; lowercase `effect` is reserved. Qualify
-  domain references; `movement.ml` avoids Base's Effect shadowing.
+- Baseline commit is `45adb0c` (Initial commit). This checkpoint contains endpoint
+  closure, conditional correction-frontier admission, and the D21 instrument-review
+  policy. The user explicitly authorized committing and pushing this checkpoint to
+  the existing private origin. Use `git status`, `git log`, and upstream/remote refs
+  for live commit/push state; this checkpoint is not a release or operational cutover.
+- Private GitHub `shumoku88-bit/loam-ocaml` was verified via `gh repo view` metadata
+  (`isPrivate: true`). Hosting is not public release, licensing, or cutover.
+- Existing LOAM checkout observed `80e50c7c20ee35d9d22ec95ff5e6626e1286ab82`;
+  inspected Core Event/EventMemory/EventCorrection files are unchanged against
+  earlier reference `180707c58647dc7cad3361458c1801be184d15af`. See `REFERENCES.md`.
+  Existing repository remains clean; no upstream build or proof run was made.
+- Standard entry points: `./tools/bootstrap`, `./tools/opam`, `./tools/check`.
+  Opam 2.6.0, registry `ac27950e5eac6c981ad809dff370c937820b7893`, transitive lock.
+  Earlier independent fresh-switch replay is historical evidence, not rerun here.
+- Compiler/cache/install files are ignored; synthetic scratch is excluded from
+  Dune as well as Git. Do not commit environments or private diagnostics.
+- `-p` selects the Dune root already; do not combine with `--root`.
+- Standard `Effect`/Base namespace shadowing and reserved lowercase `effect` need
+  care. New code qualifies `Loam_domain`/Base collections explicitly.
 
-## Next bounded work — engine semantics only until scope changes
+## Next bounded engine work
 
-The preparation stop point has been reached. Do not automatically select a toolkit,
-write interaction traces/screens, or port every Lean feature. A future frontend is
-optional to the useful, independently callable engine.
+Endpoint closure and conditional disjoint-path frontier admission are complete.
+First resolve the OPEN VR-01 instrument review above; do not skip it because the
+current compiler/tests pass. Then specify a stable-root-to-terminal query over
+that qualified relation, if needed by one explicit current-anchor question. Preserve complete lineage and
+original provenance; then separately qualify reflected-root cuts/origin support.
+Do not relabel a supplied frontier current Actual without its selection/admission
+contract. No ordinary Movement narrowing, occurrence dates, or completeness is
+inferred from Event shape. Do not select by list order, token spelling, guessed
+timestamps, or last-write-wins.
 
-The completed question is quantity implied by supplied Movements plus independent
-zero-origin evidence. Current anchors were deliberately not simplified into
-baseline-plus-later-dated-Movements: upstream needs reflected correction-root cuts.
-No raw timestamp or observed activity can supply that evidence.
+Current anchors additionally require reflected correction-root cuts, not merely
+baseline amount plus later-dated Movements. No activity proves zero origin. Missing
+or failed loading must never become an empty Event memory/projection basis.
 
-Before an operational balance query, establish a minimal selected-current-Actual
-input/admission/consistency contract. Do not pass failed or missing loading as an
-empty projection basis. A pure synthetic admission slice can precede storage;
-choose its exact scope/evidence before inventing Event/correction/date APIs.
-For further engine work, identify one real question, minimal qualified synthetic
-input, and typed success/refusal/uncertainty result.
-Use narrow existing-LOAM evidence; preserve Actual/Scheduled, anchor/history,
-amount/presence, valuation, and review distinctions where relevant. Only introduce
-state transitions and explicit date coordinates when that operation requires them.
-Keep canonical-input construction, semantic queries, read models, and formatting
-separate; UI selection/focus/scroll must never drive business recomputation.
+No automatic UI implementation, wholesale Lean translation, generic framework,
+cache, or index matrix follows from this slice. Measure a real workload before
+performance claims. If introducing time-dependent meaning, pass explicit date
+coordinates rather than reading global now.
 
-History scale is unmeasured: profile an actual future workload before deciding
-indexing/caching/incremental mechanisms and their consistency scope. Never invent
-hidden now, randomness, I/O, or empty-success defaults for incomplete evidence.
-
-Storage remains OPEN. A separate text/SQLite comparison needs atomicity, durability,
-recovery, backup/restore, migration, diagnostics, and maintainer cost before bindings.
-Publication/correction/migration and UI implementation require their own scoped
-work; a preview or a hypothetical button cannot authorize them.
-
-Keep long-lived decisions in charter/ADRs; current contracts and qualification in
-narrow documents/tests. Do not treat this handoff as approval of new product scope.
+Storage remains OPEN: compare atomicity, durability, recovery, backup/restore,
+migration, diagnostics, and maintainer cost before adding bindings. Publication,
+real-data migration, public release, or a UI need their separately scoped decisions.
+Keep long-lived rules in charter/ADRs; exact slice laws/evidence in narrow contracts.

@@ -82,6 +82,12 @@ or interactive behavior. No new UI, framework, clock, cache, or external depende
 is justified by this review. The CLI remains validation-only. The later
 [zero-origin slice](BALANCE_SLICE.md) adds conditional indexed arithmetic with
 immutable Base Map/Set, not a mutable history cache or admitted Actual authority.
+The [endpoint slice](CORRECTION_ENDPOINT_SLICE.md) adds immutable unique-ID memory
+and a pure two-lookup correction check, retaining both observations without apply
+or current-frontier selection. The later [frontier slice](CORRECTION_FRONTIER_SLICE.md)
+checks a whole relation with persistent maps/sets and tail-recursive walks, then
+materializes a conditional frontier while retaining source facts. Completed-node
+sharing avoids restarting every path; no mutable flags or global state are added.
 
 Next functional capability still needs one real household question, minimal
 qualified evidence, explicit inputs (including date coordinates when meaningful),

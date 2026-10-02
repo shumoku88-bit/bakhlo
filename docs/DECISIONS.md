@@ -24,6 +24,7 @@ A bootstrap document is not approval of every recommendation it contains.
 | R05 | Repository memory for successor AI assistants | User conversation |
 | R06 | Prepare for deterministic, typed, fast expert UI; no UI implementation/anticipatory dependencies in this phase | User instructions supersede earlier interactive-next-step proposal; no visual imitation or official standard claim |
 | R07 | Continue with idiomatic functional OCaml and explicit effect boundaries, not scattered mutable procedural workflows | User's follow-up quality/style request; no claim of certification or official standards |
+| R08 | Persist question-driven instrument selection and revisit triggers in this repository | User explicitly requested a mechanism so later pits do not forget the LOAM tools |
 
 ## Decision status
 
@@ -47,13 +48,16 @@ UI-independent application/read-model preparation:
 | D09 | PROPOSED | Lean as optional reference; selected small formal models | Name each property and correspondence gap; do not maintain duplicate engines indefinitely |
 | D10 | OPEN | Library/wire/storage compatibility policy | Identify real consumers and independently deployed clients before freezing contracts |
 | D11 | ACCEPTED (development policy) | Synthetic data; existing LOAM stays authority; no dual writes | User approval; ADR 0001; actual migration/cutover/rollback still requires separate approval |
-| D12 | OPEN | Name, license, remote hosting, source reuse | User approval and upstream licensing/provenance review before copying or publishing |
+| D12 | Private hosting ACCEPTED; remainder OPEN | Working name, license, public release, source reuse | User authorized initial commit/private GitHub push; `shumoku88-bit/loam-ocaml` privacy rechecked; license/public release/reuse remain unresolved |
 | D13 | PROPOSED | English technical entry docs, honest AI-assistance disclosure | Review for intended audience; do not imply endorsement or invent contributions |
 | D14 | Movement/CLI locally TESTED | Exact Quantity, typed identities/Effects, validated ordinary Movement, pure CLI adapter and executable | User authorized next slice; [contract](MOVEMENT_SLICE.md); 13 domain/CLI expect tests, 20,000 generated cases, process/type cram checks; publication still absent |
 | D15 | ACCEPTED current scope | Preparation only: no TUI/web/dashboard/components, toolkit adoption, OxCaml, or speculative UI state/cache | Latest explicit user instruction; [UI direction](UI_DIRECTION.md); previous workbench/interactive next step superseded |
 | D16 | Locally TESTED | Typed existing Movement application command, abstract semantic preview, separate text projection | ADR 0003; 4 application expect tests, 10,000 replay cases, opaque-preview/client checks, clean engine-only build; CLI goldens preserved, dependency inventory unchanged |
 | D17 | Locally TESTED | Functional-core review; retain strict sequencing and fatal warnings 8/9/11 across profiles | [Review and checks](ENGINEERING_STYLE.md); complete controls and 4 counterexamples per dev/release profile; normal/package tests and install pass; no business behavior/dependency change |
 | D18 | Locally TESTED | Conditional zero-origin quantity projection over supplied Movements; explicit independent support and immutable coordinate index | User authorized continuing engine work; bounded engineering choice, not authority/cutover approval; [contract](BALANCE_SLICE.md); 6 expect tests, 10,000 original-Effect oracle cases, external-client/answer checks; no new external dependencies |
+| D19 | Locally TESTED | Anonymous-Effect Event identity/memory and raw correction endpoint closure, not frontier admission | User authorized continuing quality-oriented engine work; [contract](CORRECTION_ENDPOINT_SLICE.md); 7 expect tests, 10,000 list-oracle cases, role/index/closed-answer compiler checks; no UI/storage/dependency addition |
+| D20 | Locally TESTED | Disjoint-path frontier conditional on supplied Events/edges, not current Actual | User authorized next engine slice; [contract](CORRECTION_FRONTIER_SLICE.md); 9 expect tests, 10,000 graph-oracle cases, exhaustive three-Event graphs, long-chain/cycle and opaque-type checks; Base/Zarith budget unchanged |
+| D21 | ACCEPTED (review policy) | Mandatory instrument review before non-trivial work; execution follows the question, not an all-tools pipeline | User's explicit repository-memory request; [gate](VERIFICATION.md#instrument-review-gate), AGENTS/contributor workflow, next root/cut review in HANDOFF; no tool installation or formal-run claim |
 
 ## Recording a decision
 

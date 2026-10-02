@@ -30,7 +30,10 @@ package additions or an external compatibility promise.
 OCaml checks ordinary Movement structure and has a conditional zero-origin
 quantity projection over an explicitly supplied Movement basis. It has no stored/
 admitted Actual history, operational balance report, schedule/cycle query, loader,
-or date operation. Do not manufacture those read models or UI states from Lean.
+or date operation. Event identity/memory and raw correction endpoint closure are
+implemented prerequisites. A conditional disjoint-path frontier is now checked,
+but it does not admit current Actual, dates, or origin support. Do not manufacture the
+missing read models or UI states from Lean.
 
 ```text
 source dependencies:
@@ -54,6 +57,10 @@ an invented invalidation protocol. It remains **structurally valid, not recorded
 pure lookups with independent origin support. It never infers origin from activity
 or claims current Actual/temporal completeness. It has no text renderer or CLI/UI
 adapter; see [bounded contract](BALANCE_SLICE.md).
+
+`Correction_check` answers a typed endpoint-closure question over one immutable
+identity index, without rewriting evidence or selecting current authority. Its
+structured result is independent of CLI/formatting; see [contract](CORRECTION_ENDPOINT_SLICE.md).
 
 `Movement_text` is a pure projection for the existing CLI. Other clients can
 choose their own representation from typed values. They do not parse CLI text,
@@ -92,7 +99,7 @@ manufacture argv, or repeat accounting validation/aggregation.
   clocks, and terminal access are explicit edge responsibilities.
 - When time-dependent semantics are added, supply the date/time coordinate
   explicitly. Do not read an implicit global now. No Clock interface is needed
-  for the current timeless validation/conditional projection operations.
+  for the current timeless validation/projection/endpoint operations.
 - No hidden randomness. If a real capability ever needs randomness, inject its
   source. Property-test seeds are explicit and independent of business functions.
 

@@ -42,8 +42,11 @@ Test verbosity shows that tests actually execute. The generated Quantity check
 uses 10,000 cases with deterministic seed `loam-quantity-v1` and up to 10,000
 shrinking attempts on failure. The Movement check uses the same counts and seed
 `loam-movement-v1`. Application replay uses `loam-application-v1`, and conditional
-zero-origin projection uses `loam-zero-origin-v1`, with the same counts. Built-in Dune cram checks run the real CLI and external-client
-compiler checks; no new test framework dependency was added. This is finite
+zero-origin projection uses `loam-zero-origin-v1`, with the same counts. Event
+identity/endpoint closure uses `loam-correction-endpoints-v1`, also 10,000 cases.
+Supplied correction-frontier admission uses `loam-correction-frontier-v1` with
+those counts, plus exhaustive three-Event graphs and a 10,000-node chain/cycle.
+Built-in Dune cram checks run the real CLI and external-client compiler checks; no new test framework dependency was added. This is finite
 testing, not a universal proof. Package mode `-p` already selects a root; do not
 combine it with a repeated `--root` option.
 
@@ -126,11 +129,12 @@ filtered with `with-test` in opam metadata and lock.
 `opam lint` warns about unresolved author/license/homepage/issue metadata. Those
 warnings must be resolved before publication, not with fabricated values.
 
-Use `--deps-only` for ordinary setup. This Git repository has no initial commit,
-so a normal Git-based `opam install .` source pin currently fails. Avoid using
-`--working-dir` as a workaround: it can copy ignored local environment state. The
-package smoke test used a separate source-only synthetic copy; do not pin the
-whole workspace or copy real data to test packaging.
+Use `--deps-only` for ordinary setup. Before the initial commit, a normal Git-based
+source pin failed; that is historical, not a current missing-commit blocker.
+An initial commit and user-authorized private GitHub repository now exist. Ordinary
+source installation after that change has not been newly qualified here. Do not
+use `--working-dir` to copy ignored local environments: package smoke testing uses
+a separate source-only synthetic copy, never the full workspace or real data.
 
 ## Guarantee boundary
 

@@ -7,6 +7,9 @@ Do not copy upstream code before resolving licensing and provenance.
 
 Local reference checkout at bootstrap: sibling `../loam`.
 Observed commit: `180707c58647dc7cad3361458c1801be184d15af`.
+Later endpoint-closure review observed `80e50c7c20ee35d9d22ec95ff5e6626e1286ab82`.
+The three Core Event/EventMemory/EventCorrection files below are unchanged against
+the bootstrap reference; no claim is made that the whole checkout is unchanged.
 Public source location referenced by its README:
 https://github.com/shumoku88-bit/loam
 
@@ -31,6 +34,8 @@ this baseline; check the revision before relying on a particular finding.
 | Independent coordinate-local zero-origin support and balance gate | `Loam/Core/ZeroOriginCoverage.lean`, `Loam/Review/BalanceReview.lean` |
 | Current support versus historical coverage; amount-unknown distinctions | `Loam/Review/CurrentBalanceReview.lean` |
 | Current exact anchor requires correction-root cuts, not a guessed time boundary | `Loam/Application/CurrentQuantityAnchor.lean` |
+| Event versus Movement, identity-unique memory, raw correction endpoint closure | `Loam/Core/Event.lean`, `Loam/Core/EventMemory.lean`, `Loam/Core/EventCorrection.lean` |
+| Disjoint-path correction admission, frontier membership, root-cut neighbor | `Loam/Application/CorrectionFrontierSemantics.lean`, `Loam/Application/CorrectionFrontierIndexed.lean` (admission/projection definitions; observed `80e50c7c`) |
 | Current Actual authority and decoding | `Loam/Authority/ActualAuthority.lean`, `Loam/Persistence/NormalizedActualPersistence.lean` |
 | Small retained proof selection | `Loam/DurableProofs.lean` |
 | Storage trade-offs and encoder results | `docs/research/external-pressure/LOAM_TEXT_SQLITE_PERSISTENCE_STUDY_2026-10.md` (especially E3.3) |
@@ -52,6 +57,11 @@ this baseline; check the revision before relying on a particular finding.
 - The OCaml zero-origin projection is conditional arithmetic over supplied
   Movements, not the full admitted Actual read path or current-anchor semantics.
   Origin support is never inferred from activity; a timestamp is not an anchor cut.
+- OCaml's endpoint-closure slice implements only anonymous-Effect observations;
+  do not erase retained keys or other independent fields to fit this subset. Closed
+  endpoints do not admit self/cyclic/competing relations as a current frontier.
+  The later OCaml frontier slice checks the whole supplied relation under a
+  disjoint-path policy, not full Actual admission or root-cut/quantity semantics.
 - Existing results have not been rerun for this documentation bootstrap.
 - Upstream policy treats operational LOAM data as authoritative and non-disposable.
 

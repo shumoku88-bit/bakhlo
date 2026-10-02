@@ -92,3 +92,86 @@ A supported conditional answer cannot be forged with a guessed zero quantity.
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_quantity.ml 2>error
   [2]
   $ grep -q 'Unbound record field "coordinate"\|Unbound record field coordinate' error
+
+An endpoint-closure client compiles without CLI/presentation or private memory fields.
+
+  $ cat >correction_client.ml <<'EOF'
+  > module D = Loam_domain
+  > module C = Loam_application.Correction_check
+  > let inspect (target : D.Identifier.Event.t) (replacement : D.Identifier.Event.t) =
+  >   let original = D.Event.create ~id:target ~effects:[] in
+  >   let revised = D.Event.create ~id:replacement ~effects:[] in
+  >   match D.Event_memory.of_events [ original; revised ] with
+  >   | Error error -> Error error
+  >   | Ok events ->
+  >     let correction : D.Event_correction.t = { target; replacement } in
+  >     Ok (C.run ~events ~correction)
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c correction_client.ml
+
+Locus identity cannot stand in for Event identity.
+
+  $ cat >wrong_event_role.ml <<'EOF'
+  > module D = Loam_domain
+  > let forge (locus : D.Identifier.Locus.t) = D.Event.create ~id:locus ~effects:[]
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c wrong_event_role.ml 2>error
+  [2]
+  $ grep -q 'Identifier.Event.t' error && grep -q 'Identifier.Locus.t' error
+
+The source list and memory lookup index cannot be forged into an inconsistent pair.
+
+  $ cat >forged_memory.ml <<'EOF'
+  > module D = Loam_domain
+  > let forge : D.Event_memory.t =
+  >   { events = []; by_id = Base.Map.empty (module D.Identifier.Event) }
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c forged_memory.ml 2>error
+  [2]
+  $ grep -q 'Unbound record field "events"\|Unbound record field events' error
+
+A closed endpoint answer cannot claim unrelated observations by record construction.
+
+  $ cat >forged_closed.ml <<'EOF'
+  > module D = Loam_domain
+  > module C = Loam_application.Correction_check
+  > let forge (correction : D.Event_correction.t) (target_event : D.Event.t) (replacement_event : D.Event.t) : C.closed =
+  >   { correction; target_event; replacement_event }
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_closed.ml 2>error
+  [2]
+  $ grep -q 'Unbound record field "correction"\|Unbound record field correction' error
+
+A qualified frontier client needs only Domain/Application interfaces.
+
+  $ cat >frontier_client.ml <<'EOF'
+  > module D = Loam_domain
+  > module F = Loam_application.Correction_frontier
+  > let inspect (events : D.Event_memory.t) (corrections : D.Event_correction.t list) =
+  >   match F.create ~events ~corrections with
+  >   | Error error -> Error error
+  >   | Ok answer -> Ok (F.retained_events answer, F.corrections answer, F.frontier_events answer)
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c frontier_client.ml
+
+One closed edge cannot stand in for a graph-qualified frontier.
+
+  $ cat >closure_is_not_frontier.ml <<'EOF'
+  > module A = Loam_application
+  > let forge (closed : A.Correction_check.closed) = A.Correction_frontier.frontier_events closed
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c closure_is_not_frontier.ml 2>error
+  [2]
+  $ grep -q 'Correction_check.closed' error && grep -q 'Correction_frontier.t' error
+
+A frontier cannot be fabricated to conceal observations without graph admission.
+
+  $ cat >forged_frontier.ml <<'EOF'
+  > module D = Loam_domain
+  > module F = Loam_application.Correction_frontier
+  > let forge (retained_events : D.Event_memory.t) : F.t =
+  >   { retained_events; corrections = []; frontier_events = [] }
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_frontier.ml 2>error
+  [2]
+  $ grep -q 'Unbound record field "retained_events"\|Unbound record field retained_events' error

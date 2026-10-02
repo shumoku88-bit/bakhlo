@@ -26,6 +26,11 @@ The user wants to:
    core and explicit effects, rather than scattered procedural state updates.
    This is an engineering aspiration, not certification; see `ENGINEERING_STYLE.md`
    for the inspected boundary, justified edge/test mutation, and compiler checks.
+10. Keep tool-selection discipline in this repository, not only in conversation.
+    Before non-trivial work, identify what the current evidence cannot answer and
+    record instrument choice/deferral plus revisit trigger. OCaml types/tests do
+    not automatically replace LOAM's design/formal/visual/audit instruments; this
+    is not a requirement to run all of them. See `VERIFICATION.md`.
 
 This is not authorization to publish private data, create cloud infrastructure,
 introduce multi-user synchronization, or claim affiliation with Jane Street.

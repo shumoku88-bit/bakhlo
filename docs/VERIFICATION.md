@@ -1,10 +1,11 @@
 # Verification and assurance strategy
 
 Status: PROPOSED overall strategy. Domain/application and CLI build/tests pass
-locally: 23 expect tests, 10,000 generated cases each for Quantity, Movement,
-application replay, and conditional zero-origin projection, plus three cram suites.
-Seeds: `loam-quantity-v1`, `loam-movement-v1`, `loam-application-v1`,
-`loam-zero-origin-v1`.
+locally: 39 expect tests, 10,000 generated cases each for Quantity, Movement,
+application replay, conditional zero-origin projection, Event identity/endpoint
+closure, and supplied correction frontier, plus three cram suites. Seeds:
+`loam-quantity-v1`, `loam-movement-v1`, `loam-application-v1`, `loam-zero-origin-v1`,
+`loam-correction-endpoints-v1`, `loam-correction-frontier-v1`.
 No formal proofs have run in this repository; platform coverage is macOS x86_64.
 
 ## Evidence hierarchy is not a single ladder
@@ -23,6 +24,77 @@ No formal proofs have run in this repository; platform coverage is macOS x86_64.
 
 Use the smallest set that answers distinct questions. Formal tools are development
 instruments; consumers must not need them to run the product.
+
+## Instrument review gate
+
+Status: **ACCEPTED review policy** (D21), explicitly requested by the user so
+successor pits do not forget the LOAM instruments. The wider assurance strategy
+and individual tool adoptions are not thereby approved. This is a required review
+step, not an all-tools execution pipeline or a machine-enforced semantic gate.
+
+Before non-trivial design/implementation, and again when its assumptions or nearest
+semantic neighbors change:
+
+1. Name the observable question and invariant owner; separate D/P/R obligations.
+2. Consult [semantic commitments](SEMANTIC_CONTRACT.md) and the narrow
+   [reference/evidence map](REFERENCES.md) before repeating upstream work.
+3. Identify what current types, tests, source inspection, and prior evidence can
+   and cannot answer. Compile success is not evidence of correct household meaning;
+   generated/bounded success is not a universal law.
+4. Choose the smallest instrument set answering distinct residual questions.
+   Record relevant choices or deferrals in the slice contract/task note **before
+   implementation**. A few lines suffice; no new ADR or separate file per tool.
+5. After work, record actual results/limits and carry unresolved revisit triggers
+   into [handoff](HANDOFF.md). Reopen when the named trigger occurs; do not keep
+   copying "deferred" without reviewing the changed question.
+
+### Choose by question
+
+| Question / trigger | Candidate instrument | Boundary |
+| --- | --- | --- |
+| Which meaning/evidence must survive? What is already known? | Semantic contract, reference/Evidence Atlas, D/P/R scaffold | Use now; these structure reasoning, not machine-check implementation |
+| Is execution/refusal/ownership order hard to inspect? | DRAKON | Use for procedure, not topology or UI design; a small explicit function may suffice |
+| Is dependency/authority topology hard to inspect? | D2 / dependency DAG | Use for structure, not an automatic second picture of the same procedure |
+| Can a small structural counterexample distinguish competing representations or policies? | Alloy / explicit finite enumeration | State bounds/assumptions; neither proves unrestricted correctness |
+| Is a general law important enough to retain beyond bounded cases? | Lean / a scoped proof artifact | Name statement, assumptions, implementation mapping and gap; never infer OCaml correctness from upstream proof |
+| Do retry, ownership, crash/recovery, or operation ordering affect allowed outcomes? | TLA+ / TLC; SPIN for concrete process interleavings | Select when an actual transition/failure contract exists; state scheduling/failure bounds |
+| Are reachability, dependency drift, duplication, or hygiene uncertain? | Focused repository audit | Adapt to OCaml/Dune only for a named question; Lean scripts are not portable verdicts |
+| Is performance, scale, or recovery behavior the residual question? | Benchmark / fault injection | Use synthetic workload and named environment/failure points, not theorem surrogates |
+| Is proof-checker independence itself the residual question? | Comparator / Nanoda or scoped checker audit | Not baseline OCaml infrastructure; requires a concrete retained proof question |
+
+Types, expect tests, property tests, and external-client counterexamples remain the
+fast implementation feedback loop. They complement these instruments; they do not
+silently retire them. An additional view/tool must add a distinct answer, not a logo.
+
+### Minimal review record
+
+Use this in the relevant slice/task note, not a global transcript:
+
+```text
+Instrument review
+Question / invariant owner:
+D/P evidence already available:
+Residual gap and claimed assurance scope:
+Relevant instruments: use / defer / not applicable, with reason:
+Revisit trigger (concrete capability or assumption change):
+Execution/evidence: planned / not run / observed result, bounds and reproduction:
+Model-to-OCaml correspondence and remaining gap (if applicable):
+```
+
+A needed but unavailable check is a named limitation/blocker; do not label it
+covered or passed. Selected/planned is not run. Existing unperformed work must
+not be retroactively labeled reviewed/proved. Unrelated tools need no boilerplate
+entry; meaningful deferrals must explain **why now** and **when to reconsider**.
+
+Consult this gate before stable-root-to-terminal/reflected-root-cut work; the next
+review is explicitly OPEN in `HANDOFF.md`. Before storage/publication, revisit the
+transition/failure instruments separately. No indefinite blanket "later" decision.
+
+Tool selection does not authorize installation, new dependencies, CI jobs, source
+reuse, or scope expansion. Follow existing approval/provenance rules; record/pin
+versions for any adopted experiment. Formal tools remain development instruments:
+normal production build/test/release must not require Lean. Do not turn upstream
+reference artifacts into a permanent duplicate production engine.
 
 ## First properties to consider
 
@@ -55,14 +127,28 @@ Do not import a broad theorem into an unrelated operation by name alone.
   huge quantities, representation, and repeated/reordered queries. A direct Zarith
   oracle sums original Effects, independently of the index. These are conditional
   quantities, not current/historical balance admission; see [contract](BALANCE_SLICE.md).
+- `correction_tests.ml` preserves general anonymous Event shapes and immutable
+  source order, refuses duplicate identities, checks exact-token lookup against a
+  source-list oracle, replays/reorders endpoint resolution, and verifies ordered
+  missing roles/identities. Self/cyclic/competing raw edges demonstrate closure
+  without currentness; see [contract](CORRECTION_ENDPOINT_SLICE.md).
+- `frontier_tests.ml` checks disjoint-path admission against an independent
+  list/fuel graph oracle, source/payload retention, order-independent membership,
+  missing/duplicate diagnostics, actual cycle witnesses, and a 10,000-node chain
+  plus its cycle. All 512 three-Event directed graphs are exhaustively checked;
+  that scope excludes larger graphs, duplicate parallel edges, and absent IDs,
+  which separate fixtures/generated cases address without universal claims.
+  See [contract](CORRECTION_FRONTIER_SLICE.md); no household authority is inferred.
 - `command_tests.ml` preserves existing golden output while the CLI becomes an
   application client; it checks exact previews, syntax/refusal separation, stream
   choice, and escaped opaque input.
 - `cli.t` runs the real executable with exit/stream checks, not only a mock adapter.
 - `type_boundaries.t` compiles valid domain and application-only clients, then
-  checks rejection of swapped Measure/Locus roles (Effects and coordinates), a
-  forged Movement, preview aggregate, and conditional quantity answer. It checks diagnostic content as well as failure
-  status to avoid accepting unrelated compiler errors.
+  checks role mixups (Measure/Locus/Event), forged Movement/preview/conditional
+  quantity, inconsistent Event memory, forged closed endpoint/frontier answers,
+  and use of a closed edge as a graph-qualified frontier. It
+  checks diagnostic content as well as failure status to avoid accepting unrelated
+  compiler errors.
 - `compiler_policy.t` copies actual root configuration into a language-only
   fixture, builds explicit complete controls, and rejects four counterexamples
   in dev/release: non-exhaustive/redundant matches, omitted record-pattern fields,
@@ -72,8 +158,8 @@ Do not import a broad theorem into an unrelated operation by name alone.
   library artifacts unbuilt. Current application/presentation source has no
   hidden I/O/time/randomness; no UI package is required.
 
-These do not establish household policy admission, storage, correction, TUI
-interaction, large-history latency, or protection against unsafe operations
+These do not establish household policy admission, storage, operational correction
+application, TUI interaction, large-history latency, or protection against unsafe operations
 such as `Obj.magic`. There is no admitted Actual history/date/load operation yet;
 the supplied-Movement projection does not establish temporal completeness or
 correction selection. Do not invent coverage of those future capabilities.

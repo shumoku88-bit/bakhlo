@@ -47,6 +47,26 @@ compatibility promise.
 For example, an admitted Movement can carry a conservation invariant, but that
 value alone cannot authorize a later write after the world has changed.
 
+## Supplied observations and correction closure
+
+`Event` retains an explicit Event identity and anonymous neutral Effects. It is
+not a synonym for ordinary Movement: empty/zero/mixed-Measure observations remain
+representable at this layer. Event memory rejects repeated identity and preserves
+input order while building one immutable matching lookup index.
+
+`Correction_check.run` uses that memory to resolve both raw endpoints, returning
+both observations and the explicit edge or ordered missing-Event errors. Closure
+is not frontier/currentness admission, graph traversal, correction application,
+or publication; see `CORRECTION_ENDPOINT_SLICE.md`. No dates or authority follow
+from ID spelling, list order, or a later replacement record.
+
+`Correction_frontier.create` subsequently checks all supplied edges for closure,
+unique targets/replacements, and acyclicity. Abstract success retains the original
+memory/relations and materializes untargeted Events in original order. Temporary
+persistent maps/sets are discarded; this is not a canonical replacement history,
+current Actual, root-cut implementation, or publication permission. See
+`CORRECTION_FRONTIER_SLICE.md`.
+
 ## Future write path — not implemented
 
 ```text
@@ -148,8 +168,9 @@ remain separately scoped work. Do not proceed automatically to interactive trace
 or screens; the latest user instruction explicitly postpones UI implementation.
 
 The conditional projection demonstrates separate construction and query costs
-without rebuilding every supplied Movement on each lookup. No history latency
-benchmark or operational completeness claim follows from that structure.
+without rebuilding every supplied Movement on each lookup. Event memory similarly
+separates index construction from endpoint resolution. Neither structure establishes
+history latency, graph admission, or operational completeness.
 
 When actual time-dependent/history queries arrive, pass coordinates and admitted
 input inward explicitly. Keep query construction separate from client selection,

@@ -10,9 +10,11 @@ Read `AGENTS.md` and the charter before proposing implementation changes.
 
 1. Names a concrete problem and an observable acceptance criterion.
 2. Explains the responsible module/contract and nearest semantic neighbors.
-3. Adds focused tests or other evidence without overstating their scope.
-4. Keeps dependencies and abstractions proportional to the actual requirement.
-5. Updates the relevant decision/handoff record when the next action changes.
+3. Before non-trivial implementation, records an [instrument review](docs/VERIFICATION.md#instrument-review-gate):
+   question, evidence gap, relevant tool choice/deferral, and revisit trigger.
+4. Adds focused tests or other evidence without overstating their scope.
+5. Keeps dependencies and abstractions proportional to the actual requirement.
+6. Updates the relevant decision/handoff record when the next action changes.
 
 Use synthetic data only. Do not submit personal financial information, real
 household exports, local credentials, or identifiable diagnostics.
@@ -41,7 +43,10 @@ Record alternatives, runtime/test scope, transitive cost, and revisit conditions
 
 Keep changes small enough to inspect. Use explicit public interfaces and explain
 non-obvious invariants. Benchmarks must include workload and environment; formal
-results must include assumptions and implementation correspondence.
+results must include assumptions and implementation correspondence. Reviewers
+check the instrument record as well as test results; absence of a needed tool is
+an explicit limitation/blocker, not evidence that types/tests cover its question.
+This is a review discipline, not a CI claim that tool choice is mechanically proved.
 
 Record AI assistance honestly when relevant. Do not attribute unperformed review,
 experiments, design decisions, or authorship to a human or tool.
