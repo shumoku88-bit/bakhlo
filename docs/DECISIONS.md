@@ -1,0 +1,84 @@
+# Decision register
+
+Status vocabulary:
+
+- REQUIREMENT: explicitly requested by the user; see the charter.
+- PROPOSED: recommended, not yet accepted as an implementation choice.
+- OPEN: alternatives or scope still need a decision.
+- IN PROGRESS: a bounded implementation step is underway; qualification may remain blocked.
+- IMPLEMENTED / TESTED: engineering state with named evidence, not implicit user
+  approval of every detail or a universal guarantee.
+- ACCEPTED: record who/what authorized the choice and its evidence before use.
+- SUPERSEDED: retain the reason and point to the replacement.
+
+A bootstrap document is not approval of every recommendation it contains.
+
+## Requirements
+
+| ID | Requirement | Source |
+| --- | --- | --- |
+| R01 | OCaml implementation for long-term operation | User conversation |
+| R02 | Extensibility, multiple UI forms, third-party maintenance | User conversation |
+| R03 | Use formal methods in design/verification | User conversation |
+| R04 | Portfolio intended for Jane Street-associated reviewers | User conversation |
+| R05 | Repository memory for successor AI assistants | User conversation |
+| R06 | Prepare for deterministic, typed, fast expert UI; no UI implementation/anticipatory dependencies in this phase | User instructions supersede earlier interactive-next-step proposal; no visual imitation or official standard claim |
+| R07 | Continue with idiomatic functional OCaml and explicit effect boundaries, not scattered mutable procedural workflows | User's follow-up quality/style request; no claim of certification or official standards |
+
+## Decision status
+
+Accepted initial scope and dependency rationale:
+[ADR 0001](adr/0001-initial-scope-and-dependencies.md).
+Implemented isolated development baseline:
+[ADR 0002](adr/0002-isolated-development-baseline.md).
+UI-independent application/read-model preparation:
+[ADR 0003](adr/0003-ui-independent-application-boundary.md).
+
+| ID | Status | Question / current recommendation | Evidence or approval needed |
+| --- | --- | --- | --- |
+| D01 | PROPOSED | Independent OCaml product; no Lean in production build/test/release | Confirm charter before implementation; document retained formal artifacts separately |
+| D02 | PROPOSED | Modular monolith; domain independent of adapters | Validate with a small vertical slice and a second consumer |
+| D03 | IMPLEMENTED baseline; matrix OPEN | Local OCaml 5.3.0 / Dune 3.24.2, pinned opam registry/lock | User authorized isolated setup; ADR 0002; tested macOS x86_64, Linux/Apple Silicon unqualified |
+| D04 | ACCEPTED | Runtime Base + Zarith; test-only ppx_expect + Base_quickcheck; one capability reason per library | User approval; ADR 0001; exact baseline builds/tests locally (ADR 0002) |
+| D05 | OPEN | Text or SQLite canonical storage | Write/recovery/backup/migration contracts; whole-system comparison, not benchmark alone |
+| D06 | ACCEPTED (direction) | CLI first, first practical UI TUI; GUI/Web deferred until needed | User approval; ADR 0001; concrete toolkit remains open |
+| D07 | ACCEPTED | Single user, local; no initial public access, multi-user, or sync | User approval; ADR 0001 |
+| D08 | OPEN (dependency constrained) | No Async now; concurrency mechanics selected when needed | User approval of deferral; keep Domain independent |
+| D09 | PROPOSED | Lean as optional reference; selected small formal models | Name each property and correspondence gap; do not maintain duplicate engines indefinitely |
+| D10 | OPEN | Library/wire/storage compatibility policy | Identify real consumers and independently deployed clients before freezing contracts |
+| D11 | ACCEPTED (development policy) | Synthetic data; existing LOAM stays authority; no dual writes | User approval; ADR 0001; actual migration/cutover/rollback still requires separate approval |
+| D12 | OPEN | Name, license, remote hosting, source reuse | User approval and upstream licensing/provenance review before copying or publishing |
+| D13 | PROPOSED | English technical entry docs, honest AI-assistance disclosure | Review for intended audience; do not imply endorsement or invent contributions |
+| D14 | Movement/CLI locally TESTED | Exact Quantity, typed identities/Effects, validated ordinary Movement, pure CLI adapter and executable | User authorized next slice; [contract](MOVEMENT_SLICE.md); 13 domain/CLI expect tests, 20,000 generated cases, process/type cram checks; publication still absent |
+| D15 | ACCEPTED current scope | Preparation only: no TUI/web/dashboard/components, toolkit adoption, OxCaml, or speculative UI state/cache | Latest explicit user instruction; [UI direction](UI_DIRECTION.md); previous workbench/interactive next step superseded |
+| D16 | Locally TESTED | Typed existing Movement application command, abstract semantic preview, separate text projection | ADR 0003; 4 application expect tests, 10,000 replay cases, opaque-preview/client checks, clean engine-only build; CLI goldens preserved, dependency inventory unchanged |
+| D17 | Locally TESTED | Functional-core review; retain strict sequencing and fatal warnings 8/9/11 across profiles | [Review and checks](ENGINEERING_STYLE.md); complete controls and 4 counterexamples per dev/release profile; normal/package tests and install pass; no business behavior/dependency change |
+| D18 | Locally TESTED | Conditional zero-origin quantity projection over supplied Movements; explicit independent support and immutable coordinate index | User authorized continuing engine work; bounded engineering choice, not authority/cutover approval; [contract](BALANCE_SLICE.md); 6 expect tests, 10,000 original-Effect oracle cases, external-client/answer checks; no new external dependencies |
+
+## Recording a decision
+
+For a consequential accepted choice, create a concise ADR under `docs/adr/`
+when needed, using:
+
+```text
+Title / ID
+Status and approval basis
+Problem and requirements
+Alternatives actually considered
+Decision
+Consequences, dependencies, and failure assumptions
+Evidence and acceptance checks
+Revisit trigger
+```
+
+Update this register to link the ADR. Do not pre-create empty ADR files for every
+possible choice. A decision may be revised when new evidence earns a change.
+
+## Stop conditions
+
+- Do not select Async solely because of the intended portfolio audience.
+- Do not select SQLite solely because professional applications often use it.
+- Do not preserve text solely because the old implementation uses it.
+- Do not pin the locally installed compiler as the project support policy.
+- Do not add a Lean/Why3/Alloy/TLA+ toolchain without naming its distinct question.
+- Do not start a public compatibility promise for hypothetical consumers.

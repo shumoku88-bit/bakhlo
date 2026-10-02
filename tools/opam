@@ -1,0 +1,14 @@
+#!/bin/sh
+# Route every package operation to this project's root and local switch.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+if [ ! -x "$root/.tools/opam" ]; then
+    printf '%s\n' 'Local opam is missing; run ./tools/bootstrap first.' >&2
+    exit 1
+fi
+export OPAMROOT="$root/.opam-root"
+export OPAMSWITCH="$root"
+export OPAMNOENVNOTICE=true
+export OPAMNODEPEXTS=true
+unset OCAMLPATH CAML_LD_LIBRARY_PATH OCAML_TOPLEVEL_PATH
+exec "$root/.tools/opam" "$@"

@@ -1,0 +1,4 @@
+(library
+ (name loam_domain)
+ (public_name loam_ocaml.domain)
+ (libraries base zarith))

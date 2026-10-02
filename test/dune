@@ -1,0 +1,26 @@
+; Package-mode builds use the release profile; explicitly keep tests runnable.
+(env
+ (_ (inline_tests enabled)))
+
+(library
+ (name loam_tests)
+ (package loam_ocaml)
+ (libraries loam_domain loam_application loam_presentation loam_cli base zarith base_quickcheck)
+ (inline_tests (flags -verbose))
+ (preprocess (pps ppx_expect)))
+
+(cram
+ (package loam_ocaml)
+ (deps
+  ../dune
+  %{bin:loam-ocaml}
+  ../lib/.loam_domain.objs/byte/loam_domain.cmi
+  ../lib/.loam_domain.objs/byte/loam_domain__Identifier.cmi
+  ../lib/.loam_domain.objs/byte/loam_domain__Quantity.cmi
+  ../lib/.loam_domain.objs/byte/loam_domain__Effect.cmi
+  ../lib/.loam_domain.objs/byte/loam_domain__Movement.cmi
+  ../lib/.loam_domain.objs/byte/loam_domain__Effect_coordinate.cmi
+  ../lib/.loam_domain.objs/byte/loam_domain__Zero_origin_coverage.cmi
+  ../application/.loam_application.objs/byte/loam_application.cmi
+  ../application/.loam_application.objs/byte/loam_application__Movement_check.cmi
+  ../application/.loam_application.objs/byte/loam_application__Zero_origin_projection.cmi))

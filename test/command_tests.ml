@@ -1,0 +1,166 @@
+open Base
+
+module C = Loam_cli.Movement_command
+
+let show arguments =
+  let output = C.render (C.evaluate arguments) in
+  Stdlib.Printf.printf "exit: %d\n" output.exit_code;
+  List.iter [ "stdout", output.stdout; "stderr", output.stderr ] ~f:(fun (name, text) ->
+    if String.is_empty text
+    then Stdlib.Printf.printf "%s: <empty>\n" name
+    else Stdlib.Printf.printf "%s:\n%s" name text)
+;;
+
+let%expect_test "help explicitly excludes recording and display-unit inference" =
+  show [ "--help" ];
+  [%expect {|
+    exit: 0
+    stdout:
+    Usage: loam-ocaml check-movement --effect LOCUS MEASURE QUANTA [--effect ...]
+
+    Validate an ordinary single-Measure movement without recording it.
+    QUANTA is an exact signed decimal integer, not display currency units.
+    No household data is read or written.
+    stderr: <empty> |}]
+;;
+
+let%expect_test "preview preserves split Effects and exact huge quantities" =
+  show
+    [ "check-movement"
+    ; "--effect"; "wallet"; "jpy"; "-18446744073709551616"
+    ; "--effect"; "food"; "jpy"; "+18446744073709551615"
+    ; "--effect"; "food"; "jpy"; "0001"
+    ];
+  [%expect {|
+    exit: 0
+    stdout:
+    Movement structurally valid (not recorded).
+    Measure: "jpy"
+    Effects:
+      1. "wallet": -18446744073709551616 quanta
+      2. "food": +18446744073709551615 quanta
+      3. "food": +1 quanta
+    Positive total: 18446744073709551616 quanta
+    stderr: <empty> |}]
+;;
+
+let%expect_test "syntax failures are not successful empty worlds" =
+  show [];
+  show [ "record" ];
+  show [ "check-movement"; "--effect"; "wallet"; "jpy" ];
+  show [ "check-movement"; "--file"; "/not-read" ];
+  show [ "check-movement"; "--effect"; ""; "jpy"; "1" ];
+  show [ "check-movement"; "--effect"; "wallet"; ""; "1" ];
+  [%expect {|
+    exit: 2
+    stdout: <empty>
+    stderr:
+    error: a command is required.
+    Run 'loam-ocaml --help' for usage.
+    exit: 2
+    stdout: <empty>
+    stderr:
+    error: unknown command "record".
+    Run 'loam-ocaml --help' for usage.
+    exit: 2
+    stdout: <empty>
+    stderr:
+    error: Effect 1: --effect requires LOCUS MEASURE QUANTA.
+    Run 'loam-ocaml --help' for usage.
+    exit: 2
+    stdout: <empty>
+    stderr:
+    error: unexpected argument "--file".
+    Run 'loam-ocaml --help' for usage.
+    exit: 2
+    stdout: <empty>
+    stderr:
+    error: Effect 1: Locus identity must not be empty.
+    Run 'loam-ocaml --help' for usage.
+    exit: 2
+    stdout: <empty>
+    stderr:
+    error: Effect 1: Measure identity must not be empty.
+    Run 'loam-ocaml --help' for usage. |}]
+;;
+
+let%expect_test "decimal grammar refuses coercion instead of using Zarith's wider grammar" =
+  List.iter [ ""; "+"; "-"; "1.0"; "0x10"; "1_000"; " 1"; "1 " ] ~f:(fun text ->
+    let output = C.render (C.evaluate [ "check-movement"; "--effect"; "wallet"; "jpy"; text ]) in
+    if not (Int.equal output.exit_code 2) || not (String.is_empty output.stdout)
+    then failwith "invalid decimal spelling accepted";
+    Stdlib.print_string output.stderr);
+  [%expect {|
+    error: Effect 1: expected a signed decimal integer, got "".
+    Run 'loam-ocaml --help' for usage.
+    error: Effect 1: expected a signed decimal integer, got "+".
+    Run 'loam-ocaml --help' for usage.
+    error: Effect 1: expected a signed decimal integer, got "-".
+    Run 'loam-ocaml --help' for usage.
+    error: Effect 1: expected a signed decimal integer, got "1.0".
+    Run 'loam-ocaml --help' for usage.
+    error: Effect 1: expected a signed decimal integer, got "0x10".
+    Run 'loam-ocaml --help' for usage.
+    error: Effect 1: expected a signed decimal integer, got "1_000".
+    Run 'loam-ocaml --help' for usage.
+    error: Effect 1: expected a signed decimal integer, got " 1".
+    Run 'loam-ocaml --help' for usage.
+    error: Effect 1: expected a signed decimal integer, got "1 ".
+    Run 'loam-ocaml --help' for usage. |}]
+;;
+
+let%expect_test "domain refusal is ordered, exact, and confined to stderr" =
+  show [ "check-movement" ];
+  show
+    [ "check-movement"
+    ; "--effect"; "wallet"; "jpy"; "0"
+    ; "--effect"; "food"; "usd"; "-0"
+    ];
+  show
+    [ "check-movement"
+    ; "--effect"; "wallet"; "jpy"; "-1000"
+    ; "--effect"; "food"; "jpy"; "999"
+    ];
+  [%expect {|
+    exit: 1
+    stdout: <empty>
+    stderr:
+    Movement refused (not recorded).
+      at least one Effect is required.
+    exit: 1
+    stdout: <empty>
+    stderr:
+    Movement refused (not recorded).
+      Effect 1: quantity must be nonzero.
+      Effect 2: quantity must be nonzero.
+      Effect 2: Measure "usd" differs from "jpy".
+    exit: 1
+    stdout: <empty>
+    stderr:
+    Movement refused (not recorded).
+      Measure "jpy": residual -1 quanta; expected 0. |}]
+;;
+
+let%expect_test "opaque input cannot inject terminal controls or extra lines" =
+  show [ "bad\027[31m\ncommand" ];
+  show
+    [ "check-movement"
+    ; "--effect"; "wallet\nfood"; "jpy\027[31m"; "-1"
+    ; "--effect"; "food"; "jpy\027[31m"; "1"
+    ];
+  [%expect {|
+    exit: 2
+    stdout: <empty>
+    stderr:
+    error: unknown command "bad\027[31m\ncommand".
+    Run 'loam-ocaml --help' for usage.
+    exit: 0
+    stdout:
+    Movement structurally valid (not recorded).
+    Measure: "jpy\027[31m"
+    Effects:
+      1. "wallet\nfood": -1 quanta
+      2. "food": +1 quanta
+    Positive total: 1 quanta
+    stderr: <empty> |}]
+;;

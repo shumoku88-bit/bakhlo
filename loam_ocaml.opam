@@ -1,0 +1,23 @@
+opam-version: "2.0"
+version: "0.0.0"
+synopsis: "Development package for the LOAM OCaml domain engine"
+description: """
+Local development metadata for exact household semantics. This package is not
+published, has no selected redistribution license, and carries no stable public
+API promise. Use loam_ocaml.opam.locked for the qualified dependency baseline.
+"""
+maintainer: "LOAM OCaml maintainers"
+depends: [
+  "ocaml" {= "5.3.0"}
+  "dune" {>= "3.17" & < "4.0"}
+  "base" {>= "v0.17" & < "v0.18"}
+  "zarith" {>= "1.14" & < "2.0"}
+  "ppx_expect" {with-test & >= "v0.17" & < "v0.18"}
+  "base_quickcheck" {with-test & >= "v0.17" & < "v0.18"}
+]
+build: [
+  ["dune" "build" "-p" name "-j" jobs "@install"]
+]
+run-test: [
+  ["dune" "runtest" "-p" name "-j" jobs]
+]

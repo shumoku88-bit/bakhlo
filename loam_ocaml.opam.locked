@@ -1,0 +1,63 @@
+opam-version: "2.0"
+name: "loam_ocaml"
+version: "0.0.0"
+synopsis: "Development package for the LOAM OCaml domain engine"
+description: """\
+Local development metadata for exact household semantics. This package is not
+published, has no selected redistribution license, and carries no stable public
+API promise. Use loam_ocaml.opam.locked for the qualified dependency baseline."""
+maintainer: "LOAM OCaml maintainers"
+depends: [
+  "base" {= "v0.17.3"}
+  "base-bigarray" {= "base"}
+  "base-domains" {= "base"}
+  "base-effects" {= "base"}
+  "base-nnp" {= "base"}
+  "base-threads" {= "base"}
+  "base-unix" {= "base"}
+  "base_quickcheck" {= "v0.17.1" & with-test}
+  "conf-gmp" {= "5"}
+  "conf-pkg-config" {= "5"}
+  "csexp" {= "1.5.2"}
+  "dune" {= "3.24.2"}
+  "dune-configurator" {= "3.24.2"}
+  "fieldslib" {= "v0.17.0" & with-test}
+  "jane-street-headers" {= "v0.17.0" & with-test}
+  "jst-config" {= "v0.17.0" & with-test}
+  "ocaml" {= "5.3.0"}
+  "ocaml-base-compiler" {= "5.3.0"}
+  "ocaml-compiler" {= "5.3.0"}
+  "ocaml-compiler-libs" {= "v0.17.0" & with-test}
+  "ocaml-config" {= "3"}
+  "ocaml-options-vanilla" {= "1"}
+  "ocaml_intrinsics_kernel" {= "v0.17.2"}
+  "ocamlfind" {= "1.9.8"}
+  "ppx_assert" {= "v0.17.0" & with-test}
+  "ppx_base" {= "v0.17.0" & with-test}
+  "ppx_bench" {= "v0.17.1" & with-test}
+  "ppx_cold" {= "v0.17.0" & with-test}
+  "ppx_compare" {= "v0.17.0" & with-test}
+  "ppx_derivers" {= "1.2.1" & with-test}
+  "ppx_enumerate" {= "v0.17.0" & with-test}
+  "ppx_expect" {= "v0.17.3" & with-test}
+  "ppx_fields_conv" {= "v0.17.0" & with-test}
+  "ppx_globalize" {= "v0.17.2" & with-test}
+  "ppx_hash" {= "v0.17.0" & with-test}
+  "ppx_here" {= "v0.17.0" & with-test}
+  "ppx_inline_test" {= "v0.17.1" & with-test}
+  "ppx_let" {= "v0.17.1" & with-test}
+  "ppx_optcomp" {= "v0.17.1" & with-test}
+  "ppx_sexp_conv" {= "v0.17.1" & with-test}
+  "ppx_sexp_message" {= "v0.17.0" & with-test}
+  "ppx_sexp_value" {= "v0.17.0" & with-test}
+  "ppxlib" {= "0.38.0" & with-test}
+  "ppxlib_jane" {= "v0.17.4" & with-test}
+  "sexplib0" {= "v0.17.0"}
+  "splittable_random" {= "v0.17.0" & with-test}
+  "stdio" {= "v0.17.0" & with-test}
+  "stdlib-shims" {= "0.3.0" & with-test}
+  "time_now" {= "v0.17.0" & with-test}
+  "zarith" {= "1.14"}
+]
+build: ["dune" "build" "-p" name "-j" jobs "@install"]
+run-test: ["dune" "runtest" "-p" name "-j" jobs]

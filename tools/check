@@ -1,0 +1,7 @@
+#!/bin/sh
+# Product qualification needs OCaml only, not the historical Lean toolchain.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+cd "$root"
+./tools/opam exec -- dune build --root . @all
+./tools/opam exec -- dune runtest --root . --force

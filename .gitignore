@@ -1,0 +1,30 @@
+# OCaml build and local environments
+_build/
+*.install
+_opam/
+.opam-root/
+.tools/
+.direnv/
+
+# Local scratch and editor/OS artifacts
+scratch/
+.DS_Store
+*.swp
+*~
+
+# Secrets and operational data are never repository fixtures.
+.env
+.env.*
+!.env.example
+/private-data/
+/loam-data/
+/backups/
+*.loam
+*.loam-writer-lock
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+
+# Future synthetic persistence fixtures require narrow, reviewed exceptions.

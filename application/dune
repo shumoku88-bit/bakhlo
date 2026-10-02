@@ -1,0 +1,4 @@
+(library
+ (name loam_application)
+ (public_name loam_ocaml.application)
+ (libraries loam_domain base))
