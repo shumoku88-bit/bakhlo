@@ -1,6 +1,6 @@
-# Handoff — one-group conditional quantities; next is multi-group ownership review
+# Handoff — one-source multi-group quantities; next is Actual/support-family review
 
-Updated: 2026-10-02.
+Updated: 2026-10-03.
 
 ## Intent, scope, and current stop point
 
@@ -32,8 +32,11 @@ No second graph authority, source pruning, guessed Event, or implicit rebinding.
 `Current_quantity_projection` now adds one anonymous group's independent exact
 coordinate assertions plus unreflected terminal Effects. It retains source/premises
 and exact assertion/delta/total components, with typed unsupported queries.
-These remain conditional supplied-basis answers, not full multi-group support,
-selected current Actual, chronology, completeness, or publication permission.
+`Current_quantity_groups` now composes multiple anonymous declarations against ONE
+supplied frontier, preserving independent cuts and rejecting shared coordinate
+ownership. Explicit immutable re-observation replaces selected premises only.
+These remain conditional supplied-basis answers, not full admitted support-family
+routing, selected current Actual, chronology, completeness or publication permission.
 
 ## Instrument review and the next trigger
 
@@ -69,28 +72,36 @@ Int laws were checked before product changes, not OCaml/Zarith refinement. All
 match exact decomposition/unsupported answers. Shared private arithmetic preserves
 zero-origin/CLI semantics; no assertion/current support is inferred from activity.
 
-**VR-04 — OPEN; review before multi-group ownership/re-observation code.**
+**VR-04 one-source multi-group ownership/re-observation: COMPLETE within scope.**
+Read `CURRENT_GROUPS_SLICE.md`: contract/tool selection preceded code. Independent
+integer/list model explored 256 ownership/cut cases (144 admitted), 2,304 valid
+updates/replays before product changes. Three optional Lean whole-premise lookup
+laws ran before implementation. Model/code seams and 10,000 generated source-list/
+closure/original-Effect Zarith cases then passed. All groups qualify against ONE
+explicit frontier; different cuts survive. Root/local/global checks have explicit
+order; re-observation qualifies incoming BEFORE removing old assertions. It never
+mixes separately bound projections, chooses a list-order winner or allocates group IDs.
+DRAKON deferral was revisited with explicit procedure/refusal order; topology stays
+one-source/pure. Artifact laws do not formally refine grouping/ownership indexes.
 
-- Question: can independently observed groups keep different reflected cuts while
-  exactly one live group owns each coordinate, over ONE supplied source scope?
-- Prior evidence: `CurrentQuantityAnchor.lean` Evidence global coordinate uniqueness,
-  `withoutCoordinates`/`replacingWithGroup?`, one-group cut/premise retention and
-  source-list quantity oracle. Reuse exact findings; groups are anonymous factoring,
-  not IDs or anchor-history graphs.
-- Required seam: duplicate live coordinate refusal; same-source consistency owner;
-  explicit re-observation of selected coordinates without altering unrelated
-  assertions/cuts. Do not merge cuts into a common timestamp/baseline or select
-  later groups by list position. Existing one-group values alone do not establish
-  cross-group/source compatibility.
-- Select one small contract and instruments before code. Existing row/delta laws
-  do not prove ownership/routing or Actual selection; named model/code mapping and
-  acceptance/revisit triggers are required. No dependency or broad support subsystem.
-- Full Actual admission, zero-origin/opening/exact/known-present-unknown-amount support
-  separation and operational balances remain separate. Independent assertions do
-  not prove zero origin/history completeness; failed loading is never an empty basis.
-- Publication/storage retry, crash and ownership transitions separately reopen
-  TLA+/TLC, SPIN and fault injection. Unrestricted implementation claims require
-  refinement evidence; no automatic installation, UI, migration or scope expansion.
+**VR-05 — OPEN before full Actual/support-family admission code.**
+
+- Question: what qualified supplied source and independent support premises permit
+  Actual-only conditional queries, while separating zero-origin, opening, exact
+  current assertions and known-present/unknown-amount? Do not infer Event kind
+  from Effects or convert a failed/missing loader into an empty source.
+- Prior evidence: correspondence/reference owners (CurrentBalanceReview,
+  BalanceReview, ActualDate and admission), tested one-source groups/cuts and
+  zero-origin arithmetic. Preserve unused Core expressiveness and independent
+  metadata; the current anonymous Event subset is NOT full evidence parity.
+- Required review: inspect exact kind/selection/support owners, decide one bounded
+  contract and its representation/authorization gaps, select instruments and model-
+  code seams BEFORE coding. Source-bound groups alone do not qualify current Actual,
+  completeness, reflection truth or routing across independent support families.
+- No automatically accepted feature/dependency/storage choice follows. Revisit
+  DRAKON for fallback/routing order, D2 for source/authority growth; transition
+  models/fault injection for concrete retry/crash/publication contracts, not an
+  imaginary concurrent workflow. Operational balances require separate qualification.
 
 ## Implemented boundaries
 
@@ -126,15 +137,23 @@ zero-origin/CLI semantics; no assertion/current support is inferred from activit
   unique independent exact assertions; duplicate coordinates refuse. Signed/zero/
   huge exact assertion + matching unreflected terminal Effect sum, with abstract
   components and indexed unknown/answer query. General Events remain neutral.
-  Cut/assertion representation is retained; no multi-group ownership, other support-
-  family routing, implicit now, correction-truth or full Actual claim.
+  Cut/assertion representation is retained; no other support-family routing,
+  implicit now, correction-truth or full Actual claim.
+- `Current_quantity_groups`: raw anonymous root/assertion declarations qualify
+  against one frontier; independent cuts, unique global coordinate owner and
+  positional root/local/global refusal. Indexed group/query delegates to already-
+  qualified one-group answers. Re-observation first qualifies incoming, removes
+  only selected coordinates, preserves unrelated groups/cuts, drops empty residual
+  groups and appends incoming. Old image/source remain immutable; empty declarations
+  are not loader fallback. Not persisted history, retry receipt or support-family
+  admission. External separately-bound models cannot be passed as raw groups.
 - Private `Effect_sum` shares arithmetic with zero-origin, never support authority.
   Explicit public Application exports omit it. Logical module aliases preserve
   clean Dune dependency discovery; external cram includes the generated intermediary
   CMI. Never suppress missing-CMI warnings or rely on stale incremental artifacts.
 
 All production Domain/Application records remain immutable; no business ref,
-assignment, hidden I/O/process/time/randomness. Nine generated-test refs assert
+assignment, hidden I/O/process/time/randomness. Ten generated-test refs assert
 actual case counts; finite model enumeration uses immutable folds. Strict sequence
 and fatal warnings 8/9/11 remain active across dev/release profiles. Do not hide
 semantic growth behind catch-alls/suppressions or invent a State/command bus.
@@ -146,18 +165,21 @@ macOS x86_64; isolated OCaml 5.3.0 / Dune 3.24.2:
 - `./tools/check`, forced package-mode tests, and `dune build @install`: PASSED.
 - Clean Domain/Application native build: PASSED; presentation/CLI native libraries
   and CMIs remained unbuilt. Tests remain private/release-enabled; no outward dependency.
-- **68 expect tests**: Quantity 3, Movement 4, application 4, zero-origin 6,
+- **77 expect tests**: Quantity 3, Movement 4, application 4, zero-origin 6,
   correction endpoints 7, frontier 9, lineage model 2, lineages 9, cut model 1,
-  cuts 8, current quantity 9, CLI 6.
-- **90,000 generated cases**: 10,000 each with `loam-quantity-v1`,
+  cuts 8, current quantity 9, groups model 1, groups 8, CLI 6.
+- **100,000 generated cases**: 10,000 each with `loam-quantity-v1`,
   `loam-movement-v1`, `loam-application-v1`, `loam-zero-origin-v1`,
   `loam-correction-endpoints-v1`, `loam-correction-frontier-v1`,
-  `loam-root-lineage-v1`, `loam-reflected-root-cut-v1`, `loam-current-quantity-v1`;
-  max 10,000 shrink attempts, execution counts asserted.
+  `loam-root-lineage-v1`, `loam-reflected-root-cut-v1`, `loam-current-quantity-v1`,
+  `loam-current-groups-v1`; max 10,000 shrink attempts, execution counts asserted.
 - Frontier three-node enumeration (512 graphs); root model/implementation four-node
   enumeration (65,536 simple graphs, 73 admissible sets), plus 1,168 cut declaration
   cases (304 admissible cuts), selected fresh-tail extensions, and 4,864 one-group
-  graph/cut/assertion-support cases with original-Effect Zarith arithmetic. Bounded.
+  graph/cut/assertion-support cases with original-Effect Zarith arithmetic.
+  Groups add 256 ownership/cut admission cases (144 admitted), 2,304 update/replay
+  seams over one three-Event path/singleton source, two coordinates/two old groups;
+  fixed signed/huge payloads, not exhaustive quantities, graphs or malformed lists.
 - New cases check root versus intermediate/terminal, exact huge/mixed/zero payloads,
   source retention, root versus terminal order, replay/permutation, fresh-tail
   extension and prefix re-rooting, plus 10,000-node chains in both edge orders.
@@ -165,19 +187,22 @@ macOS x86_64; isolated OCaml 5.3.0 / Dune 3.24.2:
   complete controls/counterexamples in dev/release. New lineage getters compile
   without outer CMIs; forged lineage/cut, closed-as-lineage/cut-source and
   cut-as-frontier, forged current group/answer, wrong cut source and private public-
-  namespace aggregate access fail with expected diagnostics. Earlier boundaries remain.
+  namespace aggregate access fail with expected diagnostics. New valid global-image
+  client and forged image/separately-bound-model/cut-as-source refusals pass. Earlier
+  boundaries remain.
 - Optional Lean laws/check: PASSED with fatal warnings and no proof hole/custom
-  axiom. Six laws: commutation/contribution noninterference `[propext]`,
-  empty/composition/assertion translation `[propext, Quot.sound]`, unsupported `[]`;
+  axiom. Nine laws: commutation/contribution noninterference and incoming/unrelated
+  whole-premise laws `[propext]`; empty/composition/assertion translation/lookup
+  idempotence `[propext, Quot.sound]`; unsupported `[]`;
   [pin/reproduction/gaps](../formal/README.md). Missing/
   relative/wrong-version/proof-hole controls refuse with expected status/diagnostic.
   Normal product tests passed with `LEAN` pointing to a nonexistent binary.
 - Dependency/toolchain files unchanged; all 50 installed versions match the lock.
-  Links/anchors/fences in 26 documents, source whitespace (cram blank-output
+  Links/anchors/fences in 27 documents, source whitespace (cram blank-output
   indentation excepted), test inventory, and shell syntax checked.
 
-Six optional selection/quantity specification laws were checked, not graph-to-row
-or OCaml/Zarith refinement. These results do not establish full household admission,
+Nine optional selection/quantity/whole-premise specification laws were checked,
+not graph-to-row, grouping/index or OCaml/Zarith refinement. These results do not establish full household admission,
 whole current-support image/operational quantities, reflection truth, completeness,
 durability/recovery, ergonomics,
 latency/scale, migration, or wider platforms. Unsafe casts are outside interface
@@ -187,13 +212,14 @@ CMI cram paths are internal Dune paths; update deliberately with toolchain chang
 ## Repository and reference state
 
 - User now requests incremental local commits after qualified semantic slices;
-  AGENTS workflow records that policy. Root/cut/one-group quantity work is the
-  first accumulated checkpoint to commit under it. Use live `git log`/status for
-  checkpoint IDs and pending work rather than self-referential commit IDs here.
-- Last confirmed pushed checkpoint is `623316a` (correction engine + D21), private
-  `shumoku88-bit/loam-ocaml`, branch main. Later local commits are not thereby
-  pushed or released. This request specifies commit cadence, not an additional
-  push; report local/remote refs separately and do not claim unperformed pushes.
+  AGENTS workflow records that policy. `8974041` commits root/cut/one-group quantity
+  work. The multi-group slice is the next qualified local checkpoint; use live
+  `git log`/status for its ID/pending work, not a self-referential commit ID here.
+- Live remote `main` was read via `git ls-remote` on 2026-10-03: `8974041`
+  (root/cut/one-group quantity checkpoint) already exists there; private status
+  rechecked via GitHub metadata. This supersedes the older `623316a` observation.
+  The multi-group slice issues no push and remains a LOCAL checkpoint. Commit cadence
+  does not itself authorize another push/release; report local/remote refs separately.
 - Local reference observed `4d7a29a5`; upstream root/frontier/current-anchor files
   inspected are unchanged against earlier `80e50c7c`. No upstream write/build/
   proof run, source-text copy, or private-data access. The new optional local Lean
@@ -209,10 +235,10 @@ CMI cram paths are internal Dune paths; update deliberately with toolchain chang
 
 ## Next bounded work and stops
 
-First VR-04: qualify multi-group coordinate ownership/re-observation and one-source
-consistency without changing unrelated cuts/assertions. Then separately qualify
-Actual/support-family selection before operational balance claims. One-group
-quantities and correction cuts alone do not choose the full support/Actual image.
+First VR-05: review one bounded Actual/support-family admission contract before
+code, separately from the now-qualified one-source groups. Existing conditional
+quantities/cuts/ownership alone do not choose the full support/Actual image or
+justify operational balance claims.
 Do not force general Event evidence through ordinary Movement narrowing or infer
 history/zero origin from activity. Failed/missing loading is never an empty basis.
 

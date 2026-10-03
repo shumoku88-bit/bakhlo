@@ -121,7 +121,9 @@ parent workspace or private data to rediscover already-indexed decisions.
   `docs/CURRENT_QUANTITY_SLICE.md` now qualifies one anonymous assertion group's
   conditional exact quantities and decomposition over that cut. No assertion means
   unsupported, not zero; this is not multi-group ownership or admitted Actual.
-  Before multi-group/re-observation composition, resolve OPEN VR-04 in `docs/HANDOFF.md`.
+  `docs/CURRENT_GROUPS_SLICE.md` qualifies multi-group ownership/re-observation over
+  ONE supplied source, not full Actual/support-family admission. Resolve OPEN VR-05
+  in `docs/HANDOFF.md` before that broader composition.
   Never merge independently observed cuts, infer current support from activity,
   or use the private Effect_sum as a public support API. Its public Application
   namespace is explicitly curated; update exports/CMI specimens with new operations.

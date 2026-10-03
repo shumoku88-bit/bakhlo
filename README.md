@@ -89,6 +89,11 @@ exact coordinate assertions plus unreflected terminal Effects. It retains the cu
 and premises, exposes exact decomposition, and returns `Assertion_unknown` without
 an assertion—even with activity or zero delta. This is one supplied group, not full
 multi-group support or admitted household balances. See [contract](docs/CURRENT_QUANTITY_SLICE.md).
+`application/current_quantity_groups.mli` now composes anonymous groups against ONE
+supplied frontier, preserving their independent cuts and refusing shared live
+coordinate ownership. Explicit immutable re-observation replaces only selected
+assertions/cuts; it is not a list-order winner, history or write. See
+[group contract](docs/CURRENT_GROUPS_SLICE.md). Actual/support-family admission is separate.
 
 From the repository root:
 
@@ -107,17 +112,19 @@ The core uses immutable data and pure functions; process I/O is isolated at
 active in release builds too. See [functional-core review](docs/ENGINEERING_STYLE.md)
 for the actual boundary, test-only counters, and limits of these checks.
 
-On macOS x86_64, build, 68 expect tests, and three cram suites pass. Quantity,
+On macOS x86_64, build, 77 expect tests, and three cram suites pass. Quantity,
 Movement, application replay, zero-origin/current-assertion projections,
-identity/endpoint checks, frontiers, lineages and cuts each execute 10,000 cases.
+identity/endpoint checks, frontiers, lineages, cuts and multi-group ownership each
+execute 10,000 cases (100,000 total across ten seeds).
 Tests enumerate all 512 three-Event graphs, and an independent transitive-closure
 model explores all 65,536 four-Event simple graphs with model/code correspondence.
 Cuts compare all 1,168 relation/declaration subsets of those 73 admitted relations,
 plus selected fresh-tail extensions. 10,000-node chains/cycles complete; these
 bounded checks are not universal proofs. A clean engine-only build does not build
 presentation/CLI. Quantity tests compare 4,864 graph/cut/support cases with direct
-original-Effect arithmetic. Six [optional Lean specification laws](formal/README.md)
-retain root-selection and signed-delta/answerability laws; they are not graph/OCaml
+original-Effect arithmetic. Groups compare 256 ownership/cut cases (144 admitted)
+and 2,304 explicit update/replay cases. Nine [optional Lean specification laws](formal/README.md)
+retain selection, signed-delta/answerability and whole-premise replacement laws; they are not graph/OCaml
 refinement proofs and are not required by product checks.
 Cram suites exercise the real CLI, application-only clients, abstract type
 boundaries, and compiler-policy controls/counterexamples in dev/release. Linux and Apple

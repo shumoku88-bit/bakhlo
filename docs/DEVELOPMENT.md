@@ -91,8 +91,8 @@ transport/storage/API compatibility promise. Update the export list deliberately
 
 ## Optional root-cut laws — not product requirements
 
-Six narrow Lean row-selection and signed-delta/answerability laws now have an
-optional development artifact.
+Nine narrow Lean row-selection, signed-delta/answerability and whole-premise
+replacement laws now have an optional development artifact.
 Normal Dune/opam build, tests and release never invoke it; bootstrap installs no
 Lean. See [statements, pinned version, assumptions and reproduction](../formal/README.md).
 Only if inspecting that artifact, explicitly select an already installed native

@@ -124,6 +124,8 @@ VR-01 root/terminal review and the scoped executable implementation checks are
 complete. At that milestone no Alloy/TLA+/Lean tool was run; this model is an
 OCaml executable finite exploration, not a formal proof. The later cut slice
 separately records optional Lean specification execution; the one-group quantity
-slice resolves VR-03, and VR-04 multi-group review is now OPEN.
+slice resolves VR-03. VR-04 is subsequently resolved within the
+[multi-group ownership contract](CURRENT_GROUPS_SLICE.md); VR-05 is OPEN before
+full Actual/support-family composition.
 No current quantity, root cut, observed anchor, historical proof, latency/scale,
 platform extension, or operational authority follows from these results.

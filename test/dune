@@ -31,4 +31,5 @@
   ../application/.loam_application.objs/byte/loam_application__Correction_frontier.cmi
   ../application/.loam_application.objs/byte/loam_application__Reflected_root_cut.cmi
   ../application/.loam_application.objs/byte/loam_application__Current_quantity_projection.cmi
+  ../application/.loam_application.objs/byte/loam_application__Current_quantity_groups.cmi
   ../application/.loam_application.objs/byte/loam_application__Zero_origin_projection.cmi))

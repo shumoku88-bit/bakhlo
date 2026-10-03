@@ -70,7 +70,10 @@ representational sufficiency, and implemented OCaml operations.
   The later OCaml frontier slice checks the whole supplied relation under a
   disjoint-path policy, not full Actual admission. Later OCaml lineages/cuts preserve
   root selection and guarded declarations. The new [one-group quantity slice](CURRENT_QUANTITY_SLICE.md)
-  composes exact assertions with those cuts, not full multi-group/Actual support.
+  composes exact assertions with those cuts. The [multi-group slice](CURRENT_GROUPS_SLICE.md)
+  preserves independent cuts and qualifies ownership/re-observation over one supplied
+  frontier; full Actual/support-family admission remains separate. Upstream Evidence
+  uniqueness/withoutCoordinates/replacingWithGroup? were narrowly inspected, not copied.
 - The [optional root-cut/quantity specification](../formal/README.md) is independently
   authored and checked locally, not an upstream import/revalidation or OCaml proof.
 - Existing results have not been rerun for this documentation bootstrap.

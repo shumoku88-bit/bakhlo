@@ -306,3 +306,51 @@ The shared aggregate is not a public support/balance API.
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c private_sum_is_not_support.ml 2>error
   [2]
   $ grep -q 'Unbound module.*Effect_sum' error
+
+Multiple anonymous groups bind to one frontier, with explicit re-observation.
+
+  $ cat >current_groups_client.ml <<'EOF'
+  > module A = Loam_application
+  > module H = A.Current_quantity_groups
+  > let inspect frontier assertions coordinate =
+  >   let observation : H.group = { reflected_roots = []; assertions } in
+  >   match H.create ~frontier ~groups:[ observation ] with
+  >   | Error error -> Error error
+  >   | Ok image ->
+  >     Ok (H.source_frontier image, H.groups image, H.group_for image coordinate,
+  >         H.query image coordinate, H.reobserve image observation)
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c current_groups_client.ml
+
+A global ownership image cannot be forged by ordinary well-typed code.
+
+  $ cat >forged_group_image.ml <<'EOF'
+  > module A = Loam_application
+  > let forge (frontier : A.Correction_frontier.t) : A.Current_quantity_groups.t =
+  >   { frontier; qualified_groups = []; owners = Base.Map.empty (module Loam_domain.Effect_coordinate) }
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_group_image.ml 2>error
+  [2]
+  $ grep -q 'Unbound record field "frontier"\|Unbound record field frontier' error
+
+Separately source-bound projections cannot be combined as raw group declarations.
+
+  $ cat >separately_bound_group.ml <<'EOF'
+  > module A = Loam_application
+  > let mix frontier (projection : A.Current_quantity_projection.t) =
+  >   A.Current_quantity_groups.create ~frontier ~groups:[ projection ]
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c separately_bound_group.ml 2>error
+  [2]
+  $ grep -q 'Current_quantity_projection.t' error && grep -q 'Current_quantity_groups.group' error
+
+A cut is not the common source frontier.
+
+  $ cat >cut_is_not_group_source.ml <<'EOF'
+  > module A = Loam_application
+  > let mix (cut : A.Reflected_root_cut.t) =
+  >   A.Current_quantity_groups.create ~frontier:cut ~groups:[]
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c cut_is_not_group_source.ml 2>error
+  [2]
+  $ grep -q 'Reflected_root_cut.t' error && grep -q 'Correction_frontier.t' error

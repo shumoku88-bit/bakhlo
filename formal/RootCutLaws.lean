@@ -97,6 +97,39 @@ theorem reflected_contribution_noninterference
           simp [quantityDelta, updateTerminals, h, tailEqual, headEqual]
       | true => simp [quantityDelta, updateTerminals, h, tailEqual]
 
+variable {Coordinate Premise : Type}
+
+/-- Lookup-level explicit re-observation. Premise includes BOTH original assertion
+    and its reflected cut; it is not only a numerical result or stable group ID. -/
+def reobserved (old incoming : Coordinate → Option Premise) (coordinate : Coordinate) :
+    Option Premise :=
+  match incoming coordinate with
+  | none => old coordinate
+  | some premise => some premise
+
+/-- A deliberately supplied new observation wins only at its named coordinate. -/
+theorem incoming_premise_wins
+    (old incoming : Coordinate → Option Premise) (coordinate : Coordinate) (premise : Premise)
+    (observed : incoming coordinate = some premise) :
+    reobserved old incoming coordinate = some premise := by
+  simp [reobserved, observed]
+
+/-- Unrelated assertion AND cut survive, not merely the same computed amount. -/
+theorem unrelated_premise_preserved
+    (old incoming : Coordinate → Option Premise) (coordinate : Coordinate)
+    (unobserved : incoming coordinate = none) :
+    reobserved old incoming coordinate = old coordinate := by
+  simp [reobserved, unobserved]
+
+/-- Re-observing the same premises twice is lookup-idempotent, not publisher retry. -/
+theorem reobservation_lookup_idempotent (old incoming : Coordinate → Option Premise) :
+    reobserved (reobserved old incoming) incoming = reobserved old incoming := by
+  funext coordinate
+  cases h : incoming coordinate <;> simp [reobserved, h]
+
+#print axioms incoming_premise_wins
+#print axioms unrelated_premise_preserved
+#print axioms reobservation_lookup_idempotent
 #print axioms absent_assertion_stays_unsupported
 #print axioms assertion_translation
 #print axioms reflected_contribution_noninterference

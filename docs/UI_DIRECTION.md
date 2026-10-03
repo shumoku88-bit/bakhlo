@@ -70,6 +70,10 @@ see [contract](ROOT_CUT_SLICE.md).
 assertions plus unreflected terminal Effects, with typed unsupported coordinates
 and exact components. It is not full Actual/multi-group support or a UI adapter;
 see [contract](CURRENT_QUANTITY_SLICE.md).
+`Current_quantity_groups` now preserves independent anonymous groups' cuts while
+qualifying exclusive coordinate ownership on one supplied source. Explicit immutable
+re-observation changes only selected premises; full Actual/support-family admission
+and any UI remain separate. See [contract](CURRENT_GROUPS_SLICE.md).
 
 `Movement_text` is a pure projection for the existing CLI. Other clients can
 choose their own representation from typed values. They do not parse CLI text,

@@ -1,7 +1,8 @@
 # Preserve earned Core expressiveness — correspondence and proposed sequence
 
 Status: initial correspondence map. User accepted root, cut and one-group quantity
-slices, now locally tested; later implementation sequence remains PROPOSED, not a feature-
+slices, now locally tested, followed by bounded multi-group ownership/re-observation;
+later implementation sequence remains PROPOSED, not a feature-
 parity certificate or approval to implement all referenced capabilities.
 
 ## Starting point
@@ -34,11 +35,13 @@ ordinary Movements or add familiar product nouns simply to emulate another app.
   VR-01 was OPEN. The later [lineage contract](ROOT_LINEAGE_SLICE.md) records its
   pre-implementation selection and bounded results. The later [cut contract](ROOT_CUT_SLICE.md)
   resolves VR-02 with bounded seams/optional selection laws. The [one-group quantity
-  contract](CURRENT_QUANTITY_SLICE.md) resolves VR-03; VR-04 multi-group review is OPEN.
+  contract](CURRENT_QUANTITY_SLICE.md) resolves VR-03. The [multi-group contract](CURRENT_GROUPS_SLICE.md)
+  resolves VR-04 within its one-source ownership/re-observation scope; VR-05 is OPEN
+  before full Actual/support-family admission.
 - Use: source/evidence inspection and this small correspondence table. No separate
   DRAKON/D2 view adds a distinct answer to the present linear planning question.
   No new formal run, dependency, benchmark, or implementation is selected here.
-- Revisit: VR-04 before multi-group ownership/re-observation; transition/failure review before publishing;
+- Revisit: VR-05 before Actual/support-family composition; transition/failure review before publishing;
   performance instruments only for a named workload. Formal results must state
   model-to-code mapping/gaps rather than borrowing upstream guarantees.
 
@@ -53,7 +56,7 @@ when a real question selects it; preserve already-earned distinctions meanwhile.
 | Exact quantities, explicit Measure, narrower ordinary Movement | `Loam/Core/Quantity.lean`, `Loam/Core/BalancedMovement.lean`, `Loam/Application/PracticalMovement.lean` | Quantity/Effect/Movement contracts and tests; structural validation is not world admission |
 | Event observation versus Movement; identity only where independently referenced | `Loam/Core/Event.lean` | Event/identity-unique memory implemented for anonymous Effects; stable Effect keys and their within-Event uniqueness are NOT represented. Never drop referenced keys to fit this subset |
 | Order-free correction frontier and stable root lineage | `Loam/Application/CorrectionFrontierSemantics.lean`, `CorrectionFrontierIndexed.lean` | Conditional frontier/lineages and source-bound reflected-root exclusion implemented and bounded-tested; optional general row-selection laws are not graph/OCaml refinement; quantity uses retained cuts |
-| Unknown versus zero; current support distinct from historical origin | `Loam/Core/ZeroOriginCoverage.lean`, `Loam/Review/CurrentBalanceReview.lean`, `Loam/Application/CurrentQuantityAnchor.lean` | Conditional zero-origin arithmetic and one anonymous exact-assertion group over a checked cut implemented; multi-group ownership, support-family routing and full Actual selection unimplemented. No timestamp shortcut, history-completeness or broad current-support claim |
+| Unknown versus zero; current support distinct from historical origin | `Loam/Core/ZeroOriginCoverage.lean`, `Loam/Review/CurrentBalanceReview.lean`, `Loam/Application/CurrentQuantityAnchor.lean` | Conditional zero-origin arithmetic, exact-assertion groups and explicit ownership/re-observation over one supplied frontier implemented; independent cuts preserved. Support-family routing and full Actual selection unimplemented. No timestamp shortcut, history-completeness or broad current-support claim |
 | Admission versus preview; publication observes current evidence under ownership | `Loam/Application/MovementAdmission.lean`, `Loam/Publisher/MovementPublisher.lean` | Validation-only application/CLI. Actual admission, identity allocation, retry, storage/recovery/receipts require separate contracts |
 | Wider expressiveness, independent evidence, intentional research-only capabilities | `docs/SEMANTIC_BLUEPRINT.md`, `docs/EVIDENCE_ATLAS.md`, `docs/research/falsification/LOAM_FALSIFICATION_PROGRESS.md` and its exact observation/PR links | Use as design/evidence map, not a backlog. Select exact representative witnesses/owners before adding routing, Scheduled, relation, recognition, valuation, or temporal capabilities |
 
@@ -99,18 +102,18 @@ The cut/model/code witness now passes; a generic Lean specification proves
 terminal-only changes commute with root selection. It does not establish arbitrary
 graph-edit stability, OCaml refinement, reflection truth, or current quantity.
 
-### 3. One-group conditional quantity locally tested; next is ownership/consistency
+### 3. Conditional quantities and one-source multi-group ownership locally tested
 
 VR-03 now qualifies one anonymous group's exact current assertions plus matching
 unreflected terminal Effects. It retains one immutable source cut and original
 premises; queries expose exact components or typed unsupported. See
 [one-group contract](CURRENT_QUANTITY_SLICE.md) for bounded seams and optional laws.
-Before multi-group ownership/re-observation code, resolve OPEN VR-04: preserve
-independent cuts, unique live coordinate ownership, unrelated assertions and one
-source-consistency owner. Do not coerce general Events into ordinary Movements
-or manufacture dates/completeness to reuse the current Movement-only projection.
-Full selected-current-Actual admission is a separate condition before operational
-balance claims; an anchor group is evidence factoring, not invented identity.
+VR-04 now qualifies [multi-group ownership/re-observation](CURRENT_GROUPS_SLICE.md):
+independent cuts, unique live coordinate owners, unrelated-premise retention and ONE
+supplied source-consistency owner. Groups remain anonymous evidence factoring.
+Resolve OPEN VR-05 before full Actual/support-family composition or operational
+balance claims. Do not coerce general Events into ordinary Movements, infer kind
+from Effects, or manufacture dates/completeness to reuse a narrower projection.
 
 ### 4. Earn operational reliability without expanding ontology
 

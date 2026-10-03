@@ -1,13 +1,15 @@
 # Verification and assurance strategy
 
 Status: PROPOSED overall strategy. Domain/application and CLI build/tests pass
-locally: 68 expect tests, 10,000 generated cases each for Quantity, Movement,
+locally: 77 expect tests, 10,000 generated cases each for Quantity, Movement,
 application replay, zero-origin/current-assertion projections, Event identity/endpoint
-closure, frontier, root lineages and reflected-root cuts, plus three cram suites.
+closure, frontier, root lineages, reflected-root cuts and multi-group ownership,
+plus three cram suites (100,000 actual generated cases across ten seeds).
 Seeds: `loam-quantity-v1`, `loam-movement-v1`, `loam-application-v1`,
 `loam-zero-origin-v1`, `loam-correction-endpoints-v1`, `loam-correction-frontier-v1`,
-`loam-root-lineage-v1`, `loam-reflected-root-cut-v1`, `loam-current-quantity-v1`.
-Six optional Lean specification laws have been checked; no formal graph-to-row
+`loam-root-lineage-v1`, `loam-reflected-root-cut-v1`, `loam-current-quantity-v1`,
+`loam-current-groups-v1`.
+Nine optional Lean specification laws have been checked; no formal graph-to-row
 or OCaml refinement proof. Platform coverage remains macOS x86_64.
 
 ## Evidence hierarchy is not a single ladder
@@ -88,8 +90,9 @@ covered or passed. Selected/planned is not run. Existing unperformed work must
 not be retroactively labeled reviewed/proved. Unrelated tools need no boilerplate
 entry; meaningful deferrals must explain **why now** and **when to reconsider**.
 
-VR-01–VR-03 root/terminal, cut and one-group quantity reviews are complete within
-slice scopes. Before multi-group ownership/re-observation, resolve VR-04 OPEN in `HANDOFF.md`.
+VR-01–VR-04 root/terminal, cut, one-group quantity and multi-group ownership reviews
+are complete within slice scopes. Before full Actual/support-family composition,
+resolve VR-05 OPEN in `HANDOFF.md`.
 Before storage/publication, revisit transition/failure instruments separately.
 No indefinite blanket "later" decision.
 
@@ -171,6 +174,14 @@ Do not import a broad theorem into an unrelated operation by name alone.
   translations, replay/permutation and reflected/unreflected fresh-tail seams. The
   private arithmetic extraction preserves earlier zero-origin/CLI evidence.
   See [one-group scope and qualification](CURRENT_QUANTITY_SLICE.md).
+- `current_groups_model_tests.ml` ran BEFORE product code: 256 ownership/cut cases
+  (144 admitted), 2,304 updates/replays preserve whole assertion/cut premises.
+  `current_groups_tests.ml` compares all those seams plus ordered root/local/global
+  refusals, one-source rebinding, empty-group semantics, old-image retention and
+  10,000 generated list/closure/original-Effect Zarith cases. Three optional Lean
+  functional lookup laws were checked before code: incoming whole premise wins,
+  unrelated premise survives, and lookup-idempotence. Not group/index/OCaml
+  refinement or operational retry; see [contract](CURRENT_GROUPS_SLICE.md).
 - `command_tests.ml` preserves existing golden output while the CLI becomes an
   application client; it checks exact previews, syntax/refusal separation, stream
   choice, and escaped opaque input.
@@ -178,7 +189,8 @@ Do not import a broad theorem into an unrelated operation by name alone.
 - `type_boundaries.t` compiles valid domain and application-only clients, then
   checks role mixups (Measure/Locus/Event), forged Movement/preview/conditional
   quantity, inconsistent Event memory, forged closed endpoint/frontier answers,
-  forged lineage/cut/current group/answer, wrong source values and public access
+  forged lineage/cut/current group/answer/global image, separately-bound group
+  composition, wrong source values and public access
   to the private aggregate. The curated Application root exports only public
   operations; specimens supply its generated intermediary CMI. It
   checks diagnostic content as well as failure status to avoid accepting unrelated

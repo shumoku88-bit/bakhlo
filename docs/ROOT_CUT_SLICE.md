@@ -168,7 +168,8 @@ No runtime/test dependency, lock, storage/UI adapter, or upstream source change.
 
 VR-02 is complete within these stated scopes. VR-03 was OPEN at this milestone;
 [the one-group quantity contract](CURRENT_QUANTITY_SLICE.md) subsequently qualifies
-independent exact assertions plus unreflected deltas. VR-04 multi-group review is
-now OPEN. A successful empty cut/mathematical zero sum alone still supplies no
+independent exact assertions plus unreflected deltas. VR-04 is subsequently resolved
+within the [multi-group contract](CURRENT_GROUPS_SLICE.md); VR-05 Actual/support-
+family composition is OPEN. A successful empty cut/mathematical zero sum alone still supplies no
 origin/current assertion. No OCaml refinement, unrestricted graph law, operational
 balance, wider platform or measured latency claim follows.

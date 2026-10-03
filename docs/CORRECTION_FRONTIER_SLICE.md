@@ -111,7 +111,8 @@ not a claim that the new gate existed before this slice was implemented.
   root/lineage work (VR-01 subsequently completed in `ROOT_LINEAGE_SLICE.md`),
   then root exclusion (VR-02 subsequently resolved in `ROOT_CUT_SLICE.md` with
   scoped selection laws). VR-03 quantity review is subsequently resolved in
-  `CURRENT_QUANTITY_SLICE.md`; VR-04 multi-group review is OPEN. No indefinite deferral.
+  `CURRENT_QUANTITY_SLICE.md`; VR-04 is subsequently resolved in `CURRENT_GROUPS_SLICE.md`.
+  VR-05 Actual/support-family review is OPEN. No indefinite deferral.
 - Transition models not applicable yet: no retry, writer, clock, concurrency, or
   recovery transition exists here. Defining those operations reopens selection.
 - Production reachability audit/latency benchmark deferred: clean engine-only

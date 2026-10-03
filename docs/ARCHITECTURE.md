@@ -125,6 +125,15 @@ Unasserted coordinates stay unsupported even with activity or zero delta. Privat
 no group ID, source mutation, implicit time or full Actual/multi-group admission.
 See `CURRENT_QUANTITY_SLICE.md` before quantity composition.
 
+`Current_quantity_groups.create` now qualifies multiple anonymous declarations
+against ONE explicit frontier. Each group's cut stays independent; the ownership
+index refuses overlapping live coordinates instead of choosing list-order winners.
+`reobserve` qualifies incoming premises before reducing old assertions, keeps every
+unrelated cut/assertion, drops empty residual groups and appends incoming. Old
+images and source facts remain immutable; this is neither canonical assertion
+history nor a publication workflow. Lookups reuse qualified one-group answers.
+See `CURRENT_GROUPS_SLICE.md`; full Actual/support-family admission remains separate.
+
 For future admitted queries, use question-specific boundaries (Actual, balance,
 Scheduled, etc.). Those full reports/histories are not implemented in OCaml yet.
 Shared read answers are presentation-neutral, but do not require a universal

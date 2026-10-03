@@ -144,7 +144,7 @@ replay/permutation, translation and reflected/unreflected fresh terminal updates
 Unknown with activity/net-zero/all-reflected input, signed/huge cancellation,
 exact-token keys, shared-cut coordinates and original source/assertion order pass.
 
-Complete normal/package/install checks pass: **68 expect tests**, **90,000 generated
+At this VR-03 milestone, complete normal/package/install checks pass: **68 expect tests**, **90,000 generated
 cases** over nine seeds, **three cram suites**. Clean engine-only build leaves
 presentation/CLI native libraries/CMIs unbuilt. Ordinary checks also passed with
 `LEAN` pointing to a nonexistent binary. Existing zero-origin cases and CLI goldens
@@ -153,16 +153,17 @@ are unchanged after arithmetic extraction; no package/lock/product-tooling chang
 Valid public client compiles; forged group/answer, wrong cut source and access to
 `Loam_application.Effect_sum` refuse with expected diagnostics. Dune private-module
 marking alone leaves an alias in the generated root namespace; explicit
-`loam_application.ml/.mli` now export only the six public operations. Public CMI
+At this milestone `loam_application.ml/.mli` export only the six public operations
+(the later multi-group slice adds one deliberate public export). Public CMI
 specimens include Dune's intermediary wrapper CMI. Direct internal-unit aliases
 were rejected by the clean-build check and replaced by normal logical aliases:
 no missing-CMI warning suppression or incremental-build-only assumption. Internal
 unit names/CMI layouts are still Dune integration details, not a compatibility or
 security boundary against deliberate access to implementation files/unsafe casts.
 
-VR-03 is complete within the one-group supplied-basis scope. **VR-04 — OPEN before
-multi-group ownership/re-observation:** require one source-consistency owner,
-explicit duplicate live coordinate refusal and independent cuts for unrelated
-observations. Full Actual/family composition remains separate before operational
-balance claims. Preserve earned expressiveness without presenting this one-group
-subset as the complete current-support family.
+VR-03 is complete within the one-group supplied-basis scope. VR-04 was OPEN at
+this milestone; the later [multi-group contract](CURRENT_GROUPS_SLICE.md) qualifies
+one source-consistency owner, duplicate live coordinate refusal and independent
+cuts/re-observation for unrelated premises. VR-05 full Actual/family composition
+remains OPEN before operational balance claims. Preserve earned expressiveness
+without presenting either slice as the complete admitted current-support family.

@@ -1,4 +1,4 @@
-# Optional root-cut and conditional quantity specification experiment
+# Optional cut, quantity and group-ownership specification experiment
 
 This is development evidence, **not a product build/test/release dependency**.
 No upstream source is imported, no Lake project or OCaml binding is involved,
@@ -20,6 +20,17 @@ The later one-group quantity slice adds three general signed-Int laws:
 - `assertion_translation`: translating an exact assertion translates the answer equally;
 - `reflected_contribution_noninterference`: changed reflected terminal contributions
   cannot change the delta, with roots fixed and unreflected contributions equal.
+
+The multi-group slice adds three lookup-level whole-premise ownership laws:
+
+- `incoming_premise_wins`: a supplied replacement wins at its explicit coordinate;
+- `unrelated_premise_preserved`: absent incoming support leaves the ENTIRE old premise
+  unchanged (assertion and cut, not merely amount);
+- `reobservation_lookup_idempotent`: repeating the same replacement preserves lookups.
+
+Premise is an arbitrary type; instantiate with assertion/cut pairs. These laws do
+not prove group-list representation, admission, source truth or ownership indexes,
+and lookup idempotence is not durable publisher retry behavior.
 
 This retains selection and answerability laws behind fresh-tail correction stability.
 It does **not** prove that arbitrary graph edits preserve roots, that supplied rows
@@ -46,7 +57,8 @@ anything or change global toolchain configuration. Requalify version upgrades.
 
 Observed successful axiom inventory: commutation and contribution noninterference
 `[propext]`; empty-cut, composition and assertion translation
-`[propext, Quot.sound]`; absent assertion `[]`. No `sorryAx` or custom axiom. The Lean kernel,
+`[propext, Quot.sound]`; absent assertion `[]`. New incoming/unrelated-premise laws
+use `[propext]`; lookup idempotence `[propext, Quot.sound]`. No `sorryAx` or custom axiom. The Lean kernel,
 compiler/elaborator, and standard-library implementation are trusted here; these
 are not axiom-free proofs or proof-checker-independence evidence.
 
@@ -69,6 +81,10 @@ original-Effect/independent cut oracles check separate executable seams.
 
 See [cut contract](../docs/ROOT_CUT_SLICE.md) and
 [quantity contract](../docs/CURRENT_QUANTITY_SLICE.md) for admission
-policy, bounded model/code tests, and actual qualification. Revisit if filtering
+policy, bounded model/code tests, and actual qualification. The
+[group contract](../docs/CURRENT_GROUPS_SLICE.md) maps functional ownership to
+anonymous group premises over one explicitly supplied frontier. That extra grouping,
+indexing, ordered qualification and reduction are only executable/model-tested,
+not formally refined by these three lookup laws. Revisit if ownership/update or filtering
 policy, root identity, output order, terminal transformation, or proof assumptions
 change. Keep this artifact outside ordinary Dune/opam requirements.

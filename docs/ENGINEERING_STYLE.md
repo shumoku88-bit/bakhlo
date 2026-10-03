@@ -102,6 +102,12 @@ with zero-origin arithmetic, never with its support meaning. Public namespace
 exports are curated; logical aliases/explicit intermediary-CMI test dependencies
 preserve clean builds without missing-CMI warning suppression. No query-time
 recalculation or full Actual/current support-image claim is introduced.
+The [multi-group slice](CURRENT_GROUPS_SLICE.md) qualifies all groups against one
+supplied source. Ordered cut/local/global scans precede image construction;
+re-observation qualifies incoming before any reduction. Unrelated projections are
+reused; partial reductions keep their original cut. Immutable maps/sets are
+mechanical ownership/query aids, never list-order evidence priority, hidden state
+or durable assertion history. This is not full Actual/support-family admission.
 
 Next functional capability still needs one real household question, minimal
 qualified evidence, explicit inputs (including date coordinates when meaningful),
