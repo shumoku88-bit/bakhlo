@@ -25,6 +25,13 @@ let admitted events corrections =
   | Ok value -> value
   | Error _ -> failwith "valid fixture refused"
 ;;
+let actual_source events corrections =
+  let validities = List.map events ~f:(fun event ->
+    ({ event = D.Event.id event; valid_on = "2026-10-03" } : Loam_application.Actual_validity.fact)) in
+  match Loam_application.Actual_source.create { events; validities; corrections } with
+  | Ok source -> source
+  | Error _ -> failwith "invalid ordinary Actual fixture"
+;;
 let equal_effect left right =
   D.Identifier.Locus.equal (D.Effect.locus left) (D.Effect.locus right)
   && D.Identifier.Measure.equal (D.Effect.measure left) (D.Effect.measure right)

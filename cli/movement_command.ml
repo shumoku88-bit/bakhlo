@@ -30,12 +30,6 @@ type outcome =
   | Validated of Check.preview
   | Refused of refusal
 
-type output =
-  { exit_code : int
-  ; stdout : string
-  ; stderr : string
-  }
-
 let parse_quantity ~position text =
   let digits =
     if String.is_empty text
@@ -106,7 +100,7 @@ let describe_syntax_error = function
     Stdlib.Printf.sprintf "Effect %d: expected a signed decimal integer, got %S." position text
 ;;
 
-let render = function
+let render outcome : Response.t = match outcome with
   | Help -> { exit_code = 0; stdout = usage; stderr = "" }
   | Validated preview -> { exit_code = 0; stdout = Text.preview preview; stderr = "" }
   | Refused (Movement errors) ->

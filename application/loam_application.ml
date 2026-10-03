@@ -1,4 +1,3 @@
-module Actual_quantity_preview = Actual_quantity_preview
 module Actual_source = Actual_source
 module Actual_validity = Actual_validity
 module Correction_check = Correction_check
@@ -8,4 +7,3 @@ module Current_quantity_projection = Current_quantity_projection
 module Current_quantity_query = Current_quantity_query
 module Movement_check = Movement_check
 module Reflected_root_cut = Reflected_root_cut
-module Zero_origin_projection = Zero_origin_projection

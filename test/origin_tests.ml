@@ -3,7 +3,7 @@ open Base
 module D = Loam_domain
 module C = D.Effect_coordinate
 module Coverage = D.Zero_origin_coverage
-module P = Loam_application.Zero_origin_projection
+module P = Loam_application.Current_quantity_query
 module Q = D.Quantity
 
 let require = Fixtures.require
@@ -24,17 +24,26 @@ let coverage coordinates =
   | Error (Duplicate_coordinate _) -> failwith "duplicate fixture coverage"
 ;;
 
+let project ~movements ~zero_origins =
+  let events = List.mapi movements ~f:(fun index movement ->
+    D.Event.create ~id:(Fixtures.id (Int.to_string index)) ~effects:(D.Movement.effects movement)) in
+  let source = Fixtures.actual_source events [] in
+  match P.create ~source ~zero_origins ~groups:[] with
+  | Ok image -> image
+  | Error _ -> failwith "invalid origin fixture"
+;;
+
 let exact model coordinate =
   match P.query model coordinate with
   | Ok answer ->
     require (same_coordinate (P.coordinate answer) coordinate) "answer coordinate";
     Q.quanta (P.quantity answer)
-  | Error (Origin_unknown _) -> failwith "supported fixture unavailable"
+  | Error (Support_unknown _) -> failwith "supported fixture unavailable"
 ;;
 
 let unknown model coordinate =
   match P.query model coordinate with
-  | Error (Origin_unknown { coordinate = actual }) ->
+  | Error (Support_unknown { coordinate = actual }) ->
     require (same_coordinate actual coordinate) "unknown coordinate"
   | Ok _ -> failwith "unknown origin became an exact answer"
 ;;
@@ -81,15 +90,15 @@ let%expect_test "independent origin evidence rejects the first repeated coordina
 
 let%expect_test "unknown origin differs from covered zero even when activity exists" =
   let wallet = coordinate "wallet" in
-  let empty = P.create ~movements:[] ~coverage:Coverage.empty in
+  let empty = project ~movements:[] ~zero_origins:[] in
   unknown empty wallet;
-  let supported = P.create ~movements:[] ~coverage:(coverage [ wallet ]) in
+  let supported = project ~movements:[] ~zero_origins:[ wallet ] in
   print_quantity "covered-empty-basis" supported wallet;
   let activity = movement [ change wallet (Z.of_int (-10)); change (coordinate "food") (Z.of_int 10) ] in
-  let unsupported = P.create ~movements:[ activity ] ~coverage:Coverage.empty in
+  let unsupported = project ~movements:[ activity ] ~zero_origins:[] in
   unknown unsupported wallet;
   let cancelled = movement [ change wallet Z.minus_one; change wallet Z.one ] in
-  let net_zero = P.create ~movements:[ cancelled ] ~coverage:Coverage.empty in
+  let net_zero = project ~movements:[ cancelled ] ~zero_origins:[] in
   unknown net_zero wallet;
   Stdlib.Printf.printf "empty, active, and net-zero unsupported origins remain unknown\n";
   [%expect {|
@@ -105,7 +114,7 @@ let%expect_test "quantities are coordinate-local across Measures and negative re
     ; movement [ change usd (Z.of_int 5); change (coordinate ~unit:"usd" "merchant") (Z.of_int (-5)) ]
     ]
   in
-  let model = P.create ~movements ~coverage:(coverage [ wallet; usd; coordinate "untouched" ]) in
+  let model = project ~movements ~zero_origins:[ wallet; usd; coordinate "untouched" ] in
   print_quantity "wallet-jpy" model wallet;
   print_quantity "wallet-usd" model usd;
   print_quantity "untouched-jpy" model (coordinate "untouched");
@@ -124,11 +133,11 @@ let%expect_test "projection counts represented multiplicity without changing sou
   let same_locus = movement [ change wallet Z.minus_one; change wallet Z.one ] in
   let source_before = D.Movement.effects split in
   let movements = [ split; split; same_locus ] in
-  let model = P.create ~movements ~coverage:(coverage [ wallet; food ]) in
+  let model = project ~movements ~zero_origins:[ wallet; food ] in
   let first = exact model food in
   require (Z.equal first (exact model food)) "repeat query";
   require
-    (Z.equal first (exact (P.create ~movements:(List.rev movements) ~coverage:(coverage [ food; wallet ])) food))
+    (Z.equal first (exact (project ~movements:(List.rev movements) ~zero_origins:[ food; wallet ]) food))
     "construction order";
   let same_change left right =
     D.Identifier.Locus.equal (D.Effect.locus left) (D.Effect.locus right)
@@ -158,8 +167,8 @@ let%expect_test "generated indexed projection agrees with original-Effect Zarith
     List.concat_map [ "wallet0"; "wallet1"; "wallet2"; "food0"; "food1"; "food2"; "untouched" ]
       ~f:(fun place -> [ coordinate place; coordinate ~unit:"usd" place ])
   in
-  let complete = coverage coordinates in
-  let partial = coverage (List.filteri coordinates ~f:(fun index _ -> index % 2 = 0)) in
+  let complete = coordinates in
+  let partial = List.filteri coordinates ~f:(fun index _ -> index % 2 = 0) in
   let scale = Z.shift_left Z.one 128 in
   let check source =
     let batches =
@@ -173,14 +182,14 @@ let%expect_test "generated indexed projection agrees with original-Effect Zarith
         let half = Z.neg (Z.divexact z (Z.of_int 2)) in
         [ change wallet z; change destination half; change destination half ])
     in
-    (* Duplicate one represented occurrence; no Event deduplication is assumed. *)
+    (* Same Effects in distinct explicitly identified Events count as separate facts. *)
     let batches = batches @ List.take batches 1 in
     let original_effects = List.concat batches in
     let movements = List.map batches ~f:movement in
-    let model = P.create ~movements ~coverage:complete in
-    let reversed = P.create ~movements:(List.rev movements) ~coverage:complete in
-    let partially_supported = P.create ~movements ~coverage:partial in
-    let unsupported = P.create ~movements ~coverage:Coverage.empty in
+    let model = project ~movements ~zero_origins:complete in
+    let reversed = project ~movements:(List.rev movements) ~zero_origins:complete in
+    let partially_supported = project ~movements ~zero_origins:partial in
+    let unsupported = project ~movements ~zero_origins:[] in
     List.iteri coordinates ~f:(fun index target ->
       let oracle =
         List.fold original_effects ~init:Z.zero ~f:(fun total item ->

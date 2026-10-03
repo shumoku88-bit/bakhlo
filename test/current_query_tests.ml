@@ -7,7 +7,7 @@ module P = Loam_application.Current_quantity_projection
 module Frontier = Loam_application.Correction_frontier
 module V = Loam_application.Actual_validity
 module F = Fixtures
-module Input = Loam_cli.Actual_fixture_input
+module Input = Loam_cli.Current_fixture_input
 module C = Loam_cli.Current_fixture_command
 let ok = function Ok value -> value | Error _ -> failwith "valid current fixture refused"
 let source_command events corrections : S.command =
@@ -127,14 +127,14 @@ let%expect_test "versioned read path refuses unsupported evidence and invalid so
   let request : C.request = { path = "synthetic.fixture"; coordinate = F.coordinate "wallet" } in
   let rows = [ "EVENT\te\t2026-10-03"; "EFFECT\twallet\tjpy\t-3"; "EFFECT\toffset\tjpy\t3"; "END-EVENT"; "ZERO-ORIGIN\twallet\tjpy" ] in
   let text = document 2 rows in
-  let decoded = ok (Input.decode_current text) in
+  let decoded = ok (Input.decode text) in
   F.require (Int.equal (List.length decoded.zero_origins) 1) "decoded independent support";
   let output = C.evaluate request (Ok text) in
   F.require (Int.equal output.exit_code 0 && String.is_empty output.stderr && String.is_substring output.stdout ~substring:"quantity=-3") "pure end-to-end exact";
   List.iter [ "DESCRIPTION\te\tmetadata"; "KEYED-EFFECT\tkey\twallet\tjpy\t1"; "OPENING\twallet\tjpy\te";
     "PRESENCE\twallet\tjpy"; "VALIDITY-REVISION\te\t2026-10-04"; "EXCHANGE\te"; "REVERSAL\te" ] ~f:(fun row ->
       F.require (Int.equal (C.evaluate request (Ok (document 2 (rows @ [ row ])))).exit_code 2) "unsupported row not dropped");
-  F.require (Result.is_error (Input.decode text) && Result.is_error (Input.decode_current (document 1 []))) "no version guessing";
+  F.require (Result.is_error (Input.decode (document 1 []))) "obsolete input rejected, no version guessing";
   F.require (Int.equal (C.evaluate request (Ok (String.drop_suffix text 1))).exit_code 2) "truncation";
   let invalid = document 2 [ "EVENT\te\t2026-10-03"; "EFFECT\twallet\tjpy\t1"; "END-EVENT"; "ZERO-ORIGIN\twallet\tjpy"; "ZERO-ORIGIN\twallet\tjpy" ] in
   let refused = C.evaluate request (Ok invalid) in

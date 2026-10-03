@@ -33,13 +33,7 @@ type outcome =
     other clients; parsing does not own Movement semantics. *)
 val evaluate : string list -> outcome
 
-type output =
-  { exit_code : int
-  ; stdout : string
-  ; stderr : string
-  }
-
 (** Pure human-readable output, not a versioned wire protocol. Opaque identifiers
     and invalid arguments are quoted/escaped; exact values are in quanta.
     Exit 0: help/validated; 1: domain refusal; 2: syntax refusal. *)
-val render : outcome -> output
+val render : outcome -> Response.t

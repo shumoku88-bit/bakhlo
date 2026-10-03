@@ -1,7 +1,7 @@
 # Semantic contract
 
-Status: proposed preservation baseline distilled from existing LOAM policy.
-These are design obligations, not claims about implemented OCaml behavior.
+Preservation obligations distilled from existing LOAM policy. These constrain
+implementation choices; they are not a claim that every OCaml operation is qualified.
 
 ## S1 — One operational authority
 

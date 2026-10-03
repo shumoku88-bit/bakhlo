@@ -1,175 +1,90 @@
-# Development environment
+# Development
 
-## First setup
-
-From the repository root:
+## Isolated setup
 
 ```sh
 ./tools/bootstrap
 ./tools/check
 ```
 
-This downloads a checksummed opam 2.6.0 binary, initializes a repository-local
-root without shell hooks, compiles OCaml 5.3.0, and installs the locked dependency
-set including test dependencies. The first run needs network access, disk space,
-and time to compile. Later runs reuse the same switch. Nothing is installed into
-the system OCaml environment, and no shell profile is modified.
+Bootstrap downloads checksummed opam 2.6.0, initializes a repository-local root
+without shell hooks, compiles OCaml 5.3.0 and installs the locked test/runtime set.
+First setup needs network/time/disk; later runs reuse it. No global OCaml or shell
+configuration is changed. [ADR 0002](adr/0002-isolated-development-baseline.md) owns
+exact version/snapshot rationale and prior fresh-switch qualification.
 
-Prerequisites: `curl`, `git`, C compiler, `make`, `tar`, `patch`, `pkg-config`, GMP
-headers/library detectable as `pkg-config gmp`, and `sha256sum` or `shasum`.
-On macOS this normally means command-line developer tools plus GMP/pkg-config;
-on Debian-like Linux it normally means a build toolchain, `libgmp-dev`, and
-`pkg-config`. Install missing OS prerequisites yourself with the appropriate
-platform procedure; the bootstrap never invokes sudo, brew, apt, or similar.
+Prerequisites: curl, git, C compiler, make, tar, patch, pkg-config, detectable GMP
+headers/library, sha256sum or shasum. Install missing OS prerequisites yourself:
+bootstrap never invokes sudo/brew/apt. macOS developer tools + GMP/pkg-config or
+Linux build tools + libgmp-dev/pkg-config are typical, not a qualified OS recipe.
 
-Configured binary platforms: macOS x86_64/arm64 and Linux x86_64/aarch64.
-**Only macOS x86_64 has been exercised.** Other architectures/OSes and Linux
-system-library requirements still need qualification; this is not a completed
-support matrix.
+Configured binary platforms: macOS x86_64/arm64, Linux x86_64/aarch64.
+**Only macOS x86_64 is exercised.** OS prerequisites are not hermetically pinned;
+lock/checksums establish selection/integrity, not bit-identical binaries, complete
+supply-chain verification or permanent upstream availability.
 
-## Everyday commands
+## Commands
+
+Always use wrappers, not global opam/dune. The wrapper selects this root/switch
+and clears inherited OCaml search-path overrides, not the whole OS environment.
 
 ```sh
-./tools/opam exec -- dune build @all
-./tools/opam exec -- dune runtest --force
+./tools/check
 ./tools/opam exec -- dune runtest -p loam_ocaml --force
+./tools/opam exec -- dune build --root . @install
+./tools/opam exec -- dune build --root . \
+  lib/loam_domain.cmxa application/loam_application.cmxa
 ./tools/opam exec -- dune exec loam-ocaml -- --help
 ./tools/opam list --installed --short --columns=name,version
 ```
 
-`tools/check` runs the first two commands and preserves a failure exit status.
-Test verbosity shows that tests actually execute. The generated Quantity check
-uses 10,000 cases with deterministic seed `loam-quantity-v1` and up to 10,000
-shrinking attempts on failure. The Movement check uses the same counts and seed
-`loam-movement-v1`. Application replay uses `loam-application-v1`, and conditional
-zero-origin projection uses `loam-zero-origin-v1`, with the same counts. Event
-identity/endpoint closure uses `loam-correction-endpoints-v1`, also 10,000 cases.
-Supplied correction-frontier admission uses `loam-correction-frontier-v1` with
-those counts, plus exhaustive three-Event graphs and a 10,000-node chain/cycle.
-Root lineages use `loam-root-lineage-v1` with those counts, plus an independent
-four-node transitive-closure model and full simple-graph model/code comparison.
-Reflected-root cuts use `loam-reflected-root-cut-v1` with those counts, compare
-1,168 relation/declaration cases and selected fresh-tail extensions, and preserve
-source-binding/refusal distinctions. One-group current quantity uses
-`loam-current-quantity-v1` with those counts, plus 4,864 graph/cut/support cases and
-direct original-Effect Zarith oracles.
-Built-in Dune cram checks run the real CLI and external-client compiler checks; no new test framework dependency was added. This is finite
-testing, not a universal proof. Package mode `-p` already selects a root; do not
-combine it with a repeated `--root` option.
+`tools/check` builds @all and forces tests. Seeds, counts and finite scopes are in
+tests/[verification](VERIFICATION.md), not another inventory here. Package tests
+explicitly enable inline tests; `-p` already selects root, so never combine it with
+`--root`. Clean engine-only builds must leave Presentation/CLI CMIs/libraries unbuilt.
 
-Always use the wrapper here instead of a bare system `opam` or `dune`. It selects
-this project's root/switch even if another switch is active in the parent shell.
-It clears inherited OCaml search-path overrides; it is isolation of compiler and
-package selection, not a container or hermetic OS environment.
+The public Application namespace is explicitly curated, excluding arithmetic-only
+helpers. Logical aliases support clean dependency discovery. Cram compiler clients
+currently depend on generated CMIs/wrapper CMI: pinned Dune integration details, not
+API/storage compatibility. Do not suppress missing-CMI warnings or export internals.
 
-## Compiler policy
+## Disposable state
 
-Root `dune` adds strict sequencing and fatal warnings 8/9/11 to standard flags in
-all profiles, including release/package mode. Non-exhaustive matches, omitted
-record-pattern fields, redundant cases, and implicitly discarded non-unit results
-are refused. Deliberate `ignore`/patterns remain possible and need review.
-
-`test/compiler_policy.t` builds complete controls and four counterexamples using
-that actual configuration in dev/release. This is a third cram suite, not a new
-library or general static-analysis framework. See [functional-core review](ENGINEERING_STYLE.md).
-
-## Engine-only targets
-
-```sh
-./tools/opam exec -- dune build --root . \
-  lib/loam_domain.cmxa application/loam_application.cmxa
-```
-
-These targets have no dependency on presentation/CLI or any UI package. A clean
-build was checked not to build their outer library artifacts. Do not introduce
-frameworks or speculative state/caches to prepare for a future interface.
-The Application root namespace is now explicit to omit its private arithmetic
-helper. Public aliases use logical module names so clean Dune dependency discovery
-works; cram supplies generated `loam_application__.cmi` as well as public unit
-CMIs. These physical names are pinned-toolchain integration details, not a public
-transport/storage/API compatibility promise. Update the export list deliberately.
-
-## Optional root-cut laws — not product requirements
-
-Nine narrow Lean row-selection, signed-delta/answerability and whole-premise
-replacement laws now have an optional development artifact.
-Normal Dune/opam build, tests and release never invoke it; bootstrap installs no
-Lean. See [statements, pinned version, assumptions and reproduction](../formal/README.md).
-Only if inspecting that artifact, explicitly select an already installed native
-Lean 4.33.1 binary for `tools/check-root-cut-laws`. The script installs nothing and
-rejects missing/relative/wrong-version selections and proof-hole/axiom tokens.
-The specification is not an OCaml refinement or unrestricted graph proof.
-
-## Tracked versus disposable state
-
-Tracked:
-
-- `loam_ocaml.opam`: direct constraints and runtime/test distinctions.
-- `loam_ocaml.opam.locked`: exact transitive dependency versions.
-- `tools/bootstrap`: opam version, platform digests, registry snapshot, compiler.
-
-Ignored:
-
-- `.tools/`: downloaded local opam.
-- `.opam-root/`: registry metadata, cache, logs, and manager state.
-- `_opam/`: compiled local switch.
-- `_build/`, `*.install`, and `scratch/`: build and synthetic experimental output.
-
-The root `dune` file excludes `scratch/` from package discovery. Keep temporary
-package copies there; Git ignore rules alone do not stop Dune from finding them.
-`tools/check` sets `--root .` so a nested test checkout does not run parent tests.
-
-Do not copy or commit ignored state. In particular opam logs can contain the
-invoking environment and machine-local paths. Do not publish them wholesale.
-Relocating a built switch is not supported; recreate it in the new checkout.
+Track manifests, lock and bootstrap. Never commit `.tools/`, `.opam-root/`, `_opam/`,
+`_build/`, install output or `scratch/`. Opam logs may expose environment/local paths;
+do not publish wholesale. Scratch is excluded from Dune discovery as well as Git.
+`tools/check` fixes project root so nested experimental copies do not run parent tests.
+Relocating a compiled switch is unsupported; recreate it in a new checkout.
 
 ## Dependency changes
 
-Every new direct library needs the capability rationale required by ADR 0001.
-To update an approved baseline deliberately:
+[ADR 0001](adr/0001-initial-scope-and-dependencies.md) requires a capability, named
+consumer, alternatives, scope/transitive cost and revisit condition before additions.
+For approved updates, review compiler/registry/direct constraints, resolve an isolated
+set including tests, generate `./tools/opam lock ./loam_ocaml.opam`, review provenance
+and replay locked bootstrap/checks. Never regenerate a lock for an unrelated code error.
+Missing lock/checksum mismatch fails closed; no unlocked/latest fallback.
 
-1. Review the compiler/library versions and registry snapshot; update bootstrap
-   and direct constraints only as needed.
-2. Resolve the intended set in an isolated switch, inspecting native and test
-   transitives. Do not silently remove `--with-test`.
-3. Generate the lock with `./tools/opam lock ./loam_ocaml.opam`.
-4. Review both the lock and package provenance; rerun locked bootstrap and checks.
-5. Record version/platform evidence and residual limits in the ADR/handoff.
+## Optional specification
 
-A missing lock or opam checksum mismatch fails closed; bootstrap does not fall
-back to an unlocked/latest install. Tests do not require Lean or actual data.
+Normal checks/releases never invoke/install Lean. Only for the selected artifact:
 
-## Package and release limitations
+```sh
+LEAN=/absolute/path/to/lean-4.33.1/bin/lean ./tools/check-root-cut-laws
+```
 
-The internal libraries have Dune public names `loam_ocaml.domain`,
-`loam_ocaml.application`, `loam_ocaml.presentation`, and `loam_ocaml.cli`;
-the executable is `loam-ocaml`, so local package/install paths can be exercised.
-These are project library boundaries within one package, not extra third-party
-runtime dependencies. This is not external publication, licensing,
-or a stable-API promise. Test libraries remain private and test dependencies are
-filtered with `with-test` in opam metadata and lock.
+[formal/README](../formal/README.md) owns statements, assumptions, trusted components,
+axioms, version and reproduction. The script installs nothing and rejects missing,
+relative/wrong-version binaries or proof-hole/custom-axiom tokens. It is not an
+independent checker/security sandbox or an OCaml refinement proof.
 
-`opam lint` warns about unresolved author/license/homepage/issue metadata. Those
-warnings must be resolved before publication, not with fabricated values.
+## Release limits
 
-Use `--deps-only` for ordinary setup. Before the initial commit, a normal Git-based
-source pin failed; that is historical, not a current missing-commit blocker.
-An initial commit and user-authorized private GitHub repository now exist. Ordinary
-source installation after that change has not been newly qualified here. Do not
-use `--working-dir` to copy ignored local environments: package smoke testing uses
-a separate source-only synthetic copy, never the full workspace or real data.
+Public names within the package let local builds/install mappings be checked; they
+are not publication or stable-API promises. Test dependencies stay test-only.
+License/author/homepage/issue metadata and contributor ownership remain unresolved;
+resolve before release, never invent values to silence lint. No ordinary source-opam
+installation/fresh platform replay is newly claimed by @install alone.
 
-## Guarantee boundary
-
-The snapshot/lock pins package selection and checks downloaded integrity. System
-compiler prerequisites and GMP are not pinned by opam, and package availability
-still depends on upstream hosting. This is not bit-for-bit build reproducibility,
-full supply-chain verification, or a qualified migration/release.
-
-A second fresh root/switch on the same macOS x86_64 host replayed the lock,
-matched all 50 package versions, and passed the Quantity checks. Missing-lock
-and corrupt-local-manager rejection were also exercised. This does not extend
-platform coverage beyond that host.
-
-See [ADR 0002](adr/0002-isolated-development-baseline.md) for exact versions,
-qualification, and revisit triggers.
+No operational data/migration, canonical storage, backup/restore, recovery, household
+admission or production adoption follows from these development checks.

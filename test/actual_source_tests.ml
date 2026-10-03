@@ -2,7 +2,6 @@ open Base
 module D = Loam_domain
 module S = Loam_application.Actual_source
 module V = Loam_application.Actual_validity
-module A = Loam_application.Actual_quantity_preview
 module Frontier = Loam_application.Correction_frontier
 module F = Fixtures
 let ok = function Ok value -> value | Error _ -> failwith "valid base Actual source refused"
@@ -55,9 +54,10 @@ let%expect_test "every retained Event is checked, even a superseded or reflected
   let draft = command [ F.event "a" ] [] in
   (match S.create { draft with validities = [] } with Error (Validity (Missing_validity _)) -> () | _ -> failwith "base validity required");
   (match S.create { draft with corrections = [ F.edge "a" "missing" ] } with Error (Corrections _) -> () | _ -> failwith "correction closure");
-  F.require (Result.is_ok (A.run { events = [ bad; offset ]; validities = (command [ bad; offset ] []).validities; corrections = []; groups = [] })) "legacy neutral preview unchanged";
-  Stdlib.Printf.printf "raw retained physical/validity/frontier gates; legacy preview remains general\n";
-  [%expect {| raw retained physical/validity/frontier gates; legacy preview remains general |}]
+  let neutral = F.admitted (F.memory [ bad; offset ]) [] in
+  F.require (List.equal F.equal_event [ bad; offset ] (Frontier.frontier_events neutral)) "Domain and conditional frontier remain general";
+  Stdlib.Printf.printf "raw retained physical/validity/frontier gates; Domain remains general\n";
+  [%expect {| raw retained physical/validity/frontier gates; Domain remains general |}]
 ;;
 
 let%expect_test "base validity and correction provenance survive source admission without date winners" =

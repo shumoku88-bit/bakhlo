@@ -1,293 +1,80 @@
-# Verification and assurance strategy
+# Verification
 
-Status: PROPOSED overall strategy. Domain/application and CLI build/tests pass
-locally: 90 expect tests, 10,000 generated cases each for Quantity, Movement,
-application replay, zero-origin/current-assertion projections, Event identity/endpoint
-closure, frontier, root lineages, reflected-root cuts and multi-group ownership,
-plus three cram suites (100,000 actual generated cases across ten seeds).
-Seeds: `loam-quantity-v1`, `loam-movement-v1`, `loam-application-v1`,
-`loam-zero-origin-v1`, `loam-correction-endpoints-v1`, `loam-correction-frontier-v1`,
-`loam-root-lineage-v1`, `loam-reflected-root-cut-v1`, `loam-current-quantity-v1`,
-`loam-current-groups-v1`.
-Nine optional Lean specification laws have been checked; no formal graph-to-row
-or OCaml refinement proof. Platform coverage remains macOS x86_64.
-
-## Evidence hierarchy is not a single ladder
-
-| Evidence | What it can establish | Important limit |
-| --- | --- | --- |
-| OCaml types and abstract modules | Exclusion of selected invalid compositions/constructions | Not all semantic laws; unsafe operations and implementation bugs remain relevant |
-| Unit / expect tests | Concrete executable behavior and readable examples | Finite examples, not universal laws |
-| Property-based tests | Generated cases and shrinkable counterexamples | Depends on generators, oracles, and tested scope |
-| Differential tests | Agreement with a reference on compared observations | Reference may be wrong; agreement is not a refinement proof |
-| Alloy | Structural counterexamples / bounded exploration | State scope is bounded |
-| TLA+ / TLC | Transition histories in the selected model and bounds | Requires correspondence to implementation and stated failure assumptions |
-| Lean or another proof system | The stated theorem under its assumptions | Does not prove separately handwritten OCaml code automatically |
-| Fault injection and recovery tests | Observed implementation behavior at selected failure points | Must distinguish process crash, I/O failure, and power loss |
-| Benchmarks | Cost on a named workload and environment | Not a semantic or universal performance guarantee |
-
-Use the smallest set answering a distinct gap: new semantics/failure boundaries
-need stronger evidence; ordinary consumers need focused tests of their connection.
-Reuse independent models/oracles, not a fresh verification bundle per slice.
-Logical tiers: fast examples/boundaries for edits; extended exploration/properties
-before semantic checkpoints; optional formal checks when artifacts/assumptions/mapping
-change. `tools/check` still runs the full OCaml suite; no new tier machinery yet.
-Formal tools remain development-only, never product build/test/release dependencies.
+Types, finite tests, models, proofs and operational evidence establish different things.
+None automatically certifies handwritten OCaml, external premise truth or household use.
+Current qualification is macOS x86_64 with the locked toolchain. Other targets, storage,
+full normalized Actual admission, recovery and migration are not qualified.
 
 ## Instrument review gate
 
-Status: **ACCEPTED review policy** (D21), explicitly requested by the user so
-successor pits do not forget the LOAM instruments. The wider assurance strategy
-and individual tool adoptions are not thereby approved. This is a required review
-step, not an all-tools execution pipeline or a machine-enforced semantic gate.
+Before non-trivial code, record a few lines in the task note/HANDOFF:
 
-Before non-trivial design/implementation, and again when its assumptions or nearest
-semantic neighbors change:
+1. Observable question and invariant owner.
+2. Deterministic facts (D), prior earned evidence (P), residual gap (R).
+3. Chosen instruments or relevant deferral, with reason.
+4. Assumptions, bounded checks, mapping/remaining gap and revisit trigger.
+5. Actual execution/results, distinguished from planned or unrun work.
 
-1. Name the observable question and invariant owner; separate D/P/R obligations.
-2. Consult [semantic commitments](SEMANTIC_CONTRACT.md) and the narrow
-   [reference/evidence map](REFERENCES.md) before repeating upstream work.
-3. Identify what current types, tests, source inspection, and prior evidence can
-   and cannot answer. Compile success is not evidence of correct household meaning;
-   generated/bounded success is not a universal law.
-4. Choose the smallest instrument set answering distinct residual questions.
-   Record relevant choices or deferrals in the slice contract/task note **before
-   implementation**. A few lines suffice; no new ADR or separate file per tool.
-5. After work, record actual results/limits and carry unresolved revisit triggers
-   into [handoff](HANDOFF.md). Reopen when the named trigger occurs; do not keep
-   copying "deferred" without reviewing the changed question.
+Select by risk, not directory or a per-slice checklist. Reuse independent models/oracles;
+ordinary consumers test connection and failure boundaries. No mandatory all-tools pipeline,
+new document, theorem or 10,000-case campaign for each change. A needed unavailable check
+is a limitation/blocker, not silently replaced by compile success.
 
-### Choose by question
+| Residual question | Instrument / trigger |
+| --- | --- |
+| What meaning/prior evidence must survive? | Semantic contract, narrow references, D/P/R review |
+| Structural counterexample? | Small finite model/enumeration or Alloy; state scope and correspondence |
+| Durable general law? | Optional Lean/specification with assumptions and mapping, not OCaml refinement by association |
+| Procedure/authority ambiguity? | DRAKON for refusal/operation order, D2 for dependency/source topology; simple explicit code may suffice |
+| Retry/crash/interleaving outcomes? | TLA+/TLC or SPIN when real write/failure contracts exist; targeted fault injection |
+| Scale/cost uncertainty? | Named synthetic workload/benchmark; no universal inference or invented target |
+| Duplication/dependency/security drift? | Focused repository audit with exact evidence |
 
-| Question / trigger | Candidate instrument | Boundary |
-| --- | --- | --- |
-| Which meaning/evidence must survive? What is already known? | Semantic contract, reference/Evidence Atlas, D/P/R scaffold | Use now; these structure reasoning, not machine-check implementation |
-| Is execution/refusal/ownership order hard to inspect? | DRAKON | Use for procedure, not topology or UI design; a small explicit function may suffice |
-| Is dependency/authority topology hard to inspect? | D2 / dependency DAG | Use for structure, not an automatic second picture of the same procedure |
-| Can a small structural counterexample distinguish competing representations or policies? | Alloy / explicit finite enumeration | State bounds/assumptions; neither proves unrestricted correctness |
-| Is a general law important enough to retain beyond bounded cases? | Lean / a scoped proof artifact | Name statement, assumptions, implementation mapping and gap; never infer OCaml correctness from upstream proof |
-| Do retry, ownership, crash/recovery, or operation ordering affect allowed outcomes? | TLA+ / TLC; SPIN for concrete process interleavings | Select when an actual transition/failure contract exists; state scheduling/failure bounds |
-| Are reachability, dependency drift, duplication, or hygiene uncertain? | Focused repository audit | Adapt to OCaml/Dune only for a named question; Lean scripts are not portable verdicts |
-| Is performance, scale, or recovery behavior the residual question? | Benchmark / fault injection | Use synthetic workload and named environment/failure points, not theorem surrogates |
-| Is proof-checker independence itself the residual question? | Comparator / Nanoda or scoped checker audit | Not baseline OCaml infrastructure; requires a concrete retained proof question |
+Formal tools remain development-only. Ordinary build/test/release must be Lean-free.
+Checker independence needs a separate question; neither standard Lean nor token scans
+establish it. Tool selection does not authorize dependencies or source copying.
 
-Types, expect tests, property tests, and external-client counterexamples remain the
-fast implementation feedback loop. They complement these instruments; they do not
-silently retire them. An additional view/tool must add a distinct answer, not a logo.
+## Retained executable evidence
 
-### Minimal review record
+Tests are executable documentation; names, seeds and counts live in the test source and
+forced runner output, not duplicated status inventories. `./tools/check` runs all OCaml
+checks. Existing generated campaigns retain independent expected-value logic and execution
+counters; shared construction helpers are in `fixtures.ml`, never another test-case module.
 
-Use this in the relevant slice/task note, not a global transcript:
+| Seam | Independent evidence and limit |
+| --- | --- |
+| Quantity / Movement / application | Exact Zarith oracles, signed/huge values, replay and structural refusals; not publication |
+| Identity / correction / lineage | Original-list/fuel oracle and immutable integer Warshall closure; all 512 three-node and 65,536 four-node simple relations (73 admitted four-node paths). No missing IDs/parallel edges in enumeration; separately tested |
+| Reflected cuts | List declaration model, 1,168 four-node relation/subset cases (304 cuts), selected fresh tails, prefix/source changes and old-terminal leak witness; not arbitrary-edit stability |
+| Assertion arithmetic | 4,864 graph/cut/support cases, original-Effect Zarith sum, unknown/zero, translation and reflected/unreflected seams |
+| Group ownership/re-observation | Independent two-coordinate/two-group list model: 256 construction and 2,304 update/replay seams; preserve whole premises, ordered refusals and old values; not durable retry |
+| Actual source / support routing | 625 two-Measure physical predicates, 256 two-coordinate support/cut seams, original-list/Effect oracle, all retained/source admission and independent cuts; only ordinary base source + two supports |
+| Origin queries | Original-Effect generated arithmetic transferred to the current admitted-source query; repeated payloads use distinct Event IDs, not implicit deduplication |
+| Validity / decoder / shell | Calendar/reference counterexamples, exact tokens/quanta, unknown/obsolete/truncated/unsupported rows, escaped diagnostics, real CLI exit/stream and unchanged-file checks; no arbitrary corruption/authenticity guarantee |
 
-```text
-Instrument review
-Question / invariant owner:
-D/P evidence already available:
-Residual gap and claimed assurance scope:
-Relevant instruments: use / defer / not applicable, with reason:
-Revisit trigger (concrete capability or assumption change):
-Execution/evidence: planned / not run / observed result, bounds and reproduction:
-Model-to-OCaml correspondence and remaining gap (if applicable):
-```
+Large chain/cycle and generated cases supplement, not universally extend, finite bounds.
+External compiler clients test public abstractions, wrong qualified source types and private
+arithmetic exclusion; unsafe casts/internal-unit access are outside that guarantee.
+`compiler_policy.t` checks complete controls and four diagnostic counterexamples in
+both dev/release. Strict sequencing and fatal warnings 8/9/11 are not a purity checker.
 
-A needed but unavailable check is a named limitation/blocker; do not label it
-covered or passed. Selected/planned is not run. Existing unperformed work must
-not be retroactively labeled reviewed/proved. Unrelated tools need no boilerplate
-entry; meaningful deferrals must explain **why now** and **when to reconsider**.
+## Qualification and limits
 
-VR-01–VR-04 root/terminal, cut, one-group quantity and multi-group ownership reviews
-are complete within slice scopes. Before full Actual/support-family composition,
-VR-05's bounded base-validity/exact-support preview is reviewed in `HANDOFF.md`;
-broader Actual/support-family admission remains OPEN.
-Before storage/publication, revisit transition/failure instruments separately.
-No indefinite blanket "later" decision.
+Normal checks, forced package tests, install and clean engine-only builds are exercised at
+relevant semantic checkpoints. Engine builds must leave outer libraries unbuilt. Product
+checks pass with nonexistent LEAN. Lock/tooling/platform changes require separate replay;
+earlier fresh-switch equality is prior evidence, not a fresh replay for every code edit.
 
-Tool selection does not authorize installation, new dependencies, CI jobs, source
-reuse, or scope expansion. Follow existing approval/provenance rules; record/pin
-versions for any adopted experiment. Formal tools remain development instruments:
-normal production build/test/release must not require Lean. Do not turn upstream
-reference artifacts into a permanent duplicate production engine.
+[Optional specification](../formal/README.md) states nine row-selection, signed-delta and
+whole-premise lookup laws. It does not prove graph admission, group indexes, Actual/support
+truth, OCaml/Base/Zarith refinement, loading or durability. Recheck artifact/assumption/
+correspondence changes, not every unrelated consumer edit.
 
-## First properties to consider
+A prior one-shot native synthetic probe at `1d3de2f` measured source/image/query CPU costs
+for 1,000/10 and 10,000/100 Events/groups, singleton roots, empty cuts and 10,000 alternating
+queries. The larger image took about 1s on this host; parsing/I/O excluded. This is not a
+maintained benchmark, target or current latency guarantee. Group construction repeats
+source walks; revisit with named workloads/limits before optimizing or choosing a cache.
 
-Select these per slice, not as a demand to implement the whole domain at once:
-
-- Exact arithmetic remains exact beyond machine and JavaScript integer ranges.
-- Ordinary single-Measure Movement admission enforces conservation and rejects
-  practical invalid cases separately from the mathematical zero-total law.
-- Correction preserves required provenance and follows the chosen currentness
-  relation; ambiguous/invalid frontiers are not silently accepted.
-- Projection does not mutate canonical evidence or turn missing support into zero.
-- Encode/decode preserves admitted evidence according to a named equality
-  (semantic equivalence and byte identity are different claims).
-- Optimized computation agrees with a small transparent reference algorithm.
-- Retry/competing-writer behavior follows the chosen operation contract.
-- Publication/recovery exposes only allowed states under specified failures.
-- Unsupported storage versions and malformed inputs fail explicitly.
-
-Do not import a broad theorem into an unrelated operation by name alone.
-
-## Current executable seams
-
-- `movement_tests.ml` checks the validation predicate against a direct Zarith
-  oracle, preserves input representation, and exercises perturbation/negation.
-- `application_tests.ml` submits typed commands without argv, checks structured
-  values, deterministic replay, preserved domain results/refusals, and immutable
-  answers under repeated text projection/independent client ordering.
-- `zero_origin_tests.ml` separates independent origin support from activity/zero
-  net change, checks exact coordinate keys, duplicates, multiple Measures, signed/
-  huge quantities, representation, and repeated/reordered queries. A direct Zarith
-  oracle sums original Effects, independently of the index. These are conditional
-  quantities, not current/historical balance admission; see [contract](BALANCE_SLICE.md).
-- `correction_tests.ml` preserves general anonymous Event shapes and immutable
-  source order, refuses duplicate identities, checks exact-token lookup against a
-  source-list oracle, replays/reorders endpoint resolution, and verifies ordered
-  missing roles/identities. Self/cyclic/competing raw edges demonstrate closure
-  without currentness; see [contract](CORRECTION_ENDPOINT_SLICE.md).
-- `frontier_tests.ml` checks disjoint-path admission against an independent
-  list/fuel graph oracle, source/payload retention, order-independent membership,
-  missing/duplicate diagnostics, actual cycle witnesses, and a 10,000-node chain
-  plus its cycle. All 512 three-Event directed graphs are exhaustively checked;
-  that scope excludes larger graphs, duplicate parallel edges, and absent IDs,
-  which separate fixtures/generated cases address without universal claims.
-  See [contract](CORRECTION_FRONTIER_SLICE.md); no household authority is inferred.
-- `fixtures.ml` holds shared test constructors/assertions; `source_oracle.ml` retains
-  original-list/fuel selection and direct Zarith arithmetic, independent of production
-  indexes. Test-case modules do not supply helpers to other test-case modules.
-- `lineage_model.ml` is a test-only immutable integer-relation transitive-closure
-  model, independent of production IDs/maps/successor traversal. Two model tests
-  explore all 65,536 four-node simple graphs and root/terminal partition properties.
-  `lineage_tests.ml` compares the actual constructor/associations with that model,
-  checks independent source-list generated oracles, tail extension versus prefix
-  re-rooting, payload retention, order/replay, and a 10,000-node chain. See
-  [pre-implementation selection and correspondence](ROOT_LINEAGE_SLICE.md).
-  Enumeration is bounded and excludes absent nodes/parallel edges, separately
-  covered by specimens; no unrestricted implementation proof is claimed.
-- `root_cut_model.ml` adds original-prefix/list declaration admission to that
-  independent graph model. One model and eight implementation expect tests compare
-  all 1,168 admitted-four-node-relation/represented-subset cases (304 valid cuts)
-  plus selected fresh-tail extensions. Source-list generated tests verify payloads,
-  duplicate/unknown/non-root refusals, source binding, explicit rebinding after
-  prefix/source changes, representation order and replay. See [contract](ROOT_CUT_SLICE.md).
-- `formal/RootCutLaws.lean` optionally proves row-selection/terminal-update
-  commutation, empty cut and composition for arbitrary finite rows, not graph
-  admission or OCaml refinement. Installed Lean 4.33.1 was used with warnings fatal;
-  Three later signed-delta/answerability laws cover unsupported assertions,
-  assertion translation and reflected contribution noninterference, not Zarith/Base
-  refinement. [Axioms, reproduction and trusted boundaries](../formal/README.md). Product checks
-  do not invoke it; normal checks passed with an explicitly nonexistent `LEAN`.
-- `current_quantity_tests.ml` checks one group's assertion admission, typed unknown,
-  exact signed/huge coordinate-local decomposition and source retention. All 4,864
-  four-node graph/admissible-cut/support subsets agree with independent closure/cut
-  and original-Effect Zarith arithmetic; generated source-list cases verify duplicates,
-  translations, replay/permutation and reflected/unreflected fresh-tail seams. The
-  private arithmetic extraction preserves earlier zero-origin/CLI evidence.
-  See [one-group scope and qualification](CURRENT_QUANTITY_SLICE.md).
-- `current_groups_model_tests.ml` ran BEFORE product code: 256 ownership/cut cases
-  (144 admitted), 2,304 updates/replays preserve whole assertion/cut premises.
-  `current_groups_tests.ml` compares all those seams plus ordered root/local/global
-  refusals, one-source rebinding, empty-group semantics, old-image retention and
-  10,000 generated list/closure/original-Effect Zarith cases. Three optional Lean
-  functional lookup laws were checked before code: incoming whole premise wins,
-  unrelated premise survives, and lookup-idempotence. Not group/index/OCaml
-  refinement or operational retry; see [contract](CURRENT_GROUPS_SLICE.md).
-- `actual_source_tests.ml` checks the ordinary anonymous/base-validity Actual subset:
-  625 four-Effect/two-Measure signed/huge predicate cases (16 admitted), empty/mixed
-  Events, superseded physical refusal, cross-Measure cancellation, source/date/edge
-  retention. Independent original-value Zarith oracle; legacy preview remains general.
-  Public compiler clients distinguish that preview from the stronger source. Base
-  validity admission was extracted once; existing date/reference tests still apply.
-  This is not keyed/full normalized admission or factual/historical completeness.
-- `actual_fixture_tests.ml` adds six focused boundary tests: unique/closed/complete
-  base validity, 19 calendar/lexical specimens, exact neutral Effect decoding,
-  malformed/unsupported/truncated inputs, retained source and independent group cuts,
-  original-Effect arithmetic, unknown versus known zero, and honest read failures.
-  `cli.t` exercises the real file-to-query path, exit/stream separation and unchanged
-  fixture bytes; a public client distinguishes frontier from Actual preview.
-  Reuses existing oracles; no new property campaign/model/theorem. Not normalized
-  household admission, calendar-history completeness or arbitrary-file corruption detection.
-- `current_query_tests.ml` checks two-family support over an admitted ordinary source:
-  256 two-coordinate/support/cut cases (144 admitted), original-list terminal/cut and
-  direct Zarith oracle, huge signed answers, whole-family qualification before overlap,
-  source/premise retention and permutation, explicit zero versus unknown. Version-2
-  decoding/CLI rejects invalid sources and unsupported metadata/keys/support/history;
-  real file goldens preserve independent cuts, stream/status and unchanged bytes.
-  Public source-type boundary checked. No new model, theorem or property campaign.
-  Opening/presence/full normalized admission and authority remain unqualified.
-- One-shot native synthetic CPU probe (excluded scratch, not a maintained benchmark
-  or release criterion), macOS x86_64/locked OCaml 5.3.0: singleton roots, no corrections,
-  two balanced nonzero Effects/Event, empty cuts, one origin, 10,000 queries alternating
-  origin and anchor. 1,000 Events/10 groups: source 0.003316s, image 0.006186s, queries
-  0.000932s. 10,000/100: 0.024147s, 1.012139s, 0.001517s. Exact answers asserted.
-  Excludes parsing/I/O/generation; one run, no latency target or universal scale claim.
-  Group image construction still repeats source walks; no cache/optimization chosen.
-- `command_tests.ml` preserves existing golden output while the CLI becomes an
-  application client; it checks exact previews, syntax/refusal separation, stream
-  choice, and escaped opaque input.
-- `cli.t` runs the real executable with exit/stream checks, not only a mock adapter.
-- `type_boundaries.t` compiles valid domain and application-only clients, then
-  checks role mixups (Measure/Locus/Event), forged Movement/preview/conditional
-  quantity, inconsistent Event memory, forged closed endpoint/frontier answers,
-  forged lineage/cut/current group/answer/global image, separately-bound group
-  composition, wrong source values and public access
-  to the private aggregate. The curated Application root exports only public
-  operations; specimens supply its generated intermediary CMI. It
-  checks diagnostic content as well as failure status to avoid accepting unrelated
-  compiler errors.
-- `compiler_policy.t` copies actual root configuration into a language-only
-  fixture, builds explicit complete controls, and rejects four counterexamples
-  in dev/release: non-exhaustive/redundant matches, omitted record-pattern fields,
-  and implicitly discarded typed results. Diagnostics and exit status are checked;
-  this is not a general purity checker. See [engineering style](ENGINEERING_STYLE.md).
-- A clean domain/application-only build was checked to leave presentation/CLI
-  library artifacts unbuilt. Current application/presentation source has no
-  hidden I/O/time/randomness; no UI package is required.
-
-These do not establish household policy admission, storage, operational correction
-application, TUI interaction, large-history latency, or protection against unsafe operations
-such as `Obj.magic`. Synthetic fixture loading/base validity now exist, but no
-full Actual history/normalized admission or opening/presence routing. The ordinary
-base subset and two-family query are separately qualified. The supplied-Movement
-projection still establishes neither temporal completeness nor correction selection.
-Optional laws were not rerun for this artifact-unchanged composition checkpoint.
-
-## Connecting models to code
-
-Every retained formal result should record:
-
-1. The property and why the product needs it.
-2. State/input mapping and correspondence to implementation owners.
-3. Assumptions, bounds, trusted code/tools, and excluded failures.
-4. How to reproduce the check with a pinned tool environment.
-5. Executable specimens guarding representative model/code seams.
-6. Which changes require requalification.
-
-If code changes invalidate that mapping, update/requalify the artifact or clearly
-withdraw the guarantee. Never display a historic green proof as current coverage.
-
-## CI direction
-
-`./tools/bootstrap` sets up the isolated locked baseline; `./tools/check` runs
-build and forced tests. See `DEVELOPMENT.md` for exact commands and guarantee limits.
-Formatting/static-check tooling and the wider supported compiler/platform matrix
-still need qualification. Dependency changes require reviewed lock updates.
-
-Separate fast deterministic product checks from costlier model exploration,
-stress tests, and benchmarks. Failure of an explicitly release-required guarantee
-still needs resolution; an optional tooling job is not an excuse to hide it.
-Do not make a Lean installation necessary for ordinary OCaml build/test/release.
-
-Fixtures and diagnostics must not leak private household content. Specify random
-seeds/reproduction commands and retain minimized failing specimens where useful.
-
-## Portfolio evidence
-
-Prefer two or three complete case studies to a catalog of tool logos:
-
-```text
-concrete question -> alternative designs -> counterexample or law
--> implementation boundary -> executable checks -> limits -> decision
-```
-
-Disclose AI assistance honestly. Distinguish human decisions, generated artifacts,
-reviewed implementation, and machine-checked evidence without inventing provenance.
+Storage/publication, Linux/Apple Silicon, full evidence families, household authority and
+large-history operational reliability remain open. Do not relabel absences as coverage.

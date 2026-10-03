@@ -10,12 +10,14 @@ let () =
   in
   let output =
     match arguments with
-    | "inspect-actual-fixture" :: arguments ->
-      let module C = Loam_cli.Actual_fixture_command in
-      (match C.plan arguments with
-       | Help -> C.help
-       | Refused message -> C.syntax_refusal message
-       | Read request -> C.evaluate request (read_fixture request.path))
+    | [ "--help" ] | [ "help" ] ->
+      ({ exit_code = 0; stderr = ""; stdout =
+          "Usage: loam-ocaml COMMAND ...\n\
+           check-movement --effect LOCUS MEASURE QUANTA [--effect ...]\n\
+           inspect-current-fixture FILE LOCUS MEASURE\n\
+           Structural validation and read-only synthetic quantity queries.\n\
+           Not household admission or authority; no writes.\n\
+           Use COMMAND --help for details.\n" } : Loam_cli.Response.t)
     | "inspect-current-fixture" :: arguments ->
       let module C = Loam_cli.Current_fixture_command in
       (match C.plan arguments with

@@ -1,210 +1,64 @@
-# LOAM OCaml — working name
+# LOAM OCaml
 
-**Status: Movement validation and read-only synthetic current-quantity queries. No UI or household writes.**
+An independent OCaml household engine: exact quantities, explicit evidence,
+retained correction provenance, and honest uncertainty. The goal is a maintainable
+product for long-term local use, not a line-by-line Lean translation.
 
-An independent OCaml implementation of LOAM, intended for long-lived household
-use, third-party maintenance, and presentation as an engineering portfolio to
-people associated with Jane Street. This is not affiliated with or endorsed by
-Jane Street.
+**Development-only. Existing LOAM remains household authority.** No persistence,
+writes, migration, UI, public release or complete household admission is qualified.
+macOS/Linux are targets; only macOS x86_64 has been exercised.
 
-The goal is not a line-by-line translation of the Lean implementation. Preserve
-LOAM's useful semantic boundaries while designing a small, idiomatic, maintainable
-OCaml product.
-
-## Product intent
-
-- Exact quantities, explicit evidence, retained correction provenance.
-- Unknown or incomplete answers never silently become zero.
-- Shared semantics usable from TUI, GUI, Web UI, and CLI.
-- Operational data continuity and inspectable failure/recovery behavior.
-- Development and maintenance accessible without Lean expertise.
-- Formal methods chosen for concrete questions, with honest assurance limits.
-
-OCaml is the intended production implementation platform. Existing Lean results
-are reference evidence, not proofs of the future OCaml implementation. Whether
-any individual formal artifact needs ongoing maintenance remains a scoped design
-decision; production build/test/release must not require Lean.
-
-## Start here
-
-1. [Project charter](docs/CHARTER.md): user requirements versus recommendations.
-2. [Semantic contract](docs/SEMANTIC_CONTRACT.md): meaning to preserve.
-3. [Architecture proposal](docs/ARCHITECTURE.md): boundaries, not a frozen design.
-4. [Decision register](docs/DECISIONS.md): open choices and acceptance evidence.
-5. [Verification strategy](docs/VERIFICATION.md): what each kind of evidence proves.
-6. [Handoff](docs/HANDOFF.md): current state and the next bounded task.
-
-Contributors and AI assistants must read [AGENTS.md](AGENTS.md). See also
-[CONTRIBUTING.md](CONTRIBUTING.md) and the [source reference index](docs/REFERENCES.md).
-
-## Development status
-
-Initial scope is accepted: local single user, macOS/Linux, CLI first and TUI as
-eventual practical UI. Current engine work remains independent of UI: no
-TUI, web UI, dashboard, components, or anticipatory toolkit dependencies. See
-[ADR 0001](docs/adr/0001-initial-scope-and-dependencies.md) and
-[ADR 0003](docs/adr/0003-ui-independent-application-boundary.md).
-
-Direct runtime dependencies are Base + Zarith; test dependencies are ppx_expect +
-Base_quickcheck. Every library addition needs a concrete capability reason.
-Core, Async, and storage libraries are not introduced.
-
-The engine exposes abstract Quantity, distinct Measure/Locus identifiers, neutral
-Effects, and validated ordinary Movements. `application/movement_check.mli`
-exposes the existing operation and abstract structured preview without argv,
-formatting, I/O, or implicit time. `presentation/movement_text.mli` projects that
-answer to existing CLI text without revalidation or aggregate recomputation.
-Domain/application compile independently of presentation/CLI. See the
-[Quantity contract](docs/QUANTITY_SLICE.md),
-[Movement/CLI contract](docs/MOVEMENT_SLICE.md), and
-[UI direction](docs/UI_DIRECTION.md). The final TUI is not implemented.
-
-`application/zero_origin_projection.mli` adds an immutable coordinate index for
-one conditional quantity question. Explicit zero-origin support is independent
-of activity; unsupported coordinates return `Origin_unknown`, not zero. These
-quantities depend on the supplied Movement basis, not admitted current/historical
-Actual, correction selection, or purchasing power. See [contract](docs/BALANCE_SLICE.md).
-
-`application/correction_check.mli` resolves a raw correction's target/replacement
-from an identity-unique immutable Event memory, retaining both observations.
-Missing endpoints are typed refusals. General anonymous-Effect Events are not
-ordinary Movements; closure does not establish currentness or apply corrections.
-See [endpoint contract](docs/CORRECTION_ENDPOINT_SLICE.md).
-
-`application/correction_frontier.mli` qualifies a whole supplied correction list
-as closed, unique-target/unique-replacement, and acyclic. It retains original
-observations/edges and derives terminals plus untouched Events; branches, merges,
-and cycles are typed refusals, never order-selected winners. This is not admitted
-current Actual or write permission; see [contract](docs/CORRECTION_FRONTIER_SLICE.md).
-It now materializes abstract root-to-terminal lineages, retaining original facts.
-Roots survive fresh-tail correction extension, not arbitrary source-scope edits;
-see [lineage contract/model correspondence](docs/ROOT_LINEAGE_SLICE.md).
-`application/reflected_root_cut.mli` validates independent reflected-root declarations
-against that immutable frontier and excludes whole lineages while retaining source
-facts. Duplicate/absent/non-root IDs refuse explicitly; this is not quantity support
-or current Actual. See [cut contract](docs/ROOT_CUT_SLICE.md).
-
-`application/current_quantity_projection.mli` now answers one anonymous group's
-exact coordinate assertions plus unreflected terminal Effects. It retains the cut
-and premises, exposes exact decomposition, and returns `Assertion_unknown` without
-an assertion—even with activity or zero delta. This is one supplied group, not full
-multi-group support or admitted household balances. See [contract](docs/CURRENT_QUANTITY_SLICE.md).
-`application/current_quantity_groups.mli` now composes anonymous groups against ONE
-supplied frontier, preserving their independent cuts and refusing shared live
-coordinate ownership. Explicit immutable re-observation replaces only selected
-assertions/cuts; it is not a list-order winner, history or write. See
-[group contract](docs/CURRENT_GROUPS_SLICE.md). Actual/support-family admission is separate.
-
-From the repository root:
+## Build and try
 
 ```sh
 ./tools/bootstrap
 ./tools/check
-```
-
-Setup keeps opam, its root, and an OCaml 5.3.0 switch inside the repository without
-changing the global OCaml installation or shell configuration. The registry and
-transitive dependencies are pinned. See [development setup](docs/DEVELOPMENT.md)
-for prerequisites, versions, update policy, and limitations.
-
-The core uses immutable data and pure functions; process I/O is isolated at
-`bin/main.ml`. Strict sequencing and selected fatal compiler warnings remain
-active in release builds too. See [functional-core review](docs/ENGINEERING_STYLE.md)
-for the actual boundary, test-only counters, and limits of these checks.
-
-[Verification](docs/VERIFICATION.md) owns the current test inventory, independent
-oracles, bounds and macOS x86_64 qualification. Linux/Apple Silicon remain targets,
-not qualified platforms. [Optional specification laws](formal/README.md) are neither
-OCaml refinement proofs nor product requirements. There
-is no admitted Actual history/report engine, storage, migration, or public release, and no
-large-history latency guarantee yet. No cache, incremental framework, clock
-abstraction, or UI state is invented for this preparation. Local package metadata
-is not a publication or stable-API promise.
-
-## Try a two-support current fixture query
-
-```sh
+./tools/opam exec -- dune exec loam-ocaml -- --help
+./tools/opam exec -- dune exec loam-ocaml -- check-movement \
+  --effect wallet jpy -1000 --effect food jpy 1000
 ./tools/opam exec -- dune exec loam-ocaml -- inspect-current-fixture \
   examples/current-preview.fixture wallet jpy
 ```
 
-Exact assertion gives `990`; querying `food jpy` gives zero-origin quantity `160`,
-`quiet jpy` explicit zero, and `unsupported jpy` unknown (exit 3). This v2 path
-checks EVERY retained Event for nonzero Effects and per-Measure balance, plus
-independent base validity and correction admission. Empty/balanced mixed-Measure
-Events are allowed; the Domain and general v1 preview are not narrowed.
-Origin and exact supports must be disjoint; each assertion keeps its own cut.
-Source/admission refusals exit 1, syntax/version refusals 2, with no stdout.
-Only synthetic v2 is read: keys, metadata, opening/presence, Exchange/Reversal,
-validity history and upstream formats still refuse. No write/authority/cutover.
-This is **not full normalized admission or historical completeness**; see
-[query contract](application/current_quantity_query.mli) and
-[source contract](application/actual_source.mli). No canonical storage choice.
+Movement checking is structural validation, **not recorded**. Fixture querying is
+read-only and conditional on supplied evidence: `wallet jpy` gives assertion
+`1000` + unreflected delta `-10` = `990`; `food jpy` gives origin quantity `160`;
+`quiet jpy` gives supported zero. `unsupported jpy` stays unknown (exit 3/stdout).
+Load/admission failures exit 1; syntax failures exit 2 (stderr, no stdout).
 
-## Try a read-only synthetic Actual preview
+Only the explicit synthetic grammar is accepted; it is not an upstream adapter or
+chosen canonical storage format. Unsupported facts never disappear into a successful
+empty image. See [grammar](cli/current_fixture_input.mli) and
+[source/query interfaces](application/current_quantity_query.mli).
 
-```sh
-./tools/opam exec -- dune exec loam-ocaml -- inspect-actual-fixture \
-  examples/actual-preview.fixture wallet jpy
-```
+## Retained scope
 
-Result: asserted `1000`, unreflected delta `-10`, conditional quantity `990`.
-Only the explicitly versioned synthetic fixture grammar is read, never upstream
-household formats. Base occurrence validity stays independent of neutral Events;
-exact assertion groups keep their own reflected-root cuts. Unknown quantity exits
-3 (stdout), load/admission refusal 1, syntax refusal 2 (stderr). No write occurs.
-Other support families/metadata/keyed Effects refuse rather than disappear.
-This is **not full Actual admission, history completeness or household authority**.
-See [interfaces](application/actual_quantity_preview.mli) and
-[fixture grammar](cli/actual_fixture_input.mli); no canonical storage format chosen.
+- Local single user; CLI first, eventual TUI. No current UI/network/synchronization.
+- Immutable functional engine; process/file I/O only at explicit edges.
+- Runtime Base + Zarith; tests ppx_expect + Base_quickcheck. No speculative framework.
+- General Events remain broader than ordinary Movements. Current source admission
+  covers only anonymous ordinary/base-validity Actual: all retained Effects nonzero,
+  per-Measure conservation, independent complete base validity and qualified corrections.
+- Exact assertion groups retain independent reflected-root cuts. Origin is explicit,
+  not inferred from activity. Cross-family coordinate overlap refuses globally.
+- Keys/metadata, validity history, Exchange/Reversal, opening/presence, historical
+  completeness and full normalized Actual admission are still unsupported.
 
-## Try a synthetic movement
+No public API/storage compatibility promise exists during this unreleased phase.
+Remove obsolete routes rather than maintain prototype compatibility. Licensing,
+source reuse, public publication, storage and operational cutover require decisions.
+Lean is optional development evidence, never a production build/test/release dependency.
 
-```sh
-./tools/opam exec -- dune exec loam-ocaml -- check-movement \
-  --effect wallet jpy -1000 \
-  --effect food jpy 600 \
-  --effect transport jpy 400
-```
+## Documentation
 
-The preview says **structurally valid (not recorded)**. Amounts are exact quanta,
-not inferred display currency units. Empty/zero Effects, mixed Measures, and
-imbalance are refused. No household files are read or written, no identities are
-allocated, and no current household policy/date checks are implied. Help:
+- [Semantic contract](docs/SEMANTIC_CONTRACT.md): meanings that must survive.
+- [Architecture](docs/ARCHITECTURE.md) and public `.mli`: implemented boundaries.
+- [Verification](docs/VERIFICATION.md): instruments, evidence and limits.
+- [Development](docs/DEVELOPMENT.md): isolated toolchain and commands.
+- [References](docs/REFERENCES.md): narrow upstream owners and correspondence gaps.
+- [Contributing](CONTRIBUTING.md), [pit instructions](AGENTS.md),
+  [handoff](docs/HANDOFF.md): workflow and next bounded work.
 
-```sh
-./tools/opam exec -- dune exec loam-ocaml -- --help
-```
-
-Future examples, fixtures, benchmarks, and demos must use synthetic data.
-Existing household data must not enter this repository.
-
-## Portfolio standard
-
-The quality ambition is independent of popularity: rigorous retained meanings,
-operational reliability, and maintainability, informed by LOAM's accumulated
-research/verification. Intentionally omitting unused features does not lower the
-assurance target; superiority to other OSS is an aspiration, not a measured claim.
-
-Prefer a small working system with explainable contracts over a broad unfinished
-framework. Show representative source, executable counterexamples, measured
-trade-offs, and the limits of formal claims. Primary technical entry documents
-are in English; user-facing discussion may be in Japanese.
-
-Preserve the Core's researched expressive capacity, not only the currently
-implemented feature list. The [correspondence map/proposed next steps](docs/CORE_CORRESPONDENCE.md)
-separates prior evidence, retained distinctions, and OCaml qualification gaps;
-unimplemented derived capabilities are not automatically missing Core concepts.
-
-The intended review path is: a five-minute overview, a thirty-minute source and
-test walkthrough, then optional deep dives into proofs, failure injection, and
-performance. This is a presentation goal, not a claim about any organization's
-hiring criteria.
-
-## Licensing and publication
-
-The user authorized initial commit and private GitHub hosting at
-[shumoku88-bit/loam-ocaml](https://github.com/shumoku88-bit/loam-ocaml); private
-visibility was rechecked. This is not a public release or license selection.
-No license is selected. Resolve licensing/source-reuse provenance before importing
-code or public publication; do not assume open-source reuse rights.
+Prior research is a design asset, not an OCaml correctness certificate. Missing
+operations do not invalidate Core expressiveness. Professional quality means
+inspectable contracts and failure behavior, not feature/theorem counts or certification.

@@ -55,21 +55,6 @@ A structured application preview cannot be forged with a false aggregate.
   [2]
   $ grep -q 'Unbound record field "movement"\|Unbound record field movement' error
 
-Conditional projection is usable without CLI/presentation or private record fields.
-
-  $ cat >zero_origin_client.ml <<'EOF'
-  > module D = Loam_domain
-  > module P = Loam_application.Zero_origin_projection
-  > let inspect movements (locus : D.Identifier.Locus.t) (measure : D.Identifier.Measure.t) =
-  >   let coordinate : D.Effect_coordinate.t = { locus; measure } in
-  >   match D.Zero_origin_coverage.of_coordinates [ coordinate ] with
-  >   | Error error -> Error error
-  >   | Ok coverage ->
-  >     let model = P.create ~movements ~coverage in
-  >     Ok (P.query model coordinate)
-  > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c zero_origin_client.ml
-
 The coordinate's identifier roles remain distinct.
 
   $ cat >wrong_coordinate.ml <<'EOF'
@@ -85,7 +70,7 @@ A supported conditional answer cannot be forged with a guessed zero quantity.
 
   $ cat >forged_quantity.ml <<'EOF'
   > module D = Loam_domain
-  > module P = Loam_application.Zero_origin_projection
+  > module P = Loam_application.Current_quantity_query
   > let forge (coordinate : D.Effect_coordinate.t) : P.answer =
   >   { coordinate; quantity = D.Quantity.zero }
   > EOF
@@ -355,24 +340,7 @@ A cut is not the common source frontier.
   [2]
   $ grep -q 'Reflected_root_cut.t' error && grep -q 'Correction_frontier.t' error
 
-The public Actual preview requires independent validity, not only a frontier.
-
-  $ cat >actual_preview_client.ml <<'EOF'
-  > module A = Loam_application.Actual_quantity_preview
-  > let empty () = A.run { events = []; validities = []; corrections = []; groups = [] }
-  > let query image coordinate = A.query image coordinate
-  > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c actual_preview_client.ml
-  $ cat >frontier_is_not_actual.ml <<'EOF'
-  > module A = Loam_application
-  > let query (frontier : A.Correction_frontier.t) coordinate =
-  >   A.Actual_quantity_preview.query frontier coordinate
-  > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c frontier_is_not_actual.ml 2>error
-  [2]
-  $ grep -q 'Correction_frontier.t' error && grep -q 'Actual_quantity_preview.t' error
-
-A general dated preview is not the physically admitted base Actual subset.
+The physically admitted base Actual source has a public smart constructor.
 
   $ cat >actual_source_client.ml <<'EOF'
   > module S = Loam_application.Actual_source
@@ -380,13 +348,13 @@ A general dated preview is not the physically admitted base Actual subset.
   > let facts source = Loam_application.Actual_validity.facts (S.validity source)
   > EOF
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c actual_source_client.ml
-  $ cat >preview_is_not_actual_source.ml <<'EOF'
+  $ cat >forged_actual_source.ml <<'EOF'
   > module A = Loam_application
-  > let use (preview : A.Actual_quantity_preview.t) = A.Actual_source.frontier preview
+  > let forge frontier validity : A.Actual_source.t = { frontier; validity }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c preview_is_not_actual_source.ml 2>error
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_actual_source.ml 2>error
   [2]
-  $ grep -q 'Actual_quantity_preview.t' error && grep -q 'Actual_source.t' error
+  $ grep -q 'Unbound record field.*frontier' error
 
 The composed query needs an admitted source, not a frontier or separate projections.
 

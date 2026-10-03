@@ -79,11 +79,11 @@ Current_quantity_projection gates by assertion support before exposing a quantit
 Those arithmetic/lookup mechanisms are not formally refined here; direct Zarith
 original-Effect/independent cut oracles check separate executable seams.
 
-See [cut contract](../docs/ROOT_CUT_SLICE.md) and
-[quantity contract](../docs/CURRENT_QUANTITY_SLICE.md) for admission
-policy, bounded model/code tests, and actual qualification. The
-[group contract](../docs/CURRENT_GROUPS_SLICE.md) maps functional ownership to
-anonymous group premises over one explicitly supplied frontier. That extra grouping,
+See [cut](../application/reflected_root_cut.mli),
+[quantity](../application/current_quantity_projection.mli) and
+[group](../application/current_quantity_groups.mli) interfaces for admission policy;
+[verification](../docs/VERIFICATION.md) owns bounded executable evidence. Functional
+ownership maps to anonymous premises over one supplied frontier. That extra grouping,
 indexing, ordered qualification and reduction are only executable/model-tested,
 not formally refined by these three lookup laws. Revisit if ownership/update or filtering
 policy, root identity, output order, terminal transformation, or proof assumptions
