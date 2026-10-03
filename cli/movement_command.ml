@@ -31,17 +31,9 @@ type outcome =
   | Refused of refusal
 
 let parse_quantity ~position text =
-  let digits =
-    if String.is_empty text
-    then ""
-    else (
-      match String.get text 0 with
-      | '+' | '-' -> String.drop_prefix text 1
-      | _ -> text)
-  in
-  if String.is_empty digits || not (String.for_all digits ~f:Char.is_digit)
-  then Error (Invalid_quantity { position; text })
-  else Ok (Quantity.of_quanta (Z.of_string text))
+  match Quantity_literal.parse text with
+  | None -> Error (Invalid_quantity { position; text })
+  | Some quantity -> Ok quantity
 ;;
 
 let parse_effect ~position locus measure quantity =

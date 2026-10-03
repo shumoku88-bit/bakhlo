@@ -7,6 +7,62 @@ module C = Loam_cli.Current_fixture_command
 let ok = function Ok value -> value | Error _ -> failwith "valid syntax refused"
 let document rows = String.concat ~sep:"\n" ("LOAM-OCAML-ACTUAL-FIXTURE\t2" :: rows @ [ "END"; "" ])
 
+(* Independent ASCII/sign arithmetic, not the shared parser or Zarith's literal grammar. *)
+let decimal_oracle text =
+  let bytes = String.to_list text in
+  let negative, digits = match bytes with
+    | '-' :: rest -> true, rest
+    | '+' :: rest -> false, rest
+    | rest -> false, rest in
+  if List.is_empty digits || not (List.for_all digits ~f:(fun c -> Char.to_int c >= 48 && Char.to_int c <= 57))
+  then None
+  else
+    let magnitude = List.fold digits ~init:Z.zero ~f:(fun value c ->
+      Z.add (Z.mul value (Z.of_int 10)) (Z.of_int (Char.to_int c - 48))) in
+    Some (if negative then Z.neg magnitude else magnitude)
+;;
+
+let%expect_test "shared decimal grammar preserves both consumers' admission and exact refusal boundaries" =
+  let module M = Loam_cli.Movement_command in
+  let module Check = Loam_application.Movement_check in
+  let alphabet = [ "+"; "-"; "0"; "9"; "x"; "_"; " "; "." ] in
+  let rec words length =
+    if length = 0 then [ "" ]
+    else List.concat_map (words (length - 1)) ~f:(fun prefix -> List.map alphabet ~f:(fun byte -> prefix ^ byte)) in
+  let huge = Z.to_string (Z.shift_left Z.one 180) in
+  let literals = List.concat_map [ 0; 1; 2; 3 ] ~f:words
+    @ List.init 256 ~f:(fun code -> String.of_char (Char.of_int_exn code))
+    @ [ "000"; "+000"; "-000"; huge; "+" ^ huge; "-" ^ huge ] in
+  let admitted = ref 0 in
+  List.iter literals ~f:(fun literal ->
+    let expected = decimal_oracle literal in
+    F.require (Option.equal Z.equal expected
+      (Option.map (Loam_cli.Quantity_literal.parse literal) ~f:D.Quantity.quanta)) "literal differs from byte/digit oracle";
+    let decoded = Input.decode (document [ "EVENT\te\t2026-10-03"; "EFFECT\twallet\tjpy\t" ^ literal; "END-EVENT" ]) in
+    let opposite = match expected with None -> "1" | Some value -> Z.to_string (Z.neg value) in
+    let movement = M.evaluate [ "check-movement"; "--effect"; "wallet"; "jpy"; literal; "--effect"; "other"; "jpy"; opposite ] in
+    match expected, decoded, movement with
+    | None, Error (Syntax _), Refused (Syntax (Invalid_quantity { position = 1; text })) ->
+      F.require (String.equal text literal) "Movement diagnostic lost original literal"
+    | Some value, Ok decoded, Validated preview ->
+      Int.incr admitted;
+      let fixture_change = List.hd_exn (D.Event.effects (List.hd_exn decoded.source.events)) in
+      let movement_change = List.hd_exn (Check.effects preview) in
+      F.require (Z.equal value (D.Quantity.quanta (D.Effect.quantity fixture_change)) &&
+        Z.equal value (D.Quantity.quanta (D.Effect.quantity movement_change))) "consumer changed exact value"
+    | Some value, Ok decoded, Refused (Movement errors) ->
+      Int.incr admitted;
+      F.require (Z.equal value Z.zero) "nonzero literal failed balanced Movement";
+      (match errors with
+       | [ D.Movement.Zero_quantity { position = 1 }; Zero_quantity { position = 2 } ] -> ()
+       | _ -> failwith "lexical zero lost its ordered Movement refusals");
+      F.require (D.Quantity.equal (D.Effect.quantity (List.hd_exn (D.Event.effects (List.hd_exn decoded.source.events)))) D.Quantity.zero) "neutral zero was narrowed in decoder"
+    | _ -> failwith "consumer grammar/admission changed");
+  F.require (List.length literals = 847 && !admitted = 42) "executed grammar specimen counts";
+  Stdlib.Printf.printf "847 bounded byte/sign/huge literals; 42 lexical successes; distinct syntax/Movement admission retained\n";
+  [%expect {| 847 bounded byte/sign/huge literals; 42 lexical successes; distinct syntax/Movement admission retained |}]
+;;
+
 let%expect_test "decoding preserves exact identities and neutral Effects; source admission is separate" =
   let huge = Z.shift_left Z.one 160 in
   let text = document [ "EVENT\t a \t2026-10-03"; "EFFECT\t wallet \tUSD\t+0007";

@@ -4,7 +4,9 @@ module Id = D.Identifier.Event
 module Revision_id = D.Identifier.Validity_revision
 
 type reference = Base_ref of Id.t | Revision_ref of Revision_id.t
-type fact = Base of { event : Id.t; valid_on : string } | Revision of { id : Revision_id.t; event : Id.t; valid_on : string }
+type fact =
+  | Base of { event : Id.t; valid_on : string }
+  | Revision of { id : Revision_id.t; event : Id.t; valid_on : string }
 type correction = { target : reference; replacement : Revision_id.t }
 type endpoint = Target of reference | Replacement of Revision_id.t
 module Reference = struct
@@ -24,9 +26,14 @@ module Reference = struct
   let equal a b = Int.equal (compare a b) 0
 end
 module Cycle_check = Replacement_cycle.Make (Reference)
+
 type t =
-  { events : D.Event_memory.t; facts : fact list; corrections : correction list
-  ; current_facts : fact list; by_event : (Id.t, int * fact, Id.comparator_witness) Map.t }
+  { events : D.Event_memory.t
+  ; facts : fact list
+  ; corrections : correction list
+  ; current_facts : fact list
+  ; by_event : (Id.t, int * fact, Id.comparator_witness) Map.t
+  }
 type error =
   | Invalid_date of { position : int; text : string }
   | Repeated_fact of { reference : reference; first_position : int; position : int }
@@ -39,9 +46,20 @@ type error =
   | Repeated_current_validity of { event : Id.t; first_position : int; position : int }
   | Missing_validity of { event : Id.t }
 
-let reference = function Base { event; valid_on = _ } -> Base_ref event | Revision { id; event = _; valid_on = _ } -> Revision_ref id
-let event = function Base { event; valid_on = _ } | Revision { id = _; event; valid_on = _ } -> event
-let valid_on = function Base { event = _; valid_on } | Revision { id = _; event = _; valid_on } -> valid_on
+let reference = function
+  | Base { event; valid_on = _ } -> Base_ref event
+  | Revision { id; event = _; valid_on = _ } -> Revision_ref id
+;;
+
+let event = function
+  | Base { event; valid_on = _ }
+  | Revision { id = _; event; valid_on = _ } -> event
+;;
+
+let valid_on = function
+  | Base { event = _; valid_on }
+  | Revision { id = _; event = _; valid_on } -> valid_on
+;;
 
 let valid_date text =
   if not (Int.equal (String.length text) 10) then false
@@ -84,24 +102,32 @@ let index_corrections facts corrections =
       | Some _, None -> Error (Unresolved_correction { position; endpoints = [ Replacement replacement ] })
       | Some (_, before), Some (_, after) ->
         let target_event = event before and replacement_event = event after in
-        if not (Id.equal target_event replacement_event) then Error (Cross_event_correction { position; target_event; replacement_event })
+        if not (Id.equal target_event replacement_event)
+        then Error (Cross_event_correction { position; target_event; replacement_event })
         else match Map.find targets target with
           | Some (first_position, _) -> Error (Repeated_target { reference = target; first_position; position })
           | None ->
             match Map.find replacements replacement with
             | Some first_position -> Error (Repeated_replacement { id = replacement; first_position; position })
-            | None -> Ok (position + 1, Map.set targets ~key:target ~data:(position, replacement),
-                Map.set replacements ~key:replacement ~data:position))
+            | None ->
+              Ok
+                ( position + 1
+                , Map.set targets ~key:target ~data:(position, replacement)
+                , Map.set replacements ~key:replacement ~data:position ))
 ;;
 
 let create ~events ~facts ~corrections =
   let ( let* ) result f = Result.bind result ~f in
   let* (_, indexed) = index_facts ~events facts in
   let* (_, targets, _) = index_corrections indexed corrections in
-  let* () = Result.map_error
-      (Cycle_check.check ~successor:(fun key -> Option.map (Map.find targets key) ~f:(fun (_, id) -> Revision_ref id))
+  let* () =
+    Result.map_error
+      (Cycle_check.check
+        ~successor:(fun key ->
+          Option.map (Map.find targets key) ~f:(fun (_, id) -> Revision_ref id))
         ~starts:(List.map corrections ~f:(fun { target; replacement = _ } -> target)))
-      ~f:(fun path -> Cycle { path }) in
+      ~f:(fun path -> Cycle { path })
+  in
   let* (_, reversed, by_event) = List.fold_result facts ~init:(1, [], Map.empty (module Id))
       ~f:(fun (position, current, seen) fact ->
         if Map.mem targets (reference fact) then Ok (position + 1, current, seen)
@@ -110,7 +136,10 @@ let create ~events ~facts ~corrections =
           match Map.find seen event with
           | Some (first_position, _) -> Error (Repeated_current_validity { event; first_position; position })
           | None -> Ok (position + 1, fact :: current, Map.set seen ~key:event ~data:(position, fact))) in
-  match List.find (D.Event_memory.events events) ~f:(fun event -> not (Map.mem by_event (D.Event.id event))) with
+  match
+    List.find (D.Event_memory.events events) ~f:(fun event ->
+      not (Map.mem by_event (D.Event.id event)))
+  with
   | Some event -> Error (Missing_validity { event = D.Event.id event })
   | None -> Ok { events; facts; corrections; current_facts = List.rev reversed; by_event }
 ;;

@@ -9,7 +9,11 @@ type command =
   ; corrections : D.Event_correction.t list
   ; descriptions : Event_descriptions.fact list
   }
-type t = { frontier : Correction_frontier.t; validity : Actual_validity.t; descriptions : Event_descriptions.t }
+type t =
+  { frontier : Correction_frontier.t
+  ; validity : Actual_validity.t
+  ; descriptions : Event_descriptions.t
+  }
 type error =
   | Events of D.Event_memory.error
   | Zero_effect of { event : D.Identifier.Event.t; event_position : int; effect_position : int }
@@ -43,9 +47,19 @@ let create ({ events = originals; validities; validity_corrections; corrections;
   let* events = Result.map_error (D.Event_memory.of_events originals) ~f:(fun error -> Events error) in
   let* _ = List.fold_result originals ~init:1 ~f:(fun position event ->
     Result.map (check_event position event) ~f:(fun () -> position + 1)) in
-  let* validity = Result.map_error (Actual_validity.create ~events ~facts:validities ~corrections:validity_corrections) ~f:(fun error -> Validity error) in
-  let* frontier = Result.map_error (Correction_frontier.create ~events ~corrections) ~f:(fun error -> Corrections error) in
-  let* descriptions = Result.map_error (Event_descriptions.create ~events ~facts:descriptions) ~f:(fun error -> Descriptions error) in
+  let* validity =
+    Result.map_error
+      (Actual_validity.create ~events ~facts:validities ~corrections:validity_corrections)
+      ~f:(fun error -> Validity error)
+  in
+  let* frontier =
+    Result.map_error (Correction_frontier.create ~events ~corrections)
+      ~f:(fun error -> Corrections error)
+  in
+  let* descriptions =
+    Result.map_error (Event_descriptions.create ~events ~facts:descriptions)
+      ~f:(fun error -> Descriptions error)
+  in
   Ok { frontier; validity; descriptions }
 ;;
 let frontier t = t.frontier

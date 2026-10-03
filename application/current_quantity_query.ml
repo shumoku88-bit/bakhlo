@@ -4,9 +4,19 @@ module H = Current_quantity_groups
 module P = Current_quantity_projection
 module C = Reflected_root_cut
 
-type opening = { coordinate : D.Effect_coordinate.t; opening_event : D.Identifier.Event.t }
-type presence = { reflected_roots : D.Identifier.Event.t list; coordinates : D.Effect_coordinate.t list }
-type present = { coordinate : D.Effect_coordinate.t; evidence : presence; cut : C.t }
+type opening =
+  { coordinate : D.Effect_coordinate.t
+  ; opening_event : D.Identifier.Event.t
+  }
+type presence =
+  { reflected_roots : D.Identifier.Event.t list
+  ; coordinates : D.Effect_coordinate.t list
+  }
+type present =
+  { coordinate : D.Effect_coordinate.t
+  ; evidence : presence
+  ; cut : C.t
+  }
 type t =
   { source : Actual_source.t
   ; zero_origins : D.Effect_coordinate.t list
@@ -32,14 +42,21 @@ type error =
   | Presence_overlaps_exact of { coordinate : D.Effect_coordinate.t; position : int }
 type unavailable = Support_unknown of { coordinate : D.Effect_coordinate.t }
 type premise = Zero_origin | Opening of opening | Current_assertion of P.answer
-type exact = { coordinate : D.Effect_coordinate.t; quantity : D.Quantity.t; premise : premise }
+type exact =
+  { coordinate : D.Effect_coordinate.t
+  ; quantity : D.Quantity.t
+  ; premise : premise
+  }
 type outcome = Exact of exact | Known_present of present
 
 let qualify_openings frontier openings =
   let empty = Map.empty (module D.Effect_coordinate) in
   if List.is_empty openings then Ok empty else
-  let current = List.fold (Correction_frontier.frontier_events frontier) ~init:(Map.empty (module D.Identifier.Event))
-      ~f:(fun index event -> Map.set index ~key:(D.Event.id event) ~data:event) in
+  let current =
+    List.fold (Correction_frontier.frontier_events frontier)
+      ~init:(Map.empty (module D.Identifier.Event))
+      ~f:(fun index event -> Map.set index ~key:(D.Event.id event) ~data:event)
+  in
   List.fold_result openings ~init:(empty, 1)
     ~f:(fun (index, position) ({ coordinate; opening_event } as opening : opening) ->
       match Map.find index coordinate with
@@ -87,14 +104,21 @@ let create ~source ~zero_origins ~openings ~groups ~presence =
     if D.Zero_origin_coverage.covers coverage coordinate
     then Error (Opening_overlaps_origin { coordinate; opening_position })
     else Ok (opening_position + 1)) in
-  let* _ = List.fold_result groups ~init:1 ~f:(fun group_position ({ reflected_roots = _; assertions } : H.group) ->
-    let* _ = List.fold_result assertions ~init:1 ~f:(fun assertion_position ({ coordinate; quantity = _ } : P.assertion) ->
-      if D.Zero_origin_coverage.covers coverage coordinate
-      then Error (Assertion_overlaps_origin { coordinate; group_position; assertion_position })
-      else match Map.find opening_index coordinate with
-        | Some (opening, _) -> Error (Assertion_overlaps_opening { opening; group_position; assertion_position })
-        | None -> Ok (assertion_position + 1)) in
-    Ok (group_position + 1)) in
+  let* _ =
+    List.fold_result groups ~init:1
+      ~f:(fun group_position ({ reflected_roots = _; assertions } : H.group) ->
+        let* _ =
+          List.fold_result assertions ~init:1
+            ~f:(fun assertion_position ({ coordinate; quantity = _ } : P.assertion) ->
+              if D.Zero_origin_coverage.covers coverage coordinate
+              then Error (Assertion_overlaps_origin { coordinate; group_position; assertion_position })
+              else match Map.find opening_index coordinate with
+                | Some (opening, _) ->
+                  Error (Assertion_overlaps_opening { opening; group_position; assertion_position })
+                | None -> Ok (assertion_position + 1))
+        in
+        Ok (group_position + 1))
+  in
   let* _ = match presence with
     | None -> Ok 1
     | Some { reflected_roots = _; coordinates } ->
@@ -105,8 +129,17 @@ let create ~source ~zero_origins ~openings ~groups ~presence =
         else Ok (position + 1)) in
   let totals = List.fold (Correction_frontier.frontier_events frontier) ~init:Effect_sum.empty
       ~f:(fun totals event -> Effect_sum.add_effects totals (D.Event.effects event)) in
-  Ok { source; zero_origins; coverage; openings; opening_index; presence;
-       present_index = present_index qualified_presence; totals; source_groups }
+  Ok
+    { source
+    ; zero_origins
+    ; coverage
+    ; openings
+    ; opening_index
+    ; presence
+    ; present_index = present_index qualified_presence
+    ; totals
+    ; source_groups
+    }
 ;;
 let source t = t.source
 let zero_origins t = t.zero_origins

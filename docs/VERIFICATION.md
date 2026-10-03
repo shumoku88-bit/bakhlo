@@ -57,6 +57,15 @@ counters; shared construction helpers are in `fixtures.ml`, never another test-c
 | Origin queries | Original-Effect generated arithmetic transferred to the current admitted-source query; repeated payloads use distinct Event IDs, not implicit deduplication |
 | Validity / decoder / shell | Calendar/reference counterexamples, exact tokens/quanta, unknown/obsolete/truncated/unsupported rows, escaped diagnostics, real CLI exit/stream and unchanged-file checks; no arbitrary corruption/authenticity guarantee |
 
+Shared CLI quantity lexing is checked against independent byte/sign/digit arithmetic:
+847 specimens (all eight-symbol strings of length 0–3, all 256 singleton bytes and six
+zero/huge literals), 42 lexical successes. Both consumers retain exact values, original
+syntax witnesses and their different neutral-zero/Movement admission. Not all strings.
+Compiler-command cleanup retains all 48 client bodies, include scopes/options, expected
+statuses and diagnostic assertions; positive/negative controls still execute. A one-shot
+pinned compiler-parser check found identical location-free ASTs for four layout-only
+implementations; this is representation evidence, not a new formal refinement proof.
+
 Large chain/cycle and generated cases supplement, not universally extend, finite bounds.
 External compiler clients test public abstractions, wrong qualified source types and private
 arithmetic exclusion. Key/Event roles and unqualified/forged Events are rejected;

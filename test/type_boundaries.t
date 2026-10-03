@@ -1,5 +1,9 @@
 A well-typed external client compiles using only the public interfaces.
 Zero is representable as a neutral Effect; it is Movement validation that refuses it.
+Compiler shorthands preserve separate Domain-only and Domain/Application scopes.
+
+  $ domain_client() { ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c "$@"; }
+  $ application_client() { domain_client -I ../application/.loam_application.objs/byte "$@"; }
 
   $ cat >valid.ml <<'EOF'
   > module D = Loam_domain
@@ -9,7 +13,7 @@ Zero is representable as a neutral Effect; it is Movement validation that refuse
   >   D.Effect.create ~key:(Some key) ~locus ~measure ~quantity:D.Quantity.zero
   > let admit id effects = D.Event.create ~id ~effects
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c valid.ml
+  $ domain_client valid.ml
 
 An abstract Measure identity cannot be supplied as a Locus identity.
 Check the diagnostic as well as the exit code, so an unrelated compiler failure
@@ -20,7 +24,7 @@ cannot masquerade as protection of this boundary.
   > let change (measure : D.Identifier.Measure.t) =
   >   D.Effect.create ~key:None ~locus:measure ~measure ~quantity:D.Quantity.zero
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c wrong_role.ml 2>error
+  $ domain_client wrong_role.ml 2>error
   [2]
   $ grep -q 'Identifier.Measure.t' error && grep -q 'Identifier.Locus.t' error
 
@@ -31,21 +35,21 @@ Effect keys are not Event identities; unqualified Event results cannot enter mem
   > let wrong (key : D.Identifier.Event.t) locus measure =
   >   D.Effect.create ~key:(Some key) ~locus ~measure ~quantity:D.Quantity.zero
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c wrong_effect_key.ml 2>error
+  $ domain_client wrong_effect_key.ml 2>error
   [2]
   $ grep -q 'Identifier.Event.t' error && grep -q 'Identifier.Effect_key.t' error
   $ cat >unqualified_event.ml <<'EOF'
   > module D = Loam_domain
   > let wrong id effects = D.Event_memory.of_events [ D.Event.create ~id ~effects ]
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c unqualified_event.ml 2>error
+  $ domain_client unqualified_event.ml 2>error
   [2]
   $ grep -q 'result' error && grep -q 'Event.t' error
   $ cat >forged_event.ml <<'EOF'
   > module D = Loam_domain
   > let wrong id effects : D.Event.t = { id; effects }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c forged_event.ml 2>error
+  $ domain_client forged_event.ml 2>error
   [2]
   $ grep -q 'Unbound record field.*id' error
 
@@ -57,7 +61,7 @@ This check does not claim to protect against unsafe OCaml escape hatches.
   > let forge (measure : D.Identifier.Measure.t) : D.Movement.t =
   >   { measure; effects = [] }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c forged.ml 2>error
+  $ domain_client forged.ml 2>error
   [2]
   $ grep -q 'Unbound record field "measure"\|Unbound record field measure' error
 
@@ -70,7 +74,7 @@ The application can be used by a typed client without CLI or presentation CMIs.
   >   | Ok answer -> Some (A.measure answer, A.effects answer, A.positive_total answer)
   >   | Error _ -> None
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c application_client.ml
+  $ application_client application_client.ml
 
 A structured application preview cannot be forged with a false aggregate.
 
@@ -79,7 +83,7 @@ A structured application preview cannot be forged with a false aggregate.
   > let forge (movement : Loam_domain.Movement.t) : A.preview =
   >   { movement; positive_total = Loam_domain.Quantity.zero }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_preview.ml 2>error
+  $ application_client forged_preview.ml 2>error
   [2]
   $ grep -q 'Unbound record field "movement"\|Unbound record field movement' error
 
@@ -90,7 +94,7 @@ The coordinate's identifier roles remain distinct.
   > let forge (measure : D.Identifier.Measure.t) : D.Effect_coordinate.t =
   >   { locus = measure; measure }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c wrong_coordinate.ml 2>error
+  $ domain_client wrong_coordinate.ml 2>error
   [2]
   $ grep -q 'Identifier.Measure.t' error && grep -q 'Identifier.Locus.t' error
 
@@ -102,7 +106,7 @@ A supported conditional answer cannot be forged with a guessed zero quantity.
   > let forge (coordinate : D.Effect_coordinate.t) : P.exact =
   >   { coordinate; quantity = D.Quantity.zero }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_quantity.ml 2>error
+  $ application_client forged_quantity.ml 2>error
   [2]
   $ grep -q 'Unbound record field "coordinate"\|Unbound record field coordinate' error
 
@@ -121,7 +125,7 @@ An endpoint-closure client compiles without CLI/presentation or private memory f
   >       let correction : D.Event_correction.t = { target; replacement } in
   >       Ok (C.run ~events ~correction)
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c correction_client.ml
+  $ application_client correction_client.ml
 
 Locus identity cannot stand in for Event identity.
 
@@ -129,7 +133,7 @@ Locus identity cannot stand in for Event identity.
   > module D = Loam_domain
   > let forge (locus : D.Identifier.Locus.t) = D.Event.create ~id:locus ~effects:[]
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c wrong_event_role.ml 2>error
+  $ domain_client wrong_event_role.ml 2>error
   [2]
   $ grep -q 'Identifier.Event.t' error && grep -q 'Identifier.Locus.t' error
 
@@ -140,7 +144,7 @@ The source list and memory lookup index cannot be forged into an inconsistent pa
   > let forge : D.Event_memory.t =
   >   { events = []; by_id = Base.Map.empty (module D.Identifier.Event) }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c forged_memory.ml 2>error
+  $ domain_client forged_memory.ml 2>error
   [2]
   $ grep -q 'Unbound record field "events"\|Unbound record field events' error
 
@@ -152,7 +156,7 @@ A closed endpoint answer cannot claim unrelated observations by record construct
   > let forge (correction : D.Event_correction.t) (target_event : D.Event.t) (replacement_event : D.Event.t) : C.closed =
   >   { correction; target_event; replacement_event }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_closed.ml 2>error
+  $ application_client forged_closed.ml 2>error
   [2]
   $ grep -q 'Unbound record field "correction"\|Unbound record field correction' error
 
@@ -168,7 +172,7 @@ A qualified frontier client needs only Domain/Application interfaces.
   >     let lineages = List.map (fun row -> F.root_id row, F.terminal_event row) (F.lineages answer) in
   >     Ok (F.retained_events answer, F.corrections answer, F.frontier_events answer, lineages)
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c frontier_client.ml
+  $ application_client frontier_client.ml
 
 One closed edge cannot stand in for a graph-qualified frontier.
 
@@ -176,7 +180,7 @@ One closed edge cannot stand in for a graph-qualified frontier.
   > module A = Loam_application
   > let forge (closed : A.Correction_check.closed) = A.Correction_frontier.frontier_events closed
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c closure_is_not_frontier.ml 2>error
+  $ application_client closure_is_not_frontier.ml 2>error
   [2]
   $ grep -q 'Correction_check.closed' error && grep -q 'Correction_frontier.t' error
 
@@ -188,7 +192,7 @@ A frontier cannot be fabricated to conceal observations without graph admission.
   > let forge (retained_events : D.Event_memory.t) : F.t =
   >   { retained_events; corrections = []; frontier_events = [] }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_frontier.ml 2>error
+  $ application_client forged_frontier.ml 2>error
   [2]
   $ grep -q 'Unbound record field "retained_events"\|Unbound record field retained_events' error
 
@@ -200,7 +204,7 @@ A root-to-terminal association cannot be fabricated from unrelated observations.
   > let forge (root_id : D.Identifier.Event.t) (terminal_event : D.Event.t) : F.lineage =
   >   { root_id; terminal_event }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_lineage.ml 2>error
+  $ application_client forged_lineage.ml 2>error
   [2]
   $ grep -q 'Unbound record field "root_id"\|Unbound record field root_id' error
 
@@ -210,7 +214,7 @@ A closed endpoint observation is not a qualified lineage, even when its two IDs 
   > module A = Loam_application
   > let forge (closed : A.Correction_check.closed) = A.Correction_frontier.root_id closed
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c closed_is_not_lineage.ml 2>error
+  $ application_client closed_is_not_lineage.ml 2>error
   [2]
   $ grep -q 'Correction_check.closed' error && grep -q 'Correction_frontier.lineage' error
 
@@ -226,7 +230,7 @@ A reflected-root cut client uses only qualified Domain/Application values.
   >     Ok (C.source_frontier answer, C.reflected_roots answer,
   >         C.remaining_lineages answer, C.remaining_events answer)
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c root_cut_client.ml
+  $ application_client root_cut_client.ml
 
 The cut cannot be forged to conceal a source or invent exclusion results.
 
@@ -235,7 +239,7 @@ The cut cannot be forged to conceal a source or invent exclusion results.
   > let forge (source_frontier : A.Correction_frontier.t) : A.Reflected_root_cut.t =
   >   { source_frontier; reflected_roots = []; remaining_lineages = []; remaining_events = [] }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_root_cut.ml 2>error
+  $ application_client forged_root_cut.ml 2>error
   [2]
   $ grep -q 'Unbound record field "source_frontier"\|Unbound record field source_frontier' error
 
@@ -246,7 +250,7 @@ Endpoint closure alone is not a sufficient source for a root cut.
   > let forge (closed : A.Correction_check.closed) =
   >   A.Reflected_root_cut.create ~frontier:closed ~reflected_roots:[]
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c closed_is_not_cut_source.ml 2>error
+  $ application_client closed_is_not_cut_source.ml 2>error
   [2]
   $ grep -q 'Correction_check.closed' error && grep -q 'Correction_frontier.t' error
 
@@ -257,7 +261,7 @@ A previously qualified cut is not a fresh source frontier; rebinding is explicit
   > let forge (cut : A.Reflected_root_cut.t) =
   >   A.Reflected_root_cut.create ~frontier:cut ~reflected_roots:[]
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c cut_is_not_source.ml 2>error
+  $ application_client cut_is_not_source.ml 2>error
   [2]
   $ grep -q 'Reflected_root_cut.t' error && grep -q 'Correction_frontier.t' error
 
@@ -274,7 +278,7 @@ Conditional current quantity uses an exact independent assertion and qualified c
   > let components answer =
   >   P.coordinate answer, P.asserted_quantity answer, P.delta answer, P.quantity answer
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c current_quantity_client.ml
+  $ application_client current_quantity_client.ml
 
 A group cannot be forged to mismatch its source, assertions and aggregate.
 
@@ -284,7 +288,7 @@ A group cannot be forged to mismatch its source, assertions and aggregate.
   > let forge (source_cut : A.Reflected_root_cut.t) : A.Current_quantity_projection.t =
   >   { source_cut; assertions = []; answers = Base.Map.empty (module D.Effect_coordinate) }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_current_group.ml 2>error
+  $ application_client forged_current_group.ml 2>error
   [2]
   $ grep -q 'Unbound record field "source_cut"\|Unbound record field source_cut' error
 
@@ -296,7 +300,7 @@ A supported answer cannot be manufactured from a guessed zero decomposition.
   > let forge (coordinate : D.Effect_coordinate.t) : P.answer =
   >   { coordinate; asserted_quantity = D.Quantity.zero; delta = D.Quantity.zero; quantity = D.Quantity.zero }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_current_answer.ml 2>error
+  $ application_client forged_current_answer.ml 2>error
   [2]
   $ grep -q 'Unbound record field "coordinate"\|Unbound record field coordinate' error
 
@@ -307,7 +311,7 @@ A qualified frontier is not independent reflected-root evidence for this quantit
   > let forge (frontier : A.Correction_frontier.t) =
   >   A.Current_quantity_projection.create ~cut:frontier ~assertions:[]
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c frontier_is_not_quantity_cut.ml 2>error
+  $ application_client frontier_is_not_quantity_cut.ml 2>error
   [2]
   $ grep -q 'Correction_frontier.t' error && grep -q 'Reflected_root_cut.t' error
 
@@ -317,7 +321,7 @@ The shared aggregate is not a public support/balance API.
   > let forge coordinate =
   >   Loam_application.Effect_sum.at Loam_application.Effect_sum.empty coordinate
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c private_sum_is_not_support.ml 2>error
+  $ application_client private_sum_is_not_support.ml 2>error
   [2]
   $ grep -q 'Unbound module.*Effect_sum' error
 
@@ -334,7 +338,7 @@ Multiple anonymous groups bind to one frontier, with explicit re-observation.
   >     Ok (H.source_frontier image, H.groups image, H.group_for image coordinate,
   >         H.query image coordinate, H.reobserve image observation)
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c current_groups_client.ml
+  $ application_client current_groups_client.ml
 
 A global ownership image cannot be forged by ordinary well-typed code.
 
@@ -343,7 +347,7 @@ A global ownership image cannot be forged by ordinary well-typed code.
   > let forge (frontier : A.Correction_frontier.t) : A.Current_quantity_groups.t =
   >   { frontier; qualified_groups = []; owners = Base.Map.empty (module Loam_domain.Effect_coordinate) }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_group_image.ml 2>error
+  $ application_client forged_group_image.ml 2>error
   [2]
   $ grep -q 'Unbound record field "frontier"\|Unbound record field frontier' error
 
@@ -354,7 +358,7 @@ Separately source-bound projections cannot be combined as raw group declarations
   > let mix frontier (projection : A.Current_quantity_projection.t) =
   >   A.Current_quantity_groups.create ~frontier ~groups:[ projection ]
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c separately_bound_group.ml 2>error
+  $ application_client separately_bound_group.ml 2>error
   [2]
   $ grep -q 'Current_quantity_projection.t' error && grep -q 'Current_quantity_groups.group' error
 
@@ -365,7 +369,7 @@ A cut is not the common source frontier.
   > let mix (cut : A.Reflected_root_cut.t) =
   >   A.Current_quantity_groups.create ~frontier:cut ~groups:[]
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c cut_is_not_group_source.ml 2>error
+  $ application_client cut_is_not_group_source.ml 2>error
   [2]
   $ grep -q 'Reflected_root_cut.t' error && grep -q 'Correction_frontier.t' error
 
@@ -377,12 +381,12 @@ The physically admitted ordinary Actual source has a public smart constructor.
   > let facts source = Loam_application.Actual_validity.facts (S.validity source)
   > let descriptions source = Loam_application.Event_descriptions.facts (S.descriptions source)
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c actual_source_client.ml
+  $ application_client actual_source_client.ml
   $ cat >forged_actual_source.ml <<'EOF'
   > module A = Loam_application
   > let forge frontier validity : A.Actual_source.t = { frontier; validity }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_actual_source.ml 2>error
+  $ application_client forged_actual_source.ml 2>error
   [2]
   $ grep -q 'Unbound record field.*frontier' error
 
@@ -397,13 +401,13 @@ Retained date history has tagged references and a distinct revision identity, no
   > let admit events facts corrections = V.create ~events ~facts ~corrections
   > let inspect history id = V.facts history, V.corrections history, V.current_facts history, V.find_current history id
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c validity_history_client.ml
+  $ application_client validity_history_client.ml
   $ cat >wrong_date_revision.ml <<'EOF'
   > module D = Loam_domain
   > module V = Loam_application.Actual_validity
   > let wrong (id : D.Identifier.Event.t) event : V.fact = Revision { id; event; valid_on = "2026-10-03" }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c wrong_date_revision.ml 2>error
+  $ application_client wrong_date_revision.ml 2>error
   [2]
   $ grep -q 'Identifier.Event.t' error && grep -q 'Identifier.Validity_revision.t' error
   $ cat >wrong_date_base.ml <<'EOF'
@@ -411,27 +415,27 @@ Retained date history has tagged references and a distinct revision identity, no
   > module V = Loam_application.Actual_validity
   > let wrong (id : D.Identifier.Validity_revision.t) = V.Base_ref id
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c wrong_date_base.ml 2>error
+  $ application_client wrong_date_base.ml 2>error
   [2]
   $ grep -q 'Identifier.Event.t' error && grep -q 'Identifier.Validity_revision.t' error
   $ cat >forged_history.ml <<'EOF'
   > module V = Loam_application.Actual_validity
   > let wrong (facts : V.fact list) : V.t = facts
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_history.ml 2>error
+  $ application_client forged_history.ml 2>error
   [2]
   $ grep -q 'V.fact list' error && grep -q 'V.t' error
   $ cat >incomplete_date_fact.ml <<'EOF'
   > module V = Loam_application.Actual_validity
   > let wrong (fact : V.fact) = match fact with Base { event; valid_on = _ } -> event
   > EOF
-  $ ocamlfind ocamlc -w +8 -warn-error +8 -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c incomplete_date_fact.ml 2>error
+  $ application_client -w +8 -warn-error +8 incomplete_date_fact.ml 2>error
   [2]
   $ grep -q 'warning 8' error && grep -q 'Revision' error
   $ cat >private_cycle.ml <<'EOF'
   > module Wrong = Loam_application.Replacement_cycle
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c private_cycle.ml 2>error
+  $ application_client private_cycle.ml 2>error
   [2]
   $ grep -q 'Unbound module.*Replacement_cycle' error
 
@@ -445,20 +449,20 @@ Description facts use Event IDs; only the smart constructor yields qualified des
   > let retained descriptions = E.source_events descriptions, E.facts descriptions
   > let lookup = E.find_text
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c description_client.ml
+  $ application_client description_client.ml
   $ cat >wrong_description_role.ml <<'EOF'
   > module D = Loam_domain
   > module E = Loam_application.Event_descriptions
   > let wrong (event : D.Identifier.Effect_key.t) : E.fact = { event; text = "memo" }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c wrong_description_role.ml 2>error
+  $ application_client wrong_description_role.ml 2>error
   [2]
   $ grep -q 'Identifier.Effect_key.t' error && grep -q 'Identifier.Event.t' error
   $ cat >forged_descriptions.ml <<'EOF'
   > module E = Loam_application.Event_descriptions
   > let wrong (facts : E.fact list) : E.t = facts
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_descriptions.ml 2>error
+  $ application_client forged_descriptions.ml 2>error
   [2]
   $ grep -q 'E.fact list' error && grep -q 'E.t' error
 
@@ -474,7 +478,7 @@ The composed query needs an admitted source, not a frontier or separate projecti
   >   | Ok (Exact answer) -> Some (`Exact (Q.quantity answer, Q.premise answer))
   >   | Ok (Known_present answer) -> Some (`Present (Q.present_coordinate answer, Q.present_evidence answer, Q.present_cut answer))
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c current_query_client.ml
+  $ application_client current_query_client.ml
 
 Presence cannot be consumed as a Quantity or omitted from outcome handling.
 
@@ -482,14 +486,14 @@ Presence cannot be consumed as a Quantity or omitted from outcome handling.
   > module Q = Loam_application.Current_quantity_query
   > let wrong (answer : Q.present) = Q.quantity answer
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c presence_is_not_quantity.ml 2>error
+  $ application_client presence_is_not_quantity.ml 2>error
   [2]
   $ grep -q 'Q.present' error && grep -q 'Q.exact' error
   $ cat >outcome_requires_presence.ml <<'EOF'
   > module Q = Loam_application.Current_quantity_query
   > let incomplete (answer : Q.outcome) = match answer with Q.Exact value -> Q.quantity value
   > EOF
-  $ ocamlfind ocamlc -w +8 -warn-error +8 -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c outcome_requires_presence.ml 2>error
+  $ application_client -w +8 -warn-error +8 outcome_requires_presence.ml 2>error
   [2]
   $ grep -q 'warning 8' error && grep -q 'Known_present' error
 
@@ -500,7 +504,7 @@ An opening still requires an Event identity, not a Locus.
   > module Q = Loam_application.Current_quantity_query
   > let wrong coordinate (opening_event : D.Identifier.Locus.t) : Q.opening = { coordinate; opening_event }
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c opening_locus_is_not_event.ml 2>error
+  $ application_client opening_locus_is_not_event.ml 2>error
   [2]
   $ grep -q 'Identifier.Locus.t' error && grep -q 'Identifier.Event.t' error
   $ cat >frontier_is_not_current_source.ml <<'EOF'
@@ -508,6 +512,6 @@ An opening still requires an Event identity, not a Locus.
   > let use (source : A.Correction_frontier.t) =
   >   A.Current_quantity_query.create ~source ~zero_origins:[] ~openings:[] ~groups:[] ~presence:None
   > EOF
-  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c frontier_is_not_current_source.ml 2>error
+  $ application_client frontier_is_not_current_source.ml 2>error
   [2]
   $ grep -q 'Correction_frontier.t' error && grep -q 'Actual_source.t' error

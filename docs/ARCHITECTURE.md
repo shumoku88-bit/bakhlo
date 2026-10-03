@@ -61,7 +61,9 @@ known-present has its own abstract coordinate/evidence/cut payload, never arithm
 
 ## Read boundary
 
-CLI pure parsing creates typed inputs. Event structural key admission occurs at END-EVENT;
+CLI pure parsing creates typed inputs. Quantity_literal shares only the signed-decimal
+lexical rule across the two existing commands; each retains its own diagnostics/admission.
+Event structural key admission occurs at END-EVENT;
 syntax and structural refusals stay distinct. Source/support admission precedes lookup/text.
 Only the shell reads a named synthetic file. Failure/malformed/unsupported input never
 becomes an empty image. Domain remains general even when a practical source entrance is
