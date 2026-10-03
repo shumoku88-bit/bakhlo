@@ -50,6 +50,9 @@ VR-05 later observed `dca1aac7`: the Actual validity/admission/date, authority/d
 and current-support owners above were narrowly inspected. No upstream writes,
 source copying, build/proof rerun or full-checkout equivalence claimed. OCaml's
 synthetic base-validity/exact-support preview is not full normalized admission.
+Ordinary source/two-family review observed `6e8015c3`; the five admission, routing,
+current-balance, base-validity and ActualDate owners above are unchanged against
+`dca1aac7`. No upstream proof rerun or full-checkout equivalence claimed.
 The local [correspondence map](CORE_CORRESPONDENCE.md) separates upstream evidence,
 representational sufficiency, and implemented OCaml operations.
 

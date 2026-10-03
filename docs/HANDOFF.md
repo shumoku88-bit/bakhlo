@@ -77,6 +77,29 @@ No optional law proves graph admission, grouping indexes or OCaml refinement.
   models/fault injection for concrete retry/crash/publication contracts, not an
   imaginary concurrent workflow. Operational balances require separate qualification.
 
+**VR-05B — ordinary source qualified; two-family query SELECTED before code.**
+
+- D/P: upstream observed `6e8015c3`; admission/routing/date owners unchanged against
+  `dca1aac7`. Existing validity, frontier/cut/groups and source-list/Zarith oracles.
+- R: qualify ALL retained Effects as nonzero and per-Measure balanced (including
+  superseded Events); empty and balanced mixed-Measure Events remain allowed.
+  Share base validity admission, not Movement narrowing; legacy preview stays general.
+- Then one supplied source + unique zero-origin declarations + exact groups; reject
+  family overlap globally, even equal amounts. Zero-origin sums the ordinary terminal
+  frontier, anchors retain their own cuts. No activity/date-derived support or winners.
+- Use focused physical/reference/type/real-CLI tests and a small two-coordinate
+  support/cut enumeration with existing list/arithmetic oracle; no new model/theorem.
+  Explicit guards suffice for DRAKON, unchanged inward topology for D2; reconsider
+  finite/formal models on validity-history/new routing laws, fault tools on writes.
+- Scope: ONLY anonymous ordinary/base-validity Actual, not full normalized admission;
+  keys, metadata, validity revisions, Exchange/Reversal/opening/presence still refuse.
+  New synthetic v2/read command; preserve v1, no canonical format/dependency/data change.
+  Acceptance: rejected source never queried; separate cuts/support; exact/unknown/zero;
+  whole input refusals and unchanged read-only fixtures.
+- Source execution: normal/package/install and clean engine-only checks passed;
+  predicate/refusal/retention/public-client specimens passed (VERIFICATION). Legacy
+  preview/date behavior retained. Two-family query is the next increment, not yet run.
+
 ## Stable contracts and evidence
 
 Use [architecture](ARCHITECTURE.md) and public interfaces for implemented boundaries;
@@ -115,7 +138,8 @@ helper dependencies; duplicated README/HANDOFF inventories link to VERIFICATION.
 Cleanup committed separately; no tests/models/laws removed. First vertical preview
 is qualified only for the reviewed base-validity/exact-support subset. Next choose a
 concrete missing evidence family/consumer, then review its boundary before code;
-full validity history, normalized admission and separated support routing remain OPEN.
+ordinary source is now qualified; two-family query is next. Full validity history,
+normalized admission and wider separated support routing remain OPEN.
 Do not expand a synthetic fixture grammar into canonical storage by accident.
 Do not force general Event evidence through ordinary Movement narrowing or infer
 history/zero origin from activity. Failed/missing loading is never an empty basis.

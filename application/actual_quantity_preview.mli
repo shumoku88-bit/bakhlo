@@ -3,7 +3,7 @@
     Actual admission: no household nonzero/per-Measure balance policy, validity
     revisions, exchange/reversal/description or other support families, history
     completeness or authority claim. General Events stay neutral. *)
-type validity = { event : Loam_domain.Identifier.Event.t; valid_on : string }
+type validity = Actual_validity.fact = { event : Loam_domain.Identifier.Event.t; valid_on : string }
 type command =
   { events : Loam_domain.Event.t list
   ; validities : validity list

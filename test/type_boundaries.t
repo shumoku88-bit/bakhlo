@@ -371,3 +371,19 @@ The public Actual preview requires independent validity, not only a frontier.
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c frontier_is_not_actual.ml 2>error
   [2]
   $ grep -q 'Correction_frontier.t' error && grep -q 'Actual_quantity_preview.t' error
+
+A general dated preview is not the physically admitted base Actual subset.
+
+  $ cat >actual_source_client.ml <<'EOF'
+  > module S = Loam_application.Actual_source
+  > let empty () = S.create { events = []; validities = []; corrections = [] }
+  > let facts source = Loam_application.Actual_validity.facts (S.validity source)
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c actual_source_client.ml
+  $ cat >preview_is_not_actual_source.ml <<'EOF'
+  > module A = Loam_application
+  > let use (preview : A.Actual_quantity_preview.t) = A.Actual_source.frontier preview
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c preview_is_not_actual_source.ml 2>error
+  [2]
+  $ grep -q 'Actual_quantity_preview.t' error && grep -q 'Actual_source.t' error

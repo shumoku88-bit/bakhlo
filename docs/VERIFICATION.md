@@ -1,7 +1,7 @@
 # Verification and assurance strategy
 
 Status: PROPOSED overall strategy. Domain/application and CLI build/tests pass
-locally: 83 expect tests, 10,000 generated cases each for Quantity, Movement,
+locally: 86 expect tests, 10,000 generated cases each for Quantity, Movement,
 application replay, zero-origin/current-assertion projections, Event identity/endpoint
 closure, frontier, root lineages, reflected-root cuts and multi-group ownership,
 plus three cram suites (100,000 actual generated cases across ten seeds).
@@ -191,6 +191,13 @@ Do not import a broad theorem into an unrelated operation by name alone.
   functional lookup laws were checked before code: incoming whole premise wins,
   unrelated premise survives, and lookup-idempotence. Not group/index/OCaml
   refinement or operational retry; see [contract](CURRENT_GROUPS_SLICE.md).
+- `actual_source_tests.ml` checks the ordinary anonymous/base-validity Actual subset:
+  625 four-Effect/two-Measure signed/huge predicate cases (16 admitted), empty/mixed
+  Events, superseded physical refusal, cross-Measure cancellation, source/date/edge
+  retention. Independent original-value Zarith oracle; legacy preview remains general.
+  Public compiler clients distinguish that preview from the stronger source. Base
+  validity admission was extracted once; existing date/reference tests still apply.
+  This is not keyed/full normalized admission or factual/historical completeness.
 - `actual_fixture_tests.ml` adds six focused boundary tests: unique/closed/complete
   base validity, 19 calendar/lexical specimens, exact neutral Effect decoding,
   malformed/unsupported/truncated inputs, retained source and independent group cuts,

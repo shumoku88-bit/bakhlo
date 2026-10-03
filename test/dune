@@ -34,4 +34,6 @@
   ../application/.loam_application.objs/byte/loam_application__Current_quantity_projection.cmi
   ../application/.loam_application.objs/byte/loam_application__Current_quantity_groups.cmi
   ../application/.loam_application.objs/byte/loam_application__Actual_quantity_preview.cmi
+  ../application/.loam_application.objs/byte/loam_application__Actual_source.cmi
+  ../application/.loam_application.objs/byte/loam_application__Actual_validity.cmi
   ../application/.loam_application.objs/byte/loam_application__Zero_origin_projection.cmi))

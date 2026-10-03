@@ -145,6 +145,14 @@ CLI decoder rejects unknown/versioned/metadata/keyed/support rows and incomplete
 blocks; shell read errors never become empty input. See public interfaces and
 `examples/actual-preview.fixture`; no canonical persistence format is selected.
 
+`Actual_source.create` now separately admits the ordinary anonymous/base-validity
+subset: every retained Event has nonzero Effects and exact per-Measure balance,
+then independent base validity and correction admission. Empty and balanced mixed-
+Measure Events remain valid; Domain Event and the legacy preview stay general.
+`Actual_validity` owns the shared date/unique/closed/complete base facts. This is
+not full normalized admission: no keyed Effects, other metadata, validity history,
+Exchange/Reversal, relation or settlement qualification. No source authority follows.
+
 For future admitted queries, use question-specific boundaries (Actual, balance,
 Scheduled, etc.). Those full reports/histories are not implemented in OCaml yet.
 Shared read answers are presentation-neutral, but do not require a universal

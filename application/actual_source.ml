@@ -1,0 +1,48 @@
+open Base
+module D = Loam_domain
+module Q = D.Quantity
+
+type command =
+  { events : D.Event.t list
+  ; validities : Actual_validity.fact list
+  ; corrections : D.Event_correction.t list
+  }
+type t = { frontier : Correction_frontier.t; validity : Actual_validity.t }
+type error =
+  | Events of D.Event_memory.error
+  | Zero_effect of { event : D.Identifier.Event.t; event_position : int; effect_position : int }
+  | Unbalanced_measure of
+      { event : D.Identifier.Event.t; event_position : int; measure : D.Identifier.Measure.t; residual : Q.t }
+  | Validity of Actual_validity.error
+  | Corrections of Correction_frontier.error
+
+let check_event event_position original =
+  let changes = D.Event.effects original in
+  let event = D.Event.id original in
+  let ( let* ) result f = Result.bind result ~f in
+  let* (_, totals) = List.fold_result changes ~init:(1, Map.empty (module String))
+      ~f:(fun (effect_position, totals) change ->
+        let quantity = D.Effect.quantity change in
+        if Q.equal quantity Q.zero then Error (Zero_effect { event; event_position; effect_position })
+        else
+          let measure = D.Effect.measure change in
+          Ok (effect_position + 1,
+            Map.update totals (D.Identifier.Measure.to_string measure) ~f:(function
+              | None -> measure, quantity
+              | Some (original, total) -> original, Q.add total quantity))) in
+  match List.find (Map.to_alist totals) ~f:(fun (_, (_, total)) -> not (Q.equal total Q.zero)) with
+  | Some (_, (measure, residual)) -> Error (Unbalanced_measure { event; event_position; measure; residual })
+  | None -> Ok ()
+;;
+
+let create ({ events = originals; validities; corrections } : command) =
+  let ( let* ) result f = Result.bind result ~f in
+  let* events = Result.map_error (D.Event_memory.of_events originals) ~f:(fun error -> Events error) in
+  let* _ = List.fold_result originals ~init:1 ~f:(fun position event ->
+    Result.map (check_event position event) ~f:(fun () -> position + 1)) in
+  let* validity = Result.map_error (Actual_validity.create ~events ~facts:validities) ~f:(fun error -> Validity error) in
+  let* frontier = Result.map_error (Correction_frontier.create ~events ~corrections) ~f:(fun error -> Corrections error) in
+  Ok { frontier; validity }
+;;
+let frontier t = t.frontier
+let validity t = t.validity
