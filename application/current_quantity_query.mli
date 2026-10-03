@@ -1,4 +1,4 @@
-(** Four separated support families over ONE admitted ordinary base Actual source.
+(** Four separated support families over ONE admitted ordinary Actual source.
     Not full normalized admission, historical completeness or household authority. *)
 type opening =
   { coordinate : Loam_domain.Effect_coordinate.t

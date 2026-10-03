@@ -36,6 +36,29 @@ let correction_error = function
 let event_refusal event (D.Event.Duplicate_effect_key { key; first_position; position }) =
   Printf.sprintf "Event %S refused: duplicate Effect key %S at %d (first %d).\n"
     (id event) (D.Identifier.Effect_key.to_string key) position first_position
+let validity_reference = function
+  | A.Actual_validity.Base_ref event -> Printf.sprintf "base %S" (id event)
+  | Revision_ref revision -> Printf.sprintf "revision %S" (D.Identifier.Validity_revision.to_string revision)
+let validity_error = function
+  | A.Actual_validity.Invalid_date { position; text } -> Printf.sprintf "validity %d: invalid ISO occurrence date %S" position text
+  | Repeated_fact { reference; first_position; position } ->
+    Printf.sprintf "duplicate validity fact %s at %d (first %d)" (validity_reference reference) position first_position
+  | Unknown_validity_event { event; position } -> Printf.sprintf "validity %d: unknown Event %S" position (id event)
+  | Unresolved_correction { position; endpoints } ->
+    let endpoints = List.map (function
+      | A.Actual_validity.Target reference -> "target=" ^ validity_reference reference
+      | Replacement revision -> "replacement=" ^ validity_reference (Revision_ref revision)) endpoints in
+    Printf.sprintf "validity correction %d: missing %s" position (String.concat ", " endpoints)
+  | Cross_event_correction { position; target_event; replacement_event } ->
+    Printf.sprintf "validity correction %d: Event %S differs from replacement Event %S" position (id target_event) (id replacement_event)
+  | Repeated_target { reference; first_position; position } ->
+    Printf.sprintf "repeated validity target %s at %d (first %d)" (validity_reference reference) position first_position
+  | Repeated_replacement { id = revision; first_position; position } ->
+    Printf.sprintf "repeated validity replacement %S at %d (first %d)" (D.Identifier.Validity_revision.to_string revision) position first_position
+  | Cycle { path } -> "validity correction cycle: " ^ String.concat " -> " (List.map validity_reference path)
+  | Repeated_current_validity { event; first_position; position } ->
+    Printf.sprintf "multiple current validities for Event %S at facts %d and %d" (id event) first_position position
+  | Missing_validity { event } -> Printf.sprintf "missing current validity for Event %S" (id event)
 let source_refusal error =
   let detail = match error with
     | A.Actual_source.Events (D.Event_memory.Duplicate_id { id = event; first_position; position }) ->
@@ -45,13 +68,7 @@ let source_refusal error =
     | Unbalanced_measure { event; event_position; measure; residual } ->
       Printf.sprintf "Event %S at %d: Measure %S residual %s" (id event) event_position
         (D.Identifier.Measure.to_string measure) (quantity residual)
-    | Validity error ->
-      (match error with
-       | A.Actual_validity.Invalid_date { position; text } -> Printf.sprintf "validity %d: invalid ISO occurrence date %S" position text
-       | Repeated_validity { event; first_position; position } ->
-         Printf.sprintf "duplicate validity for %S at %d (first %d)" (id event) position first_position
-       | Unknown_validity_event { event; position } -> Printf.sprintf "validity %d: unknown Event %S" position (id event)
-       | Missing_validity { event } -> Printf.sprintf "missing base validity for Event %S" (id event))
+    | Validity error -> validity_error error
     | Corrections error -> correction_error error
     | Descriptions error ->
       (match error with
@@ -68,7 +85,7 @@ let answer answer =
     | Q.Opening { coordinate; opening_event } -> Printf.sprintf "%s: opening Event %S; quantity=%s\n"
         (location coordinate) (id opening_event) (quantity (Q.quantity answer))
     | Q.Current_assertion asserted -> "exact assertion; " ^ assertion_row asserted in
-  "Conditional current fixture quantity (ordinary base Actual subset).\n" ^ row
+  "Conditional current fixture quantity (ordinary Actual subset).\n" ^ row
 let present answer =
   Printf.sprintf "%s: known nonzero (presence premise); exact quantity unknown.\n"
     (location (A.Current_quantity_query.present_coordinate answer))

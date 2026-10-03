@@ -47,7 +47,9 @@ changes must follow their qualified frontiers; a convenient UI status or cached
 row cannot bypass them. Preserve provenance through explicit transformations.
 
 Do not conflate occurrence dates, recording order, and correction timestamps.
-Do not manufacture historical time evidence that was never retained.
+Do not manufacture historical time evidence that was never retained. Occurrence-date
+corrections and Event corrections are distinct relations; neither silently transfers
+or changes the other's evidence.
 
 ## S6 — Unknown is not zero
 

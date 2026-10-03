@@ -1,65 +1,75 @@
 # Handoff
 
-## Current qualified capability — Event recognizer descriptions
+## Current qualified capability — retained Actual-validity history
 
-Pre-code question: can the existing named reader/source/query retain optional human recognizer
-text without making it Event shape, Merchant/Purpose/kind, support or correction priority?
-D/P: key-qualified general Events, unique retained memory, ordinary source, four supports,
-original-list arithmetic/touch oracles and strict real CLI boundaries. Prior key qualification
-is in VERIFICATION/Git. Narrow EventDescription/ActualEvidence/NormalizedActualAdmission
-review at `f96d143a`; those owners unchanged from `83bc471e`.
-R: optional unique retained Event reference + exact text, closure and source composition.
+Pre-code question: can the existing source/reader retain date revisions and choose one current
+occurrence fact per retained Event without changing Event corrections or four supports?
+D/P: complete real ISO base dates, general key-qualified Events, descriptions, disjoint
+Event correction paths, independent integer Warshall/list/Effect models and CLI/type checks.
+Narrow ActualValidityHistory/ActualValidityFrontier/NormalizedActualAdmission review at
+f96d143a: base reference is Event-rooted; only later revisions have separate identity;
+replacement always names a revision; closed disjoint same-Event paths and unique current
+Event facts. Normalized admission closes ALL retained date facts against retained Events
+and requires current completeness. A revision-only singleton is admitted upstream; do not
+invent a mandatory base or lose retained dates. Prior descriptions evidence is in VERIFICATION.
+R: tagged base/revision identity, date correction qualification/current projection, composition.
 
-Select a small original-token-list oracle over three declarations (a/b/unknown), plus empty/
-exact text, retention/permutation, stale-tail/prefix, four-support noninterference and real
-parser/CLI/type specimens. No new graph model/theorem/10,000-case campaign: topology and
-selection unchanged; direct list oracle answers identity/reference admission. Explicit
-ordered guards suffice for procedure review; no new D2 topology or transition tools before
-writes. Revisit for description revisions/inheritance, structured classifications, history,
-new source generations or publication. Existing proof artifact/assumptions stay unchanged.
+Extend Actual_validity, not a second parallel base/history route. Introduce a distinct exact
+Validity_revision identifier; facts are Base/Revision, correction targets Base_ref/Revision_ref.
+Preserve every fact/date/edge and source memory. All retained dates must be real ISO dates;
+per fact date -> reference uniqueness -> Event closure, then per correction endpoint closure
+(target then replacement) -> same Event -> target uniqueness -> replacement uniqueness,
+cycles last. Then terminal facts in original representation order must be unique by Event,
+and complete in retained Event order. Dates/arrival order never choose a winner. Current
+facts/lookup expose their original reference; no inferred original date or identity allocation.
+Source order remains identity/physical -> validity history -> Event corrections -> descriptions.
 
-Acceptance: Event_descriptions owns optional unique facts against supplied retained memory;
-no completeness requirement, trimming, empty-text coercion or auto-inheritance. Anonymous
-and keyed general Events unchanged. Preserve declarations/text/order and source association;
-lookup by exact retained Event ID distinguishes absent from Some "". Per-declaration duplicate
-then reference checking; unlike upstream's separate duplicate/referring gates, this combined
-entrance refuses the first invalid declaration. Source keeps its existing identity/physical/
-validity/correction order, then descriptions; invalid unrelated metadata refuses before any
-support/query. Fresh correction tails do not transfer descriptions; prefixes/omissions need
-requalification, old images stay immutable.
+Select the existing independent Lineage_model plus a small integer semantic extension:
+all 16 four-fact subsets x 4 revision-Event assignments x 256 revision-only replacement
+relations, with current uniqueness/completeness. Model-only counterexamples first, then
+product correspondence. Add tagged-same-token, calendar/duplicate/open/cross-Event/cycle,
+permutation/fresh-tail/prefix/retention, 10,000-revision path/cycle, source/four-support and
+real reader/type specimens. Share ONLY cycle detection privately with Event frontier:
+two concrete typed consumers, no fabricated Events/ID encoding, no generic admission engine.
+Existing Event graph evidence qualifies that extraction. No new 10,000-case campaign or
+Lean artifact: finite structural model already answers this bounded composition gap;
+revisit for temporal query laws, general refinement or richer graph/history meanings.
+Explicit guards suffice for procedure order; dependency topology remains inward. No
+transition/fault tools before write/retry contracts. External date truth stays an assumption.
 
-The existing synthetic v2 reader gains top-level DESCRIPTION event-id text; forward references
-allowed. Text is one literal unescaped field, including empty/spaces; tab/newline-containing
-text remains representable in the engine but not in this noncanonical fixture grammar. Extra/
-missing/misplaced rows refuse rather than discard or decode guessed escapes. Validity revisions,
-Merchant/Purpose, Exchange/Reversal and other unimplemented metadata still refuse. Admission
-exit 1 vs syntax 2, stderr only; quantities/presence unchanged. No new preview, storage, dependency,
-household access, UI, migration or operational adoption.
+Reader acceptance: existing EVENT id date remains explicit base evidence; EVENT id without
+a date needs separately supplied validity, never a default. Top-level VALIDITY-BASE event
+ISO-date, VALIDITY-REVISION revision event ISO-date and VALIDITY-CORRECTION BASE|REVISION
+target replacement permit forward references. Repeated bases refuse, never overwrite.
+No history truncation, latest-wins, metadata inheritance or changed quantity/presence rules.
+Invalid unrelated history refuses the whole source before support/query. Syntax 2 vs
+admission 1 stays stderr-only. No canonical storage, household reads/writes, dependency,
+UI, migration or operational promotion.
 
-Implemented in the existing source/reader; tests expose exact retained-ID lookup and
-noninterference rather than another preview API. Normal/package/install, typed/real CLI,
-clean native engine-only and Lean-free checks passed on macOS x86_64. VERIFICATION owns
-evidence bounds. Tooling/lock/formal code unchanged; no new platform/fresh-switch or
-formal rerun claimed. Full normalized Actual and description revisions remain unqualified.
+Implemented and qualified: model-only counterexamples preceded product code; the 16,384
+product/model cases admit 36 histories. Normal/package/install, 10,000-revision path/cycle,
+real CLI/typed clients, clean native engine-only and Lean-free checks passed on macOS x86_64.
+VERIFICATION owns bounds and gaps. One initial test constructor inference error was fixed
+with explicit reference types; no warning suppression. Tooling/lock/formal code unchanged,
+no fresh-switch/platform or optional proof rerun. Full normalized Actual/historical routing,
+recording chronology, external time truth and operational publication remain unqualified.
 
 ## Next bounded work
 
-Do not treat all upstream files/types as a prescribed OCaml layout. Preserve earned meanings
-and independent facts; representation/module boundaries remain revisable. Select a concrete
-validity-history or exceptional-evidence consumer next, with its question/refusals recorded.
-Descriptions do not establish structured classification or full normalized Actual admission.
+Select a concrete remaining Actual evidence consumer (structured disposition or an
+exceptional family) rather than treating upstream file layout as a prescribed backlog.
+Preserve earned meanings; data/module layout remains revisable. Historical reports and
+full normalized Actual are not established by current-date admission alone.
 
-Before persistence: agree ownership/admission/publication, retry/identity, uncertain outcomes,
-atomicity/durability, backup/restore and migration; revisit transition/fault instruments then.
-UI, licensing/public release and real-data cutover remain separate. External-review ambitions
-are not certification; keep claims inspectable and assurance proportional to semantic risk.
+Before persistence: specify ownership/admission/publication, identity/retry, uncertain
+outcomes, atomicity/durability, diagnostics, backup/restore and migration; select transition/
+fault instruments then. UI, licensing/public review and operational cutover remain separate.
+Review ambitions are not certification; keep claims inspectable and assurance risk-based.
 
 ## Safety and repository state
 
-Synthetic inputs only; existing LOAM remains sole household authority. No upstream writes,
-builds/proof reruns or source copying. REFERENCES owns mapping/comparison limits. Sibling was
-clean at the narrow observation; never stage/modify it. Use live Git for HEAD/worktree.
-
-Local commits authorized; no push in this phase. Last remote observation: private main at
-8974041 (2026-10-03), not current equality. Tooling/lock unchanged; no fresh-switch/platform
-replay claimed. Never commit environments, generated output, scratch or private logs.
+Synthetic inputs only; existing LOAM remains sole household authority. No sibling writes,
+build/proof reruns or source copying. Sibling clean at f96d143a; REFERENCES owns mappings.
+Use live Git for HEAD/worktree. Local commits authorized, no push in this phase. Last remote
+observation: private main at 8974041 (2026-10-03), not current equality. Tooling/lock unchanged;
+no fresh-switch/platform replay claimed. Never commit environments/builds/scratch/private logs.

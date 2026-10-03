@@ -26,6 +26,10 @@ Public source identified by its README: https://github.com/shumoku88-bit/loam
 - Description review: `f96d143a843b644f1e2e99f1ec5f4895c1e2b117`; EventDescription,
   ActualEvidence and NormalizedActualAdmission unchanged from `83bc471e`. Narrow read-only
   consultation, not whole-tree parity, source reuse or proof rerun.
+- Date-history review at the same `f96d143a`: Core ActualValidityHistory, Application
+  ActualValidityFrontier and NormalizedActualAdmission; tagged Event-rooted base/later
+  revision references, closed same-Event paths, unique current projection and retained
+  reference/current completeness. No upstream proof/build or whole-tree comparison.
 
 These are narrow comparisons, not whole-checkout equivalence, proof reruns or a
 frozen upstream protocol. Check live revision before using a changed owner.
@@ -43,7 +47,7 @@ actually qualified OCaml behavior; do not turn this map into a whole-feature bac
 | Event beyond Movement | `Loam/Core/Effect.lean`, `Event.lean` | Optional exact keys/within-Event uniqueness and general neutral Effects; structured classifications/overlays NOT yet qualified |
 | Event recognizer text | `Loam/Core/EventDescription.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Optional unique exact retained-ID/text facts; no classification or inheritance. Combined per-declaration duplicate/reference gate differs from upstream's separate gates; accepted shape matches this narrow scope |
 | Retained identity and correction | `Loam/Core/EventMemory.lean`, `EventCorrection.lean`, `Loam/Application/CorrectionFrontierSemantics.lean`, `CorrectionFrontierIndexed.lean` | Conditional disjoint paths, roots/cuts qualified; not full normalized authority |
-| Independent Actual occurrence | `Loam/Core/ActualValidity.lean`, `ActualEvidence.lean`, `Loam/ActualDate.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Ordinary/base-validity subset with optional Event-local keys; optional retained Event descriptions; revisions, structured metadata, Exchange/Reversal, relations/settlement remain unsupported |
+| Independent Actual occurrence | `Loam/Core/ActualValidityHistory.lean`, `Loam/Application/ActualValidityFrontier.lean`, `Loam/ActualDate.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Retained ISO history, tagged refs, same-Event paths, unique/complete current facts (revision-only allowed). Practical declaration-order diagnostic gate, not raw Core history or full normalized admission; structured metadata/exceptional families remain unqualified |
 | Independent origin | `Loam/Core/ZeroOriginCoverage.lean`, `Loam/Review/BalanceReview.lean` | Explicit current origin gate; no activity-derived origin/history completeness |
 | Exact current assertions and stable cuts | `Loam/Application/CurrentQuantityAnchor.lean` | Independent cuts, exclusive ownership, explicit re-observation; not timestamp-plus-later-Movements or durable history |
 | Four support families | `Loam/Review/CurrentBalanceReview.lean`, `Loam/Application/CurrentSupportRouting.lean`, `CurrentQuantityPresence.lean`, `Loam/Core/OpeningSupport.lean` | All four over one ordinary source; presence's ANY unreflected Effect touch invalidates without arithmetic. Synthetic whole-input admission checks even empty-coordinate presence cuts, unlike upstream lazy lookup |

@@ -78,7 +78,8 @@ let%expect_test "one source retains descriptions without inheritance or four-sup
     F.observation ~id:(F.id "x") ~effects:[ F.change coordinate (Z.neg huge); F.change offset huge;
       F.change (F.coordinate "stale") Z.one; F.change (F.coordinate "stale") Z.minus_one ] ] in
   let command : S.command = { events; corrections = [ F.edge "a" "b" ];
-    validities = List.map events ~f:(fun event -> ({ event = D.Event.id event; valid_on = "2026-10-03" } : Loam_application.Actual_validity.fact));
+    validity_corrections = [];
+    validities = List.map events ~f:(fun event -> F.base_validity (D.Event.id event) "2026-10-03");
     descriptions = [ fact "x" ""; fact "a" " retained root text "; fact "b" "terminal text" ] } in
   let source = ok (S.create command) in
   let image source = Q.create ~source ~zero_origins:[ offset ] ~openings:[ { coordinate = opening; opening_event = F.id "b" } ]
@@ -111,7 +112,7 @@ let%expect_test "one source retains descriptions without inheritance or four-sup
   F.require (List.equal F.equal_event events (D.Event_memory.events (E.source_events descriptions))) "description source lost superseded observations";
   let tail = F.event "c" in
   let tail_command = { command with events = events @ [ tail ]; corrections = command.corrections @ [ F.edge "b" "c" ];
-    validities = command.validities @ [ { event = F.id "c"; valid_on = "1900-01-01" } ] } in
+    validities = command.validities @ [ F.base_validity (F.id "c") "1900-01-01" ] } in
   let extended = ok (S.create tail_command) in
   F.require (Option.is_none (E.find_text (S.descriptions extended) (F.id "c")) &&
     Option.equal String.equal (E.find_text (S.descriptions extended) (F.id "b")) (Some "terminal text")) "correction auto-inherited text";

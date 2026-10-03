@@ -30,10 +30,10 @@ let admitted events corrections =
   | Ok value -> value
   | Error _ -> failwith "valid fixture refused"
 ;;
+let base_validity event valid_on : Loam_application.Actual_validity.fact = Base { event; valid_on }
 let actual_source events corrections =
-  let validities = List.map events ~f:(fun event ->
-    ({ event = D.Event.id event; valid_on = "2026-10-03" } : Loam_application.Actual_validity.fact)) in
-  match Loam_application.Actual_source.create { events; validities; corrections; descriptions = [] } with
+  let validities = List.map events ~f:(fun event -> base_validity (D.Event.id event) "2026-10-03") in
+  match Loam_application.Actual_source.create { events; validities; validity_corrections = []; corrections; descriptions = [] } with
   | Ok source -> source
   | Error _ -> failwith "invalid ordinary Actual fixture"
 ;;

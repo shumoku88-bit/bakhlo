@@ -5,6 +5,7 @@ module Q = D.Quantity
 type command =
   { events : D.Event.t list
   ; validities : Actual_validity.fact list
+  ; validity_corrections : Actual_validity.correction list
   ; corrections : D.Event_correction.t list
   ; descriptions : Event_descriptions.fact list
   }
@@ -37,12 +38,12 @@ let check_event event_position original =
   | None -> Ok ()
 ;;
 
-let create ({ events = originals; validities; corrections; descriptions } : command) =
+let create ({ events = originals; validities; validity_corrections; corrections; descriptions } : command) =
   let ( let* ) result f = Result.bind result ~f in
   let* events = Result.map_error (D.Event_memory.of_events originals) ~f:(fun error -> Events error) in
   let* _ = List.fold_result originals ~init:1 ~f:(fun position event ->
     Result.map (check_event position event) ~f:(fun () -> position + 1)) in
-  let* validity = Result.map_error (Actual_validity.create ~events ~facts:validities) ~f:(fun error -> Validity error) in
+  let* validity = Result.map_error (Actual_validity.create ~events ~facts:validities ~corrections:validity_corrections) ~f:(fun error -> Validity error) in
   let* frontier = Result.map_error (Correction_frontier.create ~events ~corrections) ~f:(fun error -> Corrections error) in
   let* descriptions = Result.map_error (Event_descriptions.create ~events ~facts:descriptions) ~f:(fun error -> Descriptions error) in
   Ok { frontier; validity; descriptions }

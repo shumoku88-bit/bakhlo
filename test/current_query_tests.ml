@@ -11,8 +11,8 @@ module Input = Loam_cli.Current_fixture_input
 module C = Loam_cli.Current_fixture_command
 let ok = function Ok value -> value | Error _ -> failwith "valid current fixture refused"
 let source_command events corrections : S.command =
-  { events; corrections; descriptions = []; validities = List.map events ~f:(fun event ->
-      ({ event = D.Event.id event; valid_on = "2026-10-03" } : V.fact)) }
+  { events; corrections; descriptions = []; validity_corrections = [];
+    validities = List.map events ~f:(fun event -> F.base_validity (D.Event.id event) "2026-10-03") }
 let event token effects = F.observation ~id:(F.id token) ~effects
 let exact image c = match ok (Q.query image c) with
   | Q.Exact answer -> answer
@@ -194,8 +194,9 @@ let%expect_test "opening reconstruction retains facts, signed multiplicity and o
   let stored = Q.openings image in
   F.require (List.equal (fun (a : Q.opening) b -> F.same_coordinate a.coordinate b.coordinate && D.Identifier.Event.equal a.opening_event b.opening_event) declared stored) "declaration order retained";
   let command = source_command (List.rev events) (List.rev edges) in
-  let validities = List.rev_map command.validities ~f:(fun ({ event; valid_on = _ } : V.fact) ->
-    ({ event; valid_on = "2025-01-01" } : V.fact)) in
+  let validities = List.rev_map command.validities ~f:(function
+    | V.Base { event; valid_on = _ } -> V.Base { event; valid_on = "2025-01-01" }
+    | Revision { id; event; valid_on = _ } -> Revision { id; event; valid_on = "2025-01-01" }) in
   let permuted = ok (Q.create ~source:(ok (S.create { command with validities })) ~zero_origins:[] ~openings:(List.rev declared) ~groups:[] ~presence:None) in
   F.require (Z.equal (get permuted c) expected) "dates/representation not priority";
   let extended = events @ [ event "z" (changes 4) ] in

@@ -1,7 +1,12 @@
 (** ONLY the noncanonical synthetic fixture grammar. Tabs separate exact nonempty
     unescaped identities. Header LOAM-OCAML-ACTUAL-FIXTURE<TAB>2; final END/newline
-    mandatory. EVENT id ISO-date / EFFECT locus measure signed-decimal or
-    KEYED-EFFECT key locus measure signed-decimal / END-EVENT;
+    mandatory. EVENT id [ISO-date] / EFFECT locus measure signed-decimal or
+    KEYED-EFFECT key locus measure signed-decimal / END-EVENT; supplied Event date
+    creates explicit base evidence, omitted date creates none. Top-level VALIDITY-BASE
+    event-id ISO-date; VALIDITY-REVISION revision-id event-id ISO-date;
+    VALIDITY-CORRECTION BASE|REVISION target-id replacement-revision-id.
+    Forward references allowed; no date/identity allocation, duplicate-base overwrite
+    or latest-date/list winner.
     CORRECTION target replacement; DESCRIPTION event-id text (top-level, forward
     references allowed, one literal unescaped text field; empty/spaces valid,
     no tab/newline encoding); ZERO-ORIGIN locus measure; OPENING locus measure

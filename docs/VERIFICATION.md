@@ -50,7 +50,8 @@ counters; shared construction helpers are in `fixtures.ml`, never another test-c
 | Assertion arithmetic | 4,864 graph/cut/support cases, original-Effect Zarith sum, unknown/zero, translation and reflected/unreflected seams |
 | Group ownership/re-observation | Independent two-coordinate/two-group list model: 256 construction and 2,304 update/replay seams; preserve whole premises, ordered refusals and old values; not durable retry |
 | Event descriptions | 64 three-slot omission/a/b/unknown patterns (13 admitted) against original-token-prefix oracle; exact/empty/control text, retained source/order, permutation, correction-tail noninheritance, prefix requalification and four-support noninterference. Combined declaration-order duplicate/reference gate, not upstream refusal-order parity or text truth |
-| Actual source / support routing | 625 two-Measure physical predicates; 16,384 two-coordinate/four-family seams (1,600 admitted), independent two group cuts/shared presence cut and original-list/Effect oracle; ordinary base source only |
+| Date history | Independent integer extension of earned Warshall model; 16,384 four-fact subsets/two-revision Event assignments/revision-only replacement relations (36 admitted), model-only counterexamples before product correspondence. Tagged-same-token IDs, revision-only evidence, retained invalid dates, ordered open/cross-Event/branch/merge/cycle/current conflicts, representation/tail/prefix/immutability and 10,000-revision chain/cycle; not arbitrary-size proof or temporal truth |
+| Actual source / support routing | 625 two-Measure physical predicates; 16,384 two-coordinate/four-family seams (1,600 admitted), independent two group cuts/shared presence cut and original-list/Effect oracle; ordinary-source base-date inputs in that table; date-history/four-support noninterference tested separately |
 | Explicit opening | Current/coordinate/duplicate closure, same Event for distinct coordinates, supported zero/huge signed multiplicity, representation/date permutation and stale-tail rebuild; retain original source/premises, no auto-retarget or historical truth |
 | Presence | 1,024 three-Event/two-Measure touch/cut/declaration cases with ALL deltas zero (576 known-present answers), original Effect-membership oracle, selected vs retained activity, tail/prefix rebuilds, global stale overlap and retained premises; not historical/external truth |
 | Origin queries | Original-Effect generated arithmetic transferred to the current admitted-source query; repeated payloads use distinct Event IDs, not implicit deduplication |
@@ -62,7 +63,11 @@ arithmetic exclusion. Key/Event roles and unqualified/forged Events are rejected
 structural key refusal (exit 1) is distinct from syntax (exit 2). Description clients reject
 Effect-key/Event role confusion and unqualified lists; parser/real CLI exercise literal/empty
 forward-reference text, duplicate/unknown admission 1 vs malformed/unsupported syntax 2,
-no inferred support, escaped IDs and unchanged files. Clients reject
+no inferred support, escaped IDs and unchanged files. Date clients reject Event/revision
+role confusion, forged history, omitted Revision handling and public cycle-helper access.
+Reader/real CLI test tagged forward references, optional explicit bases/revision-only
+sources, missing/ambiguous/open/invalid dates and admission 1 vs syntax 2. Existing Event
+models/cycle witnesses qualify the private cycle-mechanism extraction. Clients reject
 presence-to-quantity and incomplete outcome matching;
 known-present 4 / unsupported 3 are separate real-CLI stdout outcomes. Unsafe casts/
 internal-unit access are outside these guarantees.

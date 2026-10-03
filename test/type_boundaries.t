@@ -369,11 +369,11 @@ A cut is not the common source frontier.
   [2]
   $ grep -q 'Reflected_root_cut.t' error && grep -q 'Correction_frontier.t' error
 
-The physically admitted base Actual source has a public smart constructor.
+The physically admitted ordinary Actual source has a public smart constructor.
 
   $ cat >actual_source_client.ml <<'EOF'
   > module S = Loam_application.Actual_source
-  > let empty () = S.create { events = []; validities = []; corrections = []; descriptions = [] }
+  > let empty () = S.create { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = [] }
   > let facts source = Loam_application.Actual_validity.facts (S.validity source)
   > let descriptions source = Loam_application.Event_descriptions.facts (S.descriptions source)
   > EOF
@@ -385,6 +385,55 @@ The physically admitted base Actual source has a public smart constructor.
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_actual_source.ml 2>error
   [2]
   $ grep -q 'Unbound record field.*frontier' error
+
+Retained date history has tagged references and a distinct revision identity, not Event IDs.
+
+  $ cat >validity_history_client.ml <<'EOF'
+  > module D = Loam_domain
+  > module V = Loam_application.Actual_validity
+  > let base event valid_on : V.fact = Base { event; valid_on }
+  > let revision id event valid_on : V.fact = Revision { id; event; valid_on }
+  > let correction target replacement : V.correction = { target; replacement }
+  > let admit events facts corrections = V.create ~events ~facts ~corrections
+  > let inspect history id = V.facts history, V.corrections history, V.current_facts history, V.find_current history id
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c validity_history_client.ml
+  $ cat >wrong_date_revision.ml <<'EOF'
+  > module D = Loam_domain
+  > module V = Loam_application.Actual_validity
+  > let wrong (id : D.Identifier.Event.t) event : V.fact = Revision { id; event; valid_on = "2026-10-03" }
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c wrong_date_revision.ml 2>error
+  [2]
+  $ grep -q 'Identifier.Event.t' error && grep -q 'Identifier.Validity_revision.t' error
+  $ cat >wrong_date_base.ml <<'EOF'
+  > module D = Loam_domain
+  > module V = Loam_application.Actual_validity
+  > let wrong (id : D.Identifier.Validity_revision.t) = V.Base_ref id
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c wrong_date_base.ml 2>error
+  [2]
+  $ grep -q 'Identifier.Event.t' error && grep -q 'Identifier.Validity_revision.t' error
+  $ cat >forged_history.ml <<'EOF'
+  > module V = Loam_application.Actual_validity
+  > let wrong (facts : V.fact list) : V.t = facts
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_history.ml 2>error
+  [2]
+  $ grep -q 'V.fact list' error && grep -q 'V.t' error
+  $ cat >incomplete_date_fact.ml <<'EOF'
+  > module V = Loam_application.Actual_validity
+  > let wrong (fact : V.fact) = match fact with Base { event; valid_on = _ } -> event
+  > EOF
+  $ ocamlfind ocamlc -w +8 -warn-error +8 -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c incomplete_date_fact.ml 2>error
+  [2]
+  $ grep -q 'warning 8' error && grep -q 'Revision' error
+  $ cat >private_cycle.ml <<'EOF'
+  > module Wrong = Loam_application.Replacement_cycle
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c private_cycle.ml 2>error
+  [2]
+  $ grep -q 'Unbound module.*Replacement_cycle' error
 
 Description facts use Event IDs; only the smart constructor yields qualified descriptions.
 

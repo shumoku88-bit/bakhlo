@@ -22,14 +22,17 @@ There is no canonical storage, clock, mutable business state or generic service 
 | Correction frontier | Closed disjoint paths; duplicate targets/replacements, branches, merges and cycles refuse; retain source and edges |
 | Lineages / reflected cut | Root-to-terminal associations; independent unique represented-root declarations; retain source, exclude whole lineages |
 | Current assertion groups | Exact assertions + unreflected Effects; independent cuts, one coordinate owner; ordered whole-group qualification |
-| Actual validity | Independent base ISO facts, unique/closed/complete for all supplied retained Events; no chronology/winners |
+| Actual validity | Tagged base/revision ISO history, closed disjoint same-Event date corrections; retain all facts/edges, exactly one current date per retained Event; no date/list winners |
 | Event descriptions | Optional unique retained Event reference + exact recognizer text; no classification, completeness or inheritance |
-| Actual source | Ordinary/base-validity subset: every retained Effect nonzero, each Measure independently balanced, validity/corrections then whole descriptions admission |
+| Actual source | Ordinary/base-validity subset: every retained Effect nonzero, each Measure independently balanced, date-history/Event-corrections then whole descriptions admission |
 | Current quantity query | One source; origin, opening (unique coordinate/current Event/matching Effect), assertions and presence, globally separated; Exact / Known_present / unsupported |
 
 Public `.mli` files own exact inputs, diagnostics and ordering. Indexes are disposable
 mechanisms, not canonical evidence. Helpers such as `Effect_sum` are omitted from the
-curated Application namespace. Arithmetic zero is exposed only after a support gate.
+curated Application namespace. Replacement_cycle shares only cycle detection between
+Event/date relations; each owns closure/association/uniqueness/selection. No fake Events
+or encoded identities adapt date references to Event admission. Arithmetic zero is exposed
+only after a support gate.
 
 ## Selection and consistency
 
@@ -71,9 +74,17 @@ not inherit its predecessor's text. Invalid unrelated references refuse the whol
 The fixture's top-level DESCRIPTION takes one literal field; engine text can contain tabs/
 newlines but this noncanonical reader has no encoding for them. Never guess escapes.
 
-The current source is NOT full normalized Actual: structured metadata, validity
-revisions, Exchange/Reversal and relations/settlement remain unqualified.
-Base validity is external evidence, not proof of occurrence truth or historical completeness.
+Date facts are Base(Event ID) or Revision(distinct revision ID, Event ID); same-token
+base/revision references do not alias. Replacement names only a revision. Current facts
+are non-targets in original fact order after path admission, unique/complete by retained
+Event; revision-only evidence need not invent a base. Date correction never chooses an
+Event terminal, changes quantities, invalidates presence or transfers descriptions.
+Both raw history and current fact/ref lookup remain inspectable. All retained dates are
+calendar-checked, including superseded dates.
+
+The current source is NOT full normalized Actual: structured metadata, Exchange/Reversal
+and relations/settlement remain unqualified. Date evidence is not proof of occurrence
+truth, recording chronology or historical completeness.
 Queries do not establish household authority, purchasing power or spendability.
 
 ## Future operational work

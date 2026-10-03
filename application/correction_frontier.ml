@@ -52,26 +52,13 @@ let index ~events corrections =
                 , Base.Map.set replacements ~key:correction.replacement ~data:position ))))
 ;;
 
+module Cycle_check = Replacement_cycle.Make (Id)
 let check_acyclic targets corrections =
-  let rec walk completed visiting reversed id =
-    if Base.Set.mem visiting id
-    then (
-      let interior = Base.List.take_while reversed ~f:(fun seen -> not (Id.equal seen id)) in
-      Error (Cycle { path = id :: Base.List.append (Base.List.rev interior) [ id ] }))
-    else if Base.Set.mem completed id
-    then Ok (Base.Set.union completed visiting)
-    else (
-      let visiting = Base.Set.add visiting id in
-      match Base.Map.find targets id with
-      | None -> Ok (Base.Set.union completed visiting)
-      | Some (_, replacement) ->
-        walk completed visiting (id :: reversed) (D.Event.id replacement))
-  in
-  Base.List.fold_result
-    corrections
-    ~init:(Base.Set.empty (module Id))
-    ~f:(fun completed (correction : D.Event_correction.t) ->
-      walk completed (Base.Set.empty (module Id)) [] correction.target)
+  Base.Result.map_error
+    (Cycle_check.check
+      ~successor:(fun id -> Base.Option.map (Base.Map.find targets id) ~f:(fun (_, replacement) -> D.Event.id replacement))
+      ~starts:(Base.List.map corrections ~f:(fun (correction : D.Event_correction.t) -> correction.target)))
+    ~f:(fun path -> Cycle { path })
 ;;
 
 (* Called only after the supplied relation's closure/uniqueness/cycle checks.

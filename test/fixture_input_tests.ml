@@ -117,9 +117,43 @@ let%expect_test "description rows retain optional literal text and forward refer
   [%expect {| exact optional literal text; forward retained references; admission 1 vs syntax 2, no inferred support |}]
 ;;
 
+let%expect_test "validity history rows retain tagged forward references without inventing a base" =
+  let module V = Loam_application.Actual_validity in
+  let rows = [ "VALIDITY-CORRECTION\tBASE\t a \t a "; "VALIDITY-CORRECTION\tREVISION\t a \tlater";
+    "VALIDITY-REVISION\tlater\t a \t1900-01-01"; "EVENT\t a \t2026-10-03"; "END-EVENT";
+    "VALIDITY-REVISION\t a \t a \t2025-01-01"; "EVENT\tb"; "END-EVENT"; "VALIDITY-BASE\tb\t2000-02-29";
+    "CORRECTION\t a \tb"; "ZERO-ORIGIN\twallet\tjpy" ] in
+  let decoded = ok (Input.decode (document rows)) in
+  F.require (List.length decoded.source.validities = 4 && List.length decoded.source.validity_corrections = 2) "retained history not flattened";
+  let source = ok (S.create decoded.source) in
+  let selected = Option.value_exn (V.find_current (S.validity source) (F.id " a ")) in
+  (match selected with
+   | Revision { id; event; valid_on } -> F.require (String.equal (D.Identifier.Validity_revision.to_string id) "later" &&
+       D.Identifier.Event.equal event (F.id " a ") && String.equal valid_on "1900-01-01") "tagged paths, not latest date/row"
+   | Base _ -> failwith "history flattened to fabricated base");
+  let request : C.request = { path = "synthetic"; coordinate = F.coordinate "wallet" } in
+  F.require ((C.evaluate request (Ok (document rows))).exit_code = 0) "valid history through read path";
+  let only = ok (Input.decode (document [ "EVENT\te"; "END-EVENT"; "VALIDITY-REVISION\tr\te\t2000-02-29" ])) in
+  F.require (List.length only.source.validities = 1 && Result.is_ok (S.create only.source)) "revision-only became inferred base";
+  let duplicate = C.evaluate request (Ok (document (rows @ [ "VALIDITY-BASE\t a \t2026-10-03" ]))) in
+  F.require (duplicate.exit_code = 1 && String.is_empty duplicate.stdout && String.is_substring duplicate.stderr ~substring:"duplicate validity fact base") "identical base not overwritten";
+  let missing = C.evaluate request (Ok (document [ "EVENT\te"; "END-EVENT" ])) in
+  F.require (missing.exit_code = 1 && String.is_empty missing.stdout && String.is_substring missing.stderr ~substring:"missing current validity") "missing date not defaulted";
+  let cycle = C.evaluate request (Ok (document [ "EVENT\te"; "END-EVENT"; "VALIDITY-REVISION\tr\te\t2026-10-03";
+    "VALIDITY-CORRECTION\tREVISION\tr\tr" ])) in
+  F.require (cycle.exit_code = 1 && String.is_empty cycle.stdout && String.is_substring cycle.stderr ~substring:"validity correction cycle") "date cycle not Event correction";
+  Stdlib.Printf.printf "literal tagged history; forward references; optional explicit base; date correction admission before query\n";
+  [%expect {| literal tagged history; forward references; optional explicit base; date correction admission before query |}]
+;;
+
 let%expect_test "malformed/truncated/misplaced rows and obsolete formats never become partial success" =
   let invalid = [ ""; "LOAM-NORMALIZED-ACTUAL\t1\nEND\n"; "LOAM-OCAML-ACTUAL-FIXTURE\t1\nEND\n";
     document [ "SCHEDULED\ta" ]; document [ "MERCHANT\ta\tmetadata" ];
+    document [ "VALIDITY-REVISION\tr\te" ]; document [ "VALIDITY-REVISION\t\te\t2026-10-03" ];
+    document [ "VALIDITY-BASE\te" ]; document [ "VALIDITY-CORRECTION\tROOT\te\tr" ];
+    document [ "VALIDITY-CORRECTION\tBASE\te" ]; document [ "VALIDITY-CORRECTION\tREVISION\t\tr" ];
+    document [ "EVENT\te"; "VALIDITY-REVISION\tr\te\t2026-10-03"; "END-EVENT" ];
+    document [ "GROUP"; "VALIDITY-BASE\te\t2026-10-03"; "END-GROUP" ];
     document [ "DESCRIPTION\ta" ]; document [ "DESCRIPTION\t\tmemo" ]; document [ "DESCRIPTION\ta\tone\ttwo" ];
     document [ "EVENT\ta\t2026-10-03"; "DESCRIPTION\ta\tmisplaced"; "END-EVENT" ];
     document [ "GROUP"; "DESCRIPTION\ta\tmisplaced"; "END-GROUP" ];
@@ -165,6 +199,14 @@ let%expect_test "read failures and cycle identities are escaped; help/syntax req
     S.Descriptions (Loam_application.Event_descriptions.Unknown_description_event { event = F.id "event\027\n"; position = 1 }) ] ~f:(fun error ->
       let rendered = Loam_presentation.Current_quantity_text.source_refusal error in
       F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped description references");
+  let module V = Loam_application.Actual_validity in
+  let date_id = F.identifier D.Identifier.Validity_revision.of_string "revision\027\n" in
+  List.iter [ V.Cycle { path = [ Revision_ref date_id; Revision_ref date_id ] };
+    Repeated_fact { reference = Base_ref (F.id "event\027\n"); first_position = 1; position = 2 };
+    Unresolved_correction { position = 1; endpoints = [ Target (Revision_ref date_id); Replacement date_id ] };
+    Cross_event_correction { position = 1; target_event = F.id "event\027\n"; replacement_event = F.id "other\027\n" } ] ~f:(fun error ->
+      let rendered = Loam_presentation.Current_quantity_text.source_refusal (S.Validity error) in
+      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped tagged date history diagnostics");
   (match C.plan [ "--help" ] with Help -> () | _ -> failwith "help plan");
   (match C.plan [] with Refused _ -> () | _ -> failwith "syntax plan");
   Stdlib.Printf.printf "escaped provenance/errors; explicit read result; no help/syntax I/O\n";

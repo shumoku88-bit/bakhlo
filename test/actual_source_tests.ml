@@ -6,8 +6,8 @@ module Frontier = Loam_application.Correction_frontier
 module F = Fixtures
 let ok = function Ok value -> value | Error _ -> failwith "valid base Actual source refused"
 let command events corrections : S.command =
-  { events; corrections; descriptions = []; validities = List.map events ~f:(fun event ->
-      ({ event = D.Event.id event; valid_on = "2026-10-03" } : V.fact)) }
+  { events; corrections; descriptions = []; validity_corrections = [];
+    validities = List.map events ~f:(fun event -> F.base_validity (D.Event.id event) "2026-10-03") }
 let event token changes = F.observation ~id:(F.id token) ~effects:changes
 
 let%expect_test "ordinary base admission is not single-Measure Movement narrowing" =
@@ -62,13 +62,13 @@ let%expect_test "every retained Event is checked, even a superseded or reflected
 
 let%expect_test "base validity and correction provenance survive source admission without date winners" =
   let originals = [ F.event "a"; F.event "b"; F.event "x" ] in
-  let facts : V.fact list = [ { event = F.id "b"; valid_on = "1900-01-01" };
-    { event = F.id "x"; valid_on = "2026-10-03" }; { event = F.id "a"; valid_on = "2000-02-29" } ] in
-  let draft : S.command = { events = originals; validities = facts; corrections = [ F.edge "a" "b" ]; descriptions = [] } in
+  let facts = [ F.base_validity (F.id "b") "1900-01-01";
+    F.base_validity (F.id "x") "2026-10-03"; F.base_validity (F.id "a") "2000-02-29" ] in
+  let draft : S.command = { events = originals; validities = facts; validity_corrections = []; corrections = [ F.edge "a" "b" ]; descriptions = [] } in
   let image = ok (S.create draft) in
   F.require (List.equal F.equal_event originals (D.Event_memory.events (Frontier.retained_events (S.frontier image)))) "source not pruned";
   F.require (List.equal F.equal_edge draft.corrections (Frontier.corrections (S.frontier image))) "edges retained";
-  F.require (List.equal (fun (a : V.fact) b -> D.Identifier.Event.equal a.event b.event && String.equal a.valid_on b.valid_on)
+  F.require (List.equal (fun a b -> D.Identifier.Event.equal (V.event a) (V.event b) && String.equal (V.valid_on a) (V.valid_on b))
     facts (V.facts (S.validity image))) "date declarations/order retained";
   let permuted = ok (S.create { draft with events = List.rev originals; validities = List.rev facts }) in
   List.iter [ image; permuted ] ~f:(fun source ->

@@ -1,12 +1,13 @@
-(** Ordinary/base-validity Actual subset, NOT full normalized household admission
-    or authority. Caller supplies key-qualified Events, base validity, corrections
-    and optional Event recognizer descriptions; no structured metadata, validity
-    revisions, Exchange/Reversal or settlement admission.
+(** Ordinary Actual subset, NOT full normalized household admission
+    or authority. Caller supplies key-qualified Events, retained occurrence-date
+    history, Event corrections and optional recognizer descriptions; no structured
+    metadata, Exchange/Reversal or settlement admission.
     The synthetic adapter must reject unsupported evidence, never erase it.
     Domain Event stays general; this is a separate practical admission boundary. *)
 type command =
   { events : Loam_domain.Event.t list
   ; validities : Actual_validity.fact list
+  ; validity_corrections : Actual_validity.correction list
   ; corrections : Loam_domain.Event_correction.t list
   ; descriptions : Event_descriptions.fact list
   }
@@ -27,7 +28,7 @@ type error =
     order and exact totals per Measure (diagnostic order is exact Measure spelling).
     Every retained Event, including superseded ones, is checked. Empty Events and
     independently balanced mixed-Measure Events pass: no Movement coercion.
-    Then base validity, corrections and descriptions against ALL retained Events.
+    Then validity history/current completeness, Event corrections and descriptions against ALL retained Events.
     Missing descriptions are allowed; no inheritance across corrections.
     All positions one-based.
     This establishes structural premises only, not factual truth/completeness. *)

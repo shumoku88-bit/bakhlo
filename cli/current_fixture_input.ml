@@ -12,7 +12,7 @@ type error =
   | Invalid_event of { line : int; event : D.Identifier.Event.t; error : D.Event.error }
 type block =
   | Between
-  | Event of { id : D.Identifier.Event.t; date : string; changes : D.Effect.t list }
+  | Event of { id : D.Identifier.Event.t; date : string option; changes : D.Effect.t list }
   | Group of { roots : D.Identifier.Event.t list; assertions : P.assertion list }
   | Presence of { roots : D.Identifier.Event.t list; coordinates : D.Effect_coordinate.t list }
 
@@ -55,11 +55,15 @@ let decode text =
           | Between, [ "END" ] ->
             if not (List.is_empty rest) then fail (line + 1) "rows after END"
             else Ok { source = { events = List.rev draft.source.events; validities = List.rev draft.source.validities;
-                corrections = List.rev draft.source.corrections; descriptions = List.rev draft.source.descriptions };
+                corrections = List.rev draft.source.corrections; descriptions = List.rev draft.source.descriptions;
+                validity_corrections = List.rev draft.source.validity_corrections };
               groups = List.rev draft.groups; zero_origins = List.rev draft.zero_origins; openings = List.rev draft.openings; presence = draft.presence }
           | Between, [ "EVENT"; token; date ] ->
             let* id = identity line D.Identifier.Event.of_string token in
-            scan (line + 1) (Event { id; date; changes = [] }) draft rest
+            scan (line + 1) (Event { id; date = Some date; changes = [] }) draft rest
+          | Between, [ "EVENT"; token ] ->
+            let* id = identity line D.Identifier.Event.of_string token in
+            scan (line + 1) (Event { id; date = None; changes = [] }) draft rest
           | Event { id; date; changes }, [ "EFFECT"; locus; measure; text ] ->
             let* change = parse_change line None locus measure text in
             scan (line + 1) (Event { id; date; changes = change :: changes }) draft rest
@@ -70,14 +74,34 @@ let decode text =
           | Event { id; date; changes }, [ "END-EVENT" ] ->
             let* event = Result.map_error (D.Event.create ~id ~effects:(List.rev changes))
                 ~f:(fun error -> Invalid_event { line; event = id; error }) in
-            let validity : V.fact = { event = id; valid_on = date } in
-            let source = { draft.source with events = event :: draft.source.events; validities = validity :: draft.source.validities } in
+            let validities = match date with
+              | None -> draft.source.validities
+              | Some valid_on -> V.Base { event = id; valid_on } :: draft.source.validities in
+            let source = { draft.source with events = event :: draft.source.events; validities } in
             scan (line + 1) Between { draft with source } rest
           | Between, [ "CORRECTION"; target; replacement ] ->
             let* target = identity line D.Identifier.Event.of_string target in
             let* replacement = identity line D.Identifier.Event.of_string replacement in
             let correction : D.Event_correction.t = { target; replacement } in
             let source = { draft.source with corrections = correction :: draft.source.corrections } in
+            scan (line + 1) Between { draft with source } rest
+          | Between, [ "VALIDITY-BASE"; token; valid_on ] ->
+            let* event = identity line D.Identifier.Event.of_string token in
+            let source = { draft.source with validities = V.Base { event; valid_on } :: draft.source.validities } in
+            scan (line + 1) Between { draft with source } rest
+          | Between, [ "VALIDITY-REVISION"; token; event; valid_on ] ->
+            let* id = identity line D.Identifier.Validity_revision.of_string token in
+            let* event = identity line D.Identifier.Event.of_string event in
+            let source = { draft.source with validities = V.Revision { id; event; valid_on } :: draft.source.validities } in
+            scan (line + 1) Between { draft with source } rest
+          | Between, [ "VALIDITY-CORRECTION"; kind; token; replacement ] ->
+            let* target = match kind with
+              | "BASE" -> Result.map (identity line D.Identifier.Event.of_string token) ~f:(fun id -> V.Base_ref id)
+              | "REVISION" -> Result.map (identity line D.Identifier.Validity_revision.of_string token) ~f:(fun id -> V.Revision_ref id)
+              | _ -> fail line "expected BASE or REVISION validity target" in
+            let* replacement = identity line D.Identifier.Validity_revision.of_string replacement in
+            let correction : V.correction = { target; replacement } in
+            let source = { draft.source with validity_corrections = correction :: draft.source.validity_corrections } in
             scan (line + 1) Between { draft with source } rest
           | Between, [ "DESCRIPTION"; token; text ] ->
             let* event = identity line D.Identifier.Event.of_string token in
@@ -118,6 +142,6 @@ let decode text =
             scan (line + 1) Between { draft with presence = Some presence } rest
           | (Between | Event _ | Group _ | Presence _), _ -> fail line "unknown, malformed or misplaced fixture row"
       in
-      scan 2 Between { source = { events = []; validities = []; corrections = []; descriptions = [] }; groups = []; zero_origins = []; openings = []; presence = None } rows
+      scan 2 Between { source = { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = [] }; groups = []; zero_origins = []; openings = []; presence = None } rows
     | _ -> fail 1 "expected LOAM-OCAML-ACTUAL-FIXTURE version 2 (not household data)"
 ;;

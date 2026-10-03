@@ -2,8 +2,8 @@ open Base
 module D = Loam_domain
 module V = Loam_application.Actual_validity
 module F = Fixtures
-let validity event date : V.fact = { event = F.id event; valid_on = date }
-let admit events facts = V.create ~events:(F.memory events) ~facts
+let validity event date = F.base_validity (F.id event) date
+let admit events facts = V.create ~events:(F.memory events) ~facts ~corrections:[]
 
 let%expect_test "base Actual validity is independently unique, closed and complete" =
   let a = F.event "a" in
@@ -12,12 +12,12 @@ let%expect_test "base Actual validity is independently unique, closed and comple
   F.require (Result.is_ok (admit [ a ] [ v ])) "explicit base validity";
   (match admit [ a ] [] with Error (Missing_validity { event }) -> F.require (D.Identifier.Event.equal event (F.id "a")) "missing witness" | _ -> failwith "missing validity");
   (match admit [ a ] [ v; v ] with
-   | Error (Repeated_validity { event; first_position = 1; position = 2 }) -> F.require (D.Identifier.Event.equal event (F.id "a")) "duplicate witness"
+   | Error (Repeated_fact { reference = Base_ref event; first_position = 1; position = 2 }) -> F.require (D.Identifier.Event.equal event (F.id "a")) "duplicate witness"
    | _ -> failwith "duplicate validity");
   (match admit [ a ] [ validity "outside" "2026-10-03" ] with
    | Error (Unknown_validity_event { event; position = 1 }) -> F.require (D.Identifier.Event.equal event (F.id "outside")) "unknown witness"
    | _ -> failwith "orphan validity");
-  (match admit [ a ] [ { v with valid_on = "2026-02-30" }; v ] with
+  (match admit [ a ] [ validity "a" "2026-02-30"; v ] with
    | Error (Invalid_date { position = 1; text = "2026-02-30" }) -> () | _ -> failwith "ordered date refusal");
   Stdlib.Printf.printf "dates do not supply Event membership, precedence or quantity support\n";
   [%expect {| dates do not supply Event membership, precedence or quantity support |}]
