@@ -1,0 +1,24 @@
+#!/bin/sh
+# Optional specification experiment; never called by product build/test/release.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+if [ -z "${LEAN:-}" ]; then
+  printf '%s\n' 'Set LEAN to an already installed Lean 4.33.1 binary; no installer is invoked' >&2
+  exit 2
+fi
+case "$LEAN" in
+  /*) ;;
+  *) printf '%s\n' 'LEAN must be an absolute path to an existing binary' >&2; exit 2 ;;
+esac
+version=$("$LEAN" --version)
+printf '%s\n' "$version"
+case "$version" in
+  'Lean (version 4.33.1, '*) ;;
+  *) printf '%s\n' 'This artifact is qualified with Lean 4.33.1 only' >&2; exit 2 ;;
+esac
+cd "$root"
+if grep -Eq '(^|[^[:alnum:]_])(sorry|admit|axiom)([^[:alnum:]_]|$)' formal/RootCutLaws.lean; then
+  printf '%s\n' 'Proof hole or explicit axiom declaration rejected' >&2
+  exit 1
+fi
+exec "$LEAN" -DwarningAsError=true formal/RootCutLaws.lean

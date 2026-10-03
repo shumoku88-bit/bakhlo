@@ -64,8 +64,20 @@ from ID spelling, list order, or a later replacement record.
 unique targets/replacements, and acyclicity. Abstract success retains the original
 memory/relations and materializes untargeted Events in original order. Temporary
 persistent maps/sets are discarded; this is not a canonical replacement history,
-current Actual, root-cut implementation, or publication permission. See
-`CORRECTION_FRONTIER_SLICE.md`.
+current Actual, root-cut implementation, or publication permission. It now also
+materializes abstract root/terminal associations after that same admission, using
+already-resolved observations; no second constructor or default lookup is added.
+Lineage rows preserve root representation order, whereas frontier rows preserve
+terminal representation order. See `CORRECTION_FRONTIER_SLICE.md` and
+`ROOT_LINEAGE_SLICE.md`.
+
+`Reflected_root_cut.create` consumes that qualified frontier and independent
+reflected root IDs. It validates unique/represented-root declarations, retains
+both source and declaration list, and materializes unreflected rows/terminal Events
+in root order. It never reconstructs/adopts a raw graph or deletes source facts.
+A cut is source-bound; rebinding declarations requires a new checked construction.
+Optional row-selection proofs live outside the product toolchain. See
+`ROOT_CUT_SLICE.md`; current support/Actual admission remain separate.
 
 ## Future write path — not implemented
 
@@ -103,6 +115,15 @@ and one indexed lookup, returning conditional quantities or `Origin_unknown`.
 No activity or zero net change supplies origin evidence. This is not a cache,
 current Actual image, correction selection, or chronological history service.
 See `BALANCE_SLICE.md`; never relabel its answer as current/spendable quantity.
+
+`Current_quantity_projection.create` now retains one qualified cut and original
+exact coordinate assertions as one anonymous group. It rejects coordinate repeats,
+materializes exact assertion/delta/total answers, and exposes lookup-only queries.
+Unasserted coordinates stay unsupported even with activity or zero delta. Private
+`Effect_sum` shares arithmetic with zero-origin projection, not support meaning;
+`loam_application.ml/.mli` explicitly omit it from the public namespace. There is
+no group ID, source mutation, implicit time or full Actual/multi-group admission.
+See `CURRENT_QUANTITY_SLICE.md` before quantity composition.
 
 For future admitted queries, use question-specific boundaries (Actual, balance,
 Scheduled, etc.). Those full reports/histories are not implemented in OCaml yet.

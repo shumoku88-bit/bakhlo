@@ -1,10 +1,16 @@
 module D = Loam_domain
 module Id = D.Identifier.Event
 
+type lineage =
+  { root_id : Id.t
+  ; terminal_event : D.Event.t
+  }
+
 type t =
   { retained_events : D.Event_memory.t
   ; corrections : D.Event_correction.t list
   ; frontier_events : D.Event.t list
+  ; lineages : lineage list
   }
 
 type error =
@@ -31,7 +37,7 @@ let index ~events corrections =
     ~f:(fun (position, targets, replacements) (correction : D.Event_correction.t) ->
       match Correction_check.run ~events ~correction with
       | Error errors -> Error (Unresolved_correction { position; errors })
-      | Ok _ ->
+      | Ok closed ->
         (match Base.Map.find targets correction.target with
          | Some (first_position, _) ->
            Error (Repeated_target { id = correction.target; first_position; position })
@@ -42,7 +48,7 @@ let index ~events corrections =
             | None ->
               Ok
                 ( position + 1
-                , Base.Map.set targets ~key:correction.target ~data:(position, correction.replacement)
+                , Base.Map.set targets ~key:correction.target ~data:(position, Correction_check.replacement_event closed)
                 , Base.Map.set replacements ~key:correction.replacement ~data:position ))))
 ;;
 
@@ -58,7 +64,8 @@ let check_acyclic targets corrections =
       let visiting = Base.Set.add visiting id in
       match Base.Map.find targets id with
       | None -> Ok (Base.Set.union completed visiting)
-      | Some (_, replacement) -> walk completed visiting (id :: reversed) replacement)
+      | Some (_, replacement) ->
+        walk completed visiting (id :: reversed) (D.Event.id replacement))
   in
   Base.List.fold_result
     corrections
@@ -67,10 +74,25 @@ let check_acyclic targets corrections =
       walk completed (Base.Set.empty (module Id)) [] correction.target)
 ;;
 
+(* Called only after the supplied relation's closure/uniqueness/cycle checks.
+   The index retains resolved replacement observations, so no lookup default or
+   impossible missing-Event exception is needed during terminal traversal. *)
+let build_lineages ~events ~targets ~replacements =
+  let rec terminal event =
+    match Base.Map.find targets (D.Event.id event) with
+    | None -> event
+    | Some (_, replacement) -> (terminal [@tailcall]) replacement
+  in
+  Base.List.filter_map (D.Event_memory.events events) ~f:(fun event ->
+    if Base.Map.mem replacements (D.Event.id event)
+    then None
+    else Some { root_id = D.Event.id event; terminal_event = terminal event })
+;;
+
 let create ~events ~corrections =
   match index ~events corrections with
   | Error error -> Error error
-  | Ok (_, targets, _) ->
+  | Ok (_, targets, replacements) ->
     (match check_acyclic targets corrections with
      | Error error -> Error error
      | Ok _ ->
@@ -78,9 +100,13 @@ let create ~events ~corrections =
          Base.List.filter (D.Event_memory.events events) ~f:(fun event ->
            not (Base.Map.mem targets (D.Event.id event)))
        in
-       Ok { retained_events = events; corrections; frontier_events })
+       let lineages = build_lineages ~events ~targets ~replacements in
+       Ok { retained_events = events; corrections; frontier_events; lineages })
 ;;
 
 let retained_events frontier = frontier.retained_events
 let corrections frontier = frontier.corrections
 let frontier_events frontier = frontier.frontier_events
+let lineages frontier = frontier.lineages
+let root_id lineage = lineage.root_id
+let terminal_event lineage = lineage.terminal_event

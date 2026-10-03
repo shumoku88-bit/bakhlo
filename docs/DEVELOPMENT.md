@@ -46,6 +46,13 @@ zero-origin projection uses `loam-zero-origin-v1`, with the same counts. Event
 identity/endpoint closure uses `loam-correction-endpoints-v1`, also 10,000 cases.
 Supplied correction-frontier admission uses `loam-correction-frontier-v1` with
 those counts, plus exhaustive three-Event graphs and a 10,000-node chain/cycle.
+Root lineages use `loam-root-lineage-v1` with those counts, plus an independent
+four-node transitive-closure model and full simple-graph model/code comparison.
+Reflected-root cuts use `loam-reflected-root-cut-v1` with those counts, compare
+1,168 relation/declaration cases and selected fresh-tail extensions, and preserve
+source-binding/refusal distinctions. One-group current quantity uses
+`loam-current-quantity-v1` with those counts, plus 4,864 graph/cut/support cases and
+direct original-Effect Zarith oracles.
 Built-in Dune cram checks run the real CLI and external-client compiler checks; no new test framework dependency was added. This is finite
 testing, not a universal proof. Package mode `-p` already selects a root; do not
 combine it with a repeated `--root` option.
@@ -76,6 +83,22 @@ library or general static-analysis framework. See [functional-core review](ENGIN
 These targets have no dependency on presentation/CLI or any UI package. A clean
 build was checked not to build their outer library artifacts. Do not introduce
 frameworks or speculative state/caches to prepare for a future interface.
+The Application root namespace is now explicit to omit its private arithmetic
+helper. Public aliases use logical module names so clean Dune dependency discovery
+works; cram supplies generated `loam_application__.cmi` as well as public unit
+CMIs. These physical names are pinned-toolchain integration details, not a public
+transport/storage/API compatibility promise. Update the export list deliberately.
+
+## Optional root-cut laws — not product requirements
+
+Six narrow Lean row-selection and signed-delta/answerability laws now have an
+optional development artifact.
+Normal Dune/opam build, tests and release never invoke it; bootstrap installs no
+Lean. See [statements, pinned version, assumptions and reproduction](../formal/README.md).
+Only if inspecting that artifact, explicitly select an already installed native
+Lean 4.33.1 binary for `tools/check-root-cut-laws`. The script installs nothing and
+rejects missing/relative/wrong-version selections and proof-hole/axiom tokens.
+The specification is not an OCaml refinement or unrestricted graph proof.
 
 ## Tracked versus disposable state
 

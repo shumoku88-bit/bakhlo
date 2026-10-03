@@ -37,8 +37,15 @@ this baseline; check the revision before relying on a particular finding.
 | Event versus Movement, identity-unique memory, raw correction endpoint closure | `Loam/Core/Event.lean`, `Loam/Core/EventMemory.lean`, `Loam/Core/EventCorrection.lean` |
 | Disjoint-path correction admission, frontier membership, root-cut neighbor | `Loam/Application/CorrectionFrontierSemantics.lean`, `Loam/Application/CorrectionFrontierIndexed.lean` (admission/projection definitions; observed `80e50c7c`) |
 | Current Actual authority and decoding | `Loam/Authority/ActualAuthority.lean`, `Loam/Persistence/NormalizedActualPersistence.lean` |
+| Core expressiveness pressures; exact scope and research-only versus implemented results | `docs/research/falsification/LOAM_FALSIFICATION_PROGRESS.md` (current status owner; use its exact observation/PR links, not atlas seed labels) |
 | Small retained proof selection | `Loam/DurableProofs.lean` |
 | Storage trade-offs and encoder results | `docs/research/external-pressure/LOAM_TEXT_SQLITE_PERSISTENCE_STUDY_2026-10.md` (especially E3.3) |
+
+Planning review additionally observed `4d7a29a5`. Event, correction-frontier,
+current-anchor, and falsification-progress files inspected for that review are
+unchanged against `80e50c7c`; no whole-checkout equivalence or proof rerun claimed.
+The local [correspondence map](CORE_CORRESPONDENCE.md) separates upstream evidence,
+representational sufficiency, and implemented OCaml operations.
 
 ## Important qualifications
 
@@ -61,7 +68,11 @@ this baseline; check the revision before relying on a particular finding.
   do not erase retained keys or other independent fields to fit this subset. Closed
   endpoints do not admit self/cyclic/competing relations as a current frontier.
   The later OCaml frontier slice checks the whole supplied relation under a
-  disjoint-path policy, not full Actual admission or root-cut/quantity semantics.
+  disjoint-path policy, not full Actual admission. Later OCaml lineages/cuts preserve
+  root selection and guarded declarations. The new [one-group quantity slice](CURRENT_QUANTITY_SLICE.md)
+  composes exact assertions with those cuts, not full multi-group/Actual support.
+- The [optional root-cut/quantity specification](../formal/README.md) is independently
+  authored and checked locally, not an upstream import/revalidation or OCaml proof.
 - Existing results have not been rerun for this documentation bootstrap.
 - Upstream policy treats operational LOAM data as authoritative and non-disposable.
 

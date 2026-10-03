@@ -51,6 +51,16 @@ parent workspace or private data to rediscover already-indexed decisions.
 
 ## Engineering discipline
 
+- The quality target is independent of adoption/popularity: high semantic rigor,
+  operational reliability, and maintainability within the retained scope. A small
+  feature set is not a lower assurance target. Deliberately unused features need
+  not be added; required but unqualified behavior must still be identified.
+  Consult LOAM's prior research/verification before rediscovering design answers.
+  Read `docs/CORE_CORRESPONDENCE.md` before selecting a preservation/extension slice.
+  Preserve earned Core expressiveness, not just the currently implemented OCaml
+  operations. A missing derived feature is not evidence of an inadequate Core;
+  do not mistake the present anonymous-Effect subset for full evidence parity.
+  Do not claim superiority to other OSS without a scoped, evidenced comparison.
 - Use a small modular monolith unless concrete requirements justify otherwise.
 - Keep domain semantics independent of UI, storage libraries, transports, clocks,
   and asynchronous runtimes.
@@ -103,6 +113,20 @@ parent workspace or private data to rediscover already-indexed decisions.
   supplied memory/relation: closure, unique targets/replacements, acyclicity.
   Retain original facts; its derived frontier is not an Actual image, root-cut
   witness, history-completeness assertion, or publication authorization.
+  `docs/ROOT_LINEAGE_SLICE.md` now qualifies root-to-terminal associations within
+  that relation, in original root order. Stability is under fresh tail extension,
+  not prefix insertion/removal/scope changes. `docs/ROOT_CUT_SLICE.md` now qualifies
+  reflected-root exclusions bound to one immutable supplied frontier; duplicate,
+  unknown and non-root declarations refuse. Source facts remain retained.
+  `docs/CURRENT_QUANTITY_SLICE.md` now qualifies one anonymous assertion group's
+  conditional exact quantities and decomposition over that cut. No assertion means
+  unsupported, not zero; this is not multi-group ownership or admitted Actual.
+  Before multi-group/re-observation composition, resolve OPEN VR-04 in `docs/HANDOFF.md`.
+  Never merge independently observed cuts, infer current support from activity,
+  or use the private Effect_sum as a public support API. Its public Application
+  namespace is explicitly curated; update exports/CMI specimens with new operations.
+  Optional specification laws do not prove graph/OCaml refinement, and their checks
+  must never become ordinary product build/test/release dependencies.
 - Structural validation is not publication; preserve the validation-only preview
   label until actual write semantics exist. This phase is not visual imitation
   of Jane Street software or a claim of an official UI standard.
@@ -123,6 +147,10 @@ parent workspace or private data to rediscover already-indexed decisions.
    scope and failures. Selected/planned is not executed/qualified.
 8. Update the decision record and handoff, including deferred-tool revisit
    triggers, if the result changes the next action.
+9. The user requests incremental local commits: after a qualified semantic slice,
+   review/stage only intended source/tests/docs and commit before the next slice.
+   Do not leave multiple completed slices accumulating as an unexplained dirty
+   tree. Commit is not push/public release; report local/remote state separately.
 
 Retain design reasons, not a transcript of every work session. Do not label
 unrun tests as passing, proposals as decisions, or bounded checks as universal

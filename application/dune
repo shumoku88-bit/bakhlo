@@ -1,4 +1,5 @@
 (library
  (name loam_application)
  (public_name loam_ocaml.application)
- (libraries loam_domain base))
+ (libraries loam_domain base)
+ (private_modules effect_sum))

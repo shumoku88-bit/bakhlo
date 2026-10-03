@@ -108,7 +108,10 @@ not a claim that the new gate existed before this slice was implemented.
 - Alloy/Lean deferred for this implementation slice: finite OCaml graph checks
   directly exercise the current operation; no distinct new model/law was selected
   or executed. This leaves unrestricted correctness unproved. Review again at
-  root/lineage exclusion (OPEN VR-01 in `HANDOFF.md`), not an indefinite deferral.
+  root/lineage work (VR-01 subsequently completed in `ROOT_LINEAGE_SLICE.md`),
+  then root exclusion (VR-02 subsequently resolved in `ROOT_CUT_SLICE.md` with
+  scoped selection laws). VR-03 quantity review is subsequently resolved in
+  `CURRENT_QUANTITY_SLICE.md`; VR-04 multi-group review is OPEN. No indefinite deferral.
 - Transition models not applicable yet: no retry, writer, clock, concurrency, or
   recovery transition exists here. Defining those operations reopens selection.
 - Production reachability audit/latency benchmark deferred: clean engine-only
@@ -121,8 +124,10 @@ this slice; upstream statements remain reference evidence only.
 
 ## Limits and next boundary
 
-No root-to-terminal query, reflected-root cut, zero-origin assertion, current
-quantity, Actual/Scheduled selection, occurrence/recording time, persistence, or
-publication is implemented. A root-cut query must preserve whole correction
+At this slice's original stop point root-to-terminal projection was absent;
+`ROOT_LINEAGE_SLICE.md` now implements it under the same admission, and
+`ROOT_CUT_SLICE.md` adds checked source-bound exclusions. `CURRENT_QUANTITY_SLICE.md`
+now adds conditional one-group assertions/deltas. Full Actual/Scheduled/support
+selection, occurrence/recording time, persistence and publication remain unimplemented. A root-cut query must preserve whole correction
 lineages; guessed timestamp-plus-deltas is not an equivalent shortcut. No claim
 of formal correctness, measured large-history latency, or additional platforms.

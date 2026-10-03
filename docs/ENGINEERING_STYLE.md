@@ -88,6 +88,20 @@ or current-frontier selection. The later [frontier slice](CORRECTION_FRONTIER_SL
 checks a whole relation with persistent maps/sets and tail-recursive walks, then
 materializes a conditional frontier while retaining source facts. Completed-node
 sharing avoids restarting every path; no mutable flags or global state are added.
+The later [lineage slice](ROOT_LINEAGE_SLICE.md) retains resolved replacement
+observations in the transient index and walks each root path tail-recursively after
+cycle checks. Abstract associations are materialized once; terminal getters do not
+rebuild the relation, throw for an impossible lookup, or promote it to current Actual.
+The [cut slice](ROOT_CUT_SLICE.md) adds one pure ordered declaration scan and filter,
+consuming only qualified lineages. Maps/sets are transient; the immutable result
+retains its original source and declarations. No mutable flags, I/O, graph rebuild,
+quantity arithmetic, or global snapshot claim is introduced there.
+The [one-group quantity slice](CURRENT_QUANTITY_SLICE.md) then gates exact
+coordinate-local answers by independent assertions. Private Effect_sum is shared
+with zero-origin arithmetic, never with its support meaning. Public namespace
+exports are curated; logical aliases/explicit intermediary-CMI test dependencies
+preserve clean builds without missing-CMI warning suppression. No query-time
+recalculation or full Actual/current support-image claim is introduced.
 
 Next functional capability still needs one real household question, minimal
 qualified evidence, explicit inputs (including date coordinates when meaningful),

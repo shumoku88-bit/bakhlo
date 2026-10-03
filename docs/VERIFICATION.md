@@ -1,12 +1,14 @@
 # Verification and assurance strategy
 
 Status: PROPOSED overall strategy. Domain/application and CLI build/tests pass
-locally: 39 expect tests, 10,000 generated cases each for Quantity, Movement,
-application replay, conditional zero-origin projection, Event identity/endpoint
-closure, and supplied correction frontier, plus three cram suites. Seeds:
-`loam-quantity-v1`, `loam-movement-v1`, `loam-application-v1`, `loam-zero-origin-v1`,
-`loam-correction-endpoints-v1`, `loam-correction-frontier-v1`.
-No formal proofs have run in this repository; platform coverage is macOS x86_64.
+locally: 68 expect tests, 10,000 generated cases each for Quantity, Movement,
+application replay, zero-origin/current-assertion projections, Event identity/endpoint
+closure, frontier, root lineages and reflected-root cuts, plus three cram suites.
+Seeds: `loam-quantity-v1`, `loam-movement-v1`, `loam-application-v1`,
+`loam-zero-origin-v1`, `loam-correction-endpoints-v1`, `loam-correction-frontier-v1`,
+`loam-root-lineage-v1`, `loam-reflected-root-cut-v1`, `loam-current-quantity-v1`.
+Six optional Lean specification laws have been checked; no formal graph-to-row
+or OCaml refinement proof. Platform coverage remains macOS x86_64.
 
 ## Evidence hierarchy is not a single ladder
 
@@ -86,9 +88,10 @@ covered or passed. Selected/planned is not run. Existing unperformed work must
 not be retroactively labeled reviewed/proved. Unrelated tools need no boilerplate
 entry; meaningful deferrals must explain **why now** and **when to reconsider**.
 
-Consult this gate before stable-root-to-terminal/reflected-root-cut work; the next
-review is explicitly OPEN in `HANDOFF.md`. Before storage/publication, revisit the
-transition/failure instruments separately. No indefinite blanket "later" decision.
+VR-01–VR-03 root/terminal, cut and one-group quantity reviews are complete within
+slice scopes. Before multi-group ownership/re-observation, resolve VR-04 OPEN in `HANDOFF.md`.
+Before storage/publication, revisit transition/failure instruments separately.
+No indefinite blanket "later" decision.
 
 Tool selection does not authorize installation, new dependencies, CI jobs, source
 reuse, or scope expansion. Follow existing approval/provenance rules; record/pin
@@ -139,6 +142,35 @@ Do not import a broad theorem into an unrelated operation by name alone.
   that scope excludes larger graphs, duplicate parallel edges, and absent IDs,
   which separate fixtures/generated cases address without universal claims.
   See [contract](CORRECTION_FRONTIER_SLICE.md); no household authority is inferred.
+- `lineage_model.ml` is a test-only immutable integer-relation transitive-closure
+  model, independent of production IDs/maps/successor traversal. Two model tests
+  explore all 65,536 four-node simple graphs and root/terminal partition properties.
+  `lineage_tests.ml` compares the actual constructor/associations with that model,
+  checks independent source-list generated oracles, tail extension versus prefix
+  re-rooting, payload retention, order/replay, and a 10,000-node chain. See
+  [pre-implementation selection and correspondence](ROOT_LINEAGE_SLICE.md).
+  Enumeration is bounded and excludes absent nodes/parallel edges, separately
+  covered by specimens; no unrestricted implementation proof is claimed.
+- `root_cut_model.ml` adds original-prefix/list declaration admission to that
+  independent graph model. One model and eight implementation expect tests compare
+  all 1,168 admitted-four-node-relation/represented-subset cases (304 valid cuts)
+  plus selected fresh-tail extensions. Source-list generated tests verify payloads,
+  duplicate/unknown/non-root refusals, source binding, explicit rebinding after
+  prefix/source changes, representation order and replay. See [contract](ROOT_CUT_SLICE.md).
+- `formal/RootCutLaws.lean` optionally proves row-selection/terminal-update
+  commutation, empty cut and composition for arbitrary finite rows, not graph
+  admission or OCaml refinement. Installed Lean 4.33.1 was used with warnings fatal;
+  Three later signed-delta/answerability laws cover unsupported assertions,
+  assertion translation and reflected contribution noninterference, not Zarith/Base
+  refinement. [Axioms, reproduction and trusted boundaries](../formal/README.md). Product checks
+  do not invoke it; normal checks passed with an explicitly nonexistent `LEAN`.
+- `current_quantity_tests.ml` checks one group's assertion admission, typed unknown,
+  exact signed/huge coordinate-local decomposition and source retention. All 4,864
+  four-node graph/admissible-cut/support subsets agree with independent closure/cut
+  and original-Effect Zarith arithmetic; generated source-list cases verify duplicates,
+  translations, replay/permutation and reflected/unreflected fresh-tail seams. The
+  private arithmetic extraction preserves earlier zero-origin/CLI evidence.
+  See [one-group scope and qualification](CURRENT_QUANTITY_SLICE.md).
 - `command_tests.ml` preserves existing golden output while the CLI becomes an
   application client; it checks exact previews, syntax/refusal separation, stream
   choice, and escaped opaque input.
@@ -146,7 +178,9 @@ Do not import a broad theorem into an unrelated operation by name alone.
 - `type_boundaries.t` compiles valid domain and application-only clients, then
   checks role mixups (Measure/Locus/Event), forged Movement/preview/conditional
   quantity, inconsistent Event memory, forged closed endpoint/frontier answers,
-  and use of a closed edge as a graph-qualified frontier. It
+  forged lineage/cut/current group/answer, wrong source values and public access
+  to the private aggregate. The curated Application root exports only public
+  operations; specimens supply its generated intermediary CMI. It
   checks diagnostic content as well as failure status to avoid accepting unrelated
   compiler errors.
 - `compiler_policy.t` copies actual root configuration into a language-only

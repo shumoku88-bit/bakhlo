@@ -37,3 +37,22 @@ val corrections : t -> Loam_domain.Event_correction.t list
 (** Exactly supplied Events not targeted by any correction, in original Event
     order, with unmodified payloads. Validated within the supplied scope only. *)
 val frontier_events : t -> Loam_domain.Event.t list
+
+(** One qualified root/terminal association within the supplied relation.
+    No public constructor can substitute unrelated observations. This is not
+    occurrence time, root-cut evidence, global snapshot identity, or current Actual. *)
+type lineage
+
+(** Materialized once during successful [create]. Exactly one row per disjoint
+    path, in original root-Event order (not necessarily [frontier_events] order).
+    Untouched Events are singleton paths. All original observations/edges remain
+    available through [retained_events]/[corrections]; no source is pruned. *)
+val lineages : t -> lineage list
+
+(** Original Event with no incoming correction. Stable under a fresh terminal
+    extension, not arbitrary prefix insertion, deletion, or source-scope changes. *)
+val root_id : lineage -> Loam_domain.Identifier.Event.t
+
+(** Exact retained Event reached from that root with no outgoing correction.
+    Traversal follows explicit edges only, never spelling, time, or list position. *)
+val terminal_event : lineage -> Loam_domain.Event.t

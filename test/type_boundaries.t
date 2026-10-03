@@ -150,7 +150,9 @@ A qualified frontier client needs only Domain/Application interfaces.
   > let inspect (events : D.Event_memory.t) (corrections : D.Event_correction.t list) =
   >   match F.create ~events ~corrections with
   >   | Error error -> Error error
-  >   | Ok answer -> Ok (F.retained_events answer, F.corrections answer, F.frontier_events answer)
+  >   | Ok answer ->
+  >     let lineages = List.map (fun row -> F.root_id row, F.terminal_event row) (F.lineages answer) in
+  >     Ok (F.retained_events answer, F.corrections answer, F.frontier_events answer, lineages)
   > EOF
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c frontier_client.ml
 
@@ -175,3 +177,132 @@ A frontier cannot be fabricated to conceal observations without graph admission.
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_frontier.ml 2>error
   [2]
   $ grep -q 'Unbound record field "retained_events"\|Unbound record field retained_events' error
+
+A root-to-terminal association cannot be fabricated from unrelated observations.
+
+  $ cat >forged_lineage.ml <<'EOF'
+  > module D = Loam_domain
+  > module F = Loam_application.Correction_frontier
+  > let forge (root_id : D.Identifier.Event.t) (terminal_event : D.Event.t) : F.lineage =
+  >   { root_id; terminal_event }
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_lineage.ml 2>error
+  [2]
+  $ grep -q 'Unbound record field "root_id"\|Unbound record field root_id' error
+
+A closed endpoint observation is not a qualified lineage, even when its two IDs exist.
+
+  $ cat >closed_is_not_lineage.ml <<'EOF'
+  > module A = Loam_application
+  > let forge (closed : A.Correction_check.closed) = A.Correction_frontier.root_id closed
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c closed_is_not_lineage.ml 2>error
+  [2]
+  $ grep -q 'Correction_check.closed' error && grep -q 'Correction_frontier.lineage' error
+
+A reflected-root cut client uses only qualified Domain/Application values.
+
+  $ cat >root_cut_client.ml <<'EOF'
+  > module A = Loam_application
+  > module C = A.Reflected_root_cut
+  > let inspect frontier reflected_roots =
+  >   match C.create ~frontier ~reflected_roots with
+  >   | Error error -> Error error
+  >   | Ok answer ->
+  >     Ok (C.source_frontier answer, C.reflected_roots answer,
+  >         C.remaining_lineages answer, C.remaining_events answer)
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c root_cut_client.ml
+
+The cut cannot be forged to conceal a source or invent exclusion results.
+
+  $ cat >forged_root_cut.ml <<'EOF'
+  > module A = Loam_application
+  > let forge (source_frontier : A.Correction_frontier.t) : A.Reflected_root_cut.t =
+  >   { source_frontier; reflected_roots = []; remaining_lineages = []; remaining_events = [] }
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_root_cut.ml 2>error
+  [2]
+  $ grep -q 'Unbound record field "source_frontier"\|Unbound record field source_frontier' error
+
+Endpoint closure alone is not a sufficient source for a root cut.
+
+  $ cat >closed_is_not_cut_source.ml <<'EOF'
+  > module A = Loam_application
+  > let forge (closed : A.Correction_check.closed) =
+  >   A.Reflected_root_cut.create ~frontier:closed ~reflected_roots:[]
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c closed_is_not_cut_source.ml 2>error
+  [2]
+  $ grep -q 'Correction_check.closed' error && grep -q 'Correction_frontier.t' error
+
+A previously qualified cut is not a fresh source frontier; rebinding is explicit.
+
+  $ cat >cut_is_not_source.ml <<'EOF'
+  > module A = Loam_application
+  > let forge (cut : A.Reflected_root_cut.t) =
+  >   A.Reflected_root_cut.create ~frontier:cut ~reflected_roots:[]
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c cut_is_not_source.ml 2>error
+  [2]
+  $ grep -q 'Reflected_root_cut.t' error && grep -q 'Correction_frontier.t' error
+
+Conditional current quantity uses an exact independent assertion and qualified cut.
+
+  $ cat >current_quantity_client.ml <<'EOF'
+  > module D = Loam_domain
+  > module P = Loam_application.Current_quantity_projection
+  > let inspect cut (coordinate : D.Effect_coordinate.t) (quantity : D.Quantity.t) =
+  >   let assertion : P.assertion = { coordinate; quantity } in
+  >   match P.create ~cut ~assertions:[ assertion ] with
+  >   | Error error -> Error error
+  >   | Ok group -> Ok (P.source_cut group, P.assertions group, P.query group coordinate)
+  > let components answer =
+  >   P.coordinate answer, P.asserted_quantity answer, P.delta answer, P.quantity answer
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c current_quantity_client.ml
+
+A group cannot be forged to mismatch its source, assertions and aggregate.
+
+  $ cat >forged_current_group.ml <<'EOF'
+  > module D = Loam_domain
+  > module A = Loam_application
+  > let forge (source_cut : A.Reflected_root_cut.t) : A.Current_quantity_projection.t =
+  >   { source_cut; assertions = []; answers = Base.Map.empty (module D.Effect_coordinate) }
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_current_group.ml 2>error
+  [2]
+  $ grep -q 'Unbound record field "source_cut"\|Unbound record field source_cut' error
+
+A supported answer cannot be manufactured from a guessed zero decomposition.
+
+  $ cat >forged_current_answer.ml <<'EOF'
+  > module D = Loam_domain
+  > module P = Loam_application.Current_quantity_projection
+  > let forge (coordinate : D.Effect_coordinate.t) : P.answer =
+  >   { coordinate; asserted_quantity = D.Quantity.zero; delta = D.Quantity.zero; quantity = D.Quantity.zero }
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_current_answer.ml 2>error
+  [2]
+  $ grep -q 'Unbound record field "coordinate"\|Unbound record field coordinate' error
+
+A qualified frontier is not independent reflected-root evidence for this quantity.
+
+  $ cat >frontier_is_not_quantity_cut.ml <<'EOF'
+  > module A = Loam_application
+  > let forge (frontier : A.Correction_frontier.t) =
+  >   A.Current_quantity_projection.create ~cut:frontier ~assertions:[]
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c frontier_is_not_quantity_cut.ml 2>error
+  [2]
+  $ grep -q 'Correction_frontier.t' error && grep -q 'Reflected_root_cut.t' error
+
+The shared aggregate is not a public support/balance API.
+
+  $ cat >private_sum_is_not_support.ml <<'EOF'
+  > let forge coordinate =
+  >   Loam_application.Effect_sum.at Loam_application.Effect_sum.empty coordinate
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c private_sum_is_not_support.ml 2>error
+  [2]
+  $ grep -q 'Unbound module.*Effect_sum' error

@@ -1,6 +1,6 @@
 # LOAM OCaml — working name
 
-**Status: Movement validation, conditional quantity projection, and correction endpoint checks. Validation-only CLI; no UI or household writes.**
+**Status: Movement validation, conditional quantity answers and correction-root cuts. Validation-only CLI; no UI or household writes.**
 
 An independent OCaml implementation of LOAM, intended for long-lived household
 use, third-party maintenance, and presentation as an engineering portfolio to
@@ -76,6 +76,19 @@ as closed, unique-target/unique-replacement, and acyclic. It retains original
 observations/edges and derives terminals plus untouched Events; branches, merges,
 and cycles are typed refusals, never order-selected winners. This is not admitted
 current Actual or write permission; see [contract](docs/CORRECTION_FRONTIER_SLICE.md).
+It now materializes abstract root-to-terminal lineages, retaining original facts.
+Roots survive fresh-tail correction extension, not arbitrary source-scope edits;
+see [lineage contract/model correspondence](docs/ROOT_LINEAGE_SLICE.md).
+`application/reflected_root_cut.mli` validates independent reflected-root declarations
+against that immutable frontier and excludes whole lineages while retaining source
+facts. Duplicate/absent/non-root IDs refuse explicitly; this is not quantity support
+or current Actual. See [cut contract](docs/ROOT_CUT_SLICE.md).
+
+`application/current_quantity_projection.mli` now answers one anonymous group's
+exact coordinate assertions plus unreflected terminal Effects. It retains the cut
+and premises, exposes exact decomposition, and returns `Assertion_unknown` without
+an assertion—even with activity or zero delta. This is one supplied group, not full
+multi-group support or admitted household balances. See [contract](docs/CURRENT_QUANTITY_SLICE.md).
 
 From the repository root:
 
@@ -94,12 +107,18 @@ The core uses immutable data and pure functions; process I/O is isolated at
 active in release builds too. See [functional-core review](docs/ENGINEERING_STYLE.md)
 for the actual boundary, test-only counters, and limits of these checks.
 
-On macOS x86_64, build, 39 expect tests, and three cram suites pass. Quantity,
-Movement, application replay, conditional projection, identity/endpoint checks,
-and correction frontiers each execute 10,000 deterministic generated cases.
-Frontier tests also enumerate all 512 directed three-Event graphs and exercise a
-10,000-node chain/cycle; these bounded checks are not universal proofs. A clean engine-only build does
-not build presentation/CLI.
+On macOS x86_64, build, 68 expect tests, and three cram suites pass. Quantity,
+Movement, application replay, zero-origin/current-assertion projections,
+identity/endpoint checks, frontiers, lineages and cuts each execute 10,000 cases.
+Tests enumerate all 512 three-Event graphs, and an independent transitive-closure
+model explores all 65,536 four-Event simple graphs with model/code correspondence.
+Cuts compare all 1,168 relation/declaration subsets of those 73 admitted relations,
+plus selected fresh-tail extensions. 10,000-node chains/cycles complete; these
+bounded checks are not universal proofs. A clean engine-only build does not build
+presentation/CLI. Quantity tests compare 4,864 graph/cut/support cases with direct
+original-Effect arithmetic. Six [optional Lean specification laws](formal/README.md)
+retain root-selection and signed-delta/answerability laws; they are not graph/OCaml
+refinement proofs and are not required by product checks.
 Cram suites exercise the real CLI, application-only clients, abstract type
 boundaries, and compiler-policy controls/counterexamples in dev/release. Linux and Apple
 Silicon are targets, not yet qualified platforms. This is finite executable
@@ -132,10 +151,20 @@ Existing household data must not enter this repository.
 
 ## Portfolio standard
 
+The quality ambition is independent of popularity: rigorous retained meanings,
+operational reliability, and maintainability, informed by LOAM's accumulated
+research/verification. Intentionally omitting unused features does not lower the
+assurance target; superiority to other OSS is an aspiration, not a measured claim.
+
 Prefer a small working system with explainable contracts over a broad unfinished
 framework. Show representative source, executable counterexamples, measured
 trade-offs, and the limits of formal claims. Primary technical entry documents
 are in English; user-facing discussion may be in Japanese.
+
+Preserve the Core's researched expressive capacity, not only the currently
+implemented feature list. The [correspondence map/proposed next steps](docs/CORE_CORRESPONDENCE.md)
+separates prior evidence, retained distinctions, and OCaml qualification gaps;
+unimplemented derived capabilities are not automatically missing Core concepts.
 
 The intended review path is: a five-minute overview, a thirty-minute source and
 test walkthrough, then optional deep dives into proofs, failure injection, and

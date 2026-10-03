@@ -61,6 +61,15 @@ adapter; see [bounded contract](BALANCE_SLICE.md).
 `Correction_check` answers a typed endpoint-closure question over one immutable
 identity index, without rewriting evidence or selecting current authority. Its
 structured result is independent of CLI/formatting; see [contract](CORRECTION_ENDPOINT_SLICE.md).
+`Correction_frontier` now exposes qualified abstract root/terminal lineages as well;
+it does not itself declare reflection/current quantity. See [contract](ROOT_LINEAGE_SLICE.md).
+`Reflected_root_cut` now supplies source-bound structured exclusion answers with
+independent declarations and explicit refusals, not current support or a UI adapter;
+see [contract](ROOT_CUT_SLICE.md).
+`Current_quantity_projection` now answers one anonymous group's exact supplied
+assertions plus unreflected terminal Effects, with typed unsupported coordinates
+and exact components. It is not full Actual/multi-group support or a UI adapter;
+see [contract](CURRENT_QUANTITY_SLICE.md).
 
 `Movement_text` is a pure projection for the existing CLI. Other clients can
 choose their own representation from typed values. They do not parse CLI text,

@@ -25,7 +25,10 @@
   ../lib/.loam_domain.objs/byte/loam_domain__Effect_coordinate.cmi
   ../lib/.loam_domain.objs/byte/loam_domain__Zero_origin_coverage.cmi
   ../application/.loam_application.objs/byte/loam_application.cmi
+  ../application/.loam_application.objs/byte/loam_application__.cmi
   ../application/.loam_application.objs/byte/loam_application__Movement_check.cmi
   ../application/.loam_application.objs/byte/loam_application__Correction_check.cmi
   ../application/.loam_application.objs/byte/loam_application__Correction_frontier.cmi
+  ../application/.loam_application.objs/byte/loam_application__Reflected_root_cut.cmi
+  ../application/.loam_application.objs/byte/loam_application__Current_quantity_projection.cmi
   ../application/.loam_application.objs/byte/loam_application__Zero_origin_projection.cmi))

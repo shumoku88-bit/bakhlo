@@ -31,6 +31,17 @@ The user wants to:
     record instrument choice/deferral plus revisit trigger. OCaml types/tests do
     not automatically replace LOAM's design/formal/visual/audit instruments; this
     is not a requirement to run all of them. See `VERIFICATION.md`.
+11. Aim substantially beyond typical household-accounting OSS in semantic rigor,
+    operational reliability, and maintainability, independently of user count or
+    popularity. This is the user's quality target, not an established comparison.
+    Deliberately omitted unused features are not permission to lower assurance
+    within the retained scope. Use LOAM's accumulated research/verification as
+    design assets rather than treating OCaml as a fresh CRUD reimplementation.
+    The user further explains that this research has qualified the Core's capacity
+    to support most household/personal-accounting OSS functions, including unused
+    capabilities. Preserve that expressiveness; missing OCaml operations do not
+    mean the upstream Core has not been studied. Exact evidence scopes and OCaml
+    implementation qualification remain distinct; see `CORE_CORRESPONDENCE.md`.
 
 This is not authorization to publish private data, create cloud infrastructure,
 introduce multi-user synchronization, or claim affiliation with Jane Street.
@@ -73,6 +84,18 @@ reintroduce a permanent Lean/OCaml dual engine.
 
 Professional quality means inspectable and maintainable contracts, not a claim
 of certification, financial suitability, or comprehensive formal verification.
+
+A single-user product deserves the same care for retained meanings and failure
+behavior as a widely adopted one. Feature count, UI breadth, popularity, and tool
+count are not quality scores. Distinguish deliberately out-of-scope capabilities,
+planned capabilities, and unqualified required behavior; do not describe all
+absences as defects or all absences as deliberate minimalism.
+
+Reuse LOAM's prior laws, counterexamples, investigations, and rejected alternatives
+through the reference/instrument review before solving the same design question
+again. Keep, simplify, or repair according to the actual OCaml question; do not
+port every feature or claim that upstream proofs cover new code. A claim of
+surpassing another product needs named comparators, dimensions, and evidence.
 
 Before production use, establish:
 
