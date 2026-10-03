@@ -96,6 +96,19 @@ let exchange_error = function
     Printf.sprintf "Exchange %d for %S: destination Measure %S total %s is not positive"
       position (id event) (D.Identifier.Measure.to_string measure) (quantity total)
 
+let reversal_role = function A.Actual_reversals.Target -> "target" | Reversal -> "reversal"
+let reversal_error = function
+  | A.Actual_reversals.Repeated_endpoint { event; first_role; first_position; role; position } ->
+    Printf.sprintf "Reversal %d: repeated %s Event %S (first %s at %d)"
+      position (reversal_role role) (id event) (reversal_role first_role) first_position
+  | Unresolved_endpoints { position; endpoints } ->
+    let missing = Base.List.map endpoints ~f:(fun (endpoint : A.Actual_reversals.endpoint) ->
+      Printf.sprintf "%s Event %S" (reversal_role endpoint.role) (id endpoint.event)) in
+    Printf.sprintf "Reversal %d: missing %s" position (String.concat ", " missing)
+  | Not_inverse { position; fact } ->
+    Printf.sprintf "Reversal %d: Event %S is not the exact physical inverse of %S"
+      position (id fact.reversal) (id fact.target)
+
 let source_refusal error =
   let detail = match error with
     | A.Actual_source.Events (D.Event_memory.Duplicate_id { id = event; first_position; position }) ->
@@ -106,6 +119,7 @@ let source_refusal error =
       Printf.sprintf "Event %S at %d: Measure %S residual %s" (id event) event_position
         (D.Identifier.Measure.to_string measure) (quantity residual)
     | Exchanges error -> exchange_error error
+    | Reversals error -> reversal_error error
     | Validity error -> validity_error error
     | Corrections error -> correction_error error
     | Descriptions error ->

@@ -15,6 +15,8 @@
     (forward references; positivity/root membership admitted by source, not parser).
     Top-level EXCHANGE event-id source-key destination-key (forward references,
     source-qualified shape; no inferred key/rate/fee/role or correction replacement).
+    Top-level REVERSAL target-event-id reversal-event-id (forward references;
+    source admits disjoint endpoints/exact physical inversion, not inferred cancellation).
     ZERO-ORIGIN locus measure; OPENING locus measure
     event-id; GROUP / REFLECT root / ASSERT locus measure signed-decimal / END-GROUP.
     At most one PRESENCE / REFLECT root / PRESENT locus measure / END-PRESENCE block.

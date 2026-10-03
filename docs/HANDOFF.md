@@ -1,72 +1,86 @@
 # Handoff
 
-## Current qualified boundary — explicitly selected cross-Measure exchanges
+## Qualified boundary — retained exact physical Reversal evidence
 
-Pre-code question: admit the narrow independently justified Exchange shape, not a transaction-kind
-escape hatch, while unclaimed Events still conserve each Measure and all retained Effects
-remain nonzero? D: neutral Events/keys exist; current source refuses per-Measure imbalance.
-Narrow owners at 2438ef50a363ef06491da7b62f8537f52e25031a: Core ExchangeEvidence,
-Application ExchangeEvidenceFrontier/ExchangeAdmission, Persistence NormalizedActualAdmission.
-Only read: no source copying/build/proof or household-data access. Practical publication,
-fresh IDs/Locus policy/token restrictions in ExchangeAdmission are not this read boundary.
-P: unique Event-local keys, exact signed quanta/Measures, retained memory/frontiers/dates,
-metadata/root original amounts and four supports, independent original-Effect/graph oracles.
-R: selected key/Measure/sign/total constraints and a non-bypassable source balance exemption.
+Pre-code review and executed evidence follow; contracts live in interfaces/ARCHITECTURE,
+retained evidence in VERIFICATION.
 
-Select one Exchange_evidence memory: fact = Event + source key + destination key; zero/one
-per Event, exact facts/order/memory/raw corrections retained. Qualified selection is abstract.
-Per declaration: duplicate, correction mentions subject (either endpoint, even raw/open),
-Event closure, source then destination key resolution, distinct Measures, source negative,
-destination positive, no third Measure, source total negative, destination total positive.
-Additional keyed/anonymous Effects in either selected Measure allowed (no inferred fees).
-No rate/valuation/basis/home currency or role inference. This selection gate permits zero
-unselected Effects just as upstream; Actual source always refuses ALL retained zero Effects.
-No Exchange subject may participate in correction until Effect replacement is qualified.
+Question: retain explicit target/reversal correspondence without deleting observations,
+inferring relations from signs/net zero, merging correction paths or bypassing target
+admission? D (pre-code): source admitted ordinary/Exchange, no Reversal. Narrow read-only owners
+at 2438ef50a363ef06491da7b62f8537f52e25031a: Core ActualReversal/ActualReversalBalance,
+Persistence NormalizedActualAdmission. No upstream copying/build/proof/household-data read.
+P: Event-local key uniqueness, exact coordinates/quanta/multiplicity, qualified Exchange,
+Measure totals, retained dates/correction frontier, metadata and four supports; independent
+Effect/Exchange/graph models and optional laws (VERIFICATION). R: exact multiset inversion,
+global endpoint uniqueness/closure and source-safe reversal-side admission.
 
-Source order: Event identity -> whole Exchange qualification -> existing per-Event nonzero
-and balance checks (skip ONLY balance of explicitly admitted Exchange subjects) -> prior
-date/frontier/description/Merchant/original-amount gates -> support/query. Empty exchange
-facts preserve ordinary refusal order. New invalid claims preempt physical errors by the
-local declared ordering; upstream instead gates all nonzero Effects before Exchanges.
-Raw correction inputs are retained/interference-checked here, not graph-admitted by Exchange;
-full source still owns correction closure/path admission. Extract private Measure_totals for
-these two concrete consumers only; not a support or conversion API. Existing ordinary sums/
-nonzero witness ordering must survive. Same v2 reader: top-level EXCHANGE event source-key
-destination-key, forward references. Source is now ordinary + Exchange Actual subset;
-remove misleading ordinary-only labels, not the narrow Movement entrance.
+Select Actual_reversals: raw fact = target Event ID + reversal Event ID, no relation ID.
+Each endpoint globally unique across BOTH roles: no self/duplicate/cross-role chain/cycle.
+Per fact: target reuse, reversal reuse (including self), ordered target/reversal closure,
+exact physical inverse. First failure, one-based fact positions/role witnesses. Local
+combined gate differs from upstream separate endpoint-memory/closure/inverse gates.
+Match sorted transient physical (coordinate, exact signed Quantity) lists after negating
+reversal quantities; ignore keys/order, retain multiplicity and raw payloads/facts/order/memory.
+Return abstract admitted pairs with exact retained Events; indexed role-specific lookup.
+Standalone boundary does not establish balance/nonzero/dates/correction admission or truth.
 
-Before product code, enumerate original Effect tuples against list/Zarith sum predicates:
-36 selected Measure/sign pairs x 16 optional first extras x 16 second extras = 9216 shapes;
-122 Exchange admissions, 74 nonzero source admissions, 80 ordinary admissions without claims
-(independent Python enumeration). Retain model-only selected-sign vs net-sign, third-Measure,
-anonymous-key and zero-extra counterexamples. Product correspondence against this oracle;
-separate exact/missing/identical/duplicate keys/claims, correction target/replacement/open
-interference, retained provenance/immutability, metadata/date/original amounts and four-support
-arithmetic/touch seams. Reuse earned graph laws/models, no new graph model/random campaign/
-formal law. Explicit guard order suffices; revisit corrections, fees/rates/valuation, Reversal,
-report routing or publication. Compiler clients and real CLI streams/read-only/failure controls.
+Source: identity -> Exchange -> Reversal exact admission -> existing per-Event physical
+checks. ALL Effects nonzero. Balance applies to every Event except explicitly qualified
+Exchange subjects and admitted reversal-side Events. Global disjoint roles ensure targets
+are never reversal sides: every ordinary target is independently checked, while a qualified
+Exchange target already justifies its cross-Measure shape. Only THEN exact inversion
+justifies skipping reversal-side checks (ordinary balance is derived; an Exchange inverse
+remains an explicit Reversal exception, not per-Measure balanced); an unbalanced target cannot be rescued
+by pair cancellation or an Exchange claim on the reversal side. Ordinary/no-Reversal order
+survives. Date/frontier/metadata/original amounts/support follow as before. Reversal
+endpoints may also participate in separately admitted corrections unless they are Exchange
+subjects (upstream retained closure has no extra current/root/correction exclusion).
+Exchange correction prohibition survives; even its non-Exchange reversal endpoint may
+have an independent correction without rewriting retained correspondence.
+Reversal does not alter frontier selection. Both Events contribute when selected; a separate
+correction/cut can select a different subset, so do not claim universal current cancellation.
+Same v2 reader: top-level REVERSAL target reversal, forward references, no inference/allocation.
 
-Acceptance: no generic balance exemption, no unclaimed/zero/third-Measure/incorrect-sign leak,
-no support inferred from a valid exchange; quantities stay Measure-specific and exact.
-Full normal/package/install, clean native engine-only and Lean-free checks; prior models/laws/
-campaigns/counterexamples preserved, tooling/lock/formal code unchanged.
-No new dependency, UI, storage/writes/migration, registry/report, license/publication or push.
+Before product code, checked original-token/list-remove-one multiset oracle (not product sort):
+all 85 length-0..3 lists over two Measures x +/-1 = 7225 pairs; 289 exact inverses,
+9 ordinary-source pairs. Four Event IDs, all 0/1/2 ordered endpoint relations = 273/37
+unique collections. Independent Python enumeration agrees. Retain model-only aggregate-zero/
+regrouping/dropped-duplicate/wrong-coordinate/Measure/key-order counterexamples. Product
+correspondence; reuse Exchange_model's 9216 shapes with constructed exact inverse Events
+(74 source admissions, reverse-side-only Exchange cannot rescue target). Separate huge/
+zero/control/closure/order/retention/immutability and correction/date/metadata/four-support
+seams with earned original-Effect sum/touch oracles. Real CLI read-only/streams and compiler
+role/forgery/exhaustiveness controls. No new graph model/random campaign/formal artifact:
+question is physical multiset matching plus qualified target/source composition. Explicit
+guards suffice; revisit endpoint reuse, reversal lifecycle/corrections, reporting/publication.
 
-Executed: model-only counterexamples passed before product code; product shape/source/ordinary
-correspondence and targeted guard/source/decoder/CLI/compiler controls passed. Normal, forced
-package, install, clean native engine-only and Lean-free checks passed on macOS x86_64.
-No upstream build/proof, optional-law rerun, fresh-switch or new-platform claim; independent
-model bounds/source ordering gaps belong to VERIFICATION/REFERENCES, not full-admission parity.
+Acceptance: no aggregate-only matching, silent dedup/identity loss/automatic pair deletion,
+chain/cycle/open-endpoint acceptance or generic target balance exemption; unknown remains
+unsupported even at net zero. Full normal/package/install, clean native engine-only and
+Lean-free checks; existing models/laws/campaigns/counterexamples retained, tooling/lock/
+formal code unchanged.
+
+Executed on locked macOS x86_64: 135 expect tests, unchanged 100000 generated cases,
+three cram suites; normal check, forced package tests, install, clean native Domain/Application
+build with no outer compiled artifacts, and full check with nonexistent LEAN passed.
+All 63 prior compiler specimens retained (only explicit new source field updated), six
+new specimens; exact role/forgery/exhaustiveness and read-only/exit/stream/escaped decoder/
+CLI controls passed. Example independent origin supports reversal-wallet jpy = 0.
+Whitespace/Markdown links/fences and focused production effect/helper scans passed.
+Final sibling observation: clean dccbb2d9e17c6f5e92d8b6fb3390dbfd9ab2b926; the three
+consulted owners are unchanged from 2438ef50, not whole-tree correspondence.
+No new dependency, UI, storage/writes/migration, registry/report, license/publication,
+upstream/optional proof rerun, fresh switch, new platform/MirageOS build or push.
 
 ## Next work / deferred platforms
 
-Pick concrete remaining Actual consumers, not upstream files as an automatic backlog.
-Before storage/writes decide authority/admission/publication, identity/retry/conflict, uncertain
-outcomes, atomicity/durability, diagnostics and backup/restore/migration; select fault tools then.
-First usable TUI/GUI remains undecided. MirageOS is a possible future execution environment,
-not qualified support: check actual target/runtime and Base/Zarith/GMP/C-stub compatibility
-when there is a named consumer; keep I/O outside the pure engine, add no speculative adapter.
-No Jane Street/toolkit comparison or Mirage build was performed. Public release/cutover separate.
+Choose concrete Actual consumers, not upstream files as automatic backlog. Before writes:
+authority/admission/publication, identity/retry/conflict, uncertain outcomes, atomicity/
+durability, diagnostics, backup/restore/migration, then transition/fault instruments.
+First usable TUI/GUI undecided. MirageOS remains a possible future host, unqualified:
+actual target/runtime/Base/Zarith/GMP/C-stub compatibility and I/O adapters await a consumer;
+no stack comparison/implementation now. Public release/operational cutover separate.
 
 ## Safety/state
 

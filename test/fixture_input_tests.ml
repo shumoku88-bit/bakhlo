@@ -413,3 +413,42 @@ let%expect_test "read failures and cycle identities are escaped; help/syntax req
   Stdlib.Printf.printf "escaped provenance/errors; explicit read result; no help/syntax I/O\n";
   [%expect {| escaped provenance/errors; explicit read result; no help/syntax I/O |}]
 ;;
+
+let%expect_test "Reversal reader retains exact forward facts, independent dates and key-free physical correspondence" =
+  let module R = Loam_application.Actual_reversals in
+  let huge = Z.to_string (Z.shift_left Z.one 180) in
+  let rows = [ "REVERSAL\t a \tr"; "EVENT\tr\t1900-01-01";
+    "EFFECT\toffset\t jpy \t-" ^ huge; "KEYED-EFFECT\treverse-key\twallet\t jpy \t+" ^ huge; "END-EVENT";
+    "EVENT\t a \t2026-10-03"; "KEYED-EFFECT\ttarget-key\twallet\t jpy \t-" ^ huge;
+    "EFFECT\toffset\t jpy \t" ^ huge; "END-EVENT"; "ZERO-ORIGIN\twallet\t jpy " ] in
+  let text = document rows in
+  let decoded = ok (Input.decode text) in
+  F.require (List.length decoded.source.reversals = 1 && D.Identifier.Event.equal (List.hd_exn decoded.source.reversals).target (F.id " a ")) "forward fact normalized/lost";
+  let source = ok (S.create decoded.source) in
+  let pair = Option.value_exn (R.find_by_target (S.reversals source) (F.id " a ")) in
+  F.require (List.equal F.equal_event [ R.reversal_event pair; R.target_event pair ] decoded.source.events) "physical matching rewrote key/order payload";
+  let request : C.request = { path = "synthetic"; coordinate = F.coordinate ~unit:" jpy " "wallet" } in
+  let response = C.evaluate request (Ok text) in
+  F.require (response.exit_code = 0 && String.is_empty response.stderr && String.is_substring response.stdout ~substring:"quantity=0") "exact supported cancellation";
+  let unsupported = C.evaluate request (Ok (document (List.drop_last_exn rows))) in
+  F.require (unsupported.exit_code = 3 && String.is_empty unsupported.stderr && String.is_substring unsupported.stdout ~substring:"quantity unknown") "Reversal inferred support";
+  List.iter [ [ "REVERSAL\ta" ]; [ "REVERSAL\ta\tr\textra" ]; [ "REVERSAL\t\tr" ]; [ "REVERSAL\ta\t" ];
+    [ "GROUP"; "REVERSAL\ta\tr"; "END-GROUP" ]; [ "EVENT\ta"; "REVERSAL\ta\tr"; "END-EVENT" ];
+    [ "PRESENCE"; "REVERSAL\ta\tr"; "END-PRESENCE" ]; [ "PURPOSE\ta\tfood" ]; [ "SCHEDULED\ta" ] ] ~f:(fun rows ->
+      match Input.decode (document rows) with Error (Syntax _) -> () | _ -> failwith "malformed/misplaced/unsupported evidence accepted");
+  Stdlib.Printf.printf "forward exact Reversal/180-bit/key-order payloads and earlier reversal date; explicit zero vs unsupported, malformed/unsupported rows refuse\n";
+  [%expect {| forward exact Reversal/180-bit/key-order payloads and earlier reversal date; explicit zero vs unsupported, malformed/unsupported rows refuse |}]
+;;
+
+let%expect_test "every Reversal error escapes exact role and endpoint provenance on one stderr line" =
+  let module R = Loam_application.Actual_reversals in
+  let event = F.id "event\027\n" in
+  List.iter [ R.Repeated_endpoint { event; first_role = Reversal; first_position = 1; role = Target; position = 2 };
+    Unresolved_endpoints { position = 1; endpoints = [ { role = Target; event }; { role = Reversal; event = F.id "other\027\n" } ] };
+    Not_inverse { position = 1; fact = { target = event; reversal = F.id "other\027\n" } } ] ~f:(fun error ->
+      let rendered = Loam_presentation.Current_quantity_text.source_refusal (S.Reversals error) in
+      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1
+        && String.is_substring rendered ~substring:"Reversal") "escaped Reversal diagnostics");
+  Stdlib.Printf.printf "reuse/closure/inversion diagnostics retain escaped Event roles and positions\n";
+  [%expect {| reuse/closure/inversion diagnostics retain escaped Event roles and positions |}]
+;;

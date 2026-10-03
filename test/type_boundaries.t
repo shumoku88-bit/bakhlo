@@ -377,7 +377,7 @@ The physically admitted Actual subset source has a public smart constructor.
 
   $ cat >actual_source_client.ml <<'EOF'
   > module S = Loam_application.Actual_source
-  > let empty () = S.create { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = []; merchants = []; original_amounts = []; exchanges = [] }
+  > let empty () = S.create { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = []; merchants = []; original_amounts = []; exchanges = []; reversals = [] }
   > let facts source = Loam_application.Actual_validity.facts (S.validity source)
   > let descriptions source = Loam_application.Event_descriptions.facts (S.descriptions source)
   > EOF
@@ -438,6 +438,56 @@ Retained date history has tagged references and a distinct revision identity, no
   $ application_client private_cycle.ml 2>error
   [2]
   $ grep -q 'Unbound module.*Replacement_cycle' error
+
+Reversal evidence retains typed Event endpoints and abstract pairs; no quantity authorization.
+
+  $ cat >reversal_client.ml <<'EOF'
+  > module R = Loam_application.Actual_reversals
+  > module S = Loam_application.Actual_source
+  > let admit events target reversal = R.create ~events ~facts:[ { target; reversal } ]
+  > let retained source = R.source_events (S.reversals source), R.facts (S.reversals source), R.pairs (S.reversals source)
+  > let provenance pair = R.fact pair, R.target_event pair, R.reversal_event pair
+  > let lookup memory id = R.find_by_target memory id, R.find_by_reversal memory id
+  > let role = function R.Target -> "target" | Reversal -> "reversal"
+  > EOF
+  $ application_client reversal_client.ml
+  $ cat >key_is_not_reversal_event.ml <<'EOF'
+  > module D = Loam_domain
+  > module R = Loam_application.Actual_reversals
+  > let wrong (target : D.Identifier.Effect_key.t) reversal : R.fact = { target; reversal }
+  > EOF
+  $ application_client key_is_not_reversal_event.ml 2>error
+  [2]
+  $ grep -q 'Identifier.Event.t' error
+  $ cat >forged_reversals.ml <<'EOF'
+  > module R = Loam_application.Actual_reversals
+  > let wrong (facts : R.fact list) : R.t = facts
+  > EOF
+  $ application_client forged_reversals.ml 2>error
+  [2]
+  $ grep -q 'R.t' error
+  $ cat >forged_reversal_pair.ml <<'EOF'
+  > module R = Loam_application.Actual_reversals
+  > let wrong (fact : R.fact) : R.pair = fact
+  > EOF
+  $ application_client forged_reversal_pair.ml 2>error
+  [2]
+  $ grep -q 'R.pair' error
+  $ cat >reversal_is_not_quantity.ml <<'EOF'
+  > module R = Loam_application.Actual_reversals
+  > module Q = Loam_application.Current_quantity_query
+  > let wrong (pair : R.pair) = Q.quantity pair
+  > EOF
+  $ application_client reversal_is_not_quantity.ml 2>error
+  [2]
+  $ grep -q 'Q.exact' error
+  $ cat >incomplete_reversal_role.ml <<'EOF'
+  > module R = Loam_application.Actual_reversals
+  > let wrong = function R.Target -> "target"
+  > EOF
+  $ application_client -w +8 -warn-error +8 incomplete_reversal_role.ml 2>error
+  [2]
+  $ grep -q 'partial-match' error && grep -q 'Reversal' error
 
 Exchange selections require retained memory and typed Effect keys; aggregate helpers stay private.
 

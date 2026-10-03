@@ -16,7 +16,7 @@ let help : Response.t =
   { exit_code = 0; stderr = ""; stdout =
       "Usage: loam-ocaml inspect-current-fixture FILE LOCUS MEASURE\n\
        Read ONLY a LOAM-OCAML-ACTUAL-FIXTURE v2 synthetic file; never write.\n\
-       Ordinary Actual subset; separated origin/opening/assertion/presence support.\n\
+       Actual subset; separated origin/opening/assertion/presence support.\n\
        Exit 0 exact, 4 known nonzero (amount unknown), 3 unsupported; stdout.\n\
        Not full normalized admission, historical completeness or household authority.\n" }
 let syntax_refusal message : Response.t =

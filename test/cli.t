@@ -69,7 +69,7 @@ One admitted source: exact families, known zero, known nonzero/amount-unknown an
   $ loam-ocaml inspect-current-fixture --help
   Usage: loam-ocaml inspect-current-fixture FILE LOCUS MEASURE
   Read ONLY a LOAM-OCAML-ACTUAL-FIXTURE v2 synthetic file; never write.
-  Ordinary Actual subset; separated origin/opening/assertion/presence support.
+  Actual subset; separated origin/opening/assertion/presence support.
   Exit 0 exact, 4 known nonzero (amount unknown), 3 unsupported; stdout.
   Not full normalized admission, historical completeness or household authority.
   $ loam-ocaml inspect-current-fixture not-read >out 2>err
@@ -278,6 +278,58 @@ Exchange is a selected-key exception, never inferred balance/support or correcti
   $ loam-ocaml inspect-current-fixture exchange-only wallet jpy >out 2>err
   [3]
   $ test ! -s err && grep -q 'quantity unknown' out
+
+Explicit Reversal retains both Events and exact physical multiplicity; no support inferred.
+
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nREVERSAL\ta\tr\nEVENT\tr\t1900-01-01\nEFFECT\twallet\tjpy\t3\nEFFECT\toffset\tjpy\t-3\nEND-EVENT\nEVENT\ta\t2026-10-03\nKEYED-EFFECT\tphysical\twallet\tjpy\t-3\nEFFECT\toffset\tjpy\t3\nEND-EVENT\nZERO-ORIGIN\twallet\tjpy\nEND\n' >reversal
+  $ cp reversal before-reversal
+  $ loam-ocaml inspect-current-fixture reversal wallet jpy >out 2>err
+  $ test ! -s err && grep -q 'quantity=0' out
+  $ cmp reversal before-reversal
+  $ grep -v '^ZERO-ORIGIN' reversal >reversal-only
+  $ loam-ocaml inspect-current-fixture reversal-only wallet jpy >out 2>err
+  [3]
+  $ test ! -s err && grep -q 'quantity unknown' out
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nREVERSAL\ta\tr\nEVENT\ta\t2026-10-03\nEFFECT\twallet\tjpy\t1\nEFFECT\twallet\tjpy\t1\nEFFECT\toffset\tjpy\t-2\nEND-EVENT\nEVENT\tr\t2026-10-03\nEFFECT\twallet\tjpy\t-2\nEFFECT\toffset\tjpy\t2\nEND-EVENT\nEND\n' >regrouped
+  $ loam-ocaml inspect-current-fixture regrouped unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'not the exact physical inverse' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nREVERSAL\tt\tr\nEVENT\tt\t2026-10-03\nEFFECT\twallet\tjpy\t1\nEND-EVENT\nEVENT\tr\t2026-10-03\nEFFECT\twallet\tjpy\t-1\nEND-EVENT\nEND\n' >unbalanced-pair
+  $ loam-ocaml inspect-current-fixture unbalanced-pair unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Event "t" at 1.*residual 1' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nREVERSAL\ta\tr\nREVERSAL\tr\ta\nEVENT\ta\t2026-10-03\nEND-EVENT\nEVENT\tr\t2026-10-03\nEND-EVENT\nEND\n' >reversal-cycle
+  $ loam-ocaml inspect-current-fixture reversal-cycle unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Reversal 2: repeated target Event "r" (first reversal at 1)' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nREVERSAL\ta\ta\nEND\n' >self-reversal
+  $ loam-ocaml inspect-current-fixture self-reversal unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'repeated reversal Event "a" (first target at 1)' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nREVERSAL\ta\tr\nEND\n' >open-reversal
+  $ loam-ocaml inspect-current-fixture open-reversal unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'missing target Event "a", reversal Event "r"' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nREVERSAL\tx\tr\nEVENT\tx\t2026-10-03\nEFFECT\twallet\tjpy\t0\nEND-EVENT\nEVENT\tr\t2026-10-03\nEFFECT\twallet\tjpy\t0\nEND-EVENT\nEND\n' >zero-reversal
+  $ loam-ocaml inspect-current-fixture zero-reversal unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'zero Effect at 1' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nREVERSAL\ta\nEND\n' >malformed-reversal
+  $ loam-ocaml inspect-current-fixture malformed-reversal wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'fixture line 2' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nREVERSAL\t\tr\nEND\n' >empty-reversal
+  $ loam-ocaml inspect-current-fixture empty-reversal wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'identity must not be empty' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nGROUP\nREVERSAL\ta\tr\nEND-GROUP\nEND\n' >misplaced-reversal
+  $ loam-ocaml inspect-current-fixture misplaced-reversal wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'fixture line 3' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nREVERSAL\tx\033\tr\nEND\n' >escaped-reversal
+  $ loam-ocaml inspect-current-fixture escaped-reversal unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -Fq '"x\027"' err
 
 Malformed/obsolete inputs and invalid premises refuse globally, never an empty basis.
 

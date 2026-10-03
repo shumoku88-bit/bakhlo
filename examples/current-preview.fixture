@@ -23,6 +23,15 @@ KEYED-EFFECT	source	exchange-wallet	jpy	-100
 KEYED-EFFECT	destination	exchange-wallet	usd	2
 EFFECT	exchange-wallet	jpy	-1
 END-EVENT
+REVERSAL	g	h
+EVENT	h	1900-01-01
+EFFECT	reversal-wallet	jpy	3
+EFFECT	reversal-offset	jpy	-3
+END-EVENT
+EVENT	g	2026-10-03
+KEYED-EFFECT	physical	reversal-wallet	jpy	-3
+EFFECT	reversal-offset	jpy	3
+END-EVENT
 VALIDITY-CORRECTION	BASE	b	occurrence-b
 VALIDITY-REVISION	occurrence-b	b	1900-01-01
 DESCRIPTION	a	Initial recognition text, retained after correction
@@ -36,6 +45,7 @@ ZERO-ORIGIN	food	jpy
 ZERO-ORIGIN	quiet	jpy
 ZERO-ORIGIN	exchange-wallet	jpy
 ZERO-ORIGIN	exchange-wallet	usd
+ZERO-ORIGIN	reversal-wallet	jpy
 OPENING	offset	usd	b
 GROUP
 REFLECT	a

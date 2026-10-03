@@ -11,6 +11,7 @@ type command =
   ; merchants : Event_merchants.fact list
   ; original_amounts : Original_amounts.fact list
   ; exchanges : Exchange_evidence.fact list
+  ; reversals : Actual_reversals.fact list
   }
 type t =
   { frontier : Correction_frontier.t
@@ -19,6 +20,7 @@ type t =
   ; merchants : Event_merchants.t
   ; original_amounts : Original_amounts.t
   ; exchanges : Exchange_evidence.t
+  ; reversals : Actual_reversals.t
   }
 type error =
   | Events of D.Event_memory.error
@@ -31,8 +33,9 @@ type error =
   | Merchants of Event_merchants.error
   | Original_amounts of Original_amounts.error
   | Exchanges of Exchange_evidence.error
+  | Reversals of Actual_reversals.error
 
-let check_event ~exchange event_position original =
+let check_event ~balance_exempt event_position original =
   let changes = D.Event.effects original in
   let event = D.Event.id original in
   let ( let* ) result f = Result.bind result ~f in
@@ -43,7 +46,7 @@ let check_event ~exchange event_position original =
         then Error (Zero_effect { event; event_position; effect_position })
         else Ok (effect_position + 1, Measure_totals.add totals change))
   in
-  if exchange then Ok ()
+  if balance_exempt then Ok ()
   else match Measure_totals.first_nonzero totals with
     | Some (measure, residual) -> Error (Unbalanced_measure { event; event_position; measure; residual })
     | None -> Ok ()
@@ -58,6 +61,7 @@ let create
      ; merchants
      ; original_amounts
      ; exchanges
+     ; reversals
      } : command)
   =
   let ( let* ) result f = Result.bind result ~f in
@@ -66,9 +70,19 @@ let create
     Result.map_error (Exchange_evidence.create ~events ~corrections ~facts:exchanges)
       ~f:(fun error -> Exchanges error)
   in
+  let* reversals =
+    Result.map_error (Actual_reversals.create ~events ~facts:reversals)
+      ~f:(fun error -> Reversals error)
+  in
   let* _ = List.fold_result originals ~init:1 ~f:(fun position event ->
-    let exchange = Option.is_some (Exchange_evidence.find_by_event exchanges (D.Event.id event)) in
-    Result.map (check_event ~exchange position event) ~f:(fun () -> position + 1)) in
+    let id = D.Event.id event in
+    (* Disjoint roles guarantee every ordinary target is checked here. Inversion
+       derives ordinary reversal balance; Exchange inverses retain their explicit
+       Reversal exception, not a claim of per-Measure conservation. *)
+    let balance_exempt =
+      Option.is_some (Exchange_evidence.find_by_event exchanges id)
+      || Option.is_some (Actual_reversals.find_by_reversal reversals id) in
+    Result.map (check_event ~balance_exempt position event) ~f:(fun () -> position + 1)) in
   let* validity =
     Result.map_error
       (Actual_validity.create ~events ~facts:validities ~corrections:validity_corrections)
@@ -90,7 +104,7 @@ let create
     Result.map_error (Original_amounts.create ~frontier ~facts:original_amounts)
       ~f:(fun error -> Original_amounts error)
   in
-  Ok { frontier; validity; descriptions; merchants; original_amounts; exchanges }
+  Ok { frontier; validity; descriptions; merchants; original_amounts; exchanges; reversals }
 ;;
 let frontier t = t.frontier
 let validity t = t.validity
@@ -98,3 +112,4 @@ let descriptions t = t.descriptions
 let merchants t = t.merchants
 let original_amounts t = t.original_amounts
 let exchanges t = t.exchanges
+let reversals t = t.reversals

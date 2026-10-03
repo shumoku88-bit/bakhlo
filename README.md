@@ -30,6 +30,8 @@ longer supported; `unsupported jpy` lacks evidence (both exit 3/stdout).
 Load/admission failures exit 1; syntax failures exit 2 (stderr, no stdout).
 The example's explicitly supported Exchange gives `exchange-wallet jpy` = `-101`
 and `exchange-wallet usd` = `2`, without merging Measures or implying a rate.
+Its explicit Reversal `g`/`h` gives `reversal-wallet jpy` = `0` through independent
+origin support; both Events remain, without inferred chronology or support.
 
 Only the explicit synthetic grammar is accepted; it is not an upstream adapter or
 chosen canonical storage format. Unsupported facts never disappear into a successful
@@ -43,12 +45,17 @@ empty image. See [grammar](cli/current_fixture_input.mli) and
 - Immutable functional engine; process/file I/O only at explicit edges.
 - Runtime Base + Zarith; tests ppx_expect + Base_quickcheck. No speculative framework.
 - General Events remain broader than ordinary Movements. Current source admission
-  covers ordinary + explicitly qualified Exchange Actual: optional Event-local keys
-  remain unique within each Event, ALL retained Effects nonzero, and unclaimed Events
-  conserve each Measure. Exchange selects two exact keys with distinct Measures,
+  covers ordinary + explicitly qualified Exchange/Reversal Actual: optional Event-local
+  keys remain unique within each Event, ALL retained Effects nonzero, and ordinary
+  Events/targets conserve each Measure. Exchange selects two exact keys with distinct Measures,
   negative source/positive destination Effects AND Measure totals, no third Measure;
   additional Effects in those Measures survive, without inferred fee/rate semantics.
-  Exchange subjects cannot participate in Event correction. Independent retained
+  Exchange subjects cannot participate in Event correction. Reversal independently names
+  two retained Events with globally disjoint endpoints and exact physical multiset inversion;
+  keys/order do not matter, multiplicity does. Independent target admission derives
+  ordinary reversal balance or permits a qualified Exchange's inverse as an exception;
+  pair cancellation alone does not.
+  Neither Event is auto-deleted or excluded from quantity/presence calculations. Independent retained
   date history and ordinary Event corrections remain qualified.
   Date corrections are closed disjoint same-Event paths with one current occurrence
   fact per retained Event; all superseded dates survive and must remain valid.
@@ -65,7 +72,7 @@ empty image. See [grammar](cli/current_fixture_input.mli) and
   coordinate; it is not a second scalar or implicit origin. Presence retains one shared
   root cut, not a scalar; ANY unreflected matching Effect invalidates it, even net zero.
   Exact/present payloads are disjoint; all four families must be globally separated.
-- Other structured metadata, Reversal, historical
+- Other structured metadata, relations/settlement, historical
   completeness and full normalized Actual admission are still unsupported.
 
 No public API/storage compatibility promise exists during this unreleased phase.

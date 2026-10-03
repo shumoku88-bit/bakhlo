@@ -27,7 +27,8 @@ There is no canonical storage, clock, mutable business state or generic service 
 | Event merchants | Optional unique retained Event disposition: Merchant(role-free external identity) / Nonmerchant; absence unresolved, no registry/inference/inheritance |
 | Original amounts | Unique positive root fact + explicit Measure; same-frontier current terminal association, raw fact unchanged; no FX/balance/support meaning |
 | Exchange evidence | Unique Event + selected source/destination keys; distinct Measures, selected and net signs, no third Measure/correction participation; extra Effects retained, no rates/fees |
-| Actual source | Ordinary + Exchange subset: identity, whole Exchange gate, all Effects nonzero/unclaimed per-Measure balance; dates, Event corrections, descriptions, Merchants, root original amounts |
+| Actual Reversals | Explicit disjoint target/reversal endpoints in retained memory, exact physical multiset inversion ignoring keys/order; no correction/deletion/support |
+| Actual source | Ordinary + Exchange/Reversal subset: identity, Exchange, Reversal, all Effects nonzero; independently qualify targets, admit inverse sides; dates, Event corrections, descriptions, Merchants, root original amounts |
 | Current quantity query | One source; origin, opening (unique coordinate/current Event/matching Effect), assertions and presence, globally separated; Exact / Known_present / unsupported |
 
 Public `.mli` files own exact inputs, diagnostics and ordering. Indexes are disposable
@@ -120,15 +121,35 @@ positive, and every Effect uses one of those two Measures. Additional Effects re
 and multiplicity, without assigning fee meaning. Any correction endpoint mentions refuses,
 including open raw edges, until Effect replacement semantics earns qualification.
 Its abstract selection retains original Event/Effects/fact and raw memory/relation.
-Source grants balance exemption ONLY through successfully admitted whole Exchange memory;
-all Effects must still be nonzero, including unselected ones. Unclaimed Events keep ordinary
-per-Measure conservation. Local source gates Exchange before physical checks (upstream
-checks all nonzero first); no-claim ordinary order remains unchanged. Date/frontier/metadata
+Source grants Exchange balance exemption ONLY through successfully admitted whole Exchange
+memory; all Effects must still be nonzero, including unselected ones. Ordinary targets and
+non-reversal/non-Exchange Events keep per-Measure conservation. Local source gates Exchange
+and Reversal before physical checks (upstream checks all nonzero first); no-claim ordinary
+order remains unchanged. Date/frontier/metadata
 and support gates follow, so no malformed relation or missing dates can become a source.
 Top-level EXCHANGE event source-key destination-key admits forward references, never keys,
 rates, ownership or support by inference. Movement stays the narrower entrance.
 
-The current source is NOT full normalized Actual: other structured metadata, Reversal
+Actual_reversals qualifies explicit target/reversal facts against retained Event memory.
+Every endpoint is globally unique across both roles: self-links, identical duplicates,
+chains/cycles and cross-role reuse refuse. Closure and exact inversion follow per fact;
+local combined gate differs from upstream separate uniqueness/closure/inverse gates.
+Transient sorted physical rows compare exact Locus/Measure/Quantity and occurrence counts,
+not keys, net coordinate totals or chronology. Raw facts/order/Events remain unchanged,
+including keys and anonymous repeated Effects. Abstract pairs/role-specific indexed lookup
+retain both original Events; absence is unresolved. No nonzero/balance/date/frontier gate
+in this standalone boundary. The full source checks ALL retained Effects nonzero and every
+non-Exchange target per-Measure balanced. Inversion derives ordinary reversal balance;
+qualified Exchange inverses remain explicit Reversal exceptions, not per-Measure balanced.
+Disjoint roles guarantee a target cannot itself borrow reversal-side exemption. Exchange
+claims on reversal sides never qualify their targets backwards. There is no automatic
+pair deletion, root merging, metadata inheritance or quantity/presence support. Independent
+corrections/cuts still select observations; endpoints need not be current/roots, and only
+existing Exchange-subject correction exclusion applies (no new Reversal-only exclusion),
+so current cancellation is conditional on BOTH original endpoints remaining selected.
+Top-level REVERSAL target reversal supports forward references without ID allocation.
+
+The current source is NOT full normalized Actual: other structured metadata
 and relations/settlement remain unqualified. Date evidence is not proof of occurrence
 truth, recording chronology or historical completeness.
 Queries do not establish household authority, purchasing power or spendability.

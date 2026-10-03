@@ -69,6 +69,7 @@ let decode text =
                     ; merchants = List.rev draft.source.merchants
                     ; original_amounts = List.rev draft.source.original_amounts
                     ; exchanges = List.rev draft.source.exchanges
+                    ; reversals = List.rev draft.source.reversals
                     ; validity_corrections = List.rev draft.source.validity_corrections
                     }
                 ; groups = List.rev draft.groups
@@ -151,6 +152,12 @@ let decode text =
             let fact : Loam_application.Exchange_evidence.fact = { event; source; destination } in
             let source = { draft.source with exchanges = fact :: draft.source.exchanges } in
             scan (line + 1) Between { draft with source } rest
+          | Between, [ "REVERSAL"; target; reversal ] ->
+            let* target = identity line D.Identifier.Event.of_string target in
+            let* reversal = identity line D.Identifier.Event.of_string reversal in
+            let fact : Loam_application.Actual_reversals.fact = { target; reversal } in
+            let source = { draft.source with reversals = fact :: draft.source.reversals } in
+            scan (line + 1) Between { draft with source } rest
           | Between, [ "ZERO-ORIGIN"; locus; measure ] ->
             let* c = coordinate line locus measure in
             scan (line + 1) Between { draft with zero_origins = c :: draft.zero_origins } rest
@@ -195,6 +202,7 @@ let decode text =
             ; merchants = []
             ; original_amounts = []
             ; exchanges = []
+            ; reversals = []
             }
         ; groups = []
         ; zero_origins = []

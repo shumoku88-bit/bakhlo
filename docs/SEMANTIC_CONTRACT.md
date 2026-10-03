@@ -51,6 +51,13 @@ Do not manufacture historical time evidence that was never retained. Occurrence-
 corrections and Event corrections are distinct relations; neither silently transfers
 or changes the other's evidence.
 
+Explicit Reversal is another independent retained relation, not Event correction/deletion.
+Exact physical inversion preserves coordinate/quanta/multiplicity, not Effect key or order;
+combined net zero alone is insufficient. Target admission cannot be inferred backwards
+from its reversal. Neither endpoint is automatically removed from quantities or presence
+activity. Corrections/cuts still own selection, so retained inversion need not mean current
+cancellation when they select different observations.
+
 ## S6 — Unknown is not zero
 
 Absence, uncertainty, incompleteness, unsupported questions, invalid input, and
