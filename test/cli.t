@@ -103,3 +103,56 @@ Truncation, unsupported fields and invalid premises fail closed.
   $ loam-ocaml inspect-actual-fixture cut wallet jpy >out 2>err
   [1]
   $ test ! -s out && grep -q 'unknown root' err
+
+The ordinary base Actual v2 path separates zero-origin from each assertion cut.
+
+  $ cp ../examples/current-preview.fixture current
+  $ cp current current-before
+  $ loam-ocaml inspect-current-fixture current wallet jpy
+  Conditional current fixture quantity (ordinary base Actual subset).
+  exact assertion; "wallet" / "jpy": asserted=1000; delta=-10; quantity=990
+  $ loam-ocaml inspect-current-fixture current wallet usd
+  Conditional current fixture quantity (ordinary base Actual subset).
+  exact assertion; "wallet" / "usd": asserted=5; delta=0; quantity=5
+  $ loam-ocaml inspect-current-fixture current food jpy
+  Conditional current fixture quantity (ordinary base Actual subset).
+  "food" / "jpy": zero-origin; quantity=160
+  $ loam-ocaml inspect-current-fixture current quiet jpy
+  Conditional current fixture quantity (ordinary base Actual subset).
+  "quiet" / "jpy": zero-origin; quantity=0
+  $ loam-ocaml inspect-current-fixture current empty jpy
+  Conditional current fixture quantity (ordinary base Actual subset).
+  exact assertion; "empty" / "jpy": asserted=0; delta=0; quantity=0
+  $ loam-ocaml inspect-current-fixture current unsupported jpy
+  "unsupported" / "jpy": quantity unknown (no supported premise in supplied fixture).
+  [3]
+  $ cmp current current-before
+  $ loam-ocaml inspect-current-fixture --help
+  Usage: loam-ocaml inspect-current-fixture FILE LOCUS MEASURE
+  Read ONLY a LOAM-OCAML-ACTUAL-FIXTURE v2 synthetic file; never write.
+  Ordinary base Actual subset; separated zero-origin/exact assertion support.
+  Not full normalized admission, historical completeness or household authority.
+
+Versions, physical admission and family overlap refuse globally; no empty fallback.
+
+  $ loam-ocaml inspect-current-fixture fixture wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'version 2' err
+  $ loam-ocaml inspect-actual-fixture current wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'version 1' err
+  $ loam-ocaml inspect-current-fixture not-present wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Cannot read synthetic fixture' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\ta\t2026-10-03\nEFFECT\twallet\tjpy\t1\nEND-EVENT\nZERO-ORIGIN\twallet\tjpy\nEND\n' >unbalanced
+  $ loam-ocaml inspect-current-fixture unbalanced wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'residual 1' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nZERO-ORIGIN\twallet\tjpy\nGROUP\nASSERT\twallet\tjpy\t0\nEND-GROUP\nEND\n' >overlap
+  $ loam-ocaml inspect-current-fixture overlap unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'zero-origin overlaps exact assertion' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nOPENING\twallet\tjpy\ta\nEND\n' >opening
+  $ loam-ocaml inspect-current-fixture opening wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'fixture line 2' err

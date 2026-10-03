@@ -1,7 +1,7 @@
 # Verification and assurance strategy
 
 Status: PROPOSED overall strategy. Domain/application and CLI build/tests pass
-locally: 86 expect tests, 10,000 generated cases each for Quantity, Movement,
+locally: 90 expect tests, 10,000 generated cases each for Quantity, Movement,
 application replay, zero-origin/current-assertion projections, Event identity/endpoint
 closure, frontier, root lineages, reflected-root cuts and multi-group ownership,
 plus three cram suites (100,000 actual generated cases across ten seeds).
@@ -206,6 +206,21 @@ Do not import a broad theorem into an unrelated operation by name alone.
   fixture bytes; a public client distinguishes frontier from Actual preview.
   Reuses existing oracles; no new property campaign/model/theorem. Not normalized
   household admission, calendar-history completeness or arbitrary-file corruption detection.
+- `current_query_tests.ml` checks two-family support over an admitted ordinary source:
+  256 two-coordinate/support/cut cases (144 admitted), original-list terminal/cut and
+  direct Zarith oracle, huge signed answers, whole-family qualification before overlap,
+  source/premise retention and permutation, explicit zero versus unknown. Version-2
+  decoding/CLI rejects invalid sources and unsupported metadata/keys/support/history;
+  real file goldens preserve independent cuts, stream/status and unchanged bytes.
+  Public source-type boundary checked. No new model, theorem or property campaign.
+  Opening/presence/full normalized admission and authority remain unqualified.
+- One-shot native synthetic CPU probe (excluded scratch, not a maintained benchmark
+  or release criterion), macOS x86_64/locked OCaml 5.3.0: singleton roots, no corrections,
+  two balanced nonzero Effects/Event, empty cuts, one origin, 10,000 queries alternating
+  origin and anchor. 1,000 Events/10 groups: source 0.003316s, image 0.006186s, queries
+  0.000932s. 10,000/100: 0.024147s, 1.012139s, 0.001517s. Exact answers asserted.
+  Excludes parsing/I/O/generation; one run, no latency target or universal scale claim.
+  Group image construction still repeats source walks; no cache/optimization chosen.
 - `command_tests.ml` preserves existing golden output while the CLI becomes an
   application client; it checks exact previews, syntax/refusal separation, stream
   choice, and escaped opaque input.
@@ -231,7 +246,8 @@ Do not import a broad theorem into an unrelated operation by name alone.
 These do not establish household policy admission, storage, operational correction
 application, TUI interaction, large-history latency, or protection against unsafe operations
 such as `Obj.magic`. Synthetic fixture loading/base validity now exist, but no
-full Actual history/admission or support-family routing. The supplied-Movement
+full Actual history/normalized admission or opening/presence routing. The ordinary
+base subset and two-family query are separately qualified. The supplied-Movement
 projection still establishes neither temporal completeness nor correction selection.
 Optional laws were not rerun for this artifact-unchanged composition checkpoint.
 

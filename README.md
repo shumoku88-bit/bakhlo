@@ -1,6 +1,6 @@
 # LOAM OCaml — working name
 
-**Status: Movement validation and read-only synthetic Actual quantity preview. No UI or household writes.**
+**Status: Movement validation and read-only synthetic current-quantity queries. No UI or household writes.**
 
 An independent OCaml implementation of LOAM, intended for long-lived household
 use, third-party maintenance, and presentation as an engineering portfolio to
@@ -120,6 +120,26 @@ is no admitted Actual history/report engine, storage, migration, or public relea
 large-history latency guarantee yet. No cache, incremental framework, clock
 abstraction, or UI state is invented for this preparation. Local package metadata
 is not a publication or stable-API promise.
+
+## Try a two-support current fixture query
+
+```sh
+./tools/opam exec -- dune exec loam-ocaml -- inspect-current-fixture \
+  examples/current-preview.fixture wallet jpy
+```
+
+Exact assertion gives `990`; querying `food jpy` gives zero-origin quantity `160`,
+`quiet jpy` explicit zero, and `unsupported jpy` unknown (exit 3). This v2 path
+checks EVERY retained Event for nonzero Effects and per-Measure balance, plus
+independent base validity and correction admission. Empty/balanced mixed-Measure
+Events are allowed; the Domain and general v1 preview are not narrowed.
+Origin and exact supports must be disjoint; each assertion keeps its own cut.
+Source/admission refusals exit 1, syntax/version refusals 2, with no stdout.
+Only synthetic v2 is read: keys, metadata, opening/presence, Exchange/Reversal,
+validity history and upstream formats still refuse. No write/authority/cutover.
+This is **not full normalized admission or historical completeness**; see
+[query contract](application/current_quantity_query.mli) and
+[source contract](application/actual_source.mli). No canonical storage choice.
 
 ## Try a read-only synthetic Actual preview
 

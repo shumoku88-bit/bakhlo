@@ -3,6 +3,10 @@ module D = Loam_domain
 module A = Loam_application.Actual_quantity_preview
 module H = Loam_application.Current_quantity_groups
 module P = Loam_application.Current_quantity_projection
+module S = Loam_application.Actual_source
+
+type current = { source : S.command; zero_origins : D.Effect_coordinate.t list; groups : H.group list }
+type mode = Preview | Current
 
 type error = { line : int; message : string }
 type block =
@@ -30,49 +34,63 @@ let coordinate line locus measure =
   Ok ({ locus; measure } : D.Effect_coordinate.t)
 ;;
 
-let decode text =
+let decode_mode mode text =
   let ( let* ) result f = Result.bind result ~f in
+  let version = match mode with Preview -> 1 | Current -> 2 in
+  let header = Printf.sprintf "LOAM-OCAML-ACTUAL-FIXTURE\t%d" version in
   if not (String.is_suffix text ~suffix:"\n") then fail 1 "fixture must end with newline"
   else match String.split (String.drop_suffix text 1) ~on:'\n' with
-    | "LOAM-OCAML-ACTUAL-FIXTURE\t1" :: rows ->
-      let rec scan line block (draft : A.command) = function
+    | first :: rows when String.equal first header ->
+      let rec scan line block (draft : A.command) zero_origins = function
         | [] -> fail line "missing END or unterminated block"
         | row :: rest ->
           match block, String.split row ~on:'\t' with
           | Between, [ "END" ] ->
             if not (List.is_empty rest) then fail (line + 1) "rows after END"
-            else Ok ({ events = List.rev draft.events; validities = List.rev draft.validities;
-              corrections = List.rev draft.corrections; groups = List.rev draft.groups } : A.command)
+            else Ok (({ events = List.rev draft.events; validities = List.rev draft.validities;
+              corrections = List.rev draft.corrections; groups = List.rev draft.groups } : A.command), List.rev zero_origins)
           | Between, [ "EVENT"; token; date ] ->
             let* id = identity line D.Identifier.Event.of_string token in
-            scan (line + 1) (Event { id; date; changes = [] }) draft rest
+            scan (line + 1) (Event { id; date; changes = [] }) draft zero_origins rest
           | Event { id; date; changes }, [ "EFFECT"; locus; measure; text ] ->
             let* c = coordinate line locus measure in
             let* quantity = quantity line text in
             let change = D.Effect.create ~locus:c.locus ~measure:c.measure ~quantity in
-            scan (line + 1) (Event { id; date; changes = change :: changes }) draft rest
+            scan (line + 1) (Event { id; date; changes = change :: changes }) draft zero_origins rest
           | Event { id; date; changes }, [ "END-EVENT" ] ->
             let event = D.Event.create ~id ~effects:(List.rev changes) in
             let validity : A.validity = { event = id; valid_on = date } in
-            scan (line + 1) Between { draft with events = event :: draft.events; validities = validity :: draft.validities } rest
+            scan (line + 1) Between { draft with events = event :: draft.events; validities = validity :: draft.validities } zero_origins rest
           | Between, [ "CORRECTION"; target; replacement ] ->
             let* target = identity line D.Identifier.Event.of_string target in
             let* replacement = identity line D.Identifier.Event.of_string replacement in
             let correction : D.Event_correction.t = { target; replacement } in
-            scan (line + 1) Between { draft with corrections = correction :: draft.corrections } rest
-          | Between, [ "GROUP" ] -> scan (line + 1) (Group { roots = []; assertions = [] }) draft rest
+            scan (line + 1) Between { draft with corrections = correction :: draft.corrections } zero_origins rest
+          | Between, [ "ZERO-ORIGIN"; locus; measure ] ->
+            (match mode with
+             | Preview -> fail line "zero-origin requires current fixture version 2"
+             | Current ->
+               let* c = coordinate line locus measure in
+               scan (line + 1) Between draft (c :: zero_origins) rest)
+          | Between, [ "GROUP" ] -> scan (line + 1) (Group { roots = []; assertions = [] }) draft zero_origins rest
           | Group { roots; assertions }, [ "REFLECT"; token ] ->
             let* root = identity line D.Identifier.Event.of_string token in
-            scan (line + 1) (Group { roots = root :: roots; assertions }) draft rest
+            scan (line + 1) (Group { roots = root :: roots; assertions }) draft zero_origins rest
           | Group { roots; assertions }, [ "ASSERT"; locus; measure; text ] ->
             let* coordinate = coordinate line locus measure in
             let* quantity = quantity line text in
-            scan (line + 1) (Group { roots; assertions = { coordinate; quantity } :: assertions }) draft rest
+            scan (line + 1) (Group { roots; assertions = { coordinate; quantity } :: assertions }) draft zero_origins rest
           | Group { roots; assertions }, [ "END-GROUP" ] ->
             let group : H.group = { reflected_roots = List.rev roots; assertions = List.rev assertions } in
-            scan (line + 1) Between { draft with groups = group :: draft.groups } rest
+            scan (line + 1) Between { draft with groups = group :: draft.groups } zero_origins rest
           | (Between | Event _ | Group _), _ -> fail line "unknown, malformed or misplaced fixture row"
       in
-      scan 2 Between { events = []; validities = []; corrections = []; groups = [] } rows
-    | _ -> fail 1 "expected LOAM-OCAML-ACTUAL-FIXTURE version 1 (not household data)"
+      scan 2 Between { events = []; validities = []; corrections = []; groups = [] } [] rows
+    | _ -> fail 1 (Printf.sprintf "expected LOAM-OCAML-ACTUAL-FIXTURE version %d (not household data)" version)
+;;
+let decode text = Result.map (decode_mode Preview text) ~f:fst
+let decode_current text =
+  Result.map (decode_mode Current text) ~f:(fun ((draft : A.command), zero_origins) ->
+    { source = { events = draft.events; validities = draft.validities; corrections = draft.corrections };
+      zero_origins; groups = draft.groups })
 ;;

@@ -387,3 +387,22 @@ A general dated preview is not the physically admitted base Actual subset.
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c preview_is_not_actual_source.ml 2>error
   [2]
   $ grep -q 'Actual_quantity_preview.t' error && grep -q 'Actual_source.t' error
+
+The composed query needs an admitted source, not a frontier or separate projections.
+
+  $ cat >current_query_client.ml <<'EOF'
+  > module A = Loam_application
+  > let create source = A.Current_quantity_query.create ~source ~zero_origins:[] ~groups:[]
+  > let inspect image coordinate = match A.Current_quantity_query.query image coordinate with
+  >   | Error (Support_unknown { coordinate = _ }) -> None
+  >   | Ok answer -> Some (A.Current_quantity_query.quantity answer, A.Current_quantity_query.premise answer)
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c current_query_client.ml
+  $ cat >frontier_is_not_current_source.ml <<'EOF'
+  > module A = Loam_application
+  > let use (source : A.Correction_frontier.t) =
+  >   A.Current_quantity_query.create ~source ~zero_origins:[] ~groups:[]
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c frontier_is_not_current_source.ml 2>error
+  [2]
+  $ grep -q 'Correction_frontier.t' error && grep -q 'Actual_source.t' error

@@ -14,6 +14,7 @@
  (deps
   ../dune
   ../examples/actual-preview.fixture
+  ../examples/current-preview.fixture
   %{bin:loam-ocaml}
   ../lib/.loam_domain.objs/byte/loam_domain.cmi
   ../lib/.loam_domain.objs/byte/loam_domain__Identifier.cmi
@@ -36,4 +37,5 @@
   ../application/.loam_application.objs/byte/loam_application__Actual_quantity_preview.cmi
   ../application/.loam_application.objs/byte/loam_application__Actual_source.cmi
   ../application/.loam_application.objs/byte/loam_application__Actual_validity.cmi
+  ../application/.loam_application.objs/byte/loam_application__Current_quantity_query.cmi
   ../application/.loam_application.objs/byte/loam_application__Zero_origin_projection.cmi))

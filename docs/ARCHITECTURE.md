@@ -153,6 +153,16 @@ Measure Events remain valid; Domain Event and the legacy preview stay general.
 not full normalized admission: no keyed Effects, other metadata, validity history,
 Exchange/Reversal, relation or settlement qualification. No source authority follows.
 
+`Current_quantity_query.create` takes ONE `Actual_source.t`, raw origin coordinates
+and raw exact groups. It qualifies both families then refuses all cross-family overlap,
+including equal amounts. Origin answers sum the ordinary terminal frontier; assertions
+reuse their independent qualified cuts, never a union. `premise` distinguishes origin
+from actual assertion decomposition, without inventing an assertion at zero. Missing
+support stays typed unknown. Arithmetic indexes remain private/disposable. Queries
+need only membership/owner lookups; `inspect-current-fixture` reads ONLY synthetic v2
+(same blocks plus ZERO-ORIGIN), independently of the preserved general v1 preview.
+Opening/presence and full normalized admission remain separate/unimplemented.
+
 For future admitted queries, use question-specific boundaries (Actual, balance,
 Scheduled, etc.). Those full reports/histories are not implemented in OCaml yet.
 Shared read answers are presentation-neutral, but do not require a universal

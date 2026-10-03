@@ -1,4 +1,4 @@
-# Handoff — synthetic Actual quantity preview; broader admission still open
+# Handoff — ordinary base Actual and two-family read query; broader admission open
 
 Updated: 2026-10-03.
 
@@ -77,7 +77,7 @@ No optional law proves graph admission, grouping indexes or OCaml refinement.
   models/fault injection for concrete retry/crash/publication contracts, not an
   imaginary concurrent workflow. Operational balances require separate qualification.
 
-**VR-05B — ordinary source qualified; two-family query SELECTED before code.**
+**VR-05B — ordinary source and two-family query QUALIFIED within selected scope.**
 
 - D/P: upstream observed `6e8015c3`; admission/routing/date owners unchanged against
   `dca1aac7`. Existing validity, frontier/cut/groups and source-list/Zarith oracles.
@@ -98,7 +98,15 @@ No optional law proves graph admission, grouping indexes or OCaml refinement.
   whole input refusals and unchanged read-only fixtures.
 - Source execution: normal/package/install and clean engine-only checks passed;
   predicate/refusal/retention/public-client specimens passed (VERIFICATION). Legacy
-  preview/date behavior retained. Two-family query is the next increment, not yet run.
+  preview/date behavior retained. Two-family table/oracle/type/real CLI specimens and
+  normal/package/install/clean engine-only checks passed. Existing models/laws and
+  100,000 generated cases retained; no additional formal run. See VERIFICATION.
+- Performance instrument selected before run: excluded native synthetic probe with
+  (1,000 Events/10 groups) and (10,000/100), two nonzero balanced Effects per Event,
+  singleton roots/no corrections, empty group cuts, one origin and 10,000 queries.
+  Separate source/query-image/query CPU time; exact answers asserted. One local run,
+  no target/universal latency/cache decision; revisit with real selected shapes/limits.
+  Probe ran with exact checks; measured costs/limits are in VERIFICATION, not duplicated here.
 
 ## Stable contracts and evidence
 
@@ -110,15 +118,16 @@ Slice documents retain historical qualification; do not duplicate their inventor
 
 - User now requests incremental local commits after qualified semantic slices;
   AGENTS workflow records that policy. `fb38f38` commits multi-group work;
-  `18276e4` commits risk-based assurance/helper cleanup. Use live `git log`/status
-  for this vertical checkpoint, not a self-referential commit ID here.
+  `18276e4` commits assurance/helper cleanup; `936da7f` the general v1 preview;
+  `a079987` the ordinary source. Use live `git log`/status for the two-family checkpoint,
+  not a self-referential commit ID here.
 - Live remote `main` was read via `git ls-remote` on 2026-10-03: `8974041`
   (root/cut/one-group quantity checkpoint) already exists there; private status
   rechecked via GitHub metadata. This supersedes the older `623316a` observation.
   Multi-group/cleanup/vertical work issues no push; checkpoints remain LOCAL. Commit cadence
   does not itself authorize another push/release; report local/remote refs separately.
 - Reference revisions/owners are recorded in REFERENCES (latest narrow VR-05
-  inspection `dca1aac7`, not whole-checkout equivalence). No upstream writes/build/
+  inspection `6e8015c3`, not whole-checkout equivalence). No upstream writes/build/
   proof runs, source copying or private-data access. Optional local Lean is independent,
   imports only Std and is never a product dependency.
 - Use `./tools/bootstrap`, `./tools/opam`, `./tools/check`; no global configuration.
@@ -138,8 +147,9 @@ helper dependencies; duplicated README/HANDOFF inventories link to VERIFICATION.
 Cleanup committed separately; no tests/models/laws removed. First vertical preview
 is qualified only for the reviewed base-validity/exact-support subset. Next choose a
 concrete missing evidence family/consumer, then review its boundary before code;
-ordinary source is now qualified; two-family query is next. Full validity history,
-normalized admission and wider separated support routing remain OPEN.
+ordinary source and two-family v2 query are now qualified. Next choose one bounded
+opening/presence consumer and review independent premises/overlap before code;
+full validity history, keyed/metadata evidence and normalized admission remain OPEN.
 Do not expand a synthetic fixture grammar into canonical storage by accident.
 Do not force general Event evidence through ordinary Movement narrowing or infer
 history/zero origin from activity. Failed/missing loading is never an empty basis.
