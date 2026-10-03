@@ -4,7 +4,10 @@ Zero is representable as a neutral Effect; it is Movement validation that refuse
   $ cat >valid.ml <<'EOF'
   > module D = Loam_domain
   > let change (locus : D.Identifier.Locus.t) (measure : D.Identifier.Measure.t) =
-  >   D.Effect.create ~locus ~measure ~quantity:D.Quantity.zero
+  >   D.Effect.create ~key:None ~locus ~measure ~quantity:D.Quantity.zero
+  > let keyed (key : D.Identifier.Effect_key.t) locus measure =
+  >   D.Effect.create ~key:(Some key) ~locus ~measure ~quantity:D.Quantity.zero
+  > let admit id effects = D.Event.create ~id ~effects
   > EOF
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c valid.ml
 
@@ -15,11 +18,36 @@ cannot masquerade as protection of this boundary.
   $ cat >wrong_role.ml <<'EOF'
   > module D = Loam_domain
   > let change (measure : D.Identifier.Measure.t) =
-  >   D.Effect.create ~locus:measure ~measure ~quantity:D.Quantity.zero
+  >   D.Effect.create ~key:None ~locus:measure ~measure ~quantity:D.Quantity.zero
   > EOF
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c wrong_role.ml 2>error
   [2]
   $ grep -q 'Identifier.Measure.t' error && grep -q 'Identifier.Locus.t' error
+
+Effect keys are not Event identities; unqualified Event results cannot enter memory.
+
+  $ cat >wrong_effect_key.ml <<'EOF'
+  > module D = Loam_domain
+  > let wrong (key : D.Identifier.Event.t) locus measure =
+  >   D.Effect.create ~key:(Some key) ~locus ~measure ~quantity:D.Quantity.zero
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c wrong_effect_key.ml 2>error
+  [2]
+  $ grep -q 'Identifier.Event.t' error && grep -q 'Identifier.Effect_key.t' error
+  $ cat >unqualified_event.ml <<'EOF'
+  > module D = Loam_domain
+  > let wrong id effects = D.Event_memory.of_events [ D.Event.create ~id ~effects ]
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c unqualified_event.ml 2>error
+  [2]
+  $ grep -q 'result' error && grep -q 'Event.t' error
+  $ cat >forged_event.ml <<'EOF'
+  > module D = Loam_domain
+  > let wrong id effects : D.Event.t = { id; effects }
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -c forged_event.ml 2>error
+  [2]
+  $ grep -q 'Unbound record field.*id' error
 
 The private Movement record cannot be forged to admit an empty Effect list.
 This check does not claim to protect against unsafe OCaml escape hatches.
@@ -84,13 +112,14 @@ An endpoint-closure client compiles without CLI/presentation or private memory f
   > module D = Loam_domain
   > module C = Loam_application.Correction_check
   > let inspect (target : D.Identifier.Event.t) (replacement : D.Identifier.Event.t) =
-  >   let original = D.Event.create ~id:target ~effects:[] in
-  >   let revised = D.Event.create ~id:replacement ~effects:[] in
-  >   match D.Event_memory.of_events [ original; revised ] with
-  >   | Error error -> Error error
-  >   | Ok events ->
-  >     let correction : D.Event_correction.t = { target; replacement } in
-  >     Ok (C.run ~events ~correction)
+  >   match D.Event.create ~id:target ~effects:[], D.Event.create ~id:replacement ~effects:[] with
+  >   | Error error, _ | _, Error error -> Error (`Event error)
+  >   | Ok original, Ok revised ->
+  >     match D.Event_memory.of_events [ original; revised ] with
+  >     | Error error -> Error (`Memory error)
+  >     | Ok events ->
+  >       let correction : D.Event_correction.t = { target; replacement } in
+  >       Ok (C.run ~events ~correction)
   > EOF
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c correction_client.ml
 

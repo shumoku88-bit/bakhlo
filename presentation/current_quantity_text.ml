@@ -33,6 +33,9 @@ let correction_error = function
   | Repeated_replacement { id = event; first_position; position } ->
     Printf.sprintf "repeated replacement %S at %d (first %d)" (id event) position first_position
   | Cycle { path } -> "correction cycle: " ^ String.concat " -> " (List.map (fun event -> Printf.sprintf "%S" (id event)) path)
+let event_refusal event (D.Event.Duplicate_effect_key { key; first_position; position }) =
+  Printf.sprintf "Event %S refused: duplicate Effect key %S at %d (first %d).\n"
+    (id event) (D.Identifier.Effect_key.to_string key) position first_position
 let source_refusal error =
   let detail = match error with
     | A.Actual_source.Events (D.Event_memory.Duplicate_id { id = event; first_position; position }) ->

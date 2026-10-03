@@ -20,7 +20,18 @@ module Locus : sig
   val equal : t -> t -> bool
 end
 
-(** Caller-supplied observation identity, distinct from Measure/Locus. No identity
+(** Opaque identity scoped within an Event, only when independently referenced.
+    Not a coordinate/list position, globally unique identity or allocated default. *)
+module Effect_key : sig
+  type t
+  val of_string : string -> (t, error) result
+  val to_string : t -> string
+  val equal : t -> t -> bool
+  val compare : t -> t -> int
+  include Base.Comparator.S with type t := t
+end
+
+(** Caller-supplied observation identity, distinct from Measure/Locus/Effect_key. No identity
     allocation or temporal/kind/revision meaning is inferred from the token. *)
 module Event : sig
   type t

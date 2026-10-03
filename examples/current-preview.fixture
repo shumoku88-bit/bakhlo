@@ -1,13 +1,13 @@
 LOAM-OCAML-ACTUAL-FIXTURE	2
 EVENT	a	2026-09-30
-EFFECT	wallet	jpy	-100
+KEYED-EFFECT	physical	wallet	jpy	-100
 EFFECT	food	jpy	100
 END-EVENT
 EVENT	b	2026-10-01
-EFFECT	wallet	jpy	-150
+KEYED-EFFECT	physical	wallet	jpy	-150
 EFFECT	food	jpy	150
-EFFECT	wallet	usd	7
-EFFECT	offset	usd	-7
+KEYED-EFFECT	usd-in	wallet	usd	7
+KEYED-EFFECT	usd-out	offset	usd	-7
 END-EVENT
 EVENT	x	2026-10-02
 EFFECT	wallet	jpy	-10

@@ -58,10 +58,37 @@ let%expect_test "one shared presence block retains exact forward roots/coordinat
   (match (ok (Input.decode (document []))).presence, (ok (Input.decode (document [ "PRESENCE"; "END-PRESENCE" ]))).presence with
    | None, Some { reflected_roots = []; coordinates = [] } -> () | _ -> failwith "absence/explicit empty block lost");
   (match Input.decode (document [ "PRESENCE"; "END-PRESENCE"; "PRESENCE"; "END-PRESENCE" ]) with
-   | Error { line = 4; message } -> F.require (String.is_substring message ~substring:"repeated") "repeat diagnostic"
+   | Error (Syntax { line = 4; message }) -> F.require (String.is_substring message ~substring:"repeated") "repeat diagnostic"
    | _ -> failwith "second presence overwrote first");
   Stdlib.Printf.printf "one explicit block; exact roots/coordinates; known-present 4 vs stale 3, never a scalar\n";
   [%expect {| one explicit block; exact roots/coordinates; known-present 4 vs stale 3, never a scalar |}]
+;;
+
+let%expect_test "keyed decoding retains exact identities; duplicate Event keys are semantic not syntax failures" =
+  let huge = Z.shift_left Z.one 160 in
+  let rows = [ "EVENT\t a \t2026-10-03"; "KEYED-EFFECT\t key \twallet\tjpy\t" ^ Z.to_string huge;
+    "EFFECT\twallet\tjpy\t" ^ Z.to_string (Z.neg huge); "END-EVENT";
+    "EVENT\tb\t2026-10-02"; "KEYED-EFFECT\t key \twallet\tjpy\t1"; "KEYED-EFFECT\tkey\twallet\tjpy\t-1"; "END-EVENT";
+    "CORRECTION\t a \tb"; "ZERO-ORIGIN\twallet\tjpy" ] in
+  let decoded = ok (Input.decode (document rows)) in
+  let tokens = List.map decoded.source.events ~f:(fun e -> List.map (D.Event.effects e) ~f:(fun fx -> Option.map (D.Effect.key fx) ~f:D.Identifier.Effect_key.to_string)) in
+  F.require (List.equal (List.equal (Option.equal String.equal)) tokens [ [ Some " key "; None ]; [ Some " key "; Some "key" ] ]) "key scope/order/exact spelling preserved";
+  let request : C.request = { path = "synthetic"; coordinate = F.coordinate "wallet" } in
+  let exact = C.evaluate request (Ok (document rows)) in
+  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:"quantity=0") "keyed source through real query";
+  let duplicate = document [ "EVENT\te\t2026-10-03"; "KEYED-EFFECT\tkey\twallet\tjpy\t1";
+    "EFFECT\twallet\tjpy\t1"; "KEYED-EFFECT\tkey\tother\tjpy\t1"; "END-EVENT" ] in
+  (match Input.decode duplicate with
+   | Error (Invalid_event { line = 6; event; error = D.Event.Duplicate_effect_key { key; first_position = 1; position = 3 } }) ->
+     F.require (D.Identifier.Event.equal event (F.id "e") && String.equal (D.Identifier.Effect_key.to_string key) "key") "typed structural refusal witness"
+   | _ -> failwith "duplicate was ignored or classified as syntax");
+  let refused = C.evaluate request (Ok duplicate) in
+  F.require (refused.exit_code = 1 && String.is_empty refused.stdout && String.is_substring refused.stderr ~substring:"duplicate Effect key" &&
+    not (String.is_substring refused.stderr ~substring:"residual")) "key admission before physical source";
+  F.require ((C.evaluate request (Ok (document [ "EVENT\te\t2026-10-03"; "KEYED-EFFECT\t\twallet\tjpy\t1"; "END-EVENT" ]))).exit_code = 2) "empty key is syntax";
+  F.require ((C.evaluate request (Ok (document (rows @ [ "DESCRIPTION\tb\tnot-yet-supported" ])))).exit_code = 2) "metadata not silently discarded";
+  Stdlib.Printf.printf "exact optional keys retained; Event duplicate exit 1 vs syntax exit 2; no discarded metadata\n";
+  [%expect {| exact optional keys retained; Event duplicate exit 1 vs syntax exit 2; no discarded metadata |}]
 ;;
 
 let%expect_test "malformed/truncated/misplaced rows and obsolete formats never become partial success" =
@@ -78,10 +105,11 @@ let%expect_test "malformed/truncated/misplaced rows and obsolete formats never b
     document [ "EVENT\ta\t2026-10-03"; "EFFECT\twallet\tjpy\t 1"; "END-EVENT" ];
     "LOAM-OCAML-ACTUAL-FIXTURE\t2\nEND"; document [] ^ "END\n" ] in
   List.iter invalid ~f:(fun text -> match Input.decode text with
-    | Error { line; message } -> F.require (line > 0 && not (String.is_empty message)) "useful syntax refusal"
+    | Error (Syntax { line; message }) -> F.require (line > 0 && not (String.is_empty message)) "useful syntax refusal"
+    | Error (Invalid_event _) -> failwith "wrong failure phase for malformed syntax"
     | Ok _ -> failwith "malformed evidence ignored");
   (match Input.decode (document [ "GROUP"; "ASSERT\t\tjpy\t1"; "END-GROUP" ]) with
-   | Error { line = 3; message = _ } -> () | _ -> failwith "one-based line witness");
+   | Error (Syntax { line = 3; message = _ }) -> () | _ -> failwith "one-based line witness");
   Stdlib.Printf.printf "one format; no fallback, discarded rows or partial image\n";
   [%expect {| one format; no fallback, discarded rows or partial image |}]
 ;;
@@ -99,6 +127,9 @@ let%expect_test "read failures and cycle identities are escaped; help/syntax req
     (Loam_application.Current_quantity_query.Opening_event_not_current
        { opening = { coordinate = F.coordinate "wallet\027\n"; opening_event = F.id "event\027\n" }; position = 1 }) in
   F.require (not (String.exists opening ~f:(Char.equal '\027')) && String.count opening ~f:(Char.equal '\n') = 1) "escaped opening provenance";
+  let duplicate = Loam_presentation.Current_quantity_text.event_refusal (F.id "e\027\n")
+    (D.Event.Duplicate_effect_key { key = F.identifier D.Identifier.Effect_key.of_string "k\027\n"; first_position = 1; position = 2 }) in
+  F.require (not (String.exists duplicate ~f:(Char.equal '\027')) && String.count duplicate ~f:(Char.equal '\n') = 1) "escaped key and Event identities";
   (match C.plan [ "--help" ] with Help -> () | _ -> failwith "help plan");
   (match C.plan [] with Refused _ -> () | _ -> failwith "syntax plan");
   Stdlib.Printf.printf "escaped provenance/errors; explicit read result; no help/syntax I/O\n";

@@ -16,14 +16,14 @@ There is no canonical storage, clock, mutable business state or generic service 
 | Boundary | Responsibility |
 | --- | --- |
 | Quantity / identifiers | Exact signed quanta; distinct exact nonempty identities, no coercion/normalization |
-| Effect / Event | Neutral observations, represented multiplicity; Event is not Movement |
+| Effect / Event | Optional independent Effect keys, unique within Event; anonymous multiplicity/general neutral observations retained; Event is not Movement |
 | Movement | Nonempty/nonzero, one Measure, exact conservation for this narrower entrance |
 | Event memory / correction closure | Identity uniqueness, retained order, ordered endpoint resolution |
 | Correction frontier | Closed disjoint paths; duplicate targets/replacements, branches, merges and cycles refuse; retain source and edges |
 | Lineages / reflected cut | Root-to-terminal associations; independent unique represented-root declarations; retain source, exclude whole lineages |
 | Current assertion groups | Exact assertions + unreflected Effects; independent cuts, one coordinate owner; ordered whole-group qualification |
 | Actual validity | Independent base ISO facts, unique/closed/complete for all supplied retained Events; no chronology/winners |
-| Actual source | Ordinary anonymous subset: every retained Effect nonzero, each Measure independently balanced, validity and correction admission |
+| Actual source | Ordinary/base-validity subset: every retained Effect nonzero, each Measure independently balanced, validity and correction admission |
 | Current quantity query | One source; origin, opening (unique coordinate/current Event/matching Effect), assertions and presence, globally separated; Exact / Known_present / unsupported |
 
 Public `.mli` files own exact inputs, diagnostics and ordering. Indexes are disposable
@@ -57,12 +57,13 @@ known-present has its own abstract coordinate/evidence/cut payload, never arithm
 
 ## Read boundary
 
-CLI pure parsing creates typed inputs; source/support admission precedes lookup and text.
+CLI pure parsing creates typed inputs. Event structural key admission occurs at END-EVENT;
+syntax and structural refusals stay distinct. Source/support admission precedes lookup/text.
 Only the shell reads a named synthetic file. Failure/malformed/unsupported input never
 becomes an empty image. Domain remains general even when a practical source entrance is
 narrower. There is one current fixture grammar, not a legacy protocol/backend matrix.
 
-The current source is NOT full normalized Actual: keyed Effects, metadata, validity
+The current source is NOT full normalized Actual: metadata, validity
 revisions, Exchange/Reversal and relations/settlement remain unqualified.
 Base validity is external evidence, not proof of occurrence truth or historical completeness.
 Queries do not establish household authority, purchasing power or spendability.

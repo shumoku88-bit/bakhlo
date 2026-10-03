@@ -44,6 +44,7 @@ counters; shared construction helpers are in `fixtures.ml`, never another test-c
 | Seam | Independent evidence and limit |
 | --- | --- |
 | Quantity / Movement / application | Exact Zarith oracles, signed/huge values, replay and structural refusals; not publication |
+| Effect keys | 81 four-Effect None/a/b patterns (21 admitted) against original-token-prefix oracle, exact spellings, Event-local reuse, physical generality, retained keys and anonymous controls for four supports; not metadata/overlay admission |
 | Identity / correction / lineage | Original-list/fuel oracle and immutable integer Warshall closure; all 512 three-node and 65,536 four-node simple relations (73 admitted four-node paths). No missing IDs/parallel edges in enumeration; separately tested |
 | Reflected cuts | List declaration model, 1,168 four-node relation/subset cases (304 cuts), selected fresh tails, prefix/source changes and old-terminal leak witness; not arbitrary-edit stability |
 | Assertion arithmetic | 4,864 graph/cut/support cases, original-Effect Zarith sum, unknown/zero, translation and reflected/unreflected seams |
@@ -56,7 +57,9 @@ counters; shared construction helpers are in `fixtures.ml`, never another test-c
 
 Large chain/cycle and generated cases supplement, not universally extend, finite bounds.
 External compiler clients test public abstractions, wrong qualified source types and private
-arithmetic exclusion. Clients reject presence-to-quantity and incomplete outcome matching;
+arithmetic exclusion. Key/Event roles and unqualified/forged Events are rejected;
+structural key refusal (exit 1) is distinct from syntax (exit 2). Clients reject
+presence-to-quantity and incomplete outcome matching;
 known-present 4 / unsupported 3 are separate real-CLI stdout outcomes. Unsafe casts/
 internal-unit access are outside these guarantees.
 `compiler_policy.t` checks complete controls and four diagnostic counterexamples in

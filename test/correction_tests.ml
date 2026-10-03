@@ -17,13 +17,13 @@ let identifier constructor spelling =
 let id spelling = identifier Id.of_string spelling
 
 let change ?(unit = "jpy") place quanta =
-  D.Effect.create
+  D.Effect.create ~key:None
     ~locus:(identifier D.Identifier.Locus.of_string place)
     ~measure:(identifier D.Identifier.Measure.of_string unit)
     ~quantity:(D.Quantity.of_quanta quanta)
 ;;
 
-let event name effects = E.create ~id:(id name) ~effects
+let event name effects = Fixtures.observation ~id:(id name) ~effects
 
 let memory events =
   match Memory.of_events events with
@@ -87,7 +87,7 @@ let%expect_test "Event identities are exact nonempty tokens, not arrival rank or
         "mechanical comparator equality"));
   require (not (Id.equal (id "event") (id " event "))) "no trimming";
   require (String.equal (Id.to_string (id " event ")) " event ") "exact spelling";
-  let events = memory (List.map ids ~f:(fun id -> E.create ~id ~effects:[])) in
+  let events = memory (List.map ids ~f:(fun id -> Fixtures.observation ~id ~effects:[])) in
   List.iter ids ~f:(fun requested ->
     match Memory.find_by_id events requested with
     | Some found -> require (Id.equal (E.id found) requested) "exact indexed identity"
@@ -234,7 +234,7 @@ let%expect_test "generated lookup and closure agree with an independent source-l
     (match observations with
      | [] -> ()
      | first :: _ ->
-       let duplicate = E.create ~id:(E.id first) ~effects:[] in
+       let duplicate = Fixtures.observation ~id:(E.id first) ~effects:[] in
        (match Memory.of_events (observations @ [ duplicate ]) with
         | Error (Duplicate_id { id = repeated; first_position; position }) ->
           require (Id.equal repeated (E.id first)) "duplicate identity";

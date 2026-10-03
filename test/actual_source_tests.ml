@@ -8,7 +8,7 @@ let ok = function Ok value -> value | Error _ -> failwith "valid base Actual sou
 let command events corrections : S.command =
   { events; corrections; validities = List.map events ~f:(fun event ->
       ({ event = D.Event.id event; valid_on = "2026-10-03" } : V.fact)) }
-let event token changes = D.Event.create ~id:(F.id token) ~effects:changes
+let event token changes = F.observation ~id:(F.id token) ~effects:changes
 
 let%expect_test "ordinary base admission is not single-Measure Movement narrowing" =
   let huge = Z.shift_left Z.one 160 in

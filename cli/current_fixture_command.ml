@@ -27,7 +27,9 @@ let evaluate (request : request) contents : Response.t =
       stderr = Printf.sprintf "Cannot read synthetic fixture %S: %S\n" request.path message }
   | Ok text ->
     match Current_fixture_input.decode text with
-    | Error { line; message } -> syntax_refusal (Printf.sprintf "fixture line %d: %s" line message)
+    | Error (Syntax { line; message }) -> syntax_refusal (Printf.sprintf "fixture line %d: %s" line message)
+    | Error (Invalid_event { line; event; error }) -> { exit_code = 1; stdout = "";
+        stderr = Printf.sprintf "Fixture line %d: %s" line (Text.event_refusal event error) }
     | Ok { source; zero_origins; openings; groups; presence } ->
       match S.create source with
       | Error error -> { exit_code = 1; stdout = ""; stderr = Text.source_refusal error }

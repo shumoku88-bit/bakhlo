@@ -32,7 +32,7 @@ let update image incoming = match H.reobserve image (group incoming) with
 ;;
 let fixture values =
   let source = List.mapi values ~f:(fun i n ->
-    D.Event.create ~id:(identifier i) ~effects:
+    T.observation ~id:(identifier i) ~effects:
       [ CT.change (coordinate (i % 4)) (Z.mul (Z.of_int n) (Z.shift_left Z.one 128))
       ; CT.change (coordinate ((i + 1) % 4)) (Z.of_int (n - 1))
       ; CT.change (coordinate 0) Z.one; CT.change (coordinate 0) Z.one
@@ -122,9 +122,9 @@ let quantity image n = match H.query image (coordinate n) with
 
 let%expect_test "independent reflected cuts must not merge across coordinate owners" =
   let source =
-    [ D.Event.create ~id:(identifier 0) ~effects:[ CT.change (coordinate 0) (Z.of_int 999) ]
-    ; D.Event.create ~id:(identifier 1) ~effects:[ CT.change (coordinate 0) (Z.of_int (-2)); CT.change (coordinate 2) (Z.of_int 20) ]
-    ; D.Event.create ~id:(identifier 2) ~effects:[ CT.change (coordinate 0) (Z.of_int 7); CT.change (coordinate 2) (Z.of_int 30) ] ] in
+    [ T.observation ~id:(identifier 0) ~effects:[ CT.change (coordinate 0) (Z.of_int 999) ]
+    ; T.observation ~id:(identifier 1) ~effects:[ CT.change (coordinate 0) (Z.of_int (-2)); CT.change (coordinate 2) (Z.of_int 20) ]
+    ; T.observation ~id:(identifier 2) ~effects:[ CT.change (coordinate 0) (Z.of_int 7); CT.change (coordinate 2) (Z.of_int 30) ] ] in
   let corrections = [ T.edge "0" "1" ] in
   let pairs = [ 0, 1; 2, 2 ] in
   let groups : M.group list =
@@ -309,7 +309,7 @@ let%expect_test "generated raw ownership diagnostics and explicit replacement ob
     let permuted_groups = List.rev_map valid_groups ~f:(fun (g : M.group) ->
       ({ roots = List.rev g.roots; assertions = List.rev g.assertions } : M.group)) in
     let permuted_frontier = T.admitted (T.memory (List.rev_map source ~f:(fun e ->
-      D.Event.create ~id:(D.Event.id e) ~effects:(List.rev (D.Event.effects e))))) (List.rev corrections) in
+      T.observation ~id:(D.Event.id e) ~effects:(List.rev (D.Event.effects e))))) (List.rev corrections) in
     let permuted = create permuted_frontier permuted_groups in
     let replay = create frontier valid_groups in
     List.iter [ 0; 1; 2; 3; 4 ] ~f:(fun c ->

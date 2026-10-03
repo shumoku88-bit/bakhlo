@@ -62,7 +62,7 @@ let%expect_test "explicit empty, untouched and complete cuts never imply origin 
 ;;
 
 let%expect_test "partial cuts retain exact general observations and root order, not terminal order" =
-  let c = D.Event.create ~id:(id "c") ~effects:
+  let c = T.observation ~id:(id "c") ~effects:
     [ T.here_change "jpy" (Z.shift_left Z.one 128); T.here_change "usd" Z.zero; T.here_change "jpy" Z.minus_one ] in
   let source = [ event "e"; c; event "a"; event "untouched"; event "b"; event "d" ] in
   let frontier = admitted (memory source) [ edge "b" "c"; edge "d" "e"; edge "a" "b" ] in
@@ -200,7 +200,7 @@ let%expect_test "generated cut admission, exact payload selection, replay and re
   let check (values, selectors) =
     let source = List.mapi values ~f:(fun i n ->
       let q = Z.mul (Z.of_int n) (Z.shift_left Z.one 140) in
-      D.Event.create ~id:(id (Int.to_string i))
+      T.observation ~id:(id (Int.to_string i))
         ~effects:[ T.here_change "jpy" q; T.here_change "usd" (Z.neg q); T.here_change "jpy" Z.zero ]) in
     let nodes = List.init (List.length source) ~f:Fn.id in
     let corrections = List.filter_mapi values ~f:(fun i n ->
@@ -224,7 +224,7 @@ let%expect_test "generated cut admission, exact payload selection, replay and re
         require (List.equal equal_lineage (C.remaining_lineages answer) (C.remaining_lineages replay)) "replay";
         require (List.equal equal_lineage (List.rev (C.remaining_lineages answer)) (C.remaining_lineages permuted)) "representation permutation";
         List.iter rooted ~f:(fun (root, terminal) ->
-          let fresh = D.Event.create ~id:(id "fresh") ~effects:[ T.here_change "kg" Z.minus_one ] in
+          let fresh = T.observation ~id:(id "fresh") ~effects:[ T.here_change "kg" Z.minus_one ] in
           let extended_frontier = admitted (memory (source @ [ fresh ]))
             (corrections @ [ { D.Event_correction.target = D.Event.id terminal; replacement = D.Event.id fresh } ]) in
           let extended = cut extended_frontier declarations in

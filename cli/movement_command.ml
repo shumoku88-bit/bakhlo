@@ -55,7 +55,7 @@ let parse_effect ~position locus measure quantity =
       Invalid_identifier { position; field = Measure; reason })
   in
   let* quantity = parse_quantity ~position quantity in
-  Ok (Effect.create ~locus ~measure ~quantity)
+  Ok (Effect.create ~key:None ~locus ~measure ~quantity)
 ;;
 
 let evaluate arguments =

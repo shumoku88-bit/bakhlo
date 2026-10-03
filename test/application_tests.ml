@@ -11,7 +11,7 @@ let identifier constructor value =
 ;;
 
 let change ?(unit = "jpy") place quanta =
-  D.Effect.create
+  D.Effect.create ~key:None
     ~locus:(identifier D.Identifier.Locus.of_string place)
     ~measure:(identifier D.Identifier.Measure.of_string unit)
     ~quantity:(D.Quantity.of_quanta quanta)

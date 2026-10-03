@@ -13,7 +13,12 @@ let identifier constructor name =
   | Error D.Identifier.Empty -> failwith "empty fixture identity"
 ;;
 let id name = identifier Id.of_string name
-let event name = D.Event.create ~id:(id name) ~effects:[]
+let observation ~id ~effects =
+  match D.Event.create ~id ~effects with
+  | Ok event -> event
+  | Error (Duplicate_effect_key _) -> failwith "invalid keyed Event fixture"
+;;
+let event name = observation ~id:(id name) ~effects:[]
 let edge a b : D.Event_correction.t = { target = id a; replacement = id b }
 let memory source =
   match D.Event_memory.of_events source with
@@ -33,7 +38,8 @@ let actual_source events corrections =
   | Error _ -> failwith "invalid ordinary Actual fixture"
 ;;
 let equal_effect left right =
-  D.Identifier.Locus.equal (D.Effect.locus left) (D.Effect.locus right)
+  Option.equal D.Identifier.Effect_key.equal (D.Effect.key left) (D.Effect.key right)
+  && D.Identifier.Locus.equal (D.Effect.locus left) (D.Effect.locus right)
   && D.Identifier.Measure.equal (D.Effect.measure left) (D.Effect.measure right)
   && D.Quantity.equal (D.Effect.quantity left) (D.Effect.quantity right)
 ;;
@@ -69,7 +75,7 @@ let coordinate ?(unit = "jpy") place : D.Effect_coordinate.t =
   ; measure = identifier D.Identifier.Measure.of_string unit }
 ;;
 let change (coordinate : D.Effect_coordinate.t) quanta =
-  D.Effect.create ~locus:coordinate.locus ~measure:coordinate.measure ~quantity:(D.Quantity.of_quanta quanta)
+  D.Effect.create ~key:None ~locus:coordinate.locus ~measure:coordinate.measure ~quantity:(D.Quantity.of_quanta quanta)
 ;;
 let here_change unit quanta = change (coordinate ~unit "here") quanta
 let same_coordinate (left : D.Effect_coordinate.t) (right : D.Effect_coordinate.t) =

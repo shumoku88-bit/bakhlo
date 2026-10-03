@@ -82,8 +82,8 @@ let%expect_test "assertion gate keeps empty, active, net-zero and all-reflected 
   let wallet = coordinate "wallet" in
   let empty = cut (frontier (memory []) []) [] in
   unknown (model empty []) wallet;
-  let active = D.Event.create ~id:(id "active") ~effects:[ change wallet Z.one ] in
-  let net_zero = D.Event.create ~id:(id "net-zero") ~effects:[ change wallet Z.one; change wallet Z.minus_one ] in
+  let active = T.observation ~id:(id "active") ~effects:[ change wallet Z.one ] in
+  let net_zero = T.observation ~id:(id "net-zero") ~effects:[ change wallet Z.one; change wallet Z.minus_one ] in
   List.iter [ active; net_zero ] ~f:(fun observation ->
     let f = frontier (memory [ observation ]) [] in
     unknown (model (cut f []) []) wallet;
@@ -115,8 +115,8 @@ let%expect_test "general terminal Effects preserve multiplicity, coordinate loca
   let usd = coordinate ~unit:"usd" "wallet" in
   let other = coordinate "other" in
   let huge = Z.shift_left Z.one 128 in
-  let old = D.Event.create ~id:(id "a") ~effects:[ change wallet (Z.of_int 999) ] in
-  let terminal = D.Event.create ~id:(id "b") ~effects:
+  let old = T.observation ~id:(id "a") ~effects:[ change wallet (Z.of_int 999) ] in
+  let terminal = T.observation ~id:(id "b") ~effects:
     [ change wallet huge; change wallet Z.one; change wallet Z.one; change usd (Z.of_int (-7)); change other Z.zero ] in
   let source = [ old; terminal; event "empty" ] in
   let corrections = [ edge "a" "b" ] in
@@ -168,7 +168,7 @@ let%expect_test "shared cut supports exact coordinate tokens without aliases or 
 let%expect_test "reflected reclassification cannot leak while unreflected terminal update changes delta" =
   let wallet = coordinate "wallet" in
   let usd = coordinate ~unit:"usd" "wallet" in
-  let observed name effects = D.Event.create ~id:(id name) ~effects in
+  let observed name effects = T.observation ~id:(id name) ~effects in
   let old_source = [ observed "a" [ change wallet (Z.of_int 100) ]; observed "b" [ change wallet (Z.of_int 150) ]
     ; observed "x" [ change wallet (Z.of_int (-10)) ] ] in
   let old_cut = cut (frontier (memory old_source) [ edge "a" "b" ]) [ id "a" ] in
@@ -198,12 +198,12 @@ let%expect_test "replay and representation permutation preserve quantities; asse
   let wallet = coordinate "wallet" in
   let usd = coordinate ~unit:"usd" "wallet" in
   let payload = [ change wallet Z.minus_one; change wallet Z.one; change usd (Z.of_int 4) ] in
-  let original = D.Event.create ~id:(id "one") ~effects:payload in
+  let original = T.observation ~id:(id "one") ~effects:payload in
   let source = [ event "empty"; original ] in
   let supplied = cut (frontier (memory source) []) [] in
   let assertions = [ assertion wallet Z.zero; assertion usd (Z.of_int (-4)) ] in
   let answer = model supplied assertions in
-  let reordered = model (cut (frontier (memory [ D.Event.create ~id:(id "one") ~effects:(List.rev payload); event "empty" ]) []) []) (List.rev assertions) in
+  let reordered = model (cut (frontier (memory [ T.observation ~id:(id "one") ~effects:(List.rev payload); event "empty" ]) []) []) (List.rev assertions) in
   let translated = model supplied [ assertion wallet (Z.shift_left Z.one 140); assertion usd (Z.of_int (-4)) ] in
   List.iter [ wallet; usd ] ~f:(fun c ->
     require (Q.equal (P.quantity (exact answer c)) (P.quantity (exact reordered c))) "representation order not meaning";
@@ -222,7 +222,7 @@ let%expect_test "4864 graph/cut/support cases agree with independent closure and
   let nodes = [ 0; 1; 2; 3 ] in
   let coordinates = List.map nodes ~f:fixture_coordinate in
   let source = List.map nodes ~f:(fun n ->
-    D.Event.create ~id:(id (Int.to_string n)) ~effects:
+    T.observation ~id:(id (Int.to_string n)) ~effects:
       [ change (fixture_coordinate n) (Z.mul (Z.of_int (n - 2)) (Z.shift_left Z.one 128))
       ; change (fixture_coordinate 0) Z.one; change (fixture_coordinate 0) Z.one
       ; change (fixture_coordinate 3) Z.zero ]) in
@@ -274,7 +274,7 @@ let%expect_test "generated assertion admission, unknown and exact quantities obe
   let check (values, (flags, drafts)) =
     let source = List.mapi values ~f:(fun i n ->
       let value = Z.mul (Z.of_int n) (Z.shift_left Z.one 130) in
-      D.Event.create ~id:(id (Int.to_string i)) ~effects:
+      T.observation ~id:(id (Int.to_string i)) ~effects:
         [ change (fixture_coordinate (i % 4)) value; change (fixture_coordinate ((i + 1) % 4)) (Z.neg value)
         ; change (fixture_coordinate 0) Z.one; change (fixture_coordinate 0) Z.one; change (fixture_coordinate 3) Z.zero ]) in
     let corrections = List.filter_mapi values ~f:(fun i n ->
@@ -308,7 +308,7 @@ let%expect_test "generated assertion admission, unknown and exact quantities obe
     let shifted = List.map unique_assertions ~f:(fun (a : P.assertion) -> assertion a.coordinate (Z.add (Q.quanta a.quantity) (Z.shift_left Z.one 145))) in
     verify_queries (model supplied shifted) shifted expected_events all_queries;
     List.iter (Source_oracle.expected_pairs source corrections) ~f:(fun (root, terminal) ->
-      let fresh = D.Event.create ~id:(id "fresh") ~effects:
+      let fresh = T.observation ~id:(id "fresh") ~effects:
         [ change (fixture_coordinate 0) (Z.shift_left Z.one 170); change (fixture_coordinate 2) Z.minus_one ] in
       let new_source = source @ [ fresh ] in
       let new_corrections = corrections @ [ { D.Event_correction.target = D.Event.id terminal; replacement = D.Event.id fresh } ] in

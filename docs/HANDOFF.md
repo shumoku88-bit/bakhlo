@@ -1,46 +1,47 @@
 # Handoff
 
-## Current qualified capability — presence
+## Current qualified capability — retained Effect keys
 
-Pre-code question: distinguish exact Quantity, known-nonzero/amount-unknown and unsupported
-without letting weak evidence enter arithmetic. D/P: one ordinary source, qualified
-root cuts, three exact families and original-list/Effect oracles. Four narrow owners
-unchanged at `0a290fe2` from `5dd27f43`; no upstream build/source reuse.
-R: selected-Effect TOUCH, not sum/nonzero activity; shared presence cut and global
-separation even for stale presence. No Event-id/date ordering or quantity placeholder.
+Pre-code question: can the current reader preserve independently referenced Effect identities
+without turning coordinate/list position into identity or narrowing general Events?
+D/P: exact anonymous Effects, unique Event memory, ordinary source/correction selection,
+all four supports and independent original-list/Effect oracles. Reviewed Effect, Event,
+ActualEvidence and NormalizedActualAdmission at `83bc471e`; unchanged from `6e8015c3`.
+Keys are scoped WITHIN an Event; Relation/Settlement references pair EventId + EffectKey.
+R: optional key retention, first repeated-key refusal and source/fixture composition.
 
-Keep one optional presence premise (root list + unique coordinate list) in the current
-query. Validate whole inputs: origins -> openings -> groups -> presence cut/coordinates;
-then existing exact overlaps -> presence/exact overlap. Even empty-coordinate premises
-qualify roots (a stricter synthetic whole-input gate than upstream's lazy lookup).
-Return Exact or Known_present with abstract disjoint payloads; quantity accepts only
-Exact payload. Unsupported/stale stays typed unknown. Retain raw facts/qualified cut.
+Add a distinct exact nonempty Effect_key identity, explicit optional key on Effect,
+and a Result-returning Event constructor enforcing retained-key uniqueness. Anonymous
+multiplicity stays valid; empty/zero/mixed/nonconserving Events remain general. Different
+keys may share coordinates; the same key may occur in different Events. No auto-allocation,
+coordinate-derived key, implicit promotion or dropping a supplied key.
 
-Choose existing list/fuel selection plus direct Effect-membership oracle, extending the
-four-family support/cut table (16 states each, independent 16 group cuts/4 presence cuts)
-and 1,024 net-zero touch/cut/declaration cases. Focus on corrected terminals, fresh tails,
-prefix invalidation, unrelated Effects, empty inputs, duplicate/refusal precedence and
-retention. Public clients must reject presence-to-quantity and incomplete outcome handling.
-No new model/theorem/10,000-case campaign: the distinctive touch counterexample has direct
-finite/oracle evidence; algebra cannot justify weak-support arithmetic. DRAKON via explicit
-guard order; same source topology, no transition/fault tool until writes. Reopen on changed
-invalidation, multi-presence routing, temporal history or operational failure contracts.
+Choose 81 four-Effect key patterns (None/a/b) against an independent original-list duplicate
+oracle, exact identity/role clients, retention/permutation/source/correction/support specimens
+and real CLI refusals. Existing arithmetic/touch campaigns remain. No new model/theorem/
+10,000-case campaign: identity admission has a direct finite/list oracle; reselect on new
+key-reference/overlay/correction laws. Explicit constructor/parser refusal order suffices
+for DRAKON; source topology unchanged, no transition tools before writes.
 
-Acceptance: parser admits at most one PRESENCE / REFLECT / PRESENT / END-PRESENCE block,
-never overwrites repeats or drops malformed rows. CLI exact exit 0, known-present exit 4,
-unsupported exit 3 (stdout); existing syntax/admission streams unchanged. No reads/writes
-in core, defaults from failed loads, new dependency, UI or storage decision.
-Implemented in the existing query/reader, no additional module/preview or dependency.
-Finite/oracle and typed-client/real-CLI checks passed; normal/package/install and clean
-engine-only builds qualified. Product check passed without Lean; artifact unchanged/not
-rerun. VERIFICATION owns current bounds. All four supports remain conditional on the
-ordinary anonymous/base-validity subset, not full normalized Actual or world truth.
+Acceptance: explicit key argument, no weak/legacy Event constructor. First duplicate reports
+key + first/current Effect positions, counting anonymous occurrences too. Synthetic decoder
+adds KEYED-EFFECT key locus measure quanta; structural Event admission occurs at END-EVENT,
+before source identity/physical/date/correction admission. Distinguish Invalid_event (exit 1)
+from Syntax (exit 2); neither yields a partial image. Named source/query and retained source
+are the consumers. General/source distinction and all four support meanings must survive.
+No new dependency, canonical format, household read/write, UI or operational promotion.
+Implemented in Domain and the existing reader/source/query. The finite key oracle,
+retention/four-support and real CLI/typed-client specimens passed, along with normal/
+package/install and clean native engine-only checks. Product checks passed without Lean;
+lock/dependencies/formal artifact unchanged, no formal rerun. VERIFICATION owns bounds.
+Metadata/overlays and full normalized Actual remain unqualified.
 
 ## Next bounded work
 
-Four support families do not complete Actual admission. Review a concrete keyed/metadata
-or validity-history consumer before extending independent evidence. Exceptional Effects,
-relations/settlement, completeness and authority remain unqualified; no implicit promotion.
+Keys do not complete metadata or full Actual admission. Next qualify independent Event
+recognizer descriptions (unique Event reference + text, not Merchant/Purpose/kind), then
+choose a concrete validity-history or exceptional-evidence consumer. Do not silently inherit
+metadata through corrections, or conflate retained evidence with current projection.
 
 Before persistence: agree ownership/admission/publication, retry/identity, uncertain
 outcomes, atomicity/durability, backup/restore and migration; revisit transition/fault
@@ -50,9 +51,10 @@ instruments then. UI, licensing/public release and real-data cutover remain sepa
 
 Synthetic data only; existing LOAM remains sole household authority. No upstream
 writes/build/proof reruns or source copying. Latest narrow reference observation is
-`0a290fe2`; REFERENCES owns exact mappings/comparison limits.
+`83bc471e`; REFERENCES owns mappings/comparison limits. Sibling has unrelated terminal/
+build work; never stage or modify it.
 
-Local commits are authorized; use live Git for worktree/HEAD. No push in this phase.
-Last remote observation was private `main` at `8974041` (2026-10-03), not a current
-remote-equality claim. Dependency lock/tooling unchanged; no fresh-switch/platform
-replay claimed. Use repository tools and never commit local environments/scratch.
+Local commits authorized; use live Git for worktree/HEAD. No push in this phase.
+Last remote observation: private `main` at `8974041` (2026-10-03), not current equality.
+Lock/tooling unchanged; no fresh-switch/platform replay claimed. Never commit environments,
+generated output, scratch or private logs.

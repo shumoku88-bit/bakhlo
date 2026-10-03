@@ -40,14 +40,15 @@ empty image. See [grammar](cli/current_fixture_input.mli) and
 - Immutable functional engine; process/file I/O only at explicit edges.
 - Runtime Base + Zarith; tests ppx_expect + Base_quickcheck. No speculative framework.
 - General Events remain broader than ordinary Movements. Current source admission
-  covers only anonymous ordinary/base-validity Actual: all retained Effects nonzero,
+  covers ordinary/base-validity Actual, including optional Event-local Effect keys:
+  unique retained keys within each Event, all retained Effects nonzero,
   per-Measure conservation, independent complete base validity and qualified corrections.
 - Exact assertion groups retain independent reflected-root cuts. Origin is explicit,
   not inferred from activity. Opening explicitly names a current Event containing the
   coordinate; it is not a second scalar or implicit origin. Presence retains one shared
   root cut, not a scalar; ANY unreflected matching Effect invalidates it, even net zero.
   Exact/present payloads are disjoint; all four families must be globally separated.
-- Keys/metadata, validity history, Exchange/Reversal, historical
+- Metadata, validity history, Exchange/Reversal, historical
   completeness and full normalized Actual admission are still unsupported.
 
 No public API/storage compatibility promise exists during this unreleased phase.

@@ -28,7 +28,7 @@ let change = Fixtures.here_change
 let%expect_test "empty and untouched observations form exact singleton lineages" =
   require (List.is_empty (F.lineages (admitted (memory []) []))) "explicit empty input";
   let payload = [ change "jpy" Z.zero; change "usd" (Z.shift_left Z.one 128) ] in
-  let observed = D.Event.create ~id:(id "observed") ~effects:payload in
+  let observed = Fixtures.observation ~id:(id "observed") ~effects:payload in
   let source = [ event "empty"; observed ] in
   let answer = admitted (memory source) [] in
   List.iter2_exn source (F.lineages answer) ~f:(fun original row ->
@@ -56,9 +56,9 @@ let%expect_test "lineages follow root representation order, not terminal or corr
 ;;
 
 let%expect_test "fresh tail extension keeps root and original snapshots without discarding payload" =
-  let a = D.Event.create ~id:(id "a") ~effects:[ change "jpy" Z.one ] in
-  let b = D.Event.create ~id:(id "b") ~effects:[ change "usd" Z.minus_one ] in
-  let c = D.Event.create ~id:(id "c") ~effects:[ change "jpy" Z.zero; change "usd" (Z.shift_left Z.one 160) ] in
+  let a = Fixtures.observation ~id:(id "a") ~effects:[ change "jpy" Z.one ] in
+  let b = Fixtures.observation ~id:(id "b") ~effects:[ change "usd" Z.minus_one ] in
+  let c = Fixtures.observation ~id:(id "c") ~effects:[ change "jpy" Z.zero; change "usd" (Z.shift_left Z.one 160) ] in
   let source = [ a; event "untouched"; b ] in
   let old = admitted (memory source) [ edge "a" "b" ] in
   let newer = admitted (memory (c :: source)) [ edge "b" "c"; edge "a" "b" ] in
@@ -154,7 +154,7 @@ let%expect_test "generated disjoint paths preserve exact associations under repl
   let check values =
     let source = List.mapi values ~f:(fun i n ->
       let q = Z.mul (Z.of_int n) (Z.shift_left Z.one 128) in
-      D.Event.create ~id:(id ("node:" ^ Int.to_string i))
+      Fixtures.observation ~id:(id ("node:" ^ Int.to_string i))
         ~effects:[ change "jpy" q; change "usd" (Z.neg q); change "jpy" Z.zero ]) in
     let corrections = List.filter_mapi values ~f:(fun i n ->
       if n > 0 && i + 1 < List.length values
@@ -179,7 +179,7 @@ let%expect_test "generated disjoint paths preserve exact associations under repl
     check_answer (List.rev source) (List.rev corrections)
       (admitted (memory (List.rev source)) (List.rev corrections)) (List.rev expected);
     List.iter expected ~f:(fun (root, terminal) ->
-      let fresh = D.Event.create ~id:(id "fresh") ~effects:[ change "kg" Z.minus_one ] in
+      let fresh = Fixtures.observation ~id:(id "fresh") ~effects:[ change "kg" Z.minus_one ] in
       let extended_edges = corrections @ [ { D.Event_correction.target = D.Event.id terminal; replacement = D.Event.id fresh } ] in
       let extended_source = source @ [ fresh ] in
       let extended = admitted (memory extended_source) extended_edges in

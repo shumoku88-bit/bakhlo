@@ -7,14 +7,16 @@ module V = Loam_application.Actual_validity
 module Q = Loam_application.Current_quantity_query
 
 type t = { source : S.command; zero_origins : D.Effect_coordinate.t list; openings : Q.opening list; groups : H.group list; presence : Q.presence option }
-type error = { line : int; message : string }
+type error =
+  | Syntax of { line : int; message : string }
+  | Invalid_event of { line : int; event : D.Identifier.Event.t; error : D.Event.error }
 type block =
   | Between
   | Event of { id : D.Identifier.Event.t; date : string; changes : D.Effect.t list }
   | Group of { roots : D.Identifier.Event.t list; assertions : P.assertion list }
   | Presence of { roots : D.Identifier.Event.t list; coordinates : D.Effect_coordinate.t list }
 
-let fail line message = Error { line; message }
+let fail line message = Error (Syntax { line; message })
 let identity line constructor text =
   match constructor text with
   | Ok value -> Ok value
@@ -32,6 +34,13 @@ let coordinate line locus measure =
   let* locus = identity line D.Identifier.Locus.of_string locus in
   let* measure = identity line D.Identifier.Measure.of_string measure in
   Ok ({ locus; measure } : D.Effect_coordinate.t)
+;;
+
+let parse_change line key locus measure text =
+  let ( let* ) result f = Result.bind result ~f in
+  let* c = coordinate line locus measure in
+  let* quantity = quantity line text in
+  Ok (D.Effect.create ~key ~locus:c.locus ~measure:c.measure ~quantity)
 ;;
 
 let decode text =
@@ -52,12 +61,15 @@ let decode text =
             let* id = identity line D.Identifier.Event.of_string token in
             scan (line + 1) (Event { id; date; changes = [] }) draft rest
           | Event { id; date; changes }, [ "EFFECT"; locus; measure; text ] ->
-            let* c = coordinate line locus measure in
-            let* quantity = quantity line text in
-            let change = D.Effect.create ~locus:c.locus ~measure:c.measure ~quantity in
+            let* change = parse_change line None locus measure text in
+            scan (line + 1) (Event { id; date; changes = change :: changes }) draft rest
+          | Event { id; date; changes }, [ "KEYED-EFFECT"; token; locus; measure; text ] ->
+            let* key = identity line D.Identifier.Effect_key.of_string token in
+            let* change = parse_change line (Some key) locus measure text in
             scan (line + 1) (Event { id; date; changes = change :: changes }) draft rest
           | Event { id; date; changes }, [ "END-EVENT" ] ->
-            let event = D.Event.create ~id ~effects:(List.rev changes) in
+            let* event = Result.map_error (D.Event.create ~id ~effects:(List.rev changes))
+                ~f:(fun error -> Invalid_event { line; event = id; error }) in
             let validity : V.fact = { event = id; valid_on = date } in
             let source = { draft.source with events = event :: draft.source.events; validities = validity :: draft.source.validities } in
             scan (line + 1) Between { draft with source } rest

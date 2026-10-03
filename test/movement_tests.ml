@@ -18,7 +18,7 @@ let locus text =
 ;;
 
 let change ?(unit = "jpy") place quantity =
-  E.create ~locus:(locus place) ~measure:(measure unit) ~quantity:(Q.of_quanta quantity)
+  E.create ~key:None ~locus:(locus place) ~measure:(measure unit) ~quantity:(Q.of_quanta quantity)
 ;;
 
 let describe_error = function
@@ -146,7 +146,7 @@ let%expect_test "generated oracle, conservation, perturbation, and representatio
       ignore (accepted (List.rev paired) : M.t);
       let negated =
         List.map paired ~f:(fun item ->
-          E.create ~locus:(E.locus item) ~measure:(E.measure item) ~quantity:(Q.neg (E.quantity item)))
+          E.create ~key:(E.key item) ~locus:(E.locus item) ~measure:(E.measure item) ~quantity:(Q.neg (E.quantity item)))
       in
       ignore (accepted negated : M.t);
       (match M.validate (paired @ [ change "food" Z.one ]) with

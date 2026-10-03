@@ -17,7 +17,7 @@ let edge target replacement : D.Event_correction.t =
   { target = id target; replacement = id replacement }
 ;;
 
-let event name = D.Event.create ~id:(id name) ~effects:[]
+let event name = Fixtures.observation ~id:(id name) ~effects:[]
 
 let memory events =
   match D.Event_memory.of_events events with
@@ -86,13 +86,13 @@ let%expect_test "empty relation preserves explicitly supplied neutral observatio
   let empty = admitted (memory []) [] in
   require (List.is_empty (F.frontier_events empty)) "explicit empty frontier";
   let change unit n =
-    D.Effect.create
+    D.Effect.create ~key:None
       ~locus:(identifier D.Identifier.Locus.of_string "here")
       ~measure:(identifier D.Identifier.Measure.of_string unit)
       ~quantity:(D.Quantity.of_quanta n)
   in
   let payload = [ change "jpy" Z.zero; change "usd" (Z.shift_left Z.one 128) ] in
-  let observed = D.Event.create ~id:(id "observed") ~effects:payload in
+  let observed = Fixtures.observation ~id:(id "observed") ~effects:payload in
   require (Result.is_error (D.Movement.validate payload)) "Event is not Movement";
   let source = [ event "empty"; observed ] in
   let answer = admitted (memory source) [] in
@@ -175,7 +175,7 @@ let%expect_test "exact opaque identities have no alias or chronological ordering
 let%expect_test "long-chain validation is tail-recursive in both edge orders" =
   let count = 10_000 in
   let ids = List.init count ~f:(fun i -> id ("long:" ^ Int.to_string i)) in
-  let source = List.map ids ~f:(fun id -> D.Event.create ~id ~effects:[]) in
+  let source = List.map ids ~f:(fun id -> Fixtures.observation ~id ~effects:[]) in
   let events = memory source in
   let edges = List.map2_exn (List.drop_last_exn ids) (List.tl_exn ids)
     ~f:(fun target replacement -> ({ target; replacement } : D.Event_correction.t)) in
@@ -244,9 +244,9 @@ let%expect_test "generated graph admission and frontier agree with a list/fuel o
   let payload i =
     let q = Z.mul (Z.shift_left Z.one 128) (Z.of_int i) in
     List.map [ "jpy", q; "usd", Z.neg q; "jpy", Z.zero ] ~f:(fun (unit, quantity) ->
-      D.Effect.create ~locus:(identifier D.Identifier.Locus.of_string "here")
+      D.Effect.create ~key:None ~locus:(identifier D.Identifier.Locus.of_string "here")
         ~measure:(identifier D.Identifier.Measure.of_string unit) ~quantity:(D.Quantity.of_quanta quantity)) in
-  let source = List.init 5 ~f:(fun i -> D.Event.create ~id:(id (Int.to_string i)) ~effects:(payload i)) in
+  let source = List.init 5 ~f:(fun i -> Fixtures.observation ~id:(id (Int.to_string i)) ~effects:(payload i)) in
   let events = memory source in
   let reversed = memory (List.rev source) in
   let make_edge (a, b) = edge (Int.to_string a) (Int.to_string b) in

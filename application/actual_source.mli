@@ -1,7 +1,7 @@
-(** Ordinary anonymous/base-validity Actual subset, NOT full normalized household
-    admission or authority. Caller supplies only Events, base validity and corrections;
-    no keyed Effects, metadata, validity revisions, Exchange/Reversal or settlement
-    admission. The synthetic adapter must reject unsupported evidence, never erase it.
+(** Ordinary/base-validity Actual subset, NOT full normalized household admission
+    or authority. Caller supplies key-qualified Events, base validity and corrections;
+    no metadata, validity revisions, Exchange/Reversal or settlement admission.
+    The synthetic adapter must reject unsupported evidence, never erase it.
     Domain Event stays general; this is a separate practical admission boundary. *)
 type command =
   { events : Loam_domain.Event.t list
@@ -19,7 +19,8 @@ type error =
   | Validity of Actual_validity.error
   | Corrections of Correction_frontier.error
 
-(** Event identity first; then in retained Event order, nonzero Effects in occurrence
+(** Event constructors already establish local key uniqueness. Within this boundary,
+    Event identity first; then in retained Event order, nonzero Effects in occurrence
     order and exact totals per Measure (diagnostic order is exact Measure spelling).
     Every retained Event, including superseded ones, is checked. Empty Events and
     independently balanced mixed-Measure Events pass: no Movement coercion.

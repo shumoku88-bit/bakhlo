@@ -79,6 +79,23 @@ One admitted source: exact families, known zero, known nonzero/amount-unknown an
   [1]
   $ test ! -s out && grep -q 'Cannot read synthetic fixture' err
 
+Keyed Effects keep Event-local identity; duplicates are admission errors, not syntax.
+
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nKEYED-EFFECT\tkey\twallet\tjpy\t1\nEFFECT\twallet\tjpy\t-1\nEND-EVENT\nZERO-ORIGIN\twallet\tjpy\nEND\n' >keyed
+  $ cp keyed keyed-before
+  $ loam-ocaml inspect-current-fixture keyed wallet jpy
+  Conditional current fixture quantity (ordinary base Actual subset).
+  "wallet" / "jpy": zero-origin; quantity=0
+  $ cmp keyed keyed-before
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nKEYED-EFFECT\tkey\twallet\tjpy\t1\nEFFECT\twallet\tjpy\t1\nKEYED-EFFECT\tkey\tother\tjpy\t1\nEND-EVENT\nEND\n' >duplicate-key
+  $ loam-ocaml inspect-current-fixture duplicate-key unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'duplicate Effect key "key" at 3 (first 1)' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nKEYED-EFFECT\t\twallet\tjpy\t1\nEND-EVENT\nEND\n' >empty-key
+  $ loam-ocaml inspect-current-fixture empty-key wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'identity must not be empty' err
+
 Malformed/obsolete inputs and invalid premises refuse globally, never an empty basis.
 
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t1\nEND\n' >obsolete
