@@ -28,6 +28,8 @@ read-only and conditional on supplied evidence: `wallet jpy` gives assertion
 is unknown (exit 4/stdout). `stale jpy` has net-zero unreflected activity and is no
 longer supported; `unsupported jpy` lacks evidence (both exit 3/stdout).
 Load/admission failures exit 1; syntax failures exit 2 (stderr, no stdout).
+The example's explicitly supported Exchange gives `exchange-wallet jpy` = `-101`
+and `exchange-wallet usd` = `2`, without merging Measures or implying a rate.
 
 Only the explicit synthetic grammar is accepted; it is not an upstream adapter or
 chosen canonical storage format. Unsupported facts never disappear into a successful
@@ -41,9 +43,13 @@ empty image. See [grammar](cli/current_fixture_input.mli) and
 - Immutable functional engine; process/file I/O only at explicit edges.
 - Runtime Base + Zarith; tests ppx_expect + Base_quickcheck. No speculative framework.
 - General Events remain broader than ordinary Movements. Current source admission
-  covers ordinary Actual, including optional Event-local Effect keys:
-  unique retained keys within each Event, all retained Effects nonzero,
-  per-Measure conservation, independent retained date history and Event corrections.
+  covers ordinary + explicitly qualified Exchange Actual: optional Event-local keys
+  remain unique within each Event, ALL retained Effects nonzero, and unclaimed Events
+  conserve each Measure. Exchange selects two exact keys with distinct Measures,
+  negative source/positive destination Effects AND Measure totals, no third Measure;
+  additional Effects in those Measures survive, without inferred fee/rate semantics.
+  Exchange subjects cannot participate in Event correction. Independent retained
+  date history and ordinary Event corrections remain qualified.
   Date corrections are closed disjoint same-Event paths with one current occurrence
   fact per retained Event; all superseded dates survive and must remain valid.
   Optional Event descriptions retain exact human recognizer text against retained IDs;
@@ -59,7 +65,7 @@ empty image. See [grammar](cli/current_fixture_input.mli) and
   coordinate; it is not a second scalar or implicit origin. Presence retains one shared
   root cut, not a scalar; ANY unreflected matching Effect invalidates it, even net zero.
   Exact/present payloads are disjoint; all four families must be globally separated.
-- Other structured metadata, Exchange/Reversal, historical
+- Other structured metadata, Reversal, historical
   completeness and full normalized Actual admission are still unsupported.
 
 No public API/storage compatibility promise exists during this unreleased phase.

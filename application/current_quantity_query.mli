@@ -1,4 +1,4 @@
-(** Four separated support families over ONE admitted ordinary Actual source.
+(** Four separated support families over ONE admitted Actual subset source.
     Not full normalized admission, historical completeness or household authority. *)
 type opening =
   { coordinate : Loam_domain.Effect_coordinate.t
@@ -41,7 +41,7 @@ type outcome = Exact of exact | Known_present of present
     Then scan opening/origin overlap, group/assertion overlap and presence/exact overlap
     in declaration order. All positions one-based. Stale presence also refuses overlap;
     global admission, no partial result or family priority, even for equal quantities.
-    Origin/opening sum ALL ordinary terminals, not just a witness; assertions keep their
+    Origin/opening sum ALL qualified terminals, not just a witness; assertions keep their
     independent cuts. Presence is not arithmetic: ANY matching Effect in its remaining
     terminals invalidates it, even when contributions cancel. No inferred support,
     merged cuts, second opening scalar/date or separately bound source projections. *)

@@ -39,22 +39,22 @@ One admitted source: exact families, known zero, known nonzero/amount-unknown an
   $ cp ../examples/current-preview.fixture current
   $ cp current before
   $ loam-ocaml inspect-current-fixture current wallet jpy
-  Conditional current fixture quantity (ordinary Actual subset).
+  Conditional current fixture quantity (Actual subset).
   exact assertion; "wallet" / "jpy": asserted=1000; delta=-10; quantity=990
   $ loam-ocaml inspect-current-fixture current wallet usd
-  Conditional current fixture quantity (ordinary Actual subset).
+  Conditional current fixture quantity (Actual subset).
   exact assertion; "wallet" / "usd": asserted=5; delta=0; quantity=5
   $ loam-ocaml inspect-current-fixture current food jpy
-  Conditional current fixture quantity (ordinary Actual subset).
+  Conditional current fixture quantity (Actual subset).
   "food" / "jpy": zero-origin; quantity=160
   $ loam-ocaml inspect-current-fixture current offset usd
-  Conditional current fixture quantity (ordinary Actual subset).
+  Conditional current fixture quantity (Actual subset).
   "offset" / "usd": opening Event "b"; quantity=-7
   $ loam-ocaml inspect-current-fixture current quiet jpy
-  Conditional current fixture quantity (ordinary Actual subset).
+  Conditional current fixture quantity (Actual subset).
   "quiet" / "jpy": zero-origin; quantity=0
   $ loam-ocaml inspect-current-fixture current empty jpy
-  Conditional current fixture quantity (ordinary Actual subset).
+  Conditional current fixture quantity (Actual subset).
   exact assertion; "empty" / "jpy": asserted=0; delta=0; quantity=0
   $ loam-ocaml inspect-current-fixture current unsupported jpy
   "unsupported" / "jpy": quantity unknown (no supported premise in supplied fixture).
@@ -84,7 +84,7 @@ Keyed Effects keep Event-local identity; duplicates are admission errors, not sy
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nKEYED-EFFECT\tkey\twallet\tjpy\t1\nEFFECT\twallet\tjpy\t-1\nEND-EVENT\nZERO-ORIGIN\twallet\tjpy\nEND\n' >keyed
   $ cp keyed keyed-before
   $ loam-ocaml inspect-current-fixture keyed wallet jpy
-  Conditional current fixture quantity (ordinary Actual subset).
+  Conditional current fixture quantity (Actual subset).
   "wallet" / "jpy": zero-origin; quantity=0
   $ cmp keyed keyed-before
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nKEYED-EFFECT\tkey\twallet\tjpy\t1\nEFFECT\twallet\tjpy\t1\nKEYED-EFFECT\tkey\tother\tjpy\t1\nEND-EVENT\nEND\n' >duplicate-key
@@ -101,7 +101,7 @@ Date revisions are independent of Event corrections; no default or latest-date w
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nVALIDITY-CORRECTION\tBASE\te\te\nVALIDITY-REVISION\te\te\t1900-01-01\nEVENT\te\t2026-10-03\nEFFECT\twallet\tjpy\t1\nEFFECT\twallet\tjpy\t-1\nEND-EVENT\nZERO-ORIGIN\twallet\tjpy\nEND\n' >revised-date
   $ cp revised-date revised-date-before
   $ loam-ocaml inspect-current-fixture revised-date wallet jpy
-  Conditional current fixture quantity (ordinary Actual subset).
+  Conditional current fixture quantity (Actual subset).
   "wallet" / "jpy": zero-origin; quantity=0
   $ cmp revised-date revised-date-before
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\nEND-EVENT\nVALIDITY-REVISION\tr\te\t2000-02-29\nZERO-ORIGIN\twallet\tjpy\nEND\n' >revision-only
@@ -133,7 +133,7 @@ Optional Event descriptions retain recognition text; duplicates/references refus
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDESCRIPTION\ta\t retained root text \nDESCRIPTION\tb\t\nEVENT\ta\t2026-10-03\nEND-EVENT\nEVENT\tb\t2026-10-02\nEND-EVENT\nCORRECTION\ta\tb\nZERO-ORIGIN\twallet\tjpy\nEND\n' >described
   $ cp described described-before
   $ loam-ocaml inspect-current-fixture described wallet jpy
-  Conditional current fixture quantity (ordinary Actual subset).
+  Conditional current fixture quantity (Actual subset).
   "wallet" / "jpy": zero-origin; quantity=0
   $ cmp described described-before
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEND-EVENT\nDESCRIPTION\te\tsame\nDESCRIPTION\te\tsame\nEND\n' >duplicate-description
@@ -162,7 +162,7 @@ Merchant dispositions are explicit retained evidence, never default classificati
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nMERCHANT\ta\t provider \nNONMERCHANT\tb\nEVENT\ta\t2026-10-03\nEND-EVENT\nEVENT\tb\t2026-10-02\nEND-EVENT\nCORRECTION\ta\tb\nZERO-ORIGIN\twallet\tjpy\nEND\n' >merchants
   $ cp merchants merchants-before
   $ loam-ocaml inspect-current-fixture merchants wallet jpy
-  Conditional current fixture quantity (ordinary Actual subset).
+  Conditional current fixture quantity (Actual subset).
   "wallet" / "jpy": zero-origin; quantity=0
   $ cmp merchants merchants-before
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEND-EVENT\nMERCHANT\te\tp\nMERCHANT\te\tp\nEND\n' >duplicate-merchant
@@ -199,7 +199,7 @@ Original amounts address stable roots, not balances or current-terminal subjects
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nORIGINAL-AMOUNT\ta\t eur \t+100\nEVENT\ta\t2026-10-03\nEND-EVENT\nEVENT\tb\t2026-10-02\nEND-EVENT\nCORRECTION\ta\tb\nZERO-ORIGIN\twallet\tjpy\nEND\n' >original-amount
   $ cp original-amount original-amount-before
   $ loam-ocaml inspect-current-fixture original-amount wallet jpy
-  Conditional current fixture quantity (ordinary Actual subset).
+  Conditional current fixture quantity (Actual subset).
   "wallet" / "jpy": zero-origin; quantity=0
   $ cmp original-amount original-amount-before
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEND-EVENT\nORIGINAL-AMOUNT\te\tusd\t1\nORIGINAL-AMOUNT\te\tusd\t1\nEND\n' >duplicate-amount
@@ -224,6 +224,58 @@ Original amounts address stable roots, not balances or current-terminal subjects
   $ test ! -s out && grep -q 'expected signed decimal integer' err
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEND-EVENT\nORIGINAL-AMOUNT\te\tjpy\t1\nEND\n' >amount-only
   $ loam-ocaml inspect-current-fixture amount-only wallet jpy >out 2>err
+  [3]
+  $ test ! -s err && grep -q 'quantity unknown' out
+
+Exchange is a selected-key exception, never inferred balance/support or correction replacement.
+
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEXCHANGE\te\ts\td\nEVENT\te\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-100\nKEYED-EFFECT\td\twallet\tusd\t2\nEFFECT\twallet\tjpy\t-1\nEND-EVENT\nZERO-ORIGIN\twallet\tjpy\nZERO-ORIGIN\twallet\tusd\nEND\n' >exchange
+  $ cp exchange exchange-before
+  $ loam-ocaml inspect-current-fixture exchange wallet jpy
+  Conditional current fixture quantity (Actual subset).
+  "wallet" / "jpy": zero-origin; quantity=-101
+  $ loam-ocaml inspect-current-fixture exchange wallet usd
+  Conditional current fixture quantity (Actual subset).
+  "wallet" / "usd": zero-origin; quantity=2
+  $ cmp exchange exchange-before
+  $ grep -v '^EXCHANGE' exchange >unclaimed-exchange
+  $ loam-ocaml inspect-current-fixture unclaimed-exchange wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'residual -101' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-1\nKEYED-EFFECT\td\twallet\tusd\t1\nEND-EVENT\nEXCHANGE\te\ts\td\nEXCHANGE\te\ts\td\nEND\n' >duplicate-exchange
+  $ loam-ocaml inspect-current-fixture duplicate-exchange unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'duplicate Exchange for "e" at 2 (first 1)' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEXCHANGE\tmissing\ts\td\nEND\n' >unknown-exchange
+  $ loam-ocaml inspect-current-fixture unknown-exchange unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Exchange 1: unknown Event "missing"' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEFFECT\twallet\tjpy\t-1\nKEYED-EFFECT\td\twallet\tusd\t1\nEND-EVENT\nEXCHANGE\te\ts\td\nEND\n' >anonymous-exchange
+  $ loam-ocaml inspect-current-fixture anonymous-exchange unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'missing source Effect key "s"' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-1\nKEYED-EFFECT\td\twallet\tusd\t1\nEFFECT\toffset\teur\t1\nEND-EVENT\nEXCHANGE\te\ts\td\nEND\n' >third-measure
+  $ loam-ocaml inspect-current-fixture third-measure unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'third Measure "eur" at Effect 3' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-1\nKEYED-EFFECT\td\twallet\tusd\t1\nEFFECT\toffset\tjpy\t1\nEND-EVENT\nEXCHANGE\te\ts\td\nEND\n' >zero-source-total
+  $ loam-ocaml inspect-current-fixture zero-source-total unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'source Measure "jpy" total 0 is not negative' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-1\nKEYED-EFFECT\td\twallet\tusd\t1\nEFFECT\toffset\tusd\t0\nEND-EVENT\nEXCHANGE\te\ts\td\nEND\n' >zero-extra
+  $ loam-ocaml inspect-current-fixture zero-extra unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'zero Effect at 3' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-1\nKEYED-EFFECT\td\twallet\tusd\t1\nEND-EVENT\nEVENT\tx\t2026-10-03\nEND-EVENT\nEXCHANGE\te\ts\td\nCORRECTION\tx\te\nEND\n' >corrected-exchange
+  $ loam-ocaml inspect-current-fixture corrected-exchange unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'participates in correction' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEXCHANGE\te\ts\nEND\n' >malformed-exchange
+  $ loam-ocaml inspect-current-fixture malformed-exchange wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'fixture line 2' err
+  $ grep -v '^ZERO-ORIGIN' exchange >exchange-only
+  $ loam-ocaml inspect-current-fixture exchange-only wallet jpy >out 2>err
   [3]
   $ test ! -s err && grep -q 'quantity unknown' out
 
@@ -262,7 +314,7 @@ Explicit opening zero is not inferred origin; overlaps refuse even an unrelated 
 
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEFFECT\twallet\tjpy\t1\nEFFECT\twallet\tjpy\t-1\nEND-EVENT\nOPENING\twallet\tjpy\te\nEND\n' >opening-zero
   $ loam-ocaml inspect-current-fixture opening-zero wallet jpy
-  Conditional current fixture quantity (ordinary Actual subset).
+  Conditional current fixture quantity (Actual subset).
   "wallet" / "jpy": opening Event "e"; quantity=0
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEFFECT\twallet\tjpy\t1\nEFFECT\twallet\tjpy\t-1\nEND-EVENT\nOPENING\twallet\tjpy\te\nZERO-ORIGIN\twallet\tjpy\nEND\n' >opening-origin
   $ loam-ocaml inspect-current-fixture opening-origin unrelated usd >out 2>err

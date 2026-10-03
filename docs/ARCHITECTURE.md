@@ -26,14 +26,16 @@ There is no canonical storage, clock, mutable business state or generic service 
 | Event descriptions | Optional unique retained Event reference + exact recognizer text; no classification, completeness or inheritance |
 | Event merchants | Optional unique retained Event disposition: Merchant(role-free external identity) / Nonmerchant; absence unresolved, no registry/inference/inheritance |
 | Original amounts | Unique positive root fact + explicit Measure; same-frontier current terminal association, raw fact unchanged; no FX/balance/support meaning |
-| Actual source | Ordinary Actual subset: every retained Effect nonzero, each Measure independently balanced; date history, Event corrections, descriptions, Merchants then root original amounts |
+| Exchange evidence | Unique Event + selected source/destination keys; distinct Measures, selected and net signs, no third Measure/correction participation; extra Effects retained, no rates/fees |
+| Actual source | Ordinary + Exchange subset: identity, whole Exchange gate, all Effects nonzero/unclaimed per-Measure balance; dates, Event corrections, descriptions, Merchants, root original amounts |
 | Current quantity query | One source; origin, opening (unique coordinate/current Event/matching Effect), assertions and presence, globally separated; Exact / Known_present / unsupported |
 
 Public `.mli` files own exact inputs, diagnostics and ordering. Indexes are disposable
 mechanisms, not canonical evidence. Helpers such as `Effect_sum` are omitted from the
 curated Application namespace. Replacement_cycle shares only cycle detection between
 Event/date relations; each owns closure/association/uniqueness/selection. No fake Events
-or encoded identities adapt date references to Event admission. Arithmetic zero is exposed
+or encoded identities adapt date references to Event admission. Measure_totals privately shares exact per-Measure sums for two concrete admission consumers;
+its mathematical empty sum is not external support. Public answer arithmetic zero is exposed
 only after a support gate.
 
 ## Selection and consistency
@@ -49,7 +51,7 @@ reducing old premises, preserves unrelated assertion/cut pairs, drops empty resi
 and appends incoming. The old value/source stay immutable. This is not persisted history,
 retry identity, publication or a list-order winner.
 
-Origin and opening answers sum the whole ordinary terminal frontier; opening does not
+Origin and opening answers sum the whole qualified terminal frontier; opening does not
 sum only its witness or store another scalar/date/cut. The explicitly named Event must
 remain current and contain the exact coordinate; no automatic retarget after corrections.
 Assertions reuse independent cuts. Shared coordinates across families refuse even with
@@ -110,7 +112,23 @@ Raw facts/order/frontier remain inspectable. Whole amount admission follows prio
 gates/Merchants; top-level ORIGINAL-AMOUNT root measure signed-decimal shares existing
 lexing, while duplicates/positivity/retained/root membership are source admission.
 
-The current source is NOT full normalized Actual: other structured metadata, Exchange/Reversal
+Exchange_evidence qualifies selected Effects against one retained memory/raw correction
+relation, without graph-admitting that relation. Exact keys are not coordinates/positions;
+Event structure already guarantees within-Event key uniqueness. Selected Measures differ,
+source Effect AND source total are negative, destination Effect AND destination total
+positive, and every Effect uses one of those two Measures. Additional Effects retain order
+and multiplicity, without assigning fee meaning. Any correction endpoint mentions refuses,
+including open raw edges, until Effect replacement semantics earns qualification.
+Its abstract selection retains original Event/Effects/fact and raw memory/relation.
+Source grants balance exemption ONLY through successfully admitted whole Exchange memory;
+all Effects must still be nonzero, including unselected ones. Unclaimed Events keep ordinary
+per-Measure conservation. Local source gates Exchange before physical checks (upstream
+checks all nonzero first); no-claim ordinary order remains unchanged. Date/frontier/metadata
+and support gates follow, so no malformed relation or missing dates can become a source.
+Top-level EXCHANGE event source-key destination-key admits forward references, never keys,
+rates, ownership or support by inference. Movement stays the narrower entrance.
+
+The current source is NOT full normalized Actual: other structured metadata, Reversal
 and relations/settlement remain unqualified. Date evidence is not proof of occurrence
 truth, recording chronology or historical completeness.
 Queries do not establish household authority, purchasing power or spendability.
@@ -125,4 +143,6 @@ Do not infer these from a structurally valid preview or ordinary Movement retry 
 UI is not implemented; CLI is the development/read entrance, not a TUI-first commitment.
 Future clients consume semantic answers rather than recomputing meaning. First usable UI
 is undecided; TUI/GUI/Web toolkit, remote protocol and compatibility need actual consumers and
-approval. No speculative load/navigation state, cache or framework belongs in the engine.
+approval. MirageOS may later host the engine through external I/O adapters; target/runtime
+and Base/Zarith/GMP/C-stub compatibility are unqualified, not a current dependency promise.
+No speculative load/navigation state, adapter, cache or framework belongs in the engine.

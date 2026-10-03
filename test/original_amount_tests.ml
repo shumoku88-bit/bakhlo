@@ -142,6 +142,7 @@ let%expect_test "source original amounts never become Effects, FX, balance or fo
     ; descriptions = [ { event = F.id "a"; text = "bill" } ]
     ; merchants = [ { event = F.id "a"; disposition = Merchant (F.identifier D.Identifier.External_party.of_string "provider") } ]
     ; original_amounts = originals
+    ; exchanges = []
     } in
   let source = ok (S.create raw) in
   let amounts = S.original_amounts source in

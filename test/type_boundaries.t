@@ -373,11 +373,11 @@ A cut is not the common source frontier.
   [2]
   $ grep -q 'Reflected_root_cut.t' error && grep -q 'Correction_frontier.t' error
 
-The physically admitted ordinary Actual source has a public smart constructor.
+The physically admitted Actual subset source has a public smart constructor.
 
   $ cat >actual_source_client.ml <<'EOF'
   > module S = Loam_application.Actual_source
-  > let empty () = S.create { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = []; merchants = []; original_amounts = [] }
+  > let empty () = S.create { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = []; merchants = []; original_amounts = []; exchanges = [] }
   > let facts source = Loam_application.Actual_validity.facts (S.validity source)
   > let descriptions source = Loam_application.Event_descriptions.facts (S.descriptions source)
   > EOF
@@ -438,6 +438,47 @@ Retained date history has tagged references and a distinct revision identity, no
   $ application_client private_cycle.ml 2>error
   [2]
   $ grep -q 'Unbound module.*Replacement_cycle' error
+
+Exchange selections require retained memory and typed Effect keys; aggregate helpers stay private.
+
+  $ cat >exchange_client.ml <<'EOF'
+  > module E = Loam_application.Exchange_evidence
+  > module S = Loam_application.Actual_source
+  > let admit events corrections event source destination = E.create ~events ~corrections ~facts:[ { event; source; destination } ]
+  > let retained source = E.source_events (S.exchanges source), E.corrections (S.exchanges source), E.facts (S.exchanges source)
+  > let selected memory event = Option.map (fun selection -> E.fact selection, E.event selection, E.source_effect selection, E.destination_effect selection) (E.find_by_event memory event)
+  > let side = function E.Source -> "source" | Destination -> "destination"
+  > EOF
+  $ application_client exchange_client.ml
+  $ cat >event_is_not_effect_selector.ml <<'EOF'
+  > module D = Loam_domain
+  > module E = Loam_application.Exchange_evidence
+  > let wrong (event : D.Identifier.Event.t) (destination : D.Identifier.Effect_key.t) : E.fact = { event; source = event; destination }
+  > EOF
+  $ application_client event_is_not_effect_selector.ml 2>error
+  [2]
+  $ grep -q 'Effect_key.t' error
+  $ cat >forged_exchanges.ml <<'EOF'
+  > module E = Loam_application.Exchange_evidence
+  > let wrong (facts : E.fact list) : E.t = facts
+  > EOF
+  $ application_client forged_exchanges.ml 2>error
+  [2]
+  $ grep -q 'E.t' error
+  $ cat >incomplete_exchange_side.ml <<'EOF'
+  > module E = Loam_application.Exchange_evidence
+  > let wrong = function E.Source -> "source"
+  > EOF
+  $ application_client -w +8 -warn-error +8 incomplete_exchange_side.ml 2>error
+  [2]
+  $ grep -q 'partial-match' error && grep -q 'Destination' error
+  $ cat >private_measure_totals.ml <<'EOF'
+  > module A = Loam_application
+  > let wrong = A.Measure_totals.empty
+  > EOF
+  $ application_client private_measure_totals.ml 2>error
+  [2]
+  $ grep -q 'Unbound module "A.Measure_totals"' error
 
 Original amounts require a qualified frontier; current associations are not current quantity answers.
 

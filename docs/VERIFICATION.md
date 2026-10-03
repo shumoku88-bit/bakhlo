@@ -51,6 +51,7 @@ counters; shared construction helpers are in `fixtures.ml`, never another test-c
 | Group ownership/re-observation | Independent two-coordinate/two-group list model: 256 construction and 2,304 update/replay seams; preserve whole premises, ordered refusals and old values; not durable retry |
 | Event descriptions | 64 three-slot omission/a/b/unknown patterns (13 admitted) against original-token-prefix oracle; exact/empty/control text, retained source/order, permutation, correction-tail noninheritance, prefix requalification and four-support noninterference. Combined declaration-order duplicate/reference gate, not upstream refusal-order parity or text truth |
 | Event merchants | 512 three-slot omission/provider-p/provider-q/nonmerchant/retained/unknown-Event combinations (52 admitted), original-token-prefix oracle and independent pre-code enumeration; exact/control/shared party IDs, general neutral Events, source/order retention, permutation, date/text/key/four-support independence with earned original-Effect arithmetic/touch oracles, correction-tail noninheritance, prefix requalification and immutable old source; not provider truth/coverage, a party registry or report routing |
+| Exchange selection/source exemption | Independent original-token/list/Zarith model before product code and independent Python counts: 9,216 selected-Measure/sign/two-extra-Effect shapes, 122 selection / 74 nonzero source / 80 ordinary no-claim admissions. Curated selected-vs-net sign, third Measure, anonymous/missing/exact keys, duplicate/unknown/order, huge values, correction endpoints/open raw interference, retained payload/immutability and metadata/date/original-amount/four-support seams with earned Effect sum/touch oracles; no rate/fee/valuation truth or correction replacement. Existing 625 physical cases/generated tests also qualify private per-Measure arithmetic extraction |
 | Original amounts | Earned integer Warshall pairs: 13 admitted three-node relations x 64 omission/negative/zero/positive declarations = 832 cases (44 admitted), independent pre-code enumeration and current lookup/order correspondence. Separate duplicates/unknown/guard-order/huge/control/Measure specimens, retained source, replay/permutation, fresh-tail projection and prefix/omission requalification; earned original-Effect arithmetic/touch oracles for four-support noninterference. Not amount truth/completeness, FX/basis or publication |
 | Date history | Independent integer extension of earned Warshall model; 16,384 four-fact subsets/two-revision Event assignments/revision-only replacement relations (36 admitted), model-only counterexamples before product correspondence. Tagged-same-token IDs, revision-only evidence, retained invalid dates, ordered open/cross-Event/branch/merge/cycle/current conflicts, representation/tail/prefix/immutability and 10,000-revision chain/cycle; not arbitrary-size proof or temporal truth |
 | Actual source / support routing | 625 two-Measure physical predicates; 16,384 two-coordinate/four-family seams (1,600 admitted), independent two group cuts/shared presence cut and original-list/Effect oracle; ordinary-source base-date inputs in that table; date-history/four-support noninterference tested separately |
@@ -82,7 +83,14 @@ Event memory, forged amount memories/current associations and original-to-curren
 conversion. Decoder/real CLI test exact forward roots/Measures/huge values, semantic
 nonpositive/duplicate/unknown/non-root admission 1 vs malformed/misplaced syntax 2,
 unsupported quantity 3, escaped root diagnostics and unchanged files. Practical per-row
-ordering is not upstream separate-gate diagnostic parity. Description clients reject
+ordering is not upstream separate-gate diagnostic parity.
+Exchange clients reject Event-to-key confusion, forged memories, incomplete endpoint
+handling and public Measure_totals access; decoder/real CLI test exact forward claims/keys,
+missing/anonymous selectors, duplicate/unknown/third-Measure/net-zero/correction/zero-extra
+admission 1 vs malformed/misplaced syntax 2, no-support 3, signed per-Measure outputs,
+escaped provenance and unchanged files. Ordinary-only output labels were removed;
+this is not full normalized Actual.
+Description clients reject
 Effect-key/Event role confusion and unqualified lists; parser/real CLI exercise literal/empty
 forward-reference text, duplicate/unknown admission 1 vs malformed/unsupported syntax 2,
 no inferred support, escaped IDs and unchanged files. Date clients reject Event/revision

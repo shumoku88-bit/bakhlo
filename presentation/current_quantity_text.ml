@@ -68,6 +68,34 @@ let validity_error = function
       (id event) first_position position
   | Missing_validity { event } -> Printf.sprintf "missing current validity for Event %S" (id event)
 
+let exchange_error = function
+  | A.Exchange_evidence.Repeated_event { event; first_position; position } ->
+    Printf.sprintf "duplicate Exchange for %S at %d (first %d)" (id event) position first_position
+  | Correction_mentions_event { event; position } ->
+    Printf.sprintf "Exchange %d: Event %S participates in correction" position (id event)
+  | Unknown_event { event; position } ->
+    Printf.sprintf "Exchange %d: unknown Event %S" position (id event)
+  | Missing_effect { event; side; key; position } ->
+    let role = match side with A.Exchange_evidence.Source -> "source" | Destination -> "destination" in
+    Printf.sprintf "Exchange %d for %S: missing %s Effect key %S" position (id event) role
+      (D.Identifier.Effect_key.to_string key)
+  | Same_measure { event; measure; position } ->
+    Printf.sprintf "Exchange %d for %S: selected Measures are both %S"
+      position (id event) (D.Identifier.Measure.to_string measure)
+  | Source_not_negative { event; quantity = amount; position } ->
+    Printf.sprintf "Exchange %d for %S: selected source quantity %s is not negative" position (id event) (quantity amount)
+  | Destination_not_positive { event; quantity = amount; position } ->
+    Printf.sprintf "Exchange %d for %S: selected destination quantity %s is not positive" position (id event) (quantity amount)
+  | Third_measure { event; effect_position; measure; position } ->
+    Printf.sprintf "Exchange %d for %S: third Measure %S at Effect %d"
+      position (id event) (D.Identifier.Measure.to_string measure) effect_position
+  | Source_total_not_negative { event; measure; total; position } ->
+    Printf.sprintf "Exchange %d for %S: source Measure %S total %s is not negative"
+      position (id event) (D.Identifier.Measure.to_string measure) (quantity total)
+  | Destination_total_not_positive { event; measure; total; position } ->
+    Printf.sprintf "Exchange %d for %S: destination Measure %S total %s is not positive"
+      position (id event) (D.Identifier.Measure.to_string measure) (quantity total)
+
 let source_refusal error =
   let detail = match error with
     | A.Actual_source.Events (D.Event_memory.Duplicate_id { id = event; first_position; position }) ->
@@ -77,6 +105,7 @@ let source_refusal error =
     | Unbalanced_measure { event; event_position; measure; residual } ->
       Printf.sprintf "Event %S at %d: Measure %S residual %s" (id event) event_position
         (D.Identifier.Measure.to_string measure) (quantity residual)
+    | Exchanges error -> exchange_error error
     | Validity error -> validity_error error
     | Corrections error -> correction_error error
     | Descriptions error ->
@@ -114,7 +143,7 @@ let answer answer =
     | Q.Opening { coordinate; opening_event } -> Printf.sprintf "%s: opening Event %S; quantity=%s\n"
         (location coordinate) (id opening_event) (quantity (Q.quantity answer))
     | Q.Current_assertion asserted -> "exact assertion; " ^ assertion_row asserted in
-  "Conditional current fixture quantity (ordinary Actual subset).\n" ^ row
+  "Conditional current fixture quantity (Actual subset).\n" ^ row
 
 let present answer =
   Printf.sprintf "%s: known nonzero (presence premise); exact quantity unknown.\n"

@@ -140,7 +140,7 @@ let%expect_test "date revision is independent of Event correction and all four s
     F.observation ~id:(F.id "b") ~effects:(changes 5 @ [ F.change opening Z.one; F.change opening Z.minus_one ]);
     F.observation ~id:(F.id "x") ~effects:(changes 7 @ [ F.change (F.coordinate "stale") Z.one; F.change (F.coordinate "stale") Z.minus_one ]) ] in
   let raw : S.command = { events; validities = List.map [ "a"; "b"; "x" ] ~f:(fun id -> base id "2026-10-03");
-    validity_corrections = []; merchants = []; original_amounts = []; corrections = [ F.edge "a" "b" ]; descriptions = [ { event = F.id "a"; text = "root text" } ] } in
+    validity_corrections = []; merchants = []; original_amounts = []; exchanges = []; corrections = [ F.edge "a" "b" ]; descriptions = [ { event = F.id "a"; text = "root text" } ] } in
   let before = ok (S.create raw) in
   let after = ok (S.create { raw with validities = raw.validities @ [ revision "date-a" "a" "1900-01-01"; revision "date-b" "b" "0001-01-01" ];
     validity_corrections = [ edge (root "a") "date-a"; edge (root "b") "date-b" ] }) in

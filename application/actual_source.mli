@@ -1,8 +1,8 @@
-(** Ordinary Actual subset, NOT full normalized household admission
-    or authority. Caller supplies key-qualified Events, retained occurrence-date
-    history, Event corrections, optional recognizer descriptions and Merchant
-    dispositions and stable-root original amounts; no other structured metadata,
-    Exchange/Reversal or settlement admission.
+(** Ordinary + narrowly qualified Exchange Actual subset, NOT full normalized
+    household admission or authority. Caller supplies key-qualified Events, date
+    history, Event corrections, optional descriptions/Merchant dispositions/root
+    original amounts and explicit Exchange selections. No Reversal/settlement or
+    other structured metadata admission.
     The synthetic adapter must reject unsupported evidence, never erase it.
     Domain Event stays general; this is a separate practical admission boundary. *)
 type command =
@@ -13,6 +13,7 @@ type command =
   ; descriptions : Event_descriptions.fact list
   ; merchants : Event_merchants.fact list
   ; original_amounts : Original_amounts.fact list
+  ; exchanges : Exchange_evidence.fact list
   }
 type t
 type error =
@@ -27,12 +28,17 @@ type error =
   | Descriptions of Event_descriptions.error
   | Merchants of Event_merchants.error
   | Original_amounts of Original_amounts.error
+  | Exchanges of Exchange_evidence.error
 
 (** Event constructors already establish local key uniqueness. Within this boundary,
-    Event identity first; then in retained Event order, nonzero Effects in occurrence
-    order and exact totals per Measure (diagnostic order is exact Measure spelling).
-    Every retained Event, including superseded ones, is checked. Empty Events and
-    independently balanced mixed-Measure Events pass: no Movement coercion.
+    Event identity first; then whole Exchange selection admission against retained
+    memory/raw corrections. Next, in retained Event order, ALL Effects nonzero in
+    occurrence order; unclaimed Events conserve every Measure (residual diagnostics
+    use exact Measure spelling). ONLY explicitly admitted Exchange subjects bypass
+    balance, never nonzero checks. Invalid claims preempt physical errors; with no
+    claims, prior ordinary refusal order survives. No Exchange correction participation.
+    Every retained Event, including superseded ones, is checked. Empty/independently
+    balanced mixed-Measure Events still pass without claims: no Movement coercion.
     Then validity history/current completeness, Event corrections, descriptions and
     Merchant dispositions against ALL retained Events, in that order; then positive
     original amounts against stable roots in this same frontier.
@@ -47,3 +53,4 @@ val validity : t -> Actual_validity.t
 val descriptions : t -> Event_descriptions.t
 val merchants : t -> Event_merchants.t
 val original_amounts : t -> Original_amounts.t
+val exchanges : t -> Exchange_evidence.t

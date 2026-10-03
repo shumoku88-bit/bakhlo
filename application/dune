@@ -2,4 +2,4 @@
  (name loam_application)
  (public_name loam_ocaml.application)
  (libraries loam_domain base)
- (private_modules effect_sum replacement_cycle))
+ (private_modules effect_sum replacement_cycle measure_totals))

@@ -290,6 +290,47 @@ let%expect_test "original amount rows retain forward roots and exact Measures; p
   [%expect {| exact positive root amounts/current associations; nonpositive/duplicate/nonroot/unknown exit 1 vs syntax 2; no support |}]
 ;;
 
+let%expect_test "Exchange rows qualify selected keys before per-Measure balance, never syntax coercion or support" =
+  let module E = Loam_application.Exchange_evidence in
+  let huge = Z.shift_left Z.one 180 in
+  let rows = [ "EXCHANGE\t e \t source \tdestination";
+    "EVENT\t e \t2026-10-03"; "KEYED-EFFECT\t source \twallet\tjpy\t" ^ Z.to_string (Z.neg huge);
+    "KEYED-EFFECT\tdestination\twallet\tusd\t1"; "EFFECT\twallet\tjpy\t-1"; "END-EVENT";
+    "ZERO-ORIGIN\twallet\tjpy" ] in
+  let decoded = ok (Input.decode (document rows)) in
+  let source = ok (S.create decoded.source) in
+  let selected = Option.value_exn (E.find_by_event (S.exchanges source) (F.id " e ")) in
+  F.require (D.Identifier.Effect_key.equal (E.fact selected).source (F.identifier D.Identifier.Effect_key.of_string " source ") &&
+    Z.equal (D.Quantity.quanta (D.Effect.quantity (E.source_effect selected))) (Z.neg huge) &&
+    List.length (D.Event.effects (E.event selected)) = 3) "exact forward claim/key/quantity/additional Effect retention";
+  let request : C.request = { path = "synthetic"; coordinate = F.coordinate "wallet" } in
+  let answer = C.evaluate request (Ok (document rows)) in
+  F.require (answer.exit_code = 0 && String.is_empty answer.stderr &&
+    String.is_substring answer.stdout ~substring:("quantity=" ^ Z.to_string (Z.sub (Z.neg huge) Z.one))) "source lost fee-side Effect or merged Measures";
+  let raw_without = { decoded.source with exchanges = [] } in
+  (match S.create raw_without with Error (Unbalanced_measure _) -> () | _ -> failwith "exchange inferred from neutral Effects");
+  let no_support = C.evaluate request (Ok (document (List.drop_last_exn rows))) in
+  F.require (no_support.exit_code = 3 && String.is_empty no_support.stderr) "valid Exchange created quantity support";
+  let unknown = C.evaluate request (Ok (document (rows @ [ "EXCHANGE\tmissing\ts\td" ]))) in
+  F.require (unknown.exit_code = 1 && String.is_empty unknown.stdout && String.is_substring unknown.stderr ~substring:"unknown Event") "whole unknown claim ignored before query";
+  let duplicate = C.evaluate request (Ok (document (rows @ [ "EXCHANGE\t e \t source \tdestination" ]))) in
+  F.require (duplicate.exit_code = 1 && String.is_empty duplicate.stdout && String.is_substring duplicate.stderr ~substring:"duplicate Exchange" &&
+    String.is_substring duplicate.stderr ~substring:"at 2 (first 1)") "identical claim deduplicated";
+  let corrected = C.evaluate request (Ok (document (rows @ [ "EVENT\tx\t2026-10-03"; "END-EVENT"; "CORRECTION\t e \tx" ]))) in
+  F.require (corrected.exit_code = 1 && String.is_empty corrected.stdout && String.is_substring corrected.stderr ~substring:"participates in correction") "Exchange correction silently projected keys";
+  let missing = C.evaluate request (Ok (document [ "EXCHANGE\te\ts\td"; "EVENT\te\t2026-10-03";
+    "EFFECT\twallet\tjpy\t-1"; "KEYED-EFFECT\td\twallet\tusd\t1"; "END-EVENT" ])) in
+  F.require (missing.exit_code = 1 && String.is_empty missing.stdout && String.is_substring missing.stderr ~substring:"missing source Effect key") "anonymous Effect promoted to selected key";
+  List.iter [ [ "EXCHANGE\te" ]; [ "EXCHANGE\te\ts" ]; [ "EXCHANGE\te\t\td" ]; [ "EXCHANGE\te\ts\td\textra" ];
+    [ "EVENT\te\t2026-10-03"; "EXCHANGE\te\ts\td"; "END-EVENT" ];
+    [ "GROUP"; "EXCHANGE\te\ts\td"; "END-GROUP" ]; [ "PRESENCE"; "EXCHANGE\te\ts\td"; "END-PRESENCE" ] ] ~f:(fun malformed ->
+      match Input.decode (document malformed), C.evaluate request (Ok (document malformed)) with
+      | Error (Syntax _), response -> F.require (response.exit_code = 2 && String.is_empty response.stdout) "syntax stream/code"
+      | _ -> failwith "malformed/misplaced Exchange disappeared");
+  Stdlib.Printf.printf "forward exact selected-key Exchange; explicit per-Measure exemption; global admission 1 vs syntax 2/unsupported 3\n";
+  [%expect {| forward exact selected-key Exchange; explicit per-Measure exemption; global admission 1 vs syntax 2/unsupported 3 |}]
+;;
+
 let%expect_test "malformed/truncated/misplaced rows and obsolete formats never become partial success" =
   let invalid = [ ""; "LOAM-NORMALIZED-ACTUAL\t1\nEND\n"; "LOAM-OCAML-ACTUAL-FIXTURE\t1\nEND\n";
     document [ "SCHEDULED\ta" ]; document [ "PURPOSE\ta\tmetadata" ];
@@ -353,6 +394,12 @@ let%expect_test "read failures and cycle identities are escaped; help/syntax req
     Unknown_event { root = F.id "root\027\n"; position = 1 }; Not_root { root = F.id "root\027\n"; position = 1 } ] ~f:(fun error ->
       let rendered = Loam_presentation.Current_quantity_text.source_refusal (S.Original_amounts error) in
       F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped amount roots");
+  let module E = Loam_application.Exchange_evidence in
+  List.iter [ E.Correction_mentions_event { event = F.id "event\027\n"; position = 1 };
+    Missing_effect { event = F.id "event\027\n"; side = Source; key = F.identifier D.Identifier.Effect_key.of_string "key\027\n"; position = 1 };
+    Third_measure { event = F.id "event\027\n"; effect_position = 3; measure = F.identifier D.Identifier.Measure.of_string "unit\027\n"; position = 1 } ] ~f:(fun error ->
+      let rendered = Loam_presentation.Current_quantity_text.source_refusal (S.Exchanges error) in
+      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped Exchange key/Measure/Event diagnostics");
   let module V = Loam_application.Actual_validity in
   let date_id = F.identifier D.Identifier.Validity_revision.of_string "revision\027\n" in
   List.iter [ V.Cycle { path = [ Revision_ref date_id; Revision_ref date_id ] };
