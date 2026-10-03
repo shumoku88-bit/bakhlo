@@ -25,7 +25,8 @@ There is no canonical storage, clock, mutable business state or generic service 
 | Actual validity | Tagged base/revision ISO history, closed disjoint same-Event date corrections; retain all facts/edges, exactly one current date per retained Event; no date/list winners |
 | Event descriptions | Optional unique retained Event reference + exact recognizer text; no classification, completeness or inheritance |
 | Event merchants | Optional unique retained Event disposition: Merchant(role-free external identity) / Nonmerchant; absence unresolved, no registry/inference/inheritance |
-| Actual source | Ordinary Actual subset: every retained Effect nonzero, each Measure independently balanced; date history, Event corrections, whole descriptions then Merchant admission |
+| Original amounts | Unique positive root fact + explicit Measure; same-frontier current terminal association, raw fact unchanged; no FX/balance/support meaning |
+| Actual source | Ordinary Actual subset: every retained Effect nonzero, each Measure independently balanced; date history, Event corrections, descriptions, Merchants then root original amounts |
 | Current quantity query | One source; origin, opening (unique coordinate/current Event/matching Effect), assertions and presence, globally separated; Exact / Known_present / unsupported |
 
 Public `.mli` files own exact inputs, diagnostics and ordering. Indexes are disposable
@@ -92,9 +93,22 @@ None (unresolved), Some Nonmerchant and Some Merchant(party). Shared party IDs a
 Events are allowed; identity itself is role-free, exact and nonempty, without a registry,
 display-name authority or aliases. The concrete Event_merchants boundary stays separate
 from descriptions; similar association mechanics do not make their meanings interchangeable.
-Whole Merchant admission follows descriptions and precedes any support/query; even an
+Whole Merchant admission follows descriptions and precedes original amounts/support/query; even an
 unrelated bad row refuses. Top-level MERCHANT event party / NONMERCHANT event are the only
 new rows, with forward references and no inferred defaults/correction inheritance.
+
+Original amounts are independent presented/charged observations, one positive Quantity
+per stable correction root in an explicit Measure. The Measure need not occur in Effects
+or differ from their Measures; no exchange rate, balance contribution or basis is inferred.
+Original_amounts reuses the already qualified frontier's root/terminal associations.
+Its abstract current rows retain the original root fact and exact terminal Event; indexed
+terminal-ID lookup returns None when absent/noncurrent, not zero. Declaration order is
+preserved, without chronology/priority. Fresh tails require explicit requalification and
+change only the derived association; arbitrary prefixes/omissions can invalidate subjects.
+Unlike text/Merchant inheritance, this root-to-terminal projection is the declared meaning.
+Raw facts/order/frontier remain inspectable. Whole amount admission follows prior source
+gates/Merchants; top-level ORIGINAL-AMOUNT root measure signed-decimal shares existing
+lexing, while duplicates/positivity/retained/root membership are source admission.
 
 The current source is NOT full normalized Actual: other structured metadata, Exchange/Reversal
 and relations/settlement remain unqualified. Date evidence is not proof of occurrence
@@ -108,6 +122,7 @@ conflicting payloads, uncertain outcomes, atomic visibility versus durability, d
 backup/restore and migration. Then select storage and transition/fault instruments.
 Do not infer these from a structurally valid preview or ordinary Movement retry behavior.
 
-UI is not implemented; future clients consume semantic answers rather than recomputing
-meaning. TUI/GUI/Web toolkit, remote protocol and compatibility need actual consumers and
+UI is not implemented; CLI is the development/read entrance, not a TUI-first commitment.
+Future clients consume semantic answers rather than recomputing meaning. First usable UI
+is undecided; TUI/GUI/Web toolkit, remote protocol and compatibility need actual consumers and
 approval. No speculative load/navigation state, cache or framework belongs in the engine.

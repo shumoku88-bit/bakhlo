@@ -91,7 +91,19 @@ let source_refusal error =
          Printf.sprintf "duplicate Merchant disposition for %S at %d (first %d)"
            (id event) position first_position
        | Unknown_merchant_event { event; position } ->
-         Printf.sprintf "Merchant disposition %d: unknown Event %S" position (id event)) in
+         Printf.sprintf "Merchant disposition %d: unknown Event %S" position (id event))
+    | Original_amounts error ->
+      (match error with
+       | A.Original_amounts.Repeated_root { root; first_position; position } ->
+         Printf.sprintf "duplicate original amount for root %S at %d (first %d)"
+           (id root) position first_position
+       | Nonpositive_quantity { root; quantity = amount; position } ->
+         Printf.sprintf "original amount %d for %S: nonpositive quantity %s"
+           position (id root) (quantity amount)
+       | Unknown_event { root; position } ->
+         Printf.sprintf "original amount %d: unknown Event %S" position (id root)
+       | Not_root { root; position } ->
+         Printf.sprintf "original amount %d: Event %S is not a correction root" position (id root)) in
   "Actual source refused: " ^ detail ^ ".\n"
 
 let answer answer =

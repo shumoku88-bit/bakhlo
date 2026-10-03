@@ -194,6 +194,39 @@ Merchant dispositions are explicit retained evidence, never default classificati
   [3]
   $ test ! -s err && grep -q 'quantity unknown' out
 
+Original amounts address stable roots, not balances or current-terminal subjects.
+
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nORIGINAL-AMOUNT\ta\t eur \t+100\nEVENT\ta\t2026-10-03\nEND-EVENT\nEVENT\tb\t2026-10-02\nEND-EVENT\nCORRECTION\ta\tb\nZERO-ORIGIN\twallet\tjpy\nEND\n' >original-amount
+  $ cp original-amount original-amount-before
+  $ loam-ocaml inspect-current-fixture original-amount wallet jpy
+  Conditional current fixture quantity (ordinary Actual subset).
+  "wallet" / "jpy": zero-origin; quantity=0
+  $ cmp original-amount original-amount-before
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEND-EVENT\nORIGINAL-AMOUNT\te\tusd\t1\nORIGINAL-AMOUNT\te\tusd\t1\nEND\n' >duplicate-amount
+  $ loam-ocaml inspect-current-fixture duplicate-amount unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'duplicate original amount for root "e" at 2 (first 1)' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEND-EVENT\nORIGINAL-AMOUNT\te\tusd\t0\nEND\n' >zero-amount
+  $ loam-ocaml inspect-current-fixture zero-amount unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'nonpositive quantity 0' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nORIGINAL-AMOUNT\tunknown\tusd\t1\nEND\n' >unknown-amount
+  $ loam-ocaml inspect-current-fixture unknown-amount unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'original amount 1: unknown Event "unknown"' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\ta\t2026-10-03\nEND-EVENT\nEVENT\tb\t2026-10-02\nEND-EVENT\nCORRECTION\ta\tb\nORIGINAL-AMOUNT\tb\tusd\t1\nEND\n' >nonroot-amount
+  $ loam-ocaml inspect-current-fixture nonroot-amount unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Event "b" is not a correction root' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nORIGINAL-AMOUNT\te\tusd\t1.0\nEND\n' >malformed-amount
+  $ loam-ocaml inspect-current-fixture malformed-amount wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'expected signed decimal integer' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEND-EVENT\nORIGINAL-AMOUNT\te\tjpy\t1\nEND\n' >amount-only
+  $ loam-ocaml inspect-current-fixture amount-only wallet jpy >out 2>err
+  [3]
+  $ test ! -s err && grep -q 'quantity unknown' out
+
 Malformed/obsolete inputs and invalid premises refuse globally, never an empty basis.
 
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t1\nEND\n' >obsolete

@@ -8,4 +8,5 @@ module Current_quantity_query = Current_quantity_query
 module Event_descriptions = Event_descriptions
 module Event_merchants = Event_merchants
 module Movement_check = Movement_check
+module Original_amounts = Original_amounts
 module Reflected_root_cut = Reflected_root_cut

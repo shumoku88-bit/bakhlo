@@ -24,6 +24,7 @@ DESCRIPTION	b	Corrected observation; not a Merchant or Purpose classification
 MERCHANT	a	provider-original
 MERCHANT	b	provider-corrected
 NONMERCHANT	x
+ORIGINAL-AMOUNT	a	eur	100
 CORRECTION	a	b
 ZERO-ORIGIN	food	jpy
 ZERO-ORIGIN	quiet	jpy

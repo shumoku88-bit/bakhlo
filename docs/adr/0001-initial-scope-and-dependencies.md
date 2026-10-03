@@ -7,9 +7,10 @@ Status: ACCEPTED by the user's explicit approval on 2026-10-02.
 - Single user, local operation initially.
 - macOS and Linux are target platforms; specific compiler/OS support versions
   still need qualification.
-- Start with a CLI to exercise the engine; first practical UI is TUI.
-- GUI/Web are deferred until needed. Preserve presentation-neutral boundaries,
-  but do not implement a speculative second UI now.
+- Start with a CLI to exercise the engine. The prior TUI-first expectation was
+  revised by the user's later clarification: first practical TUI/GUI is undecided.
+  Compare concrete needs/candidates before selection; preserve presentation-neutral
+  boundaries without implementing speculative UI/toolkits now.
 - Public network access, multiple concurrent users, and synchronization are out
   of initial scope. Single-user use does not eliminate process races or retries.
 - Develop against synthetic data only. Existing LOAM remains the operational

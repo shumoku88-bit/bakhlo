@@ -9,12 +9,14 @@ type command =
   ; corrections : D.Event_correction.t list
   ; descriptions : Event_descriptions.fact list
   ; merchants : Event_merchants.fact list
+  ; original_amounts : Original_amounts.fact list
   }
 type t =
   { frontier : Correction_frontier.t
   ; validity : Actual_validity.t
   ; descriptions : Event_descriptions.t
   ; merchants : Event_merchants.t
+  ; original_amounts : Original_amounts.t
   }
 type error =
   | Events of D.Event_memory.error
@@ -25,6 +27,7 @@ type error =
   | Corrections of Correction_frontier.error
   | Descriptions of Event_descriptions.error
   | Merchants of Event_merchants.error
+  | Original_amounts of Original_amounts.error
 
 let check_event event_position original =
   let changes = D.Event.effects original in
@@ -46,7 +49,14 @@ let check_event event_position original =
 ;;
 
 let create
-    ({ events = originals; validities; validity_corrections; corrections; descriptions; merchants } : command)
+    ({ events = originals
+     ; validities
+     ; validity_corrections
+     ; corrections
+     ; descriptions
+     ; merchants
+     ; original_amounts
+     } : command)
   =
   let ( let* ) result f = Result.bind result ~f in
   let* events = Result.map_error (D.Event_memory.of_events originals) ~f:(fun error -> Events error) in
@@ -69,9 +79,14 @@ let create
     Result.map_error (Event_merchants.create ~events ~facts:merchants)
       ~f:(fun error -> Merchants error)
   in
-  Ok { frontier; validity; descriptions; merchants }
+  let* original_amounts =
+    Result.map_error (Original_amounts.create ~frontier ~facts:original_amounts)
+      ~f:(fun error -> Original_amounts error)
+  in
+  Ok { frontier; validity; descriptions; merchants; original_amounts }
 ;;
 let frontier t = t.frontier
 let validity t = t.validity
 let descriptions t = t.descriptions
 let merchants t = t.merchants
+let original_amounts t = t.original_amounts

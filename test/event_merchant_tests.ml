@@ -106,6 +106,7 @@ let%expect_test "Merchant source connection preserves four supports, history and
     ; validity_corrections = []; corrections = [ F.edge "a" "b" ]
     ; descriptions = [ { event = F.id "b"; text = "merchant inferred?" }; { event = F.id "a"; text = "nonmerchant" } ]
     ; merchants = facts
+    ; original_amounts = []
     } in
   let source = ok (S.create command) in
   let image source = ok (Q.create ~source ~zero_origins:[ offset ]
@@ -164,7 +165,7 @@ let%expect_test "Merchant source connection preserves four supports, history and
    | Error (Descriptions _) -> () | _ -> failwith "Merchant bypassed prior descriptions gate");
   let unbalanced = F.observation ~id:(F.id "bad") ~effects:[ F.change wallet Z.one ] in
   (match S.create { events = [ unbalanced ]; validities = [ F.base_validity (F.id "bad") "2026-10-03" ];
-    validity_corrections = []; corrections = []; descriptions = []; merchants = [ fact "bad" (Merchant (party "p")) ] } with
+    validity_corrections = []; corrections = []; descriptions = []; merchants = [ fact "bad" (Merchant (party "p")) ]; original_amounts = [] } with
    | Error (Unbalanced_measure { event; event_position = 1; measure; residual }) ->
      F.require (D.Identifier.Event.equal event (F.id "bad") && D.Identifier.Measure.equal measure wallet.measure &&
        D.Quantity.equal residual (D.Quantity.of_quanta Z.one)) "physical refusal witness"

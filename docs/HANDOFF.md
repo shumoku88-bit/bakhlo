@@ -1,49 +1,54 @@
 # Handoff
 
-## Current qualified boundary — independent Event Merchant dispositions
+## Current qualified boundary — stable-root original amounts
 
-Pre-code question: can the ordinary Actual source retain an explicitly supplied commercial-provider
-identity or explicit nonmerchant classification without turning absence, description,
-Effects, payment destinations or Event corrections into classification/support?
-D: existing source/reader admits unique descriptions but rejects all structured metadata;
-nearest owners at sibling 2438ef50a363ef06491da7b62f8537f52e25031a are Core ExternalParty,
-EventMerchantEvidence, ActualEvidence and NormalizedActualAdmission (narrow read only).
-P: exact role-distinct IDs, retained source/frontiers/date history, optional descriptions,
-four-support separation and existing independent arithmetic/touch oracles (VERIFICATION).
-R: optional three-way lookup, whole-source duplicate/reference admission and source/reader
-connection. No upstream source copying/build/proof or household-data access.
+Pre-code question: retain one independently presented/charged positive amount per correction root
+and expose its current terminal association without rewriting facts, inferring amounts,
+converting Measures, changing Event balance or creating quantity/presence support?
+D: existing ordinary source/reader lacks original amounts; nearest read-only owners at
+2438ef50a363ef06491da7b62f8537f52e25031a are Core OriginalAmountEvidence, Application
+OriginalAmountFrontier and Persistence NormalizedActualAdmission. MovementOperationEvidence
+consulted as an alternative, deferred until an actual operation/retry consumer exists.
+P: exact signed Quantity/Measure, qualified disjoint root/terminal lineages and immutable
+source, date/description/Merchant evidence, four supports and independent graph/Effect
+oracles (VERIFICATION). R: positive unique root admission and source-bound current lookup.
 
-Select one opaque nonempty External_party identity (role-free, exact bytes; no registry,
-name/alias/lifecycle) and concrete Event_merchants memory: fact = Event + Merchant(party)
-or Nonmerchant; absent = unresolved None. Unique per retained Event, even identical rows;
-per-declaration duplicate then retained-reference check, deterministic first error/positions.
-This local diagnostic order differs from upstream's separate uniqueness/closure gates;
-accepted shapes match the narrow scope except the declared nonempty practical identity rule.
-Raw facts/order/source survive, including superseded Events; no inheritance/completeness.
-After prior source gates and descriptions, admit all merchants before any support/query.
-Extend the same v2 reader with top-level MERCHANT event party / NONMERCHANT event, forward
-references allowed; malformed/misplaced/unsupported remaining facts still refuse.
+Select concrete Original_amounts: raw fact = root + explicit Measure + Quantity;
+qualified against ONE frontier. Per declaration: duplicate root, nonpositive quantity,
+retained Event membership, root membership. First failure, original one-based positions;
+even identical rows conflict. Empty/partial evidence valid; missing is None, not zero.
+Local gate ordering differs from upstream separate uniqueness/positivity/root gates.
+No requirement that the Measure appear in Effects or be different; no FX/basis/rate meaning.
+Keep original facts/order/frontier and abstract current rows carrying both the retained fact
+and exact terminal Event. Lookup by current terminal ID; source tails require explicit
+requalification, preserve root facts and change only derived association. Prefix insertion/
+omission can invalidate subjects. Do not treat this as description/Merchant inheritance.
+Whole source admits originals after prior gates/Merchants, before any support/query.
+Same v2 reader: top-level ORIGINAL-AMOUNT root measure signed-decimal, forward references;
+lexical grammar unchanged, positivity/root closure are semantic admission, not syntax.
 
-Use an original-token-prefix oracle over 512 three-slot omission/a-party-p/a-party-q/
-a-nonmerchant/b-party-p/b-nonmerchant/unknown-party/unknown-nonmerchant cases (52 admitted
-by independent pre-code enumeration), exact/control/shared-party specimens, conflict order,
-retention/permutation/tail/prefix/immutability and four-support noninterference using earned
-source arithmetic/touch oracles. Add decoder, real CLI read-only/exit/stream and public-client
-role/forgery/exhaustiveness controls. No new random campaign/formal law/framework: association
-has no new graph, arithmetic, temporal or publication transition. Explicit guards suffice;
-revisit richer party roles, disposition histories/report routing or write/publication contracts.
+Reuse earned integer Warshall model: all 512 three-node simple relations, their 13 admitted
+path relations x 64 omission/negative/zero/positive root facts = 832 cases, 44 admitted.
+Check declaration retention, independent current associations and lookup; separate duplicate/
+unknown/guard-order/control/huge cases and replay/permutation/tail/prefix/immutability.
+Reuse original-Effect sum/touch oracles for four-support noninterference; real decoder/CLI
+stream/exit/read-only and public-client forgery/source-role boundaries. No fresh graph model,
+random campaign/formal law/framework: existing path semantics is reused. Explicit guards
+suffice. Revisit amount corrections, valuation/FX, report routing or publication contracts.
 
-Acceptance: None / Some Nonmerchant / Some Merchant remain distinct; global whole-source
-failure precedes unrelated query; dates/text/keys/quantities/support meanings unchanged.
-Full normal/package/install, clean native engine-only and Lean-free checks; existing models,
-laws/campaigns/counterexamples retained. No new dependency, canonical storage, UI,
-registry/report, migration, license/publication or push.
+Acceptance: raw root identity/value/Measure survives, current association follows only
+qualified edges, unknown never scalar zero, invalid unrelated facts refuse globally;
+all physical/support/date/metadata meanings unchanged. Full normal/package/install,
+clean native engine-only and Lean-free checks; existing models/laws/campaigns retained,
+tooling/lock/formal code unchanged. Synthetic inputs only; no new dependency, registry/report,
+storage/writes, migration, UI, license/publication or push.
 
-Executed: finite admission/lookup and source/decoder/CLI/type controls passed. Normal,
-forced package, install, clean native engine-only and Lean-free checks passed on macOS
-x86_64. Existing models/laws/campaigns retained; tooling/lock/formal code unchanged.
-No upstream build/proof, optional-law rerun, fresh-switch or new-platform claim. Bounds
-and correspondence limits belong to VERIFICATION/REFERENCES, not a full-admission claim.
+Executed: 832 finite amount cases and targeted source/decoder/CLI/type controls passed.
+Normal, forced package, install, clean native engine-only and Lean-free checks passed on
+macOS x86_64. No existing model/law/campaign/counterexample removed. No upstream build/proof,
+optional-law rerun, fresh-switch or new-platform claim; bounds/gaps belong to VERIFICATION
+and REFERENCES. The first-UI policy was reconciled in README/initial scope ADR; no toolkit
+selection or Jane Street product comparison was performed.
 
 ## Next bounded work
 
@@ -51,11 +56,14 @@ Select one remaining Actual consumer, not upstream files as an automatic backlog
 reports/full normalized Actual and external truth remain unqualified. Before storage/writes,
 decide ownership/admission/publication, identity/retry/conflict, uncertain outcomes, atomicity/
 durability, diagnostics and backup/restore/migration; select fault/transition instruments then.
+The CLI is the development/read entrance; first usable TUI/GUI is undecided. Compare actual
+needs and Jane Street/other candidates later, without adopting a stack by affiliation.
 Licensing/public review and operational cutover require separate decisions.
 
 ## Safety/state
 
-Synthetic inputs only; existing LOAM remains household authority. Use live Git for state.
-Local commits authorized, no push. Last remote observation: private main at 8974041
-(2026-10-03), not current equality. Only macOS x86_64 qualified; no new platform/fresh-switch
-claim. Never commit environments, generated output, scratch, credentials or private logs.
+Existing LOAM remains sole household authority. No sibling modification/build/proof/source
+copying or household-data access. Use live Git for state; local commits authorized, no push.
+Last remote observation: private main at 8974041 (2026-10-03), not current equality.
+Only macOS x86_64 qualified; no new platform/fresh-switch claim. Never commit environments,
+generated output, scratch, credentials or private logs.

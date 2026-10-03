@@ -36,7 +36,8 @@ empty image. See [grammar](cli/current_fixture_input.mli) and
 
 ## Retained scope
 
-- Local single user; CLI first, eventual TUI. No current UI/network/synchronization.
+- Local single user; CLI is the development/read entrance. First usable TUI/GUI
+  remains undecided; no current UI/network/synchronization.
 - Immutable functional engine; process/file I/O only at explicit edges.
 - Runtime Base + Zarith; tests ppx_expect + Base_quickcheck. No speculative framework.
 - General Events remain broader than ordinary Movements. Current source admission
@@ -50,6 +51,9 @@ empty image. See [grammar](cli/current_fixture_input.mli) and
   Independent Event Merchant dispositions distinguish unresolved absence, explicit
   nonmerchant and an exact role-free external party ID; no registry/payment-role inference
   or automatic correction inheritance.
+  Optional original presented/charged amounts retain one positive Quantity and explicit
+  Measure per stable correction root; current terminal association is derived without
+  rewriting the fact, adding Effects, exchange rates or quantity/presence support.
 - Exact assertion groups retain independent reflected-root cuts. Origin is explicit,
   not inferred from activity. Opening explicitly names a current Event containing the
   coordinate; it is not a second scalar or implicit origin. Presence retains one shared

@@ -67,6 +67,7 @@ let decode text =
                     ; corrections = List.rev draft.source.corrections
                     ; descriptions = List.rev draft.source.descriptions
                     ; merchants = List.rev draft.source.merchants
+                    ; original_amounts = List.rev draft.source.original_amounts
                     ; validity_corrections = List.rev draft.source.validity_corrections
                     }
                 ; groups = List.rev draft.groups
@@ -135,6 +136,13 @@ let decode text =
             let fact : M.fact = { event; disposition = Nonmerchant } in
             let source = { draft.source with merchants = fact :: draft.source.merchants } in
             scan (line + 1) Between { draft with source } rest
+          | Between, [ "ORIGINAL-AMOUNT"; token; measure; text ] ->
+            let* root = identity line D.Identifier.Event.of_string token in
+            let* measure = identity line D.Identifier.Measure.of_string measure in
+            let* quantity = quantity line text in
+            let fact : Loam_application.Original_amounts.fact = { root; measure; quantity } in
+            let source = { draft.source with original_amounts = fact :: draft.source.original_amounts } in
+            scan (line + 1) Between { draft with source } rest
           | Between, [ "ZERO-ORIGIN"; locus; measure ] ->
             let* c = coordinate line locus measure in
             scan (line + 1) Between { draft with zero_origins = c :: draft.zero_origins } rest
@@ -177,6 +185,7 @@ let decode text =
             ; corrections = []
             ; descriptions = []
             ; merchants = []
+            ; original_amounts = []
             }
         ; groups = []
         ; zero_origins = []

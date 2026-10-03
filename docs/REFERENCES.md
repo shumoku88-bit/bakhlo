@@ -36,6 +36,12 @@ Public source identified by its README: https://github.com/shumoku88-bit/loam
   Role-free external identity, optional Event-scoped provider/nonmerchant evidence,
   unique retained Event references; no source copying/build/proof rerun.
 
+- Original-amount review at the same `2438ef50a363ef06491da7b62f8537f52e25031a`:
+  Core OriginalAmountEvidence, Application OriginalAmountFrontier and Persistence
+  NormalizedActualAdmission; positive unique stable-root facts and current terminal
+  projection without rewriting. Core MovementOperationEvidence read as a deferred
+  alternative; no write/retry consumer or publication qualification follows.
+
 These are narrow comparisons, not whole-checkout equivalence, proof reruns or a
 frozen upstream protocol. Check live revision before using a changed owner.
 
@@ -52,6 +58,7 @@ actually qualified OCaml behavior; do not turn this map into a whole-feature bac
 | Event beyond Movement | `Loam/Core/Effect.lean`, `Event.lean` | Optional exact keys/within-Event uniqueness and general neutral Effects; other structured classifications/overlays NOT yet qualified |
 | Event recognizer text | `Loam/Core/EventDescription.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Optional unique exact retained-ID/text facts; no classification or inheritance. Combined per-declaration duplicate/reference gate differs from upstream's separate gates; accepted shape matches this narrow scope |
 | Event Merchant disposition | `Loam/Core/ExternalParty.lean`, `EventMerchantEvidence.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Exact role-free nonempty party ID; optional provider/nonmerchant facts against retained Events, absence unresolved, no inference/inheritance. Combined per-declaration duplicate/reference gate differs from upstream separate gates; practical nonempty identities are narrower than unrestricted upstream raw tokens. No registry, provider truth/coverage or report routing |
+| Original presented/charged amount | `Loam/Core/OriginalAmountEvidence.lean`, `Loam/Application/OriginalAmountFrontier.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Optional unique positive root/Measure/Quantity facts and same-frontier current associations; original root fact/order retained, absent stays None. Practical duplicate/positive/retained/root per-row gate differs from upstream separate gates; no valuation/FX/basis, report routing, amount truth/coverage or publication |
 | Retained identity and correction | `Loam/Core/EventMemory.lean`, `EventCorrection.lean`, `Loam/Application/CorrectionFrontierSemantics.lean`, `CorrectionFrontierIndexed.lean` | Conditional disjoint paths, roots/cuts qualified; not full normalized authority |
 | Independent Actual occurrence | `Loam/Core/ActualValidityHistory.lean`, `Loam/Application/ActualValidityFrontier.lean`, `Loam/ActualDate.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Retained ISO history, tagged refs, same-Event paths, unique/complete current facts (revision-only allowed). Practical declaration-order diagnostic gate, not raw Core history or full normalized admission; other structured metadata/exceptional families remain unqualified |
 | Independent origin | `Loam/Core/ZeroOriginCoverage.lean`, `Loam/Review/BalanceReview.lean` | Explicit current origin gate; no activity-derived origin/history completeness |

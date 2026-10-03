@@ -377,7 +377,7 @@ The physically admitted ordinary Actual source has a public smart constructor.
 
   $ cat >actual_source_client.ml <<'EOF'
   > module S = Loam_application.Actual_source
-  > let empty () = S.create { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = []; merchants = [] }
+  > let empty () = S.create { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = []; merchants = []; original_amounts = [] }
   > let facts source = Loam_application.Actual_validity.facts (S.validity source)
   > let descriptions source = Loam_application.Event_descriptions.facts (S.descriptions source)
   > EOF
@@ -438,6 +438,51 @@ Retained date history has tagged references and a distinct revision identity, no
   $ application_client private_cycle.ml 2>error
   [2]
   $ grep -q 'Unbound module.*Replacement_cycle' error
+
+Original amounts require a qualified frontier; current associations are not current quantity answers.
+
+  $ cat >original_amount_client.ml <<'EOF'
+  > module D = Loam_domain
+  > module A = Loam_application.Original_amounts
+  > module S = Loam_application.Actual_source
+  > let admit frontier root measure quantity = A.create ~frontier ~facts:[ { root; measure; quantity } ]
+  > let retained source = A.source_frontier (S.original_amounts source), A.facts (S.original_amounts source)
+  > let rows source = A.currents (S.original_amounts source)
+  > let provenance current = (A.retained_fact current).root, D.Event.id (A.terminal_event current)
+  > let lookup amounts id = A.find_current amounts id
+  > EOF
+  $ application_client original_amount_client.ml
+  $ cat >memory_is_not_amount_frontier.ml <<'EOF'
+  > module D = Loam_domain
+  > module A = Loam_application.Original_amounts
+  > let wrong (memory : D.Event_memory.t) = A.create ~frontier:memory ~facts:[]
+  > EOF
+  $ application_client memory_is_not_amount_frontier.ml 2>error
+  [2]
+  $ grep -q 'Correction_frontier.t' error
+  $ cat >forged_original_amounts.ml <<'EOF'
+  > module A = Loam_application.Original_amounts
+  > let wrong (facts : A.fact list) : A.t = facts
+  > EOF
+  $ application_client forged_original_amounts.ml 2>error
+  [2]
+  $ grep -q 'A.t' error
+  $ cat >forged_current_amount.ml <<'EOF'
+  > module D = Loam_domain
+  > module A = Loam_application.Original_amounts
+  > let wrong (fact : A.fact) (event : D.Event.t) : A.current = { retained_fact = fact; terminal_event = event }
+  > EOF
+  $ application_client forged_current_amount.ml 2>error
+  [2]
+  $ grep -q 'Unbound record field "retained_fact"' error
+  $ cat >original_is_not_current_quantity.ml <<'EOF'
+  > module A = Loam_application.Original_amounts
+  > module Q = Loam_application.Current_quantity_query
+  > let wrong (amount : A.current) = Q.quantity amount
+  > EOF
+  $ application_client original_is_not_current_quantity.ml 2>error
+  [2]
+  $ grep -q 'Q.exact' error
 
 Role-free external party identity cannot be confused with Event/Locus; dispositions are qualified.
 

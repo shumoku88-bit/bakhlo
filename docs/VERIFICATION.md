@@ -51,6 +51,7 @@ counters; shared construction helpers are in `fixtures.ml`, never another test-c
 | Group ownership/re-observation | Independent two-coordinate/two-group list model: 256 construction and 2,304 update/replay seams; preserve whole premises, ordered refusals and old values; not durable retry |
 | Event descriptions | 64 three-slot omission/a/b/unknown patterns (13 admitted) against original-token-prefix oracle; exact/empty/control text, retained source/order, permutation, correction-tail noninheritance, prefix requalification and four-support noninterference. Combined declaration-order duplicate/reference gate, not upstream refusal-order parity or text truth |
 | Event merchants | 512 three-slot omission/provider-p/provider-q/nonmerchant/retained/unknown-Event combinations (52 admitted), original-token-prefix oracle and independent pre-code enumeration; exact/control/shared party IDs, general neutral Events, source/order retention, permutation, date/text/key/four-support independence with earned original-Effect arithmetic/touch oracles, correction-tail noninheritance, prefix requalification and immutable old source; not provider truth/coverage, a party registry or report routing |
+| Original amounts | Earned integer Warshall pairs: 13 admitted three-node relations x 64 omission/negative/zero/positive declarations = 832 cases (44 admitted), independent pre-code enumeration and current lookup/order correspondence. Separate duplicates/unknown/guard-order/huge/control/Measure specimens, retained source, replay/permutation, fresh-tail projection and prefix/omission requalification; earned original-Effect arithmetic/touch oracles for four-support noninterference. Not amount truth/completeness, FX/basis or publication |
 | Date history | Independent integer extension of earned Warshall model; 16,384 four-fact subsets/two-revision Event assignments/revision-only replacement relations (36 admitted), model-only counterexamples before product correspondence. Tagged-same-token IDs, revision-only evidence, retained invalid dates, ordered open/cross-Event/branch/merge/cycle/current conflicts, representation/tail/prefix/immutability and 10,000-revision chain/cycle; not arbitrary-size proof or temporal truth |
 | Actual source / support routing | 625 two-Measure physical predicates; 16,384 two-coordinate/four-family seams (1,600 admitted), independent two group cuts/shared presence cut and original-list/Effect oracle; ordinary-source base-date inputs in that table; date-history/four-support noninterference tested separately |
 | Explicit opening | Current/coordinate/duplicate closure, same Event for distinct coordinates, supported zero/huge signed multiplicity, representation/date permutation and stale-tail rebuild; retain original source/premises, no auto-retarget or historical truth |
@@ -76,7 +77,12 @@ decoder/real CLI check exact forward references, equal/contradictory duplicates 
 Events (admission 1), malformed/misplaced/empty-party syntax 2, unknown quantity 3 without
 support, escaped Event diagnostics and unchanged files. The combined per-declaration
 duplicate/reference gate and nonempty practical party identity are declared upstream gaps,
-not full raw-Core shape/refusal-order parity. Description clients reject
+not full raw-Core shape/refusal-order parity. Original-amount clients reject unqualified
+Event memory, forged amount memories/current associations and original-to-current-quantity
+conversion. Decoder/real CLI test exact forward roots/Measures/huge values, semantic
+nonpositive/duplicate/unknown/non-root admission 1 vs malformed/misplaced syntax 2,
+unsupported quantity 3, escaped root diagnostics and unchanged files. Practical per-row
+ordering is not upstream separate-gate diagnostic parity. Description clients reject
 Effect-key/Event role confusion and unqualified lists; parser/real CLI exercise literal/empty
 forward-reference text, duplicate/unknown admission 1 vs malformed/unsupported syntax 2,
 no inferred support, escaped IDs and unchanged files. Date clients reject Event/revision

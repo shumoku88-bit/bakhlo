@@ -11,7 +11,9 @@
     references allowed, one literal unescaped text field; empty/spaces valid,
     no tab/newline encoding); top-level MERCHANT event-id external-party-id or
     NONMERCHANT event-id (forward references, exact nonempty identities, no inference;
-    no row means unresolved). ZERO-ORIGIN locus measure; OPENING locus measure
+    no row means unresolved). Top-level ORIGINAL-AMOUNT root measure signed-decimal
+    (forward references; positivity/root membership admitted by source, not parser).
+    ZERO-ORIGIN locus measure; OPENING locus measure
     event-id; GROUP / REFLECT root / ASSERT locus measure signed-decimal / END-GROUP.
     At most one PRESENCE / REFLECT root / PRESENT locus measure / END-PRESENCE block.
     Absence is [None]; even an empty explicit block cannot be repeated/overwritten.

@@ -246,6 +246,50 @@ let%expect_test "Merchant rows retain forward/exact dispositions; closure and co
   [%expect {| exact forward provider/nonmerchant rows; global conflict/closure exit 1 vs syntax 2; no inferred support |}]
 ;;
 
+let%expect_test "original amount rows retain forward roots and exact Measures; positivity and root membership are admission" =
+  let module A = Loam_application.Original_amounts in
+  let huge = Z.shift_left Z.one 190 in
+  let rows = [ "ORIGINAL-AMOUNT\t a \t eur \t+" ^ Z.to_string huge; "ORIGINAL-AMOUNT\tx\tjpy\t1";
+    "EVENT\t a \t2026-10-03"; "END-EVENT"; "EVENT\tb\t2026-10-02"; "END-EVENT";
+    "EVENT\tx\t2026-10-01"; "END-EVENT"; "CORRECTION\t a \tb"; "ZERO-ORIGIN\twallet\tjpy" ] in
+  let decoded = ok (Input.decode (document rows)) in
+  let source = ok (S.create decoded.source) in
+  F.require (List.equal String.equal (List.map decoded.source.original_amounts ~f:(fun fact -> D.Identifier.Event.to_string fact.root))
+    [ " a "; "x" ]) "forward roots/declaration order lost";
+  let amounts = S.original_amounts source in
+  let retained = A.retained_fact (Option.value_exn (A.find_current amounts (F.id "b"))) in
+  F.require (D.Identifier.Event.equal retained.root (F.id " a ") && Z.equal (D.Quantity.quanta retained.quantity) huge &&
+    String.equal (D.Identifier.Measure.to_string retained.measure) " eur " &&
+    Option.is_none (A.find_current amounts (F.id " a "))) "projection rewrote root/value/Measure or leaked superseded lookup";
+  let request : C.request = { path = "synthetic"; coordinate = F.coordinate "wallet" } in
+  let exact = C.evaluate request (Ok (document rows)) in
+  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:"quantity=0")
+    "original amount changed explicit origin";
+  let refusals = [ "ORIGINAL-AMOUNT\t a \t eur \t" ^ Z.to_string huge, "duplicate original amount";
+    "ORIGINAL-AMOUNT\tmissing\tusd\t0", "nonpositive quantity 0";
+    "ORIGINAL-AMOUNT\tmissing\tusd\t-1", "nonpositive quantity -1";
+    "ORIGINAL-AMOUNT\tmissing\tusd\t1", "unknown Event";
+    "ORIGINAL-AMOUNT\tb\tusd\t1", "not a correction root" ] in
+  List.iter refusals ~f:(fun (extra, witness) ->
+    let text = document (rows @ [ extra; "ZERO-ORIGIN\twallet\tjpy" ]) in
+    F.require (Result.is_ok (Input.decode text)) "semantic refusal became syntax";
+    let refused = C.evaluate { request with coordinate = F.coordinate ~unit:"usd" "unrelated" } (Ok text) in
+    F.require (refused.exit_code = 1 && String.is_empty refused.stdout && String.is_substring refused.stderr ~substring:witness)
+      "global source admission/diagnostic order changed");
+  let unsupported = C.evaluate request (Ok (document [ "EVENT\te\t2026-10-03"; "END-EVENT"; "ORIGINAL-AMOUNT\te\tjpy\t1" ])) in
+  F.require (unsupported.exit_code = 3 && String.is_empty unsupported.stderr) "original amount became supported balance";
+  List.iter [ [ "ORIGINAL-AMOUNT\te\tusd" ]; [ "ORIGINAL-AMOUNT\t\tusd\t1" ]; [ "ORIGINAL-AMOUNT\te\t\t1" ];
+    [ "ORIGINAL-AMOUNT\te\tusd\t1.0" ]; [ "ORIGINAL-AMOUNT\te\tusd\t1\textra" ];
+    [ "EVENT\te\t2026-10-03"; "ORIGINAL-AMOUNT\te\tusd\t1"; "END-EVENT" ];
+    [ "GROUP"; "ORIGINAL-AMOUNT\te\tusd\t1"; "END-GROUP" ];
+    [ "PRESENCE"; "ORIGINAL-AMOUNT\te\tusd\t1"; "END-PRESENCE" ] ] ~f:(fun malformed ->
+      match Input.decode (document malformed), C.evaluate request (Ok (document malformed)) with
+      | Error (Syntax _), response -> F.require (response.exit_code = 2 && String.is_empty response.stdout) "syntax streams"
+      | _ -> failwith "malformed/misplaced amount discarded");
+  Stdlib.Printf.printf "exact positive root amounts/current associations; nonpositive/duplicate/nonroot/unknown exit 1 vs syntax 2; no support\n";
+  [%expect {| exact positive root amounts/current associations; nonpositive/duplicate/nonroot/unknown exit 1 vs syntax 2; no support |}]
+;;
+
 let%expect_test "malformed/truncated/misplaced rows and obsolete formats never become partial success" =
   let invalid = [ ""; "LOAM-NORMALIZED-ACTUAL\t1\nEND\n"; "LOAM-OCAML-ACTUAL-FIXTURE\t1\nEND\n";
     document [ "SCHEDULED\ta" ]; document [ "PURPOSE\ta\tmetadata" ];
@@ -303,6 +347,12 @@ let%expect_test "read failures and cycle identities are escaped; help/syntax req
     S.Merchants (Loam_application.Event_merchants.Unknown_merchant_event { event = F.id "event\027\n"; position = 1 }) ] ~f:(fun error ->
       let rendered = Loam_presentation.Current_quantity_text.source_refusal error in
       F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped Merchant references");
+  let module A = Loam_application.Original_amounts in
+  List.iter [ A.Repeated_root { root = F.id "root\027\n"; first_position = 1; position = 2 };
+    Nonpositive_quantity { root = F.id "root\027\n"; quantity = D.Quantity.zero; position = 1 };
+    Unknown_event { root = F.id "root\027\n"; position = 1 }; Not_root { root = F.id "root\027\n"; position = 1 } ] ~f:(fun error ->
+      let rendered = Loam_presentation.Current_quantity_text.source_refusal (S.Original_amounts error) in
+      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped amount roots");
   let module V = Loam_application.Actual_validity in
   let date_id = F.identifier D.Identifier.Validity_revision.of_string "revision\027\n" in
   List.iter [ V.Cycle { path = [ Revision_ref date_id; Revision_ref date_id ] };
