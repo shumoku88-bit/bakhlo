@@ -15,6 +15,9 @@ Public source identified by its README: https://github.com/shumoku88-bit/loam
 - Base validity/admission/support: `dca1aac7`, later `6e8015c3`; the five inspected
   NormalizedActualAdmission, ActualDate, ActualValidity, CurrentBalanceReview and
   CurrentSupportRouting owners were unchanged across those last two observations.
+- Opening/presence review: `5dd27f435219c21424f915f8a045c4c1b711528d`; Core OpeningSupport,
+  Application CurrentQuantityPresence/CurrentSupportRouting and Review CurrentBalanceReview
+  unchanged from `6e8015c3`. Unrelated sibling TUI work is outside this comparison.
 
 These are narrow comparisons, not whole-checkout equivalence, proof reruns or a
 frozen upstream protocol. Check live revision before using a changed owner.
@@ -34,7 +37,7 @@ actually qualified OCaml behavior; do not turn this map into a whole-feature bac
 | Independent Actual occurrence | `Loam/Core/ActualValidity.lean`, `ActualEvidence.lean`, `Loam/ActualDate.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Ordinary anonymous/base-validity subset only; revisions, metadata, Exchange/Reversal, relations/settlement remain unsupported |
 | Independent origin | `Loam/Core/ZeroOriginCoverage.lean`, `Loam/Review/BalanceReview.lean` | Explicit current origin gate; no activity-derived origin/history completeness |
 | Exact current assertions and stable cuts | `Loam/Application/CurrentQuantityAnchor.lean` | Independent cuts, exclusive ownership, explicit re-observation; not timestamp-plus-later-Movements or durable history |
-| Four support families | `Loam/Review/CurrentBalanceReview.lean`, `Loam/Application/CurrentSupportRouting.lean`, `CurrentQuantityPresence.lean`, `Loam/Core/OpeningSupport.lean` | Only origin/exact assertion routed; opening and nonzero-but-amount-unknown presence unimplemented |
+| Four support families | `Loam/Review/CurrentBalanceReview.lean`, `Loam/Application/CurrentSupportRouting.lean`, `CurrentQuantityPresence.lean`, `Loam/Core/OpeningSupport.lean` | Origin/opening/exact assertion routed over one source; opening requires a current coordinate-containing Event. Nonzero-but-amount-unknown presence/cut invalidation unimplemented |
 | Authority/decoding versus preview | `Loam/Authority/ActualAuthority.lean`, `Loam/Persistence/NormalizedActualPersistence.lean` | Synthetic grammar only; no canonical loader/cutover |
 | Current ownership/publication/retry | `Loam/Application/MovementAdmission.lean`, `Loam/Publisher/MovementPublisher.lean` | Unimplemented. Ordinary retry returns first retained result without retry-payload comparison; not a general policy |
 | Prior research/status | `docs/EVIDENCE_ATLAS.md`, `docs/research/falsification/LOAM_FALSIFICATION_PROGRESS.md` | Follow exact observation/PR and current status: reviewed, absorbed, counterexample, research-only, implemented differ |

@@ -56,6 +56,8 @@ let answer answer =
   let row = match Q.premise answer with
     | Q.Zero_origin -> Printf.sprintf "%s: zero-origin; quantity=%s\n"
         (location (Q.coordinate answer)) (quantity (Q.quantity answer))
+    | Q.Opening { coordinate; opening_event } -> Printf.sprintf "%s: opening Event %S; quantity=%s\n"
+        (location coordinate) (id opening_event) (quantity (Q.quantity answer))
     | Q.Current_assertion asserted -> "exact assertion; " ^ assertion_row asserted in
   "Conditional current fixture quantity (ordinary base Actual subset).\n" ^ row
 let unavailable (A.Current_quantity_query.Support_unknown { coordinate }) =
@@ -64,7 +66,18 @@ let refusal error =
   let detail = match error with
     | A.Current_quantity_query.Zero_origins (D.Zero_origin_coverage.Duplicate_coordinate { position; coordinate }) ->
       Printf.sprintf "duplicate zero-origin %s at %d" (location coordinate) position
+    | Duplicate_opening_coordinate { coordinate; first_position; position } ->
+      Printf.sprintf "duplicate opening %s at %d (first %d)" (location coordinate) position first_position
+    | Opening_event_not_current { opening = { coordinate; opening_event }; position } ->
+      Printf.sprintf "opening %d for %s: Event %S is not current" position (location coordinate) (id opening_event)
+    | Opening_event_missing_coordinate { opening = { coordinate; opening_event }; position } ->
+      Printf.sprintf "opening %d: Event %S does not contain %s" position (id opening_event) (location coordinate)
     | Groups error -> group_error error
-    | Overlapping_support { coordinate; group_position; assertion_position } ->
-      Printf.sprintf "zero-origin overlaps exact assertion %s at (%d,%d)" (location coordinate) group_position assertion_position in
+    | Opening_overlaps_origin { coordinate; opening_position } ->
+      Printf.sprintf "opening %s at %d overlaps zero-origin" (location coordinate) opening_position
+    | Assertion_overlaps_origin { coordinate; group_position; assertion_position } ->
+      Printf.sprintf "zero-origin overlaps exact assertion %s at (%d,%d)" (location coordinate) group_position assertion_position
+    | Assertion_overlaps_opening { opening = { coordinate; opening_event }; group_position; assertion_position } ->
+      Printf.sprintf "opening Event %S overlaps exact assertion %s at (%d,%d)" (id opening_event)
+        (location coordinate) group_position assertion_position in
   "Current fixture refused: " ^ detail ^ ".\n"

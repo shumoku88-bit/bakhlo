@@ -34,7 +34,7 @@ Movement validation keeps exact quantities, typed refusals and honest streams.
   [2]
   $ test ! -s out && grep -q 'a command is required' err
 
-One admitted source: independent assertion cuts, origin quantities, known zero and unknown.
+One admitted source: independent assertion cuts, origin/opening quantities, known zero and unknown.
 
   $ cp ../examples/current-preview.fixture current
   $ cp current before
@@ -47,6 +47,9 @@ One admitted source: independent assertion cuts, origin quantities, known zero a
   $ loam-ocaml inspect-current-fixture current food jpy
   Conditional current fixture quantity (ordinary base Actual subset).
   "food" / "jpy": zero-origin; quantity=160
+  $ loam-ocaml inspect-current-fixture current offset usd
+  Conditional current fixture quantity (ordinary base Actual subset).
+  "offset" / "usd": opening Event "b"; quantity=-7
   $ loam-ocaml inspect-current-fixture current quiet jpy
   Conditional current fixture quantity (ordinary base Actual subset).
   "quiet" / "jpy": zero-origin; quantity=0
@@ -60,7 +63,7 @@ One admitted source: independent assertion cuts, origin quantities, known zero a
   $ loam-ocaml inspect-current-fixture --help
   Usage: loam-ocaml inspect-current-fixture FILE LOCUS MEASURE
   Read ONLY a LOAM-OCAML-ACTUAL-FIXTURE v2 synthetic file; never write.
-  Ordinary base Actual subset; separated zero-origin/exact assertion support.
+  Ordinary base Actual subset; separated zero-origin/opening/exact assertion support.
   Not full normalized admission, historical completeness or household authority.
   $ loam-ocaml inspect-current-fixture not-read >out 2>err
   [2]
@@ -97,5 +100,24 @@ Malformed/obsolete inputs and invalid premises refuse globally, never an empty b
   $ test ! -s out && grep -q 'zero-origin overlaps exact assertion' err
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nOPENING\twallet\tjpy\ta\nEND\n' >opening
   $ loam-ocaml inspect-current-fixture opening wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Event "a" is not current' err
+
+Explicit opening zero is not inferred origin; overlaps refuse even an unrelated query.
+
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEFFECT\twallet\tjpy\t1\nEFFECT\twallet\tjpy\t-1\nEND-EVENT\nOPENING\twallet\tjpy\te\nEND\n' >opening-zero
+  $ loam-ocaml inspect-current-fixture opening-zero wallet jpy
+  Conditional current fixture quantity (ordinary base Actual subset).
+  "wallet" / "jpy": opening Event "e"; quantity=0
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEFFECT\twallet\tjpy\t1\nEFFECT\twallet\tjpy\t-1\nEND-EVENT\nOPENING\twallet\tjpy\te\nZERO-ORIGIN\twallet\tjpy\nEND\n' >opening-origin
+  $ loam-ocaml inspect-current-fixture opening-origin unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'overlaps zero-origin' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEFFECT\twallet\tjpy\t1\nEFFECT\twallet\tjpy\t-1\nEND-EVENT\nOPENING\twallet\tjpy\te\nGROUP\nASSERT\twallet\tjpy\t0\nEND-GROUP\nEND\n' >opening-assertion
+  $ loam-ocaml inspect-current-fixture opening-assertion unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'opening Event "e" overlaps exact assertion' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nGROUP\nOPENING\twallet\tjpy\te\nEND-GROUP\nEND\n' >misplaced-opening
+  $ loam-ocaml inspect-current-fixture misplaced-opening wallet jpy >out 2>err
   [2]
-  $ test ! -s out && grep -q 'fixture line 2' err
+  $ test ! -s out && grep -q 'fixture line 3' err

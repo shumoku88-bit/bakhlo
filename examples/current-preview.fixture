@@ -16,6 +16,7 @@ END-EVENT
 CORRECTION	a	b
 ZERO-ORIGIN	food	jpy
 ZERO-ORIGIN	quiet	jpy
+OPENING	offset	usd	b
 GROUP
 REFLECT	a
 ASSERT	wallet	jpy	1000

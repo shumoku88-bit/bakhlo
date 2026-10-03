@@ -28,7 +28,7 @@ let project ~movements ~zero_origins =
   let events = List.mapi movements ~f:(fun index movement ->
     D.Event.create ~id:(Fixtures.id (Int.to_string index)) ~effects:(D.Movement.effects movement)) in
   let source = Fixtures.actual_source events [] in
-  match P.create ~source ~zero_origins ~groups:[] with
+  match P.create ~source ~zero_origins ~openings:[] ~groups:[] with
   | Ok image -> image
   | Error _ -> failwith "invalid origin fixture"
 ;;

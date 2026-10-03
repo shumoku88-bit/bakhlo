@@ -24,7 +24,7 @@ There is no canonical storage, clock, mutable business state or generic service 
 | Current assertion groups | Exact assertions + unreflected Effects; independent cuts, one coordinate owner; ordered whole-group qualification |
 | Actual validity | Independent base ISO facts, unique/closed/complete for all supplied retained Events; no chronology/winners |
 | Actual source | Ordinary anonymous subset: every retained Effect nonzero, each Measure independently balanced, validity and correction admission |
-| Current quantity query | One admitted source; explicit origin and exact assertion support, globally separated; typed unknown otherwise |
+| Current quantity query | One admitted source; explicit origin, opening (unique coordinate/current Event/matching Effect) and exact assertion support, globally separated; typed unknown otherwise |
 
 Public `.mli` files own exact inputs, diagnostics and ordering. Indexes are disposable
 mechanisms, not canonical evidence. Helpers such as `Effect_sum` are omitted from the
@@ -43,9 +43,11 @@ reducing old premises, preserves unrelated assertion/cut pairs, drops empty resi
 and appends incoming. The old value/source stay immutable. This is not persisted history,
 retry identity, publication or a list-order winner.
 
-Origin answers sum the whole ordinary terminal frontier. Assertions reuse their independent
-cuts. Shared live coordinates across families refuse even with equal amounts; never union
-cuts, infer support from activity/net zero, or fabricate an assertion at zero.
+Origin and opening answers sum the whole ordinary terminal frontier; opening does not
+sum only its witness or store another scalar/date/cut. The explicitly named Event must
+remain current and contain the exact coordinate; no automatic retarget after corrections.
+Assertions reuse independent cuts. Shared coordinates across families refuse even with
+equal amounts; never union cuts, infer support from activity/net zero, or fabricate zero.
 
 ## Read boundary
 
@@ -55,7 +57,7 @@ becomes an empty image. Domain remains general even when a practical source entr
 narrower. There is one current fixture grammar, not a legacy protocol/backend matrix.
 
 The current source is NOT full normalized Actual: keyed Effects, metadata, validity
-revisions, Exchange/Reversal, relations/settlement and opening/presence remain unqualified.
+revisions, Exchange/Reversal, relations/settlement and presence remain unqualified.
 Base validity is external evidence, not proof of occurrence truth or historical completeness.
 Queries do not establish household authority, purchasing power or spendability.
 

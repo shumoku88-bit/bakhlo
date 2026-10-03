@@ -23,6 +23,7 @@ macOS/Linux are targets; only macOS x86_64 has been exercised.
 Movement checking is structural validation, **not recorded**. Fixture querying is
 read-only and conditional on supplied evidence: `wallet jpy` gives assertion
 `1000` + unreflected delta `-10` = `990`; `food jpy` gives origin quantity `160`;
+`offset usd` gives opening quantity `-7` through explicit current Event `b`;
 `quiet jpy` gives supported zero. `unsupported jpy` stays unknown (exit 3/stdout).
 Load/admission failures exit 1; syntax failures exit 2 (stderr, no stdout).
 
@@ -40,8 +41,9 @@ empty image. See [grammar](cli/current_fixture_input.mli) and
   covers only anonymous ordinary/base-validity Actual: all retained Effects nonzero,
   per-Measure conservation, independent complete base validity and qualified corrections.
 - Exact assertion groups retain independent reflected-root cuts. Origin is explicit,
-  not inferred from activity. Cross-family coordinate overlap refuses globally.
-- Keys/metadata, validity history, Exchange/Reversal, opening/presence, historical
+  not inferred from activity. Opening explicitly names a current Event containing the
+  coordinate; it is not a second scalar or implicit origin. Cross-family overlap refuses.
+- Keys/metadata, validity history, Exchange/Reversal, presence, historical
   completeness and full normalized Actual admission are still unsupported.
 
 No public API/storage compatibility promise exists during this unreleased phase.

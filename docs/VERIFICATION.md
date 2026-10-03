@@ -48,7 +48,8 @@ counters; shared construction helpers are in `fixtures.ml`, never another test-c
 | Reflected cuts | List declaration model, 1,168 four-node relation/subset cases (304 cuts), selected fresh tails, prefix/source changes and old-terminal leak witness; not arbitrary-edit stability |
 | Assertion arithmetic | 4,864 graph/cut/support cases, original-Effect Zarith sum, unknown/zero, translation and reflected/unreflected seams |
 | Group ownership/re-observation | Independent two-coordinate/two-group list model: 256 construction and 2,304 update/replay seams; preserve whole premises, ordered refusals and old values; not durable retry |
-| Actual source / support routing | 625 two-Measure physical predicates, 256 two-coordinate support/cut seams, original-list/Effect oracle, all retained/source admission and independent cuts; only ordinary base source + two supports |
+| Actual source / support routing | 625 two-Measure physical predicates; 1,024 two-coordinate/three-family support/cut seams (256 admitted), original-list/Effect oracle and independent cuts; only ordinary base source, no presence |
+| Explicit opening | Current/coordinate/duplicate closure, same Event for distinct coordinates, supported zero/huge signed multiplicity, representation/date permutation and stale-tail rebuild; retain original source/premises, no auto-retarget or historical truth |
 | Origin queries | Original-Effect generated arithmetic transferred to the current admitted-source query; repeated payloads use distinct Event IDs, not implicit deduplication |
 | Validity / decoder / shell | Calendar/reference counterexamples, exact tokens/quanta, unknown/obsolete/truncated/unsupported rows, escaped diagnostics, real CLI exit/stream and unchanged-file checks; no arbitrary corruption/authenticity guarantee |
 

@@ -4,8 +4,9 @@ module S = Loam_application.Actual_source
 module H = Loam_application.Current_quantity_groups
 module P = Loam_application.Current_quantity_projection
 module V = Loam_application.Actual_validity
+module Q = Loam_application.Current_quantity_query
 
-type t = { source : S.command; zero_origins : D.Effect_coordinate.t list; groups : H.group list }
+type t = { source : S.command; zero_origins : D.Effect_coordinate.t list; openings : Q.opening list; groups : H.group list }
 type error = { line : int; message : string }
 type block =
   | Between
@@ -45,7 +46,7 @@ let decode text =
             if not (List.is_empty rest) then fail (line + 1) "rows after END"
             else Ok { source = { events = List.rev draft.source.events; validities = List.rev draft.source.validities;
                 corrections = List.rev draft.source.corrections };
-              groups = List.rev draft.groups; zero_origins = List.rev draft.zero_origins }
+              groups = List.rev draft.groups; zero_origins = List.rev draft.zero_origins; openings = List.rev draft.openings }
           | Between, [ "EVENT"; token; date ] ->
             let* id = identity line D.Identifier.Event.of_string token in
             scan (line + 1) (Event { id; date; changes = [] }) draft rest
@@ -68,6 +69,11 @@ let decode text =
           | Between, [ "ZERO-ORIGIN"; locus; measure ] ->
             let* c = coordinate line locus measure in
             scan (line + 1) Between { draft with zero_origins = c :: draft.zero_origins } rest
+          | Between, [ "OPENING"; locus; measure; token ] ->
+            let* coordinate = coordinate line locus measure in
+            let* opening_event = identity line D.Identifier.Event.of_string token in
+            let opening : Q.opening = { coordinate; opening_event } in
+            scan (line + 1) Between { draft with openings = opening :: draft.openings } rest
           | Between, [ "GROUP" ] -> scan (line + 1) (Group { roots = []; assertions = [] }) draft rest
           | Group { roots; assertions }, [ "REFLECT"; token ] ->
             let* root = identity line D.Identifier.Event.of_string token in
@@ -81,6 +87,6 @@ let decode text =
             scan (line + 1) Between { draft with groups = group :: draft.groups } rest
           | (Between | Event _ | Group _), _ -> fail line "unknown, malformed or misplaced fixture row"
       in
-      scan 2 Between { source = { events = []; validities = []; corrections = [] }; groups = []; zero_origins = [] } rows
+      scan 2 Between { source = { events = []; validities = []; corrections = [] }; groups = []; zero_origins = []; openings = [] } rows
     | _ -> fail 1 "expected LOAM-OCAML-ACTUAL-FIXTURE version 2 (not household data)"
 ;;

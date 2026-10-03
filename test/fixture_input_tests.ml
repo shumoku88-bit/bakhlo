@@ -22,10 +22,29 @@ let%expect_test "decoding preserves exact identities and neutral Effects; source
   [%expect {| exact raw evidence preserved; separate physical admission refuses it |}]
 ;;
 
+let%expect_test "opening rows preserve forward references/order; decode never implies witness validity" =
+  let rows = [ "OPENING\t wallet \tUSD\t event "; "OPENING\toffset\tUSD\t event ";
+    "EVENT\t event \t2026-10-03"; "EFFECT\t wallet \tUSD\t+0007"; "EFFECT\toffset\tUSD\t-7"; "END-EVENT" ] in
+  let decoded = ok (Input.decode (document rows)) in
+  F.require (List.equal String.equal (List.map decoded.openings ~f:(fun declared -> D.Identifier.Event.to_string declared.opening_event)) [ " event "; " event " ]) "exact Event references, no allocation";
+  F.require (List.equal F.same_coordinate (List.map decoded.openings ~f:(fun declared -> declared.coordinate)) [ F.coordinate ~unit:"USD" " wallet "; F.coordinate ~unit:"USD" "offset" ]) "exact coordinates and declaration order";
+  let request : C.request = { path = "synthetic"; coordinate = F.coordinate ~unit:"USD" " wallet " } in
+  let exact = C.evaluate request (Ok (document rows)) in
+  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:"opening Event" && String.is_substring exact.stdout ~substring:"quantity=7") "opening end-to-end";
+  let stale = document (rows @ [ "EVENT\treplacement\t2026-10-02"; "END-EVENT"; "CORRECTION\t event \treplacement" ]) in
+  F.require (Result.is_ok (Input.decode stale)) "parser does not select frontier";
+  let refused = C.evaluate request (Ok stale) in
+  F.require (refused.exit_code = 1 && String.is_empty refused.stdout && String.is_substring refused.stderr ~substring:"is not current") "source-bound semantic gate";
+  Stdlib.Printf.printf "explicit opening rows; exact forward references; source-bound admission before answer\n";
+  [%expect {| explicit opening rows; exact forward references; source-bound admission before answer |}]
+;;
+
 let%expect_test "malformed/truncated/misplaced rows and obsolete formats never become partial success" =
   let invalid = [ ""; "LOAM-NORMALIZED-ACTUAL\t1\nEND\n"; "LOAM-OCAML-ACTUAL-FIXTURE\t1\nEND\n";
     document [ "SCHEDULED\ta" ]; document [ "DESCRIPTION\ta\tmetadata" ]; document [ "KEYED-EFFECT\tkey\twallet\tjpy\t1" ];
     document [ "EVENT\ta\t2026-10-03" ]; document [ "GROUP" ]; document [ "EFFECT\twallet\tjpy\t1" ]; document [ "" ];
+    document [ "OPENING\twallet\tjpy" ]; document [ "OPENING\twallet\tjpy\t" ];
+    document [ "GROUP"; "OPENING\twallet\tjpy\te"; "END-GROUP" ]; document [ "PRESENCE\twallet\tjpy" ];
     document [ "EVENT\ta\t2026-10-03"; "EFFECT\twallet\tjpy\t0x10"; "END-EVENT" ];
     document [ "EVENT\ta\t2026-10-03"; "EFFECT\twallet\tjpy\t 1"; "END-EVENT" ];
     "LOAM-OCAML-ACTUAL-FIXTURE\t2\nEND"; document [] ^ "END\n" ] in
@@ -47,6 +66,10 @@ let%expect_test "read failures and cycle identities are escaped; help/syntax req
   let cycle = Loam_presentation.Current_quantity_text.source_refusal
     (S.Corrections (Loam_application.Correction_frontier.Cycle { path = [ F.id "event\027\n" ] })) in
   F.require (not (String.exists cycle ~f:(Char.equal '\027')) && String.count cycle ~f:(Char.equal '\n') = 1) "escaped cycle provenance";
+  let opening = Loam_presentation.Current_quantity_text.refusal
+    (Loam_application.Current_quantity_query.Opening_event_not_current
+       { opening = { coordinate = F.coordinate "wallet\027\n"; opening_event = F.id "event\027\n" }; position = 1 }) in
+  F.require (not (String.exists opening ~f:(Char.equal '\027')) && String.count opening ~f:(Char.equal '\n') = 1) "escaped opening provenance";
   (match C.plan [ "--help" ] with Help -> () | _ -> failwith "help plan");
   (match C.plan [] with Refused _ -> () | _ -> failwith "syntax plan");
   Stdlib.Printf.printf "escaped provenance/errors; explicit read result; no help/syntax I/O\n";

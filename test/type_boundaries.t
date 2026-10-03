@@ -360,16 +360,25 @@ The composed query needs an admitted source, not a frontier or separate projecti
 
   $ cat >current_query_client.ml <<'EOF'
   > module A = Loam_application
-  > let create source = A.Current_quantity_query.create ~source ~zero_origins:[] ~groups:[]
+  > let opening coordinate opening_event : A.Current_quantity_query.opening = { coordinate; opening_event }
+  > let create source = A.Current_quantity_query.create ~source ~zero_origins:[] ~openings:[] ~groups:[]
   > let inspect image coordinate = match A.Current_quantity_query.query image coordinate with
   >   | Error (Support_unknown { coordinate = _ }) -> None
   >   | Ok answer -> Some (A.Current_quantity_query.quantity answer, A.Current_quantity_query.premise answer)
   > EOF
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c current_query_client.ml
+  $ cat >opening_locus_is_not_event.ml <<'EOF'
+  > module D = Loam_domain
+  > module Q = Loam_application.Current_quantity_query
+  > let wrong coordinate (opening_event : D.Identifier.Locus.t) : Q.opening = { coordinate; opening_event }
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c opening_locus_is_not_event.ml 2>error
+  [2]
+  $ grep -q 'Identifier.Locus.t' error && grep -q 'Identifier.Event.t' error
   $ cat >frontier_is_not_current_source.ml <<'EOF'
   > module A = Loam_application
   > let use (source : A.Correction_frontier.t) =
-  >   A.Current_quantity_query.create ~source ~zero_origins:[] ~groups:[]
+  >   A.Current_quantity_query.create ~source ~zero_origins:[] ~openings:[] ~groups:[]
   > EOF
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c frontier_is_not_current_source.ml 2>error
   [2]
