@@ -13,6 +13,10 @@ EVENT	x	2026-10-02
 EFFECT	wallet	jpy	-10
 EFFECT	food	jpy	10
 END-EVENT
+EVENT	t	2026-10-03
+EFFECT	stale	jpy	1
+EFFECT	stale	jpy	-1
+END-EVENT
 CORRECTION	a	b
 ZERO-ORIGIN	food	jpy
 ZERO-ORIGIN	quiet	jpy
@@ -27,4 +31,9 @@ REFLECT	a
 REFLECT	x
 ASSERT	wallet	usd	5
 END-GROUP
+PRESENCE
+REFLECT	a
+PRESENT	pantry	jpy
+PRESENT	stale	jpy
+END-PRESENCE
 END

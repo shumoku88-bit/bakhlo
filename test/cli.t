@@ -34,7 +34,7 @@ Movement validation keeps exact quantities, typed refusals and honest streams.
   [2]
   $ test ! -s out && grep -q 'a command is required' err
 
-One admitted source: independent assertion cuts, origin/opening quantities, known zero and unknown.
+One admitted source: exact families, known zero, known nonzero/amount-unknown and unsupported.
 
   $ cp ../examples/current-preview.fixture current
   $ cp current before
@@ -59,11 +59,18 @@ One admitted source: independent assertion cuts, origin/opening quantities, know
   $ loam-ocaml inspect-current-fixture current unsupported jpy
   "unsupported" / "jpy": quantity unknown (no supported premise in supplied fixture).
   [3]
+  $ loam-ocaml inspect-current-fixture current pantry jpy
+  "pantry" / "jpy": known nonzero (presence premise); exact quantity unknown.
+  [4]
+  $ loam-ocaml inspect-current-fixture current stale jpy
+  "stale" / "jpy": quantity unknown (no supported premise in supplied fixture).
+  [3]
   $ cmp current before
   $ loam-ocaml inspect-current-fixture --help
   Usage: loam-ocaml inspect-current-fixture FILE LOCUS MEASURE
   Read ONLY a LOAM-OCAML-ACTUAL-FIXTURE v2 synthetic file; never write.
-  Ordinary base Actual subset; separated zero-origin/opening/exact assertion support.
+  Ordinary base Actual subset; separated origin/opening/assertion/presence support.
+  Exit 0 exact, 4 known nonzero (amount unknown), 3 unsupported; stdout.
   Not full normalized admission, historical completeness or household authority.
   $ loam-ocaml inspect-current-fixture not-read >out 2>err
   [2]
@@ -121,3 +128,32 @@ Explicit opening zero is not inferred origin; overlaps refuse even an unrelated 
   $ loam-ocaml inspect-current-fixture misplaced-opening wallet jpy >out 2>err
   [2]
   $ test ! -s out && grep -q 'fixture line 3' err
+
+Presence is a separate whole-input premise; malformed/cut/duplicate/overlap never fall back.
+
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nPRESENCE\nPRESENT\twallet\tjpy\nEND-PRESENCE\nEND\n' >presence
+  $ cp presence before-presence
+  $ loam-ocaml inspect-current-fixture presence wallet jpy >out 2>err
+  [4]
+  $ test ! -s err && grep -q 'known nonzero' out && ! grep -q 'quantity=' out
+  $ cmp presence before-presence
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nPRESENCE\nEND-PRESENCE\nPRESENCE\nEND-PRESENCE\nEND\n' >repeat-presence
+  $ loam-ocaml inspect-current-fixture repeat-presence wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'repeated PRESENCE block' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nPRESENCE\nPRESENT\twallet\tjpy\nEND\n' >truncated-presence
+  $ loam-ocaml inspect-current-fixture truncated-presence wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'fixture line 4' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nPRESENCE\nREFLECT\tmissing\nEND-PRESENCE\nEND\n' >presence-cut
+  $ loam-ocaml inspect-current-fixture presence-cut unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'presence cut: unknown root' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nPRESENCE\nPRESENT\twallet\tjpy\nPRESENT\twallet\tjpy\nEND-PRESENCE\nEND\n' >presence-duplicate
+  $ loam-ocaml inspect-current-fixture presence-duplicate unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'duplicate presence.*at 2 (first 1)' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nZERO-ORIGIN\twallet\tjpy\nPRESENCE\nPRESENT\twallet\tjpy\nEND-PRESENCE\nEND\n' >presence-overlap
+  $ loam-ocaml inspect-current-fixture presence-overlap unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'presence.*overlaps exact support' err

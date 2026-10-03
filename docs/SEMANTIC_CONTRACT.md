@@ -55,8 +55,9 @@ Absence, uncertainty, incompleteness, unsupported questions, invalid input, and
 storage failure are not successful empty answers. In particular, balance
 answerability may require explicit origin evidence beyond observed activity.
 
-Expose useful distinctions in typed results without forcing all questions into
-one universal error or completeness model.
+Known nonzero with an unknown exact amount is weaker than an exact Quantity;
+never substitute a scalar or feed that evidence to arithmetic. Expose useful
+distinctions in typed results without one universal error or completeness model.
 
 ## S7 — UI and projections do not own household meaning
 

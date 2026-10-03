@@ -60,6 +60,9 @@ let answer answer =
         (location coordinate) (id opening_event) (quantity (Q.quantity answer))
     | Q.Current_assertion asserted -> "exact assertion; " ^ assertion_row asserted in
   "Conditional current fixture quantity (ordinary base Actual subset).\n" ^ row
+let present answer =
+  Printf.sprintf "%s: known nonzero (presence premise); exact quantity unknown.\n"
+    (location (A.Current_quantity_query.present_coordinate answer))
 let unavailable (A.Current_quantity_query.Support_unknown { coordinate }) =
   Printf.sprintf "%s: quantity unknown (no supported premise in supplied fixture).\n" (location coordinate)
 let refusal error =
@@ -73,6 +76,11 @@ let refusal error =
     | Opening_event_missing_coordinate { opening = { coordinate; opening_event }; position } ->
       Printf.sprintf "opening %d: Event %S does not contain %s" position (id opening_event) (location coordinate)
     | Groups error -> group_error error
+    | Presence_cut error -> "presence cut: " ^ cut_error error
+    | Duplicate_presence_coordinate { coordinate; first_position; position } ->
+      Printf.sprintf "duplicate presence %s at %d (first %d)" (location coordinate) position first_position
+    | Presence_overlaps_exact { coordinate; position } ->
+      Printf.sprintf "presence %s at %d overlaps exact support" (location coordinate) position
     | Opening_overlaps_origin { coordinate; opening_position } ->
       Printf.sprintf "opening %s at %d overlaps zero-origin" (location coordinate) opening_position
     | Assertion_overlaps_origin { coordinate; group_position; assertion_position } ->

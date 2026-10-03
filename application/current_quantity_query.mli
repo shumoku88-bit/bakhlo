@@ -1,8 +1,14 @@
-(** Three separated support families over ONE admitted ordinary base Actual source.
-    Not full normalized admission, presence routing, history or household authority. *)
+(** Four separated support families over ONE admitted ordinary base Actual source.
+    Not full normalized admission, historical completeness or household authority. *)
 type opening =
   { coordinate : Loam_domain.Effect_coordinate.t
   ; opening_event : Loam_domain.Identifier.Event.t
+  }
+
+(** One independent nonzero/amount-unknown observation with a shared cut; no scalar/date. *)
+type presence =
+  { reflected_roots : Loam_domain.Identifier.Event.t list
+  ; coordinates : Loam_domain.Effect_coordinate.t list
   }
 type t
 type error =
@@ -12,40 +18,52 @@ type error =
   | Opening_event_not_current of { opening : opening; position : int }
   | Opening_event_missing_coordinate of { opening : opening; position : int }
   | Groups of Current_quantity_groups.error
+  | Presence_cut of Reflected_root_cut.error
+  | Duplicate_presence_coordinate of
+      { coordinate : Loam_domain.Effect_coordinate.t; first_position : int; position : int }
   | Opening_overlaps_origin of
       { coordinate : Loam_domain.Effect_coordinate.t; opening_position : int }
   | Assertion_overlaps_origin of
       { coordinate : Loam_domain.Effect_coordinate.t; group_position : int; assertion_position : int }
   | Assertion_overlaps_opening of
       { opening : opening; group_position : int; assertion_position : int }
+  | Presence_overlaps_exact of { coordinate : Loam_domain.Effect_coordinate.t; position : int }
 type unavailable = Support_unknown of { coordinate : Loam_domain.Effect_coordinate.t }
-type answer
+type exact
+type present
 type premise = Zero_origin | Opening of opening | Current_assertion of Current_quantity_projection.answer
+type outcome = Exact of exact | Known_present of present
 
-(** Qualify origins, the whole opening relation, then whole groups against [source].
-    Opening declarations require unique coordinates (duplicate checked first), a CURRENT
-    terminal Event and at least one matching Effect. Retained superseded Events refuse;
-    neither identity/date order nor corrections silently retarget a declaration.
-    Then scan opening/origin overlap in declaration order, followed by group/assertion
-    overlap with origin/opening. All positions one-based. Global refusal even for equal
-    quantities/unrelated queries; no partial result or family priority.
-    Origin/opening sum ALL ordinary frontier Events, not just an opening witness;
-    each assertion keeps its own cut. No second opening scalar/date/cut, Movement
-    coercion, merged cuts, inferred support or separately bound projections. *)
+(** Qualify origins, whole openings, whole groups, then presence cut/unique coordinates.
+    Openings require unique coordinates (duplicate first), a CURRENT terminal Event
+    and a matching Effect; never silently retarget superseded witnesses.
+    Presence roots qualify even with no coordinates; [None] means no presence evidence.
+    Then scan opening/origin overlap, group/assertion overlap and presence/exact overlap
+    in declaration order. All positions one-based. Stale presence also refuses overlap;
+    global admission, no partial result or family priority, even for equal quantities.
+    Origin/opening sum ALL ordinary terminals, not just a witness; assertions keep their
+    independent cuts. Presence is not arithmetic: ANY matching Effect in its remaining
+    terminals invalidates it, even when contributions cancel. No inferred support,
+    merged cuts, second opening scalar/date or separately bound source projections. *)
 val create
   : source:Actual_source.t
   -> zero_origins:Loam_domain.Effect_coordinate.t list
   -> openings:opening list
   -> groups:Current_quantity_groups.group list
+  -> presence:presence option
   -> (t, error) result
 val source : t -> Actual_source.t
 val zero_origins : t -> Loam_domain.Effect_coordinate.t list
 val openings : t -> opening list
 val source_groups : t -> Current_quantity_groups.t
+val presence : t -> presence option
 
-(** Support gate then indexed arithmetic/ownership lookup; no traversal or I/O.
-    Missing support stays unknown even with activity/net zero/empty source. *)
-val query : t -> Loam_domain.Effect_coordinate.t -> (answer, unavailable) result
-val coordinate : answer -> Loam_domain.Effect_coordinate.t
-val quantity : answer -> Loam_domain.Quantity.t
-val premise : answer -> premise
+(** Indexed lookup; exact/present payloads are disjoint and abstract. Stale/absent
+    support remains unknown, never zero; no traversal, chronology or I/O. *)
+val query : t -> Loam_domain.Effect_coordinate.t -> (outcome, unavailable) result
+val coordinate : exact -> Loam_domain.Effect_coordinate.t
+val quantity : exact -> Loam_domain.Quantity.t
+val premise : exact -> premise
+val present_coordinate : present -> Loam_domain.Effect_coordinate.t
+val present_evidence : present -> presence
+val present_cut : present -> Reflected_root_cut.t

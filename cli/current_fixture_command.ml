@@ -16,7 +16,8 @@ let help : Response.t =
   { exit_code = 0; stderr = ""; stdout =
       "Usage: loam-ocaml inspect-current-fixture FILE LOCUS MEASURE\n\
        Read ONLY a LOAM-OCAML-ACTUAL-FIXTURE v2 synthetic file; never write.\n\
-       Ordinary base Actual subset; separated zero-origin/opening/exact assertion support.\n\
+       Ordinary base Actual subset; separated origin/opening/assertion/presence support.\n\
+       Exit 0 exact, 4 known nonzero (amount unknown), 3 unsupported; stdout.\n\
        Not full normalized admission, historical completeness or household authority.\n" }
 let syntax_refusal message : Response.t =
   { exit_code = 2; stdout = ""; stderr = "error: " ^ message ^ ".\nRun 'loam-ocaml inspect-current-fixture --help' for usage.\n" }
@@ -27,13 +28,14 @@ let evaluate (request : request) contents : Response.t =
   | Ok text ->
     match Current_fixture_input.decode text with
     | Error { line; message } -> syntax_refusal (Printf.sprintf "fixture line %d: %s" line message)
-    | Ok { source; zero_origins; openings; groups } ->
+    | Ok { source; zero_origins; openings; groups; presence } ->
       match S.create source with
       | Error error -> { exit_code = 1; stdout = ""; stderr = Text.source_refusal error }
       | Ok source ->
-        match Q.create ~source ~zero_origins ~openings ~groups with
+        match Q.create ~source ~zero_origins ~openings ~groups ~presence with
         | Error error -> { exit_code = 1; stdout = ""; stderr = Text.refusal error }
         | Ok image ->
           match Q.query image request.coordinate with
-          | Ok answer -> { exit_code = 0; stdout = Text.answer answer; stderr = "" }
+          | Ok (Exact answer) -> { exit_code = 0; stdout = Text.answer answer; stderr = "" }
+          | Ok (Known_present answer) -> { exit_code = 4; stdout = Text.present answer; stderr = "" }
           | Error unavailable -> { exit_code = 3; stdout = Text.unavailable unavailable; stderr = "" }

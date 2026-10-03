@@ -24,7 +24,7 @@ There is no canonical storage, clock, mutable business state or generic service 
 | Current assertion groups | Exact assertions + unreflected Effects; independent cuts, one coordinate owner; ordered whole-group qualification |
 | Actual validity | Independent base ISO facts, unique/closed/complete for all supplied retained Events; no chronology/winners |
 | Actual source | Ordinary anonymous subset: every retained Effect nonzero, each Measure independently balanced, validity and correction admission |
-| Current quantity query | One admitted source; explicit origin, opening (unique coordinate/current Event/matching Effect) and exact assertion support, globally separated; typed unknown otherwise |
+| Current quantity query | One source; origin, opening (unique coordinate/current Event/matching Effect), assertions and presence, globally separated; Exact / Known_present / unsupported |
 
 Public `.mli` files own exact inputs, diagnostics and ordering. Indexes are disposable
 mechanisms, not canonical evidence. Helpers such as `Effect_sum` are omitted from the
@@ -48,6 +48,12 @@ sum only its witness or store another scalar/date/cut. The explicitly named Even
 remain current and contain the exact coordinate; no automatic retarget after corrections.
 Assertions reuse independent cuts. Shared coordinates across families refuse even with
 equal amounts; never union cuts, infer support from activity/net zero, or fabricate zero.
+Presence retains one independent shared root cut and unique coordinates, no scalar/date.
+ANY matching Effect among its remaining terminal Events invalidates current presence,
+including cancelling activity. Raw stale premises survive; only current lookup loses support.
+Overlap uses all declarations, not just still-current presence. Even an explicit empty
+presence premise qualifies its roots. Only the abstract Exact payload has a Quantity;
+known-present has its own abstract coordinate/evidence/cut payload, never arithmetic.
 
 ## Read boundary
 
@@ -57,7 +63,7 @@ becomes an empty image. Domain remains general even when a practical source entr
 narrower. There is one current fixture grammar, not a legacy protocol/backend matrix.
 
 The current source is NOT full normalized Actual: keyed Effects, metadata, validity
-revisions, Exchange/Reversal, relations/settlement and presence remain unqualified.
+revisions, Exchange/Reversal and relations/settlement remain unqualified.
 Base validity is external evidence, not proof of occurrence truth or historical completeness.
 Queries do not establish household authority, purchasing power or spendability.
 

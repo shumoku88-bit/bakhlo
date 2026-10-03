@@ -6,12 +6,13 @@ module P = Loam_application.Current_quantity_projection
 module V = Loam_application.Actual_validity
 module Q = Loam_application.Current_quantity_query
 
-type t = { source : S.command; zero_origins : D.Effect_coordinate.t list; openings : Q.opening list; groups : H.group list }
+type t = { source : S.command; zero_origins : D.Effect_coordinate.t list; openings : Q.opening list; groups : H.group list; presence : Q.presence option }
 type error = { line : int; message : string }
 type block =
   | Between
   | Event of { id : D.Identifier.Event.t; date : string; changes : D.Effect.t list }
   | Group of { roots : D.Identifier.Event.t list; assertions : P.assertion list }
+  | Presence of { roots : D.Identifier.Event.t list; coordinates : D.Effect_coordinate.t list }
 
 let fail line message = Error { line; message }
 let identity line constructor text =
@@ -46,7 +47,7 @@ let decode text =
             if not (List.is_empty rest) then fail (line + 1) "rows after END"
             else Ok { source = { events = List.rev draft.source.events; validities = List.rev draft.source.validities;
                 corrections = List.rev draft.source.corrections };
-              groups = List.rev draft.groups; zero_origins = List.rev draft.zero_origins; openings = List.rev draft.openings }
+              groups = List.rev draft.groups; zero_origins = List.rev draft.zero_origins; openings = List.rev draft.openings; presence = draft.presence }
           | Between, [ "EVENT"; token; date ] ->
             let* id = identity line D.Identifier.Event.of_string token in
             scan (line + 1) (Event { id; date; changes = [] }) draft rest
@@ -85,8 +86,21 @@ let decode text =
           | Group { roots; assertions }, [ "END-GROUP" ] ->
             let group : H.group = { reflected_roots = List.rev roots; assertions = List.rev assertions } in
             scan (line + 1) Between { draft with groups = group :: draft.groups } rest
-          | (Between | Event _ | Group _), _ -> fail line "unknown, malformed or misplaced fixture row"
+          | Between, [ "PRESENCE" ] ->
+            (match draft.presence with
+             | Some _ -> fail line "repeated PRESENCE block"
+             | None -> scan (line + 1) (Presence { roots = []; coordinates = [] }) draft rest)
+          | Presence { roots; coordinates }, [ "REFLECT"; token ] ->
+            let* root = identity line D.Identifier.Event.of_string token in
+            scan (line + 1) (Presence { roots = root :: roots; coordinates }) draft rest
+          | Presence { roots; coordinates }, [ "PRESENT"; locus; measure ] ->
+            let* c = coordinate line locus measure in
+            scan (line + 1) (Presence { roots; coordinates = c :: coordinates }) draft rest
+          | Presence { roots; coordinates }, [ "END-PRESENCE" ] ->
+            let presence : Q.presence = { reflected_roots = List.rev roots; coordinates = List.rev coordinates } in
+            scan (line + 1) Between { draft with presence = Some presence } rest
+          | (Between | Event _ | Group _ | Presence _), _ -> fail line "unknown, malformed or misplaced fixture row"
       in
-      scan 2 Between { source = { events = []; validities = []; corrections = [] }; groups = []; zero_origins = []; openings = [] } rows
+      scan 2 Between { source = { events = []; validities = []; corrections = [] }; groups = []; zero_origins = []; openings = []; presence = None } rows
     | _ -> fail 1 "expected LOAM-OCAML-ACTUAL-FIXTURE version 2 (not household data)"
 ;;

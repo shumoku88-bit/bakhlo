@@ -39,12 +39,41 @@ let%expect_test "opening rows preserve forward references/order; decode never im
   [%expect {| explicit opening rows; exact forward references; source-bound admission before answer |}]
 ;;
 
+let%expect_test "one shared presence block retains exact forward roots/coordinates without a scalar" =
+  let rows = [ "PRESENCE"; "REFLECT\t a "; "PRESENT\t wallet \tUSD"; "PRESENT\tquiet\tjpy"; "END-PRESENCE";
+    "EVENT\t a \t2026-10-03"; "END-EVENT"; "EVENT\tb\t2026-10-02";
+    "EFFECT\t wallet \tUSD\t1"; "EFFECT\t wallet \tUSD\t-1"; "END-EVENT"; "CORRECTION\t a \tb" ] in
+  let decoded = ok (Input.decode (document rows)) in
+  (match decoded.presence with
+   | Some { reflected_roots; coordinates } ->
+     F.require (List.equal D.Identifier.Event.equal reflected_roots [ F.id " a " ] &&
+       List.equal F.same_coordinate coordinates [ F.coordinate ~unit:"USD" " wallet "; F.coordinate "quiet" ]) "exact order/identity, no aliases"
+   | None -> failwith "presence disappeared");
+  let request : C.request = { path = "synthetic"; coordinate = F.coordinate ~unit:"USD" " wallet " } in
+  let known = C.evaluate request (Ok (document rows)) in
+  F.require (known.exit_code = 4 && String.is_empty known.stderr && String.is_substring known.stdout ~substring:"known nonzero" &&
+    not (String.is_substring known.stdout ~substring:"quantity=")) "presence output cannot fabricate a number";
+  let stale = C.evaluate request (Ok (document (rows @ [ "EVENT\tx\t2026-10-01"; "EFFECT\t wallet \tUSD\t7"; "EFFECT\t wallet \tUSD\t-7"; "END-EVENT" ]))) in
+  F.require (stale.exit_code = 3 && String.is_empty stale.stderr && String.is_substring stale.stdout ~substring:"no supported premise") "net-zero touch invalidates, not date order";
+  (match (ok (Input.decode (document []))).presence, (ok (Input.decode (document [ "PRESENCE"; "END-PRESENCE" ]))).presence with
+   | None, Some { reflected_roots = []; coordinates = [] } -> () | _ -> failwith "absence/explicit empty block lost");
+  (match Input.decode (document [ "PRESENCE"; "END-PRESENCE"; "PRESENCE"; "END-PRESENCE" ]) with
+   | Error { line = 4; message } -> F.require (String.is_substring message ~substring:"repeated") "repeat diagnostic"
+   | _ -> failwith "second presence overwrote first");
+  Stdlib.Printf.printf "one explicit block; exact roots/coordinates; known-present 4 vs stale 3, never a scalar\n";
+  [%expect {| one explicit block; exact roots/coordinates; known-present 4 vs stale 3, never a scalar |}]
+;;
+
 let%expect_test "malformed/truncated/misplaced rows and obsolete formats never become partial success" =
   let invalid = [ ""; "LOAM-NORMALIZED-ACTUAL\t1\nEND\n"; "LOAM-OCAML-ACTUAL-FIXTURE\t1\nEND\n";
     document [ "SCHEDULED\ta" ]; document [ "DESCRIPTION\ta\tmetadata" ]; document [ "KEYED-EFFECT\tkey\twallet\tjpy\t1" ];
     document [ "EVENT\ta\t2026-10-03" ]; document [ "GROUP" ]; document [ "EFFECT\twallet\tjpy\t1" ]; document [ "" ];
     document [ "OPENING\twallet\tjpy" ]; document [ "OPENING\twallet\tjpy\t" ];
     document [ "GROUP"; "OPENING\twallet\tjpy\te"; "END-GROUP" ]; document [ "PRESENCE\twallet\tjpy" ];
+    document [ "PRESENCE" ]; document [ "PRESENT\twallet\tjpy" ]; document [ "END-PRESENCE" ];
+    document [ "GROUP"; "PRESENCE"; "END-PRESENCE"; "END-GROUP" ];
+    document [ "PRESENCE"; "ASSERT\twallet\tjpy\t1"; "END-PRESENCE" ];
+    document [ "PRESENCE"; "PRESENT\twallet\tjpy\t1"; "END-PRESENCE" ];
     document [ "EVENT\ta\t2026-10-03"; "EFFECT\twallet\tjpy\t0x10"; "END-EVENT" ];
     document [ "EVENT\ta\t2026-10-03"; "EFFECT\twallet\tjpy\t 1"; "END-EVENT" ];
     "LOAM-OCAML-ACTUAL-FIXTURE\t2\nEND"; document [] ^ "END\n" ] in

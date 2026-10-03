@@ -71,7 +71,7 @@ A supported conditional answer cannot be forged with a guessed zero quantity.
   $ cat >forged_quantity.ml <<'EOF'
   > module D = Loam_domain
   > module P = Loam_application.Current_quantity_query
-  > let forge (coordinate : D.Effect_coordinate.t) : P.answer =
+  > let forge (coordinate : D.Effect_coordinate.t) : P.exact =
   >   { coordinate; quantity = D.Quantity.zero }
   > EOF
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_quantity.ml 2>error
@@ -361,12 +361,34 @@ The composed query needs an admitted source, not a frontier or separate projecti
   $ cat >current_query_client.ml <<'EOF'
   > module A = Loam_application
   > let opening coordinate opening_event : A.Current_quantity_query.opening = { coordinate; opening_event }
-  > let create source = A.Current_quantity_query.create ~source ~zero_origins:[] ~openings:[] ~groups:[]
-  > let inspect image coordinate = match A.Current_quantity_query.query image coordinate with
+  > module Q = A.Current_quantity_query
+  > let create source = Q.create ~source ~zero_origins:[] ~openings:[] ~groups:[] ~presence:None
+  > let inspect image coordinate = match Q.query image coordinate with
   >   | Error (Support_unknown { coordinate = _ }) -> None
-  >   | Ok answer -> Some (A.Current_quantity_query.quantity answer, A.Current_quantity_query.premise answer)
+  >   | Ok (Exact answer) -> Some (`Exact (Q.quantity answer, Q.premise answer))
+  >   | Ok (Known_present answer) -> Some (`Present (Q.present_coordinate answer, Q.present_evidence answer, Q.present_cut answer))
   > EOF
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c current_query_client.ml
+
+Presence cannot be consumed as a Quantity or omitted from outcome handling.
+
+  $ cat >presence_is_not_quantity.ml <<'EOF'
+  > module Q = Loam_application.Current_quantity_query
+  > let wrong (answer : Q.present) = Q.quantity answer
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c presence_is_not_quantity.ml 2>error
+  [2]
+  $ grep -q 'Q.present' error && grep -q 'Q.exact' error
+  $ cat >outcome_requires_presence.ml <<'EOF'
+  > module Q = Loam_application.Current_quantity_query
+  > let incomplete (answer : Q.outcome) = match answer with Q.Exact value -> Q.quantity value
+  > EOF
+  $ ocamlfind ocamlc -w +8 -warn-error +8 -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c outcome_requires_presence.ml 2>error
+  [2]
+  $ grep -q 'warning 8' error && grep -q 'Known_present' error
+
+An opening still requires an Event identity, not a Locus.
+
   $ cat >opening_locus_is_not_event.ml <<'EOF'
   > module D = Loam_domain
   > module Q = Loam_application.Current_quantity_query
@@ -378,7 +400,7 @@ The composed query needs an admitted source, not a frontier or separate projecti
   $ cat >frontier_is_not_current_source.ml <<'EOF'
   > module A = Loam_application
   > let use (source : A.Correction_frontier.t) =
-  >   A.Current_quantity_query.create ~source ~zero_origins:[] ~openings:[] ~groups:[]
+  >   A.Current_quantity_query.create ~source ~zero_origins:[] ~openings:[] ~groups:[] ~presence:None
   > EOF
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c frontier_is_not_current_source.ml 2>error
   [2]

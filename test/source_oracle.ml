@@ -21,6 +21,13 @@ let expected_pairs source corrections =
   List.map roots ~f:(fun root -> D.Event.id root, follow (List.length source) (D.Event.id root))
 ;;
 
+(* Membership, NOT a sum predicate: cancelling Effects still touch a coordinate. *)
+let touches_events events (coordinate : D.Effect_coordinate.t) =
+  List.exists events ~f:(fun original -> List.exists (D.Event.effects original) ~f:(fun change ->
+    D.Identifier.Locus.equal coordinate.locus (D.Effect.locus change)
+    && D.Identifier.Measure.equal coordinate.measure (D.Effect.measure change)))
+;;
+
 (* Direct Zarith sum over original Effects, never Effect_sum or projection totals. *)
 let sum_events events (coordinate : D.Effect_coordinate.t) =
   List.fold events ~init:Z.zero ~f:(fun total original ->

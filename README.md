@@ -24,7 +24,9 @@ Movement checking is structural validation, **not recorded**. Fixture querying i
 read-only and conditional on supplied evidence: `wallet jpy` gives assertion
 `1000` + unreflected delta `-10` = `990`; `food jpy` gives origin quantity `160`;
 `offset usd` gives opening quantity `-7` through explicit current Event `b`;
-`quiet jpy` gives supported zero. `unsupported jpy` stays unknown (exit 3/stdout).
+`quiet jpy` gives supported zero. `pantry jpy` is known nonzero but its exact amount
+is unknown (exit 4/stdout). `stale jpy` has net-zero unreflected activity and is no
+longer supported; `unsupported jpy` lacks evidence (both exit 3/stdout).
 Load/admission failures exit 1; syntax failures exit 2 (stderr, no stdout).
 
 Only the explicit synthetic grammar is accepted; it is not an upstream adapter or
@@ -42,8 +44,10 @@ empty image. See [grammar](cli/current_fixture_input.mli) and
   per-Measure conservation, independent complete base validity and qualified corrections.
 - Exact assertion groups retain independent reflected-root cuts. Origin is explicit,
   not inferred from activity. Opening explicitly names a current Event containing the
-  coordinate; it is not a second scalar or implicit origin. Cross-family overlap refuses.
-- Keys/metadata, validity history, Exchange/Reversal, presence, historical
+  coordinate; it is not a second scalar or implicit origin. Presence retains one shared
+  root cut, not a scalar; ANY unreflected matching Effect invalidates it, even net zero.
+  Exact/present payloads are disjoint; all four families must be globally separated.
+- Keys/metadata, validity history, Exchange/Reversal, historical
   completeness and full normalized Actual admission are still unsupported.
 
 No public API/storage compatibility promise exists during this unreleased phase.

@@ -3,13 +3,16 @@
     mandatory. EVENT id ISO-date / EFFECT locus measure signed-decimal / END-EVENT;
     CORRECTION target replacement; ZERO-ORIGIN locus measure; OPENING locus measure
     event-id; GROUP / REFLECT root / ASSERT locus measure signed-decimal / END-GROUP.
-    No blank/comment/unknown, metadata/keyed/presence/history rows are ignored. Semantic admission follows
+    At most one PRESENCE / REFLECT root / PRESENT locus measure / END-PRESENCE block.
+    Absence is [None]; even an empty explicit block cannot be repeated/overwritten.
+    No blank/comment/unknown, metadata/keyed/history rows are ignored. Semantic admission follows
     decoding; the parser does not narrow neutral Effects or manufacture support. *)
 type t =
   { source : Loam_application.Actual_source.command
   ; zero_origins : Loam_domain.Effect_coordinate.t list
   ; openings : Loam_application.Current_quantity_query.opening list
   ; groups : Loam_application.Current_quantity_groups.group list
+  ; presence : Loam_application.Current_quantity_query.presence option
   }
 type error = { line : int; message : string }
 val decode : string -> (t, error) result
