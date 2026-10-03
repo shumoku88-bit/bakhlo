@@ -5,8 +5,8 @@ module Coordinate = D.Effect_coordinate
 module P = Loam_application.Current_quantity_projection
 module F = Loam_application.Correction_frontier
 module Cut = Loam_application.Reflected_root_cut
-module T = Lineage_tests
-module ZT = Zero_origin_tests
+module T = Fixtures
+module ZT = Fixtures
 module G = Lineage_model
 module M = Root_cut_model
 
@@ -18,10 +18,10 @@ let event = T.event
 let edge = T.edge
 let memory = T.memory
 let frontier = T.admitted
-let cut = Root_cut_tests.cut
+let cut = T.cut
 let same_coordinate = ZT.same_coordinate
 
-let assertion coordinate quanta : P.assertion = { coordinate; quantity = Q.of_quanta quanta }
+let assertion = T.assertion
 let model source assertions =
   match P.create ~cut:source ~assertions with
   | Ok value -> value
@@ -50,29 +50,19 @@ let show label model coordinate =
     (Z.to_string (Q.quanta (P.delta answer))) (Z.to_string (Q.quanta (P.quantity answer)))
 ;;
 
-let same_assertion (a : P.assertion) (b : P.assertion) =
-  same_coordinate a.coordinate b.coordinate && Q.equal a.quantity b.quantity
-;;
+let same_assertion = T.same_assertion
 
 let require_source source assertions answer =
   require (List.equal same_assertion assertions (P.assertions answer)) "unmodified assertion order/values";
   let retained = P.source_cut answer in
-  Root_cut_tests.require_source (Cut.source_frontier source) retained (Cut.reflected_roots source);
+  T.require_cut_source (Cut.source_frontier source) retained (Cut.reflected_roots source);
   require (List.equal T.equal_lineage (Cut.remaining_lineages source) (Cut.remaining_lineages retained)) "same immutable cut"
 ;;
 
-(* Direct Zarith arithmetic over original fixture Events and source-list lineage
-   oracle, never production totals/remaining_events/quantity getters. *)
-let sum_events events (coordinate : Coordinate.t) =
-  List.fold events ~init:Z.zero ~f:(fun total original ->
-    List.fold (D.Event.effects original) ~init:total ~f:(fun total change ->
-      if D.Identifier.Locus.equal coordinate.locus (D.Effect.locus change)
-         && D.Identifier.Measure.equal coordinate.measure (D.Effect.measure change)
-      then Z.add total (Q.quanta (D.Effect.quantity change)) else total))
-;;
+let sum_events = Source_oracle.sum_events
 
 let selected_events source corrections reflected =
-  List.filter_map (T.expected_pairs source corrections) ~f:(fun (root, terminal) ->
+  List.filter_map (Source_oracle.expected_pairs source corrections) ~f:(fun (root, terminal) ->
     if List.mem reflected root ~equal:D.Identifier.Event.equal then None else Some terminal)
 ;;
 
@@ -226,7 +216,7 @@ let%expect_test "replay and representation permutation preserve quantities; asse
   [%expect {| replay/permutation and exact assertion translation passed |}]
 ;;
 
-let fixture_coordinate n = coordinate ~unit:(if n < 2 then "jpy" else "usd") (if Int.equal (n % 2) 0 then "wallet" else "other")
+let fixture_coordinate = T.fixture_coordinate
 
 let%expect_test "4864 graph/cut/support cases agree with independent closure and original-Effect arithmetic" =
   let nodes = [ 0; 1; 2; 3 ] in
@@ -289,7 +279,7 @@ let%expect_test "generated assertion admission, unknown and exact quantities obe
         ; change (fixture_coordinate 0) Z.one; change (fixture_coordinate 0) Z.one; change (fixture_coordinate 3) Z.zero ]) in
     let corrections = List.filter_mapi values ~f:(fun i n ->
       if n > 0 && i + 1 < List.length source then Some (edge (Int.to_string i) (Int.to_string (i + 1))) else None) in
-    let roots = List.map (T.expected_pairs source corrections) ~f:fst in
+    let roots = List.map (Source_oracle.expected_pairs source corrections) ~f:fst in
     let reflected = List.filteri roots ~f:(fun i _ -> List.mem flags i ~equal:Int.equal) in
     let supplied = cut (frontier (memory source) corrections) (List.rev reflected) in
     let expected_events = selected_events source corrections reflected in
@@ -317,7 +307,7 @@ let%expect_test "generated assertion admission, unknown and exact quantities obe
     verify_queries (model supplied unique_assertions) unique_assertions expected_events all_queries;
     let shifted = List.map unique_assertions ~f:(fun (a : P.assertion) -> assertion a.coordinate (Z.add (Q.quanta a.quantity) (Z.shift_left Z.one 145))) in
     verify_queries (model supplied shifted) shifted expected_events all_queries;
-    List.iter (T.expected_pairs source corrections) ~f:(fun (root, terminal) ->
+    List.iter (Source_oracle.expected_pairs source corrections) ~f:(fun (root, terminal) ->
       let fresh = D.Event.create ~id:(id "fresh") ~effects:
         [ change (fixture_coordinate 0) (Z.shift_left Z.one 170); change (fixture_coordinate 2) Z.minus_one ] in
       let new_source = source @ [ fresh ] in

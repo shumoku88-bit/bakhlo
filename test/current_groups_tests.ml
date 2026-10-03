@@ -5,8 +5,8 @@ module P = Loam_application.Current_quantity_projection
 module F = Loam_application.Correction_frontier
 module Cut = Loam_application.Reflected_root_cut
 module Q = D.Quantity
-module T = Lineage_tests
-module CT = Current_quantity_tests
+module T = Fixtures
+module CT = Fixtures
 module G = Lineage_model
 module M = Current_groups_model
 module CM = Root_cut_model
@@ -82,11 +82,11 @@ let verify image groups source corrections nodes pairs =
     | Some expected, Some owner, Ok actual ->
       let input = group expected in
       require (List.equal CT.same_assertion (P.assertions owner) input.assertions) "whole owning group's assertions";
-      Root_cut_tests.require_source (H.source_frontier image) (P.source_cut owner) input.reflected_roots;
+      T.require_cut_source (H.source_frontier image) (P.source_cut owner) input.reflected_roots;
       let selected = match CM.cut ~nodes ~pairs ~reflected:expected.roots with Ok selected -> selected | Error _ -> failwith "invalid oracle cut" in
       let selected_events = List.map selected ~f:(fun (_, terminal) -> List.nth_exn source terminal) in
       let asserted = snd (List.find_exn expected.assertions ~f:(fun (n, _) -> Int.equal n code)) in
-      let delta = CT.sum_events selected_events c in
+      let delta = Source_oracle.sum_events selected_events c in
       require (D.Effect_coordinate.equal (P.coordinate actual) c) "answer coordinate";
       require (Z.equal (Q.quanta (P.asserted_quantity actual)) asserted) "exact original assertion";
       require (Z.equal (Q.quanta (P.delta actual)) delta) "independent original-Effect delta";

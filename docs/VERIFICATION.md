@@ -26,8 +26,13 @@ or OCaml refinement proof. Platform coverage remains macOS x86_64.
 | Fault injection and recovery tests | Observed implementation behavior at selected failure points | Must distinguish process crash, I/O failure, and power loss |
 | Benchmarks | Cost on a named workload and environment | Not a semantic or universal performance guarantee |
 
-Use the smallest set that answers distinct questions. Formal tools are development
-instruments; consumers must not need them to run the product.
+Use the smallest set answering a distinct gap: new semantics/failure boundaries
+need stronger evidence; ordinary consumers need focused tests of their connection.
+Reuse independent models/oracles, not a fresh verification bundle per slice.
+Logical tiers: fast examples/boundaries for edits; extended exploration/properties
+before semantic checkpoints; optional formal checks when artifacts/assumptions/mapping
+change. `tools/check` still runs the full OCaml suite; no new tier machinery yet.
+Formal tools remain development-only, never product build/test/release dependencies.
 
 ## Instrument review gate
 
@@ -145,6 +150,9 @@ Do not import a broad theorem into an unrelated operation by name alone.
   that scope excludes larger graphs, duplicate parallel edges, and absent IDs,
   which separate fixtures/generated cases address without universal claims.
   See [contract](CORRECTION_FRONTIER_SLICE.md); no household authority is inferred.
+- `fixtures.ml` holds shared test constructors/assertions; `source_oracle.ml` retains
+  original-list/fuel selection and direct Zarith arithmetic, independent of production
+  indexes. Test-case modules do not supply helpers to other test-case modules.
 - `lineage_model.ml` is a test-only immutable integer-relation transitive-closure
   model, independent of production IDs/maps/successor traversal. Two model tests
   explore all 65,536 four-node simple graphs and root/terminal partition properties.

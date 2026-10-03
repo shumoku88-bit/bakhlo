@@ -6,26 +6,11 @@ module Coverage = D.Zero_origin_coverage
 module P = Loam_application.Zero_origin_projection
 module Q = D.Quantity
 
-let require condition message = if not condition then failwith message
-
-let identifier constructor spelling =
-  match constructor spelling with
-  | Ok value -> value
-  | Error D.Identifier.Empty -> failwith "empty fixture identifier"
-;;
-
-let coordinate ?(unit = "jpy") place : C.t =
-  { locus = identifier D.Identifier.Locus.of_string place
-  ; measure = identifier D.Identifier.Measure.of_string unit
-  }
-;;
-
-let change (coordinate : C.t) quanta =
-  D.Effect.create
-    ~locus:coordinate.locus
-    ~measure:coordinate.measure
-    ~quantity:(Q.of_quanta quanta)
-;;
+let require = Fixtures.require
+let identifier = Fixtures.identifier
+let coordinate = Fixtures.coordinate
+let change = Fixtures.change
+let same_coordinate = Fixtures.same_coordinate
 
 let movement effects =
   match D.Movement.validate effects with
@@ -37,11 +22,6 @@ let coverage coordinates =
   match Coverage.of_coordinates coordinates with
   | Ok value -> value
   | Error (Duplicate_coordinate _) -> failwith "duplicate fixture coverage"
-;;
-
-let same_coordinate (left : C.t) (right : C.t) =
-  D.Identifier.Locus.equal left.locus right.locus
-  && D.Identifier.Measure.equal left.measure right.measure
 ;;
 
 let exact model coordinate =

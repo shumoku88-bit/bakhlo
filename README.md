@@ -112,24 +112,10 @@ The core uses immutable data and pure functions; process I/O is isolated at
 active in release builds too. See [functional-core review](docs/ENGINEERING_STYLE.md)
 for the actual boundary, test-only counters, and limits of these checks.
 
-On macOS x86_64, build, 77 expect tests, and three cram suites pass. Quantity,
-Movement, application replay, zero-origin/current-assertion projections,
-identity/endpoint checks, frontiers, lineages, cuts and multi-group ownership each
-execute 10,000 cases (100,000 total across ten seeds).
-Tests enumerate all 512 three-Event graphs, and an independent transitive-closure
-model explores all 65,536 four-Event simple graphs with model/code correspondence.
-Cuts compare all 1,168 relation/declaration subsets of those 73 admitted relations,
-plus selected fresh-tail extensions. 10,000-node chains/cycles complete; these
-bounded checks are not universal proofs. A clean engine-only build does not build
-presentation/CLI. Quantity tests compare 4,864 graph/cut/support cases with direct
-original-Effect arithmetic. Groups compare 256 ownership/cut cases (144 admitted)
-and 2,304 explicit update/replay cases. Nine [optional Lean specification laws](formal/README.md)
-retain selection, signed-delta/answerability and whole-premise replacement laws; they are not graph/OCaml
-refinement proofs and are not required by product checks.
-Cram suites exercise the real CLI, application-only clients, abstract type
-boundaries, and compiler-policy controls/counterexamples in dev/release. Linux and Apple
-Silicon are targets, not yet qualified platforms. This is finite executable
-evidence, not a formal correctness proof or full operational admission. There
+[Verification](docs/VERIFICATION.md) owns the current test inventory, independent
+oracles, bounds and macOS x86_64 qualification. Linux/Apple Silicon remain targets,
+not qualified platforms. [Optional specification laws](formal/README.md) are neither
+OCaml refinement proofs nor product requirements. There
 is no admitted Actual history/report engine, storage, migration, or public release, and no
 large-history latency guarantee yet. No cache, incremental framework, clock
 abstraction, or UI state is invented for this preparation. Local package metadata

@@ -5,7 +5,7 @@ module F = Loam_application.Correction_frontier
 module C = Loam_application.Reflected_root_cut
 module G = Lineage_model
 module M = Root_cut_model
-module T = Lineage_tests
+module T = Fixtures
 
 let require = T.require
 let id = T.id
@@ -16,11 +16,7 @@ let memory = T.memory
 let equal_event = T.equal_event
 let equal_lineage = T.equal_lineage
 
-let cut frontier reflected_roots =
-  match C.create ~frontier ~reflected_roots with
-  | Ok cut -> cut
-  | Error _ -> failwith "valid cut refused"
-;;
+let cut = T.cut
 
 let show_events events =
   String.concat ~sep:"," (List.map events ~f:(fun e -> Id.to_string (D.Event.id e)))
@@ -49,17 +45,7 @@ let same_error actual expected =
   | C.Not_root _, (M.Duplicate_root _ | M.Unknown_event _) -> false
 ;;
 
-let require_source frontier answer declarations =
-  let source = C.source_frontier answer in
-  require (List.equal equal_event
-    (D.Event_memory.events (F.retained_events frontier))
-    (D.Event_memory.events (F.retained_events source))) "unmodified original observations";
-  require (List.equal T.equal_edge (F.corrections frontier) (F.corrections source)) "unmodified original corrections";
-  require (List.equal equal_lineage (F.lineages frontier) (F.lineages source)) "unmodified rooted source";
-  require (List.equal Id.equal declarations (C.reflected_roots answer)) "unmodified declaration order";
-  require (List.equal equal_event (C.remaining_events answer)
-    (List.map (C.remaining_lineages answer) ~f:F.terminal_event)) "rows/events agree"
-;;
+let require_source = T.require_cut_source
 
 let%expect_test "explicit empty, untouched and complete cuts never imply origin or missing-loader success" =
   let empty = cut (admitted (memory []) []) [] in
@@ -77,7 +63,7 @@ let%expect_test "explicit empty, untouched and complete cuts never imply origin 
 
 let%expect_test "partial cuts retain exact general observations and root order, not terminal order" =
   let c = D.Event.create ~id:(id "c") ~effects:
-    [ T.change "jpy" (Z.shift_left Z.one 128); T.change "usd" Z.zero; T.change "jpy" Z.minus_one ] in
+    [ T.here_change "jpy" (Z.shift_left Z.one 128); T.here_change "usd" Z.zero; T.here_change "jpy" Z.minus_one ] in
   let source = [ event "e"; c; event "a"; event "untouched"; event "b"; event "d" ] in
   let frontier = admitted (memory source) [ edge "b" "c"; edge "d" "e"; edge "a" "b" ] in
   let none = cut frontier [] in
@@ -215,12 +201,12 @@ let%expect_test "generated cut admission, exact payload selection, replay and re
     let source = List.mapi values ~f:(fun i n ->
       let q = Z.mul (Z.of_int n) (Z.shift_left Z.one 140) in
       D.Event.create ~id:(id (Int.to_string i))
-        ~effects:[ T.change "jpy" q; T.change "usd" (Z.neg q); T.change "jpy" Z.zero ]) in
+        ~effects:[ T.here_change "jpy" q; T.here_change "usd" (Z.neg q); T.here_change "jpy" Z.zero ]) in
     let nodes = List.init (List.length source) ~f:Fn.id in
     let corrections = List.filter_mapi values ~f:(fun i n ->
       if n > 0 && i + 1 < List.length source
       then Some (edge (Int.to_string i) (Int.to_string (i + 1))) else None) in
-    let rooted = T.expected_pairs source corrections in
+    let rooted = Source_oracle.expected_pairs source corrections in
     let model_pairs = List.map rooted ~f:(fun (root, terminal) ->
       Int.of_string (Id.to_string root), Int.of_string (Id.to_string (D.Event.id terminal))) in
     let frontier = admitted (memory source) corrections in
@@ -238,7 +224,7 @@ let%expect_test "generated cut admission, exact payload selection, replay and re
         require (List.equal equal_lineage (C.remaining_lineages answer) (C.remaining_lineages replay)) "replay";
         require (List.equal equal_lineage (List.rev (C.remaining_lineages answer)) (C.remaining_lineages permuted)) "representation permutation";
         List.iter rooted ~f:(fun (root, terminal) ->
-          let fresh = D.Event.create ~id:(id "fresh") ~effects:[ T.change "kg" Z.minus_one ] in
+          let fresh = D.Event.create ~id:(id "fresh") ~effects:[ T.here_change "kg" Z.minus_one ] in
           let extended_frontier = admitted (memory (source @ [ fresh ]))
             (corrections @ [ { D.Event_correction.target = D.Event.id terminal; replacement = D.Event.id fresh } ]) in
           let extended = cut extended_frontier declarations in

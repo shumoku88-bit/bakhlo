@@ -5,49 +5,17 @@ module Id = D.Identifier.Event
 module F = Loam_application.Correction_frontier
 module M = Lineage_model
 
-let require condition message = if not condition then failwith message
-
-let identifier constructor name =
-  match constructor name with
-  | Ok value -> value
-  | Error D.Identifier.Empty -> failwith "empty fixture identity"
-;;
-
-let id name = identifier Id.of_string name
-let event name = D.Event.create ~id:(id name) ~effects:[]
-let edge a b : D.Event_correction.t = { target = id a; replacement = id b }
-
-let memory source =
-  match D.Event_memory.of_events source with
-  | Ok value -> value
-  | Error _ -> failwith "duplicate fixture"
-;;
-
-let admitted events corrections =
-  match F.create ~events ~corrections with
-  | Ok value -> value
-  | Error _ -> failwith "valid fixture refused"
-;;
-
-let equal_effect left right =
-  D.Identifier.Locus.equal (D.Effect.locus left) (D.Effect.locus right)
-  && D.Identifier.Measure.equal (D.Effect.measure left) (D.Effect.measure right)
-  && D.Quantity.equal (D.Effect.quantity left) (D.Effect.quantity right)
-;;
-
-let equal_event left right =
-  Id.equal (D.Event.id left) (D.Event.id right)
-  && List.equal equal_effect (D.Event.effects left) (D.Event.effects right)
-;;
-
-let equal_edge (left : D.Event_correction.t) (right : D.Event_correction.t) =
-  Id.equal left.target right.target && Id.equal left.replacement right.replacement
-;;
-
-let equal_lineage left right =
-  Id.equal (F.root_id left) (F.root_id right)
-  && equal_event (F.terminal_event left) (F.terminal_event right)
-;;
+let require = Fixtures.require
+let identifier = Fixtures.identifier
+let id = Fixtures.id
+let event = Fixtures.event
+let edge = Fixtures.edge
+let memory = Fixtures.memory
+let admitted = Fixtures.admitted
+let equal_event = Fixtures.equal_event
+let equal_edge = Fixtures.equal_edge
+let equal_lineage = Fixtures.equal_lineage
+module Path_inputs = Fixtures.Path_inputs
 
 let show lineages =
   String.concat ~sep:"," (List.map lineages ~f:(fun row ->
@@ -55,12 +23,7 @@ let show lineages =
       (Id.to_string (D.Event.id (F.terminal_event row)))))
 ;;
 
-let change unit n =
-  D.Effect.create
-    ~locus:(identifier D.Identifier.Locus.of_string "here")
-    ~measure:(identifier D.Identifier.Measure.of_string unit)
-    ~quantity:(D.Quantity.of_quanta n)
-;;
+let change = Fixtures.here_change
 
 let%expect_test "empty and untouched observations form exact singleton lineages" =
   require (List.is_empty (F.lineages (admitted (memory []) []))) "explicit empty input";
@@ -185,33 +148,7 @@ let%expect_test "long lineage traversal completes in both correction orders" =
   [%expect {| 10000-node root/terminal mapping completed in both edge orders |}]
 ;;
 
-module Path_inputs = struct
-  type t = int list
-  let sexp_of_t values = Sexp.List (List.map values ~f:Int.sexp_of_t)
-  let quickcheck_generator =
-    let open Base_quickcheck.Generator in
-    bind (int_inclusive 0 40) ~f:(fun length -> list_with_length (int_inclusive (-4) 4) ~length)
-  let quickcheck_shrinker = Base_quickcheck.Shrinker.list Base_quickcheck.Shrinker.int
-end
-
-(* Independent source-list/fuel oracle for generated paths; no map, terminal
-   getter, or production-derived root set supplies the expected association. *)
-let expected_pairs source corrections =
-  let roots = List.filter source ~f:(fun original ->
-    not (List.exists corrections ~f:(fun (c : D.Event_correction.t) ->
-      Id.equal c.replacement (D.Event.id original)))) in
-  let rec follow fuel current =
-    match List.find corrections ~f:(fun (c : D.Event_correction.t) -> Id.equal c.target current) with
-    | None ->
-      (match List.find source ~f:(fun original -> Id.equal (D.Event.id original) current) with
-       | Some original -> original
-       | None -> failwith "oracle endpoint absent")
-    | Some c ->
-      if fuel <= 0 then failwith "oracle cycle/fuel exhausted"
-      else follow (fuel - 1) c.replacement
-  in
-  List.map roots ~f:(fun root -> D.Event.id root, follow (List.length source) (D.Event.id root))
-;;
+let expected_pairs = Source_oracle.expected_pairs
 
 let%expect_test "generated disjoint paths preserve exact associations under replay, permutation and extension" =
   let check values =

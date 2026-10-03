@@ -141,8 +141,13 @@ parent workspace or private data to rediscover already-indexed decisions.
 3. Apply the instrument review gate; use the smallest set answering distinct
    residual questions. Record why a relevant instrument is used/deferred, not a
    blanket "the compiler/tests are enough". No mandatory all-tools pipeline.
-4. State assumptions and acceptance checks before implementation.
-5. Implement the smallest end-to-end change.
+4. State assumptions and acceptance checks before implementation. Scale evidence
+   by semantic/failure risk, not directory or a per-slice checklist. Reuse independent
+   models/oracles; add a model, theorem or compiler specimen only for a new gap.
+5. Prefer a small vertical input-to-answer change. Shared test helpers live outside
+   test-case modules; never share production algorithms into the expected-value oracle.
+   Keep current evidence in VERIFICATION, next actions in HANDOFF, and stable contracts
+   in interfaces/architecture; link instead of copying status lists into many documents.
 6. Check adjacent correction, uncertainty, persistence, and projection boundaries
    where relevant; stop when no concrete seam remains.
 7. Run the selected checks; report actual results, model/code correspondence,
