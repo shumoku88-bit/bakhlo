@@ -86,14 +86,45 @@ let%expect_test "keyed decoding retains exact identities; duplicate Event keys a
   F.require (refused.exit_code = 1 && String.is_empty refused.stdout && String.is_substring refused.stderr ~substring:"duplicate Effect key" &&
     not (String.is_substring refused.stderr ~substring:"residual")) "key admission before physical source";
   F.require ((C.evaluate request (Ok (document [ "EVENT\te\t2026-10-03"; "KEYED-EFFECT\t\twallet\tjpy\t1"; "END-EVENT" ]))).exit_code = 2) "empty key is syntax";
-  F.require ((C.evaluate request (Ok (document (rows @ [ "DESCRIPTION\tb\tnot-yet-supported" ])))).exit_code = 2) "metadata not silently discarded";
+  F.require ((C.evaluate request (Ok (document (rows @ [ "MERCHANT\tb\tnot-yet-supported" ])))).exit_code = 2) "metadata not silently discarded";
   Stdlib.Printf.printf "exact optional keys retained; Event duplicate exit 1 vs syntax exit 2; no discarded metadata\n";
   [%expect {| exact optional keys retained; Event duplicate exit 1 vs syntax exit 2; no discarded metadata |}]
 ;;
 
+let%expect_test "description rows retain optional literal text and forward references; closure precedes lookup" =
+  let rows = [ "DESCRIPTION\tb\t"; "DESCRIPTION\t a \t  merchant?\\n日本語  ";
+    "EVENT\t a \t2026-10-03"; "END-EVENT"; "EVENT\tb\t2026-10-02"; "END-EVENT";
+    "CORRECTION\t a \tb"; "ZERO-ORIGIN\twallet\tjpy" ] in
+  let decoded = ok (Input.decode (document rows)) in
+  let source = ok (S.create decoded.source) in
+  let module E = Loam_application.Event_descriptions in
+  F.require (List.equal String.equal (List.map decoded.source.descriptions ~f:(fun fact -> D.Identifier.Event.to_string fact.event)) [ "b"; " a " ]) "forward reference/order/exact IDs";
+  F.require (Option.equal String.equal (E.find_text (S.descriptions source) (F.id "b")) (Some "") &&
+    Option.equal String.equal (E.find_text (S.descriptions source) (F.id " a ")) (Some "  merchant?\\n日本語  ")) "empty/spaces and backslash are literal text";
+  let request : C.request = { path = "synthetic"; coordinate = F.coordinate "wallet" } in
+  let exact = C.evaluate request (Ok (document rows)) in
+  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:"quantity=0") "description-aware read path unchanged";
+  let unknown = document (rows @ [ "DESCRIPTION\tunknown\thuman text" ]) in
+  F.require (Result.is_ok (Input.decode unknown)) "reference closure is not syntax";
+  let refusal = C.evaluate request (Ok unknown) in
+  F.require (refusal.exit_code = 1 && String.is_empty refusal.stdout && String.is_substring refusal.stderr ~substring:"description 3: unknown Event") "whole source before unrelated query";
+  let repeated = C.evaluate request (Ok (document (rows @ [ "DESCRIPTION\tb\t" ]))) in
+  F.require (repeated.exit_code = 1 && String.is_empty repeated.stdout && String.is_substring repeated.stderr ~substring:"duplicate description" &&
+    String.is_substring repeated.stderr ~substring:"at 3 (first 1)") "identical text not deduplicated, description positions";
+  let unsupported = C.evaluate request (Ok (document [ "EVENT\tb\t2026-10-03"; "END-EVENT"; "DESCRIPTION\tb\topening balance" ])) in
+  F.require (unsupported.exit_code = 3 && String.is_empty unsupported.stderr) "recognizer text became support";
+  Stdlib.Printf.printf "exact optional literal text; forward retained references; admission 1 vs syntax 2, no inferred support\n";
+  [%expect {| exact optional literal text; forward retained references; admission 1 vs syntax 2, no inferred support |}]
+;;
+
 let%expect_test "malformed/truncated/misplaced rows and obsolete formats never become partial success" =
   let invalid = [ ""; "LOAM-NORMALIZED-ACTUAL\t1\nEND\n"; "LOAM-OCAML-ACTUAL-FIXTURE\t1\nEND\n";
-    document [ "SCHEDULED\ta" ]; document [ "DESCRIPTION\ta\tmetadata" ]; document [ "KEYED-EFFECT\tkey\twallet\tjpy\t1" ];
+    document [ "SCHEDULED\ta" ]; document [ "MERCHANT\ta\tmetadata" ];
+    document [ "DESCRIPTION\ta" ]; document [ "DESCRIPTION\t\tmemo" ]; document [ "DESCRIPTION\ta\tone\ttwo" ];
+    document [ "EVENT\ta\t2026-10-03"; "DESCRIPTION\ta\tmisplaced"; "END-EVENT" ];
+    document [ "GROUP"; "DESCRIPTION\ta\tmisplaced"; "END-GROUP" ];
+    document [ "PRESENCE"; "DESCRIPTION\ta\tmisplaced"; "END-PRESENCE" ];
+    document [ "DESCRIPTION\ta\ttext\ncontinued" ]; document [ "KEYED-EFFECT\tkey\twallet\tjpy\t1" ];
     document [ "EVENT\ta\t2026-10-03" ]; document [ "GROUP" ]; document [ "EFFECT\twallet\tjpy\t1" ]; document [ "" ];
     document [ "OPENING\twallet\tjpy" ]; document [ "OPENING\twallet\tjpy\t" ];
     document [ "GROUP"; "OPENING\twallet\tjpy\te"; "END-GROUP" ]; document [ "PRESENCE\twallet\tjpy" ];
@@ -130,6 +161,10 @@ let%expect_test "read failures and cycle identities are escaped; help/syntax req
   let duplicate = Loam_presentation.Current_quantity_text.event_refusal (F.id "e\027\n")
     (D.Event.Duplicate_effect_key { key = F.identifier D.Identifier.Effect_key.of_string "k\027\n"; first_position = 1; position = 2 }) in
   F.require (not (String.exists duplicate ~f:(Char.equal '\027')) && String.count duplicate ~f:(Char.equal '\n') = 1) "escaped key and Event identities";
+  List.iter [ S.Descriptions (Loam_application.Event_descriptions.Repeated_description { event = F.id "event\027\n"; first_position = 1; position = 2 });
+    S.Descriptions (Loam_application.Event_descriptions.Unknown_description_event { event = F.id "event\027\n"; position = 1 }) ] ~f:(fun error ->
+      let rendered = Loam_presentation.Current_quantity_text.source_refusal error in
+      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped description references");
   (match C.plan [ "--help" ] with Help -> () | _ -> failwith "help plan");
   (match C.plan [] with Refused _ -> () | _ -> failwith "syntax plan");
   Stdlib.Printf.printf "escaped provenance/errors; explicit read result; no help/syntax I/O\n";

@@ -6,7 +6,7 @@ module Frontier = Loam_application.Correction_frontier
 module F = Fixtures
 let ok = function Ok value -> value | Error _ -> failwith "valid base Actual source refused"
 let command events corrections : S.command =
-  { events; corrections; validities = List.map events ~f:(fun event ->
+  { events; corrections; descriptions = []; validities = List.map events ~f:(fun event ->
       ({ event = D.Event.id event; valid_on = "2026-10-03" } : V.fact)) }
 let event token changes = F.observation ~id:(F.id token) ~effects:changes
 
@@ -64,7 +64,7 @@ let%expect_test "base validity and correction provenance survive source admissio
   let originals = [ F.event "a"; F.event "b"; F.event "x" ] in
   let facts : V.fact list = [ { event = F.id "b"; valid_on = "1900-01-01" };
     { event = F.id "x"; valid_on = "2026-10-03" }; { event = F.id "a"; valid_on = "2000-02-29" } ] in
-  let draft : S.command = { events = originals; validities = facts; corrections = [ F.edge "a" "b" ] } in
+  let draft : S.command = { events = originals; validities = facts; corrections = [ F.edge "a" "b" ]; descriptions = [] } in
   let image = ok (S.create draft) in
   F.require (List.equal F.equal_event originals (D.Event_memory.events (Frontier.retained_events (S.frontier image)))) "source not pruned";
   F.require (List.equal F.equal_edge draft.corrections (Frontier.corrections (S.frontier image))) "edges retained";

@@ -23,7 +23,8 @@ There is no canonical storage, clock, mutable business state or generic service 
 | Lineages / reflected cut | Root-to-terminal associations; independent unique represented-root declarations; retain source, exclude whole lineages |
 | Current assertion groups | Exact assertions + unreflected Effects; independent cuts, one coordinate owner; ordered whole-group qualification |
 | Actual validity | Independent base ISO facts, unique/closed/complete for all supplied retained Events; no chronology/winners |
-| Actual source | Ordinary/base-validity subset: every retained Effect nonzero, each Measure independently balanced, validity and correction admission |
+| Event descriptions | Optional unique retained Event reference + exact recognizer text; no classification, completeness or inheritance |
+| Actual source | Ordinary/base-validity subset: every retained Effect nonzero, each Measure independently balanced, validity/corrections then whole descriptions admission |
 | Current quantity query | One source; origin, opening (unique coordinate/current Event/matching Effect), assertions and presence, globally separated; Exact / Known_present / unsupported |
 
 Public `.mli` files own exact inputs, diagnostics and ordering. Indexes are disposable
@@ -63,7 +64,14 @@ Only the shell reads a named synthetic file. Failure/malformed/unsupported input
 becomes an empty image. Domain remains general even when a practical source entrance is
 narrower. There is one current fixture grammar, not a legacy protocol/backend matrix.
 
-The current source is NOT full normalized Actual: metadata, validity
+Descriptions remain independent of Event shape/occurrence/support. Their qualified memory
+retains its supplied source and original declarations; indexed exact-ID lookup distinguishes
+absent from empty text. Superseded Events may still have descriptions; a new terminal does
+not inherit its predecessor's text. Invalid unrelated references refuse the whole source.
+The fixture's top-level DESCRIPTION takes one literal field; engine text can contain tabs/
+newlines but this noncanonical reader has no encoding for them. Never guess escapes.
+
+The current source is NOT full normalized Actual: structured metadata, validity
 revisions, Exchange/Reversal and relations/settlement remain unqualified.
 Base validity is external evidence, not proof of occurrence truth or historical completeness.
 Queries do not establish household authority, purchasing power or spendability.

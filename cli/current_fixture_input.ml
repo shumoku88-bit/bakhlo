@@ -55,7 +55,7 @@ let decode text =
           | Between, [ "END" ] ->
             if not (List.is_empty rest) then fail (line + 1) "rows after END"
             else Ok { source = { events = List.rev draft.source.events; validities = List.rev draft.source.validities;
-                corrections = List.rev draft.source.corrections };
+                corrections = List.rev draft.source.corrections; descriptions = List.rev draft.source.descriptions };
               groups = List.rev draft.groups; zero_origins = List.rev draft.zero_origins; openings = List.rev draft.openings; presence = draft.presence }
           | Between, [ "EVENT"; token; date ] ->
             let* id = identity line D.Identifier.Event.of_string token in
@@ -78,6 +78,11 @@ let decode text =
             let* replacement = identity line D.Identifier.Event.of_string replacement in
             let correction : D.Event_correction.t = { target; replacement } in
             let source = { draft.source with corrections = correction :: draft.source.corrections } in
+            scan (line + 1) Between { draft with source } rest
+          | Between, [ "DESCRIPTION"; token; text ] ->
+            let* event = identity line D.Identifier.Event.of_string token in
+            let fact : Loam_application.Event_descriptions.fact = { event; text } in
+            let source = { draft.source with descriptions = fact :: draft.source.descriptions } in
             scan (line + 1) Between { draft with source } rest
           | Between, [ "ZERO-ORIGIN"; locus; measure ] ->
             let* c = coordinate line locus measure in
@@ -113,6 +118,6 @@ let decode text =
             scan (line + 1) Between { draft with presence = Some presence } rest
           | (Between | Event _ | Group _ | Presence _), _ -> fail line "unknown, malformed or misplaced fixture row"
       in
-      scan 2 Between { source = { events = []; validities = []; corrections = [] }; groups = []; zero_origins = []; openings = []; presence = None } rows
+      scan 2 Between { source = { events = []; validities = []; corrections = []; descriptions = [] }; groups = []; zero_origins = []; openings = []; presence = None } rows
     | _ -> fail 1 "expected LOAM-OCAML-ACTUAL-FIXTURE version 2 (not household data)"
 ;;

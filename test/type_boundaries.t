@@ -373,8 +373,9 @@ The physically admitted base Actual source has a public smart constructor.
 
   $ cat >actual_source_client.ml <<'EOF'
   > module S = Loam_application.Actual_source
-  > let empty () = S.create { events = []; validities = []; corrections = [] }
+  > let empty () = S.create { events = []; validities = []; corrections = []; descriptions = [] }
   > let facts source = Loam_application.Actual_validity.facts (S.validity source)
+  > let descriptions source = Loam_application.Event_descriptions.facts (S.descriptions source)
   > EOF
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c actual_source_client.ml
   $ cat >forged_actual_source.ml <<'EOF'
@@ -384,6 +385,33 @@ The physically admitted base Actual source has a public smart constructor.
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_actual_source.ml 2>error
   [2]
   $ grep -q 'Unbound record field.*frontier' error
+
+Description facts use Event IDs; only the smart constructor yields qualified descriptions.
+
+  $ cat >description_client.ml <<'EOF'
+  > module A = Loam_application
+  > module E = A.Event_descriptions
+  > let fact event text : E.fact = { event; text }
+  > let admit events facts = E.create ~events ~facts
+  > let retained descriptions = E.source_events descriptions, E.facts descriptions
+  > let lookup = E.find_text
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c description_client.ml
+  $ cat >wrong_description_role.ml <<'EOF'
+  > module D = Loam_domain
+  > module E = Loam_application.Event_descriptions
+  > let wrong (event : D.Identifier.Effect_key.t) : E.fact = { event; text = "memo" }
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c wrong_description_role.ml 2>error
+  [2]
+  $ grep -q 'Identifier.Effect_key.t' error && grep -q 'Identifier.Event.t' error
+  $ cat >forged_descriptions.ml <<'EOF'
+  > module E = Loam_application.Event_descriptions
+  > let wrong (facts : E.fact list) : E.t = facts
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c forged_descriptions.ml 2>error
+  [2]
+  $ grep -q 'E.fact list' error && grep -q 'E.t' error
 
 The composed query needs an admitted source, not a frontier or separate projections.
 

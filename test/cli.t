@@ -96,6 +96,35 @@ Keyed Effects keep Event-local identity; duplicates are admission errors, not sy
   [2]
   $ test ! -s out && grep -q 'identity must not be empty' err
 
+Optional Event descriptions retain recognition text; duplicates/references refuse globally.
+
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDESCRIPTION\ta\t retained root text \nDESCRIPTION\tb\t\nEVENT\ta\t2026-10-03\nEND-EVENT\nEVENT\tb\t2026-10-02\nEND-EVENT\nCORRECTION\ta\tb\nZERO-ORIGIN\twallet\tjpy\nEND\n' >described
+  $ cp described described-before
+  $ loam-ocaml inspect-current-fixture described wallet jpy
+  Conditional current fixture quantity (ordinary base Actual subset).
+  "wallet" / "jpy": zero-origin; quantity=0
+  $ cmp described described-before
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEND-EVENT\nDESCRIPTION\te\tsame\nDESCRIPTION\te\tsame\nEND\n' >duplicate-description
+  $ loam-ocaml inspect-current-fixture duplicate-description unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'duplicate description for "e" at 2 (first 1)' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDESCRIPTION\tunknown\ttext\nEND\n' >unknown-description
+  $ loam-ocaml inspect-current-fixture unknown-description unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'description 1: unknown Event "unknown"' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDESCRIPTION\te\nEND\n' >malformed-description
+  $ loam-ocaml inspect-current-fixture malformed-description wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'fixture line 2' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEND-EVENT\nDESCRIPTION\te\topening balance\nEND\n' >description-only
+  $ loam-ocaml inspect-current-fixture description-only wallet jpy >out 2>err
+  [3]
+  $ test ! -s err && grep -q 'quantity unknown' out
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nMERCHANT\te\tstructured meaning\nEND\n' >unqualified-metadata
+  $ loam-ocaml inspect-current-fixture unqualified-metadata wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'unknown, malformed or misplaced' err
+
 Malformed/obsolete inputs and invalid premises refuse globally, never an empty basis.
 
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t1\nEND\n' >obsolete

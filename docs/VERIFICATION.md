@@ -49,6 +49,7 @@ counters; shared construction helpers are in `fixtures.ml`, never another test-c
 | Reflected cuts | List declaration model, 1,168 four-node relation/subset cases (304 cuts), selected fresh tails, prefix/source changes and old-terminal leak witness; not arbitrary-edit stability |
 | Assertion arithmetic | 4,864 graph/cut/support cases, original-Effect Zarith sum, unknown/zero, translation and reflected/unreflected seams |
 | Group ownership/re-observation | Independent two-coordinate/two-group list model: 256 construction and 2,304 update/replay seams; preserve whole premises, ordered refusals and old values; not durable retry |
+| Event descriptions | 64 three-slot omission/a/b/unknown patterns (13 admitted) against original-token-prefix oracle; exact/empty/control text, retained source/order, permutation, correction-tail noninheritance, prefix requalification and four-support noninterference. Combined declaration-order duplicate/reference gate, not upstream refusal-order parity or text truth |
 | Actual source / support routing | 625 two-Measure physical predicates; 16,384 two-coordinate/four-family seams (1,600 admitted), independent two group cuts/shared presence cut and original-list/Effect oracle; ordinary base source only |
 | Explicit opening | Current/coordinate/duplicate closure, same Event for distinct coordinates, supported zero/huge signed multiplicity, representation/date permutation and stale-tail rebuild; retain original source/premises, no auto-retarget or historical truth |
 | Presence | 1,024 three-Event/two-Measure touch/cut/declaration cases with ALL deltas zero (576 known-present answers), original Effect-membership oracle, selected vs retained activity, tail/prefix rebuilds, global stale overlap and retained premises; not historical/external truth |
@@ -58,7 +59,10 @@ counters; shared construction helpers are in `fixtures.ml`, never another test-c
 Large chain/cycle and generated cases supplement, not universally extend, finite bounds.
 External compiler clients test public abstractions, wrong qualified source types and private
 arithmetic exclusion. Key/Event roles and unqualified/forged Events are rejected;
-structural key refusal (exit 1) is distinct from syntax (exit 2). Clients reject
+structural key refusal (exit 1) is distinct from syntax (exit 2). Description clients reject
+Effect-key/Event role confusion and unqualified lists; parser/real CLI exercise literal/empty
+forward-reference text, duplicate/unknown admission 1 vs malformed/unsupported syntax 2,
+no inferred support, escaped IDs and unchanged files. Clients reject
 presence-to-quantity and incomplete outcome matching;
 known-present 4 / unsupported 3 are separate real-CLI stdout outcomes. Unsafe casts/
 internal-unit access are outside these guarantees.

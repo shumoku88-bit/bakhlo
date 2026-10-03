@@ -52,7 +52,13 @@ let source_refusal error =
          Printf.sprintf "duplicate validity for %S at %d (first %d)" (id event) position first_position
        | Unknown_validity_event { event; position } -> Printf.sprintf "validity %d: unknown Event %S" position (id event)
        | Missing_validity { event } -> Printf.sprintf "missing base validity for Event %S" (id event))
-    | Corrections error -> correction_error error in
+    | Corrections error -> correction_error error
+    | Descriptions error ->
+      (match error with
+       | A.Event_descriptions.Repeated_description { event; first_position; position } ->
+         Printf.sprintf "duplicate description for %S at %d (first %d)" (id event) position first_position
+       | Unknown_description_event { event; position } ->
+         Printf.sprintf "description %d: unknown Event %S" position (id event)) in
   "Actual source refused: " ^ detail ^ ".\n"
 let answer answer =
   let module Q = A.Current_quantity_query in
