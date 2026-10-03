@@ -1,58 +1,61 @@
 # Handoff
 
-## Current qualified cleanup — readability/duplication
+## Current qualified boundary — independent Event Merchant dispositions
 
-Pre-code question: can we reduce reading/maintenance cost without changing evidence, refusal
-order, public engine types, uncertainty or earned test coverage?
-D: two identical signed-decimal lexers, dense record/match layout, repeated public-client
-compiler commands; some completed indexes retain construction diagnostic positions.
-P: qualified date/Event frontiers, four supports, retained metadata and all existing
-models/campaigns/CLI/compiler controls (VERIFICATION). R: shared lexical correspondence
-and preserving compiler-test failure evidence under command abbreviation.
+Pre-code question: can the ordinary Actual source retain an explicitly supplied commercial-provider
+identity or explicit nonmerchant classification without turning absence, description,
+Effects, payment destinations or Event corrections into classification/support?
+D: existing source/reader admits unique descriptions but rejects all structured metadata;
+nearest owners at sibling 2438ef50a363ef06491da7b62f8537f52e25031a are Core ExternalParty,
+EventMerchantEvidence, ActualEvidence and NormalizedActualAdmission (narrow read only).
+P: exact role-distinct IDs, retained source/frontiers/date history, optional descriptions,
+four-support separation and existing independent arithmetic/touch oracles (VERIFICATION).
+R: optional three-way lookup, whole-source duplicate/reference admission and source/reader
+connection. No upstream source copying/build/proof or household-data access.
 
-Select one concrete CLI Quantity_literal parser for the two existing commands; only
-[+-]?[0-9]+, no coercion/normalization. Each command keeps its own errors/positions and
-admission. Use small independent byte/sign/digit arithmetic specimens across both consumers,
-plus existing grammar/huge/stream tests. Reflow dense declarations/expressions without
-reordering guards or hiding semantic cases. In type_boundaries.t abbreviate only compiler
-invocation paths via two inline shell functions: Domain-only vs Domain/Application scopes,
-unchanged flags, exit codes, positive controls, client bodies and diagnostic checks.
-No framework, formatter dependency, new model/proof/campaign, tiers or generic error type.
+Select one opaque nonempty External_party identity (role-free, exact bytes; no registry,
+name/alias/lifecycle) and concrete Event_merchants memory: fact = Event + Merchant(party)
+or Nonmerchant; absent = unresolved None. Unique per retained Event, even identical rows;
+per-declaration duplicate then retained-reference check, deterministic first error/positions.
+This local diagnostic order differs from upstream's separate uniqueness/closure gates;
+accepted shapes match the narrow scope except the declared nonempty practical identity rule.
+Raw facts/order/source survive, including superseded Events; no inheritance/completeness.
+After prior source gates and descriptions, admit all merchants before any support/query.
+Extend the same v2 reader with top-level MERCHANT event party / NONMERCHANT event, forward
+references allowed; malformed/misplaced/unsupported remaining facts still refuse.
 
-Defer stripping diagnostic positions: current indexes reuse admission maps; removing
-positions adds another full map materialization/traversal unless construction changes.
-There is no measured memory requirement. Do not trade obvious admission for speculative
-optimization just to make a record smaller. Also defer identifier functors and enumeration
-consolidation; no new semantic/type coupling or loss of independent checks by habit.
+Use an original-token-prefix oracle over 512 three-slot omission/a-party-p/a-party-q/
+a-nonmerchant/b-party-p/b-nonmerchant/unknown-party/unknown-nonmerchant cases (52 admitted
+by independent pre-code enumeration), exact/control/shared-party specimens, conflict order,
+retention/permutation/tail/prefix/immutability and four-support noninterference using earned
+source arithmetic/touch oracles. Add decoder, real CLI read-only/exit/stream and public-client
+role/forgery/exhaustiveness controls. No new random campaign/formal law/framework: association
+has no new graph, arithmetic, temporal or publication transition. Explicit guards suffice;
+revisit richer party roles, disposition histories/report routing or write/publication contracts.
 
-Acceptance: same CLI grammar/results/refusal ordering; all existing client bodies and
-negative diagnostic/exit witnesses retained. Full normal/package/install, clean engine
-and Lean-free checks; tooling/lock/formal artifact unchanged. Revisit if lexical policy,
-consumer boundaries, CMI paths, diagnostic ownership or measured memory costs change.
-No sibling consultation needed for representation-only cleanup; no household data,
-canonical storage, UI, migration, dependency or publication change.
+Acceptance: None / Some Nonmerchant / Some Merchant remain distinct; global whole-source
+failure precedes unrelated query; dates/text/keys/quantities/support meanings unchanged.
+Full normal/package/install, clean native engine-only and Lean-free checks; existing models,
+laws/campaigns/counterexamples retained. No new dependency, canonical storage, UI,
+registry/report, migration, license/publication or push.
 
-Completed: shared lexer/consumer checks and layout cleanup; all 48 compiler client
-bodies/scopes/options/diagnostics/status witnesses retained. Four layout-only ASTs matched
-under the pinned standard parser (negative control passed). Normal/package/install,
-clean native engine-only and Lean-free checks passed on macOS x86_64. VERIFICATION owns
-bounds. No existing model/law/campaign/counterexample removed; lock/tooling/formal artifact
-unchanged, no new platform/fresh-switch/proof rerun. Lines may grow when dense code is
-reflowed; comprehension and one lexical owner, not a LOC reduction target, are the result.
+Executed: finite admission/lookup and source/decoder/CLI/type controls passed. Normal,
+forced package, install, clean native engine-only and Lean-free checks passed on macOS
+x86_64. Existing models/laws/campaigns retained; tooling/lock/formal code unchanged.
+No upstream build/proof, optional-law rerun, fresh-switch or new-platform claim. Bounds
+and correspondence limits belong to VERIFICATION/REFERENCES, not a full-admission claim.
 
 ## Next bounded work
 
-Select one remaining Actual evidence consumer, not a port of upstream file layout.
-Preserve independent facts; data/module layout stays revisable. Historical reports,
-full normalized Actual, recording chronology and external truth remain unqualified.
-Before writes/storage decide ownership/admission/publication, identity/retry, uncertain
-outcomes, atomicity/durability, diagnostics and backup/restore/migration; select fault/
-transition instruments then. Licensing/public review and operational cutover are separate.
+Select one remaining Actual consumer, not upstream files as an automatic backlog. Historical
+reports/full normalized Actual and external truth remain unqualified. Before storage/writes,
+decide ownership/admission/publication, identity/retry/conflict, uncertain outcomes, atomicity/
+durability, diagnostics and backup/restore/migration; select fault/transition instruments then.
+Licensing/public review and operational cutover require separate decisions.
 
 ## Safety/state
 
-Synthetic inputs only; existing LOAM stays sole household authority. No upstream writes,
-builds/proof reruns or source copying. Use live Git for HEAD/worktree. Local commits are
-authorized, no push in this phase. Last remote observation: private main at 8974041
-(2026-10-03), not current equality. No new platform/fresh-switch qualification claimed.
-Never commit environments, generated output, scratch or private logs.
+Synthetic inputs only; existing LOAM remains household authority. Use live Git for state.
+Local commits authorized, no push. Last remote observation: private main at 8974041
+(2026-10-03), not current equality. Only macOS x86_64 qualified; no new platform/fresh-switch
+claim. Never commit environments, generated output, scratch, credentials or private logs.

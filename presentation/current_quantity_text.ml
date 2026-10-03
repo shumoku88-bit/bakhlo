@@ -84,7 +84,14 @@ let source_refusal error =
        | A.Event_descriptions.Repeated_description { event; first_position; position } ->
          Printf.sprintf "duplicate description for %S at %d (first %d)" (id event) position first_position
        | Unknown_description_event { event; position } ->
-         Printf.sprintf "description %d: unknown Event %S" position (id event)) in
+         Printf.sprintf "description %d: unknown Event %S" position (id event))
+    | Merchants error ->
+      (match error with
+       | A.Event_merchants.Repeated_disposition { event; first_position; position } ->
+         Printf.sprintf "duplicate Merchant disposition for %S at %d (first %d)"
+           (id event) position first_position
+       | Unknown_merchant_event { event; position } ->
+         Printf.sprintf "Merchant disposition %d: unknown Event %S" position (id event)) in
   "Actual source refused: " ^ detail ^ ".\n"
 
 let answer answer =

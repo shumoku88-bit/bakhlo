@@ -20,6 +20,15 @@ module Locus : sig
   val equal : t -> t -> bool
 end
 
+(** Role-free external identity, not a display name, catalog entry, merchant,
+    payee, creditor or Locus. Relations supply meaning; tokens never infer roles. *)
+module External_party : sig
+  type t
+  val of_string : string -> (t, error) result
+  val to_string : t -> string
+  val equal : t -> t -> bool
+end
+
 (** Opaque identity scoped within an Event, only when independently referenced.
     Not a coordinate/list position, globally unique identity or allocated default. *)
 module Effect_key : sig
@@ -42,8 +51,8 @@ module Validity_revision : sig
   include Base.Comparator.S with type t := t
 end
 
-(** Caller-supplied observation identity, distinct from Measure/Locus/Effect_key/Validity_revision. No identity
-    allocation or temporal/kind/revision meaning is inferred from the token. *)
+(** Caller-supplied observation identity, distinct from the other identity roles.
+    No allocation or temporal/kind/revision meaning is inferred from the token. *)
 module Event : sig
   type t
 

@@ -377,7 +377,7 @@ The physically admitted ordinary Actual source has a public smart constructor.
 
   $ cat >actual_source_client.ml <<'EOF'
   > module S = Loam_application.Actual_source
-  > let empty () = S.create { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = [] }
+  > let empty () = S.create { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = []; merchants = [] }
   > let facts source = Loam_application.Actual_validity.facts (S.validity source)
   > let descriptions source = Loam_application.Event_descriptions.facts (S.descriptions source)
   > EOF
@@ -438,6 +438,51 @@ Retained date history has tagged references and a distinct revision identity, no
   $ application_client private_cycle.ml 2>error
   [2]
   $ grep -q 'Unbound module.*Replacement_cycle' error
+
+Role-free external party identity cannot be confused with Event/Locus; dispositions are qualified.
+
+  $ cat >merchant_client.ml <<'EOF'
+  > module D = Loam_domain
+  > module M = Loam_application.Event_merchants
+  > module S = Loam_application.Actual_source
+  > let admit events event party = M.create ~events ~facts:[ { event; disposition = M.Merchant party } ]
+  > let retained source = M.source_events (S.merchants source), M.facts (S.merchants source)
+  > let lookup memory id = match M.find_disposition memory id with
+  >   | None -> `Unresolved
+  >   | Some Nonmerchant -> `Outside
+  >   | Some (Merchant party) -> `Provider party
+  > EOF
+  $ application_client merchant_client.ml
+  $ cat >locus_is_not_party.ml <<'EOF'
+  > module D = Loam_domain
+  > module M = Loam_application.Event_merchants
+  > let wrong (place : D.Identifier.Locus.t) = M.Merchant place
+  > EOF
+  $ application_client locus_is_not_party.ml 2>error
+  [2]
+  $ grep -q 'External_party.t' error
+  $ cat >party_is_not_event.ml <<'EOF'
+  > module D = Loam_domain
+  > module M = Loam_application.Event_merchants
+  > let wrong (party : D.Identifier.External_party.t) : M.fact = { event = party; disposition = M.Nonmerchant }
+  > EOF
+  $ application_client party_is_not_event.ml 2>error
+  [2]
+  $ grep -q 'Identifier.Event.t' error
+  $ cat >forged_merchants.ml <<'EOF'
+  > module M = Loam_application.Event_merchants
+  > let wrong (facts : M.fact list) : M.t = facts
+  > EOF
+  $ application_client forged_merchants.ml 2>error
+  [2]
+  $ grep -q 'M.t' error
+  $ cat >incomplete_disposition.ml <<'EOF'
+  > module M = Loam_application.Event_merchants
+  > let wrong = function M.Merchant party -> party
+  > EOF
+  $ application_client -w +8 -warn-error +8 incomplete_disposition.ml 2>error
+  [2]
+  $ grep -q 'partial-match' error && grep -q 'Nonmerchant' error
 
 Description facts use Event IDs; only the smart constructor yields qualified descriptions.
 

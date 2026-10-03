@@ -152,10 +152,47 @@ Optional Event descriptions retain recognition text; duplicates/references refus
   $ loam-ocaml inspect-current-fixture description-only wallet jpy >out 2>err
   [3]
   $ test ! -s err && grep -q 'quantity unknown' out
-  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nMERCHANT\te\tstructured meaning\nEND\n' >unqualified-metadata
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nPURPOSE\te\tstructured meaning\nEND\n' >unqualified-metadata
   $ loam-ocaml inspect-current-fixture unqualified-metadata wallet jpy >out 2>err
   [2]
   $ test ! -s out && grep -q 'unknown, malformed or misplaced' err
+
+Merchant dispositions are explicit retained evidence, never default classification or support.
+
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nMERCHANT\ta\t provider \nNONMERCHANT\tb\nEVENT\ta\t2026-10-03\nEND-EVENT\nEVENT\tb\t2026-10-02\nEND-EVENT\nCORRECTION\ta\tb\nZERO-ORIGIN\twallet\tjpy\nEND\n' >merchants
+  $ cp merchants merchants-before
+  $ loam-ocaml inspect-current-fixture merchants wallet jpy
+  Conditional current fixture quantity (ordinary Actual subset).
+  "wallet" / "jpy": zero-origin; quantity=0
+  $ cmp merchants merchants-before
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEND-EVENT\nMERCHANT\te\tp\nMERCHANT\te\tp\nEND\n' >duplicate-merchant
+  $ loam-ocaml inspect-current-fixture duplicate-merchant unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'duplicate Merchant disposition for "e" at 2 (first 1)' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEND-EVENT\nMERCHANT\te\tp\nNONMERCHANT\te\nEND\n' >conflicting-merchant
+  $ loam-ocaml inspect-current-fixture conflicting-merchant unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'duplicate Merchant disposition' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nNONMERCHANT\tunknown\nEND\n' >unknown-merchant
+  $ loam-ocaml inspect-current-fixture unknown-merchant unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Merchant disposition 1: unknown Event "unknown"' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nMERCHANT\te\nEND\n' >malformed-merchant
+  $ loam-ocaml inspect-current-fixture malformed-merchant wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'fixture line 2' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nMERCHANT\te\t\nEND\n' >empty-party
+  $ loam-ocaml inspect-current-fixture empty-party wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'identity must not be empty' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEND-EVENT\nNONMERCHANT\te\nEND\n' >nonmerchant-only
+  $ loam-ocaml inspect-current-fixture nonmerchant-only wallet jpy >out 2>err
+  [3]
+  $ test ! -s err && grep -q 'quantity unknown' out
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nEVENT\te\t2026-10-03\nEND-EVENT\nMERCHANT\te\tp\nEND\n' >merchant-only
+  $ loam-ocaml inspect-current-fixture merchant-only wallet jpy >out 2>err
+  [3]
+  $ test ! -s err && grep -q 'quantity unknown' out
 
 Malformed/obsolete inputs and invalid premises refuse globally, never an empty basis.
 

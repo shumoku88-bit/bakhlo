@@ -142,7 +142,7 @@ let%expect_test "keyed decoding retains exact identities; duplicate Event keys a
   F.require (refused.exit_code = 1 && String.is_empty refused.stdout && String.is_substring refused.stderr ~substring:"duplicate Effect key" &&
     not (String.is_substring refused.stderr ~substring:"residual")) "key admission before physical source";
   F.require ((C.evaluate request (Ok (document [ "EVENT\te\t2026-10-03"; "KEYED-EFFECT\t\twallet\tjpy\t1"; "END-EVENT" ]))).exit_code = 2) "empty key is syntax";
-  F.require ((C.evaluate request (Ok (document (rows @ [ "MERCHANT\tb\tnot-yet-supported" ])))).exit_code = 2) "metadata not silently discarded";
+  F.require ((C.evaluate request (Ok (document (rows @ [ "PURPOSE\tb\tnot-yet-supported" ])))).exit_code = 2) "metadata not silently discarded";
   Stdlib.Printf.printf "exact optional keys retained; Event duplicate exit 1 vs syntax exit 2; no discarded metadata\n";
   [%expect {| exact optional keys retained; Event duplicate exit 1 vs syntax exit 2; no discarded metadata |}]
 ;;
@@ -202,9 +202,53 @@ let%expect_test "validity history rows retain tagged forward references without 
   [%expect {| literal tagged history; forward references; optional explicit base; date correction admission before query |}]
 ;;
 
+let%expect_test "Merchant rows retain forward/exact dispositions; closure and conflicts precede query" =
+  let module M = Loam_application.Event_merchants in
+  let rows = [ "MERCHANT\t a \t p "; "NONMERCHANT\tb";
+    "EVENT\t a \t2026-10-03"; "END-EVENT"; "EVENT\tb\t2026-10-02"; "END-EVENT";
+    "EVENT\tx\t2026-10-01"; "END-EVENT"; "DESCRIPTION\tx\tmerchant inferred?";
+    "CORRECTION\t a \tb"; "ZERO-ORIGIN\twallet\tjpy" ] in
+  let decoded = ok (Input.decode (document rows)) in
+  let source = ok (S.create decoded.source) in
+  F.require (List.equal String.equal (List.map decoded.source.merchants ~f:(fun fact -> D.Identifier.Event.to_string fact.event))
+    [ " a "; "b" ]) "forward references/order/exact Event IDs";
+  (match M.find_disposition (S.merchants source) (F.id " a "), M.find_disposition (S.merchants source) (F.id "b"),
+    M.find_disposition (S.merchants source) (F.id "x") with
+   | Some (Merchant party), Some Nonmerchant, None ->
+     F.require (String.equal (D.Identifier.External_party.to_string party) " p ") "party token trimmed/renamed"
+   | _ -> failwith "unresolved/nonmerchant/provider merged or inferred from description");
+  let request : C.request = { path = "synthetic"; coordinate = F.coordinate "wallet" } in
+  let exact = C.evaluate request (Ok (document rows)) in
+  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:"quantity=0")
+    "classification changed supplied origin";
+  List.iter [ "MERCHANT\t a \t p "; "MERCHANT\t a \tother"; "NONMERCHANT\t a " ] ~f:(fun extra ->
+    let refused = C.evaluate request (Ok (document (rows @ [ extra ]))) in
+    F.require (refused.exit_code = 1 && String.is_empty refused.stdout &&
+      String.is_substring refused.stderr ~substring:"duplicate Merchant disposition" &&
+      String.is_substring refused.stderr ~substring:"at 3 (first 1)") "equal/contradictory rows silently deduplicated");
+  let unknown = document (rows @ [ "NONMERCHANT\tunknown"; "ZERO-ORIGIN\twallet\tjpy" ]) in
+  F.require (Result.is_ok (Input.decode unknown)) "reference closure became syntax";
+  let refused = C.evaluate { request with coordinate = F.coordinate ~unit:"usd" "unrelated" } (Ok unknown) in
+  F.require (refused.exit_code = 1 && String.is_empty refused.stdout &&
+    String.is_substring refused.stderr ~substring:"Merchant disposition 3: unknown Event") "source closure after support/query";
+  List.iter [ "MERCHANT\te\tprovider"; "NONMERCHANT\te" ] ~f:(fun row ->
+    let unsupported = C.evaluate request (Ok (document [ "EVENT\te\t2026-10-03"; "END-EVENT"; row ])) in
+    F.require (unsupported.exit_code = 3 && String.is_empty unsupported.stderr) "classification became quantity support");
+  let malformed = [ [ "MERCHANT\te" ]; [ "MERCHANT\te\t" ]; [ "MERCHANT\t\tp" ]; [ "MERCHANT\te\tp\textra" ];
+    [ "NONMERCHANT" ]; [ "NONMERCHANT\t" ]; [ "NONMERCHANT\te\tp" ]; [ "UNKNOWN-MERCHANT\te" ];
+    [ "EVENT\te\t2026-10-03"; "MERCHANT\te\tp"; "END-EVENT" ];
+    [ "GROUP"; "NONMERCHANT\te"; "END-GROUP" ]; [ "PRESENCE"; "MERCHANT\te\tp"; "END-PRESENCE" ] ] in
+  List.iter malformed ~f:(fun rows ->
+    match Input.decode (document rows), C.evaluate request (Ok (document rows)) with
+    | Error (Syntax _), response -> F.require (response.exit_code = 2 && String.is_empty response.stdout) "syntax stream/code"
+    | _ -> failwith "malformed/misplaced Merchant rows discarded");
+  Stdlib.Printf.printf "exact forward provider/nonmerchant rows; global conflict/closure exit 1 vs syntax 2; no inferred support\n";
+  [%expect {| exact forward provider/nonmerchant rows; global conflict/closure exit 1 vs syntax 2; no inferred support |}]
+;;
+
 let%expect_test "malformed/truncated/misplaced rows and obsolete formats never become partial success" =
   let invalid = [ ""; "LOAM-NORMALIZED-ACTUAL\t1\nEND\n"; "LOAM-OCAML-ACTUAL-FIXTURE\t1\nEND\n";
-    document [ "SCHEDULED\ta" ]; document [ "MERCHANT\ta\tmetadata" ];
+    document [ "SCHEDULED\ta" ]; document [ "PURPOSE\ta\tmetadata" ];
     document [ "VALIDITY-REVISION\tr\te" ]; document [ "VALIDITY-REVISION\t\te\t2026-10-03" ];
     document [ "VALIDITY-BASE\te" ]; document [ "VALIDITY-CORRECTION\tROOT\te\tr" ];
     document [ "VALIDITY-CORRECTION\tBASE\te" ]; document [ "VALIDITY-CORRECTION\tREVISION\t\tr" ];
@@ -255,6 +299,10 @@ let%expect_test "read failures and cycle identities are escaped; help/syntax req
     S.Descriptions (Loam_application.Event_descriptions.Unknown_description_event { event = F.id "event\027\n"; position = 1 }) ] ~f:(fun error ->
       let rendered = Loam_presentation.Current_quantity_text.source_refusal error in
       F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped description references");
+  List.iter [ S.Merchants (Loam_application.Event_merchants.Repeated_disposition { event = F.id "event\027\n"; first_position = 1; position = 2 });
+    S.Merchants (Loam_application.Event_merchants.Unknown_merchant_event { event = F.id "event\027\n"; position = 1 }) ] ~f:(fun error ->
+      let rendered = Loam_presentation.Current_quantity_text.source_refusal error in
+      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped Merchant references");
   let module V = Loam_application.Actual_validity in
   let date_id = F.identifier D.Identifier.Validity_revision.of_string "revision\027\n" in
   List.iter [ V.Cycle { path = [ Revision_ref date_id; Revision_ref date_id ] };

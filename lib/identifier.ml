@@ -20,6 +20,14 @@ module Locus = struct
   let equal = String.equal
 end
 
+module External_party = struct
+  type t = string
+
+  let of_string = nonempty
+  let to_string value = value
+  let equal = String.equal
+end
+
 module Effect_key = struct
   module Key = struct
     type t = string

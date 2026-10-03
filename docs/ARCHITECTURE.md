@@ -24,7 +24,8 @@ There is no canonical storage, clock, mutable business state or generic service 
 | Current assertion groups | Exact assertions + unreflected Effects; independent cuts, one coordinate owner; ordered whole-group qualification |
 | Actual validity | Tagged base/revision ISO history, closed disjoint same-Event date corrections; retain all facts/edges, exactly one current date per retained Event; no date/list winners |
 | Event descriptions | Optional unique retained Event reference + exact recognizer text; no classification, completeness or inheritance |
-| Actual source | Ordinary/base-validity subset: every retained Effect nonzero, each Measure independently balanced, date-history/Event-corrections then whole descriptions admission |
+| Event merchants | Optional unique retained Event disposition: Merchant(role-free external identity) / Nonmerchant; absence unresolved, no registry/inference/inheritance |
+| Actual source | Ordinary Actual subset: every retained Effect nonzero, each Measure independently balanced; date history, Event corrections, whole descriptions then Merchant admission |
 | Current quantity query | One source; origin, opening (unique coordinate/current Event/matching Effect), assertions and presence, globally separated; Exact / Known_present / unsupported |
 
 Public `.mli` files own exact inputs, diagnostics and ordering. Indexes are disposable
@@ -84,7 +85,18 @@ Event terminal, changes quantities, invalidates presence or transfers descriptio
 Both raw history and current fact/ref lookup remain inspectable. All retained dates are
 calendar-checked, including superseded dates.
 
-The current source is NOT full normalized Actual: structured metadata, Exchange/Reversal
+Merchant dispositions are independently supplied optional facts, not parsed descriptions
+or guessed Effect/payment roles. Their memory retains the same supplied Event source and
+original facts/order, including superseded observations. Exact-ID lookup distinguishes
+None (unresolved), Some Nonmerchant and Some Merchant(party). Shared party IDs across
+Events are allowed; identity itself is role-free, exact and nonempty, without a registry,
+display-name authority or aliases. The concrete Event_merchants boundary stays separate
+from descriptions; similar association mechanics do not make their meanings interchangeable.
+Whole Merchant admission follows descriptions and precedes any support/query; even an
+unrelated bad row refuses. Top-level MERCHANT event party / NONMERCHANT event are the only
+new rows, with forward references and no inferred defaults/correction inheritance.
+
+The current source is NOT full normalized Actual: other structured metadata, Exchange/Reversal
 and relations/settlement remain unqualified. Date evidence is not proof of occurrence
 truth, recording chronology or historical completeness.
 Queries do not establish household authority, purchasing power or spendability.

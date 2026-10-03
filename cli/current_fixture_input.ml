@@ -5,6 +5,7 @@ module H = Loam_application.Current_quantity_groups
 module P = Loam_application.Current_quantity_projection
 module V = Loam_application.Actual_validity
 module Q = Loam_application.Current_quantity_query
+module M = Loam_application.Event_merchants
 
 type t =
   { source : S.command
@@ -65,6 +66,7 @@ let decode text =
                     ; validities = List.rev draft.source.validities
                     ; corrections = List.rev draft.source.corrections
                     ; descriptions = List.rev draft.source.descriptions
+                    ; merchants = List.rev draft.source.merchants
                     ; validity_corrections = List.rev draft.source.validity_corrections
                     }
                 ; groups = List.rev draft.groups
@@ -122,6 +124,17 @@ let decode text =
             let fact : Loam_application.Event_descriptions.fact = { event; text } in
             let source = { draft.source with descriptions = fact :: draft.source.descriptions } in
             scan (line + 1) Between { draft with source } rest
+          | Between, [ "MERCHANT"; token; party ] ->
+            let* event = identity line D.Identifier.Event.of_string token in
+            let* party = identity line D.Identifier.External_party.of_string party in
+            let fact : M.fact = { event; disposition = Merchant party } in
+            let source = { draft.source with merchants = fact :: draft.source.merchants } in
+            scan (line + 1) Between { draft with source } rest
+          | Between, [ "NONMERCHANT"; token ] ->
+            let* event = identity line D.Identifier.Event.of_string token in
+            let fact : M.fact = { event; disposition = Nonmerchant } in
+            let source = { draft.source with merchants = fact :: draft.source.merchants } in
+            scan (line + 1) Between { draft with source } rest
           | Between, [ "ZERO-ORIGIN"; locus; measure ] ->
             let* c = coordinate line locus measure in
             scan (line + 1) Between { draft with zero_origins = c :: draft.zero_origins } rest
@@ -163,6 +176,7 @@ let decode text =
             ; validity_corrections = []
             ; corrections = []
             ; descriptions = []
+            ; merchants = []
             }
         ; groups = []
         ; zero_origins = []

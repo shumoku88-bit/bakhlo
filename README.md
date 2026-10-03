@@ -47,12 +47,15 @@ empty image. See [grammar](cli/current_fixture_input.mli) and
   fact per retained Event; all superseded dates survive and must remain valid.
   Optional Event descriptions retain exact human recognizer text against retained IDs;
   they are not Merchant/Purpose classifications, support or inherited correction metadata.
+  Independent Event Merchant dispositions distinguish unresolved absence, explicit
+  nonmerchant and an exact role-free external party ID; no registry/payment-role inference
+  or automatic correction inheritance.
 - Exact assertion groups retain independent reflected-root cuts. Origin is explicit,
   not inferred from activity. Opening explicitly names a current Event containing the
   coordinate; it is not a second scalar or implicit origin. Presence retains one shared
   root cut, not a scalar; ANY unreflected matching Effect invalidates it, even net zero.
   Exact/present payloads are disjoint; all four families must be globally separated.
-- Structured metadata, Exchange/Reversal, historical
+- Other structured metadata, Exchange/Reversal, historical
   completeness and full normalized Actual admission are still unsupported.
 
 No public API/storage compatibility promise exists during this unreleased phase.

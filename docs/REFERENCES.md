@@ -31,6 +31,11 @@ Public source identified by its README: https://github.com/shumoku88-bit/loam
   revision references, closed same-Event paths, unique current projection and retained
   reference/current completeness. No upstream proof/build or whole-tree comparison.
 
+- Merchant review: `2438ef50a363ef06491da7b62f8537f52e25031a`; Core ExternalParty,
+  EventMerchantEvidence, ActualEvidence and NormalizedActualAdmission narrowly read.
+  Role-free external identity, optional Event-scoped provider/nonmerchant evidence,
+  unique retained Event references; no source copying/build/proof rerun.
+
 These are narrow comparisons, not whole-checkout equivalence, proof reruns or a
 frozen upstream protocol. Check live revision before using a changed owner.
 
@@ -44,10 +49,11 @@ actually qualified OCaml behavior; do not turn this map into a whole-feature bac
 | --- | --- | --- |
 | Independent minimal evidence | `DESIGN_PHILOSOPHY.md`, `docs/SEMANTIC_BLUEPRINT.md` | Semantic contract; no Account/Transaction-kind/Month ontology by habit |
 | Exact Quantity, narrower Movement | `Loam/Core/Quantity.lean`, `BalancedMovement.lean`, `Loam/Application/PracticalMovement.lean` | Exact/structural entrance; not world publication |
-| Event beyond Movement | `Loam/Core/Effect.lean`, `Event.lean` | Optional exact keys/within-Event uniqueness and general neutral Effects; structured classifications/overlays NOT yet qualified |
+| Event beyond Movement | `Loam/Core/Effect.lean`, `Event.lean` | Optional exact keys/within-Event uniqueness and general neutral Effects; other structured classifications/overlays NOT yet qualified |
 | Event recognizer text | `Loam/Core/EventDescription.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Optional unique exact retained-ID/text facts; no classification or inheritance. Combined per-declaration duplicate/reference gate differs from upstream's separate gates; accepted shape matches this narrow scope |
+| Event Merchant disposition | `Loam/Core/ExternalParty.lean`, `EventMerchantEvidence.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Exact role-free nonempty party ID; optional provider/nonmerchant facts against retained Events, absence unresolved, no inference/inheritance. Combined per-declaration duplicate/reference gate differs from upstream separate gates; practical nonempty identities are narrower than unrestricted upstream raw tokens. No registry, provider truth/coverage or report routing |
 | Retained identity and correction | `Loam/Core/EventMemory.lean`, `EventCorrection.lean`, `Loam/Application/CorrectionFrontierSemantics.lean`, `CorrectionFrontierIndexed.lean` | Conditional disjoint paths, roots/cuts qualified; not full normalized authority |
-| Independent Actual occurrence | `Loam/Core/ActualValidityHistory.lean`, `Loam/Application/ActualValidityFrontier.lean`, `Loam/ActualDate.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Retained ISO history, tagged refs, same-Event paths, unique/complete current facts (revision-only allowed). Practical declaration-order diagnostic gate, not raw Core history or full normalized admission; structured metadata/exceptional families remain unqualified |
+| Independent Actual occurrence | `Loam/Core/ActualValidityHistory.lean`, `Loam/Application/ActualValidityFrontier.lean`, `Loam/ActualDate.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Retained ISO history, tagged refs, same-Event paths, unique/complete current facts (revision-only allowed). Practical declaration-order diagnostic gate, not raw Core history or full normalized admission; other structured metadata/exceptional families remain unqualified |
 | Independent origin | `Loam/Core/ZeroOriginCoverage.lean`, `Loam/Review/BalanceReview.lean` | Explicit current origin gate; no activity-derived origin/history completeness |
 | Exact current assertions and stable cuts | `Loam/Application/CurrentQuantityAnchor.lean` | Independent cuts, exclusive ownership, explicit re-observation; not timestamp-plus-later-Movements or durable history |
 | Four support families | `Loam/Review/CurrentBalanceReview.lean`, `Loam/Application/CurrentSupportRouting.lean`, `CurrentQuantityPresence.lean`, `Loam/Core/OpeningSupport.lean` | All four over one ordinary source; presence's ANY unreflected Effect touch invalidates without arithmetic. Synthetic whole-input admission checks even empty-coordinate presence cuts, unlike upstream lazy lookup |

@@ -21,6 +21,9 @@ VALIDITY-CORRECTION	BASE	b	occurrence-b
 VALIDITY-REVISION	occurrence-b	b	1900-01-01
 DESCRIPTION	a	Initial recognition text, retained after correction
 DESCRIPTION	b	Corrected observation; not a Merchant or Purpose classification
+MERCHANT	a	provider-original
+MERCHANT	b	provider-corrected
+NONMERCHANT	x
 CORRECTION	a	b
 ZERO-ORIGIN	food	jpy
 ZERO-ORIGIN	quiet	jpy

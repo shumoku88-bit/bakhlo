@@ -7,5 +7,6 @@ module Current_quantity_groups = Current_quantity_groups
 module Current_quantity_projection = Current_quantity_projection
 module Current_quantity_query = Current_quantity_query
 module Event_descriptions = Event_descriptions
+module Event_merchants = Event_merchants
 module Movement_check = Movement_check
 module Reflected_root_cut = Reflected_root_cut

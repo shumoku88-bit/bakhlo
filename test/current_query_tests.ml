@@ -11,7 +11,7 @@ module Input = Loam_cli.Current_fixture_input
 module C = Loam_cli.Current_fixture_command
 let ok = function Ok value -> value | Error _ -> failwith "valid current fixture refused"
 let source_command events corrections : S.command =
-  { events; corrections; descriptions = []; validity_corrections = [];
+  { events; corrections; descriptions = []; merchants = []; validity_corrections = [];
     validities = List.map events ~f:(fun event -> F.base_validity (D.Event.id event) "2026-10-03") }
 let event token effects = F.observation ~id:(F.id token) ~effects
 let exact image c = match ok (Q.query image c) with
@@ -348,7 +348,7 @@ let%expect_test "versioned read path refuses unsupported evidence and invalid so
   F.require (Int.equal (List.length decoded.zero_origins) 1) "decoded independent support";
   let output = C.evaluate request (Ok text) in
   F.require (Int.equal output.exit_code 0 && String.is_empty output.stderr && String.is_substring output.stdout ~substring:"quantity=-3") "pure end-to-end exact";
-  List.iter [ "MERCHANT\te\tmetadata"; "KEYED-EFFECT\tkey\twallet\tjpy"; "OPENING\twallet\tjpy";
+  List.iter [ "PURPOSE\te\tmetadata"; "KEYED-EFFECT\tkey\twallet\tjpy"; "OPENING\twallet\tjpy";
     "PRESENCE\twallet\tjpy"; "VALIDITY-REVISION\te\t2026-10-04"; "EXCHANGE\te"; "REVERSAL\te" ] ~f:(fun row ->
       F.require (Int.equal (C.evaluate request (Ok (document 2 (rows @ [ row ])))).exit_code 2) "unsupported row not dropped");
   F.require (Result.is_error (Input.decode (document 1 []))) "obsolete input rejected, no version guessing";
