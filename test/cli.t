@@ -53,3 +53,53 @@ No-argument launch does not pretend an interactive UI is already implemented.
   error: a command is required.
   Run 'loam-ocaml --help' for usage.
   [2]
+
+Synthetic input reaches one base-validity/exact-support preview, without writes.
+
+  $ cp ../examples/actual-preview.fixture fixture
+  $ cp fixture before
+  $ loam-ocaml inspect-actual-fixture fixture wallet jpy
+  Conditional Actual fixture quantity (not household admission).
+  "wallet" / "jpy": asserted=1000; delta=-10; quantity=990
+  $ loam-ocaml inspect-actual-fixture fixture wallet usd
+  Conditional Actual fixture quantity (not household admission).
+  "wallet" / "usd": asserted=5; delta=0; quantity=5
+  $ loam-ocaml inspect-actual-fixture fixture empty jpy
+  Conditional Actual fixture quantity (not household admission).
+  "empty" / "jpy": asserted=0; delta=0; quantity=0
+  $ loam-ocaml inspect-actual-fixture fixture unsupported jpy
+  "unsupported" / "jpy": quantity unknown (no exact assertion in supplied fixture).
+  [3]
+  $ cmp fixture before
+
+Help and syntax do not read a file; missing files never become empty success.
+
+  $ loam-ocaml inspect-actual-fixture --help
+  Usage: loam-ocaml inspect-actual-fixture FILE LOCUS MEASURE
+  Read ONLY a LOAM-OCAML-ACTUAL-FIXTURE v1 synthetic file; never write.
+  Base occurrence validity + exact assertion support; not full household admission.
+  $ loam-ocaml inspect-actual-fixture not-read >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'expected FILE LOCUS MEASURE' err
+  $ loam-ocaml inspect-actual-fixture not-present wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Cannot read synthetic fixture' err
+
+Truncation, unsupported fields and invalid premises fail closed.
+
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t1\nEND' >truncated
+  $ loam-ocaml inspect-actual-fixture truncated wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'must end with newline' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t1\nDESCRIPTION\ta\tmetadata\nEND\n' >unsupported
+  $ loam-ocaml inspect-actual-fixture unsupported wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'fixture line 2' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t1\nEVENT\ta\t1900-02-29\nEND-EVENT\nEND\n' >date
+  $ loam-ocaml inspect-actual-fixture date wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'invalid ISO occurrence date' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t1\nGROUP\nREFLECT\tabsent\nEND-GROUP\nEND\n' >cut
+  $ loam-ocaml inspect-actual-fixture cut wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'unknown root' err

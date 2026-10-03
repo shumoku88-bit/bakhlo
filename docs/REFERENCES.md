@@ -36,6 +36,8 @@ this baseline; check the revision before relying on a particular finding.
 | Current exact anchor requires correction-root cuts, not a guessed time boundary | `Loam/Application/CurrentQuantityAnchor.lean` |
 | Event versus Movement, identity-unique memory, raw correction endpoint closure | `Loam/Core/Event.lean`, `Loam/Core/EventMemory.lean`, `Loam/Core/EventCorrection.lean` |
 | Disjoint-path correction admission, frontier membership, root-cut neighbor | `Loam/Application/CorrectionFrontierSemantics.lean`, `Loam/Application/CorrectionFrontierIndexed.lean` (admission/projection definitions; observed `80e50c7c`) |
+| Independent Actual validity/base occurrence dates and full admission | `Loam/Core/ActualValidity.lean`, `Loam/Core/ActualEvidence.lean`, `Loam/Persistence/NormalizedActualAdmission.lean`, `Loam/ActualDate.lean` |
+| Exact-support routing versus independent opening/origin/presence | `Loam/Application/CurrentSupportRouting.lean`, `Loam/Review/CurrentBalanceReview.lean` |
 | Current Actual authority and decoding | `Loam/Authority/ActualAuthority.lean`, `Loam/Persistence/NormalizedActualPersistence.lean` |
 | Core expressiveness pressures; exact scope and research-only versus implemented results | `docs/research/falsification/LOAM_FALSIFICATION_PROGRESS.md` (current status owner; use its exact observation/PR links, not atlas seed labels) |
 | Small retained proof selection | `Loam/DurableProofs.lean` |
@@ -44,6 +46,10 @@ this baseline; check the revision before relying on a particular finding.
 Planning review additionally observed `4d7a29a5`. Event, correction-frontier,
 current-anchor, and falsification-progress files inspected for that review are
 unchanged against `80e50c7c`; no whole-checkout equivalence or proof rerun claimed.
+VR-05 later observed `dca1aac7`: the Actual validity/admission/date, authority/decoder
+and current-support owners above were narrowly inspected. No upstream writes,
+source copying, build/proof rerun or full-checkout equivalence claimed. OCaml's
+synthetic base-validity/exact-support preview is not full normalized admission.
 The local [correspondence map](CORE_CORRESPONDENCE.md) separates upstream evidence,
 representational sufficiency, and implemented OCaml operations.
 

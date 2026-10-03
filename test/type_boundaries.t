@@ -354,3 +354,20 @@ A cut is not the common source frontier.
   $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c cut_is_not_group_source.ml 2>error
   [2]
   $ grep -q 'Reflected_root_cut.t' error && grep -q 'Correction_frontier.t' error
+
+The public Actual preview requires independent validity, not only a frontier.
+
+  $ cat >actual_preview_client.ml <<'EOF'
+  > module A = Loam_application.Actual_quantity_preview
+  > let empty () = A.run { events = []; validities = []; corrections = []; groups = [] }
+  > let query image coordinate = A.query image coordinate
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c actual_preview_client.ml
+  $ cat >frontier_is_not_actual.ml <<'EOF'
+  > module A = Loam_application
+  > let query (frontier : A.Correction_frontier.t) coordinate =
+  >   A.Actual_quantity_preview.query frontier coordinate
+  > EOF
+  $ ocamlfind ocamlc -package base,zarith -I ../lib/.loam_domain.objs/byte -I ../application/.loam_application.objs/byte -c frontier_is_not_actual.ml 2>error
+  [2]
+  $ grep -q 'Correction_frontier.t' error && grep -q 'Actual_quantity_preview.t' error

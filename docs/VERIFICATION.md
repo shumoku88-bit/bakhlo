@@ -1,7 +1,7 @@
 # Verification and assurance strategy
 
 Status: PROPOSED overall strategy. Domain/application and CLI build/tests pass
-locally: 77 expect tests, 10,000 generated cases each for Quantity, Movement,
+locally: 83 expect tests, 10,000 generated cases each for Quantity, Movement,
 application replay, zero-origin/current-assertion projections, Event identity/endpoint
 closure, frontier, root lineages, reflected-root cuts and multi-group ownership,
 plus three cram suites (100,000 actual generated cases across ten seeds).
@@ -97,7 +97,8 @@ entry; meaningful deferrals must explain **why now** and **when to reconsider**.
 
 VR-01–VR-04 root/terminal, cut, one-group quantity and multi-group ownership reviews
 are complete within slice scopes. Before full Actual/support-family composition,
-resolve VR-05 OPEN in `HANDOFF.md`.
+VR-05's bounded base-validity/exact-support preview is reviewed in `HANDOFF.md`;
+broader Actual/support-family admission remains OPEN.
 Before storage/publication, revisit transition/failure instruments separately.
 No indefinite blanket "later" decision.
 
@@ -190,6 +191,14 @@ Do not import a broad theorem into an unrelated operation by name alone.
   functional lookup laws were checked before code: incoming whole premise wins,
   unrelated premise survives, and lookup-idempotence. Not group/index/OCaml
   refinement or operational retry; see [contract](CURRENT_GROUPS_SLICE.md).
+- `actual_fixture_tests.ml` adds six focused boundary tests: unique/closed/complete
+  base validity, 19 calendar/lexical specimens, exact neutral Effect decoding,
+  malformed/unsupported/truncated inputs, retained source and independent group cuts,
+  original-Effect arithmetic, unknown versus known zero, and honest read failures.
+  `cli.t` exercises the real file-to-query path, exit/stream separation and unchanged
+  fixture bytes; a public client distinguishes frontier from Actual preview.
+  Reuses existing oracles; no new property campaign/model/theorem. Not normalized
+  household admission, calendar-history completeness or arbitrary-file corruption detection.
 - `command_tests.ml` preserves existing golden output while the CLI becomes an
   application client; it checks exact previews, syntax/refusal separation, stream
   choice, and escaped opaque input.
@@ -214,9 +223,10 @@ Do not import a broad theorem into an unrelated operation by name alone.
 
 These do not establish household policy admission, storage, operational correction
 application, TUI interaction, large-history latency, or protection against unsafe operations
-such as `Obj.magic`. There is no admitted Actual history/date/load operation yet;
-the supplied-Movement projection does not establish temporal completeness or
-correction selection. Do not invent coverage of those future capabilities.
+such as `Obj.magic`. Synthetic fixture loading/base validity now exist, but no
+full Actual history/admission or support-family routing. The supplied-Movement
+projection still establishes neither temporal completeness nor correction selection.
+Optional laws were not rerun for this artifact-unchanged composition checkpoint.
 
 ## Connecting models to code
 

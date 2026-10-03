@@ -1,6 +1,6 @@
 # LOAM OCaml — working name
 
-**Status: Movement validation, conditional quantity answers and correction-root cuts. Validation-only CLI; no UI or household writes.**
+**Status: Movement validation and read-only synthetic Actual quantity preview. No UI or household writes.**
 
 An independent OCaml implementation of LOAM, intended for long-lived household
 use, third-party maintenance, and presentation as an engineering portfolio to
@@ -120,6 +120,23 @@ is no admitted Actual history/report engine, storage, migration, or public relea
 large-history latency guarantee yet. No cache, incremental framework, clock
 abstraction, or UI state is invented for this preparation. Local package metadata
 is not a publication or stable-API promise.
+
+## Try a read-only synthetic Actual preview
+
+```sh
+./tools/opam exec -- dune exec loam-ocaml -- inspect-actual-fixture \
+  examples/actual-preview.fixture wallet jpy
+```
+
+Result: asserted `1000`, unreflected delta `-10`, conditional quantity `990`.
+Only the explicitly versioned synthetic fixture grammar is read, never upstream
+household formats. Base occurrence validity stays independent of neutral Events;
+exact assertion groups keep their own reflected-root cuts. Unknown quantity exits
+3 (stdout), load/admission refusal 1, syntax refusal 2 (stderr). No write occurs.
+Other support families/metadata/keyed Effects refuse rather than disappear.
+This is **not full Actual admission, history completeness or household authority**.
+See [interfaces](application/actual_quantity_preview.mli) and
+[fixture grammar](cli/actual_fixture_input.mli); no canonical storage format chosen.
 
 ## Try a synthetic movement
 

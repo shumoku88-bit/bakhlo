@@ -24,8 +24,9 @@ Clients/projections also use Domain types and conversion accessors; there are no
 reverse dependencies. The application and domain do not depend on text
 presentation/CLI. Internal Dune libraries make those boundaries independently
 buildable without UI dependencies. Implemented operations take explicit immutable
-inputs; there is no storage, clock, loader, or mutation. Do not add placeholders. A later composition root may connect concrete
-storage/effect adapters only when actual operations require them.
+inputs; there is no canonical storage, clock or business mutation. `bin/main.ml`
+now explicitly reads a named synthetic fixture; decoding stays pure in CLI.
+Do not add placeholders; later storage/effects require concrete contracts.
 
 Domain has no dependencies on UI, HTTP, database bindings, clocks, filesystem, or
 an asynchronous runtime. Application owns use-case orchestration, not screen
@@ -133,6 +134,16 @@ unrelated cut/assertion, drops empty residual groups and appends incoming. Old
 images and source facts remain immutable; this is neither canonical assertion
 history nor a publication workflow. Lookups reuse qualified one-group answers.
 See `CURRENT_GROUPS_SLICE.md`; full Actual/support-family admission remains separate.
+
+`Actual_quantity_preview.run` admits only synthetic base validity (one real ISO
+occurrence date per retained Event, independently unique/closed/complete), then
+reuses frontier/groups against that same source. Neutral Events stay general;
+validity is retained separately, not an Event date field or winner rule. Queries
+reuse qualified exact answers; dates do not replace reflected roots. This is NOT
+normalized household Actual admission or other support-family routing. The pure
+CLI decoder rejects unknown/versioned/metadata/keyed/support rows and incomplete
+blocks; shell read errors never become empty input. See public interfaces and
+`examples/actual-preview.fixture`; no canonical persistence format is selected.
 
 For future admitted queries, use question-specific boundaries (Actual, balance,
 Scheduled, etc.). Those full reports/histories are not implemented in OCaml yet.
