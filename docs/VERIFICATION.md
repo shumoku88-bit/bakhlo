@@ -379,6 +379,39 @@ backup/restore/migration, large/many-block reliability, useful input UI or house
 qualified. Revisit those failure models, backend/format/runtime/device/clock/scale before
 adoption; success here establishes only a guarded bounded storage/reopen path.
 
+### Storage route preflight (source/metadata only; UI deferred)
+
+User prioritized storage/reliability and deferred Bonsai. Question/D/P/R recorded before
+inspection; no VM boot/build/dependency adoption. Official GitHub/read-only source checks:
+Chamelon latest release remains v0.2.1; non-archived main 3cb012b65c63df9b5d84ba995c04fcf625b4cf09
+(2025-10-09) still stops CTZ traversal at index 1. That main commit fixes directory size,
+not our independent first-data-block counterexample. Maintenance timestamps/non-archive
+status are observations, not support guarantees. Issue #21 reports different model-found
+bugs; maintainer says those were fixed before v0.2.1, so open issue label is NOT evidence
+that the reported bugs remain or that our issue is already reported. No issue/PR filed.
+
+Bounded alternative check, not an exhaustive search: Wodan main
+fd70abdb45fa176557178435217e0ab114e4e4d0 (2021-09-16) has Irmin backend, but published
+README targets Mirage 3/OCaml 4.08–4.11 and hardening remains open; manifests pin forked
+block APIs/nocrypto, lru 0.3.0, Unix packages in Irmin binding. Not in frozen registry;
+port/closure/key-size/value-size/flush cost is substantial, not a drop-in maintained choice.
+Frozen fat-filesystem 0.15.1 requires Mirage_kv >=4 <5 and Unix block dependency, versus
+trial KV 6.1.1; no compatibility/retention claim. git-kv 0.2.3 is Git-oriented with network/
+sync closure, not demonstrated local block storage; SNKV metadata describes SQLite-engine
+FFI, not freestanding I/O. These observations do not rule out every alternative or choose
+one. Do not implement a new filesystem just to avoid an explicit dependency decision.
+
+Matching Solo5 v0.12.1 source raises an INDEPENDENT durability gap: common block_attach
+opens O_RDWR (no O_SYNC/O_DSYNC); SPT block write calls pwrite64 and returns on full length.
+Public ABI has read/write/acquire, no flush; SPT block seccomp setup admits pread64/pwrite64,
+not an added fsync/fdatasync boundary. Hence current file-backed clean restart evidence is
+NOT durable acknowledgement after host crash/power loss, regardless of the CTZ fix.
+First guessed tender-source path returned 404, corrected to spt_module_block.c; no empty
+file used as source evidence. Sources read at explicit tag/HEAD where cited, no patch/build.
+Next define saved/rejected/conflict/uncertain outcomes and required persistence ordering/
+barriers, then qualify a maintained target/backend/fix route with retention + fault/restore
+controls. No dummy sync, compiler downgrade, semantic weakening or adoption follows.
+
 ### Client toolkit preflight (metadata only, not a UI qualification)
 
 After 28541ba user requested laptop/phone/AI-chat recording and viewing, desktop Notty

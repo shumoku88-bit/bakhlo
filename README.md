@@ -32,6 +32,8 @@ candidate for phone/desktop, not an adopted dependency. Clients collect/render, 
 application gates own meanings and publication; AI suggestions do not manufacture facts.
 Remote access/authentication/API and UI implementation remain unqualified; see
 [client direction](docs/ARCHITECTURE.md#client-access-direction).
+Current priority is maintainable persistence/publication/recovery, then a small useful
+record/query path. Bonsai and secondary UI experiments are deferred, not prerequisites.
 
 ## Build and try
 

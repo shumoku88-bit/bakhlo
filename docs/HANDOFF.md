@@ -238,6 +238,34 @@ backup/restore separately before household use. Read compatibility may continue 
 not all-LOAM parity first. No main dependency/schema/UI/data/migration/push authorized.
 Revisit runtime/clock/device/format, larger multi-block values, multiwriter and failure models.
 
+## Current priority — maintainable storage before UI experiments
+
+User explicitly deferred Bonsai/secondary UI work in favor of higher priorities. Next
+question/owner before review: what maintained guest-local block backend or explicit fix
+ownership can replace the disqualified stock Chamelon path, without hiding data loss or
+expanding into a filesystem rewrite? Storage adapter owns I/O; engine unchanged.
+D: a1d05e3, fixed main toolchain, guarded old/current block replay and unmodified two-file
+counterexample; no qualified backend/fix ownership. P: exact engine/source/parser, coherent
+generation/expected-head gates and retained failure controls. R: upstream resolution,
+maintained alternatives/API/cost, larger-value retention and actual durable barriers/faults.
+Instruments now: narrow official source/metadata/maintenance inspection, bounded shortlist;
+no VM boot/main dependency/format adoption or public issue/push. Keep counterexample even
+if upstream fix exists; require real retention/restart/fault evidence before promotion.
+No compiler/quantity weakening. Revisit maintenance, block API/flush, repair scope and
+failure model. Then smallest input -> admission -> save -> read (CLI first if useful),
+recovery/backup/restore, Notty consumer, authenticated multi-device/AI; Bonsai later.
+
+Executed bounded source/metadata review only: Chamelon official main still has CTZ index-1
+stop; no upstream resolution of our counterexample observed. Wodan/FAT/Git-KV/SNKV did not
+establish a low-cost maintained drop-in block backend. Independent matching Solo5 0.12.1
+SPT path uses O_RDWR/pwrite64 without an explicit durable sync boundary. Thus a CTZ fix
+alone cannot earn crash/power-loss-safe Saved. Exact scope/maintenance/API observations:
+[Verification](VERIFICATION.md#storage-route-preflight-sourcemetadata-only-ui-deferred).
+Next is the minimum publication/failure contract (Saved only after a real durable boundary;
+Rejected/Conflict versus uncertain outcome, no blind retry), persistence ordering/barrier
+owner and maintained host/backend/fix route; retain stock counterexample and qualify larger
+values/updates/restore. Do not silently adopt a third-party fork or build a new filesystem.
+
 ## Requested access direction — Notty desktop, optional Bonsai browser evaluation
 
 User wants recording AND household-state viewing from laptop, phone and AI chat; desktop
@@ -252,7 +280,7 @@ Executed frozen package metadata/compiler-gate review only; no installs/runtime 
 Notty direct gates fit; stock Bonsai v0.17 has Dune/js_of_ocaml compiler gates excluding
 the qualified main toolchain, plus substantial outer dependencies. Exact observations:
 [Verification](VERIFICATION.md#client-toolkit-preflight-metadata-only-not-a-ui-qualification).
-Next UI probe if selected: synthetic form + exact display/unknown/refusal, separate outer
+Deferred by latest user priority. A later UI probe: synthetic form + exact display/unknown/refusal, separate outer
 package/toolchain review; compare simpler web view if Bonsai cost/compatibility is unsuitable.
 No backend compiler change/constraint bypass or Number quantities to force fit. Storage
 maintainability still first dependency; UI shape exploration need not wait for full LOAM
