@@ -184,6 +184,45 @@ not hardware-virtualized HVT; upstream labels it experimental and requires libse
 substitute or proof of HVT support. First smoke needs no disk/network/TAP setup. Both
 require an agreed supported Linux environment; neither was configured/built/booted here.
 
+### Isolated Linux VM and Solo5/SPT preflight
+
+User approved a disposable development VM after confirming no Linux environment.
+Observation branch at ff3202c; local Lima 2.2.1 Darwin x86_64 release SHA256
+`6b776e4bc41f358e6ee01fefcc78e2eb26f11635a0fcff632234af77a566c6c4` matched published
+release asset digest. macOS 15.7.9/Intel i5/16 GiB RAM/native VZ; alternatives UTM/manual
+or global brew/QEMU setup were considered, not benchmarked. Keep-observing tool status,
+not measured superiority/general CI adoption. Fixed Ubuntu noble release-20260926 image
+SHA256 `6a81c37564db9b1ee84e141922625e1d7c5b389b99bb3c572e0243607d5bb4d2`, no fallback;
+actual guest Ubuntu 24.04.5 LTS/kernel 6.8.0-142-generic/x86_64. 2 vCPU/4 GiB/24 GiB sparse
+virtual disk. Private LIMA_HOME/plain mode, no workspace/home mounts or inherited host
+SSH keys/agent/X11, containerd or guest-agent service; guest mountinfo and host-path/agent
+absence checked after restart. Managed SSH listened only on 127.0.0.1; outbound package
+networking allowed. Not an air gap or a comprehensive malicious-guest/supply-chain audit.
+
+Boot, guest-only signed apt prerequisites (GCC 13.3.0, make 4.3, GMP 6.3.0, libseccomp
+2.5.5), seccomp CONFIG_SECCOMP/CONFIG_SECCOMP_FILTER=y verified; no /dev/kvm as expected.
+Only selected Solo5 v0.13.0 source archive transferred, SHA512 checked in guest against
+opam digest recorded above; configured/built with -j2. Upstream standalone C test_hello.spt
+executed via solo5-spt --mem=32, reported bindings v0.13.0/hello/solo5_exit(0); non-ELF
+synthetic input refused (1, empty stdout, invalid-executable/ELF-header diagnostic).
+Graceful stop/restart and repeated isolation/hello checks passed, stopped at handoff.
+Cold image download ~597 MiB; one final allocation ~2.3 GiB guest disk/4.9 GiB trial tree,
+not workload/latency guarantees. Prerequisite package versions are mutable distro evidence,
+not a hermetic OS lock. No host brew/OS installation/login hooks or main lock changes.
+
+Initial XDG_CACHE_HOME did not redirect Lima's macOS Go cache: the owned image-cache
+bucket was moved from ~/Library/Caches/lima into scratch, future commands scope HOME as
+well as LIMA_HOME. Restart verified with scoped HOME; only that owned bucket moved.
+Empty findmnt output returned success, so absence evidence uses raw mountinfo rather
+than that status. Negative-control diagnostic-case and unset-variable harness errors
+were corrected and checks repeated; they were not hidden as passing isolation results.
+Downloads/keys/VM/config/private logs/build artifacts remain ignored, no upstream source
+copied into product. This confirms Linux build-host and C/Solo5-SPT plumbing ONLY:
+no Linux ordinary OCaml suite, Mirage/Base/Zarith engine SPT image/static GMP C stubs,
+HVT/KVM/network/disk guest, Irmin/storage/crash/recovery or household use qualified.
+[Development](DEVELOPMENT.md#approved-isolated-linux-vm-development-trial) owns local
+start/stop/teardown recipe; next consumer is actual unchanged engine static link/boot.
+
 [Optional specification](../formal/README.md) states nine row-selection, signed-delta and
 whole-premise lookup laws. It does not prove graph admission, group indexes, Actual/support
 truth, OCaml/Base/Zarith refinement, loading or durability. Recheck artifact/assumption/

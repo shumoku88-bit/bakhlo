@@ -56,6 +56,41 @@ do not publish wholesale. Scratch is excluded from Dune discovery as well as Git
 `tools/check` fixes project root so nested experimental copies do not run parent tests.
 Relocating a compiled switch is unsupported; recreate it in a new checkout.
 
+## Approved isolated Linux VM (development trial)
+
+Lima 2.2.1/VZ `loam-spt` is installed locally under ignored `scratch/linux_vm`, NOT
+Homebrew/system PATH. State, private SSH key and 24 GiB sparse guest disk are there;
+no host shares/agent forwarding/containerd/automatic application port forwarding.
+Ubuntu 24.04 x86_64, 2 vCPU/4 GiB RAM; stopped between sessions. Outbound downloads and
+loopback management SSH remain, not an air gap/security certification. Evidence and
+limits: [VM/SPT preflight](VERIFICATION.md#isolated-linux-vm-and-solo5spt-preflight).
+No main OCaml dependency changes; this VM is not a qualified household deployment.
+
+From project root (shell variables only, no global configuration):
+
+```sh
+vmroot="$PWD/scratch/linux_vm"
+vm() {
+  env HOME="$vmroot/host-home" LIMA_HOME="$vmroot/state" \
+    "$vmroot/lima/bin/limactl" "$@"
+}
+vm list
+vm start --tty=false loam-spt
+vm shell --workdir=/home/loam loam-spt
+vm stop loam-spt
+# Explicit teardown, only when its disposable guest contents are no longer wanted:
+# vm delete --force loam-spt
+```
+
+Do not omit HOME/LIMA_HOME or add shared mounts, --preserve-env, SSH agent forwarding,
+autostart or public port forwarding. Transfer only selected source/synthetic archives
+with `vm copy`, verifying their checksums in the guest; never mount the workspace/home
+or copy operational data. This is a local trial recipe, not a general tooling/CI choice.
+Its generated config/logs/downloads/VM image are excluded from version control. Guest
+prerequisites are installed only within the user-approved disposable VM; ordinary host
+bootstrap still refuses OS installations. Next slice must separately qualify Linux
+OCaml/bootstrap and actual Base/Zarith engine freestanding linking/boot.
+
 ## Dependency changes
 
 [ADR 0001](adr/0001-initial-scope-and-dependencies.md) requires a capability, named

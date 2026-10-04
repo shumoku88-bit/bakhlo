@@ -126,8 +126,43 @@ No OS/VM installation or external host access silently follows from direction.
 Once a suitable isolated Linux environment is agreed, use fixed dependency selections,
 real boot plus positive/negative queries; no new model/theorem/random campaign for host
 plumbing. Stop on missing capabilities/unsupported dependencies rather than weakening
-exact quantities. Revisit on compiler/runtime/linker changes. Until then host execution
-is blocked, not passed. No Irmin/storage/UI/operational-data work in this host slice.
+exact quantities. Revisit on compiler/runtime/linker changes. VM availability is now
+established below; actual engine freestanding execution remains pending, not passed.
+No Irmin/storage/UI/operational-data work in this host slice.
+
+## Latest approved slice — isolated Linux VM and minimal C/SPT smoke passed
+
+User explicitly approved a development Linux VM on the Intel Mac; environment blocker
+resolved, storage/dependency/cutover limits unchanged. Question/owner (before creation):
+obtain a controllable disposable Linux build/boot host without exposing household data
+or mutating macOS toolchain? Host boundary owns setup; Domain/Application unchanged.
+D was ff3202c/macOS 15.7.9/x86_64/16 GiB/64 GiB free/hypervisor support, no runner.
+P: bounded hosted Mirage probe and exact engine/checks. R: verified boot/isolation/Linux
+prerequisites/seccomp, then actual engine freestanding build/boot. Named tool consumer:
+local pinned/checksummed Lima 2.2.1/VZ; observation branch, official config/security docs
+and resource/dependency review. UTM/manual or global brew/QEMU alternatives considered;
+keep-observing tool status, no measured superiority/general CI adoption.
+
+Configured/booted pinned Ubuntu 24.04 x86_64 VM, 2 vCPU/4 GiB/24 GiB sparse disk; isolated
+state/private keys under scratch. Plain mode: no host shares/SSH agent/X11/inherited keys,
+containerd/guest agent/application forwarding. Loopback management SSH + outbound package
+downloads remain, not an air gap/security certification. Guest-only compiler/GMP/seccomp
+prerequisites installed; no /dev/kvm, seccomp enabled. Selected Solo5 source archive
+checksum verified in guest, configured/built upstream C test_hello.spt: actual solo5-spt
+startup/hello/exit 0. Invalid non-ELF image refused 1/empty stdout. Stop/restart, repeated
+mountinfo/host-path/agent absence and hello passed; VM now STOPPED to release resources.
+Initial Go/macOS cache routing mismatch was corrected by scoped HOME and relocation of
+only our cache bucket; command-check harness errors corrected/repeated, details in
+VERIFICATION. No host package manager/config/login-hook changes or operational data.
+Only four documentation files changed; source/lock/tooling/formal stay unchanged and
+ordinary macOS checks pass. No new model/theorem/random campaign for VM plumbing.
+
+DEVELOPMENT owns start/stop/copy/teardown recipe; VERIFICATION owns pins/evidence/limits.
+Next: use this guest to qualify current Linux OCaml/bootstrap and actual Mirage engine
+SPT static link/boot with fixed versions and the earned synthetic source/query controls.
+This result is Linux host + minimal C/Solo5 plumbing ONLY, not engine/Static GMP/Base
+intrinsics/HVT/Irmin/persistence/recovery support. No quantity weakening, permanent
+adapter, new main dependency, migration/operational adoption/release/push follows.
 
 ## Other deferred work
 
