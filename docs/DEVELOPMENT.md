@@ -98,6 +98,15 @@ prerequisites are installed only within the user-approved disposable VM; ordinar
 bootstrap still refuses OS installations. Linux locked OCaml/bootstrap, ordinary tests, package/install/Lean-free and clean engine-only
 checks now pass. Freestanding evidence is separate; see VERIFICATION for target results.
 
+The bounded Irmin block trial is also ignored guest scratch, not an installed product.
+Its one 32 MiB synthetic disk is owned exclusively by one tender process; no shared mounts,
+network device or simultaneous writer. Formatting is explicit provisioning, NEVER a read/
+recovery fallback. Clean process/VM restart is not abrupt-crash/power-loss evidence.
+Two external dependency fixes were needed; no permanent backend/schema/support promise.
+[Verification](VERIFICATION.md#irmin-block-persistence-bounded-two-trial-dependency-fixes-required)
+owns exact selections/failures; keep generation admission, retry/conflicts, durability and
+backup/restore as separate next contracts. VM remains stopped between checkpoints.
+
 ## Dependency changes
 
 [ADR 0001](adr/0001-initial-scope-and-dependencies.md) requires a capability, named

@@ -198,13 +198,45 @@ full suite IN SPT/production target/HVT/storage/household authority. Version-bou
 OS-prerequisite issues and exact selections/controls belong to [Verification](VERIFICATION.md#linux-native-replay-and-mirageossolo5-spt-engine-bounded-trial-guard-required),
 not another inventory here. Development owns VM lifecycle; VM is STOPPED. No proof replay/push.
 
-Next bounded consumer: choose/inspect an Irmin backend genuinely usable from a freestanding
-guest, then synthetic persistence + same-generation admission/read + restart/reopen, not
-just memory set/get or a Unix store labelled Mirage. Decide minimum representation/version,
-publication unit, identity/retry/refusal and uncertain-result contracts before code; backup/
-crash recovery and operational cutover remain later distinct obligations. Do not wait for
-all upstream modules before that bounded vertical slice. Resolve/maintain proper dependency
-package selection before promoting this scratch Lwt guard to permanent runtime support.
+The subsequent Irmin block evaluation is below. Do not wait for all upstream modules before
+bounded vertical work; backup/crash recovery and operational cutover remain separate.
+Proper dependency selection/maintenance must precede permanent runtime adoption.
+
+## Latest completed investigation — bounded Irmin block prototype; stock backend refused
+
+User approved continuation. Question/owner recorded before prototype: can an Irmin generation
+persist/reopen on a freestanding block device without inventing support, mixing generations
+or turning failure into empty? Outer scratch backend/publisher owns I/O; engine unchanged.
+D: fa113a6, exact native locks and guarded SPT boot; official package/source review.
+Narrow sibling f441f91 observation: Scheduled lifecycle authority progressed; Actual remains
+a separate late cutover stage. This does not authorize real-data access/layout copying.
+P: earned exact source/query/parser/refusal controls. R: block/backend closure, admitted
+coherent generation, expected-head CAS and real reopen; crash durability remains residual.
+Instruments selected before code: fixed closure/source checks, concrete two-generation
+reads/history and syntax/admission/stale/missing/corrupt controls, clean process/VM restart.
+No new model/theorem/random campaign for plumbing; single exclusive writer, explicit format,
+no merge/implicit retry; uncertain I/O aborts without claiming success. Commit history is
+not Event/date correction or Reversal. Synthetic fixture blob is NOT canonical storage.
+
+Initial save/reopen passed, but stock Chamelon update corrupted an older file: Irmin hash
+refused; new head had changed, so update outcome was not success. Independent KV two-file
+restart/append reproduced retention loss without Irmin. A disposable CTZ reachability
+base-0 change then passed the same control and Irmin old/current retention, expected-head
+update/stale/no-write refusals/corrupt-head refusal and cold history across VM restart.
+This is guarded feasibility only: both Chamelon and Lwt changes remain third-party scratch,
+NOT stock storage support, power-loss/crash/restore assurance or backend adoption. Main
+source/dependencies/lock unchanged; macOS ordinary suite passes; VM STOPPED. Exact versions,
+limits and failures: [Verification](VERIFICATION.md#irmin-block-persistence-bounded-two-trial-dependency-fixes-required).
+
+Next: decide a maintainable backend/fix route, rather than silently promote these patches.
+Stock Chamelon 0.2.1 is disqualified for this retention workload. Keep the independent
+counterexample; inspect maintained alternatives/upstream resolution or explicitly reviewed
+patch ownership before adoption, and resolve the Lwt diagnostic selection separately.
+Then a small real input -> admission -> save -> query consumer, with versioned representation,
+identity/retry/conflict/uncertain-result contracts; qualify crash barriers/fault recovery and
+backup/restore separately before household use. Read compatibility may continue in parallel,
+not all-LOAM parity first. No main dependency/schema/UI/data/migration/push authorized.
+Revisit runtime/clock/device/format, larger multi-block values, multiwriter and failure models.
 
 ## Other deferred work
 

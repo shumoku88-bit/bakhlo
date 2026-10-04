@@ -35,7 +35,13 @@ continues alongside runtime qualification; do not first recreate every Lean modu
 file/write path. Hosted macosx success alone satisfies none of the freestanding/storage
 obligations. A bounded Linux/SPT engine boot with static GMP now passes, with a trial-only
 Lwt diagnostic-library build guard; no permanent Mirage adapter or production support.
-See VERIFICATION for exact versions, source/ELF correspondence and remaining gap. No VM/global OS install, public network service, real-data access, migration,
+A bounded Irmin/Solo5 block prototype also persists/reopens one admitted synthetic source/
+support blob per immutable commit, comparing the expected head before publication. Source
+and support are requalified from the same blob; derived answers are not stored. Stock
+Chamelon corrupted an older file during append; a trial-only CTZ traversal fix passed
+bounded retention/restart controls, NOT backend adoption or crash/restore qualification.
+See [persistence evidence](VERIFICATION.md#irmin-block-persistence-bounded-two-trial-dependency-fixes-required)
+for the two dependency fixes and remaining gap. No VM/global OS install, public network service, real-data access, migration,
 new main dependency or release/push follows implicitly from this direction.
 
 ## Invariant owners

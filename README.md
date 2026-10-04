@@ -4,12 +4,16 @@ An independent OCaml household engine: exact quantities, explicit evidence,
 retained correction provenance, and honest uncertainty. The goal is a maintainable
 product for long-term local use, not a line-by-line Lean translation.
 
-**Development-only. Existing LOAM remains household authority.** No persistence,
-writes, migration, UI, public release or complete household admission is qualified.
+**Development-only. Existing LOAM remains household authority.** No production persistence,
+household writes, migration, UI, public release or complete household admission is qualified.
 The locked ordinary suite passes on macOS x86_64 and isolated Ubuntu 24.04 x86_64.
 A bounded MirageOS/Solo5-SPT engine probe now boots with static GMP and unchanged engine
 source; it needs a trial-only Lwt build guard. This is not production target support.
 See [host feasibility evidence](docs/VERIFICATION.md#linux-native-replay-and-mirageossolo5-spt-engine-bounded-trial-guard-required).
+A synthetic Irmin block prototype now saves/reopens two generations across process/VM
+restart, preserving the old image. Stock Chamelon failed that retention check; a trial-only
+filesystem fix was needed as well as the Lwt guard. Not an adopted storage backend or
+crash-durability result: [bounded persistence evidence](docs/VERIFICATION.md#irmin-block-persistence-bounded-two-trial-dependency-fixes-required).
 
 ## Product direction
 

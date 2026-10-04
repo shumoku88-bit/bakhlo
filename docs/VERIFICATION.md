@@ -284,6 +284,101 @@ real data/household use, source-install client qualification or optional proof r
 Next named consumer: bounded Irmin backend durable record/reopen, with concrete generation/
 admission/retry/recovery contracts; no storage format/authority follows from this boot.
 
+### Irmin block persistence (bounded, two trial dependency fixes required)
+
+At fa113a6 user approved continuation toward MirageOS + Irmin, not main dependency/schema/
+data adoption. Question/owner and D/P/R/instruments recorded in HANDOFF before prototype;
+additional stock retention failure/reachability-control question recorded before patching.
+Only selected own/synthetic source; no household data or sibling build/modification/source
+copying. Read-only f441f91 sibling status/remaining-cutover route is a historical reference,
+not full parity or operational migration evidence. Ordinary engine/parser evidence reused;
+no new model/theorem/random campaign for outer plumbing.
+
+Official Irmin 3.11.0 archive SHA256
+`09996fbcc2c43e117a9bd8e9028c635e81cccb264d5e02d425ab8b06bbacdbdb`,
+Chamelon 0.2.1 `782b84fc81d7bf34fe10442437c6c507ca7ada2c9c822970cc23261be6a5178c`
+checked; both declare ISC. Irmin Mirage helper supplies clock-based info, not storage;
+examined Git.Mem-oriented wrapper did not establish guest-local persistence (remote push/
+sync out of scope). Mem cannot persist; Unix pack/fs does not establish freestanding I/O.
+Irmin-fs logs bad value decode and returns None; bad keys may be skipped, unacceptable as
+an unqualified LOAM boundary. Trial consumer instead uses Irmin CA/AW makers over Chamelon
+KV + Solo5 BLOCK_BASIC, with a small owned backend: strict binary decode/hash verification,
+byte-identical append-only collision check, one borrowed FS/mutex, closed handles, serialized
+local CAS. Watch/clear explicitly unsupported, not fake success. Batch is NOT a transaction;
+no multi-process/multiwriter/crash atomicity claim.
+
+Same approved Ubuntu guest/root/compiler/43-package host switch, no new OS prerequisites.
+Frozen registry/official overlay and explicit actual monorepo variables as above. Cross
+closure 93 entries/65 package-source pins (59 distinct URLs), not installed-package counts;
+core/compiler/runtime/GMP/Zarith pins unchanged. New consumed selections include irmin/
+ppx_irmin 3.11.0, chamelon 0.2.1, repr/ppx_repr 0.8.0, digestif 1.3.1, checkseum 0.5.3,
+cstruct/ppx_cstruct 6.3.0, mirage-kv 6.1.1, mirage-block 3.0.2/block-solo5 0.8.1,
+mirage-ptime 5.2.0, optint 0.3.0, ocamlgraph 2.2.0, JSON/UTF/PPX support, parsexp/sexplib
+v0.17.0; no Core/Async. Vendor selection changes ocamlfind 1.9.8 -> 1.9.5+dune and uutf
+1.0.4 -> 1.0.3+dune in CROSS lock only, not native switches. Native macOS/Linux lists remain
+all 50 main lock entries exactly; main manifest/lock/tools/formal untouched. Dependency
+cost is meaningful: no implicit adoption merely because a freestanding build succeeds.
+
+Mirage configure SPT/default argv/sleep/ptime, no reporter/mtime/random/network. Actual
+POSIX clock needed for FS write metadata, not household date/commit chronology; supplying
+no_ptime failed Ptime_clock unsupported-platform, corrected through SDK, not dummy time.
+One exclusively owned 32 MiB synthetic disk, one process/tender at a time, --mem=256;
+explicit format with program-block size 16 (upstream tests), NOT the sector size 512.
+Initial 512 caused allocation abort even at --mem=512; direct root-write/bounded GC controls
+passed, corrected configuration proceeded. Long 128-hex-character hashes exceeded FS's
+32-character name bound; shard full hash into 16-character components, never truncate.
+Trial main-branch key bound is explicit; not arbitrary branch/path support.
+
+76 own engine/CLI/Presentation source/build files byte-equal; selected CLI archive and final
+probe archive checksums verified in guest and extracted file digests matched. Engine and
+parser unchanged, no generated-runtime edits. Trial storage is ONE Contents.String fixture
+blob at snapshot per immutable commit, including raw source/support/provenance, synthetic
+v2 marker only; no canonical format/unknown-section/full Actual claim. Read exact commit
+once, then decode/source/query admit from those same bytes, recompute quantities/remainders.
+Publisher qualifies before writes, checks expected head, creates immutable objects/parent
+then head CAS; stale update refuses without auto-merge/retry/retarget. Missing/unformatted
+read refuses, never auto-formats/initializes. Commit info timestamp 0 is explicit synthetic
+storage metadata, not Event/date evidence; derived answers not persisted.
+
+**Stock Chamelon FAILED retention.** Initial save/process reopen passed. Update changed
+head and new generation reopened, BUT old Contents lookup failed Irmin hash verification;
+no successful update marker. Independent KV-only first-file save -> new process -> second
+file write -> first-file reread reproduced changed old bytes (2, no retention PASS).
+Fs_internal.Traverse.get_ctz_pointers stopped at index 1, while File.last_block_index starts
+at 0; two-sector values left first data block out of reachability/free-space accounting.
+Trial-only change `| Ok l, 1 -> ...` to `| Ok l, 0 -> ...` then passed SAME independent
+control and new-disk Irmin old/current retention. This strongly isolates the bounded issue,
+not a general filesystem correctness proof. Unmodified 0.2.1 is disqualified for this
+workload; do not call the guarded result stock/production storage support. Prior Lwt
+runtime-events Solo5 Dune guard also retained. Neither third-party patch is committed or
+adopted; maintained resolution/alternatives/patch ownership must precede promotion.
+
+Guarded controls passed: 180-bit signed corrected arithmetic, all four support families,
+net-zero touch/unsupported versus supported zero, retained original relation source and
+remainder 3 -> 2, unknown relation not zero; exact bytes/history/parent retained. Separate
+process save/read/update and cold old/current history after graceful VM stop/restart passed
+with same disk/image SHA256. Unsupported fixture syntax, invalid over-discharge, stale
+expected-head/CAS and unsupported watch refused; before/after whole-disk hashes identical.
+Deliberately malformed head on separate synthetic disk refused 2/invalid hash-size witness,
+NO read PASS, unchanged corrupt disk; no decode-to-None. A failure after publication may
+have changed head (stock counterexample did); abort/no success, not blind retry or rollback.
+This does not implement a production uncertain-result/recovery protocol.
+
+Clean release cross rebuild with original strict-sequence/fatal 8/9/11 flags passed;
+no tracing CMXs, ELF x86_64 EXEC/Solo5 SPT ABI 2, one store BLOCK_BASIC manifest/no NET,
+no dynamic section/undefined symbols; expected nonexistent Solo5 INTERP sentinel. Image
+12,671,416 bytes SHA256 `8c7705573a1c6381eb944ef9f36e13024824b8e6d84bffef957658bf1b95f76d`;
+lock `ee466c3cca82215cb795a437af37523242addd60161d500297dd7f0037dd413f`.
+Clean rebuild matched image hash and boot/history controls; not universal reproducibility.
+Nonfatal /etc/bash.bashrc PS1 diagnostics remain in this clean build log; scoped ENV/PS1
+attempts did not remove all, no global shell change. Original engine-probe image unchanged.
+macOS ordinary suite passes; no full suite IN SPT/source-install/other-platform/proof replay.
+VM STOPPED, logs/archives/locks/disk/source/build private ignored scratch, no listener.
+No abrupt process kill/power-loss, device flush/barrier, torn-write/disk-full/I/O-error,
+backup/restore/migration, large/many-block reliability, useful input UI or household authority
+qualified. Revisit those failure models, backend/format/runtime/device/clock/scale before
+adoption; success here establishes only a guarded bounded storage/reopen path.
+
 [Optional specification](../formal/README.md) states nine row-selection, signed-delta and
 whole-premise lookup laws. It does not prove graph admission, group indexes, Actual/support
 truth, OCaml/Base/Zarith refinement, loading or durability. Recheck artifact/assumption/
