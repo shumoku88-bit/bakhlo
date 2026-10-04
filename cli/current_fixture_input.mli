@@ -17,6 +17,11 @@
     source-qualified shape; no inferred key/rate/fee/role or correction replacement).
     Top-level REVERSAL target-event-id reversal-event-id (forward references;
     source admits disjoint endpoints/exact physical inversion, not inferred cancellation).
+    Top-level RELATION id event-id effect-key <debtor> <creditor> signed-decimal.
+    Each endpoint is HOUSEHOLD (one field) or EXTERNAL party (two fields). Exact
+    identities/forward references; source admits endpoint shape, positive quantities,
+    per-unit/aggregate magnitude bounds. No sign-derived direction, known-none or
+    discharge/remaining amounts; DISCHARGE/SETTLEMENT/PURPOSE still unsupported.
     ZERO-ORIGIN locus measure; OPENING locus measure
     event-id; GROUP / REFLECT root / ASSERT locus measure signed-decimal / END-GROUP.
     At most one PRESENCE / REFLECT root / PRESENT locus measure / END-PRESENCE block.

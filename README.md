@@ -67,12 +67,18 @@ empty image. See [grammar](cli/current_fixture_input.mli) and
   Optional original presented/charged amounts retain one positive Quantity and explicit
   Measure per stable correction root; current terminal association is derived without
   rewriting the fact, adding Effects, exchange rates or quantity/presence support.
+  Directional relation units have independent IDs, explicit Household/External debtor
+  and creditor, a retained Event/key source and positive quantities. Individual and
+  total same-source coverage cannot exceed the Effect's absolute quantity, regardless
+  of direction/party. Measure comes from the Effect; signs do not infer relation roles.
+  Superseded sources remain exact, without correction/Reversal transfer or balance
+  support. These are observed units, not remaining amounts after fulfillment.
 - Exact assertion groups retain independent reflected-root cuts. Origin is explicit,
   not inferred from activity. Opening explicitly names a current Event containing the
   coordinate; it is not a second scalar or implicit origin. Presence retains one shared
   root cut, not a scalar; ANY unreflected matching Effect invalidates it, even net zero.
   Exact/present payloads are disjoint; all four families must be globally separated.
-- Other structured metadata, relations/settlement, historical
+- Other structured metadata, relation discharge/completeness/lifecycle, settlement, historical
   completeness and full normalized Actual admission are still unsupported.
 
 No public API/storage compatibility promise exists during this unreleased phase.

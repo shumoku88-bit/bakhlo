@@ -19,7 +19,7 @@ let event token changes = F.observation ~id:(F.id token) ~effects:(List.mapi cha
     ~locus:coordinate.locus ~measure:coordinate.measure ~quantity:(D.Quantity.of_quanta c.quanta)))
 ;;
 let command events reversals exchanges : S.command =
-  { events; reversals; exchanges; corrections = []; validity_corrections = []
+  { events; reversals; exchanges; relations = []; corrections = []; validity_corrections = []
   ; validities = List.map events ~f:(fun e -> F.base_validity (D.Event.id e) "2026-10-03")
   ; descriptions = []; merchants = []; original_amounts = [] }
 ;;

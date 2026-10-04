@@ -28,7 +28,8 @@ There is no canonical storage, clock, mutable business state or generic service 
 | Original amounts | Unique positive root fact + explicit Measure; same-frontier current terminal association, raw fact unchanged; no FX/balance/support meaning |
 | Exchange evidence | Unique Event + selected source/destination keys; distinct Measures, selected and net signs, no third Measure/correction participation; extra Effects retained, no rates/fees |
 | Actual Reversals | Explicit disjoint target/reversal endpoints in retained memory, exact physical multiset inversion ignoring keys/order; no correction/deletion/support |
-| Actual source | Ordinary + Exchange/Reversal subset: identity, Exchange, Reversal, all Effects nonzero; independently qualify targets, admit inverse sides; dates, Event corrections, descriptions, Merchants, root original amounts |
+| Actual source | Ordinary + Exchange/Reversal subset: identity, Exchange, Reversal, all Effects nonzero; independently qualify targets, admit inverse sides; dates, Event corrections, descriptions, Merchants, root original amounts, relation units |
+| Open relation units | Independent IDs, exact retained Event/key source, explicit Household/External direction, positive per-unit/aggregate absolute source bounds; no discharge/completeness/remaining amount |
 | Current quantity query | One source; origin, opening (unique coordinate/current Event/matching Effect), assertions and presence, globally separated; Exact / Known_present / unsupported |
 
 Public `.mli` files own exact inputs, diagnostics and ordering. Indexes are disposable
@@ -149,8 +150,29 @@ existing Exchange-subject correction exclusion applies (no new Reversal-only exc
 so current cancellation is conditional on BOTH original endpoints remaining selected.
 Top-level REVERSAL target reversal supports forward references without ID allocation.
 
-The current source is NOT full normalized Actual: other structured metadata
-and relations/settlement remain unqualified. Date evidence is not proof of occurrence
+Open_relations qualifies independent relation units against retained keyed Effects,
+including superseded observations. Exactly one Household and one role-free External party
+supply debtor/creditor direction; source sign, Locus, Merchant or descriptions supply none.
+No duplicate Measure: admitted source Effect retains it. Positive quantity is individually
+bounded by source magnitude, and ALL units sharing exact (Event, key), regardless of
+party/direction, are bounded in aggregate. Typed transient source keys never concatenate
+identity strings; same-coordinate/different-key and cross-Event reused keys stay distinct.
+Separate relation IDs allow otherwise equal independent units; any ID reuse refuses.
+Global identity gate precedes per-declaration Event/key/endpoints/positivity/individual
+bounds, then aggregate totals in original declaration order. This differs from upstream
+indexed per-row aggregate diagnostics, not this narrow accepted whole-family shape.
+Raw facts/order/Event memory and abstract admitted rows retain exact Event/Effect payloads;
+indexed ID lookup None is unresolved/unsupplied, not known-none, zero or completeness.
+Source gate follows original amounts, before support/query; unrelated errors refuse the
+whole source. No physical exemptions, selection, correction/Reversal inheritance/retargeting
+or inferred fulfillment. Corrections can leave relation sources historical; views are
+positive observed units, not remaining debt. No target-local orphan/crash-residue acquisition
+or completeness consumer is qualified. RELATION id event key <debtor> <creditor> quantity
+uses explicit HOUSEHOLD / EXTERNAL party endpoint fields and allows forward references.
+DISCHARGE/SETTLEMENT/PURPOSE stay unsupported in the synthetic reader.
+
+The current source is NOT full normalized Actual: other structured metadata,
+relation discharge/completeness/lifecycle and settlement remain unqualified. Date evidence is not proof of occurrence
 truth, recording chronology or historical completeness.
 Queries do not establish household authority, purchasing power or spendability.
 

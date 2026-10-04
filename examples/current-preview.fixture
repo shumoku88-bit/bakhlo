@@ -40,6 +40,9 @@ MERCHANT	a	provider-original
 MERCHANT	b	provider-corrected
 NONMERCHANT	x
 ORIGINAL-AMOUNT	a	eur	100
+RELATION	unit-a	a	physical	HOUSEHOLD	EXTERNAL	provider-original	10
+RELATION	unit-b	a	physical	EXTERNAL	other-party	HOUSEHOLD	5
+RELATION	unit-g	g	physical	HOUSEHOLD	EXTERNAL	other-party	1
 CORRECTION	a	b
 ZERO-ORIGIN	food	jpy
 ZERO-ORIGIN	quiet	jpy

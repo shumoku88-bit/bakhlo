@@ -109,6 +109,31 @@ let reversal_error = function
     Printf.sprintf "Reversal %d: Event %S is not the exact physical inverse of %S"
       position (id fact.reversal) (id fact.target)
 
+let relation_endpoint = function
+  | A.Open_relations.Household -> "Household"
+  | External party -> Printf.sprintf "External %S" (D.Identifier.External_party.to_string party)
+let relation_error error =
+  let relation id = D.Identifier.Relation.to_string id in
+  let key id = D.Identifier.Effect_key.to_string id in
+  match error with
+  | A.Open_relations.Repeated_id { id; first_position; position } ->
+    Printf.sprintf "duplicate Relation %S at %d (first %d)" (relation id) position first_position
+  | Unknown_event { id = subject; event; position } ->
+    Printf.sprintf "Relation %d %S: unknown Event %S" position (relation subject) (id event)
+  | Missing_effect { id = subject; event; key = selector; position } ->
+    Printf.sprintf "Relation %d %S: Event %S has no Effect key %S" position (relation subject) (id event) (key selector)
+  | Invalid_endpoints { id = subject; debtor; creditor; position } ->
+    Printf.sprintf "Relation %d %S: expected one Household and one External endpoint, debtor=%s creditor=%s"
+      position (relation subject) (relation_endpoint debtor) (relation_endpoint creditor)
+  | Nonpositive_quantity { id = subject; quantity = amount; position } ->
+    Printf.sprintf "Relation %d %S: quantity %s is not positive" position (relation subject) (quantity amount)
+  | Exceeds_source { id = subject; quantity = amount; magnitude; position } ->
+    Printf.sprintf "Relation %d %S: quantity %s exceeds source magnitude %s"
+      position (relation subject) (quantity amount) (quantity magnitude)
+  | Overcovered_source { event; key = selector; total; magnitude; position } ->
+    Printf.sprintf "Relation %d: Event %S Effect key %S coverage %s exceeds source magnitude %s"
+      position (id event) (key selector) (quantity total) (quantity magnitude)
+
 let source_refusal error =
   let detail = match error with
     | A.Actual_source.Events (D.Event_memory.Duplicate_id { id = event; first_position; position }) ->
@@ -120,6 +145,7 @@ let source_refusal error =
         (D.Identifier.Measure.to_string measure) (quantity residual)
     | Exchanges error -> exchange_error error
     | Reversals error -> reversal_error error
+    | Relations error -> relation_error error
     | Validity error -> validity_error error
     | Corrections error -> correction_error error
     | Descriptions error ->

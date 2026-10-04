@@ -377,7 +377,7 @@ The physically admitted Actual subset source has a public smart constructor.
 
   $ cat >actual_source_client.ml <<'EOF'
   > module S = Loam_application.Actual_source
-  > let empty () = S.create { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = []; merchants = []; original_amounts = []; exchanges = []; reversals = [] }
+  > let empty () = S.create { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = []; merchants = []; original_amounts = []; exchanges = []; reversals = []; relations = [] }
   > let facts source = Loam_application.Actual_validity.facts (S.validity source)
   > let descriptions source = Loam_application.Event_descriptions.facts (S.descriptions source)
   > EOF
@@ -438,6 +438,66 @@ Retained date history has tagged references and a distinct revision identity, no
   $ application_client private_cycle.ml 2>error
   [2]
   $ grep -q 'Unbound module.*Replacement_cycle' error
+
+Relation units keep independent IDs, explicit endpoints and abstract source-qualified positive views.
+
+  $ cat >relation_client.ml <<'EOF'
+  > module D = Loam_domain
+  > module R = Loam_application.Open_relations
+  > module S = Loam_application.Actual_source
+  > let admit events id source_event source_effect debtor creditor quantity = R.create ~events ~facts:[ { id; source_event; source_effect; debtor; creditor; quantity } ]
+  > let retained source = R.source_events (S.relations source), R.facts (S.relations source), R.admitted (S.relations source)
+  > let provenance row = R.fact row, R.source_event row, R.source_effect row, D.Effect.measure (R.source_effect row)
+  > let lookup memory id = R.find_by_id memory id
+  > let endpoint = function R.Household -> None | External party -> Some party
+  > let parse = D.Identifier.Relation.of_string
+  > EOF
+  $ application_client relation_client.ml
+  $ cat >event_is_not_relation_id.ml <<'EOF'
+  > module D = Loam_domain
+  > module R = Loam_application.Open_relations
+  > let wrong (id : D.Identifier.Event.t) source_event source_effect quantity : R.fact = { id; source_event; source_effect; debtor = Household; creditor = Household; quantity }
+  > EOF
+  $ application_client event_is_not_relation_id.ml 2>error
+  [2]
+  $ grep -q 'Identifier.Relation.t' error
+  $ cat >forged_relations.ml <<'EOF'
+  > module R = Loam_application.Open_relations
+  > let wrong (facts : R.fact list) : R.t = facts
+  > EOF
+  $ application_client forged_relations.ml 2>error
+  [2]
+  $ grep -q 'R.t' error
+  $ cat >forged_relation_view.ml <<'EOF'
+  > module R = Loam_application.Open_relations
+  > let wrong (fact : R.fact) : R.admitted = fact
+  > EOF
+  $ application_client forged_relation_view.ml 2>error
+  [2]
+  $ grep -q 'R.admitted' error
+  $ cat >relation_is_not_current_quantity.ml <<'EOF'
+  > module R = Loam_application.Open_relations
+  > module Q = Loam_application.Current_quantity_query
+  > let wrong (row : R.admitted) = Q.quantity row
+  > EOF
+  $ application_client relation_is_not_current_quantity.ml 2>error
+  [2]
+  $ grep -q 'Q.exact' error
+  $ cat >incomplete_relation_endpoint.ml <<'EOF'
+  > module R = Loam_application.Open_relations
+  > let wrong = function R.Household -> "household"
+  > EOF
+  $ application_client -w +8 -warn-error +8 incomplete_relation_endpoint.ml 2>error
+  [2]
+  $ grep -q 'partial-match' error && grep -q 'External' error
+  $ cat >raw_events_are_not_relation_memory.ml <<'EOF'
+  > module D = Loam_domain
+  > module R = Loam_application.Open_relations
+  > let wrong (events : D.Event.t list) = R.create ~events ~facts:[]
+  > EOF
+  $ application_client raw_events_are_not_relation_memory.ml 2>error
+  [2]
+  $ grep -q 'Event_memory.t' error
 
 Reversal evidence retains typed Event endpoints and abstract pairs; no quantity authorization.
 

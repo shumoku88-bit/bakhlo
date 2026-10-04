@@ -1,90 +1,87 @@
 # Handoff
 
-## Qualified boundary — retained exact physical Reversal evidence
+## Qualified boundary — retained Effect-backed directional relation units
 
-Pre-code review and executed evidence follow; contracts live in interfaces/ARCHITECTURE,
-retained evidence in VERIFICATION.
+Pre-code question/instruments and executed qualification follow. Interfaces/ARCHITECTURE
+own contracts, VERIFICATION owns retained executable evidence.
 
-Question: retain explicit target/reversal correspondence without deleting observations,
-inferring relations from signs/net zero, merging correction paths or bypassing target
-admission? D (pre-code): source admitted ordinary/Exchange, no Reversal. Narrow read-only owners
-at 2438ef50a363ef06491da7b62f8537f52e25031a: Core ActualReversal/ActualReversalBalance,
-Persistence NormalizedActualAdmission. No upstream copying/build/proof/household-data read.
-P: Event-local key uniqueness, exact coordinates/quanta/multiplicity, qualified Exchange,
-Measure totals, retained dates/correction frontier, metadata and four supports; independent
-Effect/Exchange/graph models and optional laws (VERIFICATION). R: exact multiset inversion,
-global endpoint uniqueness/closure and source-safe reversal-side admission.
+Question/owner: acquire independently identified household/external debtor-creditor facts
+against exact retained Event/Effect keys without sign inference, over-allocation, fabricated
+remaining amounts or known-none? Open_relations owns whole-family admission; Actual_source
+owns same-generation composition before support/query. D: HEAD d23e4b8 has no relation input;
+read-only reference dccbb2d9e17c6f5e92d8b6fb3390dbfd9ab2b926: Core OpenRelation,
+Application OpenRelationFrontier and Persistence NormalizedActualAdmission. Purpose is a
+separate routing/capacity identity, not an Actual tag. RelationDischargeFrontier narrowly
+consulted to bound the deferral; no discharge/settlement/current remaining quantity consumer
+in this increment. No upstream/data writes, builds, proofs or source copying.
+P: exact Quantity, Event-local keys/multiplicity/identity, role-free External_party,
+retained Source/Exchange/Reversal/date/correction/metadata and four support families;
+earned original-Effect arithmetic/touch and graph models. R: identified positive units,
+endpoint shape, exact source resolution, individual and aggregate source-magnitude bounds.
 
-Select Actual_reversals: raw fact = target Event ID + reversal Event ID, no relation ID.
-Each endpoint globally unique across BOTH roles: no self/duplicate/cross-role chain/cycle.
-Per fact: target reuse, reversal reuse (including self), ordered target/reversal closure,
-exact physical inverse. First failure, one-based fact positions/role witnesses. Local
-combined gate differs from upstream separate endpoint-memory/closure/inverse gates.
-Match sorted transient physical (coordinate, exact signed Quantity) lists after negating
-reversal quantities; ignore keys/order, retain multiplicity and raw payloads/facts/order/memory.
-Return abstract admitted pairs with exact retained Events; indexed role-specific lookup.
-Standalone boundary does not establish balance/nonzero/dates/correction admission or truth.
+Select distinct exact nonempty Identifier.Relation, no registry/allocation. Raw fact:
+id + source_event + source_effect + debtor + creditor + signed Quantity. Endpoints are
+Household | External(party); exactly one Household and one External, either direction.
+No duplicate Measure: derive it from admitted source Effect. Separate relation IDs allow
+otherwise equal independent units. Source sign/Locus/Merchant never supplies relation roles.
+Admission: whole global ID uniqueness first; then each fact in declaration order resolves
+Event -> keyed Effect -> endpoint shape -> positive quantity -> individual absolute bound;
+then total positive quantity across ALL units sharing exact (Event, key), including both
+directions/parties, bounded by that same source magnitude. First aggregate violation uses
+original declaration order/full total. This local staged diagnostic order differs from
+upstream's indexed per-row local+aggregate gate; accepted whole-family shape corresponds.
+Retain raw facts/order/Event memory, abstract admitted rows with exact source Event/Effect,
+indexed relation-ID lookup. No current/root-only restriction, correction/Reversal transfer,
+physical Effects/balance exemption, source-coordinate aliasing or implicit deletion.
+Standalone admission does not validate physical nonzero/balance/dates/corrections.
+Source gate after original amounts; any unrelated invalid relation refuses the whole image.
+Absence remains unresolved, never known-none or zero. Views are positive observed units,
+NOT outstanding debt/remaining quantity after discharge.
 
-Source: identity -> Exchange -> Reversal exact admission -> existing per-Event physical
-checks. ALL Effects nonzero. Balance applies to every Event except explicitly qualified
-Exchange subjects and admitted reversal-side Events. Global disjoint roles ensure targets
-are never reversal sides: every ordinary target is independently checked, while a qualified
-Exchange target already justifies its cross-Measure shape. Only THEN exact inversion
-justifies skipping reversal-side checks (ordinary balance is derived; an Exchange inverse
-remains an explicit Reversal exception, not per-Measure balanced); an unbalanced target cannot be rescued
-by pair cancellation or an Exchange claim on the reversal side. Ordinary/no-Reversal order
-survives. Date/frontier/metadata/original amounts/support follow as before. Reversal
-endpoints may also participate in separately admitted corrections unless they are Exchange
-subjects (upstream retained closure has no extra current/root/correction exclusion).
-Exchange correction prohibition survives; even its non-Exchange reversal endpoint may
-have an independent correction without rewriting retained correspondence.
-Reversal does not alter frontier selection. Both Events contribute when selected; a separate
-correction/cut can select a different subset, so do not claim universal current cancellation.
-Same v2 reader: top-level REVERSAL target reversal, forward references, no inference/allocation.
+Same noncanonical v2 reader: RELATION id event key <debtor> <creditor> signed-decimal;
+endpoint = HOUSEHOLD (one field) or EXTERNAL party (two). Explicit tag consumption avoids
+encoded identities/dummy household tokens. Forward references; illegal endpoint pairs and
+nonpositive/bound/duplicate/reference facts reach semantic admission, malformed tags/arity/
+identities remain syntax errors. DISCHARGE/SETTLEMENT/PURPOSE and other unsupported rows
+still refuse; no extra command/UI/storage protocol.
 
-Before product code, checked original-token/list-remove-one multiset oracle (not product sort):
-all 85 length-0..3 lists over two Measures x +/-1 = 7225 pairs; 289 exact inverses,
-9 ordinary-source pairs. Four Event IDs, all 0/1/2 ordered endpoint relations = 273/37
-unique collections. Independent Python enumeration agrees. Retain model-only aggregate-zero/
-regrouping/dropped-duplicate/wrong-coordinate/Measure/key-order counterexamples. Product
-correspondence; reuse Exchange_model's 9216 shapes with constructed exact inverse Events
-(74 source admissions, reverse-side-only Exchange cannot rescue target). Separate huge/
-zero/control/closure/order/retention/immutability and correction/date/metadata/four-support
-seams with earned original-Effect sum/touch oracles. Real CLI read-only/streams and compiler
-role/forgery/exhaustiveness controls. No new graph model/random campaign/formal artifact:
-question is physical multiset matching plus qualified target/source composition. Explicit
-guards suffice; revisit endpoint reuse, reversal lifecycle/corrections, reporting/publication.
+Selected instruments: independent original-token/list/Zarith relation model checked before
+product: all 40401 two-slot None/id/source/endpoint/quantity cases against three keyed +/-2
+Effects, 265 admissions. Independent Python enumeration agrees. Reuse list prefix identity and original-Effect
+oracles; product correspondence plus huge/control/sign/direction/anonymous/same-coordinate/
+Event-local key reuse, split coverage/equal independent facts, aggregate-overflow and ordered
+failure counterexamples. Correction-tail/prefix/replay/permutation/source omission and
+metadata/date/Exchange/Reversal/four-support noninterference. Decoder/real CLI read-only,
+exit/stream/escaping and compiler role/forgery/exhaustiveness controls. No new graph model,
+random campaign/theorem/temporal tool: no transitions/writes or arbitrary current relation
+lifecycle claim. Revisit on discharge/completeness/remaining amount, reporting, lifecycle,
+publication or named workload; bounded model is not handwritten refinement or factual truth.
 
-Acceptance: no aggregate-only matching, silent dedup/identity loss/automatic pair deletion,
-chain/cycle/open-endpoint acceptance or generic target balance exemption; unknown remains
-unsupported even at net zero. Full normal/package/install, clean native engine-only and
-Lean-free checks; existing models/laws/campaigns/counterexamples retained, tooling/lock/
-formal code unchanged.
+Executed on locked macOS x86_64: 143 expect tests, unchanged 100000 generated cases,
+three cram suites; normal full check, forced package tests, install, clean native Domain/
+Application build (no outer compiled artifacts), and full check with nonexistent LEAN passed.
+All 69 prior compiler specimens retained except explicit new source field; seven new clients.
+Real CLI/read-only/exit/stream/escaped provenance and decoder controls passed, including
+unsupported discharge/settlement/purpose refusal. Example now retains three relation units
+on original a/g Effects without changing quantity answers. Focused change/mutation/model/
+Markdown/index checks passed; existing models/laws/campaigns/tooling/lock/formal artifact
+unchanged. Final sibling observation: clean 4298827cab7d742c7430d858bdcb4d84dce51fc2;
+all five consulted owners unchanged from dccbb2d9, not whole-tree correspondence.
+No dependency, UI/MirageOS build, registry, write/migration, license/release, upstream/optional
+proof rerun, new platform/fresh switch or push.
 
-Executed on locked macOS x86_64: 135 expect tests, unchanged 100000 generated cases,
-three cram suites; normal check, forced package tests, install, clean native Domain/Application
-build with no outer compiled artifacts, and full check with nonexistent LEAN passed.
-All 63 prior compiler specimens retained (only explicit new source field updated), six
-new specimens; exact role/forgery/exhaustiveness and read-only/exit/stream/escaped decoder/
-CLI controls passed. Example independent origin supports reversal-wallet jpy = 0.
-Whitespace/Markdown links/fences and focused production effect/helper scans passed.
-Final sibling observation: clean dccbb2d9e17c6f5e92d8b6fb3390dbfd9ab2b926; the three
-consulted owners are unchanged from 2438ef50, not whole-tree correspondence.
-No new dependency, UI, storage/writes/migration, registry/report, license/publication,
-upstream/optional proof rerun, fresh switch, new platform/MirageOS build or push.
+## Next work / deferred decisions
 
-## Next work / deferred platforms
-
-Choose concrete Actual consumers, not upstream files as automatic backlog. Before writes:
+Choose concrete consumers, not upstream files as automatic backlog. Before writes:
 authority/admission/publication, identity/retry/conflict, uncertain outcomes, atomicity/
 durability, diagnostics, backup/restore/migration, then transition/fault instruments.
-First usable TUI/GUI undecided. MirageOS remains a possible future host, unqualified:
-actual target/runtime/Base/Zarith/GMP/C-stub compatibility and I/O adapters await a consumer;
-no stack comparison/implementation now. Public release/operational cutover separate.
+First usable TUI/GUI undecided. MirageOS is a possible future host; actual target/runtime/
+Base/Zarith/GMP/C-stub compatibility and I/O adapters are unqualified and deferred.
+Linux/Apple Silicon, public licensing/metadata/history and operational cutover need decisions.
 
 ## Safety/state
 
-Synthetic only; existing LOAM remains sole household authority. Use live Git; local commits
-authorized, no push. Last remote observation: private main 8974041 (2026-10-03), not equality.
-Only macOS x86_64 qualified; no new platform/fresh-switch claim. Never commit environments,
-generated output, scratch, credentials or private logs.
+Synthetic only; existing LOAM remains sole household authority. Local commits authorized,
+no push. Last remote observation: private main 8974041 (2026-10-03), not current equality.
+Only locked macOS x86_64 qualified; no new platform/fresh-switch claim. Never commit local
+environments, generated/install output, scratch, credentials or private logs.

@@ -144,6 +144,7 @@ let%expect_test "source original amounts never become Effects, FX, balance or fo
     ; original_amounts = originals
     ; exchanges = []
     ; reversals = []
+    ; relations = []
     } in
   let source = ok (S.create raw) in
   let amounts = S.original_amounts source in

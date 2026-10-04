@@ -6,6 +6,7 @@ module P = Loam_application.Current_quantity_projection
 module V = Loam_application.Actual_validity
 module Q = Loam_application.Current_quantity_query
 module M = Loam_application.Event_merchants
+module R = Loam_application.Open_relations
 
 type t =
   { source : S.command
@@ -41,6 +42,14 @@ let coordinate line locus measure =
   Ok ({ locus; measure } : D.Effect_coordinate.t)
 ;;
 
+let endpoint line = function
+  | "HOUSEHOLD" :: rest -> Ok (R.Household, rest)
+  | "EXTERNAL" :: token :: rest ->
+    Result.map (identity line D.Identifier.External_party.of_string token)
+      ~f:(fun party -> R.External party, rest)
+  | _ -> fail line "expected HOUSEHOLD or EXTERNAL party endpoint"
+;;
+
 let parse_change line key locus measure text =
   let ( let* ) result f = Result.bind result ~f in
   let* c = coordinate line locus measure in
@@ -70,6 +79,7 @@ let decode text =
                     ; original_amounts = List.rev draft.source.original_amounts
                     ; exchanges = List.rev draft.source.exchanges
                     ; reversals = List.rev draft.source.reversals
+                    ; relations = List.rev draft.source.relations
                     ; validity_corrections = List.rev draft.source.validity_corrections
                     }
                 ; groups = List.rev draft.groups
@@ -158,6 +168,19 @@ let decode text =
             let fact : Loam_application.Actual_reversals.fact = { target; reversal } in
             let source = { draft.source with reversals = fact :: draft.source.reversals } in
             scan (line + 1) Between { draft with source } rest
+          | Between, "RELATION" :: token :: event :: key :: fields ->
+            let* id = identity line D.Identifier.Relation.of_string token in
+            let* source_event = identity line D.Identifier.Event.of_string event in
+            let* source_effect = identity line D.Identifier.Effect_key.of_string key in
+            let* debtor, fields = endpoint line fields in
+            let* creditor, fields = endpoint line fields in
+            (match fields with
+             | [ text ] ->
+               let* quantity = quantity line text in
+               let fact : R.fact = { id; source_event; source_effect; debtor; creditor; quantity } in
+               let source = { draft.source with relations = fact :: draft.source.relations } in
+               scan (line + 1) Between { draft with source } rest
+             | _ -> fail line "expected relation quantity after two endpoints")
           | Between, [ "ZERO-ORIGIN"; locus; measure ] ->
             let* c = coordinate line locus measure in
             scan (line + 1) Between { draft with zero_origins = c :: draft.zero_origins } rest
@@ -203,6 +226,7 @@ let decode text =
             ; original_amounts = []
             ; exchanges = []
             ; reversals = []
+            ; relations = []
             }
         ; groups = []
         ; zero_origins = []

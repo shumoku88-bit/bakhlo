@@ -40,6 +40,17 @@ module Effect_key : sig
   include Base.Comparator.S with type t := t
 end
 
+(** Independent relation-unit identity, not Event, Effect key, endpoint pair or
+    scalar. Equal fields can belong to distinct units. No registry/allocation. *)
+module Relation : sig
+  type t
+  val of_string : string -> (t, error) result
+  val to_string : t -> string
+  val equal : t -> t -> bool
+  val compare : t -> t -> int
+  include Base.Comparator.S with type t := t
+end
+
 (** Identity of a supplied later Actual occurrence-date claim, not an Event,
     Effect key, base-date identity or timestamp. No revision identity allocation. *)
 module Validity_revision : sig

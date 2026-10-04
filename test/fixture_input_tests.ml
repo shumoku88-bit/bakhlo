@@ -440,6 +440,66 @@ let%expect_test "Reversal reader retains exact forward facts, independent dates 
   [%expect {| forward exact Reversal/180-bit/key-order payloads and earlier reversal date; explicit zero vs unsupported, malformed/unsupported rows refuse |}]
 ;;
 
+let%expect_test "Relation reader preserves forward identities/roles and distinguishes whole-source qualification from support" =
+  let module R = Loam_application.Open_relations in
+  let huge = Z.to_string (Z.shift_left Z.one 180) in
+  let rows = [ "RELATION\t r \t e \t s \tEXTERNAL\tHOUSEHOLD\tHOUSEHOLD\t+" ^ huge;
+    "EVENT\t e \t1900-01-01"; "KEYED-EFFECT\t s \twallet\t jpy \t-" ^ huge;
+    "EFFECT\toffset\t jpy \t" ^ huge; "END-EVENT" ] in
+  let decoded = ok (Input.decode (document rows)) in
+  let supplied = List.hd_exn decoded.source.relations in
+  F.require (D.Identifier.Relation.equal supplied.id (F.identifier D.Identifier.Relation.of_string " r ")
+    && D.Identifier.Event.equal supplied.source_event (F.id " e ") && D.Identifier.Effect_key.equal supplied.source_effect (F.identifier D.Identifier.Effect_key.of_string " s ")) "relation identities normalized";
+  (match supplied.debtor, supplied.creditor with
+   | External party, Household -> F.require (String.equal (D.Identifier.External_party.to_string party) "HOUSEHOLD") "explicit External token confused with tag"
+   | _ -> failwith "relation direction inferred from source sign");
+  let source = ok (S.create decoded.source) in
+  let row = Option.value_exn (R.find_by_id (S.relations source) supplied.id) in
+  F.require (Z.equal (D.Quantity.quanta (D.Effect.quantity (R.source_effect row))) (Z.neg (Z.shift_left Z.one 180))) "huge source magnitude lost";
+  let request : C.request = { path = "synthetic"; coordinate = F.coordinate ~unit:" jpy " "wallet" } in
+  let unavailable = C.evaluate request (Ok (document rows)) in
+  F.require (unavailable.exit_code = 3 && String.is_empty unavailable.stderr && String.is_substring unavailable.stdout ~substring:"quantity unknown") "relation manufactured support";
+  let exact = C.evaluate request (Ok (document (rows @ [ "ZERO-ORIGIN\twallet\t jpy " ]))) in
+  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:("quantity=-" ^ huge)) "relation changed explicit origin arithmetic";
+  let base = [ "EVENT\te\t2026-10-03"; "KEYED-EFFECT\ts\twallet\tjpy\t-2"; "EFFECT\toffset\tjpy\t2"; "END-EVENT" ] in
+  List.iter [ "RELATION\tr\te\ts\tHOUSEHOLD\tHOUSEHOLD\t1";
+    "RELATION\tr\te\ts\tEXTERNAL\tp\tEXTERNAL\tq\t1";
+    "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t0";
+    "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t3";
+    "RELATION\tr\te\tmissing\tHOUSEHOLD\tEXTERNAL\tp\t1";
+    "RELATION\tr\tmissing\ts\tHOUSEHOLD\tEXTERNAL\tp\t1" ] ~f:(fun row ->
+      let text = document (row :: base) in
+      F.require (Result.is_ok (Input.decode text)) "semantic refusal narrowed into syntax";
+      let response = C.evaluate request (Ok text) in
+      F.require (response.exit_code = 1 && String.is_empty response.stdout) "invalid unrelated relation silently dropped");
+  List.iter [ [ "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp" ]; [ "RELATION\tr\te\ts\tPARTY\tp\tHOUSEHOLD\t1" ];
+    [ "RELATION\tr\te\ts\tEXTERNAL\t\tHOUSEHOLD\t1" ]; [ "RELATION\t\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1" ];
+    [ "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1.0" ]; [ "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1\textra" ];
+    [ "GROUP"; "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1"; "END-GROUP" ];
+    [ "EVENT\te"; "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1"; "END-EVENT" ];
+    [ "DISCHARGE\te\tr\t1" ]; [ "SETTLEMENT\te" ]; [ "PURPOSE\te\tfood" ] ] ~f:(fun rows ->
+      match Input.decode (document rows) with Error (Syntax _) -> () | _ -> failwith "malformed/misplaced/unsupported relation neighbor accepted");
+  Stdlib.Printf.printf "forward exact Relation/source/External tokens, 180-bit quantities, explicit roles; unknown without support; semantic 1 vs malformed/unsupported syntax 2\n";
+  [%expect {| forward exact Relation/source/External tokens, 180-bit quantities, explicit roles; unknown without support; semantic 1 vs malformed/unsupported syntax 2 |}]
+;;
+
+let%expect_test "all Relation diagnostic variants escape identity, key and endpoint provenance" =
+  let module R = Loam_application.Open_relations in
+  let id = F.identifier D.Identifier.Relation.of_string "relation\027\n" in
+  let event = F.id "event\027\n" and key = F.identifier D.Identifier.Effect_key.of_string "key\027\n" in
+  let debtor = R.External (F.identifier D.Identifier.External_party.of_string "party\027\n") in
+  List.iter [ R.Repeated_id { id; first_position = 1; position = 2 }; Unknown_event { id; event; position = 1 };
+    Missing_effect { id; event; key; position = 1 }; Invalid_endpoints { id; debtor; creditor = debtor; position = 1 };
+    Nonpositive_quantity { id; quantity = D.Quantity.zero; position = 1 };
+    Exceeds_source { id; quantity = D.Quantity.of_quanta Z.one; magnitude = D.Quantity.zero; position = 1 };
+    Overcovered_source { event; key; total = D.Quantity.of_quanta Z.one; magnitude = D.Quantity.zero; position = 1 } ] ~f:(fun error ->
+      let rendered = Loam_presentation.Current_quantity_text.source_refusal (S.Relations error) in
+      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1
+        && String.is_substring rendered ~substring:"Relation") "Relation provenance escaping");
+  Stdlib.Printf.printf "all seven Relation refusals preserve escaped identity/source/role/quantity positions on one line\n";
+  [%expect {| all seven Relation refusals preserve escaped identity/source/role/quantity positions on one line |}]
+;;
+
 let%expect_test "every Reversal error escapes exact role and endpoint provenance on one stderr line" =
   let module R = Loam_application.Actual_reversals in
   let event = F.id "event\027\n" in

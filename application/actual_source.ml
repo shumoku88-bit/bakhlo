@@ -12,6 +12,7 @@ type command =
   ; original_amounts : Original_amounts.fact list
   ; exchanges : Exchange_evidence.fact list
   ; reversals : Actual_reversals.fact list
+  ; relations : Open_relations.fact list
   }
 type t =
   { frontier : Correction_frontier.t
@@ -21,6 +22,7 @@ type t =
   ; original_amounts : Original_amounts.t
   ; exchanges : Exchange_evidence.t
   ; reversals : Actual_reversals.t
+  ; relations : Open_relations.t
   }
 type error =
   | Events of D.Event_memory.error
@@ -34,6 +36,7 @@ type error =
   | Original_amounts of Original_amounts.error
   | Exchanges of Exchange_evidence.error
   | Reversals of Actual_reversals.error
+  | Relations of Open_relations.error
 
 let check_event ~balance_exempt event_position original =
   let changes = D.Event.effects original in
@@ -62,6 +65,7 @@ let create
      ; original_amounts
      ; exchanges
      ; reversals
+     ; relations
      } : command)
   =
   let ( let* ) result f = Result.bind result ~f in
@@ -104,7 +108,11 @@ let create
     Result.map_error (Original_amounts.create ~frontier ~facts:original_amounts)
       ~f:(fun error -> Original_amounts error)
   in
-  Ok { frontier; validity; descriptions; merchants; original_amounts; exchanges; reversals }
+  let* relations =
+    Result.map_error (Open_relations.create ~events ~facts:relations)
+      ~f:(fun error -> Relations error)
+  in
+  Ok { frontier; validity; descriptions; merchants; original_amounts; exchanges; reversals; relations }
 ;;
 let frontier t = t.frontier
 let validity t = t.validity
@@ -113,3 +121,4 @@ let merchants t = t.merchants
 let original_amounts t = t.original_amounts
 let exchanges t = t.exchanges
 let reversals t = t.reversals
+let relations t = t.relations

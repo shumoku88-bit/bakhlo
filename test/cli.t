@@ -279,6 +279,66 @@ Exchange is a selected-key exception, never inferred balance/support or correcti
   [3]
   $ test ! -s err && grep -q 'quantity unknown' out
 
+Effect-backed relation units keep explicit direction/identity; never manufacture current balance support.
+
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nRELATION\tborrow\te\ts\tHOUSEHOLD\tEXTERNAL\tperson\t1\nRELATION\tlend\te\ts\tEXTERNAL\tperson\tHOUSEHOLD\t1\nEVENT\te\t1900-01-01\nKEYED-EFFECT\ts\twallet\tjpy\t-2\nEFFECT\toffset\tjpy\t2\nEND-EVENT\nZERO-ORIGIN\twallet\tjpy\nEND\n' >relations
+  $ cp relations before-relations
+  $ loam-ocaml inspect-current-fixture relations wallet jpy >out 2>err
+  $ test ! -s err && grep -q 'quantity=-2' out
+  $ cmp relations before-relations
+  $ grep -v '^ZERO-ORIGIN' relations >relations-only
+  $ loam-ocaml inspect-current-fixture relations-only wallet jpy >out 2>err
+  [3]
+  $ test ! -s err && grep -q 'quantity unknown' out
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nRELATION\tx\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t2\nRELATION\ty\te\ts\tEXTERNAL\tq\tHOUSEHOLD\t1\nEVENT\te\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-2\nEFFECT\toffset\tjpy\t2\nEND-EVENT\nEND\n' >overcovered-relations
+  $ loam-ocaml inspect-current-fixture overcovered-relations unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'coverage 3 exceeds source magnitude 2' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nRELATION\tx\tabsent\ts\tHOUSEHOLD\tEXTERNAL\tp\t1\nRELATION\tx\tabsent\ts\tHOUSEHOLD\tEXTERNAL\tp\t1\nEND\n' >duplicate-relations
+  $ loam-ocaml inspect-current-fixture duplicate-relations unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'duplicate Relation "x" at 2 (first 1)' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nRELATION\tx\tabsent\ts\tHOUSEHOLD\tEXTERNAL\tp\t1\nEND\n' >open-relation
+  $ loam-ocaml inspect-current-fixture open-relation unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'unknown Event "absent"' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nRELATION\tx\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1\nEVENT\te\t2026-10-03\nEFFECT\twallet\tjpy\t-2\nEFFECT\toffset\tjpy\t2\nEND-EVENT\nEND\n' >anonymous-relation
+  $ loam-ocaml inspect-current-fixture anonymous-relation unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'has no Effect key "s"' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nRELATION\tx\te\ts\tHOUSEHOLD\tHOUSEHOLD\t1\nEVENT\te\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-2\nEFFECT\toffset\tjpy\t2\nEND-EVENT\nEND\n' >invalid-relation-endpoints
+  $ loam-ocaml inspect-current-fixture invalid-relation-endpoints unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'expected one Household and one External endpoint' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nRELATION\tx\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t0\nEVENT\te\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-2\nEFFECT\toffset\tjpy\t2\nEND-EVENT\nEND\n' >zero-relation
+  $ loam-ocaml inspect-current-fixture zero-relation unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'quantity 0 is not positive' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nRELATION\tx\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t3\nEVENT\te\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-2\nEFFECT\toffset\tjpy\t2\nEND-EVENT\nEND\n' >oversized-relation
+  $ loam-ocaml inspect-current-fixture oversized-relation unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'quantity 3 exceeds source magnitude 2' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nRELATION\tx\te\ts\tEXTERNAL\t\tHOUSEHOLD\t1\nEND\n' >empty-relation-party
+  $ loam-ocaml inspect-current-fixture empty-relation-party wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'identity must not be empty' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nRELATION\tx\te\ts\tHOUSEHOLD\tEXTERNAL\tp\nEND\n' >malformed-relation
+  $ loam-ocaml inspect-current-fixture malformed-relation wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'expected relation quantity' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nGROUP\nRELATION\tx\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1\nEND-GROUP\nEND\n' >misplaced-relation
+  $ loam-ocaml inspect-current-fixture misplaced-relation wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'fixture line 3' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDISCHARGE\te\tx\t1\nEND\n' >unsupported-discharge
+  $ loam-ocaml inspect-current-fixture unsupported-discharge wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'unknown, malformed or misplaced' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nRELATION\tx\033\tabsent\ts\tHOUSEHOLD\tEXTERNAL\tp\t1\nEND\n' >escaped-relation
+  $ loam-ocaml inspect-current-fixture escaped-relation unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -Fq '"x\027"' err
+
 Explicit Reversal retains both Events and exact physical multiplicity; no support inferred.
 
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nREVERSAL\ta\tr\nEVENT\tr\t1900-01-01\nEFFECT\twallet\tjpy\t3\nEFFECT\toffset\tjpy\t-3\nEND-EVENT\nEVENT\ta\t2026-10-03\nKEYED-EFFECT\tphysical\twallet\tjpy\t-3\nEFFECT\toffset\tjpy\t3\nEND-EVENT\nZERO-ORIGIN\twallet\tjpy\nEND\n' >reversal

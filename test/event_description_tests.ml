@@ -78,7 +78,7 @@ let%expect_test "one source retains descriptions without inheritance or four-sup
     F.observation ~id:(F.id "x") ~effects:[ F.change coordinate (Z.neg huge); F.change offset huge;
       F.change (F.coordinate "stale") Z.one; F.change (F.coordinate "stale") Z.minus_one ] ] in
   let command : S.command = { events; corrections = [ F.edge "a" "b" ];
-    validity_corrections = []; merchants = []; original_amounts = []; exchanges = []; reversals = [];
+    validity_corrections = []; merchants = []; original_amounts = []; exchanges = []; reversals = []; relations = [];
     validities = List.map events ~f:(fun event -> F.base_validity (D.Event.id event) "2026-10-03");
     descriptions = [ fact "x" ""; fact "a" " retained root text "; fact "b" "terminal text" ] } in
   let source = ok (S.create command) in

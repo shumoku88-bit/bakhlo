@@ -11,5 +11,6 @@ module Event_descriptions = Event_descriptions
 module Event_merchants = Event_merchants
 module Exchange_evidence = Exchange_evidence
 module Movement_check = Movement_check
+module Open_relations = Open_relations
 module Original_amounts = Original_amounts
 module Reflected_root_cut = Reflected_root_cut
