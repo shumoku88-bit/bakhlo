@@ -35,6 +35,36 @@ Formal tools remain development-only. Ordinary build/test/release must be Lean-f
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
 
+## Backend-neutral reference direction (contract/tests planned)
+
+After a78b478 user explicitly selected Unix + SQLite as the practical reference TO BUILD,
+with Irmin/Mirage/Solo5 experimental and no technology-bound core/Admission/Publication.
+Question/D/P/R recorded before alignment. Documentation/dependency-direction/metadata review
+only in this step; no SQLite adapter/install/lock/schema/shared test runner/VM boot. Historical
+Mirage/SPT evidence below remains earned, neither deleted nor qualification of this reference.
+Architecture owns the minimal contract; tests must not call backend storage history household
+corrections or turn unsupported durability into Saved.
+
+| Planned common scenario | Assertion / physical mapping boundary |
+| --- | --- |
+| Save -> close/reopen -> read | Same complete versioned source/support bytes, exact 180-bit/zero/presence/unsupported/provenance answers; no mixed generations or stored derived balances |
+| Expected-generation conflict | Atomic check/publish, no stale authorisation or auto-merge; BUSY/I/O error is not a fabricated conflict |
+| Replay / uncertain result | Explicit operation/candidate association; identical qualified replay refers to original receipt, changed payload/base refuses; failed/lost response may have published |
+| Corrupt/missing/unsupported format | Distinct load failure/absence, no init/default/drop/decode-to-None/older truth fallback |
+| Interrupted publication / retained history | Old acknowledged state retained, complete selected generation or explicit failure; SQLite transaction/commit hooks versus Irmin/block hooks, NOT transplanting 95 API indices |
+| Backup -> restore -> query | Declared stopped/live consistency and backup scope, exact bytes/history/support/answers; same-guest disk copy is not off-device/power-loss qualification |
+| Durable Saved | Actual configured sync/order/receipt guarantees under named failure model; unqualified experimental capability remains a visible blocker, not a green skip |
+
+First SQLite binding metadata preflight (frozen ac27950): sqlite3 5.4.2 (MIT), OCaml >=4.12,
+Dune >=2.7 direct gates fit main 5.3.0/3.24.2. Requires dune-compiledb, dune-configurator and
+build conf-sqlite3; with-test ppx_inline_test, with-doc odoc. System SQLite headers/library
+remain external costs and actual version/configuration must be recorded. No transitive
+closure/OS availability/compatibility/durability inferred from metadata. Named consumer:
+outer Unix reference synthetic coherent snapshot save/reopen; thin bindings versus own C/SQL
+FFI or an ORM/umbrella, with experimental Irmin retained. Review source/license/solved closure
+and actual fault/recovery path before dependency adoption. Quantity never enters SQLite
+machine integer/REAL arithmetic as authoritative quanta. Fixture v2 is not canonical schema.
+
 ## Retained executable evidence
 
 Tests are executable documentation; names, seeds and counts live in the test source and

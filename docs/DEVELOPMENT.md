@@ -55,6 +55,23 @@ helpers. Logical aliases support clean dependency discovery. Cram compiler clien
 currently depend on generated CMIs/wrapper CMI: pinned Dune integration details, not
 API/storage compatibility. Do not suppress missing-CMI warnings or export internals.
 
+## Reference versus experimental builds
+
+Selected policy: Unix + SQLite reference TO BUILD; Irmin/MirageOS/Solo5 remain experimental.
+No SQLite package/adapter/shared backend runner is present yet. Preserve ordinary engine
+Base + Zarith and inward dependencies; SQLite belongs only to the outer Unix adapter/package.
+Review exact binding/build/runtime/OS-library closure before changing the lock; explicit
+reference selection is not a compiler upgrade or global OS installation. Bootstrap still
+refuses missing prerequisites rather than installing them. Record actual SQLite library/
+synchronisation settings, not just the OCaml binding version.
+
+Shared tests will assert the same logical save/reopen/stale/conflict/corrupt/uncertain/
+restore outcomes and engine bytes/answers. Each runner owns native/Lwt/process lifecycle and
+physical fault mapping. There is no generic I/O monad requirement and no already shared
+suite; unsupported capabilities are explicit blockers, not silently skipped PASS. Hardware/
+OS/cache and backup assumptions remain per target. Irmin commit details/Solo5 devices never
+enter application admission/publication meanings or normal reference build requirements.
+
 ## Disposable state
 
 Track manifests, lock and bootstrap. Never commit `.tools/`, `.opam-root/`, `_opam/`,
@@ -105,7 +122,9 @@ recovery fallback. Clean process/VM restart is not abrupt-crash/power-loss evide
 Two external dependency fixes were needed; no permanent backend/schema/support promise.
 [Verification](VERIFICATION.md#irmin-block-persistence-bounded-two-trial-dependency-fixes-required)
 owns exact selections/failures; keep generation admission, retry/conflicts, durability and
-backup/restore as separate next contracts. VM remains stopped between checkpoints.
+backup/restore as separate contracts. These fixes no longer block the selected Unix/SQLite
+reference path; preserve the experiment and evidence rather than promote or delete it.
+VM remains stopped between checkpoints.
 
 ## Dependency changes
 

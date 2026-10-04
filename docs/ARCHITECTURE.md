@@ -13,38 +13,73 @@ There is no canonical storage, clock, mutable business state or generic service 
 
 ## Selected product direction
 
-User-approved goal: a long-lived standalone MirageOS + Irmin household application; maintainable
-household meaning/safe daily use outrank novelty or any unverified world-first claim.
-Domain/Application stay independent of Mirage/Lwt/Irmin, reusable by the native CLI and
-future clients. Aim for guest-owned household admission/publication, not merely a Unix
-application with a unikernel label; underlying host/hypervisor/devices still exist.
-No production backend/protocol/runtime version or operational cutover is selected.
-Desktop Notty is preferred; Bonsai browser UI is an optional evaluation candidate below,
-not a qualified implementation or dependency adoption.
+User changed direction after a78b478: a long-lived backend-neutral household application.
+LOAM core, Admission and Publication meanings must not depend on a particular database,
+filesystem or runtime. Domain/Application stay immutable and Base + Zarith-only; the outer
+publication orchestrator consumes the [minimal Persistence contract](#minimal-persistence-contract),
+not SQLite transactions, Irmin trees/branches or Solo5 block calls. Household meaning,
+useful new value and maintainability matter; no world-first/security claim follows.
 
-Irmin is the intended persistence component, to evaluate early after freestanding engine
-qualification; no backend/schema or main dependency adoption is qualified yet. Its commit history is not Event/date correction or Reversal; generic merges cannot hide
-conflicting identities or support. Read coherent evidence from one generation; derived
-balances/remainders/indexes do not become additional canonical authority. Actual persistence
-needs format/admission/identity/retry/conflict/uncertain-result/durability/restore contracts,
-backend/dependency-cost review and fault evidence before adoption. Meaning, data grouping,
-module grouping and physical storage layout remain separate decisions.
+| Axis / choice | Current status |
+| --- | --- |
+| Unix + SQLite | Selected near-term practical reference implementation TO BUILD/QUALIFY; no adapter or SQLite runtime evidence yet |
+| Irmin store adapter | Experimental retained option; commit/history utility is separate from household correction/Reversal and generic merge is not admission |
+| MirageOS/Solo5 runtime + appropriate store adapter | Experimental retained target; guarded SPT evidence preserved, durable barrier/fix maintenance unresolved |
 
-Near-term sequence: a supported Linux host and Solo5 target -> actual static engine build/
-boot with synthetic exact/refusal controls -> bounded Irmin backend evaluation and qualified
-publication/recovery -> usable client. Semantic/read compatibility with live LOAM owners
-continues alongside runtime qualification; do not first recreate every Lean module or old
-file/write path. Hosted macosx success alone satisfies none of the freestanding/storage
-obligations. A bounded Linux/SPT engine boot with static GMP now passes, with a trial-only
-Lwt diagnostic-library build guard; no permanent Mirage adapter or production support.
-A bounded Irmin/Solo5 block prototype also persists/reopens one admitted synthetic source/
-support blob per immutable commit, comparing the expected head before publication. Source
-and support are requalified from the same blob; derived answers are not stored. Stock
-Chamelon corrupted an older file during append; a trial-only CTZ traversal fix passed
-bounded retention/restart controls, NOT backend adoption or crash/restore qualification.
-See [persistence evidence](VERIFICATION.md#irmin-block-persistence-bounded-two-trial-dependency-fixes-required)
-for the two dependency fixes and remaining gap. No VM/global OS install, public network service, real-data access, migration,
-new main dependency or release/push follows implicitly from this direction.
+Runtime and store are independent axes; Mirage/Solo5 is not itself a database backend.
+This does not promise that every combination works (e.g. SQLite under Solo5 is unqualified).
+Experimental work cannot block or become a build/dependency prerequisite of the reference
+implementation. Keep its source/control/evidence available, not silently delete it or
+promote scratch guards. Application longevity must not require an experimental stack.
+
+Near term: a concrete synthetic Unix/SQLite save -> reopen -> read consumer, dependency/
+format/request-identity review, shared persistence scenario tests, then useful recording/
+query and recovery/backup qualification. Existing 180-bit/support/provenance/refusal and
+Irmin retention/interruption controls are reusable oracles, not an already shared suite.
+No full LOAM parity prerequisite. Desktop Notty preference/Bonsai candidate remain below;
+UI/remote protocols/schema/operational cutover are not qualified by this policy. SQLite
+selection authorizes its named implementation direction, not unchecked versions, global
+OS installs, real-data access, migration, release/push or an automatic main-lock change.
+
+## Minimal Persistence contract
+
+Contract requirements, not an implemented module/stable API. Extract the executable seam
+from the SQLite reference consumer and Irmin experiment; no generic DB/FS service, effects
+framework, branch/merge API or dummy State. Open/close/provision/fault injection are outer
+resource concerns. Synchronous Unix and Lwt/Mirage adapters need not impose their effect
+runtime on the immutable core.
+
+- **Read:** one selected generation token with its complete versioned evidence bytes;
+  retained-generation lookup as needed for history/reconciliation. Missing store, explicitly
+  provisioned empty store, malformed/unsupported format and I/O failure stay distinguishable;
+  reads never initialise, silently skip records or fall back to empty/older household truth.
+- **Conditional publish:** supplied expected generation, explicit operation/request identity
+  and complete candidate bytes. Publication owns whole-image admission/current-evidence
+  revalidation; adapter owns atomic expected-head check/publication and persisted ordering.
+  Keep retained immutable generations; physical token/revision/row ID is not Event identity,
+  a household date or Quantity. No backend auto-merge, inferred facts or stored derived balances.
+- **Resolve uncertain result:** inspect a retained operation receipt/candidate association
+  without blindly republishing. Duplicate request + different supplied candidate/base refuses;
+  a qualified identical replay refers to the ORIGINAL receipt, not a fresh household write
+  or assertion that its generation is still current. Exact encoding/allocation/lookup interface
+  is fixed with the first consumer, not invented by UI or an adapter-specific default.
+
+Saved means the entire selected generation and required receipt/history survive the declared
+failure model via an actual durable boundary. Conflict means the supplied expected generation
+failed the atomic gate, not merely a busy database/I/O error. Input refusal is pre-effect;
+load/corruption failures are not unsupported quantities. Errors/termination/lost responses
+once writes may have begun are Uncertain unless the qualified adapter can establish otherwise.
+A backend lacking the required durable capability explicitly remains unqualified for Saved;
+never weaken the common meaning to make an experiment green. Readback may only see cache.
+
+Versioned household representation, physical schema, request identity, retention/upgrade and
+backup format remain concrete implementation decisions. Backend changes need information-
+preserving export/import and requalification, not implicit migration or cross-store token reuse.
+Exact signed quanta/Measures,
+correction/date/Reversal provenance and independent support survive round-trip; synthetic
+fixture v2 is an oracle, NOT chosen canonical storage. Compare adapters with the same logical
+save/restart/conflict/recovery scenarios plus backend-specific fault hooks and declared host/
+device assumptions; same scenario is not identical fault mechanics or universal qualification.
 
 ## Client access direction
 
@@ -58,7 +93,8 @@ the eventual access goal, not authorization to deploy a public service or use re
 Notty desktop / phone browser (Bonsai candidate) / AI-chat adapter
                    -> authenticated application entrance
                    -> admission + current-generation publication / coherent query
-                   -> one selected MirageOS + Irmin authority
+                   -> one selected authority through Persistence
+                      Unix + SQLite reference; other adapters/runtimes experimental
 ```
 
 Transport/API and auth design remain open. Clients never implement another authoritative
@@ -77,8 +113,8 @@ A browser frontend may use a separately reviewed toolchain without changing the 
 backend compiler. Protocol quantities must preserve unbounded exact decimal values/Measures
 and evidence roles, never coerce to JavaScript Number or manufacture zero. No canonical
 wire format, separate frontend compiler, toolkit install or permanent dependency is selected.
-Small synthetic UI exploration may accompany storage qualification, not full LOAM parity
-first; a useful record/save/query path still needs a maintainable backend. MirageOS minimal
+Bonsai/secondary UI exploration is deferred by current priority; no full LOAM parity first.
+A useful record/save/query path needs qualified reference persistence. MirageOS minimal
 composition is not a claim of ultra-security or qualified always-on deployment.
 
 ## Invariant owners
@@ -270,33 +306,21 @@ Queries do not establish household authority, purchasing power or spendability.
 
 ## Future operational work
 
-Before storage/writes, specify operation admission, current ownership, identity/retry,
-conflicting payloads, uncertain outcomes, atomic visibility versus durability, diagnostics,
-backup/restore and migration. Then select storage and transition/fault instruments.
-Do not infer these from a structurally valid preview or ordinary Movement retry behavior.
-
-Minimum publication/failure contract required before adoption (NOT an implemented API):
-qualify one supplied source/support generation, compare its supplied expected head under
-one publisher's exclusive ownership, retain immutable objects/parent, then publish head.
-Input refusal/stale conflict before effects must not publish. I/O failure after writes
-begin, lost response or termination is uncertain, never automatically "not recorded".
-Reconcile using the intended candidate/request and retained generation, not blind replay
-or rewriting facts. A local mutex CAS is neither multi-process nor crash atomicity.
-
-A household Saved acknowledgement additionally requires a real persisted ordering boundary
-for object/FS metadata before head publication, then durable head completion and qualified
-readback. Readback/hash checks alone can read cache and do NOT establish stable media.
-Runtime/device/host layers must supply the boundary; unsupported flush cannot return dummy
-success. Until qualified, the scratch probe reports visible/retained test results only,
-not durable Saved. Recovery reads the actual selected head, verifies complete source and
-history or refuses; no format/default/quiet fallback to an older household generation.
-Offline disk-copy/reopen is a bounded restore control, not a live backup/off-device policy.
+[Persistence requirements](#minimal-persistence-contract) own coherent read, conditional
+publication and uncertain-result reconciliation across adapters. Bind operation admission,
+current ownership, identity/retry, atomic visibility versus durability, diagnostics and
+backup/upgrade to the first reference consumer and relevant fault instruments; structural
+preview is not recording permission. SQLite transactions/WAL/synchronisation settings are
+adapter mechanisms to qualify, not replacement household semantics or automatic power-loss
+proof. Irmin CAS/batch and experimental FS/runtime barriers face the SAME contract.
+A local mutex CAS is neither multi-process nor crash atomicity. Offline copy/reopen is
+bounded restore evidence, not a live backup/off-device policy. No shadow canonical balances.
 
 UI is not implemented; CLI is the development/read entrance. [Client access direction](#client-access-direction)
 records desktop Notty preference/optional Bonsai browser evaluation; toolchains, protocol,
 authentication and compatibility need concrete qualification before adoption. Clients consume
 semantic answers rather than recomputing meaning. Prior hosted, guarded SPT engine and
 block-persistence evidence belongs to VERIFICATION, not production support. No permanent
-adapter or main Lwt dependency. The standalone deployment/access goal is selected; exact
-target/runtime/backend qualification remains separate from semantics/storage/publication.
+adapter or main Lwt/SQLite dependency yet. Unix + SQLite reference is selected TO BUILD;
+Irmin/Mirage targets remain experimental and not prerequisites for semantics/publication.
 No speculative load/navigation state, adapter, cache or framework belongs in the engine.

@@ -25,9 +25,12 @@ Status: ACCEPTED by the user's explicit approval on 2026-10-02.
 | Base_quickcheck (`base_quickcheck`) | Test only | Generated invariant checks with shrinking |
 | ppx_expect | Test only | Readable output regression checks, later CLI/TUI/serialization |
 
-Core and Async are not introduced. No storage dependency is introduced until the
-storage decision. Do not install the umbrella `ppx_jane` in place of the selected
-PPX merely for convenience.
+Core and Async are not introduced. Initially no storage dependency was selected. The
+later [backend-neutral direction](../ARCHITECTURE.md#selected-product-direction) selects
+Unix + SQLite as the reference implementation to build; the original engine budget above
+remains intact and SQLite must stay in an outer adapter. Irmin/Mirage/Solo5 remain experimental,
+not ordinary reference dependencies. Exact binding/closure/OS costs still need review before
+installation/lock change. Do not install umbrella `ppx_jane` for convenience.
 
 Every added direct library must have a concrete capability reason and a named
 consumer. "Convenient", "popular", or "used by Jane Street" is insufficient.

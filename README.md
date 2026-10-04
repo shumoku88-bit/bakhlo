@@ -20,14 +20,21 @@ remain open: [failure boundary evidence](docs/VERIFICATION.md#guarded-block-rete
 
 ## Product direction
 
-The selected goal is a practical standalone MirageOS + Irmin household application
-preserving LOAM meanings, not a novelty demo or Lean implementation clone. The immutable
-engine stays reusable; native CLI remains the development/read entrance. Irmin is the
-intended persistence component, not yet an adopted dependency or selected backend/schema.
-First qualify freestanding build/boot and exact semantics, then evaluate minimal persistent
-record/read/reopen early; qualify publication/recovery/backup before household adoption.
-Do not wait for full LOAM parity to try the storage boundary and a useful vertical slice. Read/semantic compatibility work can continue
-in parallel without reproducing upstream file layout. See [architecture](docs/ARCHITECTURE.md#selected-product-direction).
+The selected goal is a long-lived backend-neutral household application preserving LOAM
+meanings, useful new value and maintainability, not a Lean implementation clone. Core,
+Admission and Publication stay independent of particular storage/runtime technologies.
+**Unix + SQLite is the near-term practical reference implementation to build and qualify.**
+SQLite is selected, not implemented/installed/qualified yet. Irmin and MirageOS/Solo5 remain
+experimental choices with their earned evidence preserved; they are not deleted and cannot
+block or become dependencies of the reference path. Runtime and store are separate axes.
+
+A [minimal Persistence contract](docs/ARCHITECTURE.md#minimal-persistence-contract) covers
+coherent reads, conditional publication and uncertain-result reconciliation. Aim for shared
+save/restart/conflict/recovery scenarios with backend-specific fault hooks, not identical
+physical failures or weaker durability meanings. The immutable engine remains Base + Zarith;
+SQLite belongs to the outer Unix adapter. Qualify representation/identity/publication/
+recovery/backup before household adoption, without waiting for all LOAM parity or reproducing
+upstream files. See [architecture](docs/ARCHITECTURE.md#selected-product-direction).
 
 Access goal: record and inspect household state from laptop, phone and AI chat through
 one selected authority. Desktop Notty is preferred; Bonsai is an optional browser-UI
@@ -35,8 +42,9 @@ candidate for phone/desktop, not an adopted dependency. Clients collect/render, 
 application gates own meanings and publication; AI suggestions do not manufacture facts.
 Remote access/authentication/API and UI implementation remain unqualified; see
 [client direction](docs/ARCHITECTURE.md#client-access-direction).
-Current priority is maintainable persistence/publication/recovery, then a small useful
-record/query path. Bonsai and secondary UI experiments are deferred, not prerequisites.
+Current priority is the minimal consumed contract and Unix/SQLite reference save/read/reopen
+path with shared failure scenarios, then useful recording/query and recovery. Bonsai and
+secondary UI experiments remain deferred; experimental runtime fixes are no longer blockers.
 
 ## Build and try
 
