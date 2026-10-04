@@ -80,6 +80,7 @@ let decode text =
                     ; exchanges = List.rev draft.source.exchanges
                     ; reversals = List.rev draft.source.reversals
                     ; relations = List.rev draft.source.relations
+                    ; discharges = List.rev draft.source.discharges
                     ; validity_corrections = List.rev draft.source.validity_corrections
                     }
                 ; groups = List.rev draft.groups
@@ -181,6 +182,13 @@ let decode text =
                let source = { draft.source with relations = fact :: draft.source.relations } in
                scan (line + 1) Between { draft with source } rest
              | _ -> fail line "expected relation quantity after two endpoints")
+          | Between, [ "DISCHARGE"; event; target; text ] ->
+            let* event = identity line D.Identifier.Event.of_string event in
+            let* target = identity line D.Identifier.Relation.of_string target in
+            let* quantity = quantity line text in
+            let fact : Loam_application.Relation_discharges.fact = { event; target; quantity } in
+            let source = { draft.source with discharges = fact :: draft.source.discharges } in
+            scan (line + 1) Between { draft with source } rest
           | Between, [ "ZERO-ORIGIN"; locus; measure ] ->
             let* c = coordinate line locus measure in
             scan (line + 1) Between { draft with zero_origins = c :: draft.zero_origins } rest
@@ -227,6 +235,7 @@ let decode text =
             ; exchanges = []
             ; reversals = []
             ; relations = []
+            ; discharges = []
             }
         ; groups = []
         ; zero_origins = []

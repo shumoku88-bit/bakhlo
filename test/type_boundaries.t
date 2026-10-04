@@ -377,7 +377,7 @@ The physically admitted Actual subset source has a public smart constructor.
 
   $ cat >actual_source_client.ml <<'EOF'
   > module S = Loam_application.Actual_source
-  > let empty () = S.create { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = []; merchants = []; original_amounts = []; exchanges = []; reversals = []; relations = [] }
+  > let empty () = S.create { events = []; validities = []; validity_corrections = []; corrections = []; descriptions = []; merchants = []; original_amounts = []; exchanges = []; reversals = []; relations = []; discharges = [] }
   > let facts source = Loam_application.Actual_validity.facts (S.validity source)
   > let descriptions source = Loam_application.Event_descriptions.facts (S.descriptions source)
   > EOF
@@ -438,6 +438,75 @@ Retained date history has tagged references and a distinct revision identity, no
   $ application_client private_cycle.ml 2>error
   [2]
   $ grep -q 'Unbound module.*Replacement_cycle' error
+
+Closed discharges require one qualified relation generation; remainders never become physical support.
+
+  $ cat >discharge_client.ml <<'EOF'
+  > module D = Loam_domain
+  > module P = Loam_application.Relation_discharges
+  > module R = Loam_application.Open_relations
+  > module S = Loam_application.Actual_source
+  > let admit relations event target quantity = P.create ~relations ~facts:[ { event; target; quantity } ]
+  > let retained source = P.source_relations (S.discharges source), P.facts (S.discharges source), P.admitted (S.discharges source)
+  > let rows source = P.remainders (S.discharges source)
+  > let lookup source id = P.find_remainder (S.discharges source) id
+  > let provenance row = P.fact row, P.event row, P.target_relation row
+  > let projection remainder = P.relation remainder, P.discharges remainder, P.discharged_quantity remainder, P.remaining_quantity remainder, D.Effect.measure (R.source_effect (P.relation remainder))
+  > EOF
+  $ application_client discharge_client.ml
+  $ cat >events_are_not_discharge_generation.ml <<'EOF'
+  > module D = Loam_domain
+  > module P = Loam_application.Relation_discharges
+  > let wrong (relations : D.Event_memory.t) = P.create ~relations ~facts:[]
+  > EOF
+  $ application_client events_are_not_discharge_generation.ml 2>error
+  [2]
+  $ grep -q 'Open_relations.t' error
+  $ cat >event_is_not_discharge_target.ml <<'EOF'
+  > module D = Loam_domain
+  > module P = Loam_application.Relation_discharges
+  > let wrong (target : D.Identifier.Event.t) event quantity : P.fact = { event; target; quantity }
+  > EOF
+  $ application_client event_is_not_discharge_target.ml 2>error
+  [2]
+  $ grep -q 'Identifier.Relation.t' error
+  $ cat >forged_discharges.ml <<'EOF'
+  > module P = Loam_application.Relation_discharges
+  > let wrong (facts : P.fact list) : P.t = facts
+  > EOF
+  $ application_client forged_discharges.ml 2>error
+  [2]
+  $ grep -q 'P.t' error
+  $ cat >forged_admitted_discharge.ml <<'EOF'
+  > module P = Loam_application.Relation_discharges
+  > let wrong (fact : P.fact) : P.admitted = fact
+  > EOF
+  $ application_client forged_admitted_discharge.ml 2>error
+  [2]
+  $ grep -q 'P.admitted' error
+  $ cat >forged_remainder.ml <<'EOF'
+  > module P = Loam_application.Relation_discharges
+  > module R = Loam_application.Open_relations
+  > let wrong (relation : R.admitted) : P.remainder = relation
+  > EOF
+  $ application_client forged_remainder.ml 2>error
+  [2]
+  $ grep -q 'P.remainder' error
+  $ cat >remainder_is_not_physical_quantity.ml <<'EOF'
+  > module P = Loam_application.Relation_discharges
+  > module Q = Loam_application.Current_quantity_query
+  > let wrong (remainder : P.remainder) = Q.quantity remainder
+  > EOF
+  $ application_client remainder_is_not_physical_quantity.ml 2>error
+  [2]
+  $ grep -q 'Q.exact' error
+  $ cat >incomplete_discharge_error.ml <<'EOF'
+  > module P = Loam_application.Relation_discharges
+  > let wrong = function P.Unknown_event { event; position = _ } -> event
+  > EOF
+  $ application_client -w +8 -warn-error +8 incomplete_discharge_error.ml 2>error
+  [2]
+  $ grep -q 'partial-match' error
 
 Relation units keep independent IDs, explicit endpoints and abstract source-qualified positive views.
 

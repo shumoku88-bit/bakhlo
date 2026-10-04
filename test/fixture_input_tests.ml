@@ -477,7 +477,7 @@ let%expect_test "Relation reader preserves forward identities/roles and distingu
     [ "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1.0" ]; [ "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1\textra" ];
     [ "GROUP"; "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1"; "END-GROUP" ];
     [ "EVENT\te"; "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1"; "END-EVENT" ];
-    [ "DISCHARGE\te\tr\t1" ]; [ "SETTLEMENT\te" ]; [ "PURPOSE\te\tfood" ] ] ~f:(fun rows ->
+    [ "DISCHARGE\te\tr" ]; [ "SETTLEMENT\te" ]; [ "PURPOSE\te\tfood" ] ] ~f:(fun rows ->
       match Input.decode (document rows) with Error (Syntax _) -> () | _ -> failwith "malformed/misplaced/unsupported relation neighbor accepted");
   Stdlib.Printf.printf "forward exact Relation/source/External tokens, 180-bit quantities, explicit roles; unknown without support; semantic 1 vs malformed/unsupported syntax 2\n";
   [%expect {| forward exact Relation/source/External tokens, 180-bit quantities, explicit roles; unknown without support; semantic 1 vs malformed/unsupported syntax 2 |}]
@@ -498,6 +498,58 @@ let%expect_test "all Relation diagnostic variants escape identity, key and endpo
         && String.is_substring rendered ~substring:"Relation") "Relation provenance escaping");
   Stdlib.Printf.printf "all seven Relation refusals preserve escaped identity/source/role/quantity positions on one line\n";
   [%expect {| all seven Relation refusals preserve escaped identity/source/role/quantity positions on one line |}]
+;;
+
+let%expect_test "Discharge reader retains forward exact quantities and closure without inventing physical support" =
+  let module P = Loam_application.Relation_discharges in
+  let huge = Z.to_string (Z.shift_left Z.one 180) in
+  let rows = [ "DISCHARGE\t later \t target \t+" ^ huge;
+    "RELATION\t target \t source \t s \tHOUSEHOLD\tEXTERNAL\tp\t" ^ huge;
+    "EVENT\t later \t1900-01-01"; "END-EVENT"; "EVENT\t source \t2026-10-03";
+    "KEYED-EFFECT\t s \twallet\t jpy \t-" ^ huge; "EFFECT\toffset\t jpy \t" ^ huge; "END-EVENT" ] in
+  let decoded = ok (Input.decode (document rows)) in
+  let source = ok (S.create decoded.source) in
+  let supplied = List.hd_exn decoded.source.discharges in
+  let remainder = Option.value_exn (P.find_remainder (S.discharges source) supplied.target) in
+  F.require (String.equal (D.Identifier.Event.to_string supplied.event) " later "
+    && String.equal (D.Identifier.Relation.to_string supplied.target) " target "
+    && D.Quantity.equal (P.remaining_quantity remainder) D.Quantity.zero) "forward exact discharge lost";
+  let request : C.request = { path = "synthetic"; coordinate = F.coordinate ~unit:" jpy " "wallet" } in
+  let unknown = C.evaluate request (Ok (document rows)) in
+  F.require (unknown.exit_code = 3 && String.is_empty unknown.stderr) "full discharge supplied physical support";
+  let exact = C.evaluate request (Ok (document (rows @ [ "ZERO-ORIGIN\twallet\t jpy " ]))) in
+  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:("quantity=-" ^ huge)) "fulfillment changed physical Effects";
+  let base = [ "RELATION\tr\ta\ts\tHOUSEHOLD\tEXTERNAL\tp\t2"; "EVENT\ta\t2026-10-03";
+    "KEYED-EFFECT\ts\twallet\tjpy\t-2"; "EFFECT\toffset\tjpy\t2"; "END-EVENT";
+    "EVENT\tc\t1900-01-01"; "END-EVENT" ] in
+  List.iter [ "DISCHARGE\tmissing\tr\t1"; "DISCHARGE\tc\tmissing\t1"; "DISCHARGE\ta\tr\t1";
+    "DISCHARGE\tc\tr\t0"; "DISCHARGE\tc\tr\t-1"; "DISCHARGE\tc\tr\t3" ] ~f:(fun row ->
+      let text = document (row :: base) in
+      F.require (Result.is_ok (Input.decode text)) "semantic admission prematurely parsed";
+      let response = C.evaluate request (Ok text) in
+      F.require (response.exit_code = 1 && String.is_empty response.stdout) "invalid unrelated discharge disappeared");
+  List.iter [ [ "DISCHARGE\tc\tr" ]; [ "DISCHARGE\tc\tr\t1\textra" ]; [ "DISCHARGE\t\tr\t1" ];
+    [ "DISCHARGE\tc\t\t1" ]; [ "DISCHARGE\tc\tr\t1.0" ]; [ "DISCHARGE\tc\tr\t+" ];
+    [ "GROUP"; "DISCHARGE\tc\tr\t1"; "END-GROUP" ]; [ "EVENT\tc"; "DISCHARGE\tc\tr\t1"; "END-EVENT" ];
+    [ "PRESENCE"; "DISCHARGE\tc\tr\t1"; "END-PRESENCE" ]; [ "SETTLEMENT\tc" ]; [ "PURPOSE\tc\tfood" ] ] ~f:(fun rows ->
+      match Input.decode (document rows) with Error (Syntax _) -> () | _ -> failwith "malformed/misplaced/unsupported discharge neighbor accepted");
+  Stdlib.Printf.printf "forward exact Event/Relation/180-bit discharge, empty earlier Event; full remainder 0 != physical support; semantic 1 vs malformed/misplaced/unsupported syntax 2\n";
+  [%expect {| forward exact Event/Relation/180-bit discharge, empty earlier Event; full remainder 0 != physical support; semantic 1 vs malformed/misplaced/unsupported syntax 2 |}]
+;;
+
+let%expect_test "all discharge refusals escape Event and Relation provenance on one line" =
+  let module P = Loam_application.Relation_discharges in
+  let event = F.id "event\027\n" and target = F.identifier D.Identifier.Relation.of_string "target\027\n" in
+  List.iter [ P.Unknown_event { event; position = 1 }; Unknown_target { target; position = 1 };
+    Repeated_correspondence { event; target; first_position = 1; position = 2 }; Self_discharge { event; target; position = 1 };
+    Nonpositive_quantity { event; target; quantity = D.Quantity.zero; position = 1 };
+    Exceeds_target { event; target; quantity = D.Quantity.of_quanta Z.one; target_quantity = D.Quantity.zero; position = 1 };
+    Overdischarged_target { target; total = D.Quantity.of_quanta Z.one; target_quantity = D.Quantity.zero; position = 1 } ] ~f:(fun error ->
+      let rendered = Loam_presentation.Current_quantity_text.source_refusal (S.Discharges error) in
+      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1
+        && String.is_substring rendered ~substring:"Discharge") "Discharge provenance escaping");
+  Stdlib.Printf.printf "all seven discharge refusals keep escaped Event/Relation, quantities and one-based witnesses\n";
+  [%expect {| all seven discharge refusals keep escaped Event/Relation, quantities and one-based witnesses |}]
 ;;
 
 let%expect_test "every Reversal error escapes exact role and endpoint provenance on one stderr line" =

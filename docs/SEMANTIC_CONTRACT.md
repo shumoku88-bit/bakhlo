@@ -58,6 +58,12 @@ from its reversal. Neither endpoint is automatically removed from quantities or 
 activity. Corrections/cuts still own selection, so retained inversion need not mean current
 cancellation when they select different observations.
 
+Explicit relation discharge is independent Event/Relation/quantity provenance, not an
+extra physical Effect or relation retraction. Remainders are conditional projections over
+qualified supplied evidence; they do not establish physical balance support or real-world
+fulfillment completeness. Corrections/Reversal do not silently transfer/deactivate those
+retained references. Unknown relation identity never becomes zero remaining quantity.
+
 ## S6 — Unknown is not zero
 
 Absence, uncertainty, incompleteness, unsupported questions, invalid input, and

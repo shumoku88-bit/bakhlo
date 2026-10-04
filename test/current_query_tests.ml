@@ -11,7 +11,7 @@ module Input = Loam_cli.Current_fixture_input
 module C = Loam_cli.Current_fixture_command
 let ok = function Ok value -> value | Error _ -> failwith "valid current fixture refused"
 let source_command events corrections : S.command =
-  { events; corrections; descriptions = []; merchants = []; original_amounts = []; exchanges = []; reversals = []; relations = []; validity_corrections = [];
+  { events; corrections; descriptions = []; merchants = []; original_amounts = []; exchanges = []; reversals = []; relations = []; discharges = []; validity_corrections = [];
     validities = List.map events ~f:(fun event -> F.base_validity (D.Event.id event) "2026-10-03") }
 let event token effects = F.observation ~id:(F.id token) ~effects
 let exact image c = match ok (Q.query image c) with

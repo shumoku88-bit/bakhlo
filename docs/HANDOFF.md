@@ -1,87 +1,83 @@
 # Handoff
 
-## Qualified boundary — retained Effect-backed directional relation units
+## Current checkpoint — qualified closed discharge evidence and snapshot remainders
 
-Pre-code question/instruments and executed qualification follow. Interfaces/ARCHITECTURE
-own contracts, VERIFICATION owns retained executable evidence.
+Question/owner (recorded before code): retain explicit exact partial fulfillment and derive
+relation-specific remainder without changing physical quantities, coalescing provenance,
+mixing generations, inventing completeness or selecting storage? Relation_discharges owns
+this closed read image; Actual_source composes it after Open_relations. D: fbcf091 had
+qualified relation units, no discharge input. Narrow read-only sibling review at
+ed2cff4279c51f83d31bf60d16e168d9f73b082e: Core OpenRelation, Application OpenRelationFrontier/
+RelationDischargeFrontier and Persistence NormalizedActualAdmission, unchanged from dccbb2d9.
+Target-local upstream projection permits pre-Event inert crash residue; normalized acquisition
+separately requires ALL raw Event/target references to exist. Selected only the closed
+whole-source boundary, not activation/crash/writer/recovery. P: opaque source-bound relations,
+exact quanta/Measures/keys, retained Event/Exchange/Reversal/date/metadata/correction/four
+supports and earned list/Effect oracles. R was closure/pair/self/positive/individual/aggregate
+bounds, source-bound construction and remainder/provenance correspondence; now bounded
+qualification below, not a refinement/external-truth proof. Contract ownership lives in
+interfaces/ARCHITECTURE; instrument bounds and limitations in VERIFICATION/REFERENCES.
 
-Question/owner: acquire independently identified household/external debtor-creditor facts
-against exact retained Event/Effect keys without sign inference, over-allocation, fabricated
-remaining amounts or known-none? Open_relations owns whole-family admission; Actual_source
-owns same-generation composition before support/query. D: HEAD d23e4b8 has no relation input;
-read-only reference dccbb2d9e17c6f5e92d8b6fb3390dbfd9ab2b926: Core OpenRelation,
-Application OpenRelationFrontier and Persistence NormalizedActualAdmission. Purpose is a
-separate routing/capacity identity, not an Actual tag. RelationDischargeFrontier narrowly
-consulted to bound the deferral; no discharge/settlement/current remaining quantity consumer
-in this increment. No upstream/data writes, builds, proofs or source copying.
-P: exact Quantity, Event-local keys/multiplicity/identity, role-free External_party,
-retained Source/Exchange/Reversal/date/correction/metadata and four support families;
-earned original-Effect arithmetic/touch and graph models. R: identified positive units,
-endpoint shape, exact source resolution, individual and aggregate source-magnitude bounds.
+Create only from one opaque Open_relations image, deriving retained Events/targets from it.
+Raw Event + Relation + exact Quantity, no new ID/Measure/Effect allocation. Per row: Event
+-> target closure -> exact pair duplicate (including identical) -> no source-Event self
+-> positive -> individual target bound. All local rows before full totals per target;
+aggregate failures follow original discharge order at that target's first declaration.
+This diagnostic staging differs from upstream target-order gates, not admitted closed shape.
+Same Event may fulfill different targets, no invented global Event budget/sign/destination
+matching or chronology. Empty/unrelated-Measure Events may supply explicit occurrences.
+Source gate follows relations; unrelated malformed facts refuse the whole image. Corrections/
+Reversal do not transfer/deactivate retained endpoints. Abstract remainder retains exact
+qualified target plus supplied admitted rows/sum; subtract on read, not canonical stored
+balance. Known target/no rows yields its original quantity in this snapshot; unknown ID is
+None, not zero. No real-world completeness, paid status, physical support or recording right.
 
-Select distinct exact nonempty Identifier.Relation, no registry/allocation. Raw fact:
-id + source_event + source_effect + debtor + creditor + signed Quantity. Endpoints are
-Household | External(party); exactly one Household and one External, either direction.
-No duplicate Measure: derive it from admitted source Effect. Separate relation IDs allow
-otherwise equal independent units. Source sign/Locus/Merchant never supplies relation roles.
-Admission: whole global ID uniqueness first; then each fact in declaration order resolves
-Event -> keyed Effect -> endpoint shape -> positive quantity -> individual absolute bound;
-then total positive quantity across ALL units sharing exact (Event, key), including both
-directions/parties, bounded by that same source magnitude. First aggregate violation uses
-original declaration order/full total. This local staged diagnostic order differs from
-upstream's indexed per-row local+aggregate gate; accepted whole-family shape corresponds.
-Retain raw facts/order/Event memory, abstract admitted rows with exact source Event/Effect,
-indexed relation-ID lookup. No current/root-only restriction, correction/Reversal transfer,
-physical Effects/balance exemption, source-coordinate aliasing or implicit deletion.
-Standalone admission does not validate physical nonzero/balance/dates/corrections.
-Source gate after original amounts; any unrelated invalid relation refuses the whole image.
-Absence remains unresolved, never known-none or zero. Views are positive observed units,
-NOT outstanding debt/remaining quantity after discharge.
+Same noncanonical synthetic v2 gains DISCHARGE event target signed-decimal, forward refs.
+No extra CLI/UI: typed remainder inspection is the bounded separate consumer; current
+quantity CLI still needs independent support. Example retains two discharge rows while
+all existing physical answers remain unchanged. Unsupported SETTLEMENT/PURPOSE refuse.
 
-Same noncanonical v2 reader: RELATION id event key <debtor> <creditor> signed-decimal;
-endpoint = HOUSEHOLD (one field) or EXTERNAL party (two). Explicit tag consumption avoids
-encoded identities/dummy household tokens. Forward references; illegal endpoint pairs and
-nonpositive/bound/duplicate/reference facts reach semantic admission, malformed tags/arity/
-identities remain syntax errors. DISCHARGE/SETTLEMENT/PURPOSE and other unsupported rows
-still refuse; no extra command/UI/storage protocol.
+Executed: independent original-token/list/Zarith model BEFORE product implementation,
+independent Python enumeration, 5,776 two-slot cases/109 discharge-and-source admissions.
+Earned Relation_model premises and original-Effect sum/touch oracles reused. Product retained
+source/facts/Event/target/row/bucket/target-order remainder correspondence; partial/full/no-row/
+unknown arithmetic. Curated ordered closure/pair/self/positive/individual/full-total witnesses,
+empty Event/no global budget, 180-bit partial/full/over-total, exact control identities,
+source-vs-discharge Measure, typed-pair concatenation collision, permutation/replay/omission/
+target shrink/old snapshot immutability, corrected/reversed/noncurrent endpoints, prefix and
+earlier dates; metadata/Exchange/Reversal/four-support independence. Reader/real CLI forward
+exact huge rows, semantic 1 vs syntax 2, unsupported quantity 3, all seven escaped error
+variants, unchanged files. Former unsupported DISCHARGE witness becomes open-reference
+admission control; malformed arity and unsupported neighbors remain. All 76 prior compiler
+specimens retained (explicit new source field only); eight new capability/role/forgery/
+quantity-support/exhaustiveness clients. 151 expect tests, unchanged 100,000 generated cases
+and three cram suites. Normal/forced package/install, clean native engine-only (no outer
+compiled artifacts) and full nonexistent-LEAN checks passed on locked macOS x86_64. Focused
+purity/model independence/Markdown/earned-artifact/whitespace/index/credential-marker reviews,
+not comprehensive security/refinement proof. No new campaign/theorem/dependency; optional
+laws/upstream builds/fresh switch/platform qualification not rerun. Bounds/assumptions do not
+prove external fulfillment truth or arbitrary-size/operational reliability. Revisit on
+completeness/activation, relation lifecycle, reporting, write/retry/publication or workload.
 
-Selected instruments: independent original-token/list/Zarith relation model checked before
-product: all 40401 two-slot None/id/source/endpoint/quantity cases against three keyed +/-2
-Effects, 265 admissions. Independent Python enumeration agrees. Reuse list prefix identity and original-Effect
-oracles; product correspondence plus huge/control/sign/direction/anonymous/same-coordinate/
-Event-local key reuse, split coverage/equal independent facts, aggregate-overflow and ordered
-failure counterexamples. Correction-tail/prefix/replay/permutation/source omission and
-metadata/date/Exchange/Reversal/four-support noninterference. Decoder/real CLI read-only,
-exit/stream/escaping and compiler role/forgery/exhaustiveness controls. No new graph model,
-random campaign/theorem/temporal tool: no transitions/writes or arbitrary current relation
-lifecycle claim. Revisit on discharge/completeness/remaining amount, reporting, lifecycle,
-publication or named workload; bounded model is not handwritten refinement or factual truth.
-
-Executed on locked macOS x86_64: 143 expect tests, unchanged 100000 generated cases,
-three cram suites; normal full check, forced package tests, install, clean native Domain/
-Application build (no outer compiled artifacts), and full check with nonexistent LEAN passed.
-All 69 prior compiler specimens retained except explicit new source field; seven new clients.
-Real CLI/read-only/exit/stream/escaped provenance and decoder controls passed, including
-unsupported discharge/settlement/purpose refusal. Example now retains three relation units
-on original a/g Effects without changing quantity answers. Focused change/mutation/model/
-Markdown/index checks passed; existing models/laws/campaigns/tooling/lock/formal artifact
-unchanged. Final sibling observation: clean 4298827cab7d742c7430d858bdcb4d84dce51fc2;
-all five consulted owners unchanged from dccbb2d9, not whole-tree correspondence.
-No dependency, UI/MirageOS build, registry, write/migration, license/release, upstream/optional
-proof rerun, new platform/fresh switch or push.
+At completion sibling was clean d02d2f0b0e351167a4aa951c8dc8043ed67f32f5: upstream has started
+production Attention HouseholdImage cutover; four consulted semantic owners unchanged from
+initial review. This is reference/status observation only, not OCaml storage selection,
+migration, upstream proof replay or operational-data access. No upstream/data writes/builds
+or source copying occurred.
 
 ## Next work / deferred decisions
 
-Choose concrete consumers, not upstream files as automatic backlog. Before writes:
-authority/admission/publication, identity/retry/conflict, uncertain outcomes, atomicity/
-durability, diagnostics, backup/restore/migration, then transition/fault instruments.
-First usable TUI/GUI undecided. MirageOS is a possible future host; actual target/runtime/
-Base/Zarith/GMP/C-stub compatibility and I/O adapters are unqualified and deferred.
-Linux/Apple Silicon, public licensing/metadata/history and operational cutover need decisions.
+Select concrete consumers, not upstream files as automatic backlog. Storage/write work
+awaits authority/admission/publication, identity/retry/conflict, uncertain outcomes, atomicity/
+durability, diagnostics, backup/restore/migration and applicable transition/fault instruments.
+Follow live HouseholdImage findings without adopting its file/module topology by default.
+Relation completeness/lifecycle/settlement and target-local crash activation remain absent.
+First usable TUI/GUI and MirageOS target/runtime/Base/Zarith/GMP/C-stub qualification remain
+undecided/deferred. Linux/Apple Silicon and public licensing/metadata/history need decisions.
 
 ## Safety/state
 
 Synthetic only; existing LOAM remains sole household authority. Local commits authorized,
-no push. Last remote observation: private main 8974041 (2026-10-03), not current equality.
-Only locked macOS x86_64 qualified; no new platform/fresh-switch claim. Never commit local
-environments, generated/install output, scratch, credentials or private logs.
+no push/release/operational adoption. Last remote observation: private main 8974041
+(2026-10-03), not equality. Only locked macOS x86_64 qualified. Never commit environments,
+generated/install output, scratch, credentials or private logs.

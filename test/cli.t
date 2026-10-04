@@ -330,12 +330,64 @@ Effect-backed relation units keep explicit direction/identity; never manufacture
   $ loam-ocaml inspect-current-fixture misplaced-relation wallet jpy >out 2>err
   [2]
   $ test ! -s out && grep -q 'fixture line 3' err
-  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDISCHARGE\te\tx\t1\nEND\n' >unsupported-discharge
-  $ loam-ocaml inspect-current-fixture unsupported-discharge wallet jpy >out 2>err
-  [2]
-  $ test ! -s out && grep -q 'unknown, malformed or misplaced' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDISCHARGE\te\tx\t1\nEND\n' >open-discharge
+  $ loam-ocaml inspect-current-fixture open-discharge wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Discharge 1: unknown Event "e"' err
   $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nRELATION\tx\033\tabsent\ts\tHOUSEHOLD\tEXTERNAL\tp\t1\nEND\n' >escaped-relation
   $ loam-ocaml inspect-current-fixture escaped-relation unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -Fq '"x\027"' err
+
+Exact discharge is retained provenance, not a new physical Effect or implicit balance support.
+
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDISCHARGE\tc\tr\t1\nDISCHARGE\td\tr\t1\nRELATION\tr\ta\ts\tHOUSEHOLD\tEXTERNAL\tp\t2\nEVENT\ta\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-2\nEFFECT\toffset\tjpy\t2\nEND-EVENT\nEVENT\tc\t1900-01-01\nEND-EVENT\nEVENT\td\t1900-01-01\nEND-EVENT\nZERO-ORIGIN\twallet\tjpy\nEND\n' >discharges
+  $ cp discharges before-discharges
+  $ loam-ocaml inspect-current-fixture discharges wallet jpy >out 2>err
+  $ test ! -s err && grep -q 'quantity=-2' out
+  $ cmp discharges before-discharges
+  $ grep -v '^ZERO-ORIGIN' discharges >discharges-only
+  $ loam-ocaml inspect-current-fixture discharges-only wallet jpy >out 2>err
+  [3]
+  $ test ! -s err && grep -q 'quantity unknown' out
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDISCHARGE\tc\tr\t2\nDISCHARGE\td\tr\t1\nRELATION\tr\ta\ts\tHOUSEHOLD\tEXTERNAL\tp\t2\nEVENT\ta\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-2\nEFFECT\toffset\tjpy\t2\nEND-EVENT\nEVENT\tc\t1900-01-01\nEND-EVENT\nEVENT\td\t1900-01-01\nEND-EVENT\nEND\n' >over-discharged
+  $ loam-ocaml inspect-current-fixture over-discharged unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Relation "r" total 3 exceeds target quantity 2' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDISCHARGE\tc\tr\t1\nDISCHARGE\tc\tr\t1\nRELATION\tr\ta\ts\tHOUSEHOLD\tEXTERNAL\tp\t2\nEVENT\ta\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-2\nEFFECT\toffset\tjpy\t2\nEND-EVENT\nEVENT\tc\t1900-01-01\nEND-EVENT\nEND\n' >duplicate-discharge
+  $ loam-ocaml inspect-current-fixture duplicate-discharge unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Discharge 2: repeated Event "c" / Relation "r" (first 1)' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDISCHARGE\ta\tr\t1\nRELATION\tr\ta\ts\tHOUSEHOLD\tEXTERNAL\tp\t2\nEVENT\ta\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-2\nEFFECT\toffset\tjpy\t2\nEND-EVENT\nEND\n' >self-discharge
+  $ loam-ocaml inspect-current-fixture self-discharge unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Event "a" established target Relation "r"' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDISCHARGE\tc\tmissing\t1\nEVENT\tc\t1900-01-01\nEND-EVENT\nEND\n' >missing-discharge-target
+  $ loam-ocaml inspect-current-fixture missing-discharge-target unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'unknown Relation "missing"' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDISCHARGE\tc\tr\t0\nRELATION\tr\ta\ts\tHOUSEHOLD\tEXTERNAL\tp\t2\nEVENT\ta\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-2\nEFFECT\toffset\tjpy\t2\nEND-EVENT\nEVENT\tc\t1900-01-01\nEND-EVENT\nEND\n' >zero-discharge
+  $ loam-ocaml inspect-current-fixture zero-discharge unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'quantity 0 is not positive' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDISCHARGE\tc\tr\t3\nRELATION\tr\ta\ts\tHOUSEHOLD\tEXTERNAL\tp\t2\nEVENT\ta\t2026-10-03\nKEYED-EFFECT\ts\twallet\tjpy\t-2\nEFFECT\toffset\tjpy\t2\nEND-EVENT\nEVENT\tc\t1900-01-01\nEND-EVENT\nEND\n' >oversized-discharge
+  $ loam-ocaml inspect-current-fixture oversized-discharge unrelated usd >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'quantity 3 exceeds target quantity 2' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDISCHARGE\tc\tr\nEND\n' >malformed-discharge
+  $ loam-ocaml inspect-current-fixture malformed-discharge wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'fixture line 2' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDISCHARGE\tc\t\t1\nEND\n' >empty-discharge-target
+  $ loam-ocaml inspect-current-fixture empty-discharge-target wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'identity must not be empty' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nGROUP\nDISCHARGE\tc\tr\t1\nEND-GROUP\nEND\n' >misplaced-discharge
+  $ loam-ocaml inspect-current-fixture misplaced-discharge wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'fixture line 3' err
+  $ printf 'LOAM-OCAML-ACTUAL-FIXTURE\t2\nDISCHARGE\tc\tx\033\t1\nEVENT\tc\t1900-01-01\nEND-EVENT\nEND\n' >escaped-discharge
+  $ loam-ocaml inspect-current-fixture escaped-discharge unrelated usd >out 2>err
   [1]
   $ test ! -s out && grep -Fq '"x\027"' err
 

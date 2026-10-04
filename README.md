@@ -72,13 +72,20 @@ empty image. See [grammar](cli/current_fixture_input.mli) and
   total same-source coverage cannot exceed the Effect's absolute quantity, regardless
   of direction/party. Measure comes from the Effect; signs do not infer relation roles.
   Superseded sources remain exact, without correction/Reversal transfer or balance
-  support. These are observed units, not remaining amounts after fulfillment.
+  support. Exact discharge facts separately name Event/Relation/positive quantity;
+  duplicate correspondences, source-Event self-discharge and individual/aggregate
+  over-discharge refuse. Missing references refuse globally, not inert crash residue.
+  Remainders are derived from original quantity minus supplied discharge total in one
+  qualified snapshot, not retained balances or proof of complete real-world fulfillment.
+  Measure stays inherited from the relation's source; no physical Effect/sign/date
+  inference, automatic correction/Reversal transfer or quantity/presence support.
 - Exact assertion groups retain independent reflected-root cuts. Origin is explicit,
   not inferred from activity. Opening explicitly names a current Event containing the
   coordinate; it is not a second scalar or implicit origin. Presence retains one shared
   root cut, not a scalar; ANY unreflected matching Effect invalidates it, even net zero.
   Exact/present payloads are disjoint; all four families must be globally separated.
-- Other structured metadata, relation discharge/completeness/lifecycle, settlement, historical
+- Other structured metadata, relation completeness/lifecycle, target-local crash activation,
+  settlement, historical
   completeness and full normalized Actual admission are still unsupported.
 
 No public API/storage compatibility promise exists during this unreleased phase.

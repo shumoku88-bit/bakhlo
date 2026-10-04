@@ -26,7 +26,7 @@ let originals =
   [ F.observation ~id:(F.id "a") ~effects:[ change ~token:"s" (Z.of_int (-2)); change ~token:"t" (Z.of_int 2) ]
   ; F.observation ~id:(F.id "b") ~effects:[ change ~token:"s" (Z.of_int 2); change (Z.of_int (-2)) ] ]
 let command events relations : S.command =
-  { events; relations; corrections = []; validity_corrections = []
+  { events; relations; discharges = []; corrections = []; validity_corrections = []
   ; validities = List.map events ~f:(fun event -> F.base_validity (D.Event.id event) "2026-10-03")
   ; descriptions = []; merchants = []; original_amounts = []; exchanges = []; reversals = [] }
 ;;

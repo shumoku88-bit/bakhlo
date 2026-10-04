@@ -2,8 +2,10 @@
     normalized household admission or authority. Caller supplies key-qualified Events,
     date history, Event corrections, optional descriptions/Merchant dispositions/root
     original amounts, explicit Exchange selections, Reversal correspondences and
-    directional Effect-backed relation units. No discharge/remaining amounts,
-    settlement, relation completeness or other structured metadata admission.
+    directional Effect-backed relation units and exact discharge correspondences.
+    Remainders are conditional snapshot projections, not real-world completeness or
+    physical balance support. No settlement, relation completeness/lifecycle,
+    target-local crash residue or other structured metadata admission.
     The synthetic adapter must reject unsupported evidence, never erase it.
     Domain Event stays general; this is a separate practical admission boundary. *)
 type command =
@@ -17,6 +19,7 @@ type command =
   ; exchanges : Exchange_evidence.fact list
   ; reversals : Actual_reversals.fact list
   ; relations : Open_relations.fact list
+  ; discharges : Relation_discharges.fact list
   }
 type t
 type error =
@@ -34,6 +37,7 @@ type error =
   | Exchanges of Exchange_evidence.error
   | Reversals of Actual_reversals.error
   | Relations of Open_relations.error
+  | Discharges of Relation_discharges.error
 
 (** Event constructors already establish local key uniqueness. Within this boundary,
     Event identity first; then whole Exchange selection admission against retained
@@ -58,7 +62,12 @@ type error =
     superseded ones. Distinct relation identity, positive individual quantities
     and aggregate source-magnitude bounds, not sign-derived debtor/creditor roles.
     No current/root restriction or correction/Reversal retargeting; relations do
-    not change physical balance, selection or support. No remaining-debt inference.
+    not change physical balance, selection or support. Then whole closed discharge
+    admission against that SAME opaque relation image: Event/target closure, unique
+    correspondence, no source-Event self-discharge, positive individual and aggregate
+    target bounds. Corrections/Reversal do not retarget/deactivate retained rows.
+    Derive relation quantity minus supplied discharge total, not real-world debt
+    completeness or physical exact support. Unknown target is never zero.
     Missing descriptions/dispositions/amounts are allowed; absent relation units remain
     unresolved, not known-none. No inference from other families.
     Text/Merchant facts do not inherit. Amount facts keep roots; only their current
@@ -74,3 +83,4 @@ val original_amounts : t -> Original_amounts.t
 val exchanges : t -> Exchange_evidence.t
 val reversals : t -> Actual_reversals.t
 val relations : t -> Open_relations.t
+val discharges : t -> Relation_discharges.t

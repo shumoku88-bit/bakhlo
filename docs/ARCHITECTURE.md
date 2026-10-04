@@ -28,8 +28,9 @@ There is no canonical storage, clock, mutable business state or generic service 
 | Original amounts | Unique positive root fact + explicit Measure; same-frontier current terminal association, raw fact unchanged; no FX/balance/support meaning |
 | Exchange evidence | Unique Event + selected source/destination keys; distinct Measures, selected and net signs, no third Measure/correction participation; extra Effects retained, no rates/fees |
 | Actual Reversals | Explicit disjoint target/reversal endpoints in retained memory, exact physical multiset inversion ignoring keys/order; no correction/deletion/support |
-| Actual source | Ordinary + Exchange/Reversal subset: identity, Exchange, Reversal, all Effects nonzero; independently qualify targets, admit inverse sides; dates, Event corrections, descriptions, Merchants, root original amounts, relation units |
+| Actual source | Ordinary + Exchange/Reversal subset: identity, Exchange, Reversal, all Effects nonzero; independently qualify targets, admit inverse sides; dates, Event corrections, descriptions, Merchants, root original amounts, relation units, closed discharge facts |
 | Open relation units | Independent IDs, exact retained Event/key source, explicit Household/External direction, positive per-unit/aggregate absolute source bounds; no discharge/completeness/remaining amount |
+| Relation discharges / remainder | One opaque relation generation; closed Event/target refs, unique pair, no self, positive individual/aggregate target bounds; exact conditional remainder, not physical support/completeness |
 | Current quantity query | One source; origin, opening (unique coordinate/current Event/matching Effect), assertions and presence, globally separated; Exact / Known_present / unsupported |
 
 Public `.mli` files own exact inputs, diagnostics and ordering. Indexes are disposable
@@ -169,10 +170,31 @@ or inferred fulfillment. Corrections can leave relation sources historical; view
 positive observed units, not remaining debt. No target-local orphan/crash-residue acquisition
 or completeness consumer is qualified. RELATION id event key <debtor> <creditor> quantity
 uses explicit HOUSEHOLD / EXTERNAL party endpoint fields and allows forward references.
-DISCHARGE/SETTLEMENT/PURPOSE stay unsupported in the synthetic reader.
+SETTLEMENT/PURPOSE stay unsupported in the synthetic reader.
+
+Relation_discharges consumes ONE opaque Open_relations image, deriving retained Event memory
+and targets from it; it cannot accept independent Event/target generations or manually forged
+admitted target lists. Per fact: Event -> target closure -> exact correspondence uniqueness
+-> Event differs from target's source Event -> positive -> individual target bound. After
+all local facts qualify, full sums per target are checked in original discharge order.
+Local diagnostic order differs from upstream target-order checks, not accepted closed
+shape. Identical pair repeats refuse; one Event can fulfill different targets without a
+new global Event budget. No DischargeId, duplicated Measure, Effect matching/allocation,
+physical sign/destination inference or date chronology. Plain empty/unrelated-Measure
+Events are allowed as explicitly supplied fulfillment occurrences, not inferred payments.
+Whole-source acquisition refuses every missing raw Event/target, unlike upstream target-local
+inert pre-Event crash projection; no activation/recovery path is qualified here.
+Source gate follows whole relation admission before support/query. Raw facts/order/source
+and exact admitted Event/target views survive, including noncurrent observations.
+Corrections/Reversal do not transfer/deactivate retained correspondences. Abstract remainders
+retain target plus admitted rows/exact sum in original relation order. Quantity subtraction
+is a read projection, never a new canonical balance: known target/no rows retains initial
+quantity within this snapshot; unknown ID is None, not zero. This does not establish external
+fulfillment truth/completeness or physical exact support; zero remainder is not a paid-status
+primitive or recording permission. DISCHARGE event target signed-decimal is synthetic only.
 
 The current source is NOT full normalized Actual: other structured metadata,
-relation discharge/completeness/lifecycle and settlement remain unqualified. Date evidence is not proof of occurrence
+relation completeness/lifecycle, target-local crash activation and settlement remain unqualified. Date evidence is not proof of occurrence
 truth, recording chronology or historical completeness.
 Queries do not establish household authority, purchasing power or spendability.
 

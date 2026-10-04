@@ -67,6 +67,16 @@ Public source identified by its README: https://github.com/shumoku88-bit/loam
   Later observed clean HEAD `4298827cab7d742c7430d858bdcb4d84dce51fc2`; all five
   consulted owners unchanged from the consultation revision, not a whole-tree review.
 
+- Closed discharge/remainder review at `ed2cff4279c51f83d31bf60d16e168d9f73b082e`:
+  Core OpenRelation, Application OpenRelationFrontier/RelationDischargeFrontier and
+  Persistence NormalizedActualAdmission unchanged from `dccbb2d9`. Exact Event/Relation/
+  quantity rows, target-local pair/self/positive/individual/aggregate bounds and derived
+  remainder. Normalized acquisition additionally closes EVERY raw Event/target; only
+  that closed boundary selected, not inert pre-Event crash-residue activation. Completion
+  observation `d02d2f0b0e351167a4aa951c8dc8043ed67f32f5` (production Attention HouseholdImage
+  cutover): these four owners unchanged from initial review; no whole-tree parity implied.
+  Upstream storage progress does not freeze OCaml persistence or authorize its migration.
+
 These are narrow comparisons, not whole-checkout equivalence, proof reruns or a
 frozen upstream protocol. Check live revision before using a changed owner.
 
@@ -87,6 +97,7 @@ actually qualified OCaml behavior; do not turn this map into a whole-feature bac
 | Selected cross-Measure exchange | `Loam/Core/ExchangeEvidence.lean`, `Loam/Application/ExchangeEvidenceFrontier.lean`, `ExchangeAdmission.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Unique exact selected-key claims with full Measure/sign/total shape and correction-interference refusal. Only admitted subjects bypass source balance, never nonzero/support. Local per-row errors and Exchange-before-physical source order differ from upstream separate gates/nonzero-first; no correction replacement, rate/fee/basis meaning or publication/Locus-policy/ID-allocation qualification |
 | Explicit Actual Reversal | `Loam/Core/ActualReversal.lean`, `ActualReversalBalance.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Globally disjoint retained endpoints and exact physical multiset inversion ignoring keys/order, preserving multiplicity. Source independently admits ordinary/Exchange targets before admitting inverse sides (ordinary balance or explicit Exchange-inverse exception); no automatic deletion/support or current/root-only restriction. Per-fact uniqueness/closure/inverse and pre-physical source ordering differ from upstream separate gates/nonzero-first; no reversal truth/coverage, lifecycle/report/publication qualification |
 | Directional relation units | `Loam/Core/OpenRelation.lean`, `Loam/Application/OpenRelationFrontier.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Independent nonempty Relation IDs, exact retained Event/key source, one Household/one External endpoint, positive per-unit/aggregate absolute source bounds and retained source-derived Measure. Local staged identity/local/aggregate diagnostics differ from upstream indexed per-row totals. Whole-source admission, no orphan acquisition/target-local state, completeness, discharge/remaining amount, revision/lifecycle or publication |
+| Closed discharge / conditional remainder | `Loam/Core/OpenRelation.lean`, `Loam/Application/RelationDischargeFrontier.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | One opaque relation/Event generation, ALL raw references closed, unique Event/Relation pair, no source-Event self-discharge, positive individual/aggregate target bounds, ordered retained rows and exact snapshot subtraction. Local per-row/aggregate diagnostics differ from upstream target-order checks. No target-local inactive residue/activation/recovery, fulfillment truth/completeness, lifecycle/retraction, physical support or publication |
 | Retained identity and correction | `Loam/Core/EventMemory.lean`, `EventCorrection.lean`, `Loam/Application/CorrectionFrontierSemantics.lean`, `CorrectionFrontierIndexed.lean` | Conditional disjoint paths, roots/cuts qualified; not full normalized authority |
 | Independent Actual occurrence | `Loam/Core/ActualValidityHistory.lean`, `Loam/Application/ActualValidityFrontier.lean`, `Loam/ActualDate.lean`, `Loam/Persistence/NormalizedActualAdmission.lean` | Retained ISO history, tagged refs, same-Event paths, unique/complete current facts (revision-only allowed). Practical declaration-order diagnostic gate, not raw Core history or full normalized admission; other structured metadata/exceptional families remain unqualified |
 | Independent origin | `Loam/Core/ZeroOriginCoverage.lean`, `Loam/Review/BalanceReview.lean` | Explicit current origin gate; no activity-derived origin/history completeness |

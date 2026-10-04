@@ -17,7 +17,7 @@ let effect_of ({ key = token; measure; quanta } : M.change) =
 ;;
 let event token changes = F.observation ~id:(F.id token) ~effects:(List.map changes ~f:effect_of)
 let command events exchanges : S.command =
-  { events; exchanges; reversals = []; relations = []; corrections = []; validity_corrections = []
+  { events; exchanges; reversals = []; relations = []; discharges = []; corrections = []; validity_corrections = []
   ; validities = List.map events ~f:(fun event -> F.base_validity (D.Event.id event) "2026-10-03")
   ; descriptions = []; merchants = []; original_amounts = []
   }

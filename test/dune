@@ -38,6 +38,7 @@
   ../application/.loam_application.objs/byte/loam_application__Actual_validity.cmi
   ../application/.loam_application.objs/byte/loam_application__Event_descriptions.cmi
   ../application/.loam_application.objs/byte/loam_application__Event_merchants.cmi
+  ../application/.loam_application.objs/byte/loam_application__Relation_discharges.cmi
   ../application/.loam_application.objs/byte/loam_application__Open_relations.cmi
   ../application/.loam_application.objs/byte/loam_application__Original_amounts.cmi
   ../application/.loam_application.objs/byte/loam_application__Exchange_evidence.cmi

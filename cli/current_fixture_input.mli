@@ -20,8 +20,11 @@
     Top-level RELATION id event-id effect-key <debtor> <creditor> signed-decimal.
     Each endpoint is HOUSEHOLD (one field) or EXTERNAL party (two fields). Exact
     identities/forward references; source admits endpoint shape, positive quantities,
-    per-unit/aggregate magnitude bounds. No sign-derived direction, known-none or
-    discharge/remaining amounts; DISCHARGE/SETTLEMENT/PURPOSE still unsupported.
+    per-unit/aggregate magnitude bounds. No sign-derived direction or known-none.
+    Top-level DISCHARGE event-id target-relation-id signed-decimal (forward references;
+    closed source admits correspondence/self/positive/individual/aggregate target bounds).
+    Remainders are projections, not physical Effects/completeness or stored balances.
+    SETTLEMENT/PURPOSE still unsupported.
     ZERO-ORIGIN locus measure; OPENING locus measure
     event-id; GROUP / REFLECT root / ASSERT locus measure signed-decimal / END-GROUP.
     At most one PRESENCE / REFLECT root / PRESENT locus measure / END-PRESENCE block.

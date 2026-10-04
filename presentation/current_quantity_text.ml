@@ -134,6 +134,29 @@ let relation_error error =
     Printf.sprintf "Relation %d: Event %S Effect key %S coverage %s exceeds source magnitude %s"
       position (id event) (key selector) (quantity total) (quantity magnitude)
 
+let discharge_error error =
+  let target id = D.Identifier.Relation.to_string id in
+  match error with
+  | A.Relation_discharges.Unknown_event { event; position } ->
+    Printf.sprintf "Discharge %d: unknown Event %S" position (id event)
+  | Unknown_target { target = relation; position } ->
+    Printf.sprintf "Discharge %d: unknown Relation %S" position (target relation)
+  | Repeated_correspondence { event; target = relation; first_position; position } ->
+    Printf.sprintf "Discharge %d: repeated Event %S / Relation %S (first %d)"
+      position (id event) (target relation) first_position
+  | Self_discharge { event; target = relation; position } ->
+    Printf.sprintf "Discharge %d: Event %S established target Relation %S"
+      position (id event) (target relation)
+  | Nonpositive_quantity { event; target = relation; quantity = amount; position } ->
+    Printf.sprintf "Discharge %d: Event %S / Relation %S quantity %s is not positive"
+      position (id event) (target relation) (quantity amount)
+  | Exceeds_target { event; target = relation; quantity = amount; target_quantity; position } ->
+    Printf.sprintf "Discharge %d: Event %S / Relation %S quantity %s exceeds target quantity %s"
+      position (id event) (target relation) (quantity amount) (quantity target_quantity)
+  | Overdischarged_target { target = relation; total; target_quantity; position } ->
+    Printf.sprintf "Discharge %d: Relation %S total %s exceeds target quantity %s"
+      position (target relation) (quantity total) (quantity target_quantity)
+
 let source_refusal error =
   let detail = match error with
     | A.Actual_source.Events (D.Event_memory.Duplicate_id { id = event; first_position; position }) ->
@@ -146,6 +169,7 @@ let source_refusal error =
     | Exchanges error -> exchange_error error
     | Reversals error -> reversal_error error
     | Relations error -> relation_error error
+    | Discharges error -> discharge_error error
     | Validity error -> validity_error error
     | Corrections error -> correction_error error
     | Descriptions error ->
