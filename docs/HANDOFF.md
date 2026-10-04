@@ -266,6 +266,45 @@ Rejected/Conflict versus uncertain outcome, no blind retry), persistence orderin
 owner and maintained host/backend/fix route; retain stock counterexample and qualify larger
 values/updates/restore. Do not silently adopt a third-party fork or build a new filesystem.
 
+## Latest bounded continuation — retention/failure checks passed; durable Saved blocked
+
+User reaffirmed creating new value/discoveries WITH maintainability, then approved continue;
+no SQLite pivot, new filesystem, public issue/PR, permanent fork or UI/dependency adoption.
+Question/owner before code: does the existing guarded block path survive larger retained
+values and interrupted writes, and which explicit sync/fix ownership is still required?
+D: 683dbd5, exact locks/synthetic images/source, stock counterexample, CTZ/Lwt scratch guards,
+SPT O_RDWR/pwrite gap; VM stopped. P: unchanged engine/parser and coherent generation/strict
+hash/refusal/reopen checks. R: multi-block retention, interrupted head/object write recovery,
+maintained resolutions and actual durable acknowledgement. Instruments: narrow official
+source/issue review; approved isolated guest, NEW named synthetic disks, direct KV size/
+append/reopen controls, deterministic before/after block-write failure at selected boundaries,
+old/new/head/hash + engine checks, backup-copy/reopen control. Existing successful/failure
+disks/images are immutable evidence; format only newly provisioned trial disks. No random
+campaign/theorem/new production API. Exception injection/process stop tests are NOT VM/host
+power loss, torn writes or stable-media proof; no Saved claim without a real sync boundary.
+Stop/record if a minimal guard fails; do not repair arbitrary filesystem internals by habit.
+Revisit block/clock/size/allocator/failure/repair scope; stop VM at checkpoint. Main source,
+compiler, dependencies and operational authority unchanged.
+
+Executed: guarded KV 16 sizes through 64 KiB, append/process/VM reopen; all 95 before/after
+API-write failure points (190 cases), four selected real SIGKILL and offline same-guest
+copy/history restore passed. All old bytes/parent/source retained; 4 failed-promise cases
+and 2 killed cases selected NEW despite NO publication success. Thus failure is uncertain,
+not proof of unrecorded. Read recovery never repaired/formatted/fell back and disk hashes
+unchanged. Original images/disks preserved, 76 source digests match, main macOS check passes,
+clean cross image matches, VM STOPPED. Evidence/limits belong to
+[Verification](VERIFICATION.md#guarded-block-retention-interrupted-publication-and-offline-restore-controls);
+[Architecture](ARCHITECTURE.md#future-operational-work) owns minimum acknowledgement contract.
+
+Next narrow question: how to obtain a REAL persisted ordering/durable boundary without
+owning a new FS/runtime stack? Solo5 #330 is still open; no supported flush earned. Keep
+CTZ/Lwt guards as private controls, not permanent forks. Review a bounded synchronous-I/O
+or supported barrier route and its owner/cost before additional source changes; require
+fault/restore controls and explicitly state guest/host/device assumptions. Upstream bug
+report/patch submission needs separate public-sharing authorization; no public issue/PR
+or dependency adoption occurred. Input/save/query consumer follows only a maintained
+storage/publication route, not full LOAM parity; useful UI/AI remain deferred.
+
 ## Requested access direction — Notty desktop, optional Bonsai browser evaluation
 
 User wants recording AND household-state viewing from laptop, phone and AI chat; desktop

@@ -14,6 +14,9 @@ A synthetic Irmin block prototype now saves/reopens two generations across proce
 restart, preserving the old image. Stock Chamelon failed that retention check; a trial-only
 filesystem fix was needed as well as the Lwt guard. Not an adopted storage backend or
 crash-durability result: [bounded persistence evidence](docs/VERIFICATION.md#irmin-block-persistence-bounded-two-trial-dependency-fixes-required).
+Guarded larger-value retention, completed-I/O failure points, selected process SIGKILL and
+offline copy/reopen controls now pass; host/power-loss durability and maintained fixes
+remain open: [failure boundary evidence](docs/VERIFICATION.md#guarded-block-retention-interrupted-publication-and-offline-restore-controls).
 
 ## Product direction
 

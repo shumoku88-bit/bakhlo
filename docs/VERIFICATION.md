@@ -412,6 +412,55 @@ Next define saved/rejected/conflict/uncertain outcomes and required persistence 
 barriers, then qualify a maintained target/backend/fix route with retention + fault/restore
 controls. No dummy sync, compiler downgrade, semantic weakening or adoption follows.
 
+### Guarded block retention, interrupted publication and offline restore controls
+
+After 683dbd5 user reaffirmed MirageOS + Irmin/new-value exploration WITH maintainability,
+then approved continuation, not SQLite pivot/new FS/main dependency/fork/public reporting.
+Question/D/P/R/failure bounds recorded before scratch code; same approved guest, 93-entry
+cross lock, compiler/core/engine unchanged. 76 own source/build digests matched, original
+Irmin image unchanged. No new OS prerequisites or package install. CTZ/Lwt trial guards
+still REQUIRED, unmodified tender; no new sync primitive or stable-media claim.
+
+New separate guest /home/loam/storage-controls and fresh 32 MiB synthetic disks; original
+success/counterexample disks never formatted. Direct KV byte oracle, 16 sizes 0/1/127/254/
+255/256/257/507/508/509/1023/4095/4096/8192/32768/65536: first generation checked after
+writes, next process append of another generation rechecks ALL old/new bytes, cold process
+and graceful VM restart reread passed. Only bounded shapes/allocator history, not general
+FS correctness, arbitrary size, overwrite/delete/disk-full or torn sectors.
+
+Same synthetic Irmin seed/update source and parent: 180-bit/four-support/unknown/provenance/
+remainder 3 -> 2 checks reused. Update made 95 Mirage_block.write API calls. Every before/
+after call point injected a failed promise without FS close: all 190 refused with no
+publication PASS, next-process actual head decoded/hash-checked as supplied old OR new,
+retained old commit/blob always exact. 186 OLD / 4 NEW: failed call can follow publication,
+so "failure means not recorded" is falsified. Driver may split ONE API call into multiple
+512-byte writes; this does NOT cover interruption inside a call/partial-sector I/O or all
+ordering/interleavings. No fallback/merge/repair. Recovery disk digests remained unchanged.
+Four actual tender SIGKILL controls paused before/after selected API calls (1,94,95):
+2 OLD / 2 NEW, no publication success, same next-process checks/read-only digests passed.
+These are process-failure evidence under a live guest OS/cache, NOT host/VM power loss.
+
+Tender-stopped complete disk copied to separate file, exact bytes/digest and old/current
+history verified, then repeated after graceful VM restart with same disk/image hashes.
+This is offline same-guest copy/restore, not live-consistent/off-device backup or hardware
+failure recovery. Clean strict release rebuild matched final image SHA256
+0eb115af5b7ed237252f76d0d689a538d36b436e2d2ec92033f7f15cfd1122ce; SPT ABI2/static/no undefined
+symbols/no tracing CMXs, one BLOCK_BASIC/no NET, prior lock SHA256 unchanged. Original
+8c770557 image unchanged. Archive transfers/checksums, macOS tools/check and isolation passed;
+VM STOPPED. PS1/cross-configure diagnostics and macOS archive provenance-xattr warnings
+retained. First shell harness mutated caller label, causing missing digest filename; corrected
+using positional args/new disk/evidence names. Initial elftool PATH and driver source-path
+checks corrected before inspection; failures are NOT storage counterexamples.
+
+Official Solo5 issue #330 remains open and discusses ordering/durable barriers, including
+2025-10 discussion; no supported flush earned from issue text or maintainer promise, no
+public issue/PR filed. Source/clock/device/package provenance assumptions remain. Maintained
+CTZ/Lwt selection AND actual durability boundary/ownership remain prerequisites; current
+contracts separate visible/reconciled state from Saved. No household authority/production
+API, idempotency/retry protocol, power loss, real I/O error/torn-write/full-disk campaign,
+backup policy/migration, full suite IN SPT or full Linux native/proof replay newly qualified.
+Ignored source/logs/images/disks retained; no permanent dependency/third-party source commit.
+
 ### Client toolkit preflight (metadata only, not a UI qualification)
 
 After 28541ba user requested laptop/phone/AI-chat recording and viewing, desktop Notty

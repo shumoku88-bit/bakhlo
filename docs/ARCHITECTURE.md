@@ -275,6 +275,23 @@ conflicting payloads, uncertain outcomes, atomic visibility versus durability, d
 backup/restore and migration. Then select storage and transition/fault instruments.
 Do not infer these from a structurally valid preview or ordinary Movement retry behavior.
 
+Minimum publication/failure contract required before adoption (NOT an implemented API):
+qualify one supplied source/support generation, compare its supplied expected head under
+one publisher's exclusive ownership, retain immutable objects/parent, then publish head.
+Input refusal/stale conflict before effects must not publish. I/O failure after writes
+begin, lost response or termination is uncertain, never automatically "not recorded".
+Reconcile using the intended candidate/request and retained generation, not blind replay
+or rewriting facts. A local mutex CAS is neither multi-process nor crash atomicity.
+
+A household Saved acknowledgement additionally requires a real persisted ordering boundary
+for object/FS metadata before head publication, then durable head completion and qualified
+readback. Readback/hash checks alone can read cache and do NOT establish stable media.
+Runtime/device/host layers must supply the boundary; unsupported flush cannot return dummy
+success. Until qualified, the scratch probe reports visible/retained test results only,
+not durable Saved. Recovery reads the actual selected head, verifies complete source and
+history or refuses; no format/default/quiet fallback to an older household generation.
+Offline disk-copy/reopen is a bounded restore control, not a live backup/off-device policy.
+
 UI is not implemented; CLI is the development/read entrance. [Client access direction](#client-access-direction)
 records desktop Notty preference/optional Bonsai browser evaluation; toolchains, protocol,
 authentication and compatibility need concrete qualification before adoption. Clients consume
