@@ -208,6 +208,9 @@ Do not infer these from a structurally valid preview or ordinary Movement retry 
 UI is not implemented; CLI is the development/read entrance, not a TUI-first commitment.
 Future clients consume semantic answers rather than recomputing meaning. First usable UI
 is undecided; TUI/GUI/Web toolkit, remote protocol and compatibility need actual consumers and
-approval. MirageOS may later host the engine through external I/O adapters; target/runtime
-and Base/Zarith/GMP/C-stub compatibility are unqualified, not a current dependency promise.
+approval. A one-shot MirageOS macosx hosted probe ran the unchanged engine through a
+Mirage-generated outer entry, with dependencies isolated in scratch. This qualifies neither
+standalone Solo5 build/boot nor freestanding GMP/Base C stubs or production Mirage support;
+see VERIFICATION's host feasibility section. No permanent adapter or main Lwt dependency.
+Future target/runtime selection remains separate from semantics/storage/publication.
 No speculative load/navigation state, adapter, cache or framework belongs in the engine.

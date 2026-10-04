@@ -138,6 +138,43 @@ relevant semantic checkpoints. Engine builds must leave outer libraries unbuilt.
 checks pass with nonexistent LEAN. Lock/tooling/platform changes require separate replay;
 earlier fresh-switch equality is prior evidence, not a fresh replay for every code edit.
 
+### MirageOS hosted feasibility (one-shot, not production support)
+
+Engine 1b81a2d on Darwin x86_64; official Mirage 4.11.2 source/target APIs inspected,
+archive SHA256 `2cbd7924f82d85ad8ed6bab2f8dc95e6bd15a723532193b56af01813ab20b1a7` checked.
+Pinned registry ac27950e5eac6c981ad809dff370c937820b7893; independent ignored scratch
+root/switch, reused ocaml-system 5.3.0 compiler (not fresh compiler qualification), Dune
+3.24.2/Base v0.17.3/Zarith 1.14/intrinsics v0.17.2/sexplib0 v0.17.0. Trial-only Mirage/
+mirage-runtime 4.11.2, mirage-unix 5.0.1, Lwt 6.1.2, cmdliner-stdlib 1.0.1 and mirage-sleep
+4.1.0 have a concrete outer configure/entry consumer; 51 trial installed selections
+(40 initial dry-run installs + two startup dependencies + compiler/base packages), not
+51 additions to main. No Core/Async/Irmin/overlay/OS install/main dependency adoption.
+
+60 own lib/application source/build files copied byte-equal. Config main local_libs are
+loam_ocaml.domain/application with exact Base/Zarith constraints; configure macosx/no-depext/
+no-extra-repo, no argv/reporter/ptime/mtime/random, default_sleep for generated startup.
+Built with installed scratch dependencies, NOT monorepo lock/pull/freestanding build;
+executed Mirage-generated Unix_os.Main.run, no Presentation/CLI compiled artifacts.
+Passed 180-bit addition/inversion, exact corrected source, origin/opening/assertion/presence,
+net-zero touch/unknown refusal, retained relation source/remainder 3 and unknown/self/
+missing/zero-Effect refusals. Wrong remainder expectation 4 failed at runtime (2, empty
+stdout, conditional-remainder witness); restoration passed. Initial no_sleep configuration
+failed at generated Mirage_sleep startup-delay reference; default_sleep + proper package
+passed without editing generated runtime/engine. Not all device configurations qualified.
+
+Recipe: tools/opam subcommand then explicit --root/--switch; expose main _opam/bin for
+reused compiler and trial-bin-before-main PATH plus trial OPAMROOT/OPAMSWITCH for nested
+Mirage/Dune commands. Configure in ignored scratch probe,
+`dune build --root . dist/loam-mirage-probe`, run native output. Private selection/logs/downloads/generated
+metadata/probe remain disposable scratch, not committed adapter or maintained smoke suite.
+Host GMP 6.3.0 libgmp.10.dylib/libSystem linkage is NOT Solo5/static-GMP evidence.
+Solo5 0.13.0 + ocaml-solo5 1.2.0 Darwin availability dry-run failed (5); metadata accepts
+5.3.0 but requires Linux/BSD host. No suitable VM/container/HVT runner on PATH; no Solo5
+link/boot, freestanding Base intrinsic/GMP C-stub qualification, full suite in Mirage,
+network/storage/recovery/performance/household-use claim. Main 50 selections unchanged,
+ordinary/Lean-free checks pass. Next: supported Linux x86_64/Solo5-HVT with explicit static
+closure, actual boot, same queries and negative controls; revisit versions/target changes.
+
 [Optional specification](../formal/README.md) states nine row-selection, signed-delta and
 whole-premise lookup laws. It does not prove graph admission, group indexes, Actual/support
 truth, OCaml/Base/Zarith refinement, loading or durability. Recheck artifact/assumption/

@@ -6,7 +6,9 @@ product for long-term local use, not a line-by-line Lean translation.
 
 **Development-only. Existing LOAM remains household authority.** No persistence,
 writes, migration, UI, public release or complete household admission is qualified.
-macOS/Linux are targets; only macOS x86_64 has been exercised.
+macOS/Linux are targets; only macOS x86_64 has been exercised. A one-shot MirageOS
+macosx hosted engine probe passed; standalone Solo5/unikernel support remains unqualified.
+See [host feasibility evidence](docs/VERIFICATION.md#mirageos-hosted-feasibility-one-shot-not-production-support).
 
 ## Build and try
 

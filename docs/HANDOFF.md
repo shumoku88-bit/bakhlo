@@ -65,6 +65,43 @@ initial review. This is reference/status observation only, not OCaml storage sel
 migration, upstream proof replay or operational-data access. No upstream/data writes/builds
 or source copying occurred.
 
+## Latest investigation — MirageOS macosx hosted probe passed; Solo5 remains open
+
+Question/owner (recorded before experiment): can unchanged Domain/Application execute in
+MirageOS before choosing Irmin/storage? User authorized confirmation only. D: 1b81a2d,
+Darwin x86_64, OCaml 5.3.0/Base v0.17.3/Zarith 1.14; no Mirage CLI/VM/container runner
+found on PATH. P: inward immutable engine/exact arithmetic/native separation and earned
+source/support/refusal/remainder APIs. R was configuration/link/start with actual engine
+queries and C stubs; freestanding support remains residual, not inferred from hosted run.
+Instruments: pinned registry/official target APIs, dry-run dependency closure, separate
+ignored scratch root/switch, concrete outer Mirage/Lwt entry-point only. Alternatives:
+metadata-only (weaker), or Linux/Solo5 trial (no suitable host/runner available here).
+No main dependency/lock/compiler changes, OS installs, storage/Irmin/network/data accesses.
+
+Mirage 4.11.2 configured macosx with explicit current Base/Zarith versions and local copies
+of our unchanged engine libraries (60 source/build files, byte-equal). Built and executed
+Mirage-generated main via Unix_os.Main.run, not a hand-labelled ordinary OCaml executable.
+Compiler reused through trial ocaml-system.5.3.0 (not a fresh compiler build); independent
+51-package scratch switch, main 50-entry installed set unchanged. Lwt 6.1.2/host runtime
+remain trial-only. Normal OS GMP 6.3.0 dynamically linked: not freestanding GMP evidence.
+180-bit arithmetic, corrected source, four supports, net-zero touch/unknown refusals and
+retained discharge remainder 3 passed. Wrong remainder expectation caused runtime failure
+2/no PASS stdout, restored version passed. No_sleep configuration initially failed at
+Mirage_sleep's generated startup-delay reference; default_sleep + mirage-sleep.4.1.0 passed,
+without editing generated runtime or engine. Other command/lexical setup errors were fixed,
+not attributed to engine incompatibility; quoted shell commands required raw execution
+rather than RTK rewriting. No outer Presentation/CLI libraries in probe; no new random/
+model/formal campaign. Ordinary checks still pass; proof/platform/source-install replay
+not rerun. See VERIFICATION's hosted feasibility section for selections, recipe and bounds.
+
+Solo5 0.13.0/ocaml-solo5 1.2.0 dry-run on Darwin refused with availability status 5;
+metadata allows current 5.3.0 compiler but requires Linux/BSD host. No Solo5 link/boot,
+static GMP/Base intrinsic C-stub qualification or permanent Mirage adapter. Disposable
+scratch probe, not maintained smoke coverage or a production-target decision. Next named
+host check: supported Linux x86_64 + Solo5/HVT runner, qualify exact source/dependency
+closure/static linking/boot and the same queries. Revisit compiler/target/runtime changes;
+no storage/migration/release/operational adoption follows from this result.
+
 ## Next work / deferred decisions
 
 Select concrete consumers, not upstream files as automatic backlog. Storage/write work
