@@ -10,7 +10,32 @@ NOT prerequisites for the reference product. Store choice and runtime choice are
 axes. This supersedes the earlier standalone Mirage + Irmin-first sequence, not its earned
 evidence. No operational authority/data migration, global install, public service or push.
 
-## Current task — align contracts/roadmap before backend implementation
+## Latest audit — structured operations / diagnostic availability; no features added
+
+User asked to preserve later Mirage/Conversation/Voice entrances, NOT implement them now.
+Principle: "LOAM Core must answer household questions structurally, without knowing how
+those questions were asked or how the answers will be presented."
+Question/owner before deeper inspection: which current typed commands/answers/errors already
+satisfy this, and what terminal/parser/global-admission coupling could obstruct diagnostics
+or safely scoped degraded reads? D: 6673026, pure Base + Zarith engine, no production store/
+Publication/health service; CLI currently renders text. P: opaque structured quantities/
+presence/refusal APIs, closed whole-source admission, no guessed zero, physical/semantic
+independence models, backend-neutral policy. R: concrete future operations, failure scopes,
+partial acquisition/completeness and structured load/publication diagnostics. Instruments:
+nearest .mli/implementation/Dune/entrypoint/test inspection, dependency/effects/text audit,
+small contract/comment changes only if earned; reuse ordinary checks if code boundaries
+change. No placeholder operations/health enums/partial-source weakening or generic bus.
+Treat future operation names/health/reason labels as examples, not implemented guarantees.
+Completed: nearest-owner audit found existing structured/pure boundaries sound; terminal
+fixture composition and whole-source admission are the future seams, not reasons for a
+large refactor. Three .mli comments clarified terminal responses/image refusal, with no
+signature or executable change. Four-category findings and executed checks are in
+[VERIFICATION](VERIFICATION.md#structured-operation--diagnostic-readiness-audit-no-new-features);
+[Architecture](ARCHITECTURE.md#structured-operations-and-diagnostic-availability) owns the
+future contract. No placeholder operations/health enums or partial-read implementation.
+Keep SQLite reference work next; no audio/LLM/chat/network/Mirage implementation/install.
+
+## Completed alignment — contracts/roadmap before backend implementation
 
 Question/owner before edits: can one coherent-read/conditional-publication/reconciliation
 contract serve SQLite reference and existing Irmin/SPT experiments without backend details
@@ -40,7 +65,9 @@ solved dependency closure, operating SQLite version, durability or reference qua
 
 1. Name a synthetic one-generation save -> close/reopen -> read consumer. Derive a tiny
    interface from that consumer plus the existing Irmin experiment, not a generic database,
-   filesystem, effect monad, branch/merge bus or speculative service framework.
+   filesystem, effect monad, branch/merge bus or speculative service framework. Keep outer
+   acquisition/version/I/O failures structured and distinct from semantic unavailability;
+   diagnostic inspection must not claim readable fragments are a complete admitted source.
 2. Review sqlite3 binding/version, alternatives and actual solved build/runtime/OS cost;
    place SQLite dependency solely in the outer Unix adapter. Main engine compiler/exact
    quantities unchanged. Versioned bytes are one complete source/support/evidence image;
@@ -60,7 +87,8 @@ solved dependency closure, operating SQLite version, durability or reference qua
 ## Earned state / outstanding limits
 
 Native macOS x86_64 and Ubuntu 24.04 x86_64 locked ordinary suite qualified. Domain/Application
-and current synthetic reader are unchanged. Full normalized Actual, real recording,
+and current synthetic reader have unchanged executable implementations/signatures (latest
+change adds boundary comments only). Full normalized Actual, real recording,
 production representation/upgrade/retry/recovery/backup, Scheduled/reports/UI/API are absent.
 Existing semantic evidence belongs to interfaces/VERIFICATION/REFERENCES, not a file-layout
 porting checklist; no whole-tree parity, handwritten refinement or external-truth guarantee.

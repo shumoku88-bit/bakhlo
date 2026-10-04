@@ -42,6 +42,10 @@ candidate for phone/desktop, not an adopted dependency. Clients collect/render, 
 application gates own meanings and publication; AI suggestions do not manufacture facts.
 Remote access/authentication/API and UI implementation remain unqualified; see
 [client direction](docs/ARCHITECTURE.md#client-access-direction).
+Future Conversation/Voice/unikernel entrances must reuse structured application operations,
+not enter Core or turn terminal text into an API. Diagnostic availability and qualified
+partial reads are [design requirements](docs/ARCHITECTURE.md#structured-operations-and-diagnostic-availability),
+not implemented health/recovery features; no audio/LLM/chat/Mirage-specific addition now.
 Current priority is the minimal consumed contract and Unix/SQLite reference save/read/reopen
 path with shared failure scenarios, then useful recording/query and recovery. Bonsai and
 secondary UI experiments remain deferred; experimental runtime fixes are no longer blockers.

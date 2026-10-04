@@ -51,6 +51,7 @@ corrections or turn unsupported durability into Saved.
 | Expected-generation conflict | Atomic check/publish, no stale authorisation or auto-merge; BUSY/I/O error is not a fabricated conflict |
 | Replay / uncertain result | Explicit operation/candidate association; identical qualified replay refers to original receipt, changed payload/base refuses; failed/lost response may have published |
 | Corrupt/missing/unsupported format | Distinct load failure/absence, no init/default/drop/decode-to-None/older truth fallback |
+| Diagnostic readiness / scoped availability (future host/partial consumer) | Structured faults remain accessible; missing support is not storage corruption. Unaffected answers require explicit qualified coverage/closure; affected answers unavailable, not zero/filtering/mixed generations. Not a current runnable service test |
 | Interrupted publication / retained history | Old acknowledged state retained, complete selected generation or explicit failure; SQLite transaction/commit hooks versus Irmin/block hooks, NOT transplanting 95 API indices |
 | Backup -> restore -> query | Declared stopped/live consistency and backup scope, exact bytes/history/support/answers; same-guest disk copy is not off-device/power-loss qualification |
 | Durable Saved | Actual configured sync/order/receipt guarantees under named failure model; unqualified experimental capability remains a visible blocker, not a green skip |
@@ -64,6 +65,34 @@ outer Unix reference synthetic coherent snapshot save/reopen; thin bindings vers
 FFI or an ORM/umbrella, with experimental Irmin retained. Review source/license/solved closure
 and actual fault/recovery path before dependency adoption. Quantity never enters SQLite
 machine integer/REAL arithmetic as authoritative quanta. Fixture v2 is not canonical schema.
+
+## Structured-operation / diagnostic-readiness audit (no new features)
+
+At 6673026, nearest owners inspected: engine Dune/.mli/implementations, CLI evaluator/shell,
+Presentation and existing typed-client/application/query/decoder tests; pre-task D/P/R in
+HANDOFF. User's future operation/health/reason names are examples, not added APIs.
+
+| Finding category | Current evidence / bounded action |
+| --- | --- |
+| Already fits | Domain: Base + Zarith; Application: Domain + Base only. Movement_check.run is command -> typed preview/refusals; current quantity query exposes exact Quantity/Measure/coordinate/premise versus abstract presence/unsupported. Discharges expose conditional typed remainders. Rendering and actual I/O remain outside |
+| Coupling to avoid | Current_fixture_command.evaluate turns read/decode/admission/query results into terminal Response; read failures and syntax details include strings. Synthetic decoder lives in CLI, whose library also depends on Presentation. Future canonical loader/shared operation must not inherit terminal exits/stderr or treat fixture v2 as storage/API schema; extract only for a concrete consumer |
+| Real gap, not a defect to hide | Whole Actual/support gates refuse unrelated invalid evidence; decoder has no partial result and gates generally report first refusal. No diagnostic host, structured storage health or qualified partial-world operation exists. Scoped degraded answers need coverage/closure/generation qualification, not dropping failed rows |
+| Small change now | Architecture distinguishes typed operations, diagnosis availability, partial-read guarantees and publication outcomes; three .mli comments mark terminal versus semantic results and image refusal versus host liveness. Declarations/executable implementations/locks/dependencies/tests unchanged |
+| Defer | No placeholder Get* operations, generic answer/health/command bus, parser relocation, source-admission weakening, physical section schema, voice/LLM/chat/UI/Mirage implementation or dependency adoption |
+
+Implementation lexical audit found no external-effect/formatting modules or explicit
+mutation/raise/failwith in Domain/Application. Two Map.find_exn aggregate lookups consume
+keys inserted for those SAME admitted rows earlier in the SAME immutable construction
+(Open_relations/Relation_discharges); no fallback zero or new universal error added. This
+inspection is not a purity/refinement proof or a guarantee that bugs/resource exhaustion
+always yield structured diagnostics. Ordinary typed failures are not all possible host faults.
+Clean native engine-only build passed with no compiled CLI/Presentation/bin artifacts;
+./tools/check passed on the existing macOS lock, reusing earned campaigns/type/CLI controls.
+No Linux/VM/Mirage/storage/proof replay or new fault campaign. This qualifies only current
+boundaries/comments, NOT health-service startup, partial-read recovery or future operations.
+Revisit with the SQLite representation/read-failure/publication consumer; expose structured
+outer failures then, retaining faults and diagnostic inspection without false household truth.
+Contract owner: [structured operations and diagnostic availability](ARCHITECTURE.md#structured-operations-and-diagnostic-availability).
 
 ## Retained executable evidence
 

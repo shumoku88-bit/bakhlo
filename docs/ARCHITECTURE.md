@@ -53,6 +53,8 @@ runtime on the immutable core.
   retained-generation lookup as needed for history/reconciliation. Missing store, explicitly
   provisioned empty store, malformed/unsupported format and I/O failure stay distinguishable;
   reads never initialise, silently skip records or fall back to empty/older household truth.
+  Diagnostic acquisition may expose faults and explicitly unadmitted readable fragments;
+  it is not a successful complete household read. See [diagnostic availability](#structured-operations-and-diagnostic-availability).
 - **Conditional publish:** supplied expected generation, explicit operation/request identity
   and complete candidate bytes. Publication owns whole-image admission/current-evidence
   revalidation; adapter owns atomic expected-head check/publication and persisted ordering.
@@ -116,6 +118,64 @@ wire format, separate frontend compiler, toolkit install or permanent dependency
 Bonsai/secondary UI exploration is deferred by current priority; no full LOAM parity first.
 A useful record/save/query path needs qualified reference persistence. MirageOS minimal
 composition is not a claim of ultra-security or qualified always-on deployment.
+
+## Structured operations and diagnostic availability
+
+> LOAM Core must answer household questions structurally, without knowing how those
+> questions were asked or how the answers will be presented.
+
+Domain owns evidence/arithmetic; Application owns concrete household operations and typed
+answers/refusals. Natural-language interpretation, speech, LLMs, UI and runtime are outer
+adapters. Retained description/message text is evidence, not a Core language interpreter.
+Use small operation functions, not a universal command bus or all-purpose answer record.
+GetUsableToday, GetBalance, GetScheduled, DiagnoseHousehold and RecordTransaction are future
+use-case examples, NOT implemented APIs or new fundamental Transaction/Budget types.
+Current conditional quantities are not today's spending permission; absent Scheduled is not
+an empty schedule. A "today" operation must receive explicit date/context, not read a hidden
+clock. Time/entropy/I/O are owned outside the engine; supplied inputs still need admission.
+
+Answers keep exact Quantity + explicit Measure/coordinate, outcome and evidence, with
+operation-specific warnings/next-payment data only when meaningful and qualified. Measure
+is not necessarily currency; display scale/FX must not be invented. Exact, Known_present and
+unsupported are not one optional amount defaulting to zero. Presentation/CLI/Web/conversation
+render structured values; human strings/exit codes are not the shared household protocol.
+Transport preserves exact decimal quanta, not floats/JavaScript Number. Existing .mli APIs
+already provide the core pattern; no omnibus response schema is needed now.
+
+Mutations take typed commands through shared admission and the outer publication orchestration.
+AI/voice input is an untrusted proposal, preserving original supplied text and uncertainty;
+clients never write internal/canonical state or invent missing payment/date/support facts.
+Validated/accepted for admission is NOT recorded. A recording receipt must identify the request
+and generation with its qualified publication guarantee; Saved, pre-effect Rejected, Conflict
+and post-effect Uncertain cannot be collapsed into Accepted/Rejected. Reconciliation follows
+[Persistence](#minimal-persistence-contract), not blind retry. No universal manual-review policy.
+
+A future host should remain available for structured diagnosis/read-only inspection when
+household loading fails, without claiming that every fault permits every answer. Startup
+liveness, query availability, household-evidence sufficiency and durable publication are
+separate. Prospective Healthy/Degraded/RecoveryRequired labels need checked scope/generation
+(where known) and structured causes, not one boolean or a mandatory global health enum.
+MissingEvidence/InvalidAnchor concern semantic support; UnsupportedVersion/CorruptStorage
+concern acquisition; StaleDerivedState concerns rebuildable projections; PartialWorld concerns
+incomplete coverage. These are design examples, not currently implemented codes. A normal
+unsupported query or absence of an optional fact is not by itself corruption/service failure.
+
+Partial reads must identify readable/unreadable scopes from one coherent generation, retain
+faults/unsupported evidence and qualify each answer's required coverage, reference closure and
+support. No silent row filtering, cross-generation mixing or presenting a readable subtotal as
+an exact current balance. A missing correction could change even a readable Event's terminal.
+Unaffected independently qualified answers/inspection may remain available; affected answers
+fail closed. If complete query prerequisites cannot be established, return unavailable, not
+zero. A stale derived index may be rebuilt only from qualified canonical evidence, never used
+as fallback authority. Publication remains blocked unless that operation's full prerequisites
+and current-generation/durability gates are established; read-only liveness is not permission
+to mutate. Recovery/older-generation inspection must be explicit, never implicit current truth.
+
+Current Actual_source/Current_quantity_query admit whole images and the synthetic decoder
+refuses malformed input; none implements partial-world admission or a health service. Keep
+these guarantees. Diagnostic acquisition and future scoped operations are separate capabilities,
+not filtering until an existing gate accepts. No physical section layout, recovery service,
+Voice/LLM/Mirage implementation or new dependency follows from this direction.
 
 ## Invariant owners
 

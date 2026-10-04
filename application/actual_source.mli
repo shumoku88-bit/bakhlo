@@ -73,7 +73,11 @@ type error =
     Text/Merchant facts do not inherit. Amount facts keep roots; only their current
     terminal association is projected. None of these families creates quantity/presence support.
     All positions one-based.
-    This establishes structural premises only, not factual truth/completeness. *)
+    This establishes structural premises only, not factual truth/completeness.
+    Error refuses this whole admitted image, not a requirement to terminate a host
+    or suppress diagnostic inspection. Readable fragments must not be passed off as
+    a complete source; any future partial read needs separately qualified scope and
+    completeness/reference guarantees, not filtering rows until this gate succeeds. *)
 val create : command -> (t, error) result
 val frontier : t -> Correction_frontier.t
 val validity : t -> Actual_validity.t
