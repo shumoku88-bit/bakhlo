@@ -16,10 +16,17 @@ exact version/snapshot rationale and prior fresh-switch qualification.
 Prerequisites: curl, git, C compiler, make, tar, patch, pkg-config, detectable GMP
 headers/library, sha256sum or shasum. Install missing OS prerequisites yourself:
 bootstrap never invokes sudo/brew/apt. macOS developer tools + GMP/pkg-config or
-Linux build tools + libgmp-dev/pkg-config are typical, not a qualified OS recipe.
+Linux build tools + libgmp-dev/pkg-config are typical, not a hermetic OS recipe.
+Linux opam initialization additionally requires bubblewrap and permitted user namespaces;
+Ubuntu's AppArmor profile for /usr/bin/opam does not cover our local .tools/opam. In the
+approved VM only, the same userns allowance was scoped to the checked local binary via
+/etc/apparmor.d/loam-local-opam (abi 4.0, flags=(unconfined), userns). AppArmor's global
+restriction stays enabled and opam's sandbox stays enabled. Bootstrap still installs or
+changes NONE of these prerequisites/policies itself; no global host exception is implied.
 
 Configured binary platforms: macOS x86_64/arm64, Linux x86_64/aarch64.
-**Only macOS x86_64 is exercised.** OS prerequisites are not hermetically pinned;
+**macOS x86_64 and Ubuntu 24.04 x86_64 are exercised.** ARM recipes remain unqualified.
+OS prerequisites are not hermetically pinned;
 lock/checksums establish selection/integrity, not bit-identical binaries, complete
 supply-chain verification or permanent upstream availability.
 
@@ -88,8 +95,8 @@ with `vm copy`, verifying their checksums in the guest; never mount the workspac
 or copy operational data. This is a local trial recipe, not a general tooling/CI choice.
 Its generated config/logs/downloads/VM image are excluded from version control. Guest
 prerequisites are installed only within the user-approved disposable VM; ordinary host
-bootstrap still refuses OS installations. Next slice must separately qualify Linux
-OCaml/bootstrap and actual Base/Zarith engine freestanding linking/boot.
+bootstrap still refuses OS installations. Linux locked OCaml/bootstrap, ordinary tests, package/install/Lean-free and clean engine-only
+checks now pass. Freestanding evidence is separate; see VERIFICATION for target results.
 
 ## Dependency changes
 

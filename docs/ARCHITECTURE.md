@@ -13,15 +13,15 @@ There is no canonical storage, clock, mutable business state or generic service 
 
 ## Selected product direction
 
-User-approved goal: a long-lived standalone MirageOS household application; maintainable
+User-approved goal: a long-lived standalone MirageOS + Irmin household application; maintainable
 household meaning/safe daily use outrank novelty or any unverified world-first claim.
 Domain/Application stay independent of Mirage/Lwt/Irmin, reusable by the native CLI and
 future clients. Aim for guest-owned household admission/publication, not merely a Unix
 application with a unikernel label; underlying host/hypervisor/devices still exist.
 No production backend/UI/protocol/runtime version or operational cutover is selected.
 
-Irmin is the leading storage candidate to evaluate after freestanding host qualification.
-Its commit history is not Event/date correction or Reversal; generic merges cannot hide
+Irmin is the intended persistence component, to evaluate early after freestanding engine
+qualification; no backend/schema or main dependency adoption is qualified yet. Its commit history is not Event/date correction or Reversal; generic merges cannot hide
 conflicting identities or support. Read coherent evidence from one generation; derived
 balances/remainders/indexes do not become additional canonical authority. Actual persistence
 needs format/admission/identity/retry/conflict/uncertain-result/durability/restore contracts,
@@ -33,7 +33,9 @@ boot with synthetic exact/refusal controls -> bounded Irmin backend evaluation a
 publication/recovery -> usable client. Semantic/read compatibility with live LOAM owners
 continues alongside runtime qualification; do not first recreate every Lean module or old
 file/write path. Hosted macosx success alone satisfies none of the freestanding/storage
-obligations. No VM/global OS install, public network service, real-data access, migration,
+obligations. A bounded Linux/SPT engine boot with static GMP now passes, with a trial-only
+Lwt diagnostic-library build guard; no permanent Mirage adapter or production support.
+See VERIFICATION for exact versions, source/ELF correspondence and remaining gap. No VM/global OS install, public network service, real-data access, migration,
 new main dependency or release/push follows implicitly from this direction.
 
 ## Invariant owners

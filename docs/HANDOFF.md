@@ -127,7 +127,7 @@ Once a suitable isolated Linux environment is agreed, use fixed dependency selec
 real boot plus positive/negative queries; no new model/theorem/random campaign for host
 plumbing. Stop on missing capabilities/unsupported dependencies rather than weakening
 exact quantities. Revisit on compiler/runtime/linker changes. VM availability is now
-established below; actual engine freestanding execution remains pending, not passed.
+established below; subsequent bounded engine SPT execution also passed with a trial guard.
 No Irmin/storage/UI/operational-data work in this host slice.
 
 ## Latest approved slice — isolated Linux VM and minimal C/SPT smoke passed
@@ -164,6 +164,48 @@ This result is Linux host + minimal C/Solo5 plumbing ONLY, not engine/Static GMP
 intrinsics/HVT/Irmin/persistence/recovery support. No quantity weakening, permanent
 adapter, new main dependency, migration/operational adoption/release/push follows.
 
+## Latest completed slice — unchanged engine on Solo5/SPT
+
+User approved next step: actual MirageOS engine build/boot, then early bounded Irmin
+persistence evaluation rather than waiting for all LOAM parity. Product aim is MirageOS
++ Irmin; backend/schema/dependency adoption still requires concrete qualification.
+Question/owner: can current exact Domain/Application run freestanding under SPT with
+unmodified source, not just native Unix or upstream C hello? Host adapter owns effects;
+quantity/evidence contracts unchanged. D: a36c584, approved isolated Ubuntu guest/SPT
+hello, OCaml 5.3.0/Base v0.17.3/Zarith 1.14 main lock; no guest OCaml yet. P: macOS ordinary
+suite/hosted synthetic engine probe and exact support/discharge/refusal APIs. R: Linux
+locked bootstrap, explicit cross-compiler/dependency closure, Base C intrinsics/static GMP
+and Zarith, actual Mirage-generated SPT entry/link/boot and positive/negative answers.
+Instruments: selected own source/tools/test archive + SHA256 round trip, guest-local
+wrappers/roots, official pinned package/source metadata, reuse hosted probe (180-bit,
+correction/four supports/unknown/net-zero touch/remainder/refusals), wrong-expectation
+runtime control and ELF linkage inspection. No fresh model/random/theorem for host
+plumbing. Dependencies/overlays/cross-build patches remain isolated scratch; stop/report
+missing capabilities, incompatible versions or unsupported C symbols rather than weaken
+quantity or silently upgrade compiler. No host install/share/public forwarding, operational
+data/Irmin/UI/schema/migration/prod adoption/push. Revisit compiler/C toolchain/runtime/
+target/source. Linux native evidence and freestanding evidence stay separate.
+
+Executed: fresh Linux locked bootstrap/full native suite/package/install/Lean-free/clean
+engine-only and bounded actual SPT query/refusal/static-GMP boot passed. Same native lock
+on both platforms, 60 own engine files unchanged. Wrong expected remainder failed, restored
+image passed and reboots after VM restart. Main source/manifest/lock/tooling/formal stay
+unchanged; no permanent dependency/third-party code committed. macOS check passes too.
+Important gap: unrequested vendored Lwt runtime-events failed fstat; trial-only external
+Dune guard excludes that diagnostic library, existing without-events path used. No dummy
+primitive/engine/generated runtime edits. NOT stock dependency support/maintained adapter,
+full suite IN SPT/production target/HVT/storage/household authority. Version-bound/monorepo/
+OS-prerequisite issues and exact selections/controls belong to [Verification](VERIFICATION.md#linux-native-replay-and-mirageossolo5-spt-engine-bounded-trial-guard-required),
+not another inventory here. Development owns VM lifecycle; VM is STOPPED. No proof replay/push.
+
+Next bounded consumer: choose/inspect an Irmin backend genuinely usable from a freestanding
+guest, then synthetic persistence + same-generation admission/read + restart/reopen, not
+just memory set/get or a Unix store labelled Mirage. Decide minimum representation/version,
+publication unit, identity/retry/refusal and uncertain-result contracts before code; backup/
+crash recovery and operational cutover remain later distinct obligations. Do not wait for
+all upstream modules before that bounded vertical slice. Resolve/maintain proper dependency
+package selection before promoting this scratch Lwt guard to permanent runtime support.
+
 ## Other deferred work
 
 Select concrete consumers, not upstream files as automatic backlog. Storage/write work
@@ -171,13 +213,14 @@ awaits authority/admission/publication, identity/retry/conflict, uncertain outco
 durability, diagnostics, backup/restore/migration and applicable transition/fault instruments.
 Follow live HouseholdImage findings without adopting its file/module topology by default.
 Relation completeness/lifecycle/settlement and target-local crash activation remain absent.
-First usable UI and exact MirageOS target/backend remain undecided; freestanding
-runtime/Base/Zarith/GMP/C-stub qualification is pending. Linux/Apple Silicon and public
-licensing/metadata/history need decisions.
+First usable UI and production MirageOS target/backend remain undecided; bounded SPT
+Base/Zarith/GMP execution does not qualify every C API/diagnostic library or deployment.
+Other Linux/Apple Silicon and public licensing/metadata/history still need decisions.
 
 ## Safety/state
 
 Synthetic only; existing LOAM remains sole household authority. Local commits authorized,
 no push/release/operational adoption. Last remote observation: private main 8974041
-(2026-10-03), not equality. Only locked macOS x86_64 qualified. Never commit environments,
+(2026-10-03), not equality. Locked macOS and Ubuntu 24.04 x86_64 native suites qualified;
+bounded guarded SPT probe is not production support. Never commit environments,
 generated/install output, scratch, credentials or private logs.

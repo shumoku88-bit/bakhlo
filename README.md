@@ -6,19 +6,20 @@ product for long-term local use, not a line-by-line Lean translation.
 
 **Development-only. Existing LOAM remains household authority.** No persistence,
 writes, migration, UI, public release or complete household admission is qualified.
-macOS/Linux are targets; the engine's ordinary suite is qualified only on macOS x86_64.
-A one-shot MirageOS macosx hosted engine probe passed. An isolated Ubuntu VM now runs a
-minimal C/Solo5-SPT hello; Linux/Mirage engine static linking/boot remains unqualified.
-See [host feasibility evidence](docs/VERIFICATION.md#mirageos-hosted-feasibility-one-shot-not-production-support).
+The locked ordinary suite passes on macOS x86_64 and isolated Ubuntu 24.04 x86_64.
+A bounded MirageOS/Solo5-SPT engine probe now boots with static GMP and unchanged engine
+source; it needs a trial-only Lwt build guard. This is not production target support.
+See [host feasibility evidence](docs/VERIFICATION.md#linux-native-replay-and-mirageossolo5-spt-engine-bounded-trial-guard-required).
 
 ## Product direction
 
-The selected goal is a practical standalone MirageOS household application preserving
-LOAM meanings, not a novelty demo or Lean implementation clone. The immutable engine
-stays reusable; native CLI remains the development/read entrance. Irmin is the leading
-persistence candidate, not an adopted dependency or selected backend/schema. First
-qualify freestanding build/boot and exact semantics, then storage/admission/publication
-and recovery/backup, then a usable client. Read/semantic compatibility work can continue
+The selected goal is a practical standalone MirageOS + Irmin household application
+preserving LOAM meanings, not a novelty demo or Lean implementation clone. The immutable
+engine stays reusable; native CLI remains the development/read entrance. Irmin is the
+intended persistence component, not yet an adopted dependency or selected backend/schema.
+First qualify freestanding build/boot and exact semantics, then evaluate minimal persistent
+record/read/reopen early; qualify publication/recovery/backup before household adoption.
+Do not wait for full LOAM parity to try the storage boundary and a useful vertical slice. Read/semantic compatibility work can continue
 in parallel without reproducing upstream file layout. See [architecture](docs/ARCHITECTURE.md#selected-product-direction).
 
 ## Build and try

@@ -2,8 +2,9 @@
 
 Types, finite tests, models, proofs and operational evidence establish different things.
 None automatically certifies handwritten OCaml, external premise truth or household use.
-Current qualification is macOS x86_64 with the locked toolchain. Other targets, storage,
-full normalized Actual admission, recovery and migration are not qualified.
+Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the locked
+toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
+targets, storage, full normalized Actual admission, recovery and migration remain open.
 
 ## Instrument review gate
 
@@ -223,6 +224,66 @@ HVT/KVM/network/disk guest, Irmin/storage/crash/recovery or household use qualif
 [Development](DEVELOPMENT.md#approved-isolated-linux-vm-development-trial) owns local
 start/stop/teardown recipe; next consumer is actual unchanged engine static link/boot.
 
+### Linux native replay and MirageOS/Solo5-SPT engine (bounded, trial guard required)
+
+At a36c584, user approved actual engine boot before early Irmin persistence evaluation.
+133 selected own source/build/test files + synthetic example transferred with SHA256;
+no git/environment/operational data. Guest fresh tools/bootstrap compiled OCaml 5.3.0,
+installed all 50 lock selections exactly. tools/check: 151 expect tests/unchanged ten
+campaigns/100,000 generated cases/three cram suites; forced package tests, @install,
+nonexistent-LEAN check and clean native engine-only passed, no outer compiled artifacts.
+Bubblewrap was missing; guest-only apt installed it. Ubuntu AppArmor then denied uid-map;
+its distro /usr/bin/opam profile does not match local tool. Same userns allowance scoped
+to /home/loam/engine-native/.tools/opam, global restriction and opam sandbox remain enabled.
+No host OS/config changes; Linux baseline selections stayed unchanged after cross trial.
+
+Separate guest scratch root/43-package switch reuses that fresh compiler via ocaml-system;
+Mirage 4.11.2, ocaml-solo5 1.2.0, ocaml-src 5.3.0, Dune 3.24.2, opam-monorepo 0.4.3.
+Initial Solo5 0.13.0 did not match generated Mirage bound <0.13.0: selected 0.12.1 and
+rebuilt cross compiler, did not bypass constraint. Main manifest/50-entry lock unchanged.
+Official dune-universe overlay fixed at 632df22c65362cb34fd792f701d7d2a6518cdb60 (archive
+SHA256 41d610eeb7c0bc2ed77c0db989bf20c18627d70e2fe67f19124d914218dfbece) + frozen ac27950
+registry. Cross closure 64 entries/25 source pins: Base v0.17.3, ocaml_intrinsics_kernel
+v0.17.2, sexplib0 v0.17.0, Lwt 6.1.2, mirage-runtime 4.11.2, mirage-solo5 0.10.0.
+Trial Zarith 1.14+dune+mirage1 SHA256 915bd53ebb608729eb76b4e5bc0580090d8428fe919c9bf9a5dcd39f739b49f7:
+z.ml/.mli, q.ml/.mli, big_int_Z.ml/.mli and caml_z.c byte-equal to upstream 1.14; configure/Dune
+packaging differs, not claimed a general refinement. GMP 6.3.0-1 Dune cross package SHA256
+cafe5beff5f35cb4451e341e1c07a019ac7047dd280ff55410e42ccc133bb757; underlying GMP 6.3.0.
+Both roots isolated, explicit main compiler PATH/trial opam exec + nested env needed.
+Monorepo 0.5.0 AND 0.4.3 stock lock failed current-switch detection here; explicit frozen
+repositories and actual guest global-opam-vars (including monorepo marker) resolved.
+A marker-absent lock omitted engine deps and was rejected, not boot evidence. Compiler/
+core package pins verified before pull/build; no invented defaults/availability bypass.
+
+mirage configure -t spt, no depext/disk/network/argv/reporter/time/random, default_sleep;
+monorepo lock/pull, dune release cross build -j2 with original strict-sequence/8/9/11 flags.
+60 engine source/build files byte-equal. No engine or generated runtime source edits.
+UNMODIFIED vendored Lwt build first pulled in unselected lwt_runtime_events and failed
+fstat from OCaml runtime-events consumer. Dune --only-packages cannot mask vendored libs.
+Trial-only duniverse/lwt/src/runtime_events/dune adds (enabled_if (<> %{context_name} solo5)):
+stock Lwt select uses its existing without-events implementation, no dummy fstat/no
+numerical weakening. Clean rebuild confirmed no tracing CMXs/outer libraries. Thus this
+is NOT stock dependency-closure support or a maintained/release-ready Mirage adapter;
+revisit proper package-selection/upstream fix before permanent adoption. Shell PS1 warning
+was scoped away for final clean build, no guest global shell edits.
+
+Actual generated Solo5_os.Main.run loaded by matching solo5-spt --mem=128: 180-bit add/
+inverse/signed corrected source, four supports, unknown/net-zero-touch refusals, retained
+relation source/partial remainder 3 and missing/self/zero-Effect refusals passed (0).
+Wrong expected remainder 4 failed (2, conditional-remainder witness, NO PASS; diagnostics
+on guest stdout), restored 3 passed. Restored image matched its pre-control SHA256;
+clean build/static inspection and VM stop/restart with same image/isolation passed.
+ELF x86_64 EXEC/Solo5 SPT ABI 2/empty devices, no dynamic section/undefined symbols;
+GMP code linked in image, no host GMP dylib. PT_INTERP is intentional /nonexistent/solo5/
+sentinel, not a Linux dynamic loader (initial no-INTERP check corrected). Image 7,872,208
+bytes, SHA256 b1d24be5139f428157139eb443ae1b7d31404d4e00dbf57f2eebe9072ac9c66a; one
+restoration hash equality is not universal reproducibility. VM stopped; ignored private
+logs/scripts/sources/lock/image retained, nothing third-party/generated committed.
+No full test suite IN SPT, HVT/KVM, target choice, devices/I/O, Irmin/storage/crash/recovery,
+real data/household use, source-install client qualification or optional proof replay.
+Next named consumer: bounded Irmin backend durable record/reopen, with concrete generation/
+admission/retry/recovery contracts; no storage format/authority follows from this boot.
+
 [Optional specification](../formal/README.md) states nine row-selection, signed-delta and
 whole-premise lookup laws. It does not prove graph admission, group indexes, Actual/support
 truth, OCaml/Base/Zarith refinement, loading or durability. Recheck artifact/assumption/
@@ -234,5 +295,5 @@ queries. The larger image took about 1s on this host; parsing/I/O excluded. This
 maintained benchmark, target or current latency guarantee. Group construction repeats
 source walks; revisit with named workloads/limits before optimizing or choosing a cache.
 
-Storage/publication, Linux/Apple Silicon, full evidence families, household authority and
-large-history operational reliability remain open. Do not relabel absences as coverage.
+Storage/publication, other Linux/Apple Silicon targets, full evidence families, household
+authority and large-history operational reliability remain open. Do not relabel absences as coverage.
