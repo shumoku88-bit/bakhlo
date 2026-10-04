@@ -379,6 +379,25 @@ backup/restore/migration, large/many-block reliability, useful input UI or house
 qualified. Revisit those failure models, backend/format/runtime/device/clock/scale before
 adoption; success here establishes only a guarded bounded storage/reopen path.
 
+### Client toolkit preflight (metadata only, not a UI qualification)
+
+After 28541ba user requested laptop/phone/AI-chat recording and viewing, desktop Notty
+preferred, optional Bonsai browser trial. Named consumer/question/instruments recorded in
+HANDOFF before review; no installs/build/browser/network test or main lock changes.
+Frozen ac27950 registry: notty 0.2.3 (ISC) permits OCaml >=4.08 <5.4, Dune >=1.7,
+cppo/uutf, optional Lwt; direct gates fit current OCaml 5.3.0/Dune 3.24.2, not solved-closure
+or terminal/platform evidence. bonsai v0.17.0 (MIT) requires OCaml >=5.1, Base/Jane Street
+v0.17 and substantial Core/Async/ppx_jane/Incr_dom/Virtual_dom/RPC/web dependencies.
+Dune >=3.11 <3.24 excludes main 3.24.2; js_of_ocaml >=5.1.1 <5.7 admits compiler versions
+5.1.1/5.2.0/5.3.0/5.4.0/5.5.2/5.6.0 in this registry, ALL exclude OCaml 5.3 (latest two
+allow <5.2). Thus stock Bonsai v0.17 cannot simply be installed into the qualified main
+switch. Revisit a separately reviewed browser-only toolchain or compatible maintained
+release/alternative, not silent backend downgrade/constraint bypass/Number-based quantities.
+js_of_ocaml 5.6.0 binds compiler = version and declares GPL-2.0-or-later / LGPL-2.1-or-later
+WITH OCaml-LGPL-linking-exception; distribution/component obligations need separate review.
+Full transitive closure, browser behavior/mobile ergonomics and any independent frontend
+compiler remain unqualified. UI deps must stay outer; no Jane Street endorsement inferred.
+
 [Optional specification](../formal/README.md) states nine row-selection, signed-delta and
 whole-premise lookup laws. It does not prove graph admission, group indexes, Actual/support
 truth, OCaml/Base/Zarith refinement, loading or durability. Recheck artifact/assumption/

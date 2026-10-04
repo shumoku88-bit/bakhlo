@@ -238,6 +238,27 @@ backup/restore separately before household use. Read compatibility may continue 
 not all-LOAM parity first. No main dependency/schema/UI/data/migration/push authorized.
 Revisit runtime/clock/device/format, larger multi-block values, multiwriter and failure models.
 
+## Requested access direction — Notty desktop, optional Bonsai browser evaluation
+
+User wants recording AND household-state viewing from laptop, phone and AI chat; desktop
+Notty preferred, Bonsai browser UI worth trying if feasible. Direction only, not UI/network/
+dependency/deployment/data authorization. Question/owner before metadata review: can these
+outer clients share one admission/query/publication authority without JS quantity rounding,
+LLM-invented facts or engine UI dependencies? D: 28541ba, immutable engine/CLI and guarded
+storage prototype; no API/UI/network implementation. P: ADR 0003/S1–S10, coherent generation,
+exact Quantity and independent support. R: toolkit/compiler/transitive costs, browser build,
+authenticated protocol/replay/stale/uncertain outcomes and useful interactions.
+Executed frozen package metadata/compiler-gate review only; no installs/runtime evidence.
+Notty direct gates fit; stock Bonsai v0.17 has Dune/js_of_ocaml compiler gates excluding
+the qualified main toolchain, plus substantial outer dependencies. Exact observations:
+[Verification](VERIFICATION.md#client-toolkit-preflight-metadata-only-not-a-ui-qualification).
+Next UI probe if selected: synthetic form + exact display/unknown/refusal, separate outer
+package/toolchain review; compare simpler web view if Bonsai cost/compatibility is unsuitable.
+No backend compiler change/constraint bypass or Number quantities to force fit. Storage
+maintainability still first dependency; UI shape exploration need not wait for full LOAM
+parity. [Architecture](ARCHITECTURE.md#client-access-direction) owns access contracts.
+Revisit closure/compiler/browser/API/auth/offline/multiwriter before implementation/adoption.
+
 ## Other deferred work
 
 Select concrete consumers, not upstream files as automatic backlog. Storage/write work
@@ -245,7 +266,8 @@ awaits authority/admission/publication, identity/retry/conflict, uncertain outco
 durability, diagnostics, backup/restore/migration and applicable transition/fault instruments.
 Follow live HouseholdImage findings without adopting its file/module topology by default.
 Relation completeness/lifecycle/settlement and target-local crash activation remain absent.
-First usable UI and production MirageOS target/backend remain undecided; bounded SPT
+Desktop Notty preference/browser Bonsai evaluation are recorded above; first usable UI
+implementation and production MirageOS target/backend remain unqualified. Bounded SPT
 Base/Zarith/GMP execution does not qualify every C API/diagnostic library or deployment.
 Other Linux/Apple Silicon and public licensing/metadata/history still need decisions.
 

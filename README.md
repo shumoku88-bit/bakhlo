@@ -26,6 +26,13 @@ record/read/reopen early; qualify publication/recovery/backup before household a
 Do not wait for full LOAM parity to try the storage boundary and a useful vertical slice. Read/semantic compatibility work can continue
 in parallel without reproducing upstream file layout. See [architecture](docs/ARCHITECTURE.md#selected-product-direction).
 
+Access goal: record and inspect household state from laptop, phone and AI chat through
+one selected authority. Desktop Notty is preferred; Bonsai is an optional browser-UI
+candidate for phone/desktop, not an adopted dependency. Clients collect/render, shared
+application gates own meanings and publication; AI suggestions do not manufacture facts.
+Remote access/authentication/API and UI implementation remain unqualified; see
+[client direction](docs/ARCHITECTURE.md#client-access-direction).
+
 ## Build and try
 
 ```sh
@@ -58,8 +65,9 @@ empty image. See [grammar](cli/current_fixture_input.mli) and
 
 ## Retained scope
 
-- Local single user; CLI is the development/read entrance. First usable TUI/GUI
-  remains undecided; no current UI/network/synchronization.
+- Single household user, initially local; eventual multi-device recording/viewing is the
+  goal, not multiple canonical authorities. CLI remains the development/read entrance;
+  Notty desktop preferred, Bonsai browser evaluation optional. No current UI/network/sync.
 - Immutable functional engine; process/file I/O only at explicit edges.
 - Runtime Base + Zarith; tests ppx_expect + Base_quickcheck. No speculative framework.
 - General Events remain broader than ordinary Movements. Current source admission

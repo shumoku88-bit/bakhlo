@@ -19,8 +19,10 @@ application API. Existing operations take explicit immutable inputs: no dummy St
 session, generic view-model/command bus or hidden now. Materialized indexes are not
 canonical facts or speculative caches.
 
-No TUI/web/dashboard/components, toolkit, OxCaml or anticipatory load/navigation state
-is authorized. Base + Zarith and the selected test dependencies remain the budget.
+At this decision no TUI/web/dashboard/components or toolkit was authorized. Subsequent
+[client direction](../ARCHITECTURE.md#client-access-direction) records Notty preference and
+optional Bonsai evaluation, not toolkit adoption. OxCaml/anticipatory load/navigation state
+remain outside scope. Base + Zarith and the selected test dependencies remain the budget.
 Introduce effects/state only for real operations; source consistency, Actual/Scheduled,
 uncertainty and independent support remain semantic boundaries.
 

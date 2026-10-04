@@ -18,7 +18,9 @@ household meaning/safe daily use outrank novelty or any unverified world-first c
 Domain/Application stay independent of Mirage/Lwt/Irmin, reusable by the native CLI and
 future clients. Aim for guest-owned household admission/publication, not merely a Unix
 application with a unikernel label; underlying host/hypervisor/devices still exist.
-No production backend/UI/protocol/runtime version or operational cutover is selected.
+No production backend/protocol/runtime version or operational cutover is selected.
+Desktop Notty is preferred; Bonsai browser UI is an optional evaluation candidate below,
+not a qualified implementation or dependency adoption.
 
 Irmin is the intended persistence component, to evaluate early after freestanding engine
 qualification; no backend/schema or main dependency adoption is qualified yet. Its commit history is not Event/date correction or Reversal; generic merges cannot hide
@@ -43,6 +45,41 @@ bounded retention/restart controls, NOT backend adoption or crash/restore qualif
 See [persistence evidence](VERIFICATION.md#irmin-block-persistence-bounded-two-trial-dependency-fixes-required)
 for the two dependency fixes and remaining gap. No VM/global OS install, public network service, real-data access, migration,
 new main dependency or release/push follows implicitly from this direction.
+
+## Client access direction
+
+Requested product goal: one user's laptop, phone and AI chat can both record and inspect
+household state. Native Notty TUI is the desktop preference; browser UI serves phone and
+can also serve desktop. Evaluate Bonsai for that named consumer if compiler/dependency/
+interaction costs are acceptable, with a simpler web view as an alternative. This extends
+the eventual access goal, not authorization to deploy a public service or use real data.
+
+```text
+Notty desktop / phone browser (Bonsai candidate) / AI-chat adapter
+                   -> authenticated application entrance
+                   -> admission + current-generation publication / coherent query
+                   -> one selected MirageOS + Irmin authority
+```
+
+Transport/API and auth design remain open. Clients never implement another authoritative
+ledger, allocate durable identities or bypass admission; drafts/offline caches are not main.
+Queries expose generation and qualified Exact/Known_present/unsupported/refusal, never stale
+cache as current truth or failed load as empty. Publication rechecks current evidence and
+expected generation; UI preview/Irmin 3-way merge is not authorization. AI retains supplied
+input/uncertainty; missing payment/date/support facts cannot be filled as truth. Confirmation/
+automation policy needs its own qualified operation; not all clients require manual review
+by an invented universal rule. Branch names are not access control; restrict bot/client
+capabilities and qualify authentication, replay/idempotency and uncertain results separately.
+
+UI libraries/Core/Async, if required by an accepted browser candidate, stay in its outer
+package/build environment, not Domain/Application or automatically in the Mirage guest.
+A browser frontend may use a separately reviewed toolchain without changing the qualified
+backend compiler. Protocol quantities must preserve unbounded exact decimal values/Measures
+and evidence roles, never coerce to JavaScript Number or manufacture zero. No canonical
+wire format, separate frontend compiler, toolkit install or permanent dependency is selected.
+Small synthetic UI exploration may accompany storage qualification, not full LOAM parity
+first; a useful record/save/query path still needs a maintainable backend. MirageOS minimal
+composition is not a claim of ultra-security or qualified always-on deployment.
 
 ## Invariant owners
 
@@ -238,13 +275,11 @@ conflicting payloads, uncertain outcomes, atomic visibility versus durability, d
 backup/restore and migration. Then select storage and transition/fault instruments.
 Do not infer these from a structurally valid preview or ordinary Movement retry behavior.
 
-UI is not implemented; CLI is the development/read entrance, not a TUI-first commitment.
-Future clients consume semantic answers rather than recomputing meaning. First usable UI
-is undecided; TUI/GUI/Web toolkit, remote protocol and compatibility need actual consumers and
-approval. A one-shot MirageOS macosx hosted probe ran the unchanged engine through a
-Mirage-generated outer entry, with dependencies isolated in scratch. This qualifies neither
-standalone Solo5 build/boot nor freestanding GMP/Base C stubs or production Mirage support;
-see VERIFICATION's host feasibility section. No permanent adapter or main Lwt dependency.
-The standalone deployment goal is selected; exact target/runtime/backend qualification
-remains separate from semantics/storage/publication.
+UI is not implemented; CLI is the development/read entrance. [Client access direction](#client-access-direction)
+records desktop Notty preference/optional Bonsai browser evaluation; toolchains, protocol,
+authentication and compatibility need concrete qualification before adoption. Clients consume
+semantic answers rather than recomputing meaning. Prior hosted, guarded SPT engine and
+block-persistence evidence belongs to VERIFICATION, not production support. No permanent
+adapter or main Lwt dependency. The standalone deployment/access goal is selected; exact
+target/runtime/backend qualification remains separate from semantics/storage/publication.
 No speculative load/navigation state, adapter, cache or framework belongs in the engine.
