@@ -172,8 +172,17 @@ Solo5 0.13.0 + ocaml-solo5 1.2.0 Darwin availability dry-run failed (5); metadat
 5.3.0 but requires Linux/BSD host. No suitable VM/container/HVT runner on PATH; no Solo5
 link/boot, freestanding Base intrinsic/GMP C-stub qualification, full suite in Mirage,
 network/storage/recovery/performance/household-use claim. Main 50 selections unchanged,
-ordinary/Lean-free checks pass. Next: supported Linux x86_64/Solo5-HVT with explicit static
+ordinary/Lean-free checks pass. Next: supported Linux x86_64/Solo5 with explicit static
 closure, actual boot, same queries and negative controls; revisit versions/target changes.
+
+Subsequent target preflight read Solo5 v0.13.0 README/docs building/architecture from the
+opam-checksummed release (SHA512 cb2f9ea7140d09796dfe2cd5496d9bab858ce1f2144ecaf62cd8f5c9291bcfde8547cd2f42382dea07bd8dcc1ea7173b86ef2ca35247a92a5ed6bfa2ccf056f2).
+Linux HVT requires usable KVM access; merely having a VM/container does not establish
+nested virtualization. SPT is a freestanding guest under a Linux seccomp process tender,
+not hardware-virtualized HVT; upstream labels it experimental and requires libseccomp
+>= 2.3.3 on x86_64. It is a possible initial test without KVM, not an endorsed production
+substitute or proof of HVT support. First smoke needs no disk/network/TAP setup. Both
+require an agreed supported Linux environment; neither was configured/built/booted here.
 
 [Optional specification](../formal/README.md) states nine row-selection, signed-delta and
 whole-premise lookup laws. It does not prove graph admission, group indexes, Actual/support

@@ -10,6 +10,16 @@ macOS/Linux are targets; only macOS x86_64 has been exercised. A one-shot Mirage
 macosx hosted engine probe passed; standalone Solo5/unikernel support remains unqualified.
 See [host feasibility evidence](docs/VERIFICATION.md#mirageos-hosted-feasibility-one-shot-not-production-support).
 
+## Product direction
+
+The selected goal is a practical standalone MirageOS household application preserving
+LOAM meanings, not a novelty demo or Lean implementation clone. The immutable engine
+stays reusable; native CLI remains the development/read entrance. Irmin is the leading
+persistence candidate, not an adopted dependency or selected backend/schema. First
+qualify freestanding build/boot and exact semantics, then storage/admission/publication
+and recovery/backup, then a usable client. Read/semantic compatibility work can continue
+in parallel without reproducing upstream file layout. See [architecture](docs/ARCHITECTURE.md#selected-product-direction).
+
 ## Build and try
 
 ```sh

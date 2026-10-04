@@ -98,19 +98,47 @@ Solo5 0.13.0/ocaml-solo5 1.2.0 dry-run on Darwin refused with availability statu
 metadata allows current 5.3.0 compiler but requires Linux/BSD host. No Solo5 link/boot,
 static GMP/Base intrinsic C-stub qualification or permanent Mirage adapter. Disposable
 scratch probe, not maintained smoke coverage or a production-target decision. Next named
-host check: supported Linux x86_64 + Solo5/HVT runner, qualify exact source/dependency
+host check: supported Linux x86_64 + Solo5 runner, qualify exact source/dependency
 closure/static linking/boot and the same queries. Revisit compiler/target/runtime changes;
 no storage/migration/release/operational adoption follows from this result.
 
-## Next work / deferred decisions
+## Accepted direction / next bounded host check
+
+User selected the direction: a practical standalone MirageOS household application,
+with Irmin the leading persistence candidate to evaluate. This is a product goal, not
+qualification, final backend choice, dependency adoption or a world-first claim. Preserve
+LOAM meanings and a reusable pure engine; native CLI stays the development/read entrance.
+The compatibility-first approach remains: qualify explicit semantic/read boundaries, not
+reproduce Lean modules or an obsolete file/publication layout before replacing it.
+Architecture owns the direction; VERIFICATION owns the existing hosted evidence.
+
+Question/owner before further host work: boot the exact engine on a freestanding target,
+without changing household meanings or treating Unix execution as standalone evidence?
+D: 1b5727e/Darwin x86_64, no Linux/VM/container runner found on PATH. P: bounded hosted
+probe and exact immutable engine. R: Linux runner/capabilities, static GMP/Base C stubs,
+actual configure/build/boot and preserved synthetic answers/refusals. Inspect official
+Solo5 target requirements before selecting HVT vs SPT; neither is a production-target
+commitment. Read-only official v0.13.0 preflight completed: HVT needs usable KVM; SPT uses
+Linux seccomp without hardware virtualization, upstream experimental. VM/container alone
+is not KVM evidence. Initial device-free smoke avoids disk/network/TAP setup. No host build/
+boot occurred; source archive checked against opam SHA512, details in VERIFICATION.
+No OS/VM installation or external host access silently follows from direction.
+Once a suitable isolated Linux environment is agreed, use fixed dependency selections,
+real boot plus positive/negative queries; no new model/theorem/random campaign for host
+plumbing. Stop on missing capabilities/unsupported dependencies rather than weakening
+exact quantities. Revisit on compiler/runtime/linker changes. Until then host execution
+is blocked, not passed. No Irmin/storage/UI/operational-data work in this host slice.
+
+## Other deferred work
 
 Select concrete consumers, not upstream files as automatic backlog. Storage/write work
 awaits authority/admission/publication, identity/retry/conflict, uncertain outcomes, atomicity/
 durability, diagnostics, backup/restore/migration and applicable transition/fault instruments.
 Follow live HouseholdImage findings without adopting its file/module topology by default.
 Relation completeness/lifecycle/settlement and target-local crash activation remain absent.
-First usable TUI/GUI and MirageOS target/runtime/Base/Zarith/GMP/C-stub qualification remain
-undecided/deferred. Linux/Apple Silicon and public licensing/metadata/history need decisions.
+First usable UI and exact MirageOS target/backend remain undecided; freestanding
+runtime/Base/Zarith/GMP/C-stub qualification is pending. Linux/Apple Silicon and public
+licensing/metadata/history need decisions.
 
 ## Safety/state
 

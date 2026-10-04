@@ -11,6 +11,31 @@ Clients also use Domain types; dependencies never point outward. Engine native t
 build without Presentation/CLI or UI packages. Runtime dependencies are Base + Zarith.
 There is no canonical storage, clock, mutable business state or generic service framework.
 
+## Selected product direction
+
+User-approved goal: a long-lived standalone MirageOS household application; maintainable
+household meaning/safe daily use outrank novelty or any unverified world-first claim.
+Domain/Application stay independent of Mirage/Lwt/Irmin, reusable by the native CLI and
+future clients. Aim for guest-owned household admission/publication, not merely a Unix
+application with a unikernel label; underlying host/hypervisor/devices still exist.
+No production backend/UI/protocol/runtime version or operational cutover is selected.
+
+Irmin is the leading storage candidate to evaluate after freestanding host qualification.
+Its commit history is not Event/date correction or Reversal; generic merges cannot hide
+conflicting identities or support. Read coherent evidence from one generation; derived
+balances/remainders/indexes do not become additional canonical authority. Actual persistence
+needs format/admission/identity/retry/conflict/uncertain-result/durability/restore contracts,
+backend/dependency-cost review and fault evidence before adoption. Meaning, data grouping,
+module grouping and physical storage layout remain separate decisions.
+
+Near-term sequence: a supported Linux host and Solo5 target -> actual static engine build/
+boot with synthetic exact/refusal controls -> bounded Irmin backend evaluation and qualified
+publication/recovery -> usable client. Semantic/read compatibility with live LOAM owners
+continues alongside runtime qualification; do not first recreate every Lean module or old
+file/write path. Hosted macosx success alone satisfies none of the freestanding/storage
+obligations. No VM/global OS install, public network service, real-data access, migration,
+new main dependency or release/push follows implicitly from this direction.
+
 ## Invariant owners
 
 | Boundary | Responsibility |
@@ -212,5 +237,6 @@ approval. A one-shot MirageOS macosx hosted probe ran the unchanged engine throu
 Mirage-generated outer entry, with dependencies isolated in scratch. This qualifies neither
 standalone Solo5 build/boot nor freestanding GMP/Base C stubs or production Mirage support;
 see VERIFICATION's host feasibility section. No permanent adapter or main Lwt dependency.
-Future target/runtime selection remains separate from semantics/storage/publication.
+The standalone deployment goal is selected; exact target/runtime/backend qualification
+remains separate from semantics/storage/publication.
 No speculative load/navigation state, adapter, cache or framework belongs in the engine.
