@@ -1,5 +1,5 @@
-module D = Loam_domain
-module A = Loam_application
+module D = Bakhlo_domain
+module A = Bakhlo_application
 module P = A.Current_quantity_projection
 let id event = D.Identifier.Event.to_string event
 let quantity q = Z.to_string (D.Quantity.quanta q)

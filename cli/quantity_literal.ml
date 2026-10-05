@@ -10,5 +10,5 @@ let parse text =
   in
   if String.is_empty digits || not (String.for_all digits ~f:Char.is_digit)
   then None
-  else Some (Loam_domain.Quantity.of_quanta (Z.of_string text))
+  else Some (Bakhlo_domain.Quantity.of_quanta (Z.of_string text))
 ;;

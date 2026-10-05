@@ -2,5 +2,5 @@
     Domain/application values are independent of this module. No accounting
     validation, aggregate recomputation, I/O, or implicit time in formatting. *)
 
-val preview : Loam_application.Movement_check.preview -> string
-val refusal : Loam_domain.Movement.error list -> string
+val preview : Bakhlo_application.Movement_check.preview -> string
+val refusal : Bakhlo_domain.Movement.error list -> string
