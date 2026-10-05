@@ -1,12 +1,12 @@
 open Base
-module D = Loam_domain
-module S = Loam_application.Actual_source
-module H = Loam_application.Current_quantity_groups
-module P = Loam_application.Current_quantity_projection
-module V = Loam_application.Actual_validity
-module Q = Loam_application.Current_quantity_query
-module M = Loam_application.Event_merchants
-module R = Loam_application.Open_relations
+module D = Bakhlo_domain
+module S = Bakhlo_application.Actual_source
+module H = Bakhlo_application.Current_quantity_groups
+module P = Bakhlo_application.Current_quantity_projection
+module V = Bakhlo_application.Actual_validity
+module Q = Bakhlo_application.Current_quantity_query
+module M = Bakhlo_application.Event_merchants
+module R = Bakhlo_application.Open_relations
 
 type t =
   { source : S.command
@@ -61,7 +61,7 @@ let decode text =
   let ( let* ) result f = Result.bind result ~f in
   if not (String.is_suffix text ~suffix:"\n") then fail 1 "fixture must end with newline"
   else match String.split (String.drop_suffix text 1) ~on:'\n' with
-    | "LOAM-OCAML-ACTUAL-FIXTURE\t2" :: rows ->
+    | "BAKHLO-ACTUAL-FIXTURE\t2" :: rows ->
       let rec scan line block (draft : t) = function
         | [] -> fail line "missing END or unterminated block"
         | row :: rest ->
@@ -135,7 +135,7 @@ let decode text =
             scan (line + 1) Between { draft with source } rest
           | Between, [ "DESCRIPTION"; token; text ] ->
             let* event = identity line D.Identifier.Event.of_string token in
-            let fact : Loam_application.Event_descriptions.fact = { event; text } in
+            let fact : Bakhlo_application.Event_descriptions.fact = { event; text } in
             let source = { draft.source with descriptions = fact :: draft.source.descriptions } in
             scan (line + 1) Between { draft with source } rest
           | Between, [ "MERCHANT"; token; party ] ->
@@ -153,20 +153,20 @@ let decode text =
             let* root = identity line D.Identifier.Event.of_string token in
             let* measure = identity line D.Identifier.Measure.of_string measure in
             let* quantity = quantity line text in
-            let fact : Loam_application.Original_amounts.fact = { root; measure; quantity } in
+            let fact : Bakhlo_application.Original_amounts.fact = { root; measure; quantity } in
             let source = { draft.source with original_amounts = fact :: draft.source.original_amounts } in
             scan (line + 1) Between { draft with source } rest
           | Between, [ "EXCHANGE"; token; source; destination ] ->
             let* event = identity line D.Identifier.Event.of_string token in
             let* source = identity line D.Identifier.Effect_key.of_string source in
             let* destination = identity line D.Identifier.Effect_key.of_string destination in
-            let fact : Loam_application.Exchange_evidence.fact = { event; source; destination } in
+            let fact : Bakhlo_application.Exchange_evidence.fact = { event; source; destination } in
             let source = { draft.source with exchanges = fact :: draft.source.exchanges } in
             scan (line + 1) Between { draft with source } rest
           | Between, [ "REVERSAL"; target; reversal ] ->
             let* target = identity line D.Identifier.Event.of_string target in
             let* reversal = identity line D.Identifier.Event.of_string reversal in
-            let fact : Loam_application.Actual_reversals.fact = { target; reversal } in
+            let fact : Bakhlo_application.Actual_reversals.fact = { target; reversal } in
             let source = { draft.source with reversals = fact :: draft.source.reversals } in
             scan (line + 1) Between { draft with source } rest
           | Between, "RELATION" :: token :: event :: key :: fields ->
@@ -186,7 +186,7 @@ let decode text =
             let* event = identity line D.Identifier.Event.of_string event in
             let* target = identity line D.Identifier.Relation.of_string target in
             let* quantity = quantity line text in
-            let fact : Loam_application.Relation_discharges.fact = { event; target; quantity } in
+            let fact : Bakhlo_application.Relation_discharges.fact = { event; target; quantity } in
             let source = { draft.source with discharges = fact :: draft.source.discharges } in
             scan (line + 1) Between { draft with source } rest
           | Between, [ "ZERO-ORIGIN"; locus; measure ] ->
@@ -243,5 +243,5 @@ let decode text =
         ; presence = None
         }
         rows
-    | _ -> fail 1 "expected LOAM-OCAML-ACTUAL-FIXTURE version 2 (not household data)"
+    | _ -> fail 1 "expected BAKHLO-ACTUAL-FIXTURE version 2 (not household data)"
 ;;
