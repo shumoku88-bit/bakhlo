@@ -18,6 +18,9 @@ No household writes, migration, production storage, durable Saved or full-househ
   unknown amount, or typed unavailable/refusal. Terminal text is not the shared API.
 - A [narrow quantity answer](application/current_quantity_answer.mli) and Japanese `--summary`:
   exact/presence/unknown without raw history or input diagnostics. Not auth or a sandbox.
+- [Pure ordinary Movement proposals](text/propose.mli) for the experimental text profile:
+  add/correct explicit supplied facts, retain every base byte, whole-admit the candidate.
+  Not recording permission, a full-world encoder or an adopted storage format.
 - Read-only CLI entrances and two scoped pure readers:
   - [`bakhlo.text`](text/read.mli): experimental ordinary-Actual text profile.
   - [`bakhlo.loam_read`](loam_read/read.mli): supplied LOAM HouseholdImage v2, representable

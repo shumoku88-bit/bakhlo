@@ -25,6 +25,36 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Active bounded task — synthetic record/save/reopen/correction consumer
+
+Question: can one explicit ordinary Movement proposal retain the admitted base evidence,
+be selected in a fresh synthetic Unix text trial, reopen and correct without lost history,
+stale-base publication, invented support or a false Saved receipt?
+D: clean 2331eeb/main 50; text reader/projection exist; no main writer/encoder/store.
+P: 170 expect/four cram, whole source/support and correction/cut gates, retained SQLite/Irmin
+receipt/replay/interruption evidence and directory-sync counterexamples.
+R: faithful NEW-row encoding/base-byte preservation, admission before effects, selected-vs-
+prepared receipt distinction, expected generation/base binding, partial publication and reopen.
+Owners: pure `text/Propose` supplies explicit ID/date/effects/optional description and an opaque
+whole-admitted candidate; an ignored native Unix consumer owns file/lease/sync/publication.
+Reuse the existing read grammar/Movement/source gates, not a whole-world codec or business bus.
+Trial-only layout: immutable human-readable complete generations, parent/request association,
+explicit provision and one selected head. Atomic selection is not household correction or Saved.
+Instruments: a few native expect/type connections, then one named native trial consumer with
+fresh synthetic stores, cold process read/replay/refusal and targeted publication checkpoints/
+SIGKILL controls. No Python/generated payload, parallel framework/model/random campaign, new
+package, VM/Lean/sibling build or operational data. Historical SQLite source has old Loam
+namespaces; consult its contracts only, do not rebuild/copy the stale engine/switch.
+Assumptions: cooperative exclusive namespace ownership, retained immutable generations and
+existing parent path; qualify actual returned sync/cleanup failures, never infer power-loss
+Saved from fsync/rename/reopen. Revisit before physical layout/format/store adoption, permission,
+concurrency expansion, recovery/cleanup/backup or a durable acknowledgement. Main dependency/
+UI/canonical-storage adoption remains absent; record bytes and trial layout stay experimental.
+Pure proposal step completed: `text/Propose` add/correct, byte-retaining opaque candidates,
+three focused expect connections and public type boundaries. Main macOS check (173 expect/
+four cram), forced package tests, release @install, pinned formatting and whitespace pass;
+main installed set remains 50. Next within this task: consume it in the ignored Unix trial.
+
 ## Completed bounded task — friendly quantity answers without raw provenance
 
 Question: can the existing admitted quantity outcome answer “how much at this coordinate?”

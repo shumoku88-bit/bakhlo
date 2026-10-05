@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Experimental Movement proposals](#experimental-ordinary-movement-proposals): new-row
+  encoding/base preservation and whole-candidate refusal; not recording or storage adoption.
 - [Friendly projected quantity answers](#friendly-projected-quantity-answers): typed narrowing,
   no raw provenance/input diagnostics in summary, not an auth/sandbox qualification.
 - [Quantity explanations](#terminal-quantity-evidence-explanation) and
@@ -266,6 +268,31 @@ Python, generated OCaml payload/runners and compiled probe/control artifacts wer
 private inputs/results retained. Above records historical execution, not a replayable reader.
 Existing OCaml source/tests/lock unchanged; no replacement harness or new suite run. Next needed
 read path is native OCaml, not a translation of this retired pipeline.
+
+## Experimental ordinary Movement proposals
+
+Bounded question/D/P/R/owners recorded before code in HANDOFF at 2331eeb. Pure `text/Propose`
+consumes existing reader/Movement/source gates; no Core/Application/CLI/filesystem change,
+new dependency/model/campaign or whole-world codec. Only new explicit Movement/description/
+correction rows are encoded into the already admitted ordinary profile; base bytes remain
+unchanged around the insertion. A proposal is not publication permission or a selected snapshot.
+
+Three focused existing native expect connections qualify: all 256 bytes together in ID/key/
+Locus/Measure/description and signed 180-bit quantities, original ordered Effect multiplicity,
+base lexemes/indentation/trailing whitespace and all four support families; correction keeps
+old/new observations/edge/text and independent reflected cut (90 -> 80), chooses explicit edge
+rather than later occurrence date and invents no support; staged unsupported-base/duplicate-key/
+empty/zero/unbalanced/mixed-Measure/date/duplicate-ID/missing-or-superseded-target/opening refusals.
+Explicit empty versus absent description stays distinct. Existing public type clients compile
+without runtime/CLI/Presentation, reject forged candidate and read-image substitution. Unsafe
+OCaml escape hatches are outside that check. The fixed-profile end locator depends on the
+reader's earned complete framing, not a second parser or arbitrary text patch capability.
+Initial compile errors (OCaml 5 `effect` keyword, fixture parentheses and misnamed accessors)
+were corrected without suppressing warnings or weakening admission. Unix publication/lifecycle
+qualification remains a separate ignored synthetic consumer; no durable Saved/full household/
+operational recording/format adoption follows from these pure controls. Main macOS
+`tools/check` (173 expect/four cram), forced package tests, release @install, pinned format and
+whitespace review pass; installed set stays 50, no manifest/lock or inward dependency change.
 
 ## Experimental versioned-text read (ordinary Actual profile)
 

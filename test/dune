@@ -33,6 +33,7 @@
   ../text/.bakhlo_text.objs/byte/bakhlo_text__.cmi
   ../text/.bakhlo_text.objs/byte/bakhlo_text__Input.cmi
   ../text/.bakhlo_text.objs/byte/bakhlo_text__Read.cmi
+  ../text/.bakhlo_text.objs/byte/bakhlo_text__Propose.cmi
   %{bin:bakhlo}
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Identifier.cmi

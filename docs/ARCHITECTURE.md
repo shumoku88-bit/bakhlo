@@ -386,6 +386,27 @@ The [synthetic example](../examples/ordinary-quantity.bakhlo) is directly inspec
 or original runtime. That does not establish durable
 canonical publication, extraction/backup/upgrade, lossless encoder or production adoption.
 
+## Experimental ordinary Movement proposal
+
+`bakhlo.text` / [Propose](../text/propose.mli) is a pure, consumed proposal builder for the
+EXISTING experimental ordinary profile, not canonical encoding or a publication service.
+Explicit supplied ID/date/effects/optional description, no allocation/clock/inferred support.
+Base whole-read -> Event keys -> practical Movement -> candidate whole-read. Add/correct only
+encodes NEW rows, inserting before the admitted profile's final top-level `end`; every base
+byte/lexeme and independent support declaration stays retained. The private locator depends
+on this fixed profile's end/whitespace grammar, not a generic text edit/parser. Revisit together
+with any grammar expansion. New byte fields use the existing escape language; no normalization.
+Correction adds a fresh Event/edge without deleting old facts or inheriting date/description;
+source closure/terminal checks and WHOLE support still gate the result. An invalidated opening
+refuses, never retargets/drops itself. No support editing or richer-family filter/codec.
+
+Opaque candidate exposes base bytes, complete new bytes and the existing admitted image to its
+trusted producer, NOT a client projection, generation token, authorization or saved receipt.
+The named synthetic Unix trial will consume it outside the ordinary workspace; publisher owns
+coherent expected-generation/base binding, current evidence requalification and lifecycle.
+Domain/Application, read-only CLI and dependency direction remain unchanged. No filesystem/
+Unix/Mirage/backend types or effects enter this adapter or the Core.
+
 ## Scoped native LOAM-input read
 
 The pure `bakhlo.loam_read` / `Bakhlo_loam_read.Read.of_string` now decodes a supplied

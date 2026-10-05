@@ -872,3 +872,28 @@ An opening still requires an Event identity, not a Locus.
   $ application_client frontier_is_not_current_source.ml 2>error
   [2]
   $ grep -q 'Correction_frontier.t' error && grep -q 'Actual_source.t' error
+
+Experimental text proposals are usable without CLI/Presentation/runtime CMIs.
+A candidate cannot be forged from arbitrary bytes or replaced with a read image.
+
+  $ cat >text_proposal.ml <<'EOF'
+  > module P = Bakhlo_text.Propose
+  > let propose base id valid_on effects =
+  >   P.append_movement ~base { id; valid_on; effects; description = None }
+  > let inspect candidate = P.base_bytes candidate, P.bytes candidate, P.image candidate
+  > EOF
+  $ application_client -I ../text/.bakhlo_text.objs/byte text_proposal.ml
+  $ cat >forged_candidate.ml <<'EOF'
+  > module P = Bakhlo_text.Propose
+  > let forge base_bytes bytes image : P.candidate = { base_bytes; bytes; image }
+  > EOF
+  $ application_client -I ../text/.bakhlo_text.objs/byte forged_candidate.ml 2>error
+  [2]
+  $ grep -q 'Unbound record field.*base_bytes' error
+  $ cat >image_is_not_candidate.ml <<'EOF'
+  > module P = Bakhlo_text.Propose
+  > let wrong (image : Bakhlo_application.Current_quantity_query.t) = P.bytes image
+  > EOF
+  $ application_client -I ../text/.bakhlo_text.objs/byte image_is_not_candidate.ml 2>error
+  [2]
+  $ grep -q 'Current_quantity_query.t' error && grep -q 'P.candidate' error

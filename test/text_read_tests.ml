@@ -874,3 +874,224 @@ let%expect_test
     "missing" / "jpy": この入力では数量を確定できません。0としては扱いません。
     確認の手がかり: 数量の根拠と、反映済みの記録の範囲を確認してください。
     |}]
+
+let%expect_test "Movement proposal encodes new byte-exact fields without re-encoding base evidence"
+    =
+  let module P = Bakhlo_text.Propose in
+  let all_bytes = String.init 256 ~f:Char.of_int_exn in
+  let coordinate = F.coordinate ~unit:all_bytes all_bytes in
+  let other = F.coordinate ~unit:all_bytes " other " in
+  let huge = Z.add (Z.shift_left Z.one 180) Z.one in
+  let key = F.identifier D.Identifier.Effect_key.of_string all_bytes in
+  let effects =
+    [
+      D.Effect.create ~key:(Some key) ~locus:coordinate.locus ~measure:coordinate.measure
+        ~quantity:(D.Quantity.of_quanta (Z.neg huge));
+      F.change other Z.one;
+      F.change other (Z.pred huge);
+    ]
+  in
+  let prefix =
+    "\n  bakhlo-read 1 ordinary-actual-quantity\t\n"
+    ^ String.concat ~sep:"\n"
+        [
+          "event \"old\" \"2026-10-03\"";
+          "end-event";
+          "describe \"old\" \"end\"";
+          "origin " ^ quoted_bytes all_bytes ^ " " ^ quoted_bytes all_bytes;
+          "origin \"quiet\" \"jpy\"";
+          "event \"u\" \"2026-10-03\"";
+          "effect anonymous \"wallet\" \"usd\" +0007";
+          "effect anonymous \"offset\" \"usd\" -0007";
+          "end-event";
+          "opening \"wallet\" \"usd\" \"u\"";
+          "group";
+          "reflect \"old\"";
+          "assert \"wallet\" \"jpy\" +00100";
+          "end-group";
+          "presence";
+          "present \"pantry\" \"jpy\"";
+          "end-presence";
+        ]
+    ^ "\n  "
+  in
+  let closing = "end\t\n\n \t\n" in
+  let base = prefix ^ closing in
+  let candidate =
+    ok
+      (P.append_movement ~base
+         { id = F.id all_bytes; valid_on = "1900-01-01"; effects; description = Some all_bytes })
+  in
+  F.require
+    (String.equal (P.base_bytes candidate) base
+    && String.is_prefix (P.bytes candidate) ~prefix
+    && String.is_suffix (P.bytes candidate) ~suffix:closing)
+    "all original bytes, lexemes, indentation and final blank lines retained";
+  let decoded = ok (I.decode (P.bytes candidate)) in
+  let event = List.last_exn decoded.source.events in
+  F.require
+    (String.equal (event_token event) all_bytes
+    && List.equal F.equal_effect (D.Event.effects event) effects
+    && Option.equal String.equal (describe (P.image candidate) all_bytes) (Some all_bytes))
+    "new identity/key/role/description bytes and ordered multiplicity";
+  F.require (Z.equal (value (P.image candidate) coordinate) (Z.neg huge)) "signed unbounded quanta";
+  F.require
+    (Z.equal (value (P.image candidate) (F.coordinate "wallet")) (Z.of_int 100)
+    && Z.equal (value (P.image candidate) (F.coordinate ~unit:"usd" "wallet")) (Z.of_int 7)
+    && Z.equal (value (P.image candidate) (F.coordinate "quiet")) Z.zero)
+    "original independent support families remain unchanged";
+  (match Q.query (P.image candidate) (F.coordinate "pantry") with
+  | Ok (Known_present _) -> ()
+  | Ok (Exact _) | Error (Support_unknown _) -> failwith "presence changed");
+  Stdlib.print_endline
+    "Only new rows encoded; all-byte fields/180-bit quanta/multiplicity and every base byte \
+     retained; four support families intact.";
+  [%expect
+    {| Only new rows encoded; all-byte fields/180-bit quanta/multiplicity and every base byte retained; four support families intact. |}]
+
+let%expect_test
+    "Movement correction retains old facts and cuts, not date or description inheritance" =
+  let module P = Bakhlo_text.Propose in
+  let effects n =
+    [
+      F.change (F.coordinate "wallet") (Z.neg (Z.of_int n));
+      F.change (F.coordinate "food") (Z.of_int n);
+    ]
+  in
+  let base =
+    document
+      [
+        "event \"old\" \"2026-10-03\"";
+        "effect anonymous \"wallet\" \"jpy\" -5";
+        "effect anonymous \"food\" \"jpy\" 5";
+        "end-event";
+        "origin \"food\" \"jpy\"";
+        "group";
+        "reflect \"old\"";
+        "assert \"wallet\" \"jpy\" 100";
+        "end-group";
+      ]
+  in
+  let first =
+    ok
+      (P.append_movement ~base
+         {
+           id = F.id "n";
+           valid_on = "2026-10-03";
+           effects = effects 10;
+           description = Some "first";
+         })
+  in
+  let corrected =
+    ok
+      (P.correct_movement ~base:(P.bytes first) ~target:(F.id "n")
+         { id = F.id "c"; valid_on = "1900-01-01"; effects = effects 20; description = None })
+  in
+  let image = P.image corrected in
+  F.require
+    (Z.equal (value (P.image first) (F.coordinate "wallet")) (Z.of_int 90)
+    && Z.equal (value image (F.coordinate "wallet")) (Z.of_int 80)
+    && Z.equal (value image (F.coordinate "food")) (Z.of_int 25))
+    "unreflected replacement and independent reflected cut";
+  let frontier = A.Actual_source.frontier (Q.source image) in
+  F.require
+    (List.equal String.equal
+       (ids (D.Event_memory.events (A.Correction_frontier.retained_events frontier)))
+       [ "old"; "n"; "c" ]
+    && List.equal F.equal_edge (A.Correction_frontier.corrections frontier) [ F.edge "n" "c" ]
+    && Option.equal String.equal (describe image "n") (Some "first")
+    && Option.is_none (describe image "c"))
+    "old observations/description retained; new description not inherited";
+  F.require
+    (List.equal String.equal (ids (A.Correction_frontier.frontier_events frontier)) [ "old"; "c" ])
+    "explicit edge, not later occurrence date, selects replacement";
+  (match Q.query image (F.coordinate "unsupported") with
+  | Error (Support_unknown _) -> ()
+  | Ok (Exact _ | Known_present _) -> failwith "recording invented support");
+  Stdlib.print_endline
+    "90 -> 80; retained old/new Events and edge; reflected cut unchanged; unknown remains unknown.";
+  [%expect
+    {| 90 -> 80; retained old/new Events and edge; reflected cut unchanged; unknown remains unknown. |}]
+
+let%expect_test
+    "proposal refusals preserve base, structural, Movement and complete-candidate stages" =
+  let module P = Bakhlo_text.Propose in
+  let command : P.command =
+    {
+      id = F.id "new";
+      valid_on = "2026-10-03";
+      effects = [ F.change (F.coordinate "w") Z.one; F.change (F.coordinate "other") Z.minus_one ];
+      description = Some "";
+    }
+  in
+  (match
+     P.append_movement ~base:(document [ "merchant \"e\" \"p\"" ]) { command with effects = [] }
+   with
+  | Error (Base (Input (Unsupported_record _))) -> ()
+  | _ -> failwith "unsupported base erased or hidden by command error");
+  (match P.append_movement ~base:(document []) { command with effects = [] } with
+  | Error (Movement [ Empty ]) -> ()
+  | _ -> failwith "empty ordinary Movement admitted");
+  let duplicate = F.identifier D.Identifier.Effect_key.of_string "k" in
+  let keyed q =
+    D.Effect.create ~key:(Some duplicate) ~locus:(F.coordinate "w").locus
+      ~measure:(F.coordinate "w").measure ~quantity:(D.Quantity.of_quanta q)
+  in
+  (match
+     P.append_movement ~base:(document [])
+       { command with effects = [ keyed Z.one; keyed Z.minus_one ] }
+   with
+  | Error (Event (Duplicate_effect_key _)) -> ()
+  | _ -> failwith "structural key gate bypassed");
+  List.iter
+    [
+      [ F.change (F.coordinate "w") Z.zero ];
+      [ F.change (F.coordinate "w") Z.one ];
+      [ F.change (F.coordinate "w") Z.one; F.change (F.coordinate ~unit:"usd" "w") Z.minus_one ];
+    ]
+    ~f:(fun effects ->
+      match P.append_movement ~base:(document []) { command with effects } with
+      | Error (Movement _) -> ()
+      | _ -> failwith "ordinary shape gate bypassed");
+  (match P.append_movement ~base:(document []) { command with valid_on = "bad date" } with
+  | Error (Candidate (Source (Validity (Invalid_date _)))) -> ()
+  | _ -> failwith "date defaulted or ignored");
+  let opening =
+    document
+      [
+        "event \"e\" \"2026-10-03\"";
+        "effect anonymous \"w\" \"jpy\" 1";
+        "effect anonymous \"other\" \"jpy\" -1";
+        "end-event";
+        "opening \"w\" \"jpy\" \"e\"";
+      ]
+  in
+  (match P.correct_movement ~base:opening ~target:(F.id "e") command with
+  | Error (Candidate (Support (Opening_event_not_current _))) -> ()
+  | _ -> failwith "opening was silently retargeted or discarded");
+  (match P.correct_movement ~base:(document base_event) ~target:(F.id "missing") command with
+  | Error (Candidate (Source (Corrections (Unresolved_correction _)))) -> ()
+  | _ -> failwith "missing correction target repaired");
+  let first = ok (P.append_movement ~base:(document []) command) in
+  (match P.append_movement ~base:(P.bytes first) command with
+  | Error (Candidate (Source (Events (Duplicate_id _)))) -> ()
+  | _ -> failwith "duplicate Event identity reused");
+  let corrected =
+    ok
+      (P.correct_movement ~base:(P.bytes first) ~target:command.id
+         { command with id = F.id "replacement" })
+  in
+  F.require
+    (Option.equal String.equal (describe (P.image first) "new") (Some ""))
+    "explicit empty description not absent";
+  (match
+     P.correct_movement ~base:(P.bytes corrected) ~target:command.id
+       { command with id = F.id "branch" }
+   with
+  | Error (Candidate (Source (Corrections _))) -> ()
+  | _ -> failwith "superseded target became a new branch");
+  Stdlib.print_endline
+    "Base/structural/Movement/candidate refusals; missing/duplicate/superseded targets; no opening \
+     repair or inferred support.";
+  [%expect
+    {| Base/structural/Movement/candidate refusals; missing/duplicate/superseded targets; no opening repair or inferred support. |}]
