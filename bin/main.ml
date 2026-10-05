@@ -12,19 +12,19 @@ let () =
     match arguments with
     | [ "--help" ] | [ "help" ] ->
       ({ exit_code = 0; stderr = ""; stdout =
-          "Usage: loam-ocaml COMMAND ...\n\
+          "Usage: bakhlo COMMAND ...\n\
            check-movement --effect LOCUS MEASURE QUANTA [--effect ...]\n\
            inspect-current-fixture FILE LOCUS MEASURE\n\
            Structural validation and read-only synthetic quantity queries.\n\
            Not household admission or authority; no writes.\n\
-           Use COMMAND --help for details.\n" } : Loam_cli.Response.t)
+           Use COMMAND --help for details.\n" } : Bakhlo_cli.Response.t)
     | "inspect-current-fixture" :: arguments ->
-      let module C = Loam_cli.Current_fixture_command in
+      let module C = Bakhlo_cli.Current_fixture_command in
       (match C.plan arguments with
        | Help -> C.help
        | Refused message -> C.syntax_refusal message
        | Read request -> C.evaluate request (read_fixture request.path))
-    | _ -> Loam_cli.Movement_command.render (Loam_cli.Movement_command.evaluate arguments)
+    | _ -> Bakhlo_cli.Movement_command.render (Bakhlo_cli.Movement_command.evaluate arguments)
   in
   Stdlib.output_string Stdlib.stdout output.stdout;
   Stdlib.output_string Stdlib.stderr output.stderr;

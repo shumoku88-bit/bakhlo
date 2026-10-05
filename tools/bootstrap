@@ -6,7 +6,7 @@ cd "$root"
 version=2.6.0
 compiler=5.3.0
 registry=ac27950e5eac6c981ad809dff370c937820b7893
-if [ ! -f loam_ocaml.opam.locked ]; then
+if [ ! -f bakhlo.opam.locked ]; then
     printf '%s\n' 'Dependency lock is missing; refusing an unlocked bootstrap.' >&2
     exit 1
 fi
