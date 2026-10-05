@@ -6,8 +6,12 @@ references. Documentation describes scope; it does not authorize every future fe
 
 ## Safety and authority
 
-- Synthetic inputs only. Never inspect/copy/change operational household data in
-  development. Existing LOAM remains sole authority; no dual writes or implicit cutover.
+- Ordinary development/tests use synthetic inputs only. User explicitly approved a
+  bounded read-only LOAM operational-data comparison; see HANDOFF's current task.
+  Originals must not be written, recovered, migrated or synchronized. Keep private
+  reads/copies/results in ignored scratch, never fixtures, commits or public output.
+  Minimize payload exposure; Git rollback is not privacy/backup qualification.
+  Existing LOAM remains sole authority; no dual writes or implicit cutover.
 - Do not modify/build the sibling Lean repository or copy upstream source without
   separately resolving authorization/licensing. Consult only narrow reference owners.
 - No new dependency, UI, canonical storage, migration, license/publication or push

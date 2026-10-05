@@ -60,8 +60,10 @@ not implemented health/recovery features; no audio/LLM/chat/Mirage-specific addi
 A [bounded versioned-text read](docs/ARCHITECTURE.md#experimental-versioned-text-read) now returns
 existing structured quantities, supplied premises/provenance or typed refusal, without CLI or
 storage types in its pure API. It is a synthetic profile, NOT an adopted canonical format.
-Next compare Unix publication/recovery and long-term synthetic cost before choosing physical
-store/index roles. Fixture v2 is only an oracle; no writer/index, AI/UI or Mirage feature.
+User now approved a private read-only LOAM comparison to ground the next household question,
+without making Bakhlo a LOAM layout clone. Select the actual read revision first; ordinary tests
+remain synthetic and originals are never written. Then compare Unix publication/recovery and
+long-term synthetic cost before choosing physical store/index roles. Fixture v2 is only an oracle; no writer/index, AI/UI or Mirage feature.
 [Handoff](docs/HANDOFF.md#next-bounded-implementation) owns next work; experimental runtime fixes
 are not immediate blockers.
 

@@ -65,9 +65,16 @@ The [experimental text read](#experimental-versioned-text-read) now exercises a 
 synthetic profile, using independently supplied fixture inputs only as an oracle. Next compare
 Unix text publication/reopen/recovery and synthetic long-term reconstruction/memory/history
 growth against retained storage evidence before choosing physical authority/index roles.
-[HANDOFF](HANDOFF.md#next-bounded-implementation) owns sequence. No production canonical
-codec/store, writer/index/benchmark or Mirage/UI feature, full parity prerequisite, operational
-data/migration, main-lock change or implicit Saved.
+[HANDOFF](HANDOFF.md#next-bounded-implementation) owns sequence. User approved a bounded private
+read-only LOAM comparison before publication work: establish the actual selected revision/input,
+then test one quantity/evidence question. Existing implementation/layout/answers are comparison
+evidence, not automatic design requirements or a full-parity oracle. Original operational
+facts stay under LOAM authority; ordinary tests remain synthetic and private payloads never enter
+fixtures/commits. HOBS1 is a derived comparison surface, not canonical Bakhlo evidence or write
+permission. Reader selection cannot silently prefer source HEAD over an operational pin, or
+vice versa; resolve that question explicitly before calling either view current household truth.
+No production canonical codec/store, writer/index/benchmark or Mirage/UI feature, full parity
+prerequisite, original mutation/migration, main-lock change or implicit Saved.
 
 ## Minimal Persistence contract
 

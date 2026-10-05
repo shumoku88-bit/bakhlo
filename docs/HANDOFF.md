@@ -12,6 +12,39 @@ near-term validation runtime; MirageOS support remains experimental, not an imme
 All SQLite/Irmin/Mirage trials and counterexamples retained. No authority/data migration,
 global install, public service, source-side rename reversal, dependency change or push.
 
+## Read-only preflight — operational revision selection required
+
+After 6466493, user explicitly permitted operational-data access and approved a read-only
+comparison before persistence implementation. This is a narrow exception to synthetic-only
+development, not permission to write/recover/normalize/migrate/synchronize original data.
+LOAM remains sole operational authority; Bakhlo design stays independent, not parity-first.
+Question/owners: which actual selected evidence supports one coordinate quantity, and which
+unrepresented facts prevent an honest Bakhlo answer? LOAM owns current selection/read contract;
+outer research probe owns acquisition/profile mapping; existing Bakhlo gates own conditional
+answers. D: clean 6466493/main 50; pure structured engine and experimental text profile.
+P: exact/source/correction/support oracles and whole-profile refusals. R: live selected format,
+coherent acquisition/reference coverage, supported evidence profile and named question.
+Instruments: narrow current LOAM read-contract/source inspection (no sibling build/source copy),
+metadata-only orientation, no-follow/read-only acquisition with before/after hashes and stability
+checks, ignored private probe/copies/results; synthetic controls before touching content.
+Never open databases writable/run an unreviewed LOAM entrypoint; recovery/startup may mutate.
+No raw identities/descriptions/amounts/data paths in committed evidence/fixtures or public logs.
+Keep originals unchanged and data/probe output private; no release/network/global dependency,
+new canonical codec, writer, full parity or authority claim. Stop on ambiguous selected authority,
+unsafe acquisition, changing source, unsupported version/reference/coverage or missing support;
+never filter to make existing gates pass. Git alone cannot undo disclosure/untracked effects.
+Revisit with exact read-side correspondence gaps; no predetermined model/layout copy.
+Metadata-only preflight completed: operational revision metadata and available source checkout
+have different root-selection contracts (legacy multi-file versus HouseholdImage). Both candidate
+authority files exist; associated layout completeness is not yet qualified. Do not silently
+select checkout HEAD, recorded pin or older files as current truth.
+Read-side source inspected at the two exact code revisions, no execution/build/source copy.
+Synthetic no-follow metadata controls and repeated metadata stability checks passed; private
+results in ignored scratch. Household fact payloads not opened/copied, no quantity calculated,
+no database/recovery entrypoint run. Need user to name the actual everyday runtime/revision or
+explicitly select a NON-operational comparison candidate. Do not edit the operational pin.
+This is a selection question, not evidence of corrupt data or failed quantity support.
+
 ## Completed read slice — explicit ordinary-Actual profile, structured answers
 
 Question/owners before code: can a small human-readable versioned text document yield exact
@@ -174,6 +207,11 @@ The bounded synthetic read is implemented; [Architecture](ARCHITECTURE.md#experi
 owns its limited profile/API, not a final format. Do not widen it to full Actual by filtering
 or promote fixture v2/experimental profile automatically into canonical storage.
 
+First resolve the read-only comparison's operational-revision question above. Then name one
+coordinate quantity/evidence question, acquire a qualified private read-only copy and report
+supported/unsupported correspondence without automatic full-parity or Core/layout copying.
+Retained publication/cost work below follows that usefulness check, not immediate writer work.
+
 1. Name the next bounded publication/lifecycle consumer and compare Unix text-authority
    publication/save -> close/reopen -> read/recovery against earned SQLite/Irmin controls. Define coherent generations, expected generation, request/
    receipts, admission BEFORE effectful activation, real ordering/completion and explicit
@@ -224,8 +262,10 @@ or newly qualified; handle their old paths only when a named future trial requir
 
 ## Safety/state
 
-Synthetic only. Existing Lean LOAM remains sole household authority; never inspect/copy
-operational data or modify/build/copy sibling source without separate permission/licensing.
+Ordinary tests/development remain synthetic; the current user-authorized read-only comparison
+is the sole private-data exception, bounded above. Existing Lean LOAM remains sole household
+authority. No original mutation/recovery or sibling modification/build/source copy without
+separate permission/licensing.
 Local commits allowed, no push/release/public issue/PR. Last verified remote main: 19e1842
 (PR #2 rename); later local qualification commits are not pushed. Never commit tools/environments/generated
 output/third-party trial source, disks, private logs or credentials. Use repository wrappers;

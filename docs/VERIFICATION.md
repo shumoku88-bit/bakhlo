@@ -35,6 +35,25 @@ Formal tools remain development-only. Ordinary build/test/release must be Lean-f
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
 
+## User-authorized LOAM read-only metadata preflight
+
+Pre-task question/owners/D/P/R and narrow permission exception recorded in HANDOFF/AGENTS.
+Narrow source-only inspection of current and metadata-pinned read contracts found different
+root-selection policies. Metadata shows competing authority files, not qualified complete
+layouts or the actual everyday runtime. Stopped BEFORE household fact content/copy/query; no chosen current
+world, new operational answer, corruption claim or unsupported-profile filtering.
+
+An ignored own Python probe uses no-follow directory/file descriptors, regular-file checks,
+strict revision syntax, before/after stat identity and repeated metadata-only observations.
+Synthetic valid/invalid revision, unchanged read and symlink refusals passed. Private operational
+metadata observation passed those stability checks; it does NOT establish atomic household
+snapshot acquisition, backup/durability or all-file unchanged-content hashes. No original write,
+entrypoint/recovery invocation, sibling build/modification/source copy or network operation.
+Only policy/docs changed; engine/manifests/lock/tools/tests unchanged, no fresh executable-suite
+claim. Public record omits private paths/hashes/identities/amounts; exact private observations
+remain ignored, not fixtures or public provenance. Next: user identifies everyday runtime/read
+revision, or names an explicitly non-operational candidate before a single quantity comparison.
+
 ## Experimental versioned-text read (ordinary Actual profile)
 
 Question/owners/D/P/R before code in HANDOFF. A pure outer `bakhlo.text` reader admits one
