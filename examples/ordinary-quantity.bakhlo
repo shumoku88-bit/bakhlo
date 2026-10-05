@@ -1,0 +1,40 @@
+bakhlo-read 1 ordinary-actual-quantity
+
+correct "purchase draft" "purchase corrected"
+describe "purchase draft" "Original supplied text: taxi\t900\nNot a payment-completion claim."
+describe "purchase corrected" ""
+
+event "purchase draft" "2026-10-03"
+  effect key "physical" "wallet" "jpy" -100
+  effect anonymous "food" "jpy" 100
+end-event
+event "purchase corrected" "1900-01-01"
+  effect key "physical" "wallet" "jpy" -150
+  effect anonymous "food" "jpy" 150
+end-event
+event "extra" "2026-10-02"
+  effect anonymous "wallet" "jpy" -10
+  effect anonymous "food" "jpy" 10
+end-event
+event "touched but net zero" "2026-10-01"
+  effect anonymous "stale" "jpy" 1
+  effect anonymous "stale" "jpy" -1
+end-event
+
+origin "food" "jpy"
+origin "quiet" "jpy"
+opening "wallet" "usd" "usd opening"
+event "usd opening" "2026-10-03"
+  effect anonymous "wallet" "usd" 7
+  effect anonymous "offset" "usd" -7
+end-event
+
+group
+  reflect "purchase draft"
+  assert "wallet" "jpy" 1000
+end-group
+presence
+  present "pantry" "jpy"
+  present "stale" "jpy"
+end-presence
+end

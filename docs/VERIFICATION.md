@@ -35,6 +35,59 @@ Formal tools remain development-only. Ordinary build/test/release must be Lean-f
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
 
+## Experimental versioned-text read (ordinary Actual profile)
+
+Question/owners/D/P/R before code in HANDOFF. A pure outer `bakhlo.text` reader admits one
+complete supplied byte string through existing source and four-support gates; no engine change,
+terminal API promotion, runtime/store dependency or canonical-format adoption. Contract/grammar
+owned by [Architecture](ARCHITECTURE.md#experimental-versioned-text-read) and `.mli` links there.
+Fixture inputs supplied independently for this bounded profile; no richer evidence filtering.
+
+Executed on qualified macOS x86_64 / OCaml 5.3.0 / Dune 3.24.2, unchanged exact 50 versions:
+- Six new expect tests connect 990/160/7/0, abstract presence/typed unknown, original retained
+  Events/keys/multiplicity/descriptions, explicit correction (older-dated replacement selected
+  ONLY through the correction), forward references and three independent group/presence cuts.
+  Independent fixture comparison and existing original-Effect Zarith oracle reused.
+- All 256 escaped singleton bytes plus a complete all-byte payload through Event/key/Locus/
+  Measure/description; literal UTF-8/space/nrt/quote/backslash, absent vs empty, no trimming,
+  exact signed 180-bit quanta and anonymous multiplicity. Byte preservation is not UTF-8 validation
+  or a production lossless encoder/round-trip certification.
+- Reused 847 byte/sign/short-literal shapes, 68 token successes against independent digit
+  arithmetic + explicit space/tab token boundaries. Different from the fixture's 42 field-byte
+  successes: whitespace separates tokens here, never trims quoted identities/text.
+- Version/profile, 13 unsupported record/comment shapes, 20 malformed frames/quotes/fields,
+  every proper byte prefix of one complete escaped document, trailing evidence and CRLF refuse.
+  Typed Input -> Source -> Support staging, duplicate Event/key, zero/unbalanced physical facts,
+  missing/bad validity, dangling/cyclic corrections, equal-zero overlap and empty-cut closure.
+  None/Some empty presence remain distinct; empty/unsupported lookup never becomes zero.
+- New cram: standalone public reader client WITHOUT CLI/Presentation CMIs, unadmitted-input
+  rejection and private lexer exclusion (three compiler specimens); Unix help/acquisition,
+  exact/presence/unknown/version/profile/whole-refusal streams/exits and unchanged-file controls.
+  Tests assume exclusive stable synthetic file ownership, not filesystem snapshot isolation.
+
+`./tools/check`, forced package tests, local `@install`, clean engine-only build (no Text/CLI/
+Presentation/bin targets) and ordinary check with nonexistent LEAN passed. Package and final
+exact logs each contain 157 inline execution markers; ten existing campaigns/100,000 generated
+cases and four cram suites retained/run. 84 prior compiler specimens + three new = 87. Main
+installed 50 selections equal the recovered baseline; manifests/lock/tools/compiler policy and
+Domain/Application unchanged. No operational data, SQLite/Irmin/VM/old trial mutation or new
+Linux/Mirage/proof/performance/storage replay. Prior platform evidence is historical, not a
+fresh qualification of the text adapter there.
+
+Corrected before final qualification: `effect` is reserved in OCaml 5.3 (helper renamed), one
+ambiguous doc-comment attachment, literal oracle initially assumed fixture field whitespace
+rather than this profile's token separators, and two cram diagnostic expectations (quoted
+module name / overlap wording). Public wrapper explicitly excludes the private lexer, not
+merely omission of its CMI from test dependencies. Failed runs were not promoted as evidence.
+Exact final logs/own scratch control remain in ignored `scratch/text_read_review`; initial RTK
+logs retained privately. No new model/theorem/campaign/benchmark framework for this consumer.
+
+Bounds: synthetic conditional ordinary-Actual profile only, not full household coverage,
+canonical codec/writer/store/identity/upgrade, atomic filesystem generation selection, durable
+Saved, diagnosis/partial-world service, parser resource/security/performance certification,
+AI/UI or spending permission. Revisit before broader evidence/encoding or physical publication;
+read success must not be promoted into recording or external factual truth.
+
 ## Backend-neutral reference direction (contract/tests planned)
 
 After a78b478 user explicitly selected Unix + SQLite as the practical reference TO BUILD,

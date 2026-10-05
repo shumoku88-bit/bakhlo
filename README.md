@@ -6,7 +6,8 @@ product for long-term local use, not a line-by-line Lean translation.
 
 **Development-only. Existing LOAM remains household authority.** No production persistence,
 household writes, migration, UI, public release or complete household admission is qualified.
-The locked ordinary suite passes on macOS x86_64 and isolated Ubuntu 24.04 x86_64.
+The locked engine baseline is qualified on macOS x86_64 and isolated Ubuntu 24.04 x86_64;
+the new text-read increment is checked on macOS only, not freshly replayed in Linux/Mirage.
 A bounded MirageOS/Solo5-SPT engine probe now boots with static GMP and unchanged engine
 source; it needs a trial-only Lwt build guard. This is not production target support.
 See [host feasibility evidence](docs/VERIFICATION.md#linux-native-replay-and-mirageossolo5-spt-engine-bounded-trial-guard-required).
@@ -56,11 +57,13 @@ Future Conversation/Voice/unikernel entrances must reuse structured application 
 not enter Core or turn terminal text into an API. Diagnostic availability and qualified
 partial reads are [design requirements](docs/ARCHITECTURE.md#structured-operations-and-diagnostic-availability),
 not implemented health/recovery features; no audio/LLM/chat/Mirage-specific addition now.
-Next: a small synthetic versioned-text read -> structured quantity+evidence/refusal;
-then compare Unix publication/recovery and long-term synthetic cost before adopting physical
-store/index roles. Fixture v2 is only an oracle. This clarification adds no codec/writer/index,
-benchmark or Mirage/UI feature. [Handoff](docs/HANDOFF.md#next-bounded-implementation) owns next work;
-Bonsai/secondary UI remain deferred, experimental runtime fixes are not immediate blockers.
+A [bounded versioned-text read](docs/ARCHITECTURE.md#experimental-versioned-text-read) now returns
+existing structured quantities, supplied premises/provenance or typed refusal, without CLI or
+storage types in its pure API. It is a synthetic profile, NOT an adopted canonical format.
+Next compare Unix publication/recovery and long-term synthetic cost before choosing physical
+store/index roles. Fixture v2 is only an oracle; no writer/index, AI/UI or Mirage feature.
+[Handoff](docs/HANDOFF.md#next-bounded-implementation) owns next work; experimental runtime fixes
+are not immediate blockers.
 
 ## Build and try
 
@@ -72,6 +75,8 @@ Bonsai/secondary UI remain deferred, experimental runtime fixes are not immediat
   --effect wallet jpy -1000 --effect food jpy 1000
 ./tools/opam exec -- dune exec bakhlo -- inspect-current-fixture \
   examples/current-preview.fixture wallet jpy
+./tools/opam exec -- dune exec bakhlo -- inspect-current-text \
+  examples/ordinary-quantity.bakhlo wallet jpy
 ```
 
 Movement checking is structural validation, **not recorded**. Fixture querying is
@@ -91,6 +96,11 @@ Only the explicit synthetic grammar is accepted; it is not an upstream adapter o
 chosen canonical storage format. Unsupported facts never disappear into a successful
 empty image. See [grammar](cli/current_fixture_input.mli) and
 [source/query interfaces](application/current_quantity_query.mli).
+
+The new text example also yields `1000 - 10 = 990`, retaining its original description text
+and explicit correction (dates do not pick winners). It supports ordinary Actual only and
+rejects richer metadata/families; [grammar](text/input.mli) and [pure read API](text/read.mli)
+state exact scope. Neither example is household authority or a recorded/Saved operation.
 
 ## Retained scope
 

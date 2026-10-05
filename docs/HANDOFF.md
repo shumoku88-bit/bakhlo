@@ -12,7 +12,39 @@ near-term validation runtime; MirageOS support remains experimental, not an imme
 All SQLite/Irmin/Mirage trials and counterexamples retained. No authority/data migration,
 global install, public service, source-side rename reversal, dependency change or push.
 
-## Latest clarification — step 1 only, no new implementation
+## Completed read slice — explicit ordinary-Actual profile, structured answers
+
+Question/owners before code: can a small human-readable versioned text document yield exact
+quantity+supplied premise/provenance or typed refusal without a DB, runtime, terminal protocol
+or invented household truth? Outer pure text reader owns lexical/profile/version errors;
+existing Application gates own ordinary Actual/corrections/support; shell owns file acquisition
+and rendering. D: 160af72/main 50, no canonical codec/store; existing query API already exposes
+structured Exact/Known_present/Support_unknown and retained source/cuts. P: strict source/query
+admission, independent quantity/touch/correction oracles and fixture tests. R: bounded grammar,
+lossless quoted bytes, refusal staging and observable evidence connection.
+Profile: ordinary Actual Events with explicit base dates, Event-local keys/anonymous Effects,
+Event corrections/descriptions and all four quantity support families. Other facts/families,
+validity revisions, Exchange/Reversal/relations etc are UNSUPPORTED here and must refuse, not
+be filtered into this profile. This is a synthetic read experiment, not full-world coverage or
+canonical household format/migration. Independently supply narrow oracle inputs; never project
+a richer fixture into a successful empty-metadata document.
+Instruments: public API/nearest parser/shell review; deterministic escaping/huge-quantity/
+profile/truncation/admission/provenance tests, existing fixture as independent connection
+oracle, typed public clients and ordinary package/engine-only/Lean-free checks as applicable.
+No new dependency, generic parser/effect/answer bus, writer/index/cache, performance campaign,
+SQLite/Mirage/UI/AI/voice/network implementation, VM/proof or operational data. Preserve Bakhlo
+names/main lock; revisit before broadening profile, encoding or effectful publication.
+Completed: pure `Bakhlo_text.Read.of_string` -> existing opaque query image, terminal-only
+`inspect-current-text`, directly inspectable synthetic example; no engine/source-gate change.
+Exact/presence/unknown and source/correction/description/cut connection passed, with whole-input
+refusals and standalone typed clients. Mac ordinary/forced package/install/clean engine-only/
+nonexistent-LEAN checks passed; main exact 50 unchanged. Linux/Mirage/VM/proofs not replayed.
+[Verification](VERIFICATION.md#experimental-versioned-text-read-ordinary-actual-profile) owns
+bounds and corrected harness failures. Profile is NOT canonical storage or a physical coherent-
+generation protocol; original authority/trials stay unchanged. Next: bounded publication contract
+and lifecycle comparison, not AI/UI or automatic profile widening.
+
+## Historical clarification — step 1 only, no implementation in that step
 
 Question/owners: can roadmap changes protect directly inspectable evidence and a meaningful
 MirageOS future without letting backend convenience own household meaning? ARCHITECTURE owns
@@ -138,24 +170,22 @@ step qualifies a production adapter/schema, durable acknowledgement or household
 
 ## Next bounded implementation
 
-1. After this step-1 clarification, name the smallest synthetic versioned-text read consumer:
-   read -> structured Quantity/Measure/coordinate plus supplied premise/provenance, or typed
-   unavailable/refusal. Inspect existing query APIs; add no universal answer/command bus or
-   invented support. Choose the bounded evidence profile/version and lossless encoding only
-   for that consumer; fixture v2 remains oracle, not automatic canonical grammar. No storage
-   write, real-data adapter, full-Actual claim or final production format in this read slice.
-2. Then compare Unix text-authority publication/save -> close/reopen -> read/recovery against
-   earned SQLite/Irmin controls. Define coherent generations, expected generation, request/
+The bounded synthetic read is implemented; [Architecture](ARCHITECTURE.md#experimental-versioned-text-read)
+owns its limited profile/API, not a final format. Do not widen it to full Actual by filtering
+or promote fixture v2/experimental profile automatically into canonical storage.
+
+1. Name the next bounded publication/lifecycle consumer and compare Unix text-authority
+   publication/save -> close/reopen -> read/recovery against earned SQLite/Irmin controls. Define coherent generations, expected generation, request/
    receipts, admission BEFORE effectful activation, real ordering/completion and explicit
    recovery. Text files/rename/Git commit are not automatically durable Saved. Qualify parent/
    namespace lifecycle, cleanup, replay/conflict/uncertainty and information-preserving restore;
    no silent older-world fallback, implicit repair or new filesystem by default.
-3. Measure bounded synthetic long-term cost (e.g. 10k/100k Events, explicit correction/group
+2. Measure bounded synthetic long-term cost (e.g. 10k/100k Events, explicit correction/group
    shapes): reconstruction/save/reopen CPU+wall time, memory and retained-history growth.
    Whole-history copying/rebuilding is not a settled production strategy. Use a small owned
    probe, not a permanent benchmark/cache framework or operational fixtures; optimize only
    measured seams while retaining admission/closure/support guarantees.
-4. Decide physical authority/index roles from sovereignty, durability, maintenance and measured
+3. Decide physical authority/index roles from sovereignty, durability, maintenance and measured
    cost. Canonical text + optional SQLite derived index is the first candidate, NOT a chosen
    layout or necessary dependency. Indexes identify qualified canonical generation/interpretation
    version, rebuild only from qualified evidence, never become a second authority. Review exact
@@ -163,15 +193,17 @@ step qualifies a production adapter/schema, durable acknowledgement or household
    its own durable storage/update/recovery gaps cannot weaken Saved or block Unix progress.
 
 No main store/dependency adoption, Mirage/UI/voice/LLM/auth/network feature or operational
-cutover in this clarification. Preserve main compiler/50 lock, Bakhlo names and all trials;
+cutover in the read slice. Preserve main compiler/50 lock, Bakhlo names and all trials;
 full parity is not required before a useful bounded read/record/recovery path.
 
 ## Earned state / outstanding limits
 
-Native macOS x86_64 and Ubuntu 24.04 x86_64 locked ordinary suite qualified. Domain/Application
-and current synthetic reader have unchanged executable implementations/signatures; SQLite
-consumer is ignored outer scratch only. Full normalized Actual, real recording,
-production representation/upgrade/retry/recovery/backup, Scheduled/reports/UI/API are absent.
+Engine baseline qualified on native macOS x86_64 and Ubuntu 24.04 x86_64. Latest increment
+checked on macOS only; no new Linux/Mirage replay. Domain/Application and fixture decoder
+implementations/signatures unchanged; new pure outer text read/profile and terminal consumer
+are qualified only within the named synthetic bounds. SQLite consumer stays ignored scratch.
+Full normalized Actual, real recording, production representation/upgrade/retry/recovery/backup,
+Scheduled/reports/UI/API are absent.
 Existing semantic evidence belongs to interfaces/VERIFICATION/REFERENCES, not a file-layout
 porting checklist; no whole-tree parity, handwritten refinement or external-truth guarantee.
 

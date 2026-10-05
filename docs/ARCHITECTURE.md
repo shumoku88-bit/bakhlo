@@ -7,8 +7,10 @@ bin/main -> CLI -> Presentation -> Application -> Domain
             |-------------------->|------------->|
 ```
 
-Clients also use Domain types; dependencies never point outward. Engine native targets
-build without Presentation/CLI or UI packages. Runtime dependencies are Base + Zarith.
+CLI also consumes the pure outer Text adapter, which depends inward on Application/Domain,
+never Presentation/CLI. Clients also use Domain types; dependencies never point outward.
+Engine native targets build without Text/Presentation/CLI or UI packages.
+Runtime dependencies are Base + Zarith.
 There is no canonical storage, clock, mutable business state or generic service framework.
 
 ## Selected product direction
@@ -59,12 +61,13 @@ Runtime and store are independent axes; no promise that every combination works 
 Solo5 remains unqualified). Do not delete trials/promote guards, or make experimental fixes
 prerequisites for ordinary progress. Minimal composition is not a security/always-on claim.
 
-Next: small synthetic versioned-text read -> structured quantity+evidence/refusal, using current
-fixture only as an oracle. Then compare Unix text publication/reopen/recovery and synthetic
-long-term reconstruction/memory/history growth against retained storage evidence before choosing
-physical authority/index roles. [HANDOFF](HANDOFF.md#next-bounded-implementation) owns sequence;
-no codec/writer/index/benchmark or Mirage/UI feature added by this direction clarification.
-No full parity prerequisite, operational data/migration, main-lock change or implicit Saved.
+The [experimental text read](#experimental-versioned-text-read) now exercises a bounded
+synthetic profile, using independently supplied fixture inputs only as an oracle. Next compare
+Unix text publication/reopen/recovery and synthetic long-term reconstruction/memory/history
+growth against retained storage evidence before choosing physical authority/index roles.
+[HANDOFF](HANDOFF.md#next-bounded-implementation) owns sequence. No production canonical
+codec/store, writer/index/benchmark or Mirage/UI feature, full parity prerequisite, operational
+data/migration, main-lock change or implicit Saved.
 
 ## Minimal Persistence contract
 
@@ -267,6 +270,32 @@ including cancelling activity. Raw stale premises survive; only current lookup l
 Overlap uses all declarations, not just still-current presence. Even an explicit empty
 presence premise qualifies its roots. Only the abstract Exact payload has a Quantity;
 known-present has its own abstract coordinate/evidence/cut payload, never arithmetic.
+
+## Experimental versioned-text read
+
+Concrete consumer: `bakhlo inspect-current-text` acquires a named synthetic document; pure
+outer `bakhlo.text` / `Bakhlo_text.Read.of_string` decodes and wholly admits it to the existing
+opaque `Current_quantity_query.t`. Text depends only on Application/Domain + Base/Zarith,
+not CLI/Presentation/filesystem/runtime. Domain/Application remain unchanged; no new command
+bus, answer/health schema or external dependency. CLI renders typed outcomes, not a shared API.
+Exact answers carry Quantity/coordinate/premise; source/frontier/group/presence accessors retain
+original Events, correction edges, descriptions and independent cuts. Presence has no scalar;
+missing/stale support is typed unavailable, not failed-load/default zero.
+
+[Input interface](../text/input.mli) owns the complete bounded grammar and escaping contract:
+`bakhlo-read 1 ordinary-actual-quantity`, quoted exact bytes, unbounded decimal tokens, explicit
+end/newline. Ordinary Actual + base validity + Event corrections/descriptions + four support
+families ONLY; other facts/families/versions/profiles refuse. This is not a full-household world,
+canonical storage/wire grammar, automatic richer-fixture projection, generation allocator or
+production parser security/performance qualification. Future profile broadening needs its own
+information-preserving review; no metadata may be filtered to make this profile accept it.
+[Read interface](../text/read.mli) owns Input -> Source -> Support refusal staging and conditional
+answer scope. Shell alone owns read-only file acquisition/errors; no write/activation/recovery,
+older-world fallback, Saved or spending permission. Tests assume one exclusive stable synthetic
+file owner; this is not a concurrent-filesystem/coherent-generation acquisition protocol.
+The [synthetic example](../examples/ordinary-quantity.bakhlo) is directly inspectable without a DB
+or original runtime. That does not establish durable
+canonical publication, extraction/backup/upgrade, lossless encoder or production adoption.
 
 ## Read boundary
 

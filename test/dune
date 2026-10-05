@@ -5,7 +5,7 @@
 (library
  (name bakhlo_tests)
  (package bakhlo)
- (libraries bakhlo_domain bakhlo_application bakhlo_presentation bakhlo_cli base zarith base_quickcheck)
+ (libraries bakhlo_domain bakhlo_application bakhlo_text bakhlo_presentation bakhlo_cli base zarith base_quickcheck)
  (inline_tests (flags -verbose))
  (preprocess (pps ppx_expect)))
 
@@ -14,6 +14,11 @@
  (deps
   ../dune
   ../examples/current-preview.fixture
+  ../examples/ordinary-quantity.bakhlo
+  ../text/.bakhlo_text.objs/byte/bakhlo_text.cmi
+  ../text/.bakhlo_text.objs/byte/bakhlo_text__.cmi
+  ../text/.bakhlo_text.objs/byte/bakhlo_text__Input.cmi
+  ../text/.bakhlo_text.objs/byte/bakhlo_text__Read.cmi
   %{bin:bakhlo}
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Identifier.cmi

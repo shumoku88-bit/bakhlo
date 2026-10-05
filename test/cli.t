@@ -1,9 +1,10 @@
-Global help describes the two concrete operations, not an imaginary UI.
+Global help describes concrete operations, not an imaginary UI.
 
   $ bakhlo --help
   Usage: bakhlo COMMAND ...
   check-movement --effect LOCUS MEASURE QUANTA [--effect ...]
   inspect-current-fixture FILE LOCUS MEASURE
+  inspect-current-text FILE LOCUS MEASURE
   Structural validation and read-only synthetic quantity queries.
   Not household admission or authority; no writes.
   Use COMMAND --help for details.
@@ -57,13 +58,13 @@ One admitted source: exact families, known zero, known nonzero/amount-unknown an
   Conditional current fixture quantity (Actual subset).
   exact assertion; "empty" / "jpy": asserted=0; delta=0; quantity=0
   $ bakhlo inspect-current-fixture current unsupported jpy
-  "unsupported" / "jpy": quantity unknown (no supported premise in supplied fixture).
+  "unsupported" / "jpy": quantity unknown (no supported premise in supplied evidence).
   [3]
   $ bakhlo inspect-current-fixture current pantry jpy
   "pantry" / "jpy": known nonzero (presence premise); exact quantity unknown.
   [4]
   $ bakhlo inspect-current-fixture current stale jpy
-  "stale" / "jpy": quantity unknown (no supported premise in supplied fixture).
+  "stale" / "jpy": quantity unknown (no supported premise in supplied evidence).
   [3]
   $ cmp current before
   $ bakhlo inspect-current-fixture --help

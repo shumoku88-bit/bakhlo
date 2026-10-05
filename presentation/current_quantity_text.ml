@@ -199,22 +199,24 @@ let source_refusal error =
          Printf.sprintf "original amount %d: Event %S is not a correction root" position (id root)) in
   "Actual source refused: " ^ detail ^ ".\n"
 
-let answer answer =
+let exact_row answer =
   let module Q = A.Current_quantity_query in
-  let row = match Q.premise answer with
+  match Q.premise answer with
     | Q.Zero_origin -> Printf.sprintf "%s: zero-origin; quantity=%s\n"
         (location (Q.coordinate answer)) (quantity (Q.quantity answer))
     | Q.Opening { coordinate; opening_event } -> Printf.sprintf "%s: opening Event %S; quantity=%s\n"
         (location coordinate) (id opening_event) (quantity (Q.quantity answer))
-    | Q.Current_assertion asserted -> "exact assertion; " ^ assertion_row asserted in
-  "Conditional current fixture quantity (Actual subset).\n" ^ row
+    | Q.Current_assertion asserted -> "exact assertion; " ^ assertion_row asserted
+
+let answer answer =
+  "Conditional current fixture quantity (Actual subset).\n" ^ exact_row answer
 
 let present answer =
   Printf.sprintf "%s: known nonzero (presence premise); exact quantity unknown.\n"
     (location (A.Current_quantity_query.present_coordinate answer))
 
 let unavailable (A.Current_quantity_query.Support_unknown { coordinate }) =
-  Printf.sprintf "%s: quantity unknown (no supported premise in supplied fixture).\n" (location coordinate)
+  Printf.sprintf "%s: quantity unknown (no supported premise in supplied evidence).\n" (location coordinate)
 
 let refusal error =
   let detail = match error with
@@ -242,4 +244,4 @@ let refusal error =
     | Assertion_overlaps_opening { opening = { coordinate; opening_event }; group_position; assertion_position } ->
       Printf.sprintf "opening Event %S overlaps exact assertion %s at (%d,%d)" (id opening_event)
         (location coordinate) group_position assertion_position in
-  "Current fixture refused: " ^ detail ^ ".\n"
+  "Current quantity evidence refused: " ^ detail ^ ".\n"
