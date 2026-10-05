@@ -1,5 +1,5 @@
 (executable
  (name main)
- (public_name loam-ocaml)
- (package loam_ocaml)
- (libraries loam_cli))
+ (public_name bakhlo)
+ (package bakhlo)
+ (libraries bakhlo_cli))
