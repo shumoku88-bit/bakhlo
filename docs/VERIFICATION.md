@@ -200,6 +200,27 @@ relevant semantic checkpoints. Engine builds must leave outer libraries unbuilt.
 checks pass with nonexistent LEAN. Lock/tooling/platform changes require separate replay;
 earlier fresh-switch equality is prior evidence, not a fresh replay for every code edit.
 
+### Main environment rebuilt after Bakhlo directory rename
+
+After PR #2/main 19e1842, compiled main environment retained old loam-ocaml absolute paths;
+new switch execution failed with exit 50. User authorized archive/recreate, not path rewriting.
+Old _opam/.opam-root/_build moved without deletion under ignored scratch/rename_recovery/
+bakhlo-env-v1; task/evidence recorded there. Existing checked manager reused; ./tools/bootstrap
+created a fresh root/switch at /Users/user/Projects/moko/bakhlo, fixed registry/OCaml 5.3.0 and
+EXACT same 50 package names/versions. Manifest/lock/wrappers/manager hashes unchanged; compiler
+stdlib/findlib/registered switch now use Bakhlo path. No source-side rename reverted.
+
+Normal check, forced package tests (-p bakhlo), @install, clean renamed engine-only (no outer
+compiled artifacts), final nonexistent-LEAN check and bakhlo CLI help/fixture quantity 990 passed.
+Exact package/final logs contain all 151 inline-test execution markers; existing campaigns/cram
+retained. Nested RTK/shell package outputs were incomplete (opam usage/empty log), NOT evidence;
+raw exact commands were rerun with checked exit statuses. Bootstrap's unresolved release metadata
+warnings remain, not fabricated authors/license. 58 synthetic SQLite file hashes and 12 VM file
+metadata entries unchanged; archived main environment kept. No OS/global config, source/schema/
+semantics, lock/compiler upgrade, optional proof, Linux/VM/outer-trial replay or operational data.
+Historical outer switches/VM launch paths were NOT rewritten/requalified by main recovery;
+review/recreate those only for a concrete later trial, preserving original storage evidence.
+
 ### Unix/SQLite synthetic persistence (bounded outer trial, no Saved qualification)
 
 Question/D/P/R/assumptions recorded before code/install at 930b3ac. Named consumer: supplied

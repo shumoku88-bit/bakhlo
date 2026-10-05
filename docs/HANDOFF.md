@@ -130,11 +130,20 @@ durable barrier still block experimental Saved. No permanent fork/backend adopti
 workloads/torn sectors/full disk/host power loss/live or off-device backup remain unqualified.
 Experiments stay private ignored scratch, not ordinary-build dependencies. VM STOPPED.
 
+## Main development environment after rename
+
+PR #2/main 19e1842 source-side Bakhlo names retained; local path is /Users/user/Projects/moko/bakhlo.
+Fresh main root/switch rebuilt with unchanged lock/compiler/50 versions; normal/package/install/
+engine-only/Lean-free checks passed. [Recovery evidence](VERIFICATION.md#main-environment-rebuilt-after-bakhlo-directory-rename)
+owns details. Old main environment archived at scratch/rename_recovery/bakhlo-env-v1, not deleted.
+Trial DB/VM evidence unchanged. Outer trial switches/VM launch paths are not implicitly repaired
+or newly qualified; handle their old paths only when a named future trial requires them.
+
 ## Safety/state
 
 Synthetic only. Existing Lean LOAM remains sole household authority; never inspect/copy
 operational data or modify/build/copy sibling source without separate permission/licensing.
-Local commits allowed, no push/release/public issue/PR. Last remote observation: private
-main 8974041 (2026-10-03), not current equality. Never commit tools/environments/generated
+Local commits allowed, no push/release/public issue/PR. Last verified remote main: 19e1842
+(PR #2 rename); later local qualification commits are not pushed. Never commit tools/environments/generated
 output/third-party trial source, disks, private logs or credentials. Use repository wrappers;
 no global host configuration or dependency install follows from this direction.
