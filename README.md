@@ -63,12 +63,14 @@ storage types in its pure API. It is a synthetic profile, NOT an adopted canonic
 User now approved a private read-only LOAM comparison to ground the next household question,
 without making Bakhlo a LOAM layout clone. User selected the latest `tools/loam tui` read contract;
 a private current-only comparison demonstrated one conditional quantity and supplied premise.
-Its Python/generated-test scaffolding is now removed; future needed read code is native OCaml,
-without additional tools/tests until a concrete need. This is not a runnable household adapter.
+Its Python/generated-test scaffolding is removed. A [scoped native reader](docs/ARCHITECTURE.md#scoped-native-loam-input-read)
+now returns retained input/provenance and the existing structured quantity image directly in
+OCaml; `inspect-loam-quantity FILE LOCUS MEASURE` consumes it. Unsupported evidence refuses.
+Additional tools/tests need a concrete risk; no whole-household authority or storage adoption.
 Logical write-request provenance stays at the outer boundary, not new Core ontology or Saved.
 Ordinary tests remain synthetic; originals are never written or repaired, no older-file fallback.
 Then compare Unix publication/recovery and long-term synthetic cost before choosing physical
-store/index roles. Fixture v2 is only an oracle; no permanent LOAM adapter, writer/index, AI/UI or Mirage feature.
+store/index roles. Fixture v2 is only an oracle; no full-parity adapter, writer/index, AI/UI or Mirage feature.
 [Handoff](docs/HANDOFF.md#next-bounded-implementation) owns next work; experimental runtime fixes
 are not immediate blockers.
 
@@ -84,6 +86,8 @@ are not immediate blockers.
   examples/current-preview.fixture wallet jpy
 ./tools/opam exec -- dune exec bakhlo -- inspect-current-text \
   examples/ordinary-quantity.bakhlo wallet jpy
+./tools/opam exec -- dune exec bakhlo -- inspect-loam-quantity \
+  examples/loam-quantity.loam-input wallet jpy
 ```
 
 Movement checking is structural validation, **not recorded**. Fixture querying is

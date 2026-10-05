@@ -1,0 +1,5 @@
+; A scoped, pure external-input reader, not Bakhlo canonical storage or a publisher.
+(library
+ (name bakhlo_loam_read)
+ (public_name bakhlo.loam_read)
+ (libraries bakhlo_application bakhlo_domain base zarith))

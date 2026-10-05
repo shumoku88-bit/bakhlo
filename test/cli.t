@@ -5,7 +5,8 @@ Global help describes concrete operations, not an imaginary UI.
   check-movement --effect LOCUS MEASURE QUANTA [--effect ...]
   inspect-current-fixture FILE LOCUS MEASURE
   inspect-current-text FILE LOCUS MEASURE
-  Structural validation and read-only synthetic quantity queries.
+  inspect-loam-quantity FILE LOCUS MEASURE
+  Structural validation and read-only conditional quantity queries.
   Not household admission or authority; no writes.
   Use COMMAND --help for details.
 

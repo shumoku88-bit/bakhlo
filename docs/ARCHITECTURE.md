@@ -75,13 +75,14 @@ permission. User selected the checkout-based `tools/loam tui` read contract, the
 requested latest interpretation while retaining responsibility for their own data cleanup.
 No implicit older-file fallback, original repair/migration or CI-pin change. The private
 current-only experiment demonstrated one conditional quantity/premise, not operational authority
-or full-household admission. Its Python/generated-test scaffolding is retired; implement the
-next needed read boundary directly in native OCaml, not a parallel harness. Its logical
+or full-household admission. Its Python/generated-test scaffolding is retired; the
+[scoped native reader](#scoped-native-loam-input-read) supplies the read boundary directly in
+OCaml, not a parallel harness. Its logical
 publication-request -> retained Event links were represented/qualified in the OUTER read
 profile, not new Core ontology, payment truth or Saved.
 All Actual rows/profile gates are handled before lookup; unsupported evidence still refuses,
-and opaque other-family sections stay retained but unadmitted. No permanent compatibility API
-follows automatically. [Verification](VERIFICATION.md#latest-loam-contract-private-conditional-quantity-experiment)
+and opaque other-family sections stay retained but unadmitted. The scoped read API is not
+an omnibus compatibility or stable external-protocol promise. [Verification](VERIFICATION.md#latest-loam-contract-private-conditional-quantity-experiment)
 owns limits; quantities agree with an original-list oracle, not a claimed LOAM runtime result.
 No production canonical codec/store, writer/index/benchmark or Mirage/UI feature, full parity
 prerequisite, original mutation/migration, main-lock change or implicit Saved.
@@ -314,13 +315,47 @@ The [synthetic example](../examples/ordinary-quantity.bakhlo) is directly inspec
 or original runtime. That does not establish durable
 canonical publication, extraction/backup/upgrade, lossless encoder or production adoption.
 
+## Scoped native LOAM-input read
+
+The pure `bakhlo.loam_read` / `Bakhlo_loam_read.Read.of_string` now decodes a supplied
+HouseholdImage v2 byte string directly into retained outer evidence plus the EXISTING opaque
+conditional quantity image. [Read interface](../loam_read/read.mli) owns staged errors/accessors;
+[Input](../loam_read/input.mli) is unadmitted, [Envelope](../loam_read/envelope.mli) is physical
+framing only. No Python, generated OCaml payload, second answer ontology or Core changes.
+Base/Zarith + native OCaml UTF-8 decoder only; no new package or filesystem/runtime dependency.
+
+Framing validates UTF-8 and counts Unicode scalars, never UTF-8 bytes or graphemes; raw original
+bytes and ordered opaque sections survive, including unknown, empty and absent distinctions.
+The read profile requires physically present Actual and all FOUR supported quantity-section
+frames; missing is profile-unavailable, not corruption or automatically empty support. Actual
+v1-v4 representable Events/keys/date history/corrections/descriptions/Merchant/original amounts/
+Exchange/Reversal/relations/discharges map directly to existing types. Settlement or unknown
+Actual records refuse wholesale. No row filtering, date winner or implicit support.
+Logical Movement publication-request -> retained Event origins stay qualified at this OUTER
+boundary (exact unique tokens/owners/closed references), including superseded Event identities;
+not payment truth, Core ontology, inherited correction metadata or durable Saved/retry protocol.
+
+Envelope/decode -> whole Actual -> origins -> whole support precedes lookup. Other household
+sections remain opaque and UNADMITTED; this is not full normalized LOAM/household qualification
+or Bakhlo canonical storage/encoder. `quantity_image` exposes existing typed Exact/presence/
+unknown outcomes, quantities/Measures/premises and retained source/cuts. The terminal-only
+`inspect-loam-quantity FILE LOCUS MEASURE` uses an explicit file, never discovers an operational
+root, consults a pin, falls back to previous/legacy files, repairs or writes. The directly
+inspectable [synthetic LOAM-input example](../examples/loam-quantity.loam-input) yields wallet/jpy 990
+with supplied assertion 1000 and unreflected delta -10; it is NOT an operational fixture.
+File acquisition
+uses the existing shell reader; it DOES NOT establish coherent live capture/no-follow/stability,
+external completeness, household authority or physical durability. Caller must supply one
+coherent evidence generation; native acquisition qualification remains separate. No new
+operational-data execution or fresh acquisition was needed to qualify this synthetic increment.
+
 ## Read boundary
 
 CLI pure parsing creates typed inputs. Quantity_literal shares only the signed-decimal
 lexical rule across the two existing commands; each retains its own diagnostics/admission.
 Event structural key admission occurs at END-EVENT;
 syntax and structural refusals stay distinct. Source/support admission precedes lookup/text.
-Only the shell reads a named synthetic file. Failure/malformed/unsupported input never
+Only the shell reads an explicit fixture/text or LOAM-input file. Failure/malformed/unsupported input never
 becomes an empty image. Domain remains general even when a practical source entrance is
 narrower. There is one current fixture grammar, not a legacy protocol/backend matrix.
 

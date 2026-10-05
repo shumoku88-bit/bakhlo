@@ -37,6 +37,35 @@ Formal tools remain development-only. Ordinary build/test/release must be Lean-f
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
 
+## Scoped native LOAM-input reader
+
+Question/owners/D/P/R recorded before code in HANDOFF. New pure `bakhlo.loam_read` decodes
+one supplied HouseholdImage v2 directly in OCaml; explicit-file `inspect-loam-quantity`
+consumes retained input/origins plus existing opaque quantity image. [Architecture](ARCHITECTURE.md#scoped-native-loam-input-read)
+owns scope and [interfaces](../loam_read/read.mli) refusal staging. Core, quantities, source/
+support gates, manifests/lock/tools/compiler policy unchanged; no external dependency, Python,
+generated OCaml data, new framework/oracle/model/campaign or operational payload fixture.
+
+Three focused existing-ppx_expect cases address new risks: explicit Unicode scalar lengths
+(two multibyte glyphs, combining scalar, four-byte scalar, NUL/opaque empty section), original
+bytes/section order; direct mapping of every representable Actual family and independently
+supplied origin/opening/assertion/presence/correction/date history; exact whitespace identities
+and superseded request origins; 990/160/7/0 and assertion delta -10 with earned original-Effect
+oracle connection, signed 180-bit quantity and v1 anchor lift. Typed read refusals for missing
+coverage, settlement, repeated request, broken source, support overlap, duplicate section,
+trailing/invalid UTF-8/truncated scalar extent and overflowing length precede lookup. Terminal
+exact/presence/unknown retain 0/4/3 and stream separation. Existing CLI help golden updated.
+
+Direct CLI file reads of the own synthetic LOAM-input example yielded wallet/jpy 990
+(asserted 1000/delta -10) and food/jpy zero-origin 10; help/scope visible, no operational input.
+Native library/CLI and `tools/check` passed on qualified macOS/OCaml 5.3.0: 160 expect cases
+(three added), retained campaigns and four cram suites. Dev and release `@install` passed;
+strict sequencing/fatal 8/9/11 preserved. Early test-only list/string producer mismatch,
+Base stdout deprecation and expect indentation corrected, no warning suppression. No ordinary
+OCaml dependency or Core change; no new Linux/Mirage/proof/storage/performance/private-data
+replay. File reader is existing shell I/O, NOT native coherent/live/no-follow acquisition;
+no household truth, full known-family qualification, migration/authority or durable Saved.
+
 ## User-authorized LOAM read-only metadata preflight
 
 Pre-task question/owners/D/P/R and narrow permission exception recorded in HANDOFF/AGENTS.

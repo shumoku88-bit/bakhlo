@@ -20,8 +20,26 @@ code/generated executables, not originals or existing Core tests. D: no tracked 
 P: earned native gates and historical comparison results; R: distinguish disposable code
 from retained private bytes/results. Completed scoped code/build-artifact deletion; private
 inputs/results preserved, existing native code/tests/lock unchanged. No new test/probe/runtime
-or test-suite replay. Next implement only the needed read path directly in OCaml, not port
-the retired harness.
+or test-suite replay in that cleanup. Subsequent needed read work below is native OCaml,
+not a port of the retired harness.
+
+## Completed scoped native read entrance
+
+Question/owner: decode one supplied current HouseholdImage into retained outer evidence plus
+existing conditional quantity image, without Python/code generation or Core ontology changes.
+D: fe5201d/main 50, selected upstream read owners unchanged; P: earned Actual/four-support gates;
+R: UTF-8 character lengths, faithful row mapping and outer request/Event closure. Pure scoped
+`bakhlo.loam_read` + explicit-file CLI consumer; no root discovery, fallback, recovery or writes.
+Use only a few existing OCaml expect checks for NEW framing/mapping/refusal risks, not another
+harness/model/campaign. All required profile sections/Actual rows qualify before any lookup;
+unsupported settlement/families refuse. Other sections retained opaque, not full-world admission.
+No dependency change, operational payload fixture, native filesystem capture, writer or UI.
+Completed: native `Read.of_string` with retained bytes/opaque sections/origins and existing typed
+query image, plus `inspect-loam-quantity FILE LOCUS MEASURE`. Core unchanged; three focused
+existing-framework expect checks for new risks, ordinary `tools/check` and @install passed.
+[Architecture](ARCHITECTURE.md#scoped-native-loam-input-read) owns scope/contracts. No original
+or private-payload read in this increment; shell file I/O is NOT qualified native stable capture.
+Revisit broader grammar/optional coverage only for a named consumer; no full parity requirement.
 
 ## Historical private read experiment — latest LOAM contract, no original mutation
 
@@ -204,12 +222,13 @@ owns its limited profile/API, not a final format. Do not widen it to full Actual
 or promote fixture v2/experimental profile automatically into canonical storage.
 
 The private latest-contract read-profile usefulness check passed for one conditional quantity.
-Next implement the smallest needed STRUCTURED read consumer directly in native OCaml with
-explicit scope/provenance, not another Python bridge or a native port of the test harness.
-Add a check/tool only for a concrete unresolved risk; no permanent omnibus LOAM compatibility
-layer or new Core ontology by habit. Keep latest-current selection and typed
-missing/unsupported/refusal; user owns operational cleanup and new data needs a fresh capture.
-Retained publication/cost work below follows the bounded read entrance, not immediate writer work.
+The scoped native STRUCTURED reader and explicit-file consumer are implemented. Next name a
+human quantity/evidence question and its acquisition owner; stable/coherent native acquisition
+must be earned before calling a live original read current. No Python/probe port, automatic
+root/fallback/recovery or permanent omnibus compatibility/Core ontology by habit. Add checks
+only for a concrete unresolved risk; preserve typed missing/unsupported/refusal. User owns
+operational cleanup and changed data needs fresh capture. Retained publication/cost work below
+follows that useful native read boundary, not immediate writer work.
 
 1. Name the next bounded publication/lifecycle consumer and compare Unix text-authority
    publication/save -> close/reopen -> read/recovery against earned SQLite/Irmin controls. Define coherent generations, expected generation, request/
