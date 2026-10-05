@@ -10,7 +10,7 @@ root IDs intact. No claim here that a graph edit preserves those assumptions.
 
 set_option autoImplicit false
 
-namespace LoamOcaml.RootCutSpec
+namespace Bakhlo.RootCutSpec
 
 variable {Root Terminal Updated : Type}
 
@@ -137,4 +137,4 @@ theorem reobservation_lookup_idempotent (old incoming : Coordinate → Option Pr
 #print axioms empty_cut
 #print axioms composition
 
-end LoamOcaml.RootCutSpec
+end Bakhlo.RootCutSpec
