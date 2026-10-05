@@ -1,10 +1,10 @@
 open Base
-module D = Loam_domain
-module R = Loam_application.Open_relations
-module P = Loam_application.Relation_discharges
-module S = Loam_application.Actual_source
-module C = Loam_application.Correction_frontier
-module Q = Loam_application.Current_quantity_query
+module D = Bakhlo_domain
+module R = Bakhlo_application.Open_relations
+module P = Bakhlo_application.Relation_discharges
+module S = Bakhlo_application.Actual_source
+module C = Bakhlo_application.Correction_frontier
+module Q = Bakhlo_application.Current_quantity_query
 module F = Fixtures
 module M = Discharge_model
 module RM = Relation_model

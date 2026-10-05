@@ -1,14 +1,14 @@
 open Base
-module D = Loam_domain
-module S = Loam_application.Actual_source
-module Q = Loam_application.Current_quantity_query
-module H = Loam_application.Current_quantity_groups
-module P = Loam_application.Current_quantity_projection
-module Frontier = Loam_application.Correction_frontier
-module V = Loam_application.Actual_validity
+module D = Bakhlo_domain
+module S = Bakhlo_application.Actual_source
+module Q = Bakhlo_application.Current_quantity_query
+module H = Bakhlo_application.Current_quantity_groups
+module P = Bakhlo_application.Current_quantity_projection
+module Frontier = Bakhlo_application.Correction_frontier
+module V = Bakhlo_application.Actual_validity
 module F = Fixtures
-module Input = Loam_cli.Current_fixture_input
-module C = Loam_cli.Current_fixture_command
+module Input = Bakhlo_cli.Current_fixture_input
+module C = Bakhlo_cli.Current_fixture_command
 let ok = function Ok value -> value | Error _ -> failwith "valid current fixture refused"
 let source_command events corrections : S.command =
   { events; corrections; descriptions = []; merchants = []; original_amounts = []; exchanges = []; reversals = []; relations = []; discharges = []; validity_corrections = [];
@@ -20,7 +20,7 @@ let exact image c = match ok (Q.query image c) with
 let get image c = D.Quantity.quanta (Q.quantity (exact image c))
 let opening coordinate token : Q.opening = { coordinate; opening_event = F.id token }
 let roots mask = List.filteri [ F.id "a"; F.id "x" ] ~f:(fun i _ -> if Int.equal i 0 then mask % 2 = 1 else mask / 2 = 1)
-let document version rows = String.concat ~sep:"\n" (Printf.sprintf "LOAM-OCAML-ACTUAL-FIXTURE\t%d" version :: rows @ [ "END"; "" ])
+let document version rows = String.concat ~sep:"\n" (Printf.sprintf "BAKHLO-ACTUAL-FIXTURE\t%d" version :: rows @ [ "END"; "" ])
 
 let%expect_test "two-coordinate support/cut table agrees with original-list and Zarith oracle" =
   let cs = [ F.coordinate "wallet"; F.coordinate ~unit:"usd" "wallet" ] in
@@ -300,7 +300,7 @@ let%expect_test "presence is independently observed; selected touches invalidate
   List.iter [ cut_image; cut_tail ] ~f:(fun image -> List.iter [ wallet; usd ] ~f:(fun c ->
     match Q.query image c with Ok (Known_present _) -> () | _ -> failwith "root cut leaked corrected lineage"));
   (match create (event "prefix" [] :: events) (F.edge "prefix" "a" :: edges) (Some reflected) with
-   | Error (Presence_cut (Loam_application.Reflected_root_cut.Not_root { id; position = 1 })) -> F.require (D.Identifier.Event.equal id (F.id "a")) "prefix invalidated declared root"
+   | Error (Presence_cut (Bakhlo_application.Reflected_root_cut.Not_root { id; position = 1 })) -> F.require (D.Identifier.Event.equal id (F.id "a")) "prefix invalidated declared root"
    | _ -> failwith "arbitrary source edit reused old cut");
   let permuted = ok (create (List.rev events) (List.rev edges) (Some { reflected with coordinates = List.rev reflected.coordinates })) in
   (match Q.query permuted wallet, Q.query empty wallet with Ok (Known_present _), Ok (Known_present _) -> () | _ -> failwith "order/prior image changed");
@@ -321,9 +321,9 @@ let%expect_test "presence cut/coordinate admission precedes separation including
   (match create [] [ opening c "missing" ] [] bad_presence with Error (Opening_event_not_current _) -> () | _ -> failwith "openings before presence");
   (match create [] [] [ { group with reflected_roots = [ F.id "missing" ] } ] bad_presence with Error (Groups _) -> () | _ -> failwith "groups before presence");
   (match create [] [] [] bad_presence with
-   | Error (Presence_cut (Loam_application.Reflected_root_cut.Unknown_event { position = 1; id = _ })) -> () | _ -> failwith "empty-coordinate invalid cut ignored");
+   | Error (Presence_cut (Bakhlo_application.Reflected_root_cut.Unknown_event { position = 1; id = _ })) -> () | _ -> failwith "empty-coordinate invalid cut ignored");
   (match create [] [] [] { evidence with reflected_roots = [ F.id "a"; F.id "a" ] } with
-   | Error (Presence_cut (Loam_application.Reflected_root_cut.Duplicate_root { first_position = 1; position = 2; id = _ })) -> () | _ -> failwith "duplicate presence root");
+   | Error (Presence_cut (Bakhlo_application.Reflected_root_cut.Duplicate_root { first_position = 1; position = 2; id = _ })) -> () | _ -> failwith "duplicate presence root");
   (match create [] [] [] { reflected_roots = [ F.id "b" ]; coordinates = [ c; c ] } with Error (Presence_cut _) -> () | _ -> failwith "cut before coordinate uniqueness");
   (match create [ c ] [] [] { evidence with coordinates = [ c; c ] } with
    | Error (Duplicate_presence_coordinate { first_position = 1; position = 2; coordinate }) -> F.require (F.same_coordinate c coordinate) "coordinate duplicate before overlap"
