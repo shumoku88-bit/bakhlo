@@ -3,8 +3,8 @@
 type t
 
 val empty : t
-val add_effects : t -> Loam_domain.Effect.t list -> t
+val add_effects : t -> Bakhlo_domain.Effect.t list -> t
 
 (** Mathematical zero for an absent coordinate. Consumers MUST establish their
     independent support gate before exposing this as a quantity answer. *)
-val at : t -> Loam_domain.Effect_coordinate.t -> Loam_domain.Quantity.t
+val at : t -> Bakhlo_domain.Effect_coordinate.t -> Bakhlo_domain.Quantity.t

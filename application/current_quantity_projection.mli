@@ -3,15 +3,15 @@
     admitted Actual, reflection truth, zero origin, history, or operational balances.
     Multi-group ownership/support-family routing is NOT provided by this module. *)
 type assertion =
-  { coordinate : Loam_domain.Effect_coordinate.t
-  ; quantity : Loam_domain.Quantity.t
+  { coordinate : Bakhlo_domain.Effect_coordinate.t
+  ; quantity : Bakhlo_domain.Quantity.t
   }
 
 type t
 
 type error =
   | Duplicate_coordinate of
-      { coordinate : Loam_domain.Effect_coordinate.t
+      { coordinate : Bakhlo_domain.Effect_coordinate.t
       ; first_position : int
       ; position : int
       }
@@ -32,16 +32,16 @@ val assertions : t -> assertion list
 
 type answer
 
-type unavailable = Assertion_unknown of { coordinate : Loam_domain.Effect_coordinate.t }
+type unavailable = Assertion_unknown of { coordinate : Bakhlo_domain.Effect_coordinate.t }
 
 (** Independent assertion gate and indexed answer lookup. Unsupported remains
     unknown regardless of activity/net-zero/empty/all-reflected source. Queries
     do not traverse evidence, revalidate, aggregate, format, mutate, or read time.
     To reuse premises with changed source, explicitly construct a new checked cut
     and model; caller still owns truth/compatibility and full Actual selection. *)
-val query : t -> Loam_domain.Effect_coordinate.t -> (answer, unavailable) result
+val query : t -> Bakhlo_domain.Effect_coordinate.t -> (answer, unavailable) result
 
-val coordinate : answer -> Loam_domain.Effect_coordinate.t
-val asserted_quantity : answer -> Loam_domain.Quantity.t
-val delta : answer -> Loam_domain.Quantity.t
-val quantity : answer -> Loam_domain.Quantity.t
+val coordinate : answer -> Bakhlo_domain.Effect_coordinate.t
+val asserted_quantity : answer -> Bakhlo_domain.Quantity.t
+val delta : answer -> Bakhlo_domain.Quantity.t
+val quantity : answer -> Bakhlo_domain.Quantity.t
