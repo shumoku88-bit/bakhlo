@@ -31,11 +31,14 @@ end
 module Effect_key = struct
   module Key = struct
     type t = string
+
     let compare = String.compare
     let sexp_of_t = String.sexp_of_t
   end
+
   include Key
   include Comparator.Make (Key)
+
   let of_string = nonempty
   let to_string value = value
   let equal = String.equal
@@ -44,11 +47,14 @@ end
 module Relation = struct
   module Key = struct
     type t = string
+
     let compare = String.compare
     let sexp_of_t = String.sexp_of_t
   end
+
   include Key
   include Comparator.Make (Key)
+
   let of_string = nonempty
   let to_string value = value
   let equal = String.equal
@@ -57,11 +63,14 @@ end
 module Validity_revision = struct
   module Key = struct
     type t = string
+
     let compare = String.compare
     let sexp_of_t = String.sexp_of_t
   end
+
   include Key
   include Comparator.Make (Key)
+
   let of_string = nonempty
   let to_string value = value
   let equal = String.equal

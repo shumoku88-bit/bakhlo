@@ -1,13 +1,26 @@
 ; Package-mode builds use the release profile; explicitly keep tests runnable.
+
 (env
- (_ (inline_tests enabled)))
+ (_
+  (inline_tests enabled)))
 
 (library
  (name bakhlo_tests)
  (package bakhlo)
- (libraries bakhlo_domain bakhlo_application bakhlo_text bakhlo_loam_read bakhlo_presentation bakhlo_cli base zarith base_quickcheck)
- (inline_tests (flags -verbose))
- (preprocess (pps ppx_expect)))
+ (libraries
+  bakhlo_domain
+  bakhlo_application
+  bakhlo_text
+  bakhlo_loam_read
+  bakhlo_presentation
+  bakhlo_cli
+  base
+  zarith
+  base_quickcheck)
+ (inline_tests
+  (flags -verbose))
+ (preprocess
+  (pps ppx_expect)))
 
 (cram
  (package bakhlo)

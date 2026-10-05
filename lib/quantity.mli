@@ -6,19 +6,19 @@
 
 type t
 
-(** Lossless conversion from and to arbitrary-precision integer quanta. *)
 val of_quanta : Z.t -> t
-val quanta : t -> Z.t
+(** Lossless conversion from and to arbitrary-precision integer quanta. *)
 
+val quanta : t -> Z.t
 val zero : t
 val add : t -> t -> t
 val neg : t -> t
 val sub : t -> t -> t
 val equal : t -> t -> bool
 
-(** Negative, zero, or positive according to exact integer ordering. *)
 val compare : t -> t -> int
+(** Negative, zero, or positive according to exact integer ordering. *)
 
+val sum : t list -> t
 (** Exact finite sum. The empty sum is zero; this does not mean that absent
     household evidence establishes a zero balance. *)
-val sum : t list -> t

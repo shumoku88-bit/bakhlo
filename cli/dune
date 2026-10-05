@@ -1,4 +1,11 @@
 (library
  (name bakhlo_cli)
  (public_name bakhlo.cli)
- (libraries bakhlo_application bakhlo_presentation bakhlo_domain bakhlo_text bakhlo_loam_read base zarith))
+ (libraries
+  bakhlo_application
+  bakhlo_presentation
+  bakhlo_domain
+  bakhlo_text
+  bakhlo_loam_read
+  base
+  zarith))

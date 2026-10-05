@@ -4,563 +4,1290 @@ module S = Bakhlo_application.Actual_source
 module F = Fixtures
 module Input = Bakhlo_cli.Current_fixture_input
 module C = Bakhlo_cli.Current_fixture_command
+
 let ok = function Ok value -> value | Error _ -> failwith "valid syntax refused"
-let document rows = String.concat ~sep:"\n" ("BAKHLO-ACTUAL-FIXTURE\t2" :: rows @ [ "END"; "" ])
+let document rows = String.concat ~sep:"\n" (("BAKHLO-ACTUAL-FIXTURE\t2" :: rows) @ [ "END"; "" ])
 
 (* Independent ASCII/sign arithmetic, not the shared parser or Zarith's literal grammar. *)
 let decimal_oracle text =
   let bytes = String.to_list text in
-  let negative, digits = match bytes with
-    | '-' :: rest -> true, rest
-    | '+' :: rest -> false, rest
-    | rest -> false, rest in
-  if List.is_empty digits || not (List.for_all digits ~f:(fun c -> Char.to_int c >= 48 && Char.to_int c <= 57))
+  let negative, digits =
+    match bytes with
+    | '-' :: rest -> (true, rest)
+    | '+' :: rest -> (false, rest)
+    | rest -> (false, rest)
+  in
+  if
+    List.is_empty digits
+    || not (List.for_all digits ~f:(fun c -> Char.to_int c >= 48 && Char.to_int c <= 57))
   then None
   else
-    let magnitude = List.fold digits ~init:Z.zero ~f:(fun value c ->
-      Z.add (Z.mul value (Z.of_int 10)) (Z.of_int (Char.to_int c - 48))) in
+    let magnitude =
+      List.fold digits ~init:Z.zero ~f:(fun value c ->
+          Z.add (Z.mul value (Z.of_int 10)) (Z.of_int (Char.to_int c - 48)))
+    in
     Some (if negative then Z.neg magnitude else magnitude)
-;;
 
-let%expect_test "shared decimal grammar preserves both consumers' admission and exact refusal boundaries" =
+let%expect_test
+    "shared decimal grammar preserves both consumers' admission and exact refusal boundaries" =
   let module M = Bakhlo_cli.Movement_command in
   let module Check = Bakhlo_application.Movement_check in
   let alphabet = [ "+"; "-"; "0"; "9"; "x"; "_"; " "; "." ] in
   let rec words length =
     if length = 0 then [ "" ]
-    else List.concat_map (words (length - 1)) ~f:(fun prefix -> List.map alphabet ~f:(fun byte -> prefix ^ byte)) in
+    else
+      List.concat_map
+        (words (length - 1))
+        ~f:(fun prefix -> List.map alphabet ~f:(fun byte -> prefix ^ byte))
+  in
   let huge = Z.to_string (Z.shift_left Z.one 180) in
-  let literals = List.concat_map [ 0; 1; 2; 3 ] ~f:words
+  let literals =
+    List.concat_map [ 0; 1; 2; 3 ] ~f:words
     @ List.init 256 ~f:(fun code -> String.of_char (Char.of_int_exn code))
-    @ [ "000"; "+000"; "-000"; huge; "+" ^ huge; "-" ^ huge ] in
+    @ [ "000"; "+000"; "-000"; huge; "+" ^ huge; "-" ^ huge ]
+  in
   let admitted = ref 0 in
   List.iter literals ~f:(fun literal ->
-    let expected = decimal_oracle literal in
-    F.require (Option.equal Z.equal expected
-      (Option.map (Bakhlo_cli.Quantity_literal.parse literal) ~f:D.Quantity.quanta)) "literal differs from byte/digit oracle";
-    let decoded = Input.decode (document [ "EVENT\te\t2026-10-03"; "EFFECT\twallet\tjpy\t" ^ literal; "END-EVENT" ]) in
-    let opposite = match expected with None -> "1" | Some value -> Z.to_string (Z.neg value) in
-    let movement = M.evaluate [ "check-movement"; "--effect"; "wallet"; "jpy"; literal; "--effect"; "other"; "jpy"; opposite ] in
-    match expected, decoded, movement with
-    | None, Error (Syntax _), Refused (Syntax (Invalid_quantity { position = 1; text })) ->
-      F.require (String.equal text literal) "Movement diagnostic lost original literal"
-    | Some value, Ok decoded, Validated preview ->
-      Int.incr admitted;
-      let fixture_change = List.hd_exn (D.Event.effects (List.hd_exn decoded.source.events)) in
-      let movement_change = List.hd_exn (Check.effects preview) in
-      F.require (Z.equal value (D.Quantity.quanta (D.Effect.quantity fixture_change)) &&
-        Z.equal value (D.Quantity.quanta (D.Effect.quantity movement_change))) "consumer changed exact value"
-    | Some value, Ok decoded, Refused (Movement errors) ->
-      Int.incr admitted;
-      F.require (Z.equal value Z.zero) "nonzero literal failed balanced Movement";
-      (match errors with
-       | [ D.Movement.Zero_quantity { position = 1 }; Zero_quantity { position = 2 } ] -> ()
-       | _ -> failwith "lexical zero lost its ordered Movement refusals");
-      F.require (D.Quantity.equal (D.Effect.quantity (List.hd_exn (D.Event.effects (List.hd_exn decoded.source.events)))) D.Quantity.zero) "neutral zero was narrowed in decoder"
-    | _ -> failwith "consumer grammar/admission changed");
+      let expected = decimal_oracle literal in
+      F.require
+        (Option.equal Z.equal expected
+           (Option.map (Bakhlo_cli.Quantity_literal.parse literal) ~f:D.Quantity.quanta))
+        "literal differs from byte/digit oracle";
+      let decoded =
+        Input.decode
+          (document [ "EVENT\te\t2026-10-03"; "EFFECT\twallet\tjpy\t" ^ literal; "END-EVENT" ])
+      in
+      let opposite = match expected with None -> "1" | Some value -> Z.to_string (Z.neg value) in
+      let movement =
+        M.evaluate
+          [
+            "check-movement";
+            "--effect";
+            "wallet";
+            "jpy";
+            literal;
+            "--effect";
+            "other";
+            "jpy";
+            opposite;
+          ]
+      in
+      match (expected, decoded, movement) with
+      | None, Error (Syntax _), Refused (Syntax (Invalid_quantity { position = 1; text })) ->
+          F.require (String.equal text literal) "Movement diagnostic lost original literal"
+      | Some value, Ok decoded, Validated preview ->
+          Int.incr admitted;
+          let fixture_change = List.hd_exn (D.Event.effects (List.hd_exn decoded.source.events)) in
+          let movement_change = List.hd_exn (Check.effects preview) in
+          F.require
+            (Z.equal value (D.Quantity.quanta (D.Effect.quantity fixture_change))
+            && Z.equal value (D.Quantity.quanta (D.Effect.quantity movement_change)))
+            "consumer changed exact value"
+      | Some value, Ok decoded, Refused (Movement errors) ->
+          Int.incr admitted;
+          F.require (Z.equal value Z.zero) "nonzero literal failed balanced Movement";
+          (match errors with
+          | [ D.Movement.Zero_quantity { position = 1 }; Zero_quantity { position = 2 } ] -> ()
+          | _ -> failwith "lexical zero lost its ordered Movement refusals");
+          F.require
+            (D.Quantity.equal
+               (D.Effect.quantity
+                  (List.hd_exn (D.Event.effects (List.hd_exn decoded.source.events))))
+               D.Quantity.zero)
+            "neutral zero was narrowed in decoder"
+      | _ -> failwith "consumer grammar/admission changed");
   F.require (List.length literals = 847 && !admitted = 42) "executed grammar specimen counts";
-  Stdlib.Printf.printf "847 bounded byte/sign/huge literals; 42 lexical successes; distinct syntax/Movement admission retained\n";
-  [%expect {| 847 bounded byte/sign/huge literals; 42 lexical successes; distinct syntax/Movement admission retained |}]
-;;
+  Stdlib.Printf.printf
+    "847 bounded byte/sign/huge literals; 42 lexical successes; distinct syntax/Movement admission \
+     retained\n";
+  [%expect
+    {| 847 bounded byte/sign/huge literals; 42 lexical successes; distinct syntax/Movement admission retained |}]
 
-let%expect_test "decoding preserves exact identities and neutral Effects; source admission is separate" =
+let%expect_test
+    "decoding preserves exact identities and neutral Effects; source admission is separate" =
   let huge = Z.shift_left Z.one 160 in
-  let text = document [ "EVENT\t a \t2026-10-03"; "EFFECT\t wallet \tUSD\t+0007";
-    "EFFECT\t wallet \tUSD\t0"; "EFFECT\t wallet \tjpy\t" ^ Z.to_string (Z.neg huge); "END-EVENT" ] in
+  let text =
+    document
+      [
+        "EVENT\t a \t2026-10-03";
+        "EFFECT\t wallet \tUSD\t+0007";
+        "EFFECT\t wallet \tUSD\t0";
+        "EFFECT\t wallet \tjpy\t" ^ Z.to_string (Z.neg huge);
+        "END-EVENT";
+      ]
+  in
   let decoded = ok (Input.decode text) in
   let original = List.hd_exn decoded.source.events in
-  F.require (String.equal (D.Identifier.Event.to_string (D.Event.id original)) " a ") "exact Event identity";
+  F.require
+    (String.equal (D.Identifier.Event.to_string (D.Event.id original)) " a ")
+    "exact Event identity";
   let changes = D.Event.effects original in
-  F.require (List.length changes = 3 && String.equal (D.Identifier.Locus.to_string (D.Effect.locus (List.hd_exn changes))) " wallet ") "no trimming or occurrence pruning";
-  F.require (List.equal Z.equal (List.map changes ~f:(fun c -> D.Quantity.quanta (D.Effect.quantity c))) [ Z.of_int 7; Z.zero; Z.neg huge ]) "exact signed quanta and multiplicity";
-  (match S.create decoded.source with Error (Zero_effect { event_position = 1; effect_position = 2; event = _ }) -> () | _ -> failwith "invalid source became usable");
+  F.require
+    (List.length changes = 3
+    && String.equal (D.Identifier.Locus.to_string (D.Effect.locus (List.hd_exn changes))) " wallet "
+    )
+    "no trimming or occurrence pruning";
+  F.require
+    (List.equal Z.equal
+       (List.map changes ~f:(fun c -> D.Quantity.quanta (D.Effect.quantity c)))
+       [ Z.of_int 7; Z.zero; Z.neg huge ])
+    "exact signed quanta and multiplicity";
+  (match S.create decoded.source with
+  | Error (Zero_effect { event_position = 1; effect_position = 2; event = _ }) -> ()
+  | _ -> failwith "invalid source became usable");
   Stdlib.Printf.printf "exact raw evidence preserved; separate physical admission refuses it\n";
   [%expect {| exact raw evidence preserved; separate physical admission refuses it |}]
-;;
 
-let%expect_test "opening rows preserve forward references/order; decode never implies witness validity" =
-  let rows = [ "OPENING\t wallet \tUSD\t event "; "OPENING\toffset\tUSD\t event ";
-    "EVENT\t event \t2026-10-03"; "EFFECT\t wallet \tUSD\t+0007"; "EFFECT\toffset\tUSD\t-7"; "END-EVENT" ] in
+let%expect_test
+    "opening rows preserve forward references/order; decode never implies witness validity" =
+  let rows =
+    [
+      "OPENING\t wallet \tUSD\t event ";
+      "OPENING\toffset\tUSD\t event ";
+      "EVENT\t event \t2026-10-03";
+      "EFFECT\t wallet \tUSD\t+0007";
+      "EFFECT\toffset\tUSD\t-7";
+      "END-EVENT";
+    ]
+  in
   let decoded = ok (Input.decode (document rows)) in
-  F.require (List.equal String.equal (List.map decoded.openings ~f:(fun declared -> D.Identifier.Event.to_string declared.opening_event)) [ " event "; " event " ]) "exact Event references, no allocation";
-  F.require (List.equal F.same_coordinate (List.map decoded.openings ~f:(fun declared -> declared.coordinate)) [ F.coordinate ~unit:"USD" " wallet "; F.coordinate ~unit:"USD" "offset" ]) "exact coordinates and declaration order";
-  let request : C.request = { path = "synthetic"; coordinate = F.coordinate ~unit:"USD" " wallet " } in
+  F.require
+    (List.equal String.equal
+       (List.map decoded.openings ~f:(fun declared ->
+            D.Identifier.Event.to_string declared.opening_event))
+       [ " event "; " event " ])
+    "exact Event references, no allocation";
+  F.require
+    (List.equal F.same_coordinate
+       (List.map decoded.openings ~f:(fun declared -> declared.coordinate))
+       [ F.coordinate ~unit:"USD" " wallet "; F.coordinate ~unit:"USD" "offset" ])
+    "exact coordinates and declaration order";
+  let request : C.request =
+    { path = "synthetic"; coordinate = F.coordinate ~unit:"USD" " wallet " }
+  in
   let exact = C.evaluate request (Ok (document rows)) in
-  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:"opening Event" && String.is_substring exact.stdout ~substring:"quantity=7") "opening end-to-end";
-  let stale = document (rows @ [ "EVENT\treplacement\t2026-10-02"; "END-EVENT"; "CORRECTION\t event \treplacement" ]) in
+  F.require
+    (exact.exit_code = 0 && String.is_empty exact.stderr
+    && String.is_substring exact.stdout ~substring:"opening Event"
+    && String.is_substring exact.stdout ~substring:"quantity=7")
+    "opening end-to-end";
+  let stale =
+    document
+      (rows @ [ "EVENT\treplacement\t2026-10-02"; "END-EVENT"; "CORRECTION\t event \treplacement" ])
+  in
   F.require (Result.is_ok (Input.decode stale)) "parser does not select frontier";
   let refused = C.evaluate request (Ok stale) in
-  F.require (refused.exit_code = 1 && String.is_empty refused.stdout && String.is_substring refused.stderr ~substring:"is not current") "source-bound semantic gate";
-  Stdlib.Printf.printf "explicit opening rows; exact forward references; source-bound admission before answer\n";
-  [%expect {| explicit opening rows; exact forward references; source-bound admission before answer |}]
-;;
+  F.require
+    (refused.exit_code = 1 && String.is_empty refused.stdout
+    && String.is_substring refused.stderr ~substring:"is not current")
+    "source-bound semantic gate";
+  Stdlib.Printf.printf
+    "explicit opening rows; exact forward references; source-bound admission before answer\n";
+  [%expect
+    {| explicit opening rows; exact forward references; source-bound admission before answer |}]
 
-let%expect_test "one shared presence block retains exact forward roots/coordinates without a scalar" =
-  let rows = [ "PRESENCE"; "REFLECT\t a "; "PRESENT\t wallet \tUSD"; "PRESENT\tquiet\tjpy"; "END-PRESENCE";
-    "EVENT\t a \t2026-10-03"; "END-EVENT"; "EVENT\tb\t2026-10-02";
-    "EFFECT\t wallet \tUSD\t1"; "EFFECT\t wallet \tUSD\t-1"; "END-EVENT"; "CORRECTION\t a \tb" ] in
+let%expect_test "one shared presence block retains exact forward roots/coordinates without a scalar"
+    =
+  let rows =
+    [
+      "PRESENCE";
+      "REFLECT\t a ";
+      "PRESENT\t wallet \tUSD";
+      "PRESENT\tquiet\tjpy";
+      "END-PRESENCE";
+      "EVENT\t a \t2026-10-03";
+      "END-EVENT";
+      "EVENT\tb\t2026-10-02";
+      "EFFECT\t wallet \tUSD\t1";
+      "EFFECT\t wallet \tUSD\t-1";
+      "END-EVENT";
+      "CORRECTION\t a \tb";
+    ]
+  in
   let decoded = ok (Input.decode (document rows)) in
   (match decoded.presence with
-   | Some { reflected_roots; coordinates } ->
-     F.require (List.equal D.Identifier.Event.equal reflected_roots [ F.id " a " ] &&
-       List.equal F.same_coordinate coordinates [ F.coordinate ~unit:"USD" " wallet "; F.coordinate "quiet" ]) "exact order/identity, no aliases"
-   | None -> failwith "presence disappeared");
-  let request : C.request = { path = "synthetic"; coordinate = F.coordinate ~unit:"USD" " wallet " } in
+  | Some { reflected_roots; coordinates } ->
+      F.require
+        (List.equal D.Identifier.Event.equal reflected_roots [ F.id " a " ]
+        && List.equal F.same_coordinate coordinates
+             [ F.coordinate ~unit:"USD" " wallet "; F.coordinate "quiet" ])
+        "exact order/identity, no aliases"
+  | None -> failwith "presence disappeared");
+  let request : C.request =
+    { path = "synthetic"; coordinate = F.coordinate ~unit:"USD" " wallet " }
+  in
   let known = C.evaluate request (Ok (document rows)) in
-  F.require (known.exit_code = 4 && String.is_empty known.stderr && String.is_substring known.stdout ~substring:"known nonzero" &&
-    not (String.is_substring known.stdout ~substring:"quantity=")) "presence output cannot fabricate a number";
-  let stale = C.evaluate request (Ok (document (rows @ [ "EVENT\tx\t2026-10-01"; "EFFECT\t wallet \tUSD\t7"; "EFFECT\t wallet \tUSD\t-7"; "END-EVENT" ]))) in
-  F.require (stale.exit_code = 3 && String.is_empty stale.stderr && String.is_substring stale.stdout ~substring:"no supported premise") "net-zero touch invalidates, not date order";
-  (match (ok (Input.decode (document []))).presence, (ok (Input.decode (document [ "PRESENCE"; "END-PRESENCE" ]))).presence with
-   | None, Some { reflected_roots = []; coordinates = [] } -> () | _ -> failwith "absence/explicit empty block lost");
+  F.require
+    (known.exit_code = 4 && String.is_empty known.stderr
+    && String.is_substring known.stdout ~substring:"known nonzero"
+    && not (String.is_substring known.stdout ~substring:"quantity="))
+    "presence output cannot fabricate a number";
+  let stale =
+    C.evaluate request
+      (Ok
+         (document
+            (rows
+            @ [
+                "EVENT\tx\t2026-10-01";
+                "EFFECT\t wallet \tUSD\t7";
+                "EFFECT\t wallet \tUSD\t-7";
+                "END-EVENT";
+              ])))
+  in
+  F.require
+    (stale.exit_code = 3 && String.is_empty stale.stderr
+    && String.is_substring stale.stdout ~substring:"no supported premise")
+    "net-zero touch invalidates, not date order";
+  (match
+     ( (ok (Input.decode (document []))).presence,
+       (ok (Input.decode (document [ "PRESENCE"; "END-PRESENCE" ]))).presence )
+   with
+  | None, Some { reflected_roots = []; coordinates = [] } -> ()
+  | _ -> failwith "absence/explicit empty block lost");
   (match Input.decode (document [ "PRESENCE"; "END-PRESENCE"; "PRESENCE"; "END-PRESENCE" ]) with
-   | Error (Syntax { line = 4; message }) -> F.require (String.is_substring message ~substring:"repeated") "repeat diagnostic"
-   | _ -> failwith "second presence overwrote first");
-  Stdlib.Printf.printf "one explicit block; exact roots/coordinates; known-present 4 vs stale 3, never a scalar\n";
-  [%expect {| one explicit block; exact roots/coordinates; known-present 4 vs stale 3, never a scalar |}]
-;;
+  | Error (Syntax { line = 4; message }) ->
+      F.require (String.is_substring message ~substring:"repeated") "repeat diagnostic"
+  | _ -> failwith "second presence overwrote first");
+  Stdlib.Printf.printf
+    "one explicit block; exact roots/coordinates; known-present 4 vs stale 3, never a scalar\n";
+  [%expect
+    {| one explicit block; exact roots/coordinates; known-present 4 vs stale 3, never a scalar |}]
 
-let%expect_test "keyed decoding retains exact identities; duplicate Event keys are semantic not syntax failures" =
+let%expect_test
+    "keyed decoding retains exact identities; duplicate Event keys are semantic not syntax failures"
+    =
   let huge = Z.shift_left Z.one 160 in
-  let rows = [ "EVENT\t a \t2026-10-03"; "KEYED-EFFECT\t key \twallet\tjpy\t" ^ Z.to_string huge;
-    "EFFECT\twallet\tjpy\t" ^ Z.to_string (Z.neg huge); "END-EVENT";
-    "EVENT\tb\t2026-10-02"; "KEYED-EFFECT\t key \twallet\tjpy\t1"; "KEYED-EFFECT\tkey\twallet\tjpy\t-1"; "END-EVENT";
-    "CORRECTION\t a \tb"; "ZERO-ORIGIN\twallet\tjpy" ] in
+  let rows =
+    [
+      "EVENT\t a \t2026-10-03";
+      "KEYED-EFFECT\t key \twallet\tjpy\t" ^ Z.to_string huge;
+      "EFFECT\twallet\tjpy\t" ^ Z.to_string (Z.neg huge);
+      "END-EVENT";
+      "EVENT\tb\t2026-10-02";
+      "KEYED-EFFECT\t key \twallet\tjpy\t1";
+      "KEYED-EFFECT\tkey\twallet\tjpy\t-1";
+      "END-EVENT";
+      "CORRECTION\t a \tb";
+      "ZERO-ORIGIN\twallet\tjpy";
+    ]
+  in
   let decoded = ok (Input.decode (document rows)) in
-  let tokens = List.map decoded.source.events ~f:(fun e -> List.map (D.Event.effects e) ~f:(fun fx -> Option.map (D.Effect.key fx) ~f:D.Identifier.Effect_key.to_string)) in
-  F.require (List.equal (List.equal (Option.equal String.equal)) tokens [ [ Some " key "; None ]; [ Some " key "; Some "key" ] ]) "key scope/order/exact spelling preserved";
+  let tokens =
+    List.map decoded.source.events ~f:(fun e ->
+        List.map (D.Event.effects e) ~f:(fun fx ->
+            Option.map (D.Effect.key fx) ~f:D.Identifier.Effect_key.to_string))
+  in
+  F.require
+    (List.equal
+       (List.equal (Option.equal String.equal))
+       tokens
+       [ [ Some " key "; None ]; [ Some " key "; Some "key" ] ])
+    "key scope/order/exact spelling preserved";
   let request : C.request = { path = "synthetic"; coordinate = F.coordinate "wallet" } in
   let exact = C.evaluate request (Ok (document rows)) in
-  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:"quantity=0") "keyed source through real query";
-  let duplicate = document [ "EVENT\te\t2026-10-03"; "KEYED-EFFECT\tkey\twallet\tjpy\t1";
-    "EFFECT\twallet\tjpy\t1"; "KEYED-EFFECT\tkey\tother\tjpy\t1"; "END-EVENT" ] in
+  F.require
+    (exact.exit_code = 0 && String.is_empty exact.stderr
+    && String.is_substring exact.stdout ~substring:"quantity=0")
+    "keyed source through real query";
+  let duplicate =
+    document
+      [
+        "EVENT\te\t2026-10-03";
+        "KEYED-EFFECT\tkey\twallet\tjpy\t1";
+        "EFFECT\twallet\tjpy\t1";
+        "KEYED-EFFECT\tkey\tother\tjpy\t1";
+        "END-EVENT";
+      ]
+  in
   (match Input.decode duplicate with
-   | Error (Invalid_event { line = 6; event; error = D.Event.Duplicate_effect_key { key; first_position = 1; position = 3 } }) ->
-     F.require (D.Identifier.Event.equal event (F.id "e") && String.equal (D.Identifier.Effect_key.to_string key) "key") "typed structural refusal witness"
-   | _ -> failwith "duplicate was ignored or classified as syntax");
+  | Error
+      (Invalid_event
+         {
+           line = 6;
+           event;
+           error = D.Event.Duplicate_effect_key { key; first_position = 1; position = 3 };
+         }) ->
+      F.require
+        (D.Identifier.Event.equal event (F.id "e")
+        && String.equal (D.Identifier.Effect_key.to_string key) "key")
+        "typed structural refusal witness"
+  | _ -> failwith "duplicate was ignored or classified as syntax");
   let refused = C.evaluate request (Ok duplicate) in
-  F.require (refused.exit_code = 1 && String.is_empty refused.stdout && String.is_substring refused.stderr ~substring:"duplicate Effect key" &&
-    not (String.is_substring refused.stderr ~substring:"residual")) "key admission before physical source";
-  F.require ((C.evaluate request (Ok (document [ "EVENT\te\t2026-10-03"; "KEYED-EFFECT\t\twallet\tjpy\t1"; "END-EVENT" ]))).exit_code = 2) "empty key is syntax";
-  F.require ((C.evaluate request (Ok (document (rows @ [ "PURPOSE\tb\tnot-yet-supported" ])))).exit_code = 2) "metadata not silently discarded";
-  Stdlib.Printf.printf "exact optional keys retained; Event duplicate exit 1 vs syntax exit 2; no discarded metadata\n";
-  [%expect {| exact optional keys retained; Event duplicate exit 1 vs syntax exit 2; no discarded metadata |}]
-;;
+  F.require
+    (refused.exit_code = 1 && String.is_empty refused.stdout
+    && String.is_substring refused.stderr ~substring:"duplicate Effect key"
+    && not (String.is_substring refused.stderr ~substring:"residual"))
+    "key admission before physical source";
+  F.require
+    ((C.evaluate request
+        (Ok (document [ "EVENT\te\t2026-10-03"; "KEYED-EFFECT\t\twallet\tjpy\t1"; "END-EVENT" ])))
+       .exit_code = 2)
+    "empty key is syntax";
+  F.require
+    ((C.evaluate request (Ok (document (rows @ [ "PURPOSE\tb\tnot-yet-supported" ])))).exit_code = 2)
+    "metadata not silently discarded";
+  Stdlib.Printf.printf
+    "exact optional keys retained; Event duplicate exit 1 vs syntax exit 2; no discarded metadata\n";
+  [%expect
+    {| exact optional keys retained; Event duplicate exit 1 vs syntax exit 2; no discarded metadata |}]
 
-let%expect_test "description rows retain optional literal text and forward references; closure precedes lookup" =
-  let rows = [ "DESCRIPTION\tb\t"; "DESCRIPTION\t a \t  merchant?\\n日本語  ";
-    "EVENT\t a \t2026-10-03"; "END-EVENT"; "EVENT\tb\t2026-10-02"; "END-EVENT";
-    "CORRECTION\t a \tb"; "ZERO-ORIGIN\twallet\tjpy" ] in
+let%expect_test
+    "description rows retain optional literal text and forward references; closure precedes lookup"
+    =
+  let rows =
+    [
+      "DESCRIPTION\tb\t";
+      "DESCRIPTION\t a \t  merchant?\\n日本語  ";
+      "EVENT\t a \t2026-10-03";
+      "END-EVENT";
+      "EVENT\tb\t2026-10-02";
+      "END-EVENT";
+      "CORRECTION\t a \tb";
+      "ZERO-ORIGIN\twallet\tjpy";
+    ]
+  in
   let decoded = ok (Input.decode (document rows)) in
   let source = ok (S.create decoded.source) in
   let module E = Bakhlo_application.Event_descriptions in
-  F.require (List.equal String.equal (List.map decoded.source.descriptions ~f:(fun fact -> D.Identifier.Event.to_string fact.event)) [ "b"; " a " ]) "forward reference/order/exact IDs";
-  F.require (Option.equal String.equal (E.find_text (S.descriptions source) (F.id "b")) (Some "") &&
-    Option.equal String.equal (E.find_text (S.descriptions source) (F.id " a ")) (Some "  merchant?\\n日本語  ")) "empty/spaces and backslash are literal text";
+  F.require
+    (List.equal String.equal
+       (List.map decoded.source.descriptions ~f:(fun fact ->
+            D.Identifier.Event.to_string fact.event))
+       [ "b"; " a " ])
+    "forward reference/order/exact IDs";
+  F.require
+    (Option.equal String.equal (E.find_text (S.descriptions source) (F.id "b")) (Some "")
+    && Option.equal String.equal
+         (E.find_text (S.descriptions source) (F.id " a "))
+         (Some "  merchant?\\n日本語  "))
+    "empty/spaces and backslash are literal text";
   let request : C.request = { path = "synthetic"; coordinate = F.coordinate "wallet" } in
   let exact = C.evaluate request (Ok (document rows)) in
-  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:"quantity=0") "description-aware read path unchanged";
+  F.require
+    (exact.exit_code = 0 && String.is_empty exact.stderr
+    && String.is_substring exact.stdout ~substring:"quantity=0")
+    "description-aware read path unchanged";
   let unknown = document (rows @ [ "DESCRIPTION\tunknown\thuman text" ]) in
   F.require (Result.is_ok (Input.decode unknown)) "reference closure is not syntax";
   let refusal = C.evaluate request (Ok unknown) in
-  F.require (refusal.exit_code = 1 && String.is_empty refusal.stdout && String.is_substring refusal.stderr ~substring:"description 3: unknown Event") "whole source before unrelated query";
+  F.require
+    (refusal.exit_code = 1 && String.is_empty refusal.stdout
+    && String.is_substring refusal.stderr ~substring:"description 3: unknown Event")
+    "whole source before unrelated query";
   let repeated = C.evaluate request (Ok (document (rows @ [ "DESCRIPTION\tb\t" ]))) in
-  F.require (repeated.exit_code = 1 && String.is_empty repeated.stdout && String.is_substring repeated.stderr ~substring:"duplicate description" &&
-    String.is_substring repeated.stderr ~substring:"at 3 (first 1)") "identical text not deduplicated, description positions";
-  let unsupported = C.evaluate request (Ok (document [ "EVENT\tb\t2026-10-03"; "END-EVENT"; "DESCRIPTION\tb\topening balance" ])) in
-  F.require (unsupported.exit_code = 3 && String.is_empty unsupported.stderr) "recognizer text became support";
-  Stdlib.Printf.printf "exact optional literal text; forward retained references; admission 1 vs syntax 2, no inferred support\n";
-  [%expect {| exact optional literal text; forward retained references; admission 1 vs syntax 2, no inferred support |}]
-;;
+  F.require
+    (repeated.exit_code = 1 && String.is_empty repeated.stdout
+    && String.is_substring repeated.stderr ~substring:"duplicate description"
+    && String.is_substring repeated.stderr ~substring:"at 3 (first 1)")
+    "identical text not deduplicated, description positions";
+  let unsupported =
+    C.evaluate request
+      (Ok (document [ "EVENT\tb\t2026-10-03"; "END-EVENT"; "DESCRIPTION\tb\topening balance" ]))
+  in
+  F.require
+    (unsupported.exit_code = 3 && String.is_empty unsupported.stderr)
+    "recognizer text became support";
+  Stdlib.Printf.printf
+    "exact optional literal text; forward retained references; admission 1 vs syntax 2, no \
+     inferred support\n";
+  [%expect
+    {| exact optional literal text; forward retained references; admission 1 vs syntax 2, no inferred support |}]
 
 let%expect_test "validity history rows retain tagged forward references without inventing a base" =
   let module V = Bakhlo_application.Actual_validity in
-  let rows = [ "VALIDITY-CORRECTION\tBASE\t a \t a "; "VALIDITY-CORRECTION\tREVISION\t a \tlater";
-    "VALIDITY-REVISION\tlater\t a \t1900-01-01"; "EVENT\t a \t2026-10-03"; "END-EVENT";
-    "VALIDITY-REVISION\t a \t a \t2025-01-01"; "EVENT\tb"; "END-EVENT"; "VALIDITY-BASE\tb\t2000-02-29";
-    "CORRECTION\t a \tb"; "ZERO-ORIGIN\twallet\tjpy" ] in
+  let rows =
+    [
+      "VALIDITY-CORRECTION\tBASE\t a \t a ";
+      "VALIDITY-CORRECTION\tREVISION\t a \tlater";
+      "VALIDITY-REVISION\tlater\t a \t1900-01-01";
+      "EVENT\t a \t2026-10-03";
+      "END-EVENT";
+      "VALIDITY-REVISION\t a \t a \t2025-01-01";
+      "EVENT\tb";
+      "END-EVENT";
+      "VALIDITY-BASE\tb\t2000-02-29";
+      "CORRECTION\t a \tb";
+      "ZERO-ORIGIN\twallet\tjpy";
+    ]
+  in
   let decoded = ok (Input.decode (document rows)) in
-  F.require (List.length decoded.source.validities = 4 && List.length decoded.source.validity_corrections = 2) "retained history not flattened";
+  F.require
+    (List.length decoded.source.validities = 4
+    && List.length decoded.source.validity_corrections = 2)
+    "retained history not flattened";
   let source = ok (S.create decoded.source) in
   let selected = Option.value_exn (V.find_current (S.validity source) (F.id " a ")) in
   (match selected with
-   | Revision { id; event; valid_on } -> F.require (String.equal (D.Identifier.Validity_revision.to_string id) "later" &&
-       D.Identifier.Event.equal event (F.id " a ") && String.equal valid_on "1900-01-01") "tagged paths, not latest date/row"
-   | Base _ -> failwith "history flattened to fabricated base");
+  | Revision { id; event; valid_on } ->
+      F.require
+        (String.equal (D.Identifier.Validity_revision.to_string id) "later"
+        && D.Identifier.Event.equal event (F.id " a ")
+        && String.equal valid_on "1900-01-01")
+        "tagged paths, not latest date/row"
+  | Base _ -> failwith "history flattened to fabricated base");
   let request : C.request = { path = "synthetic"; coordinate = F.coordinate "wallet" } in
-  F.require ((C.evaluate request (Ok (document rows))).exit_code = 0) "valid history through read path";
-  let only = ok (Input.decode (document [ "EVENT\te"; "END-EVENT"; "VALIDITY-REVISION\tr\te\t2000-02-29" ])) in
-  F.require (List.length only.source.validities = 1 && Result.is_ok (S.create only.source)) "revision-only became inferred base";
-  let duplicate = C.evaluate request (Ok (document (rows @ [ "VALIDITY-BASE\t a \t2026-10-03" ]))) in
-  F.require (duplicate.exit_code = 1 && String.is_empty duplicate.stdout && String.is_substring duplicate.stderr ~substring:"duplicate validity fact base") "identical base not overwritten";
+  F.require
+    ((C.evaluate request (Ok (document rows))).exit_code = 0)
+    "valid history through read path";
+  let only =
+    ok (Input.decode (document [ "EVENT\te"; "END-EVENT"; "VALIDITY-REVISION\tr\te\t2000-02-29" ]))
+  in
+  F.require
+    (List.length only.source.validities = 1 && Result.is_ok (S.create only.source))
+    "revision-only became inferred base";
+  let duplicate =
+    C.evaluate request (Ok (document (rows @ [ "VALIDITY-BASE\t a \t2026-10-03" ])))
+  in
+  F.require
+    (duplicate.exit_code = 1 && String.is_empty duplicate.stdout
+    && String.is_substring duplicate.stderr ~substring:"duplicate validity fact base")
+    "identical base not overwritten";
   let missing = C.evaluate request (Ok (document [ "EVENT\te"; "END-EVENT" ])) in
-  F.require (missing.exit_code = 1 && String.is_empty missing.stdout && String.is_substring missing.stderr ~substring:"missing current validity") "missing date not defaulted";
-  let cycle = C.evaluate request (Ok (document [ "EVENT\te"; "END-EVENT"; "VALIDITY-REVISION\tr\te\t2026-10-03";
-    "VALIDITY-CORRECTION\tREVISION\tr\tr" ])) in
-  F.require (cycle.exit_code = 1 && String.is_empty cycle.stdout && String.is_substring cycle.stderr ~substring:"validity correction cycle") "date cycle not Event correction";
-  Stdlib.Printf.printf "literal tagged history; forward references; optional explicit base; date correction admission before query\n";
-  [%expect {| literal tagged history; forward references; optional explicit base; date correction admission before query |}]
-;;
+  F.require
+    (missing.exit_code = 1 && String.is_empty missing.stdout
+    && String.is_substring missing.stderr ~substring:"missing current validity")
+    "missing date not defaulted";
+  let cycle =
+    C.evaluate request
+      (Ok
+         (document
+            [
+              "EVENT\te";
+              "END-EVENT";
+              "VALIDITY-REVISION\tr\te\t2026-10-03";
+              "VALIDITY-CORRECTION\tREVISION\tr\tr";
+            ]))
+  in
+  F.require
+    (cycle.exit_code = 1 && String.is_empty cycle.stdout
+    && String.is_substring cycle.stderr ~substring:"validity correction cycle")
+    "date cycle not Event correction";
+  Stdlib.Printf.printf
+    "literal tagged history; forward references; optional explicit base; date correction admission \
+     before query\n";
+  [%expect
+    {| literal tagged history; forward references; optional explicit base; date correction admission before query |}]
 
-let%expect_test "Merchant rows retain forward/exact dispositions; closure and conflicts precede query" =
+let%expect_test
+    "Merchant rows retain forward/exact dispositions; closure and conflicts precede query" =
   let module M = Bakhlo_application.Event_merchants in
-  let rows = [ "MERCHANT\t a \t p "; "NONMERCHANT\tb";
-    "EVENT\t a \t2026-10-03"; "END-EVENT"; "EVENT\tb\t2026-10-02"; "END-EVENT";
-    "EVENT\tx\t2026-10-01"; "END-EVENT"; "DESCRIPTION\tx\tmerchant inferred?";
-    "CORRECTION\t a \tb"; "ZERO-ORIGIN\twallet\tjpy" ] in
+  let rows =
+    [
+      "MERCHANT\t a \t p ";
+      "NONMERCHANT\tb";
+      "EVENT\t a \t2026-10-03";
+      "END-EVENT";
+      "EVENT\tb\t2026-10-02";
+      "END-EVENT";
+      "EVENT\tx\t2026-10-01";
+      "END-EVENT";
+      "DESCRIPTION\tx\tmerchant inferred?";
+      "CORRECTION\t a \tb";
+      "ZERO-ORIGIN\twallet\tjpy";
+    ]
+  in
   let decoded = ok (Input.decode (document rows)) in
   let source = ok (S.create decoded.source) in
-  F.require (List.equal String.equal (List.map decoded.source.merchants ~f:(fun fact -> D.Identifier.Event.to_string fact.event))
-    [ " a "; "b" ]) "forward references/order/exact Event IDs";
-  (match M.find_disposition (S.merchants source) (F.id " a "), M.find_disposition (S.merchants source) (F.id "b"),
-    M.find_disposition (S.merchants source) (F.id "x") with
-   | Some (Merchant party), Some Nonmerchant, None ->
-     F.require (String.equal (D.Identifier.External_party.to_string party) " p ") "party token trimmed/renamed"
-   | _ -> failwith "unresolved/nonmerchant/provider merged or inferred from description");
+  F.require
+    (List.equal String.equal
+       (List.map decoded.source.merchants ~f:(fun fact -> D.Identifier.Event.to_string fact.event))
+       [ " a "; "b" ])
+    "forward references/order/exact Event IDs";
+  (match
+     ( M.find_disposition (S.merchants source) (F.id " a "),
+       M.find_disposition (S.merchants source) (F.id "b"),
+       M.find_disposition (S.merchants source) (F.id "x") )
+   with
+  | Some (Merchant party), Some Nonmerchant, None ->
+      F.require
+        (String.equal (D.Identifier.External_party.to_string party) " p ")
+        "party token trimmed/renamed"
+  | _ -> failwith "unresolved/nonmerchant/provider merged or inferred from description");
   let request : C.request = { path = "synthetic"; coordinate = F.coordinate "wallet" } in
   let exact = C.evaluate request (Ok (document rows)) in
-  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:"quantity=0")
+  F.require
+    (exact.exit_code = 0 && String.is_empty exact.stderr
+    && String.is_substring exact.stdout ~substring:"quantity=0")
     "classification changed supplied origin";
   List.iter [ "MERCHANT\t a \t p "; "MERCHANT\t a \tother"; "NONMERCHANT\t a " ] ~f:(fun extra ->
-    let refused = C.evaluate request (Ok (document (rows @ [ extra ]))) in
-    F.require (refused.exit_code = 1 && String.is_empty refused.stdout &&
-      String.is_substring refused.stderr ~substring:"duplicate Merchant disposition" &&
-      String.is_substring refused.stderr ~substring:"at 3 (first 1)") "equal/contradictory rows silently deduplicated");
+      let refused = C.evaluate request (Ok (document (rows @ [ extra ]))) in
+      F.require
+        (refused.exit_code = 1 && String.is_empty refused.stdout
+        && String.is_substring refused.stderr ~substring:"duplicate Merchant disposition"
+        && String.is_substring refused.stderr ~substring:"at 3 (first 1)")
+        "equal/contradictory rows silently deduplicated");
   let unknown = document (rows @ [ "NONMERCHANT\tunknown"; "ZERO-ORIGIN\twallet\tjpy" ]) in
   F.require (Result.is_ok (Input.decode unknown)) "reference closure became syntax";
-  let refused = C.evaluate { request with coordinate = F.coordinate ~unit:"usd" "unrelated" } (Ok unknown) in
-  F.require (refused.exit_code = 1 && String.is_empty refused.stdout &&
-    String.is_substring refused.stderr ~substring:"Merchant disposition 3: unknown Event") "source closure after support/query";
+  let refused =
+    C.evaluate { request with coordinate = F.coordinate ~unit:"usd" "unrelated" } (Ok unknown)
+  in
+  F.require
+    (refused.exit_code = 1 && String.is_empty refused.stdout
+    && String.is_substring refused.stderr ~substring:"Merchant disposition 3: unknown Event")
+    "source closure after support/query";
   List.iter [ "MERCHANT\te\tprovider"; "NONMERCHANT\te" ] ~f:(fun row ->
-    let unsupported = C.evaluate request (Ok (document [ "EVENT\te\t2026-10-03"; "END-EVENT"; row ])) in
-    F.require (unsupported.exit_code = 3 && String.is_empty unsupported.stderr) "classification became quantity support");
-  let malformed = [ [ "MERCHANT\te" ]; [ "MERCHANT\te\t" ]; [ "MERCHANT\t\tp" ]; [ "MERCHANT\te\tp\textra" ];
-    [ "NONMERCHANT" ]; [ "NONMERCHANT\t" ]; [ "NONMERCHANT\te\tp" ]; [ "UNKNOWN-MERCHANT\te" ];
-    [ "EVENT\te\t2026-10-03"; "MERCHANT\te\tp"; "END-EVENT" ];
-    [ "GROUP"; "NONMERCHANT\te"; "END-GROUP" ]; [ "PRESENCE"; "MERCHANT\te\tp"; "END-PRESENCE" ] ] in
+      let unsupported =
+        C.evaluate request (Ok (document [ "EVENT\te\t2026-10-03"; "END-EVENT"; row ]))
+      in
+      F.require
+        (unsupported.exit_code = 3 && String.is_empty unsupported.stderr)
+        "classification became quantity support");
+  let malformed =
+    [
+      [ "MERCHANT\te" ];
+      [ "MERCHANT\te\t" ];
+      [ "MERCHANT\t\tp" ];
+      [ "MERCHANT\te\tp\textra" ];
+      [ "NONMERCHANT" ];
+      [ "NONMERCHANT\t" ];
+      [ "NONMERCHANT\te\tp" ];
+      [ "UNKNOWN-MERCHANT\te" ];
+      [ "EVENT\te\t2026-10-03"; "MERCHANT\te\tp"; "END-EVENT" ];
+      [ "GROUP"; "NONMERCHANT\te"; "END-GROUP" ];
+      [ "PRESENCE"; "MERCHANT\te\tp"; "END-PRESENCE" ];
+    ]
+  in
   List.iter malformed ~f:(fun rows ->
-    match Input.decode (document rows), C.evaluate request (Ok (document rows)) with
-    | Error (Syntax _), response -> F.require (response.exit_code = 2 && String.is_empty response.stdout) "syntax stream/code"
-    | _ -> failwith "malformed/misplaced Merchant rows discarded");
-  Stdlib.Printf.printf "exact forward provider/nonmerchant rows; global conflict/closure exit 1 vs syntax 2; no inferred support\n";
-  [%expect {| exact forward provider/nonmerchant rows; global conflict/closure exit 1 vs syntax 2; no inferred support |}]
-;;
+      match (Input.decode (document rows), C.evaluate request (Ok (document rows))) with
+      | Error (Syntax _), response ->
+          F.require (response.exit_code = 2 && String.is_empty response.stdout) "syntax stream/code"
+      | _ -> failwith "malformed/misplaced Merchant rows discarded");
+  Stdlib.Printf.printf
+    "exact forward provider/nonmerchant rows; global conflict/closure exit 1 vs syntax 2; no \
+     inferred support\n";
+  [%expect
+    {| exact forward provider/nonmerchant rows; global conflict/closure exit 1 vs syntax 2; no inferred support |}]
 
-let%expect_test "original amount rows retain forward roots and exact Measures; positivity and root membership are admission" =
+let%expect_test
+    "original amount rows retain forward roots and exact Measures; positivity and root membership \
+     are admission" =
   let module A = Bakhlo_application.Original_amounts in
   let huge = Z.shift_left Z.one 190 in
-  let rows = [ "ORIGINAL-AMOUNT\t a \t eur \t+" ^ Z.to_string huge; "ORIGINAL-AMOUNT\tx\tjpy\t1";
-    "EVENT\t a \t2026-10-03"; "END-EVENT"; "EVENT\tb\t2026-10-02"; "END-EVENT";
-    "EVENT\tx\t2026-10-01"; "END-EVENT"; "CORRECTION\t a \tb"; "ZERO-ORIGIN\twallet\tjpy" ] in
+  let rows =
+    [
+      "ORIGINAL-AMOUNT\t a \t eur \t+" ^ Z.to_string huge;
+      "ORIGINAL-AMOUNT\tx\tjpy\t1";
+      "EVENT\t a \t2026-10-03";
+      "END-EVENT";
+      "EVENT\tb\t2026-10-02";
+      "END-EVENT";
+      "EVENT\tx\t2026-10-01";
+      "END-EVENT";
+      "CORRECTION\t a \tb";
+      "ZERO-ORIGIN\twallet\tjpy";
+    ]
+  in
   let decoded = ok (Input.decode (document rows)) in
   let source = ok (S.create decoded.source) in
-  F.require (List.equal String.equal (List.map decoded.source.original_amounts ~f:(fun fact -> D.Identifier.Event.to_string fact.root))
-    [ " a "; "x" ]) "forward roots/declaration order lost";
+  F.require
+    (List.equal String.equal
+       (List.map decoded.source.original_amounts ~f:(fun fact ->
+            D.Identifier.Event.to_string fact.root))
+       [ " a "; "x" ])
+    "forward roots/declaration order lost";
   let amounts = S.original_amounts source in
   let retained = A.retained_fact (Option.value_exn (A.find_current amounts (F.id "b"))) in
-  F.require (D.Identifier.Event.equal retained.root (F.id " a ") && Z.equal (D.Quantity.quanta retained.quantity) huge &&
-    String.equal (D.Identifier.Measure.to_string retained.measure) " eur " &&
-    Option.is_none (A.find_current amounts (F.id " a "))) "projection rewrote root/value/Measure or leaked superseded lookup";
+  F.require
+    (D.Identifier.Event.equal retained.root (F.id " a ")
+    && Z.equal (D.Quantity.quanta retained.quantity) huge
+    && String.equal (D.Identifier.Measure.to_string retained.measure) " eur "
+    && Option.is_none (A.find_current amounts (F.id " a ")))
+    "projection rewrote root/value/Measure or leaked superseded lookup";
   let request : C.request = { path = "synthetic"; coordinate = F.coordinate "wallet" } in
   let exact = C.evaluate request (Ok (document rows)) in
-  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:"quantity=0")
+  F.require
+    (exact.exit_code = 0 && String.is_empty exact.stderr
+    && String.is_substring exact.stdout ~substring:"quantity=0")
     "original amount changed explicit origin";
-  let refusals = [ "ORIGINAL-AMOUNT\t a \t eur \t" ^ Z.to_string huge, "duplicate original amount";
-    "ORIGINAL-AMOUNT\tmissing\tusd\t0", "nonpositive quantity 0";
-    "ORIGINAL-AMOUNT\tmissing\tusd\t-1", "nonpositive quantity -1";
-    "ORIGINAL-AMOUNT\tmissing\tusd\t1", "unknown Event";
-    "ORIGINAL-AMOUNT\tb\tusd\t1", "not a correction root" ] in
+  let refusals =
+    [
+      ("ORIGINAL-AMOUNT\t a \t eur \t" ^ Z.to_string huge, "duplicate original amount");
+      ("ORIGINAL-AMOUNT\tmissing\tusd\t0", "nonpositive quantity 0");
+      ("ORIGINAL-AMOUNT\tmissing\tusd\t-1", "nonpositive quantity -1");
+      ("ORIGINAL-AMOUNT\tmissing\tusd\t1", "unknown Event");
+      ("ORIGINAL-AMOUNT\tb\tusd\t1", "not a correction root");
+    ]
+  in
   List.iter refusals ~f:(fun (extra, witness) ->
-    let text = document (rows @ [ extra; "ZERO-ORIGIN\twallet\tjpy" ]) in
-    F.require (Result.is_ok (Input.decode text)) "semantic refusal became syntax";
-    let refused = C.evaluate { request with coordinate = F.coordinate ~unit:"usd" "unrelated" } (Ok text) in
-    F.require (refused.exit_code = 1 && String.is_empty refused.stdout && String.is_substring refused.stderr ~substring:witness)
-      "global source admission/diagnostic order changed");
-  let unsupported = C.evaluate request (Ok (document [ "EVENT\te\t2026-10-03"; "END-EVENT"; "ORIGINAL-AMOUNT\te\tjpy\t1" ])) in
-  F.require (unsupported.exit_code = 3 && String.is_empty unsupported.stderr) "original amount became supported balance";
-  List.iter [ [ "ORIGINAL-AMOUNT\te\tusd" ]; [ "ORIGINAL-AMOUNT\t\tusd\t1" ]; [ "ORIGINAL-AMOUNT\te\t\t1" ];
-    [ "ORIGINAL-AMOUNT\te\tusd\t1.0" ]; [ "ORIGINAL-AMOUNT\te\tusd\t1\textra" ];
-    [ "EVENT\te\t2026-10-03"; "ORIGINAL-AMOUNT\te\tusd\t1"; "END-EVENT" ];
-    [ "GROUP"; "ORIGINAL-AMOUNT\te\tusd\t1"; "END-GROUP" ];
-    [ "PRESENCE"; "ORIGINAL-AMOUNT\te\tusd\t1"; "END-PRESENCE" ] ] ~f:(fun malformed ->
-      match Input.decode (document malformed), C.evaluate request (Ok (document malformed)) with
-      | Error (Syntax _), response -> F.require (response.exit_code = 2 && String.is_empty response.stdout) "syntax streams"
+      let text = document (rows @ [ extra; "ZERO-ORIGIN\twallet\tjpy" ]) in
+      F.require (Result.is_ok (Input.decode text)) "semantic refusal became syntax";
+      let refused =
+        C.evaluate { request with coordinate = F.coordinate ~unit:"usd" "unrelated" } (Ok text)
+      in
+      F.require
+        (refused.exit_code = 1 && String.is_empty refused.stdout
+        && String.is_substring refused.stderr ~substring:witness)
+        "global source admission/diagnostic order changed");
+  let unsupported =
+    C.evaluate request
+      (Ok (document [ "EVENT\te\t2026-10-03"; "END-EVENT"; "ORIGINAL-AMOUNT\te\tjpy\t1" ]))
+  in
+  F.require
+    (unsupported.exit_code = 3 && String.is_empty unsupported.stderr)
+    "original amount became supported balance";
+  List.iter
+    [
+      [ "ORIGINAL-AMOUNT\te\tusd" ];
+      [ "ORIGINAL-AMOUNT\t\tusd\t1" ];
+      [ "ORIGINAL-AMOUNT\te\t\t1" ];
+      [ "ORIGINAL-AMOUNT\te\tusd\t1.0" ];
+      [ "ORIGINAL-AMOUNT\te\tusd\t1\textra" ];
+      [ "EVENT\te\t2026-10-03"; "ORIGINAL-AMOUNT\te\tusd\t1"; "END-EVENT" ];
+      [ "GROUP"; "ORIGINAL-AMOUNT\te\tusd\t1"; "END-GROUP" ];
+      [ "PRESENCE"; "ORIGINAL-AMOUNT\te\tusd\t1"; "END-PRESENCE" ];
+    ]
+    ~f:(fun malformed ->
+      match (Input.decode (document malformed), C.evaluate request (Ok (document malformed))) with
+      | Error (Syntax _), response ->
+          F.require (response.exit_code = 2 && String.is_empty response.stdout) "syntax streams"
       | _ -> failwith "malformed/misplaced amount discarded");
-  Stdlib.Printf.printf "exact positive root amounts/current associations; nonpositive/duplicate/nonroot/unknown exit 1 vs syntax 2; no support\n";
-  [%expect {| exact positive root amounts/current associations; nonpositive/duplicate/nonroot/unknown exit 1 vs syntax 2; no support |}]
-;;
+  Stdlib.Printf.printf
+    "exact positive root amounts/current associations; nonpositive/duplicate/nonroot/unknown exit \
+     1 vs syntax 2; no support\n";
+  [%expect
+    {| exact positive root amounts/current associations; nonpositive/duplicate/nonroot/unknown exit 1 vs syntax 2; no support |}]
 
-let%expect_test "Exchange rows qualify selected keys before per-Measure balance, never syntax coercion or support" =
+let%expect_test
+    "Exchange rows qualify selected keys before per-Measure balance, never syntax coercion or \
+     support" =
   let module E = Bakhlo_application.Exchange_evidence in
   let huge = Z.shift_left Z.one 180 in
-  let rows = [ "EXCHANGE\t e \t source \tdestination";
-    "EVENT\t e \t2026-10-03"; "KEYED-EFFECT\t source \twallet\tjpy\t" ^ Z.to_string (Z.neg huge);
-    "KEYED-EFFECT\tdestination\twallet\tusd\t1"; "EFFECT\twallet\tjpy\t-1"; "END-EVENT";
-    "ZERO-ORIGIN\twallet\tjpy" ] in
+  let rows =
+    [
+      "EXCHANGE\t e \t source \tdestination";
+      "EVENT\t e \t2026-10-03";
+      "KEYED-EFFECT\t source \twallet\tjpy\t" ^ Z.to_string (Z.neg huge);
+      "KEYED-EFFECT\tdestination\twallet\tusd\t1";
+      "EFFECT\twallet\tjpy\t-1";
+      "END-EVENT";
+      "ZERO-ORIGIN\twallet\tjpy";
+    ]
+  in
   let decoded = ok (Input.decode (document rows)) in
   let source = ok (S.create decoded.source) in
   let selected = Option.value_exn (E.find_by_event (S.exchanges source) (F.id " e ")) in
-  F.require (D.Identifier.Effect_key.equal (E.fact selected).source (F.identifier D.Identifier.Effect_key.of_string " source ") &&
-    Z.equal (D.Quantity.quanta (D.Effect.quantity (E.source_effect selected))) (Z.neg huge) &&
-    List.length (D.Event.effects (E.event selected)) = 3) "exact forward claim/key/quantity/additional Effect retention";
+  F.require
+    (D.Identifier.Effect_key.equal (E.fact selected).source
+       (F.identifier D.Identifier.Effect_key.of_string " source ")
+    && Z.equal (D.Quantity.quanta (D.Effect.quantity (E.source_effect selected))) (Z.neg huge)
+    && List.length (D.Event.effects (E.event selected)) = 3)
+    "exact forward claim/key/quantity/additional Effect retention";
   let request : C.request = { path = "synthetic"; coordinate = F.coordinate "wallet" } in
   let answer = C.evaluate request (Ok (document rows)) in
-  F.require (answer.exit_code = 0 && String.is_empty answer.stderr &&
-    String.is_substring answer.stdout ~substring:("quantity=" ^ Z.to_string (Z.sub (Z.neg huge) Z.one))) "source lost fee-side Effect or merged Measures";
+  F.require
+    (answer.exit_code = 0 && String.is_empty answer.stderr
+    && String.is_substring answer.stdout
+         ~substring:("quantity=" ^ Z.to_string (Z.sub (Z.neg huge) Z.one)))
+    "source lost fee-side Effect or merged Measures";
   let raw_without = { decoded.source with exchanges = [] } in
-  (match S.create raw_without with Error (Unbalanced_measure _) -> () | _ -> failwith "exchange inferred from neutral Effects");
+  (match S.create raw_without with
+  | Error (Unbalanced_measure _) -> ()
+  | _ -> failwith "exchange inferred from neutral Effects");
   let no_support = C.evaluate request (Ok (document (List.drop_last_exn rows))) in
-  F.require (no_support.exit_code = 3 && String.is_empty no_support.stderr) "valid Exchange created quantity support";
+  F.require
+    (no_support.exit_code = 3 && String.is_empty no_support.stderr)
+    "valid Exchange created quantity support";
   let unknown = C.evaluate request (Ok (document (rows @ [ "EXCHANGE\tmissing\ts\td" ]))) in
-  F.require (unknown.exit_code = 1 && String.is_empty unknown.stdout && String.is_substring unknown.stderr ~substring:"unknown Event") "whole unknown claim ignored before query";
-  let duplicate = C.evaluate request (Ok (document (rows @ [ "EXCHANGE\t e \t source \tdestination" ]))) in
-  F.require (duplicate.exit_code = 1 && String.is_empty duplicate.stdout && String.is_substring duplicate.stderr ~substring:"duplicate Exchange" &&
-    String.is_substring duplicate.stderr ~substring:"at 2 (first 1)") "identical claim deduplicated";
-  let corrected = C.evaluate request (Ok (document (rows @ [ "EVENT\tx\t2026-10-03"; "END-EVENT"; "CORRECTION\t e \tx" ]))) in
-  F.require (corrected.exit_code = 1 && String.is_empty corrected.stdout && String.is_substring corrected.stderr ~substring:"participates in correction") "Exchange correction silently projected keys";
-  let missing = C.evaluate request (Ok (document [ "EXCHANGE\te\ts\td"; "EVENT\te\t2026-10-03";
-    "EFFECT\twallet\tjpy\t-1"; "KEYED-EFFECT\td\twallet\tusd\t1"; "END-EVENT" ])) in
-  F.require (missing.exit_code = 1 && String.is_empty missing.stdout && String.is_substring missing.stderr ~substring:"missing source Effect key") "anonymous Effect promoted to selected key";
-  List.iter [ [ "EXCHANGE\te" ]; [ "EXCHANGE\te\ts" ]; [ "EXCHANGE\te\t\td" ]; [ "EXCHANGE\te\ts\td\textra" ];
-    [ "EVENT\te\t2026-10-03"; "EXCHANGE\te\ts\td"; "END-EVENT" ];
-    [ "GROUP"; "EXCHANGE\te\ts\td"; "END-GROUP" ]; [ "PRESENCE"; "EXCHANGE\te\ts\td"; "END-PRESENCE" ] ] ~f:(fun malformed ->
-      match Input.decode (document malformed), C.evaluate request (Ok (document malformed)) with
-      | Error (Syntax _), response -> F.require (response.exit_code = 2 && String.is_empty response.stdout) "syntax stream/code"
+  F.require
+    (unknown.exit_code = 1 && String.is_empty unknown.stdout
+    && String.is_substring unknown.stderr ~substring:"unknown Event")
+    "whole unknown claim ignored before query";
+  let duplicate =
+    C.evaluate request (Ok (document (rows @ [ "EXCHANGE\t e \t source \tdestination" ])))
+  in
+  F.require
+    (duplicate.exit_code = 1 && String.is_empty duplicate.stdout
+    && String.is_substring duplicate.stderr ~substring:"duplicate Exchange"
+    && String.is_substring duplicate.stderr ~substring:"at 2 (first 1)")
+    "identical claim deduplicated";
+  let corrected =
+    C.evaluate request
+      (Ok (document (rows @ [ "EVENT\tx\t2026-10-03"; "END-EVENT"; "CORRECTION\t e \tx" ])))
+  in
+  F.require
+    (corrected.exit_code = 1 && String.is_empty corrected.stdout
+    && String.is_substring corrected.stderr ~substring:"participates in correction")
+    "Exchange correction silently projected keys";
+  let missing =
+    C.evaluate request
+      (Ok
+         (document
+            [
+              "EXCHANGE\te\ts\td";
+              "EVENT\te\t2026-10-03";
+              "EFFECT\twallet\tjpy\t-1";
+              "KEYED-EFFECT\td\twallet\tusd\t1";
+              "END-EVENT";
+            ]))
+  in
+  F.require
+    (missing.exit_code = 1 && String.is_empty missing.stdout
+    && String.is_substring missing.stderr ~substring:"missing source Effect key")
+    "anonymous Effect promoted to selected key";
+  List.iter
+    [
+      [ "EXCHANGE\te" ];
+      [ "EXCHANGE\te\ts" ];
+      [ "EXCHANGE\te\t\td" ];
+      [ "EXCHANGE\te\ts\td\textra" ];
+      [ "EVENT\te\t2026-10-03"; "EXCHANGE\te\ts\td"; "END-EVENT" ];
+      [ "GROUP"; "EXCHANGE\te\ts\td"; "END-GROUP" ];
+      [ "PRESENCE"; "EXCHANGE\te\ts\td"; "END-PRESENCE" ];
+    ]
+    ~f:(fun malformed ->
+      match (Input.decode (document malformed), C.evaluate request (Ok (document malformed))) with
+      | Error (Syntax _), response ->
+          F.require (response.exit_code = 2 && String.is_empty response.stdout) "syntax stream/code"
       | _ -> failwith "malformed/misplaced Exchange disappeared");
-  Stdlib.Printf.printf "forward exact selected-key Exchange; explicit per-Measure exemption; global admission 1 vs syntax 2/unsupported 3\n";
-  [%expect {| forward exact selected-key Exchange; explicit per-Measure exemption; global admission 1 vs syntax 2/unsupported 3 |}]
-;;
+  Stdlib.Printf.printf
+    "forward exact selected-key Exchange; explicit per-Measure exemption; global admission 1 vs \
+     syntax 2/unsupported 3\n";
+  [%expect
+    {| forward exact selected-key Exchange; explicit per-Measure exemption; global admission 1 vs syntax 2/unsupported 3 |}]
 
-let%expect_test "malformed/truncated/misplaced rows and obsolete formats never become partial success" =
-  let invalid = [ ""; "LOAM-NORMALIZED-ACTUAL\t1\nEND\n"; "BAKHLO-ACTUAL-FIXTURE\t1\nEND\n";
-    document [ "SCHEDULED\ta" ]; document [ "PURPOSE\ta\tmetadata" ];
-    document [ "VALIDITY-REVISION\tr\te" ]; document [ "VALIDITY-REVISION\t\te\t2026-10-03" ];
-    document [ "VALIDITY-BASE\te" ]; document [ "VALIDITY-CORRECTION\tROOT\te\tr" ];
-    document [ "VALIDITY-CORRECTION\tBASE\te" ]; document [ "VALIDITY-CORRECTION\tREVISION\t\tr" ];
-    document [ "EVENT\te"; "VALIDITY-REVISION\tr\te\t2026-10-03"; "END-EVENT" ];
-    document [ "GROUP"; "VALIDITY-BASE\te\t2026-10-03"; "END-GROUP" ];
-    document [ "DESCRIPTION\ta" ]; document [ "DESCRIPTION\t\tmemo" ]; document [ "DESCRIPTION\ta\tone\ttwo" ];
-    document [ "EVENT\ta\t2026-10-03"; "DESCRIPTION\ta\tmisplaced"; "END-EVENT" ];
-    document [ "GROUP"; "DESCRIPTION\ta\tmisplaced"; "END-GROUP" ];
-    document [ "PRESENCE"; "DESCRIPTION\ta\tmisplaced"; "END-PRESENCE" ];
-    document [ "DESCRIPTION\ta\ttext\ncontinued" ]; document [ "KEYED-EFFECT\tkey\twallet\tjpy\t1" ];
-    document [ "EVENT\ta\t2026-10-03" ]; document [ "GROUP" ]; document [ "EFFECT\twallet\tjpy\t1" ]; document [ "" ];
-    document [ "OPENING\twallet\tjpy" ]; document [ "OPENING\twallet\tjpy\t" ];
-    document [ "GROUP"; "OPENING\twallet\tjpy\te"; "END-GROUP" ]; document [ "PRESENCE\twallet\tjpy" ];
-    document [ "PRESENCE" ]; document [ "PRESENT\twallet\tjpy" ]; document [ "END-PRESENCE" ];
-    document [ "GROUP"; "PRESENCE"; "END-PRESENCE"; "END-GROUP" ];
-    document [ "PRESENCE"; "ASSERT\twallet\tjpy\t1"; "END-PRESENCE" ];
-    document [ "PRESENCE"; "PRESENT\twallet\tjpy\t1"; "END-PRESENCE" ];
-    document [ "EVENT\ta\t2026-10-03"; "EFFECT\twallet\tjpy\t0x10"; "END-EVENT" ];
-    document [ "EVENT\ta\t2026-10-03"; "EFFECT\twallet\tjpy\t 1"; "END-EVENT" ];
-    "BAKHLO-ACTUAL-FIXTURE\t2\nEND"; document [] ^ "END\n" ] in
-  List.iter invalid ~f:(fun text -> match Input.decode text with
-    | Error (Syntax { line; message }) -> F.require (line > 0 && not (String.is_empty message)) "useful syntax refusal"
-    | Error (Invalid_event _) -> failwith "wrong failure phase for malformed syntax"
-    | Ok _ -> failwith "malformed evidence ignored");
+let%expect_test
+    "malformed/truncated/misplaced rows and obsolete formats never become partial success" =
+  let invalid =
+    [
+      "";
+      "LOAM-NORMALIZED-ACTUAL\t1\nEND\n";
+      "BAKHLO-ACTUAL-FIXTURE\t1\nEND\n";
+      document [ "SCHEDULED\ta" ];
+      document [ "PURPOSE\ta\tmetadata" ];
+      document [ "VALIDITY-REVISION\tr\te" ];
+      document [ "VALIDITY-REVISION\t\te\t2026-10-03" ];
+      document [ "VALIDITY-BASE\te" ];
+      document [ "VALIDITY-CORRECTION\tROOT\te\tr" ];
+      document [ "VALIDITY-CORRECTION\tBASE\te" ];
+      document [ "VALIDITY-CORRECTION\tREVISION\t\tr" ];
+      document [ "EVENT\te"; "VALIDITY-REVISION\tr\te\t2026-10-03"; "END-EVENT" ];
+      document [ "GROUP"; "VALIDITY-BASE\te\t2026-10-03"; "END-GROUP" ];
+      document [ "DESCRIPTION\ta" ];
+      document [ "DESCRIPTION\t\tmemo" ];
+      document [ "DESCRIPTION\ta\tone\ttwo" ];
+      document [ "EVENT\ta\t2026-10-03"; "DESCRIPTION\ta\tmisplaced"; "END-EVENT" ];
+      document [ "GROUP"; "DESCRIPTION\ta\tmisplaced"; "END-GROUP" ];
+      document [ "PRESENCE"; "DESCRIPTION\ta\tmisplaced"; "END-PRESENCE" ];
+      document [ "DESCRIPTION\ta\ttext\ncontinued" ];
+      document [ "KEYED-EFFECT\tkey\twallet\tjpy\t1" ];
+      document [ "EVENT\ta\t2026-10-03" ];
+      document [ "GROUP" ];
+      document [ "EFFECT\twallet\tjpy\t1" ];
+      document [ "" ];
+      document [ "OPENING\twallet\tjpy" ];
+      document [ "OPENING\twallet\tjpy\t" ];
+      document [ "GROUP"; "OPENING\twallet\tjpy\te"; "END-GROUP" ];
+      document [ "PRESENCE\twallet\tjpy" ];
+      document [ "PRESENCE" ];
+      document [ "PRESENT\twallet\tjpy" ];
+      document [ "END-PRESENCE" ];
+      document [ "GROUP"; "PRESENCE"; "END-PRESENCE"; "END-GROUP" ];
+      document [ "PRESENCE"; "ASSERT\twallet\tjpy\t1"; "END-PRESENCE" ];
+      document [ "PRESENCE"; "PRESENT\twallet\tjpy\t1"; "END-PRESENCE" ];
+      document [ "EVENT\ta\t2026-10-03"; "EFFECT\twallet\tjpy\t0x10"; "END-EVENT" ];
+      document [ "EVENT\ta\t2026-10-03"; "EFFECT\twallet\tjpy\t 1"; "END-EVENT" ];
+      "BAKHLO-ACTUAL-FIXTURE\t2\nEND";
+      document [] ^ "END\n";
+    ]
+  in
+  List.iter invalid ~f:(fun text ->
+      match Input.decode text with
+      | Error (Syntax { line; message }) ->
+          F.require (line > 0 && not (String.is_empty message)) "useful syntax refusal"
+      | Error (Invalid_event _) -> failwith "wrong failure phase for malformed syntax"
+      | Ok _ -> failwith "malformed evidence ignored");
   (match Input.decode (document [ "GROUP"; "ASSERT\t\tjpy\t1"; "END-GROUP" ]) with
-   | Error (Syntax { line = 3; message = _ }) -> () | _ -> failwith "one-based line witness");
+  | Error (Syntax { line = 3; message = _ }) -> ()
+  | _ -> failwith "one-based line witness");
   Stdlib.Printf.printf "one format; no fallback, discarded rows or partial image\n";
   [%expect {| one format; no fallback, discarded rows or partial image |}]
-;;
 
 let%expect_test "read failures and cycle identities are escaped; help/syntax require no file" =
   let request : C.request = { path = "file\nname"; coordinate = F.coordinate "wallet" } in
   let failed = C.evaluate request (Error "failure\027\n") in
-  F.require (failed.exit_code = 1 && String.is_empty failed.stdout &&
-    not (String.exists failed.stderr ~f:(Char.equal '\027')) &&
-    String.count failed.stderr ~f:(Char.equal '\n') = 1) "honest escaped read failure";
-  let cycle = Bakhlo_presentation.Current_quantity_text.source_refusal
-    (S.Corrections (Bakhlo_application.Correction_frontier.Cycle { path = [ F.id "event\027\n" ] })) in
-  F.require (not (String.exists cycle ~f:(Char.equal '\027')) && String.count cycle ~f:(Char.equal '\n') = 1) "escaped cycle provenance";
-  let opening = Bakhlo_presentation.Current_quantity_text.refusal
-    (Bakhlo_application.Current_quantity_query.Opening_event_not_current
-       { opening = { coordinate = F.coordinate "wallet\027\n"; opening_event = F.id "event\027\n" }; position = 1 }) in
-  F.require (not (String.exists opening ~f:(Char.equal '\027')) && String.count opening ~f:(Char.equal '\n') = 1) "escaped opening provenance";
-  let duplicate = Bakhlo_presentation.Current_quantity_text.event_refusal (F.id "e\027\n")
-    (D.Event.Duplicate_effect_key { key = F.identifier D.Identifier.Effect_key.of_string "k\027\n"; first_position = 1; position = 2 }) in
-  F.require (not (String.exists duplicate ~f:(Char.equal '\027')) && String.count duplicate ~f:(Char.equal '\n') = 1) "escaped key and Event identities";
-  List.iter [ S.Descriptions (Bakhlo_application.Event_descriptions.Repeated_description { event = F.id "event\027\n"; first_position = 1; position = 2 });
-    S.Descriptions (Bakhlo_application.Event_descriptions.Unknown_description_event { event = F.id "event\027\n"; position = 1 }) ] ~f:(fun error ->
+  F.require
+    (failed.exit_code = 1 && String.is_empty failed.stdout
+    && (not (String.exists failed.stderr ~f:(Char.equal '\027')))
+    && String.count failed.stderr ~f:(Char.equal '\n') = 1)
+    "honest escaped read failure";
+  let cycle =
+    Bakhlo_presentation.Current_quantity_text.source_refusal
+      (S.Corrections
+         (Bakhlo_application.Correction_frontier.Cycle { path = [ F.id "event\027\n" ] }))
+  in
+  F.require
+    ((not (String.exists cycle ~f:(Char.equal '\027')))
+    && String.count cycle ~f:(Char.equal '\n') = 1)
+    "escaped cycle provenance";
+  let opening =
+    Bakhlo_presentation.Current_quantity_text.refusal
+      (Bakhlo_application.Current_quantity_query.Opening_event_not_current
+         {
+           opening =
+             { coordinate = F.coordinate "wallet\027\n"; opening_event = F.id "event\027\n" };
+           position = 1;
+         })
+  in
+  F.require
+    ((not (String.exists opening ~f:(Char.equal '\027')))
+    && String.count opening ~f:(Char.equal '\n') = 1)
+    "escaped opening provenance";
+  let duplicate =
+    Bakhlo_presentation.Current_quantity_text.event_refusal (F.id "e\027\n")
+      (D.Event.Duplicate_effect_key
+         {
+           key = F.identifier D.Identifier.Effect_key.of_string "k\027\n";
+           first_position = 1;
+           position = 2;
+         })
+  in
+  F.require
+    ((not (String.exists duplicate ~f:(Char.equal '\027')))
+    && String.count duplicate ~f:(Char.equal '\n') = 1)
+    "escaped key and Event identities";
+  List.iter
+    [
+      S.Descriptions
+        (Bakhlo_application.Event_descriptions.Repeated_description
+           { event = F.id "event\027\n"; first_position = 1; position = 2 });
+      S.Descriptions
+        (Bakhlo_application.Event_descriptions.Unknown_description_event
+           { event = F.id "event\027\n"; position = 1 });
+    ]
+    ~f:(fun error ->
       let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal error in
-      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped description references");
-  List.iter [ S.Merchants (Bakhlo_application.Event_merchants.Repeated_disposition { event = F.id "event\027\n"; first_position = 1; position = 2 });
-    S.Merchants (Bakhlo_application.Event_merchants.Unknown_merchant_event { event = F.id "event\027\n"; position = 1 }) ] ~f:(fun error ->
+      F.require
+        ((not (String.exists rendered ~f:(Char.equal '\027')))
+        && String.count rendered ~f:(Char.equal '\n') = 1)
+        "escaped description references");
+  List.iter
+    [
+      S.Merchants
+        (Bakhlo_application.Event_merchants.Repeated_disposition
+           { event = F.id "event\027\n"; first_position = 1; position = 2 });
+      S.Merchants
+        (Bakhlo_application.Event_merchants.Unknown_merchant_event
+           { event = F.id "event\027\n"; position = 1 });
+    ]
+    ~f:(fun error ->
       let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal error in
-      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped Merchant references");
+      F.require
+        ((not (String.exists rendered ~f:(Char.equal '\027')))
+        && String.count rendered ~f:(Char.equal '\n') = 1)
+        "escaped Merchant references");
   let module A = Bakhlo_application.Original_amounts in
-  List.iter [ A.Repeated_root { root = F.id "root\027\n"; first_position = 1; position = 2 };
-    Nonpositive_quantity { root = F.id "root\027\n"; quantity = D.Quantity.zero; position = 1 };
-    Unknown_event { root = F.id "root\027\n"; position = 1 }; Not_root { root = F.id "root\027\n"; position = 1 } ] ~f:(fun error ->
-      let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal (S.Original_amounts error) in
-      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped amount roots");
+  List.iter
+    [
+      A.Repeated_root { root = F.id "root\027\n"; first_position = 1; position = 2 };
+      Nonpositive_quantity { root = F.id "root\027\n"; quantity = D.Quantity.zero; position = 1 };
+      Unknown_event { root = F.id "root\027\n"; position = 1 };
+      Not_root { root = F.id "root\027\n"; position = 1 };
+    ]
+    ~f:(fun error ->
+      let rendered =
+        Bakhlo_presentation.Current_quantity_text.source_refusal (S.Original_amounts error)
+      in
+      F.require
+        ((not (String.exists rendered ~f:(Char.equal '\027')))
+        && String.count rendered ~f:(Char.equal '\n') = 1)
+        "escaped amount roots");
   let module E = Bakhlo_application.Exchange_evidence in
-  List.iter [ E.Correction_mentions_event { event = F.id "event\027\n"; position = 1 };
-    Missing_effect { event = F.id "event\027\n"; side = Source; key = F.identifier D.Identifier.Effect_key.of_string "key\027\n"; position = 1 };
-    Third_measure { event = F.id "event\027\n"; effect_position = 3; measure = F.identifier D.Identifier.Measure.of_string "unit\027\n"; position = 1 } ] ~f:(fun error ->
+  List.iter
+    [
+      E.Correction_mentions_event { event = F.id "event\027\n"; position = 1 };
+      Missing_effect
+        {
+          event = F.id "event\027\n";
+          side = Source;
+          key = F.identifier D.Identifier.Effect_key.of_string "key\027\n";
+          position = 1;
+        };
+      Third_measure
+        {
+          event = F.id "event\027\n";
+          effect_position = 3;
+          measure = F.identifier D.Identifier.Measure.of_string "unit\027\n";
+          position = 1;
+        };
+    ]
+    ~f:(fun error ->
       let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal (S.Exchanges error) in
-      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped Exchange key/Measure/Event diagnostics");
+      F.require
+        ((not (String.exists rendered ~f:(Char.equal '\027')))
+        && String.count rendered ~f:(Char.equal '\n') = 1)
+        "escaped Exchange key/Measure/Event diagnostics");
   let module V = Bakhlo_application.Actual_validity in
   let date_id = F.identifier D.Identifier.Validity_revision.of_string "revision\027\n" in
-  List.iter [ V.Cycle { path = [ Revision_ref date_id; Revision_ref date_id ] };
-    Repeated_fact { reference = Base_ref (F.id "event\027\n"); first_position = 1; position = 2 };
-    Unresolved_correction { position = 1; endpoints = [ Target (Revision_ref date_id); Replacement date_id ] };
-    Cross_event_correction { position = 1; target_event = F.id "event\027\n"; replacement_event = F.id "other\027\n" } ] ~f:(fun error ->
+  List.iter
+    [
+      V.Cycle { path = [ Revision_ref date_id; Revision_ref date_id ] };
+      Repeated_fact { reference = Base_ref (F.id "event\027\n"); first_position = 1; position = 2 };
+      Unresolved_correction
+        { position = 1; endpoints = [ Target (Revision_ref date_id); Replacement date_id ] };
+      Cross_event_correction
+        { position = 1; target_event = F.id "event\027\n"; replacement_event = F.id "other\027\n" };
+    ]
+    ~f:(fun error ->
       let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal (S.Validity error) in
-      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped tagged date history diagnostics");
+      F.require
+        ((not (String.exists rendered ~f:(Char.equal '\027')))
+        && String.count rendered ~f:(Char.equal '\n') = 1)
+        "escaped tagged date history diagnostics");
   (match C.plan [ "--help" ] with Help -> () | _ -> failwith "help plan");
   (match C.plan [] with Refused _ -> () | _ -> failwith "syntax plan");
   Stdlib.Printf.printf "escaped provenance/errors; explicit read result; no help/syntax I/O\n";
   [%expect {| escaped provenance/errors; explicit read result; no help/syntax I/O |}]
-;;
 
-let%expect_test "Reversal reader retains exact forward facts, independent dates and key-free physical correspondence" =
+let%expect_test
+    "Reversal reader retains exact forward facts, independent dates and key-free physical \
+     correspondence" =
   let module R = Bakhlo_application.Actual_reversals in
   let huge = Z.to_string (Z.shift_left Z.one 180) in
-  let rows = [ "REVERSAL\t a \tr"; "EVENT\tr\t1900-01-01";
-    "EFFECT\toffset\t jpy \t-" ^ huge; "KEYED-EFFECT\treverse-key\twallet\t jpy \t+" ^ huge; "END-EVENT";
-    "EVENT\t a \t2026-10-03"; "KEYED-EFFECT\ttarget-key\twallet\t jpy \t-" ^ huge;
-    "EFFECT\toffset\t jpy \t" ^ huge; "END-EVENT"; "ZERO-ORIGIN\twallet\t jpy " ] in
+  let rows =
+    [
+      "REVERSAL\t a \tr";
+      "EVENT\tr\t1900-01-01";
+      "EFFECT\toffset\t jpy \t-" ^ huge;
+      "KEYED-EFFECT\treverse-key\twallet\t jpy \t+" ^ huge;
+      "END-EVENT";
+      "EVENT\t a \t2026-10-03";
+      "KEYED-EFFECT\ttarget-key\twallet\t jpy \t-" ^ huge;
+      "EFFECT\toffset\t jpy \t" ^ huge;
+      "END-EVENT";
+      "ZERO-ORIGIN\twallet\t jpy ";
+    ]
+  in
   let text = document rows in
   let decoded = ok (Input.decode text) in
-  F.require (List.length decoded.source.reversals = 1 && D.Identifier.Event.equal (List.hd_exn decoded.source.reversals).target (F.id " a ")) "forward fact normalized/lost";
+  F.require
+    (List.length decoded.source.reversals = 1
+    && D.Identifier.Event.equal (List.hd_exn decoded.source.reversals).target (F.id " a "))
+    "forward fact normalized/lost";
   let source = ok (S.create decoded.source) in
   let pair = Option.value_exn (R.find_by_target (S.reversals source) (F.id " a ")) in
-  F.require (List.equal F.equal_event [ R.reversal_event pair; R.target_event pair ] decoded.source.events) "physical matching rewrote key/order payload";
-  let request : C.request = { path = "synthetic"; coordinate = F.coordinate ~unit:" jpy " "wallet" } in
+  F.require
+    (List.equal F.equal_event [ R.reversal_event pair; R.target_event pair ] decoded.source.events)
+    "physical matching rewrote key/order payload";
+  let request : C.request =
+    { path = "synthetic"; coordinate = F.coordinate ~unit:" jpy " "wallet" }
+  in
   let response = C.evaluate request (Ok text) in
-  F.require (response.exit_code = 0 && String.is_empty response.stderr && String.is_substring response.stdout ~substring:"quantity=0") "exact supported cancellation";
+  F.require
+    (response.exit_code = 0 && String.is_empty response.stderr
+    && String.is_substring response.stdout ~substring:"quantity=0")
+    "exact supported cancellation";
   let unsupported = C.evaluate request (Ok (document (List.drop_last_exn rows))) in
-  F.require (unsupported.exit_code = 3 && String.is_empty unsupported.stderr && String.is_substring unsupported.stdout ~substring:"quantity unknown") "Reversal inferred support";
-  List.iter [ [ "REVERSAL\ta" ]; [ "REVERSAL\ta\tr\textra" ]; [ "REVERSAL\t\tr" ]; [ "REVERSAL\ta\t" ];
-    [ "GROUP"; "REVERSAL\ta\tr"; "END-GROUP" ]; [ "EVENT\ta"; "REVERSAL\ta\tr"; "END-EVENT" ];
-    [ "PRESENCE"; "REVERSAL\ta\tr"; "END-PRESENCE" ]; [ "PURPOSE\ta\tfood" ]; [ "SCHEDULED\ta" ] ] ~f:(fun rows ->
-      match Input.decode (document rows) with Error (Syntax _) -> () | _ -> failwith "malformed/misplaced/unsupported evidence accepted");
-  Stdlib.Printf.printf "forward exact Reversal/180-bit/key-order payloads and earlier reversal date; explicit zero vs unsupported, malformed/unsupported rows refuse\n";
-  [%expect {| forward exact Reversal/180-bit/key-order payloads and earlier reversal date; explicit zero vs unsupported, malformed/unsupported rows refuse |}]
-;;
+  F.require
+    (unsupported.exit_code = 3
+    && String.is_empty unsupported.stderr
+    && String.is_substring unsupported.stdout ~substring:"quantity unknown")
+    "Reversal inferred support";
+  List.iter
+    [
+      [ "REVERSAL\ta" ];
+      [ "REVERSAL\ta\tr\textra" ];
+      [ "REVERSAL\t\tr" ];
+      [ "REVERSAL\ta\t" ];
+      [ "GROUP"; "REVERSAL\ta\tr"; "END-GROUP" ];
+      [ "EVENT\ta"; "REVERSAL\ta\tr"; "END-EVENT" ];
+      [ "PRESENCE"; "REVERSAL\ta\tr"; "END-PRESENCE" ];
+      [ "PURPOSE\ta\tfood" ];
+      [ "SCHEDULED\ta" ];
+    ]
+    ~f:(fun rows ->
+      match Input.decode (document rows) with
+      | Error (Syntax _) -> ()
+      | _ -> failwith "malformed/misplaced/unsupported evidence accepted");
+  Stdlib.Printf.printf
+    "forward exact Reversal/180-bit/key-order payloads and earlier reversal date; explicit zero vs \
+     unsupported, malformed/unsupported rows refuse\n";
+  [%expect
+    {| forward exact Reversal/180-bit/key-order payloads and earlier reversal date; explicit zero vs unsupported, malformed/unsupported rows refuse |}]
 
-let%expect_test "Relation reader preserves forward identities/roles and distinguishes whole-source qualification from support" =
+let%expect_test
+    "Relation reader preserves forward identities/roles and distinguishes whole-source \
+     qualification from support" =
   let module R = Bakhlo_application.Open_relations in
   let huge = Z.to_string (Z.shift_left Z.one 180) in
-  let rows = [ "RELATION\t r \t e \t s \tEXTERNAL\tHOUSEHOLD\tHOUSEHOLD\t+" ^ huge;
-    "EVENT\t e \t1900-01-01"; "KEYED-EFFECT\t s \twallet\t jpy \t-" ^ huge;
-    "EFFECT\toffset\t jpy \t" ^ huge; "END-EVENT" ] in
+  let rows =
+    [
+      "RELATION\t r \t e \t s \tEXTERNAL\tHOUSEHOLD\tHOUSEHOLD\t+" ^ huge;
+      "EVENT\t e \t1900-01-01";
+      "KEYED-EFFECT\t s \twallet\t jpy \t-" ^ huge;
+      "EFFECT\toffset\t jpy \t" ^ huge;
+      "END-EVENT";
+    ]
+  in
   let decoded = ok (Input.decode (document rows)) in
   let supplied = List.hd_exn decoded.source.relations in
-  F.require (D.Identifier.Relation.equal supplied.id (F.identifier D.Identifier.Relation.of_string " r ")
-    && D.Identifier.Event.equal supplied.source_event (F.id " e ") && D.Identifier.Effect_key.equal supplied.source_effect (F.identifier D.Identifier.Effect_key.of_string " s ")) "relation identities normalized";
-  (match supplied.debtor, supplied.creditor with
-   | External party, Household -> F.require (String.equal (D.Identifier.External_party.to_string party) "HOUSEHOLD") "explicit External token confused with tag"
-   | _ -> failwith "relation direction inferred from source sign");
+  F.require
+    (D.Identifier.Relation.equal supplied.id (F.identifier D.Identifier.Relation.of_string " r ")
+    && D.Identifier.Event.equal supplied.source_event (F.id " e ")
+    && D.Identifier.Effect_key.equal supplied.source_effect
+         (F.identifier D.Identifier.Effect_key.of_string " s "))
+    "relation identities normalized";
+  (match (supplied.debtor, supplied.creditor) with
+  | External party, Household ->
+      F.require
+        (String.equal (D.Identifier.External_party.to_string party) "HOUSEHOLD")
+        "explicit External token confused with tag"
+  | _ -> failwith "relation direction inferred from source sign");
   let source = ok (S.create decoded.source) in
   let row = Option.value_exn (R.find_by_id (S.relations source) supplied.id) in
-  F.require (Z.equal (D.Quantity.quanta (D.Effect.quantity (R.source_effect row))) (Z.neg (Z.shift_left Z.one 180))) "huge source magnitude lost";
-  let request : C.request = { path = "synthetic"; coordinate = F.coordinate ~unit:" jpy " "wallet" } in
+  F.require
+    (Z.equal
+       (D.Quantity.quanta (D.Effect.quantity (R.source_effect row)))
+       (Z.neg (Z.shift_left Z.one 180)))
+    "huge source magnitude lost";
+  let request : C.request =
+    { path = "synthetic"; coordinate = F.coordinate ~unit:" jpy " "wallet" }
+  in
   let unavailable = C.evaluate request (Ok (document rows)) in
-  F.require (unavailable.exit_code = 3 && String.is_empty unavailable.stderr && String.is_substring unavailable.stdout ~substring:"quantity unknown") "relation manufactured support";
+  F.require
+    (unavailable.exit_code = 3
+    && String.is_empty unavailable.stderr
+    && String.is_substring unavailable.stdout ~substring:"quantity unknown")
+    "relation manufactured support";
   let exact = C.evaluate request (Ok (document (rows @ [ "ZERO-ORIGIN\twallet\t jpy " ]))) in
-  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:("quantity=-" ^ huge)) "relation changed explicit origin arithmetic";
-  let base = [ "EVENT\te\t2026-10-03"; "KEYED-EFFECT\ts\twallet\tjpy\t-2"; "EFFECT\toffset\tjpy\t2"; "END-EVENT" ] in
-  List.iter [ "RELATION\tr\te\ts\tHOUSEHOLD\tHOUSEHOLD\t1";
-    "RELATION\tr\te\ts\tEXTERNAL\tp\tEXTERNAL\tq\t1";
-    "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t0";
-    "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t3";
-    "RELATION\tr\te\tmissing\tHOUSEHOLD\tEXTERNAL\tp\t1";
-    "RELATION\tr\tmissing\ts\tHOUSEHOLD\tEXTERNAL\tp\t1" ] ~f:(fun row ->
+  F.require
+    (exact.exit_code = 0 && String.is_empty exact.stderr
+    && String.is_substring exact.stdout ~substring:("quantity=-" ^ huge))
+    "relation changed explicit origin arithmetic";
+  let base =
+    [
+      "EVENT\te\t2026-10-03";
+      "KEYED-EFFECT\ts\twallet\tjpy\t-2";
+      "EFFECT\toffset\tjpy\t2";
+      "END-EVENT";
+    ]
+  in
+  List.iter
+    [
+      "RELATION\tr\te\ts\tHOUSEHOLD\tHOUSEHOLD\t1";
+      "RELATION\tr\te\ts\tEXTERNAL\tp\tEXTERNAL\tq\t1";
+      "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t0";
+      "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t3";
+      "RELATION\tr\te\tmissing\tHOUSEHOLD\tEXTERNAL\tp\t1";
+      "RELATION\tr\tmissing\ts\tHOUSEHOLD\tEXTERNAL\tp\t1";
+    ] ~f:(fun row ->
       let text = document (row :: base) in
       F.require (Result.is_ok (Input.decode text)) "semantic refusal narrowed into syntax";
       let response = C.evaluate request (Ok text) in
-      F.require (response.exit_code = 1 && String.is_empty response.stdout) "invalid unrelated relation silently dropped");
-  List.iter [ [ "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp" ]; [ "RELATION\tr\te\ts\tPARTY\tp\tHOUSEHOLD\t1" ];
-    [ "RELATION\tr\te\ts\tEXTERNAL\t\tHOUSEHOLD\t1" ]; [ "RELATION\t\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1" ];
-    [ "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1.0" ]; [ "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1\textra" ];
-    [ "GROUP"; "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1"; "END-GROUP" ];
-    [ "EVENT\te"; "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1"; "END-EVENT" ];
-    [ "DISCHARGE\te\tr" ]; [ "SETTLEMENT\te" ]; [ "PURPOSE\te\tfood" ] ] ~f:(fun rows ->
-      match Input.decode (document rows) with Error (Syntax _) -> () | _ -> failwith "malformed/misplaced/unsupported relation neighbor accepted");
-  Stdlib.Printf.printf "forward exact Relation/source/External tokens, 180-bit quantities, explicit roles; unknown without support; semantic 1 vs malformed/unsupported syntax 2\n";
-  [%expect {| forward exact Relation/source/External tokens, 180-bit quantities, explicit roles; unknown without support; semantic 1 vs malformed/unsupported syntax 2 |}]
-;;
+      F.require
+        (response.exit_code = 1 && String.is_empty response.stdout)
+        "invalid unrelated relation silently dropped");
+  List.iter
+    [
+      [ "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp" ];
+      [ "RELATION\tr\te\ts\tPARTY\tp\tHOUSEHOLD\t1" ];
+      [ "RELATION\tr\te\ts\tEXTERNAL\t\tHOUSEHOLD\t1" ];
+      [ "RELATION\t\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1" ];
+      [ "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1.0" ];
+      [ "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1\textra" ];
+      [ "GROUP"; "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1"; "END-GROUP" ];
+      [ "EVENT\te"; "RELATION\tr\te\ts\tHOUSEHOLD\tEXTERNAL\tp\t1"; "END-EVENT" ];
+      [ "DISCHARGE\te\tr" ];
+      [ "SETTLEMENT\te" ];
+      [ "PURPOSE\te\tfood" ];
+    ]
+    ~f:(fun rows ->
+      match Input.decode (document rows) with
+      | Error (Syntax _) -> ()
+      | _ -> failwith "malformed/misplaced/unsupported relation neighbor accepted");
+  Stdlib.Printf.printf
+    "forward exact Relation/source/External tokens, 180-bit quantities, explicit roles; unknown \
+     without support; semantic 1 vs malformed/unsupported syntax 2\n";
+  [%expect
+    {| forward exact Relation/source/External tokens, 180-bit quantities, explicit roles; unknown without support; semantic 1 vs malformed/unsupported syntax 2 |}]
 
 let%expect_test "all Relation diagnostic variants escape identity, key and endpoint provenance" =
   let module R = Bakhlo_application.Open_relations in
   let id = F.identifier D.Identifier.Relation.of_string "relation\027\n" in
-  let event = F.id "event\027\n" and key = F.identifier D.Identifier.Effect_key.of_string "key\027\n" in
+  let event = F.id "event\027\n"
+  and key = F.identifier D.Identifier.Effect_key.of_string "key\027\n" in
   let debtor = R.External (F.identifier D.Identifier.External_party.of_string "party\027\n") in
-  List.iter [ R.Repeated_id { id; first_position = 1; position = 2 }; Unknown_event { id; event; position = 1 };
-    Missing_effect { id; event; key; position = 1 }; Invalid_endpoints { id; debtor; creditor = debtor; position = 1 };
-    Nonpositive_quantity { id; quantity = D.Quantity.zero; position = 1 };
-    Exceeds_source { id; quantity = D.Quantity.of_quanta Z.one; magnitude = D.Quantity.zero; position = 1 };
-    Overcovered_source { event; key; total = D.Quantity.of_quanta Z.one; magnitude = D.Quantity.zero; position = 1 } ] ~f:(fun error ->
+  List.iter
+    [
+      R.Repeated_id { id; first_position = 1; position = 2 };
+      Unknown_event { id; event; position = 1 };
+      Missing_effect { id; event; key; position = 1 };
+      Invalid_endpoints { id; debtor; creditor = debtor; position = 1 };
+      Nonpositive_quantity { id; quantity = D.Quantity.zero; position = 1 };
+      Exceeds_source
+        { id; quantity = D.Quantity.of_quanta Z.one; magnitude = D.Quantity.zero; position = 1 };
+      Overcovered_source
+        {
+          event;
+          key;
+          total = D.Quantity.of_quanta Z.one;
+          magnitude = D.Quantity.zero;
+          position = 1;
+        };
+    ]
+    ~f:(fun error ->
       let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal (S.Relations error) in
-      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1
-        && String.is_substring rendered ~substring:"Relation") "Relation provenance escaping");
-  Stdlib.Printf.printf "all seven Relation refusals preserve escaped identity/source/role/quantity positions on one line\n";
-  [%expect {| all seven Relation refusals preserve escaped identity/source/role/quantity positions on one line |}]
-;;
+      F.require
+        ((not (String.exists rendered ~f:(Char.equal '\027')))
+        && String.count rendered ~f:(Char.equal '\n') = 1
+        && String.is_substring rendered ~substring:"Relation")
+        "Relation provenance escaping");
+  Stdlib.Printf.printf
+    "all seven Relation refusals preserve escaped identity/source/role/quantity positions on one \
+     line\n";
+  [%expect
+    {| all seven Relation refusals preserve escaped identity/source/role/quantity positions on one line |}]
 
-let%expect_test "Discharge reader retains forward exact quantities and closure without inventing physical support" =
+let%expect_test
+    "Discharge reader retains forward exact quantities and closure without inventing physical \
+     support" =
   let module P = Bakhlo_application.Relation_discharges in
   let huge = Z.to_string (Z.shift_left Z.one 180) in
-  let rows = [ "DISCHARGE\t later \t target \t+" ^ huge;
-    "RELATION\t target \t source \t s \tHOUSEHOLD\tEXTERNAL\tp\t" ^ huge;
-    "EVENT\t later \t1900-01-01"; "END-EVENT"; "EVENT\t source \t2026-10-03";
-    "KEYED-EFFECT\t s \twallet\t jpy \t-" ^ huge; "EFFECT\toffset\t jpy \t" ^ huge; "END-EVENT" ] in
+  let rows =
+    [
+      "DISCHARGE\t later \t target \t+" ^ huge;
+      "RELATION\t target \t source \t s \tHOUSEHOLD\tEXTERNAL\tp\t" ^ huge;
+      "EVENT\t later \t1900-01-01";
+      "END-EVENT";
+      "EVENT\t source \t2026-10-03";
+      "KEYED-EFFECT\t s \twallet\t jpy \t-" ^ huge;
+      "EFFECT\toffset\t jpy \t" ^ huge;
+      "END-EVENT";
+    ]
+  in
   let decoded = ok (Input.decode (document rows)) in
   let source = ok (S.create decoded.source) in
   let supplied = List.hd_exn decoded.source.discharges in
   let remainder = Option.value_exn (P.find_remainder (S.discharges source) supplied.target) in
-  F.require (String.equal (D.Identifier.Event.to_string supplied.event) " later "
+  F.require
+    (String.equal (D.Identifier.Event.to_string supplied.event) " later "
     && String.equal (D.Identifier.Relation.to_string supplied.target) " target "
-    && D.Quantity.equal (P.remaining_quantity remainder) D.Quantity.zero) "forward exact discharge lost";
-  let request : C.request = { path = "synthetic"; coordinate = F.coordinate ~unit:" jpy " "wallet" } in
+    && D.Quantity.equal (P.remaining_quantity remainder) D.Quantity.zero)
+    "forward exact discharge lost";
+  let request : C.request =
+    { path = "synthetic"; coordinate = F.coordinate ~unit:" jpy " "wallet" }
+  in
   let unknown = C.evaluate request (Ok (document rows)) in
-  F.require (unknown.exit_code = 3 && String.is_empty unknown.stderr) "full discharge supplied physical support";
+  F.require
+    (unknown.exit_code = 3 && String.is_empty unknown.stderr)
+    "full discharge supplied physical support";
   let exact = C.evaluate request (Ok (document (rows @ [ "ZERO-ORIGIN\twallet\t jpy " ]))) in
-  F.require (exact.exit_code = 0 && String.is_empty exact.stderr && String.is_substring exact.stdout ~substring:("quantity=-" ^ huge)) "fulfillment changed physical Effects";
-  let base = [ "RELATION\tr\ta\ts\tHOUSEHOLD\tEXTERNAL\tp\t2"; "EVENT\ta\t2026-10-03";
-    "KEYED-EFFECT\ts\twallet\tjpy\t-2"; "EFFECT\toffset\tjpy\t2"; "END-EVENT";
-    "EVENT\tc\t1900-01-01"; "END-EVENT" ] in
-  List.iter [ "DISCHARGE\tmissing\tr\t1"; "DISCHARGE\tc\tmissing\t1"; "DISCHARGE\ta\tr\t1";
-    "DISCHARGE\tc\tr\t0"; "DISCHARGE\tc\tr\t-1"; "DISCHARGE\tc\tr\t3" ] ~f:(fun row ->
+  F.require
+    (exact.exit_code = 0 && String.is_empty exact.stderr
+    && String.is_substring exact.stdout ~substring:("quantity=-" ^ huge))
+    "fulfillment changed physical Effects";
+  let base =
+    [
+      "RELATION\tr\ta\ts\tHOUSEHOLD\tEXTERNAL\tp\t2";
+      "EVENT\ta\t2026-10-03";
+      "KEYED-EFFECT\ts\twallet\tjpy\t-2";
+      "EFFECT\toffset\tjpy\t2";
+      "END-EVENT";
+      "EVENT\tc\t1900-01-01";
+      "END-EVENT";
+    ]
+  in
+  List.iter
+    [
+      "DISCHARGE\tmissing\tr\t1";
+      "DISCHARGE\tc\tmissing\t1";
+      "DISCHARGE\ta\tr\t1";
+      "DISCHARGE\tc\tr\t0";
+      "DISCHARGE\tc\tr\t-1";
+      "DISCHARGE\tc\tr\t3";
+    ] ~f:(fun row ->
       let text = document (row :: base) in
       F.require (Result.is_ok (Input.decode text)) "semantic admission prematurely parsed";
       let response = C.evaluate request (Ok text) in
-      F.require (response.exit_code = 1 && String.is_empty response.stdout) "invalid unrelated discharge disappeared");
-  List.iter [ [ "DISCHARGE\tc\tr" ]; [ "DISCHARGE\tc\tr\t1\textra" ]; [ "DISCHARGE\t\tr\t1" ];
-    [ "DISCHARGE\tc\t\t1" ]; [ "DISCHARGE\tc\tr\t1.0" ]; [ "DISCHARGE\tc\tr\t+" ];
-    [ "GROUP"; "DISCHARGE\tc\tr\t1"; "END-GROUP" ]; [ "EVENT\tc"; "DISCHARGE\tc\tr\t1"; "END-EVENT" ];
-    [ "PRESENCE"; "DISCHARGE\tc\tr\t1"; "END-PRESENCE" ]; [ "SETTLEMENT\tc" ]; [ "PURPOSE\tc\tfood" ] ] ~f:(fun rows ->
-      match Input.decode (document rows) with Error (Syntax _) -> () | _ -> failwith "malformed/misplaced/unsupported discharge neighbor accepted");
-  Stdlib.Printf.printf "forward exact Event/Relation/180-bit discharge, empty earlier Event; full remainder 0 != physical support; semantic 1 vs malformed/misplaced/unsupported syntax 2\n";
-  [%expect {| forward exact Event/Relation/180-bit discharge, empty earlier Event; full remainder 0 != physical support; semantic 1 vs malformed/misplaced/unsupported syntax 2 |}]
-;;
+      F.require
+        (response.exit_code = 1 && String.is_empty response.stdout)
+        "invalid unrelated discharge disappeared");
+  List.iter
+    [
+      [ "DISCHARGE\tc\tr" ];
+      [ "DISCHARGE\tc\tr\t1\textra" ];
+      [ "DISCHARGE\t\tr\t1" ];
+      [ "DISCHARGE\tc\t\t1" ];
+      [ "DISCHARGE\tc\tr\t1.0" ];
+      [ "DISCHARGE\tc\tr\t+" ];
+      [ "GROUP"; "DISCHARGE\tc\tr\t1"; "END-GROUP" ];
+      [ "EVENT\tc"; "DISCHARGE\tc\tr\t1"; "END-EVENT" ];
+      [ "PRESENCE"; "DISCHARGE\tc\tr\t1"; "END-PRESENCE" ];
+      [ "SETTLEMENT\tc" ];
+      [ "PURPOSE\tc\tfood" ];
+    ]
+    ~f:(fun rows ->
+      match Input.decode (document rows) with
+      | Error (Syntax _) -> ()
+      | _ -> failwith "malformed/misplaced/unsupported discharge neighbor accepted");
+  Stdlib.Printf.printf
+    "forward exact Event/Relation/180-bit discharge, empty earlier Event; full remainder 0 != \
+     physical support; semantic 1 vs malformed/misplaced/unsupported syntax 2\n";
+  [%expect
+    {| forward exact Event/Relation/180-bit discharge, empty earlier Event; full remainder 0 != physical support; semantic 1 vs malformed/misplaced/unsupported syntax 2 |}]
 
 let%expect_test "all discharge refusals escape Event and Relation provenance on one line" =
   let module P = Bakhlo_application.Relation_discharges in
-  let event = F.id "event\027\n" and target = F.identifier D.Identifier.Relation.of_string "target\027\n" in
-  List.iter [ P.Unknown_event { event; position = 1 }; Unknown_target { target; position = 1 };
-    Repeated_correspondence { event; target; first_position = 1; position = 2 }; Self_discharge { event; target; position = 1 };
-    Nonpositive_quantity { event; target; quantity = D.Quantity.zero; position = 1 };
-    Exceeds_target { event; target; quantity = D.Quantity.of_quanta Z.one; target_quantity = D.Quantity.zero; position = 1 };
-    Overdischarged_target { target; total = D.Quantity.of_quanta Z.one; target_quantity = D.Quantity.zero; position = 1 } ] ~f:(fun error ->
-      let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal (S.Discharges error) in
-      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1
-        && String.is_substring rendered ~substring:"Discharge") "Discharge provenance escaping");
-  Stdlib.Printf.printf "all seven discharge refusals keep escaped Event/Relation, quantities and one-based witnesses\n";
-  [%expect {| all seven discharge refusals keep escaped Event/Relation, quantities and one-based witnesses |}]
-;;
+  let event = F.id "event\027\n"
+  and target = F.identifier D.Identifier.Relation.of_string "target\027\n" in
+  List.iter
+    [
+      P.Unknown_event { event; position = 1 };
+      Unknown_target { target; position = 1 };
+      Repeated_correspondence { event; target; first_position = 1; position = 2 };
+      Self_discharge { event; target; position = 1 };
+      Nonpositive_quantity { event; target; quantity = D.Quantity.zero; position = 1 };
+      Exceeds_target
+        {
+          event;
+          target;
+          quantity = D.Quantity.of_quanta Z.one;
+          target_quantity = D.Quantity.zero;
+          position = 1;
+        };
+      Overdischarged_target
+        {
+          target;
+          total = D.Quantity.of_quanta Z.one;
+          target_quantity = D.Quantity.zero;
+          position = 1;
+        };
+    ]
+    ~f:(fun error ->
+      let rendered =
+        Bakhlo_presentation.Current_quantity_text.source_refusal (S.Discharges error)
+      in
+      F.require
+        ((not (String.exists rendered ~f:(Char.equal '\027')))
+        && String.count rendered ~f:(Char.equal '\n') = 1
+        && String.is_substring rendered ~substring:"Discharge")
+        "Discharge provenance escaping");
+  Stdlib.Printf.printf
+    "all seven discharge refusals keep escaped Event/Relation, quantities and one-based witnesses\n";
+  [%expect
+    {| all seven discharge refusals keep escaped Event/Relation, quantities and one-based witnesses |}]
 
-let%expect_test "every Reversal error escapes exact role and endpoint provenance on one stderr line" =
+let%expect_test "every Reversal error escapes exact role and endpoint provenance on one stderr line"
+    =
   let module R = Bakhlo_application.Actual_reversals in
   let event = F.id "event\027\n" in
-  List.iter [ R.Repeated_endpoint { event; first_role = Reversal; first_position = 1; role = Target; position = 2 };
-    Unresolved_endpoints { position = 1; endpoints = [ { role = Target; event }; { role = Reversal; event = F.id "other\027\n" } ] };
-    Not_inverse { position = 1; fact = { target = event; reversal = F.id "other\027\n" } } ] ~f:(fun error ->
+  List.iter
+    [
+      R.Repeated_endpoint
+        { event; first_role = Reversal; first_position = 1; role = Target; position = 2 };
+      Unresolved_endpoints
+        {
+          position = 1;
+          endpoints = [ { role = Target; event }; { role = Reversal; event = F.id "other\027\n" } ];
+        };
+      Not_inverse { position = 1; fact = { target = event; reversal = F.id "other\027\n" } };
+    ]
+    ~f:(fun error ->
       let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal (S.Reversals error) in
-      F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1
-        && String.is_substring rendered ~substring:"Reversal") "escaped Reversal diagnostics");
-  Stdlib.Printf.printf "reuse/closure/inversion diagnostics retain escaped Event roles and positions\n";
+      F.require
+        ((not (String.exists rendered ~f:(Char.equal '\027')))
+        && String.count rendered ~f:(Char.equal '\n') = 1
+        && String.is_substring rendered ~substring:"Reversal")
+        "escaped Reversal diagnostics");
+  Stdlib.Printf.printf
+    "reuse/closure/inversion diagnostics retain escaped Event roles and positions\n";
   [%expect {| reuse/closure/inversion diagnostics retain escaped Event roles and positions |}]
-;;

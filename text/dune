@@ -1,4 +1,5 @@
 ; Pure outer representation adapter; no filesystem, CLI or presentation dependency.
+
 (library
  (name bakhlo_text)
  (public_name bakhlo.text)

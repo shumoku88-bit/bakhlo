@@ -1,3 +1,16 @@
+type command = {
+  events : Bakhlo_domain.Event.t list;
+  validities : Actual_validity.fact list;
+  validity_corrections : Actual_validity.correction list;
+  corrections : Bakhlo_domain.Event_correction.t list;
+  descriptions : Event_descriptions.fact list;
+  merchants : Event_merchants.fact list;
+  original_amounts : Original_amounts.fact list;
+  exchanges : Exchange_evidence.fact list;
+  reversals : Actual_reversals.fact list;
+  relations : Open_relations.fact list;
+  discharges : Relation_discharges.fact list;
+}
 (** Ordinary + narrowly qualified Exchange/Reversal Actual subset, NOT full
     normalized household admission or authority. Caller supplies key-qualified Events,
     date history, Event corrections, optional descriptions/Merchant dispositions/root
@@ -8,27 +21,22 @@
     target-local crash residue or other structured metadata admission.
     The synthetic adapter must reject unsupported evidence, never erase it.
     Domain Event stays general; this is a separate practical admission boundary. *)
-type command =
-  { events : Bakhlo_domain.Event.t list
-  ; validities : Actual_validity.fact list
-  ; validity_corrections : Actual_validity.correction list
-  ; corrections : Bakhlo_domain.Event_correction.t list
-  ; descriptions : Event_descriptions.fact list
-  ; merchants : Event_merchants.fact list
-  ; original_amounts : Original_amounts.fact list
-  ; exchanges : Exchange_evidence.fact list
-  ; reversals : Actual_reversals.fact list
-  ; relations : Open_relations.fact list
-  ; discharges : Relation_discharges.fact list
-  }
+
 type t
+
 type error =
   | Events of Bakhlo_domain.Event_memory.error
-  | Zero_effect of
-      { event : Bakhlo_domain.Identifier.Event.t; event_position : int; effect_position : int }
-  | Unbalanced_measure of
-      { event : Bakhlo_domain.Identifier.Event.t; event_position : int
-      ; measure : Bakhlo_domain.Identifier.Measure.t; residual : Bakhlo_domain.Quantity.t }
+  | Zero_effect of {
+      event : Bakhlo_domain.Identifier.Event.t;
+      event_position : int;
+      effect_position : int;
+    }
+  | Unbalanced_measure of {
+      event : Bakhlo_domain.Identifier.Event.t;
+      event_position : int;
+      measure : Bakhlo_domain.Identifier.Measure.t;
+      residual : Bakhlo_domain.Quantity.t;
+    }
   | Validity of Actual_validity.error
   | Corrections of Correction_frontier.error
   | Descriptions of Event_descriptions.error
@@ -39,6 +47,7 @@ type error =
   | Relations of Open_relations.error
   | Discharges of Relation_discharges.error
 
+val create : command -> (t, error) result
 (** Event constructors already establish local key uniqueness. Within this boundary,
     Event identity first; then whole Exchange selection admission against retained
     memory/raw corrections; then whole exact physical Reversal admission. Next, in
@@ -78,7 +87,7 @@ type error =
     or suppress diagnostic inspection. Readable fragments must not be passed off as
     a complete source; any future partial read needs separately qualified scope and
     completeness/reference guarantees, not filtering rows until this gate succeeds. *)
-val create : command -> (t, error) result
+
 val frontier : t -> Correction_frontier.t
 val validity : t -> Actual_validity.t
 val descriptions : t -> Event_descriptions.t

@@ -1,5 +1,6 @@
-(** Public Application operations. Arithmetic-only helpers remain private. *)
 module Actual_reversals = Actual_reversals
+(** Public Application operations. Arithmetic-only helpers remain private. *)
+
 module Actual_source = Actual_source
 module Actual_validity = Actual_validity
 module Correction_check = Correction_check

@@ -1,8 +1,11 @@
 module Make (Key : sig
-    type t
-    val equal : t -> t -> bool
-    include Base.Comparator.S with type t := t
-  end) = struct
+  type t
+
+  val equal : t -> t -> bool
+
+  include Base.Comparator.S with type t := t
+end) =
+struct
   let check ~successor ~starts =
     let rec walk completed visiting reversed id =
       if Base.Set.mem visiting id then
@@ -16,8 +19,8 @@ module Make (Key : sig
         | Some replacement -> (walk [@tailcall]) completed visiting (id :: reversed) replacement
     in
     Base.Result.map
-      (Base.List.fold_result starts ~init:(Base.Set.empty (module Key))
-        ~f:(fun completed id -> walk completed (Base.Set.empty (module Key)) [] id))
+      (Base.List.fold_result starts
+         ~init:(Base.Set.empty (module Key))
+         ~f:(fun completed id -> walk completed (Base.Set.empty (module Key)) [] id))
       ~f:(fun _ -> ())
-  ;;
 end

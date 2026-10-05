@@ -1,4 +1,1 @@
-type t =
-  { target : Identifier.Event.t
-  ; replacement : Identifier.Event.t
-  }
+type t = { target : Identifier.Event.t; replacement : Identifier.Event.t }

@@ -12,4 +12,5 @@ type error =
   | Input of Input.error
   | Source of Bakhlo_application.Actual_source.error
   | Support of Bakhlo_application.Current_quantity_query.error
+
 val of_string : string -> (Bakhlo_application.Current_quantity_query.t, error) result

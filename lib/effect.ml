@@ -1,9 +1,9 @@
-type t =
-  { key : Identifier.Effect_key.t option
-  ; locus : Identifier.Locus.t
-  ; measure : Identifier.Measure.t
-  ; quantity : Quantity.t
-  }
+type t = {
+  key : Identifier.Effect_key.t option;
+  locus : Identifier.Locus.t;
+  measure : Identifier.Measure.t;
+  quantity : Quantity.t;
+}
 
 let create ~key ~locus ~measure ~quantity = { key; locus; measure; quantity }
 let key change = change.key

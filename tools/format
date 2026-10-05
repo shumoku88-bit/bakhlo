@@ -1,0 +1,37 @@
+#!/bin/sh
+# Optional formatting only; never installs tools or changes the main switch.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+case "${1:---check}" in
+    --check) command=@fmt ;;
+    --apply) command=fmt ;;
+    *) printf '%s\n' 'Usage: ./tools/format [--check|--apply]' >&2; exit 2 ;;
+esac
+if [ "$#" -gt 1 ]; then
+    printf '%s\n' 'Usage: ./tools/format [--check|--apply]' >&2
+    exit 2
+fi
+formatter="$root/.tools/format/_opam/bin/ocamlformat"
+if [ ! -x "$formatter" ]; then
+    printf '%s\n' 'Optional local formatter missing; see docs/DEVELOPMENT.md#optional-formatting.' >&2
+    exit 1
+fi
+# Read the committed pin; do not accept a different global executable by accident.
+expected=$(awk '$1 == "version" && $2 == "=" { print $3 }' "$root/.ocamlformat")
+actual=$("$formatter" --version)
+if [ -z "$expected" ] || [ "$actual" != "$expected" ]; then
+    printf 'Expected ocamlformat %s, found %s; refusing to format.\n' "$expected" "$actual" >&2
+    exit 1
+fi
+cd "$root"
+path="$root/_opam/bin:$(dirname -- "$formatter"):$PATH"
+if [ "$command" = fmt ]; then
+    # Dune can return 1 for promoted formatting diffs. Accept only a clean subsequent check.
+    if "$root/tools/opam" exec -- env PATH="$path" dune fmt --root .; then
+        :
+    else
+        status=$?
+        [ "$status" -eq 1 ] || exit "$status"
+    fi
+fi
+exec "$root/tools/opam" exec -- env PATH="$path" dune build --root . @fmt

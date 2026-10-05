@@ -1,9 +1,12 @@
 ; Synthetic package/bootstrap experiments are not part of the product workspace.
+
 (dirs :standard \ scratch)
 
 ; Preserve typed-result/evolution checks even in package/release builds.
 ; Sequencing must consume unit; discarding a value requires an explicit choice.
 ; 8: missing cases; 9: omitted record-pattern fields; 11: redundant cases.
+
 (env
  (_
-  (flags (:standard -strict-sequence -w +8+9+11 -warn-error +8+9+11))))
+  (flags
+   (:standard -strict-sequence -w +8+9+11 -warn-error +8+9+11))))

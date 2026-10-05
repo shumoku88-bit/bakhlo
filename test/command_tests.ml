@@ -1,19 +1,19 @@
 open Base
-
 module C = Bakhlo_cli.Movement_command
 
 let show arguments =
   let output = C.render (C.evaluate arguments) in
   Stdlib.Printf.printf "exit: %d\n" output.exit_code;
-  List.iter [ "stdout", output.stdout; "stderr", output.stderr ] ~f:(fun (name, text) ->
-    if String.is_empty text
-    then Stdlib.Printf.printf "%s: <empty>\n" name
-    else Stdlib.Printf.printf "%s:\n%s" name text)
-;;
+  List.iter
+    [ ("stdout", output.stdout); ("stderr", output.stderr) ]
+    ~f:(fun (name, text) ->
+      if String.is_empty text then Stdlib.Printf.printf "%s: <empty>\n" name
+      else Stdlib.Printf.printf "%s:\n%s" name text)
 
 let%expect_test "help explicitly excludes recording and display-unit inference" =
   show [ "--help" ];
-  [%expect {|
+  [%expect
+    {|
     exit: 0
     stdout:
     Usage: bakhlo check-movement --effect LOCUS MEASURE QUANTA [--effect ...]
@@ -22,16 +22,26 @@ let%expect_test "help explicitly excludes recording and display-unit inference" 
     QUANTA is an exact signed decimal integer, not display currency units.
     No household data is read or written.
     stderr: <empty> |}]
-;;
 
 let%expect_test "preview preserves split Effects and exact huge quantities" =
   show
-    [ "check-movement"
-    ; "--effect"; "wallet"; "jpy"; "-18446744073709551616"
-    ; "--effect"; "food"; "jpy"; "+18446744073709551615"
-    ; "--effect"; "food"; "jpy"; "0001"
+    [
+      "check-movement";
+      "--effect";
+      "wallet";
+      "jpy";
+      "-18446744073709551616";
+      "--effect";
+      "food";
+      "jpy";
+      "+18446744073709551615";
+      "--effect";
+      "food";
+      "jpy";
+      "0001";
     ];
-  [%expect {|
+  [%expect
+    {|
     exit: 0
     stdout:
     Movement structurally valid (not recorded).
@@ -42,7 +52,6 @@ let%expect_test "preview preserves split Effects and exact huge quantities" =
       3. "food": +1 quanta
     Positive total: 18446744073709551616 quanta
     stderr: <empty> |}]
-;;
 
 let%expect_test "syntax failures are not successful empty worlds" =
   show [];
@@ -51,7 +60,8 @@ let%expect_test "syntax failures are not successful empty worlds" =
   show [ "check-movement"; "--file"; "/not-read" ];
   show [ "check-movement"; "--effect"; ""; "jpy"; "1" ];
   show [ "check-movement"; "--effect"; "wallet"; ""; "1" ];
-  [%expect {|
+  [%expect
+    {|
     exit: 2
     stdout: <empty>
     stderr:
@@ -82,15 +92,15 @@ let%expect_test "syntax failures are not successful empty worlds" =
     stderr:
     error: Effect 1: Measure identity must not be empty.
     Run 'bakhlo --help' for usage. |}]
-;;
 
 let%expect_test "decimal grammar refuses coercion instead of using Zarith's wider grammar" =
   List.iter [ ""; "+"; "-"; "1.0"; "0x10"; "1_000"; " 1"; "1 " ] ~f:(fun text ->
-    let output = C.render (C.evaluate [ "check-movement"; "--effect"; "wallet"; "jpy"; text ]) in
-    if not (Int.equal output.exit_code 2) || not (String.is_empty output.stdout)
-    then failwith "invalid decimal spelling accepted";
-    Stdlib.print_string output.stderr);
-  [%expect {|
+      let output = C.render (C.evaluate [ "check-movement"; "--effect"; "wallet"; "jpy"; text ]) in
+      if (not (Int.equal output.exit_code 2)) || not (String.is_empty output.stdout) then
+        failwith "invalid decimal spelling accepted";
+      Stdlib.print_string output.stderr);
+  [%expect
+    {|
     error: Effect 1: expected a signed decimal integer, got "".
     Run 'bakhlo --help' for usage.
     error: Effect 1: expected a signed decimal integer, got "+".
@@ -107,21 +117,13 @@ let%expect_test "decimal grammar refuses coercion instead of using Zarith's wide
     Run 'bakhlo --help' for usage.
     error: Effect 1: expected a signed decimal integer, got "1 ".
     Run 'bakhlo --help' for usage. |}]
-;;
 
 let%expect_test "domain refusal is ordered, exact, and confined to stderr" =
   show [ "check-movement" ];
-  show
-    [ "check-movement"
-    ; "--effect"; "wallet"; "jpy"; "0"
-    ; "--effect"; "food"; "usd"; "-0"
-    ];
-  show
-    [ "check-movement"
-    ; "--effect"; "wallet"; "jpy"; "-1000"
-    ; "--effect"; "food"; "jpy"; "999"
-    ];
-  [%expect {|
+  show [ "check-movement"; "--effect"; "wallet"; "jpy"; "0"; "--effect"; "food"; "usd"; "-0" ];
+  show [ "check-movement"; "--effect"; "wallet"; "jpy"; "-1000"; "--effect"; "food"; "jpy"; "999" ];
+  [%expect
+    {|
     exit: 1
     stdout: <empty>
     stderr:
@@ -139,16 +141,23 @@ let%expect_test "domain refusal is ordered, exact, and confined to stderr" =
     stderr:
     Movement refused (not recorded).
       Measure "jpy": residual -1 quanta; expected 0. |}]
-;;
 
 let%expect_test "opaque input cannot inject terminal controls or extra lines" =
   show [ "bad\027[31m\ncommand" ];
   show
-    [ "check-movement"
-    ; "--effect"; "wallet\nfood"; "jpy\027[31m"; "-1"
-    ; "--effect"; "food"; "jpy\027[31m"; "1"
+    [
+      "check-movement";
+      "--effect";
+      "wallet\nfood";
+      "jpy\027[31m";
+      "-1";
+      "--effect";
+      "food";
+      "jpy\027[31m";
+      "1";
     ];
-  [%expect {|
+  [%expect
+    {|
     exit: 2
     stdout: <empty>
     stderr:
@@ -163,4 +172,3 @@ let%expect_test "opaque input cannot inject terminal controls or extra lines" =
       2. "food": +1 quanta
     Positive total: 1 quanta
     stderr: <empty> |}]
-;;

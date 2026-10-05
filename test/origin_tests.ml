@@ -1,5 +1,4 @@
 open Base
-
 module D = Bakhlo_domain
 module C = D.Effect_coordinate
 module Coverage = D.Zero_origin_coverage
@@ -16,78 +15,75 @@ let movement effects =
   match D.Movement.validate effects with
   | Ok value -> value
   | Error _ -> failwith "invalid fixture Movement"
-;;
 
 let coverage coordinates =
   match Coverage.of_coordinates coordinates with
   | Ok value -> value
   | Error (Duplicate_coordinate _) -> failwith "duplicate fixture coverage"
-;;
 
 let project ~movements ~zero_origins =
-  let events = List.mapi movements ~f:(fun index movement ->
-    Fixtures.observation ~id:(Fixtures.id (Int.to_string index)) ~effects:(D.Movement.effects movement)) in
+  let events =
+    List.mapi movements ~f:(fun index movement ->
+        Fixtures.observation
+          ~id:(Fixtures.id (Int.to_string index))
+          ~effects:(D.Movement.effects movement))
+  in
   let source = Fixtures.actual_source events [] in
   match P.create ~source ~zero_origins ~openings:[] ~groups:[] ~presence:None with
   | Ok image -> image
   | Error _ -> failwith "invalid origin fixture"
-;;
 
 let exact model coordinate =
   match P.query model coordinate with
   | Ok (Exact answer) ->
-    require (same_coordinate (P.coordinate answer) coordinate) "answer coordinate";
-    Q.quanta (P.quantity answer)
+      require (same_coordinate (P.coordinate answer) coordinate) "answer coordinate";
+      Q.quanta (P.quantity answer)
   | Ok (Known_present _) -> failwith "origin became weak support"
   | Error (Support_unknown _) -> failwith "supported fixture unavailable"
-;;
 
 let unknown model coordinate =
   match P.query model coordinate with
   | Error (Support_unknown { coordinate = actual }) ->
-    require (same_coordinate actual coordinate) "unknown coordinate"
+      require (same_coordinate actual coordinate) "unknown coordinate"
   | Ok _ -> failwith "unknown origin became an exact answer"
-;;
 
 let print_quantity label model coordinate =
   Stdlib.Printf.printf "%s=%s\n" label (Z.to_string (exact model coordinate))
-;;
 
 let%expect_test "neutral coordinate keys preserve spelling and cannot collide by concatenation" =
   let coordinates =
-    [ coordinate ~unit:"c" "a/b"
-    ; coordinate ~unit:"b/c" "a"
-    ; coordinate ~unit:"JPY" "wallet"
-    ; coordinate "wallet"
-    ; coordinate " wallet "
-    ; coordinate "wallet\000"
+    [
+      coordinate ~unit:"c" "a/b";
+      coordinate ~unit:"b/c" "a";
+      coordinate ~unit:"JPY" "wallet";
+      coordinate "wallet";
+      coordinate " wallet ";
+      coordinate "wallet\000";
     ]
   in
   let support = coverage coordinates in
   List.iter coordinates ~f:(fun left ->
-    require (Coverage.covers support left) "exact coordinate membership";
-    List.iter coordinates ~f:(fun right ->
-      require
-        (Bool.equal (Int.equal (C.compare left right) 0) (same_coordinate left right))
-        "comparator equality matches both opaque roles";
-      require
-        (Bool.equal (C.equal left right) (same_coordinate left right))
-        "coordinate equality"));
+      require (Coverage.covers support left) "exact coordinate membership";
+      List.iter coordinates ~f:(fun right ->
+          require
+            (Bool.equal (Int.equal (C.compare left right) 0) (same_coordinate left right))
+            "comparator equality matches both opaque roles";
+          require
+            (Bool.equal (C.equal left right) (same_coordinate left right))
+            "coordinate equality"));
   require (not (Coverage.covers support (coordinate ~unit:"jpy " "wallet"))) "no trim";
   Stdlib.Printf.printf "six exact coordinates remain distinct\n";
   [%expect {| six exact coordinates remain distinct |}]
-;;
 
 let%expect_test "independent origin evidence rejects the first repeated coordinate" =
   let wallet = coordinate "wallet" in
   require (not (Coverage.covers Coverage.empty wallet)) "empty supports nothing";
   (match Coverage.of_coordinates [ wallet; coordinate ~unit:"usd" "wallet"; wallet; wallet ] with
-   | Error (Duplicate_coordinate { position; coordinate = repeated }) ->
-     require (same_coordinate repeated wallet) "repeated coordinate";
-     Stdlib.Printf.printf "duplicate at position %d\n" position
-   | Ok _ -> failwith "duplicate factual evidence silently normalized");
+  | Error (Duplicate_coordinate { position; coordinate = repeated }) ->
+      require (same_coordinate repeated wallet) "repeated coordinate";
+      Stdlib.Printf.printf "duplicate at position %d\n" position
+  | Ok _ -> failwith "duplicate factual evidence silently normalized");
   [%expect {| duplicate at position 3 |}]
-;;
 
 let%expect_test "unknown origin differs from covered zero even when activity exists" =
   let wallet = coordinate "wallet" in
@@ -95,24 +91,28 @@ let%expect_test "unknown origin differs from covered zero even when activity exi
   unknown empty wallet;
   let supported = project ~movements:[] ~zero_origins:[ wallet ] in
   print_quantity "covered-empty-basis" supported wallet;
-  let activity = movement [ change wallet (Z.of_int (-10)); change (coordinate "food") (Z.of_int 10) ] in
+  let activity =
+    movement [ change wallet (Z.of_int (-10)); change (coordinate "food") (Z.of_int 10) ]
+  in
   let unsupported = project ~movements:[ activity ] ~zero_origins:[] in
   unknown unsupported wallet;
   let cancelled = movement [ change wallet Z.minus_one; change wallet Z.one ] in
   let net_zero = project ~movements:[ cancelled ] ~zero_origins:[] in
   unknown net_zero wallet;
   Stdlib.Printf.printf "empty, active, and net-zero unsupported origins remain unknown\n";
-  [%expect {|
+  [%expect
+    {|
     covered-empty-basis=0
     empty, active, and net-zero unsupported origins remain unknown |}]
-;;
 
 let%expect_test "quantities are coordinate-local across Measures and negative results" =
   let wallet = coordinate "wallet" in
   let usd = coordinate ~unit:"usd" "wallet" in
   let movements =
-    [ movement [ change wallet (Z.of_int (-10)); change (coordinate "food") (Z.of_int 10) ]
-    ; movement [ change usd (Z.of_int 5); change (coordinate ~unit:"usd" "merchant") (Z.of_int (-5)) ]
+    [
+      movement [ change wallet (Z.of_int (-10)); change (coordinate "food") (Z.of_int 10) ];
+      movement
+        [ change usd (Z.of_int 5); change (coordinate ~unit:"usd" "merchant") (Z.of_int (-5)) ];
     ]
   in
   let model = project ~movements ~zero_origins:[ wallet; usd; coordinate "untouched" ] in
@@ -124,13 +124,14 @@ let%expect_test "quantities are coordinate-local across Measures and negative re
     wallet-jpy=-10
     wallet-usd=5
     untouched-jpy=0 |}]
-;;
 
 let%expect_test "projection counts represented multiplicity without changing source Movements" =
   let huge = Z.of_string "18446744073709551616" in
   let wallet = coordinate "wallet" in
   let food = coordinate "food" in
-  let split = movement [ change wallet (Z.neg huge); change food (Z.pred huge); change food Z.one ] in
+  let split =
+    movement [ change wallet (Z.neg huge); change food (Z.pred huge); change food Z.one ]
+  in
   let same_locus = movement [ change wallet Z.minus_one; change wallet Z.one ] in
   let source_before = D.Movement.effects split in
   let movements = [ split; split; same_locus ] in
@@ -138,7 +139,8 @@ let%expect_test "projection counts represented multiplicity without changing sou
   let first = exact model food in
   require (Z.equal first (exact model food)) "repeat query";
   require
-    (Z.equal first (exact (project ~movements:(List.rev movements) ~zero_origins:[ food; wallet ]) food))
+    (Z.equal first
+       (exact (project ~movements:(List.rev movements) ~zero_origins:[ food; wallet ]) food))
     "construction order";
   let same_change left right =
     D.Identifier.Locus.equal (D.Effect.locus left) (D.Effect.locus right)
@@ -149,11 +151,11 @@ let%expect_test "projection counts represented multiplicity without changing sou
   print_quantity "wallet-jpy" model wallet;
   print_quantity "food-jpy" model food;
   Stdlib.Printf.printf "source split retains %d Effects\n" (List.length (D.Movement.effects split));
-  [%expect {|
+  [%expect
+    {|
     wallet-jpy=-36893488147419103232
     food-jpy=36893488147419103232
     source split retains 3 Effects |}]
-;;
 
 module Integer_lists = struct
   type t = int list
@@ -174,14 +176,14 @@ let%expect_test "generated indexed projection agrees with original-Effect Zarith
   let check source =
     let batches =
       List.mapi source ~f:(fun index n ->
-        let n = if Int.equal n 0 then Z.one else Z.of_int n in
-        let z = Z.mul n scale in
-        let unit = if index % 2 = 0 then "jpy" else "usd" in
-        let suffix = Int.to_string (index % 3) in
-        let wallet = coordinate ~unit ("wallet" ^ suffix) in
-        let destination = if index % 3 = 0 then wallet else coordinate ~unit ("food" ^ suffix) in
-        let half = Z.neg (Z.divexact z (Z.of_int 2)) in
-        [ change wallet z; change destination half; change destination half ])
+          let n = if Int.equal n 0 then Z.one else Z.of_int n in
+          let z = Z.mul n scale in
+          let unit = if index % 2 = 0 then "jpy" else "usd" in
+          let suffix = Int.to_string (index % 3) in
+          let wallet = coordinate ~unit ("wallet" ^ suffix) in
+          let destination = if index % 3 = 0 then wallet else coordinate ~unit ("food" ^ suffix) in
+          let half = Z.neg (Z.divexact z (Z.of_int 2)) in
+          [ change wallet z; change destination half; change destination half ])
     in
     (* Same Effects in distinct explicitly identified Events count as separate facts. *)
     let batches = batches @ List.take batches 1 in
@@ -192,34 +194,37 @@ let%expect_test "generated indexed projection agrees with original-Effect Zarith
     let partially_supported = project ~movements ~zero_origins:partial in
     let unsupported = project ~movements ~zero_origins:[] in
     List.iteri coordinates ~f:(fun index target ->
-      let oracle =
-        List.fold original_effects ~init:Z.zero ~f:(fun total item ->
-          let matches =
-            D.Identifier.Locus.equal (D.Effect.locus item) target.locus
-            && D.Identifier.Measure.equal (D.Effect.measure item) target.measure
-          in
-          if matches then Z.add total (Q.quanta (D.Effect.quantity item)) else total)
-      in
-      require (Z.equal (exact model target) oracle) "direct oracle";
-      require (Z.equal (exact model target) oracle) "query replay";
-      require (Z.equal (exact reversed target) oracle) "input order";
-      unknown unsupported target;
-      if index % 2 = 0
-      then require (Z.equal (exact partially_supported target) oracle) "coverage locality"
-      else unknown partially_supported target)
+        let oracle =
+          List.fold original_effects ~init:Z.zero ~f:(fun total item ->
+              let matches =
+                D.Identifier.Locus.equal (D.Effect.locus item) target.locus
+                && D.Identifier.Measure.equal (D.Effect.measure item) target.measure
+              in
+              if matches then Z.add total (Q.quanta (D.Effect.quantity item)) else total)
+        in
+        require (Z.equal (exact model target) oracle) "direct oracle";
+        require (Z.equal (exact model target) oracle) "query replay";
+        require (Z.equal (exact reversed target) oracle) "input order";
+        unknown unsupported target;
+        if index % 2 = 0 then
+          require (Z.equal (exact partially_supported target) oracle) "coverage locality"
+        else unknown partially_supported target)
   in
   let config =
-    { Base_quickcheck.Test.default_config with
-      seed = Deterministic "loam-zero-origin-v1"
-    ; test_count = 10_000
-    ; shrink_count = 10_000
+    {
+      Base_quickcheck.Test.default_config with
+      seed = Deterministic "loam-zero-origin-v1";
+      test_count = 10_000;
+      shrink_count = 10_000;
     }
   in
   let checks = ref 0 in
-  Base_quickcheck.Test.run_exn (module Integer_lists) ~config ~f:(fun source ->
-    check source;
-    Int.incr checks);
+  Base_quickcheck.Test.run_exn
+    (module Integer_lists)
+    ~config
+    ~f:(fun source ->
+      check source;
+      Int.incr checks);
   require (Int.equal !checks config.test_count) "generated cases actually ran";
   Stdlib.Printf.printf "conditional projection passed (%d generated cases)\n" !checks;
   [%expect {| conditional projection passed (10000 generated cases) |}]
-;;

@@ -24,6 +24,7 @@ end
     payee, creditor or Locus. Relations supply meaning; tokens never infer roles. *)
 module External_party : sig
   type t
+
   val of_string : string -> (t, error) result
   val to_string : t -> string
   val equal : t -> t -> bool
@@ -33,10 +34,12 @@ end
     Not a coordinate/list position, globally unique identity or allocated default. *)
 module Effect_key : sig
   type t
+
   val of_string : string -> (t, error) result
   val to_string : t -> string
   val equal : t -> t -> bool
   val compare : t -> t -> int
+
   include Base.Comparator.S with type t := t
 end
 
@@ -44,10 +47,12 @@ end
     scalar. Equal fields can belong to distinct units. No registry/allocation. *)
 module Relation : sig
   type t
+
   val of_string : string -> (t, error) result
   val to_string : t -> string
   val equal : t -> t -> bool
   val compare : t -> t -> int
+
   include Base.Comparator.S with type t := t
 end
 
@@ -55,10 +60,12 @@ end
     Effect key, base-date identity or timestamp. No revision identity allocation. *)
 module Validity_revision : sig
   type t
+
   val of_string : string -> (t, error) result
   val to_string : t -> string
   val equal : t -> t -> bool
   val compare : t -> t -> int
+
   include Base.Comparator.S with type t := t
 end
 
@@ -71,8 +78,8 @@ module Event : sig
   val to_string : t -> string
   val equal : t -> t -> bool
 
-  (** Mechanical exact-spelling order for immutable memory indexing, not authority. *)
   val compare : t -> t -> int
+  (** Mechanical exact-spelling order for immutable memory indexing, not authority. *)
 
   include Base.Comparator.S with type t := t
 end

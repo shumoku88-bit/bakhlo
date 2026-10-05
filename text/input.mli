@@ -1,3 +1,10 @@
+type t = {
+  source : Bakhlo_application.Actual_source.command;
+  zero_origins : Bakhlo_domain.Effect_coordinate.t list;
+  openings : Bakhlo_application.Current_quantity_query.opening list;
+  groups : Bakhlo_application.Current_quantity_groups.group list;
+  presence : Bakhlo_application.Current_quantity_query.presence option;
+}
 (** Experimental synthetic read profile, NOT canonical household storage/wire format.
     Header [bakhlo-read 1 ordinary-actual-quantity], final [end] and newline required.
     Spaces/tabs delimit tokens; blank lines/indentation allowed, comments unsupported.
@@ -27,18 +34,16 @@
     not known-none. No implicit evidence, full Actual/household coverage, generation
     allocation, authority, partial-source salvage, publication or format upgrade.
     Decode is not admission; Event key uniqueness is checked at end-event. *)
-type t =
-  { source : Bakhlo_application.Actual_source.command
-  ; zero_origins : Bakhlo_domain.Effect_coordinate.t list
-  ; openings : Bakhlo_application.Current_quantity_query.opening list
-  ; groups : Bakhlo_application.Current_quantity_groups.group list
-  ; presence : Bakhlo_application.Current_quantity_query.presence option
-  }
+
 type error =
   | Syntax of { line : int; problem : string }
   | Unsupported_version of { line : int; version : string }
   | Unsupported_profile of { line : int; profile : string }
   | Unsupported_record of { line : int; name : string }
-  | Invalid_event of
-      { line : int; event : Bakhlo_domain.Identifier.Event.t; error : Bakhlo_domain.Event.error }
+  | Invalid_event of {
+      line : int;
+      event : Bakhlo_domain.Identifier.Event.t;
+      error : Bakhlo_domain.Event.error;
+    }
+
 val decode : string -> (t, error) result
