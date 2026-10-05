@@ -53,3 +53,8 @@ val root_id : lineage -> Bakhlo_domain.Identifier.Event.t
 val terminal_event : lineage -> Bakhlo_domain.Event.t
 (** Exact retained Event reached from that root with no outgoing correction.
     Traversal follows explicit edges only, never spelling, time, or list position. *)
+
+val correction_path : lineage -> Bakhlo_domain.Event_correction.t list
+(** Exact retained edges in root-to-terminal traversal order, not source declaration
+    order or a fabricated direct root/terminal edge. Untouched paths have no edges.
+    Derived once after whole graph admission; no dates, retargeting or new evidence. *)

@@ -8,6 +8,7 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Quantity explanations](#terminal-quantity-evidence-explanation), including answer-bound cuts.
 - Current [native LOAM-input reader](#scoped-native-loam-input-reader) and
   [experimental text reader](#experimental-versioned-text-read-ordinary-actual-profile).
 - [Engine tests, models and type boundaries](#retained-executable-evidence);
@@ -54,6 +55,24 @@ is a limitation/blocker, not silently replaced by compile success.
 Formal tools remain development-only. Ordinary build/test/release must be Lean-free.
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
+
+## Terminal quantity evidence explanation
+
+HANDOFF records the bounded continuation review. Application now retains exact admitted correction
+paths and each assertion answer's owning cut; pure Presentation consumes them without changing
+source/support gates or existing typed outcomes. Three focused existing expect cases connect
+reversed declaration order/multihop paths, terminal keyed/anonymous multiplicity and Event-local
+positions, independent assertion cuts (99/208), unknown/net-zero/presence versus explicit zero,
+opening witness, 180-bit signed quantity and escaped exact identities. Cut correspondence reuses
+the earned original-Effect oracle; existing retention helpers now compare paths too. The existing
+10k-node lineage check additionally verifies every traversal edge in both declaration orders.
+
+macOS native `tools/check` passes (163 expect cases, retained campaigns, four cram suites), as does
+release `@install`; optional pinned formatting and exact diff/whitespace review pass. Initial
+missing implementation, a test's nonexistent `Quantity.is_zero` name, and two deliberately empty
+new expect snapshots were resolved; no admission weakening, warning suppression or blind promotion.
+No dependency/lock change, new model/framework/campaign, private input, sibling build, Linux/Mirage,
+proof/storage replay or live acquisition qualification. CLI consumption is the next separate step.
 
 ## Readability and optional formatter qualification
 

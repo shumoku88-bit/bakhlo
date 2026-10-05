@@ -1,7 +1,11 @@
 module D = Bakhlo_domain
 module Id = D.Identifier.Event
 
-type lineage = { root_id : Id.t; terminal_event : D.Event.t }
+type lineage = {
+  root_id : Id.t;
+  terminal_event : D.Event.t;
+  correction_path : D.Event_correction.t list;
+}
 
 type t = {
   retained_events : D.Event_memory.t;
@@ -24,7 +28,7 @@ let index ~events corrections =
       | Error errors -> Error (Unresolved_correction { position; errors })
       | Ok closed -> (
           match Base.Map.find targets correction.target with
-          | Some (first_position, _) ->
+          | Some (first_position, _, _) ->
               Error (Repeated_target { id = correction.target; first_position; position })
           | None -> (
               match Base.Map.find replacements correction.replacement with
@@ -35,7 +39,7 @@ let index ~events corrections =
                   Ok
                     ( position + 1,
                       Base.Map.set targets ~key:correction.target
-                        ~data:(position, Correction_check.replacement_event closed),
+                        ~data:(position, correction, Correction_check.replacement_event closed),
                       Base.Map.set replacements ~key:correction.replacement ~data:position ))))
 
 module Cycle_check = Replacement_cycle.Make (Id)
@@ -44,7 +48,7 @@ let check_acyclic targets corrections =
   Base.Result.map_error
     (Cycle_check.check
        ~successor:(fun id ->
-         Base.Option.map (Base.Map.find targets id) ~f:(fun (_, replacement) ->
+         Base.Option.map (Base.Map.find targets id) ~f:(fun (_, _, replacement) ->
              D.Event.id replacement))
        ~starts:
          (Base.List.map corrections ~f:(fun (correction : D.Event_correction.t) ->
@@ -55,14 +59,17 @@ let check_acyclic targets corrections =
    The index retains resolved replacement observations, so no lookup default or
    impossible missing-Event exception is needed during terminal traversal. *)
 let build_lineages ~events ~targets ~replacements =
-  let rec terminal event =
+  let rec terminal event reversed =
     match Base.Map.find targets (D.Event.id event) with
-    | None -> event
-    | Some (_, replacement) -> (terminal [@tailcall]) replacement
+    | None -> (event, Base.List.rev reversed)
+    | Some (_, correction, replacement) ->
+        (terminal [@tailcall]) replacement (correction :: reversed)
   in
   Base.List.filter_map (D.Event_memory.events events) ~f:(fun event ->
       if Base.Map.mem replacements (D.Event.id event) then None
-      else Some { root_id = D.Event.id event; terminal_event = terminal event })
+      else
+        let terminal_event, correction_path = terminal event [] in
+        Some { root_id = D.Event.id event; terminal_event; correction_path })
 
 let create ~events ~corrections =
   match index ~events corrections with
@@ -84,3 +91,4 @@ let frontier_events frontier = frontier.frontier_events
 let lineages frontier = frontier.lineages
 let root_id lineage = lineage.root_id
 let terminal_event lineage = lineage.terminal_event
+let correction_path lineage = lineage.correction_path

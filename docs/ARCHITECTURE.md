@@ -289,6 +289,22 @@ Overlap uses all declarations, not just still-current presence. Even an explicit
 presence premise qualifies its roots. Only the abstract Exact payload has a Quantity;
 known-present has its own abstract coordinate/evidence/cut payload, never arithmetic.
 
+## Terminal quantity evidence explanation
+
+[Presentation explanation](../presentation/current_quantity_explanation.mli) queries ONE admitted
+quantity image and returns its existing typed outcome alongside terminal text. It displays supplied
+premises, exact answer-bound assertion cuts, selected/excluded terminal Effect occurrences with
+Event-local positions/keys, and actual retained correction edges in root-to-terminal traversal order.
+Application derives paths only after whole graph admission and retains each assertion answer's own
+cut; no consumer pairs it with another group. Root order is enumeration, not chronology. Original
+and superseded Events remain retained; excluded occurrences do not contribute to the delta.
+
+The view never recomputes the answer or infers support from activity. Presence has no scalar;
+unreflected touch invalidates a supplied presence even at net zero. Unsupported quantities stay
+unknown. Escaped identities/keys and unbounded signed quanta survive presentation. Traversal/rendering
+cost is additional to indexed lookup, not a new cached fact, shared answer ontology or authority.
+No file acquisition, metadata inheritance, recording, clock or live-snapshot qualification.
+
 ## Experimental versioned-text read
 
 Concrete consumer: `bakhlo inspect-current-text` acquires a named synthetic document; pure

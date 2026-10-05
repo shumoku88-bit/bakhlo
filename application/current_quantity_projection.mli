@@ -41,3 +41,8 @@ val coordinate : answer -> Bakhlo_domain.Effect_coordinate.t
 val asserted_quantity : answer -> Bakhlo_domain.Quantity.t
 val delta : answer -> Bakhlo_domain.Quantity.t
 val quantity : answer -> Bakhlo_domain.Quantity.t
+
+val answer_cut : answer -> Reflected_root_cut.t
+(** SAME admitted cut used to build this answer's delta, retained with the answer.
+    Explanation consumers cannot accidentally pair an answer with another group's
+    cut or silently merge cuts. This is provenance, not newly observed evidence. *)

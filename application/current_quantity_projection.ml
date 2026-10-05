@@ -3,7 +3,14 @@ module Coordinate = D.Effect_coordinate
 module Q = D.Quantity
 
 type assertion = { coordinate : Coordinate.t; quantity : Q.t }
-type answer = { coordinate : Coordinate.t; asserted_quantity : Q.t; delta : Q.t; quantity : Q.t }
+
+type answer = {
+  coordinate : Coordinate.t;
+  asserted_quantity : Q.t;
+  delta : Q.t;
+  quantity : Q.t;
+  cut : Reflected_root_cut.t;
+}
 
 type t = {
   source_cut : Reflected_root_cut.t;
@@ -44,6 +51,7 @@ let create ~cut ~assertions =
               asserted_quantity = assertion.quantity;
               delta;
               quantity = Q.add assertion.quantity delta;
+              cut;
             })
       in
       Ok { source_cut = cut; assertions; answers }
@@ -60,3 +68,4 @@ let coordinate answer = answer.coordinate
 let asserted_quantity answer = answer.asserted_quantity
 let delta answer = answer.delta
 let quantity answer = answer.quantity
+let answer_cut answer = answer.cut

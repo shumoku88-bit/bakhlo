@@ -23,6 +23,40 @@ inputs/results preserved, existing native code/tests/lock unchanged. No new test
 or test-suite replay in that cleanup. Subsequent needed read work below is native OCaml,
 not a port of the retired harness.
 
+## Active quantity explanation / one-image questions
+
+User approves synthetic stages 1-2: explain a quantity's supplied premise, contributing Effect
+occurrences and correction path, and ask multiple coordinates of ONE admitted read image.
+Owners: Application retains qualified path/cut provenance; Presentation formats existing typed
+answers/evidence only; CLI plans all questions before shell acquisition and reads/admit once.
+D: clean 5b0db1a/main 50, native reader and indexed query already exist; P: 160 expect/four cram,
+whole-source/support gates, independent cut/lineage/Effect models. R: exact correction paths
+(not root->terminal invented edges), answer-bound cut, multiplicity/net-zero vs unknown and
+batch exit/refusal sequencing. Small derived-provenance accessors are consumed by this view,
+not new Core ontology/answer bus, cached facts or authority. Revisit maintenance table: no
+trigger for parser/ID/findexn consolidation or performance optimization.
+Instruments: existing native checks/long-chain control plus a few focused expect connections;
+no new framework/model/campaign/Python/generated payload or private data. Bound: explicit
+synthetic input, existing Actual subset, all-source admission before any answer; no acquisition
+qualification, writer/store/UI/AI/NL parser, clock, VM/proof/operational replay or dependency.
+Mixed batches retain per-question typed results; exit 3 if any unavailable, else 4 if presence,
+else 0; no quantity subtotal or partial-source salvage. Revisit live reads only with an explicit
+human question/acquisition owner and separate coherent-capture qualification.
+Continuation review: current worktree contains the path/answer-cut accessors and an
+implementation-less explanation interface; ordinary check stops before tests at that module.
+Stage 1 consumes these through a pure terminal view, including excluded lineages, exact
+Event-local Effect positions/keys and stale presence touch (not an invented scalar).
+Stage 2 extends the two explicit-file readers with optional `--explain` and nonempty coordinate
+pairs; shared CLI planning/rendering owns only identical pair/exit mechanics, not reader meanings.
+Reuse existing expect/cram owners; inspect the single acquisition/admission calls rather than
+introduce a counting harness. No new model, dependency, private read or sibling build.
+Stage 1 completed: native pure explanation preserves typed outcomes, actual traversal edges,
+answer-bound cuts and Effect occurrences; three focused connections plus existing long-chain/
+oracle/retention checks pass. Ordinary check (163 expect/four cram) and release @install pass on
+macOS. [Verification](VERIFICATION.md#terminal-quantity-evidence-explanation) owns failures/limits;
+[Architecture](ARCHITECTURE.md#terminal-quantity-evidence-explanation) owns the view contract.
+Next is the separate CLI batch consumer; no live-original read follows from these results.
+
 ## Completed readability cleanup
 
 User approves doing the useful cleanup now and recording evidence-based revisit triggers for

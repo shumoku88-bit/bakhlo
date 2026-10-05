@@ -178,7 +178,10 @@ let%expect_test "long lineage traversal completes in both correction orders" =
       require (Int.equal (List.length (F.lineages answer)) 1) "one long path";
       let row = List.hd_exn (F.lineages answer) in
       require (Id.equal (F.root_id row) (id "0")) "long root";
-      require (equal_event (F.terminal_event row) (List.last_exn source)) "long terminal");
+      require (equal_event (F.terminal_event row) (List.last_exn source)) "long terminal";
+      require
+        (List.equal equal_edge (F.correction_path row) corrections)
+        "exact long traversal edges");
   Stdlib.Printf.printf "%d-node root/terminal mapping completed in both edge orders\n" count;
   [%expect {| 10000-node root/terminal mapping completed in both edge orders |}]
 

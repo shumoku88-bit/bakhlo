@@ -75,6 +75,7 @@ let equal_edge (left : D.Event_correction.t) (right : D.Event_correction.t) =
 let equal_lineage left right =
   Id.equal (F.root_id left) (F.root_id right)
   && equal_event (F.terminal_event left) (F.terminal_event right)
+  && List.equal equal_edge (F.correction_path left) (F.correction_path right)
 
 let cut frontier reflected_roots =
   match C.create ~frontier ~reflected_roots with

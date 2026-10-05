@@ -552,3 +552,196 @@ let%expect_test
      forward opening\n";
   [%expect
     {| decode -> whole source -> whole support; structured witnesses; empty is not zero; explicit forward opening |}]
+
+let%expect_test "explanation retains traversal edges, terminal multiplicity and each answer's cut" =
+  let image =
+    ok
+      (R.of_string
+         (document
+            [
+              "correct \"b\" \"c\"";
+              "correct \"a\" \"b\"";
+              "event \"c\" \"1900-01-01\"";
+              "effect key \"physical\" \"wallet\" \"jpy\" -4";
+              "effect anonymous \"food\" \"jpy\" 8";
+              "effect anonymous \"wallet\" \"jpy\" -4";
+              "end-event";
+              "event \"b\" \"2026-10-03\"";
+              "effect anonymous \"wallet\" \"jpy\" -3";
+              "effect anonymous \"food\" \"jpy\" 3";
+              "end-event";
+              "event \"x\" \"2026-10-03\"";
+              "effect anonymous \"wallet\" \"jpy\" -1";
+              "effect anonymous \"food\" \"jpy\" 1";
+              "end-event";
+              "event \"a\" \"2026-10-03\"";
+              "effect anonymous \"wallet\" \"jpy\" -2";
+              "effect anonymous \"food\" \"jpy\" 2";
+              "end-event";
+              "group";
+              "reflect \"a\"";
+              "assert \"wallet\" \"jpy\" 100";
+              "end-group";
+              "group";
+              "reflect \"x\"";
+              "assert \"food\" \"jpy\" 200";
+              "end-group";
+            ]))
+  in
+  List.iter
+    [ F.coordinate "wallet"; F.coordinate "food" ]
+    ~f:(fun coordinate ->
+      let outcome, text =
+        Bakhlo_presentation.Current_quantity_explanation.explain image coordinate
+      in
+      (match outcome with
+      | Ok (Exact answer) -> (
+          let projection =
+            Option.value_exn
+              (A.Current_quantity_groups.group_for (Q.source_groups image) coordinate)
+          in
+          match Q.premise answer with
+          | Current_assertion a ->
+              let cut = A.Current_quantity_projection.answer_cut a in
+              F.require
+                (phys_equal cut (A.Current_quantity_projection.source_cut projection))
+                "answer retains the exact owning cut";
+              F.require
+                (Z.equal
+                   (D.Quantity.quanta (A.Current_quantity_projection.delta a))
+                   (Source_oracle.sum_events (A.Reflected_root_cut.remaining_events cut) coordinate))
+                "answer-bound cut agrees with earned original-Effect oracle"
+          | Zero_origin | Opening _ -> failwith "assertion premise lost")
+      | Ok (Known_present _) | Error (Support_unknown _) -> failwith "explanation changed outcome");
+      Stdlib.print_string text);
+  [%expect
+    {|
+    Conditional evidence explanation; not household authority or spending rights.
+    exact assertion; "wallet" / "jpy": asserted=100; delta=-1; quantity=99
+      Supplied assertion + unreflected delta; independent answer-bound cut.
+      Reflected roots (supplied): ["a"].
+      Matching terminal Effect occurrences (root order; Event-local positions):
+        Root "x"; terminal "x"; unreflected (contributes to delta).
+          Correction path: none.
+          Effect 1: anonymous; quanta=-1
+        Root "a"; terminal "c"; reflected (excluded).
+          Correction "a" -> "b"
+          Correction "b" -> "c"
+          Effect 1: key "physical"; quanta=-4
+          Effect 3: anonymous; quanta=-4
+    Conditional evidence explanation; not household authority or spending rights.
+    exact assertion; "food" / "jpy": asserted=200; delta=8; quantity=208
+      Supplied assertion + unreflected delta; independent answer-bound cut.
+      Reflected roots (supplied): ["x"].
+      Matching terminal Effect occurrences (root order; Event-local positions):
+        Root "x"; terminal "x"; reflected (excluded).
+          Correction path: none.
+          Effect 2: anonymous; quanta=1
+        Root "a"; terminal "c"; unreflected (contributes to delta).
+          Correction "a" -> "b"
+          Correction "b" -> "c"
+          Effect 2: anonymous; quanta=8
+    |}]
+
+let%expect_test "explanation never turns cancelling activity or presence into an exact scalar" =
+  let image =
+    ok
+      (R.of_string
+         (document
+            [
+              "event \"touch\" \"2026-10-03\"";
+              "effect anonymous \"stale\" \"jpy\" 1";
+              "effect anonymous \"stale\" \"jpy\" -1";
+              "end-event";
+              "origin \"quiet\" \"jpy\"";
+              "presence";
+              "present \"stale\" \"jpy\"";
+              "present \"pantry\" \"jpy\"";
+              "end-presence";
+            ]))
+  in
+  List.iter [ "quiet"; "stale"; "pantry"; "missing" ] ~f:(fun place ->
+      let outcome, text =
+        Bakhlo_presentation.Current_quantity_explanation.explain image (F.coordinate place)
+      in
+      (match (place, outcome) with
+      | "quiet", Ok (Exact answer) ->
+          F.require (D.Quantity.equal (Q.quantity answer) D.Quantity.zero) "explicit zero"
+      | "pantry", Ok (Known_present _) -> ()
+      | ("stale" | "missing"), Error (Support_unknown _) -> ()
+      | _ -> failwith "explanation manufactured support");
+      Stdlib.print_string text);
+  [%expect
+    {|
+    Conditional evidence explanation; not household authority or spending rights.
+    "quiet" / "jpy": zero-origin; quantity=0
+      Selection: all qualified terminal Events (no reflected cut).
+      Matching terminal Effect occurrences (root order; Event-local positions):
+        none.
+    Conditional evidence explanation; not household authority or spending rights.
+    "stale" / "jpy": quantity unknown (no supported premise in supplied evidence).
+      Supplied presence is stale: ANY unreflected matching Effect invalidates it, even net zero.
+      Reflected roots (supplied): [].
+      Matching terminal Effect occurrences (root order; Event-local positions):
+        Root "touch"; terminal "touch"; unreflected (invalidates presence).
+          Correction path: none.
+          Effect 1: anonymous; quanta=1
+          Effect 2: anonymous; quanta=-1
+    Conditional evidence explanation; not household authority or spending rights.
+    "pantry" / "jpy": known nonzero (presence premise); exact quantity unknown.
+      Independent presence premise; no unreflected matching Effect; no scalar.
+      Reflected roots (supplied): [].
+      Matching terminal Effect occurrences (root order; Event-local positions):
+        none.
+    Conditional evidence explanation; not household authority or spending rights.
+    "missing" / "jpy": quantity unknown (no supported premise in supplied evidence).
+      Activity or net zero does not establish quantity support.
+      Matching terminal Effect occurrences (root order; Event-local positions):
+        none.
+    |}]
+
+let%expect_test
+    "explanation preserves opening/Measure identity, huge signed quanta and escaped tokens" =
+  let place = " wallet\n\027 " and unit = "JPY\027" and token = "event\n\027" in
+  let huge = Z.shift_left Z.one 180 in
+  let image =
+    ok
+      (R.of_string
+         (document
+            [
+              "event " ^ quoted_bytes token ^ " \"2026-10-03\"";
+              "effect key " ^ quoted_bytes "key\n\027" ^ " " ^ quoted_bytes place ^ " "
+              ^ quoted_bytes unit ^ " -" ^ Z.to_string huge;
+              "effect anonymous \"offset\" " ^ quoted_bytes unit ^ " " ^ Z.to_string huge;
+              "end-event";
+              "opening " ^ quoted_bytes place ^ " " ^ quoted_bytes unit ^ " " ^ quoted_bytes token;
+            ]))
+  in
+  let outcome, text =
+    Bakhlo_presentation.Current_quantity_explanation.explain image (F.coordinate ~unit place)
+  in
+  (match outcome with
+  | Ok (Exact answer) -> (
+      F.require (Z.equal (D.Quantity.quanta (Q.quantity answer)) (Z.neg huge)) "huge exact";
+      match Q.premise answer with
+      | Opening { coordinate; opening_event } ->
+          F.require
+            (F.same_coordinate coordinate (F.coordinate ~unit place)
+            && D.Identifier.Event.equal opening_event (F.id token))
+            "original opening witness, not just its Effects"
+      | Zero_origin | Current_assertion _ -> failwith "opening was relabelled")
+  | Ok (Known_present _) | Error (Support_unknown _) -> failwith "opening lost");
+  F.require
+    ((not (String.contains text '\027'))
+    && String.is_substring text ~substring:(Printf.sprintf "%S" token)
+    && String.is_substring text ~substring:(Printf.sprintf "%S" "key\n\027")
+    && String.is_substring text ~substring:(Z.to_string (Z.neg huge)))
+    "terminal controls escaped without normalization or truncation";
+  let wrong, _ =
+    Bakhlo_presentation.Current_quantity_explanation.explain image (F.coordinate ~unit "wallet")
+  in
+  F.require (Result.is_error wrong) "identity not trimmed";
+  Stdlib.print_endline
+    "Opening witness and 180-bit signed quanta retained; identities/keys escaped, never normalized.";
+  [%expect
+    {| Opening witness and 180-bit signed quanta retained; identities/keys escaped, never normalized. |}]
