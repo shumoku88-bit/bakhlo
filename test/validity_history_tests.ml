@@ -1,8 +1,8 @@
 open Base
-module D = Loam_domain
-module V = Loam_application.Actual_validity
-module S = Loam_application.Actual_source
-module Q = Loam_application.Current_quantity_query
+module D = Bakhlo_domain
+module V = Bakhlo_application.Actual_validity
+module S = Bakhlo_application.Actual_source
+module Q = Bakhlo_application.Current_quantity_query
 module F = Fixtures
 module M = Validity_history_model
 let ok = function Ok value -> value | Error _ -> failwith "valid history refused"
@@ -155,7 +155,7 @@ let%expect_test "date revision is independent of Event correction and all four s
    | Ok (Known_present _), Ok (Known_present _), Error (Support_unknown _), Error (Support_unknown _) -> () | _ -> failwith "date revision changed touch support");
   F.require (String.equal (V.valid_on (Option.value_exn (V.find_current (S.validity after) (F.id "b")))) "0001-01-01") "revised date not exposed";
   F.require (String.equal (V.valid_on (Option.value_exn (V.find_current (S.validity before) (F.id "b")))) "2026-10-03") "old source mutated";
-  F.require (List.equal F.equal_event events (D.Event_memory.events (Loam_application.Correction_frontier.retained_events (S.frontier after)))) "date correction discarded Event provenance";
+  F.require (List.equal F.equal_event events (D.Event_memory.events (Bakhlo_application.Correction_frontier.retained_events (S.frontier after)))) "date correction discarded Event provenance";
   Stdlib.Printf.printf "separate date/Event frontiers; quantity/presence unchanged; raw provenance and old source retained\n";
   [%expect {| separate date/Event frontiers; quantity/presence unchanged; raw provenance and old source retained |}]
 ;;

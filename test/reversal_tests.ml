@@ -1,10 +1,10 @@
 open Base
-module D = Loam_domain
-module R = Loam_application.Actual_reversals
-module S = Loam_application.Actual_source
-module E = Loam_application.Exchange_evidence
-module Q = Loam_application.Current_quantity_query
-module C = Loam_application.Correction_frontier
+module D = Bakhlo_domain
+module R = Bakhlo_application.Actual_reversals
+module S = Bakhlo_application.Actual_source
+module E = Bakhlo_application.Exchange_evidence
+module Q = Bakhlo_application.Current_quantity_query
+module C = Bakhlo_application.Correction_frontier
 module F = Fixtures
 module M = Reversal_model
 module X = Exchange_model
