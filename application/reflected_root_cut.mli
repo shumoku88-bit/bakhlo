@@ -5,16 +5,16 @@ type t
 
 type error =
   | Duplicate_root of
-      { id : Loam_domain.Identifier.Event.t
+      { id : Bakhlo_domain.Identifier.Event.t
       ; first_position : int
       ; position : int
       }
   | Unknown_event of
-      { id : Loam_domain.Identifier.Event.t
+      { id : Bakhlo_domain.Identifier.Event.t
       ; position : int
       }
   | Not_root of
-      { id : Loam_domain.Identifier.Event.t
+      { id : Bakhlo_domain.Identifier.Event.t
       ; position : int
       }
 
@@ -25,7 +25,7 @@ type error =
     exclude nothing; empty source/declarations are valid explicit input only. *)
 val create
   :  frontier:Correction_frontier.t
-  -> reflected_roots:Loam_domain.Identifier.Event.t list
+  -> reflected_roots:Bakhlo_domain.Identifier.Event.t list
   -> (t, error) result
 
 (** Original immutable source, retaining all Events and correction facts. The cut
@@ -34,7 +34,7 @@ val create
 val source_frontier : t -> Correction_frontier.t
 
 (** Exact supplied declarations in original order, unmodified. *)
-val reflected_roots : t -> Loam_domain.Identifier.Event.t list
+val reflected_roots : t -> Bakhlo_domain.Identifier.Event.t list
 
 (** Materialized unreflected rows in original root-Event order. May differ from
     [Correction_frontier.frontier_events] order even for empty declarations.
@@ -44,4 +44,4 @@ val remaining_lineages : t -> Correction_frontier.lineage list
 (** Exact retained terminal Events of [remaining_lineages], in the same order.
     General Event payloads are not narrowed to Movement or arithmetically altered.
     Getter performs no revalidation, graph traversal, or source reconstruction. *)
-val remaining_events : t -> Loam_domain.Event.t list
+val remaining_events : t -> Bakhlo_domain.Event.t list

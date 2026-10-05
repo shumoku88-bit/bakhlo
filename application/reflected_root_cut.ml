@@ -1,4 +1,4 @@
-module D = Loam_domain
+module D = Bakhlo_domain
 module Id = D.Identifier.Event
 module F = Correction_frontier
 
