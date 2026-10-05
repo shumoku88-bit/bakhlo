@@ -14,7 +14,7 @@ There is no canonical storage, clock, mutable business state or generic service 
 ## Selected product direction
 
 User changed direction after a78b478: a long-lived backend-neutral household application.
-LOAM core, Admission and Publication meanings must not depend on a particular database,
+Bakhlo core, Admission and Publication meanings must not depend on a particular database,
 filesystem or runtime. Domain/Application stay immutable and Base + Zarith-only; the outer
 publication orchestrator consumes the [minimal Persistence contract](#minimal-persistence-contract),
 not SQLite transactions, Irmin trees/branches or Solo5 block calls. Household meaning,
@@ -36,7 +36,7 @@ Near term: a concrete synthetic Unix/SQLite save -> reopen -> read consumer, dep
 format/request-identity review, shared persistence scenario tests, then useful recording/
 query and recovery/backup qualification. Existing 180-bit/support/provenance/refusal and
 Irmin retention/interruption controls are reusable oracles, not an already shared suite.
-No full LOAM parity prerequisite. Desktop Notty preference/Bonsai candidate remain below;
+No full parity with LOAM prerequisite. Desktop Notty preference/Bonsai candidate remain below;
 UI/remote protocols/schema/operational cutover are not qualified by this policy. SQLite
 selection authorizes its named implementation direction, not unchecked versions, global
 OS installs, real-data access, migration, release/push or an automatic main-lock change.

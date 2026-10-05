@@ -37,11 +37,11 @@ and clears inherited OCaml search-path overrides, not the whole OS environment.
 
 ```sh
 ./tools/check
-./tools/opam exec -- dune runtest -p loam_ocaml --force
+./tools/opam exec -- dune runtest -p bakhlo --force
 ./tools/opam exec -- dune build --root . @install
 ./tools/opam exec -- dune build --root . \
-  lib/loam_domain.cmxa application/loam_application.cmxa
-./tools/opam exec -- dune exec loam-ocaml -- --help
+  lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa
+./tools/opam exec -- dune exec bakhlo -- --help
 ./tools/opam list --installed --short --columns=name,version
 ```
 

@@ -1,8 +1,8 @@
 # Handoff
 
-## Current direction — backend-neutral LOAM, Unix + SQLite reference first
+## Current direction — backend-neutral Bakhlo, Unix + SQLite reference first
 
-User explicitly changed direction after a78b478. LOAM core, Admission and Publication
+User explicitly changed direction after a78b478. Bakhlo core, Admission and Publication
 must not depend on SQLite/Irmin/Mirage/Solo5. Introduce only the smallest consumed
 Persistence contract; Unix + SQLite is the near-term practical reference implementation
 to build/qualify. Irmin and MirageOS/Solo5 remain experimental options, NOT removed and
@@ -43,7 +43,7 @@ or common Irmin runner; no Linux/VM boot, new theorem/campaign or operational wr
 ## Latest audit — structured operations / diagnostic availability; no features added
 
 User asked to preserve later Mirage/Conversation/Voice entrances, NOT implement them now.
-Principle: "LOAM Core must answer household questions structurally, without knowing how
+Principle: "Bakhlo Core must answer household questions structurally, without knowing how
 those questions were asked or how the answers will be presented."
 Question/owner before deeper inspection: which current typed commands/answers/errors already
 satisfy this, and what terminal/parser/global-admission coupling could obstruct diagnostics
