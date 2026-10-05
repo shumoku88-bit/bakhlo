@@ -23,20 +23,26 @@ remain open: [failure boundary evidence](docs/VERIFICATION.md#guarded-block-rete
 The selected goal is a long-lived backend-neutral household application preserving LOAM
 meanings, useful new value and maintainability, not a Lean implementation clone. Core,
 Admission and Publication stay independent of particular storage/runtime technologies.
-**Unix + SQLite is the near-term practical reference implementation to build and qualify.**
+**Human-readable canonical evidence and data sovereignty come before physical store adoption.**
+Versioned canonical text is the first candidate; **SQLite canonical adapter adoption is paused**.
+Unix is the near-term validation runtime; MirageOS is an explicit future product goal, with
+experimental support today. Requirements and roles belong to
+[architecture](docs/ARCHITECTURE.md#properties-to-preserve), not a chosen grammar/filesystem.
 An ignored [Unix/SQLite trial](docs/VERIFICATION.md#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification)
 now passes synthetic save/reopen/history/receipt/conflict/interruption controls.
 [Linux syscall/lifecycle controls](docs/VERIFICATION.md#linux-sqlite-syscall-failures-and-retained-journal-lifecycle-control)
 also pass; a stock directory-sync error can be hidden by COMMIT success, so no permanent
-adapter, canonical schema or durable Saved is qualified. Irmin and MirageOS/Solo5 remain
-experimental choices with their earned evidence preserved; they are not deleted and cannot
-block or become dependencies of the reference path. Runtime and store are separate axes.
+adapter, canonical schema or durable Saved is qualified. These results remain comparison
+assets, not defaults for canonical representation. SQLite may be a rebuildable derived index
+only if a concrete consumer earns it; no second authority. Irmin and MirageOS/Solo5 trials
+remain preserved, not immediate prerequisites. Runtime and store are separate axes.
 
 A [minimal Persistence contract](docs/ARCHITECTURE.md#minimal-persistence-contract) covers
 coherent reads, conditional publication and uncertain-result reconciliation. Aim for shared
 save/restart/conflict/recovery scenarios with backend-specific fault hooks, not identical
 physical failures or weaker durability meanings. The immutable engine remains Base + Zarith;
-SQLite belongs to the outer Unix adapter. Qualify representation/identity/publication/
+Any SQLite/store dependency stays outer and needs a separate adoption decision.
+Qualify representation/identity/publication/
 recovery/backup before household adoption, without waiting for all LOAM parity or reproducing
 upstream files. See [architecture](docs/ARCHITECTURE.md#selected-product-direction).
 
@@ -50,9 +56,11 @@ Future Conversation/Voice/unikernel entrances must reuse structured application 
 not enter Core or turn terminal text into an API. Diagnostic availability and qualified
 partial reads are [design requirements](docs/ARCHITECTURE.md#structured-operations-and-diagnostic-availability),
 not implemented health/recovery features; no audio/LLM/chat/Mirage-specific addition now.
-Current priority is qualifying reference durability/identity/representation from the consumed
-SQLite seam, then a maintained outer adapter/shared scenarios and useful recording/recovery. Bonsai and
-secondary UI experiments remain deferred; experimental runtime fixes are no longer blockers.
+Next: a small synthetic versioned-text read -> structured quantity+evidence/refusal;
+then compare Unix publication/recovery and long-term synthetic cost before adopting physical
+store/index roles. Fixture v2 is only an oracle. This clarification adds no codec/writer/index,
+benchmark or Mirage/UI feature. [Handoff](docs/HANDOFF.md#next-bounded-implementation) owns next work;
+Bonsai/secondary UI remain deferred, experimental runtime fixes are not immediate blockers.
 
 ## Build and try
 

@@ -1,14 +1,28 @@
 # Handoff
 
-## Current direction — backend-neutral Bakhlo, Unix + SQLite reference first
+## Current direction — data sovereignty, canonical text first candidate, MirageOS goal
 
-User explicitly changed direction after a78b478. Bakhlo core, Admission and Publication
-must not depend on SQLite/Irmin/Mirage/Solo5. Introduce only the smallest consumed
-Persistence contract; Unix + SQLite is the near-term practical reference implementation
-to build/qualify. Irmin and MirageOS/Solo5 remain experimental options, NOT removed and
-NOT prerequisites for the reference product. Store choice and runtime choice are separate
-axes. This supersedes the earlier standalone Mirage + Irmin-first sequence, not its earned
-evidence. No operational authority/data migration, global install, public service or push.
+After 07cd41f, user approved reordering the roadmap: preserve human-readable canonical
+evidence and data/meaning/runtime sovereignty, keep MirageOS an explicit future product goal.
+[Architecture](ARCHITECTURE.md#properties-to-preserve) owns the requirements; meaning, logical
+representation, physical publication and runtime remain separate choices. SQLite canonical
+adapter/package adoption is PAUSED; optional rebuildable indexes require a concrete consumer.
+Versioned canonical text is the first candidate, not an adopted grammar/store. Unix is the
+near-term validation runtime; MirageOS support remains experimental, not an immediate blocker.
+All SQLite/Irmin/Mirage trials and counterexamples retained. No authority/data migration,
+global install, public service, source-side rename reversal, dependency change or push.
+
+## Latest clarification — step 1 only, no new implementation
+
+Question/owners: can roadmap changes protect directly inspectable evidence and a meaningful
+MirageOS future without letting backend convenience own household meaning? ARCHITECTURE owns
+requirements/roles; HANDOFF next work; short entry-document links replace stale default routes.
+D: clean 07cd41f/main 50, no main codec/store. P: strict exact engine/typed boundaries and all
+retained storage/host evidence. R: text grammar/version/identity, namespace publication/recovery,
+index need and long-term cost. Instruments: nearest contract/direction review and scoped doc/
+link/anchor/preservation checks. Step 1 only: no codec/API/writer/index/benchmark/VM/proof/UI
+implementation or qualification, no new model/campaign/ADR. Revisit before representation or
+physical adoption; past tests/trials are not fresh execution. Next step remains synthetic only.
 
 ## Completed bounded continuation — Linux SQLite synchronization/failure boundary
 
@@ -92,7 +106,8 @@ signature or executable change. Four-category findings and executed checks are i
 [VERIFICATION](VERIFICATION.md#structured-operation--diagnostic-readiness-audit-no-new-features);
 [Architecture](ARCHITECTURE.md#structured-operations-and-diagnostic-availability) owns the
 future contract. No placeholder operations/health enums or partial-read implementation.
-Keep SQLite reference work next; no audio/LLM/chat/network/Mirage implementation/install.
+That audit's next-step recommendation preceded the current sovereignty/text clarification;
+follow the current route above. No audio/LLM/chat/network/Mirage implementation/install.
 
 ## Completed alignment — contracts/roadmap before backend implementation
 
@@ -123,31 +138,33 @@ step qualifies a production adapter/schema, durable acknowledgement or household
 
 ## Next bounded implementation
 
-1. Fix the reference Saved failure model/maintenance owner: supported SQLite/VFS/OS sync
-   ordering and completion, provision/restore directory lifecycle, close/cleanup and actual
-   I/O-error handling. Linux sync/fault evidence above now earns one standard PERSIST plus
-   checked namespace candidate, NOT an adopted policy or Saved guarantee. Qualify durable
-   parent/provision/restore/activation and explicit hot-journal recovery/cleanup; reopening
-   for writes may mutate before subsequently refusing lifecycle validation. No blind retry,
-   implicit journal recreation or fallback. Admit input before effectful open/activation,
-   not only before INSERT; current trial's handle-first shell is not a production entrance.
-   Reuse earned controls, not a mandatory exhaustive
-   power-cut campaign/proof. Fix declared OS/device completion assumptions before adoption.
-2. Fix minimal production representation/version and store-scoped generation/request/receipt
-   identity, retained candidate association, upgrade/export/restore rules before adoption.
-   Trial fixture v2/SQL schema/request-derived tokens are NOT canonical defaults. Keep full
-   source/support evidence; structured acquisition errors versus semantic unavailability;
-   readable fragments/diagnostics never claim a complete world or permit implicit repair.
-3. Then move only the consumed own adapter/orchestration/scenarios into a reviewed outer
-   package/build. Binding 5.4.2 source + 35-entry outer closure reviewed; main budget/compiler/
-   lock remain unchanged until an applicable adoption decision. No generic DB/FS service,
-   effect monad, bus, new filesystem/runtime fork or SQLite in Domain/Application.
-4. Map common logical controls to Irmin/Mirage's separate effect/fault runner without exposing
-   SQLite or Solo5 mechanics to semantics. Current trial vocabulary/oracles earn a seam,
-   NOT an already shared harness or equal durability. Unsupported Saved stays explicit.
-   Experimental CTZ/Lwt/barrier fixes do not block reference progress. Continue toward a
-   small useful CLI input/save/query/recovery path, then Notty; no full parity first, no
-   new voice/LLM/chat/UI/auth/network or Bonsai exploration now.
+1. After this step-1 clarification, name the smallest synthetic versioned-text read consumer:
+   read -> structured Quantity/Measure/coordinate plus supplied premise/provenance, or typed
+   unavailable/refusal. Inspect existing query APIs; add no universal answer/command bus or
+   invented support. Choose the bounded evidence profile/version and lossless encoding only
+   for that consumer; fixture v2 remains oracle, not automatic canonical grammar. No storage
+   write, real-data adapter, full-Actual claim or final production format in this read slice.
+2. Then compare Unix text-authority publication/save -> close/reopen -> read/recovery against
+   earned SQLite/Irmin controls. Define coherent generations, expected generation, request/
+   receipts, admission BEFORE effectful activation, real ordering/completion and explicit
+   recovery. Text files/rename/Git commit are not automatically durable Saved. Qualify parent/
+   namespace lifecycle, cleanup, replay/conflict/uncertainty and information-preserving restore;
+   no silent older-world fallback, implicit repair or new filesystem by default.
+3. Measure bounded synthetic long-term cost (e.g. 10k/100k Events, explicit correction/group
+   shapes): reconstruction/save/reopen CPU+wall time, memory and retained-history growth.
+   Whole-history copying/rebuilding is not a settled production strategy. Use a small owned
+   probe, not a permanent benchmark/cache framework or operational fixtures; optimize only
+   measured seams while retaining admission/closure/support guarantees.
+4. Decide physical authority/index roles from sovereignty, durability, maintenance and measured
+   cost. Canonical text + optional SQLite derived index is the first candidate, NOT a chosen
+   layout or necessary dependency. Indexes identify qualified canonical generation/interpretation
+   version, rebuild only from qualified evidence, never become a second authority. Review exact
+   dependencies before any adoption. Later MirageOS adapter reuses meanings/representation;
+   its own durable storage/update/recovery gaps cannot weaken Saved or block Unix progress.
+
+No main store/dependency adoption, Mirage/UI/voice/LLM/auth/network feature or operational
+cutover in this clarification. Preserve main compiler/50 lock, Bakhlo names and all trials;
+full parity is not required before a useful bounded read/record/recovery path.
 
 ## Earned state / outstanding limits
 

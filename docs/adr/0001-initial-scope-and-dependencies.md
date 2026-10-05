@@ -25,12 +25,14 @@ Status: ACCEPTED by the user's explicit approval on 2026-10-02.
 | Base_quickcheck (`base_quickcheck`) | Test only | Generated invariant checks with shrinking |
 | ppx_expect | Test only | Readable output regression checks, later CLI/TUI/serialization |
 
-Core and Async are not introduced. Initially no storage dependency was selected. The
-later [backend-neutral direction](../ARCHITECTURE.md#selected-product-direction) selects
-Unix + SQLite as the reference implementation to build; the original engine budget above
-remains intact and SQLite must stay in an outer adapter. Irmin/Mirage/Solo5 remain experimental,
-not ordinary reference dependencies. Exact binding/closure/OS costs still need review before
-installation/lock change. Do not install umbrella `ppx_jane` for convenience.
+Core and Async are not introduced. Initially no storage dependency was selected. A later
+Unix+SQLite-first roadmap earned isolated trials, not main dependency adoption; the
+[current direction](../ARCHITECTURE.md#selected-product-direction) now pauses canonical SQLite
+adoption while human-readable canonical text/data sovereignty is evaluated. Optional SQLite
+indexes need a concrete consumer and stay outer/rebuildable, not a second authority. Unix is
+the near-term runtime; MirageOS is an explicit future goal with experimental support, not an
+immediate dependency. Original engine budget remains intact; exact closure/OS costs need
+review before installation/lock change. No umbrella `ppx_jane` for convenience.
 
 Every added direct library must have a concrete capability reason and a named
 consumer. "Convenient", "popular", or "used by Jane Street" is insufficient.

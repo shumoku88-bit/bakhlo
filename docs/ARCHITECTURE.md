@@ -13,33 +13,58 @@ There is no canonical storage, clock, mutable business state or generic service 
 
 ## Selected product direction
 
-User changed direction after a78b478: a long-lived backend-neutral household application.
-Bakhlo core, Admission and Publication meanings must not depend on a particular database,
-filesystem or runtime. Domain/Application stay immutable and Base + Zarith-only; the outer
-publication orchestrator consumes the [minimal Persistence contract](#minimal-persistence-contract),
-not SQLite transactions, Irmin trees/branches or Solo5 block calls. Household meaning,
-useful new value and maintainability matter; no world-first/security claim follows.
+After 07cd41f, user approved putting data sovereignty and a human-readable canonical
+representation before physical store adoption, with MirageOS an explicit future product goal.
+This pauses the previous Unix+SQLite canonical-reference adoption route, not its earned trials.
+The goal remains a long-lived backend-neutral household application, not a Lean layout clone.
+Core, Admission and Publication meanings must not depend on a particular database/filesystem/
+runtime. Domain/Application stay immutable and Base + Zarith-only; outer publication consumes
+the [minimal Persistence contract](#minimal-persistence-contract), not backend transactions.
 
-| Axis / choice | Current status |
+### Properties to preserve
+
+- Human-readable, lossless, versioned canonical evidence, not merely a text export generated
+  by a working app. Quantities/Measures, independent support, original text and all correction/
+  date/Reversal provenance remain explicit; readability does not license normalization/loss.
+- Data outlives its app/VM: documented extraction/inspection and information-preserving restore/
+  transfer must work without launching the original runtime. Text inside a DB BLOB is NOT
+  equivalent to directly inspectable plain-text-accounting workflow; container/access matters.
+- Meaning, logical representation, physical publication layout and runtime are separate choices.
+  Draft/manual text edits pass shared admission and conditional publication, not bypass gates;
+  Git/backend history or textual merge is not household correction or recording permission.
+- MirageOS is a future goal, not only an accidental portability escape hatch. Keep a meaningful
+  runtime-neutral route; guest persistence/update/recovery still need their own qualification.
+- Exactness, unknown-versus-zero and independent evidence cannot be traded for UI, indexing or
+  speed. One operational authority remains; existing Lean LOAM owns it until qualified cutover.
+
+These are product requirements, NOT an implemented codec, extraction tool, store or recovery
+promise. Public specification/licensing/release remain separate decisions.
+
+| Axis / choice | Current role |
 | --- | --- |
-| Unix + SQLite | Selected reference; [ignored native trial](VERIFICATION.md#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification) passes save/reopen/receipt/conflict/fault controls; maintained adapter/durable Saved still TO BUILD/QUALIFY |
-| Irmin store adapter | Experimental retained option; commit/history utility is separate from household correction/Reversal and generic merge is not admission |
-| MirageOS/Solo5 runtime + appropriate store adapter | Experimental retained target; guarded SPT evidence preserved, durable barrier/fix maintenance unresolved |
+| Versioned canonical text | First representation/authority candidate to evaluate; grammar, identity, grouping and physical store NOT adopted |
+| SQLite as canonical authority | Main adapter/package adoption PAUSED; [native evidence](VERIFICATION.md#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification) and [Linux counterexamples](VERIFICATION.md#linux-sqlite-syscall-failures-and-retained-journal-lifecycle-control) retained as comparison assets |
+| SQLite as derived index/search | Optional only for a concrete consumer; rebuildable from qualified canonical evidence, never a second authority or automatic dependency |
+| Unix runtime | Near-term implementation/measurement baseline, not a choice of canonical storage format |
+| MirageOS/Solo5 runtime | Explicit future goal; current guarded feasibility remains experimental, durable barrier/maintenance unresolved |
+| Irmin store adapter | Retained experimental option; commit/history is not household correction or semantic merge |
 
-Runtime and store are independent axes; Mirage/Solo5 is not itself a database backend.
-This does not promise that every combination works (e.g. SQLite under Solo5 is unqualified).
-Experimental work cannot block or become a build/dependency prerequisite of the reference
-implementation. Keep its source/control/evidence available, not silently delete it or
-promote scratch guards. Application longevity must not require an experimental stack.
+A derived index must identify its canonical generation and interpretation version; stale,
+corrupt or missing indexes cannot authorize publication or supply household truth. Rebuild
+only from qualified canonical evidence; no cross-generation fallback or subtotal-as-balance.
+Text authority does not remove atomicity, request/receipt, synchronization or backup burdens.
+No casual custom filesystem, runtime fork, shared effect framework or cache is selected.
 
-Near term: a concrete synthetic Unix/SQLite save -> reopen -> read consumer, dependency/
-format/request-identity review, shared persistence scenario tests, then useful recording/
-query and recovery/backup qualification. Existing 180-bit/support/provenance/refusal and
-Irmin retention/interruption controls are reusable oracles, not an already shared suite.
-No full parity with LOAM prerequisite. Desktop Notty preference/Bonsai candidate remain below;
-UI/remote protocols/schema/operational cutover are not qualified by this policy. SQLite
-selection authorizes its named implementation direction, not unchecked versions, global
-OS installs, real-data access, migration, release/push or an automatic main-lock change.
+Runtime and store are independent axes; no promise that every combination works (SQLite under
+Solo5 remains unqualified). Do not delete trials/promote guards, or make experimental fixes
+prerequisites for ordinary progress. Minimal composition is not a security/always-on claim.
+
+Next: small synthetic versioned-text read -> structured quantity+evidence/refusal, using current
+fixture only as an oracle. Then compare Unix text publication/reopen/recovery and synthetic
+long-term reconstruction/memory/history growth against retained storage evidence before choosing
+physical authority/index roles. [HANDOFF](HANDOFF.md#next-bounded-implementation) owns sequence;
+no codec/writer/index/benchmark or Mirage/UI feature added by this direction clarification.
+No full parity prerequisite, operational data/migration, main-lock change or implicit Saved.
 
 ## Minimal Persistence contract
 
@@ -107,7 +132,7 @@ Notty desktop / phone browser (Bonsai candidate) / AI-chat adapter
                    -> authenticated application entrance
                    -> admission + current-generation publication / coherent query
                    -> one selected authority through Persistence
-                      Unix + SQLite reference; other adapters/runtimes experimental
+                      canonical representation/store to qualify; Unix now, MirageOS goal
 ```
 
 Transport/API and auth design remain open. Clients never implement another authoritative
@@ -393,6 +418,8 @@ authentication and compatibility need concrete qualification before adoption. Cl
 semantic answers rather than recomputing meaning. Prior hosted, guarded SPT engine and
 block-persistence evidence belongs to VERIFICATION, not production support. No permanent
 adapter or main Lwt/SQLite dependency yet; the ignored native SQLite consumer is now exercised.
-Unix + SQLite reference is selected TO BUILD/QUALIFY;
-Irmin/Mirage targets remain experimental and not prerequisites for semantics/publication.
+[Current direction](#selected-product-direction) pauses SQLite canonical adoption while
+human-readable canonical text is evaluated; optional indexes need concrete consumers.
+MirageOS is an explicit future goal with experimental support today; no runtime/store
+combination becomes a prerequisite for semantics/publication.
 No speculative load/navigation state, adapter, cache or framework belongs in the engine.
