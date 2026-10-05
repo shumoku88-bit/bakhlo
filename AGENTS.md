@@ -26,6 +26,10 @@ references. Documentation describes scope; it does not authorize every future fe
 
 ## Engineering and assurance
 
+- Default to direct native OCaml implementation. Do not add Python bridges, generated
+  OCaml payload pipelines or parallel test harnesses by habit. Additional tests/tools
+  need a concrete unresolved risk; reuse earned OCaml checks rather than expanding
+  scaffolding first. This does not permit weakening admission or erasing uncertainty.
 - Immutable functional core, explicit effects; no dummy State, ornamental monads,
   generic bus, speculative cache/framework or anticipatory toolkit. Local mutation
   requires an owner/reason; test counters and honest shell I/O are legitimate.

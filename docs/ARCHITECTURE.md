@@ -74,9 +74,11 @@ fixtures/commits. HOBS1 is a derived comparison surface, not canonical Bakhlo ev
 permission. User selected the checkout-based `tools/loam tui` read contract, then explicitly
 requested latest interpretation while retaining responsibility for their own data cleanup.
 No implicit older-file fallback, original repair/migration or CI-pin change. The private
-current-only experiment now earns one conditional quantity/premise, not operational authority
-or full-household admission. Its logical publication-request -> retained Event links are
-represented/qualified in the OUTER read profile, not new Core ontology, payment truth or Saved.
+current-only experiment demonstrated one conditional quantity/premise, not operational authority
+or full-household admission. Its Python/generated-test scaffolding is retired; implement the
+next needed read boundary directly in native OCaml, not a parallel harness. Its logical
+publication-request -> retained Event links were represented/qualified in the OUTER read
+profile, not new Core ontology, payment truth or Saved.
 All Actual rows/profile gates are handled before lookup; unsupported evidence still refuses,
 and opaque other-family sections stay retained but unadmitted. No permanent compatibility API
 follows automatically. [Verification](VERIFICATION.md#latest-loam-contract-private-conditional-quantity-experiment)

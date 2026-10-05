@@ -62,7 +62,9 @@ existing structured quantities, supplied premises/provenance or typed refusal, w
 storage types in its pure API. It is a synthetic profile, NOT an adopted canonical format.
 User now approved a private read-only LOAM comparison to ground the next household question,
 without making Bakhlo a LOAM layout clone. User selected the latest `tools/loam tui` read contract;
-a private current-only experiment now yields one conditional quantity and supplied premise.
+a private current-only comparison demonstrated one conditional quantity and supplied premise.
+Its Python/generated-test scaffolding is now removed; future needed read code is native OCaml,
+without additional tools/tests until a concrete need. This is not a runnable household adapter.
 Logical write-request provenance stays at the outer boundary, not new Core ontology or Saved.
 Ordinary tests remain synthetic; originals are never written or repaired, no older-file fallback.
 Then compare Unix publication/recovery and long-term synthetic cost before choosing physical

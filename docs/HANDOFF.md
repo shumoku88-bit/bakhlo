@@ -12,7 +12,18 @@ near-term validation runtime; MirageOS support remains experimental, not an imme
 All SQLite/Irmin/Mirage trials and counterexamples retained. No authority/data migration,
 global install, public service, source-side rename reversal, dependency change or push.
 
-## Completed private read experiment — latest LOAM contract, no original mutation
+## Current work style — native OCaml, no anticipatory harnesses
+
+User requests removing the recent Python/test scaffolding and using native OCaml until
+another tool/check is concretely necessary. Cleanup owner: only recent ignored read-review
+code/generated executables, not originals or existing Core tests. D: no tracked Python;
+P: earned native gates and historical comparison results; R: distinguish disposable code
+from retained private bytes/results. Completed scoped code/build-artifact deletion; private
+inputs/results preserved, existing native code/tests/lock unchanged. No new test/probe/runtime
+or test-suite replay. Next implement only the needed read path directly in OCaml, not port
+the retired harness.
+
+## Historical private read experiment — latest LOAM contract, no original mutation
 
 User selected `tools/loam tui`, then explicitly requested latest LOAM interpretation despite
 unfinished old-layout cleanup; user owns that cleanup/migration. Wrapper selects checkout-root
@@ -21,31 +32,14 @@ change pin/originals. Current-only HouseholdImage acquisition; no legacy/previou
 LOAM remains sole operational authority; ordinary product tests remain synthetic, all private
 copies/identities/text/amounts/results stay ignored and out of fixtures/commits/public logs.
 
-Before continuation, question/owners/D/P/R recorded in ignored private task: can one coordinate
-quantity/premise be obtained without erasing evidence or adopting LOAM ontology? D: b96b473,
-main 50/current source contract; P: strict source/correction/support gates and metadata controls;
-R: stable full bytes, Unicode-length envelope, supported Actual profile/outer provenance, closure
-and quantity correspondence. Instruments: narrow source-only owners, synthetic no-follow/opaque
-framing/mapping controls, private whole-file copy with byte rechecks, existing engine compiled
-under strict warnings, original-list/integer oracle. No VM/proof/new campaign/dependency.
-
-Completed: stable selected-generation copy retained all opaque sections; whole Actual/four-
-support read profile admitted through existing engine. OPERATION initially refused, then
-represented/qualified in the OUTER read profile as exact one-to-one logical publication-request
-ID -> retained Event provenance. Not transaction/group/payment truth/Saved or a new Core type;
-no row filtering, inheritance or retargeting. All unmapped Actual/settlement rows still refuse.
-One privately selected explicit-support question returned typed Exact with premise/decomposition
-matching an original-list/integer oracle. This is conditional read-profile evidence, NOT LOAM
-production numeric parity, full-household known-family admission/completeness or spending rights.
+Private comparisons, including a fresh capture after user cleanup, demonstrated one conditional
+Exact/premise through existing Actual/four-support gates. OPERATION request -> retained Event
+provenance was qualified OUTSIDE Core, never payment/group/Saved or implicitly retargeted.
 [Verification](VERIFICATION.md#latest-loam-contract-private-conditional-quantity-experiment)
-owns execution/limits; exact artifacts remain private. Original current bytes rechecked equal.
-User subsequently reported authoritative data updated to latest. A NEW current-only copy
-passed freshly replayed synthetic controls, whole read-profile gates and original-list comparison;
-original bytes AND signature rechecked equal. Old artifacts retained, not used as current input.
-Main engine/reader/CLI/tests/lock unchanged. Later data updates still require fresh acquisition.
-No operational cleanup/recovery/migration/synchronization,
-permanent codec/API/store/writer or release/push. Revisit before promoting a concrete pure outer
-read consumer; preserve provenance without copying LOAM types/layout or requiring full parity.
+owns historical execution/limits. Per user request the Python and generated test/probe code
+is retired; private input copies/results remain, not a runnable adapter or current authority.
+Existing OCaml engine/tests/lock unchanged. Fresh data needs fresh read; no full-household
+admission/numeric LOAM parity, original write/recovery, permanent codec/store/API or push.
 
 ## Completed read slice — explicit ordinary-Actual profile, structured answers
 
@@ -210,9 +204,10 @@ owns its limited profile/API, not a final format. Do not widen it to full Actual
 or promote fixture v2/experimental profile automatically into canonical storage.
 
 The private latest-contract read-profile usefulness check passed for one conditional quantity.
-Next name the smallest repeatable STRUCTURED read consumer and its explicit scope/provenance;
-review promotion of only the necessary pure outer mapping/diagnostics, not a permanent omnibus
-LOAM compatibility layer or new Core ontology by habit. Keep latest-current selection and typed
+Next implement the smallest needed STRUCTURED read consumer directly in native OCaml with
+explicit scope/provenance, not another Python bridge or a native port of the test harness.
+Add a check/tool only for a concrete unresolved risk; no permanent omnibus LOAM compatibility
+layer or new Core ontology by habit. Keep latest-current selection and typed
 missing/unsupported/refusal; user owns operational cleanup and new data needs a fresh capture.
 Retained publication/cost work below follows the bounded read entrance, not immediate writer work.
 

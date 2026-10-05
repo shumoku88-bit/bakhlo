@@ -18,7 +18,9 @@ Before non-trivial code, record a few lines in the task note/HANDOFF:
 
 Select by risk, not directory or a per-slice checklist. Reuse independent models/oracles;
 ordinary consumers test connection and failure boundaries. No mandatory all-tools pipeline,
-new document, theorem or 10,000-case campaign for each change. A needed unavailable check
+new document, theorem or 10,000-case campaign for each change. User prefers direct native OCaml;
+no new Python bridge or extra test harness without a concrete unresolved need. Existing native
+checks remain available, not a reason to grow scaffolding first. A needed unavailable check
 is a limitation/blocker, not silently replaced by compile success.
 
 | Residual question | Instrument / trigger |
@@ -100,6 +102,12 @@ conditional Exact agreeing with the original-list oracle. Original whole bytes A
 signature rechecked equal afterward. Previous artifacts preserved, not fallback/query input;
 no inference that cleanup must change household blob bytes or qualifies full migration. Same
 privacy/scope/no-write/no-main-change limits; no ordinary-suite/proof/VM/storage replay claim.
+
+User subsequently requested removal of Python/anticipatory test scaffolding. Recent read-review
+Python, generated OCaml payload/runners and compiled probe/control artifacts were deleted;
+private inputs/results retained. Above records historical execution, not a replayable reader.
+Existing OCaml source/tests/lock unchanged; no replacement harness or new suite run. Next needed
+read path is native OCaml, not a translation of this retired pipeline.
 
 ## Experimental versioned-text read (ordinary Actual profile)
 
