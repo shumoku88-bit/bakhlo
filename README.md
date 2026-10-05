@@ -65,7 +65,10 @@ Human-readable evidence and data sovereignty come before physical store adoption
 text is a candidate, not an adopted format; SQLite canonical adoption is paused. Unix is the
 near-term runtime, MirageOS an explicit future goal with experimental support only. UI,
 AI/voice/network adapters and publication remain separate work. Prior storage/runtime trials
-are comparison evidence, not dependencies or production defaults.
+are comparison evidence, not dependencies or production defaults. A bounded ignored native
+Unix trial now closes the synthetic record/select/reopen/correct loop with retained history and
+receipts; [verification](docs/VERIFICATION.md#unix-text-publication-consumer-synthetic-no-saved)
+owns its interruption/lifecycle limits. It does **not** qualify durable Saved or a main store.
 
 ## Where to look
 

@@ -20,6 +20,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
   [structured-operation audit](#structured-operation--diagnostic-readiness-audit-no-new-features).
 - [Historical private read](#latest-loam-contract-private-conditional-quantity-experiment):
   results retained, retired probe code; not a runnable/current household acquisition.
+- [Native Unix text publication consumer](#unix-text-publication-consumer-synthetic-no-saved):
+  synthetic record/select/reopen/correction and receipts, not durable Saved/store adoption.
 - [Unix SQLite trial](#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification)
   and [Linux synchronization/lifecycle counterexample](#linux-sqlite-syscall-failures-and-retained-journal-lifecycle-control).
 - [Guarded Irmin/block trials and limits](#irmin-block-persistence-bounded-two-trial-dependency-fixes-required),
@@ -293,6 +295,63 @@ qualification remains a separate ignored synthetic consumer; no durable Saved/fu
 operational recording/format adoption follows from these pure controls. Main macOS
 `tools/check` (173 expect/four cram), forced package tests, release @install, pinned format and
 whitespace review pass; installed set stays 50, no manifest/lock or inward dependency change.
+
+## Unix text publication consumer (synthetic, no Saved)
+
+Named consumer/owners/D/P/R/instruments recorded before code at 2331eeb; pure proposal qualified
+in 3d0e0dd before this trial. Fresh ignored `scratch/text_publication_review`, native OCaml 5.3.0,
+compiler Unix and EXISTING main Base/Zarith/artifacts only. No copied stale engine/switch,
+third-party/upstream source, dependency/lock/global install, VM/Lean, operational data or main
+store/UI/adoption. Dune excludes scratch; its actual workspace description contains no trial.
+
+Disposable layout v1: explicit provisioning, permanent cooperative LOCK, atomically replaced
+CURRENT pointer, immutable complete generation files carrying original parent/request and byte-
+length-framed ordinary-profile text. Request IDs are explicit synthetic bytes (hex filename,
+96-byte TRIAL path budget), not Event IDs/date/quantities or adopted allocation. Opaque tokens
+bind canonical namespace path + generation; cross-store/restored-root token reuse refuses.
+Assume single-threaded cooperative processes, stable exclusively owned namespace/parent path,
+all writers taking the same retained lease and no mutation/deletion of retained generations.
+Read captures ONE selected head and fully admits every required ancestor, never initializes,
+repairs or falls back. Candidate whole admission precedes acquisition; complete stored admission
+precedes write-open AND repeats under lease. Expected head is gated there, exact base bytes bind
+the candidate, and new bytes are re-admitted rather than trusting preview. Generation file sync/
+close -> checked namespace sync -> head file sync/close -> rename -> checked namespace sync;
+provision also checks immediate parent sync. Caught errors after effects may begin, including
+close/cleanup, remain Uncertain. No automatic deletion/recovery. No success hides a required
+sync return; ordinary fsync is NOT Darwin F_FULLFSYNC/stable-media qualification.
+
+Final native v3 controls pass: separate-process initial/select/reopen/correct loop 1000 -> 990 ->
+985 with all four support distinctions/Measure separation, old source bytes/parents/Events/edge/
+description and independent cut; exact 180-bit cold query + complete-byte round-trip. Stale
+expected token conflicts, real two-process lease contention is BUSY (not Conflict), mismatched
+base spelling/cross-root token/empty request refuse. Identical replay after a later correction
+returns ORIGINAL receipt, not current/fresh; changed candidate/base refuses with unchanged file
+bytes. Reconciliation only observes receipts on the SELECTED parent chain: complete prepared
+files are not receipts. Explicit exact prepared-candidate retry works; changed prepared bytes
+refuse, retained partial head temporary blocks retry without implicit cleanup. No-receipt means
+not observed in that captured chain, not universal non-recording or permission for blind retry.
+
+Eight named returned-error checkpoints report Uncertain/no success; cold processes and receipts
+show 6 OLD/2 NEW. Two actual process SIGKILL controls immediately before/after head rename have
+empty success stdout, OLD/NEW cold admission and unchanged reconciliation bytes. This is API-
+checkpoint/process evidence, NOT syscall EIO/ENOSPC/short/torn writes, exhaustive kill timing,
+host/power loss or device completion. Closed same-host complete-family copy preserves all bytes/
+history/receipts and cold query; only newly captured namespace tokens may be used. Not live or
+off-device backup/restore qualification. Invalid selected evidence blocks read/write activation;
+unsupported layout, malformed header, truncated payload, dangling head, missing ancestor and
+incomplete provision refuse without salvage, initialization, repair or older-world fallback.
+Initial header review separated malformed corruption from unsupported versions; v1/v2 images/
+logs kept and fresh v3 passed. Selected history is the declared admission scope, not every orphan.
+
+Strict rebuild, source/image/linkage digests and v1-v3 controls retained in ignored evidence;
+image SHA256 195f12763fa74b61c23476349f1bf69cc6daf9da68507d601bbb53a69c438f85.
+Links existing GMP/libSystem only. Exact main 50 names/versions and lock SHA256 unchanged.
+All trial child processes/handles finish/are waited; VM remains stopped. No canonical layout/
+store/schema/production identity, full household/richer codec, principal isolation, valid-tamper
+integrity, multi-threaded/malicious namespace concurrency, maintenance/cleanup/recovery service,
+actual failing syscall/close controls, ancestor-directory lifecycle or durable Saved earned.
+Whole-generation/history copy/reconstruction cost remains UNMEASURED and production strategy
+OPEN; name 10k/100k budgets before optimizing or adopting this experimental layout.
 
 ## Experimental versioned-text read (ordinary Actual profile)
 

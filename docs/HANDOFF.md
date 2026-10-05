@@ -25,7 +25,7 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
-## Active bounded task — synthetic record/save/reopen/correction consumer
+## Completed bounded task — synthetic record/select/reopen/correction consumer
 
 Question: can one explicit ordinary Movement proposal retain the admitted base evidence,
 be selected in a fresh synthetic Unix text trial, reopen and correct without lost history,
@@ -53,7 +53,19 @@ UI/canonical-storage adoption remains absent; record bytes and trial layout stay
 Pure proposal step completed: `text/Propose` add/correct, byte-retaining opaque candidates,
 three focused expect connections and public type boundaries. Main macOS check (173 expect/
 four cram), forced package tests, release @install, pinned formatting and whitespace pass;
-main installed set remains 50. Next within this task: consume it in the ignored Unix trial.
+main installed set remains 50. Ignored `scratch/text_publication_review` now consumes it using
+CURRENT + complete immutable generation/parent/request files and a cooperative process lease.
+Final native v3 controls pass: 1000 -> 990 -> reopen -> correction 985, retained original bytes/
+cut/edge/text, exact 180-bit cold read, scoped base/conflict/BUSY/replay/refusal, eight Uncertain
+checkpoints (6 OLD/2 NEW), two real SIGKILL OLD/NEW and closed-family cold restore. Prepared
+files are not receipts; incomplete temps refuse explicit retry without auto-cleanup. All selected
+ancestors qualify before answers/write activation; no malformed/dangling/older-world fallback.
+Main/source lock and exact 50-package set unchanged; no old trial switch/VM/Lean/private reads.
+[Verification](VERIFICATION.md#unix-text-publication-consumer-synthetic-no-saved) owns precise
+controls and limitations. This earns ONLY a native synthetic loop, not main persistence/Saved,
+power-loss or actual syscall-fault/lifecycle/security qualification. Layout/ID/path budget stay
+trial-only. Next: name a synthetic cost budget (10k/100k shapes), measure copy/reconstruction/
+reopen/history growth before choosing a production representation or optimizing a measured seam.
 
 ## Completed bounded task — friendly quantity answers without raw provenance
 
@@ -83,8 +95,8 @@ existing type/cram connections pass; ordinary/forced package tests (170 expect/f
 @install and optional formatting pass on macOS. [Verification](VERIFICATION.md#friendly-projected-quantity-answers)
 owns controls/limits; [Architecture](ARCHITECTURE.md#small-quantity-answer--disclosure-seam) owns
 scope. No auth/capability-service/security deployment or live original read is qualified.
-Next: name the first bounded SYNTHETIC record/save/reopen/correction consumer and settle its
-publication/lifecycle obligations against the retained trials before main store/format adoption.
+The first bounded SYNTHETIC record/select/reopen/correction consumer is now completed above;
+its retained publication/lifecycle limits still block main store/format adoption and durable Saved.
 Keep the simple question surface; do not grow an unused operation catalog or add an AI model.
 
 ## Current work style — native OCaml, no anticipatory harnesses
@@ -379,20 +391,21 @@ or promote fixture v2/experimental profile automatically into canonical storage.
 
 The private latest-contract read-profile usefulness check passed for one conditional quantity.
 The scoped native STRUCTURED reader, owner explanation and friendly projected quantity answer
-are implemented for supplied synthetic images. The next synthetic publication/lifecycle consumer
-is below. Any LIVE read still needs a named human question/acquisition owner and stable/coherent
-native acquisition before calling an original read current. No Python/probe port, automatic
+are implemented for supplied synthetic images; pure Movement proposals and the ignored Unix
+record/select/reopen/correction trial are completed above. Any LIVE read still needs a named
+human question/acquisition owner and stable/coherent native acquisition before calling an
+original read current. No Python/probe port, automatic
 root/fallback/recovery or permanent omnibus compatibility/Core ontology by habit. Add checks
 only for a concrete unresolved risk; preserve typed missing/unsupported/refusal. User owns
 operational cleanup and changed data needs fresh capture. Retained publication/cost work below
-follows that useful native read boundary, not immediate writer work.
+follows those useful native boundaries, not immediate main writer/store adoption.
 
-1. Name the next bounded publication/lifecycle consumer and compare Unix text-authority
-   publication/save -> close/reopen -> read/recovery against earned SQLite/Irmin controls. Define coherent generations, expected generation, request/
-   receipts, admission BEFORE effectful activation, real ordering/completion and explicit
-   recovery. Text files/rename/Git commit are not automatically durable Saved. Qualify parent/
-   namespace lifecycle, cleanup, replay/conflict/uncertainty and information-preserving restore;
-   no silent older-world fallback, implicit repair or new filesystem by default.
+1. Preserve the earned text/SQLite/Irmin selection/reopen/receipt comparison. Before a durable
+   acknowledgement, qualify ACTUAL returned syscall/sync/cleanup failures, parent/namespace
+   lifecycle, explicit recovery and information-preserving restore under a declared host/device
+   model. Native process checkpoints/SIGKILL/fsync/rename/Git commit do not qualify Saved.
+   No older-world fallback, implicit repair or new filesystem by default; trial layout is not
+   an adopted canonical format/store or a concurrency/authentication service.
 2. Measure bounded synthetic long-term cost (e.g. 10k/100k Events, explicit correction/group
    shapes): reconstruction/save/reopen CPU+wall time, memory and retained-history growth.
    Whole-history copying/rebuilding is not a settled production strategy. Use a small owned

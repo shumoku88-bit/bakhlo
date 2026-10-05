@@ -107,8 +107,11 @@ prerequisite, original mutation/migration, main-lock change or implicit Saved.
 ## Minimal Persistence contract
 
 Production requirements, not an implemented main module/stable API. An ignored synchronous
-SQLite consumer now consumes coherent-read/conditional-publish functions and backend-neutral
-snapshot/receipt/failure values; history/reconciliation are concrete trial operations. Its
+SQLite consumer consumes coherent-read/conditional-publish functions and backend-neutral
+snapshot/receipt/failure values; a native Unix text trial now also consumes ordinary proposals
+with a selected head, complete retained generations and scoped receipts. Both remain experiments;
+[Verification](VERIFICATION.md#unix-text-publication-consumer-synthetic-no-saved) owns the text
+lifecycle controls/limits, not a main adapter or durable acknowledgement. The SQLite trial's
 admission/orchestration uses no SQLite types. This earns a small seam, NOT the trial schema/
 IDs/durability or a shared multi-backend runner. No generic DB/FS service, effects framework,
 branch/merge API or dummy State. Open/close/provision/fault injection are outer
@@ -402,7 +405,7 @@ refuses, never retargets/drops itself. No support editing or richer-family filte
 
 Opaque candidate exposes base bytes, complete new bytes and the existing admitted image to its
 trusted producer, NOT a client projection, generation token, authorization or saved receipt.
-The named synthetic Unix trial will consume it outside the ordinary workspace; publisher owns
+The named synthetic Unix trial consumes it outside the ordinary workspace; publisher owns
 coherent expected-generation/base binding, current evidence requalification and lifecycle.
 Domain/Application, read-only CLI and dependency direction remain unchanged. No filesystem/
 Unix/Mirage/backend types or effects enter this adapter or the Core.
