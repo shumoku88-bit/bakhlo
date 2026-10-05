@@ -1,8 +1,8 @@
 open Base
-module D = Loam_domain
-module M = Loam_application.Event_merchants
-module S = Loam_application.Actual_source
-module Q = Loam_application.Current_quantity_query
+module D = Bakhlo_domain
+module M = Bakhlo_application.Event_merchants
+module S = Bakhlo_application.Actual_source
+module Q = Bakhlo_application.Current_quantity_query
 module F = Fixtures
 module O = Source_oracle
 
@@ -139,7 +139,7 @@ let%expect_test "Merchant source connection preserves four supports, history and
          | `Opening, Opening { coordinate; opening_event } ->
            F.require (F.same_coordinate coordinate opening && D.Identifier.Event.equal opening_event (F.id "b")) "opening retargeted"
          | `Assertion, Current_assertion assertion ->
-           let module P = Loam_application.Current_quantity_projection in
+           let module P = Bakhlo_application.Current_quantity_projection in
            F.require (Z.equal huge (D.Quantity.quanta (P.asserted_quantity assertion)) &&
              Z.equal (O.sum_events unreflected wallet) (D.Quantity.quanta (P.delta assertion))) "independent assertion/cut changed"
          | _ -> failwith "Merchant changed exact premise")

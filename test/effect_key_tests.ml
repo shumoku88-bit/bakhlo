@@ -1,10 +1,10 @@
 open Base
-module D = Loam_domain
+module D = Bakhlo_domain
 module F = Fixtures
-module Q = Loam_application.Current_quantity_query
-module H = Loam_application.Current_quantity_groups
-module P = Loam_application.Current_quantity_projection
-module S = Loam_application.Actual_source
+module Q = Bakhlo_application.Current_quantity_query
+module H = Bakhlo_application.Current_quantity_groups
+module P = Bakhlo_application.Current_quantity_projection
+module S = Bakhlo_application.Actual_source
 let key text = F.identifier D.Identifier.Effect_key.of_string text
 let change token (c : D.Effect_coordinate.t) quanta =
   D.Effect.create ~key:(Option.map token ~f:key) ~locus:c.locus ~measure:c.measure ~quantity:(D.Quantity.of_quanta quanta)
@@ -92,7 +92,7 @@ let%expect_test "keys are Event-local retained provenance and invisible to four-
   (match Q.query keyed (F.coordinate "quiet"), Q.query anonymous (F.coordinate "quiet"), Q.query keyed stale, Q.query anonymous stale with
    | Ok (Known_present _), Ok (Known_present _), Error (Support_unknown _), Error (Support_unknown _) -> ()
    | _ -> failwith "key presence affected touch/support");
-  let retained = D.Event_memory.events (Loam_application.Correction_frontier.retained_events (S.frontier (Q.source keyed))) in
+  let retained = D.Event_memory.events (Bakhlo_application.Correction_frontier.retained_events (S.frontier (Q.source keyed))) in
   F.require (List.equal F.equal_event events retained) "superseded/current keys retained, not retargeted";
   Stdlib.Printf.printf "same key in different Events; all source keys retained; quantities and presence unchanged\n";
   [%expect {| same key in different Events; all source keys retained; quantities and presence unchanged |}]
