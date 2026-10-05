@@ -176,17 +176,26 @@ let%expect_test "opaque input cannot inject terminal controls or extra lines" =
 let%expect_test "both quantity shells plan every exact coordinate pair before acquisition" =
   let module T = Bakhlo_cli.Current_text_command in
   let module L = Bakhlo_cli.Loam_quantity_command in
+  let read path view =
+    let label =
+      match view with
+      | Bakhlo_cli.Quantity_questions.Inspect -> "inspect"
+      | Explain -> "explain"
+      | Summary -> "summary"
+    in
+    Printf.sprintf "read %S; view=%s" path label
+  in
   let text arguments =
     match T.plan arguments with
     | Help -> "help"
     | Refused message -> "refused: " ^ message
-    | Read { path; questions = _; explain } -> Printf.sprintf "read %S; explain=%b" path explain
+    | Read { path; questions = _; view } -> read path view
   in
   let loam arguments =
     match L.plan arguments with
     | Help -> "help"
     | Refused message -> "refused: " ^ message
-    | Read { path; questions = _; explain } -> Printf.sprintf "read %S; explain=%b" path explain
+    | Read { path; questions = _; view } -> read path view
   in
   List.iter
     [
@@ -195,6 +204,10 @@ let%expect_test "both quantity shells plan every exact coordinate pair before ac
       [ "not-read"; "wallet"; "jpy"; "quiet" ];
       [ "not-read"; "wallet"; "jpy"; "quiet"; "" ];
       [ "--explain"; " exact path "; " wallet "; "JPY"; "wallet"; "jpy"; "wallet"; "jpy" ];
+      [ "--summary"; "synthetic"; "wallet"; "jpy" ];
+      [ "--summary"; "--explain"; "not-read"; "wallet"; "jpy" ];
+      [ "--explain"; "--summary"; "not-read"; "wallet"; "jpy" ];
+      [ "--summary"; "--summary"; "not-read"; "wallet"; "jpy" ];
     ]
     ~f:(fun arguments ->
       let t = text arguments and l = loam arguments in
@@ -206,7 +219,11 @@ let%expect_test "both quantity shells plan every exact coordinate pair before ac
     refused: expected FILE LOCUS MEASURE [LOCUS MEASURE ...]
     refused: expected FILE LOCUS MEASURE [LOCUS MEASURE ...]
     refused: coordinate identities must not be empty
-    read " exact path "; explain=true
+    read " exact path "; view=explain
+    read "synthetic"; view=summary
+    refused: choose only one of --summary or --explain
+    refused: choose only one of --summary or --explain
+    refused: choose only one of --summary or --explain
     |}]
 
 let%expect_test "nonempty batches preserve each outcome, ordering and duplicates without a subtotal"
@@ -272,3 +289,56 @@ let%expect_test "nonempty batches preserve each outcome, ordering and duplicates
     Question 2:
     "missing" / "jpy": quantity unknown (no supported premise in supplied evidence).
     |}]
+
+let%expect_test
+    "summary input failures preserve refusal class without raw diagnostics or partial answers" =
+  let module T = Bakhlo_cli.Current_text_command in
+  let doc rows =
+    String.concat ~sep:"\n" (("bakhlo-read 1 ordinary-actual-quantity" :: rows) @ [ "end"; "" ])
+  in
+  let evaluate view contents =
+    match T.plan (view @ [ "INTERNAL-FILE"; "quiet"; "jpy"; "wallet"; "jpy" ]) with
+    | Read request -> T.evaluate request contents
+    | Help | Refused _ -> failwith "valid planned question refused"
+  in
+  List.iter
+    [
+      (1, Error "INTERNAL-READ-ERROR");
+      (2, Ok "bakhlo-read INTERNAL-VERSION ordinary-actual-quantity\nend\n");
+      (2, Ok (doc [ "INTERNAL-RECORD"; "origin \"quiet\" \"jpy\"" ]));
+      ( 1,
+        Ok
+          (doc
+             [
+               "event \"INTERNAL-EVENT\" \"INTERNAL-DATE\""; "end-event"; "origin \"quiet\" \"jpy\"";
+             ]) );
+      (1, Ok (doc [ "group"; "reflect \"INTERNAL-ROOT\""; "end-group"; "origin \"quiet\" \"jpy\"" ]));
+      ( 1,
+        Ok
+          (doc
+             [
+               "event \"INTERNAL-EVENT\" \"2026-10-03\"";
+               "effect key \"INTERNAL-KEY\" \"w\" \"jpy\" 1";
+               "effect key \"INTERNAL-KEY\" \"other\" \"jpy\" -1";
+               "end-event";
+               "origin \"quiet\" \"jpy\"";
+             ]) );
+    ]
+    ~f:(fun (code, contents) ->
+      let detail = evaluate [] contents and summary = evaluate [ "--summary" ] contents in
+      Fixtures.require
+        (detail.exit_code = code && summary.exit_code = code && String.is_empty detail.stdout
+       && String.is_empty summary.stdout)
+        "failure stays failure before all questions";
+      Fixtures.require
+        (String.is_substring detail.stderr ~substring:"INTERNAL-")
+        "owner diagnostic positive control";
+      Fixtures.require
+        ((not (String.is_substring summary.stderr ~substring:"INTERNAL-"))
+        && String.is_substring summary.stderr ~substring:"数量には答えていません")
+        "summary failure contains no raw path/payload");
+  Stdlib.print_endline
+    "Six acquisition/profile/structural/source/support refusals retain 1/2 and no partial stdout; \
+     summary withholds diagnostics, owner detail survives.";
+  [%expect
+    {| Six acquisition/profile/structural/source/support refusals retain 1/2 and no partial stdout; summary withholds diagnostics, owner detail survives. |}]

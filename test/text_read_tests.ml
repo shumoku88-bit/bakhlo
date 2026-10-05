@@ -745,3 +745,132 @@ let%expect_test
     "Opening witness and 180-bit signed quanta retained; identities/keys escaped, never normalized.";
   [%expect
     {| Opening witness and 180-bit signed quanta retained; identities/keys escaped, never normalized. |}]
+
+let%expect_test "quantity answer copies all support families without raw-answer backreferences" =
+  let module Answer = A.Current_quantity_answer in
+  let module Summary = Bakhlo_presentation.Current_quantity_summary in
+  let huge = Z.neg (Z.shift_left Z.one 180) in
+  let image =
+    ok
+      (R.of_string
+         (document
+            [
+              "event \"INTERNAL-ROOT\" \"2026-10-03\"";
+              "effect anonymous \"wallet\" \"jpy\" -100";
+              "effect anonymous \"food\" \"jpy\" 100";
+              "end-event";
+              "event \"INTERNAL-TERMINAL\" \"2026-10-03\"";
+              "effect key \"INTERNAL-KEY\" \"wallet\" \"jpy\" -150";
+              "effect anonymous \"food\" \"jpy\" 150";
+              "end-event";
+              "correct \"INTERNAL-ROOT\" \"INTERNAL-TERMINAL\"";
+              "describe \"INTERNAL-ROOT\" \"INTERNAL-DESCRIPTION\"";
+              "event \"INTERNAL-EXTRA\" \"2026-10-03\"";
+              "effect anonymous \"wallet\" \"jpy\" -10";
+              "effect anonymous \"food\" \"jpy\" 10";
+              "end-event";
+              "event \"INTERNAL-OPENING\" \"2026-10-03\"";
+              "effect anonymous \"wallet\" \"usd\" 7";
+              "effect anonymous \"offset\" \"usd\" -7";
+              "end-event";
+              "origin \"food\" \"jpy\"";
+              "origin \"quiet\" \"jpy\"";
+              "opening \"wallet\" \"usd\" \"INTERNAL-OPENING\"";
+              "group";
+              "reflect \"INTERNAL-ROOT\"";
+              "assert \"wallet\" \"jpy\" " ^ Z.to_string huge;
+              "end-group";
+              "presence";
+              "present \"pantry\" \"jpy\"";
+              "end-presence";
+              "origin " ^ quoted_bytes " place\n\027 " ^ " " ^ quoted_bytes "unit\027";
+            ]))
+  in
+  List.iter
+    [
+      F.coordinate "wallet";
+      F.coordinate "food";
+      F.coordinate ~unit:"usd" "wallet";
+      F.coordinate "quiet";
+      F.coordinate "pantry";
+      F.coordinate "missing";
+      F.coordinate ~unit:"unit\027" " place\n\027 ";
+    ]
+    ~f:(fun coordinate ->
+      let original = Q.query image coordinate in
+      let projected = Answer.project original in
+      (match (original, projected) with
+      | Ok (Q.Exact original), Ok (Answer.Exact answer) -> (
+          F.require
+            (F.same_coordinate (Answer.coordinate answer) coordinate
+            && D.Quantity.equal (Answer.quantity answer) (Q.quantity original))
+            "exact coordinate/quantity connection";
+          match (Q.premise original, Answer.premise answer) with
+          | Zero_origin, Zero_origin | Opening _, Opening | Current_assertion _, Current_assertion
+            ->
+              ()
+          | _ -> failwith "projection changed supplied premise family")
+      | Ok (Known_present original), Ok (Known_present answer) ->
+          F.require
+            (F.same_coordinate (Answer.present_coordinate answer) (Q.present_coordinate original))
+            "scalar-free presence coordinate connection"
+      | Error (Support_unknown original), Error (Support_unknown projected) ->
+          F.require
+            (F.same_coordinate original.coordinate projected.coordinate)
+            "unknown connection"
+      | _ -> failwith "projection manufactured or erased support");
+      let text = Summary.render projected in
+      F.require
+        ((not (String.is_substring text ~substring:"INTERNAL-"))
+        && not (String.contains text '\027'))
+        "raw provenance/control bytes not in projected presentation");
+  F.require
+    (Z.equal (value image (F.coordinate "wallet")) (Z.sub huge (Z.of_int 10)))
+    "negative 180-bit quantity not truncated";
+  F.require
+    (Option.equal String.equal (describe image "INTERNAL-ROOT") (Some "INTERNAL-DESCRIPTION"))
+    "owner evidence not deleted";
+  let _, detailed =
+    Bakhlo_presentation.Current_quantity_explanation.explain image (F.coordinate "wallet")
+  in
+  F.require (String.is_substring detailed ~substring:"INTERNAL-KEY") "owner detail positive control";
+  Stdlib.print_endline
+    "Exact support families, signed 180-bit quantity and exact roles preserved; presence/unknown \
+     stay distinct; full evidence retained for owner inspection.";
+  [%expect
+    {| Exact support families, signed 180-bit quantity and exact roles preserved; presence/unknown stay distinct; full evidence retained for owner inspection. |}]
+
+let%expect_test
+    "friendly answers distinguish explicit zero, unknown amount and net-zero stale support" =
+  let module Answer = A.Current_quantity_answer in
+  let image =
+    ok
+      (R.of_string
+         (document
+            [
+              "origin \"quiet\" \"jpy\"";
+              "event \"touch\" \"2026-10-03\"";
+              "effect anonymous \"stale\" \"jpy\" 1";
+              "effect anonymous \"stale\" \"jpy\" -1";
+              "end-event";
+              "presence";
+              "present \"pantry\" \"jpy\"";
+              "present \"stale\" \"jpy\"";
+              "end-presence";
+            ]))
+  in
+  List.iter [ "quiet"; "pantry"; "stale"; "missing" ] ~f:(fun place ->
+      Stdlib.print_string
+        (Bakhlo_presentation.Current_quantity_summary.render
+           (Answer.project (Q.query image (F.coordinate place)))));
+  [%expect
+    {|
+    "quiet" / "jpy": この入力から求めた数量は 0 quanta です。
+    根拠の種類: 明示されたゼロ起点。
+    "pantry" / "jpy": この入力にはゼロではないという根拠がありますが、正確な数量はまだ分かりません。
+    確認の手がかり: 正確な数量を示す根拠を確認してください（推測では埋めません）。
+    "stale" / "jpy": この入力では数量を確定できません。0としては扱いません。
+    確認の手がかり: 数量の根拠と、反映済みの記録の範囲を確認してください。
+    "missing" / "jpy": この入力では数量を確定できません。0としては扱いません。
+    確認の手がかり: 数量の根拠と、反映済みの記録の範囲を確認してください。
+    |}]

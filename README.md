@@ -1,8 +1,9 @@
 # Bakhlo
 
-A household machine humans and AI can converse with. An independent OCaml engine for
-exact quantities, explicit evidence, retained correction provenance and honest uncertainty.
-AI proposes and explains; it does not manufacture facts or become the authority.
+A household question machine that works without AI. An independent OCaml engine for
+small explicit questions, exact quantities, retained evidence and honest uncertainty.
+Friendly presentation stays separate from strict meanings. AI is an optional untrusted entrance,
+not a household-specialist language model, required runtime or source of facts.
 
 **Development-only. Existing Lean LOAM remains the sole operational household authority.**
 No household writes, migration, production storage, durable Saved or full-household admission.
@@ -15,6 +16,8 @@ No household writes, migration, production storage, durable Saved or full-househ
   and independent quantity support. Activity or net zero never establishes support.
 - Structured exact quantities with supplied premises/provenance, known nonzero presence with
   unknown amount, or typed unavailable/refusal. Terminal text is not the shared API.
+- A [narrow quantity answer](application/current_quantity_answer.mli) and Japanese `--summary`:
+  exact/presence/unknown without raw history or input diagnostics. Not auth or a sandbox.
 - Read-only CLI entrances and two scoped pure readers:
   - [`bakhlo.text`](text/read.mli): experimental ordinary-Actual text profile.
   - [`bakhlo.loam_read`](loam_read/read.mli): supplied LOAM HouseholdImage v2, representable
@@ -33,15 +36,18 @@ remains a synthetic comparison input, not canonical storage.
 ./tools/opam exec -- dune exec bakhlo -- --help
 ./tools/opam exec -- dune exec bakhlo -- check-movement \
   --effect wallet jpy -1000 --effect food jpy 1000
-./tools/opam exec -- dune exec bakhlo -- inspect-current-text --explain \
+./tools/opam exec -- dune exec bakhlo -- inspect-current-text --summary \
   examples/ordinary-quantity.bakhlo wallet jpy food jpy
+./tools/opam exec -- dune exec bakhlo -- inspect-current-text --explain \
+  examples/ordinary-quantity.bakhlo wallet jpy
 ./tools/opam exec -- dune exec bakhlo -- inspect-loam-quantity \
   examples/loam-quantity.loam-input wallet jpy
 ```
 
 Both wallet queries yield supplied assertion `1000` + unreflected delta `-10` = `990`.
 The text and LOAM readers accept multiple `LOCUS MEASURE` pairs on one admitted input;
-`--explain` shows supplied premises, Effect occurrences and actual correction paths.
+Choose `--summary` for Japanese answers/check guidance or `--explain` for owner provenance.
+Summary withholds raw success/failure detail, but permitted quantities/coordinates remain sensitive.
 No subtotal or activity-derived support. Exit 3 if any question is unsupported, else 4 for
 known presence/unknown amount, else 0 (stdout). Failures use stderr: 1 for input/admission,
 2 for arguments; experimental text syntax/profile refusals also use 2.

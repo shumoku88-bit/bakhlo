@@ -3,35 +3,38 @@ module I = Bakhlo_loam_read.Input
 module E = Bakhlo_loam_read.Envelope
 module Text = Bakhlo_presentation.Current_quantity_text
 
-type request = { path : string; questions : Quantity_questions.t; explain : bool }
+type request = { path : string; questions : Quantity_questions.t; view : Quantity_questions.view }
 type plan = Help | Read of request | Refused of string
 
 let plan = function
   | [ "--help" ] -> Help
   | arguments -> (
-      let explain, arguments =
-        match arguments with "--explain" :: rest -> (true, rest) | rest -> (false, rest)
-      in
-      match arguments with
-      | [] -> Refused "expected FILE LOCUS MEASURE [LOCUS MEASURE ...]"
-      | path :: coordinates -> (
-          match Quantity_questions.plan coordinates with
-          | Ok questions -> Read { path; questions; explain }
-          | Error Missing_pair -> Refused "expected FILE LOCUS MEASURE [LOCUS MEASURE ...]"
-          | Error Empty_identity -> Refused "coordinate identities must not be empty"))
+      match Quantity_questions.select_view arguments with
+      | Error message -> Refused message
+      | Ok (view, arguments) -> (
+          match arguments with
+          | [] -> Refused "expected FILE LOCUS MEASURE [LOCUS MEASURE ...]"
+          | path :: coordinates -> (
+              match Quantity_questions.plan coordinates with
+              | Ok questions -> Read { path; questions; view }
+              | Error Missing_pair -> Refused "expected FILE LOCUS MEASURE [LOCUS MEASURE ...]"
+              | Error Empty_identity -> Refused "coordinate identities must not be empty")))
 
 let help : Response.t =
   {
     exit_code = 0;
     stderr = "";
     stdout =
-      "Usage: bakhlo inspect-loam-quantity [--explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]\n\
+      "Usage: bakhlo inspect-loam-quantity [--summary | --explain] FILE LOCUS MEASURE [LOCUS \
+       MEASURE ...]\n\
        Native, read-only LOAM HouseholdImage v2 conditional quantity profile.\n\
        Requires Actual and all four explicitly supplied quantity-support sections.\n\
        Unsupported Actual/settlement rows refuse; other sections retained opaque.\n\
        No root selection, previous-file fallback, migration, recovery or writes.\n\
        All questions use one wholly admitted supplied image; order/duplicates retained.\n\
-       With --explain, show supplied premises, Effects and retained correction paths.\n\
+       With --explain, show owner premises, Effects and retained correction paths.\n\
+       With --summary, give Japanese answers without raw provenance/input diagnostics.\n\
+       Summary is not authentication or a sandbox; quantities/coordinates are still sensitive.\n\
        Exit 3 if any unsupported, else 4 if any presence, else 0; stdout.\n\
        Not full-household admission, canonical storage, spending rights or Saved.\n";
   }
@@ -45,11 +48,12 @@ let syntax_refusal message : Response.t =
 
 let evaluate (request : request) contents : Response.t =
   let refused message : Response.t =
-    {
-      exit_code = 1;
-      stdout = "";
-      stderr = (if Stdlib.String.ends_with ~suffix:"\n" message then message else message ^ "\n");
-    }
+    Quantity_questions.input_refusal request.view
+      {
+        exit_code = 1;
+        stdout = "";
+        stderr = (if Stdlib.String.ends_with ~suffix:"\n" message then message else message ^ "\n");
+      }
   in
   match contents with
   | Error message -> refused (Printf.sprintf "Cannot read input file %S: %S" request.path message)
@@ -84,7 +88,7 @@ let evaluate (request : request) contents : Response.t =
           refused (Printf.sprintf "Unknown origin Event at position %d." position)
       | Error (Support error) -> refused (Text.refusal error)
       | Ok image ->
-          Quantity_questions.render request.questions ~explain:request.explain
+          Quantity_questions.render request.questions ~view:request.view
             ~exact_heading:
               "Conditional LOAM-input quantity (Actual/four-support read profile; not household \
                authority).\n"

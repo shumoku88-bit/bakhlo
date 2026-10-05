@@ -1,4 +1,4 @@
-type request = { path : string; questions : Quantity_questions.t; explain : bool }
+type request = { path : string; questions : Quantity_questions.t; view : Quantity_questions.view }
 (** Terminal-only development shell for Bakhlo_text.Read. File acquisition belongs
     to bin/main after ALL questions are planned; evaluate admits supplied bytes once.
     No writer. Response streams/exits are NOT shared operation results. *)

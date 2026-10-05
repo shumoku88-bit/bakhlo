@@ -61,4 +61,5 @@
   ../application/.bakhlo_application.objs/byte/bakhlo_application__Open_relations.cmi
   ../application/.bakhlo_application.objs/byte/bakhlo_application__Original_amounts.cmi
   ../application/.bakhlo_application.objs/byte/bakhlo_application__Exchange_evidence.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_query.cmi))
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_query.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_answer.cmi))

@@ -23,6 +23,23 @@ Core, Admission and Publication meanings must not depend on a particular databas
 runtime. Domain/Application stay immutable and Base + Zarith-only; outer publication consumes
 the [minimal Persistence contract](#minimal-persistence-contract), not backend transactions.
 
+### Everyday household questions, not a language model
+
+The product should be an ordinary, friendly household machine that works without AI: small
+explicit questions answered by deterministic operations over admitted evidence. Helpful replies
+explain what is known, unknown and worth checking; they do not invent missing facts or silently
+add a zero origin. AI/NL interpretation is optional and outer, never a specialist LLM/SLM or
+required runtime. Record/save/reopen/correct is the later daily-use path, not yet implemented.
+
+Retain full evidence for the owner and information-preserving extraction. External recipients
+receive only authorized operation-specific projections, not raw history/credentials by default;
+even quantities/coordinates can be sensitive. Detailed explanation and ordinary quantity access
+need distinct disclosure decisions. An OCaml signature narrows typed reachability, not principal
+authorization or process isolation. A production composition should omit developer shell/general
+file entrances and expose household operations only; this is a goal, not a current deployment.
+Unix and Mirage may enforce capabilities differently; neither removes admission/durability or
+host/device/network threat obligations. Do not delete internal provenance to hide it from clients.
+
 ### Properties to preserve
 
 - Human-readable, lossless, versioned canonical evidence, not merely a text export generated
@@ -142,8 +159,8 @@ device assumptions; same scenario is not identical fault mechanics or universal 
 
 ## Client access direction
 
-Requested product goal: one user's laptop, phone and AI chat can both record and inspect
-household state. Native Notty TUI is the desktop preference; browser UI serves phone and
+Primary product goal: one user's laptop/phone can record and inspect household state without AI;
+an AI-chat adapter is optional. Native Notty TUI is the desktop preference; browser UI serves phone and
 can also serve desktop. Evaluate Bonsai for that named consumer if compiler/dependency/
 interaction costs are acceptable, with a simpler web view as an alternative. This extends
 the eventual access goal, not authorization to deploy a public service or use real data.
@@ -289,6 +306,34 @@ Overlap uses all declarations, not just still-current presence. Even an explicit
 presence premise qualifies its roots. Only the abstract Exact payload has a Quantity;
 known-present has its own abstract coordinate/evidence/cut payload, never arithmetic.
 
+## Small quantity answer / disclosure seam
+
+The concrete question is “how much at this exact Locus/Measure in this supplied image?”
+[Current_quantity_answer](../application/current_quantity_answer.mli) projects an EXISTING typed
+query result, not another query/admission/arithmetic engine. Its distinct opaque exact payload
+contains only coordinate, signed Quantity and support FAMILY (origin/opening/assertion); present
+contains only coordinate, and unsupported retains its coordinate/reason. No raw answer/image,
+Event witness, cut, Effect, description, request origin or opaque-section reference survives in
+these payloads. Full evidence and independent cuts stay in the original owner image. This is a
+concrete consumed disclosure projection, not a universal answer ontology, canonical fact or auth API.
+
+[Japanese summary](../presentation/current_quantity_summary.mli) accepts only that projected
+answer. Known zero, known nonzero/unknown amount and unsupported stay distinct; guidance suggests
+checks without asserting a particular missing fact or silently repairing it. Exact decimal quanta
+and escaped exact identities survive; no currency/scale/FX or LLM inference.
+
+Both existing explicit-file CLI readers accept ONE leading `--summary` OR `--explain`, or ordinary
+inspection. Planning/whole-source admission/one-image query order and 0/4/3 remain unchanged.
+Summary withholds raw provenance from successful answers AND raw input diagnostics from failed
+acquisition/decoding/source/support; failed inputs retain their existing 1/2 exit and no question
+stdout. Detailed owner inspection remains available separately, not erased from the engine.
+
+This is NOT permission enforcement, a network protocol or safe external service. The developer
+CLI can still read an explicit file and select detailed mode. A future host must authorize each
+coordinate/operation, own coherent acquisition, withhold loading faults/logs appropriately and
+pass ONLY approved projections to recipients, never an admitted image/file handle. Quantities,
+coordinates and support families can still be sensitive; no generic confidentiality claim.
+
 ## Terminal quantity evidence explanation
 
 [Presentation explanation](../presentation/current_quantity_explanation.mli) queries ONE admitted
@@ -305,7 +350,7 @@ unknown. Escaped identities/keys and unbounded signed quanta survive presentatio
 cost is additional to indexed lookup, not a new cached fact, shared answer ontology or authority.
 No file acquisition, metadata inheritance, recording, clock or live-snapshot qualification.
 
-The two explicit-file commands accept `[--explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]`.
+The two explicit-file commands accept `[--summary | --explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]`.
 [CLI pair planning/rendering](../cli/quantity_questions.mli) shares only identical terminal
 mechanisms, not source grammars/admission. Its abstract question list is nonempty and retains
 order/duplicates. ALL pairs qualify before the shell's one acquisition; each reader admits the

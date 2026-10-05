@@ -12,6 +12,51 @@ near-term validation runtime; MirageOS support remains experimental, not an imme
 All SQLite/Irmin/Mirage trials and counterexamples retained. No authority/data migration,
 global install, public service, source-side rename reversal, dependency change or push.
 
+## Current product direction — small household questions, AI optional
+
+User delegates bounded development toward an ordinary, friendly household question machine,
+NOT a household-specialist LLM/SLM. Deterministic operations answer small explicit questions;
+Presentation explains uncertainty/next checks without inventing missing facts. AI is an optional
+untrusted entrance, never a runtime/model dependency or authority. Keep owner-readable complete
+evidence/export separate from least-disclosure client answers; projections themselves remain
+sensitive. Current Unix progress continues; shellless/restricted Mirage composition is a future
+hypothesis to qualify, not automatic confidentiality or a reason to rewrite Core.
+Daily-use recording/save/reopen/correction remains the later product path. Delegation is not
+permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
+operational cutover, sibling build/source copy, publication or push.
+
+## Completed bounded task — friendly quantity answers without raw provenance
+
+Question: can the existing admitted quantity outcome answer “how much at this coordinate?”
+without giving its recipient source/cuts/history, while retaining honest exact/presence/unknown?
+D: clean 7ffa3f2/main 50; two pure readers and consumed one-image CLI already exist.
+P: 166 expect/four cram, earned support/cut/lineage/original-Effect gates, owner explanation.
+R: sealed projection correspondence, misleading unknown advice, success AND failure disclosure,
+and view-choice refusal before acquisition. Owners: Application copies only coordinate/quantity/
+premise FAMILY into a concrete quantity answer; Presentation renders it in Japanese; existing
+CLI consumes `--summary` instead of new UI/transport/operation bus. Owner `--explain` remains
+separate and full evidence stays internally retained. Summary input failures retain exit class
+but withhold raw diagnostics; detail mode remains available to the local owner.
+Instruments: a few focused existing expect connections, existing cram/public type clients and
+ordinary native/package/install checks. No new model/campaign/harness/Python/theorem/dependency.
+Maintenance table: no source initializer/parser/ID/index/performance consolidation trigger.
+Bound: supplied synthetic files, whole admission, existing quantity scope only. No model/NL
+parser, date/spending/report/Scheduled/recording API, auth/grant service, sandbox/confidentiality
+proof, coherent original capture or store/recovery/Mirage replay. A narrow result signature is
+NOT access control: future hosts must authorize coordinates/operations and hide acquisition
+failures separately; do not hand them an image/file handle. Revisit when a concrete external
+recipient or next record/save consumer fixes capability/acquisition/publication requirements.
+Completed: distinct projected quantity payloads and Japanese `--summary` are consumed by both
+existing read-only CLI entrances. Exact/support-family/presence/unknown survive; no raw provenance
+or input diagnostics in summary; full owner evidence/detail remains. Four focused expect plus
+existing type/cram connections pass; ordinary/forced package tests (170 expect/four cram), release
+@install and optional formatting pass on macOS. [Verification](VERIFICATION.md#friendly-projected-quantity-answers)
+owns controls/limits; [Architecture](ARCHITECTURE.md#small-quantity-answer--disclosure-seam) owns
+scope. No auth/capability-service/security deployment or live original read is qualified.
+Next: name the first bounded SYNTHETIC record/save/reopen/correction consumer and settle its
+publication/lifecycle obligations against the retained trials before main store/format adoption.
+Keep the simple question surface; do not grow an unused operation catalog or add an AI model.
+
 ## Current work style — native OCaml, no anticipatory harnesses
 
 User requests removing the recent Python/test scaffolding and using native OCaml until
@@ -303,9 +348,10 @@ owns its limited profile/API, not a final format. Do not widen it to full Actual
 or promote fixture v2/experimental profile automatically into canonical storage.
 
 The private latest-contract read-profile usefulness check passed for one conditional quantity.
-The scoped native STRUCTURED reader and explicit-file consumer are implemented. Next name a
-human quantity/evidence question and its acquisition owner; stable/coherent native acquisition
-must be earned before calling a live original read current. No Python/probe port, automatic
+The scoped native STRUCTURED reader, owner explanation and friendly projected quantity answer
+are implemented for supplied synthetic images. The next synthetic publication/lifecycle consumer
+is below. Any LIVE read still needs a named human question/acquisition owner and stable/coherent
+native acquisition before calling an original read current. No Python/probe port, automatic
 root/fallback/recovery or permanent omnibus compatibility/Core ontology by habit. Add checks
 only for a concrete unresolved risk; preserve typed missing/unsupported/refusal. User owns
 operational cleanup and changed data needs fresh capture. Retained publication/cost work below

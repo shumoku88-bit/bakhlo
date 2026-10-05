@@ -110,6 +110,53 @@ A supported conditional answer cannot be forged with a guessed zero quantity.
   [2]
   $ grep -q 'coordinate' error && grep -Eqi 'record|field|abstract|private' error
 
+A quantity-answer recipient can consume the projected result without CLI/presentation.
+The value does not expose the raw answer, even though trusted assembly can still access
+raw evidence through the separate original engine API. This is type-level narrowing,
+NOT authorization or protection against unsafe OCaml/process escape hatches.
+
+  $ cat >quantity_answer_client.ml <<'EOF'
+  > module A = Bakhlo_application.Current_quantity_answer
+  > let inspect (answer : A.answer) =
+  >   match answer with
+  >   | Ok (A.Exact a) -> `Exact (A.coordinate a, A.quantity a, A.premise a)
+  >   | Ok (A.Known_present p) -> `Present (A.present_coordinate p)
+  >   | Error (A.Support_unknown { coordinate }) -> `Unknown coordinate
+  > EOF
+  $ application_client quantity_answer_client.ml
+
+Projected exact values cannot be forged or used as a raw premise/cut accessor's argument.
+Presence still cannot be supplied to arithmetic; no source accessor exists on this surface.
+
+  $ cat >forged_quantity_answer.ml <<'EOF'
+  > module A = Bakhlo_application.Current_quantity_answer
+  > let forge coordinate : A.exact =
+  >   { coordinate; quantity = Bakhlo_domain.Quantity.zero; premise = A.Zero_origin }
+  > EOF
+  $ application_client forged_quantity_answer.ml 2>error
+  [2]
+  $ grep -q 'coordinate' error && grep -Eqi 'record|field|abstract|private' error
+  $ cat >raw_premise_from_projection.ml <<'EOF'
+  > let wrong (a : Bakhlo_application.Current_quantity_answer.exact) =
+  >   Bakhlo_application.Current_quantity_query.premise a
+  > EOF
+  $ application_client raw_premise_from_projection.ml 2>error
+  [2]
+  $ grep -q 'Current_quantity_answer.exact' error && grep -q 'Current_quantity_query.exact' error
+  $ cat >quantity_from_projected_presence.ml <<'EOF'
+  > module A = Bakhlo_application.Current_quantity_answer
+  > let wrong (p : A.present) = A.quantity p
+  > EOF
+  $ application_client quantity_from_projected_presence.ml 2>error
+  [2]
+  $ grep -q 'A.present' error && grep -q 'A.exact' error
+  $ cat >source_from_projection.ml <<'EOF'
+  > let wrong = Bakhlo_application.Current_quantity_answer.source
+  > EOF
+  $ application_client source_from_projection.ml 2>error
+  [2]
+  $ grep -q 'source' error && grep -q 'Unbound value' error
+
 An endpoint-closure client compiles without CLI/presentation or private memory fields.
 
   $ cat >correction_client.ml <<'EOF'

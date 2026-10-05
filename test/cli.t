@@ -4,8 +4,8 @@ Global help describes concrete operations, not an imaginary UI.
   Usage: bakhlo COMMAND ...
   check-movement --effect LOCUS MEASURE QUANTA [--effect ...]
   inspect-current-fixture FILE LOCUS MEASURE
-  inspect-current-text [--explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]
-  inspect-loam-quantity [--explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]
+  inspect-current-text [--summary | --explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]
+  inspect-loam-quantity [--summary | --explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]
   Structural validation and read-only conditional quantity queries.
   Not household admission or authority; no writes.
   Use COMMAND --help for details.

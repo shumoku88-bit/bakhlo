@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Friendly projected quantity answers](#friendly-projected-quantity-answers): typed narrowing,
+  no raw provenance/input diagnostics in summary, not an auth/sandbox qualification.
 - [Quantity explanations](#terminal-quantity-evidence-explanation) and
   [one-image CLI questions](#one-image-quantity-cli-questions), including answer-bound cuts.
 - Current [native LOAM-input reader](#scoped-native-loam-input-reader) and
@@ -56,6 +58,33 @@ is a limitation/blocker, not silently replaced by compile success.
 Formal tools remain development-only. Ordinary build/test/release must be Lean-free.
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
+
+## Friendly projected quantity answers
+
+User delegates small explicit household questions without a required AI/model. HANDOFF records
+owners/D/P/R and bounds before code. `Current_quantity_answer.project` copies only the permitted
+values/support family from an existing outcome; no lookup/arithmetic/source weakening. Japanese
+Presentation consumes only this distinct opaque projection. Existing CLI `--summary` is the
+concrete consumer; owner `--explain`/ordinary inspection remain separate. This does NOT implement
+principal/coordinate authorization, a public protocol, sandbox, live capture or production service.
+
+Four focused existing expect connections cover all exact support families/coordinate roles,
+negative 180-bit quantity, known zero vs presence/net-zero-stale/unknown and owner-evidence positive
+controls; native LOAM success omits request origins/keys/text/opaque sections, while six text and
+seven native input-failure controls retain original 1/2 classes and no partial stdout/raw diagnostics.
+Existing planner tests now cover competing/repeated views before acquisition. Existing cram tests
+both CLI paths, Japanese 0/4/3 outputs, duplicates, unsupported/source/support/read errors, and
+byte-equal inputs. Public scoped compiler clients accept the narrowed answer and reject forged
+exact, raw-premise access, presence arithmetic and nonexistent source access. These check nominal
+abstraction, not unsafe OCaml or hostile in-process/native code; projections remain sensitive.
+
+macOS `tools/check` and forced package `runtest -p bakhlo` pass (170 expect cases, retained campaigns,
+four cram), as does release `@install`. Optional pinned formatting passes; main compiler/50 lock
+and dependency direction unchanged. A missing renderer result annotation made an error constructor
+unbound, and one deliberately empty expect snapshot was filled after review. No warning suppression,
+blind expectation promotion, new model/framework/Python/campaign/dependency, original data read,
+sibling build, Linux/Mirage/proof/storage replay or recording/persistence qualification. Typed
+unknown guidance remains a check suggestion, not a claim that the starting balance is missing.
 
 ## Terminal quantity evidence explanation
 

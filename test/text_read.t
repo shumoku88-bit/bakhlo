@@ -41,11 +41,13 @@ The Unix shell only acquires a synthetic file and renders typed read/query outco
 No current household authority, recording acknowledgement or spending permission.
 
   $ bakhlo inspect-current-text --help
-  Usage: bakhlo inspect-current-text [--explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]
+  Usage: bakhlo inspect-current-text [--summary | --explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]
   Experimental bakhlo-read 1 ordinary-actual-quantity; synthetic read only.
   Exact/presence/unknown are conditional on supplied profile evidence.
   All questions use one wholly admitted supplied image; order/duplicates retained.
-  With --explain, show supplied premises, Effects and retained correction paths.
+  With --explain, show owner premises, Effects and retained correction paths.
+  With --summary, give Japanese answers without raw provenance/input diagnostics.
+  Summary is not authentication or a sandbox; quantities/coordinates are still sensitive.
   Exit 3 if any unsupported, else 4 if any presence, else 0; stdout.
   Not canonical storage, household authority, spending permission or Saved.
   $ cp ../examples/ordinary-quantity.bakhlo evidence
@@ -200,3 +202,74 @@ Only this supplied synthetic image is consumed; no operational root discovery.
   [1]
   $ test ! -s out && grep -q 'HouseholdImage' err
   $ cmp loam-evidence loam-before && cmp evidence before
+
+The Japanese summary answers the small quantity question without raw provenance.
+Unknown guidance suggests checks, not a made-up cause, guessed zero or implicit repair.
+This local CLI mode is a disclosure seam, not an authentication/sandbox claim.
+
+  $ bakhlo inspect-current-text --summary evidence wallet jpy quiet jpy pantry jpy stale jpy
+  入力された根拠に基づく回答です。実際の残高や使ってよい金額を保証するものではありません。
+  同じ入力への質問です。数量を合計するものではありません。
+  質問 1:
+  "wallet" / "jpy": この入力から求めた数量は 990 quanta です。
+  根拠の種類: 明示された数量と、その根拠に未反映の差分。
+  質問 2:
+  "quiet" / "jpy": この入力から求めた数量は 0 quanta です。
+  根拠の種類: 明示されたゼロ起点。
+  質問 3:
+  "pantry" / "jpy": この入力にはゼロではないという根拠がありますが、正確な数量はまだ分かりません。
+  確認の手がかり: 正確な数量を示す根拠を確認してください（推測では埋めません）。
+  質問 4:
+  "stale" / "jpy": この入力では数量を確定できません。0としては扱いません。
+  確認の手がかり: 数量の根拠と、反映済みの記録の範囲を確認してください。
+  [3]
+  $ bakhlo inspect-current-text --summary evidence wallet usd
+  入力された根拠に基づく回答です。実際の残高や使ってよい金額を保証するものではありません。
+  "wallet" / "usd": この入力から求めた数量は 7 quanta です。
+  根拠の種類: 明示された開始の根拠。
+  $ bakhlo inspect-loam-quantity --summary loam-evidence wallet jpy pantry jpy >out 2>err
+  [4]
+  $ test ! -s err && grep -Fq '990 quanta' out && grep -Fq '正確な数量はまだ分かりません' out
+  $ ! grep -Eq 'request-e|synthetic example|Root |Correction|asserted=' out
+  $ bakhlo inspect-current-text --summary evidence wallet jpy wallet jpy >out 2>err
+  $ test ! -s err && test "$(grep -c '990 quanta' out)" = 2
+  $ ! grep -Eq 'purchase draft|purchase corrected|physical|asserted=' out
+
+Failure is still failure, never a zero/empty answer. Summary stderr withholds raw paths,
+format details and source/support payload while preserving each entrance's exit classification.
+The existing detailed diagnostics remain available to the local owner separately.
+
+  $ bakhlo inspect-current-text --summary missing wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -Fq '数量には答えていません' err && ! grep -q 'missing\|Cannot read' err && test ! -e missing
+  $ bakhlo inspect-current-text --summary future wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -Fq '数量には答えていません' err && ! grep -q 'version\|future' err
+  $ bakhlo inspect-current-text --summary invalid quiet jpy wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -Fq '数量には答えていません' err && ! grep -q 'validity' err
+  $ bakhlo inspect-current-text --summary overlap quiet jpy wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -Fq '数量には答えていません' err && ! grep -q 'overlaps' err
+  $ bakhlo inspect-loam-quantity --summary missing wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -Fq '数量には答えていません' err && ! grep -q 'missing\|Cannot read' err && test ! -e missing
+  $ bakhlo inspect-loam-quantity --summary evidence wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -Fq '数量には答えていません' err && ! grep -q 'HouseholdImage' err
+
+Conflicting/repeated views refuse before reading anything; summary does not weaken planning.
+
+  $ bakhlo inspect-current-text --summary --explain not-read wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'choose only one' err
+  $ bakhlo inspect-loam-quantity --explain --summary not-read wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'choose only one' err
+  $ bakhlo inspect-current-text --summary --summary not-read wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'choose only one' err
+  $ bakhlo inspect-loam-quantity --summary not-read wallet jpy quiet '' >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'coordinate identities must not be empty' err
+  $ cmp loam-evidence loam-before && cmp evidence before && cmp invalid invalid-before

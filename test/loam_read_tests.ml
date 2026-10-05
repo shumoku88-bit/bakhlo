@@ -285,3 +285,87 @@ let%expect_test "native batch explanation keeps query outcomes and refuses the w
      unsupported/missing/source/support refusal.";
   [%expect
     {| One admitted image: exact/presence/unknown/duplicate explanations; whole unsupported/missing/source/support refusal. |}]
+
+let%expect_test "native summary consumes projected answers only and withholds input failures" =
+  let module C = Bakhlo_cli.Loam_quantity_command in
+  let evaluate contents =
+    match
+      C.plan
+        [
+          "--summary";
+          "INTERNAL-FILE";
+          "wallet";
+          "jpy";
+          "pantry";
+          "jpy";
+          "stale";
+          "jpy";
+          "wallet";
+          "jpy";
+        ]
+    with
+    | Read request -> C.evaluate request contents
+    | Help | Refused _ -> failwith "valid summary question refused"
+  in
+  let bytes = envelope (parts actual anchor) in
+  let read = ok (L.Read.of_string bytes) in
+  F.require (String.equal (L.Read.original_bytes read) bytes) "raw owner input retained";
+  let response = evaluate (Ok bytes) in
+  F.require (response.exit_code = 3 && String.is_empty response.stderr) "mixed unknown precedence";
+  List.iter [ "990 quanta"; "正確な数量はまだ分かりません"; "数量を確定できません"; "質問 4:" ] ~f:(fun substring ->
+      F.require
+        (String.is_substring response.stdout ~substring)
+        "native friendly outcome connection");
+  List.iter
+    [
+      " req-a ";
+      "req-b";
+      "original";
+      "家計";
+      "physical";
+      "Future";
+      "Correction";
+      "Root ";
+      "INTERNAL-FILE";
+    ] ~f:(fun substring ->
+      F.require
+        (not (String.is_substring response.stdout ~substring))
+        "raw data not in native summary");
+  List.iter
+    [
+      Error "INTERNAL-I/O";
+      Ok "INTERNAL-INVALID-FRAME\n";
+      Ok (envelope (List.tl_exn (parts actual anchor)));
+      Ok (envelope (parts (actual ^ "SETTLEMENT-NETTING\tid\tjpy\tZERO\n") anchor));
+      Ok
+        (envelope
+           (parts
+              (String.substr_replace_all actual ~pattern:"REPLACES\ta"
+                 ~with_:"REPLACES\tINTERNAL-MISSING")
+              anchor));
+      Ok
+        (envelope
+           (parts
+              (String.substr_replace_all actual ~pattern:"OPERATION\treq-b"
+                 ~with_:"OPERATION\t req-a ")
+              anchor));
+      Ok
+        (envelope
+           (List.map (parts actual anchor) ~f:(fun (name, body, count) ->
+                if String.equal name "ZeroOrigin" then
+                  ascii name (body ^ "COORDINATE\twallet\tjpy\n")
+                else (name, body, count))));
+    ]
+    ~f:(fun contents ->
+      let failed = evaluate contents in
+      F.require
+        (failed.exit_code = 1 && String.is_empty failed.stdout
+        && String.is_substring failed.stderr ~substring:"数量には答えていません"
+        && (not (String.is_substring failed.stderr ~substring:"INTERNAL-"))
+        && not (String.is_substring failed.stderr ~substring:"req-a"))
+        "all native input failures remain refused without payload disclosure");
+  print_endline
+    "Native summary preserves exact/presence/unknown/duplicates, retains private owner evidence, \
+     and gives no partial answer or raw diagnostics on seven input failures.";
+  [%expect
+    {| Native summary preserves exact/presence/unknown/duplicates, retains private owner evidence, and gives no partial answer or raw diagnostics on seven input failures. |}]
