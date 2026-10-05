@@ -39,8 +39,11 @@ matching an original-list/integer oracle. This is conditional read-profile evide
 production numeric parity, full-household known-family admission/completeness or spending rights.
 [Verification](VERIFICATION.md#latest-loam-contract-private-conditional-quantity-experiment)
 owns execution/limits; exact artifacts remain private. Original current bytes rechecked equal.
-Main engine/reader/CLI/tests/lock unchanged. User cleanup later needs a NEW explicit capture,
-not reuse of old results as current. No operational cleanup/recovery/migration/synchronization,
+User subsequently reported authoritative data updated to latest. A NEW current-only copy
+passed freshly replayed synthetic controls, whole read-profile gates and original-list comparison;
+original bytes AND signature rechecked equal. Old artifacts retained, not used as current input.
+Main engine/reader/CLI/tests/lock unchanged. Later data updates still require fresh acquisition.
+No operational cleanup/recovery/migration/synchronization,
 permanent codec/API/store/writer or release/push. Revisit before promoting a concrete pure outer
 read consumer; preserve provenance without copying LOAM types/layout or requiring full parity.
 

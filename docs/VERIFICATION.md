@@ -91,6 +91,16 @@ LOAM, external factual completeness, durable Saved, spending permission or produ
 refinement. Changed data needs fresh capture, not stale answer reuse. No main module/API/test/
 manifest/lock/tool change or ordinary-suite/VM/proof/storage/performance replay in this increment.
 
+After the user reported authoritative data updated to latest, acquired a NEW current-only copy
+under the same explicitly selected read contract (narrow source owners unchanged). Reused the
+reviewed probes with new private artifact names, freshly replayed synthetic acquisition/profile/
+compiled exact/huge-quantity/refusal controls before acquisition. New candidate again passed
+whole read-profile source/support/provenance gates; one explicit-support question returned
+conditional Exact agreeing with the original-list oracle. Original whole bytes AND identity
+signature rechecked equal afterward. Previous artifacts preserved, not fallback/query input;
+no inference that cleanup must change household blob bytes or qualifies full migration. Same
+privacy/scope/no-write/no-main-change limits; no ordinary-suite/proof/VM/storage replay claim.
+
 ## Experimental versioned-text read (ordinary Actual profile)
 
 Question/owners/D/P/R before code in HANDOFF. A pure outer `bakhlo.text` reader admits one
