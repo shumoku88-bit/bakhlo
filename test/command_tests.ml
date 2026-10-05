@@ -1,6 +1,6 @@
 open Base
 
-module C = Loam_cli.Movement_command
+module C = Bakhlo_cli.Movement_command
 
 let show arguments =
   let output = C.render (C.evaluate arguments) in
@@ -16,7 +16,7 @@ let%expect_test "help explicitly excludes recording and display-unit inference" 
   [%expect {|
     exit: 0
     stdout:
-    Usage: loam-ocaml check-movement --effect LOCUS MEASURE QUANTA [--effect ...]
+    Usage: bakhlo check-movement --effect LOCUS MEASURE QUANTA [--effect ...]
 
     Validate an ordinary single-Measure movement without recording it.
     QUANTA is an exact signed decimal integer, not display currency units.
@@ -56,32 +56,32 @@ let%expect_test "syntax failures are not successful empty worlds" =
     stdout: <empty>
     stderr:
     error: a command is required.
-    Run 'loam-ocaml --help' for usage.
+    Run 'bakhlo --help' for usage.
     exit: 2
     stdout: <empty>
     stderr:
     error: unknown command "record".
-    Run 'loam-ocaml --help' for usage.
+    Run 'bakhlo --help' for usage.
     exit: 2
     stdout: <empty>
     stderr:
     error: Effect 1: --effect requires LOCUS MEASURE QUANTA.
-    Run 'loam-ocaml --help' for usage.
+    Run 'bakhlo --help' for usage.
     exit: 2
     stdout: <empty>
     stderr:
     error: unexpected argument "--file".
-    Run 'loam-ocaml --help' for usage.
+    Run 'bakhlo --help' for usage.
     exit: 2
     stdout: <empty>
     stderr:
     error: Effect 1: Locus identity must not be empty.
-    Run 'loam-ocaml --help' for usage.
+    Run 'bakhlo --help' for usage.
     exit: 2
     stdout: <empty>
     stderr:
     error: Effect 1: Measure identity must not be empty.
-    Run 'loam-ocaml --help' for usage. |}]
+    Run 'bakhlo --help' for usage. |}]
 ;;
 
 let%expect_test "decimal grammar refuses coercion instead of using Zarith's wider grammar" =
@@ -92,21 +92,21 @@ let%expect_test "decimal grammar refuses coercion instead of using Zarith's wide
     Stdlib.print_string output.stderr);
   [%expect {|
     error: Effect 1: expected a signed decimal integer, got "".
-    Run 'loam-ocaml --help' for usage.
+    Run 'bakhlo --help' for usage.
     error: Effect 1: expected a signed decimal integer, got "+".
-    Run 'loam-ocaml --help' for usage.
+    Run 'bakhlo --help' for usage.
     error: Effect 1: expected a signed decimal integer, got "-".
-    Run 'loam-ocaml --help' for usage.
+    Run 'bakhlo --help' for usage.
     error: Effect 1: expected a signed decimal integer, got "1.0".
-    Run 'loam-ocaml --help' for usage.
+    Run 'bakhlo --help' for usage.
     error: Effect 1: expected a signed decimal integer, got "0x10".
-    Run 'loam-ocaml --help' for usage.
+    Run 'bakhlo --help' for usage.
     error: Effect 1: expected a signed decimal integer, got "1_000".
-    Run 'loam-ocaml --help' for usage.
+    Run 'bakhlo --help' for usage.
     error: Effect 1: expected a signed decimal integer, got " 1".
-    Run 'loam-ocaml --help' for usage.
+    Run 'bakhlo --help' for usage.
     error: Effect 1: expected a signed decimal integer, got "1 ".
-    Run 'loam-ocaml --help' for usage. |}]
+    Run 'bakhlo --help' for usage. |}]
 ;;
 
 let%expect_test "domain refusal is ordered, exact, and confined to stderr" =
@@ -153,7 +153,7 @@ let%expect_test "opaque input cannot inject terminal controls or extra lines" =
     stdout: <empty>
     stderr:
     error: unknown command "bad\027[31m\ncommand".
-    Run 'loam-ocaml --help' for usage.
+    Run 'bakhlo --help' for usage.
     exit: 0
     stdout:
     Movement structurally valid (not recorded).

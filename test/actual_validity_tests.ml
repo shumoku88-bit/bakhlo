@@ -1,6 +1,6 @@
 open Base
-module D = Loam_domain
-module V = Loam_application.Actual_validity
+module D = Bakhlo_domain
+module V = Bakhlo_application.Actual_validity
 module F = Fixtures
 let validity event date = F.base_validity (F.id event) date
 let admit events facts = V.create ~events:(F.memory events) ~facts ~corrections:[]

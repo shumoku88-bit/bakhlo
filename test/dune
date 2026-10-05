@@ -3,43 +3,43 @@
  (_ (inline_tests enabled)))
 
 (library
- (name loam_tests)
- (package loam_ocaml)
- (libraries loam_domain loam_application loam_presentation loam_cli base zarith base_quickcheck)
+ (name bakhlo_tests)
+ (package bakhlo)
+ (libraries bakhlo_domain bakhlo_application bakhlo_presentation bakhlo_cli base zarith base_quickcheck)
  (inline_tests (flags -verbose))
  (preprocess (pps ppx_expect)))
 
 (cram
- (package loam_ocaml)
+ (package bakhlo)
  (deps
   ../dune
   ../examples/current-preview.fixture
-  %{bin:loam-ocaml}
-  ../lib/.loam_domain.objs/byte/loam_domain.cmi
-  ../lib/.loam_domain.objs/byte/loam_domain__Identifier.cmi
-  ../lib/.loam_domain.objs/byte/loam_domain__Quantity.cmi
-  ../lib/.loam_domain.objs/byte/loam_domain__Effect.cmi
-  ../lib/.loam_domain.objs/byte/loam_domain__Event.cmi
-  ../lib/.loam_domain.objs/byte/loam_domain__Event_memory.cmi
-  ../lib/.loam_domain.objs/byte/loam_domain__Event_correction.cmi
-  ../lib/.loam_domain.objs/byte/loam_domain__Movement.cmi
-  ../lib/.loam_domain.objs/byte/loam_domain__Effect_coordinate.cmi
-  ../lib/.loam_domain.objs/byte/loam_domain__Zero_origin_coverage.cmi
-  ../application/.loam_application.objs/byte/loam_application.cmi
-  ../application/.loam_application.objs/byte/loam_application__.cmi
-  ../application/.loam_application.objs/byte/loam_application__Movement_check.cmi
-  ../application/.loam_application.objs/byte/loam_application__Correction_check.cmi
-  ../application/.loam_application.objs/byte/loam_application__Correction_frontier.cmi
-  ../application/.loam_application.objs/byte/loam_application__Reflected_root_cut.cmi
-  ../application/.loam_application.objs/byte/loam_application__Current_quantity_projection.cmi
-  ../application/.loam_application.objs/byte/loam_application__Current_quantity_groups.cmi
-  ../application/.loam_application.objs/byte/loam_application__Actual_reversals.cmi
-  ../application/.loam_application.objs/byte/loam_application__Actual_source.cmi
-  ../application/.loam_application.objs/byte/loam_application__Actual_validity.cmi
-  ../application/.loam_application.objs/byte/loam_application__Event_descriptions.cmi
-  ../application/.loam_application.objs/byte/loam_application__Event_merchants.cmi
-  ../application/.loam_application.objs/byte/loam_application__Relation_discharges.cmi
-  ../application/.loam_application.objs/byte/loam_application__Open_relations.cmi
-  ../application/.loam_application.objs/byte/loam_application__Original_amounts.cmi
-  ../application/.loam_application.objs/byte/loam_application__Exchange_evidence.cmi
-  ../application/.loam_application.objs/byte/loam_application__Current_quantity_query.cmi))
+  %{bin:bakhlo}
+  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain.cmi
+  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Identifier.cmi
+  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Quantity.cmi
+  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Effect.cmi
+  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Event.cmi
+  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Event_memory.cmi
+  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Event_correction.cmi
+  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Movement.cmi
+  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Effect_coordinate.cmi
+  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Zero_origin_coverage.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Movement_check.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Correction_check.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Correction_frontier.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Reflected_root_cut.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_projection.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_groups.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Actual_reversals.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Actual_source.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Actual_validity.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Event_descriptions.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Event_merchants.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Relation_discharges.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Open_relations.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Original_amounts.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Exchange_evidence.cmi
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_query.cmi))
