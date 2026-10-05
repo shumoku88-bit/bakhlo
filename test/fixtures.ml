@@ -1,9 +1,9 @@
 open Base
-module D = Loam_domain
+module D = Bakhlo_domain
 module Id = D.Identifier.Event
-module F = Loam_application.Correction_frontier
-module C = Loam_application.Reflected_root_cut
-module P = Loam_application.Current_quantity_projection
+module F = Bakhlo_application.Correction_frontier
+module C = Bakhlo_application.Reflected_root_cut
+module P = Bakhlo_application.Current_quantity_projection
 
 (* Test construction/retention helpers only, not expected arithmetic or graph admission. *)
 let require condition message = if not condition then failwith message
@@ -30,10 +30,10 @@ let admitted events corrections =
   | Ok value -> value
   | Error _ -> failwith "valid fixture refused"
 ;;
-let base_validity event valid_on : Loam_application.Actual_validity.fact = Base { event; valid_on }
+let base_validity event valid_on : Bakhlo_application.Actual_validity.fact = Base { event; valid_on }
 let actual_source events corrections =
   let validities = List.map events ~f:(fun event -> base_validity (D.Event.id event) "2026-10-03") in
-  match Loam_application.Actual_source.create { events; validities; validity_corrections = []; corrections; descriptions = []; merchants = []; original_amounts = []; exchanges = []; reversals = []; relations = []; discharges = [] } with
+  match Bakhlo_application.Actual_source.create { events; validities; validity_corrections = []; corrections; descriptions = []; merchants = []; original_amounts = []; exchanges = []; reversals = []; relations = []; discharges = [] } with
   | Ok source -> source
   | Error _ -> failwith "invalid ordinary Actual fixture"
 ;;
