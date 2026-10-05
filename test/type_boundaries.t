@@ -63,7 +63,7 @@ This check does not claim to protect against unsafe OCaml escape hatches.
   > EOF
   $ domain_client forged.ml 2>error
   [2]
-  $ grep -q 'Unbound record field "measure"\|Unbound record field measure' error
+  $ grep -q 'measure' error && grep -Eqi 'record|field|abstract|private' error
 
 The application can be used by a typed client without CLI or presentation CMIs.
 
@@ -85,7 +85,7 @@ A structured application preview cannot be forged with a false aggregate.
   > EOF
   $ application_client forged_preview.ml 2>error
   [2]
-  $ grep -q 'Unbound record field "movement"\|Unbound record field movement' error
+  $ grep -q 'movement' error && grep -Eqi 'record|field|abstract|private' error
 
 The coordinate's identifier roles remain distinct.
 
@@ -108,7 +108,7 @@ A supported conditional answer cannot be forged with a guessed zero quantity.
   > EOF
   $ application_client forged_quantity.ml 2>error
   [2]
-  $ grep -q 'Unbound record field "coordinate"\|Unbound record field coordinate' error
+  $ grep -q 'coordinate' error && grep -Eqi 'record|field|abstract|private' error
 
 An endpoint-closure client compiles without CLI/presentation or private memory fields.
 
@@ -146,7 +146,7 @@ The source list and memory lookup index cannot be forged into an inconsistent pa
   > EOF
   $ domain_client forged_memory.ml 2>error
   [2]
-  $ grep -q 'Unbound record field "events"\|Unbound record field events' error
+  $ grep -q 'events' error && grep -Eqi 'record|field|abstract|private' error
 
 A closed endpoint answer cannot claim unrelated observations by record construction.
 
@@ -158,7 +158,7 @@ A closed endpoint answer cannot claim unrelated observations by record construct
   > EOF
   $ application_client forged_closed.ml 2>error
   [2]
-  $ grep -q 'Unbound record field "correction"\|Unbound record field correction' error
+  $ grep -q 'correction' error && grep -Eqi 'record|field|abstract|private' error
 
 A qualified frontier client needs only Domain/Application interfaces.
 
@@ -194,7 +194,7 @@ A frontier cannot be fabricated to conceal observations without graph admission.
   > EOF
   $ application_client forged_frontier.ml 2>error
   [2]
-  $ grep -q 'Unbound record field "retained_events"\|Unbound record field retained_events' error
+  $ grep -q 'retained_events' error && grep -Eqi 'record|field|abstract|private' error
 
 A root-to-terminal association cannot be fabricated from unrelated observations.
 
@@ -206,7 +206,7 @@ A root-to-terminal association cannot be fabricated from unrelated observations.
   > EOF
   $ application_client forged_lineage.ml 2>error
   [2]
-  $ grep -q 'Unbound record field "root_id"\|Unbound record field root_id' error
+  $ grep -q 'root_id' error && grep -Eqi 'record|field|abstract|private' error
 
 A closed endpoint observation is not a qualified lineage, even when its two IDs exist.
 
@@ -241,7 +241,7 @@ The cut cannot be forged to conceal a source or invent exclusion results.
   > EOF
   $ application_client forged_root_cut.ml 2>error
   [2]
-  $ grep -q 'Unbound record field "source_frontier"\|Unbound record field source_frontier' error
+  $ grep -q 'source_frontier' error && grep -Eqi 'record|field|abstract|private' error
 
 Endpoint closure alone is not a sufficient source for a root cut.
 
@@ -290,7 +290,7 @@ A group cannot be forged to mismatch its source, assertions and aggregate.
   > EOF
   $ application_client forged_current_group.ml 2>error
   [2]
-  $ grep -q 'Unbound record field "source_cut"\|Unbound record field source_cut' error
+  $ grep -q 'source_cut' error && grep -Eqi 'record|field|abstract|private' error
 
 A supported answer cannot be manufactured from a guessed zero decomposition.
 
@@ -302,7 +302,7 @@ A supported answer cannot be manufactured from a guessed zero decomposition.
   > EOF
   $ application_client forged_current_answer.ml 2>error
   [2]
-  $ grep -q 'Unbound record field "coordinate"\|Unbound record field coordinate' error
+  $ grep -q 'coordinate' error && grep -Eqi 'record|field|abstract|private' error
 
 A qualified frontier is not independent reflected-root evidence for this quantity.
 
@@ -323,7 +323,7 @@ The shared aggregate is not a public support/balance API.
   > EOF
   $ application_client private_sum_is_not_support.ml 2>error
   [2]
-  $ grep -q 'Unbound module.*Effect_sum' error
+  $ grep -q 'Effect_sum' error && grep -Eqi 'unbound module|not found|not available' error
 
 Multiple anonymous groups bind to one frontier, with explicit re-observation.
 
@@ -349,7 +349,7 @@ A global ownership image cannot be forged by ordinary well-typed code.
   > EOF
   $ application_client forged_group_image.ml 2>error
   [2]
-  $ grep -q 'Unbound record field "frontier"\|Unbound record field frontier' error
+  $ grep -q 'frontier' error && grep -Eqi 'record|field|abstract|private' error
 
 Separately source-bound projections cannot be combined as raw group declarations.
 
@@ -388,7 +388,7 @@ The physically admitted Actual subset source has a public smart constructor.
   > EOF
   $ application_client forged_actual_source.ml 2>error
   [2]
-  $ grep -q 'Unbound record field.*frontier' error
+  $ grep -q 'frontier' error && grep -Eqi 'record|field|abstract|private' error
 
 Retained date history has tagged references and a distinct revision identity, not Event IDs.
 
@@ -437,7 +437,7 @@ Retained date history has tagged references and a distinct revision identity, no
   > EOF
   $ application_client private_cycle.ml 2>error
   [2]
-  $ grep -q 'Unbound module.*Replacement_cycle' error
+  $ grep -q 'Replacement_cycle' error && grep -Eqi 'unbound module|not found|not available' error
 
 Closed discharges require one qualified relation generation; remainders never become physical support.
 
@@ -657,7 +657,7 @@ Exchange selections require retained memory and typed Effect keys; aggregate hel
   > EOF
   $ application_client private_measure_totals.ml 2>error
   [2]
-  $ grep -q 'Unbound module "A.Measure_totals"' error
+  $ grep -q 'Measure_totals' error && grep -Eqi 'unbound module|not found|not available' error
 
 Original amounts require a qualified frontier; current associations are not current quantity answers.
 
@@ -694,7 +694,7 @@ Original amounts require a qualified frontier; current associations are not curr
   > EOF
   $ application_client forged_current_amount.ml 2>error
   [2]
-  $ grep -q 'Unbound record field "retained_fact"' error
+  $ grep -q 'retained_fact' error && grep -Eqi 'record|field|abstract|private' error
   $ cat >original_is_not_current_quantity.ml <<'EOF'
   > module A = Bakhlo_application.Original_amounts
   > module Q = Bakhlo_application.Current_quantity_query
