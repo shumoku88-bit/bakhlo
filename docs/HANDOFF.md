@@ -23,6 +23,45 @@ inputs/results preserved, existing native code/tests/lock unchanged. No new test
 or test-suite replay in that cleanup. Subsequent needed read work below is native OCaml,
 not a port of the retired harness.
 
+## Completed readability cleanup
+
+User approves doing the useful cleanup now and recording evidence-based revisit triggers for
+remaining items. Question/owners: make the entry document and OCaml layout easier to read
+without changing meanings or the main dependency budget. D: clean 038a172, 184-line README,
+672 tracked ml/mli lines >120 columns, no formatter, main exact 50; P: current 160 expect
+cases/four cram suites, opaque role IDs and whole-source/support gates. R: formatter version/
+closure, OCaml 5.3 syntax, literal/docstring/expect preservation and repeatability.
+Instruments: shorter README + verification navigation, existing contract links, isolated
+version-pinned formatter observation on a local branch, then existing native checks if adopted.
+No new framework/Python/model/campaign, main lock change, global installation, CI requirement,
+semantic refactor, operational read or VM/proof/storage replay. Formatting is a separate commit.
+Bound: own tracked ml/mli/Dune files only, never scratch/third-party/data fixtures; main remains
+OCaml 5.3.0/Dune 3.24.2/exact 50.
+Completed: README 184 -> 68 lines, evidence navigation and related-work revisit gate below.
+Optional ocamlformat 0.29.0 adopted after isolated native trial; main 50 unchanged, tool-only
+39 selections. Five representative samples and all 137 tracked ml/mli files have identical
+location-erased OCaml 5.3 ASTs (including literals/docs); changed-constant control refuses.
+Existing 160 expect/four cram and release @install pass, formatter idempotent, payload examples
+byte-equal. No semantic cleanup or new tests/framework; use `tools/format` only after optional
+setup, never add it to normal-build requirements. [Development](DEVELOPMENT.md#optional-formatting)
+owns setup/config; verification records closure failures/limits, not a new platform claim.
+
+## Maintenance revisit decisions
+
+Before a related change, pit checks these triggers; a trigger permits bounded investigation,
+NOT automatic implementation or new dependency/authority permission. Record observed evidence,
+benefit, semantic risk and do/defer decision in the task note. No periodic blanket cleanup.
+
+| Item / current decision | Revisit trigger | Must preserve / decision gate |
+| --- | --- | --- |
+| Two internal `Map.find_exn` aggregate lookups: retained, not an input failure | Construction changes could break insertion/lookup closure, or a concrete simpler total representation is proposed | Inspect `open_relations`/`relation_discharges` owners; preserve ALL local checks before aggregates, original-order first refusal and positions, exact totals and immutable retained rows. Reuse relation/discharge models; no `None -> zero`, hidden panic replacement or new domain error for an impossible input. Change only if simpler or closure is actually at risk |
+| Explicit empty command records in three decoders: retained | A source-field addition or repeated same-field maintenance produces actual drift | Review every profile's representable/unsupported families. A shared unadmitted command initializer is optional, not an admitted `Source.empty`; never silently empty new evidence or hide required per-adapter coverage review |
+| Three parsers: distinct roles retained | A concrete shared lexical mechanism has identical byte/error semantics, or an entrance genuinely has no consumers | Share only proven mechanisms, not acceptance/support meanings; inspect CLI, examples, type clients and oracle tests before removal. Fixture v2 is still consumed by comparisons, not obsolete merely because a native reader exists |
+| Explicit identifier implementations: retained | Repeated mechanical changes drift or newly required roles materially increase maintenance | A functor may preserve distinct opaque .mli types; no fundamental Account/Month ontology, normalization or public type equations. Prefer it only if simpler to read/maintain; reuse type-boundary clients |
+| Reconstruction/caching/index optimization: deferred | Named consumer exceeds a declared CPU/wall/memory/history budget on measured synthetic 10k/100k shapes | First reuse the existing admitted query image across questions; query does NOT rebuild Actual. Separate parse/acquisition/source/group construction/query costs; preserve whole admission, independent cuts and generation/interpretation binding. .mli is a seam, not proof of cheap interchangeability |
+| `Event_memory.events` traversal removal: no blanket migration to lookup | Profile identifies an unnecessary full traversal or storage representation changes for a concrete consumer | Lookup uses `find_by_id`; enumeration still retains source order/multiplicity and ALL retained/superseded checks. Never replace whole admission with requested-ID salvage |
+| Verification-history split: navigation first | Finding a specific current qualification/counterexample remains difficult after summary links | Move evidence with stable links; retain scope, negative controls and durability counterexamples. Length alone is not a deletion criterion |
+
 ## Completed scoped native read entrance
 
 Question/owner: decode one supplied current HouseholdImage into retained outer evidence plus
@@ -255,9 +294,9 @@ full parity is not required before a useful bounded read/record/recovery path.
 ## Earned state / outstanding limits
 
 Engine baseline qualified on native macOS x86_64 and Ubuntu 24.04 x86_64. Latest increment
-checked on macOS only; no new Linux/Mirage replay. Domain/Application and fixture decoder
-implementations/signatures unchanged; new pure outer text read/profile and terminal consumer
-are qualified only within the named synthetic bounds. SQLite consumer stays ignored scratch.
+checked on macOS only; no new Linux/Mirage replay. Engine/decoder meanings and signatures
+unchanged by layout cleanup; pure outer text/LOAM-input readers and terminal consumers
+are qualified only within their named synthetic bounds. SQLite consumer stays ignored scratch.
 Full normalized Actual, real recording, production representation/upgrade/retry/recovery/backup,
 Scheduled/reports/UI/API are absent.
 Existing semantic evidence belongs to interfaces/VERIFICATION/REFERENCES, not a file-layout

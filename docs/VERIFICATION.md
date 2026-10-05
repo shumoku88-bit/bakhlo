@@ -6,6 +6,24 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Find the relevant evidence
+
+- Current [native LOAM-input reader](#scoped-native-loam-input-reader) and
+  [experimental text reader](#experimental-versioned-text-read-ordinary-actual-profile).
+- [Engine tests, models and type boundaries](#retained-executable-evidence);
+  [structured-operation audit](#structured-operation--diagnostic-readiness-audit-no-new-features).
+- [Historical private read](#latest-loam-contract-private-conditional-quantity-experiment):
+  results retained, retired probe code; not a runnable/current household acquisition.
+- [Unix SQLite trial](#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification)
+  and [Linux synchronization/lifecycle counterexample](#linux-sqlite-syscall-failures-and-retained-journal-lifecycle-control).
+- [Guarded Irmin/block trials and limits](#irmin-block-persistence-bounded-two-trial-dependency-fixes-required),
+  [interruption/restore controls](#guarded-block-retention-interrupted-publication-and-offline-restore-controls),
+  [Linux/Mirage engine trial](#linux-native-replay-and-mirageossolo5-spt-engine-bounded-trial-guard-required).
+
+These are scoped observations at their recorded revisions/hosts, not a cumulative production
+certificate. Keep negative controls and counterexamples; do not erase history to shorten this
+file. [Handoff](HANDOFF.md#maintenance-revisit-decisions) owns when cleanup is worth revisiting.
+
 ## Instrument review gate
 
 Before non-trivial code, record a few lines in the task note/HANDOFF:
@@ -36,6 +54,43 @@ is a limitation/blocker, not silently replaced by compile success.
 Formal tools remain development-only. Ordinary build/test/release must be Lean-free.
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
+
+## Readability and optional formatter qualification
+
+User approved entry-document cleanup and evidence-triggered maintenance decisions, not DRY/
+performance refactors. HANDOFF recorded D/P/R before code. README 184 -> 68 lines; navigation
+links retain historical negative controls. Related-work triggers now cover invariant lookups,
+empty commands, parser/fixture retirement, ID abstraction and measured reconstruction costs;
+not an automatic calendar-based refactor or dependency permission.
+
+Adopt **optional** ocamlformat 0.29.0, target 5.3.0, default/100 columns, no comment/docstring
+rewrite. Separate ignored tool root/switch, frozen registry ac27950e5eac6c981ad809dff370c937820b7893,
+39 selections, source archive sha256 dac77f0a957ae782bb4b869b07b9803a872a34f8c1eae8901b42d21b623c9db5
+(MIT plus vendored LGPL exception). Main OCaml 5.3.0/Dune 3.24.2/exact 50 and lock unchanged;
+no global/compiler/editor/CI change or vendor patch. Setup is tied to the existing local
+compiler, not a newly bootstrapped platform closure. Initial borrowing attempts selected the
+cached/global 5.4.1 and were honestly refused; incomplete compiler aliases then exposed global
+`.opt`/Unix linkage and missing ocamlmklib failures. Complete ignored native-compiler aliases
+resolved them, with actual 5.3.0 checks and vendor configuration validation, not version spoofing.
+[Development](DEVELOPMENT.md#optional-formatting) owns the working recipe; no vendor-test claim.
+
+Five representative Event/ID/LOAM parser/UTF-8 expect/interface samples passed unchanged native
+AST comparison and repeatable layout. Reused the earlier OCaml compiler-libs AST instrument,
+adding interface parsing in ignored scratch only: all **137** tracked ml/mli trees identical
+with locations erased, including exact literal/doc attribute contents. Equal control passes;
+changed constant refuses. This is bounded syntax-tree evidence, not household or formal
+refinement proof. Dune-only whitespace diff reviewed; fatal policy/strict sequencing still
+exercised. Long tracked lines >120: 672 -> 29; >200: 28 -> 0; remaining literals/comments are
+not rewritten merely to meet a column count. Payload example hashes unchanged (synthetic only).
+
+Formatter clean check/reapply and wrapper missing/wrong-version refusal passed; Dune's promoted
+-diff exit 1 is accepted ONLY after a clean subsequent @fmt check. Main `tools/check` (160 expect,
+retained campaigns/four cram) and release @install passed without formatter in the main switch.
+No new framework/campaign, source semantics, operational read, Linux/Mirage/storage/proof replay.
+One cached clean @fmt check observed 0.53s real / 0.12s user / 0.08s sys on this host; not a
+cold-build or universal latency target. Setup paid the separate 39-selection download/build
+and the explicitly retained retries above. Formatting stays separate from semantic refactoring;
+tool upgrades need a representative review.
 
 ## Scoped native LOAM-input reader
 

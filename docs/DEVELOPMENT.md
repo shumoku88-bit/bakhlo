@@ -55,6 +55,53 @@ helpers. Logical aliases support clean dependency discovery. Cram compiler clien
 currently depend on generated CMIs/wrapper CMI: pinned Dune integration details, not
 API/storage compatibility. Do not suppress missing-CMI warnings or export internals.
 
+## Optional formatting
+
+`.ocamlformat` pins **0.29.0**, target syntax **5.3.0**, default profile and 100-column margin.
+Comment/docstring rewriting is disabled to keep evidence prose intact. Use
+`./tools/format --check` or `./tools/format --apply` (Dune @fmt / fmt); the wrapper rejects a
+missing/wrong local formatter, never installs or falls back to a global tool. Apply finishes
+with a clean @fmt check: Dune 3.24.2 can return 1 for diffs it has already promoted.
+Formatting is optional developer tooling, NOT a main runtime/test dependency or CI gate;
+`bootstrap`, `check` and normal builds still use the unchanged main 50 packages without it.
+Separate formatting-only commits from meaning/refactor changes. Do not reflow payload fixtures,
+normalize identities or weaken compiler policy to make layout pass.
+
+Optional setup below uses the existing checksummed opam and frozen LOCAL registry checkout,
+a separate ignored root/switch, and complete aliases of the already bootstrapped native compiler.
+Aliases prevent opam stripping a managed compiler path and accidentally selecting a global
+compiler/`.opt`/helper. No system install, shell/editor hooks, third-party patch or main lock
+change. The tool is tied to the main compiler's current location; recreate after relocation.
+Qualified here on macOS x86_64 only; this is not a fresh-platform formatter bootstrap claim.
+
+```sh
+./tools/bootstrap
+mkdir -p .tools/format-compiler/bin
+for executable in "$PWD"/_opam/bin/ocaml*; do
+  name=${executable##*/}
+  case "$name" in ocamlfind|ocamlbuild*) continue ;; esac
+  ln -sf "$executable" ".tools/format-compiler/bin/$name"
+done
+.tools/format-compiler/bin/ocamlc -version  # must be 5.3.0
+fmt_opam() {
+  env PATH="$PWD/.tools/format-compiler/bin:$PATH" \
+    OPAMROOT="$PWD/.tools/format-root" OPAMSWITCH= \
+    OPAMVAR_sys_ocaml_version=5.3.0 OPAMNODEPEXTS=true OPAMNOENVNOTICE=true \
+    .tools/opam "$@"
+}
+fmt_opam init --bare --no-setup --yes default \
+  "git+file://$PWD/.opam-root/repo/default#ac27950e5eac6c981ad809dff370c937820b7893"
+fmt_opam switch create "$PWD/.tools/format" ocaml-system.5.3.0 --yes --no-depexts
+fmt_opam install --switch "$PWD/.tools/format" \
+  dune.3.24.2 ocamlformat.0.29.0 --yes --no-depexts
+./tools/format --check
+```
+
+Do not use `--with-test` for the formatter's vendor package: its own tests require Dune <3.22,
+separate from Bakhlo's existing native suite on 3.24.2. This trial exercised our syntax/layout/
+AST preservation and tests, not the vendor's test suite. Formatter upgrades require a bounded
+representative trial and fresh version/config review, not a blind version-check bypass.
+
 ## Reference versus experimental builds
 
 [Current direction](ARCHITECTURE.md#selected-product-direction) prioritizes inspectable canonical

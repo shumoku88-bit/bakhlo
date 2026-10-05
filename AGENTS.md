@@ -42,6 +42,10 @@ references. Documentation describes scope; it does not authorize every future fe
   Follow `docs/VERIFICATION.md#instrument-review-gate`; not an all-tools pipeline.
 - Reuse independent models/oracles. Consumers test connection/failure boundaries;
   do not add a model, theorem, 10,000-case campaign or long document by habit.
+- Before related maintenance, consult `docs/HANDOFF.md#maintenance-revisit-decisions`.
+  A trigger means reassess with current evidence, not automatic refactoring or new permission.
+  Keep formatting-only changes separate; `.ocamlformat` / optional `./tools/format` own layout,
+  without adding the formatter to the main lock or making normal checks depend on it.
 - Break unreleased prototypes freely when it improves the product. Delete unused
   routes, stale status documents and compatibility shims; retain meaningful guarantees,
   counterexamples and current decisions. Git owns historical implementation records.
