@@ -28,6 +28,7 @@
   ../dune
   ../examples/current-preview.fixture
   ../examples/ordinary-quantity.bakhlo
+  ../examples/loam-quantity.loam-input
   ../text/.bakhlo_text.objs/byte/bakhlo_text.cmi
   ../text/.bakhlo_text.objs/byte/bakhlo_text__.cmi
   ../text/.bakhlo_text.objs/byte/bakhlo_text__Input.cmi

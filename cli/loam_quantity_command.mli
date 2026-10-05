@@ -1,6 +1,7 @@
-type request = { path : string; coordinate : Bakhlo_domain.Effect_coordinate.t }
+type request = { path : string; questions : Quantity_questions.t; explain : bool }
 (** Terminal-only explicit-file consumer of the pure scoped LOAM reader.
-    Caller owns file acquisition; no root selection, fallback, recovery or writes. *)
+    Caller owns one file acquisition after ALL questions are planned; evaluate admits once.
+    No root selection, fallback, recovery or writes. *)
 
 type plan = Help | Read of request | Refused of string
 

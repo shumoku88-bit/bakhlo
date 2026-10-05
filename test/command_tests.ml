@@ -172,3 +172,103 @@ let%expect_test "opaque input cannot inject terminal controls or extra lines" =
       2. "food": +1 quanta
     Positive total: 1 quanta
     stderr: <empty> |}]
+
+let%expect_test "both quantity shells plan every exact coordinate pair before acquisition" =
+  let module T = Bakhlo_cli.Current_text_command in
+  let module L = Bakhlo_cli.Loam_quantity_command in
+  let text arguments =
+    match T.plan arguments with
+    | Help -> "help"
+    | Refused message -> "refused: " ^ message
+    | Read { path; questions = _; explain } -> Printf.sprintf "read %S; explain=%b" path explain
+  in
+  let loam arguments =
+    match L.plan arguments with
+    | Help -> "help"
+    | Refused message -> "refused: " ^ message
+    | Read { path; questions = _; explain } -> Printf.sprintf "read %S; explain=%b" path explain
+  in
+  List.iter
+    [
+      [ "--help" ];
+      [ "--explain" ];
+      [ "not-read"; "wallet"; "jpy"; "quiet" ];
+      [ "not-read"; "wallet"; "jpy"; "quiet"; "" ];
+      [ "--explain"; " exact path "; " wallet "; "JPY"; "wallet"; "jpy"; "wallet"; "jpy" ];
+    ]
+    ~f:(fun arguments ->
+      let t = text arguments and l = loam arguments in
+      Fixtures.require (String.equal t l) "same pair mechanics, independent source profiles";
+      Stdlib.print_endline t);
+  [%expect
+    {|
+    help
+    refused: expected FILE LOCUS MEASURE [LOCUS MEASURE ...]
+    refused: expected FILE LOCUS MEASURE [LOCUS MEASURE ...]
+    refused: coordinate identities must not be empty
+    read " exact path "; explain=true
+    |}]
+
+let%expect_test "nonempty batches preserve each outcome, ordering and duplicates without a subtotal"
+    =
+  let module T = Bakhlo_cli.Current_text_command in
+  let bytes =
+    "bakhlo-read 1 ordinary-actual-quantity\n\
+     origin \"quiet\" \"jpy\"\n\
+     group\n\
+     assert \"wallet\" \"jpy\" 100\n\
+     end-group\n\
+     presence\n\
+     present \"pantry\" \"jpy\"\n\
+     end-presence\n\
+     end\n"
+  in
+  let evaluate coordinates =
+    match T.plan ("synthetic" :: coordinates) with
+    | Read request -> T.evaluate request (Ok bytes)
+    | Help | Refused _ -> failwith "valid batch refused"
+  in
+  List.iter
+    [
+      [ "wallet"; "jpy"; "wallet"; "jpy"; "quiet"; "jpy" ];
+      [ "pantry"; "jpy"; "quiet"; "jpy" ];
+      [ "missing"; "jpy"; "pantry"; "jpy" ];
+      [ "pantry"; "jpy"; "missing"; "jpy" ];
+    ]
+    ~f:(fun coordinates ->
+      let output = evaluate coordinates in
+      Fixtures.require (String.is_empty output.stderr) "query outcomes stay on stdout";
+      Stdlib.Printf.printf "exit: %d\n%s" output.exit_code output.stdout);
+  [%expect
+    {|
+    exit: 0
+    One supplied read image; independent questions (no subtotal).
+    Question 1:
+    Conditional text quantity (ordinary-actual-quantity v1; synthetic).
+    exact assertion; "wallet" / "jpy": asserted=100; delta=0; quantity=100
+    Question 2:
+    Conditional text quantity (ordinary-actual-quantity v1; synthetic).
+    exact assertion; "wallet" / "jpy": asserted=100; delta=0; quantity=100
+    Question 3:
+    Conditional text quantity (ordinary-actual-quantity v1; synthetic).
+    "quiet" / "jpy": zero-origin; quantity=0
+    exit: 4
+    One supplied read image; independent questions (no subtotal).
+    Question 1:
+    "pantry" / "jpy": known nonzero (presence premise); exact quantity unknown.
+    Question 2:
+    Conditional text quantity (ordinary-actual-quantity v1; synthetic).
+    "quiet" / "jpy": zero-origin; quantity=0
+    exit: 3
+    One supplied read image; independent questions (no subtotal).
+    Question 1:
+    "missing" / "jpy": quantity unknown (no supported premise in supplied evidence).
+    Question 2:
+    "pantry" / "jpy": known nonzero (presence premise); exact quantity unknown.
+    exit: 3
+    One supplied read image; independent questions (no subtotal).
+    Question 1:
+    "pantry" / "jpy": known nonzero (presence premise); exact quantity unknown.
+    Question 2:
+    "missing" / "jpy": quantity unknown (no supported premise in supplied evidence).
+    |}]

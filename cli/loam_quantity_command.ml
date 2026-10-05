@@ -1,33 +1,38 @@
-module D = Bakhlo_domain
-module Q = Bakhlo_application.Current_quantity_query
 module R = Bakhlo_loam_read.Read
 module I = Bakhlo_loam_read.Input
 module E = Bakhlo_loam_read.Envelope
 module Text = Bakhlo_presentation.Current_quantity_text
 
-type request = { path : string; coordinate : D.Effect_coordinate.t }
+type request = { path : string; questions : Quantity_questions.t; explain : bool }
 type plan = Help | Read of request | Refused of string
 
 let plan = function
   | [ "--help" ] -> Help
-  | [ path; locus; measure ] -> (
-      match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string measure) with
-      | Ok locus, Ok measure -> Read { path; coordinate = { locus; measure } }
-      | Error D.Identifier.Empty, _ | _, Error D.Identifier.Empty ->
-          Refused "coordinate identities must not be empty")
-  | _ -> Refused "expected FILE LOCUS MEASURE"
+  | arguments -> (
+      let explain, arguments =
+        match arguments with "--explain" :: rest -> (true, rest) | rest -> (false, rest)
+      in
+      match arguments with
+      | [] -> Refused "expected FILE LOCUS MEASURE [LOCUS MEASURE ...]"
+      | path :: coordinates -> (
+          match Quantity_questions.plan coordinates with
+          | Ok questions -> Read { path; questions; explain }
+          | Error Missing_pair -> Refused "expected FILE LOCUS MEASURE [LOCUS MEASURE ...]"
+          | Error Empty_identity -> Refused "coordinate identities must not be empty"))
 
 let help : Response.t =
   {
     exit_code = 0;
     stderr = "";
     stdout =
-      "Usage: bakhlo inspect-loam-quantity FILE LOCUS MEASURE\n\
+      "Usage: bakhlo inspect-loam-quantity [--explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]\n\
        Native, read-only LOAM HouseholdImage v2 conditional quantity profile.\n\
        Requires Actual and all four explicitly supplied quantity-support sections.\n\
        Unsupported Actual/settlement rows refuse; other sections retained opaque.\n\
        No root selection, previous-file fallback, migration, recovery or writes.\n\
-       Exit 0 exact, 4 known nonzero (amount unknown), 3 unsupported; stdout.\n\
+       All questions use one wholly admitted supplied image; order/duplicates retained.\n\
+       With --explain, show supplied premises, Effects and retained correction paths.\n\
+       Exit 3 if any unsupported, else 4 if any presence, else 0; stdout.\n\
        Not full-household admission, canonical storage, spending rights or Saved.\n";
   }
 
@@ -78,17 +83,9 @@ let evaluate (request : request) contents : Response.t =
       | Error (Operation_origins (Unknown_event { event = _; position })) ->
           refused (Printf.sprintf "Unknown origin Event at position %d." position)
       | Error (Support error) -> refused (Text.refusal error)
-      | Ok image -> (
-          match Q.query (R.quantity_image image) request.coordinate with
-          | Ok (Exact answer) ->
-              {
-                exit_code = 0;
-                stderr = "";
-                stdout =
-                  "Conditional LOAM-input quantity (Actual/four-support read profile; not \
-                   household authority).\n" ^ Text.exact_row answer;
-              }
-          | Ok (Known_present answer) ->
-              { exit_code = 4; stderr = ""; stdout = Text.present answer }
-          | Error unavailable ->
-              { exit_code = 3; stderr = ""; stdout = Text.unavailable unavailable }))
+      | Ok image ->
+          Quantity_questions.render request.questions ~explain:request.explain
+            ~exact_heading:
+              "Conditional LOAM-input quantity (Actual/four-support read profile; not household \
+               authority).\n"
+            (R.quantity_image image))

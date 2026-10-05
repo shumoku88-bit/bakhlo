@@ -16,8 +16,8 @@ let () =
              "Usage: bakhlo COMMAND ...\n\
               check-movement --effect LOCUS MEASURE QUANTA [--effect ...]\n\
               inspect-current-fixture FILE LOCUS MEASURE\n\
-              inspect-current-text FILE LOCUS MEASURE\n\
-              inspect-loam-quantity FILE LOCUS MEASURE\n\
+              inspect-current-text [--explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]\n\
+              inspect-loam-quantity [--explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]\n\
               Structural validation and read-only conditional quantity queries.\n\
               Not household admission or authority; no writes.\n\
               Use COMMAND --help for details.\n";

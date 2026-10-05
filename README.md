@@ -33,16 +33,19 @@ remains a synthetic comparison input, not canonical storage.
 ./tools/opam exec -- dune exec bakhlo -- --help
 ./tools/opam exec -- dune exec bakhlo -- check-movement \
   --effect wallet jpy -1000 --effect food jpy 1000
-./tools/opam exec -- dune exec bakhlo -- inspect-current-text \
-  examples/ordinary-quantity.bakhlo wallet jpy
+./tools/opam exec -- dune exec bakhlo -- inspect-current-text --explain \
+  examples/ordinary-quantity.bakhlo wallet jpy food jpy
 ./tools/opam exec -- dune exec bakhlo -- inspect-loam-quantity \
   examples/loam-quantity.loam-input wallet jpy
 ```
 
-Both quantity examples yield supplied assertion `1000` + unreflected delta `-10` = `990`.
-Quantity commands use exit 0 for exact, 4 for known presence/unknown amount, and 3 for
-unsupported questions (stdout); input/admission failures use 1 and argument failures 2
-(stderr). Use `COMMAND --help` for scope. Checking a Movement is **not recording it**.
+Both wallet queries yield supplied assertion `1000` + unreflected delta `-10` = `990`.
+The text and LOAM readers accept multiple `LOCUS MEASURE` pairs on one admitted input;
+`--explain` shows supplied premises, Effect occurrences and actual correction paths.
+No subtotal or activity-derived support. Exit 3 if any question is unsupported, else 4 for
+known presence/unknown amount, else 0 (stdout). Failures use stderr: 1 for input/admission,
+2 for arguments; experimental text syntax/profile refusals also use 2.
+Use `COMMAND --help` for scope. Checking a Movement is **not recording it**.
 Setup is repository-local; [development](docs/DEVELOPMENT.md) owns prerequisites and commands.
 Tests use existing native OCaml `ppx_expect` / `Base_quickcheck`; no Python bridge or generated
 payload pipeline. Qualified hosts and per-increment limits are in [verification](docs/VERIFICATION.md).

@@ -23,7 +23,7 @@ inputs/results preserved, existing native code/tests/lock unchanged. No new test
 or test-suite replay in that cleanup. Subsequent needed read work below is native OCaml,
 not a port of the retired harness.
 
-## Active quantity explanation / one-image questions
+## Completed quantity explanation / one-image questions
 
 User approves synthetic stages 1-2: explain a quantity's supplied premise, contributing Effect
 occurrences and correction path, and ask multiple coordinates of ONE admitted read image.
@@ -55,7 +55,15 @@ answer-bound cuts and Effect occurrences; three focused connections plus existin
 oracle/retention checks pass. Ordinary check (163 expect/four cram) and release @install pass on
 macOS. [Verification](VERIFICATION.md#terminal-quantity-evidence-explanation) owns failures/limits;
 [Architecture](ARCHITECTURE.md#terminal-quantity-evidence-explanation) owns the view contract.
-Next is the separate CLI batch consumer; no live-original read follows from these results.
+Stage 2 completed from clean d2b59f4: both explicit-file CLI readers accept optional `--explain`
+and nonempty ordered/duplicate coordinate pairs; one acquisition and one whole admission precede
+all questions. Shared CLI pair/exit mechanics do not merge reader profiles or support meanings.
+Three focused expect connections and existing cram cover late argument refusal, mixed 0/4/3,
+whole-read refusal/no partial stdout, Measure/duplicate rows and byte-equal synthetic inputs.
+Ordinary/forced package tests (166 expect/four cram), release @install and optional formatting pass;
+main installed 50/lock unchanged. [CLI verification](VERIFICATION.md#one-image-quantity-cli-questions)
+owns limits. Next: name a human quantity/evidence question and acquisition owner before separately
+qualifying native coherent capture. No live-original read or writer follows from these results.
 
 ## Completed readability cleanup
 

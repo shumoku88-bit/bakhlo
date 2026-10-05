@@ -1,6 +1,7 @@
-type request = { path : string; coordinate : Bakhlo_domain.Effect_coordinate.t }
+type request = { path : string; questions : Quantity_questions.t; explain : bool }
 (** Terminal-only development shell for Bakhlo_text.Read. File acquisition belongs
-    to bin/main; no writer. Response streams/exits are NOT shared operation results. *)
+    to bin/main after ALL questions are planned; evaluate admits supplied bytes once.
+    No writer. Response streams/exits are NOT shared operation results. *)
 
 type plan = Help | Read of request | Refused of string
 

@@ -305,6 +305,16 @@ unknown. Escaped identities/keys and unbounded signed quanta survive presentatio
 cost is additional to indexed lookup, not a new cached fact, shared answer ontology or authority.
 No file acquisition, metadata inheritance, recording, clock or live-snapshot qualification.
 
+The two explicit-file commands accept `[--explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]`.
+[CLI pair planning/rendering](../cli/quantity_questions.mli) shares only identical terminal
+mechanisms, not source grammars/admission. Its abstract question list is nonempty and retains
+order/duplicates. ALL pairs qualify before the shell's one acquisition; each reader admits the
+supplied bytes once before querying that SAME immutable image for every coordinate. Admission
+failure yields no question output; per-question unsupported is retained alongside other outcomes.
+Mixed exit is 3 if any unsupported, else 4 if any presence, else 0; no subtotal, support priority,
+re-read, mixed generations or partial-source salvage. Single ordinary query text remains unchanged.
+This is one supplied-image consistency, NOT coherent/live filesystem acquisition qualification.
+
 ## Experimental versioned-text read
 
 Concrete consumer: `bakhlo inspect-current-text` acquires a named synthetic document; pure

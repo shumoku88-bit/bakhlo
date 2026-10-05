@@ -41,10 +41,12 @@ The Unix shell only acquires a synthetic file and renders typed read/query outco
 No current household authority, recording acknowledgement or spending permission.
 
   $ bakhlo inspect-current-text --help
-  Usage: bakhlo inspect-current-text FILE LOCUS MEASURE
+  Usage: bakhlo inspect-current-text [--explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]
   Experimental bakhlo-read 1 ordinary-actual-quantity; synthetic read only.
   Exact/presence/unknown are conditional on supplied profile evidence.
-  Exit 0 exact, 4 known nonzero (amount unknown), 3 unsupported; stdout.
+  All questions use one wholly admitted supplied image; order/duplicates retained.
+  With --explain, show supplied premises, Effects and retained correction paths.
+  Exit 3 if any unsupported, else 4 if any presence, else 0; stdout.
   Not canonical storage, household authority, spending permission or Saved.
   $ cp ../examples/ordinary-quantity.bakhlo evidence
   $ cp evidence before
@@ -105,3 +107,96 @@ Whole-document unsupported or semantic errors refuse even an unrelated supported
   [1]
   $ test ! -s out && grep -q 'zero-origin overlaps exact assertion' err
   $ cmp evidence before
+
+Multiple questions keep their order, Measure and duplicate occurrences; mixed unknown wins
+without a subtotal, a second source read, or pretending presence has an exact amount.
+
+  $ bakhlo inspect-current-text evidence wallet jpy wallet usd quiet jpy pantry jpy stale jpy wallet jpy
+  One supplied read image; independent questions (no subtotal).
+  Question 1:
+  Conditional text quantity (ordinary-actual-quantity v1; synthetic).
+  exact assertion; "wallet" / "jpy": asserted=1000; delta=-10; quantity=990
+  Question 2:
+  Conditional text quantity (ordinary-actual-quantity v1; synthetic).
+  "wallet" / "usd": opening Event "usd opening"; quantity=7
+  Question 3:
+  Conditional text quantity (ordinary-actual-quantity v1; synthetic).
+  "quiet" / "jpy": zero-origin; quantity=0
+  Question 4:
+  "pantry" / "jpy": known nonzero (presence premise); exact quantity unknown.
+  Question 5:
+  "stale" / "jpy": quantity unknown (no supported premise in supplied evidence).
+  Question 6:
+  Conditional text quantity (ordinary-actual-quantity v1; synthetic).
+  exact assertion; "wallet" / "jpy": asserted=1000; delta=-10; quantity=990
+  [3]
+  $ bakhlo inspect-current-text --explain evidence wallet jpy stale jpy pantry jpy >out 2>err
+  [3]
+  $ test ! -s err && grep -Fq 'Correction "purchase draft" -> "purchase corrected"' out
+  $ grep -Fq 'Root "purchase draft"; terminal "purchase corrected"; reflected (excluded).' out
+  $ grep -Fq 'Effect 1: key "physical"; quanta=-150' out
+  $ grep -Fq 'Effect 1: anonymous; quanta=-10' out
+  $ grep -Fq 'ANY unreflected matching Effect invalidates it, even net zero' out
+  $ grep -Fq 'exact quantity unknown' out && test "$(grep -c '^Question ' out)" = 3
+  $ cmp evidence before
+
+ALL argument pairs qualify before acquisition, and ALL supplied evidence qualifies before
+any question output. A good first coordinate never permits partial source salvage.
+
+  $ bakhlo inspect-current-text --explain not-read wallet jpy pantry '' >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'coordinate identities must not be empty' err
+  $ bakhlo inspect-current-text not-read wallet jpy dangling >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'expected FILE LOCUS MEASURE' err
+  $ bakhlo inspect-current-text --explain missing wallet jpy quiet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Cannot read synthetic text' err && test ! -e missing
+  $ bakhlo inspect-current-text --explain invalid quiet jpy wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'missing current validity' err && cmp invalid invalid-before
+  $ bakhlo inspect-current-text --explain unsupported quiet jpy wallet jpy >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'outside profile' err
+  $ bakhlo inspect-current-text --explain overlap quiet jpy wallet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'zero-origin overlaps exact assertion' err
+
+The scoped native LOAM reader uses the same pair/exit mechanics, never the text profile.
+Only this supplied synthetic image is consumed; no operational root discovery.
+
+  $ cp ../examples/loam-quantity.loam-input loam-evidence
+  $ cp loam-evidence loam-before
+  $ chmod 400 loam-evidence
+  $ bakhlo inspect-loam-quantity loam-evidence wallet jpy food jpy wallet jpy
+  One supplied read image; independent questions (no subtotal).
+  Question 1:
+  Conditional LOAM-input quantity (Actual/four-support read profile; not household authority).
+  exact assertion; "wallet" / "jpy": asserted=1000; delta=-10; quantity=990
+  Question 2:
+  Conditional LOAM-input quantity (Actual/four-support read profile; not household authority).
+  "food" / "jpy": zero-origin; quantity=10
+  Question 3:
+  Conditional LOAM-input quantity (Actual/four-support read profile; not household authority).
+  exact assertion; "wallet" / "jpy": asserted=1000; delta=-10; quantity=990
+  $ bakhlo inspect-loam-quantity --explain loam-evidence wallet jpy pantry jpy >out 2>err
+  [4]
+  $ test ! -s err && grep -Fq 'Root "e"; terminal "e"; unreflected (contributes to delta).' out
+  $ grep -Fq 'asserted=1000; delta=-10; quantity=990' out
+  $ grep -Fq 'known nonzero (presence premise); exact quantity unknown' out
+  $ bakhlo inspect-loam-quantity --explain loam-evidence pantry jpy missing jpy >out 2>err
+  [3]
+  $ test ! -s err && grep -Fq 'quantity unknown (no supported premise' out
+  $ bakhlo inspect-loam-quantity --explain not-read wallet jpy food '' >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'coordinate identities must not be empty' err
+  $ bakhlo inspect-loam-quantity loam-evidence wallet jpy food >out 2>err
+  [2]
+  $ test ! -s out && grep -q 'expected FILE LOCUS MEASURE' err
+  $ bakhlo inspect-loam-quantity --explain missing wallet jpy food jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'Cannot read input file' err && test ! -e missing
+  $ bakhlo inspect-loam-quantity --explain evidence wallet jpy quiet jpy >out 2>err
+  [1]
+  $ test ! -s out && grep -q 'HouseholdImage' err
+  $ cmp loam-evidence loam-before && cmp evidence before

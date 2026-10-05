@@ -226,3 +226,62 @@ let%expect_test "native read keeps huge quanta, version-one cuts and terminal-on
     4
     3
     |}]
+
+let%expect_test "native batch explanation keeps query outcomes and refuses the whole bad image" =
+  let module C = Bakhlo_cli.Loam_quantity_command in
+  let evaluate arguments bytes =
+    match C.plan arguments with
+    | Read request -> C.evaluate request (Ok bytes)
+    | Help | Refused _ -> failwith "valid batch refused"
+  in
+  let bytes = envelope (parts actual anchor) in
+  let output =
+    evaluate
+      [
+        "--explain"; "synthetic"; "wallet"; "jpy"; "pantry"; "jpy"; "stale"; "jpy"; "wallet"; "jpy";
+      ]
+      bytes
+  in
+  F.require (output.exit_code = 3 && String.is_empty output.stderr) "mixed batch unavailable exit";
+  List.iter
+    [
+      "Question 1:";
+      "Question 2:";
+      "Question 3:";
+      "Question 4:";
+      "asserted=1000; delta=-10; quantity=990";
+      "Correction \"a\" -> \"b\"";
+      "known nonzero (presence premise); exact quantity unknown";
+      "ANY unreflected matching Effect invalidates it, even net zero";
+    ] ~f:(fun substring ->
+      F.require (String.is_substring output.stdout ~substring) "native explanation connection");
+  F.require
+    (List.length
+       (String.substr_index_all output.stdout ~may_overlap:false
+          ~pattern:"asserted=1000; delta=-10; quantity=990")
+    = 2)
+    "duplicate question retained";
+  List.iter
+    [
+      parts (actual ^ "SETTLEMENT-NETTING\tid\tjpy\tZERO\n") anchor;
+      List.tl_exn (parts actual anchor);
+      parts
+        (String.substr_replace_all actual ~pattern:"REPLACES\ta" ~with_:"REPLACES\tmissing")
+        anchor;
+      List.map (parts actual anchor) ~f:(fun (name, body, count) ->
+          if String.equal name "ZeroOrigin" then ascii name (body ^ "COORDINATE\twallet\tjpy\n")
+          else (name, body, count));
+    ]
+    ~f:(fun bad ->
+      let refused =
+        evaluate [ "--explain"; "synthetic"; "quiet"; "jpy"; "wallet"; "jpy" ] (envelope bad)
+      in
+      F.require
+        (refused.exit_code = 1 && String.is_empty refused.stdout
+        && not (String.is_empty refused.stderr))
+        "whole input/source/support refusal before ALL questions");
+  print_endline
+    "One admitted image: exact/presence/unknown/duplicate explanations; whole \
+     unsupported/missing/source/support refusal.";
+  [%expect
+    {| One admitted image: exact/presence/unknown/duplicate explanations; whole unsupported/missing/source/support refusal. |}]

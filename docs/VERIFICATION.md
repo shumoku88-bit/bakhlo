@@ -8,7 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
-- [Quantity explanations](#terminal-quantity-evidence-explanation), including answer-bound cuts.
+- [Quantity explanations](#terminal-quantity-evidence-explanation) and
+  [one-image CLI questions](#one-image-quantity-cli-questions), including answer-bound cuts.
 - Current [native LOAM-input reader](#scoped-native-loam-input-reader) and
   [experimental text reader](#experimental-versioned-text-read-ordinary-actual-profile).
 - [Engine tests, models and type boundaries](#retained-executable-evidence);
@@ -72,7 +73,32 @@ release `@install`; optional pinned formatting and exact diff/whitespace review 
 missing implementation, a test's nonexistent `Quantity.is_zero` name, and two deliberately empty
 new expect snapshots were resolved; no admission weakening, warning suppression or blind promotion.
 No dependency/lock change, new model/framework/campaign, private input, sibling build, Linux/Mirage,
-proof/storage replay or live acquisition qualification. CLI consumption is the next separate step.
+proof/storage replay or live acquisition qualification. CLI consumption is qualified separately below.
+
+## One-image quantity CLI questions
+
+Stage 2 starts from clean d2b59f4 and the existing pure explanation/163 expect evidence. Both
+explicit-file commands now accept optional `--explain` and one or more coordinate pairs. A small
+CLI-only abstract nonempty planner/renderer shares identical pair/exit mechanics, not reader
+profiles or Core meanings. Deterministic owner review confirms each shell branch plans ALL
+questions before its ONE `read_text` call and each evaluator invokes its own `Read.of_string`
+ONCE before batch rendering; no instrumentation harness or live-capture claim was added.
+
+Three focused existing expect connections cover both planners' late-pair refusal/exact identities,
+ordered duplicate/exact/presence/unknown results and 0/4/3 precedence in both mixed orders, plus
+native explanations/whole unsupported/missing/source/support refusal. Existing cram adds both
+synthetic read-only examples, Measure separation, duplicate rows, explanation paths/Effect keys,
+late syntax before missing-file acquisition, whole-read refusal with no partial stdout and
+byte-equal inputs. Single non-explained golden outputs remain unchanged. Terminal helper consumes
+the existing typed outcomes once per question; no new quantity arithmetic or subtotal.
+
+macOS native `tools/check` and forced package `runtest -p bakhlo` pass (166 expect cases, retained
+campaigns/four cram), as does release `@install`. Optional pinned formatting, main installed count
+50 and unchanged dependency/lock review pass. One test omitted Base's required `may_overlap` label;
+a new deliberately empty expect snapshot was filled after exact evidence review. No source/support
+weakening, warning suppression, new model/framework/Python/dependency, private data, sibling build,
+Linux/Mirage/proof/storage replay or acquisition qualification. Fresh original reads still require
+an explicit human question and separate coherent-capture owner/evidence.
 
 ## Readability and optional formatter qualification
 
