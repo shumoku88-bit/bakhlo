@@ -1,9 +1,9 @@
 open Base
 
-module D = Loam_domain
+module D = Bakhlo_domain
 module Id = D.Identifier.Event
-module F = Loam_application.Correction_frontier
-module C = Loam_application.Correction_check
+module F = Bakhlo_application.Correction_frontier
+module C = Bakhlo_application.Correction_check
 
 let require condition message = if not condition then failwith message
 let identifier constructor name =

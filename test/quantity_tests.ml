@@ -1,6 +1,6 @@
 open Base
 
-module Q = Loam_domain.Quantity
+module Q = Bakhlo_domain.Quantity
 
 let quantity text = Q.of_quanta (Z.of_string text)
 let print_quantity value = Stdlib.print_endline (Z.to_string (Q.quanta value))

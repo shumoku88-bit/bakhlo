@@ -1,9 +1,9 @@
 open Base
-module D = Loam_domain
-module R = Loam_application.Open_relations
-module S = Loam_application.Actual_source
-module C = Loam_application.Correction_frontier
-module Q = Loam_application.Current_quantity_query
+module D = Bakhlo_domain
+module R = Bakhlo_application.Open_relations
+module S = Bakhlo_application.Actual_source
+module C = Bakhlo_application.Correction_frontier
+module Q = Bakhlo_application.Current_quantity_query
 module F = Fixtures
 module M = Relation_model
 module O = Source_oracle
@@ -198,10 +198,10 @@ let%expect_test "relation units do not alter Exchange/Reversal/date metadata or 
   F.require (List.equal F.equal_event selected (C.frontier_events (S.frontier without))
     && Z.equal (O.sum_events selected (F.coordinate "wallet")) Z.zero
     && O.touches_events selected (F.coordinate "wallet")) "retained Effect sum/touch correspondence";
-  F.require (List.length (Loam_application.Exchange_evidence.facts (S.exchanges source)) = 1
-    && List.length (Loam_application.Actual_reversals.facts (S.reversals source)) = 1
-    && Option.is_some (Loam_application.Actual_validity.find_current (S.validity source) (F.id "e"))
-    && Option.is_some (Loam_application.Original_amounts.find_current (S.original_amounts source) (F.id "e"))) "adjacent evidence lost";
+  F.require (List.length (Bakhlo_application.Exchange_evidence.facts (S.exchanges source)) = 1
+    && List.length (Bakhlo_application.Actual_reversals.facts (S.reversals source)) = 1
+    && Option.is_some (Bakhlo_application.Actual_validity.find_current (S.validity source) (F.id "e"))
+    && Option.is_some (Bakhlo_application.Original_amounts.find_current (S.original_amounts source) (F.id "e"))) "adjacent evidence lost";
   Stdlib.Printf.printf "relations on both Exchange/Reversal endpoints remain independent; date/text/Merchant/root amounts, four supports and original Effect touch/sums unchanged; unsupported at net zero\n";
   [%expect {| relations on both Exchange/Reversal endpoints remain independent; date/text/Merchant/root amounts, four supports and original Effect touch/sums unchanged; unsupported at net zero |}]
 ;;
