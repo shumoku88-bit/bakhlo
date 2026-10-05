@@ -1,4 +1,4 @@
 (library
- (name loam_domain)
- (public_name loam_ocaml.domain)
+ (name bakhlo_domain)
+ (public_name bakhlo.domain)
  (libraries base zarith))

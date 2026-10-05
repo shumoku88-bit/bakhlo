@@ -1,8 +1,8 @@
 open Base
-module D = Loam_domain
-module S = Loam_application.Actual_source
-module V = Loam_application.Actual_validity
-module Frontier = Loam_application.Correction_frontier
+module D = Bakhlo_domain
+module S = Bakhlo_application.Actual_source
+module V = Bakhlo_application.Actual_validity
+module Frontier = Bakhlo_application.Correction_frontier
 module F = Fixtures
 let ok = function Ok value -> value | Error _ -> failwith "valid base Actual source refused"
 let command events corrections : S.command =

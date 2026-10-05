@@ -1,4 +1,4 @@
 (library
- (name loam_cli)
- (public_name loam_ocaml.cli)
- (libraries loam_application loam_presentation loam_domain base zarith))
+ (name bakhlo_cli)
+ (public_name bakhlo.cli)
+ (libraries bakhlo_application bakhlo_presentation bakhlo_domain base zarith))

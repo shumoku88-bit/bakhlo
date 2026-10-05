@@ -2,19 +2,19 @@
     exchange rates, acquisition/tax basis, gains or quantity/presence support.
     Facts address stable correction roots; projections never rewrite those facts. *)
 type fact =
-  { root : Loam_domain.Identifier.Event.t
-  ; measure : Loam_domain.Identifier.Measure.t
-  ; quantity : Loam_domain.Quantity.t
+  { root : Bakhlo_domain.Identifier.Event.t
+  ; measure : Bakhlo_domain.Identifier.Measure.t
+  ; quantity : Bakhlo_domain.Quantity.t
   }
 type t
 
 type error =
   | Repeated_root of
-      { root : Loam_domain.Identifier.Event.t; first_position : int; position : int }
+      { root : Bakhlo_domain.Identifier.Event.t; first_position : int; position : int }
   | Nonpositive_quantity of
-      { root : Loam_domain.Identifier.Event.t; quantity : Loam_domain.Quantity.t; position : int }
-  | Unknown_event of { root : Loam_domain.Identifier.Event.t; position : int }
-  | Not_root of { root : Loam_domain.Identifier.Event.t; position : int }
+      { root : Bakhlo_domain.Identifier.Event.t; quantity : Bakhlo_domain.Quantity.t; position : int }
+  | Unknown_event of { root : Bakhlo_domain.Identifier.Event.t; position : int }
+  | Not_root of { root : Bakhlo_domain.Identifier.Event.t; position : int }
 
 (** Against ONE qualified frontier. Per declaration: duplicate, positivity, retained
     membership, root membership; first failure, one-based positions. Identical duplicates
@@ -29,9 +29,9 @@ val facts : t -> fact list
 type current
 val currents : t -> current list
 val retained_fact : current -> fact
-val terminal_event : current -> Loam_domain.Event.t
+val terminal_event : current -> Bakhlo_domain.Event.t
 
 (** Original fact order in [currents], not Event order/chronology. Exact terminal-ID
     lookup; absent/noncurrent IDs return None, never inferred zero or stale associations.
     A fresh tail requires explicit requalification; it preserves facts, not old terminals. *)
-val find_current : t -> Loam_domain.Identifier.Event.t -> current option
+val find_current : t -> Bakhlo_domain.Identifier.Event.t -> current option

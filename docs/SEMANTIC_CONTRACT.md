@@ -6,7 +6,7 @@ implementation choices; they are not a claim that every OCaml operation is quali
 ## S1 — One operational authority
 
 Exactly one selected system/data authority owns ordinary household recording.
-During development the existing LOAM remains that authority. The OCaml repository
+During development the existing LOAM remains that authority. Bakhlo
 is not an operational replacement until an explicit qualified cutover.
 
 Implementation changes, representation migration, identity normalization, and

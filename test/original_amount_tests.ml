@@ -1,9 +1,9 @@
 open Base
-module D = Loam_domain
-module A = Loam_application.Original_amounts
-module C = Loam_application.Correction_frontier
-module S = Loam_application.Actual_source
-module Q = Loam_application.Current_quantity_query
+module D = Bakhlo_domain
+module A = Bakhlo_application.Original_amounts
+module C = Bakhlo_application.Correction_frontier
+module S = Bakhlo_application.Actual_source
+module Q = Bakhlo_application.Current_quantity_query
 module F = Fixtures
 module G = Lineage_model
 module O = Source_oracle
@@ -169,7 +169,7 @@ let%expect_test "source original amounts never become Effects, FX, balance or fo
          | `Origin, Zero_origin -> ()
          | `Opening, Opening { coordinate; opening_event } -> F.require (F.same_coordinate coordinate opening && D.Identifier.Event.equal opening_event (F.id "b")) "opening witness changed"
          | `Assertion, Current_assertion asserted ->
-           let module P = Loam_application.Current_quantity_projection in
+           let module P = Bakhlo_application.Current_quantity_projection in
            F.require (Z.equal (D.Quantity.quanta (P.delta asserted)) (O.sum_events remaining wallet)) "independent cut/delta changed"
          | _ -> failwith "original amount changed exact premise")
       | _ -> failwith "original amount changed exact support");
@@ -178,7 +178,7 @@ let%expect_test "source original amounts never become Effects, FX, balance or fo
      | Ok (Known_present _), Error (Support_unknown _), Error (Support_unknown _) -> ()
      | _ -> failwith "original amount became presence or missing-Measure quantity"));
   let dated = ok (S.create { raw with validities = List.rev_map raw.validities ~f:(function
-    | Base { event; valid_on = _ } -> Loam_application.Actual_validity.Base { event; valid_on = "1900-01-01" }
+    | Base { event; valid_on = _ } -> Bakhlo_application.Actual_validity.Base { event; valid_on = "1900-01-01" }
     | Revision { id; event; valid_on } -> Revision { id; event; valid_on });
     descriptions = []; merchants = [] }) in
   F.require (equal_fact (A.retained_fact (Option.value_exn (A.find_current amounts (F.id "b"))))

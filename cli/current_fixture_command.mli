@@ -1,4 +1,4 @@
-type request = { path : string; coordinate : Loam_domain.Effect_coordinate.t }
+type request = { path : string; coordinate : Bakhlo_domain.Effect_coordinate.t }
 type plan = Help | Read of request | Refused of string
 val plan : string list -> plan
 val help : Response.t

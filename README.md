@@ -1,4 +1,4 @@
-# LOAM OCaml
+# Bakhlo
 
 An independent OCaml household engine: exact quantities, explicit evidence,
 retained correction provenance, and honest uncertainty. The goal is a maintainable
@@ -57,10 +57,10 @@ secondary UI experiments remain deferred; experimental runtime fixes are no long
 ```sh
 ./tools/bootstrap
 ./tools/check
-./tools/opam exec -- dune exec loam-ocaml -- --help
-./tools/opam exec -- dune exec loam-ocaml -- check-movement \
+./tools/opam exec -- dune exec bakhlo -- --help
+./tools/opam exec -- dune exec bakhlo -- check-movement \
   --effect wallet jpy -1000 --effect food jpy 1000
-./tools/opam exec -- dune exec loam-ocaml -- inspect-current-fixture \
+./tools/opam exec -- dune exec bakhlo -- inspect-current-fixture \
   examples/current-preview.fixture wallet jpy
 ```
 

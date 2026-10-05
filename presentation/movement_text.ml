@@ -1,7 +1,7 @@
 open Base
 
-module A = Loam_application.Movement_check
-module D = Loam_domain
+module A = Bakhlo_application.Movement_check
+module D = Bakhlo_domain
 
 let signed quantity =
   let text = Z.to_string (D.Quantity.quanta quantity) in

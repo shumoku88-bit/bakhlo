@@ -1,8 +1,8 @@
 open Base
-open Loam_domain
+open Bakhlo_domain
 
-module Check = Loam_application.Movement_check
-module Text = Loam_presentation.Movement_text
+module Check = Bakhlo_application.Movement_check
+module Text = Bakhlo_presentation.Movement_text
 
 type field = Locus | Measure
 
@@ -71,7 +71,7 @@ let evaluate arguments =
 ;;
 
 let usage =
-  "Usage: loam-ocaml check-movement --effect LOCUS MEASURE QUANTA [--effect ...]\n\
+  "Usage: bakhlo check-movement --effect LOCUS MEASURE QUANTA [--effect ...]\n\
    \n\
    Validate an ordinary single-Measure movement without recording it.\n\
    QUANTA is an exact signed decimal integer, not display currency units.\n\
@@ -101,6 +101,6 @@ let render outcome : Response.t = match outcome with
     { exit_code = 2
     ; stdout = ""
     ; stderr =
-        "error: " ^ describe_syntax_error error ^ "\nRun 'loam-ocaml --help' for usage.\n"
+        "error: " ^ describe_syntax_error error ^ "\nRun 'bakhlo --help' for usage.\n"
     }
 ;;

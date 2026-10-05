@@ -1,8 +1,8 @@
 open Base
 
-module D = Loam_domain
+module D = Bakhlo_domain
 module Id = D.Identifier.Event
-module F = Loam_application.Correction_frontier
+module F = Bakhlo_application.Correction_frontier
 module M = Lineage_model
 
 let require = Fixtures.require

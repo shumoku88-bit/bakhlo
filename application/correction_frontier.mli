@@ -9,16 +9,16 @@ type error =
       ; errors : Correction_check.error list
       }
   | Repeated_target of
-      { id : Loam_domain.Identifier.Event.t
+      { id : Bakhlo_domain.Identifier.Event.t
       ; first_position : int
       ; position : int
       }
   | Repeated_replacement of
-      { id : Loam_domain.Identifier.Event.t
+      { id : Bakhlo_domain.Identifier.Event.t
       ; first_position : int
       ; position : int
       }
-  | Cycle of { path : Loam_domain.Identifier.Event.t list }
+  | Cycle of { path : Bakhlo_domain.Identifier.Event.t list }
 
 (** All endpoints must exist, targets/replacements must each be unique, and the
     relation must be acyclic. An identical repeated edge is refused, not deduped.
@@ -27,16 +27,16 @@ type error =
     uniqueness; cycles checked last. Missing-role errors are nonempty/ordered.
     Cycle path follows actual edges and repeats its first ID at the end. *)
 val create
-  :  events:Loam_domain.Event_memory.t
-  -> corrections:Loam_domain.Event_correction.t list
+  :  events:Bakhlo_domain.Event_memory.t
+  -> corrections:Bakhlo_domain.Event_correction.t list
   -> (t, error) result
 
-val retained_events : t -> Loam_domain.Event_memory.t
-val corrections : t -> Loam_domain.Event_correction.t list
+val retained_events : t -> Bakhlo_domain.Event_memory.t
+val corrections : t -> Bakhlo_domain.Event_correction.t list
 
 (** Exactly supplied Events not targeted by any correction, in original Event
     order, with unmodified payloads. Validated within the supplied scope only. *)
-val frontier_events : t -> Loam_domain.Event.t list
+val frontier_events : t -> Bakhlo_domain.Event.t list
 
 (** One qualified root/terminal association within the supplied relation.
     No public constructor can substitute unrelated observations. This is not
@@ -51,8 +51,8 @@ val lineages : t -> lineage list
 
 (** Original Event with no incoming correction. Stable under a fresh terminal
     extension, not arbitrary prefix insertion, deletion, or source-scope changes. *)
-val root_id : lineage -> Loam_domain.Identifier.Event.t
+val root_id : lineage -> Bakhlo_domain.Identifier.Event.t
 
 (** Exact retained Event reached from that root with no outgoing correction.
     Traversal follows explicit edges only, never spelling, time, or list position. *)
-val terminal_event : lineage -> Loam_domain.Event.t
+val terminal_event : lineage -> Bakhlo_domain.Event.t

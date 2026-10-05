@@ -1,14 +1,14 @@
 (** Explicit correspondence between retained Events, NOT correction/deletion or
     inference from net zero. Absence is unresolved, not proof of no reversal. *)
 type fact =
-  { target : Loam_domain.Identifier.Event.t
-  ; reversal : Loam_domain.Identifier.Event.t
+  { target : Bakhlo_domain.Identifier.Event.t
+  ; reversal : Bakhlo_domain.Identifier.Event.t
   }
 type role = Target | Reversal
-type endpoint = { role : role; event : Loam_domain.Identifier.Event.t }
+type endpoint = { role : role; event : Bakhlo_domain.Identifier.Event.t }
 type error =
   | Repeated_endpoint of
-      { event : Loam_domain.Identifier.Event.t
+      { event : Bakhlo_domain.Identifier.Event.t
       ; first_role : role; first_position : int; role : role; position : int }
   | Unresolved_endpoints of { position : int; endpoints : endpoint list }
   | Not_inverse of { position : int; fact : fact }
@@ -23,12 +23,12 @@ type pair
     order retained. No nonzero/balance/date/currentness/correction gate here:
     Actual_source must qualify targets independently before admitting reversal sides
     (ordinary balance is derived; Exchange inverses remain explicit exceptions). These facts do not select frontier Events, cuts or support. *)
-val create : events:Loam_domain.Event_memory.t -> facts:fact list -> (t, error) result
-val source_events : t -> Loam_domain.Event_memory.t
+val create : events:Bakhlo_domain.Event_memory.t -> facts:fact list -> (t, error) result
+val source_events : t -> Bakhlo_domain.Event_memory.t
 val facts : t -> fact list
 val pairs : t -> pair list
 val fact : pair -> fact
-val target_event : pair -> Loam_domain.Event.t
-val reversal_event : pair -> Loam_domain.Event.t
-val find_by_target : t -> Loam_domain.Identifier.Event.t -> pair option
-val find_by_reversal : t -> Loam_domain.Identifier.Event.t -> pair option
+val target_event : pair -> Bakhlo_domain.Event.t
+val reversal_event : pair -> Bakhlo_domain.Event.t
+val find_by_target : t -> Bakhlo_domain.Identifier.Event.t -> pair option
+val find_by_reversal : t -> Bakhlo_domain.Identifier.Event.t -> pair option

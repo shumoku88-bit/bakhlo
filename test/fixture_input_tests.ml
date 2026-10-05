@@ -1,11 +1,11 @@
 open Base
-module D = Loam_domain
-module S = Loam_application.Actual_source
+module D = Bakhlo_domain
+module S = Bakhlo_application.Actual_source
 module F = Fixtures
-module Input = Loam_cli.Current_fixture_input
-module C = Loam_cli.Current_fixture_command
+module Input = Bakhlo_cli.Current_fixture_input
+module C = Bakhlo_cli.Current_fixture_command
 let ok = function Ok value -> value | Error _ -> failwith "valid syntax refused"
-let document rows = String.concat ~sep:"\n" ("LOAM-OCAML-ACTUAL-FIXTURE\t2" :: rows @ [ "END"; "" ])
+let document rows = String.concat ~sep:"\n" ("BAKHLO-ACTUAL-FIXTURE\t2" :: rows @ [ "END"; "" ])
 
 (* Independent ASCII/sign arithmetic, not the shared parser or Zarith's literal grammar. *)
 let decimal_oracle text =
@@ -23,8 +23,8 @@ let decimal_oracle text =
 ;;
 
 let%expect_test "shared decimal grammar preserves both consumers' admission and exact refusal boundaries" =
-  let module M = Loam_cli.Movement_command in
-  let module Check = Loam_application.Movement_check in
+  let module M = Bakhlo_cli.Movement_command in
+  let module Check = Bakhlo_application.Movement_check in
   let alphabet = [ "+"; "-"; "0"; "9"; "x"; "_"; " "; "." ] in
   let rec words length =
     if length = 0 then [ "" ]
@@ -37,7 +37,7 @@ let%expect_test "shared decimal grammar preserves both consumers' admission and 
   List.iter literals ~f:(fun literal ->
     let expected = decimal_oracle literal in
     F.require (Option.equal Z.equal expected
-      (Option.map (Loam_cli.Quantity_literal.parse literal) ~f:D.Quantity.quanta)) "literal differs from byte/digit oracle";
+      (Option.map (Bakhlo_cli.Quantity_literal.parse literal) ~f:D.Quantity.quanta)) "literal differs from byte/digit oracle";
     let decoded = Input.decode (document [ "EVENT\te\t2026-10-03"; "EFFECT\twallet\tjpy\t" ^ literal; "END-EVENT" ]) in
     let opposite = match expected with None -> "1" | Some value -> Z.to_string (Z.neg value) in
     let movement = M.evaluate [ "check-movement"; "--effect"; "wallet"; "jpy"; literal; "--effect"; "other"; "jpy"; opposite ] in
@@ -153,7 +153,7 @@ let%expect_test "description rows retain optional literal text and forward refer
     "CORRECTION\t a \tb"; "ZERO-ORIGIN\twallet\tjpy" ] in
   let decoded = ok (Input.decode (document rows)) in
   let source = ok (S.create decoded.source) in
-  let module E = Loam_application.Event_descriptions in
+  let module E = Bakhlo_application.Event_descriptions in
   F.require (List.equal String.equal (List.map decoded.source.descriptions ~f:(fun fact -> D.Identifier.Event.to_string fact.event)) [ "b"; " a " ]) "forward reference/order/exact IDs";
   F.require (Option.equal String.equal (E.find_text (S.descriptions source) (F.id "b")) (Some "") &&
     Option.equal String.equal (E.find_text (S.descriptions source) (F.id " a ")) (Some "  merchant?\\n日本語  ")) "empty/spaces and backslash are literal text";
@@ -174,7 +174,7 @@ let%expect_test "description rows retain optional literal text and forward refer
 ;;
 
 let%expect_test "validity history rows retain tagged forward references without inventing a base" =
-  let module V = Loam_application.Actual_validity in
+  let module V = Bakhlo_application.Actual_validity in
   let rows = [ "VALIDITY-CORRECTION\tBASE\t a \t a "; "VALIDITY-CORRECTION\tREVISION\t a \tlater";
     "VALIDITY-REVISION\tlater\t a \t1900-01-01"; "EVENT\t a \t2026-10-03"; "END-EVENT";
     "VALIDITY-REVISION\t a \t a \t2025-01-01"; "EVENT\tb"; "END-EVENT"; "VALIDITY-BASE\tb\t2000-02-29";
@@ -203,7 +203,7 @@ let%expect_test "validity history rows retain tagged forward references without 
 ;;
 
 let%expect_test "Merchant rows retain forward/exact dispositions; closure and conflicts precede query" =
-  let module M = Loam_application.Event_merchants in
+  let module M = Bakhlo_application.Event_merchants in
   let rows = [ "MERCHANT\t a \t p "; "NONMERCHANT\tb";
     "EVENT\t a \t2026-10-03"; "END-EVENT"; "EVENT\tb\t2026-10-02"; "END-EVENT";
     "EVENT\tx\t2026-10-01"; "END-EVENT"; "DESCRIPTION\tx\tmerchant inferred?";
@@ -247,7 +247,7 @@ let%expect_test "Merchant rows retain forward/exact dispositions; closure and co
 ;;
 
 let%expect_test "original amount rows retain forward roots and exact Measures; positivity and root membership are admission" =
-  let module A = Loam_application.Original_amounts in
+  let module A = Bakhlo_application.Original_amounts in
   let huge = Z.shift_left Z.one 190 in
   let rows = [ "ORIGINAL-AMOUNT\t a \t eur \t+" ^ Z.to_string huge; "ORIGINAL-AMOUNT\tx\tjpy\t1";
     "EVENT\t a \t2026-10-03"; "END-EVENT"; "EVENT\tb\t2026-10-02"; "END-EVENT";
@@ -291,7 +291,7 @@ let%expect_test "original amount rows retain forward roots and exact Measures; p
 ;;
 
 let%expect_test "Exchange rows qualify selected keys before per-Measure balance, never syntax coercion or support" =
-  let module E = Loam_application.Exchange_evidence in
+  let module E = Bakhlo_application.Exchange_evidence in
   let huge = Z.shift_left Z.one 180 in
   let rows = [ "EXCHANGE\t e \t source \tdestination";
     "EVENT\t e \t2026-10-03"; "KEYED-EFFECT\t source \twallet\tjpy\t" ^ Z.to_string (Z.neg huge);
@@ -332,7 +332,7 @@ let%expect_test "Exchange rows qualify selected keys before per-Measure balance,
 ;;
 
 let%expect_test "malformed/truncated/misplaced rows and obsolete formats never become partial success" =
-  let invalid = [ ""; "LOAM-NORMALIZED-ACTUAL\t1\nEND\n"; "LOAM-OCAML-ACTUAL-FIXTURE\t1\nEND\n";
+  let invalid = [ ""; "LOAM-NORMALIZED-ACTUAL\t1\nEND\n"; "BAKHLO-ACTUAL-FIXTURE\t1\nEND\n";
     document [ "SCHEDULED\ta" ]; document [ "PURPOSE\ta\tmetadata" ];
     document [ "VALIDITY-REVISION\tr\te" ]; document [ "VALIDITY-REVISION\t\te\t2026-10-03" ];
     document [ "VALIDITY-BASE\te" ]; document [ "VALIDITY-CORRECTION\tROOT\te\tr" ];
@@ -353,7 +353,7 @@ let%expect_test "malformed/truncated/misplaced rows and obsolete formats never b
     document [ "PRESENCE"; "PRESENT\twallet\tjpy\t1"; "END-PRESENCE" ];
     document [ "EVENT\ta\t2026-10-03"; "EFFECT\twallet\tjpy\t0x10"; "END-EVENT" ];
     document [ "EVENT\ta\t2026-10-03"; "EFFECT\twallet\tjpy\t 1"; "END-EVENT" ];
-    "LOAM-OCAML-ACTUAL-FIXTURE\t2\nEND"; document [] ^ "END\n" ] in
+    "BAKHLO-ACTUAL-FIXTURE\t2\nEND"; document [] ^ "END\n" ] in
   List.iter invalid ~f:(fun text -> match Input.decode text with
     | Error (Syntax { line; message }) -> F.require (line > 0 && not (String.is_empty message)) "useful syntax refusal"
     | Error (Invalid_event _) -> failwith "wrong failure phase for malformed syntax"
@@ -370,43 +370,43 @@ let%expect_test "read failures and cycle identities are escaped; help/syntax req
   F.require (failed.exit_code = 1 && String.is_empty failed.stdout &&
     not (String.exists failed.stderr ~f:(Char.equal '\027')) &&
     String.count failed.stderr ~f:(Char.equal '\n') = 1) "honest escaped read failure";
-  let cycle = Loam_presentation.Current_quantity_text.source_refusal
-    (S.Corrections (Loam_application.Correction_frontier.Cycle { path = [ F.id "event\027\n" ] })) in
+  let cycle = Bakhlo_presentation.Current_quantity_text.source_refusal
+    (S.Corrections (Bakhlo_application.Correction_frontier.Cycle { path = [ F.id "event\027\n" ] })) in
   F.require (not (String.exists cycle ~f:(Char.equal '\027')) && String.count cycle ~f:(Char.equal '\n') = 1) "escaped cycle provenance";
-  let opening = Loam_presentation.Current_quantity_text.refusal
-    (Loam_application.Current_quantity_query.Opening_event_not_current
+  let opening = Bakhlo_presentation.Current_quantity_text.refusal
+    (Bakhlo_application.Current_quantity_query.Opening_event_not_current
        { opening = { coordinate = F.coordinate "wallet\027\n"; opening_event = F.id "event\027\n" }; position = 1 }) in
   F.require (not (String.exists opening ~f:(Char.equal '\027')) && String.count opening ~f:(Char.equal '\n') = 1) "escaped opening provenance";
-  let duplicate = Loam_presentation.Current_quantity_text.event_refusal (F.id "e\027\n")
+  let duplicate = Bakhlo_presentation.Current_quantity_text.event_refusal (F.id "e\027\n")
     (D.Event.Duplicate_effect_key { key = F.identifier D.Identifier.Effect_key.of_string "k\027\n"; first_position = 1; position = 2 }) in
   F.require (not (String.exists duplicate ~f:(Char.equal '\027')) && String.count duplicate ~f:(Char.equal '\n') = 1) "escaped key and Event identities";
-  List.iter [ S.Descriptions (Loam_application.Event_descriptions.Repeated_description { event = F.id "event\027\n"; first_position = 1; position = 2 });
-    S.Descriptions (Loam_application.Event_descriptions.Unknown_description_event { event = F.id "event\027\n"; position = 1 }) ] ~f:(fun error ->
-      let rendered = Loam_presentation.Current_quantity_text.source_refusal error in
+  List.iter [ S.Descriptions (Bakhlo_application.Event_descriptions.Repeated_description { event = F.id "event\027\n"; first_position = 1; position = 2 });
+    S.Descriptions (Bakhlo_application.Event_descriptions.Unknown_description_event { event = F.id "event\027\n"; position = 1 }) ] ~f:(fun error ->
+      let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal error in
       F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped description references");
-  List.iter [ S.Merchants (Loam_application.Event_merchants.Repeated_disposition { event = F.id "event\027\n"; first_position = 1; position = 2 });
-    S.Merchants (Loam_application.Event_merchants.Unknown_merchant_event { event = F.id "event\027\n"; position = 1 }) ] ~f:(fun error ->
-      let rendered = Loam_presentation.Current_quantity_text.source_refusal error in
+  List.iter [ S.Merchants (Bakhlo_application.Event_merchants.Repeated_disposition { event = F.id "event\027\n"; first_position = 1; position = 2 });
+    S.Merchants (Bakhlo_application.Event_merchants.Unknown_merchant_event { event = F.id "event\027\n"; position = 1 }) ] ~f:(fun error ->
+      let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal error in
       F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped Merchant references");
-  let module A = Loam_application.Original_amounts in
+  let module A = Bakhlo_application.Original_amounts in
   List.iter [ A.Repeated_root { root = F.id "root\027\n"; first_position = 1; position = 2 };
     Nonpositive_quantity { root = F.id "root\027\n"; quantity = D.Quantity.zero; position = 1 };
     Unknown_event { root = F.id "root\027\n"; position = 1 }; Not_root { root = F.id "root\027\n"; position = 1 } ] ~f:(fun error ->
-      let rendered = Loam_presentation.Current_quantity_text.source_refusal (S.Original_amounts error) in
+      let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal (S.Original_amounts error) in
       F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped amount roots");
-  let module E = Loam_application.Exchange_evidence in
+  let module E = Bakhlo_application.Exchange_evidence in
   List.iter [ E.Correction_mentions_event { event = F.id "event\027\n"; position = 1 };
     Missing_effect { event = F.id "event\027\n"; side = Source; key = F.identifier D.Identifier.Effect_key.of_string "key\027\n"; position = 1 };
     Third_measure { event = F.id "event\027\n"; effect_position = 3; measure = F.identifier D.Identifier.Measure.of_string "unit\027\n"; position = 1 } ] ~f:(fun error ->
-      let rendered = Loam_presentation.Current_quantity_text.source_refusal (S.Exchanges error) in
+      let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal (S.Exchanges error) in
       F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped Exchange key/Measure/Event diagnostics");
-  let module V = Loam_application.Actual_validity in
+  let module V = Bakhlo_application.Actual_validity in
   let date_id = F.identifier D.Identifier.Validity_revision.of_string "revision\027\n" in
   List.iter [ V.Cycle { path = [ Revision_ref date_id; Revision_ref date_id ] };
     Repeated_fact { reference = Base_ref (F.id "event\027\n"); first_position = 1; position = 2 };
     Unresolved_correction { position = 1; endpoints = [ Target (Revision_ref date_id); Replacement date_id ] };
     Cross_event_correction { position = 1; target_event = F.id "event\027\n"; replacement_event = F.id "other\027\n" } ] ~f:(fun error ->
-      let rendered = Loam_presentation.Current_quantity_text.source_refusal (S.Validity error) in
+      let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal (S.Validity error) in
       F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1) "escaped tagged date history diagnostics");
   (match C.plan [ "--help" ] with Help -> () | _ -> failwith "help plan");
   (match C.plan [] with Refused _ -> () | _ -> failwith "syntax plan");
@@ -415,7 +415,7 @@ let%expect_test "read failures and cycle identities are escaped; help/syntax req
 ;;
 
 let%expect_test "Reversal reader retains exact forward facts, independent dates and key-free physical correspondence" =
-  let module R = Loam_application.Actual_reversals in
+  let module R = Bakhlo_application.Actual_reversals in
   let huge = Z.to_string (Z.shift_left Z.one 180) in
   let rows = [ "REVERSAL\t a \tr"; "EVENT\tr\t1900-01-01";
     "EFFECT\toffset\t jpy \t-" ^ huge; "KEYED-EFFECT\treverse-key\twallet\t jpy \t+" ^ huge; "END-EVENT";
@@ -441,7 +441,7 @@ let%expect_test "Reversal reader retains exact forward facts, independent dates 
 ;;
 
 let%expect_test "Relation reader preserves forward identities/roles and distinguishes whole-source qualification from support" =
-  let module R = Loam_application.Open_relations in
+  let module R = Bakhlo_application.Open_relations in
   let huge = Z.to_string (Z.shift_left Z.one 180) in
   let rows = [ "RELATION\t r \t e \t s \tEXTERNAL\tHOUSEHOLD\tHOUSEHOLD\t+" ^ huge;
     "EVENT\t e \t1900-01-01"; "KEYED-EFFECT\t s \twallet\t jpy \t-" ^ huge;
@@ -484,7 +484,7 @@ let%expect_test "Relation reader preserves forward identities/roles and distingu
 ;;
 
 let%expect_test "all Relation diagnostic variants escape identity, key and endpoint provenance" =
-  let module R = Loam_application.Open_relations in
+  let module R = Bakhlo_application.Open_relations in
   let id = F.identifier D.Identifier.Relation.of_string "relation\027\n" in
   let event = F.id "event\027\n" and key = F.identifier D.Identifier.Effect_key.of_string "key\027\n" in
   let debtor = R.External (F.identifier D.Identifier.External_party.of_string "party\027\n") in
@@ -493,7 +493,7 @@ let%expect_test "all Relation diagnostic variants escape identity, key and endpo
     Nonpositive_quantity { id; quantity = D.Quantity.zero; position = 1 };
     Exceeds_source { id; quantity = D.Quantity.of_quanta Z.one; magnitude = D.Quantity.zero; position = 1 };
     Overcovered_source { event; key; total = D.Quantity.of_quanta Z.one; magnitude = D.Quantity.zero; position = 1 } ] ~f:(fun error ->
-      let rendered = Loam_presentation.Current_quantity_text.source_refusal (S.Relations error) in
+      let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal (S.Relations error) in
       F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1
         && String.is_substring rendered ~substring:"Relation") "Relation provenance escaping");
   Stdlib.Printf.printf "all seven Relation refusals preserve escaped identity/source/role/quantity positions on one line\n";
@@ -501,7 +501,7 @@ let%expect_test "all Relation diagnostic variants escape identity, key and endpo
 ;;
 
 let%expect_test "Discharge reader retains forward exact quantities and closure without inventing physical support" =
-  let module P = Loam_application.Relation_discharges in
+  let module P = Bakhlo_application.Relation_discharges in
   let huge = Z.to_string (Z.shift_left Z.one 180) in
   let rows = [ "DISCHARGE\t later \t target \t+" ^ huge;
     "RELATION\t target \t source \t s \tHOUSEHOLD\tEXTERNAL\tp\t" ^ huge;
@@ -538,14 +538,14 @@ let%expect_test "Discharge reader retains forward exact quantities and closure w
 ;;
 
 let%expect_test "all discharge refusals escape Event and Relation provenance on one line" =
-  let module P = Loam_application.Relation_discharges in
+  let module P = Bakhlo_application.Relation_discharges in
   let event = F.id "event\027\n" and target = F.identifier D.Identifier.Relation.of_string "target\027\n" in
   List.iter [ P.Unknown_event { event; position = 1 }; Unknown_target { target; position = 1 };
     Repeated_correspondence { event; target; first_position = 1; position = 2 }; Self_discharge { event; target; position = 1 };
     Nonpositive_quantity { event; target; quantity = D.Quantity.zero; position = 1 };
     Exceeds_target { event; target; quantity = D.Quantity.of_quanta Z.one; target_quantity = D.Quantity.zero; position = 1 };
     Overdischarged_target { target; total = D.Quantity.of_quanta Z.one; target_quantity = D.Quantity.zero; position = 1 } ] ~f:(fun error ->
-      let rendered = Loam_presentation.Current_quantity_text.source_refusal (S.Discharges error) in
+      let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal (S.Discharges error) in
       F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1
         && String.is_substring rendered ~substring:"Discharge") "Discharge provenance escaping");
   Stdlib.Printf.printf "all seven discharge refusals keep escaped Event/Relation, quantities and one-based witnesses\n";
@@ -553,12 +553,12 @@ let%expect_test "all discharge refusals escape Event and Relation provenance on 
 ;;
 
 let%expect_test "every Reversal error escapes exact role and endpoint provenance on one stderr line" =
-  let module R = Loam_application.Actual_reversals in
+  let module R = Bakhlo_application.Actual_reversals in
   let event = F.id "event\027\n" in
   List.iter [ R.Repeated_endpoint { event; first_role = Reversal; first_position = 1; role = Target; position = 2 };
     Unresolved_endpoints { position = 1; endpoints = [ { role = Target; event }; { role = Reversal; event = F.id "other\027\n" } ] };
     Not_inverse { position = 1; fact = { target = event; reversal = F.id "other\027\n" } } ] ~f:(fun error ->
-      let rendered = Loam_presentation.Current_quantity_text.source_refusal (S.Reversals error) in
+      let rendered = Bakhlo_presentation.Current_quantity_text.source_refusal (S.Reversals error) in
       F.require (not (String.exists rendered ~f:(Char.equal '\027')) && String.count rendered ~f:(Char.equal '\n') = 1
         && String.is_substring rendered ~substring:"Reversal") "escaped Reversal diagnostics");
   Stdlib.Printf.printf "reuse/closure/inversion diagnostics retain escaped Event roles and positions\n";

@@ -1,5 +1,5 @@
 open Base
-module D = Loam_domain
+module D = Bakhlo_domain
 module Id = D.Identifier.Event
 
 type fact = { target : Id.t; reversal : Id.t }

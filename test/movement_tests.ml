@@ -1,9 +1,9 @@
 open Base
 
-module I = Loam_domain.Identifier
-module E = Loam_domain.Effect
-module M = Loam_domain.Movement
-module Q = Loam_domain.Quantity
+module I = Bakhlo_domain.Identifier
+module E = Bakhlo_domain.Effect
+module M = Bakhlo_domain.Movement
+module Q = Bakhlo_domain.Quantity
 
 let measure text =
   match I.Measure.of_string text with

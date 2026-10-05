@@ -1,5 +1,5 @@
 (library
- (name loam_application)
- (public_name loam_ocaml.application)
- (libraries loam_domain base)
+ (name bakhlo_application)
+ (public_name bakhlo.application)
+ (libraries bakhlo_domain base)
  (private_modules effect_sum replacement_cycle measure_totals))

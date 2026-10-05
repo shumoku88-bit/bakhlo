@@ -7,7 +7,7 @@ type endpoint = Target | Replacement
 type error =
   | Missing_event of
       { endpoint : endpoint
-      ; id : Loam_domain.Identifier.Event.t
+      ; id : Bakhlo_domain.Identifier.Event.t
       }
 
 (** Both named observations and their explicit relation are retained. This type
@@ -17,10 +17,10 @@ type closed
 (** Report missing target before missing replacement; return both if both are
     absent. Refusal lists are nonempty. Each query makes two indexed lookups. *)
 val run
-  :  events:Loam_domain.Event_memory.t
-  -> correction:Loam_domain.Event_correction.t
+  :  events:Bakhlo_domain.Event_memory.t
+  -> correction:Bakhlo_domain.Event_correction.t
   -> (closed, error list) result
 
-val correction : closed -> Loam_domain.Event_correction.t
-val target_event : closed -> Loam_domain.Event.t
-val replacement_event : closed -> Loam_domain.Event.t
+val correction : closed -> Bakhlo_domain.Event_correction.t
+val target_event : closed -> Bakhlo_domain.Event.t
+val replacement_event : closed -> Bakhlo_domain.Event.t

@@ -1,4 +1,4 @@
-module D = Loam_domain
+module D = Bakhlo_domain
 module Coordinate = D.Effect_coordinate
 module Q = D.Quantity
 

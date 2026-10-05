@@ -1,5 +1,5 @@
 open Base
-module D = Loam_domain
+module D = Bakhlo_domain
 module Q = D.Quantity
 
 type command =

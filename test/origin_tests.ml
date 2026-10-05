@@ -1,9 +1,9 @@
 open Base
 
-module D = Loam_domain
+module D = Bakhlo_domain
 module C = D.Effect_coordinate
 module Coverage = D.Zero_origin_coverage
-module P = Loam_application.Current_quantity_query
+module P = Bakhlo_application.Current_quantity_query
 module Q = D.Quantity
 
 let require = Fixtures.require

@@ -1,9 +1,9 @@
 open Base
-module D = Loam_domain
-module H = Loam_application.Current_quantity_groups
-module P = Loam_application.Current_quantity_projection
-module F = Loam_application.Correction_frontier
-module Cut = Loam_application.Reflected_root_cut
+module D = Bakhlo_domain
+module H = Bakhlo_application.Current_quantity_groups
+module P = Bakhlo_application.Current_quantity_projection
+module F = Bakhlo_application.Correction_frontier
+module Cut = Bakhlo_application.Reflected_root_cut
 module Q = D.Quantity
 module T = Fixtures
 module CT = Fixtures

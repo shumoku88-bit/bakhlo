@@ -2,7 +2,7 @@
     frontier. Different cuts stay independent; one live owner per coordinate.
     Not selected Actual, other support-family routing, history, or publication. *)
 type group =
-  { reflected_roots : Loam_domain.Identifier.Event.t list
+  { reflected_roots : Bakhlo_domain.Identifier.Event.t list
   ; assertions : Current_quantity_projection.assertion list
   }
 
@@ -12,7 +12,7 @@ type error =
   | Invalid_cut of { group_position : int; error : Reflected_root_cut.error }
   | Invalid_assertions of { group_position : int; error : Current_quantity_projection.error }
   | Repeated_coordinate of
-      { coordinate : Loam_domain.Effect_coordinate.t
+      { coordinate : Bakhlo_domain.Effect_coordinate.t
       ; first_group_position : int
       ; first_assertion_position : int
       ; group_position : int
@@ -31,13 +31,13 @@ val source_frontier : t -> Correction_frontier.t
 val groups : t -> group list
 
 (** Unique already-qualified group; None means no exact assertion owner. *)
-val group_for : t -> Loam_domain.Effect_coordinate.t -> Current_quantity_projection.t option
+val group_for : t -> Bakhlo_domain.Effect_coordinate.t -> Current_quantity_projection.t option
 
 (** Indexed ownership then existing indexed quantity lookup. No root traversal,
     evidence reduction, arithmetic rebuild, mutable state or zero default. *)
 val query
   :  t
-  -> Loam_domain.Effect_coordinate.t
+  -> Bakhlo_domain.Effect_coordinate.t
   -> (Current_quantity_projection.answer, Current_quantity_projection.unavailable) result
 
 (** Explicit immutable re-observation on the SAME source. First qualify incoming

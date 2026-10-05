@@ -1,8 +1,8 @@
 open Base
-module D = Loam_domain
-module E = Loam_application.Exchange_evidence
-module S = Loam_application.Actual_source
-module Q = Loam_application.Current_quantity_query
+module D = Bakhlo_domain
+module E = Bakhlo_application.Exchange_evidence
+module S = Bakhlo_application.Actual_source
+module Q = Bakhlo_application.Current_quantity_query
 module F = Fixtures
 module M = Exchange_model
 module O = Source_oracle
@@ -174,7 +174,7 @@ let%expect_test "Exchange source connects to all four support meanings without r
           (match premise, Q.premise answer with
            | `Origin, Zero_origin -> ()
            | `Opening, Opening { coordinate; opening_event } -> F.require (F.same_coordinate coordinate usd && D.Identifier.Event.equal opening_event (F.id "e")) "opening witness changed"
-           | `Assertion, Current_assertion asserted -> let module P = Loam_application.Current_quantity_projection in
+           | `Assertion, Current_assertion asserted -> let module P = Bakhlo_application.Current_quantity_projection in
              F.require (Z.equal (D.Quantity.quanta (P.delta asserted)) (O.sum_events remaining wallet)) "assertion independent cut changed"
            | _ -> failwith "Exchange changed support premise")
         | _ -> failwith "Exchange converted an exact supported coordinate");

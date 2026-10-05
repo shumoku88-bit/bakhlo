@@ -37,11 +37,11 @@ and clears inherited OCaml search-path overrides, not the whole OS environment.
 
 ```sh
 ./tools/check
-./tools/opam exec -- dune runtest -p loam_ocaml --force
+./tools/opam exec -- dune runtest -p bakhlo --force
 ./tools/opam exec -- dune build --root . @install
 ./tools/opam exec -- dune build --root . \
-  lib/loam_domain.cmxa application/loam_application.cmxa
-./tools/opam exec -- dune exec loam-ocaml -- --help
+  lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa
+./tools/opam exec -- dune exec bakhlo -- --help
 ./tools/opam list --installed --short --columns=name,version
 ```
 
@@ -134,7 +134,7 @@ VM remains stopped between checkpoints.
 [ADR 0001](adr/0001-initial-scope-and-dependencies.md) requires a capability, named
 consumer, alternatives, scope/transitive cost and revisit condition before additions.
 For approved updates, review compiler/registry/direct constraints, resolve an isolated
-set including tests, generate `./tools/opam lock ./loam_ocaml.opam`, review provenance
+set including tests, generate `./tools/opam lock ./bakhlo.opam`, review provenance
 and replay locked bootstrap/checks. Never regenerate a lock for an unrelated code error.
 Missing lock/checksum mismatch fails closed; no unlocked/latest fallback.
 

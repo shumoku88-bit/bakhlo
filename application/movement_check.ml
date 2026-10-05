@@ -1,10 +1,10 @@
-module M = Loam_domain.Movement
+module M = Bakhlo_domain.Movement
 
-type command = { effects : Loam_domain.Effect.t list }
+type command = { effects : Bakhlo_domain.Effect.t list }
 
 type preview =
   { movement : M.t
-  ; positive_total : Loam_domain.Quantity.t
+  ; positive_total : Bakhlo_domain.Quantity.t
   }
 
 let run { effects } =

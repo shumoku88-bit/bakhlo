@@ -1,6 +1,6 @@
 # Contributing
 
-LOAM OCaml is unreleased and non-operational. Read README and the
+Bakhlo is unreleased and non-operational. Read README and the
 [semantic contract](docs/SEMANTIC_CONTRACT.md); use only synthetic data.
 [AGENTS.md](AGENTS.md) also applies to pits. No prototype compatibility promise exists.
 

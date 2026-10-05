@@ -1,7 +1,7 @@
-module S = Loam_application.Actual_source
-module Q = Loam_application.Current_quantity_query
-module D = Loam_domain
-module Text = Loam_presentation.Current_quantity_text
+module S = Bakhlo_application.Actual_source
+module Q = Bakhlo_application.Current_quantity_query
+module D = Bakhlo_domain
+module Text = Bakhlo_presentation.Current_quantity_text
 
 type request = { path : string; coordinate : D.Effect_coordinate.t }
 type plan = Help | Read of request | Refused of string
@@ -14,13 +14,13 @@ let plan = function
   | _ -> Refused "expected FILE LOCUS MEASURE"
 let help : Response.t =
   { exit_code = 0; stderr = ""; stdout =
-      "Usage: loam-ocaml inspect-current-fixture FILE LOCUS MEASURE\n\
-       Read ONLY a LOAM-OCAML-ACTUAL-FIXTURE v2 synthetic file; never write.\n\
+      "Usage: bakhlo inspect-current-fixture FILE LOCUS MEASURE\n\
+       Read ONLY a BAKHLO-ACTUAL-FIXTURE v2 synthetic file; never write.\n\
        Actual subset; separated origin/opening/assertion/presence support.\n\
        Exit 0 exact, 4 known nonzero (amount unknown), 3 unsupported; stdout.\n\
        Not full normalized admission, historical completeness or household authority.\n" }
 let syntax_refusal message : Response.t =
-  { exit_code = 2; stdout = ""; stderr = "error: " ^ message ^ ".\nRun 'loam-ocaml inspect-current-fixture --help' for usage.\n" }
+  { exit_code = 2; stdout = ""; stderr = "error: " ^ message ^ ".\nRun 'bakhlo inspect-current-fixture --help' for usage.\n" }
 let evaluate (request : request) contents : Response.t =
   match contents with
   | Error message -> { exit_code = 1; stdout = "";

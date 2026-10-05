@@ -9,10 +9,10 @@
     The synthetic adapter must reject unsupported evidence, never erase it.
     Domain Event stays general; this is a separate practical admission boundary. *)
 type command =
-  { events : Loam_domain.Event.t list
+  { events : Bakhlo_domain.Event.t list
   ; validities : Actual_validity.fact list
   ; validity_corrections : Actual_validity.correction list
-  ; corrections : Loam_domain.Event_correction.t list
+  ; corrections : Bakhlo_domain.Event_correction.t list
   ; descriptions : Event_descriptions.fact list
   ; merchants : Event_merchants.fact list
   ; original_amounts : Original_amounts.fact list
@@ -23,12 +23,12 @@ type command =
   }
 type t
 type error =
-  | Events of Loam_domain.Event_memory.error
+  | Events of Bakhlo_domain.Event_memory.error
   | Zero_effect of
-      { event : Loam_domain.Identifier.Event.t; event_position : int; effect_position : int }
+      { event : Bakhlo_domain.Identifier.Event.t; event_position : int; effect_position : int }
   | Unbalanced_measure of
-      { event : Loam_domain.Identifier.Event.t; event_position : int
-      ; measure : Loam_domain.Identifier.Measure.t; residual : Loam_domain.Quantity.t }
+      { event : Bakhlo_domain.Identifier.Event.t; event_position : int
+      ; measure : Bakhlo_domain.Identifier.Measure.t; residual : Bakhlo_domain.Quantity.t }
   | Validity of Actual_validity.error
   | Corrections of Correction_frontier.error
   | Descriptions of Event_descriptions.error

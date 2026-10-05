@@ -1,8 +1,8 @@
 open Base
 
-module A = Loam_application.Movement_check
-module D = Loam_domain
-module Text = Loam_presentation.Movement_text
+module A = Bakhlo_application.Movement_check
+module D = Bakhlo_domain
+module Text = Bakhlo_presentation.Movement_text
 
 let identifier constructor value =
   match constructor value with

@@ -1,10 +1,10 @@
 open Base
-module D = Loam_domain
+module D = Bakhlo_domain
 module Q = D.Quantity
 module Coordinate = D.Effect_coordinate
-module P = Loam_application.Current_quantity_projection
-module F = Loam_application.Correction_frontier
-module Cut = Loam_application.Reflected_root_cut
+module P = Bakhlo_application.Current_quantity_projection
+module F = Bakhlo_application.Correction_frontier
+module Cut = Bakhlo_application.Reflected_root_cut
 module T = Fixtures
 module ZT = Fixtures
 module G = Lineage_model

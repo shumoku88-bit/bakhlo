@@ -1,8 +1,8 @@
 open Base
-module D = Loam_domain
+module D = Bakhlo_domain
 module Id = D.Identifier.Event
-module F = Loam_application.Correction_frontier
-module C = Loam_application.Reflected_root_cut
+module F = Bakhlo_application.Correction_frontier
+module C = Bakhlo_application.Reflected_root_cut
 module G = Lineage_model
 module M = Root_cut_model
 module T = Fixtures

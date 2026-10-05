@@ -11,7 +11,7 @@ type syntax_error =
   | Invalid_identifier of
       { position : int
       ; field : field
-      ; reason : Loam_domain.Identifier.error
+      ; reason : Bakhlo_domain.Identifier.error
       }
   | Invalid_quantity of
       { position : int
@@ -20,11 +20,11 @@ type syntax_error =
 
 type refusal =
   | Syntax of syntax_error
-  | Movement of Loam_domain.Movement.error list
+  | Movement of Bakhlo_domain.Movement.error list
 
 type outcome =
   | Help
-  | Validated of Loam_application.Movement_check.preview
+  | Validated of Bakhlo_application.Movement_check.preview
   | Refused of refusal
 
 (** Arguments exclude argv[0]. Decimal integers only; each --effect takes
