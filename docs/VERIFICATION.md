@@ -43,7 +43,9 @@ Question/D/P/R recorded before alignment. Documentation/dependency-direction/met
 only in this step; no SQLite adapter/install/lock/schema/shared test runner/VM boot. Historical
 Mirage/SPT evidence below remains earned, neither deleted nor qualification of this reference.
 Architecture owns the minimal contract; tests must not call backend storage history household
-corrections or turn unsupported durability into Saved.
+corrections or turn unsupported durability into Saved. The later [bounded Unix/SQLite trial](#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification)
+now exercises a concrete ignored consumer; the production adapter/shared multi-backend runner
+remain to build, rather than SQLite still being wholly metadata-only.
 
 | Planned common scenario | Assertion / physical mapping boundary |
 | --- | --- |
@@ -197,6 +199,93 @@ Normal checks, forced package tests, install and clean engine-only builds are ex
 relevant semantic checkpoints. Engine builds must leave outer libraries unbuilt. Product
 checks pass with nonexistent LEAN. Lock/tooling/platform changes require separate replay;
 earlier fresh-switch equality is prior evidence, not a fresh replay for every code edit.
+
+### Unix/SQLite synthetic persistence (bounded outer trial, no Saved qualification)
+
+Question/D/P/R/assumptions recorded before code/install at 930b3ac. Named consumer: supplied
+whole synthetic generation -> conditional save -> close/new process -> query/history/receipt.
+Ignored scratch/sqlite_review only; no main package/source/lock, global configuration, OS
+prerequisite, operational data or VM change. Official sqlite3-ocaml 5.4.2 archive checked,
+SHA256 32f68f078f4beaed51ebc279fef46145205fd98cf6c79fe955218601f202621c; MIT source/API/
+C-handle/statement/error and discovery review. Thin binding chosen for this trial over owning
+C FFI/lifetime/error logic or an ORM/umbrella; no permanent dependency/format adoption.
+
+Separate opam root/switch uses frozen ac27950 registry and EXISTING main OCaml 5.3.0 via
+ocaml-system, not a fresh compiler/platform qualification. 35 installed outer packages,
+including Base v0.17.3/Zarith 1.14/Dune+configurator 3.24.2/sqlite3 5.4.2; common package
+versions match main. 17 outer-only names (including ocaml-system instead of main compiler):
+sqlite3/conf-sqlite3, dune-compiledb 0.6.0 and its astring/fpath/ezjsonm/hex/cstruct/fmt/jsonm/
+uutf/sexplib/parsexp/num/ocamlbuild/topkg closure. dune-compiledb declares LGPL-2.1-or-later;
+SQLite OCaml library has no OCaml library dependencies and links native SQLite, not these
+build-tool libraries. No Jane Street endorsement inferred. Main exact 50 packages/lock stayed
+identical. Observed root/switch/probe/reference ~118460/83240/8784/572 KiB, not cost guarantees.
+Native binary links /usr/lib/libsqlite3.dylib, existing GMP and libSystem. Actual SDK/vendor
+SQLite reports 3.43.2, source ID ending 709aapl; pkg-config matches. It is not an independently
+pinned upstream SQLite build. Extension loading is disabled by stock Darwin binding discovery.
+
+64 own source/build digests matched current engine plus ONLY the synthetic decoder/quantity
+lexer. No CLI/Presentation library linked; only fixture module namespace is used outside the
+engine. Reused Irmin synthetic payload/oracle, not third-party/Lean source. Trial outer files:
+run/{persistence.ml,publication.ml/.mli,sqlite_store.ml,main.ml,payload.ml}; run-controls.py.
+The synchronous publication seam takes coherent-read/conditional-publish functions returning
+backend-neutral structured values; source/support admission is separate from SQL and terminal
+rendering. Current immutable generation is semantically requalified before the atomic SQL gate
+(assumed exclusive trial publisher; legitimate head changes still conflict). No Core I/O/runtime,
+dummy health/world, generic command bus, effect monad or household recording operation added.
+
+Trial storage uses explicit provision versus READONLY/NO_CREATE open, application/version header,
+STRICT generations/receipts/singleton head, foreign keys and immutable-row triggers. BEGIN
+IMMEDIATE compares supplied expected head and stores complete BLOB + parent/request/receipt/
+head in ONE transaction. BLOB preserves exact input, including NUL/quote/space/UTF-8 request
+and recognizer text; no household quantity enters SQLite INTEGER/REAL arithmetic. Tokens derive
+from supplied trial request IDs, scoped to this store, NOT production identity allocation or
+household chronology. Fixture v2/schema v1 is a synthetic control, NOT canonical storage.
+Exact replay returns the ORIGINAL receipt even with a newer current head; changed payload/base
+refuses. Missing store/provisioned empty/version/corruption/busy/input/stored-evidence failures
+stay distinct; no init, zero, older-generation fallback or blind republish. No-receipt means
+only not observed at this read, not universal proof of non-recording. Resource/transaction
+mutation belongs to the adapter; cleanup failure stays explicit.
+
+Final controls-v4 passed: seed/new-process read/update/history; retained old bytes/parent and
+180-bit/four-support/zero-versus-touch/unknown/correction/relation provenance/remainder 3->2;
+stale expected head, identical replay, changed candidate/base, syntax/over-discharge refusals,
+immutable-row checks and two-connection BUSY (not fabricated Conflict). Complete rich example
+round-trips byte-for-byte, retaining eight validity facts/Exchange/Reversal; binary payload/
+request/receipt control passes. Unsupported schema 99, damaged SQLite header and physically
+valid-but-invalid stored evidence yield structured faults; invalid selected evidence blocks
+publication. Read/refusal/reconciliation disk hashes unchanged; native process can report these
+faults without a healthy household answer. Not an implemented diagnostic host or partial world.
+
+Five synthetic failed-return checkpoints: after generation/receipt/head SQL, before COMMIT,
+after COMMIT. All return Uncertain, no publication PASS; next process sees 4 OLD/1 NEW with
+old generation and receipt retained. Two REAL process SIGKILL checkpoints before/after COMMIT
+reconcile OLD/NEW with no success reply. These are named API checkpoints, NOT SQLite syscall/
+sector/torn-write/exhaustive kill or host/power-loss controls. Closed DELETE-mode complete DB
+copied to a separate same-host file; bytes/history/receipts/query match, no live/off-device backup.
+Initial v1 corrupted-header diagnostic was wrongly classified as generic backend/open failure:
+stock prepare raises Sqlite3.Error, so classification now occurs while handle/errcode exist,
+not only for SqliteError. v1 source/image/disks/logs preserved; fresh v2/v3/v4 controls passed.
+A publication-interface record-label inference mismatch was corrected with explicit snapshot
+annotations; no engine/compiler/semantic weakening. No dependency patch required.
+
+Every write connection checks journal_mode=DELETE, synchronous=EXTRA(3), fullfsync=ON(1),
+foreign_keys=ON. Official SQLite pragma/atomic-commit/corruption docs reviewed: EXTRA includes
+journal-unlink directory sync; Darwin fullfsync requests F_FULLFSYNC. These are real supported
+mechanism/configuration candidates, not dummy flushes, but queried flags/COMMIT/readback do NOT
+verify this vendor VFS/syscall/device completion, provisioning-directory durability or stable
+media. Result deliberately remains Visible_unacknowledged, never Saved. Actual I/O/full-disk,
+cache spill/internal writes, crash/power-loss, folder/restore ordering, valid tampering detection,
+production version/identity/upgrade/retention/backup and multi-process races remain unqualified.
+Supported Linux SQLite path and a durable acknowledgement need separate bounded qualification;
+no runtime/filesystem fork is required by this trial.
+
+Clean strict release rebuild and ./tools/check passed; main list/lock and 64 digests unchanged,
+no optional Lean/Lima/Linux/SPT/proof replay. Final native image SHA256
+ efade4ad2cdb3869fbfa0c194272be8154994aaec193bf9434027beb487d800d.
+Final disk digests/control logs/source/outer-switch export retained privately under scratch/
+sqlite_review/evidence; v1 classification failure preserved. All final trial handles/processes
+closed; VM remained stopped. No permanent adapter/common multi-backend runner/canonical schema,
+full Actual, real recording, UI/voice/network or household adoption claimed.
 
 ### MirageOS hosted feasibility (one-shot, not production support)
 

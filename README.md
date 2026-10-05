@@ -24,7 +24,9 @@ The selected goal is a long-lived backend-neutral household application preservi
 meanings, useful new value and maintainability, not a Lean implementation clone. Core,
 Admission and Publication stay independent of particular storage/runtime technologies.
 **Unix + SQLite is the near-term practical reference implementation to build and qualify.**
-SQLite is selected, not implemented/installed/qualified yet. Irmin and MirageOS/Solo5 remain
+An ignored [Unix/SQLite trial](docs/VERIFICATION.md#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification)
+now passes synthetic save/reopen/history/receipt/conflict/interruption controls; no permanent
+adapter, canonical schema or durable Saved is qualified. Irmin and MirageOS/Solo5 remain
 experimental choices with their earned evidence preserved; they are not deleted and cannot
 block or become dependencies of the reference path. Runtime and store are separate axes.
 
@@ -46,8 +48,8 @@ Future Conversation/Voice/unikernel entrances must reuse structured application 
 not enter Core or turn terminal text into an API. Diagnostic availability and qualified
 partial reads are [design requirements](docs/ARCHITECTURE.md#structured-operations-and-diagnostic-availability),
 not implemented health/recovery features; no audio/LLM/chat/Mirage-specific addition now.
-Current priority is the minimal consumed contract and Unix/SQLite reference save/read/reopen
-path with shared failure scenarios, then useful recording/query and recovery. Bonsai and
+Current priority is qualifying reference durability/identity/representation from the consumed
+SQLite seam, then a maintained outer adapter/shared scenarios and useful recording/recovery. Bonsai and
 secondary UI experiments remain deferred; experimental runtime fixes are no longer blockers.
 
 ## Build and try

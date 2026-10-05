@@ -22,7 +22,7 @@ useful new value and maintainability matter; no world-first/security claim follo
 
 | Axis / choice | Current status |
 | --- | --- |
-| Unix + SQLite | Selected near-term practical reference implementation TO BUILD/QUALIFY; no adapter or SQLite runtime evidence yet |
+| Unix + SQLite | Selected reference; [ignored native trial](VERIFICATION.md#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification) passes save/reopen/receipt/conflict/fault controls; maintained adapter/durable Saved still TO BUILD/QUALIFY |
 | Irmin store adapter | Experimental retained option; commit/history utility is separate from household correction/Reversal and generic merge is not admission |
 | MirageOS/Solo5 runtime + appropriate store adapter | Experimental retained target; guarded SPT evidence preserved, durable barrier/fix maintenance unresolved |
 
@@ -43,9 +43,12 @@ OS installs, real-data access, migration, release/push or an automatic main-lock
 
 ## Minimal Persistence contract
 
-Contract requirements, not an implemented module/stable API. Extract the executable seam
-from the SQLite reference consumer and Irmin experiment; no generic DB/FS service, effects
-framework, branch/merge API or dummy State. Open/close/provision/fault injection are outer
+Production requirements, not an implemented main module/stable API. An ignored synchronous
+SQLite consumer now consumes coherent-read/conditional-publish functions and backend-neutral
+snapshot/receipt/failure values; history/reconciliation are concrete trial operations. Its
+admission/orchestration uses no SQLite types. This earns a small seam, NOT the trial schema/
+IDs/durability or a shared multi-backend runner. No generic DB/FS service, effects framework,
+branch/merge API or dummy State. Open/close/provision/fault injection are outer
 resource concerns. Synchronous Unix and Lwt/Mirage adapters need not impose their effect
 runtime on the immutable core.
 
@@ -381,6 +384,7 @@ records desktop Notty preference/optional Bonsai browser evaluation; toolchains,
 authentication and compatibility need concrete qualification before adoption. Clients consume
 semantic answers rather than recomputing meaning. Prior hosted, guarded SPT engine and
 block-persistence evidence belongs to VERIFICATION, not production support. No permanent
-adapter or main Lwt/SQLite dependency yet. Unix + SQLite reference is selected TO BUILD;
+adapter or main Lwt/SQLite dependency yet; the ignored native SQLite consumer is now exercised.
+Unix + SQLite reference is selected TO BUILD/QUALIFY;
 Irmin/Mirage targets remain experimental and not prerequisites for semantics/publication.
 No speculative load/navigation state, adapter, cache or framework belongs in the engine.

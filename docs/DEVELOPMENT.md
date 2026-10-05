@@ -58,12 +58,15 @@ API/storage compatibility. Do not suppress missing-CMI warnings or export intern
 ## Reference versus experimental builds
 
 Selected policy: Unix + SQLite reference TO BUILD; Irmin/MirageOS/Solo5 remain experimental.
-No SQLite package/adapter/shared backend runner is present yet. Preserve ordinary engine
+No ordinary SQLite package/adapter/shared backend runner is present yet. Preserve ordinary engine
 Base + Zarith and inward dependencies; SQLite belongs only to the outer Unix adapter/package.
 Review exact binding/build/runtime/OS-library closure before changing the lock; explicit
 reference selection is not a compiler upgrade or global OS installation. Bootstrap still
 refuses missing prerequisites rather than installing them. Record actual SQLite library/
-synchronisation settings, not just the OCaml binding version.
+synchronisation settings, not just the OCaml binding version. A separate ignored root/switch
+now exercises sqlite3 5.4.2 against system SQLite 3.43.2 with unchanged compiler/main 50;
+[bounded native evidence](VERIFICATION.md#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification)
+is not permanent installation, Saved or a canonical-format decision.
 
 Shared tests will assert the same logical save/reopen/stale/conflict/corrupt/uncertain/
 restore outcomes and engine bytes/answers. Each runner owns native/Lwt/process lifecycle and

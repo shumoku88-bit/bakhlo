@@ -10,6 +10,36 @@ NOT prerequisites for the reference product. Store choice and runtime choice are
 axes. This supersedes the earlier standalone Mirage + Irmin-first sequence, not its earned
 evidence. No operational authority/data migration, global install, public service or push.
 
+## Latest bounded trial — Unix/SQLite save/receipt controls passed; Saved not qualified
+
+Question/owners before code/install: can a thin OCaml SQLite adapter conditionally retain
+one complete admitted synthetic generation + request receipt, reopen/query/history and
+reconcile interrupted/lost acknowledgement without terminal text or SQLite in the engine?
+Application owns admission/answers; outer orchestrator owns command/publication policy;
+adapter owns SQL/resource/synchronisation effects. D: 930b3ac; no production adapter;
+macOS x86_64 system/pkg-config SQLite 3.43.2 available, compiler/lock unchanged. P: exact
+engine/source/support and Irmin retained-blob/failure oracles; typed operation audit.
+R: binding source/solved closure and actual linked OS library, minimal consumed seam,
+versioned trial envelope, expected-head/receipt/replay, structured failures, durability
+settings/failure model. Consumer: fresh named synthetic store, save -> close/reopen ->
+read plus stale/replay/history/uncertain controls. Assumptions/bounds: exclusive outer
+process unless a named SQL contention control; full synthetic fixture bytes (NOT canonical
+schema), explicit supplied request IDs; no clocks/household ID allocation. Instruments:
+archive/source/license/isolated solve review; ignored trial only, frozen compiler/registry,
+source digests, deterministic process/copy/fault controls and ordinary regression checks.
+No new theorem/random campaign, global install, main dependency adoption, VM boot, UI/
+voice/network, operational data/migration or Saved/power-loss claim. Revisit at concrete
+receipt/encoding/durability faults or before main adapter/package/format adoption.
+Completed: stock binding/source/closure reviewed and installed ONLY in ignored outer switch;
+64 own source/build digests and main 50/lock unchanged. Small backend-neutral structured
+read/publish orchestration consumed by SQLite; final save/reopen/history/replay/refusal/
+uncertain/diagnostic/closed-copy controls passed, including invalid-current-evidence refusal.
+No SQLite/CLI types enter its admission interface. Initial corruption-error classification
+failure preserved and fixed. Actual native sync settings are recorded, not durable Saved.
+[VERIFICATION](VERIFICATION.md#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification)
+owns exact source/closure/control/evidence and limitations. No main adapter/format adoption
+or common Irmin runner; no Linux/VM boot, new theorem/campaign or operational write.
+
 ## Latest audit — structured operations / diagnostic availability; no features added
 
 User asked to preserve later Mirage/Conversation/Voice entrances, NOT implement them now.
@@ -58,37 +88,38 @@ concrete SQLite consumer fixes lifecycle/format/identity/fault scope. Prior lock
 Architecture owns [minimal Persistence contract](ARCHITECTURE.md#minimal-persistence-contract)
 and [reference/experimental separation](ARCHITECTURE.md#selected-product-direction).
 VERIFICATION owns [shared scenario plan](VERIFICATION.md#backend-neutral-reference-direction-contracttests-planned)
-and historical platform evidence. Current SQLite metadata is a preflight, not installation,
-solved dependency closure, operating SQLite version, durability or reference qualification.
+and historical platform evidence. That alignment's SQLite metadata was only a preflight;
+the subsequent ignored native trial above now has source/closure/runtime evidence. Neither
+step qualifies a production adapter/schema, durable acknowledgement or household adoption.
 
 ## Next bounded implementation
 
-1. Name a synthetic one-generation save -> close/reopen -> read consumer. Derive a tiny
-   interface from that consumer plus the existing Irmin experiment, not a generic database,
-   filesystem, effect monad, branch/merge bus or speculative service framework. Keep outer
-   acquisition/version/I/O failures structured and distinct from semantic unavailability;
-   diagnostic inspection must not claim readable fragments are a complete admitted source.
-2. Review sqlite3 binding/version, alternatives and actual solved build/runtime/OS cost;
-   place SQLite dependency solely in the outer Unix adapter. Main engine compiler/exact
-   quantities unchanged. Versioned bytes are one complete source/support/evidence image;
-   fixture v2 remains a synthetic oracle, NOT canonical household schema by default.
-3. Implement Unix + SQLite reference with explicit provisioning/open modes, expected-head
-   transaction, admitted immutable generations and reconciliation of uncertain outcomes.
-   Qualify synchronisation/settings, failure/close paths and stopped-copy restore before
-   Saved; do not equate WAL, transaction success or readback alone with power-loss proof.
-4. Factor common save/restart/stale/conflict/corrupt/interrupted/restore scenarios and exact
-   engine assertions; map backend-specific faults below them. Current Irmin/SPT controls
-   are reusable evidence but are NOT already a shared harness or equal qualification.
-   Unsupported durable capabilities are explicit limitations, not skips reported as PASS.
-5. Keep experimental adapters separate. No requirement to repair Solo5 barriers or adopt
-   Chamelon/Lwt guards before the reference implementation can progress. Then a small
-   useful input/save/query path, Notty, authenticated multi-device/AI; Bonsai remains later.
+1. Fix the reference Saved failure model/maintenance owner: supported SQLite/VFS/OS sync
+   ordering and completion, provision/restore directory lifecycle, close/cleanup and actual
+   I/O-error handling. Reuse the source review/process controls; add targeted instruments,
+   not a mandatory exhaustive power-cut campaign or proof. Flags/readback alone do not
+   establish completion. Linux replay is separately useful; approved VM still stopped.
+2. Fix minimal production representation/version and store-scoped generation/request/receipt
+   identity, retained candidate association, upgrade/export/restore rules before adoption.
+   Trial fixture v2/SQL schema/request-derived tokens are NOT canonical defaults. Keep full
+   source/support evidence; structured acquisition errors versus semantic unavailability;
+   readable fragments/diagnostics never claim a complete world or permit implicit repair.
+3. Then move only the consumed own adapter/orchestration/scenarios into a reviewed outer
+   package/build. Binding 5.4.2 source + 35-entry outer closure reviewed; main budget/compiler/
+   lock remain unchanged until an applicable adoption decision. No generic DB/FS service,
+   effect monad, bus, new filesystem/runtime fork or SQLite in Domain/Application.
+4. Map common logical controls to Irmin/Mirage's separate effect/fault runner without exposing
+   SQLite or Solo5 mechanics to semantics. Current trial vocabulary/oracles earn a seam,
+   NOT an already shared harness or equal durability. Unsupported Saved stays explicit.
+   Experimental CTZ/Lwt/barrier fixes do not block reference progress. Continue toward a
+   small useful CLI input/save/query/recovery path, then Notty; no full parity first, no
+   new voice/LLM/chat/UI/auth/network or Bonsai exploration now.
 
 ## Earned state / outstanding limits
 
 Native macOS x86_64 and Ubuntu 24.04 x86_64 locked ordinary suite qualified. Domain/Application
-and current synthetic reader have unchanged executable implementations/signatures (latest
-change adds boundary comments only). Full normalized Actual, real recording,
+and current synthetic reader have unchanged executable implementations/signatures; SQLite
+consumer is ignored outer scratch only. Full normalized Actual, real recording,
 production representation/upgrade/retry/recovery/backup, Scheduled/reports/UI/API are absent.
 Existing semantic evidence belongs to interfaces/VERIFICATION/REFERENCES, not a file-layout
 porting checklist; no whole-tree parity, handwritten refinement or external-truth guarantee.
