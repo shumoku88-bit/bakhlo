@@ -61,9 +61,12 @@ A [bounded versioned-text read](docs/ARCHITECTURE.md#experimental-versioned-text
 existing structured quantities, supplied premises/provenance or typed refusal, without CLI or
 storage types in its pure API. It is a synthetic profile, NOT an adopted canonical format.
 User now approved a private read-only LOAM comparison to ground the next household question,
-without making Bakhlo a LOAM layout clone. Select the actual read revision first; ordinary tests
-remain synthetic and originals are never written. Then compare Unix publication/recovery and
-long-term synthetic cost before choosing physical store/index roles. Fixture v2 is only an oracle; no writer/index, AI/UI or Mirage feature.
+without making Bakhlo a LOAM layout clone. User selected the latest `tools/loam tui` read contract;
+a private current-only experiment now yields one conditional quantity and supplied premise.
+Logical write-request provenance stays at the outer boundary, not new Core ontology or Saved.
+Ordinary tests remain synthetic; originals are never written or repaired, no older-file fallback.
+Then compare Unix publication/recovery and long-term synthetic cost before choosing physical
+store/index roles. Fixture v2 is only an oracle; no permanent LOAM adapter, writer/index, AI/UI or Mirage feature.
 [Handoff](docs/HANDOFF.md#next-bounded-implementation) owns next work; experimental runtime fixes
 are not immediate blockers.
 

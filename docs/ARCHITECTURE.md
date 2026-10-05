@@ -71,8 +71,16 @@ then test one quantity/evidence question. Existing implementation/layout/answers
 evidence, not automatic design requirements or a full-parity oracle. Original operational
 facts stay under LOAM authority; ordinary tests remain synthetic and private payloads never enter
 fixtures/commits. HOBS1 is a derived comparison surface, not canonical Bakhlo evidence or write
-permission. Reader selection cannot silently prefer source HEAD over an operational pin, or
-vice versa; resolve that question explicitly before calling either view current household truth.
+permission. User selected the checkout-based `tools/loam tui` read contract, then explicitly
+requested latest interpretation while retaining responsibility for their own data cleanup.
+No implicit older-file fallback, original repair/migration or CI-pin change. The private
+current-only experiment now earns one conditional quantity/premise, not operational authority
+or full-household admission. Its logical publication-request -> retained Event links are
+represented/qualified in the OUTER read profile, not new Core ontology, payment truth or Saved.
+All Actual rows/profile gates are handled before lookup; unsupported evidence still refuses,
+and opaque other-family sections stay retained but unadmitted. No permanent compatibility API
+follows automatically. [Verification](VERIFICATION.md#latest-loam-contract-private-conditional-quantity-experiment)
+owns limits; quantities agree with an original-list oracle, not a claimed LOAM runtime result.
 No production canonical codec/store, writer/index/benchmark or Mirage/UI feature, full parity
 prerequisite, original mutation/migration, main-lock change or implicit Saved.
 

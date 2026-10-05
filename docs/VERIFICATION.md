@@ -51,8 +51,45 @@ snapshot acquisition, backup/durability or all-file unchanged-content hashes. No
 entrypoint/recovery invocation, sibling build/modification/source copy or network operation.
 Only policy/docs changed; engine/manifests/lock/tools/tests unchanged, no fresh executable-suite
 claim. Public record omits private paths/hashes/identities/amounts; exact private observations
-remain ignored, not fixtures or public provenance. Next: user identifies everyday runtime/read
-revision, or names an explicitly non-operational candidate before a single quantity comparison.
+remain ignored, not fixtures or public provenance. This preflight stopped at selection;
+the user subsequently resolved it and authorized the bounded continuation below.
+
+## Latest LOAM contract: private conditional quantity experiment
+
+User selected checkout-based `tools/loam tui` and then latest LOAM contract during unfinished
+old-layout cleanup, which the user will perform themselves. Narrow source-only inspection
+followed wrapper/CLI/TUI root/current-authority/persistence/support owners. No LOAM entrypoint,
+sibling build/source copy, pin edit, original recovery/write/delete/migration or network action.
+
+An own ignored reader acquired ONLY current HouseholdImage: no-follow directory/file FDs,
+regular-file and explicit 16 MiB research bound, descriptor/path identity before/after, repeated
+full-byte equality, exclusive private copy and final original-byte recheck. Copy/result access
+restricted to private owner; exact hashes/paths/payloads not in public output or committed facts.
+Synthetic framing controls exercised strict UTF-8, Unicode CHARACTER lengths (not bytes),
+opaque unknown/empty versus missing sections, malformed/version/duplicate/truncated/trailing
+input, symlinks and no old-file fallback. Stability is not atomic filesystem snapshot, durable
+backup, all-private-file content isolation or security certification; reads may change atime.
+
+Initial opaque inventory correctly refused OPERATION as unrepresented. Narrow source owner
+identified one-to-one logical publication-request ID -> retained Event provenance, not payment
+truth/group/transaction/amount or Saved. Own read profile represents and checks every such
+mapping OUTSIDE Core (exact uniqueness, unique Event owner, retained-reference closure), retains
+superseded mappings without transfer, and keeps full original opaque generation. All Actual
+rows within this declared profile mapped without filtering; unknown/settlement/version/missing
+profile coverage refuses. Existing whole source/four-support gates precede lookup. Other household
+sections remain retained but unadmitted; no full normalized-LOAM/household qualification claim.
+
+Synthetic compiled controls: older-dated explicit Event correction, exact cut/assertion and
+original description bytes, stable links, duplicate/unknown mapping refusals, unsupported raw
+families, signed 180-bit quanta, source-closure refusal and support-overlap refusal. Strict
+sequencing/fatal warnings 8/9/11 preserved. Then the private candidate passed all read-profile
+gates; one question chosen from explicit supplied support returned typed Exact with premise
+and exact decomposition matching independent original-list correction traversal/integer Effect
+summation. Private values/identities remain local; original current bytes rechecked unchanged.
+This establishes a useful CONDITIONAL read-profile answer, not execution/numeric parity with
+LOAM, external factual completeness, durable Saved, spending permission or production decoder
+refinement. Changed data needs fresh capture, not stale answer reuse. No main module/API/test/
+manifest/lock/tool change or ordinary-suite/VM/proof/storage/performance replay in this increment.
 
 ## Experimental versioned-text read (ordinary Actual profile)
 

@@ -12,38 +12,37 @@ near-term validation runtime; MirageOS support remains experimental, not an imme
 All SQLite/Irmin/Mirage trials and counterexamples retained. No authority/data migration,
 global install, public service, source-side rename reversal, dependency change or push.
 
-## Read-only preflight — operational revision selection required
+## Completed private read experiment — latest LOAM contract, no original mutation
 
-After 6466493, user explicitly permitted operational-data access and approved a read-only
-comparison before persistence implementation. This is a narrow exception to synthetic-only
-development, not permission to write/recover/normalize/migrate/synchronize original data.
-LOAM remains sole operational authority; Bakhlo design stays independent, not parity-first.
-Question/owners: which actual selected evidence supports one coordinate quantity, and which
-unrepresented facts prevent an honest Bakhlo answer? LOAM owns current selection/read contract;
-outer research probe owns acquisition/profile mapping; existing Bakhlo gates own conditional
-answers. D: clean 6466493/main 50; pure structured engine and experimental text profile.
-P: exact/source/correction/support oracles and whole-profile refusals. R: live selected format,
-coherent acquisition/reference coverage, supported evidence profile and named question.
-Instruments: narrow current LOAM read-contract/source inspection (no sibling build/source copy),
-metadata-only orientation, no-follow/read-only acquisition with before/after hashes and stability
-checks, ignored private probe/copies/results; synthetic controls before touching content.
-Never open databases writable/run an unreviewed LOAM entrypoint; recovery/startup may mutate.
-No raw identities/descriptions/amounts/data paths in committed evidence/fixtures or public logs.
-Keep originals unchanged and data/probe output private; no release/network/global dependency,
-new canonical codec, writer, full parity or authority claim. Stop on ambiguous selected authority,
-unsafe acquisition, changing source, unsupported version/reference/coverage or missing support;
-never filter to make existing gates pass. Git alone cannot undo disclosure/untracked effects.
-Revisit with exact read-side correspondence gaps; no predetermined model/layout copy.
-Metadata-only preflight completed: operational revision metadata and available source checkout
-have different root-selection contracts (legacy multi-file versus HouseholdImage). Both candidate
-authority files exist; associated layout completeness is not yet qualified. Do not silently
-select checkout HEAD, recorded pin or older files as current truth.
-Read-side source inspected at the two exact code revisions, no execution/build/source copy.
-Synthetic no-follow metadata controls and repeated metadata stability checks passed; private
-results in ignored scratch. Household fact payloads not opened/copied, no quantity calculated,
-no database/recovery entrypoint run. Need user to name the actual everyday runtime/revision or
-explicitly select a NON-operational comparison candidate. Do not edit the operational pin.
-This is a selection question, not evidence of corrupt data or failed quantity support.
+User selected `tools/loam tui`, then explicitly requested latest LOAM interpretation despite
+unfinished old-layout cleanup; user owns that cleanup/migration. Wrapper selects checkout-root
+build/product, not the data-side CI pin. We inspected source only and DID NOT run/build it or
+change pin/originals. Current-only HouseholdImage acquisition; no legacy/previous fallback.
+LOAM remains sole operational authority; ordinary product tests remain synthetic, all private
+copies/identities/text/amounts/results stay ignored and out of fixtures/commits/public logs.
+
+Before continuation, question/owners/D/P/R recorded in ignored private task: can one coordinate
+quantity/premise be obtained without erasing evidence or adopting LOAM ontology? D: b96b473,
+main 50/current source contract; P: strict source/correction/support gates and metadata controls;
+R: stable full bytes, Unicode-length envelope, supported Actual profile/outer provenance, closure
+and quantity correspondence. Instruments: narrow source-only owners, synthetic no-follow/opaque
+framing/mapping controls, private whole-file copy with byte rechecks, existing engine compiled
+under strict warnings, original-list/integer oracle. No VM/proof/new campaign/dependency.
+
+Completed: stable selected-generation copy retained all opaque sections; whole Actual/four-
+support read profile admitted through existing engine. OPERATION initially refused, then
+represented/qualified in the OUTER read profile as exact one-to-one logical publication-request
+ID -> retained Event provenance. Not transaction/group/payment truth/Saved or a new Core type;
+no row filtering, inheritance or retargeting. All unmapped Actual/settlement rows still refuse.
+One privately selected explicit-support question returned typed Exact with premise/decomposition
+matching an original-list/integer oracle. This is conditional read-profile evidence, NOT LOAM
+production numeric parity, full-household known-family admission/completeness or spending rights.
+[Verification](VERIFICATION.md#latest-loam-contract-private-conditional-quantity-experiment)
+owns execution/limits; exact artifacts remain private. Original current bytes rechecked equal.
+Main engine/reader/CLI/tests/lock unchanged. User cleanup later needs a NEW explicit capture,
+not reuse of old results as current. No operational cleanup/recovery/migration/synchronization,
+permanent codec/API/store/writer or release/push. Revisit before promoting a concrete pure outer
+read consumer; preserve provenance without copying LOAM types/layout or requiring full parity.
 
 ## Completed read slice — explicit ordinary-Actual profile, structured answers
 
@@ -207,10 +206,12 @@ The bounded synthetic read is implemented; [Architecture](ARCHITECTURE.md#experi
 owns its limited profile/API, not a final format. Do not widen it to full Actual by filtering
 or promote fixture v2/experimental profile automatically into canonical storage.
 
-First resolve the read-only comparison's operational-revision question above. Then name one
-coordinate quantity/evidence question, acquire a qualified private read-only copy and report
-supported/unsupported correspondence without automatic full-parity or Core/layout copying.
-Retained publication/cost work below follows that usefulness check, not immediate writer work.
+The private latest-contract read-profile usefulness check passed for one conditional quantity.
+Next name the smallest repeatable STRUCTURED read consumer and its explicit scope/provenance;
+review promotion of only the necessary pure outer mapping/diagnostics, not a permanent omnibus
+LOAM compatibility layer or new Core ontology by habit. Keep latest-current selection and typed
+missing/unsupported/refusal; user owns operational cleanup and new data needs a fresh capture.
+Retained publication/cost work below follows the bounded read entrance, not immediate writer work.
 
 1. Name the next bounded publication/lifecycle consumer and compare Unix text-authority
    publication/save -> close/reopen -> read/recovery against earned SQLite/Irmin controls. Define coherent generations, expected generation, request/
