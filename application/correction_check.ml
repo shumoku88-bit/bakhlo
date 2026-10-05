@@ -1,4 +1,4 @@
-module D = Loam_domain
+module D = Bakhlo_domain
 
 type endpoint = Target | Replacement
 

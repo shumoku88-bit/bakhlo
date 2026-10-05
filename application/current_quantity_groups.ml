@@ -1,5 +1,5 @@
 open Base
-open Loam_domain
+open Bakhlo_domain
 module Projection = Current_quantity_projection
 
 type group =
