@@ -308,6 +308,73 @@ sqlite_review/evidence; v1 classification failure preserved. All final trial han
 closed; VM remained stopped. No permanent adapter/common multi-backend runner/canonical schema,
 full Actual, real recording, UI/voice/network or household adoption claimed.
 
+### Linux SQLite syscall failures and retained-journal lifecycle control
+
+Question/owners/D/P/R recorded in HANDOFF at main 0fc0937 before VM/install/code. Named ignored
+scratch/sqlite_linux_review and guest /home/loam/sqlite-linux-review; old SQLite/Irmin/SPT trial
+sources and disks not reused/rewritten. Scoped moved HOME/LIMA_HOME successfully starts existing
+approved VM without YAML/config edits; no shares/agent/X11/public forwards, userns sandbox/global
+restriction retained. Guest Ubuntu 24.04.5/x86_64/kernel 6.8.0-142/ext4. Only missing libsqlite3-dev
+installed guest-only at existing libsqlite3-0 version 3.45.1-1ubuntu2.8, no runtime upgrade; strace
+6.8 already installed. No global host installation/main dependency adoption or compiler change.
+
+Current 64 own Bakhlo engine/decoder/build bytes copied/checked; new namespaces/fixture marker
+used, not historical input rewritten. Backend-neutral publication/values reused; adapter SQL
+schema remains a SYNTHETIC control, not canonical storage. Fresh ignored ocaml-system switch
+uses existing guest native OCaml 5.3.0 and frozen ac27950 registry: exact same 35 names/versions
+as reviewed Darwin trial, native guest/main 50 unchanged. Native binary links system
+/lib/x86_64-linux-gnu/libsqlite3.so.0 (3.45.1, vendor source ID ending 57ccalt1), GMP/libc; no
+CLI/Presentation/Core/Async/Lwt/Lean. Full earlier logical save/read/history/conflict/replay/
+BUSY/refusal/rich/binary/failed-return/SIGKILL/closed-copy baseline passed with Bakhlo marker.
+Not a fresh full Linux ordinary suite or production adapter/representation qualification.
+
+DELETE/EXTRA/fullfsync settings: successful trace observes journal fdatasync, creation-directory
+fdatasync, journal fdatasync, database fdatasync, journal unlink, deletion-directory fdatasync.
+Returned-error injection covers 5 fdatasync EIO + all 34 pwrite64 EIO + all 34 pwrite64 ENOSPC
+points of that one update (73 cases). 72 Uncertain: 71 reconcile OLD, 1 NEW after deletion-dir
+error; remaining case is visible-unacknowledged NEW despite creation-dir EIO. Entire DB/sidecar
+family unchanged by cold read/reconciliation. EIO maps IOERR; ENOSPC maps FULL; finalize/rollback
+secondary errors retained, including SQLite already-auto-rolled-back cases (not silently
+corruption/zero or proof of non-recording). Injection is syscall RESULT failure, not physical
+I/O/full-device exhaustion, short/torn writes, sector reordering or exhaustive timing.
+
+Counterexample preserved: stock SQLite ignores its one-time creation-directory sync error and
+COMMIT can succeed. Version-tagged official SQLite 3.45.1 os_unix.c unixSync inspection explicitly
+confirms that behavior (directory fsync portability fallback); not a full vendor-patch refinement
+or new public issue claim. fullfsync=ON is no Darwin F_FULLFSYNC qualification on Linux.
+Successful COMMIT/flags are therefore insufficient for the required all-sync-failures contract.
+
+One separate STANDARD PERSIST mode control, no SQLite patch/custom VFS/filesystem/fork: retained
+journal file, checked outer Unix directory fsync after provisioning/before write-open, refuse
+missing journal rather than recreate it, synchronous=EXTRA and same immutable-generation SQL.
+Assume exclusive namespace owner/prequalified durable parent path; this is NOT adopted policy.
+Successful trace has checked directory fsync + five fdatasync calls and no unlink. 76 returned
+faults: 1 pre-candidate directory EIO refuses with unchanged family/OLD; 74 Uncertain (71 OLD,
+1 NEW, 2 read-only acquisition refusals); 1 visible NEW on redundant SQLite creation-dir EIO,
+with required existing namespace independently synced before publication. This supplies a
+maintained-path candidate, NOT proof of stable media/complete lifecycle or durable Saved.
+
+Two final journal-header write failures (EIO/ENOSPC) leave hot journals: read-only open returns
+structured READONLY/no complete household answer, not stale/empty fallback. Separate copied
+families undergo EXPLICIT writable SQLite recovery; both cold-requalify/reconcile OLD, original
+fault images unchanged. Trial handle-first shell is not a production admission-before-effects
+entrance; valid named controls do not qualify rejected input with pending recovery. Production
+must admit before effectful open/activation. Write-open can perform recovery then refuse MISSING_JOURNAL because
+SQLite recovery removed it: that error is NOT proof nothing changed. Missing journal alone
+refuses writes but valid independently admitted DB read remains available. PERSIST stopped
+DB+journal-family restore/history and before/after-COMMIT SIGKILL OLD/NEW passed; no live,
+off-device restore or universal diagnosis host. No automatic repair/retry/current-world fallback.
+
+Both clean strict release rebuilds identical; graceful VM stop/start cold restore/history and
+isolation passed (not power loss). Source/archive checksums, exact package exports, syscall
+traces, all failing/successful families, structured refusal/recovery logs retained privately.
+Checked guest-to-host own-source/evidence archive excludes disks/builds/environments/third-party
+source. VM stopped, final loopback management listener absent; main Mac ordinary check passed.
+No main executable/dependency/schema/semantic change, optional proof/new model/campaign, UI/
+voice/network entrance, operational data/cutover, public issue/PR/release/push. Visible remains
+unacknowledged; provision/restore ancestor-directory ordering, lifecycle/cleanup contract,
+actual device-error/power-loss and maintained production identity/encoding/Saved remain open.
+
 ### MirageOS hosted feasibility (one-shot, not production support)
 
 Engine 1b81a2d on Darwin x86_64; official Mirage 4.11.2 source/target APIs inspected,

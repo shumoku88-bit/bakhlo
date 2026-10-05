@@ -10,6 +10,35 @@ NOT prerequisites for the reference product. Store choice and runtime choice are
 axes. This supersedes the earlier standalone Mirage + Irmin-first sequence, not its earned
 evidence. No operational authority/data migration, global install, public service or push.
 
+## Completed bounded continuation — Linux SQLite synchronization/failure boundary
+
+Question/owners before VM/install/code: does stock native SQLite exercise its supported
+journal/database/directory synchronization route, and how do real syscall-result I/O
+errors classify/reconcile? Outer SQLite adapter owns effects; pure admission/publication
+seam remains backend-neutral. D: main 0fc0937/new Bakhlo names/main 50; isolated VM stopped
+and named macOS trial retained. P: prior complete-generation/receipt/replay/failure oracles;
+no durable Saved claim. R: moved VM launch paths/isolation, Linux binding/OS-library closure,
+actual sync ordering, EIO/FULL/cleanup behavior, provisioning/restore boundaries and declared
+completion assumptions. Instruments: named new ignored guest/host trial, unchanged current
+engine/decoder digests, exact native closure/runtime inspection, syscall trace plus targeted
+fault-result injection and cold reconciliation; existing ordinary checks only as relevant.
+Use approved scoped HOME/LIMA_HOME/no shares/agent/public forwarding; no old trial disk
+format/reuse, main dependency adoption, global host install, source semantics/schema
+adoption, power-loss claim, UI/network entrance or optional proof. Revisit on actual sync/
+cleanup errors; flags/trace/process restart alone cannot qualify device power-loss Saved.
+Observed Linux DELETE journal creation-directory EIO is ignored by stock unixSync (COMMIT
+can return success); post-deletion-directory EIO returns Uncertain with NEW receipt. Preserve
+that counterexample. Bound one standard PERSIST-journal control with explicit checked outer
+directory synchronization and retained journal namespace, no SQLite patch/custom VFS/fork;
+it is not adopted production configuration or durable Saved.
+Completed: current Bakhlo source/marker native replay, 73 DELETE + 76 PERSIST returned-syscall
+faults, whole-family reconciliation, structured read-only recovery refusal, explicit recovery
+on separate copies, stopped-family restore and graceful VM reopen passed. No SQLite patch or
+main dependency change. [Linux evidence](VERIFICATION.md#linux-sqlite-syscall-failures-and-retained-journal-lifecycle-control)
+owns exact outcomes/limitations; required directory sync/lifecycle cannot be inferred from
+COMMIT success. Only guest development headers added at existing runtime version; main/guest
+native 50 and reviewed outer 35 versions unchanged. VM STOPPED; original trials preserved.
+
 ## Latest bounded trial — Unix/SQLite save/receipt controls passed; Saved not qualified
 
 Question/owners before code/install: can a thin OCaml SQLite adapter conditionally retain
@@ -96,9 +125,14 @@ step qualifies a production adapter/schema, durable acknowledgement or household
 
 1. Fix the reference Saved failure model/maintenance owner: supported SQLite/VFS/OS sync
    ordering and completion, provision/restore directory lifecycle, close/cleanup and actual
-   I/O-error handling. Reuse the source review/process controls; add targeted instruments,
-   not a mandatory exhaustive power-cut campaign or proof. Flags/readback alone do not
-   establish completion. Linux replay is separately useful; approved VM still stopped.
+   I/O-error handling. Linux sync/fault evidence above now earns one standard PERSIST plus
+   checked namespace candidate, NOT an adopted policy or Saved guarantee. Qualify durable
+   parent/provision/restore/activation and explicit hot-journal recovery/cleanup; reopening
+   for writes may mutate before subsequently refusing lifecycle validation. No blind retry,
+   implicit journal recreation or fallback. Admit input before effectful open/activation,
+   not only before INSERT; current trial's handle-first shell is not a production entrance.
+   Reuse earned controls, not a mandatory exhaustive
+   power-cut campaign/proof. Fix declared OS/device completion assumptions before adoption.
 2. Fix minimal production representation/version and store-scoped generation/request/receipt
    identity, retained candidate association, upgrade/export/restore rules before adoption.
    Trial fixture v2/SQL schema/request-derived tokens are NOT canonical defaults. Keep full

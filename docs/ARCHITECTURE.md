@@ -76,6 +76,14 @@ load/corruption failures are not unsupported quantities. Errors/termination/lost
 once writes may have begun are Uncertain unless the qualified adapter can establish otherwise.
 A backend lacking the required durable capability explicitly remains unqualified for Saved;
 never weaken the common meaning to make an experiment green. Readback may only see cache.
+Required sync errors need an actually propagated completion contract, not just queried flags;
+creation/replacement/deletion of required files needs qualified namespace/directory lifecycle.
+Input admission must precede any acquisition/activation that can write or recover, not just
+the final INSERT/commit. Opening a store for writing may already perform backend recovery
+before candidate publication; a storage/lifecycle refusal there is not a universal assertion
+that no physical effects occurred.
+Read-only acquisition may refuse when recovery needs writes; diagnosis is not permission for
+implicit recovery, and explicit recovery still requires complete evidence requalification.
 
 Versioned household representation, physical schema, request identity, retention/upgrade and
 backup format remain concrete implementation decisions. Backend changes need information-

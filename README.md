@@ -25,7 +25,9 @@ meanings, useful new value and maintainability, not a Lean implementation clone.
 Admission and Publication stay independent of particular storage/runtime technologies.
 **Unix + SQLite is the near-term practical reference implementation to build and qualify.**
 An ignored [Unix/SQLite trial](docs/VERIFICATION.md#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification)
-now passes synthetic save/reopen/history/receipt/conflict/interruption controls; no permanent
+now passes synthetic save/reopen/history/receipt/conflict/interruption controls.
+[Linux syscall/lifecycle controls](docs/VERIFICATION.md#linux-sqlite-syscall-failures-and-retained-journal-lifecycle-control)
+also pass; a stock directory-sync error can be hidden by COMMIT success, so no permanent
 adapter, canonical schema or durable Saved is qualified. Irmin and MirageOS/Solo5 remain
 experimental choices with their earned evidence preserved; they are not deleted and cannot
 block or become dependencies of the reference path. Runtime and store are separate axes.
