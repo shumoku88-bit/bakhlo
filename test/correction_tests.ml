@@ -1,10 +1,10 @@
 open Base
 
-module D = Loam_domain
+module D = Bakhlo_domain
 module Id = D.Identifier.Event
 module E = D.Event
 module Memory = D.Event_memory
-module Check = Loam_application.Correction_check
+module Check = Bakhlo_application.Correction_check
 
 let require condition message = if not condition then failwith message
 
