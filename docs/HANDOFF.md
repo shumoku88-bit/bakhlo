@@ -7,8 +7,9 @@ evidence and data/meaning/runtime sovereignty, keep MirageOS an explicit future 
 [Architecture](ARCHITECTURE.md#properties-to-preserve) owns the requirements; meaning, logical
 representation, physical publication and runtime remain separate choices. SQLite canonical
 adapter/package adoption is PAUSED; optional rebuildable indexes require a concrete consumer.
-Versioned canonical text is the first candidate, not an adopted grammar/store. Unix is the
-near-term validation runtime; MirageOS support remains experimental, not an immediate blocker.
+User now chooses S-expression syntax for versioned canonical text; exact schema/grammar,
+parser dependency and physical store remain unadopted. Unix is the near-term validation runtime;
+MirageOS support remains experimental, not an immediate blocker.
 All SQLite/Irmin/Mirage trials and counterexamples retained. No authority/data migration,
 global install, public service, source-side rename reversal, dependency change or push.
 
@@ -25,6 +26,29 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Current design decision — S-expression syntax / long-term boundaries
+
+User selects S-expressions and asks for long-term design, not an immediate codec/install/cutover.
+D: clean dba532e, synthetic comparison and public Parsexp dependency facts; P: semantic contract,
+logical fact-book and publication/receipt boundaries; R: stable explicit wire schema, faithful
+whole-family/interpretation mapping, original-result receipt scope and retention/physical costs.
+Select a short architecture recommendation; no new model/harness/private reads/dependencies.
+Recommend minimal Parsexp at the outer adapter, explicit versioned unadmitted Wire DTOs -> whole
+model admission, deterministic printer and structured refusal. Known schema rejects duplicate/
+missing/unsupported fields; do not use internal deriving/defaults as the storage contract.
+Currentness remains relational, retained originals/effect occurrences/independent support/policy
+and interpretation remain explicit; comments are not the only home of necessary information.
+Begin comparison with one self-contained selected fact book, archives/receipts independently
+retained, not mandatory ordinary reads of every ancestor. This is a layout recommendation,
+NOT an adopted writer/retention rule or permission to discard existing trial guards/generations.
+Receipt contracts must still bind original candidate/base and retain original-result evidence;
+Event-only mapping is not asserted sufficient. Upgrade is explicit old -> fresh checked target,
+not on-open mutation; current generation/ownership and honest uncertain outcomes gate writes.
+[Architecture](ARCHITECTURE.md#selected-s-expression-direction--long-term-boundaries) owns details.
+Next: specify exact v1 fields/absence/interpretation and a small consumed codec boundary with
+synthetic roundtrip/refusal checks; resolve parser dependency approval before installation.
+No external review result assumed; LOAM remains sole authority, no original/migration writes.
+
 ## Completed bounded task — pasteable syntax comparison
 
 User requests a standalone memo for desktop ChatGPT comparing S-expressions + minimal Parsexp
@@ -40,8 +64,8 @@ Event/correction/observation/request bindings, explicit interpretation and schem
 checked Parsexp v0.17.0's existing-dependency closure versus full Sexplib's additional Num.
 Existing parser/PPX availability is not a complete codec; costs/portability remain unmeasured.
 Syntax delimiter/link/whitespace and synthetic-only scope checked; no installation/code/private
-reads. Next: await external review/user decision, weigh the same logical evidence in both
-syntaxes; do not treat that review as new authority, parser qualification or migration permission.
+reads. User subsequently selects S-expressions; no external answer was supplied or presumed.
+The comparison remains historical design input, not parser qualification or migration permission.
 
 ## Completed bounded task — stopped private capture / representation comparison
 

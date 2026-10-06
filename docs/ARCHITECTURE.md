@@ -238,7 +238,7 @@ Compare retaining the current lossless container against this **recommended logi
   bytes/absence, not a frozen complete config bundle or a license to infer missing-scale 0.
 - Request -> original Event association remains explicit logical publication provenance. A journal
   is a separate useful view. Readable delimiters/escaping should remove outer scalar-length editing,
-  but no syntax/codec, physical file split, append/replace, full-snapshot chain or store is chosen.
+  but no exact grammar/codec, physical file split, append/replace, full-snapshot chain or store is chosen.
 
 This candidate avoids freezing old wire structure without discarding meaning. It is not yet
 proved cheaper/lossless for the complete household. Resolve the field/interpretation scope and
@@ -246,8 +246,47 @@ unknown families before canonical codec/migration; keep original archives and ea
 intact. Further trial UI/setup and physical-store expansion stays paused meanwhile.
 For independent syntax review, the [synthetic-only pasteable comparison](FORMAT_COMPARISON_PROMPT.ja.md)
 pairs S-expressions + minimal Parsexp with custom fact text under the SAME logical obligations.
-Braces were illustrative; neither syntax/library is adopted. Package metadata is not measured
-runtime cost/portability or codec qualification; internal derived sexps are not the storage schema.
+User now selects S-expression syntax; braces and both comparison grammars were illustrative.
+Package metadata is not measured runtime cost/portability or codec qualification; internal derived
+sexps are not the storage schema. Exact grammar/schema/library installation remain separate.
+
+### Selected S-expression direction — long-term boundaries
+
+Recommendation, not an implemented codec/store or cutover:
+
+- **Stable protocol:** one explicit data-format version independent of app/OCaml/library versions.
+  Named fields/typed references and explicit absence states; no automatic unknown-field dropping,
+  duplicate singleton fields, missing -> empty/zero defaults, identity normalization or host-int/
+  float quantities. Parser accepts syntax; versioned unadmitted Wire DTOs then whole semantic
+  admission authorize queries/proposals. Minimal Parsexp belongs outside Core; installing it is
+  a separate dependency decision. Do not derive the canonical protocol from private domain types.
+- **Fact book, not replay:** retain originals, Effect/key multiplicity, correction/date/Reversal/
+  fulfillment distinctions, independent observations/cuts/coverage, policy and interpretation.
+  Current frontiers/totals/indexes are derived. Occurrence dates/publication tokens are not a
+  manufactured historical recording clock. Unknown/unsupported inputs stay retained/unadmitted.
+- **Simple selected state:** compare one self-contained current book carrying the retained facts
+  needed for its declared questions with separately retained immutable generations/archives and
+  original-result receipt evidence. Ordinary admission need not walk every physical ancestor in
+  a NEW design; this does not weaken existing trial checks or justify pruning old artifacts.
+  Exact file names/splitting/append versus replacement and lifetime retention are still undecided.
+  Do not claim original Event alone reconstructs an original receipt's whole source/result.
+- **Publication separate:** edit a candidate, whole-admit/read back, revalidate expected generation
+  and ownership, then publish at a qualified boundary. Uncertain interruption/sync/close outcomes
+  remain uncertain; readback/valid S-expression alone is not durable Saved. No automatic fallback
+  to older state, startup recovery/upgrade, dual writer or blind retry under a reused request.
+- **Human management:** deterministic readable UTF-8 printing and diagnostics with source positions;
+  quantities remain exact, unit display needs qualified interpretation. Essential memos are explicit
+  data; comment/format preservation via raw text/CST is a separate editing requirement, not assumed
+  from generic AST reprinting. Preserve meaningful list order/multiplicity; sorted output is not time.
+- **Evolution/assurance:** explicit version-to-version conversion into a FRESH target, originals and
+  receipts retained, independently checked information/interpretation correspondence before cutover.
+  Reuse synthetic roundtrip/refusal/correction/support laws; only add tests for unresolved boundaries.
+  Full-family/unknown/config gaps still block claiming lossless household migration. Measure load/
+  rewrite/memory before adding indexes/shards; rebuildable caches never replace admission or facts.
+
+First settle the v1 field/absence/interpretation contract and concrete reader/writer scope, then
+implement a small consumed codec. Do not begin with another storage framework, permanent legacy
+syntax matrix, event-sourcing command bus or every-generation full-world startup reconstruction.
 
 ## Minimal Persistence contract
 
