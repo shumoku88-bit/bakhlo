@@ -25,6 +25,61 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded task — synthetic closed backup/restore
+
+User approves the next backup/restore step, NOT real-data use or store adoption. Question: can
+an explicit closed complete trial family preserve all selected ancestors/receipts/original
+bytes/support, restore ONLY to a fresh namespace, reopen/correct in both UIs, and refuse damage
+or interruptions without overwrite/fallback? D: clean e581a6e, paired native consumers/reuse
+Store; P: whole source/profile/history, exact quantities/unknown, namespace-bound tokens and
+closed-copy control. R: coherent leased family capture, independent backup completion/integrity,
+new-target restore phase, lost acknowledgement/process death and native CLI connections.
+A small consumed outer Backup owner copies EXISTING Store files, not another backend or codec.
+Acquire publisher-compatible LOCK for source capture; never close another LOCK fd while that
+POSIX process lease is held. Exact all-ancestor/profile/regular-file/closed-set checks precede
+target creation. Backup-only completion seal binds head/file inventory/length/digest (accidental
+corruption detection, NOT authentication/security/durable Saved); full copied bytes compared.
+Restore into nonexistent dedicated trial store only; own in-progress marker blocks publication
+until successful complete validation. No source mutation/cleanup, current-store replacement,
+implicit init/migration, orphan salvage or blind retry. Cooperative stable namespaces, immutable
+backup artifacts and stopped/cooperatively leased source; live/uncooperative capture deferred.
+Select SAME native recording consumer/independent quantity checks and quiet-drained PTY loop,
+not a new harness/model/theorem/dependency/Python bridge. Include preserved mixed originals/
+receipts/180-bit/old Bank unknown, corruption/missing/extra/symlink/Busy/existing-target refusal,
+returned copy-phase failures, one real create-file collision and real process-kill controls.
+Maintain main engine/lock, existing Store and UI palettes/focus; no maintenance consolidation
+trigger. Preserve sources/images; tests use fresh synthetic names, never read/reset/copy user's
+current or operational data. Backup namespace remains ignored/same-device trial, no encryption,
+off-device disaster recovery, power-loss, Mirage/other-host, physical failure campaign, recovery
+or Saved qualification. Revisit before adopting retention/format/recovery, live backup or real
+data. Completed: shared native Backup CLI in BOTH binaries, source lease/full all-ancestor
+capture, last completion seal, new-target marker/current-last copy and independent exact
+validation pass. All prior native expense/transfer/income/Tab/refusal/receipt tests still pass.
+Closed mixed copies retain exact files, old original receipt != current, original history,
+180-bit and old Bank unknown; restored-only correction leaves source/archive unchanged.
+Eight damage controls, existing target/scope/orphan/symlink refusal, cross-process retained
+POSIX lease/Busy, prewrite/postwrite returned errors, actual file-create EEXIST and real
+SIGKILL backup/restore controls pass; unfinished restored UI blocks recording. Completed
+artifact after lost acknowledgement remains ambiguous, not proof of failure or Saved.
+Reused quiet-drained restore PTY v2 passes five children/two backup-restore cycles across
+both UIs/ja/en, mixed original history and unchanged source; Main check/exact main 50/lock/
+Store/Money/Workbench and exact stock/Ox proposals/backup/restored-answer equality pass.
+Initial parallel main-check/stock-build hit Dune's lock; serialized rerun passes. Initial PTY
+Tcl `args` parameter nested native argv (refused before backup); rename/fresh v2 passes.
+Failures/baseline/images/artifacts retained ignored in `backup-v7`; no current-user/operational
+input read/copied/mutated. [Verification](VERIFICATION.md#synthetic-closed-backuprestore) owns
+precise evidence/limits. No source cleanup, live/off-device recovery or operational adoption.
+
+Quit UI, explicitly select your SYNTHETIC source; `.../try-ui backup SOURCE NEW_BACKUP`,
+`.../try-ui check-backup BACKUP`, `.../try-ui restore BACKUP NEW_STORE`, then
+`.../try-ui bonsai ja --store NEW_STORE` or Notty/en. All paths explicit; existing targets
+refuse, no overwrite/resume. Store paths remain direct `recording-v3/stores` children, backup
+paths direct `recording-v3/backups` children. [Ignored README](../scratch/tui_comparison_review/README.md)
+owns full example and conditional-copy caveats. Next: human synthetic restore use, then a
+separately bounded actual fsync/close/space/namespace failure/retention review and initial
+balance/locus setup before real recording or canonical format/store/UI decisions. Do not
+manually clear uncertainty markers, replace current data, delete originals or infer durability.
+
 ## Completed bounded fix — TUI Tab order
 
 User reports Operation/Date focus jumping contrary to visual order. D: clean 79beac5;

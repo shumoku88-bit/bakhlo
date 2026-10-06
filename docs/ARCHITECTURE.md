@@ -260,6 +260,19 @@ collects one receiving Locus, while correction still locks complete route/curren
 source origin/balance/total is invented; receiving income cannot establish missing Bank support.
 Whole retained qualification, existing seed bytes/default path, old expenses/transfers and
 unchanged publication/receipt owner remain. No new store format or canonical adoption.
+The [closed synthetic backup/restore](VERIFICATION.md#synthetic-closed-backuprestore) adds an
+outer Backup owner consumed by BOTH existing native CLIs, before TTY acquisition. It uses
+Recording's dedicated namespace check and unchanged Store grammar, whole all-ancestor UI
+qualification, publisher-compatible source lease and complete physical byte copies. Source
+LOCK reads use the SAME fd to avoid POSIX process-lock release by closing another descriptor.
+Backup-only last completion seal binds inventory/length/MD5 for accidental corruption, not
+hostile authenticity or an adopted canonical format. Restore creates ONLY a fresh store,
+CURRENT last and own temporary marker until exact validation; Recording treats retained
+marker as interruption, never publication permission or cleanup request. Source tokens do
+not transfer namespaces; old receipt remains separate from current after restoration. No
+original bytes/support/default path change, fallback, overwrite/resume, automatic authority
+switch, source cleanup or device/power-loss Saved. Cooperative immutable artifacts/stable
+paths and same-device native trial qualify neither live nor off-device backup or Mirage.
 A useful operational record/save/query path still needs qualified reference persistence. MirageOS minimal
 composition is not a claim of ultra-security or qualified always-on deployment.
 

@@ -69,8 +69,10 @@ trials are comparison evidence, not dependencies or production defaults. Both ig
 now connect the existing Unix trial: synthetic record/select → exit → reopen → correction, retained
 original history, ja/en display and honest uncertain-result checks. Same-currency Wallet/Bank
 transfer and income to either receiver are now included; normal display keeps internal IDs in
-detail view. [Handoff](docs/HANDOFF.md#completed-bounded-task--synthetic-tui-income)
-owns launch instructions; [verification](docs/VERIFICATION.md#synthetic-tui-income)
+detail view. Explicit closed synthetic backup/verification and fresh-namespace restore now
+retain complete history/receipts; existing targets and incomplete copies refuse.
+[Handoff](docs/HANDOFF.md#completed-bounded-task--synthetic-closed-backuprestore)
+owns launch instructions; [verification](docs/VERIFICATION.md#synthetic-closed-backuprestore)
 owns controls/limits. It does **not** qualify durable Saved, real-data recording or a main store.
 
 ## Where to look

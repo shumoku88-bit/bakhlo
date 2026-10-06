@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Closed synthetic backup/restore](#synthetic-closed-backuprestore): whole family/receipts,
+  fresh namespaces, damage/lease/actual create collision/process-kill refusal; NOT durable Saved.
 - [Synthetic TUI income](#synthetic-tui-income): explicit counterpart/receiver, mixed cold
   correction/history and uncertainty; old Bank/source remain unknown, no income total guessed.
 - [Same-currency TUI transfer](#same-currency-synthetic-tui-transfer): mixed expenses,
@@ -70,6 +72,69 @@ is a limitation/blocker, not silently replaced by compile success.
 Formal tools remain development-only. Ordinary build/test/release must be Lean-free.
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
+
+## Synthetic closed backup/restore
+
+User approves synthetic backup/restore, not operational adoption. Owners/D/P/R/instruments
+recorded before code at clean e581a6e; previous sources/binaries retained ignored in
+`backup-v7/baseline`. BOTH native CLIs consume a small outer `backup.ml/.mli`: unchanged Store
+family grammar, explicit scoped source/backup/fresh-target paths, no TTY or dependency needed.
+Every selected ancestor's whole engine/UI profile and all closed regular files qualify before
+target creation. Backup holds publisher-compatible source lease through exact capture/copy/
+recheck; LOCK reads via SAME fd, never another descriptor whose close releases POSIX locks.
+No source file-content/namespace writes, lost originals, reencoding, guessed support or fallback.
+
+Backup-only seal is last: captured head + exact inventory/length/MD5, accidental corruption
+indicator NOT authentication/security/durability. Restore requires nonexistent dedicated store,
+own in-progress marker first/CURRENT last, copied full byte equality and whole source/profile
+recheck before marker removal. Retained marker blocks Recording/UI publication; existing
+store never overwritten/initialized/resumed. Source tokens cannot authorize restored namespace.
+Uncaught process death retains artifacts; caught pre-target failure Refused/post-start failure
+Uncertain. Failure has no success stdout. Completion before lost acknowledgement may be valid
+on independent read, not proof of failure or durable Saved. No automatic cleanup/retry/cutover.
+
+Both native recording consumers pass ALL prior controls and new closed-copy connections:
+complete mixed family files/selected quantities/4 Measures/support/original date/route/memo/
+corrections, original receipt != current with read-only reconciliation, fresh-namespace refusal
+of source token, cold restored-only correction leaving source/archive unchanged, old Bank
+UNKNOWN after income and exact 180-bit Bank income. Existing-target/repeated-copy refuses;
+missing seal/ancestor, truncation, valid admitted same-length memo mutation, older head with
+extra descendants, extra file, symlink, unsupported seal version all refuse before target
+creation with no repairs. Unresolved source income orphan refuses, never becomes selected.
+Cross-process publisher after ALL LOCK reads is Busy (lease retained); independently held
+lease blocks backup without target creation. Source/backup fingerprints remain unchanged.
+
+Native prewrite returned refusal creates no target; three backup post-effect returned errors
+are Uncertain, partial seals reject/complete lost-ack seal verifies without Saved, never resume.
+Actual new-target PROFILE-directory collision makes Unix open(O_EXCL) return EEXIST and yields
+Uncertain/incomplete artifact; this is ONE actual syscall result, not EIO/ENOSPC/fsync/close
+coverage. Returned restore error after CURRENT leaves marker/read-only UI with writes blocked.
+Two real child SIGKILL controls after CURRENT copy retain unsealed backup and marker-blocked
+restored store; no process-survival/power-loss/namespace/device guarantee inferred.
+
+Actual quiet-drained PTY `backup-v7/pty-v2` passes five 100x25 children: Notty ja expense 10,
+Wallet->Bank 100, Wallet income 200/Bank income 50 -> native Notty backup/Bonsai verification/
+restore -> Bonsai en correct Wallet income to 250, inspect original, add EUR expense 12.34 ->
+Notty source unchanged -> second Bonsai backup/Notty restore -> Notty ja correct original
+JPY expense to 15/inspect original -> Bonsai ja/en cold reopen. Final twice-restored JPY Wallet
+1135/Bank 150/Food 15, EUR Wallet 87.66/Bank 0; original remains JPY Wallet 1090/Bank 150 and
+EUR Wallet 100.00. All five exit 0/full stty restored; shell wrapper read-only check and
+restore-to-source refuse. First PTY Tcl parameter named `args` nested native argv, causing
+argument refusal before backup; retained failure/source/reproduction, rename/fresh v2 passes.
+Initial parallel stock build/main check hit Dune's lock, NOT a code failure; serialized stock
+build/controls pass. Main `tools/check` passes (175 expect/four cram), exact main 50/lock/Store/
+Money/Workbench unchanged; Locale remains pure Stdlib. Final native smokes pass; complete
+stock/Ox proposal bytes identical to prior Tab trial, backup checks/restored answers identical.
+
+Source/images/logs/closed archives/partial refusals/killed targets/final PTYs/hashes remain ignored
+in `backup-v7`/trial scope. No user's current store or operational payload read/copied/mutated.
+[Handoff](HANDOFF.md#completed-bounded-task--synthetic-closed-backuprestore) owns explicit commands.
+Cooperative stable paths, immutable archive ownership and publisher-compatible lease assumed,
+not a security sandbox or live/uncooperative/filesystem snapshot. Same-device experiment is
+NOT off-device disaster backup; no encryption, real-data use, canonical store/UI/retention
+adoption, original replacement/migration, cleanup/recovery, broad syscall/sync/close/space or
+power-loss/durable Saved, other-host/Mirage/human IME/performance qualification. These remain
+separate bounded decisions; an apparently complete selected file is not enough for recovery.
 
 ## TUI Tab order fix
 
