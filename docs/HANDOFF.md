@@ -55,8 +55,17 @@ movement/correction/observation examples. User accepts read-only real-data refer
 before PRIVATE execution, name examples/source and resolve coherent capture + needed scale/config
 metadata. No stale-copy reuse, assumed running/data version, payload disclosure, rich-evidence
 filtering or promotion of the partial reader to full importer; copies/results stay ignored.
-Further trial I/O/UI/initial setup is PAUSED pending this decision. No new grammar/codec/store/
-journal authority, full-parity port, migration/cleanup, real writes or cutover is selected.
+Further trial I/O/UI/initial setup is PAUSED pending this decision. User now explicitly allows
+representation migration IF a better design is demonstrated: old LOAM wire compatibility is
+not a permanent constraint. This is conditional design permission, not immediate original
+writes or format adoption. First select the representation and lossless transition scope,
+preserve originals/complete private copies, qualify retained facts/support/policy/interpretation
+and receipt/correction correspondence plus failure refusal, then explicitly select cutover.
+No guessed missing evidence, identity normalization disguised as migration, dual writes or
+indefinite compatibility/synchronization. Current source path and coherent stopped/read-only
+capture remain unresolved; do not assume the default root or inspect originals before resolving
+them. No new grammar/codec/store/journal authority, actual migration/cleanup, real writes or
+cutover is selected by this permission.
 
 ## Completed bounded task — native Unix I/O failure review
 

@@ -132,6 +132,11 @@ which families the user's data actually contains. [Evidence](VERIFICATION.md#can
 owns owners/scope, [References](REFERENCES.md) provenance. Inherit retained meanings and useful
 counterexamples, not every LOAM filename, wire delimiter, old runtime aggregate or research
 version number. No canonical grammar/store, deletion or migration is selected by this review.
+User permits representation migration when a better design is demonstrated; permanent LOAM
+wire compatibility is not required. Actual transition still needs selected scope/representation,
+original preservation, information/interpretation/receipt correspondence and refusal qualification,
+then explicit authority cutover. This permission does not authorize guessed facts, identity
+normalization, immediate original writes, dual authority or automatic legacy cleanup.
 
 ### What must not disappear
 
