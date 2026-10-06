@@ -25,6 +25,26 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded fix — TUI Tab order
+
+User reports Operation/Date focus jumping contrary to visual order. D: clean 79beac5;
+both renderers show Kind -> Date -> Currency, shared Interaction still uses Date -> Kind.
+P: route-specific pickers, pure key collection and unchanged publication/unknown gates.
+R: forward/backward cycles must match visible fields for Expense/Transfer/Income in both UIs.
+Fix only shared focus edges; retain initial Amount focus/layout/data/recording guards. Reuse
+native smoke with explicit independent expected cycles and inverse Tab/Shift-Tab checks;
+first reproduce the mismatch, then rebuild BOTH consumers. No new harness/model/dependency,
+user-store reads/writes or maintenance refactor. Revisit when visible form order/fields change.
+Both consumers FIRST fail the added expected-order check on the old edges; after the fix,
+both isolated builds/native smokes pass all five routes x4 currencies x2 languages, full
+forward/reverse/wrap/inverse cycles and unchanged draft/record bytes. Existing smoke/geometry
+and complete stock/Ox proposals pass; prior proposal output is byte-identical after removing
+only the new check's success line. Workbench/Recording/Store/renderers/Money/Locale/lock hashes
+unchanged. Evidence retained ignored in `tab-order-v6`; no main check/physical PTY/storage
+failure campaign rerun for this focus-only fix. [Verification](VERIFICATION.md#tui-tab-order-fix)
+owns the result. Restart either UI to pick up Operation -> Date -> Currency (then visible route
+fields -> Amount -> Memo -> History; Shift-Tab reverses). Existing records need no init/reset.
+
 ## Completed bounded task — synthetic TUI income
 
 User approves adding Income to BOTH existing UIs, preserving their feel. Question: can explicit

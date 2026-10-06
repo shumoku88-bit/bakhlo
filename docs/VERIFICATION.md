@@ -71,6 +71,22 @@ Formal tools remain development-only. Ordinary build/test/release must be Lean-f
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
 
+## TUI Tab order fix
+
+User reports a visible navigation mismatch at Operation/Date (79beac5): BOTH renderers show
+Kind -> Date -> Currency, shared Interaction advances Date -> Kind -> Currency. Scope/owners/
+D/P/R recorded before code; retain initial Amount focus, layout, stored meaning and guards.
+Added an independent literal visible-field witness to SAME native smoke: five routes x4
+currencies x2 languages, forward/reverse/wrap/inverse Tab key dispatch, unchanged draft/bytes.
+BOTH original-edge binaries fail that check. Corrected only shared focus edges; BOTH final
+isolated builds/native smokes and existing geometry/amount/correction/unknown checks pass.
+Complete stock/Ox proposal outputs agree; removing only the new success line yields exact
+prior income proposal output. Workbench/Recording/Store/renderers/Money/Locale/lock hashes
+unchanged; ignored `tab-order-v6` retains baseline/source/image/failure/result evidence.
+No user-store read/write/init, dependency change, main test or new physical PTY/failure campaign,
+storage/durability/operational/Mirage qualification. [Handoff](HANDOFF.md#completed-bounded-fix--tui-tab-order)
+owns restart instructions; revisit if visible form fields/order change.
+
 ## Synthetic TUI income
 
 User approves Income in BOTH existing native UIs. Owners/D/P/R/instruments recorded before
