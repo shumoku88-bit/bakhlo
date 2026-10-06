@@ -1,0 +1,38 @@
+# SYNTHETIC comparison only. Same evidence as sexp-v1-candidate/03.
+# No conversion to machine integers, floating point, inferred zero or a shared Measure.
+bakhlo 1
+
+measure "jpy" scale 0
+measure "usd" scale 2
+
+event "usd-opening"
+  occurrence-day "2000-01-01"
+  description text "架空の引用 \"demo\"\n次の行も保存する。"
+  effect key "opening" locus "wallet" measure "usd" quanta 100000000000000000000000000000000000001
+  effect key "offset" locus "offset" measure "usd" quanta -100000000000000000000000000000000000001
+end-event
+
+event "touched-without-origin"
+  occurrence-day not-supplied
+  description text ""
+  effect unkeyed locus "old-only" measure "jpy" quanta 1
+  effect unkeyed locus "old-only" measure "jpy" quanta -1
+end-event
+
+zero-origin locus "wallet" measure "jpy"
+opening-support locus "wallet" measure "usd" event "usd-opening"
+
+presence
+  reflected-roots empty
+  present locus "pantry" measure "jpy"
+end-presence
+
+new-write-loci "wallet" "offset" "pantry"
+request-origin "req-opening" original-event "usd-opening"
+
+empty event-corrections occurrence-revisions reversals exchanges relations discharges
+empty observations accounting-roles
+not-supplied merchants original-amounts settlement bounded-history
+not-supplied actual-routing scheduled-routing publication-receipts
+not-supplied scheduled capacity attention
+end-book

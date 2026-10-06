@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Plain-text candidate pairs](#delimiter-free-plain-text-candidate-pairs): same four synthetic
+  evidence examples without structural delimiters; NO parser/writer/migration implementation.
 - [Synthetic S-expression candidates](#synthetic-s-expression-v1-candidates): four human-review
   evidence-generation examples; NO new parser/writer/migration or executed schema admission.
 - [Stopped private comparison](#stopped-private-representation-comparison): scoped read-only
@@ -131,6 +133,27 @@ set unchanged, tracked executable/interface/test files untouched, new local docu
 and whitespace checked. No main/compiler/test result is inferred from this review; prior
 native qualification remains scoped to its own increments. No dependencies, UI/store/format
 adoption, parser/source changes, real recording, recovery, cleanup, publication or push.
+
+## Delimiter-free plain-text candidate pairs
+
+At 1a2ce2b user requests a lighter plain-text comparison with no parentheses/brackets/braces.
+[Paired candidate README](../examples/plain-v1-candidate/README.md) owns provisional spelling;
+D/P/R and no-code/private-access boundary recorded in Handoff before hand-authoring four `.txt`
+files. Same synthetic payloads, declarations, record/effect order, independent cuts, explicit
+relations and original request mappings as corresponding S-expression candidates. No copied
+operational data, new DTO/parser/translator/writer/migration or permanent dual-codec commitment.
+Nonempty records explicitly supply their collection; empty/not-supplied remain explicit, never
+implicit absence defaults. Scope/conditional expectations/receipt gaps remain the S-expression
+README's, including the invalid flattened case and no original-result/Saved proof.
+
+One-off static checks: exact QUOTED/NUMERIC LITERAL SEQUENCE equality per pair; absence of six
+structural delimiter characters, keyword/end block balance, manual state/reference review and
+01/04 intended-loss diff. These do NOT parse trees, decode schema, establish information-
+preserving roundtrip or execute semantic admission/refusal. Original four `.sexp` file bytes,
+tracked executable/interface/test paths and exact main 50/lock unchanged; links/whitespace
+checked. No main-suite rerun inferred, dependency installation, private reads/clipboard export,
+upstream execution/build/copy, original write, migration, cleanup or push. User review follows;
+S-expression preference versus plain syntax is reopened, not silently switched/implemented.
 
 ## Synthetic S-expression v1 candidates
 

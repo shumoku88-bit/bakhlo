@@ -26,6 +26,27 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded task — delimiter-free plain-text comparison ONLY
+
+User finds the S-expression candidates visually heavy and requests a plain-text version without
+parentheses/brackets/braces. D: clean 1a2ce2b/four public synthetic candidates; P: retained evidence,
+cut ownership/unknown/precision/policy/provenance and no-parser/writer/migration boundary;
+R: lighter readable spelling without semantic deletion. Hand-author four paired `.txt` examples
+with explicit keyword/end boundaries, quoted exact strings, independent cuts and explicit empty/
+not-supplied states. A nonempty named record explicitly supplies its collection; absence is NEVER
+implicitly empty. Preserve original candidate files, record/effect order and all fact payloads;
+compare statically/manually, not a new parser/translator/harness or grammar adoption. No private
+access, dependencies/code/DTO/writer/migration, clipboard export or push. Syntax preference is
+under review again; do not silently implement either format after this comparison.
+Completed [four paired plain-text fixtures](../examples/plain-v1-candidate/README.md): record
+keywords/end markers replace structural nesting; empty/not-supplied declarations remain explicit.
+Each pair matches exact quoted/numeric literal sequence; manual field/state/reference review,
+no delimiter/basic block-balance, intended 01/04 loss diff and link/whitespace checks only.
+These are NOT semantic decoding/roundtrip/refusal execution. Original S-expression fixture
+bytes, code/tests and main exact 50/lock unchanged; no original/private/upstream access.
+Next: user compares readability and owns syntax choice; no parser/writer/migration or package
+installation is authorized. Preserve evidence-generation obligations whichever spelling wins.
+
 ## Completed bounded task — synthetic v1 evidence-generation fixtures ONLY
 
 User affirms S-expression direction and clarifies: selected current book is a self-contained

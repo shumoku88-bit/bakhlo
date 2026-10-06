@@ -1,0 +1,78 @@
+# SYNTHETIC comparison only. Same facts and encounter order as sexp-v1-candidate/02.
+# References may precede definitions; encounter order does not select currentness.
+bakhlo 1
+
+not-supplied publication-receipts
+request-origin "req-discharge" original-event "e3"
+request-origin "req-old" original-event "e1"
+request-origin "req-correction" original-event "e2"
+
+not-supplied bounded-history
+presence
+  reflected-roots empty
+  present locus "pantry" measure "jpy"
+end-presence
+
+observation
+  reflected-roots empty
+  assert locus "food" measure "jpy" quanta 50
+end-observation
+
+observation
+  reflected-roots "e1"
+  assert locus "wallet" measure "jpy" quanta 1000
+end-observation
+
+empty opening-support
+zero-origin locus "quiet" measure "jpy"
+
+discharge event "e3" relation "r1" quanta 4
+relation "r1"
+  source-event "e1" effect-key "cash"
+  debtor household
+  creditor external "counterparty-demo"
+  quanta 6
+end-relation
+
+revise-occurrence "e1" event "e1" day "1850-01-01" corrects-base "e1"
+correct-event "e1" to "e2"
+
+event "e3"
+  occurrence-day "1999-12-31"
+  description text ""
+  effect key "cash" locus "wallet" measure "jpy" quanta -4
+  effect key "offset" locus "food" measure "jpy" quanta 4
+end-event
+
+event "e2"
+  occurrence-day "1900-01-01"
+  description not-supplied
+  effect key "cash" locus "wallet" measure "jpy" quanta -12
+  effect key "offset" locus "food" measure "jpy" quanta 12
+end-event
+
+event "net-zero"
+  occurrence-day not-supplied
+  description not-supplied
+  effect unkeyed locus "old-only" measure "jpy" quanta 1
+  effect unkeyed locus "old-only" measure "jpy" quanta -1
+end-event
+
+event "e1"
+  occurrence-day "2000-01-10"
+  description text "架空例：訂正前の出来事も残す。"
+  effect key "cash" locus "wallet" measure "jpy" quanta -10
+  effect key "offset" locus "food" measure "jpy" quanta 10
+end-event
+
+not-supplied settlement
+empty exchanges
+not-supplied original-amounts merchants
+empty reversals
+
+not-supplied attention scheduled capacity
+not-supplied scheduled-routing actual-routing accounting-roles
+new-write-loci "wallet" "food" "quiet" "pantry"
+
+measure "jpy" scale 0
+end-book

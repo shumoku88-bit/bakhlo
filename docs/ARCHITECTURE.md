@@ -292,8 +292,11 @@ counterexample. These are hand-authored human-review inputs, not an adopted sche
 executed admission/roundtrip test. Field spelling, collection declarations, full-family/receipt/
 interpretation scope need user review. Parser/DTO/writer/migration and dependency installation
 are explicitly deferred; no private capture/result is used in these fixtures. Later codec work
-needs a separately bounded decision. No new storage framework, permanent legacy syntax matrix,
-event-sourcing command bus or every-generation full-world startup reconstruction.
+needs a separately bounded decision. User subsequently finds the candidate S-expression surface
+heavy and requests [paired delimiter-free plain text](../examples/plain-v1-candidate/README.md).
+This reopens readability comparison only: identical synthetic facts/states/references, no schema/
+parser selection change implied, and no second maintained codec. No new storage framework,
+permanent legacy syntax matrix, event-sourcing command bus or every-generation full-world startup reconstruction.
 
 ## Minimal Persistence contract
 

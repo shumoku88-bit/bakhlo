@@ -1,0 +1,74 @@
+# SYNTHETIC comparison only. No parser or writer implements this notation.
+# Same evidence as sexp-v1-candidate/01, not a flattened current-state export.
+bakhlo 1
+
+measure "jpy" scale 0
+
+event "e1"
+  occurrence-day "2000-01-10"
+  description text "架空例：訂正前の出来事も残す。"
+  effect key "cash" locus "wallet" measure "jpy" quanta -10
+  effect key "offset" locus "food" measure "jpy" quanta 10
+end-event
+
+event "e2"
+  occurrence-day "1900-01-01"
+  description not-supplied
+  effect key "cash" locus "wallet" measure "jpy" quanta -12
+  effect key "offset" locus "food" measure "jpy" quanta 12
+end-event
+
+event "e3"
+  occurrence-day "1999-12-31"
+  description text ""
+  effect key "cash" locus "wallet" measure "jpy" quanta -4
+  effect key "offset" locus "food" measure "jpy" quanta 4
+end-event
+
+event "net-zero"
+  occurrence-day not-supplied
+  description not-supplied
+  effect unkeyed locus "old-only" measure "jpy" quanta 1
+  effect unkeyed locus "old-only" measure "jpy" quanta -1
+end-event
+
+correct-event "e1" to "e2"
+revise-occurrence "e1" event "e1" day "1850-01-01" corrects-base "e1"
+
+relation "r1"
+  source-event "e1" effect-key "cash"
+  debtor household
+  creditor external "counterparty-demo"
+  quanta 6
+end-relation
+
+discharge event "e3" relation "r1" quanta 4
+
+zero-origin locus "quiet" measure "jpy"
+
+observation
+  reflected-roots "e1"
+  assert locus "wallet" measure "jpy" quanta 1000
+end-observation
+
+observation
+  reflected-roots empty
+  assert locus "food" measure "jpy" quanta 50
+end-observation
+
+presence
+  reflected-roots empty
+  present locus "pantry" measure "jpy"
+end-presence
+
+new-write-loci "wallet" "food" "quiet" "pantry"
+
+request-origin "req-old" original-event "e1"
+request-origin "req-correction" original-event "e2"
+request-origin "req-discharge" original-event "e3"
+
+empty reversals exchanges opening-support
+not-supplied merchants original-amounts settlement
+not-supplied bounded-history accounting-roles actual-routing scheduled-routing
+not-supplied publication-receipts scheduled capacity attention
+end-book

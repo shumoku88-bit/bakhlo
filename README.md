@@ -76,7 +76,8 @@ retain complete history/receipts; existing targets and incomplete copies refuse.
 owns launch instructions; [verification](docs/VERIFICATION.md#synthetic-closed-backuprestore)
 owns controls/limits. It does **not** qualify durable Saved, real-data recording or a main store.
 Further prototype expansion is paused after the [canonical evidence/format review](docs/ARCHITECTURE.md#canonical-evidence--inherited-format-review).
-Next are [four hand-authored synthetic S-expression v1 candidates](examples/sexp-v1-candidate/README.md):
+Review [four synthetic S-expression candidates](examples/sexp-v1-candidate/README.md) alongside
+[the same four in delimiter-free plain text](examples/plain-v1-candidate/README.md):
 selected self-contained EVIDENCE generation, not flattened current state. Superseded Events,
 relations, observations/cuts and policy/provenance remain. Parser/writer/migration are explicitly
 NOT implemented or authorized in this fixture-only step.
