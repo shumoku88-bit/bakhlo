@@ -25,6 +25,40 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded task — bilingual four-currency draft UI
+
+User approves extending BOTH trial UIs with Japanese/English and JPY/EUR/USD/ILS selection
+and exact decimal entry. Visual feedback: Bonsai feels slightly richer (color/style), NOT a
+permanent framework choice. D: clean d865bfa, main 50/lock, two native ignored UIs; P: whole
+proposal/correction/support gates, exact stock/Ox bytes and PTY controls above. R: localized
+labels/errors without changing identity/memos; explicit decimal scale, no float/rounding,
+no mixed-currency quantities or reinterpretation on selection/correction. Owners: a SMALL
+trial money adapter defines explicit versioned quanta and exact text conversion; bilingual
+labels render typed UI states; existing workbench/engine own proposals/answers. Fresh SYNTHETIC
+seed with ASCII stable loci and separate explicit four-currency support; do not reinterpret
+old jpy data. Trial policy announced: JPY 1 yen/quantum; EUR/USD/ILS 0.01/quantum. Named trial
+Measure IDs encode this policy/version; not production currency/catalog/storage adoption.
+Dot-decimal input in BOTH languages, no comma/grouping/symbol/exponent/coercion/rounding.
+Language switch preserves document/draft/memo; currency switch refuses nonempty amount or
+correction (start a new empty draft); direct workbench correction also binds currency/owner.
+Reuse SAME two native frontends, isolated installed dependencies/compiler roots and existing
+smoke/PTYs; targeted checks: 4 currencies x2 languages, cents/180-bit exactness, refusal,
+separation, correction/history and byte equality, terminal resume. Preserve first paired
+source/images/controls before editing. No new framework/package/model/benchmark, private
+read, canonical writer/Saved/FX/valuation/RTL/locale service, main dependency/compiler change
+or push. Currency scale is explicit TRIAL scope, not a reinterpretation of existing evidence.
+Revisit before FX/region-specific formatting/real data/persistence/permanent UI adoption.
+Completed: ignored `money.ml/.mli`, `locale.ml/.mli` consumed by BOTH native renderers and
+shared editing/engine workbench. 4x2 smoke checks + exact stock/Ox complete proposal/answers
+pass; real PTYs exercise EUR 12.34 -> correction 15.01, USD 0.01, ILS/JPY precision refusal,
+locked correction currency, live language/error switch and canonical terminal resume. Final
+wallets JPY 998 / EUR 84.99 / USD 199.99 / ILS 298.77, identical source checksum. Original
+paired v1 sources/images/hashes retained; main 175/four cram, format, exact 50/lock unchanged.
+[Verification](VERIFICATION.md#bilingual-four-currency-draft-ui) owns new evidence/bounds.
+Try `./scratch/tui_comparison_review/try-ui bonsai en` (or `notty ja`): Ctrl-L language,
+Ctrl-K currency from empty new draft, Ctrl-N new, Ctrl-E/Ctrl-U correct, Enter validate,
+Ctrl-Q quit. Candidate work still disappears at exit. Human IME/keyboard feel remains next.
+
 ## Active bounded task — paired Notty / Bonsai_term TUI trial
 
 User explicitly requests building with BOTH candidates and comparing while using them;

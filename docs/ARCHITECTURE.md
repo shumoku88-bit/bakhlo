@@ -218,6 +218,13 @@ uses identical in-memory proposals/inputs with separate renderers/runtimes. Exis
 OCaml 5.3/engine/50 are unchanged; the Bonsai consumer alone uses an isolated OxCaml/Base preview
 and CURRENT engine source symlinks, not a new engine or qualified main backend. UI focus is
 app-owned in BOTH candidates; this trial does not prove turnkey forms or incremental speed.
+The [bilingual/four-currency extension](VERIFICATION.md#bilingual-four-currency-draft-ui)
+separates Japanese/English DISPLAY labels from stable identities, memos and typed results.
+An explicit trial-only decimal adapter binds versioned Measure IDs to quanta (JPY 1 yen,
+EUR/USD/ILS 0.01); it neither reinterprets old jpy evidence nor defines a production scale,
+locale/FX/catalog. Both frontends consume that SAME exact text conversion and engine gates.
+Language changes no draft bytes; currency changes require an empty new draft, and corrections
+bind the existing currency/owner. No GUI-side balances, rounding or cross-currency subtotal.
 A useful record/save/query path still needs qualified reference persistence. MirageOS minimal
 composition is not a claim of ultra-security or qualified always-on deployment.
 

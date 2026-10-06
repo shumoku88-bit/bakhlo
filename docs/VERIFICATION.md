@@ -130,6 +130,58 @@ from this small state machine. Human IME/keyboard feel, grapheme/cursor editing,
 large-list performance, mouse/accessibility and persistent record/reopen remain next gaps.
 No real data was needed; user feedback on BOTH is next, not automatic Notty/Bonsai adoption.
 
+## Bilingual four-currency draft UI
+
+User approves extending BOTH synthetic UIs with ja/en display and JPY/EUR/USD/ILS selection/
+exact decimals; task/owners/D/P/R recorded BEFORE code at d865bfa. Human feedback: Bonsai looks
+slightly richer (color/style), not a permanent choice or performance conclusion. Existing
+paired source/image hashes and controls retained in ignored `paired-v1` before editing.
+No dependency/compiler/framework/model/store changes: main 50/lock unchanged; same isolated
+Notty/stock-5.3 and Bonsai/Ox consumers of CURRENT engine source, not another authority.
+
+New ignored `money.ml/.mli` is a concrete text-to-quanta adapter, NOT balances or a currency
+ontology. Explicit TRIAL policy announced: JPY 1 yen/quantum; EUR/USD/ILS 0.01/quantum. FRESH
+Measure IDs `ui-money-v2:CODE:10^-SCALE` encode code/version/scale; old jpy is not recognized or
+reinterpreted. Fresh explicit synthetic support: wallet JPY 1000, EUR 100.00, USD 200.00,
+ILS 300.00, each food zero origin/pantry presence; no absent-data zero. ASCII stable loci have
+ja/en DISPLAY labels, never translated identities. `locale.ml/.mli` renders closed typed UI
+status/errors; memos/dates/quantities/currency are unchanged by language switch. No translation
+service, global region defaults, Hebrew/RTL or main CLI localization is claimed.
+
+Dot-decimal syntax in BOTH languages: JPY integer only; others 0..2 fractional digits (one
+padded exactly). Positive expense inputs only; signed engine/answer quantities remain unbounded.
+No float/rounding/grouping/trim/symbol/exponent/comma/sign coercion. Invalid grammar, excess
+precision and nonpositive amounts have separate localized refusals. Too many digits refuse
+EVEN trailing zero (`1.230`), not silently round. Currency switch refuses nonempty amounts or
+ANY correction; direct Workbench correction also binds owner/currency. Start a new empty draft
+rather than reinterpreting 12 as another currency. Entire document/proposals still use CURRENT
+engine admission; UI never computes balances or invents support/FX. Rate/home-currency valuation,
+production scale/catalog/store/format/migration/recorded receipt/Saved remain separate decisions.
+
+Both native 4 currencies x2 languages smoke checks pass: append/correct, independently expected
+integer quanta and unrelated-currency invariance; exact cents/signed display/180-bit decimal
+roundtrip and engine quantities; old jpy refusal, invalid grammar/date/stale/currency refusal;
+retained 8 Events/4 edges/original memo/base prefix; language preserves draft/bytes/memo, current
+refusal relocalizes, unknown/presence stay scalar-free/not zero; paste no-submit and 4x2 renderer
+geometry. COMPLETE controlled stock/Ox proposal/answer outputs compare byte-identically. Main
+175 expect/four cram and pinned formatting/whitespace pass; original paired hashes/exact main
+50/lock preserved. No added main framework/test campaign or alternate-compiler general claim.
+
+Real PTY trace in BOTH starts English, selects EUR, enters 12.34/Japanese synthetic memo,
+corrects to 15.01 with currency-change attempt refused, switches language mid-draft, adds USD
+0.01, refuses ILS 1.005/JPY 2.0 without changing admitted quantities and then accepts 1.23/2.
+Final wallet quanta JPY 998, EUR 8499, USD 19999, ILS 29877 (human 998/84.99/199.99/298.77),
+same complete-source checksum; exits 0, full terminal state matches after canonical input resumes.
+Bad language refuses BEFORE terminal acquisition, exit 2/no answer stdout; non-TTY exit 1/no
+answer stdout. `money-v2` retains logs/source/image/link/package/lock/snapshots/PTYS. MD5 is an
+observational checksum, not a security/publication gate. Actual IME conversion, grapheme/cursor
+editing, rich widgets, live resize/long-list performance/RTL/other hosts/storage remain unqualified.
+
+Launch `./scratch/tui_comparison_review/try-ui notty ja` or `.../try-ui bonsai en`. Ctrl-L toggles
+language; Ctrl-K cycles currency on EMPTY new draft (Ctrl-N); Tab/Shift-Tab focus including
+currency Left/Right; Ctrl-E correct/Ctrl-U clear/Enter validate/Ctrl-Q quit. Same original palettes,
+no automatic framework adoption; compare both with human input next. No real data was accessed.
+
 ## Friendly projected quantity answers
 
 User delegates small explicit household questions without a required AI/model. HANDOFF records
