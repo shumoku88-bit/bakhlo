@@ -26,6 +26,36 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded task — synthetic v1 evidence-generation fixtures ONLY
+
+User affirms S-expression direction and clarifies: selected current book is a self-contained
+CANONICAL EVIDENCE GENERATION, never flattened current answers. Retain superseded Events,
+explicit relations, observations/cuts and necessary policy/provenance even if current views
+omit them. User requests a FEW synthetic fixtures before implementation; explicitly NO
+parser/writer/migration. D: clean e58594a/current synthetic examples; P: semantic contract and
+earned correction/date/relation/discharge/cut/unknown models; R: reviewable v1 field spelling,
+collection absence, reference closure and receipt scope. Select four hand-authored candidate
+.sexps + one review README: retained evidence, reordering/forward refs, precision/absence,
+and deliberately flattened missing-reference refusal. Reuse existing model/test expectations
+as explanatory oracles, not new executable adapters/harness/proofs. Check quotations/delimiters,
+manual field/reference/arithmetic correspondence, links/whitespace and unchanged dependency/
+code boundaries. No dependency installation, private read/copy/fixture/clipboard export,
+upstream execution/source reuse, codec/DTO/API adoption, writer or migration. Collection not-
+supplied versus provided-empty is explicit; full-family/receipt/config parity is NOT claimed.
+Revisit only after user reviews the candidates; dependent query examples do not define retention.
+Completed [four synthetic candidates + Japanese review notes](../examples/sexp-v1-candidate/README.md).
+01/02 retain identical fact payloads with changed declaration order; 03 covers exact huge quanta,
+Measure separation/opening reference and explicit empty/not-supplied/nonzero-with-unknown-amount;
+04 removes ONLY 01's e1 (plus explanatory comments), keeping its dangling relations/cut/provenance
+as an expected-refusal counterexample. No missing Event is repaired from an archive/derived view.
+One-off quotation/parenthesis checks passed; 01/02 atom/string/delimiter multisets match and
+01/04 diff matches intended loss. Manual expectations cite existing date/relation/discharge/
+quantity oracles; no AST decode, whole semantic admission, roundtrip, refusal execution or main
+suite result inferred. [Verification](VERIFICATION.md#synthetic-s-expression-v1-candidates)
+owns limits. Main exact 50/lock, executable/interfaces/tests and private/upstream sources untouched.
+Next: USER REVIEW of candidates/field states/receipt and full-family scope ONLY. Do not start
+parser/writer/migration or install Parsexp on the strength of these fixtures or earlier roadmap.
+
 ## Current design decision — S-expression syntax / long-term boundaries
 
 User selects S-expressions and asks for long-term design, not an immediate codec/install/cutover.
@@ -38,15 +68,18 @@ model admission, deterministic printer and structured refusal. Known schema reje
 missing/unsupported fields; do not use internal deriving/defaults as the storage contract.
 Currentness remains relational, retained originals/effect occurrences/independent support/policy
 and interpretation remain explicit; comments are not the only home of necessary information.
-Begin comparison with one self-contained selected fact book, archives/receipts independently
-retained, not mandatory ordinary reads of every ancestor. This is a layout recommendation,
-NOT an adopted writer/retention rule or permission to discard existing trial guards/generations.
+Selected book means a self-contained canonical EVIDENCE generation, not flattened current
+state: all retained in-scope facts/relations/cuts/policy/provenance survive current projections.
+Archives/receipt evidence remain retained, not mandatory ordinary reads of every ancestor.
+This is a layout recommendation, NOT an adopted writer/retention rule or permission to discard
+existing trial guards/generations.
 Receipt contracts must still bind original candidate/base and retain original-result evidence;
 Event-only mapping is not asserted sufficient. Upgrade is explicit old -> fresh checked target,
 not on-open mutation; current generation/ownership and honest uncertain outcomes gate writes.
 [Architecture](ARCHITECTURE.md#selected-s-expression-direction--long-term-boundaries) owns details.
-Next: specify exact v1 fields/absence/interpretation and a small consumed codec boundary with
-synthetic roundtrip/refusal checks; resolve parser dependency approval before installation.
+Next is ONLY the synthetic v1 fixture review above. Exact fields/absence/interpretation and
+receipt scope need review; codec/roundtrip work and parser dependency installation are paused
+by the user's explicit no-parser/writer/migration boundary.
 No external review result assumed; LOAM remains sole authority, no original/migration writes.
 
 ## Completed bounded task — pasteable syntax comparison

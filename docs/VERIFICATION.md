@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Synthetic S-expression candidates](#synthetic-s-expression-v1-candidates): four human-review
+  evidence-generation examples; NO new parser/writer/migration or executed schema admission.
 - [Stopped private comparison](#stopped-private-representation-comparison): scoped read-only
   capture/profile and private format views; NOT full extraction, codec or migration qualification.
 - [Canonical evidence review](#canonical-evidence--inherited-format-review): sourced retained
@@ -129,6 +131,39 @@ set unchanged, tracked executable/interface/test files untouched, new local docu
 and whitespace checked. No main/compiler/test result is inferred from this review; prior
 native qualification remains scoped to its own increments. No dependencies, UI/store/format
 adoption, parser/source changes, real recording, recovery, cleanup, publication or push.
+
+## Synthetic S-expression v1 candidates
+
+At e58594a user clarifies selected current book is a self-contained canonical EVIDENCE generation,
+not flattened state, and requests only a few synthetic fixtures BEFORE implementation. D/P/R,
+maintenance decision and explicit no-parser/writer/migration boundary recorded in Handoff first.
+[Candidate README](../examples/sexp-v1-candidate/README.md) owns vocabulary/expected outcomes;
+Architecture owns the evidence-generation clarification. Four hand-authored `.sexp` files use
+ONLY constructed examples/public semantic requirements, never operational copies/results.
+
+01 retains original/child Events, independent occurrence revision (same spelling/different ID
+role), source-Effect relation/discharge, two distinct reflected cuts, explicit origin/presence,
+NEW-write vocabulary and original request associations. 02 reorders these same payloads/forward
+references without changing Effect order. 03 adds exact >machine-int quanta, separate Measures,
+opening Event designation rather than duplicate quantity, UTF-8/quoted/newline/empty memos and
+provided-empty versus not-supplied. 04 deliberately drops only 01's original Event while retaining
+its dependents; expected whole refusal, never reference stripping or ancestor salvage.
+
+Previously earned owners inspected: `test/relation_tests.ml`, `test/discharge_tests.ml`,
+`test/current_query_tests.ml`, `test/current_quantity_tests.ml`, `test/validity_history_tests.ml`
+and `application/open_relations.mli`. Manual arithmetic/reference expectations use their existing
+laws, not a new model/test harness. Collection states do not imply real-world completeness;
+request origins are not full candidate/base receipts or Saved. Missing other families/config/
+receipt scope remains unresolved; no full-household schema or migration parity claimed.
+
+Executed checks: one-off lexical quotation/parenthesis balance only; 01/02 identical atom/string/
+delimiter MULTISETS (not tree equality/semantic proof); 01/04 exact diff of intended Event loss;
+manual payload/reference/conditional arithmetic review; local links/whitespace and exact main
+50/lock unchanged; all tracked code/interfaces/tests untouched. No new S-expression parser
+installed/implemented; no AST/schema decode, DTO/writer/serializer, readback/roundtrip/admission/
+refusal execution or fresh main-suite result is inferred. No implementation, dependency changes, private reads/exports,
+upstream execution/build/copy, original writes, cleanup, migration/cutover or push. Next is user
+review, not auto-continuation into the previously proposed codec work.
 
 ## Stopped private representation comparison
 

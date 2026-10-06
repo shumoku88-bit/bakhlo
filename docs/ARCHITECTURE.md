@@ -264,10 +264,12 @@ Recommendation, not an implemented codec/store or cutover:
   fulfillment distinctions, independent observations/cuts/coverage, policy and interpretation.
   Current frontiers/totals/indexes are derived. Occurrence dates/publication tokens are not a
   manufactured historical recording clock. Unknown/unsupported inputs stay retained/unadmitted.
-- **Simple selected state:** compare one self-contained current book carrying the retained facts
-  needed for its declared questions with separately retained immutable generations/archives and
-  original-result receipt evidence. Ordinary admission need not walk every physical ancestor in
-  a NEW design; this does not weaken existing trial checks or justify pruning old artifacts.
+- **Selected evidence generation, not flattened state:** current book is the currently selected,
+  self-contained CANONICAL EVIDENCE generation. Retain ALL supplied in-scope facts, including
+  superseded Events, explicit relations, observation/cut ownership and necessary policy/provenance;
+  current views/consumer questions do not define deletion. Separately retain immutable generations/
+  archives and original-result receipt evidence. Ordinary admission need not walk every physical
+  ancestor in a NEW design; this does not weaken existing trial checks or justify pruning artifacts.
   Exact file names/splitting/append versus replacement and lifetime retention are still undecided.
   Do not claim original Event alone reconstructs an original receipt's whole source/result.
 - **Publication separate:** edit a candidate, whole-admit/read back, revalidate expected generation
@@ -284,9 +286,14 @@ Recommendation, not an implemented codec/store or cutover:
   Full-family/unknown/config gaps still block claiming lossless household migration. Measure load/
   rewrite/memory before adding indexes/shards; rebuildable caches never replace admission or facts.
 
-First settle the v1 field/absence/interpretation contract and concrete reader/writer scope, then
-implement a small consumed codec. Do not begin with another storage framework, permanent legacy
-syntax matrix, event-sourcing command bus or every-generation full-world startup reconstruction.
+Before ANY implementation, user now requests only [four synthetic v1 candidates](../examples/sexp-v1-candidate/README.md)
+for reviewing retained evidence, ordering independence, precision/absence and the invalid flattened
+counterexample. These are hand-authored human-review inputs, not an adopted schema, decoder or
+executed admission/roundtrip test. Field spelling, collection declarations, full-family/receipt/
+interpretation scope need user review. Parser/DTO/writer/migration and dependency installation
+are explicitly deferred; no private capture/result is used in these fixtures. Later codec work
+needs a separately bounded decision. No new storage framework, permanent legacy syntax matrix,
+event-sourcing command bus or every-generation full-world startup reconstruction.
 
 ## Minimal Persistence contract
 

@@ -62,8 +62,9 @@ payload pipeline. Qualified hosts and per-increment limits are in [verification]
 ## Direction
 
 Human-readable evidence and data sovereignty come before physical store adoption. Canonical
-text is a candidate, not an adopted format; SQLite canonical adoption is paused. Unix is the
-near-term runtime, MirageOS an explicit future goal with experimental support only. Permanent UI,
+S-expression syntax is selected; exact schema/codec/store remain unadopted and SQLite canonical
+adoption is paused. Unix is the near-term runtime, MirageOS an explicit future goal with
+experimental support only. Permanent UI,
 AI/voice/network adapters and operational publication remain separate work. Prior storage/runtime
 trials are comparison evidence, not dependencies or production defaults. Both ignored native TUIs
 now connect the existing Unix trial: synthetic record/select → exit → reopen → correction, retained
@@ -74,9 +75,11 @@ retain complete history/receipts; existing targets and incomplete copies refuse.
 [Handoff](docs/HANDOFF.md#completed-bounded-task--synthetic-closed-backuprestore)
 owns launch instructions; [verification](docs/VERIFICATION.md#synthetic-closed-backuprestore)
 owns controls/limits. It does **not** qualify durable Saved, real-data recording or a main store.
-Current work pauses further prototype expansion to [review canonical evidence and inherited
-LOAM format costs](docs/ARCHITECTURE.md#canonical-evidence--inherited-format-review). Preserve
-facts/support/policy, not automatically every old wire shape; no new format or migration chosen.
+Further prototype expansion is paused after the [canonical evidence/format review](docs/ARCHITECTURE.md#canonical-evidence--inherited-format-review).
+Next are [four hand-authored synthetic S-expression v1 candidates](examples/sexp-v1-candidate/README.md):
+selected self-contained EVIDENCE generation, not flattened current state. Superseded Events,
+relations, observations/cuts and policy/provenance remain. Parser/writer/migration are explicitly
+NOT implemented or authorized in this fixture-only step.
 
 ## Where to look
 
