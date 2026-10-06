@@ -1,0 +1,290 @@
+# SYNTHETIC comparison only. No parser or writer implements this notation.
+# Same evidence as sexp-v1-candidate/01 and plain-v1-candidate/01.
+# This variant deliberately removes record-specific mini-grammar: blocks close with one generic "end".
+bakhlo
+  format-version 1
+
+  interpretation
+    measures
+      state provided
+      measure
+        id "jpy"
+        decimal-scale 0
+      end
+    end
+  end
+
+  actual
+    events
+      state provided
+
+      event
+        id "e1"
+        occurrence-day date "2000-01-10"
+        description text "架空例：訂正前の出来事も残す。"
+
+        effects
+          effect
+            key named "cash"
+            locus "wallet"
+            measure "jpy"
+            quanta -10
+          end
+
+          effect
+            key named "offset"
+            locus "food"
+            measure "jpy"
+            quanta 10
+          end
+        end
+      end
+
+      event
+        id "e2"
+        occurrence-day date "1900-01-01"
+        description not-supplied
+
+        effects
+          effect
+            key named "cash"
+            locus "wallet"
+            measure "jpy"
+            quanta -12
+          end
+
+          effect
+            key named "offset"
+            locus "food"
+            measure "jpy"
+            quanta 12
+          end
+        end
+      end
+
+      event
+        id "e3"
+        occurrence-day date "1999-12-31"
+        description text ""
+
+        effects
+          effect
+            key named "cash"
+            locus "wallet"
+            measure "jpy"
+            quanta -4
+          end
+
+          effect
+            key named "offset"
+            locus "food"
+            measure "jpy"
+            quanta 4
+          end
+        end
+      end
+
+      event
+        id "net-zero"
+        occurrence-day not-supplied
+        description not-supplied
+
+        effects
+          effect
+            key unkeyed
+            locus "old-only"
+            measure "jpy"
+            quanta 1
+          end
+
+          effect
+            key unkeyed
+            locus "old-only"
+            measure "jpy"
+            quanta -1
+          end
+        end
+      end
+    end
+
+    event-corrections
+      state provided
+      event-correction
+        target "e1"
+        replacement "e2"
+      end
+    end
+
+    occurrence-revisions
+      state provided
+      occurrence-revision
+        id "e1"
+        event "e1"
+        day "1850-01-01"
+        corrects base-occurrence "e1"
+      end
+    end
+
+    reversals
+      state empty
+    end
+
+    merchants
+      state not-supplied
+    end
+
+    original-amounts
+      state not-supplied
+    end
+
+    exchanges
+      state empty
+    end
+
+    relations
+      state provided
+      relation
+        id "r1"
+        source event "e1" effect-key "cash"
+        debtor household
+        creditor external "counterparty-demo"
+        quanta 6
+      end
+    end
+
+    discharges
+      state provided
+      discharge
+        event "e3"
+        relation "r1"
+        quanta 4
+      end
+    end
+
+    settlement
+      state not-supplied
+    end
+  end
+
+  quantity-support
+    zero-origin
+      state provided
+      coordinate
+        locus "quiet"
+        measure "jpy"
+      end
+    end
+
+    opening-support
+      state empty
+    end
+
+    observations
+      state provided
+
+      observation-group
+        reflected-roots
+          root "e1"
+        end
+        assertions
+          assertion
+            locus "wallet"
+            measure "jpy"
+            quanta 1000
+          end
+        end
+      end
+
+      observation-group
+        reflected-roots
+        end
+        assertions
+          assertion
+            locus "food"
+            measure "jpy"
+            quanta 50
+          end
+        end
+      end
+    end
+
+    presence
+      state provided
+      presence-group
+        reflected-roots
+        end
+        coordinates
+          coordinate
+            locus "pantry"
+            measure "jpy"
+          end
+        end
+      end
+    end
+
+    bounded-history
+      state not-supplied
+    end
+  end
+
+  policy
+    new-write-loci
+      state provided
+      locus "wallet"
+      locus "food"
+      locus "quiet"
+      locus "pantry"
+    end
+
+    accounting-roles
+      state not-supplied
+    end
+
+    actual-routing
+      state not-supplied
+    end
+
+    scheduled-routing
+      state not-supplied
+    end
+  end
+
+  provenance
+    request-origins
+      state provided
+
+      request-origin
+        request-token "req-old"
+        original-event "e1"
+      end
+
+      request-origin
+        request-token "req-correction"
+        original-event "e2"
+      end
+
+      request-origin
+        request-token "req-discharge"
+        original-event "e3"
+      end
+    end
+
+    publication-receipts
+      state not-supplied
+    end
+  end
+
+  other-evidence
+    scheduled
+      state not-supplied
+    end
+
+    capacity
+      state not-supplied
+    end
+
+    attention
+      state not-supplied
+    end
+  end
+end

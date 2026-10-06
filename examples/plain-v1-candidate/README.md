@@ -6,9 +6,27 @@ S式の[4つの合成例](../sexp-v1-candidate/README.md)を、同じ情報の�
 | プレーンテキスト | 対応するS式 |
 | --- | --- |
 | [01-retained-evidence.txt](01-retained-evidence.txt) | [01](../sexp-v1-candidate/01-retained-evidence.sexp)：元Event・関係・cut・policy/provenanceの保持 |
+| [01-retained-evidence-uniform.txt](01-retained-evidence-uniform.txt) | **追加比較**：01と同じ意味を、record固有の `to` / `end-event` 等を使わず、nested block + generic `end` + explicit `state` に寄せた版 |
 | [02-retained-evidence-reordered.txt](02-retained-evidence-reordered.txt) | [02](../sexp-v1-candidate/02-retained-evidence-reordered.sexp)：並べ替え・前方参照 |
 | [03-precision-and-unknown.txt](03-precision-and-unknown.txt) | [03](../sexp-v1-candidate/03-precision-and-unknown.sexp)：無限精度・Measure・空／未供給／数量不明 |
 | [04-invalid-flattened-generation.txt](04-invalid-flattened-generation.txt) | [04](../sexp-v1-candidate/04-invalid-flattened-generation.sexp)：**不正例**。元Event欠落による拒否を期待 |
+
+## 均一構文の追加比較
+
+[01-retained-evidence-uniform.txt](01-retained-evidence-uniform.txt) は、既存の01と保存内容を変えずに、
+プレーンテキスト案の「専用言語化」をどこまで抑えられるかを見るための**人間向け比較fixtureだけ**です。
+
+- recordごとの `end-event` / `end-relation` ではなく、nested blockを一つの `end` で閉じます。
+- `correct-event "e1" to "e2"` のようなrecord固有の接続語を使わず、
+  `event-correction` の下に `target` / `replacement` を置きます。
+- collectionの supplied / empty / not-supplied は `state provided|empty|not-supplied` と明示します。
+- `description text ...`、`key named ...`、`debtor household` のようなvariant値は残しています。
+  これは構文上のshortcutを採用したという意味ではなく、schema上の値表現候補です。
+- インデントは読みやすさのためだけで、意味はblockと `end` に持たせる想定です。
+- この比較からparser grammar、canonical spelling、依存選択、migration方針は採用しません。
+
+意図的に既存plain版より冗長です。読みやすさを保ったまま構文規則を減らせるか、
+それともS式の既存parserを使う方が長期総コストで有利かを見る材料に限定します。
 
 ## 見た目だけを軽くするルール案
 
