@@ -81,11 +81,11 @@ Solo5 remains unqualified). Do not delete trials/promote guards, or make experim
 prerequisites for ordinary progress. Minimal composition is not a security/always-on claim.
 
 The [experimental text read](#experimental-versioned-text-read) now exercises a bounded
-synthetic profile, using independently supplied fixture inputs only as an oracle. Next compare
-Unix text publication/reopen/recovery and synthetic long-term reconstruction/memory/history
-growth against retained storage evidence before choosing physical authority/index roles.
-[HANDOFF](HANDOFF.md#next-bounded-implementation) owns sequence. User approved a bounded private
-read-only LOAM comparison before publication work: establish the actual selected revision/input,
+synthetic profile, using independently supplied fixture inputs only as an oracle. Publication,
+scale/reuse and bounded I/O trials now supply comparison evidence, not an adopted layout.
+The current next step is the [canonical evidence review](#canonical-evidence--inherited-format-review),
+not more prototype store/UI qualification by default. [HANDOFF](HANDOFF.md) owns sequence.
+User approved a bounded private read-only LOAM comparison before publication work: establish the actual selected revision/input,
 then test one quantity/evidence question. Existing implementation/layout/answers are comparison
 evidence, not automatic design requirements or a full-parity oracle. Original operational
 facts stay under LOAM authority; ordinary tests remain synthetic and private payloads never enter
@@ -124,6 +124,103 @@ receipt gates still apply. Pure immutable reuse is not a persistent cache, froze
 permission to publish. Whole source/support admission is never shortened to the asked coordinate.
 This removes repeated reconstruction, not complete generation retention or startup history walks;
 its stronger time/RSS hypotheses were only PARTLY met. No production writer/store/Saved follows.
+
+## Canonical evidence / inherited-format review
+
+Source-only review at LOAM `f82f4c45498ce9b3c51a76acb7189588a5f74718`; not an inventory of
+which families the user's data actually contains. [Evidence](VERIFICATION.md#canonical-evidence--inherited-format-review)
+owns owners/scope, [References](REFERENCES.md) provenance. Inherit retained meanings and useful
+counterexamples, not every LOAM filename, wire delimiter, old runtime aggregate or research
+version number. No canonical grammar/store, deletion or migration is selected by this review.
+
+### What must not disappear
+
+The current HouseholdAuthority registers these 13 named payload families. Registration is not
+proof they are all present, all required for every question, or all supported by Bakhlo. Family
+names/physical section splits may change; the independent distinctions below may not silently
+merge. `Unknown`/unadmitted payloads remain unresolved, never classified as disposable.
+
+| Current LOAM family | Independent information / consequence of loss |
+| --- | --- |
+| Actual | Retained Event identities, every signed Effect/Measure/Locus/key occurrence, base dates and separate date-revision edges, Event corrections, descriptions, Merchant/nonmerchant evidence, Exchange selections, original amounts, Reversal, relations/discharges and settlement provenance. A current transaction alone cannot reconstruct these |
+| Scheduled | Retained occurrence identity/day/Measure/signed changes and typed terminal source/target: Actual completion, Scheduled replacement or retirement. Not inferred from physical activity |
+| Capacity | Allocation Movement identity/Measure/signed Purpose-or-unallocated changes and independent effective date. Not a physical wallet balance |
+| Attention | Context, explicit due/none/undetermined distinction and dated resolved/dropped closure. Not merely a current UI badge |
+| ActualRouting | Locus -> Purpose or explicit unmanaged at initial/dated effective coordinates. Historical selection is not recoverable from a current label |
+| ScheduledRouting | ScheduledId x Locus -> Purpose/unmanaged at an effective date. Similar mechanics do not make it Actual routing |
+| AccountingRole | Explicit partial Locus -> role assignment. Missing role is unresolved, not guessed from flow direction/name |
+| LocusAdmission | Explicit allowed NEW-write vocabulary. Historical occurrence is not permission to record there now |
+| ZeroOrigin | Explicit Locus x Measure completeness-from-zero claim. Activity/net zero/catalog membership cannot recreate it |
+| OpeningSupport | Coordinate -> independently designated opening Event. Quantity lives in that Event, not duplicated in this relation; an opening-looking Event does not itself authorize support |
+| CurrentQuantityAnchor | Exact observed assertions bound to each independent reflected-root cut. Anonymous groups factor representation; assertion/cut binding matters, stable group identity/order does not |
+| CurrentQuantityPresence | Known nonzero coordinate plus reflected cut, exact amount unknown. No invented scalar/sign or arithmetic |
+| BoundedHistorySupport | Coordinate/start-day completeness claim enabling bounded historical reconstruction with other evidence. Not inferred from oldest Event or endpoint equality |
+
+Actual's `OPERATION` maps a logical request to its ORIGINAL retained Event. It is publication
+provenance, not payment identity or Event chronology. Preserve its one-to-one association where
+supplied; it can live in a separate logical receipt layer, not be discarded with temporary files.
+Settlement's independently measured commitments, attribution/netting, revisions/retractions and
+quantity-bearing extinguishment are not automatically redundant with source-Effect-bounded
+relations. Bakhlo currently refuses settlement rows; opaque retention is not their admission.
+
+Outside the household payload, Measure decimal-scale metadata affects how human input/output
+interprets exact quanta. LOAM prevents changing a used Measure's scale without migration; its
+historical missing-metadata scale-0 convention is NOT a Bakhlo inference rule. Preserve explicit
+interpretation policy/version in any complete extraction. Other external config/catalog contents
+are not exhaustively classified here: file placement alone does not make them disposable.
+
+### Separate facts, policy, publication and views
+
+- Retained facts/observations/relations and independently supplied write/classification policy
+  are canonical inputs; reports, current frontiers, totals, remainders and encoder indexes are
+  derived. An `ASSERT` amount is an independent observation, NOT a cached report balance.
+- Writer ownership, observed-generation gates, receipt association, staging/readback and honest
+  interruption/recovery outcomes remain requirements. Exact `.prev`, stage/lock filenames and
+  whole-snapshot layout are implementation choices, not household facts or qualified Saved.
+- Manual text changes are proposals through whole admission/current-generation publication,
+  not permission to edit live authority, merge by Git or manufacture recording time.
+
+### Confirmed shape costs, not blanket deletions
+
+1. **Owner editing:** HouseholdImage stores opaque section bodies with Unicode-scalar lengths.
+   An inner edit requires updating its outer length; wrong/truncated frames refuse. Preserve
+   exact untouched/unknown payloads and absent != present-empty, not necessarily length fields.
+2. **Old physical factoring:** Scheduled has one semantic terminal relation but encodes three
+   mandatory Completion/Retirement/Replacement substreams and headers. A clearer representation
+   could state the typed target once; it must preserve target meaning and conflict refusal.
+3. **Legacy entrypoints/documentation:** current root Actual selects `household.loam`/Actual,
+   while explicit `actual.loam` remains diagnostic/migration input and a historical lock identity.
+   Upstream README/Beancount guide still describe older canonical filenames. Do not copy those
+   descriptions or mistake a leftover path for another authority; no sibling cleanup here.
+4. **Versions are not automatically dead:** the Actual encoder actively chooses v1/v2/v3/v4
+   by retained settlement families. Anchor v1 reads lift into v2 groups; Household outer v1 never
+   became production. New Bakhlo need not inherit every spelling, but old operational bytes
+   cannot be dropped merely by their version label. No actual unused-data claim is earned.
+5. **Our prototype is not a new requirement:** Bakhlo trial keeps complete generations and
+   admits all selected ancestors; LOAM's source layout selects one complete household plus
+   `.prev`, while original Actual corrections remain inside the evidence. Neither layout is
+   the household ontology. A future layout need not clone our snapshot chain, but must preserve
+   original evidence/receipts/currentness; existing trial gates must not be weakened or cleaned.
+
+### Journal readability without journal-as-truth
+
+LOAM's existing readable journal/Beancount views select current Events; they omit superseded
+originals/date history, support and policy families. The plain journal also omits Effect keys.
+Two histories with original amount 10 versus 12 and the same corrected 15 can yield the same
+current journal but require different history answers. The same wallet Effect -10 and assertion
+1000 yield 990 with an empty reflected cut, 1000 when that root is reflected: a journal alone
+cannot distinguish them. These are synthetic illustrations of earned boundaries, not new tests
+or facts about the user's data. Beancount Open dates are target scaffolding, not source origins.
+This proves loss in THESE projections, not inability of every hledger journal/metadata extension.
+
+Compare two candidates next: retain the current lossless LOAM container, or specify a smaller
+owner-readable fact-oriented text representation carrying the same independent evidence/policy
+and receipt binding. A current journal remains a useful derived view in either case, not a
+replacement merely because it is readable. Neither a new command-replay log nor stable anchor
+history identities are earned by this review. First compare representative retained movement,
+correction and observation/cut examples; file splitting, append vs replacement, codecs, indexes,
+backup layout and runtime are later decisions. Pause further trial UI/setup and physical-store
+expansion until that representation decision has a concrete consumer; keep earned trials intact.
 
 ## Minimal Persistence contract
 

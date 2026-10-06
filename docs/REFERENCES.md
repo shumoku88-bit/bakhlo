@@ -77,6 +77,15 @@ Public source identified by its README: https://github.com/shumoku88-bit/loam
   cutover): these four owners unchanged from initial review; no whole-tree parity implied.
   Upstream storage progress does not freeze OCaml persistence or authorize its migration.
 
+- Canonical evidence / inherited-format review at
+  `f82f4c45498ce9b3c51a76acb7189588a5f74718`: current Household/Actual authority,
+  13 registered payload codecs, Scheduled terminal factoring, quantity/policy support,
+  external Measure scale and current journal/Beancount projection inspected SOURCE-only.
+  Older README/Beancount canonical-path descriptions do not override current source root
+  selection. [Review evidence](VERIFICATION.md#canonical-evidence--inherited-format-review)
+  names the selected owners/limits; no private usage inventory, execution, full-family parity
+  or upstream implementation reuse follows. Historical owners/revisions above remain evidence.
+
 These are narrow comparisons, not whole-checkout equivalence, proof reruns or a
 frozen upstream protocol. Check live revision before using a changed owner.
 

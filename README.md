@@ -74,6 +74,9 @@ retain complete history/receipts; existing targets and incomplete copies refuse.
 [Handoff](docs/HANDOFF.md#completed-bounded-task--synthetic-closed-backuprestore)
 owns launch instructions; [verification](docs/VERIFICATION.md#synthetic-closed-backuprestore)
 owns controls/limits. It does **not** qualify durable Saved, real-data recording or a main store.
+Current work pauses further prototype expansion to [review canonical evidence and inherited
+LOAM format costs](docs/ARCHITECTURE.md#canonical-evidence--inherited-format-review). Preserve
+facts/support/policy, not automatically every old wire shape; no new format or migration chosen.
 
 ## Where to look
 

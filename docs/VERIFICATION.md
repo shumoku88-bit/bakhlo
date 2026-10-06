@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Canonical evidence review](#canonical-evidence--inherited-format-review): sourced retained
+  information versus format debt; NO private-data inventory, codec adoption or migration.
 - [Native Unix I/O failures](#native-unix-io-failure-boundaries): kernel-errno/returned-error
   connections, short writes, cleanup and complete-but-uncertain copies; NOT physical durability.
 - [Closed synthetic backup/restore](#synthetic-closed-backuprestore): whole family/receipts,
@@ -74,6 +76,57 @@ is a limitation/blocker, not silently replaced by compile success.
 Formal tools remain development-only. Ordinary build/test/release must be Lean-free.
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
+
+## Canonical evidence / inherited-format review
+
+User requests reviewing LOAM's inherited shape before more prototype UI/store work. D/P/R,
+instruments and privacy boundary recorded at clean c7da7a3 before detailed review. Read SOURCE
+and docs only at clean sibling `f82f4c45498ce9b3c51a76acb7189588a5f74718`: operating mode,
+blueprint/workbench/evidence map, then nearest authority/codec/projection owners. No repository
+wide generated audit, new model/theorem/test/parser, upstream build/command/source copy,
+operational/current-user payload/metadata inspection, private fixtures or format migration.
+Maintenance table reviewed: no refactor now; future profile/field changes must reopen adapter
+coverage. [Architecture](ARCHITECTURE.md#canonical-evidence--inherited-format-review) owns the
+family classification and candidate boundaries; this section owns the source evidence/limits.
+
+| Observed source boundary (paths under sibling `Loam/`) | Finding |
+| --- | --- |
+| `Authority/ActualAuthority.lean`: `actualPathFromRootOrFile`, `loadHouseholdObserved?`, `publishActual?` | Production root selects required Actual inside `household.loam`; explicit standalone Actual remains diagnostic/migration, never an automatic root fallback. Historical Actual lock identity remains explicitly temporary |
+| `Authority/HouseholdAuthority.lean`: `knownSectionNames`, `qualifyKnownSections`, `publishObserved?` | 13 registered payload families; absent is not invented empty, known present bodies qualify, unknown/unmarked sections are preserved exactly. Observed-byte gate/staging/previous retention are publication mechanics, not household fact families |
+| `Persistence/HouseholdImagePersistence.lean`: `encodeSection`, `decode?`, `body?` | Opaque payload length uses Lean String Unicode scalars, not bytes/graphemes. Absent != present-empty; duplicates/truncation/version mismatch refuse. Outer v2 numbering reflects research history; v1 never production |
+| `Persistence/NormalizedActualPersistence.lean`: `encodeNormalizedActual?`; `Core/ActualEvidence.lean`, `Core/Settlement.lean` | Current encoder chooses v1-v4 by retained settlement/revision/extinguishment evidence. Actual carries more than current signed Effects; settlement quantity/Measure is independent of source-bounded RelationUnit. Old version numbers do not prove dead data |
+| `Persistence/ScheduledLifecyclePersistence.lean`: `ScheduledLifecycleImage`, encoder/decoder; `ScheduledPersistence.lean` | Semantic occurrences + one typed terminal memory are serialized as four fixed substreams, including three former terminal kinds. Concrete simplification candidate in physical factoring, not deletion of completion/replacement/retirement distinctions |
+| Registered Capacity/Attention/routing/role/Locus codecs | Explicit allocations, due/unknown/closure facts, historical Purpose routing, partial roles and NEW-write policy, rather than reconstructable report labels. Similar row shapes do not earn semantic merger |
+| ZeroOrigin/OpeningSupport/CurrentQuantityAnchor/Presence/BoundedHistorySupport codecs; `Application/CurrentQuantityAnchor.lean`, `Core/BoundedHistorySupport.lean` | Explicit support/coverage, opening reference, assertion-to-cut ownership, presence without scalar, bounded-history claim. ASSERT is not a cached balance; opening quantity is already stored in Actual, not repeated in OpeningSupport. Anonymous group identity/order is unnecessary but cut ownership is not |
+| `Core/MovementOperationEvidence.lean`; Bakhlo `loam_read/read.mli`/`input.ml` | Request -> original Event is idempotency provenance, not payment/chronology. Current native entrance qualifies it outside Core, retains other opaque sections and refuses settlement/unknown Actual rows rather than filtering richer evidence |
+| `Presentation/MeasurePresentation.lean`, `Authority/MeasurePresentationAuthority.lean` | Exact quanta presentation/input scale is external metadata; changing a used Measure's scale requires migration. Missing-scale 0 is historical LOAM convention, not permission to infer a Bakhlo default. Other external configs remain unclassified |
+| `Review/ActualJournalProjection.lean`, `Cli/JournalExportCli.lean`, `Export/BeancountExport*.lean` | Only correction-aware current Events/dates/descriptions reach export; plain journal omits Effect keys too. No support/history/policy codec. Beancount Open dates are scaffolding; projection is one-way, not information-preserving canonical extraction |
+| Upstream `README.md`, `docs/BEANCOUNT_FAVA.md` versus current authority/export pipeline | Canonical filename descriptions/examples still show older standalone authorities. Source-selected current root route overrides these descriptions; no claim about deployed binary or user's selected data version |
+
+Qualification is **source inspection**, not freshly executed LOAM tests/proofs or a private
+usage census. Existing Bakhlo group/quantity tests and native-reader refusal/type boundaries,
+plus upstream outer-framing/journal tests, were inspected only; no rerun was needed for doc-only
+work. Two synthetic explanatory contrasts (different superseded history with identical current journal; same
+assertion/Effects but different reflected cut) illustrate the already-earned non-reconstruction
+boundary; they are not a new experiment/harness. No claim that hledger's full format/extensions
+cannot encode this evidence: no hledger trial was run.
+
+Confirmed costs: outer-length editing burden, old Scheduled physical decomposition, stale
+canonical-path documentation/legacy entrypoints. Our trial's all-ancestor snapshot chain is
+also not a household semantic requirement; preserving originals/receipts does not automatically
+choose its physical layout. These findings are not evidence that all retained families are excess.
+No family/field is marked operationally unused; no safe deletion, canonical encoding, frozen config bundle, extraction completeness or migration is earned.
+Native reader's partial admission and text proposal's ordinary profile still block treating
+those experiments as complete household representation. A coherent separately authorized
+private sample is needed for actual family/metadata use and next representative format choice.
+
+Selected source/docs (39 nearest owners) and revision/status recorded as digests in ignored
+`scratch/canonical_evidence_review`; no upstream implementation copied there. Scope checks:
+all selected owner hashes/revision/clean source status unchanged, Bakhlo lock/exact 50-package
+set unchanged, tracked executable/interface/test files untouched, new local documentation links
+and whitespace checked. No main/compiler/test result is inferred from this review; prior
+native qualification remains scoped to its own increments. No dependencies, UI/store/format
+adoption, parser/source changes, real recording, recovery, cleanup, publication or push.
 
 ## Native Unix I/O failure boundaries
 

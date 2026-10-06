@@ -25,6 +25,39 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded review — canonical evidence / inherited format
+
+User requests identifying retained meaning versus derived values, publication mechanics and
+format debt before more prototype work. D: clean c7da7a3/current sibling source
+f82f4c45498ce9b3c51a76acb7189588a5f74718; P: semantic contract, earned history/cut/support/origin
+gates and upstream blueprint/evidence maps; R: family sufficiency, actual authority path,
+wire/protocol identities, export losses and candidate choices. Select nearest source/doc owners,
+not a new parser/model/theorem/audit runner or I/O campaign. Maintenance requires no refactor;
+future field/profile changes reopen adapter coverage. No upstream execution/build/modification/
+source copy, operational/current-user reads/copies, private fixtures, migration/cleanup or push.
+Completed source-only classification: 13 registered payload families retain facts/observations,
+routing/classification/write policy and historical support. ASSERT is independent observation;
+opening quantity is already in Actual; groups need cut ownership, not stable household identity.
+Request -> original Event is publication provenance; settlement Measure/quantity is independently
+evidenced; external Measure scale is interpretation metadata. No actual field is proven unused.
+Confirmed costs: scalar-length outer framing, old Scheduled terminal substreams, stale upstream
+canonical-path summaries/explicit legacy entrances. Actual v1-v4 are actively emitted, not all
+old compatibility. Current journal views lose original/date/support/policy evidence and plain
+export loses keys; no universal hledger impossibility claim. Our all-ancestor snapshot trial
+is also not a household requirement; preserve evidence/receipts, not automatically its layout.
+All 39 selected source/doc hashes/revision/clean status and Bakhlo 50/lock unchanged; doc links/
+whitespace checked. No compiler/test rerun or private access for doc-only work. Ignored scratch
+retains source metadata/digests only. [Architecture](ARCHITECTURE.md#canonical-evidence--inherited-format-review)
+owns classification/candidates; [Verification](VERIFICATION.md#canonical-evidence--inherited-format-review)
+owns source evidence/limits. Two synthetic explanatory contrasts reuse earned history/cut laws.
+Next: compare current lossless container versus simpler owner-readable fact text on a few
+movement/correction/observation examples. User accepts read-only real-data reference in discussion;
+before PRIVATE execution, name examples/source and resolve coherent capture + needed scale/config
+metadata. No stale-copy reuse, assumed running/data version, payload disclosure, rich-evidence
+filtering or promotion of the partial reader to full importer; copies/results stay ignored.
+Further trial I/O/UI/initial setup is PAUSED pending this decision. No new grammar/codec/store/
+journal authority, full-parity port, migration/cleanup, real writes or cutover is selected.
+
 ## Completed bounded task — native Unix I/O failure review
 
 User approves continuing with synthetic I/O/space/namespace failure qualification, not real
@@ -66,9 +99,9 @@ pruning/compaction/cleanup/adopted policy. Current mixed family has 35 complete 
 169,478 bytes; this is NOT a lifetime budget. [Verification](VERIFICATION.md#native-unix-io-failure-boundaries)
 owns precise scope and remaining physical/handle/lifecycle gaps. No user-store/operational
 reads or writes, disk filling, mounts/VM/dependency/global changes or new Saved claim.
-Next: separately bounded SYNTHETIC initial balance/locus setup for both existing UIs. Actual
-physical space/device faults, parent lifecycle, recovery/retention and durable acknowledgement
-still need their own decisions/qualification before real recording/store adoption.
+The former next step, SYNTHETIC initial balance/locus setup, is paused for the representation
+review above. Actual physical space/device faults, parent lifecycle, recovery/retention and
+durable acknowledgement still need their own decisions/qualification before real recording/store adoption.
 
 ## Completed bounded task — synthetic closed backup/restore
 
@@ -122,8 +155,8 @@ refuse, no overwrite/resume. Store paths remain direct `recording-v3/stores` chi
 paths direct `recording-v3/backups` children. [Ignored README](../scratch/tui_comparison_review/README.md)
 owns full example and conditional-copy caveats. The bounded native error-return/retention
 review is now completed above; physical device/space and durability remain unqualified.
-Next: human synthetic restore use and separately bounded initial balance/locus setup before
-real recording or canonical format/store/UI decisions. Do not
+Human synthetic restore remains available; further initial balance/locus setup is paused for
+canonical evidence/format review above, before real recording or store/UI decisions. Do not
 manually clear uncertainty markers, replace current data, delete originals or infer durability.
 
 ## Completed bounded fix — TUI Tab order
