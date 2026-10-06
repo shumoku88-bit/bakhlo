@@ -241,6 +241,17 @@ is presentation policy, never stored household meaning. TUI-specific key help st
 universal status meanings. Other UIs/Mirage can later consume that pure boundary, not inherit
 this Unix publisher/runtime qualification. Broader localization/settings persistence and permanent
 module/UI/store adoption remain deferred until concrete consumers need them.
+The [same-currency transfer increment](VERIFICATION.md#same-currency-synthetic-tui-transfer)
+extends ONLY that ignored UI profile: Expense Wallet->Food and Transfer Wallet<->Bank map onto
+existing ordinary single-Measure Effects. One form currency binds both endpoints; self-transfer
+refuses. Operation/endpoints/currency stay locked during this bounded correction entrance, not
+as a new universal Core transaction-kind rule. Whole retained original/current route reconstruction
+and old expense bytes remain; unsupported richer shape still refuses wholesale. Fresh synthetic
+provisions explicitly include Bank zero origins, while supported old seeds retain Bank UNKNOWN,
+even after transfer/net-zero activity. No read inserts support or silently migrates/initializes.
+Normal presentation hides long internal IDs; an explicit detail toggle reveals complete identities
+without changing source/receipt/currentness gates. Default store, currency scales, Store and main
+engine/dependencies remain unchanged; no income/FX/canonical adoption follows.
 A useful operational record/save/query path still needs qualified reference persistence. MirageOS minimal
 composition is not a claim of ultra-security or qualified always-on deployment.
 

@@ -67,8 +67,9 @@ near-term runtime, MirageOS an explicit future goal with experimental support on
 AI/voice/network adapters and operational publication remain separate work. Prior storage/runtime
 trials are comparison evidence, not dependencies or production defaults. Both ignored native TUIs
 now connect the existing Unix trial: synthetic record/select → exit → reopen → correction, retained
-original history, ja/en display and honest uncertain-result checks. [Handoff](docs/HANDOFF.md#completed-bounded-task--synthetic-tui-recordreopencorrection)
-owns launch instructions; [verification](docs/VERIFICATION.md#synthetic-tui-recordreopencorrection)
+original history, ja/en display and honest uncertain-result checks. Same-currency Wallet/Bank
+transfer is now included; normal display keeps internal IDs in detail view. [Handoff](docs/HANDOFF.md#completed-bounded-task--same-currency-synthetic-tui-transfer)
+owns launch instructions; [verification](docs/VERIFICATION.md#same-currency-synthetic-tui-transfer)
 owns controls/limits. It does **not** qualify durable Saved, real-data recording or a main store.
 
 ## Where to look

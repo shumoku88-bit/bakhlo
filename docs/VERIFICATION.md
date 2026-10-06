@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Same-currency TUI transfer](#same-currency-synthetic-tui-transfer): mixed expenses,
+  explicit endpoints, old Bank unknown, cold correction and detail-only IDs; synthetic only.
 - [Synthetic TUI recording](#synthetic-tui-recordreopencorrection): BOTH native UIs,
   cross-language cold corrections/original history, uncertain receipt checks; no durable Saved.
 - [Experimental Movement proposals](#experimental-ordinary-movement-proposals): new-row
@@ -66,6 +68,74 @@ is a limitation/blocker, not silently replaced by compile success.
 Formal tools remain development-only. Ordinary build/test/release must be Lean-free.
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
+
+## Same-currency synthetic TUI transfer
+
+User approves Transfer in BOTH existing UIs and retaining their look with long internal IDs
+moved to explicit detail. Owners/D/P/R/instruments recorded before code at clean 36ae42f.
+Previous sources/binaries retained in ignored `scratch/tui_comparison_review/transfer-v4/baseline`.
+No new main code/package/compiler/framework, storage layout, operational input or Mirage build.
+
+Pure trial Workbench now maps Expense Wallet->Food and Transfer Wallet<->Bank onto EXISTING
+two opposite anonymous signed Effects. One currency supplies BOTH Measures, exact positive
+input/no FX; self-transfer refuses. Route is reconstructed from complete retained Effects,
+not memo/translated label or a new Core transaction-kind/account ontology. Currency/route
+changes during correction refuse at both form and direct Workbench entrances. Every retained
+row, supported seed/support and correction edge still qualifies; no partial-row salvage.
+Fresh explicit synthetic init adds Bank zero origins for all four versioned currency Measures;
+older supported seed bytes remain readable unchanged with Bank UNKNOWN, never filled/migrated.
+Transfer/nonzero/net-zero activity still cannot supply missing independent Bank support.
+
+Both frontends share Kind/From/To collection, independent selectors and localized typed states.
+Typed amounts and corrections cannot silently change operation/direction. Correction of a
+non-last root now keeps its lineage selected rather than jumping to the final root (a concrete
+connection bug found while adding mixed rows). Normal view omits generation/request/Event IDs;
+Ctrl-G shows full identities, preserving draft/bytes/pending/receipt gates. Session diagnostics
+retain full IDs; an ID is NOT a content hash, chronology or proof of durable recording.
+Shared Locale remains Stdlib-only, no Unix/Async/widget imports. Palettes unchanged; compact
+layout/geometry leaves original-history room at 80x25 in both languages/operations. No human
+IME/grapheme/live resize/large-list/latency or permanent toolkit verdict.
+
+Reused native pure smoke passes 4 currencies x2 directions x2 display languages: exact opposite
+signs, independently expected per-locus quanta and same-currency conservation, unrelated-currency
+invariance, cents/180-bit transfers, route/amount/memo originals, currency/stale/route/self refusal
+and selector-vs-recording boundary. Complete controlled stock/Ox mixed expense/transfer proposal
+outputs are byte-identical (24 retained Events/12 correction edges), not checksum-only equality.
+Reused native recording checks pass in BOTH binaries: all prior expense/receipt/load/refusal
+controls, JPY/EUR both-direction cold transfer/correction, mixed original bytes/date/route/memo,
+non-last expense correction, normal/detail ID correspondence and original receipt/current reload.
+Explicit older synthetic seed remains byte-readable with Bank unknown after transfer AND return
+to net zero. Whole-admitted richer balanced multi-Measure shape and raw changed-route correction
+refuse the UI profile. Transfer Generation-ready OLD/Selected NEW returned-error checkpoints
+retain frozen exact drafts/routes; read-only reconciliation has unchanged file fingerprints,
+OLD stays pending/NEW independently reloads BOTH endpoint quantities. Actual syscall/entropy/
+power-loss failures are NOT injected or qualified by these connection controls.
+
+Actual fully quiet-drained transfer `pty-v2` passes eight native UI children at 100x25: Notty ja
+expense 10 + Wallet->Bank 100 -> exit -> Bonsai en correct transfer to 120, Bank->Wallet 20,
+independent From/To picks/self-refusal and another deposit 10 -> exit -> Notty ja correct the
+NON-last withdrawal to 25, inspect original reverse route, add EUR 12.34 -> exit -> Bonsai en/ja
+correct EUR to 15.01, inspect original route/memo and show/hide full ID detail. Final JPY Wallet
+885/Bank 105/Food 10; EUR Wallet 84.99/Bank 15.01; other currency quantities unchanged. OLD
+transfer uncertainty/No receipt/blocked route displays in Notty, cold Bonsai interruption blocks
+recording; NEW uncertainty displays in Bonsai BEFORE Ctrl-R, cold Notty reads Wallet 975/Bank
+25. All eight exit 0 and full stty matches after canonical resume. Initial transfer `pty-v1`
+FAILED a detail assertion because one-frame draining left older Notty frames queued. Retain its
+trace/store; quiet-until-no-output draining fixes the instrument, not a relabeled UI failure.
+The ORIGINAL nine-child expense PTY consumer also passes on freshly named synthetic stores.
+
+Main `tools/check` passes (175 expect/four cram). Exact main 50/lock, Money source/policies and
+original reuse Store hashes unchanged. Final native smoke/geometry/recording checks pass;
+same-store stock/Ox cold quantity/generation/request/session outputs are byte-identical.
+No current user's trial-store or operational payload was read/reset/copied; all controls use
+fresh self-generated synthetic roots, and previous sources/images/trials remain intact. Sources,
+images, native stores, failures, logs, PTYs and hashes stay ignored in `transfer-v4`/trial scope.
+[Handoff](HANDOFF.md#completed-bounded-task--same-currency-synthetic-tui-transfer) owns launch/next
+work; default store path stays unchanged, fresh Bank zero support requires EXPLICIT new init.
+No real-data recording, migration, main canonical storage/UI adoption, recovery/cleanup,
+backup/restore, actual failing syscall/namespace/device/power-loss/Saved, other host or Mirage
+qualification. Broader routes, income and changing a correction's route require a new bounded
+entrance/decision; no missing support may be guessed for product convenience.
 
 ## Synthetic TUI record/reopen/correction
 

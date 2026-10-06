@@ -25,6 +25,62 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded task — same-currency synthetic TUI transfer
+
+User approves adding transfer to BOTH existing UIs, retaining their feel and moving long
+internal IDs to an explicit detail view. Question: can explicit Wallet/Bank direction and
+amount record, cross-UI/language reopen and correct without changing old expenses/support,
+losing original route/memo/history or inferring a balance from transfer activity?
+D: clean 36ae42f, current ignored recording consumer, main exact 50/lock and 175 expect/four
+cram; P: exact ordinary-Movement/proposal gates, whole profile/receipt/currentness, ja/en
+and cold expense/history/failure checks. R: endpoint collection/whole reconstruction, same
+Measure on BOTH Effects, self-transfer refusal, correction route binding, independent Bank
+support and normal/detail presentation. Owners: pure Workbench maps the narrow UI routes
+onto EXISTING Effects (no Core transaction-kind/account ontology); existing Recording/Store
+retain publication. NEW explicit synthetic provisions add Bank zero origins for each trial
+currency. Old supported expense seeds remain byte-readable with Bank UNKNOWN, never zero
+filled/migrated/reinitialized. Same known old support profile may retain newly proposed
+transfers without gaining Bank support. Correction locks currency AND route for this bounded
+entrance; kind/direction changes require a new empty draft. Only Wallet <-> Bank, no FX,
+income, balance permission or new locus catalog. Pure Locale stays shared; detail toggle
+changes presentation only, keeping full identities/generation/receipts internally.
+Selected instruments: extend SAME native smoke/recording checks and drained PTY consumer;
+independently expected per-locus quanta, per-currency conservation, mixed expense/transfer
+bytes/history, old-seed unknown, shape/route/precision/stale refusal and one transfer OLD/NEW
+uncertainty connection. Reuse existing engine oracles, not another model/framework/package,
+Python bridge, theorem or large campaign. No maintenance consolidation trigger; unchanged
+parsers/identities/arithmetic/storage; keep both original palettes and main dependencies.
+Preserve current sources/images before edits; do not read/reset the user's current trial
+store or operational inputs. Tests use freshly named synthetic stores only. No new UI,
+canonical format/store adoption, recovery/backup, real data, Mirage build, global install or
+push. Revisit before broader routes, correcting routes/currencies, real data or physical
+failure/retention qualification. Completed: shared Workbench/interaction and BOTH renderers
+now collect Expense/Transfer and explicit From/To; same-currency opposite Effects, self/route/
+precision/currency/stale refusal, mixed original history and cold reads pass. Correcting a
+non-last row now keeps its lineage selected rather than jumping to the final root. Long IDs
+are normal-view hidden, full in Ctrl-G detail/session diagnostics; toggling never changes
+records, drafts or pending/receipt gates. Native four-currency/two-direction/two-language and
+180-bit controls, mixed recording/older-seed UNKNOWN even at net zero and OLD/NEW uncertainty
+pass. Actual quiet-drained 100x25 PTYs pass both-direction JPY and EUR cross-UI/language
+record/reopen/correction/history, independent endpoint/self/locked-route controls and detail
+IDs; original nine-child expense PTY also passes. Main 175 expect/four cram and stock/Ox exact
+mixed proposals/cold answers pass; exact 50/lock/Store/Money unchanged. First transfer PTY
+assertion did not drain all Notty frames; failed evidence retained, quiet-drained rerun passes.
+No real/current-user-store read or mutation, recovery, Saved, actual syscall, power-loss or
+Mirage qualification. [Verification](VERIFICATION.md#same-currency-synthetic-tui-transfer)
+owns precise evidence/limits; `transfer-v4` retains sources/images/checks/PTYs.
+
+Restart the existing trial UI to use the new binary: `.../try-ui bonsai ja` or `.../try-ui notty en`.
+Ctrl-N empty new, Ctrl-T expense/transfer, Ctrl-B reverse empty transfer (or Tab to From/To,
+Left/Right independently), Enter record, Ctrl-E correction, Ctrl-P original history, Ctrl-G
+internal detail. Default path and old expense records are unchanged; old Bank is UNKNOWN, not
+filled with zero. For known SYNTHETIC Bank origins, explicitly init a fresh named store:
+`store="$PWD/scratch/tui_comparison_review/recording-v3/stores/transfer-demo"`, then
+`.../try-ui init --store "$store"` ONCE and `.../try-ui bonsai ja --store "$store"`.
+Never reset/migrate the existing store for a demo. [Ignored trial README](../scratch/tui_comparison_review/README.md)
+owns full controls. Next: human transfer use, then a separately bounded income entrance;
+backup/restore and actual failure qualification before real data, not automatic adoption.
+
 ## Completed bounded task — synthetic TUI record/reopen/correction
 
 User approves connecting the EXISTING Unix text publication experiment to BOTH native
