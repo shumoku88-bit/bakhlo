@@ -25,6 +25,45 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded task — synthetic scale/copy/reopen cost review
+
+Question: does the existing native text proposal/Unix trial stay plausibly interactive at
+10k/100k retained ordinary Events, and what actually grows with cuts and full snapshots?
+D: clean 260950b/main 50, unchanged pure reader/proposal and ignored Unix trial available.
+P: 173 expect/four cram, source/cut/unknown gates and v3 selection/replay/interruption controls;
+prior 1d3de2f 10k/100 empty-cut group CPU observation (~1s, no parsing/I/O), not a target.
+R: acquisition vs decode/source/support/query costs, whole-proposal/publication/reopen peak RSS,
+three-generation bytes and 100-extra-group sensitivity. Native owned cost consumer alongside
+existing ignored trial; link CURRENT engine + existing Store, do not port a historical harness.
+Workloads: 10k/100k two-Effect Events, singleton roots versus disjoint four-Event correction
+paths, half-root wallet cut, explicit food/quiet origins, USD opening, presence/net-zero unknown;
+separate 100-empty-cut-group stress. Complete original bytes/history and exact answers must
+survive; no partial-source success/cache/index or shortened admission for timing.
+Exploratory REVIEW budgets (not user SLOs/adoption): 10k read <=2s, 100k read <=10s,
+100k proposal+publish <=30s, worker peak RSS <=1GiB; three generations should retain ~3 complete
+images, not pretend linear lifetime history. Resource guard: 120s per process; stop/reassess
+on failure or >2GiB observed RSS rather than blindly expanding the workload. No promised latency.
+Instruments: staged native CPU/wall timers + existing /usr/bin/time peak RSS, fresh processes,
+three single-cut repetitions/ranges, exact quantity/cut/provenance/byte checks and existing
+ordinary regression gate. Filesystem caches uncontrolled (not cold-media latency); no new
+model/random campaign/framework/package/VM/Lean/real-data access. Maintenance table: measure
+reconstruction/group walks before deciding any optimization; other consolidation triggers absent.
+Revisit only an actually exceeded budget/measured seam; durable Saved/layout/authority decisions
+remain separate. If operational input is later necessary, explain purpose/scope to user first.
+Completed: 10k/100k flat/four-Event-path inputs, three fresh-process selection/correction/reopen
+repetitions; original bytes/three generations/parent links/old text/edge, four support distinctions
+and signed 180-bit quantities survive. Observable 1,000-answer checksum/counts rerun avoids discard-only
+benchmark evidence. All exploratory budgets met; no memory/time guard fired. At 100k, source
+read ~1.0-1.2s, three-generation reopen ~3.6-4.3s, append ~6.4-7.7s/correct ~9.5-11.4s; peak
+worker RSS ~765MiB, 100 extra empty-cut groups ~773MiB/8.5s. These are NOT product SLOs or
+cold-media/durable Saved evidence. Full three-generation bytes ~37-42MB; lifetime growth is not
+qualified. [Verification](VERIFICATION.md#synthetic-text-scale-and-history-cost) owns ranges,
+phase attribution, host/cache/check overhead and unchanged source/lock/50-package controls.
+Decision: no main optimization/adoption now; query lookup is already cheap, repeated whole
+admission and per-group walks/snapshots are the measured seams. Next: fix a concrete recording
+latency/retention requirement and review those seams with independent cuts/provenance/current-
+evidence/receipts intact, separately from actual sync/recovery qualification. No real data needed.
+
 ## Completed bounded task — synthetic record/select/reopen/correction consumer
 
 Question: can one explicit ordinary Movement proposal retain the admitted base evidence,
@@ -64,8 +103,8 @@ Main/source lock and exact 50-package set unchanged; no old trial switch/VM/Lean
 [Verification](VERIFICATION.md#unix-text-publication-consumer-synthetic-no-saved) owns precise
 controls and limitations. This earns ONLY a native synthetic loop, not main persistence/Saved,
 power-loss or actual syscall-fault/lifecycle/security qualification. Layout/ID/path budget stay
-trial-only. Next: name a synthetic cost budget (10k/100k shapes), measure copy/reconstruction/
-reopen/history growth before choosing a production representation or optimizing a measured seam.
+trial-only. The bounded scale/copy/reopen review is now completed above; its measurements do
+not adopt this layout or qualify lifetime retention, actual failure completion or durable Saved.
 
 ## Completed bounded task — friendly quantity answers without raw provenance
 
@@ -406,11 +445,12 @@ follows those useful native boundaries, not immediate main writer/store adoption
    model. Native process checkpoints/SIGKILL/fsync/rename/Git commit do not qualify Saved.
    No older-world fallback, implicit repair or new filesystem by default; trial layout is not
    an adopted canonical format/store or a concurrency/authentication service.
-2. Measure bounded synthetic long-term cost (e.g. 10k/100k Events, explicit correction/group
-   shapes): reconstruction/save/reopen CPU+wall time, memory and retained-history growth.
-   Whole-history copying/rebuilding is not a settled production strategy. Use a small owned
-   probe, not a permanent benchmark/cache framework or operational fixtures; optimize only
-   measured seams while retaining admission/closure/support guarantees.
+2. Use the bounded 10k/100k measurement above to set a concrete daily recording latency/
+   retention requirement before changing a measured seam. Query lookup is already cheap;
+   repeated whole admission, independent-group walks and full retained snapshots dominate.
+   No automatic cache/index/admission weakening or layout adoption. Lifetime history growth,
+   larger/more-group shapes and other hosts remain unqualified; use a bounded native consumer,
+   not a permanent benchmark framework or operational fixtures, when that question is named.
 3. Decide physical authority/index roles from sovereignty, durability, maintenance and measured
    cost. Canonical text + optional SQLite derived index is the first candidate, NOT a chosen
    layout or necessary dependency. Indexes identify qualified canonical generation/interpretation

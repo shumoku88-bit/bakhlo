@@ -20,6 +20,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
   [structured-operation audit](#structured-operation--diagnostic-readiness-audit-no-new-features).
 - [Historical private read](#latest-loam-contract-private-conditional-quantity-experiment):
   results retained, retired probe code; not a runnable/current household acquisition.
+- [Synthetic text scale/history cost](#synthetic-text-scale-and-history-cost): 10k/100k native
+  phase/worker measurements, not an SLO, lifetime retention or storage adoption.
 - [Native Unix text publication consumer](#unix-text-publication-consumer-synthetic-no-saved):
   synthetic record/select/reopen/correction and receipts, not durable Saved/store adoption.
 - [Unix SQLite trial](#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification)
@@ -350,8 +352,71 @@ All trial child processes/handles finish/are waited; VM remains stopped. No cano
 store/schema/production identity, full household/richer codec, principal isolation, valid-tamper
 integrity, multi-threaded/malicious namespace concurrency, maintenance/cleanup/recovery service,
 actual failing syscall/close controls, ancestor-directory lifecycle or durable Saved earned.
-Whole-generation/history copy/reconstruction cost remains UNMEASURED and production strategy
-OPEN; name 10k/100k budgets before optimizing or adopting this experimental layout.
+Whole-generation/history copy/reconstruction cost was UNMEASURED at this increment; the bounded
+review below now supplies 10k/100k observations. Lifetime cost and production strategy remain OPEN.
+
+## Synthetic text scale and history cost
+
+Question/D/P/R/assumptions/review budgets recorded BEFORE code at 260950b. One disposable native
+`cost.ml` consumer alongside the existing ignored Unix trial; CURRENT engine/Store reused, no
+historical harness port or framework/model/random campaign/package/VM/Lean/operational data.
+Host Darwin x86_64, Intel i5-8259U 2.30GHz, 16GiB; OCaml 5.3.0/Base/Zarith and exact main 50
+unchanged. Native CPU/wall phase timers, `/usr/bin/time -l` worker wall/user/sys/peak RSS, three
+fresh-process repetitions per ordinary shape. Filesystem caches UNCONTROLLED (likely warm);
+no cache eviction, fresh-host, cold-media, other-host or universal latency claim. External
+worker time/RSS includes start-up and correctness checks, not just the named timed phase.
+
+Inputs: 10k/100k measured ordinary Events + TWO fixed USD/opening/net-zero-touch Events, two
+ordered Effects each, Event-local key reused across Events, 1% supplied recognizer text. Flat
+singleton roots versus disjoint four-Event/three-edge correction paths; replacement dates
+older than roots, amount 1/2/3/4 so retained sums differ from selected terminals. Half-root
+wallet cut with independently asserted signed 180-bit quantity; food/quiet origins, USD
+opening, presence/unknown retained. Separate stress adds 100 independent empty-cut groups with
+no matching physical activity. Native text producer is synthetic input, not generated OCaml
+payload or a chosen canonical encoder. No failed/missing source becomes a successful quantity.
+
+Ranges below are EXTERNAL worker seconds, three repetitions; input read/reopen v2 consumes
+observable answer checksums, append/correct v1 operations are unchanged. Unsupported-input
+negative control exits 1 with no CHECK PASS. v1 discard-only query loops were not accepted as
+final query-cost evidence: v2 counts 572 Exact/143 presence/285 unknown plus exact checksum for
+1,000 lookups, then checks expected original quantities; all source/reopen shapes rerun. Cached
+image batch (INCLUDING checksum addition) takes 0.120-0.224ms here, not a per-question guarantee.
+
+| Shape / measured Events | One input read | Append worker | Correction worker | Three-generation reopen | Largest lifecycle RSS |
+| --- | --- | --- | --- | --- | --- |
+| Flat / 10k | 0.11-0.57s | 0.61-0.64s | 0.88-1.00s | 0.36-0.38s | 88.8MiB |
+| Four-Event paths / 10k | 0.12-0.14s | 0.68-0.69s | 1.02s | 0.39s | 83.8MiB |
+| Flat / 100k | 1.01-1.05s | 6.43-6.55s | 9.46-9.53s | 3.63-3.64s | 759.2MiB |
+| Four-Event paths / 100k | 1.21-1.23s | 7.59-7.65s | 11.23-11.40s | 4.23-4.25s | 765.3MiB |
+
+Initial admit/write/sync workers: 10k 0.12-0.13s, 100k 1.16-1.37s, visible-unacknowledged only.
+Representative 100k flat phases: acquire ~0.018s, decode ~0.356s, source ~0.385s, support ~0.255s.
+Path source admission ~0.73s, support ~0.07s (fewer roots). Correction's read-before-proposal
+~2.14/2.45s, proposal ~2.00/2.41s, publisher ~5.29/6.30s flat/path: repeated complete admission,
+not indexed lookup, dominates. Each publication revalidates candidate and full selected history
+before activation and under its lease; none of those gates were removed for speed.
+100 extra groups: single sensitivity samples 10k ~0.77s/81.4MiB, 100k v2 ~8.52s/773.1MiB;
+100k support phase alone ~7.69s versus ~0.255s, input adds only 4,390 bytes. Nearest owners confirm
+per-group root-set/filter and original-Effect aggregation walks, retaining independent cuts.
+
+Exact original bytes/three-generation parent associations/old recognizer text/correction edge/cut/current
+selection/Measure separation/zero/presence/unknown checked after each operation and reopen.
+Three complete snapshots occupy 3,708,370/4,203,370 bytes at 10k flat/path and
+37,064,173/42,014,173 bytes at 100k (initial text 12,354,481/14,004,481). A small added Movement
+still retains a COMPLETE new image; ~3x for three generations is NOT linear lifetime retention.
+Unbounded publications, many-generation reconstruction, off-device backups/cleanup and storage
+exhaustion are not measured or qualified. Entire retained test tree ~346MiB; original v3 sources/
+image/digests intact, all cost source/image/raw logs preserved separately in ignored cost-v1/v2.
+No trial enters Dune workspace. Ordinary check (173 expect/four cram) passes; lock and exact
+50-name/version set identical. Process alarms 120s, observed-RSS stop 2GiB did not fire.
+
+All EXPLORATORY review budgets (10k read 2s, 100k read 10s, proposal+publish 30s, RSS 1GiB)
+met, not user SLOs/product readiness or Saved. Decision: defer main optimization/adoption until
+concrete daily recording latency/group/retention requirements name the trade-off. Query reuse is
+already earned; repeated whole admission and per-group walks/copies are the observed seams,
+not license for partial admission, merged support meanings or speculative caching. Actual
+returned I/O/sync/cleanup failures and namespace/power-loss lifecycle qualification remain
+separate. Existing LOAM is sole authority; no real inputs were needed for this cost review.
 
 ## Experimental versioned-text read (ordinary Actual profile)
 

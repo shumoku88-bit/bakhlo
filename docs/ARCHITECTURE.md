@@ -101,8 +101,13 @@ All Actual rows/profile gates are handled before lookup; unsupported evidence st
 and opaque other-family sections stay retained but unadmitted. The scoped read API is not
 an omnibus compatibility or stable external-protocol promise. [Verification](VERIFICATION.md#latest-loam-contract-private-conditional-quantity-experiment)
 owns limits; quantities agree with an original-list oracle, not a claimed LOAM runtime result.
-No production canonical codec/store, writer/index/benchmark or Mirage/UI feature, full parity
-prerequisite, original mutation/migration, main-lock change or implicit Saved.
+No production canonical codec/store, writer/index/maintained benchmark or Mirage/UI feature,
+full parity prerequisite, original mutation/migration, main-lock change or implicit Saved.
+The ignored native text trial and [bounded scale review](VERIFICATION.md#synthetic-text-scale-and-history-cost)
+now provide selection/receipt and 10k/100k copy/reopen observations. Query lookup is cheap once
+one image is admitted; repeated whole admission, per-group cuts/aggregation and retained complete
+snapshots are measured costs. No cache/index/layout selection follows automatically: preserve
+current evidence requalification, independent cuts and original answer-bound paths/history.
 
 ## Minimal Persistence contract
 
