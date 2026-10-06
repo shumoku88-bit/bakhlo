@@ -63,12 +63,13 @@ payload pipeline. Qualified hosts and per-increment limits are in [verification]
 
 Human-readable evidence and data sovereignty come before physical store adoption. Canonical
 text is a candidate, not an adopted format; SQLite canonical adoption is paused. Unix is the
-near-term runtime, MirageOS an explicit future goal with experimental support only. UI,
-AI/voice/network adapters and publication remain separate work. Prior storage/runtime trials
-are comparison evidence, not dependencies or production defaults. A bounded ignored native
-Unix trial now closes the synthetic record/select/reopen/correct loop with retained history and
-receipts; [verification](docs/VERIFICATION.md#unix-text-publication-consumer-synthetic-no-saved)
-owns its interruption/lifecycle limits. It does **not** qualify durable Saved or a main store.
+near-term runtime, MirageOS an explicit future goal with experimental support only. Permanent UI,
+AI/voice/network adapters and operational publication remain separate work. Prior storage/runtime
+trials are comparison evidence, not dependencies or production defaults. Both ignored native TUIs
+now connect the existing Unix trial: synthetic record/select → exit → reopen → correction, retained
+original history, ja/en display and honest uncertain-result checks. [Handoff](docs/HANDOFF.md#completed-bounded-task--synthetic-tui-recordreopencorrection)
+owns launch instructions; [verification](docs/VERIFICATION.md#synthetic-tui-recordreopencorrection)
+owns controls/limits. It does **not** qualify durable Saved, real-data recording or a main store.
 
 ## Where to look
 

@@ -29,7 +29,9 @@ The product should be an ordinary, friendly household machine that works without
 explicit questions answered by deterministic operations over admitted evidence. Helpful replies
 explain what is known, unknown and worth checking; they do not invent missing facts or silently
 add a zero origin. AI/NL interpretation is optional and outer, never a specialist LLM/SLM or
-required runtime. Record/save/reopen/correct is the later daily-use path, not yet implemented.
+required runtime. Daily-use record/save/reopen/correct remains unqualified. The ignored
+synthetic TUI consumer now connects record/select/reopen/correction; it is not an operational
+store, canonical format or durable Saved implementation.
 
 Retain full evidence for the owner and information-preserving extraction. External recipients
 receive only authorized operation-specific projections, not raw history/credentials by default;
@@ -225,7 +227,21 @@ EUR/USD/ILS 0.01); it neither reinterprets old jpy evidence nor defines a produc
 locale/FX/catalog. Both frontends consume that SAME exact text conversion and engine gates.
 Language changes no draft bytes; currency changes require an empty new draft, and corrections
 bind the existing currency/owner. No GUI-side balances, rounding or cross-currency subtotal.
-A useful record/save/query path still needs qualified reference persistence. MirageOS minimal
+
+The [synthetic TUI recording connection](VERIFICATION.md#synthetic-tui-recordreopencorrection)
+now consumes the EXISTING ignored Unix Store in BOTH frontends. Pure Workbench whole-qualifies
+the narrower expense UI profile and reconstructs every retained original/correction, refusing
+unsupported rows/support rather than salvaging a display. A small outer Recording owner binds
+proposals to selected snapshots and receipts, explicit trial-only provision/namespace, fresh
+conditional publication and read-only uncertainty checks. Pending requests cannot blindly retry;
+original receipts are freshly separated from the displayed current generation. Unexpected cold
+store files block recording without automatic repair. Normal exit/reopen is not power-loss Saved.
+Shared Locale is pure Stdlib display data, independent of Unix/Async/frontend widgets; language
+is presentation policy, never stored household meaning. TUI-specific key help stays distinct from
+universal status meanings. Other UIs/Mirage can later consume that pure boundary, not inherit
+this Unix publisher/runtime qualification. Broader localization/settings persistence and permanent
+module/UI/store adoption remain deferred until concrete consumers need them.
+A useful operational record/save/query path still needs qualified reference persistence. MirageOS minimal
 composition is not a claim of ultra-security or qualified always-on deployment.
 
 ## Structured operations and diagnostic availability
@@ -620,9 +636,11 @@ proof. Irmin CAS/batch and experimental FS/runtime barriers face the SAME contra
 A local mutex CAS is neither multi-process nor crash atomicity. Offline copy/reopen is
 bounded restore evidence, not a live backup/off-device policy. No shadow canonical balances.
 
-UI is not implemented; CLI is the development/read entrance. [Client access direction](#client-access-direction)
-records desktop Notty preference/optional Bonsai browser evaluation; toolchains, protocol,
-authentication and compatibility need concrete qualification before adoption. Clients consume
+No production UI is adopted; CLI is the main development/read entrance. The ignored paired
+Notty/Bonsai_term synthetic recording trial is implemented, not a permanent toolkit choice.
+[Client access direction](#client-access-direction) records both desktop candidates and eventual
+phone/browser access; toolchains, protocol, authentication and compatibility need concrete
+qualification before adoption. Clients consume
 semantic answers rather than recomputing meaning. Prior hosted, guarded SPT engine and
 block-persistence evidence belongs to VERIFICATION, not production support. No permanent
 adapter or main Lwt/SQLite dependency yet; the ignored native SQLite consumer is now exercised.

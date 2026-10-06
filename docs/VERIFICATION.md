@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Synthetic TUI recording](#synthetic-tui-recordreopencorrection): BOTH native UIs,
+  cross-language cold corrections/original history, uncertain receipt checks; no durable Saved.
 - [Experimental Movement proposals](#experimental-ordinary-movement-proposals): new-row
   encoding/base preservation and whole-candidate refusal; not recording or storage adoption.
 - [Friendly projected quantity answers](#friendly-projected-quantity-answers): typed narrowing,
@@ -64,6 +66,71 @@ is a limitation/blocker, not silently replaced by compile success.
 Formal tools remain development-only. Ordinary build/test/release must be Lean-free.
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
+
+## Synthetic TUI record/reopen/correction
+
+User approves connecting BOTH existing native trials to the EXISTING ignored Unix text
+publication consumer; bounded owners/D/P/R/instruments recorded before code at clean 492efde.
+Current source/binaries/controls retained in ignored `scratch/tui_comparison_review/recording-v3/baseline`;
+main exact 50/lock and `text_publication_reuse/store.ml/.mli` remain byte-unchanged. No new
+package/framework/compiler, operational input, canonical store/layout, recovery or Mirage build.
+
+Pure Workbench now prepares opaque proposals and reconstructs the WHOLE narrower synthetic
+expense UI profile from an admitted document. Explicit original seed/support, every retained
+expense's Effects/date/description and currency-bound correction path must fit; unsupported
+rows, absent descriptions, old `jpy`, changed support or richer shape refuse wholesale.
+Reopened trial Event allocation checks ALL retained identities; dates/root order are not
+chronology. Ctrl-P cycles actual path originals with original ID/date/currency/amount/memo.
+Locale remains pure Stdlib/no Unix/Async/frontend dependency. Shared display meanings do not
+translate identities/memos or establish a universal keyboard convention. Broader language
+switching/preferences/other UIs are deferred; this does not qualify a Mirage publisher.
+
+A small consumed outer Recording owner symlinks/uses the unchanged Store. Explicit init only;
+missing/invalid read never creates, repairs or falls back. Only dedicated trial-directory direct
+children are allowed, root symlinks/outside roots refuse (cooperative stable namespace, NOT an
+adversarial security service). UI publication retains current snapshot/base gates. Pre-effect
+refusal, Conflict, Busy, mismatch, visible-unacknowledged selection and post-effect uncertainty
+stay distinct. Success clears amount/memo to prevent immediate accidental repeat. Uncertainty
+retains exact request/base/candidate and freezes edit/write; Ctrl-R reconciles read-only, then
+separately reloads currently selected evidence. An original replay/receipt never becomes current
+by itself. No receipt remains uncertainty, NOT failure or retry permission. Unexpected cold
+files conservatively block writes without cleanup; selected evidence stays available, not empty.
+
+Focused connection checks consumed by BOTH native binaries pass: 4 currencies x2 languages,
+exact cents/signed 180-bit cold quantities, original bytes/8 Events/4 edges/date/memo, explicit
+init/read-only scope/unsupported whole-profile refusal, failed reload/draft retention, stale
+correction after refresh, Conflict, original replay after later correction and CURRENT reload.
+Captured pre-write returned error leaves files unchanged/no pending result. Generation-ready
+OLD and Selected NEW returned errors preserve form/model/uncertainty; no blind repeat. Read-only
+reconciliation has identical before/after files; OLD/no-receipt and cold orphan block writes;
+NEW/observed receipt independently reloads later selected correction if present. These are
+connection/checkpoint controls, not new engine or syscall/power-loss qualification. Initial
+native v1 conflict check FAILED: deterministic request IDs collided across sessions and yielded
+mismatch rather than Conflict. Fixed with outer 12-byte Unix entropy request allocation; entropy
+failure refuses and Store still checks collisions, not a production uniqueness service. Native
+v2/v3 checks pass; initial failures/stores retained, not deleted or relabeled.
+
+Real drained `pty-v4` traces pass: Notty ja EUR 12.34/memo -> exit -> Bonsai en reopen/correct
+15.01, language switch, USD cent and ILS/JPY precision refusals/additions -> exit -> Notty ja
+reopen/recorrect EUR 16.00 -> exit -> Bonsai en/ja cycles BOTH originals 12.34/15.01 and their
+memos. Final wallet JPY 998 / EUR 84.00 / USD 199.99 / ILS 298.77, source checksum equal.
+OLD uncertainty/No receipt/blocked edit visibly render in Notty; cold Bonsai shows read-only
+interruption. NEW uncertainty visibly renders in Bonsai BEFORE Ctrl-R receipt observation;
+cold Notty reads 990. Missing-store UI refuses before terminal acquisition, exit 1/no store
+creation. Eight successful UI children exit 0; all nine full stty checks pass after canonical
+resume. Earlier PTY v2 was functional-only (empty trace capture), v3 had undrained/coalesced
+Bonsai transitions: preserve them, but only drained v4 qualifies visible intermediate warnings.
+No IME/human editing/large-list/latency/SIGKILL/power-loss verdict follows from these traces.
+
+Final stock/Ox pure proposal outputs and cold same-store quantity/receipt/session outputs are
+byte-identical; checksums are observations, never an admission/currentness/security gate.
+Main `tools/check` (175 expect/four cram) passes; exact 50/lock/source Store hashes unchanged.
+Original paired/money/publication artifacts remain. TRY: `try-ui init` ONCE, then `try-ui notty ja`
+and `try-ui bonsai en`; [Handoff](HANDOFF.md#completed-bounded-task--synthetic-tui-recordreopencorrection)
+owns current launch/next work. Sources, images, hashes, logs, native stores and PTYs stay ignored.
+Qualified ONLY synthetic native normal-exit loops and named controls on current macOS; no main
+storage/UI adoption, live/off-device backup/restore, recovery/cleanup, actual failing syscalls,
+namespace/device/power loss, durable Saved, real data, other host or Mirage qualification.
 
 ## Paired Notty / Bonsai_term synthetic draft UI trial
 

@@ -25,6 +25,54 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded task — synthetic TUI record/reopen/correction
+
+User approves connecting the EXISTING Unix text publication experiment to BOTH native
+TUI trials. Keep ja/en switching and its pure shared display boundary; richer switching,
+settings persistence, other UIs and Mirage integration are deferred. Question: can Notty
+record, exit, Bonsai reopen in another language, correct, exit and Notty inspect original
+history without false Saved, erased load failures or blind uncertain-result retry?
+D: clean 492efde, main exact 50/lock, paired money-v2 UIs and current reuse Store available.
+P: whole admitted proposals, explicit four-currency scales/support, exact stock/Ox bytes,
+retained history, fresh expected-head/receipt and interruption gates. R: whole synthetic
+UI-profile reconstruction/identity freshness after restart, shared publication outcomes,
+draft retention on failure, receipt reconciliation versus current generation, history view
+and genuine cross-UI cold processes. Owners: pure Workbench reconstructs/qualifies the
+narrow expense projection; existing ignored Store owns Unix effects; a small consumed
+trial recording owner connects them. Locale remains pure/Unix/UI-framework-free; keyboard
+help stays TUI-specific, not a universal UI convention. Explicit synthetic provision,
+trial-owned namespace only; opening never initializes/repairs/falls back. Reuse the SAME
+native smoke/PTY consumers and targeted existing Store fault hooks, not another model,
+framework, package, Python bridge or broad campaign. Check four currencies/huge exact
+amounts, cross-UI/language cold reopen/correct/history, conflict/load refusal and OLD/NEW
+uncertainty without blind retry. Preserve current sources/images before editing. Main
+compiler/lock/dependency directions and all old stores/trials stay unchanged. No real data,
+canonical storage/UI adoption, live backup/recovery, power-loss/Saved, Mirage build or push.
+Revisit before actual syscall/namespace/recovery qualification, permanent adoption or real
+recording. Completed: BOTH native frontends consume unchanged reuse Store; explicit provision,
+whole UI-profile cold reconstruction, fresh publication, original-history cycling and read-only
+receipt checks pass. Initial deterministic request-ID collision exposed by conflict check was
+fixed with outer Unix trial entropy allocation, not UI allocation or a new package. Native
+4x2/180-bit/failure connections and real drained PTYs pass Notty ja -> Bonsai en correction ->
+Notty ja recorrection -> Bonsai history in both languages; OLD uncertainty remains blocked,
+NEW receipt reloads independently selected current evidence. Main 175 expect/four cram,
+exact stock/Ox proposals/cold answers and unchanged 50/lock/Store controls pass. No real data,
+Saved, actual syscall/power loss or Mirage qualification. [Verification](VERIFICATION.md#synthetic-tui-recordreopencorrection)
+owns retained controls, initial failures, terminal/evidence limits. Broader language switching,
+other UIs/Mirage and settings persistence stay deferred; pure Locale boundary is reusable.
+
+Try from repository root (SYNTHETIC ONLY; >=64x25 terminal):
+`./scratch/tui_comparison_review/try-ui init` ONCE, then `.../try-ui notty ja`, Ctrl-Q,
+`.../try-ui bonsai en`. BOTH share `recording-v3/stores/household-synthetic`; opening missing
+or invalid data never initializes/repairs/falls back. Enter now validates AND records;
+Ctrl-R checks uncertain results/reloads, Ctrl-P cycles original history, Ctrl-E corrects,
+Ctrl-N new, Ctrl-L ja/en, Ctrl-K currency from empty new form. Successful selection clears
+amount/memo; uncertain result freezes editing/recording. Cold unexpected/prepared files show
+read-only interruption, no implicit cleanup/retry. [Ignored trial README](../scratch/tui_comparison_review/README.md)
+owns full controls/scales and optional explicit store selection. Next: human use of this
+synthetic loop; later income/transfer, backup/restore/failure qualification before real data.
+This does not authorize canonical store/UI adoption or operational recording.
+
 ## Completed bounded task — bilingual four-currency draft UI
 
 User approves extending BOTH trial UIs with Japanese/English and JPY/EUR/USD/ILS selection
@@ -57,9 +105,10 @@ paired v1 sources/images/hashes retained; main 175/four cram, format, exact 50/l
 [Verification](VERIFICATION.md#bilingual-four-currency-draft-ui) owns new evidence/bounds.
 Try `./scratch/tui_comparison_review/try-ui bonsai en` (or `notty ja`): Ctrl-L language,
 Ctrl-K currency from empty new draft, Ctrl-N new, Ctrl-E/Ctrl-U correct, Enter validate,
-Ctrl-Q quit. Candidate work still disappears at exit. Human IME/keyboard feel remains next.
+Ctrl-Q quit. At this historical draft-only increment, candidate work disappeared at exit;
+current launch uses the recording connection above. Human IME/keyboard feel remains unqualified.
 
-## Active bounded task — paired Notty / Bonsai_term TUI trial
+## Completed bounded task — paired Notty / Bonsai_term draft TUI trial
 
 User explicitly requests building with BOTH candidates and comparing while using them;
 this authorizes a bounded synthetic UI trial, NOT main dependency/compiler/store adoption.
