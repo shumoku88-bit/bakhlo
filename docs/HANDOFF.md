@@ -25,6 +25,51 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded task — native Unix I/O failure review
+
+User approves continuing with synthetic I/O/space/namespace failure qualification, not real
+recording or storage adoption. Question: do existing Store/Backup/Recording consumers retain
+original bytes and honest refusal/uncertainty when native write/fsync/close/rename/unlink fail,
+including a short write and cleanup failure? D: clean 27de66d, checked Unix wrappers and both
+native CLIs; P: whole ancestry/profile, exact/support/history, receipts and closed-copy/kill
+controls. R: actual Unix error-return connections, cleanup precedence, post-selection and
+post-marker-removal ambiguity, safe space-error coverage and retention decision.
+Select existing native recording checks/CLIs plus a small ignored, child-only Darwin C
+interposer: actual EBADF/resource-limit failures separately from injected EIO/ENOSPC returns.
+No disk filling, mounts/VM/global settings/dependencies/Python/new ledger model or broad fault
+campaign. Match only explicit fresh synthetic paths; preserve current sources/images first.
+Reuse independent exact quantities/fingerprints and read-only cold reconciliation. A genuine
+namespace error uses an existing checkpoint on a newly created test store only. Record exact
+error/exit/log hits; an untriggered injection is a failed control, not a pass. Both consumers
+retain terminal feel, main engine/50/lock and current-user/operational data untouched. Stable
+cooperative parents/immutable artifacts remain assumptions; no security, physical ENOSPC,
+device/power-loss/durable Saved, cleanup/resume, automatic pruning or permanent retention
+policy. Revisit before real data, lifecycle/recovery/retention adoption or another host.
+Completed: both native builds and 70 selected cases (24 publication/26 backup/20 restore;
+64 failure/6 short-write success) pass. Genuine child resource-limit EFBIG after 7 bytes,
+kernel EBADF with deliberate invalid arguments and actual rename ENOENT are distinct
+from injected EIO/ENOSPC. Original bytes, pending/frozen drafts, OLD/NEW read-only receipts,
+missing/incomplete refusal, marker-blocked restore, exact complete copies and no overwrite/
+resume survive. Paired primary+close failures retain BOTH causes. Completed artifacts after
+seal/source-close/final-sync errors independently verify but remain Uncertain, never Saved;
+post-marker-removal failure can leave a complete readable target. First probe consumed a
+read-only LOCK fingerprint close before publication; preserved v1, target only the O_RDWR
+lease handle, fresh v2 passes. Scope-qualified v3 repeats all 70; test entrances check scope
+before payload/fingerprints, require fresh empty publication roots and refuse malformed
+arguments before effects. Both deliberate nonmatching probes fail the native expectation
+(no false pass); scope/reused-root/argument refusal and final native checks pass. Existing
+mixed/history/180-bit/old UNKNOWN/lease/SIGKILL controls and main
+175 expect/four cram pass; main exact 50/lock/Store/Money/Workbench and full proposals unchanged.
+Sources/images/exact logs/partial and complete ambiguous artifacts retained ignored in `io-v8`.
+Retention decision: preserve ALL generations/originals/receipts and refused artifacts; no
+pruning/compaction/cleanup/adopted policy. Current mixed family has 35 complete envelopes /
+169,478 bytes; this is NOT a lifetime budget. [Verification](VERIFICATION.md#native-unix-io-failure-boundaries)
+owns precise scope and remaining physical/handle/lifecycle gaps. No user-store/operational
+reads or writes, disk filling, mounts/VM/dependency/global changes or new Saved claim.
+Next: separately bounded SYNTHETIC initial balance/locus setup for both existing UIs. Actual
+physical space/device faults, parent lifecycle, recovery/retention and durable acknowledgement
+still need their own decisions/qualification before real recording/store adoption.
+
 ## Completed bounded task — synthetic closed backup/restore
 
 User approves the next backup/restore step, NOT real-data use or store adoption. Question: can
@@ -75,9 +120,10 @@ Quit UI, explicitly select your SYNTHETIC source; `.../try-ui backup SOURCE NEW_
 `.../try-ui bonsai ja --store NEW_STORE` or Notty/en. All paths explicit; existing targets
 refuse, no overwrite/resume. Store paths remain direct `recording-v3/stores` children, backup
 paths direct `recording-v3/backups` children. [Ignored README](../scratch/tui_comparison_review/README.md)
-owns full example and conditional-copy caveats. Next: human synthetic restore use, then a
-separately bounded actual fsync/close/space/namespace failure/retention review and initial
-balance/locus setup before real recording or canonical format/store/UI decisions. Do not
+owns full example and conditional-copy caveats. The bounded native error-return/retention
+review is now completed above; physical device/space and durability remain unqualified.
+Next: human synthetic restore use and separately bounded initial balance/locus setup before
+real recording or canonical format/store/UI decisions. Do not
 manually clear uncertainty markers, replace current data, delete originals or infer durability.
 
 ## Completed bounded fix — TUI Tab order

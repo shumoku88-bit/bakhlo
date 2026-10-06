@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Native Unix I/O failures](#native-unix-io-failure-boundaries): kernel-errno/returned-error
+  connections, short writes, cleanup and complete-but-uncertain copies; NOT physical durability.
 - [Closed synthetic backup/restore](#synthetic-closed-backuprestore): whole family/receipts,
   fresh namespaces, damage/lease/actual create collision/process-kill refusal; NOT durable Saved.
 - [Synthetic TUI income](#synthetic-tui-income): explicit counterpart/receiver, mixed cold
@@ -72,6 +74,74 @@ is a limitation/blocker, not silently replaced by compile success.
 Formal tools remain development-only. Ordinary build/test/release must be Lean-free.
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
+
+## Native Unix I/O failure boundaries
+
+User approves synthetic failure review. Owners/D/P/R/instruments recorded at 27de66d before
+changes; previous sources/images retained in ignored `scratch/tui_comparison_review/io-v8/baseline`.
+Existing Store/Backup/Recording implementations, engine and support meanings are UNCHANGED.
+Both native consumers gain only consumed test-only connection commands before TTY acquisition;
+dedicated `io-v8-` scope is checked before payload/fingerprints, publication checks require a
+fresh empty synthetic store, and malformed expectations/operations refuse before effects.
+Renderers, normal interaction, defaults and publisher checks remain unchanged. A small ignored
+Darwin C interposer, built by existing clang with fatal warnings/no new package, is loaded ONLY
+in named child invocations. Exact explicitly fresh trial paths and call occurrence select each
+error; exact stderr/exit and hit log are required, not an untriggered environment flag.
+
+Native kernel-error controls are deliberately bounded: fsync(-1)/close(-1) return EBADF; the
+close probe first successfully closes the owned handle. Child-only temporary RLIMIT_FSIZE=7
+and SIGXFSZ handling, restored before return/logging, produce a genuine 7-byte short write then
+EFBIG. An existing publication checkpoint removes ONLY that fresh test's prepared head temporary,
+so actual rename returns ENOENT while original CURRENT/evidence remain. These are NOT storage
+media errors. EIO/ENOSPC are explicitly injected libc return values; partial-space controls
+perform a real 7-byte write before injecting ENOSPC. No host disk filling, mount/VM/global
+settings, new dependencies, Python, device/capacity or power-loss experiment.
+
+Scope-qualified `io-v8/v3` passes 70 selected paired cases (64 failure + six short-write success):
+
+| Existing owner | Cases, both consumers | Observable outcomes |
+| --- | ---: | --- |
+| Store -> Recording | 24 | Generation short/error/sync/close, paired cleanup, namespace sync before/after selection, head close, rename, lease close, genuine missing temp; OLD/NEW receipts, retained/frozen pending draft, no blind retry, original bytes/support and cold interruption |
+| Backup capture/copy | 26 | Source read+close, parent/target sync, partial write/EFBIG, file sync/close, seal partial write/close, lease close; pre-effect refusal or post-start Uncertain, unchanged source, partial seal refusal, complete ambiguous artifact independently verifies, repeat refuses |
+| Restore copy | 20 | Marker write/sync/close, parent sync, file close, CURRENT sync, pre-removal namespace sync, marker unlink and final namespace sync; incomplete cold load refuses, complete marker-blocked target refuses recording, post-removal complete-but-Uncertain target independently reads, all targets refuse overwrite/resume |
+
+Paired primary/cleanup failures retain BOTH causes. Copy failures exit 1 pre-target/3 after
+start with empty success stdout. Native connection commands exit 0 ONLY after independently
+checking the intended failure, original-byte retention, quantities/support, read-only receipt
+resolution and blocked submission. Short-write-only controls keep writing until complete;
+whole exact copies/proposals survive. Fresh nonmatching probes in BOTH consumers intentionally
+fail that expectation (exit 1, no hit/no success), not a false control pass. First v1 lease-close
+probe incorrectly hit an earlier read-only Digest.file LOCK fingerprint; failure/source/image
+retained. Selecting only the actual O_RDWR publisher/backup lease handle fixes the instrument,
+not Store; fresh v2 passes and scope-qualified v3 repeats all 70 cases. Both scope/reused-root
+and malformed-argument controls refuse without writes; final builds also pass the native errno
+connection/smokes/exact proposal controls. Source LOCK capture still uses the same held descriptor.
+
+A completed backup after seal close, final directory sync or source-lease close error can
+verify without making the failed call successful/durable. Restore final-sync error AFTER marker
+removal can leave a complete readable/writable-by-trial target, still Uncertain. No marker
+recreation, automatic retry, cleanup, older-world fallback or inference of Saved. Original
+source/archive fingerprints stay exact through faults, cold reads and repeated-target refusals.
+Existing native mixed/history/180-bit/old Bank UNKNOWN, damage, Busy/lease and process-kill
+controls pass; complete stock/Ox proposal bytes equal each other and the preceding backup trial.
+Main raw `tools/check` passes 175 expect/four cram; main exact 50 names/versions, lock and
+Store/Money/Workbench hashes unchanged. Physical PTY tests are NOT rerun for test-only entrances.
+Sources/images/shim/raw main output/exit files/matrix/complete and refused artifacts remain ignored.
+
+Retention review reuses current missing-ancestor/receipt/closed-set controls and previous scale
+evidence, not another large workload. The tested mixed family retains 35 complete envelopes,
+169,478 total envelope bytes, largest 8,976 bytes. Every selected ancestor remains a required
+original/receipt/admission input; deleting it is corruption, not compaction. Decision: retain
+ALL generations/originals/receipts and refused artifacts, no automatic pruning/cleanup or new
+retention policy. This small observation is not a daily/lifetime capacity budget; existing
+100k three-generation measurements do not qualify lifetime growth.
+
+Remaining gaps: real ENOSPC/EIO/short-or-torn media writes, physical close-error descriptor
+ownership (the probe deliberately closes it), host/device power loss/F_FULLFSYNC, creation of
+ancestor parents, uncooperative namespace loss, explicit recovery/retention, other hosts/Mirage,
+off-device backup/security and real recording. Stable cooperative parents and immutable archives
+are still assumed; no main storage/format/UI adoption or durable Saved. Revisit before those
+choices, not by broadening an errno campaign until green.
 
 ## Synthetic closed backup/restore
 
