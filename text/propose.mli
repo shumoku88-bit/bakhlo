@@ -32,6 +32,21 @@ val append_movement : base:string -> command -> (candidate, error) result
 val correct_movement :
   base:string -> target:Bakhlo_domain.Identifier.Event.t -> command -> (candidate, error) result
 
+val append_document : base:Read.document -> command -> (candidate, error) result
+
+val correct_document :
+  base:Read.document ->
+  target:Bakhlo_domain.Identifier.Event.t ->
+  command ->
+  (candidate, error) result
+(** Same proposal gates/evidence as the raw-string entrances, but no repeated base
+    admission: an unforgeable [Read.document] already binds its complete bytes/image.
+    NEW candidate bytes still undergo whole Input -> Source -> Support admission.
+    Reusing admission is not permission/currentness; publisher must freshly acquire
+    and bind actual selected evidence/history to expected generation/base bytes. *)
+
+val base_document : candidate -> Read.document
+val document : candidate -> Read.document
 val base_bytes : candidate -> string
 val bytes : candidate -> string
 val image : candidate -> Bakhlo_application.Current_quantity_query.t

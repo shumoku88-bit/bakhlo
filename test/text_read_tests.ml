@@ -875,6 +875,101 @@ let%expect_test
     確認の手がかり: 数量の根拠と、反映済みの記録の範囲を確認してください。
     |}]
 
+let%expect_test
+    "sealed documents reuse complete admitted bytes without becoming publication authority" =
+  let module P = Bakhlo_text.Propose in
+  let base = document [ "origin \"wallet\" \"jpy\""; "origin \"food\" \"jpy\"" ] in
+  let admitted = ok (R.document_of_string base) in
+  let command : P.command =
+    {
+      id = F.id "new";
+      valid_on = "2026-10-03";
+      effects =
+        [
+          F.change (F.coordinate "wallet") (Z.of_int (-10));
+          F.change (F.coordinate "food") (Z.of_int 10);
+        ];
+      description = Some "";
+    }
+  in
+  let raw = ok (P.append_movement ~base command) in
+  let reused = ok (P.append_document ~base:admitted command) in
+  F.require
+    (String.equal (R.document_bytes admitted) base
+    && phys_equal (P.base_document reused) admitted
+    && phys_equal (R.document_image (P.document reused)) (P.image reused)
+    && String.equal (P.bytes raw) (P.bytes reused))
+    "only whole-admitted bytes/image pairs reused; unchanged proposal encoding";
+  F.require
+    (Z.equal (value (R.document_image admitted) (F.coordinate "wallet")) Z.zero)
+    "old immutable image not overwritten";
+  let corrected =
+    ok
+      (P.correct_document ~base:(P.document reused) ~target:command.id
+         {
+           id = F.id "fix";
+           valid_on = "1900-01-01";
+           effects =
+             [
+               F.change (F.coordinate "wallet") (Z.of_int (-15));
+               F.change (F.coordinate "food") (Z.of_int 15);
+             ];
+           description = None;
+         })
+  in
+  F.require
+    (String.equal (P.base_bytes corrected) (P.bytes reused)
+    && Z.equal (value (P.image reused) (F.coordinate "wallet")) (Z.of_int (-10))
+    && Z.equal (value (P.image corrected) (F.coordinate "wallet")) (Z.of_int (-15)))
+    "no mixed generations or mutation of old answers";
+  (match P.append_document ~base:admitted { command with valid_on = "bad date" } with
+  | Error (Candidate (Source (Validity (Invalid_date _)))) -> ()
+  | _ -> failwith "reused base skipped whole new-candidate admission");
+  Stdlib.print_endline
+    "Exact sealed base reused; raw/typed bytes agree; new candidate still wholly admitted; old \
+     image immutable.";
+  [%expect
+    {| Exact sealed base reused; raw/typed bytes agree; new candidate still wholly admitted; old image immutable. |}]
+
+let%expect_test "sealed read and proposal preserve whole refusal and opening provenance gates" =
+  let module P = Bakhlo_text.Propose in
+  (match R.document_of_string (document (base_event @ [ "merchant \"e\" \"p\"" ])) with
+  | Error (Input (Unsupported_record _)) -> ()
+  | _ -> failwith "unsupported evidence sealed after filtering");
+  (match R.document_of_string (document [ "event \"e\" none"; "end-event" ]) with
+  | Error (Source (Validity (Missing_validity _))) -> ()
+  | _ -> failwith "missing validity sealed");
+  (match R.document_of_string (document [ "group"; "reflect \"missing\""; "end-group" ]) with
+  | Error (Support (Groups (Invalid_cut _))) -> ()
+  | _ -> failwith "unsupported cut sealed");
+  let base =
+    ok
+      (R.document_of_string
+         (document
+            [
+              "event \"e\" \"2026-10-03\"";
+              "effect anonymous \"w\" \"jpy\" 1";
+              "effect anonymous \"other\" \"jpy\" -1";
+              "end-event";
+              "opening \"w\" \"jpy\" \"e\"";
+            ]))
+  in
+  let command : P.command =
+    {
+      id = F.id "replacement";
+      valid_on = "1900-01-01";
+      effects = [ F.change (F.coordinate "w") Z.one; F.change (F.coordinate "other") Z.minus_one ];
+      description = None;
+    }
+  in
+  (match P.correct_document ~base ~target:(F.id "e") command with
+  | Error (Candidate (Support (Opening_event_not_current _))) -> ()
+  | _ -> failwith "reused admission retargeted or dropped opening");
+  Stdlib.print_endline
+    "Sealing refuses input/source/support faults; new correction still refuses invalidated opening.";
+  [%expect
+    {| Sealing refuses input/source/support faults; new correction still refuses invalidated opening. |}]
+
 let%expect_test "Movement proposal encodes new byte-exact fields without re-encoding base evidence"
     =
   let module P = Bakhlo_text.Propose in

@@ -897,3 +897,29 @@ A candidate cannot be forged from arbitrary bytes or replaced with a read image.
   $ application_client -I ../text/.bakhlo_text.objs/byte image_is_not_candidate.ml 2>error
   [2]
   $ grep -q 'Current_quantity_query.t' error && grep -q 'P.candidate' error
+
+A whole-admitted document cannot be assembled from unrelated bytes and an image.
+The typed proposal consumes only the sealed document, not any admitted image.
+
+  $ cat >document_client.ml <<'EOF'
+  > module R = Bakhlo_text.Read
+  > module P = Bakhlo_text.Propose
+  > let propose (base : R.document) id valid_on effects =
+  >   P.append_document ~base { id; valid_on; effects; description = None }
+  > let inspect candidate = R.document_bytes (P.document candidate), R.document_image (P.document candidate)
+  > EOF
+  $ application_client -I ../text/.bakhlo_text.objs/byte document_client.ml
+  $ cat >forged_document.ml <<'EOF'
+  > module R = Bakhlo_text.Read
+  > let forge bytes image : R.document = { bytes; image }
+  > EOF
+  $ application_client -I ../text/.bakhlo_text.objs/byte forged_document.ml 2>error
+  [2]
+  $ grep -q 'Unbound record field.*bytes' error
+  $ cat >image_is_not_document.ml <<'EOF'
+  > module P = Bakhlo_text.Propose
+  > let wrong (base : Bakhlo_application.Current_quantity_query.t) command = P.append_document ~base command
+  > EOF
+  $ application_client -I ../text/.bakhlo_text.objs/byte image_is_not_document.ml 2>error
+  [2]
+  $ grep -q 'Current_quantity_query.t' error && grep -q 'Read.document' error

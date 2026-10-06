@@ -418,6 +418,78 @@ not license for partial admission, merged support meanings or speculative cachin
 returned I/O/sync/cleanup failures and namespace/power-loss lifecycle qualification remain
 separate. Existing LOAM is sole authority; no real inputs were needed for this cost review.
 
+## Whole-admitted document reuse and fresh publication gates
+
+Question/D/P/R/bounds recorded BEFORE code at 8ea1cc9. User requests the measured save seam;
+no canonical adoption/production writer follows. Pure `text/Read.document` seals original
+bytes+EXACT existing query image via the unchanged complete Input -> Source -> Support gates.
+`Propose.append_document`/`correct_document` reuse that base and still whole-admit ALL NEW
+candidate bytes; raw entrances keep Base -> Event -> Movement -> Candidate refusals. Candidates
+retain base/new documents, not recording permission/currentness. Two focused expect connections
+check immutable old answers, identical raw/typed encodings, correction and new validity/opening
+refusal; all prior byte/180-bit/multiplicity/cut controls remain. Public type clients accept the
+sealed consumer and reject forged bytes/image documents and image-as-document substitution.
+Unsafe OCaml escapes/principal isolation are outside this seam, just as for existing images.
+
+Ignored `scratch/text_publication_reuse` is a versioned copy of OWN existing trial/consumer, not
+a second engine, backend framework or maintained benchmark. Original v3/cost sources/images/
+stores are unchanged. Actual PROFILE/CURRENT and every selected ancestor file are freshly read
+before LOCK write-open; under lease all are freshly read AGAIN. Operation-local captured
+admission is reused ONLY after exact canonical namespace/generation/FULL envelope-byte equality.
+For a freshly validated envelope, identical complete sealed base/candidate document bytes also
+reuse pure admission. Changed bytes get the complete normal reader, not partial filtering or
+an older successful capture. No persistent/global/mtime/digest-only cache, inferred support,
+cut merging, file repair/cleanup/fallback, new representation, dependency, VM/Lean or real data.
+Expected selection/base/scope and original-receipt lookup still gate conditional publication;
+they do not supply principal authorization.
+
+Reused controls pass: 1000 -> 990 -> correction 985; retained bytes/text/cut/edge; Measure/zero/
+presence/unknown, signed 180-bit quantity, original receipt replay/changed-request/base/conflict,
+cross-namespace, actual two-process Busy, prepared-vs-selected, malformed/truncated/missing
+history/layout and closed restore. Eight post-effect returned checkpoints remain Uncertain
+(6 OLD/2 NEW), two real SIGKILL controls OLD/NEW, no success stdout and read-only reconciliation.
+Ten NEW deliberate pre-lease interleavings check same-token changed bytes, invalid source,
+changed-parent/same-body, cycle, missing selected, truncation, changed profile, valid concurrent
+head, missing/invalid ancestor. All refuse or conflict with no further publisher changes;
+Captured returned-error control is pre-write Error, not Uncertain. These synthetic mutations
+are adversarial TEST changes, not qualification for malicious concurrency/stable-namespace loss.
+A disposable negative binary OMITTING full-envelope equality fails the first same-token/new-byte
+control (exit 1, unexpected publication effects); qualified binary passes. No production/cache
+source was weakened for this control. Actual syscall/sync/close/cleanup errors and power-loss
+namespace lifecycle remain separate: no Saved result, permission/security or recovery service.
+
+Controlled comparison: byte-identical ORIGINAL cost inputs, unchanged native cost correctness/
+checksum workload, fresh separate stores/workers; baseline is byte-identical original Store/cost
+source relinked to the SAME CURRENT pure engine. Reuse differs only in typed-base entrance and
+call-local publication reuse. 10k one paired repetition, 100k THREE (order reversed in repeat 2),
+flat and four-Event paths. Full baseline/reuse retained store trees are byte-identical after each
+lifecycle. Same Darwin x86_64 i5/16GiB/OCaml 5.3.0, uncontrolled likely warm filesystem cache;
+not cold-media/user SLOs. Raw wall/CPU/RSS/phase/check logs and `summary.tsv`, source/image
+hashes, package/workspace/link records and weak control retained under ignored `evidence-v1`.
+
+| 100k Events | Baseline append | Reuse append | Baseline correction | Reuse correction | Reuse append / correction peak RSS |
+| --- | --- | --- | --- | --- | --- |
+| Flat | 6.69-6.70s | 2.42-2.45s | 9.96-10.10s | 4.54-4.75s | 409.8 / 561.5MiB |
+| Four-Event paths | 7.91-7.99s | 2.83-2.86s | 11.86-12.00s | 5.44-5.54s | 429.6 / 584.5MiB |
+
+10k append flat/path 0.63/0.72 -> 0.23/0.26s; correction 0.93/1.07 -> 0.43/0.49s.
+Current baseline peaks flat/path append ~729/733MiB, correction ~945/979MiB. NOT directly the
+old 8ea1cc9 RSS: raw proposals now retain their admitted base image as well as bytes; relinking
+both variants isolates this from the reuse comparison. Reuse saves ~64% append/~53-54%
+correction worker time. New candidate whole admission ~1.05/1.29s, not ~2.0/2.4s; representative
+flat publisher ~1.51s vs ~5.29s in original review. Read-before-correction ~2.13s unchanged;
+whole retained-history reopen ~3.7/4.3s unchanged. Capturing full envelopes adds reopen memory
+(~11MiB flat/~28MiB paths vs paired baseline); original checks/consumed checksums still pass.
+Three complete generations remain 37,064,173/42,014,173 bytes: no lifetime-retention improvement.
+
+Decision: retain the small pure sealed-document seam and qualified TRIAL reuse only. Stronger
+REVIEW hypotheses <=5s/<=512MiB are PARTLY met: append meets both, flat correction meets time
+but not RSS, path correction meets neither. No lowering/relabeling those bounds or expanding
+optimization/campaign now. Fresh-process history, per-group support walks and full retained
+copies remain costs requiring a concrete daily workload/retention/host requirement. Main check
+175 expect/four cram, forced package tests/release install/format/whitespace and exact main 50/
+lock preservation qualify this increment; no operational-data read, storage adoption or push.
+
 ## Experimental versioned-text read (ordinary Actual profile)
 
 Question/owners/D/P/R before code in HANDOFF. A pure outer `bakhlo.text` reader admits one

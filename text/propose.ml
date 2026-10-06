@@ -8,11 +8,7 @@ type command = {
   description : string option;
 }
 
-type candidate = {
-  base_bytes : string;
-  bytes : string;
-  image : Bakhlo_application.Current_quantity_query.t;
-}
+type candidate = { base : Read.document; document : Read.document }
 
 type error =
   | Base of Read.error
@@ -20,9 +16,11 @@ type error =
   | Movement of D.Movement.error list
   | Candidate of Read.error
 
-let base_bytes candidate = candidate.base_bytes
-let bytes candidate = candidate.bytes
-let image candidate = candidate.image
+let base_document candidate = candidate.base
+let document candidate = candidate.document
+let base_bytes candidate = Read.document_bytes candidate.base
+let bytes candidate = Read.document_bytes candidate.document
+let image candidate = Read.document_image candidate.document
 let ( let* ) result f = Result.bind result ~f
 
 (* Matches the existing byte lexer, not OCaml's decimal-escape printer or UTF-8
@@ -75,12 +73,21 @@ let insert ~base rows =
   String.prefix base offset ^ rows ^ String.drop_prefix base offset
 
 let propose ~base target ({ id; valid_on = _; effects; description = _ } as command) =
-  let* _ = Result.map_error (Read.of_string base) ~f:(fun error -> Base error) in
   let* _ = Result.map_error (D.Event.create ~id ~effects) ~f:(fun error -> Event error) in
   let* _ = Result.map_error (D.Movement.validate effects) ~f:(fun error -> Movement error) in
-  let bytes = insert ~base (rows command target) in
-  let* image = Result.map_error (Read.of_string bytes) ~f:(fun error -> Candidate error) in
-  Ok { base_bytes = base; bytes; image }
+  let bytes = insert ~base:(Read.document_bytes base) (rows command target) in
+  let* document =
+    Result.map_error (Read.document_of_string bytes) ~f:(fun error -> Candidate error)
+  in
+  Ok { base; document }
 
-let append_movement ~base command = propose ~base None command
-let correct_movement ~base ~target command = propose ~base (Some target) command
+let append_document ~base command = propose ~base None command
+let correct_document ~base ~target command = propose ~base (Some target) command
+
+let append_movement ~base command =
+  let* base = Result.map_error (Read.document_of_string base) ~f:(fun error -> Base error) in
+  append_document ~base command
+
+let correct_movement ~base ~target command =
+  let* base = Result.map_error (Read.document_of_string base) ~f:(fun error -> Base error) in
+  correct_document ~base ~target command

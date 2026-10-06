@@ -109,6 +109,20 @@ one image is admitted; repeated whole admission, per-group cuts/aggregation and 
 snapshots are measured costs. No cache/index/layout selection follows automatically: preserve
 current evidence requalification, independent cuts and original answer-bound paths/history.
 
+`text/Read.document` now seals the COMPLETE admitted original bytes with their existing query
+image; no caller-supplied bytes/image pairing. `Propose.append_document`/`correct_document`
+consume that exact admitted base and WHOLE-admit new candidate bytes. Raw-string entrances
+retain their staged refusals. A candidate exposes its sealed base/new documents for one concrete
+native consumer, not file/currentness/publication authority or an authorization projection.
+The ignored [reuse review](VERIFICATION.md#whole-admitted-document-reuse-and-fresh-publication-gates)
+freshly reads every actual envelope before activation AND under the lease: only complete exact
+bytes with the same namespace/generation/frame may reuse captured admission inside one call.
+Changed frames/documents must qualify afresh, missing files refuse, and selected generation/base/
+receipt gates still apply. Pure immutable reuse is not a persistent cache, frozen live read or
+permission to publish. Whole source/support admission is never shortened to the asked coordinate.
+This removes repeated reconstruction, not complete generation retention or startup history walks;
+its stronger time/RSS hypotheses were only PARTLY met. No production writer/store/Saved follows.
+
 ## Minimal Persistence contract
 
 Production requirements, not an implemented main module/stable API. An ignored synchronous

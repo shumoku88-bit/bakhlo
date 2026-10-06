@@ -25,6 +25,46 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded task — reuse whole-admitted documents without stale publication
+
+Question: can the measured 100k append/correction path avoid rebuilding the SAME complete
+immutable evidence while still freshly checking actual selected bytes/history under the lease?
+D: clean 8ea1cc9/main 50; pure proposals retain byte/image pairs, Unix trial repeats whole
+admission before/under lease and cost data isolates this work. P: 173 expect/four cram plus
+v3 receipt/conflict/refusal/interruption and 10k/100k exact-byte/cut/quantity controls.
+R: unforgeable bytes/image binding, reuse vs authorization, same-token changed bytes/metadata/
+missing ancestor between preview and gate, and actual CPU/RSS improvement. Owners: `text/Read`
+seals complete admitted bytes+existing image; `Propose` consumes an admitted base and seals
+whole-admitted new bytes. A versioned ignored Unix trial freshly captures ALL envelope bytes;
+only exact same namespace/generation/envelope or identical sealed document bytes may reuse
+admission INSIDE one call. No persistent/global/mtime/digest-only cache, partial admission,
+per-group optimization, new store/layout/retention policy or filesystem. Replays/cuts/old source
+and uncertain outcomes stay unchanged; admission is never authority to publish.
+Exploratory acceptance: compare unchanged 10k/100k flat/path three-generation consumer;
+100k complete append/correction <=5s and peak RSS <=512MiB are REVIEW hypotheses, not user SLOs.
+Old broad budgets passed; user now explicitly requests a measured-seam experiment, not automatic
+maintenance. Select focused existing native expect/type clients plus REUSED trial/cost controls,
+including deliberate inter-check mutation/namespace/parent refusal, process kills and checksum.
+No new model/campaign/framework/package/VM/Lean/operational data; v3/cost baseline sources/images
+and input stores remain intact in ignored scratch. Publication sync/error/recovery/Saved remain
+unqualified separately. Revisit or stop on a lost gate/provenance or no measured improvement;
+no main canonical adapter/cutover, UI or push. Ask user before any needed real-data read.
+Completed: sealed `Read.document` + consumed typed-base proposals, whole new-candidate gates;
+raw entrances retain refusal precedence. Main 175 expect/four cram/type boundaries; versioned
+ignored `scratch/text_publication_reuse` passes all existing native lifecycle controls plus ten
+pre-lease byte/metadata/history/concurrent-head interleavings and pre-write returned error.
+Negative ID-only-capture binary fails; qualified binary passes. Paired current-engine 100k
+workers: append flat 6.69-6.70 -> 2.42-2.45s/path 7.91-7.99 -> 2.83-2.86s; correction flat
+9.96-10.10 -> 4.54-4.75s/path 11.86-12.00 -> 5.44-5.54s. Reuse peak append ~410/430MiB,
+correction ~562/585MiB. Stronger 5s/512MiB hypotheses PARTLY unmet; do not relabel them or
+continue speculative optimization. Whole reconstruction/reopen/copies/group costs remain;
+complete retained baseline/reuse store trees are byte-identical. Fresh raw envelopes are
+checked twice; only exact qualified immutable bytes reuse admission, never currentness.
+[Verification](VERIFICATION.md#whole-admitted-document-reuse-and-fresh-publication-gates)
+owns paired-engine/baseline memory caveat, controls, retained evidence and no Saved/security
+claim. Pure seam retained, physical reuse stays trial-only; main 50/lock and original v3/cost
+artifacts preserved. No actual syscall/recovery/lifetime qualification, real data or push.
+
 ## Completed bounded task — synthetic scale/copy/reopen cost review
 
 Question: does the existing native text proposal/Unix trial stay plausibly interactive at
@@ -445,12 +485,14 @@ follows those useful native boundaries, not immediate main writer/store adoption
    model. Native process checkpoints/SIGKILL/fsync/rename/Git commit do not qualify Saved.
    No older-world fallback, implicit repair or new filesystem by default; trial layout is not
    an adopted canonical format/store or a concurrency/authentication service.
-2. Use the bounded 10k/100k measurement above to set a concrete daily recording latency/
-   retention requirement before changing a measured seam. Query lookup is already cheap;
-   repeated whole admission, independent-group walks and full retained snapshots dominate.
-   No automatic cache/index/admission weakening or layout adoption. Lifetime history growth,
-   larger/more-group shapes and other hosts remain unqualified; use a bounded native consumer,
-   not a permanent benchmark framework or operational fixtures, when that question is named.
+2. The user-approved reconstruction reuse above cuts synthetic append/correction time but
+   stronger 5s/512MiB review hypotheses remain partly unmet. Set a concrete daily recording
+   latency/group workload/retention/host requirement before another optimization. Query lookup
+   is already cheap; fresh-process retained-history admission, independent-group walks and
+   full retained snapshots still dominate. Do not weaken fresh physical/generation/base checks
+   or whole admission, adopt a cache/layout, lower failed bounds or grow the campaign by habit.
+   Lifetime history, larger/more-group shapes and other hosts remain unqualified; use one
+   bounded native consumer, not a maintained benchmark or operational fixtures, when named.
 3. Decide physical authority/index roles from sovereignty, durability, maintenance and measured
    cost. Canonical text + optional SQLite derived index is the first candidate, NOT a chosen
    layout or necessary dependency. Indexes identify qualified canonical generation/interpretation
