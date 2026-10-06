@@ -252,6 +252,14 @@ even after transfer/net-zero activity. No read inserts support or silently migra
 Normal presentation hides long internal IDs; an explicit detail toggle reveals complete identities
 without changing source/receipt/currentness gates. Default store, currency scales, Store and main
 engine/dependencies remain unchanged; no income/FX/canonical adoption follows.
+The [synthetic income entrance](VERIFICATION.md#synthetic-tui-income) adds explicit
+`income-source` -> Wallet/Bank to that SAME trial profile: negative counterpart/positive receiver
+of one Measure. This concrete UI choice is not a Core income/account/party ontology, provider/
+salary/tax fact or inferred metadata. Operation cycles through Expense/Transfer/Income; Income
+collects one receiving Locus, while correction still locks complete route/currency. No income
+source origin/balance/total is invented; receiving income cannot establish missing Bank support.
+Whole retained qualification, existing seed bytes/default path, old expenses/transfers and
+unchanged publication/receipt owner remain. No new store format or canonical adoption.
 A useful operational record/save/query path still needs qualified reference persistence. MirageOS minimal
 composition is not a claim of ultra-security or qualified always-on deployment.
 

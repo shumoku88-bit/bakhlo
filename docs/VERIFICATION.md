@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Synthetic TUI income](#synthetic-tui-income): explicit counterpart/receiver, mixed cold
+  correction/history and uncertainty; old Bank/source remain unknown, no income total guessed.
 - [Same-currency TUI transfer](#same-currency-synthetic-tui-transfer): mixed expenses,
   explicit endpoints, old Bank unknown, cold correction and detail-only IDs; synthetic only.
 - [Synthetic TUI recording](#synthetic-tui-recordreopencorrection): BOTH native UIs,
@@ -68,6 +70,59 @@ is a limitation/blocker, not silently replaced by compile success.
 Formal tools remain development-only. Ordinary build/test/release must be Lean-free.
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
+
+## Synthetic TUI income
+
+User approves Income in BOTH existing native UIs. Owners/D/P/R/instruments recorded before
+code at clean 10c7ec3; baseline sources/binaries retained in ignored `income-v5/baseline`.
+Pure Workbench maps explicitly selected Income to `income-source` negative / Wallet or Bank
+positive same-Measure ordinary Effects. No Core account/transaction-kind/party ontology,
+provider/employment/tax metadata, source origin, income balance/total or support inferred.
+Income activity does NOT establish missing Bank support. Both exact supported seed profiles,
+init bytes/request, default store, original expense/transfer bytes, correction/currency/route
+locks, whole-document refusal and existing Recording/Store owner remain unchanged. Locale
+stays Stdlib-only; typed operation/destination collection shared, both palettes unchanged.
+
+BOTH final native builds/smokes pass four currencies x2 receivers x2 display languages:
+independently expected per-locus signed quanta, same-Measure two-Effect conservation/negative
+counterpart, unrelated-currency invariance, exact 180-bit amounts, original date/amount/memo/
+route, explicit source support UNKNOWN, amount/precision/currency/route/stale refusal and
+three-operation/destination selection WITHOUT recording. Geometry checks retain original-history
+room at 80x25 and small-view behavior. Complete stock/Ox controlled mixed proposal bytes agree
+(40 retained Events/20 correction edges), not checksum-only equality. Initial stock compiler
+refused `effect` as a 5.3 reserved test-variable name while isolated Ox 5.2 accepted; renamed
+those variables without compiler or warning suppression, failed evidence retained.
+
+Extended SAME native recording checks pass in BOTH consumers, retaining all prior expense/
+transfer/currentness/receipt/refusal cases. Income covers all four currencies/both receivers,
+cold bytes/original amount/route/memo/date (including 1900 correction, not inferred chronology),
+non-last lineage selection, old Bank/source UNKNOWN after income, richer receiver/raw changed
+correction route refusal, and cold 180-bit EUR Bank credit with Wallet unchanged. Synthetic
+Generation-ready OLD/Selected NEW returned-error checkpoints retain exact frozen income forms,
+block destination editing and reconcile read-only with unchanged file fingerprints. OLD stays
+pending; NEW independently reloads selected Bank credit, preserving unknown source support.
+No actual syscall/entropy failure or power-loss qualification follows.
+
+Reused quiet-drained real PTY `income-v5/pty-v1` passes eight children at 100x25: Notty ja
+expense 10 + Wallet income 1000/Bank income 500 -> Bonsai en correct both to 1200/600 plus
+expense 20 and transfer 100 -> Notty ja correct NON-last Bank income to 650, inspect both
+retained originals, refuse EUR 1.005 without rounding and record EUR Bank income 12.34 ->
+Bonsai en/ja correct EUR to 15.01/inspect original/show-hide full detail. Final JPY Wallet
+2070/Bank 750/Food 30; EUR Wallet 100.00/Bank 15.01; other currencies unchanged. OLD income
+uncertainty/No receipt visibly remains pending in Notty, cold Bonsai interruption blocks
+recording. NEW Bank income uncertainty visibly appears in Bonsai BEFORE Ctrl-R; receipt check
+and cold Notty show Wallet 1000/Bank 25. All eight exit 0/full stty restored. ORIGINAL eight-child
+transfer and nine-child expense PTYs also pass on fresh roots; no previous store reset.
+
+Main `tools/check` passes (175 expect/four cram); exact main 50/lock, Store and Money hashes
+unchanged. Final native recording/smoke checks pass. Same native-control and final PTY store
+cold answers/generation/request/session bytes agree across stock/Ox consumers. Source/image
+hashes, compile error, outputs, fresh synthetic stores and terminal traces remain ignored under
+`income-v5`/trial scope; no current user's store or operational payload was read/copied/mutated.
+[Handoff](HANDOFF.md#completed-bounded-task--synthetic-tui-income) owns launch/next actions.
+No real-data use, FX/richer income categories, canonical store/UI adoption, migration, backup/
+restore/recovery/cleanup, actual syscall/device/power-loss/durable Saved, human IME/grapheme/
+resize/latency, other-host or Mirage qualification. These remain separate decisions/work.
 
 ## Same-currency synthetic TUI transfer
 

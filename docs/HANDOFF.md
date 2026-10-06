@@ -25,6 +25,51 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded task — synthetic TUI income
+
+User approves adding Income to BOTH existing UIs, preserving their feel. Question: can explicit
+income to Wallet or Bank record/reopen/correct beside expenses/transfers without rewriting
+old bytes, losing provenance or creating quantity support? D: clean 10c7ec3, native consumers,
+main 50/lock and prior sources; P: exact balanced Effects, whole-profile/currentness/receipt,
+original history, route/currency locks, independent support/unknown and drained PTYs. R: income
+counterpart/destination collection and retained-shape qualification, mixed cold correction and
+uncertain publication. Pure Workbench owns `income-source` -> Wallet/Bank as two opposite
+same-Measure Effects (negative counterpart, positive receiver), NOT a Core income/account/party
+ontology. This is explicitly supplied SYNTHETIC flow, not guessed salary/provider/tax evidence.
+Income source has NO invented origin/balance/total; neither activity nor income establishes
+missing Bank support. Keep both old seed profiles/default path unchanged; no init/migration.
+Existing Recording/Store own effects; Locale stays pure. Ctrl-T cycles three operations;
+Income has a destination picker; corrections lock operation/destination/currency as before.
+Selected instruments: extend SAME native smoke/recording checks, retain independent expected
+quanta/conservation and existing refusal/OLD/NEW receipt controls; reuse quiet-drained PTY for
+cross-UI/language mixed recording/correction/history. No new model/theorem/harness/package,
+Python bridge or broad campaign. Maintenance triggers do not call for engine consolidation.
+Preserve sources/images first; never inspect/reset the user's current store or operational data.
+All controls use fresh synthetic names. No FX, richer income categories, canonical UI/store,
+backup/recovery, durable Saved, syscall/power-loss/Mirage qualification, dependencies or push.
+Revisit before broader counterpart/routes, changing correction destinations, support/policy or
+real-data use. Completed: both native builds, 4 currencies x2 receivers x2 display languages,
+exact signed/conserved Effects/180-bit, whole original/correction/route qualification, old
+Bank/source UNKNOWN and read-only OLD/NEW reconciliation pass. Native cold mixed histories,
+non-last income correction and session/detail behavior retained. First stock build refused
+`effect` as a reserved 5.3 test-variable name (Ox 5.2 accepted); renamed, no compiler/warning
+change. Reused quiet-drained income PTY passes eight children at 100x25 across both UIs/ja/en:
+Wallet/Bank income, mixed expense/transfer, repeated non-last correction/two original versions,
+EUR precision refusal/correction, detail IDs, visible OLD/NEW uncertainty and full terminal
+restore. Original transfer eight-child and expense nine-child PTYs also pass on fresh stores.
+Main check, exact stock/Ox complete proposals/cold answers and main 50/lock/Store/Money
+preservation pass. Sources/images/controls/failed compiler evidence retained in ignored
+`income-v5`; [verification](VERIFICATION.md#synthetic-tui-income) owns precise scope/limits.
+
+Restart the existing trial (Ctrl-Q then same `.../try-ui bonsai ja` or `.../try-ui notty en`).
+Ctrl-N empty new, Ctrl-T until Income; Shift-Tab from Amount selects To, Left/Right Wallet/Bank,
+Tab back to Amount, positive synthetic amount + memo, Enter record. Ctrl-E corrects selected
+row; operation/destination/currency locked, Ctrl-P cycles original history. Existing records,
+seed/init bytes and default path unchanged; do NOT init/reset your existing store. Both UIs
+still show selection/uncertainty, not durable Saved. Next: human income use, then a separately
+bounded backup/restore and actual failure review before real data; no automatic implementation,
+canonical store/UI adoption, recovery/cleanup or operational authority change.
+
 ## Completed bounded task — same-currency synthetic TUI transfer
 
 User approves adding transfer to BOTH existing UIs, retaining their feel and moving long
