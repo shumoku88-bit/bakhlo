@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Stopped private comparison](#stopped-private-representation-comparison): scoped read-only
+  capture/profile and private format views; NOT full extraction, codec or migration qualification.
 - [Canonical evidence review](#canonical-evidence--inherited-format-review): sourced retained
   information versus format debt; NO private-data inventory, codec adoption or migration.
 - [Native Unix I/O failures](#native-unix-io-failure-boundaries): kernel-errno/returned-error
@@ -127,6 +129,51 @@ set unchanged, tracked executable/interface/test files untouched, new local docu
 and whitespace checked. No main/compiler/test result is inferred from this review; prior
 native qualification remains scoped to its own increments. No dependencies, UI/store/format
 adoption, parser/source changes, real recording, recovery, cleanup, publication or push.
+
+## Stopped private representation comparison
+
+At clean 21ca9c1 user confirms the exact operational data root and cooperative stopped capture.
+D/P/R/source scope/instruments recorded before access. One ignored native OCaml consumer calls
+EXISTING Envelope/Read; no sibling execution/build/source copy, new dependency/model or
+canonical/semantic-admission parser, parallel maintained harness or broader failure campaign. Fatal 8/9/11/strict sequencing kept.
+Residual risk is acquisition/field correspondence, not a newly claimed arithmetic law.
+
+Before private access, seven fresh synthetic controls reused the existing LOAM input fixture:
+exact household copy with absent metadata preserved; exact present metadata; existing-target
+refusal retaining sentinel; deliberate source change after copy; malformed frame; missing current
+household; symbolic-link file. Expected refusals produce no new complete marker; artifacts remain.
+Reader refusal never becomes empty/zero; no legacy/current-prev fallback or original writer lock.
+Capture uses O_RDONLY, regular/canonical path checks, descriptor/path metadata comparison, full
+copy readback and repeated full source bytes/metadata after copying and before scoped completion.
+Absent metadata stays absent, not an empty file/default scale; opaque/unrecognized sections retain
+all bytes. A 32 MiB per-file review budget refuses excess; it is not a storage/domain range limit.
+
+Actual acquisition observed no named LOAM process and assumes cooperative stopped writers;
+this is NOT hostile-race exclusion/live snapshot isolation. Metadata comparison excludes atime,
+which read-only access may update. Scope is current household.loam + config/measure-presentation.tsv
+and their directory/presence states, not every external catalog/config, historical deployment or
+backup. Existing native profile ADMITTED the supplied image's Actual/four-support/origin scope;
+other payload semantics/scale decoding are NOT thereby admitted. No household quantity answers
+requested or emitted.
+No claim about deployed binary/source equivalence, actual unused fields or full-family parity.
+
+The same existing synthetic admitted fixture exercised excerpt/illustration rendering first.
+Private view then pairs full selected Event rows (or explicit no-example) and original/child
+correction references plus an independent observation/cut with fact-oriented illustrative text.
+Encounter order chooses examples, not chronology/currentness. Effect multiplicity/identity roles,
+exact raw quanta and optional metadata are not summed/normalized; occurrence revisions remain
+separate from Event corrections. Unknown/unsupported render records refuse, not disappear.
+Unselected parts remain in the complete captured household. No new grammar decoder, all-field
+roundtrip, canonical encoding, lossless full extraction or migration is earned by these views.
+
+Raw copies/inventory/views and incomplete synthetic controls remain in ignored
+`scratch/canonical_evidence_review` (private directories 0700/files 0600). No private quantities,
+IDs, dates, names, counts, fingerprints or raw errors emitted/committed; only generic boundary
+outcomes reported. One same-host scoped copy is not off-host backup, restore or durable Saved.
+Pinned sibling source/doc hashes/revision/clean status, main exact 50/lock and all tracked code/
+interfaces/tests unchanged; documentation links/whitespace checked. No main-suite rerun inferred;
+compile/focused controls concern this ignored native consumer only. No original write/recovery,
+cleanup, synchronization/dual authority, migration/cutover, UI/store adoption, publication or push.
 
 ## Native Unix I/O failure boundaries
 

@@ -218,14 +218,32 @@ cannot distinguish them. These are synthetic illustrations of earned boundaries,
 or facts about the user's data. Beancount Open dates are target scaffolding, not source origins.
 This proves loss in THESE projections, not inability of every hledger journal/metadata extension.
 
-Compare two candidates next: retain the current lossless LOAM container, or specify a smaller
-owner-readable fact-oriented text representation carrying the same independent evidence/policy
-and receipt binding. A current journal remains a useful derived view in either case, not a
-replacement merely because it is readable. Neither a new command-replay log nor stable anchor
-history identities are earned by this review. First compare representative retained movement,
-correction and observation/cut examples; file splitting, append vs replacement, codecs, indexes,
-backup layout and runtime are later decisions. Pause further trial UI/setup and physical-store
-expansion until that representation decision has a concrete consumer; keep earned trials intact.
+The stopped scoped private comparison now has local current/candidate excerpts, generated with
+the existing native read profile gate first. [Evidence](VERIFICATION.md#stopped-private-representation-comparison)
+records limits: excerpts are not an encoder/grammar or full-household migration qualification.
+Compare retaining the current lossless container against this **recommended logical candidate**:
+
+- An owner-readable fact book, not a current journal or chronological command-replay log.
+  Event records retain every Effect/key occurrence and base metadata; corrections, occurrence
+  revisions, reversals and fulfillment keep their distinct explicit references. No historical
+  recording clock or normalized identity is invented; current frontiers/totals are derived.
+- Independently supplied observations with reflected-root cuts, opening/coverage/history/presence
+  claims remain visible beside activity, not cached balances. Cut factoring is allowed; anonymous
+  group syntax does not become stable household identity. Absence/declarations/empty still differ.
+- Explicit routing/classification/NEW-write policy and other retained families remain distinct
+  typed parts, not overloaded Event/Account/Budget/Month types or guessed defaults. Unknown parts
+  remain unadmitted/retained until resolved, not erased because a current UI ignores them.
+- Exact unbounded integer quanta and interpretation policy/scale belong to one coherent publication
+  scope; UI may show human units only with qualified scale. Current capture retains external scale
+  bytes/absence, not a frozen complete config bundle or a license to infer missing-scale 0.
+- Request -> original Event association remains explicit logical publication provenance. A journal
+  is a separate useful view. Readable delimiters/escaping should remove outer scalar-length editing,
+  but no syntax/codec, physical file split, append/replace, full-snapshot chain or store is chosen.
+
+This candidate avoids freezing old wire structure without discarding meaning. It is not yet
+proved cheaper/lossless for the complete household. Resolve the field/interpretation scope and
+unknown families before canonical codec/migration; keep original archives and earned trials
+intact. Further trial UI/setup and physical-store expansion stays paused meanwhile.
 
 ## Minimal Persistence contract
 

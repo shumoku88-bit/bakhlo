@@ -25,6 +25,42 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded task — stopped private capture / representation comparison
+
+User confirms `/Users/user/Projects/moko/loam-data` and agrees to stopped capture. Question:
+can one scoped read-only capture of current household.loam plus Measure-scale metadata support
+representative movement/correction/observation format comparison without lost/guessed evidence?
+D: clean 21ca9c1, source/format review and native Envelope/Read; P: whole frame/profile gates,
+exact quantities/cuts/history and original/private boundaries; R: coherent stopped acquisition,
+actual profile coverage and readability/retained-field correspondence. Select one small ignored
+native OCaml consumer using EXISTING Envelope/Read, not Python/generated payloads/new model,
+parallel maintained harness or wider parser. Qualify only capture edges on fresh synthetic
+files before private access: unchanged exact copies, missing/malformed/symlink/existing-target
+refusal and deliberate inter-read change. Scope original reads to current household.loam and
+config/measure-presentation.tsv (preserve absent metadata as absent); no root discovery/legacy
+fallback, original lock/write/recovery or sibling build/source copy. Assume cooperative stopped
+writers/stable paths; compare metadata+full bytes again after copying, refuse any change and
+preserve incomplete scratch artifacts. Private files/results remain ignored 0700/0600, never
+fixtures/commits/public payloads. Unsupported profile refuses answers/import; retain raw opaque
+sections rather than strip evidence. Excerpts/sketches are NOT a codec/migration/household
+admission. No storage/UI/dependency adoption, canonical writer, real migration or cutover.
+Revisit before live capture, extra configs, format selection or actual information-preserving
+migration; a stopped same-host comparison copy is not disaster backup or durability proof.
+Executed: no named LOAM process observed; all seven bounded synthetic capture controls passed,
+then stopped scoped capture with stable repeated full bytes/stat metadata (excluding atime).
+Existing native read profile ADMITTED only its declared Actual/four-support/origin scope, not
+all other families/config. Existing synthetic fixture exercised private-view rendering first;
+private current/candidate excerpts or explicit no-example outcomes are now in ignored
+`scratch/canonical_evidence_review/private-v1/comparison.private.md`. No private values, IDs,
+counts, dates, names, source hashes or raw errors emitted/published. Raw household + scale
+bytes/absence and unadmitted payloads are retained; no quantity answers, grammar/codec or
+migration proof claimed. Native consumer uses fatal 8/9/11 and strict sequencing; main/50/lock
+and pinned sibling source remain unchanged. [Verification](VERIFICATION.md#stopped-private-representation-comparison)
+owns scope/controls. Next: choose logical fact-book structure with explicit relations and
+coherent interpretation/support/policy before codec/store/UI work; use private excerpts locally
+and public synthetic examples for discussion. Current source capture is not a perpetual live
+mirror or authorized future write target. Original/cutover permissions remain separately gated.
+
 ## Completed bounded review — canonical evidence / inherited format
 
 User requests identifying retained meaning versus derived values, publication mechanics and
@@ -62,10 +98,9 @@ writes or format adoption. First select the representation and lossless transiti
 preserve originals/complete private copies, qualify retained facts/support/policy/interpretation
 and receipt/correction correspondence plus failure refusal, then explicitly select cutover.
 No guessed missing evidence, identity normalization disguised as migration, dual writes or
-indefinite compatibility/synchronization. Current source path and coherent stopped/read-only
-capture remain unresolved; do not assume the default root or inspect originals before resolving
-them. No new grammar/codec/store/journal authority, actual migration/cleanup, real writes or
-cutover is selected by this permission.
+indefinite compatibility/synchronization. Source path/stopped scoped capture were subsequently
+resolved in the bounded task above, not inferred from defaults. No new grammar/codec/store/
+journal authority, actual migration/cleanup, real writes or cutover is selected by this permission.
 
 ## Completed bounded task — native Unix I/O failure review
 
