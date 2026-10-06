@@ -244,6 +244,10 @@ This candidate avoids freezing old wire structure without discarding meaning. It
 proved cheaper/lossless for the complete household. Resolve the field/interpretation scope and
 unknown families before canonical codec/migration; keep original archives and earned trials
 intact. Further trial UI/setup and physical-store expansion stays paused meanwhile.
+For independent syntax review, the [synthetic-only pasteable comparison](FORMAT_COMPARISON_PROMPT.ja.md)
+pairs S-expressions + minimal Parsexp with custom fact text under the SAME logical obligations.
+Braces were illustrative; neither syntax/library is adopted. Package metadata is not measured
+runtime cost/portability or codec qualification; internal derived sexps are not the storage schema.
 
 ## Minimal Persistence contract
 

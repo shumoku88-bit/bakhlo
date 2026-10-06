@@ -25,6 +25,24 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded task — pasteable syntax comparison
+
+User requests a standalone memo for desktop ChatGPT comparing S-expressions + minimal Parsexp
+versus custom fact text. D: clean df1da54/public package dependency metadata; P: semantic
+contract and logical fact-book review; R: fair equivalent examples, marginal dependency versus
+owned lexer/parser costs and decision criteria. Select synthetic-only documentation; do not
+read/reuse private copies, payloads or usage results. Compare shared schema/admission separately
+from syntax/publication, label assumptions/unmeasured costs and request an independent decision,
+not confirmation of pit's earlier Parsexp preference. No parser/format/dependency adoption,
+private clipboard export, main-suite rerun, migration or original access in this slice.
+Completed [standalone Japanese prompt](FORMAT_COMPARISON_PROMPT.ja.md): equivalent fictional
+Event/correction/observation/request bindings, explicit interpretation and schema limits;
+checked Parsexp v0.17.0's existing-dependency closure versus full Sexplib's additional Num.
+Existing parser/PPX availability is not a complete codec; costs/portability remain unmeasured.
+Syntax delimiter/link/whitespace and synthetic-only scope checked; no installation/code/private
+reads. Next: await external review/user decision, weigh the same logical evidence in both
+syntaxes; do not treat that review as new authority, parser qualification or migration permission.
+
 ## Completed bounded task — stopped private capture / representation comparison
 
 User confirms `/Users/user/Projects/moko/loam-data` and agrees to stopped capture. Question:
