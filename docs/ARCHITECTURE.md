@@ -182,13 +182,14 @@ device assumptions; same scenario is not identical fault mechanics or universal 
 ## Client access direction
 
 Primary product goal: one user's laptop/phone can record and inspect household state without AI;
-an AI-chat adapter is optional. Native Notty TUI is the desktop preference; browser UI serves phone and
-can also serve desktop. Evaluate Bonsai for that named consumer if compiler/dependency/
+an AI-chat adapter is optional. Desktop candidates are direct Notty and Bonsai_term, now under
+an explicitly user-approved synthetic comparison; neither is adopted. Browser UI serves phone
+and can also serve desktop. Evaluate Bonsai for that named consumer if compiler/dependency/
 interaction costs are acceptable, with a simpler web view as an alternative. This extends
 the eventual access goal, not authorization to deploy a public service or use real data.
 
 ```text
-Notty desktop / phone browser (Bonsai candidate) / AI-chat adapter
+Notty or Bonsai_term desktop / phone browser (Bonsai candidate) / AI-chat adapter
                    -> authenticated application entrance
                    -> admission + current-generation publication / coherent query
                    -> one selected authority through Persistence
@@ -211,8 +212,13 @@ A browser frontend may use a separately reviewed toolchain without changing the 
 backend compiler. Protocol quantities must preserve unbounded exact decimal values/Measures
 and evidence roles, never coerce to JavaScript Number or manufacture zero. No canonical
 wire format, separate frontend compiler, toolkit install or permanent dependency is selected.
-Bonsai/secondary UI exploration is deferred by current priority; no full LOAM parity first.
-A useful record/save/query path needs qualified reference persistence. MirageOS minimal
+Browser/secondary access remains deferred; no full LOAM parity first. The ignored
+[paired desktop trial](VERIFICATION.md#paired-notty--bonsai_term-synthetic-draft-ui-trial)
+uses identical in-memory proposals/inputs with separate renderers/runtimes. Existing main
+OCaml 5.3/engine/50 are unchanged; the Bonsai consumer alone uses an isolated OxCaml/Base preview
+and CURRENT engine source symlinks, not a new engine or qualified main backend. UI focus is
+app-owned in BOTH candidates; this trial does not prove turnkey forms or incremental speed.
+A useful record/save/query path still needs qualified reference persistence. MirageOS minimal
 composition is not a claim of ultra-security or qualified always-on deployment.
 
 ## Structured operations and diagnostic availability

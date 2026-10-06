@@ -25,6 +25,63 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Active bounded task — paired Notty / Bonsai_term TUI trial
+
+User explicitly requests building with BOTH candidates and comparing while using them;
+this authorizes a bounded synthetic UI trial, NOT main dependency/compiler/store adoption.
+Question: can the same tiny expense-form/list/correction interaction be pleasant and maintainable
+with direct Notty versus Bonsai_term on the current Mac? D: clean 0438384, main OCaml 5.3.0/
+50 locked packages, Darwin x86_64, pure admitted documents/proposals/projected answers available;
+public Bonsai_term default `oxcaml` 2457232d3aa144fb887a053748a920544db60f72 uses Core/Async/
+Bonsai/notty_async/notty-community and its README requires OxCaml. P: 175 expect/four cram,
+byte-bound proposal/currentness controls; no existing production TUI/writer. R: native host/
+compiler/package compatibility, Japanese editing/display widths, focus/resize/list selection,
+UI effort and preserving typed refusals without GUI-side ledger arithmetic.
+First instrument: pinned public README/opam/host review and ISOLATED dependency solve, then a
+minimal native synthetic consumer ONLY for candidates whose prerequisites are qualified.
+Main switch/lock/Core meanings stay untouched; approved trial dependencies stay in ignored
+scratch/root/switch with no global install, OS change, VM, protocol framework or sibling build.
+Do not install an alternative compiler or substitute a browser mock when native prerequisites
+are blocked: report the concrete blocker and ask for the applicable next decision. No pasted
+private data, operational files, permanent UI choice, canonical format/store/writer, recovery,
+Saved or push. A paired visible consumer must use equivalent scenarios/engine gates; an unrun
+candidate never receives a performance/usability verdict. Revisit before expanding host/toolchain
+or UI/storage scope. Record actual runnable vs preflight-only results separately.
+Preflight: default ac27950e5eac6c981ad809dff370c937820b7893 and Ox registry
+f1bd228dda31430bf6271f0f9adb2e604c6957ca captured. Notty-community 0.2.4 needs seven
+additional packages in an isolated system-5.3.0 alias switch. Bonsai_term pinned preview
+v0.18~preview.130.106+341 solves with OxCaml 5.2.0minus40 (NOT Ox 5.4) and 254 packages,
+including empty guards, after a 60s solver timeout and bounded precise-request retry.
+Mac x86_64/configure and existing clang/make/autoconf/pkg-config prerequisites reviewed;
+no OS install. User was notified of the seven/254 difference and then requested continuing.
+Proceed with the dedicated Ox UI trial build, not a main compiler/lock change. Same CURRENT
+pure engine source may be compiled ONLY in the isolated synthetic UI consumer; this alternate
+compiler/Base is NOT the earned main backend or authority. Compare exact proposal bytes/answers
+with stock-5.3 workbench controls before any usability judgment. UI-only dependencies stay outer.
+First paired increment: BOTH native binaries now build/run in ignored
+`scratch/tui_comparison_review`, with a shared pure engine workbench and tiny interaction
+contract but separate Notty I/Unix and Bonsai View/state-machine/Async frontends. Whole
+admitted candidate/source access stays owner-side, no new balances or Store. Same stock/Ox
+controlled proposal/answers compare byte-identically; both smoke checks cover 1000 -> 990
+-> correction 985, retained original Event/text/edge, exact 180-bit answers, input/stale-row
+refusals, unknown/presence, scalar/paste and clipping geometry. Real script PTYs pass UTF-8
+input/focus/add/correct/quit, same final checksum and child exit 0. Full terminal state matches
+after canonical input resumes; failed immediate snapshot probes retained: ONLY Darwin PENDIN
+transient state, not missing user flags. Details/bounds in
+[verification](VERIFICATION.md#paired-notty--bonsai_term-synthetic-draft-ui-trial).
+Actual installs: Notty 16 total (nine baseline aliases + seven additions), Bonsai 249 including
+guards (preflight 254); ~8.7GiB ignored trial tree, ~4.6/53MiB binaries. This is setup/artifact
+evidence, not UI latency/RSS/usability. Main compiler/exact 50/lock/dependency directions unchanged.
+No VM/OS/global installs, operational data, canonical storage/UI/runtime adoption or push.
+Try BOTH before deciding: repository root, >=64x25 interactive terminal, SYNTHETIC inputs only:
+`./scratch/tui_comparison_review/try-ui notty`, then `.../try-ui bonsai`.
+Enter 10/Tab/memo/Enter; Ctrl-E/Ctrl-U/15/Enter; Ctrl-N new, Tab/Shift-Tab focus, arrows list,
+Ctrl-Q quit. Fixed visible synthetic date, not a clock; no currency display-scale decision.
+Candidates disappear at exit. Bonsai ALSO needs app-owned focus; no turnkey form or incremental
+performance verdict. Human macOS IME/grapheme/cursor editing, live resize/long-list feel and rich
+components remain unqualified. Next: user compares actual interactions; keep permanent choice
+open and do not recast this as practical saved recording.
+
 ## Completed bounded task — reuse whole-admitted documents without stale publication
 
 Question: can the measured 100k append/correction path avoid rebuilding the SAME complete

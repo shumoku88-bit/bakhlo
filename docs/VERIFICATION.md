@@ -65,6 +65,71 @@ Formal tools remain development-only. Ordinary build/test/release must be Lean-f
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
 
+## Paired Notty / Bonsai_term synthetic draft UI trial
+
+User explicitly requests trying/building BOTH desktop candidates, informed of OxCaml scope;
+HANDOFF records question/owners/D/P/R BEFORE code. CURRENT 0438384 engine, Darwin x86_64.
+Ignored `scratch/tui_comparison_review` now has TWO runnable native draft workbenches, not a
+browser imitation, adopted UI or main writer. `workbench.ml` owns ephemeral trial Event IDs,
+complete admitted documents/proposals and existing narrow exact/presence/unknown projections.
+Shared `interaction.ml` owns the SAME tiny form/focus/list/scalar/paste controls, not household
+arithmetic. Notty uses its own I renderer/Unix event loop; Bonsai_term uses its own View renderer,
+typed event conversion, real Bonsai state machine and Async lifecycle. No copied old engine,
+parallel model/oracle, Python bridge, protocol framework or generated payload. Both retain
+original source/correction edges and never claim Saved; exit loses all ephemeral candidate work.
+
+Dependency preflight: frozen default ac27950e5eac6c981ad809dff370c937820b7893; Ox registry
+f1bd228dda31430bf6271f0f9adb2e604c6957ca. Direct Notty uses notty-community 0.2.4 to compare
+the same family of renderer as Bonsai, not silently adopted main Notty. Isolated system-5.3.0
+compiler aliases: nine baseline packages + seven additions, 16 actual total. Main compiler,
+exact 50 versions/lock/dependency directions unchanged. Bonsai_term is pinned to source
+2457232d3aa144fb887a053748a920544db60f72 / v0.18~preview.130.106+341; its closure conflicts
+with Ox 5.4, so the isolated consumer uses OxCaml 5.2.0minus40 / Base v0.18 preview, 249 ACTUAL
+installed packages including empty guards (initial simultaneous dry solve planned 254).
+First solve timed out at 60s; one precise 120s retry succeeds, actual compiler/library builds
+succeed. Current engine SOURCE SYMLINKS compile in that scratch-only Dune root without source
+changes: NOT full main-engine qualification on another compiler. No OS/global install, main
+lock/package changes, VM/Lean/operational inputs, canonical storage/UI/runtime adoption or push.
+Trial trees ~8.7GiB, binaries ~4.6/53MiB stock/Bonsai: setup observations, NOT runtime memory/
+latency/usability evidence. Both link native libraries only; pinned package/link/hash records,
+source/build logs/export and failed controls remain ignored. No unreviewed cleanup.
+
+Same controlled workbench checks pass in BOTH: synthetic wallet 1000 -> append 990 -> correction
+985, retained byte prefix/original Event/memo and explicit edge; 180-bit positive quantity;
+zero/exponent/invalid-date refusal without lost admitted draft; stale row refusal; scalar
+Backspace, bracketed-paste control rejection/no implicit submit; known presence and unknown
+not scalar/zero. Render width for Japanese '財布' is four; 80x30 and narrow geometry checked.
+Exact complete stock/Ox controlled proposal/answer output compares byte-identically; observational
+MD5 checksums are NOT a security/currentness gate. No new main tests/framework added by habit.
+
+Real `/usr/bin/script` PTYs at 100x30 pass UTF-8 key input, Tab, Enter, Ctrl-E correction,
+Ctrl-U replacement amount and Ctrl-Q in BOTH. Final wallet 985/source checksum identical;
+child exits 0. Raw immediate `stty -g` probes v1/v2 report only lflag PENDIN 0x20000000,
+not missing user flags: local SDK defines it as pending-input STATE; Darwin tty.c sets it
+on canonical-mode restoration and ttypend() clears it when input resumes. v3 compares FULL
+stty state after one normal canonical input: exact match for both (v4 repeats with final
+source/image hashes). Non-TTY mode refuses in both with exit 1 and no answer stdout. Failed probes remain,
+not a relaxed all-flags comparison or a patched vendor. The common launch shell owns terminal
+restoration and propagates failure; SIGKILL/exotic terminals/OS-wide cleanup are unqualified.
+These PTY traces inject already-converted Unicode, NOT actual macOS IME conversion tests.
+
+Try from repository root in a real >=64x25 terminal, SYNTHETIC input only:
+
+```sh
+./scratch/tui_comparison_review/try-ui notty
+./scratch/tui_comparison_review/try-ui bonsai
+```
+
+Quantity is initially focused: 10, Tab, synthetic memo, Enter; then Ctrl-E/Ctrl-U/15/Enter.
+Ctrl-N new, arrows list, Tab/Shift-Tab focus, Ctrl-Q quit. Date is a visible fixed synthetic
+value, not a hidden clock; quantities remain jpy quanta, no invented display-scale convention.
+Ordinary main check still passes 175 expect/four cram; pinned format/whitespace and source/50
+preservation checks pass. Choice stays OPEN: Bonsai ALSO has app-managed focus; no rich form
+components, per-field incremental optimization/speed or more maintainable architecture inferred
+from this small state machine. Human IME/keyboard feel, grapheme/cursor editing, resize interactions,
+large-list performance, mouse/accessibility and persistent record/reopen remain next gaps.
+No real data was needed; user feedback on BOTH is next, not automatic Notty/Bonsai adoption.
+
 ## Friendly projected quantity answers
 
 User delegates small explicit household questions without a required AI/model. HANDOFF records
