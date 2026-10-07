@@ -10,4 +10,5 @@
   bakhlo_sexp
   parsexp
   base
-  zarith))
+  zarith
+  unix))

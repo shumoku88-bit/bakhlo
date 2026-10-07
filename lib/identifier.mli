@@ -1,9 +1,10 @@
-(** Distinct opaque identities, not household catalogs or display labels.
-    Only empty strings are rejected. Preserve exact bytes: no case folding,
-    trimming, aliasing, or inferred membership. Adapters own safe representation. *)
+(** 通貨・科目・事象などを取り違えないための独立した識別子。
+    空文字列のみ拒絶し、トリム・大小文字変換・エイリアス解決は行わない。
+    元のバイト列を保持する。識別子の型だけで実在性や記帳の承認は保証しない。 *)
 
 type error = Empty
 
+(** 通貨や単位（例: "jpy", "usd"）の識別子 *)
 module Measure : sig
   type t
 
@@ -12,6 +13,7 @@ module Measure : sig
   val equal : t -> t -> bool
 end
 
+(** 所在・口座・費目（例: "wallet", "bank", "food"）の識別子 *)
 module Locus : sig
   type t
 
@@ -20,8 +22,7 @@ module Locus : sig
   val equal : t -> t -> bool
 end
 
-(** Role-free external identity, not a display name, catalog entry, merchant,
-    payee, creditor or Locus. Relations supply meaning; tokens never infer roles. *)
+(** 外部の関係者・取引先（店舗、支払先、債権者など）の識別子 *)
 module External_party : sig
   type t
 
@@ -30,8 +31,7 @@ module External_party : sig
   val equal : t -> t -> bool
 end
 
-(** Opaque identity scoped within an Event, only when independently referenced.
-    Not a coordinate/list position, globally unique identity or allocated default. *)
+(** 一つの事象（Event）内で個々の効果（Effect）を識別するためのキー *)
 module Effect_key : sig
   type t
 
@@ -43,8 +43,7 @@ module Effect_key : sig
   include Base.Comparator.S with type t := t
 end
 
-(** Independent relation-unit identity, not Event, Effect key, endpoint pair or
-    scalar. Equal fields can belong to distinct units. No registry/allocation. *)
+(** 独立した関係単位の識別子 *)
 module Relation : sig
   type t
 
@@ -56,8 +55,7 @@ module Relation : sig
   include Base.Comparator.S with type t := t
 end
 
-(** Identity of a supplied later Actual occurrence-date claim, not an Event,
-    Effect key, base-date identity or timestamp. No revision identity allocation. *)
+(** 日付改訂の主張を識別するための識別子 *)
 module Validity_revision : sig
   type t
 
@@ -69,8 +67,7 @@ module Validity_revision : sig
   include Base.Comparator.S with type t := t
 end
 
-(** Caller-supplied observation identity, distinct from the other identity roles.
-    No allocation or temporal/kind/revision meaning is inferred from the token. *)
+(** 事象（取引・記録）そのものの識別子（例: "E1", "tx-2024-001"） *)
 module Event : sig
   type t
 
@@ -79,7 +76,7 @@ module Event : sig
   val equal : t -> t -> bool
 
   val compare : t -> t -> int
-  (** Mechanical exact-spelling order for immutable memory indexing, not authority. *)
+  (** 不変メモリのインデックス付けのためのバイト順比較 *)
 
   include Base.Comparator.S with type t := t
 end

@@ -19,8 +19,9 @@ Retain information that cannot be reconstructed from other retained evidence.
 Balances, remaining amounts, report rows, and status labels remain projections
 unless a concrete independent information requirement earns canonical storage.
 
-Do not impose Account, Transaction kind, Budget, or Month as fundamental types
-merely because another accounting system uses those names.
+Use ordinary household notions such as account, category, budget or month when
+an actual feature needs them. Do not add a generalized ontology merely to mirror
+LOAM or another accounting system.
 
 ## S3 — Exact quantities and explicit Measures
 
@@ -40,11 +41,17 @@ Do not infer that every Event is an ordinary balanced Movement. Cross-Measure
 exchange and other evidence families have separate admission obligations.
 A zero-sum mathematical list alone need not meet all practical entry rules.
 
-## S5 — Correction provenance and currentness
+## S5 — Corrected entries and real household changes
 
-Retained history and the current answer are distinct. Corrections and lifecycle
-changes must follow their qualified frontiers; a convenient UI status or cached
-row cannot bypass them. Preserve provenance through explicit transformations.
+Correction-version history is not a mandatory part of the new daily canonical
+data. An explicitly converted candidate may retain the corrected entry/date and
+keep earlier versions in the original data or separate backups. Verify the selected
+entries, quantities and meaningful links; this is not full evidence-history parity.
+
+Existing formats that retain corrections still follow their declared frontiers.
+Do not silently alter those APIs or use cached status to bypass their selection.
+Actual refunds, reversals, cancellations and payment-plan fulfillment are not input
+correction history and must not disappear during simplification.
 
 Do not conflate occurrence dates, recording order, and correction timestamps.
 Do not manufacture historical time evidence that was never retained. Occurrence-date

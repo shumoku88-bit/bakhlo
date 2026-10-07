@@ -1,124 +1,63 @@
-# Bakhlo
+# Bakhlo（バフロ）
 
-A household question machine that works without AI. An independent OCaml engine for
-small explicit questions, exact quantities, retained evidence and honest uncertainty.
-Friendly presentation stays separate from strict meanings. AI is an optional untrusted entrance,
-not a household-specialist language model, required runtime or source of facts.
+OCamlで作るパーソナル家計簿。日々の記帳と編集、口座・科目、支払い予定、予算、
+レポートを、読みやすいS式のデータで扱う。AIなしで動く普通の道具を目指す。
 
-**Development-only. Existing Lean LOAM remains the sole operational household authority.**
-No household writes, migration, production storage, durable Saved or full-household admission.
+**開発中。普段の記帳と正データはまだLOAM。元データを変更せず、まずBakhlo用の候補を試す。**
 
-## What works now
+## 大事にすること
 
-- An immutable, presentation-independent engine: Base + Zarith, unbounded signed integer
-  quanta, distinct identity roles and Measures. No float conversion or identity normalization.
-- Whole supplied-source admission before lookup, retained correction/date/metadata evidence,
-  and independent quantity support. Activity or net zero never establishes support.
-- Structured exact quantities with supplied premises/provenance, known nonzero presence with
-  unknown amount, or typed unavailable/refusal. Terminal text is not the shared API.
-- A [narrow quantity answer](application/current_quantity_answer.mli) and Japanese `--summary`:
-  exact/presence/unknown without raw history or input diagnostics. Not auth or a sandbox.
-- [Pure ordinary Movement proposals](text/propose.mli) for the experimental text profile:
-  add/correct explicit supplied facts, retain every base byte, whole-admit the candidate.
-  Not recording permission, a full-world encoder or an adopted storage format.
-- Read-only CLI entrances and three scoped pure readers:
-  - [`bakhlo.sexp`](sexp/book.mli): minimal versioned ordinary-quantity evidence book,
-    explicit Measure/scale, initial support, expense and retained correction history.
-    v2 additionally retains explicit new-write Locus vocabulary, independent of history/support.
-    Pure whole-admitted Event/vocabulary proposals and fresh candidate-file staging; no Saved.
-  - [`bakhlo.text`](text/read.mli): experimental ordinary-Actual text profile.
-  - [`bakhlo.loam_read`](loam_read/read.mli): supplied LOAM HouseholdImage v2, representable
-    Actual plus four explicit quantity-support sections. Unsupported Actual evidence refuses;
-    other sections remain opaque and unadmitted.
+- 金額を整数の最小単位で正確に扱い、異なる通貨を勝手に合算しない。
+- 残高が不明なことと、明示的にゼロであることを区別する。
+- 入力ミスの訂正と、実際の返金・取消を区別する。
+- 正データは訂正済みの明細でよい。修正前は元データやバックアップで別に残せる。
+- 人間が読めるデータと、短く直接的な実装を優先する。
 
-These are conditional answers about supplied evidence, not household truth, spending rights
-or recording. File reading alone does not establish a coherent live snapshot. Fixture v2
-remains a synthetic comparison input, not canonical storage.
+永久の訂正ログ、LOAMの全内部構造、教科書化、複数バックエンドは必須条件にしない。
+これは必要な予定・予算・レポートを省くという意味ではない。
 
-## Build and try
+## 今できること
+
+- 独立した数量・取引検査と、根拠のある残高／不明の回答。
+- 限定された普通の記帳形式のS式読取と、新しい候補ファイルへの書出し。
+- 合成データを使った既存の記帳・再起動・訂正・科目追加の画面試作。
+- 作業ツリーには便利入力の `record` 試作もある。ただし現在は出力先を上書きし、
+  実データの安全な保存機構としては未確認。元データには使わない。
+
+現在の `bakhlo 1/2 ordinary-quantity` Bookは訂正関係を保持する既存形式で、
+支払い予定やLOAM全体を表せる形式ではない。新しい家計簿データ候補は別途試作中。
+形式を変える場合は明示的に変換し、古いファイルを残す。
+
+## ビルドと試用
 
 ```sh
 ./tools/bootstrap
 ./tools/check
 ./tools/opam exec -- dune exec bakhlo -- --help
-./tools/opam exec -- dune exec bakhlo -- check-movement \
-  --effect wallet jpy -1000 --effect food jpy 1000
-./tools/opam exec -- dune exec bakhlo -- inspect-current-text --summary \
-  examples/ordinary-quantity.bakhlo wallet jpy food jpy
-./tools/opam exec -- dune exec bakhlo -- inspect-current-text --explain \
-  examples/ordinary-quantity.bakhlo wallet jpy
-./tools/opam exec -- dune exec bakhlo -- inspect-loam-quantity \
-  examples/loam-quantity.loam-input wallet jpy
+./tools/opam exec -- dune exec bakhlo -- inspect-current-sexp --summary \
+  examples/ordinary-sexp/initial.sexp wallet jpy food jpy
 ```
 
-The [synthetic S-expression walkthrough](examples/ordinary-sexp/README.md) runs start → expense →
-correction → cold read using fresh candidate files. Wallet `1000 → 900 → 850`; unknown Bank stays
-unknown. It does not adopt a store/UI or authorize real recording.
+[合成データの短い例](examples/ordinary-sexp/README.md)で読取・候補作成を試せる。
+セットアップはリポジトリ内だけで行う。
 
-Both text/LOAM wallet queries yield supplied assertion `1000` + unreflected delta `-10` = `990`.
-All three readers accept multiple `LOCUS MEASURE` pairs on one admitted input;
-Choose `--summary` for Japanese answers/check guidance or `--explain` for owner provenance.
-Summary withholds raw success/failure detail, but permitted quantities/coordinates remain sensitive.
-No subtotal or activity-derived support. Exit 3 if any question is unsupported, else 4 for
-known presence/unknown amount, else 0 (stdout). Failures use stderr: 1 for input/admission,
-2 for arguments; text/S-expression syntax/profile refusals also use 2.
-Candidate staging uses 5 for uncertain output attempts and retains any artifacts; no blind retry.
-Use `COMMAND --help` for scope. Checking a Movement is **not recording it**.
-Setup is repository-local; [development](docs/DEVELOPMENT.md) owns prerequisites and commands.
-Tests use existing native OCaml `ppx_expect` / `Base_quickcheck`; no Python bridge or generated
-payload pipeline. Qualified hosts and per-increment limits are in [verification](docs/VERIFICATION.md).
+## コードを見る場所
 
-## Direction
+- `lib/`：識別子・金額・取引の小さな型。
+- `application/`：検査と数量の問い合わせ。
+- `sexp/`：現在の限定されたS式形式の読取・候補作成。
+- `cli/`、`presentation/`、`bin/`：引数・表示・入出力。
+- `loam_read/`：限定された読み取り専用LOAM入力。完全な移行アダプタではない。
+- `test/`：既存のOCamlテスト。
 
-Human-readable evidence and data sovereignty come before physical store adoption. Canonical
-S-expression syntax is selected; the bounded development book above is implemented with
-Parsexp v0.17.0. Whole-household schema and physical store remain unadopted; SQLite canonical
-adoption is paused. User requires the household functions already used in LOAM: ordinary
-recording/correction, account/category addition, plans, budgets and reports. The simple UI loop
-is the first connection, not a decision to omit those functions. Small code means thin owners
-and fewer frameworks, not a smaller household feature set or reproducing every LOAM research
-implementation. Readability/maintenance/extension remain requirements; [safe data interchange](docs/ARCHITECTURE.md#safe-data-interchange)
-is deferred behind daily use. Its adapters are not implemented or compatibility-qualified.
-Unix is the near-term runtime, MirageOS an explicit future goal with experimental support only.
-Permanent UI,
-AI/voice/network adapters and operational publication remain separate work. Prior storage/runtime
-trials are comparison evidence, not dependencies or production defaults. Both ignored native TUIs
-now connect the existing Unix trial: synthetic record/select → exit → reopen → correction, retained
-original history, ja/en display and honest uncertain-result checks. Same-currency Wallet/Bank
-transfer and income to either receiver are now included; normal display keeps internal IDs in
-detail view. Explicit closed synthetic backup/verification and fresh-namespace restore now
-retain complete history/receipts; existing targets and incomplete copies refuse.
-[Handoff](docs/HANDOFF.md#completed-bounded-task--synthetic-closed-backuprestore)
-owns launch instructions; [verification](docs/VERIFICATION.md#synthetic-closed-backuprestore)
-owns controls/limits. It does **not** qualify durable Saved, real-data recording or a main store.
-[Explicit synthetic initial quantities](docs/VERIFICATION.md#explicit-synthetic-initial-quantities)
-now let BOTH existing trials start from supplied Wallet/Bank values in all four currencies,
-without missing -> zero, overwriting or changing old support. Record/reopen/correct and complete
-backup/fresh restore connections pass; this still uses the experimental text Store, not an
-adopted canonical codec or permission for real recording. Those paragraphs describe earlier text
-trials. The latest [simple S-expression UI loop](docs/VERIFICATION.md#simple-s-expression-ui-loop)
-now uses Book in BOTH existing screens: input → write → exit/reopen → correction, preserving originals.
-No new UI/backend, legacy conversion or real-data use. [Handoff](docs/HANDOFF.md#completed-bounded-task--existing-synthetic-ui--s-expression-connection)
-links the first loop. The [科目 increment](docs/VERIFICATION.md#synthetic-locus-addition-and-recording)
-now adds/selects exact category identities in those SAME screens and retains them through
-record/reopen/correction, without inventing zero balances or current approval from history.
-[Handoff](docs/HANDOFF.md#completed-bounded-task--synthetic-科目-addition--ordinary-recording) links the
-new initial-1000 synthetic demo; human feedback comes before more infrastructure.
-Review [four synthetic S-expression candidates](examples/sexp-v1-candidate/README.md) alongside
-[the same four in delimiter-free plain text](examples/plain-v1-candidate/README.md):
-selected self-contained EVIDENCE generation, not flattened current state. Superseded Events,
-relations, observations/cuts and policy/provenance remain. Parser/writer/migration are explicitly
-NOT implemented or authorized by those broader fixture-only steps; the separate ordinary-quantity
-profile above is the currently implemented bounded codec.
+## 次の作業と参考
 
-## Where to look
+まず[現在の引継ぎ](docs/HANDOFF.md)を見る。ほかは必要な箇所だけ読む。
 
-- [Semantic contract](docs/SEMANTIC_CONTRACT.md): meanings that must survive.
-- [Architecture](docs/ARCHITECTURE.md) and `.mli` files: boundaries, profiles and invariants.
-- [Verification](docs/VERIFICATION.md): actual evidence, counterexamples and limits.
-- [Development](docs/DEVELOPMENT.md): isolated toolchain and optional formatting.
-- [Handoff](docs/HANDOFF.md): next work and evidence-based maintenance revisit triggers.
-- [References](docs/REFERENCES.md), [contributing](CONTRIBUTING.md), [pit instructions](AGENTS.md).
+- [意味の契約](docs/SEMANTIC_CONTRACT.md)
+- [開発手順](docs/DEVELOPMENT.md)
+- [現在の実装・実験の設計資料](docs/ARCHITECTURE.md)
+- [検証記録と限界](docs/VERIFICATION.md)
+- [OCamlの学習メモ（任意）](docs/TEXTBOOK_GUIDE.ja.md)
 
-No unreleased API/storage compatibility promise. No public release, licensing/source-reuse
-permission or operational cutover follows from a local build, test or commit.
+実データ・秘密情報はGitに入れない。試作の成功だけで本番移行や公開はしない。

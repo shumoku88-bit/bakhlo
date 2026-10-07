@@ -1,15 +1,15 @@
 # Contributing
 
-Bakhlo is unreleased and non-operational. Read README and the
-[semantic contract](docs/SEMANTIC_CONTRACT.md); use only synthetic data.
+Bakhlo is unreleased and non-operational. Read README and the current
+[handoff](docs/HANDOFF.md); consult relevant semantic/interface contracts for the task.
+Ordinary tests use synthetic data; separately approved private candidate work stays ignored.
 [AGENTS.md](AGENTS.md) also applies to pits. No prototype compatibility promise exists.
 
 ## A useful change
 
 - Names a concrete consumer, observable acceptance criterion and invariant owner.
-- Before non-trivial code, records a short [instrument review](docs/VERIFICATION.md#instrument-review-gate):
-  prior evidence, residual gap, assumptions, selected/deferrable instruments and trigger.
-- Adds distinct evidence rather than a standard bundle; preserves independent oracles.
+- Uses existing tests and independent expectations; adds tools only for a concrete gap.
+- Does not require a new task document, formal model or qualification campaign per change.
 - Removes obsolete code/docs when appropriate; never weakens semantics just to cut lines.
 - Keeps interfaces, verification and handoff current without copying inventories.
 - Is small enough to review and qualify independently.
@@ -50,7 +50,7 @@ Benchmarks name workload/environment and excluded costs. Formal results name sta
 assumptions, trust boundary and OCaml correspondence gap. Missing tools or unrun checks
 are limitations, not successes. Production checks never require Lean.
 
-Review exact changes, stage only qualified files and commit incremental work. No push
-or release without authority. Disclose AI assistance honestly; do not invent authorship,
+Review exact changes and stage only intended checked files. Do not include another
+person's unchecked work. Local commits are allowed; no push or release without authority. Disclose AI assistance honestly; do not invent authorship,
 review, experiment results, affiliation or superiority. Licensing is unresolved: resolve
 ownership/attribution and package metadata before source copying or public release.

@@ -42,7 +42,7 @@ v1は元の形式と純粋な候補APIを保持するが、許可付き記帳の
 読み込むだけでv2へ変換・許可の補完はしない。予定・予算・レポートは別の必要機能として続く。
 
 既存UIで「追加→選択→記帳→再開→訂正」を試す手順は
-[Handoff](../../docs/HANDOFF.md#completed-bounded-task--synthetic-科目-addition--ordinary-recording) にある。
+[Verification](../../docs/VERIFICATION.md#synthetic-locus-addition-and-recording) にある。
 
 ## この開発用v1プロファイルの約束
 

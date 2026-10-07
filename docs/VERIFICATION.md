@@ -62,13 +62,10 @@ file. [Handoff](HANDOFF.md#maintenance-revisit-decisions) owns when cleanup is w
 
 ## Instrument review gate
 
-Before non-trivial code, record a few lines in the task note/HANDOFF:
-
-1. Observable question and invariant owner.
-2. Deterministic facts (D), prior earned evidence (P), residual gap (R).
-3. Chosen instruments or relevant deferral, with reason.
-4. Assumptions, bounded checks, mapping/remaining gap and revisit trigger.
-5. Actual execution/results, distinguished from planned or unrun work.
+Use the smallest check that answers the current question. Existing tests and narrow
+source owners come first. A task note or D/P/R review is optional when it clarifies a
+concrete cross-boundary risk, not required ceremony for every change. Report actual
+results and remaining limits; do not turn historical qualification into today's backlog.
 
 Select by risk, not directory or a per-slice checklist. Reuse independent models/oracles;
 ordinary consumers test connection and failure boundaries. No mandatory all-tools pipeline,
@@ -131,7 +128,7 @@ A separate fresh `sexp-v10/stores/loci-demo` is initial 1000/no Events for the u
 Dedicated backup/role/routing/display-label editing/plans/budgets/reports are NOT qualified by this
 slice. No new store/dependency, existing-store upgrade/write, real recording, recovery/durable Saved,
 Mirage/Linux replay or push. Existing LOAM remains authority; required remaining household functions
-stay in scope. [Handoff](HANDOFF.md#completed-bounded-task--synthetic-科目-addition--ordinary-recording)
+stay in scope. [Current handoff](HANDOFF.md)
 links the small demo, not a feature-cut-down product.
 
 ## Simple S-expression UI loop
@@ -222,7 +219,7 @@ sole operational authority; successful cold synthetic read is NEVER durable Save
 ## Safe data interchange design review
 
 At clean fbd6d84 user approves readable/maintainable/extensible S-expression evidence, hledger
-journal export and trustworthy imports. [Handoff](HANDOFF.md#deferred-design--readable-schema-and-safe-data-interchange)
+journal export and trustworthy imports. [Interchange design](ARCHITECTURE.md#safe-data-interchange)
 records D/P/R and selected instruments; [Architecture](ARCHITECTURE.md#safe-data-interchange)
 owns requirements and planned qualification cases. Reuse existing currentness/date/exactness/
 support/publication evidence as constraints, not proof of an unwritten adapter.
@@ -539,7 +536,7 @@ stock/Ox proposal bytes identical to prior Tab trial, backup checks/restored ans
 
 Source/images/logs/closed archives/partial refusals/killed targets/final PTYs/hashes remain ignored
 in `backup-v7`/trial scope. No user's current store or operational payload read/copied/mutated.
-[Handoff](HANDOFF.md#completed-bounded-task--synthetic-closed-backuprestore) owns explicit commands.
+[Retained synthetic trial README](../scratch/tui_comparison_review/README.md) owns explicit commands.
 Cooperative stable paths, immutable archive ownership and publisher-compatible lease assumed,
 not a security sandbox or live/uncooperative/filesystem snapshot. Same-device experiment is
 NOT off-device disaster backup; no encryption, real-data use, canonical store/UI/retention
@@ -560,7 +557,7 @@ Complete stock/Ox proposal outputs agree; removing only the new success line yie
 prior income proposal output. Workbench/Recording/Store/renderers/Money/Locale/lock hashes
 unchanged; ignored `tab-order-v6` retains baseline/source/image/failure/result evidence.
 No user-store read/write/init, dependency change, main test or new physical PTY/failure campaign,
-storage/durability/operational/Mirage qualification. [Handoff](HANDOFF.md#completed-bounded-fix--tui-tab-order)
+storage/durability/operational/Mirage qualification. [Retained synthetic trial README](../scratch/tui_comparison_review/README.md)
 owns restart instructions; revisit if visible form fields/order change.
 
 ## Synthetic TUI income
@@ -611,7 +608,7 @@ unchanged. Final native recording/smoke checks pass. Same native-control and fin
 cold answers/generation/request/session bytes agree across stock/Ox consumers. Source/image
 hashes, compile error, outputs, fresh synthetic stores and terminal traces remain ignored under
 `income-v5`/trial scope; no current user's store or operational payload was read/copied/mutated.
-[Handoff](HANDOFF.md#completed-bounded-task--synthetic-tui-income) owns launch/next actions.
+[Retained synthetic trial README](../scratch/tui_comparison_review/README.md) owns launch/next actions.
 No real-data use, FX/richer income categories, canonical store/UI adoption, migration, backup/
 restore/recovery/cleanup, actual syscall/device/power-loss/durable Saved, human IME/grapheme/
 resize/latency, other-host or Mirage qualification. These remain separate decisions/work.
@@ -677,7 +674,7 @@ same-store stock/Ox cold quantity/generation/request/session outputs are byte-id
 No current user's trial-store or operational payload was read/reset/copied; all controls use
 fresh self-generated synthetic roots, and previous sources/images/trials remain intact. Sources,
 images, native stores, failures, logs, PTYs and hashes stay ignored in `transfer-v4`/trial scope.
-[Handoff](HANDOFF.md#completed-bounded-task--same-currency-synthetic-tui-transfer) owns launch/next
+[Retained synthetic trial README](../scratch/tui_comparison_review/README.md) owns launch/next
 work; default store path stays unchanged, fresh Bank zero support requires EXPLICIT new init.
 No real-data recording, migration, main canonical storage/UI adoption, recovery/cleanup,
 backup/restore, actual failing syscall/namespace/device/power-loss/Saved, other host or Mirage
@@ -743,7 +740,7 @@ Final stock/Ox pure proposal outputs and cold same-store quantity/receipt/sessio
 byte-identical; checksums are observations, never an admission/currentness/security gate.
 Main `tools/check` (175 expect/four cram) passes; exact 50/lock/source Store hashes unchanged.
 Original paired/money/publication artifacts remain. TRY: `try-ui init` ONCE, then `try-ui notty ja`
-and `try-ui bonsai en`; [Handoff](HANDOFF.md#completed-bounded-task--synthetic-tui-recordreopencorrection)
+and `try-ui bonsai en`; [Retained synthetic trial README](../scratch/tui_comparison_review/README.md)
 owns current launch/next work. Sources, images, hashes, logs, native stores and PTYs stay ignored.
 Qualified ONLY synthetic native normal-exit loops and named controls on current macOS; no main
 storage/UI adoption, live/off-device backup/restore, recovery/cleanup, actual failing syscalls,

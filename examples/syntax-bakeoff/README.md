@@ -9,7 +9,7 @@ canonical-format decision is introduced here. No real/private household data is 
 
 **Decision after review:** the user selects S-expressions for canonical evidence. The journal
 remains comparison evidence, not a second maintained format. Exact schema and production
-codec/store adoption remain separate decisions; see [current direction](../../docs/HANDOFF.md#current-direction--data-sovereignty-canonical-s-expression-text-mirageos-goal).
+codec/store adoption remain separate decisions; see [current direction](../../docs/HANDOFF.md).
 
 | Candidate | Intent |
 | --- | --- |

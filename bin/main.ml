@@ -123,6 +123,12 @@ let () =
             match C.evaluate request ~base ~event with
             | Error response -> response
             | Ok book -> stage_file (C.output_path request) book))
+    | "record" :: arguments | "記録" :: arguments -> (
+        let module C = Bakhlo_cli.Record_command in
+        match C.plan arguments with
+        | Help -> C.help
+        | Refused message -> Bakhlo_cli.Current_sexp_command.syntax_refusal message
+        | Record request -> C.evaluate request (read_text request.book_path))
     | "inspect-current-text" :: arguments -> (
         let module C = Bakhlo_cli.Current_text_command in
         match C.plan arguments with
