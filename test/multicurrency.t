@@ -9,7 +9,7 @@ Explicit exchange records two Measures without inventing a rate. Local spending 
 
 A spend in the received currency uses the ordinary record path.
 
-  $ bakhlo record --book exchanged.sexp --out spent.sexp --date 2026-10-21 --id local-spend --measure eur --from cash-eur --to food --amount 1500 --desc "local meal" >/dev/null
+  $ bakhlo record --book exchanged.sexp --out spent.sexp --date 2026-10-21 --id local-spend --measure eur --from cash-eur --to food --amount 1500 >/dev/null
   $ bakhlo inspect-current-sexp spent.sexp cash-eur eur food eur | grep -E 'quantity=4500|quantity=1500'
   "cash-eur" / "eur": zero-origin; quantity=4500
   "food" / "eur": zero-origin; quantity=1500
