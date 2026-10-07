@@ -2,4 +2,4 @@
  (name main)
  (public_name bakhlo)
  (package bakhlo)
- (libraries bakhlo_cli))
+ (libraries bakhlo_cli bakhlo_sexp unix))

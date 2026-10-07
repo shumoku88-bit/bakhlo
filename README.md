@@ -21,7 +21,10 @@ No household writes, migration, production storage, durable Saved or full-househ
 - [Pure ordinary Movement proposals](text/propose.mli) for the experimental text profile:
   add/correct explicit supplied facts, retain every base byte, whole-admit the candidate.
   Not recording permission, a full-world encoder or an adopted storage format.
-- Read-only CLI entrances and two scoped pure readers:
+- Read-only CLI entrances and three scoped pure readers:
+  - [`bakhlo.sexp`](sexp/book.mli): minimal versioned ordinary-quantity evidence book,
+    explicit Measure/scale, initial support, expense and retained correction history.
+    Pure whole-admitted proposals and fresh candidate-file staging; never overwrite or claim Saved.
   - [`bakhlo.text`](text/read.mli): experimental ordinary-Actual text profile.
   - [`bakhlo.loam_read`](loam_read/read.mli): supplied LOAM HouseholdImage v2, representable
     Actual plus four explicit quantity-support sections. Unsupported Actual evidence refuses;
@@ -47,13 +50,18 @@ remains a synthetic comparison input, not canonical storage.
   examples/loam-quantity.loam-input wallet jpy
 ```
 
-Both wallet queries yield supplied assertion `1000` + unreflected delta `-10` = `990`.
-The text and LOAM readers accept multiple `LOCUS MEASURE` pairs on one admitted input;
+The [synthetic S-expression walkthrough](examples/ordinary-sexp/README.md) runs start → expense →
+correction → cold read using fresh candidate files. Wallet `1000 → 900 → 850`; unknown Bank stays
+unknown. It does not adopt a store/UI or authorize real recording.
+
+Both text/LOAM wallet queries yield supplied assertion `1000` + unreflected delta `-10` = `990`.
+All three readers accept multiple `LOCUS MEASURE` pairs on one admitted input;
 Choose `--summary` for Japanese answers/check guidance or `--explain` for owner provenance.
 Summary withholds raw success/failure detail, but permitted quantities/coordinates remain sensitive.
 No subtotal or activity-derived support. Exit 3 if any question is unsupported, else 4 for
 known presence/unknown amount, else 0 (stdout). Failures use stderr: 1 for input/admission,
-2 for arguments; experimental text syntax/profile refusals also use 2.
+2 for arguments; text/S-expression syntax/profile refusals also use 2.
+Candidate staging uses 5 for uncertain output attempts and retains any artifacts; no blind retry.
 Use `COMMAND --help` for scope. Checking a Movement is **not recording it**.
 Setup is repository-local; [development](docs/DEVELOPMENT.md) owns prerequisites and commands.
 Tests use existing native OCaml `ppx_expect` / `Base_quickcheck`; no Python bridge or generated
@@ -62,7 +70,8 @@ payload pipeline. Qualified hosts and per-increment limits are in [verification]
 ## Direction
 
 Human-readable evidence and data sovereignty come before physical store adoption. Canonical
-S-expression syntax is selected; exact schema/codec/store remain unadopted and SQLite canonical
+S-expression syntax is selected; the bounded development book above is implemented with
+Parsexp v0.17.0. Whole-household schema and physical store remain unadopted; SQLite canonical
 adoption is paused. User prioritizes an ordinary record/reopen/correct/backup loop, not full
 LOAM parity. Readability/maintenance/extension remain requirements; [safe data interchange](docs/ARCHITECTURE.md#safe-data-interchange)
 is deferred behind daily use. Its adapters are not implemented or compatibility-qualified.
@@ -87,7 +96,8 @@ Review [four synthetic S-expression candidates](examples/sexp-v1-candidate/READM
 [the same four in delimiter-free plain text](examples/plain-v1-candidate/README.md):
 selected self-contained EVIDENCE generation, not flattened current state. Superseded Events,
 relations, observations/cuts and policy/provenance remain. Parser/writer/migration are explicitly
-NOT implemented or authorized in this fixture-only step.
+NOT implemented or authorized by those broader fixture-only steps; the separate ordinary-quantity
+profile above is the currently implemented bounded codec.
 
 ## Where to look
 

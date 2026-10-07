@@ -5,9 +5,12 @@ Global help describes concrete operations, not an imaginary UI.
   check-movement --effect LOCUS MEASURE QUANTA [--effect ...]
   inspect-current-fixture FILE LOCUS MEASURE
   inspect-current-text [--summary | --explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]
+  inspect-current-sexp [--summary | --explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]
+  stage-current-sexp [--correct EVENT] BASE EVENT_FILE NEW_FILE
+  stage-current-sexp --canonicalize BASE NEW_FILE
   inspect-loam-quantity [--summary | --explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]
-  Structural validation and read-only conditional quantity queries.
-  Not household admission or authority; no writes.
+  Structural validation, read-only questions and fresh candidate-file staging.
+  Not household authority, operational recording or durable Saved.
   Use COMMAND --help for details.
 
 Movement validation keeps exact quantities, typed refusals and honest streams.

@@ -7,10 +7,10 @@ bin/main -> CLI -> Presentation -> Application -> Domain
             |-------------------->|------------->|
 ```
 
-CLI also consumes the pure outer Text adapter, which depends inward on Application/Domain,
-never Presentation/CLI. Clients also use Domain types; dependencies never point outward.
-Engine native targets build without Text/Presentation/CLI or UI packages.
-Runtime dependencies are Base + Zarith.
+CLI also consumes the pure outer Text/LOAM-read/S-expression adapters, which depend inward
+on Application/Domain, never Presentation/CLI. Clients also use Domain types; dependencies
+never point outward. Engine native targets build without these adapters/Presentation/CLI/UI.
+Engine runtime dependencies are Base + Zarith; approved Parsexp is outer only.
 There is no canonical storage, clock, mutable business state or generic service framework.
 
 ## Selected product direction
@@ -63,7 +63,7 @@ promise. Public specification/licensing/release remain separate decisions.
 
 | Axis / choice | Current role |
 | --- | --- |
-| Versioned canonical text | S-expression syntax selected; exact schema, identity/grouping and physical store NOT adopted |
+| Versioned canonical text | S-expression selected; [minimal development profile](#minimal-ordinary-s-expression-book) implemented; whole-household schema/physical store NOT adopted |
 | SQLite as canonical authority | Main adapter/package adoption PAUSED; [native evidence](VERIFICATION.md#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification) and [Linux counterexamples](VERIFICATION.md#linux-sqlite-syscall-failures-and-retained-journal-lifecycle-control) retained as comparison assets |
 | SQLite as derived index/search | Optional only for a concrete consumer; rebuildable from qualified canonical evidence, never a second authority or automatic dependency |
 | Unix runtime | Near-term implementation/measurement baseline, not a choice of canonical storage format |
@@ -255,7 +255,8 @@ sexps are not the storage schema. Exact grammar/schema/production library instal
 
 ### Selected S-expression direction — long-term boundaries
 
-Recommendation, not an implemented codec/store or cutover:
+Long-term constraints, not a full-household codec/store or cutover; the bounded implemented
+profile below exercises only its declared subset:
 
 - **Stable protocol:** one explicit data-format version independent of app/OCaml/library versions.
   Named fields/typed references and explicit absence states; no automatic unknown-field dropping,
@@ -299,9 +300,36 @@ After comparison, user confirms **S-expressions as the canonical evidence syntax
 and journal remain comparison artifacts, not a second maintained codec. Field spelling,
 collection declarations, full-family/receipt/interpretation scope still need schema review.
 The [isolated codec trial](../experiments/sexp-codec-trial/README.md) is experimental evidence only;
-production Parser/DTO/writer, dependency adoption and migration need separately bounded decisions.
+whole-household Parser/DTO/writer, further dependencies and migration need separately bounded decisions.
+User now approves main Parsexp v0.17.0 and the minimal ordinary profile below only.
 No new storage framework, permanent legacy syntax matrix, event-sourcing command bus or
 every-generation full-world startup reconstruction.
+
+### Minimal ordinary S-expression book
+
+[`bakhlo.sexp`](../sexp/book.mli) owns the development-only `(bakhlo 1 ordinary-quantity)`
+profile. [Synthetic walkthrough/schema](../examples/ordinary-sexp/README.md) owns its shallow
+named field spelling. Explicit provided/empty/not-supplied declarations cover each supported
+collection exactly once. Measure IDs/scales, retained ordinary Actual Events/base dates/optional
+text/ordered keyed or anonymous Effects, Event corrections, independent exact observations/cuts
+and zero origins survive print/reopen. Unknown/missing/duplicate fields and richer evidence refuse;
+excluded families are NOT supplied, not asserted empty household facts. No richer-image converter.
+The adapter calls existing Event/Actual-source/quantity admission; new Event proposals additionally
+call Movement admission. Domain/Application and their closed semantic gates are unchanged.
+
+Opaque Books retain original input bytes and one admitted image. Opaque candidates retain the
+immutable base and complete admitted printed/reread document. Printing is schema-owned, not derived
+from OCaml records: valid UTF-8 remains readable, invalid/control bytes escape without normalization.
+Comments/whitespace are not canonical data; essential memos are explicit text. Per-family order and
+Effect/cut multiplicity remain; canonical family ordering is not chronology.
+`inspect-current-sexp` reuses one admitted image and existing answer/explanation/summary owners.
+`stage-current-sexp` prepares whole candidates before exclusive fresh-file creation. Existing files/
+symlinks refuse; no overwrite, selected root, repair, implicit support, receipt or authority.
+The Unix shell closes and checks exact readback bytes; uncertain create/write/close/readback keeps
+any artifacts and forbids blind retry. This is candidate staging, NEVER durable Saved. Stable supplied
+files/cooperative parents are assumptions, not concurrent capture/publication guarantees. Wider
+family/interpretation preservation, qualified publisher, backup/restore and real-use cutover remain
+separate gates. [Verification](VERIFICATION.md#minimal-ordinary-s-expression-book) owns executed limits.
 
 ### Readability and extension rules
 

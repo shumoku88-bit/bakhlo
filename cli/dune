@@ -7,5 +7,7 @@
   bakhlo_domain
   bakhlo_text
   bakhlo_loam_read
+  bakhlo_sexp
+  parsexp
   base
   zarith))

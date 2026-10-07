@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Minimal ordinary S-expression book](#minimal-ordinary-s-expression-book): main Parsexp adoption,
+  native exact/history/absence/refusal and fresh cold staging; NOT a store or durable Saved.
 - [Explicit initial quantities](#explicit-synthetic-initial-quantities): BOTH native synthetic
   consumers start from supplied signed/zero/huge Wallet/Bank observations; no real-data/Saved claim.
 - [Safe interchange design](#safe-data-interchange-design-review): readable schema rules and
@@ -86,6 +88,48 @@ is a limitation/blocker, not silently replaced by compile success.
 Formal tools remain development-only. Ordinary build/test/release must be Lean-free.
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
+
+## Minimal ordinary S-expression book
+
+Approved at clean 33d947d: Parsexp v0.17.0 and the smallest main synthetic initial → expense →
+correction → fresh S-expression file → separate-process read. Existing native Model/Application
+oracles own arithmetic, Actual/date/correction and independent support; no new model, harness,
+Python bridge, Lean execution or private input. [Book interface](../sexp/book.mli) and
+[Architecture](ARCHITECTURE.md#minimal-ordinary-s-expression-book) own the bounded profile/contract.
+
+On macOS x86_64 / OCaml 5.3.0 / Dune 3.24.2: install and lock diffs add ONLY Parsexp v0.17.0;
+installed 50 → 51, all previous names/versions/compiler unchanged. Locked bootstrap passes;
+existing opam missing authors/homepage/bug-reports/license warnings remain, not release permission.
+All 70 captured Domain/Application ML/MLI hashes remain byte-identical. Strict sequencing/fatal
+8/9/11 unchanged. No inherited trials, sibling or private payloads were edited/executed.
+
+Five focused native expect connections pass: independent literal quantities `1000 → 900 → 850`,
+Food `0 → 100 → 150`, unsupported Bank; originals/dates/text/keys/Effect order/history; independent
+reflected cuts with forward references (`996`/`204`); signed 180-bit quanta, separate Measures/scales,
+exact control/invalid-UTF8/quoted/Japanese bytes, explicit empty vs not-supplied and anonymous
+net-zero multiplicity. Fourteen wire controls plus syntax/support/Movement/Event/source controls
+refuse whole inputs/proposals; no missing input/default zero, inheritance or date-order winner.
+Native cram separately stages/reopens/corrects and verifies original source/history bytes, unknown,
+existing target/symlink refusal, malformed flags, whole unsupported/missing input before creation,
+conservative uncertain create failure, and genuine compiler rejection of forged opaque Book.
+Normal tools/check passes 180 expect/five cram; forced package tests, release-profile local @install,
+pinned formatting and fresh absolute-build-directory engine-only targets pass. No outer adapter/
+Presentation/CLI/bin compiled artifacts in that engine build. Nonexistent LEAN/LAKE checks pass.
+
+Failures retained in ignored `scratch/ordinary_sexp_review`: OCaml 5.3 reserved `effect`, ambiguous
+doc comments and unavailable List.iter_result/validity record API fixed before execution; first
+cram expectations/help/closing parentheses corrected against actual native output, sandbox read-only
+fixture copy explicitly made writable before unsupported-row insertion, forge error checked as the
+actual quoted-field compiler diagnostic. Relative nested Dune build directory refused; absolute
+ignored build path passed. rtk scoped git diff refused; raw exact diff used. These failures are NOT
+successful qualification. Final native raw check contains all 180 execution markers.
+
+Scope ends at whole-admitted candidates and fresh close/byte-readback, not operational recording,
+selected-generation publication, receipts, fsync/device/power-loss, all syscall failures, source
+capture concurrency, full-household codec/config retention or canonical backup/restore. Stable
+supplied inputs/cooperative parents assumed. No real data, UI/store adoption, hledger, migration,
+recovery, Linux/Mirage replay, public release/push or authority cutover. Existing Lean LOAM remains
+sole operational authority; successful cold synthetic read is NEVER durable Saved.
 
 ## Safe data interchange design review
 

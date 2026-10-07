@@ -9,18 +9,22 @@ representation, physical publication and runtime remain separate choices. SQLite
 adapter/package adoption is PAUSED; optional rebuildable indexes require a concrete consumer.
 User confirms S-expression syntax for versioned canonical evidence after the plain-text and
 [minimal syntax comparison](../examples/syntax-bakeoff/README.md). Syntax selection is settled;
-exact schema/grammar, production parser dependency and physical store remain unadopted.
+exact whole-household schema and physical store remain unadopted. User explicitly approves
+Parsexp v0.17.0 in the main outer codec and a bounded ordinary S-expression read/write step.
 The existing [isolated codec trial](../experiments/sexp-codec-trial/README.md) remains an experiment,
 not a production codec. Syntax selection itself authorizes no dependency or migration.
 User now approves the readable/extensible schema and safe-interchange direction below.
 User reprioritizes the ordinary daily-use loop before hledger export/import; these adapters are
 DEFERRED. The existing native trial now accepts explicitly supplied synthetic Wallet/Bank initial
-quantities through record/reopen/correct and backup/restore. Next: human synthetic ordinary-use
-feedback and the smallest canonical profile/publication scope. Readable S-expression evidence
+quantities through record/reopen/correct and backup/restore. The main minimal ordinary S-expression
+book now connects explicit support → expense → retained correction → fresh candidate file/cold read.
+Next: human synthetic feedback, canonical backup/restore and the bounded qualified publisher.
+Readable S-expression evidence
 remains the canonical direction; production codec/store adoption and real-data operations are separately gated.
 Unix is the near-term validation runtime; MirageOS support remains experimental, not an immediate blocker.
 All SQLite/Irmin/Mirage trials and counterexamples retained. No authority/data migration,
-global install, public service, source-side rename reversal, dependency change or push.
+global install, public service, source-side rename reversal or push. The only newly approved
+dependency is main Parsexp v0.17.0; no existing dependency/compiler upgrades are intended.
 
 ## Current product direction — small household questions, AI optional
 
@@ -31,11 +35,55 @@ untrusted entrance, never a runtime/model dependency or authority. Keep owner-re
 evidence/export separate from least-disclosure client answers; projections themselves remain
 sensitive. Current Unix progress continues; shellless/restricted Mirage composition is a future
 hypothesis to qualify, not automatic confidentiality or a reason to rewrite Core.
-Daily-use recording/save/reopen/correction remains the later product path. Delegation is not
+Operational daily-use recording/save/reopen/correction remains separately gated; main S-expression
+candidate staging is now implemented, not a selected-store publisher. Delegation is not
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
-## Current task — ordinary-use loop / explicit synthetic initial quantities
+## Completed bounded task — minimal ordinary S-expression book / Parsexp adoption
+
+User approves Parsexp v0.17.0 and the smallest main start-quantity -> expense -> correction ->
+S-expression write/cold-read path. D: clean 33d947d, main 50 and one-package dry-run; P: exact
+quantities/typed identities, Event/Movement/source/correction and independent-cut quantity gates.
+R: explicit wire schema/absence, duplicate/missing/unsupported fields, Measure/scale closure,
+faithful retained history/Effect/text, printer/parser connection and no-overwrite file staging.
+Select a pure outer `bakhlo.sexp` codec, direct native decoding into existing Application inputs,
+explicit supplied/empty/not-supplied collection states and deterministic readable printing.
+First profile covers Measure interpretation, ordinary Actual metadata/Effects/corrections, exact
+observation groups and zero origins ONLY; unsupported evidence refuses, not a full-household
+codec or lossy richer-source converter. Preserve originals, Effect multiplicity and independent cuts.
+CLI reads conditional quantities and stages WHOLE-admitted new candidates into FRESH files only;
+no selected-store publication, on-open repair, overwrite, implicit support or durable Saved.
+Use existing expect/cram checks for synthetic exact/unknown/history/absence/refusal and separate
+process write/reopen/correction. No new model/harness/Python bridge, TUI/store adoption, upstream
+source reuse/build, private input, real recording, migration or hledger expansion. Snapshot existing
+packages/lock/core owners; install just Parsexp, regenerate/review lock, replay bootstrap/checks,
+package/release and clean engine-only checks. Keep strict sequencing/fatal 8/9/11 unchanged.
+Assume explicitly supplied stable files/cooperative parent namespaces; live capture, concurrent
+selected-generation ownership, receipts, device/power-loss and full retention remain separate.
+Maintenance table reviewed: source fields unchanged; new decoder's complete command coverage is
+explicit and richer wire evidence refuses. Retain direct profile literals, no shared empty-source
+constructor/parser framework/index refactor. Revisit before broader families, source interpretation,
+physical store/publisher adoption or cutover.
+Completed: ONLY Parsexp installed/locked (50 → 51); existing versions/compiler and all 70 captured
+Domain/Application hashes unchanged. Native initial/expense/correction/reopen exact/unknown/history,
+independent cuts/forward refs, signed 180-bit quantities, typed identity/text/control/invalid-UTF8
+bytes, absence, duplicate/missing/unsupported and whole-proposal refusal pass. Fresh CLI cold staging
+retains originals; existing targets/symlinks, malformed flags and bad sources refuse. A failed create
+attempt other than an existing collision is explicitly UNCERTAIN, not rollback/retry permission.
+Main 180 expect/five cram, locked bootstrap, forced package tests, local release @install, pinned
+formatting, fresh engine-only/no outer artifacts and nonexistent-LEAN/LAKE checks pass.
+[Verification](VERIFICATION.md#minimal-ordinary-s-expression-book) owns negative runs and limits;
+raw logs/baselines are ignored in `scratch/ordinary_sexp_review`.
+Try the [synthetic S-expression walkthrough](../examples/ordinary-sexp/README.md). No private inputs,
+original trial-store changes, UI/store adoption, real recording, receipts/selected publisher,
+fsync/power-loss qualification, hledger, migration, sibling build/source copy, release or push.
+Next: keep scope small; qualify candidate backup/fresh restore and a selected-generation publisher's
+failure/ownership/receipt boundary before promoting this ordinary-use path. Do not rebuild all LOAM
+features or infer production Saved from successful restart. Full-household schema/physical layout
+and any real-data cutover remain separate decisions.
+
+## Completed bounded task — ordinary-use loop / explicit synthetic initial quantities
 
 User approves finishing a minimal ordinary Bakhlo loop, not rebuilding every LOAM feature.
 Question: can BOTH existing native trials start from explicitly supplied Wallet/Bank quantities,
@@ -873,7 +921,7 @@ benefit, semantic risk and do/defer decision in the task note. No periodic blank
 | Item / current decision | Revisit trigger | Must preserve / decision gate |
 | --- | --- | --- |
 | Two internal `Map.find_exn` aggregate lookups: retained, not an input failure | Construction changes could break insertion/lookup closure, or a concrete simpler total representation is proposed | Inspect `open_relations`/`relation_discharges` owners; preserve ALL local checks before aggregates, original-order first refusal and positions, exact totals and immutable retained rows. Reuse relation/discharge models; no `None -> zero`, hidden panic replacement or new domain error for an impossible input. Change only if simpler or closure is actually at risk |
-| Explicit empty command records in three decoders: retained | A source-field addition or repeated same-field maintenance produces actual drift | Review every profile's representable/unsupported families. A shared unadmitted command initializer is optional, not an admitted `Source.empty`; never silently empty new evidence or hide required per-adapter coverage review |
+| Explicit empty command records in outer decoders: retained | A source-field addition or repeated same-field maintenance produces actual drift | Review every profile's representable/unsupported families. A shared unadmitted command initializer is optional, not an admitted `Source.empty`; never silently empty new evidence or hide required per-adapter coverage review |
 | Three parsers: distinct roles retained | A concrete shared lexical mechanism has identical byte/error semantics, or an entrance genuinely has no consumers | Share only proven mechanisms, not acceptance/support meanings; inspect CLI, examples, type clients and oracle tests before removal. Fixture v2 is still consumed by comparisons, not obsolete merely because a native reader exists |
 | Explicit identifier implementations: retained | Repeated mechanical changes drift or newly required roles materially increase maintenance | A functor may preserve distinct opaque .mli types; no fundamental Account/Month ontology, normalization or public type equations. Prefer it only if simpler to read/maintain; reuse type-boundary clients |
 | Reconstruction/caching/index optimization: deferred | Named consumer exceeds a declared CPU/wall/memory/history budget on measured synthetic 10k/100k shapes | First reuse the existing admitted query image across questions; query does NOT rebuild Actual. Separate parse/acquisition/source/group construction/query costs; preserve whole admission, independent cuts and generation/interpretation binding. .mli is a seam, not proof of cheap interchangeability |

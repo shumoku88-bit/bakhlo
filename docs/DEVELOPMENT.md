@@ -66,7 +66,9 @@ Comment/docstring rewriting is disabled to keep evidence prose intact. Use
 missing/wrong local formatter, never installs or falls back to a global tool. Apply finishes
 with a clean @fmt check: Dune 3.24.2 can return 1 for diffs it has already promoted.
 Formatting is optional developer tooling, NOT a main runtime/test dependency or CI gate;
-`bootstrap`, `check` and normal builds still use the unchanged main 50 packages without it.
+`bootstrap`, `check` and normal builds use the main 51 locked packages without it.
+Approved Parsexp v0.17.0 is the only addition to the previous 50; no compiler/existing-package
+upgrades. It belongs to the outer S-expression adapter, not Domain/Application.
 Separate formatting-only commits from meaning/refactor changes. Do not reflow payload fixtures,
 normalize identities or weaken compiler policy to make layout pass.
 
