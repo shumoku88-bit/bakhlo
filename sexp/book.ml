@@ -553,7 +553,7 @@ let admit_locus ~base ~locus =
       if List.mem loci locus ~equal:D.Identifier.Locus.equal then
         fail "locus-admission" "Locus already approved"
       else candidate ~base { base.wire with locus_admission = Some (loci @ [ locus ]) }
-  | _, _ -> fail "locus-admission" "explicit version 2 vocabulary required"
+  | _, _ -> fail "locus-admission" "explicit version 2 or 3 vocabulary required"
 
 let admits_new_effects base effects =
   if base.wire.version = 1 then Ok () (* Legacy pure proposals, not publication permission. *)
