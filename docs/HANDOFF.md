@@ -18,8 +18,9 @@ User reprioritizes the ordinary daily-use loop before hledger export/import; the
 DEFERRED. The existing native trial now accepts explicitly supplied synthetic Wallet/Bank initial
 quantities through record/reopen/correct and backup/restore. The main minimal ordinary S-expression
 book now connects explicit support → expense → retained correction → fresh candidate file/cold read.
-Next: human synthetic feedback, canonical backup/restore and the bounded qualified publisher.
-Readable S-expression evidence
+User rejects backup/generation work as a separate prerequisite: next is a SIMPLE existing-UI
+synthetic start → expense → S-expression write → exit/reopen → correction loop. Reuse existing
+calculation/publication; no new UI/store framework or broad feature rebuild. Readable S-expression evidence
 remains the canonical direction; production codec/store adoption and real-data operations are separately gated.
 Unix is the near-term validation runtime; MirageOS support remains experimental, not an immediate blocker.
 All SQLite/Irmin/Mirage trials and counterexamples retained. No authority/data migration,
@@ -39,6 +40,46 @@ Operational daily-use recording/save/reopen/correction remains separately gated;
 candidate staging is now implemented, not a selected-store publisher. Delegation is not
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
+
+## Completed bounded task — existing synthetic UI / S-expression connection
+
+User approves the simple UI loop, not real use or a production storage decision. D: clean b5ee924,
+main 51/Book codec and ignored native UI/recording consumer; P: exact Money/quantity/source/correction,
+whole proposal and existing publisher's base/currentness/uncertainty gates. R: bind existing form/view
+owners to Book without lossy conversion, explicit Measure/scale/initial support and cold reconstruction.
+Reuse Workbench/Recording/Notty and existing native checks. Share ONLY the existing ignored publisher's
+codec-dependent document operations, with separate layout marker; no new publisher/backend/ontology,
+UI toolkit, parser, harness/model, dependency install, private input or legacy-store migration.
+Preserve original sources/binaries before editing. New fresh SYNTHETIC S-expression roots only; existing
+text roots/layouts refuse rather than upgrade/fallback. Book v1 lacks presence; a NEW seed explicitly
+has no Pantry presence, therefore UNKNOWN, not copied/erased older evidence. Require supported
+Measure/scale/support and EVERY retained row; unsupported UI evidence refuses, never filters.
+Select focused existing native UI/form/render checks plus cold child expense/correction/history,
+invalid source/initial input before effects, conflict/uncertainty and unchanged main checks/packages.
+Keep strict sequencing/fatal 8/9/11. Native returned-error checks are not physical durability.
+Defer dedicated backup work/hledger/full families/performance campaigns; stable cooperative files
+and parents assumed. Revisit before real-data use, new dependencies, durable Saved or layout adoption.
+Completed: both existing frontends now use Book directly through Workbench/Recording, and the SAME
+publisher mechanism with a codec-only parameter/distinct trial marker. All original text-generation
+controls and call-local reuse controls pass unchanged. No new store/backend or lossy converter.
+Both native builds, existing pure/form/render smokes and focused cold recording connections pass:
+explicit 1000 → expense 900 → older-date correction 850; source/history/cuts preserved; scale/key/
+missing-memo UI refusals; incomplete/duplicate/precision initial inputs before effects; no overwrite,
+conflict and OLD/NEW uncertainty blocked/reconciled. Reused nine-child real PTY passes BOTH UIs,
+exit/reopen/corrections/four currencies/old histories/uncertainty/missing refusal and full stty restore.
+Main 180 expect/five cram, local release @install/format, 64 engine/Book hashes and exact main 51
+remain unchanged. Stock and Ox already had the needed approved parser; no package installs/upgrade.
+Only new fresh `sexp-v10/stores` roots used; original trial stores/private/sibling inputs untouched.
+Current ignored code/README/launchers are the S-expression prototype. Old text code/binaries and
+counterexamples are preserved under `sexp-v10/baseline` and prior evidence directories, not migrated.
+[Verification](VERIFICATION.md#simple-s-expression-ui-loop) owns raw logs/limits. NO Saved or physical
+power-loss/backup qualification inferred. Dedicated backup and hledger remain deferred.
+Try NOW from the repository root: `./scratch/tui_comparison_review/try-ui notty ja --store
+"$PWD/scratch/tui_comparison_review/sexp-v10/stores/simple-demo"` (one shell line). That fresh demo has
+JPY Wallet 1000/Bank 0 and explicit other zeros, no Events. Enter 100, Tab, a synthetic memo, Enter;
+Ctrl-Q → same command → Ctrl-E, Ctrl-U, 150, Tab, Ctrl-U, new memo, Enter → Ctrl-P original history.
+[Short ignored README](../scratch/tui_comparison_review/README.md) owns complete commands. Next is
+human feedback on this simple loop, NOT another backup/publisher prerequisite or full LOAM rebuild.
 
 ## Completed bounded task — minimal ordinary S-expression book / Parsexp adoption
 
@@ -78,8 +119,8 @@ raw logs/baselines are ignored in `scratch/ordinary_sexp_review`.
 Try the [synthetic S-expression walkthrough](../examples/ordinary-sexp/README.md). No private inputs,
 original trial-store changes, UI/store adoption, real recording, receipts/selected publisher,
 fsync/power-loss qualification, hledger, migration, sibling build/source copy, release or push.
-Next: keep scope small; qualify candidate backup/fresh restore and a selected-generation publisher's
-failure/ownership/receipt boundary before promoting this ordinary-use path. Do not rebuild all LOAM
+Latest user direction above supersedes backup/publisher-first scheduling: connect the existing
+synthetic UI directly, retaining its earned refusal/uncertainty gates. Do not rebuild all LOAM
 features or infer production Saved from successful restart. Full-household schema/physical layout
 and any real-data cutover remain separate decisions.
 
@@ -922,7 +963,7 @@ benefit, semantic risk and do/defer decision in the task note. No periodic blank
 | --- | --- | --- |
 | Two internal `Map.find_exn` aggregate lookups: retained, not an input failure | Construction changes could break insertion/lookup closure, or a concrete simpler total representation is proposed | Inspect `open_relations`/`relation_discharges` owners; preserve ALL local checks before aggregates, original-order first refusal and positions, exact totals and immutable retained rows. Reuse relation/discharge models; no `None -> zero`, hidden panic replacement or new domain error for an impossible input. Change only if simpler or closure is actually at risk |
 | Explicit empty command records in outer decoders: retained | A source-field addition or repeated same-field maintenance produces actual drift | Review every profile's representable/unsupported families. A shared unadmitted command initializer is optional, not an admitted `Source.empty`; never silently empty new evidence or hide required per-adapter coverage review |
-| Three parsers: distinct roles retained | A concrete shared lexical mechanism has identical byte/error semantics, or an entrance genuinely has no consumers | Share only proven mechanisms, not acceptance/support meanings; inspect CLI, examples, type clients and oracle tests before removal. Fixture v2 is still consumed by comparisons, not obsolete merely because a native reader exists |
+| Scoped input parsers: distinct roles retained | A concrete shared lexical mechanism has identical byte/error semantics, or an entrance genuinely has no consumers | Share only proven mechanisms, not acceptance/support meanings; inspect CLI, examples, type clients and oracle tests before removal. Fixture v2 is still consumed by comparisons, not obsolete merely because a native reader exists |
 | Explicit identifier implementations: retained | Repeated mechanical changes drift or newly required roles materially increase maintenance | A functor may preserve distinct opaque .mli types; no fundamental Account/Month ontology, normalization or public type equations. Prefer it only if simpler to read/maintain; reuse type-boundary clients |
 | Reconstruction/caching/index optimization: deferred | Named consumer exceeds a declared CPU/wall/memory/history budget on measured synthetic 10k/100k shapes | First reuse the existing admitted query image across questions; query does NOT rebuild Actual. Separate parse/acquisition/source/group construction/query costs; preserve whole admission, independent cuts and generation/interpretation binding. .mli is a seam, not proof of cheap interchangeability |
 | `Event_memory.events` traversal removal: no blanket migration to lookup | Profile identifies an unnecessary full traversal or storage representation changes for a concrete consumer | Lookup uses `find_by_id`; enumeration still retains source order/multiplicity and ALL retained/superseded checks. Never replace whole admission with requested-ID salvage |

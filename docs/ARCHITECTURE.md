@@ -537,6 +537,16 @@ is presentation policy, never stored household meaning. TUI-specific key help st
 universal status meanings. Other UIs/Mirage can later consume that pure boundary, not inherit
 this Unix publisher/runtime qualification. Broader localization/settings persistence and permanent
 module/UI/store adoption remain deferred until concrete consumers need them.
+Latest [simple S-expression UI loop](VERIFICATION.md#simple-s-expression-ui-loop) connects BOTH
+existing frontends directly to Book, not a richer-image conversion. Workbench retains Book's exact
+Measure/scale/initial support and every retained compatible row; unsupported UI evidence refuses.
+The existing ignored publisher is parameterized ONLY by admitted document operations and a distinct
+layout marker; old text consumers retain their original implementation/byte contracts. New trial
+roots are `sexp-v10/stores`; old roots never migrate or fall back. Book v1 cannot represent presence:
+a NEW explicit seed has Pantry UNKNOWN, not an erased old assertion or guessed zero. Main Core/Book
+and package selections remain unchanged. Dedicated backup work is deferred behind human use of the
+simple start→input→write→exit/reopen→correction loop; no permanent UI/store or Saved adoption.
+Earlier increments below describe their qualified OLD text revisions, not automatic new-format claims.
 The [same-currency transfer increment](VERIFICATION.md#same-currency-synthetic-tui-transfer)
 extends ONLY that ignored UI profile: Expense Wallet->Food and Transfer Wallet<->Bank map onto
 existing ordinary single-Measure Effects. One form currency binds both endpoints; self-transfer

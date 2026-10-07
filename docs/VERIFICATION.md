@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Simple S-expression UI loop](#simple-s-expression-ui-loop): existing native screens write/reopen/
+  correct Book evidence; synthetic only, no new UI/backend or durable Saved.
 - [Minimal ordinary S-expression book](#minimal-ordinary-s-expression-book): main Parsexp adoption,
   native exact/history/absence/refusal and fresh cold staging; NOT a store or durable Saved.
 - [Explicit initial quantities](#explicit-synthetic-initial-quantities): BOTH native synthetic
@@ -88,6 +90,49 @@ is a limitation/blocker, not silently replaced by compile success.
 Formal tools remain development-only. Ordinary build/test/release must be Lean-free.
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
+
+## Simple S-expression UI loop
+
+User rejects backup/publisher-first scheduling and approves the small existing-UI path at b5ee924.
+Ignored Workbench/Recording now retain Book directly, with no image-to-book projection or new UI.
+Existing Unix publisher's document-only parameter/distinct layout connects both concrete codecs;
+original text controls and reuse/interleaving controls pass, including conflict/replay/BUSY/eight
+uncertain checkpoints/two real SIGKILL/180-bit cold reads. No new publisher/model/harness/dependency.
+All original trial source/images/counterexamples retained; only new `sexp-v10/stores` roots used.
+
+Both stock Notty and already-installed Ox/Bonsai builds and existing pure/view smokes pass unchanged
+focus/layout/arithmetic/decimal/180-bit/currency/route/date/history boundaries. A NEW Book seed has
+no Pantry presence (unsupported by v1), therefore UNKNOWN; old text sources are never converted.
+Focused reused recording checks pass initial 1000 → expense 900 → cold older-date correction 850,
+original memo/date/Event/Effects/correction edge and initial independent cuts, unchanged old physical
+generations, existing-root refusal, incomplete/duplicate/precision input before effects, whole
+Measure/scale/key/missing-memo UI refusal, conflict draft retention and OLD/NEW read-only uncertainty.
+Raw native logs show separate child states at 1000/900/850; later conflict control's extra Event is
+not confused with that primary witness. A separate `simple-demo` remains at initial 1000/no Events.
+
+The SAME installed Expect driver, changing only fresh store/evidence namespace, passes nine real
+PTY children: Notty ja input → Bonsai en reopen/correction/four currencies → Notty ja recorrection/
+original history → Bonsai en read; OLD interrupted block/NEW receipt reconciliation, missing-store
+refusal before terminal acquisition and full stty restoration. No new keyboard/renderer/harness.
+Current selected Book export is directly accepted by the main S-expression reader. Both native
+pure complete proposal bytes match; native cross-format ownership/backup/physical failure portability
+or power-loss safety are NOT inferred. Main tools/check: 180 expect/five cram, local release @install,
+format; captured 64 Domain/Application/Book source hashes and exact main 51 names/versions unchanged.
+Bonsai already had Parsexp; no installs/compiler changes/sibling or private input.
+
+Evidence/baselines: ignored `scratch/tui_comparison_review/sexp-v10`. Failures retained: parallel edit
+request had a non-unique exact match and refused atomically; non-executable build script invoked via
+sh; Ox directory discovery initially omitted sexp and then passed with explicit inclusion. Original
+text control initially lacked its fresh parent directory (provision returned uncertainty), then
+passed after explicit parent creation; no fallback/cleanup. A guessed Measure query correctly returned
+unknown/exit 3; the exact supplied ID returned 1000. rtk hid terminal-frame output, so fresh direct
+native runs and raw logs establish results, not wrapper summaries.
+
+Limits: fresh synthetic prototype only; no real/legacy writes/migration, UI/store production adoption,
+full-household profile, dedicated canonical backup/restore, all I/O/device/interruption/concurrency
+coverage, durable Saved, Linux/Mirage replay or public release/push. Existing LOAM remains authority.
+Next: human feedback using [short trial README](../scratch/tui_comparison_review/README.md), not
+another infrastructure prerequisite. Do not add missing support or claim production safety to simplify.
 
 ## Minimal ordinary S-expression book
 

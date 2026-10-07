@@ -91,7 +91,11 @@ owns controls/limits. It does **not** qualify durable Saved, real-data recording
 now let BOTH existing trials start from supplied Wallet/Bank values in all four currencies,
 without missing -> zero, overwriting or changing old support. Record/reopen/correct and complete
 backup/fresh restore connections pass; this still uses the experimental text Store, not an
-adopted canonical codec or permission for real recording. [Handoff](docs/HANDOFF.md) owns next steps.
+adopted canonical codec or permission for real recording. Those paragraphs describe earlier text
+trials. The latest [simple S-expression UI loop](docs/VERIFICATION.md#simple-s-expression-ui-loop)
+now uses Book in BOTH existing screens: input → write → exit/reopen → correction, preserving originals.
+No new UI/backend, legacy conversion or real-data use. [Handoff](docs/HANDOFF.md#completed-bounded-task--existing-synthetic-ui--s-expression-connection)
+links the ready-to-try initial-1000 synthetic demo; human feedback comes before more infrastructure.
 Review [four synthetic S-expression candidates](examples/sexp-v1-candidate/README.md) alongside
 [the same four in delimiter-free plain text](examples/plain-v1-candidate/README.md):
 selected self-contained EVIDENCE generation, not flattened current state. Superseded Events,
