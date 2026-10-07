@@ -21,10 +21,12 @@ OCamlで作るパーソナル家計簿。日々の記帳と編集、口座・科
 - 独立した数量・取引検査と、根拠のある残高／不明の回答。
 - 限定された普通の記帳形式のS式読取と、新しい候補ファイルへの書出し。
 - 合成データを使った既存の記帳・再起動・訂正・科目追加の画面試作。
-- 作業ツリーには便利入力の `record` 試作もある。ただし現在は出力先を上書きし、
-  実データの安全な保存機構としては未確認。元データには使わない。
+- `record` で単一通貨の支出・収入・振替を記録できる。
+- v3 Bookでは `exchange` で両替元と両替先の通貨・数量を明示した両替を記録でき、
+  受け取った現地通貨は通常の `record --measure` で使える。
+- `record` の上書き経路はまだ実データの耐久保存として未確認。元データには使わない。
 
-現在の `bakhlo 1/2 ordinary-quantity` Bookは訂正関係を保持する既存形式で、
+現在の `bakhlo 1/2/3 ordinary-quantity` Bookは訂正関係を保持する既存形式で、
 支払い予定やLOAM全体を表せる形式ではない。新しい家計簿データ候補は別途試作中。
 形式を変える場合は明示的に変換し、古いファイルを残す。
 
@@ -36,9 +38,13 @@ OCamlで作るパーソナル家計簿。日々の記帳と編集、口座・科
 ./tools/opam exec -- dune exec bakhlo -- --help
 ./tools/opam exec -- dune exec bakhlo -- inspect-current-sexp --summary \
   examples/ordinary-sexp/initial.sexp wallet jpy food jpy
+./tools/opam exec -- dune exec bakhlo -- exchange --help
 ```
 
 [合成データの短い例](examples/ordinary-sexp/README.md)で読取・候補作成を試せる。
+`examples/ordinary-sexp/travel.sexp` はJPY→EUR両替、EUR支出、帰国時の逆両替を試すための
+合成データ。両替レートを推測したり、異なる通貨を合算したりしない。
+カード利用を外貨で記録して後日JPY決済と対応づける機能はこのPRの範囲外。
 セットアップはリポジトリ内だけで行う。
 
 ## コードを見る場所
