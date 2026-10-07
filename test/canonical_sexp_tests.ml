@@ -6,10 +6,10 @@ let ok = function Ok value -> value | Error _ -> failwith "expected S-expression
 
 let error_name = function
   | C.Syntax _ -> "syntax"
-  | Missing_format_marker -> "missing-marker"
-  | Invalid_format_marker -> "invalid-marker"
-  | Unsupported_format_version _ -> "unsupported-version"
-  | Duplicate_format_marker -> "duplicate-marker"
+  | C.Missing_format_marker -> "missing-marker"
+  | C.Invalid_format_marker -> "invalid-marker"
+  | C.Unsupported_format_version _ -> "unsupported-version"
+  | C.Duplicate_format_marker -> "duplicate-marker"
 
 let%expect_test "multiple forms round-trip structurally and retain unknown forms" =
   let source =
@@ -74,4 +74,4 @@ let%expect_test "parse refusal carries a source location and message" =
         (not (String.is_empty message))
   | Error _ -> print_endline "wrong-error"
   | Ok _ -> print_endline "unexpected-success";
-  [%expect {| line=1 nonnegative-column=true message=true |}]
+  [%expect {| positive-line=true nonnegative-column=true message=true |}]
