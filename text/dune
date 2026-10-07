@@ -3,5 +3,5 @@
 (library
  (name bakhlo_text)
  (public_name bakhlo.text)
- (libraries bakhlo_application bakhlo_domain base zarith)
+ (libraries bakhlo_application bakhlo_domain base zarith sexplib0 parsexp)
  (private_modules text_line))
