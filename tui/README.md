@@ -33,16 +33,34 @@ BonsaiはコンパイラABIが異なるため、同じ現在のCore／台帳／�
 - `Ctrl-P`：予定／明細。未払い予定で `Enter`：支払いの下書きへ。
   実際の日付・金額を確認してもう一度 `Enter`。支払い記帳と対応リンクは一緒に保存。
   予定の元日付は変更しない。予定の記録がないことは義務なしを意味しない。
+- `Space`：自由文入力中を除き、普段は隠しておくCommand Paletteを開く。現在はThemeを収容する。
+  メモ／科目名の文字入力中のSpaceは普通の空白として扱う。
 - `Ctrl-R`：再読込。`Ctrl-Q`：終了。貼付の改行・制御キーから自動記帳しない。
 
-## ライト／ダーク背景と選択表示
+## テーマとCommand Palette
 
-文字色・背景色は端末の標準色を使い、固定RGBや青背景・白文字にはしない。
-入力中の項目と一覧の選択行は**反転＋太字**、見出し・通知は標準文字色の太字。
-選択箇所には `>` も付け、色だけに頼らない。Notty／Bonsaiで同じ方針を使う。
-端末側のライト／ダーク設定に従うため、アプリのテーマ自動判定や設定は不要。
-端末自身の標準文字色・背景色が読める組合せであることを前提とする。
-更新を適用するには画面を `Ctrl-Q` で終了し、同じ起動コマンドで開き直す。
+`Space`で中央のCommand Paletteを開き、`Theme`を選ぶ。テーマ一覧では
+`↑↓`（または`←→`）でその場でpreviewし、`Enter`で保存、`Esc`でpreview前へ戻る。
+Command Palette自体も`Esc`で閉じる。背面の記帳下書きは保持し、paneが開いている間は
+背面へキーを送らない。
+
+最初のテーマは三つ。
+
+- **Terminal**：固定色を使わず、端末の標準foreground/backgroundへ追従する。
+  選択は反転＋太字、見出し・通知は太字。端末側のライト／ダーク変更にも自然に従う。
+- **Bakhlo Light**：明るい背景とteal/copper系accentを持つBakhlo独自palette。
+- **Bakhlo Dark**：暗い背景とteal/amber系accentを持つBakhlo独自palette。
+
+独自テーマは24-bit RGBを使うが、家計の意味や保存形式には関与しない。色だけに頼らず
+選択箇所には`>`等の文字マーカーも残す。Notty／Bonsai_termは同じテーマ名・RGB定義・
+Command Palette状態を共有し、rendererだけが各ライブラリの属性へ変換する。
+
+選択したテーマは家計S式ではなくUI専用設定へ保存する。優先順は
+`BAKHLO_CONFIG_HOME/ui-theme`、`$XDG_CONFIG_HOME/bakhlo/ui-theme`、
+`$HOME/.config/bakhlo/ui-theme`。内容は`terminal`／`bakhlo-light`／
+`bakhlo-dark`の一行だけで、次回起動時に両TUIが読む。ファイルがない、壊れている、
+読めない場合は安全に**Terminal**へ戻る。保存できない場合でも、その起動中のpreview色だけは
+維持し、次回へ保存できなかったことを画面に表示する。
 
 ## 対応範囲
 
@@ -108,7 +126,8 @@ BonsaiはコンパイラABIが異なるため、同じ現在のCore／台帳／�
 両UIのself-checkは合成データのみを新しいignoredディレクトリで使用する。数量の独立した期待値、
 記帳・再読込・編集、別バックアップ、予定の支払いとAPI経由の作成・変更・取消の保存読戻し、
 取消済みの表示／支払い拒否、予算作成・再配分の保存／cold read、未知残高、競合と古い下書き、
-Unicode幅と貼付制御、標準色を保つ装飾と明細／予定の選択マーカーを確認する。
+Unicode幅と貼付制御、Terminal／Light／Darkの描画寸法、Space Palette、live preview、
+取消、UI設定の保存→再読込、明細／予定の選択マーカーを確認する。
 実PTYでもNotty記帳→Bonsai再起動・編集→Notty再読込、
 Bonsaiの予定支払い・日本語科目・外貨入力・貼付の非記帳と、端末状態の完全復元を確認済み。
 試験出力は合成データ専用のignoredディレクトリに保持し、私用コピーは試験で変更しない。
