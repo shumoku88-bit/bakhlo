@@ -143,8 +143,9 @@ let self_check () =
       List.iter
         (fun ((width, height) as dimensions) ->
           List.iter
-            (fun overlay ->
-              let state = { state with C.theme; overlay } in
+            (fun state ->
+              let state = { state with C.theme } in
+              let overlay = state.C.overlay in
               let view = render dimensions state in
               F.require (V.width view = width && V.height view = height) "Bonsai-geometry";
               let ansi = Buffer.create 1024 in
@@ -157,7 +158,8 @@ let self_check () =
                   F.require ((not (emits "38;")) && not (emits "48;")) "Bonsai-no-fixed-colors"
               | Some palette ->
                   let foreground, background =
-                    if overlay = C.No_overlay then (palette.foreground, palette.background)
+                    if overlay = C.No_overlay && not (C.editor_visible state) then
+                      (palette.foreground, palette.background)
                     else (palette.panel_foreground, palette.panel_background)
                   in
                   F.require
@@ -186,36 +188,37 @@ let self_check () =
                       (Buffer.contents buffer = String.concat "\n" (List.map snd rows))
                       "Bonsai-overlay-front-and-centered")
               | None -> ())
-            [
-              C.No_overlay;
-              C.Commands 0;
-              C.Themes { selected = C.theme_index theme; original = theme };
-              C.Loci
-                {
-                  target = C.From_locus;
-                  query = "";
-                  selected = List.length (C.loci state.session.book) - 1;
-                  notice = None;
-                };
-              C.Loci { target = C.From_locus; query = ""; selected = 1; notice = None };
-              C.Loci { target = C.To_locus; query = "no-match"; selected = 0; notice = None };
-              C.Loci
-                {
-                  target = C.To_locus;
-                  query = String.concat "" (List.init 40 (fun _ -> "長い検索"));
-                  selected = 0;
-                  notice = None;
-                };
-            ])
+            (([
+                C.No_overlay;
+                C.Commands 0;
+                C.Themes { selected = C.theme_index theme; original = theme };
+                C.Loci
+                  {
+                    target = C.From_locus;
+                    query = "";
+                    selected = List.length (C.loci state.session.book) - 1;
+                    notice = None;
+                  };
+                C.Loci { target = C.From_locus; query = ""; selected = 1; notice = None };
+                C.Loci { target = C.To_locus; query = "no-match"; selected = 0; notice = None };
+                C.Loci
+                  {
+                    target = C.To_locus;
+                    query = String.concat "" (List.init 40 (fun _ -> "長い検索"));
+                    selected = 0;
+                    notice = None;
+                  };
+              ]
+             |> List.map (fun overlay -> { state with C.overlay }))
+            @ C.posting_render_cases state))
         [ (100, 25); (64, 20); (40, 10); (20, 5) ])
     P.all_themes;
   List.iter
     (fun theme ->
       List.iter
-        (fun overlay ->
+        (fun state ->
           let view =
-            render (64, 20)
-              { state with C.theme; overlay; blocked = true; message = "household-warning" }
+            render (64, 20) { state with C.theme; blocked = true; message = "household-warning" }
           in
           let buffer = Buffer.create 64 in
           Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0) (64, 1)
@@ -223,11 +226,13 @@ let self_check () =
           F.require
             (String.trim (Buffer.contents buffer) = "household-warning")
             "Bonsai-overlay-household-warning-visible")
-        [
-          C.Commands 0;
-          C.Themes { selected = 0; original = theme };
-          C.Loci { target = C.From_locus; query = ""; selected = 0; notice = None };
-        ])
+        (([
+            C.Commands 0;
+            C.Themes { selected = 0; original = theme };
+            C.Loci { target = C.From_locus; query = ""; selected = 0; notice = None };
+          ]
+         |> List.map (fun overlay -> { state with C.overlay }))
+        @ C.posting_render_cases state))
     P.all_themes;
   F.require (V.width (V.text "財布") = 4) "Bonsai-unicode-width";
   F.require
@@ -265,6 +270,15 @@ let self_check () =
     | Some { C.overlay = C.Loci { query = " "; _ }; _ } -> true
     | _ -> false)
     "Bonsai-picker-search-adapter";
+  F.require
+    (match
+       C.handle state
+         (input_of_event
+            (B.Event.Key_press { key = B.Event.Key.ASCII 'T'; mods = [ B.Event.Modifier.Ctrl ] }))
+     with
+    | Some editor -> C.editor_visible editor
+    | None -> false)
+    "Bonsai-posting-editor-adapter";
   let paste = input_of_event (B.Event.Paste `Start) in
   F.require (paste = `Paste `Start) "Bonsai-paste-adapter";
   print_endline
