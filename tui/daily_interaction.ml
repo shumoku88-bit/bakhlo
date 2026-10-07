@@ -238,6 +238,7 @@ let pay_selected s =
   match List.nth_opt (plans s) s.selected with
   | None -> s
   | Some p when p.paid_by <> None -> { s with message = "この予定は支払い済みです。" }
+  | Some p when p.cancelled_on <> None -> { s with message = "この予定は取消済みです。" }
   | Some p -> (
       let effects =
         List.map
@@ -477,7 +478,9 @@ let history s =
       List.map
         (fun (p : B.plan) ->
           p.day ^ " "
-          ^ (if p.paid_by = None then "[未払い] " else "[支払い済] ")
+          ^ (match p.cancelled_on with
+            | Some day -> "[取消 " ^ day ^ "] "
+            | None -> if p.paid_by = None then "[未払い] " else "[支払い済] ")
           ^ String.concat " / "
               (List.map
                  (fun (loc, n) ->
@@ -617,6 +620,78 @@ let self_check () =
         | [] | _ :: _ -> false)
         "history-focus-marker")
     [ Entries; Plans ];
+  let plan_path = directory ^ "/plans.sexp" in
+  F.create_copy ~source:"examples/daily-book.sexp" ~target:plan_path;
+  let plan_state = initial (F.load plan_path) in
+  let extra : B.plan =
+    {
+      id = "extra";
+      day = "2026-11-01";
+      measure = "jpy";
+      changes = [ ("wallet", Z.of_int (-300)); ("food", Z.of_int 100); ("bank", Z.of_int 200) ];
+      paid_by = None;
+      cancelled_on = None;
+    }
+  in
+  let created = finish plan_state (get (B.put_plan plan_state.session.book ~replace:false extra)) in
+  require (List.length (B.plans (F.load plan_path).book) = 2) "plan-create-cold-read";
+  let changed = { extra with day = "2026-11-02" } in
+  let updated = finish created (get (B.put_plan created.session.book ~replace:true changed)) in
+  require ((List.nth (B.plans (F.load plan_path).book) 1).day = changed.day) "plan-update-cold-read";
+  let cancelled =
+    finish updated (get (B.cancel_plan updated.session.book ~id:"planned-food" ~day:"2026-10-07"))
+  in
+  let cancelled = { cancelled with view = Plans; selected = 0 } in
+  require
+    ((List.hd (B.plans (F.load plan_path).book)).cancelled_on = Some "2026-10-07"
+    && quantity cancelled "wallet" = "1000")
+    "plan-cancel-cold-read";
+  let refused_payment = pay_selected cancelled in
+  require
+    (refused_payment.form = cancelled.form
+    && refused_payment.mode = cancelled.mode
+    && refused_payment.message = "この予定は取消済みです。")
+    "cancelled-plan-payment-draft";
+  require
+    (List.exists
+       (fun text -> String.starts_with ~prefix:"2026-10-10 [取消 2026-10-07] " text)
+       (history cancelled))
+    "cancelled-plan-display";
+  let budget : B.budget =
+    {
+      id = "trial-budget";
+      start_day = "2026-10-01";
+      end_exclusive = "2026-12-01";
+      measure = "jpy";
+      allocations = [ ("daily", Z.of_int 2000); ("reserve", Z.zero) ];
+      expense_loci = [ "food" ];
+      actual_routes = [ ("food", Some "daily") ];
+      plan_routes = [ ("extra", "food", Some "daily") ];
+    }
+  in
+  let budgeted =
+    finish cancelled (get (B.put_budget cancelled.session.book ~replace:false budget))
+  in
+  let budget_answer =
+    get (B.budget_review (F.load plan_path).book ~id:budget.id ~observed_at:"2026-10-07")
+  in
+  require
+    (Z.equal (List.hd budget_answer.rows).after_known (Z.of_int 1900))
+    "budget-create-cold-read";
+  let rebalanced =
+    finish budgeted
+      (get
+         (B.rebalance_budget budgeted.session.book ~id:budget.id ~from_purpose:"daily"
+            ~to_purpose:"reserve" ~amount:(Z.of_int 200)))
+  in
+  let answer =
+    get (B.budget_review (F.load plan_path).book ~id:budget.id ~observed_at:"2026-10-07")
+  in
+  require
+    (Z.equal (List.hd answer.rows).after_known (Z.of_int 1700)
+    && Z.equal (List.nth answer.rows 1).allocated (Z.of_int 200)
+    && quantity rebalanced "wallet" = "1000")
+    "budget-rebalance-cold-read";
   require (backspace "あい" = "あ") "unicode-backspace";
   require
     (match key s (`ASCII 'Q', [ `Ctrl ]) with None -> true | Some _ -> false)
@@ -627,6 +702,6 @@ let self_check () =
     | Some s -> s.form.amount = "" && s.focus = Amount)
     "provider-control-new";
   print_endline
-    "PASS: synthetic shared record/reopen/edit, backups, plan payment, unknown, conflict/stale \
-     draft, focus markers and paste controls.";
+    "PASS: synthetic shared record/reopen/edit, backups, plan lifecycle/payment, budget \
+     publication, unknown, conflict/stale draft, focus markers and paste controls.";
   s

@@ -8,8 +8,14 @@ on-demand references, not a compulsory reading list or an implementation backlog
 ## Product
 
 - Build an ordinary household ledger: recording/editing, accounts/categories,
-  payment plans, budgets and reports. Small means direct, readable implementation,
-  not dropping needed household functions.
+  payment plans, budgets and reports. The user also requires various balances,
+  today's spending guide and Attention for replacing LOAM; detailed scope remains
+  under discussion in `docs/CUTOVER_CHECKLIST.ja.md`. Small means direct, readable
+  implementation, not dropping needed household functions.
+- Today's spending guide is LOAM Home `d` Daily Pace, not a purpose-budget guide.
+  TUI should show only the focused feature's content/help and use floating panes
+  to avoid a crowded Home. Preserve transaction context, drafts and visible safety
+  errors; share interaction across both frontends. See the checklist's design section.
 - Implement one usable step at a time. No textbook-driven abstractions, automatic
   LOAM feature parity, permanent correction-history requirement, multi-backend
   framework or speculative AI/voice/network/runtime work.

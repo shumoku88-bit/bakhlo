@@ -4,7 +4,9 @@
 
 Build an ordinary household ledger, not a LOAM research port or an OCaml textbook
 project. Required household functions remain recording/editing, account/category
-addition, payment plans, budgets and reports.
+addition, payment plans, budgets and reports. The user explicitly requires plans,
+various balances, a daily spending guide, budget functions and Attention for the
+LOAM replacement; detailed operations and initial-cutover scope remain under discussion.
 
 The user approved trying a private Bakhlo-native data candidate from current LOAM:
 
@@ -50,9 +52,48 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   Style self-checks and synthetic basic-ANSI/light and 256-color/dark-profile PTYs
   passed; emitted attributes contain no fixed colors and terminal state is restored.
   The user confirmed that the visibility issue is fixed.
-- Daily_book reads the v1 candidate and writes v2 with selected-key Exchange evidence.
-  IDs, exact multi-Measure postings, refunds, plans/payment links and independent
-  support remain explicit. Ordinary Book/CLI formats are unchanged and separate.
+- Daily_book reads v1..v4. It writes `bakhlo-daily 4` when budget definitions are
+  explicitly supplied, otherwise v3; Exchange and plan `cancelled-on` remain explicit.
+  Reading does not rewrite an input; explicit copy/publication keeps prior bytes separately. Ordinary Book/CLI is unchanged.
+  Pure `put_plan` now creates/replaces an open same-ID occurrence with exact balanced
+  multiple signed changes and current vocabulary checks. `cancel_plan` retains the
+  occurrence with a supplied real closure date, without altering physical quantities.
+  `open_plans` excludes paid/cancelled occurrences, not unknown real-world obligations.
+  Closed plans cannot be edited/reopened/reused for payment. Terminal fields cannot
+  be supplied as a create/edit draft. Current-entry edits preserve existing payment links.
+  No new UI controls: the old trial only labels/refuses cancelled plans correctly.
+  Synthetic lifecycle, codec/refusal and support/metadata preservation tests, full
+  `tools/check`, and both UI self-checks passed. Existing file publication was reused
+  for synthetic plan create/update/cancel cold reads; no durable-store qualification.
+  Bonsai linking still warns about the absent `/opt/local/lib` search directory.
+- `Daily_book.daily_pace` now answers the current LOAM Home `d` balance-pool
+  calculation without UI/budget/storage changes. Measure, unique same-Measure
+  coordinates, observation date and exclusive end are explicit; no clock/defaults.
+  Exact balances and open-plan per-occurrence net drains come from ONE immutable
+  book. The result includes coordinate quantities, deducted plan IDs/amounts,
+  totals, positive calendar horizon and integer-quanta daily guide. Unknown support
+  and nonzero/amount-unknown both refuse, with distinct reasons; explicit empty
+  selection is empty, never missing configuration. Negative division floors via
+  Zarith Euclidean division, not truncation or zero clamping. Synthetic tests cover
+  lifecycle/refunds, overdue/internal/inflow/boundary cases, currency separation,
+  huge quantities and Gregorian/leap-century day counts. This is current evidence
+  composition, not balance freshness, plan completeness, historical replay or a
+  LOAM runtime-parity claim. The query does not change format; no private inputs were read.
+- Pure `put_budget`, `rebalance_budget` and `budget_review` now cover explicit
+  period/Measure/purpose allocations, declared expense loci, separate Actual-locus
+  and plan-ID/locus routing, recorded spending, open-plan pressure and residuals.
+  Missing route and explicit unmanaged are distinct item lists; missing budget
+  information is None, not empty/zero. Definitions apply across their selected
+  period, not dated LOAM routing history. Signed expense-side actuals reduce spent
+  for refunds; positive per-plan/Purpose net pressure protects open obligations
+  (including overdue before period start), without spending future refunds.
+  Payment closes plan pressure without copying its routing to Actual. Plan edits
+  that strand supplied budget references refuse; no silent route deletion.
+  Budget definition replacement is explicit, not inferred historical reclassification.
+  Total-preserving positive reallocation is separate from physical funding and
+  safe-to-spend authority. No carryover, funding/grant engine, full expense catalog,
+  completeness claims or operational parity. Synthetic tests and both UI self-checks
+  passed, including v4 publication/cold read; no new controls/dependencies/files.
 - LOAM was stopped with the user's confirmation. Scoped read-only capture, native
   source admission, candidate conversion and an independent-process cold read passed.
   The candidate is `scratch/daily_book_candidate_v1/household.sexp`, with a small
@@ -63,12 +104,24 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
 
 ## Next action
 
-The user requested an inventory to decide the minimum before leaving LOAM.
-[The cutover checklist](CUTOVER_CHECKLIST.ja.md) compares household operations,
-current LOAM entry points and Bakhlo's daily UI/data gaps. It is a source-reading
-inventory, not runtime-parity evidence or an automatic implementation backlog.
-Discuss multiple-posting input, plan management/completion and balance checking
-first; recurrence, exchange/settlement, budgets and reports still need scope choices.
+[The cutover checklist](CUTOVER_CHECKLIST.ja.md) owns the inventory and small-step
+preparation. Plans, various balances, today's spending guide, budgets and Attention
+are required areas, not optional substitutes for other tools. This does not make
+every operation in those areas mandatory for the first cutover. Multiple-posting
+input remains a prior focus. Today's amount is now selected: LOAM Home `d`,
+Daily Pace / Trend, not the purpose-budget per-day guide. Its current amount uses
+an explicit single-Measure balance pool less open-plan net drains before the
+exclusive cycle end, divided by remaining calendar days. Overdue open plans still
+count, internal pool transfers deduct zero, and planned inflows are not yet money.
+Use LOAM's local-today observation and integer-quanta calculation; do not substitute
+the navigated calendar date or clamp a deficit to zero. Pool/boundary configuration
+must be supplied explicitly. Whether the initial slice also shows `d`'s seven-day
+current-truth reconstruction remains a display-scope question, not a different formula.
+
+The user also selected focus-based TUI visibility and floating panes to keep Home
+uncluttered. The checklist owns the detailed screen proposal and acceptance cases;
+`../tui/README.md` distinguishes this target from the current always-visible trial.
+Do not hide necessary fields within a single transaction or safety-critical errors.
 
 The recording cutover inventory also has a user-facing cognitive-load requirement:
 do not require the user to remember the current Locus vocabulary. Before cutover,
@@ -79,14 +132,31 @@ floating/overlay panes for picker, search, add, detail and preview where that ke
 Home small. Bonsai_term and Notty may implement these differently, but focus/pane
 state remains presentation-only and must not create household meaning or a second
 publication path.
-Agree the essential operations and order before implementing the next slice.
-The inventory task changed documentation only; it did not read household data or start migration.
+
+The user approved UI-independent functions first; elaborate TUI work is deferred.
+Plan updates, Daily Pace and the first explicit-period budget slice are implemented
+with synthetic checks. Next candidate is Attention's small pure data/API slice:
+explicit context, due/none/undetermined, dated resolve/drop and save/cold read.
+Observation updates and broader budget operations remain gaps. Multiple-posting
+input/recurrence are separate from retained data. Do not treat Daily Pace or
+recorded budget residuals as physical funds, invent purpose assignments or promote
+this limited expense selection to household completeness. Reuse existing admission
+and file publication, not UI layout/history prerequisites or a full feature queue.
+
+Keep preparation in the existing checklist, not new per-feature plans or scaffolds.
+No generic scheduler/workflow, extra backend, duplicated frontend calculations,
+new dependency or research-port pipeline. Extend formats only when an actual slice
+needs independent evidence, preserving refusal and explicit version transitions.
+The latest slice added native budget definitions/API/codec and synthetic tests;
+UI layout/controls are unchanged. It did not read household data, run/modify LOAM,
+convert private candidates, introduce dependencies, or start operational cutover.
 
 The existing trial is `./tools/tui bonsai --book scratch/daily-ui/household.sexp`
 (or omit `bonsai` for Notty). Both use the SAME private trial file; exit one before
 switching screens. This is a separate private trial copy; the earlier candidate and
 LOAM originals remain unchanged. See `tui/README.md` for controls and limits.
-Improve agreed daily use, not a further inventory or research campaign.
+Use the prepared scope to improve agreed daily use, not another broad inventory
+or research campaign.
 
 The simple form handles same-Measure two-posting moves and edits date/amount/memo.
 Foreign currencies work at their supplied scales. Exchange/refund/multi-posting
