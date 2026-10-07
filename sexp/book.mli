@@ -63,4 +63,4 @@ val append_exchange :
 
 val correct : base:t -> target:D.Identifier.Event.t -> event:string -> (candidate, error) result
 (** この形式では元事象を保持し、訂正関係を追加する。
-    v2の新しい効果は承認語彙を検査する。候補は記帳権限・実ファイル更新・保存成功ではない。 *)
+    v2/v3の新しい効果は承認語彙を検査する。候補は記帳権限・実ファイル更新・保存成功ではない。 *)
