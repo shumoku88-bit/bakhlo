@@ -25,7 +25,7 @@ type description =
   | Text of string
   | Description_not_supplied
 
-type effect =
+type wire_effect =
   { key : effect_key
   ; locus : string
   ; measure : string
@@ -36,7 +36,7 @@ type event =
   { id : string
   ; day : day
   ; description : description
-  ; effects : effect list
+  ; effects : wire_effect list
   }
 
 type measure =
@@ -174,9 +174,9 @@ let parse_event = function
       let* description = parse_description other_fields in
       let rec parse_effects acc = function
         | [] -> Ok (List.rev acc)
-        | effect :: rest ->
-          let* effect = parse_effect effect in
-          parse_effects (effect :: acc) rest
+        | entry :: rest ->
+          let* entry = parse_effect entry in
+          parse_effects (entry :: acc) rest
       in
       let* effects = parse_effects [] effects in
       Ok { id; day; description; effects }
@@ -288,13 +288,13 @@ let sexp_of_description = function
   | Text value -> sexp_list [ sexp_atom "text"; sexp_atom value ]
   | Description_not_supplied -> sexp_list [ sexp_atom "not-supplied" ]
 
-let sexp_of_effect effect =
+let sexp_of_effect entry =
   sexp_list
     [ sexp_atom "effect"
-    ; sexp_list [ sexp_atom "key"; sexp_of_key effect.key ]
-    ; sexp_list [ sexp_atom "locus"; sexp_atom effect.locus ]
-    ; sexp_list [ sexp_atom "measure"; sexp_atom effect.measure ]
-    ; sexp_list [ sexp_atom "quanta"; sexp_atom (Z.to_string effect.quanta) ]
+    ; sexp_list [ sexp_atom "key"; sexp_of_key entry.key ]
+    ; sexp_list [ sexp_atom "locus"; sexp_atom entry.locus ]
+    ; sexp_list [ sexp_atom "measure"; sexp_atom entry.measure ]
+    ; sexp_list [ sexp_atom "quanta"; sexp_atom (Z.to_string entry.quanta) ]
     ]
 
 let sexp_of_event event =
@@ -435,7 +435,7 @@ let check_probe path =
       | Some event -> event
       | None -> failwith "huge probe event missing after decode"
     in
-    let quantities = List.map (fun effect -> Z.to_string effect.quanta) event.effects in
+    let quantities = List.map (fun effect -> Z.to_string entry.quanta) event.effects in
     if quantities <> [ huge; "-" ^ huge ]
     then failwith "arbitrary-precision quantities did not survive Wire V1 decoding";
     let future =
