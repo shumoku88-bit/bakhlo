@@ -452,11 +452,11 @@ let%expect_test "v3 exchange keeps currencies distinct and local-currency spendi
     (List.length (A.Exchange_evidence.facts (A.Actual_source.exchanges source)) = 2)
     "exchange evidence not retained";
   let v2 =
-    travel
-    |> String.substr_replace_first ~pattern:"(bakhlo 3 ordinary-quantity)"
-         ~with_:"(bakhlo 2 ordinary-quantity)"
-    |> String.substr_replace_first ~pattern:"(empty events event-corrections exchanges)"
-         ~with_:"(empty events event-corrections)"
+    String.substr_replace_first
+      (String.substr_replace_first travel ~pattern:"(bakhlo 3 ordinary-quantity)"
+         ~with_:"(bakhlo 2 ordinary-quantity)")
+      ~pattern:"(empty events event-corrections exchanges)"
+      ~with_:"(empty events event-corrections)"
   in
   require
     (match B.append_exchange ~base:(ok (B.of_string v2))
