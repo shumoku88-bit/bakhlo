@@ -1,7 +1,8 @@
 # Minimal canonical syntax bake-off
 
 This directory contains **two hand-authored synthetic spellings of the same retained evidence** from
-[`sexp-v1-candidate/01-retained-evidence.sexp`](../sexp-v1-candidate/01-retained-evidence.sexp).
+[`sexp-v1-candidate/01-retained-evidence.sexp`](../sexp-v1-candidate/01-retained-evidence.sexp),
+plus one bounded S-expression health check that adds Scheduled and Attention evidence.
 
 They are comparison artifacts only. No parser, writer, DTO, migration, dependency, storage path or
 canonical-format decision is introduced here. No real/private household data is used.
@@ -10,10 +11,11 @@ canonical-format decision is introduced here. No real/private household data is 
 | --- | --- |
 | [01-minimal.sexp](01-minimal.sexp) | Keep S-expression structure, but remove avoidable family/wrapper nesting and allow independent top-level facts |
 | [01-minimal.journal](01-minimal.journal) | Keep the same evidence in a shallow journal: a column-0 record followed by indented member lines, with no `end` markers |
+| [02-minimal-sexp-mixed-families.sexp](02-minimal-sexp-mixed-families.sexp) | Start from the minimal S-expression and add one Scheduled occurrence plus one Attention item without adding surface-syntax machinery |
 
 ## Shared semantic obligations
 
-Both candidates deliberately retain the same important distinctions as the source fixture:
+The first two candidates deliberately retain the same important distinctions as the source fixture:
 
 - superseded Event `e1` remains present and is explicitly corrected by `e2`;
 - occurrence revision is separate from Event correction;
@@ -76,6 +78,39 @@ The journal therefore aims to keep the parser grammar small even when the househ
 Whether that remains true for Scheduled, Attention, settlement and other evidence families is still
 an open question.
 
+## S-expression mixed-family health check
+
+[02-minimal-sexp-mixed-families.sexp](02-minimal-sexp-mixed-families.sexp) asks one narrow question:
+does the minimal S-expression remain readable when two semantically different household families
+are actually supplied?
+
+It adds only synthetic evidence:
+
+- one `scheduled-occurrence` with a stable Scheduled identity, explicit scheduled day and one
+  balanced single-Measure movement;
+- one `attention-item` with opaque human context and explicit `undetermined` due meaning.
+
+The current LOAM meanings being preserved for this review are important:
+
+- Scheduled is expected evidence, not an Actual Event;
+- Scheduled terminal meaning is separate evidence: completion targets Actual, replacement targets a
+  successor Scheduled identity, retirement has no target;
+- Attention `due on`, `no due date` and `due undetermined` are distinct;
+- Attention closure is separate evidence and distinguishes resolved from dropped.
+
+Therefore the health-check fixture does **not** let missing terminal or closure rows mean empty.
+For this one comparison, the coarse `scheduled` / `attention` collection placeholders are refined
+into logical `scheduled-occurrences`, `scheduled-terminals`, `attention-items` and
+`attention-closures` states. The terminal and closure collections are explicitly empty.
+
+That logical refinement is not a decision to split physical persistence files or freeze these
+collection names. It only prevents the syntax experiment from buying simplicity with an implicit
+semantic default.
+
+The key result to inspect is structural: no new lexical feature, delimiter, indentation rule or
+record-specific mini-language was needed. The new meanings use the same Atom/List surface as the
+existing facts. Whether the chosen schema names are the best permanent names remains open.
+
 ## Stop rules for further shortening
 
 A spelling is **too compressed** if shortening it requires any of the following:
@@ -93,7 +128,7 @@ costs appears.
 
 ## Human review questions
 
-Review these two candidates together with the original S-expression and the uniform-`end`
+Review these candidates together with the original S-expression and the uniform-`end`
 counterexample. In particular:
 
 - Which one is easiest to scan after six months away from the project?
@@ -103,6 +138,8 @@ counterexample. In particular:
 - Which candidate makes accidental structural edits easier to notice in a Git diff?
 - Does either form already tempt us to add shorthand or implicit defaults?
 - Can a new evidence family be added without changing the surface grammar?
+- In the mixed-family S-expression, do Scheduled and Attention still read as distinct meanings
+  rather than being forced into Event-shaped records?
 
 Do **not** choose based on imagined speed, binary size or migration cost here; none has been measured.
 The next step after human review should remain bounded. A parser proof-of-concept is only justified
