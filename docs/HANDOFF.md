@@ -69,6 +69,16 @@ current LOAM entry points and Bakhlo's daily UI/data gaps. It is a source-readin
 inventory, not runtime-parity evidence or an automatic implementation backlog.
 Discuss multiple-posting input, plan management/completion and balance checking
 first; recurrence, exchange/settlement, budgets and reports still need scope choices.
+
+The recording cutover inventory also has a user-facing cognitive-load requirement:
+do not require the user to remember the current Locus vocabulary. Before cutover,
+decide and qualify an overview/search/picker for existing accounts/categories,
+a separate whole-transaction preview before publication, and focus-driven context
+that shows only information relevant to the current cursor. Prefer transient
+floating/overlay panes for picker, search, add, detail and preview where that keeps
+Home small. Bonsai_term and Notty may implement these differently, but focus/pane
+state remains presentation-only and must not create household meaning or a second
+publication path.
 Agree the essential operations and order before implementing the next slice.
 The inventory task changed documentation only; it did not read household data or start migration.
 
