@@ -288,7 +288,7 @@ let decode = function
           corrections = [];
           observations = [];
           zero_origins = [];
-          exchanges = wire.exchanges;
+          exchanges = [];
         }
       in
       let* wire =
