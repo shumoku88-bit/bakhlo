@@ -44,6 +44,35 @@ v1は元の形式と純粋な候補APIを保持するが、許可付き記帳の
 既存UIで「追加→選択→記帳→再開→訂正」を試す手順は
 [Verification](../../docs/VERIFICATION.md#synthetic-locus-addition-and-recording) にある。
 
+## 両替と現地通貨（開発用v3）
+
+[`travel.sexp`](travel.sexp) は `(bakhlo 3 ordinary-quantity)`。v2の語彙に加え、
+`exchanges` collection と明示的な `exchange` レコードを持つ。
+
+```lisp
+(exchange
+  (event "exchange-out")
+  (source "exchange-source")
+  (destination "exchange-destination"))
+```
+
+source/destinationは同じEvent内の名前付きEffectを指す。両側のMeasureと数量をそのまま保存し、
+為替レート、評価額、自宅通貨を逆算しない。受け取った現地通貨での支出は通常の単一Measure
+Eventなので、既存の `record --measure eur` などを使う。帰国時の逆両替もsource/destinationを
+逆向きにした別Eventとして記録する。
+
+CLIの短い例：
+
+```sh
+bakhlo exchange --book travel.sexp --out exchanged.sexp --date 2026-10-20 \
+  --id exchange-out --from bank-jpy jpy 10000 --to cash-eur eur 6000 --desc "cash exchange"
+bakhlo record --book exchanged.sexp --out spent.sexp --date 2026-10-21 \
+  --id local-spend --measure eur --from cash-eur --to food --amount 1500
+```
+
+v1/v2を読み込んだだけではv3へ自動変換しない。外貨カード利用と後日の別通貨決済の対応づけ、
+手数料の専用意味、相場評価は別の機能で、このv3両替記録から推測しない。
+
 ## この開発用v1プロファイルの約束
 
 先頭は `(bakhlo 1 ordinary-quantity)`。OCaml型名やアプリの版とは別のデータ形式名。
@@ -68,8 +97,9 @@ v1は元の形式と純粋な候補APIを保持するが、許可付き記帳の
 - `zero-origin`：`locus` / `measure`。支出履歴や差分ゼロから勝手に追加しない。
 
 未知の版・フィールド・証拠系列、単一フィールドの重複・欠落、参照切れ、無効日付、重なる根拠は
-全体を拒否する。opening、presence、独立した日付改訂、Merchant、Exchange、Reversal、Relation、
-Discharge、予定、設定、receipt等はこのプロファイルで表現しない。供給済みのそれらを落とす変換APIはない。
+全体を拒否する。v1ではopening、presence、独立した日付改訂、Merchant、Exchange、Reversal、
+Relation、Discharge、予定、設定、receipt等を表現しない。v3はExchangeだけを上記の狭い形で追加する。
+それ以外の供給済み情報を落とす変換APIはない。
 識別子と本文はバイトを保持し、trimやUnicode正規化をしない。決定的なUTF-8出力はファミリー順を
 整えるが、各ファミリーの順序、Effectの順序・多重性は保つ。コメント・空白の再印字は保証しない。
 重要なメモは `description` データにする。読み込んだ原文は純粋なBookと元ファイルに残る。
