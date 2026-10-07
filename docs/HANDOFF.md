@@ -13,6 +13,22 @@ MirageOS support remains experimental, not an immediate blocker.
 All SQLite/Irmin/Mirage trials and counterexamples retained. No authority/data migration,
 global install, public service, source-side rename reversal, dependency change or push.
 
+## Active bounded task — Parsexp synthetic codec trial ONLY
+
+User now authorizes a bounded dependency/codec experiment after the minimal S-expression survived
+the Scheduled + Attention syntax health check. D: main a85a7af; Base/Zarith product dependencies,
+sexplib0 already present through the qualified closure, Parsexp absent from the package; synthetic
+minimal fixtures only. P: canonical S-expression is still a candidate, not authority; LOAM remains
+sole household authority; no private reads, product persistence, Saved claim, migration, cutover or
+writer path is authorized. R: test-only Parsexp v0.17 trial, explicit version/collection-state wire
+envelope, exact Zarith quanta scan, unknown top-level-form retention, semantic parse/write/reparse
+check, small debug export and bounded 10k parse smoke. Keep the trial outside product libraries and
+do not add full Sexplib/Parsexp_io. Parser success is not semantic admission. Comments/layout may be
+discarded by the normal AST writer; required household meaning must never live only in comments.
+Checks: ordinary tools/check plus exact dependency/lock review when available. Revisit adoption only
+after code size, dependency closure, diagnostics, unknown retention and round-trip behavior are
+observed. No performance claim from the load smoke alone.
+
 ## Current product direction — small household questions, AI optional
 
 User delegates bounded development toward an ordinary, friendly household question machine,
