@@ -100,6 +100,8 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   hold/theme/paste/refusal/10-row scroll/resize/Space and terminal restoration, plus
   both multi-plan payment/duplicate refusals. No private input, Python, dependency,
   codec or new publication mechanism. Independent preview is still the next step.
+  The user finds the editor somewhat cumbersome; usability polish is deferred.
+  Functional checks are not human UX acceptance or operational-cutover approval.
 - Daily_book reads v1..v4. It writes `bakhlo-daily 4` when budget definitions are
   explicitly supplied, otherwise v3; Exchange and plan `cancelled-on` remain explicit.
   Reading does not rewrite an input; explicit copy/publication keeps prior bytes separately. Ordinary Book/CLI is unchanged.
