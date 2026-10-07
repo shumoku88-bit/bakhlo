@@ -1,0 +1,46 @@
+name: Parsexp codec trial
+
+on:
+  pull_request:
+    paths:
+      - "experiments/sexp-codec-trial/**"
+      - "examples/syntax-bakeoff/**"
+      - ".github/workflows/parsexp-codec-trial.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-trial:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up OCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.3.0"
+          opam-pin: false
+          dune-cache: false
+
+      - name: Install isolated trial dependencies
+        working-directory: experiments/sexp-codec-trial
+        run: opam install . --deps-only -y
+
+      - name: Build isolated trial
+        working-directory: experiments/sexp-codec-trial
+        run: opam exec -- dune build
+
+      - name: Check parse, Wire V1, round-trip, precision and unknown retention
+        working-directory: experiments/sexp-codec-trial
+        run: |
+          opam exec -- dune exec ./codec_trial.exe -- \
+            check ../../examples/syntax-bakeoff/01-minimal.sexp probe.sexp
+
+      - name: Informational 10k parse sample
+        working-directory: experiments/sexp-codec-trial
+        run: |
+          opam exec -- dune exec ./codec_trial.exe -- \
+            bench ../../examples/syntax-bakeoff/01-minimal.sexp 10000
