@@ -47,16 +47,17 @@ The trial does not:
 
 ## Run locally
 
-From this directory, with OCaml 5.3.0 and the trial dependencies installed:
+From this directory, with OCaml 5.3.0 and the trial dependencies installed. The main root
+excludes `experiments`; explicit `--root .` keeps these commands in this independent workspace:
 
 ```sh
 opam install . --deps-only -y
-opam exec -- dune build
+opam exec -- dune build --root .
 
-opam exec -- dune exec ./codec_trial.exe -- \
+opam exec -- dune exec --root . ./codec_trial.exe -- \
   check ../../examples/syntax-bakeoff/01-minimal.sexp probe.sexp
 
-opam exec -- dune exec ./codec_trial.exe -- \
+opam exec -- dune exec --root . ./codec_trial.exe -- \
   bench ../../examples/syntax-bakeoff/01-minimal.sexp 10000
 ```
 

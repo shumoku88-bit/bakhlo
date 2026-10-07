@@ -31,16 +31,16 @@ jobs:
 
       - name: Build isolated trial
         working-directory: experiments/sexp-codec-trial
-        run: opam exec -- dune build
+        run: opam exec -- dune build --root .
 
       - name: Check parse, Wire V1, round-trip, precision and unknown retention
         working-directory: experiments/sexp-codec-trial
         run: |
-          opam exec -- dune exec ./codec_trial.exe -- \
+          opam exec -- dune exec --root . ./codec_trial.exe -- \
             check ../../examples/syntax-bakeoff/01-minimal.sexp probe.sexp
 
       - name: Informational 10k parse sample
         working-directory: experiments/sexp-codec-trial
         run: |
-          opam exec -- dune exec ./codec_trial.exe -- \
+          opam exec -- dune exec --root . ./codec_trial.exe -- \
             bench ../../examples/syntax-bakeoff/01-minimal.sexp 10000

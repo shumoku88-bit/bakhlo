@@ -45,7 +45,10 @@ and clears inherited OCaml search-path overrides, not the whole OS environment.
 ./tools/opam list --installed --short --columns=name,version
 ```
 
-`tools/check` builds @all and forces tests. Seeds, counts and finite scopes are in
+`tools/check` builds @all and forces tests. Root traversal excludes `scratch` and `experiments`;
+isolated trial dependencies never become prerequisites of this check. Run a trial from its own
+directory with explicit `dune ... --root .` and its separately selected environment.
+Seeds, counts and finite scopes are in
 tests/[verification](VERIFICATION.md), not another inventory here. Package tests
 explicitly enable inline tests; `-p` already selects root, so never combine it with
 `--root`. Clean engine-only builds must leave Presentation/CLI CMIs/libraries unbuilt.
