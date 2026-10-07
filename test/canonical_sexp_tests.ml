@@ -65,7 +65,7 @@ let%expect_test "format marker failures stay distinct from syntax failures" =
     syntax |}]
 
 let%expect_test "parse refusal carries a source location and message" =
-  match C.of_string "(bakhlo 1\n" with
+  (match C.of_string "(bakhlo 1\n" with
   | Error (C.Syntax { line; column; message }) ->
       Printf.printf
         "positive-line=%b nonnegative-column=%b message=%b\n"
@@ -73,5 +73,5 @@ let%expect_test "parse refusal carries a source location and message" =
         (column >= 0)
         (not (String.is_empty message))
   | Error _ -> print_endline "wrong-error"
-  | Ok _ -> print_endline "unexpected-success";
+  | Ok _ -> print_endline "unexpected-success");
   [%expect {| positive-line=true nonnegative-column=true message=true |}]
