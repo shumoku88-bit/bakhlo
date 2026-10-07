@@ -47,7 +47,7 @@ val base : candidate -> t
 val document : candidate -> t
 
 val admit_locus : base:t -> locus:string -> (candidate, error) result
-(** v2の明示された語彙へ正確な識別子を追加する。残高ゼロや履歴は作らない。 *)
+(** v2/v3の明示された語彙へ正確な識別子を追加する。残高ゼロや履歴は作らない。 *)
 
 val append : base:t -> event:string -> (candidate, error) result
 (** 明示された通常の単一通貨移動を追加し、印字・再読取・全体検査した候補を返す。 *)
