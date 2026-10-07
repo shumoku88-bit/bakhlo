@@ -55,7 +55,7 @@ type wire_v1 = wire_item list
 
 let head_is tag = function
   | Sexp.List (Sexp.Atom head :: _) -> String.equal head tag
-  | Sexp.Atom _ | Sexp.List [] -> false
+  | Sexp.Atom _ | Sexp.List _ -> false
 
 let atom = function
   | Sexp.Atom value -> Ok value
@@ -288,7 +288,7 @@ let sexp_of_description = function
   | Text value -> sexp_list [ sexp_atom "text"; sexp_atom value ]
   | Description_not_supplied -> sexp_list [ sexp_atom "not-supplied" ]
 
-let sexp_of_effect entry =
+let sexp_of_effect (entry : wire_effect) =
   sexp_list
     [ sexp_atom "effect"
     ; sexp_list [ sexp_atom "key"; sexp_of_key entry.key ]
@@ -297,7 +297,7 @@ let sexp_of_effect entry =
     ; sexp_list [ sexp_atom "quanta"; sexp_atom (Z.to_string entry.quanta) ]
     ]
 
-let sexp_of_event event =
+let sexp_of_event (event : event) =
   sexp_list
     ([ sexp_atom "event"
      ; sexp_atom event.id
@@ -306,7 +306,7 @@ let sexp_of_event event =
      ]
      @ List.map sexp_of_effect event.effects)
 
-let sexp_of_collections collections =
+let sexp_of_collections (collections : collections) =
   let state tag names = sexp_list (sexp_atom tag :: List.map sexp_atom names) in
   sexp_list
     [ sexp_atom "collections"
