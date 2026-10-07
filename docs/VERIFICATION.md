@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Explicit initial quantities](#explicit-synthetic-initial-quantities): BOTH native synthetic
+  consumers start from supplied signed/zero/huge Wallet/Bank observations; no real-data/Saved claim.
 - [Safe interchange design](#safe-data-interchange-design-review): readable schema rules and
   export/import profile/refusal boundaries; documentation ONLY, no executed hledger compatibility.
 - [Plain-text candidate pairs](#delimiter-free-plain-text-candidate-pairs): same four synthetic
@@ -88,7 +90,7 @@ establish it. Tool selection does not authorize dependencies or source copying.
 ## Safe data interchange design review
 
 At clean fbd6d84 user approves readable/maintainable/extensible S-expression evidence, hledger
-journal export and trustworthy imports. [Handoff](HANDOFF.md#current-task--readable-schema-and-safe-data-interchange)
+journal export and trustworthy imports. [Handoff](HANDOFF.md#deferred-design--readable-schema-and-safe-data-interchange)
 records D/P/R and selected instruments; [Architecture](ARCHITECTURE.md#safe-data-interchange)
 owns requirements and planned qualification cases. Reuse existing currentness/date/exactness/
 support/publication evidence as constraints, not proof of an unwritten adapter.
@@ -248,6 +250,39 @@ Pinned sibling source/doc hashes/revision/clean status, main exact 50/lock and a
 interfaces/tests unchanged; documentation links/whitespace checked. No main-suite rerun inferred;
 compile/focused controls concern this ignored native consumer only. No original write/recovery,
 cleanup, synchronization/dual authority, migration/cutover, UI/store adoption, publication or push.
+
+## Explicit synthetic initial quantities
+
+User reprioritizes ordinary record/reopen/correct/backup before interchange, not full LOAM parity.
+D/P/R and selected instruments recorded at clean 591f6d5 before code; reuse the SAME ignored
+native consumers/checks, existing exact/currentness/support/receipt/backup owners and independent
+literal initial/expected quanta. [Architecture](ARCHITECTURE.md#client-access-direction) owns scope.
+
+Both stock OCaml 5.3/Notty and isolated OxCaml/Bonsai builds, pure/view smokes and native connection
+suites pass: explicit signed/zero/180-bit quantities in all four Measures and both locations, two separate
+empty-cut groups, no invented Events, missing/duplicate/syntax/precision refusal before target
+effects, and admitted-but-incomplete/extra-group profile refusal. Custom initial quantities survive
+expense/income/transfer, cold non-last correction with an older date, retained original support,
+complete backup verification and fresh restore. Existing old-seed UNKNOWN/changed-support/unsupported
+shape, stale/conflict/replay, OLD/NEW uncertain receipts and backup/refusal/kill controls still pass.
+Both CLIs pass 18 malformed/partial/duplicate/probe controls with exact nonzero exits and absent
+targets; two existing-target controls preserve complete original files. Wrapper init + opposite
+compiler cold-read checks match complete bytes/summaries despite reversed currency argument order.
+Default complete proposals are byte-identical across stock/Ox and to preserved baseline binaries.
+
+Ordinary @all FIRST failed because root Dune included the isolated experiment and requested
+missing Parsexp. Excluding `experiments` alongside `scratch`, with explicit local --root in trial
+CI/docs, restores main 175 expect/four cram checks; release @install also passes without changing
+the exact 50/lock or installing anything. Main workspace discovery excludes both trials;
+explicit isolated target discovery still lists codec_trial.exe. This is NOT an executed isolated codec build or CI result.
+Two initial raw-log attempts via `rtk test sh -c` invoked the native UI without its test arguments
+and refused for lack of TTY before store effects; retain these failures. Direct native fresh-v3
+runs pass with full raw evidence, not those failed wrapper runs. Main first-failure/filter logs,
+raw final checks, source diffs/images and originals remain ignored in `scratch/tui_comparison_review/initial-v9`.
+Store/Backup/Locale hashes, main engine/interfaces/tests, default seed and full proposal bytes
+remain unchanged. No operational/current-user input read/written, sibling execution/source copy,
+new dependency/model/harness, canonical codec/store promotion, renderer/key change, PTY rerun,
+physical I/O/power-loss/durable Saved, off-device/live backup, recovery or cutover qualification.
 
 ## Native Unix I/O failure boundaries
 

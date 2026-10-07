@@ -13,8 +13,11 @@ exact schema/grammar, production parser dependency and physical store remain una
 The existing [isolated codec trial](../experiments/sexp-codec-trial/README.md) remains an experiment,
 not a production codec. Syntax selection itself authorizes no dependency or migration.
 User now approves the readable/extensible schema and safe-interchange direction below.
-Next: review the minimal schema alongside explicit export/import profiles and refusal cases;
-production codec/store adoption and real-data operations remain separately gated.
+User reprioritizes the ordinary daily-use loop before hledger export/import; these adapters are
+DEFERRED. The existing native trial now accepts explicitly supplied synthetic Wallet/Bank initial
+quantities through record/reopen/correct and backup/restore. Next: human synthetic ordinary-use
+feedback and the smallest canonical profile/publication scope. Readable S-expression evidence
+remains the canonical direction; production codec/store adoption and real-data operations are separately gated.
 Unix is the near-term validation runtime; MirageOS support remains experimental, not an immediate blocker.
 All SQLite/Irmin/Mirage trials and counterexamples retained. No authority/data migration,
 global install, public service, source-side rename reversal, dependency change or push.
@@ -32,7 +35,46 @@ Daily-use recording/save/reopen/correction remains the later product path. Deleg
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
-## Current task — readable schema and safe data interchange
+## Current task — ordinary-use loop / explicit synthetic initial quantities
+
+User approves finishing a minimal ordinary Bakhlo loop, not rebuilding every LOAM feature.
+Question: can BOTH existing native trials start from explicitly supplied Wallet/Bank quantities,
+record/reopen/correct and preserve original support/history without overwriting existing stores?
+D: clean 591f6d5, paired native consumers and fixed-seed profile; P: exact quanta/Measures,
+whole admission, old Bank UNKNOWN, sealed proposals, receipt/currentness and closed backup gates.
+R: signed/zero/huge initial input, complete per-currency supply, narrow new support shape and
+cold reconstruction. Reuse Money/Workbench/Recording and SAME native recording checks; no new
+model/harness/dependency/UI/store or codec. Preserve source/binary baselines before edits.
+Bound to fresh SYNTHETIC trial roots, two existing locations and four existing versioned Measures;
+all eight initial values must be explicitly supplied. Initial assertions have independent empty
+cuts; no balancing Events, guessed dates, missing -> zero or on-open support change. Keep old
+seed bytes/profile and refusal controls intact; existing targets refuse. Select native stock/Ox
+builds/checks, exact independently expected quantities/retained bytes, malformed/missing/duplicate/
+precision refusal before effects, cold children and existing backup/restore connections. Reuse
+main checks; no broad new I/O campaign or sibling/private execution. Maintain original artifacts.
+Revisit before arbitrary loci/currencies, support editing, canonical codec/store adoption, actual
+household writes or cutover; successful synthetic restart is not durable Saved.
+During qualification the ordinary @all check fails on the isolated experiment's missing Parsexp;
+root Dune excludes scratch but not experiments. Resolve this concrete dependency-isolation gap:
+exclude experiments from main traversal and give trial CI/docs an explicit local --root. Reuse
+main/locked checks and independent trial-root inspection; install nothing, keep warnings/flags.
+Completed: both native builds/connection suites pass exact signed/zero/180-bit initial quantities,
+complete-supply/precision/duplicate refusal before effects, custom expense/income/transfer/cold
+non-last correction, retained original support and complete backup/fresh restore. Both native
+entrances pass 18 argument/input controls without target creation; existing targets unchanged.
+Reversed explicit input order yields identical stock/Ox initial bytes and cold summaries. Default
+complete proposals remain byte-identical to preserved binaries; both pure/view smokes and main
+175 expect/four cram/release @install pass. Exact 50/lock/Store/Backup/Locale stay unchanged.
+Sources/binaries/raw logs and failures retained ignored in `initial-v9`; [Verification](VERIFICATION.md#explicit-synthetic-initial-quantities)
+owns limits. No private input, renderer/keyboard changes, new PTY or physical durability claim.
+Try a FRESH synthetic store using `try-ui init --store PATH` plus one `--initial CODE WALLET BANK`
+for EACH of JPY/EUR/USD/ILS, then either existing UI. [Ignored README](../scratch/tui_comparison_review/README.md#explicit-initial-quantities-synthetic-only)
+owns a complete example. No flags means the old explicit demo seed, never a partial-list fallback.
+Next: human synthetic ordinary-use feedback; choose the smallest canonical S-expression profile/
+codec and publication failure model before promotion to the main ordinary-use path. No automatic
+real-data recording, Store/UI adoption, recovery/migration, full LOAM parity or hledger work.
+
+## Deferred design — readable schema and safe data interchange
 
 User approves prioritizing long-term readability/maintenance/extension, hledger-compatible
 journal export and trustworthy imports. Question: how can outer interchange preserve declared
@@ -51,12 +93,11 @@ format, external stable IDs or a complete household codec. Completed the scoped 
 and pending qualification cases; exact diff, new link targets/anchors and whitespace checks pass.
 Implementation/dependencies remain unchanged. [Verification](VERIFICATION.md#safe-data-interchange-design-review)
 owns limits; no executed hledger, import/export roundtrip, main-suite or production-safety result is inferred.
-Next bounded implementation proposal: a native pure ordinary-current journal projector with
-synthetic exact/refusal checks. Its hledger target version/escaping/account/commodity profile
-must be fixed and checked with an independent reader before compatibility is claimed. Imports
-start only with a named source format and explicit conversion rules; no universal importer or
-operational recording. Revisit before production codec/dependency adoption, private access,
-source-specific parser work, external publication or any migration/cutover.
+DEFERRED behind the ordinary-use loop by the latest user decision. Retain these preservation
+requirements, not an export-first implementation schedule. When resumed, fix the hledger target
+version/escaping/account/commodity profile and check with an independent reader before claiming
+compatibility. Imports need a named source format and explicit conversion rules. Revisit before
+production codec/dependency adoption, private access, source-specific parser work or migration.
 
 ## Completed bounded task — delimiter-free plain-text comparison ONLY
 

@@ -63,11 +63,11 @@ payload pipeline. Qualified hosts and per-increment limits are in [verification]
 
 Human-readable evidence and data sovereignty come before physical store adoption. Canonical
 S-expression syntax is selected; exact schema/codec/store remain unadopted and SQLite canonical
-adoption is paused. Readability/maintenance/extension and [safe data interchange](docs/ARCHITECTURE.md#safe-data-interchange)
-are approved design goals: one-way hledger journal views with explicit loss scope, and staged
-imports with retained originals, explicit mappings and whole-candidate checks. These adapters
-are not implemented or compatibility-qualified. Unix is the near-term runtime, MirageOS an
-explicit future goal with experimental support only. Permanent UI,
+adoption is paused. User prioritizes an ordinary record/reopen/correct/backup loop, not full
+LOAM parity. Readability/maintenance/extension remain requirements; [safe data interchange](docs/ARCHITECTURE.md#safe-data-interchange)
+is deferred behind daily use. Its adapters are not implemented or compatibility-qualified.
+Unix is the near-term runtime, MirageOS an explicit future goal with experimental support only.
+Permanent UI,
 AI/voice/network adapters and operational publication remain separate work. Prior storage/runtime
 trials are comparison evidence, not dependencies or production defaults. Both ignored native TUIs
 now connect the existing Unix trial: synthetic record/select → exit → reopen → correction, retained
@@ -78,7 +78,11 @@ retain complete history/receipts; existing targets and incomplete copies refuse.
 [Handoff](docs/HANDOFF.md#completed-bounded-task--synthetic-closed-backuprestore)
 owns launch instructions; [verification](docs/VERIFICATION.md#synthetic-closed-backuprestore)
 owns controls/limits. It does **not** qualify durable Saved, real-data recording or a main store.
-Further prototype expansion is paused after the [canonical evidence/format review](docs/ARCHITECTURE.md#canonical-evidence--inherited-format-review).
+[Explicit synthetic initial quantities](docs/VERIFICATION.md#explicit-synthetic-initial-quantities)
+now let BOTH existing trials start from supplied Wallet/Bank values in all four currencies,
+without missing -> zero, overwriting or changing old support. Record/reopen/correct and complete
+backup/fresh restore connections pass; this still uses the experimental text Store, not an
+adopted canonical codec or permission for real recording. [Handoff](docs/HANDOFF.md) owns next steps.
 Review [four synthetic S-expression candidates](examples/sexp-v1-candidate/README.md) alongside
 [the same four in delimiter-free plain text](examples/plain-v1-candidate/README.md):
 selected self-contained EVIDENCE generation, not flattened current state. Superseded Events,

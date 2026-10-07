@@ -83,9 +83,11 @@ prerequisites for ordinary progress. Minimal composition is not a security/alway
 The [experimental text read](#experimental-versioned-text-read) now exercises a bounded
 synthetic profile, using independently supplied fixture inputs only as an oracle. Publication,
 scale/reuse and bounded I/O trials now supply comparison evidence, not an adopted layout.
-The current next step is readable versioned schema review with [safe interchange profiles](#safe-data-interchange),
-using the [canonical evidence review](#canonical-evidence--inherited-format-review) as preservation evidence,
-not more prototype store/UI qualification by default. [HANDOFF](HANDOFF.md) owns sequence.
+User now prioritizes a minimal ordinary record/reopen/correct/backup loop over interchange.
+Reuse existing native consumers, not a full LOAM feature rebuild; [safe interchange profiles](#safe-data-interchange)
+remain future preservation constraints. S-expression canonical design and the
+[canonical evidence review](#canonical-evidence--inherited-format-review) remain in force;
+experimental text storage is not promoted by this sequence. [HANDOFF](HANDOFF.md) owns next steps.
 User approved a bounded private read-only LOAM comparison before publication work: establish the actual selected revision/input,
 then test one quantity/evidence question. Existing implementation/layout/answers are comparison
 evidence, not automatic design requirements or a full-parity oracle. Original operational
@@ -320,7 +322,8 @@ not an adopted schema:
 
 ## Safe data interchange
 
-Approved design direction, NOT implemented export/import or proven hledger compatibility.
+Approved future design direction, DEFERRED behind the ordinary-use loop; NOT implemented
+export/import or proven hledger compatibility.
 S-expressions remain canonical evidence; adapters remain outer and format-specific. Share exact
 arithmetic, admission and publication mechanisms, not an invented universal import ontology.
 
@@ -525,6 +528,15 @@ collects one receiving Locus, while correction still locks complete route/curren
 source origin/balance/total is invented; receiving income cannot establish missing Bank support.
 Whole retained qualification, existing seed bytes/default path, old expenses/transfers and
 unchanged publication/receipt owner remain. No new store format or canonical adoption.
+The [explicit initial-quantity increment](VERIFICATION.md#explicit-synthetic-initial-quantities)
+adds optional setup on that SAME ignored native trial: all four existing currencies require
+explicit signed/zero/huge Wallet AND Bank quantities. Pure Workbench qualifies them before
+Recording can create a fresh store. Two independent empty-cut assertion groups retain initial
+support, not balancing Events or inferred zero origins; synthetic Food/pantry provisions remain
+explicit. The new narrow shape does not relax old-seed checks, change default bytes, fill old
+Bank UNKNOWN, edit support on open or overwrite existing targets. The existing text Store,
+publication/receipt gates, currency scales and renderers are unchanged. This is not the selected
+canonical S-expression codec/store or permission for real-data recording.
 The [closed synthetic backup/restore](VERIFICATION.md#synthetic-closed-backuprestore) adds an
 outer Backup owner consumed by BOTH existing native CLIs, before TTY acquisition. It uses
 Recording's dedicated namespace check and unchanged Store grammar, whole all-ancestor UI
