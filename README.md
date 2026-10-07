@@ -20,14 +20,16 @@ OCamlで作るパーソナル家計簿。日々の記帳と編集、口座・科
 
 - 独立した数量・取引検査と、根拠のある残高／不明の回答。
 - 限定された普通の記帳形式のS式読取と、新しい候補ファイルへの書出し。
-- 合成データを使った既存の記帳・再起動・訂正・科目追加の画面試作。
+- 新しい家計簿S式をNotty／Bonsai画面で読み、記帳・終了・再起動・編集・科目追加・予定の支払いを試せる。
+  編集前の内容は別バックアップに残し、正データの明細IDは保つ（まだ試用保存）。
 - `record` で単一通貨の支出・収入・振替を記録できる。
 - v3 Bookでは `exchange` で両替元と両替先の通貨・数量を明示した両替を記録でき、
   受け取った現地通貨は通常の `record --measure` で使える。
 - `record` の上書き経路はまだ実データの耐久保存として未確認。元データには使わない。
 
 現在の `bakhlo 1/2/3 ordinary-quantity` Bookは訂正関係を保持する既存形式で、
-支払い予定やLOAM全体を表せる形式ではない。新しい家計簿データ候補は別途試作中。
+支払い予定やLOAM全体を表せる形式ではない。新しい `bakhlo-daily` は別形式で、
+訂正済み明細・予定・独立した数量根拠を扱う。`record` / `exchange` CLIとは混用しない。
 形式を変える場合は明示的に変換し、古いファイルを残す。
 
 ## ビルドと試用
@@ -47,18 +49,40 @@ OCamlで作るパーソナル家計簿。日々の記帳と編集、口座・科
 カード利用を外貨で記録して後日JPY決済と対応づける機能はこのPRの範囲外。
 セットアップはリポジトリ内だけで行う。
 
+### 日々の画面を試す
+
+今ある隔離Notty／Bonsai環境を使う。`tools/tui` は依存を新規インストールしない。
+最初は合成データを新しい場所へコピーする（既存ファイルは置換しない）。
+
+```sh
+umask 077
+mkdir scratch/my-daily-trial
+./tools/tui --copy-from examples/daily-book.sexp --book scratch/my-daily-trial/book.sexp
+./tools/tui --book scratch/my-daily-trial/book.sexp
+# 同じ台帳をBonsaiで開く（Nottyを終了してから）
+./tools/tui bonsai --book scratch/my-daily-trial/book.sexp
+```
+
+`Tab`で項目、`←→`で通貨・科目、`Enter`で記帳。`Ctrl-E`で選択した明細の編集、
+`Ctrl-N`で新規、`Ctrl-P`で予定、予定を選んで`Enter`で支払い入力、`Ctrl-Q`で終了。
+両画面は同じ入力・台帳・保存処理を使う。起動時にファイルがなければ拒否し、空台帳へ置き換えない。
+[現在の対応範囲と保存の限界](tui/README.md)も参照。
+
 ## コードを見る場所
 
 - `lib/`：識別子・金額・取引の小さな型。
 - `application/`：検査と数量の問い合わせ。
-- `sexp/`：現在の限定されたS式形式の読取・候補作成。
+- `sexp/`：既存Bookと、新しい `Daily_book` の純粋な読取・更新。
+- `tui/`：新しい家計簿を使うNotty画面と、明示的なファイル入出力。
 - `cli/`、`presentation/`、`bin/`：引数・表示・入出力。
 - `loam_read/`：限定された読み取り専用LOAM入力。完全な移行アダプタではない。
 - `test/`：既存のOCamlテスト。
 
 ## 次の作業と参考
 
-まず[現在の引継ぎ](docs/HANDOFF.md)を見る。ほかは必要な箇所だけ読む。
+まず[現在の引継ぎ](docs/HANDOFF.md)を見る。
+[LOAMの機能棚卸し・乗り換え判定表](docs/CUTOVER_CHECKLIST.ja.md)で、
+現在の対応範囲と切替前に必要な生活操作を選ぶ。ほかは必要な箇所だけ読む。
 
 - [意味の契約](docs/SEMANTIC_CONTRACT.md)
 - [開発手順](docs/DEVELOPMENT.md)
