@@ -16,6 +16,7 @@
   bakhlo_cli
   base
   zarith
+  parsexp
   base_quickcheck)
  (inline_tests
   (flags -verbose))
