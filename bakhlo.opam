@@ -12,6 +12,7 @@ depends: [
   "dune" {>= "3.17" & < "4.0"}
   "base" {>= "v0.17" & < "v0.18"}
   "zarith" {>= "1.14" & < "2.0"}
+  "parsexp" {with-test & >= "v0.17" & < "v0.18"}
   "ppx_expect" {with-test & >= "v0.17" & < "v0.18"}
   "base_quickcheck" {with-test & >= "v0.17" & < "v0.18"}
 ]
