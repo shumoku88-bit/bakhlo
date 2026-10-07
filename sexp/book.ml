@@ -4,7 +4,7 @@ module A = Bakhlo_application
 module Q = A.Current_quantity_query
 module X = Sexp
 
-type family = Measures | Events | Event_corrections | Observations | Zero_origin
+type family = Measures | Events | Event_corrections | Observations | Zero_origin | Exchanges
 type supply = Provided | Empty | Not_supplied
 type measure = { id : D.Identifier.Measure.t; decimal_scale : Z.t }
 type entry = { event : D.Event.t; day : string option; description : string option }
@@ -18,6 +18,7 @@ type wire = {
   corrections : D.Event_correction.t list;
   observations : A.Current_quantity_groups.group list;
   zero_origins : D.Effect_coordinate.t list;
+  exchanges : A.Exchange_evidence.fact list;
 }
 
 type t = { bytes : string; wire : wire; image : Q.t }
@@ -36,7 +37,13 @@ let ( let* ) result f = Result.bind result ~f
 let fail at problem = Error (Wire { at; problem })
 let map_result values ~f = Result.all (List.map values ~f)
 let iter_result values ~f = List.fold_result values ~init:() ~f:(fun () value -> f value)
-let families = [ Measures; Events; Event_corrections; Observations; Zero_origin ]
+let legacy_families = [ Measures; Events; Event_corrections; Observations; Zero_origin ]
+let families = legacy_families @ [ Exchanges ]
+
+let families_for_version = function
+  | 1 | 2 -> legacy_families
+  | 3 -> families
+  | _ -> []
 
 let family_name = function
   | Measures -> "measures"
@@ -44,6 +51,7 @@ let family_name = function
   | Event_corrections -> "event-corrections"
   | Observations -> "observations"
   | Zero_origin -> "zero-origin"
+  | Exchanges -> "exchanges"
 
 let family_of_name name =
   List.find families ~f:(fun family -> String.equal name (family_name family))
@@ -164,6 +172,18 @@ let correction at values =
   let* replacement = identifier (at ^ ".replacement") D.Identifier.Event.of_string replacement in
   Ok { D.Event_correction.target; replacement }
 
+let exchange at values =
+  let* values = fields at [ "event"; "source"; "destination" ] values in
+  let* event = field_atom at "event" values in
+  let* event = identifier (at ^ ".event") D.Identifier.Event.of_string event in
+  let* source = field_atom at "source" values in
+  let* source = identifier (at ^ ".source") D.Identifier.Effect_key.of_string source in
+  let* destination = field_atom at "destination" values in
+  let* destination =
+    identifier (at ^ ".destination") D.Identifier.Effect_key.of_string destination
+  in
+  Ok ({ event; source; destination } : A.Exchange_evidence.fact)
+
 let observation at values =
   let* values = fields at [ "reflected-roots"; "assertion" ] values in
   let* reflected_roots = roots at values in
@@ -177,7 +197,7 @@ let observation at values =
   in
   Ok { A.Current_quantity_groups.reflected_roots; assertions }
 
-let declarations values =
+let declarations version values =
   let at = "collections" in
   let* values = fields at [ "provided"; "empty"; "not-supplied" ] values in
   let* groups =
@@ -187,19 +207,22 @@ let declarations values =
             let* name = atom at [ name ] in
             match family_of_name name with
             | None -> fail at (Printf.sprintf "unsupported collection %S" name)
-            | Some family -> Ok (family, state)))
+            | Some family
+              when List.mem (families_for_version version) family ~equal:Poly.equal ->
+                Ok (family, state)
+            | Some _ -> fail at (Printf.sprintf "collection %S requires a newer version" name)))
   in
   let supplied = List.concat groups in
-  map_result families ~f:(fun family ->
+  map_result (families_for_version version) ~f:(fun family ->
       match List.filter supplied ~f:(fun (other, _) -> Poly.equal other family) with
       | [ declaration ] -> Ok declaration
       | [] -> fail at ("missing collection " ^ family_name family)
       | _ :: _ :: _ -> fail at ("duplicate collection " ^ family_name family))
 
 let supply_wire wire family =
-  (* Every required family was explicitly checked by [declarations]. *)
   match List.find wire.declarations ~f:(fun (other, _) -> Poly.equal other family) with
   | Some (_, state) -> state
+  | None when wire.version < 3 && Poly.equal family Exchanges -> Not_supplied
   | None -> failwith "qualified collection declaration missing"
 
 let decode_locus_admission values =
@@ -222,8 +245,15 @@ let decode_locus_admission values =
   | _ -> fail at "expected exactly approved identities or not-supplied"
 
 let decode = function
-  | X.List [ X.Atom "bakhlo"; X.Atom version; X.Atom "ordinary-quantity" ] :: body
-    when String.equal version "1" || String.equal version "2" ->
+  | X.List [ X.Atom "bakhlo"; X.Atom version_text; X.Atom "ordinary-quantity" ] :: body
+    when String.equal version_text "1"
+         || String.equal version_text "2"
+         || String.equal version_text "3" ->
+      let version =
+        if String.equal version_text "1" then 1
+        else if String.equal version_text "2" then 2
+        else 3
+      in
       let* locus_admission =
         let policies =
           List.filter_map body ~f:(function
@@ -231,11 +261,11 @@ let decode = function
             | X.Atom _ | X.List _ -> None)
         in
         match (version, policies) with
-        | "1", [] -> Ok None
-        | "1", _ -> fail "book" "locus-admission requires version 2"
-        | "2", [ values ] -> decode_locus_admission values
-        | "2", [] -> fail "book" "missing locus-admission"
-        | "2", _ :: _ :: _ -> fail "book" "duplicate locus-admission"
+        | 1, [] -> Ok None
+        | 1, _ -> fail "book" "locus-admission requires version 2 or newer"
+        | (2 | 3), [ values ] -> decode_locus_admission values
+        | (2 | 3), [] -> fail "book" "missing locus-admission"
+        | (2 | 3), _ :: _ :: _ -> fail "book" "duplicate locus-admission"
         | _, _ -> fail "book" "unsupported version"
       in
       let* declarations =
@@ -244,13 +274,13 @@ let decode = function
             | X.List (X.Atom "collections" :: values) -> Some values
             | X.Atom _ | X.List _ -> None)
         with
-        | [ values ] -> declarations values
+        | [ values ] -> declarations version values
         | [] -> fail "book" "missing collections"
         | _ :: _ :: _ -> fail "book" "duplicate collections"
       in
       let initial =
         {
-          version = (if String.equal version "1" then 1 else 2);
+          version;
           locus_admission;
           declarations;
           measures = [];
@@ -258,6 +288,7 @@ let decode = function
           corrections = [];
           observations = [];
           zero_origins = [];
+          exchanges = wire.exchanges;
         }
       in
       let* wire =
@@ -284,6 +315,11 @@ let decode = function
                 let* values = fields at [ "locus"; "measure" ] values in
                 let* value = coordinate at values in
                 Ok { wire with zero_origins = value :: wire.zero_origins }
+            | X.List (X.Atom "exchange" :: values) when wire.version = 3 ->
+                let* value = exchange at values in
+                Ok { wire with exchanges = value :: wire.exchanges }
+            | X.List (X.Atom "exchange" :: _) ->
+                fail at "exchange requires version 3"
             | X.List (X.Atom name :: _) ->
                 fail at (Printf.sprintf "unsupported or malformed record %S" name)
             | X.Atom _ | X.List [] | X.List (X.List _ :: _) -> fail at "expected record")
@@ -296,9 +332,12 @@ let decode = function
           corrections = List.rev wire.corrections;
           observations = List.rev wire.observations;
           zero_origins = List.rev wire.zero_origins;
+          exchanges = List.rev wire.exchanges;
         }
   | [] -> fail "book" "missing header"
-  | _ :: _ -> fail "book" "expected (bakhlo 1 ordinary-quantity) or (bakhlo 2 ordinary-quantity)"
+  | _ :: _ ->
+      fail "book"
+        "expected (bakhlo 1 ordinary-quantity), (bakhlo 2 ordinary-quantity), or (bakhlo 3 ordinary-quantity)"
 
 let admit wire =
   let count = function
@@ -307,9 +346,10 @@ let admit wire =
     | Event_corrections -> List.length wire.corrections
     | Observations -> List.length wire.observations
     | Zero_origin -> List.length wire.zero_origins
+    | Exchanges -> List.length wire.exchanges
   in
   let* () =
-    iter_result families ~f:(fun family ->
+    iter_result (families_for_version wire.version) ~f:(fun family ->
         match (supply_wire wire family, count family) with
         | Provided, n when n > 0 -> Ok ()
         | (Empty | Not_supplied), 0 -> Ok ()
@@ -437,7 +477,8 @@ let print_wire wire =
   let collection_rows =
     List.map [ Provided; Empty; Not_supplied ] ~f:(fun state ->
         let names =
-          List.filter families ~f:(fun family -> Poly.equal (supply_wire wire family) state)
+          List.filter (families_for_version wire.version)
+            ~f:(fun family -> Poly.equal (supply_wire wire family) state)
           |> List.map ~f:family_name
         in
         "  (" ^ String.concat ~sep:" " (state_name state :: names) ^ ")")
@@ -466,6 +507,13 @@ let print_wire wire =
         in
         "(observation\n" ^ String.concat ~sep:"\n" (roots :: assertions) ^ ")")
   in
+  let exchanges =
+    List.map wire.exchanges ~f:(fun ({ event; source; destination } : A.Exchange_evidence.fact) ->
+        Printf.sprintf "(exchange (event %s) (source %s) (destination %s))"
+          (event_id event)
+          (quote (D.Identifier.Effect_key.to_string source))
+          (quote (D.Identifier.Effect_key.to_string destination)))
+  in
   let origins =
     List.map wire.zero_origins ~f:(fun coordinate ->
         "(zero-origin " ^ coordinate_text coordinate ^ ")")
@@ -486,7 +534,7 @@ let print_wire wire =
          ])
     @ measures
     @ List.map wire.events ~f:entry_text
-    @ corrections @ observations @ origins)
+    @ exchanges @ corrections @ observations @ origins)
   ^ "\n"
 
 let to_string book = print_wire book.wire
@@ -501,7 +549,7 @@ let candidate ~base wire =
 let admit_locus ~base ~locus =
   let* locus = identifier "locus-admission" D.Identifier.Locus.of_string locus in
   match (base.wire.version, base.wire.locus_admission) with
-  | 2, Some loci ->
+  | (2 | 3), Some loci ->
       if List.mem loci locus ~equal:D.Identifier.Locus.equal then
         fail "locus-admission" "Locus already approved"
       else candidate ~base { base.wire with locus_admission = Some (loci @ [ locus ]) }
@@ -534,7 +582,8 @@ let propose ~base target event =
     List.map base.wire.declarations ~f:(fun (family, state) ->
         match (family, target) with
         | Events, _ | Event_corrections, Some _ -> (family, Provided)
-        | (Measures | Observations | Zero_origin | Event_corrections), _ -> (family, state))
+        | (Measures | Observations | Zero_origin | Exchanges | Event_corrections), _ ->
+            (family, state))
   in
   let corrections =
     match target with
@@ -548,3 +597,36 @@ let propose ~base target event =
 
 let append ~base ~event = propose ~base None event
 let correct ~base ~target ~event = propose ~base (Some target) event
+
+let append_exchange ~base ~event ~source ~destination =
+  if base.wire.version <> 3 then fail "exchange" "explicit version 3 book required"
+  else
+    let* form =
+      Result.map_error (Parsexp.Single.parse_string event) ~f:(fun error -> Syntax error)
+    in
+    let* entry =
+      match form with
+      | X.List (X.Atom "event" :: X.Atom id :: values) -> entry "event" id values
+      | X.Atom _ | X.List _ -> fail "event" "expected one Event record"
+    in
+    let* () = admits_new_effects base (D.Event.effects entry.event) in
+    let* source = identifier "exchange.source" D.Identifier.Effect_key.of_string source in
+    let* destination =
+      identifier "exchange.destination" D.Identifier.Effect_key.of_string destination
+    in
+    let exchange : A.Exchange_evidence.fact =
+      { event = D.Event.id entry.event; source; destination }
+    in
+    let declarations =
+      List.map base.wire.declarations ~f:(fun (family, state) ->
+          match family with
+          | Events | Exchanges -> (family, Provided)
+          | Measures | Event_corrections | Observations | Zero_origin -> (family, state))
+    in
+    candidate ~base
+      {
+        base.wire with
+        declarations;
+        events = base.wire.events @ [ entry ];
+        exchanges = base.wire.exchanges @ [ exchange ];
+      }
