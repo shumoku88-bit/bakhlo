@@ -34,6 +34,7 @@
   ../examples/ordinary-sexp/with-loci.sexp
   ../examples/ordinary-sexp/purchase.sexp
   ../examples/ordinary-sexp/correction.sexp
+  ../examples/ordinary-sexp/travel.sexp
   ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp.cmi
   ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp__.cmi
   ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp__Book.cmi

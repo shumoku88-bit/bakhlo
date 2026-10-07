@@ -86,6 +86,8 @@ let () =
               inspect-current-fixture FILE LOCUS MEASURE\n\
               inspect-current-text [--summary | --explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]\n\
               inspect-current-sexp [--summary | --explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]\n\
+              record --book FILE [OPTIONS]\n\
+              exchange --book FILE --out NEW --date DATE --id ID --from LOCUS MEASURE QUANTA --to LOCUS MEASURE QUANTA\n\
               stage-current-sexp [--correct EVENT] BASE EVENT_FILE NEW_FILE\n\
               stage-current-sexp --canonicalize BASE NEW_FILE\n\
               inspect-loam-quantity [--summary | --explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]\n\
@@ -129,6 +131,15 @@ let () =
         | Help -> C.help
         | Refused message -> Bakhlo_cli.Current_sexp_command.syntax_refusal message
         | Record request -> C.evaluate request (read_text request.book_path))
+    | "exchange" :: arguments | "両替" :: arguments -> (
+        let module C = Bakhlo_cli.Exchange_command in
+        match C.plan arguments with
+        | Help -> C.help
+        | Refused message -> Bakhlo_cli.Current_sexp_command.syntax_refusal message
+        | Exchange request -> (
+            match C.evaluate request (read_text request.book_path) with
+            | Error response -> response
+            | Ok book -> stage_file request.output_path book))
     | "inspect-current-text" :: arguments -> (
         let module C = Bakhlo_cli.Current_text_command in
         match C.plan arguments with

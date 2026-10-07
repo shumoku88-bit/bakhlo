@@ -26,7 +26,7 @@ let help : Response.t =
     stdout =
       "Usage: bakhlo inspect-current-sexp [--summary | --explain] FILE LOCUS MEASURE [LOCUS \
        MEASURE ...]\n\
-       Development-only bakhlo 1/2 ordinary-quantity; whole supplied-book admission.\n\
+       Development-only bakhlo 1/2/3 ordinary-quantity; whole supplied-book admission.\n\
        Explicit Measure/scale, retained Actual/corrections, independent observations/zero origins.\n\
        Other fields/families refuse; not full household admission, authority or Saved.\n\
        Quantities are exact signed quanta, not inferred balances or currency conversion.\n\

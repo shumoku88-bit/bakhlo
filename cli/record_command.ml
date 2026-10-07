@@ -186,7 +186,7 @@ let evaluate request contents =
           in
           let desc_sexp =
             match request.description with
-            | None | Some "" -> "(description (absent))"
+            | None | Some "" -> "(description (not-supplied))"
             | Some text -> Printf.sprintf "(description (text %S))" text
           in
           let effects_sexp =
