@@ -11,8 +11,10 @@ User confirms S-expression syntax for versioned canonical evidence after the pla
 [minimal syntax comparison](../examples/syntax-bakeoff/README.md). Syntax selection is settled;
 exact schema/grammar, production parser dependency and physical store remain unadopted.
 The existing [isolated codec trial](../experiments/sexp-codec-trial/README.md) remains an experiment,
-not a production codec. This decision authorizes no new implementation, dependency or migration.
-Next: review the minimal S-expression schema and retained-family/interpretation/receipt scope.
+not a production codec. Syntax selection itself authorizes no dependency or migration.
+User now approves the readable/extensible schema and safe-interchange direction below.
+Next: review the minimal schema alongside explicit export/import profiles and refusal cases;
+production codec/store adoption and real-data operations remain separately gated.
 Unix is the near-term validation runtime; MirageOS support remains experimental, not an immediate blocker.
 All SQLite/Irmin/Mirage trials and counterexamples retained. No authority/data migration,
 global install, public service, source-side rename reversal, dependency change or push.
@@ -29,6 +31,32 @@ hypothesis to qualify, not automatic confidentiality or a reason to rewrite Core
 Daily-use recording/save/reopen/correction remains the later product path. Delegation is not
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
+
+## Current task — readable schema and safe data interchange
+
+User approves prioritizing long-term readability/maintenance/extension, hledger-compatible
+journal export and trustworthy imports. Question: how can outer interchange preserve declared
+meaning without becoming another authority or silently accepting lossy/ambiguous conversions?
+D: clean fbd6d84, synthetic S-expression candidates and isolated codec trial; P: S1–S10, earned
+currentness/date/quantity/proposal gates and documented journal losses; R: exact wire fields,
+export representability/escaping, source-specific import mappings and independent compatibility.
+Select a documentation-only profile/refusal review in existing architecture owners, not a new
+parser/import framework, fixture pipeline, dependency or private-data read. Keep named shallow
+records, explicit absence, versioned wire schema and deterministic readable formatting.
+[Architecture](ARCHITECTURE.md#safe-data-interchange) owns the contract: one-way current journal
+projection with explicit loss scope; retained-original staged imports, no guessed facts or
+content-only deduplication, whole-candidate admission and fresh publication gates.
+Assume explicit supplied mappings/interpretation; do not assume hledger availability, a bank
+format, external stable IDs or a complete household codec. Completed the scoped design contract
+and pending qualification cases; exact diff, new link targets/anchors and whitespace checks pass.
+Implementation/dependencies remain unchanged. [Verification](VERIFICATION.md#safe-data-interchange-design-review)
+owns limits; no executed hledger, import/export roundtrip, main-suite or production-safety result is inferred.
+Next bounded implementation proposal: a native pure ordinary-current journal projector with
+synthetic exact/refusal checks. Its hledger target version/escaping/account/commodity profile
+must be fixed and checked with an independent reader before compatibility is claimed. Imports
+start only with a named source format and explicit conversion rules; no universal importer or
+operational recording. Revisit before production codec/dependency adoption, private access,
+source-specific parser work, external publication or any migration/cutover.
 
 ## Completed bounded task — delimiter-free plain-text comparison ONLY
 

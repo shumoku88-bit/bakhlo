@@ -63,8 +63,11 @@ payload pipeline. Qualified hosts and per-increment limits are in [verification]
 
 Human-readable evidence and data sovereignty come before physical store adoption. Canonical
 S-expression syntax is selected; exact schema/codec/store remain unadopted and SQLite canonical
-adoption is paused. Unix is the near-term runtime, MirageOS an explicit future goal with
-experimental support only. Permanent UI,
+adoption is paused. Readability/maintenance/extension and [safe data interchange](docs/ARCHITECTURE.md#safe-data-interchange)
+are approved design goals: one-way hledger journal views with explicit loss scope, and staged
+imports with retained originals, explicit mappings and whole-candidate checks. These adapters
+are not implemented or compatibility-qualified. Unix is the near-term runtime, MirageOS an
+explicit future goal with experimental support only. Permanent UI,
 AI/voice/network adapters and operational publication remain separate work. Prior storage/runtime
 trials are comparison evidence, not dependencies or production defaults. Both ignored native TUIs
 now connect the existing Unix trial: synthetic record/select → exit → reopen → correction, retained

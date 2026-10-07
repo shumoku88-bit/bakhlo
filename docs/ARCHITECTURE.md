@@ -63,7 +63,7 @@ promise. Public specification/licensing/release remain separate decisions.
 
 | Axis / choice | Current role |
 | --- | --- |
-| Versioned canonical text | First representation/authority candidate to evaluate; grammar, identity, grouping and physical store NOT adopted |
+| Versioned canonical text | S-expression syntax selected; exact schema, identity/grouping and physical store NOT adopted |
 | SQLite as canonical authority | Main adapter/package adoption PAUSED; [native evidence](VERIFICATION.md#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification) and [Linux counterexamples](VERIFICATION.md#linux-sqlite-syscall-failures-and-retained-journal-lifecycle-control) retained as comparison assets |
 | SQLite as derived index/search | Optional only for a concrete consumer; rebuildable from qualified canonical evidence, never a second authority or automatic dependency |
 | Unix runtime | Near-term implementation/measurement baseline, not a choice of canonical storage format |
@@ -83,7 +83,8 @@ prerequisites for ordinary progress. Minimal composition is not a security/alway
 The [experimental text read](#experimental-versioned-text-read) now exercises a bounded
 synthetic profile, using independently supplied fixture inputs only as an oracle. Publication,
 scale/reuse and bounded I/O trials now supply comparison evidence, not an adopted layout.
-The current next step is the [canonical evidence review](#canonical-evidence--inherited-format-review),
+The current next step is readable versioned schema review with [safe interchange profiles](#safe-data-interchange),
+using the [canonical evidence review](#canonical-evidence--inherited-format-review) as preservation evidence,
 not more prototype store/UI qualification by default. [HANDOFF](HANDOFF.md) owns sequence.
 User approved a bounded private read-only LOAM comparison before publication work: establish the actual selected revision/input,
 then test one quantity/evidence question. Existing implementation/layout/answers are comparison
@@ -299,6 +300,95 @@ The [isolated codec trial](../experiments/sexp-codec-trial/README.md) is experim
 production Parser/DTO/writer, dependency adoption and migration need separately bounded decisions.
 No new storage framework, permanent legacy syntax matrix, event-sourcing command bus or
 every-generation full-world startup reconstruction.
+
+### Readability and extension rules
+
+User prioritizes owner readability and long-term maintenance/extension, not shortest spelling.
+Use the [minimal S-expression candidate](../examples/syntax-bakeoff/01-minimal.sexp) as review input,
+not an adopted schema:
+
+- Independent facts use shallow top-level records. Named fields expose meaningful roles; do not
+  add redundant wrappers, ambiguous positional shorthand, magic strings or record-specific mini-languages.
+- One readable deterministic layout owns indentation, field order and line breaking. Keep short
+  leaves compact and substantial records multiline; a semantic edit should produce a local diff.
+  Printer ordering is presentation, not chronology; meaningful Effect order/multiplicity survives.
+- Preserve explicit empty/not-supplied/unknown variants even when removing them would be shorter.
+  Essential text belongs in data fields, not solely comments. Lexical preservation is a separate need.
+- Extend through explicit versioned record/field definitions, not internal OCaml deriving or a
+  generic property bag. Missing/duplicate/unsupported known fields refuse; retained opaque evidence
+  is not admitted meaning. A new family must not acquire implicit empty state in older inputs.
+
+## Safe data interchange
+
+Approved design direction, NOT implemented export/import or proven hledger compatibility.
+S-expressions remain canonical evidence; adapters remain outer and format-specific. Share exact
+arithmetic, admission and publication mechanisms, not an invented universal import ontology.
+
+### hledger journal export profile
+
+The first bounded candidate is a **current ordinary single-Measure Movement projection**:
+
+- Resolve current Events and their occurrence dates using existing qualified relations over one
+  whole-admitted coherent source. Never choose by file order/latest date or include both superseded
+  and replacement Events as current activity. Sorting the output does not change source meaning.
+- Supply explicit Locus -> account and Measure -> commodity/decimal-scale mappings. Refuse unmapped
+  or colliding mappings; a target account label is not a new fundamental Core Account type.
+- Render every selected Effect occurrence as an explicit posting with exact signed decimal amount.
+  Preserve order/multiplicity, including net-zero pairs; use integer scaling, never floats, rounding,
+  inferred posting amounts, balancing/suspense postings or unsupported exchange/valuation guessing.
+- Missing occurrence date, unsupported selected Event shape or target-unrepresentable value/text
+  refuses the complete requested projection before successful output. Escaping/names/target syntax
+  require an explicit tested profile; do not silently truncate descriptions or normalize identities.
+- Declare source/interpretation/mapping scope and intentional evidence omissions with the result.
+  Superseded history, Effect keys, independent support/cuts, policy and publication receipts are not
+  promised by this plain posting view. Do not disguise observations as postings/balance assertions.
+  Exported activity totals are not automatically supported Bakhlo balances or spending permission.
+
+A journal is a disposable one-way view, not a second authority, full backup, migration or household
+roundtrip format. Complete restore needs a separately qualified canonical evidence/interpretation/
+receipt bundle; merely choosing S-expressions does not implement it. The custom `.journal` in
+[syntax bake-off](../examples/syntax-bakeoff/README.md) is NOT a hledger compatibility example.
+
+### Staged import profile
+
+Each supported source format/version has an explicit bounded decoder and conversion profile:
+
+1. Retain original supplied bytes and acquisition/source context before conversion. Ordinary checks
+   use synthetic inputs; private originals/copies/results remain under existing authorization and
+   ignored-scratch rules. Encoding, delimiters, dates, signs and decimal/Measure scale are explicit.
+2. Decode into unadmitted source records with locations and retained external identity/metadata.
+   Unsupported rows/fields, ambiguous dates, unmapped identities or unrepresentable quantities
+   refuse the declared complete import, not success with skipped rows. Diagnostic fragments may be
+   shown as unadmitted only. Exact known quantities do not establish origin/completeness/support.
+3. Build a reviewable candidate using supplied mappings and rules, retaining provenance for every
+   transformation. No default currency/date, guessed counterpart, invented observation/support or
+   inferred correction relation. Any later richer conversion needs its own explicit qualified rule.
+4. Distinguish stable external identity within its source namespace from coincident equal content.
+   Identical date/amount/text can be legitimate separate occurrences; do not deduplicate by hash or
+   content alone. Conflicting reuse of an external identity is a review/refusal, not automatic update.
+5. Preview the complete candidate, conversion scope, unsupported evidence and duplicate uncertainty.
+   Whole-admit before publication and freshly revalidate selected generation, mappings/interpretation,
+   identities and ownership at the shared publisher. Preview is not authority; no auto-record,
+   blind retry, implicit repair or operational cutover. Preserve honest uncertain write outcomes.
+
+An exported journal reimported as new facts does not reconstruct original IDs, cuts, corrections
+or receipts. Export provenance is not sufficient authority for automatic deduplication/replay.
+
+### Qualification boundaries
+
+Planned checks, not executed evidence:
+
+| Boundary | Required independent observation |
+| --- | --- |
+| hledger syntax | Declared target version actually reads emitted journal; Bakhlo reparse alone is insufficient |
+| Exact posting fidelity | Per-Event/per-Effect coordinate, signed quanta and multiplicity match independently supplied expectations, not only net totals |
+| Currentness/date | Replacement with an older date and separate occurrence revision select the qualified Event/date, never maximum date |
+| Representation refusal | Missing date/scale/mapping, collisions, unsupported Event/text and malformed input produce no successful partial export/import |
+| Retention versus projection | Same current journal with different history/cuts remains distinct canonical evidence; journal roundtrip is not book roundtrip |
+| Import identity/publication | Equal-content separate occurrences survive; conflicting external IDs and stale preview refuse without authorizing publication |
+
+[Verification](VERIFICATION.md#safe-data-interchange-design-review) owns actual checks/limits.
+Fix the export target/version and one named import source before implementing their adapters.
 
 ## Minimal Persistence contract
 

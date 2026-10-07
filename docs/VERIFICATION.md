@@ -8,6 +8,8 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Safe interchange design](#safe-data-interchange-design-review): readable schema rules and
+  export/import profile/refusal boundaries; documentation ONLY, no executed hledger compatibility.
 - [Plain-text candidate pairs](#delimiter-free-plain-text-candidate-pairs): same four synthetic
   evidence examples without structural delimiters; NO parser/writer/migration implementation.
 - [Synthetic S-expression candidates](#synthetic-s-expression-v1-candidates): four human-review
@@ -82,6 +84,20 @@ is a limitation/blocker, not silently replaced by compile success.
 Formal tools remain development-only. Ordinary build/test/release must be Lean-free.
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
+
+## Safe data interchange design review
+
+At clean fbd6d84 user approves readable/maintainable/extensible S-expression evidence, hledger
+journal export and trustworthy imports. [Handoff](HANDOFF.md#current-task--readable-schema-and-safe-data-interchange)
+records D/P/R and selected instruments; [Architecture](ARCHITECTURE.md#safe-data-interchange)
+owns requirements and planned qualification cases. Reuse existing currentness/date/exactness/
+support/publication evidence as constraints, not proof of an unwritten adapter.
+This increment changes existing documentation only. Exact diff review, new link targets/anchors
+and whitespace checks pass; code/interfaces/tests, main lock/dependencies and synthetic fixture
+bytes remain unchanged. No private input, sibling execution/source copy, dependency installation,
+hledger execution, import/export semantic roundtrip or main-suite rerun. Compatibility, escaping,
+source-specific mapping and actual failure behavior remain UNQUALIFIED until implemented and
+independently checked; a successful codec trial does not establish any of them.
 
 ## Canonical evidence / inherited-format review
 
