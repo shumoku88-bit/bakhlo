@@ -13,6 +13,26 @@ MirageOS support remains experimental, not an immediate blocker.
 All SQLite/Irmin/Mirage trials and counterexamples retained. No authority/data migration,
 global install, public service, source-side rename reversal, dependency change or push.
 
+## Current bounded task — minimal S-expression codec probe ONLY
+
+User agrees to test the machine-facing case now that direct hand-editing is no longer the primary
+selection criterion. Question: can the minimal multi-form S-expression candidate be parsed,
+structurally retained and deterministically re-emitted through a small outer OCaml boundary without
+changing Domain/Application meaning or creating a canonical store? D: main a85a7af, merged syntax
+bake-off/mixed-family synthetic fixtures, existing pure `bakhlo.text` outer adapter, existing
+`sexplib0 v0.17.0` in the exact main lock, and public Parsexp v0.17.0 metadata showing only
+OCaml >=5.1, sexplib0 v0.17 and Dune >=3.11 dependencies. P: syntax parsing is separate from
+schema/admission; missing/unknown evidence must never become empty; original text bytes are not
+promised to survive pretty-printing; comments are presentation unless separately retained. R:
+bounded syntax codec risk is one new direct `parsexp v0.17.0` dependency and one small outer
+module. Selected instrument: a syntax-level prototype only, using `Parsexp.Many` ->
+`Sexplib0.Sexp.t list`, explicit format-marker check, structural unknown-form retention and
+deterministic printer, plus focused synthetic round-trip/refusal tests. Do NOT decode full household
+schema, write files, migrate data, touch LOAM/private inputs, add storage/index/cache/CLI/UI, or
+declare canonical cutover. Main remains authority-free; merge would qualify only this syntax
+boundary and dependency, not a durable writer. Revisit before typed Wire DTO/admission, comment/CST
+retention, streaming/performance work, export/import adapters, or any operational persistence.
+
 ## Current product direction — small household questions, AI optional
 
 User delegates bounded development toward an ordinary, friendly household question machine,
