@@ -32,6 +32,7 @@ depends: [
   "ocaml-options-vanilla" {= "1"}
   "ocaml_intrinsics_kernel" {= "v0.17.2"}
   "ocamlfind" {= "1.9.8"}
+  "parsexp" {= "v0.17.0"}
   "ppx_assert" {= "v0.17.0" & with-test}
   "ppx_base" {= "v0.17.0" & with-test}
   "ppx_bench" {= "v0.17.1" & with-test}
