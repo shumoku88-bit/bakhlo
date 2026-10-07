@@ -8,6 +8,7 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 
 ## Find the relevant evidence
 
+- [Parsexp synthetic codec trial](#parsexp-synthetic-codec-trial-unqualified): test-only parser/decode/write/export/load-smoke experiment; execution still pending here, no canonical/storage adoption.
 - [Plain-text candidate pairs](#delimiter-free-plain-text-candidate-pairs): same four synthetic
   evidence examples without structural delimiters; NO parser/writer/migration implementation.
 - [Synthetic S-expression candidates](#synthetic-s-expression-v1-candidates): four human-review
@@ -51,6 +52,30 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 These are scoped observations at their recorded revisions/hosts, not a cumulative production
 certificate. Keep negative controls and counterexamples; do not erase history to shorten this
 file. [Handoff](HANDOFF.md#maintenance-revisit-decisions) owns when cleanup is worth revisiting.
+
+## Parsexp synthetic codec trial — unqualified
+
+At main a85a7af, user authorizes one bounded machine-handling experiment after the minimal
+S-expression survived the mixed Scheduled/Attention fixture. The branch adds Parsexp v0.17 only
+as a test dependency and leaves every product library dependency unchanged.
+
+The synthetic test module deliberately stops at a wire-envelope boundary. It parses multiple
+top-level S-expressions, requires exactly one format marker and one explicit collections declaration,
+preserves provided / empty / not-supplied as separate states, scans known forms for exact Zarith
+`quanta`, classifies known top-level tags, retains unknown top-level forms as untouched S-expression
+trees, prints a deterministic normal-AST representation, reparses it for structural equivalence,
+emits one tiny debug JSON summary, and performs a 10,000-generation parse+envelope-decode load smoke.
+
+This is NOT full Canonical V1 decoding, whole semantic admission, comment/layout round-trip,
+production writer qualification, Saved, durability, migration, private-data evidence, or a
+performance benchmark/SLO. Normal AST printing intentionally drops comments; necessary household
+meaning therefore cannot live only in comments. Parsexp's CST/position facilities are not adopted
+by this slice.
+
+Execution status in this commit: **not run in the assistant environment** because that environment
+has no OCaml/Dune/opam toolchain. Do not infer build/test success from code review. Run
+`./tools/bootstrap` if the test dependency is missing, then `./tools/check`; record the exact
+result before treating this trial as qualified evidence or considering parser adoption.
 
 ## Instrument review gate
 
