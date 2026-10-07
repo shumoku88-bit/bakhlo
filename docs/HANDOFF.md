@@ -16,9 +16,17 @@ The user approved trying a private Bakhlo-native data candidate from current LOA
 Keep the old LOAM originals and exact capture separately. This is NOT operational
 cutover or a claim of full-household migration. Missing evidence stays unknown.
 
+The first travel/multicurrency slice stays deliberately small: ordinary same-Measure
+recording remains the normal path; v3 Book adds only explicit two-Measure Exchange
+evidence using the already-qualified neutral Event/Effect/Measure core. The CLI records
+both exact sides of an exchange, then local-currency spending uses ordinary `record`.
+Reverse exchange is another explicit Event. No inferred rate, valuation, home currency,
+fee policy or delayed foreign-card-to-JPY settlement relation is introduced by this slice.
+
 ## Present state
 
 - Main OCaml engine, ordinary S-expression Book and read/staging CLI exist.
+  v3 Book additionally represents explicit selected-key exchange Events for travel/multicurrency use.
   Book does not yet represent payment plans or all LOAM evidence.
 - The user's working-tree `record` shortcut and Japanese interface explanations
   are recent additions. They are not evidence that real-data recording is safe.
