@@ -667,7 +667,7 @@ let self_check () =
   Unix.mkdir directory 0o700;
   let path = directory ^ "/book.sexp" in
   F.create_copy ~source:"examples/daily-book.sexp" ~target:path;
-  let s = initial (F.load path) in
+  let s = initial ~config_home:directory (F.load path) in
   require (quantity s "wallet" = "1000" && quantity s "bank" = "不明") "initial-quantity";
   let before = F.read path in
   let invalid = submit { s with form = { s.form with amount = "0" } } in
