@@ -6,6 +6,8 @@ Global help describes concrete operations, not an imaginary UI.
   inspect-current-fixture FILE LOCUS MEASURE
   inspect-current-text [--summary | --explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]
   inspect-current-sexp [--summary | --explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]
+  record --book FILE [OPTIONS]
+  exchange --book FILE --out NEW --date DATE --id ID --from LOCUS MEASURE QUANTA --to LOCUS MEASURE QUANTA
   stage-current-sexp [--correct EVENT] BASE EVENT_FILE NEW_FILE
   stage-current-sexp --canonicalize BASE NEW_FILE
   inspect-loam-quantity [--summary | --explain] FILE LOCUS MEASURE [LOCUS MEASURE ...]
