@@ -248,7 +248,7 @@ For independent syntax review, the [synthetic-only pasteable comparison](FORMAT_
 pairs S-expressions + minimal Parsexp with custom fact text under the SAME logical obligations.
 User now selects S-expression syntax; braces and both comparison grammars were illustrative.
 Package metadata is not measured runtime cost/portability or codec qualification; internal derived
-sexps are not the storage schema. Exact grammar/schema/library installation remain separate.
+sexps are not the storage schema. Exact grammar/schema/production library installation remain separate.
 
 ### Selected S-expression direction — long-term boundaries
 
@@ -286,17 +286,19 @@ Recommendation, not an implemented codec/store or cutover:
   Full-family/unknown/config gaps still block claiming lossless household migration. Measure load/
   rewrite/memory before adding indexes/shards; rebuildable caches never replace admission or facts.
 
-Before ANY implementation, user now requests only [four synthetic v1 candidates](../examples/sexp-v1-candidate/README.md)
+Before production codec implementation, user requested [four synthetic v1 candidates](../examples/sexp-v1-candidate/README.md)
 for reviewing retained evidence, ordering independence, precision/absence and the invalid flattened
 counterexample. These are hand-authored human-review inputs, not an adopted schema, decoder or
-executed admission/roundtrip test. Field spelling, collection declarations, full-family/receipt/
-interpretation scope need user review. Parser/DTO/writer/migration and dependency installation
-are explicitly deferred; no private capture/result is used in these fixtures. Later codec work
-needs a separately bounded decision. User subsequently finds the candidate S-expression surface
-heavy and requests [paired delimiter-free plain text](../examples/plain-v1-candidate/README.md).
-This reopens readability comparison only: identical synthetic facts/states/references, no schema/
-parser selection change implied, and no second maintained codec. No new storage framework,
-permanent legacy syntax matrix, event-sourcing command bus or every-generation full-world startup reconstruction.
+executed admission/roundtrip test. No private capture/result is used in these fixtures.
+User subsequently requested [paired delimiter-free plain text](../examples/plain-v1-candidate/README.md)
+and a [minimal syntax comparison](../examples/syntax-bakeoff/README.md) to review readability.
+After comparison, user confirms **S-expressions as the canonical evidence syntax**; plain text
+and journal remain comparison artifacts, not a second maintained codec. Field spelling,
+collection declarations, full-family/receipt/interpretation scope still need schema review.
+The [isolated codec trial](../experiments/sexp-codec-trial/README.md) is experimental evidence only;
+production Parser/DTO/writer, dependency adoption and migration need separately bounded decisions.
+No new storage framework, permanent legacy syntax matrix, event-sourcing command bus or
+every-generation full-world startup reconstruction.
 
 ## Minimal Persistence contract
 

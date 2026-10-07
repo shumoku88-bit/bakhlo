@@ -7,6 +7,10 @@ plus one bounded S-expression health check that adds Scheduled and Attention evi
 They are comparison artifacts only. No parser, writer, DTO, migration, dependency, storage path or
 canonical-format decision is introduced here. No real/private household data is used.
 
+**Decision after review:** the user selects S-expressions for canonical evidence. The journal
+remains comparison evidence, not a second maintained format. Exact schema and production
+codec/store adoption remain separate decisions; see [current direction](../../docs/HANDOFF.md#current-direction--data-sovereignty-canonical-s-expression-text-mirageos-goal).
+
 | Candidate | Intent |
 | --- | --- |
 | [01-minimal.sexp](01-minimal.sexp) | Keep S-expression structure, but remove avoidable family/wrapper nesting and allow independent top-level facts |
@@ -142,5 +146,7 @@ counterexample. In particular:
   rather than being forced into Event-shaped records?
 
 Do **not** choose based on imagined speed, binary size or migration cost here; none has been measured.
-The next step after human review should remain bounded. A parser proof-of-concept is only justified
-if the syntax comparison leaves a real question that static fixtures cannot answer.
+With S-expression syntax selected, the next review concerns its exact schema, retained-family
+coverage, interpretation and receipt scope, not choosing a second surface syntax. The existing
+[isolated codec trial](../../experiments/sexp-codec-trial/README.md) supplies bounded experimental
+evidence only; it does not authorize production codec/store adoption or migration.
