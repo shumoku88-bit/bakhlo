@@ -46,12 +46,27 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   No new dependency or production-store qualification is implied.
   New source files pass the pinned formatter; repository-wide formatting still
   reports pre-existing Book/CLI layout differences, left untouched.
-- Both daily screens now use terminal-default foreground/background: focus is
-  reverse + bold with a textual `>` marker; headings/status are bold without fixed
-  colors. No theme detection, RGB support or terminal preference changes are needed.
-  Style self-checks and synthetic basic-ANSI/light and 256-color/dark-profile PTYs
-  passed; emitted attributes contain no fixed colors and terminal state is restored.
-  The user confirmed that the visibility issue is fixed.
+- Both daily screens share Space -> Command Palette -> Theme and UI-only preferences
+  in `daily_interaction.ml` / `ui_preferences.ml`. Terminal remains the safe default:
+  no fixed foreground/background, reverse + bold focus and textual `>` markers.
+  Bakhlo Light/Dark share one semantic xterm-256 palette (indices 16..255, annotated
+  canonical RGB), not unconditional 24-bit SGR. Dark follows the earlier Bonsai
+  trial's blue selection/cyan heading/yellow status on charcoal; Light uses a white
+  background and dark text. Standard text/panel/selection contrast is checked at
+  4.5:1 or better, and both renderers test matching indexed emission with no truecolor.
+  Arrow live preview, Esc restore/return, Enter atomic UI-setting save and cold-start restore work.
+  ASCII Space and U+0020 are recognized in shared interaction; memo/new-Locus spaces
+  stay text. Modal keys/paste cannot reach the form. Theme notices are independent
+  of household warnings; blocked-write warnings remain visible below overlays.
+  Full checks, both self-checks (including actual centered/front overlay rendering),
+  and both real TTYs passed preview/cancel/save/restart with isolated UI settings.
+  The specified private trial's bytes/file list stayed unchanged; private screen
+  payloads were not logged. TTY tests alone do not certify native Terminal pixels
+  or subjective colors. After indexed output replaced the first draft's truecolor
+  incompatibility, the user visually accepted Terminal/Light/Dark in native macOS
+  Terminal. Later themes can extend the shared palette/selector; official
+  Bonsai_term theme import is not implemented. See `tui/README.md` for controls
+  and fallback limits.
 - Daily_book reads v1..v4. It writes `bakhlo-daily 4` when budget definitions are
   explicitly supplied, otherwise v3; Exchange and plan `cancelled-on` remain explicit.
   Reading does not rewrite an input; explicit copy/publication keeps prior bytes separately. Ordinary Book/CLI is unchanged.
@@ -133,7 +148,9 @@ Home small. Bonsai_term and Notty may implement these differently, but focus/pan
 state remains presentation-only and must not create household meaning or a second
 publication path.
 
-The user approved UI-independent functions first; elaborate TUI work is deferred.
+The user approved UI-independent household functions first; elaborate TUI work is deferred.
+The first small UI-only Command Palette/Theme slice is implemented; it is not permission
+for a generic command framework or new household publication paths.
 Plan updates, Daily Pace and the first explicit-period budget slice are implemented
 with synthetic checks. Next candidate is Attention's small pure data/API slice:
 explicit context, due/none/undetermined, dated resolve/drop and save/cold read.

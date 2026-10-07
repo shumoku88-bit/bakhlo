@@ -10,7 +10,7 @@ let fit width height view =
   let view = V.crop ~r:(max 0 (V.width view - width)) ~b:(max 0 (V.height view - height)) view in
   V.pad ~r:(max 0 (width - V.width view)) ~b:(max 0 (height - V.height view)) view
 
-let color (c : P.rgb) = B.Attr.Color.rgb ~r:c.r ~g:c.g ~b:c.b
+let color (c : P.color) = B.Attr.Color.xterm_256 c.index
 let fg c = B.Attr.fg (color c)
 let bg c = B.Attr.bg (color c)
 
@@ -27,8 +27,7 @@ let attributes theme style =
   | Some palette -> (
       match style with
       | C.Plain -> [ fg palette.foreground; bg palette.background ]
-      | C.Active ->
-          [ fg palette.selected_foreground; bg palette.selected_background; B.Attr.bold ]
+      | C.Active -> [ fg palette.selected_foreground; bg palette.selected_background; B.Attr.bold ]
       | C.Heading -> [ fg palette.heading; bg palette.background; B.Attr.bold ]
       | C.Status -> [ fg palette.status; bg palette.background; B.Attr.bold ]
       | C.Panel -> [ fg palette.panel_foreground; bg palette.panel_background ]
@@ -37,9 +36,7 @@ let attributes theme style =
           [ fg palette.selected_foreground; bg palette.selected_background; B.Attr.bold ])
 
 let lines theme rows =
-  rows
-  |> List.map (fun (style, text) -> V.text ~attrs:(attributes theme style) text)
-  |> V.vcat
+  rows |> List.map (fun (style, text) -> V.text ~attrs:(attributes theme style) text) |> V.vcat
 
 let backdrop theme view =
   match P.palette theme with
@@ -51,14 +48,14 @@ let backdrop theme view =
 let render ((width, height) as dimensions) state =
   let base =
     C.screen ~frontend:"Bonsai_term" dimensions state
-    |> lines state.C.theme |> fit width height |> backdrop state.theme
+    |> lines state.C.theme |> fit width height |> backdrop state.C.theme
   in
   match C.overlay_screen state with
   | None -> base
   | Some rows ->
-      let pane = lines state.theme rows in
+      let pane = lines state.C.theme rows in
       let pane =
-        match P.palette state.theme with
+        match P.palette state.C.theme with
         | None -> pane
         | Some palette ->
             V.with_colors ~fill_backdrop:true pane ~fg:(color palette.panel_foreground)
@@ -141,12 +138,72 @@ let self_check () =
   List.iter
     (fun theme ->
       List.iter
-        (fun dimensions ->
-          let view = render dimensions { state with theme } in
-          F.require
-            (V.width view = fst dimensions && V.height view = snd dimensions)
-            "Bonsai-geometry")
-        [ (100, 25); (64, 20); (40, 10) ])
+        (fun ((width, height) as dimensions) ->
+          List.iter
+            (fun overlay ->
+              let state = { state with C.theme; overlay } in
+              let view = render dimensions state in
+              F.require (V.width view = width && V.height view = height) "Bonsai-geometry";
+              let ansi = Buffer.create 1024 in
+              Notty.Render.to_buffer ansi Notty.Cap.ansi (0, 0) dimensions
+                (V.Private.notty_image view);
+              let emits substring = Base.String.is_substring (Buffer.contents ansi) ~substring in
+              F.require ((not (emits "38;2;")) && not (emits "48;2;")) "Bonsai-no-truecolor-SGR";
+              (match P.palette theme with
+              | None ->
+                  F.require ((not (emits "38;")) && not (emits "48;")) "Bonsai-no-fixed-colors"
+              | Some palette ->
+                  let foreground, background =
+                    if overlay = C.No_overlay then (palette.foreground, palette.background)
+                    else (palette.panel_foreground, palette.panel_background)
+                  in
+                  F.require
+                    (emits (Printf.sprintf "38;5;%d" foreground.index)
+                    && emits (Printf.sprintf "48;5;%d" background.index))
+                    "Bonsai-shared-indexed-palette");
+              match C.overlay_screen state with
+              | Some rows when width >= C.panel_width && height >= List.length rows ->
+                  let left = (width - C.panel_width) / 2
+                  and top = (height - List.length rows) / 2 in
+                  let buffer = Buffer.create 512 in
+                  let pane =
+                    Notty.I.crop ~l:left ~t:top
+                      ~r:(width - left - C.panel_width)
+                      ~b:(height - top - List.length rows)
+                      (V.Private.notty_image view)
+                  in
+                  Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0)
+                    (C.panel_width, List.length rows)
+                    pane;
+                  F.require
+                    (Buffer.contents buffer = String.concat "\n" (List.map snd rows))
+                    "Bonsai-overlay-front-and-centered"
+              | Some _ | None -> ())
+            [
+              C.No_overlay;
+              C.Commands 0;
+              C.Themes { selected = C.theme_index theme; original = theme };
+            ])
+        [ (100, 25); (64, 20); (40, 10); (20, 5) ])
+    P.all_themes;
+  List.iter
+    (fun theme ->
+      let view =
+        render (64, 20)
+          {
+            state with
+            C.theme;
+            overlay = C.Commands 0;
+            blocked = true;
+            message = "household-warning";
+          }
+      in
+      let buffer = Buffer.create 64 in
+      Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0) (64, 1)
+        (V.Private.notty_image (V.crop ~t:19 view));
+      F.require
+        (String.trim (Buffer.contents buffer) = "household-warning")
+        "Bonsai-overlay-household-warning-visible")
     P.all_themes;
   F.require (V.width (V.text "財布") = 4) "Bonsai-unicode-width";
   F.require
@@ -158,9 +215,20 @@ let self_check () =
     | None -> true
     | Some _ -> false)
     "Bonsai-event-adapter";
+  List.iter
+    (fun key ->
+      let event = B.Event.Key_press { key; mods = [] } in
+      F.require
+        (match C.handle { state with C.focus = C.Amount } (input_of_event event) with
+        | Some { C.overlay = C.Commands 0; _ } -> true
+        | Some _ | None -> false)
+        "Bonsai-space-event-to-shared-overlay")
+    [ B.Event.Key.ASCII ' '; B.Event.Key.Uchar (Uchar.of_int 0x20) ];
   let paste = input_of_event (B.Event.Paste `Start) in
   F.require (paste = `Paste `Start) "Bonsai-paste-adapter";
-  print_endline "PASS: Bonsai terminal/default custom themes, palette overlay and event adapter."
+  print_endline
+    "PASS: Bonsai indexed colors/no truecolor, centered/front overlays, ASCII/Unicode Space and \
+     event adapter."
 
 let () =
   try
@@ -178,8 +246,12 @@ let () =
           "Usage: tools/tui bonsai --book FILE | --check FILE | --copy-from SOURCE --book \
            FRESH_FILE";
         exit 2
-  with F.Refused _ | Unix.Unix_error _ | Sys_error _ ->
-    prerr_endline
-      "TUI refused: input/file/terminal unavailable; no empty fallback. Any attempted output \
-       artifacts retained.";
-    exit 1
+  with
+  | F.Refused why when Array.to_list Sys.argv = [ Sys.argv.(0); "--self-check" ] ->
+      prerr_endline ("self-check failed: " ^ why);
+      exit 1
+  | F.Refused _ | Unix.Unix_error _ | Sys_error _ ->
+      prerr_endline
+        "TUI refused: input/file/terminal unavailable; no empty fallback. Any attempted output \
+         artifacts retained.";
+      exit 1

@@ -42,25 +42,31 @@ BonsaiはコンパイラABIが異なるため、同じ現在のCore／台帳／�
 `Space`で中央のCommand Paletteを開き、`Theme`を選ぶ。テーマ一覧では
 `↑↓`（または`←→`）でその場でpreviewし、`Enter`で保存、`Esc`でpreview前へ戻る。
 Command Palette自体も`Esc`で閉じる。背面の記帳下書きは保持し、paneが開いている間は
-背面へキーを送らない。
+背面へキーを送らない（bracketed pasteも背面入力・command実行に使わない）。
+`Ctrl-Q`はpane内からも終了できる。家計の競合・書込結果不明の警告はpane中も最下行へ表示する。
 
 最初のテーマは三つ。
 
 - **Terminal**：固定色を使わず、端末の標準foreground/backgroundへ追従する。
   選択は反転＋太字、見出し・通知は太字。端末側のライト／ダーク変更にも自然に従う。
-- **Bakhlo Light**：明るい背景とteal/copper系accentを持つBakhlo独自palette。
-- **Bakhlo Dark**：暗い背景とteal/amber系accentを持つBakhlo独自palette。
+- **Bakhlo Light**：白系背景・濃い灰色の文字・青い選択欄。
+- **Bakhlo Dark**：暗い灰色背景。以前のBonsai試作の青い選択欄・シアンの見出し・黄色の通知を基準とする。
 
-独自テーマは24-bit RGBを使うが、家計の意味や保存形式には関与しない。色だけに頼らず
-選択箇所には`>`等の文字マーカーも残す。Notty／Bonsai_termは同じテーマ名・RGB定義・
-Command Palette状態を共有し、rendererだけが各ライブラリの属性へ変換する。
+独自テーマはmacOS Terminalでも扱えるxterm 256色の固定部分（index 16〜255）を使う。
+24-bit RGBを無条件には出さず、端末profileで変わりやすいANSI基本16色も使わない。
+`ui_preferences.ml`の一つのsemantic paletteにindexと標準RGB値を定義する。
+家計の意味や保存形式には関与しない。色だけに頼らず選択箇所には`>`等の文字マーカーも残す。
+Notty／Bonsai_termは同じテーマ・色定義・Command Palette状態を共有し、
+rendererだけが各ライブラリの属性へ変換する。
 
 選択したテーマは家計S式ではなくUI専用設定へ保存する。優先順は
 `BAKHLO_CONFIG_HOME/ui-theme`、`$XDG_CONFIG_HOME/bakhlo/ui-theme`、
 `$HOME/.config/bakhlo/ui-theme`。内容は`terminal`／`bakhlo-light`／
 `bakhlo-dark`の一行だけで、次回起動時に両TUIが読む。ファイルがない、壊れている、
-読めない場合は安全に**Terminal**へ戻る。保存できない場合でも、その起動中のpreview色だけは
-維持し、次回へ保存できなかったことを画面に表示する。
+読めない場合は安全に**Terminal**へ戻る。空の環境変数は未設定として次の保存先を選ぶ。
+読み取りは小さな通常ファイルに限定する。保存は同じディレクトリの専用temp fileへ書き、
+flush/fsync後にrenameする。保存できない場合でも、その起動中の色を維持し、次回へ保存できなかった
+ことをUI専用通知で表示する。家計の競合警告・下書き・書込停止状態は変更しない。
 
 ## 対応範囲
 
@@ -96,7 +102,8 @@ Command Palette状態を共有し、rendererだけが各ライブラリの属性
 今日使える額は **LOAM Home `d` のDaily Pace** を採用する。純粋な`Daily_book.daily_pace`は
 実装済みだが画面は未接続。対象口座・通貨・日付は明示入力で、予算用途別の日割りとは別回答。
 計算・画面案・受入条件は[切替チェックリスト](../docs/CUTOVER_CHECKLIST.ja.md)に集約する。
-現行画面はまだフォーム・残高・履歴を常設する行リストで、機能フォーカス／重ね表示は未実装。
+現行画面はまだフォーム・残高・履歴を常設する行リスト。Command Palette／Themeの中央overlayは
+実装済みだが、Home全体の機能フォーカスや他の機能paneは未実装。
 変更は共通操作・画面記述と両frontendの描画に限定し、表示のための新依存・保存経路は作らない。
 
 ## 保存の限界
@@ -126,8 +133,17 @@ Command Palette状態を共有し、rendererだけが各ライブラリの属性
 両UIのself-checkは合成データのみを新しいignoredディレクトリで使用する。数量の独立した期待値、
 記帳・再読込・編集、別バックアップ、予定の支払いとAPI経由の作成・変更・取消の保存読戻し、
 取消済みの表示／支払い拒否、予算作成・再配分の保存／cold read、未知残高、競合と古い下書き、
-Unicode幅と貼付制御、Terminal／Light／Darkの描画寸法、Space Palette、live preview、
-取消、UI設定の保存→再読込、明細／予定の選択マーカーを確認する。
+Unicode幅と貼付制御、Terminal／Light／Darkで通常画面・両overlayの描画寸法と中央最前面の実描画、
+ASCII／U+0020のSpace（メモ／新規科目名では文字）、live preview、取消と元テーマの復元、
+UI設定の保存→cold state、壊れた／読めない設定のfallback、保存失敗の独立性、
+家計bytes／publication artifacts不変、明細／予定の選択マーカーを確認する。
+独自paletteの本文・見出し・通知・pane・選択欄は標準RGB値で4.5:1以上のコントラストを確認し、
+両rendererのANSI出力が同じ256色indexを含み、24-bit SGRを含まないことも検査する。
 実PTYでもNotty記帳→Bonsai再起動・編集→Notty再読込、
 Bonsaiの予定支払い・日本語科目・外貨入力・貼付の非記帳と、端末状態の完全復元を確認済み。
-試験出力は合成データ専用のignoredディレクトリに保持し、私用コピーは試験で変更しない。
+Theme／Paletteも両画面の実TTYでpreview→cancel→save→終了→再起動とrenderer間の設定共有を
+確認済み。指定の私用コピーでもUI操作だけを行い、bytes／ファイル一覧不変を確認した。
+UI設定保存先は隔離し、私用画面のpayloadはログへ出さない。端末属性は終了後の通常入力も含めて復元する。
+tmuxのTTY検証は色code・操作・描画を確認するもので、macOS Terminalでの実pixelや人間の色味評価の代用ではない。
+256色版のTerminal／Light／Darkは、ユーザーがnative macOS Terminalの画像で見た目を確認・了承済み。
+試験出力はignoredディレクトリに置き、私用コピーは試験で変更しない。

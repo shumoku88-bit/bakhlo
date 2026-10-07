@@ -40,6 +40,10 @@ type focus = Date | Currency | Source | Destination | Amount | Memo | History
 type view = Entries | Plans
 type mode = New | Edit of B.entry | Pay of string
 type overlay = No_overlay | Commands of int | Themes of { selected : int; original : P.theme }
+type command = Theme
+
+let commands = [ Theme ]
+let command_label = function Theme -> "Theme"
 
 type form = {
   day : string;
@@ -65,6 +69,7 @@ type state = {
   theme : P.theme;
   overlay : overlay;
   config_home : string option;
+  ui_notice : string option;
 }
 
 let loci book = match B.approved_loci book with Some xs -> xs | None -> []
@@ -99,6 +104,7 @@ let initial ?config_home session =
     theme = P.load_theme ?config_home ();
     overlay = No_overlay;
     config_home;
+    ui_notice = None;
   }
 
 let visible text =
@@ -283,6 +289,8 @@ let finish s candidate =
   | F.Written session ->
       {
         (initial ?config_home:s.config_home session) with
+        theme = s.theme;
+        ui_notice = s.ui_notice;
         form = { s.form with amount = ""; memo = "" };
         message = "書込みを確認しました（試用）。修正前のコピーも保管しました。";
       }
@@ -366,7 +374,12 @@ let reload s =
     let session = F.load s.session.path in
     match s.pending with
     | Some bytes when session.bytes = bytes ->
-        { (initial ?config_home:s.config_home session) with message = "先ほどの記帳が現在のファイルにあります。再送しません。" }
+        {
+          (initial ?config_home:s.config_home session) with
+          theme = s.theme;
+          ui_notice = s.ui_notice;
+          message = "先ほどの記帳が現在のファイルにあります。再送しません。";
+        }
     | Some _ -> { s with session; message = "現在のファイルを読みました。先ほどの書込は未確認。Ctrl-Nで下書きを破棄するまで再送を止めます。" }
     | None -> (
         match s.mode with
@@ -387,8 +400,7 @@ let utf8 c =
   Uutf.Buffer.add_utf_8 b c;
   Buffer.contents b
 
-let theme_at n =
-  match List.nth_opt P.all_themes n with Some theme -> theme | None -> P.Terminal
+let theme_at n = match List.nth_opt P.all_themes n with Some theme -> theme | None -> P.Terminal
 
 let theme_index theme =
   let rec loop n = function
@@ -398,8 +410,7 @@ let theme_index theme =
   in
   loop 0 P.all_themes
 
-let cycle_index length current step =
-  if length = 0 then 0 else (current + step + length) mod length
+let cycle_index length current step = if length = 0 then 0 else (current + step + length) mod length
 
 let overlay_key s (button, mods) =
   match s.overlay with
@@ -408,15 +419,15 @@ let overlay_key s (button, mods) =
       match (button, mods) with
       | `Escape, [] -> Some { s with overlay = No_overlay }
       | `Arrow `Up, [] | `Arrow `Left, [] ->
-          Some { s with overlay = Commands (cycle_index 1 selected (-1)) }
+          Some { s with overlay = Commands (cycle_index (List.length commands) selected (-1)) }
       | `Arrow `Down, [] | `Arrow `Right, [] ->
-          Some { s with overlay = Commands (cycle_index 1 selected 1) }
-      | `Enter, [] ->
-          Some
-            {
-              s with
-              overlay = Themes { selected = theme_index s.theme; original = s.theme };
-            }
+          Some { s with overlay = Commands (cycle_index (List.length commands) selected 1) }
+      | `Enter, [] -> (
+          match List.nth_opt commands selected with
+          | Some Theme ->
+              Some
+                { s with overlay = Themes { selected = theme_index s.theme; original = s.theme } }
+          | None -> Some s)
       | _ -> Some s)
   | Themes { selected; original } -> (
       match (button, mods) with
@@ -436,44 +447,47 @@ let overlay_key s (button, mods) =
                   s with
                   theme;
                   overlay = No_overlay;
-                  message = "テーマを保存しました: " ^ P.theme_label theme;
+                  ui_notice = Some ("テーマを保存しました: " ^ P.theme_label theme);
                 }
             | Error _ ->
                 {
                   s with
                   theme;
                   overlay = No_overlay;
-                  message =
-                    "テーマはこの起動中だけ変更しました。次回用のUI設定は保存できませんでした。";
+                  ui_notice = Some "テーマはこの起動中だけ変更しました。次回用のUI設定は保存できませんでした。";
                 })
       | _ -> Some s)
+
+let is_space = function `ASCII ' ' -> true | `Uchar c -> Uchar.to_int c = 0x20 | _ -> false
+let accepts_free_text s = s.adding <> None || s.focus = Memo
 
 let key s (button, mods) =
   (* Notty decodes control bytes as upper-case ASCII; plain memo text is untouched. *)
   let button =
-    match (button, mods) with
-    | `ASCII c, [ `Ctrl ] -> `ASCII (Char.lowercase_ascii c)
-    | _ -> button
+    match (button, mods) with `ASCII c, [ `Ctrl ] -> `ASCII (Char.lowercase_ascii c) | _ -> button
   in
   match s.paste with
+  | Some _ when s.overlay <> No_overlay -> Some s
   | Some (text, invalid) -> (
       match (button, mods) with
       | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
           Some { s with paste = Some (text ^ String.make 1 c, invalid) }
       | `Uchar c, [] -> Some { s with paste = Some (text ^ utf8 c, invalid) }
       | _ -> Some { s with paste = Some (text, true) })
+  | None when button = `ASCII 'q' && mods = [ `Ctrl ] -> None
   | None -> (
-      match overlay_key s button mods with
+      match overlay_key s (button, mods) with
       | Some s -> Some s
       | None -> (
           match (button, mods) with
-          | `ASCII ' ', [] when s.adding = None && s.focus <> Memo ->
+          | button, [] when is_space button && not (accepts_free_text s) ->
               Some { s with overlay = Commands 0 }
-          | `ASCII 'q', [ `Ctrl ] -> None
           | `ASCII 'n', [ `Ctrl ] ->
               Some
                 {
                   (initial ?config_home:s.config_home s.session) with
+                  theme = s.theme;
+                  ui_notice = s.ui_notice;
                   message = "新しい下書き。過去の不確かな試行は再送・回復しません。";
                 }
           | `ASCII 'e', [ `Ctrl ] -> Some (if s.blocked then s else edit_selected s)
@@ -489,12 +503,7 @@ let key s (button, mods) =
           | `ASCII 'a', [ `Ctrl ] ->
               Some
                 (if s.blocked then s
-                 else
-                   {
-                     s with
-                     adding = Some "";
-                     message = "新しい科目名を入力しEnter（残高ゼロは作りません）。";
-                   })
+                 else { s with adding = Some ""; message = "新しい科目名を入力しEnter（残高ゼロは作りません）。" })
           | `ASCII 'u', [ `Ctrl ] -> Some (set_field s "")
           | `Escape, [] -> Some { s with adding = None }
           | `Tab, [] -> Some { s with focus = next s.focus }
@@ -517,6 +526,7 @@ let handle s (input : input) =
   match input with
   | `Key event -> key s event
   | `Paste `Start -> Some { s with paste = Some ("", false) }
+  | `Paste `End when s.overlay <> No_overlay -> Some { s with paste = None }
   | `Paste `End -> (
       match s.paste with
       | None -> Some s
@@ -598,16 +608,23 @@ let overlay_screen s =
   match s.overlay with
   | No_overlay -> None
   | Commands selected ->
+      let rows =
+        List.mapi
+          (fun n command ->
+            panel_line
+              (if n = selected then Panel_active else Panel)
+              ((if n = selected then "> " else "  ") ^ command_label command))
+          commands
+      in
       Some
-        [
-          panel_border "Command Palette";
-          panel_line (if selected = 0 then Panel_active else Panel) "> Theme";
-          panel_line Panel "";
-          panel_line Panel "Up/Down  select";
-          panel_line Panel "Enter    open";
-          panel_line Panel "Esc      close";
-          panel_bottom;
-        ]
+        ((panel_border "Command Palette" :: rows)
+        @ [
+            panel_line Panel "";
+            panel_line Panel "Up/Down  select";
+            panel_line Panel "Enter    open";
+            panel_line Panel "Esc      close";
+            panel_bottom;
+          ])
   | Themes { selected; _ } ->
       let rows =
         P.all_themes
@@ -617,8 +634,7 @@ let overlay_screen s =
               ((if n = selected then "> " else "  ") ^ P.theme_label theme))
       in
       Some
-        (panel_border "Theme"
-        :: rows
+        ((panel_border "Theme" :: rows)
         @ [
             panel_line Panel "";
             panel_line Panel "Up/Down  preview";
@@ -645,32 +661,42 @@ let screen ~frontend (width, height) s =
           let active = s.focus = History && s.selected = n in
           ((if active then Active else Plain), visible ((if active then "> " else "  ") ^ text)))
     in
-    [
-      (Heading, "Bakhlo / " ^ frontend ^ " — S式の家計簿（試用）");
-      plain "Tab:項目  ←→:通貨/科目  Enter:記帳  Ctrl-N:新規  Ctrl-E:編集  Space:コマンド";
-      plain "Ctrl-P:予定/明細  予定でEnter:支払い入力  Ctrl-A:科目追加  Ctrl-R:再読込  Ctrl-Q:終了";
-      plain
-        (match s.mode with
-        | New -> "新規記帳"
-        | Edit _ -> "訂正済み明細を編集（旧版は別バックアップ）"
-        | Pay _ -> "予定の支払いを記帳");
-      field Date "日付" s.form.day;
-      field Currency "通貨" s.form.measure;
-      field Source "出金元" (B.label s.session.book s.form.from_locus);
-      field Destination "入金先・科目" (B.label s.session.book s.form.to_locus);
-      field Amount "金額" s.form.amount;
-      field Memo "メモ" s.form.memo;
-      plain (match s.adding with None -> "" | Some name -> "追加する科目: " ^ name);
-      (Status, visible s.message);
-      plain
-        ("出金元: " ^ quantity s s.form.from_locus ^ " / 入金先: " ^ quantity s s.form.to_locus ^ " "
-       ^ s.form.measure);
-      plain
-        (match s.view with
-        | Entries -> "明細（↑↓で選択、Ctrl-Eで編集）"
-        | Plans -> "明示された予定（↑↓、Enterで支払い入力。記録がない日は義務なしとは限りません）");
-    ]
-    @ if rows = [] then [ plain "記録なし" ] else rows
+    let content =
+      [
+        (Heading, "Bakhlo / " ^ frontend ^ " — S式の家計簿（試用）");
+        plain "Tab:項目  ←→:通貨/科目  Enter:記帳  Ctrl-N:新規  Ctrl-E:編集  Space:コマンド";
+        plain "Ctrl-P:予定/明細  予定でEnter:支払い入力  Ctrl-A:科目追加  Ctrl-R:再読込  Ctrl-Q:終了";
+        plain
+          (match s.mode with
+          | New -> "新規記帳"
+          | Edit _ -> "訂正済み明細を編集（旧版は別バックアップ）"
+          | Pay _ -> "予定の支払いを記帳");
+        field Date "日付" s.form.day;
+        field Currency "通貨" s.form.measure;
+        field Source "出金元" (B.label s.session.book s.form.from_locus);
+        field Destination "入金先・科目" (B.label s.session.book s.form.to_locus);
+        field Amount "金額" s.form.amount;
+        field Memo "メモ" s.form.memo;
+        (match s.adding with
+        | Some name -> plain ("追加する科目: " ^ name)
+        | None -> (Status, visible (Option.value ~default:"" s.ui_notice)));
+        (Status, visible s.message);
+        plain
+          ("出金元: " ^ quantity s s.form.from_locus ^ " / 入金先: " ^ quantity s s.form.to_locus ^ " "
+         ^ s.form.measure);
+        plain
+          (match s.view with
+          | Entries -> "明細（↑↓で選択、Ctrl-Eで編集）"
+          | Plans -> "明示された予定（↑↓、Enterで支払い入力。記録がない日は義務なしとは限りません）");
+      ]
+      @ if rows = [] then [ plain "記録なし" ] else rows
+    in
+    if s.blocked && s.overlay <> No_overlay then
+      (* A centered pane must not conceal household conflict/uncertain-write warnings. *)
+      content
+      @ List.init (max 0 (height - List.length content - 1)) (fun _ -> plain "")
+      @ [ (Status, visible s.message) ]
+    else content
 
 let self_check () =
   let require p why = F.require p why in
@@ -687,7 +713,7 @@ let self_check () =
     submit { s with form = { s.form with day = "2026-10-03"; amount = "100"; memo = "架空の記帳" } }
   in
   require (quantity s "wallet" = "900" && List.length (B.entries s.session.book) = 1) "append";
-  let reopened = initial (F.load path) in
+  let reopened = initial ~config_home:directory (F.load path) in
   let s = edit_selected reopened in
   let s =
     submit { s with form = { s.form with day = "2026-09-01"; amount = "150"; memo = "架空の編集" } }
@@ -716,7 +742,7 @@ let self_check () =
   require
     (quantity s "日用品" = "不明" && List.length (B.entries s.session.book) = 2)
     "category-invented-zero";
-  let stale = initial (F.load path) in
+  let stale = initial ~config_home:directory (F.load path) in
   let latest = submit { stale with form = { stale.form with amount = "1"; memo = "架空の別更新" } } in
   let conflict = submit { stale with form = { stale.form with amount = "2"; memo = "架空の競合" } } in
   require
@@ -724,7 +750,11 @@ let self_check () =
     "conflict";
   let editing = edit_selected latest in
   let next_write =
-    submit { (initial (F.load path)) with form = { stale.form with amount = "1" } }
+    submit
+      {
+        (initial ~config_home:directory (F.load path)) with
+        form = { stale.form with amount = "1" };
+      }
   in
   let refreshed = reload editing in
   require
@@ -757,7 +787,7 @@ let self_check () =
     [ Entries; Plans ];
   let plan_path = directory ^ "/plans.sexp" in
   F.create_copy ~source:"examples/daily-book.sexp" ~target:plan_path;
-  let plan_state = initial (F.load plan_path) in
+  let plan_state = initial ~config_home:directory (F.load plan_path) in
   let extra : B.plan =
     {
       id = "extra";
@@ -836,36 +866,199 @@ let self_check () =
     | None -> false
     | Some s -> s.form.amount = "" && s.focus = Amount)
     "provider-control-new";
-  let themed = initial ~config_home:directory (F.load path) in
-  let commands =
-    match key themed (`ASCII ' ', []) with Some next -> next | None -> themed
+  (* UI contrast only; never a household quantity or accounting calculation. *)
+  let luminance (color : P.color) =
+    let linear channel =
+      let value = float_of_int channel /. 255. in
+      if value <= 0.04045 then value /. 12.92 else ((value +. 0.055) /. 1.055) ** 2.4
+    in
+    (0.2126 *. linear color.r) +. (0.7152 *. linear color.g) +. (0.0722 *. linear color.b)
   in
+  List.iter
+    (fun theme ->
+      match P.palette theme with
+      | None -> ()
+      | Some palette ->
+          List.iter
+            (fun (foreground, background) ->
+              let first = luminance foreground and second = luminance background in
+              require
+                ((max first second +. 0.05) /. (min first second +. 0.05) >= 4.5)
+                "theme-text-contrast")
+            [
+              (palette.foreground, palette.background);
+              (palette.heading, palette.background);
+              (palette.status, palette.background);
+              (palette.panel_foreground, palette.panel_background);
+              (palette.accent, palette.panel_background);
+              (palette.selected_foreground, palette.selected_background);
+            ])
+    P.all_themes;
+  let homes bakhlo xdg home = P.home_from_environment ~bakhlo ~xdg ~home in
   require
-    (match commands.overlay with Commands 0 -> true | No_overlay | Commands _ | Themes _ -> false)
-    "command-palette-space";
-  let themes = match key commands (`Enter, []) with Some next -> next | None -> commands in
-  let light = match key themes (`Arrow `Down, []) with Some next -> next | None -> themes in
-  require (light.theme = P.Bakhlo_light) "theme-live-preview";
-  let cancelled = match key light (`Escape, []) with Some next -> next | None -> light in
-  require (cancelled.theme = P.Terminal) "theme-preview-cancel";
-  let themes =
-    match key cancelled (`Enter, []) with Some next -> next | None -> cancelled
-  in
-  let dark =
-    match key themes (`Arrow `Up, []) with Some next -> next | None -> themes
-  in
-  let saved = match key dark (`Enter, []) with Some next -> next | None -> dark in
+    (homes (Some "bakhlo-config") (Some "xdg-config") (Some "home") = Some "bakhlo-config")
+    "ui-config-bakhlo-priority";
   require
-    (saved.theme = P.Bakhlo_dark
-    && P.load_theme ~config_home:directory () = P.Bakhlo_dark)
+    (P.path ~config_home:directory () = Some (directory ^ "/ui-theme"))
+    "ui-config-explicit-priority";
+  List.iter
+    (fun missing ->
+      require
+        (homes missing (Some "xdg-config") (Some "home") = Some "xdg-config/bakhlo")
+        "ui-config-xdg-fallback";
+      require
+        (homes missing missing (Some "home") = Some "home/.config/bakhlo")
+        "ui-config-home-fallback";
+      require (homes missing missing missing = None) "ui-config-no-home")
+    [ None; Some "" ];
+  require
+    (P.load_theme ~config_home:"" () = P.Terminal
+    && P.save_theme ~config_home:"" P.Bakhlo_dark = Error "ui-config-home-unavailable")
+    "ui-config-unavailable-fallback";
+  let ui_home = directory ^ "/ui" in
+  let themed = initial ~config_home:ui_home (F.load path) in
+  let theme_book_bytes = F.read path and book_files = Sys.readdir directory in
+  let step state input =
+    match handle state input with Some next -> next | None -> raise (F.Refused "ui-event-exited")
+  in
+  let press state button = step state (`Key (button, [])) in
+  let require_draft next why =
+    require
+      (next.session == themed.session && next.form = themed.form && next.focus = themed.focus
+     && next.view = themed.view && next.selected = themed.selected && next.mode = themed.mode
+     && next.blocked = themed.blocked && next.pending = themed.pending
+     && next.adding = themed.adding && next.message = themed.message)
+      why
+  in
+  List.iter
+    (fun space ->
+      List.iter
+        (fun focus ->
+          let opened = press { themed with focus } space in
+          require (opened.overlay = Commands 0) "command-palette-space";
+          let closed = press opened `Escape in
+          require (closed.overlay = No_overlay && closed.focus = focus) "command-close-focus")
+        [ Date; Currency; Source; Destination; Amount; History ];
+      let memo = { themed with focus = Memo; form = { themed.form with memo = "a" } } in
+      let memo = press memo space in
+      require (memo.form.memo = "a " && memo.overlay = No_overlay) "memo-space-is-text";
+      let adding = press { themed with adding = Some "new" } space in
+      require (adding.adding = Some "new " && adding.overlay = No_overlay) "locus-space-is-text")
+    [ `ASCII ' '; `Uchar (Uchar.of_int 0x20) ];
+  let commands = press themed (`ASCII ' ') in
+  let swallowed =
+    List.fold_left step commands
+      [
+        `Key (`ASCII 'x', []);
+        `Key (`Tab, []);
+        `Key (`ASCII 'N', [ `Ctrl ]);
+        `Key (`ASCII 'A', [ `Ctrl ]);
+        `Paste `Start;
+        `Key (`ASCII ' ', []);
+        `Key (`Enter, []);
+        `Key (`Arrow `Down, []);
+        `Paste `End;
+      ]
+  in
+  require_draft swallowed "overlay-keys-and-paste-leaked";
+  require
+    (swallowed.overlay = commands.overlay
+    && swallowed.paste = None && swallowed.theme = commands.theme
+    && swallowed.message = commands.message)
+    "overlay-paste-invoked-command";
+  let themes = press commands `Enter in
+  require (themes.overlay = Themes { selected = 0; original = P.Terminal }) "theme-selector-open";
+  let light = press themes (`Arrow `Down) in
+  require
+    (light.theme = P.Bakhlo_light && P.load_theme ~config_home:ui_home () = P.Terminal)
+    "theme-live-preview-not-saved";
+  let cancelled = press light `Escape in
+  require (cancelled.theme = P.Terminal && cancelled.overlay = Commands 0) "theme-preview-cancel";
+  let themes = press cancelled `Enter in
+  let dark = press (press themes (`Arrow `Down)) (`Arrow `Down) in
+  let saved = press dark `Enter in
+  require
+    (saved.theme = P.Bakhlo_dark && saved.overlay = No_overlay
+    && (initial ~config_home:ui_home (F.load path)).theme = P.Bakhlo_dark
+    && F.read (ui_home ^ "/ui-theme") = "bakhlo-dark\n")
     "theme-save-cold-read";
-  let memo = { themed with focus = Memo; form = { themed.form with memo = "a" } } in
-  let memo = match key memo (`ASCII ' ', []) with Some next -> next | None -> memo in
+  require ((Unix.stat (ui_home ^ "/ui-theme")).st_perm = 0o600) "ui-theme-permissions";
+  let light = press (press (press saved (`ASCII ' ')) `Enter) (`Arrow `Up) in
+  require (light.theme = P.Bakhlo_light) "theme-reopen-selected-saved";
+  let restored = press light `Escape in
   require
-    (memo.form.memo = "a "
-    && (match memo.overlay with No_overlay -> true | Commands _ | Themes _ -> false))
-    "memo-space-is-text";
+    (restored.theme = P.Bakhlo_dark && restored.overlay = Commands 0)
+    "theme-cancel-nonterminal";
+  List.iter
+    (fun next -> require_draft next "theme-changed-household-state")
+    [ commands; themes; light; cancelled; dark; saved; restored ];
+  require
+    (F.read path = theme_book_bytes
+    && Sys.readdir directory |> Array.to_list
+       |> List.filter (( <> ) "ui")
+       |> List.sort String.compare
+       = (Array.to_list book_files |> List.sort String.compare))
+    "theme-published-household-bytes-or-artifacts";
+  let invalid_home = directory ^ "/invalid-ui" in
+  Unix.mkdir invalid_home 0o700;
+  let invalid_path = invalid_home ^ "/ui-theme" in
+  List.iter
+    (fun bytes ->
+      F.write_new invalid_path bytes;
+      require (P.load_theme ~config_home:invalid_home () = P.Terminal) "invalid-theme-fallback";
+      Unix.unlink invalid_path)
+    [ ""; "unknown\n"; "bakhlo-dark\njunk\n"; String.make 1000 'x' ];
+  Unix.mkdir invalid_path 0o700;
+  require (P.load_theme ~config_home:invalid_home () = P.Terminal) "unreadable-theme-fallback";
+  require
+    (P.save_theme ~config_home:invalid_home P.Bakhlo_dark = Error "ui-theme-save-failed"
+    && Sys.is_directory invalid_path
+    && Array.to_list (Sys.readdir invalid_home) = [ "ui-theme" ])
+    "failed-atomic-save-changed-target-or-left-temp";
+  Unix.rmdir invalid_path;
+  Unix.mkfifo invalid_path 0o600;
+  require (P.load_theme ~config_home:invalid_home () = P.Terminal) "nonregular-theme-fallback";
+  Unix.unlink invalid_path;
+  List.iter
+    (fun theme ->
+      require (P.save_theme ~config_home:invalid_home theme = Ok ()) "atomic-theme-save";
+      require
+        (P.load_theme ~config_home:invalid_home () = theme
+        && F.read invalid_path = P.theme_id theme ^ "\n"
+        && Array.to_list (Sys.readdir invalid_home) = [ "ui-theme" ])
+        "atomic-theme-replace-cold-read")
+    P.all_themes;
+  (* A regular file cannot be a config directory: deterministic even when run as root. *)
+  let failed = { themed with config_home = Some path } in
+  let failed = press (press (press (press failed (`ASCII ' ')) `Enter) (`Arrow `Up)) `Enter in
+  require
+    (failed.theme = P.Bakhlo_dark && failed.overlay = No_overlay && failed.ui_notice <> None
+   && (not failed.blocked) && failed.pending = None
+    && P.load_theme ~config_home:path () = P.Terminal
+    && F.read path = theme_book_bytes)
+    "ui-save-failure-is-not-household-failure";
+  require_draft failed "ui-save-failure-lost-draft";
+  let blocked =
+    { themed with blocked = true; pending = Some "uncertain"; message = "household-conflict" }
+  in
+  let blocked = press (press (press blocked (`ASCII ' ')) `Enter) `Enter in
+  require
+    (blocked.blocked
+    && blocked.pending = Some "uncertain"
+    && blocked.message = "household-conflict"
+    && blocked.ui_notice <> None)
+    "theme-save-hid-household-warning";
+  let blocked = press blocked (`ASCII ' ') in
+  let rows = screen ~frontend:"check" (64, 20) blocked in
+  require
+    (List.length rows = 20 && List.nth rows 19 = (Status, "household-conflict"))
+    "overlay-concealed-household-warning";
+  let reset = step failed (`Key (`ASCII 'N', [ `Ctrl ])) in
+  require (reset.theme = P.Bakhlo_dark) "unsaved-session-theme-lost-on-new";
+  require (handle commands (`Key (`ASCII 'Q', [ `Ctrl ])) = None) "overlay-quit";
+  (* Return a deterministic renderer fixture, independent of the user's UI preference. *)
   print_endline
     "PASS: synthetic shared record/reopen/edit, backups, plan lifecycle/payment, budget \
-     publication, unknown, conflict/stale draft, focus markers, theme palette and paste controls.";
-  s
+     publication, unknown, conflict/stale draft, focus markers, ASCII/Unicode Space, theme \
+     preview/cancel/save/fallback, palette contrast, UI-only failure and modal paste.";
+  { s with theme = P.Terminal; overlay = No_overlay }
