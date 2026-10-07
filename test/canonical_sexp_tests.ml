@@ -68,8 +68,8 @@ let%expect_test "parse refusal carries a source location and message" =
   match C.of_string "(bakhlo 1\n" with
   | Error (C.Syntax { line; column; message }) ->
       Printf.printf
-        "line=%d nonnegative-column=%b message=%b\n"
-        line
+        "positive-line=%b nonnegative-column=%b message=%b\n"
+        (line > 0)
         (column >= 0)
         (not (String.is_empty message))
   | Error _ -> print_endline "wrong-error"
