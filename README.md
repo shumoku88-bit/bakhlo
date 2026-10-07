@@ -72,8 +72,11 @@ payload pipeline. Qualified hosts and per-increment limits are in [verification]
 Human-readable evidence and data sovereignty come before physical store adoption. Canonical
 S-expression syntax is selected; the bounded development book above is implemented with
 Parsexp v0.17.0. Whole-household schema and physical store remain unadopted; SQLite canonical
-adoption is paused. User prioritizes an ordinary record/reopen/correct/backup loop, not full
-LOAM parity. Readability/maintenance/extension remain requirements; [safe data interchange](docs/ARCHITECTURE.md#safe-data-interchange)
+adoption is paused. User requires the household functions already used in LOAM: ordinary
+recording/correction, account/category addition, plans, budgets and reports. The simple UI loop
+is the first connection, not a decision to omit those functions. Small code means thin owners
+and fewer frameworks, not a smaller household feature set or reproducing every LOAM research
+implementation. Readability/maintenance/extension remain requirements; [safe data interchange](docs/ARCHITECTURE.md#safe-data-interchange)
 is deferred behind daily use. Its adapters are not implemented or compatibility-qualified.
 Unix is the near-term runtime, MirageOS an explicit future goal with experimental support only.
 Permanent UI,

@@ -78,8 +78,19 @@ Try NOW from the repository root: `./scratch/tui_comparison_review/try-ui notty 
 "$PWD/scratch/tui_comparison_review/sexp-v10/stores/simple-demo"` (one shell line). That fresh demo has
 JPY Wallet 1000/Bank 0 and explicit other zeros, no Events. Enter 100, Tab, a synthetic memo, Enter;
 Ctrl-Q → same command → Ctrl-E, Ctrl-U, 150, Tab, Ctrl-U, new memo, Enter → Ctrl-P original history.
-[Short ignored README](../scratch/tui_comparison_review/README.md) owns complete commands. Next is
-human feedback on this simple loop, NOT another backup/publisher prerequisite or full LOAM rebuild.
+[Short ignored README](../scratch/tui_comparison_review/README.md) owns complete commands. User has
+manually viewed the loop and likes it. Required product scope is the CURRENT useful LOAM household
+functions: ordinary recording/correction, account/category addition (科目), plans, budgets and
+reports; none are optional simplifications. Small means thin readable code/fewer frameworks, not
+removing necessary features. No additional product features or all-research/internal-code parity.
+Proposed next observable slice: add a synthetic 科目 → select it for ordinary recording → S-expression
+write → cold reopen → correction, instead of fixed Wallet→Food. Before implementation, narrowly
+resolve LOAM's 科目 vocabulary/write-admission/routing/display owners; do NOT assume a display label,
+Locus, Purpose or AccountingRole are interchangeable. Preserve historical IDs/support/corrections;
+adding vocabulary alone establishes neither zero balance nor historical completeness. Reuse the
+existing form/Book/publisher, no new UI/backend. Plans/budgets/reports remain required subsequent
+connections, not deferred out of the product. Backup/hledger infrastructure is not a prerequisite;
+real-data use, dependency/schema/store adoption and authority cutover keep their separate gates.
 
 ## Completed bounded task — minimal ordinary S-expression book / Parsexp adoption
 
