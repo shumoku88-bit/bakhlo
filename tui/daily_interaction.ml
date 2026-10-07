@@ -451,7 +451,9 @@ let overlay_key s (button, mods) =
 let key s (button, mods) =
   (* Notty decodes control bytes as upper-case ASCII; plain memo text is untouched. *)
   let button =
-    match (button, mods) with `ASCII c, [ `Ctrl ] -> `ASCII (Char.lowercase_ascii c) | _ -> button
+    match (button, mods) with
+    | `ASCII c, [ `Ctrl ] -> `ASCII (Char.lowercase_ascii c)
+    | _ -> button
   in
   match s.paste with
   | Some (text, invalid) -> (
@@ -468,37 +470,46 @@ let key s (button, mods) =
           | `ASCII ' ', [] when s.adding = None && s.focus <> Memo ->
               Some { s with overlay = Commands 0 }
           | `ASCII 'q', [ `Ctrl ] -> None
-      | `ASCII 'n', [ `Ctrl ] ->
-          Some { (initial ?config_home:s.config_home s.session) with message = "新しい下書き。過去の不確かな試行は再送・回復しません。" }
-      | `ASCII 'e', [ `Ctrl ] -> Some (if s.blocked then s else edit_selected s)
-      | `ASCII 'r', [ `Ctrl ] -> Some (reload s)
-      | `ASCII 'p', [ `Ctrl ] ->
-          Some
-            {
-              s with
-              view = (match s.view with Entries -> Plans | Plans -> Entries);
-              focus = History;
-              selected = 0;
-            }
-      | `ASCII 'a', [ `Ctrl ] ->
-          Some
-            (if s.blocked then s
-             else { s with adding = Some ""; message = "新しい科目名を入力しEnter（残高ゼロは作りません）。" })
-      | `ASCII 'u', [ `Ctrl ] -> Some (set_field s "")
-      | `Escape, [] -> Some { s with adding = None }
-      | `Tab, [] -> Some { s with focus = next s.focus }
-      | `Tab, [ `Shift ] -> Some { s with focus = previous s.focus }
-      | `Arrow `Up, [] -> Some (select s (-1))
-      | `Arrow `Down, [] -> Some (select s 1)
-      | `Arrow `Left, [] -> Some (change s (-1))
-      | `Arrow `Right, [] -> Some (change s 1)
-      | `Backspace, [] -> Some (set_field s (backspace (field s)))
-      | `Enter, [] ->
-          Some
-            (if s.adding = None && s.focus = History && s.view = Plans then pay_selected s
-             else submit s)
-      | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
-          Some (set_field s (field s ^ String.make 1 c))
+          | `ASCII 'n', [ `Ctrl ] ->
+              Some
+                {
+                  (initial ?config_home:s.config_home s.session) with
+                  message = "新しい下書き。過去の不確かな試行は再送・回復しません。";
+                }
+          | `ASCII 'e', [ `Ctrl ] -> Some (if s.blocked then s else edit_selected s)
+          | `ASCII 'r', [ `Ctrl ] -> Some (reload s)
+          | `ASCII 'p', [ `Ctrl ] ->
+              Some
+                {
+                  s with
+                  view = (match s.view with Entries -> Plans | Plans -> Entries);
+                  focus = History;
+                  selected = 0;
+                }
+          | `ASCII 'a', [ `Ctrl ] ->
+              Some
+                (if s.blocked then s
+                 else
+                   {
+                     s with
+                     adding = Some "";
+                     message = "新しい科目名を入力しEnter（残高ゼロは作りません）。";
+                   })
+          | `ASCII 'u', [ `Ctrl ] -> Some (set_field s "")
+          | `Escape, [] -> Some { s with adding = None }
+          | `Tab, [] -> Some { s with focus = next s.focus }
+          | `Tab, [ `Shift ] -> Some { s with focus = previous s.focus }
+          | `Arrow `Up, [] -> Some (select s (-1))
+          | `Arrow `Down, [] -> Some (select s 1)
+          | `Arrow `Left, [] -> Some (change s (-1))
+          | `Arrow `Right, [] -> Some (change s 1)
+          | `Backspace, [] -> Some (set_field s (backspace (field s)))
+          | `Enter, [] ->
+              Some
+                (if s.adding = None && s.focus = History && s.view = Plans then pay_selected s
+                 else submit s)
+          | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
+              Some (set_field s (field s ^ String.make 1 c))
           | `Uchar c, [] -> Some (set_field s (field s ^ utf8 c))
           | _ -> Some s))
 
@@ -852,7 +863,7 @@ let self_check () =
   let memo = match key memo (`ASCII ' ', []) with Some next -> next | None -> memo in
   require
     (memo.form.memo = "a "
-    && match memo.overlay with No_overlay -> true | Commands _ | Themes _ -> false)
+    && (match memo.overlay with No_overlay -> true | Commands _ | Themes _ -> false))
     "memo-space-is-text";
   print_endline
     "PASS: synthetic shared record/reopen/edit, backups, plan lifecycle/payment, budget \
