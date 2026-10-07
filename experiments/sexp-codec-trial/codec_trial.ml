@@ -435,7 +435,7 @@ let check_probe path =
       | Some event -> event
       | None -> failwith "huge probe event missing after decode"
     in
-    let quantities = List.map (fun effect -> Z.to_string entry.quanta) event.effects in
+    let quantities = List.map (fun entry -> Z.to_string entry.quanta) event.effects in
     if quantities <> [ huge; "-" ^ huge ]
     then failwith "arbitrary-precision quantities did not survive Wire V1 decoding";
     let future =
