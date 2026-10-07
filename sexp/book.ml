@@ -10,6 +10,8 @@ type measure = { id : D.Identifier.Measure.t; decimal_scale : Z.t }
 type entry = { event : D.Event.t; day : string option; description : string option }
 
 type wire = {
+  version : int;
+  locus_admission : D.Identifier.Locus.t list option;
   declarations : (family * supply) list;
   measures : measure list;
   events : entry list;
@@ -200,8 +202,42 @@ let supply_wire wire family =
   | Some (_, state) -> state
   | None -> failwith "qualified collection declaration missing"
 
+let decode_locus_admission values =
+  let at = "locus-admission" in
+  match values with
+  | [ X.List (X.Atom "approved" :: loci) ] ->
+      let* loci =
+        map_result loci ~f:(fun locus ->
+            let* locus = atom at [ locus ] in
+            identifier at D.Identifier.Locus.of_string locus)
+      in
+      let* _ =
+        List.fold_result loci ~init:[] ~f:(fun seen locus ->
+            if List.mem seen locus ~equal:D.Identifier.Locus.equal then
+              fail at "duplicate approved Locus"
+            else Ok (locus :: seen))
+      in
+      Ok (Some loci)
+  | [ X.List [ X.Atom "not-supplied" ] ] -> Ok None
+  | _ -> fail at "expected exactly approved identities or not-supplied"
+
 let decode = function
-  | X.List [ X.Atom "bakhlo"; X.Atom "1"; X.Atom "ordinary-quantity" ] :: body ->
+  | X.List [ X.Atom "bakhlo"; X.Atom version; X.Atom "ordinary-quantity" ] :: body
+    when String.equal version "1" || String.equal version "2" ->
+      let* locus_admission =
+        let policies =
+          List.filter_map body ~f:(function
+            | X.List (X.Atom "locus-admission" :: values) -> Some values
+            | X.Atom _ | X.List _ -> None)
+        in
+        match (version, policies) with
+        | "1", [] -> Ok None
+        | "1", _ -> fail "book" "locus-admission requires version 2"
+        | "2", [ values ] -> decode_locus_admission values
+        | "2", [] -> fail "book" "missing locus-admission"
+        | "2", _ :: _ :: _ -> fail "book" "duplicate locus-admission"
+        | _, _ -> fail "book" "unsupported version"
+      in
       let* declarations =
         match
           List.filter_map body ~f:(function
@@ -214,6 +250,8 @@ let decode = function
       in
       let initial =
         {
+          version = (if String.equal version "1" then 1 else 2);
+          locus_admission;
           declarations;
           measures = [];
           events = [];
@@ -229,7 +267,7 @@ let decode = function
           ~f:(fun wire (i, form) ->
             let at = Printf.sprintf "record[%d]" i in
             match form with
-            | X.List (X.Atom "collections" :: _) -> Ok wire
+            | X.List (X.Atom "collections" :: _) | X.List (X.Atom "locus-admission" :: _) -> Ok wire
             | X.List (X.Atom "measure" :: X.Atom id :: values) ->
                 let* value = measure at id values in
                 Ok { wire with measures = value :: wire.measures }
@@ -252,7 +290,7 @@ let decode = function
       in
       Ok
         {
-          declarations;
+          wire with
           measures = List.rev wire.measures;
           events = List.rev wire.events;
           corrections = List.rev wire.corrections;
@@ -260,7 +298,7 @@ let decode = function
           zero_origins = List.rev wire.zero_origins;
         }
   | [] -> fail "book" "missing header"
-  | _ :: _ -> fail "book" "expected (bakhlo 1 ordinary-quantity)"
+  | _ :: _ -> fail "book" "expected (bakhlo 1 ordinary-quantity) or (bakhlo 2 ordinary-quantity)"
 
 let admit wire =
   let count = function
@@ -340,8 +378,10 @@ let of_string bytes =
   Ok { bytes; wire; image }
 
 let original_bytes book = book.bytes
+let version book = book.wire.version
 let image book = book.image
 let measures book = book.wire.measures
+let locus_admission book = book.wire.locus_admission
 let supply book family = supply_wire book.wire family
 
 (* A small schema-owned printer, not deriving from private OCaml layouts. Preserve
@@ -431,7 +471,19 @@ let print_wire wire =
         "(zero-origin " ^ coordinate_text coordinate ^ ")")
   in
   String.concat ~sep:"\n\n"
-    ([ "(bakhlo 1 ordinary-quantity)"; declarations ]
+    ([ Printf.sprintf "(bakhlo %d ordinary-quantity)" wire.version; declarations ]
+    @ (if wire.version = 1 then []
+       else
+         [
+           (match wire.locus_admission with
+           | None -> "(locus-admission (not-supplied))"
+           | Some loci ->
+               "(locus-admission ("
+               ^ String.concat ~sep:" "
+                   ("approved"
+                   :: List.map loci ~f:(fun locus -> quote (D.Identifier.Locus.to_string locus)))
+               ^ "))");
+         ])
     @ measures
     @ List.map wire.events ~f:entry_text
     @ corrections @ observations @ origins)
@@ -440,6 +492,30 @@ let print_wire wire =
 let to_string book = print_wire book.wire
 let base candidate = candidate.base
 let document candidate = candidate.document
+
+let candidate ~base wire =
+  let* _ = admit wire in
+  let* document = of_string (print_wire wire) in
+  Ok { base; document }
+
+let admit_locus ~base ~locus =
+  let* locus = identifier "locus-admission" D.Identifier.Locus.of_string locus in
+  match (base.wire.version, base.wire.locus_admission) with
+  | 2, Some loci ->
+      if List.mem loci locus ~equal:D.Identifier.Locus.equal then
+        fail "locus-admission" "Locus already approved"
+      else candidate ~base { base.wire with locus_admission = Some (loci @ [ locus ]) }
+  | _, _ -> fail "locus-admission" "explicit version 2 vocabulary required"
+
+let admits_new_effects base effects =
+  if base.wire.version = 1 then Ok () (* Legacy pure proposals, not publication permission. *)
+  else
+    match base.wire.locus_admission with
+    | None -> fail "locus-admission" "new-write policy not supplied"
+    | Some loci ->
+        iter_result effects ~f:(fun change ->
+            if List.mem loci (D.Effect.locus change) ~equal:D.Identifier.Locus.equal then Ok ()
+            else fail "locus-admission" "Effect Locus not approved for new writes")
 
 let propose ~base target event =
   let* form = Result.map_error (Parsexp.Single.parse_string event) ~f:(fun error -> Syntax error) in
@@ -453,6 +529,7 @@ let propose ~base target event =
       (D.Movement.validate (D.Event.effects entry.event))
       ~f:(fun error -> Movement error)
   in
+  let* () = admits_new_effects base (D.Event.effects entry.event) in
   let declarations =
     List.map base.wire.declarations ~f:(fun (family, state) ->
         match (family, target) with
@@ -467,9 +544,7 @@ let propose ~base target event =
         @ [ { D.Event_correction.target; replacement = D.Event.id entry.event } ]
   in
   let wire = { base.wire with declarations; events = base.wire.events @ [ entry ]; corrections } in
-  let* _ = admit wire in
-  let* document = of_string (print_wire wire) in
-  Ok { base; document }
+  candidate ~base wire
 
 let append ~base ~event = propose ~base None event
 let correct ~base ~target ~event = propose ~base (Some target) event

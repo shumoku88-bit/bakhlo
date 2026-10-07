@@ -91,3 +91,24 @@ Boundary type: callers cannot forge a qualified book using OCaml record construc
   [2]
   $ grep 'Unbound record field "bytes"' err
   Error: Unbound record field "bytes"
+
+Version 2 retains explicit new-write vocabulary across actual cold native commands.
+Vocabulary is not independently supplied quantity support.
+
+  $ bakhlo stage-current-sexp --canonicalize ../examples/ordinary-sexp/with-loci.sexp v2.sexp
+  S-expression candidate staged; not recording or durable Saved.
+  $ grep 'locus-admission' v2.sexp
+  (locus-admission (approved "wallet" "food" "日用品"))
+  $ bakhlo inspect-current-sexp v2.sexp wallet jpy
+  Conditional S-expression quantity (ordinary-quantity v2; supplied evidence).
+  exact assertion; "wallet" / "jpy": asserted=1000; delta=0; quantity=1000
+  $ bakhlo inspect-current-sexp v2.sexp 日用品 jpy
+  "\230\151\165\231\148\168\229\147\129" / "jpy": quantity unknown (no supported premise in supplied evidence).
+  [3]
+  $ bakhlo stage-current-sexp v2.sexp ../examples/ordinary-sexp/purchase.sexp v2-purchase.sexp
+  S-expression candidate staged; not recording or durable Saved.
+  $ bakhlo inspect-current-sexp v2-purchase.sexp wallet jpy
+  Conditional S-expression quantity (ordinary-quantity v2; supplied evidence).
+  exact assertion; "wallet" / "jpy": asserted=1000; delta=-100; quantity=900
+  $ grep 'locus-admission' v2-purchase.sexp
+  (locus-admission (approved "wallet" "food" "日用品"))

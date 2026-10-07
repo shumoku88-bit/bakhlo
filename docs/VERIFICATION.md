@@ -91,6 +91,49 @@ Formal tools remain development-only. Ordinary build/test/release must be Lean-f
 Checker independence needs a separate question; neither standard Lean nor token scans
 establish it. Tool selection does not authorize dependencies or source copying.
 
+## Synthetic Locus addition and recording
+
+Approved at 8221c57: add 科目 → select → record → reopen → correction in the SAME trial screens.
+SOURCE-only reference f82f4c4: Core LocusAdmission, Presentation LocusCatalog and Tui admission
+session establish that new-write vocabulary, labels, role/routing and history support are distinct.
+No source copied/built, private or operational data inspected. User-provided exact Locus tokens
+are the current fallback display, not a new account/Purpose ontology or label/config framework.
+Book v2 adds ONE required explicit policy record; v1 remains its original pure format/API, not
+approval for a policy-qualified consumer. Whole historical source admission never consults current
+new-write permission; new v2 proposals require EVERY Effect's Locus allowed. Adding vocabulary
+preserves all support/history and supplies neither Event nor zero. Unsupported policy refuses.
+
+Existing native expect check adds exact space/Unicode vocabulary identity, immutable base and
+whole add/print/reread; balanced record, original source/cuts/support, no implicit zero/alias/role,
+empty versus absent policy, duplicate/empty/unapproved and eight malformed/missing/version controls,
+historical-read independence and append/correction refusal under no current approval. Existing cram
+now cold-stages/reads v2 and vocabulary/1000→900/unknown category; exact profile heading is v1/v2.
+Main 181 expect/five cram and local release @install/format pass with nonexistent LEAN/LAKE;
+captured Domain/Application hashes and exact 51 main names/versions unchanged, strict/fatal 8/9/11.
+
+Both native builds/pure form/render smokes and reused recording checks pass: Ctrl-A editor add,
+Ctrl-D select, cold children at 1000/category added/900/850, retained original category/memo/day/edge,
+unchanged old generation files and independent cuts. Duplicate/empty/unapproved requests produce
+no filesystem changes and retain the name; historical-only/v1 rows read without inferred approval.
+Category conflict retains editor; OLD/NEW uncertain publication/reconciliation uses the unchanged
+publisher/pending mechanism, never blind retry or a second writer. Same-date/older-date histories
+and the previous four-currency transfer/income/180-bit/precision/route/correction gates remain.
+Existing Expect driver adds only category keys/assertion: nine real PTYs cross BOTH native UIs,
+add/select/record → exit/reopen/correct/recorrect/original history → read, old/new uncertainty,
+missing-before-TTY refusal and full stty restoration. No new harness/model/tool installation.
+
+Ignored raw evidence and preserved prototype sources/binaries: `scratch/tui_comparison_review/loci-v11`.
+Failed PTY v1 returned on a PARTIAL rendered frame before completion; existing driver now appends
+chunks until its bounded timeout and fresh v2 passes (failure/store retained, not relabeled).
+First extended cram lacked declared sandbox fixture dependency; next showed deliberate CLI byte
+escaping rather than literal UTF-8. Both corrected against exact native evidence, no codec fallback.
+A separate fresh `sexp-v10/stores/loci-demo` is initial 1000/no Events for the user to try.
+Dedicated backup/role/routing/display-label editing/plans/budgets/reports are NOT qualified by this
+slice. No new store/dependency, existing-store upgrade/write, real recording, recovery/durable Saved,
+Mirage/Linux replay or push. Existing LOAM remains authority; required remaining household functions
+stay in scope. [Handoff](HANDOFF.md#completed-bounded-task--synthetic-科目-addition--ordinary-recording)
+links the small demo, not a feature-cut-down product.
+
 ## Simple S-expression UI loop
 
 User rejects backup/publisher-first scheduling and approves the small existing-UI path at b5ee924.

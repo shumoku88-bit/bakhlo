@@ -31,6 +31,7 @@
   ../examples/ordinary-quantity.bakhlo
   ../examples/loam-quantity.loam-input
   ../examples/ordinary-sexp/initial.sexp
+  ../examples/ordinary-sexp/with-loci.sexp
   ../examples/ordinary-sexp/purchase.sexp
   ../examples/ordinary-sexp/correction.sexp
   ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp.cmi

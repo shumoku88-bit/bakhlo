@@ -546,6 +546,16 @@ roots are `sexp-v10/stores`; old roots never migrate or fall back. Book v1 canno
 a NEW explicit seed has Pantry UNKNOWN, not an erased old assertion or guessed zero. Main Core/Book
 and package selections remain unchanged. Dedicated backup work is deferred behind human use of the
 simple start→input→write→exit/reopen→correction loop; no permanent UI/store or Saved adoption.
+The [科目 connection](VERIFICATION.md#synthetic-locus-addition-and-recording) extends that SAME UI:
+Book v2 additionally owns an explicit exact new-write Locus vocabulary, independent of retained
+historical Events/support, labels, AccountingRole and Purpose/routing. Version 2's required singleton
+record states approved identities (possibly none) or not-supplied; omission never permits recording.
+Pure vocabulary candidates add no Event/origin/history claim. All proposed Effects require approval;
+whole historical read does not infer or require current permission. Version 1 remains its original
+pure read/proposal format, but the updated trial cannot record on absent policy or auto-upgrade it.
+Stable tokens are display fallback, no catalog/alias/rename framework. Workbench qualifies the full
+book and an explicitly chosen expense endpoint; the form's category editor/selector consumes the
+SAME Recording publication/pending/reconciliation boundary. Existing support/unknown/history remain.
 Earlier increments below describe their qualified OLD text revisions, not automatic new-format claims.
 The [same-currency transfer increment](VERIFICATION.md#same-currency-synthetic-tui-transfer)
 extends ONLY that ignored UI profile: Expense Wallet->Food and Transfer Wallet<->Bank map onto

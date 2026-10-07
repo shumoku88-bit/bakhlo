@@ -26,7 +26,7 @@ let help : Response.t =
     stdout =
       "Usage: bakhlo inspect-current-sexp [--summary | --explain] FILE LOCUS MEASURE [LOCUS \
        MEASURE ...]\n\
-       Development-only bakhlo 1 ordinary-quantity; whole supplied-book admission.\n\
+       Development-only bakhlo 1/2 ordinary-quantity; whole supplied-book admission.\n\
        Explicit Measure/scale, retained Actual/corrections, independent observations/zero origins.\n\
        Other fields/families refuse; not full household admission, authority or Saved.\n\
        Quantities are exact signed quanta, not inferred balances or currency conversion.\n\
@@ -61,5 +61,7 @@ let evaluate (request : request) contents =
   | Ok book ->
       Quantity_questions.render request.questions ~view:request.view
         ~exact_heading:
-          "Conditional S-expression quantity (ordinary-quantity v1; supplied evidence).\n"
+          (Printf.sprintf
+             "Conditional S-expression quantity (ordinary-quantity v%d; supplied evidence).\n"
+             (B.version book))
         (B.image book)

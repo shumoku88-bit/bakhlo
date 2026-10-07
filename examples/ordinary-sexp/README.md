@@ -24,7 +24,27 @@ Walletは `1000 → 900 → 850`、Foodは `0 → 100 → 150`。Bankは開始�
 （最後の照会は終了コード3）。訂正前のEvent、説明、日付、Effect、明示した訂正関係、開始根拠を
 新しい候補にも残す。訂正後の日付が古くても、日付順で勝者を選ばない。元ファイルは変更しない。
 
-## この開発用プロファイルの約束
+## 科目の書込み許可（開発用v2）
+
+[`with-loci.sexp`](with-loci.sexp) の先頭は `(bakhlo 2 ordinary-quantity)`。
+v1の数量・履歴はそのまま、次のレコードを必ず一つ明示する：
+
+```lisp
+(locus-admission (approved "wallet" "food" "日用品"))
+; または、未供給を明示： (locus-admission (not-supplied))
+```
+
+`approved` は新規Effectで使える正確なLocus識別子の集合。空リストは許可ゼロ、未供給とは別。
+名称をtrim・正規化しない。科目追加は `Book.admit_locus` の全体判定済み候補で、
+Event、残高0、科目の役割、Purposeや履歴完全性を発明しない。表示名はこの段階では識別子そのもの。
+v2の新規・訂正候補はすべてのEffectの許可を確認する。既存の履歴を現在の許可で消さない。
+v1は元の形式と純粋な候補APIを保持するが、許可付き記帳の消費者には承認を与えない。
+読み込むだけでv2へ変換・許可の補完はしない。予定・予算・レポートは別の必要機能として続く。
+
+既存UIで「追加→選択→記帳→再開→訂正」を試す手順は
+[Handoff](../../docs/HANDOFF.md#completed-bounded-task--synthetic-科目-addition--ordinary-recording) にある。
+
+## この開発用v1プロファイルの約束
 
 先頭は `(bakhlo 1 ordinary-quantity)`。OCaml型名やアプリの版とは別のデータ形式名。
 `collections` は一度だけ書き、`provided` / `empty` / `not-supplied` の三フィールドが必須。

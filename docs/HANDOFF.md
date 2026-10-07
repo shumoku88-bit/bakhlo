@@ -41,6 +41,46 @@ candidate staging is now implemented, not a selected-store publisher. Delegation
 permission for dependencies, new UI/store adoption, private-data writes, recovery/migration,
 operational cutover, sibling build/source copy, publication or push.
 
+## Completed bounded task — synthetic 科目 addition / ordinary recording
+
+User approves add 科目 → select → record → exit/reopen → correction. D: clean 8221c57,
+main 51 and direct Book/native UI; narrow SOURCE-only LOAM f82f4c4 LocusAdmission,
+LocusCatalog and admission session: identity vocabulary, display and role/history/routing are
+independent. P: exact quantities, whole admission, correction lineage, independent support,
+publisher base/currentness/uncertainty. R: retain explicit new-write vocabulary and select a
+non-fixed expense destination without inferring zero, Purpose or AccountingRole.
+Use a small Book v2 profile: same quantity families plus ONE required explicit locus-admission
+record (approved identities or not-supplied). v1 bytes/meaning remain; absent policy is not
+approval. Metadata uses stable-token display fallback, not a new catalog/label/alias framework.
+Vocabulary addition is a pure WHOLE-admitted candidate, no Event or zero-origin; proposed new
+v2 Effects require every Locus approved, historical rows need not be currently approved.
+Existing Workbench/Recording/Interaction own draft, preparation, fresh publication and editor;
+reuse both renderers and the same pending/reconcile path. Preserve old prototype source/binaries;
+only FRESH synthetic roots, no old selected files or operational data read/write/migration.
+Select existing expect/native recording checks and a bounded extension of the installed PTY
+witness for add/select/reopen/correct, duplicate/empty/unapproved refusal before effects,
+conflict/draft/pending retention, old histories and unknown. No new model/harness/dependency,
+LOAM build/source copy, backup/hledger/performance campaign. Stable cooperative paths assumed;
+strict/fatal 8/9/11 and ordinary Lean-free build remain. Revisit for real use, role/routing,
+label edits, planned/budget/report integration or adopted schema/store/durable Saved.
+Completed: main Book v2/API and both ignored native screens now connect explicit identity addition,
+selection and retained ordinary expense/correction. Duplicate/empty/unapproved proposals refuse
+before publication; new vocabulary never supplies zero/history/role/routing. Historical-only and
+legacy v1 rows stay readable, with no inferred write permission or implicit upgrade.
+Main 181 expect/five cram, release @install/format and both native builds/smokes/connections pass;
+Domain/Application and exact 51 main packages unchanged. Existing real nine-child PTY passes
+add/select/record → cross-UI cold correction/four currencies/originals, uncertainty and stty restore.
+[Verification](VERIFICATION.md#synthetic-locus-addition-and-recording) owns logs and retained failed
+partial-frame capture/cram fixture/escaping expectations. No new backend/toolkit/parser/dependency.
+Try the untouched FRESH initial-1000 demo from the repository root (one shell command):
+`./scratch/tui_comparison_review/try-ui notty ja --store
+"$PWD/scratch/tui_comparison_review/sexp-v10/stores/loci-demo"`.
+Ctrl-A → synthetic `日用品` → Enter → 100 → Tab → synthetic memo → Enter → Ctrl-Q; same command
+reopens, Ctrl-D selects a retained approved category, Ctrl-E loads correction/Ctrl-P originals.
+[Short ignored README](../scratch/tui_comparison_review/README.md) owns complete controls/limits.
+Earlier demo/stores untouched; no private input or operational writes/cutover/Saved. Next is human
+feedback, then required report/plan/budget connections, NOT another infrastructure prerequisite.
+
 ## Completed bounded task — existing synthetic UI / S-expression connection
 
 User approves the simple UI loop, not real use or a production storage decision. D: clean b5ee924,

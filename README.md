@@ -24,7 +24,8 @@ No household writes, migration, production storage, durable Saved or full-househ
 - Read-only CLI entrances and three scoped pure readers:
   - [`bakhlo.sexp`](sexp/book.mli): minimal versioned ordinary-quantity evidence book,
     explicit Measure/scale, initial support, expense and retained correction history.
-    Pure whole-admitted proposals and fresh candidate-file staging; never overwrite or claim Saved.
+    v2 additionally retains explicit new-write Locus vocabulary, independent of history/support.
+    Pure whole-admitted Event/vocabulary proposals and fresh candidate-file staging; no Saved.
   - [`bakhlo.text`](text/read.mli): experimental ordinary-Actual text profile.
   - [`bakhlo.loam_read`](loam_read/read.mli): supplied LOAM HouseholdImage v2, representable
     Actual plus four explicit quantity-support sections. Unsupported Actual evidence refuses;
@@ -98,7 +99,11 @@ adopted canonical codec or permission for real recording. Those paragraphs descr
 trials. The latest [simple S-expression UI loop](docs/VERIFICATION.md#simple-s-expression-ui-loop)
 now uses Book in BOTH existing screens: input → write → exit/reopen → correction, preserving originals.
 No new UI/backend, legacy conversion or real-data use. [Handoff](docs/HANDOFF.md#completed-bounded-task--existing-synthetic-ui--s-expression-connection)
-links the ready-to-try initial-1000 synthetic demo; human feedback comes before more infrastructure.
+links the first loop. The [科目 increment](docs/VERIFICATION.md#synthetic-locus-addition-and-recording)
+now adds/selects exact category identities in those SAME screens and retains them through
+record/reopen/correction, without inventing zero balances or current approval from history.
+[Handoff](docs/HANDOFF.md#completed-bounded-task--synthetic-科目-addition--ordinary-recording) links the
+new initial-1000 synthetic demo; human feedback comes before more infrastructure.
 Review [four synthetic S-expression candidates](examples/sexp-v1-candidate/README.md) alongside
 [the same four in delimiter-free plain text](examples/plain-v1-candidate/README.md):
 selected self-contained EVIDENCE generation, not flattened current state. Superseded Events,

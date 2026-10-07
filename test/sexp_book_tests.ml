@@ -299,3 +299,87 @@ let%expect_test "S-expression proposals whole-admit and preserve original base o
     "refusal mutated base";
   Stdlib.print_endline "whole proposal refusal; originals/base remain intact";
   [%expect {| whole proposal refusal; originals/base remain intact |}]
+
+let%expect_test "v2 Locus vocabulary is independent policy, never origin or display inference" =
+  let header =
+    String.substr_replace_first initial ~pattern:"(bakhlo 1 ordinary-quantity)"
+      ~with_:"(bakhlo 2 ordinary-quantity)"
+  in
+  let policy = "(locus-admission (approved \"wallet\" \"food\"))\n" in
+  let base = ok (B.of_string (header ^ policy)) in
+  let proposed = ok (B.admit_locus ~base ~locus:" 日用品🧺 ") in
+  let added = B.document proposed |> roundtrip in
+  let vocabulary book =
+    Option.map (B.locus_admission book) ~f:(List.map ~f:D.Identifier.Locus.to_string)
+  in
+  require
+    (Poly.equal (vocabulary added) (Some [ "wallet"; "food"; " 日用品🧺 " ]))
+    "identity normalized or approval lost";
+  require
+    (phys_equal (B.base proposed) base
+    && B.version added = 2
+    && String.equal (B.original_bytes base) (header ^ policy))
+    "base changed/upgraded implicitly";
+  require
+    (List.is_empty (retained added)
+    && unknown added " 日用品🧺 " "jpy"
+    && unknown added "日用品🧺" "jpy"
+    && Z.equal (value added "wallet" "jpy") (Z.of_int 1000))
+    "vocabulary invented Event/zero/alias";
+  let event =
+    String.substr_replace_first purchase ~pattern:"(locus \"food\")" ~with_:"(locus \" 日用品🧺 \")"
+  in
+  let moved = B.document (ok (B.append ~base:added ~event)) |> roundtrip in
+  require
+    (Z.equal (value moved "wallet" "jpy") (Z.of_int 900) && unknown moved " 日用品🧺 " "jpy")
+    "activity invented support";
+  require
+    (Poly.equal (Q.zero_origins (B.image moved)) (Q.zero_origins (B.image base))
+    && Poly.equal
+         (A.Current_quantity_groups.groups (Q.source_groups (B.image moved)))
+         (A.Current_quantity_groups.groups (Q.source_groups (B.image base))))
+    "support/cuts changed";
+  let expect_wire = function
+    | Error (B.Wire _) -> ()
+    | Ok _ | Error _ -> failwith "policy refusal bypassed"
+  in
+  expect_wire (B.append ~base ~event);
+  expect_wire (B.admit_locus ~base:added ~locus:" 日用品🧺 ");
+  expect_wire (B.admit_locus ~base ~locus:"");
+  expect_wire (B.admit_locus ~base:(ok (B.of_string initial)) ~locus:"new");
+  let blocked =
+    B.to_string moved
+    |> String.substr_replace_first
+         ~pattern:"(locus-admission (approved \"wallet\" \"food\" \" 日用品🧺 \"))"
+         ~with_:"(locus-admission (approved))"
+    |> B.of_string |> ok |> roundtrip
+  in
+  require
+    (Option.equal (List.equal D.Identifier.Locus.equal) (B.locus_admission blocked) (Some [])
+    && List.length (retained blocked) = 1
+    && Z.equal (value blocked "wallet" "jpy") (Z.of_int 900))
+    "retained history depended on current write permission";
+  expect_wire (B.append ~base:blocked ~event:correction);
+  expect_wire (B.correct ~base:blocked ~target:(id "purchase") ~event:correction);
+  let absent = ok (B.of_string (header ^ "(locus-admission (not-supplied))\n")) in
+  require (Option.is_none (B.locus_admission absent)) "absent policy became empty/success";
+  expect_wire (B.admit_locus ~base:absent ~locus:"new");
+  expect_wire (B.append ~base:absent ~event:purchase);
+  List.iter
+    [
+      header;
+      header ^ policy ^ policy;
+      header ^ "(locus-admission)";
+      header ^ "(locus-admission (approved \"wallet\" \"wallet\"))";
+      header ^ "(locus-admission (approved \"\"))";
+      header ^ "(locus-admission (approved) (not-supplied))";
+      header ^ "(locus-admission (approved) (role expense))";
+      initial ^ policy;
+    ]
+    ~f:(fun bytes -> require (String.equal (refused bytes) "wire") "wire fallback");
+  require (B.version (roundtrip (ok (B.of_string initial))) = 1) "legacy silently converted";
+  Stdlib.print_endline
+    "v2 explicit vocabulary; add/record/reopen; retained history; no zero/role/alias; policy/wire \
+     refusals";
+  [%expect
+    {| v2 explicit vocabulary; add/record/reopen; retained history; no zero/role/alias; policy/wire refusals |}]
