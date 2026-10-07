@@ -25,7 +25,8 @@ BonsaiはコンパイラABIが異なるため、同じ現在のCore／台帳／�
 - `Tab` / `Shift-Tab`：項目移動。通貨・出金元・入金先は `←→` で選ぶ。
 - 金額は明示された通貨の小数桁で入力。丸め・為替推測はしない。
   金額入力中は通貨・科目を切り替えない。`Ctrl-U`で項目を消せる。
-- `Enter`：入力した日付・金額・メモを確認して記帳。出金元は負、入金先は正。
+- 出金元／入金先で`Enter`：口座・科目pickerを開く（この操作では記帳しない）。
+  その他の入力項目で`Enter`：入力した日付・金額・メモを確認して記帳。出金元は負、入金先は正。
   支出・収入・同通貨の口座移動に使える。日付の初期値はローカルの今日で、変更可。
 - `↑↓`：明細を選択。`Ctrl-E`：同じIDの明細の日付・金額・メモを編集。
   通貨・科目・postingキーは保持する。修正前は別バックアップへ残す。
@@ -36,6 +37,29 @@ BonsaiはコンパイラABIが異なるため、同じ現在のCore／台帳／�
 - `Space`：自由文入力中を除き、普段は隠しておくCommand Paletteを開く。現在はThemeを収容する。
   メモ／科目名の文字入力中のSpaceは普通の空白として扱う。
 - `Ctrl-R`：再読込。`Ctrl-Q`：終了。貼付の改行・制御キーから自動記帳しない。
+
+## 口座・科目picker
+
+出金元／入金先で`Enter`を押すと、許可済みLocusの表示名とIDを中央paneに出す。
+口座・費目の役割を名前から推測して分けず、両方の欄で同じ許可語彙を使う。
+
+- 文字入力で表示名／IDの部分一致検索。ASCIIの大小は無視、日本語はそのまま検索する。
+  空検索は全候補。検索中のSpaceは空白文字で、Command Paletteを開かない。
+- `↑↓`で選択、`Page Up/Down`で8候補移動、`Home/End`で先頭／末尾。
+  長い一覧はscrollし、選択行が見える。`Backspace`／`Ctrl-U`で検索を消す。
+- picker内の`Enter`は、選択した**元のID**を対象の下書き欄だけに反映して閉じる。
+  矢印移動だけでは下書きを変えない。`Esc`は取消して元のfocus・下書きへ戻る。
+  候補なしの`Enter`は何もしない。新規作成／publicationは行わない。
+- 選択中Locusの現在量は既存の数量照会を使い、フォームの通貨で表示する。
+  不明／存在あり量不明／明示的ゼロを区別し、残高や役割を作らない。
+- 金額入力済み・編集中・書込停止中は**閲覧のみ**。従来の科目変更制限を迂回しない。
+  背面へのTab・Ctrl-A等も遮断し、競合・結果不明の警告は最下行へ残す。
+- 一行のbracketed pasteは検索文字だけに使う。改行・制御キー入りは拒否し、自動選択／記帳しない。
+
+paneは端末幅・高さに合わせる。長い表示はUTF-8境界とrendererのcell幅で切り、`~`で省略を示す。
+IDの表示が省略されても保存用IDは切らず、空白を除去せず保持する。
+新規科目追加は従来の`Ctrl-A`を使う（pickerからは`Esc`で戻ってから）。
+Home全体のfocus連動表示、複数posting入力、記帳previewはまだ別の作業。
 
 ## テーマとCommand Palette
 
@@ -102,8 +126,8 @@ flush/fsync後にrenameする。保存できない場合でも、その起動中
 今日使える額は **LOAM Home `d` のDaily Pace** を採用する。純粋な`Daily_book.daily_pace`は
 実装済みだが画面は未接続。対象口座・通貨・日付は明示入力で、予算用途別の日割りとは別回答。
 計算・画面案・受入条件は[切替チェックリスト](../docs/CUTOVER_CHECKLIST.ja.md)に集約する。
-現行画面はまだフォーム・残高・履歴を常設する行リスト。Command Palette／Themeの中央overlayは
-実装済みだが、Home全体の機能フォーカスや他の機能paneは未実装。
+現行画面はまだフォーム・残高・履歴を常設する行リスト。Command Palette／Themeと口座・科目pickerの
+中央overlayは実装済みだが、Home全体の機能フォーカスや他の機能paneは未実装。
 変更は共通操作・画面記述と両frontendの描画に限定し、表示のための新依存・保存経路は作らない。
 
 ## 保存の限界
@@ -137,6 +161,9 @@ Unicode幅と貼付制御、Terminal／Light／Darkで通常画面・両overlay�
 ASCII／U+0020のSpace（メモ／新規科目名では文字）、live preview、取消と元テーマの復元、
 UI設定の保存→cold state、壊れた／読めない設定のfallback、保存失敗の独立性、
 家計bytes／publication artifacts不変、明細／予定の選択マーカーを確認する。
+pickerも、両欄の一覧・表示名／ID検索・同名の別ID・Unicode／Space・長いID・scroll・
+候補なし・未供給／空語彙・一行貼付／制御拒否・変更制限・取消後のcontext保持を検査する。
+全テーマ・通常／小さい端末でpaneのcell幅、中央最前面の実描画、警告表示も検査する。
 独自paletteの本文・見出し・通知・pane・選択欄は標準RGB値で4.5:1以上のコントラストを確認し、
 両rendererのANSI出力が同じ256色indexを含み、24-bit SGRを含まないことも検査する。
 実PTYでもNotty記帳→Bonsai再起動・編集→Notty再読込、
@@ -146,4 +173,7 @@ Theme／Paletteも両画面の実TTYでpreview→cancel→save→終了→再起
 UI設定保存先は隔離し、私用画面のpayloadはログへ出さない。端末属性は終了後の通常入力も含めて復元する。
 tmuxのTTY検証は色code・操作・描画を確認するもので、macOS Terminalでの実pixelや人間の色味評価の代用ではない。
 256色版のTerminal／Light／Darkは、ユーザーがnative macOS Terminalの画像で見た目を確認・了承済み。
+pickerの実TTY検証はshellと既存tmuxで合成データだけを使い、両frontend×全テーマで
+検索・同名ID選択・Space・貼付・取消・scroll・resize・閲覧制限・終了後の端末復元と
+book bytes／publication artifacts不変を確認する。Pythonは使わない。
 試験出力はignoredディレクトリに置き、私用コピーは試験で変更しない。

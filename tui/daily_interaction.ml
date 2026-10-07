@@ -39,7 +39,21 @@ type input =
 type focus = Date | Currency | Source | Destination | Amount | Memo | History
 type view = Entries | Plans
 type mode = New | Edit of B.entry | Pay of string
-type overlay = No_overlay | Commands of int | Themes of { selected : int; original : P.theme }
+type locus_target = From_locus | To_locus
+
+type locus_picker = {
+  target : locus_target;
+  query : string;
+  selected : int;
+  notice : string option;
+}
+
+type overlay =
+  | No_overlay
+  | Commands of int
+  | Themes of { selected : int; original : P.theme }
+  | Loci of locus_picker
+
 type command = Theme
 
 let commands = [ Theme ]
@@ -400,6 +414,34 @@ let utf8 c =
   Uutf.Buffer.add_utf_8 b c;
   Buffer.contents b
 
+let printable_uchar c =
+  let n = Uchar.to_int c in
+  n >= 32 && (n < 127 || n > 159)
+
+let locus_candidates s query =
+  (* Search only; identities/labels in the book are never normalized or rewritten. *)
+  let query = String.lowercase_ascii query in
+  let matches value = Base.String.is_substring (String.lowercase_ascii value) ~substring:query in
+  List.filter (fun id -> matches id || matches (B.label s.session.book id)) (loci s.session.book)
+
+let can_choose_locus s = (not s.blocked) && s.adding = None && editable s && s.form.amount = ""
+
+let open_locus_picker s target =
+  let current = match target with From_locus -> s.form.from_locus | To_locus -> s.form.to_locus in
+  let rec index n = function
+    | [] -> 0
+    | id :: _ when id = current -> n
+    | _ :: rest -> index (n + 1) rest
+  in
+  {
+    s with
+    overlay = Loci { target; query = ""; selected = index 0 (loci s.session.book); notice = None };
+  }
+
+let search_loci s picker query =
+  { s with overlay = Loci { picker with query; selected = 0; notice = None } }
+
+let picker_is_open s = match s.overlay with Loci _ -> true | _ -> false
 let theme_at n = match List.nth_opt P.all_themes n with Some theme -> theme | None -> P.Terminal
 
 let theme_index theme =
@@ -457,6 +499,36 @@ let overlay_key s (button, mods) =
                   ui_notice = Some "テーマはこの起動中だけ変更しました。次回用のUI設定は保存できませんでした。";
                 })
       | _ -> Some s)
+  | Loci picker -> (
+      let candidates = locus_candidates s picker.query in
+      let move step =
+        let selected = max 0 (min (max 0 (List.length candidates - 1)) (picker.selected + step)) in
+        Some { s with overlay = Loci { picker with selected; notice = None } }
+      in
+      match (button, mods) with
+      | `Escape, [] -> Some { s with overlay = No_overlay }
+      | `Arrow `Up, [] -> move (-1)
+      | `Arrow `Down, [] -> move 1
+      | `Page `Up, [] -> move (-8)
+      | `Page `Down, [] -> move 8
+      | `Home, [] -> move (-List.length candidates)
+      | `End, [] -> move (List.length candidates)
+      | `Backspace, [] -> Some (search_loci s picker (backspace picker.query))
+      | `ASCII 'u', [ `Ctrl ] -> Some (search_loci s picker "")
+      | `Enter, [] -> (
+          match List.nth_opt candidates picker.selected with
+          | Some id when can_choose_locus s ->
+              let form =
+                match picker.target with
+                | From_locus -> { s.form with from_locus = id }
+                | To_locus -> { s.form with to_locus = id }
+              in
+              Some { s with form; overlay = No_overlay }
+          | Some _ | None -> Some s)
+      | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
+          Some (search_loci s picker (picker.query ^ String.make 1 c))
+      | `Uchar c, [] when printable_uchar c -> Some (search_loci s picker (picker.query ^ utf8 c))
+      | _ -> Some s)
 
 let is_space = function `ASCII ' ' -> true | `Uchar c -> Uchar.to_int c = 0x20 | _ -> false
 let accepts_free_text s = s.adding <> None || s.focus = Memo
@@ -467,12 +539,12 @@ let key s (button, mods) =
     match (button, mods) with `ASCII c, [ `Ctrl ] -> `ASCII (Char.lowercase_ascii c) | _ -> button
   in
   match s.paste with
-  | Some _ when s.overlay <> No_overlay -> Some s
+  | Some _ when s.overlay <> No_overlay && not (picker_is_open s) -> Some s
   | Some (text, invalid) -> (
       match (button, mods) with
       | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
           Some { s with paste = Some (text ^ String.make 1 c, invalid) }
-      | `Uchar c, [] -> Some { s with paste = Some (text ^ utf8 c, invalid) }
+      | `Uchar c, [] when printable_uchar c -> Some { s with paste = Some (text ^ utf8 c, invalid) }
       | _ -> Some { s with paste = Some (text, true) })
   | None when button = `ASCII 'q' && mods = [ `Ctrl ] -> None
   | None -> (
@@ -515,8 +587,13 @@ let key s (button, mods) =
           | `Backspace, [] -> Some (set_field s (backspace (field s)))
           | `Enter, [] ->
               Some
-                (if s.adding = None && s.focus = History && s.view = Plans then pay_selected s
-                 else submit s)
+                (if s.adding <> None then submit s
+                 else
+                   match s.focus with
+                   | Source -> open_locus_picker s From_locus
+                   | Destination -> open_locus_picker s To_locus
+                   | History when s.view = Plans -> pay_selected s
+                   | Date | Currency | Amount | Memo | History -> submit s)
           | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
               Some (set_field s (field s ^ String.make 1 c))
           | `Uchar c, [] -> Some (set_field s (field s ^ utf8 c))
@@ -526,6 +603,18 @@ let handle s (input : input) =
   match input with
   | `Key event -> key s event
   | `Paste `Start -> Some { s with paste = Some ("", false) }
+  | `Paste `End when picker_is_open s -> (
+      match (s.overlay, s.paste) with
+      | Loci picker, Some (text, false) ->
+          Some (search_loci { s with paste = None } picker (picker.query ^ text))
+      | Loci picker, Some (_, true) ->
+          Some
+            {
+              s with
+              paste = None;
+              overlay = Loci { picker with notice = Some "改行・制御入りの検索貼付を拒否しました" };
+            }
+      | _ -> Some { s with paste = None })
   | `Paste `End when s.overlay <> No_overlay -> Some { s with paste = None }
   | `Paste `End -> (
       match s.paste with
@@ -589,22 +678,39 @@ type style = Plain | Active | Heading | Status | Panel | Panel_heading | Panel_a
 
 let panel_width = 34
 
-let panel_line style text =
-  let room = panel_width - 4 in
-  let text = if String.length text > room then String.sub text 0 room else text in
-  let text = text ^ String.make (room - String.length text) ' ' in
+(* The renderer supplies cell measurement, not layout or interaction policy.
+   Clip only at UTF-8 scalar boundaries and mark clipping explicitly. *)
+let clip_text ~width_of room value =
+  let text = visible value in
+  if room <= 0 then ""
+  else if width_of text <= room then text
+  else
+    let _, prefix =
+      Uutf.String.fold_utf_8
+        (fun (stopped, prefix) _ -> function
+          | `Uchar c when not stopped ->
+              let next = prefix ^ utf8 c in
+              if width_of next <= room - 1 then (false, next) else (true, prefix)
+          | `Uchar _ | `Malformed _ -> (stopped, prefix))
+        (false, "") text
+    in
+    prefix ^ "~"
+
+let panel_line ?(width = panel_width) ~width_of style text =
+  let room = max 0 (width - 4) in
+  let text = clip_text ~width_of room text in
+  let text = text ^ String.make (room - width_of text) ' ' in
   (style, "| " ^ text ^ " |")
 
-let panel_border title =
-  let room = panel_width - 4 in
-  let title = " " ^ title ^ " " in
-  let title = if String.length title > room then String.sub title 0 room else title in
-  let rest = max 0 (room - String.length title) in
-  (Panel_heading, "+-" ^ title ^ String.make rest '-' ^ "-+")
+let panel_border ?(width = panel_width) ~width_of title =
+  let room = max 0 (width - 4) in
+  let title = clip_text ~width_of room (" " ^ title ^ " ") in
+  (Panel_heading, "+-" ^ title ^ String.make (room - width_of title) '-' ^ "-+")
 
-let panel_bottom = (Panel, "+" ^ String.make (panel_width - 2) '-' ^ "+")
+let panel_bottom ?(width = panel_width) () = (Panel, "+" ^ String.make (max 0 (width - 2)) '-' ^ "+")
 
-let overlay_screen s =
+let overlay_screen ~dimensions:(width, height) ~width_of s =
+  let panel_line = panel_line ~width_of and panel_border = panel_border ~width_of in
   match s.overlay with
   | No_overlay -> None
   | Commands selected ->
@@ -623,7 +729,7 @@ let overlay_screen s =
             panel_line Panel "Up/Down  select";
             panel_line Panel "Enter    open";
             panel_line Panel "Esc      close";
-            panel_bottom;
+            panel_bottom ();
           ])
   | Themes { selected; _ } ->
       let rows =
@@ -640,7 +746,64 @@ let overlay_screen s =
             panel_line Panel "Up/Down  preview";
             panel_line Panel "Enter    save";
             panel_line Panel "Esc      cancel";
-            panel_bottom;
+            panel_bottom ();
+          ])
+  | Loci picker ->
+      let width = max 4 (min 76 (width - 4)) in
+      let line = panel_line ~width in
+      let candidates = locus_candidates s picker.query in
+      let count = List.length candidates in
+      let selected = max 0 (min (max 0 (count - 1)) picker.selected) in
+      let slots = min 8 (max 1 (height - 11)) in
+      let start = max 0 (selected - slots + 1) in
+      let rows =
+        List.init slots (fun offset ->
+            let n = start + offset in
+            match List.nth_opt candidates n with
+            | None -> line Panel (if count = 0 && offset = 0 then "候補なし" else "")
+            | Some id ->
+                line
+                  (if n = selected then Panel_active else Panel)
+                  ((if n = selected then "> " else "  ")
+                  ^ B.label s.session.book id ^ " [" ^ id ^ "]"))
+      in
+      let chosen = List.nth_opt candidates selected in
+      let notice =
+        match picker.notice with
+        | Some text -> text
+        | None ->
+            if s.blocked then "閲覧のみ: 書込停止中。下書きは保持します"
+            else if not (editable s) then "閲覧のみ: 編集中の科目は保持します"
+            else if s.form.amount <> "" then "閲覧のみ: 戻って金額を消すと変更できます"
+            else "選択は下書きのみ。まだ記帳しません"
+      in
+      let count_text =
+        match B.approved_loci s.session.book with
+        | None -> "科目一覧は未設定"
+        | Some all ->
+            Printf.sprintf "候補 %d / %d (全%d)"
+              (if count = 0 then 0 else selected + 1)
+              count (List.length all)
+      in
+      Some
+        ([
+           panel_border ~width
+             (match picker.target with From_locus -> "出金元" | To_locus -> "入金先・科目");
+           line Panel ("検索: " ^ picker.query);
+           line Panel count_text;
+         ]
+        @ rows
+        @ [
+            line Panel ("ID: " ^ Option.value ~default:"—" chosen);
+            line Panel
+              (match chosen with
+              | None -> "現在量: —"
+              | Some id -> "現在量: " ^ quantity s id ^ " " ^ s.form.measure);
+            line Panel notice;
+            line Panel
+              (if can_choose_locus s then "↑↓ 選択  Enter 確定  Esc 戻る" else "↑↓ 閲覧  Esc 戻る（選択変更不可）");
+            line Panel "文字検索 / Backspace / Ctrl-U 消去";
+            panel_bottom ~width ();
           ])
 
 let screen ~frontend (width, height) s =
@@ -664,7 +827,7 @@ let screen ~frontend (width, height) s =
     let content =
       [
         (Heading, "Bakhlo / " ^ frontend ^ " — S式の家計簿（試用）");
-        plain "Tab:項目  ←→:通貨/科目  Enter:記帳  Ctrl-N:新規  Ctrl-E:編集  Space:コマンド";
+        plain "Tab:項目  ←→:通貨/科目  Enter:科目選択/記帳  Ctrl-N:新規  Space:コマンド";
         plain "Ctrl-P:予定/明細  予定でEnter:支払い入力  Ctrl-A:科目追加  Ctrl-R:再読込  Ctrl-Q:終了";
         plain
           (match s.mode with
@@ -1056,9 +1219,210 @@ let self_check () =
   let reset = step failed (`Key (`ASCII 'N', [ `Ctrl ])) in
   require (reset.theme = P.Bakhlo_dark) "unsaved-session-theme-lost-on-new";
   require (handle commands (`Key (`ASCII 'Q', [ `Ctrl ])) = None) "overlay-quit";
-  (* Return a deterministic renderer fixture, independent of the user's UI preference. *)
+  let long_id = "long-" ^ String.concat "" (List.init 25 (fun _ -> "識別子")) in
+  let ids =
+    [ "wallet"; "food"; "bank"; "bank-two"; " Savings "; long_id; "case-id"; "CASE-ID" ]
+    @ List.init 16 (fun n -> Printf.sprintf "item-%02d" n)
+  in
+  let label id =
+    match id with
+    | "wallet" -> "財布"
+    | "food" -> "食費"
+    | "bank" | "bank-two" -> "同名の口座"
+    | " Savings " -> "積立 fund"
+    | id when id = long_id -> String.concat "" (List.init 25 (fun _ -> "長い科目名")) ^ "🙂"
+    | _ -> id
+  in
+  let fixture =
+    "(bakhlo-daily 1)(scope corrected-entries explicit-plans)"
+    ^ "(measures (measure jpy 0)(measure eur 2))" ^ "(labels (provided "
+    ^ String.concat " "
+        (List.map (fun id -> Printf.sprintf "(label %S %S synthetic)" id (label id)) ids)
+    ^ "))(approved-loci (provided "
+    ^ String.concat " " (List.map (Printf.sprintf "%S") ids)
+    ^ "))(entries)(plans)(support (zero-origin (food jpy))(openings)"
+    ^ "(observations (observation (reflected) (quantities (wallet jpy 1000)(wallet eur 10000))))"
+    ^ "(presence (provided (reflected) (coordinates (bank-two jpy)))))"
+  in
+  let picker_path = directory ^ "/picker.sexp" in
+  F.write_new picker_path (B.to_string (get (B.of_string fixture)));
+  let base = initial ~config_home:directory (F.load picker_path) in
+  let load_policy name policy =
+    let path = directory ^ "/picker-" ^ name ^ ".sexp" in
+    let bytes =
+      Base.String.substr_replace_all fixture
+        ~pattern:
+          ("(approved-loci (provided "
+          ^ String.concat " " (List.map (Printf.sprintf "%S") ids)
+          ^ "))")
+        ~with_:policy
+    in
+    F.write_new path (B.to_string (get (B.of_string bytes)));
+    initial ~config_home:directory (F.load path)
+  in
+  let missing = load_policy "missing" "(approved-loci (not-supplied))"
+  and empty = load_policy "empty" "(approved-loci (provided))" in
+  let picker_bytes = F.read picker_path in
+  let files_before = Sys.readdir directory |> Array.to_list |> List.sort String.compare in
+  let same_context original next =
+    next.session == original.session && next.focus = original.focus && next.view = original.view
+    && next.selected = original.selected && next.mode == original.mode
+    && next.blocked = original.blocked && next.pending = original.pending
+    && next.adding = original.adding && next.message = original.message
+    && next.theme = original.theme
+    && next.ui_notice = original.ui_notice
+  in
+  let original = { base with focus = Source; form = { base.form with memo = "draft remains" } } in
+  let opened = press original `Enter in
+  require
+    (opened.overlay = Loci { target = From_locus; query = ""; selected = 0; notice = None }
+    && opened.form = original.form && same_context original opened)
+    "picker-open-not-publish";
+  let moved = press opened (`Arrow `Down) in
+  require (moved.form = original.form && same_context original moved) "picker-arrow-mutated-draft";
+  let cancelled = press moved `Escape in
+  require
+    (cancelled.overlay = No_overlay && cancelled.form = original.form
+   && same_context original cancelled)
+    "picker-cancel-lost-context";
+  let search state text =
+    Uutf.String.fold_utf_8
+      (fun state _ -> function `Uchar c -> press state (`Uchar c) | `Malformed _ -> state)
+      state text
+  in
+  require (locus_candidates base "BaNk" = [ "bank"; "bank-two" ]) "picker-id-case-search";
+  require
+    (locus_candidates base "同名" = [ "bank"; "bank-two" ])
+    "picker-duplicate-label-distinct-ids";
+  require (locus_candidates base "食費" = [ "food" ]) "picker-japanese-label-search";
+  let case_choice = press (press (search opened "case-id") (`Arrow `Down)) `Enter in
+  require
+    (locus_candidates base "case-id" = [ "case-id"; "CASE-ID" ]
+    && case_choice.form.from_locus = "CASE-ID")
+    "picker-case-distinct-identities";
+  require (locus_candidates base "積立 fund" = [ " Savings " ]) "picker-label-space-search";
+  let searched = search opened "BANK" in
+  let chosen = press (press searched (`Arrow `Down)) `Enter in
+  require
+    (chosen.overlay = No_overlay
+    && chosen.form = { original.form with from_locus = "bank-two" }
+    && same_context original chosen)
+    "picker-selected-stable-id";
+  let to_original = { original with focus = Destination } in
+  let chosen = press (search (press to_original `Enter) "avings") `Enter in
+  require
+    (chosen.form = { to_original.form with to_locus = " Savings " }
+    && same_context to_original chosen)
+    "picker-to-locus-no-identity-trim";
+  let chosen = press (search opened long_id) `Enter in
+  require
+    (chosen.form.from_locus = long_id && same_context original chosen)
+    "picker-long-id-not-truncated";
+  List.iter
+    (fun space ->
+      let state = press (search opened "積立") space in
+      require
+        (match state.overlay with Loci p -> p.query = "積立 " | _ -> false)
+        "picker-space-is-query")
+    [ `ASCII ' '; `Uchar (Uchar.of_int 0x20) ];
+  let state = press (search opened "財布") `Backspace in
+  require
+    (match state.overlay with Loci p -> p.query = "財" | _ -> false)
+    "picker-unicode-backspace";
+  let state = step state (`Key (`ASCII 'U', [ `Ctrl ])) in
+  require
+    (match state.overlay with Loci p -> p.query = "" && p.selected = 0 | _ -> false)
+    "picker-clear-search";
+  let state = press (search opened "no-match") `Enter in
+  require
+    (state.form = original.form && picker_is_open state && same_context original state)
+    "picker-no-match-enter-published";
+  let state = press (press opened `End) (`Arrow `Down) in
+  require
+    (match state.overlay with Loci p -> p.selected = List.length ids - 1 | _ -> false)
+    "picker-last-candidate";
+  let state = press (press state `Home) (`Arrow `Up) in
+  require
+    (match state.overlay with Loci p -> p.selected = 0 | _ -> false)
+    "picker-first-candidate";
+  let pasted =
+    List.fold_left step opened
+      [
+        `Paste `Start;
+        `Key (`Uchar (Uchar.of_int 0x98df), []);
+        `Key (`Uchar (Uchar.of_int 0x8cbb), []);
+        `Paste `End;
+      ]
+  in
+  require
+    (match pasted.overlay with
+    | Loci p -> p.query = "食費" && pasted.form = original.form
+    | _ -> false)
+    "picker-single-line-paste-search";
+  let rejected =
+    List.fold_left step opened
+      [
+        `Paste `Start;
+        `Key (`ASCII 'x', []);
+        `Key (`Enter, []);
+        `Key (`Uchar (Uchar.of_int 10), []);
+        `Paste `End;
+      ]
+  in
+  require
+    (match rejected.overlay with
+    | Loci p ->
+        p.query = "" && p.notice <> None && rejected.form = original.form
+        && same_context original rejected
+    | _ -> false)
+    "picker-paste-control-published-or-leaked";
+  let swallowed =
+    List.fold_left step opened
+      [
+        `Key (`Tab, []);
+        `Key (`ASCII 'A', [ `Ctrl ]);
+        `Key (`ASCII 'N', [ `Ctrl ]);
+        `Key (`ASCII 'R', [ `Ctrl ]);
+      ]
+  in
+  require
+    (swallowed.form = original.form && same_context original swallowed)
+    "picker-modal-shortcuts-leaked";
+  List.iter
+    (fun original ->
+      let browsed = search (press original `Enter) "BANK" in
+      let attempted = press browsed `Enter in
+      require
+        (picker_is_open attempted && attempted.form = original.form
+       && same_context original attempted)
+        "picker-bypassed-amount-edit-blocked-guard")
+    [
+      { original with form = { original.form with amount = "1" } };
+      { original with mode = Edit (List.hd (B.entries s.session.book)) };
+      { original with blocked = true; pending = Some "uncertain"; message = "household-warning" };
+    ];
+  List.iter
+    (fun base ->
+      let opened = press { base with focus = Source } `Enter in
+      require
+        (locus_candidates opened "" = [] && (press opened `Enter).form = base.form)
+        "picker-missing-or-empty-policy-invented-choice")
+    [ missing; empty ];
+  require
+    (quantity base "wallet" = "1000"
+    && quantity base "food" = "0"
+    && quantity base "bank" = "不明"
+    && quantity base "bank-two" = "存在あり・金額不明"
+    && quantity { base with form = { base.form with measure = "eur" } } "wallet" = "100.00")
+    "picker-quantity-unknown-zero-presence-currency";
+  require
+    (F.read picker_path = picker_bytes
+    && Sys.readdir directory |> Array.to_list |> List.sort String.compare = files_before)
+    "picker-published-household-bytes-or-artifacts";
+  (* Return a deterministic Unicode/long-list renderer fixture. *)
   print_endline
     "PASS: synthetic shared record/reopen/edit, backups, plan lifecycle/payment, budget \
      publication, unknown, conflict/stale draft, focus markers, ASCII/Unicode Space, theme \
-     preview/cancel/save/fallback, palette contrast, UI-only failure and modal paste.";
-  { s with theme = P.Terminal; overlay = No_overlay }
+     preview/cancel/save/fallback, palette contrast, UI-only failure, locus picker and modal \
+     paste.";
+  { base with theme = P.Terminal; overlay = No_overlay }

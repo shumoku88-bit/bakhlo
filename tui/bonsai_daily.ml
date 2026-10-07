@@ -45,12 +45,15 @@ let backdrop theme view =
       V.with_colors ~fill_backdrop:true view ~fg:(color palette.foreground)
         ~bg:(color palette.background)
 
+let width_of text = V.width (V.text text)
+let overlay_screen dimensions state = C.overlay_screen ~dimensions ~width_of state
+
 let render ((width, height) as dimensions) state =
   let base =
     C.screen ~frontend:"Bonsai_term" dimensions state
     |> lines state.C.theme |> fit width height |> backdrop state.C.theme
   in
-  match C.overlay_screen state with
+  match overlay_screen dimensions state with
   | None -> base
   | Some rows ->
       let pane = lines state.C.theme rows in
@@ -161,49 +164,70 @@ let self_check () =
                     (emits (Printf.sprintf "38;5;%d" foreground.index)
                     && emits (Printf.sprintf "48;5;%d" background.index))
                     "Bonsai-shared-indexed-palette");
-              match C.overlay_screen state with
-              | Some rows when width >= C.panel_width && height >= List.length rows ->
-                  let left = (width - C.panel_width) / 2
-                  and top = (height - List.length rows) / 2 in
-                  let buffer = Buffer.create 512 in
-                  let pane =
-                    Notty.I.crop ~l:left ~t:top
-                      ~r:(width - left - C.panel_width)
-                      ~b:(height - top - List.length rows)
-                      (V.Private.notty_image view)
-                  in
-                  Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0)
-                    (C.panel_width, List.length rows)
-                    pane;
+              match overlay_screen dimensions state with
+              | Some rows ->
+                  let pane_width = width_of (snd (List.hd rows)) in
                   F.require
-                    (Buffer.contents buffer = String.concat "\n" (List.map snd rows))
-                    "Bonsai-overlay-front-and-centered"
-              | Some _ | None -> ())
+                    (List.for_all (fun (_, text) -> width_of text = pane_width) rows)
+                    "Bonsai-panel-uniform-cell-width";
+                  if width >= pane_width && height >= List.length rows then (
+                    let left = (width - pane_width) / 2 and top = (height - List.length rows) / 2 in
+                    let buffer = Buffer.create 512 in
+                    let pane =
+                      Notty.I.crop ~l:left ~t:top
+                        ~r:(width - left - pane_width)
+                        ~b:(height - top - List.length rows)
+                        (V.Private.notty_image view)
+                    in
+                    Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0)
+                      (pane_width, List.length rows)
+                      pane;
+                    F.require
+                      (Buffer.contents buffer = String.concat "\n" (List.map snd rows))
+                      "Bonsai-overlay-front-and-centered")
+              | None -> ())
             [
               C.No_overlay;
               C.Commands 0;
               C.Themes { selected = C.theme_index theme; original = theme };
+              C.Loci
+                {
+                  target = C.From_locus;
+                  query = "";
+                  selected = List.length (C.loci state.session.book) - 1;
+                  notice = None;
+                };
+              C.Loci { target = C.From_locus; query = ""; selected = 1; notice = None };
+              C.Loci { target = C.To_locus; query = "no-match"; selected = 0; notice = None };
+              C.Loci
+                {
+                  target = C.To_locus;
+                  query = String.concat "" (List.init 40 (fun _ -> "長い検索"));
+                  selected = 0;
+                  notice = None;
+                };
             ])
         [ (100, 25); (64, 20); (40, 10); (20, 5) ])
     P.all_themes;
   List.iter
     (fun theme ->
-      let view =
-        render (64, 20)
-          {
-            state with
-            C.theme;
-            overlay = C.Commands 0;
-            blocked = true;
-            message = "household-warning";
-          }
-      in
-      let buffer = Buffer.create 64 in
-      Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0) (64, 1)
-        (V.Private.notty_image (V.crop ~t:19 view));
-      F.require
-        (String.trim (Buffer.contents buffer) = "household-warning")
-        "Bonsai-overlay-household-warning-visible")
+      List.iter
+        (fun overlay ->
+          let view =
+            render (64, 20)
+              { state with C.theme; overlay; blocked = true; message = "household-warning" }
+          in
+          let buffer = Buffer.create 64 in
+          Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0) (64, 1)
+            (V.Private.notty_image (V.crop ~t:19 view));
+          F.require
+            (String.trim (Buffer.contents buffer) = "household-warning")
+            "Bonsai-overlay-household-warning-visible")
+        [
+          C.Commands 0;
+          C.Themes { selected = 0; original = theme };
+          C.Loci { target = C.From_locus; query = ""; selected = 0; notice = None };
+        ])
     P.all_themes;
   F.require (V.width (V.text "財布") = 4) "Bonsai-unicode-width";
   F.require
@@ -224,11 +248,28 @@ let self_check () =
         | Some _ | None -> false)
         "Bonsai-space-event-to-shared-overlay")
     [ B.Event.Key.ASCII ' '; B.Event.Key.Uchar (Uchar.of_int 0x20) ];
+  let picker =
+    match
+      C.handle { state with C.focus = C.Source }
+        (input_of_event (B.Event.Key_press { key = B.Event.Key.Enter; mods = [] }))
+    with
+    | Some ({ C.overlay = C.Loci _; _ } as picker) -> picker
+    | _ -> raise (F.Refused "Bonsai-picker-enter-adapter")
+  in
+  F.require
+    (match
+       C.handle picker
+         (input_of_event
+            (B.Event.Key_press { key = B.Event.Key.Uchar (Uchar.of_int 0x20); mods = [] }))
+     with
+    | Some { C.overlay = C.Loci { query = " "; _ }; _ } -> true
+    | _ -> false)
+    "Bonsai-picker-search-adapter";
   let paste = input_of_event (B.Event.Paste `Start) in
   F.require (paste = `Paste `Start) "Bonsai-paste-adapter";
   print_endline
-    "PASS: Bonsai indexed colors/no truecolor, centered/front overlays, ASCII/Unicode Space and \
-     event adapter."
+    "PASS: Bonsai indexed colors/no truecolor, centered/front overlays, ASCII/Unicode Space, locus \
+     picker and event adapter."
 
 let () =
   try

@@ -62,13 +62,16 @@ let backdrop theme width height image =
           I.char A.(fg (color palette.foreground) ++ bg (color palette.background)) ' ' width height;
         ]
 
+let width_of text = I.width (I.string A.empty text)
+let overlay_screen dimensions state = C.overlay_screen ~dimensions ~width_of state
+
 let render ((width, height) as dimensions) state =
   let base =
     C.screen ~frontend:"Notty" dimensions state
     |> lines state.C.theme |> I.hsnap ~align:`Left width |> I.vsnap ~align:`Top height
     |> backdrop state.C.theme width height
   in
-  match C.overlay_screen state with
+  match overlay_screen dimensions state with
   | None -> base
   | Some rows ->
       let pane = lines state.C.theme rows in
@@ -130,46 +133,67 @@ let self_check () =
                     (emits (Printf.sprintf "38;5;%d" foreground.index)
                     && emits (Printf.sprintf "48;5;%d" background.index))
                     "Notty-shared-indexed-palette");
-              match C.overlay_screen state with
-              | Some rows when width >= C.panel_width && height >= List.length rows ->
-                  let left = (width - C.panel_width) / 2
-                  and top = (height - List.length rows) / 2 in
-                  let buffer = Buffer.create 512 in
-                  let pane =
-                    I.crop ~l:left ~t:top
-                      ~r:(width - left - C.panel_width)
-                      ~b:(height - top - List.length rows)
-                      image
-                  in
-                  Render.to_buffer buffer Cap.dumb (0, 0) (C.panel_width, List.length rows) pane;
+              match overlay_screen dimensions state with
+              | Some rows ->
+                  let pane_width = width_of (snd (List.hd rows)) in
                   F.require
-                    (Buffer.contents buffer = String.concat "\n" (List.map snd rows))
-                    "Notty-overlay-front-and-centered"
-              | Some _ | None -> ())
+                    (List.for_all (fun (_, text) -> width_of text = pane_width) rows)
+                    "Notty-panel-uniform-cell-width";
+                  if width >= pane_width && height >= List.length rows then (
+                    let left = (width - pane_width) / 2 and top = (height - List.length rows) / 2 in
+                    let buffer = Buffer.create 512 in
+                    let pane =
+                      I.crop ~l:left ~t:top
+                        ~r:(width - left - pane_width)
+                        ~b:(height - top - List.length rows)
+                        image
+                    in
+                    Render.to_buffer buffer Cap.dumb (0, 0) (pane_width, List.length rows) pane;
+                    F.require
+                      (Buffer.contents buffer = String.concat "\n" (List.map snd rows))
+                      "Notty-overlay-front-and-centered")
+              | None -> ())
             [
               C.No_overlay;
               C.Commands 0;
               C.Themes { selected = C.theme_index theme; original = theme };
+              C.Loci
+                {
+                  target = C.From_locus;
+                  query = "";
+                  selected = List.length (C.loci state.session.book) - 1;
+                  notice = None;
+                };
+              C.Loci { target = C.From_locus; query = ""; selected = 1; notice = None };
+              C.Loci { target = C.To_locus; query = "no-match"; selected = 0; notice = None };
+              C.Loci
+                {
+                  target = C.To_locus;
+                  query = String.concat "" (List.init 40 (fun _ -> "長い検索"));
+                  selected = 0;
+                  notice = None;
+                };
             ])
         [ (100, 25); (64, 20); (40, 10); (20, 5) ])
     P.all_themes;
   List.iter
     (fun theme ->
-      let image =
-        render (64, 20)
-          {
-            state with
-            C.theme;
-            overlay = C.Commands 0;
-            blocked = true;
-            message = "household-warning";
-          }
-      in
-      let buffer = Buffer.create 64 in
-      Render.to_buffer buffer Cap.dumb (0, 0) (64, 1) (I.crop ~t:19 image);
-      F.require
-        (String.trim (Buffer.contents buffer) = "household-warning")
-        "Notty-overlay-household-warning-visible")
+      List.iter
+        (fun overlay ->
+          let image =
+            render (64, 20)
+              { state with C.theme; overlay; blocked = true; message = "household-warning" }
+          in
+          let buffer = Buffer.create 64 in
+          Render.to_buffer buffer Cap.dumb (0, 0) (64, 1) (I.crop ~t:19 image);
+          F.require
+            (String.trim (Buffer.contents buffer) = "household-warning")
+            "Notty-overlay-household-warning-visible")
+        [
+          C.Commands 0;
+          C.Themes { selected = 0; original = theme };
+          C.Loci { target = C.From_locus; query = ""; selected = 0; notice = None };
+        ])
     P.all_themes;
   F.require (I.width (I.string A.empty "財布") = 4) "Notty-unicode-width";
   F.require
@@ -185,6 +209,16 @@ let self_check () =
         | Some _ | None -> false)
         "Notty-space-event-to-shared-overlay")
     [ `ASCII ' '; `Uchar (Uchar.of_int 0x20) ];
+  let picker =
+    match C.handle { state with C.focus = C.Source } (input_of_event (`Key (`Enter, []))) with
+    | Some ({ C.overlay = C.Loci _; _ } as picker) -> picker
+    | _ -> raise (F.Refused "Notty-picker-enter-adapter")
+  in
+  F.require
+    (match C.handle picker (input_of_event (`Key (`Uchar (Uchar.of_int 0x20), []))) with
+    | Some { C.overlay = C.Loci { query = " "; _ }; _ } -> true
+    | _ -> false)
+    "Notty-picker-search-adapter";
   let decoder = Unescape.create () in
   Unescape.input decoder (Bytes.of_string " ") 0 1;
   F.require
@@ -196,8 +230,8 @@ let self_check () =
     | _ -> false)
     "Notty-terminal-space-decode-to-overlay";
   print_endline
-    "PASS: Notty indexed colors/no truecolor, centered/front overlays, ASCII/Unicode Space and \
-     event adapter."
+    "PASS: Notty indexed colors/no truecolor, centered/front overlays, ASCII/Unicode Space, locus \
+     picker and event adapter."
 
 let () =
   try

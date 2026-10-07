@@ -67,6 +67,19 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   Terminal. Later themes can extend the shared palette/selector; official
   Bonsai_term theme import is not implemented. See `tui/README.md` for controls
   and fallback limits.
+- Source/Destination Enter now opens a shared Locus picker: approved vocabulary
+  only, display label plus stable ID, substring search (ASCII case-insensitive and
+  literal Unicode/spaces), arrows/Page/Home/End, and selected current quantity in
+  the draft's Measure. No inferred account/category roles or invented zero.
+  Enter applies only the exact ID to the target draft field; Esc preserves context.
+  Amount/edit/blocked guards remain read-only, empty/missing vocabulary invents no
+  choices, and modal keys cannot reach the form. Single-line paste searches only;
+  control/newline paste never selects or publishes. Layout stays shared; renderers
+  supply cell-width measurement for UTF-8-safe marked clipping and bounded panes.
+  Shared checks and both renderer checks pass long Unicode/duplicate labels,
+  search/scroll/cancel/guards and household bytes/artifact invariance. Synthetic
+  real TTYs pass both frontends/all themes, including resize and terminal restoration,
+  using shell/tmux, not Python. No new dependency, accounting API/format or publication path.
 - Daily_book reads v1..v4. It writes `bakhlo-daily 4` when budget definitions are
   explicitly supplied, otherwise v3; Exchange and plan `cancelled-on` remain explicit.
   Reading does not rewrite an input; explicit copy/publication keeps prior bytes separately. Ordinary Book/CLI is unchanged.
@@ -148,11 +161,14 @@ Home small. Bonsai_term and Notty may implement these differently, but focus/pan
 state remains presentation-only and must not create household meaning or a second
 publication path.
 
-The user approved UI-independent household functions first; elaborate TUI work is deferred.
-The first small UI-only Command Palette/Theme slice is implemented; it is not permission
-for a generic command framework or new household publication paths.
+The user has now selected small daily recording UI improvements in this order:
+Locus picker, multiple-posting input, then a separate whole-transaction preview.
+The picker is implemented; next is the multiple-posting draft/editor, not another
+UI framework or a new publication path. Keep role/quantity support and payment links
+explicit, preserve all transaction fields, and qualify one usable step at a time.
+Home-wide focus/context remains unfinished, as does in-picker vocabulary addition.
 Plan updates, Daily Pace and the first explicit-period budget slice are implemented
-with synthetic checks. Next candidate is Attention's small pure data/API slice:
+with synthetic checks. Attention remains a later small pure data/API candidate:
 explicit context, due/none/undetermined, dated resolve/drop and save/cold read.
 Observation updates and broader budget operations remain gaps. Multiple-posting
 input/recurrence are separate from retained data. Do not treat Daily Pace or
@@ -164,9 +180,10 @@ Keep preparation in the existing checklist, not new per-feature plans or scaffol
 No generic scheduler/workflow, extra backend, duplicated frontend calculations,
 new dependency or research-port pipeline. Extend formats only when an actual slice
 needs independent evidence, preserving refusal and explicit version transitions.
-The latest slice added native budget definitions/API/codec and synthetic tests;
-UI layout/controls are unchanged. It did not read household data, run/modify LOAM,
-convert private candidates, introduce dependencies, or start operational cutover.
+The pure budget slice added native definitions/API/codec and synthetic tests without
+UI controls. The later Theme/picker slices change UI-only interaction/rendering.
+The picker did not read household data, run/modify LOAM, convert private candidates,
+introduce dependencies, or start operational cutover.
 
 The existing trial is `./tools/tui bonsai --book scratch/daily-ui/household.sexp`
 (or omit `bonsai` for Notty). Both use the SAME private trial file; exit one before
