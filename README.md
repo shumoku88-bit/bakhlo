@@ -58,6 +58,5 @@ OCamlで作るパーソナル家計簿。日々の記帳と編集、口座・科
 - [開発手順](docs/DEVELOPMENT.md)
 - [現在の実装・実験の設計資料](docs/ARCHITECTURE.md)
 - [検証記録と限界](docs/VERIFICATION.md)
-- [OCamlの学習メモ（任意）](docs/TEXTBOOK_GUIDE.ja.md)
 
 実データ・秘密情報はGitに入れない。試作の成功だけで本番移行や公開はしない。
