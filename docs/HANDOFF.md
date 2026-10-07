@@ -67,6 +67,41 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   Terminal. Later themes can extend the shared palette/selector; official
   Bonsai_term theme import is not implemented. See `tui/README.md` for controls
   and fallback limits.
+- Source/Destination Enter now opens a shared Locus picker: approved vocabulary
+  only, display label plus stable ID, substring search (ASCII case-insensitive and
+  literal Unicode/spaces), arrows/Page/Home/End, and selected current quantity in
+  the draft's Measure. No inferred account/category roles or invented zero.
+  Enter applies only the exact ID to the target draft field; Esc preserves context.
+  Amount/edit/blocked guards remain read-only, empty/missing vocabulary invents no
+  choices, and modal keys cannot reach the form. Single-line paste searches only;
+  control/newline paste never selects or publishes. Layout stays shared; renderers
+  supply cell-width measurement for UTF-8-safe marked clipping and bounded panes.
+  Shared checks and both renderer checks pass long Unicode/duplicate labels,
+  search/scroll/cancel/guards and household bytes/artifact invariance. Synthetic
+  real TTYs pass both frontends/all themes, including resize and terminal restoration,
+  using shell/tmux, not Python. No new dependency, accounting API/format or publication path.
+- Shared multiple-posting editor is now trial-usable: Ctrl-T converts the current
+  single-Measure draft without losing typed amounts/date/memo; row picker, explicit
+  signs, exact positive amounts, add/delete for new/payment drafts and uncapped
+  scrolling. Esc hides but retains all rows/focus; Ctrl-T resumes, Ctrl-N explicitly
+  discards. Held drafts cannot silently fall back to two-posting publication.
+  Enter never publishes inside it; Ctrl-S uses the SAME submit/put_entry/finish path.
+  `posting_draft.ml` is pure transient data/parsing, not another accounting/storage API.
+  Difference zero is only draft arithmetic; blank/zero/precision/date/vocabulary and
+  whole-book gates still refuse without dropping input. Existing multi-row ordinary
+  entries allow date/each amount/memo corrections while retaining ID, row order,
+  multiplicity, signs, coordinates, keys and payment links. Structure changes during
+  edits and Exchange/Reversal-related edits still refuse. Multiple-posting open plans
+  now enter actual payment input; original scheduled date/changes stay retained and
+  paid-by is committed with the actual atomically. Conflict/uncertain guards freeze
+  the draft, keep warnings visible, and reuse existing reload/no-retry behavior.
+  Synthetic shared checks and both renderer checks pass; shell/tmux passed both
+  frontends/all three themes for record -> other frontend cold edit -> cold read,
+  hold/theme/paste/refusal/10-row scroll/resize/Space and terminal restoration, plus
+  both multi-plan payment/duplicate refusals. No private input, Python, dependency,
+  codec or new publication mechanism. Independent preview is still the next step.
+  The user finds the editor somewhat cumbersome; usability polish is deferred.
+  Functional checks are not human UX acceptance or operational-cutover approval.
 - Daily_book reads v1..v4. It writes `bakhlo-daily 4` when budget definitions are
   explicitly supplied, otherwise v3; Exchange and plan `cancelled-on` remain explicit.
   Reading does not rewrite an input; explicit copy/publication keeps prior bytes separately. Ordinary Book/CLI is unchanged.
@@ -148,11 +183,16 @@ Home small. Bonsai_term and Notty may implement these differently, but focus/pan
 state remains presentation-only and must not create household meaning or a second
 publication path.
 
-The user approved UI-independent household functions first; elaborate TUI work is deferred.
-The first small UI-only Command Palette/Theme slice is implemented; it is not permission
-for a generic command framework or new household publication paths.
+The user has now selected small daily recording UI improvements in this order:
+Locus picker, multiple-posting input, then a separate whole-transaction preview.
+The picker and single-Measure multiple-posting draft/editor are implemented;
+next is an independent whole-transaction preview with return-to-edit and explicit
+confirmation, using the current publisher's checks, not a second authorization path.
+Keep role/quantity support and payment links explicit, preserve all transaction fields,
+and qualify one usable step at a time.
+Home-wide focus/context remains unfinished, as does in-picker vocabulary addition.
 Plan updates, Daily Pace and the first explicit-period budget slice are implemented
-with synthetic checks. Next candidate is Attention's small pure data/API slice:
+with synthetic checks. Attention remains a later small pure data/API candidate:
 explicit context, due/none/undetermined, dated resolve/drop and save/cold read.
 Observation updates and broader budget operations remain gaps. Multiple-posting
 input/recurrence are separate from retained data. Do not treat Daily Pace or
@@ -164,9 +204,11 @@ Keep preparation in the existing checklist, not new per-feature plans or scaffol
 No generic scheduler/workflow, extra backend, duplicated frontend calculations,
 new dependency or research-port pipeline. Extend formats only when an actual slice
 needs independent evidence, preserving refusal and explicit version transitions.
-The latest slice added native budget definitions/API/codec and synthetic tests;
-UI layout/controls are unchanged. It did not read household data, run/modify LOAM,
-convert private candidates, introduce dependencies, or start operational cutover.
+The pure budget slice added native definitions/API/codec and synthetic tests without
+UI controls. The later Theme/picker/posting-editor slices change shared draft
+interaction/rendering.
+They did not read household data, run/modify LOAM, convert private candidates,
+introduce dependencies, or start operational cutover.
 
 The existing trial is `./tools/tui bonsai --book scratch/daily-ui/household.sexp`
 (or omit `bonsai` for Notty). Both use the SAME private trial file; exit one before
@@ -175,9 +217,10 @@ LOAM originals remain unchanged. See `tui/README.md` for controls and limits.
 Use the prepared scope to improve agreed daily use, not another broad inventory
 or research campaign.
 
-The simple form handles same-Measure two-posting moves and edits date/amount/memo.
-Foreign currencies work at their supplied scales. Exchange/refund/multi-posting
-entries are preserved and displayed, but their UI input/editing is still missing.
+The simple form handles same-Measure two-posting moves and edits date/amount/memo;
+Ctrl-T adds multiple-row ordinary input and amount corrections with retained structure.
+Foreign currencies work at their supplied scales. Exchange/refund entries are preserved
+and displayed, but their UI input/editing is still missing.
 Reimbursement/settlement evidence remains unimplemented: add concrete operations
 without flattening their correspondence into ordinary expenses. Saving uses one
 selected file, separate backups and a cooperative-writer check, not the old

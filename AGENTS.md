@@ -41,8 +41,10 @@ on-demand references, not a compulsory reading list or an implementation backlog
 
 ## Development
 
-- Prefer direct native OCaml and existing tests. Add a tool, model or test harness
-  only for a concrete gap. No mandatory D/P/R document or all-tools pipeline.
+- Prefer direct native OCaml and existing tests. Do not use Python, including
+  ad-hoc tooling or test scripts; use OCaml, shell or the existing Expect instead.
+  Add a tool, model or test harness only for a concrete gap. No mandatory D/P/R
+  document or all-tools pipeline.
 - Keep calculations pure and I/O explicit. Preserve inward dependencies, useful
   `.mli` boundaries, strict sequencing and fatal warnings 8/9/11. Normal builds
   remain Lean-free. Never suppress errors to make an unsupported case pass.

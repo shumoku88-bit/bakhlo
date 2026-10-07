@@ -70,7 +70,11 @@ mkdir scratch/my-daily-trial
 ./tools/tui bonsai --book scratch/my-daily-trial/book.sexp
 ```
 
-`Tab`で項目、`←→`で通貨・科目、`Enter`で記帳。`Ctrl-E`で選択した明細の編集、
+`Tab`で項目、`←→`で通貨・科目。出金元／入金先の`Enter`は検索できる口座・科目picker、
+その他の入力項目の`Enter`は記帳。picker内の確定は下書きの選択だけで保存しない。
+`Ctrl-T`で単一通貨の複数posting下書き（行追加・削除・科目検索・正確な差額）。
+そのpaneでは`Enter`は保存せず、`Ctrl-S`で検査・記帳、`Esc`は下書きを保持して閉じる。
+`Ctrl-E`で選択した明細の編集（複数行は構成・キー・対応を保った金額訂正）、
 `Ctrl-N`で新規、`Ctrl-P`で予定、予定を選んで`Enter`で支払い入力、`Ctrl-Q`で終了。
 両画面は同じ入力・台帳・保存処理を使う。起動時にファイルがなければ拒否し、空台帳へ置き換えない。
 [現在の対応範囲と保存の限界](tui/README.md)も参照。

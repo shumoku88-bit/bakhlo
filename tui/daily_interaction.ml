@@ -5,6 +5,7 @@ module D = Bakhlo_domain
 module Q = Bakhlo_application.Current_quantity_query
 module F = Daily_file
 module P = Ui_preferences
+module R = Posting_draft
 
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
 let get_id = function Ok x -> x | Error D.Identifier.Empty -> raise (F.Refused "empty-identity")
@@ -39,7 +40,31 @@ type input =
 type focus = Date | Currency | Source | Destination | Amount | Memo | History
 type view = Entries | Plans
 type mode = New | Edit of B.entry | Pay of string
-type overlay = No_overlay | Commands of int | Themes of { selected : int; original : P.theme }
+type posting_focus = Posting_day | Posting_memo | Posting_locus | Posting_sign | Posting_amount
+
+type posting_editor = {
+  draft : R.t;
+  row : int;
+  field : posting_focus;
+  visible : bool;
+  notice : string option;
+}
+
+type locus_target = From_locus | To_locus | Posting_locus_at of int
+
+type locus_picker = {
+  target : locus_target;
+  query : string;
+  selected : int;
+  notice : string option;
+}
+
+type overlay =
+  | No_overlay
+  | Commands of int
+  | Themes of { selected : int; original : P.theme }
+  | Loci of locus_picker
+
 type command = Theme
 
 let commands = [ Theme ]
@@ -68,6 +93,7 @@ type state = {
   paste : (string * bool) option;
   theme : P.theme;
   overlay : overlay;
+  postings : posting_editor option;
   config_home : string option;
   ui_notice : string option;
 }
@@ -103,6 +129,7 @@ let initial ?config_home session =
     paste = None;
     theme = P.load_theme ?config_home ();
     overlay = No_overlay;
+    postings = None;
     config_home;
     ui_notice = None;
   }
@@ -139,28 +166,62 @@ let pick choices current step =
     in
     List.nth choices ((index 0 choices + step + count) mod count)
 
+let editor_visible s = match s.postings with Some e -> e.visible | None -> false
+let update_editor s f = { s with postings = Option.map f s.postings }
+let posting_row s = match s.postings with None -> None | Some e -> List.nth_opt e.draft.rows e.row
+
+let update_posting_row s f =
+  update_editor s (fun e ->
+      {
+        e with
+        draft =
+          {
+            e.draft with
+            rows = List.mapi (fun n row -> if n = e.row then f row else row) e.draft.rows;
+          };
+        notice = None;
+      })
+
 let field s =
-  match s.adding with
-  | Some name -> name
-  | None -> (
-      match s.focus with
-      | Date -> s.form.day
-      | Amount -> s.form.amount
-      | Memo -> s.form.memo
-      | Currency | Source | Destination | History -> "")
+  match s.postings with
+  | Some e when e.visible -> (
+      match e.field with
+      | Posting_day -> s.form.day
+      | Posting_memo -> s.form.memo
+      | Posting_amount -> ( match posting_row s with None -> "" | Some row -> row.amount)
+      | Posting_locus | Posting_sign -> "")
+  | Some _ | None -> (
+      match s.adding with
+      | Some name -> name
+      | None -> (
+          match s.focus with
+          | Date -> s.form.day
+          | Amount -> s.form.amount
+          | Memo -> s.form.memo
+          | Currency | Source | Destination | History -> ""))
 
 let set_field s value =
-  match s.adding with
-  | Some _ -> { s with adding = Some value }
-  | None ->
-      let form =
-        match s.focus with
-        | Date -> { s.form with day = value }
-        | Amount -> { s.form with amount = value }
-        | Memo -> { s.form with memo = value }
-        | Currency | Source | Destination | History -> s.form
-      in
-      { s with form }
+  match s.postings with
+  | Some _ when s.blocked -> s
+  | Some e when e.visible -> (
+      match e.field with
+      | Posting_day -> { s with form = { s.form with day = value } }
+      | Posting_memo -> { s with form = { s.form with memo = value } }
+      | Posting_amount -> update_posting_row s (fun row -> { row with amount = value })
+      | Posting_locus | Posting_sign -> s)
+  | Some _ -> s
+  | None -> (
+      match s.adding with
+      | Some _ -> { s with adding = Some value }
+      | None ->
+          let form =
+            match s.focus with
+            | Date -> { s.form with day = value }
+            | Amount -> { s.form with amount = value }
+            | Memo -> { s.form with memo = value }
+            | Currency | Source | Destination | History -> s.form
+          in
+          { s with form })
 
 let next = function
   | Date -> Currency
@@ -213,17 +274,95 @@ let pair effects =
       Some (if Z.sign (quanta a) < 0 then (a, b) else (b, a))
   | [] | _ :: _ -> None
 
+let with_postings s draft =
+  {
+    s with
+    postings = Some { draft; row = 0; field = Posting_amount; visible = true; notice = None };
+  }
+
+let open_postings s =
+  if s.adding <> None then s
+  else
+    match s.postings with
+    | Some _ -> update_editor s (fun e -> { e with visible = true })
+    | None -> (
+        let draft =
+          match s.mode with
+          | Edit e -> (
+              match R.of_effects s.session.book e.effects with
+              | Error _ as error -> error
+              | Ok draft ->
+                  Ok
+                    {
+                      draft with
+                      rows =
+                        (match pair e.effects with
+                        | None -> draft.rows
+                        | Some _ ->
+                            List.map
+                              (fun (row : R.row) -> { row with amount = s.form.amount })
+                              draft.rows);
+                    })
+          | New | Pay _ ->
+              Ok
+                {
+                  R.measure = s.form.measure;
+                  rows =
+                    [
+                      {
+                        R.key = None;
+                        locus = s.form.from_locus;
+                        negative = true;
+                        amount = s.form.amount;
+                      };
+                      {
+                        R.key = None;
+                        locus = s.form.to_locus;
+                        negative = false;
+                        amount = s.form.amount;
+                      };
+                    ];
+                }
+        in
+        match draft with
+        | Error why -> { s with message = "複数行入力拒否: " ^ why }
+        | Ok draft ->
+            with_postings
+              {
+                s with
+                message = (if s.blocked then s.message else "複数posting下書き。Enterは保存せず、Ctrl-Sで検査・記帳。");
+              }
+              draft)
+
 let entry_form s (e : B.entry) =
-  match pair e.effects with
-  | None -> { s with message = "複数通貨／複数postingは保持・表示できます。この簡易入力での編集は未対応です。" }
-  | Some (from_, to_) ->
-      if
-        e.exchange <> None || e.reversal_of <> None
-        || List.exists
-             (fun (row : B.entry) -> row.reversal_of = Some e.id)
-             (B.entries s.session.book)
-      then { s with message = "両替・返金の対応を持つ明細は、この簡易入力では編集しません。" }
-      else
+  if
+    e.exchange <> None || e.reversal_of <> None
+    || List.exists (fun (row : B.entry) -> row.reversal_of = Some e.id) (B.entries s.session.book)
+  then { s with message = "両替・返金の対応を持つ明細は、この入力では編集しません。" }
+  else
+    match pair e.effects with
+    | None -> (
+        match R.of_effects s.session.book e.effects with
+        | Error why -> { s with message = "複数行編集拒否: " ^ why }
+        | Ok draft ->
+            with_postings
+              {
+                s with
+                mode = Edit e;
+                focus = Amount;
+                adding = None;
+                form =
+                  {
+                    s.form with
+                    day = e.day;
+                    measure = draft.measure;
+                    amount = "";
+                    memo = Option.value ~default:"" e.memo;
+                  };
+                message = "複数行編集：日付・各金額・メモ。行構成・符号・科目・通貨・キーを保持します。";
+              }
+              draft)
+    | Some (from_, to_) ->
         let measure = mstr (D.Effect.measure from_) in
         {
           s with
@@ -264,7 +403,21 @@ let pay_selected s =
           p.changes
       in
       match pair effects with
-      | None -> { s with message = "この複数posting予定は保持・表示します。簡易支払い入力は未対応です。" }
+      | None -> (
+          match R.of_effects s.session.book effects with
+          | Error why -> { s with message = "支払い入力拒否: " ^ why }
+          | Ok draft ->
+              with_postings
+                {
+                  s with
+                  mode = Pay p.id;
+                  focus = Amount;
+                  adding = None;
+                  form =
+                    { s.form with day = F.today (); measure = p.measure; amount = ""; memo = "" };
+                  message = "複数行の支払い入力。実際の日付・金額を確認しCtrl-S。予定の日付・内訳は保持します。";
+                }
+                draft)
       | Some (from_, to_) ->
           {
             s with
@@ -315,27 +468,30 @@ let submit s =
           | Error why -> { s with message = "科目追加拒否: " ^ why }
           | Ok book -> finish s book)
       | None -> (
-          F.require (s.form.from_locus <> s.form.to_locus) "same-locus";
-          let amount = get (B.parse_amount s.session.book s.form.measure s.form.amount) in
           let effects =
-            match s.mode with
-            | Edit e ->
-                List.map
-                  (fun p ->
-                    D.Effect.create ~key:(D.Effect.key p) ~locus:(D.Effect.locus p)
-                      ~measure:(D.Effect.measure p)
-                      ~quantity:
-                        (D.Quantity.of_quanta
-                           (if Z.sign (quanta p) < 0 then Z.neg amount else amount)))
-                  e.effects
-            | New | Pay _ ->
-                let effect_ loc n =
-                  D.Effect.create ~key:None
-                    ~locus:(get_id (D.Identifier.Locus.of_string loc))
-                    ~measure:(get_id (D.Identifier.Measure.of_string s.form.measure))
-                    ~quantity:(D.Quantity.of_quanta n)
-                in
-                [ effect_ s.form.from_locus (Z.neg amount); effect_ s.form.to_locus amount ]
+            match s.postings with
+            | Some e -> get (R.effects s.session.book e.draft)
+            | None -> (
+                F.require (s.form.from_locus <> s.form.to_locus) "same-locus";
+                let amount = get (B.parse_amount s.session.book s.form.measure s.form.amount) in
+                match s.mode with
+                | Edit e ->
+                    List.map
+                      (fun p ->
+                        D.Effect.create ~key:(D.Effect.key p) ~locus:(D.Effect.locus p)
+                          ~measure:(D.Effect.measure p)
+                          ~quantity:
+                            (D.Quantity.of_quanta
+                               (if Z.sign (quanta p) < 0 then Z.neg amount else amount)))
+                      e.effects
+                | New | Pay _ ->
+                    let effect_ loc n =
+                      D.Effect.create ~key:None
+                        ~locus:(get_id (D.Identifier.Locus.of_string loc))
+                        ~measure:(get_id (D.Identifier.Measure.of_string s.form.measure))
+                        ~quantity:(D.Quantity.of_quanta n)
+                    in
+                    [ effect_ s.form.from_locus (Z.neg amount); effect_ s.form.to_locus amount ])
           in
           ignore
             (get
@@ -400,6 +556,49 @@ let utf8 c =
   Uutf.Buffer.add_utf_8 b c;
   Buffer.contents b
 
+let printable_uchar c =
+  let n = Uchar.to_int c in
+  n >= 32 && (n < 127 || n > 159)
+
+let locus_candidates s query =
+  (* Search only; identities/labels in the book are never normalized or rewritten. *)
+  let query = String.lowercase_ascii query in
+  let matches value = Base.String.is_substring (String.lowercase_ascii value) ~substring:query in
+  List.filter (fun id -> matches id || matches (B.label s.session.book id)) (loci s.session.book)
+
+let can_choose_locus s =
+  (not s.blocked) && s.adding = None && editable s
+  &&
+  match s.overlay with
+  | Loci { target = Posting_locus_at row; _ } -> (
+      editor_visible s
+      && match s.postings with Some e -> List.nth_opt e.draft.rows row <> None | None -> false)
+  | No_overlay | Commands _ | Themes _ | Loci _ -> s.form.amount = ""
+
+let open_locus_picker s target =
+  let current =
+    match target with
+    | From_locus -> s.form.from_locus
+    | To_locus -> s.form.to_locus
+    | Posting_locus_at row -> (
+        match s.postings with
+        | Some e -> ( match List.nth_opt e.draft.rows row with Some row -> row.locus | None -> "")
+        | None -> "")
+  in
+  let rec index n = function
+    | [] -> 0
+    | id :: _ when id = current -> n
+    | _ :: rest -> index (n + 1) rest
+  in
+  {
+    s with
+    overlay = Loci { target; query = ""; selected = index 0 (loci s.session.book); notice = None };
+  }
+
+let search_loci s picker query =
+  { s with overlay = Loci { picker with query; selected = 0; notice = None } }
+
+let picker_is_open s = match s.overlay with Loci _ -> true | _ -> false
 let theme_at n = match List.nth_opt P.all_themes n with Some theme -> theme | None -> P.Terminal
 
 let theme_index theme =
@@ -457,9 +656,154 @@ let overlay_key s (button, mods) =
                   ui_notice = Some "テーマはこの起動中だけ変更しました。次回用のUI設定は保存できませんでした。";
                 })
       | _ -> Some s)
+  | Loci picker -> (
+      let candidates = locus_candidates s picker.query in
+      let move step =
+        let selected = max 0 (min (max 0 (List.length candidates - 1)) (picker.selected + step)) in
+        Some { s with overlay = Loci { picker with selected; notice = None } }
+      in
+      match (button, mods) with
+      | `Escape, [] -> Some { s with overlay = No_overlay }
+      | `Arrow `Up, [] -> move (-1)
+      | `Arrow `Down, [] -> move 1
+      | `Page `Up, [] -> move (-8)
+      | `Page `Down, [] -> move 8
+      | `Home, [] -> move (-List.length candidates)
+      | `End, [] -> move (List.length candidates)
+      | `Backspace, [] -> Some (search_loci s picker (backspace picker.query))
+      | `ASCII 'u', [ `Ctrl ] -> Some (search_loci s picker "")
+      | `Enter, [] -> (
+          match List.nth_opt candidates picker.selected with
+          | Some id when can_choose_locus s ->
+              let chosen =
+                match picker.target with
+                | From_locus -> { s with form = { s.form with from_locus = id } }
+                | To_locus -> { s with form = { s.form with to_locus = id } }
+                | Posting_locus_at position ->
+                    update_editor s (fun e ->
+                        {
+                          e with
+                          draft =
+                            {
+                              e.draft with
+                              rows =
+                                List.mapi
+                                  (fun n (row : R.row) ->
+                                    if n = position then { row with locus = id } else row)
+                                  e.draft.rows;
+                            };
+                          notice = None;
+                        })
+              in
+              Some { chosen with overlay = No_overlay }
+          | Some _ | None -> Some s)
+      | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
+          Some (search_loci s picker (picker.query ^ String.make 1 c))
+      | `Uchar c, [] when printable_uchar c -> Some (search_loci s picker (picker.query ^ utf8 c))
+      | _ -> Some s)
 
 let is_space = function `ASCII ' ' -> true | `Uchar c -> Uchar.to_int c = 0x20 | _ -> false
-let accepts_free_text s = s.adding <> None || s.focus = Memo
+
+let accepts_free_text s =
+  match s.postings with
+  | Some e when e.visible -> e.field = Posting_memo
+  | Some _ -> false
+  | None -> s.adding <> None || s.focus = Memo
+
+let new_draft s =
+  {
+    (initial ?config_home:s.config_home s.session) with
+    theme = s.theme;
+    ui_notice = s.ui_notice;
+    message = "新しい下書き。過去の不確かな試行は再送・回復しません。";
+  }
+
+let next_posting_field = function
+  | Posting_day -> Posting_memo
+  | Posting_memo -> Posting_locus
+  | Posting_locus -> Posting_sign
+  | Posting_sign -> Posting_amount
+  | Posting_amount -> Posting_day
+
+let previous_posting_field = function
+  | Posting_day -> Posting_amount
+  | Posting_memo -> Posting_day
+  | Posting_locus -> Posting_memo
+  | Posting_sign -> Posting_locus
+  | Posting_amount -> Posting_sign
+
+let editor_key s e (button, mods) =
+  let notice text = update_editor s (fun e -> { e with notice = Some text }) in
+  let move step =
+    update_editor s (fun e ->
+        { e with row = max 0 (min (max 0 (List.length e.draft.rows - 1)) (e.row + step)) })
+  in
+  let focus f = update_editor s (fun e -> { e with field = f e.field }) in
+  let add () =
+    if s.blocked then s
+    else if not (editable s) then notice "編集中は行構成・科目・符号・キーを保持します"
+    else
+      update_editor s (fun e ->
+          {
+            e with
+            draft =
+              {
+                e.draft with
+                rows =
+                  e.draft.rows @ [ { R.key = None; locus = ""; negative = false; amount = "" } ];
+              };
+            row = List.length e.draft.rows;
+            field = Posting_locus;
+            notice = None;
+          })
+  in
+  let remove () =
+    if s.blocked then s
+    else if not (editable s) then notice "編集中は既存の行を削除しません"
+    else
+      update_editor s (fun e ->
+          let rows = List.filteri (fun n _ -> n <> e.row) e.draft.rows in
+          {
+            e with
+            draft = { e.draft with rows };
+            row = min e.row (max 0 (List.length rows - 1));
+            notice = None;
+          })
+  in
+  let sign negative =
+    if s.blocked then s
+    else if not (editable s) then notice "編集中は符号を保持します"
+    else update_posting_row s (fun row -> { row with negative })
+  in
+  match (button, mods) with
+  | `ASCII 'n', [ `Ctrl ] -> new_draft s
+  | `ASCII 'r', [ `Ctrl ] -> reload s
+  | `ASCII 't', [ `Ctrl ] -> update_editor s (fun e -> { e with visible = not e.visible })
+  | `Escape, [] -> update_editor s (fun e -> { e with visible = false })
+  | button, [] when is_space button && not (accepts_free_text s) -> { s with overlay = Commands 0 }
+  | _ when not e.visible -> s
+  | `ASCII 's', [ `Ctrl ] ->
+      if s.blocked then s else submit (update_editor s (fun e -> { e with notice = None }))
+  | `ASCII 'a', [ `Ctrl ] | `Insert, [] -> add ()
+  | `ASCII 'd', [ `Ctrl ] | `Delete, [] -> remove ()
+  | `Arrow `Up, [] -> move (-1)
+  | `Arrow `Down, [] -> move 1
+  | `Page `Up, [] -> move (-6)
+  | `Page `Down, [] -> move 6
+  | `Home, [] -> move (-List.length e.draft.rows)
+  | `End, [] -> move (List.length e.draft.rows)
+  | `Tab, [] -> focus next_posting_field
+  | `Tab, [ `Shift ] -> focus previous_posting_field
+  | `Enter, [] when e.field = Posting_locus -> open_locus_picker s (Posting_locus_at e.row)
+  | `Enter, [] -> focus next_posting_field
+  | `Arrow `Left, [] when e.field = Posting_sign -> sign true
+  | `Arrow `Right, [] when e.field = Posting_sign -> sign false
+  | `ASCII 'u', [ `Ctrl ] -> set_field s ""
+  | `Backspace, [] -> set_field s (backspace (field s))
+  | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
+      set_field s (field s ^ String.make 1 c)
+  | `Uchar c, [] when printable_uchar c -> set_field s (field s ^ utf8 c)
+  | _ -> s
 
 let key s (button, mods) =
   (* Notty decodes control bytes as upper-case ASCII; plain memo text is untouched. *)
@@ -467,29 +811,25 @@ let key s (button, mods) =
     match (button, mods) with `ASCII c, [ `Ctrl ] -> `ASCII (Char.lowercase_ascii c) | _ -> button
   in
   match s.paste with
-  | Some _ when s.overlay <> No_overlay -> Some s
+  | Some _ when s.overlay <> No_overlay && not (picker_is_open s) -> Some s
   | Some (text, invalid) -> (
       match (button, mods) with
       | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
           Some { s with paste = Some (text ^ String.make 1 c, invalid) }
-      | `Uchar c, [] -> Some { s with paste = Some (text ^ utf8 c, invalid) }
+      | `Uchar c, [] when printable_uchar c -> Some { s with paste = Some (text ^ utf8 c, invalid) }
       | _ -> Some { s with paste = Some (text, true) })
   | None when button = `ASCII 'q' && mods = [ `Ctrl ] -> None
   | None -> (
       match overlay_key s (button, mods) with
       | Some s -> Some s
+      | None when s.postings <> None -> (
+          match s.postings with Some e -> Some (editor_key s e (button, mods)) | None -> Some s)
       | None -> (
           match (button, mods) with
+          | `ASCII 't', [ `Ctrl ] -> Some (open_postings s)
           | button, [] when is_space button && not (accepts_free_text s) ->
               Some { s with overlay = Commands 0 }
-          | `ASCII 'n', [ `Ctrl ] ->
-              Some
-                {
-                  (initial ?config_home:s.config_home s.session) with
-                  theme = s.theme;
-                  ui_notice = s.ui_notice;
-                  message = "新しい下書き。過去の不確かな試行は再送・回復しません。";
-                }
+          | `ASCII 'n', [ `Ctrl ] -> Some (new_draft s)
           | `ASCII 'e', [ `Ctrl ] -> Some (if s.blocked then s else edit_selected s)
           | `ASCII 'r', [ `Ctrl ] -> Some (reload s)
           | `ASCII 'p', [ `Ctrl ] ->
@@ -515,8 +855,13 @@ let key s (button, mods) =
           | `Backspace, [] -> Some (set_field s (backspace (field s)))
           | `Enter, [] ->
               Some
-                (if s.adding = None && s.focus = History && s.view = Plans then pay_selected s
-                 else submit s)
+                (if s.adding <> None then submit s
+                 else
+                   match s.focus with
+                   | Source -> open_locus_picker s From_locus
+                   | Destination -> open_locus_picker s To_locus
+                   | History when s.view = Plans -> pay_selected s
+                   | Date | Currency | Amount | Memo | History -> submit s)
           | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
               Some (set_field s (field s ^ String.make 1 c))
           | `Uchar c, [] -> Some (set_field s (field s ^ utf8 c))
@@ -526,7 +871,27 @@ let handle s (input : input) =
   match input with
   | `Key event -> key s event
   | `Paste `Start -> Some { s with paste = Some ("", false) }
+  | `Paste `End when picker_is_open s -> (
+      match (s.overlay, s.paste) with
+      | Loci picker, Some (text, false) ->
+          Some (search_loci { s with paste = None } picker (picker.query ^ text))
+      | Loci picker, Some (_, true) ->
+          Some
+            {
+              s with
+              paste = None;
+              overlay = Loci { picker with notice = Some "改行・制御入りの検索貼付を拒否しました" };
+            }
+      | _ -> Some { s with paste = None })
   | `Paste `End when s.overlay <> No_overlay -> Some { s with paste = None }
+  | `Paste `End when s.postings <> None -> (
+      match s.paste with
+      | Some (text, false) -> Some (set_field { s with paste = None } (field s ^ text))
+      | Some (_, true) ->
+          Some
+            (update_editor { s with paste = None } (fun e ->
+                 { e with notice = Some "改行・制御入り貼付を拒否。自動記帳しません" }))
+      | None -> Some s)
   | `Paste `End -> (
       match s.paste with
       | None -> Some s
@@ -589,24 +954,121 @@ type style = Plain | Active | Heading | Status | Panel | Panel_heading | Panel_a
 
 let panel_width = 34
 
-let panel_line style text =
-  let room = panel_width - 4 in
-  let text = if String.length text > room then String.sub text 0 room else text in
-  let text = text ^ String.make (room - String.length text) ' ' in
+(* The renderer supplies cell measurement, not layout or interaction policy.
+   Clip only at UTF-8 scalar boundaries and mark clipping explicitly. *)
+let clip_text ~width_of room value =
+  let text = visible value in
+  if room <= 0 then ""
+  else if width_of text <= room then text
+  else
+    let _, prefix =
+      Uutf.String.fold_utf_8
+        (fun (stopped, prefix) _ -> function
+          | `Uchar c when not stopped ->
+              let next = prefix ^ utf8 c in
+              if width_of next <= room - 1 then (false, next) else (true, prefix)
+          | `Uchar _ | `Malformed _ -> (stopped, prefix))
+        (false, "") text
+    in
+    prefix ^ "~"
+
+let panel_line ?(width = panel_width) ~width_of style text =
+  let room = max 0 (width - 4) in
+  let text = clip_text ~width_of room text in
+  let text = text ^ String.make (room - width_of text) ' ' in
   (style, "| " ^ text ^ " |")
 
-let panel_border title =
-  let room = panel_width - 4 in
-  let title = " " ^ title ^ " " in
-  let title = if String.length title > room then String.sub title 0 room else title in
-  let rest = max 0 (room - String.length title) in
-  (Panel_heading, "+-" ^ title ^ String.make rest '-' ^ "-+")
+let panel_border ?(width = panel_width) ~width_of title =
+  let room = max 0 (width - 4) in
+  let title = clip_text ~width_of room (" " ^ title ^ " ") in
+  (Panel_heading, "+-" ^ title ^ String.make (room - width_of title) '-' ^ "-+")
 
-let panel_bottom = (Panel, "+" ^ String.make (panel_width - 2) '-' ^ "+")
+let panel_bottom ?(width = panel_width) () = (Panel, "+" ^ String.make (max 0 (width - 2)) '-' ^ "+")
 
-let overlay_screen s =
+let posting_status s e =
+  match R.residual s.session.book e.draft with
+  | Error why -> "下書き差額不明: " ^ why
+  | Ok n ->
+      "下書き差額: "
+      ^ B.format s.session.book e.draft.measure n
+      ^ " " ^ e.draft.measure
+      ^ if Z.equal n Z.zero then "（0・数量のみ整合）" else "（0でない・記帳不可）"
+
+let posting_line book n (row : R.row) measure =
+  Printf.sprintf "%d %s%s %s %s [%s]" (n + 1)
+    (if row.negative then "-" else "+")
+    row.amount measure (B.label book row.locus) row.locus
+
+let posting_panel ~dimensions:(width, height) ~width_of s e =
+  let width = max 4 (min 76 (width - 4)) in
+  let line = panel_line ~width ~width_of in
+  let active field = if e.field = field then Panel_active else Panel in
+  let slots = min 6 (max 1 (height - 14)) in
+  let start = max 0 (e.row - slots + 1) in
+  let row_focus =
+    match e.field with
+    | Posting_locus | Posting_sign | Posting_amount -> true
+    | Posting_day | Posting_memo -> false
+  in
+  let rows =
+    List.init slots (fun offset ->
+        let n = start + offset in
+        match List.nth_opt e.draft.rows n with
+        | None -> line Panel (if e.draft.rows = [] && offset = 0 then "行なし: Ctrl-Aで追加" else "")
+        | Some row ->
+            line
+              (if n = e.row && row_focus then Panel_active else Panel)
+              ((if n = e.row then "> " else "  ")
+              ^ posting_line s.session.book n row e.draft.measure))
+  in
+  let chosen = List.nth_opt e.draft.rows e.row in
+  let field_name =
+    match e.field with
+    | Posting_day -> "日付"
+    | Posting_memo -> "メモ"
+    | Posting_locus -> "科目"
+    | Posting_sign -> "符号（← - / → +）"
+    | Posting_amount -> "金額（正の値）"
+  in
+  [
+    panel_border ~width ~width_of "複数posting下書き";
+    line (active Posting_day) ("日付: " ^ s.form.day);
+    line Panel ("通貨: " ^ e.draft.measure ^ "（固定・換算しません）");
+    line (active Posting_memo) ("メモ: " ^ s.form.memo);
+    line Panel
+      (Printf.sprintf "行 %d / %d  欄: %s"
+         (if e.draft.rows = [] then 0 else e.row + 1)
+         (List.length e.draft.rows) field_name);
+  ]
+  @ rows
+  @ [
+      line Panel
+        (match chosen with
+        | None -> "ID: —"
+        | Some row ->
+            "ID: " ^ row.locus ^ " / 現在量: "
+            ^ quantity { s with form = { s.form with measure = e.draft.measure } } row.locus);
+      line Panel
+        ("キー: "
+        ^
+        match chosen with
+        | None -> "—"
+        | Some { R.key = None; _ } -> "未指定（無名posting）"
+        | Some { R.key = Some key; _ } -> D.Identifier.Effect_key.to_string key);
+      line Panel (posting_status s e);
+      line Panel (if s.blocked then s.message else Option.value ~default:s.message e.notice);
+      line Panel "Tab:欄 ↑↓:行 Enter:科目/次欄 Ctrl-S:記帳";
+      line Panel "Ctrl-A:行追加 Ctrl-D:削除 Esc:閉じて保持";
+      panel_bottom ~width ();
+    ]
+
+let overlay_screen ~dimensions:((width, height) as dimensions) ~width_of s =
+  let panel_line = panel_line ~width_of and panel_border = panel_border ~width_of in
   match s.overlay with
-  | No_overlay -> None
+  | No_overlay -> (
+      match s.postings with
+      | Some e when e.visible -> Some (posting_panel ~dimensions ~width_of s e)
+      | Some _ | None -> None)
   | Commands selected ->
       let rows =
         List.mapi
@@ -623,7 +1085,7 @@ let overlay_screen s =
             panel_line Panel "Up/Down  select";
             panel_line Panel "Enter    open";
             panel_line Panel "Esc      close";
-            panel_bottom;
+            panel_bottom ();
           ])
   | Themes { selected; _ } ->
       let rows =
@@ -640,7 +1102,67 @@ let overlay_screen s =
             panel_line Panel "Up/Down  preview";
             panel_line Panel "Enter    save";
             panel_line Panel "Esc      cancel";
-            panel_bottom;
+            panel_bottom ();
+          ])
+  | Loci picker ->
+      let width = max 4 (min 76 (width - 4)) in
+      let line = panel_line ~width in
+      let candidates = locus_candidates s picker.query in
+      let count = List.length candidates in
+      let selected = max 0 (min (max 0 (count - 1)) picker.selected) in
+      let slots = min 8 (max 1 (height - 11)) in
+      let start = max 0 (selected - slots + 1) in
+      let rows =
+        List.init slots (fun offset ->
+            let n = start + offset in
+            match List.nth_opt candidates n with
+            | None -> line Panel (if count = 0 && offset = 0 then "候補なし" else "")
+            | Some id ->
+                line
+                  (if n = selected then Panel_active else Panel)
+                  ((if n = selected then "> " else "  ")
+                  ^ B.label s.session.book id ^ " [" ^ id ^ "]"))
+      in
+      let chosen = List.nth_opt candidates selected in
+      let notice =
+        match picker.notice with
+        | Some text -> text
+        | None ->
+            if s.blocked then "閲覧のみ: 書込停止中。下書きは保持します"
+            else if not (editable s) then "閲覧のみ: 編集中の科目は保持します"
+            else if not (can_choose_locus s) then "閲覧のみ: 戻って金額を消すと変更できます"
+            else "選択は下書きのみ。まだ記帳しません"
+      in
+      let count_text =
+        match B.approved_loci s.session.book with
+        | None -> "科目一覧は未設定"
+        | Some all ->
+            Printf.sprintf "候補 %d / %d (全%d)"
+              (if count = 0 then 0 else selected + 1)
+              count (List.length all)
+      in
+      Some
+        ([
+           panel_border ~width
+             (match picker.target with
+             | From_locus -> "出金元"
+             | To_locus -> "入金先・科目"
+             | Posting_locus_at row -> Printf.sprintf "行%dの科目" (row + 1));
+           line Panel ("検索: " ^ picker.query);
+           line Panel count_text;
+         ]
+        @ rows
+        @ [
+            line Panel ("ID: " ^ Option.value ~default:"—" chosen);
+            line Panel
+              (match chosen with
+              | None -> "現在量: —"
+              | Some id -> "現在量: " ^ quantity s id ^ " " ^ s.form.measure);
+            line Panel notice;
+            line Panel
+              (if can_choose_locus s then "↑↓ 選択  Enter 確定  Esc 戻る" else "↑↓ 閲覧  Esc 戻る（選択変更不可）");
+            line Panel "文字検索 / Backspace / Ctrl-U 消去";
+            panel_bottom ~width ();
           ])
 
 let screen ~frontend (width, height) s =
@@ -662,41 +1184,422 @@ let screen ~frontend (width, height) s =
           ((if active then Active else Plain), visible ((if active then "> " else "  ") ^ text)))
     in
     let content =
-      [
-        (Heading, "Bakhlo / " ^ frontend ^ " — S式の家計簿（試用）");
-        plain "Tab:項目  ←→:通貨/科目  Enter:記帳  Ctrl-N:新規  Ctrl-E:編集  Space:コマンド";
-        plain "Ctrl-P:予定/明細  予定でEnter:支払い入力  Ctrl-A:科目追加  Ctrl-R:再読込  Ctrl-Q:終了";
-        plain
-          (match s.mode with
-          | New -> "新規記帳"
-          | Edit _ -> "訂正済み明細を編集（旧版は別バックアップ）"
-          | Pay _ -> "予定の支払いを記帳");
-        field Date "日付" s.form.day;
-        field Currency "通貨" s.form.measure;
-        field Source "出金元" (B.label s.session.book s.form.from_locus);
-        field Destination "入金先・科目" (B.label s.session.book s.form.to_locus);
-        field Amount "金額" s.form.amount;
-        field Memo "メモ" s.form.memo;
-        (match s.adding with
-        | Some name -> plain ("追加する科目: " ^ name)
-        | None -> (Status, visible (Option.value ~default:"" s.ui_notice)));
-        (Status, visible s.message);
-        plain
-          ("出金元: " ^ quantity s s.form.from_locus ^ " / 入金先: " ^ quantity s s.form.to_locus ^ " "
-         ^ s.form.measure);
-        plain
-          (match s.view with
-          | Entries -> "明細（↑↓で選択、Ctrl-Eで編集）"
-          | Plans -> "明示された予定（↑↓、Enterで支払い入力。記録がない日は義務なしとは限りません）");
-      ]
-      @ if rows = [] then [ plain "記録なし" ] else rows
+      match s.postings with
+      | Some e ->
+          [
+            (Heading, "Bakhlo / " ^ frontend ^ " — 複数posting下書き保持中");
+            plain "Ctrl-T:入力を開く/閉じる Ctrl-N:下書き破棄 Ctrl-R:再読込 Space:コマンド";
+            plain
+              (match s.mode with
+              | New -> "新規記帳"
+              | Edit _ -> "既存明細の訂正（行構成・キーは保持）"
+              | Pay _ -> "予定の支払い入力");
+            plain ("日付: " ^ s.form.day ^ " / 通貨: " ^ e.draft.measure);
+            plain ("メモ: " ^ s.form.memo);
+            plain (posting_status s e);
+            (Status, visible s.message);
+            (Status, visible (Option.value ~default:"" s.ui_notice));
+            plain "Enterでは保存しません。Ctrl-Tで入力へ戻り、Ctrl-Sで検査・記帳。";
+          ]
+          @ (e.draft.rows
+            |> List.mapi (fun n row -> (n, row))
+            |> List.filter (fun (n, _) ->
+                n >= max 0 (e.row - room + 1) && n <= max e.row (room - 1))
+            |> List.map (fun (n, row) -> plain (posting_line s.session.book n row e.draft.measure))
+            )
+      | None ->
+          [
+            (Heading, "Bakhlo / " ^ frontend ^ " — S式の家計簿（試用）");
+            plain "Tab:項目  ←→:通貨/科目  Enter:科目選択/記帳  Ctrl-N:新規  Space:コマンド";
+            plain "Ctrl-T:複数行 Ctrl-P:予定/明細 Ctrl-E:編集 Ctrl-A:科目追加 Ctrl-R:再読込 Ctrl-Q:終了";
+            plain
+              (match s.mode with
+              | New -> "新規記帳"
+              | Edit _ -> "訂正済み明細を編集（旧版は別バックアップ）"
+              | Pay _ -> "予定の支払いを記帳");
+            field Date "日付" s.form.day;
+            field Currency "通貨" s.form.measure;
+            field Source "出金元" (B.label s.session.book s.form.from_locus);
+            field Destination "入金先・科目" (B.label s.session.book s.form.to_locus);
+            field Amount "金額" s.form.amount;
+            field Memo "メモ" s.form.memo;
+            (match s.adding with
+            | Some name -> plain ("追加する科目: " ^ name)
+            | None -> (Status, visible (Option.value ~default:"" s.ui_notice)));
+            (Status, visible s.message);
+            plain
+              ("出金元: " ^ quantity s s.form.from_locus ^ " / 入金先: " ^ quantity s s.form.to_locus
+             ^ " " ^ s.form.measure);
+            plain
+              (match s.view with
+              | Entries -> "明細（↑↓で選択、Ctrl-Eで編集）"
+              | Plans -> "明示された予定（↑↓、Enterで支払い入力。記録がない日は義務なしとは限りません）");
+          ]
+          @ if rows = [] then [ plain "記録なし" ] else rows
     in
-    if s.blocked && s.overlay <> No_overlay then
+    if s.blocked && (s.overlay <> No_overlay || s.postings <> None) then
       (* A centered pane must not conceal household conflict/uncertain-write warnings. *)
       content
       @ List.init (max 0 (height - List.length content - 1)) (fun _ -> plain "")
       @ [ (Status, visible s.message) ]
     else content
+
+(* Synthetic renderer cases; no publication or dependency on a provider. *)
+let posting_render_cases s =
+  let rows =
+    loci s.session.book
+    |> List.mapi (fun n locus -> { R.key = None; locus; negative = n = 0; amount = "1" })
+  in
+  let active =
+    with_postings
+      {
+        s with
+        form = { s.form with memo = String.concat "" (List.init 30 (fun _ -> "長いメモ")) ^ "\n\255" };
+      }
+      { R.measure = s.form.measure; rows }
+  in
+  [
+    active;
+    update_editor active (fun e -> { e with row = max 0 (List.length rows - 1) });
+    update_editor active (fun e -> { e with field = Posting_day });
+    update_editor active (fun e -> { e with field = Posting_memo });
+    update_editor active (fun e -> { e with draft = { e.draft with rows = [] } });
+    update_editor active (fun e -> { e with visible = false });
+    { active with overlay = Commands 0 };
+    { active with overlay = Themes { selected = 0; original = s.theme } };
+    {
+      active with
+      overlay = Loci { target = Posting_locus_at 0; query = ""; selected = 0; notice = None };
+    };
+  ]
+
+let posting_self_check ~directory ~base =
+  let require = F.require in
+  let step s input =
+    match handle s input with Some s -> s | None -> raise (F.Refused "posting-unexpected-exit")
+  in
+  let press s button = step s (`Key (button, [])) in
+  let ctrl s c = step s (`Key (`ASCII c, [ `Ctrl ])) in
+  let text s value =
+    Uutf.String.fold_utf_8
+      (fun s _ -> function `Uchar c -> press s (`Uchar c) | `Malformed _ -> s)
+      s value
+  in
+  let editor s =
+    match s.postings with Some e -> e | None -> raise (F.Refused "posting-editor-missing")
+  in
+  let effect_ ?key locus n =
+    D.Effect.create
+      ~key:(Option.map (fun key -> get_id (D.Identifier.Effect_key.of_string key)) key)
+      ~locus:(get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
+      ~quantity:(D.Quantity.of_quanta (Z.of_int n))
+  in
+  let paid_plan : B.plan =
+    {
+      id = "paid-plan";
+      day = "2026-11-01";
+      measure = "jpy";
+      changes = [ ("wallet", Z.of_int (-120)); ("food", Z.of_int 120) ];
+      paid_by = None;
+      cancelled_on = None;
+    }
+  in
+  let split_plan =
+    {
+      paid_plan with
+      id = "split-plan";
+      day = "2026-12-11";
+      changes = [ ("wallet", Z.of_int (-300)); ("food", Z.of_int 200); ("bank", Z.of_int 100) ];
+    }
+  in
+  let keyed : B.entry =
+    {
+      id = "keyed-split";
+      day = "2026-11-02";
+      memo = Some "";
+      effects =
+        [
+          effect_ ~key:" debit key " "wallet" (-120);
+          effect_ ~key:"food-one" "food" 30;
+          effect_ "food" 90;
+        ];
+      reversal_of = None;
+      exchange = None;
+    }
+  in
+  let book = get (B.put_plan base.session.book ~replace:false paid_plan) in
+  let book = get (B.put_entry book ~replace:false keyed ~plan:(Some paid_plan.id)) in
+  let book = get (B.put_plan book ~replace:false split_plan) in
+  let path = directory ^ "/postings.sexp" in
+  F.write_new path (B.to_string book);
+  let base = initial ~config_home:directory (F.load path) in
+  let base =
+    { base with form = { base.form with amount = "300"; day = "2026-11-03"; memo = "架空の分割" } }
+  in
+  let bytes = F.read path in
+  let files () = Sys.readdir directory |> Array.to_list |> List.sort String.compare in
+  let before_files = files () in
+  let opened = ctrl base 'T' in
+  require
+    (editor_visible opened && opened.form = base.form && List.length (editor opened).draft.rows = 2)
+    "posting-open-preserved-basic-draft";
+  let held = press opened `Escape in
+  let accidental = ctrl (press held `Enter) 'S' in
+  require
+    ((not (editor_visible held)) && accidental.postings = held.postings && F.read path = bytes)
+    "posting-hidden-enter-saved-or-lost";
+  let resumed = ctrl held 't' in
+  require (resumed.postings = opened.postings) "posting-resume-lost-focus-or-rows";
+  let themed = press (press (press (press opened (`ASCII ' ')) `Enter) `Escape) `Escape in
+  require
+    (themed.postings = opened.postings && themed.theme = opened.theme)
+    "posting-theme-lost-draft";
+  let added = ctrl opened 'a' in
+  require
+    (List.length (editor added).draft.rows = 3
+    && R.residual added.session.book (editor added).draft <> Ok Z.zero)
+    "posting-blank-row-became-zero";
+  let removed = ctrl added 'd' in
+  require ((editor removed).draft = (editor opened).draft) "posting-add-remove-mutated-other-rows";
+  let picker = press added `Enter in
+  let swallowed = ctrl (ctrl picker 's') 'n' in
+  require
+    (swallowed.postings = picker.postings && swallowed.session == picker.session)
+    "posting-picker-published-or-cleared";
+  let picked = press (text picker "BaNk") `Enter in
+  require
+    ((List.nth (editor picked).draft.rows 2).locus = "bank"
+    && (editor picked).field = Posting_locus
+    && picked.overlay = No_overlay)
+    "posting-picker-target-or-focus";
+  let candidate = text (press (press picked `Tab) `Tab) "100" in
+  let candidate = text (ctrl (press candidate (`Arrow `Up)) 'u') "200" in
+  require
+    (get (R.residual candidate.session.book (editor candidate).draft) = Z.zero)
+    "posting-exact-residual";
+  let candidate = press candidate (`Arrow `Up) in
+  let entered = press candidate `Enter in
+  require (entered.session == candidate.session && F.read path = bytes) "posting-enter-published";
+  let bad_paste =
+    List.fold_left step candidate
+      [
+        `Paste `Start;
+        `Key (`ASCII '9', []);
+        `Key (`ASCII 'S', [ `Ctrl ]);
+        `Key (`Enter, []);
+        `Paste `End;
+      ]
+  in
+  require
+    ((editor bad_paste).draft = (editor candidate).draft && F.read path = bytes)
+    "posting-paste-invoked-save";
+  let pasted =
+    List.fold_left step (ctrl candidate 'u')
+      [
+        `Paste `Start;
+        `Key (`ASCII '3', []);
+        `Key (`ASCII '0', []);
+        `Key (`ASCII '0', []);
+        `Paste `End;
+      ]
+  in
+  require ((editor pasted).draft = (editor candidate).draft) "posting-single-line-amount-paste";
+  List.iter
+    (fun state ->
+      let failed = ctrl state 's' in
+      require
+        ((editor failed).draft = (editor state).draft
+        && F.read path = bytes
+        && files () = before_files)
+        "posting-invalid-input-wrote-or-lost")
+    [
+      set_field candidate "301";
+      set_field candidate "0";
+      set_field candidate "";
+      set_field candidate "1.001";
+      { candidate with form = { candidate.form with day = "2026-02-30" } };
+      update_posting_row candidate (fun row -> { row with locus = "not-approved" });
+      update_posting_row candidate (fun row -> { row with locus = "" });
+    ];
+  let saved = ctrl candidate 's' in
+  require
+    (saved.postings = None
+    && List.length (B.entries (F.load path).book) = 2
+    && quantity saved "wallet" = "580"
+    && quantity saved "bank" = "不明")
+    "posting-save-cold-quantity";
+  let recorded = List.hd (entries saved) in
+  require
+    (recorded.day = base.form.day
+    && recorded.memo = Some base.form.memo
+    && List.map quanta recorded.effects = List.map Z.of_int [ -300; 200; 100 ])
+    "posting-split-cold-fields";
+  let editing = ctrl { (initial ~config_home:directory (F.load path)) with selected = 1 } 'e' in
+  let e = editor editing in
+  require
+    (e.draft.rows |> List.map (fun (row : R.row) -> row.key) = List.map D.Effect.key keyed.effects)
+    "posting-existing-keys-lost-at-open";
+  List.iter
+    (fun changed ->
+      require ((editor changed).draft = e.draft) "posting-edit-structure-or-sign-changed")
+    [
+      ctrl editing 'a';
+      ctrl editing 'd';
+      press (update_editor editing (fun e -> { e with field = Posting_sign })) (`Arrow `Right);
+      press
+        (text
+           (press (update_editor editing (fun e -> { e with field = Posting_locus })) `Enter)
+           "bank")
+        `Enter;
+    ];
+  let changed = text (ctrl editing 'u') "150" in
+  let changed = text (ctrl (press changed (`Arrow `Down)) 'u') "50" in
+  let changed = text (ctrl (press changed (`Arrow `Down)) 'u') "100" in
+  let changed = { changed with form = { changed.form with day = "2026-11-04" } } in
+  let edited = ctrl changed 's' in
+  let cold = (F.load path).book in
+  let corrected = List.find (fun (row : B.entry) -> row.id = keyed.id) (B.entries cold) in
+  let identity p =
+    (D.Effect.key p, lstr (D.Effect.locus p), mstr (D.Effect.measure p), Z.sign (quanta p))
+  in
+  require
+    (List.map identity corrected.effects = List.map identity keyed.effects
+    && List.map quanta corrected.effects = List.map Z.of_int [ -150; 50; 100 ]
+    && corrected.memo = Some "" && corrected.day = changed.form.day
+    && corrected.exchange = keyed.exchange
+    && corrected.reversal_of = keyed.reversal_of
+    && (List.hd (B.plans cold)).paid_by = Some keyed.id
+    && List.length (B.entries cold) = 2)
+    "posting-edit-lost-identity-multiplicity-memo-or-payment-link";
+  let backups =
+    Sys.readdir directory |> Array.to_list
+    |> List.filter (String.starts_with ~prefix:"postings.sexp.before-")
+  in
+  require
+    (List.exists
+       (fun name ->
+         let book = get (B.of_string (F.read (directory ^ "/" ^ name))) in
+         List.exists
+           (fun (row : B.entry) ->
+             row.id = keyed.id && List.map quanta row.effects = List.map quanta keyed.effects)
+           (B.entries book))
+       backups)
+    "posting-pre-edit-backup-missing";
+  let payment = press { edited with view = Plans; focus = History; selected = 1 } `Enter in
+  require
+    (editor_visible payment && payment.mode = Pay split_plan.id
+    && List.length (editor payment).draft.rows = 3)
+    "posting-multiple-plan-payment-open";
+  let paid =
+    ctrl { payment with form = { payment.form with day = "2026-11-07"; memo = "架空の支払い" } } 's'
+  in
+  let cold = (F.load path).book in
+  let plan = List.nth (B.plans cold) 1 in
+  let actual = List.hd (entries paid) in
+  require
+    (plan.paid_by = Some actual.id && plan.day = split_plan.day && plan.changes = split_plan.changes
+   && actual.day = "2026-11-07"
+    && actual.memo = Some "架空の支払い"
+    && List.length actual.effects = 3)
+    "posting-payment-link-or-scheduled-evidence-lost";
+  require
+    ((pay_selected { paid with view = Plans; selected = 1 }).postings = None)
+    "posting-paid-plan-reused";
+  let stale = ctrl { (initial ~config_home:directory (F.load path)) with form = base.form } 't' in
+  let other =
+    submit
+      { (initial ~config_home:directory (F.load path)) with form = { base.form with amount = "1" } }
+  in
+  let conflict = ctrl stale 's' in
+  require
+    (conflict.blocked
+    && conflict.postings = stale.postings
+    && (F.load path).bytes = other.session.bytes)
+    "posting-conflict-lost-draft-or-overwrote";
+  let frozen = List.fold_left (fun state c -> ctrl state c) conflict [ 'a'; 'd'; 'u'; 's' ] in
+  let frozen = text frozen "999" in
+  require
+    (frozen.postings = conflict.postings && frozen.message = conflict.message)
+    "posting-blocked-draft-not-frozen";
+  let stale_edit = entry_form other (List.hd (entries other)) |> open_postings in
+  ignore (submit { other with form = { base.form with amount = "2" } });
+  let refreshed = ctrl stale_edit 'r' in
+  require
+    (refreshed.blocked && refreshed.postings = stale_edit.postings)
+    "posting-stale-edit-reload-authorized";
+  let uncertain =
+    { stale with blocked = true; pending = Some "unconfirmed"; message = "household-warning" }
+  in
+  let frozen = ctrl (set_field uncertain "999") 's' in
+  require
+    (frozen.postings = uncertain.postings
+    && frozen.pending = uncertain.pending
+    && frozen.message = uncertain.message)
+    "posting-uncertain-write-retried-or-lost";
+  List.iter
+    (fun state ->
+      let pasted =
+        List.fold_left step state
+          [ `Paste `Start; `Key (`ASCII 'S', [ `Ctrl ]); `Key (`Enter, []); `Paste `End ]
+      in
+      require
+        ((editor pasted).draft = (editor state).draft
+        && pasted.pending = state.pending && pasted.message = state.message)
+        "posting-hidden-or-active-paste-concealed-household-warning")
+    [ uncertain; press uncertain `Escape ];
+  require ((ctrl uncertain 'n').postings = None) "posting-explicit-discard-failed";
+  let huge = "123456789012345678901234567890.12" in
+  let euro : R.t =
+    {
+      measure = "eur";
+      rows =
+        [
+          { R.key = None; locus = "wallet"; negative = true; amount = huge };
+          { R.key = None; locus = "food"; negative = false; amount = huge };
+        ];
+    }
+  in
+  require
+    (R.residual base.session.book euro = Ok Z.zero
+    && List.map quanta (get (R.effects base.session.book euro))
+       = [
+           Z.neg (Z.of_string "12345678901234567890123456789012");
+           Z.of_string "12345678901234567890123456789012";
+         ])
+    "posting-huge-exact-foreign-quantity";
+  require
+    (R.residual base.session.book
+       { euro with rows = List.map (fun (row : R.row) -> { row with amount = "1.001" }) euro.rows }
+    <> Ok Z.zero)
+    "posting-rounded-foreign-input";
+  require
+    (R.of_effects base.session.book
+       [
+         List.hd keyed.effects;
+         D.Effect.create ~key:None
+           ~locus:(get_id (D.Identifier.Locus.of_string "food"))
+           ~measure:(get_id (D.Identifier.Measure.of_string "eur"))
+           ~quantity:(D.Quantity.of_quanta (Z.of_int 120));
+       ]
+    = Error "single-measure-movement-required")
+    "posting-mixed-measures-cancelled";
+  List.iter
+    (fun entry ->
+      let refused = entry_form base entry in
+      require
+        (refused.postings = None && refused.mode = New && refused.form = base.form)
+        "posting-unsupported-relation-was-stripped")
+    [ { keyed with exchange = Some ("a", "b") }; { keyed with reversal_of = Some "original" } ];
+  let long = List.fold_left (fun s _ -> ctrl s 'a') opened (List.init 20 Fun.id) in
+  require
+    (List.length (editor long).draft.rows = 22
+    && (editor (press long `End)).row = 21
+    && (editor (press long `Home)).row = 0)
+    "posting-six-row-cap-or-scroll-loss";
+  print_endline
+    "PASS: shared multiple postings, exact residual/foreign input, row picker, hold/resume/paste, \
+     checked save/cold edit/keys/payment/backups and conflict/uncertain guards."
 
 let self_check () =
   let require p why = F.require p why in
@@ -1056,9 +1959,212 @@ let self_check () =
   let reset = step failed (`Key (`ASCII 'N', [ `Ctrl ])) in
   require (reset.theme = P.Bakhlo_dark) "unsaved-session-theme-lost-on-new";
   require (handle commands (`Key (`ASCII 'Q', [ `Ctrl ])) = None) "overlay-quit";
-  (* Return a deterministic renderer fixture, independent of the user's UI preference. *)
+  let long_id = "long-" ^ String.concat "" (List.init 25 (fun _ -> "識別子")) in
+  let ids =
+    [ "wallet"; "food"; "bank"; "bank-two"; " Savings "; long_id; "case-id"; "CASE-ID" ]
+    @ List.init 16 (fun n -> Printf.sprintf "item-%02d" n)
+  in
+  let label id =
+    match id with
+    | "wallet" -> "財布"
+    | "food" -> "食費"
+    | "bank" | "bank-two" -> "同名の口座"
+    | " Savings " -> "積立 fund"
+    | id when id = long_id -> String.concat "" (List.init 25 (fun _ -> "長い科目名")) ^ "🙂"
+    | _ -> id
+  in
+  let fixture =
+    "(bakhlo-daily 1)(scope corrected-entries explicit-plans)"
+    ^ "(measures (measure jpy 0)(measure eur 2))" ^ "(labels (provided "
+    ^ String.concat " "
+        (List.map (fun id -> Printf.sprintf "(label %S %S synthetic)" id (label id)) ids)
+    ^ "))(approved-loci (provided "
+    ^ String.concat " " (List.map (Printf.sprintf "%S") ids)
+    ^ "))(entries)(plans)(support (zero-origin (food jpy))(openings)"
+    ^ "(observations (observation (reflected) (quantities (wallet jpy 1000)(wallet eur 10000))))"
+    ^ "(presence (provided (reflected) (coordinates (bank-two jpy)))))"
+  in
+  let picker_path = directory ^ "/picker.sexp" in
+  F.write_new picker_path (B.to_string (get (B.of_string fixture)));
+  let base = initial ~config_home:directory (F.load picker_path) in
+  let load_policy name policy =
+    let path = directory ^ "/picker-" ^ name ^ ".sexp" in
+    let bytes =
+      Base.String.substr_replace_all fixture
+        ~pattern:
+          ("(approved-loci (provided "
+          ^ String.concat " " (List.map (Printf.sprintf "%S") ids)
+          ^ "))")
+        ~with_:policy
+    in
+    F.write_new path (B.to_string (get (B.of_string bytes)));
+    initial ~config_home:directory (F.load path)
+  in
+  let missing = load_policy "missing" "(approved-loci (not-supplied))"
+  and empty = load_policy "empty" "(approved-loci (provided))" in
+  let picker_bytes = F.read picker_path in
+  let files_before = Sys.readdir directory |> Array.to_list |> List.sort String.compare in
+  let same_context original next =
+    next.session == original.session && next.focus = original.focus && next.view = original.view
+    && next.selected = original.selected && next.mode == original.mode
+    && next.blocked = original.blocked && next.pending = original.pending
+    && next.adding = original.adding && next.message = original.message
+    && next.theme = original.theme
+    && next.ui_notice = original.ui_notice
+    && next.postings = original.postings
+  in
+  let original = { base with focus = Source; form = { base.form with memo = "draft remains" } } in
+  let opened = press original `Enter in
+  require
+    (opened.overlay = Loci { target = From_locus; query = ""; selected = 0; notice = None }
+    && opened.form = original.form && same_context original opened)
+    "picker-open-not-publish";
+  let moved = press opened (`Arrow `Down) in
+  require (moved.form = original.form && same_context original moved) "picker-arrow-mutated-draft";
+  let cancelled = press moved `Escape in
+  require
+    (cancelled.overlay = No_overlay && cancelled.form = original.form
+   && same_context original cancelled)
+    "picker-cancel-lost-context";
+  let search state text =
+    Uutf.String.fold_utf_8
+      (fun state _ -> function `Uchar c -> press state (`Uchar c) | `Malformed _ -> state)
+      state text
+  in
+  require (locus_candidates base "BaNk" = [ "bank"; "bank-two" ]) "picker-id-case-search";
+  require
+    (locus_candidates base "同名" = [ "bank"; "bank-two" ])
+    "picker-duplicate-label-distinct-ids";
+  require (locus_candidates base "食費" = [ "food" ]) "picker-japanese-label-search";
+  let case_choice = press (press (search opened "case-id") (`Arrow `Down)) `Enter in
+  require
+    (locus_candidates base "case-id" = [ "case-id"; "CASE-ID" ]
+    && case_choice.form.from_locus = "CASE-ID")
+    "picker-case-distinct-identities";
+  require (locus_candidates base "積立 fund" = [ " Savings " ]) "picker-label-space-search";
+  let searched = search opened "BANK" in
+  let chosen = press (press searched (`Arrow `Down)) `Enter in
+  require
+    (chosen.overlay = No_overlay
+    && chosen.form = { original.form with from_locus = "bank-two" }
+    && same_context original chosen)
+    "picker-selected-stable-id";
+  let to_original = { original with focus = Destination } in
+  let chosen = press (search (press to_original `Enter) "avings") `Enter in
+  require
+    (chosen.form = { to_original.form with to_locus = " Savings " }
+    && same_context to_original chosen)
+    "picker-to-locus-no-identity-trim";
+  let chosen = press (search opened long_id) `Enter in
+  require
+    (chosen.form.from_locus = long_id && same_context original chosen)
+    "picker-long-id-not-truncated";
+  List.iter
+    (fun space ->
+      let state = press (search opened "積立") space in
+      require
+        (match state.overlay with Loci p -> p.query = "積立 " | _ -> false)
+        "picker-space-is-query")
+    [ `ASCII ' '; `Uchar (Uchar.of_int 0x20) ];
+  let state = press (search opened "財布") `Backspace in
+  require
+    (match state.overlay with Loci p -> p.query = "財" | _ -> false)
+    "picker-unicode-backspace";
+  let state = step state (`Key (`ASCII 'U', [ `Ctrl ])) in
+  require
+    (match state.overlay with Loci p -> p.query = "" && p.selected = 0 | _ -> false)
+    "picker-clear-search";
+  let state = press (search opened "no-match") `Enter in
+  require
+    (state.form = original.form && picker_is_open state && same_context original state)
+    "picker-no-match-enter-published";
+  let state = press (press opened `End) (`Arrow `Down) in
+  require
+    (match state.overlay with Loci p -> p.selected = List.length ids - 1 | _ -> false)
+    "picker-last-candidate";
+  let state = press (press state `Home) (`Arrow `Up) in
+  require
+    (match state.overlay with Loci p -> p.selected = 0 | _ -> false)
+    "picker-first-candidate";
+  let pasted =
+    List.fold_left step opened
+      [
+        `Paste `Start;
+        `Key (`Uchar (Uchar.of_int 0x98df), []);
+        `Key (`Uchar (Uchar.of_int 0x8cbb), []);
+        `Paste `End;
+      ]
+  in
+  require
+    (match pasted.overlay with
+    | Loci p -> p.query = "食費" && pasted.form = original.form
+    | _ -> false)
+    "picker-single-line-paste-search";
+  let rejected =
+    List.fold_left step opened
+      [
+        `Paste `Start;
+        `Key (`ASCII 'x', []);
+        `Key (`Enter, []);
+        `Key (`Uchar (Uchar.of_int 10), []);
+        `Paste `End;
+      ]
+  in
+  require
+    (match rejected.overlay with
+    | Loci p ->
+        p.query = "" && p.notice <> None && rejected.form = original.form
+        && same_context original rejected
+    | _ -> false)
+    "picker-paste-control-published-or-leaked";
+  let swallowed =
+    List.fold_left step opened
+      [
+        `Key (`Tab, []);
+        `Key (`ASCII 'A', [ `Ctrl ]);
+        `Key (`ASCII 'N', [ `Ctrl ]);
+        `Key (`ASCII 'R', [ `Ctrl ]);
+      ]
+  in
+  require
+    (swallowed.form = original.form && same_context original swallowed)
+    "picker-modal-shortcuts-leaked";
+  List.iter
+    (fun original ->
+      let browsed = search (press original `Enter) "BANK" in
+      let attempted = press browsed `Enter in
+      require
+        (picker_is_open attempted && attempted.form = original.form
+       && same_context original attempted)
+        "picker-bypassed-amount-edit-blocked-guard")
+    [
+      { original with form = { original.form with amount = "1" } };
+      { original with mode = Edit (List.hd (B.entries s.session.book)) };
+      { original with blocked = true; pending = Some "uncertain"; message = "household-warning" };
+    ];
+  List.iter
+    (fun base ->
+      let opened = press { base with focus = Source } `Enter in
+      require
+        (locus_candidates opened "" = [] && (press opened `Enter).form = base.form)
+        "picker-missing-or-empty-policy-invented-choice")
+    [ missing; empty ];
+  require
+    (quantity base "wallet" = "1000"
+    && quantity base "food" = "0"
+    && quantity base "bank" = "不明"
+    && quantity base "bank-two" = "存在あり・金額不明"
+    && quantity { base with form = { base.form with measure = "eur" } } "wallet" = "100.00")
+    "picker-quantity-unknown-zero-presence-currency";
+  require
+    (F.read picker_path = picker_bytes
+    && Sys.readdir directory |> Array.to_list |> List.sort String.compare = files_before)
+    "picker-published-household-bytes-or-artifacts";
+  posting_self_check ~directory ~base;
+  (* Return a deterministic Unicode/long-list renderer fixture. *)
   print_endline
     "PASS: synthetic shared record/reopen/edit, backups, plan lifecycle/payment, budget \
      publication, unknown, conflict/stale draft, focus markers, ASCII/Unicode Space, theme \
-     preview/cancel/save/fallback, palette contrast, UI-only failure and modal paste.";
-  { s with theme = P.Terminal; overlay = No_overlay }
+     preview/cancel/save/fallback, palette contrast, UI-only failure, locus picker and modal \
+     paste.";
+  { base with theme = P.Terminal; overlay = No_overlay }
