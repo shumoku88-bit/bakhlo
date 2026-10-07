@@ -383,3 +383,83 @@ let%expect_test "v2 Locus vocabulary is independent policy, never origin or disp
      refusals";
   [%expect
     {| v2 explicit vocabulary; add/record/reopen; retained history; no zero/role/alias; policy/wire refusals |}]
+
+
+let%expect_test "v3 exchange keeps currencies distinct and local-currency spending stays ordinary" =
+  let travel =
+    {|(bakhlo 3 ordinary-quantity)
+(collections
+  (provided measures observations zero-origin)
+  (empty events event-corrections exchanges)
+  (not-supplied))
+(locus-admission (approved "bank-jpy" "cash-eur" "food"))
+(measure "jpy" (decimal-scale 0))
+(measure "eur" (decimal-scale 2))
+(observation (reflected-roots)
+  (assertion (locus "bank-jpy") (measure "jpy") (quanta 10000)))
+(zero-origin (locus "cash-eur") (measure "eur"))
+(zero-origin (locus "food") (measure "eur"))
+|}
+  in
+  let exchange_event =
+    {|(event "exchange-out"
+  (day (date "2026-10-20"))
+  (description (text "cash exchange"))
+  (effect (key (named "exchange-source")) (locus "bank-jpy") (measure "jpy") (quanta -10000))
+  (effect (key (named "exchange-destination")) (locus "cash-eur") (measure "eur") (quanta 6000)))|}
+  in
+  let base = ok (B.of_string travel) in
+  let exchanged =
+    B.document
+      (ok
+         (B.append_exchange ~base ~event:exchange_event ~source:"exchange-source"
+            ~destination:"exchange-destination"))
+    |> roundtrip
+  in
+  require
+    (Z.equal (value exchanged "bank-jpy" "jpy") Z.zero
+    && Z.equal (value exchanged "cash-eur" "eur") (Z.of_int 6000))
+    "exchange quantities changed or currencies collapsed";
+  let spend =
+    {|(event "local-spend"
+  (day (date "2026-10-21"))
+  (description (text "local meal"))
+  (effect (key (unkeyed)) (locus "cash-eur") (measure "eur") (quanta -1500))
+  (effect (key (unkeyed)) (locus "food") (measure "eur") (quanta 1500)))|}
+  in
+  let spent = B.document (ok (B.append ~base:exchanged ~event:spend)) |> roundtrip in
+  let return_event =
+    {|(event "exchange-back"
+  (day (date "2026-10-30"))
+  (description (text "return exchange"))
+  (effect (key (named "exchange-source")) (locus "cash-eur") (measure "eur") (quanta -4500))
+  (effect (key (named "exchange-destination")) (locus "bank-jpy") (measure "jpy") (quanta 8000)))|}
+  in
+  let returned =
+    B.document
+      (ok
+         (B.append_exchange ~base:spent ~event:return_event ~source:"exchange-source"
+            ~destination:"exchange-destination"))
+    |> roundtrip
+  in
+  require
+    (Z.equal (value returned "bank-jpy" "jpy") (Z.of_int 8000)
+    && Z.equal (value returned "cash-eur" "eur") Z.zero
+    && Z.equal (value returned "food" "eur") (Z.of_int 1500))
+    "travel flow did not preserve exact per-Measure quantities";
+  let source = Q.source (B.image returned) in
+  require
+    (List.length (A.Exchange_evidence.facts (A.Actual_source.exchanges source)) = 2)
+    "exchange evidence not retained";
+  require
+    (match B.append_exchange ~base:(ok (B.of_string (String.substr_replace_first travel
+       ~pattern:"(bakhlo 3 ordinary-quantity)" ~with_:"(bakhlo 2 ordinary-quantity)")))
+       ~event:exchange_event ~source:"exchange-source" ~destination:"exchange-destination" with
+    | Error (B.Wire _) -> true
+    | Ok _ | Error _ -> false)
+    "older book silently upgraded for exchange";
+  Stdlib.Printf.printf "bank-jpy=%s cash-eur=%s food-eur=%s exchanges=2\n"
+    (Z.to_string (value returned "bank-jpy" "jpy"))
+    (Z.to_string (value returned "cash-eur" "eur"))
+    (Z.to_string (value returned "food" "eur"));
+  [%expect {| bank-jpy=8000 cash-eur=0 food-eur=1500 exchanges=2 |}]
