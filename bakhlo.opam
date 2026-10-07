@@ -11,6 +11,8 @@ depends: [
   "ocaml" {= "5.3.0"}
   "dune" {>= "3.17" & < "4.0"}
   "base" {>= "v0.17" & < "v0.18"}
+  "sexplib0" {>= "v0.17" & < "v0.18"}
+  "parsexp" {>= "v0.17" & < "v0.18"}
   "zarith" {>= "1.14" & < "2.0"}
   "ppx_expect" {with-test & >= "v0.17" & < "v0.18"}
   "base_quickcheck" {with-test & >= "v0.17" & < "v0.18"}
