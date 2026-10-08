@@ -48,17 +48,17 @@ let backdrop theme view =
 let width_of text = V.width (V.text text)
 let overlay_screen dimensions state = C.overlay_screen ~dimensions ~width_of state
 
-let render ((width, height) as dimensions) state =
-  let base =
-    C.screen ~width_of ~frontend:"Bonsai_term" dimensions state
-    |> lines state.C.theme |> fit width height |> backdrop state.C.theme
-  in
+let base_view ((width, height) as dimensions) theme state =
+  C.screen ~width_of ~frontend:"Bonsai_term" dimensions state
+  |> lines theme |> fit width height |> backdrop theme
+
+let overlay_view ((width, height) as dimensions) theme state =
   match overlay_screen dimensions state with
-  | None -> base
+  | None -> None
   | Some rows ->
-      let pane = lines state.C.theme rows in
+      let pane = lines theme rows in
       let pane =
-        match P.palette state.C.theme with
+        match P.palette theme with
         | None -> pane
         | Some palette ->
             V.with_colors ~fill_backdrop:true pane ~fg:(color palette.panel_foreground)
@@ -66,7 +66,13 @@ let render ((width, height) as dimensions) state =
       in
       let left = max 0 ((width - V.width pane) / 2)
       and top = max 0 ((height - V.height pane) / 2) in
-      V.zcat [ V.pad ~l:left ~t:top pane; base ] |> fit width height
+      Some (V.pad ~l:left ~t:top pane)
+
+let render ((width, height) as dimensions) state =
+  let base = base_view dimensions state.C.theme state in
+  match overlay_view dimensions state.C.theme state with
+  | None -> base
+  | Some overlay -> V.zcat [ overlay; base ] |> fit width height
 
 let input_of_event : B.Event.t -> C.input = function
   | B.Event.Paste marker -> `Paste marker
@@ -93,13 +99,21 @@ let input_of_event : B.Event.t -> C.input = function
       in
       `Key (key, mods)
 
+type action =
+  | Terminal_event of { dimensions : int * int; event : B.Event.t }
+  | Request_exit
+
 let app initial ~exit ~dimensions graph =
   let state, inject =
     Bonsai.state_machine ~default_model:initial
-      ~apply_action:(fun context state (dimensions, event) ->
-        match C.handle ~dimensions ~width_of state (input_of_event event) with
-        | Some state -> state
-        | None ->
+      ~apply_action:(fun context state -> function
+        | Terminal_event { dimensions; event } -> (
+            match C.handle ~dimensions ~width_of state (input_of_event event) with
+            | Some state -> state
+            | None ->
+                Bonsai.Apply_action_context.schedule_event context (exit ());
+                state)
+        | Request_exit ->
             Bonsai.Apply_action_context.schedule_event context (exit ());
             state)
       graph
@@ -110,7 +124,7 @@ let app initial ~exit ~dimensions graph =
   in
   let handler =
     Bonsai.arr2 graph inject dimensions ~f:(fun inject (dimensions : B.Dimensions.t) event ->
-        inject ((dimensions.width, dimensions.height), event))
+        inject (Terminal_event { dimensions = (dimensions.width, dimensions.height); event }))
   in
   (~view, ~handler)
 
