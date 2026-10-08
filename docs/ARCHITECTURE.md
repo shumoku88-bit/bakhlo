@@ -491,14 +491,15 @@ device assumptions; same scenario is not identical fault mechanics or universal 
 ## Client access direction
 
 Primary product goal: one user's laptop/phone can record and inspect household state without AI;
-an AI-chat adapter is optional. Desktop candidates are direct Notty and Bonsai_term, now under
-an explicitly user-approved synthetic comparison; neither is adopted. Browser UI serves phone
+an AI-chat adapter is optional. After the synthetic Notty/Bonsai_term comparison the user
+chose Bonsai_term for the desktop TUI and removed Notty; this is a toolkit choice, not
+production adoption. Browser UI serves phone
 and can also serve desktop. Evaluate Bonsai for that named consumer if compiler/dependency/
 interaction costs are acceptable, with a simpler web view as an alternative. This extends
 the eventual access goal, not authorization to deploy a public service or use real data.
 
 ```text
-Notty or Bonsai_term desktop / phone browser (Bonsai candidate) / AI-chat adapter
+Bonsai_term desktop / phone browser (Bonsai candidate) / AI-chat adapter
                    -> authenticated application entrance
                    -> admission + current-generation publication / coherent query
                    -> one selected authority through Persistence
@@ -1004,9 +1005,9 @@ proof. Irmin CAS/batch and experimental FS/runtime barriers face the SAME contra
 A local mutex CAS is neither multi-process nor crash atomicity. Offline copy/reopen is
 bounded restore evidence, not a live backup/off-device policy. No shadow canonical balances.
 
-No production UI is adopted; CLI is the main development/read entrance. The ignored paired
-Notty/Bonsai_term synthetic recording trial is implemented, not a permanent toolkit choice.
-[Client access direction](#client-access-direction) records both desktop candidates and eventual
+No production UI is adopted; CLI is the main development/read entrance. The ignored
+Bonsai_term synthetic recording trial is implemented (Notty removed after comparison).
+[Client access direction](#client-access-direction) records the desktop choice and eventual
 phone/browser access; toolchains, protocol, authentication and compatibility need concrete
 qualification before adoption. Clients consume
 semantic answers rather than recomputing meaning. Prior hosted, guarded SPT engine and

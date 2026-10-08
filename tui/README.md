@@ -1,23 +1,23 @@
-# 日々の画面（Notty／Bonsai試用）
+# 日々の画面（Bonsai_term試用）
 
-既存のNotty／Bonsai画面・操作ループを、新しい訂正済み明細の台帳へ接続したもの。
+既存のBonsai_term画面・操作ループを、新しい訂正済み明細の台帳へ接続したもの。
+Notty画面は廃止した（Bonsai一本化。今後はBonsaiネイティブなコンポーネント構成へ移行する）。
 LOAMの元データ・以前の候補は変更しない。普段の正データはまだLOAM。
 
 ```sh
 ./tools/tui --book scratch/daily-ui/household.sexp
-# Nottyを終了してから同じ試用コピーをBonsaiで開く
-./tools/tui bonsai --book scratch/daily-ui/household.sexp
 ```
 
 このパスは用意した私用の**新しい試用コピー**。画面で操作するとこのコピーが変わる。
 通常のテストには `examples/daily-book.sexp` から作った別コピーを使う。
-`tools/tui [notty|bonsai]` は既存の隔離環境でビルドするだけで、新しい依存を導入しない。
+`tools/tui` は既存の隔離Bonsai環境でビルドするだけで、新しい依存を導入しない。
 BonsaiはコンパイラABIが異なるため、同じ現在のCore／台帳／入力／保存ソースを
 `_build/daily-bonsai` 内で再ビルドする。古い `ox-build` のコピーは使わず、メイン環境も変えない。
-環境がないホストでは起動を拒否する。通常のDuneビルドは両UIの依存不要。
+環境がないホストでは起動を拒否する。通常のDuneビルドはUIの依存不要。
 
-`daily_interaction.ml` が下書き・キー操作・表示内容を、`daily_file.ml` が保存を共通に扱う。
-画面を替えても形式・ID・バックアップ方針は変わらない。同時に開いた場合は、古い読込元からの
+`daily_interaction.ml` が下書き・キー操作・表示内容を、`daily_file.ml` が保存を扱う。
+`bonsai_daily.ml` はまだ単一状態をBonsaiの`state_machine`一つで包むadapterで、ネイティブ化の移行元。
+同時に開いた場合は、古い読込元からの
 上書きを拒否する。`Ctrl-R`で再読込し、古い編集下書きは選び直す。自動同期はしない。
 
 ## 操作
@@ -143,8 +143,7 @@ Command Palette自体も`Esc`で閉じる。背面の記帳下書きは保持し
 24-bit RGBを無条件には出さず、端末profileで変わりやすいANSI基本16色も使わない。
 `ui_preferences.ml`の一つのsemantic paletteにindexと標準RGB値を定義する。
 家計の意味や保存形式には関与しない。色だけに頼らず選択箇所には`>`等の文字マーカーも残す。
-Notty／Bonsai_termは同じテーマ・色定義・Command Palette状態を共有し、
-rendererだけが各ライブラリの属性へ変換する。
+rendererの`bonsai_daily.ml`だけがsemantic styleをBonsai_termの属性へ変換する。
 
 選択したテーマは家計S式ではなくUI専用設定へ保存する。優先順は
 `BAKHLO_CONFIG_HOME/ui-theme`、`$XDG_CONFIG_HOME/bakhlo/ui-theme`、
@@ -188,7 +187,7 @@ flush/fsync後にrenameする。保存できない場合でも、その起動中
 
 単発予定の作成・変更（`put_plan`）と取消（`cancel_plan`）は画面非依存のAPIとして対応済み。
 取消は予定を削除せず、取消日を別に保持する。支払い済み／取消済みは変更・再支払いできない。
-両画面は取消済み表示と支払い入力の拒否のみ対応し、作成・変更・取消のキー操作はまだない。
+画面は取消済み表示と支払い入力の拒否のみ対応し、作成・変更・取消のキー操作はまだない。
 予算の`put_budget`／`rebalance_budget`／`budget_review`も純粋APIのみ。対象科目、実績と予定の
 独立した用途割当、期間・通貨は明示入力で、UI操作はまだない。未割当／管理外を隠さず、
 記録上の残額を完全な家庭予算や口座資金と誤表示しない。
@@ -205,9 +204,9 @@ picker・詳細・入力・確認pane中は背面への入力を止め、閉じ�
 今日使える額は **LOAM Home `d` のDaily Pace** を採用する。純粋な`Daily_book.daily_pace`は
 実装済みだが画面は未接続。対象口座・通貨・日付は明示入力で、予算用途別の日割りとは別回答。
 計算・画面案・受入条件は[切替チェックリスト](../docs/CUTOVER_CHECKLIST.ja.md)に集約する。
-上下focusと明細／予定の切替は両frontendに接続済み。Command Palette／Theme、口座・科目picker、
-複数posting入力・明細／予定詳細・取引確認の中央paneも共通。残高等の追加表示と科目追加paneは未接続。
-変更は共通操作・画面記述と両frontendの描画に限定し、表示のための新依存・保存経路は作らない。
+上下focusと明細／予定の切替は接続済み。Command Palette／Theme、口座・科目picker、
+複数posting入力・明細／予定詳細・取引確認の中央paneも実装済み。残高等の追加表示と科目追加paneは未接続。
+表示のための新依存・保存経路は作らない。
 
 ## 保存の限界
 
@@ -229,11 +228,12 @@ picker・詳細・入力・確認pane中は背面への入力を止め、閉じ�
 
 ```sh
 ./tools/check
-./tools/tui notty --self-check
-./tools/tui bonsai --self-check
+./tools/tui --self-check
 ```
 
-両UIのself-checkは合成データのみを新しいignoredディレクトリで使用する。
+self-checkは合成データのみを新しいignoredディレクトリで使用する。
+以下の「両UI／両renderer／両frontend」「Notty→Bonsai」等の記述は、Notty画面を廃止する前の
+検証記録として残す（現在はBonsai版のself-checkだけが対象）。
 `recording_checks.ml`は上下Tab・領域内矢印・一覧別の選択復帰・Unicode文字位置と貼付・
 保持した複数行の閲覧／再開・予定詳細と下書き置換拒否・支払い入力へのfocus復帰、
 実キー経路のpreview／取消／確定、閲覧専用詳細、科目追加の下書き保持、

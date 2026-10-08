@@ -1,39 +1,15 @@
 #!/bin/sh
-# Reuse existing isolated UI environments; no dependency installation.
+# Daily TUI (Bonsai_term only). Reuses the existing isolated Bonsai environment;
+# no dependency installation.
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 cd "$root"
 case "${1:-}" in
-  bonsai)
-    shift
-    ./tools/build-bonsai-tui
-    exec _build/daily-bonsai/_build/default/ui/bonsai_daily.exe "$@"
+  bonsai) shift ;; # accepted for older invocations
+  notty)
+    printf '%s\n' 'The Notty frontend was removed; use tools/tui without a frontend argument.' >&2
+    exit 2
     ;;
-  notty) shift ;;
 esac
-envroot=$root/scratch/tui_comparison_review/notty-env/_opam/lib
-if [ ! -d "$envroot/notty-community" ]; then
-  printf '%s\n' 'Existing isolated Notty environment unavailable; nothing installed.' >&2
-  exit 2
-fi
-./tools/opam exec -- dune build lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa sexp/bakhlo_sexp.cmxa
-mkdir -p _build/daily-tui
-for module in daily_file ui_preferences posting_draft daily_interaction recording_checks notty_daily; do
-  ./tools/opam exec -- env OCAMLPATH="$envroot" ocamlfind ocamlopt \
-    -strict-sequence -w +8+9+11 -warn-error +8+9+11 \
-    -package base,zarith,parsexp,unix,notty-community.unix -linkpkg \
-    -I _build/default/lib/.bakhlo_domain.objs/byte -I _build/default/lib/.bakhlo_domain.objs/native \
-    -I _build/default/application/.bakhlo_application.objs/byte -I _build/default/application/.bakhlo_application.objs/native \
-    -I _build/default/sexp/.bakhlo_sexp.objs/byte -I _build/default/sexp/.bakhlo_sexp.objs/native \
-    -I _build/daily-tui -c "tui/$module.ml" -o "_build/daily-tui/$module.cmx"
-done
-./tools/opam exec -- env OCAMLPATH="$envroot" ocamlfind ocamlopt \
-  -package base,zarith,parsexp,unix,notty-community.unix -linkpkg \
-  -I _build/default/lib/.bakhlo_domain.objs/native -I _build/default/application/.bakhlo_application.objs/native \
-  -I _build/default/sexp/.bakhlo_sexp.objs/native -I _build/daily-tui \
-  _build/default/lib/bakhlo_domain.cmxa _build/default/application/bakhlo_application.cmxa \
-  _build/default/sexp/bakhlo_sexp.cmxa _build/daily-tui/daily_file.cmx \
-  _build/daily-tui/ui_preferences.cmx _build/daily-tui/posting_draft.cmx \
-  _build/daily-tui/daily_interaction.cmx _build/daily-tui/recording_checks.cmx \
-  _build/daily-tui/notty_daily.cmx -o _build/daily-tui/bakhlo-tui
-exec _build/daily-tui/bakhlo-tui "$@"
+./tools/build-bonsai-tui
+exec _build/daily-bonsai/_build/default/ui/bonsai_daily.exe "$@"

@@ -304,7 +304,7 @@ let () =
         print_endline "PASS: fresh trial copy created; original unchanged."
     | _ ->
         prerr_endline
-          "Usage: tools/tui bonsai --book FILE | --check FILE | --copy-from SOURCE --book \
+          "Usage: tools/tui --book FILE | --check FILE | --copy-from SOURCE --book \
            FRESH_FILE";
         exit 2
   with

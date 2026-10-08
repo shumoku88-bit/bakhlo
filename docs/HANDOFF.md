@@ -34,10 +34,15 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   Book does not yet represent payment plans or all LOAM evidence.
 - The user's working-tree `record` shortcut and Japanese interface explanations
   are recent additions. They are not evidence that real-data recording is safe.
-- `tools/tui [notty|bonsai]` connects both screens to `Bakhlo_sexp.Daily_book`.
-  `tui/daily_interaction.ml` and `daily_file.ml` own shared actions/publication;
-  each frontend only adapts events and draws the same screen lines. The existing
-  isolated environments are reused; Bonsai rebuilds the same current Core sources
+- `tools/tui` connects the Bonsai_term screen to `Bakhlo_sexp.Daily_book`. The user
+  removed the Notty frontend (Bonsai only, also easing a later bonsai_web client) and
+  chose to rebuild the daily TUI as native Bonsai components. Plan: move
+  `self_check` out of `daily_interaction.ml`, extract UI-independent recording actions,
+  then port panes one at a time in the `tools/bonsai_lab.ml` style, keeping each
+  component's update as a pure, Bonsai-free testable function separate from its view.
+  Until then `tui/daily_interaction.ml` and `daily_file.ml` own actions/publication and
+  `bonsai_daily.ml` only adapts events and draws the shared screen lines. The existing
+  isolated environment is reused; Bonsai rebuilds the same current Core sources
   under its separate compiler ABI, never from the archived ox-build source copy. Record/save/exit/cold reopen/edit, separate pre-edit
   backups, vocabulary addition and explicit plan payment work in the trial.
   Main tests and native self-checks passed. Real synthetic PTYs also passed
@@ -214,7 +219,7 @@ decide and qualify an overview/search/picker for existing accounts/categories,
 a separate whole-transaction preview before publication, and focus-driven context
 that shows only information relevant to the current cursor. Prefer transient
 floating/overlay panes for picker, search, add, detail and preview where that keeps
-Home small. Bonsai_term and Notty may implement these differently, but focus/pane
+Home small. Focus/pane
 state remains presentation-only and must not create household meaning or a second
 publication path.
 
@@ -247,9 +252,8 @@ interaction/rendering.
 They did not read household data, run/modify LOAM, convert private candidates,
 introduce dependencies, or start operational cutover.
 
-The existing trial is `./tools/tui bonsai --book scratch/daily-ui/household.sexp`
-(or omit `bonsai` for Notty). Both use the SAME private trial file; exit one before
-switching screens. This is a separate private trial copy; the earlier candidate and
+The existing trial is `./tools/tui --book scratch/daily-ui/household.sexp`.
+This is a separate private trial copy; the earlier candidate and
 LOAM originals remain unchanged. See `tui/README.md` for controls and limits.
 Use the prepared scope to improve agreed daily use, not another broad inventory
 or research campaign.

@@ -16,7 +16,8 @@ on-demand references, not a compulsory reading list or an implementation backlog
   TUI Home has upper recording and a large lower browsing region. Tab switches
   regions; arrows operate within one region. Keep only the selected lower feature's
   content and focused-region help; use floating panes for picker/detail/preview.
-  Preserve drafts, selection and visible safety errors across both frontends.
+  Preserve drafts, selection and visible safety errors. The TUI is Bonsai_term only
+  (Notty removed); new panes are native Bonsai components with pure, testable updates.
   See the checklist's design section.
 - Implement one usable step at a time. No textbook-driven abstractions, automatic
   LOAM feature parity, permanent correction-history requirement, multi-backend
