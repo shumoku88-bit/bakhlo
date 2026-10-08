@@ -6,12 +6,13 @@ module Q = Bakhlo_application.Current_quantity_query
 module F = Daily_file
 module P = Ui_preferences
 module R = Posting_draft
+module A = Daily_actions
 
-let get = function Ok x -> x | Error why -> raise (F.Refused why)
-let get_id = function Ok x -> x | Error D.Identifier.Empty -> raise (F.Refused "empty-identity")
-let lstr = D.Identifier.Locus.to_string
-let mstr = D.Identifier.Measure.to_string
-let quanta p = D.Quantity.quanta (D.Effect.quantity p)
+let get = A.get
+let get_id = A.get_id
+let lstr = A.lstr
+let mstr = A.mstr
+let quanta = A.quanta
 
 type key =
   [ `ASCII of char
@@ -39,7 +40,7 @@ type input =
 
 type focus = Date | Currency | Source | Destination | Amount | Memo | History
 type view = Entries | Plans
-type mode = New | Edit of B.entry | Pay of string
+type mode = A.mode = New | Edit of B.entry | Pay of string
 type posting_focus = Posting_day | Posting_memo | Posting_locus | Posting_sign | Posting_amount
 
 type posting_editor = {
@@ -59,7 +60,7 @@ type locus_picker = {
   notice : string option;
 }
 
-type transaction = { entry : B.entry; replace : bool; plan : string option }
+type transaction = A.transaction = { entry : B.entry; replace : bool; plan : string option }
 
 type overlay =
   | No_overlay
@@ -75,7 +76,7 @@ type command = Theme
 let commands = [ Theme ]
 let command_label = function Theme -> "Theme"
 
-type form = {
+type form = A.single_form = {
   day : string;
   measure : string;
   from_locus : string;
@@ -332,14 +333,7 @@ let change s step =
     in
     { s with form }
 
-let pair effects =
-  match effects with
-  | [ a; b ]
-    when D.Identifier.Measure.equal (D.Effect.measure a) (D.Effect.measure b)
-         && Z.sign (quanta a) * Z.sign (quanta b) = -1
-         && Z.equal (Z.add (quanta a) (quanta b)) Z.zero ->
-      Some (if Z.sign (quanta a) < 0 then (a, b) else (b, a))
-  | [] | _ :: _ -> None
+let pair = A.pair
 
 let with_postings s draft =
   {
@@ -353,45 +347,7 @@ let open_postings s =
     match s.postings with
     | Some _ -> update_editor s (fun e -> { e with visible = true })
     | None -> (
-        let draft =
-          match s.mode with
-          | Edit e -> (
-              match R.of_effects s.session.book e.effects with
-              | Error _ as error -> error
-              | Ok draft ->
-                  Ok
-                    {
-                      draft with
-                      rows =
-                        (match pair e.effects with
-                        | None -> draft.rows
-                        | Some _ ->
-                            List.map
-                              (fun (row : R.row) -> { row with amount = s.form.amount })
-                              draft.rows);
-                    })
-          | New | Pay _ ->
-              Ok
-                {
-                  R.measure = s.form.measure;
-                  rows =
-                    [
-                      {
-                        R.key = None;
-                        locus = s.form.from_locus;
-                        negative = true;
-                        amount = s.form.amount;
-                      };
-                      {
-                        R.key = None;
-                        locus = s.form.to_locus;
-                        negative = false;
-                        amount = s.form.amount;
-                      };
-                    ];
-                }
-        in
-        match draft with
+        match A.prepare_postings ~book:s.session.book ~mode:s.mode ~form:s.form with
         | Error why -> { s with message = "複数行入力拒否: " ^ why }
         | Ok draft ->
             with_postings
@@ -403,55 +359,32 @@ let open_postings s =
               draft)
 
 let entry_form s (e : B.entry) =
-  if
-    e.exchange <> None || e.reversal_of <> None
-    || List.exists (fun (row : B.entry) -> row.reversal_of = Some e.id) (B.entries s.session.book)
-  then { s with message = "両替・返金の対応を持つ明細は、この入力では編集しません。" }
-  else
-    match pair e.effects with
-    | None -> (
-        match R.of_effects s.session.book e.effects with
-        | Error why -> { s with message = "複数行編集拒否: " ^ why }
-        | Ok draft ->
-            with_postings
-              {
-                s with
-                mode = Edit e;
-                focus = Amount;
-                record_focus = Amount;
-                cursor = None;
-                adding = None;
-                form =
-                  {
-                    s.form with
-                    day = e.day;
-                    measure = draft.measure;
-                    amount = "";
-                    memo = Option.value ~default:"" e.memo;
-                  };
-                message = "複数行編集：日付・各金額・メモ。行構成・符号・科目・通貨・キーを保持します。";
-              }
-              draft)
-    | Some (from_, to_) ->
-        let measure = mstr (D.Effect.measure from_) in
+  match A.prepare_edit ~book:s.session.book e with
+  | A.Edit_refused msg -> { s with message = msg }
+  | A.Edit_multiple { day; measure; memo; draft; entry } ->
+      with_postings
         {
           s with
-          mode = Edit e;
+          mode = Edit entry;
           focus = Amount;
           record_focus = Amount;
           cursor = None;
           adding = None;
-          form =
-            {
-              day = e.day;
-              measure;
-              from_locus = lstr (D.Effect.locus from_);
-              to_locus = lstr (D.Effect.locus to_);
-              amount = B.format s.session.book measure (quanta to_);
-              memo = Option.value ~default:"" e.memo;
-            };
-          message = "編集：日付・金額・メモ。IDと科目・通貨は保持します。";
+          form = { s.form with day; measure; amount = ""; memo };
+          message = "複数行編集：日付・各金額・メモ。行構成・符号・科目・通貨・キーを保持します。";
         }
+        draft
+  | A.Edit_single { form; entry } ->
+      {
+        s with
+        mode = Edit entry;
+        focus = Amount;
+        record_focus = Amount;
+        cursor = None;
+        adding = None;
+        form;
+        message = "編集：日付・金額・メモ。IDと科目・通貨は保持します。";
+      }
 
 let has_draft s =
   s.adding <> None || s.postings <> None || s.mode <> New || s.form.amount <> ""
@@ -472,64 +405,59 @@ let pay_selected s =
   else
     match List.nth_opt (plans s) s.selected with
     | None -> s
-    | Some p when p.paid_by <> None -> { s with message = "この予定は支払い済みです。" }
-    | Some p when p.cancelled_on <> None -> { s with message = "この予定は取消済みです。" }
     | Some _ when has_draft s -> keep_draft s
     | Some p -> (
-        try
-          let effects =
-            List.map
-              (fun (loc, n) ->
-                D.Effect.create ~key:None
-                  ~locus:(get_id (D.Identifier.Locus.of_string loc))
-                  ~measure:(get_id (D.Identifier.Measure.of_string p.measure))
-                  ~quantity:(D.Quantity.of_quanta n))
-              p.changes
-          in
-          match pair effects with
-          | None -> (
-              match R.of_effects s.session.book effects with
-              | Error why -> { s with message = "支払い入力拒否: " ^ why }
-              | Ok draft ->
-                  with_postings
-                    {
-                      s with
-                      mode = Pay p.id;
-                      focus = Amount;
-                      record_focus = Amount;
-                      cursor = None;
-                      adding = None;
-                      form =
-                        {
-                          s.form with
-                          day = F.today ();
-                          measure = p.measure;
-                          amount = "";
-                          memo = "";
-                        };
-                      message = "複数行の支払い入力。Ctrl-Sで全体プレビュー。予定の日付・内訳は保持します。";
-                    }
-                    draft)
-          | Some (from_, to_) ->
+        match A.prepare_pay ~book:s.session.book p with
+        | A.Pay_refused msg -> { s with message = msg }
+        | A.Pay_multiple { day; measure; draft; plan_id } ->
+            with_postings
               {
                 s with
-                mode = Pay p.id;
+                mode = Pay plan_id;
                 focus = Amount;
                 record_focus = Amount;
                 cursor = None;
                 adding = None;
-                form =
-                  {
-                    day = F.today ();
-                    measure = p.measure;
-                    from_locus = lstr (D.Effect.locus from_);
-                    to_locus = lstr (D.Effect.locus to_);
-                    amount = B.format s.session.book p.measure (quanta to_);
-                    memo = "";
-                  };
-                message = "予定の支払い入力。Enterで全体プレビュー。予定の元日付は保持します。";
+                form = { s.form with day; measure; amount = ""; memo = "" };
+                message = "複数行の支払い入力。Ctrl-Sで全体プレビュー。予定の日付・内訳は保持します。";
               }
-        with F.Refused why -> { s with message = "支払い入力不可: " ^ why })
+              draft
+        | A.Pay_single { form; plan_id } ->
+            {
+              s with
+              mode = Pay plan_id;
+              focus = Amount;
+              record_focus = Amount;
+              cursor = None;
+              adding = None;
+              form;
+              message = "予定の支払い入力。Enterで全体プレビュー。予定の元日付は保持します。";
+            })
+
+let apply_commit_result s ~draft result =
+  match result with
+  | A.Published session when s.adding <> None ->
+      { s with session; adding = None; cursor = None; message = "科目を追加しました。入力中の下書きは保持しています。" }
+  | A.Published session ->
+      {
+        (initial ?config_home:s.config_home session) with
+        theme = s.theme;
+        ui_notice = s.ui_notice;
+        form = { s.form with amount = ""; memo = "" };
+        message = "書込みを確認しました（試用）。修正前のコピーも保管しました。";
+      }
+  | A.Conflict_base_changed ->
+      { draft with blocked = true; pending = None; message = "確認元が変わりました。下書きは保持。再読込して確認し直してください。" }
+  | A.Conflict ->
+      { draft with blocked = true; pending = None; message = "別の更新があります。下書きは保持。Ctrl-Rで再読込してください。" }
+  | A.Refused why -> { draft with message = why }
+  | A.Uncertain bytes ->
+      {
+        draft with
+        blocked = true;
+        pending = Some bytes;
+        message = "書込結果が不明です。再送せずCtrl-Rで確認。下書き・残ったファイルは保持しています。";
+      }
 
 let finish s candidate =
   let bytes = B.to_string candidate in
@@ -558,89 +486,38 @@ let finish s candidate =
 let submit s =
   if s.blocked then { s with message = "書込を止めています。Ctrl-Rで確認してください。" }
   else
-    try
-      match s.adding with
-      | Some name -> (
-          match B.add_locus s.session.book name with
-          | Error why -> { s with message = "科目追加拒否: " ^ why }
-          | Ok book -> finish s book)
-      | None -> (
-          let effects =
-            match s.postings with
-            | Some e -> get (R.effects s.session.book e.draft)
-            | None -> (
-                F.require (s.form.from_locus <> s.form.to_locus) "same-locus";
-                let amount = get (B.parse_amount s.session.book s.form.measure s.form.amount) in
-                match s.mode with
-                | Edit e ->
-                    List.map
-                      (fun p ->
-                        D.Effect.create ~key:(D.Effect.key p) ~locus:(D.Effect.locus p)
-                          ~measure:(D.Effect.measure p)
-                          ~quantity:
-                            (D.Quantity.of_quanta
-                               (if Z.sign (quanta p) < 0 then Z.neg amount else amount)))
-                      e.effects
-                | New | Pay _ ->
-                    let effect_ loc n =
-                      D.Effect.create ~key:None
-                        ~locus:(get_id (D.Identifier.Locus.of_string loc))
-                        ~measure:(get_id (D.Identifier.Measure.of_string s.form.measure))
-                        ~quantity:(D.Quantity.of_quanta n)
-                    in
-                    [ effect_ s.form.from_locus (Z.neg amount); effect_ s.form.to_locus amount ])
-          in
-          (match D.Movement.validate effects with
-          | Ok _ -> ()
-          | Error _ -> raise (F.Refused "invalid-movement"));
-          let memo =
-            match s.mode with
-            | Edit e when Option.value ~default:"" e.memo = s.form.memo -> e.memo
-            | New | Pay _ | Edit _ -> if s.form.memo = "" then None else Some s.form.memo
-          in
-          let entry, replace, plan =
-            match s.mode with
-            | Edit e -> ({ e with day = s.form.day; memo; effects }, true, None)
-            | New | Pay _ ->
-                ( {
-                    B.id = F.new_id ();
-                    day = s.form.day;
-                    memo;
-                    effects;
-                    reversal_of = None;
-                    exchange = None;
-                  },
-                  false,
-                  match s.mode with Pay id -> Some id | New | Edit _ -> None )
-          in
-          match B.put_entry s.session.book ~replace entry ~plan with
-          | Error why -> { s with message = "記帳拒否: " ^ why }
-          | Ok _ ->
-              {
-                s with
-                overlay =
-                  Preview
-                    {
-                      transaction = { entry; replace; plan };
-                      base_bytes = s.session.bytes;
-                      scroll = 0;
-                    };
-              })
-    with
-    | F.Refused why -> { s with message = "入力拒否: " ^ why }
-    | Unix.Unix_error _ | Sys_error _ -> { s with message = "入出力を開始できませんでした。下書きは保持しています。" }
+    match s.adding with
+    | Some name ->
+        let result = A.commit_add_locus ~session:s.session name in
+        apply_commit_result s ~draft:s result
+    | None -> (
+        let content =
+          match s.postings with
+          | Some e -> A.Multiple { day = s.form.day; memo = s.form.memo; draft = e.draft }
+          | None -> A.Single s.form
+        in
+        match A.build_transaction ~book:s.session.book ~mode:s.mode content with
+        | Error why -> { s with message = why }
+        | Ok transaction ->
+            {
+              s with
+              overlay =
+                Preview
+                  {
+                    transaction;
+                    base_bytes = s.session.bytes;
+                    scroll = 0;
+                  };
+            })
 
 let confirm s =
   match s.overlay with
-  | Preview { transaction = { entry; replace; plan }; base_bytes; _ } -> (
+  | Preview { transaction; base_bytes; _ } ->
       let draft = { s with overlay = No_overlay } in
       if s.blocked then draft
-      else if base_bytes <> s.session.bytes then
-        { draft with blocked = true; message = "確認元が変わりました。下書きは保持。再読込して確認し直してください。" }
       else
-        match B.put_entry s.session.book ~replace entry ~plan with
-        | Error why -> { draft with message = "記帳拒否: " ^ why }
-        | Ok book -> finish draft book)
+        let result = A.commit_transaction ~session:s.session ~base_bytes transaction in
+        apply_commit_result s ~draft result
   | No_overlay | Commands _ | Themes _ | Loci _ | Detail _ | Plan_detail _ -> s
 
 let detail_selected s =
@@ -654,30 +531,27 @@ let plan_detail_selected s =
   | Some plan -> { s with overlay = Plan_detail { plan; scroll = 0 } }
 
 let reload s =
-  try
-    let session = F.load s.session.path in
-    match s.pending with
-    | Some bytes when session.bytes = bytes ->
-        {
-          (initial ?config_home:s.config_home session) with
-          theme = s.theme;
-          ui_notice = s.ui_notice;
-          message = "先ほどの記帳が現在のファイルにあります。再送しません。";
-        }
-    | Some _ -> { s with session; message = "現在のファイルを読みました。先ほどの書込は未確認。Ctrl-Nで下書きを破棄するまで再送を止めます。" }
-    | None -> (
-        match s.mode with
-        | Edit _ when session.bytes <> s.session.bytes ->
-            {
-              s with
-              session;
-              blocked = true;
-              message = "編集中の元ファイルが変わりました。下書きは保持。Ctrl-Nで破棄して明細を選び直してください。";
-            }
-        | New | Pay _ | Edit _ ->
-            { s with session; blocked = false; message = "再読込しました。保存前の下書きは保持しています。" })
-  with F.Refused _ | Unix.Unix_error _ | Sys_error _ ->
-    { s with blocked = true; message = "再読込できません。空台帳にせず、表示と下書きを保持しています。" }
+  match A.reload ~session:s.session ~pending:s.pending ~mode:s.mode with
+  | A.Pending_confirmed session ->
+      {
+        (initial ?config_home:s.config_home session) with
+        theme = s.theme;
+        ui_notice = s.ui_notice;
+        message = "先ほどの記帳が現在のファイルにあります。再送しません。";
+      }
+  | A.Pending_unconfirmed session ->
+      { s with session; message = "現在のファイルを読みました。先ほどの書込は未確認。Ctrl-Nで下書きを破棄するまで再送を止めます。" }
+  | A.Edit_base_changed session ->
+      {
+        s with
+        session;
+        blocked = true;
+        message = "編集中の元ファイルが変わりました。下書きは保持。Ctrl-Nで破棄して明細を選び直してください。";
+      }
+  | A.Reloaded session ->
+      { s with session; blocked = false; message = "再読込しました。保存前の下書きは保持しています。" }
+  | A.Reload_failed _ ->
+      { s with blocked = true; message = "再読込できません。空台帳にせず、表示と下書きを保持しています。" }
 
 let utf8 c =
   let b = Buffer.create 4 in

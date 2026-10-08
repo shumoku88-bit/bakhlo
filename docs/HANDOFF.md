@@ -36,12 +36,13 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   are recent additions. They are not evidence that real-data recording is safe.
 - `tools/tui` connects the Bonsai_term screen to `Bakhlo_sexp.Daily_book`. The user
   removed the Notty frontend (Bonsai only, also easing a later bonsai_web client) and
-  chose to rebuild the daily TUI as native Bonsai components. Self-checks already live
-  in `daily_interaction_checks.ml`. Next: extract UI-independent recording actions,
-  then port panes one at a time in the `tools/bonsai_lab.ml` style, keeping each
-  component's update as a pure, Bonsai-free testable function separate from its view.
-  Until then `tui/daily_interaction.ml` and `daily_file.ml` own actions/publication and
-  `bonsai_daily.ml` only adapts events and draws the shared screen lines. The existing
+  chose to rebuild the daily TUI as native Bonsai components. Self-checks live
+  in `daily_interaction_checks.ml`, and UI-independent recording/draft/commit/reload
+  actions are extracted into `daily_actions.ml`. Next: port panes one at a time
+  in the `tools/bonsai_lab.ml` style, keeping each component's model/update as a pure,
+  testable function separate from its view.
+  `daily_interaction.ml` now delegates ledger operations to `daily_actions.ml` and
+  retains the old line-based event loop while native components are introduced.
   isolated environment is reused; Bonsai rebuilds the same current Core sources
   under its separate compiler ABI, never from the archived ox-build source copy. Record/save/exit/cold reopen/edit, separate pre-edit
   backups, vocabulary addition and explicit plan payment work in the trial.
