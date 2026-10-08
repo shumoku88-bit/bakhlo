@@ -85,7 +85,8 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   signs, exact positive amounts, add/delete for new/payment drafts and uncapped
   scrolling. Esc hides but retains all rows/focus; Ctrl-T resumes, Ctrl-N explicitly
   discards. Held drafts cannot silently fall back to two-posting publication.
-  Enter never publishes inside it; Ctrl-S uses the SAME submit/put_entry/finish path.
+  Enter never publishes inside it; Ctrl-S now opens the whole-transaction preview,
+  whose explicit Ctrl-S rechecks and uses the SAME put_entry/finish publication path.
   `posting_draft.ml` is pure transient data/parsing, not another accounting/storage API.
   Difference zero is only draft arithmetic; blank/zero/precision/date/vocabulary and
   whole-book gates still refuse without dropping input. Existing multi-row ordinary
@@ -99,9 +100,35 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   frontends/all three themes for record -> other frontend cold edit -> cold read,
   hold/theme/paste/refusal/10-row scroll/resize/Space and terminal restoration, plus
   both multi-plan payment/duplicate refusals. No private input, Python, dependency,
-  codec or new publication mechanism. Independent preview is still the next step.
+  codec or new publication mechanism. Independent preview is now implemented below.
   The user finds the editor somewhat cumbersome; usability polish is deferred.
   Functional checks are not human UX acceptance or operational-cutover approval.
+- Shared recording preview/detail is trial-usable in both frontends. Simple-form
+  Enter/Ctrl-S and posting-editor Ctrl-S open a whole checked transaction preview;
+  only Ctrl-S INSIDE it confirms, Esc restores all draft/focus, and Enter/paste do
+  not publish. Stable ID, date, memo, all signed postings/keys and payment context
+  remain inspectable through cell-width wrapping and scroll; tiny panes refuse save.
+  Confirmation rechecks the same book and uses the existing file publisher, preserving
+  conflict/uncertain stops. Entries-list Enter is readonly detail, never submission.
+  Vocabulary addition preserves the active form/mode/selection; new drafts start at
+  Source rather than locking endpoints after amount-first input. Focused regressions
+  live in `tui/recording_checks.ml`; no accounting API/format/dependency was added.
+  Main tests, both self-checks/all themes and synthetic Terminal-theme PTYs passed
+  record -> other-provider cold edit, readonly detail, vocabulary draft retention,
+  multi-plan preview/cancel/payment and terminal restoration. Private data was not read.
+- Home now has upper recording and lower browsing in both frontends. Tab/Shift-Tab
+  switches regions; upper Up/Down stays among recording fields, lower Up/Down selects
+  rows and Left/Right switches only Entries/Plans. Each list retains its selection;
+  form field/caret, held postings and payment context survive browsing. Upper text
+  fields have UTF-8-scalar Left/Right/Home/End, insertion/backspace and paste at the
+  displayed `|` cursor (presentation only). Active headers and contextual help clarify
+  the input target. Plan Enter opens readonly scheduled evidence first; another Enter
+  starts payment input, returning focus above. Nonempty amounts/memos, Edit/Pay modes
+  and held postings refuse replacement by another edit/payment until explicit Ctrl-N.
+  No accounting API/format/dependency changed. Main checks, both self-checks/all themes
+  and fresh synthetic Terminal-theme PTYs passed both-provider cold edits, region/view
+  navigation, caret, draft retention, held-editor resume, plan details/payment and full
+  terminal restoration. No private data was read or changed.
 - Daily_book reads v1..v4. It writes `bakhlo-daily 4` when budget definitions are
   explicitly supplied, otherwise v3; Exchange and plan `cancelled-on` remain explicit.
   Reading does not rewrite an input; explicit copy/publication keeps prior bytes separately. Ordinary Book/CLI is unchanged.
@@ -168,9 +195,10 @@ the navigated calendar date or clamp a deficit to zero. Pool/boundary configurat
 must be supplied explicitly. Whether the initial slice also shows `d`'s seven-day
 current-truth reconstruction remains a display-scope question, not a different formula.
 
-The user also selected focus-based TUI visibility and floating panes to keep Home
-uncluttered. The checklist owns the detailed screen proposal and acceptance cases;
-`../tui/README.md` distinguishes this target from the current always-visible trial.
+The user selected upper recording plus a large lower browsing region: Tab between
+regions, arrows within one region, only the selected lower feature's content/help,
+and floating panes for auxiliary operations. This is now connected for Entries/Plans;
+the checklist owns acceptance and future features, `../tui/README.md` the current keys.
 Do not hide necessary fields within a single transaction or safety-critical errors.
 
 The recording cutover inventory also has a user-facing cognitive-load requirement:
@@ -185,12 +213,14 @@ publication path.
 
 The user has now selected small daily recording UI improvements in this order:
 Locus picker, multiple-posting input, then a separate whole-transaction preview.
-The picker and single-Measure multiple-posting draft/editor are implemented;
-next is an independent whole-transaction preview with return-to-edit and explicit
-confirmation, using the current publisher's checks, not a second authorization path.
+The picker, single-Measure multiple-posting draft/editor and independent
+whole-transaction preview are implemented. Preview return/confirmation, readonly
+history detail and vocabulary-add draft preservation now share both frontends.
+Home region focus/context and Entries/Plans switching are now connected. Next is
+wiring additional selected daily APIs into the lower browsing region, not another
+parallel ledger/GUI engine. In-picker vocabulary addition remains unfinished.
 Keep role/quantity support and payment links explicit, preserve all transaction fields,
 and qualify one usable step at a time.
-Home-wide focus/context remains unfinished, as does in-picker vocabulary addition.
 Plan updates, Daily Pace and the first explicit-period budget slice are implemented
 with synthetic checks. Attention remains a later small pure data/API candidate:
 explicit context, due/none/undetermined, dated resolve/drop and save/cold read.

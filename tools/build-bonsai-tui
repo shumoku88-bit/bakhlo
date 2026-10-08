@@ -17,7 +17,7 @@ for dir in lib application sexp; do
   rm -f "$build/$dir/"*.ml "$build/$dir/"*.mli
   cp "$root/$dir/"*.ml "$root/$dir/"*.mli "$root/$dir/dune" "$build/$dir/"
 done
-cp "$root/tui/daily_file.ml" "$root/tui/ui_preferences.ml" "$root/tui/posting_draft.ml" "$root/tui/daily_interaction.ml" "$root/tui/bonsai_daily.ml" "$build/ui/"
+cp "$root/tui/daily_file.ml" "$root/tui/ui_preferences.ml" "$root/tui/posting_draft.ml" "$root/tui/daily_interaction.ml" "$root/tui/recording_checks.ml" "$root/tui/bonsai_daily.ml" "$build/ui/"
 printf '%s\n' '(lang dune 3.24)' '(name bakhlo)' '(package (name bakhlo))' > "$build/dune-project"
 printf '%s\n' '(dirs lib application sexp ui)' '(env (_ (flags (:standard -strict-sequence -w +8+9+11 -warn-error +8+9+11))))' > "$build/dune"
 printf '%s\n' '(executable (name bonsai_daily) (libraries bakhlo_domain bakhlo_application bakhlo_sexp zarith unix uutf bonsai_term async core))' > "$build/ui/dune"

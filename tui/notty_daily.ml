@@ -67,7 +67,7 @@ let overlay_screen dimensions state = C.overlay_screen ~dimensions ~width_of sta
 
 let render ((width, height) as dimensions) state =
   let base =
-    C.screen ~frontend:"Notty" dimensions state
+    C.screen ~width_of ~frontend:"Notty" dimensions state
     |> lines state.C.theme |> I.hsnap ~align:`Left width |> I.vsnap ~align:`Top height
     |> backdrop state.C.theme width height
   in
@@ -89,7 +89,9 @@ let run path =
     (fun () ->
       let rec loop state =
         Notty_unix.Term.image terminal (render (Notty_unix.Term.size terminal) state);
-        match C.handle state (input_of_event (Notty_unix.Term.event terminal)) with
+        let event = input_of_event (Notty_unix.Term.event terminal) in
+        let dimensions = Notty_unix.Term.size terminal in
+        match C.handle ~dimensions ~width_of state event with
         | None -> ()
         | Some state -> loop state
       in
@@ -97,6 +99,7 @@ let run path =
 
 let self_check () =
   let state = C.self_check () in
+  Recording_checks.self_check ~width_of ();
   List.iter
     (fun (style, expected) ->
       F.require (A.equal (attribute P.Terminal style) expected) "Notty-terminal-default-style")
@@ -177,7 +180,8 @@ let self_check () =
                   };
               ]
              |> List.map (fun overlay -> { state with C.overlay }))
-            @ C.posting_render_cases state))
+            @ C.posting_render_cases state
+            @ Recording_checks.render_cases state))
         [ (100, 25); (64, 20); (40, 10); (20, 5) ])
     P.all_themes;
   List.iter
@@ -198,7 +202,8 @@ let self_check () =
             C.Loci { target = C.From_locus; query = ""; selected = 0; notice = None };
           ]
          |> List.map (fun overlay -> { state with C.overlay }))
-        @ C.posting_render_cases state))
+        @ C.posting_render_cases state
+        @ Recording_checks.render_cases state))
     P.all_themes;
   F.require (I.width (I.string A.empty "財布") = 4) "Notty-unicode-width";
   F.require

@@ -18,7 +18,7 @@ if [ ! -d "$envroot/notty-community" ]; then
 fi
 ./tools/opam exec -- dune build lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa sexp/bakhlo_sexp.cmxa
 mkdir -p _build/daily-tui
-for module in daily_file ui_preferences posting_draft daily_interaction notty_daily; do
+for module in daily_file ui_preferences posting_draft daily_interaction recording_checks notty_daily; do
   ./tools/opam exec -- env OCAMLPATH="$envroot" ocamlfind ocamlopt \
     -strict-sequence -w +8+9+11 -warn-error +8+9+11 \
     -package base,zarith,parsexp,unix,notty-community.unix -linkpkg \
@@ -34,6 +34,6 @@ done
   _build/default/lib/bakhlo_domain.cmxa _build/default/application/bakhlo_application.cmxa \
   _build/default/sexp/bakhlo_sexp.cmxa _build/daily-tui/daily_file.cmx \
   _build/daily-tui/ui_preferences.cmx _build/daily-tui/posting_draft.cmx \
-  _build/daily-tui/daily_interaction.cmx \
+  _build/daily-tui/daily_interaction.cmx _build/daily-tui/recording_checks.cmx \
   _build/daily-tui/notty_daily.cmx -o _build/daily-tui/bakhlo-tui
 exec _build/daily-tui/bakhlo-tui "$@"

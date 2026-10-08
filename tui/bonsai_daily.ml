@@ -50,7 +50,7 @@ let overlay_screen dimensions state = C.overlay_screen ~dimensions ~width_of sta
 
 let render ((width, height) as dimensions) state =
   let base =
-    C.screen ~frontend:"Bonsai_term" dimensions state
+    C.screen ~width_of ~frontend:"Bonsai_term" dimensions state
     |> lines state.C.theme |> fit width height |> backdrop state.C.theme
   in
   match overlay_screen dimensions state with
@@ -96,8 +96,8 @@ let input_of_event : B.Event.t -> C.input = function
 let app initial ~exit ~dimensions graph =
   let state, inject =
     Bonsai.state_machine ~default_model:initial
-      ~apply_action:(fun context state event ->
-        match C.handle state (input_of_event event) with
+      ~apply_action:(fun context state (dimensions, event) ->
+        match C.handle ~dimensions ~width_of state (input_of_event event) with
         | Some state -> state
         | None ->
             Bonsai.Apply_action_context.schedule_event context (exit ());
@@ -108,7 +108,10 @@ let app initial ~exit ~dimensions graph =
     Bonsai.arr2 graph state dimensions ~f:(fun state (dimensions : B.Dimensions.t) ->
         render (dimensions.width, dimensions.height) state)
   in
-  let handler = Bonsai.arr1 graph inject ~f:(fun inject event -> inject event) in
+  let handler =
+    Bonsai.arr2 graph inject dimensions ~f:(fun inject (dimensions : B.Dimensions.t) event ->
+        inject ((dimensions.width, dimensions.height), event))
+  in
   (~view, ~handler)
 
 let run path =
@@ -124,6 +127,7 @@ let run path =
 
 let self_check () =
   let state = C.self_check () in
+  Recording_checks.self_check ~width_of ();
   List.iter
     (fun (style, expected) ->
       F.require
@@ -210,7 +214,8 @@ let self_check () =
                   };
               ]
              |> List.map (fun overlay -> { state with C.overlay }))
-            @ C.posting_render_cases state))
+            @ C.posting_render_cases state
+            @ Recording_checks.render_cases state))
         [ (100, 25); (64, 20); (40, 10); (20, 5) ])
     P.all_themes;
   List.iter
@@ -232,7 +237,8 @@ let self_check () =
             C.Loci { target = C.From_locus; query = ""; selected = 0; notice = None };
           ]
          |> List.map (fun overlay -> { state with C.overlay }))
-        @ C.posting_render_cases state))
+        @ C.posting_render_cases state
+        @ Recording_checks.render_cases state))
     P.all_themes;
   F.require (V.width (V.text "財布") = 4) "Bonsai-unicode-width";
   F.require
