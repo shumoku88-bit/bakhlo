@@ -39,10 +39,11 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   chose to rebuild the daily TUI as native Bonsai components. Self-checks live
   in `daily_interaction_checks.ml`, UI-independent recording/draft/commit/reload
   actions are in `daily_actions.ml`, browsing (entries/plans navigation and formatting)
-  is in `daily_browser.ml`, and single-transaction form navigation and cursor text editing
-  is in `daily_form.ml`.
-  Next: port overlay panes (picker/postings/palette), then assemble native Bonsai state_machine components.
-  `daily_interaction.ml` delegates to `daily_actions.ml`, `daily_browser.ml`, and `daily_form.ml`. The existing
+  is in `daily_browser.ml`, single-transaction form navigation and cursor text editing
+  is in `daily_form.ml`, and multiple postings editor navigation and manipulation
+  is in `posting_editor.ml`.
+  Next: port overlay panes (picker/palette/review), then assemble native Bonsai state_machine components.
+  `daily_interaction.ml` delegates to `daily_actions.ml`, `daily_browser.ml`, `daily_form.ml`, and `posting_editor.ml`. The existing
   under its separate compiler ABI, never from the archived ox-build source copy. Record/save/exit/cold reopen/edit, separate pre-edit
   backups, vocabulary addition and explicit plan payment work in the trial.
   Main tests and native self-checks passed. Real synthetic PTYs also passed

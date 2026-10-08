@@ -9,6 +9,7 @@ module R = Posting_draft
 module A = Daily_actions
 module Br = Daily_browser
 module Fm = Daily_form
+module Pe = Posting_editor
 
 let get = A.get
 let get_id = A.get_id
@@ -43,9 +44,9 @@ type input =
 type focus = Date | Currency | Source | Destination | Amount | Memo | History
 type view = Br.view = Entries | Plans
 type mode = A.mode = New | Edit of B.entry | Pay of string
-type posting_focus = Posting_day | Posting_memo | Posting_locus | Posting_sign | Posting_amount
+type posting_focus = Pe.field = Posting_day | Posting_memo | Posting_locus | Posting_sign | Posting_amount
 
-type posting_editor = {
+type posting_editor = Pe.t = {
   draft : R.t;
   row : int;
   field : posting_focus;
@@ -334,7 +335,7 @@ let pair = A.pair
 let with_postings s draft =
   {
     s with
-    postings = Some { draft; row = 0; field = Posting_amount; visible = true; notice = None };
+    postings = Some (Pe.create draft);
   }
 
 let open_postings s =
@@ -838,62 +839,27 @@ let new_draft s =
     message = "新しい下書き。過去の不確かな試行は再送・回復しません。";
   }
 
-let next_posting_field = function
-  | Posting_day -> Posting_memo
-  | Posting_memo -> Posting_locus
-  | Posting_locus -> Posting_sign
-  | Posting_sign -> Posting_amount
-  | Posting_amount -> Posting_day
-
-let previous_posting_field = function
-  | Posting_day -> Posting_amount
-  | Posting_memo -> Posting_day
-  | Posting_locus -> Posting_memo
-  | Posting_sign -> Posting_locus
-  | Posting_amount -> Posting_sign
+let next_posting_field = Pe.next_field
+let previous_posting_field = Pe.previous_field
 
 let editor_key s e (button, mods) =
-  let notice text = update_editor s (fun e -> { e with notice = Some text }) in
-  let move step =
-    update_editor s (fun e ->
-        { e with row = max 0 (min (max 0 (List.length e.draft.rows - 1)) (e.row + step)) })
-  in
-  let focus f = update_editor s (fun e -> { e with field = f e.field }) in
+  let notice text = update_editor s (fun e -> Pe.set_notice e (Some text)) in
+  let move step = update_editor s (fun e -> Pe.move_row e step) in
+  let focus f = update_editor s (fun e -> Pe.move_field e f) in
   let add () =
     if s.blocked then s
     else if not (editable s) then notice "編集中は行構成・科目・符号・キーを保持します"
-    else
-      update_editor s (fun e ->
-          {
-            e with
-            draft =
-              {
-                e.draft with
-                rows =
-                  e.draft.rows @ [ { R.key = None; locus = ""; negative = false; amount = "" } ];
-              };
-            row = List.length e.draft.rows;
-            field = Posting_locus;
-            notice = None;
-          })
+    else update_editor s Pe.add_row
   in
   let remove () =
     if s.blocked then s
     else if not (editable s) then notice "編集中は既存の行を削除しません"
-    else
-      update_editor s (fun e ->
-          let rows = List.filteri (fun n _ -> n <> e.row) e.draft.rows in
-          {
-            e with
-            draft = { e.draft with rows };
-            row = min e.row (max 0 (List.length rows - 1));
-            notice = None;
-          })
+    else update_editor s Pe.remove_row
   in
   let sign negative =
     if s.blocked then s
     else if not (editable s) then notice "編集中は符号を保持します"
-    else update_posting_row s (fun row -> { row with negative })
+    else update_editor s (fun e -> Pe.set_sign e negative)
   in
   match (button, mods) with
   | `ASCII 'n', [ `Ctrl ] -> new_draft s
@@ -1109,21 +1075,10 @@ let panel_border ?(width = panel_width) ~width_of title =
 
 let panel_bottom ?(width = panel_width) () = (Panel, "+" ^ String.make (max 0 (width - 2)) '-' ^ "+")
 
-let posting_status s e =
-  match R.residual s.session.book e.draft with
-  | Error why -> "下書き差額不明: " ^ why
-  | Ok n ->
-      "下書き差額: "
-      ^ B.format s.session.book e.draft.measure n
-      ^ " " ^ e.draft.measure
-      ^ if Z.equal n Z.zero then "（0・数量のみ整合）" else "（0でない・記帳不可）"
+let posting_status s e = Pe.status s.session.book e
+let posting_line = Pe.line
 
-let posting_line book n (row : R.row) measure =
-  Printf.sprintf "%d %s%s %s %s [%s]" (n + 1)
-    (if row.negative then "-" else "+")
-    row.amount measure (B.label book row.locus) row.locus
-
-let posting_panel ~dimensions:(width, height) ~width_of s e =
+let posting_panel ~dimensions:(width, height) ~width_of s (e : Pe.t) =
   let width = max 4 (min 76 (width - 4)) in
   let line = panel_line ~width ~width_of in
   let active field = if e.field = field then Panel_active else Panel in
@@ -1146,14 +1101,7 @@ let posting_panel ~dimensions:(width, height) ~width_of s e =
               ^ posting_line s.session.book n row e.draft.measure))
   in
   let chosen = List.nth_opt e.draft.rows e.row in
-  let field_name =
-    match e.field with
-    | Posting_day -> "日付"
-    | Posting_memo -> "メモ"
-    | Posting_locus -> "科目"
-    | Posting_sign -> "符号（← - / → +）"
-    | Posting_amount -> "金額（正の値）"
-  in
+  let field_name = Pe.field_label e.field in
   [
     panel_border ~width ~width_of "複数posting下書き";
     line (active Posting_day) ("日付: " ^ s.form.day);
