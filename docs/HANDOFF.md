@@ -37,13 +37,11 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
 - `tools/tui` connects the Bonsai_term screen to `Bakhlo_sexp.Daily_book`. The user
   removed the Notty frontend (Bonsai only, also easing a later bonsai_web client) and
   chose to rebuild the daily TUI as native Bonsai components. Self-checks live
-  in `daily_interaction_checks.ml`, and UI-independent recording/draft/commit/reload
-  actions are extracted into `daily_actions.ml`. Next: port panes one at a time
-  in the `tools/bonsai_lab.ml` style, keeping each component's model/update as a pure,
-  testable function separate from its view.
-  `daily_interaction.ml` now delegates ledger operations to `daily_actions.ml` and
-  retains the old line-based event loop while native components are introduced.
-  isolated environment is reused; Bonsai rebuilds the same current Core sources
+  in `daily_interaction_checks.ml`, UI-independent recording/draft/commit/reload
+  actions are in `daily_actions.ml`, and browsing (entries/plans navigation and formatting)
+  is extracted into `daily_browser.ml`.
+  Next: port form and overlay panes, then assemble native Bonsai state_machine components.
+  `daily_interaction.ml` now delegates to `daily_actions.ml` and `daily_browser.ml`. The existing
   under its separate compiler ABI, never from the archived ox-build source copy. Record/save/exit/cold reopen/edit, separate pre-edit
   backups, vocabulary addition and explicit plan payment work in the trial.
   Main tests and native self-checks passed. Real synthetic PTYs also passed

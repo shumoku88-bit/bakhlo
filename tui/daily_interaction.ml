@@ -7,6 +7,7 @@ module F = Daily_file
 module P = Ui_preferences
 module R = Posting_draft
 module A = Daily_actions
+module Br = Daily_browser
 
 let get = A.get
 let get_id = A.get_id
@@ -39,7 +40,7 @@ type input =
   | `Mouse of unit ]
 
 type focus = Date | Currency | Source | Destination | Amount | Memo | History
-type view = Entries | Plans
+type view = Br.view = Entries | Plans
 type mode = A.mode = New | Edit of B.entry | Pay of string
 type posting_focus = Posting_day | Posting_memo | Posting_locus | Posting_sign | Posting_amount
 
@@ -109,8 +110,23 @@ type state = {
 
 let loci book = match B.approved_loci book with Some xs -> xs | None -> []
 let head = function x :: _ -> x | [] -> ""
-let entries s = List.rev (B.entries s.session.book)
-let plans s = B.plans s.session.book
+let entries s = Br.entries s.session.book
+let plans s = Br.plans s.session.book
+
+let browser_of_state s = {
+  Br.view = s.view;
+  entries_selected = (if s.view = Entries then s.selected else s.other_selected);
+  plans_selected = (if s.view = Plans then s.selected else s.other_selected);
+}
+
+let apply_browser s action =
+  let b = Br.apply_action ~book:s.session.book (browser_of_state s) action in
+  {
+    s with
+    view = b.view;
+    selected = Br.selected_index b;
+    other_selected = (match b.view with Entries -> b.plans_selected | Plans -> b.entries_selected);
+  }
 
 let initial ?config_home session =
   let choices = loci session.F.book in
@@ -293,24 +309,9 @@ let erase_before_cursor s =
   let updated = set_field s (prefix ^ String.sub value at (String.length value - at)) in
   { updated with cursor = Some (String.length prefix) }
 
-let count s =
-  match s.view with
-  | Entries -> List.length (B.entries s.session.book)
-  | Plans -> List.length (plans s)
-
-let select s step =
-  { s with focus = History; selected = max 0 (min (max 0 (count s - 1)) (s.selected + step)) }
-
-let switch_view s =
-  let switched =
-    {
-      s with
-      view = (match s.view with Entries -> Plans | Plans -> Entries);
-      selected = s.other_selected;
-      other_selected = s.selected;
-    }
-  in
-  { switched with selected = min (max 0 (count switched - 1)) switched.selected }
+let count s = Br.count ~book:s.session.book (browser_of_state s)
+let select s step = apply_browser { s with focus = History } (Br.Select step)
+let switch_view s = apply_browser s Br.Switch_view
 
 let change s step =
   if s.adding <> None then move_cursor s step
@@ -521,12 +522,12 @@ let confirm s =
   | No_overlay | Commands _ | Themes _ | Loci _ | Detail _ | Plan_detail _ -> s
 
 let detail_selected s =
-  match List.nth_opt (entries s) s.selected with
+  match Br.selected_entry ~book:s.session.book (browser_of_state s) with
   | None -> s
   | Some entry -> { s with overlay = Detail { entry; scroll = 0 } }
 
 let plan_detail_selected s =
-  match List.nth_opt (plans s) s.selected with
+  match Br.selected_plan ~book:s.session.book (browser_of_state s) with
   | None -> s
   | Some plan -> { s with overlay = Plan_detail { plan; scroll = 0 } }
 
@@ -1075,39 +1076,8 @@ let quantity s locus =
             B.format s.session.book s.form.measure (D.Quantity.quanta (Q.quantity e)))
     | Error _, _ | _, Error _ -> "不明"
 
-let posting_text book p =
-  B.label book (lstr (D.Effect.locus p))
-  ^ ":"
-  ^ B.format book (mstr (D.Effect.measure p)) (quanta p)
-  ^ " "
-  ^ mstr (D.Effect.measure p)
-
-let history s =
-  match s.view with
-  | Entries ->
-      List.map
-        (fun (e : B.entry) ->
-          e.day ^ " "
-          ^ String.concat " / " (List.map (posting_text s.session.book) e.effects)
-          ^ (match e.memo with None -> "" | Some text -> "  " ^ text)
-          ^
-          if e.reversal_of <> None then " [返金・取消対応]" else if e.exchange <> None then " [両替]" else "")
-        (entries s)
-  | Plans ->
-      List.map
-        (fun (p : B.plan) ->
-          p.day ^ " "
-          ^ (match p.cancelled_on with
-            | Some day -> "[取消 " ^ day ^ "] "
-            | None -> if p.paid_by = None then "[未払い] " else "[支払い済] ")
-          ^ String.concat " / "
-              (List.map
-                 (fun (loc, n) ->
-                   B.label s.session.book loc ^ ":"
-                   ^ B.format s.session.book p.measure n
-                   ^ " " ^ p.measure)
-                 p.changes))
-        (plans s)
+let posting_text book p = Br.posting_text book p
+let history s = Br.history_lines ~book:s.session.book (browser_of_state s)
 
 type style = Plain | Active | Heading | Status | Panel | Panel_heading | Panel_active
 
