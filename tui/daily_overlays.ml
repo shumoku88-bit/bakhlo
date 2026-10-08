@@ -6,6 +6,7 @@ module P = Ui_preferences
 module R = Posting_draft
 module A = Daily_actions
 module Pe = Posting_editor
+module Fm = Daily_form
 
 type style = Plain | Active | Heading | Status | Panel | Panel_heading | Panel_active
 
@@ -394,3 +395,106 @@ let overlay_screen ~dimensions:((width, height) as dimensions) ~width_of ~book ~
             line Panel "文字検索 / Backspace / Ctrl-U 消去";
             panel_bottom ~width ();
           ])
+
+type key_outcome =
+  | Updated of overlay
+  | Closed
+  | Confirm_transaction of transaction * string
+  | Pay_plan of B.plan
+  | Theme_preview of P.theme * overlay
+  | Theme_saved of P.theme * string option
+  | Pick_locus of locus_target * string
+  | Unhandled
+
+let handle_key ~dimensions ~width_of ~book ~theme ?config_home ~can_choose_locus overlay (button, mods) =
+  match overlay with
+  | No_overlay -> Unhandled
+  | (Preview _ | Detail _ | Plan_detail _) as ov -> (
+      let lines, scroll =
+        match ov with
+        | Preview p -> (preview_lines book p.transaction, p.scroll)
+        | Detail d -> (entry_lines book d.entry, d.scroll)
+        | Plan_detail d -> (plan_lines book d.plan, d.scroll)
+        | No_overlay | Commands _ | Themes _ | Loci _ -> assert false
+      in
+      let _, _, _, scroll, last = review_page ~dimensions ~width_of lines scroll in
+      let move next =
+        match ov with
+        | Preview p -> Updated (Preview { p with scroll = max 0 (min last next) })
+        | Detail d -> Updated (Detail { d with scroll = max 0 (min last next) })
+        | Plan_detail d -> Updated (Plan_detail { d with scroll = max 0 (min last next) })
+        | No_overlay | Commands _ | Themes _ | Loci _ -> assert false
+      in
+      match (button, mods) with
+      | `Escape, [] -> Closed
+      | `Enter, [] when match ov with Plan_detail _ -> true | _ -> false -> (
+          match ov with Plan_detail d -> Pay_plan d.plan | _ -> assert false)
+      | `Arrow `Up, [] -> move (scroll - 1)
+      | `Arrow `Down, [] -> move (scroll + 1)
+      | `Page `Up, [] -> move (scroll - 5)
+      | `Page `Down, [] -> move (scroll + 5)
+      | `Home, [] -> move 0
+      | `End, [] -> move last
+      | `ASCII 's', [ `Ctrl ] when match ov with Preview _ -> true | _ -> false -> (
+          match ov with
+          | Preview p -> Confirm_transaction (p.transaction, p.base_bytes)
+          | _ -> assert false)
+      | _ -> Updated ov)
+  | Commands selected -> (
+      match (button, mods) with
+      | `Escape, [] -> Closed
+      | `Arrow `Up, [] | `Arrow `Left, [] ->
+          Updated (Commands (cycle_index (List.length commands) selected (-1)))
+      | `Arrow `Down, [] | `Arrow `Right, [] ->
+          Updated (Commands (cycle_index (List.length commands) selected 1))
+      | `Enter, [] -> (
+          match List.nth_opt commands selected with
+          | Some Theme ->
+              Updated (Themes { selected = theme_index theme; original = theme })
+          | None -> Updated (Commands selected))
+      | _ -> Updated (Commands selected))
+  | Themes { selected; original } -> (
+      match (button, mods) with
+      | `Escape, [] -> Theme_preview (original, Commands 0)
+      | `Arrow `Up, [] | `Arrow `Left, [] ->
+          let selected = cycle_index (List.length P.all_themes) selected (-1) in
+          Theme_preview (theme_at selected, Themes { selected; original })
+      | `Arrow `Down, [] | `Arrow `Right, [] ->
+          let selected = cycle_index (List.length P.all_themes) selected 1 in
+          Theme_preview (theme_at selected, Themes { selected; original })
+      | `Enter, [] ->
+          let chosen_theme = theme_at selected in
+          let notice =
+            match P.save_theme ?config_home chosen_theme with
+            | Ok () -> Some ("テーマを保存しました: " ^ P.theme_label chosen_theme)
+            | Error _ -> Some "テーマはこの起動中だけ変更しました。次回用のUI設定は保存できませんでした。"
+          in
+          Theme_saved (chosen_theme, notice)
+      | _ -> Updated (Themes { selected; original }))
+  | Loci picker -> (
+      let candidates = locus_candidates book picker.query in
+      let move step =
+        let selected = max 0 (min (max 0 (List.length candidates - 1)) (picker.selected + step)) in
+        Updated (Loci { picker with selected; notice = None })
+      in
+      match (button, mods) with
+      | `Escape, [] -> Closed
+      | `Arrow `Up, [] -> move (-1)
+      | `Arrow `Down, [] -> move 1
+      | `Page `Up, [] -> move (-8)
+      | `Page `Down, [] -> move 8
+      | `Home, [] -> move (-List.length candidates)
+      | `End, [] -> move (List.length candidates)
+      | `Backspace, [] ->
+          Updated (Loci { picker with query = Fm.backspace picker.query; selected = 0; notice = None })
+      | `ASCII 'u', [ `Ctrl ] ->
+          Updated (Loci { picker with query = ""; selected = 0; notice = None })
+      | `Enter, [] -> (
+          match List.nth_opt candidates picker.selected with
+          | Some id when can_choose_locus -> Pick_locus (picker.target, id)
+          | Some _ | None -> Updated (Loci picker))
+      | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
+          Updated (Loci { picker with query = picker.query ^ String.make 1 c; selected = 0; notice = None })
+      | `Uchar c, [] when printable_uchar c ->
+          Updated (Loci { picker with query = picker.query ^ utf8 c; selected = 0; notice = None })
+      | _ -> Updated (Loci picker))

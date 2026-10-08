@@ -600,135 +600,36 @@ let wrap_text = O.wrap_text
 let review_page = O.review_page
 
 let overlay_key ~dimensions ~width_of s (button, mods) =
-  match s.overlay with
-  | No_overlay -> None
-  | (Preview _ | Detail _ | Plan_detail _) as overlay -> (
-      let lines, scroll =
-        match overlay with
-        | Preview p -> (preview_lines s.session.book p.transaction, p.scroll)
-        | Detail d -> (entry_lines s.session.book d.entry, d.scroll)
-        | Plan_detail d -> (plan_lines s.session.book d.plan, d.scroll)
-        | No_overlay | Commands _ | Themes _ | Loci _ -> assert false
+  match
+    O.handle_key ~dimensions ~width_of ~book:s.session.book ~theme:s.theme
+      ?config_home:s.config_home ~can_choose_locus:(can_choose_locus s) s.overlay
+      (button, mods)
+  with
+  | O.Unhandled -> None
+  | O.Updated overlay -> Some { s with overlay }
+  | O.Closed -> Some { s with overlay = No_overlay }
+  | O.Confirm_transaction _ ->
+      let width, height = dimensions in
+      Some (if width < 32 || height < 10 then s else confirm s)
+  | O.Pay_plan _ ->
+      let width, height = dimensions in
+      Some
+        (if width < 32 || height < 10 then s
+         else
+           let payment = pay_selected s in
+           if payment.mode <> s.mode then { payment with overlay = No_overlay } else payment)
+  | O.Theme_preview (theme, overlay) -> Some { s with theme; overlay }
+  | O.Theme_saved (theme, ui_notice) -> Some { s with theme; overlay = No_overlay; ui_notice }
+  | O.Pick_locus (target, id) ->
+      let chosen =
+        match target with
+        | From_locus -> { s with form = { s.form with from_locus = id } }
+        | To_locus -> { s with form = { s.form with to_locus = id } }
+        | Posting_locus_at position ->
+            update_editor s (fun e ->
+                Pe.update_row_at e position (fun (row : R.row) -> { row with locus = id }))
       in
-      let _, _, _, scroll, last = review_page ~dimensions ~width_of lines scroll in
-      let move next =
-        Some
-          {
-            s with
-            overlay =
-              (match overlay with
-              | Preview p -> Preview { p with scroll = max 0 (min last next) }
-              | Detail d -> Detail { d with scroll = max 0 (min last next) }
-              | Plan_detail d -> Plan_detail { d with scroll = max 0 (min last next) }
-              | No_overlay | Commands _ | Themes _ | Loci _ -> overlay);
-          }
-      in
-      match (button, mods) with
-      | `Escape, [] -> Some { s with overlay = No_overlay }
-      | `Enter, [] when match overlay with Plan_detail _ -> true | _ -> false ->
-          let width, height = dimensions in
-          Some
-            (if width < 32 || height < 10 then s
-             else
-               let payment = pay_selected s in
-               if payment.mode <> s.mode then { payment with overlay = No_overlay } else payment)
-      | `Arrow `Up, [] -> move (scroll - 1)
-      | `Arrow `Down, [] -> move (scroll + 1)
-      | `Page `Up, [] -> move (scroll - 5)
-      | `Page `Down, [] -> move (scroll + 5)
-      | `Home, [] -> move 0
-      | `End, [] -> move last
-      | `ASCII 's', [ `Ctrl ] when match overlay with Preview _ -> true | _ -> false ->
-          let width, height = dimensions in
-          Some (if width < 32 || height < 10 then s else confirm s)
-      | _ -> Some s)
-  | Commands selected -> (
-      match (button, mods) with
-      | `Escape, [] -> Some { s with overlay = No_overlay }
-      | `Arrow `Up, [] | `Arrow `Left, [] ->
-          Some { s with overlay = Commands (cycle_index (List.length commands) selected (-1)) }
-      | `Arrow `Down, [] | `Arrow `Right, [] ->
-          Some { s with overlay = Commands (cycle_index (List.length commands) selected 1) }
-      | `Enter, [] -> (
-          match List.nth_opt commands selected with
-          | Some Theme ->
-              Some
-                { s with overlay = Themes { selected = theme_index s.theme; original = s.theme } }
-          | None -> Some s)
-      | _ -> Some s)
-  | Themes { selected; original } -> (
-      match (button, mods) with
-      | `Escape, [] -> Some { s with theme = original; overlay = Commands 0 }
-      | `Arrow `Up, [] | `Arrow `Left, [] ->
-          let selected = cycle_index (List.length P.all_themes) selected (-1) in
-          Some { s with theme = theme_at selected; overlay = Themes { selected; original } }
-      | `Arrow `Down, [] | `Arrow `Right, [] ->
-          let selected = cycle_index (List.length P.all_themes) selected 1 in
-          Some { s with theme = theme_at selected; overlay = Themes { selected; original } }
-      | `Enter, [] ->
-          let theme = theme_at selected in
-          Some
-            (match P.save_theme ?config_home:s.config_home theme with
-            | Ok () ->
-                {
-                  s with
-                  theme;
-                  overlay = No_overlay;
-                  ui_notice = Some ("テーマを保存しました: " ^ P.theme_label theme);
-                }
-            | Error _ ->
-                {
-                  s with
-                  theme;
-                  overlay = No_overlay;
-                  ui_notice = Some "テーマはこの起動中だけ変更しました。次回用のUI設定は保存できませんでした。";
-                })
-      | _ -> Some s)
-  | Loci picker -> (
-      let candidates = locus_candidates s picker.query in
-      let move step =
-        let selected = max 0 (min (max 0 (List.length candidates - 1)) (picker.selected + step)) in
-        Some { s with overlay = Loci { picker with selected; notice = None } }
-      in
-      match (button, mods) with
-      | `Escape, [] -> Some { s with overlay = No_overlay }
-      | `Arrow `Up, [] -> move (-1)
-      | `Arrow `Down, [] -> move 1
-      | `Page `Up, [] -> move (-8)
-      | `Page `Down, [] -> move 8
-      | `Home, [] -> move (-List.length candidates)
-      | `End, [] -> move (List.length candidates)
-      | `Backspace, [] -> Some (search_loci s picker (backspace picker.query))
-      | `ASCII 'u', [ `Ctrl ] -> Some (search_loci s picker "")
-      | `Enter, [] -> (
-          match List.nth_opt candidates picker.selected with
-          | Some id when can_choose_locus s ->
-              let chosen =
-                match picker.target with
-                | From_locus -> { s with form = { s.form with from_locus = id } }
-                | To_locus -> { s with form = { s.form with to_locus = id } }
-                | Posting_locus_at position ->
-                    update_editor s (fun e ->
-                        {
-                          e with
-                          draft =
-                            {
-                              e.draft with
-                              rows =
-                                List.mapi
-                                  (fun n (row : R.row) ->
-                                    if n = position then { row with locus = id } else row)
-                                  e.draft.rows;
-                            };
-                          notice = None;
-                        })
-              in
-              Some { chosen with overlay = No_overlay }
-          | Some _ | None -> Some s)
-      | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
-          Some (search_loci s picker (picker.query ^ String.make 1 c))
-      | `Uchar c, [] when printable_uchar c -> Some (search_loci s picker (picker.query ^ utf8 c))
-      | _ -> Some s)
+      Some { chosen with overlay = No_overlay }
 
 let is_space = function `ASCII ' ' -> true | `Uchar c -> Uchar.to_int c = 0x20 | _ -> false
 
