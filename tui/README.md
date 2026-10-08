@@ -17,6 +17,7 @@ BonsaiはコンパイラABIが異なるため、同じ現在のCore／台帳／�
 
 `daily_actions.ml` が台帳の取引構築・検証・ドラフト変換・保存・再読込の純粋ロジックを、
 `daily_browser.ml` が明細・予定の閲覧ナビゲーションと行フォーマットを、
+`daily_form.ml` が記帳フォームの項目移動・候補循環・カーソル付きテキスト編集を、
 `daily_interaction.ml` が下書き・キー操作・表示内容を、`daily_file.ml` が保存を扱う。
 `bonsai_daily.ml` はまだ単一状態をBonsaiの`state_machine`一つで包むadapterで、ネイティブ化の移行元。
 同時に開いた場合は、古い読込元からの

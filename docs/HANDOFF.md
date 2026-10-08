@@ -38,10 +38,11 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   removed the Notty frontend (Bonsai only, also easing a later bonsai_web client) and
   chose to rebuild the daily TUI as native Bonsai components. Self-checks live
   in `daily_interaction_checks.ml`, UI-independent recording/draft/commit/reload
-  actions are in `daily_actions.ml`, and browsing (entries/plans navigation and formatting)
-  is extracted into `daily_browser.ml`.
-  Next: port form and overlay panes, then assemble native Bonsai state_machine components.
-  `daily_interaction.ml` now delegates to `daily_actions.ml` and `daily_browser.ml`. The existing
+  actions are in `daily_actions.ml`, browsing (entries/plans navigation and formatting)
+  is in `daily_browser.ml`, and single-transaction form navigation and cursor text editing
+  is in `daily_form.ml`.
+  Next: port overlay panes (picker/postings/palette), then assemble native Bonsai state_machine components.
+  `daily_interaction.ml` delegates to `daily_actions.ml`, `daily_browser.ml`, and `daily_form.ml`. The existing
   under its separate compiler ABI, never from the archived ox-build source copy. Record/save/exit/cold reopen/edit, separate pre-edit
   backups, vocabulary addition and explicit plan payment work in the trial.
   Main tests and native self-checks passed. Real synthetic PTYs also passed

@@ -8,6 +8,7 @@ module P = Ui_preferences
 module R = Posting_draft
 module A = Daily_actions
 module Br = Daily_browser
+module Fm = Daily_form
 
 let get = A.get
 let get_id = A.get_id
@@ -175,24 +176,9 @@ let visible text =
     () text;
   Buffer.contents b
 
-let backspace value =
-  if value = "" then value
-  else
-    let rec start n = if n > 0 && Char.code value.[n] land 0xc0 = 0x80 then start (n - 1) else n in
-    String.sub value 0 (start (String.length value - 1))
-
+let backspace = Fm.backspace
 let editable s = match s.mode with New | Pay _ -> true | Edit _ -> false
-
-let pick choices current step =
-  let count = List.length choices in
-  if count = 0 then current
-  else
-    let rec index n = function
-      | [] -> 0
-      | x :: _ when x = current -> n
-      | _ :: xs -> index (n + 1) xs
-    in
-    List.nth choices ((index 0 choices + step + count) mod count)
+let pick = Fm.pick
 
 let editor_visible s = match s.postings with Some e -> e.visible | None -> false
 let update_editor s f = { s with postings = Option.map f s.postings }
@@ -251,6 +237,23 @@ let set_field s value =
           in
           { s with form })
 
+let field_of_focus = function
+  | Date -> Some Fm.Date
+  | Currency -> Some Fm.Currency
+  | Source -> Some Fm.Source
+  | Destination -> Some Fm.Destination
+  | Amount -> Some Fm.Amount
+  | Memo -> Some Fm.Memo
+  | History -> None
+
+let focus_of_field = function
+  | Fm.Date -> Date
+  | Fm.Currency -> Currency
+  | Fm.Source -> Source
+  | Fm.Destination -> Destination
+  | Fm.Amount -> Amount
+  | Fm.Memo -> Memo
+
 (* Home has two regions. Field arrows never cross the region boundary. *)
 let next = function
   | Date -> Currency
@@ -278,36 +281,28 @@ let switch_region s =
   if s.focus = History then { s with focus = s.record_focus }
   else { s with record_focus = s.focus; focus = History }
 
-let text_field s = s.adding <> None || (s.postings = None && List.mem s.focus [ Date; Amount; Memo ])
+let text_field s =
+  s.adding <> None
+  || (s.postings = None && match field_of_focus s.focus with Some fld -> Fm.is_text_field fld | None -> false)
 
-let cursor s =
-  min (String.length (field s)) (max 0 (Option.value ~default:(String.length (field s)) s.cursor))
+let cursor s = Fm.cursor_pos ~value:(field s) s.cursor
 
 let move_cursor s step =
-  let value = field s and at = cursor s in
-  let next =
-    if step < 0 then String.length (backspace (String.sub value 0 at))
-    else if at = String.length value then at
-    else
-      let rec after n =
-        if n < String.length value && Char.code value.[n] land 0xc0 = 0x80 then after (n + 1) else n
-      in
-      after (at + 1)
-  in
+  let value = field s in
+  let next = Fm.move_cursor ~value ~cursor:s.cursor step in
   { s with cursor = Some next }
 
 let insert_text s text =
-  let value = field s and at = cursor s in
-  let updated =
-    set_field s (String.sub value 0 at ^ text ^ String.sub value at (String.length value - at))
-  in
-  { updated with cursor = Some (at + String.length text) }
+  let value = field s in
+  let updated, next_cursor = Fm.insert_at ~value ~cursor:s.cursor text in
+  let s = set_field s updated in
+  { s with cursor = Some next_cursor }
 
 let erase_before_cursor s =
-  let value = field s and at = cursor s in
-  let prefix = backspace (String.sub value 0 at) in
-  let updated = set_field s (prefix ^ String.sub value at (String.length value - at)) in
-  { updated with cursor = Some (String.length prefix) }
+  let value = field s in
+  let updated, next_cursor = Fm.erase_at ~value ~cursor:s.cursor in
+  let s = set_field s updated in
+  { s with cursor = Some next_cursor }
 
 let count s = Br.count ~book:s.session.book (browser_of_state s)
 let select s step = apply_browser { s with focus = History } (Br.Select step)
@@ -321,18 +316,18 @@ let change s step =
   else if (not (editable s)) || s.form.amount <> "" then
     { s with message = "金額入力中／編集中は通貨・科目を変えません。Ctrl-Nで新規。" }
   else
-    let form =
-      match s.focus with
-      | Currency ->
-          {
-            s.form with
-            measure = pick (List.map fst (B.measures s.session.book)) s.form.measure step;
-          }
-      | Source -> { s.form with from_locus = pick (loci s.session.book) s.form.from_locus step }
-      | Destination -> { s.form with to_locus = pick (loci s.session.book) s.form.to_locus step }
-      | Date | Amount | Memo | History -> s.form
-    in
-    { s with form }
+    match field_of_focus s.focus with
+    | None -> s
+    | Some fld ->
+        let choices =
+          match fld with
+          | Fm.Currency -> List.map fst (B.measures s.session.book)
+          | Fm.Source | Fm.Destination -> loci s.session.book
+          | Fm.Date | Fm.Amount | Fm.Memo -> []
+        in
+        let model = { Fm.form = s.form; focus = fld; cursor = s.cursor } in
+        let updated = Fm.apply_action model (Fm.Cycle_choice { choices; step }) in
+        { s with form = updated.form }
 
 let pair = A.pair
 
