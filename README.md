@@ -95,6 +95,8 @@ picker内の確定は下書きの選択だけで保存しない。明細一覧�
 ## 次の作業と参考
 
 まず[現在の引継ぎ](docs/HANDOFF.md)を見る。
+[機能・保証台帳](docs/CAPABILITY_LEDGER.ja.md)では、LOAMで蓄積した会計上の知見と、
+Bakhloのコア実装・Daily保存・TUI接続・運用認定を別々に確認できる。
 [LOAMの機能棚卸し・乗り換え判定表](docs/CUTOVER_CHECKLIST.ja.md)で、
 現在の対応範囲と切替前に必要な生活操作を選ぶ。
 予定関連・各種残高・今日いくら使えるか・予算周り・Attentionは必要な分野として整理済み。
