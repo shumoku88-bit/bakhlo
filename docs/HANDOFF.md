@@ -129,6 +129,13 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   and fresh synthetic Terminal-theme PTYs passed both-provider cold edits, region/view
   navigation, caret, draft retention, held-editor resume, plan details/payment and full
   terminal restoration. No private data was read or changed.
+- `tools/bonsai-lab` is a separate readonly native-Bonsai layout experiment with
+  independently stateful Plans/Budgets panes over the same immutable `Daily_book`.
+  It uses the installed public `both`/`arr2` API, not unavailable top-level arr3/arr4.
+  `tools/build-bonsai-tui --lab` builds it under `_build/daily-bonsai-lab` using the
+  existing switch; ordinary daily targets and publication are unchanged. Synthetic
+  launcher/PTY checks passed startup, unknown-budget display, focus, exit, terminal
+  restoration and unchanged book bytes. No recording, long-detail scroll or adoption.
 - Daily_book reads v1..v4. It writes `bakhlo-daily 4` when budget definitions are
   explicitly supplied, otherwise v3; Exchange and plan `cancelled-on` remain explicit.
   Reading does not rewrite an input; explicit copy/publication keeps prior bytes separately. Ordinary Book/CLI is unchanged.

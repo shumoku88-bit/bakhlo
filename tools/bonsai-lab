@@ -1,0 +1,6 @@
+#!/bin/sh
+# Read-only experimental workspace; reuse the isolated Bonsai environment.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+"$root/tools/build-bonsai-tui" --lab
+exec "$root/_build/daily-bonsai-lab/_build/default/ui/bonsai_lab.exe" "$@"

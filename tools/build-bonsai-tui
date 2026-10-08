@@ -2,6 +2,11 @@
 # Use the existing isolated Ox/Bonsai switch. No installation or main-switch changes.
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+case "$#:${1:-}" in
+  0:) name=bonsai_daily; workspace=daily-bonsai ;;
+  1:--lab) name=bonsai_lab; workspace=daily-bonsai-lab ;;
+  *) printf '%s\n' 'Usage: tools/build-bonsai-tui [--lab]' >&2; exit 2 ;;
+esac
 trial=$root/scratch/tui_comparison_review
 if [ ! -x "$trial/bonsai-env/_opam/bin/ocamlopt" ] || [ ! -d "$trial/bonsai-env/_opam/lib/bonsai_term" ]; then
   printf '%s\n' 'Existing isolated Bonsai environment unavailable; nothing installed.' >&2
@@ -9,7 +14,7 @@ if [ ! -x "$trial/bonsai-env/_opam/bin/ocamlopt" ] || [ ! -d "$trial/bonsai-env/
 fi
 # Compiler ABIs differ: rebuild the SAME tracked sources in a separate build root.
 # Do not use the archived/stale ox-build sources or copy household inputs.
-build=$root/_build/daily-bonsai
+build=$root/_build/$workspace
 mkdir -p "$build/ui"
 for dir in lib application sexp; do
   mkdir -p "$build/$dir"
@@ -17,13 +22,19 @@ for dir in lib application sexp; do
   rm -f "$build/$dir/"*.ml "$build/$dir/"*.mli
   cp "$root/$dir/"*.ml "$root/$dir/"*.mli "$root/$dir/dune" "$build/$dir/"
 done
-cp "$root/tui/daily_file.ml" "$root/tui/ui_preferences.ml" "$root/tui/posting_draft.ml" "$root/tui/daily_interaction.ml" "$root/tui/recording_checks.ml" "$root/tui/bonsai_daily.ml" "$build/ui/"
+if [ "$name" = bonsai_lab ]; then
+  cp "$root/tui/daily_file.ml" "$root/tools/bonsai_lab.ml" "$build/ui/"
+  modules='daily_file bonsai_lab'
+else
+  cp "$root/tui/daily_file.ml" "$root/tui/ui_preferences.ml" "$root/tui/posting_draft.ml" "$root/tui/daily_interaction.ml" "$root/tui/recording_checks.ml" "$root/tui/bonsai_daily.ml" "$build/ui/"
+  modules='daily_file ui_preferences posting_draft daily_interaction recording_checks bonsai_daily'
+fi
 printf '%s\n' '(lang dune 3.24)' '(name bakhlo)' '(package (name bakhlo))' > "$build/dune-project"
 printf '%s\n' '(dirs lib application sexp ui)' '(env (_ (flags (:standard -strict-sequence -w +8+9+11 -warn-error +8+9+11))))' > "$build/dune"
-printf '%s\n' '(executable (name bonsai_daily) (libraries bakhlo_domain bakhlo_application bakhlo_sexp zarith unix uutf bonsai_term async core))' > "$build/ui/dune"
+printf '%s\n' "(executable (name $name) (modules $modules) (libraries bakhlo_domain bakhlo_application bakhlo_sexp zarith unix uutf bonsai_term async core))" > "$build/ui/dune"
 export OPAMROOT=$trial/opam-root
 export OPAMSWITCH=$trial/bonsai-env
 export OPAMNOENVNOTICE=true
 export OPAMNODEPEXTS=true
 unset OCAMLPATH CAML_LD_LIBRARY_PATH OCAML_TOPLEVEL_PATH
-exec "$root/.tools/opam" exec -- dune build --root "$build" --profile release ui/bonsai_daily.exe
+exec "$root/.tools/opam" exec -- dune build --root "$build" --profile release "ui/$name.exe"

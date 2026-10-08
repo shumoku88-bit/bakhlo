@@ -155,6 +155,21 @@ rendererだけが各ライブラリの属性へ変換する。
 flush/fsync後にrenameする。保存できない場合でも、その起動中の色を維持し、次回へ保存できなかった
 ことをUI専用通知で表示する。家計の競合警告・下書き・書込停止状態は変更しない。
 
+## Bonsai単独の閲覧試作
+
+`tools/bonsai-lab`は通常の記帳画面とは別の**読み取り専用**の配置試作。
+予定・予算paneが各自の選択状態を持ち、台帳と予算照会は既存の`Daily_book`を使う。
+既存のBonsai環境だけで`_build/daily-bonsai-lab`へビルドし、通常画面の生成先は変更しない。
+実端末から明示した日付で起動する（パイプ・非TTYでは拒否する）。
+
+```sh
+./tools/bonsai-lab --book examples/daily-book.sexp --at 2026-10-08
+```
+
+`Tab`／`←→`でpane、`↑↓`で選択、`q`／`Ctrl-Q`で終了。
+この合成例は予算未供給なので`UNKNOWN`表示が正常。記帳・保存・長い詳細のscrollは未対応で、
+日常TUIの置換・本番採用ではない。起動・focus切替・終了時の端末復元と台帳bytes不変を合成PTYで確認する。
+
 ## 対応範囲
 
 `sexp/Daily_book` はv1〜v4を読み、明示的な予算情報がある場合は `bakhlo-daily 4`、
