@@ -40,10 +40,11 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   in `daily_interaction_checks.ml`, UI-independent recording/draft/commit/reload
   actions are in `daily_actions.ml`, browsing (entries/plans navigation and formatting)
   is in `daily_browser.ml`, single-transaction form navigation and cursor text editing
-  is in `daily_form.ml`, and multiple postings editor navigation and manipulation
-  is in `posting_editor.ml`.
-  Next: port overlay panes (picker/palette/review), then assemble native Bonsai state_machine components.
-  `daily_interaction.ml` delegates to `daily_actions.ml`, `daily_browser.ml`, `daily_form.ml`, and `posting_editor.ml`. The existing
+  is in `daily_form.ml`, multiple postings editor navigation and manipulation
+  is in `posting_editor.ml`, and overlay panes (loci picker, themes, command palette, review/details)
+  are in `daily_overlays.ml`.
+  Next: assemble native Bonsai state_machine components in bonsai_daily.ml.
+  `daily_interaction.ml` delegates to `daily_actions.ml`, `daily_browser.ml`, `daily_form.ml`, `posting_editor.ml`, and `daily_overlays.ml`. The existing
   under its separate compiler ABI, never from the archived ox-build source copy. Record/save/exit/cold reopen/edit, separate pre-edit
   backups, vocabulary addition and explicit plan payment work in the trial.
   Main tests and native self-checks passed. Real synthetic PTYs also passed
