@@ -126,7 +126,7 @@ let run path =
   | Error _ -> raise (F.Refused "Bonsai-terminal-unavailable")
 
 let self_check () =
-  let state = C.self_check () in
+  let state = Daily_interaction_checks.self_check () in
   Recording_checks.self_check ~width_of ();
   List.iter
     (fun (style, expected) ->
@@ -214,7 +214,7 @@ let self_check () =
                   };
               ]
              |> List.map (fun overlay -> { state with C.overlay }))
-            @ C.posting_render_cases state
+            @ Daily_interaction_checks.posting_render_cases state
             @ Recording_checks.render_cases state))
         [ (100, 25); (64, 20); (40, 10); (20, 5) ])
     P.all_themes;
@@ -237,7 +237,7 @@ let self_check () =
             C.Loci { target = C.From_locus; query = ""; selected = 0; notice = None };
           ]
          |> List.map (fun overlay -> { state with C.overlay }))
-        @ C.posting_render_cases state
+        @ Daily_interaction_checks.posting_render_cases state
         @ Recording_checks.render_cases state))
     P.all_themes;
   F.require (V.width (V.text "財布") = 4) "Bonsai-unicode-width";
