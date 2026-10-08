@@ -99,13 +99,36 @@ let history_lines ~book model =
   | Entries -> List.map (entry_text book) (entries book)
   | Plans -> List.map (plan_text book) (plans book)
 
+(* Skip without copying; collect only the requested rows, in reverse order. *)
+let take_reverse ~drop ~count rows =
+  let rec take left acc = function
+    | _ when left <= 0 -> acc
+    | [] -> acc
+    | row :: rest -> take (left - 1) (row :: acc) rest
+  in
+  let rec skip left = function
+    | rows when left <= 0 -> take count [] rows
+    | [] -> []
+    | _ :: rest -> skip (left - 1) rest
+  in
+  skip drop rows
+
 let visible_slice ~book model ~room =
-  let lines = history_lines ~book model in
-  let selected = selected_index model in
-  let start = max 0 (selected - room + 1) in
-  lines
-  |> List.mapi (fun n text -> (n, text))
-  |> List.filter (fun (n, _) -> n >= start && n < start + room)
+  if room <= 0 then []
+  else
+    let start = max 0 (selected_index model - room + 1) in
+    let index format rows = List.mapi (fun offset row -> (start + offset, format row)) rows in
+    match model.view with
+    | Entries ->
+        (* Stored order is oldest first; do not reverse/format the whole history. *)
+        let rows = B.entries book in
+        let stop = max 0 (List.length rows - start) in
+        take_reverse ~drop:(max 0 (stop - room)) ~count:(min room stop) rows
+        |> index (entry_text book)
+    | Plans ->
+        take_reverse ~drop:start ~count:room (plans book)
+        |> List.rev
+        |> index (plan_text book)
 
 let selected_entry ~book model =
   match model.view with

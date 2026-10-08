@@ -228,54 +228,63 @@ let build_transaction ~book ~mode content : (transaction, string) result =
   | F.Refused why -> Error ("入力拒否: " ^ why)
   | Unix.Unix_error _ | Sys_error _ -> Error "入出力を開始できませんでした。下書きは保持しています。"
 
+let recovery_message = "保存試行の未確認情報があります。書込み停止。終了して --inspect-recovery で確認してください。"
+
+let recovery_notice ~session =
+  try if F.unfinished_names session.F.path = [] then None else Some recovery_message
+  with F.Refused _ | Unix.Unix_error _ | Sys_error _ -> Some "復旧情報を確認できません。書込み停止。空の状態とは扱いません。"
+
 type commit_result =
   | Published of F.t
   | Conflict_base_changed
   | Conflict
+  | Recovery_blocked
   | Uncertain of string
   | Refused of string
+
+let publish_candidate ~session candidate : commit_result =
+  match F.publish session candidate with
+  | F.Written session -> Published session
+  | F.Conflict -> Conflict
+  | F.Refused_input "recovery-required" -> Recovery_blocked
+  | F.Refused_input why -> Refused ("記帳拒否: " ^ why)
+  (* The publisher owns serialization. Only an uncertain result needs a retained
+     copy here for existing reload reconciliation; ordinary saves do not reprint. *)
+  | F.Uncertain -> Uncertain (B.to_string candidate)
 
 let commit_transaction ~session ~base_bytes (tx : transaction) : commit_result =
   if base_bytes <> session.F.bytes then Conflict_base_changed
   else
     match B.put_entry session.book ~replace:tx.replace tx.entry ~plan:tx.plan with
     | Error why -> Refused ("記帳拒否: " ^ why)
-    | Ok candidate -> (
-        let bytes = B.to_string candidate in
-        match F.publish session candidate with
-        | F.Written session -> Published session
-        | F.Conflict -> Conflict
-        | F.Refused_input why -> Refused ("記帳拒否: " ^ why)
-        | F.Uncertain -> Uncertain bytes)
+    | Ok candidate -> publish_candidate ~session candidate
 
 let commit_add_locus ~session name : commit_result =
   match B.add_locus session.F.book name with
   | Error why -> Refused ("科目追加拒否: " ^ why)
-  | Ok candidate -> (
-      let bytes = B.to_string candidate in
-      match F.publish session candidate with
-      | F.Written session -> Published session
-      | F.Conflict -> Conflict
-      | F.Refused_input why -> Refused ("記帳拒否: " ^ why)
-      | F.Uncertain -> Uncertain bytes)
+  | Ok candidate -> publish_candidate ~session candidate
 
 type reload_result =
   | Pending_confirmed of F.t
   | Pending_unconfirmed of F.t
   | Edit_base_changed of F.t
   | Reloaded of F.t
+  | Recovery_required of F.t * string
   | Reload_failed of string
 
 let reload ~session ~pending ~mode : reload_result =
   try
     let loaded = F.load session.F.path in
-    match pending with
-    | Some bytes when loaded.bytes = bytes -> Pending_confirmed loaded
-    | Some _ -> Pending_unconfirmed loaded
+    match recovery_notice ~session:loaded with
+    | Some notice -> Recovery_required (loaded, notice)
     | None -> (
-        match mode with
-        | Edit _ when loaded.bytes <> session.bytes -> Edit_base_changed loaded
-        | New | Pay _ | Edit _ -> Reloaded loaded)
+        match pending with
+        | Some bytes when loaded.bytes = bytes -> Pending_confirmed loaded
+        | Some _ -> Pending_unconfirmed loaded
+        | None -> (
+            match mode with
+            | Edit _ when loaded.bytes <> session.bytes -> Edit_base_changed loaded
+            | New | Pay _ | Edit _ -> Reloaded loaded))
   with
   | F.Refused why -> Reload_failed why
   | Unix.Unix_error _ | Sys_error _ -> Reload_failed "IO-error"

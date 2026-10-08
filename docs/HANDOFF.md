@@ -3,10 +3,14 @@
 ## Current task
 
 Build an ordinary household ledger, not a LOAM research port or an OCaml textbook
-project. Required household functions remain recording/editing, account/category
-addition, payment plans, budgets and reports. The user explicitly requires plans,
-various balances, a daily spending guide, budget functions and Attention for the
-LOAM replacement; detailed operations and initial-cutover scope remain under discussion.
+project. The user wants to test household management through recording/editing
+and payment plans, various balances, LOAM Daily Pace and reports selected as
+actual needs arise. Budget allocation is NOT a cutover prerequisite: defer budget
+UI/expansion, evaluate real use without it, and possibly leave budget unused.
+Existing budget APIs and retained-data contracts remain intact; deleting them is
+not authorized by this scope decision. The prior Attention request remains.
+Detailed operations and safe initial-cutover scope are still under discussion;
+this goal does not itself switch operational authority away from LOAM.
 
 The user approved trying a private Bakhlo-native data candidate from current LOAM:
 
@@ -195,11 +199,69 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
 
 ## Next action
 
+The user approved addressing the long-term audit findings in order. The draft and
+performance boundaries are covered; the restart/recovery boundary has a first
+conservative implementation:
+
+- Inline-split preservation: Ctrl-T transfers every row to the existing posting
+  editor and removes the old owner. Partial/held drafts cannot be replaced;
+  conflict/uncertain stops freeze fields, row actions and paste while retaining
+  warnings. `split_safety_self_check` covers conversion, guards and cold payment.
+- Live Home selects the viewport before formatting entries/plans, without a second
+  book/cache. Daily printing uses a Buffer and bounded byte-width lookahead;
+  the former quoting/110-byte layout/version rules remain unchanged. Normal saves
+  no longer preprint in callers; uncertain results still retain candidate bytes.
+  Commit whole-admission, publisher parse/admission/printer-stability checks,
+  writer ownership, current-file reads and expected-base checks remain intact.
+  `browser_slice_self_check` and `test/daily_print_tests.ml` own regressions.
+  Local synthetic evidence is in `scratch/daily-performance.EEAcdr/`: at 100k,
+  text-screen generation fell from ~124ms to ~0.38ms and confirm+publication
+  (excluding preview) from ~14s to ~3.4–3.7s. These are scoped measurements,
+  not Bonsai/terminal end-to-end timings or durable-store qualification.
+
+- Restart uncertainty now persists as an independently written/synced full candidate
+  `FILE.attempt-ID.sexp` (24 lowercase hex digits), preceding pending/before creation
+  and selected rename. Only a durably read-back completed attempt is removed; before
+  backups stay. Remaining attempt/pending names (even malformed/partial/nonregular),
+  or an unreadable artifact directory, freeze cold start, Ctrl-N and reload. The
+  publisher independently refuses unresolved families; ordinary copy does not bypass
+  them. Caller admission, shared writer ownership, both expected-base reads,
+  parse/admission/printer stability, selected readback and no automatic retry remain.
+  `--inspect-recovery --book FILE` is read-only (0 clear, 3 review, 1 unavailable).
+  `--confirm-current-attempt ID --book FILE` explicitly clears only a candidate EXACTLY
+  present now after current-file fsync/parent sync/readback; it does not infer past
+  outcome or delete backups. `--restore-copy-from SOURCE --book FRESH_FILE` makes an
+  admitted byte-exact fresh copy without overwriting, converting or adopting originals.
+  See `tui/README.md` for the operator procedure and limits. Commands work without a TTY,
+  but still need the existing isolated Bonsai environment.
+  `recovery_checks.ml` is wired into the builder/self-check: seven injected faults and
+  seven actual SIGKILL checkpoints, an actual output-creation failure, writer contention,
+  partial/malformed/symlink artifacts, missing/later selected snapshots, multiple attempts,
+  cold/reset/reload/direct-write guards, explicit acknowledgement/restoration and exact
+  currency/unknown/v4/payment-link preservation passed. A pre-fix runtime counterexample
+  is retained. Main check, full TUI self-check and non-TTY recovery CLI checks passed.
+  Synthetic evidence is in `scratch/daily-recovery.dvKEmS/`. Native 100k normal confirm+
+  publication is ~3.71–3.77s (excluding preview), with an extra candidate write/readback;
+  ~4342.87MiB cumulative allocation versus the earlier ~4258.84MiB. These are historical
+  scoped comparisons, not power-loss qualification or a matched LOAM comparison.
+
+Next, decide backup retention (count/age, storage allowance and separate-media copies)
+and explicit adoption/reconciliation conditions for before/different/unreadable cases.
+No retention default, automatic pruning/retry/adoption, private-data recovery, real
+cutover or dependency installation occurred. Current full-before backups still
+accumulate; process-death tests do not certify power loss, filesystem/media failure,
+hostile namespaces or a fresh-host recovery environment. Reproducible TUI setup/minimal
+CI and the single operational writing entrance remain the next infrastructure gaps.
+Whole-file storage/admission retain linear costs; index/admission work remains separate.
+No permanent benchmark/research framework was introduced.
+
 [The cutover checklist](CUTOVER_CHECKLIST.ja.md) owns the inventory and small-step
-preparation. Plans, various balances, today's spending guide, budgets and Attention
-are required areas, not optional substitutes for other tools. This does not make
-every operation in those areas mandatory for the first cutover. Multiple-posting
-input remains a prior focus. Today's amount is now selected: LOAM Home `d`,
+preparation. Prioritize recording/payment plans, various balances, today's spending
+guide and reports needed in practice. Budget-related S07/P01–P03/V09 are deferred
+pending the budget-free real-use experiment, not mandatory implementation work.
+The earlier Attention requirement remains separate; initial-cutover details still
+need selection. Multiple-posting input remains a prior focus. Today's amount is
+now selected: LOAM Home `d`,
 Daily Pace / Trend, not the purpose-budget per-day guide. Its current amount uses
 an explicit single-Measure balance pool less open-plan net drains before the
 exclusive cycle end, divided by remaining calendar days. Overdue open plans still
@@ -238,7 +300,8 @@ and qualify one usable step at a time.
 Plan updates, Daily Pace and the first explicit-period budget slice are implemented
 with synthetic checks. Attention remains a later small pure data/API candidate:
 explicit context, due/none/undetermined, dated resolve/drop and save/cold read.
-Observation updates and broader budget operations remain gaps. Multiple-posting
+Observation updates remain a practical gap; broader budget operations/UI are
+intentionally deferred. Multiple-posting
 input/recurrence are separate from retained data. Do not treat Daily Pace or
 recorded budget residuals as physical funds, invent purpose assignments or promote
 this limited expense selection to household completeness. Reuse existing admission
@@ -270,8 +333,9 @@ selected file, separate backups and a cooperative-writer check, not the old
 research store. This is not runtime parity, durable-storage qualification or cutover.
 
 Other LOAM families remain in the original/capture; before any full replacement,
-resolve their necessary household information. Plans/budgets/reports are required
-product functions, not permission to copy every research implementation.
+resolve their necessary household information. Build the selected household
+operations, not every LOAM feature. Budget is optional pending real-use findings;
+required plans, balances and reports do not license a research implementation port.
 
 ## Maintenance revisit decisions
 

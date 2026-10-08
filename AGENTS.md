@@ -7,11 +7,15 @@ on-demand references, not a compulsory reading list or an implementation backlog
 
 ## Product
 
-- Build an ordinary household ledger: recording/editing, accounts/categories,
-  payment plans, budgets and reports. The user also requires various balances,
-  today's spending guide and Attention for replacing LOAM; detailed scope remains
-  under discussion in `docs/CUTOVER_CHECKLIST.ja.md`. Small means direct, readable
-  implementation, not dropping needed household functions.
+- Build an ordinary household ledger around recording/editing and payment plans,
+  with various balances, LOAM Daily Pace and reports selected for actual household
+  needs. The user wants to test whether this combination suffices in real use
+  WITHOUT budget allocation. Budget UI/expansion is deferred, not a cutover
+  prerequisite; budget may remain unused. Preserve existing budget APIs/data
+  contracts; this is not authorization to delete code or retained information.
+  The prior Attention request remains; detailed scope and cutover conditions live
+  in `docs/CUTOVER_CHECKLIST.ja.md`. Small means direct, readable implementation,
+  not dropping needed household functions.
 - Today's spending guide is LOAM Home `d` Daily Pace, not a purpose-budget guide.
   TUI Home has upper recording and a large lower browsing region. Tab switches
   regions; arrows operate within one region. Keep only the selected lower feature's

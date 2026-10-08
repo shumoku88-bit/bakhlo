@@ -17,12 +17,14 @@ let estr = D.Identifier.Event.to_string
 let lstr = D.Identifier.Locus.to_string
 let mstr = D.Identifier.Measure.to_string
 
+let integer_syntax s =
+  let len = String.length s in
+  let start = if len > 0 && (s.[0] = '-' || s.[0] = '+') then 1 else 0 in
+  let rec digits n = n = len || (s.[n] >= '0' && s.[n] <= '9' && digits (n + 1)) in
+  len > start && digits start
+
 let integer s =
-  let start = if String.length s > 0 && (s.[0] = '-' || s.[0] = '+') then 1 else 0 in
-  require (String.length s > start) "invalid-integer";
-  for n = start to String.length s - 1 do
-    require (s.[n] >= '0' && s.[n] <= '9') "invalid-integer"
-  done;
+  require (integer_syntax s) "invalid-integer";
   Z.of_string s
 
 let unique xs why = require (List.length (List.sort_uniq String.compare xs) = List.length xs) why
@@ -617,85 +619,85 @@ let quote s =
   Buffer.add_char b '"';
   Buffer.contents b
 
-let render x =
-  let tags =
-    [
-      "bakhlo-daily";
-      "scope";
-      "measures";
-      "measure";
-      "labels";
-      "label";
-      "approved-loci";
-      "entries";
-      "entry";
-      "date";
-      "memo";
-      "postings";
-      "posting";
-      "reversal-of";
-      "exchange";
-      "keys";
-      "plans";
-      "plan";
-      "changes";
-      "paid-by";
-      "cancelled-on";
-      "support";
-      "budgets";
-      "budget";
-      "start";
-      "end-exclusive";
-      "allocations";
-      "expense-loci";
-      "actual-routes";
-      "plan-routes";
-      "zero-origin";
-      "openings";
-      "observations";
-      "observation";
-      "reflected";
-      "quantities";
-      "presence";
-      "coordinates";
-      "provided";
-      "not-supplied";
-      "none";
-      "some";
-    ]
-  in
-  let leaf s =
-    if
-      try
-        ignore (integer s);
+let render_into out x =
+  let is_tag = function
+    | "bakhlo-daily" | "scope" | "measures" | "measure" | "labels" | "label" | "approved-loci"
+    | "entries" | "entry" | "date" | "memo" | "postings" | "posting" | "reversal-of" | "exchange"
+    | "keys" | "plans" | "plan" | "changes" | "paid-by" | "cancelled-on" | "support" | "budgets"
+    | "budget" | "start" | "end-exclusive" | "allocations" | "expense-loci" | "actual-routes"
+    | "plan-routes" | "zero-origin" | "openings" | "observations" | "observation" | "reflected"
+    | "quantities" | "presence" | "coordinates" | "provided" | "not-supplied" | "none" | "some" ->
         true
-      with Refused _ -> false
-    then s
-    else quote s
+    | _ -> false
+  in
+  (* Printing needs the same lexical decision, not a Quantity parse or exceptions. *)
+  let leaf s = if integer_syntax s then s else quote s in
+  (* Probe only until the flat form exceeds the available bytes: no full flat
+     string or second layout tree. Quoting and the 110-byte layout rule stay
+     unchanged; this is not terminal cell-width formatting. *)
+  let rec remaining room = function
+    | _ when room < 0 -> -1
+    | X.Atom s -> if String.length s > room then -1 else room - String.length (leaf s)
+    | X.List xs -> (
+        let rec children room = function
+          | _ when room < 0 -> -1
+          | [] -> room
+          | child :: rest ->
+              let room = remaining room child in
+              children (room - if rest = [] then 0 else 1) rest
+        in
+        let room = room - 2 in
+        match xs with
+        | X.Atom tag :: rest when is_tag tag ->
+            children (room - String.length tag - if rest = [] then 0 else 1) rest
+        | _ -> children room xs)
   in
   let rec flat = function
-    | X.Atom s -> leaf s
-    | X.List (X.Atom tag :: xs) when List.mem tag tags ->
-        "(" ^ tag ^ (if xs = [] then "" else " " ^ String.concat " " (List.map flat xs)) ^ ")"
-    | X.List xs -> "(" ^ String.concat " " (List.map flat xs) ^ ")"
+    | X.Atom s -> Buffer.add_string out (leaf s)
+    | X.List xs ->
+        Buffer.add_char out '(';
+        let children =
+          match xs with
+          | X.Atom tag :: rest when is_tag tag ->
+              Buffer.add_string out tag;
+              if rest <> [] then Buffer.add_char out ' ';
+              rest
+          | _ -> xs
+        in
+        List.iteri
+          (fun n child ->
+            if n > 0 then Buffer.add_char out ' ';
+            flat child)
+          children;
+        Buffer.add_char out ')'
   in
   let rec pretty indent x =
     match x with
-    | X.List (X.Atom tag :: xs) when List.mem tag tags && String.length (flat x) + indent > 110 ->
-        "(" ^ tag
-        ^ String.concat ""
-            (List.map
-               (fun value -> "\n" ^ String.make (indent + 2) ' ' ^ pretty (indent + 2) value)
-               xs)
-        ^ ")"
-    | X.Atom _ | X.List _ -> flat x
+    | X.List (X.Atom tag :: children) when is_tag tag && remaining (110 - indent) x < 0 ->
+        Buffer.add_char out '(';
+        Buffer.add_string out tag;
+        let padding = String.make (indent + 2) ' ' in
+        List.iter
+          (fun child ->
+            Buffer.add_char out '\n';
+            Buffer.add_string out padding;
+            pretty (indent + 2) child)
+          children;
+        Buffer.add_char out ')'
+    | node -> flat node
   in
   pretty 0 x
 
 let to_string t =
-  "; Corrected entries and explicit plans. No correction-version chains.\n"
-  ^ String.concat "\n\n" (List.map render (sexps t))
-  ^ "\n"
+  let out = Buffer.create 1024 in
+  Buffer.add_string out "; Corrected entries and explicit plans. No correction-version chains.\n";
+  List.iteri
+    (fun n x ->
+      if n > 0 then Buffer.add_string out "\n\n";
+      render_into out x)
+    (sexps t);
+  Buffer.add_char out '\n';
+  Buffer.contents out
 
 let budgets t = t.data.budgets
 let entries t = t.data.entries

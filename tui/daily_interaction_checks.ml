@@ -31,6 +31,418 @@ let posting_render_cases s =
     };
   ]
 
+let browser_slice_self_check () =
+  let require = F.require in
+  let empty =
+    get (B.of_string
+      "(bakhlo-daily 3) (scope corrected-entries explicit-plans)\n\
+       (measures (measure jpy 0) (measure eur 2))\n\
+       (labels (provided (label wallet 同じ表示 財布) (label food 同じ表示 食費)))\n\
+       (approved-loci (provided wallet food)) (entries) (plans)\n\
+       (support (zero-origin (wallet jpy) (food jpy) (wallet eur) (food eur))\n\
+       (openings) (observations) (presence (not-supplied)))")
+  in
+  let huge = Z.of_string "12345678901234567890123456789012" in
+  let posting measure locus quantity =
+    D.Effect.create ~key:None
+      ~locus:(get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(get_id (D.Identifier.Measure.of_string measure))
+      ~quantity:(D.Quantity.of_quanta quantity)
+  in
+  let entry n : B.entry =
+    let measure = if n mod 2 = 0 then "jpy" else "eur" in
+    let amount = Z.add huge (Z.of_int n) in
+    {
+      id = "slice-entry-" ^ string_of_int n;
+      day = Printf.sprintf "2026-10-%02d" (20 - n);
+      memo = Some ("合成あい \"\\\t " ^ string_of_int n);
+      effects = [ posting measure "wallet" (Z.neg amount); posting measure "food" amount ];
+      reversal_of = None;
+      exchange = None;
+    }
+  in
+  let book =
+    List.fold_left
+      (fun book n -> get (B.put_entry book ~replace:false (entry n) ~plan:None))
+      empty (List.init 20 Fun.id)
+  in
+  let seed = entry 0 in
+  let refund =
+    { seed with id = "slice-refund"; reversal_of = Some seed.id;
+      effects = [ posting "jpy" "wallet" huge; posting "jpy" "food" (Z.neg huge) ] }
+  in
+  let book = get (B.put_entry book ~replace:false refund ~plan:None) in
+  let book =
+    List.fold_left
+      (fun book n ->
+        let plan : B.plan =
+          { id = "slice-plan-" ^ string_of_int n;
+            day = Printf.sprintf "2026-10-%02d" (30 - n);
+            measure = if n mod 2 = 0 then "jpy" else "eur";
+            changes = [ ("wallet", Z.neg huge); ("food", huge) ];
+            paid_by = None; cancelled_on = None }
+        in
+        get (B.put_plan book ~replace:false plan))
+      book (List.init 30 Fun.id)
+  in
+  let book =
+    get (B.put_entry book ~replace:false
+      { (entry 1) with id = "slice-payment" } ~plan:(Some "slice-plan-3"))
+    |> fun book -> get (B.cancel_plan book ~id:"slice-plan-5" ~day:"2026-11-03")
+  in
+  let check book =
+    List.iter
+      (fun view ->
+        List.iter
+          (fun selected ->
+            let model = { Br.view; entries_selected = selected; plans_selected = selected } in
+            List.iter
+              (fun room ->
+                let start = max 0 (selected - room + 1) in
+                (* The former format-all/filter path is the independent oracle. *)
+                let expected =
+                  Br.history_lines ~book model
+                  |> List.mapi (fun n text -> (n, text))
+                  |> List.filter (fun (n, _) -> n >= start && n < start + room)
+                in
+                require (Br.visible_slice ~book model ~room = expected)
+                  "browser-slice-changed-order-index-or-format")
+              [ -1; 0; 1; 2; 7; 21; 22; 30; 35; 80 ])
+          [ -3; 0; 1; 9; 20; 21; 29; 30; 45 ])
+      [ Br.Entries; Br.Plans ]
+  in
+  check empty;
+  check book;
+  check (get (B.of_string (B.to_string book)));
+  check (get (B.put_entry book ~replace:true { seed with memo = Some "更新された日本語" } ~plan:None));
+  print_endline
+    "PASS: slice-before-format matches full-history order/indices, empty/boundary windows, Unicode/duplicate labels, exact Measures, refunds and open/paid/cancelled plans."
+
+let split_form_self_check ~directory ~base =
+  let require = F.require in
+  let step s input =
+    match handle s input with Some s -> s | None -> raise (F.Refused "split-unexpected-exit")
+  in
+  let press s button = step s (`Key (button, [])) in
+  let ctrl s c = step s (`Key (`ASCII c, [ `Ctrl ])) in
+  let text s value =
+    Uutf.String.fold_utf_8
+      (fun s _ -> function `Uchar c -> press s (`Uchar c) | `Malformed _ -> s)
+      s value
+  in
+  let path = directory ^ "/split.sexp" in
+  F.write_new path (B.to_string base.session.book);
+  let s = initial ~config_home:directory (F.load path) in
+  (* 1. 出金元で '+' を押して出金元行が増えること *)
+  let s_added_src = press { s with focus = Source } (`ASCII '+') in
+  require
+    (match s_added_src.split with
+    | Some sp -> List.length sp.sources = 2 && List.length sp.destinations = 1
+    | None -> false)
+    "split-add-source-increased-rows";
+  require (s_added_src.focus = Split (Source_locus 1)) "split-add-source-focused-new-locus";
+
+  (* 2. '-' で行が削除できること *)
+  let s_removed_src = press s_added_src (`ASCII '-') in
+  require
+    (match s_removed_src.split with
+    | Some sp -> List.length sp.sources = 1
+    | None -> false)
+    "split-remove-source-decreased-rows";
+
+  (* 3. 入金先で '+' を押して入金先行が増えること *)
+  let s_added_dst = press { s with focus = Destination } (`ASCII '+') in
+  require
+    (match s_added_dst.split with
+    | Some sp -> List.length sp.sources = 1 && List.length sp.destinations = 2
+    | None -> false)
+    "split-add-destination-increased-rows";
+  require (s_added_dst.focus = Split (Destination_locus 1)) "split-add-destination-focused-new-locus";
+
+  (* 4. 差額自動補完とスマートEnterのフロー:
+        出金元 1000円
+        入金先1 食費 600円
+        Enter押下 -> 自動で入金先2が追加され、金額400円が補完される！
+        入金先2科目選択 -> Enter押下 -> 差額0なのでMemoへ進む！ *)
+  let s = { s with focus = Source } in
+  let s = press s (`ASCII '+') in
+  let s = press s (`ASCII '-') in
+  let s = { s with focus = Split (Source_amount 0) } in
+  let s = text s "1000" in
+  let s = { s with focus = Split (Destination_locus 0) } in
+  let s = match s.split with
+    | Some sp -> { s with split = Some { sp with destinations = [ { (List.hd sp.destinations) with locus = "food" } ] } }
+    | None -> s
+  in
+  let s = { s with focus = Split (Destination_amount 0) } in
+  let s = text s "600" in
+  let s = press s `Enter in
+  require
+    (match s.split with
+    | Some sp ->
+        List.length sp.destinations = 2
+        && (List.nth sp.destinations 1).amount = "400"
+    | None -> false)
+    "split-smart-enter-auto-added-destination-with-residual";
+  require (s.focus = Split (Destination_locus 1)) "split-smart-enter-focused-new-destination-locus";
+
+  let s = match s.split with
+    | Some sp ->
+        let dsts = List.mapi (fun i (r : split_row) -> if i = 1 then { r with locus = "bank" } else r) sp.destinations in
+        { s with split = Some { sp with destinations = dsts } }
+    | None -> s
+  in
+  let s = { s with focus = Split (Destination_amount 1) } in
+  let s = press s `Enter in
+  require (s.focus = Memo) "split-smart-enter-zero-residual-advanced-to-memo";
+  let s = text s "架空の分割記帳" in
+
+  (* 画面描画の行数と全行表示の検証: 分割フォームで行が増えても記帳欄が見切れず全行含まれ、画面高さにピッタリ収まること *)
+  let lines_24 = screen ~frontend:"check" (80, 24) s in
+  require (List.length lines_24 = 24) "split-screen-height-24-fit";
+  let rendered_texts = List.map snd lines_24 in
+  require
+    (List.exists (fun t -> Base.String.is_substring t ~substring:"出金元 1") rendered_texts)
+    "split-screen-contains-src-1";
+  require
+    (List.exists (fun t -> Base.String.is_substring t ~substring:"入金先 1") rendered_texts)
+    "split-screen-contains-dst-1";
+  require
+    (List.exists (fun t -> Base.String.is_substring t ~substring:"入金先 2") rendered_texts)
+    "split-screen-contains-dst-2";
+  require
+    (List.exists (fun t -> Base.String.is_substring t ~substring:"下書き差額") rendered_texts)
+    "split-screen-contains-residual";
+
+  (* インライン Locus catalog の展開検証 *)
+  let s_src_focused = { s with focus = Split (Source_locus 0) } in
+  let lines_cat = screen ~frontend:"check" (80, 24) s_src_focused in
+  let rendered_cat = List.map snd lines_cat in
+  require
+    (List.exists (fun t -> Base.String.is_substring t ~substring:"Locus catalog") rendered_cat)
+    "split-screen-contains-locus-catalog";
+
+  (* ホーム画面の残高サマリー表示とクイックキー（r/Esc）の検証 *)
+  let s_home = { s with focus = History } in
+  let lines_home = screen ~frontend:"check" (80, 24) s_home in
+  let rendered_home = List.map snd lines_home in
+  require
+    (List.exists (fun t -> Base.String.is_substring t ~substring:"【口座残高】") rendered_home)
+    "home-screen-contains-balance-summary";
+  let entered = press s_home (`ASCII 'r') in
+  require (entered.focus <> History) "home-r-key-starts-recording";
+  let escaped = press entered `Escape in
+  require (escaped.focus = History) "recording-escape-returns-home";
+
+  (* 5. Ctrl-S で確認プレビューを開き、確定保存する *)
+  let preview = ctrl s 's' in
+  require (match preview.overlay with Preview _ -> true | _ -> false) "split-preview-opened";
+  let saved = confirm preview in
+  require (saved.overlay = No_overlay) "split-saved-confirmed";
+  let loaded = (F.load path).book in
+  let last_entry = List.hd (B.entries loaded) in
+  require (List.length last_entry.effects = 3) "split-saved-three-effects";
+  require (last_entry.memo = Some "架空の分割記帳") "split-saved-memo"
+
+let split_safety_self_check ~directory ~base =
+  let require = F.require in
+  let step s input =
+    match handle s input with Some s -> s | None -> raise (F.Refused "split-safety-exit")
+  in
+  let press s button = step s (`Key (button, [])) in
+  let ctrl s c = step s (`Key (`ASCII c, [ `Ctrl ])) in
+  let plan : B.plan =
+    {
+      id = "split-safety-plan";
+      day = "2026-11-10";
+      measure = "jpy";
+      changes = [ ("wallet", Z.of_int (-1000)); ("food", Z.of_int 1000) ];
+      paid_by = None;
+      cancelled_on = None;
+    }
+  in
+  let seed : B.entry =
+    {
+      id = "split-safety-existing";
+      day = "2026-11-01";
+      memo = None;
+      effects =
+        List.map
+          (fun (locus, n) ->
+            D.Effect.create ~key:None ~locus:(get_id (D.Identifier.Locus.of_string locus))
+              ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
+              ~quantity:(D.Quantity.of_quanta (Z.of_int n)))
+          [ ("wallet", -50); ("food", 50) ];
+      reversal_of = None;
+      exchange = None;
+    }
+  in
+  let book = get (B.put_plan base.session.book ~replace:false plan) in
+  let book = get (B.put_entry book ~replace:false seed ~plan:None) in
+  let path = directory ^ "/split-safety.sexp" in
+  F.write_new path (B.to_string book);
+  let fresh () = initial ~config_home:directory (F.load path) in
+  let base = fresh () in
+  let split : split_state =
+    {
+      sources = [ { locus = "wallet"; amount = "1000" } ];
+      destinations = [ { locus = "food"; amount = "600" }; { locus = "bank"; amount = "400" } ];
+    }
+  in
+  let filled =
+    {
+      base with
+      form = { base.form with amount = "600"; day = "2026-11-03"; memo = "分割を保持" };
+      split = Some split;
+      focus = Split (Destination_amount 1);
+    }
+  in
+  let same_draft a b =
+    a.form = b.form && a.split = b.split && a.postings = b.postings && a.mode = b.mode
+    && a.adding = b.adding
+  in
+  let before = F.read path in
+  let files () = Sys.readdir directory |> Array.to_list |> List.sort String.compare in
+  let before_files = files () in
+  let opened = ctrl filled 't' in
+  let expected_rows =
+    [
+      { R.key = None; locus = "wallet"; negative = true; amount = "1000" };
+      { R.key = None; locus = "food"; negative = false; amount = "600" };
+      { R.key = None; locus = "bank"; negative = false; amount = "400" };
+    ]
+  in
+  require
+    (match opened.postings with
+    | Some e -> e.visible && e.draft.measure = "jpy" && e.draft.rows = expected_rows
+    | None -> false)
+    "split-to-editor-lost-rows-or-amounts";
+  require (opened.split = None && opened.form = filled.form) "split-conversion-kept-two-drafts";
+  let held = press opened `Escape in
+  let resumed = ctrl held 't' in
+  require (resumed.postings = opened.postings && resumed.split = None) "split-editor-resume-lost-rows";
+  require ((press { held with focus = Source } (`ASCII '+')).split = None)
+    "split-held-editor-created-a-second-inline-draft";
+  let preview = ctrl resumed 's' in
+  require
+    (match preview.overlay with
+    | Preview { transaction; _ } ->
+        List.map quanta transaction.entry.effects = List.map Z.of_int [ -1000; 600; 400 ]
+        && transaction.entry.day = filled.form.day && transaction.entry.memo = Some filled.form.memo
+    | _ -> false)
+    "split-converted-preview-lost-transaction";
+  require (same_draft (press preview `Escape) resumed) "split-preview-cancel-lost-draft";
+  let partial =
+    {
+      base with
+      split =
+        Some
+          {
+            sources = [ { locus = "wallet"; amount = "" } ];
+            destinations = [ { locus = "food"; amount = "" }; { locus = "bank"; amount = "400" } ];
+          };
+    }
+  in
+  require (has_draft partial && has_draft { base with split = Some split })
+    "split-secondary-row-not-a-draft";
+  require (same_draft (ctrl partial 'e') partial) "split-partial-replaced-by-edit";
+  require
+    (same_draft (pay_selected { partial with view = Plans; selected = List.length (plans partial) - 1 })
+       partial)
+    "split-partial-replaced-by-payment";
+  require
+    ((press { partial with focus = Currency } (`Arrow `Right)).form.measure = partial.form.measure)
+    "split-secondary-amount-currency-changed";
+  let incomplete = ctrl partial 't' in
+  require
+    (match incomplete.postings with
+    | Some e -> List.map (fun (r : R.row) -> r.amount) e.draft.rows = [ ""; ""; "400" ]
+    | None -> false)
+    "split-conversion-filled-or-dropped-blank-amount";
+  require (same_draft (ctrl incomplete 's') incomplete) "split-invalid-preview-lost-draft";
+  let foreign =
+    {
+      filled with
+      form = { filled.form with measure = "eur"; amount = "6.00" };
+      split =
+        Some
+          {
+            sources = [ { locus = "wallet"; amount = "10.00" } ];
+            destinations = [ { locus = "food"; amount = "6.00" }; { locus = "bank"; amount = "4.00" } ];
+          };
+    }
+  in
+  let foreign_preview = ctrl (ctrl foreign 't') 's' in
+  require
+    (match foreign_preview.overlay with
+    | Preview { transaction; _ } ->
+        List.map quanta transaction.entry.effects = List.map Z.of_int [ -1000; 600; 400 ]
+        && List.for_all (fun p -> mstr (D.Effect.measure p) = "eur") transaction.entry.effects
+    | _ -> false)
+    "split-conversion-lost-foreign-measure-or-scale";
+  let editable_row = { partial with focus = Split (Destination_locus 0) } in
+  let cycled = press editable_row (`Arrow `Right) in
+  require (cycled.split <> editable_row.split) "split-empty-row-cannot-select-locus";
+  List.iter
+    (fun focus ->
+      let selected = { filled with focus } in
+      require
+        ((press selected (`Arrow `Right)).split = selected.split)
+        "split-arrow-bypassed-filled-row-locus-guard";
+      let picker = press selected `Enter in
+      require
+        (picker_is_open picker && (press picker `Enter).split = selected.split)
+        "split-picker-bypassed-filled-row-locus-guard")
+    [ Split (Source_locus 0); Split (Destination_locus 1) ];
+  List.iter
+    (fun pending ->
+      List.iter
+        (fun focus ->
+          let frozen = { filled with focus; blocked = true; pending; message = "household-warning" } in
+          let unchanged changed =
+            require
+              (same_draft frozen changed && changed.pending = frozen.pending && changed.blocked
+              && changed.message = frozen.message)
+              "split-blocked-input-mutated-draft-or-warning"
+          in
+          List.iter
+            (fun key -> unchanged (press frozen key))
+            [ `ASCII '9'; `ASCII '+'; `ASCII '-'; `Backspace; `Delete; `Enter; `Arrow `Right ];
+          List.iter (fun c -> unchanged (ctrl frozen c)) [ 'a'; 'd'; 'u'; 's'; 't' ];
+          List.iter
+            (fun payload ->
+              let pasted = List.fold_left press (step frozen (`Paste `Start)) payload in
+              unchanged (step pasted (`Paste `End)))
+            [ [ `ASCII '9' ]; [ `ASCII '9'; `Enter ] ])
+        [
+          Split (Source_amount 0); Split (Destination_amount 1);
+          Split (Source_locus 0); Split (Destination_locus 1); Date; Currency; Memo;
+        ])
+    [ None; Some "synthetic-unconfirmed" ];
+  require (F.read path = before && files () = before_files) "split-readonly-checks-published";
+  let saved = ctrl preview 's' in
+  let cold = (F.load path).book in
+  require (not saved.blocked && saved.split = None && saved.postings = None) "split-save-draft-not-reset";
+  let actual = List.hd (entries saved) in
+  require
+    (List.map quanta actual.effects = List.map Z.of_int [ -1000; 600; 400 ]
+    && List.map (fun p -> lstr (D.Effect.locus p)) actual.effects = [ "wallet"; "food"; "bank" ]
+    && List.find (fun (e : B.entry) -> e.id = seed.id) (B.entries cold) = seed)
+    "split-cold-save-lost-effects-or-existing-entry";
+  let payer = { filled with session = (fresh ()).session; mode = Pay plan.id } in
+  let paid = ctrl (ctrl (ctrl payer 't') 's') 's' in
+  let cold = (F.load path).book in
+  let paid_plan = List.find (fun (p : B.plan) -> p.id = plan.id) (B.plans cold) in
+  let payment = List.hd (entries paid) in
+  require
+    (not paid.blocked && paid_plan.paid_by = Some payment.id
+    && paid_plan.day = plan.day && paid_plan.changes = plan.changes
+    && List.map quanta payment.effects = List.map Z.of_int [ -1000; 600; 400 ])
+    "split-converted-payment-lost-link-or-scheduled-evidence";
+  print_endline
+    "PASS: split/editor row-preserving conversion, partial-draft guards, frozen conflict/uncertain \
+     input/paste, preview/cancel and cold save/payment."
+
 let posting_self_check ~directory ~base =
   let require = F.require in
   let submit s = confirm (submit s) in
@@ -929,6 +1341,9 @@ let self_check () =
     && Sys.readdir directory |> Array.to_list |> List.sort String.compare = files_before)
     "picker-published-household-bytes-or-artifacts";
   posting_self_check ~directory ~base;
+  browser_slice_self_check ();
+  split_form_self_check ~directory ~base;
+  split_safety_self_check ~directory ~base;
   (* Return a deterministic Unicode/long-list renderer fixture. *)
   print_endline
     "PASS: synthetic shared record/reopen/edit, backups, plan lifecycle/payment, budget \

@@ -26,8 +26,8 @@ if [ "$name" = bonsai_lab ]; then
   cp "$root/tui/daily_file.ml" "$root/tools/bonsai_lab.ml" "$build/ui/"
   modules='daily_file bonsai_lab'
 else
-  cp "$root/tui/daily_file.ml" "$root/tui/ui_preferences.ml" "$root/tui/posting_draft.ml" "$root/tui/daily_actions.ml" "$root/tui/daily_browser.ml" "$root/tui/daily_form.ml" "$root/tui/posting_editor.ml" "$root/tui/daily_overlays.ml" "$root/tui/daily_interaction.ml" "$root/tui/daily_interaction_checks.ml" "$root/tui/recording_checks.ml" "$root/tui/bonsai_daily.ml" "$build/ui/"
-  modules='daily_file ui_preferences posting_draft daily_actions daily_browser daily_form posting_editor daily_overlays daily_interaction daily_interaction_checks recording_checks bonsai_daily'
+  cp "$root/tui/daily_file.ml" "$root/tui/ui_preferences.ml" "$root/tui/posting_draft.ml" "$root/tui/daily_actions.ml" "$root/tui/daily_browser.ml" "$root/tui/daily_form.ml" "$root/tui/posting_editor.ml" "$root/tui/daily_overlays.ml" "$root/tui/daily_interaction.ml" "$root/tui/daily_interaction_checks.ml" "$root/tui/recording_checks.ml" "$root/tui/recovery_checks.ml" "$root/tui/bonsai_daily.ml" "$build/ui/"
+  modules='daily_file ui_preferences posting_draft daily_actions daily_browser daily_form posting_editor daily_overlays daily_interaction daily_interaction_checks recording_checks recovery_checks bonsai_daily'
 fi
 printf '%s\n' '(lang dune 3.24)' '(name bakhlo)' '(package (name bakhlo))' > "$build/dune-project"
 printf '%s\n' '(dirs lib application sexp ui)' '(env (_ (flags (:standard -strict-sequence -w +8+9+11 -warn-error +8+9+11))))' > "$build/dune"

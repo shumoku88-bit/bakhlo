@@ -114,7 +114,12 @@ let theme_index theme =
 
 let cycle_index length current step = if length = 0 then 0 else (current + step + length) mod length
 
-type locus_target = From_locus | To_locus | Posting_locus_at of int
+type locus_target =
+  | From_locus
+  | To_locus
+  | Posting_locus_at of int
+  | Split_source of int
+  | Split_destination of int
 
 type locus_picker = {
   target : locus_target;
@@ -378,7 +383,9 @@ let overlay_screen ~dimensions:((width, height) as dimensions) ~width_of ~book ~
              (match picker.target with
              | From_locus -> "出金元"
              | To_locus -> "入金先・科目"
-             | Posting_locus_at row -> Printf.sprintf "行%dの科目" (row + 1));
+             | Posting_locus_at row -> Printf.sprintf "行%dの科目" (row + 1)
+             | Split_source row -> Printf.sprintf "出金元%dの科目" (row + 1)
+             | Split_destination row -> Printf.sprintf "入金先%dの科目" (row + 1));
            line Panel ("検索: " ^ picker.query);
            line Panel count_text;
          ]
