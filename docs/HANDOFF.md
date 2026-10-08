@@ -43,7 +43,7 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   is in `daily_form.ml`, multiple postings editor navigation and manipulation
   is in `posting_editor.ml`, and overlay panes (loci picker, themes, command palette, review/details)
   are in `daily_overlays.ml`.
-  Next: assemble native Bonsai state_machine components in bonsai_daily.ml.
+  `bonsai_daily.ml` structures Bonsai base and overlay views and explicit action types.
   `daily_interaction.ml` delegates to `daily_actions.ml`, `daily_browser.ml`, `daily_form.ml`, `posting_editor.ml`, and `daily_overlays.ml`. The existing
   under its separate compiler ABI, never from the archived ox-build source copy. Record/save/exit/cold reopen/edit, separate pre-edit
   backups, vocabulary addition and explicit plan payment work in the trial.
