@@ -1,15 +1,41 @@
 #!/bin/sh
-# Daily TUI (Bonsai_term only). Reuses the existing isolated Bonsai environment;
-# no dependency installation.
+# Daily TUI runner for both Notty and Bonsai_term frontends.
+# Both frontends are official, first-class peers sharing the same application core.
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 cd "$root"
+
+frontend=""
 case "${1:-}" in
-  bonsai) shift ;; # accepted for older invocations
+  bonsai)
+    frontend=bonsai
+    shift
+    ;;
   notty)
-    printf '%s\n' 'The Notty frontend was removed; use tools/tui without a frontend argument.' >&2
-    exit 2
+    frontend=notty
+    shift
+    ;;
+  *)
+    frontend="${BAKHLO_TUI_FRONTEND:-bonsai}"
     ;;
 esac
-./tools/build-bonsai-tui
-exec _build/daily-bonsai/_build/default/ui/bonsai_daily.exe "$@"
+
+# If --self-check is requested without an explicit frontend prefix,
+# run self-checks on BOTH frontends to guarantee equal verification.
+if [ "${1:-}" = "--self-check" ] && [ "$#" -eq 1 ] && [ -z "${BAKHLO_TUI_FRONTEND:-}" ]; then
+  printf '=== [1/2] Verifying Notty TUI Frontend ===\n'
+  ./tools/build-notty-tui
+  _build/daily-notty/notty_daily.exe --self-check
+  printf '\n=== [2/2] Verifying Bonsai_term TUI Frontend ===\n'
+  ./tools/build-bonsai-tui
+  _build/daily-bonsai/_build/default/ui/bonsai_daily.exe --self-check
+  exit 0
+fi
+
+if [ "$frontend" = "notty" ]; then
+  ./tools/build-notty-tui
+  exec _build/daily-notty/notty_daily.exe "$@"
+else
+  ./tools/build-bonsai-tui
+  exec _build/daily-bonsai/_build/default/ui/bonsai_daily.exe "$@"
+fi

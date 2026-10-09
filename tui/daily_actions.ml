@@ -335,7 +335,9 @@ let commit_transaction ~session ~base_bytes (tx : transaction) : commit_result =
                       Payload_drift_refused msg
                   | _ -> Refused ("記帳拒否: " ^ why)
                 with F.Refused _ -> Refused ("記帳拒否: " ^ why))
-            | _ -> Refused ("記帳拒否: " ^ why)))
+            | Some _ ->
+                Payload_drift_refused (Printf.sprintf "duplicate-id-%s-payload-drift" tx.entry.id)
+            | None -> Refused ("記帳拒否: " ^ why)))
 
 let commit_add_locus ~session name : commit_result =
   match B.add_locus session.F.book name with
