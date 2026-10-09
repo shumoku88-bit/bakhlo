@@ -977,22 +977,70 @@ let format t m n =
     ^ String.make (decimals - String.length digits) '0'
     ^ digits
 
+let normalize_amount_text text =
+  let len = String.length text in
+  let b = Buffer.create len in
+  let rec loop i =
+    if i >= len then Buffer.contents b
+    else if i + 2 < len
+            && Char.code text.[i] = 0xEF
+            && Char.code text.[i + 1] = 0xBC then
+      let c3 = Char.code text.[i + 2] in
+      if c3 >= 0x90 && c3 <= 0x99 then begin
+        Buffer.add_char b (Char.chr (Char.code '0' + (c3 - 0x90)));
+        loop (i + 3)
+      end else if c3 = 0x8C then begin
+        Buffer.add_char b ',';
+        loop (i + 3)
+      end else if c3 = 0x8E then begin
+        Buffer.add_char b '.';
+        loop (i + 3)
+      end else begin
+        Buffer.add_substring b text i 3;
+        loop (i + 3)
+      end
+    else begin
+      Buffer.add_char b text.[i];
+      loop (i + 1)
+    end
+  in
+  loop 0
+
+let parse_whole whole =
+  let is_digit c = c >= '0' && c <= '9' in
+  if whole = "" then raise (Refused "invalid-amount");
+  if not (String.contains whole ',') then begin
+    require (String.for_all is_digit whole) "invalid-amount";
+    whole
+  end else
+    let groups = String.split_on_char ',' whole in
+    match groups with
+    | [] -> raise (Refused "invalid-amount")
+    | g0 :: rest ->
+        require (rest <> []) "invalid-amount";
+        let len0 = String.length g0 in
+        require (len0 >= 1 && len0 <= 3 && String.for_all is_digit g0) "invalid-amount";
+        List.iter
+          (fun g ->
+            require (String.length g = 3 && String.for_all is_digit g) "invalid-amount")
+          rest;
+        String.concat "" groups
+
 let parse_amount t m text =
   protect (fun () ->
       let decimals = scale t m in
-      let digits s =
-        require (s <> "" && String.for_all (fun c -> c >= '0' && c <= '9') s) "invalid-amount"
-      in
+      let norm = normalize_amount_text text in
+      let is_digit c = c >= '0' && c <= '9' in
       let n =
-        match String.split_on_char '.' text with
+        match String.split_on_char '.' norm with
         | [ whole ] ->
-            digits whole;
-            Z.mul (integer whole) (Z.pow (Z.of_int 10) decimals)
+            let clean_whole = parse_whole whole in
+            Z.mul (integer clean_whole) (Z.pow (Z.of_int 10) decimals)
         | [ whole; fraction ] ->
-            digits whole;
-            digits fraction;
+            let clean_whole = parse_whole whole in
+            require (fraction <> "" && String.for_all is_digit fraction) "invalid-amount";
             require (decimals > 0 && String.length fraction <= decimals) "amount-precision";
-            integer (whole ^ fraction ^ String.make (decimals - String.length fraction) '0')
+            integer (clean_whole ^ fraction ^ String.make (decimals - String.length fraction) '0')
         | [] | _ :: _ -> raise (Refused "invalid-amount")
       in
       require (Z.sign n > 0) "non-positive-amount";

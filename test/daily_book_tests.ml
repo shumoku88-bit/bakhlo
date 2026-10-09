@@ -96,6 +96,92 @@ let%expect_test "daily data preserves explicit exchange and exact foreign quanti
 true
 true|}]
 
+let%expect_test "flexible amount input accepts half/full-width and comma grouping, preserving exact quanta and errors" =
+  let base = get (B.of_string fixture) in
+  (* JPY: scale 0 *)
+  let check_jpy s =
+    match B.parse_amount base "jpy" s with
+    | Ok n -> Stdio.printf "ok %s\n" (Z.to_string n)
+    | Error err -> Stdio.printf "err %s\n" err
+  in
+  let check_eur s =
+    match B.parse_amount base "eur" s with
+    | Ok n -> Stdio.printf "ok %s\n" (Z.to_string n)
+    | Error err -> Stdio.printf "err %s\n" err
+  in
+  check_jpy "1000";
+  check_jpy "1,000";
+  check_jpy "１０００";
+  check_jpy "１，０００";
+  check_jpy "1,234,567";
+  check_jpy "１，２３４，５６７";
+  check_eur "1,234.56";
+  check_eur "１，２３４．５６";
+  check_eur "1,234.5";
+  check_eur "1,234";
+  check_eur "１，２３４";
+  (* Invalid grouping / delimiters *)
+  check_jpy "12,34";
+  check_jpy "1,2";
+  check_jpy "1,00";
+  check_jpy "1,2345";
+  check_jpy ",1000";
+  check_jpy "1000,";
+  check_jpy "1,,000";
+  check_jpy "1234,567";
+  check_eur "1,234.5,6";
+  (* Precision violations *)
+  check_eur "1.234";
+  check_eur "１．２３４";
+  check_jpy "1000.5";
+  check_jpy "１０００．５";
+  check_jpy "1000.0";
+  (* Non-positive amounts *)
+  check_jpy "0";
+  check_jpy "０";
+  check_jpy "0,000";
+  check_eur "0.00";
+  (* Negative and invalid characters *)
+  check_jpy "-1000";
+  check_jpy "-1,000";
+  check_jpy "ー１０００";
+  check_jpy "1000yen";
+  [%expect {|
+ok 1000
+ok 1000
+ok 1000
+ok 1000
+ok 1234567
+ok 1234567
+ok 123456
+ok 123456
+ok 123450
+ok 123400
+ok 123400
+err invalid-amount
+err invalid-amount
+err invalid-amount
+err invalid-amount
+err invalid-amount
+err invalid-amount
+err invalid-amount
+err invalid-amount
+err invalid-amount
+err amount-precision
+err amount-precision
+err amount-precision
+err amount-precision
+err amount-precision
+err non-positive-amount
+err non-positive-amount
+err non-positive-amount
+err non-positive-amount
+err invalid-amount
+err invalid-amount
+err invalid-amount
+err invalid-amount
+|}]
+
 let%expect_test "daily roundtrip keeps every support family and byte-exact metadata" =
   let huge = "1234567890123456789012345678901234567890" in
   let text =

@@ -189,7 +189,116 @@ type transaction_error = {
   raw_cause : string;
 }
 
-let is_valid_date day =
+let normalize_date_text text =
+  let len = String.length text in
+  let b = Buffer.create len in
+  let rec loop i =
+    if i >= len then Buffer.contents b
+    else if i + 2 < len
+            && Char.code text.[i] = 0xEF
+            && Char.code text.[i + 1] = 0xBC then
+      let c3 = Char.code text.[i + 2] in
+      if c3 >= 0x90 && c3 <= 0x99 then begin
+        Buffer.add_char b (Char.chr (Char.code '0' + (c3 - 0x90)));
+        loop (i + 3)
+      end else if c3 = 0x8F then begin
+        Buffer.add_char b '/';
+        loop (i + 3)
+      end else if c3 = 0x8E then begin
+        Buffer.add_char b '.';
+        loop (i + 3)
+      end else if c3 = 0x8D then begin
+        Buffer.add_char b '-';
+        loop (i + 3)
+      end else begin
+        Buffer.add_substring b text i 3;
+        loop (i + 3)
+      end
+    else begin
+      Buffer.add_char b text.[i];
+      loop (i + 1)
+    end
+  in
+  loop 0
+
+let is_leap_year y =
+  y mod 400 = 0 || (y mod 4 = 0 && y mod 100 <> 0)
+
+let days_in_month ~year ~month =
+  match month with
+  | 1 | 3 | 5 | 7 | 8 | 10 | 12 -> 31
+  | 4 | 6 | 9 | 11 -> 30
+  | 2 -> if is_leap_year year then 29 else 28
+  | _ -> 0
+
+let normalize_date text =
+  let norm = normalize_date_text text in
+  let count_char c s =
+    let count = ref 0 in
+    String.iter (fun ch -> if ch = c then incr count) s;
+    !count
+  in
+  let dashes = count_char '-' norm in
+  let slashes = count_char '/' norm in
+  let dots = count_char '.' norm in
+  let sep_opt =
+    if dashes = 2 && slashes = 0 && dots = 0 then Some '-'
+    else if slashes = 2 && dashes = 0 && dots = 0 then Some '/'
+    else if dots = 2 && dashes = 0 && slashes = 0 then Some '.'
+    else None
+  in
+  match sep_opt with
+  | None -> Error "invalid-date"
+  | Some sep -> (
+      match String.split_on_char sep norm with
+      | [ y_str; m_str; d_str ] ->
+          let is_digit c = c >= '0' && c <= '9' in
+          if String.length y_str <> 4 || not (String.for_all is_digit y_str) then
+            Error "invalid-date"
+          else if (String.length m_str < 1 || String.length m_str > 2) || not (String.for_all is_digit m_str) then
+            Error "invalid-date"
+          else if (String.length d_str < 1 || String.length d_str > 2) || not (String.for_all is_digit d_str) then
+            Error "invalid-date"
+          else
+            let year = int_of_string y_str in
+            let month = int_of_string m_str in
+            let day = int_of_string d_str in
+            if year < 1 || year > 9999 then Error "invalid-date"
+            else if month < 1 || month > 12 then Error "invalid-date"
+            else if day < 1 || day > days_in_month ~year ~month then Error "invalid-date"
+            else Ok (Printf.sprintf "%04d-%02d-%02d" year month day)
+      | _ -> Error "invalid-date")
+
+let next_calendar_day (year, month, day) =
+  let max_d = days_in_month ~year ~month in
+  if day < max_d then (year, month, day + 1)
+  else if month < 12 then (year, month + 1, 1)
+  else (year + 1, 1, 1)
+
+let prev_calendar_day (year, month, day) =
+  if day > 1 then (year, month, day - 1)
+  else if month > 1 then
+    let prev_m = month - 1 in
+    (year, prev_m, days_in_month ~year ~month:prev_m)
+  else (year - 1, 12, 31)
+
+let shift_calendar_day date_str step =
+  match normalize_date date_str with
+  | Error _ -> Error "invalid-date"
+  | Ok canon ->
+      let year = int_of_string (String.sub canon 0 4)
+      and month = int_of_string (String.sub canon 5 2)
+      and day = int_of_string (String.sub canon 8 2) in
+      let rec loop (y, m, d) n =
+        if n = 0 then (y, m, d)
+        else if n > 0 then loop (next_calendar_day (y, m, d)) (n - 1)
+        else loop (prev_calendar_day (y, m, d)) (n + 1)
+      in
+      let y, m, d = loop (year, month, day) step in
+      if y < 1 || y > 9999 then Error "date-out-of-range"
+      else Ok (Printf.sprintf "%04d-%02d-%02d" y m d)
+
+let is_valid_canonical_date day =
   match D.Identifier.Event.of_string "date-check" with
   | Error _ -> false
   | Ok eid -> (
@@ -206,6 +315,11 @@ let is_valid_date day =
               with
               | Ok _ -> true
               | Error _ -> false)))
+
+let is_valid_date day =
+  match normalize_date day with
+  | Error _ -> false
+  | Ok canon -> is_valid_canonical_date canon
 
 let build_transaction ~book ~mode content : (transaction, transaction_error) result =
   let err ?field ~raw message = Error { message; field; raw_cause = raw } in
@@ -274,95 +388,105 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
               (Printf.sprintf "記帳が拒否されました (%s)。入力内容を確認してください。" why)
   in
   match content with
-  | Single form ->
-      if not (is_valid_date form.day) then
-        err ~field:Field_date ~raw:"invalid-date"
-          "日付の形式が正しくありません (YYYY-MM-DD)。例: 2026-10-09"
-      else if String.equal form.from_locus "" then
-        err ~field:Field_source ~raw:"empty-source-locus"
-          "出金元の科目が未選択です。出金元を選んでください。"
-      else if String.equal form.to_locus "" then
-        err ~field:Field_destination ~raw:"empty-destination-locus"
-          "入金先・科目が未選択です。入金先を選んでください。"
-      else if String.equal form.from_locus form.to_locus then
-        err ~field:Field_destination ~raw:"same-locus"
-          (Printf.sprintf "出金元と入金先に同じ科目 (%s) は指定できません。異なる科目を選んでください。"
-             (B.label book form.from_locus))
-      else if String.equal form.amount "" then
-        err ~field:Field_amount ~raw:"empty-amount"
-          "金額が入力されていません。半角数字で入力してください。"
-      else
-        (match B.parse_amount book form.measure form.amount with
-        | Error "invalid-amount" ->
-            err ~field:Field_amount ~raw:"invalid-amount"
-              "金額の形式が正しくありません。半角数字で入力してください (例: 1000)。"
-        | Error "non-positive-amount" ->
-            err ~field:Field_amount ~raw:"non-positive-amount"
-              "金額には0より大きい正の値を入力してください。"
-        | Error "amount-precision" ->
-            let scale =
-              try List.assoc form.measure (B.measures book) with Not_found -> 0
-            in
-            let exp = if scale = 0 then "整数のみ" else Printf.sprintf "小数%d桁まで" scale in
-            err ~field:Field_amount ~raw:"amount-precision"
-              (Printf.sprintf "通貨 %s の小数桁数を超えています (%s)。" form.measure exp)
-        | Error why ->
-            err ~field:Field_amount ~raw:why
-              (Printf.sprintf "金額の入力が不正です (%s)。" why)
-        | Ok amount ->
-            let effects_res =
-              try
-                let effect_ loc n =
-                  D.Effect.create ~key:None
-                    ~locus:(get_id (D.Identifier.Locus.of_string loc))
-                    ~measure:(get_id (D.Identifier.Measure.of_string form.measure))
-                    ~quantity:(D.Quantity.of_quanta n)
+  | Single form -> (
+      match normalize_date form.day with
+      | Error _ ->
+          err ~field:Field_date ~raw:"invalid-date"
+            "日付の形式が正しくありません (YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD)。例: 2026-10-09"
+      | Ok canon_day ->
+          if not (is_valid_canonical_date canon_day) then
+            err ~field:Field_date ~raw:"invalid-date"
+              "日付の形式が正しくありません (実在する年月日を入力してください)。"
+          else if String.equal form.from_locus "" then
+            err ~field:Field_source ~raw:"empty-source-locus"
+              "出金元の科目が未選択です。出金元を選んでください。"
+          else if String.equal form.to_locus "" then
+            err ~field:Field_destination ~raw:"empty-destination-locus"
+              "入金先・科目が未選択です。入金先を選んでください。"
+          else if String.equal form.from_locus form.to_locus then
+            err ~field:Field_destination ~raw:"same-locus"
+              (Printf.sprintf "出金元と入金先に同じ科目 (%s) は指定できません。異なる科目を選んでください。"
+                 (B.label book form.from_locus))
+          else if String.equal form.amount "" then
+            err ~field:Field_amount ~raw:"empty-amount"
+              "金額が入力されていません。半角数字で入力してください。"
+          else
+            (match B.parse_amount book form.measure form.amount with
+            | Error "invalid-amount" ->
+                err ~field:Field_amount ~raw:"invalid-amount"
+                  "金額の形式が正しくありません。半角数字で入力してください (例: 1000)。"
+            | Error "non-positive-amount" ->
+                err ~field:Field_amount ~raw:"non-positive-amount"
+                  "金額には0より大きい正の値を入力してください。"
+            | Error "amount-precision" ->
+                let scale =
+                  try List.assoc form.measure (B.measures book) with Not_found -> 0
                 in
-                let effects =
-                  match mode with
-                  | Edit e ->
-                      List.map
-                        (fun p ->
-                          D.Effect.create ~key:(D.Effect.key p) ~locus:(D.Effect.locus p)
-                            ~measure:(D.Effect.measure p)
-                            ~quantity:
-                              (D.Quantity.of_quanta
-                                 (if Z.sign (quanta p) < 0 then Z.neg amount else amount)))
-                        e.effects
-                  | New | Pay _ ->
-                      [ effect_ form.from_locus (Z.neg amount); effect_ form.to_locus amount ]
-                in
-                Ok effects
-              with F.Refused why -> Error why
-            in
-            (match effects_res with
+                let exp = if scale = 0 then "整数のみ" else Printf.sprintf "小数%d桁まで" scale in
+                err ~field:Field_amount ~raw:"amount-precision"
+                  (Printf.sprintf "通貨 %s の小数桁数を超えています (%s)。" form.measure exp)
             | Error why ->
-                err ~raw:why (Printf.sprintf "科目の指定が不正です (%s)。" why)
-            | Ok effects ->
-                validate_and_put ~day:form.day ~memo_str:form.memo ~effects))
+                err ~field:Field_amount ~raw:why
+                  (Printf.sprintf "金額の入力が不正です (%s)。" why)
+            | Ok amount ->
+                let effects_res =
+                  try
+                    let effect_ loc n =
+                      D.Effect.create ~key:None
+                        ~locus:(get_id (D.Identifier.Locus.of_string loc))
+                        ~measure:(get_id (D.Identifier.Measure.of_string form.measure))
+                        ~quantity:(D.Quantity.of_quanta n)
+                    in
+                    let effects =
+                      match mode with
+                      | Edit e ->
+                          List.map
+                            (fun p ->
+                              D.Effect.create ~key:(D.Effect.key p) ~locus:(D.Effect.locus p)
+                                ~measure:(D.Effect.measure p)
+                                ~quantity:
+                                  (D.Quantity.of_quanta
+                                     (if Z.sign (quanta p) < 0 then Z.neg amount else amount)))
+                            e.effects
+                      | New | Pay _ ->
+                          [ effect_ form.from_locus (Z.neg amount); effect_ form.to_locus amount ]
+                    in
+                    Ok effects
+                  with F.Refused why -> Error why
+                in
+                (match effects_res with
+                | Error why ->
+                    err ~raw:why (Printf.sprintf "科目の指定が不正です (%s)。" why)
+                | Ok effects ->
+                    validate_and_put ~day:canon_day ~memo_str:form.memo ~effects)))
 
-  | Multiple { day; memo = memo_str; draft } ->
-      if not (is_valid_date day) then
-        err ~field:Field_date ~raw:"invalid-date"
-          "日付の形式が正しくありません (YYYY-MM-DD)。例: 2026-10-09"
-      else
-        match R.effects book draft with
-        | Error "posting-required" ->
-            err ~raw:"posting-required" "明細行がありません。1行以上の取引明細を入力してください。"
-        | Error "empty-measure" ->
-            err ~field:Field_currency ~raw:"empty-measure" "通貨が指定されていません。"
-        | Error why when Base.String.is_substring why ~substring:"invalid-amount" ->
-            err ~raw:why (Printf.sprintf "%s。半角数字で金額を入力してください。" why)
-        | Error why when Base.String.is_substring why ~substring:"non-positive-amount" ->
-            err ~raw:why (Printf.sprintf "%s。0より大きい正の金額を入力してください。" why)
-        | Error why when Base.String.is_substring why ~substring:"amount-precision" ->
-            err ~raw:why (Printf.sprintf "%s。通貨の小数桁数を確認してください。" why)
-        | Error why when Base.String.is_substring why ~substring:"科目未選択" ->
-            err ~raw:why (Printf.sprintf "%s。科目を選んでください。" why)
-        | Error why ->
-            err ~raw:why (Printf.sprintf "複数行明細の入力が不正です (%s)。" why)
-        | Ok effects ->
-            validate_and_put ~day ~memo_str ~effects
+  | Multiple { day; memo = memo_str; draft } -> (
+      match normalize_date day with
+      | Error _ ->
+          err ~field:Field_date ~raw:"invalid-date"
+            "日付の形式が正しくありません (YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD)。例: 2026-10-09"
+      | Ok canon_day ->
+          if not (is_valid_canonical_date canon_day) then
+            err ~field:Field_date ~raw:"invalid-date"
+              "日付の形式が正しくありません (実在する年月日を入力してください)。"
+          else
+            match R.effects book draft with
+            | Error "posting-required" ->
+                err ~raw:"posting-required" "明細行がありません。1行以上の取引明細を入力してください。"
+            | Error "empty-measure" ->
+                err ~field:Field_currency ~raw:"empty-measure" "通貨が指定されていません。"
+            | Error why when Base.String.is_substring why ~substring:"invalid-amount" ->
+                err ~raw:why (Printf.sprintf "%s。半角数字で金額を入力してください。" why)
+            | Error why when Base.String.is_substring why ~substring:"non-positive-amount" ->
+                err ~raw:why (Printf.sprintf "%s。0より大きい正の金額を入力してください。" why)
+            | Error why when Base.String.is_substring why ~substring:"amount-precision" ->
+                err ~raw:why (Printf.sprintf "%s。通貨の小数桁数を確認してください。" why)
+            | Error why when Base.String.is_substring why ~substring:"科目未選択" ->
+                err ~raw:why (Printf.sprintf "%s。科目を選んでください。" why)
+            | Error why ->
+                err ~raw:why (Printf.sprintf "複数行明細の入力が不正です (%s)。" why)
+            | Ok effects ->
+                validate_and_put ~day:canon_day ~memo_str ~effects)
 
 let recovery_message = "保存試行の未確認情報があります。書込み停止。終了して --inspect-recovery で確認してください。"
 
