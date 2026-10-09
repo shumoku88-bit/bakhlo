@@ -53,21 +53,9 @@ type plan = {
   cancelled_on : string option;
 }
 
-type budget = {
-  id : string;
-  start_day : string;
-  end_exclusive : string;
-  measure : string;
-  allocations : (string * Z.t) list;
-  expense_loci : string list;
-  actual_routes : (string * string option) list;
-  plan_routes : (string * string * string option) list;
-}
-
 module Entry_map = Map.Make(String)
 
 type data = {
-  budgets : budget list option;
   measures : (string * int) list;
   labels : (string * string * string) list option;
   approved : string list option;
@@ -87,14 +75,13 @@ type t = {
   entries_cached : entry list Lazy.t;
 }
 
-let make_data ~budgets ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~observations ~presence =
+let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~observations ~presence =
   let entry_count = List.length entries in
   let entries_rev = List.rev entries in
   let entry_map =
     List.fold_left (fun m (e : entry) -> Entry_map.add e.id e m) Entry_map.empty entries
   in
   {
-    budgets;
     measures;
     labels;
     approved;
@@ -219,49 +206,6 @@ let admit ?entries_cached data =
           require (Entry_map.mem id data.entry_map) "unknown-plan-payment")
         p.paid_by)
     data.plans;
-  Option.iter
-    (fun budgets ->
-      unique (List.map (fun (b : budget) -> b.id) budgets) "duplicate-budget";
-      List.iter
-        (fun (b : budget) ->
-          require (b.id <> "") "invalid-budget-id";
-          valid_date b.start_day;
-          valid_date b.end_exclusive;
-          require (b.start_day < b.end_exclusive) "invalid-budget-period";
-          known b.measure;
-          unique (List.map fst b.allocations) "duplicate-budget-purpose";
-          List.iter
-            (fun (purpose, n) ->
-              require (purpose <> "") "invalid-budget-purpose";
-              require (Z.sign n >= 0) "negative-budget-allocation")
-            b.allocations;
-          unique b.expense_loci "duplicate-budget-locus";
-          List.iter (fun loc -> ignore (lid loc)) b.expense_loci;
-          let route locus purpose =
-            require (List.mem locus b.expense_loci) "untracked-budget-locus";
-            Option.iter
-              (fun p -> require (List.mem_assoc p b.allocations) "unknown-budget-purpose")
-              purpose
-          in
-          unique (List.map fst b.actual_routes) "duplicate-budget-actual-route";
-          List.iter (fun (loc, purpose) -> route loc purpose) b.actual_routes;
-          let keys = List.map (fun (id, loc, _) -> (id, loc)) b.plan_routes in
-          require
-            (List.length (List.sort_uniq Stdlib.compare keys) = List.length keys)
-            "duplicate-budget-plan-route";
-          List.iter
-            (fun (id, loc, purpose) ->
-              route loc purpose;
-              let p =
-                match List.find_opt (fun (p : plan) -> p.id = id) data.plans with
-                | Some p -> p
-                | None -> raise (Refused "unknown-budget-plan")
-              in
-              require (p.measure = b.measure) "budget-plan-measure-mismatch";
-              require (List.mem_assoc loc p.changes) "budget-plan-locus-missing")
-            b.plan_routes)
-        budgets)
-    data.budgets;
   let known_coord (c : D.Effect_coordinate.t) = known (mstr c.measure) in
   List.iter known_coord data.origins;
   List.iter (fun (o : Q.opening) -> known_coord o.coordinate) data.openings;
@@ -349,7 +293,7 @@ let decode_entry version = function
 let decode_plan version = function
   | X.List (X.Atom "plan" :: X.Atom id :: rows) ->
       fields
-        (if version = "3" || version = "4" then
+        (if version = "3" then
            [ "date"; "measure"; "changes"; "paid-by"; "cancelled-on" ]
          else [ "date"; "measure"; "changes"; "paid-by" ])
         rows;
@@ -365,7 +309,7 @@ let decode_plan version = function
             (field "changes" rows);
         paid_by = optional (one (field "paid-by" rows));
         cancelled_on =
-          (if version = "3" || version = "4" then optional (one (field "cancelled-on" rows))
+          (if version = "3" then optional (one (field "cancelled-on" rows))
            else None);
       }
   | X.Atom _ | X.List _ -> raise (Refused "invalid-plan")
@@ -379,55 +323,12 @@ let supplied decode = function
   | [ X.List (X.Atom "provided" :: xs) ] -> Some (List.map decode xs)
   | [] | _ :: _ -> raise (Refused "invalid-supply")
 
-let decode_budget = function
-  | X.List (X.Atom "budget" :: X.Atom id :: rows) ->
-      fields
-        [
-          "start";
-          "end-exclusive";
-          "measure";
-          "allocations";
-          "expense-loci";
-          "actual-routes";
-          "plan-routes";
-        ]
-        rows;
-      {
-        id;
-        start_day = atom (one (field "start" rows));
-        end_exclusive = atom (one (field "end-exclusive" rows));
-        measure = atom (one (field "measure" rows));
-        allocations =
-          List.map
-            (function
-              | X.List [ X.Atom p; X.Atom n ] -> (p, integer n)
-              | X.Atom _ | X.List _ -> raise (Refused "invalid-budget-allocation"))
-            (field "allocations" rows);
-        expense_loci = List.map atom (field "expense-loci" rows);
-        actual_routes =
-          List.map
-            (function
-              | X.List [ X.Atom loc; target ] -> (loc, optional target)
-              | X.Atom _ | X.List _ -> raise (Refused "invalid-budget-actual-route"))
-            (field "actual-routes" rows);
-        plan_routes =
-          List.map
-            (function
-              | X.List [ X.Atom id; X.Atom loc; target ] -> (id, loc, optional target)
-              | X.Atom _ | X.List _ -> raise (Refused "invalid-budget-plan-route"))
-            (field "plan-routes" rows);
-      }
-  | X.Atom _ | X.List _ -> raise (Refused "invalid-budget")
-
 let of_monolithic_string bytes =
   protect (fun () ->
       match get "syntax" (Parsexp.Many.parse_string bytes) with
       | X.List [ X.Atom "bakhlo-daily"; X.Atom version ] :: rows
-        when version = "1" || version = "2" || version = "3" || version = "4" ->
-          fields
-            ([ "scope"; "measures"; "labels"; "approved-loci"; "entries"; "plans"; "support" ]
-            @ if version = "4" then [ "budgets" ] else [])
-            rows;
+        when version = "1" || version = "2" || version = "3" ->
+          fields [ "scope"; "measures"; "labels"; "approved-loci"; "entries"; "plans"; "support" ] rows;
           require
             (List.map atom (field "scope" rows) = [ "corrected-entries"; "explicit-plans" ])
             "unsupported-scope";
@@ -448,7 +349,6 @@ let of_monolithic_string bytes =
           let entries = List.map (decode_entry version) (field "entries" rows) in
           let data =
             make_data
-              ~budgets:(if version = "4" then supplied decode_budget (field "budgets" rows) else None)
               ~measures:
                 (List.map
                    (function
@@ -559,25 +459,6 @@ let of_records (rb : Records_book.t) =
             })
           (Records_book.plans rb)
       in
-      let budgets =
-        let bs = Records_book.budgets rb in
-        if bs = [] then None
-        else
-          Some
-            (List.map
-               (fun (b : Records_book.budget) ->
-                 {
-                   id = b.id;
-                   start_day = b.start_day;
-                   end_exclusive = b.end_exclusive;
-                   measure = b.measure;
-                   allocations = b.allocations;
-                   expense_loci = b.expense_loci;
-                   actual_routes = b.actual_routes;
-                   plan_routes = b.plan_routes;
-                 })
-               bs)
-      in
       let frame_obs =
         List.map
           (fun (o : Records_book.observation) ->
@@ -597,7 +478,6 @@ let of_records (rb : Records_book.t) =
       in
       let data =
         make_data
-          ~budgets
           ~measures:h.measures
           ~labels:h.labels
           ~approved
@@ -640,25 +520,6 @@ let to_records ?(request_tokens = []) (t : t) : Records_book.t =
     incr lsn;
     frames := f :: !frames
   in
-  Option.iter
-    (fun bs ->
-      List.iter
-        (fun (b_item : budget) ->
-          emit
-            (Records_book.Budget
-               {
-                 id = b_item.id;
-                 start_day = b_item.start_day;
-                 end_exclusive = b_item.end_exclusive;
-                 measure = b_item.measure;
-                 allocations = b_item.allocations;
-                 expense_loci = b_item.expense_loci;
-                 actual_routes = b_item.actual_routes;
-                 plan_routes = b_item.plan_routes;
-                 opaque = [];
-               }))
-        bs)
-    b.budgets;
   List.iter
     (fun (p : plan) ->
       emit
@@ -716,7 +577,7 @@ let sexps t =
     | Some xs -> f "provided" (List.map encode xs)
   in
   [
-    f "bakhlo-daily" [ a (match b.budgets with None -> "3" | Some _ -> "4") ];
+    f "bakhlo-daily" [ a "3" ];
     f "scope" [ a "corrected-entries"; a "explicit-plans" ];
     f "measures" (List.map (fun (m, n) -> f "measure" [ a m; a (string_of_int n) ]) b.measures);
     f "labels" [ supplied (fun (id, name, help) -> f "label" [ a id; a name; a help ]) b.labels ];
@@ -806,35 +667,6 @@ let sexps t =
           ];
       ];
   ]
-  @
-  match b.budgets with
-  | None -> []
-  | Some budgets ->
-      [
-        f "budgets"
-          [
-            f "provided"
-              (List.map
-                 (fun (budget : budget) ->
-                   f "budget"
-                     [
-                       a budget.id;
-                       f "start" [ a budget.start_day ];
-                       f "end-exclusive" [ a budget.end_exclusive ];
-                       f "measure" [ a budget.measure ];
-                       f "allocations"
-                         (List.map (fun (p, n) -> l [ a p; a (Z.to_string n) ]) budget.allocations);
-                       f "expense-loci" (List.map a budget.expense_loci);
-                       f "actual-routes"
-                         (List.map (fun (loc, p) -> l [ a loc; opt p ]) budget.actual_routes);
-                       f "plan-routes"
-                         (List.map
-                            (fun (id, loc, p) -> l [ a id; a loc; opt p ])
-                            budget.plan_routes);
-                     ])
-                 budgets);
-          ];
-      ]
 
 let quote s =
   let b = Buffer.create (String.length s + 2) in
@@ -857,9 +689,8 @@ let render_into out x =
   let is_tag = function
     | "bakhlo-daily" | "scope" | "measures" | "measure" | "labels" | "label" | "approved-loci"
     | "entries" | "entry" | "date" | "memo" | "postings" | "posting" | "reversal-of" | "exchange"
-    | "keys" | "plans" | "plan" | "changes" | "paid-by" | "cancelled-on" | "support" | "budgets"
-    | "budget" | "start" | "end-exclusive" | "allocations" | "expense-loci" | "actual-routes"
-    | "plan-routes" | "zero-origin" | "openings" | "observations" | "observation" | "reflected"
+    | "keys" | "plans" | "plan" | "changes" | "paid-by" | "cancelled-on" | "support"
+    | "zero-origin" | "openings" | "observations" | "observation" | "reflected"
     | "quantities" | "presence" | "coordinates" | "provided" | "not-supplied" | "none" | "some" ->
         true
     | _ -> false
@@ -933,7 +764,6 @@ let to_string t =
   Buffer.add_char out '\n';
   Buffer.contents out
 
-let budgets t = t.data.budgets
 let entries t = Lazy.force t.entries_cached
 let entries_rev t = t.data.entries_rev
 let entry_count t = t.data.entry_count
@@ -1132,154 +962,6 @@ let daily_pace t ~measure ~pool ~observed_at ~end_exclusive =
         daily_pace_quanta = Z.ediv available_through_end (Z.of_int remaining_days);
       })
 
-let find_budget t id =
-  match t.data.budgets with
-  | None -> raise (Refused "budgets-not-supplied")
-  | Some budgets -> (
-      match List.find_opt (fun (b : budget) -> b.id = id) budgets with
-      | Some b -> b
-      | None -> raise (Refused "unknown-budget"))
-
-let put_budget t ~replace (b : budget) =
-  protect (fun () ->
-      let budgets = match t.data.budgets with None -> [] | Some xs -> xs in
-      let exists = List.exists (fun (row : budget) -> row.id = b.id) budgets in
-      require (exists = replace) (if replace then "unknown-budget" else "duplicate-budget");
-      let budgets =
-        if replace then List.map (fun (row : budget) -> if row.id = b.id then b else row) budgets
-        else budgets @ [ b ]
-      in
-      admit ~entries_cached:t.entries_cached { t.data with budgets = Some budgets })
-
-let rebalance_budget t ~id ~from_purpose ~to_purpose ~amount =
-  protect (fun () ->
-      let b = find_budget t id in
-      require (from_purpose <> to_purpose) "same-budget-purpose";
-      require (Z.sign amount > 0) "non-positive-budget-transfer";
-      let allocation p =
-        match List.assoc_opt p b.allocations with
-        | Some n -> n
-        | None -> raise (Refused "unknown-budget-purpose")
-      in
-      require (Z.geq (allocation from_purpose) amount) "insufficient-budget-allocation";
-      ignore (allocation to_purpose);
-      let allocations =
-        List.map
-          (fun (p, n) ->
-            ( p,
-              if p = from_purpose then Z.sub n amount
-              else if p = to_purpose then Z.add n amount
-              else n ))
-          b.allocations
-      in
-      match put_budget t ~replace:true { b with allocations } with
-      | Ok book -> book
-      | Error why -> raise (Refused why))
-
-type budget_item = { source_id : string; locus : string; quanta : Z.t }
-
-type budget_row = {
-  purpose : string;
-  allocated : Z.t;
-  actuals : budget_item list;
-  plans : budget_item list;
-  spent : Z.t;
-  planned : Z.t;
-  remaining : Z.t;
-  after_known : Z.t;
-}
-
-type budget_review = {
-  definition : budget;
-  observed_at : string;
-  rows : budget_row list;
-  unrouted_actual : budget_item list;
-  unmanaged_actual : budget_item list;
-  unrouted_plans : budget_item list;
-  unmanaged_plans : budget_item list;
-}
-
-let budget_review t ~id ~observed_at =
-  protect (fun () ->
-      let b = find_budget t id in
-      valid_date observed_at;
-      require
-        (b.start_day <= observed_at && observed_at < b.end_exclusive)
-        "budget-observation-outside-period";
-      let tracked loc = List.mem loc b.expense_loci in
-      let actual =
-        (entries t)
-        |> List.filter (fun (e : entry) -> b.start_day <= e.day && e.day <= observed_at)
-        |> List.concat_map (fun (e : entry) ->
-            e.effects
-            |> List.filter_map (fun p ->
-                let loc = lstr (D.Effect.locus p) in
-                if mstr (D.Effect.measure p) = b.measure && tracked loc then
-                  Some
-                    {
-                      source_id = e.id;
-                      locus = loc;
-                      quanta = D.Quantity.quanta (D.Effect.quantity p);
-                    }
-                else None))
-      in
-      let planned =
-        open_plans t
-        |> List.filter (fun (p : plan) -> p.measure = b.measure && p.day < b.end_exclusive)
-        |> List.concat_map (fun (p : plan) ->
-            p.changes
-            |> List.filter_map (fun (loc, n) ->
-                if tracked loc then Some { source_id = p.id; locus = loc; quanta = n } else None))
-      in
-      let actual_route item = List.assoc_opt item.locus b.actual_routes in
-      let plan_route item =
-        match
-          List.find_opt (fun (id, loc, _) -> id = item.source_id && loc = item.locus) b.plan_routes
-        with
-        | None -> None
-        | Some (_, _, p) -> Some p
-      in
-      let routed route purpose = List.filter (fun item -> route item = Some (Some purpose)) in
-      let sum items = List.fold_left (fun n item -> Z.add n item.quanta) Z.zero items in
-      let pressure items =
-        items
-        |> List.map (fun item -> item.source_id)
-        |> List.sort_uniq String.compare
-        |> List.fold_left
-             (fun n id ->
-               let net = sum (List.filter (fun item -> item.source_id = id) items) in
-               Z.add n (Z.max Z.zero net))
-             Z.zero
-      in
-      let rows =
-        List.map
-          (fun (purpose, allocated) ->
-            let actuals = routed actual_route purpose actual
-            and plans = routed plan_route purpose planned in
-            let spent = sum actuals and planned = pressure plans in
-            let remaining = Z.sub allocated spent in
-            {
-              purpose;
-              allocated;
-              actuals;
-              plans;
-              spent;
-              planned;
-              remaining;
-              after_known = Z.sub remaining planned;
-            })
-          b.allocations
-      in
-      {
-        definition = b;
-        observed_at;
-        rows;
-        unrouted_actual = List.filter (fun item -> actual_route item = None) actual;
-        unmanaged_actual = List.filter (fun item -> actual_route item = Some None) actual;
-        unrouted_plans = List.filter (fun item -> plan_route item = None) planned;
-        unmanaged_plans = List.filter (fun item -> plan_route item = Some None) planned;
-      })
-
 let approve_effects t effects =
   match t.data.approved with
   | None -> raise (Refused "locus-policy-not-supplied")
@@ -1351,7 +1033,7 @@ let put_entry_full t ~replace (e : entry) ~plan =
               t.data.plans
       in
       let data =
-        make_data ~budgets:t.data.budgets ~measures:t.data.measures ~labels:t.data.labels
+        make_data ~measures:t.data.measures ~labels:t.data.labels
           ~approved:t.data.approved ~entries ~plans ~origins:t.data.origins
           ~openings:t.data.openings ~observations:t.data.observations
           ~presence:t.data.presence

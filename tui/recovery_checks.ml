@@ -69,19 +69,6 @@ let self_check () =
   let candidate =
     get (B.put_entry candidate ~replace:false (entry "recovery-eur" "eur") ~plan:None)
   in
-  let budget : B.budget =
-    {
-      id = "retained-budget";
-      start_day = "2026-11-01";
-      end_exclusive = "2026-12-01";
-      measure = "jpy";
-      allocations = [ ("food-purpose", huge) ];
-      expense_loci = [ "food" ];
-      actual_routes = [ ("food", Some "food-purpose") ];
-      plan_routes = [ ("planned-food", "food", Some "food-purpose") ];
-    }
-  in
-  let candidate = get (B.put_budget candidate ~replace:false budget) in
   let candidate_bytes = B.to_string candidate in
   let make name =
     let parent = directory ^ "/" ^ name in
@@ -101,8 +88,8 @@ let self_check () =
       "recovery-quantity-or-unknown-lost";
     require ((List.hd (B.plans book)).paid_by = Some payment.id) "recovery-payment-link-lost";
     require
-      (B.to_string book = candidate_bytes && B.budgets book = Some [ budget ])
-      "recovery-metadata-or-v4-lost"
+      (B.to_string book = candidate_bytes)
+      "recovery-metadata-lost"
   in
   let readonly_report session =
     let parent = Filename.dirname session.F.path in
@@ -573,4 +560,4 @@ let self_check () =
   print_endline
     "PASS: durable candidate attempts, read-only recovery, explicit current-byte \
      confirmation/fresh restore, cold/Ctrl-N/reload/direct-write stops, 7 injected faults + 7 \
-     SIGKILL checkpoints, exact quantities/v4/payment links and no automatic retry/pruning."
+     SIGKILL checkpoints, exact quantities/payment links and no automatic retry/pruning."

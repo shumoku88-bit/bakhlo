@@ -1518,20 +1518,6 @@ let parse_boundary_window ~today content =
   in
   check_lines lines
 
-let budget_window ~book ~measure ~today =
-  match B.budgets book with
-  | None -> None
-  | Some budgets -> (
-      let matching =
-        List.filter
-          (fun (b : B.budget) ->
-            b.measure = measure && b.start_day <= today && today < b.end_exclusive)
-          budgets
-      in
-      match matching with
-      | b :: _ -> Some (b.start_day, b.end_exclusive)
-      | [] -> None)
-
 let load_balance_view_loci s =
   let session_dir = Filename.dirname s.session.F.path in
   let candidates =
@@ -1585,14 +1571,7 @@ let primary_account_loci s =
       | Some p_loci when p_loci <> [] ->
           let matched = List.filter (fun id -> List.mem id all_loci) p_loci in
           if matched <> [] then matched else all_loci
-      | _ -> (
-          let expense_set =
-            match B.budgets book with
-            | Some budgets -> List.concat_map (fun (b : B.budget) -> b.expense_loci) budgets
-            | None -> []
-          in
-          let non_expense = List.filter (fun id -> not (List.mem id expense_set)) all_loci in
-          if non_expense <> [] then non_expense else all_loci))
+      | _ -> all_loci)
 
 let summary_balances ~width_of ~max_width s =
   let book = s.session.book in
@@ -1662,11 +1641,8 @@ let summary_daily_pace s =
   in
   let window_opt =
     match load_file_content window_candidates with
-    | Some content -> (
-        match parse_boundary_window ~today content with
-        | Some w -> Some w
-        | None -> budget_window ~book:s.session.book ~measure ~today)
-    | None -> budget_window ~book:s.session.book ~measure ~today
+    | Some content -> parse_boundary_window ~today content
+    | None -> None
   in
   match (pool_opt, window_opt) with
   | None, _ | _, None ->

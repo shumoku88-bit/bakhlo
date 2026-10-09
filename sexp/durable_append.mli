@@ -99,9 +99,3 @@ val append_plan :
   Records_book.plan ->
   commit_result
 
-val append_budget :
-  engine ->
-  session:client_session ->
-  expected_lsn:int ->
-  Records_book.budget ->
-  commit_result

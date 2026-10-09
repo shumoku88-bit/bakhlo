@@ -18,10 +18,9 @@ on-demand references, not a compulsory reading list or an implementation backlog
 
 - Build an ordinary household ledger around recording/editing and payment plans,
   with various balances, LOAM Daily Pace and reports selected for actual household
-  needs. The user wants to test whether this combination suffices in real use
-  WITHOUT budget allocation. Budget UI/expansion is deferred, not a cutover
-  prerequisite; budget may remain unused. Preserve existing budget APIs/data
-  contracts; this is not authorization to delete code or retained information.
+  needs. Budget allocation and purpose routing are deliberately absent
+  from Bakhlo. Obsolete experimental budget-only inputs may be recreated
+  instead of migrated. Daily Pace and payment plans remain central.
   The prior Attention request remains; detailed scope and cutover conditions live
   in `docs/CUTOVER_CHECKLIST.ja.md`. Small means direct, readable implementation,
   not dropping needed household functions.
