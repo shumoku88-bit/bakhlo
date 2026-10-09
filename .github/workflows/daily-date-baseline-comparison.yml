@@ -1,73 +1,32 @@
-name: Temporary baseline parity for Daily date PR
+name: Temporary Native CI for Simplification
 
 on:
   pull_request:
     paths:
+      - 'application/actual_validity.mli'
+      - 'sexp/daily_book.ml'
+      - 'test/incremental_admission_oracle_tests.ml'
+      - 'test/sexp_book.t'
+      - 'test/compiler_policy.t'
       - '.github/workflows/daily-date-baseline-comparison.yml'
 
 permissions:
   contents: read
 
 jobs:
-  baseline-compare:
+  full-native-check:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: '5.3.0'
           opam-pin: false
           dune-cache: false
-      - name: Install existing native test dependencies
+      - name: Install existing test dependencies
         run: opam install . --deps-only --with-test -y
-      - name: Verify unmodified main on same runner
-        shell: bash
-        run: |
-          git checkout --detach 37410a1b71b5511dbc85f4ee575b44fae665db67
-          opam exec -- dune build --root . @all
-          set +e
-          opam exec -- dune runtest --root . --force > /tmp/bakhlo-baseline-runtest.log 2>&1
-          status=$?
-          set -e
-          echo "BASELINE_MAIN_TEST_EXIT=$status"
-          grep -E 'sexp_book.t|compiler_policy.t|Error:|wrong failure' /tmp/bakhlo-baseline-runtest.log | head -40 || :
-          if [ "$status" -eq 0 ]; then
-            echo "BASELINE_MAIN_PASS=true"
-          else
-            echo "BASELINE_MAIN_PASS=false"
-          fi
-      - name: Check temporary strict-policy compiler failure details on main
-        shell: bash
-        run: |
-          d=$(mktemp -d)
-          mkdir "$d/policy"
-          cp dune "$d/policy/dune"
-          printf '\n(library (name probe))\n' >> "$d/policy/dune"
-          printf '(lang dune 3.0)\n' > "$d/policy/dune-project"
-          printf 'type choice = Left | Right\nlet choose = function Left -> 0\n' > "$d/policy/probe.ml"
-          set +e
-          opam exec -- dune build --root "$d/policy" --profile dev probe.cmxa > "$d/build-log" 2>&1
-          status=$?
-          set -e
-          echo "PARTIAL_MATCH_COMPILER_EXIT=$status"
-          cat "$d/build-log"
-      - name: Verify date simplification branch on same runner
-        shell: bash
-        run: |
-          git checkout --detach "${{ github.event.pull_request.head.sha }}"
-          opam exec -- dune build --root . @all
-          set +e
-          opam exec -- dune runtest --root . --force > /tmp/bakhlo-proposed-runtest.log 2>&1
-          status=$?
-          set -e
-          echo "PROPOSED_TEST_EXIT=$status"
-          grep -E 'sexp_book.t|compiler_policy.t|Error:|wrong failure' /tmp/bakhlo-proposed-runtest.log | head -40 || :
-          if [ "$status" -eq 0 ]; then
-            echo "PROPOSED_PASS=true"
-          else
-            echo "PROPOSED_PASS=false"
-          fi
-          echo "This is baseline comparison only; no files are published."
+      - name: Compile the whole native workspace
+        run: opam exec -- dune build --root . @all
+      - name: Run all existing native Cram and expect tests
+        run: opam exec -- dune runtest --root . --force
