@@ -11,7 +11,6 @@ let reference_render x =
     String.split_on_char ' '
       "bakhlo-daily scope measures measure labels label approved-loci entries entry date memo \
        postings posting reversal-of exchange keys plans plan changes paid-by cancelled-on support \
-       budgets budget start end-exclusive allocations expense-loci actual-routes plan-routes \
        zero-origin openings observations observation reflected quantities presence coordinates \
        provided not-supplied none some"
   in
@@ -180,25 +179,8 @@ let%expect_test "Daily Buffer printer preserves former bytes and layout boundari
     }
   in
   check (get (B.put_entry base ~replace:false exchange ~plan:None));
-  let budget : B.budget =
-    {
-      id = "some";
-      start_day = "2026-10-01";
-      end_exclusive = "2026-11-01";
-      measure = "jpy";
-      allocations = [ ("用途", amount) ];
-      expense_loci = [ "food" ];
-      actual_routes = [ ("food", Some "用途") ];
-      plan_routes = [];
-    }
-  in
-  check (get (B.put_budget base ~replace:false budget));
-  check
-    (get
-       (B.put_budget planned ~replace:false
-          { budget with plan_routes = [ (plan.id, "food", None) ] }));
   Printf.printf "byte-identical reference and stable roundtrip: %d cases\n" !checked;
-  [%expect {| byte-identical reference and stable roundtrip: 232 cases |}]
+  [%expect {| byte-identical reference and stable roundtrip: 230 cases |}]
 
 let%expect_test "shared integer syntax keeps strict signed decimal admission" =
   let read text =

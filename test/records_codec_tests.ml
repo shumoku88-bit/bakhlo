@@ -46,30 +46,19 @@ let make_entry id day n : DB.entry =
     exchange = None;
   }
 
-let make_v4_fixture () =
+let make_fixture () =
   let base = get (DB.of_string base_fixture) in
   let base = get (DB.put_entry base ~replace:false (make_entry "e1" "2026-10-02" 1200) ~plan:None) in
-  let budget : DB.budget = {
-    id = "cycle";
-    start_day = "2026-10-01";
-    end_exclusive = "2026-11-01";
-    measure = "jpy";
-    allocations = [ ("living", Z.of_int 20000) ];
-    expense_loci = [ "food" ];
-    actual_routes = [ ("food", Some "living") ];
-    plan_routes = [ ("planned", "food", Some "living") ];
-  } in
-  let b4 = get (DB.put_budget base ~replace:false budget) in
-  DB.to_string b4
+  DB.to_string base
 
 let%test_unit "source_format_of_string detection" =
-  let v4_str = make_v4_fixture () in
-  let format_mono = DB.source_format_of_string v4_str in
+  let v3_str = make_fixture () in
+  let format_mono = DB.source_format_of_string v3_str in
   (match format_mono with
-  | `Monolithic "4" -> ()
-  | _ -> failwith "Failed to detect Monolithic v4");
+  | `Monolithic "3" -> ()
+  | _ -> failwith "Failed to detect Monolithic v3");
 
-  let db = get (DB.of_string v4_str) in
+  let db = get (DB.of_string v3_str) in
   let rec_str = DB.to_records_string ~request_tokens:[ ("tok-e1", "e1") ] db in
   let format_rec = DB.source_format_of_string rec_str in
   (match format_rec with
@@ -81,8 +70,8 @@ let%test_unit "source_format_of_string detection" =
   | _ -> failwith "Expected `Unknown for garbage"
 
 let%test_unit "records_codec roundtrip and daily_book interop" =
-  let v4_str = make_v4_fixture () in
-  let db_orig = get (DB.of_string v4_str) in
+  let v3_str = make_fixture () in
+  let db_orig = get (DB.of_string v3_str) in
   let rec_str = DB.to_records_string ~request_tokens:[ ("tok-e1", "e1") ] db_orig in
 
   (* 1. Verify records string can be loaded into Records_book *)
@@ -93,7 +82,6 @@ let%test_unit "records_codec roundtrip and daily_book interop" =
   assert (List.length (RB.frames rb) >= 3);
   assert (List.length (RB.entries rb) = 1);
   assert (List.length (RB.plans rb) = 1);
-  assert (List.length (RB.budgets rb) = 1);
   assert (List.length (RB.origins rb) = 1);
 
   (* 2. Verify Records_book can be loaded back into Daily_book via compatible reader *)
@@ -116,21 +104,15 @@ let%test_unit "records_codec roundtrip and daily_book interop" =
   let loaded_plans = DB.plans db_loaded in
   assert (List.length orig_plans = List.length loaded_plans);
 
-  let orig_budgets = DB.budgets db_orig in
-  let loaded_budgets = DB.budgets db_loaded in
-  (match orig_budgets, loaded_budgets with
-  | Some obs, Some lbs -> assert (List.length obs = List.length lbs)
-  | _ -> failwith "Budgets mismatch");
-
   (* 4. Verify to_string on loaded book still outputs Monolithic format (No silent overwrite) *)
   let written_back = DB.to_string db_loaded in
   (match DB.source_format_of_string written_back with
-  | `Monolithic "4" -> ()
+  | `Monolithic "3" -> ()
   | _ -> failwith "Daily_book.to_string must preserve Monolithic format without silent rewrite")
 
 let%test_unit "records_codec checksum verification and corruption detection" =
-  let v4_str = make_v4_fixture () in
-  let db = get (DB.of_string v4_str) in
+  let v3_str = make_fixture () in
+  let db = get (DB.of_string v3_str) in
   let rec_str = DB.to_records_string db in
   let lines =
     List.filter (String.split_lines rec_str) ~f:(fun l ->
@@ -152,10 +134,8 @@ let%test_unit "records_codec checksum verification and corruption detection" =
 
   (* 2. Verify mid-file checksum corruption is detected by inspect_string and of_string *)
   let mid_tampered_lines =
-    match lines with
-    | f0 :: _f_entry :: f_budget :: rest ->
-        f0 :: tampered_entry_line :: f_budget :: rest
-    | _ -> failwith "Not enough frames"
+    List.map lines ~f:(fun line ->
+        if String.equal line entry_line then tampered_entry_line else line)
   in
   let mid_tampered_str = String.concat ~sep:"\n" mid_tampered_lines ^ "\n" in
   (match RB.of_string mid_tampered_str with
@@ -194,8 +174,8 @@ let%test_unit "records_codec lsn sequence validation" =
   | Error other -> failwith ("Unexpected error: " ^ other)
 
 let%test_unit "records_codec trailing torn-write inspection" =
-  let v4_str = make_v4_fixture () in
-  let db = get (DB.of_string v4_str) in
+  let v3_str = make_fixture () in
+  let db = get (DB.of_string v3_str) in
   let rec_str = DB.to_records_string db in
 
   (* Append an incomplete, half-written trailing line *)
@@ -273,3 +253,27 @@ let%test_unit "safe compatible reader preserves monolithic versions without rewr
   let v1_printed = DB.to_string v1_book in
   assert (match DB.source_format_of_string v1_printed with `Monolithic _ -> true | _ -> false)
 
+
+let%test_unit "obsolete budget record fails rather than becoming opaque" =
+  let h : RB.header =
+    {
+      version = 1;
+      measures = [ ("jpy", 0) ];
+      labels = None;
+      approved_loci = None;
+      origins = [];
+      openings = [];
+      observations = [];
+      presence = None;
+      opaque = [];
+    }
+  in
+  let budget = RB.encode_frame 1
+      (RB.Opaque (X.List [ X.Atom "budget"; X.List [] ])) in
+  let bytes =
+    RB.serialize_frame (RB.encode_frame 0 (RB.Header h)) ^ "\n"
+    ^ RB.serialize_frame budget ^ "\n"
+  in
+  assert (Result.is_error (RB.parse_frame (RB.serialize_frame budget)));
+  assert (Result.is_error (RB.of_string bytes));
+  assert (Result.is_error (DB.of_string bytes))
