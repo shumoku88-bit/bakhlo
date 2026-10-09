@@ -1,0 +1,30 @@
+name: Daily Admission Simplification Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'application/actual_validity.mli'
+      - 'sexp/daily_book.ml'
+      - 'test/incremental_admission_oracle_tests.ml'
+      - '.github/workflows/daily-admission-simplification-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  native-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: '5.3.0'
+          opam-pin: false
+          dune-cache: false
+      - name: Install existing test dependencies
+        run: opam install . --deps-only --with-test -y
+      - name: Native build
+        run: opam exec -- dune build --root . @all
+      - name: All native tests and exact result oracle
+        run: opam exec -- dune runtest --root . --force
