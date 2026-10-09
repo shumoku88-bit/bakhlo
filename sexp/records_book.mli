@@ -101,8 +101,12 @@ val of_string : string -> (t, string) result
 val to_string : t -> string
 (** Serialize to canonical deterministic line-delimited records with CRC32 checksums. *)
 
+val encode_payload : payload -> X.t
+(** Convert a payload variant into its canonical S-expression form. *)
+
 val encode_frame : int -> payload -> frame
 (** Construct a valid frame with computed CRC32 and sequence number. *)
+
 
 val serialize_frame : frame -> string
 (** Render a single frame to a single line S-expression string. *)
