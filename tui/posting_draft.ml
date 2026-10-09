@@ -48,6 +48,24 @@ let amounts book draft =
   in
   match draft.rows with [] -> Error "posting-required" | _ :: _ -> loop 1 draft.rows
 
+let format_residual_error why =
+  if String.equal why "posting-required" then "明細行が未入力です"
+  else
+    let line_prefix =
+      if Base.String.is_prefix why ~prefix:"行" then
+        match String.index_opt why ':' with
+        | Some idx -> String.sub why 0 idx ^ ": "
+        | None -> ""
+      else ""
+    in
+    if Base.String.is_substring why ~substring:"invalid-amount" then
+      line_prefix ^ "金額の形式が不正です (例: 1000)"
+    else if Base.String.is_substring why ~substring:"non-positive-amount" then
+      line_prefix ^ "0より大きい正の金額を入力してください"
+    else if Base.String.is_substring why ~substring:"amount-precision" then
+      line_prefix ^ "通貨の小数桁数を超えています"
+    else why
+
 let residual book draft =
   match amounts book draft with
   | Error _ as error -> error

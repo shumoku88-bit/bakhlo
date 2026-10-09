@@ -55,7 +55,11 @@ let prepare_edit ~book (e : B.entry) : edit_preparation =
     match pair e.effects with
     | None -> (
         match R.of_effects book e.effects with
-        | Error why -> Edit_refused ("複数行編集拒否: " ^ why)
+        | Error "single-measure-movement-required" ->
+            Edit_refused "単一通貨の通常移動のみ編集に対応しています。"
+        | Error "measure-scale-not-supplied" ->
+            Edit_refused "台帳に通貨の定義が存在しないため、編集できません。"
+        | Error why -> Edit_refused (Printf.sprintf "複数行編集拒否 (%s)" why)
         | Ok draft ->
             Edit_multiple
               {
@@ -103,7 +107,11 @@ let prepare_pay ~book (p : B.plan) : pay_preparation =
       match pair effects with
       | None -> (
           match R.of_effects book effects with
-          | Error why -> Pay_refused ("支払い入力拒否: " ^ why)
+          | Error "single-measure-movement-required" ->
+              Pay_refused "単一通貨の通常移動のみ支払い入力に対応しています。"
+          | Error "measure-scale-not-supplied" ->
+              Pay_refused "台帳に通貨の定義が存在しないため、支払い入力できません。"
+          | Error why -> Pay_refused (Printf.sprintf "支払い入力拒否 (%s)" why)
           | Ok draft ->
               Pay_multiple
                 {
@@ -166,67 +174,183 @@ let prepare_postings ~book ~mode ~(form : single_form) : (R.t, string) result =
             ];
         }
 
-let build_transaction ~book ~mode content : (transaction, string) result =
-  try
-    let day, memo_str, effects =
-      match content with
-      | Multiple { day; memo; draft } ->
-          let effects = get (R.effects book draft) in
-          (day, memo, effects)
-      | Single form ->
-          F.require (form.from_locus <> form.to_locus) "same-locus";
-          let amount = get (B.parse_amount book form.measure form.amount) in
-          let effects =
-            match mode with
-            | Edit e ->
-                List.map
-                  (fun p ->
-                    D.Effect.create ~key:(D.Effect.key p) ~locus:(D.Effect.locus p)
-                      ~measure:(D.Effect.measure p)
-                      ~quantity:
-                        (D.Quantity.of_quanta
-                           (if Z.sign (quanta p) < 0 then Z.neg amount else amount)))
-                  e.effects
-            | New | Pay _ ->
+type field_target =
+  | Field_date
+  | Field_currency
+  | Field_source
+  | Field_destination
+  | Field_amount
+  | Field_memo
+
+type transaction_error = {
+  message : string;
+  field : field_target option;
+  raw_cause : string;
+}
+
+let is_valid_date day =
+  match D.Identifier.Event.of_string "date-check" with
+  | Error _ -> false
+  | Ok eid -> (
+      match D.Event.create ~id:eid ~effects:[] with
+      | Error _ -> false
+      | Ok event -> (
+          match D.Event_memory.of_events [ event ] with
+          | Error _ -> false
+          | Ok events -> (
+              match
+                Bakhlo_application.Actual_validity.create ~events
+                  ~facts:[ Bakhlo_application.Actual_validity.Base { event = D.Event.id event; valid_on = day } ]
+                  ~corrections:[]
+              with
+              | Ok _ -> true
+              | Error _ -> false)))
+
+let build_transaction ~book ~mode content : (transaction, transaction_error) result =
+  let err ?field ~raw message = Error { message; field; raw_cause = raw } in
+  let validate_and_put ~day ~memo_str ~effects =
+    match D.Movement.validate effects with
+    | Error _ ->
+        err ~raw:"invalid-movement"
+          "出金と入金の合計額が一致していません。貸借差額が0になるよう確認してください。"
+    | Ok _ ->
+        let memo =
+          match mode with
+          | Edit e when Option.value ~default:"" e.memo = memo_str -> e.memo
+          | New | Pay _ | Edit _ -> if memo_str = "" then None else Some memo_str
+        in
+        let entry, replace, plan =
+          match mode with
+          | Edit e -> ({ e with day; memo; effects }, true, None)
+          | New | Pay _ ->
+              ( {
+                  B.id = F.new_id ();
+                  day;
+                  memo;
+                  effects;
+                  reversal_of = None;
+                  exchange = None;
+                },
+                false,
+                match mode with Pay id -> Some id | New | Edit _ -> None )
+        in
+        match B.put_entry book ~replace entry ~plan with
+        | Ok _ -> Ok { entry; replace; plan }
+        | Error "duplicate-entry" ->
+            err ~raw:"duplicate-entry"
+              (Printf.sprintf "同一の取引IDが既に台帳に存在します (ID: %s)。" entry.id)
+        | Error "measure-scale-not-supplied" ->
+            err ~field:Field_currency ~raw:"measure-scale-not-supplied"
+              "指定された通貨は台帳に登録されていません。"
+        | Error "locus-unapproved" ->
+            err ~raw:"locus-unapproved"
+              "台帳で許可されていない科目が含まれています。登録済み科目を確認してください。"
+        | Error "plan-already-paid" ->
+            err ~raw:"plan-already-paid" "この支払い予定は既に支払い済みです。"
+        | Error "plan-cancelled" ->
+            err ~raw:"plan-cancelled" "この支払い予定は既に取消済みです。"
+        | Error "unknown-plan" ->
+            err ~raw:"unknown-plan" "指定された支払い予定が見つかりません。"
+        | Error "entry-admission" ->
+            (* Date has already been proven valid via Actual_validity.valid_date.
+               Therefore this refusal represents a ledger event admission requirement
+               (e.g. zero quantity, imbalance, or invalid relation/reversal), NOT a date error. *)
+            err ~raw:"entry-admission"
+              "台帳の記録要件を満たしていません (entry-admission)。貸借バランスや取引の前提条件を確認してください。"
+        | Error why ->
+            err ~raw:why
+              (Printf.sprintf "記帳が拒否されました (%s)。入力内容を確認してください。" why)
+  in
+  match content with
+  | Single form ->
+      if not (is_valid_date form.day) then
+        err ~field:Field_date ~raw:"invalid-date"
+          "日付の形式が正しくありません (YYYY-MM-DD)。例: 2026-10-09"
+      else if String.equal form.from_locus "" then
+        err ~field:Field_source ~raw:"empty-source-locus"
+          "出金元の科目が未選択です。出金元を選んでください。"
+      else if String.equal form.to_locus "" then
+        err ~field:Field_destination ~raw:"empty-destination-locus"
+          "入金先・科目が未選択です。入金先を選んでください。"
+      else if String.equal form.from_locus form.to_locus then
+        err ~field:Field_destination ~raw:"same-locus"
+          (Printf.sprintf "出金元と入金先に同じ科目 (%s) は指定できません。異なる科目を選んでください。"
+             (B.label book form.from_locus))
+      else if String.equal form.amount "" then
+        err ~field:Field_amount ~raw:"empty-amount"
+          "金額が入力されていません。半角数字で入力してください。"
+      else
+        (match B.parse_amount book form.measure form.amount with
+        | Error "invalid-amount" ->
+            err ~field:Field_amount ~raw:"invalid-amount"
+              "金額の形式が正しくありません。半角数字で入力してください (例: 1000)。"
+        | Error "non-positive-amount" ->
+            err ~field:Field_amount ~raw:"non-positive-amount"
+              "金額には0より大きい正の値を入力してください。"
+        | Error "amount-precision" ->
+            let scale =
+              try List.assoc form.measure (B.measures book) with Not_found -> 0
+            in
+            let exp = if scale = 0 then "整数のみ" else Printf.sprintf "小数%d桁まで" scale in
+            err ~field:Field_amount ~raw:"amount-precision"
+              (Printf.sprintf "通貨 %s の小数桁数を超えています (%s)。" form.measure exp)
+        | Error why ->
+            err ~field:Field_amount ~raw:why
+              (Printf.sprintf "金額の入力が不正です (%s)。" why)
+        | Ok amount ->
+            let effects_res =
+              try
                 let effect_ loc n =
                   D.Effect.create ~key:None
                     ~locus:(get_id (D.Identifier.Locus.of_string loc))
                     ~measure:(get_id (D.Identifier.Measure.of_string form.measure))
                     ~quantity:(D.Quantity.of_quanta n)
                 in
-                [ effect_ form.from_locus (Z.neg amount); effect_ form.to_locus amount ]
-          in
-          (form.day, form.memo, effects)
-    in
-    (match D.Movement.validate effects with
-    | Ok _ -> ()
-    | Error _ -> raise (F.Refused "invalid-movement"));
-    let memo =
-      match mode with
-      | Edit e when Option.value ~default:"" e.memo = memo_str -> e.memo
-      | New | Pay _ | Edit _ -> if memo_str = "" then None else Some memo_str
-    in
-    let entry, replace, plan =
-      match mode with
-      | Edit e -> ({ e with day; memo; effects }, true, None)
-      | New | Pay _ ->
-          ( {
-              B.id = F.new_id ();
-              day;
-              memo;
-              effects;
-              reversal_of = None;
-              exchange = None;
-            },
-            false,
-            match mode with Pay id -> Some id | New | Edit _ -> None )
-    in
-    match B.put_entry book ~replace entry ~plan with
-    | Error why -> Error ("記帳拒否: " ^ why)
-    | Ok _ -> Ok { entry; replace; plan }
-  with
-  | F.Refused why -> Error ("入力拒否: " ^ why)
-  | Unix.Unix_error _ | Sys_error _ -> Error "入出力を開始できませんでした。下書きは保持しています。"
+                let effects =
+                  match mode with
+                  | Edit e ->
+                      List.map
+                        (fun p ->
+                          D.Effect.create ~key:(D.Effect.key p) ~locus:(D.Effect.locus p)
+                            ~measure:(D.Effect.measure p)
+                            ~quantity:
+                              (D.Quantity.of_quanta
+                                 (if Z.sign (quanta p) < 0 then Z.neg amount else amount)))
+                        e.effects
+                  | New | Pay _ ->
+                      [ effect_ form.from_locus (Z.neg amount); effect_ form.to_locus amount ]
+                in
+                Ok effects
+              with F.Refused why -> Error why
+            in
+            (match effects_res with
+            | Error why ->
+                err ~raw:why (Printf.sprintf "科目の指定が不正です (%s)。" why)
+            | Ok effects ->
+                validate_and_put ~day:form.day ~memo_str:form.memo ~effects))
+
+  | Multiple { day; memo = memo_str; draft } ->
+      if not (is_valid_date day) then
+        err ~field:Field_date ~raw:"invalid-date"
+          "日付の形式が正しくありません (YYYY-MM-DD)。例: 2026-10-09"
+      else
+        match R.effects book draft with
+        | Error "posting-required" ->
+            err ~raw:"posting-required" "明細行がありません。1行以上の取引明細を入力してください。"
+        | Error "empty-measure" ->
+            err ~field:Field_currency ~raw:"empty-measure" "通貨が指定されていません。"
+        | Error why when Base.String.is_substring why ~substring:"invalid-amount" ->
+            err ~raw:why (Printf.sprintf "%s。半角数字で金額を入力してください。" why)
+        | Error why when Base.String.is_substring why ~substring:"non-positive-amount" ->
+            err ~raw:why (Printf.sprintf "%s。0より大きい正の金額を入力してください。" why)
+        | Error why when Base.String.is_substring why ~substring:"amount-precision" ->
+            err ~raw:why (Printf.sprintf "%s。通貨の小数桁数を確認してください。" why)
+        | Error why when Base.String.is_substring why ~substring:"科目未選択" ->
+            err ~raw:why (Printf.sprintf "%s。科目を選んでください。" why)
+        | Error why ->
+            err ~raw:why (Printf.sprintf "複数行明細の入力が不正です (%s)。" why)
+        | Ok effects ->
+            validate_and_put ~day ~memo_str ~effects
 
 let recovery_message = "保存試行の未確認情報があります。書込み停止。終了して --inspect-recovery で確認してください。"
 
@@ -256,17 +380,21 @@ type commit_result =
   | Payload_drift_refused of string
   | Recovery_blocked
   | Uncertain of string
+  | Storage_failed of string
   | Refused of string
 
 let publish_candidate ~session candidate : commit_result =
-  match F.publish session candidate with
-  | F.Written session -> Published session
-  | F.Conflict -> Conflict
-  | F.Refused_input "recovery-required" -> Recovery_blocked
-  | F.Refused_input why -> Refused ("記帳拒否: " ^ why)
-  (* The publisher owns serialization. Only an uncertain result needs a retained
-     copy here for existing reload reconciliation; ordinary saves do not reprint. *)
-  | F.Uncertain -> Uncertain (B.to_string candidate)
+  try
+    match F.publish session candidate with
+    | F.Written session -> Published session
+    | F.Conflict -> Conflict
+    | F.Refused_input "recovery-required" -> Recovery_blocked
+    | F.Refused_input why -> Refused why
+    | F.Uncertain -> Uncertain "一括書換の成否が不確定です"
+  with
+  | Unix.Unix_error (err, fn, arg) ->
+      Storage_failed (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
+  | Sys_error msg -> Storage_failed msg
 
 let to_records_entry (e : B.entry) : Bakhlo_sexp.Records_book.entry =
   {
@@ -301,7 +429,7 @@ let commit_transaction ~session ~base_bytes (tx : transaction) : commit_result =
     match session.format with
     | F.Monolithic -> (
         match B.put_entry session.book ~replace:tx.replace tx.entry ~plan:tx.plan with
-        | Error why -> Refused ("記帳拒否: " ^ why)
+        | Error why -> Refused why
         | Ok candidate -> publish_candidate ~session candidate)
     | F.Records -> (
         let rec_entry = to_records_entry tx.entry in
@@ -311,7 +439,7 @@ let commit_transaction ~session ~base_bytes (tx : transaction) : commit_result =
               match F.append_entry ~candidate session rec_entry with
               | F.Append_committed { session = updated; _ } -> Published updated
               | F.Append_sync_uncertain { error; _ } ->
-                  Uncertain (Printf.sprintf "保存成否不確定: ディレクトリ同期に失敗しました (%s)" error)
+                  Uncertain (Printf.sprintf "ディレクトリ同期失敗: %s" error)
               | F.Append_idempotent { session = updated; lsn; event_id } ->
                   Idempotent_duplicate { lsn; event_id; session = updated }
               | F.Append_lsn_conflict { expected; actual } ->
@@ -319,8 +447,12 @@ let commit_transaction ~session ~base_bytes (tx : transaction) : commit_result =
               | F.Append_drift_refused msg ->
                   Payload_drift_refused msg
               | F.Append_storage_error err ->
-                  Refused ("保存失敗: " ^ err)
-            with F.Refused why -> Refused ("追記拒否: " ^ why))
+                  Storage_failed err
+            with
+            | Unix.Unix_error (err, fn, arg) ->
+                Storage_failed (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
+            | Sys_error msg -> Storage_failed msg
+            | F.Refused why -> Refused why)
         | Error why -> (
             let existing_opt = B.find_entry session.book tx.entry.id in
             match existing_opt with
@@ -331,33 +463,46 @@ let commit_transaction ~session ~base_bytes (tx : transaction) : commit_result =
                       Idempotent_duplicate { lsn; event_id; session = updated }
                   | F.Append_drift_refused msg ->
                       Payload_drift_refused msg
-                  | _ -> Refused ("記帳拒否: " ^ why)
-                with F.Refused _ -> Refused ("記帳拒否: " ^ why))
+                  | _ -> Refused why
+                with F.Refused _ -> Refused why)
             | Some _ ->
                 Payload_drift_refused (Printf.sprintf "duplicate-id-%s-payload-drift" tx.entry.id)
-            | None -> Refused ("記帳拒否: " ^ why)))
+            | None -> Refused why))
 
 let commit_add_locus ~session name : commit_result =
-  match B.add_locus session.F.book name with
-  | Error why -> Refused ("科目追加拒否: " ^ why)
-  | Ok candidate -> (
-      match session.format with
-      | F.Monolithic -> publish_candidate ~session candidate
-      | F.Records -> (
-          try
-            match F.append_add_locus ~candidate session name with
-            | F.Append_committed { session = updated; _ } -> Published updated
-            | F.Append_sync_uncertain { error; _ } ->
-                Uncertain (Printf.sprintf "科目追加成否不確定: ディレクトリ同期に失敗しました (%s)" error)
-            | F.Append_idempotent { session = updated; lsn; event_id } ->
-                Idempotent_duplicate { lsn; event_id; session = updated }
-            | F.Append_lsn_conflict { expected; actual } ->
-                Conflict_lsn { expected; actual }
-            | F.Append_drift_refused msg ->
-                Payload_drift_refused msg
-            | F.Append_storage_error err ->
-                Refused ("科目追加失敗: " ^ err)
-          with F.Refused why -> Refused ("科目追加拒否: " ^ why)))
+  let name = String.trim name in
+  if String.equal name "" then
+    Refused "科目名が入力されていません。追加する科目名を入力してください。"
+  else
+    match B.add_locus session.F.book name with
+    | Error "duplicate-locus" ->
+        Refused (Printf.sprintf "科目「%s」は既に登録されています。" name)
+    | Error "locus-policy-not-supplied" ->
+        Refused "台帳に科目管理ポリシーが設定されていません。"
+    | Error why ->
+        Refused (Printf.sprintf "科目追加拒否 (%s)" why)
+    | Ok candidate -> (
+        match session.format with
+        | F.Monolithic -> publish_candidate ~session candidate
+        | F.Records -> (
+            try
+              match F.append_add_locus ~candidate session name with
+              | F.Append_committed { session = updated; _ } -> Published updated
+              | F.Append_sync_uncertain { error; _ } ->
+                  Uncertain (Printf.sprintf "ディレクトリ同期失敗: %s" error)
+              | F.Append_idempotent { session = updated; lsn; event_id } ->
+                  Idempotent_duplicate { lsn; event_id; session = updated }
+              | F.Append_lsn_conflict { expected; actual } ->
+                  Conflict_lsn { expected; actual }
+              | F.Append_drift_refused msg ->
+                  Payload_drift_refused msg
+              | F.Append_storage_error err ->
+                  Storage_failed err
+            with
+            | Unix.Unix_error (err, fn, arg) ->
+                Storage_failed (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
+            | Sys_error msg -> Storage_failed msg
+            | F.Refused why -> Refused why))
 
 type reload_result =
   | Pending_confirmed of F.t

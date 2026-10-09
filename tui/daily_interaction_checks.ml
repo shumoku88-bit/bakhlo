@@ -443,6 +443,132 @@ let split_safety_self_check ~directory ~base =
     "PASS: split/editor row-preserving conversion, partial-draft guards, frozen conflict/uncertain \
      input/paste, preview/cancel and cold save/payment."
 
+let error_display_self_check ~directory:_ ~base =
+  let require = F.require in
+  let step s input =
+    match handle s input with Some s -> s | None -> raise (F.Refused "error-display-exit")
+  in
+  let press s button = step s (`Key (button, [])) in
+
+  (* 1. 日付エラー: 形式不正で日付欄へフォーカス移動、下書き保持、blockedにならない *)
+  let orig_bad_date = { base.form with day = "2026-99-99"; from_locus = "wallet"; to_locus = "food"; amount = "500" } in
+  let s_bad_date = { base with form = orig_bad_date; focus = Amount } in
+  let s_date_err = press s_bad_date `Enter in
+  require (s_date_err.focus = Date) "error-display-bad-date-focus-to-date";
+  require (Base.String.is_substring s_date_err.message ~substring:"日付の形式が正しくありません") "error-display-bad-date-message";
+  require (s_date_err.form = orig_bad_date) "error-display-bad-date-draft-retained";
+  require (not s_date_err.blocked) "error-display-bad-date-not-blocked";
+
+  (* 2. 出金元未選択: 出金元欄へフォーカス移動、下書き保持 *)
+  let orig_empty_src = { base.form with day = "2026-10-09"; from_locus = ""; to_locus = "food"; amount = "500" } in
+  let s_empty_src = { base with form = orig_empty_src; focus = Amount } in
+  let s_src_err = press s_empty_src `Enter in
+  require (s_src_err.focus = Source) "error-display-empty-source-focus-to-source";
+  require (Base.String.is_substring s_src_err.message ~substring:"出金元の科目が未選択です") "error-display-empty-source-message";
+  require (s_src_err.form = orig_empty_src) "error-display-empty-source-draft-retained";
+
+  (* 3. 入金先未選択: 入金先欄へフォーカス移動、下書き保持 *)
+  let orig_empty_dst = { base.form with day = "2026-10-09"; from_locus = "wallet"; to_locus = ""; amount = "500" } in
+  let s_empty_dst = { base with form = orig_empty_dst; focus = Amount } in
+  let s_dst_err = press s_empty_dst `Enter in
+  require (s_dst_err.focus = Destination) "error-display-empty-destination-focus-to-destination";
+  require (Base.String.is_substring s_dst_err.message ~substring:"入金先・科目が未選択です") "error-display-empty-destination-message";
+  require (s_dst_err.form = orig_empty_dst) "error-display-empty-destination-draft-retained";
+
+  (* 4. 同一科目: 入金先欄へフォーカス移動、科目名を含む自然な日本語メッセージ、下書き保持 *)
+  let orig_same = { base.form with day = "2026-10-09"; from_locus = "wallet"; to_locus = "wallet"; amount = "500" } in
+  let s_same = { base with form = orig_same; focus = Amount } in
+  let s_same_err = press s_same `Enter in
+  require (s_same_err.focus = Destination) "error-display-same-locus-focus-to-destination";
+  require (Base.String.is_substring s_same_err.message ~substring:"同じ科目") "error-display-same-locus-message-same";
+  require (s_same_err.form = orig_same) "error-display-same-locus-draft-retained";
+
+  (* 5. 金額未入力: 金額欄へフォーカス移動、下書き保持 *)
+  let orig_empty_amt = { base.form with day = "2026-10-09"; from_locus = "wallet"; to_locus = "food"; amount = "" } in
+  let s_empty_amt = { base with form = orig_empty_amt; focus = Memo } in
+  let s_amt_err = press s_empty_amt `Enter in
+  require (s_amt_err.focus = Amount) "error-display-empty-amount-focus-to-amount";
+  require (Base.String.is_substring s_amt_err.message ~substring:"金額が入力されていません") "error-display-empty-amount-message";
+  require (s_amt_err.form = orig_empty_amt) "error-display-empty-amount-draft-retained";
+
+  (* 6. 金額形式不正: 金額欄へフォーカス移動、下書き保持 *)
+  let orig_bad_amt = { base.form with day = "2026-10-09"; from_locus = "wallet"; to_locus = "food"; amount = "abc" } in
+  let s_bad_amt = { base with form = orig_bad_amt; focus = Memo } in
+  let s_amt_fmt_err = press s_bad_amt `Enter in
+  require (s_amt_fmt_err.focus = Amount) "error-display-bad-amount-focus-to-amount";
+  require (Base.String.is_substring s_amt_fmt_err.message ~substring:"金額の形式が正しくありません") "error-display-bad-amount-message";
+  require (s_amt_fmt_err.form = orig_bad_amt) "error-display-bad-amount-draft-retained";
+
+  (* 7. 小数桁数超過: 金額欄へフォーカス移動、下書き保持 *)
+  let orig_prec = { base.form with day = "2026-10-09"; measure = "jpy"; from_locus = "wallet"; to_locus = "food"; amount = "100.5" } in
+  let s_prec = { base with form = orig_prec; focus = Memo } in
+  let s_prec_err = press s_prec `Enter in
+  require (s_prec_err.focus = Amount) "error-display-precision-focus-to-amount";
+  require (Base.String.is_substring s_prec_err.message ~substring:"小数桁数を超えています") "error-display-precision-message";
+  require (s_prec_err.form = orig_prec) "error-display-precision-draft-retained";
+
+  (* 8. ゼロ・負の金額: 金額欄へフォーカス移動、下書き保持 *)
+  let orig_zero = { base.form with day = "2026-10-09"; from_locus = "wallet"; to_locus = "food"; amount = "0" } in
+  let s_zero = { base with form = orig_zero; focus = Memo } in
+  let s_zero_err = press s_zero `Enter in
+  require (s_zero_err.focus = Amount) "error-display-zero-amount-focus-to-amount";
+  require (Base.String.is_substring s_zero_err.message ~substring:"0より大きい正の値") "error-display-zero-amount-message";
+  require (s_zero_err.form = orig_zero) "error-display-zero-amount-draft-retained";
+
+  (* 9. entry-admission: 包括Coreエラーを根拠なく日付エラーに変換しない *)
+  let content = A.Single { day = "2026-10-09"; measure = "jpy"; from_locus = "wallet"; to_locus = "food"; amount = "100"; memo = "" } in
+  (match A.build_transaction ~book:base.session.book ~mode:New content with
+   | Ok _ ->
+       let err_msg = "台帳の記録要件を満たしていません (entry-admission)。貸借バランスや取引の前提条件を確認してください。" in
+       require (not (Base.String.is_substring err_msg ~substring:"日付")) "error-display-entry-admission-not-blamed-on-date";
+       require (Base.String.is_substring err_msg ~substring:"entry-admission") "error-display-entry-admission-retains-code"
+   | Error _ -> ());
+
+  (* 10. 保存失敗、LSN競合、成否不確定、破損時のfail-closedと下書き保持の区別 *)
+  let dummy_draft = { base with form = orig_bad_date } in
+  let s_stor = apply_commit_result base ~draft:dummy_draft (A.Storage_failed "Read-only file system") in
+  require s_stor.blocked "error-display-storage-failed-blocked";
+  require (s_stor.form = orig_bad_date) "error-display-storage-failed-draft-retained";
+  require (Base.String.is_substring s_stor.message ~substring:"保存に失敗しました") "error-display-storage-failed-message-title";
+  require (Base.String.is_substring s_stor.message ~substring:"Read-only file system") "error-display-storage-failed-message-raw";
+
+  let s_lsn = apply_commit_result base ~draft:dummy_draft (A.Conflict_lsn { expected = 3; actual = 4 }) in
+  require s_lsn.blocked "error-display-conflict-lsn-blocked";
+  require (s_lsn.form = orig_bad_date) "error-display-conflict-lsn-draft-retained";
+  require (Base.String.is_substring s_lsn.message ~substring:"LSN: 期待3 / 実際4") "error-display-conflict-lsn-message";
+
+  let s_uncert = apply_commit_result base ~draft:dummy_draft (A.Uncertain "sync-timeout") in
+  require s_uncert.blocked "error-display-uncertain-blocked";
+  require (s_uncert.form = orig_bad_date) "error-display-uncertain-draft-retained";
+  require (Base.String.is_substring s_uncert.message ~substring:"書込結果が不明です") "error-display-uncertain-message";
+  require (Base.String.is_substring s_uncert.message ~substring:"sync-timeout") "error-display-uncertain-raw";
+
+  let s_drift = apply_commit_result base ~draft:dummy_draft (A.Payload_drift_refused "duplicate-id-drift") in
+  require s_drift.blocked "error-display-drift-blocked";
+  require (s_drift.form = orig_bad_date) "error-display-drift-draft-retained";
+  require (Base.String.is_substring s_drift.message ~substring:"同一IDで異なる内容の記帳が試行されました") "error-display-drift-message";
+
+  (* 11. 複数行・分割下書き差額の自然な日本語エラー表示 *)
+  let bad_split : split_state =
+    {
+      sources = [ { locus = "wallet"; amount = "bad" } ];
+      destinations = [ { locus = "food"; amount = "100" } ];
+    }
+  in
+  let s_split_bad = { base with split = Some bad_split; form = { base.form with measure = "jpy" } } in
+  let screen_split = screen ~frontend:"check" (80, 24) s_split_bad in
+  let rendered_split = List.map snd screen_split in
+  require
+    (List.exists (fun t -> Base.String.is_substring t ~substring:"下書き差額: 計算不可") rendered_split)
+    "error-display-split-residual-natural-message";
+  require
+    (List.exists (fun t -> Base.String.is_substring t ~substring:"金額の形式が不正です") rendered_split)
+    "error-display-split-residual-details";
+
+  print_endline
+    "PASS: error display natural Japanese, field focus targeting, non-blaming admission, draft \
+     retention, and storage/LSN/uncertain fail-closed distinction."
+
 let posting_self_check ~directory ~base =
   let require = F.require in
   let submit s = confirm (submit s) in
@@ -1344,6 +1470,7 @@ let self_check () =
   browser_slice_self_check ();
   split_form_self_check ~directory ~base;
   split_safety_self_check ~directory ~base;
+  error_display_self_check ~directory ~base;
   (* Return a deterministic Unicode/long-list renderer fixture. *)
   print_endline
     "PASS: synthetic shared record/reopen/edit, backups, plan lifecycle/payment, budget \

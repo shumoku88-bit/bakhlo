@@ -648,7 +648,11 @@ let open_postings s =
           | None -> A.prepare_postings ~book:s.session.book ~mode:s.mode ~form:s.form
         in
         match draft with
-        | Error why -> { s with message = "複数行入力拒否: " ^ why }
+        | Error "single-measure-movement-required" ->
+            { s with message = "単一通貨の通常移動のみ複数行編集に対応しています。" }
+        | Error "measure-scale-not-supplied" ->
+            { s with message = "台帳に未登録の通貨のため、複数行編集できません。" }
+        | Error why -> { s with message = Printf.sprintf "複数行入力の開始不可 (%s)。" why }
         | Ok draft ->
             with_postings
               {
@@ -739,6 +743,14 @@ let pay_selected s =
               message = "予定の支払い入力。Enterで全体プレビュー。予定の元日付は保持します。";
             })
 
+let focus_of_action_field = function
+  | A.Field_date -> Date
+  | A.Field_currency -> Currency
+  | A.Field_source -> Source
+  | A.Field_destination -> Destination
+  | A.Field_amount -> Amount
+  | A.Field_memo -> Memo
+
 let apply_commit_result s ~draft result =
   match result with
   | A.Published session when s.adding <> None ->
@@ -762,22 +774,25 @@ let apply_commit_result s ~draft result =
         message = "すでに保存済みの取引です（重複適用なし・Fast-Ack）。";
       }
   | A.Conflict_lsn { expected; actual } ->
-      { draft with blocked = true; pending = None; message = Printf.sprintf "別の追記がありました (LSN: 期待%d / 実際%d)。下書きは保持。Ctrl-Rで再読込してください。" expected actual }
+      { draft with blocked = true; pending = None; message = Printf.sprintf "別の追記がありました (LSN: 期待%d / 実際%d)。下書きは保持しています。Ctrl-Rで再読込してください。" expected actual }
   | A.Payload_drift_refused why ->
-      { draft with blocked = true; message = "同一IDで異なる内容の記帳が試行されました: " ^ why }
+      { draft with blocked = true; message = Printf.sprintf "同一IDで異なる内容の記帳が試行されました (%s)。再送を停止。下書きは保持しています。" why }
   | A.Conflict_base_changed ->
-      { draft with blocked = true; pending = None; message = "確認元が変わりました。下書きは保持。再読込して確認し直してください。" }
+      { draft with blocked = true; pending = None; message = "台帳の基準状態が変わりました。下書きは保持しています。Ctrl-Rで再読込して確認し直してください。" }
   | A.Conflict ->
-      { draft with blocked = true; pending = None; message = "別の更新があります。下書きは保持。Ctrl-Rで再読込してください。" }
+      { draft with blocked = true; pending = None; message = "別の更新がありました。下書きは保持しています。Ctrl-Rで再読込してください。" }
   | A.Recovery_blocked ->
       { draft with blocked = true; message = A.recovery_message }
-  | A.Refused why -> { draft with message = why }
+  | A.Storage_failed err ->
+      { draft with blocked = true; message = Printf.sprintf "保存に失敗しました (%s)。下書きは保持しています。ディスクの空き容量や権限を確認してください。" err }
+  | A.Refused why ->
+      { draft with message = Printf.sprintf "記帳が拒否されました: %s。下書きは保持しています。" why }
   | A.Uncertain bytes ->
       {
         draft with
         blocked = true;
         pending = Some bytes;
-        message = "書込結果が不明です。再送せずCtrl-Rで確認。下書き・残ったファイルは保持しています。";
+        message = Printf.sprintf "書込結果が不明です (%s)。二重記帳を防ぐため再送せず、Ctrl-Rで確認してください。下書きは保持しています。" bytes;
       }
 
 let finish s candidate =
@@ -802,7 +817,15 @@ let submit s =
               | None -> A.Single s.form)
         in
         match A.build_transaction ~book:s.session.book ~mode:s.mode content with
-        | Error why -> { s with message = why }
+        | Error err ->
+            let focus =
+              match err.A.field with
+              | Some f ->
+                  if s.postings <> None || s.split <> None then s.focus
+                  else focus_of_action_field f
+              | None -> s.focus
+            in
+            { s with message = err.A.message; focus; record_focus = focus; cursor = None }
         | Ok transaction ->
             {
               s with
@@ -890,8 +913,8 @@ let reload s =
       { s with session; blocked = true; message }
   | A.Reloaded session ->
       { s with session; blocked = false; message = "再読込しました。保存前の下書きは保持しています。" }
-  | A.Reload_failed _ ->
-      { s with blocked = true; message = "再読込できません。空台帳にせず、表示と下書きを保持しています。" }
+  | A.Reload_failed why ->
+      { s with blocked = true; message = Printf.sprintf "再読込できません (%s)。空台帳にせず、表示と下書きを保持しています。" why }
 
 let utf8 = O.utf8
 let printable_uchar = O.printable_uchar
@@ -1428,7 +1451,7 @@ let screen ?(width_of = String.length) ~frontend (width, height) s =
                 let residual_status =
                   let draft = split_to_draft measure sp in
                   match R.residual book draft with
-                  | Error why -> "下書き差額不明: " ^ why
+                  | Error why -> "下書き差額: 計算不可 (" ^ R.format_residual_error why ^ ")"
                   | Ok n ->
                       "下書き差額: "
                       ^ B.format book measure n
