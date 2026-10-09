@@ -64,12 +64,16 @@ type budget = {
   plan_routes : (string * string * string option) list;
 }
 
+module Entry_map = Map.Make(String)
+
 type data = {
   budgets : budget list option;
   measures : (string * int) list;
   labels : (string * string * string) list option;
   approved : string list option;
-  entries : entry list;
+  entries_rev : entry list;
+  entry_map : entry Entry_map.t;
+  entry_count : int;
   plans : plan list;
   origins : D.Effect_coordinate.t list;
   openings : Q.opening list;
@@ -77,7 +81,32 @@ type data = {
   presence : Q.presence option;
 }
 
-type t = { data : data; image : Q.t }
+type t = {
+  data : data;
+  image : Q.t;
+  entries_cached : entry list Lazy.t;
+}
+
+let make_data ~budgets ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~observations ~presence =
+  let entry_count = List.length entries in
+  let entries_rev = List.rev entries in
+  let entry_map =
+    List.fold_left (fun m (e : entry) -> Entry_map.add e.id e m) Entry_map.empty entries
+  in
+  {
+    budgets;
+    measures;
+    labels;
+    approved;
+    entries_rev;
+    entry_map;
+    entry_count;
+    plans;
+    origins;
+    openings;
+    observations;
+    presence;
+  }
 
 let empty_command : A.Actual_source.command =
   {
@@ -103,7 +132,7 @@ let valid_date day =
           ~facts:[ A.Actual_validity.Base { event = D.Event.id event; valid_on = day } ]
           ~corrections:[]))
 
-let admit data =
+let admit ?entries_cached data =
   unique (List.map fst data.measures) "duplicate-measure";
   List.iter
     (fun (m, n) ->
@@ -125,12 +154,17 @@ let admit data =
       unique ids "duplicate-approved-locus";
       List.iter (fun id -> ignore (lid id)) ids)
     data.approved;
+  let entries =
+    match entries_cached with
+    | Some c -> Lazy.force c
+    | None -> List.rev data.entries_rev
+  in
   let events =
     List.map
       (fun (e : entry) ->
         List.iter (fun p -> known (mstr (D.Effect.measure p))) e.effects;
         get "invalid-entry" (D.Event.create ~id:(eid e.id) ~effects:e.effects))
-      data.entries
+      entries
   in
   let source =
     get "entry-admission"
@@ -141,7 +175,7 @@ let admit data =
            validities =
              List.map
                (fun (e : entry) -> A.Actual_validity.Base { event = eid e.id; valid_on = e.day })
-               data.entries;
+               entries;
            descriptions =
              List.filter_map
                (fun (e : entry) ->
@@ -149,7 +183,7 @@ let admit data =
                    (fun text ->
                      ({ A.Event_descriptions.event = eid e.id; text } : A.Event_descriptions.fact))
                    e.memo)
-               data.entries;
+               entries;
            reversals =
              List.filter_map
                (fun (e : entry) ->
@@ -158,7 +192,7 @@ let admit data =
                      ({ A.Actual_reversals.target = eid target; reversal = eid e.id }
                        : A.Actual_reversals.fact))
                    e.reversal_of)
-               data.entries;
+               entries;
            exchanges =
              List.filter_map
                (fun (e : entry) ->
@@ -171,7 +205,7 @@ let admit data =
                       }
                        : A.Exchange_evidence.fact))
                    e.exchange)
-               data.entries;
+               entries;
          })
   in
   unique (List.map (fun (p : plan) -> p.id) data.plans) "duplicate-plan";
@@ -189,7 +223,7 @@ let admit data =
       Option.iter valid_date p.cancelled_on;
       Option.iter
         (fun id ->
-          require (List.exists (fun (e : entry) -> e.id = id) data.entries) "unknown-plan-payment")
+          require (Entry_map.mem id data.entry_map) "unknown-plan-payment")
         p.paid_by)
     data.plans;
   Option.iter
@@ -245,12 +279,18 @@ let admit data =
         g.assertions)
     data.observations;
   Option.iter (fun (p : Q.presence) -> List.iter known_coord p.coordinates) data.presence;
+  let entries_cached =
+    match entries_cached with
+    | Some c -> c
+    | None -> lazy entries
+  in
   {
     data;
     image =
       get "support-admission"
         (Q.create ~source ~zero_origins:data.origins ~openings:data.openings
            ~groups:data.observations ~presence:data.presence);
+    entries_cached;
   }
 
 let protect f = try Ok (f ()) with Refused why -> Error why
@@ -412,61 +452,62 @@ let of_monolithic_string bytes =
                   }
             | [] | _ :: _ -> raise (Refused "invalid-presence")
           in
-          admit
-            {
-              budgets =
-                (if version = "4" then supplied decode_budget (field "budgets" rows) else None);
-              measures =
-                List.map
-                  (function
-                    | X.List [ X.Atom "measure"; X.Atom m; X.Atom n ] ->
-                        let n = integer n in
-                        require (Z.geq n Z.zero && Z.leq n (Z.of_int 9)) "invalid-scale";
-                        (m, Z.to_int n)
-                    | X.Atom _ | X.List _ -> raise (Refused "invalid-measure"))
-                  (field "measures" rows);
-              labels =
-                supplied
-                  (function
-                    | X.List [ X.Atom "label"; X.Atom id; X.Atom label; X.Atom help ] ->
-                        (id, label, help)
-                    | X.Atom _ | X.List _ -> raise (Refused "invalid-label"))
-                  (field "labels" rows);
-              approved = supplied atom (field "approved-loci" rows);
-              entries = List.map (decode_entry version) (field "entries" rows);
-              plans = List.map (decode_plan version) (field "plans" rows);
-              origins = List.map decode_coord (field "zero-origin" support);
-              openings =
-                List.map
-                  (function
-                    | X.List [ X.Atom l; X.Atom m; X.Atom e ] ->
-                        ({ Q.coordinate = coord l m; opening_event = eid e } : Q.opening)
-                    | X.Atom _ | X.List _ -> raise (Refused "invalid-opening"))
-                  (field "openings" support);
-              observations =
-                List.map
-                  (function
-                    | X.List (X.Atom "observation" :: xs) ->
-                        fields [ "reflected"; "quantities" ] xs;
-                        {
-                          A.Current_quantity_groups.reflected_roots =
-                            List.map (fun x -> eid (atom x)) (field "reflected" xs);
-                          assertions =
-                            List.map
-                              (function
-                                | X.List [ X.Atom l; X.Atom m; X.Atom n ] ->
-                                    ({
-                                       A.Current_quantity_projection.coordinate = coord l m;
-                                       quantity = qty n;
-                                     }
-                                      : A.Current_quantity_projection.assertion)
-                                | X.Atom _ | X.List _ -> raise (Refused "invalid-assertion"))
-                              (field "quantities" xs);
-                        }
-                    | X.Atom _ | X.List _ -> raise (Refused "invalid-observation"))
-                  (field "observations" support);
-              presence;
-            }
+          let entries = List.map (decode_entry version) (field "entries" rows) in
+          let data =
+            make_data
+              ~budgets:(if version = "4" then supplied decode_budget (field "budgets" rows) else None)
+              ~measures:
+                (List.map
+                   (function
+                     | X.List [ X.Atom "measure"; X.Atom m; X.Atom n ] ->
+                         let n = integer n in
+                         require (Z.geq n Z.zero && Z.leq n (Z.of_int 9)) "invalid-scale";
+                         (m, Z.to_int n)
+                     | X.Atom _ | X.List _ -> raise (Refused "invalid-measure"))
+                   (field "measures" rows))
+              ~labels:
+                (supplied
+                   (function
+                     | X.List [ X.Atom "label"; X.Atom id; X.Atom label; X.Atom help ] ->
+                         (id, label, help)
+                     | X.Atom _ | X.List _ -> raise (Refused "invalid-label"))
+                   (field "labels" rows))
+              ~approved:(supplied atom (field "approved-loci" rows))
+              ~entries
+              ~plans:(List.map (decode_plan version) (field "plans" rows))
+              ~origins:(List.map decode_coord (field "zero-origin" support))
+              ~openings:
+                (List.map
+                   (function
+                     | X.List [ X.Atom l; X.Atom m; X.Atom e ] ->
+                         ({ Q.coordinate = coord l m; opening_event = eid e } : Q.opening)
+                     | X.Atom _ | X.List _ -> raise (Refused "invalid-opening"))
+                   (field "openings" support))
+              ~observations:
+                (List.map
+                   (function
+                     | X.List (X.Atom "observation" :: xs) ->
+                         fields [ "reflected"; "quantities" ] xs;
+                         {
+                           A.Current_quantity_groups.reflected_roots =
+                             List.map (fun x -> eid (atom x)) (field "reflected" xs);
+                           assertions =
+                             List.map
+                               (function
+                                 | X.List [ X.Atom l; X.Atom m; X.Atom n ] ->
+                                     ({
+                                        A.Current_quantity_projection.coordinate = coord l m;
+                                        quantity = qty n;
+                                      }
+                                       : A.Current_quantity_projection.assertion)
+                                 | X.Atom _ | X.List _ -> raise (Refused "invalid-assertion"))
+                               (field "quantities" xs);
+                         }
+                     | X.Atom _ | X.List _ -> raise (Refused "invalid-observation"))
+                   (field "observations" support))
+              ~presence
+          in
+          admit ~entries_cached:(lazy entries) data
       | [] | _ :: _ -> raise (Refused "unsupported-book-header"))
 
 let source_format_of_string bytes =
@@ -562,20 +603,19 @@ let of_records (rb : Records_book.t) =
           (Records_book.observations rb)
       in
       let data =
-        {
-          budgets;
-          measures = h.measures;
-          labels = h.labels;
-          approved;
-          entries;
-          plans;
-          origins = h.origins;
-          openings = h.openings;
-          observations = h.observations @ frame_obs;
-          presence = h.presence;
-        }
+        make_data
+          ~budgets
+          ~measures:h.measures
+          ~labels:h.labels
+          ~approved
+          ~entries
+          ~plans
+          ~origins:h.origins
+          ~openings:h.openings
+          ~observations:(h.observations @ frame_obs)
+          ~presence:h.presence
       in
-      admit data)
+      admit ~entries_cached:(lazy entries) data)
 
 let of_string bytes =
   match source_format_of_string bytes with
@@ -659,7 +699,7 @@ let to_records ?(request_tokens = []) (t : t) : Records_book.t =
              exchange = e.exchange;
              opaque = [];
            }))
-    b.entries;
+    (Lazy.force t.entries_cached);
   List.iter
     (fun (token, event_id) ->
       emit (Records_book.Origin { token; event_id; opaque = [] }))
@@ -715,7 +755,7 @@ let sexps t =
                    | Some (a_, b_) -> f "keys" [ a a_; a b_ ]);
                  ];
              ])
-         b.entries);
+         (Lazy.force t.entries_cached));
     f "plans"
       (List.map
          (fun (p : plan) ->
@@ -901,7 +941,11 @@ let to_string t =
   Buffer.contents out
 
 let budgets t = t.data.budgets
-let entries t = t.data.entries
+let entries t = Lazy.force t.entries_cached
+let entries_rev t = t.data.entries_rev
+let entry_count t = t.data.entry_count
+let find_entry t id = Entry_map.find_opt id t.data.entry_map
+let mem_entry t id = Entry_map.mem id t.data.entry_map
 let plans t = t.data.plans
 let plan_is_open (p : plan) = p.paid_by = None && p.cancelled_on = None
 let open_plans t = List.filter plan_is_open t.data.plans
@@ -1064,7 +1108,7 @@ let put_budget t ~replace (b : budget) =
         if replace then List.map (fun (row : budget) -> if row.id = b.id then b else row) budgets
         else budgets @ [ b ]
       in
-      admit { t.data with budgets = Some budgets })
+      admit ~entries_cached:t.entries_cached { t.data with budgets = Some budgets })
 
 let rebalance_budget t ~id ~from_purpose ~to_purpose ~amount =
   protect (fun () ->
@@ -1123,7 +1167,7 @@ let budget_review t ~id ~observed_at =
         "budget-observation-outside-period";
       let tracked loc = List.mem loc b.expense_loci in
       let actual =
-        t.data.entries
+        (entries t)
         |> List.filter (fun (e : entry) -> b.start_day <= e.day && e.day <= observed_at)
         |> List.concat_map (fun (e : entry) ->
             e.effects
@@ -1231,7 +1275,7 @@ let put_plan t ~replace (p : plan) =
         if replace then List.map (fun (row : plan) -> if row.id = p.id then p else row) t.data.plans
         else t.data.plans @ [ p ]
       in
-      admit { t.data with plans })
+      admit ~entries_cached:t.entries_cached { t.data with plans })
 
 let cancel_plan t ~id ~day =
   protect (fun () ->
@@ -1243,17 +1287,17 @@ let cancel_plan t ~id ~day =
           (fun (p : plan) -> if p.id = id then { p with cancelled_on = Some day } else p)
           t.data.plans
       in
-      admit { t.data with plans })
+      admit ~entries_cached:t.entries_cached { t.data with plans })
 
 let put_entry_full t ~replace (e : entry) ~plan =
   protect (fun () ->
       approve_effects t e.effects;
-      let exists = List.exists (fun (row : entry) -> row.id = e.id) t.data.entries in
+      let exists = Entry_map.mem e.id t.data.entry_map in
       require (exists = replace) (if replace then "unknown-entry" else "duplicate-entry");
       let entries =
         if replace then
-          List.map (fun (row : entry) -> if row.id = e.id then e else row) t.data.entries
-        else t.data.entries @ [ e ]
+          List.map (fun (row : entry) -> if row.id = e.id then e else row) (entries t)
+        else (entries t) @ [ e ]
       in
       let plans =
         match plan with
@@ -1265,7 +1309,13 @@ let put_entry_full t ~replace (e : entry) ~plan =
               (fun (p : plan) -> if p.id = id then { p with paid_by = Some e.id } else p)
               t.data.plans
       in
-      admit { t.data with entries; plans })
+      let data =
+        make_data ~budgets:t.data.budgets ~measures:t.data.measures ~labels:t.data.labels
+          ~approved:t.data.approved ~entries ~plans ~origins:t.data.origins
+          ~openings:t.data.openings ~observations:t.data.observations
+          ~presence:t.data.presence
+      in
+      admit ~entries_cached:(lazy entries) data)
 
 let check_effects_balanced effects =
   let rec fold acc = function
@@ -1287,8 +1337,7 @@ let check_effects_balanced effects =
 let put_entry_incremental t (e : entry) ~plan =
   protect (fun () ->
       approve_effects t e.effects;
-      let exists = List.exists (fun (row : entry) -> row.id = e.id) t.data.entries in
-      require (not exists) "duplicate-entry";
+      require (not (Entry_map.mem e.id t.data.entry_map)) "duplicate-entry";
       let known m = require (List.mem_assoc m t.data.measures) "measure-scale-not-supplied" in
       List.iter (fun p -> known (mstr (D.Effect.measure p))) e.effects;
       check_effects_balanced e.effects;
@@ -1303,10 +1352,13 @@ let put_entry_incremental t (e : entry) ~plan =
               (fun (p : plan) -> if p.id = id then { p with paid_by = Some e.id } else p)
               t.data.plans
       in
-      let entries = t.data.entries @ [ e ] in
-      let data = { t.data with entries; plans } in
+      let entries_rev = e :: t.data.entries_rev in
+      let entry_map = Entry_map.add e.id e t.data.entry_map in
+      let entry_count = t.data.entry_count + 1 in
+      let data = { t.data with entries_rev; entry_map; entry_count; plans } in
       let image = Q.with_added_effects t.image e.effects in
-      { data; image })
+      let entries_cached = lazy (List.rev data.entries_rev) in
+      { data; image; entries_cached })
 
 let put_entry t ~replace (e : entry) ~plan =
   if (not replace) && e.reversal_of = None && e.exchange = None then
@@ -1321,4 +1373,4 @@ let add_locus t id =
       | None -> raise (Refused "locus-policy-not-supplied")
       | Some ids ->
           require (not (List.mem id ids)) "duplicate-locus";
-          admit { t.data with approved = Some (ids @ [ id ]) })
+          admit ~entries_cached:t.entries_cached { t.data with approved = Some (ids @ [ id ]) })

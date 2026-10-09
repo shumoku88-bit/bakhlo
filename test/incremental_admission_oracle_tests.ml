@@ -283,3 +283,133 @@ let%expect_test "fallback cases trigger full oracle correctly and match results"
   [%expect {|
     all 3 fallback cases execute and match full oracle
     |}]
+
+let%expect_test "PR 6b entry map index and reversed list invariants" =
+  let base = get (B.of_string fixture) in
+  (* 1. Initial Monolithic state check *)
+  assert (B.entry_count base = 1);
+  assert (B.mem_entry base "init");
+  assert (not (B.mem_entry base "nonexistent"));
+  assert (Option.is_some (B.find_entry base "init"));
+  assert (Option.is_none (B.find_entry base "nonexistent"));
+  assert (List.length (B.entries_rev base) = 1);
+  assert (String.equal (List.hd_exn (B.entries base)).id "init");
+  assert (String.equal (List.hd_exn (B.entries_rev base)).id "init");
+
+  (* 2. Normal append with past date: record order vs transaction date *)
+  let past_tx : B.entry =
+    {
+      id = "past_e";
+      day = "2026-09-01"; (* Older than init (2026-10-01) *)
+      memo = Some "Past entry";
+      effects = [ posting "wallet" "jpy" (-3000) None; posting "food" "jpy" 3000 None ];
+      reversal_of = None;
+      exchange = None;
+    }
+  in
+  let inc_past = get (B.put_entry base ~replace:false past_tx ~plan:None) in
+  let full_past = get (B.put_entry_full base ~replace:false past_tx ~plan:None) in
+  assert_books_equal "past_date_append" inc_past full_past;
+
+  assert (B.entry_count inc_past = 2);
+  assert (B.mem_entry inc_past "past_e");
+  (* Recorded order must be oldest-recorded first, NOT chronological date order *)
+  let fwd_ids = List.map (B.entries inc_past) ~f:(fun e -> e.id) in
+  let rev_ids = List.map (B.entries_rev inc_past) ~f:(fun e -> e.id) in
+  assert (List.equal String.equal fwd_ids [ "init"; "past_e" ]);
+  assert (List.equal String.equal rev_ids [ "past_e"; "init" ]);
+
+  (* 3. Correction / Replacement (replace = true): Map must point to new entry, not old *)
+  let corrected_past : B.entry =
+    { past_tx with memo = Some "Corrected past memo"; day = "2026-09-02" }
+  in
+  let inc_replaced = get (B.put_entry inc_past ~replace:true corrected_past ~plan:None) in
+  let full_replaced = get (B.put_entry_full inc_past ~replace:true corrected_past ~plan:None) in
+  assert_books_equal "replace_entry" inc_replaced full_replaced;
+
+  assert (B.entry_count inc_replaced = 2);
+  let lookup_e = Option.value_exn (B.find_entry inc_replaced "past_e") in
+  assert (Option.equal String.equal lookup_e.memo (Some "Corrected past memo"));
+  assert (String.equal lookup_e.day "2026-09-02");
+  (* Forward order remains [ "init"; "past_e" ] *)
+  let fwd_replaced = List.map (B.entries inc_replaced) ~f:(fun e -> e.id) in
+  assert (List.equal String.equal fwd_replaced [ "init"; "past_e" ]);
+
+  (* 4. Reversal *)
+  let rev_tx : B.entry =
+    {
+      id = "rev_e";
+      day = "2026-10-05";
+      memo = Some "Reversal of past_e";
+      effects = [ posting "wallet" "jpy" 3000 None; posting "food" "jpy" (-3000) None ];
+      reversal_of = Some "past_e";
+      exchange = None;
+    }
+  in
+  let inc_rev = get (B.put_entry inc_replaced ~replace:false rev_tx ~plan:None) in
+  let full_rev = get (B.put_entry_full inc_replaced ~replace:false rev_tx ~plan:None) in
+  assert_books_equal "reversal_entry" inc_rev full_rev;
+  assert (B.entry_count inc_rev = 3);
+  assert (B.mem_entry inc_rev "rev_e");
+  assert (List.equal String.equal (List.map (B.entries inc_rev) ~f:(fun e -> e.id)) [ "init"; "past_e"; "rev_e" ]);
+
+  (* 5. FX Exchange *)
+  let fx_tx : B.entry =
+    {
+      id = "fx_e";
+      day = "2026-10-06";
+      memo = Some "FX exchange";
+      effects = [ posting "wallet" "jpy" (-15000) (Some "src"); posting "wallet" "usd" 100 (Some "dst") ];
+      reversal_of = None;
+      exchange = Some ("src", "dst");
+    }
+  in
+  let inc_fx = get (B.put_entry inc_rev ~replace:false fx_tx ~plan:None) in
+  let full_fx = get (B.put_entry_full inc_rev ~replace:false fx_tx ~plan:None) in
+  assert_books_equal "fx_entry" inc_fx full_fx;
+  assert (B.entry_count inc_fx = 4);
+  assert (B.mem_entry inc_fx "fx_e");
+
+  (* 6. Plan Payment *)
+  let pay_tx : B.entry =
+    {
+      id = "pay_rent";
+      day = "2026-10-25";
+      memo = Some "Pay rent plan";
+      effects = [ posting "bank" "jpy" (-10000) None; posting "expense" "jpy" 10000 None ];
+      reversal_of = None;
+      exchange = None;
+    }
+  in
+  let inc_pay = get (B.put_entry inc_fx ~replace:false pay_tx ~plan:(Some "rent")) in
+  let full_pay = get (B.put_entry_full inc_fx ~replace:false pay_tx ~plan:(Some "rent")) in
+  assert_books_equal "plan_pay_entry" inc_pay full_pay;
+  assert (B.entry_count inc_pay = 5);
+  assert (B.mem_entry inc_pay "pay_rent");
+  let paid_plan = Option.value_exn (List.find (B.plans inc_pay) ~f:(fun p -> String.equal p.id "rent")) in
+  assert (Option.equal String.equal paid_plan.paid_by (Some "pay_rent"));
+
+  (* 7. Records S-expression format export & reload *)
+  let rec_str = B.to_records_string inc_pay in
+  let reloaded_rec = get (B.of_string rec_str) in
+  assert (B.entry_count reloaded_rec = 5);
+  let rec_fwd_ids = List.map (B.entries reloaded_rec) ~f:(fun e -> e.id) in
+  let rec_rev_ids = List.map (B.entries_rev reloaded_rec) ~f:(fun e -> e.id) in
+  assert (List.equal String.equal rec_fwd_ids [ "init"; "past_e"; "rev_e"; "fx_e"; "pay_rent" ]);
+  assert (List.equal String.equal rec_rev_ids [ "pay_rent"; "fx_e"; "rev_e"; "past_e"; "init" ]);
+  List.iter rec_fwd_ids ~f:(fun id ->
+    assert (B.mem_entry reloaded_rec id);
+    assert (Option.is_some (B.find_entry reloaded_rec id)));
+  let loci = [ "wallet"; "bank"; "food"; "expense"; "reserve" ] in
+  let measures = [ "jpy"; "usd" ] in
+  List.iter loci ~f:(fun l ->
+      List.iter measures ~f:(fun m ->
+          let q_orig = query_str inc_pay l m in
+          let q_rec = query_str reloaded_rec l m in
+          if not (String.equal q_orig q_rec) then
+            failwith (Printf.sprintf "records_roundtrip balance mismatch at (%s, %s): %s vs %s" l m q_orig q_rec)));
+
+  Stdio.printf "PR 6b comprehensive regression invariants hold\n";
+  [%expect {|
+    PR 6b comprehensive regression invariants hold
+    |}]

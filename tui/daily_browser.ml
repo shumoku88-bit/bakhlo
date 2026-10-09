@@ -23,7 +23,7 @@ let initial = {
   plans_selected = 0;
 }
 
-let entries book = List.rev (B.entries book)
+let entries book = B.entries_rev book
 let plans book = B.plans book
 
 let selected_index model =
@@ -33,7 +33,7 @@ let selected_index model =
 
 let count ~book model =
   match model.view with
-  | Entries -> List.length (B.entries book)
+  | Entries -> B.entry_count book
   | Plans -> List.length (plans book)
 
 let apply_action ~book model = function
@@ -46,7 +46,7 @@ let apply_action ~book model = function
   | Switch_view ->
       let view = match model.view with Entries -> Plans | Plans -> Entries in
       let len = match view with
-        | Entries -> List.length (B.entries book)
+        | Entries -> B.entry_count book
         | Plans -> List.length (plans book)
       in
       let target_selected = match view with
@@ -58,7 +58,7 @@ let apply_action ~book model = function
        | Plans -> { model with view; plans_selected = target_selected })
   | Set_view view ->
       let len = match view with
-        | Entries -> List.length (B.entries book)
+        | Entries -> B.entry_count book
         | Plans -> List.length (plans book)
       in
       let target_selected = match view with
@@ -99,11 +99,11 @@ let history_lines ~book model =
   | Entries -> List.map (entry_text book) (entries book)
   | Plans -> List.map (plan_text book) (plans book)
 
-(* Skip without copying; collect only the requested rows, in reverse order. *)
-let take_reverse ~drop ~count rows =
+(* Skip without copying; collect only the requested rows in display order. *)
+let take_slice ~drop ~count rows =
   let rec take left acc = function
-    | _ when left <= 0 -> acc
-    | [] -> acc
+    | _ when left <= 0 -> List.rev acc
+    | [] -> List.rev acc
     | row :: rest -> take (left - 1) (row :: acc) rest
   in
   let rec skip left = function
@@ -120,14 +120,11 @@ let visible_slice ~book model ~room =
     let index format rows = List.mapi (fun offset row -> (start + offset, format row)) rows in
     match model.view with
     | Entries ->
-        (* Stored order is oldest first; do not reverse/format the whole history. *)
-        let rows = B.entries book in
-        let stop = max 0 (List.length rows - start) in
-        take_reverse ~drop:(max 0 (stop - room)) ~count:(min room stop) rows
+        (* B.entries_rev is newest first (display order); extract only the visible window without forcing full history. *)
+        take_slice ~drop:start ~count:room (B.entries_rev book)
         |> index (entry_text book)
     | Plans ->
-        take_reverse ~drop:start ~count:room (plans book)
-        |> List.rev
+        take_slice ~drop:start ~count:room (plans book)
         |> index (plan_text book)
 
 let selected_entry ~book model =
