@@ -38,25 +38,31 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   Book does not yet represent payment plans or all LOAM evidence.
 - The user's working-tree `record` shortcut and Japanese interface explanations
   are recent additions. They are not evidence that real-data recording is safe.
-- `tools/tui` connects the Bonsai_term screen to `Bakhlo_sexp.Daily_book`. The user
-  removed the Notty frontend (Bonsai only, also easing a later bonsai_web client) and
-  chose to rebuild the daily TUI as native Bonsai components. Self-checks live
-  in `daily_interaction_checks.ml`, UI-independent recording/draft/commit/reload
-  actions are in `daily_actions.ml`, browsing (entries/plans navigation and formatting)
-  is in `daily_browser.ml`, single-transaction form navigation and cursor text editing
-  is in `daily_form.ml`, multiple postings editor navigation and manipulation
-  is in `posting_editor.ml`, and overlay panes (loci picker, themes, command palette, review/details)
-  are in `daily_overlays.ml`.
-  `bonsai_daily.ml` structures Bonsai base and overlay views and explicit action types.
-  `daily_interaction.ml` delegates to `daily_actions.ml`, `daily_browser.ml`, `daily_form.ml`, `posting_editor.ml`, and `daily_overlays.ml`. The existing
-  under its separate compiler ABI, never from the archived ox-build source copy. Record/save/exit/cold reopen/edit, separate pre-edit
-  backups, vocabulary addition and explicit plan payment work in the trial.
-  Main tests and native self-checks passed. Real synthetic PTYs also passed
+- `tools/tui` connects both the Notty and Bonsai_term screens to `Bakhlo_sexp.Daily_book`.
+  Notty and Bonsai_term are co-equal official TUI frontends sharing the pure application
+  and interaction architecture. Self-checks live in `daily_interaction_checks.ml`, UI-independent
+  recording/draft/commit/reload actions are in `daily_actions.ml`, browsing (entries/plans
+  navigation and formatting) is in `daily_browser.ml`, single-transaction form navigation
+  and cursor text editing is in `daily_form.ml`, multiple postings editor navigation and
+  manipulation is in `posting_editor.ml`, and overlay panes (loci picker, themes, command
+  palette, review/details) are in `daily_overlays.ml`.
+  `daily_interaction.ml` delegates to these components without embedding UI-specific accounting
+  logic. Record/save/exit/cold reopen/edit, separate pre-edit backups, vocabulary addition
+  and explicit plan payment work in the trial.
+  Main tests and native self-checks passed for both frontends. Real synthetic PTYs also passed
   Notty record -> Bonsai reopen/edit -> Notty cold read, plus Bonsai plan payment,
   Japanese vocabulary, exact foreign input and paste refusal, with full terminal restoration.
   No new dependency or production-store qualification is implied.
   New source files pass the pinned formatter; repository-wide formatting still
   reports pre-existing Book/CLI layout differences, left untouched.
+- **Recent completed milestones (merged into main)**:
+  - **Trial 06**: Synthetic performance benchmarks and evaluation of large-scale record admission.
+  - **PR 5**: Durable append Records format (`daily_records.ml`), incremental admission, and TUI integration.
+  - **PR 6**: Records strip bytes copy optimization, entry indexing via immutable Map & reversed list.
+  - **PR UX-1 (PR #19)**: Natural Japanese error display, offending field targeting, and fail-closed draft preservation across validation and storage failures.
+  - **PR UX-2 (PR #20)**: Flexible amount parsing (half/full-width digits & commas, 3-digit comma grouping, currency scale enforcement, exact quanta `Z.t` without floats), flexible date parsing (YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD & strict Gregorian leap/month/year validation), date reset (`t` key on Date field), and Command Palette calendar navigation (`Space` -> Today, -1 day, +1 day) with pure calendar arithmetic and blocked-state guards.
+  - **PR UX-3 candidate**: Calculator expression input (`500+300`, `1000*2`) is designed in `docs/UX3_CALCULATOR_INPUT_DESIGN.ja.md` using exact rational/integer quanta (`Q.t` / `Z.t`), but is intentionally deferred and unimplemented.
+  - **P7 persistent Ack evidence**: Persistent acknowledgement evidence (post-save Ack loss verification and recovery) remains an unresolved, independent safety issue. Keep it separate from everyday UX work.
 - Both daily screens share Space -> Command Palette -> Theme and UI-only preferences
   in `daily_interaction.ml` / `ui_preferences.ml`. Terminal remains the safe default:
   no fixed foreground/background, reverse + bold focus and textual `>` markers.
@@ -198,6 +204,16 @@ fee policy or delayed foreign-card-to-JPY settlement relation is introduced by t
   exact-value and refusal checks passed; current `./tools/check` also passed.
 
 ## Next action
+
+### Guidance for the next session
+
+1. **Do not rush into new feature development**: UX-3 (calculator expressions) is fully designed in `docs/UX3_CALCULATOR_INPUT_DESIGN.ja.md` but remains intentionally deferred. Do not implement UX-3 or other large additions right away.
+2. **Exercise everyday operations on synthetic data**: Start the next session by trying everyday recording and browsing operations using a synthetic ledger (`examples/daily-book.sexp` copied to `scratch/my-daily-trial/book.sexp`) to assess ergonomics, draft retention, and corner cases of the merged UX-1 and UX-2 improvements.
+3. **Dual TUI parity**: Maintain equal status between Notty (`./tools/tui --notty`) and Bonsai_term (`./tools/tui`). Keep all accounting and input validation logic in shared Application/Interaction modules.
+4. **P7 unresolved safety issue**: Persistent acknowledgement evidence (post-save Ack loss verification) remains an unresolved, independent safety issue. It must be investigated independently without conflating with UI/UX tasks.
+5. **Operational authority**: LOAM continues to manage production authority and live household data. Bakhlo's trial availability is not an operational cutover certification. Production original data must not be touched.
+
+### Historical audit findings and boundary implementation
 
 The user approved addressing the long-term audit findings in order. The draft and
 performance boundaries are covered; the restart/recovery boundary has a first

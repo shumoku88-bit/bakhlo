@@ -5,6 +5,15 @@ Read the nearest implementation/interface and relevant semantic contract section
 for the task. Architecture, verification, references and learning notes are
 on-demand references, not a compulsory reading list or an implementation backlog.
 
+## Current status (as of PR UX-2 merge on main)
+
+- **Completed & Merged**: Trial 06, PR 5 (records format, durable append, application/TUI integration, incremental admission), PR 6 (records strip bytes copy optimization, entry indexing via immutable Map & reversed list), PR UX-1 (natural Japanese error display, field targeting, fail-closed draft preservation), and PR UX-2 (flexible amount parsing with half/full-width & 3-digit commas, flexible date parsing with YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD & Gregorian validation, 't' key today reset, Command Palette calendar navigation with pure calendar arithmetic).
+- **Dual TUI parity**: Notty and Bonsai_term are co-equal official TUIs sharing the application and interaction layer (`daily_actions.ml`, `daily_interaction.ml`, `daily_overlays.ml`, `daily_browser.ml`, `daily_form.ml`, `posting_editor.ml`). Neither frontend owns accounting logic. Both frontends must pass `./tools/tui --self-check`.
+- **Next candidate (UX-3)**: Calculator expression input (`500+300`, `1000*2`) is designed in `docs/UX3_CALCULATOR_INPUT_DESIGN.ja.md` using exact rational/integer quanta (`Q.t` / `Z.t`) without floats, implicit rounding, or zero-division, but is **intentionally deferred and unimplemented**.
+- **P7 unresolved safety issue**: Persistent acknowledgement evidence (post-save Ack loss verification) remains an unresolved, independent safety issue. Keep it separate from everyday UX work.
+- **Next work**: Do not rush to implement new features or start UX-3 immediately. Start by testing everyday recording and browsing operations on synthetic ledgers (`examples/daily-book.sexp`).
+- **Operational authority**: LOAM continues to manage production authority and live household data. Bakhlo is evaluated on synthetic data and private candidates. Never modify production originals.
+
 ## Product
 
 - Build an ordinary household ledger around recording/editing and payment plans,
@@ -20,9 +29,9 @@ on-demand references, not a compulsory reading list or an implementation backlog
   TUI Home has upper recording and a large lower browsing region. Tab switches
   regions; arrows operate within one region. Keep only the selected lower feature's
   content and focused-region help; use floating panes for picker/detail/preview.
-  Preserve drafts, selection and visible safety errors. The TUI is Bonsai_term only
-  (Notty removed); new panes are native Bonsai components with pure, testable updates.
-  See the checklist's design section.
+  Preserve drafts, selection and visible safety errors. Notty and Bonsai_term are
+  co-equal official TUIs sharing pure interaction logic; new panes use shared state
+  updates and pure formatting. See the checklist's design section.
 - Implement one usable step at a time. No textbook-driven abstractions, automatic
   LOAM feature parity, permanent correction-history requirement, multi-backend
   framework or speculative AI/voice/network/runtime work.

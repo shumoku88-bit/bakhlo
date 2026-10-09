@@ -22,8 +22,11 @@ budgetの画面・拡張はその結果で要否を決める。budgetは切替�
 
 - 独立した数量・取引検査と、根拠のある残高／不明の回答。
 - 限定された普通の記帳形式のS式読取と、新しい候補ファイルへの書出し。
-- 新しい家計簿S式をBonsai_term画面で読み、記帳・終了・再起動・編集・科目追加・予定の支払いを試せる。
+- 新しい家計簿S式をNottyおよびBonsai_term両画面で読み、記帳・終了・再起動・編集・科目追加・予定の支払いを試せる（対等な正式デュアルTUI）。
   編集前の内容は別バックアップに残し、正データの明細IDは保つ（まだ試用保存）。
+- 金額・日付入力の柔軟化（PR UX-2）: 全角・半角数字、正しい3桁カンマ区切り、小数通貨対応、グレゴリオ暦厳守の日付入力（`-`, `/`, `.` 対応）、日付欄での今日復帰（`t` キー）、コマンドパレットからの暦日移動（前日・翌日）。
+- 自然な日本語エラー表示と下書き保護（PR UX-1）: エラー時の対象フィールドへの自動フォーカス誘導、入力文字列と下書きの完全保護、不確定時の安全停止。
+- レコード形式（Records）の耐久追記保存と高速インデックス化（PR 5, PR 6）。
 - Daily台帳の純粋APIで、単発予定の作成・変更・日付付き取消を扱える（操作UIは未接続）。
   取消済み予定は残し、支払い済み／取消済みの再支払いを拒否する。
 - `Daily_book.daily_pace`でLOAM Home `d`相当の今日の目安を計算できる（UIは未接続）。
@@ -60,7 +63,7 @@ budgetの画面・拡張はその結果で要否を決める。budgetは切替�
 
 ### 日々の画面を試す
 
-今ある隔離Bonsai環境を使う。`tools/tui` は依存を新規インストールしない（Notty画面は廃止）。
+隔離環境を使う。`tools/tui` は依存を新規インストールしない。Bonsai_term（標準: `./tools/tui`）とNotty（`./tools/tui --notty`）の両画面を対等な正式TUIとしてサポートする。
 最初は合成データを新しい場所へコピーする（既存ファイルは置換しない）。
 
 ```sh
@@ -68,6 +71,8 @@ umask 077
 mkdir scratch/my-daily-trial
 ./tools/tui --copy-from examples/daily-book.sexp --book scratch/my-daily-trial/book.sexp
 ./tools/tui --book scratch/my-daily-trial/book.sexp
+# Notty画面を試す場合:
+# ./tools/tui --notty --book scratch/my-daily-trial/book.sexp
 ```
 
 上は記帳、下は閲覧。`Tab`／`Shift-Tab`で上下を切り替え、上の`↑↓`は記帳項目、下の`↑↓`は一覧選択。
@@ -89,7 +94,7 @@ picker内の確定は下書きの選択だけで保存しない。明細一覧�
 - `lib/`：識別子・金額・取引の小さな型。
 - `application/`：検査と数量の問い合わせ。
 - `sexp/`：既存Bookと、新しい `Daily_book` の純粋な読取・更新。
-- `tui/`：新しい家計簿を使うBonsai_term画面と、明示的なファイル入出力。
+- `tui/`：新しい家計簿を使うNotty／Bonsai_term両TUI画面と、明示的なファイル入出力。
 - `cli/`、`presentation/`、`bin/`：引数・表示・入出力。
 - `loam_read/`：限定された読み取り専用LOAM入力。完全な移行アダプタではない。
 - `test/`：既存のOCamlテスト。
@@ -102,12 +107,14 @@ Bakhloのコア実装・Daily保存・TUI接続・運用認定を別々に確認
 [LOAMの機能棚卸し・乗り換え判定表](docs/CUTOVER_CHECKLIST.ja.md)で、
 現在の対応範囲と切替前に必要な生活操作を選ぶ。
 まず記帳・予定管理・各種残高・LOAM Daily Paceと、必要になったレポートでの実運用を目指す。
-budgetは保留し、これらだけでやりくりできれば採用しない選択もある。Attentionの以前の要望も保持する。
-詳細と安全な切替条件は検討中。既存経路を使う小さな段階案も同じ表にまとめている。
+次回は新機能を急がず、合成台帳で日常操作の使い心地を試すところから始める。
+電卓機能（UX-3）は [電卓入力設計メモ](docs/UX3_CALCULATOR_INPUT_DESIGN.ja.md) に整理済みだが未実装。
+家計正データは引き続きLOAMが管理し、本番データは変更しない。
 
 - [意味の契約](docs/SEMANTIC_CONTRACT.md)
 - [開発手順](docs/DEVELOPMENT.md)
 - [現在の実装・実験の設計資料](docs/ARCHITECTURE.md)
 - [検証記録と限界](docs/VERIFICATION.md)
+- [電卓入力設計メモ (PR UX-3候補)](docs/UX3_CALCULATOR_INPUT_DESIGN.ja.md)
 
 実データ・秘密情報はGitに入れない。試作の成功だけで本番移行や公開はしない。
