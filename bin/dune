@@ -1,12 +1,5 @@
 (executable
  (name main)
- (modules main)
  (public_name bakhlo)
  (package bakhlo)
  (libraries bakhlo_cli bakhlo_sexp unix))
-
-; Research-only native measurement executable; removed after evidence is recorded.
-(executable
- (name daily_book_cost_probe)
- (modules daily_book_cost_probe)
- (libraries bakhlo_domain bakhlo_application bakhlo_sexp zarith unix))
