@@ -12,6 +12,7 @@ type commit_result =
   | Lsn_conflict of { expected : int; actual : int }
   | Payload_drift_refused of string
   | Storage_error of string
+  | Sync_uncertain of { lsn : int; event_id : string; error : string }
 
 type in_doubt_status =
   | In_doubt_none
@@ -39,6 +40,7 @@ type engine = {
   lock_path : string;
   mutable current_lsn : int;
   mutable last_file_size : int;
+  mutable last_mtime : float;
   token_index : (string, token_record) Hashtbl.t;
   mutable latest_token : string option;
   mutable latest_event_id : string option;
@@ -53,6 +55,8 @@ let acknowledge_session session ~token ~lsn =
 
 let current_lsn engine = engine.current_lsn
 let path engine = engine.path
+let latest_token engine = engine.latest_token
+let latest_event_id engine = engine.latest_event_id
 
 let with_lock lock_path f =
   let fd = Unix.openfile lock_path [ Unix.O_RDWR; Unix.O_CREAT; Unix.O_CLOEXEC ] 0o600 in
@@ -63,11 +67,27 @@ let with_lock lock_path f =
       f ())
 
 let sync_parent path =
-  try
-    let parent = Filename.dirname path in
-    let fd = Unix.openfile parent [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
-    Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> Unix.fsync fd)
-  with Unix.Unix_error _ -> ()
+  let parent = Filename.dirname path in
+  let fd_opt =
+    try Some (Unix.openfile parent [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0)
+    with
+    | Unix.Unix_error ((Unix.EACCES | Unix.EINVAL | Unix.EOPNOTSUPP | Unix.ENOSYS | Unix.EPERM), _, _) ->
+        None
+    | Unix.Unix_error (e, _, _) ->
+        raise (Failure (Printf.sprintf "open-parent-failed: %s" (Unix.error_message e)))
+  in
+  match fd_opt with
+  | None -> ()
+  | Some fd ->
+      Fun.protect
+        ~finally:(fun () -> Unix.close fd)
+        (fun () ->
+          try Unix.fsync fd
+          with
+          | Unix.Unix_error ((Unix.EINVAL | Unix.EOPNOTSUPP | Unix.ENOSYS | Unix.EISDIR | Unix.EBADF), _, _) ->
+              ()
+          | Unix.Unix_error (e, _, _) ->
+              raise (Failure (Printf.sprintf "fsync-parent-failed: %s" (Unix.error_message e))))
 
 let rec write_all fd buf pos len =
   if len > 0 then
@@ -117,19 +137,28 @@ let populate_index engine token_index frames =
     frames
 
 let sync_from_disk_locked engine =
-  if Sys.file_exists engine.path then
+  if not (Sys.file_exists engine.path) then Ok ()
+  else
     let st = Unix.stat engine.path in
-    if st.st_size <> engine.last_file_size then begin
+    if st.st_size = engine.last_file_size && Float.equal st.st_mtime engine.last_mtime then
+      Ok ()
+    else
       let content = read_file_contents engine.path in
       let insp = Records_book.inspect_string content in
       match insp.corruption with
+      | Records_book.Mid_file { byte_offset; reason } ->
+          Error (Printf.sprintf "corrupt-mid-file-at-%d: %s" byte_offset reason)
       | Records_book.No_corruption ->
-          Hashtbl.clear engine.token_index;
-          populate_index engine engine.token_index insp.valid_frames;
-          engine.current_lsn <- insp.last_lsn;
-          engine.last_file_size <- st.st_size
-      | _ -> ()
-    end
+          if insp.trailing_torn_bytes > 0 then
+            Error (Printf.sprintf "trailing-torn-bytes-detected-in-live-session: %d bytes" insp.trailing_torn_bytes)
+          else begin
+            Hashtbl.clear engine.token_index;
+            populate_index engine engine.token_index insp.valid_frames;
+            engine.current_lsn <- insp.last_lsn;
+            engine.last_file_size <- st.st_size;
+            engine.last_mtime <- st.st_mtime;
+            Ok ()
+          end
 
 let recover_and_open path =
   let lock_path = path ^ ".lock" in
@@ -142,6 +171,7 @@ let recover_and_open path =
             lock_path;
             current_lsn = -1;
             last_file_size = 0;
+            last_mtime = 0.0;
             token_index;
             latest_token = None;
             latest_event_id = None;
@@ -161,20 +191,32 @@ let recover_and_open path =
                 if insp.trailing_torn_bytes > 0 then begin
                   let valid_bytes = total_bytes - insp.trailing_torn_bytes in
                   try
-                    (* Safe truncate: only trailing torn write *)
-                    Unix.truncate path valid_bytes;
+                    let fd = Unix.openfile path [ Unix.O_RDWR; Unix.O_CLOEXEC ] 0o600 in
+                    Fun.protect
+                      ~finally:(fun () -> Unix.close fd)
+                      (fun () ->
+                        Unix.ftruncate fd valid_bytes;
+                        Unix.fsync fd);
                     sync_parent path;
                     engine.last_file_size <- valid_bytes;
+                    let st = Unix.stat path in
+                    engine.last_mtime <- st.st_mtime;
                     Some (Torn_write_truncated { valid_lsn = insp.last_lsn; truncated_bytes = insp.trailing_torn_bytes })
-                  with Unix.Unix_error (e, _, _) ->
-                    Some (Truncate_failed (Unix.error_message e))
+                  with
+                  | Unix.Unix_error (e, _, _) ->
+                      Some (Truncate_failed (Unix.error_message e))
+                  | Failure msg ->
+                      Some (Truncate_failed msg)
                 end else begin
                   engine.last_file_size <- total_bytes;
+                  let st = Unix.stat path in
+                  engine.last_mtime <- st.st_mtime;
                   None
                 end
               in
               match truncated_res with
-              | Some (Truncate_failed msg) -> Ok (engine, Truncate_failed msg)
+              | Some (Truncate_failed msg) ->
+                  Error ("truncate-failed-fail-closed: " ^ msg)
               | Some (Torn_write_truncated _ as action) ->
                   populate_index engine token_index insp.valid_frames;
                   engine.current_lsn <- insp.last_lsn;
@@ -211,66 +253,78 @@ let append_payload engine ~session:_ ~expected_lsn ~token ~event_id ~payload =
   try
     with_lock engine.lock_path (fun () ->
         (* 0. Re-sync from disk under lock to observe any external committed updates *)
-        sync_from_disk_locked engine;
+        match sync_from_disk_locked engine with
+        | Error err -> Storage_error ("storage-corrupted-fail-closed: " ^ err)
+        | Ok () ->
+            (* 1. Request token machine idempotency check first *)
+            let duplicate_opt =
+              match token with
+              | None -> None
+              | Some tok -> (
+                  match Hashtbl.find_opt engine.token_index tok with
+                  | None -> None
+                  | Some existing ->
+                      let current_summary = payload_summary_of payload in
+                      if String.equal existing.payload_summary current_summary then
+                        Some (Idempotent_duplicate { lsn = existing.lsn; event_id = existing.event_id })
+                      else
+                        Some (Payload_drift_refused (Printf.sprintf "duplicate-token-%s-payload-drift" tok)))
+            in
+            match duplicate_opt with
+            | Some res -> res
+            | None ->
+                (* 2. LSN conflict detection *)
+                let next_lsn = engine.current_lsn + 1 in
+                if expected_lsn <> next_lsn then
+                  Lsn_conflict { expected = expected_lsn; actual = next_lsn }
+                else
+                  (* 3. Encode frame with CRC32 *)
+                  let frame = Records_book.encode_frame next_lsn payload in
+                  let line = Records_book.serialize_frame frame ^ "\n" in
+                  let line_len = String.length line in
 
-        (* 1. LSN conflict detection *)
-        let next_lsn = engine.current_lsn + 1 in
-        if expected_lsn <> next_lsn then
-          Lsn_conflict { expected = expected_lsn; actual = next_lsn }
-        else
-          (* 2. Request token machine idempotency *)
-          let is_duplicate =
-            match token with
-            | None -> None
-            | Some tok -> (
-                match Hashtbl.find_opt engine.token_index tok with
-                | None -> None
-                | Some existing ->
-                    let current_summary = payload_summary_of payload in
-                    if String.equal existing.payload_summary current_summary then
-                      Some (Ok (Idempotent_duplicate { lsn = existing.lsn; event_id = existing.event_id }))
-                    else
-                      Some (Error (Payload_drift_refused (Printf.sprintf "duplicate-token-%s-payload-drift" tok))))
-          in
-          match is_duplicate with
-          | Some (Ok dup) -> dup
-          | Some (Error refused) -> refused
-          | None ->
-              (* 3. Encode frame with CRC32 *)
-              let frame = Records_book.encode_frame next_lsn payload in
-              let line = Records_book.serialize_frame frame ^ "\n" in
-              let line_len = String.length line in
+                  (* 4. Append & fsync *)
+                  let fd =
+                    Unix.openfile engine.path
+                      [ Unix.O_WRONLY; Unix.O_APPEND; Unix.O_CREAT; Unix.O_CLOEXEC ]
+                      0o600
+                  in
+                  Fun.protect
+                    ~finally:(fun () -> Unix.close fd)
+                    (fun () ->
+                      write_all fd line 0 line_len;
+                      Unix.fsync fd);
 
-              (* 4. Append & fsync *)
-              let fd =
-                Unix.openfile engine.path
-                  [ Unix.O_WRONLY; Unix.O_APPEND; Unix.O_CREAT; Unix.O_CLOEXEC ]
-                  0o600
-              in
-              Fun.protect
-                ~finally:(fun () -> Unix.close fd)
-                (fun () ->
-                  write_all fd line 0 line_len;
-                  Unix.fsync fd);
-              sync_parent engine.path;
+                  let sync_parent_res =
+                    try
+                      sync_parent engine.path;
+                      Ok ()
+                    with
+                    | Unix.Unix_error (e, _, _) -> Error (Unix.error_message e)
+                    | Failure msg -> Error msg
+                  in
 
-              (* 5. Update engine in-memory state only AFTER fsync *)
-              engine.current_lsn <- next_lsn;
-              engine.last_file_size <- engine.last_file_size + line_len;
-              Option.iter
-                (fun tok ->
-                  Hashtbl.replace engine.token_index tok
-                    {
-                      token = tok;
-                      event_id;
-                      lsn = next_lsn;
-                      payload_summary = payload_summary_of payload;
-                    };
-                  engine.latest_token <- Some tok;
-                  engine.latest_event_id <- Some event_id)
-                token;
+                  (* 5. Update engine in-memory state only AFTER file fsync *)
+                  engine.current_lsn <- next_lsn;
+                  let st = Unix.stat engine.path in
+                  engine.last_file_size <- st.st_size;
+                  engine.last_mtime <- st.st_mtime;
+                  Option.iter
+                    (fun tok ->
+                      Hashtbl.replace engine.token_index tok
+                        {
+                          token = tok;
+                          event_id;
+                          lsn = next_lsn;
+                          payload_summary = payload_summary_of payload;
+                        };
+                      engine.latest_token <- Some tok;
+                      engine.latest_event_id <- Some event_id)
+                    token;
 
-              Commit_success { lsn = next_lsn; event_id })
+                  match sync_parent_res with
+                  | Ok () -> Commit_success { lsn = next_lsn; event_id }
+                  | Error err -> Sync_uncertain { lsn = next_lsn; event_id; error = err })
   with
   | Unix.Unix_error (e, _, _) -> Storage_error (Unix.error_message e)
   | Failure msg -> Storage_error msg
