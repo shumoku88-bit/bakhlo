@@ -409,15 +409,15 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
                  (B.label book form.from_locus))
           else if String.equal form.amount "" then
             err ~field:Field_amount ~raw:"empty-amount"
-              "金額が入力されていません。半角数字で入力してください。"
+              "金額が入力されていません。金額を入力してください (例: 1000, 1,000)。"
           else
             (match B.parse_amount book form.measure form.amount with
             | Error "invalid-amount" ->
                 err ~field:Field_amount ~raw:"invalid-amount"
-                  "金額の形式が正しくありません。半角数字で入力してください (例: 1000)。"
+                  "金額の形式が正しくありません。正しい金額を入力してください (例: 1000, 1,000)。"
             | Error "non-positive-amount" ->
                 err ~field:Field_amount ~raw:"non-positive-amount"
-                  "金額には0より大きい正の値を入力してください。"
+                    "金額には0より大きい正の値を入力してください。"
             | Error "amount-precision" ->
                 let scale =
                   try List.assoc form.measure (B.measures book) with Not_found -> 0
@@ -476,7 +476,7 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
             | Error "empty-measure" ->
                 err ~field:Field_currency ~raw:"empty-measure" "通貨が指定されていません。"
             | Error why when Base.String.is_substring why ~substring:"invalid-amount" ->
-                err ~raw:why (Printf.sprintf "%s。半角数字で金額を入力してください。" why)
+                err ~raw:why (Printf.sprintf "%s。正しい金額を入力してください (例: 1000, 1,000)。" why)
             | Error why when Base.String.is_substring why ~substring:"non-positive-amount" ->
                 err ~raw:why (Printf.sprintf "%s。0より大きい正の金額を入力してください。" why)
             | Error why when Base.String.is_substring why ~substring:"amount-precision" ->

@@ -984,7 +984,133 @@ let flexible_input_self_check ~directory ~base =
        require (Z.equal (A.quanta food_eff) (Z.of_int 123456)) "preview-eur-quanta-123456"
    | _ -> failwith "expected Preview overlay for eur form");
 
-  (* 10. 性能退行チェック: 1,000回の正規化・パースループが数ミリ秒以内で完了すること *)
+  (* 10. blocked 状態での日付変更禁止 (コマンドパレット & 't' キー) *)
+  let blocked_base =
+    {
+      base with
+      blocked = true;
+      form = { base.form with day = "2026-10-09"; amount = "1,000"; memo = "blocked-memo" };
+      message = "保存試行の未確認情報があります。書込み停止。";
+      focus = Date;
+    }
+  in
+
+  (* blocked中の日付欄での 't' キー: 日付もメッセージも変更されないこと *)
+  let blocked_t = press blocked_base (`ASCII 't') in
+  require (blocked_t.form.day = "2026-10-09") "blocked-date-t-key-no-change-day";
+  require (blocked_t.form.amount = "1,000") "blocked-date-t-key-retains-amount";
+  require (blocked_t.form.memo = "blocked-memo") "blocked-date-t-key-retains-memo";
+  require (blocked_t.blocked = true) "blocked-date-t-key-stays-blocked";
+  require (blocked_t.message = "保存試行の未確認情報があります。書込み停止。") "blocked-date-t-key-retains-message";
+
+  (* blocked中のコマンドパレット Date_today: 日付も下書きも変更されないこと *)
+  let blocked_cmd = press blocked_base (`ASCII ' ') in
+  require (blocked_cmd.overlay = Commands 0) "blocked-commands-opened";
+  let blocked_today = press (press blocked_cmd (`Arrow `Down)) `Enter in
+  require (blocked_today.overlay = No_overlay) "blocked-cmd-today-overlay-closed";
+  require (blocked_today.form.day = "2026-10-09") "blocked-cmd-today-no-change-day";
+  require (blocked_today.form.amount = "1,000") "blocked-cmd-today-retains-amount";
+  require (blocked_today.blocked = true) "blocked-cmd-today-stays-blocked";
+  require (blocked_today.message = "保存試行の未確認情報があります。書込み停止。") "blocked-cmd-today-retains-message";
+
+  (* blocked中のコマンドパレット Date_prev_day: 日付も下書きも変更されないこと *)
+  let blocked_prev = press (press (press (press blocked_base (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (blocked_prev.overlay = No_overlay) "blocked-cmd-prev-overlay-closed";
+  require (blocked_prev.form.day = "2026-10-09") "blocked-cmd-prev-no-change-day";
+  require (blocked_prev.form.amount = "1,000") "blocked-cmd-prev-retains-amount";
+  require (blocked_prev.blocked = true) "blocked-cmd-prev-stays-blocked";
+  require (blocked_prev.message = "保存試行の未確認情報があります。書込み停止。") "blocked-cmd-prev-retains-message";
+
+  (* blocked中のコマンドパレット Date_next_day: 日付も下書きも変更されないこと *)
+  let blocked_next = press (press (press (press (press blocked_base (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (blocked_next.overlay = No_overlay) "blocked-cmd-next-overlay-closed";
+  require (blocked_next.form.day = "2026-10-09") "blocked-cmd-next-no-change-day";
+  require (blocked_next.form.amount = "1,000") "blocked-cmd-next-retains-amount";
+  require (blocked_next.blocked = true) "blocked-cmd-next-stays-blocked";
+  require (blocked_next.message = "保存試行の未確認情報があります。書込み停止。") "blocked-cmd-next-retains-message";
+
+  (* 11. 不正日付からの前日・翌日操作の拒否と下書き完全保持 *)
+  let invalid_date_state =
+    {
+      base with
+      form = { base.form with day = "2026-02-29"; amount = "1,000"; memo = "draft-memo"; from_locus = "wallet"; to_locus = "food" };
+      focus = Date;
+    }
+  in
+  (* 前日操作: 今日の日付で代用せず、操作拒否、元の "2026-02-29" と全下書きを保持し、日付欄修正を案内 *)
+  let inv_prev = press (press (press (press invalid_date_state (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (inv_prev.overlay = No_overlay) "inv-prev-overlay-closed";
+  require (inv_prev.form.day = "2026-02-29") "inv-prev-retains-raw-invalid-day";
+  require (inv_prev.form.amount = "1,000") "inv-prev-retains-amount";
+  require (inv_prev.form.memo = "draft-memo") "inv-prev-retains-memo";
+  require (inv_prev.form.from_locus = "wallet" && inv_prev.form.to_locus = "food") "inv-prev-retains-loci";
+  require (Base.String.is_substring inv_prev.message ~substring:"日付の形式が不正なため移動できません") "inv-prev-message-guidance";
+  require (Base.String.is_substring inv_prev.message ~substring:"2026-02-29") "inv-prev-message-raw-echo";
+  require (Base.String.is_substring inv_prev.message ~substring:"日付欄 (YYYY-MM-DD) を修正") "inv-prev-message-fix-hint";
+
+  (* 翌日操作: 同様に今日で代用せず拒否し、下書き保持 *)
+  let inv_next = press (press (press (press (press invalid_date_state (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (inv_next.overlay = No_overlay) "inv-next-overlay-closed";
+  require (inv_next.form.day = "2026-02-29") "inv-next-retains-raw-invalid-day";
+  require (inv_next.form.amount = "1,000") "inv-next-retains-amount";
+  require (inv_next.form.memo = "draft-memo") "inv-next-retains-memo";
+  require (Base.String.is_substring inv_next.message ~substring:"日付の形式が不正なため移動できません") "inv-next-message-guidance";
+
+  (* 12. 空の日付の扱い: 空欄は今日 (F.today ()) を基準として前日・翌日に移動 *)
+  let empty_date_base =
+    {
+      base with
+      form = { base.form with day = ""; amount = "500"; memo = "empty-day-memo" };
+      focus = Date;
+    }
+  in
+  let empty_prev = press (press (press (press empty_date_base (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  let expected_yesterday =
+    match A.shift_calendar_day (F.today ()) (-1) with Ok d -> d | Error _ -> failwith "today-shift-fail"
+  in
+  require (empty_prev.form.day = expected_yesterday) "empty-day-prev-shifts-from-today";
+  require (empty_prev.form.amount = "500") "empty-day-prev-retains-amount";
+
+  let empty_next = press (press (press (press (press empty_date_base (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  let expected_tomorrow =
+    match A.shift_calendar_day (F.today ()) 1 with Ok d -> d | Error _ -> failwith "today-shift-fail"
+  in
+  require (empty_next.form.day = expected_tomorrow) "empty-day-next-shifts-from-today";
+  require (empty_next.form.amount = "500") "empty-day-next-retains-amount";
+
+  (* 13. 限界値 0001-01-01 と 9999-12-31 の範囲外移動拒否と下書き保持 *)
+  require (A.shift_calendar_day "0001-01-01" (-1) = Error "date-out-of-range") "min-date-shift-unit-refused";
+  require (A.shift_calendar_day "9999-12-31" 1 = Error "date-out-of-range") "max-date-shift-unit-refused";
+
+  let min_date_state =
+    {
+      base with
+      form = { base.form with day = "0001-01-01"; amount = "2,000"; memo = "min-date-memo" };
+      focus = Date;
+    }
+  in
+  let min_prev = press (press (press (press min_date_state (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (min_prev.overlay = No_overlay) "min-prev-overlay-closed";
+  require (min_prev.form.day = "0001-01-01") "min-prev-retains-day";
+  require (min_prev.form.amount = "2,000") "min-prev-retains-amount";
+  require (min_prev.form.memo = "min-date-memo") "min-prev-retains-memo";
+  require (Base.String.is_substring min_prev.message ~substring:"許容範囲 (0001-01-01 〜 9999-12-31)") "min-prev-range-message";
+
+  let max_date_state =
+    {
+      base with
+      form = { base.form with day = "9999-12-31"; amount = "3,000"; memo = "max-date-memo" };
+      focus = Date;
+    }
+  in
+  let max_next = press (press (press (press (press max_date_state (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (max_next.overlay = No_overlay) "max-next-overlay-closed";
+  require (max_next.form.day = "9999-12-31") "max-next-retains-day";
+  require (max_next.form.amount = "3,000") "max-next-retains-amount";
+  require (max_next.form.memo = "max-date-memo") "max-next-retains-memo";
+  require (Base.String.is_substring max_next.message ~substring:"許容範囲 (0001-01-01 〜 9999-12-31)") "max-next-range-message";
+
+  (* 14. 性能退行チェック: 1,000回の正規化・パースループが数ミリ秒以内で完了すること *)
   let t0 = Unix.gettimeofday () in
   for _ = 1 to 1000 do
     ignore (A.normalize_date "２０２６／１／９");
