@@ -310,6 +310,8 @@ let commit_transaction ~session ~base_bytes (tx : transaction) : commit_result =
             try
               match F.append_entry ~candidate session rec_entry with
               | F.Append_committed { session = updated; _ } -> Published updated
+              | F.Append_sync_uncertain { error; _ } ->
+                  Uncertain (Printf.sprintf "保存成否不確定: ディレクトリ同期に失敗しました (%s)" error)
               | F.Append_idempotent { session = updated; lsn; event_id } ->
                   Idempotent_duplicate { lsn; event_id; session = updated }
               | F.Append_lsn_conflict { expected; actual } ->
@@ -349,6 +351,8 @@ let commit_add_locus ~session name : commit_result =
           try
             match F.append_add_locus ~candidate session name with
             | F.Append_committed { session = updated; _ } -> Published updated
+            | F.Append_sync_uncertain { error; _ } ->
+                Uncertain (Printf.sprintf "科目追加成否不確定: ディレクトリ同期に失敗しました (%s)" error)
             | F.Append_idempotent { session = updated; lsn; event_id } ->
                 Idempotent_duplicate { lsn; event_id; session = updated }
             | F.Append_lsn_conflict { expected; actual } ->

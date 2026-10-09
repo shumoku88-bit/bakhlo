@@ -16,6 +16,7 @@ type commit_result =
   | Lsn_conflict of { expected : int; actual : int }
   | Payload_drift_refused of string
   | Storage_error of string
+  | Sync_uncertain of { lsn : int; event_id : string; error : string }
 
 type in_doubt_status =
   | In_doubt_none
@@ -52,6 +53,12 @@ val current_lsn : engine -> int
 
 val path : engine -> string
 (** Return underlying log file path. *)
+
+val latest_token : engine -> string option
+(** Most recent request token committed to the log, if any. *)
+
+val latest_event_id : engine -> string option
+(** Most recent event ID associated with the committed token, if any. *)
 
 val append_payload :
   engine ->

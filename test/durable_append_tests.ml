@@ -370,4 +370,96 @@ let%test_unit "durable_append newline-terminated syntax error at tail fails clos
     | DA.Corrupt_fail_closed _ -> ()
     | _ -> failwith "Newline-terminated tail syntax error must fail closed")
 
+let%test_unit "durable_append sync_from_disk fails closed when log is corrupted on disk" =
+  let paths = make_temp_log () in
+  let path, _ = paths in
+  Stdlib.Fun.protect ~finally:(fun () -> cleanup_paths paths) (fun () ->
+    let engine, _ = Result.ok_or_failwith (DA.recover_and_open path) in
+    let session = DA.create_session ~session_id:"sess-1" () in
+    let h = make_test_header () in
+    let _ = DA.append_payload engine ~session ~expected_lsn:0 ~token:None ~event_id:"header" ~payload:(RB.Header h) in
+    let e1 = make_test_entry "e1" "2026-10-09" (Some "tok-1") 1000 in
+    let _ = DA.append_entry engine ~session ~expected_lsn:1 e1 in
+
+    (* Corrupt the file externally while engine is open *)
+    let oc = Stdlib.open_out_gen [ Stdlib.Open_wronly; Stdlib.Open_append ] 0o600 path in
+    Stdlib.output_string oc "BROKEN_CORRUPT_TRAILING_DATA_WITHOUT_NEWLINE";
+    Stdlib.close_out oc;
+
+    (* Next append must fail closed immediately *)
+    let e2 = make_test_entry "e2" "2026-10-09" (Some "tok-2") 2000 in
+    let res = DA.append_entry engine ~session ~expected_lsn:2 e2 in
+    match res with
+    | DA.Storage_error msg ->
+        assert (String.is_substring msg ~substring:"storage-corrupted-fail-closed")
+    | _ -> failwith "Append on corrupted log must fail closed with Storage_error")
+
+let%test_unit "durable_append idempotent retry succeeds even with stale expected_lsn" =
+  let paths = make_temp_log () in
+  let path, _ = paths in
+  Stdlib.Fun.protect ~finally:(fun () -> cleanup_paths paths) (fun () ->
+    let engine, _ = Result.ok_or_failwith (DA.recover_and_open path) in
+    let session = DA.create_session ~session_id:"sess-1" () in
+    let h = make_test_header () in
+    let _ = DA.append_payload engine ~session ~expected_lsn:0 ~token:None ~event_id:"header" ~payload:(RB.Header h) in
+    let e1 = make_test_entry "e1" "2026-10-09" (Some "tok-1") 1000 in
+    let _ = DA.append_entry engine ~session ~expected_lsn:1 e1 in
+    let e2 = make_test_entry "e2" "2026-10-09" (Some "tok-2") 2000 in
+    let _ = DA.append_entry engine ~session ~expected_lsn:2 e2 in
+    assert (DA.current_lsn engine = 2);
+
+    (* Retry e1 with STALE expected_lsn = 1 (or 0): token idempotency MUST take priority over LSN check *)
+    let res_retry = DA.append_entry engine ~session ~expected_lsn:1 e1 in
+    (match res_retry with
+    | DA.Idempotent_duplicate { lsn = 1; event_id = "e1" } -> ()
+    | _ -> failwith "Idempotent retry with stale expected_lsn must succeed");
+
+    (* Token duplicate with payload drift must refuse even with stale expected_lsn *)
+    let e1_drift = make_test_entry "e1" "2026-10-09" (Some "tok-1") 9999 in
+    let res_drift = DA.append_entry engine ~session ~expected_lsn:1 e1_drift in
+    (match res_drift with
+    | DA.Payload_drift_refused _ -> ()
+    | _ -> failwith "Drift with stale expected_lsn must still refuse"))
+
+let%test_unit "durable_append recovery fails closed when truncate fails" =
+  let paths = make_temp_log () in
+  let path, _ = paths in
+  Stdlib.Fun.protect ~finally:(fun () -> cleanup_paths paths) (fun () ->
+    let engine, _ = Result.ok_or_failwith (DA.recover_and_open path) in
+    let session = DA.create_session ~session_id:"sess-1" () in
+    let h = make_test_header () in
+    let _ = DA.append_payload engine ~session ~expected_lsn:0 ~token:None ~event_id:"header" ~payload:(RB.Header h) in
+    DA.close_engine engine;
+
+    (* Add trailing torn write *)
+    let oc = Stdlib.open_out_gen [ Stdlib.Open_wronly; Stdlib.Open_append ] 0o600 path in
+    Stdlib.output_string oc "(frame (lsn 1) (torn";
+    Stdlib.close_out oc;
+
+    (* Make file read-only so ftruncate / write fails *)
+    Unix.chmod path 0o400;
+
+    let res = DA.recover_and_open path in
+    (* Reset chmod for cleanup *)
+    (try Unix.chmod path 0o600 with _ -> ());
+    match res with
+    | Error msg ->
+        assert (String.is_substring msg ~substring:"truncate-failed-fail-closed")
+    | Ok _ -> failwith "Recovery must fail closed when truncate fails")
+
+let%test_unit "durable_append latest_token and latest_event_id tracking" =
+  let paths = make_temp_log () in
+  let path, _ = paths in
+  Stdlib.Fun.protect ~finally:(fun () -> cleanup_paths paths) (fun () ->
+    let engine, _ = Result.ok_or_failwith (DA.recover_and_open path) in
+    let session = DA.create_session ~session_id:"sess-1" () in
+    let h = make_test_header () in
+    let _ = DA.append_payload engine ~session ~expected_lsn:0 ~token:None ~event_id:"header" ~payload:(RB.Header h) in
+    assert (Option.is_none (DA.latest_token engine));
+
+    let e1 = make_test_entry "e1" "2026-10-09" (Some "tok-1") 1000 in
+    let _ = DA.append_entry engine ~session ~expected_lsn:1 e1 in
+    assert (Option.equal String.equal (DA.latest_token engine) (Some "tok-1"));
+    assert (Option.equal String.equal (DA.latest_event_id engine) (Some "e1")))
+
 
