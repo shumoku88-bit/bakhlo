@@ -785,6 +785,347 @@ let error_display_self_check ~directory ~base =
     "PASS: error display natural Japanese, field focus targeting, non-blaming admission, draft \
      retention, and storage/LSN/uncertain fail-closed distinction."
 
+let flexible_input_self_check ~directory ~base =
+  let require = F.require in
+  let step s input =
+    match handle s input with Some s -> s | None -> raise (F.Refused "flexible-input-exit")
+  in
+  let press s button = step s (`Key (button, [])) in
+
+  (* 1. 日付正規化と検証: YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD, YYYY/M/D, 全角区切り・全角数字 *)
+  let check_date_ok raw expected =
+    match A.normalize_date raw with
+    | Ok canon -> require (canon = expected) ("date-norm-mismatch-" ^ raw)
+    | Error err -> failwith ("expected valid date for " ^ raw ^ ", got " ^ err)
+  in
+  let check_date_err raw =
+    match A.normalize_date raw with
+    | Error _ -> ()
+    | Ok canon -> failwith ("expected error for date " ^ raw ^ ", got " ^ canon)
+  in
+  check_date_ok "2026-10-09" "2026-10-09";
+  check_date_ok "2026/10/09" "2026-10-09";
+  check_date_ok "2026.10.09" "2026-10-09";
+  check_date_ok "2026/1/9" "2026-01-09";
+  check_date_ok "2026-1-9" "2026-01-09";
+  check_date_ok "2026.1.9" "2026-01-09";
+  check_date_ok "２０２６／１／９" "2026-01-09";
+  check_date_ok "２０２６．１０．０９" "2026-10-09";
+  check_date_ok "２０２６－１０－０９" "2026-10-09";
+  check_date_ok "2024-02-29" "2024-02-29"; (* うるう年 *)
+  check_date_ok "2024/2/29" "2024-02-29";
+  check_date_ok "2000-02-29" "2000-02-29"; (* 400年閏年 *)
+  check_date_ok "2026-02-28" "2026-02-28";
+  check_date_ok "2026-12-31" "2026-12-31";
+  check_date_ok "2026-01-01" "2026-01-01";
+
+  (* 日付エラー検証: 平年2/29、100年非閏年、月超過、日超過、ゼロ、区切り不整合、年省略 *)
+  check_date_err "2026-02-29"; (* 平年2月29日 *)
+  check_date_err "2026/02/29";
+  check_date_err "1900-02-29"; (* 100年非閏年 *)
+  check_date_err "2026-04-31"; (* 4月31日 *)
+  check_date_err "2026-13-01";
+  check_date_err "2026-00-10";
+  check_date_err "2026-10-00";
+  check_date_err "2026-10-32";
+  check_date_err "20261009";  (* 区切りなし *)
+  check_date_err "10-09";     (* 年省略 *)
+  check_date_err "1009";
+  check_date_err "2026-10/09"; (* 混在区切り *)
+  check_date_err "2026-10";    (* 日欠落 *)
+
+  (* 2. 暦日単位の日付計算 (shift_calendar_day): 月末、年末、閏年 *)
+  let check_shift raw step expected =
+    match A.shift_calendar_day raw step with
+    | Ok shifted -> require (shifted = expected) ("shift-mismatch-" ^ raw)
+    | Error err -> failwith ("expected shift for " ^ raw ^ ", got " ^ err)
+  in
+  check_shift "2026-10-09" 1 "2026-10-10";
+  check_shift "2026-10-09" (-1) "2026-10-08";
+  check_shift "2026-10-31" 1 "2026-11-01"; (* 月末跨ぎ *)
+  check_shift "2026-11-01" (-1) "2026-10-31";
+  check_shift "2026-12-31" 1 "2027-01-01"; (* 年末跨ぎ *)
+  check_shift "2026-01-01" (-1) "2025-12-31"; (* 年始跨ぎ *)
+  check_shift "2024-02-28" 1 "2024-02-29"; (* 閏年2/28 -> 2/29 *)
+  check_shift "2024-02-29" 1 "2024-03-01"; (* 閏年2/29 -> 3/1 *)
+  check_shift "2024-03-01" (-1) "2024-02-29"; (* 閏年3/1 -> 2/29 *)
+  check_shift "2026-02-28" 1 "2026-03-01"; (* 平年2/28 -> 3/1 *)
+  check_shift "2026-03-01" (-1) "2026-02-28"; (* 平年3/1 -> 2/28 *)
+  check_shift "2026/1/9" 1 "2026-01-10"; (* スラッシュ入力からの加算 *)
+  check_shift "２０２６．１０．０９" (-1) "2026-10-08";
+
+  (* 3. 日付エラー時の下書き保持とフォーカス *)
+  let orig_bad_leap = { base.form with day = "2026/02/29"; from_locus = "wallet"; to_locus = "food"; amount = "1000" } in
+  let s_bad_leap = { base with form = orig_bad_leap; focus = Amount } in
+  let s_leap_err = press s_bad_leap `Enter in
+  require (s_leap_err.focus = Date) "flexible-bad-date-focus-to-date";
+  require (s_leap_err.form.day = "2026/02/29") "flexible-bad-date-draft-retained";
+  require (Base.String.is_substring s_leap_err.message ~substring:"日付の形式が正しくありません") "flexible-bad-date-message";
+
+  (* 4. 金額エラー時の下書き保持とフォーカス (不正カンマ、小数超過、ゼロ、負値) *)
+  let orig_bad_comma = { base.form with day = "2026-10-09"; from_locus = "wallet"; to_locus = "food"; amount = "12,34" } in
+  let s_comma_err = press { base with form = orig_bad_comma; focus = Memo } `Enter in
+  require (s_comma_err.focus = Amount) "flexible-bad-comma-focus-to-amount";
+  require (s_comma_err.form.amount = "12,34") "flexible-bad-comma-draft-retained";
+  require (Base.String.is_substring s_comma_err.message ~substring:"金額の形式が正しくありません") "flexible-bad-comma-message";
+
+  let orig_fw_prec = { base.form with day = "2026-10-09"; measure = "jpy"; from_locus = "wallet"; to_locus = "food"; amount = "１０００．５" } in
+  let s_prec_err = press { base with form = orig_fw_prec; focus = Memo } `Enter in
+  require (s_prec_err.focus = Amount) "flexible-precision-focus-to-amount";
+  require (s_prec_err.form.amount = "１０００．５") "flexible-precision-draft-retained";
+  require (Base.String.is_substring s_prec_err.message ~substring:"小数桁数を超えています") "flexible-precision-message";
+
+  let orig_fw_zero = { base.form with day = "2026-10-09"; from_locus = "wallet"; to_locus = "food"; amount = "０，０００" } in
+  let s_zero_err = press { base with form = orig_fw_zero; focus = Memo } `Enter in
+  require (s_zero_err.focus = Amount) "flexible-zero-focus-to-amount";
+  require (s_zero_err.form.amount = "０，０００") "flexible-zero-draft-retained";
+  require (Base.String.is_substring s_zero_err.message ~substring:"0より大きい正の値") "flexible-zero-message";
+
+  let orig_fw_neg = { base.form with day = "2026-10-09"; from_locus = "wallet"; to_locus = "food"; amount = "ー１０００" } in
+  let s_neg_err = press { base with form = orig_fw_neg; focus = Memo } `Enter in
+  require (s_neg_err.focus = Amount) "flexible-neg-focus-to-amount";
+  require (s_neg_err.form.amount = "ー１０００") "flexible-neg-draft-retained";
+  require (Base.String.is_substring s_neg_err.message ~substring:"金額の形式が正しくありません") "flexible-neg-message";
+
+  (* 5. 科目未選択エラー時でも、入力した全角・カンマ金額・スラッシュ日付が保持されること *)
+  let orig_flexible_draft = { base.form with day = "2026/1/9"; from_locus = ""; to_locus = "food"; amount = "１，０００" } in
+  let s_flex_err = press { base with form = orig_flexible_draft; focus = Amount } `Enter in
+  require (s_flex_err.focus = Source) "flexible-draft-locus-err-focus";
+  require (s_flex_err.form.day = "2026/1/9") "flexible-draft-retained-day";
+  require (s_flex_err.form.amount = "１，０００") "flexible-draft-retained-amount";
+
+  (* 6. キーボード入力: 日付欄での直接文字入力（ハイフン衝突なし）と 't' キー *)
+  let empty_date_state = { base with form = { base.form with day = "" }; focus = Date } in
+  let typed_date =
+    List.fold_left
+      (fun s ch -> press s (`ASCII ch))
+      empty_date_state
+      [ '2'; '0'; '2'; '6'; '-'; '1'; '0'; '-'; '0'; '9' ]
+  in
+  require (typed_date.form.day = "2026-10-09") "direct-date-hyphen-input-successful";
+
+  (* 日付欄で 't' キー: 今日のローカル日付に復帰 *)
+  let old_date_state = { base with form = { base.form with day = "2020-01-01" }; focus = Date } in
+  let t_pressed = press old_date_state (`ASCII 't') in
+  require (t_pressed.form.day = F.today ()) "date-t-key-resets-to-today";
+  require (Base.String.is_substring t_pressed.message ~substring:"今日") "date-t-key-message";
+
+  (* メモ欄で 't' キー: メモに 't' が入力され、日付はリセットされないこと *)
+  let memo_state = { base with form = { base.form with day = "2020-01-01"; memo = "" }; focus = Memo } in
+  let t_memo = press memo_state (`ASCII 't') in
+  require (t_memo.form.memo = "t") "memo-t-key-types-char";
+  require (t_memo.form.day = "2020-01-01") "memo-t-key-does-not-reset-date";
+
+  (* 7. コマンドパレットからの日付操作: 今日、前日 (-1日)、翌日 (+1日) *)
+  let sp_state = { base with form = { base.form with day = "2026-10-09" }; focus = Date } in
+  let cmd_opened = press sp_state (`ASCII ' ') in
+  require (cmd_opened.overlay = Commands 0) "commands-opened-from-date";
+
+  (* コマンドパレットで ↓ で "今日の日付に戻す (Today)" (index 1) へ移動して Enter *)
+  let cmd_today = press (press cmd_opened (`Arrow `Down)) `Enter in
+  require (cmd_today.overlay = No_overlay) "cmd-today-overlay-closed";
+  require (cmd_today.form.day = F.today ()) "cmd-today-sets-today";
+
+  (* コマンドパレットで ↓↓ で "日付を前日へ (-1日)" (index 2) へ移動して Enter *)
+  let cmd_prev = press (press (press (press { base with form = { base.form with day = "2026-10-09" }; focus = Date } (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (cmd_prev.overlay = No_overlay) "cmd-prev-overlay-closed";
+  require (cmd_prev.form.day = "2026-10-08") "cmd-prev-decrements-day";
+
+  (* コマンドパレットで ↓↓↓ で "日付を翌日へ (+1日)" (index 3) へ移動して Enter *)
+  let cmd_next = press (press (press (press (press { base with form = { base.form with day = "2026-10-09" }; focus = Date } (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (cmd_next.overlay = No_overlay) "cmd-next-overlay-closed";
+  require (cmd_next.form.day = "2026-10-10") "cmd-next-increments-day";
+
+  (* 8. 正常記帳と保存: 全角・カンマ金額「１，０００」とスラッシュ日付「2026/1/9」 *)
+  let valid_flex_form =
+    {
+      day = "2026/1/9";
+      measure = "jpy";
+      from_locus = "wallet";
+      to_locus = "food";
+      amount = "１，０００";
+      memo = "昼食（柔軟入力）";
+    }
+  in
+  let s_flex_submit = press { base with form = valid_flex_form; focus = Amount } `Enter in
+  (match s_flex_submit.overlay with
+   | Preview p ->
+       require (p.transaction.entry.day = "2026-01-09") "preview-normalized-date-entry";
+       let food_eff = List.find (fun p -> D.Identifier.Locus.to_string (D.Effect.locus p) = "food") p.transaction.entry.effects in
+       require (Z.equal (A.quanta food_eff) (Z.of_int 1000)) "preview-exact-quanta-1000"
+   | _ -> failwith "expected Preview overlay for valid flex form");
+
+  let s_saved = step s_flex_submit (`Key (`ASCII 's', [ `Ctrl ])) in
+  require (s_saved.overlay = No_overlay) "saved-overlay-closed";
+  require (s_saved.form.amount = "") "saved-draft-amount-cleared";
+  let latest_entries = B.entries s_saved.session.book in
+  let saved_entry = List.hd latest_entries in
+  require (saved_entry.day = "2026-01-09") "persisted-entry-canonical-date";
+  require (saved_entry.memo = Some "昼食（柔軟入力）") "persisted-entry-memo";
+  let saved_food = List.find (fun p -> D.Identifier.Locus.to_string (D.Effect.locus p) = "food") saved_entry.effects in
+  require (Z.equal (A.quanta saved_food) (Z.of_int 1000)) "persisted-entry-exact-quanta";
+
+  (* 9. 小数通貨 (EUR) での「1,234.56」の正常記帳 *)
+  let valid_eur_form =
+    {
+      day = "2026.10.09";
+      measure = "eur";
+      from_locus = "wallet";
+      to_locus = "food";
+      amount = "１，２３４．５６";
+      memo = "Euro flexible";
+    }
+  in
+  let s_eur_submit = press { base with form = valid_eur_form; focus = Amount } `Enter in
+  (match s_eur_submit.overlay with
+   | Preview p ->
+       require (p.transaction.entry.day = "2026-10-09") "preview-eur-normalized-date";
+       let food_eff = List.find (fun p -> D.Identifier.Locus.to_string (D.Effect.locus p) = "food") p.transaction.entry.effects in
+       require (Z.equal (A.quanta food_eff) (Z.of_int 123456)) "preview-eur-quanta-123456"
+   | _ -> failwith "expected Preview overlay for eur form");
+
+  (* 10. blocked 状態での日付変更禁止 (コマンドパレット & 't' キー) *)
+  let blocked_base =
+    {
+      base with
+      blocked = true;
+      form = { base.form with day = "2026-10-09"; amount = "1,000"; memo = "blocked-memo" };
+      message = "保存試行の未確認情報があります。書込み停止。";
+      focus = Date;
+    }
+  in
+
+  (* blocked中の日付欄での 't' キー: 日付もメッセージも変更されないこと *)
+  let blocked_t = press blocked_base (`ASCII 't') in
+  require (blocked_t.form.day = "2026-10-09") "blocked-date-t-key-no-change-day";
+  require (blocked_t.form.amount = "1,000") "blocked-date-t-key-retains-amount";
+  require (blocked_t.form.memo = "blocked-memo") "blocked-date-t-key-retains-memo";
+  require (blocked_t.blocked = true) "blocked-date-t-key-stays-blocked";
+  require (blocked_t.message = "保存試行の未確認情報があります。書込み停止。") "blocked-date-t-key-retains-message";
+
+  (* blocked中のコマンドパレット Date_today: 日付も下書きも変更されないこと *)
+  let blocked_cmd = press blocked_base (`ASCII ' ') in
+  require (blocked_cmd.overlay = Commands 0) "blocked-commands-opened";
+  let blocked_today = press (press blocked_cmd (`Arrow `Down)) `Enter in
+  require (blocked_today.overlay = No_overlay) "blocked-cmd-today-overlay-closed";
+  require (blocked_today.form.day = "2026-10-09") "blocked-cmd-today-no-change-day";
+  require (blocked_today.form.amount = "1,000") "blocked-cmd-today-retains-amount";
+  require (blocked_today.blocked = true) "blocked-cmd-today-stays-blocked";
+  require (blocked_today.message = "保存試行の未確認情報があります。書込み停止。") "blocked-cmd-today-retains-message";
+
+  (* blocked中のコマンドパレット Date_prev_day: 日付も下書きも変更されないこと *)
+  let blocked_prev = press (press (press (press blocked_base (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (blocked_prev.overlay = No_overlay) "blocked-cmd-prev-overlay-closed";
+  require (blocked_prev.form.day = "2026-10-09") "blocked-cmd-prev-no-change-day";
+  require (blocked_prev.form.amount = "1,000") "blocked-cmd-prev-retains-amount";
+  require (blocked_prev.blocked = true) "blocked-cmd-prev-stays-blocked";
+  require (blocked_prev.message = "保存試行の未確認情報があります。書込み停止。") "blocked-cmd-prev-retains-message";
+
+  (* blocked中のコマンドパレット Date_next_day: 日付も下書きも変更されないこと *)
+  let blocked_next = press (press (press (press (press blocked_base (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (blocked_next.overlay = No_overlay) "blocked-cmd-next-overlay-closed";
+  require (blocked_next.form.day = "2026-10-09") "blocked-cmd-next-no-change-day";
+  require (blocked_next.form.amount = "1,000") "blocked-cmd-next-retains-amount";
+  require (blocked_next.blocked = true) "blocked-cmd-next-stays-blocked";
+  require (blocked_next.message = "保存試行の未確認情報があります。書込み停止。") "blocked-cmd-next-retains-message";
+
+  (* 11. 不正日付からの前日・翌日操作の拒否と下書き完全保持 *)
+  let invalid_date_state =
+    {
+      base with
+      form = { base.form with day = "2026-02-29"; amount = "1,000"; memo = "draft-memo"; from_locus = "wallet"; to_locus = "food" };
+      focus = Date;
+    }
+  in
+  (* 前日操作: 今日の日付で代用せず、操作拒否、元の "2026-02-29" と全下書きを保持し、日付欄修正を案内 *)
+  let inv_prev = press (press (press (press invalid_date_state (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (inv_prev.overlay = No_overlay) "inv-prev-overlay-closed";
+  require (inv_prev.form.day = "2026-02-29") "inv-prev-retains-raw-invalid-day";
+  require (inv_prev.form.amount = "1,000") "inv-prev-retains-amount";
+  require (inv_prev.form.memo = "draft-memo") "inv-prev-retains-memo";
+  require (inv_prev.form.from_locus = "wallet" && inv_prev.form.to_locus = "food") "inv-prev-retains-loci";
+  require (Base.String.is_substring inv_prev.message ~substring:"日付の形式が不正なため移動できません") "inv-prev-message-guidance";
+  require (Base.String.is_substring inv_prev.message ~substring:"2026-02-29") "inv-prev-message-raw-echo";
+  require (Base.String.is_substring inv_prev.message ~substring:"日付欄 (YYYY-MM-DD) を修正") "inv-prev-message-fix-hint";
+
+  (* 翌日操作: 同様に今日で代用せず拒否し、下書き保持 *)
+  let inv_next = press (press (press (press (press invalid_date_state (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (inv_next.overlay = No_overlay) "inv-next-overlay-closed";
+  require (inv_next.form.day = "2026-02-29") "inv-next-retains-raw-invalid-day";
+  require (inv_next.form.amount = "1,000") "inv-next-retains-amount";
+  require (inv_next.form.memo = "draft-memo") "inv-next-retains-memo";
+  require (Base.String.is_substring inv_next.message ~substring:"日付の形式が不正なため移動できません") "inv-next-message-guidance";
+
+  (* 12. 空の日付の扱い: 空欄は今日 (F.today ()) を基準として前日・翌日に移動 *)
+  let empty_date_base =
+    {
+      base with
+      form = { base.form with day = ""; amount = "500"; memo = "empty-day-memo" };
+      focus = Date;
+    }
+  in
+  let empty_prev = press (press (press (press empty_date_base (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  let expected_yesterday =
+    match A.shift_calendar_day (F.today ()) (-1) with Ok d -> d | Error _ -> failwith "today-shift-fail"
+  in
+  require (empty_prev.form.day = expected_yesterday) "empty-day-prev-shifts-from-today";
+  require (empty_prev.form.amount = "500") "empty-day-prev-retains-amount";
+
+  let empty_next = press (press (press (press (press empty_date_base (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  let expected_tomorrow =
+    match A.shift_calendar_day (F.today ()) 1 with Ok d -> d | Error _ -> failwith "today-shift-fail"
+  in
+  require (empty_next.form.day = expected_tomorrow) "empty-day-next-shifts-from-today";
+  require (empty_next.form.amount = "500") "empty-day-next-retains-amount";
+
+  (* 13. 限界値 0001-01-01 と 9999-12-31 の範囲外移動拒否と下書き保持 *)
+  require (A.shift_calendar_day "0001-01-01" (-1) = Error "date-out-of-range") "min-date-shift-unit-refused";
+  require (A.shift_calendar_day "9999-12-31" 1 = Error "date-out-of-range") "max-date-shift-unit-refused";
+
+  let min_date_state =
+    {
+      base with
+      form = { base.form with day = "0001-01-01"; amount = "2,000"; memo = "min-date-memo" };
+      focus = Date;
+    }
+  in
+  let min_prev = press (press (press (press min_date_state (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (min_prev.overlay = No_overlay) "min-prev-overlay-closed";
+  require (min_prev.form.day = "0001-01-01") "min-prev-retains-day";
+  require (min_prev.form.amount = "2,000") "min-prev-retains-amount";
+  require (min_prev.form.memo = "min-date-memo") "min-prev-retains-memo";
+  require (Base.String.is_substring min_prev.message ~substring:"許容範囲 (0001-01-01 〜 9999-12-31)") "min-prev-range-message";
+
+  let max_date_state =
+    {
+      base with
+      form = { base.form with day = "9999-12-31"; amount = "3,000"; memo = "max-date-memo" };
+      focus = Date;
+    }
+  in
+  let max_next = press (press (press (press (press max_date_state (`ASCII ' ')) (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down)) `Enter in
+  require (max_next.overlay = No_overlay) "max-next-overlay-closed";
+  require (max_next.form.day = "9999-12-31") "max-next-retains-day";
+  require (max_next.form.amount = "3,000") "max-next-retains-amount";
+  require (max_next.form.memo = "max-date-memo") "max-next-retains-memo";
+  require (Base.String.is_substring max_next.message ~substring:"許容範囲 (0001-01-01 〜 9999-12-31)") "max-next-range-message";
+
+  (* 14. 性能退行チェック: 1,000回の正規化・パースループが数ミリ秒以内で完了すること *)
+  let t0 = Unix.gettimeofday () in
+  for _ = 1 to 1000 do
+    ignore (A.normalize_date "２０２６／１／９");
+    ignore (B.parse_amount base.session.book "jpy" "１，２３４，５６７");
+    ignore (B.parse_amount base.session.book "eur" "１，２３４．５６");
+    ignore (A.shift_calendar_day "2026-10-09" 1);
+  done;
+  let elapsed = Unix.gettimeofday () -. t0 in
+  require (elapsed < 0.2) "flexible-input-performance-no-regression";
+
+  print_endline
+    "PASS: flexible amount (commas, full-width, fractional, precision), flexible date \
+     (separators, leap/end-of-month/year, draft retention), date shortcuts (today 't', prev/next \
+     commands) and exact quanta persistence."
+
 let posting_self_check ~directory ~base =
   let require = F.require in
   let submit s = confirm (submit s) in
@@ -1687,6 +2028,7 @@ let self_check () =
   split_form_self_check ~directory ~base;
   split_safety_self_check ~directory ~base;
   error_display_self_check ~directory ~base;
+  flexible_input_self_check ~directory ~base;
   (* Return a deterministic Unicode/long-list renderer fixture. *)
   print_endline
     "PASS: synthetic shared record/reopen/edit, backups, plan lifecycle/payment, budget \

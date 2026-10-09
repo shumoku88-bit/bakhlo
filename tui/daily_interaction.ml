@@ -105,7 +105,11 @@ type overlay = O.overlay =
   | Detail of { entry : B.entry; scroll : int }
   | Plan_detail of { plan : B.plan; scroll : int }
 
-type command = O.command = Theme
+type command = O.command =
+  | Theme
+  | Date_today
+  | Date_prev_day
+  | Date_next_day
 
 let commands = O.commands
 let command_label = O.command_label
@@ -980,6 +984,48 @@ let preview_lines = O.preview_lines
 let wrap_text = O.wrap_text
 let review_page = O.review_page
 
+let adjust_date s step =
+  if s.blocked then s
+  else
+    let current_day = s.form.day in
+    let base_day_res =
+      if current_day = "" then Ok (F.today ())
+      else
+        match A.normalize_date current_day with
+        | Ok canon when A.is_valid_canonical_date canon -> Ok canon
+        | _ -> Error (`Invalid_date current_day)
+    in
+    match base_day_res with
+    | Error (`Invalid_date raw) ->
+        let msg =
+          Printf.sprintf
+            "日付の形式が不正なため移動できません (%s)。日付欄 (YYYY-MM-DD) を修正してください。"
+            raw
+        in
+        (match s.postings with
+        | Some _ -> update_editor s (fun e -> Pe.set_notice e (Some msg))
+        | None -> { s with message = msg })
+    | Ok base_day -> (
+        match A.shift_calendar_day base_day step with
+        | Ok new_day ->
+            let msg = Printf.sprintf "日付を %s に変更しました。" new_day in
+            (match s.postings with
+            | Some _ ->
+                let s = { s with form = { s.form with day = new_day } } in
+                update_editor s (fun e -> Pe.set_notice e (Some msg))
+            | None ->
+                { s with form = { s.form with day = new_day }; message = msg })
+        | Error "date-out-of-range" ->
+            let msg = "日付の許容範囲 (0001-01-01 〜 9999-12-31) を超えるため移動できません。" in
+            (match s.postings with
+            | Some _ -> update_editor s (fun e -> Pe.set_notice e (Some msg))
+            | None -> { s with message = msg })
+        | Error _ ->
+            let msg = "日付の暦日計算に失敗しました。" in
+            (match s.postings with
+            | Some _ -> update_editor s (fun e -> Pe.set_notice e (Some msg))
+            | None -> { s with message = msg }))
+
 let overlay_key ~dimensions ~width_of s (button, mods) =
   match
     O.handle_key ~dimensions ~width_of ~book:s.session.book ~theme:s.theme
@@ -1013,6 +1059,30 @@ let overlay_key ~dimensions ~width_of s (button, mods) =
                 Pe.update_row_at e position (fun (row : R.row) -> { row with locus = id }))
       in
       Some { chosen with overlay = No_overlay }
+  | O.Execute_command cmd -> (
+      match cmd with
+      | O.Date_today ->
+          let s = { s with overlay = No_overlay } in
+          if s.blocked then Some s
+          else
+            let today = F.today () in
+            let s =
+              match s.postings with
+              | Some _ ->
+                  let s = { s with form = { s.form with day = today } } in
+                  update_editor s (fun e -> Pe.set_notice e (Some ("日付を今日 (" ^ today ^ ") に設定")))
+              | None ->
+                  let s = { s with form = { s.form with day = today } } in
+                  { s with message = "日付を今日 (" ^ today ^ ") に戻しました。" }
+            in
+            Some s
+      | O.Date_prev_day ->
+          let s = { s with overlay = No_overlay } in
+          Some (adjust_date s (-1))
+      | O.Date_next_day ->
+          let s = { s with overlay = No_overlay } in
+          Some (adjust_date s 1)
+      | O.Theme -> Some s)
 
 let is_space = function `ASCII ' ' -> true | `Uchar c -> Uchar.to_int c = 0x20 | _ -> false
 
@@ -1080,6 +1150,12 @@ let editor_key s e (button, mods) =
   | `Arrow `Right, [] when e.field = Posting_sign -> sign false
   | `ASCII 'u', [ `Ctrl ] -> set_field s ""
   | `Backspace, [] -> set_field s (backspace (field s))
+  | (`ASCII 't' | `ASCII 'T'), [] when e.field = Posting_day ->
+      if s.blocked then s
+      else
+        let today = F.today () in
+        let s = set_field s today in
+        update_editor s (fun e -> Pe.set_notice e (Some (Printf.sprintf "日付を今日 (%s) に設定" today)))
   | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
       set_field s (field s ^ String.make 1 c)
   | `Uchar c, [] when printable_uchar c -> set_field s (field s ^ utf8 c)
@@ -1204,6 +1280,11 @@ let key ?(dimensions = (100, 25)) ?(width_of = String.length) s (button, mods) =
                        | Plans -> plan_detail_selected s
                        | Entries -> detail_selected s)
                    | Date | Currency | Amount | Memo -> submit s)
+          | (`ASCII 't' | `ASCII 'T'), [] when s.focus = Date && s.adding = None ->
+              if s.blocked then Some s
+              else
+                let today = F.today () in
+                Some { (set_field s today) with cursor = None; message = Printf.sprintf "日付を今日 (%s) に戻しました。" today }
           | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
               Some (if text_field s then insert_text s (String.make 1 c) else s)
           | `Uchar c, [] -> Some (if text_field s then insert_text s (utf8 c) else s)
