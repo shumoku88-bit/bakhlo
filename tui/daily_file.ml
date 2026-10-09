@@ -429,9 +429,11 @@ let append_add_locus ?candidate session locus =
   | Some eng, Some sess ->
       let expected_lsn = DA.current_lsn eng + 1 in
       let payload = RB.Add_locus { locus; opaque = [] } in
-      let res = DA.append_payload eng ~session:sess ~expected_lsn ~token:None ~event_id:locus ~payload in
+      let token = Some (Printf.sprintf "req-locus-%s" locus) in
+      let res = DA.append_payload eng ~session:sess ~expected_lsn ~token ~event_id:locus ~payload in
       (match res with
       | DA.Commit_success { lsn; event_id } ->
+          Option.iter (fun tok -> DA.acknowledge_session sess ~token:tok ~lsn) token;
           let new_book =
             match candidate with
             | Some b -> b

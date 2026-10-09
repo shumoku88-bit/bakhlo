@@ -106,7 +106,7 @@ let set_sign t negative =
 
 let status book t =
   match R.residual book t.draft with
-  | Error why -> "下書き差額不明: " ^ why
+  | Error why -> "下書き差額: 計算不可 (" ^ R.format_residual_error why ^ ")"
   | Ok n ->
       "下書き差額: "
       ^ B.format book t.draft.measure n

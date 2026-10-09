@@ -57,6 +57,8 @@ let current_lsn engine = engine.current_lsn
 let path engine = engine.path
 let latest_token engine = engine.latest_token
 let latest_event_id engine = engine.latest_event_id
+let find_token engine tok = Hashtbl.find_opt engine.token_index tok
+let has_token engine tok = Hashtbl.mem engine.token_index tok
 
 let with_lock lock_path f =
   let fd = Unix.openfile lock_path [ Unix.O_RDWR; Unix.O_CREAT; Unix.O_CLOEXEC ] 0o600 in

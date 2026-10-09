@@ -60,6 +60,19 @@ val latest_token : engine -> string option
 val latest_event_id : engine -> string option
 (** Most recent event ID associated with the committed token, if any. *)
 
+type token_record = {
+  token : string;
+  event_id : string;
+  lsn : int;
+  payload_summary : string;
+}
+
+val find_token : engine -> string -> token_record option
+(** Lookup committed token record in engine index, if present. *)
+
+val has_token : engine -> string -> bool
+(** Return true if token was committed to the durable log. *)
+
 val append_payload :
   engine ->
   session:client_session ->

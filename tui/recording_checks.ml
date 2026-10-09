@@ -228,7 +228,7 @@ let home_check ~width_of ~directory (base : C.state) =
         "home-help-not-focused")
     [ memo; lower; plans; held; browsed; payment ];
   let blocked =
-    { plans with blocked = true; pending = Some "unconfirmed"; message = "household-warning" }
+    { plans with blocked = true; pending = Some (Daily_actions.Unspecified_evidence "unconfirmed"); message = "household-warning" }
   in
   List.iter
     (fun selected ->
@@ -506,7 +506,7 @@ let self_check ~width_of () =
     (refused.blocked && refused.form = stale.form && F.read path = other_bytes)
     "old-preview-authorized-new-base";
   let uncertain =
-    { stale with blocked = true; pending = Some "unconfirmed"; message = "household-warning" }
+    { stale with blocked = true; pending = Some (Daily_actions.Unspecified_evidence "unconfirmed"); message = "household-warning" }
   in
   let blocked = ctrl uncertain 's' in
   require
