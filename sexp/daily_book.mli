@@ -74,6 +74,19 @@ val budgets : t -> budget list option
 (** None means budget information not supplied (including v1..v3), NOT zero budgets. *)
 
 val entries : t -> entry list
+(** All retained entries in recorded order (oldest to newest). *)
+
+val entries_rev : t -> entry list
+(** All retained entries in reverse recorded order (newest to oldest). O(1). *)
+
+val entry_count : t -> int
+(** Total number of entries in the book. O(1). *)
+
+val find_entry : t -> string -> entry option
+(** Look up an entry by ID via immutable index. O(log N). *)
+
+val mem_entry : t -> string -> bool
+(** Check whether an entry ID exists in the book via immutable index. O(log N). *)
 
 val plans : t -> plan list
 (** All retained plans, including paid and cancelled ones, in stored order. *)

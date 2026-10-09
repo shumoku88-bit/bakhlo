@@ -23,7 +23,7 @@ let initial = {
   plans_selected = 0;
 }
 
-let entries book = List.rev (B.entries book)
+let entries book = B.entries_rev book
 let plans book = B.plans book
 
 let selected_index model =
@@ -33,7 +33,7 @@ let selected_index model =
 
 let count ~book model =
   match model.view with
-  | Entries -> List.length (B.entries book)
+  | Entries -> B.entry_count book
   | Plans -> List.length (plans book)
 
 let apply_action ~book model = function
@@ -46,7 +46,7 @@ let apply_action ~book model = function
   | Switch_view ->
       let view = match model.view with Entries -> Plans | Plans -> Entries in
       let len = match view with
-        | Entries -> List.length (B.entries book)
+        | Entries -> B.entry_count book
         | Plans -> List.length (plans book)
       in
       let target_selected = match view with
@@ -58,7 +58,7 @@ let apply_action ~book model = function
        | Plans -> { model with view; plans_selected = target_selected })
   | Set_view view ->
       let len = match view with
-        | Entries -> List.length (B.entries book)
+        | Entries -> B.entry_count book
         | Plans -> List.length (plans book)
       in
       let target_selected = match view with
@@ -122,7 +122,7 @@ let visible_slice ~book model ~room =
     | Entries ->
         (* Stored order is oldest first; do not reverse/format the whole history. *)
         let rows = B.entries book in
-        let stop = max 0 (List.length rows - start) in
+        let stop = max 0 (B.entry_count book - start) in
         take_reverse ~drop:(max 0 (stop - room)) ~count:(min room stop) rows
         |> index (entry_text book)
     | Plans ->

@@ -283,3 +283,43 @@ let%expect_test "fallback cases trigger full oracle correctly and match results"
   [%expect {|
     all 3 fallback cases execute and match full oracle
     |}]
+
+let%expect_test "PR 6b entry map index and reversed list invariants" =
+  let base = get (B.of_string fixture) in
+  (* Initial state check *)
+  assert (B.entry_count base = 1);
+  assert (B.mem_entry base "init");
+  assert (not (B.mem_entry base "nonexistent"));
+  assert (Option.is_some (B.find_entry base "init"));
+  assert (Option.is_none (B.find_entry base "nonexistent"));
+  assert (List.length (B.entries_rev base) = 1);
+
+  (* Add new entry incrementally *)
+  let e1 : B.entry =
+    {
+      id = "e1";
+      day = "2026-10-02";
+      memo = Some "Entry 1";
+      effects = [ posting "wallet" "jpy" (-2000) None; posting "food" "jpy" 2000 None ];
+      reversal_of = None;
+      exchange = None;
+    }
+  in
+  let book1 = get (B.put_entry base ~replace:false e1 ~plan:None) in
+  assert (B.entry_count book1 = 2);
+  assert (B.mem_entry book1 "init");
+  assert (B.mem_entry book1 "e1");
+  assert (Option.is_some (B.find_entry book1 "e1"));
+  let e1_found = Option.value_exn (B.find_entry book1 "e1") in
+  assert (String.equal e1_found.id "e1");
+
+  (* Order check: entries is oldest-first, entries_rev is newest-first *)
+  let fwd_ids = List.map (B.entries book1) ~f:(fun e -> e.id) in
+  let rev_ids = List.map (B.entries_rev book1) ~f:(fun e -> e.id) in
+  assert (List.equal String.equal fwd_ids [ "init"; "e1" ]);
+  assert (List.equal String.equal rev_ids [ "e1"; "init" ]);
+
+  Stdio.printf "PR 6b entry map index and rev list invariants hold\n";
+  [%expect {|
+    PR 6b entry map index and rev list invariants hold
+    |}]

@@ -322,11 +322,7 @@ let commit_transaction ~session ~base_bytes (tx : transaction) : commit_result =
                   Refused ("保存失敗: " ^ err)
             with F.Refused why -> Refused ("追記拒否: " ^ why))
         | Error why -> (
-            let existing_opt =
-              List.find_opt
-                (fun (e : B.entry) -> String.equal e.id tx.entry.id)
-                (B.entries session.book)
-            in
+            let existing_opt = B.find_entry session.book tx.entry.id in
             match existing_opt with
             | Some existing when entry_equals existing tx.entry -> (
                 try
