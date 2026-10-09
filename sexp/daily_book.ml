@@ -459,6 +459,23 @@ let of_records (rb : Records_book.t) =
             })
           (Records_book.plans rb)
       in
+      let frame_obs =
+        List.map
+          (fun (o : Records_book.observation) ->
+            {
+              A.Current_quantity_groups.reflected_roots =
+                List.map (fun r -> eid r) o.reflected_roots;
+              assertions =
+                List.map
+                  (fun (l, m, q) ->
+                    {
+                      A.Current_quantity_projection.coordinate = coord l m;
+                      quantity = D.Quantity.of_quanta q;
+                    })
+                  o.quantities;
+            })
+          (Records_book.observations rb)
+      in
       let data =
         make_data
           ~measures:h.measures

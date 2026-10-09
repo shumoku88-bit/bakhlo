@@ -96,7 +96,7 @@ let app book observed_at ~exit ~dimensions graph =
         | T.Event.Key_press
             { key = T.Event.Key.ASCII ('q' | 'Q'); mods = [ T.Event.Modifier.Ctrl ] } ->
             exit ()
-        | _ -> ())
+        | _ -> set_cursor 0)
   in
   (~view, ~handler)
 
