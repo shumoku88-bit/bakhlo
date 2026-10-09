@@ -211,11 +211,16 @@ let self_check () =
       check_candidate (F.load copy).book;
       if selected_changed step then (
         let memory =
-          C.apply_commit_result (cold session) ~draft:(cold session) (A.Uncertain candidate_bytes)
+          C.apply_commit_result (cold session) ~draft:(cold session)
+            (A.Uncertain
+               {
+                 message = "一括書換の成否が不確定です";
+                 evidence = A.Monolithic_candidate candidate_bytes;
+               })
         in
         let stopped = C.reload memory in
         require
-          (stopped.blocked && stopped.pending = Some candidate_bytes)
+          (stopped.blocked && stopped.pending = Some (A.Monolithic_candidate candidate_bytes))
           "recovery-reload-silently-acknowledged-marker";
         ignore (F.confirm_current ~session:loaded ~attempt_id:id);
         let resumed = C.reload stopped in

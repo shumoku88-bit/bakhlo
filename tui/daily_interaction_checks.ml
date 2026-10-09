@@ -418,7 +418,7 @@ let split_safety_self_check ~directory ~base =
           Split (Source_amount 0); Split (Destination_amount 1);
           Split (Source_locus 0); Split (Destination_locus 1); Date; Currency; Memo;
         ])
-    [ None; Some "synthetic-unconfirmed" ];
+    [ None; Some (A.Unspecified_evidence "synthetic-unconfirmed") ];
   require (F.read path = before && files () = before_files) "split-readonly-checks-published";
   let saved = ctrl preview 's' in
   let cold = (F.load path).book in
@@ -443,12 +443,18 @@ let split_safety_self_check ~directory ~base =
     "PASS: split/editor row-preserving conversion, partial-draft guards, frozen conflict/uncertain \
      input/paste, preview/cancel and cold save/payment."
 
-let error_display_self_check ~directory:_ ~base =
+let error_display_self_check ~directory ~base =
   let require = F.require in
   let step s input =
     match handle s input with Some s -> s | None -> raise (F.Refused "error-display-exit")
   in
   let press s button = step s (`Key (button, [])) in
+  let make_effect locus measure quantity =
+    D.Effect.create ~key:None
+      ~locus:(get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(get_id (D.Identifier.Measure.of_string measure))
+      ~quantity:(D.Quantity.of_quanta quantity)
+  in
 
   (* 1. 日付エラー: 形式不正で日付欄へフォーカス移動、下書き保持、blockedにならない *)
   let orig_bad_date = { base.form with day = "2026-99-99"; from_locus = "wallet"; to_locus = "food"; amount = "500" } in
@@ -515,14 +521,102 @@ let error_display_self_check ~directory:_ ~base =
   require (Base.String.is_substring s_zero_err.message ~substring:"0より大きい正の値") "error-display-zero-amount-message";
   require (s_zero_err.form = orig_zero) "error-display-zero-amount-draft-retained";
 
-  (* 9. entry-admission: 包括Coreエラーを根拠なく日付エラーに変換しない *)
-  let content = A.Single { day = "2026-10-09"; measure = "jpy"; from_locus = "wallet"; to_locus = "food"; amount = "100"; memo = "" } in
-  (match A.build_transaction ~book:base.session.book ~mode:New content with
-   | Ok _ ->
-       let err_msg = "台帳の記録要件を満たしていません (entry-admission)。貸借バランスや取引の前提条件を確認してください。" in
-       require (not (Base.String.is_substring err_msg ~substring:"日付")) "error-display-entry-admission-not-blamed-on-date";
-       require (Base.String.is_substring err_msg ~substring:"entry-admission") "error-display-entry-admission-retains-code"
-   | Error _ -> ());
+  (* 9. entry-admission: 実際の該当エラーを発生させ、返却されたメッセージとフィールドを検証 *)
+  let orig_entry : B.entry =
+    {
+      id = "entry-e1";
+      day = "2026-10-09";
+      memo = Some "Orig";
+      effects =
+        [
+          make_effect "wallet" "jpy" (Z.of_int (-1000));
+          make_effect "food" "jpy" (Z.of_int 1000);
+        ];
+      reversal_of = None;
+      exchange = None;
+    }
+  in
+  let rev_entry : B.entry =
+    {
+      id = "entry-rev";
+      day = "2026-10-09";
+      memo = Some "Rev";
+      effects =
+        [
+          make_effect "wallet" "jpy" (Z.of_int 1000);
+          make_effect "food" "jpy" (Z.of_int (-1000));
+        ];
+      reversal_of = Some orig_entry.id;
+      exchange = None;
+    }
+  in
+  let book_with_e1 = F.get "book-e1" (B.put_entry base.session.book ~replace:false orig_entry ~plan:None) in
+  let book_with_rev = F.get "book-rev" (B.put_entry book_with_e1 ~replace:false rev_entry ~plan:None) in
+  (* orig_entryを金額変更して更新しようとすると、rev_entryとの反転関係が崩れるためCoreのentry-admissionにより拒否される *)
+  let content = A.Single { day = "2026-10-09"; measure = "jpy"; from_locus = "wallet"; to_locus = "food"; amount = "500"; memo = "" } in
+  (match A.build_transaction ~book:book_with_rev ~mode:(A.Edit orig_entry) content with
+   | Ok _ -> failwith "expected entry-admission error, got Ok"
+   | Error err ->
+       require (err.field = None) "error-display-entry-admission-field-none";
+       require (err.raw_cause = "entry-admission") "error-display-entry-admission-raw-cause";
+       require (not (Base.String.is_substring err.message ~substring:"日付")) "error-display-entry-admission-not-blamed-on-date";
+       require (Base.String.is_substring err.message ~substring:"entry-admission") "error-display-entry-admission-retains-code";
+       require (Base.String.is_substring err.message ~substring:"台帳の記録要件を満たしていません") "error-display-entry-admission-message-text");
+
+  let s_edit_admission =
+    {
+      base with
+      session = { base.session with book = book_with_rev };
+      mode = A.Edit orig_entry;
+      form = { base.form with day = "2026-10-09"; measure = "jpy"; from_locus = "wallet"; to_locus = "food"; amount = "500" };
+      focus = Amount;
+    }
+  in
+  let s_admitted_err = submit s_edit_admission in
+  require (s_admitted_err.focus = Amount) "error-display-entry-admission-focus-not-moved-to-date";
+  require (s_admitted_err.form.amount = "500") "error-display-entry-admission-draft-retained";
+  require (not (Base.String.is_substring s_admitted_err.message ~substring:"日付")) "error-display-entry-admission-submit-not-blamed-on-date";
+  require (Base.String.is_substring s_admitted_err.message ~substring:"entry-admission") "error-display-entry-admission-submit-retains-code";
+
+  (* Movement.validate: 貸借不一致だけでなく、各型付きエラーの原因に応じた案内を検証 *)
+  let unbalanced_draft =
+    {
+      R.measure = "jpy";
+      rows =
+        [
+          { key = None; locus = "wallet"; negative = true; amount = "100" };
+          { key = None; locus = "food"; negative = false; amount = "80" };
+        ];
+    }
+  in
+  let content_unbalanced = A.Multiple { day = "2026-10-09"; memo = ""; draft = unbalanced_draft } in
+  (match A.build_transaction ~book:base.session.book ~mode:New content_unbalanced with
+   | Ok _ -> failwith "expected unbalanced error, got Ok"
+   | Error err ->
+       require (err.field = Some A.Field_amount) "error-display-movement-unbalanced-field";
+       require (err.raw_cause = "unbalanced-movement") "error-display-movement-unbalanced-cause";
+       require (Base.String.is_substring err.message ~substring:"出金と入金の合計額が一致していません") "error-display-movement-unbalanced-message");
+
+  let zero_effects =
+    [
+      make_effect "wallet" "jpy" Z.zero;
+      make_effect "food" "jpy" Z.zero;
+    ]
+  in
+  (match D.Movement.validate zero_effects with
+   | Error (D.Movement.Zero_quantity { position } :: _) ->
+       require (position = 1) "error-display-movement-zero-quantity-position"
+   | _ -> failwith "expected Zero_quantity error");
+
+  let mismatch_effects =
+    [
+      make_effect "wallet" "jpy" (Z.of_int (-100));
+      make_effect "food" "eur" (Z.of_int 100);
+    ]
+  in
+  (match D.Movement.validate mismatch_effects with
+   | Error (D.Movement.Measure_mismatch _ :: _) -> ()
+   | _ -> failwith "expected Measure_mismatch error");
 
   (* 10. 保存失敗、LSN競合、成否不確定、破損時のfail-closedと下書き保持の区別 *)
   let dummy_draft = { base with form = orig_bad_date } in
@@ -537,7 +631,14 @@ let error_display_self_check ~directory:_ ~base =
   require (s_lsn.form = orig_bad_date) "error-display-conflict-lsn-draft-retained";
   require (Base.String.is_substring s_lsn.message ~substring:"LSN: 期待3 / 実際4") "error-display-conflict-lsn-message";
 
-  let s_uncert = apply_commit_result base ~draft:dummy_draft (A.Uncertain "sync-timeout") in
+  let s_uncert =
+    apply_commit_result base ~draft:dummy_draft
+      (A.Uncertain
+         {
+           message = "sync-timeout";
+           evidence = A.Unspecified_evidence "sync-timeout";
+         })
+  in
   require s_uncert.blocked "error-display-uncertain-blocked";
   require (s_uncert.form = orig_bad_date) "error-display-uncertain-draft-retained";
   require (Base.String.is_substring s_uncert.message ~substring:"書込結果が不明です") "error-display-uncertain-message";
@@ -564,6 +665,121 @@ let error_display_self_check ~directory:_ ~base =
   require
     (List.exists (fun t -> Base.String.is_substring t ~substring:"金額の形式が不正です") rendered_split)
     "error-display-split-residual-details";
+
+  (* 12. 回帰テスト: 一括書換 (Monolithic) の保存後Ack喪失、下書き保持、再読込後の確認・未確認 *)
+  let mono_path = directory ^ "/mono-regression-" ^ F.new_id () ^ ".sexp" in
+  F.write_new mono_path base.session.bytes;
+  let mono_sess = F.load mono_path in
+  let mono_cand_entry : B.entry =
+    {
+      id = "mono-cand-" ^ F.new_id ();
+      day = "2026-10-09";
+      memo = Some "Mono ack-loss candidate";
+      effects =
+        [
+          make_effect "wallet" "jpy" (Z.of_int (-500));
+          make_effect "food" "jpy" (Z.of_int 500);
+        ];
+      reversal_of = None;
+      exchange = None;
+    }
+  in
+  let mono_cand_book = F.get "cand-book" (B.put_entry mono_sess.book ~replace:false mono_cand_entry ~plan:None) in
+  let mono_cand_bytes = B.to_string mono_cand_book in
+  let mono_state = initial ~config_home:directory mono_sess in
+  let mono_draft = { mono_state with form = { mono_state.form with day = "2026-10-09"; amount = "500" } } in
+  (* Ack喪失シミュレーション: 不確定結果を適用。下書きとblockedが保持され、再送が阻止される *)
+  let s_mono_uncert =
+    apply_commit_result mono_draft ~draft:mono_draft
+      (A.Uncertain
+         {
+           message = "一括書換の成否が不確定です";
+           evidence = A.Monolithic_candidate mono_cand_bytes;
+         })
+  in
+  require s_mono_uncert.blocked "mono-ack-loss-blocked";
+  require (s_mono_uncert.pending = Some (A.Monolithic_candidate mono_cand_bytes)) "mono-ack-loss-pending";
+  require (s_mono_uncert.form.amount = "500") "mono-ack-loss-draft-retained";
+  require (Base.String.is_substring s_mono_uncert.message ~substring:"一括書換の成否が不確定です") "mono-ack-loss-message-raw";
+  let pressed_mono = press s_mono_uncert `Enter in
+  require (pressed_mono.blocked && pressed_mono.pending = s_mono_uncert.pending && pressed_mono.form = s_mono_uncert.form) "mono-ack-loss-resend-stopped";
+
+  (* ケースA: ディスクが旧内容のまま (保存未達) の再読込 -> Pending_unconfirmed で下書き・blocked・再送停止を維持 *)
+  let s_mono_unconf = reload s_mono_uncert in
+  require s_mono_unconf.blocked "mono-unconfirmed-blocked";
+  require (s_mono_unconf.pending = Some (A.Monolithic_candidate mono_cand_bytes)) "mono-unconfirmed-pending-preserved";
+  require (s_mono_unconf.form.amount = "500") "mono-unconfirmed-draft-retained";
+  require (Base.String.is_substring s_mono_unconf.message ~substring:"先ほどの書込は未確認") "mono-unconfirmed-message";
+
+  (* ケースB: ディスクに保存候補が到達済み (保存後Ack喪失) の再読込 -> 候補バイト列照合で Pending_confirmed となり成功復帰 *)
+  let mono_tmp = mono_path ^ ".tmp" in
+  F.write_new mono_tmp mono_cand_bytes;
+  Unix.rename mono_tmp mono_path;
+  let s_mono_conf = reload s_mono_uncert in
+  require (not s_mono_conf.blocked) "mono-confirmed-unblocked";
+  require (s_mono_conf.pending = None) "mono-confirmed-pending-cleared";
+  require (s_mono_conf.form.amount = "") "mono-confirmed-draft-cleared";
+  require (Base.String.is_substring s_mono_conf.message ~substring:"先ほどの記帳が現在のファイルにあります") "mono-confirmed-message";
+
+  (* 13. 回帰テスト: Records形式のSync_uncertain、request_tokenと確定ログによる照合、再読込後の確認・未確認 *)
+  let rec_path = directory ^ "/records-regression-" ^ F.new_id () ^ ".sexp" in
+  let rec_init_str = B.to_records_string base.session.book in
+  F.write_new rec_path rec_init_str;
+  let rec_sess = F.load rec_path in
+  require (rec_sess.format = F.Records) "rec-format-is-records";
+  let rec_entry_id = "rec-entry-" ^ F.new_id () in
+  let rec_tok = "tok-" ^ rec_entry_id in
+  let rec_cand_entry : B.entry =
+    {
+      id = rec_entry_id;
+      day = "2026-10-09";
+      memo = Some "Records sync-uncertain";
+      effects =
+        [
+          make_effect "wallet" "jpy" (Z.of_int (-800));
+          make_effect "food" "jpy" (Z.of_int 800);
+        ];
+      reversal_of = None;
+      exchange = None;
+    }
+  in
+  let rec_entry_wire = A.to_records_entry rec_cand_entry in
+  let rec_state = initial ~config_home:directory rec_sess in
+  let rec_draft = { rec_state with form = { rec_state.form with day = "2026-10-09"; amount = "800" } } in
+  (* ケースA: トークンが確定ログに存在しない (保存未達) 状態での再読込 -> 説明文字列に依存せず Pending_unconfirmed *)
+  let s_rec_uncert =
+    apply_commit_result rec_draft ~draft:rec_draft
+      (A.Uncertain
+         {
+           message = "ディレクトリ同期失敗: synthetic-fsync-error";
+           evidence = A.Records_token { request_token = rec_tok; lsn = 1; event_id = rec_entry_id };
+         })
+  in
+  require s_rec_uncert.blocked "records-sync-uncert-blocked";
+  require (s_rec_uncert.pending = Some (A.Records_token { request_token = rec_tok; lsn = 1; event_id = rec_entry_id })) "records-sync-uncert-pending";
+  require (s_rec_uncert.form.amount = "800") "records-sync-uncert-draft-retained";
+  require (Base.String.is_substring s_rec_uncert.message ~substring:"ディレクトリ同期失敗") "records-sync-uncert-message-raw";
+  let pressed_rec = press s_rec_uncert `Enter in
+  require (pressed_rec.blocked && pressed_rec.pending = s_rec_uncert.pending && pressed_rec.form = s_rec_uncert.form) "records-sync-uncert-resend-stopped";
+
+  let s_rec_unconf = reload s_rec_uncert in
+  require s_rec_unconf.blocked "records-unconfirmed-blocked";
+  require (s_rec_unconf.pending = Some (A.Records_token { request_token = rec_tok; lsn = 1; event_id = rec_entry_id })) "records-unconfirmed-pending-preserved";
+  require (s_rec_unconf.form.amount = "800") "records-unconfirmed-draft-retained";
+  require (Base.String.is_substring s_rec_unconf.message ~substring:"先ほどの書込は未確認") "records-unconfirmed-message";
+
+  (* ケースB: 追記は確定ログにコミットされたがSyncがUncertainだった場合 -> request_tokenとログ照合で Pending_confirmed *)
+  let append_res = F.append_entry rec_sess rec_entry_wire in
+  (match append_res with
+   | F.Append_committed { lsn; event_id; _ } ->
+       require (event_id = rec_entry_id) "records-append-committed-id";
+       require (lsn >= 1) "records-append-committed-lsn"
+   | _ -> failwith "expected Append_committed for setup");
+  let s_rec_conf = reload s_rec_uncert in
+  require (not s_rec_conf.blocked) "records-confirmed-unblocked";
+  require (s_rec_conf.pending = None) "records-confirmed-pending-cleared";
+  require (s_rec_conf.form.amount = "") "records-confirmed-draft-cleared";
+  require (Base.String.is_substring s_rec_conf.message ~substring:"先ほどの記帳が現在のファイルにあります") "records-confirmed-message";
 
   print_endline
     "PASS: error display natural Japanese, field focus targeting, non-blaming admission, draft \
@@ -833,7 +1049,7 @@ let posting_self_check ~directory ~base =
     (refreshed.blocked && refreshed.postings = stale_edit.postings)
     "posting-stale-edit-reload-authorized";
   let uncertain =
-    { stale with blocked = true; pending = Some "unconfirmed"; message = "household-warning" }
+    { stale with blocked = true; pending = Some (A.Unspecified_evidence "unconfirmed"); message = "household-warning" }
   in
   let frozen = ctrl (set_field uncertain "999") 's' in
   require
@@ -1248,12 +1464,12 @@ let self_check () =
     "ui-save-failure-is-not-household-failure";
   require_draft failed "ui-save-failure-lost-draft";
   let blocked =
-    { themed with blocked = true; pending = Some "uncertain"; message = "household-conflict" }
+    { themed with blocked = true; pending = Some (A.Unspecified_evidence "uncertain"); message = "household-conflict" }
   in
   let blocked = press (press (press blocked (`ASCII ' ')) `Enter) `Enter in
   require
     (blocked.blocked
-    && blocked.pending = Some "uncertain"
+    && blocked.pending = Some (A.Unspecified_evidence "uncertain")
     && blocked.message = "household-conflict"
     && blocked.ui_notice <> None)
     "theme-save-hid-household-warning";
@@ -1446,7 +1662,7 @@ let self_check () =
     [
       { original with form = { original.form with amount = "1" } };
       { original with mode = Edit (List.hd (B.entries s.session.book)) };
-      { original with blocked = true; pending = Some "uncertain"; message = "household-warning" };
+      { original with blocked = true; pending = Some (A.Unspecified_evidence "uncertain"); message = "household-warning" };
     ];
   List.iter
     (fun base ->

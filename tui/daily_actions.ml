@@ -4,6 +4,7 @@ module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
 module F = Daily_file
 module R = Posting_draft
+module DA = Bakhlo_sexp.Durable_append
 
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
 let get_id = function Ok x -> x | Error D.Identifier.Empty -> raise (F.Refused "empty-identity")
@@ -210,9 +211,20 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
   let err ?field ~raw message = Error { message; field; raw_cause = raw } in
   let validate_and_put ~day ~memo_str ~effects =
     match D.Movement.validate effects with
-    | Error _ ->
-        err ~raw:"invalid-movement"
+    | Error (D.Movement.Empty :: _) ->
+        err ~raw:"empty-movement" "明細行が入力されていません。1行以上の取引明細を入力してください。"
+    | Error (D.Movement.Zero_quantity { position } :: _) ->
+        err ~field:Field_amount ~raw:"zero-quantity"
+          (Printf.sprintf "明細 %d の金額が0です。0より大きい正の金額を入力してください。" position)
+    | Error (D.Movement.Measure_mismatch { position; expected; actual } :: _) ->
+        err ~field:Field_currency ~raw:"measure-mismatch"
+          (Printf.sprintf "明細 %d の通貨 (%s) が他の明細の通貨 (%s) と一致していません。同一の通貨を指定してください。"
+             position (D.Identifier.Measure.to_string actual) (D.Identifier.Measure.to_string expected))
+    | Error (D.Movement.Unbalanced { measure = _; residual = _ } :: _) ->
+        err ~field:Field_amount ~raw:"unbalanced-movement"
           "出金と入金の合計額が一致していません。貸借差額が0になるよう確認してください。"
+    | Error [] ->
+        err ~raw:"invalid-movement" "取引明細の構造が不正です。"
     | Ok _ ->
         let memo =
           match mode with
@@ -371,6 +383,15 @@ let recovery_notice ~session =
           | Bakhlo_sexp.Durable_append.In_doubt_none -> None)
       | _ -> None)
 
+type uncertain_evidence =
+  | Monolithic_candidate of string
+  | Records_token of {
+      request_token : string;
+      lsn : int;
+      event_id : string;
+    }
+  | Unspecified_evidence of string
+
 type commit_result =
   | Published of F.t
   | Idempotent_duplicate of { lsn : int; event_id : string; session : F.t }
@@ -379,7 +400,10 @@ type commit_result =
   | Conflict_lsn of { expected : int; actual : int }
   | Payload_drift_refused of string
   | Recovery_blocked
-  | Uncertain of string
+  | Uncertain of {
+      message : string;
+      evidence : uncertain_evidence;
+    }
   | Storage_failed of string
   | Refused of string
 
@@ -390,7 +414,12 @@ let publish_candidate ~session candidate : commit_result =
     | F.Conflict -> Conflict
     | F.Refused_input "recovery-required" -> Recovery_blocked
     | F.Refused_input why -> Refused why
-    | F.Uncertain -> Uncertain "一括書換の成否が不確定です"
+    | F.Uncertain ->
+        Uncertain
+          {
+            message = "一括書換の成否が不確定です";
+            evidence = Monolithic_candidate (B.to_string candidate);
+          }
   with
   | Unix.Unix_error (err, fn, arg) ->
       Storage_failed (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
@@ -438,8 +467,17 @@ let commit_transaction ~session ~base_bytes (tx : transaction) : commit_result =
             try
               match F.append_entry ~candidate session rec_entry with
               | F.Append_committed { session = updated; _ } -> Published updated
-              | F.Append_sync_uncertain { error; _ } ->
-                  Uncertain (Printf.sprintf "ディレクトリ同期失敗: %s" error)
+              | F.Append_sync_uncertain { lsn; event_id; error; _ } ->
+                  let request_token =
+                    match rec_entry.token with
+                    | Some tok -> tok
+                    | None -> Printf.sprintf "tok-%s" tx.entry.id
+                  in
+                  Uncertain
+                    {
+                      message = Printf.sprintf "ディレクトリ同期失敗: %s" error;
+                      evidence = Records_token { request_token; lsn; event_id };
+                    }
               | F.Append_idempotent { session = updated; lsn; event_id } ->
                   Idempotent_duplicate { lsn; event_id; session = updated }
               | F.Append_lsn_conflict { expected; actual } ->
@@ -488,8 +526,13 @@ let commit_add_locus ~session name : commit_result =
             try
               match F.append_add_locus ~candidate session name with
               | F.Append_committed { session = updated; _ } -> Published updated
-              | F.Append_sync_uncertain { error; _ } ->
-                  Uncertain (Printf.sprintf "ディレクトリ同期失敗: %s" error)
+              | F.Append_sync_uncertain { lsn; event_id; error; _ } ->
+                  let request_token = Printf.sprintf "req-locus-%s" name in
+                  Uncertain
+                    {
+                      message = Printf.sprintf "ディレクトリ同期失敗: %s" error;
+                      evidence = Records_token { request_token; lsn; event_id };
+                    }
               | F.Append_idempotent { session = updated; lsn; event_id } ->
                   Idempotent_duplicate { lsn; event_id; session = updated }
               | F.Append_lsn_conflict { expected; actual } ->
@@ -519,7 +562,25 @@ let reload ~session ~pending ~mode : reload_result =
     | Some notice -> Recovery_required (loaded, notice)
     | None -> (
         match pending with
-        | Some bytes when loaded.bytes = bytes -> Pending_confirmed loaded
+        | Some (Monolithic_candidate bytes) when loaded.bytes = bytes ->
+            Pending_confirmed loaded
+        | Some (Records_token { request_token; lsn; event_id }) -> (
+            match loaded.format with
+            | F.Records -> (
+                match loaded.engine with
+                | Some eng when DA.has_token eng request_token ->
+                    Option.iter
+                      (fun sess -> DA.acknowledge_session sess ~token:request_token ~lsn)
+                      loaded.session;
+                    Pending_confirmed loaded
+                | _ ->
+                    if B.find_entry loaded.book event_id <> None then
+                      Pending_confirmed loaded
+                    else
+                      Pending_unconfirmed loaded)
+            | F.Monolithic -> Pending_unconfirmed loaded)
+        | Some (Unspecified_evidence bytes) when loaded.bytes = bytes ->
+            Pending_confirmed loaded
         | Some _ -> Pending_unconfirmed loaded
         | None -> (
             match mode with

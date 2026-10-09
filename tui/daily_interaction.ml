@@ -131,7 +131,7 @@ type state = {
   mode : mode;
   message : string;
   blocked : bool;
-  pending : string option;
+  pending : A.uncertain_evidence option;
   adding : string option;
   paste : (string * bool) option;
   theme : P.theme;
@@ -787,12 +787,12 @@ let apply_commit_result s ~draft result =
       { draft with blocked = true; message = Printf.sprintf "保存に失敗しました (%s)。下書きは保持しています。ディスクの空き容量や権限を確認してください。" err }
   | A.Refused why ->
       { draft with message = Printf.sprintf "記帳が拒否されました: %s。下書きは保持しています。" why }
-  | A.Uncertain bytes ->
+  | A.Uncertain { message; evidence } ->
       {
         draft with
         blocked = true;
-        pending = Some bytes;
-        message = Printf.sprintf "書込結果が不明です (%s)。二重記帳を防ぐため再送せず、Ctrl-Rで確認してください。下書きは保持しています。" bytes;
+        pending = Some evidence;
+        message = Printf.sprintf "書込結果が不明です (%s)。二重記帳を防ぐため再送せず、Ctrl-Rで確認してください。下書きは保持しています。" message;
       }
 
 let finish s candidate =
