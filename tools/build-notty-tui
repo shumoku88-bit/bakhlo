@@ -1,0 +1,45 @@
+#!/bin/sh
+# Build Notty daily TUI using existing isolated Notty environment.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+cd "$root"
+
+envroot=$root/scratch/tui_comparison_review/notty-env/_opam/lib
+if [ ! -d "$envroot/notty-community" ]; then
+  printf '%s\n' 'Existing isolated Notty environment unavailable; nothing installed.' >&2
+  exit 2
+fi
+
+./tools/opam exec -- dune build lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa sexp/bakhlo_sexp.cmxa
+
+build=$root/_build/daily-notty
+mkdir -p "$build"
+
+modules='daily_file ui_preferences posting_draft daily_actions daily_browser daily_form posting_editor daily_overlays daily_interaction daily_interaction_checks recording_checks recovery_checks notty_daily'
+
+for module in $modules; do
+  ./tools/opam exec -- env OCAMLPATH="$envroot" ocamlfind ocamlopt \
+    -strict-sequence -w +8+9+11 -warn-error +8+9+11 \
+    -package base,zarith,parsexp,unix,uutf,notty-community.unix -linkpkg \
+    -I _build/default/lib/.bakhlo_domain.objs/byte -I _build/default/lib/.bakhlo_domain.objs/native \
+    -I _build/default/application/.bakhlo_application.objs/byte -I _build/default/application/.bakhlo_application.objs/native \
+    -I _build/default/sexp/.bakhlo_sexp.objs/byte -I _build/default/sexp/.bakhlo_sexp.objs/native \
+    -I "$build" -c "tui/$module.ml" -o "$build/$module.cmx"
+done
+
+cmx_objs=""
+for module in $modules; do
+  cmx_objs="$cmx_objs $build/$module.cmx"
+done
+
+./tools/opam exec -- env OCAMLPATH="$envroot" ocamlfind ocamlopt \
+  -package base,zarith,parsexp,unix,uutf,notty-community.unix -linkpkg \
+  -I _build/default/lib/.bakhlo_domain.objs/native \
+  -I _build/default/application/.bakhlo_application.objs/native \
+  -I _build/default/sexp/.bakhlo_sexp.objs/native \
+  -I "$build" \
+  _build/default/lib/bakhlo_domain.cmxa \
+  _build/default/application/bakhlo_application.cmxa \
+  _build/default/sexp/bakhlo_sexp.cmxa \
+  $cmx_objs -o "$build/notty_daily.exe"
+

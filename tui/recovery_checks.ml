@@ -496,7 +496,23 @@ let self_check () =
       (* Fast-Ack idempotency check on same transaction *)
       (match A.commit_transaction ~session:updated ~base_bytes:updated.bytes tx with
       | A.Idempotent_duplicate _ -> ()
-      | _ -> raise (F.Refused "records-idempotency-failed"))
+      | _ -> raise (F.Refused "records-idempotency-failed"));
+      (* Safe guard 3: Payload drift with same ID but different amount must be refused *)
+      let drift_e = { mono_e with memo = Some "drift-attempt" } in
+      let drift_tx : A.transaction = { entry = drift_e; replace = false; plan = None } in
+      (match A.commit_transaction ~session:updated ~base_bytes:updated.bytes drift_tx with
+      | A.Payload_drift_refused _ -> ()
+      | _ -> raise (F.Refused "records-payload-drift-not-refused"));
+      (* Safe guard 4: Corrupt log with bad CRC must fail-closed on load *)
+      let corrupt_path = Filename.concat directory "corrupt-store.log" in
+      let bad_line = "((lsn 1)(token tok-bad)(event-id bad)(entry ((id bad)(day 2026-10-09)(effects ())))(crc32 00000000))\n" in
+      let fd = Unix.openfile corrupt_path [ Unix.O_CREAT; Unix.O_WRONLY ] 0o600 in
+      ignore (Unix.write_substring fd (rec_log ^ bad_line) 0 (String.length rec_log + String.length bad_line));
+      Unix.close fd;
+      refuses "book-refused" (fun () -> ignore (F.load corrupt_path));
+      (* In-doubt / recovery notice check *)
+      let in_doubt_msg = A.recovery_notice ~session:updated in
+      require (in_doubt_msg = None) "in-doubt-unexpectedly-present"
   | _ -> raise (F.Refused "records-commit-transaction-failed"));
 
   Printf.printf "Recovery fixtures (synthetic): %s\n%!" directory;

@@ -1,0 +1,56 @@
+#!/bin/sh
+# Compile and run paired benchmarks for Notty and Bonsai_term.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+cd "$root"
+
+# 1. Build Notty benchmark
+printf '=== Compiling and running Notty Benchmark ===\n'
+./tools/build-notty-tui
+
+envroot=$root/scratch/tui_comparison_review/notty-env/_opam/lib
+build_notty=$root/_build/daily-notty
+
+# Modules without notty_daily (which contains top-level entry point)
+modules='daily_file ui_preferences posting_draft daily_actions daily_browser daily_form posting_editor daily_overlays daily_interaction daily_interaction_checks recording_checks recovery_checks'
+cmx_objs=""
+for module in $modules; do
+  cmx_objs="$cmx_objs $build_notty/$module.cmx"
+done
+
+./tools/opam exec -- env OCAMLPATH="$envroot" ocamlfind ocamlopt \
+  -package base,zarith,parsexp,unix,uutf,notty-community.unix -linkpkg \
+  -I _build/default/lib/.bakhlo_domain.objs/byte -I _build/default/lib/.bakhlo_domain.objs/native \
+  -I _build/default/application/.bakhlo_application.objs/byte -I _build/default/application/.bakhlo_application.objs/native \
+  -I _build/default/sexp/.bakhlo_sexp.objs/byte -I _build/default/sexp/.bakhlo_sexp.objs/native \
+  -I "$build_notty" \
+  _build/default/lib/bakhlo_domain.cmxa \
+  _build/default/application/bakhlo_application.cmxa \
+  _build/default/sexp/bakhlo_sexp.cmxa \
+  $cmx_objs scratch/tui_bench_notty.ml -o "$build_notty/tui_bench_notty.exe"
+
+"$build_notty/tui_bench_notty.exe"
+
+# 2. Build Bonsai benchmark
+printf '\n=== Compiling and running Bonsai_term Benchmark ===\n'
+./tools/build-bonsai-tui
+
+trial=$root/scratch/tui_comparison_review
+build_bonsai=$root/_build/daily-bonsai
+cp "$root/scratch/tui_bench_bonsai.ml" "$build_bonsai/ui/"
+
+modules_bonsai='daily_file ui_preferences posting_draft daily_actions daily_browser daily_form posting_editor daily_overlays daily_interaction daily_interaction_checks recording_checks recovery_checks tui_bench_bonsai'
+
+printf '%s\n' "(executable (name tui_bench_bonsai) (modules $modules_bonsai) (libraries bakhlo_domain bakhlo_application bakhlo_sexp zarith unix uutf bonsai_term async core))" > "$build_bonsai/ui/dune"
+
+export OPAMROOT=$trial/opam-root
+export OPAMSWITCH=$trial/bonsai-env
+export OPAMNOENVNOTICE=true
+export OPAMNODEPEXTS=true
+unset OCAMLPATH CAML_LD_LIBRARY_PATH OCAML_TOPLEVEL_PATH
+"$root/.tools/opam" exec -- dune build --root "$build_bonsai" --profile release "ui/tui_bench_bonsai.exe"
+
+# Revert ui/dune back to normal bonsai_daily
+printf '%s\n' "(executable (name bonsai_daily) (modules daily_file ui_preferences posting_draft daily_actions daily_browser daily_form posting_editor daily_overlays daily_interaction daily_interaction_checks recording_checks recovery_checks bonsai_daily) (libraries bakhlo_domain bakhlo_application bakhlo_sexp zarith unix uutf bonsai_term async core))" > "$build_bonsai/ui/dune"
+
+"$build_bonsai/_build/default/ui/tui_bench_bonsai.exe"
