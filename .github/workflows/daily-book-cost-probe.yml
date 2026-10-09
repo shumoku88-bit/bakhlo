@@ -1,0 +1,33 @@
+name: Temporary Daily Book Cost Probe
+
+on:
+  pull_request:
+    paths:
+      - 'bin/daily_book_cost_probe.ml'
+      - 'bin/dune'
+      - '.github/workflows/daily-book-cost-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  native-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: '5.3.0'
+          opam-pin: false
+          dune-cache: false
+      - name: Install exact native development dependencies
+        run: opam install . --deps-only --with-test -y
+      - name: Compile release build
+        run: opam exec -- dune build --root . --profile release bin/daily_book_cost_probe.exe
+      - name: Check synthetic 1000 entries and measured operations
+        run: |
+          /usr/bin/time -v _build/default/bin/daily_book_cost_probe.exe 1000
+      - name: Check synthetic 10000 entries and measured operations
+        run: |
+          /usr/bin/time -v _build/default/bin/daily_book_cost_probe.exe 10000
