@@ -413,3 +413,56 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
   [%expect {|
     PR 6b comprehensive regression invariants hold
     |}]
+
+
+let%expect_test "date-only checks agree with full Actual validity admission" =
+  let module V = Bakhlo_application.Actual_validity in
+  let id =
+    match D.Identifier.Event.of_string "date-probe" with
+    | Ok id -> id
+    | Error _ -> failwith "invalid synthetic Event ID"
+  in
+  let event =
+    match D.Event.create ~id ~effects:[] with
+    | Ok event -> event
+    | Error _ -> failwith "invalid synthetic Event"
+  in
+  let events =
+    match D.Event_memory.of_events [ event ] with
+    | Ok events -> events
+    | Error _ -> failwith "invalid synthetic Event memory"
+  in
+  let cases =
+    [
+      ("2026-10-09", true);
+      ("2000-02-29", true);
+      ("2004-02-29", true);
+      ("1900-02-28", true);
+      ("2024-02-29", true);
+      ("9999-12-31", true);
+      ("0000-01-01", false);
+      ("1900-02-29", false);
+      ("2026-02-29", false);
+      ("2026-02-30", false);
+      ("2026-04-31", false);
+      ("2026-13-01", false);
+      ("2026-00-01", false);
+      ("2026-01-00", false);
+      ("2026-01-32", false);
+      ("2026-1-09", false);
+      ("2026/10/09", false);
+      ("2026-10-09 ", false);
+      (" 2026-10-09", false);
+      ("", false);
+    ]
+  in
+  List.iter cases ~f:(fun (day, expected) ->
+      let direct = V.valid_date day in
+      let qualified =
+        Result.is_ok
+          (V.create ~events ~facts:[ V.Base { event = id; valid_on = day } ] ~corrections:[])
+      in
+      if not (Bool.equal direct expected && Bool.equal qualified expected) then
+        failwith (Printf.sprintf "date disagreement for %S" day));
+  Stdio.printf "direct date and admitted singleton agree: %d cases\n" (List.length cases);
+  [%expect {|direct date and admitted singleton agree: 20 cases|}]

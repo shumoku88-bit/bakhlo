@@ -123,14 +123,7 @@ let empty_command : A.Actual_source.command =
     discharges = [];
   }
 
-let valid_date day =
-  let event = get "date-event" (D.Event.create ~id:(eid "date-check") ~effects:[]) in
-  let events = get "date-memory" (D.Event_memory.of_events [ event ]) in
-  ignore
-    (get "invalid-date"
-       (A.Actual_validity.create ~events
-          ~facts:[ A.Actual_validity.Base { event = D.Event.id event; valid_on = day } ]
-          ~corrections:[]))
+let valid_date day = require (A.Actual_validity.valid_date day) "invalid-date"
 
 let admit ?entries_cached data =
   unique (List.map fst data.measures) "duplicate-measure";
