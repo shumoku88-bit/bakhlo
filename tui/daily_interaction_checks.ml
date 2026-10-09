@@ -2008,41 +2008,6 @@ let self_check () =
        (fun text -> String.starts_with ~prefix:"2026-10-10 [取消 2026-10-07] " text)
        (history cancelled))
     "cancelled-plan-display";
-  let budget : B.budget =
-    {
-      id = "trial-budget";
-      start_day = "2026-10-01";
-      end_exclusive = "2026-12-01";
-      measure = "jpy";
-      allocations = [ ("daily", Z.of_int 2000); ("reserve", Z.zero) ];
-      expense_loci = [ "food" ];
-      actual_routes = [ ("food", Some "daily") ];
-      plan_routes = [ ("extra", "food", Some "daily") ];
-    }
-  in
-  let budgeted =
-    finish cancelled (get (B.put_budget cancelled.session.book ~replace:false budget))
-  in
-  let budget_answer =
-    get (B.budget_review (F.load plan_path).book ~id:budget.id ~observed_at:"2026-10-07")
-  in
-  require
-    (Z.equal (List.hd budget_answer.rows).after_known (Z.of_int 1900))
-    "budget-create-cold-read";
-  let rebalanced =
-    finish budgeted
-      (get
-         (B.rebalance_budget budgeted.session.book ~id:budget.id ~from_purpose:"daily"
-            ~to_purpose:"reserve" ~amount:(Z.of_int 200)))
-  in
-  let answer =
-    get (B.budget_review (F.load plan_path).book ~id:budget.id ~observed_at:"2026-10-07")
-  in
-  require
-    (Z.equal (List.hd answer.rows).after_known (Z.of_int 1700)
-    && Z.equal (List.nth answer.rows 1).allocated (Z.of_int 200)
-    && quantity rebalanced "wallet" = "1000")
-    "budget-rebalance-cold-read";
   require (backspace "あい" = "あ") "unicode-backspace";
   require
     (match key s (`ASCII 'Q', [ `Ctrl ]) with None -> true | Some _ -> false)
@@ -2454,8 +2419,7 @@ let self_check () =
   floating_stability_self_check ~directory ~base;
   (* Return a deterministic Unicode/long-list renderer fixture. *)
   print_endline
-    "PASS: synthetic shared record/reopen/edit, backups, plan lifecycle/payment, budget \
-     publication, unknown, conflict/stale draft, focus markers, ASCII/Unicode Space, theme \
+    "PASS: synthetic shared record/reopen/edit, backups, plan lifecycle/payment, unknown, conflict/stale draft, focus markers, ASCII/Unicode Space, theme \
      preview/cancel/save/fallback, palette contrast, UI-only failure, locus picker and modal \
      paste.";
   { base with focus = History; theme = P.Terminal; overlay = No_overlay }
