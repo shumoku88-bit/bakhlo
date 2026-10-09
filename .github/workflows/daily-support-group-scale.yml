@@ -1,0 +1,29 @@
+name: Temporary Support Group Scaling Trial
+
+on:
+  pull_request:
+    paths:
+      - 'bin/support_group_scale_probe.ml'
+      - 'bin/dune'
+      - '.github/workflows/daily-support-group-scale.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  bounded-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: '5.3.0'
+          opam-pin: false
+          dune-cache: false
+      - name: Install native dependencies
+        run: opam install . --deps-only --with-test -y
+      - name: Compile native release trial
+        run: opam exec -- dune build --root . --profile release bin/support_group_scale_probe.exe
+      - name: Verify semantic parity and measure bounded scaling
+        run: /usr/bin/time -v _build/default/bin/support_group_scale_probe.exe
