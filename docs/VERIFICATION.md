@@ -1216,6 +1216,61 @@ not license for partial admission, merged support meanings or speculative cachin
 returned I/O/sync/cleanup failures and namespace/power-loss lifecycle qualification remain
 separate. Existing LOAM is sole authority; no real inputs were needed for this cost review.
 
+## Direct Daily_book native append and correction cost (2026-10-09)
+
+Question: does the **current corrected-entries Daily_book** need more
+incremental machinery, or is its existing simplest valid full fallback
+acceptable at ordinary history sizes? This is distinct from the prior
+generic Actual source/publication measurements above.
+
+A one-off release-compiled native OCaml 5.3 probe was run on GitHub-hosted
+Ubuntu, with the existing synthetic `examples/daily-book.sexp` fixture,
+**two reflected quantity-support groups**, 1k and 10k new balanced JPY
+wallet/food Events, and an unrelated EUR balance kept unchanged. The same
+admitted baseline is reused for each append/edit operation; no live LOAM
+source or user records are opened. Three within-process wall-clock samples
+per operation, median reported; GC/host load and warm caches uncontrolled.
+
+| In-memory operation | 1,000 entries | 10,000 entries |
+| --- | ---: | ---: |
+| Build baseline by ordinary incremental recording (total) | 1.813 ms | 14.418 ms |
+| Append one ordinary Event: existing incremental path | 0.0010 ms | 0.0019 ms |
+| Append same Event: independent full-admission path | 2.549 ms | 30.863 ms |
+| Edit middle Event amount/date: existing full path | 2.285 ms | 33.282 ms |
+| Decode and fully qualify a serialized in-memory snapshot | 6.799 ms | 80.541 ms |
+| Serialized snapshot size | 204,799 bytes | 2,040,799 bytes |
+| Whole benchmark process max RSS (GNU time) | 18,308 KiB | 61,300 KiB |
+
+Executable evidence: [CI 37947797058](https://github.com/shumoku88-bit/bakhlo/actions/runs/37947797058)
+(successful release compilation and both bounded sizes). Archived source of
+the temporary probe and PR-only workflow:
+[commit a17ad400](https://github.com/shumoku88-bit/bakhlo/commit/a17ad400d02de1915f31a2e832d74a1b3dc7315d).
+The executable and CI workflow were deliberately removed from the final PR
+diff. Reproduction requires the archived commit, not today's main.
+
+For both sizes, the incremental and full append paths serialized to
+**identical bytes**; edited-event results agreed with `put_entry_full`;
+wallet/food JPY totals were asserted, wallet EUR was unmodified, duplicate
+identity and unbalanced Event were rejected with the **same reasons**, and
+the original admitted book remained unchanged. This does not constitute
+a proof for every input/refusal mode, only these synthetic witnesses.
+
+**Interpretation:** in this small-support scenario the existing ordinary
+incremental append is already cheap and the 10k full fallback is tens of
+milliseconds. The ~1–2 microsecond append numbers are near timer sensitivity;
+do **not** turn them into universal speedup ratios. The benchmark EXCLUDES
+filesystem read/write/fsync, record append/reopen, publication conflict and
+uncertain acknowledgement, TUI latency, real workload distributions, mass
+correction chains, FX, group-count sensitivity, and 100k/1M Daily_book scaling.
+Full publication may remain more expensive than in-memory admission.
+
+Do not add a new cache, replacement admission engine or persistent index on
+this evidence. The existing `Current_quantity_groups.with_added_effects`
+rebuilds derived owners across qualified support groups; only if a real
+high-group-count household input exhibits pressure should its incremental
+cost be measured separately. Keep the full qualified oracle and refusal
+correspondence as non-negotiable gates.
+
 ## Whole-admitted document reuse and fresh publication gates
 
 Question/D/P/R/bounds recorded BEFORE code at 8ea1cc9. User requests the measured save seam;
