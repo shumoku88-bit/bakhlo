@@ -489,10 +489,22 @@ let self_check () =
   | A.Published updated ->
       require (updated.format = F.Records) "updated-format-not-records";
       require (List.length (B.entries updated.book) = 1) "records-entry-not-admitted";
+      (* PR 6a: Ensure session.bytes is a lightweight LSN tag and NOT a full log string *)
+      require (updated.bytes = "records:lsn:1") "updated-bytes-not-lsn-tag";
+      require (String.length updated.bytes < 100) "records-bytes-must-not-grow-linearly";
+
       (* Re-read from disk to ensure durable append occurred on disk *)
       let reloaded = F.load rec_path in
       require (reloaded.format = F.Records) "reloaded-not-records";
       require (List.length (B.entries reloaded.book) = 1) "reloaded-entries-not-preserved";
+      require (reloaded.bytes = "records:lsn:1") "reloaded-bytes-not-lsn-tag";
+
+      (* PR 6a: Conflict_base_changed must be detected when base_bytes is stale *)
+      let stale_base = rec_session.bytes in
+      (match A.commit_transaction ~session:updated ~base_bytes:stale_base tx with
+      | A.Conflict_base_changed -> ()
+      | _ -> raise (F.Refused "stale-base-bytes-must-fail-with-conflict-base-changed"));
+
       (* Fast-Ack idempotency check on same transaction *)
       (match A.commit_transaction ~session:updated ~base_bytes:updated.bytes tx with
       | A.Idempotent_duplicate _ -> ()

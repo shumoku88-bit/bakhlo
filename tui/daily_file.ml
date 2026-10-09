@@ -55,11 +55,13 @@ let read path =
       require (check (Unix.fstat fd) && check (Unix.lstat path)) "changed-during-read";
       Buffer.contents b)
 
+let records_revision lsn = Printf.sprintf "records:lsn:%d" lsn
+
 let load path =
   let bytes = read path in
   let format = detect_format bytes in
   let book = get "book-refused" (B.of_string bytes) in
-  let engine, session =
+  let engine, session, session_bytes =
     match format with
     | Records ->
         let eng, act = get "records-engine-failed" (DA.recover_and_open path) in
@@ -73,10 +75,10 @@ let load path =
         Option.iter
           (fun tok -> DA.acknowledge_session sess ~token:tok ~lsn:(DA.current_lsn eng))
           (DA.latest_token eng);
-        (Some eng, Some sess)
-    | Monolithic -> (None, None)
+        (Some eng, Some sess, records_revision (DA.current_lsn eng))
+    | Monolithic -> (None, None, bytes)
   in
-  { path; bytes; book; format; engine; session }
+  { path; bytes = session_bytes; book; format; engine; session }
 
 let nonce () =
   let fd = Unix.openfile "/dev/urandom" [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
@@ -354,12 +356,11 @@ let append_entry ?candidate session (e : RB.entry) =
                 let b_str = read session.path in
                 get "book-refused" (B.of_string b_str)
           in
-          let frame = RB.encode_frame lsn (RB.Entry e) in
-          let frame_line = RB.serialize_frame frame ^ "\n" in
-          let new_bytes = session.bytes ^ frame_line in
+          let new_bytes = records_revision lsn in
           Append_committed { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id }
       | DA.Sync_uncertain { lsn; event_id; error } ->
-          Option.iter (fun tok -> DA.acknowledge_session sess ~token:tok ~lsn) e.token;
+          (* Note: Do NOT acknowledge_session here. Sync_uncertain means client Ack is unconfirmed,
+             preserving in-doubt state for safety against silent duplicate entry. *)
           let new_book =
             match candidate with
             | Some b -> b
@@ -367,9 +368,7 @@ let append_entry ?candidate session (e : RB.entry) =
                 let b_str = read session.path in
                 get "book-refused" (B.of_string b_str)
           in
-          let frame = RB.encode_frame lsn (RB.Entry e) in
-          let frame_line = RB.serialize_frame frame ^ "\n" in
-          let new_bytes = session.bytes ^ frame_line in
+          let new_bytes = records_revision lsn in
           Append_sync_uncertain { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id; error }
       | DA.Idempotent_duplicate { lsn; event_id } ->
           Append_idempotent { session; lsn; event_id }
@@ -397,9 +396,7 @@ let append_add_locus ?candidate session locus =
                 let b_str = read session.path in
                 get "book-refused" (B.of_string b_str)
           in
-          let frame = RB.encode_frame lsn payload in
-          let frame_line = RB.serialize_frame frame ^ "\n" in
-          let new_bytes = session.bytes ^ frame_line in
+          let new_bytes = records_revision lsn in
           Append_committed { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id }
       | DA.Sync_uncertain { lsn; event_id; error } ->
           let new_book =
@@ -409,9 +406,7 @@ let append_add_locus ?candidate session locus =
                 let b_str = read session.path in
                 get "book-refused" (B.of_string b_str)
           in
-          let frame = RB.encode_frame lsn payload in
-          let frame_line = RB.serialize_frame frame ^ "\n" in
-          let new_bytes = session.bytes ^ frame_line in
+          let new_bytes = records_revision lsn in
           Append_sync_uncertain { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id; error }
       | DA.Idempotent_duplicate { lsn; event_id } ->
           Append_idempotent { session; lsn; event_id }
