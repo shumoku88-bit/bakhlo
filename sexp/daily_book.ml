@@ -293,7 +293,7 @@ let decode_entry version = function
 let decode_plan version = function
   | X.List (X.Atom "plan" :: X.Atom id :: rows) ->
       fields
-        (if version = "3" || version = "4" then
+        (if version = "3" then
            [ "date"; "measure"; "changes"; "paid-by"; "cancelled-on" ]
          else [ "date"; "measure"; "changes"; "paid-by" ])
         rows;
@@ -309,7 +309,7 @@ let decode_plan version = function
             (field "changes" rows);
         paid_by = optional (one (field "paid-by" rows));
         cancelled_on =
-          (if version = "3" || version = "4" then optional (one (field "cancelled-on" rows))
+          (if version = "3" then optional (one (field "cancelled-on" rows))
            else None);
       }
   | X.Atom _ | X.List _ -> raise (Refused "invalid-plan")

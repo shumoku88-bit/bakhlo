@@ -560,4 +560,4 @@ let self_check () =
   print_endline
     "PASS: durable candidate attempts, read-only recovery, explicit current-byte \
      confirmation/fresh restore, cold/Ctrl-N/reload/direct-write stops, 7 injected faults + 7 \
-     SIGKILL checkpoints, exact quantities/v4/payment links and no automatic retry/pruning."
+     SIGKILL checkpoints, exact quantities/payment links and no automatic retry/pruning."
