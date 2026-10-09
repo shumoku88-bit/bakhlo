@@ -191,6 +191,18 @@ let openings t = t.openings
 let presence t = t.presence
 let source_groups t = t.source_groups
 
+let with_added_effects t effects =
+  let totals = Effect_sum.add_effects t.totals effects in
+  let source_groups = H.with_added_effects t.source_groups effects in
+  let present_index =
+    List.fold effects ~init:t.present_index ~f:(fun idx eff ->
+        let coordinate =
+          { D.Effect_coordinate.locus = D.Effect.locus eff; measure = D.Effect.measure eff }
+        in
+        Map.remove idx coordinate)
+  in
+  { t with totals; source_groups; present_index }
+
 let query t coordinate =
   if D.Zero_origin_coverage.covers t.coverage coordinate then
     Ok (Exact { coordinate; quantity = Effect_sum.at t.totals coordinate; premise = Zero_origin })

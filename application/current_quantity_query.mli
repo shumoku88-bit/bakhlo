@@ -81,6 +81,10 @@ val openings : t -> opening list
 val source_groups : t -> Current_quantity_groups.t
 val presence : t -> presence option
 
+val with_added_effects : t -> Bakhlo_domain.Effect.t list -> t
+(** Incrementally update exact totals with newly admitted terminal effects.
+    Preserves exact coordinates, coverage, and premise indices without full rebuild. *)
+
 val query : t -> Bakhlo_domain.Effect_coordinate.t -> (outcome, unavailable) result
 (** Indexed lookup; exact/present payloads are disjoint and abstract. Stale/absent
     support remains unknown, never zero; no traversal, chronology or I/O. *)

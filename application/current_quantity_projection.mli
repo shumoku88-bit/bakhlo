@@ -26,6 +26,7 @@ val create : cut:Reflected_root_cut.t -> assertions:assertion list -> (t, error)
 
 val source_cut : t -> Reflected_root_cut.t
 val assertions : t -> assertion list
+val with_added_effects : t -> Bakhlo_domain.Effect.t list -> t
 
 type answer
 type unavailable = Assertion_unknown of { coordinate : Bakhlo_domain.Effect_coordinate.t }

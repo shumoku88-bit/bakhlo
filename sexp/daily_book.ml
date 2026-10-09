@@ -1245,7 +1245,7 @@ let cancel_plan t ~id ~day =
       in
       admit { t.data with plans })
 
-let put_entry t ~replace (e : entry) ~plan =
+let put_entry_full t ~replace (e : entry) ~plan =
   protect (fun () ->
       approve_effects t e.effects;
       let exists = List.exists (fun (row : entry) -> row.id = e.id) t.data.entries in
@@ -1266,6 +1266,53 @@ let put_entry t ~replace (e : entry) ~plan =
               t.data.plans
       in
       admit { t.data with entries; plans })
+
+let check_effects_balanced effects =
+  let rec fold acc = function
+    | [] -> acc
+    | p :: rest ->
+        let q = D.Effect.quantity p in
+        if D.Quantity.equal q D.Quantity.zero then raise (Refused "entry-admission");
+        let m = mstr (D.Effect.measure p) in
+        let cur = match List.assoc_opt m acc with None -> D.Quantity.zero | Some v -> v in
+        fold ((m, D.Quantity.add cur q) :: List.remove_assoc m acc) rest
+  in
+  let totals = fold [] effects in
+  List.iter
+    (fun (_, net) ->
+      if not (D.Quantity.equal net D.Quantity.zero) then
+        raise (Refused "entry-admission"))
+    totals
+
+let put_entry_incremental t (e : entry) ~plan =
+  protect (fun () ->
+      approve_effects t e.effects;
+      let exists = List.exists (fun (row : entry) -> row.id = e.id) t.data.entries in
+      require (not exists) "duplicate-entry";
+      let known m = require (List.mem_assoc m t.data.measures) "measure-scale-not-supplied" in
+      List.iter (fun p -> known (mstr (D.Effect.measure p))) e.effects;
+      check_effects_balanced e.effects;
+      let _ = get "invalid-entry" (D.Event.create ~id:(eid e.id) ~effects:e.effects) in
+      (try valid_date e.day with _ -> raise (Refused "entry-admission"));
+      let plans =
+        match plan with
+        | None -> t.data.plans
+        | Some id ->
+            require_open_plan (find_plan t id);
+            List.map
+              (fun (p : plan) -> if p.id = id then { p with paid_by = Some e.id } else p)
+              t.data.plans
+      in
+      let entries = t.data.entries @ [ e ] in
+      let data = { t.data with entries; plans } in
+      let image = Q.with_added_effects t.image e.effects in
+      { data; image })
+
+let put_entry t ~replace (e : entry) ~plan =
+  if (not replace) && e.reversal_of = None && e.exchange = None then
+    put_entry_incremental t e ~plan
+  else
+    put_entry_full t ~replace e ~plan
 
 let add_locus t id =
   protect (fun () ->
