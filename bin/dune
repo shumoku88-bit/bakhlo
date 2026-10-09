@@ -1,12 +1,5 @@
 (executable
  (name main)
- (modules main)
  (public_name bakhlo)
  (package bakhlo)
  (libraries bakhlo_cli bakhlo_sexp unix))
-
-; Transient research executable, to be retired after measurement.
-(executable
- (name support_group_scale_probe)
- (modules support_group_scale_probe)
- (libraries bakhlo_domain bakhlo_application bakhlo_sexp zarith unix))
