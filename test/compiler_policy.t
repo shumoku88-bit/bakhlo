@@ -58,6 +58,7 @@ and implicitly discarding a typed result in a sequence are not.
   >   fi
   >   if ! grep -Eq 'expected of type "?unit"?' build-log || ! grep -q 'left-hand side of a sequence' build-log; then
   >     echo "wrong sequence failure: $profile"
+  >     cat build-log
   >     exit 1
   >   fi
   >   echo "$profile: implicit result discard rejected"

@@ -90,6 +90,7 @@ Boundary type: callers cannot forge a qualified book using OCaml record construc
   $ ocamlc -I ../sexp/.bakhlo_sexp.objs/byte -c forge.ml >out 2>err
   [2]
   $ grep -Eq 'Unbound record field "?bytes"?' err
+  $ cat err
 
 Version 2 retains explicit new-write vocabulary across actual cold native commands.
 Vocabulary is not independently supplied quantity support.
