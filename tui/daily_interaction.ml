@@ -110,6 +110,7 @@ type command = O.command =
   | Date_today
   | Date_prev_day
   | Date_next_day
+  | New_transaction
 
 let commands = O.commands
 let command_label = O.command_label
@@ -132,6 +133,7 @@ type state = {
   view : view;
   selected : int;
   other_selected : int;
+  browser : Br.model;
   mode : mode;
   message : string;
   blocked : bool;
@@ -144,6 +146,7 @@ type state = {
   split : split_state option;
   config_home : string option;
   ui_notice : string option;
+  candidate_selected : int option;
 }
 
 let loci book = match B.approved_loci book with Some xs -> xs | None -> []
@@ -151,26 +154,36 @@ let head = function x :: _ -> x | [] -> ""
 let entries s = Br.entries s.session.book
 let plans s = Br.plans s.session.book
 
-let browser_of_state s = {
-  Br.view = s.view;
-  entries_selected = (if s.view = Entries then s.selected else s.other_selected);
-  plans_selected = (if s.view = Plans then s.selected else s.other_selected);
-}
+let browser_of_state s =
+  let b = s.browser in
+  let b = if b.view <> s.view then { b with view = s.view } else b in
+  match s.view with
+  | Entries ->
+      if b.entries_selected <> s.selected then
+        { b with entries_selected = s.selected; selected_entry_id = None }
+      else b
+  | Plans ->
+      if b.plans_selected <> s.selected then
+        { b with plans_selected = s.selected; selected_plan_id = None; plans_initialized = true }
+      else b
 
 let apply_browser s action =
-  let b = Br.apply_action ~book:s.session.book (browser_of_state s) action in
+  let cur_b = browser_of_state s in
+  let b = Br.apply_action ~book:s.session.book cur_b action in
   {
     s with
+    browser = b;
     view = b.view;
     selected = Br.selected_index b;
     other_selected = (match b.view with Entries -> b.plans_selected | Plans -> b.entries_selected);
   }
 
-let initial ?config_home session =
+let initial ?(focus = Source) ?config_home session =
   let recovery_notice = A.recovery_notice ~session in
   let choices = loci session.F.book in
   let from_locus = head choices
   and to_locus = head (match choices with [] -> [] | _ :: xs -> xs) in
+  let browser = Br.initial in
   {
     session;
     form =
@@ -182,12 +195,13 @@ let initial ?config_home session =
         amount = "";
         memo = "";
       };
-    focus = Source;
-    record_focus = Source;
+    focus;
+    record_focus = (if focus = History then Source else focus);
     cursor = None;
-    view = Entries;
-    selected = 0;
+    view = browser.view;
+    selected = Br.selected_index browser;
     other_selected = 0;
+    browser;
     mode = New;
     message = Option.value ~default:"試用台帳（普段の正データはLOAM）。" recovery_notice;
     blocked = recovery_notice <> None;
@@ -200,6 +214,7 @@ let initial ?config_home session =
     split = None;
     config_home;
     ui_notice = None;
+    candidate_selected = None;
   }
 
 let visible text =
@@ -448,11 +463,39 @@ let move_field s direction =
   if s.postings <> None then s
   else
     let focus = direction s in
-    if focus = s.focus then s else { s with focus; record_focus = focus; cursor = None }
+    if focus = s.focus then { s with candidate_selected = None }
+    else { s with focus; record_focus = focus; cursor = None; candidate_selected = None }
+
+let candidates_for_state s =
+  match s.focus with
+  | Currency -> List.map fst (B.measures s.session.book)
+  | Source | Destination -> loci s.session.book
+  | Split (Source_locus _) | Split (Destination_locus _) -> loci s.session.book
+  | _ -> []
+
+let current_candidate_value s =
+  match s.focus with
+  | Currency -> s.form.measure
+  | Source -> s.form.from_locus
+  | Destination -> s.form.to_locus
+  | Split (Source_locus i) ->
+      (match s.split with Some sp -> (match List.nth_opt sp.sources i with Some r -> r.locus | None -> "") | None -> "")
+  | Split (Destination_locus j) ->
+      (match s.split with Some sp -> (match List.nth_opt sp.destinations j with Some r -> r.locus | None -> "") | None -> "")
+  | _ -> ""
+
+let apply_candidate s value =
+  match s.focus with
+  | Currency -> { s with form = { s.form with measure = value } }
+  | Source -> { s with form = { s.form with from_locus = value } }
+  | Destination -> { s with form = { s.form with to_locus = value } }
+  | Split (Source_locus i) -> update_split_source_locus s i value
+  | Split (Destination_locus j) -> update_split_destination_locus s j value
+  | _ -> s
 
 let switch_region s =
-  if s.focus = History then { s with focus = s.record_focus }
-  else { s with record_focus = s.focus; focus = History }
+  if s.focus = History then { s with focus = s.record_focus; candidate_selected = None }
+  else { s with record_focus = s.focus; focus = History; candidate_selected = None }
 
 let text_field s =
   s.adding <> None
@@ -708,13 +751,15 @@ let edit_selected s =
   else
     match s.view with
     | Entries -> (
-        match List.nth_opt (entries s) s.selected with None -> s | Some e -> entry_form s e)
+        match Br.selected_entry ~book:s.session.book (browser_of_state s) with
+        | None -> s
+        | Some e -> entry_form s e)
     | Plans -> { s with message = "予定を選んでEnterで詳細、詳細から支払い入力へ。" }
 
 let pay_selected s =
   if s.blocked then s
   else
-    match List.nth_opt (plans s) s.selected with
+    match Br.selected_plan ~book:s.session.book (browser_of_state s) with
     | None -> s
     | Some _ when has_draft s -> keep_draft s
     | Some p -> (
@@ -760,20 +805,34 @@ let apply_commit_result s ~draft result =
   | A.Published session when s.adding <> None ->
       { s with session; adding = None; cursor = None; message = "科目を追加しました。入力中の下書きは保持しています。" }
   | A.Published session ->
+      let browser = Br.sync_selection ~book:session.F.book (browser_of_state s) in
       {
         (initial ?config_home:s.config_home session) with
+        focus = History;
+        record_focus = Source;
         theme = s.theme;
         ui_notice = s.ui_notice;
+        browser;
+        view = browser.view;
+        selected = Br.selected_index browser;
+        other_selected = (match browser.view with Entries -> browser.plans_selected | Plans -> browser.entries_selected);
         form = { s.form with amount = ""; memo = "" };
         message = "書込みを確認しました（試用）。修正前のコピーも保管しました。";
       }
   | A.Idempotent_duplicate { session; _ } when s.adding <> None ->
       { s with session; adding = None; cursor = None; message = "科目はすでに登録されています（重複適用なし）。" }
   | A.Idempotent_duplicate { session; _ } ->
+      let browser = Br.sync_selection ~book:session.F.book (browser_of_state s) in
       {
         (initial ?config_home:s.config_home session) with
+        focus = History;
+        record_focus = Source;
         theme = s.theme;
         ui_notice = s.ui_notice;
+        browser;
+        view = browser.view;
+        selected = Br.selected_index browser;
+        other_selected = (match browser.view with Entries -> browser.plans_selected | Plans -> browser.entries_selected);
         form = { s.form with amount = ""; memo = "" };
         message = "すでに保存済みの取引です（重複適用なし・Fast-Ack）。";
       }
@@ -916,7 +975,17 @@ let reload s =
   | A.Recovery_required (session, message) ->
       { s with session; blocked = true; message }
   | A.Reloaded session ->
-      { s with session; blocked = false; message = "再読込しました。保存前の下書きは保持しています。" }
+      let browser = Br.sync_selection ~book:session.F.book (browser_of_state s) in
+      {
+        s with
+        session;
+        browser;
+        view = browser.view;
+        selected = Br.selected_index browser;
+        other_selected = (match browser.view with Entries -> browser.plans_selected | Plans -> browser.entries_selected);
+        blocked = false;
+        message = "再読込しました。保存前の下書きは保持しています。";
+      }
   | A.Reload_failed why ->
       { s with blocked = true; message = Printf.sprintf "再読込できません (%s)。空台帳にせず、表示と下書きを保持しています。" why }
 
@@ -1061,6 +1130,9 @@ let overlay_key ~dimensions ~width_of s (button, mods) =
       Some { chosen with overlay = No_overlay }
   | O.Execute_command cmd -> (
       match cmd with
+      | O.New_transaction ->
+          let s = { s with overlay = No_overlay; focus = s.record_focus } in
+          Some s
       | O.Date_today ->
           let s = { s with overlay = No_overlay } in
           if s.blocked then Some s
@@ -1093,12 +1165,14 @@ let accepts_free_text s =
   | None -> s.adding <> None || s.focus = Memo
 
 let new_draft s =
+  let b = browser_of_state s in
   {
     (initial ?config_home:s.config_home s.session) with
     theme = s.theme;
     ui_notice = s.ui_notice;
-    view = s.view;
-    selected = s.selected;
+    browser = b;
+    view = b.view;
+    selected = Br.selected_index b;
     other_selected = s.other_selected;
     message = "新しい下書き。過去の不確かな試行は再送・回復しません。";
   }
@@ -1209,31 +1283,31 @@ let key ?(dimensions = (100, 25)) ?(width_of = String.length) s (button, mods) =
                      message = "新しい科目名を入力しEnter（残高ゼロは作りません）。";
                    })
           | `ASCII 's', [ `Ctrl ] ->
-              Some (if s.focus = History || s.postings <> None then s else submit s)
+              Some (if s.focus = History || s.postings <> None then s else submit { s with candidate_selected = None })
           | `ASCII 'u', [ `Ctrl ] ->
               Some (if text_field s then { (set_field s "") with cursor = None } else s)
           | `Escape, [] ->
               Some
-                (if s.adding <> None then { s with adding = None; cursor = None }
+                (if s.candidate_selected <> None then { s with candidate_selected = None }
+                 else if s.adding <> None then { s with adding = None; cursor = None }
                  else if s.focus <> History then
-                   { s with focus = History; record_focus = s.focus; cursor = None }
+                   { s with focus = History; record_focus = s.focus; cursor = None; candidate_selected = None }
                  else s)
           | `ASCII 'r', [] when s.focus = History -> Some (switch_region s)
           | `ASCII 'n', [] when s.focus = History -> Some (switch_region s)
           | `ASCII 'j', [] when s.focus = History -> Some (select s 1)
           | `ASCII 'k', [] when s.focus = History -> Some (select s (-1))
           | `ASCII 'q', [] when s.focus = History -> None
-          | `Tab, [] | `Tab, [ `Shift ] -> Some (if s.adding <> None then s else switch_region s)
+          | `Tab, [] | `Tab, [ `Shift ] ->
+              Some (if s.adding <> None then s else switch_region s)
+          | `Arrow `Up, [] when s.focus = History ->
+              Some (if s.adding <> None then s else select s (-1))
           | `Arrow `Up, [] ->
-              Some
-                (if s.adding <> None then s
-                 else if s.focus = History then select s (-1)
-                 else move_field s previous)
+              Some (if s.adding <> None then s else move_field s previous)
+          | `Arrow `Down, [] when s.focus = History ->
+              Some (if s.adding <> None then s else select s 1)
           | `Arrow `Down, [] ->
-              Some
-                (if s.adding <> None then s
-                 else if s.focus = History then select s 1
-                 else move_field s next)
+              Some (if s.adding <> None then s else move_field s next)
           | `Page `Up, [] when s.focus = History -> Some (select s (-6))
           | `Page `Down, [] when s.focus = History -> Some (select s 6)
           | `Home, [] ->
@@ -1246,9 +1320,12 @@ let key ?(dimensions = (100, 25)) ?(width_of = String.length) s (button, mods) =
                 (if s.focus = History then select s (count s)
                  else if text_field s then { s with cursor = None }
                  else s)
+          | `Arrow `Left, [] when s.focus = History -> Some (switch_view s)
+          | `Arrow `Right, [] when s.focus = History -> Some (switch_view s)
           | `Arrow `Left, [] -> Some (change s (-1))
           | `Arrow `Right, [] -> Some (change s 1)
-          | `Backspace, [] -> Some (if text_field s then erase_before_cursor s else s)
+          | `Backspace, [] ->
+              Some (if text_field s then erase_before_cursor s else s)
           | `ASCII '+', _ | `ASCII '=', [ `Shift ] ->
               Some
                 (match s.focus with
@@ -1263,23 +1340,21 @@ let key ?(dimensions = (100, 25)) ?(width_of = String.length) s (button, mods) =
               Some (remove_split_row s)
           | `ASCII 'd', [ `Ctrl ] when (match s.focus with Split _ -> true | _ -> false) ->
               Some (remove_split_row s)
-          | `Enter, [] ->
-              Some
-                (if s.adding <> None then submit s
-                 else if s.focus <> History && s.postings <> None then s
-                 else
-                   match s.focus with
-                   | Source -> open_locus_picker s From_locus
-                   | Destination -> open_locus_picker s To_locus
-                   | Split (Source_locus idx) -> open_locus_picker s (Split_source idx)
-                   | Split (Destination_locus idx) -> open_locus_picker s (Split_destination idx)
-                   | Split (Source_amount _) | Split (Destination_amount _) ->
-                       handle_amount_enter s
-                   | History -> (
-                       match s.view with
-                       | Plans -> plan_detail_selected s
-                       | Entries -> detail_selected s)
-                   | Date | Currency | Amount | Memo -> submit s)
+          | `Enter, [] -> (
+              if s.adding <> None then Some (submit s)
+              else if s.focus = History then
+                Some (match s.view with Plans -> plan_detail_selected s | Entries -> detail_selected s)
+              else
+                match s.focus with
+                | Source -> Some (open_locus_picker s From_locus)
+                | Destination -> Some (open_locus_picker s To_locus)
+                | Split (Source_locus idx) -> Some (open_locus_picker s (Split_source idx))
+                | Split (Destination_locus idx) -> Some (open_locus_picker s (Split_destination idx))
+                | Split (Source_amount _) | Split (Destination_amount _) ->
+                    Some (handle_amount_enter s)
+                | Currency | Date | Amount | Memo ->
+                    Some (submit s)
+                | History -> Some s)
           | (`ASCII 't' | `ASCII 'T'), [] when s.focus = Date && s.adding = None ->
               if s.blocked then Some s
               else
@@ -1287,7 +1362,8 @@ let key ?(dimensions = (100, 25)) ?(width_of = String.length) s (button, mods) =
                 Some { (set_field s today) with cursor = None; message = Printf.sprintf "日付を今日 (%s) に戻しました。" today }
           | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
               Some (if text_field s then insert_text s (String.make 1 c) else s)
-          | `Uchar c, [] -> Some (if text_field s then insert_text s (utf8 c) else s)
+          | `Uchar c, [] ->
+              Some (if text_field s then insert_text s (utf8 c) else s)
           | _ -> Some s))
 
 let handle ?(dimensions = (100, 25)) ?(width_of = String.length) s (input : input) =
@@ -1346,310 +1422,573 @@ let posting_panel ~dimensions ~width_of s (e : Pe.t) =
   O.posting_panel ~dimensions ~width_of ~book:s.session.book
     ~day:s.form.day ~memo:s.form.memo ~blocked:s.blocked ~message:s.message e
 
+let try_read_file path =
+  try
+    if Sys.file_exists path && not (Sys.is_directory path) then
+      let ic = open_in_bin path in
+      let len = in_channel_length ic in
+      let bytes = really_input_string ic len in
+      close_in ic;
+      Some bytes
+    else None
+  with _ -> None
+
+let load_file_content candidates =
+  let rec loop = function
+    | [] -> None
+    | None :: rest -> loop rest
+    | Some path :: rest -> (
+        match try_read_file path with
+        | Some content -> Some content
+        | None -> loop rest)
+  in
+  loop candidates
+
+let parse_daily_pace_tsv ~measure content =
+  let lines = String.split_on_char '\n' content in
+  let parse_line line =
+    let line = String.trim line in
+    if line = "" || String.starts_with ~prefix:"#" line then None
+    else
+      let parts =
+        String.split_on_char '\t' line
+        |> List.map String.trim
+        |> List.filter (fun s -> s <> "")
+      in
+      let parts =
+        match parts with
+        | [ locus; m ] -> Some (locus, m)
+        | _ -> (
+            let parts2 =
+              String.split_on_char ' ' line
+              |> List.map String.trim
+              |> List.filter (fun s -> s <> "")
+            in
+            match parts2 with
+            | [ locus; m ] -> Some (locus, m)
+            | _ -> None)
+      in
+      match parts with
+      | Some (locus, m) when String.lowercase_ascii m = String.lowercase_ascii measure -> (
+          match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string measure) with
+          | Ok locus_id, Ok measure_id ->
+              Some ({ locus = locus_id; measure = measure_id } : D.Effect_coordinate.t)
+          | _ -> None)
+      | _ -> None
+  in
+  let coords = List.filter_map parse_line lines in
+  let rec dedup acc = function
+    | [] -> List.rev acc
+    | c :: rest ->
+        if List.exists (fun (x : D.Effect_coordinate.t) -> D.Effect_coordinate.equal x c) acc then
+          dedup acc rest
+        else
+          dedup (c :: acc) rest
+  in
+  let unique_coords = dedup [] coords in
+  if unique_coords = [] then None else Some unique_coords
+
+let parse_boundary_window ~today content =
+  let lines = String.split_on_char '\n' content in
+  let rec find_window = function
+    | start_d :: end_d :: rest ->
+        if start_d <= today && today < end_d then Some (start_d, end_d)
+        else find_window (end_d :: rest)
+    | _ -> None
+  in
+  let rec check_lines = function
+    | [] -> None
+    | line :: rest ->
+        let line = String.trim line in
+        if line = "" || String.starts_with ~prefix:"#" line then check_lines rest
+        else
+          let tokens =
+            String.split_on_char '\t' line
+            |> List.map String.trim
+            |> List.filter (fun s -> s <> "")
+          in
+          let dates =
+            match tokens with
+            | _preset :: ds -> ds
+            | [] -> []
+          in
+          match find_window dates with
+          | Some (s, e) -> Some (s, e)
+          | None -> check_lines rest
+  in
+  check_lines lines
+
+let budget_window ~book ~measure ~today =
+  match B.budgets book with
+  | None -> None
+  | Some budgets -> (
+      let matching =
+        List.filter
+          (fun (b : B.budget) ->
+            b.measure = measure && b.start_day <= today && today < b.end_exclusive)
+          budgets
+      in
+      match matching with
+      | b :: _ -> Some (b.start_day, b.end_exclusive)
+      | [] -> None)
+
+let load_balance_view_loci s =
+  let session_dir = Filename.dirname s.session.F.path in
+  let candidates =
+    [
+      Option.map (fun h -> Filename.concat h "balance-view.tsv") s.config_home;
+      Some (Filename.concat session_dir "balance-view.tsv");
+      Some (Filename.concat session_dir "config/balance-view.tsv");
+    ]
+  in
+  match load_file_content candidates with
+  | Some content ->
+      let lines = String.split_on_char '\n' content in
+      let parse_line line =
+        let line = String.trim line in
+        if line = "" || String.starts_with ~prefix:"#" line then None
+        else
+          match String.split_on_char '\t' line with
+          | locus :: _ when locus <> "" -> Some locus
+          | _ -> None
+      in
+      let loci = List.filter_map parse_line lines in
+      if loci = [] then None else Some loci
+  | None -> None
+
+let primary_account_loci s =
+  let book = s.session.book in
+  let all_loci = loci book in
+  match load_balance_view_loci s with
+  | Some bv_loci ->
+      let matched = List.filter (fun id -> List.mem id all_loci) bv_loci in
+      if matched <> [] then matched else all_loci
+  | None -> (
+      let session_dir = Filename.dirname s.session.F.path in
+      let pace_candidates =
+        [
+          Option.map (fun h -> Filename.concat h "daily-pace.tsv") s.config_home;
+          Some (Filename.concat session_dir "daily-pace.tsv");
+          Some (Filename.concat session_dir "config/daily-pace.tsv");
+        ]
+      in
+      let pace_loci =
+        match load_file_content pace_candidates with
+        | Some content -> (
+            match parse_daily_pace_tsv ~measure:s.form.measure content with
+            | Some coords ->
+                Some (List.map (fun (c : D.Effect_coordinate.t) -> D.Identifier.Locus.to_string c.locus) coords)
+            | None -> None)
+        | None -> None
+      in
+      match pace_loci with
+      | Some p_loci when p_loci <> [] ->
+          let matched = List.filter (fun id -> List.mem id all_loci) p_loci in
+          if matched <> [] then matched else all_loci
+      | _ -> (
+          let expense_set =
+            match B.budgets book with
+            | Some budgets -> List.concat_map (fun (b : B.budget) -> b.expense_loci) budgets
+            | None -> []
+          in
+          let non_expense = List.filter (fun id -> not (List.mem id expense_set)) all_loci in
+          if non_expense <> [] then non_expense else all_loci))
+
+let summary_balances ~width_of ~max_width s =
+  let book = s.session.book in
+  let account_loci = primary_account_loci s in
+  let measures = List.map fst (B.measures book) in
+  let balances =
+    List.filter_map
+      (fun id ->
+        let label = B.label book id in
+        let locus_balances =
+          List.filter_map
+            (fun m ->
+              let q = O.quantity ~book ~measure:m id in
+              if q = "不明" || q = "0" then None
+              else Some (q ^ " " ^ m))
+            measures
+        in
+        match locus_balances with
+        | [] -> (
+            let primary_m = s.form.measure in
+            let q = O.quantity ~book ~measure:primary_m id in
+            if q = "存在あり・金額不明" then Some (label ^ ": 金額不明")
+            else if q = "不明" then Some (label ^ ": 不明")
+            else None)
+        | xs -> Some (label ^ ": " ^ String.concat ", " xs))
+      account_loci
+  in
+  let text =
+    if balances = [] then
+      let sample =
+        List.filter_map
+          (fun id ->
+            let label = B.label book id in
+            let q = O.quantity ~book ~measure:s.form.measure id in
+            if q = "不明" then Some (label ^ ": 不明")
+            else Some (label ^ ": " ^ q ^ " " ^ s.form.measure))
+          (List.filteri (fun i _ -> i < 3) account_loci)
+      in
+      if sample = [] then "未記録" else String.concat " │ " sample
+    else
+      String.concat " │ " balances
+  in
+  clip_text ~width_of max_width text
+
+let summary_daily_pace s =
+  let measure = s.form.measure in
+  let today = s.form.day in
+  let session_dir = Filename.dirname s.session.F.path in
+  let pool_candidates =
+    [
+      Option.map (fun h -> Filename.concat h "daily-pace.tsv") s.config_home;
+      Some (Filename.concat session_dir "daily-pace.tsv");
+      Some (Filename.concat session_dir "config/daily-pace.tsv");
+    ]
+  in
+  let window_candidates =
+    [
+      Option.map (fun h -> Filename.concat h "boundary-presets.tsv") s.config_home;
+      Some (Filename.concat session_dir "boundary-presets.tsv");
+      Some (Filename.concat session_dir "config/boundary-presets.tsv");
+    ]
+  in
+  let pool_opt =
+    match load_file_content pool_candidates with
+    | Some content -> parse_daily_pace_tsv ~measure content
+    | None -> None
+  in
+  let window_opt =
+    match load_file_content window_candidates with
+    | Some content -> (
+        match parse_boundary_window ~today content with
+        | Some w -> Some w
+        | None -> budget_window ~book:s.session.book ~measure ~today)
+    | None -> budget_window ~book:s.session.book ~measure ~today
+  in
+  match (pool_opt, window_opt) with
+  | None, _ | _, None ->
+      ("未設定", "未設定")
+  | Some pool, Some (start_d, end_exclusive) -> (
+      match B.daily_pace s.session.book ~measure ~pool ~observed_at:today ~end_exclusive with
+      | Ok pace ->
+          let pace_str = Printf.sprintf "%s %s/日" (B.format s.session.book measure pace.daily_pace_quanta) measure in
+          let period_str = Printf.sprintf "%s 〜 %s (残%d日)" pace.observed_at pace.end_exclusive pace.remaining_days in
+          (pace_str, period_str)
+      | Error why ->
+          let err_str = Printf.sprintf "計算不可 (%s)" why in
+          let period_str = Printf.sprintf "%s 〜 %s" start_d end_exclusive in
+          (err_str, period_str))
+
+let summary_next_scheduled s =
+  let book = s.session.book in
+  let today = s.form.day in
+  let open_plans =
+    B.plans book
+    |> List.filter (fun (p : B.plan) -> B.plan_is_open p)
+    |> List.sort (fun (a : B.plan) (b : B.plan) ->
+        let c = String.compare a.day b.day in
+        if c <> 0 then c else String.compare a.id b.id)
+  in
+  let upcoming = List.filter (fun (p : B.plan) -> p.day >= today) open_plans in
+  match upcoming with
+  | p :: _ ->
+      let amt_summary =
+        match p.changes with
+        | (locus, amt) :: _ ->
+            Printf.sprintf " %s %s%s %s" (B.label book locus)
+              (if Z.sign amt > 0 then "+" else "")
+              (B.format book p.measure amt) p.measure
+        | [] -> ""
+      in
+      Printf.sprintf "%s [%s]%s" p.day p.id amt_summary
+  | [] -> (
+      let overdue = List.filter (fun (p : B.plan) -> p.day < today) open_plans in
+      match overdue with
+      | p :: _ -> Printf.sprintf "期限超過あり (%s [%s])" p.day p.id
+      | [] -> "なし")
+
+let summary_lines ~width_of ~width ~height s =
+  let line style value = (style, clip_text ~width_of width value) in
+  let plain = line Plain in
+  let max_w = max 20 (width - 16) in
+  let balance_str = summary_balances ~width_of ~max_width:max_w s in
+  let pace_str, period_str = summary_daily_pace s in
+  let next_plan_str = summary_next_scheduled s in
+  let is_compact = width < 80 || height < 24 in
+  if is_compact then
+    [
+      line Heading ("【残高】 " ^ balance_str);
+      plain (Printf.sprintf "【ペース】 %s (%s)  【予定】 %s" pace_str period_str next_plan_str);
+    ]
+  else
+    [
+      line Heading ("【口座残高】 " ^ balance_str);
+      plain (Printf.sprintf "【デイリーペース】 %s    【計算対象期間】 %s" pace_str period_str);
+      plain ("【次回予定】 " ^ next_plan_str);
+    ]
+
+let floating_create_editor ~dimensions:(width, height) ~width_of s =
+  let pane_width = max 32 (min 76 (width - 4)) in
+  let pane_height =
+    let slots = min 8 (max 1 (height - 11)) in
+    slots + 9
+  in
+  let line style text = panel_line ~width:pane_width ~width_of style text in
+  if width < 32 || height < 10 then
+    [
+      line Panel "端末を32桁×10行以上に広げてください";
+      line Panel "Esc:戻る / 保存しません";
+    ]
+  else
+    let title =
+      match s.mode with
+      | New -> "新規記帳 (Floating Create Editor)"
+      | Edit e -> Printf.sprintf "明細訂正 [%s]" e.id
+      | Pay id -> Printf.sprintf "予定の支払い [%s]" id
+    in
+    let border_top = panel_border ~width:pane_width ~width_of title in
+    let with_cursor value =
+      let at = cursor s in
+      let len = String.length value in
+      let at = max 0 (min len at) in
+      String.sub value 0 at ^ "|" ^ String.sub value at (len - at)
+    in
+    let field focus title value =
+      let is_active = s.adding = None && s.focus = focus in
+      if is_active then
+        let val_disp = if text_field s then with_cursor value else value in
+        (true, line Panel_active (Printf.sprintf "> %s  %s" title val_disp))
+      else
+        (false, line Panel (Printf.sprintf "  %s  %s" title value))
+    in
+    let catalog_rows target_locus =
+      if height < 16 then []
+      else
+        let all_loci = loci s.session.book in
+        let total = List.length all_loci in
+        if total = 0 then []
+        else
+          let current_idx =
+            let rec loop i = function
+              | [] -> 0
+              | x :: rest -> if x = target_locus then i else loop (i + 1) rest
+            in
+            loop 0 all_loci
+          in
+          let slots = min 3 total in
+          let start = max 0 (min (total - slots) (max 0 (current_idx - 1))) in
+          [ (false, line Panel "    候補カタログ (Locus catalog): Enter:詳細選択") ]
+          @ (all_loci
+            |> List.mapi (fun i id -> (i, id))
+            |> List.filter (fun (i, _) -> i >= start && i < start + slots)
+            |> List.map (fun (i, id) ->
+                let is_curr = (id = target_locus) || (target_locus = "" && i = current_idx) in
+                let mark = if is_curr then "    * " else "      " in
+                let q = quantity s id in
+                let label = B.label s.session.book id in
+                let q_str = if q = "不明" || q = "" then "" else " (" ^ q ^ " " ^ s.form.measure ^ ")" in
+                let text = Printf.sprintf "%s%-8s %-8s%s" mark id label q_str in
+                (false, line (if is_curr then Panel_heading else Panel) text)))
+    in
+    let form_fields =
+      match s.split with
+      | Some sp ->
+          let book = s.session.book in
+          let measure = s.form.measure in
+          let d_active, d_line = field Date "日付" s.form.day in
+          let c_active, c_line = field Currency "通貨" s.form.measure in
+          let src_lines =
+            List.mapi
+              (fun i (r : split_row) ->
+                let locus_active = s.focus = Split (Source_locus i) in
+                let amount_active = s.focus = Split (Source_amount i) in
+                let active = locus_active || amount_active in
+                let locus_label = if r.locus = "" then "（未選択）" else B.label book r.locus in
+                let amt_val = if amount_active && text_field s then with_cursor r.amount else r.amount in
+                let tag = Printf.sprintf "出金元 %d" (i + 1) in
+                let locus_display = if locus_active then "[" ^ locus_label ^ "]" else locus_label in
+                let amt_display = if amount_active then "[" ^ (if amt_val = "" then " " else amt_val) ^ "]" else if r.amount = "" then "—" else r.amount in
+                let row_text = Printf.sprintf "%s%s  %s  %s %s" (if active then "> " else "  ") tag locus_display amt_display measure in
+                let st = if active then Panel_active else Panel in
+                let cats = if locus_active && s.adding = None then catalog_rows r.locus else [] in
+                (active, line st row_text) :: cats)
+              sp.sources
+            |> List.concat
+          in
+          let dst_lines =
+            List.mapi
+              (fun j (r : split_row) ->
+                let locus_active = s.focus = Split (Destination_locus j) in
+                let amount_active = s.focus = Split (Destination_amount j) in
+                let active = locus_active || amount_active in
+                let locus_label = if r.locus = "" then "（未選択）" else B.label book r.locus in
+                let amt_val = if amount_active && text_field s then with_cursor r.amount else r.amount in
+                let tag = Printf.sprintf "入金先 %d" (j + 1) in
+                let locus_display = if locus_active then "[" ^ locus_label ^ "]" else locus_label in
+                let amt_display = if amount_active then "[" ^ (if amt_val = "" then " " else amt_val) ^ "]" else if r.amount = "" then "—" else r.amount in
+                let row_text = Printf.sprintf "%s%s  %s  %s %s" (if active then "> " else "  ") tag locus_display amt_display measure in
+                let st = if active then Panel_active else Panel in
+                let cats = if locus_active && s.adding = None then catalog_rows r.locus else [] in
+                (active, line st row_text) :: cats)
+              sp.destinations
+            |> List.concat
+          in
+          let m_active, m_line = field Memo "メモ" s.form.memo in
+          let residual_status =
+            let draft = split_to_draft measure sp in
+            match R.residual book draft with
+            | Error why -> "下書き差額: 計算不可 (" ^ R.format_residual_error why ^ ")"
+            | Ok n ->
+                "下書き差額: " ^ B.format book measure n ^ " " ^ measure
+                ^ if Z.equal n Z.zero then "（0・数量のみ整合）" else "（0でない・記帳不可）"
+          in
+          [ (d_active, d_line); (c_active, c_line) ]
+          @ src_lines
+          @ dst_lines
+          @ [ (m_active, m_line); (false, line Panel residual_status) ]
+      | None ->
+          let d_active, d_line = field Date "日付" s.form.day in
+          let c_active, c_line = field Currency "通貨" s.form.measure in
+          let s_active, s_line = field Source "出金元" (B.label s.session.book s.form.from_locus) in
+          let s_cats = if s.focus = Source && s.adding = None then catalog_rows s.form.from_locus else [] in
+          let t_active, t_line = field Destination "入金先・科目" (B.label s.session.book s.form.to_locus) in
+          let t_cats = if s.focus = Destination && s.adding = None then catalog_rows s.form.to_locus else [] in
+          let a_active, a_line = field Amount "金額" s.form.amount in
+          let m_active, m_line = field Memo "メモ" s.form.memo in
+          [ (d_active, d_line); (c_active, c_line); (s_active, s_line) ]
+          @ s_cats
+          @ [ (t_active, t_line) ]
+          @ t_cats
+          @ [ (a_active, a_line); (m_active, m_line) ]
+    in
+    let adding_lines =
+      match s.adding with
+      | Some name -> [ line Panel_active ("追加する科目: " ^ with_cursor name ^ " (Enter:追加 Esc:取消)") ]
+      | None -> []
+    in
+    let bal_hint =
+      if s.postings = None && List.mem s.focus [ Source; Destination; Amount ] then
+        Printf.sprintf "出金元: %s / 入金先: %s %s" (quantity s s.form.from_locus) (quantity s s.form.to_locus) s.form.measure
+      else ""
+    in
+    let status_text =
+      if s.blocked then s.message
+      else if s.message <> "" then s.message
+      else if bal_hint <> "" then bal_hint
+      else ""
+    in
+    let hint_lines =
+      [
+        line Panel "Tab/↑↓:項目移動  ←→:カーソル  Enter:候補選択/次へ";
+        line Panel "Ctrl-S:確認保存  Esc:閉じる  Ctrl-N:新規  Ctrl-T:複数行";
+      ]
+    in
+    let fixed_bottom_lines =
+      (if status_text <> "" then [ line (if s.blocked then Panel_active else Panel) status_text ] else [ line Panel "" ])
+      @ hint_lines
+    in
+    let available_slots = max 4 (pane_height - 2 - List.length adding_lines - List.length fixed_bottom_lines) in
+    let total_fields = List.length form_fields in
+    let visible_field_lines =
+      if total_fields <= available_slots then
+        let actual = List.map snd form_fields in
+        let pad_count = available_slots - total_fields in
+        let padding = List.init pad_count (fun _ -> line Panel "") in
+        actual @ padding
+      else
+        let active_idx =
+          let rec find_idx i = function
+            | [] -> 0
+            | (is_active, _) :: rest -> if is_active then i else find_idx (i + 1) rest
+          in
+          find_idx 0 form_fields
+        in
+        let start = max 0 (min (total_fields - available_slots) (max 0 (active_idx - available_slots / 2))) in
+        form_fields
+        |> List.filteri (fun i _ -> i >= start && i < start + available_slots)
+        |> List.map snd
+    in
+    [ border_top ]
+    @ adding_lines
+    @ visible_field_lines
+    @ fixed_bottom_lines
+    @ [ panel_bottom ~width:pane_width () ]
+
 let overlay_screen ~dimensions ~width_of s =
-  O.overlay_screen ~dimensions ~width_of ~book:s.session.book
-    ~day:s.form.day ~measure:s.form.measure ~memo:s.form.memo
-    ~blocked:s.blocked ~editable:(editable s)
-    ~can_choose_locus:(can_choose_locus s) ~message:s.message
-    ~has_draft:(has_draft s) ?postings:s.postings s.overlay
+  match s.overlay with
+  | No_overlay when s.focus <> History -> (
+      match s.postings with
+      | Some e when e.visible ->
+          Some (posting_panel ~dimensions ~width_of s e)
+      | _ ->
+          Some (floating_create_editor ~dimensions ~width_of s))
+  | _ ->
+      O.overlay_screen ~dimensions ~width_of ~book:s.session.book
+        ~day:s.form.day ~measure:s.form.measure ~memo:s.form.memo
+        ~blocked:s.blocked ~editable:(editable s)
+        ~can_choose_locus:(can_choose_locus s) ~message:s.message
+        ~has_draft:(has_draft s) ?postings:s.postings s.overlay
 
 let screen ?(width_of = String.length) ~frontend (width, height) s =
   let line style value = (style, clip_text ~width_of width value) in
   let plain = line Plain in
   let browsing = s.focus = History in
-  let with_cursor value =
-    let at = cursor s in
-    String.sub value 0 at ^ "|" ^ String.sub value at (String.length value - at)
-  in
-  let field focus title value =
-    let active = s.adding = None && s.focus = focus in
-    let value = if active && s.adding = None && text_field s then with_cursor value else value in
-    line (if active then Active else Plain) ((if active then "> " else "  ") ^ title ^ "  " ^ value)
-  in
   if width < 64 || height < 20 then
     let rows = [ plain ("Bakhlo / " ^ frontend); plain "端末を64桁×20行以上に広げてください" ] in
     if s.blocked then
       rows @ List.init (max 0 (height - 3)) (fun _ -> plain "") @ [ line Status s.message ]
-    else rows
+    else
+      rows @ List.init (max 0 (height - List.length rows)) (fun _ -> plain "")
   else
-    let find_index_opt p xs =
-      let rec loop i = function
-        | [] -> None
-        | x :: rest -> if p x then Some i else loop (i + 1) rest
-      in
-      loop 0 xs
+    let title_row = line Heading ("Bakhlo / " ^ frontend ^ " — S式の家計簿（試用）") in
+    let summary_rows = summary_lines ~width_of ~width ~height s in
+    let workspace_heading =
+      line
+        (if browsing then Active else Heading)
+        ((if browsing then "> " else "  ")
+        ^ "閲覧 (Workspace) — "
+        ^ (match s.view with Entries -> "【明細】  予定" | Plans -> "明細  【予定】")
+        ^ " "
+        ^ String.make (max 0 (width - 32)) '-')
     in
-    let locus_catalog_lines ?(base_rows = 6) current_locus =
-      let book = s.session.book in
-      let measure = s.form.measure in
-      let all_loci = loci book in
-      let total = List.length all_loci in
-      let max_allowed = height - 10 - base_rows in
-      if total = 0 || max_allowed < 2 then []
+    let status_rows =
+      (if s.message <> "" then [ line Status s.message ] else [])
+      @ (match s.ui_notice with Some n when n <> "" -> [ line Status n ] | _ -> [])
+    in
+    let footer =
+      if s.blocked then line Status s.message
+      else if browsing then
+        plain "←→:表示切替  ↑↓/jk:選択  Enter:詳細  Ctrl-E:編集  r/n:新規  Space:コマンド  q:終了"
+      else if s.postings <> None then
+        plain "Ctrl-T:複数行入力へ戻る（下書き保持）  Tab:上下切替  Esc:閉じる"
       else
-        let current_idx =
-          match find_index_opt (fun id -> id = current_locus) all_loci with
-          | Some idx -> idx
-          | None -> 0
-        in
-        let max_slots = max 1 (min 4 (max_allowed - 1)) in
-        let slots = min max_slots total in
-        let start = max 0 (min (total - slots) (max 0 (current_idx - 1))) in
-        let visible_loci =
-          all_loci
-          |> List.mapi (fun i id -> (i, id))
-          |> List.filter (fun (i, _) -> i >= start && i < start + slots)
-        in
-        let catalog_items =
-          visible_loci
-          |> List.map (fun (_, id) ->
-              let is_curr = (id = current_locus) in
-              let mark = if is_curr then "    > " else "      " in
-              let q = quantity s id in
-              let label = B.label book id in
-              let q_str = if q = "不明" then "" else " (" ^ q ^ " " ^ measure ^ ")" in
-              let row_text = Printf.sprintf "%s%-10s %-10s%s" mark id label q_str in
-              line (if is_curr then Active else Plain) row_text)
-        in
-        [ plain "    候補カタログ (Locus catalog): ←→:選択" ] @ catalog_items
+        plain "Tab:上下切替  ↑↓:項目移動  Enter:候補選択/確認  Ctrl-S:保存  Esc:閉じる"
     in
-    let form_rows =
-      if browsing then
-        let book = s.session.book in
-        let measure = s.form.measure in
-        let all_loci = loci book in
-        let balances =
-          List.filter_map
-            (fun id ->
-              let q = quantity s id in
-              if q = "不明" || q = "0" then None
-              else Some (Printf.sprintf "%s: %s" (B.label book id) q))
-            all_loci
-        in
-        let balance_text =
-          if balances = [] then
-            "残高: " ^ String.concat " │ "
-              (List.filter_map
-                 (fun id ->
-                   let q = quantity s id in
-                   if q = "不明" then None
-                   else Some (Printf.sprintf "%s: %s" (B.label book id) q))
-                 (List.filteri (fun i _ -> i < 3) all_loci))
-          else
-            "残高: " ^ String.concat " │ " (List.filteri (fun i _ -> i < 3) balances)
-        in
-        let balance_line = if balance_text = "残高: " then "残高: 未記録" else balance_text ^ " " ^ measure in
-        let draft_summary =
-          if s.postings <> None then "複数下書き保持中（r/nで再開）"
-          else if s.form.amount <> "" || s.form.memo <> "" then
-            Printf.sprintf "下書き保持中: %s %s %s（r/nで再開）"
-              (B.label book s.form.from_locus) s.form.amount s.form.measure
-          else "記帳: [r/n]キーまたはTabで開始"
-        in
-        [
-          line Heading ("【口座残高】 " ^ balance_line);
-          plain ("【状態】 " ^ draft_summary);
-        ]
-      else
-        match s.postings with
-        | Some e ->
-            [
-              plain ("日付: " ^ s.form.day);
-              plain ("通貨: " ^ e.draft.measure);
-              plain (Printf.sprintf "複数posting: %d行（下書き保持中）" (List.length e.draft.rows));
-              plain ("メモ: " ^ s.form.memo);
-              plain (posting_status s e);
-              plain (Option.value ~default:"" e.notice);
-            ]
-        | None -> (
-            match s.split with
-            | Some sp ->
-                let book = s.session.book in
-                let measure = s.form.measure in
-                let split_base_rows = 4 + List.length sp.sources + List.length sp.destinations in
-                let src_lines =
-                  List.mapi
-                    (fun i (r : split_row) ->
-                      let locus_active = s.focus = Split (Source_locus i) in
-                      let amount_active = s.focus = Split (Source_amount i) in
-                      let locus_label = if r.locus = "" then "（未選択）" else B.label book r.locus in
-                      let amount_val =
-                        if amount_active && text_field s then with_cursor r.amount else r.amount
-                      in
-                      let tag = Printf.sprintf "出金元 %d" (i + 1) in
-                      let active = locus_active || amount_active in
-                      let mark = if active then "> " else "  " in
-                      let locus_display = if locus_active then "[" ^ locus_label ^ "]" else locus_label in
-                      let amount_display =
-                        if amount_active then "[" ^ (if amount_val = "" then " " else amount_val) ^ "]"
-                        else if r.amount = "" then "—"
-                        else r.amount
-                      in
-                      let main_line =
-                        line (if active then Active else Plain)
-                          (Printf.sprintf "%s%s  %s  %s %s" mark tag locus_display amount_display measure)
-                      in
-                      let catalog =
-                        if locus_active && s.adding = None then
-                          locus_catalog_lines ~base_rows:split_base_rows r.locus
-                        else []
-                      in
-                      main_line :: catalog)
-                    sp.sources
-                  |> List.concat
-                in
-                let dst_lines =
-                  List.mapi
-                    (fun j (r : split_row) ->
-                      let locus_active = s.focus = Split (Destination_locus j) in
-                      let amount_active = s.focus = Split (Destination_amount j) in
-                      let locus_label = if r.locus = "" then "（未選択）" else B.label book r.locus in
-                      let amount_val =
-                        if amount_active && text_field s then with_cursor r.amount else r.amount
-                      in
-                      let tag = Printf.sprintf "入金先 %d" (j + 1) in
-                      let active = locus_active || amount_active in
-                      let mark = if active then "> " else "  " in
-                      let locus_display = if locus_active then "[" ^ locus_label ^ "]" else locus_label in
-                      let amount_display =
-                        if amount_active then "[" ^ (if amount_val = "" then " " else amount_val) ^ "]"
-                        else if r.amount = "" then "—"
-                        else r.amount
-                      in
-                      let main_line =
-                        line (if active then Active else Plain)
-                          (Printf.sprintf "%s%s  %s  %s %s" mark tag locus_display amount_display measure)
-                      in
-                      let catalog =
-                        if locus_active && s.adding = None then
-                          locus_catalog_lines ~base_rows:split_base_rows r.locus
-                        else []
-                      in
-                      main_line :: catalog)
-                    sp.destinations
-                  |> List.concat
-                in
-                let residual_status =
-                  let draft = split_to_draft measure sp in
-                  match R.residual book draft with
-                  | Error why -> "下書き差額: 計算不可 (" ^ R.format_residual_error why ^ ")"
-                  | Ok n ->
-                      "下書き差額: "
-                      ^ B.format book measure n
-                      ^ " " ^ measure
-                      ^ if Z.equal n Z.zero then "（0・数量のみ整合）" else "（0でない・記帳不可）"
-                in
-                [
-                  field Date "日付" s.form.day;
-                  field Currency "通貨" s.form.measure;
-                ]
-                @ src_lines
-                @ dst_lines
-                @ [
-                  field Memo "メモ" s.form.memo;
-                  plain residual_status;
-                ]
-            | None ->
-                let src_catalog =
-                  if s.focus = Source && s.adding = None then locus_catalog_lines s.form.from_locus else []
-                in
-                let dst_catalog =
-                  if s.focus = Destination && s.adding = None then locus_catalog_lines s.form.to_locus else []
-                in
-                [
-                  field Date "日付" s.form.day;
-                  field Currency "通貨" s.form.measure;
-                  field Source "出金元" (B.label s.session.book s.form.from_locus);
-                ]
-                @ src_catalog
-                @ [
-                  field Destination "入金先・科目" (B.label s.session.book s.form.to_locus);
-                ]
-                @ dst_catalog
-                @ [
-                  field Amount "金額" s.form.amount;
-                  field Memo "メモ" s.form.memo;
-                ])
-    in
-    let header_and_footer_lines = 9 + List.length form_rows in
-    let room = max 1 (height - header_and_footer_lines) in
+    let fixed_count = 1 + List.length summary_rows + 1 + List.length status_rows + 1 in
+    let room = max 1 (height - fixed_count) in
     let rows =
       Br.visible_slice ~book:s.session.book (browser_of_state s) ~room
       |> List.map (fun (n, text) ->
           let active = browsing && s.selected = n in
           line (if active then Active else Plain) ((if active then "> " else "  ") ^ text))
     in
-    let content =
-      [
-        line Heading ("Bakhlo / " ^ frontend ^ " — S式の家計簿（試用）");
-        line
-          (if browsing then Heading else Active)
-          ((if browsing then "  " else "> ")
-          ^ "記帳 — "
-          ^
-          match s.mode with
-          | New -> "新規"
-          | Edit e -> "明細訂正 [" ^ e.id ^ "]"
-          | Pay id -> "予定の支払い [" ^ id ^ "]");
-      ]
-      @ form_rows
-      @ [
-          line
-            (if s.adding <> None then Active else Plain)
-            (match s.adding with
-            | Some name -> "追加する科目: " ^ with_cursor name ^ "  Enter:追加 Esc:取消"
-            | None ->
-                if browsing then ""
-                else if s.postings <> None then "Ctrl-T:複数行入力へ戻る（下書き保持）"
-                else if s.split <> None then "↑↓:項目 ←→:候補/文字位置 Enter:選択/次へ +:行追加 -:行削除 Ctrl-S:確認"
-                else "↑↓:項目 ←→:候補/文字位置 Enter:選択/確認 +:出金/入金元追加 Ctrl-S:確認");
-          plain
-            (if browsing then ""
-             else if s.postings = None && List.mem s.focus [ Source; Destination; Amount ] then
-               "出金元: " ^ quantity s s.form.from_locus ^ " / 入金先: " ^ quantity s s.form.to_locus
-               ^ " " ^ s.form.measure
-             else if s.postings = None && s.split <> None then
-               match s.focus with
-               | Split (Source_locus idx) | Split (Source_amount idx) -> (
-                   match s.split with
-                   | Some sp -> (
-                       match List.nth_opt sp.sources idx with
-                       | Some r when r.locus <> "" ->
-                           Printf.sprintf "出金元%d現在量: %s %s" (idx + 1) (quantity s r.locus) s.form.measure
-                       | _ -> "+:行追加 -:行削除")
-                   | None -> "")
-               | Split (Destination_locus idx) | Split (Destination_amount idx) -> (
-                   match s.split with
-                   | Some sp -> (
-                       match List.nth_opt sp.destinations idx with
-                       | Some r when r.locus <> "" ->
-                           Printf.sprintf "入金先%d現在量: %s %s" (idx + 1) (quantity s r.locus) s.form.measure
-                       | _ -> "+:行追加 -:行削除")
-                   | None -> "")
-               | _ -> "+:行追加 -:行削除"
-             else "Ctrl-T:複数行 Ctrl-A:科目追加 Ctrl-R:再読込");
-          line Status s.message;
-          line Status (Option.value ~default:"" s.ui_notice);
-          line
-            (if browsing then Active else Heading)
-            ((if browsing then "> " else "  ")
-            ^ "閲覧 — "
-            ^ (match s.view with Entries -> "[明細]  予定" | Plans -> "明細  [予定]")
-            ^ " "
-            ^ String.make (max 0 (width - 28)) '-');
-          plain
-            (if not browsing then ""
-             else
-               match s.view with
-               | Entries -> "←→:表示切替 ↑↓:選択 Enter:詳細 Ctrl-E:編集"
-               | Plans -> "←→:表示切替 ↑↓:選択 Enter:詳細（未記録は義務なしではありません）");
-        ]
-      @ if rows = [] then [ plain "記録なし" ] else rows
+    let workspace_rows = if rows = [] then [ plain "記録なし" ] else rows in
+    let top_and_workspace =
+      [ title_row ]
+      @ summary_rows
+      @ [ workspace_heading ]
+      @ workspace_rows
+      @ status_rows
     in
-    content
-    @ List.init (max 0 (height - List.length content - 1)) (fun _ -> plain "")
-    @ [
-        (if s.blocked then line Status s.message
-         else if browsing then plain "r/n:記帳 Tab:上下切替 ↑↓/jk:選択 Enter:詳細 Space:コマンド q:終了"
-         else plain "Tab:上下 Esc:ホーム Ctrl-N:新規 Space:コマンド Ctrl-Q:終了");
-      ]
+    let pad_count = max 0 (height - List.length top_and_workspace - 1) in
+    let padding = List.init pad_count (fun _ -> plain "") in
+    let full = top_and_workspace @ padding @ [ footer ] in
+    if List.length full = height then full
+    else if List.length full > height then
+      let kept = List.filteri (fun i _ -> i < height - 1) full in
+      kept @ [ footer ]
+    else
+      full @ List.init (height - List.length full) (fun _ -> plain "")
