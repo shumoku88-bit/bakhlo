@@ -59,6 +59,21 @@ let create ~cut ~assertions =
 let source_cut model = model.source_cut
 let assertions model = model.assertions
 
+let with_added_effects model effects =
+  if Base.List.is_empty effects || Base.Map.is_empty model.answers then model
+  else
+    let net = Effect_sum.add_effects Effect_sum.empty effects in
+    let answers =
+      Base.Map.map model.answers ~f:(fun answer ->
+          let eff = Effect_sum.at net answer.coordinate in
+          if Q.equal eff Q.zero then answer
+          else
+            let delta = Q.add answer.delta eff in
+            let quantity = Q.add answer.asserted_quantity delta in
+            { answer with delta; quantity })
+    in
+    { model with answers }
+
 let query model coordinate =
   match Base.Map.find model.answers coordinate with
   | None -> Error (Assertion_unknown { coordinate })

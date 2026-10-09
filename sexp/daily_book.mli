@@ -196,11 +196,12 @@ val cancel_plan : t -> id:string -> day:string -> (t, string) result
     balance change. Paid/already-cancelled/missing plans refuse. Cancellation does
     not require the historical loci to remain approved for new writes. *)
 
+val put_entry_full : t -> replace:bool -> entry -> plan:string option -> (t, string) result
+(** Reference oracle: complete whole-book admission verification without incremental fast path. *)
+
 val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) result
-(** Whole checked append or replacement, preserving stable identities and all
-    other entries/plans/support. An attached open plan is marked paid atomically;
-    attaching a paid or cancelled plan refuses without appending the entry.
-    Current new-write vocabulary is checked; refunds/Exchange still use Core gates. *)
+(** Checked append or replacement. Uses incremental admission for ordinary new entries,
+    and safely falls back to full admission for replacements, reversals, and exchanges. *)
 
 val add_locus : t -> string -> (t, string) result
 (** Explicit vocabulary addition only; never supplies zero balance or a role. *)

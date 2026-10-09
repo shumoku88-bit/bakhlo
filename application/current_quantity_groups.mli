@@ -29,6 +29,7 @@ val create : frontier:Correction_frontier.t -> groups:group list -> (t, error) r
 
 val source_frontier : t -> Correction_frontier.t
 val groups : t -> group list
+val with_added_effects : t -> Bakhlo_domain.Effect.t list -> t
 
 val group_for : t -> Bakhlo_domain.Effect_coordinate.t -> Current_quantity_projection.t option
 (** Unique already-qualified group; None means no exact assertion owner. *)
