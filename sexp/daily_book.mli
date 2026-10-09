@@ -49,8 +49,26 @@ type budget = {
 
 type t
 
+val source_format_of_string : string -> [ `Monolithic of string | `Records of int | `Unknown ]
+(** Detect whether input is Monolithic S-expression (bakhlo-daily v1..v4) or Records S-expression (bakhlo-records v1). *)
+
 val of_string : string -> (t, string) result
+(** Safe compatible reader. Parses Monolithic (v1..v4) or Records (v1) format transparently.
+    Domain invariants are uniformly validated. Does not perform automatic rewriting or migration. *)
+
 val to_string : t -> string
+(** Serializes the book in the canonical Monolithic S-expression format (v4 if budgets exist, otherwise v3).
+    Preserves backward compatibility; does not silently switch format on write. *)
+
+val of_records : Records_book.t -> (t, string) result
+(** Construct a Daily_book from a Records_book through Core invariant gates. *)
+
+val to_records : ?request_tokens:(string * string) list -> t -> Records_book.t
+(** Convert a Daily_book to a Records_book with sequential LSNs and CRC32 framing. *)
+
+val to_records_string : ?request_tokens:(string * string) list -> t -> string
+(** Explicitly serialize in the Records S-expression format. *)
+
 
 val budgets : t -> budget list option
 (** None means budget information not supplied (including v1..v3), NOT zero budgets. *)

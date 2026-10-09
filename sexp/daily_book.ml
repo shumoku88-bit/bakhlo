@@ -386,7 +386,7 @@ let decode_budget = function
       }
   | X.Atom _ | X.List _ -> raise (Refused "invalid-budget")
 
-let of_string bytes =
+let of_monolithic_string bytes =
   protect (fun () ->
       match get "syntax" (Parsexp.Many.parse_string bytes) with
       | X.List [ X.Atom "bakhlo-daily"; X.Atom version ] :: rows
@@ -468,6 +468,207 @@ let of_string bytes =
               presence;
             }
       | [] | _ :: _ -> raise (Refused "unsupported-book-header"))
+
+let source_format_of_string bytes =
+  let lines = String.split_on_char '\n' bytes in
+  let non_comment =
+    List.find_opt
+      (fun s ->
+        let t = String.trim s in
+        t <> "" && not (String.starts_with ~prefix:";" t))
+      lines
+  in
+  match non_comment with
+  | None -> `Unknown
+  | Some line -> (
+      match Parsexp.Single.parse_string line with
+      | Ok (X.List [ X.Atom "bakhlo-daily"; X.Atom v ]) -> `Monolithic v
+      | Ok (X.List (X.Atom "frame" :: _)) -> `Records 1
+      | _ -> (
+          match Parsexp.Many.parse_string bytes with
+          | Ok (X.List [ X.Atom "bakhlo-daily"; X.Atom v ] :: _) -> `Monolithic v
+          | Ok (X.List (X.Atom "frame" :: _) :: _) -> `Records 1
+          | _ -> `Unknown))
+
+let of_records (rb : Records_book.t) =
+  protect (fun () ->
+      let h = Records_book.header rb in
+      let approved =
+        let init = match h.approved_loci with None -> [] | Some xs -> xs in
+        let added = Records_book.added_loci rb in
+        if init = [] && added = [] then h.approved_loci
+        else Some (List.sort_uniq String.compare (init @ added))
+      in
+      let entries =
+        List.map
+          (fun (e : Records_book.entry) ->
+            {
+              id = e.id;
+              day = e.day;
+              memo = e.memo;
+              effects = e.effects;
+              reversal_of = e.reversal_of;
+              exchange = e.exchange;
+            })
+          (Records_book.entries rb)
+      in
+      let plans =
+        List.map
+          (fun (p : Records_book.plan) ->
+            {
+              id = p.id;
+              day = p.day;
+              measure = p.measure;
+              changes = p.changes;
+              paid_by = p.paid_by;
+              cancelled_on = p.cancelled_on;
+            })
+          (Records_book.plans rb)
+      in
+      let budgets =
+        let bs = Records_book.budgets rb in
+        if bs = [] then None
+        else
+          Some
+            (List.map
+               (fun (b : Records_book.budget) ->
+                 {
+                   id = b.id;
+                   start_day = b.start_day;
+                   end_exclusive = b.end_exclusive;
+                   measure = b.measure;
+                   allocations = b.allocations;
+                   expense_loci = b.expense_loci;
+                   actual_routes = b.actual_routes;
+                   plan_routes = b.plan_routes;
+                 })
+               bs)
+      in
+      let frame_obs =
+        List.map
+          (fun (o : Records_book.observation) ->
+            {
+              A.Current_quantity_groups.reflected_roots =
+                List.map (fun r -> eid r) o.reflected_roots;
+              assertions =
+                List.map
+                  (fun (l, m, q) ->
+                    {
+                      A.Current_quantity_projection.coordinate = coord l m;
+                      quantity = D.Quantity.of_quanta q;
+                    })
+                  o.quantities;
+            })
+          (Records_book.observations rb)
+      in
+      let data =
+        {
+          budgets;
+          measures = h.measures;
+          labels = h.labels;
+          approved;
+          entries;
+          plans;
+          origins = h.origins;
+          openings = h.openings;
+          observations = h.observations @ frame_obs;
+          presence = h.presence;
+        }
+      in
+      admit data)
+
+let of_string bytes =
+  match source_format_of_string bytes with
+  | `Records _ -> (
+      match Records_book.of_string bytes with
+      | Ok rb -> of_records rb
+      | Error err -> Error err)
+  | `Monolithic _ | `Unknown -> of_monolithic_string bytes
+
+let to_records ?(request_tokens = []) (t : t) : Records_book.t =
+  let b = t.data in
+  let header : Records_book.header =
+    {
+      version = 1;
+      measures = b.measures;
+      labels = b.labels;
+      approved_loci = b.approved;
+      origins = b.origins;
+      openings = b.openings;
+      observations = b.observations;
+      presence = b.presence;
+      opaque = [];
+    }
+  in
+  let lsn = ref 1 in
+  let frames = ref [] in
+  let emit payload =
+    let f = Records_book.encode_frame !lsn payload in
+    incr lsn;
+    frames := f :: !frames
+  in
+  Option.iter
+    (fun bs ->
+      List.iter
+        (fun (b_item : budget) ->
+          emit
+            (Records_book.Budget
+               {
+                 id = b_item.id;
+                 start_day = b_item.start_day;
+                 end_exclusive = b_item.end_exclusive;
+                 measure = b_item.measure;
+                 allocations = b_item.allocations;
+                 expense_loci = b_item.expense_loci;
+                 actual_routes = b_item.actual_routes;
+                 plan_routes = b_item.plan_routes;
+                 opaque = [];
+               }))
+        bs)
+    b.budgets;
+  List.iter
+    (fun (p : plan) ->
+      emit
+        (Records_book.Plan
+           {
+             id = p.id;
+             day = p.day;
+             measure = p.measure;
+             changes = p.changes;
+             paid_by = p.paid_by;
+             cancelled_on = p.cancelled_on;
+             opaque = [];
+           }))
+    b.plans;
+  List.iter
+    (fun (e : entry) ->
+      let tok =
+        List.find_map
+          (fun (token, eid) -> if eid = e.id then Some token else None)
+          request_tokens
+      in
+      emit
+        (Records_book.Entry
+           {
+             id = e.id;
+             day = e.day;
+             token = tok;
+             memo = e.memo;
+             effects = e.effects;
+             reversal_of = e.reversal_of;
+             exchange = e.exchange;
+             opaque = [];
+           }))
+    b.entries;
+  List.iter
+    (fun (token, event_id) ->
+      emit (Records_book.Origin { token; event_id; opaque = [] }))
+    request_tokens;
+  { header; frames = List.rev !frames }
+
+let to_records_string ?request_tokens t =
+  Records_book.to_string (to_records ?request_tokens t)
+
 
 let a s = X.Atom s
 let l xs = X.List xs
