@@ -7,7 +7,6 @@ exception Refused of string
 
 let require p why = if not p then raise (Refused why)
 let get why = function Ok x -> x | Error _ -> raise (Refused why)
-let protect f = try Ok (f ()) with Refused why -> Error why | Failure msg -> Error msg
 
 let eid s = get "invalid-entry-id" (D.Identifier.Event.of_string s)
 let lid s = get "invalid-locus" (D.Identifier.Locus.of_string s)
@@ -562,25 +561,47 @@ let serialize_frame frame =
   in
   X.to_string frame_sexp
 
+type frame_parse_result =
+  | Frame_ok of frame
+  | Frame_syntax_error of string
+  | Frame_crc_mismatch of { expected : string; actual : string }
+  | Frame_structure_error of string
+
+let parse_frame_detailed str =
+  match Parsexp.Single.parse_string str with
+  | Error err -> Frame_syntax_error (Parsexp.Parse_error.message err)
+  | Ok
+      (X.List
+        [
+          X.Atom "frame";
+          X.List [ X.Atom "lsn"; X.Atom lsn_s ];
+          X.List [ X.Atom "crc"; X.Atom crc_s ];
+          X.List [ X.Atom "payload"; payload_sexp ];
+        ]) -> (
+      try
+        let lsn = int_of_string lsn_s in
+        let computed_crc = Crc32.to_hex (Crc32.of_string (X.to_string payload_sexp)) in
+        if not (String.equal computed_crc crc_s) then
+          Frame_crc_mismatch { expected = crc_s; actual = computed_crc }
+        else
+          try
+            let payload = decode_payload payload_sexp in
+            Frame_ok { lsn; crc = crc_s; payload }
+          with
+          | Refused msg -> Frame_structure_error msg
+          | exn -> Frame_structure_error (Printexc.to_string exn)
+      with
+      | Failure _ -> Frame_structure_error "invalid-lsn-integer"
+    )
+  | Ok _ -> Frame_structure_error "invalid-frame-structure"
+
 let parse_frame str =
-  protect (fun () ->
-      match Parsexp.Single.parse_string str with
-      | Error err -> raise (Refused (Parsexp.Parse_error.message err))
-      | Ok
-          (X.List
-            [
-              X.Atom "frame";
-              X.List [ X.Atom "lsn"; X.Atom lsn_s ];
-              X.List [ X.Atom "crc"; X.Atom crc_s ];
-              X.List [ X.Atom "payload"; payload_sexp ];
-            ]) ->
-          let lsn = int_of_string lsn_s in
-          let computed_crc = Crc32.to_hex (Crc32.of_string (X.to_string payload_sexp)) in
-          require (String.equal computed_crc crc_s)
-            (Printf.sprintf "checksum-mismatch: expected %s, computed %s" crc_s computed_crc);
-          let payload = decode_payload payload_sexp in
-          { lsn; crc = crc_s; payload }
-      | Ok _ -> raise (Refused "invalid-frame-structure"))
+  match parse_frame_detailed str with
+  | Frame_ok f -> Ok f
+  | Frame_syntax_error msg -> Error msg
+  | Frame_crc_mismatch { expected; actual } ->
+      Error (Printf.sprintf "checksum-mismatch: expected %s, computed %s" expected actual)
+  | Frame_structure_error msg -> Error msg
 
 type corruption =
   | No_corruption
@@ -594,8 +615,9 @@ type inspection = {
 }
 
 let inspect_string text =
-  let lines = String.split_on_char '\n' text in
   let total_len = String.length text in
+  let ends_with_newline = total_len > 0 && Char.equal text.[total_len - 1] '\n' in
+  let lines = String.split_on_char '\n' text in
   let valid = ref [] in
   let expected_lsn = ref 0 in
   let current_offset = ref 0 in
@@ -615,8 +637,9 @@ let inspect_string text =
           (* Skip blank lines or comments *)
           current_offset := !current_offset + line_bytes
         else begin
-          match parse_frame trimmed with
-          | Ok frame ->
+          let is_trailing_unclosed_line = (idx = num_lines - 1) && not ends_with_newline in
+          match parse_frame_detailed trimmed with
+          | Frame_ok frame ->
               if frame.lsn <> !expected_lsn then
                 corruption :=
                   Mid_file
@@ -629,18 +652,40 @@ let inspect_string text =
                 expected_lsn := frame.lsn + 1;
                 current_offset := !current_offset + line_bytes
               end
-          | Error err ->
-              let is_last_chunk = idx = num_lines - 1 || (idx = num_lines - 2 && List.nth lines (idx + 1) = "") in
-              if is_last_chunk then
-                (* Trailing torn write: unclosed or incomplete trailing line *)
+          | Frame_syntax_error err ->
+              (* Safe trailing torn-write only if:
+                 1. It is the very last line of the file,
+                 2. The file does NOT end with a newline (interrupted write),
+                 3. The syntax is unclosed / truncated.
+                 Any line terminated with '\n' or before EOF is corruption! *)
+              if is_trailing_unclosed_line then
                 trailing_torn := total_len - !current_offset
               else
                 corruption :=
                   Mid_file
                     {
                       byte_offset = !current_offset;
-                      reason = Printf.sprintf "corrupt-frame: %s" err;
+                      reason = Printf.sprintf "corrupt-syntax: %s" err;
                     }
+          | Frame_crc_mismatch { expected; actual } ->
+              (* SAFETY GATE:
+                 A completed S-expression with bad CRC is NEVER treated as an uncommitted
+                 trailing torn-write! It could be a committed record corrupted by disk bitrot
+                 or tampering. Truncating it would destroy committed user data.
+                 Therefore, CRC mismatch ALWAYS fails closed, even at the end of the file. *)
+              corruption :=
+                Mid_file
+                  {
+                    byte_offset = !current_offset;
+                    reason = Printf.sprintf "checksum-mismatch: expected %s, computed %s" expected actual;
+                  }
+          | Frame_structure_error msg ->
+              corruption :=
+                Mid_file
+                  {
+                    byte_offset = !current_offset;
+                    reason = Printf.sprintf "corrupt-structure: %s" msg;
+                  }
         end
       end)
     lines;

@@ -38,6 +38,7 @@ type engine = {
   path : string;
   lock_path : string;
   mutable current_lsn : int;
+  mutable last_file_size : int;
   token_index : (string, token_record) Hashtbl.t;
   mutable latest_token : string option;
   mutable latest_event_id : string option;
@@ -115,6 +116,21 @@ let populate_index engine token_index frames =
         tok_opt)
     frames
 
+let sync_from_disk_locked engine =
+  if Sys.file_exists engine.path then
+    let st = Unix.stat engine.path in
+    if st.st_size <> engine.last_file_size then begin
+      let content = read_file_contents engine.path in
+      let insp = Records_book.inspect_string content in
+      match insp.corruption with
+      | Records_book.No_corruption ->
+          Hashtbl.clear engine.token_index;
+          populate_index engine engine.token_index insp.valid_frames;
+          engine.current_lsn <- insp.last_lsn;
+          engine.last_file_size <- st.st_size
+      | _ -> ()
+    end
+
 let recover_and_open path =
   let lock_path = path ^ ".lock" in
   try
@@ -125,6 +141,7 @@ let recover_and_open path =
             path;
             lock_path;
             current_lsn = -1;
+            last_file_size = 0;
             token_index;
             latest_token = None;
             latest_event_id = None;
@@ -147,10 +164,14 @@ let recover_and_open path =
                     (* Safe truncate: only trailing torn write *)
                     Unix.truncate path valid_bytes;
                     sync_parent path;
+                    engine.last_file_size <- valid_bytes;
                     Some (Torn_write_truncated { valid_lsn = insp.last_lsn; truncated_bytes = insp.trailing_torn_bytes })
                   with Unix.Unix_error (e, _, _) ->
                     Some (Truncate_failed (Unix.error_message e))
-                end else None
+                end else begin
+                  engine.last_file_size <- total_bytes;
+                  None
+                end
               in
               match truncated_res with
               | Some (Truncate_failed msg) -> Ok (engine, Truncate_failed msg)
@@ -189,6 +210,9 @@ let check_in_doubt engine ~session =
 let append_payload engine ~session:_ ~expected_lsn ~token ~event_id ~payload =
   try
     with_lock engine.lock_path (fun () ->
+        (* 0. Re-sync from disk under lock to observe any external committed updates *)
+        sync_from_disk_locked engine;
+
         (* 1. LSN conflict detection *)
         let next_lsn = engine.current_lsn + 1 in
         if expected_lsn <> next_lsn then
@@ -232,6 +256,7 @@ let append_payload engine ~session:_ ~expected_lsn ~token ~event_id ~payload =
 
               (* 5. Update engine in-memory state only AFTER fsync *)
               engine.current_lsn <- next_lsn;
+              engine.last_file_size <- engine.last_file_size + line_len;
               Option.iter
                 (fun tok ->
                   Hashtbl.replace engine.token_index tok

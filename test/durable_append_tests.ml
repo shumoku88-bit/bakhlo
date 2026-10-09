@@ -311,3 +311,63 @@ let%test_unit "durable_append concurrent session race and LSN conflict rejection
     | DA.Commit_success { lsn = 2; event_id = "eb" } -> ()
     | _ -> failwith "Worker B should succeed with adapted LSN"))
 
+let%test_unit "durable_append tail CRC mismatch NEVER truncated (fails closed to protect committed data)" =
+  let paths = make_temp_log () in
+  let path, _ = paths in
+  Stdlib.Fun.protect ~finally:(fun () -> cleanup_paths paths) (fun () ->
+    let engine, _ = Result.ok_or_failwith (DA.recover_and_open path) in
+    let session = DA.create_session ~session_id:"sess-1" () in
+    let h = make_test_header () in
+    let _ = DA.append_payload engine ~session ~expected_lsn:0 ~token:None ~event_id:"header" ~payload:(RB.Header h) in
+    let e1 = make_test_entry "e1" "2026-10-09" (Some "tok-1") 1200 in
+    let _ = DA.append_entry engine ~session ~expected_lsn:1 e1 in
+    DA.close_engine engine;
+
+    (* Corrupt the CRC of the final committed record e1 *)
+    let content = Stdlib.In_channel.with_open_bin path Stdlib.In_channel.input_all in
+    let tampered =
+      match String.substr_index content ~pattern:"(crc " with
+      | Some idx ->
+          let prefix = String.prefix content (idx + 5) in
+          let rest = String.drop_prefix content (idx + 13) in
+          prefix ^ "00000000" ^ rest
+      | None -> failwith "crc pattern not found"
+    in
+    Stdlib.Out_channel.with_open_bin path (fun oc -> Stdlib.Out_channel.output_string oc tampered);
+
+    (* Re-open: MUST FAIL CLOSED! It must NOT truncate e1 just because it's the last line! *)
+    let _, action = match DA.recover_and_open path with
+      | Ok res -> res
+      | Error e -> failwith e
+    in
+    match action with
+    | DA.Corrupt_fail_closed { reason; _ } ->
+        assert (String.is_substring reason ~substring:"checksum-mismatch")
+    | _ -> failwith "Tail CRC mismatch must NEVER be auto-truncated; must fail closed")
+
+let%test_unit "durable_append newline-terminated syntax error at tail fails closed" =
+  let paths = make_temp_log () in
+  let path, _ = paths in
+  Stdlib.Fun.protect ~finally:(fun () -> cleanup_paths paths) (fun () ->
+    let engine, _ = Result.ok_or_failwith (DA.recover_and_open path) in
+    let session = DA.create_session ~session_id:"sess-1" () in
+    let h = make_test_header () in
+    let _ = DA.append_payload engine ~session ~expected_lsn:0 ~token:None ~event_id:"header" ~payload:(RB.Header h) in
+    DA.close_engine engine;
+
+    (* Append a line that has a terminating newline '\n' but has invalid syntax *)
+    let oc = Stdlib.open_out_gen [ Stdlib.Open_wronly; Stdlib.Open_append ] 0o600 path in
+    Stdlib.output_string oc "(frame (lsn 1) BAD SYNTAX LINE)\n";
+    Stdlib.close_out oc;
+
+    (* Because it has a newline '\n', it is a full completed line on disk, not an interrupted write.
+       Therefore, it must fail closed and NOT truncate! *)
+    let _, action = match DA.recover_and_open path with
+      | Ok res -> res
+      | Error e -> failwith e
+    in
+    match action with
+    | DA.Corrupt_fail_closed _ -> ()
+    | _ -> failwith "Newline-terminated tail syntax error must fail closed")
+
+
