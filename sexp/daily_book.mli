@@ -1,6 +1,6 @@
 module D = Bakhlo_domain
 (** A corrected-entry S-expression book, independent of UI and filesystem.
-    Reads v1..v4; writes v4 when budgets are explicitly supplied, otherwise v3.
+    Reads v1..v3; writes v3. Trial budget format v4 is not supported.
     Exchange and dated plan cancellation remain explicit.
     Reading never rewrites a file; conversion uses explicit output/publication
     with the old input kept separately. Full-household migration is not claimed. *)
@@ -27,38 +27,18 @@ type plan = {
 (** A retained explicit occurrence. Payment and cancellation are disjoint terminal
     facts; a cancelled plan is not deleted or reinterpreted as a payment. *)
 
-type budget = {
-  id : string;
-  start_day : string;
-  end_exclusive : string;
-  measure : string;
-  allocations : (string * Z.t) list;
-  expense_loci : string list;
-  actual_routes : (string * string option) list;
-  plan_routes : (string * string * string option) list;
-}
-(** One explicitly supplied single-Measure period and its nonnegative purpose
-    allocations. expense_loci explicitly selects the expense-side coordinates:
-    positive signed quantities mean spending, negative ones mean reductions/refunds.
-    It is NOT an inferred AccountingRole or a complete household expense catalog.
-    Actual routes are locus -> purpose; plan routes independently select
-    plan ID x locus -> purpose. Missing route is unresolved; explicit None means
-    unmanaged. All Some purposes must have an allocation (explicit zero allowed).
-    These current definitions classify the WHOLE selected period, not LOAM's
-    dated routing history. No implicit inheritance from plans to actual payments. *)
-
 type t
 
 val source_format_of_string : string -> [ `Monolithic of string | `Records of int | `Unknown ]
-(** Detect whether input is Monolithic S-expression (bakhlo-daily v1..v4) or Records S-expression (bakhlo-records v1). *)
+(** Detect whether input is Monolithic S-expression (bakhlo-daily v1..v3) or Records S-expression (bakhlo-records v1). *)
 
 val of_string : string -> (t, string) result
-(** Safe compatible reader. Parses Monolithic (v1..v4) or Records (v1) format transparently.
+(** Safe compatible reader. Parses Monolithic (v1..v3) or Records (v1) format transparently.
     Domain invariants are uniformly validated. Does not perform automatic rewriting or migration. *)
 
 val to_string : t -> string
-(** Serializes the book in the canonical Monolithic S-expression format (v4 if budgets exist, otherwise v3).
-    Preserves backward compatibility; does not silently switch format on write. *)
+(** Serializes the book in the canonical Monolithic S-expression format (v3).
+    Trial-only v4 budget data is deliberately unsupported. *)
 
 val of_records : Records_book.t -> (t, string) result
 (** Construct a Daily_book from a Records_book through Core invariant gates. *)
@@ -69,9 +49,6 @@ val to_records : ?request_tokens:(string * string) list -> t -> Records_book.t
 val to_records_string : ?request_tokens:(string * string) list -> t -> string
 (** Explicitly serialize in the Records S-expression format. *)
 
-
-val budgets : t -> budget list option
-(** None means budget information not supplied (including v1..v3), NOT zero budgets. *)
 
 val entries : t -> entry list
 (** All retained entries in recorded order (oldest to newest). *)
@@ -144,57 +121,6 @@ val daily_pace :
     One immutable book owns both quantities and plans. observed_at is a caller's
     current observation coordinate, NOT an as-of filter or historical replay;
     the function reads no clock. No claim of plan completeness or balance freshness. *)
-
-val put_budget : t -> replace:bool -> budget -> (t, string) result
-(** Create or explicitly replace a same-ID definition, then whole-admit the book.
-    Validates real nonempty period, known Measure, unique purposes/loci/routes,
-    nonnegative exact allocations and all plan/locus/purpose references. Entries,
-    plans, quantities/support and other budgets are unchanged. No clock or I/O. *)
-
-val rebalance_budget :
-  t -> id:string -> from_purpose:string -> to_purpose:string -> amount:Z.t -> (t, string) result
-(** Move a strictly positive allocation between two distinct existing purposes,
-    preserving the total. Source allocation must suffice; no physical transaction
-    or inferred funding. This moves allocation, not "safe to spend" authority. *)
-
-type budget_item = { source_id : string; locus : string; quanta : Z.t }
-
-type budget_row = {
-  purpose : string;
-  allocated : Z.t;
-  actuals : budget_item list;
-  plans : budget_item list;
-  spent : Z.t;
-  planned : Z.t;
-  remaining : Z.t;
-  after_known : Z.t;
-}
-
-type budget_review = {
-  definition : budget;
-  observed_at : string;
-  rows : budget_row list;
-  unrouted_actual : budget_item list;
-  unmanaged_actual : budget_item list;
-  unrouted_plans : budget_item list;
-  unmanaged_plans : budget_item list;
-}
-
-val budget_review : t -> id:string -> observed_at:string -> (budget_review, string) result
-(** Recorded current-book components only, NOT physical balance or guaranteed
-    complete household budget. Observation must be inside [start, end).
-    Actuals select occurrence dates from start through observation inclusive.
-    Open plans select all dates before end, INCLUDING overdue before start;
-    explicit per-plan attribution makes this carried pressure visible. Closed
-    plans are excluded, so fulfillment is not double-counted with its actual.
-    Positive net expense is protected PER plan/Purpose; planned refunds do not
-    increase available budget before becoming actual. Actual refunds reduce spent.
-    remaining = allocation - recorded spent; after_known additionally subtracts
-    known managed plan pressure. Unresolved and explicitly unmanaged signed items
-    are returned separately, never silently assigned or netted out of sight.
-    Rows preserve allocation order; item lists preserve source/line multiplicity.
-    No foreign-Measure arithmetic, inferred period, completeness, history replay,
-    stored subtotals or automatic correspondence changes on payment/correction. *)
 
 val put_plan : t -> replace:bool -> plan -> (t, string) result
 (** Append a new open plan or replace an existing open one with the same ID.

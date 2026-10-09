@@ -113,7 +113,6 @@ let payload_summary_of payload =
 let payload_token_and_event = function
   | Records_book.Entry e -> (e.token, e.id)
   | Records_book.Plan p -> (None, p.id)
-  | Records_book.Budget b -> (None, b.id)
   | Records_book.Observation o -> (None, Option.value ~default:"obs" o.id)
   | Records_book.Origin orig -> (Some orig.token, orig.event_id)
   | Records_book.Header _ -> (None, "header")
@@ -339,6 +338,3 @@ let append_plan engine ~session ~expected_lsn (plan : Records_book.plan) =
   append_payload engine ~session ~expected_lsn ~token:None ~event_id:plan.id
     ~payload:(Records_book.Plan plan)
 
-let append_budget engine ~session ~expected_lsn (budget : Records_book.budget) =
-  append_payload engine ~session ~expected_lsn ~token:None ~event_id:budget.id
-    ~payload:(Records_book.Budget budget)

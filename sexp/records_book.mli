@@ -6,7 +6,7 @@ module X = Sexplib0.Sexp
 (** Records S-expression Format v1 specification and codec.
     Pure representation, independent of filesystem, publication, or concurrency engine.
     Preserves multi-currency, infinite-precision quanta, correction lineages, explicit plans,
-    budgets, observations/cuts, request origins/tokens, and uninterpreted extensions. *)
+    observations/cuts, request origins/tokens, and uninterpreted extensions. *)
 
 type header = {
   version : int;
@@ -41,18 +41,6 @@ type plan = {
   opaque : X.t list;
 }
 
-type budget = {
-  id : string;
-  start_day : string;
-  end_exclusive : string;
-  measure : string;
-  allocations : (string * Z.t) list;
-  expense_loci : string list;
-  actual_routes : (string * string option) list;
-  plan_routes : (string * string * string option) list;
-  opaque : X.t list;
-}
-
 type observation = {
   id : string option;
   reflected_roots : string list;
@@ -75,7 +63,6 @@ type payload =
   | Header of header
   | Entry of entry
   | Plan of plan
-  | Budget of budget
   | Observation of observation
   | Origin of origin
   | Add_locus of add_locus
@@ -120,7 +107,6 @@ val header : t -> header
 val frames : t -> frame list
 val entries : t -> entry list
 val plans : t -> plan list
-val budgets : t -> budget list
 val observations : t -> observation list
 val origins : t -> origin list
 val added_loci : t -> string list

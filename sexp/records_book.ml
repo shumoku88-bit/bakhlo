@@ -78,18 +78,6 @@ type plan = {
   opaque : X.t list;
 }
 
-type budget = {
-  id : string;
-  start_day : string;
-  end_exclusive : string;
-  measure : string;
-  allocations : (string * Z.t) list;
-  expense_loci : string list;
-  actual_routes : (string * string option) list;
-  plan_routes : (string * string * string option) list;
-  opaque : X.t list;
-}
-
 type observation = {
   id : string option;
   reflected_roots : string list;
@@ -112,7 +100,6 @@ type payload =
   | Header of header
   | Entry of entry
   | Plan of plan
-  | Budget of budget
   | Observation of observation
   | Origin of origin
   | Add_locus of add_locus
@@ -423,56 +410,6 @@ let decode_plan rows =
   in
   { id; day; measure; changes; paid_by; cancelled_on; opaque }
 
-let encode_budget (b : budget) =
-  f "budget"
-    ([
-       f "id" [ a b.id ];
-       f "start" [ a b.start_day ];
-       f "end-exclusive" [ a b.end_exclusive ];
-       f "measure" [ a b.measure ];
-       f "allocations" (List.map (fun (p, n) -> l [ a p; a (Z.to_string n) ]) b.allocations);
-       f "expense-loci" (List.map a b.expense_loci);
-       f "actual-routes"
-         (List.map (fun (loc, target) -> l [ a loc; opt target ]) b.actual_routes);
-       f "plan-routes"
-         (List.map (fun (id, loc, target) -> l [ a id; a loc; opt target ]) b.plan_routes);
-     ]
-    @ b.opaque)
-
-let decode_budget rows =
-  let known, opaque =
-    partition_fields
-      [ "id"; "start"; "end-exclusive"; "measure"; "allocations"; "expense-loci"; "actual-routes"; "plan-routes" ]
-      rows
-  in
-  let id = atom (one (field_req known "id")) in
-  let start_day = atom (one (field_req known "start")) in
-  let end_exclusive = atom (one (field_req known "end-exclusive")) in
-  let measure = atom (one (field_req known "measure")) in
-  let allocations =
-    List.map
-      (function
-        | X.List [ X.Atom p; X.Atom n ] -> (p, integer n)
-        | _ -> raise (Refused "invalid-budget-allocation"))
-      (field_req known "allocations")
-  in
-  let expense_loci = List.map atom (field_req known "expense-loci") in
-  let actual_routes =
-    List.map
-      (function
-        | X.List [ X.Atom loc; target ] -> (loc, optional target)
-        | _ -> raise (Refused "invalid-budget-actual-route"))
-      (field_req known "actual-routes")
-  in
-  let plan_routes =
-    List.map
-      (function
-        | X.List [ X.Atom id; X.Atom loc; target ] -> (id, loc, optional target)
-        | _ -> raise (Refused "invalid-budget-plan-route"))
-      (field_req known "plan-routes")
-  in
-  { id; start_day; end_exclusive; measure; allocations; expense_loci; actual_routes; plan_routes; opaque }
-
 let encode_observation (o : observation) =
   f "observation"
     ([
@@ -527,7 +464,6 @@ let encode_payload = function
   | Header h -> encode_header h
   | Entry e -> encode_entry e
   | Plan p -> encode_plan p
-  | Budget b -> encode_budget b
   | Observation o -> encode_observation o
   | Origin orig -> encode_origin orig
   | Add_locus al -> encode_add_locus al
@@ -537,7 +473,7 @@ let decode_payload = function
   | X.List (X.Atom "header" :: rows) -> Header (decode_header rows)
   | X.List (X.Atom "entry" :: rows) -> Entry (decode_entry rows)
   | X.List (X.Atom "plan" :: rows) -> Plan (decode_plan rows)
-  | X.List (X.Atom "budget" :: rows) -> Budget (decode_budget rows)
+  | X.List (X.Atom "budget" :: _) -> raise (Refused "budget-record-unsupported")
   | X.List (X.Atom "observation" :: rows) -> Observation (decode_observation rows)
   | X.List (X.Atom "origin" :: rows) -> Origin (decode_origin rows)
   | X.List (X.Atom "add-locus" :: rows) -> Add_locus (decode_add_locus rows)
@@ -736,9 +672,6 @@ let entries t =
 
 let plans t =
   List.filter_map (fun f -> match f.payload with Plan p -> Some p | _ -> None) t.frames
-
-let budgets t =
-  List.filter_map (fun f -> match f.payload with Budget b -> Some b | _ -> None) t.frames
 
 let observations t =
   List.filter_map (fun f -> match f.payload with Observation o -> Some o | _ -> None) t.frames
