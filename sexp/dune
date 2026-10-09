@@ -1,4 +1,5 @@
 (library
  (name bakhlo_sexp)
  (public_name bakhlo.sexp)
- (libraries bakhlo_domain bakhlo_application base zarith parsexp))
+ (libraries bakhlo_domain bakhlo_application base zarith parsexp unix))
+
