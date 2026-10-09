@@ -102,14 +102,16 @@ type command =
   | Date_today
   | Date_prev_day
   | Date_next_day
+  | New_transaction
 
-let commands = [ Theme; Date_today; Date_prev_day; Date_next_day ]
+let commands = [ Theme; Date_today; Date_prev_day; Date_next_day; New_transaction ]
 
 let command_label = function
   | Theme -> "Theme"
   | Date_today -> "今日の日付に戻す (Today)"
   | Date_prev_day -> "日付を前日へ (-1日)"
   | Date_next_day -> "日付を翌日へ (+1日)"
+  | New_transaction -> "新規記帳 (New transaction)"
 
 let theme_at n = match List.nth_opt P.all_themes n with Some theme -> theme | None -> P.Terminal
 
@@ -468,7 +470,7 @@ let handle_key ~dimensions ~width_of ~book ~theme ?config_home ~can_choose_locus
           match List.nth_opt commands selected with
           | Some Theme ->
               Updated (Themes { selected = theme_index theme; original = theme })
-          | Some (Date_today | Date_prev_day | Date_next_day as cmd) ->
+          | Some (Date_today | Date_prev_day | Date_next_day | New_transaction as cmd) ->
               Execute_command cmd
           | None -> Updated (Commands selected))
       | _ -> Updated (Commands selected))

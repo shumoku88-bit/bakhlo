@@ -95,7 +95,7 @@ let browser_slice_self_check () =
       (fun view ->
         List.iter
           (fun selected ->
-            let model = { Br.view; entries_selected = selected; plans_selected = selected } in
+            let model = Br.create ~view ~entries_selected:selected ~plans_selected:selected () in
             List.iter
               (fun room ->
                 let start = max 0 (selected - room + 1) in
@@ -117,6 +117,416 @@ let browser_slice_self_check () =
   check (get (B.put_entry book ~replace:true { seed with memo = Some "更新された日本語" } ~plan:None));
   print_endline
     "PASS: slice-before-format matches full-history order/indices, empty/boundary windows, Unicode/duplicate labels, exact Measures, refunds and open/paid/cancelled plans."
+
+let scheduled_browser_self_check () =
+  let require = F.require in
+  let today = "2026-10-10" in
+  let empty_book =
+    get (B.of_string
+      "(bakhlo-daily 3) (scope corrected-entries explicit-plans)\n\
+       (measures (measure jpy 0))\n\
+       (labels (provided (label wallet 同じ表示 財布) (label food 同じ表示 食費) (label rent 同じ表示 家賃)))\n\
+       (approved-loci (provided wallet food rent)) (entries) (plans)\n\
+       (support (zero-origin (wallet jpy) (food jpy) (rent jpy))\n\
+       (openings) (observations) (presence (not-supplied)))")
+  in
+  let make_plan ~id ~day ?paid_by ?cancelled_on changes =
+    {
+      B.id;
+      day;
+      measure = "jpy";
+      changes = List.map (fun (l, a) -> (l, Z.of_int a)) changes;
+      paid_by;
+      cancelled_on;
+    }
+  in
+  let p_past_paid = make_plan ~id:"p_past_paid" ~day:"2026-10-01" [ ("wallet", -100); ("food", 100) ] in
+  let p_past_cancelled = make_plan ~id:"p_past_cancelled" ~day:"2026-10-03" [ ("wallet", -200); ("food", 200) ] in
+  let p_overdue_1 = make_plan ~id:"p_overdue_1" ~day:"2026-10-05" [ ("wallet", -300); ("food", 300) ] in
+  let p_overdue_2 = make_plan ~id:"p_overdue_2" ~day:"2026-10-08" [ ("wallet", -400); ("rent", 400) ] in
+  let p_today = make_plan ~id:"p_today" ~day:"2026-10-10" [ ("wallet", -500); ("food", 500) ] in
+  let p_future = make_plan ~id:"p_future" ~day:"2026-10-15" [ ("wallet", -600); ("food", 600) ] in
+  let p_future_paid = make_plan ~id:"p_future_paid" ~day:"2026-10-20" [ ("wallet", -700); ("food", 700) ] in
+  let recurring_nov = make_plan ~id:"sub_2026_11" ~day:"2026-11-01" [ ("wallet", -800); ("food", 800) ] in
+  let recurring_dec = make_plan ~id:"sub_2026_12" ~day:"2026-12-01" [ ("wallet", -800); ("food", 800) ] in
+
+  (* 1. 空一覧の検証 *)
+  require (Br.plans ~today empty_book = []) "scheduled-empty-plans";
+  require (Br.initial_plan_index ~today [] = 0) "scheduled-empty-initial-index";
+  let empty_model = Br.create ~view:Br.Plans () in
+  require (Br.visible_slice ~today ~book:empty_book empty_model ~room:5 = []) "scheduled-empty-visible-slice";
+
+  let plans_raw = [
+    recurring_dec; p_future; p_past_cancelled; p_overdue_2;
+    p_future_paid; p_past_paid; recurring_nov; p_today; p_overdue_1
+  ] in
+  let book =
+    List.fold_left (fun b p -> get (B.put_plan b ~replace:false p)) empty_book plans_raw
+  in
+  let posting locus quantity =
+    D.Effect.create ~key:None
+      ~locus:(get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
+      ~quantity:(D.Quantity.of_quanta (Z.of_int quantity))
+  in
+  let pay_entry id day effects =
+    {
+      B.id;
+      day;
+      memo = None;
+      effects = List.map (fun (loc, q) -> posting loc q) effects;
+      reversal_of = None;
+      exchange = None;
+    }
+  in
+  let book = get (B.put_entry book ~replace:false (pay_entry "e1" "2026-10-01" [ ("wallet", -100); ("food", 100) ]) ~plan:(Some "p_past_paid")) in
+  let book = get (B.put_entry book ~replace:false (pay_entry "e2" "2026-10-20" [ ("wallet", -700); ("food", 700) ]) ~plan:(Some "p_future_paid")) in
+  let book = get (B.cancel_plan book ~id:"p_past_cancelled" ~day:"2026-10-02") in
+  let raw_ids = [
+    "sub_2026_12"; "p_future"; "p_past_cancelled"; "p_overdue_2";
+    "p_future_paid"; "p_past_paid"; "sub_2026_11"; "p_today"; "p_overdue_1"
+  ] in
+  require (List.map (fun (p : B.plan) -> p.id) (B.plans book) = raw_ids)
+    "scheduled-raw-book-plans-unmutated";
+
+  let sorted = Br.plans ~today book in
+  let sorted_ids = List.map (fun (p : B.plan) -> p.id) sorted in
+  let expected_ids = [
+    "p_past_paid";
+    "p_past_cancelled";
+    "p_overdue_1";
+    "p_overdue_2";
+    "p_today";
+    "p_future";
+    "p_future_paid";
+    "sub_2026_11";
+    "sub_2026_12";
+  ] in
+  require (sorted_ids = expected_ids) "scheduled-sort-chronological-order";
+
+  (* 3. 初期選択の優先順位 *)
+  let init_idx = Br.initial_plan_index ~today sorted in
+  require (init_idx = 2) "scheduled-initial-select-overdue-oldest";
+  require ((List.nth sorted init_idx).id = "p_overdue_1") "scheduled-initial-select-target";
+
+  let find_p id = List.find (fun (p : B.plan) -> p.id = id) (B.plans book) in
+  let plans_no_overdue = [ find_p "p_past_paid"; find_p "p_past_cancelled"; find_p "p_today"; find_p "p_future" ] in
+  let sorted_no_overdue = List.sort (Br.compare_plans ~today) plans_no_overdue in
+  let init_no_overdue = Br.initial_plan_index ~today sorted_no_overdue in
+  require ((List.nth sorted_no_overdue init_no_overdue).id = "p_today") "scheduled-initial-select-upcoming";
+
+  let plans_future_closed_only = [ find_p "p_past_paid"; find_p "p_future_paid" ] in
+  let sorted_fc = List.sort (Br.compare_plans ~today) plans_future_closed_only in
+  let init_fc = Br.initial_plan_index ~today sorted_fc in
+  require ((List.nth sorted_fc init_fc).id = "p_future_paid") "scheduled-initial-select-future-closed";
+
+  let plans_all_closed = [ find_p "p_past_paid"; find_p "p_past_cancelled" ] in
+  let sorted_ac = List.sort (Br.compare_plans ~today) plans_all_closed in
+  let init_ac = Br.initial_plan_index ~today sorted_ac in
+  require ((List.nth sorted_ac init_ac).id = "p_past_cancelled") "scheduled-initial-select-all-closed-latest";
+
+  (* 4. スクロール動作と上下移動 *)
+  let model = Br.apply_action ~today ~book Br.initial (Br.Set_view Br.Plans) in
+  require (model.plans_selected = 2) "scheduled-opened-selected-overdue";
+  require (model.plans_scroll_top = 2) "scheduled-opened-scroll-top";
+
+  let slice = Br.visible_slice ~today ~book model ~room:4 in
+  require (List.length slice = 4) "scheduled-visible-slice-length";
+  let first_index, first_text = List.hd slice in
+  require (first_index = 2) "scheduled-slice-first-is-selected-index";
+  require (Base.String.is_substring first_text ~substring:"p_overdue_1") "scheduled-slice-first-is-overdue";
+  require (Base.String.is_substring first_text ~substring:"[期限超過]") "scheduled-status-overdue";
+
+  let model_up1 = Br.apply_action ~today ~book model (Br.Select (-1)) in
+  require (model_up1.plans_selected = 1) "scheduled-up1-selected-past-cancelled";
+  let slice_up1 = Br.visible_slice ~today ~book model_up1 ~room:4 in
+  require (fst (List.hd slice_up1) = 1) "scheduled-up1-scroll-shows-past";
+  require (Base.String.is_substring (snd (List.hd slice_up1)) ~substring:"[取消 2026-10-02]") "scheduled-status-cancelled";
+
+  let model_up2 = Br.apply_action ~today ~book model_up1 (Br.Select (-1)) in
+  require (model_up2.plans_selected = 0) "scheduled-up2-selected-past-paid";
+  let slice_up2 = Br.visible_slice ~today ~book model_up2 ~room:4 in
+  require (fst (List.hd slice_up2) = 0) "scheduled-up2-scroll-shows-oldest";
+  require (Base.String.is_substring (snd (List.hd slice_up2)) ~substring:"[支払済]") "scheduled-status-paid";
+
+  let model_up3 = Br.apply_action ~today ~book model_up2 (Br.Select (-1)) in
+  require (model_up3.plans_selected = 0) "scheduled-clamp-top";
+
+  let model_down = Br.apply_action ~today ~book model (Br.Select 1) in
+  require (model_down.plans_selected = 3) "scheduled-down-selected-next-overdue";
+  let model_down_today = Br.apply_action ~today ~book model_down (Br.Select 1) in
+  require (model_down_today.plans_selected = 4) "scheduled-down-selected-today";
+  let text_today = List.nth (Br.history_lines ~today ~book model_down_today) 4 in
+  require (Base.String.is_substring text_today ~substring:"[本日]") "scheduled-status-today";
+
+  (* 5. 選択復元（ビュー切り替えとデータ更新）*)
+  let model_at_overdue2 = model_down in
+  require (model_at_overdue2.selected_plan_id = Some "p_overdue_2") "scheduled-selected-plan-id-saved";
+  let model_entries = Br.apply_action ~today ~book model_at_overdue2 Br.Switch_view in
+  require (model_entries.view = Br.Entries) "scheduled-switch-to-entries";
+  let model_back_plans = Br.apply_action ~today ~book model_entries Br.Switch_view in
+  require (model_back_plans.view = Br.Plans) "scheduled-switch-back-to-plans";
+  require (model_back_plans.plans_selected = 3) "scheduled-restore-selection-index";
+  require (model_back_plans.selected_plan_id = Some "p_overdue_2") "scheduled-restore-selection-id";
+
+  let fresh_plan = make_plan ~id:"p_fresh_early" ~day:"2026-10-04" [ ("wallet", -50); ("food", 50) ] in
+  let book_updated = get (B.put_plan book ~replace:false fresh_plan) in
+  let synced = Br.sync_selection ~today ~book:book_updated model_back_plans in
+  require (synced.selected_plan_id = Some "p_overdue_2") "scheduled-sync-preserves-selected-id";
+  require (synced.plans_selected = 4) "scheduled-sync-updated-index-by-id";
+  require ((List.nth (Br.plans ~today book_updated) 4).id = "p_overdue_2") "scheduled-sync-matches-plan";
+
+  (* 6. 繰り返し予定の独立性 *)
+  let nov_plan = List.find (fun (p : B.plan) -> p.id = "sub_2026_11") sorted in
+  let dec_plan = List.find (fun (p : B.plan) -> p.id = "sub_2026_12") sorted in
+  require (nov_plan.day = "2026-11-01" && dec_plan.day = "2026-12-01") "scheduled-recurring-distinct-days";
+  require (nov_plan.id <> dec_plan.id) "scheduled-recurring-distinct-ids";
+
+  print_endline
+    "PASS: scheduled chronological sort, smart initial selection, viewport scrolling, \
+     all-closed/empty cases, overdue/cancelled/recurring distinction, and ID-based selection recovery."
+
+
+let home_three_tier_self_check ~directory ~base =
+  let require = F.require in
+  let step s input =
+    match handle s input with Some s -> s | None -> raise (F.Refused "three-tier-unexpected-exit")
+  in
+  let press s button = step s (`Key (button, [])) in
+  let ctrl s c = step s (`Key (`ASCII c, [ `Ctrl ])) in
+  let text s value =
+    Uutf.String.fold_utf_8
+      (fun s _ -> function `Uchar c -> press s (`Uchar c) | `Malformed _ -> s)
+      s value
+  in
+  let path = directory ^ "/three-tier-" ^ F.new_id () ^ ".sexp" in
+  F.create_copy ~source:"examples/daily-book.sexp" ~target:path;
+  let s_home = initial ~config_home:directory (F.load path) in
+  let s_home = { s_home with focus = History } in
+
+  (* 1. Summary の常時表示（閲覧時） *)
+  let lines_browse = screen ~frontend:"check" (80, 24) s_home in
+  let rendered_browse = List.map snd lines_browse in
+  require
+    (List.exists (fun t -> Base.String.is_substring t ~substring:"【口座残高】" || Base.String.is_substring t ~substring:"【残高】") rendered_browse)
+    "three-tier-summary-balance-present-in-browse";
+  require
+    (List.exists (fun t -> Base.String.is_substring t ~substring:"【デイリーペース】" || Base.String.is_substring t ~substring:"【ペース】") rendered_browse)
+    "three-tier-summary-pace-present-in-browse";
+
+  (* 2. 'r' キーで Floating Create Editor が起動すること *)
+  let s_editing = press s_home (`ASCII 'r') in
+  require (s_editing.focus <> History) "three-tier-r-key-opens-editor";
+  let overlay_editing = overlay_screen ~dimensions:(80, 24) ~width_of:String.length s_editing in
+  require (Option.is_some overlay_editing) "three-tier-floating-editor-active";
+  let editor_lines = match overlay_editing with Some rows -> List.map snd rows | None -> [] in
+  require
+    (List.exists (fun t -> Base.String.is_substring t ~substring:"新規記帳") editor_lines)
+    "three-tier-floating-editor-title";
+
+  (* 3. 記帳入力中も背景 (screen) に Summary が残っていること *)
+  let lines_bg = screen ~frontend:"check" (80, 24) s_editing in
+  let rendered_bg = List.map snd lines_bg in
+  require
+    (List.exists (fun t -> Base.String.is_substring t ~substring:"【口座残高】" || Base.String.is_substring t ~substring:"【残高】") rendered_bg)
+    "three-tier-summary-present-during-editing";
+
+  (* 4. コマンドパレット (New_transaction) からも Floating Editor が起動すること *)
+  let s_cmd = press s_home (`ASCII ' ') in
+  require (match s_cmd.overlay with Commands _ -> true | _ -> false) "three-tier-command-palette-opened";
+  let s_cmd_selected =
+    let rec to_new_tx s =
+      match s.overlay with
+      | Commands i when i = 4 -> s
+      | Commands _ -> to_new_tx (press s (`Arrow `Down))
+      | _ -> s
+    in
+    to_new_tx s_cmd
+  in
+  let s_from_cmd = press s_cmd_selected `Enter in
+  require (s_from_cmd.focus <> History && Option.is_some (overlay_screen ~dimensions:(80, 24) ~width_of:String.length s_from_cmd))
+    "three-tier-new-transaction-from-command-palette";
+
+  (* 5. Esc によるキャンセルで正データが変化せず、Workspace (History) へ戻ること *)
+  let orig_bytes = F.read path in
+  let s_dirty = text { s_editing with focus = Memo } "未保存のメモ" in
+  let s_escaped = press s_dirty `Escape in
+  require (s_escaped.focus = History) "three-tier-escape-returns-to-workspace";
+  require (overlay_screen ~dimensions:(80, 24) ~width_of:String.length s_escaped = None)
+    "three-tier-escape-closes-floating-editor";
+  require (F.read path = orig_bytes) "three-tier-escape-leaves-disk-unmutated";
+
+  (* 6. Floating Editor からの新規記帳の保存成功で自動的に閉じ、Workspace に戻ること *)
+  let s_new = press s_home (`ASCII 'r') in
+  let s_new = { s_new with form = { day = "2026-10-09"; measure = "jpy"; from_locus = "wallet"; to_locus = "food"; amount = "500"; memo = "昼食代" } } in
+  let s_preview = ctrl s_new 's' in
+  require (match s_preview.overlay with Preview _ -> true | _ -> false) "three-tier-save-preview-opened";
+  let s_saved = confirm s_preview in
+  require (s_saved.overlay = No_overlay) "three-tier-saved-no-overlay";
+  require (s_saved.focus = History) "three-tier-save-auto-closes-to-workspace";
+  let loaded_book = (F.load path).book in
+  let has_new_entry =
+    List.exists
+      (fun (e : B.entry) -> e.memo = Some "昼食代")
+      (B.entries loaded_book)
+  in
+  require has_new_entry "three-tier-new-entry-persisted-to-book";
+
+  (* 7. 保存検証エラーおよびコミットエラーでドラフトが失われずエディタが開いたままであること *)
+  let s_bad = press s_saved (`ASCII 'r') in
+  let s_bad = { s_bad with form = { s_bad.form with amount = "不正な金額" } } in
+  let s_bad_try = ctrl s_bad 's' in
+  require (s_bad_try.overlay = No_overlay) "three-tier-bad-amount-no-preview";
+  require (s_bad_try.message <> "") "three-tier-bad-amount-message-shown";
+  require (s_bad_try.form.amount = "不正な金額") "three-tier-bad-draft-retained";
+  require (s_bad_try.focus <> History) "three-tier-error-keeps-editor-open";
+  let s_conflict = apply_commit_result s_bad ~draft:s_bad A.Conflict in
+  require s_conflict.blocked "three-tier-conflict-blocked";
+  require (s_conflict.form.amount = "不正な金額") "three-tier-conflict-retains-draft";
+  require (s_conflict.focus <> History) "three-tier-conflict-keeps-editor-open";
+
+  (* 8. 既存記帳の訂正 (Ctrl-E) が引き続き動作すること *)
+  let s_edit = ctrl s_saved 'e' in
+  require (match s_edit.mode with Edit _ -> true | _ -> false) "three-tier-ctrl-e-enters-edit-mode";
+  require (s_edit.focus <> History) "three-tier-edit-mode-opens-editor";
+  let s_edit_cancel = press s_edit `Escape in
+  require (s_edit_cancel.focus = History) "three-tier-edit-cancel-returns-to-workspace";
+  require (overlay_screen ~dimensions:(80, 24) ~width_of:String.length s_edit_cancel = None)
+    "three-tier-edit-cancel-closes-editor";
+  let s_cleared = ctrl s_edit_cancel 'n' in
+  require (s_cleared.mode = New) "three-tier-ctrl-n-resets-to-new";
+
+  (* 9. 狭小画面 (64x20) での安定描画とセル幅均一性 *)
+  let lines_small = screen ~frontend:"check" (64, 20) s_home in
+  require (List.length lines_small = 20) "three-tier-small-screen-height-20";
+  require (List.for_all (fun (_, l) -> String.length l <= 64) lines_small) "three-tier-small-screen-width-bounded";
+  let overlay_small = overlay_screen ~dimensions:(64, 20) ~width_of:String.length s_new in
+  (match overlay_small with
+  | Some rows ->
+      let w = String.length (snd (List.hd rows)) in
+      require (List.for_all (fun (_, l) -> String.length l = w) rows) "three-tier-overlay-small-uniform-width"
+  | None -> ());
+
+  print_endline "PASS: three-tier Summary + Workspace + Floating Create Editor lifecycle, cancellation safety, auto-close, and draft retention."
+
+let floating_stability_self_check ~directory ~base =
+  let require = F.require in
+  let step s input =
+    match handle s input with Some s -> s | None -> raise (F.Refused "stability-unexpected-exit")
+  in
+  let press s button = step s (`Key (button, [])) in
+  let ctrl s c = step s (`Key (`ASCII c, [ `Ctrl ])) in
+  let path = directory ^ "/stability-" ^ F.new_id () ^ ".sexp" in
+  F.create_copy ~source:"examples/daily-book.sexp" ~target:path;
+  let s_home = initial ~config_home:directory (F.load path) in
+  let s_home = { s_home with focus = History } in
+  let s_edit = press s_home (`ASCII 'r') in
+  require (s_edit.focus <> History) "stability-r-opens-editor";
+
+  (* 1. フォーム項目間の移動でモーダル外枠の高さ・幅が変化しない *)
+  let fields = [ Date; Currency; Source; Destination; Amount; Memo ] in
+  let get_overlay_dims s dim =
+    match overlay_screen ~dimensions:dim ~width_of:String.length s with
+    | None -> raise (F.Refused "stability-overlay-none")
+    | Some rows ->
+        let h = List.length rows in
+        let w = if h > 0 then String.length (snd (List.hd rows)) else 0 in
+        require (List.for_all (fun (_, r) -> String.length r = w) rows) "stability-uniform-width";
+        (w, h)
+  in
+  let standard_dim = (80, 24) in
+  let base_w, base_h = get_overlay_dims { s_edit with focus = Date } standard_dim in
+  List.iter
+    (fun f ->
+      let s_f = { s_edit with focus = f } in
+      let w, h = get_overlay_dims s_f standard_dim in
+      require (w = base_w && h = base_h) "stability-field-move-geometry-fixed")
+    fields;
+
+  (* 2. 候補一覧（Loci picker）の開閉でモーダル外枠の高さ・幅が変化しない *)
+  let s_src = { s_edit with focus = Source } in
+  let s_picker = press s_src `Enter in
+  require (match s_picker.overlay with Loci _ -> true | _ -> false) "stability-locus-picker-opened";
+  let picker_w, picker_h = get_overlay_dims s_picker standard_dim in
+  require (picker_w = base_w && picker_h = base_h) "stability-picker-geometry-identical-to-editor";
+  let s_closed = press s_picker `Escape in
+  require (s_closed.overlay = No_overlay) "stability-picker-closed-by-escape";
+  let closed_w, closed_h = get_overlay_dims s_closed standard_dim in
+  require (closed_w = base_w && closed_h = base_h) "stability-picker-close-geometry-retained";
+
+  (* 3. キーボード操作: 上下、Tab、Shift+Tab、Enter、Esc *)
+  (* ↑↓: 通常時はフォーム項目移動 *)
+  let s_d = { s_edit with focus = Date } in
+  let s_c = press s_d (`Arrow `Down) in
+  require (s_c.focus = Currency) "stability-arrow-down-next-field";
+  let s_back_d = press s_c (`Arrow `Up) in
+  require (s_back_d.focus = Date) "stability-arrow-up-prev-field";
+
+  (* ↑↓: 候補一覧（Loci picker）では候補移動 *)
+  let picker_start = match s_picker.overlay with Loci p -> p.selected | _ -> -1 in
+  let s_picker_down = press s_picker (`Arrow `Down) in
+  let picker_next = match s_picker_down.overlay with Loci p -> p.selected | _ -> -1 in
+  require (picker_next = picker_start + 1) "stability-picker-arrow-down-moves-candidate";
+  let s_picker_up = press s_picker_down (`Arrow `Up) in
+  let picker_back = match s_picker_up.overlay with Loci p -> p.selected | _ -> -1 in
+  require (picker_back = picker_start) "stability-picker-arrow-up-moves-candidate";
+
+  (* Tab / Shift+Tab: エディタとワークスペースの領域切替（下書き保持） *)
+  let s_tab_ws = press s_edit `Tab in
+  require (s_tab_ws.focus = History) "stability-tab-switches-to-workspace";
+  require (s_tab_ws.form = s_edit.form) "stability-tab-retains-draft";
+  let s_tab_back = step s_tab_ws (`Key (`Tab, [ `Shift ])) in
+  require (s_tab_back.focus = s_edit.focus) "stability-shift-tab-returns-to-editor";
+
+  (* ←→: テキスト項目ではカーソル移動 *)
+  let s_memo = { s_edit with focus = Memo; form = { s_edit.form with memo = "テスト" }; cursor = None } in
+  let s_memo_left = press s_memo (`Arrow `Left) in
+  require (s_memo_left.cursor = Some 6) "stability-arrow-left-moves-cursor";
+  let s_memo_right = press s_memo_left (`Arrow `Right) in
+  require (s_memo_right.cursor = Some 9) "stability-arrow-right-moves-cursor";
+
+  (* Enter: 候補選択 (Pick_locus) *)
+  let s_picker_choice = press s_picker_down `Enter in
+  require (s_picker_choice.overlay = No_overlay) "stability-picker-enter-selects-and-closes";
+  require (s_picker_choice.form.from_locus <> "") "stability-picker-entered-locus";
+
+  (* Esc: 候補一覧を閉じる（閉じていればエディタを閉じる） *)
+  let s_esc_picker = press s_picker `Escape in
+  require (s_esc_picker.overlay = No_overlay && s_esc_picker.focus <> History)
+    "stability-escape-closes-candidate-keeps-editor";
+  let s_esc_editor = press s_esc_picker `Escape in
+  require (s_esc_editor.focus = History) "stability-escape-closes-editor-to-workspace";
+
+  (* Ctrl-S: 確認・保存プレビューの起動 *)
+  let s_valid = { s_edit with form = { day = "2026-10-09"; measure = "jpy"; from_locus = "wallet"; to_locus = "food"; amount = "300"; memo = "おやつ" } } in
+  let s_preview = ctrl s_valid 's' in
+  require (match s_preview.overlay with Preview _ -> true | _ -> false) "stability-ctrl-s-opens-preview";
+
+  (* 4. フォーカス表示の明確な区別（Panel_active, Panel_heading, Panel） *)
+  let ov_rows = match overlay_screen ~dimensions:standard_dim ~width_of:String.length s_src with
+    | Some rows -> rows | None -> []
+  in
+  let active_styles = List.filter (fun (st, _) -> st = Panel_active) ov_rows in
+  let heading_styles = List.filter (fun (st, _) -> st = Panel_heading) ov_rows in
+  require (List.length active_styles >= 1) "stability-has-panel-active-field";
+  require (List.length heading_styles >= 1) "stability-has-panel-heading-candidate";
+  let active_text = snd (List.hd active_styles) in
+  require (Base.String.is_substring active_text ~substring:"> 出金元") "stability-panel-active-is-input-field";
+  require (List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"*") heading_styles)
+    "stability-panel-heading-is-selected-candidate";
+
+  (* 5. 画面サイズ変更後も操作不能なフィールドが生じない *)
+  List.iter
+    (fun dim ->
+      List.iter
+        (fun f ->
+          let s_f = { s_edit with focus = f } in
+          let w, h = get_overlay_dims s_f dim in
+          require (w > 0 && h > 0) "stability-resized-valid-overlay")
+        fields)
+    [ (64, 20); (80, 24); (100, 30); (40, 14) ];
+
+  print_endline "PASS: floating editor geometry stability, unified key navigation, focus style distinction, and resize tolerance."
 
 let split_form_self_check ~directory ~base =
   let require = F.require in
@@ -200,7 +610,11 @@ let split_form_self_check ~directory ~base =
   (* 画面描画の行数と全行表示の検証: 分割フォームで行が増えても記帳欄が見切れず全行含まれ、画面高さにピッタリ収まること *)
   let lines_24 = screen ~frontend:"check" (80, 24) s in
   require (List.length lines_24 = 24) "split-screen-height-24-fit";
-  let rendered_texts = List.map snd lines_24 in
+  let rendered_texts =
+    match overlay_screen ~dimensions:(80, 24) ~width_of:String.length s with
+    | Some rows -> List.map snd rows
+    | None -> List.map snd lines_24
+  in
   require
     (List.exists (fun t -> Base.String.is_substring t ~substring:"出金元 1") rendered_texts)
     "split-screen-contains-src-1";
@@ -214,10 +628,13 @@ let split_form_self_check ~directory ~base =
     (List.exists (fun t -> Base.String.is_substring t ~substring:"下書き差額") rendered_texts)
     "split-screen-contains-residual";
 
-  (* インライン Locus catalog の展開検証 *)
+  (* Floating Editor 内の Locus catalog の展開検証 *)
   let s_src_focused = { s with focus = Split (Source_locus 0) } in
-  let lines_cat = screen ~frontend:"check" (80, 24) s_src_focused in
-  let rendered_cat = List.map snd lines_cat in
+  let rendered_cat =
+    match overlay_screen ~dimensions:(80, 24) ~width_of:String.length s_src_focused with
+    | Some rows -> List.map snd rows
+    | None -> []
+  in
   require
     (List.exists (fun t -> Base.String.is_substring t ~substring:"Locus catalog") rendered_cat)
     "split-screen-contains-locus-catalog";
@@ -657,8 +1074,11 @@ let error_display_self_check ~directory ~base =
     }
   in
   let s_split_bad = { base with split = Some bad_split; form = { base.form with measure = "jpy" } } in
-  let screen_split = screen ~frontend:"check" (80, 24) s_split_bad in
-  let rendered_split = List.map snd screen_split in
+  let rendered_split =
+    match overlay_screen ~dimensions:(80, 24) ~width_of:String.length s_split_bad with
+    | Some rows -> List.map snd rows
+    | None -> List.map snd (screen ~frontend:"check" (80, 24) s_split_bad)
+  in
   require
     (List.exists (fun t -> Base.String.is_substring t ~substring:"下書き差額: 計算不可") rendered_split)
     "error-display-split-residual-natural-message";
@@ -2029,10 +2449,13 @@ let self_check () =
   split_safety_self_check ~directory ~base;
   error_display_self_check ~directory ~base;
   flexible_input_self_check ~directory ~base;
+  scheduled_browser_self_check ();
+  home_three_tier_self_check ~directory ~base;
+  floating_stability_self_check ~directory ~base;
   (* Return a deterministic Unicode/long-list renderer fixture. *)
   print_endline
     "PASS: synthetic shared record/reopen/edit, backups, plan lifecycle/payment, budget \
      publication, unknown, conflict/stale draft, focus markers, ASCII/Unicode Space, theme \
      preview/cancel/save/fallback, palette contrast, UI-only failure, locus picker and modal \
      paste.";
-  { base with theme = P.Terminal; overlay = No_overlay }
+  { base with focus = History; theme = P.Terminal; overlay = No_overlay }
