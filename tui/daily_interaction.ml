@@ -751,6 +751,20 @@ let apply_commit_result s ~draft result =
         form = { s.form with amount = ""; memo = "" };
         message = "書込みを確認しました（試用）。修正前のコピーも保管しました。";
       }
+  | A.Idempotent_duplicate { session; _ } when s.adding <> None ->
+      { s with session; adding = None; cursor = None; message = "科目はすでに登録されています（重複適用なし）。" }
+  | A.Idempotent_duplicate { session; _ } ->
+      {
+        (initial ?config_home:s.config_home session) with
+        theme = s.theme;
+        ui_notice = s.ui_notice;
+        form = { s.form with amount = ""; memo = "" };
+        message = "すでに保存済みの取引です（重複適用なし・Fast-Ack）。";
+      }
+  | A.Conflict_lsn { expected; actual } ->
+      { draft with blocked = true; pending = None; message = Printf.sprintf "別の追記がありました (LSN: 期待%d / 実際%d)。下書きは保持。Ctrl-Rで再読込してください。" expected actual }
+  | A.Payload_drift_refused why ->
+      { draft with blocked = true; message = "同一IDで異なる内容の記帳が試行されました: " ^ why }
   | A.Conflict_base_changed ->
       { draft with blocked = true; pending = None; message = "確認元が変わりました。下書きは保持。再読込して確認し直してください。" }
   | A.Conflict ->

@@ -2,14 +2,34 @@
    Cooperative writers/stable parent namespaces; not a security sandbox or a
    qualified power-loss protocol. No background retry, adoption or pruning. *)
 module B = Bakhlo_sexp.Daily_book
+module RB = Bakhlo_sexp.Records_book
+module DA = Bakhlo_sexp.Durable_append
 
 exception Refused of string
 
 let require p why = if not p then raise (Refused why)
 let get why = function Ok x -> x | Error _ -> raise (Refused why)
 
-type t = { path : string; bytes : string; book : B.t }
+type format = Monolithic | Records
+
+type t = {
+  path : string;
+  bytes : string;
+  book : B.t;
+  format : format;
+  engine : DA.engine option;
+  session : DA.client_session option;
+}
+
 type outcome = Written of t | Conflict | Refused_input of string | Uncertain
+
+let detect_format bytes =
+  let trimmed = String.trim bytes in
+  if String.starts_with ~prefix:";; Bakhlo Records S-expression" trimmed
+     || String.starts_with ~prefix:"(frame" trimmed then
+    Records
+  else
+    Monolithic
 
 let read path =
   let initial = Unix.lstat path in
@@ -37,7 +57,26 @@ let read path =
 
 let load path =
   let bytes = read path in
-  { path; bytes; book = get "book-refused" (B.of_string bytes) }
+  let format = detect_format bytes in
+  let book = get "book-refused" (B.of_string bytes) in
+  let engine, session =
+    match format with
+    | Records ->
+        let eng, act = get "records-engine-failed" (DA.recover_and_open path) in
+        (match act with
+        | DA.Corrupt_fail_closed { offset; reason } ->
+            raise (Refused (Printf.sprintf "records-log-corrupt-at-%d: %s" offset reason))
+        | DA.Truncate_failed err ->
+            raise (Refused ("records-truncate-failed: " ^ err))
+        | DA.Clean _ | DA.Torn_write_truncated _ -> ());
+        let sess = DA.create_session ~session_id:"tui-daily" () in
+        Option.iter
+          (fun tok -> DA.acknowledge_session sess ~token:tok ~lsn:(DA.current_lsn eng))
+          (DA.latest_token eng);
+        (Some eng, Some sess)
+    | Monolithic -> (None, None)
+  in
+  { path; bytes; book; format; engine; session }
 
 let nonce () =
   let fd = Unix.openfile "/dev/urandom" [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
@@ -248,6 +287,7 @@ type publication_step =
 (* Checkpoints are for deterministic fault/child-process interruption checks;
    ordinary callers use the no-op default and cannot bypass any gate. *)
 let publish ?(checkpoint = fun _ -> ()) session book =
+  require (session.format = Monolithic) "cannot-rewrite-records-format-as-monolithic";
   let attempted = ref false in
   try
     let bytes = B.to_string book in
@@ -289,6 +329,99 @@ let publish ?(checkpoint = fun _ -> ()) session book =
   | Refused why -> if !attempted then Uncertain else Refused_input why
   | Unix.Unix_error _ | Sys_error _ ->
       if !attempted then Uncertain else Refused_input "file-or-writer-unavailable"
+
+type append_outcome =
+  | Append_committed of { session : t; lsn : int; event_id : string }
+  | Append_idempotent of { session : t; lsn : int; event_id : string }
+  | Append_lsn_conflict of { expected : int; actual : int }
+  | Append_drift_refused of string
+  | Append_storage_error of string
+  | Append_sync_uncertain of { session : t; lsn : int; event_id : string; error : string }
+
+let append_entry ?candidate session (e : RB.entry) =
+  require (session.format = Records) "cannot-append-to-monolithic-format";
+  match session.engine, session.session with
+  | Some eng, Some sess ->
+      let expected_lsn = DA.current_lsn eng + 1 in
+      let res = DA.append_entry eng ~session:sess ~expected_lsn e in
+      (match res with
+      | DA.Commit_success { lsn; event_id } ->
+          Option.iter (fun tok -> DA.acknowledge_session sess ~token:tok ~lsn) e.token;
+          let new_book =
+            match candidate with
+            | Some b -> b
+            | None ->
+                let b_str = read session.path in
+                get "book-refused" (B.of_string b_str)
+          in
+          let frame = RB.encode_frame lsn (RB.Entry e) in
+          let frame_line = RB.serialize_frame frame ^ "\n" in
+          let new_bytes = session.bytes ^ frame_line in
+          Append_committed { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id }
+      | DA.Sync_uncertain { lsn; event_id; error } ->
+          Option.iter (fun tok -> DA.acknowledge_session sess ~token:tok ~lsn) e.token;
+          let new_book =
+            match candidate with
+            | Some b -> b
+            | None ->
+                let b_str = read session.path in
+                get "book-refused" (B.of_string b_str)
+          in
+          let frame = RB.encode_frame lsn (RB.Entry e) in
+          let frame_line = RB.serialize_frame frame ^ "\n" in
+          let new_bytes = session.bytes ^ frame_line in
+          Append_sync_uncertain { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id; error }
+      | DA.Idempotent_duplicate { lsn; event_id } ->
+          Append_idempotent { session; lsn; event_id }
+      | DA.Lsn_conflict { expected; actual } ->
+          Append_lsn_conflict { expected; actual }
+      | DA.Payload_drift_refused msg ->
+          Append_drift_refused msg
+      | DA.Storage_error err ->
+          Append_storage_error err)
+  | _ -> raise (Refused "engine-not-initialized")
+
+let append_add_locus ?candidate session locus =
+  require (session.format = Records) "cannot-append-to-monolithic-format";
+  match session.engine, session.session with
+  | Some eng, Some sess ->
+      let expected_lsn = DA.current_lsn eng + 1 in
+      let payload = RB.Add_locus { locus; opaque = [] } in
+      let res = DA.append_payload eng ~session:sess ~expected_lsn ~token:None ~event_id:locus ~payload in
+      (match res with
+      | DA.Commit_success { lsn; event_id } ->
+          let new_book =
+            match candidate with
+            | Some b -> b
+            | None ->
+                let b_str = read session.path in
+                get "book-refused" (B.of_string b_str)
+          in
+          let frame = RB.encode_frame lsn payload in
+          let frame_line = RB.serialize_frame frame ^ "\n" in
+          let new_bytes = session.bytes ^ frame_line in
+          Append_committed { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id }
+      | DA.Sync_uncertain { lsn; event_id; error } ->
+          let new_book =
+            match candidate with
+            | Some b -> b
+            | None ->
+                let b_str = read session.path in
+                get "book-refused" (B.of_string b_str)
+          in
+          let frame = RB.encode_frame lsn payload in
+          let frame_line = RB.serialize_frame frame ^ "\n" in
+          let new_bytes = session.bytes ^ frame_line in
+          Append_sync_uncertain { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id; error }
+      | DA.Idempotent_duplicate { lsn; event_id } ->
+          Append_idempotent { session; lsn; event_id }
+      | DA.Lsn_conflict { expected; actual } ->
+          Append_lsn_conflict { expected; actual }
+      | DA.Payload_drift_refused msg ->
+          Append_drift_refused msg
+      | DA.Storage_error err ->
+          Append_storage_error err)
+  | _ -> raise (Refused "engine-not-initialized")
 
 let today () =
   let tm = Unix.localtime (Unix.time ()) in
