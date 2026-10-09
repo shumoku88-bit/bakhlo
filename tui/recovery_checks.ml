@@ -17,6 +17,13 @@ let refuses why f =
     raise (F.Refused ("missing-refusal-" ^ why))
   with F.Refused actual -> require (actual = why) ("wrong-refusal-" ^ actual)
 
+let refuses_starts_with prefix f =
+  try
+    f ();
+    raise (F.Refused ("missing-refusal-" ^ prefix))
+  with F.Refused actual ->
+    require (String.starts_with ~prefix actual) ("wrong-refusal-" ^ actual)
+
 let io_refuses f =
   try
     f ();
@@ -489,21 +496,51 @@ let self_check () =
   | A.Published updated ->
       require (updated.format = F.Records) "updated-format-not-records";
       require (List.length (B.entries updated.book) = 1) "records-entry-not-admitted";
-      (* PR 6a: Ensure session.bytes is a lightweight LSN tag and NOT a full log string *)
-      require (updated.bytes = "records:lsn:1") "updated-bytes-not-lsn-tag";
+      (* PR 6a: Ensure session.bytes is a lightweight LSN+CRC tag and NOT a full log string *)
+      require (String.starts_with ~prefix:"records:lsn:1:crc:" updated.bytes) "updated-bytes-not-lsn-tag";
       require (String.length updated.bytes < 100) "records-bytes-must-not-grow-linearly";
 
       (* Re-read from disk to ensure durable append occurred on disk *)
       let reloaded = F.load rec_path in
       require (reloaded.format = F.Records) "reloaded-not-records";
       require (List.length (B.entries reloaded.book) = 1) "reloaded-entries-not-preserved";
-      require (reloaded.bytes = "records:lsn:1") "reloaded-bytes-not-lsn-tag";
+      require (reloaded.bytes = updated.bytes) "reloaded-bytes-not-matching-updated";
 
-      (* PR 6a: Conflict_base_changed must be detected when base_bytes is stale *)
+      (* PR 6a audit 1: Attempting monolithic restore_copy on Records format MUST fail-closed *)
+      let target_restore = Filename.concat directory "restored.log" in
+      refuses "cannot-restore-records-as-monolithic-copy" (fun () ->
+        F.restore_copy ~source:rec_path ~target:target_restore);
+
+      (* PR 6a audit 1: Attempting create_copy (monolithic) on Records format MUST fail-closed *)
+      let target_create_copy = Filename.concat directory "created_copy.log" in
+      refuses "cannot-copy-records-as-monolithic" (fun () ->
+        F.create_copy ~source:rec_path ~target:target_create_copy);
+
+      (* PR 6a audit 1: Explicit copy_records preserves exact bytes and verification *)
+      let target_copy = Filename.concat directory "copied.log" in
+      F.copy_records ~source:rec_path ~target:target_copy;
+      let copied_s = F.load target_copy in
+      require (copied_s.bytes = updated.bytes) "copied-records-bytes-mismatch";
+      require (List.length (B.entries copied_s.book) = 1) "copied-records-entries-mismatch";
+
+      (* PR 6a audit 1: Explicit export_monolithic exports to valid monolithic format *)
+      let target_export = Filename.concat directory "exported.sexp" in
+      F.export_monolithic ~session:updated ~target:target_export;
+      let exported_s = F.load target_export in
+      require (exported_s.format = F.Monolithic) "exported-not-monolithic";
+      require (List.length (B.entries exported_s.book) = 1) "exported-entries-mismatch";
+
+      (* PR 6a audit 2: Conflict_base_changed must be detected when base_bytes is stale *)
       let stale_base = rec_session.bytes in
       (match A.commit_transaction ~session:updated ~base_bytes:stale_base tx with
       | A.Conflict_base_changed -> ()
       | _ -> raise (F.Refused "stale-base-bytes-must-fail-with-conflict-base-changed"));
+
+      (* PR 6a audit 2: Same LSN but different CRC externally modified triggers Conflict_base_changed *)
+      let fake_different_crc_base = "records:lsn:1:crc:00000000" in
+      (match A.commit_transaction ~session:updated ~base_bytes:fake_different_crc_base tx with
+      | A.Conflict_base_changed -> ()
+      | _ -> raise (F.Refused "different-crc-base-must-fail-with-conflict-base-changed"));
 
       (* Fast-Ack idempotency check on same transaction *)
       (match A.commit_transaction ~session:updated ~base_bytes:updated.bytes tx with
@@ -521,7 +558,7 @@ let self_check () =
       let fd = Unix.openfile corrupt_path [ Unix.O_CREAT; Unix.O_WRONLY ] 0o600 in
       ignore (Unix.write_substring fd (rec_log ^ bad_line) 0 (String.length rec_log + String.length bad_line));
       Unix.close fd;
-      refuses "book-refused" (fun () -> ignore (F.load corrupt_path));
+      refuses_starts_with "records-log-corrupt-at-" (fun () -> ignore (F.load corrupt_path));
       (* In-doubt / recovery notice check *)
       let in_doubt_msg = A.recovery_notice ~session:updated in
       require (in_doubt_msg = None) "in-doubt-unexpectedly-present"

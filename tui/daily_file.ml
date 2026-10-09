@@ -55,30 +55,46 @@ let read path =
       require (check (Unix.fstat fd) && check (Unix.lstat path)) "changed-during-read";
       Buffer.contents b)
 
-let records_revision lsn = Printf.sprintf "records:lsn:%d" lsn
+let records_revision ~lsn ~crc = Printf.sprintf "records:lsn:%d:crc:%s" lsn crc
 
 let load path =
-  let bytes = read path in
-  let format = detect_format bytes in
-  let book = get "book-refused" (B.of_string bytes) in
-  let engine, session, session_bytes =
-    match format with
-    | Records ->
-        let eng, act = get "records-engine-failed" (DA.recover_and_open path) in
-        (match act with
-        | DA.Corrupt_fail_closed { offset; reason } ->
-            raise (Refused (Printf.sprintf "records-log-corrupt-at-%d: %s" offset reason))
-        | DA.Truncate_failed err ->
-            raise (Refused ("records-truncate-failed: " ^ err))
-        | DA.Clean _ | DA.Torn_write_truncated _ -> ());
-        let sess = DA.create_session ~session_id:"tui-daily" () in
-        Option.iter
-          (fun tok -> DA.acknowledge_session sess ~token:tok ~lsn:(DA.current_lsn eng))
-          (DA.latest_token eng);
-        (Some eng, Some sess, records_revision (DA.current_lsn eng))
-    | Monolithic -> (None, None, bytes)
-  in
-  { path; bytes = session_bytes; book; format; engine; session }
+  let initial_bytes = read path in
+  let format = detect_format initial_bytes in
+  match format with
+  | Monolithic ->
+      let book = get "book-refused" (B.of_string initial_bytes) in
+      { path; bytes = initial_bytes; book; format = Monolithic; engine = None; session = None }
+  | Records ->
+      (* 1. First recover and open engine under lock to ensure clean truncated state *)
+      let eng, act = get "records-engine-failed" (DA.recover_and_open path) in
+      (match act with
+      | DA.Corrupt_fail_closed { offset; reason } ->
+          raise (Refused (Printf.sprintf "records-log-corrupt-at-%d: %s" offset reason))
+      | DA.Truncate_failed err ->
+          raise (Refused ("records-truncate-failed: " ^ err))
+      | DA.Clean _ | DA.Torn_write_truncated _ -> ());
+
+      (* 2. Read back clean content after recovery truncate, and parse book *)
+      let clean_bytes = read path in
+      let book = get "book-refused" (B.of_string clean_bytes) in
+
+      (* 3. Verify consistency between Book and Engine LSN to guard against race condition *)
+      let parsed_records = get "records-parse-failed" (RB.of_string clean_bytes) in
+      let last_parsed_lsn, last_crc =
+        match List.rev parsed_records.frames with
+        | [] ->
+            let h_frame = RB.encode_frame 0 (RB.Header parsed_records.header) in
+            (0, h_frame.crc)
+        | f :: _ -> (f.lsn, f.crc)
+      in
+      require (DA.current_lsn eng = last_parsed_lsn) "records-engine-book-lsn-mismatch";
+
+      let sess = DA.create_session ~session_id:"tui-daily" () in
+      Option.iter
+        (fun tok -> DA.acknowledge_session sess ~token:tok ~lsn:(DA.current_lsn eng))
+        (DA.latest_token eng);
+      let session_bytes = records_revision ~lsn:last_parsed_lsn ~crc:last_crc in
+      { path; bytes = session_bytes; book; format = Records; engine = Some eng; session = Some sess }
 
 let nonce () =
   let fd = Unix.openfile "/dev/urandom" [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
@@ -177,14 +193,19 @@ let load_result path =
 (* Read-only observations, not publication permission or proof of past outcome.
    Unrecognised/partial artifacts remain visible and block ordinary publication. *)
 let inspect_recovery path =
-  let names = unfinished_names path in
   let selected = load_result path in
-  let items =
-    names
-    |> List.filter (fun name ->
-        match artifact_id path name with
-        | false, Some id -> not (List.mem (Filename.basename (attempt_path path id)) names)
-        | _ -> true)
+  match selected with
+  | Ok { format = Records; _ } ->
+      (* Records format uses append-only log recovery and never uses monolithic attempt/pending artifacts *)
+      { selected; items = [] }
+  | _ ->
+      let names = unfinished_names path in
+      let items =
+        names
+        |> List.filter (fun name ->
+            match artifact_id path name with
+            | false, Some id -> not (List.mem (Filename.basename (attempt_path path id)) names)
+            | _ -> true)
     |> List.map (fun name ->
         let _, attempt_id = artifact_id path name in
         let comparison =
@@ -233,6 +254,7 @@ let sync_file path =
 (* Explicitly acknowledge only an admitted candidate EXACTLY present now.
    Never acknowledge a merely newer/different file or infer non-publication. *)
 let confirm_current ~session ~attempt_id =
+  require (session.format = Monolithic) "cannot-confirm-records-format";
   require (valid_attempt_id attempt_id) "invalid-attempt-id";
   with_writer session.path (fun () ->
       let current = load session.path in
@@ -263,6 +285,7 @@ let confirm_current ~session ~attempt_id =
    checked copy is not automatic adoption, reconciliation or a format upgrade. *)
 let restore_copy ~source ~target =
   let original = load source in
+  require (original.format = Monolithic) "cannot-restore-records-as-monolithic-copy";
   write_new target original.bytes;
   sync_parent target;
   require (read source = original.bytes) "source-changed-during-restore";
@@ -270,12 +293,30 @@ let restore_copy ~source ~target =
 
 let create_copy ~source ~target =
   let original = load source in
+  require (original.format = Monolithic) "cannot-copy-records-as-monolithic";
   require_finished source;
   let bytes = B.to_string original.book in
   ignore (get "printed-book-refused" (B.of_string bytes));
   write_new target bytes;
   sync_parent target;
   require (read source = original.bytes) "source-changed-during-copy"
+
+let copy_records ~source ~target =
+  let original = load source in
+  require (original.format = Records) "cannot-copy-monolithic-as-records";
+  let content = read source in
+  write_new target content;
+  sync_parent target;
+  let copied = load target in
+  require (copied.bytes = original.bytes) "copied-records-readback-changed"
+
+let export_monolithic ~session ~target =
+  let bytes = B.to_string session.book in
+  ignore (get "printed-book-refused" (B.of_string bytes));
+  write_new target bytes;
+  sync_parent target;
+  let loaded = load target in
+  require (loaded.format = Monolithic) "exported-not-monolithic"
 
 type publication_step =
   | Attempt_synced
@@ -356,7 +397,8 @@ let append_entry ?candidate session (e : RB.entry) =
                 let b_str = read session.path in
                 get "book-refused" (B.of_string b_str)
           in
-          let new_bytes = records_revision lsn in
+          let frame = RB.encode_frame lsn (RB.Entry e) in
+          let new_bytes = records_revision ~lsn ~crc:frame.crc in
           Append_committed { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id }
       | DA.Sync_uncertain { lsn; event_id; error } ->
           (* Note: Do NOT acknowledge_session here. Sync_uncertain means client Ack is unconfirmed,
@@ -368,7 +410,8 @@ let append_entry ?candidate session (e : RB.entry) =
                 let b_str = read session.path in
                 get "book-refused" (B.of_string b_str)
           in
-          let new_bytes = records_revision lsn in
+          let frame = RB.encode_frame lsn (RB.Entry e) in
+          let new_bytes = records_revision ~lsn ~crc:frame.crc in
           Append_sync_uncertain { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id; error }
       | DA.Idempotent_duplicate { lsn; event_id } ->
           Append_idempotent { session; lsn; event_id }
@@ -396,7 +439,8 @@ let append_add_locus ?candidate session locus =
                 let b_str = read session.path in
                 get "book-refused" (B.of_string b_str)
           in
-          let new_bytes = records_revision lsn in
+          let frame = RB.encode_frame lsn payload in
+          let new_bytes = records_revision ~lsn ~crc:frame.crc in
           Append_committed { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id }
       | DA.Sync_uncertain { lsn; event_id; error } ->
           let new_book =
@@ -406,7 +450,8 @@ let append_add_locus ?candidate session locus =
                 let b_str = read session.path in
                 get "book-refused" (B.of_string b_str)
           in
-          let new_bytes = records_revision lsn in
+          let frame = RB.encode_frame lsn payload in
+          let new_bytes = records_revision ~lsn ~crc:frame.crc in
           Append_sync_uncertain { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id; error }
       | DA.Idempotent_duplicate { lsn; event_id } ->
           Append_idempotent { session; lsn; event_id }
