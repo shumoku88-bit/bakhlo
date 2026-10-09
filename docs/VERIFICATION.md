@@ -1271,6 +1271,63 @@ high-group-count household input exhibits pressure should its incremental
 cost be measured separately. Keep the full qualified oracle and refusal
 correspondence as non-negotiable gates.
 
+## Support-group count sensitivity in corrected-entry Daily_book (2026-10-09)
+
+Following the merged direct Daily_book trial above, ask whether ordinary
+incremental recording depends materially on **number of independent supported
+quantity groups**, as `Current_quantity_groups.with_added_effects` updates
+every qualified group and recreates its owners map on each append.
+
+Bounded native OCaml 5.3 release probe, GitHub-hosted Ubuntu, synthetic
+version-3 monolithic Daily_book with exactly the same 1k or 10k balanced
+wallet/food JPY Events within each group-count sweep. Every added independent
+group holds exactly one nonoverlapping zero-valued assertion on an untouched
+`probe-NNNN/jpy` coordinate and an empty reflected-root cut; the first group
+asserts the exact `wallet/jpy` balance. `food/jpy` has zero-origin support.
+No duplicate assertion owner, missing source or real household data.
+
+| History | Independent groups | One incremental append (ms) | Parse + full qualification (ms) |
+| ---: | ---: | ---: | ---: |
+| 1,000 | 1 | 0.000615 | 5.844 |
+| 1,000 | 10 | 0.001657 | 8.453 |
+| 1,000 | 100 | 0.017241 | 32.352 |
+| 1,000 | 400 | 0.090420 | 114.523 |
+| 10,000 | 1 | 0.000664 | 69.359 |
+| 10,000 | 10 | 0.001694 | 102.911 |
+| 10,000 | 100 | 0.016932 | 447.688 |
+
+Qualified measurements: [CI 37949609636](https://github.com/shumoku88-bit/bakhlo/actions/runs/37949609636);
+temporary compiled source: [commit 2dc5a534](https://github.com/shumoku88-bit/bakhlo/commit/2dc5a53423bda6df495ddfb8cc24906e5a0620f4).
+The temporary executable, Dune stanza and PR-only workflow are absent from the
+final PR. Executable was release-compiled; append figures are per operation,
+medians across five batches, where shorter operations use more repetitions;
+admission figures are three full parses/admissions on prebuilt in-memory text
+per case. All scenarios checked equality of append bytes against full
+`put_entry_full`, wallet/food totals, untouched group assertion and exactly
+retained independent support evidence. **Every case reported CHECK=PASS**.
+Whole-workload peak RSS was 215,712 KiB, not a per-case footprint.
+
+Result: in these deliberately many-independent-groups fixtures the cost of
+incremental append rises with support-group count but is nearly invariant
+between 1k and 10k history. At 100 groups the measured single append was
+still ~0.017ms; 400 groups ~0.090ms at 1k history. **No daily-use slowdown
+or new cache requirement was established.** The whole-admission path rises
+more visibly: 10k entries / 100 groups ~448ms vs ~69ms at one group.
+This is consistent with per-group projected whole-history aggregation in
+`Current_quantity_projection.create`, but the benchmark is not a call-by-call
+profile proving the exact split.
+
+Do not rewrite or bypass qualified support group semantics. The extra
+groups assert otherwise-unused loci, an intentionally upper-pressure fixture,
+not a measured household distribution. No file I/O, record publication, fsync,
+crash/ack recovery, FX, correction chains, heavy group reflection, cold-media,
+user-visible TUI steps, or mobile/Intel Mac timings are covered. The tiny
+microsecond append numbers are sensitive to timer/runtime noise. If actual
+household use ever requires dozens/hundreds of independent support groups,
+first profile full opening/admission and real save latency, and consider
+transient reuse inside existing admission only with refusal-equivalent tests.
+Otherwise retain the current simple implementation.
+
 ## Whole-admitted document reuse and fresh publication gates
 
 Question/D/P/R/bounds recorded BEFORE code at 8ea1cc9. User requests the measured save seam;
