@@ -453,6 +453,52 @@ let self_check () =
   require
     (F.unfinished_names healthy.path = [] && not (cold (F.load healthy.path)).blocked)
     "recovery-normal-save-left-active-attempt";
+
+  (* Records S-expression format coexistence and durable append checks *)
+  let rec_path = Filename.concat directory "records-store.log" in
+  let rec_h : Bakhlo_sexp.Records_book.header = {
+    version = 1;
+    measures = [ ("jpy", 0) ];
+    labels = None;
+    approved_loci = Some [ "wallet"; "food" ];
+    origins = [];
+    openings = [];
+    observations = [];
+    presence = None;
+    opaque = [];
+  } in
+  let rec_log = Bakhlo_sexp.Records_book.to_string { header = rec_h; frames = [] } in
+  F.write_new rec_path rec_log;
+  let rec_session = F.load rec_path in
+  require (rec_session.format = F.Records) "records-format-not-detected";
+
+  (* Safe guard 1: Attempting monolithic publish on Records format MUST be refused *)
+  refuses "cannot-rewrite-records-format-as-monolithic" (fun () ->
+    ignore (F.publish rec_session rec_session.book));
+
+  (* Safe guard 2: Attempting Records append on Monolithic format MUST be refused *)
+  let mono_e = entry "mono-test" "jpy" in
+  let rec_entry = A.to_records_entry mono_e in
+  refuses "cannot-append-to-monolithic-format" (fun () ->
+    ignore (F.append_entry healthy rec_entry));
+
+  (* Commit transaction via Daily_actions on Records format: should append without full rewrite *)
+  let tx : A.transaction = { entry = mono_e; replace = false; plan = None } in
+  let rec_commit_res = A.commit_transaction ~session:rec_session ~base_bytes:rec_session.bytes tx in
+  (match rec_commit_res with
+  | A.Published updated ->
+      require (updated.format = F.Records) "updated-format-not-records";
+      require (List.length (B.entries updated.book) = 1) "records-entry-not-admitted";
+      (* Re-read from disk to ensure durable append occurred on disk *)
+      let reloaded = F.load rec_path in
+      require (reloaded.format = F.Records) "reloaded-not-records";
+      require (List.length (B.entries reloaded.book) = 1) "reloaded-entries-not-preserved";
+      (* Fast-Ack idempotency check on same transaction *)
+      (match A.commit_transaction ~session:updated ~base_bytes:updated.bytes tx with
+      | A.Idempotent_duplicate _ -> ()
+      | _ -> raise (F.Refused "records-idempotency-failed"))
+  | _ -> raise (F.Refused "records-commit-transaction-failed"));
+
   Printf.printf "Recovery fixtures (synthetic): %s\n%!" directory;
   print_endline
     "PASS: durable candidate attempts, read-only recovery, explicit current-byte \

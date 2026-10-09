@@ -213,29 +213,29 @@ let append_payload engine ~session:_ ~expected_lsn ~token ~event_id ~payload =
         (* 0. Re-sync from disk under lock to observe any external committed updates *)
         sync_from_disk_locked engine;
 
-        (* 1. LSN conflict detection *)
-        let next_lsn = engine.current_lsn + 1 in
-        if expected_lsn <> next_lsn then
-          Lsn_conflict { expected = expected_lsn; actual = next_lsn }
-        else
-          (* 2. Request token machine idempotency *)
-          let is_duplicate =
-            match token with
-            | None -> None
-            | Some tok -> (
-                match Hashtbl.find_opt engine.token_index tok with
-                | None -> None
-                | Some existing ->
-                    let current_summary = payload_summary_of payload in
-                    if String.equal existing.payload_summary current_summary then
-                      Some (Ok (Idempotent_duplicate { lsn = existing.lsn; event_id = existing.event_id }))
-                    else
-                      Some (Error (Payload_drift_refused (Printf.sprintf "duplicate-token-%s-payload-drift" tok))))
-          in
-          match is_duplicate with
-          | Some (Ok dup) -> dup
-          | Some (Error refused) -> refused
-          | None ->
+        (* 1. Request token machine idempotency FIRST *)
+        let is_duplicate =
+          match token with
+          | None -> None
+          | Some tok -> (
+              match Hashtbl.find_opt engine.token_index tok with
+              | None -> None
+              | Some existing ->
+                  let current_summary = payload_summary_of payload in
+                  if String.equal existing.payload_summary current_summary then
+                    Some (Ok (Idempotent_duplicate { lsn = existing.lsn; event_id = existing.event_id }))
+                  else
+                    Some (Error (Payload_drift_refused (Printf.sprintf "duplicate-token-%s-payload-drift" tok))))
+        in
+        match is_duplicate with
+        | Some (Ok dup) -> dup
+        | Some (Error refused) -> refused
+        | None ->
+            (* 2. LSN conflict detection for fresh mutations *)
+            let next_lsn = engine.current_lsn + 1 in
+            if expected_lsn <> next_lsn then
+              Lsn_conflict { expected = expected_lsn; actual = next_lsn }
+            else
               (* 3. Encode frame with CRC32 *)
               let frame = Records_book.encode_frame next_lsn payload in
               let line = Records_book.serialize_frame frame ^ "\n" in

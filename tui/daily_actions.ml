@@ -231,13 +231,29 @@ let build_transaction ~book ~mode content : (transaction, string) result =
 let recovery_message = "保存試行の未確認情報があります。書込み停止。終了して --inspect-recovery で確認してください。"
 
 let recovery_notice ~session =
-  try if F.unfinished_names session.F.path = [] then None else Some recovery_message
-  with F.Refused _ | Unix.Unix_error _ | Sys_error _ -> Some "復旧情報を確認できません。書込み停止。空の状態とは扱いません。"
+  match session.F.format with
+  | F.Monolithic -> (
+      try if F.unfinished_names session.F.path = [] then None else Some recovery_message
+      with F.Refused _ | Unix.Unix_error _ | Sys_error _ -> Some "復旧情報を確認できません。書込み停止。空の状態とは扱いません。")
+  | F.Records -> (
+      match (session.F.engine, session.F.session) with
+      | Some eng, Some sess -> (
+          match Bakhlo_sexp.Durable_append.check_in_doubt eng ~session:sess with
+          | Bakhlo_sexp.Durable_append.In_doubt_detected { unacknowledged_token; lsn; event_id } ->
+              Some
+                (Printf.sprintf
+                   "未確認の保存があります (token: %s, lsn: %d, id: %s)。再送前に確認してください。"
+                   unacknowledged_token lsn event_id)
+          | Bakhlo_sexp.Durable_append.In_doubt_none -> None)
+      | _ -> None)
 
 type commit_result =
   | Published of F.t
+  | Idempotent_duplicate of { lsn : int; event_id : string; session : F.t }
   | Conflict_base_changed
   | Conflict
+  | Conflict_lsn of { expected : int; actual : int }
+  | Payload_drift_refused of string
   | Recovery_blocked
   | Uncertain of string
   | Refused of string
@@ -252,17 +268,94 @@ let publish_candidate ~session candidate : commit_result =
      copy here for existing reload reconciliation; ordinary saves do not reprint. *)
   | F.Uncertain -> Uncertain (B.to_string candidate)
 
+let to_records_entry (e : B.entry) : Bakhlo_sexp.Records_book.entry =
+  {
+    id = e.id;
+    day = e.day;
+    token = Some (Printf.sprintf "tok-%s" e.id);
+    memo = e.memo;
+    effects = e.effects;
+    reversal_of = e.reversal_of;
+    exchange = e.exchange;
+    opaque = [];
+  }
+
+let entry_equals (a : B.entry) (b : B.entry) =
+  String.equal a.id b.id
+  && String.equal a.day b.day
+  && Option.equal String.equal a.memo b.memo
+  && Option.equal String.equal a.reversal_of b.reversal_of
+  && Option.equal
+       (fun (x1, y1) (x2, y2) -> String.equal x1 x2 && String.equal y1 y2)
+       a.exchange b.exchange
+  && List.equal
+       (fun e1 e2 ->
+         D.Identifier.Locus.equal (D.Effect.locus e1) (D.Effect.locus e2)
+         && D.Identifier.Measure.equal (D.Effect.measure e1) (D.Effect.measure e2)
+         && D.Quantity.equal (D.Effect.quantity e1) (D.Effect.quantity e2))
+       a.effects b.effects
+
 let commit_transaction ~session ~base_bytes (tx : transaction) : commit_result =
   if base_bytes <> session.F.bytes then Conflict_base_changed
   else
-    match B.put_entry session.book ~replace:tx.replace tx.entry ~plan:tx.plan with
-    | Error why -> Refused ("記帳拒否: " ^ why)
-    | Ok candidate -> publish_candidate ~session candidate
+    match session.format with
+    | F.Monolithic -> (
+        match B.put_entry session.book ~replace:tx.replace tx.entry ~plan:tx.plan with
+        | Error why -> Refused ("記帳拒否: " ^ why)
+        | Ok candidate -> publish_candidate ~session candidate)
+    | F.Records -> (
+        let rec_entry = to_records_entry tx.entry in
+        match B.put_entry session.book ~replace:tx.replace tx.entry ~plan:tx.plan with
+        | Ok candidate -> (
+            try
+              match F.append_entry ~candidate session rec_entry with
+              | F.Append_committed { session = updated; _ } -> Published updated
+              | F.Append_idempotent { session = updated; lsn; event_id } ->
+                  Idempotent_duplicate { lsn; event_id; session = updated }
+              | F.Append_lsn_conflict { expected; actual } ->
+                  Conflict_lsn { expected; actual }
+              | F.Append_drift_refused msg ->
+                  Payload_drift_refused msg
+              | F.Append_storage_error err ->
+                  Refused ("保存失敗: " ^ err)
+            with F.Refused why -> Refused ("追記拒否: " ^ why))
+        | Error why -> (
+            let existing_opt =
+              List.find_opt
+                (fun (e : B.entry) -> String.equal e.id tx.entry.id)
+                (B.entries session.book)
+            in
+            match existing_opt with
+            | Some existing when entry_equals existing tx.entry -> (
+                try
+                  match F.append_entry session rec_entry with
+                  | F.Append_idempotent { session = updated; lsn; event_id } ->
+                      Idempotent_duplicate { lsn; event_id; session = updated }
+                  | F.Append_drift_refused msg ->
+                      Payload_drift_refused msg
+                  | _ -> Refused ("記帳拒否: " ^ why)
+                with F.Refused _ -> Refused ("記帳拒否: " ^ why))
+            | _ -> Refused ("記帳拒否: " ^ why)))
 
 let commit_add_locus ~session name : commit_result =
   match B.add_locus session.F.book name with
   | Error why -> Refused ("科目追加拒否: " ^ why)
-  | Ok candidate -> publish_candidate ~session candidate
+  | Ok candidate -> (
+      match session.format with
+      | F.Monolithic -> publish_candidate ~session candidate
+      | F.Records -> (
+          try
+            match F.append_add_locus ~candidate session name with
+            | F.Append_committed { session = updated; _ } -> Published updated
+            | F.Append_idempotent { session = updated; lsn; event_id } ->
+                Idempotent_duplicate { lsn; event_id; session = updated }
+            | F.Append_lsn_conflict { expected; actual } ->
+                Conflict_lsn { expected; actual }
+            | F.Append_drift_refused msg ->
+                Payload_drift_refused msg
+            | F.Append_storage_error err ->
+                Refused ("科目追加失敗: " ^ err)
+          with F.Refused why -> Refused ("科目追加拒否: " ^ why)))
 
 type reload_result =
   | Pending_confirmed of F.t
