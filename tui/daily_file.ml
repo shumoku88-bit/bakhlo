@@ -70,6 +70,9 @@ let load path =
             raise (Refused ("records-truncate-failed: " ^ err))
         | DA.Clean _ | DA.Torn_write_truncated _ -> ());
         let sess = DA.create_session ~session_id:"tui-daily" () in
+        Option.iter
+          (fun tok -> DA.acknowledge_session sess ~token:tok ~lsn:(DA.current_lsn eng))
+          (DA.latest_token eng);
         (Some eng, Some sess)
     | Monolithic -> (None, None)
   in
@@ -333,6 +336,7 @@ type append_outcome =
   | Append_lsn_conflict of { expected : int; actual : int }
   | Append_drift_refused of string
   | Append_storage_error of string
+  | Append_sync_uncertain of { session : t; lsn : int; event_id : string; error : string }
 
 let append_entry ?candidate session (e : RB.entry) =
   require (session.format = Records) "cannot-append-to-monolithic-format";
@@ -354,6 +358,19 @@ let append_entry ?candidate session (e : RB.entry) =
           let frame_line = RB.serialize_frame frame ^ "\n" in
           let new_bytes = session.bytes ^ frame_line in
           Append_committed { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id }
+      | DA.Sync_uncertain { lsn; event_id; error } ->
+          Option.iter (fun tok -> DA.acknowledge_session sess ~token:tok ~lsn) e.token;
+          let new_book =
+            match candidate with
+            | Some b -> b
+            | None ->
+                let b_str = read session.path in
+                get "book-refused" (B.of_string b_str)
+          in
+          let frame = RB.encode_frame lsn (RB.Entry e) in
+          let frame_line = RB.serialize_frame frame ^ "\n" in
+          let new_bytes = session.bytes ^ frame_line in
+          Append_sync_uncertain { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id; error }
       | DA.Idempotent_duplicate { lsn; event_id } ->
           Append_idempotent { session; lsn; event_id }
       | DA.Lsn_conflict { expected; actual } ->
@@ -384,6 +401,18 @@ let append_add_locus ?candidate session locus =
           let frame_line = RB.serialize_frame frame ^ "\n" in
           let new_bytes = session.bytes ^ frame_line in
           Append_committed { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id }
+      | DA.Sync_uncertain { lsn; event_id; error } ->
+          let new_book =
+            match candidate with
+            | Some b -> b
+            | None ->
+                let b_str = read session.path in
+                get "book-refused" (B.of_string b_str)
+          in
+          let frame = RB.encode_frame lsn payload in
+          let frame_line = RB.serialize_frame frame ^ "\n" in
+          let new_bytes = session.bytes ^ frame_line in
+          Append_sync_uncertain { session = { session with bytes = new_bytes; book = new_book }; lsn; event_id; error }
       | DA.Idempotent_duplicate { lsn; event_id } ->
           Append_idempotent { session; lsn; event_id }
       | DA.Lsn_conflict { expected; actual } ->
