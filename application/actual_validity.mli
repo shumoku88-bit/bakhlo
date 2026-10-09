@@ -41,6 +41,11 @@ type error =
     }
   | Missing_validity of { event : Bakhlo_domain.Identifier.Event.t }
 
+val valid_date : string -> bool
+(** The same strict real YYYY-MM-DD predicate used by [create].
+    Validating a standalone proposed date needs no dummy Event or correction
+    history; complete history/source admission still runs for retained facts. *)
+
 val reference : fact -> reference
 val event : fact -> Bakhlo_domain.Identifier.Event.t
 val valid_on : fact -> string

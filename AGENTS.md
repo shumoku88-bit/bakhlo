@@ -35,6 +35,10 @@ on-demand references, not a compulsory reading list or an implementation backlog
 - Implement one usable step at a time. No textbook-driven abstractions, automatic
   LOAM feature parity, permanent correction-history requirement, multi-backend
   framework or speculative AI/voice/network/runtime work.
+- For Daily_book, prefer existing pure semantic predicates over dummy Events,
+  surrogate correction histories or a second admission engine. Any shortcut
+  must preserve the full oracle's refusals; add caches/indexes only for measured
+  daily-use pressure, not speculative performance.
 - The new daily-data candidate may contain corrected entries rather than correction
   chains. Keep the original LOAM data/capture separately. Existing codec/API
   contracts still apply to their current formats; do not silently change them.

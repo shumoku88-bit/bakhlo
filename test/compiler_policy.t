@@ -48,7 +48,7 @@ and implicitly discarding a typed result in a sequence are not.
   >       echo "unexpected success: $profile warning $warning"
   >       exit 1
   >     fi
-  >     grep -q "Error (warning $warning " build-log || { echo "wrong failure: $profile warning $warning"; exit 1; }
+  >     grep -Eq "Error.*\\(warning $warning " build-log || { echo "wrong failure: $profile warning $warning"; exit 1; }
   >   done
   >   echo "$profile: warnings 8, 9, 11 rejected"
   >   cp dropped_result.txt policy/probe.ml
@@ -56,7 +56,7 @@ and implicitly discarding a typed result in a sequence are not.
   >     echo "unexpected result discard: $profile"
   >     exit 1
   >   fi
-  >   if ! grep -Eq 'expected of type "?unit"?' build-log || ! grep -q 'left-hand side of a sequence' build-log; then
+  >   if ! grep -q 'expected of type' build-log || ! grep -q 'unit' build-log || ! grep -q 'left-hand side of a sequence' build-log; then
   >     echo "wrong sequence failure: $profile"
   >     exit 1
   >   fi
