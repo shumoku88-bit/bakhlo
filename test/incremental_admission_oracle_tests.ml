@@ -465,4 +465,6 @@ let%expect_test "date-only checks agree with full Actual validity admission" =
       if not (Bool.equal direct expected && Bool.equal qualified expected) then
         failwith (Printf.sprintf "date disagreement for %S" day));
   Stdio.printf "direct date and admitted singleton agree: %d cases\n" (List.length cases);
-  [%expect {|direct date and admitted singleton agree: 20 cases|}]
+  [%expect {|
+    direct date and admitted singleton agree: 20 cases
+    |}]
