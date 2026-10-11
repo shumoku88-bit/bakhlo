@@ -19,24 +19,41 @@ let attributes theme style =
   | None -> (
       match style with
       | C.Plain -> []
-      | C.Active -> [ B.Attr.invert; B.Attr.bold ]
-      | C.Heading | C.Status -> [ B.Attr.bold ]
-      | C.Panel -> [ B.Attr.invert ]
-      | C.Panel_heading -> [ B.Attr.invert; B.Attr.bold ]
-      | C.Panel_active -> [ B.Attr.invert; B.Attr.bold; B.Attr.underline ])
+      | C.Active -> [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.invert; B.Attr.bold ]
+      | C.Focused_frame -> [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.bold ]
+      | C.Heading | C.Status | C.Panel_heading -> [ B.Attr.bold ]
+      | C.Panel | C.Chrome | C.Frame -> []
+      | C.Panel_active -> [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.invert; B.Attr.bold ])
   | Some palette -> (
       match style with
       | C.Plain -> [ fg palette.foreground; bg palette.background ]
       | C.Active -> [ fg palette.selected_foreground; bg palette.selected_background; B.Attr.bold ]
-      | C.Heading -> [ fg palette.heading; bg palette.background; B.Attr.bold ]
+      | C.Heading -> [ fg palette.foreground; bg palette.background; B.Attr.bold ]
+      | C.Chrome | C.Frame -> [ fg palette.heading; bg palette.background ]
+      | C.Focused_frame -> [ fg palette.accent; bg palette.panel_background ]
       | C.Status -> [ fg palette.status; bg palette.background; B.Attr.bold ]
       | C.Panel -> [ fg palette.panel_foreground; bg palette.panel_background ]
-      | C.Panel_heading -> [ fg palette.accent; bg palette.panel_background; B.Attr.bold ]
+      | C.Panel_heading -> [ fg palette.panel_foreground; bg palette.panel_background; B.Attr.bold ]
       | C.Panel_active ->
           [ fg palette.selected_foreground; bg palette.selected_background; B.Attr.bold ])
 
 let lines theme rows =
-  rows |> List.map (fun (style, text) -> V.text ~attrs:(attributes theme style) text) |> V.vcat
+  rows
+  |> List.map (fun (style, text) ->
+      if String.starts_with ~prefix:"│" text && String.ends_with ~suffix:"│" text then
+        let frame =
+          match style with
+          | C.Panel | C.Panel_heading | C.Panel_active -> C.Focused_frame
+          | _ -> C.Frame
+        in
+        V.hcat
+          [
+            V.text ~attrs:(attributes theme frame) "│";
+            V.text ~attrs:(attributes theme style) (String.sub text 3 (String.length text - 6));
+            V.text ~attrs:(attributes theme frame) "│";
+          ]
+      else V.text ~attrs:(attributes theme style) text)
+  |> V.vcat
 
 let backdrop theme view =
   match P.palette theme with
@@ -49,10 +66,9 @@ let width_of text = V.width (V.text text)
 let overlay_screen dimensions state = C.overlay_screen ~dimensions ~width_of state
 
 let base_view ((width, height) as dimensions) theme state =
-  C.screen ~width_of ~frontend:"Bonsai_term" dimensions state
-  |> lines theme |> fit width height |> backdrop theme
+  C.screen ~width_of dimensions state |> lines theme |> fit width height |> backdrop theme
 
-let overlay_view ((width, height) as dimensions) theme state =
+let overlay_view dimensions theme state =
   match overlay_screen dimensions state with
   | None -> None
   | Some rows ->
@@ -64,8 +80,10 @@ let overlay_view ((width, height) as dimensions) theme state =
             V.with_colors ~fill_backdrop:true pane ~fg:(color palette.panel_foreground)
               ~bg:(color palette.panel_background)
       in
-      let left = max 0 ((width - V.width pane) / 2)
-      and top = max 0 ((height - V.height pane) / 2) in
+      let left, top =
+        C.overlay_position ~dimensions ~width_of state ~pane_width:(V.width pane)
+          ~pane_height:(V.height pane)
+      in
       Some (V.pad ~l:left ~t:top pane)
 
 let render ((width, height) as dimensions) state =
@@ -99,9 +117,7 @@ let input_of_event : B.Event.t -> C.input = function
       in
       `Key (key, mods)
 
-type action =
-  | Terminal_event of { dimensions : int * int; event : B.Event.t }
-  | Request_exit
+type action = Terminal_event of { dimensions : int * int; event : B.Event.t } | Request_exit
 
 let app initial ~exit ~dimensions graph =
   let state, inject =
@@ -141,8 +157,8 @@ let run path =
 
 let self_check () =
   Recovery_checks.self_check ();
-  let state = Daily_interaction_checks.self_check () in
-  Recording_checks.self_check ~width_of ();
+  let state = Daily_interaction_checks.self_check ~width_of () in
+  Record_session_checks.self_check ~width_of ();
   List.iter
     (fun (style, expected) ->
       F.require
@@ -150,12 +166,15 @@ let self_check () =
         "Bonsai-terminal-default-style")
     [
       (C.Plain, B.Attr.empty);
-      (C.Active, B.Attr.many [ B.Attr.invert; B.Attr.bold ]);
+      (C.Active, B.Attr.many [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.invert; B.Attr.bold ]);
       (C.Heading, B.Attr.bold);
       (C.Status, B.Attr.bold);
-      (C.Panel, B.Attr.invert);
-      (C.Panel_heading, B.Attr.many [ B.Attr.invert; B.Attr.bold ]);
-      (C.Panel_active, B.Attr.many [ B.Attr.invert; B.Attr.bold; B.Attr.underline ]);
+      (C.Chrome, B.Attr.empty);
+      (C.Frame, B.Attr.empty);
+      (C.Focused_frame, B.Attr.many [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.bold ]);
+      (C.Panel, B.Attr.empty);
+      (C.Panel_heading, B.Attr.bold);
+      (C.Panel_active, B.Attr.many [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.invert; B.Attr.bold ]);
     ];
   List.iter
     (fun theme ->
@@ -174,7 +193,9 @@ let self_check () =
               F.require ((not (emits "38;2;")) && not (emits "48;2;")) "Bonsai-no-truecolor-SGR";
               (match P.palette theme with
               | None ->
-                  F.require ((not (emits "38;")) && not (emits "48;")) "Bonsai-no-fixed-colors"
+                  F.require
+                    ((not (emits "38;5;")) && not (emits "48;"))
+                    "Bonsai-terminal-default-colors-with-cyan-focus"
               | Some palette ->
                   let foreground, background =
                     if overlay = C.No_overlay && not (C.editor_visible state) then
@@ -187,12 +208,23 @@ let self_check () =
                     "Bonsai-shared-indexed-palette");
               match overlay_screen dimensions state with
               | Some rows ->
+                  F.require (rows <> []) "Bonsai-panel-not-empty";
                   let pane_width = width_of (snd (List.hd rows)) in
                   F.require
                     (List.for_all (fun (_, text) -> width_of text = pane_width) rows)
                     "Bonsai-panel-uniform-cell-width";
+                  F.require
+                    (pane_width <= width && List.length rows <= height)
+                    "Bonsai-panel-bounded-to-terminal";
                   if width >= pane_width && height >= List.length rows then (
-                    let left = (width - pane_width) / 2 and top = (height - List.length rows) / 2 in
+                    let left, top =
+                      C.overlay_position ~dimensions ~width_of state ~pane_width
+                        ~pane_height:(List.length rows)
+                    in
+                    F.require
+                      (left >= 0 && top >= 0 && left + pane_width <= width
+                      && top + List.length rows <= height)
+                      "Bonsai-panel-position-bounded";
                     let buffer = Buffer.create 512 in
                     let pane =
                       Notty.I.crop ~l:left ~t:top
@@ -207,31 +239,8 @@ let self_check () =
                       (Buffer.contents buffer = String.concat "\n" (List.map snd rows))
                       "Bonsai-overlay-front-and-centered")
               | None -> ())
-            (([
-                C.No_overlay;
-                C.Commands 0;
-                C.Themes { selected = C.theme_index theme; original = theme };
-                C.Loci
-                  {
-                    target = C.From_locus;
-                    query = "";
-                    selected = List.length (C.loci state.session.book) - 1;
-                    notice = None;
-                  };
-                C.Loci { target = C.From_locus; query = ""; selected = 1; notice = None };
-                C.Loci { target = C.To_locus; query = "no-match"; selected = 0; notice = None };
-                C.Loci
-                  {
-                    target = C.To_locus;
-                    query = String.concat "" (List.init 40 (fun _ -> "長い検索"));
-                    selected = 0;
-                    notice = None;
-                  };
-              ]
-             |> List.map (fun overlay -> { state with C.overlay }))
-            @ Daily_interaction_checks.posting_render_cases state
-            @ Recording_checks.render_cases state))
-        [ (100, 25); (64, 20); (40, 10); (20, 5) ])
+            (Daily_interaction_checks.render_cases state))
+        [ (140, 40); (100, 25); (80, 24); (64, 20); (48, 14); (40, 10); (20, 5) ])
     P.all_themes;
   List.iter
     (fun theme ->
@@ -242,18 +251,56 @@ let self_check () =
           in
           let buffer = Buffer.create 64 in
           Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0) (64, 1)
-            (V.Private.notty_image (V.crop ~t:19 view));
+            (V.Private.notty_image (V.crop ~t:17 ~b:2 view));
           F.require
             (String.trim (Buffer.contents buffer) = "household-warning")
             "Bonsai-overlay-household-warning-visible")
-        (([
-            C.Commands 0;
-            C.Themes { selected = 0; original = theme };
-            C.Loci { target = C.From_locus; query = ""; selected = 0; notice = None };
-          ]
-         |> List.map (fun overlay -> { state with C.overlay }))
-        @ Daily_interaction_checks.posting_render_cases state
-        @ Recording_checks.render_cases state))
+        (Daily_interaction_checks.render_cases state))
+    P.all_themes;
+  List.iter
+    (fun theme ->
+      List.iter
+        (fun ((width, height) as dimensions) ->
+          List.iter
+            (fun state ->
+              let state =
+                { state with C.theme; blocked = true;
+                  message = String.concat "" (List.init 12 (fun _ -> "Stop 日本語 warning ")) }
+              in
+              let feedback = C.feedback_lines ~dimensions ~width_of state in
+              let feedback_height = List.length feedback in
+              F.require (feedback_height > 1) "Bonsai-long-warning-wrapped";
+              F.require
+                (List.for_all (fun (_, row) -> width_of row <= width) feedback)
+                "Bonsai-feedback-cell-width-bounded";
+              let view = render dimensions state in
+              let buffer = Buffer.create 512 in
+              let top = height - 2 - feedback_height in
+              F.require (top >= 0) "Bonsai-feedback-bounded";
+              let image =
+                Notty.I.crop ~t:top ~b:2 (V.Private.notty_image view)
+              in
+              Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0)
+                (width, feedback_height) image;
+              let expected = Buffer.create 512 in
+              let feedback_image =
+                lines theme feedback |> fit width feedback_height |> V.Private.notty_image
+              in
+              Notty.Render.to_buffer expected Notty.Cap.dumb (0, 0)
+                (width, feedback_height) feedback_image;
+              let physical_rows text =
+                String.split_on_char '\n' text
+                |> List.map (fun row ->
+                    let rec last n =
+                      if n > 0 && row.[n - 1] = ' ' then last (n - 1) else n
+                    in
+                    String.sub row 0 (last (String.length row)))
+              in
+              F.require
+                (physical_rows (Buffer.contents buffer) = physical_rows (Buffer.contents expected))
+                "Bonsai-long-warning-visible-above-footer")
+            (Daily_interaction_checks.render_cases state))
+        [ (48, 14); (80, 24); (140, 40) ])
     P.all_themes;
   F.require (V.width (V.text "財布") = 4) "Bonsai-unicode-width";
   F.require
@@ -269,42 +316,25 @@ let self_check () =
     (fun key ->
       let event = B.Event.Key_press { key; mods = [] } in
       F.require
-        (match C.handle { state with C.focus = C.Amount } (input_of_event event) with
-        | Some { C.overlay = C.Commands 0; _ } -> true
-        | Some _ | None -> false)
+        (match C.handle state (input_of_event event) with
+        | Some opened -> overlay_screen (80, 24) opened <> None
+        | None -> false)
         "Bonsai-space-event-to-shared-overlay")
     [ B.Event.Key.ASCII ' '; B.Event.Key.Uchar (Uchar.of_int 0x20) ];
-  let picker =
-    match
-      C.handle { state with C.focus = C.Source }
-        (input_of_event (B.Event.Key_press { key = B.Event.Key.Enter; mods = [] }))
-    with
-    | Some ({ C.overlay = C.Loci _; _ } as picker) -> picker
-    | _ -> raise (F.Refused "Bonsai-picker-enter-adapter")
-  in
-  F.require
-    (match
-       C.handle picker
-         (input_of_event
-            (B.Event.Key_press { key = B.Event.Key.Uchar (Uchar.of_int 0x20); mods = [] }))
-     with
-    | Some { C.overlay = C.Loci { query = " "; _ }; _ } -> true
-    | _ -> false)
-    "Bonsai-picker-search-adapter";
   F.require
     (match
        C.handle state
          (input_of_event
-            (B.Event.Key_press { key = B.Event.Key.ASCII 'T'; mods = [ B.Event.Modifier.Ctrl ] }))
+            (B.Event.Key_press { key = B.Event.Key.ASCII 'r'; mods = [] }))
      with
     | Some editor -> C.editor_visible editor
     | None -> false)
-    "Bonsai-posting-editor-adapter";
+    "Bonsai-record-workspace-adapter";
   let paste = input_of_event (B.Event.Paste `Start) in
   F.require (paste = `Paste `Start) "Bonsai-paste-adapter";
   print_endline
-    "PASS: Bonsai indexed colors/no truecolor, centered/front overlays, ASCII/Unicode Space, locus \
-     picker and event adapter."
+    "PASS: Bonsai cell-width geometry, cyan/default and indexed colors/no truecolor, front overlays, \
+     visible warnings, English Record and event adapters."
 
 let print_recovery path =
   let report = F.inspect_recovery path in

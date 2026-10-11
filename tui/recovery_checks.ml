@@ -212,7 +212,7 @@ let self_check () =
         ignore (F.confirm_current ~session:loaded ~attempt_id:id);
         let resumed = C.reload stopped in
         require
-          ((not resumed.blocked) && resumed.pending = None && resumed.form.amount = "")
+          ((not resumed.blocked) && resumed.pending = None && not (C.has_record_draft resumed))
           "recovery-confirmation-retained-retry-draft";
         require
           (F.unfinished_names session.path = []

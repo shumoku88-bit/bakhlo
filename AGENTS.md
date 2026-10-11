@@ -5,13 +5,16 @@ Read the nearest implementation/interface and relevant semantic contract section
 for the task. Architecture, verification, references and learning notes are
 on-demand references, not a compulsory reading list or an implementation backlog.
 
-## Current status (as of PR UX-2 merge on main)
+## Current status
 
 - **Completed & Merged**: Trial 06, PR 5 (records format, durable append, application/TUI integration, incremental admission), PR 6 (records strip bytes copy optimization, entry indexing via immutable Map & reversed list), PR UX-1 (natural Japanese error display, field targeting, fail-closed draft preservation), and PR UX-2 (flexible amount parsing with half/full-width & 3-digit commas, flexible date parsing with YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD & Gregorian validation, 't' key today reset, Command Palette calendar navigation with pure calendar arithmetic).
-- **Dual TUI parity**: Notty and Bonsai_term are co-equal official TUIs sharing the application and interaction layer (`daily_actions.ml`, `daily_interaction.ml`, `daily_overlays.ml`, `daily_browser.ml`, `daily_form.ml`, `posting_editor.ml`). Neither frontend owns accounting logic. Both frontends must pass `./tools/tui --self-check`.
+- **UI direction**: Reproduce LOAM's current appearance and usability, including Calendar Home with Day / Month / Year, hierarchical Commands and corresponding supported-workspace flows. Build the new UI in English using LOAM's labels first; later add switchable Japanese through a shared message catalog, retaining the same layout and interaction. Read `docs/UI_DIRECTION.ja.md` before UI work. This is the target, not a claim that those screens are implemented. Bakhlo is not operationally adopted; obsolete UI structure, themes and unused helpers may be replaced or deleted without backward compatibility. This does not authorize changing LOAM originals or operational cutover.
+- **UI entrance**: `./tools/tui` builds and runs the Bonsai_term frontend in the existing isolated environment. The standalone Notty frontend, paired UI benchmark and old Bonsai layout lab are removed. Notty remains a transitive rendering library and is used by native renderer checks. The renderer does not own accounting logic.
 - **Next candidate (UX-3)**: Calculator expression input (`500+300`, `1000*2`) is designed in `docs/UX3_CALCULATOR_INPUT_DESIGN.ja.md` using exact rational/integer quanta (`Q.t` / `Z.t`) without floats, implicit rounding, or zero-division, but is **intentionally deferred and unimplemented**.
 - **P7 unresolved safety issue**: Persistent acknowledgement evidence (post-save Ack loss verification) remains an unresolved, independent safety issue. Keep it separate from everyday UX work.
-- **Next work**: Do not rush to implement new features or start UX-3 immediately. Start by testing everyday recording and browsing operations on synthetic ledgers (`examples/daily-book.sexp`).
+- **Current scope**: Budget allocation/routing APIs and trial v4 support were removed. Daily_book reads v1..v3 and Records v1; its monolithic writer uses v3. Daily Pace and payment plans remain supported.
+- **Current UI**: The English foundation uses Calendar Home, Day / Month / Year, hierarchical Commands and one Record / Preview flow over the existing publisher. Actual, current-open Scheduled, Selected Day, Balances and current Daily Pace are connected. Role-aware money-calendar totals, full Series management, Attention, historical Trend and Japanese locale switching remain unavailable. Verify the native build and synthetic cases; foundation completion is not full LOAM parity.
+- **Next work**: Refine LOAM compatibility under the current direction, using synthetic ledgers (`examples/daily-book.sexp`). UX-3 and new accounting capabilities remain separate work.
 - **Operational authority**: LOAM continues to manage production authority and live household data. Bakhlo is evaluated on synthetic data and private candidates. Never modify production originals.
 
 ## Product
@@ -25,14 +28,20 @@ on-demand references, not a compulsory reading list or an implementation backlog
   in `docs/CUTOVER_CHECKLIST.ja.md`. Small means direct, readable implementation,
   not dropping needed household functions.
 - Today's spending guide is LOAM Home `d` Daily Pace, not a purpose-budget guide.
-  TUI Home has upper recording and a large lower browsing region. Tab switches
-  regions; arrows operate within one region. Keep only the selected lower feature's
-  content and focused-region help; use floating panes for picker/detail/preview.
-  Preserve drafts, selection and visible safety errors. Notty and Bonsai_term are
-  co-equal official TUIs sharing pure interaction logic; new panes use shared state
-  updates and pure formatting. See the checklist's design section.
+  Use quiet terminal-owned colors, thin rounded muted frames, one focus accent,
+  stable geometry and contextual bottom operations with reserved wrapping feedback.
+  Preserve drafts, selection, exact quantities and visible safety errors; use transient
+  panes for recording/picker/detail/preview. The target Home is LOAM's Calendar
+  with Day / Month / Year and a focused transaction detail region; Commands is
+  hierarchical, and shared capabilities use LOAM's workspace labels, navigation,
+  confirmation and return behavior. The English foundation is connected; calendar
+  markers count Actual/open Scheduled without inventing income/expense roles.
+  Do not describe the remaining LOAM features as implemented. Japanese comes later
+  through a switchable catalog on the same interaction and layout.
+  Share pure interaction and formatting rather than duplicated frontend accounting.
+  `docs/UI_DIRECTION.ja.md` owns the UI policy; historical UI roadmaps do not bind the new design.
 - Implement one usable step at a time. No textbook-driven abstractions, automatic
-  LOAM feature parity, permanent correction-history requirement, multi-backend
+  LOAM accounting feature parity, permanent correction-history requirement, multi-backend
   framework or speculative AI/voice/network/runtime work.
 - For Daily_book, prefer existing pure semantic predicates over dummy Events,
   surrogate correction histories or a second admission engine. Any shortcut

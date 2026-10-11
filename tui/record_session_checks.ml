@@ -1,0 +1,143 @@
+(* Pure synthetic Record contract checks. No ledger files, publication or locale
+   settings are written. Preview may allocate the existing random Actual identity. *)
+module B = Bakhlo_sexp.Daily_book
+module A = Daily_actions
+module S = Record_session
+module D = Bakhlo_domain
+
+let require condition cause = if not condition then failwith cause
+let get = function Ok x -> x | Error why -> failwith why
+
+let fixture =
+  "(bakhlo-daily 3)\n(scope corrected-entries explicit-plans)\n\
+   (measures (measure \"jpy\" 0) (measure \"eur\" 2))\n\
+   (labels (provided (label \"wallet\" \"財布\" \"Synthetic cash\") (label \"food\" \"食費\" \"Synthetic food\")))\n\
+   (approved-loci (provided \"wallet\" \"food\"))\n(entries)\n\
+   (plans (plan \"scheduled-1\" (date \"2026-10-10\") (measure \"jpy\")\n\
+     (changes (\"wallet\" -200) (\"food\" 200)) (paid-by (none)) (cancelled-on (none))))\n\
+   (support (zero-origin (\"food\" \"jpy\")) (openings)\n\
+     (observations (observation (reflected) (quantities (\"wallet\" \"jpy\" 1000))))\n\
+     (presence (not-supplied)))\n"
+
+let self_check ~width_of () =
+  let book=get (B.of_string fixture) in
+  let before=B.to_string book in
+  let dimensions=100,30 and base_bytes="synthetic-generation" in
+  let handle ?(book=book) ?(blocked=false) ?(dimensions=dimensions) state input =
+    S.handle ~book ~base_bytes ~blocked ~dimensions ~width_of state input in
+  let update ?book ?blocked ?dimensions state input =
+    match handle ?book ?blocked ?dimensions state input with
+    | S.Updated next -> next
+    | S.Closed _ -> failwith "record-check-unexpected-close"
+    | S.Publish _ -> failwith "record-check-unexpected-publication" in
+  let key state button=update state (`Key (button,[])) in
+  let ctrl state c=update state (`Key (`ASCII c,[`Ctrl])) in
+  let text state value =
+    Uutf.String.fold_utf_8 (fun state _ -> function
+      | `Uchar c when Uchar.to_int c<128 -> key state (`ASCII (Char.chr (Uchar.to_int c)))
+      | `Uchar c -> key state (`Uchar c)
+      | `Malformed _ -> failwith "malformed-check-text") state value in
+  let screen ?(dimensions=dimensions) state = S.screen ~book ~dimensions ~width_of state in
+  let contains state needle =
+    List.exists (fun (_,line) -> Base.String.is_substring line ~substring:needle) (screen state) in
+  let create ()=S.create ~book ~day:"2026-10-11" ~measure:"jpy" () in
+  require (not (S.has_draft (create ()))) "fresh-record-is-empty";
+  let prepare ?(amount="100") ?(description="q 食事") ?(locus_query="wallet") () =
+    let state=text (create ()) description in
+    let state=key (key state `Tab) `Tab in
+    let state=key (text state locus_query) `Enter in
+    let state=key (text state ("-"^amount)) `Tab in
+    let state=key (text state "food") `Enter in
+    text state ("+"^amount) in
+  let draft=prepare () in
+  require (S.has_draft draft && contains draft "q 食事") "japanese-user-data-under-english-record";
+  let review=key draft `Enter in
+  require (contains review "Record / Preview" && contains review "Publish") "enter-opens-preview";
+  require (not (contains (ctrl review 's') "Writes are stopped")) "ctrl-s-is-not-publication";
+  let edited=key (key review `Tab) `Enter in
+  require (contains edited "q 食事" && contains edited "Record / Edit") "preview-edit-retains-draft";
+  (match handle review (`Key (`Escape,[])) with
+   | S.Closed retained -> require (S.has_draft retained) "cancel-retains-draft"
+   | _ -> failwith "escape-cancels-without-publishing");
+  let tx=match handle review (`Key (`Enter,[])) with
+    | S.Publish (tx,base,retained) ->
+        require (base=base_bytes && S.has_draft retained) "publication-carries-generation-and-draft"; tx
+    | _ -> failwith "selected-publish-enter" in
+  require (tx.entry.memo=Some "q 食事") "publication-preserves-description";
+  require (List.map A.quanta tx.entry.effects=[Z.of_int (-100);Z.of_int 100]) "signed-conservation";
+  require (A.format_message "Locus %s is already admitted." "財布" = "Locus 財布 is already admitted.")
+    "catalog-translates-template-not-user-data";
+  let matched=prepare ~locus_query:"wall" () |> fun t -> key t `Enter in
+  (match handle matched (`Key (`Enter,[])) with
+   | S.Publish (selected,_,_) ->
+       require (A.lstr (D.Effect.locus (List.hd selected.entry.effects))="wallet") "search-accepts-exact-stored-id"
+   | _ -> failwith "filtered-locus-acceptance");
+  ignore (get (B.put_entry book ~replace:tx.replace tx.entry ~plan:tx.plan));
+  (match handle ~blocked:true review (`Key (`Enter,[])) with
+   | S.Updated retained -> require (S.has_draft retained) "blocked-publish-retains"
+   | _ -> failwith "blocked-publish-refused");
+  (match handle ~dimensions:(24,8) review (`Key (`Enter,[])) with
+   | S.Updated _ -> () | _ -> failwith "tiny-publish-refused");
+  require (screen draft=screen (update ~blocked:true draft (`Key (`ASCII '9',[])))) "blocked-fields-frozen";
+  let cursor=create () |> fun t -> text t "ab" |> fun t -> key t (`Arrow `Left)
+      |> fun t -> text t "食" in
+  require (contains cursor "a食|b") "unicode-caret-insertion";
+  let cursor=key cursor `Backspace in
+  require (contains cursor "a|b") "unicode-caret-backspace";
+  let pasted=create () |> fun t -> update t (`Paste `Start)
+      |> fun t -> text t "q 財布" |> fun t -> update t (`Paste `End) in
+  require (contains pasted "q 財布") "single-line-paste-is-text";
+  let refused=create () |> fun t -> update t (`Paste `Start)
+      |> fun t -> text t "not-published" |> fun t -> ctrl t 's'
+      |> fun t -> update t (`Paste `End) in
+  require (not (S.has_draft refused) && contains refused "Paste refused") "control-paste-refusal";
+  let unbalanced=prepare ~amount:"100" () |> fun t -> key t `Backspace |> fun t -> text t "1"
+      |> fun t -> key t `Enter in
+  require (contains unbalanced "unbalanced" && not (contains unbalanced "Record / Preview")) "exact-unbalanced-refusal";
+  let huge=String.make 70 '9' in
+  let huge_review=prepare ~amount:huge () |> fun t -> key t `Enter in
+  (match handle huge_review (`Key (`Enter,[])) with
+   | S.Publish (tx,_,_) -> require (Z.equal (List.nth (List.map A.quanta tx.entry.effects) 1) (Z.of_string huge)) "huge-exact-quantity"
+   | _ -> failwith "huge-review-is-not-partial-number");
+  let edit_book=get (B.put_entry book ~replace:false tx.entry ~plan:None) in
+  let edit=get (S.of_edit ~book:edit_book tx.entry) in
+  let sign_locked=edit |> fun t -> key (key (key t `Tab) `Tab) `Tab
+      |> fun t -> key t `Home |> fun t -> text t "+" in
+  require (contains sign_locked "keeps the posting sign") "edit-sign-locked-to-retained-effects";
+  require (contains (ctrl edit 'n') "keeps the posting structure") "edit-row-structure-locked";
+  let edit_review=S.preview ~book:edit_book ~base_bytes ~blocked:false edit in
+  (match handle ~book:edit_book edit_review (`Key (`Enter,[])) with
+   | S.Publish (next,_,_) ->
+       require (next.entry.id=tx.entry.id && next.entry.effects=tx.entry.effects && next.replace) "edit-preserves-identity-structure"
+   | _ -> failwith "edit-preview-publish");
+  let plan=List.hd (B.plans book) in
+  let completion=get (S.of_plan ~day:"2026-10-11" ~book plan) in
+  let completion=S.preview ~book ~base_bytes ~blocked:false completion in
+  (match handle completion (`Key (`Enter,[])) with
+   | S.Publish (next,_,_) -> require (next.plan=Some plan.id && next.entry.day="2026-10-11") "scheduled-link-and-actual-day"
+   | _ -> failwith "scheduled-completion-preview");
+  require (Result.is_error (S.of_plan ~book {plan with paid_by=Some "already"})) "completed-plan-refused";
+  require (Result.is_error (S.of_plan ~book {plan with cancelled_on=Some "2026-10-10"})) "cancelled-plan-refused";
+  let keyed={tx.entry with id="keyed-edit";
+    effects=List.mapi (fun n posting ->
+      D.Effect.create ~key:(Some (get (match D.Identifier.Effect_key.of_string ("key-"^string_of_int n) with
+        | Ok key -> Ok key | Error _ -> Error "synthetic-key")))
+        ~locus:(D.Effect.locus posting) ~measure:(D.Effect.measure posting)
+        ~quantity:(D.Effect.quantity posting)) tx.entry.effects} in
+  let keyed_book=get (B.put_entry book ~replace:false keyed ~plan:(Some plan.id)) in
+  let keyed_editor=get (S.of_edit ~book:keyed_book keyed) in
+  let keyed_review=S.preview ~book:keyed_book ~base_bytes ~blocked:false keyed_editor in
+  (match handle ~book:keyed_book keyed_review (`Key (`Enter,[])) with
+   | S.Publish (next,_,_) ->
+       require (next.entry.id=keyed.id && next.entry.effects=keyed.effects) "edit-preserves-posting-keys";
+       let edited_book=get (B.put_entry keyed_book ~replace:true next.entry ~plan:next.plan) in
+       require ((List.hd (B.plans edited_book)).paid_by=Some keyed.id) "edit-preserves-payment-link"
+   | _ -> failwith "keyed-edit-preview");
+  List.iter (fun dimensions ->
+    List.iter (fun state ->
+      let rows=screen ~dimensions state in
+      require (List.length rows<=snd dimensions) "record-bounded-height";
+      require (List.for_all (fun (_,line) -> width_of line<=fst dimensions) rows) "record-bounded-cell-width")
+      [draft;review;S.with_notice review (String.concat "" (List.init 20 (fun _ -> "Long refusal 日本語 ")))])
+    [48,14;80,24;140,40;24,8];
+  require (B.to_string book=before) "record-checks-leave-book-unchanged"
