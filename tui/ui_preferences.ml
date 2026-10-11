@@ -58,14 +58,14 @@ let palette = function
           (* #eeeeee *)
           accent = xterm_color 25;
           (* #005faf *)
-          heading = xterm_color 24;
-          (* #005f87 *)
-          status = xterm_color 58;
-          (* #5f5f00 *)
+          heading = xterm_color 242;
+          (* #6c6c6c *)
+          status = xterm_color 237;
+          (* #3a3a3a *)
           panel_foreground = xterm_color 237;
           (* #3a3a3a *)
-          panel_background = xterm_color 253;
-          (* #dadada *)
+          panel_background = xterm_color 255;
+          (* #eeeeee *)
           selected_foreground = xterm_color 231;
           (* #ffffff *)
           selected_background = xterm_color 25;
@@ -74,21 +74,20 @@ let palette = function
   | Bakhlo_dark ->
       Some
         {
-          (* Earlier Bonsai trial: blue selection, cyan heading, yellow status. *)
           foreground = xterm_color 252;
           (* #d0d0d0 *)
           background = xterm_color 234;
           (* #1c1c1c *)
-          accent = xterm_color 81;
-          (* #5fd7ff *)
-          heading = xterm_color 81;
-          (* #5fd7ff *)
-          status = xterm_color 221;
-          (* #ffd75f *)
+          accent = xterm_color 75;
+          (* #5fafff *)
+          heading = xterm_color 245;
+          (* #8a8a8a *)
+          status = xterm_color 252;
+          (* #d0d0d0 *)
           panel_foreground = xterm_color 252;
           (* #d0d0d0 *)
-          panel_background = xterm_color 236;
-          (* #303030 *)
+          panel_background = xterm_color 234;
+          (* #1c1c1c *)
           selected_foreground = xterm_color 231;
           (* #ffffff *)
           selected_background = xterm_color 25;

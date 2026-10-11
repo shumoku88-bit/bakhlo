@@ -2,6 +2,7 @@
    Keep row order, multiplicity and existing keys; never auto-fill a residual. *)
 module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
+let tr = Ui_text.tr
 
 type row = {
   key : D.Identifier.Effect_key.t option;
@@ -40,7 +41,7 @@ let amounts book draft =
     | [] -> Ok []
     | row :: rest -> (
         match B.parse_amount book draft.measure row.amount with
-        | Error why -> Error (Printf.sprintf "行%d: %s" position why)
+        | Error why -> Error (Printf.sprintf "row-%d: %s" position why)
         | Ok n -> (
             match loop (position + 1) rest with
             | Error _ as error -> error
@@ -49,21 +50,21 @@ let amounts book draft =
   match draft.rows with [] -> Error "posting-required" | _ :: _ -> loop 1 draft.rows
 
 let format_residual_error why =
-  if String.equal why "posting-required" then "明細行が未入力です"
+  if String.equal why "posting-required" then tr "At least one posting is required."
   else
     let line_prefix =
-      if Base.String.is_prefix why ~prefix:"行" then
+      if Base.String.is_prefix why ~prefix:"row-" then
         match String.index_opt why ':' with
         | Some idx -> String.sub why 0 idx ^ ": "
         | None -> ""
       else ""
     in
     if Base.String.is_substring why ~substring:"invalid-amount" then
-      line_prefix ^ "金額の形式が不正です (例: 1000)"
+      line_prefix ^ tr "Invalid amount (for example 1000)."
     else if Base.String.is_substring why ~substring:"non-positive-amount" then
-      line_prefix ^ "0より大きい正の金額を入力してください"
+      line_prefix ^ tr "Enter a positive amount magnitude."
     else if Base.String.is_substring why ~substring:"amount-precision" then
-      line_prefix ^ "通貨の小数桁数を超えています"
+      line_prefix ^ tr "The amount exceeds the Measure decimal scale."
     else why
 
 let residual book draft =
@@ -83,7 +84,7 @@ let effects book draft =
             | [], [] -> Ok []
             | row :: rows, n :: ns -> (
                 match D.Identifier.Locus.of_string row.locus with
-                | Error D.Identifier.Empty -> Error (Printf.sprintf "行%d: 科目未選択" position)
+                | Error D.Identifier.Empty -> Error (Printf.sprintf "row-%d: empty-locus" position)
                 | Ok locus -> (
                     match loop (position + 1) rows ns with
                     | Error _ as error -> error

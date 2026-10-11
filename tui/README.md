@@ -1,342 +1,135 @@
-# 日々の画面（Bonsai_term試用）
+# 日々の画面（試用）
 
-既存のBonsai_term画面・操作ループを、新しい訂正済み明細の台帳へ接続したもの。
-Notty画面は廃止した（Bonsai一本化。今後はBonsaiネイティブなコンポーネント構成へ移行する）。
-LOAMの元データ・以前の候補は変更しない。普段の正データはまだLOAM。
+LOAMの見た目と操作へ揃える英語UI。`./tools/tui`が唯一の入口で、既存の隔離Bonsai_term環境を使う。
+旧Notty画面、両画面比較ベンチ、独立したBonsai配置試作は削除した。NottyライブラリはBonsai描画と
+native renderer検査で引き続き使う。新依存・global環境変更は行わず、通常DuneビルドはUI依存不要。
 
-```sh
-./tools/tui --book scratch/daily-ui/household.sexp
-```
+まずLOAMと同じ英語表記で作り、後で同じ配置・操作の日本語カタログを追加して切替可能にする。
+`Ui_text.tr`が表示文言の入口。日本語UI切替は未実装で、科目名・メモ等のユーザーデータは翻訳しない。
+[UI方針](../docs/UI_DIRECTION.ja.md)も参照。LOAMの正データ・普段の記帳先は変更しない。
 
-このパスは用意した私用の**新しい試用コピー**。画面で操作するとこのコピーが変わる。
-通常のテストには `examples/daily-book.sexp` から作った別コピーを使う。
-`tools/tui` は既存の隔離Bonsai環境でビルドするだけで、新しい依存を導入しない。
-BonsaiはコンパイラABIが異なるため、同じ現在のCore／台帳／入力／保存ソースを
-`_build/daily-bonsai` 内で再ビルドする。古い `ox-build` のコピーは使わず、メイン環境も変えない。
-環境がないホストでは起動を拒否する。通常のDuneビルドはUIの依存不要。
+## 起動
 
-`daily_actions.ml` が画面非依存の取引構築・検証・ドラフト変換と保存・再読込の境界を、
-`daily_browser.ml` が明細・予定の閲覧ナビゲーションと行フォーマットを、
-`daily_form.ml` が記帳フォームの項目移動・候補循環・カーソル付きテキスト編集を、
-`posting_editor.ml` が複数ポスティング下書きの行操作・項目移動・行追加削除・符号反転を、
-`daily_overlays.ml` が科目ピッカー・テーマ・コマンド・確認/詳細オーバーレイの表示を、
-`daily_interaction.ml` が下書き・キー操作・表示内容を、`daily_file.ml` が保存を扱う。
-`bonsai_daily.ml` はベース画面とオーバーレイ画面のView構成および明示的なAction型を導入し、Bonsaiネイティブコンポーネント化を進めている。
-同時に開いた場合は、古い読込元からの
-上書きを拒否する。`Ctrl-R`で再読込し、古い編集下書きは選び直す。自動同期はしない。
-
-## 操作
-
-- **Home（閲覧・ダッシュボード）**: 画面上部に主要口座の残高サマリー（【口座残高】）と下書き保持状態、画面下部に広々とした明細・予定リストを表示する。
-  `r` または `n` でいつでも記帳モードを開始。`Tab` / `Shift-Tab` でも記帳欄と閲覧欄を切り替え可能。
-  明細リストでは `↑↓` または `j/k` で選択移動、`←→` で明細／予定の表示切替、`Enter` で詳細表示、`Ctrl-E` で明細訂正、`q` で終了。
-- **記帳モード**: `Date`, `Currency`, `Source`, `Destination`, `Amount`, `Memo` の各項目を入力。
-  `Esc` を押すと下書きを保持したままHome（閲覧画面）へ戻れる。
-  新規は出金元から。`↑↓` は項目移動。
-  日付・金額・メモでは文字カーソルを移動。`|`は入力位置の表示だけで、保存値には入らない。`Home`／`End`は文字列の先頭／末尾。
-- **インライン候補カタログ (Locus catalog)**:
-  出金元や入金先（および分割行）にフォーカスがあるとき、その直下に候補カタログが縦に展開され、残高と候補一覧が表示される。
-  `←→` を押すと目に見えているカタログ内でカーソル `>` が移動し、科目を直感的に切り替えられる。
-  （`Enter` を押すと詳細なインクリメンタル検索pickerオーバーレイを開くことも可能）。
-- 金額は明示された通貨の小数桁で入力。丸め・為替推測はしない。
-  金額入力中は通貨・科目を切り替えない。`Ctrl-U`で項目を消せる。
-- **インライン複数出金／入金**: 出金元や入金先で`+`（Shift + `+`）を押すと、そのセクションに行を追加できる（`-`または`Delete`／`Ctrl-D`で行削除）。
-  金額入力後に`Enter`を押すと、未充当の差額が残っている場合は自動で内訳の次行が追加され、残りの差額が自動補完される。
-  差額が0になったら自動でメモ欄へ進む。
-- `Ctrl-S`（またはメモ等で`Enter`）：取引全体のプレビューへ。まだ保存しない。出金元は負、入金先は正。
-- `Ctrl-T`：現在の下書きを複数posting入力へ（モーダル編集・下記）。
-- `Ctrl-N`：下書きを破棄して新規。`Ctrl-A`：科目名を明示的に追加（残高は不明のまま）。
-- `Ctrl-P`：下の予定／明細を切替。
-- `Space`：自由文入力中を除き、Command Paletteを開く（Theme変更など）。
-- `Ctrl-R`：再読込。`Ctrl-Q` / `q`（Home時）：終了。貼付の改行・制御キーから自動記帳しない。
-
-## 取引プレビュー・明細詳細
-
-簡易フォームは`Enter`／`Ctrl-S`、複数posting入力は`Ctrl-S`で全体検査後に確認paneを開く。
-確認を開くだけでは台帳・バックアップ・支払い状態は変わらない。新規／訂正／予定支払いの区別、
-ID、日付、メモ、全行の符号付き金額・通貨・科目ID・キーと支払い対応を確認できる。
-長い文字列は両rendererのcell幅で折り返し、`↑↓`／`Page Up/Down`／`Home/End`で全行を参照する。
-表示範囲と総行数を示し、長い明細を黙って落とさない。
-
-- 確認paneの`Ctrl-S`だけが確定保存。`Enter`では保存しない。
-- `Esc`で元の入力・focusへ戻る。日付・金額・メモ・複数行・キーは保持する。
-- 明細一覧の`Enter`も同じ詳細表示を使うが、閲覧専用で`Ctrl-S`は保存しない。
-- 予定詳細は予定ID・元日付・通貨・全内訳・支払い／取消状態を表示する。`Ctrl-S`では保存せず、
-  支払い済み／取消済み・書込み停止中・入力中の下書きありでは支払い入力に進まない。
-- pane中は背面の新規・編集・科目追加・再読込・貼付commandを遮断する。
-- 確定時も既存の全体検査／publicationを使い、保存競合・結果不明は下書きを保持して書込み停止。
-  previewは保存権限や最新性の保証ではない。
-- 32桁×10行未満では確認内容を表示できない旨を出し、確定を拒否する。`Esc`は戻れる。
-
-## 口座・科目picker
-
-出金元／入金先で`Enter`を押すと、許可済みLocusの表示名とIDを中央paneに出す。
-口座・費目の役割を名前から推測して分けず、両方の欄で同じ許可語彙を使う。
-
-- 文字入力で表示名／IDの部分一致検索。ASCIIの大小は無視、日本語はそのまま検索する。
-  空検索は全候補。検索中のSpaceは空白文字で、Command Paletteを開かない。
-- `↑↓`で選択、`Page Up/Down`で8候補移動、`Home/End`で先頭／末尾。
-  長い一覧はscrollし、選択行が見える。`Backspace`／`Ctrl-U`で検索を消す。
-- picker内の`Enter`は、選択した**元のID**を対象の下書き欄だけに反映して閉じる。
-  矢印移動だけでは下書きを変えない。`Esc`は取消して元のfocus・下書きへ戻る。
-  候補なしの`Enter`は何もしない。新規作成／publicationは行わない。
-- 選択中Locusの現在量は既存の数量照会を使い、フォームの通貨で表示する。
-  不明／存在あり量不明／明示的ゼロを区別し、残高や役割を作らない。
-- 金額入力済み・編集中・書込停止中は**閲覧のみ**。従来の科目変更制限を迂回しない。
-  背面へのTab・Ctrl-A等も遮断し、競合・結果不明の警告は最下行へ残す。
-- 一行のbracketed pasteは検索文字だけに使う。改行・制御キー入りは拒否し、自動選択／記帳しない。
-
-paneは端末幅・高さに合わせる。長い表示はUTF-8境界とrendererのcell幅で切り、`~`で省略を示す。
-IDの表示が省略されても保存用IDは切らず、空白を除去せず保持する。
-新規科目追加は従来の`Ctrl-A`を使う（pickerからは`Esc`で戻ってから）。
-Homeの上下focus・明細／予定切替は接続済み。残高等の別表示とpicker内の新規科目追加はまだ別の作業。
-複数posting入力は下記。
-
-## 複数posting入力・訂正
-
-`Ctrl-T`で現在の単一通貨の下書きを中央paneに開く。簡易フォームは2行、インライン分割は
-全ての出金・入金行を、順序・符号・入力文字列・日付・メモごと引き継ぐ。未入力は未入力のまま。
-移行後は共有エディタの下書きだけを使い、旧インライン下書きへ戻して二重管理しない。
-**Enterだけでは記帳しない**。
-
-- `↑↓`／`Page Up/Down`／`Home/End`で行を移動、`Tab`／`Shift-Tab`で日付・メモ・科目・符号・金額の欄を移動。
-  科目の`Enter`は既存の検索picker。それ以外の`Enter`は次の欄へ。
-- 新規／予定の支払い入力では`Ctrl-A`／`Insert`で空の行を追加、`Ctrl-D`／`Delete`で選択行を削除。
-  このpaneのCtrl-Aは**行追加**で、語彙追加ではない。6行制限はなく、表示はscrollする。
-- 符号欄の`←`は負、`→`は正。金額欄には正の金額を入力する。
-  追加行は正・科目未選択・金額未入力。空欄をゼロにせず、差額を勝手に埋めない。
-- 通貨は開く前のフォーム／選択明細・予定から固定する。異なる通貨を相殺・換算しない。
-  下書き差額はZ整数と既存の小数桁検査で計算し、未入力／桁超過は差額不明。
-  差額0は数量だけの整合であり、日付・語彙・関連・保存の許可ではない。
-- `Ctrl-S`で既存の全体検査・取引プレビューへ。未入力・ゼロ量・差額・日付・語彙等の不備は
-  下書きを保持して拒否する。確認paneでもう一度`Ctrl-S`を押して同じpublication経路へ。
-- `Esc`／`Ctrl-T`で閉じても全行・日付・メモ・focusを保持。`Ctrl-T`で再開できる。
-  保持中のHomeでもTabで下の明細／予定を閲覧でき、戻ってCtrl-Tで元の行・focusを再開する。
-  簡易フォームのEnter保存・別明細編集は行わない。`Ctrl-N`だけが明示的な破棄／新規。
-- 複数行の既存明細は`Ctrl-E`で同じpaneへ。日付・各金額・メモだけを訂正し、
-  ID・行順・重複行・postingキー（無名も）・科目・通貨・符号・既存の支払いリンクを保持する。
-  編集では行追加・削除・科目／符号変更をしない。2行編集の途中でもCtrl-Tへ移れる。
-- 複数postingの未払い予定も詳細のEnterで実際の支払い入力へ。保存時に実明細とpaid-byを同時更新し、
-  予定の日付・内訳は保持。支払い済み／取消済みの再利用は拒否する。
-- 一行貼付は文字欄だけに使う。改行・制御入り貼付は拒否し、Ctrl-S等を実行しない。
-  Theme／pickerを開いても背面を変えない。書込停止中は簡易・インライン分割・共有エディタの
-  行・金額・日付・メモ・通貨・科目を凍結し、貼付や行削除でも警告を置き換えない。
-- インラインの追加行だけに入力がある場合も下書きとして保持し、別明細の編集／予定支払いに
-  置き換えない。金額入力後の通貨変更を拒否し、金額のある行は矢印／pickerとも科目閲覧のみ。
-
-両替・返金対応付き／反転の対象明細は引き続きこの入力での編集を拒否し、関係を落とさない。
-記帳後の数量を独自に予測したり、役割・予算用途・残高根拠を自動追加する機能ではない。
-
-## テーマとCommand Palette
-
-`Space`で中央のCommand Paletteを開き、`Theme`を選ぶ。テーマ一覧では
-`↑↓`（または`←→`）でその場でpreviewし、`Enter`で保存、`Esc`でpreview前へ戻る。
-Command Palette自体も`Esc`で閉じる。背面の記帳下書きは保持し、paneが開いている間は
-背面へキーを送らない（bracketed pasteも背面入力・command実行に使わない）。
-`Ctrl-Q`はpane内からも終了できる。家計の競合・書込結果不明の警告はpane中も最下行へ表示する。
-
-最初のテーマは三つ。
-
-- **Terminal**：固定色を使わず、端末の標準foreground/backgroundへ追従する。
-  選択は反転＋太字、見出し・通知は太字。端末側のライト／ダーク変更にも自然に従う。
-- **Bakhlo Light**：白系背景・濃い灰色の文字・青い選択欄。
-- **Bakhlo Dark**：暗い灰色背景。以前のBonsai試作の青い選択欄・シアンの見出し・黄色の通知を基準とする。
-
-独自テーマはmacOS Terminalでも扱えるxterm 256色の固定部分（index 16〜255）を使う。
-24-bit RGBを無条件には出さず、端末profileで変わりやすいANSI基本16色も使わない。
-`ui_preferences.ml`の一つのsemantic paletteにindexと標準RGB値を定義する。
-家計の意味や保存形式には関与しない。色だけに頼らず選択箇所には`>`等の文字マーカーも残す。
-rendererの`bonsai_daily.ml`だけがsemantic styleをBonsai_termの属性へ変換する。
-
-選択したテーマは家計S式ではなくUI専用設定へ保存する。優先順は
-`BAKHLO_CONFIG_HOME/ui-theme`、`$XDG_CONFIG_HOME/bakhlo/ui-theme`、
-`$HOME/.config/bakhlo/ui-theme`。内容は`terminal`／`bakhlo-light`／
-`bakhlo-dark`の一行だけで、次回起動時に両TUIが読む。ファイルがない、壊れている、
-読めない場合は安全に**Terminal**へ戻る。空の環境変数は未設定として次の保存先を選ぶ。
-読み取りは小さな通常ファイルに限定する。保存は同じディレクトリの専用temp fileへ書き、
-flush/fsync後にrenameする。保存できない場合でも、その起動中の色を維持し、次回へ保存できなかった
-ことをUI専用通知で表示する。家計の競合警告・下書き・書込停止状態は変更しない。
-
-## Bonsai単独の閲覧試作
-
-`tools/bonsai-lab`は通常の記帳画面とは別の**読み取り専用**の配置試作。
-予定・予算paneが各自の選択状態を持ち、台帳と予算照会は既存の`Daily_book`を使う。
-既存のBonsai環境だけで`_build/daily-bonsai-lab`へビルドし、通常画面の生成先は変更しない。
-実端末から明示した日付で起動する（パイプ・非TTYでは拒否する）。
+合成データを新しいignoredディレクトリへコピーする。既存試用を上書きしない。
 
 ```sh
-./tools/bonsai-lab --book examples/daily-book.sexp --at 2026-10-08
+umask 077
+mkdir scratch/my-daily-trial
+./tools/tui --copy-from examples/daily-book.sexp --book scratch/my-daily-trial/book.sexp
+./tools/tui --book scratch/my-daily-trial/book.sexp
 ```
 
-`Tab`／`←→`でpane、`↑↓`で選択、`q`／`Ctrl-Q`で終了。
-この合成例は予算未供給なので`UNKNOWN`表示が正常。記帳・保存・長い詳細のscrollは未対応で、
-日常TUIの置換・本番採用ではない。起動・focus切替・終了時の端末復元と台帳bytes不変を合成PTYで確認する。
+隔離環境なし・非TTY・未供給／不正な台帳は拒否し、空台帳へ置き換えない。
+ABIが異なるため、現在のCore・台帳・UIソースを`_build/daily-bonsai`で再ビルドする。
+生成先は追跡中のモジュールだけへ更新し、削除済み旧UIソースを残さない。
 
-## 対応範囲
+## Home / CalendarとCommands
 
-`sexp/Daily_book` はv1〜v4を読み、明示的な予算情報がある場合は `bakhlo-daily 4`、
-未供給ならv3を書く。Exchangeと日付付き予定取消は維持する。
-読込だけで旧ファイルを変換しない。明示的なコピー／保存では旧版を別に保管する。
-純粋な台帳検査・更新は既存のActual_source / Current_quantity_queryを使う。
-訂正鎖は新しい正データに入れず、実際の返金と支払い予定の対応は独立に残す。
-異なる通貨、全postingsとキー、独立した数量根拠、未供給／存在あり／数量ゼロを保持する。
-旧 `bakhlo 1/2/3 ordinary-quantity` と `record` / `exchange` CLIには渡さない。
+HomeはCalendarと対象期間のActual / ScheduledのDetail。Day / Month / Yearを切り替え、
+日付からSelected Dayへ進む。丸角枠、固定下部操作、折り返す通知、フォーカスと選択マーカーを使う。
 
-簡易フォームは同一Measureの正負2postingsを扱う。複数行はCtrl-Tの共有エディタを使う。
-既存明細の行構成変更、両替・返金対応付き明細の編集は拒否し、保存済みの行や対応を切り詰めない。
-両替の数量検査・保存形式は対応済みで、UI入力は次の具体的な機能として追加する。
-立替精算・後日カード決済の対応と、LOAMの残りの情報はまだ未対応。
-未知のフィールドや不正な文書を、飛ばして保存することはない。
+- `h/l`／`←→`：前後の日・月・年。`k/j`／`↑↓`：週・四半期・年の移動。
+- `z`：Day / Month / Year。`t`：今日。`/`：日付・月・年へ移動（Enter適用、Esc取消）。
+- `Tab`／`w`：Calendar / Detail。`Enter`：Year → Month → Day → Selected Day。
+- `r`：選択日入りRecord。`a`：Actual。`s`：Scheduled。`b`：Balances / Current。`d`：Daily Pace。
+- `Space`：階層Commands。`↑↓`／`j/k`で選択、`→`でグループ、Enterでグループ／画面を開く。
+  `←`／`Esc`／`q`／Spaceで一階層戻る。右矢印だけでleafの画面を開かない。
+- `q`：子から親へ、Home / DetailではCalendarへ、Home / Calendarで終了。
+  閲覧中の`Ctrl-Q`：終了。`Ctrl-R`：明示的な再読込。
 
-単発予定の作成・変更（`put_plan`）と取消（`cancel_plan`）は画面非依存のAPIとして対応済み。
-取消は予定を削除せず、取消日を別に保持する。支払い済み／取消済みは変更・再支払いできない。
-画面は取消済み表示と支払い入力の拒否のみ対応し、作成・変更・取消のキー操作はまだない。
-予算の`put_budget`／`rebalance_budget`／`budget_review`も純粋APIのみ。対象科目、実績と予定の
-独立した用途割当、期間・通貨は明示入力で、UI操作はまだない。未割当／管理外を隠さず、
-記録上の残額を完全な家庭予算や口座資金と誤表示しない。
+CommandsはTransactions、Plans and attention、Reports and analysis、Household setup。
+実装済み入口だけを置き、削除したEnvelope budgetは置かない。
+記帳中のSpaceや`q`は文字入力で、背面のコマンドを実行しない。
+Actual / Scheduled / Selected Dayで選択・検索・詳細と復帰を共有する。別明細の訂正・支払いで
+保持中の下書きを黙って置き換えない。
+Actualの`c`はCorrect、ScheduledのEnterは閲覧だけのDetail、`c`は明示的なComplete。
+支払い入力を開く操作だけでは台帳を変更しない。
 
-## Homeの領域と今後の表示
+## Record / EditとPreview
 
-ユーザーが選んだ構成は**常用の記帳と閲覧を上下に分け、補助操作だけフローティング**。
-上は取引全体の下書きを保ち、下の大きい領域には選択した種類だけを表示する。
-現在の下の切替は明細／予定のみで、未配線の残高・Daily Pace・予算等の空の入口は増やさない。
-アクティブ領域は見出しの反転・`>`で示し、操作ヒントと残高contextはfocusに合わせて差し替える。
-picker・詳細・入力・確認pane中は背面への入力を止め、閉じると元の選択位置へ戻す。
-非表示化で下書きを破棄せず、保存競合・結果不明の警告は隠さない。
+Date、Description、Measure、符号付きPostingを入力する。科目名／IDを入力して許可済み候補を
+選び、名前から口座・費目の役割を推測しない。複数行も一つのRecord下書きで扱う。
 
-今日使える額は **LOAM Home `d` のDaily Pace** を採用する。純粋な`Daily_book.daily_pace`は
-実装済みだが画面は未接続。対象口座・通貨・日付は明示入力で、予算用途別の日割りとは別回答。
-計算・画面案・受入条件は[切替チェックリスト](../docs/CUTOVER_CHECKLIST.ja.md)に集約する。
-上下focusと明細／予定の切替は接続済み。Command Palette／Theme、口座・科目picker、
-複数posting入力・明細／予定詳細・取引確認の中央paneも実装済み。残高等の追加表示と科目追加paneは未接続。
-表示のための新依存・保存経路は作らない。
+- `Tab`／`Shift-Tab`：項目。Enter：候補確定・次項目・Preview。
+- `←→`／Home／End／Backspace：文字カーソルと削除。
+- `↑↓`：Locus候補。`Ctrl-N`：行追加。`Ctrl-D`：行削除（新規・支払い入力）。
+- `Ctrl-S`：Previewを開く。保存はしない。Esc／Cancel：下書きを保持して閉じる。
+- PreviewのPublish / Edit / CancelはTab等で選ぶ。**Publishを選んでEnterだけが保存を要求する**。
+  Editは入力へ、Cancelは下書きを保持して閉じる。PreviewのCtrl-Sや貼付では保存しない。
 
-## 表示と印字の処理量
+PreviewはID・日付・メモ・全Postingの符号付き数量・Measure・Locus ID・キー・支払い対応を表示する。
+長文は折り返しとスクロール。極小端末では証拠を隠した確定を拒否する。数量は整数quantaと明示の
+小数桁で扱い、丸め・通貨合算・為替推測はしない。差額ゼロは台帳検査や保存権限の代わりにならない。
+訂正は明細ID・Posting構成／キー・通貨／符号・支払い対応を保つ。構成変更や両替・返金対応付き
+明細の訂正は拒否する。単一S式のScheduled完了は実明細とpaid-byを同時更新し、支払い済み／取消済みを再利用しない。
+一行貼付は文字のみ、改行・制御入りは拒否する。競合・結果不明では下書きを保持して書込み停止し、警告を隠さない。
 
-Homeの明細・予定は、表示範囲を先に選んでその行だけ整形する。
-記録順・選択位置・通貨別の量・Unicode表示は変えず、台帳とは別の保存キャッシュを作らない。
-リストの件数確認・走査は残るので、表示処理全体が件数に無関係になったわけではない。
-Daily印字はBufferへ直接出力し、行長判定は110バイトを超えたところで打ち切る。
-従来の引用・改行・版の規則を保ち、幅判定のための全文文字列や別の整形木は作らない。
-通常保存では呼出側の余分な印字を省く。結果不明時の照合用全文は保持する。
-全文検査、publisherのparse/admission・再印字一致検査、ロック、最新ファイルと読込元の照合は残す。
+## 対応範囲と差分
 
-## 保存の限界
+新UIはCalendar、階層Commands、英語Record、Actual / Scheduled / Selected Dayの閲覧と詳細、
+既存検査・保存への接続を対象にする。LOAMの全会計機能を再実装したものではない。
+role-aware収支カレンダー、完全なSeries管理、Attention、両替入力、立替精算・後日カード決済、
+観測更新、広いレポート群は未対応。Scheduledは既存の明示された単発予定を使う。
+予定作成・変更・取消の純粋APIは既存だが、生活操作としてのUIは未接続。
+Balancesは既存照会で通貨別に表示し、不明・存在あり量不明・ゼロを区別する。
+Daily Paceは明示pool・Measure・今日・期間末の既存計算を表示する。
+`daily-pace.tsv`／`boundary-presets.tsv`がなければ未設定とし、条件を推測しない。
+履歴Trend・期間比較・設定編集は未対応。Calendar選択日を今日の観測日に置き換えない。
+Daily_bookは単一S式v1〜v3とRecords v1を読み、単一S式ではv3を書く。旧予算v4・予算APIは非対応。
+通常Bookのrecord / exchange CLIとは混用せず、未知フィールドを飛ばして保存しない。
 
-選択した一つのファイルが正データ。開く操作では初期化・修復・自動変換しない。
-`--copy-from SOURCE --book FRESH_FILE` で明示的に新規コピーを作る（既存先は拒否）。
+## テーマと実装
 
-記帳時は全文を検査し、協調writerのロックと読込時の全文一致を確認する。
-まず候補全文を `FILE.attempt-ID.sexp` へ新規作成し、読戻し・fsyncと親ディレクトリの同期を行う。
-その後 `FILE.pending-ID` と更新前の `FILE.before-ID.sexp` を作り、再度読込元を照合して
-pendingを選択ファイルへrenameする。親同期・候補との全文読戻し一致の後だけ、自分の完了attemptを除く。
-IDは24桁の小文字hex。beforeは削除しない。候補の追加書出しは、結果不明を再起動後も照合するための一時情報であり、
-別の正データ・永久の訂正履歴・自動採用される最新世代ではない。
+Terminalは通常文字・背景を端末に委ね、フォーカスのみANSIシアン、選択は反転と太字。
+現在のBonsai属性APIにdimがないため、補助表示は装飾と配置を抑えて区別する。
+Light / Darkも残る。固定paletteはxterm 256色で、24-bit SGRは出さない。
+Commands → Household setup → Themeで変更し、台帳とは別のUI設定へ保存する。
+保存先は`BAKHLO_CONFIG_HOME/ui-theme`、`$XDG_CONFIG_HOME/bakhlo/ui-theme`、
+`$HOME/.config/bakhlo/ui-theme`の順。設定不備ではTerminalへ戻る。
 
-未確認のattempt／pendingが残る間は、**再起動・Ctrl-N・Ctrl-Rでも書込み停止を解除しない**。
-壊れた候補、未知のartifact名、非通常ファイル、ディレクトリ照会失敗も「未確認情報なし」と扱わない。
-publisher自体も拒否し、通常の `--copy-from` で未確認状態を迂回しない。
-既存の競合・結果不明では下書きを保持する。確認が完了してartifactがなくなり、メモリに保持した候補全文と
-現行が一致した場合だけ、Ctrl-Rは保存済みとして下書きを消し、再送しない。古い編集元は選び直す。
-保存は同期の全文書出し。**バックアップ保持上限・別媒体保全・不一致時の採用判断は未確定**。
-自動再送・復元採用・バックアップ削除は行わない。
+- daily_calendar / ui_workspace / ui_commands：純粋な暦・画面・選択・階層ナビ。
+- record_session / ui_input：一つの下書き・Previewと入力型。
+- daily_interaction：全体の遷移・英語表示・既存検査／publisherへの接続。
+- daily_overlays / ui_text：cell幅・枠・完全な数量詳細と将来の言語カタログ入口。
+- daily_actions / posting_draft / daily_file：既存の数量・検査・保存境界。
+- bonsai_daily：実描画と入力adapter。会計計算は持たない。
 
-**安定した親ディレクトリと協調writerを前提とする試用保存。**
-電源断、悪意あるnamespace変更、非協調writerについての耐久性・安全性の認定ではない。
-新規ファイルは0600、私用の親ディレクトリは0700、入力・出力はGit管理外に置く。
-本番への切替を意味しない。私用画面・snapshotの内容を公開ログへ出さない。
+## 保存と復旧の限界
 
-### 結果不明・バックアップからの確認手順
+単一S式は全文検査、協調writerロック、読込元との全文比較、同期したattempt / pending / before、
+renameと読戻しを使う。beforeは残す。結果不明artifact・不正名・非通常ファイル・照会失敗では
+cold open／再読込／新規でも書込み停止する。自動再送・採用・backup削除は行わない。
+Recordsは既存append engineを使い、起動時に途切れた末尾書込みをrecoverする場合がある。
+Recordsのpublisherは予定完了の対応リンクと既存Actualの置換を永続化するプロトコルが未対応。
+この二つは書込み前に明示拒否し、実績だけの部分保存をしない。現在の予定支払い・訂正は単一S式台帳が対象。
+永続した発行後Ack証拠（P7）は未解決。単一S式の復旧検査はその証明にならない。
+結果不明では記帳を止め、現行・before・attempt・pendingを保全してから照会する。
 
-1. 記帳を止めてTUIを終了する。対象の現行、before、attempt、pendingを保全する。
-   ディスク不足なら別の保全先を用意し、未確認ファイルを先に削除しない。
-2. 端末画面を起動せず、読み取り専用で照会する（依然として既存の隔離Bonsai環境は必要）。
+```sh
+./tools/tui --inspect-recovery --book FILE
+./tools/tui --confirm-current-attempt ID --book FILE
+./tools/tui --restore-copy-from SOURCE --book FRESH_FILE
+./tools/tui --check FRESH_FILE
+```
 
-   ```sh
-   ./tools/tui --inspect-recovery --book FILE
-   ```
+inspectは本文を出さず現在の全文一致のみ（未確認なし=0、確認必要=3、照会失敗=1）。
+candidate-is-current／before-is-currentは過去の発行成否を推測しない。confirmは現在候補との完全一致を
+同じwriterロックで再検査し、同期・読戻し後にそのattempt／一致pendingだけを除く。before・別試行を変えない。
+restore-copyは存在しない別パスへadmittedなbyte-exactコピーを作り、元を変更しない。
+コピー成功は記帳先切替や済んだ支払いの再送ではない。
+安定した親namespaceと協調writerが前提。電源断・媒体故障・悪意あるwriter・別ホスト復旧は未認定。
+backup保持件数・期間・別媒体・不一致候補の採用条件も未決定。私用データ・画面・ログをGitへ入れない。
 
-   本文・金額・摘要は出さず、artifact名・IDと現在の全文一致だけを表示する。
-   `candidate-is-current` は候補との一致、`before-is-current` は対応beforeとの一致。
-   `unresolved`／`unreadable` は判断できない。どの表示も**過去の発行成否を推測するものではない**。
-   終了値は正常で未確認情報なし=0、確認が必要=3、現行の読込／照会失敗=1。
-3. 候補が現行と完全一致し、それを現在の台帳として確認する場合だけ、表示されたIDを指定する。
-
-   ```sh
-   ./tools/tui --confirm-current-attempt ID --book FILE
-   ```
-
-   同じwriterロックで最新本文・候補を再検査し、現行のfsync・親同期・読戻しの後に、そのIDの
-   attempt／一致したpendingだけを除く。before、現行本文、他の試行は変えない。不一致・壊れたpendingは拒否する。
-   もう一度照会し、他の未確認情報がないことを確認してから開き直す。支払いは再送しない。
-4. 現行が壊れた／消えた／候補と不一致なら自動判断しない。保全したbefore、候補、現行を比較し、
-   どの情報を使うかを人間が決め、選んだ通常ファイルを**存在しない別パス**へ復元コピーする。
-
-   ```sh
-   ./tools/tui --restore-copy-from SOURCE --book FRESH_FILE
-   ./tools/tui --check FRESH_FILE
-   ```
-
-   全文admission・元と同じbytesの読戻しを検査し、旧版・コメントも再印字せずそのまま保つ。
-   既存先を上書きせず、元の現行・候補・before・pendingを変更しない。失敗した新規出力も確認前に採用しない。
-   **コピー成功は正データの切替ではない**。残高、必要な明細、予定のpaid-by等を照合し、
-   採用する記帳先を明示してから使う。beforeへの復元は実際の返金／取消ではなく、済んだ支払いを再記帳してはいけない。
-
-mtimeやファイル名の順で「最新」を採用しない。バックアップの保持件数・期間・別媒体と、
-コピーを採用する際の照合／再開条件は実運用前に別途決める。通常のDune／CIだけではこのTUI経路を検証しない。
-
-## 確認
+## 検証
 
 ```sh
 ./tools/check
 ./tools/tui --self-check
 ```
 
-self-checkは合成データのみを新しいignoredディレクトリで使用する。
-`recovery_checks.ml`は7保存段階の例外注入と子プロセスSIGKILL、実際の出力作成失敗、writerロック競合、
-partial／未知名／非通常artifact、現行消失／別世代、複数試行を検査する。cold open／Ctrl-N／Ctrl-R／
-直接publisherの停止、読み取り照会の不変性、一致確認と別パスへのbyte-exact復元、before保全、
-巨大整数・JPY/EURの分離・不明とゼロ・v4情報・支払い対応と再支払い拒否を確認する。
-これは同じホストでのプロセス中断検証で、電源断・ストレージ故障・別ホストの復旧認定ではない。
-`browser_slice_self_check`は空／境界／範囲外の窓、同名表示・Unicode・巨大な通貨別数量、
-返金・未払い／支払い済み／取消済み予定について、旧全文整形経路と順序・index・表示の一致を検査する。
-`test/daily_print_tests.ml`は旧プリンタとのバイト一致、110バイト境界・引用・制御文字・
-複数バイト文字・巨大な整数・版／対応の保持、厳密な符号付き十進入力を検査する。
-以下の「両UI／両renderer／両frontend」「Notty→Bonsai」等の記述は、Notty画面を廃止する前の
-検証記録として残す（現在はBonsai版のself-checkだけが対象）。
-`recording_checks.ml`は上下Tab・領域内矢印・一覧別の選択復帰・Unicode文字位置と貼付・
-保持した複数行の閲覧／再開・予定詳細と下書き置換拒否・支払い入力へのfocus復帰、
-実キー経路のpreview／取消／確定、閲覧専用詳細、科目追加の下書き保持、
-外貨の正確な量、編集キー／支払い対応、競合／不確かな結果、Unicode折返しと全行scrollを検査する。
-両rendererは確認／詳細paneも全テーマ・端末寸法で前面描画と警告表示を検査する。
-合成Terminalテーマの実PTYでも両方向の記帳→他方でcold編集、閲覧専用詳細、科目追加の下書き保持、
-上下Tab／Shift-Tab・項目矢印・文字カーソル・明細／予定切替・下書き置換拒否・保持した複数行の閲覧／再開、
-複数行予定の詳細→preview／取消／支払いと端末属性の復元を確認した。人間のUX受入や実運用切替の認定ではない。
-数量の独立した期待値、
-記帳・再読込・編集、別バックアップ、予定の支払いとAPI経由の作成・変更・取消の保存読戻し、
-取消済みの表示／支払い拒否、予算作成・再配分の保存／cold read、未知残高、競合と古い下書き、
-Unicode幅と貼付制御、Terminal／Light／Darkで通常画面・両overlayの描画寸法と中央最前面の実描画、
-ASCII／U+0020のSpace（メモ／新規科目名では文字）、live preview、取消と元テーマの復元、
-UI設定の保存→cold state、壊れた／読めない設定のfallback、保存失敗の独立性、
-家計bytes／publication artifacts不変、明細／予定の選択マーカーを確認する。
-pickerも、両欄の一覧・表示名／ID検索・同名の別ID・Unicode／Space・長いID・scroll・
-候補なし・未供給／空語彙・一行貼付／制御拒否・変更制限・取消後のcontext保持を検査する。
-全テーマ・通常／小さい端末でpaneのcell幅、中央最前面の実描画、警告表示も検査する。
-独自paletteの本文・見出し・通知・pane・選択欄は標準RGB値で4.5:1以上のコントラストを確認し、
-両rendererのANSI出力が同じ256色indexを含み、24-bit SGRを含まないことも検査する。
-実PTYでもNotty記帳→Bonsai再起動・編集→Notty再読込、
-Bonsaiの予定支払い・日本語科目・外貨入力・貼付の非記帳と、端末状態の完全復元を確認済み。
-Theme／Paletteも両画面の実TTYでpreview→cancel→save→終了→再起動とrenderer間の設定共有を
-確認済み。指定の私用コピーでもUI操作だけを行い、bytes／ファイル一覧不変を確認した。
-UI設定保存先は隔離し、私用画面のpayloadはログへ出さない。端末属性は終了後の通常入力も含めて復元する。
-tmuxのTTY検証は色code・操作・描画を確認するもので、macOS Terminalでの実pixelや人間の色味評価の代用ではない。
-256色版のTerminal／Light／Darkは、ユーザーがnative macOS Terminalの画像で見た目を確認・了承済み。
-pickerの実TTY検証はshellと既存tmuxで合成データだけを使い、両frontend×全テーマで
-検索・同名ID選択・Space・貼付・取消・scroll・resize・閲覧制限・終了後の端末復元と
-book bytes／publication artifacts不変を確認する。Pythonは使わない。
-複数行も共有self-checkで入力・正確な差額・巨大な外貨数量・貼付・保持／再開・行数とscroll・
-拒否時のbytes／artifacts不変・保存とcold訂正・キーと支払い対応保持・バックアップ・競合／結果不明を検査する。
-両rendererは全テーマ／端末寸法で長いUnicodeメモ・行・空行・各focus・nested pane・警告の実描画を検査する。
-shell/tmuxの合成TTYでは両frontend×3テーマの記帳→他方でcold訂正→再cold read、10行scroll・
-差額拒否・制御貼付・Theme・resize・メモのSpace・複数行予定支払い／二重支払い拒否と端末復元を確認する。
-試験出力はignoredディレクトリに置き、私用コピーは試験で変更しない。
+合成データで暦・階層操作・Record入力／Preview／Publish／Edit／Cancel、数量・支払い対応、競合・結果不明を検査する。
+native rendererは実cell幅・全テーマ・通常／狭い／低い端末で寸法、pane前面・境界、警告、indexed色・
+truecolor不使用、入力adapterを検査する。recovery_checksの故障注入・SIGKILL・cold拒否・照会・確認・復元は維持する。
+既存の会計・codec検査も維持する。synthetic PTYは実入力・終了・通常入力への復帰を確認する。
+既存のBonsai終了処理でEXTPROCだけが変わる場合があり、全termios属性の完全復元保証はない。
+macOS Terminalのpixel・色味、人間のUX受入、実運用切替の認定は別。現在の結果は[作業記録](../tasks/todo.md)を参照。
