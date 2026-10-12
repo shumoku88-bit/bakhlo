@@ -18,7 +18,7 @@ let attributes theme style =
   match P.palette theme with
   | None -> (
       match style with
-      | C.Plain -> []
+      | C.Plain | C.Calendar_dates | C.Columns _ | C.Input _ -> []
       | C.Active -> [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.invert; B.Attr.bold ]
       | C.Focused_frame -> [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.bold ]
       | C.Heading | C.Status | C.Panel_heading -> [ B.Attr.bold ]
@@ -26,7 +26,7 @@ let attributes theme style =
       | C.Panel_active -> [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.invert; B.Attr.bold ])
   | Some palette -> (
       match style with
-      | C.Plain -> [ fg palette.foreground; bg palette.background ]
+      | C.Plain | C.Calendar_dates | C.Columns _ | C.Input _ -> [ fg palette.foreground; bg palette.background ]
       | C.Active -> [ fg palette.selected_foreground; bg palette.selected_background; B.Attr.bold ]
       | C.Heading -> [ fg palette.foreground; bg palette.background; B.Attr.bold ]
       | C.Chrome | C.Frame -> [ fg palette.heading; bg palette.background ]
@@ -37,22 +37,87 @@ let attributes theme style =
       | C.Panel_active ->
           [ fg palette.selected_foreground; bg palette.selected_background; B.Attr.bold ])
 
-let lines theme rows =
+let border_attributes theme intent =
+  let light = theme = P.Bakhlo_light in
+  let index =
+    match intent with
+    | `Create -> if light then 31 else 67
+    | `Change -> if light then 136 else 179
+    | `Cancel -> if light then 131 else 174
+  in
+  [ B.Attr.fg (B.Attr.Color.xterm_256 index) ]
+
+(* Compose styled glyph runs natively. Borders are not part of the input highlight,
+   including the interior edges of side-by-side panes. No presentation glyph
+   participates in navigation, accounting or publication decisions. *)
+let rec lines ?border theme rows =
   rows
   |> List.map (fun (style, text) ->
-      if String.starts_with ~prefix:"│" text && String.ends_with ~suffix:"│" text then
-        let frame =
-          match style with
-          | C.Panel | C.Panel_heading | C.Panel_active -> C.Focused_frame
-          | _ -> C.Frame
-        in
-        V.hcat
-          [
-            V.text ~attrs:(attributes theme frame) "│";
-            V.text ~attrs:(attributes theme style) (String.sub text 3 (String.length text - 6));
-            V.text ~attrs:(attributes theme frame) "│";
-          ]
-      else V.text ~attrs:(attributes theme style) text)
+      match style with
+      | C.Columns (left_width, left_style, right_style) ->
+          let split = ref 0 and cells = ref 0 in
+          Uutf.String.fold_utf_8
+            (fun () offset -> function
+              | `Uchar c when !cells < left_width ->
+                  cells := !cells + V.uchar_tty_width c;
+                  split := offset + String.length (Daily_overlays.utf8 c)
+              | `Uchar _ | `Malformed _ -> ())
+            () text;
+          let left = String.sub text 0 !split in
+          let right_start = min (String.length text) (!split + 1) in
+          let right = String.sub text right_start (String.length text - right_start) in
+          V.hcat [ lines ?border theme [left_style, left]; V.text " ";
+                   lines ?border theme [right_style, right] ]
+      | _ ->
+      let glyphs =
+        Uutf.String.fold_utf_8
+          (fun xs _ -> function `Uchar c -> Daily_overlays.utf8 c :: xs | `Malformed _ -> xs)
+          [] text |> List.rev
+      in
+      let body_style =
+        match style with
+        | C.Frame | C.Focused_frame -> C.Chrome
+        | C.Input _ -> C.Plain
+        | style -> style
+      in
+      let edge_attrs =
+        match border with
+        | Some intent -> border_attributes theme intent
+        | None -> attributes theme (if style = C.Focused_frame then C.Focused_frame else C.Frame)
+      in
+      let framed_row = String.starts_with ~prefix:"│" text && String.ends_with ~suffix:"│" text in
+      let ruled_row = String.starts_with ~prefix:"╭" text || String.starts_with ~prefix:"╰" text in
+      let total_cells = V.width (V.text text) in
+      let rec paint cell = function
+        | "[" :: a :: b :: "]" :: rest
+          when style = C.Calendar_dates && String.length a = 1 && String.length b = 1
+               && a.[0] >= '0' && a.[0] <= '9' && b.[0] >= '0' && b.[0] <= '9' ->
+            (attributes theme C.Active, "[" ^ a ^ b ^ "]") :: paint (cell + 4) rest
+        | glyph :: rest ->
+            let attrs =
+              if (framed_row && (cell = 0 || cell = total_cells - 1))
+                 || (ruled_row && List.mem glyph [ "─"; "╭"; "╮"; "╰"; "╯" ]) then edge_attrs
+              else if (match style with C.Input caret -> cell = caret | _ -> false) then
+                attributes theme C.Active
+              else attributes theme body_style
+            in
+            (attrs, glyph) :: paint (cell + V.width (V.text glyph)) rest
+        | [] -> []
+      in
+      let runs =
+        List.fold_left
+          (fun runs (attrs, text) ->
+            match runs with
+            | (previous, content) :: rest
+              when B.Attr.equal (B.Attr.many previous) (B.Attr.many attrs) ->
+                (previous, content ^ text) :: rest
+            | _ -> (attrs, text) :: runs)
+          [] (paint 0 glyphs)
+        |> List.rev
+      in
+      match runs with
+      | [] -> V.text " " (* Empty content is still a physical terminal row. *)
+      | _ -> V.hcat (List.map (fun (attrs, text) -> V.text ~attrs text) runs))
   |> V.vcat
 
 let backdrop theme view =
@@ -65,14 +130,18 @@ let backdrop theme view =
 let width_of text = V.width (V.text text)
 let overlay_screen dimensions state = C.overlay_screen ~dimensions ~width_of state
 
+let editor_border state =
+  if state.C.record_visible then Option.map Record_session.border_intent state.C.record else None
+
 let base_view ((width, height) as dimensions) theme state =
-  C.screen ~width_of dimensions state |> lines theme |> fit width height |> backdrop theme
+  let border = if overlay_screen dimensions state = None then editor_border state else None in
+  C.screen ~width_of dimensions state |> lines ?border theme |> fit width height |> backdrop theme
 
 let overlay_view dimensions theme state =
   match overlay_screen dimensions state with
   | None -> None
   | Some rows ->
-      let pane = lines theme rows in
+      let pane = lines ?border:(editor_border state) theme rows in
       let pane =
         match P.palette theme with
         | None -> pane
@@ -159,6 +228,42 @@ let self_check () =
   Recovery_checks.self_check ();
   let state = Daily_interaction_checks.self_check ~width_of () in
   Record_session_checks.self_check ~width_of ();
+  let ansi view =
+    let buffer = Buffer.create 128 in
+    Notty.Render.to_buffer buffer Notty.Cap.ansi (0, 0) (V.width view, V.height view)
+      (V.Private.notty_image view);
+    Buffer.contents buffer
+  in
+  let slice left width view =
+    V.crop ~l:left ~r:(max 0 (V.width view - left - width)) view
+  in
+  let field = lines ~border:`Create P.Terminal [ (C.Input 9, "│ Date: x|y │") ] in
+  F.require
+    (Base.String.is_substring (ansi (slice 0 1 field)) ~substring:"38;5;67")
+    "Bonsai-editor-semantic-border";
+  F.require
+    (ansi (slice 2 7 field) = ansi (V.text "Date: x"))
+    "Bonsai-editor-body-remains-neutral";
+  F.require
+    (ansi (slice 9 1 field) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "|"))
+    "Bonsai-editor-caret-is-distinct";
+  let literal = lines ~border:`Create P.Terminal [ (C.Input 9, "│ Date: ||│ │") ] in
+  F.require (ansi (slice 8 1 literal) = ansi (V.text "|"))
+    "Bonsai-literal-bar-is-not-a-caret";
+  F.require (ansi (slice 10 1 literal) = ansi (V.text "│"))
+    "Bonsai-literal-box-glyph-is-not-a-border";
+  let dates = lines P.Terminal [ (C.Calendar_dates, "│ [16] 17 │") ] in
+  F.require
+    (ansi (slice 2 4 dates) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "[16]"))
+    "Bonsai-calendar-selected-cell-only";
+  F.require (ansi (slice 7 2 dates) = ansi (V.text "17"))
+    "Bonsai-calendar-neighbor-remains-neutral";
+  let columns = lines P.Terminal [C.Columns (4, C.Plain, C.Active), "財布 x"] in
+  F.require (ansi (slice 0 4 columns) = ansi (V.text "財布"))
+    "Bonsai-columns-retain-unfocused-unicode-pane";
+  F.require
+    (ansi (slice 5 1 columns) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "x"))
+    "Bonsai-columns-focus-only-the-selected-pane";
   List.iter
     (fun (style, expected) ->
       F.require
@@ -194,7 +299,7 @@ let self_check () =
               (match P.palette theme with
               | None ->
                   F.require
-                    ((not (emits "38;5;")) && not (emits "48;"))
+                    ((C.editor_visible state || not (emits "38;5;")) && not (emits "48;"))
                     "Bonsai-terminal-default-colors-with-cyan-focus"
               | Some palette ->
                   let foreground, background =
@@ -240,14 +345,15 @@ let self_check () =
                       "Bonsai-overlay-front-and-centered")
               | None -> ())
             (Daily_interaction_checks.render_cases state))
-        [ (140, 40); (100, 25); (80, 24); (64, 20); (48, 14); (40, 10); (20, 5) ])
+        [ (140, 40); (100, 25); (80, 24); (64, 20); (48, 14); (40, 10); (32, 9); (20, 5) ])
     P.all_themes;
   List.iter
     (fun theme ->
       List.iter
         (fun state ->
+          let state = { state with C.theme; blocked = true; message = "household-warning" } in
           let view =
-            render (64, 20) { state with C.theme; blocked = true; message = "household-warning" }
+            render (64, 20) state
           in
           let buffer = Buffer.create 64 in
           Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0) (64, 1)

@@ -6,8 +6,12 @@ module Q = Bakhlo_application.Current_quantity_query
 module A = Daily_actions
 let tr = Ui_text.tr
 
-type style = Plain | Active | Heading | Status | Chrome | Frame | Focused_frame
+type style = Plain | Active | Heading | Status | Chrome | Frame | Focused_frame | Calendar_dates
   | Panel | Panel_heading | Panel_active
+  (* Two independently styled panes separated by one physical space. *)
+  | Columns of int * style * style
+  (* Physical cell of the actual caret, never inferred from user text. *)
+  | Input of int
 
 let panel_width = 34
 

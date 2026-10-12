@@ -6,9 +6,18 @@ Reproduce LOAM's appearance and usability in Bakhlo. The target is Calendar Home
 with Day / Month / Year, hierarchical Commands, and matching entry points,
 navigation, confirmation, cancellation and return behavior for shared capabilities:
 recording, Actual, Scheduled, Balances and Daily Pace. Build the new UI in English
-with LOAM's labels first; later add a switchable Japanese message catalog using
-the same layout and interaction. The English foundation is connected; full LOAM
-parity and Japanese switching are still targets. Read [UI_DIRECTION.ja.md](UI_DIRECTION.ja.md) for the scope and rules,
+with LOAM's labels first. Japanese UI is undecided. Implement Bonsai first;
+a later Notty implementation remains an option, not an excluded frontend.
+The English foundation is connected; full LOAM parity remains a target.
+Home and basic Record / Preview polish have reached a verified checkpoint; the
+user asked to stop at a good boundary. Do not expand into another feature slice.
+Home uses nearby/side-by-side Detail and a compact Calendar; Record floats while
+retaining the parent date, with full-screen tiny input, border-only semantic colors
+and explicit caret cell metadata. Tiny overflowing previews refuse publication;
+ordinary paged previews require the final viewport before selected Publish + Enter.
+Consult
+LOAM's research on the limits of sharing before choosing reusable components;
+do not assume every editing screen should be shared. Read [UI_DIRECTION.ja.md](UI_DIRECTION.ja.md) for the scope and rules,
 including quiet terminal-owned colors, thin rounded frames, focused selection,
 stable geometry, contextual bottom operations and wrapping feedback.
 
@@ -76,10 +85,11 @@ labels as an optional translation of the old Japanese UI.
 
 ## UI and direct owners
 
-`./tools/tui` is the single Bonsai_term entrance. The standalone Notty frontend,
+`./tools/tui` is the current Bonsai-first entrance. The old standalone Notty frontend,
 paired UI benchmark and old Bonsai layout lab are removed. Notty remains a
 transitive rendering library used by native renderer checks; dependencies have
-not been removed or installed.
+not been removed or installed. This is the current implementation, not a permanent
+Bonsai-only product decision; a new Notty renderer may follow.
 
 Home is Calendar with Day / Month / Year and a period Detail region. Commands is
 hierarchical. Actual, current-open Scheduled, Selected Day, Balances and current
