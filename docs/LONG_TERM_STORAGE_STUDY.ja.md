@@ -1,16 +1,23 @@
 # 長期保存方式の調査
 
-状態: **現行経路baselineと単一S式の保存費用分解を測定済み。方式の最終選定・運用認定は未完了。**
+状態: **既存経路baseline・保存費用分解・印字試作は測定済み。次の第一研究候補は暦年別S式で、方式採用・運用認定は未完了。**
+
+最新の配置/分析・繰越・年度間参照・原子性/復旧と合成検証計画は
+[暦年別S式研究](YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)が所有する。
+[Irmin Phase 1](IRMIN_STORAGE_RESEARCH.ja.md)・[Phase 2](IRMIN_PHASE2_RESULTS.ja.md)は保存済み。
+限定通常操作は成功したが、HEAD途中書込み故障で選択参照不整合を観測し、durable Saved未確立。
+Irminの本体導入は保留、SQLiteはtransaction/安全性/費用/保守の比較候補として残す。
+この文書の第1〜4段階は**S式既存経路の測定履歴**で、IrminのPhase番号とは別。
 
 家計簿の長期運用は既知の基本要件であり、UI完成後の追加課題ではない。
 この文書は「何十年使える保存方式を選べるか」「LOAMとの違いはパーサ保守だけか」
 を扱う。[意味の契約](SEMANTIC_CONTRACT.md)が優先し、LOAMは引き続き正データの唯一の運用先。
 正データ・私用コピーを読んだり変更したりせず、合成データと公開実装だけを調べた。
 
-## 今回の範囲と再現
+## 既存経路baselineの範囲と再現
 
-2026-10-12、Bakhlo `3a85b4c3c4e599ed86445859c8ef1515f299a5b4` の作業ツリー。
-今回追加した計測ドライバと、以前からのUI/比較関連の未コミット変更がある。
+以下は当時の測定記録。2026-10-12、Bakhlo `3a85b4c3c4e599ed86445859c8ef1515f299a5b4` の作業ツリーで、
+計測ドライバとUI/比較関連の未コミット変更があった（後にcheckpointへ保存）。
 計測対象のライブラリ・`daily_file.ml`・`daily_actions.ml`の意味・保存実装は変更していない。
 LOAMは `ce21ab38e78c81e6185f8fe53144e76fdd34cfcd` の近隣所有者をソース確認しただけ。
 LOAMのビルド・実行・ソースコピーや同条件の速度測定はしていない。
@@ -153,9 +160,9 @@ TUI idle/steady RSS、live heapやリークの証拠ではない。
   既存の高速化を繰り返す新indexやGC tuningを先に追加しない。
 - **confirmed**: S式パーサ単体はこの新規保存の約15%。「行形式にすれば全て解決」とは言えない。
   印字、意味再構築、copy/readback、backup policyと分ける。行形式の優劣自体は未測定。
-- **hypothesis**: AST経由/レイアウトprobe/引用の再計算を減らす直接出力を、まず合成prototypeで
-  比較する余地がある。手編集向け整形は主目的ではないが、escape/整数/往復/拒否を変えない。
-  まだ実装改善や速度向上を獲得したとは言わない。
+- **当時のhypothesis**: AST/レイアウトprobe/引用再計算を減らす直接出力。
+  後続の第3・4段階で限定試作を測定したが、production改善としては未採用。
+  手編集向け整形は主目的ではなく、escape/整数/往復/拒否を維持する。
 - **boundary**: roundtrip入場と再印字は独立したserialization/canonical確認でもある。
   単なる重複として削除しない。候補/serialized世代の検査目的と、返すchecked imageを維持して
   再構築を減らせるかを次に確認する。
@@ -168,6 +175,96 @@ compiler/module配置の差もある。時間の差を改善効果や厳密なob
 `gettimeofday`のwall clockを使い、GC時間は起きたphaseに含むがCPU/GC pause単独は未分離。
 元studyと同じ限定fixtureで、OpeningSupport/複雑cut/settlement等の負荷は含まれない。
 Records起動の重複decode分解、row parser、同操作のLOAM測定も今回していない。
+
+## 第3段階: S式のまま、中間ASTなしで直接印字する試作
+
+checkpoint `a81d0df1e2c35aa0ba98dd1810bf54ba403dfeca`を
+`research/canonical-storage-checkpoint`へpushした後の、**未採用のscratch試作**。
+証拠は`scratch/direct-print-study-Nu2SzS`。prototype/生成source/実行手順/環境hash/
+raw logs/`findings.md`を保持した。運用の`Daily_book`/publisherは変更していない。
+
+同じ観測sourceのcontrolとdirectを比較。directは同じv3項目をBufferへ直接出し、
+AST、quoted-string中間buffer、幅probe/pretty layoutを使わない。空白を減らし、
+data stringを引用する。同じS式文法で、別parser/schema/backendを作らない。
+**複数の出力上の変更をまとめた試作で、AST削減だけを単独分離した測定ではない。**
+再解析・全体意味入場・再印字安定性のgate、lock/照合、全書込/readback/sync/backup、
+不確定/復旧処理は元のまま。新しいprinterでのcanonical bytesはcontrolと異なるため、
+両者を元のnative reader/printerで正規化した最終bytesの一致を確認した。
+
+短い合成のrich probeでは、両出力のS式AST一致と元native oracle一致も確認した。
+Unicode/引用/改行/CR/tab/backslash/NUL/DEL、220-bit量、key/Exchange、OpeningSupport、
+非空の観測/存在cut、provided空と未供給を含む。両variantで7 returned checkpoint fault/
+競合無変更/malformed拒否、全9保存の正確量・unknown・訂正・予定対応/終端、fresh restore成功。
+初期2試行はprobeのOCaml予約語とcompile入力copy不足で失敗。修正前source/途中成果を別dirへ
+残し、成功として数えずfresh trialを実行した。新SIGKILL/電源断/P7認定ではない。
+
+| 30年相当の合成負荷 | control | direct |
+| --- | ---: | ---: |
+| 新規保存中央値（3試料） | 4.341秒 | 3.032秒 |
+| 印字2回（record-2） | 1.573秒 | 0.463秒 |
+| 総割当（record-2） | 499.73M words | 336.93M words |
+| 量訂正 | 5.458秒 | 3.998秒 |
+| 行数訂正 | 5.269秒 | 4.046秒 |
+| 日付訂正 | 5.229秒 | 3.908秒 |
+| 予定支払い | 4.483秒 | 2.984秒 |
+| 予定変更 | 5.225秒 | 3.886秒 |
+| 予定取消 | 5.386秒 | 4.267秒 |
+| 最終file | 29.54 MB | 26.29 MB |
+| 9 before backups | 265.85 MB | 239.84 MB |
+
+この実行では保存中央値が約30%、累積一時割当が約33%低下した。
+印字割当は192.04M→35.20M words。**同じS式のままでも、出力実装を簡単にする余地がある。**
+同時にfileが小さくなったためI/O量も減り、heap lifetime/GCの位置も変わった。
+パーサ/入場の全体再構築は残り、backupは依然として保存ごとに全体サイズで増える。
+この試作だけで長期保存問題やsyntax選択を解決したとは言わない。
+
+1,000件はcontrol→direct、109,500件はdirect→controlの順に実行したが、反復/無作為化した
+crossoverではない。filesystem cacheはflushせず、各count/variant 1 worker、他操作1試料。
+改善率の一般保証や安定p95ではない。全検査/再読込/復元を含むpeak RSSは約1.69→1.37 GiBで、
+TUIの常駐/idle/live heapの比較ではない。privateデータ/新依存/GC tuning/自動pruneは使わない。
+
+残る全Actual command/入場の割当と、候補/serialized/checked世代の所有は改善候補として残す。
+直近の第一候補は暦年配置の同等性検証。serializerの検査目的、保存設計、試作printerの
+運用採用/広いcodec互換性/全家計移行を混同せず、printer採用は引き続き未認定。
+
+## 第4段階: 出力不変の引用長計算を単独比較
+
+外部pitの未実行案を受け、既存local OCaml計測器で実行した。
+外部のPython保存モデル/未添付scriptは取り込まず、証拠を
+`scratch/quote-length-study-z4vm71`へ保持した。**scratch copyだけで、未採用。**
+
+control/lengthの差はlayout probeの`String.length (leaf s)`を、文字列を作らない
+`leaf_length s`へ替えた1箇所。元のinteger判定を共用し、引用2 bytes、特殊escape
+2 bytes、decimal control escape 4 bytes、その他1 byteを数える。
+出力するquote/AST/layout幅/語彙/全入場/再印字比較/公開・backup・不確定gateはそのまま。
+端末文字幅や金額のmachine-int変換ではない。probeは元のraw-length上限判定も維持した。
+
+空文字、全1-byte/2-byte組合せ、Unicode/control/長文/符号付き・整数風文字列を
+元quoteの実際の出力長と比較。11,153 renderer例で110-byte境界、tag/non-tag、深い
+indentを含む両process出力が完全一致した。rich Bookの元native printer一致、7 returned
+checkpoint fault/競合無変更/malformed拒否も成功。各負荷の保存/訂正/予定/復元の期待値と
+最終selected/restored/正規化bytesは一致。最初のprepareは観測wrapperとの曖昧anchorを
+拒否したので失敗として保持し、unique anchorに修正してfresh trialで実行した。
+
+| 合成明細数 | control新規保存中央値 | 引用長計算 |
+| --- | ---: | ---: |
+| 1,000 | 0.0464秒 | 0.0488秒 |
+| 36,500 | 1.579秒 | 1.483秒 |
+| 109,500 | 4.335秒 | 4.286秒 |
+
+30年相当のrecord-2では印字2回が1.576→1.492秒、印字割当192.04M→141.66M words、
+全保存割当499.73M→449.35M words（約10%減）だった。
+**約403 MBの累積短命割当は減ったが、実用的な速度・常駐メモリ改善を示したとは言えない。**
+promoted/major wordsはほぼ同じ、全worker peak RSSも両方約1.69 GiB。
+read/write traffic、29.54 MBのfile、265.85 MBの9 backupsは完全に同じ。
+109,500件の時間差約1%は小さく、1,000件では方向も逆で、安定したspeedupとは認定しない。
+
+各count/variant 1 worker、記帳3連続試料/他操作1試料、cacheをflushしない。
+1,000/36,500件はcontrol先、109,500件はlength先で、反復無作為化crossoverではない。
+新SIGKILL/電源断/P7/移行/別環境復元の認定ではない。
+第3段階とは違いfile bytesを変えない切分けであり、短命引用buffer削減だけでは
+全文保存・全体再構築・backup蓄積を解決しないと分かった。
+この小改善の採否と、正データの論理構造/構文/保存方式の選定を分ける。
 
 ## 確認した課題と意味
 
@@ -233,20 +330,22 @@ LOAMの過去ベンチは[長期Actual調査](https://github.com/shumoku88-bit/l
    日常の訂正・予定完了/取消・残高根拠・通貨scale・必要な
    分類/解釈configを一覧化。未知field/familyの保存/拒否と、byte集合としてのbackup範囲を決める。
    Daily v3が必要な家計情報をすべて表すとの認定はまだしない。
-2. **分解結果から候補を絞る**: 上の第2段階でprinter、syntax decode、admission、
-   backup/write/readbackを測定済み。次は印字/一時表現と全体再構築を候補にし、
-   ownershipとrefusalを維持したまま費用を減らせるか合成prototypeで確認する。
-   全保存の無期限backupから、通常復旧＋明示的な長期archiveの設計候補を分ける。
-   既存backup/不確定artifactの自動削除はしない。
-3. **追記候補に同じ日常操作を要求**: 過去訂正、予定完了/取消、観測更新を含む一体保存、
-   snapshot切替とcompaction中断、旧token/idempotencyを設計・確認してから再比較。
-   現行v1の追記速度だけで採用しない。新しい形式実装はこの調査の次の選択であり未実施。
+2. **暦年別S式を先に検証**: 単一S式と当年＋必要期首根拠の候補で意味/回答/拒否をそろえる。
+   年度間分析と採択した支給日cycleを保存年から独立させ、繰越失効・参照閉包を確認する。
+   最初の2025-10-15〜2026-10-14/6 cycleの入口は専用計画へ集約。今回はまだ実装しない。
+   printer試作の改善率を配置の速度保証やschema採択へ広げず、既存検査gate/backupを維持する。
+3. **同じ日常操作・復旧で候補比較**: 年度切替/複数fileの一体更新を未解決のまま明示し、
+   意味同等性の後に故障/不確定/復元を確認する。SQLiteも同じ保持/原子性条件で比較。
+   IrminはPhase 2の限界により導入保留。現行Records v1の追記速度だけで採用しない。
+   全体beforeと長期archiveの保持policyは別に選び、既存artifactを自動削除しない。
 4. **復旧と運用を選ぶ**: P7/Ack loss、不確定な結果の照合、破損/不足の拒否、backup保持、
    config込みの別媒体copyとfresh-host復元、version変換と抽出を確認する。
    今回は同host・同媒体の一ファイルcopyのみ。物理電源断・media障害・live backupは未検証。
 5. **最後にLOAMとの差を再確認**: 同じ日常の回答と拒否、保守するcodec/protocolの量、
    保存待ち・起動・backup容量・復元手順・意図的に失う履歴回答を並べ、選定理由を残す。
 
-現時点の推奨は、**論理情報を先にそろえ、構文を決め打ちせず、現行の保存経路をそのまま長期運用に認定しない**。
-S式は現行baseline。行形式も同じ情報で比較する。単一保存の費用と、一体transaction付き追記の保守も比べる。
-方式選定はこの調査内で行う。正式記帳先の切替、依存導入、backup削除、公開/pushは別の承認。
+現在の推奨は、**暦年別S式を第一研究候補にし、同じ情報・回答・拒否を先に検証する**。
+単一S式はcontrol、SQLiteは比較候補、Irminの本体導入は保留。性能/保守とdurabilityを分け、
+現行単一S式や年別配置をそのまま長期運用に認定しない。構文再比較は必要時の別軸。
+研究文書/既存合成再現ソースの研究ブランチへの保存・pushは今回承認済みだが、
+年度分割実装、正データ切替、依存追加、backup削除、main push/PR/mergeは含めない。

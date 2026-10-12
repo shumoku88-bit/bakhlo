@@ -2,55 +2,36 @@
 
 ## Current task
 
-Research canonical-data logical design and select a long-term storage direction before
-expanding UI work. [Canonical data design](CANONICAL_DATA_DESIGN.ja.md) owns retained facts,
-reference/correction candidates, the five-case logical model draft, native minimal pairs
-and the first bounded Alloy slice. **Current-use-first is the user's selected direction**:
-implement the operations they commonly perform now, then add unused features when needed.
-Do not require all refund/post-discharge scopes to be decided before storage research.
-Preserve identity/evidence boundaries, original archives and explicit version migrations
-so later additions are not blocked by premature information loss; no generic extension framework.
-The user authorizes a bounded read-only canonical-history inventory from fresh stopped private
-captures to identify current priorities. Keep private counts/results in restricted ignored
-scratch; canonical history is not a complete UI operation/read-frequency log. The fresh
-stopped capture and bounded inventory are complete at `scratch/operation-inventory-leEhTN`.
-Read its `priorities.private.md` and `details-v2/INVENTORY_COMPLETE` for private priorities
-and scope; do not transcribe household counts/usage findings into public docs or tests.
-Existing Actual/four-support read admission and the private Scheduled reader were reused;
-Attention is row-shape inventory only, other families preserved opaque. This is not full
-LOAM admission, whole migration, restore qualification, or cutover.
-Start from this inventory and the **LOAM asset reuse table**, not another investigation of
-already-earned semantics. The household operation draft is a future-extension reference,
-not an adopted capability list or a requirement to implement every row before cutover.
-The native probes qualify OCaml connections and
-candidate representation failures; they are not new discoveries of LOAM household meaning.
-LOAM's current CorrectionPublisher already refuses Relation/Discharge-referenced and Reversal
-participant corrections; historical decode representability is not writer permission.
-Candidate C has no implemented combined admission. Qualify only the reduced-history mapping,
-root/reference closure and especially OpeningSupport staleness/re-support before syntax work.
-Do not generalize correction-stable anchors into automatic inheritance of all support.
-Alloy found unsafe retargeting and partial source-row retention; its successful complete-row
-check is conditional on the documented full-row premise, not a proof of candidate C.
-Existing optional Lean root-cut laws were rechecked; new compaction proofs are not earned.
-Use TLA+ when concrete publication/recovery transitions need qualification, not as another
-structural check. `formal/README.md` owns the optional tool entrances; normal builds stay Lean-free.
-Establish the same logical information before comparing S-expression with row-oriented syntax; the earlier
-S-expression selection is reopened for research, not replaced by an adopted new format.
-The user normally edits through TUI/other application entrances and sees little readability
-difference between the syntax candidates. Manual readability/editing comfort is secondary,
-not a selection gate. Prioritize equal-operation save/correction costs, memory, backup growth,
-recovery/migration and implementation/maintenance. Keep diagnostics/portable reading; do not
-confuse syntax with whole-image rewrite, physical layout or backup policy.
-The user also requests a final comparison with LOAM's format: do not assume parser
-maintenance is the only disadvantage. [Long-term storage study](LONG_TERM_STORAGE_STUDY.ja.md)
-owns current-path costs, limits and physical selection conditions.
-`./tools/storage-study` measures existing native owners in fresh ignored scratch; it adds no
-backend or dependency. Current-path baseline and monolithic save-phase decomposition are
-complete; `./tools/storage-breakdown` observes only fresh synthetic source copies with an
-original-owner control. Costs/limits and the next focused candidates live in the storage
-study, not this handoff. Schema completeness, bounded retention, equal-operation append,
-P7 and complete/off-host restore remain open.
-Do not adopt a production format, prune any existing evidence or change LOAM originals.
+The next first storage research candidate is **calendar-year partitioned S-expressions**,
+not production adoption. [Year-partition research](YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)
+owns the plan: Jan 1–Dec 31 storage, current-year + qualified opening evidence, independent
+analysis/cycle boundaries, cross-year references and past-correction invalidation.
+The first synthetic comparison is 2025-10-15 through 2026-10-14, six two-month cycles;
+actual adopted payment dates define cycles, never an implicit always-the-15th rule.
+Compare meaning, answers and refusals against the existing single-file Core/Daily_book oracle.
+Year rollover/multi-file atomicity and recovery are unresolved. **Consult the user before
+implementing this next experiment**; the latest task only organizes and pushes research.
+
+Irmin [Phase 1](IRMIN_STORAGE_RESEARCH.ja.md) and [Phase 2](IRMIN_PHASE2_RESULTS.ja.md)
+are complete within their stated scopes. Partial branch writes followed by EIO/SIGKILL
+left an existing branch with no resolvable HEAD. Normal atomic-generation/restart/limited
+archive checks passed, but durable Saved/power-loss/P7 remain unqualified. Irmin product integration
+is **on hold**; no root manifest. SQLite remains a comparison candidate, not an installed
+product dependency or an executed Bakhlo backend comparison.
+Synthetic Irmin sources and frozen dependency recipe are preserved in the Phase 2 appendix;
+raw/failure evidence and its separate opam environment remain ignored and must not be pruned.
+
+[Canonical design](CANONICAL_DATA_DESIGN.ja.md) owns retained facts/reference roles, LOAM
+reuse and logical/native/formal residuals; [storage study](LONG_TERM_STORAGE_STUDY.ja.md)
+owns baseline/save decomposition/direct-printer/quote-length measurements. Neither printer
+trial is adopted. Do not repeat earned semantics or turn a conditional Alloy/Lean slice
+into a proof of combined C, OpeningSupport inheritance, archive completeness or durability.
+Historical decode is not writer permission. Current-use-first, identity/evidence preservation
+and equal-operation cost/recovery/maintenance remain the constraints, not manual syntax polish.
+The earlier private inventory is complete at `scratch/operation-inventory-leEhTN` (scope in
+canonical design); its counts/findings stay private and are not a UI frequency log.
+This next study uses synthetic data only. LOAM remains operational authority; preserve all
+originals/trials/backups/uncertainty artifacts. No format/backend/UI adoption or data cutover.
 
 ## UI context
 
@@ -162,9 +143,9 @@ or falling back to live originals. UI theme settings are isolated in `ui-config`
 `./ui --demo` retains the synthetic preview. `./tools/tui` remains the explicit
 selected-file Bonsai entrance. The old standalone Notty frontend,
 paired UI benchmark and old Bonsai layout lab are removed. Notty remains a
-transitive rendering library used by native renderer checks; dependencies have
-not been removed or installed. This is the current implementation, not a permanent
-Bonsai-only product decision; a new Notty renderer may follow.
+transitive rendering library used by native renderer checks; product dependencies have
+not been removed or expanded. Irmin research used a separate switch only. This is the current
+implementation, not a permanent Bonsai-only product decision; a new Notty renderer may follow.
 
 Home is Calendar with Day / Month / Year and a period Detail region. Commands is
 hierarchical. Actual, current-open Scheduled, Selected Day, Balances and current
@@ -240,9 +221,10 @@ Create a fresh ignored trial directory first; never overwrite a previous trial.
 The launcher installs nothing, refuses unavailable isolated environments, and
 `--self-check` runs shared contract checks and the native Bonsai renderer checks.
 
-For current storage work use `./tools/storage-study` (or `100` for a short check),
-the current study's narrow selection conditions and existing recovery/refusal tests.
-Keep its measurements out of this handoff; do not start a new backend by implication.
+For the next storage experiment consult the year-partition plan before implementation.
+Existing `./tools/storage-study` / `./tools/storage-breakdown` and recovery/refusal tests
+remain baseline entrances, not a request to repeat scale measurements now.
+Keep results in their owning reports; install nothing or start a backend by implication.
 
 When UI work resumes, review its exact diff and compare the resulting screens
 and supported-operation key flows with current LOAM. Check relevant synthetic

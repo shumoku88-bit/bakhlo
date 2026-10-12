@@ -72,8 +72,10 @@ bytes-copy improvements; do not accidentally implement them again.
 Before proposing a change, compare parse counts, bytes read, phase times, memory and
 correctness/refusal outcomes. The storage study now includes monolithic save decomposition
 with `./tools/storage-breakdown`, using observed source copies and an original-owner control;
-it does not measure the Records load candidate above. Read its scoped results before adding
-another probe or repeating existing indexing/GC work. No implementation change is selected
+it does not measure the Records load candidate above. It also records scratch-only direct
+printing and byte-preserving quote-length trials: less cumulative short-lived allocation
+alone did not establish useful peak-RSS or timing improvement. Read these scoped results
+before adding another probe or repeating existing indexing/GC work. No implementation change is selected
 by this guide.
 
 ## Short report contract

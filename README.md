@@ -142,10 +142,15 @@ Bakhloのコア実装・Daily保存・TUI接続・運用認定を別々に確認
 現在の対応範囲と切替前に必要な生活操作を選ぶ。
 まず記帳・予定管理・各種残高・LOAM Daily Paceと、必要になったレポートでの実運用を目指す。
 [LOAM互換の見た目と使い勝手](docs/UI_DIRECTION.ja.md)は英語UIの土台を実装済みで、合成台帳で日常操作を確認する。
-次の優先作業は[正データの論理設計研究](docs/CANONICAL_DATA_DESIGN.ja.md)と
-[長期保存方式の調査と選定](docs/LONG_TERM_STORAGE_STUDY.ja.md)。
-残す事実・観測・参照をそろえてS式と行形式を再比較し、最後にLOAMとの差をパーサ保守以外の費用・復旧・情報保存も含めて判断する。
-現在の実装はS式のままで、新しい構文・正データへの切替は未採用。
+次の第一研究候補は[暦年別S式](docs/YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)。
+原則1月1日〜12月31日を1ファイルとし、当年＋必要な期首根拠で日常操作を扱えるか調べる。
+分析期間・実際に採択した支給日の年金サイクルは年度境界と独立させる。繰越の失効、
+年度間参照、年度切替・複数ファイルの原子性/復旧は未解決で、**本番方式の採用ではない**。
+[論理設計](docs/CANONICAL_DATA_DESIGN.ja.md)は意味・保持境界、
+[長期保存調査](docs/LONG_TERM_STORAGE_STUDY.ja.md)は既存費用を所有する。
+[Irmin Phase 1](docs/IRMIN_STORAGE_RESEARCH.ja.md)・[Phase 2](docs/IRMIN_PHASE2_RESULTS.ja.md)は保存済み。
+HEAD途中書込み故障とdurable Saved未確立のため本体導入を保留し、SQLiteは比較候補として残す。
+現在の実装は単一S式等のまま。年度分割の実装・正データ切替はまだ行わない。
 電卓機能（UX-3）は [電卓入力設計メモ](docs/UX3_CALCULATOR_INPUT_DESIGN.ja.md) に整理済みだが未実装。
 家計正データは引き続きLOAMが管理し、本番データは変更しない。
 
