@@ -58,6 +58,15 @@ helpers. Logical aliases support clean dependency discovery. Cram compiler clien
 currently depend on generated CMIs/wrapper CMI: pinned Dune integration details, not
 API/storage compatibility. Do not suppress missing-CMI warnings or export internals.
 
+## OCaml-aware engineering review
+
+[OCaml-aware design and runtime review](LANGUAGE_AWARE_DESIGN_REVIEW.md) owns the
+lightweight recurring standard from [issue #28](https://github.com/shumoku88-bit/bakhlo/issues/28):
+check relevant changed paths during feature work, and occasionally review accumulated
+changes against existing native measurements. Algorithms/ownership come before GC,
+representation or parser tuning. It is not another mandatory build/test pipeline.
+Reports are short issue/PR notes; `HANDOFF.md` stays focused on current work.
+
 ## Optional formatting
 
 `.ocamlformat` pins **0.29.0**, target syntax **5.3.0**, default profile and 100-column margin.

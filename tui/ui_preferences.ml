@@ -10,9 +10,9 @@ let theme_id = function
   | Bakhlo_dark -> "bakhlo-dark"
 
 let theme_label = function
-  | Terminal -> "Terminal"
-  | Bakhlo_light -> "Bakhlo Light"
-  | Bakhlo_dark -> "Bakhlo Dark"
+  | Terminal -> "Terminal (follow terminal colors)"
+  | Bakhlo_light -> "Bakhlo Light (original)"
+  | Bakhlo_dark -> "Bakhlo Dark (original)"
 
 let theme_of_id = function
   | "terminal" -> Some Terminal

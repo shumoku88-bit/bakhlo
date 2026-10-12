@@ -13,6 +13,7 @@ let items = function
         (Group Planning, "Plans and attention →");
         (Group Analysis, "Reports and analysis →");
         (Group Setup, "Household setup →");
+        (Action Theme, "Theme / Terminal or Bakhlo Light / Dark");
       ]
   | Transactions ->
       [ (Action Record, "Record / new entry"); (Action Actual, "Actual / transactions") ]

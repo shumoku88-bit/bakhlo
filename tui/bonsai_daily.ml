@@ -38,14 +38,25 @@ let attributes theme style =
           [ fg palette.selected_foreground; bg palette.selected_background; B.Attr.bold ])
 
 let border_attributes theme intent =
-  let light = theme = P.Bakhlo_light in
-  let index =
-    match intent with
-    | `Create -> if light then 31 else 67
-    | `Change -> if light then 136 else 179
-    | `Cancel -> if light then 131 else 174
+  let color =
+    match theme with
+    | P.Terminal -> (
+        (* ANSI slots belong to the terminal's light/dark palette too. *)
+        match intent with
+        | `Create -> B.Attr.Color.Expert.cyan
+        | `Change -> B.Attr.Color.Expert.yellow
+        | `Cancel -> B.Attr.Color.Expert.red)
+    | P.Bakhlo_light | P.Bakhlo_dark ->
+        let light = theme = P.Bakhlo_light in
+        let index =
+          match intent with
+          | `Create -> if light then 31 else 67
+          | `Change -> if light then 136 else 179
+          | `Cancel -> if light then 131 else 174
+        in
+        B.Attr.Color.xterm_256 index
   in
-  [ B.Attr.fg (B.Attr.Color.xterm_256 index) ]
+  [ B.Attr.fg color ]
 
 (* Compose styled glyph runs natively. Borders are not part of the input highlight,
    including the interior edges of side-by-side panes. No presentation glyph
@@ -238,9 +249,20 @@ let self_check () =
     V.crop ~l:left ~r:(max 0 (V.width view - left - width)) view
   in
   let field = lines ~border:`Create P.Terminal [ (C.Input 9, "│ Date: x|y │") ] in
-  F.require
-    (Base.String.is_substring (ansi (slice 0 1 field)) ~substring:"38;5;67")
-    "Bonsai-editor-semantic-border";
+  List.iter
+    (fun (intent, terminal_color, light_index, dark_index) ->
+      List.iter
+        (fun (theme, expected) ->
+          let field = lines ~border:intent theme [ (C.Input 9, "│ Date: x|y │") ] in
+          F.require
+            (ansi (slice 0 1 field) = ansi (V.text ~attrs:[ B.Attr.fg expected ] "│"))
+            "Bonsai-editor-theme-owned-semantic-border")
+        [ P.Terminal, terminal_color;
+          P.Bakhlo_light, B.Attr.Color.xterm_256 light_index;
+          P.Bakhlo_dark, B.Attr.Color.xterm_256 dark_index ])
+    [ `Create, B.Attr.Color.Expert.cyan, 31, 67;
+      `Change, B.Attr.Color.Expert.yellow, 136, 179;
+      `Cancel, B.Attr.Color.Expert.red, 131, 174 ];
   F.require
     (ansi (slice 2 7 field) = ansi (V.text "Date: x"))
     "Bonsai-editor-body-remains-neutral";
@@ -299,8 +321,8 @@ let self_check () =
               (match P.palette theme with
               | None ->
                   F.require
-                    ((C.editor_visible state || not (emits "38;5;")) && not (emits "48;"))
-                    "Bonsai-terminal-default-colors-with-cyan-focus"
+                    (not (emits "38;5;") && not (emits "48;"))
+                    "Bonsai-terminal-owned-colors-including-editor"
               | Some palette ->
                   let foreground, background =
                     if overlay = C.No_overlay && not (C.editor_visible state) then

@@ -1,0 +1,81 @@
+#!/bin/sh
+# Short comparison launcher. Never opens LOAM originals for writing.
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+cd "$root"
+umask 077
+usage() {
+  printf '%s\n' './ui             Bakhlo comparison copy' \
+    './ui loam        LOAM copy from the same captured generation (no build)' \
+    './ui --refresh   Refresh copies after closing LOAM; retain old captures' \
+    './ui --demo      Synthetic-only UI preview' \
+    'Space -> Commands -> Theme: terminal colors or Bakhlo Light / Dark'
+}
+if [ "$#" -gt 1 ]; then usage >&2; exit 2; fi
+mode=${1:-bakhlo}
+case "$mode" in
+  --help|-h) usage; exit 0 ;;
+  --refresh) exec ./tools/compare refresh ;;
+  bakhlo|loam|--demo) ;;
+  *) usage >&2; exit 2 ;;
+esac
+if [ ! -t 0 ] || [ ! -t 1 ]; then
+  printf '%s\n' 'Run ./ui in an interactive terminal.' >&2
+  exit 2
+fi
+if [ -L "$root/scratch" ]; then
+  printf '%s\n' 'Comparison directories must not be symlinks.' >&2; exit 2
+fi
+if [ "$mode" = --demo ]; then
+  trial=$root/scratch/ui-preview
+  if [ -L "$trial" ] || [ -L "$trial/config" ]; then
+    printf '%s\n' 'Preview directories must not be symlinks.' >&2; exit 2
+  fi
+  if [ ! -e "$trial" ]; then
+    mkdir -p "$root/scratch"
+    mkdir "$trial"
+    ./tools/tui --copy-from examples/daily-book.sexp --book "$trial/book.sexp"
+  fi
+  config=$trial/config
+else
+  state=$root/scratch/loam-comparison
+  if [ -L "$state" ] || [ -L "$state/CURRENT" ] || [ ! -f "$state/CURRENT" ]; then
+    printf '%s\n' 'No selected comparison copy. Close LOAM, then run ./ui --refresh. No demo fallback.' >&2
+    exit 2
+  fi
+  IFS= read -r capture < "$state/CURRENT"
+  case "$capture" in
+    capture-*) ;;
+    *) printf '%s\n' 'Invalid comparison selector.' >&2; exit 2 ;;
+  esac
+  case "$capture" in
+    *[!a-z0-9-]*) printf '%s\n' 'Invalid comparison selector.' >&2; exit 2 ;;
+  esac
+  if [ "$(wc -l < "$state/CURRENT" | tr -d '[:space:]')" != 1 ]; then
+    printf '%s\n' 'Invalid comparison selector.' >&2; exit 2
+  fi
+  trial=$state/$capture
+  if [ -L "$trial" ] || [ ! -f "$trial/COMPLETE" ]; then
+    printf '%s\n' 'Incomplete comparison copy; nothing opened.' >&2; exit 2
+  fi
+  if [ "$mode" = loam ]; then
+    bin=$root/../loam/.lake/build/bin/loam
+    if [ ! -x "$bin" ] || [ -L "$trial/loam-view" ]; then
+      printf '%s\n' 'Existing LOAM executable or comparison copy unavailable. No build or live fallback.' >&2
+      exit 2
+    fi
+    printf '%s\n' 'LOAM comparison copy only; ordinary recording remains in your usual LOAM.'
+    exec "$bin" tui "$trial/loam-view"
+  fi
+  config=$state/ui-config
+  if [ -L "$config" ]; then
+    printf '%s\n' 'Comparison settings must not be a symlink.' >&2; exit 2
+  fi
+fi
+if [ ! -d "$trial" ] || [ -L "$trial/book.sexp" ] || [ ! -f "$trial/book.sexp" ]; then
+  printf '%s\n' 'Comparison book unavailable; existing trial was not replaced.' >&2
+  exit 2
+fi
+# Theme settings are independent of both ledger copies and ordinary UI settings.
+export BAKHLO_CONFIG_HOME="$config"
+exec ./tools/tui --book "$trial/book.sexp"

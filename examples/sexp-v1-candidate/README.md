@@ -4,7 +4,11 @@
 parser、writer、migration、DTO、依存追加は実装していません。全内容を合成し、原本・私用コピー・利用状況からの転載はありません。
 同じ4例の[括弧なしプレーンテキスト版](../plain-v1-candidate/README.md)も比較用に用意しています。
 
-「一つの現在の本」は、現在選択された自己完結する **canonical evidence generation** です。
+**履歴保持型の以前の候補**です。以下の元Event保持・04の拒否条件は、この候補の参照構造についての説明。
+新しい訂正済みDailyに永久の全訂正履歴を義務づけるものではありません。
+[現在の論理設計研究](../../docs/CANONICAL_DATA_DESIGN.ja.md)では、必要な元参照根拠を失わない別案も比較します。
+
+この候補での「一つの現在の本」は、現在選択された自己完結する **canonical evidence generation** です。
 現在のEventだけを抽出した表、残高キャッシュ、日付順のコマンドログではありません。
 訂正前のEvent、明示relation、observation/cut、供給されたpolicy/provenanceも、その世代の入力に残ります。
 self-containedは、すべての家計質問に答えられるという意味ではありません。不明は不明のまま表します。

@@ -2,6 +2,58 @@
 
 ## Current task
 
+Research canonical-data logical design and select a long-term storage direction before
+expanding UI work. [Canonical data design](CANONICAL_DATA_DESIGN.ja.md) owns retained facts,
+reference/correction candidates, the five-case logical model draft, native minimal pairs
+and the first bounded Alloy slice. **Current-use-first is the user's selected direction**:
+implement the operations they commonly perform now, then add unused features when needed.
+Do not require all refund/post-discharge scopes to be decided before storage research.
+Preserve identity/evidence boundaries, original archives and explicit version migrations
+so later additions are not blocked by premature information loss; no generic extension framework.
+The user authorizes a bounded read-only canonical-history inventory from fresh stopped private
+captures to identify current priorities. Keep private counts/results in restricted ignored
+scratch; canonical history is not a complete UI operation/read-frequency log. The fresh
+stopped capture and bounded inventory are complete at `scratch/operation-inventory-leEhTN`.
+Read its `priorities.private.md` and `details-v2/INVENTORY_COMPLETE` for private priorities
+and scope; do not transcribe household counts/usage findings into public docs or tests.
+Existing Actual/four-support read admission and the private Scheduled reader were reused;
+Attention is row-shape inventory only, other families preserved opaque. This is not full
+LOAM admission, whole migration, restore qualification, or cutover.
+Start from this inventory and the **LOAM asset reuse table**, not another investigation of
+already-earned semantics. The household operation draft is a future-extension reference,
+not an adopted capability list or a requirement to implement every row before cutover.
+The native probes qualify OCaml connections and
+candidate representation failures; they are not new discoveries of LOAM household meaning.
+LOAM's current CorrectionPublisher already refuses Relation/Discharge-referenced and Reversal
+participant corrections; historical decode representability is not writer permission.
+Candidate C has no implemented combined admission. Qualify only the reduced-history mapping,
+root/reference closure and especially OpeningSupport staleness/re-support before syntax work.
+Do not generalize correction-stable anchors into automatic inheritance of all support.
+Alloy found unsafe retargeting and partial source-row retention; its successful complete-row
+check is conditional on the documented full-row premise, not a proof of candidate C.
+Existing optional Lean root-cut laws were rechecked; new compaction proofs are not earned.
+Use TLA+ when concrete publication/recovery transitions need qualification, not as another
+structural check. `formal/README.md` owns the optional tool entrances; normal builds stay Lean-free.
+Establish the same logical information before comparing S-expression with row-oriented syntax; the earlier
+S-expression selection is reopened for research, not replaced by an adopted new format.
+The user normally edits through TUI/other application entrances and sees little readability
+difference between the syntax candidates. Manual readability/editing comfort is secondary,
+not a selection gate. Prioritize equal-operation save/correction costs, memory, backup growth,
+recovery/migration and implementation/maintenance. Keep diagnostics/portable reading; do not
+confuse syntax with whole-image rewrite, physical layout or backup policy.
+The user also requests a final comparison with LOAM's format: do not assume parser
+maintenance is the only disadvantage. [Long-term storage study](LONG_TERM_STORAGE_STUDY.ja.md)
+owns current-path costs, limits and physical selection conditions.
+`./tools/storage-study` measures existing native owners in fresh ignored scratch; it adds no
+backend or dependency. Current-path baseline and monolithic save-phase decomposition are
+complete; `./tools/storage-breakdown` observes only fresh synthetic source copies with an
+original-owner control. Costs/limits and the next focused candidates live in the storage
+study, not this handoff. Schema completeness, bounded retention, equal-operation append,
+P7 and complete/off-host restore remain open.
+Do not adopt a production format, prune any existing evidence or change LOAM originals.
+
+## UI context
+
 Reproduce LOAM's appearance and usability in Bakhlo. The target is Calendar Home
 with Day / Month / Year, hierarchical Commands, and matching entry points,
 navigation, confirmation, cancellation and return behavior for shared capabilities:
@@ -9,8 +61,15 @@ recording, Actual, Scheduled, Balances and Daily Pace. Build the new UI in Engli
 with LOAM's labels first. Japanese UI is undecided. Implement Bonsai first;
 a later Notty implementation remains an option, not an excluded frontend.
 The English foundation is connected; full LOAM parity remains a target.
-Home and basic Record / Preview polish have reached a verified checkpoint; the
-user asked to stop at a good boundary. Do not expand into another feature slice.
+Home and basic Record / Preview polish have reached a verified checkpoint.
+The earlier approved comparison slice provides stopped LOAM refresh into separate private
+copies, short Bakhlo/LOAM launch commands, and direct root-palette theme selection.
+These remain available; the current storage investigation does not authorize cutover
+or expansion into accounting features.
+The usage inventory used a separate verified fresh stopped capture. It did not update
+comparison CURRENT or any prior writable trial. A selected comparison capture exists,
+but its currentness/full compatibility has not been requalified here; inventory success
+is not a successful fresh paired-UI conversion or operational cutover.
 Home uses nearby/side-by-side Detail and a compact Calendar; Record floats while
 retaining the parent date, with full-screen tiny input, border-only semantic colors
 and explicit caret cell metadata. Tiny overflowing previews refuse publication;
@@ -45,6 +104,11 @@ labels as an optional translation of the old Japanese UI.
   `scratch/daily_book_candidate_v1/household.sexp` exist. UI work/tests use
   synthetic copies instead. Do not put private contents, counts, screenshots
   or logs into fixtures, commits or public output.
+- New approval also covers bounded read-only inventory of retained operation
+  evidence in LOAM canonical history, using fresh stopped captures and stability
+  checks. Preserve old captures/trials; do not read the live originals while LOAM
+  is running or silently substitute older evidence. Unknown/imported/current-only
+  evidence is not a full count of user actions. No private counts in public docs.
 - Private inputs/results remain ignored, with restrictive permissions. Do not
   copy LOAM implementation source, install dependencies or adopt a production
   storage/UI entrance by implication.
@@ -85,7 +149,18 @@ labels as an optional translation of the old Japanese UI.
 
 ## UI and direct owners
 
-`./tools/tui` is the current Bonsai-first entrance. The old standalone Notty frontend,
+`./ui --refresh` uses the existing private Daily conversion trial after LOAM is
+closed, retaining exact household/config inputs, a fresh supported Daily v3 book,
+a private entry/plan delta, and previous captures under `scratch/loam-comparison`.
+It does not date-filter/append blindly, merge trial edits, or update originals.
+Unsupported Actual/profile data and changed acquisition refuse without advancing
+CURRENT. This local helper needs the earlier ignored converter; it is not full
+household migration, live capture, complete backup or canonical-store adoption.
+`./ui` opens the selected Bakhlo trial copy; `./ui loam` opens a separate LOAM trial
+copy of the same capture using the already-built executable, never building LOAM
+or falling back to live originals. UI theme settings are isolated in `ui-config`.
+`./ui --demo` retains the synthetic preview. `./tools/tui` remains the explicit
+selected-file Bonsai entrance. The old standalone Notty frontend,
 paired UI benchmark and old Bonsai layout lab are removed. Notty remains a
 transitive rendering library used by native renderer checks; dependencies have
 not been removed or installed. This is the current implementation, not a permanent
@@ -96,7 +171,14 @@ hierarchical. Actual, current-open Scheduled, Selected Day, Balances and current
 Daily Pace use English labels. The Calendar counts Actual and open Scheduled;
 role-aware income/expense totals remain unavailable because roles are not supplied.
 Full Series management, Attention, historical Trend and Japanese switching are
-not implemented. Recording uses one transient Record model with Description,
+not implemented. Theme offers Terminal (default, terminal-owned background/text
+and ANSI colors including editor borders) and original Bakhlo Light / Dark
+(fixed xterm 256 colors). Commands > Theme (also under Household setup) previews
+with j/k or arrows, cancels to the exact parent menu with Esc/q, and saves UI-only
+settings with Enter for the next
+launch. Drafts, navigation and safety warnings are retained; failed settings saves
+are session-only and reported. LOAM's dim styling remains a Bonsai API limitation.
+Recording uses one transient Record model with Description,
 Measure and signed postings. Esc/Cancel retain the draft; Preview offers Publish,
 Edit and Cancel. Only Enter on selected Publish uses the existing publisher;
 Ctrl-S opens a preview and never confirms publication.
@@ -149,6 +231,7 @@ Use the existing isolated tools; do not change global environments or use Python
 ```sh
 ./tools/check
 ./tools/tui --self-check
+./tools/compare self-check
 ./tools/tui --copy-from examples/daily-book.sexp --book scratch/FRESH_TRIAL/book.sexp
 ./tools/tui --book scratch/FRESH_TRIAL/book.sexp
 ```
@@ -157,7 +240,11 @@ Create a fresh ignored trial directory first; never overwrite a previous trial.
 The launcher installs nothing, refuses unavailable isolated environments, and
 `--self-check` runs shared contract checks and the native Bonsai renderer checks.
 
-Finish the agreed UI slice, review its exact diff and compare the resulting screens
+For current storage work use `./tools/storage-study` (or `100` for a short check),
+the current study's narrow selection conditions and existing recovery/refusal tests.
+Keep its measurements out of this handoff; do not start a new backend by implication.
+
+When UI work resumes, review its exact diff and compare the resulting screens
 and supported-operation key flows with current LOAM. Check relevant synthetic
 cases: normal/compact geometry, Japanese/long text/huge amounts, empty/unknown
 states, focus/viewport, resize, cancel, confirm, reopen and terminal restoration.

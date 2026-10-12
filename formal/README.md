@@ -1,10 +1,44 @@
-# Optional cut, quantity and group-ownership specification experiment
+# Optional semantic design experiments
 
 This is development evidence, **not a product build/test/release dependency**.
 No upstream source is imported, no Lake project or OCaml binding is involved,
-and no second operational engine exists. `tools/check` does not invoke this check.
+and no second operational engine exists. `tools/check` invokes neither experiment.
 
-## Question and statements
+## Canonical reference retention (Alloy)
+
+`CanonicalReferenceRetention.als` asks whether a corrected current row and direct
+source-posting retention are sufficient at the existing whole-row admission boundary.
+It is an original, bounded structural slice, not a new canonical schema or a full
+Actual/Relation admission model. Version atoms do not mandate durable version IDs.
+
+The current [canonical-data research](../docs/CANONICAL_DATA_DESIGN.ja.md) owns the
+mapping, seven expected SAT/UNSAT outcomes, concrete witnesses and remaining gaps.
+`test/canonical_reference_tests.ml` now probes the full-row premise with existing native
+owners: relation-local admission cannot distinguish balanced/unbalanced rows with the same
+referenced posting, whereas whole-source admission refuses the latter. It also covers
+aggregate bounds, retained refund endpoints and root/basis double counting. These tests do
+not prove candidate C's combined admission or replace the bounded model's stated assumptions.
+The research's LOAM asset reuse table is the first entrance for already-earned semantics
+(e.g. Observation 246 and current reversal/relation owners). These local probes are not new
+LOAM findings. Add a formal question only for a named representation/conversion residual;
+do not duplicate existing laws or confuse historical admission with current writer permission.
+Alloy 6.2.0/SAT4J was executed using the already-installed launcher and JDK, with no
+installation or sibling-repository execution/source copy. Start a fresh output path:
+
+```sh
+umask 077
+run=$(mktemp -d "$PWD/scratch/canonical-alloy-XXXXXX")
+alloy exec -c '*' -s sat4j -n -t json -o "$run/solutions" \
+  formal/CanonicalReferenceRetention.als
+```
+
+Run from the Bakhlo root, only with an existing Alloy command. Do not use `-f` to
+overwrite evidence. CLI success alone is not successful model qualification:
+inspect every named command in `receipt.json`; a SAT `check` is a counterexample.
+`tools/check` does not invoke Alloy. An unavailable environment remains a limit;
+there is no automatic download or mandatory model CI.
+
+## Root-cut laws (Lean): question and statements
 
 `RootCutLaws.lean` defines exclusion of supplied `(root, terminal)` rows by a
 Boolean root predicate. It proves for arbitrary finite rows:

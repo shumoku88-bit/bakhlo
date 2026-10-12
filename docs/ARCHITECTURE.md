@@ -257,11 +257,17 @@ unknown families before canonical codec/migration; keep original archives and ea
 intact. Further trial UI/setup and physical-store expansion stays paused meanwhile.
 For independent syntax review, the [synthetic-only pasteable comparison](FORMAT_COMPARISON_PROMPT.ja.md)
 pairs S-expressions + minimal Parsexp with custom fact text under the SAME logical obligations.
-User now selects S-expression syntax; braces and both comparison grammars were illustrative.
+S-expression was previously selected and remains the implemented baseline. The user now reopens
+logical design and syntax comparison; [canonical data research](CANONICAL_DATA_DESIGN.ja.md)
+owns the current questions. Braces and both older comparison grammars were illustrative.
 Package metadata is not measured runtime cost/portability or codec qualification; internal derived
 sexps are not the storage schema. Exact grammar/schema/production library installation remain separate.
 
 ### Selected S-expression direction — long-term boundaries
+
+The historical syntax selection is now reopened for research. The semantic boundaries below
+remain constraints, not proof that S-expression or the old history-retaining candidates are
+required for the new Daily design. Existing formats keep their own contracts.
 
 Long-term constraints, not a full-household codec/store or cutover; the bounded implemented
 profile below exercises only its declared subset:
@@ -307,8 +313,9 @@ counterexample. These are hand-authored human-review inputs, not an adopted sche
 executed admission/roundtrip test. No private capture/result is used in these fixtures.
 User subsequently requested [paired delimiter-free plain text](../examples/plain-v1-candidate/README.md)
 and a [minimal syntax comparison](../examples/syntax-bakeoff/README.md) to review readability.
-After comparison, user confirms **S-expressions as the canonical evidence syntax**; plain text
-and journal remain comparison artifacts, not a second maintained codec. Field spelling,
+The earlier comparison selected **S-expressions as the canonical evidence syntax**; this choice
+is now reopened by the research above. Plain text and journal remain comparison artifacts,
+not a second maintained codec. Field spelling,
 collection declarations, full-family/receipt/interpretation scope still need schema review.
 The [isolated codec trial](../experiments/sexp-codec-trial/README.md) is experimental evidence only;
 whole-household Parser/DTO/writer, further dependencies and migration need separately bounded decisions.

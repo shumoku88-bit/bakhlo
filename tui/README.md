@@ -11,7 +11,18 @@ native renderer検査で引き続き使う。新依存・global環境変更は�
 
 ## 起動
 
-合成データを新しいignoredディレクトリへコピーする。既存試用を上書きしない。
+Bakhloディレクトリから`./ui`（親のmokoからは`./bakhlo/ui`）で、選択した比較コピーを開く。
+LOAMを閉じて`./ui --refresh`で取得・更新し、別の端末の`./ui loam`で同じ取得時点のLOAMコピーを開ける。
+取得・変換は既存の私用Daily変換試行に依存する限定ローカル手順で、正データへの書込みや全家計移行ではない。
+起動中のLOAM、未対応のActual証拠、不正な変換、取得中の変更は拒否し、前回の選択とコピーを保持する。
+別のタブ／ウィンドウのLOAMもHomeの`q`で終了する。停止拒否時は残っているPIDと端末名を表示する。
+差分は日付フィルタではなく安定ID／全内容で比較し、新しい対応範囲の台帳全体を再生成する。
+元のhouseholdとconfig、以前のコピー、変換外の家計証拠・旧版は私用scratchに保持する。
+両UIの試用保存はそれぞれのコピーだけ。通常のLOAM正データや私用候補は上書きしない。
+テーマ設定は`scratch/loam-comparison/ui-config`へ隔離する。欠損時に合成データや正データへ戻らない。
+合成確認は`./ui --demo`（既存の`scratch/ui-preview`を再利用）。Homeの`q`で終了する。
+
+別の試用は合成データを新しいignoredディレクトリへコピーする。既存試用を上書きしない。
 
 ```sh
 umask 077
@@ -89,13 +100,21 @@ Daily_bookは単一S式v1〜v3とRecords v1を読み、単一S式ではv3を書�
 
 ## テーマと実装
 
-Terminalは通常文字・背景を端末に委ね、HomeのフォーカスはANSIシアン、選択は反転と太字。
-編集枠の3色だけは落ち着いたxterm 256色を使う。入力カーソルと枠線は本文の文字と分離して描画する。
-現在のBonsai属性APIにdimがないため、補助表示は装飾と配置を抑えて区別する。
-Light / Darkも残る。固定paletteはxterm 256色で、24-bit SGRは出さない。
-Commands → Household setup → Themeで変更し、台帳とは別のUI設定へ保存する。
+- **Terminal (follow terminal colors)**（初期値）: 通常文字・背景は端末に委ね、端末のライト／ダークや
+  カスタム配色をそのまま使う。HomeのフォーカスはANSIシアン、選択は反転と太字。
+  編集枠も端末のANSI色（作成はシアン、変更は黄、取消は赤）を使い、固定RGB／256色を混ぜない。
+  端末の明暗を推測する自動判定や、OSの外観設定には依存しない。
+- **Bakhlo Light / Dark (original)**: 端末配色とは独立したオリジナルテーマ。
+  本文・背景・選択・編集枠は固定xterm 256色を使う。24-bit SGRは出さない。
+
+入力カーソルと枠線は本文の文字と分離して描画する。現在のBonsai属性APIにdimがないため、
+補助表示は装飾と配置を抑えて区別する（LOAMのdim表示とは異なる）。
+Space → Commands → Themeで直接変更する。Household setup内からも開ける。
+↑/↓またはj/kでHomeを含む配色をプレビューし、Enterで確定して台帳とは別のUI設定へ保存する。
+Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一覧・保持した下書き・安全上の警告は失わない。
 保存先は`BAKHLO_CONFIG_HOME/ui-theme`、`$XDG_CONFIG_HOME/bakhlo/ui-theme`、
-`$HOME/.config/bakhlo/ui-theme`の順。設定不備ではTerminalへ戻る。
+`$HOME/.config/bakhlo/ui-theme`の順。次回起動でも選択を復元し、設定不備ではTerminalへ戻る。
+設定を保存できない場合はそのセッションだけ変更し、保存できなかったことを通知する。
 
 - daily_calendar / ui_workspace / ui_commands：純粋な暦・画面・選択・階層ナビ。
 - record_session / ui_input：一つの下書き・Previewと入力型。
@@ -135,6 +154,7 @@ backup保持件数・期間・別媒体・不一致候補の採用条件も未�
 ```sh
 ./tools/check
 ./tools/tui --self-check
+./tools/compare self-check  # 合成入力だけでコピー・差分・取得拒否を確認
 ```
 
 合成データで暦・階層操作・Record入力／Preview／Publish／Edit／Cancel、数量・支払い対応、競合・結果不明を検査する。

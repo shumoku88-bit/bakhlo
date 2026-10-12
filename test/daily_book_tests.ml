@@ -73,6 +73,61 @@ let%expect_test "daily replacement and plan payment use current entries, preserv
 unknown unknown
 2026-10-10 payment|}]
 
+(* Deliberately restricted to entry facts: not equality of canonical books. *)
+let entry_view book =
+  let module R = Bakhlo_sexp.Records_book in
+  List.map
+    (R.entries (B.to_records book))
+    ~f:(fun e -> Sexplib0.Sexp.to_string (R.encode_payload (R.Entry e)))
+
+let%expect_test "daily identical entry facts need independent observation cuts" =
+  let base = get (B.of_string fixture) in
+  let unreflected = get (B.put_entry base ~replace:false (entry "e" 100) ~plan:None) in
+  let unreflected = get (B.of_string (B.to_string unreflected)) in
+  let reflected =
+    get
+      (B.of_string
+         (String.substr_replace_all (B.to_string unreflected) ~pattern:"(reflected)"
+            ~with_:"(reflected e)"))
+  in
+  let unsupported_base =
+    get
+      (B.of_string
+         (String.substr_replace_all fixture
+            ~pattern:"(observations (observation (reflected) (quantities (wallet jpy 1000))))"
+            ~with_:"(observations)"))
+  in
+  let unsupported = get (B.put_entry unsupported_base ~replace:false (entry "e" 100) ~plan:None) in
+  Stdio.printf "same entries: %b\n"
+    (List.equal String.equal (entry_view unreflected) (entry_view reflected)
+    && List.equal String.equal (entry_view unreflected) (entry_view unsupported));
+  Stdio.printf "wallet: %s / %s\n"
+    (quantity unreflected "wallet" "jpy")
+    (quantity reflected "wallet" "jpy");
+  Stdio.printf "missing support: %s\n" (quantity unsupported "wallet" "jpy");
+  [%expect {|same entries: true
+wallet: 900 / 1000
+missing support: unknown|}]
+
+let%expect_test "daily identical actual facts do not infer scheduled completion" =
+  let base = get (B.of_string fixture) in
+  let actual = entry "payment" 200 in
+  let unlinked = get (B.put_entry base ~replace:false actual ~plan:None) in
+  let completed = get (B.put_entry base ~replace:false actual ~plan:(Some "planned")) in
+  let unlinked = get (B.of_string (B.to_string unlinked)) in
+  let completed = get (B.of_string (B.to_string completed)) in
+  Stdio.printf "same entries: %b\n"
+    (List.equal String.equal (entry_view unlinked) (entry_view completed));
+  Stdio.printf "wallet: %s / %s\n"
+    (quantity unlinked "wallet" "jpy")
+    (quantity completed "wallet" "jpy");
+  Stdio.printf "open plans: %d / %d\n"
+    (List.length (B.open_plans unlinked))
+    (List.length (B.open_plans completed));
+  [%expect {|same entries: true
+wallet: 800 / 800
+open plans: 1 / 0|}]
+
 let%expect_test "daily data preserves explicit exchange and exact foreign quantities" =
   let base = get (B.of_string fixture) in
   let e : B.entry =
@@ -257,6 +312,72 @@ let plan id : B.plan =
   }
 
 let cold book = get (B.of_string (B.to_string book))
+
+let%expect_test "canonical daily reflected correction preserves root cut, not old quantity or date" =
+  let base = get (B.of_string fixture) in
+  let original = get (B.put_entry base ~replace:false (entry "e" 100) ~plan:None) in
+  let reflected =
+    get
+      (B.of_string
+         (String.substr_replace_all (B.to_string original) ~pattern:"(reflected)"
+            ~with_:"(reflected e)"))
+  in
+  let corrected book =
+    cold
+      (get
+         (B.put_entry book ~replace:true
+            { (entry "e" 6) with day = "1900-01-01"; memo = Some "corrected" } ~plan:None))
+  in
+  let unreflected = corrected original and reflected = corrected reflected in
+  let fresh = cold (get (B.put_entry reflected ~replace:false (entry "fresh" 20) ~plan:None)) in
+  Stdio.printf "wallet: old=%s; corrected unreflected=%s, reflected=%s, fresh=%s\n"
+    (quantity original "wallet" "jpy") (quantity unreflected "wallet" "jpy")
+    (quantity reflected "wallet" "jpy") (quantity fresh "wallet" "jpy");
+  let selected = Option.value_exn (B.find_entry fresh "e") in
+  Stdio.printf "current identity/date: %s %s; rows=%d; food=%s; bank=%s\n"
+    selected.id selected.day (B.entry_count fresh) (quantity fresh "food" "jpy")
+    (quantity fresh "bank" "jpy");
+  let text = B.to_string fresh in
+  let reflected_row = "(reflected \"e\")" in
+  Fixtures.require (String.is_substring text ~substring:reflected_row) "missing cut fixture";
+  Stdio.printf "bad cuts refuse: missing=%b, duplicate=%b; original snapshot unchanged=%b\n"
+    (Result.is_error
+       (B.of_string
+          (String.substr_replace_all text ~pattern:reflected_row ~with_:"(reflected missing)")))
+    (Result.is_error
+       (B.of_string
+          (String.substr_replace_all text ~pattern:reflected_row ~with_:"(reflected e e)")))
+    (String.equal "2026-10-03" (Option.value_exn (B.find_entry original "e")).day);
+  [%expect {|wallet: old=900; corrected unreflected=994, reflected=1000, fresh=980
+current identity/date: e 1900-01-01; rows=2; food=26; bank=unknown
+bad cuts refuse: missing=true, duplicate=true; original snapshot unchanged=true|}]
+
+let%expect_test "canonical daily refund correction refuses broken inversion without losing actual refund" =
+  let base = get (B.of_string fixture) in
+  let original = get (B.put_entry base ~replace:false (entry "e" 10) ~plan:None) in
+  let refund = { (entry "refund" (-10)) with reversal_of = Some "e" } in
+  let reversed = cold (get (B.put_entry original ~replace:false refund ~plan:None)) in
+  let before = B.to_string reversed in
+  let dated =
+    cold
+      (get
+         (B.put_entry reversed ~replace:true
+            { (entry "e" 10) with day = "1900-01-01"; memo = Some "corrected date" } ~plan:None))
+  in
+  Stdio.printf "target amount correction refuses=%b; refund amount correction refuses=%b\n"
+    (Result.is_error (B.put_entry reversed ~replace:true (entry "e" 6) ~plan:None))
+    (Result.is_error
+       (B.put_entry reversed ~replace:true { refund with effects = (entry "refund" (-6)).effects }
+          ~plan:None));
+  Stdio.printf "date-only correction admits: %s; target=%s; rows=%d; wallet=%s\n"
+    (Option.value_exn (B.find_entry dated "e")).day
+    (Option.value_exn (Option.value_exn (B.find_entry dated "refund")).reversal_of)
+    (B.entry_count dated) (quantity dated "wallet" "jpy");
+  Stdio.printf "refused source unchanged=%b; bank=%s\n"
+    (String.equal before (B.to_string reversed)) (quantity dated "bank" "jpy");
+  [%expect {|target amount correction refuses=true; refund amount correction refuses=true
+date-only correction admits: 1900-01-01; target=e; rows=2; wallet=1000
+refused source unchanged=true; bank=unknown|}]
 
 let%expect_test "plans create, replace and cancel without physical activity or lost rows" =
   let base = get (B.of_string fixture) in

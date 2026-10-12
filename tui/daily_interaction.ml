@@ -34,7 +34,7 @@ type style = O.style =
 type overlay =
   | No_overlay
   | Commands of M.t
-  | Themes of { selected : int; original : P.theme }
+  | Themes of { selected : int; original : P.theme; return_menu : M.t }
   | Jump of string
   | Search of string
 
@@ -314,7 +314,9 @@ let open_command state = function
         | [] -> 0
         | theme :: rest -> if theme = state.theme then i else index (i + 1) rest
       in
-      { state with overlay = Themes { selected = index 0 P.all_themes; original = state.theme } }
+      let return_menu = match state.overlay with Commands menu -> menu | _ -> M.initial in
+      { state with overlay = Themes { selected = index 0 P.all_themes;
+                                     original = state.theme; return_menu } }
 
 let input_text value = function
   | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
@@ -364,12 +366,12 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | M.Updated menu -> Some { state with overlay = Commands menu }
         | M.Closed -> Some { state with overlay = No_overlay }
         | M.Chosen action -> Some (open_command state action))
-    | Themes { selected; original } -> (
+    | Themes { selected; original; return_menu } -> (
         let count = List.length P.all_themes in
         match input with
         | `Key ((`Escape | `ASCII 'q'), []) ->
             Some
-              { state with theme = original; overlay = Commands { M.page = M.Setup; selected = 0 } }
+              { state with theme = original; overlay = Commands return_menu }
         | `Key ((`Arrow `Up | `Arrow `Left | `ASCII 'k'), [])
         | `Key ((`Arrow `Down | `Arrow `Right | `ASCII 'j'), []) ->
             let delta =
@@ -380,7 +382,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               {
                 state with
                 theme = List.nth P.all_themes selected;
-                overlay = Themes { selected; original };
+                overlay = Themes { selected; original; return_menu };
               }
         | `Key (`Enter, []) ->
             let notice =
@@ -921,6 +923,9 @@ let workspace_rows ~width_of ~width ~height state =
       (if titles = [] then [ tr "No records in this view." ] else titles)
 
 let footer state =
+  match state.overlay with
+  | Themes _ -> [ "j/k or Up/Down preview theme"; "Enter save  Esc/q cancel" ]
+  | No_overlay | Commands _ | Jump _ | Search _ ->
   match (state.workspace.W.route, state.workspace.pane) with
   | W.Home, W.Calendar ->
       [
