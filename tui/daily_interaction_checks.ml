@@ -105,12 +105,75 @@ let render_cases state =
     { home with overlay = C.Search "財布" };
   ]
 
+let home_layout_check ~width_of home =
+  let module D = Bakhlo_domain in
+  let day = "2026-10-18" in
+  let posting locus quanta = D.Effect.create ~key:None
+      ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+      ~quantity:(D.Quantity.of_quanta (Z.of_int quanta)) in
+  let entry : B.entry =
+    { id = "home-layout-entry"; day; memo = Some "選択日の買い物";
+      effects = [ posting "wallet" (-37); posting "food" 37 ];
+      reversal_of = None; exchange = None } in
+  let book = get (B.put_entry home.C.session.book ~replace:false entry ~plan:None) in
+  let plan : B.plan =
+    { id = "home-layout-plan"; day; measure = "jpy";
+      changes = [ "wallet", Z.of_int (-200); "food", Z.of_int 200 ];
+      paid_by = None; cancelled_on = None } in
+  let book = get (B.put_plan book ~replace:false plan) in
+  let state = { home with C.session = { home.session with book };
+      workspace = { home.workspace with route = W.Home; pane = W.Calendar;
+                    calendar = get (Cal.create day) }; scroll = 0; message = "" } in
+  let contains rows needle = List.exists
+      (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows in
+  List.iter (fun ((width, height) as dimensions) ->
+      let rows = C.screen ~width_of dimensions state in
+      require (List.length rows <= height
+               && List.for_all (fun (_, text) -> width_of text <= width) rows)
+        "home-polish-bounded-layout";
+      require (contains rows "Calendar / 2026-10" && contains rows "Detail / 2026-10-18")
+        "home-selected-day-detail-nearby";
+      require (contains rows "Actual 1   Open Scheduled 1" && contains rows "選択日の買い物")
+        "home-day-counts-and-japanese-record-visible";
+      require (contains rows "Flow unavailable") "home-does-not-invent-money-flow";
+      if width >= 120 then (
+        let border_rows = List.filter (fun (_, text) -> String.starts_with ~prefix:"╭" text) rows in
+        require (List.length border_rows = 1) "home-wide-two-pane-composition";
+        let last_frame = List.fold_left (fun last (index, (_, text)) ->
+            if String.starts_with ~prefix:"╰" text then index else last) 0
+            (List.mapi (fun index row -> index, row) rows) in
+        require (last_frame < 20) "home-calendar-not-empty-full-height"))
+    [ 80, 24; 90, 24; 120, 40; 140, 40 ];
+  List.iter (fun ((width, height) as dimensions) ->
+      let rows = C.screen ~width_of dimensions state in
+      require (contains rows "[18]") "home-tiny-selected-sunday-visible";
+      require (List.length rows <= height
+               && List.for_all (fun (_, text) -> width_of text <= width) rows)
+        "home-tiny-calendar-cell-width";
+      let focused = { state with workspace = { state.workspace with pane = W.Detail } } in
+      let rows = C.screen ~width_of dimensions focused in
+      require (contains rows "Detail / ") "home-small-focused-detail-visible")
+    [ 32, 9; 48, 14 ];
+  let month = { state with workspace = { state.workspace with
+      calendar = { state.workspace.calendar with zoom = Cal.Month } } } in
+  let year = { state with workspace = { state.workspace with
+      calendar = { state.workspace.calendar with zoom = Cal.Year } } } in
+  List.iter (fun state ->
+      let rows = C.screen ~width_of (80, 24) state in
+      require (contains rows "Detail / ") "home-period-detail-visible-at-80-columns";
+      require (contains rows "q quit" && contains rows "Space Commands")
+        "home-primary-footer-not-clipped") [ state; month; year ];
+  require (B.entry_count home.session.book = 0) "home-polish-mutated-original-book";
+  print_endline "PASS: responsive Home context, compact calendar, tiny Sunday selection, exact period counts and restrained frame height."
+
 let self_check ~width_of () =
   let directory = "scratch/english-ui-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
   let path = directory ^ "/book.sexp" in
   F.create_copy ~source:"examples/daily-book.sexp" ~target:path;
   let home = C.initial ~config_home:directory (F.load path) in
+  home_layout_check ~width_of home;
   let before = F.read path in
   require
     (home.workspace.route = W.Home && home.workspace.pane = W.Calendar && not home.record_visible)

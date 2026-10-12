@@ -8,8 +8,10 @@ on-demand references, not a compulsory reading list or an implementation backlog
 ## Current status
 
 - **Completed & Merged**: Trial 06, PR 5 (records format, durable append, application/TUI integration, incremental admission), PR 6 (records strip bytes copy optimization, entry indexing via immutable Map & reversed list), PR UX-1 (natural Japanese error display, field targeting, fail-closed draft preservation), and PR UX-2 (flexible amount parsing with half/full-width & 3-digit commas, flexible date parsing with YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD & Gregorian validation, 't' key today reset, Command Palette calendar navigation with pure calendar arithmetic).
-- **UI direction**: Reproduce LOAM's current appearance and usability, including Calendar Home with Day / Month / Year, hierarchical Commands and corresponding supported-workspace flows. Build the new UI in English using LOAM's labels first; later add switchable Japanese through a shared message catalog, retaining the same layout and interaction. Read `docs/UI_DIRECTION.ja.md` before UI work. This is the target, not a claim that those screens are implemented. Bakhlo is not operationally adopted; obsolete UI structure, themes and unused helpers may be replaced or deleted without backward compatibility. This does not authorize changing LOAM originals or operational cutover.
+- **UI direction**: Reproduce LOAM's current appearance and usability, including Calendar Home with Day / Month / Year, hierarchical Commands and corresponding supported-workspace flows. English comes first; whether to provide a Japanese UI is undecided. Bonsai is the first implementation, not an exclusive frontend decision; a later Notty implementation remains possible. Read `docs/UI_DIRECTION.ja.md` before UI work. Bakhlo is not operationally adopted; obsolete UI mechanisms need no backward compatibility. This does not authorize changing LOAM originals or operational cutover.
 - **UI entrance**: `./tools/tui` builds and runs the Bonsai_term frontend in the existing isolated environment. The standalone Notty frontend, paired UI benchmark and old Bonsai layout lab are removed. Notty remains a transitive rendering library and is used by native renderer checks. The renderer does not own accounting logic.
+- **Current checkpoint**: Home and basic Record / Preview polish are locally verified. The user asked to stop at a good boundary; do not start another feature slice. Read LOAM's existing research on when sharing is useful or harmful before choosing abstraction boundaries; sharing itself is not a goal. Removing the old Notty renderer does not exclude a later renderer for the new UI.
+- **Craft direction**: Use LOAM's proven household semantics and interaction knowledge to build a clean, restrained, modern TUI that benefits from native Bonsai capabilities. Polish spacing, alignment, focus/caret, selection-following scroll, feedback stability, resize, return context and draft retention as observable usability details. The old UI need not return; Notty may follow later. Do not turn this direction into mandatory universal components or a completed-quality claim.
 - **Next candidate (UX-3)**: Calculator expression input (`500+300`, `1000*2`) is designed in `docs/UX3_CALCULATOR_INPUT_DESIGN.ja.md` using exact rational/integer quanta (`Q.t` / `Z.t`) without floats, implicit rounding, or zero-division, but is **intentionally deferred and unimplemented**.
 - **P7 unresolved safety issue**: Persistent acknowledgement evidence (post-save Ack loss verification) remains an unresolved, independent safety issue. Keep it separate from everyday UX work.
 - **Current scope**: Budget allocation/routing APIs and trial v4 support were removed. Daily_book reads v1..v3 and Records v1; its monolithic writer uses v3. Daily Pace and payment plans remain supported.
@@ -36,9 +38,9 @@ on-demand references, not a compulsory reading list or an implementation backlog
   hierarchical, and shared capabilities use LOAM's workspace labels, navigation,
   confirmation and return behavior. The English foundation is connected; calendar
   markers count Actual/open Scheduled without inventing income/expense roles.
-  Do not describe the remaining LOAM features as implemented. Japanese comes later
-  through a switchable catalog on the same interaction and layout.
-  Share pure interaction and formatting rather than duplicated frontend accounting.
+  Do not describe the remaining LOAM features as implemented. Japanese UI is undecided.
+  Bonsai comes first; Notty may follow. Share only mechanics whose current callers and
+  semantics justify sharing; consult LOAM's research before factoring editing screens.
   `docs/UI_DIRECTION.ja.md` owns the UI policy; historical UI roadmaps do not bind the new design.
 - Implement one usable step at a time. No textbook-driven abstractions, automatic
   LOAM accounting feature parity, permanent correction-history requirement, multi-backend

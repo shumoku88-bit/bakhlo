@@ -6,6 +6,10 @@ val create : book:B.t -> day:string -> measure:string -> unit -> t
 val of_edit : book:B.t -> B.entry -> (t, string) result
 val of_plan : ?day:string -> book:B.t -> B.plan -> (t, string) result
 val mode : t -> A.mode
+val border_intent : t -> [ `Create | `Change | `Cancel ]
+val surface_dimensions : int * int -> int * int
+(** Available space includes the two Record navigation rows. Use the returned
+    dimensions for both input and rendering; narrow/short terminals stay full size. *)
 val has_draft : t -> bool
 val with_notice : t -> string -> t
 val preview : book:B.t -> base_bytes:string -> blocked:bool -> t -> t

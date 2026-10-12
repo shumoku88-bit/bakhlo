@@ -24,9 +24,12 @@ type style = O.style =
   | Chrome
   | Frame
   | Focused_frame
+  | Calendar_dates
   | Panel
   | Panel_heading
   | Panel_active
+  | Columns of int * style * style
+  | Input of int
 
 type overlay =
   | No_overlay
@@ -275,6 +278,12 @@ let feedback_lines ~dimensions:(width, height) ~width_of state =
 let body_dimensions ~dimensions:((width, height) as dimensions) ~width_of state =
   (width, max 0 (height - List.length (feedback_lines ~dimensions ~width_of state) - 2))
 
+(* The editor's navigation remains at the terminal bottom; its body may float.
+   Input and painting use the same dimensions, including the editor's two nav rows. *)
+let record_dimensions ~dimensions:((width, height) as dimensions) ~width_of state =
+  S.surface_dimensions
+    (width, max 0 (height - List.length (feedback_lines ~dimensions ~width_of state)))
+
 let update_calendar state action =
   match Cal.apply state.workspace.calendar action with
   | Cal.Refused why -> { state with message = tr why }
@@ -336,7 +345,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
     | Some record -> (
         match
           S.handle ~book:state.session.book ~base_bytes:state.session.bytes ~blocked:state.blocked
-            ~dimensions:(body_dimensions ~dimensions ~width_of state)
+            ~dimensions:(record_dimensions ~dimensions ~width_of state)
             ~width_of record input
         with
         | S.Updated record -> Some { state with record = Some record }
@@ -619,14 +628,23 @@ let row_detail book = function
   | W.Actual_entry entry -> O.entry_lines book entry
   | W.Scheduled_plan plan -> O.plan_lines book plan
 
-let calendar_rows state =
+let calendar_rows ?(width = 80) state =
   let calendar = state.workspace.calendar and book = state.session.book in
+  let actuals = B.entries book and scheduled = B.open_plans book in
   let count prefix =
-    List.length
-      (List.filter (fun (e : B.entry) -> String.starts_with ~prefix e.day) (B.entries book))
+    ( List.length (List.filter (fun (e : B.entry) -> String.starts_with ~prefix e.day) actuals),
+      List.length (List.filter (fun (p : B.plan) -> String.starts_with ~prefix p.day) scheduled) )
+  in
+  let cell width value = value ^ String.make (max 0 (width - String.length value)) ' ' in
+  let today = F.today () in
+  let names =
+    [| "Jan"; "Feb"; "Mar"; "Apr"; "May"; "Jun"; "Jul"; "Aug"; "Sep"; "Oct"; "Nov"; "Dec" |]
   in
   match calendar.Cal.zoom with
   | Cal.Day ->
+      let room = max 0 (width - 6) in
+      let compact = room < 49 in
+      let cell_width = if room >= 49 then 7 else if room >= 35 then 5 else 3 in
       let slots = get (Cal.month_slots calendar.selected_day) in
       let rec weeks = function
         | [] -> []
@@ -636,55 +654,58 @@ let calendar_rows state =
             let dates =
               List.map
                 (function
-                  | None -> "      "
+                  | None -> String.make cell_width ' '
                   | Some day ->
+                      let actual, planned = count day in
                       let dd = String.sub day 8 2 in
-                      if day = calendar.selected_day then "[" ^ dd ^ "]  "
-                      else " " ^ dd ^ if day = F.today () then "*  " else "   ")
-                week
-            in
-            let marks =
-              List.map
-                (function
-                  | None -> "      "
-                  | Some day ->
-                      let actual = count day in
-                      let planned =
-                        List.length
-                          (List.filter (fun (p : B.plan) -> p.day = day) (B.open_plans book))
+                      let chosen = day = calendar.selected_day in
+                      let label = if chosen then "[" ^ dd ^ "]" else if compact then dd else " " ^ dd in
+                      let today_mark =
+                        if day = today && (not chosen || room >= (7 * cell_width) + 2) then "*"
+                        else if compact && chosen then "" else " "
                       in
-                      if actual = 0 && planned = 0 then "      "
-                      else
-                        let text = Printf.sprintf "A%d S%d" actual planned in
-                        if String.length text > 6 then "more  "
-                        else text ^ String.make (6 - String.length text) ' ')
+                      cell cell_width
+                        (label ^ today_mark
+                         ^ (if compact then "" else (if actual > 0 then "a" else " ") ^ (if planned > 0 then "s" else " "))))
                 week
             in
-            String.concat "" dates :: String.concat "" marks :: weeks rest
+            String.concat "" dates :: weeks rest
       in
-      [ String.sub calendar.selected_day 0 7; tr " Mon   Tue   Wed   Thu   Fri   Sat   Sun" ]
+      if room < 22 then
+        [ "[" ^ String.sub calendar.selected_day 8 2 ^ "] " ^ calendar.selected_day ]
+      else
+      [ String.concat "" (List.map (cell cell_width)
+            (if cell_width = 3 then [ "Mo"; "Tu"; "We"; "Th"; "Fr"; "Sa"; "Su" ]
+             else [ "Mon"; "Tue"; "Wed"; "Thu"; "Fri"; "Sat"; "Sun" ])) ]
       @ weeks slots
-      @ [
-          tr "[ ] selected; * today; A Actual; S open Scheduled";
-          tr "Income / expense flow unavailable: classification not supplied.";
-        ]
+      @ [ tr (if compact then "[ ] selected   * today" else "a Actual   s open Scheduled   * today") ]
   | Cal.Month ->
       let year = String.sub calendar.selected_day 0 4 in
-      let names =
-        [| "Jan"; "Feb"; "Mar"; "Apr"; "May"; "Jun"; "Jul"; "Aug"; "Sep"; "Oct"; "Nov"; "Dec" |]
-      in
-      List.init 12 (fun i ->
-          let prefix = Printf.sprintf "%s-%02d" year (i + 1) in
-          Printf.sprintf "%s%02d %s  %d Actual"
-            (if String.starts_with ~prefix calendar.selected_day then "> " else "  ")
-            (i + 1) names.(i) (count prefix))
+      if width < 64 then
+        List.init 12 (fun i ->
+            let prefix = Printf.sprintf "%s-%02d" year (i + 1) in
+            let actual, planned = count prefix in
+            Printf.sprintf "%s%02d %s    A%d S%d"
+              (if String.starts_with ~prefix calendar.selected_day then "> " else "  ")
+              (i + 1) names.(i) actual planned)
+      else List.init 4 (fun quarter ->
+          List.init 3 (fun column ->
+              let i = (quarter * 3) + column in
+              let prefix = Printf.sprintf "%s-%02d" year (i + 1) in
+              let actual, planned = count prefix in
+              let label = Printf.sprintf "%02d %s" (i + 1) names.(i) in
+              let label = if String.starts_with ~prefix calendar.selected_day then "[" ^ label ^ "]" else " " ^ label ^ " " in
+              cell 19 (Printf.sprintf "%s A%d S%d" label actual planned))
+          |> String.concat "")
+      @ [ ""; tr "A Actual   S open Scheduled" ]
   | Cal.Year ->
       let year = int_of_string (String.sub calendar.selected_day 0 4) in
       List.init 5 (fun i -> year + i - 2)
       |> List.filter (fun y -> y >= 1 && y <= 9999)
       |> List.map (fun y ->
           let prefix = Printf.sprintf "%04d" y in
-          Printf.sprintf "%s%s  %d Actual" (if y = year then "> " else "  ") prefix (count prefix))
+          let actual, planned = count prefix in
+          Printf.sprintf "%s%s    A%d  S%d" (if y = year then "> " else "  ") prefix actual planned)
 
 let balances state =
   List.concat_map
@@ -785,6 +806,7 @@ let pace_lines state =
               @ [ tr "Current evidence; not a historical Trend or spending permission." ]))
 
 let workspace_rows ~width_of ~width ~height state =
+  let draw_frame = frame in
   let book = state.session.book and workspace = state.workspace in
   let rows = W.rows ~book workspace in
   let titles = List.map (row_title book) rows in
@@ -800,41 +822,67 @@ let workspace_rows ~width_of ~width ~height state =
   let frame ?(width = width) ~focused ~title ~scroll ~selected rows =
     frame ~width_of ~width ~height ~focused ~title ~scroll ~selected rows
   in
-  if workspace.route = W.Home && workspace.pane = W.Calendar then
-    let calendar = calendar_rows state in
-    let selected =
-      if workspace.calendar.zoom = Cal.Day then None
-      else
-        Some
-          (match workspace.calendar.zoom with
-          | Cal.Month -> int_of_string (String.sub workspace.calendar.selected_day 5 2) - 1
-          | Cal.Year -> min 2 (int_of_string (String.sub workspace.calendar.selected_day 0 4) - 1)
-          | Cal.Day -> 0)
+  if workspace.route = W.Home then
+    let calendar_focused = workspace.pane = W.Calendar in
+    let detail =
+      let actual = List.length (List.filter (function W.Actual_entry _ -> true | _ -> false) rows) in
+      let scheduled = List.length rows - actual in
+      Printf.sprintf "Actual %d   Open Scheduled %d" actual scheduled
+      :: (if titles = [] then [ tr "No records in this period." ] else titles)
+      @ [ tr "Flow unavailable: classification not supplied." ]
     in
-    let calendar_scroll =
-      if state.scroll <> 0 || workspace.calendar.zoom <> Cal.Day then state.scroll
-      else
-        let first = String.sub workspace.calendar.selected_day 0 8 ^ "01" in
-        let index =
-          (get (Cal.weekday first)
-          + int_of_string (String.sub workspace.calendar.selected_day 8 2)
-          - 1)
-          / 7
-        in
-        max 0 (2 + (index * 2) - max 1 (height - 2) + 1)
+    let period =
+      let n = match workspace.calendar.zoom with Cal.Day -> 10 | Cal.Month -> 7 | Cal.Year -> 4 in
+      String.sub workspace.calendar.selected_day 0 n
     in
+    let calendar_frame ~width ~height =
+      let calendar = calendar_rows ~width state in
+      let selected = match workspace.calendar.zoom with
+        | Cal.Month when width < 64 -> Some (int_of_string (String.sub workspace.calendar.selected_day 5 2) - 1)
+        | Cal.Year -> Some (min 2 (int_of_string (String.sub workspace.calendar.selected_day 0 4) - 1))
+        | Cal.Day | Cal.Month -> None
+      in
+      let scroll =
+        if workspace.calendar.zoom <> Cal.Day || state.scroll <> 0 then state.scroll
+        else
+          let first = String.sub workspace.calendar.selected_day 0 8 ^ "01" in
+          let week =
+            (get (Cal.weekday first) + int_of_string (String.sub workspace.calendar.selected_day 8 2) - 1) / 7
+          in
+          max 0 (1 + week - max 1 (height - 2) + 1)
+      in
+      let result = draw_frame ~width_of ~width ~height ~focused:calendar_focused
+          ~title:("Calendar / " ^ String.sub workspace.calendar.selected_day 0 (if workspace.calendar.zoom = Cal.Day then 7 else 4))
+          ~scroll ~selected calendar in
+      let marker = "[" ^ String.sub workspace.calendar.selected_day 8 2 ^ "]" in
+      List.map (fun (style, text) ->
+          if calendar_focused && workspace.calendar.zoom = Cal.Day && style = Plain
+             && Base.String.is_substring text ~substring:marker
+          then (Calendar_dates, text) else (style, text)) result
+    in
+    let detail_frame ~width ~height =
+      draw_frame ~width_of ~width ~height ~focused:(not calendar_focused)
+        ~title:("Detail / " ^ period) ~scroll:0
+        ~selected:(if rows = [] then None else Some ((W.browser workspace).selected + 1)) detail
+    in
+    let pad rows = rows @ List.init (max 0 (height - List.length rows)) (fun _ -> (Plain, "")) in
     if width >= 120 then
-      let right = min 72 (max 50 (width * 36 / 100)) in
-      let left = width - right - 1 in
-      let left_rows =
-        frame ~width:left ~focused:true ~title:"Calendar" ~scroll:calendar_scroll ~selected calendar
-      in
-      let right_rows =
-        frame ~width:right ~focused:false ~title:"Detail" ~scroll:0
-          ~selected:(Some (W.browser workspace).selected) titles
-      in
-      List.map2 (fun (style, left) (_, right) -> (style, left ^ " " ^ right)) left_rows right_rows
-    else frame ~focused:true ~title:"Calendar" ~scroll:calendar_scroll ~selected calendar
+      let left = 64 and right = width - 65 in
+      let natural = List.length (calendar_rows ~width:left state) + 2 in
+      let pane_height = min height (max natural (min 12 (List.length detail + 2))) in
+      let left_rows = calendar_frame ~width:left ~height:pane_height in
+      let right_rows = detail_frame ~width:right ~height:pane_height in
+      pad (List.map2 (fun (style, left_text) (right_style, right_text) ->
+          (Columns (left, style, right_style), left_text ^ " " ^ right_text)) left_rows right_rows)
+    else
+      let natural = List.length (calendar_rows ~width state) + 2 in
+      if width >= 72 && height >= natural + 6 then
+        let calendar_height = natural in
+        calendar_frame ~width ~height:calendar_height
+        @ [ (Plain, "") ]
+        @ detail_frame ~width ~height:(height - calendar_height - 1)
+      else if calendar_focused then calendar_frame ~width ~height
+      else detail_frame ~width ~height
   else if workspace.route = W.Balances then
     let lines = balance_lines state in
     if workspace.pane = W.Detail then
@@ -876,13 +924,16 @@ let footer state =
   match (state.workspace.W.route, state.workspace.pane) with
   | W.Home, W.Calendar ->
       [
-        "h/l previous/next  k/j week/quarter  z zoom  t today  / jump";
-        "Tab/w Detail  r Record  a Actual  s Scheduled  b Balances  d Pace  Space Commands  q quit";
+        (match state.workspace.calendar.zoom with
+         | Cal.Day -> "h/l day  j/k week  Enter open  z zoom  / jump  t today"
+         | Cal.Month -> "h/l month  j/k quarter  Enter days  z zoom  / jump  t today"
+         | Cal.Year -> "h/l/j/k year  Enter months  z zoom  / jump  t today");
+        "q quit  Tab/w Detail  r Record  Space Commands  a/s/b/d views";
       ]
   | W.Home, W.Detail ->
       [
-        "j/k select  Enter Selected Day  Tab/w/Esc/q Calendar";
-        "r Record  a Actual  s Scheduled  b Balances  d Pace  Space Commands";
+        "q/Esc Calendar  j/k select  Enter Selected Day  Tab/w pane";
+        "r Record  Space Commands  a/s/b/d views";
       ]
   | W.Scheduled, W.Calendar ->
       [
@@ -906,25 +957,38 @@ let footer state =
         "j/k scroll  Page Up/Down page  Home/End range"; "q/Esc back  Space Commands  Ctrl-r reload";
       ]
 
-let screen ?(width_of = String.length) ((width, height) as dimensions) state =
+let rec screen ?(width_of = String.length) ((width, height) as dimensions) state =
   let feedback = feedback_lines ~dimensions ~width_of state in
   let usable = max 0 (height - List.length feedback) in
   if state.record_visible then
     match state.record with
     | Some record ->
-        let rows = S.screen ~book:state.session.book ~dimensions:(width, usable) ~width_of record in
-        let body = List.filteri (fun i _ -> i < max 0 (usable - 2)) rows in
-        let help = List.filteri (fun i _ -> i >= max 0 (usable - 2)) rows in
-        body @ feedback @ help
+        let pane_dimensions = record_dimensions ~dimensions ~width_of state in
+        let rows = S.screen ~book:state.session.book ~dimensions:pane_dimensions ~width_of record in
+        let pane_height = snd pane_dimensions in
+        let body = List.filteri (fun i _ -> i < max 0 (pane_height - 2)) rows in
+        let help = List.filteri (fun i _ -> i >= max 0 (pane_height - 2)) rows in
+        if pane_dimensions = (width, usable) then body @ feedback @ help
+        else
+          let parent = screen ~width_of dimensions { state with record_visible = false } in
+          List.filteri (fun i _ -> i < max 0 (height - 2)) parent
+          @ List.map (fun (style, text) -> line ~width_of width style text) help
     | None -> List.init height (fun _ -> (Plain, ""))
   else
     let body_height = max 0 (height - List.length feedback - 2) in
     let headers =
       [
-        line ~width_of width Heading (tr "Bakhlo Home / Calendar");
+        line ~width_of width Heading
+          (tr "Bakhlo" ^ "  /  " ^ (match state.workspace.route with
+           | W.Home -> tr "Home"
+           | W.Actual -> tr "Actual"
+           | W.Scheduled -> tr "Scheduled"
+           | W.Selected_day _ -> tr "Selected Day"
+           | W.Balances -> tr "Balances"
+           | W.Daily_pace -> tr "Daily Pace"));
         line ~width_of width Chrome
-          ("Focus: " ^ state.workspace.calendar.selected_day ^ "   View: "
-          ^ Cal.title state.workspace.calendar
+          (state.workspace.calendar.selected_day ^ "   "
+          ^ Cal.title state.workspace.calendar ^ tr " view"
           ^ if has_record_draft state then "   Draft retained" else "");
       ]
     in
@@ -936,7 +1000,20 @@ let screen ?(width_of = String.length) ((width, height) as dimensions) state =
 
 let overlay_screen ~dimensions ~width_of state =
   let width, height = body_dimensions ~dimensions ~width_of state in
-  if state.overlay = No_overlay || width < 8 || height < 3 then None
+  if state.record_visible then
+    match state.record with
+    | None -> None
+    | Some record ->
+        let pane_dimensions = record_dimensions ~dimensions ~width_of state in
+        let available = (width, height + 2) in
+        if pane_dimensions = available then None
+        else
+          Some
+            (S.screen ~book:state.session.book ~dimensions:pane_dimensions ~width_of record
+            |> List.filteri (fun i _ -> i < max 0 (snd pane_dimensions - 2))
+            |> List.map (fun (style, text) ->
+                   (style, O.pad ~width_of (fst pane_dimensions) text)))
+  else if state.overlay = No_overlay || width < 8 || height < 3 then None
   else
     let width = min 54 (max 8 (width - 4)) in
     let title, rows, selected =
@@ -954,4 +1031,9 @@ let overlay_screen ~dimensions ~width_of state =
 
 let overlay_position ~dimensions ~width_of state ~pane_width ~pane_height =
   let width, height = body_dimensions ~dimensions ~width_of state in
-  (max 0 ((width - pane_width) / 2), max 0 ((height - pane_height) / 2))
+  let top =
+    if state.record_visible && height - pane_height >= 2 then
+      2 + max 0 ((height - 2 - pane_height) / 2)
+    else max 0 ((height - pane_height) / 2)
+  in
+  (max 0 ((width - pane_width) / 2), top)

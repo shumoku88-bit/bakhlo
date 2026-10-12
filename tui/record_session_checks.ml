@@ -4,6 +4,7 @@ module B = Bakhlo_sexp.Daily_book
 module A = Daily_actions
 module S = Record_session
 module D = Bakhlo_domain
+module O = Daily_overlays
 
 let require condition cause = if not condition then failwith cause
 let get = function Ok x -> x | Error why -> failwith why
@@ -95,7 +96,7 @@ let self_check ~width_of () =
       |> fun t -> key t `Enter in
   require (contains unbalanced "unbalanced" && not (contains unbalanced "Record / Preview")) "exact-unbalanced-refusal";
   let huge=String.make 70 '9' in
-  let huge_review=prepare ~amount:huge () |> fun t -> key t `Enter in
+  let huge_review=prepare ~amount:huge () |> fun t -> key t `Enter |> fun t -> key t `End in
   (match handle huge_review (`Key (`Enter,[])) with
    | S.Publish (tx,_,_) -> require (Z.equal (List.nth (List.map A.quanta tx.entry.effects) 1) (Z.of_string huge)) "huge-exact-quantity"
    | _ -> failwith "huge-review-is-not-partial-number");
@@ -118,6 +119,46 @@ let self_check ~width_of () =
    | _ -> failwith "scheduled-completion-preview");
   require (Result.is_error (S.of_plan ~book {plan with paid_by=Some "already"})) "completed-plan-refused";
   require (Result.is_error (S.of_plan ~book {plan with cancelled_on=Some "2026-10-10"})) "cancelled-plan-refused";
+  require (S.surface_dimensions (80,23)=(72,20)) "record-bounded-floating-surface";
+  require (S.surface_dimensions (140,39)=(76,24)) "record-large-surface-bounded";
+  require (S.surface_dimensions (48,13)=(48,13)
+    && S.surface_dimensions (32,8)=(32,8)) "record-compact-full-surface";
+  require (S.border_intent (create ())=`Create && S.border_intent edit=`Change
+    && S.border_intent (get (S.of_plan ~book plan))=`Change) "record-border-semantic-intent";
+  let cancel_review=key (key review `Tab) `Tab in
+  require (S.border_intent cancel_review=`Cancel) "record-cancel-border-is-local-action";
+  let long_description=String.concat "" (List.init 24 (fun _->"長い説明")) ^ "終端" in
+  let long_input=text (create ()) long_description in
+  List.iter (fun dimensions ->
+    let rows=screen ~dimensions long_input in
+    require (List.exists (fun (_,line)->Base.String.is_substring line ~substring:"終端|") rows)
+      "record-active-caret-tail-visible-in-compact-pane") [32,8;48,13;72,20];
+  let literal_bar=text (create ()) "a|b" in
+  require (List.filter_map (fun (style,_) -> match style with O.Input cell->Some cell | _->None)
+    (screen ~dimensions:(72,20) literal_bar)=[18]) "record-literal-bar-is-not-a-second-caret";
+  let compact_focus=update draft (`Key (`Tab,[`Shift])) in
+  require (List.exists (fun (_,line)->Base.String.is_substring line ~substring:"|")
+    (screen ~dimensions:(32,8) compact_focus)) "record-low-viewport-follows-field-focus";
+  let short_notice=S.with_notice draft "Input retained." in
+  require (List.length (screen draft)=List.length (screen short_notice))
+    "record-short-feedback-keeps-geometry";
+  let many_rows=ctrl (ctrl (ctrl draft 'n') 'n') 'n' in
+  require (List.exists (fun (_,line)->Base.String.is_substring line ~substring:"Posting 5")
+    (screen ~dimensions:(32,8) many_rows)) "record-added-row-remains-visible";
+  let overflow=prepare ~amount:huge ~description:long_description () |> fun t->key t `Enter in
+  (match handle ~dimensions:(72,20) overflow (`Key (`Enter,[])) with
+   | S.Updated retained -> require (contains retained "Review to the end") "overflow-explicit-end-gate"
+   | S.Publish _|S.Closed _ -> failwith "unreviewed-overflow-published");
+  let ended=match handle ~dimensions:(72,20) overflow (`Key (`End,[])) with
+    | S.Updated t->t | _->failwith "review-end-navigation" in
+  (match handle ~dimensions:(72,20) ended (`Key (`Enter,[])) with
+   | S.Publish (next,_,_) -> require (next.entry.memo=Some long_description) "ended-review-retains-whole-payload"
+   | _->failwith "full-sized-ended-review-not-publishable");
+  let compact_end=match handle ~dimensions:(48,13) ended (`Key (`End,[])) with
+    | S.Updated t->t | _->failwith "compact-review-end" in
+  (match handle ~dimensions:(48,13) compact_end (`Key (`Enter,[])) with
+   | S.Updated retained -> require (contains retained "enlarge") "compact-full-preview-refused"
+   | S.Publish _|S.Closed _ -> failwith "compact-end-bypassed-full-preview-gate");
   let keyed={tx.entry with id="keyed-edit";
     effects=List.mapi (fun n posting ->
       D.Effect.create ~key:(Some (get (match D.Identifier.Effect_key.of_string ("key-"^string_of_int n) with
@@ -139,5 +180,5 @@ let self_check ~width_of () =
       require (List.length rows<=snd dimensions) "record-bounded-height";
       require (List.for_all (fun (_,line) -> width_of line<=fst dimensions) rows) "record-bounded-cell-width")
       [draft;review;S.with_notice review (String.concat "" (List.init 20 (fun _ -> "Long refusal 日本語 ")))])
-    [48,14;80,24;140,40;24,8];
+    [32,8;48,13;48,14;72,20;80,24;140,40;24,8];
   require (B.to_string book=before) "record-checks-leave-book-unchanged"
