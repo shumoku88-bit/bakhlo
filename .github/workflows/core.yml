@@ -1,0 +1,39 @@
+name: Core build and tests
+
+on:
+  pull_request:
+    paths:
+      - "lib/**"
+      - "application/**"
+      - "sexp/**"
+      - "text/**"
+      - "loam_read/**"
+      - "presentation/**"
+      - "cli/**"
+      - "bin/**"
+      - "test/**"
+      - "examples/**"
+      - "dune*"
+      - "bakhlo.opam*"
+      - ".github/workflows/core.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "5.3.0"
+          opam-pin: false
+          dune-cache: false
+      - name: Install existing locked test dependencies
+        run: opam install . --deps-only --with-test --locked -y
+      - name: Build
+        run: opam exec -- dune build
+      - name: Contract and regression tests
+        run: opam exec -- dune runtest

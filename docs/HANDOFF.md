@@ -118,6 +118,13 @@ for current keys and recovery commands.
 
 ## Storage and unresolved safety
 
+`Bakhlo_sexp.Year_read` adds an opt-in annual validation boundary only; see
+[YEAR_READ_BOUNDARY.ja.md](YEAR_READ_BOUNDARY.ja.md). Its authoritative verified
+selection source has no production implementation. It checks original bytes and
+Core admission, derives opaque prior-year carry, and rejects stale/mixed inputs.
+It does not synthesize current balances, persist annual data or alter default
+single-S-expression operation. Do not advertise it as a usable annual store.
+
 Monolithic publication performs full admission/printer checks, cooperative writer
 locking, expected-base comparisons, synced attempt/pending/pre-edit backup writes,
 selected rename and readback. Remaining/malformed/nonregular attempt/pending
