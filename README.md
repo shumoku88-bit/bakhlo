@@ -101,6 +101,8 @@ Bakhloはまだ実運用前なので、旧UIとの互換性を維持するため
 - `lib/`：識別子・金額・取引の小さな型。
 - `application/`：検査と数量の問い合わせ。
 - `sexp/`：既存Bookと、新しい `Daily_book` の純粋な読取・更新。
+  `Year_read` は[年度版の検証境界](docs/YEAR_READ_BOUNDARY.ja.md)のみ。
+  信頼できる選択状態の実供給源は未実装で、本番用の年度別読込・保存ではない。
 - `tui/`：Bonsai_termの英語UI、共有の操作・表示と、明示的なファイル入出力。
 - `cli/`、`presentation/`、`bin/`：引数・表示・入出力。
 - `loam_read/`：限定された読み取り専用LOAM入力。完全な移行アダプタではない。
