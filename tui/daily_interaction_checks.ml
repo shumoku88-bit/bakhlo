@@ -8,6 +8,7 @@ module M = Ui_commands
 module S = Record_session
 module P = Ui_preferences
 module Att = Attention_data
+module Roles = Locus_roles
 
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
@@ -684,6 +685,53 @@ let self_check ~width_of () =
   require (List.length (C.open_attentions resolved_state) = 0) "attention-item-resolved";
   let back_home = key ~width_of resolved_state (`ASCII 'q') in
   require (back_home.workspace.route = W.Home) "attention-q-back-to-home";
+  (* Manage Loci workflow verification *)
+  let current_home = C.initial ~config_home:directory (F.load path) in
+  let loci_state = C.open_route current_home W.Loci in
+  require (loci_state.workspace.route = W.Loci) "open-route-loci";
+  let loci_modal_add = key ~width_of loci_state (`ASCII 'n') in
+  require (C.is_admit_locus loci_modal_add.overlay) "loci-n-opens-admit-form";
+  let admit_form_ready =
+    match loci_modal_add.overlay with
+    | C.Modal_form f ->
+        let f2 = Ui_form.set_text f "token" "metro" in
+        let f3 = Ui_form.set_choice f2 "role" 1 in (* Asset *)
+        let f4 = Ui_form.set_focused f3 2 in (* focus confirm button *)
+        { loci_modal_add with overlay = C.Modal_form f4 }
+    | _ -> failwith "expected modal form for admit locus"
+  in
+  let admitted_state = key ~width_of admit_form_ready `Enter in
+  require (admitted_state.overlay = C.No_overlay) "admit-locus-submitted";
+  let all_loci = C.admitted_loci admitted_state in
+  require (List.mem "metro" all_loci) "admitted-locus-present-in-catalog";
+  let roles_after = C.accounting_roles admitted_state in
+  require (List.assoc_opt "metro" roles_after = Some Roles.Asset) "admitted-locus-has-asset-role";
+  let sel_idx =
+    let rec find i = function
+      | [] -> 0
+      | x :: rest -> if x = "metro" then i else find (i + 1) rest
+    in
+    find 0 all_loci
+  in
+  let state_on_metro =
+    { admitted_state with workspace = { admitted_state.workspace with loci = { admitted_state.workspace.loci with selected = sel_idx } } }
+  in
+  let role_modal = key ~width_of state_on_metro (`ASCII 'r') in
+  require (C.is_set_locus_role role_modal.overlay) "loci-r-opens-set-role-form";
+  let role_form_ready =
+    match role_modal.overlay with
+    | C.Modal_form f ->
+        let f2 = Ui_form.set_choice f "role" 5 in (* Expense *)
+        let f3 = Ui_form.set_focused f2 1 in (* focus confirm button *)
+        { role_modal with overlay = C.Modal_form f3 }
+    | _ -> failwith "expected modal form for set locus role"
+  in
+  let updated_role_state = key ~width_of role_form_ready `Enter in
+  require (updated_role_state.overlay = C.No_overlay) "set-locus-role-submitted";
+  let roles_final = C.accounting_roles updated_role_state in
+  require (List.assoc_opt "metro" roles_final = Some Roles.Expense) "locus-role-updated-to-expense";
+  let loci_back = key ~width_of updated_role_state (`ASCII 'q') in
+  require (loci_back.workspace.route = W.Home) "loci-q-back-to-home";
   print_endline
     "PASS: English Calendar / Commands / Record / child navigation / exact cold save and safety \
      guards.";

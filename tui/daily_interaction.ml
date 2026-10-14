@@ -11,6 +11,7 @@ module M = Ui_commands
 module S = Record_session
 module Form = Ui_form
 module Att = Attention_data
+module Roles = Locus_roles
 
 let tr = Ui_text.tr
 let get = A.get
@@ -59,6 +60,14 @@ let is_resolve_attention = function
 
 let is_drop_attention = function
   | Modal_form f when Form.id f = "drop_attention" -> true
+  | _ -> false
+
+let is_admit_locus = function
+  | Modal_form f when Form.id f = "admit_locus" -> true
+  | _ -> false
+
+let is_set_locus_role = function
+  | Modal_form f when Form.id f = "set_locus_role" -> true
   | _ -> false
 
 type state = {
@@ -505,6 +514,7 @@ let open_command state = function
   | M.Balances -> open_route state W.Balances
   | M.Daily_pace -> open_route state W.Daily_pace
   | M.Attention -> open_route state W.Attention
+  | M.Manage_loci -> open_route state W.Loci
   | M.Home -> open_route state W.Home
   | M.Calendar -> open_route state W.Calendar
   | M.Theme ->
@@ -554,6 +564,91 @@ let balance_items state =
 let balance_lines state =
   let items = balance_items state in
   List.map (O.balance_item_line ~book:state.session.book) items
+
+let admitted_loci state =
+  let book = state.session.book in
+  match B.approved_loci book with
+  | Some loci when loci <> [] -> loci
+  | _ ->
+      let from_entries =
+        List.concat_map
+          (fun (e : B.entry) ->
+            List.map (fun p -> A.lstr (D.Effect.locus p)) e.effects)
+          (B.entries book)
+      in
+      let from_plans =
+        List.concat_map
+          (fun (p : B.plan) -> List.map fst p.changes)
+          (B.plans book)
+      in
+      List.sort_uniq String.compare (from_entries @ from_plans)
+
+let selected_locus state =
+  let loci = admitted_loci state in
+  let sel = state.workspace.loci.selected in
+  List.nth_opt loci sel
+
+let move_locus state delta =
+  let loci = admitted_loci state in
+  let count = List.length loci in
+  if count = 0 then state
+  else
+    let current = state.workspace.loci.selected in
+    let last = count - 1 in
+    let selected = max 0 (min last (current + delta)) in
+    { state with workspace = { state.workspace with loci = { state.workspace.loci with selected } } }
+
+let role_option_strings =
+  [ "(None / Unassigned)"; "Asset"; "Liability"; "Equity"; "Income"; "Expense" ]
+
+let role_of_index = function
+  | 1 -> Some Roles.Asset
+  | 2 -> Some Roles.Liability
+  | 3 -> Some Roles.Equity
+  | 4 -> Some Roles.Income
+  | 5 -> Some Roles.Expense
+  | _ -> None
+
+let index_of_role = function
+  | Some Roles.Asset -> 1
+  | Some Roles.Liability -> 2
+  | Some Roles.Equity -> 3
+  | Some Roles.Income -> 4
+  | Some Roles.Expense -> 5
+  | None -> 0
+
+let admit_locus_form ~count =
+  Form.create
+    ~id:"admit_locus"
+    ~title:"Admit New Locus"
+    ~summary:[
+      Printf.sprintf "Currently admitted: %d loci" count;
+      "Admission establishes an approved coordinate token in the book.";
+      "Accounting role can be assigned immediately or configured later.";
+    ]
+    ~fields:[
+      Form.text_field ~id:"token" ~label:"Stable token" ~placeholder:"e.g. cash, wallet, grocery" ();
+      Form.choice_field ~id:"role" ~label:"Accounting Role" ~options:role_option_strings ~selected:0 ();
+      Form.action_buttons ~confirm:"Admit Locus" ~cancel:"Cancel" ();
+    ]
+    ()
+
+let set_locus_role_form ~locus ~current_role =
+  let curr_label = match current_role with None -> "None" | Some r -> Roles.role_label r in
+  Form.create
+    ~id:"set_locus_role"
+    ~payload:locus
+    ~title:("Set Accounting Role / " ^ locus)
+    ~summary:[
+      "Target Locus: " ^ locus;
+      "Current role: " ^ curr_label;
+      "Saved to accounting-roles.tsv for role-aware balance sheets and reports.";
+    ]
+    ~fields:[
+      Form.choice_field ~id:"role" ~label:"Accounting Role" ~options:role_option_strings ~selected:(index_of_role current_role) ();
+      Form.action_buttons ~confirm:"Save Role" ~cancel:"Cancel" ();
+    ]
+    ()
 
 let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : input) =
   if state.paste_blocked then
@@ -734,6 +829,46 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                     let path = Att.file_path ?config_home:state.config_home state.session.F.path in
                     let _ = Att.save_file path updated_attention in
                     Some { state with overlay = No_overlay; attention = updated_attention; message = Printf.sprintf "Dropped %s." item_id })
+            | "admit_locus" ->
+                let token = Option.value ~default:"" (Form.get_text submitted "token") |> String.trim in
+                let role_idx = Option.value ~default:0 (Form.get_choice submitted "role") in
+                let role_opt = role_of_index role_idx in
+                if token = "" then
+                  Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter the new Locus token.")) }
+                else
+                  let res = A.commit_add_locus ~session:state.session token in
+                  (match res with
+                  | A.Refused why ->
+                      Some { state with overlay = Modal_form (Form.set_notice submitted why) }
+                  | A.Conflict | A.Conflict_base_changed ->
+                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "File changed on disk. Reload to inspect.")) }
+                  | A.Published _ | A.Idempotent_duplicate _ ->
+                      (match role_opt with
+                      | Some r ->
+                          let path = Roles.file_path ?config_home:state.config_home state.session.F.path in
+                          let roles = Roles.load_file path in
+                          let updated_roles = Roles.set_role roles token (Some r) in
+                          let _ = Roles.save_file path updated_roles in
+                          ()
+                      | None -> ());
+                      let next_state = { state with overlay = No_overlay; message = Printf.sprintf "Admitted locus %s." token } in
+                      Some (apply_commit_result next_state ~draft:next_state res)
+                  | _ ->
+                      let next_state = { state with overlay = No_overlay; message = Printf.sprintf "Admitted locus %s." token } in
+                      Some (apply_commit_result next_state ~draft:next_state res))
+            | "set_locus_role" ->
+                let locus = Form.payload submitted in
+                let role_idx = Option.value ~default:0 (Form.get_choice submitted "role") in
+                let role_opt = role_of_index role_idx in
+                let path = Roles.file_path ?config_home:state.config_home state.session.F.path in
+                let roles = Roles.load_file path in
+                let updated_roles = Roles.set_role roles locus role_opt in
+                (match Roles.save_file path updated_roles with
+                | Error why ->
+                    Some { state with overlay = Modal_form (Form.set_notice submitted why) }
+                | Ok () ->
+                    let role_str = match role_opt with None -> "None" | Some r -> Roles.role_label r in
+                    Some { state with overlay = No_overlay; message = Printf.sprintf "Set accounting role for %s to %s." locus role_str })
             | _ -> Some state))
     | No_overlay -> (
         let key = match input with `Key (key, mods) -> Some (key, mods) | _ -> None in
@@ -755,8 +890,10 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some (open_route state W.Calendar)
         | Some (`ASCII 'g', []) when state.workspace.route = W.Calendar ->
             Some (open_route state W.Home)
+        | Some (`ASCII 'g', []) when (match state.workspace.route with W.Selected_day _ -> true | _ -> false) ->
+            Some (open_route state W.Loci)
         | Some ((`Escape | `ASCII 'q'), []) ->
-            if state.workspace.route = W.Attention then
+            if state.workspace.route = W.Attention || state.workspace.route = W.Loci then
               Some (open_route state W.Home)
             else if state.workspace.route = W.Calendar then
               if state.workspace.pane = W.Detail then
@@ -813,6 +950,16 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             match selected_attention state with
             | None -> Some { state with message = tr "No attention item selected to drop." }
             | Some item -> Some { state with overlay = Modal_form (drop_attention_form ~today:(F.today ()) item) })
+        | Some (`ASCII 'n', []) when state.workspace.route = W.Loci ->
+            let count = List.length (admitted_loci state) in
+            Some { state with overlay = Modal_form (admit_locus_form ~count) }
+        | Some (`ASCII 'r', []) when state.workspace.route = W.Loci -> (
+            match selected_locus state with
+            | None -> Some { state with message = tr "No locus selected." }
+            | Some locus ->
+                let roles = accounting_roles state in
+                let current_role = List.assoc_opt locus roles in
+                Some { state with overlay = Modal_form (set_locus_role_form ~locus ~current_role) })
         | Some (`ASCII 'r', []) | Some (`ASCII 'n', [])
           when state.workspace.route = W.Scheduled ->
             Some (open_plan_record state)
@@ -890,6 +1037,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 }
             else if state.workspace.route = W.Attention then
               Some (move_attention state delta)
+            else if state.workspace.route = W.Loci then
+              Some (move_locus state delta)
             else
               Some
                 {
@@ -1253,6 +1402,7 @@ let workspace_rows ~width_of ~width ~height state =
     | W.Balances -> "Balances / Current"
     | W.Daily_pace -> "Daily Pace"
     | W.Attention -> "Attention / Household matters"
+    | W.Loci -> "Manage Loci / Admitted vocabulary"
   in
   let pad rows = rows @ List.init (max 0 (height - List.length rows)) (fun _ -> (Plain, "")) in
   let split_pane ~left_focused ~left_title ~left_scroll ~left_selected ~left_rows
@@ -1414,6 +1564,74 @@ let workspace_rows ~width_of ~width ~height state =
       ~left_rows
       ~right_focused:is_detail ~right_title
       ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail
+  else if workspace.route = W.Loci then
+    let loci = admitted_loci state in
+    let roles = accounting_roles state in
+    let left_title = Printf.sprintf "Manage Loci (%d admitted)" (List.length loci) in
+    let right_title = "Locus Detail" in
+    let locus_line locus =
+      let label = B.label book locus in
+      let role_opt = List.assoc_opt locus roles in
+      let role_tag =
+        match role_opt with
+        | Some r -> "[" ^ Roles.role_label r ^ "]"
+        | None -> "[--]"
+      in
+      if label <> "" && label <> locus then
+        Printf.sprintf "%-18s  %-12s  %s" locus role_tag label
+      else
+        Printf.sprintf "%-18s  %-12s" locus role_tag
+    in
+    let left_rows =
+      if loci = [] then [ tr "No admitted loci in this book." ]
+      else List.map locus_line loci
+    in
+    let detail =
+      match selected_locus state with
+      | None -> [ tr "No selected locus."; ""; tr "Press 'n' to admit a new coordinate token." ]
+      | Some locus ->
+          let label = B.label book locus in
+          let role_opt = List.assoc_opt locus roles in
+          let role_str = match role_opt with None -> "None / Unassigned" | Some r -> Roles.role_label r in
+          let balances =
+            List.map (fun (m, _) ->
+              let q = O.quantity ~book ~measure:m locus in
+              Printf.sprintf "  %s: %s" (String.uppercase_ascii m) q)
+              (B.measures book)
+          in
+          [
+            "Locus Token:      " ^ locus;
+            "Display Label:    " ^ (if label <> "" then label else "(same as token)");
+            "Accounting Role:  " ^ role_str;
+            "";
+            "Current Balances:";
+          ]
+          @ (if balances = [] then [ "  (no measures)" ] else balances)
+          @ [
+            "";
+            "Role Impact:";
+            (match role_opt with
+             | Some Roles.Asset -> "  Asset: Positive balance represents owned resources."
+             | Some Roles.Liability -> "  Liability: Positive balance represents debt owed."
+             | Some Roles.Equity -> "  Equity: Capital / opening balance baseline."
+             | Some Roles.Income -> "  Income: Inflow tracking for reporting."
+             | Some Roles.Expense -> "  Expense: Outflow tracking for reporting."
+             | None -> "  Unassigned: Available for general posting; excluded from role summaries.");
+            "";
+            "Actions:";
+            "  n : Admit new Locus token";
+            "  r : Set / change accounting role";
+          ]
+    in
+    let right_width = if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1 else width in
+    let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
+    let is_detail = workspace.pane = W.Detail in
+    split_pane
+      ~left_focused:(not is_detail) ~left_title ~left_scroll:0
+      ~left_selected:(if loci = [] then None else Some workspace.loci.selected)
+      ~left_rows
+      ~right_focused:is_detail ~right_title
+      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail
   else
     let is_detail = workspace.pane = W.Detail in
     let right_title =
@@ -1492,7 +1710,7 @@ let footer state =
       ]
   | W.Selected_day _, W.Calendar ->
       [
-        "j/k select  Enter/i/Tab Detail  c Correct  x Reverse  r Record";
+        "j/k select  Enter/i/Tab Detail  c Correct  x Reverse  g Loci  r Record";
         "Space Commands  q/Esc Home  Ctrl-r reload";
       ]
   | W.Balances, W.Calendar ->
@@ -1502,6 +1720,11 @@ let footer state =
   | W.Attention, _ ->
       [
         "n new  r resolve  x drop  j/k select  Enter/Tab detail";
+        "q/Esc Home  Space Commands  Ctrl-r reload";
+      ]
+  | W.Loci, _ ->
+      [
+        "n admit locus  r set role  j/k select  Enter/Tab detail";
         "q/Esc Home  Space Commands  Ctrl-r reload";
       ]
   | _, _ ->
@@ -1541,7 +1764,8 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
              | W.Selected_day _ -> tr "Selected Day"
              | W.Balances -> tr "Balances"
              | W.Daily_pace -> tr "Daily Pace"
-             | W.Attention -> tr "Attention"));
+             | W.Attention -> tr "Attention"
+             | W.Loci -> tr "Manage Loci"));
           line ~width_of width Chrome
             (state.workspace.calendar.selected_day ^ "   "
             ^ Cal.title state.workspace.calendar ^ tr " view"
