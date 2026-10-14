@@ -325,3 +325,27 @@ let render_rows t : string list =
         [""] @ rows
   in
   summary_rows @ field_rows @ notice_rows @ button_rows
+
+let cursor_offset t ~width_of : (int * int) option =
+  let summary_count =
+    if t.summary = [] then 0
+    else List.length t.summary + 1
+  in
+  let non_button_fields =
+    List.filter (fun f -> match f.kind with Buttons _ -> false | _ -> true) t.fields
+  in
+  let rec find row_idx = function
+    | [] -> None
+    | (f : field) :: rest ->
+        let global_idx = find_field_index t f.id in
+        if global_idx = t.focused then (
+          match f.kind with
+          | Text { value; _ } ->
+              let prompt = if f.label = "" then "" else f.label ^ ": " in
+              let col = width_of prompt + width_of value in
+              Some (col, summary_count + row_idx)
+          | Choice _ | Buttons _ -> None)
+        else find (row_idx + 1) rest
+  in
+  find 0 non_button_fields
+

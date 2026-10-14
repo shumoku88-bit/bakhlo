@@ -2185,3 +2185,77 @@ let overlay_position ~dimensions ~width_of state ~pane_width ~pane_height =
     else max 0 ((height - pane_height) / 2)
   in
   (max 0 ((width - pane_width) / 2), top)
+
+let cursor_position ~width_of ((width, height) as dimensions) state : (int * int) option =
+  if state.record_visible then
+    match state.record with
+    | None -> None
+    | Some record ->
+        let pane_dimensions = record_dimensions ~dimensions ~width_of state in
+        let rows = S.screen ~book:state.session.book ~dimensions:pane_dimensions ~width_of record in
+        let body_w, body_h = body_dimensions ~dimensions ~width_of state in
+        let available = (body_w, body_h + 2) in
+        let rec find_input row_idx = function
+          | [] -> None
+          | (Input caret, _) :: _ -> Some (caret, row_idx)
+          | _ :: rest -> find_input (row_idx + 1) rest
+        in
+        match find_input 0 rows with
+        | None -> None
+        | Some (caret, row_idx) ->
+            if pane_dimensions = available then
+              if caret < width && row_idx < height then Some (caret, row_idx) else None
+            else
+              let left, top =
+                overlay_position ~dimensions ~width_of state
+                  ~pane_width:(fst pane_dimensions) ~pane_height:(snd pane_dimensions)
+              in
+              let col = left + caret in
+              let row = top + row_idx in
+              if col < width && row < height then Some (col, row) else None
+  else
+    match state.overlay with
+    | Modal_form form -> (
+        match Form.cursor_offset form ~width_of with
+        | None -> None
+        | Some (col_off, row_off) ->
+            let max_w = 64 in
+            let body_w, body_h = body_dimensions ~dimensions ~width_of state in
+            let pane_w = min max_w (max 8 (body_w - 4)) in
+            let rows = Form.render_rows form in
+            let pane_h = min body_h (max 5 (List.length rows + 2)) in
+            let left, top =
+              overlay_position ~dimensions ~width_of state ~pane_width:pane_w
+                ~pane_height:pane_h
+            in
+            let col = left + 4 + col_off in
+            let row = top + 1 + row_off in
+            let capacity = max 0 (pane_h - 2) in
+            if row_off < capacity && col < width && row < height then Some (col, row)
+            else None)
+    | Jump value ->
+        let max_w = 54 in
+        let body_w, body_h = body_dimensions ~dimensions ~width_of state in
+        let pane_w = min max_w (max 8 (body_w - 4)) in
+        let rows = [ value ^ "|"; tr "Enter apply; Esc cancel" ] in
+        let pane_h = min body_h (max 5 (List.length rows + 2)) in
+        let left, top =
+          overlay_position ~dimensions ~width_of state ~pane_width:pane_w ~pane_height:pane_h
+        in
+        let col = left + 4 + width_of value in
+        let row = top + 1 in
+        if col < width && row < height then Some (col, row) else None
+    | Search value ->
+        let max_w = 54 in
+        let body_w, body_h = body_dimensions ~dimensions ~width_of state in
+        let pane_w = min max_w (max 8 (body_w - 4)) in
+        let rows = [ value ^ "|"; tr "Enter apply; Esc clear" ] in
+        let pane_h = min body_h (max 5 (List.length rows + 2)) in
+        let left, top =
+          overlay_position ~dimensions ~width_of state ~pane_width:pane_w ~pane_height:pane_h
+        in
+        let col = left + 4 + width_of value in
+        let row = top + 1 in
+        if col < width && row < height then Some (col, row) else None
+    | No_overlay | Commands _ | Themes _ -> None
+

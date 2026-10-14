@@ -659,6 +659,22 @@ let self_check ~width_of () =
   let rows = Ui_form.render_rows form in
   require (List.length rows > 3) "form-render-rows-count";
   require (List.mem "Line 1 summary" rows) "form-render-summary";
+  (* Common IME cursor offset verification on Ui_form *)
+  let cursor_initial = Ui_form.cursor_offset form ~width_of in
+  (* summary: 3 lines ("Line 1 summary", "Line 2 summary", "") -> summary_count = 3 *)
+  (* memo field: label="Memo: " (6), value="initial" (7) -> col = 13, row = 3 *)
+  require (cursor_initial = Some (13, 3)) "form-cursor-initial-text";
+  (* Unicode Japanese text width check: "メモ" (4) + ": " (2) + "昼食代" (6) = 12 *)
+  let form_ja = Ui_form.create ~id:"ja_form" ~title:"Japanese"
+    ~fields:[ Ui_form.text_field ~id:"memo" ~label:"メモ" ~value:"昼食代" () ] () in
+  let cursor_ja = Ui_form.cursor_offset form_ja ~width_of in
+  require (cursor_ja = Some (12, 0)) "form-cursor-japanese-fullwidth";
+  (* Choice field focused -> None (no floating cursor/IME window) *)
+  let cursor_choice = Ui_form.cursor_offset f_tab1 ~width_of in
+  require (cursor_choice = None) "form-cursor-choice-none";
+  (* Buttons field focused -> None *)
+  let cursor_btn = Ui_form.cursor_offset f_tab2 ~width_of in
+  require (cursor_btn = None) "form-cursor-buttons-none";
   (* Attention workflow verification *)
   let att_state = key ~width_of home (`ASCII 'i') in
   require (att_state.workspace.route = W.Attention) "home-i-opens-attention";
@@ -883,6 +899,37 @@ let self_check ~width_of () =
   (* Disk persistence verify *)
   let stl_file = Stl.load_file (Stl.file_path ~config_home:directory path) in
   require (List.length stl_file.rows = 1) "settlements-persisted-to-file";
+  (* Common hardware cursor position & IME anchor verification across UI *)
+  (* 1. Home workspace (browse mode) -> None (cursor hidden) *)
+  require (C.cursor_position ~width_of (80, 24) home = None) "cursor-hidden-on-home";
+  (* 2. Modal form active on text field -> Some (col, row) *)
+  let form_ja_state = { home with overlay = C.Modal_form form_ja } in
+  (match C.cursor_position ~width_of (80, 24) form_ja_state with
+   | Some (col, row) ->
+       require (col > 0 && col < 80) "cursor-modal-col-bounded";
+       require (row > 0 && row < 24) "cursor-modal-row-bounded"
+   | None -> failwith "expected-modal-form-cursor");
+  (* 3. Record session active -> Some (col, row) matches Input caret cell *)
+  let rec_state = key ~width_of home (`ASCII 'r') in
+  require rec_state.record_visible "record-visible";
+  (match C.cursor_position ~width_of (80, 24) rec_state with
+   | Some (col, row) ->
+       require (col > 0 && col < 80) "cursor-record-col-bounded";
+       require (row > 0 && row < 24) "cursor-record-row-bounded"
+   | None -> failwith "expected-record-session-cursor");
+  (* 4. Jump and Search overlays -> Some (col, row) *)
+  let jump_state = { home with overlay = C.Jump "2026-10" } in
+  (match C.cursor_position ~width_of (80, 24) jump_state with
+   | Some (col, row) ->
+       require (col > 0 && col < 80) "cursor-jump-col-bounded";
+       require (row > 0 && row < 24) "cursor-jump-row-bounded"
+   | None -> failwith "expected-jump-overlay-cursor");
+  let search_state = { home with overlay = C.Search "ramen" } in
+  (match C.cursor_position ~width_of (80, 24) search_state with
+   | Some (col, row) ->
+       require (col > 0 && col < 80) "cursor-search-col-bounded";
+       require (row > 0 && row < 24) "cursor-search-row-bounded"
+   | None -> failwith "expected-search-overlay-cursor");
   print_endline
     "PASS: English Calendar / Commands / Record / child navigation / exact cold save and safety \
      guards.";

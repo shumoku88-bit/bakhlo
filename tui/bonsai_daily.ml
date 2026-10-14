@@ -214,6 +214,22 @@ let app initial ~exit ~dimensions graph =
             state)
       graph
   in
+  let set_cursor = B.Cursor.set_cursor_position graph in
+  let cursor_pos =
+    Bonsai.arr2 graph state dimensions ~f:(fun state (dimensions : B.Dimensions.t) ->
+        C.cursor_position ~width_of (dimensions.width, dimensions.height) state)
+  in
+  let cursor_effect =
+    Bonsai.arr2 graph set_cursor cursor_pos ~f:(fun set_cursor cursor_pos ->
+        let cursor =
+          Option.map
+            (fun (x, y) ->
+              { B.Cursor.position = { B.Position.x; y }; kind = B.Cursor.Kind.Default })
+            cursor_pos
+        in
+        set_cursor cursor)
+  in
+  Bonsai.Edge.after_display ~here:Stdlib.Lexing.dummy_pos cursor_effect graph;
   let view =
     Bonsai.arr2 graph state dimensions ~f:(fun state (dimensions : B.Dimensions.t) ->
         render (dimensions.width, dimensions.height) state)
