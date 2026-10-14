@@ -88,6 +88,14 @@ let is_observe_quantity = function
   | Modal_form f when Form.id f = "observe_quantity" -> true
   | _ -> false
 
+let is_daily_pace_what_if = function
+  | Modal_form f when Form.id f = "daily_pace_what_if" -> true
+  | _ -> false
+
+let is_configure_daily_pace = function
+  | Modal_form f when Form.id f = "configure_daily_pace" -> true
+  | _ -> false
+
 type state = {
   session : F.t;
   workspace : W.t;
@@ -644,6 +652,32 @@ let read_config state name =
   in
   read candidates
 
+let config_file_path state name =
+  match state.config_home with
+  | Some home ->
+      let config_dir = Filename.concat home "config" in
+      if Sys.file_exists (Filename.concat config_dir name) then Filename.concat config_dir name
+      else Filename.concat home name
+  | None ->
+      let dir = Filename.dirname state.session.F.path in
+      let config_dir = Filename.concat dir "config" in
+      if Sys.file_exists (Filename.concat config_dir name) then Filename.concat config_dir name
+      else Filename.concat dir name
+
+let write_config state name content =
+  let path = config_file_path state name in
+  try
+    let dir = Filename.dirname path in
+    if not (Sys.file_exists dir) then (try Unix.mkdir dir 0o755 with Unix.Unix_error _ -> ());
+    let tmp = path ^ ".tmp" in
+    let oc = open_out_bin tmp in
+    output_string oc content;
+    flush oc;
+    close_out oc;
+    Sys.rename tmp path;
+    Ok path
+  with Sys_error why -> Error why
+
 let accounting_roles state =
   match read_config state "accounting-roles.tsv" with
   | Some text -> O.parse_accounting_roles text
@@ -653,6 +687,148 @@ let balance_view_coords state =
   let path = BalView.file_path ?config_home:state.config_home state.session.F.path in
   let configured = BalView.load_file path in
   List.map (fun (c : BalView.coordinate) -> (c.locus, c.measure)) configured
+
+let resolve_pace_window state =
+  let today = F.today () in
+  match read_config state "boundary-presets.tsv" with
+  | Some windows ->
+      let tokens line = String.split_on_char '\t' line in
+      let meaningful text =
+        String.split_on_char '\n' text
+        |> List.filter (fun line ->
+            let s = String.trim line in
+            s <> "" && not (String.starts_with ~prefix:"#" s))
+      in
+      let rec find_window = function
+        | [] -> None
+        | line :: rest -> (
+            let rec window = function
+              | a :: b :: tail ->
+                  if a <= today && today < b then Some (a, b) else window (b :: tail)
+              | _ -> find_window rest
+            in
+            match tokens line with _preset :: dates -> window dates | [] -> find_window rest)
+      in
+      find_window (meaningful windows)
+  | None ->
+      (match Cal.parts today with
+      | Ok (y, m, _) ->
+          let start_day = Printf.sprintf "%04d-%02d-01" y m in
+          let next_y, next_m = if m = 12 then (y + 1, 1) else (y, m + 1) in
+          let end_exclusive = Printf.sprintf "%04d-%02d-01" next_y next_m in
+          Some (start_day, end_exclusive)
+      | Error _ -> None)
+
+let resolve_pace_pool state =
+  let measure = state.workspace.measure in
+  match read_config state "daily-pace.tsv" with
+  | Some pool_text ->
+      let tokens line = String.split_on_char '\t' line in
+      let meaningful text =
+        String.split_on_char '\n' text
+        |> List.filter (fun line ->
+            let s = String.trim line in
+            s <> "" && not (String.starts_with ~prefix:"#" s))
+      in
+      let rec coordinates acc = function
+        | [] -> if acc = [] then None else Some (List.rev acc)
+        | line :: rest -> (
+            match tokens line with
+            | [ locus; m ] when m = measure -> (
+                match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string m) with
+                | Ok locus, Ok measure ->
+                    coordinates ({ D.Effect_coordinate.locus; measure } :: acc) rest
+                | _ -> coordinates acc rest)
+            | _ -> coordinates acc rest)
+      in
+      coordinates [] (meaningful pool_text)
+  | None ->
+      let roles = accounting_roles state in
+      let asset_loci =
+        List.filter_map
+          (fun (locus, role) -> if role = Roles.Asset then Some locus else None)
+          roles
+      in
+      let loci =
+        if asset_loci <> [] then asset_loci
+        else Option.value ~default:[ "wallet" ] (B.approved_loci state.session.book)
+      in
+      let coords =
+        List.filter_map
+          (fun locus ->
+            match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string measure) with
+            | Ok locus, Ok measure -> Some { D.Effect_coordinate.locus; measure }
+            | _ -> None)
+          loci
+      in
+      if coords = [] then None else Some coords
+
+let current_pace_data state =
+  let today = F.today () and measure = state.workspace.measure in
+  match (resolve_pace_pool state, resolve_pace_window state) with
+  | Some pool, Some (start_day, end_exclusive) -> (
+      match B.daily_pace state.session.book ~measure ~pool ~observed_at:today ~end_exclusive with
+      | Ok p -> Some (p, start_day, end_exclusive)
+      | Error _ -> None)
+  | _ -> None
+
+let what_if_form ?amount ?result state =
+  let summary =
+    match current_pace_data state with
+    | Some (pace, _start, _end_excl) ->
+        let cur = B.format state.session.book pace.B.measure pace.daily_pace_quanta in
+        let avail = B.format state.session.book pace.B.measure pace.available_through_end in
+        [
+          Printf.sprintf "Current pace: %s %s/day" cur pace.measure;
+          Printf.sprintf "Available: %s %s over %d remaining days." avail pace.measure pace.remaining_days;
+          "Simulate an immediate purchase outflow without publishing any transaction.";
+        ]
+    | None ->
+        [ "Daily pace is not currently calculated; enter amount to simulate." ]
+  in
+  let notice = Option.value ~default:"" result in
+  Form.create
+    ~id:"daily_pace_what_if"
+    ~title:"Daily Pace What-If (Purchase Scenario)"
+    ~summary
+    ~notice
+    ~fields:[
+      Form.text_field ~id:"amount" ~label:"Purchase amount" ?value:amount ~placeholder:"e.g. 10000" ();
+      Form.action_buttons ~confirm:"Simulate" ~cancel:"Close" ();
+    ]
+    ()
+
+let configure_pace_form state =
+  let current_pool_loci =
+    match resolve_pace_pool state with
+    | Some coords ->
+        String.concat ", " (List.map (fun c -> A.lstr c.D.Effect_coordinate.locus) coords)
+    | None -> "wallet"
+  in
+  let current_end_date =
+    match resolve_pace_window state with
+    | Some (_start, end_excl) -> end_excl
+    | None ->
+        let today = F.today () in
+        match Cal.parts today with
+        | Ok (y, m, _) ->
+            let next_y, next_m = if m = 12 then (y + 1, 1) else (y, m + 1) in
+            Printf.sprintf "%04d-%02d-01" next_y next_m
+        | Error _ -> "2026-11-01"
+  in
+  Form.create
+    ~id:"configure_daily_pace"
+    ~title:"Configure Daily Pace Pool & Horizon"
+    ~summary:[
+      "Configure balance pool accounts (Loci) and cycle end date.";
+      "Saved to config/daily-pace.tsv and config/boundary-presets.tsv.";
+    ]
+    ~fields:[
+      Form.text_field ~id:"pool_loci" ~label:"Pool accounts (comma-separated)" ~value:current_pool_loci ();
+      Form.text_field ~id:"end_date" ~label:"Period end (exclusive YYYY-MM-DD)" ~value:current_end_date ();
+      Form.action_buttons ~confirm:"Save Configuration" ~cancel:"Cancel" ();
+    ]
+    ()
 
 let balance_items state =
   match state.balance_mode with
@@ -1272,7 +1448,82 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                           Some { state with overlay = Modal_form (Form.set_notice submitted why) }
                       | F.Uncertain ->
                           Some { state with overlay = Modal_form (Form.set_notice submitted (tr "File write uncertain. Reload to inspect.")) })))
-            | _ -> Some state))
+        | "daily_pace_what_if" ->
+            let amount_str = String.trim (Option.value ~default:"" (Form.get_text submitted "amount")) in
+            if amount_str = "" then
+              Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter purchase amount to simulate.")) }
+            else
+              (match B.parse_signed_amount state.session.book state.workspace.measure amount_str with
+              | Error _ ->
+                  Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Invalid amount.")) }
+              | Ok quantity ->
+                  if Z.leq quantity Z.zero then
+                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter a positive amount for purchase outflow.")) }
+                  else
+                    match current_pace_data state with
+                    | None ->
+                        Some { state with overlay = Modal_form (Form.set_notice submitted "Current pace is not available to simulate.") }
+                    | Some (pace, _start, _end_excl) ->
+                        let remaining_days = max 1 pace.remaining_days in
+                        let cur_pace = pace.daily_pace_quanta in
+                        let new_avail = Z.sub pace.available_through_end quantity in
+                        let new_pace = Z.div (Z.max Z.zero new_avail) (Z.of_int remaining_days) in
+                        let diff = Z.sub new_pace cur_pace in
+                        let fmt z = B.format state.session.book pace.measure z ^ " " ^ pace.measure in
+                        let diff_str = (if Z.gt diff Z.zero then "+" else "") ^ fmt diff ^ "/day" in
+                        let res_msg =
+                          Printf.sprintf "Simulated pace: %s/day (%s). Remaining available: %s."
+                            (fmt new_pace) diff_str (fmt new_avail)
+                        in
+                        Some { state with overlay = Modal_form (what_if_form ~amount:amount_str ~result:res_msg state) })
+        | "configure_daily_pace" ->
+            let pool_loci_str = String.trim (Option.value ~default:"" (Form.get_text submitted "pool_loci")) in
+            let end_date_str = String.trim (Option.value ~default:"" (Form.get_text submitted "end_date")) in
+            let raw_tokens =
+              String.split_on_char ',' pool_loci_str
+              |> List.concat_map (String.split_on_char ' ')
+              |> List.map String.trim
+              |> List.filter (fun s -> s <> "")
+            in
+            if raw_tokens = [] then
+              Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter at least one account locus.")) }
+            else
+              let valid_loci =
+                List.for_all (fun s -> match D.Identifier.Locus.of_string s with Ok _ -> true | Error _ -> false) raw_tokens
+              in
+              if not valid_loci then
+                Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Invalid locus identifier in pool accounts.")) }
+              else
+                (match Cal.parts end_date_str with
+                | Error _ ->
+                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Invalid date (YYYY-MM-DD).")) }
+                | Ok _ when end_date_str <= F.today () ->
+                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Period end date must be in the future.")) }
+                | Ok _ ->
+                    let pool_lines =
+                      List.map (fun locus -> Printf.sprintf "%s\t%s" locus state.workspace.measure) raw_tokens
+                    in
+                    let pool_content = String.concat "\n" pool_lines ^ "\n" in
+                    let start_date =
+                      match resolve_pace_window state with
+                      | Some (s, _) -> s
+                      | None ->
+                          let today = F.today () in
+                          (match Cal.parts today with
+                          | Ok (y, m, _) -> Printf.sprintf "%04d-%02d-01" y m
+                          | Error _ -> today)
+                    in
+                    let boundary_content = Printf.sprintf "month\t%s\t%s\n" start_date end_date_str in
+                    match write_config state "daily-pace.tsv" pool_content with
+                    | Error why ->
+                        Some { state with overlay = Modal_form (Form.set_notice submitted ("Failed to write daily-pace.tsv: " ^ why)) }
+                    | Ok _ ->
+                        match write_config state "boundary-presets.tsv" boundary_content with
+                        | Error why ->
+                            Some { state with overlay = Modal_form (Form.set_notice submitted ("Failed to write boundary-presets.tsv: " ^ why)) }
+                        | Ok _ ->
+                            Some { state with overlay = No_overlay; message = "Daily Pace configured and saved." })
+        | _ -> Some state))
     | No_overlay -> (
         let key = match input with `Key (key, mods) -> Some (key, mods) | _ -> None in
         let normalize (key, mods) =
@@ -1322,6 +1573,10 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                      })
               else Some (open_route state W.Home)
             else Some (back state)
+        | Some (`ASCII 'w', []) when state.workspace.route = W.Daily_pace ->
+            Some { state with overlay = Modal_form (what_if_form state) }
+        | Some (`ASCII 'c', []) when state.workspace.route = W.Daily_pace ->
+            Some { state with overlay = Modal_form (configure_pace_form state) }
         | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
             Some
               {
@@ -1679,112 +1934,88 @@ let calendar_rows ?(width = 80) state =
 
 let pace_lines state =
   let today = F.today () and measure = state.workspace.measure in
-  match (read_config state "daily-pace.tsv", read_config state "boundary-presets.tsv") with
+  match (resolve_pace_pool state, resolve_pace_window state) with
   | None, _ | _, None ->
       [
-        tr "Not configured.";
+        tr "Daily Pace unavailable:";
         "";
         tr "Supply a balance pool and exclusive period end:";
-        "  - daily-pace.tsv (Locus<TAB>Measure)";
+        "  - daily-pace.tsv (Locus<TAB>Measure) or press 'c' to configure";
         "  - boundary-presets.tsv (Preset<TAB>Date...)";
         "";
         tr "Historical Trend is unavailable.";
       ]
-  | Some pool, Some windows -> (
-      let tokens line = String.split_on_char '\t' line in
-      let meaningful text =
-        String.split_on_char '\n' text
-        |> List.filter (fun line ->
-            String.trim line <> "" && not (String.starts_with ~prefix:"#" (String.trim line)))
-      in
-      let rec coordinates acc = function
-        | [] -> Ok (List.rev acc)
-        | line :: rest -> (
-            match tokens line with
-            | [ locus; m ] when m <> measure -> coordinates acc rest
-            | [ locus; m ] -> (
-                match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string m) with
-                | Ok locus, Ok measure ->
-                    coordinates ({ D.Effect_coordinate.locus; measure } :: acc) rest
-                | _ -> Error "Invalid Daily Pace coordinate.")
-            | _ -> Error "Invalid daily-pace.tsv row; expected Locus<TAB>Measure.")
-      in
-      let rec find_window = function
-        | [] -> Error "No boundary contains today."
-        | line :: rest -> (
-            let rec window = function
-              | a :: b :: tail -> (
-                  match (Cal.parts a, Cal.parts b) with
-                  | Ok _, Ok _ when a <= today && today < b -> Ok (a, b)
-                  | Ok _, Ok _ -> window (b :: tail)
-                  | _ -> Error "Invalid boundary date.")
-              | _ -> find_window rest
+  | Some pool, Some (start_day, end_exclusive) -> (
+      match
+        B.daily_pace state.session.book ~measure ~pool ~observed_at:today ~end_exclusive
+      with
+      | Error why -> [ tr "Daily Pace unavailable:"; why ]
+      | Ok pace ->
+          let amount n = B.format state.session.book measure n ^ " " ^ measure in
+          let total_period_days =
+            let day_num y m d =
+              let prior = y - 1 in
+              let before = [| 0; 0; 31; 59; 90; 120; 151; 181; 212; 243; 273; 304; 334 |] in
+              (prior * 365) + (prior / 4) - (prior / 100) + (prior / 400) + before.(m)
+              + (if m > 2 && A.is_leap_year y then 1 else 0)
+              + d - 1
             in
-            match tokens line with _preset :: dates -> window dates | [] -> find_window rest)
-      in
-      match (coordinates [] (meaningful pool), find_window (meaningful windows)) with
-      | Error why, _ | _, Error why -> [ tr "Daily Pace unavailable:"; tr why ]
-      | Ok [], _ -> [ tr "Daily Pace unavailable: no selected-Measure pool supplied." ]
-      | Ok pool, Ok (start_day, end_exclusive) -> (
-          match
-            B.daily_pace state.session.book ~measure ~pool ~observed_at:today ~end_exclusive
-          with
-          | Error why -> [ tr "Daily Pace unavailable:"; why ]
-          | Ok pace ->
-              let amount n = B.format state.session.book measure n ^ " " ^ measure in
-              let total_period_days =
-                let day_num y m d =
-                  let prior = y - 1 in
-                  let before = [| 0; 0; 31; 59; 90; 120; 151; 181; 212; 243; 273; 304; 334 |] in
-                  (prior * 365) + (prior / 4) - (prior / 100) + (prior / 400) + before.(m)
-                  + (if m > 2 && A.is_leap_year y then 1 else 0)
-                  + d - 1
-                in
-                match (Cal.parts start_day, Cal.parts end_exclusive) with
-                | Ok (y1, m1, d1), Ok (y2, m2, d2) ->
-                    let j1 = day_num y1 m1 d1 and j2 = day_num y2 m2 d2 in
-                    max 1 (j2 - j1)
-                | _ -> max 1 pace.remaining_days
-              in
-              let elapsed_days = max 0 (total_period_days - pace.remaining_days) in
-              let progress_ratio = float_of_int elapsed_days /. float_of_int total_period_days in
-              let bar = O.progress_bar ~width:28 ~ratio:progress_ratio in
-              [
-                Printf.sprintf "Daily Pace: %s / day" (amount pace.daily_pace_quanta);
-                "";
-                Printf.sprintf "Period progress: %s %d/%d days" bar elapsed_days total_period_days;
-                Printf.sprintf "Through end: %s (Available)" (amount pace.available_through_end);
-                Printf.sprintf "Days remaining: %d days  (Observed: %s -> End: %s)"
-                  pace.remaining_days pace.observed_at pace.end_exclusive;
-                "";
-                "Eligible Pool:";
-              ]
-              @ (if pace.pool_balances = [] then [ "  (none)" ]
-                 else
-                   List.map
-                     (fun (coordinate, n) ->
-                       let locus = A.lstr coordinate.D.Effect_coordinate.locus in
-                       let label = B.label state.session.book locus in
-                       let name = if label <> "" && label <> locus then Printf.sprintf "%s [%s]" label locus else locus in
-                       Printf.sprintf "  %-24s %s" name (amount n))
-                     pace.pool_balances)
-              @ [ ""; "Scheduled Deductions:" ]
-              @ (if pace.plan_deductions = [] then [ "  (no upcoming deductions)" ]
-                 else
-                   List.map
-                     (fun (id, n) -> Printf.sprintf "  %-24s -%s" ("Plan " ^ id) (amount n))
-                     pace.plan_deductions)
-              @ [ ""; "Net Pool: " ^ amount pace.eligible_pool;
-                  "Total Deductions: -" ^ amount pace.automatic_deductions ]))
+            match (Cal.parts start_day, Cal.parts end_exclusive) with
+            | Ok (y1, m1, d1), Ok (y2, m2, d2) ->
+                let j1 = day_num y1 m1 d1 and j2 = day_num y2 m2 d2 in
+                max 1 (j2 - j1)
+            | _ -> max 1 pace.remaining_days
+          in
+          let elapsed_days = max 0 (total_period_days - pace.remaining_days) in
+          let progress_ratio = float_of_int elapsed_days /. float_of_int total_period_days in
+          let bar = O.progress_bar ~width:28 ~ratio:progress_ratio in
+          let pool_origin =
+            match read_config state "daily-pace.tsv" with
+            | Some _ -> "config/daily-pace.tsv"
+            | None -> "auto-resolved asset accounts"
+          in
+          let window_origin =
+            match read_config state "boundary-presets.tsv" with
+            | Some _ -> "config/boundary-presets.tsv"
+            | None -> "current month default"
+          in
+          [
+            Printf.sprintf "Daily Pace: %s / day" (amount pace.daily_pace_quanta);
+            "";
+            Printf.sprintf "Period progress: %s %d/%d days" bar elapsed_days total_period_days;
+            Printf.sprintf "Through end: %s (Available)" (amount pace.available_through_end);
+            Printf.sprintf "Days remaining: %d days  (Observed: %s -> End: %s)"
+              pace.remaining_days pace.observed_at pace.end_exclusive;
+            Printf.sprintf "Source: Pool [%s] | Window [%s]" pool_origin window_origin;
+            "";
+            "Eligible Pool:";
+          ]
+          @ (if pace.pool_balances = [] then [ "  (none)" ]
+             else
+               List.map
+                 (fun (coordinate, n) ->
+                   let locus = A.lstr coordinate.D.Effect_coordinate.locus in
+                   let label = B.label state.session.book locus in
+                   let name = if label <> "" && label <> locus then Printf.sprintf "%s [%s]" label locus else locus in
+                   Printf.sprintf "  %-24s %s" name (amount n))
+                 pace.pool_balances)
+          @ [ ""; "Scheduled Deductions:" ]
+          @ (if pace.plan_deductions = [] then [ "  (no upcoming deductions)" ]
+             else
+               List.map
+                 (fun (id, n) -> Printf.sprintf "  %-24s -%s" ("Plan " ^ id) (amount n))
+                 pace.plan_deductions)
+          @ [ ""; "Net Pool: " ^ amount pace.eligible_pool;
+              "Total Deductions: -" ^ amount pace.automatic_deductions ])
 
 let pace_detail_lines state =
   let today = F.today () and measure = state.workspace.measure in
-  match (read_config state "daily-pace.tsv", read_config state "boundary-presets.tsv") with
-  | None, _ | _, None ->
+  match resolve_pace_window state with
+  | None ->
       [
         "Daily Pace Configuration Guide";
         "";
-        "Files required in repository root or config directory:";
+        "Files required or generated in config directory:";
         "";
         "1. daily-pace.tsv:";
         "   Locus<TAB>Measure";
@@ -1794,48 +2025,50 @@ let pace_detail_lines state =
         "   Preset<TAB>Date<TAB>Date...";
         "   Example: month<TAB>2026-10-01<TAB>2026-11-01";
         "";
+        "Or press 'c' to configure pool accounts and period end date directly.";
+        "";
         "Daily Pace divides eligible pool minus scheduled obligations";
         "by the remaining calendar days until exclusive period end.";
       ]
-  | Some pool, Some windows -> (
-      let tokens line = String.split_on_char '\t' line in
-      let meaningful text =
-        String.split_on_char '\n' text
-        |> List.filter (fun line ->
-            String.trim line <> "" && not (String.starts_with ~prefix:"#" (String.trim line)))
+  | Some (start_day, end_exclusive) ->
+      let pool_origin =
+        match read_config state "daily-pace.tsv" with
+        | Some _ -> "configured (daily-pace.tsv)"
+        | None -> "auto-resolved from asset/approved accounts"
       in
-      let rec find_window = function
-        | [] -> None
-        | line :: rest -> (
-            let rec window = function
-              | a :: b :: tail ->
-                  if a <= today && today < b then Some (a, b) else window (b :: tail)
-              | _ -> find_window rest
-            in
-            match tokens line with _preset :: dates -> window dates | [] -> find_window rest)
+      let window_origin =
+        match read_config state "boundary-presets.tsv" with
+        | Some _ -> "configured (boundary-presets.tsv)"
+        | None -> "auto-resolved (current calendar month)"
       in
-      match find_window (meaningful windows) with
-      | None -> [ tr "Boundary window not found for today." ]
-      | Some (start_day, end_exclusive) ->
-          [
-            "Daily Pace Calculation & Evidence";
-            "";
-            "Formula:";
-            "  Daily Pace = Available Through End / Remaining Days";
-            "  Available Through End = Eligible Pool - Open Deductions";
-            "";
-            "Period Window:";
-            "  Start date: " ^ start_day;
-            "  End date (exclusive): " ^ end_exclusive;
-            "  Observed as of: " ^ today;
-            "  Measure: " ^ measure;
-            "";
-            "Integrity & Principles:";
-            "  - Current evidence reconstruction only.";
-            "  - No speculative spending or trend projection is inferred.";
-            "  - Past pacing or historical velocity is unavailable.";
-            "  - Distinct currency balances are never cross-converted.";
-          ])
+      [
+        "Daily Pace Calculation & Evidence";
+        "";
+        "Formula:";
+        "  Daily Pace = Available Through End / Remaining Days";
+        "  Available Through End = Eligible Pool - Open Deductions";
+        "";
+        "Period Window:";
+        "  Start date: " ^ start_day;
+        "  End date (exclusive): " ^ end_exclusive;
+        "  Observed as of: " ^ today;
+        "  Measure: " ^ measure;
+        "";
+        "Configuration Status:";
+        "  Pool source: " ^ pool_origin;
+        "  Window source: " ^ window_origin;
+        "";
+        "Actions:";
+        "  Press 'w' to simulate a purchase scenario (What-If).";
+        "  Press 'c' to configure pool loci and cycle end date.";
+        "";
+        "Integrity & Principles:";
+        "  - Current evidence reconstruction only.";
+        "  - No speculative spending or trend projection is inferred.";
+        "  - Past pacing or historical velocity is unavailable.";
+        "  - Distinct currency balances are never cross-converted.";
+      ]
+
 
 let workspace_rows ~width_of ~width ~height state =
   let draw_frame = frame in
@@ -2185,6 +2418,10 @@ let footer state =
           [ "Enter confirm reversal  Tab switch button  Esc keep actual"; "Reversal date can be edited" ]
       | "observe_quantity" ->
           [ "Enter observe  Tab next field  Esc cancel"; "Locus & Measure tokens, signed or zero amount" ]
+      | "daily_pace_what_if" ->
+          [ "Enter simulate scenario  Tab switch field/button  Esc close"; "Read-only simulation - does not publish any entries" ]
+      | "configure_daily_pace" ->
+          [ "Enter save configuration  Tab switch field  Esc cancel"; "Saves to daily-pace.tsv and boundary-presets.tsv" ]
       | _ ->
           [ "Enter submit  Tab next field  Esc cancel"; "Arrow keys / space to choose options" ])
   | No_overlay | Commands _ | Jump _ | Search _ ->
@@ -2234,7 +2471,9 @@ let footer state =
         "q/Esc back to list  Space Commands  Ctrl-r reload";
       ]
   | W.Daily_pace, W.Calendar ->
-      [ "j/k scroll  Tab/w Detail  r Record"; "Space Commands  q/Esc Home  Ctrl-r reload" ]
+      [ "w what-if  c configure  j/k scroll  Tab/w Detail  r Record"; "Space Commands  q/Esc Home  Ctrl-r reload" ]
+  | W.Daily_pace, W.Detail ->
+      [ "w what-if  c configure  j/k scroll  Tab/w switch pane  r Record"; "q/Esc back  Space Commands  Ctrl-r reload" ]
   | W.Attention, _ ->
       [
         "n new  r resolve  x drop  j/k select  Enter/Tab detail";

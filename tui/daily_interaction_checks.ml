@@ -1016,6 +1016,76 @@ let self_check ~width_of () =
   in
   require (check_qty zero_state.session.book "bank" "jpy" = "0") "bank-balance-observed-0";
   require (check_qty zero_state.session.book "wallet" "jpy" = "5000") "wallet-balance-retained-5000";
+  (* Daily Pace workflow & what-if simulator *)
+  (* 1. Navigate to Daily Pace from Home via 'd' *)
+  let pace_home = key ~width_of zero_state (`ASCII 'd') in
+  require (pace_home.workspace.route = W.Daily_pace) "route-daily-pace";
+  let screen_pace = C.screen ~width_of (120, 30) pace_home in
+  require (contains screen_pace "Daily Pace:") "daily-pace-auto-calculated";
+  require (contains screen_pace "Period progress:") "daily-pace-progress-bar";
+  require (contains screen_pace "w what-if") "pace-footer-what-if-hint";
+  require (contains screen_pace "c configure") "pace-footer-configure-hint";
+  (* 2. What-If simulator modal via 'w' *)
+  let what_if_state = key ~width_of pace_home (`ASCII 'w') in
+  let form_wi =
+    match what_if_state.overlay with
+    | C.Modal_form f ->
+        require (Ui_form.id f = "daily_pace_what_if") "what-if-modal-id";
+        f
+    | _ -> failwith "expected what_if modal"
+  in
+  let form_wi_filled = Ui_form.set_text form_wi "amount" "2000" in
+  let form_wi_filled = Ui_form.set_focused form_wi_filled 1 in
+  let sim_res_state =
+    match C.handle ~width_of { what_if_state with overlay = C.Modal_form form_wi_filled } (`Key (`Enter, [])) with
+    | Some s -> s
+    | None -> failwith "unexpected exit on what-if submit"
+  in
+  (match sim_res_state.overlay with
+   | C.Modal_form f_res ->
+       require (Base.String.is_substring (Ui_form.notice f_res) ~substring:"Simulated pace:") "what-if-result-calculated";
+       require (Base.String.is_substring (Ui_form.notice f_res) ~substring:"Remaining available:") "what-if-remaining-shown"
+   | _ -> failwith "expected what_if result modal");
+  (* Close simulator with Escape without altering ledger *)
+  let closed_sim = key ~width_of sim_res_state `Escape in
+  require (closed_sim.overlay = C.No_overlay) "what-if-closed-on-esc";
+  require (check_qty closed_sim.session.book "wallet" "jpy" = "5000") "what-if-does-not-alter-ledger";
+  (* 3. Configure Daily Pace modal via 'c' *)
+  let cfg_state = key ~width_of closed_sim (`ASCII 'c') in
+  let form_cfg =
+    match cfg_state.overlay with
+    | C.Modal_form f ->
+        require (Ui_form.id f = "configure_daily_pace") "cfg-pace-modal-id";
+        f
+    | _ -> failwith "expected cfg modal"
+  in
+  (* Test invalid end date *)
+  let form_cfg_err = Ui_form.set_text form_cfg "end_date" "invalid-date" in
+  let form_cfg_err = Ui_form.set_focused form_cfg_err 2 in
+  let err_state =
+    match C.handle ~width_of { cfg_state with overlay = C.Modal_form form_cfg_err } (`Key (`Enter, [])) with
+    | Some s -> s
+    | None -> failwith "unexpected exit on cfg err submit"
+  in
+  (match err_state.overlay with
+   | C.Modal_form f_notice ->
+       require (Ui_form.notice f_notice = "Invalid date (YYYY-MM-DD).") "cfg-pace-validates-date"
+   | _ -> failwith "expected notice on date err");
+  (* Save valid configuration: wallet only, future date 2026-11-01 *)
+  let form_cfg_valid = Ui_form.set_text form_cfg "pool_loci" "wallet" in
+  let form_cfg_valid = Ui_form.set_text form_cfg_valid "end_date" "2026-11-01" in
+  let form_cfg_valid = Ui_form.set_focused form_cfg_valid 2 in
+  let saved_state =
+    match C.handle ~width_of { cfg_state with overlay = C.Modal_form form_cfg_valid } (`Key (`Enter, [])) with
+    | Some s -> s
+    | None -> failwith "unexpected exit on cfg save"
+  in
+  require (saved_state.overlay = C.No_overlay) "cfg-pace-saved-overlay-cleared";
+  require (saved_state.message = "Daily Pace configured and saved.") "cfg-pace-saved-message";
+  let screen_reloaded = C.screen ~width_of (120, 30) saved_state in
+  require (contains screen_reloaded "Source: Pool [config/daily-pace.tsv]") "shows-configured-pool-source";
+  let back_home2 = key ~width_of saved_state (`ASCII 'q') in
+  require (back_home2.workspace.route = W.Home) "pace-q-back-to-home";
   (* Common hardware cursor position & IME anchor verification across UI *)
   (* 1. Home workspace (browse mode) -> None (cursor hidden) *)
   require (C.cursor_position ~width_of (80, 24) home = None) "cursor-hidden-on-home";
