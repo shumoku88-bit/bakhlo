@@ -899,6 +899,76 @@ let self_check ~width_of () =
   (* Disk persistence verify *)
   let stl_file = Stl.load_file (Stl.file_path ~config_home:directory path) in
   require (List.length stl_file.rows = 1) "settlements-persisted-to-file";
+  (* Observe Quantities modal form workflow *)
+  (* 1. Launch via 'o' key from back_home *)
+  let obs_modal = key ~width_of back_home (`ASCII 'o') in
+  let form_obs =
+    match obs_modal.overlay with
+    | C.Modal_form f ->
+        require (Ui_form.id f = "observe_quantity") "observe-modal-form-id";
+        require (Ui_form.get_text f "measure" = Some "jpy") "observe-default-measure-jpy";
+        f
+    | _ -> failwith "expected modal form for observe_quantity"
+  in
+  (* 2. Test validation failure on unapproved locus *)
+  let invalid_locus_form = Ui_form.set_text form_obs "locus" "unknown_card" in
+  let invalid_locus_form = Ui_form.set_text invalid_locus_form "amount" "1000" in
+  let invalid_locus_form = Ui_form.set_focused invalid_locus_form 2 in
+  let invalid_locus_state =
+    match C.handle ~width_of { obs_modal with overlay = C.Modal_form invalid_locus_form } (`Key (`Enter, [])) with
+    | Some s -> s
+    | None -> failwith "unexpected exit on invalid locus submit"
+  in
+  (match invalid_locus_state.overlay with
+   | C.Modal_form f ->
+       require (Ui_form.notice f = "Locus 'unknown_card' is not in approved vocabulary.") "refuses-unapproved-locus"
+   | _ -> failwith "expected modal form with notice");
+  (* Cancel out with Esc *)
+  let cancelled_obs = key ~width_of invalid_locus_state `Escape in
+  require (cancelled_obs.overlay = C.No_overlay) "observe-cancel-escapes";
+  (* 3. Successfully observe wallet = 5,000 JPY *)
+  let obs_modal2 = key ~width_of back_home (`ASCII 'o') in
+  let valid_form =
+    match obs_modal2.overlay with
+    | C.Modal_form f ->
+        let f = Ui_form.set_text f "locus" "wallet" in
+        let f = Ui_form.set_text f "amount" "5000" in
+        Ui_form.set_focused f 2
+    | _ -> failwith "expected modal form for observe_quantity"
+  in
+  let observed_state =
+    match C.handle ~width_of { obs_modal2 with overlay = C.Modal_form valid_form } (`Key (`Enter, [])) with
+    | Some s -> s
+    | None -> failwith "unexpected exit on valid observe submit"
+  in
+  require (observed_state.overlay = C.No_overlay) "observe-submitted-overlay-cleared";
+  require (Base.String.is_substring observed_state.message ~substring:"Observed wallet jpy = 5000.") "observe-success-message";
+  let check_qty book locus measure =
+    let module Q = Bakhlo_application.Current_quantity_query in
+    let locus = C.get_id (D.Identifier.Locus.of_string locus) in
+    let measure = C.get_id (D.Identifier.Measure.of_string measure) in
+    match Q.query (B.image book) { D.Effect_coordinate.locus; measure } with
+    | Ok (Q.Exact x) -> Z.to_string (D.Quantity.quanta (Q.quantity x))
+    | _ -> "unexpected"
+  in
+  require (check_qty observed_state.session.book "wallet" "jpy" = "5000") "wallet-balance-observed-5000";
+  (* 4. Successfully observe bank = 0 JPY *)
+  let obs_modal3 = key ~width_of observed_state (`ASCII 'o') in
+  let valid_form_zero =
+    match obs_modal3.overlay with
+    | C.Modal_form f ->
+        let f = Ui_form.set_text f "locus" "bank" in
+        let f = Ui_form.set_text f "amount" "0" in
+        Ui_form.set_focused f 2
+    | _ -> failwith "expected modal form for observe_quantity zero"
+  in
+  let zero_state =
+    match C.handle ~width_of { obs_modal3 with overlay = C.Modal_form valid_form_zero } (`Key (`Enter, [])) with
+    | Some s -> s
+    | None -> failwith "unexpected exit on valid zero observe submit"
+  in
+  require (check_qty zero_state.session.book "bank" "jpy" = "0") "bank-balance-observed-0";
+  require (check_qty zero_state.session.book "wallet" "jpy" = "5000") "wallet-balance-retained-5000";
   (* Common hardware cursor position & IME anchor verification across UI *)
   (* 1. Home workspace (browse mode) -> None (cursor hidden) *)
   require (C.cursor_position ~width_of (80, 24) home = None) "cursor-hidden-on-home";

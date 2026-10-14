@@ -83,6 +83,10 @@ let is_action_settlement = function
   | Modal_form f when Form.id f = "action_settlement" -> true
   | _ -> false
 
+let is_observe_quantity = function
+  | Modal_form f when Form.id f = "observe_quantity" -> true
+  | _ -> false
+
 type state = {
   session : F.t;
   workspace : W.t;
@@ -557,6 +561,24 @@ let open_exchange state =
   let form = exchange_form ~default_date () in
   { state with overlay = Modal_form form; message = "" }
 
+let observe_quantity_form state =
+  let def_measure = match B.measures state.session.book with (m, _) :: _ -> m | [] -> "jpy" in
+  let loci = match B.approved_loci state.session.book with Some (l :: _) -> l | _ -> "wallet" in
+  Form.create
+    ~id:"observe_quantity"
+    ~title:"Observe Quantities"
+    ~summary:[
+      "Record newly verified balance for an account (Locus).";
+      "Existing observations for other loci remain preserved.";
+    ]
+    ~fields:[
+      Form.text_field ~id:"locus" ~label:"Locus" ~placeholder:(Printf.sprintf "e.g. %s" loci) ();
+      Form.text_field ~id:"measure" ~label:"Measure" ~value:def_measure ();
+      Form.text_field ~id:"amount" ~label:"Observed amount" ~placeholder:"e.g. 50000" ();
+      Form.action_buttons ~confirm:"Observe" ~cancel:"Cancel" ();
+    ]
+    ()
+
 let open_command state = function
   | M.Record -> open_record { state with overlay = No_overlay }
   | M.New_plan -> open_plan_record { state with overlay = No_overlay }
@@ -568,6 +590,7 @@ let open_command state = function
   | M.Manage_loci -> open_route state W.Loci
   | M.Exchange -> open_exchange { state with overlay = No_overlay }
   | M.Settlements -> open_route state W.Settlements
+  | M.Observe -> { state with overlay = Modal_form (observe_quantity_form state); message = "" }
   | M.Home -> open_route state W.Home
   | M.Calendar -> open_route state W.Calendar
   | M.Theme ->
@@ -1160,6 +1183,47 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                               let _ = Stl.save_file path updated in
                               let verb = if kind_idx = 0 then "Settled" else "Reduced" in
                               Some { state with overlay = No_overlay; settlements = updated; message = Printf.sprintf "%s %s on %s." verb (Z.to_string amount) id })))
+        | "observe_quantity" ->
+            let locus = String.trim (Option.value ~default:"" (Form.get_text submitted "locus")) in
+            let measure = String.trim (String.lowercase_ascii (Option.value ~default:"jpy" (Form.get_text submitted "measure"))) in
+            let amount_str = String.trim (Option.value ~default:"" (Form.get_text submitted "amount")) in
+            if locus = "" then
+              Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter account Locus token.")) }
+            else if measure = "" then
+              Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter Measure token.")) }
+            else if amount_str = "" then
+              Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter observed amount.")) }
+            else
+              (match B.parse_signed_amount state.session.book measure amount_str with
+              | Error why ->
+                  let msg =
+                    if why = "unknown-measure" || why = "measure-scale-not-supplied" then
+                      Printf.sprintf "Measure '%s' scale is not configured." measure
+                    else tr "Invalid amount."
+                  in
+                  Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
+              | Ok quantity ->
+                  (match B.observe_quantities state.session.book [ (locus, measure, quantity) ] with
+                  | Error why ->
+                      let msg =
+                        if why = "locus-not-approved" then
+                          Printf.sprintf "Locus '%s' is not in approved vocabulary." locus
+                        else if why = "support-admission" || why = "assertion-overlaps-origin" || why = "assertion-overlaps-opening" then
+                          tr "Coordinate is already supported by zero-origin or opening balance."
+                        else why
+                      in
+                      Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
+                  | Ok new_book ->
+                      (match F.publish state.session new_book with
+                      | F.Written updated_session ->
+                          Some (sync { state with session = updated_session; overlay = No_overlay;
+                                                 message = Printf.sprintf "Observed %s %s = %s." locus measure amount_str })
+                      | F.Conflict ->
+                          Some { state with overlay = Modal_form (Form.set_notice submitted (tr "File changed on disk. Reload to inspect.")) }
+                      | F.Refused_input why ->
+                          Some { state with overlay = Modal_form (Form.set_notice submitted why) }
+                      | F.Uncertain ->
+                          Some { state with overlay = Modal_form (Form.set_notice submitted (tr "File write uncertain. Reload to inspect.")) })))
             | _ -> Some state))
     | No_overlay -> (
         let key = match input with `Key (key, mods) -> Some (key, mods) | _ -> None in
@@ -1273,6 +1337,9 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some (open_route state W.Daily_pace)
         | Some (`ASCII 'i', []) when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
             Some (open_route state W.Attention)
+        | Some (`ASCII 'o', [])
+          when state.workspace.route = W.Home || state.workspace.route = W.Balances || state.workspace.route = W.Calendar ->
+            Some { state with overlay = Modal_form (observe_quantity_form state) }
         | Some (`ASCII 's', []) when state.workspace.route = W.Actual ->
             Some (sync { state with workspace = W.cycle_order state.workspace })
         | Some (`ASCII 'f', [])
@@ -2031,13 +2098,15 @@ let footer state =
           [ "Enter confirm cancel  Tab switch button  Esc keep plan"; "Cancel date can be edited" ]
       | "reverse_entry" ->
           [ "Enter confirm reversal  Tab switch button  Esc keep actual"; "Reversal date can be edited" ]
+      | "observe_quantity" ->
+          [ "Enter observe  Tab next field  Esc cancel"; "Locus & Measure tokens, signed or zero amount" ]
       | _ ->
           [ "Enter submit  Tab next field  Esc cancel"; "Arrow keys / space to choose options" ])
   | No_overlay | Commands _ | Jump _ | Search _ ->
   match (state.workspace.W.route, state.workspace.pane) with
   | W.Home, _ ->
       [
-        "Enter/g calendar  i attention  r record  s scheduled  a actual  b balances  d daily pace";
+        "Enter/g calendar  i attention  o observe  r record  s scheduled  a actual  b balances  d daily pace";
         "Space commands  q quit";
       ]
   | W.Calendar, W.Calendar ->

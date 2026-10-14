@@ -1,5 +1,5 @@
 type page = Root | Transactions | Planning | Analysis | Setup
-type action = Record | Actual | Scheduled | New_plan | Balances | Daily_pace | Theme | Home | Calendar | Attention | Manage_loci | Exchange | Settlements
+type action = Record | Actual | Scheduled | New_plan | Balances | Daily_pace | Theme | Home | Calendar | Attention | Manage_loci | Exchange | Settlements | Observe
 type item = Group of page | Action of action
 type t = { page : page; selected : int }
 type outcome = Updated of t | Chosen of action | Closed
@@ -29,7 +29,12 @@ let items = function
         (Action Attention, "Attention / Household matters");
         (Action Settlements, "Settlements / Reimbursements");
       ]
-  | Analysis -> [ (Action Daily_pace, "Daily Pace"); (Action Balances, "Balances / Current") ]
+  | Analysis ->
+      [
+        (Action Daily_pace, "Daily Pace");
+        (Action Balances, "Balances / Current");
+        (Action Observe, "Observe Quantities / Verified balance");
+      ]
   | Setup ->
       [
         (Action Theme, "Theme");

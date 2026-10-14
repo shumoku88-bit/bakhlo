@@ -836,3 +836,66 @@ let%expect_test "obsolete budget-only schema cannot be admitted" =
   Stdio.printf "%b %b\n" (Result.is_error (B.of_string v4))
     (Result.is_error (B.of_string with_budget));
   [%expect {| true true |}]
+
+let%expect_test "parse_signed_amount admits zero, negative, positive at configured scale" =
+  let book = get (B.of_string fixture) in
+  let check m text =
+    match B.parse_signed_amount book m text with
+    | Ok n -> Stdio.printf "%s %s -> %s\n" m text (Z.to_string n)
+    | Error why -> Stdio.printf "%s %s -> error:%s\n" m text why
+  in
+  check "jpy" "100";
+  check "jpy" "+100";
+  check "jpy" "-100";
+  check "jpy" "0";
+  check "jpy" "-0";
+  check "jpy" "100.5";
+  check "eur" "10.50";
+  check "eur" "+0.05";
+  check "eur" "-12.34";
+  check "eur" "0";
+  check "eur" "10.123";
+  check "unknown" "100";
+  [%expect {|
+    jpy 100 -> 100
+    jpy +100 -> 100
+    jpy -100 -> -100
+    jpy 0 -> 0
+    jpy -0 -> 0
+    jpy 100.5 -> error:amount-precision
+    eur 10.50 -> 1050
+    eur +0.05 -> 5
+    eur -12.34 -> -1234
+    eur 0 -> 0
+    eur 10.123 -> error:amount-precision
+    unknown 100 -> error:unknown-measure
+  |}]
+
+let%expect_test "observe_quantities updates current balance and persists across roundtrip" =
+  let base = get (B.of_string fixture) in
+  Stdio.printf "initial wallet: %s\n" (quantity base "wallet" "jpy");
+  let obs1 = get (B.observe_quantities base [ ("wallet", "jpy", Z.of_int 5000) ]) in
+  Stdio.printf "after obs1: %s\n" (quantity obs1 "wallet" "jpy");
+  let obs2 = get (B.observe_quantities obs1 [ ("bank", "jpy", Z.of_int 120000) ]) in
+  Stdio.printf "after obs2 (wallet, bank): %s, %s\n" (quantity obs2 "wallet" "jpy") (quantity obs2 "bank" "jpy");
+  let re_obs = get (B.observe_quantities obs2 [ ("wallet", "jpy", Z.of_int 4200) ]) in
+  Stdio.printf "after re_obs (wallet, bank): %s, %s\n" (quantity re_obs "wallet" "jpy") (quantity re_obs "bank" "jpy");
+  let cold_book = get (B.of_string (B.to_string re_obs)) in
+  Stdio.printf "cold after re_obs (wallet, bank): %s, %s\n" (quantity cold_book "wallet" "jpy") (quantity cold_book "bank" "jpy");
+  let err_unapproved = B.observe_quantities base [ ("unapproved_locus", "jpy", Z.of_int 100) ] in
+  let err_unknown_measure = B.observe_quantities base [ ("wallet", "unknown", Z.of_int 100) ] in
+  let err_zero_origin = B.observe_quantities base [ ("food", "jpy", Z.of_int 100) ] in
+  Stdio.printf "unapproved: %s\n" (match err_unapproved with Error e -> e | Ok _ -> "ok");
+  Stdio.printf "unknown measure: %s\n" (match err_unknown_measure with Error e -> e | Ok _ -> "ok");
+  Stdio.printf "zero origin collision: %s\n" (match err_zero_origin with Error e -> e | Ok _ -> "ok");
+  [%expect {|
+    initial wallet: 1000
+    after obs1: 5000
+    after obs2 (wallet, bank): 5000, 120000
+    after re_obs (wallet, bank): 4200, 120000
+    cold after re_obs (wallet, bank): 4200, 120000
+    unapproved: locus-not-approved
+    unknown measure: measure-scale-not-supplied
+    zero origin collision: support-admission
+  |}]
+
