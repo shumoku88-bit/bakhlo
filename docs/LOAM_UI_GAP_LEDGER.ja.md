@@ -68,9 +68,7 @@ Bakhloの保存形式をLOAMと同じにする指示ではなく、永久Correct
 | **UI-12** | Scheduled Series Calendar | **未接続**：Home sはcurrent-open List | **F/O** 明示open／completed証拠とread-side監視のSeries、初期表示、月窓・継続入口 | schedule_view型だけでは実装済みでない。S04〜S06 |
 | **UI-13** | Scheduled Plan Detail | 局部：単発occurrenceのExpected Effects／due／ID | **F/O** Series内の複数日・監視／継続文脈なし。**V/Q** 単発detailの対照 | T/P：Actual共用の枠・端・ページ・resize・focus・draft／取消復帰 |
 | **UI-14** | Scheduled Months | **未接続**：六か月board・月別projectionなし | **F/O** 月内の明示occurrenceを選ぶprojection。**V/Q** 数量・counts・Listへの縮退 | type Monthsは画面接続の根拠でない |
-| **UI-15** | Scheduled List | 局部：current-open、文字検索、Day／All、一覧とdetail | **O** Locus絞込UI／LOAMのpane役割、表示順の対照。**V** Date／signed shape／数量列。**Q** 未供給と空 | T/P：共通viewportの可視行・端・選択。Current ListをSeriesと数えない |
-| **UI-16** | Scheduled作成 | 試用：一つの明示planをRecord系入力／Previewで作成 | **F/O** recurring／監視設定・補充は別。**V/Q** 入力／確認・対照 | T：Plan_new、exact保存。単一S式のみ、Records拒否 |
-| **UI-17** | Scheduled完了 | 試用：Actual入力／Previewとpaid-byの同時保存 | **O/V/Q** 元dueとActual date、元expectedと実績、復帰・対照 | T：単一S式のlink、終了後再開、既完了／取消の拒否。Recordsは部分Actual追記前に拒否 |
+| **UI-16** | Scheduled作成 | **完了（コミット: 07b922e）**：独立セッション `scheduled_session.ml` 実装。LOAM `ScheduledPostingForm.lean` / `ScheduledCreation.lean` 準拠（Due日付、通貨固定、Locus/Amount、Description排除、2〜6行制限、Date入力ガード、Locus前方一致、Ctrl-U suspense貸借補完、狭小端末previewCapacity < 2確定拒否、`resolve_overlay` カーソル一元管理）。Recordドラフトとの完全分離・非干渉 | **F/O** recurring／監視設定・補充は別。 | T/P/V/Q完了：独立自己診断テスト `scheduled_session_checks.ml` パス。アトミックな `A.Plan_tx` 確定・取消保全 |
 | **UI-18** | Scheduled取消 | 局部：日付modal→既存取消writer、取消planを保持 | **O/Q** LOAMのKeep初期選択・独立Preview・狭小確認との差。**V** 警告／対象 | T：取消保持／再操作拒否。RecordのPreview gateを継承しない |
 | **UI-19** | Scheduled置換 | 試用：単発planのEdit／Preview | **F/O** Series／monitoringとの連動なし。**V/Q** 元予定・置換内容・候補の対照 | T：Plan_edit、ID保持、paid／cancelled拒否 |
 | **UI-20** | Scheduled batch amount | 未接続 | **F/O/Q** checked候補の複数選択・全体Preview・既存writerとの原子性／拒否 | 先に安全な発行単位を決める。装飾のみ不可 |
@@ -168,6 +166,7 @@ Record／共通form／writer／rendererのpaintは変更しない。
 | **P06 機能設計調査** | UI-12／14／22／23の明示予定と監視設定・Series／Monthsの不足を整理 | read-only調査／設計案だけなら並行可。実装file・保存単位は調査後に決める | open／completed／cancelled・欠損Actual・coverageを区別。監視cadenceを予定事実やNotDueにしない |
 | **P07 roles安全境界** | UI-24／30のrole parse／load／save拒否を独立に調べる | `locus_roles.*`と関連parser／controller利用元の調査。修正の接続は中央担当と調整 | 不正→空／false成功・stale write・draft／reload・coldを扱う。口座名／signからrole推測しない。Balancesの見た目依頼とは別 |
 | **P08 共通部品候補（運用中: resolve_overlay）** | 次のpicker／浮動面／入力／金額部品が既存利用元で本当に共有可能か調べる | `ui_panel`、`ui_form`、`daily_interaction.ml` (resolve_overlay)、rendererの境界を点検 | 完了・運用中：フローティングペインとカーソル座標の一元管理（resolve_overlay）を導入し、描画側とカーソル側のズレを原理的解消。新規オーバーレイは必ずこれを通すこと |
+| **P09 Scheduled作成独立化（完了: antigravity）** | UI-16のScheduled作成セッション独立化・Recordドラフトからの分離・LOAM完全一致 | `scheduled_session.ml/.mli`、`scheduled_session_checks.ml/.mli`、`daily_interaction.ml` | 完了（コミット: 07b922e）。Description排除、Due日付・通貨・Postings（2〜6行）、Dateガード、Locus前方一致、Ctrl-U suspense貸借補完、狭小端末確定拒否（previewCapacity < 2）、resolve_overlay統合 |
 
 **すぐ並行にしやすい組合せ**：P01の限定paint、P02のRecord描画、P03のread-only比較、P06の設計調査。
 P01／P02が共通rendererやgeometryまで変更するなら分離をやめ、統合順を先に決める。

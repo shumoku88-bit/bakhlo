@@ -82,19 +82,24 @@ commits further aligned Bakhlo with LOAM and resolved critical TUI interaction b
   `daily_interaction.ml`. Solved terminal cursor and macOS Japanese IME candidate window
   displacement by establishing a single source of truth for pane coordinates `(origin_x, origin_y)`,
   content rows, and physical cursor positioning across all overlays.
+- `07b922e`: Decoupled Scheduled creation into dedicated session `scheduled_session.ml` (UI-16 / P09)
+  matching LOAM `ScheduledPostingForm.lean` / `ScheduledCreation.lean`. Description is completely
+  excluded; enforces Due date, fixed currency measure, 2-6 rows limit, strict numeric Date input guards,
+  Locus prefix matching with exact matches first, `Ctrl-U` suspense auto-balancing, tiny terminal
+  gate (`previewCapacity < 2` rejection), and complete isolation from Record drafts. Registered with
+  `resolve_overlay` for single-source cursor positioning. Added full synthetic test suite
+  `scheduled_session_checks.ml`.
 
 Existing private/synthetic scratch and detached qualification worktrees are retained.
 This source checkpoint does not qualify runtime parity, power loss/P7 or cutover.
 
 Next priorities:
-1. **Scheduled Creation Form Decoupling (UI-16)**:
-   Decouple scheduled creation from the generic Record session. LOAM uses dedicated
-   `ScheduledPostingForm.lean` / `ScheduledCreation.lean` (Due date + Currency + Postings,
-   without Description). Bakhlo currently reuses Record draft with Description set to
-   `(not applicable)`; replace this with a dedicated, clean Scheduled form matching LOAM.
-2. **Actual Workspace Parity (UI-03 / UI-04, P03/P04)**:
+1. **Actual Workspace Parity (UI-03 / UI-04, P03/P04)**:
    Align Actual browsing with LOAM's 3-pane layout (Loci / Actuals / Details), inline search,
    and clean parent return navigation.
+2. **Scheduled Replacement & Cancellation (UI-18 / UI-19)**:
+   Ensure Scheduled replacement (UI-19) and cancellation (UI-18) use dedicated review/preview
+   flows and independent validation gates matching LOAM.
 3. **Safety & Verification**:
    Central controller (`daily_interaction.ml`) edits must remain serialized. Any new overlay
    MUST use `resolve_overlay` to maintain single-source cursor and rendering geometry.
