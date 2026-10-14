@@ -89,17 +89,27 @@ commits further aligned Bakhlo with LOAM and resolved critical TUI interaction b
   gate (`previewCapacity < 2` rejection), and complete isolation from Record drafts. Registered with
   `resolve_overlay` for single-source cursor positioning. Added full synthetic test suite
   `scheduled_session_checks.ml`.
+- **Actual Workspace Parity (UI-03 / UI-04, P03/P04)**:
+  Implemented LOAM-compatible 3-pane Actuals Workspace (`tui/actual_workspace.ml/.mli`, `actual_workspace_checks.ml/.mli`)
+  matching LOAM `ActualWorkspace.lean`:
+  - 3-pane layout: Loci filter list (top-left), Actuals transactions list (bottom-left), and Details panel (right).
+  - Locus live filtering with count headers (`Loci (N)`), cycle filter scope (`f`: Focus Day / All Current), sort order toggle (`s`: Asc / Desc).
+  - Inline live search (`/`) with real-time text matching, backspace, and cursor tracking via `Act.cursor_position` on headers (macOS IME friendly).
+  - Details panel scrolling (`j/k`, `PageUp/Down`, `Home/End`) with scroll indicator (`▲▼`).
+  - Two-step Enter behavior (Transactions -> Details -> `Selected_day` drill-down).
+  - Dynamic geometry normalization (`normalize_for_bounds`) preserving Details scroll limit across terminal resizes without re-selection.
+  - Comprehensive test suite in `actual_workspace_checks.ml` covering all 10 navigation, selection, search, and boundary properties. All tests and regression checks passing.
 
 Existing private/synthetic scratch and detached qualification worktrees are retained.
 This source checkpoint does not qualify runtime parity, power loss/P7 or cutover.
 
 Next priorities:
-1. **Actual Workspace Parity (UI-03 / UI-04, P03/P04)**:
-   Align Actual browsing with LOAM's 3-pane layout (Loci / Actuals / Details), inline search,
-   and clean parent return navigation.
-2. **Scheduled Replacement & Cancellation (UI-18 / UI-19)**:
+1. **Scheduled Replacement & Cancellation (UI-18 / UI-19)**:
    Ensure Scheduled replacement (UI-19) and cancellation (UI-18) use dedicated review/preview
    flows and independent validation gates matching LOAM.
+2. **Selected Day Parity (UI-04 / SelectedDay.lean)**:
+   Align single-day mixed Actuals and open Plans view with LOAM's `SelectedDay.lean` layout,
+   role-aware summaries, and clean parent navigation (`q`/`Esc` return).
 3. **Safety & Verification**:
    Central controller (`daily_interaction.ml`) edits must remain serialized. Any new overlay
    MUST use `resolve_overlay` to maintain single-source cursor and rendering geometry.

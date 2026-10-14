@@ -56,8 +56,8 @@ Bakhloの保存形式をLOAMと同じにする指示ではなく、永久Correct
 | --- | --- | --- | --- | --- |
 | **UI-01** | Home／Calendar | 試用：固定盆栽Home、Day／Month／Year、期間内Actual／open予定のDetail | **F** role-aware収支・月年集計。**O** Help等。**V/Q** Calendarの配置・縮退・対照受入 | T：Home／暦。前段Antigravity：葉／鉢・入口キーの彩色、Home固定footerを整理。対照スクショ待ち |
 | **UI-02** | Commands | 試用：階層palette、実装済み入口 | **O** LOAMの未接続report等はまだ入口なし。**V/Q** 同一rectangle・選択・短い端末で対照 | T：階層・極小palette。前段Antigravity：タイトル／path・説明header、選択marker、固定help、不要counter除去。対照待ち |
-| **UI-03** | Actual一覧・検索・詳細 | 試用：All／Day、昇降順、検索modal内のlive絞込、2ペイン | **O** Locus絞込UI、画面内検索、独立したTransaction detailとaction文脈。**V** LOAMのLoci／Actuals／Details配置・観測文脈。**Q** 対照 | T/P：列揃え、符号・桁区切り、split／multi、安全な省略、共通viewport、下書き。前段監査はこの範囲。全互換ではない |
-| **UI-04** | Selected Day | 試用：選択日のActual／open予定とDetail | **F** role-aware収支。**O** 現在のq/EscはDetail→一覧→Homeで、Calendarへの親復帰に差。**V/Q** 混在一覧・空・狭小 | T：drill／現行戻り先。LOAMの親復帰を満たすテストではない |
+| **UI-03** | Actual一覧・検索・詳細 | **完了（実装・統合完了: antigravity）**：LOAM `ActualWorkspace.lean` 準拠の 3ペイン構成（Loci / Transactions / Details）、Locus 絞込、インラインライブ検索（`/`）、日付スコープ切替（`f`）、ソート切替（`s`）、Details スクロール（`j/k/Page/Home/End`）、2段階 Enter（Tx→Details→Selected_day）、寸法リサイズ時の `normalize_for_bounds` クランプ、検索中の IME カーソル追従を実装 | **V/Q** 実機受入・対照スクショ確認 | T：3ペイン移動、Locus 絞込、ライブ検索、スコープ・ソート切替、2段階 Enter、詳細スクロール、境界通知、リサイズ・clamp、全件パス |
+| **UI-04** | Selected Day | 試用：選択日のActual／open予定とDetail | **F** role-aware収支。**O** 2段階 Enter による Actual からのドリルイン接続完了。**V/Q** 混在一覧・空・狭小 | T：drill／現行戻り先 |
 | **UI-05** | Record入力・Locus候補 | 試用：Date／Description／Measure／複数Posting、許可済み候補 | **O/V/Q** 対照受入・実機検証待ち（ブラッシュアップ完了）。**F/O** 原額（UI-07）は未接続 | T：Unicode、paste、構造制約、追加行、floating／極小。P02完了：Movement上部枠＋横並びマルチペイン化、狭小Fields縮退、Locus前方一致（LOAM isPrefixOf準拠）、Date入力ガード、draft誤再開防止、resolve_overlayによるカーソル位置・描画座標の完全同期（macOS IME安定化） |
 | **UI-06** | Record Preview | 試用：Publish／Edit／Cancel、exact全体確認、狭小確定拒否 | **V/Q** 対照受入・実機検証待ち（ブラッシュアップ完了）。全文gateを弱めない | T：巨大数量、キー／支払リンク、狭小・未読末尾の拒否。P02完了：Publication gate（recheck evidence + Locus admission）案内行、中画面縦3段レイアウト、枠線・ボタン整列、キャレット17カラム化、全文gate維持を実装・検証完了 |
 | **UI-07** | Original amount | 未接続：Daily永続項目・入力なし | **F/O** 原額を記帳量と独立に保持／接続。換算値で捏造しない | 見た目だけの依頼不可。F03 |
@@ -160,8 +160,8 @@ Record／共通form／writer／rendererのpaintは変更しない。
 | --- | --- | --- | --- |
 | **P01 見た目** | UI-01／02の接続済みHome／Commandsを対照。余白・強弱・配色・選択を仕上げる | Renderer／Home描画の合意した関数のみ。Commandsのcontroller変更は提案を統合担当へ | 4寸法、三テーマ、通知あり／なしの対照。Calendar収支や未接続reportを作らない。前段Antigravityの変更を保全 |
 | **P02 Record面（ブラッシュアップ完了: antigravity）** | UI-05／06／08の入力・候補・Previewの見た目／操作を対照しLOAM一致 | `record_session.ml`、`daily_interaction.ml`、`bonsai_daily.ml`、`record_session_checks.ml` | 完了（コミット: 7ba68de, 12a8f13, de7cc92, 43e03e0, 5a41147, 6316822）。前方一致、Ctrl-U suspense補完、Date保護、resolve_overlay一元管理。実機受入待ち |
-| **P03 読み取り比較** | UI-03／04のLOAM差を、操作列とスクショで具体化 | ソース・合成比較copyの閲覧のみ。成果はignored scratch＋この台帳の短い所見 | Locus、検索、単一detail、日付変更、戻り先、resizeを区別。実装・保存・本番copyのrefreshをしない |
-| **P04 Actual接続** | UI-03のLocus絞込／画面内検索を一課題ずつ接続 | 中央controller＋workspace＋その回帰を統合担当が専有。`ui_panel`は再利用 | scope／query／identity／draftを保持、閲覧で非書込。Transaction detail／新永続項目を同じ変更に混ぜない |
+| **P03 読み取り比較（完了: antigravity）** | UI-03／04のLOAM差を、操作列・挙動仕様（`ActualWorkspace.lean`）と完全照合 | `ActualWorkspace.lean` との精密比較完了。3ペイン構成（Loci / Transactions / Details）、Locus 絞込、ライブ検索、スコープ・ソート切替、2段階 Enter、詳細スクロール、境界通知、リサイズ・clampの全仕様を抽出 | 完了。P04の実装入力として反映完了 |
+| **P04 Actual接続（完了: antigravity）** | UI-03の3ペイン・Locus絞込・画面内検索・詳細スクロール・リサイズclampを接続 | `actual_workspace.ml/.mli`、`actual_workspace_checks.ml/.mli`、`daily_interaction.ml` | 完了。LOAM `ActualWorkspace.lean` 準拠の 3ペイン構成（Loci / Transactions / Details）、Locus 絞込、インラインライブ検索（`/`）、日付スコープ切替（`f`）、ソート切替（`s`）、Details スクロール、2段階 Enter、寸法リサイズ時の `normalize_for_bounds` クランプ、検索中の IME カーソル追従を実装・セルフチェック通過 |
 | **P05 確認の安全性（反転slice限定完了: pit）** | UI-11のDate／exact inverse Preview・狭小gate／失敗復帰を接続。対照実行・受入は未 | 専用session、中央controller、frontendの最新寸法伝達、回帰。P04との同時編集は禁止 | writerは既存inverse検査を維持。read-only Preview、末尾、tiny拒否、競合／不確定、draftを確認。UI-18／29／31は後続の別課題 |
 | **P06 機能設計調査** | UI-12／14／22／23の明示予定と監視設定・Series／Monthsの不足を整理 | read-only調査／設計案だけなら並行可。実装file・保存単位は調査後に決める | open／completed／cancelled・欠損Actual・coverageを区別。監視cadenceを予定事実やNotDueにしない |
 | **P07 roles安全境界** | UI-24／30のrole parse／load／save拒否を独立に調べる | `locus_roles.*`と関連parser／controller利用元の調査。修正の接続は中央担当と調整 | 不正→空／false成功・stale write・draft／reload・coldを扱う。口座名／signからrole推測しない。Balancesの見た目依頼とは別 |

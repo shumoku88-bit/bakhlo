@@ -11,6 +11,7 @@ module M = Ui_commands
 module S = Record_session
 module Rev = Reversal_session
 module Sch = Scheduled_session
+module Act = Actual_workspace
 module Form = Ui_form
 module Panel = Ui_panel
 module Att = Attention_data
@@ -127,6 +128,7 @@ type state = {
   settlements : (Stl.t, string) result;
   settlement_scope : Stl.scope;
   balance_mode : [ `Accounting | `Current ];
+  actual_workspace : Act.t;
 }
 
 let initial ?config_home session =
@@ -157,6 +159,7 @@ let initial ?config_home session =
     settlements;
     settlement_scope = Stl.Open_only;
     balance_mode = `Accounting;
+    actual_workspace = Act.create ~focus_date:(F.today ());
   }
 
 let has_record_draft state =
@@ -340,10 +343,37 @@ let open_plan_record state =
       message = "";
     }
 
+let sync_actual_to_workspace state =
+  let entry_opt = Act.selected_entry ~book:state.session.book state.actual_workspace in
+  let browser : W.browser =
+    {
+      selected = Act.transaction_row state.actual_workspace;
+      selected_id = Option.map (fun (e : B.entry) -> (W.Actual_row, e.id)) entry_opt;
+      day = (match Act.scope state.actual_workspace with Act.Focus_day -> Some (Act.focus_date state.actual_workspace) | Act.All_current -> None);
+      order = (match Act.sort_order state.actual_workspace with Act.Asc -> W.Oldest | Act.Desc -> W.Newest);
+      query = Act.search_query state.actual_workspace;
+      locus = Act.selected_locus ~book:state.session.book state.actual_workspace;
+    }
+  in
+  let pane = if Act.pane state.actual_workspace = Act.Details then W.Detail else W.Calendar in
+  let scroll = if pane = W.Detail then Act.detail_scroll state.actual_workspace else 0 in
+  { state with workspace = { (W.update_browser state.workspace browser) with pane }; scroll }
+
 let open_route state route =
+  let state =
+    if route = W.Actual then
+      let focus_date = state.workspace.calendar.selected_day in
+      let actual_workspace = Act.create ~focus_date in
+      sync_actual_to_workspace { state with actual_workspace }
+    else state
+  in
   sync { state with workspace = W.enter state.workspace route; overlay = No_overlay; scroll = 0 }
 
-let selected state = W.selected_row ~book:state.session.book state.workspace
+let selected state =
+  if state.workspace.route = W.Actual then
+    Option.map (fun e -> W.Actual_entry e)
+      (Act.selected_entry ~book:state.session.book state.actual_workspace)
+  else W.selected_row ~book:state.session.book state.workspace
 
 let edit_selected state =
   if state.blocked then state
@@ -1575,6 +1605,29 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII 'q', [ `Ctrl ]) -> None
         | Some (`ASCII 'r', [ `Ctrl ]) -> Some (reload state)
         | Some (`ASCII 'n', [ `Ctrl ]) -> Some (discard state)
+        | _ when state.workspace.route = W.Actual -> (
+            match input with
+            | `Key (`ASCII ' ', []) when not (Act.search_editing state.actual_workspace) ->
+                Some { state with overlay = Commands M.initial }
+            | `Key (`ASCII ('c' | 'C' | 'e' | 'E'), []) when not (Act.search_editing state.actual_workspace) ->
+                Some (edit_selected state)
+            | `Key (`ASCII ('x' | 'X'), []) when not (Act.search_editing state.actual_workspace) ->
+                Some (reverse_entry_selected state)
+            | _ ->
+                let next_ws, cmd =
+                  Act.handle ~book:state.session.book ~dimensions ~width_of state.actual_workspace input
+                in
+                let state =
+                  sync_actual_to_workspace
+                    { state with actual_workspace = next_ws; message = Act.notice next_ws }
+                in
+                (match cmd with
+                | Act.Stay -> Some state
+                | Act.Open_selected entry ->
+                    Some (open_route state (W.Selected_day entry.day))
+                | Act.Record_new -> Some (open_record state)
+                | Act.Back -> Some (open_route state W.Home)
+                | Act.Redraw -> Some state))
         | Some (`ASCII ' ', []) -> Some { state with overlay = Commands M.initial }
         | Some (`Uchar c, []) when Uchar.to_int c = 32 ->
             Some { state with overlay = Commands M.initial }
@@ -2421,19 +2474,7 @@ let workspace_rows ~width_of ~width ~height state =
       ~right_focused:is_detail ~right_title
       ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Actual then
-    let list_width, detail_width = browser_pane_widths width in
-    let is_detail = workspace.pane = W.Detail in
-    let browser = W.browser workspace in
-    let heading, titles = actual_table ~width_of ~width:list_width book rows in
-    let list_title = Printf.sprintf "Actuals (%d, %s, %s)" (List.length rows)
-      (match browser.order with W.Newest -> "desc" | W.Oldest -> "asc")
-      (match browser.day with None -> "all" | Some _ -> "day") in
-    split_pane ~left_heading:heading
-      ~left_focused:(not is_detail) ~left_title:list_title ~left_scroll:0
-      ~left_selected:(if rows = [] then None else Some browser.selected)
-      ~left_rows:(if rows = [] then [ tr "No records in this view." ] else titles)
-      ~right_focused:is_detail ~right_title:"Actual Detail" ~right_scroll:state.scroll
-      ~right_selected:None ~right_rows:(browser_detail_rows ~width_of ~width:detail_width state) ()
+    Act.screen ~book:state.session.book ~dimensions:(width, height) ~width_of state.actual_workspace
   else
     let is_detail = workspace.pane = W.Detail in
     let right_title =
@@ -2477,6 +2518,9 @@ let footer state =
       | _ ->
           [ "Enter submit  Tab next field  Esc cancel"; "Arrow keys / space to choose options" ])
   | No_overlay | Commands _ | Jump _ | Search _ ->
+  if state.workspace.W.route = W.Actual then
+    Act.footer ~dimensions:(80, 24) ~width_of:String.length state.actual_workspace
+  else
   match (state.workspace.W.route, state.workspace.pane) with
   | W.Home, _ ->
       [
@@ -2577,6 +2621,21 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
     let body_height = max 0 (height - List.length feedback - 2) in
     let headers =
       if state.workspace.route = W.Home then []
+      else if state.workspace.route = W.Actual then
+        [
+          line ~width_of width Heading
+            (tr "Bakhlo" ^ "  /  " ^ tr "Actual" ^ "  |  "
+            ^ Act.scope_text state.actual_workspace ^ "  |  "
+            ^ Act.current_locus_name ~book:state.session.book state.actual_workspace);
+          line ~width_of width Chrome
+            (if Act.search_editing state.actual_workspace || Act.search_query state.actual_workspace <> "" then
+               let cursor = if Act.search_editing state.actual_workspace then "_" else "" in
+               " Search: /" ^ Act.search_query state.actual_workspace ^ cursor
+             else
+               state.workspace.calendar.selected_day ^ "   "
+               ^ Cal.title state.workspace.calendar ^ tr " view"
+               ^ if has_record_draft state then "   Draft retained" else "");
+        ]
       else
         [
           line ~width_of width Heading
@@ -2849,5 +2908,7 @@ let cursor_position ~width_of ((width, height) as dimensions) state : (int * int
             (match find_input 0 rows with
             | Some (caret, row_idx) when caret < width && row_idx < height -> Some (caret, row_idx)
             | _ -> None)
+      else if state.workspace.route = W.Actual then
+        Act.cursor_position ~dimensions ~width_of state.actual_workspace
       else None
 
