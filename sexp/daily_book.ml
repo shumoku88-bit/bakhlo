@@ -869,6 +869,35 @@ let parse_amount t m text =
       require (Z.sign n > 0) "non-positive-amount";
       n)
 
+let parse_signed_amount t m text =
+  protect (fun () ->
+      let text = String.trim text in
+      require (text <> "") "empty-amount";
+      let is_neg, clean_text =
+        if String.starts_with ~prefix:"-" text then
+          (true, String.sub text 1 (String.length text - 1))
+        else if String.starts_with ~prefix:"+" text then
+          (false, String.sub text 1 (String.length text - 1))
+        else (false, text)
+      in
+      let decimals = scale t m in
+      let norm = normalize_amount_text clean_text in
+      let is_digit c = c >= '0' && c <= '9' in
+      let n =
+        match String.split_on_char '.' norm with
+        | [ whole ] ->
+            let clean_whole = parse_whole whole in
+            Z.mul (integer clean_whole) (Z.pow (Z.of_int 10) decimals)
+        | [ whole; fraction ] ->
+            let clean_whole = parse_whole whole in
+            require (fraction <> "" && String.for_all is_digit fraction) "invalid-amount";
+            require (decimals > 0 && String.length fraction <= decimals) "amount-precision";
+            integer (clean_whole ^ fraction ^ String.make (decimals - String.length fraction) '0')
+        | [] | _ :: _ -> raise (Refused "invalid-amount")
+      in
+      if is_neg then Z.neg n else n)
+
+
 type daily_pace = {
   measure : string;
   observed_at : string;
@@ -1097,3 +1126,42 @@ let add_locus t id =
       | Some ids ->
           require (not (List.mem id ids)) "duplicate-locus";
           admit ~entries_cached:t.entries_cached { t.data with approved = Some (ids @ [ id ]) })
+
+let observe_quantities t rows =
+  protect (fun () ->
+      require (rows <> []) "empty-observations";
+      let assertions =
+        List.map
+          (fun (l, m, q) ->
+            let c = coord l m in
+            let known m = require (List.mem_assoc m t.data.measures) "measure-scale-not-supplied" in
+            known m;
+            Option.iter
+              (fun approved -> require (List.mem l approved) "locus-not-approved")
+              t.data.approved;
+            let assertion : A.Current_quantity_projection.assertion =
+              { coordinate = c; quantity = D.Quantity.of_quanta q }
+            in
+            assertion)
+          rows
+      in
+      unique (List.map (fun (l, m, _) -> l ^ "\x00" ^ m) rows) "duplicate-coordinate";
+      let groups = Q.source_groups t.image in
+      let frontier = A.Current_quantity_groups.source_frontier groups in
+      let roots =
+        List.map A.Correction_frontier.root_id (A.Correction_frontier.lineages frontier)
+      in
+      let incoming : A.Current_quantity_groups.group =
+        { reflected_roots = roots; assertions }
+      in
+      let new_groups =
+        match A.Current_quantity_groups.reobserve groups incoming with
+        | Ok g -> g
+        | Error (A.Current_quantity_groups.Invalid_cut _) -> raise (Refused "invalid-cut")
+        | Error (A.Current_quantity_groups.Invalid_assertions _) -> raise (Refused "invalid-assertions")
+        | Error (A.Current_quantity_groups.Repeated_coordinate _) -> raise (Refused "repeated-coordinate")
+      in
+      let new_obs = A.Current_quantity_groups.groups new_groups in
+      let data = { t.data with observations = new_obs } in
+      admit ~entries_cached:t.entries_cached data)
+

@@ -2,6 +2,39 @@
 
 ## Current task
 
+The next first storage research candidate is **calendar-year partitioned S-expressions**,
+not production adoption. [Year-partition research](YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)
+owns the plan: Jan 1–Dec 31 storage, current-year + qualified opening evidence, independent
+analysis/cycle boundaries, cross-year references and past-correction invalidation.
+The first synthetic comparison is 2025-10-15 through 2026-10-14, six two-month cycles;
+actual adopted payment dates define cycles, never an implicit always-the-15th rule.
+Compare meaning, answers and refusals against the existing single-file Core/Daily_book oracle.
+Year rollover/multi-file atomicity and recovery are unresolved. **Consult the user before
+implementing this next experiment**; the latest task only organizes and pushes research.
+
+Irmin [Phase 1](IRMIN_STORAGE_RESEARCH.ja.md) and [Phase 2](IRMIN_PHASE2_RESULTS.ja.md)
+are complete within their stated scopes. Partial branch writes followed by EIO/SIGKILL
+left an existing branch with no resolvable HEAD. Normal atomic-generation/restart/limited
+archive checks passed, but durable Saved/power-loss/P7 remain unqualified. Irmin product integration
+is **on hold**; no root manifest. SQLite remains a comparison candidate, not an installed
+product dependency or an executed Bakhlo backend comparison.
+Synthetic Irmin sources and frozen dependency recipe are preserved in the Phase 2 appendix;
+raw/failure evidence and its separate opam environment remain ignored and must not be pruned.
+
+[Canonical design](CANONICAL_DATA_DESIGN.ja.md) owns retained facts/reference roles, LOAM
+reuse and logical/native/formal residuals; [storage study](LONG_TERM_STORAGE_STUDY.ja.md)
+owns baseline/save decomposition/direct-printer/quote-length measurements. Neither printer
+trial is adopted. Do not repeat earned semantics or turn a conditional Alloy/Lean slice
+into a proof of combined C, OpeningSupport inheritance, archive completeness or durability.
+Historical decode is not writer permission. Current-use-first, identity/evidence preservation
+and equal-operation cost/recovery/maintenance remain the constraints, not manual syntax polish.
+The earlier private inventory is complete at `scratch/operation-inventory-leEhTN` (scope in
+canonical design); its counts/findings stay private and are not a UI frequency log.
+This next study uses synthetic data only. LOAM remains operational authority; preserve all
+originals/trials/backups/uncertainty artifacts. No format/backend/UI adoption or data cutover.
+
+## UI context
+
 Reproduce LOAM's appearance and usability in Bakhlo. The target is Calendar Home
 with Day / Month / Year, hierarchical Commands, and matching entry points,
 navigation, confirmation, cancellation and return behavior for shared capabilities:
@@ -9,8 +42,15 @@ recording, Actual, Scheduled, Balances and Daily Pace. Build the new UI in Engli
 with LOAM's labels first. Japanese UI is undecided. Implement Bonsai first;
 a later Notty implementation remains an option, not an excluded frontend.
 The English foundation is connected; full LOAM parity remains a target.
-Home and basic Record / Preview polish have reached a verified checkpoint; the
-user asked to stop at a good boundary. Do not expand into another feature slice.
+Home and basic Record / Preview polish have reached a verified checkpoint.
+The earlier approved comparison slice provides stopped LOAM refresh into separate private
+copies, short Bakhlo/LOAM launch commands, and direct root-palette theme selection.
+These remain available; the current storage investigation does not authorize cutover
+or expansion into accounting features.
+The usage inventory used a separate verified fresh stopped capture. It did not update
+comparison CURRENT or any prior writable trial. A selected comparison capture exists,
+but its currentness/full compatibility has not been requalified here; inventory success
+is not a successful fresh paired-UI conversion or operational cutover.
 Home uses nearby/side-by-side Detail and a compact Calendar; Record floats while
 retaining the parent date, with full-screen tiny input, border-only semantic colors
 and explicit caret cell metadata. Tiny overflowing previews refuse publication;
@@ -45,6 +85,11 @@ labels as an optional translation of the old Japanese UI.
   `scratch/daily_book_candidate_v1/household.sexp` exist. UI work/tests use
   synthetic copies instead. Do not put private contents, counts, screenshots
   or logs into fixtures, commits or public output.
+- New approval also covers bounded read-only inventory of retained operation
+  evidence in LOAM canonical history, using fresh stopped captures and stability
+  checks. Preserve old captures/trials; do not read the live originals while LOAM
+  is running or silently substitute older evidence. Unknown/imported/current-only
+  evidence is not a full count of user actions. No private counts in public docs.
 - Private inputs/results remain ignored, with restrictive permissions. Do not
   copy LOAM implementation source, install dependencies or adopt a production
   storage/UI entrance by implication.
@@ -85,18 +130,36 @@ labels as an optional translation of the old Japanese UI.
 
 ## UI and direct owners
 
-`./tools/tui` is the current Bonsai-first entrance. The old standalone Notty frontend,
+`./ui --refresh` uses the existing private Daily conversion trial after LOAM is
+closed, retaining exact household/config inputs, a fresh supported Daily v3 book,
+a private entry/plan delta, and previous captures under `scratch/loam-comparison`.
+It does not date-filter/append blindly, merge trial edits, or update originals.
+Unsupported Actual/profile data and changed acquisition refuse without advancing
+CURRENT. This local helper needs the earlier ignored converter; it is not full
+household migration, live capture, complete backup or canonical-store adoption.
+`./ui` opens the selected Bakhlo trial copy; `./ui loam` opens a separate LOAM trial
+copy of the same capture using the already-built executable, never building LOAM
+or falling back to live originals. UI theme settings are isolated in `ui-config`.
+`./ui --demo` retains the synthetic preview. `./tools/tui` remains the explicit
+selected-file Bonsai entrance. The old standalone Notty frontend,
 paired UI benchmark and old Bonsai layout lab are removed. Notty remains a
-transitive rendering library used by native renderer checks; dependencies have
-not been removed or installed. This is the current implementation, not a permanent
-Bonsai-only product decision; a new Notty renderer may follow.
+transitive rendering library used by native renderer checks; product dependencies have
+not been removed or expanded. Irmin research used a separate switch only. This is the current
+implementation, not a permanent Bonsai-only product decision; a new Notty renderer may follow.
 
 Home is Calendar with Day / Month / Year and a period Detail region. Commands is
 hierarchical. Actual, current-open Scheduled, Selected Day, Balances and current
 Daily Pace use English labels. The Calendar counts Actual and open Scheduled;
 role-aware income/expense totals remain unavailable because roles are not supplied.
 Full Series management, Attention, historical Trend and Japanese switching are
-not implemented. Recording uses one transient Record model with Description,
+not implemented. Theme offers Terminal (default, terminal-owned background/text
+and ANSI colors including editor borders) and original Bakhlo Light / Dark
+(fixed xterm 256 colors). Commands > Theme (also under Household setup) previews
+with j/k or arrows, cancels to the exact parent menu with Esc/q, and saves UI-only
+settings with Enter for the next
+launch. Drafts, navigation and safety warnings are retained; failed settings saves
+are session-only and reported. LOAM's dim styling remains a Bonsai API limitation.
+Recording uses one transient Record model with Description,
 Measure and signed postings. Esc/Cancel retain the draft; Preview offers Publish,
 Edit and Cancel. Only Enter on selected Publish uses the existing publisher;
 Ctrl-S opens a preview and never confirms publication.
@@ -156,6 +219,7 @@ Use the existing isolated tools; do not change global environments or use Python
 ```sh
 ./tools/check
 ./tools/tui --self-check
+./tools/compare self-check
 ./tools/tui --copy-from examples/daily-book.sexp --book scratch/FRESH_TRIAL/book.sexp
 ./tools/tui --book scratch/FRESH_TRIAL/book.sexp
 ```
@@ -164,7 +228,12 @@ Create a fresh ignored trial directory first; never overwrite a previous trial.
 The launcher installs nothing, refuses unavailable isolated environments, and
 `--self-check` runs shared contract checks and the native Bonsai renderer checks.
 
-Finish the agreed UI slice, review its exact diff and compare the resulting screens
+For the next storage experiment consult the year-partition plan before implementation.
+Existing `./tools/storage-study` / `./tools/storage-breakdown` and recovery/refusal tests
+remain baseline entrances, not a request to repeat scale measurements now.
+Keep results in their owning reports; install nothing or start a backend by implication.
+
+When UI work resumes, review its exact diff and compare the resulting screens
 and supported-operation key flows with current LOAM. Check relevant synthetic
 cases: normal/compact geometry, Japanese/long text/huge amounts, empty/unknown
 states, focus/viewport, resize, cancel, confirm, reopen and terminal restoration.

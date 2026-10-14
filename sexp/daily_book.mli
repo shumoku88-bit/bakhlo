@@ -144,3 +144,14 @@ val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) 
 
 val add_locus : t -> string -> (t, string) result
 (** Explicit vocabulary addition only; never supplies zero balance or a role. *)
+
+val parse_signed_amount : t -> string -> string -> (Z.t, string) result
+(** Signed or zero exact decimal input at the explicitly supplied scale. No rounding. *)
+
+val observe_quantities : t -> (string * string * Z.t) list -> (t, string) result
+(** Observe one reconciliation group of current quantities for one or more coordinates
+    (locus, measure, quantity_quanta) observed together against the current stable-root cut.
+    Unmentioned prior observations are preserved; re-observed coordinates are replaced.
+    Refuses if any coordinate overlaps zero-origin or opening support, or if Locus/Measure
+    is invalid, or if duplicate coordinates are supplied. *)
+

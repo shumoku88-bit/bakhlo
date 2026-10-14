@@ -9,7 +9,7 @@ module Fm = Daily_form
 let tr = Ui_text.tr
 
 type row = { key : D.Identifier.Effect_key.t option; locus : string; amount : string }
-type review = { transaction : A.transaction; base_bytes : string; action : int; scroll : int }
+type review = { payload : A.payload; base_bytes : string; action : int; scroll : int }
 type t = {
   mode : A.mode;
   day : string;
@@ -23,19 +23,26 @@ type t = {
   review : review option;
   paste : (string * bool) option;
 }
-type outcome = Updated of t | Closed of t | Publish of A.transaction * string * t
+type outcome = Updated of t | Closed of t | Publish of A.payload * string * t
 
 let mode t = t.mode
 let with_notice t notice = { t with notice }
+let is_plan t = match t.mode with A.Plan_new | A.Plan_edit _ -> true | A.New | A.Edit _ | A.Pay _ -> false
 let has_draft t =
   match t.mode with
-  | A.Edit _ | A.Pay _ -> true
+  | A.Edit _ | A.Pay _ | A.Plan_edit _ -> true
+  | A.Plan_new -> List.exists (fun row -> row.amount <> "" || row.locus <> "") t.rows
   | A.New -> t.description <> "" || List.exists (fun row -> row.amount <> "" || row.locus <> "") t.rows
 
 let create ~book:_ ~day ~measure () =
   { mode = A.New; day; description = ""; measure;
     rows = [{key=None; locus=""; amount=""}; {key=None; locus=""; amount=""}];
     focus=1; cursor=None; candidate=0; notice=""; review=None; paste=None }
+
+let create_plan ~book:_ ~day ~measure () =
+  { mode = A.Plan_new; day; description = ""; measure;
+    rows = [{key=None; locus=""; amount=""}; {key=None; locus=""; amount=""}];
+    focus=0; cursor=None; candidate=0; notice=""; review=None; paste=None }
 
 let rows_of_draft (draft : R.t) =
   List.map (fun (r:R.row) ->
@@ -51,6 +58,24 @@ let of_edit ~book entry =
           let t = create ~book ~day:entry.day ~measure:draft.measure () in
           Ok {t with mode=A.Edit entry; description=Option.value ~default:"" entry.memo;
             rows=rows_of_draft draft})
+
+let of_edit_plan ~book (plan : B.plan) =
+  if plan.paid_by <> None then Error (tr "This Scheduled occurrence is already completed.")
+  else if plan.cancelled_on <> None then Error (tr "This Scheduled occurrence is cancelled.")
+  else
+    let effects =
+      List.map (fun (locus, n) ->
+        match D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string plan.measure with
+        | Ok locus, Ok measure ->
+            Some (D.Effect.create ~key:None ~locus ~measure ~quantity:(D.Quantity.of_quanta n))
+        | Error _, _ | _, Error _ -> None) plan.changes
+    in
+    if List.exists Option.is_none effects then Error (tr "Invalid Scheduled coordinates.")
+    else match R.of_effects book (List.filter_map Fun.id effects) with
+    | Error why -> Error why
+    | Ok draft ->
+        let t = create_plan ~book ~day:plan.day ~measure:plan.measure () in
+        Ok {t with mode = A.Plan_edit plan; rows = rows_of_draft draft}
 
 let of_plan ?day ~book (plan:B.plan) =
   if plan.paid_by <> None then Error (tr "This Scheduled occurrence is already completed.")
@@ -74,7 +99,7 @@ let action_start t = 3 + 2 * List.length t.rows
 let border_intent t =
   if (match t.review with Some review -> review.action = 2
       | None -> t.focus = action_start t + 3) then `Cancel
-  else match t.mode with A.New -> `Create | A.Edit _ | A.Pay _ -> `Change
+  else match t.mode with A.New | A.Plan_new -> `Create | A.Edit _ | A.Pay _ | A.Plan_edit _ -> `Change
 
 let surface_dimensions (width, height) =
   let width = max 0 width and height = max 0 height in
@@ -85,7 +110,7 @@ let field_count t = action_start t + 4
 let row_index t = max 0 ((t.focus-3)/2)
 let is_locus t = t.focus>=3 && t.focus<action_start t && (t.focus-3) mod 2=0
 let is_amount t = t.focus>=3 && t.focus<action_start t && (t.focus-3) mod 2=1
-let editable_structure t = match t.mode with A.Edit _ -> false | A.New | A.Pay _ -> true
+let editable_structure t = match t.mode with A.Edit _ -> false | A.New | A.Pay _ | A.Plan_new | A.Plan_edit _ -> true
 let value t =
   if t.focus=0 then t.day else if t.focus=1 then t.description else if t.focus=2 then t.measure
   else match List.nth_opt t.rows (row_index t) with
@@ -107,7 +132,7 @@ let set_value t text =
         | A.Edit entry ->
             (match List.nth_opt entry.B.effects (row_index t) with
              | Some posting -> Z.sign (A.quanta posting)<0 | None -> false)
-        | A.New | A.Pay _ -> false in
+        | A.New | A.Pay _ | A.Plan_new | A.Plan_edit _ -> false in
       if text<>"" && negative text <> original_negative then
         with_notice t (tr "Correction keeps the posting sign; edit its amount magnitude.")
       else reset {t with rows=List.mapi (fun i row -> if i=row_index t then {row with amount=text} else row) t.rows}
@@ -117,7 +142,11 @@ let set_value t text =
 
 let move_focus t delta =
   let count = field_count t in
-  {t with focus=(t.focus+delta+count) mod count; cursor=None; candidate=0; notice=""}
+  let rec step f =
+    let next = (f + delta + count) mod count in
+    if is_plan t && next = 1 then (next + delta + count) mod count else next
+  in
+  {t with focus = step t.focus; cursor = None; candidate = 0; notice = ""}
 
 let candidates ~book t = if is_locus t then O.locus_candidates book (value t) else []
 let accept ~book t =
@@ -151,10 +180,16 @@ let draft t =
 
 let preview ~book ~base_bytes ~blocked t =
   if blocked then with_notice t (tr "Writes are stopped; the draft is retained.")
+  else if is_plan t then
+    match A.build_plan ~book ~mode:t.mode ~day:t.day ~draft:(draft t) with
+    | Error error -> with_notice t error.A.message
+    | Ok (plan, replace) ->
+        {t with review=Some {payload=A.Plan_tx {plan; replace}; base_bytes; action=0; scroll=0}; notice=""; paste=None}
   else
     match A.build_transaction ~book ~mode:t.mode (A.Multiple {day=t.day; memo=t.description; draft=draft t}) with
     | Error error -> with_notice t error.A.message
-    | Ok transaction -> {t with review=Some {transaction; base_bytes; action=0; scroll=0}; notice=""; paste=None}
+    | Ok transaction ->
+        {t with review=Some {payload=A.Entry_tx transaction; base_bytes; action=0; scroll=0}; notice=""; paste=None}
 
 let insert t text =
   let updated, cursor=Fm.insert_at ~value:(value t) ~cursor:t.cursor text in
@@ -166,7 +201,10 @@ let erase t =
   let next=set_value t updated in
   if value next=updated then {next with cursor=Some cursor} else next
 
-let review_lines ~book review = O.preview_lines book review.transaction
+let review_lines ~book review =
+  match review.payload with
+  | A.Entry_tx tx -> O.preview_lines book tx
+  | A.Plan_tx { plan; replace } -> O.plan_preview_lines book ~replace plan
 let notice_lines ~dimensions:(width,height) ~width_of t =
   let room = max 1 (width - 4) in
   let rows = if t.notice = "" then [""] else O.wrap_text ~width_of room t.notice in
@@ -240,7 +278,7 @@ let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.in
                   update (with_notice t (tr "Not enough room for the whole preview; enlarge the terminal."))
                 else if scroll<last then
                   update (with_notice t (tr "Review to the end before Publish."))
-                else Publish (review.transaction,review.base_bytes,t)
+                else Publish (review.payload,review.base_bytes,t)
           | _ -> update t)
       | None when blocked -> update t
       | None ->
@@ -329,7 +367,10 @@ let screen ~book ~dimensions:(width,height) ~width_of t =
   in
   let navigation=List.map (raw O.Chrome) navigation in
   let title=match t.review,t.mode with
+    | Some _, A.Plan_new | Some _, A.Plan_edit _ -> tr "Scheduled / Preview"
     | Some _,_ -> tr "Record / Preview"
+    | None,A.Plan_new -> tr "Scheduled / Create"
+    | None,A.Plan_edit _ -> tr "Scheduled / Edit"
     | None,A.New -> tr "Record / Edit"
     | None,A.Edit _ -> tr "Actual / Correct"
     | None,A.Pay _ -> tr "Scheduled / Complete"
@@ -358,15 +399,24 @@ let screen ~book ~dimensions:(width,height) ~width_of t =
             let text,caret=field_text ~width_of inside (t.focus=index) t.cursor label value in
             (match caret with Some cell->O.Input (2+cell) | None->O.Plain),text
           in
+          let field_indices =
+            (if is_plan t then [0; 2] else [0; 1; 2])
+            @ List.concat (List.mapi (fun index _ -> [3 + 2 * index; 4 + 2 * index]) t.rows)
+          in
           let fields=
-            [field 0 "Date" t.day;field 1 "Description" t.description;field 2 "Measure" t.measure]
+            (if is_plan t then [field 0 "Date" t.day; field 2 "Measure" t.measure]
+             else [field 0 "Date" t.day; field 1 "Description" t.description; field 2 "Measure" t.measure])
             @ List.concat (List.mapi (fun index row->
                 [field (3+2*index) (A.format_message "Posting %d" (index+1)) row.locus;
                  field (4+2*index) "Amount" row.amount]) t.rows)
           in
           let candidate_height=if capacity>=12 then 3 else if capacity>=4 then 1 else 0 in
           let field_capacity=max 0 (capacity-candidate_height) in
-          let selected=min (max 0 (List.length fields-1)) t.focus in
+          let rec find_idx i = function
+            | [] -> min (max 0 (List.length fields-1)) t.focus
+            | idx :: rest -> if idx = t.focus then i else find_idx (i + 1) rest
+          in
+          let selected = find_idx 0 field_indices in
           let last=max 0 (List.length fields-field_capacity) in
           let start=max 0 (min last (selected-field_capacity+1)) in
           let shown=fields |> List.filteri (fun index _->index>=start && index<start+field_capacity) in

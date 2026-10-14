@@ -1,0 +1,52 @@
+#!/bin/sh
+# Local comparison refresh using the existing private, scoped LOAM conversion trial.
+set -eu
+umask 077
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+cd "$root"
+case "${1:-}" in
+  refresh|self-check) [ "$#" -eq 1 ] || exit 2 ;;
+  *) printf '%s\n' 'Usage: tools/compare refresh | self-check' >&2; exit 2 ;;
+esac
+if [ "$1" = refresh ]; then
+  # Do not stop another terminal/process or capture an actively used authority.
+  processes=$(ps -ax -o comm=) || exit 2
+  if printf '%s\n' "$processes" | grep -Eq '/(loam|loamTui|loamMovement)$'; then
+    printf '%s\n' 'Close LOAM in all tabs/windows before refreshing. Originals untouched.' >&2
+    ps -ax -o pid=,tty=,comm= | awk '/\/(loam|loamTui|loamMovement)$/ {printf "  LOAM still running: PID=%s  terminal=%s\n", $1, $2}' >&2
+    printf '%s\n' 'Exit those LOAM screens with q, then retry ./ui --refresh.' >&2
+    exit 2
+  fi
+fi
+trial=$root/scratch/daily_book_candidate_v1
+build=$root/scratch/loam-comparison-tools
+state=$root/scratch/loam-comparison
+if [ ! -f "$trial/daily.ml" ] || [ -L "$root/scratch" ] || [ -L "$build" ] || [ -L "$state" ]; then
+  printf '%s\n' 'Existing private converter unavailable or unsafe comparison directory. Nothing imported.' >&2
+  exit 2
+fi
+mkdir -p "$build"
+./tools/opam exec -- dune build lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa \
+  loam_read/bakhlo_loam_read.cmxa sexp/bakhlo_sexp.cmxa
+# Recompile our existing converter against current native libraries, never LOAM source.
+cp "$trial/daily.ml" "$build/daily.ml"
+cp "$root/tools/compare_capture.ml" "$build/compare_capture.ml"
+./tools/opam exec -- ocamlfind ocamlopt -strict-sequence -w +8+9+11 -warn-error +8+9+11 \
+  -package base,zarith,parsexp,unix -linkpkg \
+  -I _build/default/lib/.bakhlo_domain.objs/byte \
+  -I _build/default/lib/.bakhlo_domain.objs/native \
+  -I _build/default/application/.bakhlo_application.objs/byte \
+  -I _build/default/application/.bakhlo_application.objs/native \
+  -I _build/default/loam_read/.bakhlo_loam_read.objs/byte \
+  -I _build/default/loam_read/.bakhlo_loam_read.objs/native \
+  -I _build/default/sexp/.bakhlo_sexp.objs/byte \
+  -I _build/default/sexp/.bakhlo_sexp.objs/native \
+  -I "$build" \
+  _build/default/lib/bakhlo_domain.cmxa _build/default/application/bakhlo_application.cmxa \
+  _build/default/loam_read/bakhlo_loam_read.cmxa _build/default/sexp/bakhlo_sexp.cmxa \
+  "$build/daily.ml" "$build/compare_capture.ml" -o "$build/compare-capture"
+if [ "$1" = self-check ]; then
+  exec "$build/compare-capture" self-check
+fi
+source=$(CDPATH= cd -- "$root/../loam-data" && pwd -P)
+exec "$build/compare-capture" refresh "$source" "$state" "$trial/household.sexp"

@@ -1,5 +1,5 @@
 type page = Root | Transactions | Planning | Analysis | Setup
-type action = Record | Actual | Scheduled | Balances | Daily_pace | Theme | Home
+type action = Record | Actual | Scheduled | New_plan | Balances | Daily_pace | Theme | Home | Calendar | Attention | Manage_loci | Exchange | Settlements | Observe
 type item = Group of page | Action of action
 type t = { page : page; selected : int }
 type outcome = Updated of t | Chosen of action | Closed
@@ -13,12 +13,34 @@ let items = function
         (Group Planning, "Plans and attention →");
         (Group Analysis, "Reports and analysis →");
         (Group Setup, "Household setup →");
+        (Action Theme, "Theme / Terminal or Bakhlo Light / Dark");
       ]
   | Transactions ->
-      [ (Action Record, "Record / new entry"); (Action Actual, "Actual / transactions") ]
-  | Planning -> [ (Action Scheduled, "Scheduled / plans") ]
-  | Analysis -> [ (Action Daily_pace, "Daily Pace"); (Action Balances, "Balances / Current") ]
-  | Setup -> [ (Action Theme, "Theme"); (Action Home, "Home / Calendar") ]
+      [
+        (Action Record, "Record / new entry");
+        (Action Calendar, "Calendar / Month flow");
+        (Action Actual, "Actual / transactions");
+        (Action Exchange, "Exchange / Currency conversion");
+      ]
+  | Planning ->
+      [
+        (Action Scheduled, "Scheduled / plans");
+        (Action New_plan, "New Scheduled Plan");
+        (Action Attention, "Attention / Household matters");
+        (Action Settlements, "Settlements / Reimbursements");
+      ]
+  | Analysis ->
+      [
+        (Action Daily_pace, "Daily Pace");
+        (Action Balances, "Balances / Current");
+        (Action Observe, "Observe Quantities / Verified balance");
+      ]
+  | Setup ->
+      [
+        (Action Theme, "Theme");
+        (Action Manage_loci, "Manage Loci / Admitted vocabulary");
+        (Action Home, "Home / Bonsai");
+      ]
 
 let title = function
   | Root -> "Commands"

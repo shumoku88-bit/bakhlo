@@ -9,14 +9,14 @@ on-demand references, not a compulsory reading list or an implementation backlog
 
 - **Completed & Merged**: Trial 06, PR 5 (records format, durable append, application/TUI integration, incremental admission), PR 6 (records strip bytes copy optimization, entry indexing via immutable Map & reversed list), PR UX-1 (natural Japanese error display, field targeting, fail-closed draft preservation), and PR UX-2 (flexible amount parsing with half/full-width & 3-digit commas, flexible date parsing with YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD & Gregorian validation, 't' key today reset, Command Palette calendar navigation with pure calendar arithmetic).
 - **UI direction**: Reproduce LOAM's current appearance and usability, including Calendar Home with Day / Month / Year, hierarchical Commands and corresponding supported-workspace flows. English comes first; whether to provide a Japanese UI is undecided. Bonsai is the first implementation, not an exclusive frontend decision; a later Notty implementation remains possible. Read `docs/UI_DIRECTION.ja.md` before UI work. Bakhlo is not operationally adopted; obsolete UI mechanisms need no backward compatibility. This does not authorize changing LOAM originals or operational cutover.
-- **UI entrance**: `./tools/tui` builds and runs the Bonsai_term frontend in the existing isolated environment. The standalone Notty frontend, paired UI benchmark and old Bonsai layout lab are removed. Notty remains a transitive rendering library and is used by native renderer checks. The renderer does not own accounting logic.
-- **Current checkpoint**: Home and basic Record / Preview polish are locally verified. The user asked to stop at a good boundary; do not start another feature slice. Read LOAM's existing research on when sharing is useful or harmful before choosing abstraction boundaries; sharing itself is not a goal. Removing the old Notty renderer does not exclude a later renderer for the new UI.
+- **UI entrance**: `./ui` opens a private comparison copy; `./ui loam` opens the paired LOAM copy with the existing binary, and `./ui --refresh` performs an explicit stopped read-only capture using the earlier private converter. Missing/unsupported/changed inputs refuse, without live or synthetic fallback. `./ui --demo` retains the synthetic preview. `./tools/tui` builds and runs the Bonsai_term frontend in the existing isolated environment. The standalone Notty frontend, paired UI benchmark and old Bonsai layout lab are removed. Notty remains a transitive rendering library and is used by native renderer checks. The renderer does not own accounting logic.
+- **Current checkpoint**: Home and basic Record / Preview polish are locally verified. Storage baseline/decomposition/printer probes and Irmin Phase 1/limited Phase 2 are complete. Irmin product integration is on hold after partial-HEAD-write failures; durable Saved/power-loss/P7 remain unqualified. The next first candidate is [calendar-year partitioned S-expressions](docs/YEAR_PARTITIONED_SEXP_RESEARCH.ja.md), with SQLite retained for comparison. This is research direction only, not adoption. The latest authorization covers document/reproducibility preservation and push to the research branch, not year-partition implementation, main push, PR/merge or data changes. The completed bounded private inventory remains ignored (`scratch/operation-inventory-leEhTN/priorities.private.md`); never publish its counts/findings or treat it as a full UI frequency log. Paired comparison freshness is not requalified. Sharing itself is not a goal; the old Notty renderer need not return.
 - **Craft direction**: Use LOAM's proven household semantics and interaction knowledge to build a clean, restrained, modern TUI that benefits from native Bonsai capabilities. Polish spacing, alignment, focus/caret, selection-following scroll, feedback stability, resize, return context and draft retention as observable usability details. The old UI need not return; Notty may follow later. Do not turn this direction into mandatory universal components or a completed-quality claim.
 - **Next candidate (UX-3)**: Calculator expression input (`500+300`, `1000*2`) is designed in `docs/UX3_CALCULATOR_INPUT_DESIGN.ja.md` using exact rational/integer quanta (`Q.t` / `Z.t`) without floats, implicit rounding, or zero-division, but is **intentionally deferred and unimplemented**.
 - **P7 unresolved safety issue**: Persistent acknowledgement evidence (post-save Ack loss verification) remains an unresolved, independent safety issue. Keep it separate from everyday UX work.
 - **Current scope**: Budget allocation/routing APIs and trial v4 support were removed. Daily_book reads v1..v3 and Records v1; its monolithic writer uses v3. Daily Pace and payment plans remain supported.
 - **Current UI**: The English foundation uses Calendar Home, Day / Month / Year, hierarchical Commands and one Record / Preview flow over the existing publisher. Actual, current-open Scheduled, Selected Day, Balances and current Daily Pace are connected. Role-aware money-calendar totals, full Series management, Attention, historical Trend and Japanese locale switching remain unavailable. Verify the native build and synthetic cases; foundation completion is not full LOAM parity.
-- **Next work**: Refine LOAM compatibility under the current direction, using synthetic ledgers (`examples/daily-book.sexp`). UX-3 and new accounting capabilities remain separate work.
+- **Next work**: Consult the user before implementing the [year-partition synthetic comparison](docs/YEAR_PARTITIONED_SEXP_RESEARCH.ja.md): 2025-10-15–2026-10-14, six two-month cycles, single S-expression control vs calendar-year data plus qualified opening evidence. Storage years are Jan 1–Dec 31; adopted pension payment dates are independent cycle boundaries, not always the 15th. Cross-year Scheduled/Actual links, unknown/zero/cut/root carryover, past-correction invalidation and multi-file atomicity/recovery must be explicit. [Canonical design](docs/CANONICAL_DATA_DESIGN.ja.md) owns meaning/reference closure and LOAM reuse; [storage study](docs/LONG_TERM_STORAGE_STUDY.ja.md) owns costs. Inherit earned laws/counterexamples/writer refusals, not a second semantic engine. Historical decode is not writer permission and root-cut stability is not OpeningSupport inheritance. No full refund/settlement mandate, generic persistence framework, new root manifest, dependency installation or adoption by implication. Existing Irmin scratch/switch/failures and all originals/trials remain preserved. UI refinement, UX-3 and new capabilities are separate.
 - **Operational authority**: LOAM continues to manage production authority and live household data. Bakhlo is evaluated on synthetic data and private candidates. Never modify production originals.
 
 ## Product
@@ -42,9 +42,15 @@ on-demand references, not a compulsory reading list or an implementation backlog
   Bonsai comes first; Notty may follow. Share only mechanics whose current callers and
   semantics justify sharing; consult LOAM's research before factoring editing screens.
   `docs/UI_DIRECTION.ja.md` owns the UI policy; historical UI roadmaps do not bind the new design.
-- Implement one usable step at a time. No textbook-driven abstractions, automatic
-  LOAM accounting feature parity, permanent correction-history requirement, multi-backend
-  framework or speculative AI/voice/network/runtime work.
+- Implement current frequently used operations first, informed by the authorized
+  read-only canonical-history inventory; add unused features only when needed.
+  Preserve stable identities, independent evidence/reference boundaries, original
+  archives and explicit version migrations so later additions are not blocked by
+  premature information loss. This does not require speculative fields or a generic
+  extension framework, and history is not a complete UI/use-frequency log.
+  No textbook-driven abstractions, automatic LOAM accounting feature parity,
+  permanent correction-history requirement, multi-backend framework or speculative
+  AI/voice/network/runtime work.
 - For Daily_book, prefer existing pure semantic predicates over dummy Events,
   surrogate correction histories or a second admission engine. Any shortcut
   must preserve the full oracle's refusals; add caches/indexes only for measured
@@ -52,6 +58,11 @@ on-demand references, not a compulsory reading list or an implementation backlog
 - The new daily-data candidate may contain corrected entries rather than correction
   chains. Keep the original LOAM data/capture separately. Existing codec/API
   contracts still apply to their current formats; do not silently change them.
+- Normal editing is through TUI/other application entrances. The user sees little
+  readability difference between S-expression and row syntax; do not prioritize manual
+  readability/editing comfort in format selection. Compare equal-operation save/correction
+  costs, memory, backup growth, recovery/migration and implementation/maintenance instead.
+  Portable reading/diagnostics remain useful; syntax and physical storage are separate.
 - Exact quantities, distinct currencies, unknown versus zero and actual refunds/
   cancellations matter. Do not guess missing facts, round amounts, trim identities
   or silently skip unsupported input. Preserve meaningful payment-plan links.
@@ -60,10 +71,15 @@ on-demand references, not a compulsory reading list or an implementation backlog
 
 - LOAM remains the operational authority. Do not write/recover/migrate/synchronize
   its originals or switch ordinary recording without explicit approval.
-- Current user approval covers a stopped, read-only capture of `household.loam`,
-  `config/measure-presentation.tsv` and `config/locus-catalog.tsv`, and creation of
-  a private Bakhlo candidate. Private inputs/results remain in ignored scratch,
-  with restrictive permissions; never fixtures, commits or public output.
+- Current user approval covers stopped, read-only captures of `household.loam`
+  and its regular config files, fresh private Bakhlo/LOAM comparison copies, and
+  bounded read-only inventory of retained operation evidence to identify current
+  use priorities. Keep raw inputs and private counts/results in restricted ignored
+  scratch; never fixtures, commits or public docs/output. Do not infer missing
+  operations from memo/sign/amount or equate retained/imported rows with UI frequency.
+  Preserve earlier captures/candidates and trial edits; no live or silently stale
+  fallback, automatic sync, full migration or operational cutover. All LOAM instances
+  must be closed for a fresh capture; never terminate user processes.
 - Ordinary tests use synthetic inputs. Do not build/modify the sibling Lean
   repository or copy its source without separate authorization/licensing.
 - No new dependency, production storage/UI adoption, release or push by implication.
@@ -71,6 +87,7 @@ on-demand references, not a compulsory reading list or an implementation backlog
 
 ## Development
 
+- For relevant code changes and occasional runtime review, follow [OCaml-aware design review](docs/LANGUAGE_AWARE_DESIGN_REVIEW.md) (issue #28): narrow checks and measured evidence, not automatic optimization or a new mandatory pipeline.
 - Prefer direct native OCaml and existing tests. Do not use Python, including
   ad-hoc tooling or test scripts; use OCaml, shell or the existing Expect instead.
   Add a tool, model or test harness only for a concrete gap. No mandatory D/P/R
