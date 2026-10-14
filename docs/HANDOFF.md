@@ -2,6 +2,36 @@
 
 ## Current task
 
+The user selected LOAM-quality parity for non-budget everyday features, excluding
+bonsai growth and all budget/routing operations. Daily Pace remains in scope.
+The [cutover inventory](CUTOVER_CHECKLIST.ja.md) now reflects the live UI, rather
+than the obsolete upper-draft/lower-browser layout or removed Daily v4 APIs.
+
+The first safety slice qualifies synthetic Attention/settlement sidecar input and
+save refusals, stale-state refusal under the existing cooperative writer lock,
+draft preservation, explicit Pace pool/unique period selection, negative What-if
+integer arithmetic, and Pool-only configuration edits that preserve every period
+preset. No cross-file transaction or new storage framework was added. Existing
+`tools/check` and `tools/tui --self-check` passed locally; full LOAM execution
+comparison, native PTY/manual UX acceptance, power loss and P7 are still open.
+
+The next bounded Actual browsing slice adds aligned exact/grouped receiving amounts,
+explicit split/multi/see-details summaries, live filtering inside the existing Search
+modal, visible-capacity paging, clamped detail endpoints/resize and Record draft/parent
+restoration tests. Synthetic Core/UI and native PTY checks passed at 80×24, 120×36,
+48×14 and 32×9. LOAM `94ceb072` was inspected read-only; paired visual/manual acceptance
+is still open. Actual still uses two panes, not LOAM's Loci/Actuals/Details layout;
+inline search, Locus filtering UI and separate date-change/Merchant actions remain gaps.
+
+Next: continue Actual/Record interaction work one bounded issue at a time using the
+inventory's separate representation/UI/answer/interaction/safety axes. Scheduled Series/Months and
+continuation/monitoring, Calendar financial flows, Pace history, broader reports,
+OriginalAmount/Merchant and full Settlement correspondence remain missing.
+Accounting-role configuration has separate unqualified parsing/save boundaries;
+sidecar repairs do not certify it. Do not expand this slice into adoption or migration.
+
+## Storage research context
+
 The next first storage research candidate is **calendar-year partitioned S-expressions**,
 not production adoption. [Year-partition research](YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)
 owns the plan: Jan 1–Dec 31 storage, current-year + qualified opening evidence, independent
@@ -114,19 +144,22 @@ labels as an optional translation of the old Japanese UI.
   Replacement and Scheduled completion publication are supported by the monolithic
   path only. Records refuses both before append because its protocol cannot persist
   the replacement/completion link atomically; it must not append a partial Actual.
-- Pure `put_plan`/`cancel_plan` support explicit occurrence create/update/cancel.
-  Paid/cancelled plans cannot be edited or paid again; cancellation retains
-  the occurrence and does not change physical quantities. Lifecycle controls
-  beyond payment remain unconnected to UI.
+- `put_plan`/`cancel_plan` are connected to single-occurrence create/edit/cancel UI.
+  Paid/cancelled plans cannot be edited or paid again; cancellation retains the
+  occurrence and does not change physical quantities. Records refuses these writes.
+  The browser exposes current-open occurrences, not full Series/Months/completed views.
 - `daily_pace` computes an explicit one-Measure balance pool less open-plan net
   drains before a supplied exclusive end, divided by remaining calendar days.
   It is not spending permission, budget residual, historical replay, proof of
-  complete plans or fresh balances. The current Daily Pace screen shows the supplied
-  configuration, exact current quantities and deductions; configuration editing
-  and historical Trend remain unconnected.
-- Exchange input in Daily UI, settlement/reimbursement correspondence, balance
-  observation updates, Attention and broader reports remain incomplete. Add
-  only operations selected for actual household needs.
+  complete plans or fresh balances. Current Pace and read-only What-if are connected;
+  pool/period absence, malformed inputs, mixed Measures and ambiguous presets refuse.
+  The Pool editor changes only daily-pace.tsv; boundary-presets.tsv is read-only
+  here. Historical Trend remains unavailable; no month/account defaults are invented.
+- Daily Exchange, Observe, Manage Loci/explicit roles, Attention lifecycle and a
+  limited cumulative-commitment settlement trial are connected. OriginalAmount,
+  Merchant, full Settlement correspondence and broader reports remain incomplete.
+  Attention/settlement read failures render Unavailable and block their writes;
+  save failures retain the submitted form and old in-memory state.
 
 ## UI and direct owners
 
@@ -150,9 +183,9 @@ implementation, not a permanent Bonsai-only product decision; a new Notty render
 Home is Calendar with Day / Month / Year and a period Detail region. Commands is
 hierarchical. Actual, current-open Scheduled, Selected Day, Balances and current
 Daily Pace use English labels. The Calendar counts Actual and open Scheduled;
-role-aware income/expense totals remain unavailable because roles are not supplied.
-Full Series management, Attention, historical Trend and Japanese switching are
-not implemented. Theme offers Terminal (default, terminal-owned background/text
+role-aware income/expense Calendar totals remain unconnected even with supplied roles.
+Attention and limited settlement workspaces, Exchange and Observe inputs are connected.
+Full Series management, historical Trend and Japanese switching remain unimplemented. Theme offers Terminal (default, terminal-owned background/text
 and ANSI colors including editor borders) and original Bakhlo Light / Dark
 (fixed xterm 256 colors). Commands > Theme (also under Household setup) previews
 with j/k or arrows, cancels to the exact parent menu with Esc/q, and saves UI-only

@@ -6,6 +6,47 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Current non-budget UI safety slice
+
+Baseline: Bakhlo `d2e2f5f` plus the current sidecar/Pace repair; LOAM `9dbe2496`
+was inspected read-only, not built or executed. On the existing macOS x86_64
+isolated environments, `./tools/check` and `./tools/tui --self-check` passed.
+The existing `daily_interaction_checks.ml` now checks malformed Attention/settlement
+rows, duplicate IDs, bad dates/quantities/references, nonregular/dangling inputs,
+cooperative lock/save failure with retained UI drafts, stale-state refusal,
+exact huge-quantity cold readback and explicit sidecar reload. It also checks
+missing/malformed/duplicate/mixed-Measure Pace pools, malformed/ambiguous periods,
+negative What-if floor division and Pool-only edits that preserve every preset
+byte-for-byte without creating missing period evidence. Native renderer checks
+and existing monolithic recovery checks remain in the same UI self-check.
+
+This is synthetic local qualification, not all-screen LOAM runtime parity,
+manual visual/IME acceptance, a new UI CI gate, role-setting persistence safety,
+multi-file atomicity, power-loss durability or persistent acknowledgement/P7.
+No production inputs, migration, new dependencies or storage adoption were used.
+Current scope/remaining gaps belong to [the cutover inventory](CUTOVER_CHECKLIST.ja.md).
+
+## Actual browsing interaction slice
+
+Bakhlo `d2e2f5f` plus the safety and Actual UI changes; LOAM `94ceb072` source/docs
+were inspected read-only. `tools/check`, `tools/tui --self-check` and direct compiled
+UI self-check passed. Existing controller checks cover aligned signed/grouped amounts,
+explicit zero/missing/split/multi summaries, huge-value detail fallback, Japanese
+ellipsis, live Search filtering, viewport-sized pages, detail Home/End without
+reselection, immediate upward movement from the bottom, resize clamping and exact
+Record draft/parent restoration. Dimensions: 32×9, 48×14, 80×24 and 120×36.
+
+The existing Expect approach was used in ignored `scratch/actual-pty-e5NC0c/check.exp`
+with the controller's synthetic fixture. Native PTY walks at all four sizes, resizing,
+search and Record cancel/resume completed without writing the book; terminal settings
+were restored except the previously qualified macOS PENDIN bit. Initial walks timed
+out because the harness expected the obsolete literal `Home` on the bonsai launcher;
+correcting that expectation to its actual heading made the walks pass. ANSI transcripts
+are synthetic scratch evidence, not paired LOAM screenshots or manual acceptance.
+The two-pane layout, modal search and missing Locus filter/date-change/Merchant UI
+remain explicit gaps; UI-03 is not complete. No writer, canonical format or authority
+boundary changed, and P7/power loss remain unqualified.
+
 ## Find the relevant evidence
 
 - [Simple S-expression UI loop](#simple-s-expression-ui-loop): existing native screens write/reopen/

@@ -46,6 +46,20 @@ let next_id t =
   in
   find_unused count
 
+let valid_token s =
+  s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
+
+let valid_row r =
+  List.for_all valid_token [r.id; r.debtor; r.creditor; r.measure]
+  && (match r.label with None -> true | Some label ->
+      not (String.exists (fun c -> c = '\t' || c = '\n' || c = '\r') label))
+  && (match r.effective_on with None -> true | Some day ->
+      match Daily_actions.normalize_date day with Ok canonical -> canonical = day | Error _ -> false)
+  && ((r.source_event = "" && r.source_effect = "")
+      || (valid_token r.source_event && valid_token r.source_effect))
+  && Z.gt r.committed Z.zero && Z.geq r.settled Z.zero && Z.geq r.extinguished Z.zero
+  && Z.geq (outstanding r) Z.zero
+
 let add_row t ~id ?label ~debtor ~creditor ~measure ~committed ?(source_event = "") ?(source_effect = "") ?effective_on () =
   if List.exists (fun r -> String.equal r.id id) t.rows then
     Error (Printf.sprintf "Commitment with ID %s already exists." id)
@@ -65,7 +79,8 @@ let add_row t ~id ?label ~debtor ~creditor ~measure ~committed ?(source_event = 
       source_effect;
       effective_on;
     } in
-    Ok { rows = t.rows @ [ new_row ] }
+    if valid_row new_row then Ok { rows = t.rows @ [ new_row ] }
+    else Error "Invalid settlement commitment."
 
 let settle_row t ~id ~amount =
   if Z.leq amount Z.zero then
@@ -123,47 +138,50 @@ let clean_line s =
 
 let parse_line raw_line =
   let line = clean_line raw_line in
-  if line = "" || String.starts_with ~prefix:"#" line then None
+  if line = "" || String.starts_with ~prefix:"#" line then Ok None
   else
     match String.split_on_char '\t' line with
-    | id :: label :: debtor :: creditor :: measure :: committed :: settled :: extinguished :: rest ->
-        let parse_z s = try Z.of_string s with _ -> Z.zero in
-        let source_event = match rest with ev :: _ -> ev | [] -> "" in
-        let source_effect = match rest with _ :: eff :: _ -> eff | _ -> "" in
-        let effective_on = match rest with _ :: _ :: d :: _ when d <> "" -> Some d | _ -> None in
-        let label = if label = "" then None else Some label in
-        Some {
-          id;
-          label;
-          debtor;
-          creditor;
-          measure;
-          committed = parse_z committed;
-          settled = parse_z settled;
-          extinguished = parse_z extinguished;
-          source_event;
-          source_effect;
-          effective_on;
-        }
-    | _ -> None
+    | id :: label :: debtor :: creditor :: measure :: committed :: settled :: extinguished :: rest
+      when List.length rest <= 3 ->
+        (try
+          let source_event = match rest with ev :: _ -> ev | [] -> "" in
+          let source_effect = match rest with _ :: eff :: _ -> eff | _ -> "" in
+          let effective_on = match rest with _ :: _ :: d :: _ when d <> "" -> Some d | _ -> None in
+          let label = if label = "" then None else Some label in
+          let row = {
+            id; label; debtor; creditor; measure;
+            committed = Z.of_string committed;
+            settled = Z.of_string settled;
+            extinguished = Z.of_string extinguished;
+            source_event; source_effect; effective_on;
+          } in
+          if valid_row row then Ok (Some row) else Error "Invalid settlement quantities or fields."
+        with Invalid_argument _ -> Error "Invalid settlement quantity.")
+    | _ -> Error "Malformed or unsupported settlement row."
+
+let of_string text =
+  let rec parse rows = function
+    | [] -> Ok { rows = List.rev rows }
+    | line :: rest ->
+        Result.bind (parse_line line) (function
+          | None -> parse rows rest
+          | Some row ->
+              if List.exists (fun r -> r.id = row.id) rows then Error "Duplicate settlement ID."
+              else parse (row :: rows) rest)
+  in
+  parse [] (String.split_on_char '\n' text)
 
 let load_file path =
-  if not (Sys.file_exists path) then empty
-  else
-    try
-      let ic = open_in path in
-      let rec loop acc =
-        match input_line ic with
-        | line ->
-            (match parse_line line with
-            | Some r -> loop (r :: acc)
-            | None -> loop acc)
-        | exception End_of_file ->
-            close_in ic;
-            { rows = List.rev acc }
-      in
-      loop []
-    with _ -> empty
+  try
+    let exists =
+      try let _ = Unix.lstat path in true
+      with Unix.Unix_error (Unix.ENOENT, _, _) -> false
+    in
+    if exists then of_string (Daily_file.read path) else Ok empty
+  with
+  | Daily_file.Refused why | Sys_error why -> Error why
+  | Unix.Unix_error (err, fn, arg) ->
+      Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
 
 let serialize_row r =
   let opt_str = function None -> "" | Some s -> s in
@@ -181,17 +199,33 @@ let serialize_row r =
     opt_str r.effective_on;
   ]
 
-let save_file path t =
-  let dir = Filename.dirname path in
-  let temp_path = Filename.temp_file ~temp_dir:dir ".settlements" ".tmp" in
+let save_file path ~expected t =
+  let tmp = ref None in
   try
-    let oc = open_out temp_path in
-    output_string oc "# settlements.tsv - canonical household settlement commitments\n";
-    output_string oc "# id\tlabel\tdebtor\tcreditor\tmeasure\tcommitted\tsettled\textinguished\tsource_event\tsource_effect\teffective_on\n";
-    List.iter (fun r -> output_string oc (serialize_row r ^ "\n")) t.rows;
-    close_out oc;
-    Sys.rename temp_path path;
-    Ok ()
-  with exn ->
-    (try Sys.remove temp_path with _ -> ());
-    Error (Printexc.to_string exn)
+    Daily_file.with_writer path (fun () ->
+      match load_file path with
+      | Error why -> Error why
+      | Ok current when current <> expected -> Error "Settlements changed on disk. Reload before retrying."
+      | Ok _ ->
+          let content =
+            "# settlements.tsv - household commitment trial\n"
+            ^ String.concat "" (List.map (fun r -> serialize_row r ^ "\n") t.rows)
+          in
+          (match of_string content with
+          | Error why -> Error why
+          | Ok decoded when decoded <> t -> Error "Settlement serialization would change evidence."
+          | Ok _ ->
+              let target = path ^ ".tmp-" ^ Daily_file.nonce () in
+              tmp := Some target;
+              Daily_file.write_new target content;
+              Sys.rename target path;
+              Daily_file.sync_parent path;
+              Daily_file.require (Daily_file.read path = content) "settlements-readback-changed";
+              Ok ()))
+  with
+  | Daily_file.Refused why | Sys_error why ->
+      Option.iter (fun p -> try Unix.unlink p with Unix.Unix_error _ -> ()) !tmp;
+      Error why
+  | Unix.Unix_error (err, fn, arg) ->
+      Option.iter (fun p -> try Unix.unlink p with Unix.Unix_error _ -> ()) !tmp;
+      Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)

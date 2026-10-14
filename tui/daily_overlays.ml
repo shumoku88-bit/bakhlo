@@ -7,6 +7,7 @@ module A = Daily_actions
 let tr = Ui_text.tr
 
 type style = Plain | Active | Heading | Status | Chrome | Frame | Focused_frame | Calendar_dates
+  | Bonsai | Entrance
   | Panel | Panel_heading | Panel_active
   (* Two independently styled panes separated by one physical space. *)
   | Columns of int * style * style
@@ -545,7 +546,7 @@ let bonsai_home_lines ~width ~height ~width_of ~today =
     else
       let rows =
         List.mapi (fun i line ->
-          let style = if i >= 7 then Chrome else Plain in
+          let style = if i >= 7 then Chrome else Bonsai in
           (style, center_line ~width ~width_of line)) bonsai_silhouette
       in
       rows @ [ (Plain, ""); (Heading, center_line ~width ~width_of "bakhlo") ]
@@ -570,7 +571,7 @@ let bonsai_home_lines ~width ~height ~width_of ~today =
     if capacity >= 8 then
       List.map (fun (key, label) ->
         let text = Printf.sprintf "  %s   %-14s" key label in
-        (Plain, center_line ~width ~width_of text)) entrances
+        (Entrance, center_line ~width ~width_of text)) entrances
     else
       let compact =
         [
@@ -579,7 +580,7 @@ let bonsai_home_lines ~width ~height ~width_of ~today =
           "b Balances   d Daily Pace";
         ]
       in
-      List.map (fun line -> (Plain, center_line ~width ~width_of line)) compact
+      List.map (fun line -> (Entrance, center_line ~width ~width_of line)) compact
   in
   let body = tree_rows @ date_rows @ menu_rows in
   let top_pad = max 0 ((capacity - List.length body) / 3) in

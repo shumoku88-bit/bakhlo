@@ -70,5 +70,5 @@ Bakhloはまだ家計簿として運用していない。旧UIの配置、テー
 未実装の会計機能を偽の数字や名前からの役割推測で埋めない。操作互換と会計機能の未接続を明示的に区別する。
 
 LOAMの参考箇所は [TUI.md](../../loam/docs/TUI.md)、[画面別進捗](../../loam/docs/TUI_NON_BUDGET_WORKLIST.md) と
-共通の [Layout.lean](../../loam/Loam/Tui/Layout.lean)。UI互換を目指すが、LOAMの研究基盤や保存実装の移植を意味しない。
+共通の [Layout.lean](../../loam/Loam/Tui/Layout.lean)。画面ごとの具体的な差分管理と進捗は [LOAM_UI_GAP_LEDGER.ja.md](LOAM_UI_GAP_LEDGER.ja.md) を参照する。UI互換を目指すが、LOAMの研究基盤や保存実装の移植を意味しない。
 前段の共通描画の改修は土台であり、Calendarや英語版の互換完成を証明するものではない。

@@ -41,7 +41,11 @@ let find_item t id =
   List.find_opt (fun (item : item) -> item.id = id) t.items
 
 let next_id t =
-  Printf.sprintf "attention-%d" (List.length t.items + 1)
+  let rec find n =
+    let id = Printf.sprintf "attention-%d" n in
+    if find_item t id <> None then find (n + 1) else id
+  in
+  find (List.length t.items + 1)
 
 let due_label = function
   | Due_on d -> "Due: " ^ d
@@ -85,18 +89,27 @@ let unescape_text s =
   in
   loop 0
 
+let valid_token s =
+  s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
+
+let valid_date s =
+  match Daily_actions.normalize_date s with Ok day -> day = s | Error _ -> false
+
 let add_item t ~id ~context ~due =
-  if String.trim id = "" then Error "Attention ID cannot be empty."
+  if not (valid_token id) then Error "Invalid Attention ID."
+  else if (match due with Due_on day -> not (valid_date day) | No_due_date | Due_undetermined -> false) then
+    Error "Invalid Attention due date."
   else if List.exists (fun (item : item) -> item.id = id) t.items then
     Error (Printf.sprintf "Attention ID '%s' already exists." id)
   else if String.trim context = "" then
     Error "Attention context cannot be empty."
   else
-    let item = { id; context = String.trim context; due } in
+    let item = { id; context; due } in
     Ok { t with items = t.items @ [item] }
 
 let close_item t ~id ~known_on ~kind =
-  match find_item t id with
+  if not (valid_date known_on) then Error "Invalid Attention closure date."
+  else match find_item t id with
   | None -> Error (Printf.sprintf "Attention ID '%s' not found." id)
   | Some _ ->
       if is_closed t id then
@@ -106,43 +119,30 @@ let close_item t ~id ~known_on ~kind =
         Ok { t with closures = t.closures @ [closure] }
 
 let of_string text =
-  let lines = String.split_on_char '\n' text in
-  let rec parse items closures = function
-    | [] -> Ok { items = List.rev items; closures = List.rev closures }
+  let rec parse t header = function
+    | [] -> Ok t
     | line :: rest ->
         let trimmed = String.trim line in
-        if trimmed = "" || String.starts_with ~prefix:"#" trimmed || trimmed = "LOAM-ATTENTION-MEMORY\t1" then
-          parse items closures rest
+        if trimmed = "" || String.starts_with ~prefix:"#" trimmed then parse t header rest
+        else if line = "LOAM-ATTENTION-MEMORY\t1" && not header && t = empty then
+          parse t true rest
         else
-          let parts = String.split_on_char '\t' line in
-          match parts with
-          | ["ITEM"; id; "DUE_ON"; date; escaped_context] -> (
-              match unescape_text escaped_context with
-              | Ok context ->
-                  let item = { id; context; due = Due_on date } in
-                  parse (item :: items) closures rest
-              | Error _ -> parse items closures rest)
-          | ["ITEM"; id; "NO_DUE_DATE"; _; escaped_context] -> (
-              match unescape_text escaped_context with
-              | Ok context ->
-                  let item = { id; context; due = No_due_date } in
-                  parse (item :: items) closures rest
-              | Error _ -> parse items closures rest)
-          | ["ITEM"; id; "DUE_UNDETERMINED"; _; escaped_context] -> (
-              match unescape_text escaped_context with
-              | Ok context ->
-                  let item = { id; context; due = Due_undetermined } in
-                  parse (item :: items) closures rest
-              | Error _ -> parse items closures rest)
-          | ["CLOSE"; id; known_on; "RESOLVED"] ->
-              let closure = { attention = id; known_on; kind = Resolved } in
-              parse items (closure :: closures) rest
-          | ["CLOSE"; id; known_on; "DROPPED"] ->
-              let closure = { attention = id; known_on; kind = Dropped } in
-              parse items (closure :: closures) rest
-          | _ -> parse items closures rest
+          let item id due escaped_context =
+            Result.bind (unescape_text escaped_context) (fun context ->
+              add_item t ~id ~context ~due)
+          in
+          let updated =
+            match String.split_on_char '\t' line with
+            | ["ITEM"; id; "DUE_ON"; date; context] -> item id (Due_on date) context
+            | ["ITEM"; id; "NO_DUE_DATE"; "-"; context] -> item id No_due_date context
+            | ["ITEM"; id; "DUE_UNDETERMINED"; "-"; context] -> item id Due_undetermined context
+            | ["CLOSE"; id; known_on; "RESOLVED"] -> close_item t ~id ~known_on ~kind:Resolved
+            | ["CLOSE"; id; known_on; "DROPPED"] -> close_item t ~id ~known_on ~kind:Dropped
+            | _ -> Error "Malformed or unsupported Attention row."
+          in
+          Result.bind updated (fun t -> parse t header rest)
   in
-  parse [] [] lines
+  parse empty false (String.split_on_char '\n' text)
 
 let to_string t =
   let b = Buffer.create 1024 in
@@ -167,42 +167,52 @@ let to_string t =
 
 let file_path ?config_home session_path =
   let dir = Filename.dirname session_path in
-  let candidates =
-    List.filter_map Fun.id
-      [
-        Option.map (fun h -> Filename.concat h "attention.loam") config_home;
-        Option.map (fun h -> Filename.concat h "attention.tsv") config_home;
-        Some (Filename.concat dir "attention.loam");
-        Some (Filename.concat dir "attention.tsv");
-      ]
+  let selected_dir = Option.value ~default:dir config_home in
+  let candidates = List.map (Filename.concat selected_dir) ["attention.loam"; "attention.tsv"] in
+  let present path =
+    try let _ = Unix.lstat path in true
+    with Unix.Unix_error (Unix.ENOENT, _, _) -> false | Unix.Unix_error _ -> true
   in
-  match List.find_opt Sys.file_exists candidates with
+  match List.find_opt present candidates with
   | Some existing -> existing
-  | None ->
-      (match config_home with
-      | Some h when Sys.file_exists h -> Filename.concat h "attention.loam"
-      | _ -> Filename.concat dir "attention.loam")
+  | None -> Filename.concat selected_dir "attention.loam"
 
 let load_file path =
-  if not (Sys.file_exists path) then empty
-  else
-    try
-      let ch = open_in path in
-      let len = in_channel_length ch in
-      let content = really_input_string ch len in
-      close_in ch;
-      match of_string content with
-      | Ok t -> t
-      | Error _ -> empty
-    with Sys_error _ -> empty
-
-let save_file path t =
   try
-    let content = to_string t in
-    let tmp = path ^ ".tmp" in
-    let ch = open_out tmp in
-    output_string ch content;
-    close_out ch;
-    Sys.rename tmp path;
-    Ok ()
-  with Sys_error why -> Error why
+    let exists =
+      try let _ = Unix.lstat path in true
+      with Unix.Unix_error (Unix.ENOENT, _, _) -> false
+    in
+    if exists then of_string (Daily_file.read path) else Ok empty
+  with
+  | Daily_file.Refused why | Sys_error why -> Error why
+  | Unix.Unix_error (err, fn, arg) ->
+      Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
+
+let save_file path ~expected t =
+  let tmp = ref None in
+  try
+    Daily_file.with_writer path (fun () ->
+      match load_file path with
+      | Error why -> Error why
+      | Ok current when current <> expected -> Error "Attention changed on disk. Reload before retrying."
+      | Ok _ ->
+          let content = to_string t in
+          (match of_string content with
+          | Error why -> Error why
+          | Ok decoded when decoded <> t -> Error "Attention serialization would change evidence."
+          | Ok _ ->
+              let target = path ^ ".tmp-" ^ Daily_file.nonce () in
+              tmp := Some target;
+              Daily_file.write_new target content;
+              Sys.rename target path;
+              Daily_file.sync_parent path;
+              Daily_file.require (Daily_file.read path = content) "attention-readback-changed";
+              Ok ()))
+  with
+  | Daily_file.Refused why | Sys_error why ->
+      Option.iter (fun p -> try Unix.unlink p with Unix.Unix_error _ -> ()) !tmp;
+      Error why
+  | Unix.Unix_error (err, fn, arg) ->
+      Option.iter (fun p -> try Unix.unlink p with Unix.Unix_error _ -> ()) !tmp;
+      Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)

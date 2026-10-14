@@ -30,6 +30,8 @@ type style = O.style =
   | Frame
   | Focused_frame
   | Calendar_dates
+  | Bonsai
+  | Entrance
   | Panel
   | Panel_heading
   | Panel_active
@@ -110,8 +112,10 @@ type state = {
   config_home : string option;
   scroll : int;
   paste_blocked : bool;
-  attention : Att.t;
-  settlements : Stl.t;
+  attention_path : string;
+  attention : (Att.t, string) result;
+  settlement_path : string;
+  settlements : (Stl.t, string) result;
   settlement_scope : Stl.scope;
   balance_mode : [ `Accounting | `Current ];
 }
@@ -138,7 +142,9 @@ let initial ?config_home session =
     config_home;
     scroll = 0;
     paste_blocked = false;
+    attention_path;
     attention;
+    settlement_path;
     settlements;
     settlement_scope = Stl.Open_only;
     balance_mode = `Accounting;
@@ -200,6 +206,10 @@ let apply_commit_result state ~draft result =
            message)
 
 let reload state =
+  let state = { state with
+    attention = Att.load_file state.attention_path;
+    settlements = Stl.load_file state.settlement_path;
+  } in
   match A.reload ~session:state.session ~pending:state.pending ~mode:(mode state) with
   | A.Pending_confirmed session ->
       sync
@@ -410,7 +420,7 @@ let reverse_entry_selected state =
     | _ -> { state with message = tr "Select an Actual entry to reverse." }
 
 let open_attentions state =
-  Att.open_items state.attention
+  match state.attention with Ok t -> Att.open_items t | Error _ -> []
 
 let selected_attention state =
   let items = open_attentions state in
@@ -653,30 +663,49 @@ let read_config state name =
   read candidates
 
 let config_file_path state name =
-  match state.config_home with
-  | Some home ->
-      let config_dir = Filename.concat home "config" in
-      if Sys.file_exists (Filename.concat config_dir name) then Filename.concat config_dir name
-      else Filename.concat home name
-  | None ->
-      let dir = Filename.dirname state.session.F.path in
-      let config_dir = Filename.concat dir "config" in
-      if Sys.file_exists (Filename.concat config_dir name) then Filename.concat config_dir name
-      else Filename.concat dir name
+  let dir = Option.value ~default:(Filename.dirname state.session.F.path) state.config_home in
+  let nested = Filename.concat (Filename.concat dir "config") name in
+  let present =
+    try let _ = Unix.lstat nested in true
+    with Unix.Unix_error (Unix.ENOENT, _, _) -> false | Unix.Unix_error _ -> true
+  in
+  if present then nested else Filename.concat dir name
 
-let write_config state name content =
+let read_pace_config state name =
   let path = config_file_path state name in
   try
-    let dir = Filename.dirname path in
-    if not (Sys.file_exists dir) then (try Unix.mkdir dir 0o755 with Unix.Unix_error _ -> ());
-    let tmp = path ^ ".tmp" in
-    let oc = open_out_bin tmp in
-    output_string oc content;
-    flush oc;
-    close_out oc;
-    Sys.rename tmp path;
-    Ok path
-  with Sys_error why -> Error why
+    let exists =
+      try let _ = Unix.lstat path in true
+      with Unix.Unix_error (Unix.ENOENT, _, _) -> false
+    in
+    if exists then Ok (Some (F.read path)) else Ok None
+  with
+  | F.Refused why | Sys_error why -> Error why
+  | Unix.Unix_error (err, fn, arg) -> Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
+
+let write_pace_pool state ~expected content =
+  let path = config_file_path state "daily-pace.tsv" in
+  let tmp = ref None in
+  try
+    F.with_writer path (fun () ->
+      match read_pace_config state "daily-pace.tsv" with
+      | Error why -> Error why
+      | Ok current when current <> expected -> Error "Pool configuration changed. Reopen the editor."
+      | Ok _ ->
+          let target = path ^ ".tmp-" ^ F.nonce () in
+          tmp := Some target;
+          F.write_new target content;
+          Sys.rename target path;
+          F.sync_parent path;
+          F.require (F.read path = content) "pace-config-readback-changed";
+          Ok ())
+  with
+  | F.Refused why | Sys_error why ->
+      Option.iter (fun p -> try Unix.unlink p with Unix.Unix_error _ -> ()) !tmp;
+      Error why
+  | Unix.Unix_error (err, fn, arg) ->
+      Option.iter (fun p -> try Unix.unlink p with Unix.Unix_error _ -> ()) !tmp;
+      Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
 
 let accounting_roles state =
   match read_config state "accounting-roles.tsv" with
@@ -688,89 +717,71 @@ let balance_view_coords state =
   let configured = BalView.load_file path in
   List.map (fun (c : BalView.coordinate) -> (c.locus, c.measure)) configured
 
+let config_lines text =
+  String.split_on_char '\n' text |> List.filter (fun line ->
+    let s = String.trim line in s <> "" && not (String.starts_with ~prefix:"#" s))
+
+let config_token s =
+  s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
+
 let resolve_pace_window state =
   let today = F.today () in
-  match read_config state "boundary-presets.tsv" with
-  | Some windows ->
-      let tokens line = String.split_on_char '\t' line in
-      let meaningful text =
-        String.split_on_char '\n' text
-        |> List.filter (fun line ->
-            let s = String.trim line in
-            s <> "" && not (String.starts_with ~prefix:"#" s))
-      in
-      let rec find_window = function
-        | [] -> None
-        | line :: rest -> (
+  let canonical_date day =
+    match A.normalize_date day with Ok canonical -> canonical = day | Error _ -> false
+  in
+  let rec increasing = function
+    | a :: b :: rest -> a < b && increasing (b :: rest)
+    | [] | [_] -> true
+  in
+  let rec parse names windows = function
+    | [] -> (match windows with
+        | [window] -> Ok window
+        | [] -> Error "No explicit boundary preset contains today."
+        | _ -> Error "Multiple boundary presets contain today; selection is ambiguous.")
+    | line :: rest ->
+        match String.split_on_char '\t' line with
+        | name :: dates when config_token name && not (List.mem name names)
+            && List.length dates >= 2 && List.for_all canonical_date dates
+            && increasing dates ->
             let rec window = function
-              | a :: b :: tail ->
-                  if a <= today && today < b then Some (a, b) else window (b :: tail)
-              | _ -> find_window rest
+              | a :: b :: tail -> if a <= today && today < b then Some (a, b) else window (b :: tail)
+              | _ -> None
             in
-            match tokens line with _preset :: dates -> window dates | [] -> find_window rest)
-      in
-      find_window (meaningful windows)
-  | None ->
-      (match Cal.parts today with
-      | Ok (y, m, _) ->
-          let start_day = Printf.sprintf "%04d-%02d-01" y m in
-          let next_y, next_m = if m = 12 then (y + 1, 1) else (y, m + 1) in
-          let end_exclusive = Printf.sprintf "%04d-%02d-01" next_y next_m in
-          Some (start_day, end_exclusive)
-      | Error _ -> None)
+            let windows = match window dates with Some w -> w :: windows | None -> windows in
+            parse (name :: names) windows rest
+        | _ -> Error "Malformed boundary-presets.tsv; no period was inferred."
+  in
+  Result.bind (read_pace_config state "boundary-presets.tsv") (function
+    | None -> Error "Period not configured (boundary-presets.tsv missing)."
+    | Some text -> parse [] [] (config_lines text))
 
 let resolve_pace_pool state =
   let measure = state.workspace.measure in
-  match read_config state "daily-pace.tsv" with
-  | Some pool_text ->
-      let tokens line = String.split_on_char '\t' line in
-      let meaningful text =
-        String.split_on_char '\n' text
-        |> List.filter (fun line ->
-            let s = String.trim line in
-            s <> "" && not (String.starts_with ~prefix:"#" s))
-      in
-      let rec coordinates acc = function
-        | [] -> if acc = [] then None else Some (List.rev acc)
-        | line :: rest -> (
-            match tokens line with
-            | [ locus; m ] when m = measure -> (
-                match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string m) with
-                | Ok locus, Ok measure ->
-                    coordinates ({ D.Effect_coordinate.locus; measure } :: acc) rest
-                | _ -> coordinates acc rest)
-            | _ -> coordinates acc rest)
-      in
-      coordinates [] (meaningful pool_text)
-  | None ->
-      let roles = accounting_roles state in
-      let asset_loci =
-        List.filter_map
-          (fun (locus, role) -> if role = Roles.Asset then Some locus else None)
-          roles
-      in
-      let loci =
-        if asset_loci <> [] then asset_loci
-        else Option.value ~default:[ "wallet" ] (B.approved_loci state.session.book)
-      in
-      let coords =
-        List.filter_map
-          (fun locus ->
-            match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string measure) with
-            | Ok locus, Ok measure -> Some { D.Effect_coordinate.locus; measure }
-            | _ -> None)
-          loci
-      in
-      if coords = [] then None else Some coords
+  let rec coordinates acc = function
+    | [] -> if acc = [] then Error "Daily Pace pool is empty." else Ok (List.rev acc)
+    | line :: rest ->
+        match String.split_on_char '\t' line with
+        | [locus; m] when config_token locus && m = measure && config_token m ->
+            let coordinate = {
+              D.Effect_coordinate.locus = get_id (D.Identifier.Locus.of_string locus);
+              measure = get_id (D.Identifier.Measure.of_string m);
+            } in
+            if List.mem coordinate acc then Error "Duplicate Daily Pace coordinate."
+            else coordinates (coordinate :: acc) rest
+        | _ -> Error "Malformed daily-pace.tsv or mismatched Measure; no rows were skipped."
+  in
+  Result.bind (read_pace_config state "daily-pace.tsv") (function
+    | None -> Error "Daily Pace pool not configured (daily-pace.tsv missing)."
+    | Some text -> coordinates [] (config_lines text))
 
-let current_pace_data state =
+let current_pace_result state =
   let today = F.today () and measure = state.workspace.measure in
-  match (resolve_pace_pool state, resolve_pace_window state) with
-  | Some pool, Some (start_day, end_exclusive) -> (
-      match B.daily_pace state.session.book ~measure ~pool ~observed_at:today ~end_exclusive with
-      | Ok p -> Some (p, start_day, end_exclusive)
-      | Error _ -> None)
-  | _ -> None
+  Result.bind (resolve_pace_pool state) (fun pool ->
+    Result.bind (resolve_pace_window state) (fun (start_day, end_exclusive) ->
+      Result.map (fun p -> (p, start_day, end_exclusive))
+        (B.daily_pace state.session.book ~measure ~pool ~observed_at:today ~end_exclusive)))
+
+let current_pace_data state = Result.to_option (current_pace_result state)
 
 let what_if_form ?amount ?result state =
   let summary =
@@ -799,36 +810,30 @@ let what_if_form ?amount ?result state =
     ()
 
 let configure_pace_form state =
-  let current_pool_loci =
-    match resolve_pace_pool state with
-    | Some coords ->
-        String.concat ", " (List.map (fun c -> A.lstr c.D.Effect_coordinate.locus) coords)
-    | None -> "wallet"
+  let current_pool_loci = match resolve_pace_pool state with
+    | Ok coords -> String.concat ", " (List.map (fun c -> A.lstr c.D.Effect_coordinate.locus) coords)
+    | Error _ -> ""
   in
-  let current_end_date =
-    match resolve_pace_window state with
-    | Some (_start, end_excl) -> end_excl
-    | None ->
-        let today = F.today () in
-        match Cal.parts today with
-        | Ok (y, m, _) ->
-            let next_y, next_m = if m = 12 then (y + 1, 1) else (y, m + 1) in
-            Printf.sprintf "%04d-%02d-01" next_y next_m
-        | Error _ -> "2026-11-01"
+  let payload, notice = match read_pace_config state "daily-pace.tsv" with
+    | Ok None -> ("missing", "")
+    | Ok (Some text) -> ("present\n" ^ text, "")
+    | Error why -> ("unreadable", why)
   in
-  Form.create
-    ~id:"configure_daily_pace"
-    ~title:"Configure Daily Pace Pool & Horizon"
+  let period = match resolve_pace_window state with
+    | Ok (start, stop) -> Printf.sprintf "Explicit period: %s -> %s (exclusive)." start stop
+    | Error why -> why
+  in
+  Form.create ~id:"configure_daily_pace" ~payload ~notice
+    ~title:"Configure Daily Pace Pool"
     ~summary:[
-      "Configure balance pool accounts (Loci) and cycle end date.";
-      "Saved to config/daily-pace.tsv and config/boundary-presets.tsv.";
+      "Save only daily-pace.tsv; no account is selected automatically.";
+      period;
+      "Period boundaries are read-only here; edit boundary-presets.tsv separately.";
     ]
     ~fields:[
       Form.text_field ~id:"pool_loci" ~label:"Pool accounts (comma-separated)" ~value:current_pool_loci ();
-      Form.text_field ~id:"end_date" ~label:"Period end (exclusive YYYY-MM-DD)" ~value:current_end_date ();
-      Form.action_buttons ~confirm:"Save Configuration" ~cancel:"Cancel" ();
-    ]
-    ()
+      Form.action_buttons ~confirm:"Save Pool" ~cancel:"Cancel" ();
+    ] ()
 
 let balance_items state =
   match state.balance_mode with
@@ -951,7 +956,9 @@ let set_locus_role_form ~locus ~current_role =
     ()
 
 let settlement_rows state =
-  Stl.visible_rows state.settlements state.settlement_scope
+  match state.settlements with
+  | Ok t -> Stl.visible_rows t state.settlement_scope
+  | Error _ -> []
 
 let selected_settlement state =
   let rows = settlement_rows state in
@@ -974,7 +981,9 @@ let cycle_settlement_scope state =
     | Stl.Open_only -> Stl.All
     | Stl.All -> Stl.Open_only
   in
-  let rows = Stl.visible_rows state.settlements settlement_scope in
+  let rows = match state.settlements with
+    | Ok t -> Stl.visible_rows t settlement_scope
+    | Error _ -> [] in
   let count = List.length rows in
   let current = state.workspace.settlements.selected in
   let selected = if count = 0 then 0 else min (count - 1) current in
@@ -1020,7 +1029,54 @@ let action_settlement_form (r : Stl.row) =
     ]
     ()
 
+let commit_attention state submitted update message =
+  let result =
+    if state.blocked then Error "Writes stopped. Reload to inspect."
+    else Result.bind state.attention (fun expected ->
+      Result.bind (update expected) (fun updated ->
+        Result.map (fun () -> updated) (Att.save_file state.attention_path ~expected updated)))
+  in
+  match result with
+  | Ok attention -> { state with overlay = No_overlay; attention = Ok attention; message }
+  | Error why -> { state with overlay = Modal_form (Form.set_notice submitted
+      ("Attention not confirmed: " ^ why ^ " Reload to inspect before retrying.")) }
+
+let commit_settlements state submitted update message =
+  let result =
+    if state.blocked then Error "Writes stopped. Reload to inspect."
+    else Result.bind state.settlements (fun expected ->
+      Result.bind (update expected) (fun updated ->
+        Result.map (fun () -> updated) (Stl.save_file state.settlement_path ~expected updated)))
+  in
+  match result with
+  | Ok settlements -> { state with overlay = No_overlay; settlements = Ok settlements; message }
+  | Error why -> { state with overlay = Modal_form (Form.set_notice submitted
+      ("Settlements not confirmed: " ^ why ^ " Reload to inspect before retrying.")) }
+
+let actual_pane_widths width =
+  if width < 80 then (width, width)
+  else let left = max 36 (min 58 (width * 52 / 100)) in (left, width - left - 1)
+
+let actual_detail_rows ~width_of ~width state =
+  let lines = match selected state with
+    | Some (W.Actual_entry entry) -> O.entry_lines state.session.book entry
+    | _ -> [ tr "No selected record." ] in
+  List.concat_map (O.wrap_text ~width_of (max 1 (width - 6))) lines
+
+let actual_viewport ~dimensions ~width_of state =
+  let width, body_height = body_dimensions ~dimensions ~width_of state in
+  let height = max 0 (body_height - 2) in
+  let _, detail_width = actual_pane_widths width in
+  let capacity = max 0 (height - 2) in
+  let last = max 0 (List.length (actual_detail_rows ~width_of ~width:detail_width state) - capacity) in
+  (height, capacity, last)
+
 let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : input) =
+  let state =
+    if state.workspace.route = W.Actual && not state.record_visible then
+      let _, _, last = actual_viewport ~dimensions ~width_of state in
+      { state with scroll = min last (max 0 state.scroll) }
+    else state in
   if state.paste_blocked then
     match input with
     | `Paste `End ->
@@ -1110,7 +1166,11 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some
               (match input_text value input with
               | None -> state
-              | Some value -> { state with overlay = Search value }))
+              | Some value ->
+                  if state.workspace.route = W.Actual then
+                    sync { state with overlay = Search value;
+                      workspace = W.set_query state.workspace value }
+                  else { state with overlay = Search value }))
     | Modal_form form -> (
         match Form.handle_input form input with
         | Form.Cancel -> Some { state with overlay = No_overlay }
@@ -1173,32 +1233,19 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                   | Error notice ->
                       Some { state with overlay = Modal_form (Form.set_notice submitted notice) }
                   | Ok due ->
-                      let id = Att.next_id state.attention in
-                      (match Att.add_item state.attention ~id ~context ~due with
-                      | Error why ->
-                          Some { state with overlay = Modal_form (Form.set_notice submitted why) }
-                      | Ok updated_attention ->
-                          let path = Att.file_path ?config_home:state.config_home state.session.F.path in
-                          let _ = Att.save_file path updated_attention in
-                          Some { state with overlay = No_overlay; attention = updated_attention; message = Printf.sprintf "Added %s." id }))
+                      Some (commit_attention state submitted
+                        (fun t -> Att.add_item t ~id:(Att.next_id t) ~context ~due)
+                        "Attention added and read back."))
             | "resolve_attention" ->
                 let item_id = Form.payload submitted in
-                (match Att.close_item state.attention ~id:item_id ~known_on:(F.today ()) ~kind:Att.Resolved with
-                | Error why ->
-                    Some { state with overlay = Modal_form (Form.set_notice submitted why) }
-                | Ok updated_attention ->
-                    let path = Att.file_path ?config_home:state.config_home state.session.F.path in
-                    let _ = Att.save_file path updated_attention in
-                    Some { state with overlay = No_overlay; attention = updated_attention; message = Printf.sprintf "Resolved %s." item_id })
+                Some (commit_attention state submitted
+                  (fun t -> Att.close_item t ~id:item_id ~known_on:(F.today ()) ~kind:Att.Resolved)
+                  (Printf.sprintf "Resolved %s." item_id))
             | "drop_attention" ->
                 let item_id = Form.payload submitted in
-                (match Att.close_item state.attention ~id:item_id ~known_on:(F.today ()) ~kind:Att.Dropped with
-                | Error why ->
-                    Some { state with overlay = Modal_form (Form.set_notice submitted why) }
-                | Ok updated_attention ->
-                    let path = Att.file_path ?config_home:state.config_home state.session.F.path in
-                    let _ = Att.save_file path updated_attention in
-                    Some { state with overlay = No_overlay; attention = updated_attention; message = Printf.sprintf "Dropped %s." item_id })
+                Some (commit_attention state submitted
+                  (fun t -> Att.close_item t ~id:item_id ~known_on:(F.today ()) ~kind:Att.Dropped)
+                  (Printf.sprintf "Dropped %s." item_id))
             | "admit_locus" ->
                 let token = Option.value ~default:"" (Form.get_text submitted "token") |> String.trim in
                 let role_idx = Option.value ~default:0 (Form.get_choice submitted "role") in
@@ -1359,31 +1406,23 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                       in
                       Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
                   | Ok committed ->
-                      let id = Stl.next_id state.settlements in
                       let label = if label_str = "" then None else Some label_str in
-                      (match Stl.add_row state.settlements ~id ?label ~debtor ~creditor ~measure ~committed () with
-                      | Error why ->
-                          Some { state with overlay = Modal_form (Form.set_notice submitted why) }
-                      | Ok updated_settlements ->
-                          let path = Stl.file_path ?config_home:state.config_home state.session.F.path in
-                          let _ = Stl.save_file path updated_settlements in
-                          Some { state with overlay = No_overlay; settlements = updated_settlements; message = Printf.sprintf "Added commitment %s." id }))
+                      Some (commit_settlements state submitted
+                        (fun t -> Stl.add_row t ~id:(Stl.next_id t) ?label ~debtor ~creditor ~measure ~committed ())
+                        "Commitment added and read back."))
             | "action_settlement" ->
                 let id = Form.payload submitted in
                 let kind_idx = Option.value ~default:0 (Form.get_choice submitted "action_kind") in
                 let amount_str = Option.value ~default:"" (Form.get_text submitted "amount") |> String.trim in
-                (match Stl.find_row state.settlements id with
-                | None ->
-                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Commitment not found.")) }
-                | Some r ->
+                (match Result.bind state.settlements (fun t ->
+                   match Stl.find_row t id with Some r -> Ok r | None -> Error "Commitment not found.") with
+                | Error why ->
+                    Some { state with overlay = Modal_form (Form.set_notice submitted why) }
+                | Ok r ->
                     if kind_idx = 2 then
-                      (match Stl.retract_row state.settlements ~id with
-                      | Error why ->
-                          Some { state with overlay = Modal_form (Form.set_notice submitted why) }
-                      | Ok updated ->
-                          let path = Stl.file_path ?config_home:state.config_home state.session.F.path in
-                          let _ = Stl.save_file path updated in
-                          Some { state with overlay = No_overlay; settlements = updated; message = Printf.sprintf "Retracted commitment %s." id })
+                      Some (commit_settlements state submitted
+                        (fun t -> Stl.retract_row t ~id)
+                        (Printf.sprintf "Retracted commitment %s." id))
                     else
                       (match B.parse_amount state.session.book r.measure amount_str with
                       | Error why ->
@@ -1395,18 +1434,11 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                           in
                           Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
                       | Ok amount ->
-                          let res =
-                            if kind_idx = 0 then Stl.settle_row state.settlements ~id ~amount
-                            else Stl.reduce_row state.settlements ~id ~amount
-                          in
-                          (match res with
-                          | Error why ->
-                              Some { state with overlay = Modal_form (Form.set_notice submitted why) }
-                          | Ok updated ->
-                              let path = Stl.file_path ?config_home:state.config_home state.session.F.path in
-                              let _ = Stl.save_file path updated in
-                              let verb = if kind_idx = 0 then "Settled" else "Reduced" in
-                              Some { state with overlay = No_overlay; settlements = updated; message = Printf.sprintf "%s %s on %s." verb (Z.to_string amount) id })))
+                          let verb = if kind_idx = 0 then "Settled" else "Reduced" in
+                          Some (commit_settlements state submitted
+                            (fun t -> if kind_idx = 0 then Stl.settle_row t ~id ~amount
+                              else Stl.reduce_row t ~id ~amount)
+                            (Printf.sprintf "%s %s on %s." verb (Z.to_string amount) id))))
         | "observe_quantity" ->
             let locus = String.trim (Option.value ~default:"" (Form.get_text submitted "locus")) in
             let measure = String.trim (String.lowercase_ascii (Option.value ~default:"jpy" (Form.get_text submitted "measure"))) in
@@ -1464,10 +1496,10 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                     | None ->
                         Some { state with overlay = Modal_form (Form.set_notice submitted "Current pace is not available to simulate.") }
                     | Some (pace, _start, _end_excl) ->
-                        let remaining_days = max 1 pace.remaining_days in
+                        let remaining_days = pace.remaining_days in
                         let cur_pace = pace.daily_pace_quanta in
                         let new_avail = Z.sub pace.available_through_end quantity in
-                        let new_pace = Z.div (Z.max Z.zero new_avail) (Z.of_int remaining_days) in
+                        let new_pace = Z.ediv new_avail (Z.of_int remaining_days) in
                         let diff = Z.sub new_pace cur_pace in
                         let fmt z = B.format state.session.book pace.measure z ^ " " ^ pace.measure in
                         let diff_str = (if Z.gt diff Z.zero then "+" else "") ^ fmt diff ^ "/day" in
@@ -1478,51 +1510,27 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                         Some { state with overlay = Modal_form (what_if_form ~amount:amount_str ~result:res_msg state) })
         | "configure_daily_pace" ->
             let pool_loci_str = String.trim (Option.value ~default:"" (Form.get_text submitted "pool_loci")) in
-            let end_date_str = String.trim (Option.value ~default:"" (Form.get_text submitted "end_date")) in
-            let raw_tokens =
-              String.split_on_char ',' pool_loci_str
-              |> List.concat_map (String.split_on_char ' ')
-              |> List.map String.trim
-              |> List.filter (fun s -> s <> "")
-            in
-            if raw_tokens = [] then
-              Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter at least one account locus.")) }
+            let loci = String.split_on_char ',' pool_loci_str |> List.map String.trim in
+            let approved = B.approved_loci state.session.book in
+            let valid = List.for_all (fun locus -> config_token locus
+              && (match approved with Some ids -> List.mem locus ids | None -> false)) loci
+              && List.length (List.sort_uniq String.compare loci) = List.length loci in
+            if not valid then
+              Some { state with overlay = Modal_form (Form.set_notice submitted
+                "Choose distinct admitted Locus tokens, separated by commas.") }
             else
-              let valid_loci =
-                List.for_all (fun s -> match D.Identifier.Locus.of_string s with Ok _ -> true | Error _ -> false) raw_tokens
-              in
-              if not valid_loci then
-                Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Invalid locus identifier in pool accounts.")) }
-              else
-                (match Cal.parts end_date_str with
-                | Error _ ->
-                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Invalid date (YYYY-MM-DD).")) }
-                | Ok _ when end_date_str <= F.today () ->
-                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Period end date must be in the future.")) }
-                | Ok _ ->
-                    let pool_lines =
-                      List.map (fun locus -> Printf.sprintf "%s\t%s" locus state.workspace.measure) raw_tokens
-                    in
-                    let pool_content = String.concat "\n" pool_lines ^ "\n" in
-                    let start_date =
-                      match resolve_pace_window state with
-                      | Some (s, _) -> s
-                      | None ->
-                          let today = F.today () in
-                          (match Cal.parts today with
-                          | Ok (y, m, _) -> Printf.sprintf "%04d-%02d-01" y m
-                          | Error _ -> today)
-                    in
-                    let boundary_content = Printf.sprintf "month\t%s\t%s\n" start_date end_date_str in
-                    match write_config state "daily-pace.tsv" pool_content with
-                    | Error why ->
-                        Some { state with overlay = Modal_form (Form.set_notice submitted ("Failed to write daily-pace.tsv: " ^ why)) }
-                    | Ok _ ->
-                        match write_config state "boundary-presets.tsv" boundary_content with
-                        | Error why ->
-                            Some { state with overlay = Modal_form (Form.set_notice submitted ("Failed to write boundary-presets.tsv: " ^ why)) }
-                        | Ok _ ->
-                            Some { state with overlay = No_overlay; message = "Daily Pace configured and saved." })
+              let payload = Form.payload submitted in
+              let expected = if payload = "missing" then Ok None
+                else if String.starts_with ~prefix:"present\n" payload then
+                  Ok (Some (String.sub payload 8 (String.length payload - 8)))
+                else Error "Pool configuration was unreadable; reopen after repairing it." in
+              let content = String.concat "" (List.map
+                (fun locus -> locus ^ "\t" ^ state.workspace.measure ^ "\n") loci) in
+              (match Result.bind expected (fun expected -> write_pace_pool state ~expected content) with
+              | Error why -> Some { state with overlay = Modal_form (Form.set_notice submitted
+                  ("Pool save not confirmed: " ^ why ^ " Reopen to inspect before retrying.")) }
+              | Ok () -> Some { state with overlay = No_overlay;
+                  message = "Daily Pace pool saved. Period presets unchanged." })
         | _ -> Some state))
     | No_overlay -> (
         let key = match input with `Key (key, mods) -> Some (key, mods) | _ -> None in
@@ -1577,6 +1585,29 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some { state with overlay = Modal_form (what_if_form state) }
         | Some (`ASCII 'c', []) when state.workspace.route = W.Daily_pace ->
             Some { state with overlay = Modal_form (configure_pace_form state) }
+        | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), [])
+          when state.workspace.route = W.Actual ->
+            Some { state with workspace = { state.workspace with
+              pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) } }
+        | Some ((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)), [])
+        | Some (`ASCII ('u' | 'd'), [ `Ctrl ]) when state.workspace.route = W.Actual ->
+            let height, capacity, last = actual_viewport ~dimensions ~width_of state in
+            let detail = state.workspace.pane = W.Detail in
+            let page = max 1 (if detail then capacity
+              else height - 2 - (if height >= 4 then 1 else 0)) in
+            let delta = match Option.map normalize key with
+              | Some (`Home, _) -> -max_int
+              | Some (`End, _) -> max_int
+              | Some (`Page `Up, _) | Some (`ASCII 'u', [ `Ctrl ]) -> -page
+              | Some (`Page `Down, _) | Some (`ASCII 'd', [ `Ctrl ]) -> page
+              | Some ((`ASCII 'k' | `Arrow `Up), _) -> -1
+              | _ -> 1 in
+            if detail then
+              let scroll = if delta > 0 then state.scroll + min delta (last - state.scroll)
+                else if delta < -state.scroll then 0 else state.scroll + delta in
+              Some { state with scroll }
+            else Some { state with scroll = 0;
+              workspace = W.move_selection ~book:state.session.book state.workspace delta }
         | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
             Some
               {
@@ -1586,7 +1617,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                     state.workspace with
                     pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar);
                   };
-                scroll = 0;
+                scroll = (if state.workspace.route = W.Actual then state.scroll else 0);
               }
         | Some (`ASCII 't', []) when state.workspace.route = W.Calendar ->
             Some (update_calendar state (Cal.Today (F.today ())))
@@ -1596,7 +1627,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some
               {
                 state with
-                overlay = (if state.workspace.route = W.Calendar then Jump "" else Search "");
+                overlay = (if state.workspace.route = W.Calendar then Jump ""
+                  else Search (W.browser state.workspace).query);
               }
         | Some (`ASCII 'n', []) when state.workspace.route = W.Attention ->
             Some { state with overlay = Modal_form (add_attention_form ~today:(F.today ())) }
@@ -1787,10 +1819,11 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               }
         | _ -> ( match input with `End -> None | _ -> Some state))
 
-let frame ~width_of ~width ~height ~focused ~title ~scroll ~selected rows =
+let frame ?heading ~width_of ~width ~height ~focused ~title ~scroll ~selected rows =
   if width < 6 || height < 2 then List.init (max 0 height) (fun _ -> (Plain, ""))
   else
-    let capacity = max 0 (height - 2) in
+    let heading = if height >= 4 then heading else None in
+    let capacity = max 0 (height - 2 - (if heading = None then 0 else 1)) in
     let last = max 0 (List.length rows - capacity) in
     let start =
       match selected with
@@ -1809,7 +1842,8 @@ let frame ~width_of ~width ~height ~focused ~title ~scroll ~selected rows =
         shown
     in
     let style = if focused then Focused_frame else Frame in
-    (O.panel_border ~width ~style ~width_of (tr title) :: shown)
+    (O.panel_border ~width ~style ~width_of (tr title)
+     :: (Option.to_list (Option.map (O.panel_line ~width ~width_of Chrome) heading) @ shown))
     @ List.init
         (max 0 (capacity - List.length shown))
         (fun _ -> O.panel_line ~width ~width_of Plain "")
@@ -1848,6 +1882,49 @@ let row_title book = function
       in
       let amt = B.format book plan.measure total in
       plan.day ^ "  " ^ plan.id ^ "  " ^ amt ^ " " ^ plan.measure ^ "  " ^ status
+
+let actual_amount book (entry : B.entry) =
+  let format p =
+    let measure = A.mstr (D.Effect.measure p) and quanta = A.quanta p in
+    let amount = B.format book measure (Z.abs quanta) in
+    let parts = String.split_on_char '.' amount in
+    let whole = List.hd parts in
+    let grouped = Buffer.create (String.length amount + 16) in
+    String.iteri (fun i c ->
+      if i > 0 && (String.length whole - i) mod 3 = 0 then Buffer.add_char grouped ',';
+      Buffer.add_char grouped c) whole;
+    (if Z.sign quanta < 0 then "-" else if Z.sign quanta > 0 then "+" else "")
+    ^ Buffer.contents grouped
+    ^ (match List.tl parts with [] -> "" | xs -> "." ^ String.concat "." xs)
+    ^ " " ^ measure in
+  let measures = List.sort_uniq String.compare
+    (List.map (fun p -> A.mstr (D.Effect.measure p)) entry.effects) in
+  let positive = List.filter (fun p -> Z.sign (A.quanta p) > 0) entry.effects
+  and negative = List.filter (fun p -> Z.sign (A.quanta p) < 0) entry.effects in
+  if List.length measures > 1 then Printf.sprintf "multi (%d)" (List.length measures)
+  else if List.length positive > 1 || List.length negative > 1 then "split"
+  else match positive, entry.effects with
+    | p :: _, _ | [], [p] -> format p
+    | [], [] -> "—"
+    | [], _ -> "see details"
+
+let actual_table ~width_of ~width book rows =
+  let room = max 0 (width - 6) in
+  let amount_width = min 22 (max 12 (List.fold_left (fun n row ->
+    match row with W.Actual_entry e -> max n (width_of (actual_amount book e))
+    | _ -> n) 0 rows)) in
+  let table date description amount =
+    if room < 40 then O.pad ~width_of room description
+    else
+      let amount = if width_of amount <= amount_width then amount else "see details" in
+      O.pad ~width_of 10 date ^ "  "
+      ^ O.pad ~width_of (room - 14 - amount_width) description ^ "  "
+      ^ String.make (max 0 (amount_width - width_of amount)) ' ' ^ amount in
+  let titles = List.map (function
+    | W.Actual_entry e -> table e.day (Option.value ~default:"(no description)" e.memo)
+        (actual_amount book e)
+    | row -> row_title book row) rows in
+  ("  " ^ table "Date" "Description" "Amount", titles)
 
 let row_detail book = function
   | W.Actual_entry entry -> O.entry_lines book entry
@@ -1933,24 +2010,12 @@ let calendar_rows ?(width = 80) state =
           Printf.sprintf "%s%s    A%d  S%d" (if y = year then "> " else "  ") prefix actual planned)
 
 let pace_lines state =
-  let today = F.today () and measure = state.workspace.measure in
-  match (resolve_pace_pool state, resolve_pace_window state) with
-  | None, _ | _, None ->
-      [
-        tr "Daily Pace unavailable:";
-        "";
-        tr "Supply a balance pool and exclusive period end:";
-        "  - daily-pace.tsv (Locus<TAB>Measure) or press 'c' to configure";
-        "  - boundary-presets.tsv (Preset<TAB>Date...)";
-        "";
-        tr "Historical Trend is unavailable.";
-      ]
-  | Some pool, Some (start_day, end_exclusive) -> (
-      match
-        B.daily_pace state.session.book ~measure ~pool ~observed_at:today ~end_exclusive
-      with
-      | Error why -> [ tr "Daily Pace unavailable:"; why ]
-      | Ok pace ->
+  let measure = state.workspace.measure in
+  match current_pace_result state with
+  | Error why -> [ tr "Daily Pace unavailable (not zero):"; why;
+      "Supply an explicit daily-pace.tsv pool and boundary-presets.tsv period.";
+      "Historical Trend is unavailable." ]
+  | Ok (pace, start_day, end_exclusive) ->
           let amount n = B.format state.session.book measure n ^ " " ^ measure in
           let total_period_days =
             let day_num y m d =
@@ -1969,16 +2034,8 @@ let pace_lines state =
           let elapsed_days = max 0 (total_period_days - pace.remaining_days) in
           let progress_ratio = float_of_int elapsed_days /. float_of_int total_period_days in
           let bar = O.progress_bar ~width:28 ~ratio:progress_ratio in
-          let pool_origin =
-            match read_config state "daily-pace.tsv" with
-            | Some _ -> "config/daily-pace.tsv"
-            | None -> "auto-resolved asset accounts"
-          in
-          let window_origin =
-            match read_config state "boundary-presets.tsv" with
-            | Some _ -> "config/boundary-presets.tsv"
-            | None -> "current month default"
-          in
+          let pool_origin = "config/daily-pace.tsv" in
+          let window_origin = "config/boundary-presets.tsv" in
           [
             Printf.sprintf "Daily Pace: %s / day" (amount pace.daily_pace_quanta);
             "";
@@ -2006,14 +2063,15 @@ let pace_lines state =
                  (fun (id, n) -> Printf.sprintf "  %-24s -%s" ("Plan " ^ id) (amount n))
                  pace.plan_deductions)
           @ [ ""; "Net Pool: " ^ amount pace.eligible_pool;
-              "Total Deductions: -" ^ amount pace.automatic_deductions ])
+              "Total Deductions: -" ^ amount pace.automatic_deductions ]
 
 let pace_detail_lines state =
   let today = F.today () and measure = state.workspace.measure in
   match resolve_pace_window state with
-  | None ->
+  | Error why ->
       [
         "Daily Pace Configuration Guide";
+        why;
         "";
         "Files required or generated in config directory:";
         "";
@@ -2025,22 +2083,15 @@ let pace_detail_lines state =
         "   Preset<TAB>Date<TAB>Date...";
         "   Example: month<TAB>2026-10-01<TAB>2026-11-01";
         "";
-        "Or press 'c' to configure pool accounts and period end date directly.";
+        "Press 'c' to configure pool accounts only; period presets are preserved.";
         "";
         "Daily Pace divides eligible pool minus scheduled obligations";
         "by the remaining calendar days until exclusive period end.";
       ]
-  | Some (start_day, end_exclusive) ->
-      let pool_origin =
-        match read_config state "daily-pace.tsv" with
-        | Some _ -> "configured (daily-pace.tsv)"
-        | None -> "auto-resolved from asset/approved accounts"
-      in
-      let window_origin =
-        match read_config state "boundary-presets.tsv" with
-        | Some _ -> "configured (boundary-presets.tsv)"
-        | None -> "auto-resolved (current calendar month)"
-      in
+  | Ok (start_day, end_exclusive) ->
+      let pool_origin = match resolve_pace_pool state with
+        | Ok _ -> "configured (daily-pace.tsv)" | Error why -> why in
+      let window_origin = "configured (boundary-presets.tsv)" in
       [
         "Daily Pace Calculation & Evidence";
         "";
@@ -2060,7 +2111,7 @@ let pace_detail_lines state =
         "";
         "Actions:";
         "  Press 'w' to simulate a purchase scenario (What-If).";
-        "  Press 'c' to configure pool loci and cycle end date.";
+        "  Press 'c' to configure pool loci; period presets remain unchanged.";
         "";
         "Integrity & Principles:";
         "  - Current evidence reconstruction only.";
@@ -2209,7 +2260,9 @@ let workspace_rows ~width_of ~width ~height state =
       ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail
   else if workspace.route = W.Attention then
     let items = open_attentions state in
-    let left_title = Printf.sprintf "Attention (%d open)" (List.length items) in
+    let left_title = match state.attention with
+      | Ok _ -> Printf.sprintf "Attention (%d open)" (List.length items)
+      | Error _ -> "Attention / Unavailable" in
     let right_title = "Attention Detail" in
     let item_line (item : Att.item) =
       let due_str =
@@ -2220,14 +2273,16 @@ let workspace_rows ~width_of ~width ~height state =
       in
       Printf.sprintf "%-4s  %-10s  %s" item.id due_str item.context
     in
-    let left_rows =
-      if items = [] then [ tr "No open attention items." ]
-      else List.map item_line items
+    let left_rows = match state.attention with
+      | Error why -> O.wrap_text ~width_of (max 1 (width / 2 - 6))
+          ("Attention unavailable: " ^ why ^ ". Writes refused; Ctrl-R reloads.")
+      | Ok _ -> if items = [] then [ tr "No open attention items." ] else List.map item_line items
     in
     let detail =
-      match selected_attention state with
-      | None -> [ tr "No selected attention item."; ""; tr "Press 'n' to add a household matter." ]
-      | Some item ->
+      match state.attention, selected_attention state with
+      | Error why, _ -> [ "Attention unavailable (not empty)."; why; "Writes refused; Ctrl-R reloads." ]
+      | Ok _, None -> [ tr "No selected attention item."; ""; tr "Press 'n' to add a household matter." ]
+      | Ok _, Some item ->
           [
             "Item ID:    " ^ item.id;
             "Status:     Open";
@@ -2322,7 +2377,9 @@ let workspace_rows ~width_of ~width ~height state =
   else if workspace.route = W.Settlements then
     let rows = settlement_rows state in
     let scope_label = match state.settlement_scope with Stl.Open_only -> "Open" | Stl.All -> "All current" in
-    let left_title = Printf.sprintf "Settlements [%s] (%d)" scope_label (List.length rows) in
+    let left_title = match state.settlements with
+      | Ok _ -> Printf.sprintf "Settlements [%s] (%d)" scope_label (List.length rows)
+      | Error _ -> "Settlements / Unavailable" in
     let right_title = "Commitment Details" in
     let row_line r =
       let desc = match r.Stl.label with Some l -> l | None -> r.id in
@@ -2331,14 +2388,16 @@ let workspace_rows ~width_of ~width ~height state =
       let trunc_desc = if String.length desc > 22 then String.sub desc 0 19 ^ "..." else desc in
       Printf.sprintf "%-22s  %10s %-4s %s" trunc_desc (Z.to_string rem) r.measure status
     in
-    let left_rows =
-      if rows = [] then [ tr "  (no commitments in this scope)" ]
-      else List.map row_line rows
+    let left_rows = match state.settlements with
+      | Error why -> O.wrap_text ~width_of (max 1 (width / 2 - 6))
+          ("Settlements unavailable: " ^ why ^ ". Writes refused; Ctrl-R reloads.")
+      | Ok _ -> if rows = [] then [ tr "  (no commitments in this scope)" ] else List.map row_line rows
     in
     let detail =
-      match selected_settlement state with
-      | None -> [ tr "No selected commitment."; ""; tr "Press 'n' to add a new settlement commitment." ]
-      | Some r ->
+      match state.settlements, selected_settlement state with
+      | Error why, _ -> [ "Settlements unavailable (not empty)."; why; "Writes refused; Ctrl-R reloads." ]
+      | Ok _, None -> [ tr "No selected commitment."; ""; tr "Press 'n' to add a new settlement commitment." ]
+      | Ok _, Some r ->
           let rem = Stl.outstanding r in
           let desc = match r.label with Some l -> l | None -> "(no description)" in
           let effective = match r.effective_on with Some d -> d | None -> "(date unknown)" in
@@ -2372,12 +2431,30 @@ let workspace_rows ~width_of ~width ~height state =
       ~left_rows
       ~right_focused:is_detail ~right_title
       ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail
+  else if workspace.route = W.Actual then
+    let list_width, detail_width = actual_pane_widths width in
+    let is_detail = workspace.pane = W.Detail in
+    let browser = W.browser workspace in
+    let heading, titles = actual_table ~width_of ~width:list_width book rows in
+    let list_title = Printf.sprintf "Actuals (%d, %s, %s)" (List.length rows)
+      (match browser.order with W.Newest -> "desc" | W.Oldest -> "asc")
+      (match browser.day with None -> "all" | Some _ -> "day") in
+    let list_panel () = draw_frame ~heading ~width_of ~width:list_width ~height
+      ~focused:(not is_detail) ~title:list_title ~scroll:0
+      ~selected:(if rows = [] then None else Some browser.selected)
+      (if rows = [] then [ tr "No records in this view." ] else titles) in
+    let detail_panel () = draw_frame ~width_of ~width:detail_width ~height
+      ~focused:is_detail ~title:"Actual Detail" ~scroll:state.scroll ~selected:None
+      (actual_detail_rows ~width_of ~width:detail_width state) in
+    if width < 80 then (if is_detail then detail_panel () else list_panel ())
+    else pad (List.map2 (fun (style_l, text_l) (style_r, text_r) ->
+      (Columns (list_width, style_l, style_r), text_l ^ " " ^ text_r))
+      (list_panel ()) (detail_panel ()))
   else
     let is_detail = workspace.pane = W.Detail in
     let right_title =
       match workspace.route with
       | W.Scheduled -> "Plan Detail"
-      | W.Actual -> "Actual Detail"
       | _ -> "Selected Record"
     in
     let detail =
@@ -2389,11 +2466,6 @@ let workspace_rows ~width_of ~width ~height state =
     let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
     let list_title =
       match workspace.route with
-      | W.Actual ->
-          let browser = W.browser workspace in
-          let order_str = match browser.order with W.Newest -> "desc" | W.Oldest -> "asc" in
-          let scope_str = match browser.day with None -> "all" | Some _ -> "day" in
-          Printf.sprintf "Actuals (%d, %s, %s)" (List.length rows) order_str scope_str
       | W.Scheduled -> Printf.sprintf "Scheduled / List (%d)" (List.length rows)
       | W.Selected_day day -> Printf.sprintf "Day %s (%d)" day (List.length rows)
       | _ -> title
@@ -2428,8 +2500,8 @@ let footer state =
   match (state.workspace.W.route, state.workspace.pane) with
   | W.Home, _ ->
       [
-        "Enter/g calendar  i attention  o observe  r record  s scheduled  a actual  b balances  d daily pace";
-        "Space commands  q quit";
+        " [Enter] calendar   [i] attention";
+        " [Space] commands   [q] quit";
       ]
   | W.Calendar, W.Calendar ->
       [
@@ -2451,8 +2523,13 @@ let footer state =
       ]
   | W.Actual, W.Calendar ->
       [
-        "j/k select  Enter/i/Tab Detail  c Correct  x Reverse  f Day/All  s Order";
+        "j/k select  Enter/i/Tab Detail  h/l pane  c Correct  x Reverse  f Day/All  s Order";
         "n Record  / search  Space Commands  q/Esc Home  Ctrl-r reload";
+      ]
+  | W.Actual, W.Detail ->
+      [
+        "j/k scroll  Page Up/Down page  Home/End range  h/l/Tab pane";
+        "q/Esc list  c Correct  x Reverse  n Record  / search  Ctrl-r reload";
       ]
   | W.Selected_day _, W.Calendar ->
       [
@@ -2545,6 +2622,62 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
     let full_body = visible_body @ List.init bottom_pad (fun _ -> (Plain, "")) in
     full_body @ feedback @ List.map (line ~width_of width Chrome) (footer state)
 
+let commands_overlay_rows ~width_of ~width ~height (menu : M.t) =
+  let framed = height >= 5 && width >= 8 in
+  let body_height = if framed then height - 2 else height in
+  let path, description, back_label =
+    match menu.page with
+    | M.Root -> (" Home / Commands", " Choose a command group.", "Esc close")
+    | M.Transactions -> (" Commands / Transactions", " Recording and exchange.", "Esc back")
+    | M.Planning -> (" Commands / Plans and attention", " Scheduled household work.", "Esc back")
+    | M.Analysis -> (" Commands / Reports and analysis", " Read household answers.", "Esc back")
+    | M.Setup -> (" Commands / Household setup", " Explicit household evidence.", "Esc back")
+  in
+  let header =
+    if body_height >= 9 then
+      [ (Status, path); (Chrome, description); (Plain, "") ]
+    else if body_height >= 3 then
+      [ (Status, path) ]
+    else []
+  in
+  let footer =
+    if body_height >= 9 then
+      [ (Plain, ""); (Chrome, " ↑/↓ select  → group  ← back"); (Chrome, " Enter open  " ^ back_label) ]
+    else if body_height >= 2 then
+      [ (Chrome, " ↑↓/jk Enter  " ^ back_label) ]
+    else []
+  in
+  let page_cap = max 1 (body_height - List.length header - List.length footer) in
+  let items = List.map snd (M.items menu.page) in
+  let count = List.length items in
+  let last = max 0 (count - page_cap) in
+  let start = min last (max 0 (menu.selected - (page_cap / 2))) in
+  let visible_items = items |> List.filteri (fun i _ -> i >= start && i < start + page_cap) in
+  let item_lines =
+    visible_items
+    |> List.mapi (fun i text ->
+        let index = i + start in
+        let chosen = index = menu.selected in
+        let marker = if chosen then "  > " else "    " in
+        let style = if chosen then Active else Plain in
+        (style, marker ^ text))
+  in
+  let pad_count = max 0 (page_cap - List.length item_lines) in
+  let pad_lines = List.init pad_count (fun _ -> (Plain, "")) in
+  let body_content = header @ item_lines @ pad_lines @ footer in
+  let content =
+    body_content
+    |> List.mapi (fun i (style, text) ->
+        if i < body_height then
+          O.panel_line ~width ~width_of style text
+        else (Plain, ""))
+    |> List.filteri (fun i _ -> i < body_height)
+  in
+  let style = if width >= 54 && height >= 14 then Focused_frame else Frame in
+  (O.panel_border ~width ~style ~width_of "Commands")
+  :: content
+  @ [ O.panel_bottom ~width ~style ~width_of () ]
+
 let overlay_screen ~dimensions ~width_of state =
   let width, height = body_dimensions ~dimensions ~width_of state in
   if state.record_visible then
@@ -2562,22 +2695,29 @@ let overlay_screen ~dimensions ~width_of state =
                    (style, O.pad ~width_of (fst pane_dimensions) text)))
   else if state.overlay = No_overlay || width < 8 || height < 3 then None
   else
-    let max_w = match state.overlay with Modal_form _ -> 64 | _ -> 54 in
-    let width = min max_w (max 8 (width - 4)) in
-    let title, rows, selected =
-      match state.overlay with
-      | Commands menu -> (M.title menu.page, List.map snd (M.items menu.page), Some menu.selected)
-      | Themes { selected; _ } -> ("Theme", List.map P.theme_label P.all_themes, Some selected)
-      | Jump value ->
-          ("Jump to date / month / year", [ value ^ "|"; tr "Enter apply; Esc cancel" ], None)
-      | Search value ->
-          ("Search Actual / Scheduled", [ value ^ "|"; tr "Enter apply; Esc clear" ], None)
-      | Modal_form form ->
-          (Form.title form, Form.render_rows form, None)
-      | No_overlay -> ("", [], None)
-    in
-    let height = min height (max 5 (List.length rows + 2)) in
-    Some (frame ~width_of ~width ~height ~focused:true ~title ~scroll:0 ~selected rows)
+    match state.overlay with
+    | Commands menu ->
+        let can_float = width >= 60 && height >= 14 in
+        let panel_w = min 54 (max 8 (width - 4)) in
+        let available_h = if can_float then max 5 (height - 4) else height in
+        let panel_h = min (List.length (M.items menu.page) + 8) available_h in
+        Some (commands_overlay_rows ~width_of ~width:panel_w ~height:panel_h menu)
+    | _ ->
+        let max_w = match state.overlay with Modal_form _ -> 64 | _ -> 54 in
+        let width = min max_w (max 8 (width - 4)) in
+        let title, rows, selected =
+          match state.overlay with
+          | Themes { selected; _ } -> ("Theme", List.map P.theme_label P.all_themes, Some selected)
+          | Jump value ->
+              ("Jump to date / month / year", [ value ^ "|"; tr "Enter apply; Esc cancel" ], None)
+          | Search value ->
+              ("Search Actual / Scheduled", [ value ^ "|"; tr "Enter apply; Esc clear" ], None)
+          | Modal_form form ->
+              (Form.title form, Form.render_rows form, None)
+          | Commands _ | No_overlay -> ("", [], None)
+        in
+        let height = min height (max 5 (List.length rows + 2)) in
+        Some (frame ~width_of ~width ~height ~focused:true ~title ~scroll:0 ~selected rows)
 
 let overlay_position ~dimensions ~width_of state ~pane_width ~pane_height =
   let width, height = body_dimensions ~dimensions ~width_of state in

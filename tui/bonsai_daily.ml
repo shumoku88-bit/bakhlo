@@ -18,7 +18,7 @@ let attributes theme style =
   match P.palette theme with
   | None -> (
       match style with
-      | C.Plain | C.Calendar_dates | C.Columns _ | C.Input _ -> []
+      | C.Plain | C.Calendar_dates | C.Bonsai | C.Entrance | C.Columns _ | C.Input _ -> []
       | C.Active -> [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.invert; B.Attr.bold ]
       | C.Focused_frame -> [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.bold ]
       | C.Heading | C.Status | C.Panel_heading -> [ B.Attr.bold ]
@@ -26,7 +26,7 @@ let attributes theme style =
       | C.Panel_active -> [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.invert; B.Attr.bold ])
   | Some palette -> (
       match style with
-      | C.Plain | C.Calendar_dates | C.Columns _ | C.Input _ -> [ fg palette.foreground; bg palette.background ]
+      | C.Plain | C.Calendar_dates | C.Bonsai | C.Entrance | C.Columns _ | C.Input _ -> [ fg palette.foreground; bg palette.background ]
       | C.Active -> [ fg palette.selected_foreground; bg palette.selected_background; B.Attr.bold ]
       | C.Heading -> [ fg palette.foreground; bg palette.background; B.Attr.bold ]
       | C.Chrome | C.Frame -> [ fg palette.heading; bg palette.background ]
@@ -88,7 +88,7 @@ let rec lines ?border theme rows =
       let body_style =
         match style with
         | C.Frame | C.Focused_frame -> C.Chrome
-        | C.Input _ -> C.Plain
+        | C.Input _ | C.Bonsai | C.Entrance -> C.Plain
         | style -> style
       in
       let edge_attrs =
@@ -96,6 +96,8 @@ let rec lines ?border theme rows =
         | Some intent -> border_attributes theme intent
         | None -> attributes theme (if style = C.Focused_frame then C.Focused_frame else C.Frame)
       in
+      let leaf_attrs = [ B.Attr.fg B.Attr.Color.Expert.green ] in
+      let entrance_key_attrs = [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.bold ] in
       let framed_row = String.starts_with ~prefix:"│" text && String.ends_with ~suffix:"│" text in
       let ruled_row = String.starts_with ~prefix:"╭" text || String.starts_with ~prefix:"╰" text in
       let total_cells = V.width (V.text text) in
@@ -104,6 +106,13 @@ let rec lines ?border theme rows =
           when style = C.Calendar_dates && String.length a = 1 && String.length b = 1
                && a.[0] >= '0' && a.[0] <= '9' && b.[0] >= '0' && b.[0] <= '9' ->
             (attributes theme C.Active, "[" ^ a ^ b ^ "]") :: paint (cell + 4) rest
+        | glyph :: rest when style = C.Bonsai && (glyph = ":" || glyph = ";") ->
+            (leaf_attrs, glyph) :: paint (cell + 1) rest
+        | key :: " " :: rest
+          when style = C.Entrance
+               && (key = "r" || key = "s" || key = "g" || key = "a" || key = "b" || key = "d")
+               && (cell = 0 || String.get text (max 0 (cell - 1)) = ' ') ->
+            (entrance_key_attrs, key) :: paint (cell + 1) (" " :: rest)
         | glyph :: rest ->
             let attrs =
               if (framed_row && (cell = 0 || cell = total_cells - 1))

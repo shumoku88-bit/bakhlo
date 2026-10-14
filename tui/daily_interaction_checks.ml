@@ -126,6 +126,9 @@ let bonsai_home_layout_check ~width_of home =
         require (contains rows "bakhlo") "bonsai-heading-bakhlo-visible");
       let tree_fits = height >= 24 && width >= 32 in
       require (contains rows "\\___________/" = tree_fits) "bonsai-pot-visible-on-fitting-height";
+      require (List.exists (fun (style, _) -> style = C.Bonsai) rows = tree_fits) "bonsai-foliage-style-matches-fit";
+      if height >= 9 then
+        require (List.exists (fun (style, _) -> style = C.Entrance) rows) "bonsai-entrance-style-present";
       require (not (contains rows "wallet") && not (contains rows "Net:"))
         "bonsai-does-not-leak-dashboard-ledger")
     [ 32, 9; 32, 11; 48, 14; 80, 24; 120, 40; 150, 45 ];
@@ -280,6 +283,221 @@ let theme_check ~width_of ~directory home =
   get (P.save_theme ~config_home:directory P.Terminal);
   print_endline "PASS: terminal/original theme preview, cancel, cold settings and isolated save failure."
 
+let safety_checks ~width_of ~directory () =
+  let dir = directory ^ "/safety" in
+  Unix.mkdir dir 0o700;
+  let path = dir ^ "/book.sexp" in
+  F.create_copy ~source:"examples/daily-book.sexp" ~target:path;
+  let home = C.initial ~config_home:dir (F.load path) in
+  let contains rows needle = List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows in
+  let failed state = match state.C.overlay with C.Modal_form f -> Ui_form.notice f <> "" | _ -> false in
+  List.iter (fun raw -> require (Result.is_error (Att.of_string raw)) "attention-invalid-input-refused")
+    [ "unknown-row\n"; "LOAM-ATTENTION-MEMORY\t2\n";
+      "ITEM\ta\tDUE_ON\t2026-02-30\tbad date\n";
+      "ITEM\ta\tDUE_ON\t2026/10/14\tnoncanonical date\n";
+      "ITEM\ta\tNO_DUE_DATE\t-\tbad\\x\n";
+      "ITEM\ta\tNO_DUE_DATE\t-\tfirst\nITEM\ta\tNO_DUE_DATE\t-\tduplicate\n";
+      "CLOSE\tmissing\t2026-10-14\tRESOLVED\n" ];
+  let att = get (Att.add_item Att.empty ~id:"attention-2" ~context:"合成\\text\nnext"
+    ~due:Att.Due_undetermined) in
+  require (get (Att.of_string (Att.to_string att)) = att) "attention-escape-round-trip";
+  require (Att.next_id att <> "attention-2") "attention-id-does-not-collide";
+  let att_path = Att.file_path ~config_home:dir path in
+  get (Att.save_file att_path ~expected:Att.empty att);
+  require (Result.is_error (Att.save_file att_path ~expected:Att.empty Att.empty)) "attention-stale-write-refused";
+  let att_bytes = F.read att_path in
+  let state = C.initial ~config_home:dir (F.load path) in
+  Unix.mkdir (att_path ^ ".lock.block") 0o700;
+  Unix.unlink (att_path ^ ".lock");
+  Unix.rename (att_path ^ ".lock.block") (att_path ^ ".lock");
+  let form = C.add_attention_form ~today:(F.today ()) |> fun f -> Ui_form.set_text f "context" "Retain me" in
+  let ready = { state with C.overlay = C.Modal_form (Ui_form.set_focused form 3) } in
+  let refused = key ~width_of ready `Enter in
+  require (failed refused && refused.attention = state.attention) "attention-save-failure-preserves-state";
+  (match refused.overlay with C.Modal_form f -> require (Ui_form.get_text f "context" = Some "Retain me")
+      "attention-save-failure-preserves-draft" | _ -> require false "attention-draft-lost");
+  require (F.read att_path = att_bytes) "attention-save-failure-preserves-file";
+  Unix.rmdir (att_path ^ ".lock");
+  Unix.unlink att_path;
+  F.write_new att_path "broken\n";
+  let broken = C.initial ~config_home:dir (F.load path) in
+  require (Result.is_error broken.attention) "attention-load-failure-is-not-empty";
+  require (contains (C.screen ~width_of (120, 30) (C.open_route broken W.Attention)) "Unavailable")
+    "attention-load-failure-visible";
+  require (failed (key ~width_of { broken with overlay = ready.overlay } `Enter)) "attention-invalid-load-blocks-save";
+  require (F.read att_path = "broken\n") "attention-invalid-bytes-preserved";
+  Unix.unlink att_path;
+  Unix.mkdir att_path 0o700;
+  require (Result.is_error (Att.load_file att_path)) "attention-nonregular-read-refused";
+  Unix.rmdir att_path;
+  Unix.symlink (dir ^ "/missing-target") att_path;
+  require (Att.file_path ~config_home:dir path = att_path && Result.is_error (Att.load_file att_path))
+    "attention-dangling-link-refuses-without-fallback";
+  Unix.unlink att_path;
+  get (Att.save_file att_path ~expected:Att.empty att);
+  require ((C.reload broken).attention = Ok att) "explicit-reload-refreshes-sidecar";
+  List.iter (fun raw -> require (Result.is_error (Stl.of_string raw)) "settlement-invalid-input-refused")
+    [ "broken\n"; "id\t\ta\tb\tjpy\tbad\t0\t0\n";
+      "id\t\ta\tb\tjpy\t10\t11\t0\n"; "id\t\ta\tb\tjpy\t10\t-1\t0\n";
+      "id\t\ta\tb\tjpy\t10\t0\t0\nid\t\ta\tb\tjpy\t10\t0\t0\n" ];
+  let stl_path = Stl.file_path ~config_home:dir path in
+  F.write_new stl_path "id\t\ta\tb\tjpy\tbad\t0\t0\n";
+  let broken = C.initial ~config_home:dir (F.load path) in
+  require (Result.is_error broken.settlements) "settlement-load-failure-is-not-zero";
+  require (contains (C.screen ~width_of (120, 30) (C.open_route broken W.Settlements)) "Unavailable")
+    "settlement-load-failure-visible";
+  require (Result.is_error (Stl.save_file stl_path ~expected:Stl.empty Stl.empty)) "settlement-corruption-blocks-save";
+  let stl_bytes = F.read stl_path in
+  let form = C.add_settlement_form home in
+  let form = Ui_form.set_text form "debtor" "a" |> fun f -> Ui_form.set_text f "creditor" "b"
+    |> fun f -> Ui_form.set_text f "amount" "10" |> fun f -> Ui_form.set_focused f 5 in
+  require (failed (key ~width_of { broken with overlay = C.Modal_form form } `Enter)) "settlement-corruption-ui-refuses";
+  require (F.read stl_path = stl_bytes) "settlement-corruption-preserved";
+  Unix.unlink stl_path;
+  Unix.mkdir (stl_path ^ ".lock.block") 0o700;
+  Unix.unlink (stl_path ^ ".lock");
+  Unix.rename (stl_path ^ ".lock.block") (stl_path ^ ".lock");
+  let refused = key ~width_of { home with overlay = C.Modal_form form } `Enter in
+  require (failed refused && refused.settlements = home.settlements) "settlement-save-failure-preserves-state";
+  require (not (Sys.file_exists stl_path)) "settlement-save-failure-no-file";
+  Unix.rmdir (stl_path ^ ".lock");
+  let huge = Z.pow (Z.of_int 10) 70 in
+  let commitments = get (Stl.add_row Stl.empty ~id:"huge" ~label:"合成のみ"
+    ~debtor:"a" ~creditor:"b" ~measure:"jpy" ~committed:huge ()) in
+  get (Stl.save_file stl_path ~expected:Stl.empty commitments);
+  require (get (Stl.load_file stl_path) = commitments) "settlement-exact-huge-cold-round-trip";
+  require (Result.is_error (Stl.save_file stl_path ~expected:Stl.empty Stl.empty)) "settlement-stale-write-refused";
+  require (get (Stl.load_file stl_path) = commitments) "settlement-stale-write-preserves-evidence";
+  require (Result.is_error (C.resolve_pace_pool home)) "missing-pool-is-not-inferred";
+  require (Result.is_error (C.resolve_pace_window home)) "missing-window-is-not-month-end";
+  let pool_path = dir ^ "/daily-pace.tsv" and windows_path = dir ^ "/boundary-presets.tsv" in
+  let replace path bytes = if Sys.file_exists path then Unix.unlink path; F.write_new path bytes in
+  List.iter (fun raw -> replace pool_path raw;
+    require (Result.is_error (C.resolve_pace_pool home)) "pool-rejects-bad-duplicate-or-mixed-rows")
+    ["wallet\tjpy\nbad\n"; "wallet\tjpy\nwallet\tjpy\n"; "wallet\tjpy\nbank\teur\n"];
+  replace pool_path "wallet\tjpy\n";
+  let today = F.today () and stop = get (Cal.shift_days (F.today ()) 7) in
+  let window = "cycle\t" ^ today ^ "\t" ^ stop ^ "\n" in
+  List.iter (fun raw -> replace windows_path raw;
+    require (Result.is_error (C.resolve_pace_window home)) "window-rejects-malformed-or-ambiguous-presets")
+    [window ^ "other\t" ^ today ^ "\t" ^ stop ^ "\n";
+     window ^ "old\t2026-02-30\t2026-03-01\n";
+     window ^ "old\t1900/01/01\t1901/01/01\n";
+     "cycle\t" ^ stop ^ "\t" ^ today ^ "\n"];
+  let boundaries = "old\t1900-01-01\t1901-01-01\n" ^ window in
+  replace windows_path boundaries;
+  let pace, _, _ = get (C.current_pace_result home) in
+  let amount = Z.add pace.B.available_through_end Z.one in
+  let form = C.what_if_form home |> fun f -> Ui_form.set_text f "amount" (Z.to_string amount)
+    |> fun f -> Ui_form.set_focused f 1 in
+  let simulated = key ~width_of { home with overlay = C.Modal_form form } `Enter in
+  require (match simulated.overlay with C.Modal_form f ->
+    Base.String.is_substring (Ui_form.notice f) ~substring:"Simulated pace: -1 jpy/day" | _ -> false)
+    "negative-what-if-uses-floor-division-without-clamping";
+  let form = C.configure_pace_form home |> fun f -> Ui_form.set_text f "pool_loci" "wallet, bank"
+    |> fun f -> Ui_form.set_focused f 1 in
+  let saved = key ~width_of { home with overlay = C.Modal_form form } `Enter in
+  require (saved.overlay = C.No_overlay && F.read windows_path = boundaries) "pool-save-preserves-all-presets";
+  let stale = C.configure_pace_form home |> fun f -> Ui_form.set_focused f 1 in
+  replace pool_path "bank\tjpy\n";
+  require (failed (key ~width_of { home with overlay = C.Modal_form stale } `Enter)) "stale-pool-editor-refused";
+  require (F.read pool_path = "bank\tjpy\n" && F.read windows_path = boundaries) "stale-config-preserved";
+  Unix.unlink windows_path;
+  let form = C.configure_pace_form home |> fun f -> Ui_form.set_focused f 1 in
+  let saved = key ~width_of { home with overlay = C.Modal_form form } `Enter in
+  require (saved.overlay = C.No_overlay && not (Sys.file_exists windows_path)) "pool-save-does-not-invent-period";
+  print_endline "PASS: sidecar refusal/draft preservation, strict inputs, explicit Pace, negative What-if and non-destructive Pool edits."
+
+let actual_browsing_checks ~width_of ~directory home =
+  let posting ?(measure="jpy") locus quanta = D.Effect.create ~key:None
+    ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
+    ~measure:(C.get_id (D.Identifier.Measure.of_string measure))
+    ~quantity:(D.Quantity.of_quanta quanta) in
+  let huge = Z.of_string (String.make 70 '9') in
+  let entry n : B.entry =
+    { id = Printf.sprintf "actual-%02d" n; day = Printf.sprintf "2026-10-%02d" (n+1);
+      memo = Some (if n=17 then String.concat " " (List.init 80 (fun _ -> "日本語の長い説明"))
+        else Printf.sprintf "Synthetic purchase %02d" n);
+      effects = [posting "wallet" (Z.neg (if n=17 then huge else Z.of_int (1234+n)));
+        posting "food" (if n=17 then huge else Z.of_int (1234+n))];
+      reversal_of = None; exchange = None } in
+  let book = List.fold_left (fun book n -> get (B.put_entry book ~replace:false (entry n) ~plan:None))
+    home.C.session.book (List.init 18 Fun.id) in
+  let path = directory ^ "/actual-browsing.sexp" in
+  F.write_new path (B.to_string book);
+  let before = F.read path in
+  let state = C.open_route (C.initial ~config_home:directory (F.load path)) W.Actual in
+  let contains rows needle = List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) rows in
+  require (C.actual_amount book (entry 0) = "+1,234 jpy") "actual-grouped-exact-amount";
+  let euro = { (entry 0) with effects = [posting ~measure:"eur" "food" (Z.of_int 123456)] } in
+  require (C.actual_amount book euro = "+1,234.56 eur") "actual-grouping-retains-decimals";
+  require (C.actual_amount book {euro with effects=[posting ~measure:"eur" "food" (Z.of_int (-123456))]}
+    = "-1,234.56 eur") "actual-negative-amount-sign";
+  require (C.actual_amount book {euro with effects=[]} = "—") "actual-missing-effects-not-zero";
+  require (C.actual_amount book {euro with effects=[posting "food" Z.zero]} = "0 jpy") "actual-explicit-zero";
+  require (C.actual_amount book {euro with effects=[posting "wallet" (Z.of_int (-3));
+    posting "food" Z.one; posting "bank" (Z.of_int 2)]} = "split") "actual-split-not-invented-total";
+  require (C.actual_amount book {euro with effects=posting "food" Z.one :: euro.effects} = "multi (2)")
+    "actual-mixed-measures-not-summed";
+  let heading, titles = C.actual_table ~width_of ~width:58 book [W.Actual_entry (entry 0); W.Actual_entry (entry 17)] in
+  require (Base.String.is_substring heading ~substring:"Amount"
+    && Base.String.is_substring (List.hd titles) ~substring:"+1,234 jpy"
+    && Base.String.is_substring (List.nth titles 1) ~substring:"see details"
+    && Base.String.is_substring (List.nth titles 1) ~substring:"…"
+    && List.for_all (fun line -> width_of line=52) titles) "actual-fixed-columns-safe-ellipsis";
+  List.iter (fun dimensions ->
+    let key = key ~dimensions ~width_of in
+    let detail = key state `Enter in
+    let height, capacity, last = C.actual_viewport ~dimensions ~width_of detail in
+    let identity = (W.browser detail.workspace).selected_id in
+    let ended = key detail `End in
+    require (ended.scroll=last && (W.browser ended.workspace).selected_id=identity)
+      "actual-detail-end-does-not-reselect";
+    require ((key ended (`ASCII 'j')).scroll=last && (key ended (`ASCII 'k')).scroll=max 0 (last-1))
+      "actual-detail-bottom-is-clamped-and-up-is-immediate";
+    require ((key ended `Home).scroll=0 && (W.browser (key ended `Home).workspace).selected_id=identity)
+      "actual-detail-home-does-not-reselect";
+    require ((key detail (`Page `Down)).scroll=min last (max 1 capacity)) "actual-detail-page-visible-capacity";
+    let listed = key ended `Escape in
+    require (listed.workspace.pane=W.Calendar && (W.browser listed.workspace).selected_id=identity)
+      "actual-back-retains-selection";
+    let page = key state (`Page `Down) in
+    require ((W.browser page.workspace).selected=min 17 (max 1 (height-2-(if height>=4 then 1 else 0))))
+      "actual-list-page-excludes-borders-and-heading";
+    let last_row = key state `End in
+    require ((W.browser last_row.workspace).selected=17 && last_row.scroll=0) "actual-list-end-real-last";
+    List.iter (fun state ->
+      let rows = C.screen ~width_of dimensions state in
+      require (List.length rows<=snd dimensions && List.for_all (fun (_,line)->width_of line<=fst dimensions) rows)
+        "actual-bounded-layout";
+      if snd dimensions>=14 && state.workspace.pane=W.Detail then
+        require (contains rows "ID: actual-17") "actual-long-detail-complete-id-at-end") [state;page;ended])
+    [32,9;48,14;80,24;120,36];
+  let detail = key ~dimensions:(32,9) ~width_of state `Enter |> fun s -> key ~dimensions:(32,9) ~width_of s `End in
+  let resized = key ~dimensions:(120,36) ~width_of detail (`ASCII '!') in
+  let _, _, resized_last = C.actual_viewport ~dimensions:(120,36) ~width_of resized in
+  require (resized.scroll=resized_last && (W.browser resized.workspace).selected_id=(W.browser detail.workspace).selected_id)
+    "actual-resize-clamps-without-reselection";
+  let searched = key ~width_of state (`ASCII '/') |> fun s -> text ~width_of s "purchase 03" in
+  require (List.length (W.rows ~book searched.workspace)=1 && (W.browser searched.workspace).query="purchase 03")
+    "actual-search-filters-while-typing";
+  let kept = key ~width_of searched `Enter in
+  require ((W.browser kept.workspace).query="purchase 03") "actual-search-enter-keeps";
+  let cleared = key ~width_of (key ~width_of kept (`ASCII '/')) `Escape in
+  require ((W.browser cleared.workspace).query="" && List.length (W.rows ~book cleared.workspace)=18)
+    "actual-search-escape-clears";
+  let parent = key ~width_of state (`ASCII 'j') in
+  let draft = prepare_record ~width_of parent in
+  let draft_rows = S.screen ~book ~dimensions:(72,20) ~width_of (Option.get draft.record) in
+  let closed = key ~width_of draft `Escape in
+  require (closed.workspace=parent.workspace && C.has_record_draft closed && not closed.record_visible)
+    "actual-record-cancel-retains-parent-and-draft";
+  let resumed = key ~width_of closed (`ASCII 'n') in
+  require (resumed.record_visible && S.screen ~book ~dimensions:(72,20) ~width_of (Option.get resumed.record)=draft_rows)
+    "actual-record-resumes-exact-draft";
+  require (F.read path=before) "actual-browsing-and-draft-did-not-write";
+  print_endline "PASS: Actual exact aligned summaries, live search, clamped detail/list paging, tiny resize, stable selection and retained Record drafts (synthetic)."
+
 let self_check ~width_of () =
   let directory = "scratch/english-ui-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
@@ -289,6 +507,7 @@ let self_check ~width_of () =
   bonsai_home_layout_check ~width_of home;
   home_layout_check ~width_of home;
   theme_check ~width_of ~directory home;
+  actual_browsing_checks ~width_of ~directory home;
   let before = F.read path in
   require
     (home.workspace.route = W.Home && not home.record_visible)
@@ -353,13 +572,32 @@ let self_check ~width_of () =
     (Result.is_error (Cal.shift_days "0001-01-01" (-1))
     && Result.is_error (Cal.shift_days "9999-12-31" 1))
     "calendar-boundary";
+  let opened = key ~width_of home (`ASCII ' ') in
+  (match C.overlay_screen ~dimensions:(80, 24) ~width_of opened with
+   | None -> failwith "commands-overlay-missing"
+   | Some rows ->
+       require (List.exists (fun (_, text) -> Base.String.is_substring text ~substring:"Home / Commands") rows)
+         "commands-header-path-visible";
+       require (List.exists (fun (_, text) -> Base.String.is_substring text ~substring:"Choose a command group.") rows)
+         "commands-header-description-visible";
+       require (List.exists (fun (_, text) -> Base.String.is_substring text ~substring:"select") rows)
+         "commands-footer-navigation-visible";
+       require (List.exists (fun (style, text) -> style = C.Active && Base.String.is_substring text ~substring:"> Transactions") rows)
+         "commands-active-selection-visible");
   let menu =
-    key ~width_of home (`ASCII ' ') |> fun s ->
+    opened |> fun s ->
     key ~width_of s (`Arrow `Down) |> fun s -> key ~width_of s (`Arrow `Right)
   in
   require
     (match menu.overlay with C.Commands { page = M.Planning; _ } -> true | _ -> false)
     "commands-enter-group";
+  (match C.overlay_screen ~dimensions:(80, 24) ~width_of menu with
+   | None -> failwith "commands-group-overlay-missing"
+   | Some rows ->
+       require (List.exists (fun (_, text) -> Base.String.is_substring text ~substring:"Commands / Plans and attention") rows)
+         "commands-group-header-path-visible";
+       require (List.exists (fun (_, text) -> Base.String.is_substring text ~substring:"Scheduled household work.") rows)
+         "commands-group-header-description-visible");
   let leaf = key ~width_of menu (`Arrow `Right) in
   require (leaf.overlay = menu.overlay && leaf.workspace = menu.workspace) "right-leaf-no-action";
   let parent = key ~width_of leaf `Escape in
@@ -459,7 +697,8 @@ let self_check ~width_of () =
   let pace_path = directory ^ "/daily-pace.tsv" in
   let windows_path = directory ^ "/boundary-presets.tsv" in
   F.write_new pace_path "wallet\tjpy\n";
-  F.write_new windows_path "month\t2026-10-01\t2026-11-01\n";
+  F.write_new windows_path ("test-cycle\t" ^ F.today () ^ "\t"
+    ^ get (Cal.shift_days (F.today ()) 7) ^ "\n");
   let pace_configured = C.open_route { home with session = F.load path } W.Daily_pace in
   let wide_pace_conf = C.screen ~width_of (120, 30) pace_configured in
   require (contains wide_pace_conf "Period progress:" && contains wide_pace_conf "Through end:")
@@ -944,7 +1183,7 @@ let self_check ~width_of () =
   let back_home = key ~width_of all_scope_state (`ASCII 'q') in
   require (back_home.workspace.route = W.Home) "settlements-q-back-to-home";
   (* Disk persistence verify *)
-  let stl_file = Stl.load_file (Stl.file_path ~config_home:directory path) in
+  let stl_file = get (Stl.load_file (Stl.file_path ~config_home:directory path)) in
   require (List.length stl_file.rows = 1) "settlements-persisted-to-file";
   (* Observe Quantities modal form workflow *)
   (* 1. Launch via 'o' key from back_home *)
@@ -1021,7 +1260,7 @@ let self_check ~width_of () =
   let pace_home = key ~width_of zero_state (`ASCII 'd') in
   require (pace_home.workspace.route = W.Daily_pace) "route-daily-pace";
   let screen_pace = C.screen ~width_of (120, 30) pace_home in
-  require (contains screen_pace "Daily Pace:") "daily-pace-auto-calculated";
+  require (contains screen_pace "Daily Pace:") "daily-pace-explicitly-configured";
   require (contains screen_pace "Period progress:") "daily-pace-progress-bar";
   require (contains screen_pace "w what-if") "pace-footer-what-if-hint";
   require (contains screen_pace "c configure") "pace-footer-configure-hint";
@@ -1059,9 +1298,11 @@ let self_check ~width_of () =
         f
     | _ -> failwith "expected cfg modal"
   in
-  (* Test invalid end date *)
-  let form_cfg_err = Ui_form.set_text form_cfg "end_date" "invalid-date" in
-  let form_cfg_err = Ui_form.set_focused form_cfg_err 2 in
+  require (Ui_form.get_text form_cfg "end_date" = None) "period-is-read-only-in-pool-editor";
+  let boundaries_before = F.read windows_path in
+  (* Invalid/duplicate pool must not save either configuration. *)
+  let form_cfg_err = Ui_form.set_text form_cfg "pool_loci" "wallet, wallet" in
+  let form_cfg_err = Ui_form.set_focused form_cfg_err 1 in
   let err_state =
     match C.handle ~width_of { cfg_state with overlay = C.Modal_form form_cfg_err } (`Key (`Enter, [])) with
     | Some s -> s
@@ -1069,19 +1310,19 @@ let self_check ~width_of () =
   in
   (match err_state.overlay with
    | C.Modal_form f_notice ->
-       require (Ui_form.notice f_notice = "Invalid date (YYYY-MM-DD).") "cfg-pace-validates-date"
-   | _ -> failwith "expected notice on date err");
-  (* Save valid configuration: wallet only, future date 2026-11-01 *)
+       require (Ui_form.notice f_notice = "Choose distinct admitted Locus tokens, separated by commas.")
+         "cfg-pace-validates-pool"
+   | _ -> failwith "expected notice on invalid pool");
   let form_cfg_valid = Ui_form.set_text form_cfg "pool_loci" "wallet" in
-  let form_cfg_valid = Ui_form.set_text form_cfg_valid "end_date" "2026-11-01" in
-  let form_cfg_valid = Ui_form.set_focused form_cfg_valid 2 in
+  let form_cfg_valid = Ui_form.set_focused form_cfg_valid 1 in
   let saved_state =
     match C.handle ~width_of { cfg_state with overlay = C.Modal_form form_cfg_valid } (`Key (`Enter, [])) with
     | Some s -> s
     | None -> failwith "unexpected exit on cfg save"
   in
   require (saved_state.overlay = C.No_overlay) "cfg-pace-saved-overlay-cleared";
-  require (saved_state.message = "Daily Pace configured and saved.") "cfg-pace-saved-message";
+  require (saved_state.message = "Daily Pace pool saved. Period presets unchanged.") "cfg-pace-saved-message";
+  require (F.read windows_path = boundaries_before) "pool-editor-preserves-boundaries-byte-exactly";
   let screen_reloaded = C.screen ~width_of (120, 30) saved_state in
   require (contains screen_reloaded "Source: Pool [config/daily-pace.tsv]") "shows-configured-pool-source";
   let back_home2 = key ~width_of saved_state (`ASCII 'q') in
@@ -1117,6 +1358,7 @@ let self_check ~width_of () =
        require (col > 0 && col < 80) "cursor-search-col-bounded";
        require (row > 0 && row < 24) "cursor-search-row-bounded"
    | None -> failwith "expected-search-overlay-cursor");
+  safety_checks ~width_of ~directory ();
   print_endline
     "PASS: English Calendar / Commands / Record / child navigation / exact cold save and safety \
      guards.";

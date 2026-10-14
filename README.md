@@ -31,10 +31,15 @@ Daily Paceと支払い予定は維持する。試用中の旧予算データは�
 - レコード形式（Records）の耐久追記保存と高速インデックス化（PR 5, PR 6）。
   Recordsでは予定完了リンクの同時保存と既存明細の置換が未対応のため、両操作を追記前に拒否する。
   予定の支払い・既存明細の訂正を試す場合は単一S式の試用コピーを使う。
-- Daily台帳の純粋APIで、単発予定の作成・変更・日付付き取消を扱える（操作UIは未接続）。
+- 単一S式のDaily台帳で、単発予定の作成・変更・日付付き取消を画面から試せる（Recordsは拒否）。
   取消済み予定は残し、支払い済み／取消済みの再支払いを拒否する。
 - `Daily_book.daily_pace`でLOAM Home `d`相当の今日の目安を計算し、英語のDaily Pace画面で設定・現在の量・予定控除を表示する。
-  対象口座・通貨・観測日・期間末は明示する。設定編集・履歴Trendは未接続。
+  対象口座・通貨・観測日・期間末は明示する。現在値・What-ifとPool編集は接続済み、履歴Trendは未接続。
+  Pool未設定・不正・混合通貨、期間未設定・不正・曖昧な選択は拒否し、口座や月末を推測しない。
+  Pool編集は`daily-pace.tsv`だけを保存し、全`boundary-presets.tsv`を保全する。赤字をゼロに丸めない。
+- Daily画面の両替、数量観測、Manage Loci／明示役割設定、Attention、限定的な精算残額管理を試せる。
+  Attention／精算の不正・読込失敗は空やゼロにせずUnavailableとして表示する。
+  保存失敗・協調writer競合では入力と旧状態を残す。これらのsidecarは全家計移行・耐久保存認定ではない。
 - Daily台帳はv1〜v3とRecords v1を読み、単一S式ではv3を書く。旧試用の予算APIとv4は削除済み。
 - `record` で単一通貨の支出・収入・振替を記録できる。
 - v3 Bookでは `exchange` で両替元と両替先の通貨・数量を明示した両替を記録でき、
@@ -114,7 +119,8 @@ LOAMの見た目と使い勝手をBakhloでも再現する。Calendar HomeのDay
 
 控えめな配色、細い丸角枠、整列と余白、フォーカスだけの強調、下部の通知と操作も揃える。
 狭い端末でも選択対象と正確な金額を読めるようにする。英語UIの土台は接続したが、
-LOAMのrole-aware収支カレンダー、完全なSeries管理、Attention、履歴Trendと日本語切替は未実装。
+LOAMのrole-aware収支カレンダー、完全なSeries管理、履歴Trend、広い非予算Reportsと日本語切替は未実装。
+原額・Merchantと、実取引への配分を持つ完全な精算対応も未接続。
 具体的な対象と規則は[UI方針](docs/UI_DIRECTION.ja.md)を参照。
 テーマは初期値のTerminal（端末の明暗・配色に追従）とオリジナルのBakhlo Light／Darkを
 Space → Commands → Themeで直接切り替える（Household setup内からも開ける）。↑/↓でプレビュー、Escで取消、

@@ -7,7 +7,7 @@ native renderer検査で引き続き使う。新依存・global環境変更は�
 まずLOAMと同じ英語表記で作る。日本語UIは未定で、後からNotty版を作る選択肢も残す。
 `Ui_text.tr`は現在の英語表示文言の入口で、日本語対応の実装約束ではない。
 科目名・メモ等のユーザーデータは翻訳しない。
-[UI方針](../docs/UI_DIRECTION.ja.md)も参照。LOAMの正データ・普段の記帳先は変更しない。
+[UI方針](../docs/UI_DIRECTION.ja.md)、[UI差分管理台帳](../docs/LOAM_UI_GAP_LEDGER.ja.md)も参照。LOAMの正データ・普段の記帳先は変更しない。
 
 ## 起動
 
@@ -56,6 +56,12 @@ CommandsはTransactions、Plans and attention、Reports and analysis、Household
 記帳中のSpaceや`q`は文字入力で、背面のコマンドを実行しない。
 Actual / Scheduled / Selected Dayで選択・検索・詳細と復帰を共有する。別明細の訂正・支払いで
 保持中の下書きを黙って置き換えない。
+Actualは幅が足りる一覧でDate／Description／Amountを整列し、正確な符号・桁区切り・通貨を表示する。
+複数の正負Postingは`split`、混合通貨は`multi`、収まらない金額は`see details`とし、数量を途中で切らない。
+狭幅はDescriptionのみ、長文は省略記号を付ける。`/`は既存の検索モーダル内で入力中に絞り込み、
+Enterで保持、Escで解除する。`h/l`／左右矢印／Tabは一覧・詳細を切り替える。
+詳細のHome／Endは明細選択を変えず、ページ送りは可視行数に従う。末尾・リサイズでスクロールを制限する。
+LOAMのLoci／Actuals／Detailsの3ペイン構成・画面内検索バー・Locus絞り込みUIはまだ未対応。
 Actualの`c`はCorrect、ScheduledのEnterは閲覧だけのDetail、`c`は明示的なComplete。
 支払い入力を開く操作だけでは台帳を変更しない。
 
@@ -88,13 +94,21 @@ PreviewはID・日付・メモ・全Postingの符号付き数量・Measure・Loc
 
 新UIはCalendar、階層Commands、英語Record、Actual / Scheduled / Selected Dayの閲覧と詳細、
 既存検査・保存への接続を対象にする。LOAMの全会計機能を再実装したものではない。
-role-aware収支カレンダー、完全なSeries管理、Attention、両替入力、立替精算・後日カード決済、
-観測更新、広いレポート群は未対応。Scheduledは既存の明示された単発予定を使う。
-予定作成・変更・取消の純粋APIは既存だが、生活操作としてのUIは未接続。
+role-aware収支カレンダー、完全なSeries／Months管理・定期補充／監視、履歴Trend、原額・Merchant、
+実取引への配分を伴う精算・後日カード決済、広いレポート群は未対応。
+単一S式の予定作成（Scheduled `n`）・変更（`e`）・取消（`x`）・支払い（`c`）は接続済み。
+Actual `x`は元明細を残す正確な反転の新規記帳。Recordsは対応外の変更・取消・反転を拒否する。
+CommandsからExchange、Manage Loci／役割設定、Attention、限定commitment精算へ進める。
+Home／Calendar／Balances `o`はObserve。これらの存在は全LOAM互換を意味しない。
 Balancesは既存照会で通貨別に表示し、不明・存在あり量不明・ゼロを区別する。
 Daily Paceは明示pool・Measure・今日・期間末の既存計算を表示する。
 `daily-pace.tsv`／`boundary-presets.tsv`がなければ未設定とし、条件を推測しない。
-履歴Trend・期間比較・設定編集は未対応。Calendar選択日を今日の観測日に置き換えない。
+`w`は読み取り専用What-if、`c`はPool編集。未設定・不正・重複・混合Measureは計算しない。
+明示された実日付・昇順境界を持つpresetが今日を含むものとして一意でなければ拒否する。
+月末・Asset分類・全許可Locusから条件を補完せず、What-ifの負数もゼロに丸めない。
+Pool編集は選択ファイルのbytesを再確認し`daily-pace.tsv`だけを更新する。
+`boundary-presets.tsv`の他期間・過去境界は変更せず、この画面で期間末を編集しない。
+履歴Trend・期間比較は未対応。Calendar選択日を今日の観測日に置き換えない。
 Daily_bookは単一S式v1〜v3とRecords v1を読み、単一S式ではv3を書く。旧予算v4・予算APIは非対応。
 通常Bookのrecord / exchange CLIとは混用せず、未知フィールドを飛ばして保存しない。
 
@@ -124,6 +138,15 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 - bonsai_daily：実描画と入力adapter。会計計算は持たない。
 
 ## 保存と復旧の限界
+
+Attention／commitment精算は主台帳とは別の試用sidecar。未作成だけを空の試用として扱い、
+不正行・不正数量・重複・読込失敗は拒否し、Unavailableと原因を表示する。
+選択したsidecarはセッション中に固定し、Ctrl-Rで明示的に再読込する。
+既存writer lockで状態を再確認し、同期した一時ファイルのrenameとreadbackを使う。
+失敗・競合では成功表示を出さず、入力と旧状態を維持する。結果が不明なら再送せず、
+Escでフォームを閉じCtrl-R／再起動で現在内容を確認する。壊れた原本は先に別コピーへ保全する。
+主台帳との複数ファイル原子性、永続Ack／P7、電源断・別ホスト復旧の保証ではない。
+役割設定sidecarは別の未認定境界で、この修正の保証を引き継がない。
 
 単一S式は全文検査、協調writerロック、読込元との全文比較、同期したattempt / pending / before、
 renameと読戻しを使う。beforeは残す。結果不明artifact・不正名・非通常ファイル・照会失敗では
