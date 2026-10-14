@@ -171,6 +171,87 @@ let drop_row t =
     let rows=List.filteri (fun i _ -> i<>index) t.rows in
     {t with rows; focus=3 + 2 * min index (List.length rows-1); cursor=None; candidate=0; notice=""}
 
+let parse_row_amount ~book ~measure amount_str =
+  let trimmed = String.trim amount_str in
+  if trimmed = "" then Error "empty"
+  else
+    let negative = String.starts_with ~prefix:"-" trimmed in
+    let signed = negative || String.starts_with ~prefix:"+" trimmed in
+    let core = if signed then String.sub trimmed 1 (String.length trimmed - 1) else trimmed in
+    match B.parse_amount book measure (String.trim core) with
+    | Error why -> Error why
+    | Ok quanta ->
+        if Z.equal quanta Z.zero then Error "zero"
+        else Ok (if negative then Z.neg quanta else quanta)
+
+let format_signed ~book ~measure (amount : Z.t) =
+  (if Z.sign amount > 0 then "+" else "") ^ B.format book measure amount
+
+let fill_unresolved_remainder ~book t =
+  if not (editable_structure t) then with_notice t (tr "Correction keeps the posting structure.")
+  else if t.measure = "" then
+    with_notice t (tr "Enter a valid Measure before filling the unresolved remainder.")
+  else
+    let is_approved locus =
+      match B.approved_loci book with
+      | None -> true
+      | Some list -> List.mem locus list
+    in
+    if not (is_approved "suspense") then
+      with_notice t (tr "Unresolved recording is not enabled yet. Admit the 'suspense' Locus first.")
+    else
+      let rec check_rows idx sum count_suspense susp_idx = function
+        | [] -> Ok (sum, count_suspense, susp_idx)
+        | row :: rest ->
+            let locus = String.trim row.locus in
+            if locus = "" then
+              Error (tr "Complete every current Locus before filling the unresolved remainder.")
+            else if not (is_approved locus) then
+              Error (tr "Every current posting must use an admitted Locus.")
+            else
+              match parse_row_amount ~book ~measure:t.measure row.amount with
+              | Error "zero" ->
+                  Error (tr "Complete every current nonzero amount before filling the unresolved remainder.")
+              | Error _ ->
+                  Error (A.format_message "Posting %d amount '%s' is not a valid nonzero amount for unresolved remainder assistance."
+                           (idx + 1) row.amount)
+              | Ok amt ->
+                  let is_susp = (locus = "suspense") in
+                  let new_count = if is_susp then count_suspense + 1 else count_suspense in
+                  let new_susp_idx = if is_susp then Some idx else susp_idx in
+                  check_rows (idx + 1) (Z.add sum amt) new_count new_susp_idx rest
+      in
+      match check_rows 0 Z.zero 0 None t.rows with
+      | Error msg -> with_notice t msg
+      | Ok (_, count_susp, _) when count_susp > 1 ->
+          with_notice t (tr "Keep at most one unresolved posting before using this action.")
+      | Ok (sum, _, _) when Z.equal sum Z.zero ->
+          with_notice t (tr "This Movement is already balanced; there is no unresolved remainder.")
+      | Ok (sum, _, susp_idx_opt) ->
+          let adjustment = Z.neg sum in
+          (match susp_idx_opt with
+          | None ->
+              if List.length t.rows >= 6 then
+                with_notice t (tr "No row is available for the unresolved remainder.")
+              else
+                let new_row = { key = None; locus = "suspense"; amount = format_signed ~book ~measure:t.measure adjustment } in
+                let next_rows = t.rows @ [ new_row ] in
+                { t with rows = next_rows; focus = action_start { t with rows = next_rows }; candidate = 0; cursor = None; notice = "" }
+          | Some idx ->
+              let row = List.nth t.rows idx in
+              match parse_row_amount ~book ~measure:t.measure row.amount with
+              | Error _ -> with_notice t (tr "The existing unresolved amount is not valid.")
+              | Ok current ->
+                  let adjusted = Z.add current adjustment in
+                  if Z.equal adjusted Z.zero then
+                    let next_rows = List.filteri (fun i _ -> i <> idx) t.rows in
+                    { t with rows = next_rows; focus = action_start { t with rows = next_rows }; candidate = 0; cursor = None; notice = "" }
+                  else
+                    let next_rows = List.mapi (fun i r ->
+                      if i = idx then { r with amount = format_signed ~book ~measure:t.measure adjusted }
+                      else r) t.rows in
+                    { t with rows = next_rows; focus = action_start { t with rows = next_rows }; candidate = 0; cursor = None; notice = "" })
+
 let draft t =
   { R.measure=t.measure;
     rows=List.map (fun row ->
@@ -290,6 +371,7 @@ let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.in
           | `Tab,[`Shift] -> update (move_focus t (-1))
           | `ASCII 'n',[`Ctrl] -> update (add_row t)
           | `ASCII 'd',[`Ctrl] -> update (drop_row t)
+          | `ASCII 'u',[`Ctrl] -> update (fill_unresolved_remainder ~book t)
           | `ASCII 's',[`Ctrl] -> update (preview ~book ~base_bytes ~blocked t)
           | `Enter,[] ->
               if is_locus t then update (accept ~book t)
@@ -418,8 +500,8 @@ let screen ~book ~dimensions:(width,height) ~width_of t =
   let raw style text = style, O.pad ~width_of width text in
   let navigation = match t.review with
     | None ->
-        if width < 50 then [tr "Tab field  Enter next / Preview"; tr "C-n add  C-d drop  Esc hold draft"]
-        else [tr "Tab/Shift-Tab field  Enter next / Preview"; tr "C-n add row  C-d drop row  Esc hold draft"]
+        if width < 50 then [tr "Tab field  Enter next / Preview"; tr "C-n/d rows  C-u remainder  Esc draft"]
+        else [tr "Tab/Shift-Tab field  Enter next / Preview"; tr "C-n/d rows  C-u remainder  Esc hold draft"]
     | Some _ ->
         if width < 50 then [tr "↑↓ review  PgUp/Dn  Home/End"; tr "Tab action  Enter choose  Esc hold"]
         else [tr "↑↓ review  PgUp/Dn page  Home/End"; tr "Tab action  Enter choose  Esc hold draft"]

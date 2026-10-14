@@ -209,6 +209,53 @@ let self_check ~width_of () =
     && List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Publication gate") preview_gate_screen
     && List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"recheck evidence") preview_gate_screen)
     "record-preview-contains-publication-gate";
+  let no_suspense_editor = text (create ()) "wallet" in
+  let no_suspense_editor = ctrl no_suspense_editor 'u' in
+  require (contains no_suspense_editor "Admit the 'suspense' Locus first") "ctrl-u-refused-without-suspense-admitted";
+  let suspense_fixture =
+    "(bakhlo-daily 3)\n(scope corrected-entries explicit-plans)\n\
+     (measures (measure \"jpy\" 0))\n\
+     (labels (provided (label \"wallet\" \"財布\" \"Synthetic cash\") (label \"food\" \"食費\" \"Synthetic food\") (label \"suspense\" \"仮払\" \"Synthetic suspense\")))\n\
+     (approved-loci (provided \"wallet\" \"food\" \"suspense\"))\n(entries)\n\
+     (plans)\n\
+     (support (zero-origin (\"food\" \"jpy\")) (openings) (observations) (presence (not-supplied)))\n"
+  in
+  let s_book = get (B.of_string suspense_fixture) in
+  let s_create () = S.create ~book:s_book ~day:"2026-10-11" ~measure:"jpy" () in
+  let s_handle ?(blocked=false) ?(dimensions=dimensions) state input =
+    S.handle ~book:s_book ~base_bytes ~blocked ~dimensions ~width_of state input in
+  let s_update ?blocked ?dimensions state input =
+    match s_handle ?blocked ?dimensions state input with
+    | S.Updated next -> next | _ -> failwith "suspense-test-unexpected" in
+  let s_key state button = s_update state (`Key (button,[])) in
+  let s_ctrl state c = s_update state (`Key (`ASCII c,[`Ctrl])) in
+  let s_text state value =
+    Uutf.String.fold_utf_8 (fun state _ -> function
+      | `Uchar c when Uchar.to_int c<128 -> s_key state (`ASCII (Char.chr (Uchar.to_int c)))
+      | `Uchar c -> s_key state (`Uchar c)
+      | `Malformed _ -> failwith "malformed-text") state value in
+  let s_editor = s_text (s_create ()) "昼食" in
+  let s_editor = s_key (s_key s_editor `Tab) `Tab in
+  let s_editor = s_key (s_text s_editor "wallet") `Enter in
+  let s_editor = s_key (s_text s_editor "-2500") `Enter in
+  let incomplete = s_ctrl s_editor 'u' in
+  require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Complete every current Locus")
+    (S.screen ~book:s_book ~dimensions ~width_of incomplete)) "ctrl-u-incomplete-locus-refused";
+  let s_editor = s_key (s_text s_editor "food") `Enter in
+  let s_editor = s_text s_editor "+2500" in
+  let already_balanced = s_ctrl s_editor 'u' in
+  require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"already balanced")
+    (S.screen ~book:s_book ~dimensions ~width_of already_balanced)) "ctrl-u-already-balanced-refused";
+  let s_editor = s_text (s_create ()) "昼食" in
+  let s_editor = s_key (s_key s_editor `Tab) `Tab in
+  let s_editor = s_key (s_text s_editor "wallet") `Enter in
+  let s_editor = s_key (s_text s_editor "-2500") `Enter in
+  let s_editor = s_key (s_text s_editor "food") `Enter in
+  let s_editor = s_text s_editor "+2000" in
+  let s_filled = s_ctrl s_editor 'u' in
+  let s_filled_screen = S.screen ~book:s_book ~dimensions ~width_of s_filled in
+  require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"suspense") s_filled_screen) "ctrl-u-adds-suspense-row";
+  require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"+500") s_filled_screen) "ctrl-u-correct-adjustment-amount";
   let plan_draft = S.create_plan ~book ~day:"2026-10-15" ~measure:"jpy" () in
   require (not (S.has_draft plan_draft)) "fresh-plan-draft-is-empty";
   require (S.mode plan_draft = A.Plan_new) "is-plan-identified";
