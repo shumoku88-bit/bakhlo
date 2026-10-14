@@ -60,7 +60,9 @@ Actualは幅が足りる一覧でDate／Description／Amountを整列し、正�
 複数の正負Postingは`split`、混合通貨は`multi`、収まらない金額は`see details`とし、数量を途中で切らない。
 狭幅はDescriptionのみ、長文は省略記号を付ける。`/`は既存の検索モーダル内で入力中に絞り込み、
 Enterで保持、Escで解除する。`h/l`／左右矢印／Tabは一覧・詳細を切り替える。
-詳細のHome／Endは明細選択を変えず、ページ送りは可視行数に従う。末尾・リサイズでスクロールを制限する。
+ActualとScheduledの詳細はHome／Endで選択を変えず、ページ送りは可視行数に従う。
+末尾・リサイズでスクロールを制限する。Scheduledでも`h/l`／左右矢印で一覧・詳細を切り替え、
+Tabで往復した詳細位置は保持する。別の対象選択・フィルタ・再読込では詳細を先頭へ戻す。
 LOAMのLoci／Actuals／Detailsの3ペイン構成・画面内検索バー・Locus絞り込みUIはまだ未対応。
 Actualの`c`はCorrect、ScheduledのEnterは閲覧だけのDetail、`c`は明示的なComplete。
 支払い入力を開く操作だけでは台帳を変更しない。
@@ -89,6 +91,17 @@ PreviewはID・日付・メモ・全Postingの符号付き数量・Measure・Loc
 訂正は明細ID・Posting構成／キー・通貨／符号・支払い対応を保つ。構成変更や両替・返金対応付き
 明細の訂正は拒否する。単一S式のScheduled完了は実明細とpaid-byを同時更新し、支払い済み／取消済みを再利用しない。
 一行貼付は文字のみ、改行・制御入りは拒否する。競合・結果不明では下書きを保持して書込み停止し、警告を隠さない。
+
+## Actualの反転
+
+Actual／Selected Dayの`x`は専用のDate→Previewを開く。DateのEnter／Ctrl-Enterは確認だけで保存しない。
+Previewには元ID・元日付・説明・反転日・元／逆Postingの完全な符号付き数量とMeasureを表示する。
+`j/k`／↑↓、Page Up/Down、Home/Endで確認し、Publishを選んだEnterだけが既存writerへ意図を返す。
+末尾未確認、狭小画面、短い画面に全文が収まらない場合は確定拒否。Endも保存ではない。
+PreviewのEsc／e／Editは日付へ、q／Cancelは元の一覧・詳細へ戻る。日付側のEsc／qは取消。
+保持したRecord draftがある間は反転を開かず、保存拒否では反転の日付・target・baseを残す。
+Ctrl-rのreloadで世代が変わってもPreviewを新しいbaseへ更新しない。取消→reload→再選択が必要。
+結果不明は停止し、reloadで既存candidateを確認しても自動再発行しない。Recordsの反転は拒否する。
 
 ## 対応範囲と差分
 
@@ -132,10 +145,25 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 
 - daily_calendar / ui_workspace / ui_commands：純粋な暦・画面・選択・階層ナビ。
 - record_session / ui_input：一つの下書き・Previewと入力型。
+- reversal_session：反転の日付と固定snapshotの元／逆Posting確認。ID割当・永続inverse構築・I/Oは持たない。
 - daily_interaction：全体の遷移・英語表示・既存検査／publisherへの接続。
 - daily_overlays / ui_text：cell幅・枠・完全な数量詳細と将来の言語カタログ入口。
+- ui_panel：一覧・詳細の共通枠、可視行数、選択追従viewport、整数overflowを避ける端移動。
+  ActualとScheduledの描画・ページ送りが同じ規則を使う。対象の意味・キー割当・保存判断は持たない。
 - daily_actions / posting_draft / daily_file：既存の数量・検査・保存境界。
 - bonsai_daily：実描画と入力adapter。会計計算は持たない。
+  Resizeとキーが同じbatchに入るため、寸法はhandler内に捕捉せずstate_machine_with_inputのaction適用時に読む。
+
+### 共通化の境界（KEEP / DEFER）
+
+**KEEP**: `ui_panel`は既存の枠描画を移し、ActualとScheduledで使うviewportを公開する。
+APIは文字列行・寸法・焦点・行番号／offsetだけを受け取り、画面名による専用分岐を持たない。
+既存の他workspaceとoverlayも枠描画だけを引き続き利用し、会計回答・writer・エラー表示は変更しない。
+独立した容量・端・Unicode描画検査と、両workspaceの下書き／復帰／再読込検査を既存self-checkに置く。
+
+**DEFER**: Recordの入力・Preview、picker、フローティング面、金額表示の追加共通化は別の小さい変更で点検する。
+特にPreviewの全文確認・狭小確定拒否、訂正／逆仕訳／予定完了の意味と保存判断を共通枠へ移さない。
+汎用画面エンジン、新しい状態管理・保存経路・依存は導入しない。
 
 ## 保存と復旧の限界
 

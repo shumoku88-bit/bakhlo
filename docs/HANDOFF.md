@@ -23,12 +23,59 @@ restoration tests. Synthetic Core/UI and native PTY checks passed at 80×24, 120
 is still open. Actual still uses two panes, not LOAM's Loci/Actuals/Details layout;
 inline search, Locus filtering UI and separate date-change/Merchant actions remain gaps.
 
-Next: continue Actual/Record interaction work one bounded issue at a time using the
-inventory's separate representation/UI/answer/interaction/safety axes. Scheduled Series/Months and
-continuation/monitoring, Calendar financial flows, Pace history, broader reports,
-OriginalAmount/Merchant and full Settlement correspondence remain missing.
-Accounting-role configuration has separate unqualified parsing/save boundaries;
-sidecar repairs do not certify it. Do not expand this slice into adoption or migration.
+The user then approved shared UI mechanics before further screen expansion.
+`ui_panel.ml/.mli` now owns framed capacity/window painting and integer-safe offset
+movement; Actual and Scheduled use it for list/detail navigation, with their content,
+identity, keys and publication decisions still owned by the controller/application.
+The duplicate Actual pane composition was removed. Scheduled gains clamped detail
+Home/End/paging and focus/resize behavior; its writer/actions remain unchanged.
+Independent panel and both-workspace tests plus eight synthetic native PTY walks
+passed. See `tui/README.md` for the scoped KEEP/DEFER sharing review. Record Preview,
+pickers, floating surfaces and amount formatting are not newly generalized.
+
+The user requested an inventory suitable for delegating visual/specific-surface work
+to other pits in parallel. [The UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md) now separates
+F (feature/retained data), O (interaction/wiring), V (visual), and Q (verification/safety),
+keeps UI-01..33 identities, and supplies P01..P08 delegation cards with allowed files,
+shared boundaries, evidence and integration rules. The feature/cutover table agrees:
+Series Calendar/Months and Pace history are unconnected, not screenshot-only gaps.
+This organization used Bakhlo `b21b30c` plus the uncommitted shared-panel work and
+LOAM `db631763` source/contracts; it did not run a new LOAM comparison or change code.
+
+The user assigned P02 Record appearance to another pit and approved this pit's P05
+reversal-safety slice. `reversal_session.ml/.mli` now owns Date/fixed-target Preview,
+exact signed original/inverse quantities, end/tiny gates and local cancel/edit.
+The controller retains the captured base/date on failure or changed reload, blocks
+held Record drafts, and closes confirmed uncertain intents without retry. The writer,
+canonical format, shared form and Record implementation were not changed by P05.
+A native resize counterexample required one shared frontend fix: read dimensions via
+`Bonsai.state_machine_with_input` at action application, not an older handler closure.
+Synthetic reversal/controller checks and six reversal plus eight shared-panel PTY
+walks qualify this bounded slice; LOAM paired visual/manual acceptance and P7 do not.
+P02 advanced HEAD independently to `0f611cd`; preserve its Record and ledger work.
+Verification records the source/binary pinning and integration evidence.
+
+The user closed today's work and authorized a main/remote checkpoint and removal of
+unneeded merged branches. Both repositories already have only main locally/remotely;
+LOAM is fast-forwarded to its already-merged remote source without rebuilding or
+changing household data. The remaining Bakhlo UI/doc/Record paint changes were reviewed
+and Core/build/UI self-checks passed on an unchanged source manifest before committing.
+P02's final polish is committed independently as `7ba68de`. Final integration caught
+its Preview paint/gate capacity mismatch: End allowed publication before the final
+lines were visible. `review_geometry` now reserves the painted title/gate/action rows,
+with a regression requiring the full N/N review counter on the publishable end page.
+Existing private/synthetic scratch and detached qualification worktrees are retained.
+This source checkpoint does not qualify runtime parity, power loss/P7 or cutover.
+
+Next: bounded paint/comparison work and read-only design investigation can run in
+parallel. Central controller/common-API edits need one integration owner, not one
+concurrent editor per screen: `daily_interaction.ml` and its checks span many routes.
+Use the ledger's cards; agree a file/function boundary and preserve the existing
+Antigravity Home/Commands work. P04 Actual wiring and P05 inverse-Preview safety
+must not edit the shared controller simultaneously. Generic operation modals do
+not inherit Record's whole-preview/tiny-publication gate; roles still have separate
+unqualified load/save boundaries. No operational adoption, migration, new storage
+experiment or invented display evidence follows from this inventory.
 
 ## Storage research context
 

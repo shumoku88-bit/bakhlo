@@ -9,7 +9,9 @@ module W = Ui_workspace
 module Cal = Daily_calendar
 module M = Ui_commands
 module S = Record_session
+module Rev = Reversal_session
 module Form = Ui_form
+module Panel = Ui_panel
 module Att = Attention_data
 module Roles = Locus_roles
 module Stl = Settlement_data
@@ -45,13 +47,14 @@ type overlay =
   | Jump of string
   | Search of string
   | Modal_form of Form.t
+  | Reversal of Rev.t
 
 let is_cancel_plan = function
   | Modal_form f when Form.id f = "cancel_plan" -> true
   | _ -> false
 
 let is_reverse_entry = function
-  | Modal_form f when Form.id f = "reverse_entry" -> true
+  | Reversal _ -> true
   | _ -> false
 
 let is_add_attention = function
@@ -219,6 +222,7 @@ let reload state =
           pending = None;
           record = None;
           record_visible = false;
+          overlay = No_overlay;
           blocked = false;
           message = tr "The pending publication is present now. No retry.";
         }
@@ -238,8 +242,12 @@ let reload state =
           tr "The edited generation changed. Draft retained; discard explicitly and reselect.";
       }
   | A.Recovery_required (session, message) -> { state with session; blocked = true; message }
-  | A.Reloaded session ->
-      sync { state with session; blocked = false; message = tr "Reloaded. Unsaved draft retained." }
+  | A.Reloaded session -> (
+      match state.overlay with
+      | Reversal editor when Rev.base_bytes editor <> session.bytes ->
+          { state with session; blocked = true;
+            message = tr "Reversal target generation changed. Date retained; cancel, reload and reselect." }
+      | _ -> sync { state with session; blocked = false; message = tr "Reloaded. Unsaved draft retained." })
   | A.Reload_failed why ->
       {
         state with
@@ -379,31 +387,10 @@ let cancel_plan_selected state =
           }
     | _ -> { state with message = tr "Select an open Scheduled occurrence to cancel." }
 
-let reverse_entry_form (entry : B.entry) =
-  let summary =
-    "Date: " ^ entry.day ^ "  " ^ (match entry.memo with Some m -> m | None -> "(no memo)")
-    ^ "  "
-    ^ String.concat ", "
-        (List.map
-           (fun e ->
-             A.lstr (D.Effect.locus e)
-             ^ " "
-             ^ Z.to_string (A.quanta e))
-           entry.effects)
-  in
-  Form.create
-    ~id:"reverse_entry"
-    ~payload:entry.id
-    ~title:"Reverse Actual"
-    ~summary:[summary]
-    ~fields:[
-      Form.text_field ~id:"date" ~label:"Reversal on" ~value:(F.today ()) ();
-      Form.action_buttons ~confirm:"Confirm Reversal" ~cancel:"Keep Actual" ();
-    ]
-    ()
-
 let reverse_entry_selected state =
   if state.blocked then state
+  else if has_record_draft state then
+    { state with message = tr "A draft is retained. Resume or discard it before reversing." }
   else
     match selected state with
     | Some (W.Actual_entry entry) ->
@@ -414,7 +401,8 @@ let reverse_entry_selected state =
         else
           {
             state with
-            overlay = Modal_form (reverse_entry_form entry);
+            overlay = Reversal (Rev.create ~book:state.session.book
+              ~base_bytes:state.session.bytes ~day:(F.today ()) entry);
             message = "";
           }
     | _ -> { state with message = tr "Select an Actual entry to reverse." }
@@ -531,6 +519,9 @@ let body_dimensions ~dimensions:((width, height) as dimensions) ~width_of state 
 let record_dimensions ~dimensions:((width, height) as dimensions) ~width_of state =
   S.surface_dimensions
     (width, max 0 (height - List.length (feedback_lines ~dimensions ~width_of state)))
+
+let reversal_dimensions ~dimensions ~width_of state =
+  Rev.dimensions (body_dimensions ~dimensions ~width_of state)
 
 let update_calendar state action =
   match Cal.apply state.workspace.calendar action with
@@ -1053,29 +1044,34 @@ let commit_settlements state submitted update message =
   | Error why -> { state with overlay = Modal_form (Form.set_notice submitted
       ("Settlements not confirmed: " ^ why ^ " Reload to inspect before retrying.")) }
 
-let actual_pane_widths width =
+let is_record_browser state =
+  state.workspace.route = W.Actual || state.workspace.route = W.Scheduled
+
+let browser_pane_widths width =
   if width < 80 then (width, width)
   else let left = max 36 (min 58 (width * 52 / 100)) in (left, width - left - 1)
 
-let actual_detail_rows ~width_of ~width state =
+let browser_detail_rows ~width_of ~width state =
   let lines = match selected state with
     | Some (W.Actual_entry entry) -> O.entry_lines state.session.book entry
-    | _ -> [ tr "No selected record." ] in
+    | Some (W.Scheduled_plan plan) -> O.plan_lines state.session.book plan
+    | None -> [ tr "No selected record." ] in
   List.concat_map (O.wrap_text ~width_of (max 1 (width - 6))) lines
 
-let actual_viewport ~dimensions ~width_of state =
+let browser_viewport ~dimensions ~width_of state =
   let width, body_height = body_dimensions ~dimensions ~width_of state in
   let height = max 0 (body_height - 2) in
-  let _, detail_width = actual_pane_widths width in
-  let capacity = max 0 (height - 2) in
-  let last = max 0 (List.length (actual_detail_rows ~width_of ~width:detail_width state) - capacity) in
-  (height, capacity, last)
+  let _, detail_width = browser_pane_widths width in
+  let view = Panel.window ~capacity:(Panel.capacity ~height ~heading:false)
+    ~count:(List.length (browser_detail_rows ~width_of ~width:detail_width state))
+    ~scroll:state.scroll ~selected:None in
+  (height, view)
 
 let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : input) =
   let state =
-    if state.workspace.route = W.Actual && not state.record_visible then
-      let _, _, last = actual_viewport ~dimensions ~width_of state in
-      { state with scroll = min last (max 0 state.scroll) }
+    if is_record_browser state && not state.record_visible then
+      let _, view = browser_viewport ~dimensions ~width_of state in
+      { state with scroll = view.start }
     else state in
   if state.paste_blocked then
     match input with
@@ -1112,6 +1108,18 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                    (A.commit_payload ~session:state.session ~base_bytes payload)))
   else
     match state.overlay with
+    | Reversal editor -> (
+        match input with
+        | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
+        | _ -> (
+            match Rev.handle ~blocked:state.blocked
+              ~dimensions:(reversal_dimensions ~dimensions ~width_of state) ~width_of editor input with
+            | Rev.Updated editor -> Some { state with overlay = Reversal editor }
+            | Rev.Closed -> Some { state with overlay = No_overlay }
+            | Rev.Publish (id, day, base_bytes) ->
+                let draft = { state with overlay = Reversal (Rev.with_publish_error editor) } in
+                Some (apply_commit_result state ~draft
+                  (A.commit_reverse_entry ~session:state.session ~base_bytes ~id ~day))))
     | Commands menu -> (
         match M.handle menu input with
         | M.Updated menu -> Some { state with overlay = Commands menu }
@@ -1190,22 +1198,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                       let res =
                         A.commit_cancel_plan ~session:state.session ~base_bytes:state.session.bytes
                           ~id:plan_id ~day:canon_day
-                      in
-                      let next_state = { state with overlay = No_overlay } in
-                      Some (apply_commit_result next_state ~draft:next_state res))
-            | "reverse_entry" ->
-                let reverse_day = Option.value ~default:"" (Form.get_text submitted "date") in
-                (match A.normalize_date reverse_day with
-                | Error _ ->
-                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Invalid date (YYYY-MM-DD).")) }
-                | Ok canon_day ->
-                    if not (A.is_valid_canonical_date canon_day) then
-                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter a real Gregorian date.")) }
-                    else
-                      let entry_id = Form.payload submitted in
-                      let res =
-                        A.commit_reverse_entry ~session:state.session ~base_bytes:state.session.bytes
-                          ~id:entry_id ~day:canon_day
                       in
                       let next_state = { state with overlay = No_overlay } in
                       Some (apply_commit_result next_state ~draft:next_state res))
@@ -1586,15 +1578,15 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII 'c', []) when state.workspace.route = W.Daily_pace ->
             Some { state with overlay = Modal_form (configure_pace_form state) }
         | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), [])
-          when state.workspace.route = W.Actual ->
+          when is_record_browser state ->
             Some { state with workspace = { state.workspace with
               pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) } }
         | Some ((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)), [])
-        | Some (`ASCII ('u' | 'd'), [ `Ctrl ]) when state.workspace.route = W.Actual ->
-            let height, capacity, last = actual_viewport ~dimensions ~width_of state in
+        | Some (`ASCII ('u' | 'd'), [ `Ctrl ]) when is_record_browser state ->
+            let height, view = browser_viewport ~dimensions ~width_of state in
             let detail = state.workspace.pane = W.Detail in
-            let page = max 1 (if detail then capacity
-              else height - 2 - (if height >= 4 then 1 else 0)) in
+            let page = max 1 (if detail then view.capacity else
+              Panel.capacity ~height ~heading:(state.workspace.route = W.Actual)) in
             let delta = match Option.map normalize key with
               | Some (`Home, _) -> -max_int
               | Some (`End, _) -> max_int
@@ -1603,9 +1595,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               | Some ((`ASCII 'k' | `Arrow `Up), _) -> -1
               | _ -> 1 in
             if detail then
-              let scroll = if delta > 0 then state.scroll + min delta (last - state.scroll)
-                else if delta < -state.scroll then 0 else state.scroll + delta in
-              Some { state with scroll }
+              Some { state with scroll = Panel.move ~last:view.last ~position:view.start delta }
             else Some { state with scroll = 0;
               workspace = W.move_selection ~book:state.session.book state.workspace delta }
         | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
@@ -1617,7 +1607,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                     state.workspace with
                     pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar);
                   };
-                scroll = (if state.workspace.route = W.Actual then state.scroll else 0);
+                scroll = (if is_record_browser state then state.scroll else 0);
               }
         | Some (`ASCII 't', []) when state.workspace.route = W.Calendar ->
             Some (update_calendar state (Cal.Today (F.today ())))
@@ -1819,44 +1809,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               }
         | _ -> ( match input with `End -> None | _ -> Some state))
 
-let frame ?heading ~width_of ~width ~height ~focused ~title ~scroll ~selected rows =
-  if width < 6 || height < 2 then List.init (max 0 height) (fun _ -> (Plain, ""))
-  else
-    let heading = if height >= 4 then heading else None in
-    let capacity = max 0 (height - 2 - (if heading = None then 0 else 1)) in
-    let last = max 0 (List.length rows - capacity) in
-    let start =
-      match selected with
-      | None -> min last (max 0 scroll)
-      | Some index -> min last (max 0 (index - capacity + 1))
-    in
-    let shown = rows |> List.filteri (fun i _ -> i >= start && i < start + capacity) in
-    let shown =
-      List.mapi
-        (fun i text ->
-          O.panel_line ~width ~width_of
-            (match selected with
-            | Some index when index = i + start -> if focused then Active else Chrome
-            | _ -> Plain)
-            ((match selected with Some index when index = i + start -> "> " | _ -> "  ") ^ text))
-        shown
-    in
-    let style = if focused then Focused_frame else Frame in
-    (O.panel_border ~width ~style ~width_of (tr title)
-     :: (Option.to_list (Option.map (O.panel_line ~width ~width_of Chrome) heading) @ shown))
-    @ List.init
-        (max 0 (capacity - List.length shown))
-        (fun _ -> O.panel_line ~width ~width_of Plain "")
-    @ [
-        O.panel_bottom ~width ~style ~width_of
-          ~title:
-            (Printf.sprintf "%d–%d / %d"
-               (if rows = [] then 0 else start + 1)
-               (min (List.length rows) (start + capacity))
-               (List.length rows))
-          ();
-      ]
-
 let row_title book = function
   | W.Actual_entry entry ->
       let amount =
@@ -1925,10 +1877,6 @@ let actual_table ~width_of ~width book rows =
         (actual_amount book e)
     | row -> row_title book row) rows in
   ("  " ^ table "Date" "Description" "Amount", titles)
-
-let row_detail book = function
-  | W.Actual_entry entry -> O.entry_lines book entry
-  | W.Scheduled_plan plan -> O.plan_lines book plan
 
 let calendar_rows ?(width = 80) state =
   let calendar = state.workspace.calendar and book = state.session.book in
@@ -2122,7 +2070,7 @@ let pace_detail_lines state =
 
 
 let workspace_rows ~width_of ~width ~height state =
-  let draw_frame = frame in
+  let draw_frame = Panel.frame in
   let book = state.session.book and workspace = state.workspace in
   let rows = W.rows ~book workspace in
   let titles = List.map (row_title book) rows in
@@ -2143,13 +2091,12 @@ let workspace_rows ~width_of ~width ~height state =
     | W.Settlements -> "Settlements / Reimbursements"
   in
   let pad rows = rows @ List.init (max 0 (height - List.length rows)) (fun _ -> (Plain, "")) in
-  let split_pane ~left_focused ~left_title ~left_scroll ~left_selected ~left_rows
-      ~right_focused ~right_title ~right_scroll ~right_selected ~right_rows =
+  let split_pane ?left_heading ~left_focused ~left_title ~left_scroll ~left_selected ~left_rows
+      ~right_focused ~right_title ~right_scroll ~right_selected ~right_rows () =
     if width >= 80 then
-      let left_width = max 36 (min 58 (width * 52 / 100)) in
-      let right_width = width - left_width - 1 in
+      let left_width, right_width = browser_pane_widths width in
       let left_panel =
-        draw_frame ~width_of ~width:left_width ~height ~focused:left_focused
+        draw_frame ?heading:left_heading ~width_of ~width:left_width ~height ~focused:left_focused
           ~title:left_title ~scroll:left_scroll ~selected:left_selected left_rows
       in
       let right_panel =
@@ -2164,7 +2111,7 @@ let workspace_rows ~width_of ~width ~height state =
           ~title:right_title ~scroll:right_scroll ~selected:right_selected right_rows
       else
         draw_frame ~width_of ~width ~height ~focused:true
-          ~title:left_title ~scroll:left_scroll ~selected:left_selected left_rows
+          ?heading:left_heading ~title:left_title ~scroll:left_scroll ~selected:left_selected left_rows
   in
   if workspace.route = W.Home then
     O.bonsai_home_lines ~width ~height ~width_of ~today:(F.today ())
@@ -2244,7 +2191,7 @@ let workspace_rows ~width_of ~width ~height state =
       ~left_selected:(if lines = [] then None else Some workspace.balance_selected)
       ~left_rows:(if lines = [] then [ tr "No records in this view." ] else lines)
       ~right_focused:is_detail ~right_title:"Selected Balance"
-      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail
+      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Daily_pace then
     let left_title = "Daily Pace / Current" in
     let right_title = "Pace Detail & Evidence" in
@@ -2257,7 +2204,7 @@ let workspace_rows ~width_of ~width ~height state =
       ~left_focused:(not is_detail) ~left_title ~left_scroll:0
       ~left_selected:None ~left_rows
       ~right_focused:is_detail ~right_title
-      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail
+      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Attention then
     let items = open_attentions state in
     let left_title = match state.attention with
@@ -2305,7 +2252,7 @@ let workspace_rows ~width_of ~width ~height state =
       ~left_selected:(if items = [] then None else Some workspace.attention.selected)
       ~left_rows
       ~right_focused:is_detail ~right_title
-      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail
+      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Loci then
     let loci = admitted_loci state in
     let roles = accounting_roles state in
@@ -2373,7 +2320,7 @@ let workspace_rows ~width_of ~width ~height state =
       ~left_selected:(if loci = [] then None else Some workspace.loci.selected)
       ~left_rows
       ~right_focused:is_detail ~right_title
-      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail
+      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Settlements then
     let rows = settlement_rows state in
     let scope_label = match state.settlement_scope with Stl.Open_only -> "Open" | Stl.All -> "All current" in
@@ -2430,26 +2377,21 @@ let workspace_rows ~width_of ~width ~height state =
       ~left_selected:(if rows = [] then None else Some workspace.settlements.selected)
       ~left_rows
       ~right_focused:is_detail ~right_title
-      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail
+      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Actual then
-    let list_width, detail_width = actual_pane_widths width in
+    let list_width, detail_width = browser_pane_widths width in
     let is_detail = workspace.pane = W.Detail in
     let browser = W.browser workspace in
     let heading, titles = actual_table ~width_of ~width:list_width book rows in
     let list_title = Printf.sprintf "Actuals (%d, %s, %s)" (List.length rows)
       (match browser.order with W.Newest -> "desc" | W.Oldest -> "asc")
       (match browser.day with None -> "all" | Some _ -> "day") in
-    let list_panel () = draw_frame ~heading ~width_of ~width:list_width ~height
-      ~focused:(not is_detail) ~title:list_title ~scroll:0
-      ~selected:(if rows = [] then None else Some browser.selected)
-      (if rows = [] then [ tr "No records in this view." ] else titles) in
-    let detail_panel () = draw_frame ~width_of ~width:detail_width ~height
-      ~focused:is_detail ~title:"Actual Detail" ~scroll:state.scroll ~selected:None
-      (actual_detail_rows ~width_of ~width:detail_width state) in
-    if width < 80 then (if is_detail then detail_panel () else list_panel ())
-    else pad (List.map2 (fun (style_l, text_l) (style_r, text_r) ->
-      (Columns (list_width, style_l, style_r), text_l ^ " " ^ text_r))
-      (list_panel ()) (detail_panel ()))
+    split_pane ~left_heading:heading
+      ~left_focused:(not is_detail) ~left_title:list_title ~left_scroll:0
+      ~left_selected:(if rows = [] then None else Some browser.selected)
+      ~left_rows:(if rows = [] then [ tr "No records in this view." ] else titles)
+      ~right_focused:is_detail ~right_title:"Actual Detail" ~right_scroll:state.scroll
+      ~right_selected:None ~right_rows:(browser_detail_rows ~width_of ~width:detail_width state) ()
   else
     let is_detail = workspace.pane = W.Detail in
     let right_title =
@@ -2457,13 +2399,8 @@ let workspace_rows ~width_of ~width ~height state =
       | W.Scheduled -> "Plan Detail"
       | _ -> "Selected Record"
     in
-    let detail =
-      match selected state with
-      | None -> [ tr "No selected record." ]
-      | Some row -> row_detail book row
-    in
-    let right_width = if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1 else width in
-    let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
+    let _, right_width = browser_pane_widths width in
+    let wrapped_detail = browser_detail_rows ~width_of ~width:right_width state in
     let list_title =
       match workspace.route with
       | W.Scheduled -> Printf.sprintf "Scheduled / List (%d)" (List.length rows)
@@ -2477,17 +2414,17 @@ let workspace_rows ~width_of ~width ~height state =
       ~left_rows:(if titles = [] then [ tr "No records in this view." ] else titles)
       ~right_focused:is_detail ~right_title
       ~right_scroll:(if is_detail then state.scroll else 0)
-      ~right_selected:None ~right_rows:wrapped_detail
+      ~right_selected:None ~right_rows:wrapped_detail ()
 
 let footer state =
   match state.overlay with
+  | Reversal _ when state.blocked -> [ "Writes stopped; date retained"; "Ctrl-r inspect/reload  q keep" ]
+  | Reversal editor -> Rev.footer editor
   | Themes _ -> [ "j/k or Up/Down preview theme"; "Enter save  Esc/q cancel" ]
   | Modal_form form -> (
       match Form.id form with
       | "cancel_plan" ->
           [ "Enter confirm cancel  Tab switch button  Esc keep plan"; "Cancel date can be edited" ]
-      | "reverse_entry" ->
-          [ "Enter confirm reversal  Tab switch button  Esc keep actual"; "Reversal date can be edited" ]
       | "observe_quantity" ->
           [ "Enter observe  Tab next field  Esc cancel"; "Locus & Measure tokens, signed or zero amount" ]
       | "daily_pace_what_if" ->
@@ -2518,13 +2455,18 @@ let footer state =
       ]
   | W.Scheduled, W.Calendar ->
       [
-        "j/k select  Enter/i/Tab Detail  c Complete  e Edit  x Cancel";
+        "j/k select  Enter/i/Tab Detail  h/l pane  c Complete  e Edit  x Cancel";
         "n New Plan  f Filter  / search  Space Commands  q/Esc Home";
       ]
   | W.Actual, W.Calendar ->
       [
         "j/k select  Enter/i/Tab Detail  h/l pane  c Correct  x Reverse  f Day/All  s Order";
         "n Record  / search  Space Commands  q/Esc Home  Ctrl-r reload";
+      ]
+  | W.Scheduled, W.Detail ->
+      [
+        "j/k scroll  Page Up/Down page  Home/End range  h/l/Tab pane";
+        "q/Esc list  c Complete  e Edit  x Cancel  n New Plan  Ctrl-r reload";
       ]
   | W.Actual, W.Detail ->
       [
@@ -2696,6 +2638,8 @@ let overlay_screen ~dimensions ~width_of state =
   else if state.overlay = No_overlay || width < 8 || height < 3 then None
   else
     match state.overlay with
+    | Reversal editor ->
+        Some (Rev.screen ~dimensions:(reversal_dimensions ~dimensions ~width_of state) ~width_of editor)
     | Commands menu ->
         let can_float = width >= 60 && height >= 14 in
         let panel_w = min 54 (max 8 (width - 4)) in
@@ -2714,10 +2658,10 @@ let overlay_screen ~dimensions ~width_of state =
               ("Search Actual / Scheduled", [ value ^ "|"; tr "Enter apply; Esc clear" ], None)
           | Modal_form form ->
               (Form.title form, Form.render_rows form, None)
-          | Commands _ | No_overlay -> ("", [], None)
+          | Commands _ | No_overlay | Reversal _ -> ("", [], None)
         in
         let height = min height (max 5 (List.length rows + 2)) in
-        Some (frame ~width_of ~width ~height ~focused:true ~title ~scroll:0 ~selected rows)
+        Some (Panel.frame ~width_of ~width ~height ~focused:true ~title ~scroll:0 ~selected rows)
 
 let overlay_position ~dimensions ~width_of state ~pane_width ~pane_height =
   let width, height = body_dimensions ~dimensions ~width_of state in
@@ -2757,6 +2701,15 @@ let cursor_position ~width_of ((width, height) as dimensions) state : (int * int
               if col < width && row < height then Some (col, row) else None
   else
     match state.overlay with
+    | Reversal editor -> (
+        let pane_dimensions = reversal_dimensions ~dimensions ~width_of state in
+        match Rev.cursor_position ~dimensions:pane_dimensions ~width_of editor with
+        | None -> None
+        | Some (col, row) ->
+            let left, top = overlay_position ~dimensions ~width_of state
+              ~pane_width:(fst pane_dimensions) ~pane_height:(snd pane_dimensions) in
+            if left + col < width && top + row < height then Some (left + col, top + row)
+            else None)
     | Modal_form form -> (
         match Form.cursor_offset form ~width_of with
         | None -> None

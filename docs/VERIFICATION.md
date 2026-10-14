@@ -47,6 +47,72 @@ The two-pane layout, modal search and missing Locus filter/date-change/Merchant 
 remain explicit gaps; UI-03 is not complete. No writer, canonical format or authority
 boundary changed, and P7/power loss remain unqualified.
 
+## Shared panel / viewport slice
+
+`ui_panel.ml/.mli` extracts the existing framed painter and supplies shared data
+capacity, selection-following windows and overflow-safe clamped offset movement.
+Actual and Scheduled use the same rules for rendering and navigation; their
+content, selection identities, filters, action semantics and publishers stay outside
+the component. Other existing panels/overlays retain the framed painter, with no
+new per-workspace branches in its API. The sharing review is in `tui/README.md`.
+
+`tools/check`, `tools/tui --self-check` and the direct compiled UI self-check passed.
+Independent checks cover empty/zero-height views, hidden low-height headings,
+`min_int`/`max_int` offsets, Unicode dimensions and inactive selection vs focus.
+Scheduled regression checks add real list endpoints, visible-row pages, detail
+Home/End without reselection, immediate upward movement at the bottom, focus/resize,
+filter/reload resets, retained edit drafts and cancellation return context. Existing
+Actual, Home, Preview tiny-publication refusal, storage-conflict and recovery checks
+remain in the same harness. No new dependency or test framework was introduced.
+
+Ignored `scratch/shared-panels-9rXAq8/pty.exp` walks each workspace at 80×24, 120×36,
+48×14 and 32×9 using only controller-generated synthetic copies. Paging/endpoints,
+focus, resize, draft cancellation/resumption and exit completed; all eight books
+were byte-identical afterwards. Terminal settings restored except macOS PENDIN.
+These native walks are not paired LOAM screenshot comparison or human acceptance,
+and do not qualify power loss/P7. No operational data, canonical format or writer
+was changed. Full Scheduled Series/Months and the remaining Actual UI gaps are
+not supplied by a reusable panel.
+
+## Reversal Preview / resize safety slice (P05)
+
+`reversal_session.ml/.mli` owns local Date/fixed-snapshot Preview and an explicit
+publication intent; `daily_actions.commit_reverse_entry` remains unchanged. The
+controller retains the target/date/base on refusal, rejects held Record drafts,
+stops on changed reload or uncertain outcomes, and closes a confirmed intent
+without another write. Synthetic checks cover invalid/normalized dates, Ctrl-Enter
+and paste non-publication, exact signed/decimal/huge original and inverse quantities,
+end/tiny gates, parent return, storage/Records refusal, stale base, simulated lost
+acknowledgement/reload and cold coordinate/key/relation preservation.
+
+A real synthetic PTY counterexample admitted publication after End followed by a
+32×9 shrink: the Bonsai handler carried older dimensions into the action. The shared
+frontend now uses `state_machine_with_input`, reading dimensions at action application;
+no Record/form/paint/writer change was made by P05. The failing transcript and candidate
+remain in ignored `scratch/reversal-safety-2XGqv1/run-1791971542109685/`. Initial harness
+scope and multiline-S-expression assertions were separately repaired, not product fixes.
+
+Final integration at Bakhlo `0f611cd` plus the uncommitted shared-panel/P05 work passed
+`tools/check`, UI build and compiled `--self-check`. P02's independent Record changes
+were preserved; a transient Record-width failure during its edits is not a current
+pass claim (its earlier binary/manifests are preserved under `record-in-progress-binary/`).
+Concurrent generation had removed a UI executable, so native walks use a pinned copy
+and identical pre/post-build source manifests. Final binary SHA-256:
+`45cfca7e31193f488fdfbdd7fc31818158d4682935cfab6a3eca22f40ea2716c`.
+
+`scratch/reversal-safety-2XGqv1/pty.exp` passed six walks: cancellation/resize at
+80×24, 120×36, 48×14 and 32×9 without changing bytes or writer artifacts; long Japanese
+and 227-digit EUR-quanta review at the normal sizes, end/tiny refusal and explicit
+publication of exactly the original plus linked inverse. Final evidence is
+`run-1791972570478934/`. The eight Actual/Scheduled navigation/draft regressions in
+`scratch/reversal-regression-GDzD0b/pty.exp` also passed (`run-1791972585846832/`), with
+unchanged books. Every walk restored terminal settings except the previously qualified
+macOS PENDIN bit. These are synthetic PTY observations, not paired LOAM screenshots,
+human visual/IME acceptance, all-operation modal safety or persistent Ack/power-loss/P7.
+LOAM `db631763` reversal source was inspected read-only; no LOAM writes were made by P05.
+Its HEAD independently advanced to `cbd5db86`; the reversal view/session/publisher files
+are unchanged from the inspected revision. The final LOAM working tree is clean.
+
 ## Find the relevant evidence
 
 - [Simple S-expression UI loop](#simple-s-expression-ui-loop): existing native screens write/reopen/

@@ -122,6 +122,8 @@ LOAMの見た目と使い勝手をBakhloでも再現する。Calendar HomeのDay
 LOAMのrole-aware収支カレンダー、完全なSeries管理、履歴Trend、広い非予算Reportsと日本語切替は未実装。
 原額・Merchantと、実取引への配分を持つ完全な精算対応も未接続。
 具体的な対象と規則は[UI方針](docs/UI_DIRECTION.ja.md)を参照。
+pitへの分担は[UI差分・並行依頼台帳](docs/LOAM_UI_GAP_LEDGER.ja.md)のP01〜P08カードから選ぶ。
+機能・操作・見た目・検証を分け、同じcontroller／共通部品の同時編集を避ける。
 テーマは初期値のTerminal（端末の明暗・配色に追従）とオリジナルのBakhlo Light／Darkを
 Space → Commands → Themeで直接切り替える（Household setup内からも開ける）。↑/↓でプレビュー、Escで取消、
 EnterでUI設定へ保存し次回起動でも復元する。台帳データは変更しない。

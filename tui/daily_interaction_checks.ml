@@ -6,6 +6,7 @@ module W = Ui_workspace
 module Cal = Daily_calendar
 module M = Ui_commands
 module S = Record_session
+module Rev = Reversal_session
 module P = Ui_preferences
 module Att = Attention_data
 module Roles = Locus_roles
@@ -86,6 +87,8 @@ let render_cases state =
   in
   let book = get (B.put_entry home.session.book ~replace:false entry.entry ~plan:None) in
   let rich = { home with session = { home.session with book } } in
+  let reversal = C.reverse_entry_selected (C.open_route rich W.Actual) in
+  let reversal_preview = key reversal `Enter in
   let detail route =
     let view = C.open_route rich route in
     { view with workspace = { view.workspace with pane = W.Detail } }
@@ -100,6 +103,8 @@ let render_cases state =
     C.open_route home W.Daily_pace;
     record;
     review;
+    reversal;
+    reversal_preview;
     detail (W.Selected_day home.workspace.calendar.selected_day);
     detail W.Actual;
     detail W.Scheduled;
@@ -408,6 +413,124 @@ let safety_checks ~width_of ~directory () =
   require (saved.overlay = C.No_overlay && not (Sys.file_exists windows_path)) "pool-save-does-not-invent-period";
   print_endline "PASS: sidecar refusal/draft preservation, strict inputs, explicit Pace, negative What-if and non-destructive Pool edits."
 
+let panel_checks ~width_of () =
+  let module Panel = Ui_panel in
+  require (Panel.capacity ~height:8 ~heading:false=6
+    && Panel.capacity ~height:8 ~heading:true=5
+    && Panel.capacity ~height:3 ~heading:true=1
+    && Panel.capacity ~height:min_int ~heading:true=0) "panel-data-capacity";
+  List.iter (fun last -> List.iter (fun position -> List.iter (fun delta ->
+    let moved = Panel.move ~last ~position delta in
+    require (moved>=0 && moved<=max 0 last) "panel-motion-bounded")
+    [min_int;-1;0;1;max_int]) [min_int;0;1;max_int]) [min_int;0;1;max_int];
+  require (Panel.move ~last:max_int ~position:max_int max_int=max_int
+    && Panel.move ~last:max_int ~position:max_int min_int=0
+    && Panel.move ~last:10 ~position:max_int (-1)=9) "panel-motion-clamps-before-stepping";
+  let view = Panel.window ~capacity:3 ~count:10 ~scroll:max_int ~selected:(Some 8) in
+  require (view.capacity=3 && view.start=6 && view.last=7) "panel-selection-follows-window";
+  let ended = Panel.window ~capacity:3 ~count:10 ~scroll:max_int ~selected:None in
+  require (ended.start=7 && Panel.move ~last:ended.last ~position:ended.start (-1)=6)
+    "panel-scroll-bottom-and-immediate-up";
+  let empty = Panel.window ~capacity:0 ~count:0 ~scroll:max_int ~selected:(Some max_int) in
+  require (empty.start=0 && empty.last=0) "panel-empty-zero-capacity";
+  let huge = Panel.window ~capacity:max_int ~count:max_int ~scroll:max_int ~selected:(Some max_int) in
+  require (huge.start=0 && huge.last=0) "panel-window-machine-boundary";
+  let content = List.init 10 (fun n -> Printf.sprintf "row-%02d 日本語" n) in
+  let contains rows needle = List.exists (fun (_,line)->Base.String.is_substring line ~substring:needle) rows in
+  let render focused = Panel.frame ~heading:"Columns" ~width_of ~width:32 ~height:6
+    ~focused ~title:"Panel" ~scroll:0 ~selected:(Some 9) content in
+  let active = render true and inactive = render false in
+  require (contains active "row-07" && contains active "row-09"
+    && not (contains active "row-06") && contains active "8–10 / 10") "panel-paint-uses-same-window";
+  require (List.exists (fun (style,line)->style=Daily_overlays.Active
+    && Base.String.is_substring line ~substring:"row-09") active
+    && not (List.exists (fun (style,_)->style=Daily_overlays.Active) inactive)
+    && List.map snd active=List.map snd inactive) "panel-focus-not-selection";
+  List.iter (fun (width,height) -> List.iter (fun selected ->
+    let rows = Panel.frame ~heading:"Columns" ~width_of ~width ~height ~focused:true
+      ~title:"Panel" ~scroll:max_int ~selected content in
+    require (List.length rows=max 0 height && List.for_all (fun (_,line)->width_of line<=width) rows)
+      "panel-bounded-render") [None;Some 0;Some 9;Some max_int])
+    [0,0;1,1;6,2;8,3;18,4;32,9;48,14;80,24];
+  require (not (contains (Panel.frame ~heading:"Columns" ~width_of ~width:32 ~height:3
+    ~focused:true ~title:"Panel" ~scroll:0 ~selected:(Some 0) content) "Columns"))
+    "panel-low-height-keeps-data-not-heading";
+  print_endline "PASS: independent shared panel capacity/window, integer-safe motion, focus/selection and bounded Unicode painting."
+
+let scheduled_panel_checks ~width_of ~directory home =
+  let huge = Z.of_string (String.make 600 '9') in
+  let plan n : B.plan = {id=Printf.sprintf "panel-plan-%02d-%s" n (String.make 180 'p');
+    day=Printf.sprintf "2026-10-%02d" (n+1); measure="jpy";
+    changes=["wallet", Z.neg huge; "food", huge]; paid_by=None; cancelled_on=None} in
+  let book = List.fold_left (fun book n -> get (B.put_plan book ~replace:false (plan n)))
+    home.C.session.book (List.init 20 Fun.id) in
+  let path = directory ^ "/scheduled-panels.sexp" in
+  F.write_new path (B.to_string book);
+  let before = F.read path in
+  let state = C.open_route (C.initial ~config_home:directory (F.load path)) W.Scheduled in
+  let count = List.length (W.rows ~book state.workspace) in
+  List.iter (fun dimensions ->
+    let key = key ~dimensions ~width_of in
+    let detail = key state `Enter in
+    let height, view = C.browser_viewport ~dimensions ~width_of detail in
+    let identity = (W.browser detail.workspace).selected_id in
+    require (view.last>0) "scheduled-long-detail-overflows";
+    let ended = key detail `End in
+    require (ended.scroll=view.last && (W.browser ended.workspace).selected_id=identity)
+      "scheduled-detail-end-preserves-identity";
+    require ((key ended (`ASCII 'j')).scroll=view.last
+      && (key ended (`ASCII 'k')).scroll=view.last-1
+      && (key ended `Home).scroll=0) "scheduled-detail-endpoints-and-immediate-up";
+    require ((key detail (`Page `Down)).scroll=min view.last (max 1 view.capacity))
+      "scheduled-detail-page-visible-rows";
+    let ctrl_down = get (match C.handle ~dimensions ~width_of detail (`Key (`ASCII 'd',[`Ctrl])) with
+      | Some state -> Ok state | None -> Error "scheduled-ctrl-page-exited") in
+    require (ctrl_down.scroll=(key detail (`Page `Down)).scroll) "scheduled-ctrl-page-same-capacity";
+    let listed = key ended `Tab in
+    let restored = key listed `Tab in
+    require (listed.workspace.pane=W.Calendar && restored.workspace.pane=W.Detail
+      && restored.scroll=ended.scroll && (W.browser restored.workspace).selected_id=identity)
+      "scheduled-focus-roundtrip-retains-detail-and-selection";
+    require ((key detail (`ASCII 'h')).workspace.pane=W.Calendar
+      && (key (key detail (`ASCII 'h')) (`ASCII 'l')).workspace.pane=W.Detail)
+      "scheduled-browser-horizontal-focus";
+    let back = key ended `Escape in
+    require (back.workspace.pane=W.Calendar && (W.browser back.workspace).selected_id=identity)
+      "scheduled-back-keeps-selection";
+    require ((key ended (`ASCII 'f')).scroll=0) "scheduled-filter-resets-detail";
+    let reloaded = get (match C.handle ~dimensions ~width_of ended (`Key (`ASCII 'r',[`Ctrl])) with
+      | Some state -> Ok state | None -> Error "scheduled-reload-exited") in
+    require (reloaded.scroll=0 && (W.browser reloaded.workspace).selected_id=identity)
+      "scheduled-reload-anchors-identity-and-resets-detail";
+    let page = key state (`Page `Down) in
+    require ((W.browser page.workspace).selected=min (count-1) (max 1 (height-2)))
+      "scheduled-list-page-excludes-borders-no-heading";
+    require ((W.browser (key state `End).workspace).selected=count-1
+      && (W.browser (key (key state `End) `Home).workspace).selected=0) "scheduled-list-real-endpoints";
+    List.iter (fun state ->
+      let rows = C.screen ~width_of dimensions state in
+      require (List.length rows<=snd dimensions && List.for_all (fun (_,line)->width_of line<=fst dimensions) rows)
+        "scheduled-shared-panels-bounded") [state;page;ended]) [32,9;48,14;80,24;120,36];
+  let small = key ~dimensions:(32,9) ~width_of state `Enter |> fun s -> key ~dimensions:(32,9) ~width_of s `End in
+  let resized = key ~dimensions:(120,36) ~width_of small (`ASCII '!') in
+  let _, view = C.browser_viewport ~dimensions:(120,36) ~width_of resized in
+  require (resized.scroll=view.last && (W.browser resized.workspace).selected_id=(W.browser small.workspace).selected_id)
+    "scheduled-resize-clamps-offset-not-identity";
+  let editing = key ~width_of state (`ASCII 'e') in
+  let draft = text ~width_of editing "q 日本語" in
+  let closed = key ~width_of draft `Escape in
+  require (closed.workspace=state.workspace && C.has_record_draft closed && not closed.record_visible)
+    "scheduled-edit-cancel-retains-draft-and-parent";
+  let resumed = C.open_command closed M.Record in
+  require (S.screen ~book ~dimensions:(72,20) ~width_of (Option.get draft.record)
+    = S.screen ~book ~dimensions:(72,20) ~width_of (Option.get resumed.record))
+    "scheduled-draft-resumed-through-existing-record-command";
+  let cancelled = key ~width_of (key ~width_of state (`ASCII 'x')) `Escape in
+  require (cancelled.workspace=state.workspace && cancelled.overlay=C.No_overlay)
+    "scheduled-cancel-overlay-return-context";
+  require (F.read path=before) "scheduled-shared-panels-no-write";
+  print_endline "PASS: Scheduled uses shared viewport, clamped detail/list paging, focus/resize, retained draft and cancelled action context (synthetic)."
+
 let actual_browsing_checks ~width_of ~directory home =
   let posting ?(measure="jpy") locus quanta = D.Effect.create ~key:None
     ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
@@ -448,7 +571,8 @@ let actual_browsing_checks ~width_of ~directory home =
   List.iter (fun dimensions ->
     let key = key ~dimensions ~width_of in
     let detail = key state `Enter in
-    let height, capacity, last = C.actual_viewport ~dimensions ~width_of detail in
+    let height, view = C.browser_viewport ~dimensions ~width_of detail in
+    let capacity = view.Ui_panel.capacity and last = view.last in
     let identity = (W.browser detail.workspace).selected_id in
     let ended = key detail `End in
     require (ended.scroll=last && (W.browser ended.workspace).selected_id=identity)
@@ -475,8 +599,8 @@ let actual_browsing_checks ~width_of ~directory home =
     [32,9;48,14;80,24;120,36];
   let detail = key ~dimensions:(32,9) ~width_of state `Enter |> fun s -> key ~dimensions:(32,9) ~width_of s `End in
   let resized = key ~dimensions:(120,36) ~width_of detail (`ASCII '!') in
-  let _, _, resized_last = C.actual_viewport ~dimensions:(120,36) ~width_of resized in
-  require (resized.scroll=resized_last && (W.browser resized.workspace).selected_id=(W.browser detail.workspace).selected_id)
+  let _, resized_view = C.browser_viewport ~dimensions:(120,36) ~width_of resized in
+  require (resized.scroll=resized_view.Ui_panel.last && (W.browser resized.workspace).selected_id=(W.browser detail.workspace).selected_id)
     "actual-resize-clamps-without-reselection";
   let searched = key ~width_of state (`ASCII '/') |> fun s -> text ~width_of s "purchase 03" in
   require (List.length (W.rows ~book searched.workspace)=1 && (W.browser searched.workspace).query="purchase 03")
@@ -498,6 +622,188 @@ let actual_browsing_checks ~width_of ~directory home =
   require (F.read path=before) "actual-browsing-and-draft-did-not-write";
   print_endline "PASS: Actual exact aligned summaries, live search, clamped detail/list paging, tiny resize, stable selection and retained Record drafts (synthetic)."
 
+let reversal_checks ~width_of ~directory home =
+  let directory = directory ^ "/reversal" in
+  Unix.mkdir directory 0o700;
+  let effect locus quantity = D.Effect.create
+    ~key:(Some (C.get_id (D.Identifier.Effect_key.of_string ("reverse-" ^ locus))))
+    ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
+    ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+    ~quantity:(D.Quantity.of_quanta (Z.of_int quantity)) in
+  let target : B.entry = { id = "reverse-target"; day = "2026-10-10";
+    memo = Some "Original / 日本語"; effects = [effect "wallet" (-37); effect "food" 37];
+    reversal_of = None; exchange = None } in
+  let book = get (B.put_entry home.C.session.book ~replace:false target ~plan:None) in
+  let path = directory ^ "/book.sexp" in
+  F.write_new path (B.to_string book);
+  F.write_new (directory ^ "/input.sexp") (B.to_string book);
+  let base = C.initial ~config_home:directory (F.load path) |> fun s -> C.open_route s W.Actual in
+  let before = F.read path in
+  let names () = Sys.readdir directory |> Array.to_list |> List.sort String.compare in
+  let before_names = names () in
+  let unchanged label = require (F.read path = before && names () = before_names) label in
+  let editor state = match state.C.overlay with
+    | C.Reversal editor -> editor | _ -> raise (F.Refused "reversal-editor-lost") in
+  let input state event = match C.handle ~width_of state event with
+    | Some s -> s | None -> raise (F.Refused "reversal-exited-controller") in
+  let date state value =
+    let state = List.fold_left (fun s _ -> key ~width_of s `Backspace) state
+      (List.init (String.length (Rev.day (editor state))) Fun.id) in
+    text ~width_of state value in
+  let opened = key ~width_of base (`ASCII 'x') in
+  let entered = date opened "2026/10/09" in
+  let invalid = key ~width_of (date opened "2026-02-30") `Enter in
+  require (not (Rev.is_preview (editor invalid)) && Rev.day (editor invalid) = "2026-02-30")
+    "reversal-invalid-date-retained";
+  let review = key ~width_of entered `Enter in
+  require (Rev.is_preview (editor review) && Rev.day (editor review) = "2026-10-09")
+    "reversal-date-enters-canonical-preview";
+  let ctrl_review = input entered (`Key (`Enter, [ `Ctrl ])) in
+  require (Rev.is_preview (editor ctrl_review)) "reversal-ctrl-enter-only-previews-date";
+  let same_review state = Rev.is_preview (editor state)
+    && Rev.day (editor state) = Rev.day (editor review)
+    && Rev.base_bytes (editor state) = Rev.base_bytes (editor review)
+    && C.overlay_screen ~dimensions:(80,24) ~width_of state
+       = C.overlay_screen ~dimensions:(80,24) ~width_of review in
+  require (same_review (input review (`Key (`Enter, [ `Ctrl ]))))
+    "reversal-ctrl-enter-does-not-publish";
+  let body = Option.get (C.overlay_screen ~dimensions:(80,24) ~width_of review) in
+  let contains needle = List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) body in
+  List.iter (fun s -> require (contains s) ("reversal-review-missing-" ^ s))
+    ["reverse-target"; "2026-10-10"; "2026-10-09"; "日本語"; "Original postings";
+      "Inverse postings"; "wallet  -37 jpy"; "wallet  +37 jpy"; "food  +37 jpy"; "food  -37 jpy"];
+  require (C.cursor_position ~width_of (80,24) opened <> None
+           && C.cursor_position ~width_of (80,24) review = None)
+    "reversal-date-caret-only";
+  List.iter (fun dimensions ->
+    let date_view = Option.get (C.overlay_screen ~dimensions ~width_of opened) in
+    let preview = Option.get (C.overlay_screen ~dimensions ~width_of review) in
+    List.iter (fun rows -> require
+      (List.length rows <= snd dimensions
+       && List.for_all (fun (_, s) -> width_of s <= fst dimensions) rows)
+      "reversal-surface-cell-bounds") [date_view; preview])
+    [(80,24); (120,36); (48,14); (32,9)];
+  List.iter (fun dimensions ->
+    let refused = key ~dimensions ~width_of review `Enter in
+    require (Rev.is_preview (editor refused)) "reversal-tiny-publish-refused") [(48,14); (32,9)];
+  let editing = key ~width_of review `Escape in
+  require (not (Rev.is_preview (editor editing)) && Rev.day (editor editing) = "2026-10-09")
+    "reversal-preview-escape-retains-date";
+  let edit_action = key ~width_of (key ~width_of review `Tab) `Enter in
+  require (not (Rev.is_preview (editor edit_action))) "reversal-selected-edit";
+  List.iter (fun cancelled ->
+    require (cancelled.C.overlay = C.No_overlay && cancelled.workspace = opened.workspace
+             && cancelled.scroll = opened.scroll) "reversal-cancel-retains-parent")
+    [key ~width_of opened `Escape; key ~width_of review (`ASCII 'q');
+      key ~width_of (key ~width_of (key ~width_of review `Tab) `Tab) `Enter];
+  let day_view = C.open_route base (W.Selected_day target.day) in
+  let day_cancel = key ~width_of (key ~width_of day_view (`ASCII 'x')) `Escape in
+  require (day_cancel.workspace = day_view.workspace) "reversal-selected-day-parent-retained";
+  let held = prepare_record ~width_of base |> fun s -> key ~width_of s `Escape in
+  let guarded = key ~width_of held (`ASCII 'x') in
+  require (guarded.overlay = C.No_overlay && guarded.record = held.record && C.has_record_draft guarded)
+    "reversal-does-not-destroy-retained-record-draft";
+  let paste = input review (`Paste `Start) in
+  let paste = input paste (`Key (`Enter, [])) |> fun s -> input s (`Key (`ASCII 'q', [])) in
+  let paste = input paste (`Paste `End) in
+  require (same_review paste) "reversal-paste-cannot-confirm-or-cancel";
+  unchanged "reversal-input-review-cancel-refusal-do-not-write-or-allocate-artifacts";
+  let missing = { review with session = { review.session with path = directory ^ "/missing/book.sexp" } } in
+  let failed = key ~width_of missing `Enter in
+  require (C.is_reverse_entry failed.overlay && not (Rev.is_preview (editor failed))
+           && Rev.day (editor failed) = "2026-10-09"
+           && Rev.base_bytes (editor failed) = before && failed.message <> "")
+    "reversal-storage-refusal-keeps-date-target-and-base";
+  unchanged "reversal-failed-storage-keeps-original";
+  let records_path = directory ^ "/records.sexp" in
+  F.write_new records_path (B.to_records_string book);
+  let records = C.initial ~config_home:directory (F.load records_path) |> fun s -> C.open_route s W.Actual in
+  let records_bytes = F.read records_path in
+  let records_refused = key ~width_of (key ~width_of (key ~width_of records (`ASCII 'x')) `Enter) `Enter in
+  require (C.is_reverse_entry records_refused.overlay && not (Rev.is_preview (editor records_refused))
+           && F.read records_path = records_bytes
+           && Bakhlo_sexp.Durable_append.current_lsn (Option.get records.session.engine)
+              = Bakhlo_sexp.Durable_append.current_lsn (Option.get records_refused.session.engine))
+    "reversal-records-refusal-keeps-draft-and-lsn";
+  let large = Z.of_string (String.make 225 '9' ^ "03") in
+  let eur_effect locus n = D.Effect.create ~key:None
+    ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
+    ~measure:(C.get_id (D.Identifier.Measure.of_string "eur")) ~quantity:(D.Quantity.of_quanta n) in
+  let long_target = { target with memo = Some (String.concat "" (List.init 100 (fun _ -> "長い日本語")));
+    effects = [eur_effect "wallet" (Z.neg large); eur_effect "food" large] } in
+  F.write_new (directory ^ "/large-input.sexp")
+    (B.to_string (get (B.put_entry home.session.book ~replace:false long_target ~plan:None)));
+  let long = Rev.create ~book ~base_bytes:before ~day:"2026-10-09" long_target in
+  let long = match Rev.handle ~blocked:false ~dimensions:(80,24) ~width_of long (`Key (`Enter, [])) with
+    | Rev.Updated t -> t | _ -> raise (F.Refused "reversal-long-date-preview") in
+  let rows = Rev.screen ~dimensions:(160,100) ~width_of long in
+  List.iter (fun (locus, n) ->
+    let s = locus ^ "  " ^ (if Z.sign n > 0 then "+" else "") ^ B.format book "eur" n ^ " eur" in
+    List.iter (fun piece -> require
+      (List.exists (fun (_, s) -> Base.String.is_substring s ~substring:piece) rows)
+      "reversal-huge-exact-decimal-is-wrapped-not-clipped") (Daily_overlays.wrap_text ~width_of 154 s))
+    ["wallet", Z.neg large; "food", large; "wallet", large; "food", Z.neg large];
+  (match Rev.handle ~blocked:false ~dimensions:(80,24) ~width_of long (`Key (`Enter, [])) with
+   | Rev.Updated _ -> () | _ -> raise (F.Refused "reversal-unreviewed-end-published"));
+  let ended = match Rev.handle ~blocked:false ~dimensions:(80,24) ~width_of long (`Key (`End, [])) with
+    | Rev.Updated t -> t | _ -> raise (F.Refused "reversal-end") in
+  (match Rev.handle ~blocked:false ~dimensions:(80,24) ~width_of ended (`Key (`Enter, [])) with
+   | Rev.Publish (id, day, bytes) -> require (id = target.id && day = "2026-10-09" && bytes = before)
+       "reversal-fixed-intent" | _ -> raise (F.Refused "reversal-reviewed-end-not-publishable"));
+  let compact = match Rev.handle ~blocked:false ~dimensions:(48,14) ~width_of ended (`Key (`End, [])) with
+    | Rev.Updated t -> t | _ -> raise (F.Refused "reversal-compact-end") in
+  (match Rev.handle ~blocked:false ~dimensions:(48,14) ~width_of compact (`Key (`Enter, [])) with
+   | Rev.Updated _ -> () | _ -> raise (F.Refused "reversal-compact-end-bypassed-gate"));
+  let changed_target = { target with memo = Some "Concurrent correction" } in
+  let changed_book = get (B.put_entry book ~replace:true changed_target ~plan:None) in
+  (match F.publish base.session changed_book with F.Written _ -> () | _ -> raise (F.Refused "reversal-conflict-setup"));
+  let changed_bytes = F.read path in
+  let conflict = key ~width_of review `Enter in
+  require (conflict.blocked && Rev.day (editor conflict) = "2026-10-09"
+           && F.read path = changed_bytes) "reversal-disk-conflict-retains-draft";
+  let reloaded = input review (`Key (`ASCII 'r', [ `Ctrl ])) in
+  require (reloaded.blocked && Rev.base_bytes (editor reloaded) = before
+           && reloaded.session.bytes = changed_bytes) "reversal-reload-cannot-bless-stale-preview";
+  let stopped = key ~width_of reloaded `Enter in
+  require (stopped.blocked && F.read path = changed_bytes) "reversal-stale-preview-cannot-publish";
+  let reset = input (key ~width_of reloaded (`ASCII 'q')) (`Key (`ASCII 'r', [ `Ctrl ])) in
+  require (not reset.blocked) "reversal-explicit-cancel-reload-unblocks";
+  let fresh = key ~width_of (key ~width_of (key ~width_of reset (`ASCII 'x')) `Enter) `Enter in
+  let cold = F.load path in
+  let reversal = List.find (fun (e : B.entry) -> e.reversal_of = Some target.id) (B.entries cold.book) in
+  require (fresh.overlay = C.No_overlay && B.find_entry cold.book target.id = Some changed_target
+           && reversal.day = F.today () && List.length reversal.effects = List.length target.effects)
+    "reversal-cold-readback-original-and-relation";
+  List.iter2 (fun original inverse -> require
+    (D.Effect.locus original = D.Effect.locus inverse
+     && D.Effect.measure original = D.Effect.measure inverse
+     && D.Effect.key original = D.Effect.key inverse
+     && Z.equal (Daily_actions.quanta inverse) (Z.neg (Daily_actions.quanta original)))
+    "reversal-cold-exact-inverse-keys-coordinates") target.effects reversal.effects;
+  let unknown_path = directory ^ "/unknown.sexp" in
+  F.write_new unknown_path before;
+  let unknown_base = C.initial ~config_home:directory (F.load unknown_path) |> fun s -> C.open_route s W.Actual in
+  let unknown_review = key ~width_of (key ~width_of unknown_base (`ASCII 'x')) `Enter in
+  let candidate = get (B.put_entry book ~replace:false { reversal with id = "unknown-reversal" } ~plan:None) in
+  let draft = { unknown_review with overlay = C.Reversal (Rev.with_publish_error (editor unknown_review)) } in
+  let unknown () = C.apply_commit_result unknown_review ~draft
+    (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
+      evidence = Daily_actions.Monolithic_candidate (B.to_string candidate) }) in
+  let unconfirmed = input (unknown ()) (`Key (`ASCII 'r', [ `Ctrl ])) in
+  require (unconfirmed.blocked && unconfirmed.pending <> None
+           && C.is_reverse_entry unconfirmed.overlay && F.read unknown_path = before)
+    "reversal-unknown-reload-does-not-retry";
+  let attempted = key ~width_of unconfirmed `Enter in
+  require (not (Rev.is_preview (editor attempted)) && attempted.pending = unconfirmed.pending)
+    "reversal-unknown-stays-stopped-with-date";
+  (match F.publish unknown_base.session candidate with F.Written _ -> () | _ -> raise (F.Refused "reversal-ack-setup"));
+  let present_bytes = F.read unknown_path in
+  let confirmed = input (unknown ()) (`Key (`ASCII 'r', [ `Ctrl ])) in
+  require (not confirmed.blocked && confirmed.pending = None && confirmed.overlay = C.No_overlay
+           && F.read unknown_path = present_bytes && List.length (B.entries confirmed.session.book) = 2)
+    "reversal-confirmed-reload-closes-draft-without-duplicate";
+  print_endline "PASS: reversal date/Preview, exact signed quantities, tiny/end gates, cancel/draft retention, stale base, storage/Records refusal, unknown/reload and cold inverse (synthetic)."
+
 let self_check ~width_of () =
   let directory = "scratch/english-ui-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
@@ -507,7 +813,10 @@ let self_check ~width_of () =
   bonsai_home_layout_check ~width_of home;
   home_layout_check ~width_of home;
   theme_check ~width_of ~directory home;
+  panel_checks ~width_of ();
   actual_browsing_checks ~width_of ~directory home;
+  scheduled_panel_checks ~width_of ~directory home;
+  reversal_checks ~width_of ~directory home;
   let before = F.read path in
   require
     (home.workspace.route = W.Home && not home.record_visible)
@@ -778,7 +1087,9 @@ let self_check ~width_of () =
   require
     (C.is_reverse_entry actual_reversing.overlay)
     "actual-key-x-opens-reverse-overlay";
-  let reversed = key ~width_of actual_reversing `Enter in
+  let reversal_preview = key ~width_of actual_reversing `Enter in
+  require (F.read path = cold.bytes) "reversal-date-enter-is-preview-only";
+  let reversed = key ~width_of reversal_preview `Enter in
   require (not (C.has_record_draft reversed)) "reversed-draft-clean";
   let cold_after_reverse = F.load path in
   let entries_after_reverse = B.entries cold_after_reverse.book in

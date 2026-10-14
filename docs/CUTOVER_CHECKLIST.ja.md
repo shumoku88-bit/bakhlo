@@ -10,10 +10,14 @@ LOAMの内部構造・研究用機能・証明装置を同じように実装す�
 機能の存在と、最初の切替日に必要な範囲は別。以下は互換性の棚卸しであり、全行を
 一度に実装する指示でも、正データ切替の許可でもない。**普段の記帳と正データはまだLOAM。**
 
-基準はBakhlo `d2e2f5f` とLOAM `9dbe2496` の現行ソース、および今回の
-Attention／精算sidecar・Daily Pace安全性修正。以前の表にあった旧上下Home、Notty並行版、
-Daily v4・予算APIの記述は非現行。限定コンバータや既存Book CLIの能力をDaily TUI対応に数えない。
-実データの内容・使用件数はこの表では扱わない。
+この再整理の基準はBakhlo `b21b30c`＋作業ツリーの共通panel変更と、LOAM `db631763`
+のソース／TUI契約。前段のAttention／精算・Pace安全性、Actual閲覧、共通viewportの限定検証を含む。
+今回新しい対照実行・実機受入はしていない。以前の旧上下Home、Notty並行版、Daily v4・予算APIは非現行。
+限定コンバータ・既存Book CLI・型だけの能力をDaily TUI接続に数えない。実データの内容・使用件数は扱わない。
+
+画面別の不足と並行依頼は [LOAM_UI_GAP_LEDGER.ja.md](LOAM_UI_GAP_LEDGER.ja.md) に集約する。
+同台帳は **F:機能・保持情報／O:操作・接続／V:見た目／Q:検証・安全性** を分ける。
+見た目・スクショ待ちという状態だけでは、この表の保存・回答・運用条件を満たさない。
 
 | 軸 | 確認すること |
 | --- | --- |
@@ -34,12 +38,12 @@ Daily v4・予算APIの記述は非現行。限定コンバータや既存Book C
 | R02 | 一取引の複数Posting | 試用：新規／予定支払いで行追加・削除 | LOAMの6行上限をモデルの制約としない。狭小表示・操作感を比較 |
 | R03 | 合計検査と全体確認 | 試用：Preview後、選択したPublish＋Enterで発行 | Ctrl-SはPreviewのみ。空欄をゼロにせず、自動差額補完なし |
 | R04 | 日付・金額・摘要・内訳の訂正 | 一部：同じIDで訂正、Postingキー・支払い対応を保持 | 既存Postingの構成変更、Exchange／Reversal関連の訂正は拒否 |
-| R05 | 探す・詳細を見る | 一部：文字検索、日付絞込、昇降順、詳細 | Locus絞込の画面接続、LOAMの単一取引詳細・復帰文脈に差 |
+| R05 | 探す・詳細を見る | 一部：Actualの検索modal内live絞込、日付絞込、昇降順、2ペイン詳細 | 共通viewport・安全な数量列は合成／PTY検証。Locus絞込UI、画面内検索、独立Transaction detail・actions・復帰文脈は差が残る |
 | R06 | 未分類を明示的に仮置き | 一部：許可済み通常Locusへ手入力 | unresolved語彙の追加確認・内訳補助は未同等 |
-| R07 | 実際の返金・反転 | 試用：元Actualを残す正確な逆Postingの新規記帳 | Recordsは拒否。LOAMの確認内容・再操作拒否・再開との比較が必要 |
+| R07 | 実際の返金・反転 | 試用：xの日付入力→専用exact inverse Preview→既存writer。元Actualを残す | 末尾／狭小gate、捕捉base・stale／失敗／unknown停止、coldは合成・PTYで限定検証。Recordsはdraftを保持して拒否。LOAMのr・対照表示／実機受入は別のO/V/Q課題 |
 | R08 | Merchant／非Merchant分類 | 未接続 | Coreの検査はあるがDaily永続項目・入力なし |
 | R09–R10 | 口座・費目の一覧／検索／選択 | 試用：許可済みID・表示名の候補 | 同名候補、長い文字、取消後の下書き・位置を比較 |
-| R11–R12 | Focusと短命な補助pane | 一部：Calendar／Detail、Record／picker／確認pane | 戻り先・一覧位置・可視行・Helpを画面ごとに確認 |
+| R11–R12 | Focusと短命な補助pane | 一部：Calendar／Detail、Record／候補／Preview。Actual・Scheduledの共通panel | Actual／Scheduledの端・ページ・resize・draftは限定検証。Selected DayからCalendarへの親復帰、Help、他のmodalは別のO/Q課題 |
 | R13 | 明示的な保存前確認 | 試用：Publish／Edit／Cancel | 全文が読めない極小Previewは発行拒否。閲覧・貼付で保存しない |
 
 訂正後のDaily明細と、LOAMの永久Correction鎖は同じ保存形式ではない。
@@ -50,9 +54,9 @@ Daily v4・予算APIの記述は非現行。限定コンバータや既存Book C
 | ID | 生活操作 | Bakhloの現行Daily TUI | LOAMとの差・残る確認 |
 | --- | --- | --- | --- |
 | S01 | 単発予定の作成 | 試用：Record系のPlan入力・Preview | 単一S式のみ。純粋APIだけの段階から画面接続済み |
-| S02 | 変更・日付付き取消 | 試用：編集／取消フォーム | 支払い済み・取消済みを再利用しない。確認・復帰・失敗を比較 |
+| S02 | 変更・日付付き取消 | 試用：単発Edit／Previewと、日付付き取消modal | paid／cancelledを再利用しない。取消modalのKeep初期選択・独立確認・狭小gateはEdit Previewと別に比較する |
 | S03 | 予定を実績化 | 試用：Actual入力とpaid-byを同時保存 | 単一S式のみ。Recordsは部分Actual追記前に拒否 |
-| S04 | 未払い・完了・月別を見分ける | 一部：current-open一覧・詳細・検索 | 通常一覧はopenのみ。Series Calendar／Months、完了表示は未接続 |
+| S04 | 未払い・完了・月別を見分ける | 局部：Home sはcurrent-open List／単発detail／検索。枠・viewportはActualと共用 | Series Calendar、六か月Months、Series内Plan Detail、open／completedの併記は未接続。ListのT/PTY成功をそれらの実装済みと数えない |
 | S05 | 次回／複数回／期限まで補充 | 未接続 | 実際の予定を確認して発行する操作が必要。周期から事実を捏造しない |
 | S06 | Expected pace・未補充監視 | 未接続 | 観測設定と明示された予定を分離する |
 
@@ -64,7 +68,7 @@ Daily v4・予算APIの記述は非現行。限定コンバータや既存Book C
 | ID | 生活操作 | Bakhloの現行Daily TUI | LOAMとの差・残る確認 |
 | --- | --- | --- | --- |
 | B01 | 口座×通貨の現在残高 | 一部：Current／Accounting表示、全文Print preview | 初期表示はAccountingでLOAMと異なる。会計集計の回答一致は未認定 |
-| B02 | 検証した現在残高の入力 | 試用：Observe、Balancesから選択座標をprefill | 別口座の観測・明示ゼロを保全。複数座標の同時観測UIは未同等 |
+| B02 | 検証した現在残高の入力 | 局部：一座標のObserve、Balancesからprefill、他座標の支持を保全 | LOAMは同時観測した全画像を入力する。単なる行追加不足とせず、画像更新の意味・複数座標・独立確認をF/O/Qで照合 |
 | B03 | 過去時点の残高 | 未接続 | 現在量の支持だけで過去の完全性を主張しない |
 | B04 | 新しいLocusの許可 | 試用：Manage Loci | 語彙追加とゼロ残高・会計分類は別 |
 | B05 | AccountingRole設定 | 一部：設定sidecarの編集と集計 | LOAMの初回分類・使用済み制約と未同等。読込拒否・保存保証も未認定 |
@@ -77,7 +81,7 @@ Daily v4・予算APIの記述は非現行。限定コンバータや既存Book C
 | ID | 生活操作 | Bakhloの現行Daily TUI | LOAMとの差・残る確認 |
 | --- | --- | --- | --- |
 | F01 | 外貨の普通の記帳 | 試用：明示Measure・scale | 通貨を混ぜない。入力できることと外貨レポートは別 |
-| F02 | 両替 | 試用：両通貨・数量を入力しExchangeキーを保存 | Dailyの画面接続済み。Preview・候補・狭小確認等の操作品質は未同等 |
+| F02 | 両替 | 局部：両通貨・数量modalから既存publisherへ、Exchangeキーを保存 | 独立Preview・候補・狭小全文確認・失敗時の復帰は未同等。RecordのPreview拒否をこのmodalの保証にしない |
 | F03 | 原額を記帳通貨と別に保持 | 未接続 | ApplicationのOriginalAmountだけではDailyに保存できない |
 | F04–F06 | 立替・部分精算・相殺・非支払減少 | 一部：commitment累計額の試用sidecar／操作 | ActualのEffectとの配分、独立した決済通貨・証拠・訂正／撤回は未同等 |
 
@@ -116,9 +120,9 @@ Poolの設定画面は`daily-pace.tsv`だけを更新し、全境界presetをbyt
 | O05 | Print・診断 | Balancesの画面内Print previewあり。LOAMの同意付き通常端末出力とは未同等 |
 | O06 | 別環境への導入 | 既存の隔離Bonsai環境が必要。standalone配布・新環境の復旧は未認定 |
 
-## 品質修正と次の順序
+## 既存の限定検証と次の順序
 
-今回の安全性修正は既存の`daily_interaction_checks.ml`へ合成回帰を追加する：
+前段の安全性修正は既存の`daily_interaction_checks.ml`に合成回帰を追加した：
 
 - Attention／精算の不正行・不正数量・重複・不正な参照を拒否し、空・ゼロへ置換しない。
 - 読込失敗をUnavailableとして表示し、そのfamilyを保存しない。
@@ -130,10 +134,11 @@ Poolの設定画面は`daily-pace.tsv`だけを更新し、全境界presetをbyt
 全画面の実PTY比較・実機受入・LOAMの実行結果との全面一致を証明しない。
 UIのみの変更は現在のCore CIに含まれないことにも注意する。
 
-次は一分野ずつ、**操作＋必要な情報＋保存／再開＋失敗例＋実機比較**で進める。
-Record／Actual → Scheduled → Balances → Daily Pace／Attention → 残る非予算Reports・
-外貨／精算・設定／出力を基本順とし、実際の困りごとで順序を変える。
-共有の機構は実際の呼出元が必要とする範囲だけ使い、万能フォームや第二の会計エンジンを作らない。
+Actual閲覧と共通panelの後続では、inverse／取消等の確認・roles保存の安全境界を独立に扱い、
+接続済みの見た目対照とread-only調査を並行する。**操作＋必要な情報＋保存／再開＋失敗例＋実機比較**を
+一課題ずつ進め、台帳の依頼カードで編集fileと統合順を決める。中央controllerは画面が違っても競合する。
+Record／Actual → Scheduled → Balances → Daily Pace／Attention → 残る非予算Reports・外貨／精算・設定／出力を
+基本順とし、実際の困りごとで変える。共有機構は実在する利用元のために使い、万能form／第二の会計エンジンは作らない。
 
 ## 切替は別の判断
 

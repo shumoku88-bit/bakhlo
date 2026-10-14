@@ -206,22 +206,27 @@ let input_of_event : B.Event.t -> C.input = function
       in
       `Key (key, mods)
 
-type action = Terminal_event of { dimensions : int * int; event : B.Event.t } | Request_exit
+type action = Terminal_event of B.Event.t | Request_exit
 
 let app initial ~exit ~dimensions graph =
   let state, inject =
-    Bonsai.state_machine ~default_model:initial
-      ~apply_action:(fun context state -> function
-        | Terminal_event { dimensions; event } -> (
-            match C.handle ~dimensions ~width_of state (input_of_event event) with
-            | Some state -> state
-            | None ->
-                Bonsai.Apply_action_context.schedule_event context (exit ());
-                state)
+    (* Resize and keys may share a batch: read dimensions at action application, not capture. *)
+    Bonsai.state_machine_with_input ~default_model:initial
+      ~apply_action:(fun context active_dimensions state -> function
+        | Terminal_event event -> (
+            match active_dimensions with
+            | Bonsai.Computation_status.Inactive -> state
+            | Active (dimensions : B.Dimensions.t) -> (
+                match C.handle ~dimensions:(dimensions.width, dimensions.height)
+                  ~width_of state (input_of_event event) with
+                | Some state -> state
+                | None ->
+                    Bonsai.Apply_action_context.schedule_event context (exit ());
+                    state))
         | Request_exit ->
             Bonsai.Apply_action_context.schedule_event context (exit ());
             state)
-      graph
+      dimensions graph
   in
   let set_cursor = B.Cursor.set_cursor_position graph in
   let cursor_pos =
@@ -244,8 +249,7 @@ let app initial ~exit ~dimensions graph =
         render (dimensions.width, dimensions.height) state)
   in
   let handler =
-    Bonsai.arr2 graph inject dimensions ~f:(fun inject (dimensions : B.Dimensions.t) event ->
-        inject (Terminal_event { dimensions = (dimensions.width, dimensions.height); event }))
+    Bonsai.arr1 graph inject ~f:(fun inject event -> inject (Terminal_event event))
   in
   (~view, ~handler)
 

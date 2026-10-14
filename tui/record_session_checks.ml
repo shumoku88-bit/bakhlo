@@ -152,7 +152,12 @@ let self_check ~width_of () =
   let ended=match handle ~dimensions:(72,20) overflow (`Key (`End,[])) with
     | S.Updated t->t | _->failwith "review-end-navigation" in
   (match handle ~dimensions:(72,20) ended (`Key (`Enter,[])) with
-   | S.Publish (A.Entry_tx next,_,_) -> require (next.entry.memo=Some long_description) "ended-review-retains-whole-payload"
+   | S.Publish (A.Entry_tx next,_,_) ->
+       require (next.entry.memo=Some long_description) "ended-review-retains-whole-payload";
+       let count = List.length (List.concat_map (O.wrap_text ~width_of 68) (O.preview_lines book next)) in
+       require (List.exists (fun (style,line) -> style = O.Focused_frame
+         && Base.String.is_substring line ~substring:(Printf.sprintf "%d/%d lines" count count))
+         (screen ~dimensions:(72,20) ended)) "record-publish-end-actually-displays-final-review-line"
    | _->failwith "full-sized-ended-review-not-publishable");
   let compact_end=match handle ~dimensions:(48,13) ended (`Key (`End,[])) with
     | S.Updated t->t | _->failwith "compact-review-end" in

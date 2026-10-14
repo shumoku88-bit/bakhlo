@@ -216,8 +216,10 @@ let notice_lines ~dimensions:(width,height) ~width_of t =
 
 let review_geometry ~book ~dimensions:(width,height) ~width_of t review =
   let feedback=List.length (notice_lines ~dimensions:(width,height) ~width_of t) in
-  (* One outer frame, one action row, two navigation rows. *)
-  let available=max 0 (height-feedback-5) in
+  (* Same title, panel borders, gate, action and navigation rows as screen. *)
+  let action_height = if height >= 7 then 1 else 0 in
+  let gate_height = if height >= 14 then 2 else 0 in
+  let available=max 0 (height-feedback-5-action_height-gate_height) in
   let lines=List.concat_map (O.wrap_text ~width_of (max 1 (width-4))) (review_lines ~book review) in
   let last=max 0 (List.length lines-available) in
   (available,lines,min last (max 0 review.scroll),last)
