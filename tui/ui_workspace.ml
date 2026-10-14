@@ -1,7 +1,7 @@
 module B = Bakhlo_sexp.Daily_book
 module A = Daily_actions
 
-type route = Home | Selected_day of string | Actual | Scheduled | Balances | Daily_pace
+type route = Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace | Attention
 type pane = Calendar | Detail
 type family = Actual_row | Scheduled_row
 type row = Actual_entry of B.entry | Scheduled_plan of B.plan
@@ -25,6 +25,7 @@ type t = {
   scheduled : browser;
   selected_day : browser;
   detail : browser;
+  attention : browser;
   schedule_view : schedule_view;
   balance_selected : int;
   measure : string;
@@ -46,6 +47,7 @@ let create ~today ~measure =
           scheduled = empty;
           selected_day = empty;
           detail = empty;
+          attention = empty;
           schedule_view = Groups;
           balance_selected = 0;
           measure;
@@ -83,14 +85,16 @@ let browser state =
   | Actual -> state.actual
   | Scheduled -> state.scheduled
   | Selected_day _ -> state.selected_day
-  | Home | Balances | Daily_pace -> state.detail
+  | Attention -> state.attention
+  | Home | Calendar | Balances | Daily_pace -> state.detail
 
 let update_browser state browser =
   match state.route with
   | Actual -> { state with actual = browser }
   | Scheduled -> { state with scheduled = browser }
   | Selected_day _ -> { state with selected_day = browser }
-  | Home | Balances | Daily_pace -> { state with detail = browser }
+  | Attention -> { state with attention = browser }
+  | Home | Calendar | Balances | Daily_pace -> { state with detail = browser }
 
 let sorted browser rows =
   List.sort
@@ -112,8 +116,8 @@ let rows ~book state =
     | Actual -> List.map (fun e -> Actual_entry e) (B.entries book)
     | Scheduled -> List.map (fun p -> Scheduled_plan p) (B.open_plans book)
     | Selected_day day -> all_rows book |> List.filter (fun row -> date row = day)
-    | Home -> home_rows ~book state
-    | Balances | Daily_pace -> []
+    | Calendar -> home_rows ~book state
+    | Home | Balances | Daily_pace | Attention -> []
   in
   candidates |> List.filter (row_matches ~book browser) |> sorted browser
 

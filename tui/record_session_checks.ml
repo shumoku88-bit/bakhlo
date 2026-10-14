@@ -61,7 +61,7 @@ let self_check ~width_of () =
    | S.Closed retained -> require (S.has_draft retained) "cancel-retains-draft"
    | _ -> failwith "escape-cancels-without-publishing");
   let tx=match handle review (`Key (`Enter,[])) with
-    | S.Publish (tx,base,retained) ->
+    | S.Publish (A.Entry_tx tx,base,retained) ->
         require (base=base_bytes && S.has_draft retained) "publication-carries-generation-and-draft"; tx
     | _ -> failwith "selected-publish-enter" in
   require (tx.entry.memo=Some "q 食事") "publication-preserves-description";
@@ -70,7 +70,7 @@ let self_check ~width_of () =
     "catalog-translates-template-not-user-data";
   let matched=prepare ~locus_query:"wall" () |> fun t -> key t `Enter in
   (match handle matched (`Key (`Enter,[])) with
-   | S.Publish (selected,_,_) ->
+   | S.Publish (A.Entry_tx selected,_,_) ->
        require (A.lstr (D.Effect.locus (List.hd selected.entry.effects))="wallet") "search-accepts-exact-stored-id"
    | _ -> failwith "filtered-locus-acceptance");
   ignore (get (B.put_entry book ~replace:tx.replace tx.entry ~plan:tx.plan));
@@ -98,7 +98,7 @@ let self_check ~width_of () =
   let huge=String.make 70 '9' in
   let huge_review=prepare ~amount:huge () |> fun t -> key t `Enter |> fun t -> key t `End in
   (match handle huge_review (`Key (`Enter,[])) with
-   | S.Publish (tx,_,_) -> require (Z.equal (List.nth (List.map A.quanta tx.entry.effects) 1) (Z.of_string huge)) "huge-exact-quantity"
+   | S.Publish (A.Entry_tx tx,_,_) -> require (Z.equal (List.nth (List.map A.quanta tx.entry.effects) 1) (Z.of_string huge)) "huge-exact-quantity"
    | _ -> failwith "huge-review-is-not-partial-number");
   let edit_book=get (B.put_entry book ~replace:false tx.entry ~plan:None) in
   let edit=get (S.of_edit ~book:edit_book tx.entry) in
@@ -108,14 +108,14 @@ let self_check ~width_of () =
   require (contains (ctrl edit 'n') "keeps the posting structure") "edit-row-structure-locked";
   let edit_review=S.preview ~book:edit_book ~base_bytes ~blocked:false edit in
   (match handle ~book:edit_book edit_review (`Key (`Enter,[])) with
-   | S.Publish (next,_,_) ->
+   | S.Publish (A.Entry_tx next,_,_) ->
        require (next.entry.id=tx.entry.id && next.entry.effects=tx.entry.effects && next.replace) "edit-preserves-identity-structure"
    | _ -> failwith "edit-preview-publish");
   let plan=List.hd (B.plans book) in
   let completion=get (S.of_plan ~day:"2026-10-11" ~book plan) in
   let completion=S.preview ~book ~base_bytes ~blocked:false completion in
   (match handle completion (`Key (`Enter,[])) with
-   | S.Publish (next,_,_) -> require (next.plan=Some plan.id && next.entry.day="2026-10-11") "scheduled-link-and-actual-day"
+   | S.Publish (A.Entry_tx next,_,_) -> require (next.plan=Some plan.id && next.entry.day="2026-10-11") "scheduled-link-and-actual-day"
    | _ -> failwith "scheduled-completion-preview");
   require (Result.is_error (S.of_plan ~book {plan with paid_by=Some "already"})) "completed-plan-refused";
   require (Result.is_error (S.of_plan ~book {plan with cancelled_on=Some "2026-10-10"})) "cancelled-plan-refused";
@@ -152,7 +152,7 @@ let self_check ~width_of () =
   let ended=match handle ~dimensions:(72,20) overflow (`Key (`End,[])) with
     | S.Updated t->t | _->failwith "review-end-navigation" in
   (match handle ~dimensions:(72,20) ended (`Key (`Enter,[])) with
-   | S.Publish (next,_,_) -> require (next.entry.memo=Some long_description) "ended-review-retains-whole-payload"
+   | S.Publish (A.Entry_tx next,_,_) -> require (next.entry.memo=Some long_description) "ended-review-retains-whole-payload"
    | _->failwith "full-sized-ended-review-not-publishable");
   let compact_end=match handle ~dimensions:(48,13) ended (`Key (`End,[])) with
     | S.Updated t->t | _->failwith "compact-review-end" in
@@ -169,7 +169,7 @@ let self_check ~width_of () =
   let keyed_editor=get (S.of_edit ~book:keyed_book keyed) in
   let keyed_review=S.preview ~book:keyed_book ~base_bytes ~blocked:false keyed_editor in
   (match handle ~book:keyed_book keyed_review (`Key (`Enter,[])) with
-   | S.Publish (next,_,_) ->
+   | S.Publish (A.Entry_tx next,_,_) ->
        require (next.entry.id=keyed.id && next.entry.effects=keyed.effects) "edit-preserves-posting-keys";
        let edited_book=get (B.put_entry keyed_book ~replace:true next.entry ~plan:next.plan) in
        require ((List.hd (B.plans edited_book)).paid_by=Some keyed.id) "edit-preserves-payment-link"
@@ -181,4 +181,41 @@ let self_check ~width_of () =
       require (List.for_all (fun (_,line) -> width_of line<=fst dimensions) rows) "record-bounded-cell-width")
       [draft;review;S.with_notice review (String.concat "" (List.init 20 (fun _ -> "Long refusal 日本語 ")))])
     [32,8;48,13;48,14;72,20;80,24;140,40;24,8];
+  let plan_draft = S.create_plan ~book ~day:"2026-10-15" ~measure:"jpy" () in
+  require (not (S.has_draft plan_draft)) "fresh-plan-draft-is-empty";
+  require (S.mode plan_draft = A.Plan_new) "is-plan-identified";
+  require (contains plan_draft "Scheduled / Create") "plan-create-title";
+  require (S.border_intent plan_draft = `Create) "plan-create-border-intent";
+  let plan_draft = key (key plan_draft `Tab) `Tab in
+  let plan_draft = key (text plan_draft "wallet") `Enter in
+  let plan_draft = key (text plan_draft "-500") `Tab in
+  let plan_draft = key (text plan_draft "food") `Enter in
+  let plan_draft = text plan_draft "+500" in
+  require (S.has_draft plan_draft) "plan-has-draft-after-input";
+  let plan_review = key plan_draft `Enter in
+  require (contains plan_review "Scheduled / Preview") "plan-preview-title";
+  (match handle plan_review (`Key (`Enter, [])) with
+   | S.Publish (A.Plan_tx { plan = new_p; replace }, base, retained) ->
+       require (base = base_bytes && S.has_draft retained) "plan-publish-carries-generation";
+       require (not replace) "new-plan-replace-is-false";
+       require (new_p.day = "2026-10-15") "new-plan-due-day";
+       require (new_p.measure = "jpy") "new-plan-measure";
+       require (new_p.changes = [("wallet", Z.of_int (-500)); ("food", Z.of_int 500)]) "new-plan-changes";
+       require (new_p.paid_by = None && new_p.cancelled_on = None) "new-plan-unpaid-uncancelled";
+       let plan_book = get (B.put_plan book ~replace:false new_p) in
+       let plan_editor = get (S.of_edit_plan ~book:plan_book new_p) in
+       require (contains plan_editor "Scheduled / Edit") "plan-edit-title";
+       require (S.border_intent plan_editor = `Change) "plan-edit-border-intent";
+       let plan_edit_review = S.preview ~book:plan_book ~base_bytes ~blocked:false plan_editor in
+       (match handle ~book:plan_book plan_edit_review (`Key (`Enter, [])) with
+        | S.Publish (A.Plan_tx { plan = edited_p; replace = edit_replace }, _, _) ->
+            require edit_replace "edited-plan-replace-is-true";
+            require (edited_p.id = new_p.id) "edited-plan-preserves-id";
+            require (edited_p.day = new_p.day) "edited-plan-preserves-day"
+        | _ -> failwith "plan-edit-publish-failed");
+       require (Result.is_error (S.of_edit_plan ~book:plan_book { new_p with paid_by = Some "already" }))
+         "paid-plan-edit-refused";
+       require (Result.is_error (S.of_edit_plan ~book:plan_book { new_p with cancelled_on = Some "2026-10-16" }))
+         "cancelled-plan-edit-refused"
+   | _ -> failwith "plan-publish-failed");
   require (B.to_string book=before) "record-checks-leave-book-unchanged"

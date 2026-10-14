@@ -18,8 +18,11 @@ let lstr = D.Identifier.Locus.to_string
 let mstr = D.Identifier.Measure.to_string
 let quanta p = D.Quantity.quanta (D.Effect.quantity p)
 
-type mode = New | Edit of B.entry | Pay of string
+type mode = New | Edit of B.entry | Pay of string | Plan_new | Plan_edit of B.plan
 type transaction = { entry : B.entry; replace : bool; plan : string option }
+type payload =
+  | Entry_tx of transaction
+  | Plan_tx of { plan : B.plan; replace : bool }
 
 type single_form = {
   day : string;
@@ -147,7 +150,7 @@ let prepare_postings ~book ~mode ~(form : single_form) : (R.t, string) result =
                 | Some _ ->
                     List.map (fun (row : R.row) -> { row with amount = form.amount }) draft.rows);
             })
-  | New | Pay _ ->
+  | New | Pay _ | Plan_new | Plan_edit _ ->
       Ok
         {
           R.measure = form.measure;
@@ -329,15 +332,16 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
         let memo =
           match mode with
           | Edit e when Option.value ~default:"" e.memo = memo_str -> e.memo
-          | New | Pay _ | Edit _ -> if memo_str = "" then None else Some memo_str
+          | New | Pay _ | Edit _ | Plan_new | Plan_edit _ ->
+              if memo_str = "" then None else Some memo_str
         in
         let entry, replace, plan =
           match mode with
           | Edit e -> ({ e with day; memo; effects }, true, None)
-          | New | Pay _ ->
+          | New | Pay _ | Plan_new | Plan_edit _ ->
               ( { B.id = F.new_id (); day; memo; effects; reversal_of = None; exchange = None },
                 false,
-                match mode with Pay id -> Some id | New | Edit _ -> None )
+                match mode with Pay id -> Some id | New | Edit _ | Plan_new | Plan_edit _ -> None )
         in
         match B.put_entry book ~replace entry ~plan with
         | Ok _ -> Ok { entry; replace; plan }
@@ -425,7 +429,7 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
                                   (D.Quantity.of_quanta
                                      (if Z.sign (quanta p) < 0 then Z.neg amount else amount)))
                             e.effects
-                      | New | Pay _ ->
+                      | New | Pay _ | Plan_new | Plan_edit _ ->
                           [ effect_ form.from_locus (Z.neg amount); effect_ form.to_locus amount ]
                     in
                     Ok effects
@@ -458,6 +462,83 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
                 err ~raw:why (format_message "%s. Select an admitted Locus." why)
             | Error why -> err ~raw:why (format_message "Invalid postings (%s)." why)
             | Ok effects -> validate_and_put ~day:canon_day ~memo_str ~effects))
+
+let build_plan ~book ~mode ~day ~draft : (B.plan * bool, transaction_error) result =
+  let err ?field ~raw message = Error { message; field; raw_cause = raw } in
+  match normalize_date day with
+  | Error _ ->
+      err ~field:Field_date ~raw:"invalid-date"
+        (tr "Enter a valid Gregorian date (YYYY-MM-DD, YYYY/MM/DD or YYYY.MM.DD).")
+  | Ok canon_day -> (
+      if not (is_valid_canonical_date canon_day) then
+        err ~field:Field_date ~raw:"invalid-date" (tr "Enter a real Gregorian date.")
+      else
+        match R.effects book draft with
+        | Error "posting-required" ->
+            err ~raw:"posting-required" (tr "At least one posting is required.")
+        | Error "empty-measure" ->
+            err ~field:Field_currency ~raw:"empty-measure" (tr "A Measure is required.")
+        | Error why when Base.String.is_substring why ~substring:"invalid-amount" ->
+            err ~raw:why (format_message "%s. Enter a valid exact decimal amount." why)
+        | Error why when Base.String.is_substring why ~substring:"non-positive-amount" ->
+            err ~raw:why (format_message "%s. Enter a positive amount magnitude." why)
+        | Error why when Base.String.is_substring why ~substring:"amount-precision" ->
+            err ~raw:why (format_message "%s. Check the Measure decimal scale." why)
+        | Error why when Base.String.is_substring why ~substring:"empty-locus" ->
+            err ~raw:why (format_message "%s. Select an admitted Locus." why)
+        | Error why -> err ~raw:why (format_message "Invalid postings (%s)." why)
+        | Ok effects -> (
+            match D.Movement.validate effects with
+            | Error (D.Movement.Empty :: _) ->
+                err ~raw:"empty-movement" (tr "At least one posting is required.")
+            | Error (D.Movement.Zero_quantity { position } :: _) ->
+                err ~field:Field_amount ~raw:"zero-quantity"
+                  (format_message "Posting %d is zero. Enter a nonzero amount." position)
+            | Error (D.Movement.Measure_mismatch { position; expected; actual } :: _) ->
+                err ~field:Field_currency ~raw:"measure-mismatch"
+                  (format_message "Posting %d Measure (%s) differs from the other postings (%s)." position
+                     (D.Identifier.Measure.to_string actual)
+                     (D.Identifier.Measure.to_string expected))
+            | Error (D.Movement.Unbalanced { measure = _; residual = _ } :: _) ->
+                err ~field:Field_amount ~raw:"unbalanced-movement"
+                  (tr "The signed postings are unbalanced; their exact sum must be zero.")
+            | Error [] -> err ~raw:"invalid-movement" (tr "Invalid Movement structure.")
+            | Ok _ ->
+                let changes =
+                  List.map (fun e -> (lstr (D.Effect.locus e), quanta e)) effects
+                in
+                let plan, replace =
+                  match mode with
+                  | Plan_edit p ->
+                      ({ p with day = canon_day; measure = draft.R.measure; changes }, true)
+                  | Plan_new ->
+                      ( {
+                          B.id = F.new_id ();
+                          day = canon_day;
+                          measure = draft.R.measure;
+                          changes;
+                          paid_by = None;
+                          cancelled_on = None;
+                        },
+                        false )
+                  | New | Edit _ | Pay _ ->
+                      failwith "unexpected mode for build_plan"
+                in
+                match B.put_plan book ~replace plan with
+                | Ok _ -> Ok (plan, replace)
+                | Error "duplicate-plan" ->
+                    err ~raw:"duplicate-plan"
+                      (format_message "The Scheduled ID already exists (ID: %s)." plan.id)
+                | Error "unknown-plan" ->
+                    err ~raw:"unknown-plan" (tr "The Scheduled occurrence is unavailable.")
+                | Error "plan-already-paid" ->
+                    err ~raw:"plan-already-paid" (tr "This Scheduled occurrence is already completed.")
+                | Error "plan-cancelled" ->
+                    err ~raw:"plan-cancelled" (tr "This Scheduled occurrence is cancelled.")
+                | Error "locus-unapproved" ->
+                    err ~raw:"locus-unapproved" (tr "A Locus is not admitted by the current book.")
+                | Error why ->
+                    err ~raw:why (format_message "Scheduled refused (%s). Review the draft." why)))
 
 let recovery_message =
   tr "Unconfirmed save evidence exists. Writes stopped; exit and use --inspect-recovery."
@@ -601,6 +682,69 @@ let commit_transaction ~session ~base_bytes (tx : transaction) : commit_result =
                 Payload_drift_refused (Printf.sprintf "duplicate-id-%s-payload-drift" tx.entry.id)
             | None -> Refused why))
 
+let commit_plan ~session ~base_bytes ~replace (plan : B.plan) : commit_result =
+  if base_bytes <> session.F.bytes then Conflict_base_changed
+  else if session.format = F.Records then
+    Refused
+      (tr "Records publication does not support Scheduled changes. No bytes were changed.")
+  else
+    match B.put_plan session.book ~replace plan with
+    | Error why -> Refused why
+    | Ok candidate -> publish_candidate ~session candidate
+
+let commit_cancel_plan ~session ~base_bytes ~id ~day : commit_result =
+  if base_bytes <> session.F.bytes then Conflict_base_changed
+  else if session.format = F.Records then
+    Refused
+      (tr "Records publication does not support Scheduled cancellation. No bytes were changed.")
+  else
+    match B.cancel_plan session.book ~id ~day with
+    | Error why -> Refused why
+    | Ok candidate -> publish_candidate ~session candidate
+
+let commit_reverse_entry ~session ~base_bytes ~id ~day : commit_result =
+  if base_bytes <> session.F.bytes then Conflict_base_changed
+  else if session.format = F.Records then
+    Refused
+      (tr "Records publication does not support Actual reversal. No bytes were changed.")
+  else
+    match B.find_entry session.book id with
+    | None -> Refused (tr "The Actual occurrence is unavailable.")
+    | Some target ->
+        if target.reversal_of <> None then
+          Refused (tr "This entry is already a Reversal; it cannot be reversed.")
+        else if List.exists (fun (e : B.entry) -> e.reversal_of = Some target.id) (B.entries session.book) then
+          Refused (tr "This entry has already been reversed.")
+        else
+          let inverse_effects =
+            List.map
+              (fun e ->
+                D.Effect.create ~key:(D.Effect.key e) ~locus:(D.Effect.locus e)
+                  ~measure:(D.Effect.measure e)
+                  ~quantity:(D.Quantity.neg (D.Effect.quantity e)))
+              target.effects
+          in
+          let reversal : B.entry =
+            {
+              id = F.new_id ();
+              day;
+              memo =
+                Some
+                  ("Reversal of " ^ target.id
+                  ^ match target.memo with Some m -> ": " ^ m | None -> "");
+              effects = inverse_effects;
+              reversal_of = Some target.id;
+              exchange = None;
+            }
+          in
+          match B.put_entry session.book ~replace:false reversal ~plan:None with
+          | Error why -> Refused why
+          | Ok candidate -> publish_candidate ~session candidate
+
+let commit_payload ~session ~base_bytes = function
+  | Entry_tx tx -> commit_transaction ~session ~base_bytes tx
+  | Plan_tx { plan; replace } -> commit_plan ~session ~base_bytes ~replace plan
+
 let commit_add_locus ~session name : commit_result =
   let name = String.trim name in
   if String.equal name "" then Refused (tr "Enter the new Locus token.")
@@ -667,8 +811,8 @@ let reload ~session ~pending ~mode : reload_result =
         | Some _ -> Pending_unconfirmed loaded
         | None -> (
             match mode with
-            | Edit _ when loaded.bytes <> session.bytes -> Edit_base_changed loaded
-            | New | Pay _ | Edit _ -> Reloaded loaded))
+            | (Edit _ | Plan_edit _) when loaded.bytes <> session.bytes -> Edit_base_changed loaded
+            | New | Pay _ | Edit _ | Plan_new | Plan_edit _ -> Reloaded loaded))
   with
   | F.Refused why -> Reload_failed why
   | Unix.Unix_error _ | Sys_error _ -> Reload_failed "IO-error"
