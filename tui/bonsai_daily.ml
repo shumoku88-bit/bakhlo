@@ -264,6 +264,7 @@ let self_check () =
   Recovery_checks.self_check ();
   let state = Daily_interaction_checks.self_check ~width_of () in
   Record_session_checks.self_check ~width_of ();
+  Scheduled_session_checks.self_check ~width_of ();
   let ansi view =
     let buffer = Buffer.create 128 in
     Notty.Render.to_buffer buffer Notty.Cap.ansi (0, 0) (V.width view, V.height view)

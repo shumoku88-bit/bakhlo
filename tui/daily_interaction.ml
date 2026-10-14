@@ -10,6 +10,7 @@ module Cal = Daily_calendar
 module M = Ui_commands
 module S = Record_session
 module Rev = Reversal_session
+module Sch = Scheduled_session
 module Form = Ui_form
 module Panel = Ui_panel
 module Att = Attention_data
@@ -48,6 +49,7 @@ type overlay =
   | Search of string
   | Modal_form of Form.t
   | Reversal of Rev.t
+  | Scheduled_create of Sch.t
 
 let is_cancel_plan = function
   | Modal_form f when Form.id f = "cancel_plan" -> true
@@ -55,6 +57,10 @@ let is_cancel_plan = function
 
 let is_reverse_entry = function
   | Reversal _ -> true
+  | _ -> false
+
+let is_scheduled_create = function
+  | Scheduled_create _ -> true
   | _ -> false
 
 let is_add_attention = function
@@ -329,9 +335,8 @@ let open_plan_record state =
     let measure = state.workspace.measure in
     {
       state with
-      record = Some (S.create_plan ~book:state.session.book ~day ~measure ());
-      record_visible = true;
-      overlay = No_overlay;
+      overlay = Scheduled_create (Sch.create ~book:state.session.book ~day ~measure);
+      record_visible = false;
       message = "";
     }
 
@@ -528,6 +533,9 @@ let record_dimensions ~dimensions:((width, height) as dimensions) ~width_of stat
 
 let reversal_dimensions ~dimensions ~width_of state =
   Rev.dimensions (body_dimensions ~dimensions ~width_of state)
+
+let scheduled_dimensions ~dimensions ~width_of state =
+  Sch.dimensions (body_dimensions ~dimensions ~width_of state)
 
 let update_calendar state action =
   match Cal.apply state.workspace.calendar action with
@@ -1126,6 +1134,34 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 let draft = { state with overlay = Reversal (Rev.with_publish_error editor) } in
                 Some (apply_commit_result state ~draft
                   (A.commit_reverse_entry ~session:state.session ~base_bytes ~id ~day))))
+    | Scheduled_create editor -> (
+        match input with
+        | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
+        | _ -> (
+            let dim = scheduled_dimensions ~dimensions ~width_of state in
+            match Sch.handle ~blocked:state.blocked ~dimensions:dim ~width_of editor input with
+            | Sch.Updated editor -> Some { state with overlay = Scheduled_create editor }
+            | Sch.Closed -> Some { state with overlay = No_overlay }
+            | Sch.Publish draft ->
+                let plan =
+                  {
+                    B.id = Daily_actions.F.new_id ();
+                    day = draft.Sch.scheduled_on;
+                    measure = draft.Sch.measure;
+                    changes = draft.Sch.changes;
+                    paid_by = None;
+                    cancelled_on = None;
+                  }
+                in
+                let draft_state =
+                  { state with overlay = Scheduled_create (Sch.with_publish_error editor "Publish failed.") }
+                in
+                Some
+                  (if state.blocked then draft_state
+                   else
+                     apply_commit_result state ~draft:draft_state
+                       (A.commit_payload ~session:state.session ~base_bytes:state.session.bytes
+                          (A.Plan_tx { plan; replace = false })))))
     | Commands menu -> (
         match M.handle menu input with
         | M.Updated menu -> Some { state with overlay = Commands menu }
@@ -2426,6 +2462,7 @@ let footer state =
   match state.overlay with
   | Reversal _ when state.blocked -> [ "Writes stopped; date retained"; "Ctrl-r inspect/reload  q keep" ]
   | Reversal editor -> Rev.footer editor
+  | Scheduled_create editor -> Sch.footer editor
   | Themes _ -> [ "j/k or Up/Down preview theme"; "Enter save  Esc/q cancel" ]
   | Modal_form form -> (
       match Form.id form with
@@ -2685,6 +2722,21 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
         let origin_y = max 0 ((body_h - pane_h) / 2) in
         let cursor =
           match Rev.cursor_position ~dimensions:pane_dimensions ~width_of editor with
+          | Some (col, row) ->
+              let c = origin_x + col and r = origin_y + row in
+              if c < width && r < height then Some (c, r) else None
+          | None -> None
+        in
+        Some { origin_x; origin_y; pane_width = pane_w; pane_height = pane_h; rows; cursor }
+    | Scheduled_create editor ->
+        let pane_dimensions = scheduled_dimensions ~dimensions ~width_of state in
+        let pane_w = fst pane_dimensions in
+        let rows = Sch.screen ~book:state.session.book ~dimensions:pane_dimensions ~width_of editor in
+        let pane_h = List.length rows in
+        let origin_x = max 0 ((width - pane_w) / 2) in
+        let origin_y = max 0 ((body_h - pane_h) / 2) in
+        let cursor =
+          match Sch.cursor_position ~book:state.session.book ~dimensions:pane_dimensions ~width_of editor with
           | Some (col, row) ->
               let c = origin_x + col and r = origin_y + row in
               if c < width && r < height then Some (c, r) else None

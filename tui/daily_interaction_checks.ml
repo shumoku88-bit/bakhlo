@@ -1016,24 +1016,12 @@ let self_check ~width_of () =
   require completion.record_visible "scheduled-completion-explicit";
   let _ = C.discard completion in
   let plan_creating = key ~width_of scheduled (`ASCII 'n') in
-  require (plan_creating.record_visible && Option.is_some plan_creating.record)
+  require (C.is_scheduled_create plan_creating.overlay)
     "scheduled-key-n-opens-plan";
-  require (S.mode (Option.get plan_creating.record) = Daily_actions.Plan_new)
-    "scheduled-n-mode-plan-new";
-  let plan_with_input = key ~width_of (key ~width_of plan_creating `Tab) `Tab in
-  let plan_with_input = text ~width_of plan_with_input "wallet" in
-  let closed_plan = key ~width_of plan_with_input `Escape in
-  require ((not closed_plan.record_visible) && C.has_record_draft closed_plan)
-    "scheduled-plan-draft-retained";
-  let refused_e = key ~width_of closed_plan (`ASCII 'e') in
-  require (refused_e.message <> "" && not refused_e.record_visible)
-    "draft-retained-blocks-edit";
-  let refused_c = key ~width_of closed_plan (`ASCII 'c') in
-  require (refused_c.message <> "" && not refused_c.record_visible)
-    "draft-retained-blocks-pay";
-  let cleared = C.discard closed_plan in
-  require (not (C.has_record_draft cleared)) "scheduled-draft-discarded";
-  let plan_editing = key ~width_of cleared (`ASCII 'e') in
+  let closed_plan = key ~width_of plan_creating `Escape in
+  require (closed_plan.overlay = C.No_overlay)
+    "scheduled-plan-cancel-closes-overlay";
+  let plan_editing = key ~width_of closed_plan (`ASCII 'e') in
   require (plan_editing.record_visible && Option.is_some plan_editing.record)
     "scheduled-key-e-opens-edit";
   (match S.mode (Option.get plan_editing.record) with
