@@ -1,151 +1,202 @@
-# LOAM UI 差分・移行管理台帳 (LOAM UI Gap Ledger)
+# LOAM UI 差分・移行管理台帳
 
-## 1. 文書の目的と協調作業ルール
+## 1. 読み方・比較基準
 
-### この文書の目的
-本書は、LOAM（Lean 4 実装）の洗練された TUI を基準とし、Bakhlo（OCaml + Bonsai 実装）の UI を**同等の職人品質（機能・見た目・操作体験・堅牢性）**へ揃え、さらに磨き上げていくための**網羅的差分管理台帳**である。
+LOAM品質の非予算の日常機能をBakhloへ揃えるための、**画面別差分と並行依頼の入口**。
+機能・保持情報・保存安全性は [CUTOVER_CHECKLIST.ja.md](CUTOVER_CHECKLIST.ja.md)、
+描画・操作方針は [UI_DIRECTION.ja.md](UI_DIRECTION.ja.md)、
+実際の検証範囲は [VERIFICATION.md](VERIFICATION.md) を参照する。同じ進捗表を新設しない。
 
-現在、複数の AI（Claude Code, Cursor, Antigravity 等）および人間が協調して作業しているため、**コンフリクトの防止、作業範囲の明確化、客観的な完了判定基準の共有**を最優先とする。
+- 対象：固定Home、Calendar、Record、Actual、Scheduled、Balances、Daily Pace、Attention、非予算Reports、設定・外貨・精算・出力。
+- 対象外：盆栽の成長、予算配分・振替・消化・用途routing・Budget Window。日本語UIの採用は未決定。
+- この整理の基準：Bakhlo `b21b30c` **＋作業ツリーの共通panel変更**、LOAM `db631763` のソース／TUI契約。
+  `ui_panel.ml/.mli`、その接続・回帰・build登録は未コミット差分も含む。HEADだけを再現基準にしない。
+- 今回はソースと既存検証記録の整理。新しいLOAM実行・スクショ比較はしていない。
+  既存LOAMバイナリがこのHEADに一致するかも未確認。各比較時に双方のrevision・差分・binaryを記録する。
+- LOAMの本番台帳・configを変更しない。運用切替・二重記帳・自動同期・storage研究の着手許可ではない。
 
-### 複数作業者（AI / 人間）協調ルール
-1. **着手前の宣言**: 作業を開始する際は、本台帳のステータスを `作業中（担当: ○○）` に更新し、競合を防ぐ。
-2. **1 画面・1 課題ずつの進行**: 複数画面にまたがる破壊的な共通化や一括改修を行わず、1画面ごとに「コード修正 → ビルド → スクショ/描画確認 → テスト」を完結させる。
-3. **客観的な検証の必須化**:
-   - 通常画面（80×24、120×36 等）でのレイアウト・余白・配色のスクショ比較
-   - 極小画面（32×9、48×14 等）での縮退表示・リサイズ耐性（Bounded Layout）
-   - キーバインド・下書き保護・確定拒否の挙動確認
-4. **完了の定義**: 「コードを書いた」だけでなく、「LOAM のスクショ／動作と見比べて違和感がないこと」「テストが通過すること」をもって `検証待ち` → `完了` とする。
+### 差分は四種類に分ける
 
----
+| 記号 | 種類 | 任せる内容 |
+| --- | --- | --- |
+| **F** | 機能・保持情報の不足 | API／モデル／永続項目／照会の設計・接続。見た目の修正では埋まらない |
+| **O** | 操作・画面接続の差 | キー、focus、検索、確認、取消、下書き、戻り先、入口 |
+| **V** | 見た目・配置の差 | 接続済み機能の枠・余白・整列・強弱・縮退。未実装機能を飾って代用しない |
+| **Q** | 検証・安全性の残り | 同じ入力での回答／拒否、確定gate、失敗・再開、PTY、対照スクショ、人間の受入 |
 
-## 2. 職人的品質の共通評価基準（The Craftsmanship Criteria）
+複数の種類が同じ画面に残る。**Vが合格でもF/O/Qは完了しない**。
+`試用接続`は入口から既存処理を試せること、`局部接続`は表記した部分だけ、
+`未接続`は該当画面がないこと。型・表示名・routeの存在だけでは接続としない。
 
-LOAM の設計思想（[`TUI_REFINEMENT_ROADMAP.md`](../../loam/docs/TUI_REFINEMENT_ROADMAP.md)）および Bakhlo の方針（[`UI_DIRECTION.ja.md`](UI_DIRECTION.ja.md)）に基づき、全画面共通で以下の 6 つの柱を判定基準とする。
+検証欄の `T` は既存の合成self-check、`P` は既存の合成native PTYの限定範囲。
+今回ソースを確認したことと、テストを新しく実行したことを混同しない。
+記載がない機能のテスト成功は推定しない。全画面でLOAM対照実行・実機受入は未完、運用認定は未。
 
-| # | 品質基準 | 具体的な要件・配慮ポイント |
-| :--- | :--- | :--- |
-| **C-1** | **幾何学的堅牢性<br>(Bounded Layout)** | 大画面から極小（32×9, 48×14）までリサイズ時に絶対にクラッシュ・文字欠損・枠線破綻を起こさない。画面幅・高さの縮小時は情報優先順位に従い安全に縮退・畳みを行う。 |
-| **C-2** | **静寂と抑制の美学<br>(Quiet Aesthetics)** | 派手な原色や不要な装飾ウィジェットを排し、細い丸角枠（`╭─╮`）、控えめな階調（`.normal` と `.muted`）で統一。強調色（フォーカス枠、選択行）は意図された焦点にのみ最小限用いる。 |
-| **C-3** | **固定下部ナビ＆予約通知行<br>(Stable Navigation)** | 最下部の固定 2 段キー操作案内と、折り返し通知/フィードバック行の高さを常に確保。通知の発生・消去によって一覧やフォームの高さが上下に揺れない（レイアウトを揺らさない）。 |
-| **C-4** | **フォーカスと選択の分離<br>(Focus vs Selection)** | 非アクティブなペインでもカーソル・選択位置を記憶・維持する。強いハイライト背景はアクティブ側にのみ適用し、非アクティブ側は控えめな枠やマーカーにとどめる。 |
-| **C-5** | **金額・数値の厳密性<br>(Numerical Integrity)** | 符号付き整数 quanta と明示の小数桁を右寄せで整列。枠に入り切らない場合に「途中で桁を切って別の金額に見せる」ことを厳禁とし、収まらない場合は詳細画面へ安全に誘導する。ゼロと不明・対象外を明確に区別。 |
-| **C-6** | **下書き保護とフェイルセーフ<br>(Draft Safety & Fail-safe)** | 編集・作成は背景（親の文脈）が視界に残る中央フローティング枠を基本とする。`Esc` や `Cancel` でも入力中の下書きを黙って破棄せず保持する。極小画面で確認全文が読めない場合は誤認防止のため確定（Publish）を明示拒否する。 |
+## 2. 共通の品質基準
 
----
+| 基準 | 守ること |
+| --- | --- |
+| C-1 寸法 | 80×24／120×36と32×9／48×14。選択・リサイズ・長文・日本語でもcell幅と高さを守る |
+| C-2 静かな表示 | 細い丸角枠、端末所有の配色、意味のあるfocusだけを強調。派手さを完成度にしない |
+| C-3 安定した下部領域 | 操作案内・通知を確保。短い通知で揺らさず、長い拒否理由は隠さない |
+| C-4 focusと選択 | 非active側も選択を保持。可視行に従うページ送り、末尾、戻り先、下書き再開 |
+| C-5 数量 | 正確な符号・Measure・桁。長い値を途中で切らず詳細へ。異なる通貨、不明、ゼロを混同しない |
+| C-6 確定と下書き | 閲覧・picker・Previewは保存しない。明示確定、全文確認、狭小拒否、競合／結果不明の停止を維持 |
 
-## 3. LOAM の改善余地・Bakhlo で先取りできる進化ポイント
+LOAMの [TUI契約](../../loam/docs/TUI.md) と
+[共有部品の点検方針](../../loam/docs/TUI_REFINEMENT_ROADMAP.md) を読む。
+Bakhloの保存形式をLOAMと同じにする指示ではなく、永久Correction鎖の復活も要求しない。
 
-LOAM を単に模倣するだけでなく、LOAM の改善課題として残されている項目や、Bakhlo (OCaml + Bonsai) のリアクティブな特性を活かしてさらに丁寧に作れるポイント：
+## 3. 画面別差分（UI-01〜UI-33）
 
-1. **インクリメンタル・ファジー（あいまい）検索**:
-   Commands パレットや Locus 候補選択で、文字入力に伴いリアルタイムにスコアリングして瞬時に絞り込む。
-2. **Discoverability（`?` ヘルプオーバーレイ）**:
-   下部フッターに収まりきらない文脈依存のショートカット一覧を `?` でいつでもポップアップ表示（which-key 風）。
-3. **セマンティック枠線色（Border Semantics）**:
-   画面の静けさを維持しつつ、枠線色だけでモーダルの性質を直感させる：
-   - **標準入力（新規）**: 落ち着いたブルー／シアン系
-   - **変更・修正（注意）**: 落ち着いたアンバー／イエロー系
-   - **取消・削除・逆仕訳（警告）**: 落ち着いたローズ／レッド系
-4. **端末エルゴノミクス**:
-   マウスホイールやトラックパッドでの詳細ペインのスムーズなスクロール、OS クリップボードとの安全な連携。
+各行は依頼の全範囲ではなく、下の依頼カードで切るための入口。詳細な機能境界は機能判定表を優先する。
+既存の視覚改修・監査は、そのスライスの成果として保持し、画面全体の互換合格へ拡張しない。
 
----
+| ID | 面 | Bakhloの現行接続 | 残差の種類と内容 | 既存検証／担当メモ |
+| --- | --- | --- | --- | --- |
+| **UI-01** | Home／Calendar | 試用：固定盆栽Home、Day／Month／Year、期間内Actual／open予定のDetail | **F** role-aware収支・月年集計。**O** Help等。**V/Q** Calendarの配置・縮退・対照受入 | T：Home／暦。前段Antigravity：葉／鉢・入口キーの彩色、Home固定footerを整理。対照スクショ待ち |
+| **UI-02** | Commands | 試用：階層palette、実装済み入口 | **O** LOAMの未接続report等はまだ入口なし。**V/Q** 同一rectangle・選択・短い端末で対照 | T：階層・極小palette。前段Antigravity：タイトル／path・説明header、選択marker、固定help、不要counter除去。対照待ち |
+| **UI-03** | Actual一覧・検索・詳細 | 試用：All／Day、昇降順、検索modal内のlive絞込、2ペイン | **O** Locus絞込UI、画面内検索、独立したTransaction detailとaction文脈。**V** LOAMのLoci／Actuals／Details配置・観測文脈。**Q** 対照 | T/P：列揃え、符号・桁区切り、split／multi、安全な省略、共通viewport、下書き。前段監査はこの範囲。全互換ではない |
+| **UI-04** | Selected Day | 試用：選択日のActual／open予定とDetail | **F** role-aware収支。**O** 現在のq/EscはDetail→一覧→Homeで、Calendarへの親復帰に差。**V/Q** 混在一覧・空・狭小 | T：drill／現行戻り先。LOAMの親復帰を満たすテストではない |
+| **UI-05** | Record入力・Locus候補 | 試用：Date／Description／Measure／複数Posting、許可済み候補 | **O/V/Q** 候補paneの配置・選択、IME、focus／caret、取消・再開の実物比較 | T：Unicode、paste、構造制約、追加行、floating／極小。P02 Antigravity：大画面（>=72）のMovement上部枠＋Postings（左3/5）とLocus candidates（右2/5）の横並びマルチペイン化、狭小端末のFieldsパネル縮退を実装・検証完了 |
+| **UI-06** | Record Preview | 試用：Publish／Edit／Cancel、exact全体確認、狭小確定拒否 | **V/Q** action配置、数量・長文、最終viewport、実機対照。全文gateを弱めない | T：巨大数量、キー／支払リンク、狭小・未読末尾の拒否。P02 Antigravity：Publication gate（recheck evidence + Locus admission）案内行、枠・ボタン整列、全文gate維持を実装・検証完了 |
+| **UI-07** | Original amount | 未接続：Daily永続項目・入力なし | **F/O** 原額を記帳量と独立に保持／接続。換算値で捏造しない | 見た目だけの依頼不可。F03 |
+| **UI-08** | unresolved有効化 | 未接続：Record専用の追加確認なし。Manage Lociは別入口 | **F/O** 未解決語彙の意味・明示admission・元draftへの復帰。**Q** 拒否 | 通常候補選択で代用しない。R06 |
+| **UI-09** | Actual Correction | 試用：Record系Edit／Preview、同一ID・Postingキー／構成／符号・支払対応保持 | **O** LOAMの表現可能範囲・操作対照。**V/Q** 注意枠、原内容と確認内容。対応外shapeは拒否 | T：符号／構成lock、ID・キー・payment link保持 |
+| **UI-10** | Actual日付変更専用 | 未接続：通常EditのDate変更はあるが専用入口／Previewなし | **O/Q** date-only操作と対象identity、対応可能なshape、全Effects不変・再読込の照合 | 「日付を一切変えられない」という意味ではない |
+| **UI-11** | Reversal入力・確認 | 局部：xで日付modal→既存exact inverse writer。元Actualは残る | **O/Q** LOAMのr・逆Posting独立Preview・全文／狭小gateとの差。**V** 警告枠・原対象 | T：inverse／二重反転拒否。Record Previewの確定拒否をこのmodalにも備えるとは扱わない |
+| **UI-12** | Scheduled Series Calendar | **未接続**：Home sはcurrent-open List | **F/O** 明示open／completed証拠とread-side監視のSeries、初期表示、月窓・継続入口 | schedule_view型だけでは実装済みでない。S04〜S06 |
+| **UI-13** | Scheduled Plan Detail | 局部：単発occurrenceのExpected Effects／due／ID | **F/O** Series内の複数日・監視／継続文脈なし。**V/Q** 単発detailの対照 | T/P：Actual共用の枠・端・ページ・resize・focus・draft／取消復帰 |
+| **UI-14** | Scheduled Months | **未接続**：六か月board・月別projectionなし | **F/O** 月内の明示occurrenceを選ぶprojection。**V/Q** 数量・counts・Listへの縮退 | type Monthsは画面接続の根拠でない |
+| **UI-15** | Scheduled List | 局部：current-open、文字検索、Day／All、一覧とdetail | **O** Locus絞込UI／LOAMのpane役割、表示順の対照。**V** Date／signed shape／数量列。**Q** 未供給と空 | T/P：共通viewportの可視行・端・選択。Current ListをSeriesと数えない |
+| **UI-16** | Scheduled作成 | 試用：一つの明示planをRecord系入力／Previewで作成 | **F/O** recurring／監視設定・補充は別。**V/Q** 入力／確認・対照 | T：Plan_new、exact保存。単一S式のみ、Records拒否 |
+| **UI-17** | Scheduled完了 | 試用：Actual入力／Previewとpaid-byの同時保存 | **O/V/Q** 元dueとActual date、元expectedと実績、復帰・対照 | T：単一S式のlink、終了後再開、既完了／取消の拒否。Recordsは部分Actual追記前に拒否 |
+| **UI-18** | Scheduled取消 | 局部：日付modal→既存取消writer、取消planを保持 | **O/Q** LOAMのKeep初期選択・独立Preview・狭小確認との差。**V** 警告／対象 | T：取消保持／再操作拒否。RecordのPreview gateを継承しない |
+| **UI-19** | Scheduled置換 | 試用：単発planのEdit／Preview | **F/O** Series／monitoringとの連動なし。**V/Q** 元予定・置換内容・候補の対照 | T：Plan_edit、ID保持、paid／cancelled拒否 |
+| **UI-20** | Scheduled batch amount | 未接続 | **F/O/Q** checked候補の複数選択・全体Preview・既存writerとの原子性／拒否 | 先に安全な発行単位を決める。装飾のみ不可 |
+| **UI-21** | Scheduled生成 | 未接続 | **F/O/Q** 明示候補・期間・個別review・保存単位。周期を事実にしない | S05。storage研究の別許可を代用しない |
+| **UI-22** | Scheduled継続／補充 | 未接続 | **F/O/Q** 明示template・cadence・horizon・生成Preview・失敗 | Series／監視の意味を確認してから |
+| **UI-23** | Scheduled coverage設定 | 未接続 | **F/O/Q** Expected paceをreplaceable観測設定として保持・接続 | 予定authority／NotDueを捏造しない |
+| **UI-24** | Balances Current | 局部：Current／Accounting、Observe prefill、画面内Print | **O** 初期Accounting→LOAM Currentとの違い、一覧page／Home・EndのBalance選択への接続不足。**V** 座標／数量／支持状態。**Q/F** role境界・会計回答対照、過去支持 | T：unknownとzero、表示／設定順・Print。role側の読込／save safetyは別の未認定境界 |
+| **UI-25** | 非予算Reports | 未接続：広いReports群。Pace／Balances入口は別行 | **F/O** Income & Expense、Transactions Flow、Stock–Flow、Trend、Liquidity、Multicurrency等のquery／入口／比較 | Budget Windowは対象外。外部Fava／exportはUI-32も参照。固定の「9画面」と数えない |
+| **UI-26** | Attention | 試用：due三状態、Add／Resolve／Drop、一覧・detail | **V/O/Q** 期限signal・action・一覧page／端と詳細端・対照。**F/Q** LOAM canonical情報との保持対応 | T：strict load、Unavailable、stale save／失敗draft保持。sidecarで全移行／P7を認定しない |
+| **UI-27** | Settlements一覧 | 局部：commitmentの累計settled／extinguished／outstanding sidecar | **F/O** LOAMのActual／Effect配分・通貨・group／参照の保持と照会。**V/O/Q** 現行限定一覧の数量・page／端・対照 | T：不正／重複／参照、巨大数量、stale／cold。完全なSettlementではない |
+| **UI-28** | Settlement action | 局部：累計Settle／Reduce／Retractの試用操作 | **F/O/Q** 実取引対応・独立証拠・訂正／撤回・Previewの全体差 | sidecar actionはActualを記帳しない。払込の代用にしない |
+| **UI-29** | Exchange | 局部：両通貨・数量入力modal→既存publisher | **O/Q** 独立Preview・入力候補・狭小全文確認・失敗時の復帰。**V** From／To整列 | T：exact両数量、Exchangeキー、cold readback。LOAM最新geometryの実物比較は未 |
+| **UI-30** | Manage Loci／roles | 局部：admit、明示role設定、一覧・detail | **F/O** label／説明／一覧設定編集、初回分類・使用済み制約。**Q** role load/save safety。**V** 現行一覧 | 語彙追加はzero残高や役割付与と別。roles安全修正を見た目依頼へ混ぜない |
+| **UI-31** | Observe quantities | 局部：一座標を入力、他座標の支持は保全 | **F/O/Q** LOAMの同時観測した全画像入力との意味・複数座標・Preview差。**V** 現行入力 | T：quantity／coordinate・cold。LOAMと同じ観測画像更新とは認定しない |
+| **UI-32** | Print／export／外部表示 | 局部：Balancesの画面内Print previewのみ | **F/O/Q** 同意付き通常端末出力、外部format、Fava・再開。**V** 現行preview | codec読取をexport対応と数えない。O03〜O05 |
+| **UI-33** | Daily Pace／Trend | 局部：現在量・明示Pool／一意period・What-if・Pool-only編集 | **F/O** 履歴・期間切替・Trend・graphは未接続。**V/Q** 現在画面／設定の対照 | T：不正条件拒否、負数整数除算、preset保全。Braille graphの仕上げ待ちではない |
 
-## 4. 画面別 差分・移行管理マトリクス (UI-01 〜 UI-33)
+### ソース対照の入口
 
-- **状態フラグ**:
-  - `未着手`: Bakhlo 側で未着手、または旧実装のまま
-  - `一部実装`: 基本的なルーティングやロジックはあるが、見た目・操作性の統一が未完
-  - `要スクショ検証`: 実装済み。LOAM 実物とのスクショ比較・セル単位の微調整待ち
-  - `作業中`: 担当者が現在改修作業中
-  - `完了`: スクショ検証・極小端末テスト・操作感の受入まで完了
+LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む。画面名が同じことだけで意味の一致を推定しない。
 
-| ID | 画面・機能名 | LOAM の状態・設計仕様 | Bakhlo 現状 | スクショ比較・細部仕上げチェックポイント | 状態 / 担当 |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **UI-01** | **Home / Calendar / Detail** | 盆栽アスキーアート＋月間カレンダー＋Detail。狭小では連続週ナビ・1行ナビへ縮退。固定2段ナビ＋`?`ヘルプ。月/年集計表示。 | 一部実装<br>(`Daily_calendar`, `Bonsai_daily`) | ・盆栽の葉（緑）と植木鉢（Chrome）の彩色済み<br>・エントランスキー（シアン太字）のハイライト済み<br>・Home 固定フッターの過剰表示を LOAM に整列済み<br>・月間カレンダー・Detail・極小縮退の幾何学テスト通過<br>・実機での見た目（スクショ）受入確認待ち | `要スクショ検証`<br>（担当: Antigravity） |
-| **UI-02** | **Commands パレット** | `Space` で開く階層コマンドパレット。グループ展開（`→`）、戻る（`←`/`Esc`）。余白・選択ハイライト。 | 一部実装<br>(`Ui_commands`, overlay) | ・タイトル「Commands」枠の統一<br>・階層パス名＋説明文ヘッダーの導入<br>・選択カーソル（`  > ` と反転太字）のLOAM統一<br>・パレット内固定操作案内フッターの導入<br>・不要なページカウンターを排除したクリーン丸角下枠<br>・極小画面（全幅）/大画面（中央フローティング）縮退テスト通過 | `要スクショ検証`<br>（担当: Antigravity） |
-| **UI-03** | **Actual 一覧・検索・詳細** | 初期表示 All Current / 新しい順。`f` で選択日/全件切替。検索クエリ、Locus絞り込み。右側/下部詳細ペイン。 | 一部実装<br>(`ui_workspace`, route `Actual`)<br>【監査合格】金額3桁区切り・符号・`multi`/`split`・あふれ安全省略（C-5）、列揃え・2ペイン/縮退（C-1, C-4）、下書き保護（C-6）を検証。<br>【残差分】LOAM固有の3ペイン（Loci/Actual/Detail）ではなく2ペイン構成。インライン検索・Locus絞り込みUIは未接続。 | ・一覧の列揃え（日付、Description、金額、Locus）<br>・金額の符号・桁区切り・通貨の右寄せ精度<br>・検索バー入力中の枠色とカーソル位置<br>・詳細ペインの折り返しとスクロールバー | `一部実装`<br>（pitスライス監査済・閲覧合格／実機スクショ比較待ち） |
-| **UI-04** | **Selected Day 日別詳細** | 選択日の全取引・Scheduled のコンパクト一覧と詳細。i/Tab で詳細切替。48×14 縮退。 | 一部実装<br>(`ui_workspace`, route `Selected_day`) | ・ヘッダーの日付表示と曜日、サマリー収支<br>・Actual と Scheduled の境界または区分表示<br>・空データ時のプレースホルダー表示<br>・親（Calendar）への復帰時の選択位置保持 | `要スクショ検証` |
-| **UI-05** | **Record 通常入力・Locus 候補** | 中央フローティング枠。Date/Desc/Measure/Posting。Locus 候補ポップアップ。IME・末尾表示。 | 一部実装<br>(`record_session`, `posting_draft`) | ・フローティング枠のセンタリングと枠線色（青系）<br>・入力フィールドのラベル幅揃えとカーソル描画<br>・Locus picker の出現位置とキーボード操作感<br>・行追加（Ctrl-N）/削除（Ctrl-D）の動的追従 | `要スクショ検証` |
-| **UI-06** | **Record 確認 (Preview)** | ID、日付、全Posting符号付き数量、Locus ID、支払い対応。Publish/Edit/Cancel選択。狭小確定拒否。 | 一部実装<br>(`record_session` preview) | ・Posting 行の整列とプラス/マイナス符号の色<br>・Publish / Edit / Cancel ボタンスタイルと選択枠<br>・端で切れない長文メモの折り返し<br>・確認文が収まらない極小端末での確定拒否警告 | `要スクショ検証` |
-| **UI-07** | **Record / Original amount 入力** | 外貨・元通貨入力用の補助入力枠。IME対応。 | 未着手 / 一部 | ・元通貨フィールドの入力レイアウト<br>・レート換算や参考表示の補助トーン | `未着手` |
-| **UI-08** | **Record / unresolved 有効化確認** | 語彙追加・未解決科目の有効化モーダル。 | 未着手 / 一部 | ・警告枠と確認メッセージの配置<br>・Yes/No 選択のアクションボタン | `未着手` |
-| **UI-09** | **Actual Correction 入力・確認** | 元明細を保持した訂正。アンバー枠。置換後 Effects、確認スクロール。 | 一部実装<br>(`daily_actions` Edit) | ・注意・修正を示すアンバー枠（セマンティック）<br>・訂正前と訂正後の差分表示のわかりやすさ<br>・変更不可フィールド（ID等）のディム表示 | `一部実装` |
-| **UI-10** | **Actual 日付修正 入力・確認** | 日付変更専用モーダル。新旧日付の階層表示。 | 未着手 / 一部 | ・新旧日付の対比レイアウト<br>・日付バリデーションエラーの即時表示 | `未着手` |
-| **UI-11** | **Actual Reversal 入力・確認** | 元明細を保持する逆仕訳。ローズ枠。符号付き逆Posting全文表示。 | 一部実装<br>(`reverse_entry` form) | ・警告を示すローズ/レッド枠（セマンティック）<br>・逆仕訳（符号反転）Posting の正確な表示<br>・明示的な確定ボタン操作 | `一部実装` |
-| **UI-12** | **Scheduled / Series Calendar** | 予定カレンダー。当月始まり、完了チェック（`✓`）表示。Plan Detail と連動。 | 一部実装<br>(`ui_workspace` route `Scheduled`) | ・カレンダーセル内の予定件数バッジと完了マーク<br>・未完了と完了（paid）の視覚的区別<br>・選択日の予定サマリー | `要スクショ検証` |
-| **UI-13** | **Scheduled / Plan Detail** | 予定の詳細表示。金額、周期、次回期日、関連科目。 | 一部実装 | ・詳細ペインの項目レイアウト・マージン<br>・次回到来日の強調表示 | `作業中（担当: pit／枠と詳細ナビのみ）` |
-| **UI-14** | **Scheduled / Months** | 月別の予定一覧・集計。 | 一部実装 | ・月ごとのグループヘッダーと折りたたみ<br>・月合計金額の右寄せ整列 | `一部実装` |
-| **UI-15** | **Scheduled / List** | 全 Scheduled のフラット一覧・フィルタ。 | 一部実装 | ・一覧の列揃えとステータス表示<br>・ソート順（期日順）のインジケータ | `作業中（担当: pit／共通viewportの可視行数・端のみ）` |
-| **UI-16** | **Scheduled 作成 入力・確認** | フローティング枠。期日、周期、金額、科目入力。確認画面。 | 一部実装<br>(`daily_actions` Plan_new) | ・フローティング枠の配置と入力フィールド揃え<br>・周期（Monthly, Weekly 等）の選択 UI | `一部実装` |
-| **UI-17** | **Scheduled 完了 入力・確認** | 予定の実績化（Complete）。フローティング枠。Actual日付・金額調整。 | 一部実装<br>(`daily_actions` Pay) | ・元予定情報の引用表示と実績入力欄の対比<br>・完了時の paid-by 連動確認 | `一部実装` |
-| **UI-18** | **Scheduled 取消確認** | 予定の取消モーダル。Keep / Cancel。ローズ枠。 | 一部実装<br>(`cancel_plan` form) | ・警告枠（ローズ枠）と取消対象のサマリー<br>・Keep（保持）と Cancel（取消）のボタン配置 | `一部実装` |
-| **UI-19** | **Scheduled 置換 入力・確認** | 予定の内容変更・置換発行。アンバー枠。 | 一部実装 | ・置換前後の比較レイアウト<br>・アンバー枠による注意喚起 | `一部実装` |
-| **UI-20** | **Scheduled 一括金額編集** | 複数予定の一括金額変更・チェックリスト。 | 未着手 | ・チェックボックス列と選択追従<br>・変更前後のプレビューテーブル | `未着手` |
-| **UI-21** | **Scheduled 生成 入力・確認** | 周期予定からのインスタンス生成画面。 | 未着手 | ・生成対象期間の入力と生成プレビュー | `未着手` |
-| **UI-22** | **Scheduled 継続の操作画面** | 終了期日の延長・次回サイクルの設定。 | 未着手 | ・継続設定のパラメータ入力フォーム | `未着手` |
-| **UI-23** | **Scheduled coverage 設定** | Plan Monitoring のペース選択パネル。 | 未着手 | ・ペース選択肢（5段階）のラジオ/リスト表示 | `未着手` |
-| **UI-24** | **Balances / Current** | Locus × Measure・符号付き quanta・根拠状態。右側詳細。巨大数量誘導。 | 一部実装<br>(`balance_view_data`, route `Balances`) | ・Locus ごとの階層インデントと残高の右寄せ<br>・ゼロ残高、不明量、正常残高のトーン差別化<br>・詳細ペインにおける根拠トランザクション一覧 | `要スクショ検証` |
-| **UI-25** | **Reports (非予算 9 画面)** | メニュー、Income/Expense、Stock-Flow、Liquidity 等。 | 未着手 | ・Reports メニューの階層表示<br>・各レポートのテーブル・グラフレイアウト | `未着手` |
-| **UI-26** | **Attention 一覧・詳細・操作** | 要注意項目一覧、期限（due）、Add / Resolve / Drop モーダル。 | 一部実装<br>(`attention_data`, route `Attention`) | ・重要度・期限切れ（Overdue）のバッジ表示<br>・Resolve / Drop モーダルの枠色と確認ボタン<br>・詳細ペインでの発生原因コンテキスト表示 | `要スクショ検証` |
-| **UI-27** | **Settlements 一覧・詳細** | 精算グループ一覧、未精算残高、詳細。 | 一部実装<br>(`settlement_data`, route `Settlements`) | ・相手方・グループごとの未精算額の整列<br>・決済済みと未決済の視覚的区別 | `一部実装` |
-| **UI-28** | **Settlement 操作・確認** | 精算実行（相殺・支払い記録）モーダル。 | 一部実装<br>(`action_settlement` form) | ・精算対象明細のチェックリストと合計計算<br>・精算トランザクション発行の確認画面 | `一部実装` |
-| **UI-29** | **Exchange 入力・確認** | 通貨両替・Measure 変換入力モーダル。 | 一部実装<br>(`exchange` form) | ・From 通貨・数量と To 通貨・数量の対比入力<br>・適用為替レートの補助表示 | `一部実装` |
-| **UI-30** | **Manage Loci 一覧・追加** | Locus（勘定科目・口座・場所）一覧、追加、役割設定。 | 一部実装<br>(route `Loci`, `admit_locus`, `set_locus_role`) | ・Locus トークン一覧と役割（Asset, Expense等）の列揃え<br>・新規追加モーダルの入力フィールドとバリデーション | `一部実装` |
-| **UI-31** | **Observe quantities 入力・確認** | 実地棚卸・残高観測値の入力モーダル。 | 一部実装<br>(`observe_quantity` form) | ・観測日・Locus・実測数量の入力行<br>・計算残高との乖離（差額）のプレビュー | `一部実装` |
-| **UI-32** | **Print / 補助表示** | プレーンテキスト出力、エクスポート確認。 | 未着手 | ・出力プレビュー枠と確認ダイアログ | `未着手` |
-| **UI-33** | **Daily Pace / Trend 本画面** | Braille 点字グラフ、履歴推移、数量/変化/再構成の詳細。48×14 保持。 | 一部実装<br>(route `Daily_pace`, what_if) | ・Braille グラフ（点字描画）の正確性とアスペクト比<br>・カーソル移動に追従する日別実績・目標ペース数値<br>・極端な外れ値が発生した際の安全なグラフクリップ | `要スクショ検証` |
+| 面 | Bakhlo入口 | LOAM入口（`loam/Loam/Tui/`） |
+| --- | --- | --- |
+| Home／Commands | `bonsai_daily.ml`、`daily_overlays.ml`、controllerのCalendar／Commands描画、`ui_commands.ml` | `Home.lean`、`HomeCommandPalette.lean` |
+| Record／Actual／Selected Day | `record_session.ml`、controllerのedit／reverse／Actual／Selected_day | `Record.lean`／`RecordSession.lean`、`ActualWorkspace.lean`、`SelectedDay.lean`／`SelectedDaySession.lean`、`ActualDateCorrection.lean`、`EventMerchant.lean` |
+| Scheduled | `ui_workspace.ml`、`record_session.ml`、controllerのScheduled／cancel | `ScheduledWorkspace.lean`／`ScheduledWorkspaceSession.lean`、`ScheduledCreation.lean`、`ScheduledCompletion.lean`、`ScheduledCancellation.lean`、`ScheduledReplacement.lean` |
+| Balances／Reports／Pace | `daily_overlays.ml`、`balance_view_data.ml`、controllerのbalance／pace／what-if | `Balances.lean`、`RoleBalances.lean`、`ReportsView.lean`／`ReportsSession.lean`、`DailyPaceTrend.lean`、`DailyPaceWhatIf.lean` |
+| Attention／Settlement／Exchange | 各data module、controllerのform／action／一覧 | `AttentionAdministration.lean`／`AttentionAdministrationSession.lean`、`SettlementWorkspace.lean`、`SettlementAction.lean`、`Exchange.lean`／`ExchangeSession.lean` |
 
----
+`Ui_workspace.set_locus`／`cycle_schedule_view`は現行controllerから呼ばれていない。
+またActual／Scheduled以外の一覧page／端は、汎用 `W.move_selection` の対象行と専用選択状態が一致しない箇所がある。
+`handle`、`W.rows`、family専用move／selected、`workspace_rows`を一緒に照合する。共通frame導入だけで全画面の操作が揃ったとは扱わない。
 
-## 5. スクショ比較と仕上げの具体的ワークフロー
+### 優先して切る差分
 
-### ステップ 1: 正解（LOAM）のキャプチャ取得
-1. 比較用の共有データ（`scratch/loam-comparison`）またはデモデータを用いる。
-2. LOAM 側で目的の画面を開き、ターミナルサイズ（例: 80×24, 120×36）を固定してスクショを撮影（macOS `screencapture -w` または自動取得）。
-3. 保存先: `scratch/ui-shots/loam/<画面ID>_<画面名>.png`
+1. **Q/Oの安全境界**：UI-11のinverse Preview、UI-18取消等の確認、rolesの拒否／保存。
+   機能拡張・見た目改善とは別の小さい変更にする。P7／電源断は独立した未認定課題。
+2. **V/Qの並行作業**：接続済みHome／Commands／Recordの対照・仕上げと、Actualのread-only差分採取。
+3. **Oの統合作業**：ActualのLocus／検索／Transaction detail、Selected Dayの親復帰。共通componentを使う。
+4. **Fの後続**：Scheduled Series／Months／監視・継続、Pace履歴、Reports、原額・Merchant・full Settlement。
+   最初は不足する保持情報／query／writer単位を調べ、架空の表示データで穴埋めしない。
 
-### ステップ 2: Bakhlo 側の同一画面キャプチャ取得
-1. Bakhlo 側で `./ui --demo` または同一比較データで `./ui` を起動。
-2. 全く同一のターミナルサイズで目的の画面を開き、スクショを撮影。
-3. 保存先: `scratch/ui-shots/bakhlo/<画面ID>_<画面名>.png`
+ファジー検索・wheel／clipboard等の追加改善は、必要性・現行LOAMとの差を確認して別依頼にする。
+一般的な改善案があることだけで今回の必須機能にしない。
 
-### ステップ 3: マルチモーダル視覚比較・コード修正
-1. AI が `view_file` で両スクショを直接閲覧・比較。
-2. 以下のピクセル/セル単位のズレをチェック：
-   - 枠線の角丸文字（`╭` `╮` `╯` `╰`）と線の太さ
-   - ヘッダー・フッターの余白（パディング）と区切り線の有無
-   - 金額の右寄せ・符号・通貨記号のスペーシング
-   - 選択カーソルの背景色とテキスト色のコントラスト
-3. `bakhlo/tui/*.ml` を修正し、再コンパイル・再キャプチャして一致するまで微調整。
+## 4. 並行作業の境界
 
-### ステップ 4: 堅牢性テスト（Bounded Layout）
-1. ターミナルサイズを `32×9` および `48×14` に縮小した状態での表示を確認。
-2. クラッシュせず、文字が折り返し/省略され、重要な情報（選択日、金額、戻るキー案内）が残っていることを確認。
-3. 本台帳のステータスを `完了` に更新。
+**現状は画面単位でファイルが分離されていない。画面名が違うだけでは安全に同時編集できない。**
 
----
+| 境界 | 主なファイル／関数（Bakhloからの相対path） | 扱い |
+| --- | --- | --- |
+| 中央controller | `tui/daily_interaction.ml` の `handle`、`workspace_rows`、`screen`、`overlay_screen`、`footer`、各form | Actual／Scheduled／Balances／Pace／Attention／Commands等が同居。編集・接続は一人ずつ統合 |
+| Renderer／テーマ | `tui/bonsai_daily.ml` の `attributes`、`border_attributes`、`lines`／`render`、`tui/ui_preferences.ml` | 見た目を任せられるが全画面へ波及。input adapter／event-loopは同じ依頼に混ぜない |
+| 既存描画・回答 | `tui/daily_overlays.ml` の `clip_text`／`wrap_text`／枠、`entry_lines`／`plan_lines`／残高、`bonsai_home_lines` | 幅・金額・会計回答・Homeが同居。担当関数を決め、file全体のformat／renameは禁止 |
+| 共通panel | `tui/ui_panel.ml/.mli` の `capacity`／`window`／`move`／`frame` | Actual／Scheduled等が利用。API変更は専任統合。見た目担当が独自viewportを複製しない |
+| 汎用modal | `tui/ui_form.ml/.mli` の `handle_input`／`render_rows` | 多数のoperationで共有。見た目とSubmit／Cancel規則を分離。Record Previewのgateとは別 |
+| Record owner | `tui/record_session.ml/.mli` の `screen`／field描画、`handle`／`review_geometry` | Record・訂正・予定作成／変更／完了で共有。paint変更は可能、寸法／gate変更は安全レビューが必要 |
+| 選択・draft入力 | `tui/ui_workspace.ml/.mli`、`tui/ui_input.ml/.mli`、`tui/daily_form.ml`、`tui/posting_draft.ml` | stable identity・filter・caret／pasteを保持。行番号や見た目で対象を再解釈しない |
+| family／保存境界 | `tui/attention_data.*`、`settlement_data.*`、`locus_roles.*`、`daily_actions.ml`、`daily_file.ml`、`sexp/`、`application/`、`lib/` | 見た目依頼の編集対象外。safe load／writer／semantic修正は別担当・別根拠 |
+| 検証／build | `tui/daily_interaction_checks.ml`、`record_session_checks.ml`、`bonsai_daily.ml` self-check、`tools/build-bonsai-tui` | 共用ファイル。増分test／module登録は統合時に調整。UIはCore CIだけでは検査されない |
 
-## 6. 作業着手の推奨ロードマップ
+### 協調ルール
 
-複数の AI で混乱なく進めるため、以下のフェーズ順で画面を着手することを推奨する。
+1. 依頼カードに **UI ID＋差分種別＋担当＋編集するfile／関数＋触らない境界＋根拠** を書く。
+   着手時に該当カード／行だけを `作業中（担当: pit名）` にする。この台帳の更新自体も同時に行わない。
+2. 同じcheckout・同じfileを複数pitが同時編集しない。read-only比較・調査は並行可。
+   編集を並行するなら別worktree等の分離した作業ディレクトリ・branchを使い、共有fileの接続・merge・最終testは一人が統合する。
+   同じcheckoutでbranchだけ切り替えても隔離されない。未コミットの共通panel差分も渡し、HEADだけを共有しない。
+   同じcheckoutの `tools/build-bonsai-tui`／UI self-checkは生成先を共有するため、buildも同時実行しない。
+   分離先に既存の隔離build環境があるか確認する。新依存installやglobal設定変更を当然の手順にしない。
+3. 共通APIを変える前に利用元を確認し、先に統合担当へ相談する。component／writerのコピーを画面ごとに増やさない。
+   無関係な一括format・cleanup・別pitの未確認変更のcommitはしない。
+4. 比較成果は画像だけでなく、入力・寸法・キー列・期待／実際・ソース位置を添える。
+   未接続、拒否、比較用binary／入力の欠損は未検証のまま報告し、fake表示で進捗を作らない。
+5. `実装済み`、`T/P成功`、`対照成功`、`人間の受入`を分けて返す。各画面のF/O/Qが残る間はVだけで完了にしない。
+   指摘がなければ「比較した範囲で差なし」でよい。コード修正や新しい共通部品を必ず作る必要はない。
 
-```mermaid
-flowchart TD
-    Phase1["【Phase 1】基本体験の完成<br>UI-01 (Home/Calendar)<br>UI-02 (Commands)<br>UI-03 (Actual)<br>UI-04 (Selected Day)"]
-    Phase2["【Phase 2】記帳・確認・訂正フロー<br>UI-05 (Record 入力)<br>UI-06 (Record 確認)<br>UI-09 (Correction)<br>UI-11 (Reversal)"]
-    Phase3["【Phase 3】予定・残高・ペース<br>UI-12〜15 (Scheduled)<br>UI-16〜19 (Scheduled 操作)<br>UI-24 (Balances)<br>UI-33 (Daily Pace)"]
-    Phase4["【Phase 4】管理・補助・レポート<br>UI-26 (Attention)<br>UI-27〜28 (Settlements)<br>UI-30〜31 (Loci / Observe)<br>UI-25 (Reports)"]
+## 5. そのまま渡せる依頼カード
 
-    Phase1 --> Phase2
-    Phase2 --> Phase3
-    Phase3 --> Phase4
+以下は依頼候補（担当・状態は各カードに記載、記載なしは未割当）。P05はユーザー承認によりpitが着手。
+今回はReversal専用session、中央controllerの反転接続、合成回帰、UI build登録と進捗文書に限定する。
+PTYで縮小直後の確定が古い寸法で判定される例が出たため、`bonsai_daily.ml` の `app`／`Terminal_event` の寸法伝達も担当する。
+Record／共通form／writer／rendererのpaintは変更しない。
+既存担当のUI-01／02は本人と範囲を確認してから割り振る。
+コード編集の許可範囲は、この表と依頼時の合意の狭い方。見た目／比較担当にもAGENTSと意味の契約を渡す。
+
+| カード | 対象／依頼 | 編集範囲・接続担当 | 完了条件／禁止事項 |
+| --- | --- | --- | --- |
+| **P01 見た目** | UI-01／02の接続済みHome／Commandsを対照。余白・強弱・配色・選択を仕上げる | Renderer／Home描画の合意した関数のみ。Commandsのcontroller変更は提案を統合担当へ | 4寸法、三テーマ、通知あり／なしの対照。Calendar収支や未接続reportを作らない。前段Antigravityの変更を保全 |
+| **P02 Record面** | UI-05／06の入力・候補・Previewの見た目／操作を対照 | `record_session.ml` のfield／action／screen描画、`record_session_checks.ml`。共通renderer／controllerは提案のみ | 長い日本語・巨大数量・literal bar・IME・Cancel／再開・tiny Publish拒否。`handle`／`review_geometry`／surface寸法変更は事前相談 |
+| **P03 読み取り比較** | UI-03／04のLOAM差を、操作列とスクショで具体化 | ソース・合成比較copyの閲覧のみ。成果はignored scratch＋この台帳の短い所見 | Locus、検索、単一detail、日付変更、戻り先、resizeを区別。実装・保存・本番copyのrefreshをしない |
+| **P04 Actual接続** | UI-03のLocus絞込／画面内検索を一課題ずつ接続 | 中央controller＋workspace＋その回帰を統合担当が専有。`ui_panel`は再利用 | scope／query／identity／draftを保持、閲覧で非書込。Transaction detail／新永続項目を同じ変更に混ぜない |
+| **P05 確認の安全性（作業中: pit）** | まずUI-11の原対象・exact inverse Preview・狭小gate／失敗復帰をLOAMと照合 | 中央controller、必要な共通modal、回帰を専有。P04と同時編集しない | writerは既存inverse検査を維持。read-only Preview、末尾、tiny拒否、競合／不確定、draftを確認。UI-18／29／31は後続の別課題 |
+| **P06 機能設計調査** | UI-12／14／22／23の明示予定と監視設定・Series／Monthsの不足を整理 | read-only調査／設計案だけなら並行可。実装file・保存単位は調査後に決める | open／completed／cancelled・欠損Actual・coverageを区別。監視cadenceを予定事実やNotDueにしない |
+| **P07 roles安全境界** | UI-24／30のrole parse／load／save拒否を独立に調べる | `locus_roles.*`と関連parser／controller利用元の調査。修正の接続は中央担当と調整 | 不正→空／false成功・stale write・draft／reload・coldを扱う。口座名／signからrole推測しない。Balancesの見た目依頼とは別 |
+| **P08 共通部品候補** | 次のpicker／浮動面／入力／金額部品が既存利用元で本当に共有可能か調べる | `ui_panel`、`ui_form`、Record、rendererの境界をread-only点検。API変更は専任統合 | 利用元2件以上の実益・拒否維持を示しKEEP／SPLIT／INLINE／DEFER。万能form・新状態管理・先回りのframeworkは禁止 |
+
+**すぐ並行にしやすい組合せ**：P01の限定paint、P02のRecord描画、P03のread-only比較、P06の設計調査。
+P01／P02が共通rendererやgeometryまで変更するなら分離をやめ、統合順を先に決める。
+P04／P05は異なる画面でも中央fileが重なるため、同時編集しない。
+
+### 依頼文テンプレート
+
+```text
+BakhloのLOAM互換作業。docs/LOAM_UI_GAP_LEDGER.ja.md のカード Pxx をお願いします。
+対象: UI-xx の [F/O/V/Q]。担当: [pit名]。
+基準: [双方のrevision＋未commit差分＋比較binary]。
+編集してよいfile／関数: [...]。触らない境界: [...]。
+LOAM本番、writer・意味・未実装機能のfake表示は変更しない。
+既存共通部品を使い、API変更／範囲拡大は先に相談する。
+合成入力、80×24／120×36／32×9／48×14で確認。
+成果: 差分・根拠・画像path・キー列・tests・未確認点。共有fileは統合担当へ渡す。
+着手／終了時の台帳更新は統合担当と順序を合わせる。
 ```
 
-1. **第 1 優先 (Phase 1): 日常の閲覧導線（Home / Commands / Actual / Selected Day）**
-   - ユーザーが起動して最も目にする画面群。ここを LOAM と完全に一致させることで、全体のトーン＆マナー（枠・余白・色・ナビ）が確定する。
-2. **第 2 優先 (Phase 2): 記帳・確認・訂正（Record / Correction / Reversal）**
-   - フローティングモーダル枠、セマンティック枠色（青/アンバー/ローズ）、下書き保持、狭小画面での確定拒否など、職人品質の核心部分を仕上げる。
-3. **第 3 優先 (Phase 3): 予定・残高・グラフ（Scheduled / Balances / Daily Pace）**
-   - カレンダー上のマーク（`✓`）、Braille グラフ、残高の符号付き quanta 整列を仕上げる。
-4. **第 4 優先 (Phase 4): 注意・精算・Loci 管理・レポート**
+## 6. 比較・検証の手順
+
+1. 双方のrevision、作業ツリー差分、既存binary、入力、terminal／theme、寸法と操作列を固定する。
+   **同じ意味の合成入力を用意できなければソース比較まで**。LOAMをbuild／installして穴埋めしない。
+2. 画像・ANSI transcriptは `scratch/ui-shots/<task>/loam/` と `.../bakhlo/` 等、各担当固有のignored場所へ。
+   公開fixtureへ私用台帳を流用しない。私用copyを使う場合も元台帳、config、旧試用と画像を保全し、内容を公開出力へ出さない。
+   `./ui --demo`はBakhlo合成入口であり、LOAM側に同一入力が自動供給されるという意味ではない。
+3. 通常2寸法＋極小2寸法で、空／日本語／長文／巨大数量／通知／resize／focusと、対象画面のconfirm／cancel／returnを確認する。
+   見た目担当も安全警告・不明・符号・currency・caretを隠さない。画像の画素一致だけを目標にしない。
+4. 実装変更時は `./tools/check` と `./tools/tui --self-check`、変更したpathの小さい回帰、必要なsynthetic PTYを実行する。
+   共通部品変更では直接利用元も検査する。docsだけの変更はlink・ID・source対応を検査し、未実行testを合格にしない。
+5. 比較成功・人間の受入・残るF/O/Qを台帳へ戻す。V/Qの限定完了は記録してよいが、未接続の面を完了にしない。
+
+原本のrefresh・運用切替・migration・耐久Saved／P7の認定はこのワークフローに含めない。

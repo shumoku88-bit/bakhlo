@@ -181,6 +181,18 @@ let self_check ~width_of () =
       require (List.for_all (fun (_,line) -> width_of line<=fst dimensions) rows) "record-bounded-cell-width")
       [draft;review;S.with_notice review (String.concat "" (List.init 20 (fun _ -> "Long refusal 日本語 ")))])
     [32,8;48,13;48,14;72,20;80,24;140,40;24,8];
+  let wide_screen = screen ~dimensions:(72,20) draft in
+  require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Movement") wide_screen
+    && List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Postings") wide_screen
+    && List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Locus candidates") wide_screen)
+    "record-wide-layout-has-movement-postings-and-candidates-panels";
+  let degraded_screen = screen ~dimensions:(32,8) draft in
+  require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Fields") degraded_screen)
+    "record-degraded-layout-falls-back-to-fields-panel";
+  let preview_gate_screen = screen ~dimensions:(72,20) review in
+  require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Publication gate") preview_gate_screen
+    && List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"recheck evidence") preview_gate_screen)
+    "record-preview-contains-publication-gate";
   let plan_draft = S.create_plan ~book ~day:"2026-10-15" ~measure:"jpy" () in
   require (not (S.has_draft plan_draft)) "fresh-plan-draft-is-empty";
   require (S.mode plan_draft = A.Plan_new) "is-plan-identified";

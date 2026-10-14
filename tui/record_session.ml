@@ -354,103 +354,299 @@ let action_line ~width_of width t =
     | Some index -> label index (List.nth labels index)
     | None -> tr "[Preview] … [Cancel]"
 
-let screen ~book ~dimensions:(width,height) ~width_of t =
-  let width=max 0 width and height=max 0 height in
-  let raw style text=style,O.pad ~width_of width text in
-  let navigation=match t.review with
-    | None ->
-        if width<50 then [tr "Tab field  Enter next / Preview";tr "C-n add  C-d drop  Esc hold draft"]
-        else [tr "Tab/Shift-Tab field  Enter next / Preview";tr "C-n add row  C-d drop row  Esc hold draft"]
-    | Some _ ->
-        if width<50 then [tr "↑↓ review  PgUp/Dn  Home/End";tr "Tab action  Enter choose  Esc hold"]
-        else [tr "↑↓ review  PgUp/Dn page  Home/End";tr "Tab action  Enter choose  Esc hold draft"]
-  in
-  let navigation=List.map (raw O.Chrome) navigation in
-  let title=match t.review,t.mode with
-    | Some _, A.Plan_new | Some _, A.Plan_edit _ -> tr "Scheduled / Preview"
-    | Some _,_ -> tr "Record / Preview"
-    | None,A.Plan_new -> tr "Scheduled / Create"
-    | None,A.Plan_edit _ -> tr "Scheduled / Edit"
-    | None,A.New -> tr "Record / Edit"
-    | None,A.Edit _ -> tr "Actual / Correct"
-    | None,A.Pay _ -> tr "Scheduled / Complete"
-  in
-  if width<4 || height<4 then
-    let rows=raw O.Heading title::navigation in
-    List.filteri (fun i _ -> i<height) rows
-      @ List.init (max 0 (height-List.length rows)) (fun _ -> raw O.Plain "")
+let sub_border ~width_of ~width ?(style = O.Frame) ?(sub = "") title =
+  if width < 4 then (style, O.pad ~width_of width "")
   else
-    let inside=max 0 (width-4) in
-    let content_capacity=max 0 (height-4) in
-    let feedback=notice_lines ~dimensions:(width,height) ~width_of t in
-    let action_height=if content_capacity>List.length feedback then 1 else 0 in
-    let capacity=max 0 (content_capacity-List.length feedback-action_height) in
-    let rows,bottom=match t.review with
-      | Some review ->
-          let shown_capacity,lines,scroll,_=
-            review_geometry ~book ~dimensions:(width,height) ~width_of t review in
-          let shown_capacity=min capacity shown_capacity in
-          let shown=lines |> List.filteri (fun i _->i>=scroll && i<scroll+shown_capacity) in
-          List.map (fun text->O.Plain,text) shown,
-          A.format_message "%d–%d / %d" (if lines=[] || shown_capacity=0 then 0 else scroll+1)
-            (min (List.length lines) (scroll+shown_capacity)) (List.length lines)
-      | None ->
+    let left_decor = "╭─ " and right_decor = if sub = "" then "─╮" else " ─╮" in
+    let min_decor = width_of left_decor + width_of right_decor in
+    if width <= min_decor then (style, O.pad ~width_of width (O.clip_text ~width_of width "╭──╮"))
+    else
+      let available = width - min_decor in
+      let sub_room = if sub = "" then 0 else min (available / 2) (width_of sub + 1) in
+      let title_room = max 0 (available - sub_room) in
+      let title_clipped = O.clip_text ~width_of title_room (tr title) in
+      let sub_clipped = if sub = "" then "" else " " ^ O.clip_text ~width_of (max 0 (sub_room - 1)) sub in
+      let used = width_of left_decor + width_of title_clipped + width_of sub_clipped + width_of right_decor in
+      let rule_len = max 0 (width - used) in
+      let raw = left_decor ^ title_clipped ^ " " ^ O.rule ~width_of (max 0 (rule_len - 1)) ^ sub_clipped ^ right_decor in
+      (style, O.pad ~width_of width (O.clip_text ~width_of width raw))
+
+let sub_bottom ~width_of ~width ?(style = O.Frame) ?(title = "") () =
+  if width < 2 then (style, O.pad ~width_of width "")
+  else
+    let left_decor = "╰─" and right_decor = "─╯" in
+    let min_decor = width_of left_decor + width_of right_decor in
+    if width <= min_decor then (style, O.pad ~width_of width (O.clip_text ~width_of width "╰──╯"))
+    else
+      let available = width - min_decor in
+      let title_text = if title = "" then "" else " " ^ O.clip_text ~width_of (max 0 (available - 2)) title ^ " " in
+      let rule_len = max 0 (available - width_of title_text) in
+      let raw = left_decor ^ title_text ^ O.rule ~width_of rule_len ^ right_decor in
+      (style, O.pad ~width_of width (O.clip_text ~width_of width raw))
+
+let inner_line ~width_of ~width style text =
+  let left = "│ " and right = " │" in
+  let room = max 0 (width - width_of left - width_of right) in
+  let content = O.clip_text ~width_of room text in
+  let padded = content ^ String.make (max 0 (room - width_of content)) ' ' in
+  (style, left ^ padded ^ right)
+
+let combine_side_by_side ~width_of ~width ~left_width ~right_width left_rows right_rows =
+  let max_len = max (List.length left_rows) (List.length right_rows) in
+  let pad_rows rows w =
+    let len = List.length rows in
+    rows @ List.init (max 0 (max_len - len)) (fun _ -> (O.Plain, String.make w ' '))
+  in
+  let left_padded = pad_rows left_rows left_width in
+  let right_padded = pad_rows right_rows right_width in
+  List.map2 (fun (left_style, left_text) (right_style, right_text) ->
+    let style = match left_style with
+      | O.Input _ -> left_style
+      | _ -> if left_style = O.Active || right_style = O.Active then O.Active
+             else if left_style = O.Focused_frame || right_style = O.Focused_frame then O.Focused_frame
+             else O.Plain
+    in
+    let raw = left_text ^ " " ^ right_text in
+    (style, O.pad ~width_of width (O.clip_text ~width_of width raw))) left_padded right_padded
+
+let screen ~book ~dimensions:(width,height) ~width_of t =
+  let width = max 0 width and height = max 0 height in
+  let raw style text = style, O.pad ~width_of width text in
+  let navigation = match t.review with
+    | None ->
+        if width < 50 then [tr "Tab field  Enter next / Preview"; tr "C-n add  C-d drop  Esc hold draft"]
+        else [tr "Tab/Shift-Tab field  Enter next / Preview"; tr "C-n add row  C-d drop row  Esc hold draft"]
+    | Some _ ->
+        if width < 50 then [tr "↑↓ review  PgUp/Dn  Home/End"; tr "Tab action  Enter choose  Esc hold"]
+        else [tr "↑↓ review  PgUp/Dn page  Home/End"; tr "Tab action  Enter choose  Esc hold draft"]
+  in
+  let navigation = List.map (raw O.Chrome) navigation in
+  let title = match t.review, t.mode with
+    | Some _, A.Plan_new | Some _, A.Plan_edit _ -> tr "Scheduled / Preview"
+    | Some _, _ -> tr "Record / Preview"
+    | None, A.Plan_new -> tr "Scheduled / Create"
+    | None, A.Plan_edit _ -> tr "Scheduled / Edit"
+    | None, A.New -> tr "Record / Edit"
+    | None, A.Edit _ -> tr "Actual / Correct"
+    | None, A.Pay _ -> tr "Scheduled / Complete"
+  in
+  if width < 4 || height < 4 then
+    let rows = raw O.Heading title :: navigation in
+    List.filteri (fun i _ -> i < height) rows
+    @ List.init (max 0 (height - List.length rows)) (fun _ -> raw O.Plain "")
+  else
+    match t.review with
+    | Some review ->
+        let inside = max 0 (width - 4) in
+        let content_capacity = max 0 (height - 4) in
+        let feedback = notice_lines ~dimensions:(width,height) ~width_of t in
+        let action_height = if content_capacity > List.length feedback then 1 else 0 in
+        let gate_height = if content_capacity - List.length feedback - action_height >= 10 then 2 else 0 in
+        let capacity = max 0 (content_capacity - List.length feedback - action_height - gate_height) in
+        let shown_capacity, lines, scroll, _ =
+          review_geometry ~book ~dimensions:(width,height) ~width_of t review in
+        let shown_capacity = min capacity shown_capacity in
+        let shown = lines |> List.filteri (fun i _ -> i >= scroll && i < scroll + shown_capacity) in
+        let shown_rows = List.map (fun text -> O.Plain, text) shown in
+        let pad_rows = List.init (max 0 (capacity - List.length shown_rows)) (fun _ -> O.Plain, "") in
+        let gate_rows =
+          if gate_height = 0 then []
+          else [ (O.Chrome, tr "Publication gate");
+                 (O.Chrome, "  " ^ tr "recheck evidence + Locus admission") ]
+        in
+        let content =
+          shown_rows @ pad_rows @ gate_rows
+          @ List.map (fun text -> O.Status, text) feedback
+          @ (if action_height = 0 then [] else [ O.Heading, action_line ~width_of inside t ])
+        in
+        let bottom =
+          A.format_message "%d–%d / %d"
+            (if lines = [] || shown_capacity = 0 then 0 else scroll + 1)
+            (min (List.length lines) (scroll + shown_capacity))
+            (List.length lines)
+        in
+        O.panel_border ~width ~style:O.Focused_frame ~width_of title
+        :: List.map (fun (style, text) -> O.panel_line ~width ~width_of style text) content
+        @ [ O.panel_bottom ~width ~style:O.Focused_frame ~title:bottom ~width_of () ]
+        @ navigation
+    | None ->
+        let feedback = notice_lines ~dimensions:(width,height) ~width_of t in
+        let action_height = if height >= 7 then 1 else 0 in
+        let footer_height = 2 + action_height + List.length feedback in
+        let available = max 0 (height - footer_height) in
+        let body_height = max 0 (available - 1) in
+        let pane_height = body_height - 5 in
+        let wide = width >= 72 in
+        if wide && pane_height >= 7 then
+          (* Wide layout: Title + Movement panel + Postings (left 3/5) & Candidates (right 2/5) *)
+          let title_row = raw O.Heading title in
+          (* Movement panel (height 5) *)
+          let movement_focused = t.focus < 3 in
+          let m_style = if movement_focused then O.Focused_frame else O.Frame in
+          let d_text, d_caret = field_text ~width_of (width - 4) (t.focus = 0) t.cursor "Date" t.day in
+          let d_style = match d_caret with Some c -> O.Input (2 + c) | None -> O.Plain in
+          let m_text, m_caret =
+            if is_plan t then
+              let label_w = min 13 (max 0 ((width - 4) / 2)) in
+              O.pad ~width_of label_w (tr "Description" ^ ":") ^ " " ^ tr "(not applicable)", None
+            else field_text ~width_of (width - 4) (t.focus = 1) t.cursor "Description" t.description
+          in
+          let m_f_style = match m_caret with Some c -> O.Input (2 + c) | None -> O.Plain in
+          let q_text, q_caret = field_text ~width_of (width - 4) (t.focus = 2) t.cursor "Measure" t.measure in
+          let q_style = match q_caret with Some c -> O.Input (2 + c) | None -> O.Plain in
+          let movement_panel = [
+            sub_border ~width_of ~width ~style:m_style "Movement";
+            inner_line ~width_of ~width d_style d_text;
+            inner_line ~width_of ~width m_f_style m_text;
+            inner_line ~width_of ~width q_style q_text;
+            sub_bottom ~width_of ~width ~style:m_style ();
+          ] in
+          (* Postings panel (left 3/5) *)
+          let left_width = width * 3 / 5 in
+          let right_width = width - left_width - 1 in
+          let postings_focused = t.focus >= 3 && t.focus < action_start t in
+          let p_style = if postings_focused then O.Focused_frame else O.Frame in
+          let posting_data_cap = max 0 (pane_height - 3) in
+          let posting_cap = max 1 (posting_data_cap / 2) in
+          let active_posting = if postings_focused then (t.focus - 3) / 2 else 0 in
+          let row_count = List.length t.rows in
+          let p_start = min (max 0 (row_count - posting_cap)) (max 0 (active_posting - posting_cap + 1)) in
+          let p_more = (if p_start > 0 then " ▲" else "") ^ (if p_start + posting_cap < row_count then " ▼" else "") in
+          let p_sub = Printf.sprintf "%d/%d rows%s" (min row_count (p_start + posting_cap)) row_count p_more in
+          let posting_rows =
+            t.rows |> List.filteri (fun i _ -> i >= p_start && i < p_start + posting_cap)
+            |> List.mapi (fun rel_idx row ->
+                let abs_idx = p_start + rel_idx in
+                let locus_idx = 3 + 2 * abs_idx in
+                let amount_idx = 4 + 2 * abs_idx in
+                let l_text, l_caret = field_text ~width_of (left_width - 4) (t.focus = locus_idx) t.cursor
+                    (A.format_message "Posting %d" (abs_idx + 1)) row.locus in
+                let a_text, a_caret = field_text ~width_of (left_width - 4) (t.focus = amount_idx) t.cursor
+                    "Amount" row.amount in
+                let l_s = match l_caret with Some c -> O.Input (2 + c) | None -> O.Plain in
+                let a_s = match a_caret with Some c -> O.Input (2 + c) | None -> O.Plain in
+                [ inner_line ~width_of ~width:left_width l_s l_text;
+                  inner_line ~width_of ~width:left_width a_s a_text ])
+            |> List.concat
+          in
+          let p_context = O.clip_text ~width_of (left_width - 4)
+              (A.format_message "Signed %s · decimal scale per Measure" t.measure) in
+          let p_context_line = inner_line ~width_of ~width:left_width O.Chrome p_context in
+          let p_pad_len = max 0 ((pane_height - 2) - List.length posting_rows - 1) in
+          let p_pad = List.init p_pad_len (fun _ -> inner_line ~width_of ~width:left_width O.Plain "") in
+          let postings_panel =
+            [ sub_border ~width_of ~width:left_width ~style:p_style "Postings" ]
+            @ posting_rows @ p_pad @ [ p_context_line ]
+            @ [ sub_bottom ~width_of ~width:left_width ~style:p_style ~title:p_sub () ]
+          in
+          (* Candidates panel (right 2/5) *)
+          let cand_focused = is_locus t in
+          let c_style = if cand_focused then O.Focused_frame else O.Frame in
+          let cand_data_cap = max 0 (pane_height - 4) in
+          let choices = candidates ~book t in
+          let count = List.length choices in
+          let chosen = if count = 0 then 0 else t.candidate mod count in
+          let c_start = min (max 0 (count - cand_data_cap)) (max 0 (chosen - cand_data_cap + 1)) in
+          let c_more = (if c_start > 0 then " ▲" else "") ^ (if c_start + cand_data_cap < count then " ▼" else "") in
+          let c_sub = if count = 0 then "0 candidates" else Printf.sprintf "%d/%d%s" (chosen + 1) count c_more in
+          let candidate_lines =
+            if count = 0 then [ inner_line ~width_of ~width:right_width O.Chrome (tr "No matching Locus") ]
+            else
+              choices |> List.filteri (fun i _ -> i >= c_start && i < c_start + cand_data_cap)
+              |> List.mapi (fun rel_i id ->
+                  let abs_i = c_start + rel_i in
+                  let is_chosen = cand_focused && abs_i = chosen in
+                  let label = B.label book id in
+                  let display = (if is_chosen then "> " else "  ") ^ id ^ (if label = "" then "" else "  " ^ label) in
+                  let s = if is_chosen then (if cand_focused then O.Active else O.Chrome) else O.Plain in
+                  inner_line ~width_of ~width:right_width s (O.clip_text ~width_of (right_width - 4) display))
+          in
+          let help_text =
+            if not cand_focused then tr "Focus a Locus field"
+            else if count = 0 then tr "No matching Locus"
+            else match List.nth_opt choices chosen with
+            | Some id ->
+                let label = B.label book id in
+                if label = "" then "↑/↓ choose · Enter accept" else "↳ " ^ label
+            | None -> "↑/↓ choose · Enter accept"
+          in
+          let help_line = inner_line ~width_of ~width:right_width O.Chrome (O.clip_text ~width_of (right_width - 4) help_text) in
+          let admit_line = inner_line ~width_of ~width:right_width O.Chrome (tr "Admitted Locus only") in
+          let c_pad_len = max 0 ((pane_height - 2) - List.length candidate_lines - 2) in
+          let c_pad = List.init c_pad_len (fun _ -> inner_line ~width_of ~width:right_width O.Plain "") in
+          let candidates_panel =
+            [ sub_border ~width_of ~width:right_width ~style:c_style "Locus candidates" ]
+            @ candidate_lines @ c_pad @ [ help_line; admit_line ]
+            @ [ sub_bottom ~width_of ~width:right_width ~style:c_style ~title:c_sub () ]
+          in
+          let lower_panes = combine_side_by_side ~width_of ~width ~left_width ~right_width postings_panel candidates_panel in
+          let feedback_rows = List.map (raw O.Status) feedback in
+          let action_rows = if action_height = 0 then [] else [ raw O.Heading (action_line ~width_of width t) ] in
+          [ title_row ] @ movement_panel @ lower_panes @ feedback_rows @ action_rows @ navigation
+        else
+          (* Compact / degraded layout (width < 72 or low height) *)
+          let inside = max 0 (width - 4) in
+          let content_capacity = max 0 (height - 4) in
+          let action_height = if content_capacity > List.length feedback then 1 else 0 in
+          let capacity = max 0 (content_capacity - List.length feedback - action_height) in
           let field index label value =
-            let text,caret=field_text ~width_of inside (t.focus=index) t.cursor label value in
-            (match caret with Some cell->O.Input (2+cell) | None->O.Plain),text
+            let text, caret = field_text ~width_of inside (t.focus = index) t.cursor label value in
+            (match caret with Some cell -> O.Input (2 + cell) | None -> O.Plain), text
           in
           let field_indices =
             (if is_plan t then [0; 2] else [0; 1; 2])
             @ List.concat (List.mapi (fun index _ -> [3 + 2 * index; 4 + 2 * index]) t.rows)
           in
-          let fields=
+          let fields =
             (if is_plan t then [field 0 "Date" t.day; field 2 "Measure" t.measure]
              else [field 0 "Date" t.day; field 1 "Description" t.description; field 2 "Measure" t.measure])
-            @ List.concat (List.mapi (fun index row->
-                [field (3+2*index) (A.format_message "Posting %d" (index+1)) row.locus;
-                 field (4+2*index) "Amount" row.amount]) t.rows)
+            @ List.concat (List.mapi (fun index row ->
+                [field (3 + 2 * index) (A.format_message "Posting %d" (index + 1)) row.locus;
+                 field (4 + 2 * index) "Amount" row.amount]) t.rows)
           in
-          let candidate_height=if capacity>=12 then 3 else if capacity>=4 then 1 else 0 in
-          let field_capacity=max 0 (capacity-candidate_height) in
+          let candidate_height = if capacity >= 12 then 3 else if capacity >= 4 then 1 else 0 in
+          let field_capacity = max 0 (capacity - candidate_height) in
           let rec find_idx i = function
-            | [] -> min (max 0 (List.length fields-1)) t.focus
+            | [] -> min (max 0 (List.length fields - 1)) t.focus
             | idx :: rest -> if idx = t.focus then i else find_idx (i + 1) rest
           in
           let selected = find_idx 0 field_indices in
-          let last=max 0 (List.length fields-field_capacity) in
-          let start=max 0 (min last (selected-field_capacity+1)) in
-          let shown=fields |> List.filteri (fun index _->index>=start && index<start+field_capacity) in
-          let shown=shown @ List.init (max 0 (field_capacity-List.length shown)) (fun _->O.Plain,"") in
-          let choices=candidates ~book t in
-          let count=List.length choices in
-          let chosen=if count=0 then 0 else t.candidate mod count in
-          let candidate_rows=
+          let last = max 0 (List.length fields - field_capacity) in
+          let start = max 0 (min last (selected - field_capacity + 1)) in
+          let shown = fields |> List.filteri (fun index _ -> index >= start && index < start + field_capacity) in
+          let shown = shown @ List.init (max 0 (field_capacity - List.length shown)) (fun _ -> O.Plain, "") in
+          let choices = candidates ~book t in
+          let count = List.length choices in
+          let chosen = if count = 0 then 0 else t.candidate mod count in
+          let candidate_rows =
             if not (is_locus t) then
-              List.init candidate_height (fun _->O.Chrome,"")
-            else if candidate_height=1 then
-              [O.Chrome,(match List.nth_opt choices chosen with
-                | None->tr "No matching Locus"
-                | Some id->"› " ^ id ^ "  " ^ B.label book id)]
-            else if candidate_height>1 then
-              let visible=candidate_height-1 in
-              let start=max 0 (min (max 0 (count-visible)) (chosen-visible+1)) in
-              (O.Chrome,tr "Locus candidates")::
-              (if count=0 then [O.Chrome,tr "No matching Locus"]
-               else choices |> List.mapi (fun index id->index,id)
-                 |> List.filter (fun (index,_)->index>=start && index<start+visible)
-                 |> List.map (fun (index,id)->O.Chrome,
-                     (if index=chosen then "› " else "  ") ^ id ^ "  " ^ B.label book id))
+              List.init candidate_height (fun _ -> O.Chrome, "")
+            else if candidate_height = 1 then
+              [O.Chrome, (match List.nth_opt choices chosen with
+                | None -> tr "No matching Locus"
+                | Some id -> "› " ^ id ^ "  " ^ B.label book id)]
+            else if candidate_height > 1 then
+              let visible = candidate_height - 1 in
+              let c_start = max 0 (min (max 0 (count - visible)) (chosen - visible + 1)) in
+              (O.Chrome, tr "Locus candidates") ::
+              (if count = 0 then [O.Chrome, tr "No matching Locus"]
+               else choices |> List.mapi (fun index id -> index, id)
+                 |> List.filter (fun (index, _) -> index >= c_start && index < c_start + visible)
+                 |> List.map (fun (index, id) -> O.Chrome,
+                     (if index = chosen then "› " else "  ") ^ id ^ "  " ^ B.label book id))
             else []
           in
-          shown @ candidate_rows,
-          A.format_message "Fields %d–%d / %d" (if fields=[] || field_capacity=0 then 0 else start+1)
-            (min (List.length fields) (start+field_capacity)) (List.length fields)
-    in
-    let rows=List.filteri (fun index _->index<capacity) rows in
-    let rows=rows @ List.init (max 0 (capacity-List.length rows)) (fun _->O.Plain,"") in
-    let content=rows @ List.map (fun text->O.Status,text) feedback
-      @ (if action_height=0 then [] else [O.Heading,action_line ~width_of inside t]) in
-    O.panel_border ~width ~style:O.Focused_frame ~width_of title
-    :: List.map (fun (style,text)->O.panel_line ~width ~width_of style text) content
-    @ [O.panel_bottom ~width ~style:O.Focused_frame ~title:bottom ~width_of ()]
-    @ navigation
+          let rows = shown @ candidate_rows in
+          let rows = List.filteri (fun index _ -> index < capacity) rows in
+          let rows = rows @ List.init (max 0 (capacity - List.length rows)) (fun _ -> O.Plain, "") in
+          let content = rows @ List.map (fun text -> O.Status, text) feedback
+            @ (if action_height = 0 then [] else [O.Heading, action_line ~width_of inside t]) in
+          let bottom =
+            A.format_message "Fields %d–%d / %d"
+              (if fields = [] || field_capacity = 0 then 0 else start + 1)
+              (min (List.length fields) (start + field_capacity)) (List.length fields)
+          in
+          O.panel_border ~width ~style:O.Focused_frame ~width_of title
+          :: List.map (fun (style, text) -> O.panel_line ~width ~width_of style text) content
+          @ [O.panel_bottom ~width ~style:O.Focused_frame ~title:bottom ~width_of ()]
+          @ navigation
