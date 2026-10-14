@@ -80,6 +80,7 @@ val focused : t -> int
 val set_focused : t -> int -> t
 
 val get_field : t -> string -> field option
+val find_field_index : t -> string -> int
 val update_field : t -> string -> (field_kind -> field_kind) -> t
 
 val get_text : t -> string -> string option

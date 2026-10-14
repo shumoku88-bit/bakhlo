@@ -308,6 +308,27 @@ let role_balance_items ~book ~roles =
   in
   List.concat_map items_for_measure measures
 
+let current_balance_items ~book ~coords =
+  let coords =
+    if coords <> [] then coords
+    else
+      let loci = Option.value ~default:[] (B.approved_loci book) in
+      let measures = List.map fst (B.measures book) in
+      List.concat_map (fun l -> List.map (fun m -> (l, m)) measures) loci
+  in
+  let rows =
+    List.map
+      (fun (locus, measure) ->
+        let value = quantity_value ~book ~measure locus in
+        Account_row { locus; measure; role = None; value })
+      coords
+  in
+  [
+    Header_row "Selected current balances (neutral Locus × Measure)";
+    Blank_row;
+  ]
+  @ (if rows = [] then [ Header_row "  (no coordinates configured or approved)" ] else rows)
+
 let balance_item_line ~book item =
   match item with
   | Blank_row -> ""
@@ -360,7 +381,7 @@ let balance_item_detail ~book item =
       let role_name =
         match role with
         | Some r -> role_to_string r
-        | None -> tr "Unresolved role"
+        | None -> tr "Unresolved role (Neutral coordinate)"
       in
       let support_text =
         match value with
@@ -372,7 +393,7 @@ let balance_item_detail ~book item =
             tr "Known present: Activity exists proving account existence, but exact balance is not anchored."
       in
       [
-        (if label <> "" then label else locus);
+        (if label <> "" then Printf.sprintf "%s [%s]" label locus else locus);
         "";
         "Locus ID: " ^ locus;
         "Measure: " ^ measure;
@@ -381,13 +402,17 @@ let balance_item_detail ~book item =
         "";
         (match role with
         | None ->
-            tr "Warning: Unresolved roles prevent Balance Sheet and Net Worth qualification."
+            tr "Neutral Locus × Measure coordinate; not an Account taxonomy."
         | Some (Asset | Liability) ->
             tr "Stock role: Enters Balance Sheet and Net Worth qualification."
         | Some Equity ->
             tr "Stock role: Enters Balance Sheet qualification."
         | Some (Income | Expense) ->
             tr "Flow role: Flow coordinates do not block Balance Sheet or Net Worth.");
+        "";
+        "Actions:";
+        "  o: Observe verified balance for this coordinate";
+        "  v: Toggle Accounting / Current view";
       ]
   | Subtotal_row { role; measure; subtotal } ->
       let sign_str = if Z.sign subtotal > 0 then "+" else "" in

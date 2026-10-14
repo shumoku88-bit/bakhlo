@@ -13,6 +13,7 @@ module Form = Ui_form
 module Att = Attention_data
 module Roles = Locus_roles
 module Stl = Settlement_data
+module BalView = Balance_view_data
 
 let tr = Ui_text.tr
 let get = A.get
@@ -104,6 +105,7 @@ type state = {
   attention : Att.t;
   settlements : Stl.t;
   settlement_scope : Stl.scope;
+  balance_mode : [ `Accounting | `Current ];
 }
 
 let initial ?config_home session =
@@ -131,6 +133,7 @@ let initial ?config_home session =
     attention;
     settlements;
     settlement_scope = Stl.Open_only;
+    balance_mode = `Accounting;
   }
 
 let has_record_draft state =
@@ -561,9 +564,22 @@ let open_exchange state =
   let form = exchange_form ~default_date () in
   { state with overlay = Modal_form form; message = "" }
 
-let observe_quantity_form state =
-  let def_measure = match B.measures state.session.book with (m, _) :: _ -> m | [] -> "jpy" in
-  let loci = match B.approved_loci state.session.book with Some (l :: _) -> l | _ -> "wallet" in
+let observe_quantity_form ?default_locus ?default_measure ?current_amount state =
+  let def_measure =
+    match default_measure with
+    | Some m -> m
+    | None -> (match B.measures state.session.book with (m, _) :: _ -> m | [] -> "jpy")
+  in
+  let locus_val = Option.value ~default:"" default_locus in
+  let locus_ph =
+    if locus_val <> "" then locus_val
+    else match B.approved_loci state.session.book with Some (l :: _) -> l | _ -> "wallet"
+  in
+  let amount_ph =
+    match current_amount with
+    | Some amt -> Printf.sprintf "e.g. %s" amt
+    | None -> "e.g. 50000"
+  in
   Form.create
     ~id:"observe_quantity"
     ~title:"Observe Quantities"
@@ -572,9 +588,9 @@ let observe_quantity_form state =
       "Existing observations for other loci remain preserved.";
     ]
     ~fields:[
-      Form.text_field ~id:"locus" ~label:"Locus" ~placeholder:(Printf.sprintf "e.g. %s" loci) ();
+      Form.text_field ~id:"locus" ~label:"Locus" ~value:locus_val ~placeholder:(Printf.sprintf "e.g. %s" locus_ph) ();
       Form.text_field ~id:"measure" ~label:"Measure" ~value:def_measure ();
-      Form.text_field ~id:"amount" ~label:"Observed amount" ~placeholder:"e.g. 50000" ();
+      Form.text_field ~id:"amount" ~label:"Observed amount" ~placeholder:amount_ph ();
       Form.action_buttons ~confirm:"Observe" ~cancel:"Cancel" ();
     ]
     ()
@@ -633,13 +649,45 @@ let accounting_roles state =
   | Some text -> O.parse_accounting_roles text
   | None -> []
 
+let balance_view_coords state =
+  let path = BalView.file_path ?config_home:state.config_home state.session.F.path in
+  let configured = BalView.load_file path in
+  List.map (fun (c : BalView.coordinate) -> (c.locus, c.measure)) configured
+
 let balance_items state =
-  let roles = accounting_roles state in
-  O.role_balance_items ~book:state.session.book ~roles
+  match state.balance_mode with
+  | `Accounting ->
+      let roles = accounting_roles state in
+      O.role_balance_items ~book:state.session.book ~roles
+  | `Current ->
+      let coords = balance_view_coords state in
+      O.current_balance_items ~book:state.session.book ~coords
 
 let balance_lines state =
   let items = balance_items state in
   List.map (O.balance_item_line ~book:state.session.book) items
+
+let balance_print_preview state =
+  let lines = balance_lines state in
+  if List.length lines > 200 then
+    Form.create ~id:"balance_print_refused" ~title:(tr "Print Refused")
+      ~summary:[
+        tr "Print refused: more than 200 lines.";
+        tr "Narrow the balance selection in balance-view.tsv first.";
+      ]
+      ~fields:[ Form.action_buttons ~confirm:(tr "OK") ~cancel:(tr "Close") () ]
+      ()
+  else
+    let summary =
+      [
+        tr "Plain-text print preview of current balance view:";
+        Printf.sprintf "Total rows: %d" (List.length lines);
+      ] @ lines
+    in
+    Form.create ~id:"balance_print_preview" ~title:(tr "Balances / Print Preview")
+      ~summary
+      ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ]
+      ()
 
 let admitted_loci state =
   let book = state.session.book in
@@ -1339,7 +1387,41 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some (open_route state W.Attention)
         | Some (`ASCII 'o', [])
           when state.workspace.route = W.Home || state.workspace.route = W.Balances || state.workspace.route = W.Calendar ->
-            Some { state with overlay = Modal_form (observe_quantity_form state) }
+            let default_locus, default_measure, current_amount =
+              if state.workspace.route = W.Balances then
+                let items = balance_items state in
+                match List.nth_opt items state.workspace.balance_selected with
+                | Some (O.Account_row { locus; measure; value; _ }) ->
+                    let amt_str =
+                      match value with
+                      | O.Exact n -> Some (B.format state.session.book measure n)
+                      | _ -> None
+                    in
+                    (Some locus, Some measure, amt_str)
+                | _ -> (None, None, None)
+              else (None, None, None)
+            in
+            let form = observe_quantity_form ?default_locus ?default_measure ?current_amount state in
+            let form =
+              if default_locus <> None then
+                Form.set_focused form (Form.find_field_index form "amount")
+              else form
+            in
+            Some { state with overlay = Modal_form form }
+        | Some (`ASCII 'v', []) when state.workspace.route = W.Balances ->
+            let next_mode =
+              match state.balance_mode with
+              | `Accounting -> `Current
+              | `Current -> `Accounting
+            in
+            let msg =
+              match next_mode with
+              | `Accounting -> "Switched to Accounting view (Balance Sheet & Net Worth)."
+              | `Current -> "Switched to Current view (Neutral coordinates)."
+            in
+            Some { state with balance_mode = next_mode; message = msg; workspace = { state.workspace with balance_selected = 0 } }
+        | Some (`ASCII 'p', []) when state.workspace.route = W.Balances ->
+            Some { state with overlay = Modal_form (balance_print_preview state) }
         | Some (`ASCII 's', []) when state.workspace.route = W.Actual ->
             Some (sync { state with workspace = W.cycle_order state.workspace })
         | Some (`ASCII 'f', [])
@@ -1767,7 +1849,10 @@ let workspace_rows ~width_of ~width ~height state =
     | W.Selected_day day -> "Household Day Workspace / " ^ day
     | W.Actual -> "Actual"
     | W.Scheduled -> "Scheduled / List"
-    | W.Balances -> "Balances / Current"
+    | W.Balances ->
+        (match state.balance_mode with
+        | `Accounting -> "Balances / Current [Accounting]"
+        | `Current -> "Balances / Current [Neutral]")
     | W.Daily_pace -> "Daily Pace"
     | W.Attention -> "Attention / Household matters"
     | W.Loci -> "Manage Loci / Admitted vocabulary"
@@ -2138,7 +2223,16 @@ let footer state =
         "Space Commands  q/Esc Home  Ctrl-r reload";
       ]
   | W.Balances, W.Calendar ->
-      [ "j/k select  Enter/i/Tab Detail  r Record"; "Space Commands  q/Esc Home  Ctrl-r reload" ]
+      let v_label = match state.balance_mode with `Accounting -> "v current" | `Current -> "v accounting" in
+      [
+        Printf.sprintf "j/k select  Enter/i/Tab Detail  o observe  %s  p print  r record" v_label;
+        "Space Commands  q/Esc Home  Ctrl-r reload";
+      ]
+  | W.Balances, W.Detail ->
+      [
+        "j/k scroll  Tab/w switch pane  o observe  r record";
+        "q/Esc back to list  Space Commands  Ctrl-r reload";
+      ]
   | W.Daily_pace, W.Calendar ->
       [ "j/k scroll  Tab/w Detail  r Record"; "Space Commands  q/Esc Home  Ctrl-r reload" ]
   | W.Attention, _ ->

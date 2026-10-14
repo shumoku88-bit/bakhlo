@@ -405,6 +405,53 @@ let self_check ~width_of () =
   let wide_with_roles = C.screen ~width_of (120, 30) bal_with_roles in
   require (contains wide_with_roles "Asset" && contains wide_with_roles "Expense")
     "balances-explicit-roles-displayed";
+  (* Test 'v' view toggle to Current neutral coordinates view *)
+  let bal_current = key ~width_of bal_with_roles (`ASCII 'v') in
+  let wide_current = C.screen ~width_of (120, 30) bal_current in
+  require (contains wide_current "Balances / Current [Neutral]" && contains wide_current "Selected current balances")
+    "balances-v-toggles-to-neutral-current-view";
+  (* Write a balance-view.tsv and test configuration ordering *)
+  let bv_path = directory ^ "/balance-view.tsv" in
+  F.write_new bv_path "bank\tjpy\nwallet\tjpy\n";
+  let bal_custom_bv = C.open_route { home with session = F.load path } W.Balances in
+  let bal_custom_bv_neutral = key ~width_of bal_custom_bv (`ASCII 'v') in
+  let wide_custom_bv = C.screen ~width_of (120, 30) bal_custom_bv_neutral in
+  require (contains wide_custom_bv "bank" && contains wide_custom_bv "wallet")
+    "balances-custom-balance-view-loaded";
+  (* Test 'p' print preview modal *)
+  let bal_print = key ~width_of bal_custom_bv_neutral (`ASCII 'p') in
+  (match bal_print.overlay with
+   | C.Modal_form f ->
+       require (Ui_form.id f = "balance_print_preview") "balances-p-opens-print-preview";
+       require (Ui_form.title f = "Balances / Print Preview") "balances-print-title"
+   | _ -> failwith "expected print preview modal");
+  let bal_after_print = key ~width_of bal_print `Escape in
+  require (bal_after_print.overlay = C.No_overlay) "balances-print-escapes";
+  (* Test 'o' observe prefill from selected balance *)
+  let items = C.balance_items bal_with_roles in
+  let acct_idx =
+    let rec find i = function
+      | [] -> 0
+      | Daily_overlays.Account_row _ :: _ -> i
+      | _ :: rest -> find (i + 1) rest
+    in
+    find 0 items
+  in
+  let bal_on_account = { bal_with_roles with workspace = { bal_with_roles.workspace with balance_selected = acct_idx } } in
+  let bal_obs = key ~width_of bal_on_account (`ASCII 'o') in
+  (match bal_obs.overlay with
+   | C.Modal_form f ->
+       require (Ui_form.id f = "observe_quantity") "balances-o-opens-observe-form";
+       require (Ui_form.get_text f "locus" <> Some "") "balances-o-prefilled-locus";
+       require (Ui_form.focused f = Ui_form.find_field_index f "amount") "balances-o-focuses-amount"
+   | _ -> failwith "expected observe quantity modal");
+  let bal_obs_cancel = key ~width_of bal_obs `Escape in
+  require (bal_obs_cancel.overlay = C.No_overlay) "balances-observe-cancel-escapes";
+  (* Test toggle back to Accounting view with 'v' *)
+  let bal_back_acct = key ~width_of bal_custom_bv_neutral (`ASCII 'v') in
+  let wide_back_acct = C.screen ~width_of (120, 30) bal_back_acct in
+  require (contains wide_back_acct "Balances / Current [Accounting]")
+    "balances-v-toggles-back-to-accounting";
   let pace_view = C.open_route home W.Daily_pace in
   let wide_pace = C.screen ~width_of (120, 30) pace_view in
   require (contains wide_pace "Daily Pace" && contains wide_pace "Pace Detail & Evidence")
