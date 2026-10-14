@@ -293,4 +293,17 @@ let self_check ~width_of () =
        require (Result.is_error (S.of_edit_plan ~book:plan_book { new_p with cancelled_on = Some "2026-10-16" }))
          "cancelled-plan-edit-refused"
    | _ -> failwith "plan-publish-failed");
+  (* Prefix matching check for locus_candidates (LOAM specification parity: no substring matches) *)
+  let candidates_prefix_su = O.locus_candidates s_book "su" in
+  require (candidates_prefix_su = ["suspense"]) "prefix-search-matches-prefix";
+  let candidates_prefix_o = O.locus_candidates s_book "o" in
+  require (candidates_prefix_o = []) "prefix-search-excludes-middle-substring-match";
+  (* Date field input protection check *)
+  let date_editor = S.create ~book ~day:"2026-10-14" ~measure:"jpy" () in
+  let date_editor = update date_editor (`Key (`Tab, [`Shift])) in
+  let date_editor = text date_editor "コンビニ" in
+  let date_editor = key date_editor (`ASCII 'x') in
+  let date_screen = S.screen ~book ~dimensions ~width_of date_editor in
+  require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"2026-10-14") date_screen)
+    "date-field-rejects-non-date-and-japanese-input";
   require (B.to_string book=before) "record-checks-leave-book-unchanged"

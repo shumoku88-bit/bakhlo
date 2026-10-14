@@ -450,14 +450,16 @@ let balance_item_detail ~book item =
       ]
 
 let locus_candidates book query =
-  let query = String.lowercase_ascii query in
-  let contains text =
-    Base.String.is_substring (String.lowercase_ascii text) ~substring:query
-  in
+  let query = String.lowercase_ascii (String.trim query) in
   let choices = Option.value ~default:[] (B.approved_loci book) in
-  let matches = List.filter (fun id -> contains id || contains (B.label book id)) choices in
-  if query = "" then matches
-  else let exact, rest = List.partition (fun id -> id = query) matches in exact @ rest
+  if query = "" then choices
+  else
+    let is_prefix text =
+      Base.String.is_prefix (String.lowercase_ascii text) ~prefix:query
+    in
+    let matches = List.filter (fun id -> is_prefix id || is_prefix (B.label book id)) choices in
+    let exact, rest = List.partition (fun id -> String.lowercase_ascii id = query) matches in
+    exact @ rest
 
 let signed book measure amount =
   (if Z.sign amount > 0 then "+" else "") ^ B.format book measure amount ^ " " ^ measure

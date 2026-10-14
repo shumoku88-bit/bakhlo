@@ -13,6 +13,7 @@ val surface_dimensions : int * int -> int * int
 (** Available space includes the two Record navigation rows. Use the returned
     dimensions for both input and rendering; narrow/short terminals stay full size. *)
 val has_draft : t -> bool
+val is_plan : t -> bool
 val with_notice : t -> string -> t
 val preview : book:B.t -> base_bytes:string -> blocked:bool -> t -> t
 val handle : book:B.t -> base_bytes:string -> blocked:bool -> dimensions:int * int ->

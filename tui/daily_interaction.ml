@@ -292,8 +292,14 @@ let open_record state =
   if state.blocked then state
   else
     match state.record with
-    | Some record when S.has_draft record ->
+    | Some record when S.has_draft record && not (S.is_plan record) ->
         { state with record_visible = true; overlay = No_overlay }
+    | Some record when S.has_draft record && S.is_plan record ->
+        {
+          state with
+          message =
+            tr "A Scheduled draft is retained. Resume or discard it before creating a Record.";
+        }
     | _ ->
         {
           state with

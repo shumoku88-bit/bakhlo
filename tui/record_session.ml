@@ -321,6 +321,10 @@ let safe_text text =
     | `Malformed _ -> valid:=false) () text;
   !valid
 
+let is_date_char = function
+  | '0' .. '9' | '-' | '/' | '.' -> true
+  | _ -> false
+
 let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.input) =
   let update t=Updated t in
   match input,t.paste with
@@ -330,6 +334,8 @@ let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.in
       if blocked then update t
       else if invalid || not (safe_text text) then update (with_notice t (tr "Paste refused: use one printable line; no control keys."))
       else if t.review<>None || t.focus>=action_start t then update t
+      else if t.focus = 0 && not (String.for_all is_date_char (String.trim text)) then
+        update (with_notice t (tr "Invalid date format; enter YYYY-MM-DD."))
       else update (insert t text)
   | `Key (`ASCII c,[]), Some (text,invalid) ->
       update {t with paste=Some (text ^ String.make 1 c, invalid || Char.code c<32 || Char.code c=127)}
@@ -378,7 +384,7 @@ let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.in
               else if t.focus=action_start t || t.focus=action_start t-1 then
                 update (preview ~book ~base_bytes ~blocked t)
               else if t.focus=action_start t+1 then update (add_row t)
-              else if t.focus=action_start t+2 then update (drop_row t)
+              else if t.focus=action_start t+2 then drop_row t |> update
               else if t.focus=action_start t+3 then Closed t
               else update (move_focus t 1)
           | `Arrow `Up,[] | `Arrow `Down,[] when is_locus t ->
@@ -394,8 +400,12 @@ let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.in
           | `End,[] -> update {t with cursor=None}
           | `Backspace,[] when t.focus<action_start t -> update (erase t)
           | `ASCII c,[] when t.focus<action_start t && Char.code c>=32 && Char.code c<>127 ->
-              update (insert t (String.make 1 c))
-          | `Uchar c,[] when t.focus<action_start t && O.printable_uchar c -> update (insert t (O.utf8 c))
+              if t.focus = 0 && not (is_date_char c) then update t
+              else if t.focus = 0 && String.length (value t) >= 10 && t.cursor = None then update t
+              else update (insert t (String.make 1 c))
+          | `Uchar c,[] when t.focus<action_start t && O.printable_uchar c ->
+              if t.focus = 0 then update t
+              else update (insert t (O.utf8 c))
           | _ -> update t))
   | `End,_ -> Closed {t with paste=None;review=None}
   | `Resize _,_ | `Mouse _,_ | `Paste `End,None -> update t
