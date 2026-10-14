@@ -9,6 +9,8 @@ module S = Record_session
 module P = Ui_preferences
 module Att = Attention_data
 module Roles = Locus_roles
+module D = Bakhlo_domain
+module Stl = Settlement_data
 
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
@@ -732,6 +734,155 @@ let self_check ~width_of () =
   require (List.assoc_opt "metro" roles_final = Some Roles.Expense) "locus-role-updated-to-expense";
   let loci_back = key ~width_of updated_role_state (`ASCII 'q') in
   require (loci_back.workspace.route = W.Home) "loci-q-back-to-home";
+  (* Exchange test *)
+  let cmd_root = key ~width_of loci_back (`ASCII ' ') in
+  let tx_menu = key ~width_of cmd_root `Enter in
+  let to_exch = key ~width_of (key ~width_of (key ~width_of tx_menu (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down) in
+  let exch_modal = key ~width_of to_exch `Enter in
+  require (C.is_exchange exch_modal.overlay) "commands-opens-exchange-form";
+  (* Validate error on same measure *)
+  let err_form =
+    match exch_modal.overlay with
+    | C.Modal_form f ->
+        let f = Ui_form.set_text f "source_locus" "wallet" in
+        let f = Ui_form.set_text f "source_measure" "jpy" in
+        let f = Ui_form.set_text f "source_amount" "100" in
+        let f = Ui_form.set_text f "destination_locus" "bank" in
+        let f = Ui_form.set_text f "destination_measure" "jpy" in
+        let f = Ui_form.set_text f "destination_amount" "100" in
+        let f = Ui_form.set_focused f 8 in (* action buttons *)
+        { exch_modal with overlay = C.Modal_form f }
+    | _ -> failwith "expected modal form for exchange"
+  in
+  let err_submitted = key ~width_of err_form `Enter in
+  require (match err_submitted.overlay with
+           | C.Modal_form f -> Ui_form.notice f = "Source and destination Measures must differ."
+           | _ -> false)
+    "exchange-rejects-same-measure";
+  (* Successful exchange JPY -> EUR *)
+  let ok_form =
+    match err_submitted.overlay with
+    | C.Modal_form f ->
+        let f = Ui_form.set_text f "date" "2026-10-14" in
+        let f = Ui_form.set_text f "memo" "Exchange JPY to EUR" in
+        let f = Ui_form.set_text f "source_locus" "wallet" in
+        let f = Ui_form.set_text f "source_measure" "jpy" in
+        let f = Ui_form.set_text f "source_amount" "1500" in
+        let f = Ui_form.set_text f "destination_locus" "bank" in
+        let f = Ui_form.set_text f "destination_measure" "eur" in
+        let f = Ui_form.set_text f "destination_amount" "10.00" in
+        let f = Ui_form.set_focused f 8 in
+        { err_submitted with overlay = C.Modal_form f }
+    | _ -> failwith "expected modal form for exchange"
+  in
+  let exch_done = key ~width_of ok_form `Enter in
+  require (exch_done.overlay = C.No_overlay) "exchange-committed";
+  require (exch_done.message = "Published and read back. Previous bytes are kept separately.") "exchange-success-message";
+  let reloaded_book = (F.load path).book in
+  let latest_entry = List.hd (List.rev (B.entries reloaded_book)) in
+  require (latest_entry.exchange = Some ("exchange-source", "exchange-destination")) "exchange-keys-retained";
+  require (latest_entry.memo = Some "Exchange JPY to EUR") "exchange-memo-retained";
+  require (latest_entry.day = "2026-10-14") "exchange-day-retained";
+  require (List.length latest_entry.effects = 2) "exchange-has-two-effects";
+  let src_eff = List.nth latest_entry.effects 0 in
+  let dst_eff = List.nth latest_entry.effects 1 in
+  require (D.Identifier.Locus.to_string (D.Effect.locus src_eff) = "wallet") "exchange-source-locus";
+  require (D.Identifier.Measure.to_string (D.Effect.measure src_eff) = "jpy") "exchange-source-measure";
+  require (Z.equal (D.Quantity.quanta (D.Effect.quantity src_eff)) (Z.of_int (-1500))) "exchange-source-amount-negative";
+  require (D.Identifier.Locus.to_string (D.Effect.locus dst_eff) = "bank") "exchange-destination-locus";
+  require (D.Identifier.Measure.to_string (D.Effect.measure dst_eff) = "eur") "exchange-destination-measure";
+  require (Z.equal (D.Quantity.quanta (D.Effect.quantity dst_eff)) (Z.of_int 1000)) "exchange-destination-amount-positive";
+  (* Settlements (UI-27, UI-28) test suite *)
+  let contains rows needle = List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows in
+  let cmd_root = key ~width_of exch_done (`ASCII ' ') in
+  let to_planning = key ~width_of cmd_root (`Arrow `Down) in (* Planning is index 1 *)
+  let plan_menu = key ~width_of to_planning `Enter in
+  let to_settlements = key ~width_of (key ~width_of (key ~width_of plan_menu (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down) in (* Scheduled 0, New Plan 1, Attention 2, Settlements 3 *)
+  let stl_view = key ~width_of to_settlements `Enter in
+  require (stl_view.workspace.route = W.Settlements) "commands-opens-settlements-view";
+  let wide_stl = C.screen ~width_of (120, 30) stl_view in
+  require (contains wide_stl "Settlements [Open]" && contains wide_stl "Commitment Details") "settlements-wide-two-pane-visible";
+  (* Add settlement commitment *)
+  let add_modal = key ~width_of stl_view (`ASCII 'n') in
+  require (C.is_add_settlement add_modal.overlay) "n-opens-add-settlement-form";
+  let add_ready =
+    match add_modal.overlay with
+    | C.Modal_form f ->
+        let f = Ui_form.set_text f "label" "Dinner reimbursement" in
+        let f = Ui_form.set_text f "debtor" "yamada" in
+        let f = Ui_form.set_text f "creditor" "household" in
+        let f = Ui_form.set_text f "measure" "jpy" in
+        let f = Ui_form.set_text f "amount" "5000" in
+        let f = Ui_form.set_focused f 5 in (* Action buttons *)
+        { add_modal with overlay = C.Modal_form f }
+    | _ -> failwith "expected modal form for add settlement"
+  in
+  let added_state = key ~width_of add_ready `Enter in
+  require (added_state.overlay = C.No_overlay) "add-settlement-submitted";
+  let stl_rows = C.settlement_rows added_state in
+  require (List.length stl_rows = 1) "settlement-row-added";
+  let r = List.hd stl_rows in
+  require (r.Stl.id = "comm-1" && r.label = Some "Dinner reimbursement") "settlement-row-fields";
+  require (Z.equal (Stl.outstanding r) (Z.of_int 5000)) "settlement-outstanding-5000";
+  (* Settle partial amount: 3,000 jpy *)
+  let act_modal = key ~width_of added_state (`ASCII 'a') in
+  require (C.is_action_settlement act_modal.overlay) "a-opens-action-settlement-form";
+  let act_ready =
+    match act_modal.overlay with
+    | C.Modal_form f ->
+        let f = Ui_form.set_choice f "action_kind" 0 in (* Settle *)
+        let f = Ui_form.set_text f "amount" "3000" in
+        let f = Ui_form.set_focused f 2 in
+        { act_modal with overlay = C.Modal_form f }
+    | _ -> failwith "expected modal form for action settlement"
+  in
+  let settled_state = key ~width_of act_ready `Enter in
+  require (settled_state.overlay = C.No_overlay) "settle-action-submitted";
+  let r2 = List.hd (C.settlement_rows settled_state) in
+  require (Z.equal (Stl.outstanding r2) (Z.of_int 2000)) "settlement-outstanding-after-settle-2000";
+  require (Z.equal r2.settled (Z.of_int 3000)) "settled-amount-3000";
+  (* Reduce without payment: 1,000 jpy *)
+  let act_modal2 = key ~width_of settled_state (`ASCII 'a') in
+  let act_ready2 =
+    match act_modal2.overlay with
+    | C.Modal_form f ->
+        let f = Ui_form.set_choice f "action_kind" 1 in (* Reduce *)
+        let f = Ui_form.set_text f "amount" "1000" in
+        let f = Ui_form.set_focused f 2 in
+        { act_modal2 with overlay = C.Modal_form f }
+    | _ -> failwith "expected modal form for action settlement"
+  in
+  let reduced_state = key ~width_of act_ready2 `Enter in
+  require (reduced_state.overlay = C.No_overlay) "reduce-action-submitted";
+  let r3 = List.hd (C.settlement_rows reduced_state) in
+  require (Z.equal (Stl.outstanding r3) (Z.of_int 1000)) "settlement-outstanding-after-reduce-1000";
+  require (Z.equal r3.extinguished (Z.of_int 1000)) "extinguished-amount-1000";
+  (* Full final settlement of remaining 1,000 jpy *)
+  let act_modal3 = key ~width_of reduced_state (`ASCII 'a') in
+  let act_ready3 =
+    match act_modal3.overlay with
+    | C.Modal_form f ->
+        let f = Ui_form.set_choice f "action_kind" 0 in (* Settle *)
+        let f = Ui_form.set_text f "amount" "1000" in
+        let f = Ui_form.set_focused f 2 in
+        { act_modal3 with overlay = C.Modal_form f }
+    | _ -> failwith "expected modal form for action settlement"
+  in
+  let fully_settled_state = key ~width_of act_ready3 `Enter in
+  require (C.settlement_rows fully_settled_state = []) "open-rows-empty-after-full-settle";
+  (* Scope cycle to All current *)
+  let all_scope_state = key ~width_of fully_settled_state (`ASCII 's') in
+  require (all_scope_state.settlement_scope = Stl.All) "scope-toggled-to-all";
+  let all_rows = C.settlement_rows all_scope_state in
+  require (List.length all_rows = 1) "all-scope-has-completed-row";
+  let wide_all = C.screen ~width_of (120, 30) all_scope_state in
+  require (contains wide_all "done") "all-scope-shows-done-marker";
+  (* q returns to Home *)
+  let back_home = key ~width_of all_scope_state (`ASCII 'q') in
+  require (back_home.workspace.route = W.Home) "settlements-q-back-to-home";
+  (* Disk persistence verify *)
+  let stl_file = Stl.load_file (Stl.file_path ~config_home:directory path) in
+  require (List.length stl_file.rows = 1) "settlements-persisted-to-file";
   print_endline
     "PASS: English Calendar / Commands / Record / child navigation / exact cold save and safety \
      guards.";

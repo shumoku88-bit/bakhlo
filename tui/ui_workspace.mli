@@ -1,6 +1,6 @@
 module B = Bakhlo_sexp.Daily_book
 
-type route = Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace | Attention | Loci
+type route = Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace | Attention | Loci | Settlements
 type pane = Calendar | Detail
 type family = Actual_row | Scheduled_row
 type row = Actual_entry of B.entry | Scheduled_plan of B.plan
@@ -26,6 +26,7 @@ type t = {
   detail : browser;
   attention : browser;
   loci : browser;
+  settlements : browser;
   schedule_view : schedule_view;
   balance_selected : int;
   measure : string;

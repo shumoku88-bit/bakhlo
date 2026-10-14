@@ -1,7 +1,7 @@
 module B = Bakhlo_sexp.Daily_book
 module A = Daily_actions
 
-type route = Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace | Attention | Loci
+type route = Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace | Attention | Loci | Settlements
 type pane = Calendar | Detail
 type family = Actual_row | Scheduled_row
 type row = Actual_entry of B.entry | Scheduled_plan of B.plan
@@ -27,6 +27,7 @@ type t = {
   detail : browser;
   attention : browser;
   loci : browser;
+  settlements : browser;
   schedule_view : schedule_view;
   balance_selected : int;
   measure : string;
@@ -50,6 +51,7 @@ let create ~today ~measure =
           detail = empty;
           attention = empty;
           loci = empty;
+          settlements = empty;
           schedule_view = Groups;
           balance_selected = 0;
           measure;
@@ -89,6 +91,7 @@ let browser state =
   | Selected_day _ -> state.selected_day
   | Attention -> state.attention
   | Loci -> state.loci
+  | Settlements -> state.settlements
   | Home | Calendar | Balances | Daily_pace -> state.detail
 
 let update_browser state browser =
@@ -98,6 +101,7 @@ let update_browser state browser =
   | Selected_day _ -> { state with selected_day = browser }
   | Attention -> { state with attention = browser }
   | Loci -> { state with loci = browser }
+  | Settlements -> { state with settlements = browser }
   | Home | Calendar | Balances | Daily_pace -> { state with detail = browser }
 
 let sorted browser rows =
@@ -121,7 +125,7 @@ let rows ~book state =
     | Scheduled -> List.map (fun p -> Scheduled_plan p) (B.open_plans book)
     | Selected_day day -> all_rows book |> List.filter (fun row -> date row = day)
     | Calendar -> home_rows ~book state
-    | Home | Balances | Daily_pace | Attention | Loci -> []
+    | Home | Balances | Daily_pace | Attention | Loci | Settlements -> []
   in
   candidates |> List.filter (row_matches ~book browser) |> sorted browser
 

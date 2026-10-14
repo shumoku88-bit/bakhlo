@@ -12,6 +12,7 @@ module S = Record_session
 module Form = Ui_form
 module Att = Attention_data
 module Roles = Locus_roles
+module Stl = Settlement_data
 
 let tr = Ui_text.tr
 let get = A.get
@@ -70,6 +71,18 @@ let is_set_locus_role = function
   | Modal_form f when Form.id f = "set_locus_role" -> true
   | _ -> false
 
+let is_exchange = function
+  | Modal_form f when Form.id f = "exchange" -> true
+  | _ -> false
+
+let is_add_settlement = function
+  | Modal_form f when Form.id f = "add_settlement" -> true
+  | _ -> false
+
+let is_action_settlement = function
+  | Modal_form f when Form.id f = "action_settlement" -> true
+  | _ -> false
+
 type state = {
   session : F.t;
   workspace : W.t;
@@ -85,6 +98,8 @@ type state = {
   scroll : int;
   paste_blocked : bool;
   attention : Att.t;
+  settlements : Stl.t;
+  settlement_scope : Stl.scope;
 }
 
 let initial ?config_home session =
@@ -93,6 +108,8 @@ let initial ?config_home session =
   let notice = A.recovery_notice ~session in
   let attention_path = Att.file_path ?config_home session.F.path in
   let attention = Att.load_file attention_path in
+  let settlement_path = Stl.file_path ?config_home session.F.path in
+  let settlements = Stl.load_file settlement_path in
   {
     session;
     workspace;
@@ -108,6 +125,8 @@ let initial ?config_home session =
     scroll = 0;
     paste_blocked = false;
     attention;
+    settlements;
+    settlement_scope = Stl.Open_only;
   }
 
 let has_record_draft state =
@@ -506,6 +525,38 @@ let back state =
     { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
   else open_route state W.Home
 
+let exchange_form ?(default_date = F.today ()) () =
+  Form.create
+    ~id:"exchange"
+    ~title:"Exchange / Record"
+    ~summary:[
+      "Record one direct exchange between two Measures.";
+      "Amounts are entered as positive magnitudes.";
+      "Source Effect is negative; Destination Effect is positive.";
+      "No FX rate or valuation is inferred.";
+    ]
+    ~fields:[
+      Form.text_field ~id:"date" ~label:"Date" ~value:default_date ();
+      Form.text_field ~id:"memo" ~label:"Description" ~placeholder:"Optional description" ();
+      Form.text_field ~id:"source_locus" ~label:"Source Locus" ~placeholder:"e.g. wallet_jpy" ();
+      Form.text_field ~id:"source_measure" ~label:"Source Measure" ~value:"jpy" ();
+      Form.text_field ~id:"source_amount" ~label:"Source amount" ~placeholder:"Positive amount (deducted)" ();
+      Form.text_field ~id:"destination_locus" ~label:"Destination Locus" ~placeholder:"e.g. wallet_usd" ();
+      Form.text_field ~id:"destination_measure" ~label:"Destination Measure" ~placeholder:"e.g. usd" ();
+      Form.text_field ~id:"destination_amount" ~label:"Destination amount" ~placeholder:"Positive amount (added)" ();
+      Form.action_buttons ~confirm:"Publish Exchange" ~cancel:"Cancel" ();
+    ]
+    ()
+
+let open_exchange state =
+  let default_date =
+    match state.workspace.route with
+    | W.Selected_day day -> day
+    | _ -> state.workspace.calendar.selected_day
+  in
+  let form = exchange_form ~default_date () in
+  { state with overlay = Modal_form form; message = "" }
+
 let open_command state = function
   | M.Record -> open_record { state with overlay = No_overlay }
   | M.New_plan -> open_plan_record { state with overlay = No_overlay }
@@ -515,6 +566,8 @@ let open_command state = function
   | M.Daily_pace -> open_route state W.Daily_pace
   | M.Attention -> open_route state W.Attention
   | M.Manage_loci -> open_route state W.Loci
+  | M.Exchange -> open_exchange { state with overlay = No_overlay }
+  | M.Settlements -> open_route state W.Settlements
   | M.Home -> open_route state W.Home
   | M.Calendar -> open_route state W.Calendar
   | M.Theme ->
@@ -647,6 +700,76 @@ let set_locus_role_form ~locus ~current_role =
     ~fields:[
       Form.choice_field ~id:"role" ~label:"Accounting Role" ~options:role_option_strings ~selected:(index_of_role current_role) ();
       Form.action_buttons ~confirm:"Save Role" ~cancel:"Cancel" ();
+    ]
+    ()
+
+let settlement_rows state =
+  Stl.visible_rows state.settlements state.settlement_scope
+
+let selected_settlement state =
+  let rows = settlement_rows state in
+  let sel = state.workspace.settlements.selected in
+  List.nth_opt rows sel
+
+let move_settlement state delta =
+  let rows = settlement_rows state in
+  let count = List.length rows in
+  if count = 0 then state
+  else
+    let current = state.workspace.settlements.selected in
+    let last = count - 1 in
+    let selected = max 0 (min last (current + delta)) in
+    { state with workspace = { state.workspace with settlements = { state.workspace.settlements with selected } } }
+
+let cycle_settlement_scope state =
+  let settlement_scope =
+    match state.settlement_scope with
+    | Stl.Open_only -> Stl.All
+    | Stl.All -> Stl.Open_only
+  in
+  let rows = Stl.visible_rows state.settlements settlement_scope in
+  let count = List.length rows in
+  let current = state.workspace.settlements.selected in
+  let selected = if count = 0 then 0 else min (count - 1) current in
+  { state with settlement_scope; workspace = { state.workspace with settlements = { state.workspace.settlements with selected } } }
+
+let add_settlement_form state =
+  let def_measure = match B.measures state.session.book with (m, _) :: _ -> m | [] -> "jpy" in
+  Form.create
+    ~id:"add_settlement"
+    ~title:"Add Settlement Commitment"
+    ~summary:[
+      "Track one reimbursement or external obligation.";
+      "Debtor owes Creditor; positive remaining balance indicates open obligation.";
+    ]
+    ~fields:[
+      Form.text_field ~id:"label" ~label:"Description" ~placeholder:"e.g. Dinner reimbursement, 懇親会立替" ();
+      Form.text_field ~id:"debtor" ~label:"Debtor (owes)" ~value:"external" ();
+      Form.text_field ~id:"creditor" ~label:"Creditor (owed)" ~value:"household" ();
+      Form.text_field ~id:"measure" ~label:"Measure" ~value:def_measure ();
+      Form.text_field ~id:"amount" ~label:"Committed amount" ~placeholder:"e.g. 5000" ();
+      Form.action_buttons ~confirm:"Add Commitment" ~cancel:"Cancel" ();
+    ]
+    ()
+
+let action_options = [ "Settle (Payment received/made)"; "Reduce without payment"; "Retract commitment" ]
+
+let action_settlement_form (r : Stl.row) =
+  let rem = Stl.outstanding r in
+  let desc = match r.label with Some l -> l | None -> r.id in
+  Form.create
+    ~id:"action_settlement"
+    ~payload:r.id
+    ~title:("Settlement Action / " ^ r.id)
+    ~summary:[
+      "Target: " ^ desc;
+      Printf.sprintf "Direction: %s -> %s" r.debtor r.creditor;
+      Printf.sprintf "Committed: %s %s  Remaining: %s %s" (Z.to_string r.committed) r.measure (Z.to_string rem) r.measure;
+    ]
+    ~fields:[
+      Form.choice_field ~id:"action_kind" ~label:"Action" ~options:action_options ~selected:0 ();
+      Form.text_field ~id:"amount" ~label:"Amount" ~value:(Z.to_string rem) ();
+      Form.action_buttons ~confirm:"Confirm Action" ~cancel:"Cancel" ();
     ]
     ()
 
@@ -869,6 +992,174 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 | Ok () ->
                     let role_str = match role_opt with None -> "None" | Some r -> Roles.role_label r in
                     Some { state with overlay = No_overlay; message = Printf.sprintf "Set accounting role for %s to %s." locus role_str })
+            | "exchange" ->
+                let date_str = Option.value ~default:"" (Form.get_text submitted "date") |> String.trim in
+                let memo_str = Option.value ~default:"" (Form.get_text submitted "memo") |> String.trim in
+                let src_locus = Option.value ~default:"" (Form.get_text submitted "source_locus") |> String.trim in
+                let src_measure = Option.value ~default:"" (Form.get_text submitted "source_measure") |> String.trim in
+                let src_amount_str = Option.value ~default:"" (Form.get_text submitted "source_amount") |> String.trim in
+                let dst_locus = Option.value ~default:"" (Form.get_text submitted "destination_locus") |> String.trim in
+                let dst_measure = Option.value ~default:"" (Form.get_text submitted "destination_measure") |> String.trim in
+                let dst_amount_str = Option.value ~default:"" (Form.get_text submitted "destination_amount") |> String.trim in
+                let valid_token s =
+                  s <> "" && not (String.contains s ' ') && not (String.contains s '\t')
+                  && not (String.contains s '\n') && not (String.contains s '\r')
+                in
+                (match A.normalize_date date_str with
+                | Error _ ->
+                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Invalid date (YYYY-MM-DD).")) }
+                | Ok canon_day ->
+                    if not (A.is_valid_canonical_date canon_day) then
+                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter a real calendar date in YYYY-MM-DD form.")) }
+                    else if not (valid_token src_locus) then
+                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Source Locus must be a nonempty single-line token.")) }
+                    else if not (valid_token dst_locus) then
+                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Destination Locus must be a nonempty single-line token.")) }
+                    else if not (valid_token src_measure) then
+                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Source Measure must be a nonempty single-line token.")) }
+                    else if not (valid_token dst_measure) then
+                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Destination Measure must be a nonempty single-line token.")) }
+                    else if String.equal src_measure dst_measure then
+                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Source and destination Measures must differ.")) }
+                    else
+                      (match B.parse_amount state.session.book src_measure src_amount_str with
+                      | Error why ->
+                          let msg =
+                            if why = "non-positive-amount" then tr "Source amount must be positive."
+                            else if why = "measure-scale-not-supplied" then
+                              Printf.sprintf "Measure '%s' scale is not configured." src_measure
+                            else tr "Source amount is invalid."
+                          in
+                          Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
+                      | Ok src_quanta ->
+                          (match B.parse_amount state.session.book dst_measure dst_amount_str with
+                          | Error why ->
+                              let msg =
+                                if why = "non-positive-amount" then tr "Destination amount must be positive."
+                                else if why = "measure-scale-not-supplied" then
+                                  Printf.sprintf "Measure '%s' scale is not configured." dst_measure
+                                else tr "Destination amount is invalid."
+                              in
+                              Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
+                          | Ok dst_quanta ->
+                              let approved = B.approved_loci state.session.book in
+                              let unapproved =
+                                match approved with
+                                | None -> []
+                                | Some ids ->
+                                    let check loc = if not (List.mem loc ids) then [ loc ] else [] in
+                                    check src_locus @ check dst_locus
+                              in
+                              if unapproved <> [] then
+                                let msg = Printf.sprintf "Locus '%s' is not admitted." (String.concat ", " unapproved) in
+                                Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
+                              else
+                                let src_effect =
+                                  D.Effect.create
+                                    ~key:(Some (Result.get_ok (D.Identifier.Effect_key.of_string "exchange-source")))
+                                    ~locus:(Result.get_ok (D.Identifier.Locus.of_string src_locus))
+                                    ~measure:(Result.get_ok (D.Identifier.Measure.of_string src_measure))
+                                    ~quantity:(D.Quantity.of_quanta (Z.neg src_quanta))
+                                in
+                                let dst_effect =
+                                  D.Effect.create
+                                    ~key:(Some (Result.get_ok (D.Identifier.Effect_key.of_string "exchange-destination")))
+                                    ~locus:(Result.get_ok (D.Identifier.Locus.of_string dst_locus))
+                                    ~measure:(Result.get_ok (D.Identifier.Measure.of_string dst_measure))
+                                    ~quantity:(D.Quantity.of_quanta dst_quanta)
+                                in
+                                let memo = if memo_str = "" then None else Some memo_str in
+                                let entry =
+                                  {
+                                    B.id = F.new_id ();
+                                    day = canon_day;
+                                    memo;
+                                    effects = [ src_effect; dst_effect ];
+                                    reversal_of = None;
+                                    exchange = Some ("exchange-source", "exchange-destination");
+                                  }
+                                in
+                                let tx = { A.entry; replace = false; plan = None } in
+                                let res = A.commit_transaction ~session:state.session ~base_bytes:state.session.bytes tx in
+                                (match res with
+                                | A.Refused why ->
+                                    Some { state with overlay = Modal_form (Form.set_notice submitted why) }
+                                | A.Conflict | A.Conflict_base_changed ->
+                                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "File changed on disk. Reload to inspect.")) }
+                                | A.Published _ | A.Idempotent_duplicate _ | _ ->
+                                    let next_state = { state with overlay = No_overlay; message = tr "Exchange recorded." } in
+                                    Some (apply_commit_result next_state ~draft:next_state res)))))
+            | "add_settlement" ->
+                let label_str = Option.value ~default:"" (Form.get_text submitted "label") |> String.trim in
+                let debtor = Option.value ~default:"" (Form.get_text submitted "debtor") |> String.trim in
+                let creditor = Option.value ~default:"" (Form.get_text submitted "creditor") |> String.trim in
+                let measure = Option.value ~default:"" (Form.get_text submitted "measure") |> String.trim in
+                let amount_str = Option.value ~default:"" (Form.get_text submitted "amount") |> String.trim in
+                if debtor = "" then
+                  Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter debtor endpoint.")) }
+                else if creditor = "" then
+                  Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter creditor endpoint.")) }
+                else if measure = "" then
+                  Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter measure token.")) }
+                else
+                  (match B.parse_amount state.session.book measure amount_str with
+                  | Error why ->
+                      let msg =
+                        if why = "non-positive-amount" then tr "Committed amount must be positive."
+                        else if why = "measure-scale-not-supplied" then
+                          Printf.sprintf "Measure '%s' scale is not configured." measure
+                        else tr "Invalid amount."
+                      in
+                      Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
+                  | Ok committed ->
+                      let id = Stl.next_id state.settlements in
+                      let label = if label_str = "" then None else Some label_str in
+                      (match Stl.add_row state.settlements ~id ?label ~debtor ~creditor ~measure ~committed () with
+                      | Error why ->
+                          Some { state with overlay = Modal_form (Form.set_notice submitted why) }
+                      | Ok updated_settlements ->
+                          let path = Stl.file_path ?config_home:state.config_home state.session.F.path in
+                          let _ = Stl.save_file path updated_settlements in
+                          Some { state with overlay = No_overlay; settlements = updated_settlements; message = Printf.sprintf "Added commitment %s." id }))
+            | "action_settlement" ->
+                let id = Form.payload submitted in
+                let kind_idx = Option.value ~default:0 (Form.get_choice submitted "action_kind") in
+                let amount_str = Option.value ~default:"" (Form.get_text submitted "amount") |> String.trim in
+                (match Stl.find_row state.settlements id with
+                | None ->
+                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Commitment not found.")) }
+                | Some r ->
+                    if kind_idx = 2 then
+                      (match Stl.retract_row state.settlements ~id with
+                      | Error why ->
+                          Some { state with overlay = Modal_form (Form.set_notice submitted why) }
+                      | Ok updated ->
+                          let path = Stl.file_path ?config_home:state.config_home state.session.F.path in
+                          let _ = Stl.save_file path updated in
+                          Some { state with overlay = No_overlay; settlements = updated; message = Printf.sprintf "Retracted commitment %s." id })
+                    else
+                      (match B.parse_amount state.session.book r.measure amount_str with
+                      | Error why ->
+                          let msg =
+                            if why = "non-positive-amount" then tr "Amount must be positive."
+                            else if why = "measure-scale-not-supplied" then
+                              Printf.sprintf "Measure '%s' scale is not configured." r.measure
+                            else tr "Invalid amount."
+                          in
+                          Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
+                      | Ok amount ->
+                          let res =
+                            if kind_idx = 0 then Stl.settle_row state.settlements ~id ~amount
+                            else Stl.reduce_row state.settlements ~id ~amount
+                          in
+                          (match res with
+                          | Error why ->
+                              Some { state with overlay = Modal_form (Form.set_notice submitted why) }
+                          | Ok updated ->
+                              let path = Stl.file_path ?config_home:state.config_home state.session.F.path in
+                              let _ = Stl.save_file path updated in
+                              let verb = if kind_idx = 0 then "Settled" else "Reduced" in
+                              Some { state with overlay = No_overlay; settlements = updated; message = Printf.sprintf "%s %s on %s." verb (Z.to_string amount) id })))
             | _ -> Some state))
     | No_overlay -> (
         let key = match input with `Key (key, mods) -> Some (key, mods) | _ -> None in
@@ -893,7 +1184,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII 'g', []) when (match state.workspace.route with W.Selected_day _ -> true | _ -> false) ->
             Some (open_route state W.Loci)
         | Some ((`Escape | `ASCII 'q'), []) ->
-            if state.workspace.route = W.Attention || state.workspace.route = W.Loci then
+            if state.workspace.route = W.Attention || state.workspace.route = W.Loci || state.workspace.route = W.Settlements then
               Some (open_route state W.Home)
             else if state.workspace.route = W.Calendar then
               if state.workspace.pane = W.Detail then
@@ -960,6 +1251,14 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 let roles = accounting_roles state in
                 let current_role = List.assoc_opt locus roles in
                 Some { state with overlay = Modal_form (set_locus_role_form ~locus ~current_role) })
+        | Some (`ASCII 'n', []) when state.workspace.route = W.Settlements ->
+            Some { state with overlay = Modal_form (add_settlement_form state) }
+        | Some (`ASCII 'a', []) when state.workspace.route = W.Settlements -> (
+            match selected_settlement state with
+            | None -> Some { state with message = tr "No commitment selected." }
+            | Some r -> Some { state with overlay = Modal_form (action_settlement_form r) })
+        | Some (`ASCII 's', []) when state.workspace.route = W.Settlements ->
+            Some (cycle_settlement_scope state)
         | Some (`ASCII 'r', []) | Some (`ASCII 'n', [])
           when state.workspace.route = W.Scheduled ->
             Some (open_plan_record state)
@@ -1039,6 +1338,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               Some (move_attention state delta)
             else if state.workspace.route = W.Loci then
               Some (move_locus state delta)
+            else if state.workspace.route = W.Settlements then
+              Some (move_settlement state delta)
             else
               Some
                 {
@@ -1403,6 +1704,7 @@ let workspace_rows ~width_of ~width ~height state =
     | W.Daily_pace -> "Daily Pace"
     | W.Attention -> "Attention / Household matters"
     | W.Loci -> "Manage Loci / Admitted vocabulary"
+    | W.Settlements -> "Settlements / Reimbursements"
   in
   let pad rows = rows @ List.init (max 0 (height - List.length rows)) (fun _ -> (Plain, "")) in
   let split_pane ~left_focused ~left_title ~left_scroll ~left_selected ~left_rows
@@ -1632,6 +1934,59 @@ let workspace_rows ~width_of ~width ~height state =
       ~left_rows
       ~right_focused:is_detail ~right_title
       ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail
+  else if workspace.route = W.Settlements then
+    let rows = settlement_rows state in
+    let scope_label = match state.settlement_scope with Stl.Open_only -> "Open" | Stl.All -> "All current" in
+    let left_title = Printf.sprintf "Settlements [%s] (%d)" scope_label (List.length rows) in
+    let right_title = "Commitment Details" in
+    let row_line r =
+      let desc = match r.Stl.label with Some l -> l | None -> r.id in
+      let rem = Stl.outstanding r in
+      let status = if Z.equal rem Z.zero then "done" else "" in
+      let trunc_desc = if String.length desc > 22 then String.sub desc 0 19 ^ "..." else desc in
+      Printf.sprintf "%-22s  %10s %-4s %s" trunc_desc (Z.to_string rem) r.measure status
+    in
+    let left_rows =
+      if rows = [] then [ tr "  (no commitments in this scope)" ]
+      else List.map row_line rows
+    in
+    let detail =
+      match selected_settlement state with
+      | None -> [ tr "No selected commitment."; ""; tr "Press 'n' to add a new settlement commitment." ]
+      | Some r ->
+          let rem = Stl.outstanding r in
+          let desc = match r.label with Some l -> l | None -> "(no description)" in
+          let effective = match r.effective_on with Some d -> d | None -> "(date unknown)" in
+          [
+            "Identity:    " ^ r.id;
+            "Description: " ^ desc;
+            "Direction:   " ^ r.debtor ^ " -> " ^ r.creditor;
+            "Measure:     " ^ r.measure;
+            "Committed:   " ^ Z.to_string r.committed ^ " " ^ r.measure;
+            "Settled:     " ^ Z.to_string r.settled ^ " " ^ r.measure;
+            "Adjusted:    " ^ Z.to_string r.extinguished ^ " " ^ r.measure;
+            "Remaining:   " ^ Z.to_string rem ^ " " ^ r.measure;
+            "Effective:   " ^ effective;
+            "";
+            "Allocations:";
+            (if Z.gt r.settled Z.zero then Printf.sprintf "  Settled payment: %s %s" (Z.to_string r.settled) r.measure else "  Direct settlement: (none)");
+            (if Z.gt r.extinguished Z.zero then Printf.sprintf "  Non-payment reduction: %s %s" (Z.to_string r.extinguished) r.measure else "  Reductions: (none)");
+            "";
+            "Actions:";
+            "  a / Enter : Settlement action (Settle / Reduce / Retract)";
+            "  s         : Cycle scope (Open only <-> All current)";
+            "  n         : Add new settlement commitment";
+          ]
+    in
+    let right_width = if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1 else width in
+    let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
+    let is_detail = workspace.pane = W.Detail in
+    split_pane
+      ~left_focused:(not is_detail) ~left_title ~left_scroll:0
+      ~left_selected:(if rows = [] then None else Some workspace.settlements.selected)
+      ~left_rows
+      ~right_focused:is_detail ~right_title
+      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail
   else
     let is_detail = workspace.pane = W.Detail in
     let right_title =
@@ -1727,6 +2082,11 @@ let footer state =
         "n admit locus  r set role  j/k select  Enter/Tab detail";
         "q/Esc Home  Space Commands  Ctrl-r reload";
       ]
+  | W.Settlements, _ ->
+      [
+        "n add  a action  s scope  j/k select  Enter/Tab detail";
+        "q/Esc Home  Space Commands  Ctrl-r reload";
+      ]
   | _, _ ->
       [
         "j/k scroll  Page Up/Down page  Home/End range"; "q/Esc back  Space Commands  Ctrl-r reload";
@@ -1765,7 +2125,8 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
              | W.Balances -> tr "Balances"
              | W.Daily_pace -> tr "Daily Pace"
              | W.Attention -> tr "Attention"
-             | W.Loci -> tr "Manage Loci"));
+             | W.Loci -> tr "Manage Loci"
+             | W.Settlements -> tr "Settlements"));
           line ~width_of width Chrome
             (state.workspace.calendar.selected_day ^ "   "
             ^ Cal.title state.workspace.calendar ^ tr " view"

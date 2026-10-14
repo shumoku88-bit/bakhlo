@@ -37,7 +37,7 @@ for dir in lib application sexp; do
 done
 # Generated sources are an exact snapshot, including retired UI module removal.
 rm -f "$build/ui/"*.ml "$build/ui/"*.mli
-modules='daily_file ui_preferences ui_input ui_text posting_draft daily_actions daily_form daily_overlays ui_form attention_data locus_roles record_session record_session_checks daily_calendar ui_workspace ui_commands daily_interaction daily_interaction_checks recovery_checks bonsai_daily'
+modules='daily_file ui_preferences ui_input ui_text posting_draft daily_actions daily_form daily_overlays ui_form attention_data locus_roles settlement_data record_session record_session_checks daily_calendar ui_workspace ui_commands daily_interaction daily_interaction_checks recovery_checks bonsai_daily'
 for module in $modules; do
   cp "$root/tui/$module.ml" "$build/ui/"
   if [ -f "$root/tui/$module.mli" ]; then
