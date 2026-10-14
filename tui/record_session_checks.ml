@@ -135,7 +135,7 @@ let self_check ~width_of () =
       "record-active-caret-tail-visible-in-compact-pane") [32,8;48,13;72,20];
   let literal_bar=text (create ()) "a|b" in
   require (List.filter_map (fun (style,_) -> match style with O.Input cell->Some cell | _->None)
-    (screen ~dimensions:(72,20) literal_bar)=[18]) "record-literal-bar-is-not-a-second-caret";
+    (screen ~dimensions:(72,20) literal_bar)=[17]) "record-literal-bar-is-not-a-second-caret";
   let compact_focus=update draft (`Key (`Tab,[`Shift])) in
   require (List.exists (fun (_,line)->Base.String.is_substring line ~substring:"|")
     (screen ~dimensions:(32,8) compact_focus)) "record-low-viewport-follows-field-focus";
@@ -186,11 +186,17 @@ let self_check ~width_of () =
     && List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Postings") wide_screen
     && List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Locus candidates") wide_screen)
     "record-wide-layout-has-movement-postings-and-candidates-panels";
+  let medium_screen = screen ~dimensions:(60,24) draft in
+  require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Movement") medium_screen
+    && List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Postings") medium_screen
+    && List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Locus candidates") medium_screen)
+    "record-medium-layout-has-stacked-movement-postings-and-candidates-panels";
   let degraded_screen = screen ~dimensions:(32,8) draft in
   require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Fields") degraded_screen)
     "record-degraded-layout-falls-back-to-fields-panel";
   let preview_gate_screen = screen ~dimensions:(72,20) review in
-  require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Publication gate") preview_gate_screen
+  require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Movement / signed postings") preview_gate_screen
+    && List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"Publication gate") preview_gate_screen
     && List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"recheck evidence") preview_gate_screen)
     "record-preview-contains-publication-gate";
   let plan_draft = S.create_plan ~book ~day:"2026-10-15" ~measure:"jpy" () in

@@ -64,7 +64,7 @@ Bakhloの保存形式をLOAMと同じにする指示ではなく、永久Correct
 | **UI-08** | unresolved有効化 | 未接続：Record専用の追加確認なし。Manage Lociは別入口 | **F/O** 未解決語彙の意味・明示admission・元draftへの復帰。**Q** 拒否 | 通常候補選択で代用しない。R06 |
 | **UI-09** | Actual Correction | 試用：Record系Edit／Preview、同一ID・Postingキー／構成／符号・支払対応保持 | **O** LOAMの表現可能範囲・操作対照。**V/Q** 注意枠、原内容と確認内容。対応外shapeは拒否 | T：符号／構成lock、ID・キー・payment link保持 |
 | **UI-10** | Actual日付変更専用 | 未接続：通常EditのDate変更はあるが専用入口／Previewなし | **O/Q** date-only操作と対象identity、対応可能なshape、全Effects不変・再読込の照合 | 「日付を一切変えられない」という意味ではない |
-| **UI-11** | Reversal入力・確認 | 局部：xで日付modal→既存exact inverse writer。元Actualは残る | **O/Q** LOAMのr・逆Posting独立Preview・全文／狭小gateとの差。**V** 警告枠・原対象 | T：inverse／二重反転拒否。Record Previewの確定拒否をこのmodalにも備えるとは扱わない |
+| **UI-11** | Reversal入力・確認 | 試用：x→専用Date／exact inverse Preview→既存writer。元Actualは残る | **O** LOAMのrとの入口差。**V/Q** 対照表示・実機受入。後続modal・P7には保証を拡張しない | T/P：固定target／base、元・逆Postingの正確な数量、末尾／狭小gate、取消／下書き、stale／失敗／unknown停止、cold、resize寸法。反転の限定sliceはP05で完了 |
 | **UI-12** | Scheduled Series Calendar | **未接続**：Home sはcurrent-open List | **F/O** 明示open／completed証拠とread-side監視のSeries、初期表示、月窓・継続入口 | schedule_view型だけでは実装済みでない。S04〜S06 |
 | **UI-13** | Scheduled Plan Detail | 局部：単発occurrenceのExpected Effects／due／ID | **F/O** Series内の複数日・監視／継続文脈なし。**V/Q** 単発detailの対照 | T/P：Actual共用の枠・端・ページ・resize・focus・draft／取消復帰 |
 | **UI-14** | Scheduled Months | **未接続**：六か月board・月別projectionなし | **F/O** 月内の明示occurrenceを選ぶprojection。**V/Q** 数量・counts・Listへの縮退 | type Monthsは画面接続の根拠でない |
@@ -95,7 +95,7 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 | 面 | Bakhlo入口 | LOAM入口（`loam/Loam/Tui/`） |
 | --- | --- | --- |
 | Home／Commands | `bonsai_daily.ml`、`daily_overlays.ml`、controllerのCalendar／Commands描画、`ui_commands.ml` | `Home.lean`、`HomeCommandPalette.lean` |
-| Record／Actual／Selected Day | `record_session.ml`、controllerのedit／reverse／Actual／Selected_day | `Record.lean`／`RecordSession.lean`、`ActualWorkspace.lean`、`SelectedDay.lean`／`SelectedDaySession.lean`、`ActualDateCorrection.lean`、`EventMerchant.lean` |
+| Record／Actual／Selected Day | `record_session.ml`、`reversal_session.ml`、controllerのedit／reverse／Actual／Selected_day | `Record.lean`／`RecordSession.lean`、`ActualWorkspace.lean`、`SelectedDay.lean`／`SelectedDaySession.lean`、`ActualDateCorrection.lean`、`ActualReversal.lean`／`ActualReversalSession.lean`、`EventMerchant.lean` |
 | Scheduled | `ui_workspace.ml`、`record_session.ml`、controllerのScheduled／cancel | `ScheduledWorkspace.lean`／`ScheduledWorkspaceSession.lean`、`ScheduledCreation.lean`、`ScheduledCompletion.lean`、`ScheduledCancellation.lean`、`ScheduledReplacement.lean` |
 | Balances／Reports／Pace | `daily_overlays.ml`、`balance_view_data.ml`、controllerのbalance／pace／what-if | `Balances.lean`、`RoleBalances.lean`、`ReportsView.lean`／`ReportsSession.lean`、`DailyPaceTrend.lean`、`DailyPaceWhatIf.lean` |
 | Attention／Settlement／Exchange | 各data module、controllerのform／action／一覧 | `AttentionAdministration.lean`／`AttentionAdministrationSession.lean`、`SettlementWorkspace.lean`、`SettlementAction.lean`、`Exchange.lean`／`ExchangeSession.lean` |
@@ -106,7 +106,7 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 
 ### 優先して切る差分
 
-1. **Q/Oの安全境界**：UI-11のinverse Preview、UI-18取消等の確認、rolesの拒否／保存。
+1. **Q/Oの安全境界**：UI-11のinverse Previewは限定検証済み。次はUI-18取消等の確認、rolesの拒否／保存。
    機能拡張・見た目改善とは別の小さい変更にする。P7／電源断は独立した未認定課題。
 2. **V/Qの並行作業**：接続済みHome／Commands／Recordの対照・仕上げと、Actualのread-only差分採取。
 3. **Oの統合作業**：ActualのLocus／検索／Transaction detail、Selected Dayの親復帰。共通componentを使う。
@@ -127,6 +127,7 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 | 既存描画・回答 | `tui/daily_overlays.ml` の `clip_text`／`wrap_text`／枠、`entry_lines`／`plan_lines`／残高、`bonsai_home_lines` | 幅・金額・会計回答・Homeが同居。担当関数を決め、file全体のformat／renameは禁止 |
 | 共通panel | `tui/ui_panel.ml/.mli` の `capacity`／`window`／`move`／`frame` | Actual／Scheduled等が利用。API変更は専任統合。見た目担当が独自viewportを複製しない |
 | 汎用modal | `tui/ui_form.ml/.mli` の `handle_input`／`render_rows` | 多数のoperationで共有。見た目とSubmit／Cancel規則を分離。Record Previewのgateとは別 |
+| 反転owner | `tui/reversal_session.ml/.mli` のDate／Preview／gate | 捕捉したtarget・book・baseで描画し、意図だけを返す。逆Actualの構築・ID・publicationは既存writer。共通formへ確定判断を移さない |
 | Record owner | `tui/record_session.ml/.mli` の `screen`／field描画、`handle`／`review_geometry` | Record・訂正・予定作成／変更／完了で共有。paint変更は可能、寸法／gate変更は安全レビューが必要 |
 | 選択・draft入力 | `tui/ui_workspace.ml/.mli`、`tui/ui_input.ml/.mli`、`tui/daily_form.ml`、`tui/posting_draft.ml` | stable identity・filter・caret／pasteを保持。行番号や見た目で対象を再解釈しない |
 | family／保存境界 | `tui/attention_data.*`、`settlement_data.*`、`locus_roles.*`、`daily_actions.ml`、`daily_file.ml`、`sexp/`、`application/`、`lib/` | 見た目依頼の編集対象外。safe load／writer／semantic修正は別担当・別根拠 |
@@ -139,7 +140,7 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 2. 同じcheckout・同じfileを複数pitが同時編集しない。read-only比較・調査は並行可。
    編集を並行するなら別worktree等の分離した作業ディレクトリ・branchを使い、共有fileの接続・merge・最終testは一人が統合する。
    同じcheckoutでbranchだけ切り替えても隔離されない。未コミットの共通panel差分も渡し、HEADだけを共有しない。
-   同じcheckoutの `tools/build-bonsai-tui`／UI self-checkは生成先を共有するため、buildも同時実行しない。
+   同じcheckoutのCore／UI buildは生成先へ影響するため、buildも同時実行しない。PTYでは検証対象binaryとsource manifestを固定する。
    分離先に既存の隔離build環境があるか確認する。新依存installやglobal設定変更を当然の手順にしない。
 3. 共通APIを変える前に利用元を確認し、先に統合担当へ相談する。component／writerのコピーを画面ごとに増やさない。
    無関係な一括format・cleanup・別pitの未確認変更のcommitはしない。
@@ -150,9 +151,9 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 
 ## 5. そのまま渡せる依頼カード
 
-以下は依頼候補（担当・状態は各カードに記載、記載なしは未割当）。P05はユーザー承認によりpitが着手。
+以下は依頼候補（担当・状態は各カードに記載、記載なしは未割当）。P05の反転sliceはユーザー承認によりpitが限定完了。
 今回はReversal専用session、中央controllerの反転接続、合成回帰、UI build登録と進捗文書に限定する。
-PTYで縮小直後の確定が古い寸法で判定される例が出たため、`bonsai_daily.ml` の `app`／`Terminal_event` の寸法伝達も担当する。
+PTYで縮小直後の確定が古い寸法で判定される例を得て、`bonsai_daily.ml` の `app`／`Terminal_event` を最新のdynamic input寸法へ修正した。
 Record／共通form／writer／rendererのpaintは変更しない。
 既存担当のUI-01／02は本人と範囲を確認してから割り振る。
 コード編集の許可範囲は、この表と依頼時の合意の狭い方。見た目／比較担当にもAGENTSと意味の契約を渡す。
@@ -160,10 +161,10 @@ Record／共通form／writer／rendererのpaintは変更しない。
 | カード | 対象／依頼 | 編集範囲・接続担当 | 完了条件／禁止事項 |
 | --- | --- | --- | --- |
 | **P01 見た目** | UI-01／02の接続済みHome／Commandsを対照。余白・強弱・配色・選択を仕上げる | Renderer／Home描画の合意した関数のみ。Commandsのcontroller変更は提案を統合担当へ | 4寸法、三テーマ、通知あり／なしの対照。Calendar収支や未接続reportを作らない。前段Antigravityの変更を保全 |
-| **P02 Record面** | UI-05／06の入力・候補・Previewの見た目／操作を対照 | `record_session.ml` のfield／action／screen描画、`record_session_checks.ml`。共通renderer／controllerは提案のみ | 長い日本語・巨大数量・literal bar・IME・Cancel／再開・tiny Publish拒否。`handle`／`review_geometry`／surface寸法変更は事前相談 |
+| **P02 Record面（ブラッシュアップ完了: antigravity）** | UI-05／06の入力・候補・Previewの見た目／操作を対照しLOAM一致 | `record_session.ml` のfield／action／screen描画、`record_session_checks.ml`。共通renderer／controllerは提案のみ | 長い日本語・巨大数量・literal bar・IME・Cancel／再開・tiny Publish拒否。`handle`／`review_geometry`／surface寸法変更は事前相談 |
 | **P03 読み取り比較** | UI-03／04のLOAM差を、操作列とスクショで具体化 | ソース・合成比較copyの閲覧のみ。成果はignored scratch＋この台帳の短い所見 | Locus、検索、単一detail、日付変更、戻り先、resizeを区別。実装・保存・本番copyのrefreshをしない |
 | **P04 Actual接続** | UI-03のLocus絞込／画面内検索を一課題ずつ接続 | 中央controller＋workspace＋その回帰を統合担当が専有。`ui_panel`は再利用 | scope／query／identity／draftを保持、閲覧で非書込。Transaction detail／新永続項目を同じ変更に混ぜない |
-| **P05 確認の安全性（作業中: pit）** | まずUI-11の原対象・exact inverse Preview・狭小gate／失敗復帰をLOAMと照合 | 中央controller、必要な共通modal、回帰を専有。P04と同時編集しない | writerは既存inverse検査を維持。read-only Preview、末尾、tiny拒否、競合／不確定、draftを確認。UI-18／29／31は後続の別課題 |
+| **P05 確認の安全性（反転slice限定完了: pit）** | UI-11のDate／exact inverse Preview・狭小gate／失敗復帰を接続。対照実行・受入は未 | 専用session、中央controller、frontendの最新寸法伝達、回帰。P04との同時編集は禁止 | writerは既存inverse検査を維持。read-only Preview、末尾、tiny拒否、競合／不確定、draftを確認。UI-18／29／31は後続の別課題 |
 | **P06 機能設計調査** | UI-12／14／22／23の明示予定と監視設定・Series／Monthsの不足を整理 | read-only調査／設計案だけなら並行可。実装file・保存単位は調査後に決める | open／completed／cancelled・欠損Actual・coverageを区別。監視cadenceを予定事実やNotDueにしない |
 | **P07 roles安全境界** | UI-24／30のrole parse／load／save拒否を独立に調べる | `locus_roles.*`と関連parser／controller利用元の調査。修正の接続は中央担当と調整 | 不正→空／false成功・stale write・draft／reload・coldを扱う。口座名／signからrole推測しない。Balancesの見た目依頼とは別 |
 | **P08 共通部品候補** | 次のpicker／浮動面／入力／金額部品が既存利用元で本当に共有可能か調べる | `ui_panel`、`ui_form`、Record、rendererの境界をread-only点検。API変更は専任統合 | 利用元2件以上の実益・拒否維持を示しKEEP／SPLIT／INLINE／DEFER。万能form・新状態管理・先回りのframeworkは禁止 |
