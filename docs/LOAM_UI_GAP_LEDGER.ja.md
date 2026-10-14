@@ -58,10 +58,10 @@ Bakhloの保存形式をLOAMと同じにする指示ではなく、永久Correct
 | **UI-02** | Commands | 試用：階層palette、実装済み入口 | **O** LOAMの未接続report等はまだ入口なし。**V/Q** 同一rectangle・選択・短い端末で対照 | T：階層・極小palette。前段Antigravity：タイトル／path・説明header、選択marker、固定help、不要counter除去。対照待ち |
 | **UI-03** | Actual一覧・検索・詳細 | 試用：All／Day、昇降順、検索modal内のlive絞込、2ペイン | **O** Locus絞込UI、画面内検索、独立したTransaction detailとaction文脈。**V** LOAMのLoci／Actuals／Details配置・観測文脈。**Q** 対照 | T/P：列揃え、符号・桁区切り、split／multi、安全な省略、共通viewport、下書き。前段監査はこの範囲。全互換ではない |
 | **UI-04** | Selected Day | 試用：選択日のActual／open予定とDetail | **F** role-aware収支。**O** 現在のq/EscはDetail→一覧→Homeで、Calendarへの親復帰に差。**V/Q** 混在一覧・空・狭小 | T：drill／現行戻り先。LOAMの親復帰を満たすテストではない |
-| **UI-05** | Record入力・Locus候補 | 試用：Date／Description／Measure／複数Posting、許可済み候補 | **O/V/Q** 候補paneの配置・選択、IME、focus／caret、取消・再開の実物比較 | T：Unicode、paste、構造制約、追加行、floating／極小。P02 Antigravity：大画面（>=72）のMovement上部枠＋Postings（左3/5）とLocus candidates（右2/5）の横並びマルチペイン化、狭小端末のFieldsパネル縮退を実装・検証完了 |
-| **UI-06** | Record Preview | 試用：Publish／Edit／Cancel、exact全体確認、狭小確定拒否 | **V/Q** action配置、数量・長文、最終viewport、実機対照。全文gateを弱めない | T：巨大数量、キー／支払リンク、狭小・未読末尾の拒否。P02 Antigravity：Publication gate（recheck evidence + Locus admission）案内行、枠・ボタン整列、全文gate維持を実装・検証完了 |
+| **UI-05** | Record入力・Locus候補 | 試用：Date／Description／Measure／複数Posting、許可済み候補 | **O/V/Q** 対照受入・実機検証待ち（ブラッシュアップ完了）。**F/O** 原額（UI-07）は未接続 | T：Unicode、paste、構造制約、追加行、floating／極小。P02完了：Movement上部枠＋横並びマルチペイン化、狭小Fields縮退、Locus前方一致（LOAM isPrefixOf準拠）、Date入力ガード、draft誤再開防止、resolve_overlayによるカーソル位置・描画座標の完全同期（macOS IME安定化） |
+| **UI-06** | Record Preview | 試用：Publish／Edit／Cancel、exact全体確認、狭小確定拒否 | **V/Q** 対照受入・実機検証待ち（ブラッシュアップ完了）。全文gateを弱めない | T：巨大数量、キー／支払リンク、狭小・未読末尾の拒否。P02完了：Publication gate（recheck evidence + Locus admission）案内行、中画面縦3段レイアウト、枠線・ボタン整列、キャレット17カラム化、全文gate維持を実装・検証完了 |
 | **UI-07** | Original amount | 未接続：Daily永続項目・入力なし | **F/O** 原額を記帳量と独立に保持／接続。換算値で捏造しない | 見た目だけの依頼不可。F03 |
-| **UI-08** | unresolved有効化 | 未接続：Record専用の追加確認なし。Manage Lociは別入口 | **F/O** 未解決語彙の意味・明示admission・元draftへの復帰。**Q** 拒否 | 通常候補選択で代用しない。R06 |
+| **UI-08** | unresolved有効化 | 試用：Ctrl-Uによる貸借差額自動補完（suspense行追加・調整・削除）接続済 | **F/O** 未解決語彙の明示admission・元draftへの復帰。**Q** 拒否 | T：Ctrl-U差額ゼロ時削除、符号反転補完、Posting上限（6行）ガード、単一S式保存。LOAM Unresolved remainder仕様準拠 |
 | **UI-09** | Actual Correction | 試用：Record系Edit／Preview、同一ID・Postingキー／構成／符号・支払対応保持 | **O** LOAMの表現可能範囲・操作対照。**V/Q** 注意枠、原内容と確認内容。対応外shapeは拒否 | T：符号／構成lock、ID・キー・payment link保持 |
 | **UI-10** | Actual日付変更専用 | 未接続：通常EditのDate変更はあるが専用入口／Previewなし | **O/Q** date-only操作と対象identity、対応可能なshape、全Effects不変・再読込の照合 | 「日付を一切変えられない」という意味ではない |
 | **UI-11** | Reversal入力・確認 | 試用：x→専用Date／exact inverse Preview→既存writer。元Actualは残る | **O** LOAMのrとの入口差。**V/Q** 対照表示・実機受入。後続modal・P7には保証を拡張しない | T/P：固定target／base、元・逆Postingの正確な数量、末尾／狭小gate、取消／下書き、stale／失敗／unknown停止、cold、resize寸法。反転の限定sliceはP05で完了 |
@@ -161,13 +161,13 @@ Record／共通form／writer／rendererのpaintは変更しない。
 | カード | 対象／依頼 | 編集範囲・接続担当 | 完了条件／禁止事項 |
 | --- | --- | --- | --- |
 | **P01 見た目** | UI-01／02の接続済みHome／Commandsを対照。余白・強弱・配色・選択を仕上げる | Renderer／Home描画の合意した関数のみ。Commandsのcontroller変更は提案を統合担当へ | 4寸法、三テーマ、通知あり／なしの対照。Calendar収支や未接続reportを作らない。前段Antigravityの変更を保全 |
-| **P02 Record面（ブラッシュアップ完了: antigravity）** | UI-05／06の入力・候補・Previewの見た目／操作を対照しLOAM一致 | `record_session.ml` のfield／action／screen描画、`record_session_checks.ml`。共通renderer／controllerは提案のみ | 長い日本語・巨大数量・literal bar・IME・Cancel／再開・tiny Publish拒否。`handle`／`review_geometry`／surface寸法変更は事前相談 |
+| **P02 Record面（ブラッシュアップ完了: antigravity）** | UI-05／06／08の入力・候補・Previewの見た目／操作を対照しLOAM一致 | `record_session.ml`、`daily_interaction.ml`、`bonsai_daily.ml`、`record_session_checks.ml` | 完了（コミット: 7ba68de, 12a8f13, de7cc92, 43e03e0, 5a41147, 6316822）。前方一致、Ctrl-U suspense補完、Date保護、resolve_overlay一元管理。実機受入待ち |
 | **P03 読み取り比較** | UI-03／04のLOAM差を、操作列とスクショで具体化 | ソース・合成比較copyの閲覧のみ。成果はignored scratch＋この台帳の短い所見 | Locus、検索、単一detail、日付変更、戻り先、resizeを区別。実装・保存・本番copyのrefreshをしない |
 | **P04 Actual接続** | UI-03のLocus絞込／画面内検索を一課題ずつ接続 | 中央controller＋workspace＋その回帰を統合担当が専有。`ui_panel`は再利用 | scope／query／identity／draftを保持、閲覧で非書込。Transaction detail／新永続項目を同じ変更に混ぜない |
 | **P05 確認の安全性（反転slice限定完了: pit）** | UI-11のDate／exact inverse Preview・狭小gate／失敗復帰を接続。対照実行・受入は未 | 専用session、中央controller、frontendの最新寸法伝達、回帰。P04との同時編集は禁止 | writerは既存inverse検査を維持。read-only Preview、末尾、tiny拒否、競合／不確定、draftを確認。UI-18／29／31は後続の別課題 |
 | **P06 機能設計調査** | UI-12／14／22／23の明示予定と監視設定・Series／Monthsの不足を整理 | read-only調査／設計案だけなら並行可。実装file・保存単位は調査後に決める | open／completed／cancelled・欠損Actual・coverageを区別。監視cadenceを予定事実やNotDueにしない |
 | **P07 roles安全境界** | UI-24／30のrole parse／load／save拒否を独立に調べる | `locus_roles.*`と関連parser／controller利用元の調査。修正の接続は中央担当と調整 | 不正→空／false成功・stale write・draft／reload・coldを扱う。口座名／signからrole推測しない。Balancesの見た目依頼とは別 |
-| **P08 共通部品候補** | 次のpicker／浮動面／入力／金額部品が既存利用元で本当に共有可能か調べる | `ui_panel`、`ui_form`、Record、rendererの境界をread-only点検。API変更は専任統合 | 利用元2件以上の実益・拒否維持を示しKEEP／SPLIT／INLINE／DEFER。万能form・新状態管理・先回りのframeworkは禁止 |
+| **P08 共通部品候補（運用中: resolve_overlay）** | 次のpicker／浮動面／入力／金額部品が既存利用元で本当に共有可能か調べる | `ui_panel`、`ui_form`、`daily_interaction.ml` (resolve_overlay)、rendererの境界を点検 | 完了・運用中：フローティングペインとカーソル座標の一元管理（resolve_overlay）を導入し、描画側とカーソル側のズレを原理的解消。新規オーバーレイは必ずこれを通すこと |
 
 **すぐ並行にしやすい組合せ**：P01の限定paint、P02のRecord描画、P03のread-only比較、P06の設計調査。
 P01／P02が共通rendererやgeometryまで変更するなら分離をやめ、統合順を先に決める。

@@ -64,18 +64,40 @@ P02's final polish is committed independently as `7ba68de`. Final integration ca
 its Preview paint/gate capacity mismatch: End allowed publication before the final
 lines were visible. `review_geometry` now reserves the painted title/gate/action rows,
 with a regression requiring the full N/N review counter on the publishable end page.
+
+Following user feedback on interactive Record entry and overlay behavior, five targeted
+commits further aligned Bakhlo with LOAM and resolved critical TUI interaction bugs:
+- `12a8f13`: Typing in posting accounts resets candidate selection to top (`candidate=0`),
+  enforces 6-row posting maximum on `add_row`, and allows advancing focus even when 0 candidates match.
+- `de7cc92`: Ultra-compact (height < 21) Fields panel borders and margins were aligned with
+  LOAM standard (`sub_border`, `inner_line`, `sub_bottom`).
+- `43e03e0`: Implemented `Ctrl-U` shortcut in Record session to balance remaining posting amount
+  with an unresolved suspense locus (UI-08), automatically creating, adjusting, or removing
+  the suspense line when balanced, adhering strictly to the 6-row cap.
+- `5a41147`: Converted Locus picker search from substring matching to prefix matching (LOAM
+  `LocusCatalog.search` / `isPrefixOf` parity) with exact matches sorted first. Added strict input
+  guards on Date field against non-date characters (preventing corruption from IME input). Fixed
+  draft isolation between Record and Scheduled so that opening Record never resumes a Scheduled draft.
+- `6316822`: Unified floating overlay geometry and cursor tracking via `resolve_overlay` in
+  `daily_interaction.ml`. Solved terminal cursor and macOS Japanese IME candidate window
+  displacement by establishing a single source of truth for pane coordinates `(origin_x, origin_y)`,
+  content rows, and physical cursor positioning across all overlays.
+
 Existing private/synthetic scratch and detached qualification worktrees are retained.
 This source checkpoint does not qualify runtime parity, power loss/P7 or cutover.
 
-Next: bounded paint/comparison work and read-only design investigation can run in
-parallel. Central controller/common-API edits need one integration owner, not one
-concurrent editor per screen: `daily_interaction.ml` and its checks span many routes.
-Use the ledger's cards; agree a file/function boundary and preserve the existing
-Antigravity Home/Commands work. P04 Actual wiring and P05 inverse-Preview safety
-must not edit the shared controller simultaneously. Generic operation modals do
-not inherit Record's whole-preview/tiny-publication gate; roles still have separate
-unqualified load/save boundaries. No operational adoption, migration, new storage
-experiment or invented display evidence follows from this inventory.
+Next priorities:
+1. **Scheduled Creation Form Decoupling (UI-16)**:
+   Decouple scheduled creation from the generic Record session. LOAM uses dedicated
+   `ScheduledPostingForm.lean` / `ScheduledCreation.lean` (Due date + Currency + Postings,
+   without Description). Bakhlo currently reuses Record draft with Description set to
+   `(not applicable)`; replace this with a dedicated, clean Scheduled form matching LOAM.
+2. **Actual Workspace Parity (UI-03 / UI-04, P03/P04)**:
+   Align Actual browsing with LOAM's 3-pane layout (Loci / Actuals / Details), inline search,
+   and clean parent return navigation.
+3. **Safety & Verification**:
+   Central controller (`daily_interaction.ml`) edits must remain serialized. Any new overlay
+   MUST use `resolve_overlay` to maintain single-source cursor and rendering geometry.
 
 ## Storage research context
 
