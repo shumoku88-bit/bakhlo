@@ -158,10 +158,10 @@ let base_view ((width, height) as dimensions) theme state =
   C.screen ~width_of dimensions state |> lines ?border theme |> fit width height |> backdrop theme
 
 let overlay_view dimensions theme state =
-  match overlay_screen dimensions state with
+  match C.resolve_overlay ~dimensions ~width_of state with
   | None -> None
-  | Some rows ->
-      let pane = lines ?border:(editor_border state) theme rows in
+  | Some frame ->
+      let pane = lines ?border:(editor_border state) theme frame.rows in
       let pane =
         match P.palette theme with
         | None -> pane
@@ -169,11 +169,7 @@ let overlay_view dimensions theme state =
             V.with_colors ~fill_backdrop:true pane ~fg:(color palette.panel_foreground)
               ~bg:(color palette.panel_background)
       in
-      let left, top =
-        C.overlay_position ~dimensions ~width_of state ~pane_width:(V.width pane)
-          ~pane_height:(V.height pane)
-      in
-      Some (V.pad ~l:left ~t:top pane)
+      Some (V.pad ~l:frame.origin_x ~t:frame.origin_y pane)
 
 let render ((width, height) as dimensions) state =
   let base = base_view dimensions state.C.theme state in

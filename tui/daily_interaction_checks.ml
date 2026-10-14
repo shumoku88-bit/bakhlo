@@ -1669,6 +1669,30 @@ let self_check ~width_of () =
        require (col > 0 && col < 80) "cursor-search-col-bounded";
        require (row > 0 && row < 24) "cursor-search-row-bounded"
    | None -> failwith "expected-search-overlay-cursor");
+  (* 5. Single source of truth: resolve_overlay must strictly match cursor_position across overlays *)
+  let check_overlay_sync state label =
+    match C.resolve_overlay ~dimensions:(80, 24) ~width_of state with
+    | None -> failwith ("expected-overlay-frame-" ^ label)
+    | Some frame ->
+        require (C.cursor_position ~width_of (80, 24) state = frame.cursor)
+          ("overlay-cursor-sync-" ^ label);
+        (match frame.cursor with
+        | Some (col, row) ->
+            require (col >= frame.origin_x && col < frame.origin_x + frame.pane_width)
+              ("cursor-within-pane-width-" ^ label);
+            require (row >= frame.origin_y && row < frame.origin_y + frame.pane_height)
+              ("cursor-within-pane-height-" ^ label)
+        | None -> ())
+  in
+  check_overlay_sync form_ja_state "modal-form";
+  check_overlay_sync rec_state "record-session";
+  check_overlay_sync jump_state "jump";
+  check_overlay_sync search_state "search";
+  (* 6. Japanese text IME cursor anchor stability *)
+  let rec_ja = text ~width_of rec_state "コンビニ" in
+  check_overlay_sync rec_ja "record-with-japanese-text";
+  let search_ja = { home with overlay = C.Search "食費" } in
+  check_overlay_sync search_ja "search-with-japanese-text";
   safety_checks ~width_of ~directory ();
   print_endline
     "PASS: English Calendar / Commands / Record / child navigation / exact cold save and safety \
