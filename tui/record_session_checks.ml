@@ -145,6 +145,11 @@ let self_check ~width_of () =
   let many_rows=ctrl (ctrl (ctrl draft 'n') 'n') 'n' in
   require (List.exists (fun (_,line)->Base.String.is_substring line ~substring:"Posting 5")
     (screen ~dimensions:(32,8) many_rows)) "record-added-row-remains-visible";
+  let six_rows = ctrl many_rows 'n' in
+  require (List.exists (fun (_,line)->Base.String.is_substring line ~substring:"Posting 6")
+    (screen ~dimensions:(72,20) six_rows)) "record-six-rows-reached";
+  let seven_rows = ctrl six_rows 'n' in
+  require (contains seven_rows "supports up to six posting rows") "record-max-six-rows-cap";
   let overflow=prepare ~amount:huge ~description:long_description () |> fun t->key t `Enter in
   (match handle ~dimensions:(72,20) overflow (`Key (`Enter,[])) with
    | S.Updated retained -> require (contains retained "Review to the end") "overflow-explicit-end-gate"

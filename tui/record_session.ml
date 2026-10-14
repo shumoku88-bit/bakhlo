@@ -155,10 +155,11 @@ let accept ~book t =
     let choices = candidates ~book t in
     match List.nth_opt choices (if choices=[] then 0 else t.candidate mod List.length choices) with
     | Some id -> move_focus (set_value t id) 1
-    | None -> with_notice t (tr "No admitted Locus matches this field.")
+    | None -> move_focus t 1
 
 let add_row t =
   if not (editable_structure t) then with_notice t (tr "Correction keeps the posting structure.")
+  else if List.length t.rows >= 6 then with_notice t (tr "This editor supports up to six posting rows.")
   else {t with rows=t.rows @ [{key=None;locus="";amount=""}]; focus=action_start t;
     candidate=0; cursor=None; notice=""}
 
@@ -194,12 +195,12 @@ let preview ~book ~base_bytes ~blocked t =
 let insert t text =
   let updated, cursor=Fm.insert_at ~value:(value t) ~cursor:t.cursor text in
   let next=set_value t updated in
-  if value next=updated then {next with cursor=Some cursor} else next
+  if value next=updated then {next with cursor=Some cursor; candidate=0} else {next with candidate=0}
 
 let erase t =
   let updated,cursor=Fm.erase_at ~value:(value t) ~cursor:t.cursor in
   let next=set_value t updated in
-  if value next=updated then {next with cursor=Some cursor} else next
+  if value next=updated then {next with cursor=Some cursor; candidate=0} else {next with candidate=0}
 
 let review_lines ~book review =
   match review.payload with
