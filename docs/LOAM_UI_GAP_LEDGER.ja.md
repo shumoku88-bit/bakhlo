@@ -73,24 +73,24 @@ LOAMの内部構造・保存形式・研究基盤の移植は目的ではない�
 | --- | --- | --- | --- | --- |
 | **UI-01** | Home／Calendar | 試用：固定盆栽Home、Day／Month／Year、期間内Actual／open予定のDetail | **F** role-aware収支・月年集計。**O** Help等。**V/Q** Calendarの配置・縮退・対照受入 | T：Home／暦。前段Antigravity：葉／鉢・入口キーの彩色、Home固定footerを整理。対照スクショ待ち |
 | **UI-02** | Commands | 試用：階層palette、実装済み入口 | **O** LOAMの未接続report等はまだ入口なし。**V/Q** 同一rectangle・選択・短い端末で対照 | T：階層・極小palette。前段Antigravity：タイトル／path・説明header、選択marker、固定help、不要counter除去。対照待ち |
-| **UI-03** | Actual一覧・検索・詳細 | 接続済み：3ペイン、Locus絞込、live検索、scope／sort、Detailsスクロール、2段階Enter。長文検索は可視末尾・blank挿入cellと実caretを同じ計算へ修正 | **O/V/Q** 現行LOAMとのheader・pane配置・枠・空一覧／count・footer、全操作・実IME／本人受入が残る | T：既存workspace/controllerと4寸法の長文日本語検索・保持query・caret一致が成功。P：32×9／120×36で検索行・caret・Enter／EscをLOAM対照、両合成台帳bytes不変。検索だけの限定成功で画面全体の完了ではない |
-| **UI-04** | Selected Day | 試用：選択日のActual／open予定とDetail | **F** role-aware収支。**O** 2段階 Enter による Actual からのドリルイン接続完了。**V/Q** 混在一覧・空・狭小 | T：drill／現行戻り先 |
+| **UI-03** | Actual一覧・検索・詳細 | 接続済み：3ペイン、Locus絞込、live検索、scope／sort、Detailsスクロール、2段階Enter、tx_height容量整合、Selected_dayからのdrill-back。復帰時の別browser上書きと詳細focus／scroll消失を修正 | **O/V/Q** 現行LOAMとのheader・pane配置・枠・空一覧／count・footer、全操作・実IME／本人受入が残る | T：4寸法の長文検索・caret、ページ移動、日付変更bookへのID復帰、検索／sort／Locus／詳細scroll保持。合成PTY：80×24と縮小後48×14で詳細末尾へ復帰。検索の既存LOAM対照は限定証拠で、画面全体の完了ではない |
+| **UI-04** | Selected Day | 試用：選択日のActual／open予定とDetail。Actualからの2段階Enterと親Actualへの復帰、`d`日付訂正を接続 | **F** role-aware収支、Merchant／原額等。**O/V/Q** 混在一覧・空・狭小と対照受入 | T：親復帰で別browserを上書きしない。日付訂正の保存／cold／親ID追従。合成PTY：移動後の旧日が空になり親Actualの同じIDへ戻る。全画面の受入ではない |
 | **UI-05** | Record入力・Locus候補 | 試用：Date／Description／Measure／複数Posting、許可済み候補 | **O/V/Q** 対照受入・実機検証待ち（ブラッシュアップ完了）。**F/O** 原額（UI-07）は未接続 | T：Unicode、paste、構造制約、追加行、floating／極小。P02完了：Movement上部枠＋横並びマルチペイン化、狭小Fields縮退、Locus前方一致（LOAM isPrefixOf準拠）、Date入力ガード、draft誤再開防止、resolve_overlayによるカーソル位置・描画座標の完全同期（macOS IME安定化） |
 | **UI-06** | Record Preview | 試用：Publish／Edit／Cancel、exact全体確認、狭小確定拒否 | **V/Q** 対照受入・実機検証待ち（ブラッシュアップ完了）。全文gateを弱めない | T：巨大数量、キー／支払リンク、狭小・未読末尾の拒否。P02完了：Publication gate（recheck evidence + Locus admission）案内行、中画面縦3段レイアウト、枠線・ボタン整列、キャレット17カラム化、全文gate維持を実装・検証完了 |
 | **UI-07** | Original amount | 未接続：Daily永続項目・入力なし | **F/O** 原額を記帳量と独立に保持／接続。換算値で捏造しない | 見た目だけの依頼不可。F03 |
 | **UI-08** | unresolved有効化 | 試用：Ctrl-Uによる貸借差額自動補完（suspense行追加・調整・削除）接続済 | **F/O** 未解決語彙の明示admission・元draftへの復帰。**Q** 拒否 | T：Ctrl-U差額ゼロ時削除、符号反転補完、Posting上限（6行）ガード、単一S式保存。LOAM Unresolved remainder仕様準拠 |
 | **UI-09** | Actual Correction | 試用：Record系Edit／Preview、同一ID・Postingキー／構成／符号・支払対応保持 | **O** LOAMの表現可能範囲・操作対照。**V/Q** 注意枠、原内容と確認内容。対応外shapeは拒否 | T：符号／構成lock、ID・キー・payment link保持 |
-| **UI-10** | Actual日付変更専用 | 未接続：通常EditのDate変更はあるが専用入口／Previewなし | **O/Q** date-only操作と対象identity、対応可能なshape、全Effects不変・再読込の照合 | 「日付を一切変えられない」という意味ではない |
+| **UI-10** | Actual日付変更専用 | 試用：Actual／Selected Dayの`d`→専用Date／Preview→既存置換writer。日付以外の明細・支払対応を保持 | **O/V/Q** LOAM対照・本人受入、関連shape全域の照合は未了。Records置換は既存制約で拒否 | T：暦検査、長いtarget末尾、tiny／paste／stale／Records／保存失敗、draft・キー・paid-plan保持、cold・親ID追従、8寸法×3テーマ。合成PTY：取消非保存、32×9拒否、80×24保存・終了再起動。[証拠](VERIFICATION.md#actual-date-only-correction) |
 | **UI-11** | Reversal入力・確認 | 試用：x→専用Date／exact inverse Preview→既存writer。元Actualは残る | **O** LOAMのrとの入口差。**V/Q** 対照表示・実機受入。後続modal・P7には保証を拡張しない | T/P：固定target／base、元・逆Postingの正確な数量、末尾／狭小gate、取消／下書き、stale／失敗／unknown停止、cold、resize寸法。反転の限定sliceはP05で完了 |
 | **UI-12** | Scheduled Series Calendar | **未接続**：Home sはcurrent-open List | **F/O** 明示open／completed証拠とread-side監視のSeries、初期表示、月窓・継続入口 | schedule_view型だけでは実装済みでない。S04〜S06 |
 | **UI-13** | Scheduled Plan Detail | 局部：単発occurrenceのExpected Effects／due／ID | **F/O** Series内の複数日・監視／継続文脈なし。**V/Q** 単発detailの対照 | T/P：Actual共用の枠・端・ページ・resize・focus・draft／取消復帰 |
-| **UI-14** | Scheduled Months | **未接続**：六か月board・月別projectionなし | **F/O** 月内の明示occurrenceを選ぶprojection。**V/Q** 数量・counts・Listへの縮退 | type Monthsは画面接続の根拠でない |
-| **UI-16** | Scheduled作成 | **完了（コミット: 07b922e）**：独立セッション `scheduled_session.ml` 実装。LOAM `ScheduledPostingForm.lean` / `ScheduledCreation.lean` 準拠（Due日付、通貨固定、Locus/Amount、Description排除、2〜6行制限、Date入力ガード、Locus前方一致、Ctrl-U suspense貸借補完、狭小端末previewCapacity < 2確定拒否、`resolve_overlay` カーソル一元管理）。Recordドラフトとの完全分離・非干渉 | **F/O** recurring／監視設定・補充は別。 | T/P/V/Q完了：独立自己診断テスト `scheduled_session_checks.ml` パス。アトミックな `A.Plan_tx` 確定・取消保全 |
-| **UI-18** | Scheduled取消 | 局部：日付modal→既存取消writer、取消planを保持 | **O/Q** LOAMのKeep初期選択・独立Preview・狭小確認との差。**V** 警告／対象 | T：取消保持／再操作拒否。RecordのPreview gateを継承しない |
+| **UI-14** | Scheduled Months | 試用：`v`でList↔明示open予定の6か月board。2列×3段・月移動・件数・ID選択追従・exact詳細・compact/List復帰、既存作成／編集／完了／取消へ接続 | **O/V/Q** LOAM対照・本人受入、Series/coverageとのview cycleは未接続。周期／充足を推測しない | T：年跨ぎ・当月下限／9999上限・極端shift、Listのfilter/ID保持、split／巨大数量、カード内追従、狭小、取消cold。8寸法×3テーマ。合成PTY：120×36／80×24／48×14／32×9、親復帰・非保存。[証拠](VERIFICATION.md#scheduled-months-projection) |
+| **UI-16** | Scheduled作成 | 試用（移行順3接続済み）：独立`scheduled_session.ml`。共有input_text、UTF-8 move_cursor、Ui_panel field windowing、1行notice予約・overflow、均一幅padding。Sch.cursor_position撤去。renderer matrix（8寸法×3テーマ）合格。Due、固定通貨、2〜6 Posting、Dateガード、Locus prefix、Ctrl-U、Preview gateと既存writer接続。Record draft分離 | **F/O** recurring／監視／補充は別。**V/Q** LOAM対照・実機受入が未完了 | T：`scheduled_session_checks.ml`、renderer matrix、tmux（80×24／32×9）成功。初期接続・表示整合の成功を全面完了と扱わない |
+| **UI-18** | Scheduled取消 | 試用：`x`→取消日→独立Expected Effects Preview→Keep初期選択／明示Cancel→既存writer。取消planを保持 | **O/V/Q** LOAM対照・本人受入。既存dated-cancel契約のためLOAMと違い日付入力を残す。Recordsは拒否 | T：日付・末尾／狭小・paste・draft保持、stale／reload／保存失敗／Records拒否、Keep初期化、cold保持・再操作拒否。8寸法×3テーマ。合成PTY：80×24 Keep／確定／cold、32×9拒否。[証拠](VERIFICATION.md#scheduled-cancellation-preview) |
 | **UI-19** | Scheduled置換 | 試用：単発planのEdit／Preview | **F/O** Series／monitoringとの連動なし。**V/Q** 元予定・置換内容・候補の対照 | T：Plan_edit、ID保持、paid／cancelled拒否 |
 | **UI-20** | Scheduled batch amount | 未接続 | **F/O/Q** checked候補の複数選択・全体Preview・既存writerとの原子性／拒否 | 先に安全な発行単位を決める。装飾のみ不可 |
 | **UI-21** | Scheduled生成 | 未接続 | **F/O/Q** 明示候補・期間・個別review・保存単位。周期を事実にしない | S05。storage研究の別許可を代用しない |
-| **UI-22** | Scheduled継続／補充 | 未接続 | **F/O/Q** 明示template・cadence・horizon・生成Preview・失敗 | Series／監視の意味を確認してから |
+| **UI-22** | Scheduled継続／補充 | 試用：支払い完了後の独立Prompt（後日同一正Locus予定のKeep／Review／Add、またはDone／Defer／Add next）。期日は推測せず空日付で作成エディタを開く。DeferはAttention（Due_undetermined）へ保存 | **O/V/Q** LOAM対照・実機受入。Series監視cadenceや期間一括補充（UI-21）は別。周期やシリーズ同一性を推測しない | T：完了後Prompt、後日正Locus候補選定、Review末尾・寸法、Add空日付／独立作成・EUR量保持、Defer非同期Attention保存、stale／不確定ガード。8寸法×3テーマ。合成PTY：完了後Prompt、Keep非作成、Add次予定作成・Cancel保持、冷起動。[証拠](VERIFICATION.md#scheduled-continuation-awareness) |
 | **UI-23** | Scheduled coverage設定 | 未接続 | **F/O/Q** Expected paceをreplaceable観測設定として保持・接続 | 予定authority／NotDueを捏造しない |
 | **UI-24** | Balances Current | 局部：Current／Accounting、Observe prefill、画面内Print | **O** 初期Accounting→LOAM Currentとの違い、一覧page／Home・EndのBalance選択への接続不足。**V** 座標／数量／支持状態。**Q/F** role境界・会計回答対照、過去支持 | T：unknownとzero、表示／設定順・Print。role側の読込／save safetyは別の未認定境界 |
 | **UI-25** | 非予算Reports | 未接続：広いReports群。Pace／Balances入口は別行 | **F/O** Income & Expense、Transactions Flow、Stock–Flow、Trend、Liquidity、Multicurrency等のquery／入口／比較 | Budget Windowだけは必要になるまで延期。外部Fava／exportはUI-32も参照。固定の「9画面」と数えない |
@@ -110,18 +110,19 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 | 面 | Bakhlo入口 | LOAM入口（`loam/Loam/Tui/`） |
 | --- | --- | --- |
 | Home／Commands | `bonsai_daily.ml`、`daily_overlays.ml`、controllerのCalendar／Commands描画、`ui_commands.ml` | `Home.lean`、`HomeCommandPalette.lean` |
-| Record／Actual／Selected Day | `record_session.ml`、`reversal_session.ml`、controllerのedit／reverse／Actual／Selected_day | `Record.lean`／`RecordSession.lean`、`ActualWorkspace.lean`、`SelectedDay.lean`／`SelectedDaySession.lean`、`ActualDateCorrection.lean`、`ActualReversal.lean`／`ActualReversalSession.lean`、`EventMerchant.lean` |
-| Scheduled | `ui_workspace.ml`、`record_session.ml`、controllerのScheduled／cancel | `ScheduledWorkspace.lean`／`ScheduledWorkspaceSession.lean`、`ScheduledCreation.lean`、`ScheduledCompletion.lean`、`ScheduledCancellation.lean`、`ScheduledReplacement.lean` |
+| Record／Actual／Selected Day | `record_session.ml`、`reversal_session.ml`、`date_correction_session.ml`、controllerのedit／reverse／date／Actual／Selected_day | `Record.lean`／`RecordSession.lean`、`ActualWorkspace.lean`、`SelectedDay.lean`／`SelectedDaySession.lean`、`ActualDateCorrection.lean`、`ActualReversal.lean`／`ActualReversalSession.lean`、`EventMerchant.lean` |
+| Scheduled | `ui_workspace.ml`、`scheduled_months.ml`、`scheduled_session.ml`、`scheduled_cancellation_session.ml`、`scheduled_continuation_session.ml`、`record_session.ml`、controllerのScheduled／cancel | `ScheduledWorkspace.lean`／`ScheduledWorkspaceSession.lean`、`ScheduledCreation.lean`、`ScheduledCompletion.lean`、`ScheduledCancellation.lean`、`ScheduledReplacement.lean` |
 | Balances／Reports／Pace | `daily_overlays.ml`、`balance_view_data.ml`、controllerのbalance／pace／what-if | `Balances.lean`、`RoleBalances.lean`、`ReportsView.lean`／`ReportsSession.lean`、`DailyPaceTrend.lean`、`DailyPaceWhatIf.lean` |
 | Attention／Settlement／Exchange | 各data module、controllerのform／action／一覧 | `AttentionAdministration.lean`／`AttentionAdministrationSession.lean`、`SettlementWorkspace.lean`、`SettlementAction.lean`、`Exchange.lean`／`ExchangeSession.lean` |
 
-`Ui_workspace.set_locus`／`cycle_schedule_view`は現行controllerから呼ばれていない。
+`Ui_workspace.set_locus`は現行controllerから呼ばれていない。旧`Groups`／`cycle_schedule_view`は削除し、`toggle_schedule_view`で実在するList／Monthsだけを切り替える。
 またActual／Scheduled以外の一覧page／端は、汎用 `W.move_selection` の対象行と専用選択状態が一致しない箇所がある。
 `handle`、`W.rows`、family専用move／selected、`workspace_rows`を一緒に照合する。共通frame導入だけで全画面の操作が揃ったとは扱わない。
 
 ### 優先して切る差分
 
 1. **共有機構のO/V/Q**：[責務設計と移行順序](TUI_LAYOUT_STABILITY_ROADMAP.ja.md) に従い、共有input／再帰Input metadata→Ui_form＋styled frameと全form利用元（Modal_form・Jump・Search overlay・Reversal Date）→RecordのColumns＋recursive caretとScheduledの入力／UTF-8移動／focus／notice→list/detailのcapacity整合・controller復帰の順に移行する。UI-03の長文検索（G-2）の限定合格は保持し、G-1/G-3/G-4と全画面は未完了。横断受入後に以下の機能差分へ戻る。
+   移行順1〜4は接続・限定検査済みだが、横断受入・LOAM対照・IME／本人受入は未了（[証拠](VERIFICATION.md#listdetail-capacity-and-drill-downback-cutover)）。Record lifecycle、Actual/Selected Day、Scheduledの機能不足も受入計画に残す。
 2. **Recordの一連操作**：Home→入力／候補→Preview→修正／取消／確定→Actual→再起動。原額・Merchant等のF不足を装飾で隠さない。
 3. **Actual／Selected Day**：Locus／検索／scope／sort／detail／親復帰。旧P04の実装完了だけでは現行geometry・操作一致を認めない。
 4. **Scheduled**：作成／置換／取消／完了の安全な確認・cold照合から、Series／Months／監視・継続／一括操作へ。

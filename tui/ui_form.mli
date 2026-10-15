@@ -95,6 +95,7 @@ val get_selected_button : t -> button option
 val get_selected_button_index : t -> int
 
 val handle_input : t -> Ui_input.input -> event
-val render_rows : t -> string list
-val cursor_offset : t -> width_of:(string -> int) -> (int * int) option
+val render_rows :
+  width:int -> height:int -> width_of:(string -> int) -> t ->
+  (Daily_overlays.style * string) list
 

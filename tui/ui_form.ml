@@ -256,96 +256,63 @@ let handle_input t (input : Ui_input.input) : event =
                   else Submit t)
               | _ -> Updated t)))
 
-let render_rows t : string list =
-  let summary_rows =
-    if t.summary = [] then []
-    else t.summary @ [""]
+let render_rows ~width ~height ~width_of t =
+  let module O = Daily_overlays in
+  let width = max 0 width and height = max 0 height in
+  let plain text = (O.Plain, O.clip_text ~width_of width text) in
+  let summary = List.concat_map (O.wrap_text ~width_of width) t.summary in
+  let summary = List.map plain (if summary = [] then [] else summary @ [""]) in
+  let render_field (f : field) =
+    let focused = find_field_index t f.id = t.focused in
+    let prompt = if f.label = "" then "" else f.label ^ ": " in
+    match f.kind with
+    | Text { value; _ } when focused ->
+        let prompt = O.clip_text ~width_of (max 0 (width - 1)) prompt in
+        let inset = width_of prompt in
+        let text, caret = O.input_text ~width_of ~width:(width - inset)
+            ~cursor:None ~caret:"|" value in
+        (Option.fold ~none:O.Plain ~some:(fun col -> O.Input (inset + col)) caret,
+         prompt ^ text)
+    | Text { value; placeholder } ->
+        plain (prompt ^ (if value = "" && placeholder <> "" then "(" ^ placeholder ^ ")" else value))
+    | Choice { options; selected } ->
+        let value = if selected < 0 then ""
+          else Option.value ~default:"" (List.nth_opt options selected) in
+        ((if focused then O.Active else O.Plain),
+         O.clip_text ~width_of width (prompt ^ (if focused then "< " ^ value ^ " >" else "  " ^ value)))
+    | Buttons { buttons; selected } ->
+        let text = List.mapi (fun i (b : button) ->
+            (if i = selected then "> " else "  ") ^ "[" ^ b.label ^ "]") buttons
+          |> String.concat "    " in
+        ((if focused then O.Active else O.Plain), O.clip_text ~width_of width text)
   in
-  let non_button_fields =
-    List.filter (fun f -> match f.kind with Buttons _ -> false | _ -> true) t.fields
+  let fields, buttons = List.partition (fun f ->
+      match f.kind with Buttons _ -> false | _ -> true) t.fields in
+  let notice = if t.notice = "" then [""] else O.wrap_text ~width_of width t.notice in
+  let notice = List.map (fun text -> (O.Status, text)) notice in
+  let rows = summary @ List.map render_field fields @ notice
+    @ (if buttons = [] then [] else plain "" :: List.map render_field buttons) in
+  let rec position id = function
+    | [] -> 0
+    | (f : field) :: _ when f.id = id -> 0
+    | _ :: rest -> 1 + position id rest in
+  let focus =
+    match focused_field t with
+    | None -> 0
+    | Some field ->
+        (match field.kind with
+        | Buttons _ -> List.length summary + List.length fields + List.length notice + 1
+            + position field.id buttons
+        | _ -> List.length summary
+            + position field.id fields)
   in
-  let button_fields =
-    List.filter (fun f -> match f.kind with Buttons _ -> true | _ -> false) t.fields
-  in
-  let field_rows =
-    List.map
-      (fun (f : field) ->
-        let global_idx = find_field_index t f.id in
-        let is_focused = (global_idx = t.focused) in
-        match f.kind with
-        | Text { value; placeholder } ->
-            let prompt = if f.label = "" then "" else f.label ^ ": " in
-            let display_val =
-              if value = "" && not is_focused then
-                (if placeholder = "" then "" else "(" ^ placeholder ^ ")")
-              else value
-            in
-            let cursor = if is_focused then "|" else "" in
-            prompt ^ display_val ^ cursor
-        | Choice { options; selected } ->
-            let prompt = if f.label = "" then "" else f.label ^ ": " in
-            let opt_str =
-              if options = [] then ""
-              else if selected >= 0 && selected < List.length options then
-                List.nth options selected
-              else ""
-            in
-            if is_focused then prompt ^ "< " ^ opt_str ^ " >"
-            else prompt ^ "  " ^ opt_str
-        | Buttons _ -> "")
-      non_button_fields
-  in
-  let notice_rows =
-    if t.notice = "" then []
-    else [t.notice]
-  in
-  let button_rows =
-    match button_fields with
-    | [] -> []
-    | buttons_list ->
-        let rows =
-          List.map
-            (fun (f : field) ->
-              match f.kind with
-              | Buttons { buttons; selected } ->
-                  let btn_strs =
-                    List.mapi
-                      (fun idx (b : button) ->
-                        let prefix =
-                          if idx = selected then "> "
-                          else "  "
-                        in
-                        prefix ^ "[" ^ b.label ^ "]")
-                      buttons
-                  in
-                  String.concat "    " btn_strs
-              | _ -> "")
-            buttons_list
-        in
-        [""] @ rows
-  in
-  summary_rows @ field_rows @ notice_rows @ button_rows
-
-let cursor_offset t ~width_of : (int * int) option =
-  let summary_count =
-    if t.summary = [] then 0
-    else List.length t.summary + 1
-  in
-  let non_button_fields =
-    List.filter (fun f -> match f.kind with Buttons _ -> false | _ -> true) t.fields
-  in
-  let rec find row_idx = function
-    | [] -> None
-    | (f : field) :: rest ->
-        let global_idx = find_field_index t f.id in
-        if global_idx = t.focused then (
-          match f.kind with
-          | Text { value; _ } ->
-              let prompt = if f.label = "" then "" else f.label ^ ": " in
-              let col = width_of prompt + width_of value in
-              Some (col, summary_count + row_idx)
-          | Choice _ | Buttons _ -> None)
-        else find (row_idx + 1) rest
-  in
-  find 0 non_button_fields
+  let view = Ui_panel.window ~capacity:height ~count:(List.length rows)
+      ~scroll:0 ~selected:(Some focus) in
+  let shown = List.filteri (fun i _ -> i >= view.start && i - view.start < height) rows in
+  List.mapi (fun i row ->
+      if i + view.start <> focus
+         && ((i = 0 && view.start > 0)
+             || (i = height - 1 && view.start < view.last)) then
+        (O.Status, O.clip_text ~width_of width "… more")
+      else row) shown
 

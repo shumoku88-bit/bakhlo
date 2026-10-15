@@ -22,5 +22,3 @@ val footer : t -> string list
 val screen :
   dimensions:int * int -> width_of:(string -> int) ->
   t -> (Daily_overlays.style * string) list
-val cursor_position :
-  dimensions:int * int -> width_of:(string -> int) -> t -> (int * int) option

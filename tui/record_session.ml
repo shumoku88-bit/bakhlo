@@ -414,16 +414,11 @@ let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.in
 let field_text ~width_of width active cursor label text =
   let label_width=min 13 (max 0 (width/2)) in
   let room=max 0 (width-label_width) in
-  let text,caret=if active then
-      let pos=Fm.cursor_pos ~value:text cursor in
-      let left=O.visible (String.sub text 0 pos) in
-      let right=O.visible (String.sub text pos (String.length text-pos)) in
-      let left=O.tail_text ~width_of (max 0 (room-1)) left in
-      left ^ "|" ^ O.clip_text ~width_of (max 0 (room-width_of left-1)) right,
-      Some (label_width + width_of left)
+  let text,caret=if active then O.input_text ~width_of ~width:room ~cursor ~caret:"|" text
     else O.clip_text ~width_of room (if text="" then "_" else text),None
   in
-  O.pad ~width_of label_width (tr label ^ ":") ^ text,caret
+  O.pad ~width_of label_width (tr label ^ ":") ^ text,
+  Option.map (fun cell -> label_width + cell) caret
 
 let action_line ~width_of width t =
   let selected,labels =
@@ -479,23 +474,6 @@ let inner_line ~width_of ~width style text =
   let padded = content ^ String.make (max 0 (room - width_of content)) ' ' in
   (style, left ^ padded ^ right)
 
-let combine_side_by_side ~width_of ~width ~left_width ~right_width left_rows right_rows =
-  let max_len = max (List.length left_rows) (List.length right_rows) in
-  let pad_rows rows w =
-    let len = List.length rows in
-    rows @ List.init (max 0 (max_len - len)) (fun _ -> (O.Plain, String.make w ' '))
-  in
-  let left_padded = pad_rows left_rows left_width in
-  let right_padded = pad_rows right_rows right_width in
-  List.map2 (fun (left_style, left_text) (right_style, right_text) ->
-    let style = match left_style with
-      | O.Input _ -> left_style
-      | _ -> if left_style = O.Active || right_style = O.Active then O.Active
-             else if left_style = O.Focused_frame || right_style = O.Focused_frame then O.Focused_frame
-             else O.Plain
-    in
-    let raw = left_text ^ " " ^ right_text in
-    (style, O.pad ~width_of width (O.clip_text ~width_of width raw))) left_padded right_padded
 
 let screen ~book ~dimensions:(width,height) ~width_of t =
   let width = max 0 width and height = max 0 height in
@@ -665,7 +643,9 @@ let screen ~book ~dimensions:(width,height) ~width_of t =
             if wide then
               let left_width = width * 3 / 5 in
               let right_width = width - left_width - 1 in
-              combine_side_by_side ~width_of ~width ~left_width ~right_width
+              List.map2 (fun (left_style,left_text) (right_style,right_text) ->
+                O.Columns (left_width,left_style,right_style),
+                O.pad ~width_of left_width left_text ^ " " ^ O.pad ~width_of right_width right_text)
                 (make_postings_panel ~p_width:left_width ~p_height:pane_height)
                 (make_candidates_panel ~c_width:right_width ~c_height:pane_height)
             else

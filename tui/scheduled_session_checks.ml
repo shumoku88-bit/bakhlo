@@ -170,10 +170,26 @@ let self_check ~width_of () =
   require (List.length published_draft.Sch.changes = 2) "published-changes-count";
   require (Z.equal published_draft.Sch.positive_total (Z.of_int 1000)) "published-positive-total";
 
-  (* 10. Cursor position check *)
-  let cur_pos = Sch.cursor_position ~book ~dimensions:dim ~width_of s in
+  (* 10. Cursor in painted rows and UTF-8 / overflow regressions *)
+  let s_rows = Sch.screen ~book ~dimensions:dim ~width_of s in
+  let cur_pos = Daily_overlays.cursor_in_rows ~width_of ~width:80 s_rows in
   require (Option.is_some cur_pos) "cursor-position-computed";
-  let cur_prev = Sch.cursor_position ~book ~dimensions:dim ~width_of s_preview in
+  let s_prev_rows = Sch.screen ~book ~dimensions:dim ~width_of s_preview in
+  let cur_prev = Daily_overlays.cursor_in_rows ~width_of ~width:80 s_prev_rows in
   require (Option.is_none cur_prev) "preview-no-cursor";
-
+  let s_utf8 = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_amt (key (`Arrow `Left)) with
+    | Sch.Updated next -> next | _ -> failwith "left" in
+  let s_utf8 = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_utf8 (char_key '9') with
+    | Sch.Updated next -> next | _ -> failwith "insert 9" in
+  let s_utf8_rows = Sch.screen ~book ~dimensions:dim ~width_of s_utf8 in
+  require (List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"+1009|0") s_utf8_rows
+           || List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"+10090|") s_utf8_rows)
+    "scheduled-utf8-caret-editing";
+  let s_warn = Sch.with_notice s (String.make 500 'w') in
+  let s_warn_rows = Sch.screen ~book ~dimensions:(48, 14) ~width_of s_warn in
+  require (List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"… more") s_warn_rows)
+    "scheduled-long-notice-overflow";
+  let s_clean_rows = Sch.screen ~book ~dimensions:(48, 14) ~width_of s in
+  let s_short_rows = Sch.screen ~book ~dimensions:(48, 14) ~width_of (Sch.with_notice s "Short") in
+  require (List.length s_clean_rows = List.length s_short_rows) "scheduled-short-notice-stable";
   Printf.printf "PASS: Scheduled creation session synthetic checks (fields, focus, 6-row cap, Date guard, prefix match, Ctrl-U, LOAM preview gate).\n%!"

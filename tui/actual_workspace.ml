@@ -242,30 +242,6 @@ type geometry = {
   wide : bool;
 }
 
-let terminal_geometry (width, height) =
-  let writable = max 0 width in
-  let feedback_count = if height >= 7 then 1 else 0 in
-  let body_height = max 0 (height - feedback_count - 2) in
-  let panel_height = max 0 (body_height - 2) in
-  let wide = writable >= 80 && panel_height >= 14 in
-  let left_width, right_width =
-    if wide then
-      let left = max 36 (min 58 (writable * 52 / 100)) in
-      (left, max 0 (writable - left - 1))
-    else (writable, writable)
-  in
-  let loci_height = if wide then max 4 (min 7 (panel_height * 30 / 100)) else panel_height in
-  let tx_height = if wide then max 0 (panel_height - loci_height) else panel_height in
-  {
-    writable;
-    left_width;
-    right_width;
-    panel_height;
-    loci_height;
-    tx_height;
-    wide;
-  }
-
 let panel_geometry (width, height) =
   let writable = max 0 width in
   let panel_height = max 0 height in
@@ -287,6 +263,8 @@ let panel_geometry (width, height) =
     tx_height;
     wide;
   }
+
+let terminal_geometry dimensions = panel_geometry dimensions
 
 let list_capacity pane height =
   max 1 (height - 2 - (if pane = Loci || height < 4 then 0 else 1))
@@ -310,7 +288,7 @@ let page_size geometry pane =
       let height = max 0 geometry.panel_height in
       max 1 (Panel.capacity ~height ~heading:false)
   | Loci -> list_capacity Loci geometry.loci_height
-  | Transactions -> list_capacity Transactions geometry.panel_height
+  | Transactions -> list_capacity Transactions geometry.tx_height
 
 (* 4. Navigation *)
 
@@ -719,18 +697,18 @@ let footer ~dimensions ~width_of t =
   else if t.pane = Details then
     [
       "[j/k] scroll details  [h/l] pane  [Esc/i] return to Actuals";
-      "[Enter] open selected  [n] new  [q] back";
+      "[Enter] open selected  [d] date  [n] new  [q] back";
     ]
   else
     let detailed =
       "[j/k] select  [h/l] pane  [Tab] cycle  [i] details  [f] filter  [s] sort  [/] search"
     in
     if width_of detailed <= width then
-      [ detailed; "[Enter] open selected  [n] new  [q] back" ]
+      [ detailed; "[Enter] open selected  [d] date  [n] new  [q] back" ]
     else
       [
         "[j/k] sel [h/l] pane [Tab] cycle [i] info [f] filter [s] sort [/] search";
-        "[Enter] open [n] new [q] back";
+        "[Enter] open [d] date [n] new [q] back";
       ]
 
 let search_line ~width ~width_of t =

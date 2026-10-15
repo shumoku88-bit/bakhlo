@@ -313,6 +313,25 @@ let self_check () =
   F.require
     (ansi (slice 5 1 columns) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "x"))
     "Bonsai-columns-focus-only-the-selected-pane";
+  let panes = lines P.Terminal [ C.Columns (3, C.Input 0, C.Active), "|ab 財布" ] in
+  F.require
+    (ansi (slice 0 1 panes) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "|")
+     && ansi (slice 1 2 panes) = ansi (V.text "ab")
+     && ansi (slice 4 4 panes) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "財布"))
+    "Bonsai-columns-preserve-input-and-independent-active-pane";
+  let panes = lines P.Terminal [ C.Columns (4, C.Plain, C.Input 0), "財布 |ab" ] in
+  F.require
+    (ansi (slice 0 4 panes) = ansi (V.text "財布")
+     && ansi (slice 5 1 panes) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "|")
+     && ansi (slice 6 2 panes) = ansi (V.text "ab"))
+    "Bonsai-columns-right-caret-does-not-color-left-pane";
+  let nested = lines P.Terminal
+      [ C.Columns (2, C.Plain, C.Columns (4, C.Plain, C.Input 0)), "ab 財布 |x" ] in
+  F.require
+    (ansi (slice 0 2 nested) = ansi (V.text "ab")
+     && ansi (slice 3 4 nested) = ansi (V.text "財布")
+     && ansi (slice 8 1 nested) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "|"))
+    "Bonsai-nested-columns-preserve-native-caret-style";
   List.iter
     (fun (style, expected) ->
       F.require
@@ -366,7 +385,9 @@ let self_check () =
                   let pane_width = width_of (snd (List.hd rows)) in
                   F.require
                     (List.for_all (fun (_, text) -> width_of text = pane_width) rows)
-                    "Bonsai-panel-uniform-cell-width";
+                    (Printf.sprintf "Bonsai-panel-uniform-cell-width:%dx%d:%s" width height
+                       (String.concat "," (List.map (fun (_, text) ->
+                            string_of_int (width_of text)) rows)));
                   F.require
                     (pane_width <= width && List.length rows <= height)
                     "Bonsai-panel-bounded-to-terminal";

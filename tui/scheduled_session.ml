@@ -394,8 +394,14 @@ let footer t =
       [ "Tab/Shift-Tab focus  Enter accept/next  Esc cancel";
         "Up/Down Locus  Right accept  C-u balance remainder" ]
 
-let preview_capacity height =
-  max 0 (height - 9)
+let notice_rows ~width ~height ~width_of t =
+  let rows = if t.notice = "" then [""] else O.wrap_text ~width_of width ("! " ^ t.notice) in
+  let capacity = max 1 (height - 7) in
+  if List.length rows <= capacity then rows
+  else List.filteri (fun i _ -> i < capacity - 1) rows @ [tr "… more"]
+
+let preview_capacity ~dimensions:(width, height) ~width_of t =
+  max 0 (height - 9 - (List.length (notice_rows ~width ~height ~width_of t) - 1))
 
 let is_date_char c =
   (c >= '0' && c <= '9') || c = '-'
@@ -414,7 +420,7 @@ let handle ~blocked ~dimensions:((width, height) as _dim) ~width_of t (input : U
       in
       match t.mode with
       | Preview { draft; choice; scroll } -> (
-          let capacity = preview_capacity height in
+          let capacity = preview_capacity ~dimensions:(width, height) ~width_of t in
           let max_scroll = max 0 (List.length draft.changes + 1 - capacity) in
           match (button, mods) with
           | (`Tab, []) | (`Arrow `Right, []) ->
@@ -453,15 +459,11 @@ let handle ~blocked ~dimensions:((width, height) as _dim) ~width_of t (input : U
           | (`ASCII 'n', [ `Ctrl ]) -> Updated (append_row t)
           | (`ASCII 'd', [ `Ctrl ]) -> Updated (drop_row t)
           | (`Arrow `Left, []) ->
-              let len = String.length (value t) in
-              let cur = Option.value ~default:len t.cursor in
-              Updated { t with cursor = Some (max 0 (cur - 1)) }
+              Updated { t with cursor = Some (Fm.move_cursor ~value:(value t) ~cursor:t.cursor (-1)) }
           | (`Arrow `Right, []) ->
-              if (active_locus t) <> None then Updated (accept_candidate t)
+              if active_locus t <> None then Updated (accept_candidate t)
               else
-                let len = String.length (value t) in
-                let cur = Option.value ~default:len t.cursor in
-                Updated { t with cursor = Some (min len (cur + 1)) }
+                Updated { t with cursor = Some (Fm.move_cursor ~value:(value t) ~cursor:t.cursor 1) }
           | (`Home, []) -> Updated { t with cursor = Some 0 }
           | (`End, []) ->
               Updated { t with cursor = Some (String.length (value t)) }
@@ -490,194 +492,116 @@ let handle ~blocked ~dimensions:((width, height) as _dim) ~width_of t (input : U
   | `End -> Closed
   | `Resize _ | `Mouse _ | `Paste _ -> Updated t
 
-(* Rendering helpers *)
-let raw style text = (style, text)
-
-let sub_border ~width_of ~width ?(style = O.Frame) ?(sub = "") title =
-  if width < 4 then (style, O.pad ~width_of width "")
-  else
-    let left_decor = "╭ " and right_decor = if sub = "" then "╮" else " " ^ sub ^ " ╮" in
-    let min_decor = width_of left_decor + width_of right_decor in
-    if width <= min_decor then (style, O.pad ~width_of width (O.clip_text ~width_of width "╭──╮"))
-    else
-      let available = width - min_decor in
-      let sub_room = if sub = "" then 0 else min (available / 2) (width_of sub + 1) in
-      let title_room = max 0 (available - sub_room) in
-      let title_clipped = O.clip_text ~width_of title_room (tr title) in
-      let sub_clipped = if sub = "" then "" else " " ^ O.clip_text ~width_of (max 0 (sub_room - 1)) sub in
-      let used = width_of left_decor + width_of title_clipped + width_of sub_clipped + width_of right_decor in
-      let rule_len = max 0 (width - used) in
-      let raw = left_decor ^ title_clipped ^ " " ^ O.rule ~width_of (max 0 (rule_len - 1)) ^ sub_clipped ^ right_decor in
-      (style, O.pad ~width_of width (O.clip_text ~width_of width raw))
-
-let sub_bottom ~width_of ~width ?(style = O.Frame) ?(title = "") () =
-  if width < 2 then (style, O.pad ~width_of width "")
-  else
-    let left_decor = if title = "" then "╰" else "╰ " in
-    let right_decor = "╯" in
-    let min_decor = width_of left_decor + width_of right_decor in
-    if width <= min_decor then (style, O.pad ~width_of width (O.clip_text ~width_of width "╰──╯"))
-    else
-      let available = width - min_decor in
-      let title_text = if title = "" then "" else O.clip_text ~width_of (max 0 (available - 2)) title ^ " " in
-      let rule_len = max 0 (available - width_of title_text) in
-      let raw = left_decor ^ title_text ^ O.rule ~width_of rule_len ^ right_decor in
-      (style, O.pad ~width_of width (O.clip_text ~width_of width raw))
-
-let inner_line ~width_of ~width style text =
-  let left = "│" and right = "│" in
-  let room = max 0 (width - width_of left - width_of right) in
-  let clipped = O.clip_text ~width_of room text in
-  let pad = String.make (max 0 (room - width_of clipped)) ' ' in
-  (style, left ^ clipped ^ pad ^ right)
-
-let screen ~book:_ ~dimensions:((width, height) as _dim) ~width_of t =
+(* Root rows are budgeted before painting; only the field viewport scrolls. *)
+let screen ~book:_ ~dimensions:(width, height) ~width_of t =
+  let width = max 0 width and height = max 0 height in
+  let line style text = style, O.pad ~width_of width text in
+  let title_rows title =
+    if height >= 6 then [line O.Heading (tr title)] else [] in
+  let hint_count = min 2 (max 0 (height - 7)) in
+  let hints = footer t |> List.filteri (fun i _ -> i < hint_count)
+      |> List.map (fun text -> line O.Chrome (tr text)) in
+  let notices = if height < 3 then [] else
+      notice_rows ~width ~height ~width_of t
+      |> List.map (line O.Status) in
+  let actions ~selected labels =
+    if height < 2 then [] else
+      let labels = List.mapi (fun i label ->
+          if selected = i then "[" ^ tr label ^ "]" else tr label) labels in
+      let text = String.concat " " labels in
+      let text = if width_of text <= width then text else
+          let prefix = labels |> List.filteri (fun i _ -> i <= selected)
+              |> String.concat " " in
+          O.tail_text ~width_of width prefix in
+      [line O.Active text] in
+  let field_panel ~height:panel_height ~focused ~selected ~title rows =
+    let framed = width >= 7 && panel_height >= 3 in
+    let capacity = if framed then Panel.capacity ~height:panel_height ~heading:false
+      else panel_height in
+    let count = List.length rows in
+    let view = Panel.window ~capacity ~count ~scroll:0 ~selected in
+    let shown = rows |> List.filteri (fun i _ ->
+        i >= view.start && i - view.start < view.capacity) in
+    let title = if capacity < count then
+        Printf.sprintf "%s  %d–%d/%d …" title (view.start + 1)
+          (min count (view.start + capacity)) count else title in
+    if framed then Panel.frame_rows ~width_of ~width ~height:panel_height
+        ~focused ~title shown
+    else List.map (fun (style, text) -> line style text) shown in
   match t.mode with
   | Preview { draft; choice; scroll } ->
-      let title = raw O.Heading (tr "Scheduled / New / Preview") in
-      let summary_rows =
-        [
-          sub_border ~width_of ~width ~style:O.Frame (tr "Summary");
-          inner_line ~width_of ~width O.Plain (" " ^ tr "Due:" ^ " " ^ draft.scheduled_on);
-          inner_line ~width_of ~width O.Plain (" " ^ tr "Measure:" ^ " " ^ draft.measure);
-          inner_line ~width_of ~width O.Chrome (" " ^ tr "No Actual or recurrence is created.");
-          sub_bottom ~width_of ~width ~style:O.Frame ();
-        ]
-      in
-      let posting_rows =
-        List.map
-          (fun (locus, amt) ->
-            let signed = if Z.sign amt > 0 then "+" ^ Z.to_string amt else Z.to_string amt in
-            Printf.sprintf " %s  %s %s" locus signed draft.measure)
-          draft.changes
-        @ [ Printf.sprintf " %s: %s %s" (tr "Balanced total") (Z.to_string draft.positive_total) draft.measure ]
-      in
-      let cap = preview_capacity height in
-      let visible_postings =
-        posting_rows
-        |> List.filteri (fun i _ -> i >= scroll && i < scroll + cap)
-        |> List.map (fun line -> inner_line ~width_of ~width O.Plain line)
-      in
-      let count = List.length posting_rows in
-      let progress = Printf.sprintf "%d/%d lines" (min (scroll + cap) count) count in
-      let review_panel =
-        [ sub_border ~width_of ~width ~style:O.Focused_frame (tr "Expected postings" ^ "  " ^ progress) ]
-        @ visible_postings
-        @ [ sub_bottom ~width_of ~width ~style:O.Focused_frame () ]
-      in
-      let action_labels = [ "Publish Scheduled"; "Edit"; "Cancel" ] in
-      let actions_str =
-        action_labels
-        |> List.mapi (fun i l ->
-            if choice = i then "[" ^ tr l ^ "]" else " " ^ tr l ^ " ")
-        |> String.concat "  "
-      in
-      let notice_row =
-        if t.notice <> "" then [ raw O.Status ("! " ^ t.notice) ] else []
-      in
-      let footer_rows =
-        notice_row
-        @ [ raw O.Active (" " ^ actions_str);
-            raw O.Chrome (tr " Tab/Left/Right select  Enter confirm  Esc cancel");
-            raw O.Chrome (tr " Up/Down review postings") ]
-      in
-      [ title ] @ summary_rows @ review_panel @ footer_rows
+      let title = title_rows "Scheduled / New / Preview" in
+      let actions = actions ~selected:choice
+          (if width < 58 then ["Publish"; "Edit"; "Cancel"]
+           else ["Publish Scheduled"; "Edit"; "Cancel"]) in
+      let room = max 0 (height - List.length title - List.length notices
+          - List.length actions - List.length hints) in
+      let summary = [
+          line O.Plain (tr "Due:" ^ " " ^ draft.scheduled_on ^ "  "
+            ^ tr "Measure:" ^ " " ^ draft.measure);
+          line O.Chrome (tr "No Actual or recurrence is created.");
+        ] |> List.filteri (fun i _ -> i < max 0 (room - 2)) in
+      let panel_height = max 0 (room - List.length summary) in
+      let cap = min (preview_capacity ~dimensions:(width, height) ~width_of t)
+          (Panel.capacity ~height:panel_height ~heading:false) in
+      let posting_rows = List.map (fun (locus, amt) ->
+          let signed = if Z.sign amt > 0 then "+" ^ Z.to_string amt else Z.to_string amt in
+          Printf.sprintf "%s  %s %s" locus signed draft.measure) draft.changes
+        @ [Printf.sprintf "%s: %s %s" (tr "Balanced total")
+             (Z.to_string draft.positive_total) draft.measure] in
+      let view = Panel.window ~capacity:cap ~count:(List.length posting_rows)
+          ~scroll ~selected:None in
+      let shown = posting_rows |> List.filteri (fun i _ ->
+          i >= view.start && i - view.start < cap)
+          |> List.map (fun text -> O.Plain, text) in
+      let title = Printf.sprintf "%s  %d/%d lines" (tr "Expected postings")
+          (min (List.length posting_rows) (view.start + cap)) (List.length posting_rows) in
+      let panel = if panel_height >= 2 && width >= 6 then
+          Panel.frame_rows ~width_of ~width ~height:panel_height ~focused:true ~title shown
+        else [] in
+      title_rows "Scheduled / New / Preview" @ summary @ panel @ notices @ actions @ hints
   | Editing ->
-      let title = raw O.Heading (tr "Scheduled / New / Edit") in
-      let field_row label value is_active cursor =
-        let cursor_marker = if is_active then "_" else "" in
-        let disp_val = if value = "" then cursor_marker else value in
-        let style = if is_active then O.Active else O.Plain in
-        let padded_label = O.pad ~width_of 14 (label ^ ":") in
-        inner_line ~width_of ~width style (" " ^ padded_label ^ " " ^ disp_val)
-      in
-      let fields_panel_content =
-        [ field_row (tr "Due") t.day (t.focus = 0) t.cursor ]
-        @ List.concat
-            (List.mapi
-               (fun i r ->
-                 let l_foc = t.focus = 1 + (i * 2) in
-                 let a_foc = t.focus = 2 + (i * 2) in
-                 [
-                   field_row (A.format_message "Posting %d" (i + 1)) r.locus l_foc t.cursor;
-                   field_row ("  " ^ t.measure) r.amount a_foc t.cursor;
-                 ])
-               t.rows)
-      in
-      let fields_style = if t.focus < first_action t then O.Focused_frame else O.Frame in
-      let fields_panel =
-        [ sub_border ~width_of ~width ~style:fields_style (tr "Due / Signed postings") ]
-        @ fields_panel_content
-        @ [ sub_bottom ~width_of ~width ~style:fields_style () ]
-      in
-      let candidates_panel =
-        if height < 19 then []
-        else
+      let title = title_rows "Scheduled / New / Edit" in
+      let act_start = first_action t in
+      let actions = actions ~selected:(t.focus - act_start)
+          (if width < 58 then ["Add"; "Drop"; "Preview"; "Cancel"]
+           else ["Add posting"; "Drop last row"; "Preview"; "Cancel"]) in
+      let room = max 0 (height - List.length title - List.length notices
+          - List.length actions - List.length hints) in
+      let candidate_height = if height >= 19 then
+          min 6 (max 0 (room - (field_count t + 2))) else 0 in
+      let candidate_height = if candidate_height < 3 then 0 else candidate_height in
+      let panel_height = room - candidate_height in
+      let framed = width >= 7 && panel_height >= 3 in
+      let field_width = if framed then width - 6 else width in
+      let field_row index label value =
+        let active = t.focus = index in
+        let label_width = min 14 (max 0 (field_width / 2 - 1)) in
+        let prompt = if label_width = 0 then "" else
+            O.pad ~width_of label_width (label ^ ":") ^ " " in
+        let inset = width_of prompt in
+        if active then
+          let text, caret = O.input_text ~width_of ~width:(field_width - inset)
+              ~cursor:t.cursor ~caret:"|" value in
+          (Option.fold ~none:O.Plain ~some:(fun col -> O.Input (inset + col)) caret,
+           prompt ^ text)
+        else O.Plain, O.clip_text ~width_of field_width (prompt ^ value) in
+      let fields = field_row 0 (tr "Due") t.day
+        :: List.concat (List.mapi (fun i r -> [
+             field_row (1 + 2 * i) (A.format_message "Posting %d" (i + 1)) r.locus;
+             field_row (2 + 2 * i) ("  " ^ t.measure) r.amount;
+           ]) t.rows) in
+      let fields = field_panel ~height:panel_height ~focused:(t.focus < act_start)
+          ~selected:(if t.focus < act_start then Some t.focus else None)
+          ~title:(tr "Due / Signed postings") fields in
+      let candidate_panel = if candidate_height = 0 then [] else
           let options = candidates t in
           let count = List.length options in
-          let selected = if count = 0 then 0 else t.candidate mod count in
-          let cap = 4 in
-          let start = max 0 (selected - cap + 1) in
-          let visible =
-            options
-            |> List.filteri (fun i _ -> i >= start && i < start + cap)
-            |> List.mapi (fun off id ->
-                let idx = start + off in
-                let prefix = if idx = selected then "> " else "  " in
-                let style = if idx = selected then O.Active else O.Plain in
-                let label = B.label t.book id in
-                let display = id ^ (if label = "" then "" else "  " ^ label) in
-                inner_line ~width_of ~width style (prefix ^ display))
-          in
-          let header = Printf.sprintf "%s (%d/%d)" (tr "Locus candidates") (if count = 0 then 0 else selected + 1) count in
-          [ sub_border ~width_of ~width ~style:O.Frame header ]
-          @ (if visible = [] then [ inner_line ~width_of ~width O.Chrome (tr "  (no matching candidates)") ] else visible)
-          @ [ sub_bottom ~width_of ~width ~style:O.Frame () ]
-      in
-      let act_start = first_action t in
-      let action_labels =
-        if width < 58 then [ "Add"; "Drop"; "Preview"; "Cancel" ]
-        else [ "Add posting"; "Drop last row"; "Preview"; "Cancel" ]
-      in
-      let actions_str =
-        action_labels
-        |> List.mapi (fun i l ->
-            if t.focus = act_start + i then "[" ^ tr l ^ "]" else " " ^ tr l ^ " ")
-        |> String.concat " "
-      in
-      let notice_row =
-        if t.notice <> "" then [ raw O.Status ("! " ^ t.notice) ] else []
-      in
-      let footer_rows =
-        notice_row
-        @ [ raw O.Active (" " ^ actions_str);
-            raw O.Chrome (tr " Tab/Shift-Tab focus  Enter accept/next  Esc cancel");
-            raw O.Chrome (tr " Up/Down Locus  Right accept  C-u balance remainder") ]
-      in
-      [ title ] @ fields_panel @ candidates_panel @ footer_rows
-
-let cursor_position ~book:_ ~dimensions:((width, height) as _dim) ~width_of t =
-  match t.mode with
-  | Preview _ -> None
-  | Editing ->
-      if t.focus >= first_action t then None
-      else
-        (* Title is row 0. Fields panel starts at row 1.
-           Border top is row 1.
-           Focus 0 (Due) is row 2.
-           Posting i locus is row 3 + 2*i.
-           Posting i amount is row 4 + 2*i. *)
-        let line_idx =
-          if t.focus = 0 then 2
-          else 2 + t.focus
-        in
-        let cur_val = value t in
-        let offset =
-          match t.cursor with
-          | Some c -> min (String.length cur_val) c
-          | None -> String.length cur_val
-        in
-        let prefix_len = 2 + 14 + 2 (* "│ " + 14-char padded label + " " *) in
-        let col = prefix_len + width_of (String.sub cur_val 0 offset) in
-        if col < width && line_idx < height then Some (col, line_idx)
-        else None
+          let selected = if count = 0 then None else Some (t.candidate mod count) in
+          let rows = if count = 0 then [tr "(no matching candidates)"] else
+              List.map (fun id ->
+                  let label = B.label t.book id in
+                  id ^ (if label = "" then "" else "  " ^ label)) options in
+          Panel.frame ~width_of ~width ~height:candidate_height ~focused:true
+            ~title:(tr "Locus candidates") ~scroll:0 ~selected rows in
+      title @ fields @ candidate_panel @ notices @ actions @ hints

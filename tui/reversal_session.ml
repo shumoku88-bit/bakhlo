@@ -117,8 +117,9 @@ let footer t =
 let screen ~dimensions:((width, height) as dimensions) ~width_of t =
   let rows =
     if not t.preview then
-      Panel.frame ~width_of ~width ~height ~focused:true ~title:(Form.title t.form)
-        ~scroll:0 ~selected:None (Form.render_rows t.form)
+      Panel.frame_rows ~width_of ~width ~height ~focused:true ~title:(Form.title t.form)
+        (Form.render_rows ~width:(max 0 (width - 6))
+           ~height:(Panel.capacity ~height ~heading:false) ~width_of t.form)
     else
       let rows, view = viewport ~dimensions ~width_of t in
       let actions = [ "Publish"; "Edit"; "Cancel" ] |> List.mapi (fun i label ->
@@ -130,9 +131,3 @@ let screen ~dimensions:((width, height) as dimensions) ~width_of t =
   List.filteri (fun i _ -> i < max 0 height) rows
   |> List.map (fun (style, text) -> (style, O.pad ~width_of width text))
 
-let cursor_position ~dimensions:(width, height) ~width_of t =
-  if t.preview then None
-  else match Form.cursor_offset t.form ~width_of with
-  | Some (col, row) when row < Panel.capacity ~height ~heading:false
-                         && col + 4 < width && row + 1 < height -> Some (col + 4, row + 1)
-  | _ -> None

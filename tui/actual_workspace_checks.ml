@@ -213,4 +213,21 @@ let self_check () =
   require (List.length ft = 2) "footer-has-2-lines";
   require (Base.String.is_substring (List.hd ft) ~substring:"select") "footer-keys";
 
+  (* 11. Capacity & page size bounds *)
+  (* Page Down / Home navigation in Transactions *)
+  let ws_pg, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (key (`Page `Down)) in
+  require (Act.transaction_row ws_pg > 0 || List.length (Act.visible_entries ~book ws) <= 1) "page-down-advanced";
+  let ws_home, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws_pg (key `Home) in
+  require (Act.transaction_row ws_home = 0) "home-back-to-0";
+
+  (* 12. returned_from_detail preserves locus and transaction identity *)
+  let ws_locus, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (char_key 'h') in
+  let ws_locus, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws_locus (char_key 'j') in
+  let ws_locus, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws_locus (char_key 'l') in
+  let before_locus = Act.selected_locus ~book ws_locus in
+  let before_entry = Act.selected_entry ~book ws_locus in
+  let restored = Act.returned_from_detail ~before_book:book ~after_book:book ws_locus in
+  require (Act.selected_locus ~book:book restored = before_locus) "returned-preserves-locus";
+  require (Act.selected_entry ~book:book restored = before_entry) "returned-preserves-entry";
+
   Printf.printf "PASS: Actual workspace synthetic checks (3-pane, Loci filter, live search, date/order toggle, details scroll, selection, cursor).\n%!"

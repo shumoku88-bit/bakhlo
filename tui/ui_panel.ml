@@ -48,3 +48,18 @@ let frame ?heading ~width_of ~width ~height ~focused ~title ~scroll ~selected ro
             (if count = 0 || view.capacity = 0 then 0 else view.start + 1)
             (if view.capacity = 0 then 0 else view.start + min view.capacity (count - view.start))
             count) () ]
+
+let frame_rows ~width_of ~width ~height ~focused ~title rows =
+  let painted = frame ~width_of ~width ~height ~focused ~title ~scroll:0 ~selected:None
+      (List.map snd rows) in
+  if width < 6 || height < 2 then painted
+  else
+    let content = Array.of_list rows in
+    List.mapi (fun i (style, text) ->
+        if i = 0 || i > Array.length content || i >= height - 1 then style, text
+        else
+          let child, _ = content.(i - 1) in
+          let style = match O.input_cell ~width:(width - 6) child with
+            | Some col -> O.Input (col + 4)
+            | None -> child in
+          style, text) painted

@@ -50,9 +50,3 @@ val screen :
   t ->
   (Daily_overlays.style * string) list
 
-val cursor_position :
-  book:Bakhlo_sexp.Daily_book.t ->
-  dimensions:int * int ->
-  width_of:(string -> int) ->
-  t ->
-  (int * int) option

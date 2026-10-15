@@ -10,8 +10,12 @@ module Cal = Daily_calendar
 module M = Ui_commands
 module S = Record_session
 module Rev = Reversal_session
+module Date = Date_correction_session
 module Sch = Scheduled_session
+module Cancel = Scheduled_cancellation_session
 module Act = Actual_workspace
+module Months = Scheduled_months
+module Cont = Scheduled_continuation_session
 module Form = Ui_form
 module Panel = Ui_panel
 module Att = Attention_data
@@ -50,11 +54,11 @@ type overlay =
   | Search of string
   | Modal_form of Form.t
   | Reversal of Rev.t
+  | Date_correction of Date.t
   | Scheduled_create of Sch.t
+  | Scheduled_cancel of Cancel.t
+  | Scheduled_continuation of Cont.t
 
-let is_cancel_plan = function
-  | Modal_form f when Form.id f = "cancel_plan" -> true
-  | _ -> false
 
 let is_reverse_entry = function
   | Reversal _ -> true
@@ -129,6 +133,8 @@ type state = {
   settlement_scope : Stl.scope;
   balance_mode : [ `Accounting | `Current ];
   actual_workspace : Act.t;
+  drill_parent : W.route option;
+  drill_book : B.t option;
 }
 
 let initial ?config_home session =
@@ -160,6 +166,8 @@ let initial ?config_home session =
     settlement_scope = Stl.Open_only;
     balance_mode = `Accounting;
     actual_workspace = Act.create ~focus_date:(F.today ());
+    drill_parent = None;
+    drill_book = None;
   }
 
 let has_record_draft state =
@@ -169,22 +177,26 @@ let editor_visible state = state.record_visible
 let mode state = match state.record with None -> A.New | Some record -> S.mode record
 
 let sync state =
-  { state with workspace = W.sync ~book:state.session.book state.workspace; scroll = 0 }
+  let book = state.session.book in
+  let workspace = W.sync ~book state.workspace |> W.follow_months_selection ~book in
+  { state with workspace; scroll = 0 }
+
+let finish_publication state session message =
+  let next = sync { state with session; record = None; record_visible = false;
+    overlay = No_overlay; pending = None; blocked = false; message = tr message } in
+  match mode state with
+  | A.Pay id -> (
+      match List.find_opt (fun (p : B.plan) -> p.id = id && p.paid_by <> None) (B.plans session.book) with
+      | Some source ->
+          { next with overlay = Scheduled_continuation
+              (Cont.create ~book:session.book ~base_bytes:session.bytes source);
+            message = next.message ^ " No additional Scheduled created." }
+      | None -> { next with message = next.message ^
+          " Next-plan inspection unavailable; no additional Scheduled created." })
+  | _ -> next
 
 let apply_commit_result state ~draft result =
-  let published session message =
-    sync
-      {
-        state with
-        session;
-        record = None;
-        record_visible = false;
-        overlay = No_overlay;
-        pending = None;
-        blocked = false;
-        message = tr message;
-      }
-  in
+  let published session message = finish_publication state session message in
   let stopped ?(pending = draft.pending) message =
     { draft with blocked = true; pending; message }
   in
@@ -224,17 +236,7 @@ let reload state =
   } in
   match A.reload ~session:state.session ~pending:state.pending ~mode:(mode state) with
   | A.Pending_confirmed session ->
-      sync
-        {
-          state with
-          session;
-          pending = None;
-          record = None;
-          record_visible = false;
-          overlay = No_overlay;
-          blocked = false;
-          message = tr "The pending publication is present now. No retry.";
-        }
+      finish_publication state session "The pending publication is present now. No retry."
   | A.Pending_unconfirmed session ->
       {
         state with
@@ -256,6 +258,15 @@ let reload state =
       | Reversal editor when Rev.base_bytes editor <> session.bytes ->
           { state with session; blocked = true;
             message = tr "Reversal target generation changed. Date retained; cancel, reload and reselect." }
+      | Date_correction editor when Date.base_bytes editor <> session.bytes ->
+          { state with session; blocked = true;
+            message = tr "Date correction target generation changed. Cancel, reload and reselect." }
+      | Scheduled_cancel editor when Cancel.base_bytes editor <> session.bytes ->
+          { state with session; blocked = true;
+            message = tr "Scheduled cancellation target generation changed. Keep, reload and reselect." }
+      | Scheduled_continuation prompt when Cont.base_bytes prompt <> session.bytes ->
+          { state with session; blocked = true;
+            message = tr "Completion remains published. Later-plan evidence changed; close and reload to inspect." }
       | _ -> sync { state with session; blocked = false; message = tr "Reloaded. Unsaved draft retained." })
   | A.Reload_failed why ->
       {
@@ -357,7 +368,7 @@ let sync_actual_to_workspace state =
   in
   let pane = if Act.pane state.actual_workspace = Act.Details then W.Detail else W.Calendar in
   let scroll = if pane = W.Detail then Act.detail_scroll state.actual_workspace else 0 in
-  { state with workspace = { (W.update_browser state.workspace browser) with pane }; scroll }
+  { state with workspace = { state.workspace with actual = browser; pane }; scroll }
 
 let open_route state route =
   let state =
@@ -367,7 +378,8 @@ let open_route state route =
       sync_actual_to_workspace { state with actual_workspace }
     else state
   in
-  sync { state with workspace = W.enter state.workspace route; overlay = No_overlay; scroll = 0 }
+  sync { state with workspace = W.enter state.workspace route; overlay = No_overlay; scroll = 0;
+                    drill_parent = None; drill_book = None }
 
 let selected state =
   if state.workspace.route = W.Actual then
@@ -394,25 +406,21 @@ let edit_selected state =
         | Error why -> { state with message = why })
     | None -> { state with message = tr "Select an Actual or Scheduled occurrence to edit." }
 
-let cancel_plan_form (plan : B.plan) =
-  let summary =
-    "Due: " ^ plan.day ^ "  " ^ plan.measure ^ "  "
-    ^ String.concat ", "
-        (List.map (fun (loc, amt) -> loc ^ " " ^ Z.to_string amt) plan.changes)
-  in
-  Form.create
-    ~id:"cancel_plan"
-    ~payload:plan.id
-    ~title:"Cancel Scheduled"
-    ~summary:[summary]
-    ~fields:[
-      Form.text_field ~id:"date" ~label:"Cancel on" ~value:(F.today ()) ();
-      Form.action_buttons ~confirm:"Confirm Cancel" ~cancel:"Keep Plan" ();
-    ]
-    ()
+let correct_date_selected state =
+  if state.blocked then state
+  else if has_record_draft state then
+    { state with message = tr "A draft is retained. Resume or discard it before changing a date." }
+  else match selected state with
+  | Some (W.Actual_entry entry) ->
+      { state with overlay = Date_correction (Date.create ~base_bytes:state.session.bytes entry);
+        message = "" }
+  | _ -> { state with message = tr "Select an Actual entry to change its date." }
+
 
 let cancel_plan_selected state =
   if state.blocked then state
+  else if has_record_draft state then
+    { state with message = tr "A draft is retained. Resume or discard it before cancelling a Scheduled occurrence." }
   else
     match selected state with
     | Some (W.Scheduled_plan plan) ->
@@ -423,7 +431,8 @@ let cancel_plan_selected state =
         else
           {
             state with
-            overlay = Modal_form (cancel_plan_form plan);
+            overlay = Scheduled_cancel (Cancel.create ~book:state.session.book
+              ~base_bytes:state.session.bytes ~day:(F.today ()) plan);
             message = "";
           }
     | _ -> { state with message = tr "Select an open Scheduled occurrence to cancel." }
@@ -564,8 +573,21 @@ let record_dimensions ~dimensions:((width, height) as dimensions) ~width_of stat
 let reversal_dimensions ~dimensions ~width_of state =
   Rev.dimensions (body_dimensions ~dimensions ~width_of state)
 
+let date_dimensions ~dimensions ~width_of state =
+  Date.dimensions (body_dimensions ~dimensions ~width_of state)
+
 let scheduled_dimensions ~dimensions ~width_of state =
   Sch.dimensions (body_dimensions ~dimensions ~width_of state)
+
+let continuation_dimensions ~dimensions ~width_of state =
+  Cont.dimensions (body_dimensions ~dimensions ~width_of state)
+
+let cancellation_dimensions ~dimensions ~width_of state =
+  Cancel.dimensions (body_dimensions ~dimensions ~width_of state)
+
+let actual_dimensions ~dimensions ~width_of state =
+  let width, body_height = body_dimensions ~dimensions ~width_of state in
+  (width, max 0 (body_height - 2))
 
 let update_calendar state action =
   match Cal.apply state.workspace.calendar action with
@@ -583,7 +605,15 @@ let update_calendar state action =
 let back state =
   if state.workspace.pane = W.Detail then
     { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
-  else open_route state W.Home
+  else match state.drill_parent with
+  | Some W.Actual ->
+      let before_book = Option.value ~default:state.session.book state.drill_book in
+      let actual_workspace =
+        Act.returned_from_detail ~before_book ~after_book:state.session.book state.actual_workspace in
+      sync_actual_to_workspace
+        { state with actual_workspace; drill_parent = None; drill_book = None;
+          workspace = W.enter state.workspace W.Actual; overlay = No_overlay }
+  | _ -> open_route state W.Home
 
 let exchange_form ?(default_date = F.today ()) () =
   Form.create
@@ -1088,6 +1118,9 @@ let commit_settlements state submitted update message =
   | Error why -> { state with overlay = Modal_form (Form.set_notice submitted
       ("Settlements not confirmed: " ^ why ^ " Reload to inspect before retrying.")) }
 
+let is_scheduled_months state =
+  state.workspace.route = W.Scheduled && state.workspace.schedule_view = W.Months
+
 let is_record_browser state =
   state.workspace.route = W.Actual || state.workspace.route = W.Scheduled
 
@@ -1105,7 +1138,7 @@ let browser_detail_rows ~width_of ~width state =
 let browser_viewport ~dimensions ~width_of state =
   let width, body_height = body_dimensions ~dimensions ~width_of state in
   let height = max 0 (body_height - 2) in
-  let _, detail_width = browser_pane_widths width in
+  let _, detail_width = if is_scheduled_months state then (width, width) else browser_pane_widths width in
   let view = Panel.window ~capacity:(Panel.capacity ~height ~heading:false)
     ~count:(List.length (browser_detail_rows ~width_of ~width:detail_width state))
     ~scroll:state.scroll ~selected:None in
@@ -1152,6 +1185,71 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                    (A.commit_payload ~session:state.session ~base_bytes payload)))
   else
     match state.overlay with
+    | Scheduled_continuation prompt -> (
+        match input with
+        | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
+        | _ -> (
+            let updated message =
+              { state with overlay = Scheduled_continuation (Cont.with_notice prompt message) } in
+            match Cont.handle ~dimensions:(continuation_dimensions ~dimensions ~width_of state) ~width_of prompt input with
+            | Cont.Updated prompt -> Some { state with overlay = Scheduled_continuation prompt }
+            | Cont.Closed candidate ->
+                Some { state with overlay = No_overlay;
+                  message = (if state.blocked then state.message else
+                    match candidate with
+                    | None -> "Completion retained. No additional Scheduled created."
+                    | Some p -> "Completion retained. Kept later Scheduled " ^ O.visible p.id ^
+                        "; no additional Scheduled created.") }
+            | Cont.Add source ->
+                if state.blocked then Some (updated "Writes stopped; completion remains published.")
+                else (match Sch.create_from_scheduled ~book:state.session.book source with
+                  | Ok editor -> Some { state with overlay = Scheduled_create editor;
+                      message = "Completion remains published; adding an independent Scheduled." }
+                  | Error why -> Some (updated why))
+            | Cont.Defer source ->
+                if state.blocked then Some (updated "Writes stopped; completion remains published.")
+                else
+                  let result = Result.bind state.attention (fun expected ->
+                    let id = Att.next_id expected in
+                    let context = "Decide continuation after " ^ source.id ^ " (scheduled " ^ source.day ^ "): " ^
+                      String.concat "; " (List.map (fun (locus, amount) ->
+                        locus ^ " " ^ B.format state.session.book source.measure amount ^ " " ^ source.measure) source.changes) in
+                    Result.bind (Att.add_item expected ~id ~context ~due:Att.Due_undetermined) (fun attention ->
+                      Result.map (fun () -> attention, id) (Att.save_file state.attention_path ~expected attention))) in
+                  (match result with
+                   | Ok (attention, id) -> Some { state with overlay = No_overlay; attention = Ok attention;
+                       message = "Completion retained. Deferred continuation as " ^ id ^ "; no additional Scheduled created." }
+                   | Error why -> Some { (updated "Defer not confirmed; reload to inspect before retrying.") with
+                       message = "Completion remains published. Defer not confirmed: " ^ why })))
+    | Scheduled_cancel editor -> (
+        match input with
+        | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
+        | _ -> (
+            match Cancel.handle ~blocked:state.blocked
+              ~dimensions:(cancellation_dimensions ~dimensions ~width_of state) ~width_of editor input with
+            | Cancel.Updated editor -> Some { state with overlay = Scheduled_cancel editor }
+            | Cancel.Closed -> Some { state with overlay = No_overlay }
+            | Cancel.Publish (id, day, base_bytes) ->
+                let draft = { state with overlay = Scheduled_cancel (Cancel.with_publish_error editor) } in
+                Some (apply_commit_result state ~draft
+                  (A.commit_cancel_plan ~session:state.session ~base_bytes ~id ~day))))
+    | Date_correction editor -> (
+        match input with
+        | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
+        | _ -> (
+            match Date.handle ~blocked:state.blocked
+              ~dimensions:(date_dimensions ~dimensions ~width_of state) ~width_of editor input with
+            | Date.Updated editor -> Some { state with overlay = Date_correction editor }
+            | Date.Closed -> Some { state with overlay = No_overlay }
+            | Date.Publish (tx, base_bytes) ->
+                let draft = { state with overlay = Date_correction (Date.edit editor) } in
+                let next = apply_commit_result state ~draft
+                  (A.commit_transaction ~session:state.session ~base_bytes tx) in
+                Some (if next.overlay = No_overlay && next.workspace.route = W.Actual then
+                  let actual_workspace = Act.returned_from_detail
+                    ~before_book:state.session.book ~after_book:next.session.book state.actual_workspace in
+                  sync_actual_to_workspace { next with actual_workspace }
+                else next)))
     | Reversal editor -> (
         match input with
         | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
@@ -1257,22 +1355,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Form.Updated updated -> Some { state with overlay = Modal_form updated }
         | Form.Submit submitted -> (
             match Form.id submitted with
-            | "cancel_plan" ->
-                let cancel_day = Option.value ~default:"" (Form.get_text submitted "date") in
-                (match A.normalize_date cancel_day with
-                | Error _ ->
-                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Invalid date (YYYY-MM-DD).")) }
-                | Ok canon_day ->
-                    if not (A.is_valid_canonical_date canon_day) then
-                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter a real Gregorian date.")) }
-                    else
-                      let plan_id = Form.payload submitted in
-                      let res =
-                        A.commit_cancel_plan ~session:state.session ~base_bytes:state.session.bytes
-                          ~id:plan_id ~day:canon_day
-                      in
-                      let next_state = { state with overlay = No_overlay } in
-                      Some (apply_commit_result next_state ~draft:next_state res))
             | "add_attention" ->
                 let context = Option.value ~default:"" (Form.get_text submitted "context") in
                 let due_kind_idx = Option.value ~default:0 (Form.get_choice submitted "due_kind") in
@@ -1613,9 +1695,12 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 Some (edit_selected state)
             | `Key (`ASCII ('x' | 'X'), []) when not (Act.search_editing state.actual_workspace) ->
                 Some (reverse_entry_selected state)
+            | `Key (`ASCII ('d' | 'D'), []) when not (Act.search_editing state.actual_workspace) ->
+                Some (correct_date_selected state)
             | _ ->
+                let actual_dim = actual_dimensions ~dimensions ~width_of state in
                 let next_ws, cmd =
-                  Act.handle ~book:state.session.book ~dimensions ~width_of state.actual_workspace input
+                  Act.handle ~book:state.session.book ~dimensions:actual_dim ~width_of state.actual_workspace input
                 in
                 let state =
                   sync_actual_to_workspace
@@ -1624,7 +1709,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 (match cmd with
                 | Act.Stay -> Some state
                 | Act.Open_selected entry ->
-                    Some (open_route state (W.Selected_day entry.day))
+                    let drilled = open_route state (W.Selected_day entry.day) in
+                    Some { drilled with drill_parent = Some W.Actual; drill_book = Some state.session.book }
                 | Act.Record_new -> Some (open_record state)
                 | Act.Back -> Some (open_route state W.Home)
                 | Act.Redraw -> Some state))
@@ -1672,6 +1758,21 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some { state with overlay = Modal_form (what_if_form state) }
         | Some (`ASCII 'c', []) when state.workspace.route = W.Daily_pace ->
             Some { state with overlay = Modal_form (configure_pace_form state) }
+        | Some (`ASCII 'v', []) when state.workspace.route = W.Scheduled ->
+            Some (sync { state with workspace = W.toggle_schedule_view ~book:state.session.book state.workspace;
+              message = (if state.blocked then state.message else "") })
+        | Some ((`ASCII 'h' | `Arrow `Left | `ASCII 'l' | `Arrow `Right), [])
+          when is_scheduled_months state && state.workspace.pane = W.Calendar ->
+            let delta = match Option.map normalize key with
+              | Some ((`ASCII 'h' | `Arrow `Left), _) -> -1 | _ -> 1 in
+            (match Months.shift state.workspace.months delta with
+             | Ok months -> Some { state with workspace = { state.workspace with months } }
+             | Error message -> Some { state with message = (if state.blocked then state.message else message) })
+        | Some (`ASCII ('f' | '/'), []) when is_scheduled_months state ->
+            Some { state with message = (if state.blocked then state.message else
+              "Months uses all current-open plans; v opens filtered List.") }
+        | Some (`Enter, []) when is_scheduled_months state -> Some (pay_selected state)
+        | Some (`ASCII 'r', []) when is_scheduled_months state -> Some (edit_selected state)
         | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), [])
           when is_record_browser state ->
             Some { state with workspace = { state.workspace with
@@ -1680,7 +1781,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII ('u' | 'd'), [ `Ctrl ]) when is_record_browser state ->
             let height, view = browser_viewport ~dimensions ~width_of state in
             let detail = state.workspace.pane = W.Detail in
-            let page = max 1 (if detail then view.capacity else
+            let page = max 1 (if detail then view.capacity else if is_scheduled_months state then 8 else
               Panel.capacity ~height ~heading:(state.workspace.route = W.Actual)) in
             let delta = match Option.map normalize key with
               | Some (`Home, _) -> -max_int
@@ -1753,6 +1854,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some (open_route state W.Scheduled)
         | Some (`ASCII 'b', []) when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
             Some (open_route state W.Balances)
+        | Some (`ASCII 'd', []) when (match state.workspace.route with W.Selected_day _ -> true | _ -> false) ->
+            Some (correct_date_selected state)
         | Some (`ASCII 'd', []) when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
             Some (open_route state W.Daily_pace)
         | Some (`ASCII 'i', []) when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
@@ -2475,6 +2578,15 @@ let workspace_rows ~width_of ~width ~height state =
       ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Actual then
     Act.screen ~book:state.session.book ~dimensions:(width, height) ~width_of state.actual_workspace
+  else if is_scheduled_months state then
+    if workspace.pane = W.Detail then
+      let detail = browser_detail_rows ~width_of ~width state in
+      Panel.frame ~width_of ~width ~height ~focused:true ~title:"Selected Scheduled"
+        ~scroll:state.scroll ~selected:None detail
+    else
+      let plans = List.filter_map (function W.Scheduled_plan p -> Some p | _ -> None) rows in
+      let selected = match selected state with Some (W.Scheduled_plan p) -> Some p | _ -> None in
+      Months.screen ~book ~plans ~dimensions:(width, height) ~width_of ~selected workspace.months
   else
     let is_detail = workspace.pane = W.Detail in
     let right_title =
@@ -2499,16 +2611,18 @@ let workspace_rows ~width_of ~width ~height state =
       ~right_scroll:(if is_detail then state.scroll else 0)
       ~right_selected:None ~right_rows:wrapped_detail ()
 
-let footer state =
+let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   match state.overlay with
-  | Reversal _ when state.blocked -> [ "Writes stopped; date retained"; "Ctrl-r inspect/reload  q keep" ]
+  | (Reversal _ | Date_correction _ | Scheduled_cancel _) when state.blocked ->
+      [ "Writes stopped; date retained"; "Ctrl-r inspect/reload  q keep" ]
   | Reversal editor -> Rev.footer editor
+  | Date_correction editor -> Date.footer editor
   | Scheduled_create editor -> Sch.footer editor
+  | Scheduled_cancel editor -> Cancel.footer editor
+  | Scheduled_continuation prompt -> Cont.footer prompt
   | Themes _ -> [ "j/k or Up/Down preview theme"; "Enter save  Esc/q cancel" ]
   | Modal_form form -> (
       match Form.id form with
-      | "cancel_plan" ->
-          [ "Enter confirm cancel  Tab switch button  Esc keep plan"; "Cancel date can be edited" ]
       | "observe_quantity" ->
           [ "Enter observe  Tab next field  Esc cancel"; "Locus & Measure tokens, signed or zero amount" ]
       | "daily_pace_what_if" ->
@@ -2519,7 +2633,15 @@ let footer state =
           [ "Enter submit  Tab next field  Esc cancel"; "Arrow keys / space to choose options" ])
   | No_overlay | Commands _ | Jump _ | Search _ ->
   if state.workspace.W.route = W.Actual then
-    Act.footer ~dimensions:(80, 24) ~width_of:String.length state.actual_workspace
+    Act.footer ~dimensions ~width_of state.actual_workspace
+  else if is_scheduled_months state then
+    if state.workspace.pane = W.Detail then
+      [ "j/k PgUp/Dn Home/End scroll  Tab Months"; "Enter/c complete  x cancel  v List  q back" ]
+    else if fst dimensions < 46 then
+      [ "j/k select  h/l months  v List"; "Enter complete  x cancel  q back" ]
+    else
+      [ "j/k select  h/l months  Enter/c complete  q back";
+        "i/Tab detail  r/e edit  x cancel  n new  v List" ]
   else
   match (state.workspace.W.route, state.workspace.pane) with
   | W.Home, _ ->
@@ -2543,7 +2665,7 @@ let footer state =
   | W.Scheduled, W.Calendar ->
       [
         "j/k select  Enter/i/Tab Detail  h/l pane  c Complete  e Edit  x Cancel";
-        "n New Plan  f Filter  / search  Space Commands  q/Esc Home";
+        "v Months  n New Plan  f Filter  / search  Space Commands  q/Esc Home";
       ]
   | W.Actual, W.Calendar ->
       [
@@ -2553,7 +2675,7 @@ let footer state =
   | W.Scheduled, W.Detail ->
       [
         "j/k scroll  Page Up/Down page  Home/End range  h/l/Tab pane";
-        "q/Esc list  c Complete  e Edit  x Cancel  n New Plan  Ctrl-r reload";
+        "v Months  q/Esc list  c Complete  e Edit  x Cancel  n New Plan  Ctrl-r reload";
       ]
   | W.Actual, W.Detail ->
       [
@@ -2562,8 +2684,10 @@ let footer state =
       ]
   | W.Selected_day _, W.Calendar ->
       [
-        "j/k select  Enter/i/Tab Detail  c Correct  x Reverse  g Loci  r Record";
-        "Space Commands  q/Esc Home  Ctrl-r reload";
+        "j/k select  Enter/i/Tab Detail  c Correct  d Date  x Reverse  g Loci  r Record";
+        (match state.drill_parent with
+         | Some W.Actual -> "Space Commands  q/Esc Actual  Ctrl-r reload"
+         | _ -> "Space Commands  q/Esc Home  Ctrl-r reload");
       ]
   | W.Balances, W.Calendar ->
       let v_label = match state.balance_mode with `Accounting -> "v current" | `Current -> "v accounting" in
@@ -2643,7 +2767,7 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
              | W.Home -> tr "Home"
              | W.Calendar -> tr "Calendar"
              | W.Actual -> tr "Actual"
-             | W.Scheduled -> tr "Scheduled"
+             | W.Scheduled -> tr (if is_scheduled_months state then "Scheduled / Months" else "Scheduled")
              | W.Selected_day _ -> tr "Selected Day"
              | W.Balances -> tr "Balances"
              | W.Daily_pace -> tr "Daily Pace"
@@ -2651,8 +2775,8 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
              | W.Loci -> tr "Manage Loci"
              | W.Settlements -> tr "Settlements"));
           line ~width_of width Chrome
-            (state.workspace.calendar.selected_day ^ "   "
-            ^ Cal.title state.workspace.calendar ^ tr " view"
+            ((if is_scheduled_months state then "Explicit current-open plans; no recurrence inferred."
+              else state.workspace.calendar.selected_day ^ "   " ^ Cal.title state.workspace.calendar ^ tr " view")
             ^ if has_record_draft state then "   Draft retained" else "");
         ]
     in
@@ -2664,7 +2788,7 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
     let visible_body = List.filteri (fun i _ -> i < body_height) body in
     let bottom_pad = max 0 (body_height - List.length visible_body) in
     let full_body = visible_body @ List.init bottom_pad (fun _ -> (Plain, "")) in
-    full_body @ feedback @ List.map (line ~width_of width Chrome) (footer state)
+    full_body @ feedback @ List.map (line ~width_of width Chrome) (footer ~dimensions ~width_of state)
 
 let commands_overlay_rows ~width_of ~width ~height (menu : M.t) =
   let framed = height >= 5 && width >= 8 in
@@ -2733,6 +2857,20 @@ type overlay_frame = {
 
 let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state : overlay_frame option =
   let body_w, body_h = body_dimensions ~dimensions ~width_of state in
+  let framed_form ~pane_w form =
+    let content_width = max 0 (pane_w - 6) in
+    let form_rows = Form.render_rows ~width:content_width
+        ~height:(Panel.capacity ~height:body_h ~heading:false) ~width_of form in
+    let pane_h = min body_h (max 5 (List.length form_rows + 2)) in
+    let rows = Panel.frame_rows ~width_of ~width:pane_w ~height:pane_h
+        ~focused:true ~title:(Form.title form) form_rows in
+    let origin_x = max 0 ((width - pane_w) / 2) in
+    let origin_y = max 0 ((body_h - pane_h) / 2) in
+    let cursor = O.cursor_in_rows ~width_of ~width:pane_w rows
+      |> Option.map (fun (col, row) -> (origin_x + col, origin_y + row)) in
+    Some { origin_x; origin_y; pane_width = pane_w;
+      pane_height = List.length rows; rows; cursor }
+  in
   if state.record_visible then
     match state.record with
     | None -> None
@@ -2755,13 +2893,8 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
             if body_h - pane_h >= 2 then 2 + max 0 ((body_h - 2 - pane_h) / 2)
             else max 0 ((body_h - pane_h) / 2)
           in
-          let rec find_input row_idx = function
-            | [] -> None
-            | (Input caret, _) :: _ -> Some (caret, row_idx)
-            | _ :: rest -> find_input (row_idx + 1) rest
-          in
           let cursor =
-            match find_input 0 rows with
+            match O.cursor_in_rows ~width_of ~width:pane_w rows with
             | Some (caret, row_idx) ->
                 let col = origin_x + caret in
                 let row = origin_y + row_idx in
@@ -2772,6 +2905,33 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
   else if state.overlay = No_overlay || body_w < 8 || body_h < 3 then None
   else
     match state.overlay with
+    | Scheduled_continuation prompt ->
+        let pane_dimensions = continuation_dimensions ~dimensions ~width_of state in
+        let pane_w = fst pane_dimensions in
+        let rows = Cont.screen ~dimensions:pane_dimensions ~width_of prompt in
+        let pane_h = List.length rows in
+        Some { origin_x = max 0 ((width - pane_w) / 2); origin_y = max 0 ((body_h - pane_h) / 2);
+          pane_width = pane_w; pane_height = pane_h; rows; cursor = None }
+    | Scheduled_cancel editor ->
+        let pane_dimensions = cancellation_dimensions ~dimensions ~width_of state in
+        let pane_w = fst pane_dimensions in
+        let rows = Cancel.screen ~dimensions:pane_dimensions ~width_of editor in
+        let pane_h = List.length rows in
+        let origin_x = max 0 ((width - pane_w) / 2) in
+        let origin_y = max 0 ((body_h - pane_h) / 2) in
+        let cursor = Option.map (fun (col, row) -> (origin_x + col, origin_y + row))
+          (O.cursor_in_rows ~width_of ~width:pane_w rows) in
+        Some { origin_x; origin_y; pane_width = pane_w; pane_height = pane_h; rows; cursor }
+    | Date_correction editor ->
+        let pane_dimensions = date_dimensions ~dimensions ~width_of state in
+        let pane_w = fst pane_dimensions in
+        let rows = Date.screen ~dimensions:pane_dimensions ~width_of editor in
+        let pane_h = List.length rows in
+        let origin_x = max 0 ((width - pane_w) / 2) in
+        let origin_y = max 0 ((body_h - pane_h) / 2) in
+        let cursor = Option.map (fun (col, row) -> (origin_x + col, origin_y + row))
+          (O.cursor_in_rows ~width_of ~width:pane_w rows) in
+        Some { origin_x; origin_y; pane_width = pane_w; pane_height = pane_h; rows; cursor }
     | Reversal editor ->
         let pane_dimensions = reversal_dimensions ~dimensions ~width_of state in
         let pane_w = fst pane_dimensions in
@@ -2780,7 +2940,7 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
         let origin_x = max 0 ((width - pane_w) / 2) in
         let origin_y = max 0 ((body_h - pane_h) / 2) in
         let cursor =
-          match Rev.cursor_position ~dimensions:pane_dimensions ~width_of editor with
+          match O.cursor_in_rows ~width_of ~width:pane_w rows with
           | Some (col, row) ->
               let c = origin_x + col and r = origin_y + row in
               if c < width && r < height then Some (c, r) else None
@@ -2795,7 +2955,7 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
         let origin_x = max 0 ((width - pane_w) / 2) in
         let origin_y = max 0 ((body_h - pane_h) / 2) in
         let cursor =
-          match Sch.cursor_position ~book:state.session.book ~dimensions:pane_dimensions ~width_of editor with
+          match O.cursor_in_rows ~width_of ~width:pane_w rows with
           | Some (col, row) ->
               let c = origin_x + col and r = origin_y + row in
               if c < width && r < height then Some (c, r) else None
@@ -2823,54 +2983,17 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
         let origin_y = max 0 ((body_h - pane_h) / 2) in
         Some { origin_x; origin_y; pane_width = pane_w; pane_height = List.length rows; rows; cursor = None }
     | Jump value ->
-        let pane_w = min 54 (max 8 (body_w - 4)) in
-        let content_rows = [ value ^ "|"; tr "Enter apply; Esc cancel" ] in
-        let pane_h = min body_h (max 5 (List.length content_rows + 2)) in
-        let rows =
-          Panel.frame ~width_of ~width:pane_w ~height:pane_h ~focused:true
-            ~title:(tr "Jump to date / month / year") ~scroll:0 ~selected:None content_rows
-        in
-        let origin_x = max 0 ((width - pane_w) / 2) in
-        let origin_y = max 0 ((body_h - pane_h) / 2) in
-        let col = origin_x + 4 + width_of value in
-        let row = origin_y + 1 in
-        let cursor = if col < width && row < height then Some (col, row) else None in
-        Some { origin_x; origin_y; pane_width = pane_w; pane_height = List.length rows; rows; cursor }
+        framed_form ~pane_w:(min 54 (max 8 (body_w - 4)))
+          (Form.create ~id:"jump" ~title:(tr "Jump to date / month / year")
+             ~fields:[Form.text_field ~id:"value" ~label:"" ~value ()]
+             ~notice:(tr "Enter apply; Esc cancel") ())
     | Search value ->
-        let pane_w = min 54 (max 8 (body_w - 4)) in
-        let content_rows = [ value ^ "|"; tr "Enter apply; Esc clear" ] in
-        let pane_h = min body_h (max 5 (List.length content_rows + 2)) in
-        let rows =
-          Panel.frame ~width_of ~width:pane_w ~height:pane_h ~focused:true
-            ~title:(tr "Search Actual / Scheduled") ~scroll:0 ~selected:None content_rows
-        in
-        let origin_x = max 0 ((width - pane_w) / 2) in
-        let origin_y = max 0 ((body_h - pane_h) / 2) in
-        let col = origin_x + 4 + width_of value in
-        let row = origin_y + 1 in
-        let cursor = if col < width && row < height then Some (col, row) else None in
-        Some { origin_x; origin_y; pane_width = pane_w; pane_height = List.length rows; rows; cursor }
+        framed_form ~pane_w:(min 54 (max 8 (body_w - 4)))
+          (Form.create ~id:"search" ~title:(tr "Search Actual / Scheduled")
+             ~fields:[Form.text_field ~id:"value" ~label:"" ~value ()]
+             ~notice:(tr "Enter apply; Esc clear") ())
     | Modal_form form ->
-        let pane_w = min 64 (max 8 (body_w - 4)) in
-        let form_rows = Form.render_rows form in
-        let pane_h = min body_h (max 5 (List.length form_rows + 2)) in
-        let rows =
-          Panel.frame ~width_of ~width:pane_w ~height:pane_h ~focused:true
-            ~title:(Form.title form) ~scroll:0 ~selected:None form_rows
-        in
-        let origin_x = max 0 ((width - pane_w) / 2) in
-        let origin_y = max 0 ((body_h - pane_h) / 2) in
-        let cursor =
-          match Form.cursor_offset form ~width_of with
-          | Some (col_off, row_off) ->
-              let col = origin_x + 4 + col_off in
-              let row = origin_y + 1 + row_off in
-              let capacity = max 0 (pane_h - 2) in
-              if row_off < capacity && col < width && row < height then Some (col, row)
-              else None
-          | None -> None
-        in
-        Some { origin_x; origin_y; pane_width = pane_w; pane_height = List.length rows; rows; cursor }
+        framed_form ~pane_w:(min 64 (max 8 (body_w - 4))) form
     | No_overlay -> None
 
 let overlay_screen ~dimensions ~width_of state =
@@ -2900,14 +3023,8 @@ let cursor_position ~width_of ((width, height) as dimensions) state : (int * int
         | Some record ->
             let pane_dimensions = record_dimensions ~dimensions ~width_of state in
             let rows = S.screen ~book:state.session.book ~dimensions:pane_dimensions ~width_of record in
-            let rec find_input row_idx = function
-              | [] -> None
-              | (Input caret, _) :: _ -> Some (caret, row_idx)
-              | _ :: rest -> find_input (row_idx + 1) rest
-            in
-            (match find_input 0 rows with
-            | Some (caret, row_idx) when caret < width && row_idx < height -> Some (caret, row_idx)
-            | _ -> None)
+            let painted = List.filteri (fun i _ -> i < max 0 height) rows in
+            O.cursor_in_rows ~width_of ~width:(min width (fst pane_dimensions)) painted
       else if state.workspace.route = W.Actual then
         Act.cursor_position ~dimensions ~width_of state.actual_workspace
       else None

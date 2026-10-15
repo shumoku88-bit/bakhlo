@@ -54,12 +54,12 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
    LOAMのユーザー向け機能を棚卸しし、以下の列挙にない非予算項目もUI差分台帳へ関連付ける。
 2. [ ] **共有機構を利用元横断で移行・受入する。** 責務・API・全利用元・受入条件は
    [TUI共有部品の責務設計と移行順序](../docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md) に従う。設計確定のみで実装済みにはしない。
-   - 共有input／再帰Input metadataの純粋機構は実装・境界検査・native幅の直接smoke済み。既存Daily_form・tail・native widthを再利用。画面への接続は次の段階。
-   - Ui_formとstyled frameを切り替え、Modal_form・Jump・Search overlay・Reversal Dateと直接利用元checksを同時移行し、
-     cursor_offsetと旧重複計算を削除する。generic formだけで終了しない。
-   - RecordのColumns＋recursive caretを同時切替し、Scheduledの同じ入力表示・UTF-8文字移動・focus-following・notice予約を接続する。
-   - list/detailは既存Ui_panelを維持し、Actualのterminal_geometry／panel_geometry・wide tx_heightのcapacity整合、
-     controller経由のdrill-down/backを実行確認する。未再現のsource候補だけでscroll方式を変えない。
+   - 共有input／再帰Input metadataの純粋機構は実装・境界検査・native幅の直接smoke済み。既存Daily_form・tail・native widthを再利用。
+   - Ui_formとstyled frame、Modal_form・Jump・Search overlay・Reversal Dateと直接利用元checksは移行済み。
+     cursor_offsetとReversalの独立caret計算を削除。Core/native検査と合成tmux成功。LOAM対照・本人受入は未了。
+   - RecordのColumns＋recursive caretを同時切替し、Scheduledの同じ入力表示・UTF-8文字移動・focus-following・notice予約・均一幅を接続済み。Sch.cursor_positionを削除し、renderer matrix（8寸法×3テーマ）へScheduled_createを追加・合格。
+   - list/detailは既存Ui_panelを維持し、Actualのterminal_geometryをpanel_geometryへ統一、wide tx_heightのpage_size容量整合、
+     controller経由のdrill-down/back復帰でAct.returned_from_detailを接続。復帰時の別browser上書きと詳細focus／scroll消失を修正し、限定回帰・合成PTYを確認。横断受入は未了。
    Actual長文検索のG-2限定成功は保持するが、G-1/G-3/G-4や全画面を完了扱いしない。
    幅0／1、長文・CJK、通知、通常／compact、resize、取消でpaintとcaret・保持値・draftを確認する。
    sessionごとのreview／保存gateを維持し、実装・対照実行・本人受入を別々に記録する。IMEは実機で別途受入する。

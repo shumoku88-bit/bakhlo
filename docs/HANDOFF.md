@@ -17,8 +17,8 @@ final fit and after-display cursor stay. No custom renderer/Unicode table, layer
 ANSI, scene engine or state framework is adopted. Editing stays in Daily_form; display
 windows/recursive Input metadata belong in Daily_overlays; panel/form geometry is shared,
 while IDs, query/selection, drafts, review/publication gates and refusal recovery stay local.
-Ui_workspace and Actual_workspace remain separate; returned_from_detail has no connected
-caller and is not proof of controller-level identity-preserving return.
+Ui_workspace and Actual_workspace remain separate. returned_from_detail is connected
+to controller drill-back, with bounded synthetic evidence, not full parity acceptance.
 
 The first migration unit is implemented: Daily_overlays.input_text shares the existing
 Record tail/insertion-cell approach; input_cell recursively translates Columns metadata;
@@ -38,12 +38,77 @@ see [reproduction](DEVELOPMENT.md#bonsai-isolated-linker-recipe) and
 [evidence](VERIFICATION.md#native-build-warning-cleanup). Main/global environments
 and household data were not changed.
 
-Next is Ui_form + styled frame and every Modal_form/Jump/Search/Reversal Date consumer
-together (remove cursor_offset); then Record Columns + recursive caret together and
-Scheduled display/UTF-8 movement/focus/notice; then list/detail paint/navigation capacity
-and real controller drill-down/back. Current screens are NOT using the new helpers yet.
-No session, writer, publication gate, renderer, fixture/config, dependency or build
-registration changed. No new PTY/LOAM comparison or original household read was run.
+The third migration unit is connected: Record and Scheduled creation use shared
+input windows and painted Input metadata. Record's combine_side_by_side is removed
+in favor of native Columns composition with independent child styles, and its
+controller extracts recursive carets via cursor_in_rows. Scheduled creation uses
+Daily_overlays.input_text, Daily_form.move_cursor for UTF-8 navigation, Ui_panel
+field windowing, 1-line notice reservation with explicit `… more` overflow, and
+uniform row width padding. Sch.cursor_position is removed. Scheduled creation is now
+included in the 8-dimension × 3-theme render_cases matrix and passes without row-width
+failures. Core suite (tools/check) and native build/self-check passed. Synthetic tmux
+walks covered editor carets/resize/cancel only; the attempted Record entry sequence
+filled the wrong fields and did not qualify publication or lifecycle acceptance.
+The fourth migration unit is connected: Actual workspace geometry and drill-down/
+back routes are unified. terminal_geometry delegates to panel_geometry, and
+Transactions page_size uses tx_height (matching the painted 3-pane height at 80×24 /
+120×36 and panel_height when compact). Controller passes actual_dimensions to
+Act.handle matching Act.screen. Drilling down from Actual into Selected_day via Details
+captures the parent book. A subsequent regression check exposed return-time writes into
+the Selected Day browser and lost detail focus/scroll. sync_actual_to_workspace now
+updates only workspace.actual; back enters Actual before restoring its pane/scroll,
+without W.sync re-sorting or resetting them. Synthetic checks cover ID-preserving return
+after an in-memory date correction, filtered/sorted/Locus-selected scrolled return,
+and the blocked-Reversal safety footer. Native tmux confirmed the scrolled detail
+return at 80×24 and after shrinking to 48×14. See
+[evidence](VERIFICATION.md#listdetail-capacity-and-drill-downback-cutover).
+Steps 1–4 are connected with limited checks, not accepted as full LOAM parity.
+The ordered acceptance items for shared UI, Record and Actual/Selected Day remain open;
+role-aware totals, Merchant/OriginalAmount and Scheduled gaps remain in scope.
+Date-only correction is now connected through `date_correction_session.ml/.mli`:
+`d` from Actual/Selected Day opens a captured-target Date → Preview flow; the existing
+`commit_transaction` replaces only the date and retains ID, Effects/keys and paid-plan links.
+Tiny/unreviewed-target confirmation refuses, retained Record drafts block entry, and
+stale reload cannot bless the captured base. Records replacement remains refused.
+Core/native checks and synthetic tmux cancel, shrink/refuse, publish, parent-ID return
+and cold restart passed; see [date evidence](VERIFICATION.md#actual-date-only-correction).
+Paired LOAM execution, IME and user acceptance are not supplied by these checks.
+
+Scheduled cancellation now has a local `scheduled_cancellation_session.ml/.mli`:
+`x` → retained cancellation-date input → independent expected-effects Preview.
+Keep is the protective default; explicit selection and Enter alone cancel.
+Shared Ui_form/Ui_panel handle display, while target/base, choice, end/tiny gates
+and refusal recovery remain local. The old immediate-submit modal is removed.
+Retained Record drafts block entry; storage refusal preserves evidence and resets
+the choice to Keep, and reload cannot bless stale confirmation. Core/native checks
+and synthetic tmux Keep/no-write, shrink/refuse, explicit cancel and cold restart passed.
+See [cancellation evidence](VERIFICATION.md#scheduled-cancellation-preview).
+No new writer/schema, LOAM runtime acceptance or broader Scheduled parity is claimed.
+
+Scheduled Months is connected through `scheduled_months.ml/.mli` and independent
+List/Months browsers in Ui_workspace. `v` toggles views while preserving List filters
+and visible selected IDs; `h/l` moves the six-month window, `j/k` follows selection.
+Only explicit current-open plans are projected; no Series/coverage/recurrence inference.
+The native 2×3 board has exact receiving amounts or split markers, selection-following
+card windows, selected details and a compact `v opens List` fallback. `i/Tab` opens
+full scrollable details; Enter/c uses existing completion, r/e edit, x cancellation.
+Unused Groups/cycle API is removed; initial Scheduled remains List.
+Core/native checks and synthetic tmux at 120×36/80×24/48×14/32×9 passed for this slice;
+[Months evidence](VERIFICATION.md#scheduled-months-projection) records boundaries and
+the non-saving smoke. LOAM paired/user acceptance and full Scheduled parity remain open.
+
+Post-completion Scheduled continuation awareness is connected through
+`scheduled_continuation_session.ml/.mli`. After atomic completion publishes, a
+prompt surfaces any later open plan with the same positive Locus set. The user
+chooses Keep/Done (protective default; no-op), Review (scrollable candidate details),
+Defer (adds a Due_undetermined Attention item without Scheduled mutation), or
+Add next (opens the Scheduled creation editor with the same structure and empty date).
+No series, recurrence, cadence, or date is inferred.
+Core/native checks and synthetic tmux (Done, Keep, Add next, Escape cancel, and cold
+restart) passed; see [continuation evidence](VERIFICATION.md#scheduled-continuation-awareness).
+
+
+
 
 The preceding six-document design-only task checked source consumers and relative links
 without product changes. The geometry research continues to own counterexamples/external

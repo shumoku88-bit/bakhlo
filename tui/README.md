@@ -92,6 +92,20 @@ PreviewはID・日付・メモ・全Postingの符号付き数量・Measure・Loc
 明細の訂正は拒否する。単一S式のScheduled完了は実明細とpaid-byを同時更新し、支払い済み／取消済みを再利用しない。
 一行貼付は文字のみ、改行・制御入りは拒否する。競合・結果不明では下書きを保持して書込み停止し、警告を隠さない。
 
+## Actualの日付だけの訂正
+
+Actual／Selected DayでActualを選び、`d`で専用のDate編集を開く。
+現在日付を初期入力し、既存の日付parserで正規化・暦検査する。
+EnterはPreview、PreviewのEnterだけが保存。現在日付・変更先・対象IDを表示し、
+`Esc`／`e`で編集へ、`q`で非保存の取消。長いIDはスクロールして末尾まで確認する。
+狭小端末（editor幅46未満／高さ14未満）では確定を拒否する。
+明細ID・メモ・全Posting／キー・支払済み予定の対応は保持し、日付だけを既存writerで置換する。
+Selected Dayは元の日に残り、対象が移れば一覧から消える。親Actualへ戻ると同じIDを追従する
+（scope／検索から外れた場合は既存のclamp／通知に従う）。
+保持中のRecord draftがあれば開始を拒否。stale／結果不明は停止し、reloadで古い確認を有効化しない。
+Records形式は既存Actualの置換をサポートしないため、非保存で拒否する。
+合成操作・通常再起動は確認済み。LOAM対照・IME／本人受入・P7の認定ではない。
+
 ## Actualの反転
 
 Actual／Selected Dayの`x`は専用のDate→Previewを開く。DateのEnter／Ctrl-Enterは確認だけで保存しない。
@@ -103,11 +117,57 @@ PreviewのEsc／e／Editは日付へ、q／Cancelは元の一覧・詳細へ戻�
 Ctrl-rのreloadで世代が変わってもPreviewを新しいbaseへ更新しない。取消→reload→再選択が必要。
 結果不明は停止し、reloadで既存candidateを確認しても自動再発行しない。Recordsの反転は拒否する。
 
+## ScheduledのMonths表示
+
+Scheduledの`v`でListとMonthsを切り替える。MonthsはListの絞り込みとは独立した全open予定を
+日付・ID順で扱い、通常幅では2列×3段の月カードを表示する。各月の明示予定件数と
+日・Locusの向き・数量を表示し、splitの合計や異通貨の合算、周期・予定の充足を推測しない。
+空月の「No explicit plan」は「義務なし」ではない。
+`h/l`／←→で月窓を移動し、起動時の当月より前には戻らない。
+`j/k`／↑↓、Page Up/Down（8件）、Home/Endで予定を選ぶと、対象が見える月窓へ追従する。
+過期限の予定も選択・詳細照会できるが、月窓は当月に留める。年末を跨ぎ、9999-12を越える月は作らない。
+`i`／Tabは正確な全Postingをスクロールできる詳細、Escは月カードへ戻る。
+MonthsのEnter／`c`は選択予定の支払い入力を開く（開くだけでは保存しない）。
+`r`／`e`は既存の単発Edit、`x`は専用取消確認、`n`は単発作成。継続・coverage管理は未接続。
+`v`でListへ戻ると元の検索・scope等を保ち、対象IDが見える場合は同じ予定を選ぶ。
+元の絞り込みで対象が見えなければList側の選択を保持する。
+狭幅・低い端末ではcompact案内と可能な範囲の詳細を表示し、`v`でListへ戻れる。
+閲覧・月移動・切替は非保存。LOAMとの実行対照・本人受入は未了。
+
+## Scheduledの取消
+
+Scheduled／Selected Dayでopen予定を選び、`x`で取消日を入力する。
+最初のEnterは独立Previewのみ。対象ID・期日・取消日・全Expected Effectsの符号付き数量を確認する。
+Previewは**Keepが初期選択**で、Enterなら非保存で親へ戻る。
+Tab／←→でCancel Scheduledを選び、確認後のEnterだけが既存writerへ取消を渡す。
+`Esc`／`q`はKeep、`e`は取消日の再編集。長い対象・数量はj/k・Page・Home/Endで確認する。
+末尾未確認・狭小、短い画面に全文が収まらない場合は確定拒否。Endは保存操作ではない。
+取消済み予定はID・期日・数量を保持してopen一覧から外れ、Actualや残高は増減しない。
+保持中のRecord draftがあれば開始を拒否する。保存拒否では取消日と対象を残し、選択をKeepへ戻す。
+stale／結果不明は停止し、reloadで古い確認を有効化しない。Recordsは取消非対応のまま。
+LOAMは対象だけの取消確認だが、Bakhloは既存のdated-cancel契約に従って取消日の入力を残す。
+合成PTY・通常再起動は確認済み。LOAMとの実行対照・本人受入は未了。
+
+## Scheduled完了後の補充・継続意識
+
+予定の支払い完了が確定・保存された直後、次の予定の意図を確認する画面が開く。
+完了した予定の正Locus集合と一致する後日のopen予定があれば、それを候補として表示する。
+候補がある場合：
+- **Keep as is**（初期選択）：何もしない。新しい予定は作らない。
+- **Add another**：期日は自動入力せず、同じ金額・Locus構成の予定作成エディタを開く。
+- **Review**：候補予定の詳細をスクロールして確認し、選択肢へ戻る。
+候補がない場合：
+- **Done**（初期選択）：何もしない。
+- **Defer to Attention**：期限未定（Due_undetermined）の確認事項としてAttentionへ残す。
+- **Add next**：期日は空で、同じ構成の予定作成エディタを開く。
+これは事後意識のための確認であり、同一契約・定期周期・シリーズ同一性を勝手に推測しない。
+Addによる新規予定作成は通常どおりPreviewを経て保存される。
+
 ## 対応範囲と差分
 
 新UIはCalendar、階層Commands、英語Record、Actual / Scheduled / Selected Dayの閲覧と詳細、
 既存検査・保存への接続を対象にする。LOAMの全会計機能を再実装したものではない。
-role-aware収支カレンダー、完全なSeries／Months管理・定期補充／監視、履歴Trend、原額・Merchant、
+role-aware収支カレンダー、完全なSeries／coverage管理・定期補充／監視、履歴Trend、原額・Merchant、
 実取引への配分を伴う精算・後日カード決済、広いレポート群は未対応。
 単一S式の予定作成（Scheduled `n`）・変更（`e`）・取消（`x`）・支払い（`c`）は接続済み。
 Actual `x`は元明細を残す正確な反転の新規記帳。Recordsは対応外の変更・取消・反転を拒否する。

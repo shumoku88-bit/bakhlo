@@ -134,8 +134,44 @@ let self_check ~width_of () =
     require (List.exists (fun (_,line)->Base.String.is_substring line ~substring:"終端|") rows)
       "record-active-caret-tail-visible-in-compact-pane") [32,8;48,13;72,20];
   let literal_bar=text (create ()) "a|b" in
-  require (List.filter_map (fun (style,_) -> match style with O.Input cell->Some cell | _->None)
+  require (List.filter_map (fun (style,_) -> O.input_cell ~width:72 style)
     (screen ~dimensions:(72,20) literal_bar)=[17]) "record-literal-bar-is-not-a-second-caret";
+  let mid_edit=prepare ~description:long_description () in
+  let mid_edit=List.fold_left (fun state _ -> update state (`Key (`Tab,[`Shift])))
+    mid_edit (List.init 5 Fun.id) in
+  let mid_edit=update ~dimensions:(48,14) mid_edit (`Resize ()) in
+  let mid_edit=text (key mid_edit (`Arrow `Left)) "食" in
+  let mid_edit=update ~dimensions:(120,36) mid_edit (`Resize ()) in
+  List.iter (fun dimensions ->
+    let rows=screen ~dimensions mid_edit in
+    require (List.exists (fun (_,line)->Base.String.is_substring line ~substring:"終食|") rows)
+      "record-resized-mid-string-cjk-edit-visible";
+    require (O.cursor_in_rows ~width_of ~width:(fst dimensions) rows<>None)
+      "record-resized-mid-string-caret-metadata") [32,9;48,14;80,24;120,36];
+  let mid_review=key (ctrl mid_edit 's') `End in
+  (match handle mid_review (`Key (`Enter,[])) with
+   | S.Publish (A.Entry_tx next,_,_) ->
+       require (next.entry.memo=Some (String.concat "" (List.init 24 (fun _->"長い説明")) ^ "終食端"))
+         "record-resize-retains-whole-mid-string-edited-draft"
+   | _ -> failwith "record-resized-mid-string-preview-publication");
+  let wide_posting=prepare ~amount:huge () in
+  List.iter (fun dimensions ->
+    let width=fst dimensions in
+    let rows=screen ~dimensions wide_posting in
+    let caret_rows=List.filter_map (fun (style,line) ->
+      match O.input_cell ~width style with None->None | Some cell->Some (style,line,cell)) rows in
+    (match caret_rows,O.cursor_in_rows ~width_of ~width rows with
+     | [(O.Columns (pane_width,O.Input cell,right),line,column)],Some (painted,_) ->
+         require (cell>0 && cell<pane_width-1 && column=cell && painted=cell
+           && width_of line=width && O.input_cell ~width:(width-pane_width-1) right=None)
+           "record-wide-posting-caret-stays-inside-left-pane"
+     | _ -> failwith "record-wide-posting-retains-recursive-input");
+    require (List.exists (fun (style,_) -> match style with
+      | O.Columns (_,O.Focused_frame,O.Frame) -> true | _ -> false) rows)
+      "record-wide-posting-focus-does-not-recolor-candidates";
+    require (List.exists (fun (style,_) -> match style with
+      | O.Columns (_,O.Chrome,O.Chrome) -> true | _ -> false) rows)
+      "record-wide-panes-retain-child-chrome") [72,20;80,24;120,36];
   let compact_focus=update draft (`Key (`Tab,[`Shift])) in
   require (List.exists (fun (_,line)->Base.String.is_substring line ~substring:"|")
     (screen ~dimensions:(32,8) compact_focus)) "record-low-viewport-follows-field-focus";

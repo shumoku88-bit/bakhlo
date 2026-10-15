@@ -6,6 +6,326 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Scheduled continuation awareness
+
+Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus local UI work and this slice.
+Read-only source consultation: LOAM `ScheduledContinuationSession.lean` (post-completion
+trigger, later same-positive-Locus candidate matching, Keep/Add/Review and Done/Defer/Add
+options, deferred Attention draft) and `ScheduledReview.lean` (similar open plan selector).
+No LOAM build, source copying, runtime comparison or production input.
+
+`scheduled_continuation_session.ml/.mli` triggers immediately after atomic Scheduled
+completion publishes. If a later open plan has the identical positive Locus set, it is
+presented as a candidate; otherwise the prompt offers Done, Defer to Attention, or Add next.
+Keep/Done is the protective default and writes nothing. Review provides scrollable
+candidate details. Defer records an Attention item with `due = Due_undetermined` without
+creating a Scheduled occurrence. Add next opens `Scheduled_create` with the same Measure
+and changes, leaving the due date empty for explicit user input. No recurrence, cadence,
+or series identity is asserted.
+
+Executed native build/`--self-check` and `./tools/check`; passed.
+Checks cover prompt emergence after confirmed completion, candidate selection by positive
+Loci, Keep non-creation, Review scroll and resize, Add next with empty due date and exact
+EUR quantities, Escape cancellation of Add keeping completion, successful publication of
+independent next plan, stale reload refusal, Done non-creation, Defer writing to Attention,
+empty prompt tiny bounds, and refusal to open awareness on unconfirmed/uncertain completion.
+Both candidate and no-candidate prompt views are in the native 8-size × 3-theme matrix.
+
+Native tmux (`TERM=xterm-256color`, private socket), synthetic fixture
+`examples/daily-book.sexp` copied to `scratch/continuation-smoke-5VqtoE/book.sexp`:
+- Initial open plan: `planned-food` (2026-10-10, wallet −200, food +200 jpy).
+- `s c Enter C-s End Enter` completed the plan atomically.
+- Post-completion prompt immediately appeared:
+  "Scheduled / Completion / Next Plan", "Completed: planned-food",
+  "No similar later current-open plan found.", "Defer keeps an unfinished intent in Attention."
+  Options: `> Done`, `  Defer to Attention`, `  Add next`.
+- `Tab Tab Enter` chose `Add next`. The Scheduled creation editor opened with
+  `wallet -200` and `food +200` pre-filled, cursor at `Due: |`, and notice:
+  "Completion is already published. Enter the next due date, or Esc for completion only."
+- `Escape` cancelled creating an additional plan.
+- Verified disk state: `planned-food` was paid by the new entry, and no additional
+  Scheduled occurrence was created.
+- Hash before completion:
+  `2ffc331709f9e729e9beac4609d6548513085d412d5a4fc020e3a1d2379b247b`.
+  Hash after completion + cancelled Add next:
+  `25a31407299f3618af4e950f3c040d7aff117356e625dd64cc50226a62fa0980`.
+- Exercised executable SHA-256:
+  `351ad45acdfec4a55c70f221ebab53472935880f8875b6ca55bd6acf2a023157`.
+
+This qualifies the bounded post-completion continuation awareness slice. It does
+not establish recurrence rule inference, periodic generation (UI-21), coverage
+setup (UI-23), real IME/user acceptance, or operational cutover.
+
+## Scheduled Months projection
+
+Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus local UI work and this slice.
+Read-only LOAM source consultation: `ScheduledWorkspace.lean` futureBoard month
+window/following, month cards, receiving/split quantity and compact surface;
+`ScheduledWorkspaceSession.lean` view/selection/action keys. No LOAM build, source
+copying, runtime pairing or production input.
+
+`scheduled_months.ml/.mli` owns the validated month window and pure six-month
+projection using Daily_calendar, Ui_panel and native styled Columns. Ui_workspace
+has independent List/Months browsers; unused Groups/cycle API is removed. The
+controller connects `v`, month/selection movement, full details and existing
+create/edit/complete/cancel operations. Initial Scheduled remains List; coverage
+and Series are not synthesized. Months ignores retained List filters; returning
+selects the same ID only when visible under those filters, otherwise keeps the
+List selection. No new writer, configuration or storage format.
+
+Executed native build/`--self-check` and `./tools/check`; passed.
+Permanent checks cover year-crossing six-month ranges, current-month floor,
+9999-12 and extreme integer shifts, current-open filtering, retained List query/ID,
+selection-following horizon/card viewport, split and huge quantities, exact EUR
+details, zero/one-cell surfaces and four controller resize sizes. Enter opens the
+selected completion draft without saving; closing retains it and its parent.
+Keep is non-saving. An explicit cancellation from Months is cold-loaded against
+the selected ID and clamps selection to the next open plan without changing Actuals.
+Months is included in the native 8-size × 3-theme render matrix.
+
+Native tmux (`TERM=xterm-256color`, private socket),
+`scratch/scheduled-months-smoke-yT7XOD/book.sexp`, copied from the synthetic Months
+check fixture. This fixture contains current-open plans across 2026/2027, a EUR
+plan, a split plan and retained cancelled plans:
+- 120×36: `s /`, search `month-03`, Enter, `v l` displayed the six cards
+  2026-11 through 2027-04. January selected `month-03` with 1234.56 eur; April
+  showed `split (3)`; empty cards said “No explicit plan.”
+- 80×24 kept all six cards and selected exact details. End selected `month-06`,
+  due 2027-12-31, and followed to the 2027-07..12 window.
+- 48×14 and 32×9 showed compact `v opens List` guidance. `v` and restoration to
+  80×24 returned to the retained one-row List query and `month-03`, not the
+  out-of-filter December selection.
+- `v Enter` opened the selected EUR completion draft without publication.
+  A batched Escape/Ctrl-N/x sequence did not close the editor and inserted `x`;
+  Escape sent separately returned to Months with draft retained. Separate Ctrl-N
+  explicitly discarded this synthetic draft. Escape timing/IME is not qualified.
+- `x Enter` then showed cancellation Preview for `month-03`, the correct due date
+  and signed ±1234.56 eur; default Keep returned without saving.
+- Book SHA-256 was unchanged throughout:
+  `a0a5d3ac8760e0ee0b94b87336a9af3fd694e564e3fbdca188e67c682124424c`.
+  Exercised executable SHA-256:
+  `73a89c8e349ba4c88542909509bd9a58c544d54400958d0c6148abb5deaf7899`.
+
+This qualifies the bounded explicit-plan Months slice, not Series/coverage,
+recurrence/continuation, full LOAM visual/key parity, real IME/user acceptance,
+P7/power loss or operational cutover. Bakhlo still uses its existing `e` Edit and
+scaled Measure presentation, rather than claiming exact LOAM interaction identity.
+
+## Scheduled cancellation Preview
+
+Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus the local UI work and this
+cancellation slice. Read-only source consultation: LOAM `ScheduledCancellation.lean`
+(target/due/expected review, protective Keep, live-bounds capacity) and
+`Publisher/ScheduledTerminalPublisher.lean` (target-only cancellation intent).
+No LOAM build, source copying, runtime comparison or production input.
+
+`scheduled_cancellation_session.ml/.mli` replaces the old immediate-submit modal
+with captured-target/base date input and an independent Preview. Keep defaults,
+scroll/end/tiny gates, preserved cancellation date and failure-time choice reset
+are local. Publication still uses `Daily_actions.commit_cancel_plan` and the same
+whole-book lifecycle/refusal checks. Captured-base reload cannot rebase a stale
+confirmation. A retained Record draft blocks cancellation entry rather than being
+cleared by successful publication. No new writer or storage format.
+
+Executed native build/`--self-check` and `./tools/check`; passed.
+Checks cover read-only Preview/default Keep, invalid/normalized dates, edit/keep,
+tiny confirmation, paste, retained Record draft, storage failure with choice reset,
+Records refusal, stale/reload refusal, long identity/huge Effects review-to-end,
+shrink after End and cold retention of the cancelled plan without Actual/balance
+changes. Existing terminal-plan checks still refuse reopening/edit/payment/cancel.
+Both date and Preview surfaces are in the native 8-size × 3-theme render matrix.
+
+Native tmux (`TERM=xterm-256color`, private socket), synthetic fixture
+`examples/daily-book.sexp` copied to `scratch/scheduled-cancel-smoke-KtgY4Y/book.sexp`:
+- 80×24: `s x Enter` showed cancellation date 2026-10-15, target `planned-food`,
+  due 2026-10-10, exact wallet −200 / food +200 jpy and selected Keep.
+- Enter kept the plan and returned to the same open list. Book SHA-256 unchanged:
+  `2ffc331709f9e729e9beac4609d6548513085d412d5a4fc020e3a1d2379b247b`.
+- Reopen `x Enter Tab`, shrink to 32×9, Enter: enlarge refusal, same book hash.
+- Restore 80×24, Enter with Cancel Scheduled selected: published/read back, open
+  list became empty. Exit and start a new process: open list still empty; `x`
+  refused with no selected open plan and no further file change.
+- Retained S-expression has the same ID, due date, Measure and changes, with
+  `(cancelled-on (some \"2026-10-15\"))`; it was not deleted.
+  Saved SHA-256:
+  `e82559cd2f1964c7dd7093dc2d6285946d6d013c6cc6e6dcef586175b670eec7`.
+- Exercised executable SHA-256:
+  `ddbf1cb88f2dea0fcc4595097e3621f940ace868f07a464ff29b21cd772c1e75`.
+
+Bakhlo retains cancellation-date input required by its existing dated-cancel
+contract; LOAM's inspected confirmation emits a target-only intent. Bakhlo also
+requires end review and refuses blind tiny confirmation. This bounded safety slice
+does not establish full LOAM interaction/visual parity, real IME/user acceptance,
+Series/Months/continuation, sidecar power loss, P7 or operational cutover.
+
+## Actual date-only correction
+
+Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus the local UI work and this
+date-only slice. Read-only LOAM source consultation: `ActualDateCorrection.lean`
+(editing/preview, real-date validation, tiny gate), `SelectedDaySession.lean`
+(`d`, publish and refresh). No LOAM build, source copying or paired execution.
+
+`date_correction_session.ml/.mli` captures one entry and base bytes, reuses Ui_form,
+Daily_overlays and Ui_panel, and returns a replacement transaction with only `day`
+changed. `daily_interaction.ml` connects `d` in Actual and Selected Day, the existing
+commit/result/reload path, and parent-ID restoration. No new writer or storage format.
+The existing flexible Bakhlo date parser remains (including slash/full-width input);
+this is not a claim of byte-for-byte LOAM input behavior.
+
+Executed `./tools/build-bonsai-tui`, native `--self-check`, and `./tools/check`; passed.
+Permanent checks cover invalid Gregorian dates, normalized Preview, edit/cancel,
+tiny confirmation, long target review-to-end, terminal-control escaping, paste,
+retained Record drafts, stale base/reload refusal, storage failure, Records refusal,
+and cold readback of unchanged ID/memo/Effects/keys/paid-plan links with only the
+date replaced. Both direct Actual save and Selected Day save → parent Actual
+follow the ID after its row changes. Edit/Preview are in the 8-size × 3-theme native
+render matrix. Existing uncertainty/recovery checks remain bounded evidence for
+the reused publisher; this slice does not add new power-loss qualification.
+
+Native tmux, `TERM=xterm-256color`, private socket, synthetic
+`scratch/date-correction-smoke-uwZj5d/book.sexp`:
+- Start with `date-target` dated 2026-10-12, signed ±123 jpy, keys `out`/`in`,
+  completed plan `date-paid-plan` due 2026-10-01, and a second Actual.
+- At 80×24: `a j Enter Enter d`, replace the date with 2026-10-11, Enter Preview.
+  Current/proposed dates and full target ID were visible. `q` cancelled.
+- SHA-256 before and after cancel:
+  `3324facd4852638d4641cb64506941f4cb53273dc329070672f73df23685c22d`.
+- Reopen/re-enter Preview, resize to 32×9, Enter: enlarge refusal; same book hash.
+- Resize back to 80×24, Enter: published/read back; old Selected Day became empty.
+  `q` returned to active Actual Detail with the same ID, new date, both keys and
+  the original completed Scheduled link visible.
+- Exit and launch a new process on the saved book. `a j Enter` showed those same
+  facts. Saved SHA-256:
+  `a03c84df5fa1a2b8f00e54415bfd1c606595be9c9202c0248fd93509e53e2b47`.
+
+The lifecycle smoke executable SHA-256 was
+`f4f55bbe8a1faf9fa513c3384f1ae9b8848ebe56ac7dfd378338f3e457e25a73`.
+After adding visible escaping of control characters in target IDs, final self-check
+passed and a new native process opened the saved target/date Preview at 80×24;
+final executable SHA-256:
+`82f047ccf8c84098d29f9180925dd78102e1ecda76ae44100638f0e8074e919c`.
+
+No production input, LOAM paired acceptance, real IME, full linked-shape matrix,
+power-loss/P7 or operational cutover was exercised. UI-03/04 acceptance remains open.
+
+## List/detail capacity and drill-down/back cutover
+
+2026-10-15: Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus step 4.
+Actual workspace `terminal_geometry` delegates directly to `panel_geometry`,
+eliminating navigation-paint dimensional drift. Transactions `page_size` uses
+`tx_height` (`tx_height` when wide, `panel_height` when compact), matching the
+exact painted visible transaction list capacity and fixing PageDown jumping past
+unseen rows on 80×24 / 120×36.
+
+The controller passes `actual_dimensions` (`width, max 0 (body_height - 2)`) to
+`Act.handle`, matching `Act.screen`. The first drill-back checks covered only a
+same-book return and selected row; they did not establish retained pane/scroll or
+changed-book behavior. A subsequent regression failed before the fix at
+`actual-return-restores-detail-focus-and-scroll`.
+
+The repair makes `sync_actual_to_workspace` update only `workspace.actual`.
+`back` enters Actual before restoring the browser, pane and scroll, without a
+subsequent `W.sync` resetting the scroll or changing the module's ordering.
+The blocked-Reversal footer again says writes are stopped rather than offering
+normal confirmation controls. Selected Day's footer names Actual when it is the parent.
+
+Executed `./tools/build-bonsai-tui`, native `--self-check` and `./tools/check`; passed.
+Added controller checks cover:
+- Return to the same detail focus/scroll without overwriting Selected Day's browser.
+- A replaced in-memory book with the selected entry moved to another date: return
+  follows its ID to row 17, rather than retaining the old row 1.
+- A Japanese query, ascending order, selected Locus and nonzero detail scroll survive return.
+- A stale blocked Reversal displays the stopped-writing warning on its actual screen.
+
+Native tmux (`TERM=xterm-256color`, private socket, synthetic copy under
+`scratch/actual-return-smoke-vvK6K7`): `a`, Enter, End displayed the bottom of
+`actual-17`'s long Japanese description, date and ID at 80×24. Enter opened
+Selected Day 2026-10-18; `q` restored the same active Actual Detail and bottom
+content. Repeating the drill, shrinking to 48×14 and returning retained the active
+detail with the same ID/date visible. The copy was synthetic; no household data used.
+
+The date-correction return check substitutes an in-memory book, not a UI date-only
+edit or save/restart scenario. No LOAM paired comparison, real macOS IME/preedit,
+or user acceptance was run. P7, power loss, writers and storage remain unchanged.
+
+## Shared editor input / Scheduled geometry cutover
+
+2026-10-15: Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus this slice.
+Record `field_text` migrated to shared `Daily_overlays.input_text ~caret:"|"`,
+and wide side-by-side layout directly uses native `O.Columns` with child-local
+styles, eliminating `combine_side_by_side`. The controller extracts carets
+recursively via `Daily_overlays.cursor_in_rows`.
+
+Scheduled creation migrated to `Daily_overlays.input_text`, UTF-8 cursor navigation
+via `Daily_form.move_cursor`, field windowing via `Ui_panel`, 1-line notice
+reservation with explicit `… more` overflow, and uniform row-width padding.
+`Sch.cursor_position` was removed from API and checks; the controller derives
+carets from painted rows. `Scheduled_create` was added to `render_cases` and
+passed the full 8-dimension × 3-theme renderer matrix without row-width mismatches.
+
+Executed `./tools/build-bonsai-tui`, `./_build/daily-bonsai/_build/default/ui/bonsai_daily.exe --self-check`,
+and `./tools/check`. All passed.
+
+tmux smoke (TERM=xterm-256color, trial copy under `scratch/editor-cutover-MhQ7YK`):
+- Scheduled `n`: at 80×24, long ASCII/CJK locus displayed insertion tail with caret
+  at (59, 4). Resizing to 32×9 kept focused Posting 1 visible via field windowing,
+  with caret at (29, 2) inside the terminal. Escape returned to parent without write.
+- Record `r`: at 80×24, caret was inside Amount at (21, 8). Resizing to 120×36
+  rendered side-by-side Columns with independent Postings/Candidates styles and
+  caret at (39, 13). Escape returned to Home holding the draft.
+  This attempted entry filled the wrong fields; it qualifies only the observed
+  caret/resize/cancel behavior, not a valid Record Preview/Publish lifecycle.
+
+No LOAM paired comparison, real macOS IME/preedit, or manual acceptance was run.
+P7, power loss, operational authority, writers and storage remain unchanged.
+
+## Shared form / styled frame cutover
+
+2026-10-15: Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297`
+plus this local form cutover. Ui_form.render_rows now accepts content dimensions
+and native width, renders bounded input tails with Input metadata, follows focused
+fields/buttons and reserves one local-notice row. Long summary/notice text wraps;
+hidden rows are signalled by `… more`. Ui_panel.frame_rows shares the existing
+frame and translates the input inset once. Modal_form, Jump, Search overlay and
+Reversal Date use it; cursor_offset and Reversal's independent cursor API are removed.
+Record/Scheduled sessions, writers and publication gates are unchanged.
+
+Executed `./tools/build-bonsai-tui`, native `--self-check` and `./tools/check`.
+All passed. Permanent form/controller checks cover widths 0/1/6/12/40,
+heights 0/1/3/20, retained 80-character+CJK/literal-border values, native CJK width,
+focus-following, short-notice stability, long-warning overflow, overlay coordinates
+and Escape parent/bytes preservation at 80×24, 120×36, 48×14 and 32×9.
+The renderer's existing 8-dimension/3-theme matrix now includes generic Modal_form.
+
+An attempted Scheduled-create matrix case failed at 140×40: raw rows had widths
+22, 80, 49 and 51. Its current screen is not a uniformly fitted overlay; that
+case awaits the next Scheduled input/focus/notice migration. No cropping workaround
+was added and Scheduled rendering is not certified by the passing matrix.
+
+Actual native tmux smoke used TERM=xterm-256color and a fresh synthetic trial
+under ignored `scratch/shared-form-SHaE5e`, never a household capture.
+Before: `/` plus `abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz末尾`
+painted a clipped prefix with no insertion marker at 80×24; real cursor was (17,9).
+After: the tail and `|` were visible with cursor (64,9). Resizing to 32×9
+kept `…klmnopqrstuvwxyz末尾|` and cursor (27,1); 120×36 gave (84,15).
+Attention `i`→`n` showed the long Context tail at 48×14, Tab reached buttons;
+submitting empty Context displayed the wrapped refusal without publication.
+Calendar→`/` showed Jump's insertion cell at (6,4). Escape returned to parents.
+Coordinates are zero-based. The attempted reversal walk had no selected Actual
+and correctly refused; reversal Date/Preview remains covered by native session/
+renderer checks, not by that PTY walk. Copy creation serializes the synthetic
+fixture, so source-vs-copy byte equality is not a valid nonpublication check.
+
+The final rebuilt binary SHA-256 is
+`9e2cb6a2c3012291825c424d444579893ae5b62afd5ff26c4635cc2e7c41d506`.
+Its final 32×9 Search→long input→Escape→q smoke again showed cursor (27,1).
+Trial-book SHA-256 before/after that walk matched:
+`269e616273b98a2009a4beeb7b22d6c5bd7b7675dd975405b8ab95395bace986`.
+
+No paired LOAM walk, real macOS IME/preedit or manual visual acceptance was run.
+G-1/G-3 are improved for these form consumers, not closed for Record/Scheduled.
+P7/power-loss, operational adoption, config/fixtures/dependencies remain unchanged.
+
 ## Native build warning cleanup
 
 2026-10-15: removed unreachable `Unix._exit 2` after the writer-lock fixture's
