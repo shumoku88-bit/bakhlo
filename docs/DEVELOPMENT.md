@@ -58,6 +58,33 @@ helpers. Logical aliases support clean dependency discovery. Cram compiler clien
 currently depend on generated CMIs/wrapper CMI: pinned Dune integration details, not
 API/storage compatibility. Do not suppress missing-CMI warnings or export internals.
 
+### Bonsai isolated linker recipe
+
+`tools/build-bonsai-tui` uses the separate
+`scratch/tui_comparison_review/bonsai-env` switch/root, not the main switch.
+Its Zarith `1.12+ox3` macOS recipe used to pass both MacPorts and Intel Homebrew
+paths unconditionally, embedding `-L/opt/local/lib` in zarith.cmxa even when absent.
+Do not create an empty system directory or suppress linker warnings to mask this.
+
+The user-authorized repair retains the same patched release sources under ignored
+`scratch/tui_comparison_review/zarith-link-path-repair`, pinned as `zarith.1.12+ox3`.
+Only its macOS build recipe drops `-L/opt/local/lib` and `-I/opt/local/include`;
+`-L/usr/local/lib` and `-I/usr/local/include` remain for the installed GMP.
+The local recipe also declares the license stated in the release LICENSE.
+Keep that directory while the local pin exists. The pre-repair switch export is
+`scratch/tui_comparison_review/zarith-link-path-before.export`.
+
+To reproduce the repair in another explicitly authorized isolated switch, use
+`opam source zarith.1.12+ox3 --require-checksums --dir=NEW_DIRECTORY` with that
+switch/root explicitly selected; opam applies the existing Ox patches.
+Edit the extracted `zarith.opam` macOS flags as above, pin the directory with
+`opam pin add zarith.1.12+ox3 NEW_DIRECTORY --kind=path --no-action`,
+then inspect `opam reinstall zarith.1.12+ox3 --show-actions` before reinstalling.
+Require no added/upgraded packages; rebuild reverse dependencies normally rather
+than rewriting installed archives or bypassing their rebuild. Rebuild Bakhlo and
+run native self-check afterward. This is not part of automatic bootstrap/build;
+new environment repair still requires approval.
+
 ## OCaml-aware engineering review
 
 [OCaml-aware design and runtime review](LANGUAGE_AWARE_DESIGN_REVIEW.md) owns the

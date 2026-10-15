@@ -2627,14 +2627,14 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
             (tr "Bakhlo" ^ "  /  " ^ tr "Actual" ^ "  |  "
             ^ Act.scope_text state.actual_workspace ^ "  |  "
             ^ Act.current_locus_name ~book:state.session.book state.actual_workspace);
-          line ~width_of width Chrome
-            (if Act.search_editing state.actual_workspace || Act.search_query state.actual_workspace <> "" then
-               let cursor = if Act.search_editing state.actual_workspace then "_" else "" in
-               " Search: /" ^ Act.search_query state.actual_workspace ^ cursor
-             else
-               state.workspace.calendar.selected_day ^ "   "
-               ^ Cal.title state.workspace.calendar ^ tr " view"
-               ^ if has_record_draft state then "   Draft retained" else "");
+          (if Act.search_editing state.actual_workspace || Act.search_query state.actual_workspace <> "" then
+             let style, text = Act.search_line ~width ~width_of state.actual_workspace in
+             line ~width_of width style text
+           else
+             line ~width_of width Chrome
+               (state.workspace.calendar.selected_day ^ "   "
+                ^ Cal.title state.workspace.calendar ^ tr " view"
+                ^ if has_record_draft state then "   Draft retained" else ""));
         ]
       else
         [

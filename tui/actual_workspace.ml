@@ -733,8 +733,18 @@ let footer ~dimensions ~width_of t =
         "[Enter] open [n] new [q] back";
       ]
 
-let cursor_position ~dimensions ~width_of t =
-  if t.search_editing then
-    let prompt = " Search: /" ^ t.search_query in
-    Some (width_of prompt, 1)
-  else None
+let search_line ~width ~width_of t =
+  let width = max 0 (width - 1) in
+  if t.search_editing && width > 0 then
+    let caption = O.clip_text ~width_of (width - 1) " Search: /" in
+    let query = O.tail_text ~width_of (max 0 (width - width_of caption - 1))
+        (O.visible t.search_query) in
+    let text = caption ^ query in
+    (O.Input (width_of text), text ^ " ")
+  else
+    (O.Chrome, O.clip_text ~width_of width (" Search: /" ^ t.search_query))
+
+let cursor_position ~dimensions:(width, height) ~width_of t =
+  match search_line ~width ~width_of t with
+  | O.Input caret, _ when height > 1 -> Some (caret, 1)
+  | _ -> None

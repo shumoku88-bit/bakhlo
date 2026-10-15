@@ -1,23 +1,30 @@
-# LOAM → Bakhlo：非予算機能の棚卸しと乗り換え判定表
+# LOAM → Bakhlo：機能の棚卸しと乗り換え判定条件
 
 ## 対象と判定
 
-**目標：LOAMで現在使える非予算の日常機能について、回答・操作・仕上がりを揃える。**
-Homeの盆栽の**成長**と、予算配分・振替・消化・用途routing・Budget Windowは対象外。
-固定盆栽のHome、Calendar、Daily Pace、Attention、非予算Reportsは対象に含む。
-LOAMの内部構造・研究用機能・証明装置を同じように実装するという意味ではない。
+**目標：LOAMの全ユーザー向け機能・回答・見た目・使い勝手と細部をBakhloで再現する。**
+**予算配分・振替・消化・用途routing・Budget Windowだけは、実際に必要になるまで延期する。**
+Daily Pace、支払い予定、隣接する非予算機能、盆栽の表示・成長も対象に含む。
+以前の盆栽成長除外や現在よく使う機能だけという制限は適用しない。
+LOAMの内部構造・研究用機能・証明装置・保存方式まで同じにする必要はない。
+予算用の先回りしたAPI・形式・hookは作らない。独自の日本語化は未定だが、
+LOAMに存在するlocale切替等の互換上必要な実動作を除外する理由にはしない。
 
 機能の存在と、最初の切替日に必要な範囲は別。以下は互換性の棚卸しであり、全行を
 一度に実装する指示でも、正データ切替の許可でもない。**普段の記帳と正データはまだLOAM。**
 
-この再整理の基準はBakhlo `b21b30c`＋作業ツリーの共通panel変更と、LOAM `db631763`
-のソース／TUI契約。前段のAttention／精算・Pace安全性、Actual閲覧、共通viewportの限定検証を含む。
-今回新しい対照実行・実機受入はしていない。以前の旧上下Home、Notty並行版、Daily v4・予算APIは非現行。
-限定コンバータ・既存Book CLI・型だけの能力をDaily TUI接続に数えない。実データの内容・使用件数は扱わない。
+以下の表はBakhlo `b21b30c`＋当時の作業ツリーの共通panel変更と、LOAM `db631763`
+のソース／TUI契約を基準とした**保存済み棚卸し**。前段のAttention／精算・Pace安全性、
+Actual閲覧、共通viewportの限定検証を含むが、後続実装の現在進捗表ではない。
+今回の方針更新では新しい対照実行・実機受入をしていない。旧上下Home、Notty並行版、
+Daily v4・予算APIは非現行。限定コンバータ・既存Book CLI・型だけをDaily TUI接続に数えない。
+実データの内容・使用件数は扱わない。
 
-画面別の不足と並行依頼は [LOAM_UI_GAP_LEDGER.ja.md](LOAM_UI_GAP_LEDGER.ja.md) に集約する。
+画面別の不足・現在進捗・並行依頼の唯一の管理先は
+[LOAM_UI_GAP_LEDGER.ja.md](LOAM_UI_GAP_LEDGER.ja.md)。この文書は生活操作と切替の判定条件を所有する。
 同台帳は **F:機能・保持情報／O:操作・接続／V:見た目／Q:検証・安全性** を分ける。
-見た目・スクショ待ちという状態だけでは、この表の保存・回答・運用条件を満たさない。
+見た目・スクショ待ちだけでは保存・回答・運用条件を満たさない。以下の過去の未接続記述で
+現在の実装有無を判定せず、同台帳を確認する。表にない非予算機能も棚卸しから落とさない。
 
 | 軸 | 確認すること |
 | --- | --- |
@@ -28,11 +35,12 @@ LOAMの内部構造・研究用機能・証明装置を同じように実装す�
 | 保存安全性 | 失敗・競合・再起動を扱えるか。画面の成功表示だけでは不可 |
 
 「試用」は合成データ等の隔離コピーで操作できるという意味。**全行で運用認定は未**。
-テスト成功、LOAMとの実行一致、人間の実機受入を混同しない。
+実装、self-check、固定したLOAM source／既存binaryとの対照実行、人間の実機受入を混同しない。
+画面だけでなく保存内容、終了・再起動後の再読込、保存失敗・競合・結果不明時の停止と下書き保持を確認する。
 
 ## 1. 記帳・実績
 
-| ID | 生活操作 | Bakhloの現行Daily TUI | LOAMとの差・残る確認 |
+| ID | 生活操作 | 基準時点のBakhlo Daily TUI | LOAMとの差・判定条件 |
 | --- | --- | --- | --- |
 | R01 | 支出・収入・同通貨振替 | 試用：符号付きPostingのRecord | 通貨別の正確な量・保存後再開を維持。全面的な操作一致は未認定 |
 | R02 | 一取引の複数Posting | 試用：新規／予定支払いで行追加・削除 | LOAMの6行上限をモデルの制約としない。狭小表示・操作感を比較 |
@@ -51,7 +59,7 @@ LOAMの内部構造・研究用機能・証明装置を同じように実装す�
 
 ## 2. 支払い予定
 
-| ID | 生活操作 | Bakhloの現行Daily TUI | LOAMとの差・残る確認 |
+| ID | 生活操作 | 基準時点のBakhlo Daily TUI | LOAMとの差・判定条件 |
 | --- | --- | --- | --- |
 | S01 | 単発予定の作成 | 試用：Record系のPlan入力・Preview | 単一S式のみ。純粋APIだけの段階から画面接続済み |
 | S02 | 変更・日付付き取消 | 試用：単発Edit／Previewと、日付付き取消modal | paid／cancelledを再利用しない。取消modalのKeep初期選択・独立確認・狭小gateはEdit Previewと別に比較する |
@@ -65,7 +73,7 @@ LOAMの内部構造・研究用機能・証明装置を同じように実装す�
 
 ## 3. 残高・設定
 
-| ID | 生活操作 | Bakhloの現行Daily TUI | LOAMとの差・残る確認 |
+| ID | 生活操作 | 基準時点のBakhlo Daily TUI | LOAMとの差・判定条件 |
 | --- | --- | --- | --- |
 | B01 | 口座×通貨の現在残高 | 一部：Current／Accounting表示、全文Print preview | 初期表示はAccountingでLOAMと異なる。会計集計の回答一致は未認定 |
 | B02 | 検証した現在残高の入力 | 局部：一座標のObserve、Balancesからprefill、他座標の支持を保全 | LOAMは同時観測した全画像を入力する。単なる行追加不足とせず、画像更新の意味・複数座標・独立確認をF/O/Qで照合 |
@@ -78,7 +86,7 @@ LOAMの内部構造・研究用機能・証明装置を同じように実装す�
 
 ## 4. 外貨・精算
 
-| ID | 生活操作 | Bakhloの現行Daily TUI | LOAMとの差・残る確認 |
+| ID | 生活操作 | 基準時点のBakhlo Daily TUI | LOAMとの差・判定条件 |
 | --- | --- | --- | --- |
 | F01 | 外貨の普通の記帳 | 試用：明示Measure・scale | 通貨を混ぜない。入力できることと外貨レポートは別 |
 | F02 | 両替 | 局部：両通貨・数量modalから既存publisherへ、Exchangeキーを保存 | 独立Preview・候補・狭小全文確認・失敗時の復帰は未同等。RecordのPreview拒否をこのmodalの保証にしない |
@@ -90,7 +98,7 @@ LOAMの内部構造・研究用機能・証明装置を同じように実装す�
 
 ## 5. 集計・Attention・Daily Pace
 
-| ID | 生活操作 | Bakhloの現行Daily TUI | LOAMとの差・残る確認 |
+| ID | 生活操作 | 基準時点のBakhlo Daily TUI | LOAMとの差・判定条件 |
 | --- | --- | --- | --- |
 | V01 | 日・月・年の収支Calendar | 一部：暦・Actual／open Scheduled件数 | role-aware In／Out、Month Flow、Unknown／Unavailable表示、Helpに差 |
 | V02 | Income & Expense | 未接続 | Summary／Monthly／Daily／比較 |
@@ -111,7 +119,7 @@ Poolの設定画面は`daily-pace.tsv`だけを更新し、全境界presetをbyt
 
 ## 6. 運用・出力
 
-| ID | 生活操作 | 現在地／残る条件 |
+| ID | 生活操作 | 基準時点の状態／判定条件 |
 | --- | --- | --- |
 | O01 | 記帳・終了・再開 | 単一S式／Recordsの既存保存・拒否テストを維持。永続Ack（P7）・電源断は未認定 |
 | O02 | 確認・バックアップ復旧 | inspect／confirm／restore-copyあり。保持、別媒体、不一致候補の採用条件は未確定 |
@@ -134,11 +142,14 @@ Poolの設定画面は`daily-pace.tsv`だけを更新し、全境界presetをbyt
 全画面の実PTY比較・実機受入・LOAMの実行結果との全面一致を証明しない。
 UIのみの変更は現在のCore CIに含まれないことにも注意する。
 
-Actual閲覧と共通panelの後続では、inverse／取消等の確認・roles保存の安全境界を独立に扱い、
-接続済みの見た目対照とread-only調査を並行する。**操作＋必要な情報＋保存／再開＋失敗例＋実機比較**を
-一課題ずつ進め、台帳の依頼カードで編集fileと統合順を決める。中央controllerは画面が違っても競合する。
-Record／Actual → Scheduled → Balances → Daily Pace／Attention → 残る非予算Reports・外貨／精算・設定／出力を
-基本順とし、実際の困りごとで変える。共有機構は実在する利用元のために使い、万能form／第二の会計エンジンは作らない。
+今後の順序と各段階の受入条件は [tasks/todo.md](../tasks/todo.md) を参照する。
+source／既存binary基準・共通合成fixtureを固定し、共有入力geometry → Record lifecycle →
+Actual／Selected Day → Scheduled → Balances／Observe → Pace／Trend →
+Attention／Settlement／Exchange → 残るReports／設定／exportとその他の棚卸し不足へ進む。
+一課題ごとに操作・必要情報・保存／再開・失敗例・対照実行・実機受入を分け、
+画面別の判定はUI差分台帳だけに記録する。全sliceを今回実装する計画ではない。
+中央controllerは画面が違っても競合するため依頼カードで編集fileと統合順を決める。
+共有機構は実在する利用元のために使い、万能form／第二の会計エンジンは作らない。
 
 ## 切替は別の判断
 

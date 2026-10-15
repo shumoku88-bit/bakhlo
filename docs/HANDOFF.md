@@ -2,10 +2,58 @@
 
 ## Current task
 
-The user selected LOAM-quality parity for non-budget everyday features, excluding
-bonsai growth and all budget/routing operations. Daily Pace remains in scope.
-The [cutover inventory](CUTOVER_CHECKLIST.ja.md) now reflects the live UI, rather
-than the obsolete upper-draft/lower-browser layout or removed Daily v4 APIs.
+The user selected systematic reproduction of all LOAM user-facing functionality,
+appearance, interaction and fine details. Only budget allocation/transfer/consumption/
+routing and Budget Window are deferred until actually needed; do not prebuild budget hooks.
+Daily Pace, plans and bonsai behavior remain in scope. Internal structures and proof/
+storage machinery need not match. LOAM remains production authority; no cutover is authorized.
+`tasks/todo.md` owns the ordered acceptance plan, `docs/LOAM_UI_GAP_LEDGER.ja.md` owns
+per-screen F/O/V/Q progress, and `docs/VERIFICATION.md` owns exercised evidence.
+
+The shared-UI responsibility design is now fixed in
+[TUI共有部品の責務設計と移行順序](TUI_LAYOUT_STABILITY_ROADMAP.ja.md), replacing the
+old renderer-refresh roadmap. Bonsai/Notty, native Columns composition, frontend width,
+final fit and after-display cursor stay. No custom renderer/Unicode table, layered raw
+ANSI, scene engine or state framework is adopted. Editing stays in Daily_form; display
+windows/recursive Input metadata belong in Daily_overlays; panel/form geometry is shared,
+while IDs, query/selection, drafts, review/publication gates and refusal recovery stay local.
+Ui_workspace and Actual_workspace remain separate; returned_from_detail has no connected
+caller and is not proof of controller-level identity-preserving return.
+
+The first migration unit is implemented: Daily_overlays.input_text shares the existing
+Record tail/insertion-cell approach; input_cell recursively translates Columns metadata;
+cursor_in_rows hides caret positions outside the supplied painted row/width. Permanent
+boundary checks live in daily_interaction_checks.ml and use frontend width_of.
+tools/check, build-bonsai-tui and the native self-check passed. A direct compiled smoke
+also exercised 120→8→edit→120 cell windows and nested parent caret translation using
+native Bonsai width. See [verification](VERIFICATION.md#shared-input--recursive-metadata-slice).
+
+The subsequent warning cleanup removed unreachable code in recovery_checks.ml
+and, with explicit user approval, rebuilt the same isolated Zarith version and
+five reverse dependencies from a corrected macOS package recipe. The generated
+native target was cleaned/rebuilt without either compiler/linker warning; its
+self-check including the real writer-lock/SIGKILL fixture passed. No installed
+package version changed. Keep the ignored local Zarith pin source directory;
+see [reproduction](DEVELOPMENT.md#bonsai-isolated-linker-recipe) and
+[evidence](VERIFICATION.md#native-build-warning-cleanup). Main/global environments
+and household data were not changed.
+
+Next is Ui_form + styled frame and every Modal_form/Jump/Search/Reversal Date consumer
+together (remove cursor_offset); then Record Columns + recursive caret together and
+Scheduled display/UTF-8 movement/focus/notice; then list/detail paint/navigation capacity
+and real controller drill-down/back. Current screens are NOT using the new helpers yet.
+No session, writer, publication gate, renderer, fixture/config, dependency or build
+registration changed. No new PTY/LOAM comparison or original household read was run.
+
+The preceding six-document design-only task checked source consumers and relative links
+without product changes. The geometry research continues to own counterexamples/external
+research/uncertified boundaries: G-1/G-3 are earlier synthetic executions, G-4 is source
+evidence, and the fixed G-2 Actual-search slice remains bounded evidence. G-1/G-3/G-4
+are not closed by standalone helper checks. Auto-wrap, grapheme, macOS IME/preedit,
+live-output races and P7 are not certified. Production protections below remain unchanged.
+
+### Historical bounded evidence
+The following earlier slices are historical, bounded evidence, not current parity certification.
 
 The first safety slice qualifies synthetic Attention/settlement sidecar input and
 save refusals, stale-state refusal under the existing cooperative writer lock,
@@ -30,8 +78,9 @@ identity, keys and publication decisions still owned by the controller/applicati
 The duplicate Actual pane composition was removed. Scheduled gains clamped detail
 Home/End/paging and focus/resize behavior; its writer/actions remain unchanged.
 Independent panel and both-workspace tests plus eight synthetic native PTY walks
-passed. See `tui/README.md` for the scoped KEEP/DEFER sharing review. Record Preview,
-pickers, floating surfaces and amount formatting are not newly generalized.
+passed. See `tui/README.md` and the current responsibility design for KEEP/integration/LOCAL
+boundaries. That earlier slice did not newly generalize Record Preview,
+pickers, floating surfaces or amount formatting.
 
 The user requested an inventory suitable for delegating visual/specific-surface work
 to other pits in parallel. [The UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md) now separates
@@ -103,16 +152,26 @@ commits further aligned Bakhlo with LOAM and resolved critical TUI interaction b
 Existing private/synthetic scratch and detached qualification worktrees are retained.
 This source checkpoint does not qualify runtime parity, power loss/P7 or cutover.
 
-Next priorities:
-1. **Scheduled Replacement & Cancellation (UI-18 / UI-19)**:
-   Ensure Scheduled replacement (UI-19) and cancellation (UI-18) use dedicated review/preview
-   flows and independent validation gates matching LOAM.
-2. **Selected Day Parity (UI-04 / SelectedDay.lean)**:
-   Align single-day mixed Actuals and open Plans view with LOAM's `SelectedDay.lean` layout,
-   role-aware summaries, and clean parent navigation (`q`/`Esc` return).
-3. **Safety & Verification**:
-   Central controller (`daily_interaction.ml`) edits must remain serialized. Any new overlay
-   MUST use `resolve_overlay` to maintain single-source cursor and rendering geometry.
+The latest work starts the ordered runtime-comparison plan with Actual inline search.
+Two isolated empty synthetic authorities were opened using native Bakhlo and existing LOAM
+binaries: Home → Actual → `/` → long ASCII/CJK query → shrink → enlarge → Enter →
+`/` → Esc → parent → quit. Bakhlo previously painted the query prefix while LOAM kept
+the insertion tail visible. Actual now derives its visible search line and physical caret
+from one width calculation, with a blank insertion cell and the final terminal column reserved.
+The existing Record tail helper moved to `Daily_overlays.tail_text`; Record uses the same logic.
+Query/filter values and all publication paths are unchanged.
+
+The current geometry research remains relevant: generic-form G-1 (pane/caret mismatch),
+G-3 (short-notice movement) and Record G-4 (mixed-pane styling) are not fixed by the
+Actual search slice. Do not claim `resolve_overlay` alone proves visible-caret correctness.
+Continue the shared-input boundary before Record lifecycle, Actual/Selected Day, Scheduled,
+and the remaining non-budget inventory. Scheduled cancellation/replacement still need
+independent review gates; role-aware summaries and missing retained facts are functional gaps,
+not paint-only work. Central controller edits remain serialized.
+
+Source/binary identifiers, exact smoke results and remaining visual differences belong to
+the Actual search comparison section in `VERIFICATION.md`. Full-workspace parity, real
+macOS IME/manual acceptance and P7/power-loss/cutover remain open.
 
 ## Storage research context
 

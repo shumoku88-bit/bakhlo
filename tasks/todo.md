@@ -1,17 +1,102 @@
-# LOAM 互換の英語 UI を Bakhlo で再現する
+# LOAMの機能・見た目・使い勝手をBakhloで再現する
 
 ## 範囲
 
-Bakhlo は未運用で、旧 UI の後方互換性は不要。現行 LOAM の英語表記・画面構成・キー操作・
-戻る／確認の流れを基準に、同じ見た目と使い勝手を再現する。英語版を先に作り、
-日本語UIを用意するかは未定。Bonsaiを先行し、Nottyを後から追加する選択肢も残す。
-旧UIの復活は不要。LOAMの知見とBonsaiネイティブな能力を生かし、綺麗で派手ではない
-モダンなTUIを、細部の操作感まで職人的に磨くことを目指す。Homeと基本的なRecordの改善を再開。
-元の LOAM データ、私用候補、会計意味論、記帳・確認・保存の境界は変更しない。
-LOAM の実装をコピーせず、Bakhlo の既存 OCaml / Bonsai 環境で実装する。
+Bakhloは未運用で、旧UIの後方互換性は不要。LOAMの全ユーザー向け機能・回答・英語表記・
+画面構成・キー・戻る／確認・細部までを対象とし、見た目だけの改修で終わらせない。
+**予算配分・振替・消化・用途routing・Budget Windowだけは、実際に必要になるまで延期する。**
+Daily Pace、支払い予定、隣接する非予算機能、盆栽の表示・成長は対象。
+以前の現在利用だけ・盆栽成長除外は適用しない。予算用の先回りしたAPI・形式・hookは作らない。
 
-Calendar Home・Day / Month / Year・選択日・独立した操作画面・階層 Commands を採用する。
-既存の純粋APIと記帳／保存経路を利用し、会計機能がない箇所を推測で埋めない。
+英語先行。Bakhlo独自の日本語化は未定であり、LOAMのlocale切替等の互換に必要な実動作とは分けて照合する。
+Bonsaiを先行し、Nottyを後から追加する選択肢も残す。LOAMのsourceはコピーせず、既存OCaml／
+Bonsai環境と既存の純粋API・publication／保存経路を使う。内部構造・保存方式・証明装置を揃える必要はない。
+不足する会計意味・独立情報を推測や偽の値で埋めず、必要な情報保持と回答・拒否を実装する。
+LOAMが正データと普段の記帳先のまま。原本や以前の私用候補の変更、LOAM build、
+新依存、全家計移行・自動同期・運用切替をこの計画で許可しない。
+
+画面ごとのF/O/V/Q差分・現在進捗・依頼カードは
+[UI差分台帳](../docs/LOAM_UI_GAP_LEDGER.ja.md)だけで管理する。
+この文書は作業の順序と端から端までの受入条件を所有し、第二の画面別進捗表を作らない。
+
+## 現行の順序付き受入計画
+
+以下は継続する作業順であり、全sliceを今回のターンで実装する指示ではない。
+先行sliceの限定成功を後続画面へ流用せず、一つずつ実装から保存・対照実行・実機受入まで進める。
+下記の未チェックは全体の受入未了を示す。既存の部分実装・限定検証を未実装へ戻す意味ではない。
+
+### 全slice共通の受入証拠
+
+- **実装**：日常の入口から対象選択・入力・確認・取消／確定・親復帰まで接続する。
+  必要なID・対応・独立根拠を保持し、正確な量、不明／ゼロ、未対応／拒否を区別する。
+- **self-check**：純粋計算・controller・描画geometryと必要な保存／再読込の合成回帰を残す。
+  これだけでLOAMの実行一致や人間の使いやすさの受入済みとはしない。
+- **対照実行**：固定したLOAM既存binaryとBakhloに、同じ意味の合成fixture・日付／設定・
+  操作列・端末寸法を与える。回答、拒否、遷移、表示と保存後の再起動状態を照合する。
+  ソースにあるだけの挙動、binaryで未確認の挙動、未実行は区別して残す。
+- **手動受入**：通常・狭幅・低い端末、resize、長文・日本語／IME・巨大数量・空／不明のケースで、
+  可視入力と実カーソル、候補・focus・選択追従、戻り位置、通知の安定、確認全文を実際に操作する。
+- **保存・失敗**：閲覧／取消が非保存で、明示確定だけが保存すること、保存内容が終了・再起動後も
+  同じ意味で復元することを確かめる。読込不正、保存失敗、stale／競合、結果不明では成功を偽らず、
+  旧状態・必要な下書き・対応を守り、不明な保存を自動再試行しない。
+  意図的な取消での下書き保持とcold restartでの永続化を混同しない。
+- **記録**：各証拠の対象source／binary・fixture・操作・寸法・結果・未確認範囲を既存検証記録へ、
+  画面別の到達段階はUI差分台帳へ記す。P7／電源断耐久・運用認定は別の未解決条件であり、
+  UI受入や通常再起動の成功で閉じない。
+
+### 実施順
+
+1. [ ] **比較基準と共通合成fixtureを固定する。** Bakhlo／LOAMのsource commit・作業ツリー差分と、
+   使用する既存LOAM binaryの識別情報／hashを記録する。sourceとbinaryが異なる場合は明示し、
+   buildで黙って揃えない。同じ意味の合成明細・予定・観測・設定を両側の私用コピーへ用意し、
+   正常・空・不明・拒否・訂正・返金・複数通貨・保存失敗を再現できる比較前状態を保全する。
+   元データや私用取得内容をfixture・公開記録へ移さない。Home／Commands／各入口から
+   LOAMのユーザー向け機能を棚卸しし、以下の列挙にない非予算項目もUI差分台帳へ関連付ける。
+2. [ ] **共有機構を利用元横断で移行・受入する。** 責務・API・全利用元・受入条件は
+   [TUI共有部品の責務設計と移行順序](../docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md) に従う。設計確定のみで実装済みにはしない。
+   - 共有input／再帰Input metadataの純粋機構は実装・境界検査・native幅の直接smoke済み。既存Daily_form・tail・native widthを再利用。画面への接続は次の段階。
+   - Ui_formとstyled frameを切り替え、Modal_form・Jump・Search overlay・Reversal Dateと直接利用元checksを同時移行し、
+     cursor_offsetと旧重複計算を削除する。generic formだけで終了しない。
+   - RecordのColumns＋recursive caretを同時切替し、Scheduledの同じ入力表示・UTF-8文字移動・focus-following・notice予約を接続する。
+   - list/detailは既存Ui_panelを維持し、Actualのterminal_geometry／panel_geometry・wide tx_heightのcapacity整合、
+     controller経由のdrill-down/backを実行確認する。未再現のsource候補だけでscroll方式を変えない。
+   Actual長文検索のG-2限定成功は保持するが、G-1/G-3/G-4や全画面を完了扱いしない。
+   幅0／1、長文・CJK、通知、通常／compact、resize、取消でpaintとcaret・保持値・draftを確認する。
+   sessionごとのreview／保存gateを維持し、実装・対照実行・本人受入を別々に記録する。IMEは実機で別途受入する。
+3. [ ] **Record lifecycleを端から端まで揃える。** 起動／親日付からの新規入力、候補・prefix検索、
+   Posting追加／削除・差額補助、focus・キー・paste、Preview全文・末尾／狭小gate、
+   Publish／Edit／Cancel、下書き再開・別操作との分離、確定後の親選択まで照合する。
+   記帳→終了→再起動→Actualで同じ内容を確認し、失敗／競合で非保存・下書き保持を確認する。
+4. [ ] **Actual／Selected Dayを揃える。** Loci／Actuals／Details、検索・対象日／scope・sort、
+   選択・詳細scroll、Selected DayのActual／open予定・role-aware集計、親への復帰を確認する。
+   訂正・日付変更・Merchant／原額・返金／反転等は、入口だけでなく必要情報・独立確認・
+   保存後の同一性／対応と再起動まで照合する。未接続情報を表示だけで取り繕わない。
+5. [ ] **Scheduledを揃える。** List／Series Calendar／Months／Plan Detail、単発作成、
+   replacement・日付付きcancel、実績化、次回／複数回／期限までの補充、Expected paceを確認する。
+   専用確認・tiny gate・取消初期選択、支払済み／取消済み拒否、Actualとの一括対応、
+   再起動後のopen／completedと二重発行拒否を含める。予定の未供給を「義務なし」にしない。
+6. [ ] **Balances／Observeを揃える。** 初期表示・Current／Accounting・履歴、数量の根拠と
+   不明表示、同時観測画像・複数座標・既存支持の扱い、独立確認と保存後の再照会を照合する。
+   正確なゼロ、存在のみ既知、根拠なし、失敗を区別する。Locus／role設定に必要な意味も接続する。
+7. [ ] **Daily Pace／Trendを揃える。** 明示Pool・通貨・観測日・期間、現在値／What-if・負数、
+   Pool／期間設定と履歴Trendの10d／30d／Month／Cycle／Previous Cycle、履歴支持・推移を照合する。
+   予定控除・日数・整数演算、欠損／曖昧条件の拒否、設定取消・保存・再起動と既存preset保全を含める。
+   Daily Paceを予算扱いして延期せず、月末や名前から条件を推測しない。
+8. [ ] **Attention／Settlement／Exchangeを揃える。** Attentionの期限の意味・追加／解決／撤回、
+   SettlementのActual／Effect配分・部分精算・相殺・非支払減少・独立した通貨／証拠・訂正、
+   Exchangeの両数量・対応・専用Previewと復帰を照合する。累計sidecarだけを完全な精算としない。
+   不正読込・参照欠損・保存失敗・競合と再起動を含め、複数ファイル原子性を勝手に保証しない。
+9. [ ] **残るReports／setup／exportとその他の棚卸し不足を閉じる。** Income & Expense、
+   Stock–Flow、Transactions Flow、Multicurrency Spend、Liquidity等の回答・期間・比較・寄与明細、
+   Household setup、表示名／説明・一覧・通貨／scale・役割・期間設定、Help／Theme／locale、
+   Print／診断・外部形式／Fava等の既存LOAM入口を照合する。盆栽の表示・成長も除外せず調べる。
+   各項目の必要情報、設定／出力の保存先、同意・取消、再起動、失敗時の非破壊性まで確認し、
+   派生出力を正データにしない。棚卸しの残りを再確認し、予算延期以外の無断除外を残さない。
+
+## 過去の限定チェックポイント（現在の全面受入とは別）
+
+以下のチェック済み行と検証記録は当時の範囲の証跡として保持する。
+後続の実装有無・画面別進捗はUI差分台帳を参照し、旧方針の一時的な範囲限定を現行方針へ流用しない。
 
 ## 手順
 

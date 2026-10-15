@@ -410,14 +410,6 @@ let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.in
   | `End,_ -> Closed {t with paste=None;review=None}
   | `Resize _,_ | `Mouse _,_ | `Paste `End,None -> update t
 
-let tail ~width_of room text =
-  if width_of text<=room then text
-  else
-    let chars=Uutf.String.fold_utf_8 (fun xs _ -> function `Uchar c -> O.utf8 c::xs | `Malformed _ -> xs) [] text in
-    let _,suffix=List.fold_left (fun (stopped,suffix) glyph ->
-      if stopped || width_of (glyph ^ suffix)>max 0 (room-width_of "…") then true,suffix
-      else false,glyph^suffix) (false,"") chars in
-    O.clip_text ~width_of room ("…"^suffix)
 
 let field_text ~width_of width active cursor label text =
   let label_width=min 13 (max 0 (width/2)) in
@@ -426,7 +418,7 @@ let field_text ~width_of width active cursor label text =
       let pos=Fm.cursor_pos ~value:text cursor in
       let left=O.visible (String.sub text 0 pos) in
       let right=O.visible (String.sub text pos (String.length text-pos)) in
-      let left=tail ~width_of (max 0 (room-1)) left in
+      let left=O.tail_text ~width_of (max 0 (room-1)) left in
       left ^ "|" ^ O.clip_text ~width_of (max 0 (room-width_of left-1)) right,
       Some (label_width + width_of left)
     else O.clip_text ~width_of room (if text="" then "_" else text),None

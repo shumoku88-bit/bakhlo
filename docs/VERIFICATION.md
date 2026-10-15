@@ -6,6 +6,130 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Native build warning cleanup
+
+2026-10-15: removed unreachable `Unix._exit 2` after the writer-lock fixture's
+infinite wait in `tui/recovery_checks.ml`. The child still acquires the real
+writer lock, signals readiness and waits for the parent's SIGKILL; no warning
+attribute, timeout change or weakened lock assertion was introduced.
+
+The linker warning came from the isolated Zarith `1.12+ox3` recipe, not Bakhlo:
+its macOS flags embedded absent `-L/opt/local/lib` in zarith.cmxa. The user
+explicitly approved repairing/rebuilding the same version inside this switch.
+Checksummed `opam source` extracted the same release with existing Ox patches.
+The local recipe removes the nonexistent MacPorts library/include paths and
+declares the release license; it is retained as an ignored local pin.
+Normal opam reinstall rebuilt Zarith, bignum, incr_map, bonsai_concrete, bonsai
+and bonsai_term. Before/after switch exports have identical installed versions;
+the diff only adds the Zarith pin/package recipe. No new package or global
+environment change. Reproduction and retained paths are in
+[Development](DEVELOPMENT.md#bonsai-isolated-linker-recipe).
+
+`ocamlobjinfo` now reports `-lzarith -L/usr/local/lib -lgmp`, with unchanged
+Zarith module implementation CRCs. `otool -L` still resolves the executable's
+GMP to `/usr/local/opt/gmp/lib/libgmp.10.dylib`.
+After cleaning only the generated `_build/daily-bonsai` target with Dune,
+`./tools/build-bonsai-tui` completed with neither warning (no compiler/linker
+warning output). The final native `--self-check` passed, including the real
+writer-lock/SIGKILL recovery fixture and shared-input checks.
+Executable SHA-256:
+`0c27c22563638038e2393f2ac0f586017083afb7314f4943a5df9833c1fd0c2a`;
+recovery_checks.ml:
+`8460e83c1eaa83c70a54efd98c06806b2c8e6931fe60b0f2c074cff583529265`.
+No main-switch/Core test rerun, new PTY, original household access, UI cutover
+or power-loss/IME certification follows from this warning cleanup.
+
+## Shared input / recursive metadata slice
+
+2026-10-15: migration unit 1 of the shared-UI responsibility design only.
+`tui/daily_overlays.ml` adds `input_text`, `input_cell` and `cursor_in_rows`.
+The first reuses Daily_form byte offsets and the existing visible/tail/clip approach;
+the other two resolve child-local Input positions through nested Columns and hide
+positions outside pane width or painted text. Existing screen consumers are unchanged.
+
+`daily_interaction_checks.ml` now exercises empty/exact-fit/overflow, start/middle/end
+editing, 80 ASCII characters plus CJK, literal bars/box glyphs, blank insertion cells,
+zero/negative/one-cell widths, left/right/nested panes, clipped rows and machine-width
+offset bounds, all with the frontend's actual width_of.
+
+Executed successfully in the existing isolated environments:
+`./tools/check`, `./tools/build-bonsai-tui`,
+`./_build/daily-bonsai/_build/default/ui/bonsai_daily.exe --self-check`.
+The native self-check prints `PASS: shared input windows, retained UTF-8 bytes, insertion
+cells and recursive Columns caret bounds.` Build emitted warning 21 in unchanged
+recovery_checks.ml and the missing `/opt/local/lib` linker search path warning.
+
+A throwaway compiled OCaml smoke directly called the new helpers with native Bonsai
+width. Long input at width 120 had local/parent caret 90/98; shrinking to 8 gave 7/15.
+Moving one UTF-8 scalar left and inserting `中` retained the complete edited value;
+expanding to 120 painted `日本語末中|尾` after the 80 ASCII prefix, with caret 90/98.
+Nested Columns parent translation and zero-width hiding assertions passed. The smoke
+did not call filesystem publication; its source/compiler artifacts were removed afterward.
+
+Exercised executable SHA-256:
+`35d62ced8804004ea363099ddf2daf2d536bb8cfcd6750ca16e60f92babe582e`.
+Source SHA-256: daily_overlays.ml
+`4768f601add4c413919c85559efb9cb32c72b5b9e1612b4472f8462ecff90be1`;
+daily_interaction_checks.ml
+`0f1a984ab941a6549e49632a61c405e7b1d9e1f7a07143e782a1698d7398201b`.
+
+No UI cutover, PTY, LOAM runtime comparison/build, original household read, dependency
+installation or writer/gate change. G-1/G-3/G-4 remain open until consumer migrations.
+No grapheme/IME, physical terminal width, live race, performance or P7 certification.
+
+## Actual search paired-runtime slice
+
+2026-10-15: the user fixed the target at all LOAM user-facing non-budget behavior,
+not paint-only parity. Budget implementation is deferred until needed. The ordered
+plan and screen status remain in `tasks/todo.md` and `LOAM_UI_GAP_LEDGER.ja.md`.
+
+Baseline: Bakhlo `cfed58304f9f58c329f6e36352981fed60a6ec66` plus the current
+uncommitted `actual_workspace.ml/.mli`, controller/search regression and shared-tail
+changes. LOAM source inspected at `da4dfb65b11055dc0af65ce4e3d5595ffa67be77`.
+LOAM was neither built nor modified; its existing binary/source correspondence is
+unqualified. SHA-256 of the executed binaries:
+
+- LOAM `.lake/build/bin/loamTui`: `75f91da92cc5170a641521b1d967c79aac4890ef3326e26b5e1e36e5cef003a3`.
+- Bakhlo before: `0d0246bc18e93bbb6fc555369bbf94606c94b8c5c24d154bfe761c3d492607d2`.
+- Bakhlo final: `a8c3f86e5137aa7019be0f272bb3e7626116605c435c39eb8b5e14450527482c`.
+
+Both native programs ran on a private tmux socket with TERM=xterm-256color and
+separate synthetic empty authorities: Bakhlo Daily v3 (JPY scale 0, explicitly
+empty labels/approved loci/entries/plans/support) and a LOAM HouseholdImage v2
+containing only empty normalized Actual v4. No original household/config was read.
+Retained text captures are under ignored `scratch/parity-search-ODwKVq/`.
+
+Operation: start at 80×24 → `a` → `/` →
+`abcdefghijklmnopqrstuvwxyz0123456789末尾` → resize 32×9 → resize 120×36 →
+Enter → `/` → Esc → `q` → `q`.
+Before the change, Bakhlo painted the search prefix and tmux reported caret (31,1);
+LOAM painted the insertion tail at (30,1). Positions are zero-based.
+The final paired walk asserted identical search rows at 32×9:
+` Search: /…vwxyz0123456789末尾`, with a real blank insertion cell at (30,1).
+At 120×36 both retained the full query and caret (50,1). Enter kept the complete
+query and hid the caret; Esc cleared the new search. Both authority-file SHA-256
+values were unchanged after each walk. All of these assertions passed.
+
+Implementation: `Actual_workspace.search_line` owns the visible query tail and
+insertion cell; both controller rendering and `cursor_position` use it.
+The prior Record tail helper moved unchanged into `Daily_overlays.tail_text`,
+and Record now calls it. No query value, filter, writer or publication gate changed.
+Permanent controller regression covers long ASCII/CJK search at 32×9, 48×14,
+80×24 and 120×36, caret/paint agreement, retained full query, Enter and hidden
+caret when the input cell is unavailable.
+
+Executed: `./tools/build-bonsai-tui`, final native `--self-check`, paired tmux
+walk above, and `./tools/check` all passed. The build emitted warning 21 in the
+unchanged recovery-check nonreturning fixture and a missing `/opt/local/lib`
+link search path warning; neither stopped the build.
+The native self-check also exercised the existing Record, Scheduled and recovery paths.
+
+This closes the long-search insertion-window defect only. The paired captures still
+differ in workspace header, frame decoration, empty-row/count/footer geometry and
+broader pane layout. Generic-form geometry G-1/G-3 and Record styling G-4 remain
+separate gaps. No full Actual acceptance, actual macOS IME/preedit/manual acceptance,
+performance result, power-loss/P7 qualification or operational cutover is inferred.
+
 ## Current non-budget UI safety slice
 
 Baseline: Bakhlo `d2e2f5f` plus the current sidecar/Pace repair; LOAM `9dbe2496`

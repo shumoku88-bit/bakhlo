@@ -413,8 +413,7 @@ let self_check () =
           ignore (Unix.write_substring output "!" 0 1);
           while true do
             Unix.sleep 3600
-          done);
-      Unix._exit 2
+          done)
   | pid ->
       Unix.close output;
       let reaped = ref false in

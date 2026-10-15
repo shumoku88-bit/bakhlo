@@ -413,6 +413,60 @@ let safety_checks ~width_of ~directory () =
   require (saved.overlay = C.No_overlay && not (Sys.file_exists windows_path)) "pool-save-does-not-invent-period";
   print_endline "PASS: sidecar refusal/draft preservation, strict inputs, explicit Pace, negative What-if and non-destructive Pool edits."
 
+let input_checks ~width_of () =
+  let module O = Daily_overlays in
+  let input ?(cursor = None) ?(caret = "|") width value =
+    O.input_text ~width_of ~width ~cursor ~caret value in
+  List.iter (fun (width, value, cursor, expected) ->
+    require (input ~cursor width value = expected) "input-visible-window")
+    [ 4, "", None, ("|", Some 0);
+      4, "abc", None, ("abc|", Some 3);
+      4, "abcd", None, ("…cd|", Some 3);
+      4, "abcdef", Some 0, ("|ab…", Some 0);
+      5, "abcdef", Some 2, ("ab|c…", Some 2);
+      5, "a|│b", Some 2, ("a||│b", Some 2);
+      7, "日本語", Some 3, ("日|本語", Some 2) ];
+  require (input ~caret:" " 4 "abcd" = ("…cd ", Some 3))
+    "input-blank-insertion-cell";
+  List.iter (fun width ->
+    require (input width "日本語" = ("", None)) "input-no-width-no-caret")
+    [min_int; -1; 0];
+  require (input 1 "日本語" = ("|", Some 0)
+    && input ~caret:"" 4 "abc" = ("abc", None))
+    "input-reserved-or-absent-insertion-cell";
+  let value = String.make 80 'a' ^ "日本語" in
+  List.iter (fun cursor -> List.iter (fun width ->
+    let painted, cell = input ~cursor width value in
+    require (width_of painted <= width) "input-window-cell-bounded";
+    let column = Option.get cell in
+    let offset = String.index painted '|' in
+    require (width_of (String.sub painted 0 offset) = column)
+      "input-caret-matches-painted-insertion-cell";
+    require (O.cursor_in_rows ~width_of ~width [O.Input column, painted]
+      = Some (column, 0)) "input-window-and-metadata-agree")
+    [1; 2; 8; 16; 80; 120])
+    [Some 0; Some 40; Some 83; None];
+  List.iter (fun (width, style, expected) ->
+    require (O.input_cell ~width style = expected) "input-recursive-pane-bounds")
+    [ 8, O.Columns (4, O.Input 3, O.Active), Some 3;
+      8, O.Columns (4, O.Plain, O.Input 2), Some 7;
+      8, O.Columns (4, O.Input 4, O.Plain), None;
+      7, O.Columns (4, O.Plain, O.Input 2), None;
+      5, O.Columns (4, O.Plain, O.Input 0), None;
+      8, O.Columns (4, O.Plain, O.Input (-1)), None;
+      8, O.Columns (4, O.Columns (1, O.Plain, O.Input 1), O.Active), Some 3;
+      10, O.Columns (4, O.Plain, O.Columns (2, O.Active, O.Input 1)), Some 9;
+      0, O.Input 0, None;
+      max_int, O.Columns (max_int, O.Plain, O.Input 0), None ];
+  let rows = [O.Plain, "literal | │"; O.Columns (4, O.Plain, O.Input 1), "財布  |"] in
+  require (O.cursor_in_rows ~width_of ~width:8 rows = Some (6, 1))
+    "input-cjk-pane-origin-not-byte-offset";
+  require (O.cursor_in_rows ~width_of ~width:6 rows = None
+    && O.cursor_in_rows ~width_of ~width:8 [O.Input 3, "ab"] = None
+    && O.cursor_in_rows ~width_of ~width:8 [O.Plain, "|"] = None)
+    "input-hidden-clipped-and-literal-caret";
+  print_endline "PASS: shared input windows, retained UTF-8 bytes, insertion cells and recursive Columns caret bounds."
+
 let panel_checks ~width_of () =
   let module Panel = Ui_panel in
   require (Panel.capacity ~height:8 ~heading:false=6
@@ -602,6 +656,28 @@ let actual_browsing_checks ~width_of ~directory home =
   let _, resized_view = C.browser_viewport ~dimensions:(120,36) ~width_of resized in
   require (resized.scroll=resized_view.Ui_panel.last && (W.browser resized.workspace).selected_id=(W.browser detail.workspace).selected_id)
     "actual-resize-clamps-without-reselection";
+  let query = String.make 80 'x' ^ "日本語末尾" in
+  let searching = key ~width_of state (`ASCII '/') |> fun s -> text ~width_of s query in
+  List.iter (fun ((width, _) as dimensions) ->
+    let rows = C.screen ~width_of dimensions searching in
+    let header = snd (List.nth rows 1) in
+    let caret = String.length header - 1 in
+    require (Base.String.is_substring header ~substring:"日本語末尾")
+      "actual-long-search-keeps-insertion-tail-visible";
+    require (header.[caret] = ' ' && width_of header < width
+             && C.cursor_position ~width_of dimensions searching
+                = Some (width_of (String.sub header 0 caret), 1))
+      "actual-search-caret-matches-painted-insertion-cell";
+    require ((W.browser searching.workspace).query=query)
+      "actual-search-resize-does-not-truncate-filter")
+    [32,9;48,14;80,24;120,36];
+  let accepted = key ~width_of searching `Enter in
+  require ((W.browser accepted.workspace).query=query
+           && C.cursor_position ~width_of (32,9) accepted=None)
+    "actual-long-search-accept-keeps-full-query-and-hides-caret";
+  require (C.cursor_position ~width_of (0,9) searching=None
+           && C.cursor_position ~width_of (32,1) searching=None)
+    "actual-search-hides-caret-without-visible-input-cell";
   let searched = key ~width_of state (`ASCII '/') |> fun s -> text ~width_of s "purchase 03" in
   require (List.length (W.rows ~book searched.workspace)=1 && (W.browser searched.workspace).query="purchase 03")
     "actual-search-filters-while-typing";
@@ -814,6 +890,7 @@ let self_check ~width_of () =
   home_layout_check ~width_of home;
   theme_check ~width_of ~directory home;
   panel_checks ~width_of ();
+  input_checks ~width_of ();
   actual_browsing_checks ~width_of ~directory home;
   scheduled_panel_checks ~width_of ~directory home;
   reversal_checks ~width_of ~directory home;

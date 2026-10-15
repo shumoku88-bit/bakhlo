@@ -58,12 +58,12 @@ Actual / Scheduled / Selected Dayで選択・検索・詳細と復帰を共有�
 保持中の下書きを黙って置き換えない。
 Actualは幅が足りる一覧でDate／Description／Amountを整列し、正確な符号・桁区切り・通貨を表示する。
 複数の正負Postingは`split`、混合通貨は`multi`、収まらない金額は`see details`とし、数量を途中で切らない。
-狭幅はDescriptionのみ、長文は省略記号を付ける。`/`は既存の検索モーダル内で入力中に絞り込み、
-Enterで保持、Escで解除する。`h/l`／左右矢印／Tabは一覧・詳細を切り替える。
+ActualはLoci／Actuals／Detailsの3ペインと画面内の`/`検索を接続済み。
+検索は入力中に絞り込み、Enterで保持、Escで解除する。長文は可視末尾だけを表示し、
+保持する検索値を切らない。日本語を含む末尾と実カーソルを同じ可視窓に収める。
+`f`は日付scope、`s`はsort、Tab／h/lはpane、EnterはActuals→Details→Selected Day。
 ActualとScheduledの詳細はHome／Endで選択を変えず、ページ送りは可視行数に従う。
-末尾・リサイズでスクロールを制限する。Scheduledでも`h/l`／左右矢印で一覧・詳細を切り替え、
-Tabで往復した詳細位置は保持する。別の対象選択・フィルタ・再読込では詳細を先頭へ戻す。
-LOAMのLoci／Actuals／Detailsの3ペイン構成・画面内検索バー・Locus絞り込みUIはまだ未対応。
+3ペイン全体の最新LOAMとの配置・操作一致は未認定。限定した検索対照と未達範囲はUI差分台帳を参照する。
 Actualの`c`はCorrect、ScheduledのEnterは閲覧だけのDetail、`c`は明示的なComplete。
 支払い入力を開く操作だけでは台帳を変更しない。
 
@@ -154,16 +154,27 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 - bonsai_daily：実描画と入力adapter。会計計算は持たない。
   Resizeとキーが同じbatchに入るため、寸法はhandler内に捕捉せずstate_machine_with_inputのaction適用時に読む。
 
-### 共通化の境界（KEEP / DEFER）
+### 共通化の境界（KEEP / 統合 / LOCAL）
 
-**KEEP**: `ui_panel`は既存の枠描画を移し、ActualとScheduledで使うviewportを公開する。
-APIは文字列行・寸法・焦点・行番号／offsetだけを受け取り、画面名による専用分岐を持たない。
-既存の他workspaceとoverlayも枠描画だけを引き続き利用し、会計回答・writer・エラー表示は変更しない。
-独立した容量・端・Unicode描画検査と、両workspaceの下書き／復帰／再読込検査を既存self-checkに置く。
+責務・API契約・全利用元・移行順・横断受入の所有文書は
+[TUI共有部品の責務設計と移行順序](../docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md)。
+現在は共有inputの純粋機構だけ実装・検査済み。以下の画面cutoverは未実行で、全画面対応済みではない。
 
-**DEFER**: Recordの入力・Preview、picker、フローティング面、金額表示の追加共通化は別の小さい変更で点検する。
-特にPreviewの全文確認・狭小確定拒否、訂正／逆仕訳／予定完了の意味と保存判断を共通枠へ移さない。
-汎用画面エンジン、新しい状態管理・保存経路・依存は導入しない。
+- **KEEP**：`daily_form`のUTF-8 scalar編集とbyte-offset、`daily_overlays`の幅／clip／tailとLocus prefix候補、
+  `ui_panel`の枠・capacity/window/move、Bonsai/Nottyのnative合成・実幅・fit・after-display cursor。
+- **統合／切替**：`daily_overlays`に`input_text`／`input_cell`／`cursor_in_rows`を実装済み。
+  value窓と1cell caretを一緒に計算し、再帰Columnsの子座標を親へ変換する。現行画面の利用元はまだ切り替えていない。
+  `ui_form`の寸法なしpaint＋独立cursorをbounded styled rowsへ切り替え、`ui_panel`の既存geometryへ接続する。
+  Modal_form・Jump・Search・Reversal Dateの全利用元を同時移行し、次にRecordのColumns＋recursive caretと
+  Scheduledの入力・UTF-8移動・focus-following・notice予約を接続する。既存string-list一覧APIは維持する。
+- **LOCAL**：field、ID、選択・query・sort、draft、候補確定・focus、戻り先、review lifecycle、
+  発行意図・拒否後復帰は各session/workspaceに残す。Preview全文／末尾・狭小確定拒否を共通枠へ移さない。
+  `Ui_workspace`と`Actual_workspace`のstateも統合しない。
+
+controllerは寸法・surface配置・local→terminal変換、frontendは描画を所有する。
+独自renderer／Unicode幅表、raw ANSIの二重管理、汎用scene engine・状態framework、新依存や保存経路は作らない。
+Record/Scheduled接続後もlist/detailのpaint/navigation capacityとcontroller経由の復帰を受入し、
+Actual長文検索の限定成功を全画面合格やIME受入へ拡張しない。
 
 ## 保存と復旧の限界
 
