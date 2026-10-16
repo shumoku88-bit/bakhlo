@@ -16,6 +16,7 @@ module Cancel = Scheduled_cancellation_session
 module Act = Actual_workspace
 module Months = Scheduled_months
 module Cont = Scheduled_continuation_session
+module Bulk = Scheduled_bulk_session
 module Form = Ui_form
 module Panel = Ui_panel
 module Att = Attention_data
@@ -58,6 +59,7 @@ type overlay =
   | Scheduled_create of Sch.t
   | Scheduled_cancel of Cancel.t
   | Scheduled_continuation of Cont.t
+  | Scheduled_bulk of Bulk.t
 
 
 let is_reverse_entry = function
@@ -267,6 +269,9 @@ let reload state =
       | Scheduled_continuation prompt when Cont.base_bytes prompt <> session.bytes ->
           { state with session; blocked = true;
             message = tr "Completion remains published. Later-plan evidence changed; close and reload to inspect." }
+      | Scheduled_bulk editor when Bulk.base_bytes editor <> session.bytes ->
+          { state with session; blocked = true;
+            message = tr "Batch target generation changed. Cancel, reload and reselect." }
       | _ -> sync { state with session; blocked = false; message = tr "Reloaded. Unsaved draft retained." })
   | A.Reload_failed why ->
       {
@@ -437,6 +442,17 @@ let cancel_plan_selected state =
           }
     | _ -> { state with message = tr "Select an open Scheduled occurrence to cancel." }
 
+let batch_plan_selected state =
+  if state.blocked then state
+  else if has_record_draft state then
+    { state with message = tr "A draft is retained. Resume or discard it before batch editing." }
+  else match selected state with
+  | Some (W.Scheduled_plan plan) -> (
+      match Bulk.create ~book:state.session.book ~base_bytes:state.session.bytes ~from_day:plan.day plan with
+      | Ok editor -> { state with overlay = Scheduled_bulk editor; message = "" }
+      | Error message -> { state with message })
+  | _ -> { state with message = tr "Select an open Scheduled occurrence for batch amount editing." }
+
 let reverse_entry_selected state =
   if state.blocked then state
   else if has_record_draft state then
@@ -584,6 +600,9 @@ let continuation_dimensions ~dimensions ~width_of state =
 
 let cancellation_dimensions ~dimensions ~width_of state =
   Cancel.dimensions (body_dimensions ~dimensions ~width_of state)
+
+let bulk_dimensions ~dimensions ~width_of state =
+  Bulk.dimensions (body_dimensions ~dimensions ~width_of state)
 
 let actual_dimensions ~dimensions ~width_of state =
   let width, body_height = body_dimensions ~dimensions ~width_of state in
@@ -1185,6 +1204,19 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                    (A.commit_payload ~session:state.session ~base_bytes payload)))
   else
     match state.overlay with
+    | Scheduled_bulk editor -> (
+        match input with
+        | `Key (`ASCII ('r' | 'R'), [`Ctrl]) -> Some (reload state)
+        | _ -> (
+            match Bulk.handle ~blocked:state.blocked
+              ~dimensions:(bulk_dimensions ~dimensions ~width_of state) ~width_of editor input with
+            | Bulk.Updated editor -> Some { state with overlay = Scheduled_bulk editor }
+            | Bulk.Closed -> Some { state with overlay = No_overlay }
+            | Bulk.Publish (plans, base_bytes) ->
+                let draft = { state with overlay = Scheduled_bulk
+                  (Bulk.with_publish_error editor "Batch publication not confirmed. Review the notice below.") } in
+                Some (apply_commit_result state ~draft
+                  (A.commit_plan_batch ~session:state.session ~base_bytes plans))))
     | Scheduled_continuation prompt -> (
         match input with
         | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
@@ -1758,6 +1790,9 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some { state with overlay = Modal_form (what_if_form state) }
         | Some (`ASCII 'c', []) when state.workspace.route = W.Daily_pace ->
             Some { state with overlay = Modal_form (configure_pace_form state) }
+        | Some (`ASCII 'b', []) when (match state.workspace.route with
+            | W.Scheduled | W.Selected_day _ -> true | _ -> false) ->
+            Some (batch_plan_selected state)
         | Some (`ASCII 'v', []) when state.workspace.route = W.Scheduled ->
             Some (sync { state with workspace = W.toggle_schedule_view ~book:state.session.book state.workspace;
               message = (if state.blocked then state.message else "") })
@@ -2620,6 +2655,9 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   | Scheduled_create editor -> Sch.footer editor
   | Scheduled_cancel editor -> Cancel.footer editor
   | Scheduled_continuation prompt -> Cont.footer prompt
+  | Scheduled_bulk _ when state.blocked ->
+      [ "Writes stopped; batch retained"; "Ctrl-r inspect/reload  Esc cancel" ]
+  | Scheduled_bulk editor -> Bulk.footer editor
   | Themes _ -> [ "j/k or Up/Down preview theme"; "Enter save  Esc/q cancel" ]
   | Modal_form form -> (
       match Form.id form with
@@ -2636,12 +2674,12 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
     Act.footer ~dimensions ~width_of state.actual_workspace
   else if is_scheduled_months state then
     if state.workspace.pane = W.Detail then
-      [ "j/k PgUp/Dn Home/End scroll  Tab Months"; "Enter/c complete  x cancel  v List  q back" ]
+      [ "j/k PgUp/Dn Home/End scroll  Tab Months"; "Enter/c complete  b batch  x cancel  v List  q back" ]
     else if fst dimensions < 46 then
       [ "j/k select  h/l months  v List"; "Enter complete  x cancel  q back" ]
     else
       [ "j/k select  h/l months  Enter/c complete  q back";
-        "i/Tab detail  r/e edit  x cancel  n new  v List" ]
+        "i/Tab detail  b batch  r/e edit  x cancel  n new  v List" ]
   else
   match (state.workspace.W.route, state.workspace.pane) with
   | W.Home, _ ->
@@ -2665,7 +2703,7 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   | W.Scheduled, W.Calendar ->
       [
         "j/k select  Enter/i/Tab Detail  h/l pane  c Complete  e Edit  x Cancel";
-        "v Months  n New Plan  f Filter  / search  Space Commands  q/Esc Home";
+        "b Batch amount  v Months  n New Plan  f Filter  / search  Space Commands  q/Esc Home";
       ]
   | W.Actual, W.Calendar ->
       [
@@ -2675,7 +2713,7 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   | W.Scheduled, W.Detail ->
       [
         "j/k scroll  Page Up/Down page  Home/End range  h/l/Tab pane";
-        "v Months  q/Esc list  c Complete  e Edit  x Cancel  n New Plan  Ctrl-r reload";
+        "b Batch amount  v Months  q/Esc list  c Complete  e Edit  x Cancel  n New Plan  Ctrl-r reload";
       ]
   | W.Actual, W.Detail ->
       [
@@ -2684,7 +2722,7 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
       ]
   | W.Selected_day _, W.Calendar ->
       [
-        "j/k select  Enter/i/Tab Detail  c Correct  d Date  x Reverse  g Loci  r Record";
+        "j/k select  Enter/i/Tab Detail  c Correct  d Date  x Reverse  b Batch plan  g Loci  r Record";
         (match state.drill_parent with
          | Some W.Actual -> "Space Commands  q/Esc Actual  Ctrl-r reload"
          | _ -> "Space Commands  q/Esc Home  Ctrl-r reload");
@@ -2905,6 +2943,16 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
   else if state.overlay = No_overlay || body_w < 8 || body_h < 3 then None
   else
     match state.overlay with
+    | Scheduled_bulk editor ->
+        let pane_dimensions = bulk_dimensions ~dimensions ~width_of state in
+        let pane_w = fst pane_dimensions in
+        let rows = Bulk.screen ~dimensions:pane_dimensions ~width_of editor in
+        let pane_h = List.length rows in
+        let origin_x = max 0 ((width - pane_w) / 2) in
+        let origin_y = max 0 ((body_h - pane_h) / 2) in
+        let cursor = Option.map (fun (col, row) -> (origin_x + col, origin_y + row))
+          (O.cursor_in_rows ~width_of ~width:pane_w rows) in
+        Some { origin_x; origin_y; pane_width = pane_w; pane_height = pane_h; rows; cursor }
     | Scheduled_continuation prompt ->
         let pane_dimensions = continuation_dimensions ~dimensions ~width_of state in
         let pane_w = fst pane_dimensions in

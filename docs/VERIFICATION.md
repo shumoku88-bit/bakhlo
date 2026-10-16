@@ -6,6 +6,58 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Scheduled batch amount editing
+
+Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus local UI work and this slice.
+Read-only source consultation: LOAM `ScheduledBulkEdit.lean` (parameters, candidate
+matching by measure + signed Locus sets, simple amount 2-posting contract, split refusal,
+unchanged omission, Back default, list pane) and `ScheduledBulkEditSession.lean`
+(workspace key `b`, batch draft publication, cancel and error notices). No LOAM build,
+source copying, runtime comparison or production input.
+
+`scheduled_bulk_session.ml/.mli` and `Daily_actions.commit_plan_batch` implement the
+atomic multi-plan amount update:
+- Candidates require exact current-open status, matching Measure, and identical positive
+  and negative Locus sets. Split postings (>2 rows or non-opposite signs) are refused
+  without guessing allocation.
+- All candidates start unchecked (`[ ]`); Space toggles, `a` checks all, `d` clears,
+  `e` returns to parameter editing.
+- Unchanged amounts are excluded; all-unchanged or empty selection refuses.
+- Preview displays before -> after signed amounts for each target. Back is the default
+  choice and performs no write.
+- Publication requires reaching the end of the preview and meeting dimension gates
+  (width >= 46, height >= 14).
+- All validated replacements are folded into a single candidate book and passed to the
+  existing single-candidate atomic publisher.
+
+Executed native build/`--self-check` and `./tools/check`; passed.
+Checks cover parameter validation, start/end dates, candidate filtering by Loci and measure,
+empty period safety, Home/End selection, split posting refusal, unchanged omission,
+Back protective default, dimension and scroll gates, atomic publication of exact huge EUR
+quanta, unselected/different-currency plan preservation, late invalid plan refusal with zero
+writes, duplicate plan refusal, stale base refusal, and Records format refusal.
+
+Native tmux (`TERM=xterm-256color`, 120×36), synthetic fixture
+`scratch/bulk-smoke-dyzB0U/book.sexp`:
+- Initial open plans: `batch-a` (EUR 123.45), `batch-b` (EUR 678.90), `batch-unrelated` (JPY 200).
+- `s j j b` opened Scheduled / Bulk amount on `batch-a`.
+- Typed `300.00` -> `Enter` advanced to Candidates view:
+  `[ ] batch-a  2026-10-15  123.45  eur  wallet, food`,
+  `[ ] batch-b  2026-11-15  678.90  eur  wallet, food`.
+  `batch-unrelated` (JPY) was correctly omitted.
+- `a` checked all candidates (`[x]`).
+- `Enter` advanced to Preview showing before -> after for both EUR plans with `[Back]` default.
+- `Enter` chose Back: returned to selection with zero disk writes (SHA-256 matched `before.sexp`).
+- `Enter Tab End Enter` scrolled to the end of Preview and chose `[Publish all]`.
+- Published atomically: both `batch-a` and `batch-b` updated to EUR 300.00 on disk, while
+  `batch-unrelated` remained untouched at JPY 200.
+- Cold restart re-loaded the exact updated amounts and preserved all plan metadata.
+- Executable SHA-256: `867a152660e4c0f3c76aac92be21280d669426a9c136ddb7668110c3197f3fc2`.
+
+This qualifies the bounded batch amount replacement slice. It does not establish
+recurring generation (UI-21), coverage cadence (UI-23), real IME/user acceptance,
+or operational cutover.
+
 ## Scheduled continuation awareness
 
 Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus local UI work and this slice.

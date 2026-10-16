@@ -107,6 +107,22 @@ No series, recurrence, cadence, or date is inferred.
 Core/native checks and synthetic tmux (Done, Keep, Add next, Escape cancel, and cold
 restart) passed; see [continuation evidence](VERIFICATION.md#scheduled-continuation-awareness).
 
+Scheduled batch amount editing (UI-20) is connected through `scheduled_bulk_session.ml/.mli`
+and `Daily_actions.commit_plan_batch`. Pressing `b` from Scheduled (List, Months, or detail)
+or Selected Day on an open plan opens the 3-stage flow:
+1. Parameters: exact positive amount in the target measure, from date, optional through date.
+2. Candidates: advisory match on identical measure and sorted positive/negative Locus sets,
+   initially all unchecked (`[ ]`), Space toggle, `a` all, `d` clear, `e` parameters, split
+   postings excluded without guessed allocation, unchanged amounts omitted.
+3. Preview: before -> after signed details, Back protective default, current dimension
+   and review-to-the-end gates.
+All selected replacements are folded into a single candidate book and committed via the
+existing publisher in a single atomic write.
+Core/native self-checks and synthetic tmux walks (Parameters, candidates `a`, Preview,
+Back read-only proof, `Publish all`, cold restart, and unchanged unrelated plan preservation)
+passed; see [batch amount evidence](VERIFICATION.md#scheduled-batch-amount-editing).
+
+
 
 
 

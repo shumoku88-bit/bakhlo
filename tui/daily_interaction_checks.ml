@@ -12,6 +12,7 @@ module Cancel = Scheduled_cancellation_session
 module Months = Scheduled_months
 module Cont = Scheduled_continuation_session
 module Sch = Scheduled_session
+module Bulk = Scheduled_bulk_session
 module P = Ui_preferences
 module Att = Attention_data
 module Roles = Locus_roles
@@ -106,6 +107,11 @@ let render_cases state =
   let continuation = { rich with overlay = C.Scheduled_continuation
     (Cont.create ~book:continuation_book ~base_bytes:rich.session.bytes source) } in
   let continuation_review = key (key (key continuation `Tab) `Tab) `Enter in
+  let bulk = { rich with overlay = C.Scheduled_bulk
+    (get (Bulk.create ~book ~base_bytes:rich.session.bytes ~from_day:source.day source)) } in
+  let bulk_selection = String.fold_left (fun state c -> key state (`ASCII c)) bulk "321"
+    |> fun state -> key state `Enter in
+  let bulk_preview = key (key bulk_selection (`ASCII 'a')) `Enter in
   let detail route =
     let view = C.open_route rich route in
     { view with workspace = { view.workspace with pane = W.Detail } }
@@ -136,6 +142,9 @@ let render_cases state =
     continuation_none;
     continuation;
     continuation_review;
+    bulk;
+    bulk_selection;
+    bulk_preview;
     detail (W.Selected_day home.workspace.calendar.selected_day);
     detail W.Actual;
     detail W.Scheduled;
