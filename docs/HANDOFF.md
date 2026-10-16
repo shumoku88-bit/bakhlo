@@ -9,6 +9,10 @@ Daily Pace, plans and bonsai behavior remain in scope. Internal structures and p
 storage machinery need not match. LOAM remains production authority; no cutover is authorized.
 `tasks/todo.md` owns the ordered acceptance plan, `docs/LOAM_UI_GAP_LEDGER.ja.md` owns
 per-screen F/O/V/Q progress, and `docs/VERIFICATION.md` owns exercised evidence.
+The user explicitly excluded Fava and hledger export from parity and cutover
+requirements. Other external output and Print/diagnostics remain separate,
+not implicitly excluded. Historical interchange designs are not current
+implementation instructions for hledger.
 
 UI-34 first-run initialization is connected for an interactive `--book FILE` startup:
 missing paths may be prefilled; existing unreadable paths start with a blank destination.
@@ -19,6 +23,27 @@ uses exclusive mode-0600 creation, file sync/readback, parent sync and cold relo
 Loaders, `--check`, and non-TTY paths remain fail-closed; existing source/destination
 bytes are protected. A fresh paired 80×24 first-run/one-Record/cold-reopen
 scenario is recorded; broader LOAM parity and operational acceptance remain open.
+
+The first-run review now matches LOAM's missing-root cancellation flow: Escape
+or Edit returns to the retained destination/Measure/scale editor; Escape there
+cancels without creating the book. A paired 80×24 synthetic execution and native
+self-check cover this bounded path. A subsequent paired 80×24 synthetic
+existing-unreadable-root check confirmed blank destinations, retained input
+after review Escape, cancellation without writes and existing-target refusal.
+LOAM refuses an existing target after review; Bakhlo refuses before review.
+See [missing-root evidence](VERIFICATION.md#paired-first-run-review-cancellation-2026-10-17)
+and [unreadable-root cancellation evidence](VERIFICATION.md#paired-existing-unreadable-root-first-run-2026-10-17).
+Creation from a different existing-unreadable synthetic root has since been
+paired at 80×24: both reviews were non-writing, explicit confirmation created
+new authorities, and cold TUI reopen reached Home; source and new-authority
+hashes were unchanged. At 32×9, both missing-root paths were cancelled
+without creation. A 48×14 comparison exposed Bakhlo creating a new book while
+the destination was hidden by `… more`; `First_run.ready_to_create` now checks
+the actual form viewport. The rebuilt UI refused at 48×14, allowed full review
+after resize to 80×24, and cold-reopened at 48×14. LOAM created at 48×14 with
+a truncated displayed path. Failure injection, IME and P7 remain open; see
+[creation evidence](VERIFICATION.md#paired-unreadable-source-creation-and-cold-reopen-2026-10-17)
+and [narrow evidence](VERIFICATION.md#paired-narrow-first-run-and-hidden-destination-gate-2026-10-17).
 
 This bounded implementation does not close the broader first-run acceptance.
 

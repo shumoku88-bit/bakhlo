@@ -6,6 +6,7 @@
 **予算配分・振替・消化・用途routing・Budget Windowだけは、実際に必要になるまで延期する。**
 Daily Pace、支払い予定、隣接する非予算機能、盆栽の表示・成長も対象に含む。
 以前の盆栽成長除外や現在よく使う機能だけという制限は適用しない。
+Favaとhledgerへの出力はユーザー指定で互換・切替条件から除外。Print／診断や他形式は別途判定する。
 LOAMの内部構造・研究用機能・証明装置・保存方式まで同じにする必要はない。
 予算用の先回りしたAPI・形式・hookは作らない。独自の日本語化は未定だが、
 LOAMに存在するlocale切替等の互換上必要な実動作を除外する理由にはしない。
@@ -123,8 +124,8 @@ Poolの設定画面は`daily-pace.tsv`だけを更新し、全境界presetをbyt
 | --- | --- | --- |
 | O01 | 記帳・終了・再開 | 単一S式／Recordsの既存保存・拒否テストを維持。永続Ack（P7）・電源断は未認定 |
 | O02 | 確認・バックアップ復旧 | inspect／confirm／restore-copyあり。保持、別媒体、不一致候補の採用条件は未確定 |
-| O03 | 外部会計形式への出力 | Daily経路には未接続。S式が読めることをBeancount等の対応としない |
-| O04 | Fava | 未接続。派生出力を正データにしない |
+| O03 | 外部会計形式への出力 | hledger出力はユーザー指定で対象外。他形式は別途判定。Daily経路には未接続で、S式が読めることを他形式の対応としない |
+| O04 | Fava | ユーザー指定で対象外。運用切替の必須条件にしない |
 | O05 | Print・診断 | Balancesの画面内Print previewあり。LOAMの同意付き通常端末出力とは未同等 |
 | O06 | 別環境への導入 | 既存の隔離Bonsai環境が必要。standalone配布・新環境の復旧は未認定 |
 
@@ -145,7 +146,7 @@ UIのみの変更は現在のCore CIに含まれないことにも注意する�
 今後の順序と各段階の受入条件は [tasks/todo.md](../tasks/todo.md) を参照する。
 source／既存binary基準・共通合成fixtureを固定し、共有入力geometry → Record lifecycle →
 Actual／Selected Day → Scheduled → Balances／Observe → Pace／Trend →
-Attention／Settlement／Exchange → 残るReports／設定／exportとその他の棚卸し不足へ進む。
+Attention／Settlement／Exchange → 残るReports／設定／対象内の出力とその他の棚卸し不足へ進む。
 一課題ごとに操作・必要情報・保存／再開・失敗例・対照実行・実機受入を分け、
 画面別の判定はUI差分台帳だけに記録する。全sliceを今回実装する計画ではない。
 中央controllerは画面が違っても競合するため依頼カードで編集fileと統合順を決める。

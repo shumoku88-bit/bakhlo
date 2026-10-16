@@ -3255,8 +3255,9 @@ An uncertain/failed create is not retried automatically.
 - `./tools/check`, `./tools/build-bonsai-tui` and `./tools/tui --self-check` passed.
   Permanent self-checks cover empty-book roundtrip/admission, first-Locus admission,
   Measure/scale refusal, missing-path prefill, unreadable-source blank destination,
-  review without writes, Escape cancellation, tiny-review refusal, existing-target
-  refusal/byte preservation, and exclusive creation/cold reopen.
+  review without writes, review Escape/Edit returning to retained inputs, editing Escape
+  cancellation, tiny-review refusal, existing-target refusal/byte preservation, and
+  exclusive creation/cold reopen.
 - At 80×24 with a fresh synthetic scratch path, entered `jpy`, scale 2. Review
   showed the exact destination and explicit absence of records/support; the file did
   not exist before confirmation. At 20×5, Enter did not create the file and displayed
@@ -3271,6 +3272,58 @@ An uncertain/failed create is not retried automatically.
 No LOAM source/binary comparison or live data was used. This is local first-run
 behavior evidence, not LOAM parity acceptance, manual IME acceptance, P7 durability,
 or operational-cutover approval.
+
+### Paired first-run review cancellation (2026-10-17)
+
+At 80×24 on a private tmux socket, the existing LOAM binary
+(`0ed043cf04349d2a66afe84e2a12837557df8d873450dc487afa88cf354fca97`)
+opened a missing synthetic root under ignored `scratch/first-run-parity-KMSzp4/`.
+Enter showed its independent-household confirmation; Escape returned to editing
+with the destination intact. Editing Escape then exited; the root was absent.
+LOAM source/binary correspondence was not established.
+
+Before this fix, Bakhlo's first-run review showed `jpy` scale 0 but Escape exited
+directly. After the change, review Escape returned to editing with destination,
+Measure and scale intact; editing Escape exited. The review button now says Edit:
+selecting it returned to editing and Enter reopened the same review without
+writing. The synthetic book and LOAM root were absent after both cancellations.
+`./tools/tui --self-check` (including retained-input and Edit-button regression
+checks) and `./tools/check` passed. This comparison covers the missing-root
+review/cancel path only, not existing-unreadable-root parity, creation durability,
+other dimensions, IME or operational adoption.
+
+### Paired existing-unreadable-root first run (2026-10-17)
+
+At 80×24 on a private tmux socket, LOAM source was
+`a4c5d7b87e17e3ff38a9e2517fa81ddda75e12fc` and its existing binary
+SHA-256 was `0ed043cf04349d2a66afe84e2a12837557df8d873450dc487afa88cf354fca97`
+(source/binary correspondence unverified). Bakhlo HEAD was
+`58f8bdc0db4b94a1bc4eab98e8a82c9292e6cdcc` with the local first-run
+change uncommitted; its built binary SHA-256 was
+`47f36d16fd59b0aceb73f7850f767082c855415fe00ddefacc72dfb2eba7c27d`.
+Only private synthetic inputs under ignored `scratch/first-run-unreadable-f1qv1p/`
+were used: an existing LOAM directory lacking household authority with a
+sentinel file, and a Bakhlo book file containing invalid bytes.
+
+Both first-run editors left the new destination blank, rather than prefill an
+existing unreadable selection. After choosing a *different* unused destination
+(and `jpy`, scale 0 for Bakhlo), both showed a non-writing review. Escape returned
+to editing with the chosen destination intact; a second Escape exited. Neither
+destination was created. The LOAM sentinel SHA-256 remained
+`7e45282f56548180e307ffa642a98e3c3bd604e23727e48bbfccf0719b825173`;
+the invalid Bakhlo source remained
+`d117a2e75ce27b87e2d04daa6c93070e4b71d83501a90cfb2ee4b58cbae74f09`.
+
+A second run chose each existing source *as* destination. LOAM displayed
+review then refused creation and returned to editing with a distinct
+`destination already exists` error; Bakhlo refused before review with
+`That file already exists`. Source hashes remained unchanged, and the LOAM
+directory still contained only the sentinel. The earlier Bakhlo local
+`./tools/tui --self-check` covered exclusive-create refusal; no new code
+or test suite was run for this comparison. This is not a paired successful
+create, malformed-household parity, failure injection, other dimensions,
+IME, durability/P7 or operational acceptance.
+
 ## Paired fixture setup smoke (2026-10-16)
 
 Private synthetic trial under ignored `scratch/paired-ui.IY8lDe/`; no LOAM source
@@ -3390,3 +3443,73 @@ This is bounded search/amount evidence at 80×24, 48×14 and 32×9 only. It does
 not qualify caret coordinates, other geometry, long/CJK input, scope or sort
 interaction, IME, broader shared-input acceptance, visual parity or operational
 acceptance.
+
+### Paired unreadable-source creation and cold reopen (2026-10-17)
+
+At 80×24 with `TERM=xterm-256color`, separate private tmux sockets opened
+synthetic unreadable selections under ignored
+`scratch/first-run-success-20261017.SYSso3/`: LOAM's `loam-bad/` directory
+contained only `keep.txt`, and Bakhlo's `bakhlo-bad.sexp` contained invalid
+bytes. Existing LOAM binary SHA-256 was
+`0ed043cf04349d2a66afe84e2a12837557df8d873450dc487afa88cf354fca97`;
+Bakhlo binary SHA-256 was
+`47f36d16fd59b0aceb73f7850f767082c855415fe00ddefacc72dfb2eba7c27d`.
+LOAM source was `a4c5d7b87e17e3ff38a9e2517fa81ddda75e12fc`
+with a clean worktree; Bakhlo HEAD was
+`58f8bdc0db4b94a1bc4eab98e8a82c9292e6cdcc` with the existing
+uncommitted first-run and documentation changes.
+LOAM source/binary correspondence was not established. No LOAM build or
+production input was used.
+
+Each editor started with a blank destination. An unused `loam-new/` directory
+or `book-new.sexp` file was entered; Bakhlo additionally selected `jpy`,
+scale 0. Enter opened each review without creating the destination. A second
+Enter created the new authority and opened Home in each UI. The Bakhlo file
+was mode 0600. Both exited with `q` and reopened the newly created authority
+in fresh TUI processes, reaching Home without first-run again.
+
+The original sentinel and invalid input retained their before/after SHA-256
+hashes, respectively `2b7847b7b705781d7cf21a05e9c1bb37cbf078aea103bc3edcc6aca52ab65453`
+and `f1234d75178d892a133a410355a5a990cf75d2f33eba25d575943d4df632f3a4`.
+The new LOAM `household.loam` and Bakhlo book retained hashes across cold
+reopen, respectively `348d745c9ea32e2830156ec85fb58f995954086a540b56603e16a192b893dd65`
+and `34d4130478662d8301e6a8660cbe08fd71a2fd8c9f13510f47b5b415ac1134f3`.
+Formats differ; equal bytes are not expected. This covers the successful
+unreadable-source branch and ordinary restart only. No failure injection,
+contents/admission comparison, other dimensions, IME, P7 or operational
+acceptance was tested.
+
+### Paired narrow first-run and hidden-destination gate (2026-10-17)
+
+Separate synthetic missing paths under ignored
+`scratch/first-run-narrow-20261017.ZSu64j/`, `TERM=xterm-256color`,
+existing LOAM binary SHA-256 `0ed043cf04349d2a66afe84e2a12837557df8d873450dc487afa88cf354fca97`.
+LOAM source was `a4c5d7b87e17e3ff38a9e2517fa81ddda75e12fc`
+(clean worktree); Bakhlo HEAD was
+`58f8bdc0db4b94a1bc4eab98e8a82c9292e6cdcc` with local changes.
+At 32×9, LOAM entered its truncated review with Enter; Escape returned to
+editing, then Escape exited. Bakhlo displayed `Resize or Esc.` and Enter did
+not advance. Escape exited. Neither destination was created; no LOAM
+confirmation at 32×9 was attempted.
+
+At 48×14, Bakhlo's review displayed `… more` instead of the destination but
+the *prior binary* (`47f36d16fd59b0aceb73f7850f767082c855415fe00ddefacc72dfb2eba7c27d`)
+accepted Enter and created `book48.sexp`. This contradicted its full-review
+gate. `First_run.ready_to_create` counted the two border rows but omitted the
+two additional rows reserved by `First_run.screen` for its form. It now
+requires every wrapped review row to fit inside that actual viewport.
+The permanent native check refuses a long destination at 48×14 and permits it
+at 80×24; `./tools/tui --self-check` and `./tools/check` passed.
+
+The rebuilt Bakhlo binary SHA-256
+`753d0b89e1d3781a43d64fcbd6357dde89d917fb580760dd34f9bba3ead2abf0`
+showed `… more` at 48×14 for `book48-fixed.sexp`. Enter displayed the
+resize refusal and left that destination absent. After resizing to 80×24,
+the full destination and meaning were visible; Enter created the book.
+Separately LOAM created `loam48/` from its 48×14 review (the displayed path
+was truncated). Both then exited and cold-reopened at 48×14 into Home; the
+new authority hashes before/after cold reopen were respectively
+`348d745c9ea32e2830156ec85fb58f995954086a540b56603e16a192b893dd65`
+and `34d4130478662d8301e6a8660cbe08fd71a2fd8c9f13510f47b5b415ac1134f3`.
+This is narrow synthetic comparison, not LOAM source/binary equivalence,
+manual/IME acceptance, permission failure, power-loss/P7 or cutover approval.

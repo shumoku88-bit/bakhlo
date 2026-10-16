@@ -368,10 +368,12 @@ not an adopted schema:
 
 ## Safe data interchange
 
-Approved future design direction, DEFERRED behind the ordinary-use loop; NOT implemented
-export/import or proven hledger compatibility.
-S-expressions remain canonical evidence; adapters remain outer and format-specific. Share exact
-arithmetic, admission and publication mechanisms, not an invented universal import ontology.
+Earlier approved interchange design is not a current hledger export commitment:
+the user subsequently excluded hledger export. Its profile and checks below are
+historical reference, not implementation instructions without a new request.
+Fava is also excluded. Other external output and the staged import design below
+are not excluded by this decision. S-expressions remain canonical evidence;
+adapters stay outer and format-specific, without a universal import ontology.
 
 ### hledger journal export profile
 

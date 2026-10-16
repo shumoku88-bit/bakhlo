@@ -34,7 +34,8 @@ mkdir scratch/my-daily-trial
 対話的な`--book FILE`で選択台帳がmissing／unreadableなら、別の未使用fileへの明示的な初期化を選べる。
 missing pathは初期destination、existing sourceはblank destination。sourceを置換せず、出力先・最初の
 Measure／scaleをreviewして2回目のEnterでだけ作成する。小さい端末ではreview確定を拒否し、resize後に
-再確認する。Escapeは非保存で終了。非TTY、`--check`、Recoveryその他のload callerは引き続きfail-closed。
+再確認する。reviewのEscape／Editは入力へ戻り、入力のEscapeのみ非保存で終了する。
+非TTY、`--check`、Recoveryその他のload callerは引き続きfail-closed。
 空台帳への自動fallbackはしない。
 ABIが異なるため、現在のCore・台帳・UIソースを`_build/daily-bonsai`で再ビルドする。
 生成先は追跡中のモジュールだけへ更新し、削除済み旧UIソースを残さない。

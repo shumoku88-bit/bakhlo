@@ -9,6 +9,7 @@ LOAMの**予算以外の全ユーザー向け機能・見た目・操作感・�
 
 - 対象：Home、Calendar、Record、Actual、Scheduled、Balances、Daily Pace／Trend、Attention、非予算Reports、設定・外貨・精算・出力を含む、LOAMの予算以外のユーザー向け機能。以下のUI IDは索引であって対象の上限ではない。未掲載の操作も棚卸しして追記する。
 - 今は実装しない：予算配分・振替・消化・用途routing・Budget Window。必要になった時点で別途追加し、先行実装・予算用の拡張frameworkは作らない。Daily Pace・予定・非予算の残高／収支は除外しない。
+- ユーザー指定の除外：Favaとhledgerへの出力。UI-02に残るFava ProjectionはLOAM側の棚卸し事実であり、実装・受入の対象ではない。他形式・Print／診断は別途判定する。
 - 盆栽の成長等を以前の対象外指定だけで除外しない。LOAMの現物でユーザー向け挙動の有無を確認する。日本語UIの採用は未決定で、台帳内の日本語表示・入力は検証対象。
 - 旧ソース棚卸し基準：Bakhlo `b21b30c`＋共通panel変更、LOAM `db631763`。この時点の記録は下記の現行比較 checkpoint で上書きせず、歴史的根拠として保持する。
 - **現行ソース棚卸し checkpoint（2026-10-16）**：Bakhlo `6b676c5`、LOAM `bb208173`。LOAMは `db631763..bb208173` の `Loam/Tui` と `docs/TUI.md`／`docs/TUI_NON_BUDGET_WORKLIST.md` の差分を読み取り専用で確認（TUI 60ファイル変更）。現行契約から確認できた差分をUI-01〜33とUI-34へ対応づけた。さらにUI-34の未存在rootだけを使った80×24のpaired startup checkを実施し、既存binaryのhashと結果を[検証記録](VERIFICATION.md#first-run-comparison-2026-10-16)へ記録。これは初期化画面の限定比較であり、同じ意味のfinancial fixture・実データ対照・未記載挙動の網羅ではない。LOAM sourceとbinaryの一致も主張しない。
@@ -97,16 +98,32 @@ LOAMの内部構造・保存形式・研究基盤の移植は目的ではない�
 | **UI-22** | Scheduled継続／補充 | 試用：支払い完了後の独立Prompt（後日同一正Locus予定のKeep／Review／Add、またはDone／Defer／Add next）。期日は推測せず空日付で作成エディタを開く。DeferはAttention（Due_undetermined）へ保存 | **O/V/Q** LOAM対照・実機受入。Series監視cadenceや期間一括補充（UI-21）は別。周期やシリーズ同一性を推測しない | T：完了後Prompt、後日正Locus候補選定、Review末尾・寸法、Add空日付／独立作成・EUR量保持、Defer非同期Attention保存、stale／不確定ガード。8寸法×3テーマ。合成PTY：完了後Prompt、Keep非作成、Add次予定作成・Cancel保持、冷起動。[証拠](VERIFICATION.md#scheduled-continuation-awareness) |
 | **UI-23** | Scheduled coverage設定 | 未接続 | **F/O/Q** Expected paceをreplaceable観測設定として保持・接続 | 予定authority／NotDueを捏造しない |
 | **UI-24** | Balances Current | 試用：Home `b`で`Balances / Current`へ直接入る（`balance-view.tsv`順・中立座標）。PageUp/Down／Home/End、Detail展開・復帰、`v`でAccounting、`p`で画面内Print、`o`でObserve | **O/F/V/Q** LOAM setupでの表示対象編集（既知量でない座標を含む）、初期一覧と設定のreview／save／cancel、Accounting・Print／外部出力の対照。role設定永続化の安全境界は別 | LOAMはHousehold setupからBalances visible accountsを選び`balance-view.tsv`へ保存。未知量は`?`、空選択可、Daily Pace poolやroleを変更しない。Bakhloは現状configを読む側で、編集UI・LOAM対照は未確認。[既存証拠](VERIFICATION.md#balances-current-view) |
-| **UI-25** | 非予算Reports | 局部接続：Commands→AnalysisからIncome & Expense、Transactions Flow、Stock–Flow。Stock–Flowは明示された`balance-view.tsv`座標のみ・単一Measure・ゼロ起点履歴＋独立支持を要求 | **F/O/V/Q** 現行LOAMの残りの非予算Report（Trend/Locus comparison、Balances/Accounting、Liquidity、Multicurrency Spend、Reports/Balances、Fava Projection等）、比較・期間・操作・表示・安全性の差を個別照合。予算Reportは延期 | LOAMは11項目のReports palette。Bakhloで入口がある上記3件以外は未接続または未確認。Stock–Flowの旧smoke正確性証拠は撤回済み。現行検証成功・財務正確性認定なし |
+| **UI-25** | 非予算Reports | 局部接続：Commands→AnalysisからIncome & Expense、Transactions Flow、Stock–Flow。Stock–Flowは明示された`balance-view.tsv`座標のみ・単一Measure・ゼロ起点履歴＋独立支持を要求 | **F/O/V/Q** 現行LOAMの残りの対象内Report（Trend/Locus comparison、Balances/Accounting、Liquidity、Multicurrency Spend、Reports/Balances等）、比較・期間・操作・表示・安全性の差を個別照合。予算Reportは延期、Fava Projectionはユーザー指定で対象外 | LOAMは11項目のReports palette。Bakhloで入口がある上記3件以外の対象内Reportは未接続または未確認。Stock–Flowの旧smoke正確性証拠は撤回済み。現行検証成功・財務正確性認定なし |
 | **UI-26** | Attention | 試用：LOAM準拠の期限管理・タスク一覧。Home期限バッジ（`[i] attention (! N overdue)` / `(today)` / `(N)`）、Due列・Matter二列整列、超過シグナル（`! YYYY-MM-DD`）、Add（`n` / 3状態: 日付指定・未定・期限なし）、Resolve（`r` / 完了）、Drop（`x` / 破棄）、右ペイン詳細・緊急度判定、`Tab`スクロール切替 | **V/Q** 実機受入・LOAM対照 | T：strict load、Unavailable、stale save／失敗draft保持、超過期限判定、Homeバッジ連動。合成PTY：Homeバッジ表示、n追加、超過signal表示、Tab詳細確認、r完了・x破棄、Home復帰・バッジ消去。[証拠](VERIFICATION.md#attention-administration) |
 | **UI-27** | Settlements一覧 | 局部：commitmentの累計settled／extinguished／outstanding sidecar | **F/O** LOAMのActual／Effect配分・通貨・group／参照の保持と照会。**V/O/Q** 現行限定一覧の数量・page／端・対照 | T：不正／重複／参照、巨大数量、stale／cold。完全なSettlementではない |
 | **UI-28** | Settlement action | 局部：累計Settle／Reduce／Retractの試用操作 | **F/O/Q** 実取引対応・独立証拠・訂正／撤回・Previewの全体差 | sidecar actionはActualを記帳しない。払込の代用にしない |
 | **UI-29** | Exchange | 局部：両通貨・数量入力modal→既存publisher | **O/Q** 独立Preview・入力候補・狭小全文確認・失敗時の復帰。**V** From／To整列 | T：exact両数量、Exchangeキー、cold readback。LOAM最新geometryの実物比較は未 |
 | **UI-30** | Manage Loci／roles／display names | 局部：admit、明示role設定、一覧・detail | **F/O** Locus label／help description／display name編集、全項目の選択・review／cancel／save。**Q** invalid／stale拒否と再読込。role load/save safetyは独立 | 現行LOAMは安定IDを変えないdisplay name editorを提供。Balances visible accountsとDaily Pace pool／cycle datesはUI-24／33で扱う |
 | **UI-31** | Observe quantities | 局部：一座標を入力、他座標の支持は保全 | **F/O/Q** LOAMの同時観測した全画像入力との意味・複数座標・Preview差。**V** 現行入力 | T：quantity／coordinate・cold。LOAMと同じ観測画像更新とは認定しない |
-| **UI-32** | Print／export／外部表示 | 局部：Balancesの画面内Print previewのみ | **F/O/Q** 同意付き通常端末出力、外部format、Fava Projection、Reports/Balances Print／再開。**V** 現行preview | codec読取をexport対応と数えない。LOAM Reports/Balances／Favaは画面内previewを超える別経路。O03〜O05 |
+| **UI-32** | Print／export／外部表示 | 局部：Balancesの画面内Print previewのみ | **F/O/Q** 同意付き通常端末出力、対象内の外部format、Reports/Balances Print／再開。**V** 現行preview。Fava・hledger出力はユーザー指定で対象外 | codec読取をexport対応と数えない。LOAM Reports/Balances Printは画面内previewを超える別経路。外部format全般の除外は推定しない。O03〜O05 |
 | **UI-33** | Daily Pace／Trend／設定 | 局部：現在量・明示Pool／一意period・What-if・Pool編集・Trend（10d/30d/Month/Cycle/Previous Cycle） | **F/O/V/Q** LOAMのtrend回答・Period操作の対照。Household setupからのPool／cycle dates editor、preset保全・review／cancel／save・invalid/stale拒否を対照 | LOAMは既存設定の専用picker/formを持ち、poolとcycle datesを別々に編集。BakhloにはPool編集はあるがLOAM setup遷移／cycle editorは未接続・未照合。Trendは実装済みで、未実装扱いしない |
 | **UI-34** | First-run／Unreadable household | 局部：interactive `--book FILE`のmissing／unreadable first-run、空v3 book＋明示Measure／scale、既存Manage Lociから初Locus admission | **F/O/V/Q** LOAMのdirectory rootとBakhlo単一fileの差、LOAMの未存在root起動・初回設定全体・実機操作は未受入。Permission／失敗境界と運用保証も別途確認 | 80×24 PTYでreview→tiny拒否→resize→exclusive作成→Home／cold `--check`。unreadable sourceはblank先・Escape非保存。fresh-rootのpaired RecordではBakhlo first-run＋Locus admission・保存／coldを実行（LOAM側rootは`loam init`）。self-checkで既存target/source bytes保全・非TTY拒否。詳細：[first-run証拠](VERIFICATION.md#first-run-empty-book-creation)、[paired証拠](VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)、[契約](HANDOFF.md) |
+
+UI-34限定更新（2026-10-17）：合成missing-rootの80×24対照で、両UIのreview Escが
+入力値を保持して戻り、入力Escで非保存終了することを確認。Bakhloの即終了差を修正し、
+BakhloのEditボタンと再reviewも非保存で確認（[証拠](VERIFICATION.md#paired-first-run-review-cancellation-2026-10-17)）。
+別の既存unreadable合成rootの80×24対照では、両UIが新規先を空にし、別の未使用先のreview／
+Esc復帰／取消を非保存で完了。元rootを新規先にするとLOAMはreview後、Bakhloはreview前に
+既存先を拒否し、双方元bytes不変（[証拠](VERIFICATION.md#paired-existing-unreadable-root-first-run-2026-10-17)）。
+別の合成unreadable sourceから、80×24で新規destinationのreview非保存→明示確定→Home→
+cold reopenを両UIで確認。元入力・新規authorityのhashは再起動後も不変
+（[証拠](VERIFICATION.md#paired-unreadable-source-creation-and-cold-reopen-2026-10-17)）。
+32×9ではLOAMのreview→Esc→入力Esc、BakhloのResize／Escを非保存で比較。48×14では
+Bakhloが保存先を隠したまま作成できる反例を修正し、修正版は拒否→80×24で全文確認後に
+作成・48×14でcold reopen。LOAMは48×14の省略されたreviewから作成・cold reopen。
+故障・IME・初回設定全体の受入は未了
+（[証拠](VERIFICATION.md#paired-narrow-first-run-and-hidden-destination-gate-2026-10-17)）。
+
 ### ソース対照の入口
 
 LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む。画面名が同じことだけで意味の一致を推定しない。

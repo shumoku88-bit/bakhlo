@@ -7,6 +7,7 @@ Bakhloは未運用で、旧UIの後方互換性は不要。LOAMの全ユーザ�
 **予算配分・振替・消化・用途routing・Budget Windowだけは、実際に必要になるまで延期する。**
 Daily Pace、支払い予定、隣接する非予算機能、盆栽の表示・成長は対象。
 以前の現在利用だけ・盆栽成長除外は適用しない。予算用の先回りしたAPI・形式・hookは作らない。
+Favaとhledgerへの出力はユーザー指定で互換対象外。Print／診断や他の外部形式の扱いは別途照合する。
 
 英語先行。Bakhlo独自の日本語化は未定であり、LOAMのlocale切替等の互換に必要な実動作とは分けて照合する。
 Bonsaiを先行し、Nottyを後から追加する選択肢も残す。LOAMのsourceはコピーせず、既存OCaml／
@@ -63,7 +64,24 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
    jpy scale 2をreview→20×5 Enter拒否→80×24で作成→Home起動、`--check` cold reopenを確認。
    別PTYでunreadable sourceはblank destination、Escapeで非保存・source hash維持。非TTY missing
    `--book`は既存拒否を維持。既存destination拒否・bytes保全はself-checkで確認。
-   fresh-rootの単一Record対照を実施済み。LOAM初期化Escape対照、人間のIME受入、P7／運用認定は未了。[UI-34証拠](../docs/VERIFICATION.md#first-run-empty-book-creation)／[paired証拠](../docs/VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)。
+   fresh-rootの単一Record対照を実施済み。LOAM初期化の広い受入、人間のIME受入、P7／運用認定は未了。[UI-34証拠](../docs/VERIFICATION.md#first-run-empty-book-creation)／[paired証拠](../docs/VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)。
+   2026-10-17: 初期化reviewのEscがBakhloだけ即終了していた差を修正。LOAMと同じく入力画面へ戻り、
+   path／Measure／scaleを保持する。Editボタンも入力へ戻り、入力画面のEscのみ取消。合成missing-rootを
+   80×24で両UI実行し、取消後のroot非存在とBakhlo再review非保存を確認。未読rootの作成／失敗経路、
+   IME・他寸法の対照受入は未了（[証拠](../docs/VERIFICATION.md#paired-first-run-review-cancellation-2026-10-17)）。
+   既存の読めない合成rootでは、両UIとも新規destinationを空にして開始し、別の未使用先のreview→Esc→
+   入力復帰→Esc終了で元bytes不変・新規先なし。元rootをdestinationにするとLOAMはreview後、
+   Bakhloはreview前に既存先を拒否し、双方元bytes不変。80×24限定、成功createや故障・IMEは未確認
+   （[証拠](../docs/VERIFICATION.md#paired-existing-unreadable-root-first-run-2026-10-17)）。
+   別の既存unreadable合成rootから両UIとも未使用先のreview非保存→明示create→Home→cold reopenに成功。
+   元入力・新規authorityのhash不変、Bakhlo新規fileは0600。80×24限定で、故障・他寸法・IME・
+   初回設定全体は未受入（[証拠](../docs/VERIFICATION.md#paired-unreadable-source-creation-and-cold-reopen-2026-10-17)）。
+   32×9で両UIの初期化を取消し、destination非存在。48×14ではBakhloのreviewが保存先を`… more`に
+   隠したまま作成できた反例を発見し、描画viewport全行の可視性を確定gateへ反映。修正版で48×14
+   非保存拒否→80×24全文確認後に作成→48×14 cold reopen、LOAMは48×14 reviewから作成→cold reopen。
+   LOAMのreviewは保存先を省略表示するため、その安全性を一致条件として採用しない。
+   `./tools/tui --self-check`／`./tools/check`成功。32×9でのLOAM確定、故障／IME等は未確認
+   （[証拠](../docs/VERIFICATION.md#paired-narrow-first-run-and-hidden-destination-gate-2026-10-17)）。
 2. [ ] **共有機構を利用元横断で移行・受入する。** 責務・API・全利用元・受入条件は
    [TUI共有部品の責務設計と移行順序](../docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md) に従う。設計確定のみで実装済みにはしない。
    - 共有input／再帰Input metadataの純粋機構は実装・境界検査・native幅の直接smoke済み。既存Daily_form・tail・native widthを再利用。
@@ -99,12 +117,13 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
    SettlementのActual／Effect配分・部分精算・相殺・非支払減少・独立した通貨／証拠・訂正、
    Exchangeの両数量・対応・専用Previewと復帰を照合する。累計sidecarだけを完全な精算としない。
    不正読込・参照欠損・保存失敗・競合と再起動を含め、複数ファイル原子性を勝手に保証しない。
-9. [ ] **残るReports／setup／exportとその他の棚卸し不足を閉じる。** Income & Expense、
+9. [ ] **残るReports／setup／対象内の出力とその他の棚卸し不足を閉じる。** Income & Expense、
    Stock–Flow、Transactions Flow、Multicurrency Spend、Liquidity等の回答・期間・比較・寄与明細、
    Household setup、表示名／説明・一覧・通貨／scale・役割・期間設定、Help／Theme／locale、
-   Print／診断・外部形式／Fava等の既存LOAM入口を照合する。盆栽の表示・成長も除外せず調べる。
-   各項目の必要情報、設定／出力の保存先、同意・取消、再起動、失敗時の非破壊性まで確認し、
-   派生出力を正データにしない。棚卸しの残りを再確認し、予算延期以外の無断除外を残さない。
+   Print／診断・対象内の外部形式等の既存LOAM入口を照合する。Favaとhledger出力は除外。
+   盆栽の表示・成長も除外せず調べる。各項目の必要情報、設定／出力の保存先、同意・取消、
+   再起動、失敗時の非破壊性まで確認し、派生出力を正データにしない。棚卸しの残りを再確認し、
+   予算延期と明示した二項目以外の無断除外を残さない。
 
 ## 過去の限定チェックポイント（現在の全面受入とは別）
 

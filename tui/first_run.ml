@@ -6,7 +6,7 @@ module F = Daily_file
 
 type details = { destination : string; measure : string; scale : int }
 
-type phase = Editing of Form.t | Reviewing of Form.t * details
+type phase = Editing of Form.t | Reviewing of Form.t * Form.t * details
 
 type state = { phase : phase }
 
@@ -72,7 +72,7 @@ let review_form details =
       "No Loci, Actuals, Scheduled plans, balances or observations will be created.";
       "No history or opening evidence will be invented.";
     ]
-    ~fields:[Form.action_buttons ~confirm:"Create empty book" ~cancel:"Cancel" ()] ()
+    ~fields:[Form.action_buttons ~confirm:"Create empty book" ~cancel:"Edit" ()] ()
 
 let handle state input =
   match state.phase with
@@ -86,35 +86,35 @@ let handle state input =
             | _ ->
                 (match validate form with
                  | Error why -> Continue { phase = Editing (Form.set_notice form why) }
-                 | Ok details -> Continue { phase = Reviewing (review_form details, details) })))
-  | Reviewing (form, details) ->
+                 | Ok details -> Continue { phase = Reviewing (review_form details, form, details) })))
+  | Reviewing (form, editing, details) ->
       (match Form.handle_input form input with
-       | Form.Cancel -> Cancel
-       | Form.Updated form -> Continue { phase = Reviewing (form, details) }
+       | Form.Cancel -> Continue { phase = Editing editing }
+       | Form.Updated form -> Continue { phase = Reviewing (form, editing, details) }
        | Form.Submit form ->
            (match Form.get_selected_button form with
-            | Some button when button.Form.is_cancel -> Cancel
+            | Some button when button.Form.is_cancel -> Continue { phase = Editing editing }
             | _ -> Create details))
 
 let ready_to_create ~dimensions:(width, height) ~width_of state =
   match state.phase with
   | Editing _ -> false
-  | Reviewing (form, _) ->
+  | Reviewing (form, _, _) ->
       if width < 48 || height < 12 then false
       else
         let body = Form.render_rows ~width:(width - 4) ~height:1000 ~width_of form in
-        List.length body + 2 <= height
+        List.length body + 4 <= height
 
 let refuse_confirmation state =
   match state.phase with
   | Editing _ -> state
-  | Reviewing (form, details) ->
+  | Reviewing (form, editing, details) ->
       {
         phase =
           Reviewing
             ( Form.set_notice form
                 "Enlarge the terminal to review the complete destination and confirm.",
-              details );
+              editing, details );
       }
 
 let roundtrip_empty scale =
@@ -172,18 +172,35 @@ let check ~width_of () =
       in
       let reviewed = get (handle { phase = Editing form } (`Key (`Enter, []))) in
       (match reviewed.phase with Reviewing _ -> () | _ -> failwith "first-run-check: not-reviewing");
-      let review_form = match reviewed.phase with Reviewing (form, _) -> form | _ -> assert false in
+      let review_form = match reviewed.phase with Reviewing (form, _, _) -> form | _ -> assert false in
       require
-        (List.length (Form.render_rows ~width:76 ~height:20 ~width_of review_form) + 2 <= 24)
+        (List.length (Form.render_rows ~width:76 ~height:20 ~width_of review_form) + 4 <= 24)
         "review-fits-standard-terminal";
       require (Sys.file_exists source && In_channel.with_open_bin source In_channel.input_all = source_bytes)
         "source-preserved";
       require (not (Sys.file_exists (Filename.concat root "new.sexp"))) "review-did-not-write";
       require (not (ready_to_create ~dimensions:(32, 9) ~width_of reviewed)) "small-review-refused";
-      require (ready_to_create ~dimensions:(48, 14) ~width_of reviewed) "standard-review-confirmable";
+      require (ready_to_create ~dimensions:(80, 24) ~width_of reviewed) "standard-review-confirmable";
+      let long_destination = Filename.concat root (String.make 100 'x') in
+      let long_form = Form.set_text form "destination" long_destination in
+      let long_reviewed = get (handle { phase = Editing long_form } (`Key (`Enter, []))) in
       require
-        (match handle (refuse_confirmation reviewed) (`Key (`Escape, [])) with Cancel -> true | _ -> false)
-        "review-escape-cancels";
+        (not (ready_to_create ~dimensions:(48, 14) ~width_of long_reviewed)
+         && ready_to_create ~dimensions:(80, 24) ~width_of long_reviewed)
+        "long-destination-must-fit-inside-frame";
+      (match handle (refuse_confirmation reviewed) (`Key (`Escape, [])) with
+       | Continue { phase = Editing form } ->
+           require (Form.get_text form "destination" = Some (Filename.concat root "new.sexp")
+                    && Form.get_text form "measure" = Some "jpy"
+                    && Form.get_text form "scale" = Some "0") "review-escape-retains-input";
+           require (not (Sys.file_exists (Filename.concat root "new.sexp"))) "review-escape-no-write";
+           require (match handle { phase = Editing form } (`Key (`Escape, [])) with Cancel -> true | _ -> false)
+             "editing-escape-cancels"
+       | _ -> failwith "first-run-check: review-escape-did-not-edit");
+      let selected_edit = get (handle reviewed (`Key (`Arrow `Right, []))) in
+      (match handle selected_edit (`Key (`Enter, [])) with
+       | Continue { phase = Editing _ } -> ()
+       | _ -> failwith "first-run-check: edit-button-did-not-edit");
       require
         (match handle reviewed (`Key (`Enter, [])) with
          | Create { destination; measure = "jpy"; scale = 0 } ->
@@ -229,7 +246,7 @@ let screen ~dimensions:(width, height) ~width_of state =
      ]
      |> List.filteri (fun i _ -> i < height), None)
   else
-    let form = match state.phase with Editing form | Reviewing (form, _) -> form in
+    let form = match state.phase with Editing form | Reviewing (form, _, _) -> form in
     let inner_width = width - 4 and inner_height = height - 4 in
     let body = Form.render_rows ~width:inner_width ~height:inner_height ~width_of form in
     let rows =
