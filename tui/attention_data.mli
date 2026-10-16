@@ -39,6 +39,15 @@ val close_item : t -> id:string -> known_on:string -> kind:closure_kind -> (t, s
 
 val due_label : due -> string
 val closure_kind_label : closure_kind -> string
+type summary = {
+  open_count : int;
+  overdue_count : int;
+  due_today_count : int;
+}
+
+val summarize : today:string -> t -> summary
+val badge : ?width:int -> summary -> string
+val due_display : today:string -> due -> string
 
 val escape_text : string -> string
 val unescape_text : string -> (string, string) result

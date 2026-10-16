@@ -1819,9 +1819,9 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII 'g', []) when (match state.workspace.route with W.Selected_day _ -> true | _ -> false) ->
             Some (open_route state W.Loci)
         | Some ((`Escape | `ASCII 'q'), []) ->
-            if state.workspace.route = W.Attention || state.workspace.route = W.Loci || state.workspace.route = W.Settlements then
+            if state.workspace.route = W.Loci || state.workspace.route = W.Settlements then
               Some (open_route state W.Home)
-            else if state.workspace.route = W.Balances || state.workspace.route = W.Daily_pace || state.workspace.route = W.Income_expense || state.workspace.route = W.Transactions_flow || state.workspace.route = W.Stock_flow then
+            else if state.workspace.route = W.Attention || state.workspace.route = W.Balances || state.workspace.route = W.Daily_pace || state.workspace.route = W.Income_expense || state.workspace.route = W.Transactions_flow || state.workspace.route = W.Stock_flow then
               if state.workspace.pane = W.Detail then
                 Some { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
               else Some (open_route state W.Home)
@@ -1948,6 +1948,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               ~summary:lines ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ] () in
             Some { state with overlay = Modal_form form }
         | Some ((`Enter | `ASCII 'i' | `Tab | `ASCII 'w'), []) when state.workspace.route = W.Stock_flow ->
+            Some { state with workspace = { state.workspace with pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) }; scroll = 0 }
+        | Some ((`Enter | `ASCII 'i' | `Tab | `ASCII 'w'), []) when state.workspace.route = W.Attention ->
             Some { state with workspace = { state.workspace with pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) }; scroll = 0 }
         | Some (`ASCII 'b', []) when (match state.workspace.route with
             | W.Scheduled | W.Selected_day _ -> true | _ -> false) ->
@@ -2159,7 +2161,10 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                     };
                 }
             else if state.workspace.route = W.Attention then
-              Some (move_attention state delta)
+              if state.workspace.pane = W.Detail then
+                Some { state with scroll = max 0 (state.scroll + delta) }
+              else
+                Some (move_attention state delta)
             else if state.workspace.route = W.Loci then
               Some (move_locus state delta)
             else if state.workspace.route = W.Settlements then
@@ -2206,6 +2211,11 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 Some { state with transactions_flow = { state.transactions_flow with selected_row = max 0 (state.transactions_flow.selected_row + step) }; scroll = 0 }
             else if state.workspace.route = W.Stock_flow then
               Some { state with scroll = max 0 (state.scroll + step) }
+            else if state.workspace.route = W.Attention then
+              if state.workspace.pane = W.Detail then
+                Some { state with scroll = max 0 (state.scroll + step) }
+              else
+                Some (move_attention state step)
             else if
               state.workspace.pane = W.Calendar && state.workspace.route <> W.Home
               && state.workspace.route <> W.Daily_pace
@@ -2236,6 +2246,11 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 Some { state with transactions_flow = { state.transactions_flow with selected_row = 0 }; scroll = 0 }
             else if state.workspace.route = W.Stock_flow then
               Some { state with scroll = 0 }
+            else if state.workspace.route = W.Attention then
+              if state.workspace.pane = W.Detail then
+                Some { state with scroll = 0 }
+              else
+                Some (move_attention state (-max_int))
             else
               Some
                 {
@@ -2262,6 +2277,11 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 Some { state with transactions_flow = { state.transactions_flow with selected_row = max_int / 4 }; scroll = 0 }
             else if state.workspace.route = W.Stock_flow then
               Some { state with scroll = max_int / 4 }
+            else if state.workspace.route = W.Attention then
+              if state.workspace.pane = W.Detail then
+                Some { state with scroll = max_int / 4 }
+              else
+                Some (move_attention state max_int)
             else
               Some
                 {
@@ -2829,51 +2849,80 @@ let workspace_rows ~width_of ~width ~height state =
   else if workspace.route = W.Attention then
     let items = open_attentions state in
     let left_title = match state.attention with
-      | Ok _ -> Printf.sprintf "Attention (%d open)" (List.length items)
+      | Ok t ->
+          let s = Att.summarize ~today:(F.today ()) t in
+          if s.overdue_count > 0 then
+            Printf.sprintf "Attention (%d open • ! %d overdue)" (List.length items) s.overdue_count
+          else
+            Printf.sprintf "Attention (%d open)" (List.length items)
       | Error _ -> "Attention / Unavailable" in
-    let right_title = "Attention Detail" in
-    let item_line (item : Att.item) =
-      let due_str =
-        match item.due with
-        | Att.Due_on d -> d
-        | Att.No_due_date -> "-"
-        | Att.Due_undetermined -> "?"
-      in
-      Printf.sprintf "%-4s  %-10s  %s" item.id due_str item.context
-    in
+    let right_title = "Selected matter" in
+    let left_width, right_width = browser_pane_widths width in
+    let pad_w = max 0 (left_width - 4) in
+    let col_due = 14 in
+    let col_ctx = max 16 (pad_w - col_due - 4) in
+    let th = "  " ^ O.pad ~width_of col_due "Due" ^ "  " ^ O.pad ~width_of col_ctx "Matter / Context" in
+    let rule = O.rule ~width_of pad_w in
     let left_rows = match state.attention with
-      | Error why -> O.wrap_text ~width_of (max 1 (width / 2 - 6))
+      | Error why -> O.wrap_text ~width_of (max 1 (left_width - 6))
           ("Attention unavailable: " ^ why ^ ". Writes refused; Ctrl-R reloads.")
-      | Ok _ -> if items = [] then [ tr "No open attention items." ] else List.map item_line items
+      | Ok _ ->
+          if items = [] then [ tr "No open attention items." ]
+          else
+            [ th; rule ]
+            @ List.mapi
+                (fun idx (item : Att.item) ->
+                  let is_sel = idx = workspace.attention.selected in
+                  let marker = if is_sel then "> " else "  " in
+                  let due_text = Att.due_display ~today:(F.today ()) item.due in
+                  let line = marker ^ O.pad ~width_of col_due due_text ^ "  " ^ item.context in
+                  line)
+                items
     in
     let detail =
       match state.attention, selected_attention state with
       | Error why, _ -> [ "Attention unavailable (not empty)."; why; "Writes refused; Ctrl-R reloads." ]
       | Ok _, None -> [ tr "No selected attention item."; ""; tr "Press 'n' to add a household matter." ]
       | Ok _, Some item ->
+          let urgency_str =
+            match item.due with
+            | Att.Due_on d ->
+                if d < F.today () then Printf.sprintf "! OVERDUE (due %s, today %s)" d (F.today ())
+                else if d = F.today () then "DUE TODAY"
+                else Printf.sprintf "Due on %s" d
+            | Att.No_due_date -> "No due date specified"
+            | Att.Due_undetermined -> "Due date undetermined / timing unknown"
+          in
           [
-            "Item ID:    " ^ item.id;
-            "Status:     Open";
-            "Due:        " ^ Att.due_label item.due;
-            "";
-            "Context / Description:";
+            "Matter / Description:";
             "  " ^ item.context;
+            "";
+            "Urgency / Due:";
+            "  " ^ urgency_str;
+            "";
+            "Item ID:    " ^ item.id;
+            "Lifecycle:  Open (unresolved)";
             "";
             "Actions:";
             "  n : Add new attention item";
-            "  r : Resolve this item";
-            "  x : Drop this item";
+            "  r : Resolve this item (record completed)";
+            "  x : Drop this item (abandon/cancel)";
+            "";
+            "Navigation:";
+            "  Tab / i : Toggle detail scroll";
+            "  j / k   : Select next/previous matter";
+            "  q / Esc : Return to Home";
           ]
     in
-    let right_width = if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1 else width in
     let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
     let is_detail = workspace.pane = W.Detail in
     split_pane
       ~left_focused:(not is_detail) ~left_title ~left_scroll:0
-      ~left_selected:(if items = [] then None else Some workspace.attention.selected)
+      ~left_selected:(if items = [] then None else Some (workspace.attention.selected + 2))
       ~left_rows
       ~right_focused:is_detail ~right_title
-      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
+      ~right_scroll:(if is_detail then state.scroll else 0)
+      ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Loci then
     let loci = admitted_loci state in
     let roles = accounting_roles state in
@@ -3084,8 +3133,13 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   else
   match (state.workspace.W.route, state.workspace.pane) with
   | W.Home, _ ->
+      let attn_badge =
+        match state.attention with
+        | Ok t -> Att.badge (Att.summarize ~today:(F.today ()) t)
+        | Error _ -> ""
+      in
       [
-        " [Enter] calendar   [i] attention";
+        " [Enter] calendar   [i] attention" ^ attn_badge;
         " [Space] commands   [q] quit";
       ]
   | W.Calendar, W.Calendar ->
@@ -3155,10 +3209,15 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
       [ "1-5 period  [ / ] shift  p print  Tab detail  r Record"; "Space Commands  q/Esc Home  Ctrl-r reload" ]
   | W.Stock_flow, W.Detail ->
       [ "j/k scroll  Tab report  p print  q/Esc back to report  r Record"; "Space Commands  Ctrl-r reload" ]
-  | W.Attention, _ ->
+  | W.Attention, W.Calendar ->
       [
         "n new  r resolve  x drop  j/k select  Enter/Tab detail";
         "q/Esc Home  Space Commands  Ctrl-r reload";
+      ]
+  | W.Attention, W.Detail ->
+      [
+        "j/k scroll  Tab list  n new  r resolve  x drop";
+        "q/Esc back to list  Space Commands  Ctrl-r reload";
       ]
   | W.Loci, _ ->
       [

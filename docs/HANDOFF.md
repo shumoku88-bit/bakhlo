@@ -213,6 +213,26 @@ Core/native self-checks and synthetic tmux walks (launch via Commands, Month/Cyc
 balanced reconciliation proof, Print modal, and Home return) passed;
 see [Stock-Flow evidence](VERIFICATION.md#stockflow-report).
 
+Attention Administration (UI-26) is connected through `attention_data.ml/.mli` and `daily_interaction.ml`:
+- Launched via Home `i` or Commands (`Space` -> `Attention`).
+- Home footer dynamic indicator badge:
+  - Overdue items: `[i] attention (! N overdue)`.
+  - Due today: `[i] attention (today)`.
+  - Open items: `[i] attention (N)`.
+  - Empty: clean `[i] attention`.
+- Tabular left pane layout matching LOAM: `Due` and `Matter / Context` columns.
+- Due dates: `! YYYY-MM-DD` for overdue, `today`, `due YYYY-MM-DD`, `no due date`, and `due unknown`.
+- Right pane displays full matter description, urgency analysis, item ID, and lifecycle state.
+- Actions:
+  - `n` (New): modal form with 3 due types (No due date, Due undetermined, Due on date).
+  - `r` (Resolve): modal confirmation, records resolved closure with today's date.
+  - `x` (Drop): modal confirmation, records dropped closure with today's date.
+- Navigation: `j`/`k` move selection, `Tab`/`i` focus detail scroll, `q`/`Esc` return.
+Core/native self-checks and synthetic tmux walks (Home badge display, add overdue item,
+overdue flag in table and detail, resolve, and Home badge removal) passed;
+see [Attention evidence](VERIFICATION.md#attention-administration).
+
+
 
 
 

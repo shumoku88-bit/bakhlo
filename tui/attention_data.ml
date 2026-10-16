@@ -56,6 +56,44 @@ let closure_kind_label = function
   | Resolved -> "Resolved"
   | Dropped -> "Dropped"
 
+type summary = {
+  open_count : int;
+  overdue_count : int;
+  due_today_count : int;
+}
+
+let summarize ~today t =
+  let items = open_items t in
+  List.fold_left
+    (fun acc (item : item) ->
+      let is_overdue, is_today =
+        match item.due with
+        | Due_on d -> (d < today, d = today)
+        | No_due_date | Due_undetermined -> (false, false)
+      in
+      {
+        open_count = acc.open_count + 1;
+        overdue_count = acc.overdue_count + (if is_overdue then 1 else 0);
+        due_today_count = acc.due_today_count + (if is_today then 1 else 0);
+      })
+    { open_count = 0; overdue_count = 0; due_today_count = 0 }
+    items
+
+let badge ?(width = 80) s =
+  if s.open_count = 0 then ""
+  else if s.overdue_count > 0 then
+    if width >= 100 then Printf.sprintf " (! %d overdue)" s.overdue_count
+    else Printf.sprintf " (!%d)" s.overdue_count
+  else if s.due_today_count > 0 then " (today)"
+  else Printf.sprintf " (%d)" s.open_count
+
+let due_display ~today = function
+  | Due_on d ->
+      if d < today then "! " ^ d
+      else if d = today then "today"
+      else "due " ^ d
+  | No_due_date -> "no due date"
+  | Due_undetermined -> "due unknown"
 let escape_text s =
   let b = Buffer.create (String.length s * 2) in
   String.iter

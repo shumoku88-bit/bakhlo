@@ -6,6 +6,46 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Attention administration
+
+Bakhlo `896fb7f` plus local UI work and this slice.
+Read-only source consultation: LOAM `AttentionAdministration.lean` (Mode browse/newContext/newDue/newDate/confirmClose,
+dueWidth and contextWidth layout, overdue indicator `!`, kindLabel resolved/dropped) and
+`Home.lean` (attentionSummary, overdueCount, attentionBadge `(! N overdue)` / `(today)` / `(N)`).
+No LOAM build, source copying, runtime comparison or production input.
+
+`attention_data.ml/.mli` and `daily_interaction.ml` implement Attention administration:
+- Route: `W.Attention`, accessible via Home `i` or Commands -> `Attention`.
+- Dynamic Home footer badge:
+  - Computes `summarize ~today attention`: `open_count`, `overdue_count`, `due_today_count`.
+  - Renders `[i] attention (! N overdue)` if overdue, `(today)` if due today, or `(N)`.
+- Aligned table presentation:
+  - Left pane displays `Due` and `Matter / Context` columns separated by header rule.
+  - Overdue items flagged with `! YYYY-MM-DD`.
+- Right pane detail:
+  - Matter description, Urgency analysis, Item ID, Lifecycle, and shortcuts.
+- Lifecycle operations:
+  - `n` opens Add form supporting 3 due models (No due date, Due undetermined, Due on date).
+  - `r` opens Resolve confirmation modal, records `Resolved` closure.
+  - `x` opens Drop confirmation modal, records `Dropped` closure.
+  - Atomic disk persistence with writer lock and draft preservation.
+- Navigation: `j`/`k` select row, `Tab`/`i` toggle detail focus, `q`/`Esc` return to Home.
+
+Executed native build/`--self-check` and `./tools/check`; passed.
+Checks cover Home indicator badge, modal add with overdue date, overdue flag in list and detail,
+`Tab` focus toggle, `x` drop, `r` resolve, and clean Home return.
+
+Native tmux (`TERM=xterm-256color`, 120×36), synthetic fixture `scratch/bulk-smoke-dyzB0U/book.sexp`:
+- Initial Home screen: `i` opened Attention.
+- `n` added "Renew car insurance" due 2026-10-10 (overdue relative to 2026-10-16).
+- Table displayed `! 2026-10-10  Renew car insurance` under `Attention (1 open • ! 1 overdue)`.
+- Detail pane displayed `Urgency / Due: ! OVERDUE (due 2026-10-10, today 2026-10-16)`.
+- `Escape` returned to Home; footer displayed `[i] attention (!1)`.
+- Re-entered `i`, pressed `r` -> `Enter` to confirm resolve.
+- Open items became 0; `q` returned to Home where footer badge was cleared cleanly.
+
+This qualifies the bounded Attention administration slice (UI-26).
+
 ## Stock–Flow report
 
 Bakhlo `7af15c6` plus local UI work and this slice.
