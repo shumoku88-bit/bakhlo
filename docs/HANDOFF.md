@@ -148,6 +148,19 @@ Core/native self-checks and synthetic tmux walks (opening Current, Page/Home/End
 detail expand/collapse, Print modal, `v` accounting toggle, and Home return) passed;
 see [Balances evidence](VERIFICATION.md#balances-current-view).
 
+Daily Pace Trend is connected through `daily_pace_trend.ml/.mli` and `daily_interaction.ml`:
+- Home `d` opens `Daily Pace / Trend` with timeline graph and retrospective daily samples.
+- Preset keys `1`–`5` switch between `10d`, `30d`, `Month`, `Cycle`, and `Previous Cycle`.
+- Graph style toggle `v` switches between `line` (`*`) and `dots` (`.`).
+- Timeline navigation: `h`/`l`/Arrows move selected day, updating right Detail pane with
+  pace quanta, day-to-day change, remaining days, available amount, pool balance, and deductions.
+- Detail pane expansion (`Tab`/`i`/`Enter`) and `Esc`/`q` back to timeline without exiting to Home.
+- What-If (`w`) and Pool configuration (`c`) remain connected.
+Core/native self-checks and synthetic tmux walks (10d timeline, style toggle, Month preset `3`,
+Detail inspection, and Esc return) passed;
+see [Daily Pace Trend evidence](VERIFICATION.md#daily-pace-trend-analysis).
+
+
 
 
 

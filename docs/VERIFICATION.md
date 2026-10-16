@@ -6,6 +6,40 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Daily Pace Trend analysis
+
+Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus local UI work and this slice.
+Read-only source consultation: LOAM `DailyPaceTrend.lean` (presets 1–5, line/dots graph styles,
+timeline samples, daily pace delta, remaining days, pool balance, and detail disclosure) and
+`DailyPacePeriods.lean` (range resolution, historical reconstruction without separate snapshot).
+No LOAM build, source copying, runtime comparison or production input.
+
+`daily_pace_trend.ml/.mli` and `daily_interaction.ml` implement retrospective daily pace analysis:
+- Presets: `1` (10d), `2` (30d), `3` (Month), `4` (Cycle), `5` (Previous Cycle).
+- Reconstructed daily pace: computes pool balance at each date `D` by subtracting subsequent
+  postings from current truth, and evaluates remaining days to cycle end with exact Euclidean division.
+- Graph rendering: responsive ASCII plot with Y-axis tick values, axis rule, and timeline rows.
+- Style toggle: `v` cycles graph style between `line` and `dots`.
+- Navigation: `h`/`l` day step, `Home`/`End` range bounds.
+- Detail pane: shows day-to-day change, remaining days, available through end, pool balance,
+  scheduled deductions, and source attribution (`config/daily-pace.tsv` and `config/boundary-presets.tsv`).
+
+Executed native build/`--self-check` and `./tools/check`; passed.
+Checks cover preset switching, graph rendering, detail calculation, what-if retention,
+pool configuration, and boundary preset handling.
+
+Native tmux (`TERM=xterm-256color`, 120×36), synthetic fixture `scratch/bulk-smoke-dyzB0U/book.sexp`:
+- Initial Home screen: `d` opened `Daily Pace / Trend • 10d [line]`.
+- Plot rows displayed Y-axis ticks, `│`, and plot line with `^` at selection.
+- `v` toggled graph style to `[dots]`.
+- `3` switched preset to `Daily Pace / Trend • Month [dots]`, displaying `2026-10-01` through `2026-10-16 (Today)`.
+- Right pane showed `Pace Detail & Evidence`, including `Through end:`, `Period progress:`, and source configuration.
+- `Escape` returned to Home cleanly.
+
+This qualifies the bounded Daily Pace Trend analysis slice. It does not establish
+multi-currency spend trend, broader Reports (UI-25), real IME/user acceptance,
+or operational cutover.
+
 ## Scheduled occurrence generation
 
 Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus local UI work and this slice.
