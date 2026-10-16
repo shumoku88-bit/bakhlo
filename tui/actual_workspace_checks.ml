@@ -59,7 +59,7 @@ let add_entry book ~day ~memo ~locus1 ~amt1 ~locus2 ~amt2 =
   get (B.put_entry book ~replace:false entry.entry ~plan:None)
 
 let self_check () =
-  let width_of = String.length in
+  let width_of text = Bonsai_term.View.width (Bonsai_term.View.text text) in
   let book = get (B.of_string fixture) in
   let book = add_entry book ~day:"2026-10-15" ~memo:"Supermarket" ~locus1:"assets:cash" ~amt1:(-1000) ~locus2:"expenses:groceries" ~amt2:1000 in
   let book = add_entry book ~day:"2026-10-14" ~memo:"Apartment rent" ~locus1:"assets:cash" ~amt1:(-50000) ~locus2:"expenses:rent" ~amt2:50000 in
@@ -207,6 +207,17 @@ let self_check () =
   require (List.length lines_wide > 0) "wide-screen-rendered";
   let lines_compact = Act.screen ~book ~dimensions:dim_compact ~width_of ws in
   require (List.length lines_compact > 0) "compact-screen-rendered";
+  let lines_48 = Act.screen ~book ~dimensions:(48, 14) ~width_of ws in
+  let coffee_row =
+    List.find_opt
+      (fun (_, line) -> Base.String.is_substring line ~substring:"Coffee shop")
+      lines_48
+  in
+  require
+    (match coffee_row with
+    | Some (_, line) -> Base.String.is_substring line ~substring:"+500 jpy"
+    | None -> false)
+    "48-column-row-keeps-full-amount";
 
   (* 10. Footer lines *)
   let ft = Act.footer ~dimensions:dim_wide ~width_of ws in

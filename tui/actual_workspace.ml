@@ -625,7 +625,8 @@ let screen ~book ~dimensions ~width_of t =
             0 records))
   in
   let tx_panel (w, h) =
-    let row_width = max 0 (w - 5) in
+    (* Reserve the panel_line border and Panel.frame's two-cell selection prefix. *)
+    let row_width = max 0 (w - 6) in
     let tabular = row_width >= 40 in
     let header_line =
       if tabular then

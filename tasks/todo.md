@@ -52,7 +52,7 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
    正常・空・不明・拒否・訂正・返金・複数通貨・保存失敗を再現できる比較前状態を保全する。
    元データや私用取得内容をfixture・公開記録へ移さない。Home／Commands／各入口から
    LOAMのユーザー向け機能を棚卸しし、以下の列挙にない非予算項目もUI差分台帳へ関連付ける。
-   2026-10-16に現行ソース資料のみの棚卸しを実施し、LOAM `bb208173`／Bakhlo `6b676c5`を基準として影響点をUI-01〜34へ反映した。existing LOAM binary SHA-256 `04f018707d45d483907f6d9dd19efe9fb702b6d22fb55e5192df65accd7c705b`、Bakhlo UI binary SHA-256 `fa3bd48b4493d22fd62aa91f5b2afb0cb3e2b3e3b250e563b32c88800eb63912`を固定し、UI-34のabsent-root挙動を80×24で限定比較した（[差分台帳](../docs/LOAM_UI_GAP_LEDGER.ja.md)、[検証記録](../docs/VERIFICATION.md#first-run-comparison-2026-10-16)）。financial fixture群・LOAM source/binary対応・LOAM Escape cancelは未確認。受入項目全体は未了。
+   2026-10-16: 現行ソース資料からLOAM `bb208173`／Bakhlo `6b676c5`の影響点をUI-01〜34へ反映し、absent-rootを80×24で限定比較した。別の新規合成rootsでfirst-run、wallet／food admission、JPY scale 0のRecord `paired snack`（wallet -37／food +37）、Preview／Publish、Actual表示とcold reopenを両UIで実行（[証拠](../docs/VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)）。これは単一の正常記帳ケースのみ。空／不明／拒否／訂正／返金／複数通貨／保存失敗fixture、LOAM source/binary対応、初期化Escape対照は未確認。全面受入は未了。
    UI-34 first-run実装を接続。interactive `--book FILE`のmissing sourceでは選択pathを初期destination、
    unreadable existing sourceではblank destinationにする。Measure identifier／scale 0–9を検査し、
    出力先・Measure・scale・履歴等を作らない意味をreview、2段目Enterだけが確定する。
@@ -63,7 +63,7 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
    jpy scale 2をreview→20×5 Enter拒否→80×24で作成→Home起動、`--check` cold reopenを確認。
    別PTYでunreadable sourceはblank destination、Escapeで非保存・source hash維持。非TTY missing
    `--book`は既存拒否を維持。既存destination拒否・bytes保全はself-checkで確認。
-   LOAM paired実行／Escape対照、人間のIME受入、P7／運用認定は未了。[証拠](../docs/VERIFICATION.md#first-run-empty-book-creation)
+   fresh-rootの単一Record対照を実施済み。LOAM初期化Escape対照、人間のIME受入、P7／運用認定は未了。[UI-34証拠](../docs/VERIFICATION.md#first-run-empty-book-creation)／[paired証拠](../docs/VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)。
 2. [ ] **共有機構を利用元横断で移行・受入する。** 責務・API・全利用元・受入条件は
    [TUI共有部品の責務設計と移行順序](../docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md) に従う。設計確定のみで実装済みにはしない。
    - 共有input／再帰Input metadataの純粋機構は実装・境界検査・native幅の直接smoke済み。既存Daily_form・tail・native widthを再利用。
@@ -72,6 +72,7 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
    - RecordのColumns＋recursive caretを同時切替し、Scheduledの同じ入力表示・UTF-8文字移動・focus-following・notice予約・均一幅を接続済み。Sch.cursor_positionを削除し、renderer matrix（8寸法×3テーマ）へScheduled_createを追加・合格。
    - list/detailは既存Ui_panelを維持し、Actualのterminal_geometryをpanel_geometryへ統一、wide tx_heightのpage_size容量整合、
      controller経由のdrill-down/back復帰でAct.returned_from_detailを接続。復帰時の別browser上書きと詳細focus／scroll消失を修正し、限定回帰・合成PTYを確認。横断受入は未了。
+   2026-10-17: paired Actual search at 80×24 returned one distinct record each for `paired` and `other`, zero for `zzzz`, and both after Escape. In the rebuilt Bakhlo binary, active `/paired` survived resize to 48×14 with full `+37 jpy`; `/other` at 48×14 showed full `+11 jpy`, and Escape plus restore to 80×24 showed both records. The 32×9 Description-only result is from the previous binary, not rerun after the fix. Authority hashes were unchanged ([evidence](../docs/VERIFICATION.md#paired-actual-search-2026-10-17)). Search/amount checks remain bounded, not full consumer acceptance.
    Actual長文検索のG-2限定成功は保持するが、G-1/G-3/G-4や全画面を完了扱いしない。
    幅0／1、長文・CJK、通知、通常／compact、resize、取消でpaintとcaret・保持値・draftを確認する。
    sessionごとのreview／保存gateを維持し、実装・対照実行・本人受入を別々に記録する。IMEは実機で別途受入する。

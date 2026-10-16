@@ -2,7 +2,7 @@
 
 This fixture is a **procedure**, not a shared storage file: LOAM uses its own household directory and Bakhlo uses a separate Daily book. Both are created from scratch with synthetic data; never point either command at a household authority or an existing trial.
 
-## Supported scenario: one balanced JPY Record
+## Supported scenario: two balanced JPY Records and Actual search
 
 Use fresh, unique paths under ignored `scratch/` for every run. Keep both terminals at 80×24 with `TERM=xterm-256color` for the paired case.
 
@@ -22,14 +22,25 @@ Bakhlo:
 
 In each UI, explicitly admit `wallet` and `food` through Commands → Household setup → Manage Loci. In Bakhlo, first-run creates an empty book with Measure `jpy`, scale `0`; confirm the displayed destination before creation. Use unique unused paths under `scratch/` for each run.
 
-From Home, record one Actual on the selected date:
+From Home, record two Actuals with explicit dates and jpy postings:
 
-- Description: `paired snack`
-- `wallet`: `-37 jpy`
-- `food`: `+37 jpy`
+- `paired snack`, 2026-10-16: `wallet -37`, `food +37`
+- `other meal`, 2026-10-17: `wallet -11`, `food +11`
 
-Review the Preview, publish explicitly, inspect Actual, then exit and reopen each UI. Expected semantic result: one Actual with the same selected date, description and signed postings. Storage bytes and generated IDs are implementation-specific and are not compared. The paired semantic path has been executed; the exact setup recipe above has not yet been repeated end to end.
+After both are published, inspect Actual. At 80×24, press `/` and search `paired`
+(only the first record), then replace it with `other` (only the second), then
+search `zzzz` (no matches). Escape restores both entries.
+With search active on `paired`, resize through 48×14 and 32×9; at 32×9 replace
+it with `other`, then restore 48×14 and 80×24. Escape returns both entries.
+Exit and reopen: Actual is unfiltered and still contains both dates, descriptions and
+signed postings. Bytes and IDs differ by format and are not compared.
+
+The first-run Record flow and search were exercised at 80×24 in separate fresh roots.
+The search roots started with the paired synthetic entry and added `other meal` via
+both UIs; the combined procedure above was not rerun end to end from empty roots. See
+[Record evidence](../../docs/VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)
+and [search evidence](../../docs/VERIFICATION.md#paired-actual-search-2026-10-17).
 
 ## Known limits
 
-This procedure does not seed balances, roles, observations, Scheduled plans, correction/refund cases, multiple currencies, empty-vs-unknown comparisons, invalid-input refusals, or save failures. It does not provide one byte-identical fixture for both formats. The paired Record run does not qualify those cases, other terminal sizes, LOAM source/binary correspondence, IME behavior, or operational adoption. Build no LOAM source; use only the existing executable. Never use `./ui --refresh` for this fixture.
+This procedure does not seed balances, roles, observations, Scheduled plans, correction/refund cases, multiple currencies, empty-vs-unknown comparisons, invalid-input refusals, or save failures. Search evidence covers two matching records, no-match and Escape at 80×24; the rebuilt Bakhlo binary retained active `/paired` through resize to 48×14 with `+37 jpy` visible, and `/other` at 48×14 showed `+11 jpy`. The 32×9 Description-only/clipped result is from an earlier binary and was not rerun after the fix. Other dimensions, caret position, scope/sort interaction, long/CJK input, LOAM source/binary correspondence, IME behavior, and operational adoption remain unqualified. Build no LOAM source; use only the existing executable. Never use `./ui --refresh` for this fixture.

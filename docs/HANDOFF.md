@@ -17,10 +17,19 @@ then confirms creation. `Daily_book.empty` admits one Measure/scale and an expli
 Locus policy; existing Manage Loci can admit the first Locus. `Daily_file.create_empty`
 uses exclusive mode-0600 creation, file sync/readback, parent sync and cold reload.
 Loaders, `--check`, and non-TTY paths remain fail-closed; existing source/destination
-bytes are protected. UI-34 remains only locally verified, not LOAM parity or operational
-acceptance.
+bytes are protected. A fresh paired 80×24 first-run/one-Record/cold-reopen
+scenario is recorded; broader LOAM parity and operational acceptance remain open.
 
 This bounded implementation does not close the broader first-run acceptance.
+
+A separate synthetic Actual search comparison showed one row for each of
+`paired` and `other`, zero for `zzzz`, and both after Escape at 80×24. In the
+rebuilt Bakhlo binary, active `/paired` survived resize to 48×14 with `+37 jpy`
+fully visible; `/other` at 48×14 showed full `+11 jpy`, then Escape and restore
+to 80×24 returned both entries. Earlier 32×9 evidence showed Description-only
+rows and clipped surrounding text; it was not rerun after the amount fix.
+This remains bounded search evidence, not cross-screen or human acceptance. See
+[verification](VERIFICATION.md#paired-actual-search-2026-10-17).
 
 The shared-UI responsibility design is now fixed in
 [TUI共有部品の責務設計と移行順序](TUI_LAYOUT_STABILITY_ROADMAP.ja.md), replacing the

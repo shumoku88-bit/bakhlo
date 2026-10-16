@@ -3295,3 +3295,98 @@ is the evidence for matching new-Record behavior across both UIs. This setup
 smoke does not expand that case to plans, observations, roles, correction,
 refunds, multiple currencies, rejection modes, save failure, or broader parity.
 Generated scratch files remain private and are not fixtures for publication.
+
+## Fresh-root paired Record and cold reopen (2026-10-16)
+
+At 80×24, `TERM=xterm-256color`, private tmux sockets; no original household
+or LOAM build. LOAM source `a4c5d7b87e17e3ff38a9e2517fa81ddda75e12fc`
+had a clean worktree; Bakhlo source was `8eece1c8f7dbc4791bc81e263fbf02b21c4b2aa2`.
+Existing LOAM binary SHA-256:
+`0ed043cf04349d2a66afe84e2a12837557df8d873450dc487afa88cf354fca97`.
+Bakhlo binary SHA-256:
+`1c27dfc5ec23c2aa2c1e3594dd8243b9b404fed2b7535e70f6d4002f26b3f3a8`.
+LOAM source/binary correspondence was not established.
+
+Fresh independent synthetic roots under ignored
+`scratch/paired-ui-20261016.qIuxy3/` (Bakhlo) and
+`scratch/paired-ui-20261016.RIrblW/` (LOAM). Bakhlo `--book` first-run created
+the reviewed empty JPY scale-0 v3 book; both UIs admitted `wallet` and `food`
+through Manage Loci. On 2026-10-16 each Record used description `paired snack`,
+`wallet -37 jpy`, `food +37 jpy`. Both Preview surfaces showed the same date,
+description, exact signed postings and 37 jpy balanced total. In LOAM the Edit
+action returned to the retained draft; the subsequent Preview's selected
+Publish + Enter recorded `record-1`. Bakhlo selected Publish + Enter reported
+`Published and read back`.
+
+Actual showed one entry with the same date, description and postings in both
+UIs. After clean exit and cold reopen, opening Actual again showed that same
+single entry. Final synthetic authority SHA-256:
+Bakhlo `eab1a441d02956204cd093941b423ddef237e8b644df7d0bdc75728cb4116d90`;
+LOAM `5e638f7b62e7c25e38ce7d3755a1246fb07ae8ee5a1c7f861593e2ee62e5a0c2`.
+IDs and bytes differ by format; no cross-format byte equality is claimed.
+
+This qualifies only the fresh-root JPY Record happy path and ordinary restart.
+No roles, balances, observations, plans, errors, save failures, other dimensions,
+IME, source/binary equivalence, power-loss/P7 or operational adoption were tested.
+
+## Paired Actual search (2026-10-17)
+
+At initial paired search, Bakhlo source HEAD was
+`8eece1c8f7dbc4791bc81e263fbf02b21c4b2aa2`; LOAM source HEAD was
+`a4c5d7b87e17e3ff38a9e2517fa81ddda75e12fc` (clean worktree). Existing LOAM
+binary SHA-256 `0ed043cf04349d2a66afe84e2a12837557df8d873450dc487afa88cf354fca97`;
+initial Bakhlo binary SHA-256
+`1c27dfc5ec23c2aa2c1e3594dd8243b9b404fed2b7535e70f6d4002f26b3f3a8`.
+No LOAM build; source/binary correspondence remains unqualified.
+
+Separate roots under ignored `scratch/paired-search-20261017.8Yj16c/` held the
+synthetic `paired snack` entry from the prior paired comparison. From Actual,
+both UIs created and published a second entry, `other meal`, dated 2026-10-17
+with `wallet -11 jpy` and `food +11 jpy`. Both ran at 80×24 with
+`TERM=xterm-256color` on a private tmux socket. Before search the two entries
+matched semantically: `paired snack` on 2026-10-16 (`wallet -37`, `food +37`)
+and `other meal` on 2026-10-17 (`wallet -11`, `food +11`); format-specific IDs
+and bytes differed.
+
+From Actual, `/` opened search in both UIs. `paired` showed only the first of
+two entries; replacing it with `other` showed only the second. `zzzz` showed
+zero matches. Escape cleared the query and restored both entries. After clean
+exit and cold restart, Actual reopened unfiltered with both entries. Before
+search and after the cold restart, hashes matched: Bakhlo book
+`5c4f32f10f2b83e73419d32a33ad217ebce6e2621564b21235eef96a4092c8ae`;
+LOAM `household.loam`
+`f6b9182aa7e379e55ea1ac72d73ca84d51bc3208ba7d67fcbd4e97e305565a96`;
+`household.loam.prev`
+`5e638f7b62e7c25e38ce7d3755a1246fb07ae8ee5a1c7f861593e2ee62e5a0c2`.
+
+Follow-up on the same synthetic authorities with fresh TUI processes: active
+`paired` search remained visible and matched one entry through 48×14 and 32×9.
+At 32×9, replacing it with `other` still selected the second entry; restoring
+48×14 and 80×24 preserved the query until Escape restored both. At 48×14
+Bakhlo's row showed `+11 j…` while LOAM showed `11 jpy`; at 32×9 both used a
+description-only row and clipped surrounding text. The three authority hashes
+above remained unchanged after this resize run.
+
+The compact amount clipping was fixed by reserving the panel borders and
+`Panel.frame`'s two-cell selection prefix in `Actual_workspace.tx_panel`
+(`row_width = w - 6`). The regression check uses the Bonsai renderer's
+`Bonsai_term.View.width`, not byte length. `./tools/tui --self-check` passed.
+The rebuilt Bakhlo binary SHA-256 is
+`414da795262cfb07db0aa7c386913b65a76493b7c8286e3d0482bad0cedcd86d`.
+With the rebuilt binary, a fresh 48×14 Actual view showed `other meal` with the
+complete `+11 jpy`; restoring 80×24 returned to the split layout with both
+entries and exact `±11 jpy` details. A post-fix active-search smoke started
+`/paired` at 80×24, then resized to 48×14; the query remained active and the
+single `paired snack` row showed the complete `+37 jpy`. At 48×14, clearing
+that query and entering `/other` showed the single `other meal` row with
+`+11 jpy`; Escape followed by restoring 80×24 showed both entries again. The
+synthetic book and LOAM copies' three hashes above remained unchanged.
+
+The 32×9 Description-only/clipped result is from the earlier binary and was
+not rerun after the amount fix. Earlier 32×9 search observations are historical;
+the post-fix interactive amount/search smoke covered 80×24 and 48×14.
+
+This is bounded search/amount evidence at 80×24, 48×14 and 32×9 only. It does
+not qualify caret coordinates, other geometry, long/CJK input, scope or sort
+interaction, IME, broader shared-input acceptance, visual parity or operational
+acceptance.
