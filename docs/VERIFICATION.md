@@ -48,42 +48,21 @@ This qualifies the bounded Attention administration slice (UI-26).
 
 ## Stock–Flow report
 
-Bakhlo `7af15c6` plus local UI work and this slice.
-Read-only source consultation: LOAM `StockFlowReview.lean` (Snapshot structure,
-reconstructedStart, reconstructedEnd, scanWindow, historical coordinates, and currentTrackedQuanta)
-and `ReportsView.lean` (stockFlowResultLines, boundary values reconstructed from current evidence).
-No LOAM build, source copying, runtime comparison or production input.
+Earlier recorded smoke output for Stock–Flow is withdrawn as invalid financial
+correctness evidence. It described cross-currency selection and a “Balanced” Net Savings
+reconciliation, neither of which is a supported claim. Do not use that output to certify
+the report. No current Stock–Flow verification or financial correctness certification is
+claimed here.
 
-`stock_flow_report.ml/.mli` and `daily_interaction.ml` implement Stock–Flow reconciliation review:
-- Route: `W.Stock_flow`, accessible via Commands -> `Analysis` -> `Stock–Flow`.
-- Period presets: `1` (Month), `2` (Cycle), `3` (Previous Cycle), `4` (Year), `5` (All Time).
-- Cycle resolution: evaluates active cycle windows and historical cycles from `boundary-presets.tsv`.
-- Period shifting: `[` / `]` shifts months or cycles backward / forward.
-- Reconstruction & flow calculation:
-  - Reconstructs start-of-window balances from accepted evidence.
-  - Groups increases (+In) and decreases (-Out) across Events in the window.
-  - Evaluates Net Change in tracked balance: `reconstructed_end = reconstructed_start + net_change`.
-  - Computes reconciliation gap against Net Savings from `Income_expense_report`.
-- Tabular coordinate breakdown: Start, +In, -Out, End, and Net per coordinate.
-- Right pane: Accounting reconciliation proof and integrity notes.
-- Print preview: `p` opens plain-text summary modal.
-- Navigation: `Tab` toggles between table and detail scroll; `Esc`/`q` returns to report pane or Home.
-
-Executed native build/`--self-check` and `./tools/check`; passed.
-Checks cover route navigation, period presets (Month, Cycle, Prev Cycle, Year, All-Time),
-period shifting, Detail toggle, Print preview modal, and Home return.
-
-Native tmux (`TERM=xterm-256color`, 120×36), synthetic fixture `scratch/bulk-smoke-dyzB0U/book.sexp`:
-- Initial Home screen: `Space j j Enter j j j j Enter` opened `Stock–Flow • Month`.
-- Window showed `2026-10-01 .. 2026-11-01 (exclusive)` with tracked balances across currencies.
-- Reconstructed start, increases (+80.00 eur), decreases (-80.00 eur), net change (0.00 eur), and end balance.
-- Right pane verified: `Balanced: Exact reconciliation (ΔStock = Net Savings)`.
-- `p` opened `Stock–Flow / Print Preview` modal showing complete reconstruction and coordinate table.
-- `Escape` closed modal; second `Escape` returned cleanly to Home.
-
-This qualifies the bounded Stock–Flow report slice (UI-25/StockFlow). It completes the triumvirate of
-primary non-budget financial reports (Income & Expense, Transactions Flow, and Stock–Flow).
-
+The bounded view uses the explicit `balance-view.tsv` coordinate selection and requires
+one measure throughout: empty, duplicate, or mixed-measure selections are refused, not
+filtered, and no currency/measure switch is offered. It reconstructs historical balances
+from zero-origin event history, not archival snapshots. Exact current support and
+independent historical evidence are both required for each selected coordinate; absent
+evidence or unknown/unsupported current quantity prevents a report. This view does not
+reconcile Stock against Income & Expense, establish a balanced state, or complete LOAM
+parity. Future verification must establish those bounded behaviors independently; none
+is asserted as passed here.
 ## Transactions Flow report
 
 Bakhlo `c742152` plus local UI work and this slice.

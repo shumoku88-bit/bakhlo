@@ -1164,4 +1164,9 @@ let observe_quantities t rows =
       let new_obs = A.Current_quantity_groups.groups new_groups in
       let data = { t.data with observations = new_obs } in
       admit ~entries_cached:t.entries_cached data)
+let has_zero_origin t ~locus ~measure =
+  let coordinate = coord locus measure in
+  List.exists
+    (fun candidate -> D.Effect_coordinate.equal candidate coordinate)
+    t.data.origins
 

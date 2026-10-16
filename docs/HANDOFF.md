@@ -194,24 +194,25 @@ Core/native self-checks and synthetic tmux walks (launch via Commands, Month/Cyc
 row selection with detail update, Print modal, and Home return) passed;
 see [Transactions Flow evidence](VERIFICATION.md#transactions-flow-report).
 
-Stock–Flow Report (UI-25/StockFlow) is connected through `stock_flow_report.ml/.mli` and `daily_interaction.ml`:
+Stock–Flow Report (UI-25/StockFlow) is a bounded tracked-balance view connected through
+`stock_flow_report.ml/.mli` and `daily_interaction.ml`:
 - Launched via Commands (`Space` -> `Reports and analysis` -> `Stock–Flow`) or `open_route W.Stock_flow`.
-- Period presets: `1` (Month), `2` (Cycle), `3` (Previous Cycle), `4` (Year), `5` (All Time).
-- Period shifting via `[` / `]`.
-- Reconstructs historical boundaries without archival snapshots:
-  - `reconstructed_start`: balance prior to start_day (current balance minus events since start).
-  - `increases`: sum of positive quanta on tracked coordinates in window.
-  - `decreases`: sum of negative quanta on tracked coordinates in window.
-  - `net_change`: increases + decreases.
-  - `reconstructed_end`: reconstructed_start + net_change.
-  - `current_tracked`: total balance today.
-- Accounting reconciliation:
-  - Verifies exact correspondence between Net Stock change (ΔAssets) and Net Savings from Flow (Income - Expense).
-  - Displays balanced / discrepancy status in detail pane.
-- Print preview modal (`p`) and Detail pane toggle (`Tab`).
-Core/native self-checks and synthetic tmux walks (launch via Commands, Month/Cycle/All-Time,
-balanced reconciliation proof, Print modal, and Home return) passed;
-see [Stock-Flow evidence](VERIFICATION.md#stockflow-report).
+- Period presets: `1` (Month), `2` (Cycle), `3` (Previous Cycle), `4` (Year), `5` (All Time);
+  `[` / `]` shift the period.
+- Selection is the explicit `balance-view.tsv` coordinate list. Every selected coordinate
+  must use the requested single measure; mixed-measure selections are refused, never filtered.
+  No currency/measure switch is offered.
+- Historical start/end balances are reconstructed from zero-origin event history. Exact
+  current support and independent historical evidence are both required for every selected
+  coordinate; unknown or unsupported current quantities and missing historical evidence
+  prevent a report. This is not an archival snapshot.
+- Displays selected-coordinate increases, decreases, net change and reconstructed balances;
+  it does not reconcile against Income & Expense or prove accounting balance.
+- Print preview (`p`) and Detail pane toggle (`Tab`).
+Earlier recorded smoke output described a cross-currency view and a balanced Net Savings
+reconciliation; that evidence is invalid for financial correctness and is withdrawn. No
+current Stock–Flow verification or financial correctness certification is claimed. This
+bounded view is not LOAM-complete; broader report parity remains open.
 
 Attention Administration (UI-26) is connected through `attention_data.ml/.mli` and `daily_interaction.ml`:
 - Launched via Home `i` or Commands (`Space` -> `Attention`).

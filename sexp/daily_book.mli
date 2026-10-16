@@ -155,3 +155,6 @@ val observe_quantities : t -> (string * string * Z.t) list -> (t, string) result
     Refuses if any coordinate overlaps zero-origin or opening support, or if Locus/Measure
     is invalid, or if duplicate coordinates are supplied. *)
 
+val has_zero_origin : t -> locus:string -> measure:string -> bool
+(** Whether the coordinate has admitted zero-origin support. Does not imply
+    support for any nonzero opening or observation family. *)

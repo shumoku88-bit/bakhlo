@@ -262,6 +262,7 @@ let run path =
 
 let self_check () =
   Recovery_checks.self_check ();
+  Stock_flow_checks.self_check ();
   let state = Daily_interaction_checks.self_check ~width_of () in
   Record_session_checks.self_check ~width_of ();
   Scheduled_session_checks.self_check ~width_of ();

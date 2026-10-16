@@ -1,10 +1,9 @@
-(* Stock-Flow Report: reconciliation of tracked balance changes (Stock) with window activity (Flow). *)
+(* Stock-Flow Report: single-measure tracked balance motion review matching LOAM. *)
 module B = Bakhlo_sexp.Daily_book
 module IncExp = Income_expense_report
 
 type coordinate_activity = {
   locus : string;
-  measure : string;
   start_balance : Z.t;
   increases : Z.t;
   decreases : Z.t;
@@ -13,47 +12,39 @@ type coordinate_activity = {
   current_balance : Z.t;
 }
 
-type measure_summary = {
+type snapshot = {
+  period : IncExp.period;
   measure : string;
   reconstructed_start : Z.t;
   reconstructed_end : Z.t;
-  increases : Z.t;
-  decreases : Z.t;
+  increases_across_events : Z.t;
+  decreases_across_events : Z.t;
   net_change : Z.t;
   current_tracked : Z.t;
-  net_income : Z.t;
-  reconciliation_gap : Z.t;
   coordinates : coordinate_activity list;
 }
 
-type report = {
-  period : IncExp.period;
-  summaries : measure_summary list;
-}
+type report = snapshot
 
 type t = {
   preset : IncExp.period_preset;
   period_offset : int;
-  selected_measure : int;
-  detail_focused : bool;
-  detail_scroll : int;
 }
 
 val initial : unit -> t
 
 val compute_report :
   book:B.t ->
-  roles:(string * Daily_overlays.accounting_role) list ->
+  measure:string ->
   tracked_coords:(string * string) list ->
   period:IncExp.period ->
-  report
+  (report, string) result
 
 val render_summary_lines :
   width:int ->
   width_of:(string -> int) ->
   book:B.t ->
   report:report ->
-  selected_measure:int ->
   (Daily_overlays.style * string) list
 
 val render_detail_lines :
@@ -61,7 +52,6 @@ val render_detail_lines :
   width_of:(string -> int) ->
   book:B.t ->
   report:report ->
-  selected_measure:int ->
   (Daily_overlays.style * string) list
 
 val print_summary :

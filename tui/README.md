@@ -274,35 +274,20 @@ Homeで`d`を押すと、今日の目安（Daily Pace）画面が開き、過去
 - **詳細展開 (`Tab` / `i`)**:
   - 右ペインの明細スクロールへフォーカス切替。`Esc`/`q`でレポート一覧へ復帰。
 
-## ストック・フロー連動レポート（Stock–Flow）
+## ストック・フロー残高表示（Stock–Flow）
 
-`Space`（Commands）→ `Reports and analysis` → `Stock–Flow` で開く。
-指定した期間（月・給与年金サイクル・年・全期間）における**追跡残高（資産・負債）の増減（ストック）**と、**収支（フロー）**が完全に整合しているかを検証する。
+`Space`（Commands）→ `Reports and analysis` → `Stock–Flow` で開く。これは選択した
+追跡残高座標の期間内変動を表示する限定ビューで、収支照合や会計上のBalanced判定ではない。
 
-- **期間プリセット切替 (`1`〜`5`)**:
-  - `1`: Month（当月、例: `Month of 2026-10`）
-  - `2`: Cycle（`boundary-presets.tsv`に基づく現行サイクル）
-  - `3`: Previous Cycle（直前のサイクル）
-  - `4`: Year（当年）
-  - `5`: All Time（全期間）
-- **期間移動 (`[` / `]`)**:
-  - `[`: 過去の期間へ移動。
-  - `]`: 未来の期間へ移動。
-- **残高の復元表示（左ペイン）**:
-  - `Reconstructed at start`: 期間開始時点の残高（過去の全記録から復元）。
-  - `Reconstructed at end`: 期間終了時点の残高。
-  - `Tracked increases across Events`: 期間内の受入・増加合計（`+In`）。
-  - `Tracked decreases across Events`: 期間内の払出・減少合計（`-Out`）。
-  - `Net change in tracked balance`: 期間内の純増減（`+In + -Out`）。
-  - `Current tracked balance now`: 現在の台帳残高。
-  - 科目ごとの始期・出納・終期・純増減テーブル。
-- **財務整合性検証（右ペイン）**:
-  - 資産の純増減（$\Delta\text{Stock}$）とフロー純貯蓄（$\text{Net Savings} = \text{Income} - \text{Expense}$）の差額（Reconciliation Discrepancy）を検証。
-  - 一致していれば `Balanced: Exact reconciliation (ΔStock = Net Savings)` を表示。
-- **印刷プレビュー (`p`)**:
-  - レポート全体のプレビュー画面を開き、完了後に戻る。
-- **詳細展開 (`Tab` / `i`)**:
-  - 右ペインの整合性説明へフォーカス切替。`Esc`/`q`でレポート一覧へ復帰。
+- `1`〜`5`でMonth／Cycle／Previous Cycle／Year／All Timeを選び、`[`／`]`で期間を移動する。
+- 対象は明示された`balance-view.tsv`の座標。空選択、重複、要求Measureと異なる座標を含む選択は拒否し、混在選択をMeasureで絞り込まない。通貨／Measureの切替はない。
+- 選択座標の現行量が正確に支持され、かつ独立した過去Event証拠がある場合に限り表示する。過去残高はゼロ起点のEvent履歴から復元する。証拠不足、現行量不明、未対応座標は拒否し、archival snapshotや過去時点の独立保存残高とは扱わない。
+- 始期／終期復元量、期間内の増加・減少・純変化、座標別内訳、現在の追跡量を表示する。これはIncome & Expenseとの照合でも、残高の正しさの証明でもない。
+- `p`で画面内プレビュー、`Tab`で詳細表示を切替。
+
+旧記録のsmoke出力には複数通貨とNet Savingsとの「Balanced」照合が記載されていたが、
+その出力は無効な財務正確性証拠として撤回済みである。現行検証成功や財務正確性認定は主張しない。
+LOAMとの完全一致も未認定。
 
 ## 生活事項・期限管理（Attention）
 

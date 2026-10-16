@@ -834,6 +834,37 @@ let balance_view_coords state =
   let path = BalView.file_path ?config_home:state.config_home state.session.F.path in
   let configured = BalView.load_file path in
   List.map (fun (c : BalView.coordinate) -> (c.locus, c.measure)) configured
+let stock_flow_result state =
+  let parse_selection text =
+    let valid_token s =
+      s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
+    in
+    let rec rows acc = function
+      | [] -> Ok (List.rev acc)
+      | raw :: rest ->
+          let line = String.trim raw in
+          if line = "" || String.starts_with ~prefix:"#" line || String.starts_with ~prefix:";" line then
+            rows acc rest
+          else match String.split_on_char '\t' line with
+          | [locus; measure] when valid_token locus && valid_token measure ->
+              rows ((locus, measure) :: acc) rest
+          | _ -> Error "Invalid balance-view.tsv; no partial selection used."
+    in
+    rows [] (String.split_on_char '\n' text)
+  in
+  Result.bind (read_pace_config state "balance-view.tsv") (function
+    | None -> Error "Stock–Flow requires an explicit balance-view.tsv selection."
+    | Some text ->
+        Result.bind (parse_selection text) (fun tracked_coords ->
+          match tracked_coords with
+          | [] -> Error "Stock–Flow requires a nonempty balance-view.tsv selection."
+          | (_, measure) :: _ ->
+              Result.bind (read_pace_config state "boundary-presets.tsv") (fun boundary_presets_text ->
+                Result.bind
+                  (IncExp.resolve_period ~today:(F.today ()) ~preset:state.stock_flow.preset
+                     ~offset:state.stock_flow.period_offset ~boundary_presets_text)
+                  (fun period -> StockFlow.compute_report ~book:state.session.book
+                     ~measure ~tracked_coords ~period))))
 
 let config_lines text =
   String.split_on_char '\n' text |> List.filter (fun line ->
@@ -1930,23 +1961,19 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               | '5' -> IncExp.All_time
               | _ -> IncExp.Month
             in
-            Some { state with stock_flow = { state.stock_flow with preset; period_offset = 0 }; scroll = 0 }
+            Some { state with stock_flow = { preset; period_offset = 0 }; scroll = 0 }
         | Some (`ASCII ('[' | ']'), []) when state.workspace.route = W.Stock_flow ->
             let delta = if fst (Option.get key) = `ASCII '[' then -1 else 1 in
             Some { state with stock_flow = { state.stock_flow with period_offset = state.stock_flow.period_offset + delta }; scroll = 0 }
         | Some (`ASCII 'p', []) when state.workspace.route = W.Stock_flow ->
-            let boundary_text = match read_pace_config state "boundary-presets.tsv" with Ok opt -> opt | Error _ -> None in
-            let period = match IncExp.resolve_period ~today:(F.today ()) ~preset:state.stock_flow.preset ~offset:state.stock_flow.period_offset ~boundary_presets_text:boundary_text with
-              | Ok p -> p
-              | Error _ -> { preset = state.stock_flow.preset; label = "Period Unavailable"; start_day = "2000-01-01"; end_exclusive = "2000-01-01" }
-            in
-            let roles = accounting_roles state in
-            let tracked_coords = balance_view_coords state in
-            let rep = StockFlow.compute_report ~book:state.session.book ~roles ~tracked_coords ~period in
-            let lines = StockFlow.print_summary ~book:state.session.book ~report:rep in
-            let form = Form.create ~id:"stock_flow_print_preview" ~title:(tr "Stock–Flow / Print Preview")
-              ~summary:lines ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ] () in
-            Some { state with overlay = Modal_form form }
+            (match stock_flow_result state with
+             | Ok rep ->
+                 let lines = StockFlow.print_summary ~book:state.session.book ~report:rep in
+                 let form = Form.create ~id:"stock_flow_print_preview" ~title:(tr "Stock–Flow / Print Preview")
+                   ~summary:lines ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ] () in
+                 Some { state with overlay = Modal_form form }
+             | Error why ->
+                 Some { state with message = why })
         | Some ((`Enter | `ASCII 'i' | `Tab | `ASCII 'w'), []) when state.workspace.route = W.Stock_flow ->
             Some { state with workspace = { state.workspace with pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) }; scroll = 0 }
         | Some ((`Enter | `ASCII 'i' | `Tab | `ASCII 'w'), []) when state.workspace.route = W.Attention ->
@@ -2169,6 +2196,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               Some (move_locus state delta)
             else if state.workspace.route = W.Settlements then
               Some (move_settlement state delta)
+            else if state.workspace.route = W.Stock_flow then
+              Some { state with scroll = Panel.move ~last:max_int ~position:state.scroll delta }
             else if state.workspace.route = W.Transactions_flow then
               if state.workspace.pane = W.Detail then
                 Some { state with scroll = max 0 (state.scroll + delta) }
@@ -2816,19 +2845,15 @@ let workspace_rows ~width_of ~width ~height state =
           ~right_focused:is_detail ~right_title
           ~right_scroll:0 ~right_selected:None ~right_rows:[ why ] ()
   else if workspace.route = W.Stock_flow then
-    let boundary_text = match read_pace_config state "boundary-presets.tsv" with Ok opt -> opt | Error _ -> None in
-    let period_res = IncExp.resolve_period ~today:(F.today ()) ~preset:state.stock_flow.preset ~offset:state.stock_flow.period_offset ~boundary_presets_text:boundary_text in
+    let rep_res = stock_flow_result state in
     let is_detail = workspace.pane = W.Detail in
     let left_width, right_width = browser_pane_widths width in
-    match period_res with
-    | Ok period ->
-        let roles = accounting_roles state in
-        let tracked_coords = balance_view_coords state in
-        let rep = StockFlow.compute_report ~book:state.session.book ~roles ~tracked_coords ~period in
-        let left_title = Printf.sprintf "Stock–Flow • %s" (IncExp.preset_label state.stock_flow.preset) in
-        let right_title = "Reconciliation & Principles" in
-        let left_rows = List.map snd (StockFlow.render_summary_lines ~width:(max 0 (left_width - 4)) ~width_of ~book:state.session.book ~report:rep ~selected_measure:state.stock_flow.selected_measure) in
-        let detail_rows = List.map snd (StockFlow.render_detail_lines ~width:(max 0 (right_width - 6)) ~width_of ~book:state.session.book ~report:rep ~selected_measure:state.stock_flow.selected_measure) in
+    match rep_res with
+    | Ok rep ->
+        let left_title = Printf.sprintf "Stock–Flow • %s (%s)" (IncExp.preset_label state.stock_flow.preset) rep.measure in
+        let right_title = "Principles & Evidence" in
+        let left_rows = List.map snd (StockFlow.render_summary_lines ~width:(max 0 (left_width - 4)) ~width_of ~book:state.session.book ~report:rep) in
+        let detail_rows = List.map snd (StockFlow.render_detail_lines ~width:(max 0 (right_width - 6)) ~width_of ~book:state.session.book ~report:rep) in
         let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail_rows in
         split_pane
           ~left_focused:(not is_detail) ~left_title ~left_scroll:(if not is_detail then state.scroll else 0)
@@ -2838,8 +2863,8 @@ let workspace_rows ~width_of ~width ~height state =
           ~right_selected:None ~right_rows:wrapped_detail ()
     | Error why ->
         let left_title = "Stock–Flow" in
-        let right_title = "Period Unavailable" in
-        let left_rows = [ tr "Report period unavailable:"; why; "Supply an explicit boundary-presets.tsv or choose Month / Year." ] in
+        let right_title = "Stock–Flow Unavailable" in
+        let left_rows = [ tr "Stock–Flow unavailable:"; why; "Review balance coordinates and boundary presets." ] in
         let wrapped_left = List.concat_map (O.wrap_text ~width_of (max 1 (left_width - 6))) left_rows in
         split_pane
           ~left_focused:(not is_detail) ~left_title ~left_scroll:0
