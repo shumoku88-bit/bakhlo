@@ -6,6 +6,43 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Income & Expense report
+
+Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus local UI work and this slice.
+Read-only source consultation: LOAM `ReportsView.lean` (incomeExpenseResultLines,
+incomeExpenseMeasureLines, incomeExpenseBreakdownLines, and unresolvedIncomeExpenseLine),
+`Reports.lean` (incomeExpenseFromRoleFlow), and `ReportWindow.lean` (calendarMonth and
+preset boundary cycle sources). No LOAM build, source copying, runtime comparison or production input.
+
+`income_expense_report.ml/.mli` and `daily_interaction.ml` implement period-based P/L analysis:
+- Route: `W.Income_expense`, accessible via Commands -> `Analysis` -> `Income & Expense`.
+- Period presets: `1` (Month), `2` (Cycle), `3` (Previous Cycle), `4` (Year), `5` (All Time).
+- Cycle resolution: evaluates active cycle windows (`start <= today < end_exclusive`) and
+  adjacent historical cycles from `boundary-presets.tsv`.
+- Period shifting: `[` / `]` shifts months or cycles backward / forward.
+- Accounting logic:
+  - Credit postings on `Income` accounts -> positive income (`-quanta`).
+  - Debit postings on `Expense` accounts -> positive expense (`quanta`).
+  - Separate accounting of Scheduled-linked bills vs ordinary spending.
+  - Unclassified loci reported explicitly under `Unresolved Role Effects`.
+  - Exact Net Savings calculation per currency: `Total Income - Total Expense`.
+- Print preview: `p` opens plain-text summary modal.
+- Navigation: `Tab`/`i` focuses detail pane; `Esc`/`q` returns to report pane or Home.
+
+Executed native build/`--self-check` and `./tools/check`; passed.
+Checks cover route navigation, period presets (Month, Cycle, Prev Cycle, Year, All-Time),
+period shifting, Detail expansion, Print preview modal, and Home return.
+
+Native tmux (`TERM=xterm-256color`, 120×36), synthetic fixture `scratch/bulk-smoke-dyzB0U/book.sexp`:
+- Initial Home screen: `Space j j Enter j j Enter` opened `Income & Expense • Month`.
+- Window showed `2026-10-01 .. 2026-11-01 (exclusive)`.
+- `2` switched to `Income & Expense • Cycle` (`2026-10-15 .. 2026-12-15` from `boundary-presets.tsv`).
+- `p` opened `Income & Expense / Print Preview` modal showing complete summary.
+- `Escape` closed modal; second `Escape` returned to Home.
+
+This qualifies the bounded Income & Expense report slice (UI-25). It does not establish
+Transactions Flow, Stock-Flow, real IME/user acceptance, or operational cutover.
+
 ## Daily Pace Trend analysis
 
 Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus local UI work and this slice.

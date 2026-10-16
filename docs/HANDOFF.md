@@ -160,6 +160,23 @@ Core/native self-checks and synthetic tmux walks (10d timeline, style toggle, Mo
 Detail inspection, and Esc return) passed;
 see [Daily Pace Trend evidence](VERIFICATION.md#daily-pace-trend-analysis).
 
+Income & Expense Report (UI-25) is connected through `income_expense_report.ml/.mli` and `daily_interaction.ml`:
+- Launched via Commands (`Space` -> `Reports and analysis` -> `Income & Expense`) or `open_route W.Income_expense`.
+- Period presets: `1` (Month), `2` (Cycle), `3` (Previous Cycle), `4` (Year), `5` (All Time).
+- Cycle periods resolve directly from `boundary-presets.tsv` windows (`a <= today < b`).
+- `[` and `]` shift periods backward and forward (months or adjacent cycles).
+- Evaluates P/L from entries matching `start_day <= e.day < end_exclusive`:
+  - Income: negative quanta on `Income` loci (credit) -> positive income display (`-quanta`).
+  - Expense: positive quanta on `Expense` loci (debit) -> positive expense display (`quanta`).
+  - Disentangles Scheduled-linked expenses from ordinary ad-hoc expenses.
+  - Identifies unassigned loci under `Unresolved Role Effects` without assuming zero or income.
+  - Net Savings = Total Income - Total Expense per currency.
+- Print preview modal (`p`) and Detail pane expansion (`Tab`/`i`).
+Core/native self-checks and synthetic tmux walks (launch via Commands, Month display,
+Cycle switch, Print modal, and Home return) passed;
+see [Income & Expense evidence](VERIFICATION.md#income--expense-report).
+
+
 
 
 

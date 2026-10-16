@@ -150,6 +150,8 @@ let render_cases state =
     bulk_selection;
     bulk_preview;
     generate;
+    detail W.Income_expense;
+    C.open_route home W.Income_expense;
     generate_preview;
     detail (W.Selected_day home.workspace.calendar.selected_day);
     detail W.Actual;
@@ -2149,6 +2151,41 @@ let self_check ~width_of () =
   (* Disk persistence verify *)
   let stl_file = get (Stl.load_file (Stl.file_path ~config_home:directory path)) in
   require (List.length stl_file.rows = 1) "settlements-persisted-to-file";
+  (* Test Income & Expense report with Cycle / Month / Year / All-Time *)
+  let ie_ctl = C.open_route back_home W.Income_expense in
+  require (ie_ctl.workspace.route = W.Income_expense) "route-income-expense";
+  let wide_ie = C.screen ~width_of (120, 30) ie_ctl in
+  require (contains wide_ie "Income & Expense" && contains wide_ie "Report Details") "income-expense-wide-visible";
+  let ie_cycle = key ~width_of ie_ctl (`ASCII '2') in
+  let wide_cycle = C.screen ~width_of (120, 30) ie_cycle in
+  require (contains wide_cycle "Cycle" || contains wide_cycle "Income & Expense") "income-expense-2-cycle";
+  let ie_prev_cycle = key ~width_of ie_cycle (`ASCII '3') in
+  let wide_prev_cycle = C.screen ~width_of (120, 30) ie_prev_cycle in
+  require (contains wide_prev_cycle "Cycle" || contains wide_prev_cycle "Period") "income-expense-3-prev-cycle";
+  let ie_year = key ~width_of ie_prev_cycle (`ASCII '4') in
+  let wide_year = C.screen ~width_of (120, 30) ie_year in
+  require (contains wide_year "Year") "income-expense-4-year";
+  let ie_all = key ~width_of ie_year (`ASCII '5') in
+  let wide_all = C.screen ~width_of (120, 30) ie_all in
+  require (contains wide_all "All Time") "income-expense-5-all-time";
+  let ie_shifted = key ~width_of ie_ctl (`ASCII '[') in
+  let wide_shifted = C.screen ~width_of (120, 30) ie_shifted in
+  require (contains wide_shifted "Income & Expense") "income-expense-bracket-shift";
+  let ie_detail = key ~width_of ie_ctl `Enter in
+  require (ie_detail.workspace.pane = W.Detail) "income-expense-enter-opens-detail";
+  let ie_back_report = key ~width_of ie_detail `Escape in
+  require (ie_back_report.workspace.pane = W.Calendar && ie_back_report.workspace.route = W.Income_expense)
+    "income-expense-esc-returns-to-report";
+  let ie_print = key ~width_of ie_ctl (`ASCII 'p') in
+  (match ie_print.overlay with
+   | C.Modal_form f ->
+       require (Ui_form.id f = "income_expense_print_preview") "ie-p-opens-print-preview";
+       require (Ui_form.title f = "Income & Expense / Print Preview") "ie-print-title"
+   | _ -> failwith "expected ie print preview modal");
+  let ie_after_print = key ~width_of ie_print `Escape in
+  require (ie_after_print.overlay = C.No_overlay) "ie-print-escapes";
+  let ie_back_home = key ~width_of ie_ctl (`ASCII 'q') in
+  require (ie_back_home.workspace.route = W.Home) "ie-q-back-to-home";
   (* Observe Quantities modal form workflow *)
   (* 1. Launch via 'o' key from back_home *)
   let obs_modal = key ~width_of back_home (`ASCII 'o') in
