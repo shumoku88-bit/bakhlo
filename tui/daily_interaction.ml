@@ -21,6 +21,7 @@ module Gen = Scheduled_generation_session
 module Form = Ui_form
 module IncExp = Income_expense_report
 module Flow = Transactions_flow_report
+module StockFlow = Stock_flow_report
 module Trend = Daily_pace_trend
 module Panel = Ui_panel
 module Att = Attention_data
@@ -144,6 +145,7 @@ type state = {
   drill_book : B.t option;
   pace_trend : Trend.t;
   income_expense : IncExp.t;
+  stock_flow : StockFlow.t;
   transactions_flow : Flow.t;
 }
 
@@ -180,6 +182,7 @@ let initial ?config_home session =
     drill_book = None;
     pace_trend = Trend.initial ();
     income_expense = IncExp.initial ();
+    stock_flow = StockFlow.initial ();
     transactions_flow = Flow.initial ();
   }
 
@@ -739,6 +742,7 @@ let open_command state = function
   | M.Observe -> { state with overlay = Modal_form (observe_quantity_form state); message = "" }
   | M.Home -> open_route state W.Home
   | M.Income_expense -> open_route state W.Income_expense
+  | M.Stock_flow -> open_route state W.Stock_flow
   | M.Transactions_flow -> open_route state W.Transactions_flow
   | M.Calendar -> open_route state W.Calendar
   | M.Theme ->
@@ -1817,7 +1821,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some ((`Escape | `ASCII 'q'), []) ->
             if state.workspace.route = W.Attention || state.workspace.route = W.Loci || state.workspace.route = W.Settlements then
               Some (open_route state W.Home)
-            else if state.workspace.route = W.Balances || state.workspace.route = W.Daily_pace || state.workspace.route = W.Income_expense || state.workspace.route = W.Transactions_flow then
+            else if state.workspace.route = W.Balances || state.workspace.route = W.Daily_pace || state.workspace.route = W.Income_expense || state.workspace.route = W.Transactions_flow || state.workspace.route = W.Stock_flow then
               if state.workspace.pane = W.Detail then
                 Some { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
               else Some (open_route state W.Home)
@@ -1916,6 +1920,34 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               ~summary:lines ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ] () in
             Some { state with overlay = Modal_form form }
         | Some ((`Enter | `ASCII 'i' | `Tab | `ASCII 'w'), []) when state.workspace.route = W.Transactions_flow ->
+            Some { state with workspace = { state.workspace with pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) }; scroll = 0 }
+        | Some (`ASCII ('1' .. '5' as c), []) when state.workspace.route = W.Stock_flow ->
+            let preset = match c with
+              | '1' -> IncExp.Month
+              | '2' -> IncExp.Cycle
+              | '3' -> IncExp.Previous_cycle
+              | '4' -> IncExp.Year
+              | '5' -> IncExp.All_time
+              | _ -> IncExp.Month
+            in
+            Some { state with stock_flow = { state.stock_flow with preset; period_offset = 0 }; scroll = 0 }
+        | Some (`ASCII ('[' | ']'), []) when state.workspace.route = W.Stock_flow ->
+            let delta = if fst (Option.get key) = `ASCII '[' then -1 else 1 in
+            Some { state with stock_flow = { state.stock_flow with period_offset = state.stock_flow.period_offset + delta }; scroll = 0 }
+        | Some (`ASCII 'p', []) when state.workspace.route = W.Stock_flow ->
+            let boundary_text = match read_pace_config state "boundary-presets.tsv" with Ok opt -> opt | Error _ -> None in
+            let period = match IncExp.resolve_period ~today:(F.today ()) ~preset:state.stock_flow.preset ~offset:state.stock_flow.period_offset ~boundary_presets_text:boundary_text with
+              | Ok p -> p
+              | Error _ -> { preset = state.stock_flow.preset; label = "Period Unavailable"; start_day = "2000-01-01"; end_exclusive = "2000-01-01" }
+            in
+            let roles = accounting_roles state in
+            let tracked_coords = balance_view_coords state in
+            let rep = StockFlow.compute_report ~book:state.session.book ~roles ~tracked_coords ~period in
+            let lines = StockFlow.print_summary ~book:state.session.book ~report:rep in
+            let form = Form.create ~id:"stock_flow_print_preview" ~title:(tr "Stock–Flow / Print Preview")
+              ~summary:lines ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ] () in
+            Some { state with overlay = Modal_form form }
+        | Some ((`Enter | `ASCII 'i' | `Tab | `ASCII 'w'), []) when state.workspace.route = W.Stock_flow ->
             Some { state with workspace = { state.workspace with pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) }; scroll = 0 }
         | Some (`ASCII 'b', []) when (match state.workspace.route with
             | W.Scheduled | W.Selected_day _ -> true | _ -> false) ->
@@ -2172,6 +2204,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 Some { state with scroll = max 0 (state.scroll + step) }
               else
                 Some { state with transactions_flow = { state.transactions_flow with selected_row = max 0 (state.transactions_flow.selected_row + step) }; scroll = 0 }
+            else if state.workspace.route = W.Stock_flow then
+              Some { state with scroll = max 0 (state.scroll + step) }
             else if
               state.workspace.pane = W.Calendar && state.workspace.route <> W.Home
               && state.workspace.route <> W.Daily_pace
@@ -2200,6 +2234,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 Some { state with scroll = 0 }
               else
                 Some { state with transactions_flow = { state.transactions_flow with selected_row = 0 }; scroll = 0 }
+            else if state.workspace.route = W.Stock_flow then
+              Some { state with scroll = 0 }
             else
               Some
                 {
@@ -2224,6 +2260,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 Some { state with scroll = max_int / 4 }
               else
                 Some { state with transactions_flow = { state.transactions_flow with selected_row = max_int / 4 }; scroll = 0 }
+            else if state.workspace.route = W.Stock_flow then
+              Some { state with scroll = max_int / 4 }
             else
               Some
                 {
@@ -2554,6 +2592,7 @@ let workspace_rows ~width_of ~width ~height state =
     | W.Daily_pace -> "Daily Pace"
     | W.Income_expense -> "Income & Expense"
     | W.Transactions_flow -> "Transactions Flow"
+    | W.Stock_flow -> "Stock–Flow"
     | W.Attention -> "Attention / Household matters"
     | W.Loci -> "Manage Loci / Admitted vocabulary"
     | W.Settlements -> "Settlements / Reimbursements"
@@ -2748,6 +2787,37 @@ let workspace_rows ~width_of ~width ~height state =
           ~right_selected:None ~right_rows:wrapped_detail ()
     | Error why ->
         let left_title = "Transactions Flow" in
+        let right_title = "Period Unavailable" in
+        let left_rows = [ tr "Report period unavailable:"; why; "Supply an explicit boundary-presets.tsv or choose Month / Year." ] in
+        let wrapped_left = List.concat_map (O.wrap_text ~width_of (max 1 (left_width - 6))) left_rows in
+        split_pane
+          ~left_focused:(not is_detail) ~left_title ~left_scroll:0
+          ~left_selected:None ~left_rows:wrapped_left
+          ~right_focused:is_detail ~right_title
+          ~right_scroll:0 ~right_selected:None ~right_rows:[ why ] ()
+  else if workspace.route = W.Stock_flow then
+    let boundary_text = match read_pace_config state "boundary-presets.tsv" with Ok opt -> opt | Error _ -> None in
+    let period_res = IncExp.resolve_period ~today:(F.today ()) ~preset:state.stock_flow.preset ~offset:state.stock_flow.period_offset ~boundary_presets_text:boundary_text in
+    let is_detail = workspace.pane = W.Detail in
+    let left_width, right_width = browser_pane_widths width in
+    match period_res with
+    | Ok period ->
+        let roles = accounting_roles state in
+        let tracked_coords = balance_view_coords state in
+        let rep = StockFlow.compute_report ~book:state.session.book ~roles ~tracked_coords ~period in
+        let left_title = Printf.sprintf "Stock–Flow • %s" (IncExp.preset_label state.stock_flow.preset) in
+        let right_title = "Reconciliation & Principles" in
+        let left_rows = List.map snd (StockFlow.render_summary_lines ~width:(max 0 (left_width - 4)) ~width_of ~book:state.session.book ~report:rep ~selected_measure:state.stock_flow.selected_measure) in
+        let detail_rows = List.map snd (StockFlow.render_detail_lines ~width:(max 0 (right_width - 6)) ~width_of ~book:state.session.book ~report:rep ~selected_measure:state.stock_flow.selected_measure) in
+        let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail_rows in
+        split_pane
+          ~left_focused:(not is_detail) ~left_title ~left_scroll:(if not is_detail then state.scroll else 0)
+          ~left_selected:None ~left_rows
+          ~right_focused:is_detail ~right_title
+          ~right_scroll:(if is_detail then state.scroll else 0)
+          ~right_selected:None ~right_rows:wrapped_detail ()
+    | Error why ->
+        let left_title = "Stock–Flow" in
         let right_title = "Period Unavailable" in
         let left_rows = [ tr "Report period unavailable:"; why; "Supply an explicit boundary-presets.tsv or choose Month / Year." ] in
         let wrapped_left = List.concat_map (O.wrap_text ~width_of (max 1 (left_width - 6))) left_rows in
@@ -3081,6 +3151,10 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
       [ "1-5 period  [ / ] shift  j/k row  p print  Tab detail  r Record"; "Space Commands  q/Esc Home  Ctrl-r reload" ]
   | W.Transactions_flow, W.Detail ->
       [ "j/k scroll  Tab report  p print  q/Esc back to report  r Record"; "Space Commands  Ctrl-r reload" ]
+  | W.Stock_flow, W.Calendar ->
+      [ "1-5 period  [ / ] shift  p print  Tab detail  r Record"; "Space Commands  q/Esc Home  Ctrl-r reload" ]
+  | W.Stock_flow, W.Detail ->
+      [ "j/k scroll  Tab report  p print  q/Esc back to report  r Record"; "Space Commands  Ctrl-r reload" ]
   | W.Attention, _ ->
       [
         "n new  r resolve  x drop  j/k select  Enter/Tab detail";
@@ -3152,6 +3226,7 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
              | W.Loci -> tr "Manage Loci"
              | W.Income_expense -> tr "Income & Expense"
              | W.Transactions_flow -> tr "Transactions Flow"
+             | W.Stock_flow -> tr "Stock–Flow"
              | W.Settlements -> tr "Settlements"));
           line ~width_of width Chrome
             ((if is_scheduled_months state then "Explicit current-open plans; no recurrence inferred."

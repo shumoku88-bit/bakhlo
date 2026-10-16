@@ -154,6 +154,8 @@ let render_cases state =
     C.open_route home W.Income_expense;
     detail W.Transactions_flow;
     C.open_route home W.Transactions_flow;
+    detail W.Stock_flow;
+    C.open_route home W.Stock_flow;
     generate_preview;
     detail (W.Selected_day home.workspace.calendar.selected_day);
     detail W.Actual;
@@ -2236,6 +2238,49 @@ let self_check ~width_of () =
   require (flow_after_print.overlay = C.No_overlay) "flow-print-escapes";
   let flow_back_home = key ~width_of flow_ctl (`ASCII 'q') in
   require (flow_back_home.workspace.route = W.Home) "flow-q-back-to-home";
+  (* Test Stock-Flow report with Cycle / Month / Year / All-Time *)
+  let sf_ctl = C.open_route back_home W.Stock_flow in
+  require (sf_ctl.workspace.route = W.Stock_flow) "sf-route-opens";
+  let sf_screen = C.screen ~width_of (120, 36) sf_ctl in
+  require (contains sf_screen "Stock–Flow") "sf-screen-shows-heading";
+  require (contains sf_screen "Reconstructed at start") "sf-screen-shows-reconstructed-start";
+  require (contains sf_screen "Net change in tracked balance") "sf-screen-shows-net-change";
+  (* 1: Month *)
+  let sf_m = key ~width_of sf_ctl (`ASCII '1') in
+  require (contains (C.screen ~width_of (120, 36) sf_m) "Month of") "sf-preset-month";
+  (* 2: Cycle *)
+  let sf_cyc = key ~width_of sf_ctl (`ASCII '2') in
+  require (contains (C.screen ~width_of (120, 36) sf_cyc) "Cycle" || contains (C.screen ~width_of (120, 36) sf_cyc) "Stock–Flow") "sf-preset-cycle";
+  (* 3: Previous Cycle *)
+  let sf_prev_cyc = key ~width_of sf_ctl (`ASCII '3') in
+  require (contains (C.screen ~width_of (120, 36) sf_prev_cyc) "Cycle" || contains (C.screen ~width_of (120, 36) sf_prev_cyc) "Period") "sf-preset-prev-cycle";
+  (* 4: Year *)
+  let sf_yr = key ~width_of sf_ctl (`ASCII '4') in
+  require (contains (C.screen ~width_of (120, 36) sf_yr) "Year") "sf-preset-year";
+  (* 5: All Time *)
+  let sf_all = key ~width_of sf_ctl (`ASCII '5') in
+  require (contains (C.screen ~width_of (120, 36) sf_all) "All Time") "sf-preset-all-time";
+  (* Shift period with [ and ] *)
+  let sf_shift = key ~width_of sf_m (`ASCII '[') in
+  require (contains (C.screen ~width_of (120, 36) sf_shift) "Month of 2026-09") "sf-shift-back";
+  let sf_shift_fwd = key ~width_of sf_shift (`ASCII ']') in
+  require (contains (C.screen ~width_of (120, 36) sf_shift_fwd) "Month of 2026-10") "sf-shift-fwd";
+  (* Detail toggle with Tab *)
+  let sf_tab = key ~width_of sf_all `Tab in
+  require (sf_tab.workspace.pane = W.Detail) "sf-tab-toggles-detail";
+  let sf_tab_back = key ~width_of sf_tab `Tab in
+  require (sf_tab_back.workspace.pane = W.Calendar) "sf-tab-toggles-calendar";
+  (* p opens print preview modal *)
+  let sf_print = key ~width_of sf_all (`ASCII 'p') in
+  (match sf_print.overlay with
+   | C.Modal_form f ->
+       require (Ui_form.id f = "stock_flow_print_preview") "sf-p-opens-print-preview";
+       require (Ui_form.title f = "Stock–Flow / Print Preview") "sf-print-title"
+   | _ -> failwith "expected sf print preview modal");
+  let sf_after_print = key ~width_of sf_print `Escape in
+  require (sf_after_print.overlay = C.No_overlay) "sf-print-escapes";
+  let sf_back_home = key ~width_of sf_ctl (`ASCII 'q') in
+  require (sf_back_home.workspace.route = W.Home) "sf-q-back-to-home";
   (* Observe Quantities modal form workflow *)
   (* 1. Launch via 'o' key from back_home *)
   let obs_modal = key ~width_of back_home (`ASCII 'o') in

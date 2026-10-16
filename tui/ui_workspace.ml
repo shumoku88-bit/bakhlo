@@ -1,7 +1,7 @@
 module B = Bakhlo_sexp.Daily_book
 module A = Daily_actions
 
-type route = Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace | Attention | Loci | Settlements | Income_expense | Transactions_flow
+type route = Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow
 type pane = Calendar | Detail
 type family = Actual_row | Scheduled_row
 type row = Actual_entry of B.entry | Scheduled_plan of B.plan
@@ -102,7 +102,7 @@ let browser state =
   | Attention -> state.attention
   | Loci -> state.loci
   | Settlements -> state.settlements
-  | Home | Calendar | Balances | Daily_pace | Income_expense | Transactions_flow -> state.detail
+  | Home | Calendar | Balances | Daily_pace | Income_expense | Transactions_flow | Stock_flow -> state.detail
 
 let update_browser state browser =
   match state.route with
@@ -115,7 +115,7 @@ let update_browser state browser =
   | Attention -> { state with attention = browser }
   | Loci -> { state with loci = browser }
   | Settlements -> { state with settlements = browser }
-  | Home | Calendar | Balances | Daily_pace | Income_expense | Transactions_flow -> { state with detail = browser }
+  | Home | Calendar | Balances | Daily_pace | Income_expense | Transactions_flow | Stock_flow -> { state with detail = browser }
 
 let sorted order rows =
   List.sort
@@ -138,7 +138,7 @@ let rows ~book state =
     | Scheduled -> List.map (fun p -> Scheduled_plan p) (B.open_plans book)
     | Selected_day day -> all_rows book |> List.filter (fun row -> date row = day)
     | Calendar -> home_rows ~book state
-    | Home | Balances | Daily_pace | Attention | Loci | Settlements | Income_expense | Transactions_flow -> []
+    | Home | Balances | Daily_pace | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow -> []
   in
   match state.route, state.schedule_view with
   | Scheduled, Months -> sorted Oldest candidates

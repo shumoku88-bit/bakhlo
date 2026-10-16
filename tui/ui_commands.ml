@@ -1,5 +1,5 @@
 type page = Root | Transactions | Planning | Analysis | Setup
-type action = Record | Actual | Scheduled | New_plan | Balances | Daily_pace | Theme | Home | Calendar | Attention | Manage_loci | Exchange | Settlements | Observe | Income_expense | Transactions_flow
+type action = Record | Actual | Scheduled | New_plan | Balances | Daily_pace | Theme | Home | Calendar | Attention | Manage_loci | Exchange | Settlements | Observe | Income_expense | Transactions_flow | Stock_flow
 type item = Group of page | Action of action
 type t = { page : page; selected : int }
 type outcome = Updated of t | Chosen of action | Closed
@@ -35,6 +35,7 @@ let items = function
         (Action Balances, "Balances / Current");
         (Action Income_expense, "Income & Expense / Cash flow report");
         (Action Transactions_flow, "Transactions Flow / Activity report");
+        (Action Stock_flow, "Stock–Flow / Reconciliation report");
         (Action Observe, "Observe Quantities / Verified balance");
       ]
   | Setup ->

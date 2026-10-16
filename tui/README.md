@@ -274,6 +274,36 @@ Homeで`d`を押すと、今日の目安（Daily Pace）画面が開き、過去
 - **詳細展開 (`Tab` / `i`)**:
   - 右ペインの明細スクロールへフォーカス切替。`Esc`/`q`でレポート一覧へ復帰。
 
+## ストック・フロー連動レポート（Stock–Flow）
+
+`Space`（Commands）→ `Reports and analysis` → `Stock–Flow` で開く。
+指定した期間（月・給与年金サイクル・年・全期間）における**追跡残高（資産・負債）の増減（ストック）**と、**収支（フロー）**が完全に整合しているかを検証する。
+
+- **期間プリセット切替 (`1`〜`5`)**:
+  - `1`: Month（当月、例: `Month of 2026-10`）
+  - `2`: Cycle（`boundary-presets.tsv`に基づく現行サイクル）
+  - `3`: Previous Cycle（直前のサイクル）
+  - `4`: Year（当年）
+  - `5`: All Time（全期間）
+- **期間移動 (`[` / `]`)**:
+  - `[`: 過去の期間へ移動。
+  - `]`: 未来の期間へ移動。
+- **残高の復元表示（左ペイン）**:
+  - `Reconstructed at start`: 期間開始時点の残高（過去の全記録から復元）。
+  - `Reconstructed at end`: 期間終了時点の残高。
+  - `Tracked increases across Events`: 期間内の受入・増加合計（`+In`）。
+  - `Tracked decreases across Events`: 期間内の払出・減少合計（`-Out`）。
+  - `Net change in tracked balance`: 期間内の純増減（`+In + -Out`）。
+  - `Current tracked balance now`: 現在の台帳残高。
+  - 科目ごとの始期・出納・終期・純増減テーブル。
+- **財務整合性検証（右ペイン）**:
+  - 資産の純増減（$\Delta\text{Stock}$）とフロー純貯蓄（$\text{Net Savings} = \text{Income} - \text{Expense}$）の差額（Reconciliation Discrepancy）を検証。
+  - 一致していれば `Balanced: Exact reconciliation (ΔStock = Net Savings)` を表示。
+- **印刷プレビュー (`p`)**:
+  - レポート全体のプレビュー画面を開き、完了後に戻る。
+- **詳細展開 (`Tab` / `i`)**:
+  - 右ペインの整合性説明へフォーカス切替。`Esc`/`q`でレポート一覧へ復帰。
+
 ## BalancesのCurrent残高とAccounting表示
 
 Homeで`b`を押すと、LOAM準拠の**Balances / Current**（現在の各口座・通貨の残高一覧）が開く。
