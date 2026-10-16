@@ -6,6 +6,45 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Transactions Flow report
+
+Bakhlo `c742152` plus local UI work and this slice.
+Read-only source consultation: LOAM `TransactionsFlowReview.lean` (incidence relation,
+RowActivity positive/negative/net/gross, rowActivities, contributions) and
+`TransactionsFlowPane.lean` (table layout, gross-salience sort order, contributions detail,
+and summaryLines). No LOAM build, source copying, runtime comparison or production input.
+
+`transactions_flow_report.ml/.mli` and `daily_interaction.ml` implement coordinate activity incidence review:
+- Route: `W.Transactions_flow`, accessible via Commands -> `Analysis` -> `Transactions Flow`.
+- Period presets: `1` (Month), `2` (Cycle), `3` (Previous Cycle), `4` (Year), `5` (All Time).
+- Cycle resolution: evaluates active cycle windows and historical cycles from `boundary-presets.tsv`.
+- Period shifting: `[` / `]` shifts months or cycles backward / forward.
+- Incidence calculation:
+  - Nonzero Effects grouped by `(locus, measure)`.
+  - Inflows (+In), Outflows (-Out), Net, Gross volume, and active Event counts.
+  - Rows sorted by `Gross` volume descending.
+- Detail pane: shows all contributing transactions (`date, signed_amount measure, memo [id]`)
+  for the selected coordinate; updates synchronously as `j`/`k` moves selection.
+- Print preview: `p` opens plain-text summary modal.
+- Navigation: `Tab` toggles between table and detail scroll; `Esc`/`q` returns to report pane or Home.
+
+Executed native build/`--self-check` and `./tools/check`; passed.
+Checks cover route navigation, period presets (Month, Cycle, Prev Cycle, Year, All-Time),
+period shifting, coordinate row selection, contributing transactions update, Detail toggle,
+Print preview modal, and Home return.
+
+Native tmux (`TERM=xterm-256color`, 120×36), synthetic fixture `scratch/bulk-smoke-dyzB0U/book.sexp`:
+- Initial Home screen: `Space j j Enter j j j Enter` opened `Transactions Flow • Month`.
+- Window showed `2026-10-01 .. 2026-11-01 (exclusive)` with 3 active coordinates.
+- Sorted by gross quantity: `wallet/eur` (Gross 80.00, Net +20.00, 3 events), `bank/eur` (Gross 50.00), `food/eur` (Gross 30.00).
+- Right pane immediately displayed contributing transactions for `wallet/eur`.
+- `j` moved cursor to `bank/eur`; right pane updated to show ATM withdrawal event.
+- `p` opened `Transactions Flow / Print Preview` modal showing table summary.
+- `Escape` closed modal; second `Escape` returned cleanly to Home.
+
+This qualifies the bounded Transactions Flow report slice (UI-25/Flow). It does not establish
+Stock-Flow, real IME/user acceptance, or operational cutover.
+
 ## Income & Expense report
 
 Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus local UI work and this slice.

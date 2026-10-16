@@ -152,6 +152,8 @@ let render_cases state =
     generate;
     detail W.Income_expense;
     C.open_route home W.Income_expense;
+    detail W.Transactions_flow;
+    C.open_route home W.Transactions_flow;
     generate_preview;
     detail (W.Selected_day home.workspace.calendar.selected_day);
     detail W.Actual;
@@ -2186,6 +2188,54 @@ let self_check ~width_of () =
   require (ie_after_print.overlay = C.No_overlay) "ie-print-escapes";
   let ie_back_home = key ~width_of ie_ctl (`ASCII 'q') in
   require (ie_back_home.workspace.route = W.Home) "ie-q-back-to-home";
+  (* Test Transactions Flow report with Cycle / Month / Year / All-Time *)
+  let flow_ctl = C.open_route back_home W.Transactions_flow in
+  require (flow_ctl.workspace.route = W.Transactions_flow) "flow-route-opens";
+  let flow_screen = C.screen ~width_of (120, 36) flow_ctl in
+  require (contains flow_screen "Transactions Flow") "flow-screen-shows-heading";
+  require (contains flow_screen "active coordinate") "flow-screen-shows-active-coordinates";
+  require (contains flow_screen "Gross") "flow-screen-shows-gross-column";
+  (* 1: Month *)
+  let flow_m = key ~width_of flow_ctl (`ASCII '1') in
+  require (contains (C.screen ~width_of (120, 36) flow_m) "Month of") "flow-preset-month";
+  (* 2: Cycle *)
+  let flow_cyc = key ~width_of flow_ctl (`ASCII '2') in
+  require (contains (C.screen ~width_of (120, 36) flow_cyc) "Cycle" || contains (C.screen ~width_of (120, 36) flow_cyc) "Transactions Flow") "flow-preset-cycle";
+  (* 3: Previous Cycle *)
+  let flow_prev_cyc = key ~width_of flow_ctl (`ASCII '3') in
+  require (contains (C.screen ~width_of (120, 36) flow_prev_cyc) "Cycle" || contains (C.screen ~width_of (120, 36) flow_prev_cyc) "Period") "flow-preset-prev-cycle";
+  (* 4: Year *)
+  let flow_yr = key ~width_of flow_ctl (`ASCII '4') in
+  require (contains (C.screen ~width_of (120, 36) flow_yr) "Year") "flow-preset-year";
+  (* 5: All Time *)
+  let flow_all = key ~width_of flow_ctl (`ASCII '5') in
+  require (contains (C.screen ~width_of (120, 36) flow_all) "All Time") "flow-preset-all-time";
+  (* Shift period with [ and ] *)
+  let flow_shift = key ~width_of flow_m (`ASCII '[') in
+  require (contains (C.screen ~width_of (120, 36) flow_shift) "Month of 2026-09") "flow-shift-back";
+  let flow_shift_fwd = key ~width_of flow_shift (`ASCII ']') in
+  require (contains (C.screen ~width_of (120, 36) flow_shift_fwd) "Month of 2026-10") "flow-shift-fwd";
+  (* Selection navigation with j/k *)
+  let flow_j = key ~width_of flow_all (`ASCII 'j') in
+  require (flow_j.transactions_flow.selected_row >= 0) "flow-j-moves-row";
+  let flow_k = key ~width_of flow_j (`ASCII 'k') in
+  require (flow_k.transactions_flow.selected_row = 0) "flow-k-moves-row-back";
+  (* Detail toggle with Tab *)
+  let flow_tab = key ~width_of flow_all `Tab in
+  require (flow_tab.workspace.pane = W.Detail) "flow-tab-toggles-detail";
+  let flow_tab_back = key ~width_of flow_tab `Tab in
+  require (flow_tab_back.workspace.pane = W.Calendar) "flow-tab-toggles-calendar";
+  (* p opens print preview modal *)
+  let flow_print = key ~width_of flow_all (`ASCII 'p') in
+  (match flow_print.overlay with
+   | C.Modal_form f ->
+       require (Ui_form.id f = "transactions_flow_print_preview") "flow-p-opens-print-preview";
+       require (Ui_form.title f = "Transactions Flow / Print Preview") "flow-print-title"
+   | _ -> failwith "expected flow print preview modal");
+  let flow_after_print = key ~width_of flow_print `Escape in
+  require (flow_after_print.overlay = C.No_overlay) "flow-print-escapes";
+  let flow_back_home = key ~width_of flow_ctl (`ASCII 'q') in
+  require (flow_back_home.workspace.route = W.Home) "flow-q-back-to-home";
   (* Observe Quantities modal form workflow *)
   (* 1. Launch via 'o' key from back_home *)
   let obs_modal = key ~width_of back_home (`ASCII 'o') in

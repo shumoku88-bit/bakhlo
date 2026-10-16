@@ -176,6 +176,25 @@ Core/native self-checks and synthetic tmux walks (launch via Commands, Month dis
 Cycle switch, Print modal, and Home return) passed;
 see [Income & Expense evidence](VERIFICATION.md#income--expense-report).
 
+Transactions Flow Report (UI-25/Flow) is connected through `transactions_flow_report.ml/.mli` and `daily_interaction.ml`:
+- Launched via Commands (`Space` -> `Reports and analysis` -> `Transactions Flow`) or `open_route W.Transactions_flow`.
+- Period presets: `1` (Month), `2` (Cycle), `3` (Previous Cycle), `4` (Year), `5` (All Time).
+- Period shifting via `[` / `]`.
+- Incidence matrix computes exact two-sided coordinate activity:
+  - `positive`: sum of positive quanta (+In).
+  - `negative`: sum of negative quanta (-Out).
+  - `net = positive + negative`.
+  - `gross = positive - negative` (total movement volume).
+  - `active_events`: count of contributing transactions.
+- Sorted by `gross` descending (salience order), followed by coordinate lexical order.
+- Left pane displays tabular summary; right pane displays contributing transactions for the selected coordinate.
+- `j`/`k` moves selection and updates contributing transactions immediately.
+- Print preview modal (`p`) and Detail pane toggle (`Tab`).
+Core/native self-checks and synthetic tmux walks (launch via Commands, Month/Cycle/All-Time,
+row selection with detail update, Print modal, and Home return) passed;
+see [Transactions Flow evidence](VERIFICATION.md#transactions-flow-report).
+
+
 
 
 
