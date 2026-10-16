@@ -947,9 +947,9 @@ let balance_items state =
       let coords = balance_view_coords state in
       O.current_balance_items ~book:state.session.book ~coords
 
-let balance_lines state =
+let balance_lines ?(width_of = String.length) state =
   let items = balance_items state in
-  List.map (O.balance_item_line ~book:state.session.book) items
+  List.map (O.balance_item_line ~width_of ~book:state.session.book) items
 
 let balance_print_preview state =
   let lines = balance_lines state in
@@ -2185,6 +2185,48 @@ let actual_table ~width_of ~width book rows =
     | row -> row_title book row) rows in
   ("  " ^ table "Date" "Description" "Amount", titles)
 
+let scheduled_table ~width_of ~width book rows =
+  let room = max 0 (width - 8) in
+  let plans = List.filter_map (function W.Scheduled_plan p -> Some p | _ -> None) rows in
+  let amount_w =
+    min 20
+      (max 10
+         (List.fold_left
+            (fun n (p : B.plan) ->
+              let total =
+                List.fold_left
+                  (fun acc (_, v) -> if Z.sign v > 0 then Z.add acc v else acc)
+                  Z.zero p.changes
+              in
+              let amt_str = B.format book p.measure total ^ " " ^ p.measure in
+              max n (width_of amt_str))
+            0 plans))
+  in
+  let status_w = 11 in
+  let row_line (p : B.plan) =
+    let total =
+      List.fold_left
+        (fun n (_, v) -> if Z.sign v > 0 then Z.add n v else n)
+        Z.zero p.changes
+    in
+    let status =
+      if p.paid_by <> None then "[Paid]"
+      else if p.cancelled_on <> None then "[Cancelled]"
+      else "[Open]"
+    in
+    let amt = B.format book p.measure total ^ " " ^ p.measure in
+    if room < 40 then
+      O.clip_text ~width_of room (p.day ^ "  " ^ O.visible p.id ^ "  " ^ amt ^ "  " ^ status)
+    else
+      let id_w = max 6 (room - 10 - 2 - amount_w - 2 - status_w) in
+      O.pad ~width_of 10 p.day ^ "  "
+      ^ O.pad ~width_of id_w (O.visible p.id) ^ "  "
+      ^ O.pad_left ~width_of amount_w amt ^ "  "
+      ^ status
+  in
+  List.map (function
+    | W.Scheduled_plan p -> row_line p
+    | row -> row_title book row) rows
 let calendar_rows ?(width = 80) state =
   let calendar = state.workspace.calendar and book = state.session.book in
   let actuals = B.entries book and scheduled = B.open_plans book in
@@ -2484,7 +2526,7 @@ let workspace_rows ~width_of ~width ~height state =
       else detail_frame ~width ~height
   else if workspace.route = W.Balances then
     let items = balance_items state in
-    let lines = balance_lines state in
+    let lines = balance_lines ~width_of state in
     let detail =
       match List.nth_opt items workspace.balance_selected with
       | None -> [ tr "No supplied Locus / Measure coordinates." ]
@@ -2703,7 +2745,8 @@ let workspace_rows ~width_of ~width ~height state =
       | W.Scheduled -> "Plan Detail"
       | _ -> "Selected Record"
     in
-    let _, right_width = browser_pane_widths width in
+
+    let left_width, right_width = browser_pane_widths width in
     let wrapped_detail = browser_detail_rows ~width_of ~width:right_width state in
     let list_title =
       match workspace.route with
@@ -2711,11 +2754,20 @@ let workspace_rows ~width_of ~width ~height state =
       | W.Selected_day day -> Printf.sprintf "Day %s (%d)" day (List.length rows)
       | _ -> title
     in
+    let left_rows =
+      if rows = [] then [ tr "No records in this view." ]
+      else match workspace.route with
+      | W.Scheduled -> scheduled_table ~width_of ~width:left_width book rows
+      | W.Selected_day _ ->
+          let _, ts = actual_table ~width_of ~width:left_width book rows in
+          ts
+      | _ -> titles
+    in
     split_pane
       ~left_focused:(not is_detail) ~left_title:list_title
       ~left_scroll:(if is_detail then 0 else state.scroll)
       ~left_selected:(if titles = [] then None else Some (W.browser workspace).selected)
-      ~left_rows:(if titles = [] then [ tr "No records in this view." ] else titles)
+      ~left_rows
       ~right_focused:is_detail ~right_title
       ~right_scroll:(if is_detail then state.scroll else 0)
       ~right_selected:None ~right_rows:wrapped_detail ()

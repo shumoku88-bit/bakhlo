@@ -101,6 +101,10 @@ let cursor_in_rows ~width_of ~width rows =
 let pad ~width_of width value =
   let text = clip_text ~width_of width value in
   text ^ String.make (max 0 (width - width_of text)) ' '
+let pad_left ~width_of width value =
+  let text = clip_text ~width_of width value in
+  String.make (max 0 (width - width_of text)) ' ' ^ text
+
 
 let panel_line ?(width = panel_width) ~width_of style text =
   let left = "│ " and right = " │" in
@@ -372,7 +376,7 @@ let current_balance_items ~book ~coords =
   ]
   @ (if rows = [] then [ Header_row "  (no coordinates configured or approved)" ] else rows)
 
-let balance_item_line ~book item =
+let balance_item_line ?(width_of = String.length) ~book item =
   match item with
   | Blank_row -> ""
   | Header_row text -> text
@@ -390,7 +394,7 @@ let balance_item_line ~book item =
         | Unsupported -> "? unsupported"
         | Known_present -> "? amount unknown, known present"
       in
-      Printf.sprintf "  %-32s %16s" name val_str
+      "  " ^ pad ~width_of 22 name ^ "  " ^ pad_left ~width_of 18 val_str
   | Subtotal_row { role = _; measure; subtotal } ->
       let sign_str = if Z.sign subtotal > 0 then "+" else "" in
       Printf.sprintf "  Known subtotal: %s%s %s" sign_str (B.format book measure subtotal) measure
