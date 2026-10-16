@@ -132,6 +132,15 @@ let sync_parent path =
   let fd = Unix.openfile (Filename.dirname path) [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
   Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> Unix.fsync fd)
 
+let create_empty ~path ~measure ~scale =
+  let book = get "empty-book-refused" (B.empty ~measure ~scale) in
+  let bytes = B.to_string book in
+  write_new path bytes;
+  sync_parent path;
+  let session = load path in
+  require (session.bytes = bytes) "first-run-cold-readback-changed";
+  session
+
 let unfinished_names path =
   let base = Filename.basename path in
   let attempt_prefix = base ^ ".attempt-" and pending_prefix = base ^ ".pending-" in

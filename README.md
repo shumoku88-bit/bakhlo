@@ -108,7 +108,9 @@ mkdir scratch/my-daily-trial
 `s`でScheduled、`b`でBalances、`d`で現在のDaily Paceへ進む。
 RecordはDescriptionから入力し、許可済みLocus候補と符号付きPostingを使う。
 Enter／Ctrl-SでPreviewを開き、Publish / Edit / Cancelを選ぶ。**Publishを選んでEnterだけが記帳する**。
-Esc／Cancelは下書きを保持する。起動時に台帳がなければ拒否し、空台帳へ置き換えない。
+Esc／Cancelは下書きを保持する。起動時に台帳を開けない場合、対話的な`--book FILE`だけは
+別の未使用ファイルへの明示的な初期化を提示する。既存sourceは変更せず、review後の確定だけで作成する。
+非TTYや`--check`は引き続きfail-closedで、空台帳への自動置換はしない。
 [操作・対応範囲・保存の限界](tui/README.md)も参照。
 
 ### UIの方針

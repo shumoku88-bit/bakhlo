@@ -137,6 +137,7 @@ let render_cases state =
              Ui_form.action_buttons ()] ()) };
     record;
     review;
+    C.request_discard { review with record_visible = false };
     reversal;
     reversal_preview;
     date;
@@ -757,6 +758,39 @@ let actual_browsing_checks ~width_of ~directory home =
   let drilled = key ~width_of at_details `Enter in
   require (match drilled.workspace.route with W.Selected_day d -> d = (entry 16).day | _ -> false)
     "actual-enter-drills-to-selected-day";
+  let day_path = directory ^ "/selected-day-record.sexp" in
+  F.write_new day_path (B.to_string book);
+  let day_parent = { drilled with session = F.load day_path;
+    workspace = { drilled.workspace with calendar = get (Cal.create "2024-02-29") } } in
+  let day_draft = prepare_record ~width_of day_parent in
+  let day_rows = S.screen ~book ~dimensions:(72,20) ~width_of (Option.get day_draft.record) in
+  require (contains day_rows (entry 16).day)
+    "selected-day-record-inherits-route-date-not-background-calendar";
+  let held = key ~width_of day_draft `Escape in
+  require (held.workspace = day_parent.workspace && held.drill_parent = day_parent.drill_parent
+           && F.read day_path = before && C.has_record_draft held)
+    "selected-day-record-cancel-retains-draft-parent-and-bytes";
+  let resumed = key ~width_of held (`ASCII 'r') in
+  require (S.screen ~book ~dimensions:(72,20) ~width_of (Option.get resumed.record) = day_rows)
+    "selected-day-record-resumes-same-date-and-input";
+  let review = C.submit resumed in
+  require (F.read day_path = before) "selected-day-record-preview-does-not-write";
+  let saved = key ~width_of (key ~width_of review `End) `Enter in
+  require (not saved.record_visible && not saved.blocked
+           && saved.workspace.route = day_parent.workspace.route
+           && (W.browser saved.workspace).selected_id = (W.browser day_parent.workspace).selected_id)
+    "selected-day-record-publication-retains-parent-selection";
+  let cold = F.load day_path in
+  let added = List.filter (fun (e : B.entry) -> not (List.exists
+    (fun (old : B.entry) -> old.id = e.id) (B.entries book))) (B.entries cold.book) in
+  require (match added with
+    | [e] -> e.day = (entry 16).day && e.memo = Some "English UI / 日本語のメモ"
+             && List.map Daily_actions.quanta e.effects = [Z.of_int (-37); Z.of_int 37]
+    | _ -> false) "selected-day-record-cold-retains-route-date-and-exact-postings";
+  let back = key ~width_of saved (`ASCII 'q') in
+  require (back.workspace.route = W.Actual && back.workspace.pane = W.Detail
+           && (W.browser back.workspace).selected_id = Some (W.Actual_row, "actual-16"))
+    "selected-day-record-publication-preserves-drill-back-to-actual";
   let returned = key ~width_of drilled (`ASCII 'q') in
   require (returned.workspace.route = W.Actual) "selected-day-q-returns-to-actual";
   require ((W.browser returned.workspace).selected = 1) "actual-return-preserves-selected-row";
@@ -789,7 +823,45 @@ let actual_browsing_checks ~width_of ~directory home =
            && filtered_return.workspace.pane = W.Detail
            && filtered_return.scroll = filtered.scroll)
     "actual-return-preserves-filter-order-locus-detail-and-scroll";
+  let refreshed = C.finish_publication filtered
+    { filtered.session with book = corrected_book } "Synthetic publication" in
+  require (refreshed.actual_workspace = filtered.actual_workspace
+           && refreshed.workspace.actual = filtered.workspace.actual
+           && refreshed.workspace.pane = W.Detail && refreshed.scroll = filtered.scroll)
+    "actual-publication-preserves-filter-order-locus-detail-and-scroll";
+  let unmatched_book = get (B.put_entry book ~replace:true
+    { (entry 17) with memo = Some "No longer matches" } ~plan:None) in
+  let unmatched = C.finish_publication filtered
+    { filtered.session with book = unmatched_book } "Synthetic publication" in
+  require (C.selected unmatched = None && unmatched.workspace.pane = W.Detail
+           && unmatched.scroll = 0
+           && contains (C.screen ~width_of (80,24) unmatched) "no longer matches")
+    "actual-publication-filter-exit-is-explicit-and-does-not-retain-stale-detail";
   require (F.read path=before) "actual-browsing-and-draft-did-not-write";
+  let correcting = key ~width_of at_details (`ASCII 'c') in
+  require correcting.record_visible "actual-correction-opens-record";
+  let correcting = key ~width_of correcting (`ASCII '!') in
+  let correcting = Option.get (C.handle ~width_of correcting (`Key (`Tab, [`Shift]))) in
+  let correcting = List.fold_left (fun s _ -> key ~width_of s `Backspace)
+    correcting (List.init 10 Fun.id) in
+  let correcting = String.fold_left (fun s c -> key ~width_of s (`ASCII c))
+    correcting "2026-09-01" in
+  let review = C.submit correcting in
+  require (F.read path = before) "actual-correction-review-does-not-write";
+  let published = key ~width_of (key ~width_of review `End) `Enter in
+  require (not published.record_visible && not published.blocked)
+    "actual-correction-published";
+  require (published.workspace.route = W.Actual && published.workspace.pane = W.Detail
+           && (W.browser published.workspace).selected_id = Some (W.Actual_row, "actual-16")
+           && (W.browser published.workspace).selected = 17
+           && (match C.selected published with
+               | Some (W.Actual_entry e) -> e.id = "actual-16" | _ -> false))
+    "actual-correction-return-follows-id-not-old-row";
+  let cold = F.load path in
+  let corrected = List.find (fun (e : B.entry) -> e.id = "actual-16") (B.entries cold.book) in
+  require (corrected.day = "2026-09-01" && corrected.memo = Some "Synthetic purchase 16!"
+           && corrected.effects = (entry 16).effects)
+    "actual-correction-cold-retains-id-date-description-and-postings";
   print_endline "PASS: Actual exact aligned summaries, live search, clamped detail/list paging, tiny resize, stable selection and retained Record drafts (synthetic)."
 
 let reversal_checks ~width_of ~directory home =
@@ -1667,6 +1739,42 @@ let self_check ~width_of () =
   require (C.has_record_draft edit && F.read path = before) "preview-edit-lost-draft";
   let cancelled = key ~width_of edit `Escape in
   require ((not cancelled.record_visible) && C.has_record_draft cancelled) "cancel-lost-held-draft";
+  let request_discard state = Option.get
+    (C.handle ~width_of state (`Key (`ASCII 'n', [`Ctrl]))) in
+  let confirming = request_discard cancelled in
+  require (confirming.record = cancelled.record && C.has_record_draft confirming
+           && F.read path = before) "discard-shortcut-must-not-delete-without-confirmation";
+  require (match confirming.overlay with
+    | C.Modal_form form -> (match Ui_form.get_selected_button form with
+        | Some button -> button.is_cancel | None -> false)
+    | _ -> false) "discard-confirmation-defaults-to-keep";
+  let kept = key ~width_of confirming `Enter in
+  let escaped = key ~width_of confirming `Escape in
+  require (kept.record = cancelled.record && escaped.record = cancelled.record
+           && kept.workspace = cancelled.workspace && kept.overlay = C.No_overlay)
+    "discard-keep-and-escape-retain-exact-draft-and-parent";
+  let selected = key ~width_of confirming (`Arrow `Right) in
+  let tiny = key ~dimensions:(32,9) ~width_of selected `Enter in
+  require (tiny.record = cancelled.record && C.has_record_draft tiny)
+    "discard-unreadable-confirmation-refused";
+  let kept_after_resize = key ~width_of tiny `Enter in
+  require (kept_after_resize.record = cancelled.record && kept_after_resize.overlay = C.No_overlay)
+    "discard-tiny-refusal-resets-protective-choice";
+  let discarded = key ~width_of selected `Enter in
+  require (discarded.record = None && not discarded.record_visible
+           && discarded.workspace = cancelled.workspace && F.read path = before)
+    "discard-explicit-choice-clears-only-draft-without-writing";
+  require (request_discard discarded == discarded) "discard-without-draft-is-noop";
+  let uncertain = { cancelled with pending = Some (Daily_actions.Monolithic_candidate before);
+    blocked = true; message = "Publication outcome is unknown; do not retry." } in
+  let uncertain_choice = key ~width_of (request_discard uncertain) (`Arrow `Right) in
+  let uncertain_tiny = key ~dimensions:(32,9) ~width_of uncertain_choice `Enter in
+  require (uncertain_tiny.message = uncertain.message && uncertain_tiny.record = uncertain.record)
+    "discard-tiny-refusal-preserves-uncertain-warning-and-draft";
+  let uncertain_refused = key ~width_of uncertain_choice `Enter in
+  require (uncertain_refused.blocked && uncertain_refused.pending = uncertain.pending
+           && uncertain_refused.record = uncertain.record && F.read path = before)
+    "discard-confirmation-cannot-clear-unconfirmed-publication";
   let navigated = key ~width_of cancelled (`ASCII 'l') in
   require (C.has_record_draft navigated) "calendar-navigation-lost-draft";
   let resumed = key ~width_of navigated (`ASCII 'r') in

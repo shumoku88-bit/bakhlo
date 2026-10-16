@@ -31,7 +31,11 @@ mkdir scratch/my-daily-trial
 ./tools/tui --book scratch/my-daily-trial/book.sexp
 ```
 
-隔離環境なし・非TTY・未供給／不正な台帳は拒否し、空台帳へ置き換えない。
+対話的な`--book FILE`で選択台帳がmissing／unreadableなら、別の未使用fileへの明示的な初期化を選べる。
+missing pathは初期destination、existing sourceはblank destination。sourceを置換せず、出力先・最初の
+Measure／scaleをreviewして2回目のEnterでだけ作成する。小さい端末ではreview確定を拒否し、resize後に
+再確認する。Escapeは非保存で終了。非TTY、`--check`、Recoveryその他のload callerは引き続きfail-closed。
+空台帳への自動fallbackはしない。
 ABIが異なるため、現在のCore・台帳・UIソースを`_build/daily-bonsai`で再ビルドする。
 生成先は追跡中のモジュールだけへ更新し、削除済み旧UIソースを残さない。
 
@@ -82,6 +86,10 @@ Cancelは削除ではなく下書き保持。本文と背景は通常のトー�
 - `Ctrl-S`：Previewを開く。保存はしない。Esc／Cancel：下書きを保持して閉じる。
 - PreviewのPublish / Edit / CancelはTab等で選ぶ。**Publishを選んでEnterだけが保存を要求する**。
   Editは入力へ、Cancelは下書きを保持して閉じる。PreviewのCtrl-Sや貼付では保存しない。
+- 閲覧中の`Ctrl-N`：保持中の下書きの破棄確認。初期選択はKeep draftで、Enter／Escは保持。
+  →でDiscard draftを選びEnterしたときだけ下書きを破棄する。台帳は書き換えない。
+  狭小端末では拒否してKeepへ戻す。保存結果不明・復旧未確認の破棄拒否は維持する。
+  記帳中の`Ctrl-N`は従来どおりPosting行追加であり、破棄ではない。
 
 PreviewはID・日付・メモ・全Postingの符号付き数量・Measure・Locus ID・キー・支払い対応を表示する。
 長文は折り返しとスクロール。極小端末では証拠を隠した確定を拒否する。
