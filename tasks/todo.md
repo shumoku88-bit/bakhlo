@@ -52,6 +52,18 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
    正常・空・不明・拒否・訂正・返金・複数通貨・保存失敗を再現できる比較前状態を保全する。
    元データや私用取得内容をfixture・公開記録へ移さない。Home／Commands／各入口から
    LOAMのユーザー向け機能を棚卸しし、以下の列挙にない非予算項目もUI差分台帳へ関連付ける。
+   2026-10-16に現行ソース資料のみの棚卸しを実施し、LOAM `bb208173`／Bakhlo `6b676c5`を基準として影響点をUI-01〜34へ反映した。existing LOAM binary SHA-256 `04f018707d45d483907f6d9dd19efe9fb702b6d22fb55e5192df65accd7c705b`、Bakhlo UI binary SHA-256 `fa3bd48b4493d22fd62aa91f5b2afb0cb3e2b3e3b250e563b32c88800eb63912`を固定し、UI-34のabsent-root挙動を80×24で限定比較した（[差分台帳](../docs/LOAM_UI_GAP_LEDGER.ja.md)、[検証記録](../docs/VERIFICATION.md#first-run-comparison-2026-10-16)）。financial fixture群・LOAM source/binary対応・LOAM Escape cancelは未確認。受入項目全体は未了。
+   UI-34 first-run実装を接続。interactive `--book FILE`のmissing sourceでは選択pathを初期destination、
+   unreadable existing sourceではblank destinationにする。Measure identifier／scale 0–9を検査し、
+   出力先・Measure・scale・履歴等を作らない意味をreview、2段目Enterだけが確定する。
+   `Daily_book.empty`は明示的な空Locus policyとMeasure一つを作り、最初のLocusを既存Manage Lociで
+   admission可能。`Daily_file.create_empty`はexclusive mode-0600・file sync/readback・parent sync・
+   cold loadを行う。source／既存destinationは保全。20×5ではconfirm拒否、resize後に続行。
+   `./tools/check`、`./tools/build-bonsai-tui`、`./tools/tui --self-check`成功。80×24合成PTYで
+   jpy scale 2をreview→20×5 Enter拒否→80×24で作成→Home起動、`--check` cold reopenを確認。
+   別PTYでunreadable sourceはblank destination、Escapeで非保存・source hash維持。非TTY missing
+   `--book`は既存拒否を維持。既存destination拒否・bytes保全はself-checkで確認。
+   LOAM paired実行／Escape対照、人間のIME受入、P7／運用認定は未了。[証拠](../docs/VERIFICATION.md#first-run-empty-book-creation)
 2. [ ] **共有機構を利用元横断で移行・受入する。** 責務・API・全利用元・受入条件は
    [TUI共有部品の責務設計と移行順序](../docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md) に従う。設計確定のみで実装済みにはしない。
    - 共有input／再帰Input metadataの純粋機構は実装・境界検査・native幅の直接smoke済み。既存Daily_form・tail・native widthを再利用。

@@ -29,6 +29,10 @@ type plan = {
 
 type t
 
+val empty : measure:string -> scale:int -> (t, string) result
+(** A v3-ready empty book with one explicitly supplied Measure/scale and no
+    admitted Loci, entries, plans, or quantity evidence. *)
+
 val source_format_of_string : string -> [ `Monolithic of string | `Records of int | `Unknown ]
 (** Detect whether input is Monolithic S-expression (bakhlo-daily v1..v3) or Records S-expression (bakhlo-records v1). *)
 

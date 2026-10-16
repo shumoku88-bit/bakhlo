@@ -197,9 +197,34 @@ let sync state =
   let workspace = W.sync ~book state.workspace |> W.follow_months_selection ~book in
   { state with workspace; scroll = 0 }
 
+let sync_actual_to_workspace state =
+  let entry_opt = Act.selected_entry ~book:state.session.book state.actual_workspace in
+  let browser : W.browser =
+    {
+      selected = Act.transaction_row state.actual_workspace;
+      selected_id = Option.map (fun (e : B.entry) -> (W.Actual_row, e.id)) entry_opt;
+      day = (match Act.scope state.actual_workspace with Act.Focus_day -> Some (Act.focus_date state.actual_workspace) | Act.All_current -> None);
+      order = (match Act.sort_order state.actual_workspace with Act.Asc -> W.Oldest | Act.Desc -> W.Newest);
+      query = Act.search_query state.actual_workspace;
+      locus = Act.selected_locus ~book:state.session.book state.actual_workspace;
+    }
+  in
+  let pane = if Act.pane state.actual_workspace = Act.Details then W.Detail else W.Calendar in
+  let scroll = if pane = W.Detail then Act.detail_scroll state.actual_workspace else 0 in
+  { state with workspace = { state.workspace with actual = browser; pane }; scroll }
+
 let finish_publication state session message =
   let next = sync { state with session; record = None; record_visible = false;
     overlay = No_overlay; pending = None; blocked = false; message = tr message } in
+  let next =
+    if state.workspace.route = W.Actual then
+      let actual_workspace = Act.returned_from_detail
+        ~before_book:state.session.book ~after_book:session.book state.actual_workspace in
+      let notice = Act.notice actual_workspace in
+      sync_actual_to_workspace { next with actual_workspace;
+        message = next.message ^ (if notice = "" then "" else "\n" ^ tr notice) }
+    else next
+  in
   match mode state with
   | A.Pay id -> (
       match List.find_opt (fun (p : B.plan) -> p.id = id && p.paid_by <> None) (B.plans session.book) with
@@ -330,6 +355,17 @@ let discard state =
         message = tr "Draft discarded explicitly.";
       }
 
+let request_discard state =
+  if not (has_record_draft state) then state
+  else
+    let form = Form.create ~id:"discard_record" ~title:"Discard retained draft?"
+      ~summary:["The retained draft will be lost.";
+        "Saved entries and plans will not change."]
+      ~fields:[Form.buttons_field ~id:"actions" ~buttons:[
+        { Form.label = "Keep draft"; is_cancel = true };
+        { Form.label = "Discard draft"; is_cancel = false }] ()] () in
+    { state with overlay = Modal_form form }
+
 let open_record state =
   if state.blocked then state
   else
@@ -343,11 +379,14 @@ let open_record state =
             tr "A Scheduled draft is retained. Resume or discard it before creating a Record.";
         }
     | _ ->
+        let day = match state.workspace.route with
+          | W.Selected_day day -> day
+          | _ -> state.workspace.calendar.selected_day in
         {
           state with
           record =
             Some
-              (S.create ~book:state.session.book ~day:state.workspace.calendar.selected_day
+              (S.create ~book:state.session.book ~day
                  ~measure:state.workspace.measure ());
           record_visible = true;
           overlay = No_overlay;
@@ -375,22 +414,6 @@ let open_plan_record state =
       record_visible = false;
       message = "";
     }
-
-let sync_actual_to_workspace state =
-  let entry_opt = Act.selected_entry ~book:state.session.book state.actual_workspace in
-  let browser : W.browser =
-    {
-      selected = Act.transaction_row state.actual_workspace;
-      selected_id = Option.map (fun (e : B.entry) -> (W.Actual_row, e.id)) entry_opt;
-      day = (match Act.scope state.actual_workspace with Act.Focus_day -> Some (Act.focus_date state.actual_workspace) | Act.All_current -> None);
-      order = (match Act.sort_order state.actual_workspace with Act.Asc -> W.Oldest | Act.Desc -> W.Newest);
-      query = Act.search_query state.actual_workspace;
-      locus = Act.selected_locus ~book:state.session.book state.actual_workspace;
-    }
-  in
-  let pane = if Act.pane state.actual_workspace = Act.Details then W.Detail else W.Calendar in
-  let scroll = if pane = W.Detail then Act.detail_scroll state.actual_workspace else 0 in
-  { state with workspace = { state.workspace with actual = browser; pane }; scroll }
 
 let open_route state route =
   let state =
@@ -1365,13 +1388,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             | Date.Closed -> Some { state with overlay = No_overlay }
             | Date.Publish (tx, base_bytes) ->
                 let draft = { state with overlay = Date_correction (Date.edit editor) } in
-                let next = apply_commit_result state ~draft
-                  (A.commit_transaction ~session:state.session ~base_bytes tx) in
-                Some (if next.overlay = No_overlay && next.workspace.route = W.Actual then
-                  let actual_workspace = Act.returned_from_detail
-                    ~before_book:state.session.book ~after_book:next.session.book state.actual_workspace in
-                  sync_actual_to_workspace { next with actual_workspace }
-                else next)))
+                Some (apply_commit_result state ~draft
+                  (A.commit_transaction ~session:state.session ~base_bytes tx))))
     | Reversal editor -> (
         match input with
         | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
@@ -1477,6 +1495,13 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Form.Updated updated -> Some { state with overlay = Modal_form updated }
         | Form.Submit submitted -> (
             match Form.id submitted with
+            | "discard_record" ->
+                let width, height = body_dimensions ~dimensions ~width_of state in
+                if width < 48 || height < 12 then
+                  Some { (request_discard state) with
+                    message = (if state.blocked then state.message
+                      else tr "Enlarge the terminal to confirm draft discard.") }
+                else Some (discard { state with overlay = No_overlay })
             | "add_attention" ->
                 let context = Option.value ~default:"" (Form.get_text submitted "context") in
                 let due_kind_idx = Option.value ~default:0 (Form.get_choice submitted "due_kind") in
@@ -1808,7 +1833,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         match Option.map normalize key with
         | Some (`ASCII 'q', [ `Ctrl ]) -> None
         | Some (`ASCII 'r', [ `Ctrl ]) -> Some (reload state)
-        | Some (`ASCII 'n', [ `Ctrl ]) -> Some (discard state)
+        | Some (`ASCII 'n', [ `Ctrl ]) -> Some (request_discard state)
         | _ when state.workspace.route = W.Actual -> (
             match input with
             | `Key (`ASCII ' ', []) when not (Act.search_editing state.actual_workspace) ->
@@ -3136,6 +3161,9 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   | Themes _ -> [ "j/k or Up/Down preview theme"; "Enter save  Esc/q cancel" ]
   | Modal_form form -> (
       match Form.id form with
+      | "discard_record" ->
+          [ "Left/Right choose  Enter confirm  Esc keep";
+            "Keep draft is the protective default; no book write" ]
       | "observe_quantity" ->
           [ "Enter observe  Tab next field  Esc cancel"; "Locus & Measure tokens, signed or zero amount" ]
       | "daily_pace_what_if" ->

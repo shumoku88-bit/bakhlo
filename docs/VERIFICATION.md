@@ -6,6 +6,242 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Retained draft discard confirmation
+
+Bakhlo `6b676c5` plus the local Record/Actual controller changes. Browsing Ctrl-N
+previously cleared the held draft immediately; the new native regression reproduced
+this at `discard-shortcut-must-not-delete-without-confirmation`.
+
+- Reused the existing Ui_form buttons and existing `discard` guard. Keep draft is
+  the initial cancel button; Enter/Escape retain input and parent context. Explicit
+  Discard requests local draft removal only. No writer, codec or UI framework change.
+- Confirmation requires at least 48 columns and 12 body rows. A tiny refusal resets
+  Keep; it does not replace an existing blocked/uncertain warning. Existing pending
+  publication/recovery refusals remain authoritative even after explicit confirmation.
+- Permanent checks cover default Keep/Escape, explicit non-saving discard, empty-draft
+  no-op, shrink/refuse/restore, uncertain-evidence retention and warning preservation.
+  The modal is included in existing renderer cases across dimensions/themes.
+- Core `./tools/check`, native build and native `--self-check` passed.
+- Native tmux at 80×24 on a dedicated socket, `TERM=xterm-256color`, used a fresh
+  synthetic `examples/daily-book.sexp` copy under ignored `scratch/draft-discard.IOomlv/`.
+  `Keep this draft` survived default Keep and a 32×9 refusal followed by restoration
+  to 80×24/Enter. Explicit Right/Enter discarded it, and reopening Record was blank.
+  The selected book's SHA-256 remained unchanged throughout. Escape was sent separately
+  from the following shortcut to avoid terminal escape-sequence ambiguity.
+  UI binary SHA-256: `47642e4e88fe68e8d4a4269d77360616a4722c407b469f49d42b27803553e200`.
+
+This intentional draft-loss protection is not a new paired LOAM runtime comparison,
+manual IME acceptance, restart-persistent draft support or power-loss/P7 qualification.
+No production input, dependency or operational authority changed.
+
+## Actual correction publication return
+
+Bakhlo `6b676c5` plus this controller/check change and pre-existing documentation edits.
+No LOAM executable, source build, private household input or new dependency was used.
+
+- A new native regression first failed at
+  `actual-correction-return-follows-id-not-old-row`: Record correction from Actual
+  changed the date enough to reorder the list, but the Actual workspace kept its
+  old row while the parallel browser followed the ID. The two selections disagreed.
+- Publication now reuses `Act.returned_from_detail` and the existing browser sync;
+  the Date-only handler's duplicate restoration is removed. Success messages retain
+  the helper's explicit notice when a selected item leaves the filter/scope.
+- Permanent checks exercise real Record correction Preview/non-write, publication,
+  same ID/detail focus after row 1 → 17, unchanged postings, and cold-load date/memo.
+  Separate state-level checks cover filtered/sorted/Locus-selected scrolled return
+  and a selected item leaving search (empty selection, reset scroll, visible notice).
+- `./tools/check`, `./tools/build-bonsai-tui` and native `--self-check` passed.
+- Native tmux on a dedicated socket, `TERM=xterm-256color`, used a fresh synthetic
+  two-entry book under ignored `scratch/actual-correction-return.i7wxmj/`.
+  At 80×24: Actual → Details → `c`, append `!` to `Return target`, change
+  2026-10-15 → 2026-09-01, Ctrl-S. Preview left the book hash unchanged;
+  End/Enter published, selected `target` in its new second row and retained Details.
+  Shrinking to 48×14 retained the same -37/+37 jpy detail. After Ctrl-Q and a fresh
+  process, Actual → second row → Details showed `target`, the corrected date and
+  `Return target!`. `--check` admitted the saved book.
+  UI binary SHA-256: `2c57aa5ac060e0eae2981772aa4cd7f82a8465696dc5602186bdc35a81fef6c0`.
+
+This is bounded synthetic return/cold-reopen evidence, not paired LOAM parity,
+IME/user acceptance, new failure-path qualification, power-loss/P7 or cutover approval.
+
+## Selected Day Record date and return
+
+Bakhlo `6b676c5` plus the local correction-return and Selected Day Record changes.
+The new native regression first failed at
+`selected-day-record-inherits-route-date-not-background-calendar`.
+`open_record` now uses the Selected Day route's date for a fresh draft, as
+`open_plan_record` and `open_exchange` already do; held drafts are not retargeted.
+Read-only LOAM `SelectedDaySession.lean` `.recordNew` uses `state.focusDate` too;
+this source observation is not a new paired executable comparison.
+
+- Permanent native checks use a background calendar of 2024-02-29 and an Actual
+  drilled into 2026-10-17. They cover initial date, Escape/no-write, exact draft
+  resume, Preview/no-write, same parent selection, cold-load date/memo/-37/+37 jpy,
+  and drill-back to the original Actual ID/detail focus.
+- At 80×24 on a dedicated tmux socket (`TERM=xterm-256color`), a fresh synthetic
+  copy under ignored `scratch/selected-day-record.H4lKEE/` opened Actual → Details
+  → Selected Day 2026-10-01 → Record, while the background calendar was 2026-10-16.
+  Record and Preview both showed 2026-10-01. `Selected-day snack`, wallet -19 and
+  food +19 survived Escape/resume; both Escape and Preview left the book hash
+  unchanged. Publish returned to the same Selected Day/`earlier` selection;
+  `q` restored Actual/Details on `earlier`. A fresh process showed the new entry
+  with 2026-10-01 and -19/+19 jpy; `--check` admitted the saved book.
+- Core `./tools/check`, native build and native `--self-check` passed.
+  UI binary SHA-256: `529ab2f18f5829cdc6c66497545869c5f686390b423c5b19dd393c6ca99e4098`.
+
+No original data, LOAM build/runtime or dependency changes. Paired LOAM runtime,
+manual IME acceptance, new failure/power-loss/P7 evidence and full lifecycle acceptance
+remain open; no operational cutover is implied.
+
+## First-run comparison (2026-10-16)
+
+Bounded paired startup check for the same absent-household condition at 80×24.
+No financial records or household facts were needed; both destinations were unique,
+new paths under ignored Bakhlo `scratch/first-run-comparison.A4A2nu/`.
+
+- Sources: Bakhlo `6b676c5` (inventory documentation changes present; UI source unchanged);
+  LOAM `bb208173` (worktree clean).
+- Existing LOAM executable, `../loam/.lake/build/bin/loam`:
+  SHA-256 `04f018707d45d483907f6d9dd19efe9fb702b6d22fb55e5192df65accd7c705b`.
+- Bakhlo executable, `_build/daily-bonsai/_build/default/ui/bonsai_daily.exe`,
+  built by the existing `./tools/tui` entrance:
+  SHA-256 `fa3bd48b4493d22fd62aa91f5b2afb0cb3e2b3e3b250e563b32c88800eb63912`.
+- LOAM was invoked directly as `loam tui <absent scratch directory>`: it displayed
+  `LOAM / Start a household`, identified the selected missing path, and offered a
+  separate create/review flow.
+- Bakhlo was invoked as `bonsai_daily.exe --book <absent scratch file>`: it exited
+  with `TUI/recovery refused: input/file/terminal unavailable; no empty fallback.`
+- Neither target path was created. No live household path was supplied.
+
+This establishes the visible startup difference only: LOAM offers explicit first-run
+creation, while Bakhlo fails closed. The LOAM process already open in another terminal
+was left untouched; no `./ui --refresh` or private household capture was attempted.
+The LOAM screen was observed, but the Expect PTY did not confirm a clean Escape return;
+cancel handling is unqualified. Binary-to-source correspondence, other startup failure
+cases, shared financial fixtures, and broader screen parity remain unqualified.
+
+## Record lifecycle synthetic smoke (2026-10-16)
+
+Built with `./tools/build-bonsai-tui`; native `--self-check` passed. A fresh
+`scratch/record-follow-orhjO7/book.sexp` was copied from the synthetic
+`examples/daily-book.sexp`; no household original or LOAM executable was used.
+At 80×24 on a private tmux socket (`TERM=xterm-256color`), Home `r` opened
+Record with Description focused and today's date. Entered `Smoke purchase`,
+wallet `-37` and food `+37` jpy. `Ctrl-S` showed the exact two-posting Preview
+without publishing; Enter on Publish wrote an Actual. Opening Actual with `a`
+showed the same description, date, signed postings and ID
+`entry-d8dd9fcde24e0ba926df2e0d`.
+
+From Actual, `n` opened a second Record; entering `Discard me` and Esc retained
+the draft without changing the book SHA-256
+`7204f52e0fc93d1a253e2e2a9116686ff3060cbfc5d8f224f48fcc7b090115ce`.
+`r` resumed that draft. After leaving the editor and restarting the TUI,
+Actual still contained the first entry and the book hash was unchanged.
+This qualifies one Bakhlo native happy path and one cancellation; it does not
+establish matching LOAM behavior, preview Edit/Cancel choice, narrow-screen
+publication gates, save failures, or manual IME acceptance. The existing
+Record lifecycle acceptance item remains open.
+
+## Paired Record happy path and cancellation (2026-10-16)
+
+Existing LOAM binary `../loam/.lake/build/bin/loam` SHA-256
+`04f018707d45d483907f6d9dd19efe9fb702b6d22fb55e5192df65accd7c705b`;
+Bakhlo `_build/daily-bonsai/_build/default/ui/bonsai_daily.exe` SHA-256
+`fa3bd48b4493d22fd62aa91f5b2afb0cb3e2b3e3b250e563b32c88800eb63912`.
+LOAM source/binary correspondence was not requalified. Both ran at 80×24,
+`TERM=xterm-256color`, on a private tmux socket. All data were synthetic under
+ignored `scratch/record-paired-FSlkTk/`. LOAM's existing first-run UI created
+`initialized/` from an unused path; its Manage Loci UI explicitly admitted
+`wallet` and `food`. Bakhlo used a separate empty Daily v3 book with JPY
+scale 0, those two approved loci and no balances/plans. The two storage formats
+and generated IDs differ by design; no original household was opened.
+
+Home `r`, Description `paired snack`, wallet `-37` and food `+37` jpy reached
+Preview in both. LOAM required Enter after the last Amount; its Record ignored
+`Ctrl-S`, which Bakhlo accepts as an additional Preview shortcut. Before
+publication, Esc left both authority hashes unchanged (Bakhlo
+`dff138a1464dc620257b72a0d6b0d3d6bfaddaa947c850b7af8ad5d090f8a597`,
+LOAM `1a1a6d1319343bc8ef755c94493c07f4c8c8040d480c709379fdeadd05d39333`).
+Reopening Record started a blank LOAM editor but resumed Bakhlo's held draft.
+Re-entering the same LOAM fields and selecting Publish with Enter in each UI
+saved one Actual. `a` showed the same date, description and signed postings;
+after both processes were stopped and restarted, Actual still showed one
+`paired snack` entry with those postings, and the published book hashes were
+unchanged (`5e7a68517fe6fb2cf1b3a8094590249d9cf7222ff7bf11c02886e5731da2457c`
+for Bakhlo, `5e638f7b62e7c25e38ce7d3755a1246fb07ae8ee5a1c7f861593e2ee62e5a0c2`
+for LOAM).
+
+Observed differences: LOAM's Record and Preview fill the 80×24 surface;
+Bakhlo floats a narrower pane over Home. LOAM Preview lists date, description,
+then compact signed postings; Bakhlo lists detailed postings first and includes
+the generated ID. LOAM Actual gives a full-width dated/amounted row and a
+bottom Details pane; Bakhlo uses three panes with a separate Loci list and
+the amount in Details. Draft retention on Esc is intentional Bakhlo data-loss
+protection, not a reason to discard a draft merely for screen parity. No layout
+or key change was made without a bounded review of the other Record modes and
+Actual consumers. This is one paired new-Record case, not acceptance of
+Correction, Scheduled completion, Original Amount, narrow/resize, failure,
+locale/IME, or full visual parity.
+
+## Paired Record Edit/Cancel and narrow Preview gates (2026-10-16)
+
+Same existing executables/hashes as the paired Record section above. Fresh
+synthetic copies of its published authorities under ignored
+`scratch/record-gate-QEq17T/`, private tmux socket, `TERM=xterm-256color`.
+Initial SHA-256: LOAM HouseholdImage
+`5e638f7b62e7c25e38ce7d3755a1246fb07ae8ee5a1c7f861593e2ee62e5a0c2`;
+Bakhlo book `5e7a68517fe6fb2cf1b3a8094590249d9cf7222ff7bf11c02886e5731da2457c`.
+Both accepted `gate check` with wallet `-19` / food `+19` jpy at 80×24.
+Preview Tab→Enter returned to Edit with the same fields; Enter at the final
+Amount reopened Preview. Tab→Tab→Enter selected Cancel and left both hashes
+unchanged. Reopening started blank in LOAM and resumed the Bakhlo draft.
+
+After recreating the same LOAM draft and reopening both Previews at 80×24,
+resizing to 32×9 hid *all* of LOAM's seven confirmation lines. Enter on its
+default Publish nonetheless saved `record-2` (HouseholdImage hash became
+`8aace20f9562ccfdb3c3e1dbde1dda5adabdd398b6b04d4fac3683301906c3f2`).
+Bakhlo instead refused with `Not enough room to review publication; enlarge
+the terminal.` and its book hash remained unchanged. At 48×14, Bakhlo End
+showed the last preview lines, but Enter still refused because the complete
+preview did not fit; the hash remained unchanged. After restoring 80×24,
+End displayed all 11/11 lines and Enter published that retained Bakhlo draft
+(hash `ad25774dcfcfde6e47d1cfa4adede1e87ff388019e61cb3f5d0f063b9958af6f`).
+On LOAM at 48×14, its separate `gate forty eight` Preview showed 4/7 lines,
+End showed 7/7, and Enter published `record-3`. That is a different, partial
+review policy, not evidence that the content is visible all at once.
+
+**Safety decision:** Do not copy LOAM's observed 32×9 behavior into Bakhlo.
+This comparison used synthetic authorities only; it does not modify LOAM
+source or originals. Bakhlo's conservative tiny/full-preview refusal is
+intentional. No product code changed. Paired save-failure comparison, long
+multi-page confirmation, resize while typing, other Record-shaped modes,
+source/binary correspondence and manual IME acceptance remain open.
+
+## Record native pre-write filesystem failure (2026-10-16)
+
+Only Bakhlo was run here, at 80×24 on a private tmux socket. A fresh copy of
+the synthetic published book under ignored `scratch/record-failure-yBJb8N/`
+started at SHA-256
+`5e7a68517fe6fb2cf1b3a8094590249d9cf7222ff7bf11c02886e5731da2457c`.
+A regular writer-lock file was prepared before launch. The `failed save`
+draft (wallet `-11`, food `+11` jpy) reached a full 11/11-line Preview. The
+scratch directory was changed from mode 0700 to 0500 immediately before
+Publish, preventing creation of the first candidate file; it was restored
+to 0700 immediately afterward. The TUI reported an uncertain publication
+outcome, retained the draft and stopped writes. The selected book hash was
+unchanged. Repeating Enter after permission restoration displayed `Writes
+are stopped; the draft is retained.` and still did not write. Esc returned
+to Home; Ctrl-R there reported `previous publication is still unconfirmed.
+No retry`, with the same book hash. After stopping and cold-reopening, Actual
+contained only the earlier `paired snack` entry, not `failed save`.
+
+The writer marks its attempt before candidate-file creation, so even this
+pre-write I/O error is reported as uncertain; this is a conservative stop,
+not a claim of durable Saved or knowledge of every failure outcome. No
+automatic retry, household original, LOAM runtime or product code change.
+Failure after replacing the selected book, power loss/P7, and paired LOAM
+save-failure behavior remain unqualified.
+
 ## Attention administration
 
 Bakhlo `896fb7f` plus local UI work and this slice.
@@ -3000,3 +3236,62 @@ source walks; revisit with named workloads/limits before optimizing or choosing 
 
 Storage/publication, other Linux/Apple Silicon targets, full evidence families, household
 authority and large-history operational reliability remain open. Do not relabel absences as coverage.
+
+## First-run empty-book creation
+
+The interactive `--book FILE` entrance now offers explicit initialization after
+the selected book fails to load. A missing path is initially suggested as the
+destination; an existing unreadable source starts with an empty destination.
+`Daily_book.empty` validates one Measure and scale (0–9), and starts with an
+explicit empty Locus policy so the existing Manage Loci path can admit the
+first Locus. It creates no Actual, Scheduled plan, opening support, or observation.
+
+`Daily_file.create_empty` serializes the v3 monolithic candidate, uses the existing
+exclusive `write_new` path (mode 0600, file fsync and read-back), syncs the parent,
+then cold-loads and compares the exact bytes. It does not create the parent directory.
+Existing `Daily_file.load`, `--check`, recovery and non-TTY startup remain fail-closed.
+An uncertain/failed create is not retried automatically.
+
+- `./tools/check`, `./tools/build-bonsai-tui` and `./tools/tui --self-check` passed.
+  Permanent self-checks cover empty-book roundtrip/admission, first-Locus admission,
+  Measure/scale refusal, missing-path prefill, unreadable-source blank destination,
+  review without writes, Escape cancellation, tiny-review refusal, existing-target
+  refusal/byte preservation, and exclusive creation/cold reopen.
+- At 80×24 with a fresh synthetic scratch path, entered `jpy`, scale 2. Review
+  showed the exact destination and explicit absence of records/support; the file did
+  not exist before confirmation. At 20×5, Enter did not create the file and displayed
+  the resize notice. After restoring 80×24, Enter created the book and opened Home;
+  a separate `./tools/tui --check` cold load passed.
+- A separate 80×24 PTY opened a malformed synthetic source with the destination
+  blank. Escape exited without creating a destination; the source SHA-256 remained
+  `cce23fc81392be8d73602089eb439f29a016d9cef3db139924058cc7a330478b`.
+- Non-TTY startup for a missing `--book` returned the existing fail-closed refusal:
+  `input/file/terminal unavailable; no empty fallback`.
+
+No LOAM source/binary comparison or live data was used. This is local first-run
+behavior evidence, not LOAM parity acceptance, manual IME acceptance, P7 durability,
+or operational-cutover approval.
+## Paired fixture setup smoke (2026-10-16)
+
+Private synthetic trial under ignored `scratch/paired-ui.IY8lDe/`; no LOAM source
+build, original household, or `./ui --refresh` was used. Existing LOAM binary and
+Bakhlo's `./tools/tui` entrance ran in separate tmux sockets at 80×24.
+
+- LOAM `init` created a new root; `loam doctor` reported `Status: ready`. In the
+  TUI, Manage Loci admitted `wallet` and `food`; a Record draft was opened and
+  cancelled without publishing.
+- Bakhlo's interactive `--book` first-run created an empty JPY scale-0 book after
+  review. Manage Loci admitted `wallet` and `food`. Record Preview showed
+  `paired snack`, `wallet -37 jpy`, `food +37 jpy`; explicit Publish returned to
+  Home with `Published and read back`.
+- `./tools/tui --check` admitted the separate copied synthetic
+  `examples/daily-book.sexp`; both TUI launchers displayed Home. These checks do
+  not establish equal persisted household fixtures: LOAM's new Record was not
+  published in this trial, and the copied Bakhlo example contains unrelated
+  Scheduled/support evidence.
+
+The previously recorded [paired Record run](#paired-record-happy-path-and-cancellation-2026-10-16)
+is the evidence for matching new-Record behavior across both UIs. This setup
+smoke does not expand that case to plans, observations, roles, correction,
+refunds, multiple currencies, rejection modes, save failure, or broader parity.
+Generated scratch files remain private and are not fixtures for publication.

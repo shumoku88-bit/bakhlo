@@ -10,6 +10,18 @@ storage machinery need not match. LOAM remains production authority; no cutover 
 `tasks/todo.md` owns the ordered acceptance plan, `docs/LOAM_UI_GAP_LEDGER.ja.md` owns
 per-screen F/O/V/Q progress, and `docs/VERIFICATION.md` owns exercised evidence.
 
+UI-34 first-run initialization is connected for an interactive `--book FILE` startup:
+missing paths may be prefilled; existing unreadable paths start with a blank destination.
+The user supplies one Measure/scale, reviews the exact destination and empty-book meaning,
+then confirms creation. `Daily_book.empty` admits one Measure/scale and an explicit empty
+Locus policy; existing Manage Loci can admit the first Locus. `Daily_file.create_empty`
+uses exclusive mode-0600 creation, file sync/readback, parent sync and cold reload.
+Loaders, `--check`, and non-TTY paths remain fail-closed; existing source/destination
+bytes are protected. UI-34 remains only locally verified, not LOAM parity or operational
+acceptance.
+
+This bounded implementation does not close the broader first-run acceptance.
+
 The shared-UI responsibility design is now fixed in
 [TUI共有部品の責務設計と移行順序](TUI_LAYOUT_STABILITY_ROADMAP.ja.md), replacing the
 old renderer-refresh roadmap. Bonsai/Notty, native Columns composition, frontend width,
@@ -62,6 +74,15 @@ after an in-memory date correction, filtered/sorted/Locus-selected scrolled retu
 and the blocked-Reversal safety footer. Native tmux confirmed the scrolled detail
 return at 80×24 and after shrinking to 48×14. See
 [evidence](VERIFICATION.md#listdetail-capacity-and-drill-downback-cutover).
+Direct Actual publication also restores selection by ID through the same existing helper,
+including Record correction after date reordering; search/scope exit is explicitly notified.
+See [correction return evidence](VERIFICATION.md#actual-correction-publication-return).
+Fresh Record from Selected Day now inherits the route's date, not the background
+calendar; held drafts remain unchanged. Cancel/resume, save/cold and drill-back have
+bounded [synthetic evidence](VERIFICATION.md#selected-day-record-date-and-return).
+Browsing Ctrl-N now opens a Keep-default confirmation for held Record drafts;
+explicit Discard alone clears local input. Tiny refusal resets Keep, and uncertain
+publication/recovery guards remain in `discard`; see [evidence](VERIFICATION.md#retained-draft-discard-confirmation).
 Steps 1–4 are connected with limited checks, not accepted as full LOAM parity.
 The ordered acceptance items for shared UI, Record and Actual/Selected Day remain open;
 role-aware totals, Merchant/OriginalAmount and Scheduled gaps remain in scope.

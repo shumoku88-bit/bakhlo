@@ -249,9 +249,86 @@ let app initial ~exit ~dimensions graph =
   in
   (~view, ~handler)
 
-let run path =
-  let session = F.load path in
+type first_run_result = First_run_created of F.t | First_run_cancelled | First_run_failed of string
+
+type first_run_action = First_run_event of B.Event.t
+
+let first_run_app initial ~outcome ~exit ~dimensions graph =
+  let state, inject =
+    Bonsai.state_machine_with_input ~default_model:initial
+      ~apply_action:(fun context active_dimensions state (First_run_event event) ->
+        match active_dimensions with
+        | Bonsai.Computation_status.Inactive -> state
+        | Active (dimensions : B.Dimensions.t) ->
+            (match First_run.handle state (input_of_event event) with
+             | First_run.Continue next -> next
+             | First_run.Cancel ->
+                 outcome := Some First_run_cancelled;
+                 Bonsai.Apply_action_context.schedule_event context (exit ());
+                 state
+             | First_run.Create _ when
+                 not (First_run.ready_to_create
+                   ~dimensions:(dimensions.width, dimensions.height) ~width_of state) ->
+                 First_run.refuse_confirmation state
+             | First_run.Create details ->
+                 (try
+                    let session =
+                      F.create_empty ~path:details.destination ~measure:details.measure
+                        ~scale:details.scale
+                    in
+                    outcome := Some (First_run_created session)
+                  with
+                  | F.Refused why -> outcome := Some (First_run_failed why)
+                  | Unix.Unix_error (error, _, _) ->
+                      outcome := Some (First_run_failed (Unix.error_message error))
+                  | Sys_error why -> outcome := Some (First_run_failed why));
+                 Bonsai.Apply_action_context.schedule_event context (exit ());
+                 state))
+      dimensions graph
+  in
+  let set_cursor = B.Cursor.set_cursor_position graph in
+  let cursor_pos =
+    Bonsai.arr2 graph state dimensions ~f:(fun state (dimensions : B.Dimensions.t) ->
+        snd (First_run.screen ~dimensions:(dimensions.width, dimensions.height) ~width_of state))
+  in
+  Bonsai.Edge.after_display ~here:Stdlib.Lexing.dummy_pos
+    (Bonsai.arr2 graph set_cursor cursor_pos ~f:(fun set_cursor cursor_pos ->
+       let cursor =
+         Option.map
+           (fun (x, y) -> { B.Cursor.position = { B.Position.x; y }; kind = B.Cursor.Kind.Default })
+           cursor_pos
+       in
+       set_cursor cursor))
+    graph;
+  let view =
+    Bonsai.arr2 graph state dimensions ~f:(fun state (dimensions : B.Dimensions.t) ->
+        let width, height = dimensions.width, dimensions.height in
+        let rows, _ = First_run.screen ~dimensions:(width, height) ~width_of state in
+        lines P.Terminal rows |> fit width height)
+  in
+  let handler = Bonsai.arr1 graph inject ~f:(fun inject event -> inject (First_run_event event)) in
+  (~view, ~handler)
+
+let start_first_run path read_error =
   F.require (Unix.isatty Unix.stdin && Unix.isatty Unix.stdout) "interactive-tty-required";
+  let initial = First_run.initial ~source_path:path ~read_error in
+  let outcome = ref None in
+  (match
+     Async.Thread_safe.block_on_async_exn (fun () ->
+       B.start_with_exit ~dispose:true ~mouse:B.Mouse_reporting.No_mouse_events ~bpaste:true
+         (first_run_app initial ~outcome))
+   with
+   | Ok () -> ()
+   | Error _ -> raise (F.Refused "Bonsai-terminal-unavailable"));
+  match !outcome with
+  | Some (First_run_created session) -> Some session
+  | Some First_run_cancelled -> None
+  | Some (First_run_failed why) ->
+      prerr_endline ("First-run creation refused: " ^ why ^ ". Inspect the destination; no retry was attempted.");
+      None
+  | None -> None
+
+let run_loaded session =
   match
     Async.Thread_safe.block_on_async_exn (fun () ->
         B.start_with_exit ~dispose:true ~mouse:B.Mouse_reporting.No_mouse_events ~bpaste:true
@@ -260,9 +337,26 @@ let run path =
   | Ok () -> ()
   | Error _ -> raise (F.Refused "Bonsai-terminal-unavailable")
 
+let run path =
+  match
+    try Ok (F.load path)
+    with
+    | F.Refused why -> Error why
+    | Unix.Unix_error (error, _, _) -> Error (Unix.error_message error)
+    | Sys_error why -> Error why
+  with
+  | Ok session ->
+      F.require (Unix.isatty Unix.stdin && Unix.isatty Unix.stdout) "interactive-tty-required";
+      run_loaded session
+  | Error why ->
+      (match start_first_run path why with
+       | None -> ()
+       | Some session -> run_loaded session)
+
 let self_check () =
   Recovery_checks.self_check ();
   Stock_flow_checks.self_check ();
+  First_run.check ~width_of ();
   let state = Daily_interaction_checks.self_check ~width_of () in
   Record_session_checks.self_check ~width_of ();
   Scheduled_session_checks.self_check ~width_of ();

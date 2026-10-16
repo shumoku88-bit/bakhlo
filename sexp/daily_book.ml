@@ -231,6 +231,13 @@ let admit ?entries_cached data =
   }
 
 let protect f = try Ok (f ()) with Refused why -> Error why
+
+let empty ~measure ~scale =
+  protect (fun () ->
+      admit
+        (make_data ~measures:[ (measure, scale) ] ~labels:None ~approved:(Some [])
+           ~entries:[] ~plans:[] ~origins:[] ~openings:[] ~observations:[] ~presence:None))
+
 let atom = function X.Atom s -> s | X.List _ -> raise (Refused "expected-atom")
 
 let field name rows =
