@@ -1,6 +1,7 @@
-# 暦年別S式 — 次の第一研究候補
+# 暦年別S式 — 既存研究とGit年別運用候補
 
-状態: **研究方針のみ。年度分割の実装・新しい正データ形式の採用・運用切替はしていない。**
+状態: **合成年度分割研究と選択的な検証読込部品は既存。年度別の本番保存方式・新形式・運用切替は未採用。**
+関連: [研究棚卸し](YEAR_PARTITION_RESEARCH_INVENTORY.ja.md)、[Year_read境界](YEAR_READ_BOUNDARY.ja.md)。
 ここで「年度」は会計年度でなく、原則**1月1日〜12月31日の暦年**を指す。
 現行の単一S式を意味/回答/拒否のcontrolにして、通常操作の読込・保存・backup範囲を
 小さくできるかを確かめる。S式であることや年別fileであること自体を耐久保証にしない。
@@ -13,7 +14,7 @@
 | [長期保存調査](LONG_TERM_STORAGE_STUDY.ja.md) | 単一S式等の既存費用と測定限界。直接printer試作等は未採用 |
 | この文書 | 暦年配置と分析期間、繰越、年度間更新の未解決点、最初の合成検証計画 |
 | [Irmin Phase 1](IRMIN_STORAGE_RESEARCH.ja.md) / [Phase 2](IRMIN_PHASE2_RESULTS.ja.md) | 調査・限定検証の履歴。HEAD部分書込み故障でdangling選択参照を観測し、durable Saved未確立。**本体導入保留** |
-| SQLite | 比較候補として維持。同じ意味・transaction/安全性・性能・依存/保守費を今後比較。BakhloのOCaml backendは未実験 |
+| SQLite | [合成永続化試験](VERIFICATION.md#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification)の記録はあるが本番backendとして未採用。Irmin/Gitと保証範囲を揃えるまで優劣を決めない |
 
 ## TacklerのGit運用から借りる最小の年別構成（2026-10-16 調査）
 
@@ -121,7 +122,11 @@ book/
 - 外部config・未知bytes・必要根拠・publication照合を含む全restore対象を明示する。
   過年度fileを開けない状況を「空年度」として自動補完しない。保持/backup削除は別判断。
 
-## 最初の合成比較: 2025-10-15〜2026-10-14
+## 初期研究で設定した合成比較: 2025-10-15〜2026-10-14
+
+**以下は当初の実験計画の記録。** 後続のC方式/年度間計画/Year_read合成検証は
+[研究棚卸し](YEAR_PARTITION_RESEARCH_INVENTORY.ja.md)と[検証境界](YEAR_READ_BOUNDARY.ja.md)に保存済み。
+この計画を未実施の新規開発タスクとして丸ごと繰り返さない。
 
 外側は半開区間 `[2025-10-15, 2026-10-15)`。次の**明示採択した合成境界**で6つの
 2か月サイクルを比較する。これは実家計の支給日や常時15日の契約ではない。
