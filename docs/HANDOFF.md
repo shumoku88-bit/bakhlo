@@ -122,6 +122,20 @@ Core/native self-checks and synthetic tmux walks (Parameters, candidates `a`, Pr
 Back read-only proof, `Publish all`, cold restart, and unchanged unrelated plan preservation)
 passed; see [batch amount evidence](VERIFICATION.md#scheduled-batch-amount-editing).
 
+Scheduled occurrence generation (UI-21) is connected through `scheduled_generation_session.ml/.mli`
+and `Daily_actions.commit_plan_batch ~replace:false`. Pressing `g` on an open plan in Scheduled
+opens the generation workflow:
+1. Parameters: Through date (exclusive) and Cadence (Monthly, 2m, 3m, 6m, Yearly).
+2. Generation: Proposes explicit dates stepping by cadence, clamping nominal days to valid month ends.
+3. Preview: Lists all generated candidate occurrences with dates and amounts.
+   Cancel is the protective default (zero disk writes).
+4. Atomic publication: All generated occurrences are created with fresh IDs and committed
+   together in a single atomic transaction. No recurrence rule is persisted.
+Core/native self-checks and synthetic tmux walks (Cancel non-writing, 5 occurrences generation,
+atomic cold restart, exact EUR quanta preservation) passed;
+see [Generation evidence](VERIFICATION.md#scheduled-occurrence-generation).
+
+
 Balances Current view (UI-24) is connected to match LOAM's `Balances.lean` model:
 - Home `b` opens `Balances / Current` directly in neutral coordinate mode using `balance-view.tsv`.
 - List pane supports `j/k`, `PageUp/Down`, `Home`, and `End` for fast coordinate selection.

@@ -13,6 +13,7 @@ module Months = Scheduled_months
 module Cont = Scheduled_continuation_session
 module Sch = Scheduled_session
 module Bulk = Scheduled_bulk_session
+module Gen = Scheduled_generation_session
 module P = Ui_preferences
 module Att = Attention_data
 module Roles = Locus_roles
@@ -112,6 +113,9 @@ let render_cases state =
   let bulk_selection = String.fold_left (fun state c -> key state (`ASCII c)) bulk "321"
     |> fun state -> key state `Enter in
   let bulk_preview = key (key bulk_selection (`ASCII 'a')) `Enter in
+  let generate = { rich with overlay = C.Scheduled_generate
+    (get (Gen.create ~book ~base_bytes:rich.session.bytes ~source)) } in
+  let generate_preview = key generate `Enter in
   let detail route =
     let view = C.open_route rich route in
     { view with workspace = { view.workspace with pane = W.Detail } }
@@ -145,6 +149,8 @@ let render_cases state =
     bulk;
     bulk_selection;
     bulk_preview;
+    generate;
+    generate_preview;
     detail (W.Selected_day home.workspace.calendar.selected_day);
     detail W.Actual;
     detail W.Scheduled;

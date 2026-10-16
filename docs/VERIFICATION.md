@@ -6,6 +6,45 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Scheduled occurrence generation
+
+Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus local UI work and this slice.
+Read-only source consultation: LOAM `ScheduledGeneration.lean` (fill limits, cadence slots,
+candidate planning, month shifting and nominal day clamping) and `ScheduledGenerationSession.lean`
+(generation preview, candidate review, Cancel default, atomic creation). No LOAM build,
+source copying, runtime comparison or production input.
+
+`scheduled_generation_session.ml/.mli` and `Daily_actions.commit_plan_batch ~replace:false`
+implement reviewed periodic Scheduled creation:
+- Source plan supplies anchor date, measure, and exact changes.
+- Parameters form inputs exclusive Through date and Cadence (Monthly, Every 2 months,
+  Every 3 months, Every 6 months, Yearly).
+- Candidate occurrences step forward by the cadence, clamping non-existent days (e.g. 31st
+  in shorter months or leap-year February) to valid Gregorian month ends.
+- Preview displays all proposed occurrences with dates, amounts, and Loci. Cancel is the
+  protective default action (zero disk writes).
+- Publication requires reviewing to the end and meeting dimension gates (width >= 46, height >= 14).
+- All generated occurrences receive fresh unique IDs and are published together in a single
+  atomic write with zero partial state.
+
+Executed native build/`--self-check` and `./tools/check`; passed.
+Checks cover parameter validation, through date boundaries, invalid Gregorian dates refusal,
+cadence stepping, Cancel protective default, scroll and dimension gates, atomic publication
+of 15 monthly occurrences, cold reload verifying all plans on disk, stale reload refusal,
+and held record draft protection.
+
+Native tmux (`TERM=xterm-256color`, 120×36), synthetic fixture `scratch/bulk-smoke-dyzB0U/book.sexp`:
+- Initial open plan: `batch-a` (2026-10-15, EUR 300.00).
+- `s j j g` opened `Scheduled / Generate Plans` prefilled with `2027-04-15` and `Monthly`.
+- `Enter` generated 5 occurrences (`2026-11-15`, `2026-12-15`, `2027-01-15`, `2027-02-15`, `2027-03-15`).
+- `Enter` on default `[Cancel]` closed session with zero disk writes (SHA-256 matched `before_gen.sexp`).
+- Re-opened `g Enter Tab End Enter` published all 5 occurrences atomically.
+- List updated to 8 plans; disk showed all 5 new plans with exact EUR amounts and fresh IDs.
+- Executable SHA-256: `7d1f56a226303fea1dae916abeacffad6e3676128586dcd5f4f728f1f0c21fff`.
+
+This qualifies the bounded Scheduled generation slice (UI-21). It does not establish
+coverage cadence monitoring (UI-23), real IME/user acceptance, or operational cutover.
+
 ## Balances Current view
 
 Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus local UI work and this slice.

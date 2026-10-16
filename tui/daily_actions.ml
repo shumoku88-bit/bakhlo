@@ -692,7 +692,7 @@ let commit_plan ~session ~base_bytes ~replace (plan : B.plan) : commit_result =
     | Error why -> Refused why
     | Ok candidate -> publish_candidate ~session candidate
 
-let commit_plan_batch ~session ~base_bytes (plans : B.plan list) : commit_result =
+let commit_plan_batch ?(replace = true) ~session ~base_bytes (plans : B.plan list) : commit_result =
   if base_bytes <> session.F.bytes then Conflict_base_changed
   else if session.format = F.Records then
     Refused (tr "Records publication does not support Scheduled changes. No bytes were changed.")
@@ -703,7 +703,7 @@ let commit_plan_batch ~session ~base_bytes (plans : B.plan list) : commit_result
       Refused (tr "A Scheduled occurrence may be selected only once.")
     else
       let candidate = List.fold_left (fun result plan ->
-        Result.bind result (fun book -> B.put_plan book ~replace:true plan))
+        Result.bind result (fun book -> B.put_plan book ~replace plan))
         (Ok session.book) plans in
       match candidate with
       | Error why -> Refused why

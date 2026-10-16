@@ -267,6 +267,7 @@ let self_check () =
   Scheduled_session_checks.self_check ~width_of ();
   Actual_workspace_checks.self_check ();
   Scheduled_bulk_checks.self_check ~width_of ();
+  Scheduled_generation_checks.self_check ~width_of ();
   let ansi view =
     let buffer = Buffer.create 128 in
     Notty.Render.to_buffer buffer Notty.Cap.ansi (0, 0) (V.width view, V.height view)
