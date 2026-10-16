@@ -6,6 +6,50 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Balances Current view
+
+Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus local UI work and this slice.
+Read-only source consultation: LOAM `Balances.lean` (initial Current mode, balance-view
+order, exact / present-unknown / unsupported states, detail pane, preparePrint header
+and 200-row cap, Page/Home/End selection) and `Cli.lean` (`b` launches Balances, `p` print).
+No LOAM build, source copying, runtime comparison or production input.
+
+`daily_interaction.ml` and `daily_overlays.ml` align Balances with LOAM's Current view:
+- Initial mode on route open is `Balances / Current` (neutral Locus × Measure coordinates
+  in `balance-view.tsv` order).
+- Key navigation: `j/k` row move, `PageUp/Down` page jumps, `Home`/`End` range bounds in List pane.
+- Pane switching: `Enter`/`i`/`Tab`/`h`/`l` focuses Detail pane; `Esc`/`q` in Detail returns to
+  List pane without dropping to Home.
+- Mode toggle: `v` cycles between `Balances / Current` and `Balances / Accounting` (RoleBalances).
+- Print preview: `p` generates canonical LOAM plain-text preview with exact 4-line header
+  and 200-line refusal gate.
+- Detail text includes canonical LOAM statements:
+  `Unsupported: No current quantity support is justified for this coordinate. Do not infer zero.`
+  `Known present: Presence is known; the exact current amount is unknown, not zero.`
+  `Locus × Measure; not an Account taxonomy.`
+
+Executed native build/`--self-check` and `./tools/check`; passed.
+Checks cover initial Current mode, balance-view ordering, PageDown/Home/End selection,
+Detail expansion and Esc return to list, `v` toggle to Accounting and back, Print modal title
+and header, and Observe prefill.
+
+Native tmux (`TERM=xterm-256color`, 120×36), synthetic fixture `scratch/bulk-smoke-dyzB0U/book.sexp`:
+- Initial Home screen: `b` opened `Balances / Current`.
+- Header showed `Selected Locus × Measure; balance-view order only.`
+- `j j Enter` selected wallet and opened Detail pane (`Selected Balance`).
+- `Escape` returned to List pane (`Balances / Current`) without leaving Balances.
+- `End` jumped selection to the last row (`銀行 [bank] ? unsupported`).
+- `Home` jumped selection back to row 0.
+- `p` opened Print Preview modal with LOAM's 4-line header.
+- `Escape` closed Print Preview modal.
+- `v` toggled to `Balances / Accounting`, footer showed `v current`.
+- `v` toggled back to `Balances / Current`, footer showed `v accounting`.
+- `Escape` returned to Home screen.
+
+This qualifies the bounded Balances Current view slice (UI-24). It does not establish
+full Reports parity (UI-25), role-setting persistence safety, real IME/user acceptance,
+or operational cutover.
+
 ## Scheduled batch amount editing
 
 Bakhlo `3f953b7f5495305666abd876c60eb700d5d93297` plus local UI work and this slice.

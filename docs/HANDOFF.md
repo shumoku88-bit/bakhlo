@@ -122,6 +122,19 @@ Core/native self-checks and synthetic tmux walks (Parameters, candidates `a`, Pr
 Back read-only proof, `Publish all`, cold restart, and unchanged unrelated plan preservation)
 passed; see [batch amount evidence](VERIFICATION.md#scheduled-batch-amount-editing).
 
+Balances Current view (UI-24) is connected to match LOAM's `Balances.lean` model:
+- Home `b` opens `Balances / Current` directly in neutral coordinate mode using `balance-view.tsv`.
+- List pane supports `j/k`, `PageUp/Down`, `Home`, and `End` for fast coordinate selection.
+- `Enter`, `i`, `Tab`, or `h/l` expands the scrollable Detail pane (`Selected Balance`).
+- `Esc` or `q` in Detail returns to the List pane without exiting Balances; `Esc`/`q` in List returns to Home.
+- `v` toggles between `Balances / Current` and `Balances / Accounting` (RoleBalances).
+- `p` opens Print Preview formatted with LOAM's canonical header lines (capped at 200 lines).
+- `o` opens Observe Quantity prefilled with the selected coordinate and exact amount.
+Core/native self-checks and synthetic tmux walks (opening Current, Page/Home/End navigation,
+detail expand/collapse, Print modal, `v` accounting toggle, and Home return) passed;
+see [Balances evidence](VERIFICATION.md#balances-current-view).
+
+
 
 
 

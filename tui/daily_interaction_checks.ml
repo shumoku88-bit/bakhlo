@@ -1550,33 +1550,39 @@ let self_check ~width_of () =
   let balances_view = C.open_route home W.Balances in
   let wide_balances = C.screen ~width_of (120, 30) balances_view in
   require (contains wide_balances "Balances / Current" && contains wide_balances "Selected Balance")
-    "balances-wide-two-pane-visible";
-  require (contains wide_balances "Measure: jpy" && contains wide_balances "Net Worth")
-    "balances-role-summary-sections";
-  let bal_nav = key ~width_of balances_view (`ASCII 'j') in
-  let wide_nav = C.screen ~width_of (120, 30) bal_nav in
-  require (contains wide_nav "Selected Balance") "balances-navigation-retains-pane";
+    "balances-starts-in-current-mode";
+  require (contains wide_balances "Selected Locus × Measure; balance-view order only.")
+    "balances-current-header-displayed";
+  let bal_detail_open = key ~width_of balances_view `Enter in
+  require (bal_detail_open.workspace.pane = W.Detail) "balances-enter-opens-detail";
+  let bal_detail_back = key ~width_of bal_detail_open `Escape in
+  require (bal_detail_back.workspace.pane = W.Calendar && bal_detail_back.workspace.route = W.Balances)
+    "balances-detail-escape-returns-to-list";
+  let bal_end = key ~width_of balances_view `End in
+  let count = List.length (C.balance_items balances_view) in
+  require (bal_end.workspace.balance_selected = max 0 (count - 1)) "balances-end-selects-last-row";
+  let bal_home = key ~width_of bal_end `Home in
+  require (bal_home.workspace.balance_selected = 0) "balances-home-selects-first-row";
+  let bal_page = key ~width_of bal_home (`Page `Down) in
+  require (bal_page.workspace.balance_selected > 0 || count <= 1) "balances-page-down-moves-selection";
   let roles_path = directory ^ "/accounting-roles.tsv" in
   F.write_new roles_path "ROLE\twallet\tASSET\nROLE\tbank\tASSET\nROLE\tfood\tEXPENSE\n";
   let bal_with_roles = C.open_route { home with session = F.load path } W.Balances in
-  let wide_with_roles = C.screen ~width_of (120, 30) bal_with_roles in
-  require (contains wide_with_roles "Asset" && contains wide_with_roles "Expense")
-    "balances-explicit-roles-displayed";
-  (* Test 'v' view toggle to Current neutral coordinates view *)
-  let bal_current = key ~width_of bal_with_roles (`ASCII 'v') in
-  let wide_current = C.screen ~width_of (120, 30) bal_current in
-  require (contains wide_current "Balances / Current [Neutral]" && contains wide_current "Selected current balances")
-    "balances-v-toggles-to-neutral-current-view";
-  (* Write a balance-view.tsv and test configuration ordering *)
+  let bal_accounting = key ~width_of bal_with_roles (`ASCII 'v') in
+  let wide_with_roles = C.screen ~width_of (120, 30) bal_accounting in
+  require (contains wide_with_roles "Balances / Accounting" && contains wide_with_roles "Asset" && contains wide_with_roles "Expense" && contains wide_with_roles "Net Worth")
+    "balances-v-toggles-to-accounting-roles";
+  let bal_restored_current = key ~width_of bal_accounting (`ASCII 'v') in
+  let wide_current = C.screen ~width_of (120, 30) bal_restored_current in
+  require (contains wide_current "Balances / Current" && contains wide_current "Selected Locus × Measure")
+    "balances-v-toggles-back-to-current";
   let bv_path = directory ^ "/balance-view.tsv" in
   F.write_new bv_path "bank\tjpy\nwallet\tjpy\n";
   let bal_custom_bv = C.open_route { home with session = F.load path } W.Balances in
-  let bal_custom_bv_neutral = key ~width_of bal_custom_bv (`ASCII 'v') in
-  let wide_custom_bv = C.screen ~width_of (120, 30) bal_custom_bv_neutral in
+  let wide_custom_bv = C.screen ~width_of (120, 30) bal_custom_bv in
   require (contains wide_custom_bv "bank" && contains wide_custom_bv "wallet")
-    "balances-custom-balance-view-loaded";
-  (* Test 'p' print preview modal *)
-  let bal_print = key ~width_of bal_custom_bv_neutral (`ASCII 'p') in
+    "balances-custom-balance-view-loaded-by-default";
+  let bal_print = key ~width_of bal_custom_bv (`ASCII 'p') in
   (match bal_print.overlay with
    | C.Modal_form f ->
        require (Ui_form.id f = "balance_print_preview") "balances-p-opens-print-preview";
@@ -1584,7 +1590,6 @@ let self_check ~width_of () =
    | _ -> failwith "expected print preview modal");
   let bal_after_print = key ~width_of bal_print `Escape in
   require (bal_after_print.overlay = C.No_overlay) "balances-print-escapes";
-  (* Test 'o' observe prefill from selected balance *)
   let items = C.balance_items bal_with_roles in
   let acct_idx =
     let rec find i = function
@@ -1604,11 +1609,11 @@ let self_check ~width_of () =
    | _ -> failwith "expected observe quantity modal");
   let bal_obs_cancel = key ~width_of bal_obs `Escape in
   require (bal_obs_cancel.overlay = C.No_overlay) "balances-observe-cancel-escapes";
-  (* Test toggle back to Accounting view with 'v' *)
-  let bal_back_acct = key ~width_of bal_custom_bv_neutral (`ASCII 'v') in
+  (* Test toggle to Accounting view with 'v' *)
+  let bal_back_acct = key ~width_of bal_custom_bv (`ASCII 'v') in
   let wide_back_acct = C.screen ~width_of (120, 30) bal_back_acct in
-  require (contains wide_back_acct "Balances / Current [Accounting]")
-    "balances-v-toggles-back-to-accounting";
+  require (contains wide_back_acct "Balances / Accounting")
+    "balances-v-toggles-to-accounting";
   let pace_view = C.open_route home W.Daily_pace in
   let wide_pace = C.screen ~width_of (120, 30) pace_view in
   require (contains wide_pace "Daily Pace" && contains wide_pace "Pace Detail & Evidence")

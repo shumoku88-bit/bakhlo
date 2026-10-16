@@ -185,6 +185,25 @@ ScheduledまたはSelected Dayでopen予定を選び、`b`を押すと一括金�
    - `Tab`／`←→`でPublish allを選び、末尾までスクロールしてEnterを押すことで、全件が**1回のトランザクションで原子的に保存**される。途中で一部だけ保存されることはない。
    - 狭小端末での確定拒否、Records形式の拒否、競合（stale）停止の安全策を備える。
 
+## BalancesのCurrent残高とAccounting表示
+
+Homeで`b`を押すと、LOAM準拠の**Balances / Current**（現在の各口座・通貨の残高一覧）が開く。
+`balance-view.tsv`で指定された順序で中立座標（Locus × Measure）を表示し、未設定時は承認済みLocusを表示する。
+
+- **一覧操作**:
+  - `j/k`・`↑/↓`: 1行移動。
+  - `Page Up/Down`・`Ctrl-u/d`: 画面単位のページ移動。
+  - `Home`/`End`: 最初／最後の残高へジャンプ。
+  - `Enter`・`i`・`Tab`・`h/l`: 選択した残高の詳細（Selected Balance）を右ペインに表示・スクロール。
+  - `Esc`・`q`: 詳細ペインから一覧ペインへ戻る。一覧ペインで`Esc`/`q`を押すとHomeへ戻る。
+- **モード切替 (`v`)**:
+  - `v`を押すと**Balances / Accounting**（資産・負債・純資産・収益・費用の会計分類表示）に切り替わる。
+  - 再度`v`を押すと**Balances / Current**に戻る。
+- **印刷プレビュー (`p`)**:
+  - 画面内Printプレビュー（200行上限）を開き、CurrentまたはAccountingの全文を確認できる。
+- **観測記録 (`o`)**:
+  - 選択中の残高座標（Locus・Measure・確定金額）が自動入力されたObserveモーダルを開く。
+
 ## 対応範囲と差分
 
 新UIはCalendar、階層Commands、英語Record、Actual / Scheduled / Selected Dayの閲覧と詳細、

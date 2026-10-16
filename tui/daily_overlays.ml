@@ -367,7 +367,7 @@ let current_balance_items ~book ~coords =
       coords
   in
   [
-    Header_row "Selected current balances (neutral Locus × Measure)";
+    Header_row "Selected Locus × Measure; balance-view order only.";
     Blank_row;
   ]
   @ (if rows = [] then [ Header_row "  (no coordinates configured or approved)" ] else rows)
@@ -431,9 +431,9 @@ let balance_item_detail ~book item =
         | Exact n ->
             A.format_message "Exact current balance: %s %s" (B.format book measure n) measure
         | Unsupported ->
-            tr "Unsupported: No valid opening, zero-origin, or anchor evidence covers this coordinate."
+            tr "Unsupported: No current quantity support is justified for this coordinate. Do not infer zero."
         | Known_present ->
-            tr "Known present: Activity exists proving account existence, but exact balance is not anchored."
+            tr "Known present: Presence is known; the exact current amount is unknown, not zero."
       in
       [
         (if label <> "" then Printf.sprintf "%s [%s]" label locus else locus);
@@ -445,7 +445,7 @@ let balance_item_detail ~book item =
         "";
         (match role with
         | None ->
-            tr "Neutral Locus × Measure coordinate; not an Account taxonomy."
+            tr "Locus × Measure; not an Account taxonomy."
         | Some (Asset | Liability) ->
             tr "Stock role: Enters Balance Sheet and Net Worth qualification."
         | Some Equity ->

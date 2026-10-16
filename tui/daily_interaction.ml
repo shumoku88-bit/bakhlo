@@ -166,7 +166,7 @@ let initial ?config_home session =
     settlement_path;
     settlements;
     settlement_scope = Stl.Open_only;
-    balance_mode = `Accounting;
+    balance_mode = `Current;
     actual_workspace = Act.create ~focus_date:(F.today ());
     drill_parent = None;
     drill_book = None;
@@ -943,12 +943,24 @@ let balance_print_preview state =
       ~fields:[ Form.action_buttons ~confirm:(tr "OK") ~cancel:(tr "Close") () ]
       ()
   else
-    let summary =
-      [
-        tr "Plain-text print preview of current balance view:";
-        Printf.sprintf "Total rows: %d" (List.length lines);
-      ] @ lines
+    let header =
+      match state.balance_mode with
+      | `Current ->
+          [
+            tr "Balances / Current";
+            tr "Selected current Locus × Measure balances; not an Account taxonomy.";
+            tr "Exact / amount-unknown / unsupported states preserve current evidence.";
+            "";
+          ]
+      | `Accounting ->
+          [
+            tr "Reports / Balances";
+            tr "Current evidence-aware accounting projections from shared RoleBalance.";
+            tr "Balance Sheet / Net Worth / Trial Balance are presentations, not separate engines.";
+            "";
+          ]
     in
+    let summary = header @ lines in
     Form.create ~id:"balance_print_preview" ~title:(tr "Balances / Print Preview")
       ~summary
       ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ]
@@ -1762,6 +1774,10 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some ((`Escape | `ASCII 'q'), []) ->
             if state.workspace.route = W.Attention || state.workspace.route = W.Loci || state.workspace.route = W.Settlements then
               Some (open_route state W.Home)
+            else if state.workspace.route = W.Balances then
+              if state.workspace.pane = W.Detail then
+                Some { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
+              else Some (open_route state W.Home)
             else if state.workspace.route = W.Calendar then
               if state.workspace.pane = W.Detail then
                 Some { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
@@ -1809,9 +1825,10 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`Enter, []) when is_scheduled_months state -> Some (pay_selected state)
         | Some (`ASCII 'r', []) when is_scheduled_months state -> Some (edit_selected state)
         | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), [])
-          when is_record_browser state ->
+          when is_record_browser state || state.workspace.route = W.Balances ->
             Some { state with workspace = { state.workspace with
-              pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) } }
+              pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) };
+              scroll = 0 }
         | Some ((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)), [])
         | Some (`ASCII ('u' | 'd'), [ `Ctrl ]) when is_record_browser state ->
             let height, view = browser_viewport ~dimensions ~width_of state in
@@ -1829,6 +1846,9 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               Some { state with scroll = Panel.move ~last:view.last ~position:view.start delta }
             else Some { state with scroll = 0;
               workspace = W.move_selection ~book:state.session.book state.workspace delta }
+        | Some ((`Enter | `ASCII 'i'), [])
+          when state.workspace.route = W.Balances && state.workspace.pane = W.Calendar ->
+            Some { state with workspace = { state.workspace with pane = W.Detail }; scroll = 0 }
         | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
             Some
               {
@@ -2013,9 +2033,16 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               | _ -> 1
             in
             let step = delta * max 1 (snd dimensions - 8) in
-            if
+            if state.workspace.route = W.Balances then
+              if state.workspace.pane = W.Detail then
+                Some { state with scroll = max 0 (state.scroll + step) }
+              else
+                let count = List.length (balance_items state) in
+                let current = state.workspace.balance_selected in
+                Some { state with workspace = { state.workspace with
+                  balance_selected = max 0 (min (max 0 (count - 1)) (current + step)) } }
+            else if
               state.workspace.pane = W.Calendar && state.workspace.route <> W.Home
-              && state.workspace.route <> W.Balances
               && state.workspace.route <> W.Daily_pace
               || (state.workspace.route = W.Home && state.workspace.pane = W.Detail)
             then
@@ -2027,19 +2054,32 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 }
             else Some { state with scroll = max 0 (state.scroll + step) }
         | Some (`Home, []) ->
-            Some
-              {
-                state with
-                scroll = 0;
-                workspace = W.move_selection ~book:state.session.book state.workspace (-max_int);
-              }
+            if state.workspace.route = W.Balances then
+              if state.workspace.pane = W.Detail then
+                Some { state with scroll = 0 }
+              else
+                Some { state with workspace = { state.workspace with balance_selected = 0 } }
+            else
+              Some
+                {
+                  state with
+                  scroll = 0;
+                  workspace = W.move_selection ~book:state.session.book state.workspace (-max_int);
+                }
         | Some (`End, []) ->
-            Some
-              {
-                state with
-                scroll = max_int / 4;
-                workspace = W.move_selection ~book:state.session.book state.workspace max_int;
-              }
+            if state.workspace.route = W.Balances then
+              if state.workspace.pane = W.Detail then
+                Some { state with scroll = max_int / 4 }
+              else
+                let count = List.length (balance_items state) in
+                Some { state with workspace = { state.workspace with balance_selected = max 0 (count - 1) } }
+            else
+              Some
+                {
+                  state with
+                  scroll = max_int / 4;
+                  workspace = W.move_selection ~book:state.session.book state.workspace max_int;
+                }
         | _ -> ( match input with `End -> None | _ -> Some state))
 
 let row_title book = function
@@ -2316,8 +2356,8 @@ let workspace_rows ~width_of ~width ~height state =
     | W.Scheduled -> "Scheduled / List"
     | W.Balances ->
         (match state.balance_mode with
-        | `Accounting -> "Balances / Current [Accounting]"
-        | `Current -> "Balances / Current [Neutral]")
+        | `Accounting -> "Balances / Accounting"
+        | `Current -> "Balances / Current")
     | W.Daily_pace -> "Daily Pace"
     | W.Attention -> "Attention / Household matters"
     | W.Loci -> "Manage Loci / Admitted vocabulary"
@@ -2731,11 +2771,11 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
       let v_label = match state.balance_mode with `Accounting -> "v current" | `Current -> "v accounting" in
       [
         Printf.sprintf "j/k select  Enter/i/Tab Detail  o observe  %s  p print  r record" v_label;
-        "Space Commands  q/Esc Home  Ctrl-r reload";
+        "PgUp/Dn Home/End range  Space Commands  q/Esc Home  Ctrl-r reload";
       ]
   | W.Balances, W.Detail ->
       [
-        "j/k scroll  Tab/w switch pane  o observe  r record";
+        "j/k scroll  PgUp/Dn Home/End range  Tab/w list  o observe  r record";
         "q/Esc back to list  Space Commands  Ctrl-r reload";
       ]
   | W.Daily_pace, W.Calendar ->
