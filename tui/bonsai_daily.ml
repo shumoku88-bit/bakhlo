@@ -4,6 +4,7 @@ module Bonsai = B.Bonsai
 module V = B.View
 module C = Daily_interaction
 module F = Daily_file
+module Annual = Bakhlo_sexp.Annual_scope
 module P = Ui_preferences
 
 let fit width height view =
@@ -253,7 +254,7 @@ type first_run_result = First_run_created of F.t | First_run_cancelled | First_r
 
 type first_run_action = First_run_event of B.Event.t
 
-let first_run_app initial ~outcome ~exit ~dimensions graph =
+let first_run_app ?annual_year initial ~outcome ~exit ~dimensions graph =
   let state, inject =
     Bonsai.state_machine_with_input ~default_model:initial
       ~apply_action:(fun context active_dimensions state (First_run_event event) ->
@@ -273,7 +274,7 @@ let first_run_app initial ~outcome ~exit ~dimensions graph =
              | First_run.Create details ->
                  (try
                     let session =
-                      F.create_empty ~path:details.destination ~measure:details.measure
+                      F.create_empty ?annual_year ~path:details.destination ~measure:details.measure
                         ~scale:details.scale
                     in
                     outcome := Some (First_run_created session)
@@ -309,14 +310,14 @@ let first_run_app initial ~outcome ~exit ~dimensions graph =
   let handler = Bonsai.arr1 graph inject ~f:(fun inject event -> inject (First_run_event event)) in
   (~view, ~handler)
 
-let start_first_run path read_error =
+let start_first_run ?annual_year path read_error =
   F.require (Unix.isatty Unix.stdin && Unix.isatty Unix.stdout) "interactive-tty-required";
   let initial = First_run.initial ~source_path:path ~read_error in
   let outcome = ref None in
   (match
      Async.Thread_safe.block_on_async_exn (fun () ->
        B.start_with_exit ~dispose:true ~mouse:B.Mouse_reporting.No_mouse_events ~bpaste:true
-         (first_run_app initial ~outcome))
+         (first_run_app ?annual_year initial ~outcome))
    with
    | Ok () -> ()
    | Error _ -> raise (F.Refused "Bonsai-terminal-unavailable"));
@@ -337,9 +338,10 @@ let run_loaded session =
   | Ok () -> ()
   | Error _ -> raise (F.Refused "Bonsai-terminal-unavailable")
 
-let run path =
+let run ?annual_year path =
+  F.check_annual_path annual_year path;
   match
-    try Ok (F.load path)
+    try Ok (F.load ?annual_year path)
     with
     | F.Refused why -> Error why
     | Unix.Unix_error (error, _, _) -> Error (Unix.error_message error)
@@ -349,7 +351,7 @@ let run path =
       F.require (Unix.isatty Unix.stdin && Unix.isatty Unix.stdout) "interactive-tty-required";
       run_loaded session
   | Error why ->
-      (match start_first_run path why with
+      (match start_first_run ?annual_year path why with
        | None -> ()
        | Some session -> run_loaded session)
 
@@ -642,6 +644,15 @@ let () =
     match Array.to_list Sys.argv with
     | [ _; "--self-check" ] -> self_check ()
     | [ _; "--book"; path ] -> run path
+    | [ _; "--annual-book"; year; "--book"; path ] ->
+        let year = match Annual.of_string year with
+          | Ok year -> year | Error why -> raise (F.Refused why) in
+        run ~annual_year:year path
+    | [ _; "--annual-check"; year; "--book"; path ] ->
+        let year = match Annual.of_string year with
+          | Ok year -> year | Error why -> raise (F.Refused why) in
+        ignore (F.load ~annual_year:year path);
+        print_endline "PASS: annual book admitted (no payload output; no carried balance claimed)."
     | [ _; "--check"; path ] ->
         ignore (F.load path);
         print_endline "PASS: daily book admitted (no payload output)."
@@ -659,7 +670,7 @@ let () =
            explicit."
     | _ ->
         prerr_endline
-          "Usage: tools/tui --book FILE | --check FILE | --copy-from SOURCE --book FRESH_FILE | \
+          "Usage: tools/tui --book FILE | --annual-book YYYY --book YYYY.sexp | --annual-check YYYY --book YYYY.sexp | --check FILE | --copy-from SOURCE --book FRESH_FILE | \
            --inspect-recovery --book FILE | --confirm-current-attempt ID --book FILE | \
            --restore-copy-from SOURCE --book FRESH_FILE";
         exit 2
