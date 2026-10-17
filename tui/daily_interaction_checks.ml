@@ -1555,6 +1555,9 @@ let self_check ~width_of () =
     F.create_annual_empty ~year:2027 ~path:annual_path ~measure:"jpy" ~scale:0
   in
   let annual = C.initial ~config_home:directory annual_session in
+  require
+    (String.starts_with ~prefix:"2027-" annual.workspace.calendar.selected_day)
+    "annual-calendar-started-outside-selected-year";
   let shows state needle =
     List.exists
       (fun (_, content) -> Base.String.is_substring content ~substring:needle)
