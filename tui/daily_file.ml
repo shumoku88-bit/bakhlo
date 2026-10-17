@@ -5,6 +5,8 @@ module B = Bakhlo_sexp.Daily_book
 module RB = Bakhlo_sexp.Records_book
 module DA = Bakhlo_sexp.Durable_append
 module Annual = Bakhlo_sexp.Annual_scope
+module Year_read = Bakhlo_sexp.Year_read
+module Effect_coordinate = Bakhlo_domain.Effect_coordinate
 
 exception Refused of string
 
@@ -538,3 +540,120 @@ let append_add_locus ?candidate session locus =
 let today () =
   let tm = Unix.localtime (Unix.time ()) in
   Printf.sprintf "%04d-%02d-%02d" (tm.Unix.tm_year + 1900) (tm.Unix.tm_mon + 1) tm.Unix.tm_mday
+
+type annual_rollover_preview = {
+  prior_year : int;
+  year : int;
+  prior_fingerprint : string;
+  current_fingerprint : string;
+  balances : (Effect_coordinate.t * Year_read.balance) list;
+  open_plans : B.plan list;
+}
+
+let preview_annual_rollover ~directory ~year ~coordinates =
+  require (year >= 2 && year <= 9999) "annual-year-invalid";
+  let prior_year = year - 1 in
+  require ((Unix.lstat directory).st_kind = Unix.S_DIR) "annual-directory-required";
+  let prior_path = Filename.concat directory (Annual.file_name prior_year) in
+  let current_path = Filename.concat directory (Annual.file_name year) in
+  require (prior_path <> current_path) "annual-same-paths";
+  let safe_stat path why =
+    try
+      let st = Unix.lstat path in
+      require (st.st_kind = Unix.S_REG) why;
+      st
+    with Unix.Unix_error _ | Sys_error _ -> raise (Refused why)
+  in
+  let pst = safe_stat prior_path "annual-file-missing" in
+  let cst = safe_stat current_path "annual-file-missing" in
+  require (pst.st_dev <> cst.st_dev || pst.st_ino <> cst.st_ino) "annual-same-paths";
+  try
+    with_writer prior_path (fun () ->
+      with_writer current_path (fun () ->
+        require_finished prior_path;
+        require_finished current_path;
+        let prior_session = load ~annual_year:prior_year prior_path in
+        let current_session = load ~annual_year:year current_path in
+        let module StringSet = Set.Make (String) in
+        let prior_plan_ids =
+          List.fold_left
+            (fun s (p : B.plan) -> StringSet.add p.id s)
+            StringSet.empty (B.plans prior_session.book)
+        in
+        List.iter
+          (fun (p : B.plan) ->
+            require (not (StringSet.mem p.id prior_plan_ids)) "overlapping-plan-id")
+          (B.plans current_session.book);
+        List.iter
+          (fun (e : B.entry) ->
+            require (not (B.mem_entry current_session.book e.id)) "overlapping-entry-id")
+          (B.entries prior_session.book);
+        let prior_bytes = prior_session.bytes in
+        let current_bytes = current_session.bytes in
+        let prior_fp_str = Stdlib.Digest.to_hex (Stdlib.Digest.string prior_bytes) in
+        let current_fp_str = Stdlib.Digest.to_hex (Stdlib.Digest.string current_bytes) in
+        let prior_fp = Year_read.fingerprint prior_bytes in
+        let current_fp = Year_read.fingerprint current_bytes in
+        let module Source = struct
+          type snapshot = {
+            selection : Year_read.selection;
+            prior_orig : Year_read.original;
+            curr_orig : Year_read.original;
+          }
+          (* Ephemeral invocation generation/revision only identify this snapshot, not persisted/global authority. *)
+          let acquire () =
+            let gen = 1 in
+            let years = [
+              { Year_read.year = prior_year; revision = 1; fingerprint = prior_fp };
+              { Year_read.year = year; revision = 1; fingerprint = current_fp };
+            ] in
+            let selection = { Year_read.generation = gen; years } in
+            let prior_orig = { Year_read.generation = gen; year = prior_year; revision = 1; contents = prior_bytes } in
+            let curr_orig = { Year_read.generation = gen; year; revision = 1; contents = current_bytes } in
+            Ok { selection; prior_orig; curr_orig }
+          let selection s = s.selection
+          let read s ~year:y =
+            if y = prior_year then Ok s.prior_orig
+            else if y = year then Ok s.curr_orig
+            else Error (Year_read.Year_missing y)
+        end in
+        let module R = Year_read.Make (Source) in
+        let session =
+          match R.begin_session () with
+          | Ok s -> s
+          | Error _ -> raise (Refused "rollover-session-failed")
+        in
+        let prior_v =
+          match R.load_year session ~year:prior_year with
+          | Ok v -> v
+          | Error _ -> raise (Refused "rollover-prior-load-failed")
+        in
+        let carry =
+          match R.derive_carry_forward session prior_v with
+          | Ok c -> c
+          | Error _ -> raise (Refused "rollover-carry-failed")
+        in
+        let annual_read =
+          match R.read_with_carry session ~year carry with
+          | Ok r -> r
+          | Error _ -> raise (Refused "rollover-read-failed")
+        in
+        let balances =
+          List.map (fun coord -> (coord, R.carry_balance annual_read coord)) coordinates
+        in
+        let open_plans = B.open_plans prior_session.book in
+        require (read prior_path = prior_bytes) "prior-source-changed";
+        require (read current_path = current_bytes) "current-source-changed";
+        require_finished prior_path;
+        require_finished current_path;
+        {
+          prior_year;
+          year;
+          prior_fingerprint = prior_fp_str;
+          current_fingerprint = current_fp_str;
+          balances;
+          open_plans;
+        }))
+  with
+  | Refused _ as exn -> raise exn
+  | Unix.Unix_error _ | Sys_error _ -> raise (Refused "file-or-writer-unavailable")

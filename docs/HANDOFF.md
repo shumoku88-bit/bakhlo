@@ -2,7 +2,7 @@
 
 ## Storage direction (2026-10-17)
 
-The user selected **calendar-year S-expression files as the first implementation path**; see [decision](YEARLY_SEXP_IMPLEMENTATION_DECISION.ja.md) and [issue #34](https://github.com/shumoku88-bit/bakhlo/issues/34). Start with the bounded 2026/2027 synthetic file-selection and record/reopen slice, preserving existing single-file writer safety and forbidding wrong-year mutations. **Do not claim qualified rollover/current carried balances, cross-year mutation atomicity, durability or operational cutover.** Irmin PR #32 and open #33 plus Git/Tackler PR #30 remain optional research, not product dependencies. LOAM remains the actual ledger. Continue ordinary UI work independently.
+The user selected **calendar-year S-expression files as the first implementation path**; see [decision](YEARLY_SEXP_IMPLEMENTATION_DECISION.ja.md) and [issue #34](https://github.com/shumoku88-bit/bakhlo/issues/34). Opt-in annual selection, first-run creation, record/correct/cold-reopen and wrong-year refusal are connected and locally exercised with synthetic 2026/2027 files. `--annual-rollover-preview YYYY --directory DIR --coordinate LOCUS MEASURE` now uses the existing two cooperative writer locks and `Year_read` / Core to report prior closing evidence and surviving open plans with source fingerprints, without importing or mutating either book. This is NOT current carried balances or plan-payment authority. Annual balance/report gates and unsafe cross-year mutation refusals remain. Persisted carry, cross-year discharge/recovery, power-loss/P7 and operational cutover are unqualified. No live/private/trial data, dependency, Irmin engine or GitHub Actions run was used; direct main commits/push are authorized for this task. See [local evidence](VERIFICATION.md#annual-sexp-and-read-only-rollover-preview). Continue ordinary UI work independently.
 
 ## Current task
 
@@ -478,15 +478,15 @@ macOS IME/manual acceptance and P7/power-loss/cutover remain open.
 
 ## Storage research context
 
-The next first storage research candidate is **calendar-year partitioned S-expressions**,
-not production adoption. [Year-partition research](YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)
-owns the plan: Jan 1–Dec 31 storage, current-year + qualified opening evidence, independent
+The historical [year-partition comparison plan](YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)
+records Jan 1–Dec 31 storage, current-year + qualified opening evidence, independent
 analysis/cycle boundaries, cross-year references and past-correction invalidation.
+The current implementation direction and exercised slice are at the top of this handoff.
 The first synthetic comparison is 2025-10-15 through 2026-10-14, six two-month cycles;
 actual adopted payment dates define cycles, never an implicit always-the-15th rule.
 Compare meaning, answers and refusals against the existing single-file Core/Daily_book oracle.
-Year rollover/multi-file atomicity and recovery are unresolved. **Consult the user before
-implementing this next experiment**; the latest task only organizes and pushes research.
+Persisted rollover/multi-file atomicity and recovery remain unresolved. The historical
+comparison is not a requirement to repeat research before completing usable slices.
 
 Irmin [Phase 1](IRMIN_STORAGE_RESEARCH.ja.md) and [Phase 2](IRMIN_PHASE2_RESULTS.ja.md)
 are complete within their stated scopes. Partial branch writes followed by EIO/SIGKILL
@@ -665,8 +665,8 @@ for current keys and recovery commands.
 
 `Bakhlo_sexp.Year_read` adds an opt-in annual validation boundary only; see
 [YEAR_READ_BOUNDARY.ja.md](YEAR_READ_BOUNDARY.ja.md). Its authoritative verified
-selection source has no production implementation. It checks original bytes and
-Core admission, derives opaque prior-year carry, and rejects stale/mixed inputs.
+selection source is connected only for the locked, read-only rollover preview described above.
+It checks original bytes and Core admission, derives opaque prior-year carry, and rejects stale/mixed inputs.
 It does not synthesize current balances, persist annual data or alter default
 single-S-expression operation. Do not advertise it as a usable annual store.
 

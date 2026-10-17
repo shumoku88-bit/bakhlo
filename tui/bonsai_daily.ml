@@ -6,6 +6,8 @@ module C = Daily_interaction
 module F = Daily_file
 module Annual = Bakhlo_sexp.Annual_scope
 module P = Ui_preferences
+module D = Bakhlo_domain
+module Y = Bakhlo_sexp.Year_read
 
 let fit width height view =
   let view = V.crop ~r:(max 0 (V.width view - width)) ~b:(max 0 (V.height view - height)) view in
@@ -644,6 +646,38 @@ let print_recovery path =
   | Ok _, _ -> 3
   | Error _, _ -> 1
 
+let print_annual_rollover_preview (p : F.annual_rollover_preview) =
+  Printf.printf "Read-only prior-year closing preview (NOT target-year balance)\n";
+  Printf.printf "Prior year: %04d (fingerprint %s)\n" p.prior_year p.prior_fingerprint;
+  Printf.printf "Current year: %04d (fingerprint %s)\n" p.year p.current_fingerprint;
+  List.iter
+    (fun (coord, balance) ->
+      let locus = D.Identifier.Locus.to_string coord.D.Effect_coordinate.locus in
+      let measure = D.Identifier.Measure.to_string coord.D.Effect_coordinate.measure in
+      let balance_str =
+        match balance with
+        | Y.Exact q ->
+            Printf.sprintf "Exact %s %S" (Z.to_string (D.Quantity.quanta q)) measure
+        | Y.Zero_origin -> "Zero_origin (distinct exact zero premise)"
+        | Y.Known_present -> "Known_present (amount unknown)"
+        | Y.Unknown -> "Unknown (not zero)"
+      in
+      Printf.printf "Coordinate (%S, %S): %s\n" locus measure balance_str)
+    p.balances;
+  if p.open_plans = [] then
+    Printf.printf "Surviving open plans from %04d: none (read-only; not imported, not payable)\n" p.prior_year
+  else (
+    Printf.printf "Surviving open plans from %04d (read-only; not imported, not payable):\n" p.prior_year;
+    List.iter
+      (fun (plan : Bakhlo_sexp.Daily_book.plan) ->
+        let changes_str =
+          String.concat ", "
+            (List.map (fun (loc, amt) -> Printf.sprintf "%S: %s" loc (Z.to_string amt)) plan.changes)
+        in
+        Printf.printf "  Plan ID: %S | Day: %S | Measure: %S | Changes: [%s]\n"
+          plan.id plan.day plan.measure changes_str)
+      p.open_plans)
+
 let () =
   try
     match Array.to_list Sys.argv with
@@ -667,6 +701,16 @@ let () =
             Printf.printf "%04d  Actual %d  open Scheduled %d  (file-local; no carry)\n"
               book.year book.entries book.open_plans)
             books
+    | [ _; "--annual-rollover-preview"; year; "--directory"; directory; "--coordinate"; locus; measure ] ->
+        let year = match Annual.of_string year with
+          | Ok year -> year | Error why -> raise (F.Refused why) in
+        let locus = match D.Identifier.Locus.of_string locus with
+          | Ok locus -> locus | Error _ -> raise (F.Refused "invalid-locus") in
+        let measure = match D.Identifier.Measure.of_string measure with
+          | Ok measure -> measure | Error _ -> raise (F.Refused "invalid-measure") in
+        let coordinate : D.Effect_coordinate.t = { locus; measure } in
+        let preview = F.preview_annual_rollover ~directory ~year ~coordinates:[ coordinate ] in
+        print_annual_rollover_preview preview
     | [ _; "--check"; path ] ->
         ignore (F.load path);
         print_endline "PASS: daily book admitted (no payload output)."
@@ -684,7 +728,7 @@ let () =
            explicit."
     | _ ->
         prerr_endline
-          "Usage: tools/tui --book FILE | --annual-book YYYY --book YYYY.sexp | --annual-check YYYY --book YYYY.sexp | --annual-list DIR | --check FILE | --copy-from SOURCE --book FRESH_FILE | \
+          "Usage: tools/tui --book FILE | --annual-book YYYY --book YYYY.sexp | --annual-check YYYY --book YYYY.sexp | --annual-list DIR | --annual-rollover-preview YYYY --directory DIR --coordinate LOCUS MEASURE | --check FILE | --copy-from SOURCE --book FRESH_FILE | \
            --inspect-recovery --book FILE | --confirm-current-attempt ID --book FILE | \
            --restore-copy-from SOURCE --book FRESH_FILE";
         exit 2

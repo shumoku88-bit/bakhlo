@@ -1,7 +1,7 @@
 module D = Bakhlo_domain
 (** Opt-in annual read/validation boundary, NOT a production storage entrance.
-    No selected-store implementation, publication, migration or new wire format.
-    The default Daily_book/CLI/TUI paths are unchanged. *)
+    Daily_file's read-only preview supplies a locked invocation-local selection;
+    no persisted carry, publication, migration or new wire format. *)
 
 type fingerprint
 
@@ -37,8 +37,8 @@ module type VERIFIED_SELECTION_SOURCE = sig
   val acquire : unit -> (snapshot, error) result
   (** MUST establish an authoritative, verified, immutable selection snapshot.
       Missing/corrupt/unresolved state must fail. A self-declared file header or
-      user-supplied selection/hash is NOT verification. There is deliberately no
-      production implementation or generic "trust these records" constructor. *)
+      user-supplied selection/hash is NOT verification. The read-only Daily_file
+      preview uses cooperative locks and admitted originals, not a manifest. *)
 
   val selection : snapshot -> selection
   (** All years belong to ONE atomic generation; stable for the snapshot lifetime. *)

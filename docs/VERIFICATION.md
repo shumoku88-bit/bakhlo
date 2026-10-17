@@ -6,6 +6,45 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Annual S-expression and read-only rollover preview
+
+2026-10-17, base `2f65925` plus the annual-preview change. Local macOS x86_64:
+Core OCaml 5.3.0, existing isolated Bonsai compiler 5.2.0+ox. Synthetic files only,
+under a fresh `/tmp/bakhlo-annual-34.*` directory; isolated UI configuration.
+No LOAM/private/previous trial data, new dependency or GitHub Actions run.
+
+- Baseline `./tools/check`, `./tools/build-bonsai-tui` and native
+  `bonsai_daily.exe --self-check` passed before editing.
+- Final change: `./tools/check` (full Core build/inline/cram checks),
+  `./tools/build-bonsai-tui`, native `--self-check` and the six-coordinate native
+  preview smoke passed. Added regressions cover independent reflected cuts,
+  all closing states, stable open-plan identity, changed-source re-derivation,
+  cross-year ID collisions, unresolved artifacts and deterministic fork/pipe
+  writer-lock contention. Initial new-test type/exception expectations were
+  corrected before this successful full run; no runtime refusal was bypassed.
+- Real Bonsai in an owned 120×36 tmux session: explicit first-run creation of
+  separate `2026.sexp` and `2027.sexp`; a separately seeded synthetic 2026 book
+  recorded `2026-12-31`, wallet −37 / food +37, then corrected to `2026-12-30`.
+  Publication/readback and cold Actual reopen retained the same entry ID and quanta.
+- Changing that Actual to `2027-01-01` reached Preview but publication refused
+  with `annual-entry-outside-year`, retained the input and preserved SHA-256
+  `d6004ec84a40e9211cf95e8c0f2a6f43e035374f918692fc5f9ece43257893c7`.
+  Creating, browsing, listing and cold-opening 2027 did not change 2026.
+  The cold 2027 Calendar selected `2027-01-01`; Balances refused unqualified carry.
+- Native `--annual-rollover-preview 2027 --directory DIR --coordinate LOCUS jpy`
+  exercised six coordinates: an observation reflecting the spending root returned
+  Exact 10 (not 7), Exact 0 remained distinct from Zero-origin, a nonzero origin
+  returned Exact 3, presence returned Known-present, and missing support Unknown.
+  Only overdue and future open plans survived, with original IDs/dates/quantities;
+  paid and cancelled plans were absent. Both input SHA-256 values were unchanged.
+- Missing target year, no predecessor (`0001`) and an empty coordinate exited 1
+  with no stdout/partial preview. The command reports prior closing evidence only.
+
+This is not persisted rollover, target-year current balances, plan import/payment,
+multi-file mutation/recovery, noncooperative-writer protection, power-loss/P7,
+paired LOAM/IME acceptance or operational adoption. The preview may create existing
+protocol `.lock` files; ledger bytes, backups and plans are not rewritten.
+
 ## Retained draft discard confirmation
 
 Bakhlo `6b676c5` plus the local Record/Actual controller changes. Browsing Ctrl-N
