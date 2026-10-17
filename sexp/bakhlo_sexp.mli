@@ -5,6 +5,7 @@ module Book = Book
 
 module Daily_book = Daily_book
 module Year_read = Year_read
+module Annual_scope = Annual_scope
 (** Opt-in validation only; no production selection source or annual store. *)
 
 module Records_book = Records_book
