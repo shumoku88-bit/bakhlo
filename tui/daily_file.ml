@@ -184,6 +184,29 @@ let unfinished_names path =
 
 let require_finished path = require (unfinished_names path = []) "recovery-required"
 
+type annual_book_summary = { year : int; entries : int; open_plans : int }
+
+(* Read-only discovery of explicitly named YYYY.sexp files. Scan and admit
+   every candidate before returning anything, so a corrupt year never yields
+   a misleading partial list. Ordinary S-expression files are not annual. *)
+let list_annual_books ~directory =
+  require ((Unix.lstat directory).st_kind = Unix.S_DIR) "annual-directory-required";
+  Sys.readdir directory
+  |> Array.to_list
+  |> List.sort String.compare
+  |> List.filter_map (fun name ->
+       if Filename.check_suffix name ".sexp" then
+         match Annual.of_string (Filename.chop_suffix name ".sexp") with
+         | Ok year -> Some year
+         | Error _ -> None
+       else None)
+  |> List.map (fun year ->
+       let path = Filename.concat directory (Annual.file_name year) in
+       require_finished path;
+       let session = load ~annual_year:year path in
+       { year; entries = B.entry_count session.book;
+         open_plans = List.length (B.open_plans session.book) })
+
 let with_writer path f =
   let lockpath = path ^ ".lock" in
   (try require ((Unix.lstat lockpath).st_kind = Unix.S_REG) "nonregular-lock"
