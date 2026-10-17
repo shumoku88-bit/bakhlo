@@ -3513,3 +3513,115 @@ new authority hashes before/after cold reopen were respectively
 and `34d4130478662d8301e6a8660cbe08fd71a2fd8c9f13510f47b5b415ac1134f3`.
 This is narrow synthetic comparison, not LOAM source/binary equivalence,
 manual/IME acceptance, permission failure, power-loss/P7 or cutover approval.
+
+## Actual empty search and CJK resize follow-up
+
+Bakhlo baseline `77baa1e` (clean), then only the Actual display/check changes;
+LOAM source `c366dcbe88458f49aa21701ad315970651cc63f3` (clean). Existing LOAM
+`loamTui` SHA-256 `e5e125238385cd795a59207a53870257adb5da63ac1d2da7c9fbcb516353ad25`;
+no LOAM build or source/binary equivalence claim. Bakhlo final native SHA-256
+`d5690cea91d342b72b9a4d4ef3ef4c30091e71f4bd1903bc84a96a672f313e19`.
+
+Fresh copies of the earlier **synthetic** two-entry search fixture were placed
+under ignored `scratch/search-acceptance.OKKxIl`; no household capture was used.
+Both ran on private tmux socket `bakhlo-search-new`, `TERM=xterm-256color`.
+At 80×24, the active query `検索語あいうえおかきくけこさしすせそ1234567890検索語`
+matched zero entries in both; both terminal carets were `(62,1)` (zero-based).
+After shrinking to 32×9, both showed the same tail `…そ1234567890検索語`, caret
+`(29,1)`. Backspace removed the final Japanese character in both and exposed
+`…せそ1234567890検索`, still at `(29,1)`. This is injected Unicode, not IME acceptance.
+
+The initial Bakhlo empty panel incorrectly counted its explanation as a row
+(`1–1 / 1`, despite header count 0); LOAM showed `0/0`. The Actual caller now
+uses its existing non-selected panel renderer for this explanation and an
+explicit `0–0 / 0` range; no shared panel API, storage or selection logic changed.
+The added regression failed with `empty-range-is-zero` before the fix.
+Empty-book and no-match checks now pass at 120×36, 80×24, 48×14, 32×9 and 32×7.
+`./tools/check`, `./tools/build-bonsai-tui` and final `./tools/tui --self-check` passed.
+
+Fresh final-binary processes in both UIs: `/zzzz` remained empty through
+80×24 → 48×14 → 32×9 → 80×24, with zero ranges throughout. Replacing the query
+with `other` and shrinking to 32×9 retained the single Description-only row.
+Escape and restore to 80×24 returned both entries. Exit/reopen between the
+CJK and final runs also restored an unfiltered two-entry Actual view.
+Authority SHA-256 before/after all runs remained Bakhlo
+`5c4f32f10f2b83e73419d32a33ad217ebce6e2621564b21235eef96a4092c8ae`
+and LOAM `f6b9182aa7e379e55ea1ac72d73ca84d51bc3208ba7d67fcbd4e97e305565a96`.
+Geometry/header/footer differences and clipped narrow surrounding text remain;
+scope/sort, other consumers, manual acceptance, IME and P7 are not qualified.
+
+## Actual single Enter and filtered return
+
+Baseline Bakhlo HEAD `77baa1e` plus the preceding empty-range display/check and
+documentation changes (not committed). LOAM source remained clean at
+`c366dcbe88458f49aa21701ad315970651cc63f3`; its existing `loamTui` SHA-256 remained
+`e5e125238385cd795a59207a53870257adb5da63ac1d2da7c9fbcb516353ad25`.
+Source/binary correspondence is not qualified; no LOAM build was performed.
+Final Bakhlo native SHA-256
+`1511a1cde8a24c4459ad650780797558790e45da210306567bfb73cf2a2e3981`.
+
+Fresh synthetic two-entry copies: ignored `scratch/actual-scope-acceptance.H7VpyS`,
+private tmux socket `bakhlo-scope`, `TERM=xterm-256color`; dates 2026-10-16/17,
+`paired snack` ±37 jpy / `other meal` ±11 jpy. At 80×24, `/paired`, Enter,
+`f` produced zero entries for Focus Day 2026-10-17 in both UIs. Enter refused
+with `No current Actual is selected to open.`; it neither changed pane nor wrote.
+`f`, `s` restored All Current / oldest-first with the query retained.
+
+The initial comparison exposed a key-flow difference: current LOAM source
+`ActualWorkspace.updateIntent .openSelected` and its existing binary open from
+Transactions directly; Bakhlo only focused Details on the first Enter.
+The added controller check failed with `actual-single-enter-opens-with-parent`.
+After sharing the existing open branch between Transactions and Details,
+the same-day/retained-filter check failed with
+`actual-drill-opens-exact-id-despite-same-day-and-old-filters`: the controller
+opened the day without anchoring its child selection. It now uses the existing
+browser/sync helpers to select the explicit Actual ID and clear old child filters.
+No writer, accounting predicate or shared panel API changed. Existing preview/
+scroll checks now enter the Details pane explicitly with `i`.
+
+With the rebuilt binary, Enter once opened `paired snack` in both UIs. Resize
+to 48×14 and Escape returned to the one-row list, retaining `/paired` and
+oldest-first. Starting an empty search and accepting it restored two rows;
+sort showed other→paired (newest-first) and paired→other (oldest-first) in both.
+At 32×9, Enter once and Escape returned to the selected `paired snack` list row.
+At 48×14, `i`, Enter, Escape returned to the active Details pane in both.
+Child surfaces still differ: Bakhlo Selected Day versus LOAM Transaction detail.
+Bakhlo also showed the background Calendar date in the child's context line;
+the route title and selected entry date were correct. This difference remains open.
+
+Core `./tools/check` and final `./tools/tui --self-check` (including native build)
+passed. Synthetic controller regression covers same-day target ID with old child
+query/Locus/day filters, direct-list return at 80×24/48×14/32×9, non-writing entry,
+and prior explicit Details/filter/order/scroll and correction-return checks.
+Same-day/old-child-filter behavior is self-check evidence, not paired runtime evidence.
+Both synthetic authority hashes were unchanged after clean exit:
+Bakhlo `5c4f32f10f2b83e73419d32a33ad217ebce6e2621564b21235eef96a4092c8ae`,
+LOAM `f6b9182aa7e379e55ea1ac72d73ca84d51bc3208ba7d67fcbd4e97e305565a96`.
+Full Locus/scope/sort combinations, child-screen parity, human/IME acceptance,
+failure injection for this slice and power-loss/P7 remain open.
+
+## Selected Day context date and zoom
+
+Bakhlo `77baa1e` plus the preceding uncommitted Actual changes and this bounded
+display/check fix. Native binary SHA-256
+`76606f95c03131d65cf4eff84534fc672f0e2e6fed5bfc730b21e78b813b02b4`.
+The context line previously showed the background Calendar date/zoom even when
+Selected Day and new Record correctly used a different route date. Expected
+behavior is independently derived from the selected route, not LOAM output.
+The new check failed with `selected-day-context-uses-route-date-and-day-zoom`
+before the fix. It passes at 32×9/48×14/80×24/120×36, for background Day/Month/Year,
+with and without a retained draft; existing Record initial-date/cold-save checks
+remain passing. `./tools/check` and `./tools/tui --self-check` passed.
+
+Fresh synthetic book under ignored `scratch/selected-day-context.nBTfNI`;
+private tmux `bakhlo-context`, `TERM=xterm-256color`. From Home: Enter, z, z,
+a, /paired, Enter (keep search), Enter (open). Selected Day showed
+`2026-10-16   Day view` at 80×24 → 48×14 → 32×9 → 80×24. Record opened with
+date 2026-10-16; description `context-only draft`, then Escape retained the
+draft and showed the correct date plus `Draft retained`. Return to Actual and
+clear search showed the untouched background `2026-10-17   Year view`.
+After clean exit, book SHA-256 remained
+`5c4f32f10f2b83e73419d32a33ad217ebce6e2621564b21235eef96a4092c8ae`.
+No writer, admission or Calendar state change; no fresh LOAM comparison was needed
+to establish this local display inconsistency. Human/IME acceptance, broader
+Selected Day parity and power-loss/P7 remain unqualified.

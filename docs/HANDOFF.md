@@ -51,10 +51,25 @@ A separate synthetic Actual search comparison showed one row for each of
 `paired` and `other`, zero for `zzzz`, and both after Escape at 80×24. In the
 rebuilt Bakhlo binary, active `/paired` survived resize to 48×14 with `+37 jpy`
 fully visible; `/other` at 48×14 showed full `+11 jpy`, then Escape and restore
-to 80×24 returned both entries. Earlier 32×9 evidence showed Description-only
-rows and clipped surrounding text; it was not rerun after the amount fix.
+to 80×24 returned both entries. A subsequent fresh synthetic comparison confirmed
+32×9 Description-only rows, retained `/other`, Escape restoring both entries,
+and matching long-CJK search tail/caret coordinates. Empty Actual views now show
+`0–0 / 0`, not a counted placeholder; empty-book/no-match checks cover five sizes.
 This remains bounded search evidence, not cross-screen or human acceptance. See
-[verification](VERIFICATION.md#paired-actual-search-2026-10-17).
+[verification](VERIFICATION.md#actual-empty-search-and-cjk-resize-follow-up).
+
+Actual Enter now opens the selected entry directly from Transactions or Details,
+matching the current LOAM source and existing binary; `i` remains pane preview.
+The controller anchors Selected Day by ID and clears its old filters, avoiding
+wrong/absent selection among same-day entries. Direct-list return and explicit
+Details return preserve their respective parent pane, query, order and selection.
+Core/native checks and bounded synthetic paired scope/sort, empty refusal and
+32×9/48×14 return flows passed; see [evidence](VERIFICATION.md#actual-single-enter-and-filtered-return).
+The child remains Bakhlo's Selected Day, not full LOAM transaction-detail parity;
+its context now uses the route date and Day view, without changing the background
+Calendar date/zoom. Checks cover four sizes × three background zooms, with/without
+a retained Record draft; a synthetic native resize/draft smoke passed. Other UI-04
+gaps and human acceptance remain open. See [context evidence](VERIFICATION.md#selected-day-context-date-and-zoom).
 
 The shared-UI responsibility design is now fixed in
 [TUI共有部品の責務設計と移行順序](TUI_LAYOUT_STABILITY_ROADMAP.ja.md), replacing the

@@ -677,7 +677,7 @@ let actual_browsing_checks ~width_of ~directory home =
     && List.for_all (fun line -> width_of line=52) titles) "actual-fixed-columns-safe-ellipsis";
   List.iter (fun dimensions ->
     let key = key ~dimensions ~width_of in
-    let detail = key state `Enter in
+    let detail = key state (`ASCII 'i') in
     let height, view = C.browser_viewport ~dimensions ~width_of detail in
     let capacity = view.Ui_panel.capacity and last = view.last in
     let identity = (W.browser detail.workspace).selected_id in
@@ -709,7 +709,7 @@ let actual_browsing_checks ~width_of ~directory home =
       if snd dimensions>=14 && state.workspace.pane=W.Detail then
         require (contains rows "ID: actual-17") "actual-long-detail-complete-id-at-end") [state;page;ended])
     [32,9;48,14;80,24;120,36];
-  let detail = key ~dimensions:(32,9) ~width_of state `Enter |> fun s -> key ~dimensions:(32,9) ~width_of s `End in
+  let detail = key ~dimensions:(32,9) ~width_of state (`ASCII 'i') |> fun s -> key ~dimensions:(32,9) ~width_of s `End in
   let resized = key ~dimensions:(120,36) ~width_of detail (`ASCII '!') in
   let _, resized_view = C.browser_viewport ~dimensions:(120,36) ~width_of resized in
   require (resized.scroll=resized_view.Ui_panel.last && (W.browser resized.workspace).selected_id=(W.browser detail.workspace).selected_id)
@@ -754,10 +754,33 @@ let actual_browsing_checks ~width_of ~directory home =
   require (resumed.record_visible && S.screen ~book ~dimensions:(72,20) ~width_of (Option.get resumed.record)=draft_rows)
     "actual-record-resumes-exact-draft";
   let at_second = key ~width_of state (`ASCII 'j') in
-  let at_details = key ~width_of at_second `Enter in
+  let at_details = key ~width_of at_second (`ASCII 'i') in
   let drilled = key ~width_of at_details `Enter in
   require (match drilled.workspace.route with W.Selected_day d -> d = (entry 16).day | _ -> false)
     "actual-enter-drills-to-selected-day";
+  List.iter (fun dimensions ->
+    let direct = key ~dimensions ~width_of at_second `Enter in
+    require (direct.workspace.route = W.Selected_day (entry 16).day
+             && direct.drill_parent = Some W.Actual)
+      "actual-single-enter-opens-with-parent";
+    let returned = key ~dimensions ~width_of direct `Escape in
+    require (returned.actual_workspace = at_second.actual_workspace
+             && returned.workspace.actual = at_second.workspace.actual
+             && returned.workspace.pane = W.Calendar)
+      "actual-single-enter-return-preserves-list";
+    let same_day_book = get (B.put_entry book ~replace:true
+      { (entry 15) with day = (entry 16).day } ~plan:None) in
+    let parent = { at_second with session = { at_second.session with book = same_day_book } } in
+    let parent = { parent with workspace = { parent.workspace with
+      selected_day = { parent.workspace.selected_day with query = "stale unmatched search";
+        locus = Some "absent"; day = Some "2020-01-01" } } } in
+    let parent = key ~dimensions ~width_of parent (`ASCII 'j') in
+    let direct = key ~dimensions ~width_of parent `Enter in
+    require (match C.selected direct with
+      | Some (W.Actual_entry e) -> e.id = "actual-16"
+      | _ -> false) "actual-drill-opens-exact-id-despite-same-day-and-old-filters";
+    require (F.read path = before) "actual-drill-and-return-do-not-write")
+    [ (80,24); (48,14); (32,9) ];
   let day_path = directory ^ "/selected-day-record.sexp" in
   F.write_new day_path (B.to_string book);
   let day_parent = { drilled with session = F.load day_path;
@@ -770,6 +793,19 @@ let actual_browsing_checks ~width_of ~directory home =
   require (held.workspace = day_parent.workspace && held.drill_parent = day_parent.drill_parent
            && F.read day_path = before && C.has_record_draft held)
     "selected-day-record-cancel-retains-draft-parent-and-bytes";
+  List.iter (fun state ->
+    List.iter (fun zoom ->
+      let state = { state with C.workspace = { state.C.workspace with
+        calendar = { state.workspace.calendar with zoom } } } in
+      List.iter (fun ((width, _) as dimensions) ->
+        let rows = C.screen ~width_of dimensions state in
+        let expected = (entry 16).day ^ "   Day view"
+          ^ if C.has_record_draft state then "   Draft retained" else "" in
+        require (snd (List.nth rows 1) = Daily_overlays.clip_text ~width_of width expected)
+          "selected-day-context-uses-route-date-and-day-zoom";
+        require (F.read day_path = before) "selected-day-context-does-not-write")
+        [ (32,9); (48,14); (80,24); (120,36) ])
+      [ Cal.Day; Cal.Month; Cal.Year ]) [ day_parent; held ];
   let resumed = key ~width_of held (`ASCII 'r') in
   require (S.screen ~book ~dimensions:(72,20) ~width_of (Option.get resumed.record) = day_rows)
     "selected-day-record-resumes-same-date-and-input";
@@ -813,7 +849,7 @@ let actual_browsing_checks ~width_of ~directory home =
     |> fun s -> key ~width_of s (`ASCII 'h')
     |> fun s -> key ~width_of s (`ASCII 'j')
     |> fun s -> key ~width_of s (`ASCII 'l')
-    |> fun s -> key ~width_of s `Enter
+    |> fun s -> key ~width_of s (`ASCII 'i')
     |> fun s -> key ~dimensions:(80,24) ~width_of s `End in
   require (filtered.scroll > 0) "actual-return-fixture-has-scrolled-detail";
   let filtered_drill = key ~dimensions:(80,24) ~width_of filtered `Enter in
@@ -1121,7 +1157,7 @@ let date_correction_checks ~width_of ~directory home =
   let day_path = directory ^ "/date-selected-day.sexp" in
   F.write_new day_path before;
   let drilled = C.open_route (C.initial ~config_home:directory (F.load day_path)) W.Actual
-    |> fun s -> key ~width_of s `Enter |> fun s -> key ~width_of s `Enter in
+    |> fun s -> key ~width_of s (`ASCII 'i') |> fun s -> key ~width_of s `Enter in
   let moved = key ~width_of drilled (`ASCII 'd') |> fun s -> date s "2026-10-12"
     |> fun s -> key ~width_of s `Enter |> fun s -> key ~width_of s `Enter in
   require (moved.workspace.route = W.Selected_day target.day && W.rows ~book:moved.session.book moved.workspace = [])

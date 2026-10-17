@@ -66,7 +66,8 @@ Actualは幅が足りる一覧でDate／Description／Amountを整列し、正�
 ActualはLoci／Actuals／Detailsの3ペインと画面内の`/`検索を接続済み。
 検索は入力中に絞り込み、Enterで保持、Escで解除する。長文は可視末尾だけを表示し、
 保持する検索値を切らない。日本語を含む末尾と実カーソルを同じ可視窓に収める。
-`f`は日付scope、`s`はsort、Tab／h/lはpane、EnterはActuals→Details→Selected Day。
+`f`は日付scope、`s`はsort、Tab／h/lはpane、`i`はDetails。Actuals／DetailsのEnterは1回で選択明細のSelected Dayを開く。
+同日の別明細や以前のSelected Day検索へ逸れず、明細IDで選択する。戻ると親Actualの検索・scope・sort・選択・paneを保持する。
 ActualとScheduledの詳細はHome／Endで選択を変えず、ページ送りは可視行数に従う。
 3ペイン全体の最新LOAMとの配置・操作一致は未認定。限定した検索対照と未達範囲はUI差分台帳を参照する。
 Actualの`c`はCorrect、ScheduledのEnterは閲覧だけのDetail、`c`は明示的なComplete。

@@ -1857,6 +1857,10 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 | Act.Stay -> Some state
                 | Act.Open_selected entry ->
                     let drilled = open_route state (W.Selected_day entry.day) in
+                    let browser = { drilled.workspace.selected_day with
+                      selected_id = Some (W.Actual_row, entry.id);
+                      query = ""; locus = None; day = None } in
+                    let drilled = sync { drilled with workspace = W.update_browser drilled.workspace browser } in
                     Some { drilled with drill_parent = Some W.Actual; drill_book = Some state.session.book }
                 | Act.Record_new -> Some (open_record state)
                 | Act.Back -> Some (open_route state W.Home)
@@ -3342,7 +3346,9 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
              | W.Settlements -> tr "Settlements"));
           line ~width_of width Chrome
             ((if is_scheduled_months state then "Explicit current-open plans; no recurrence inferred."
-              else state.workspace.calendar.selected_day ^ "   " ^ Cal.title state.workspace.calendar ^ tr " view")
+              else match state.workspace.route with
+                | W.Selected_day day -> day ^ "   " ^ tr "Day" ^ tr " view"
+                | _ -> state.workspace.calendar.selected_day ^ "   " ^ Cal.title state.workspace.calendar ^ tr " view")
             ^ if has_record_draft state then "   Draft retained" else "");
         ]
     in

@@ -150,6 +150,21 @@ let self_check () =
   require (Act.search_query ws = "ren") "search-query-kept";
   require (Act.cursor_position ~dimensions:dim_wide ~width_of ws = None) "search-cursor-none";
 
+  let no_match, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (char_key '/') in
+  let no_match, _ = Act.handle ~book ~dimensions:dim_wide ~width_of no_match (char_key 'z') in
+  List.iter (fun book ->
+    require (Act.visible_entries ~book no_match = []) "empty-visible-entries";
+    require (Act.selected_entry ~book no_match = None) "empty-no-selection";
+    List.iter (fun dimensions ->
+      let rows = Act.screen ~book ~dimensions ~width_of no_match in
+      let contains text = List.exists (fun (_, row) ->
+        Base.String.is_substring row ~substring:text) rows in
+      require (contains "0–0 / 0") "empty-range-is-zero";
+      if snd dimensions >= 9 then
+        require (contains "(no matching Actual") "empty-explanation-visible")
+      [ (120, 36); (80, 24); (48, 14); (32, 9); (32, 7) ])
+    [ book; get (B.of_string fixture) ];
+
   (* Cancel search: start search then Esc *)
   let ws, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (char_key '/') in
   let ws, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (key `Escape) in
@@ -179,16 +194,22 @@ let self_check () =
   let desc_entries = Act.visible_entries ~book ws in
   require ((List.hd desc_entries).day = "2026-10-15") "desc-first-is-newest";
 
-  (* 7. Open selected record (Enter switches to Details, second Enter opens selected) *)
-  let ws_detail, cmd1 = Act.handle ~book ~dimensions:dim_wide ~width_of ws (key `Enter) in
-  require (cmd1 = Act.Stay) "enter-tx-stays";
-  require (Act.pane ws_detail = Act.Details) "enter-tx-moves-to-details";
-  let _ws_open, cmd2 = Act.handle ~book ~dimensions:dim_wide ~width_of ws_detail (key `Enter) in
-  (match cmd2 with
-  | Act.Open_selected entry ->
-      require (entry.day = "2026-10-15") "open-selected-date";
-      require (Option.is_some entry.memo) "open-selected-memo"
-  | _ -> failwith "enter-must-open-selected");
+  (* 7. Enter opens the selected record; i separately focuses Details. *)
+  List.iter (fun state ->
+    let next, command = Act.handle ~book ~dimensions:dim_wide ~width_of state (key `Enter) in
+    require (next = state) "enter-keeps-parent-state";
+    require (match command, Act.selected_entry ~book state with
+      | Act.Open_selected entry, Some selected -> entry.id = selected.id
+      | _ -> false) "enter-opens-selected-once")
+    [ ws; fst (Act.handle ~book ~dimensions:dim_wide ~width_of ws (char_key 'i')) ];
+  let ws_detail, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (char_key 'i') in
+  let empty, _ = Act.handle ~book ~dimensions:dim_wide ~width_of no_match (key `Enter) in
+  List.iter (fun state ->
+    let next, command = Act.handle ~book ~dimensions:dim_wide ~width_of state (key `Enter) in
+    require (command = Act.Stay && Act.pane next = Act.pane state
+             && Act.selected_entry ~book next = None
+             && Act.notice next <> "") "enter-empty-refuses-with-notice")
+    [ empty; fst (Act.handle ~book ~dimensions:dim_wide ~width_of empty (char_key 'i')) ];
   let ws, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws_detail (key `Escape) in
   require (Act.pane ws = Act.Transactions) "escape-details-moves-back-to-tx";
 

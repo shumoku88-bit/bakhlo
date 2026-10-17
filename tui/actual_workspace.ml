@@ -504,9 +504,7 @@ let handle ~book ~dimensions ~width_of t (input : Ui_input.input) =
     | `Key (`ASCII '/', []) -> (begin_search ~book t, Stay)
     | `Key (`Enter, _) -> (
         match t.pane with
-        | Transactions ->
-            ({ t with pane = Details; notice = "" }, Stay)
-        | Details -> (
+        | Transactions | Details -> (
             match selected_entry ~book t with
             | Some entry -> (t, Open_selected entry)
             | None ->
@@ -639,26 +637,29 @@ let screen ~book ~dimensions ~width_of t =
       else "Description"
     in
     let rows_text =
-      if records = [] then [ "(no matching Actual records)" ]
-      else
-        List.map
-          (fun (e : B.entry) ->
-            let desc = Option.value ~default:"(no description)" e.memo in
-            let amt = amount_summary book e in
-            if tabular then
-              let desc_w = max 0 (row_width - 10 - amount_w - 4) in
-              let amt_str = if width_of amt <= amount_w then amt else "see details" in
-              O.pad ~width_of 10 e.day ^ "  "
-              ^ O.pad ~width_of desc_w desc ^ "  "
-              ^ String.make (max 0 (amount_w - width_of amt_str)) ' '
-              ^ amt_str
-            else O.clip_text ~width_of row_width desc)
-          records
+      List.map
+        (fun (e : B.entry) ->
+          let desc = Option.value ~default:"(no description)" e.memo in
+          let amt = amount_summary book e in
+          if tabular then
+            let desc_w = max 0 (row_width - 10 - amount_w - 4) in
+            let amt_str = if width_of amt <= amount_w then amt else "see details" in
+            O.pad ~width_of 10 e.day ^ "  "
+            ^ O.pad ~width_of desc_w desc ^ "  "
+            ^ String.make (max 0 (amount_w - width_of amt_str)) ' '
+            ^ amt_str
+          else O.clip_text ~width_of row_width desc)
+        records
     in
-    Panel.frame ?heading:(if h >= 4 then Some header_line else None)
-      ~width_of ~width:w ~height:h ~focused:(t.pane = Transactions)
-      ~title:tx_header ~scroll:0 ~selected:(if tx_count = 0 then None else Some t.transaction_row)
-      rows_text
+    if tx_count = 0 then
+      render_panel ~width:w ~height:h ~title:tx_header ~focused:(t.pane = Transactions)
+        ~bottom_label:(Some "0–0 / 0") ~width_of
+        ((if h >= 4 then [ O.Chrome, header_line ] else [])
+         @ [ O.Plain, "  (no matching Actual records)" ])
+    else
+      Panel.frame ?heading:(if h >= 4 then Some header_line else None)
+        ~width_of ~width:w ~height:h ~focused:(t.pane = Transactions)
+        ~title:tx_header ~scroll:0 ~selected:(Some t.transaction_row) rows_text
   in
 
   (* Details panel *)
