@@ -67,7 +67,7 @@ let%expect_test "opt-in annual storage uses existing writer; wrong-year commits 
       (List.map (B.entries (File.load ~annual_year:2026 p26).book) ~f:(fun e -> e.day))
       [ "2026-11-30" ])
     "same-year-cold-correction";
-  require (File.read p27 = old27) "correction-touched-other-year";
+  require (String.equal (File.read p27) old27) "correction-touched-other-year";
   require (Result.is_error (Scope.check_path ~year:2026 p27)) "year-mismatch";
   let refused f = try f (); false with File.Refused _ -> true in
   require (refused (fun () -> ignore (File.load ~annual_year:2026 p27))) "wrong-year-selection";
