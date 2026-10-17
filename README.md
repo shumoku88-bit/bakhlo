@@ -43,6 +43,8 @@ Favaとhledgerへの出力はユーザー指定で対象外。Print／診断や�
 - Daily画面の両替、数量観測、Manage Loci／明示役割設定、Attention、限定的な精算残額管理を試せる。
   Attention／精算の不正・読込失敗は空やゼロにせずUnavailableとして表示する。
   保存失敗・協調writer競合では入力と旧状態を残す。これらのsidecarは全家計移行・耐久保存認定ではない。
+- Balances Currentの`c`で現Measureの表示対象を入力→確認→保存できる。他Measureは保持し、明示空選択は空表示、
+  不正／読めない`balance-view.tsv`は全件への暗黙の置換をせずUnavailableとして表示する。
 - Daily台帳はv1〜v3とRecords v1を読み、単一S式ではv3を書く。旧試用の予算APIとv4は削除済み。
 - `record` で単一通貨の支出・収入・振替を記録できる。
 - v3 Bookでは `exchange` で両替元と両替先の通貨・数量を明示した両替を記録でき、
@@ -113,6 +115,7 @@ Esc／Cancelは下書きを保持する。起動時に台帳を開けない場�
 別の未使用ファイルへの明示的な初期化を提示する。確認画面のEsc／Editは入力へ戻り、
 入力画面のEscだけが初期化を取り消す。既存sourceは変更せず、review後の確定だけで作成する。
 非TTYや`--check`は引き続きfail-closedで、空台帳への自動置換はしない。
+保存先の確認では全パスが表示される寸法を要求し、不正なUTF-8や表示順を変える双方向制御文字を含むパスは拒否する。
 [操作・対応範囲・保存の限界](tui/README.md)も参照。
 
 ### UIの方針
@@ -170,7 +173,11 @@ Bakhloのコア実装・Daily保存・TUI接続・運用認定を別々に確認
 [Irmin Phase 1](docs/IRMIN_STORAGE_RESEARCH.ja.md)・[Phase 2](docs/IRMIN_PHASE2_RESULTS.ja.md)は保存済み。
 HEAD途中書込み故障とdurable Saved未確立のため本体導入を保留し、SQLiteは比較候補として残す。
 現在の実装は単一S式等のまま。年度分割の実装・正データ切替はまだ行わない。
-電卓機能（UX-3）は [電卓入力設計メモ](docs/UX3_CALCULATOR_INPUT_DESIGN.ja.md) に整理済みだが未実装。
+金額欄では `500+300`、`(500+300)/2` などの式を入力できる。全角数字・演算子にも対応し、
+整数／有理数で計算する。通貨の最小単位に収まらない結果・ゼロ除算・非正値は拒否し、下書きを保持する。
+符号付きPostingでは先頭の `-`／`+` が式全体の向きに作用する（`-500+300` は `-(500+300)`）。
+式の途中の単項演算子は使わない。
+詳細は[電卓入力設計メモ](docs/UX3_CALCULATOR_INPUT_DESIGN.ja.md)。LOAMとの実画面対照は未了。
 家計正データは引き続きLOAMが管理し、本番データは変更しない。
 
 - [意味の契約](docs/SEMANTIC_CONTRACT.md)

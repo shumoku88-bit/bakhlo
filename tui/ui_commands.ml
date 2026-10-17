@@ -1,5 +1,5 @@
 type page = Root | Transactions | Planning | Analysis | Setup
-type action = Record | Actual | Scheduled | New_plan | Balances | Daily_pace | Theme | Home | Calendar | Attention | Manage_loci | Exchange | Settlements | Observe | Income_expense | Transactions_flow | Stock_flow
+type action = Record | Actual | Scheduled | New_plan | Balances | Daily_pace | Theme | Home | Calendar | Attention | Manage_loci | Friendly_locus_names | Exchange | Settlements | Observe | Income_expense | Transactions_flow | Stock_flow | Pace_pool | Cycle_boundaries | Balance_display
 type item = Group of page | Action of action
 type t = { page : page; selected : int }
 type outcome = Updated of t | Chosen of action | Closed
@@ -42,6 +42,10 @@ let items = function
       [
         (Action Theme, "Theme");
         (Action Manage_loci, "Manage Loci / Admitted vocabulary");
+        (Action Friendly_locus_names, "Account / category display names");
+        (Action Pace_pool, "Daily Pace / spendable accounts");
+        (Action Cycle_boundaries, "Daily Pace / cycle dates");
+        (Action Balance_display, "Balances / visible accounts");
         (Action Home, "Home / Bonsai");
       ]
 

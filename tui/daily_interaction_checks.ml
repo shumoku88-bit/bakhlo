@@ -1702,6 +1702,73 @@ let self_check ~width_of () =
   let wide_custom_bv = C.screen ~width_of (120, 30) bal_custom_bv in
   require (contains wide_custom_bv "bank" && contains wide_custom_bv "wallet")
     "balances-custom-balance-view-loaded-by-default";
+  let replace_balance_view bytes =
+    Unix.unlink bv_path;
+    F.write_new bv_path bytes
+  in
+  replace_balance_view "bank\tjpy\nwallet\tjpy\nbank\teur\n";
+  let original_view = F.read bv_path in
+  let configure = key ~width_of bal_custom_bv (`ASCII 'c') in
+  let editor = match configure.overlay with
+    | C.Modal_form form -> form
+    | _ -> failwith "balances-setup-not-opened" in
+  require (Ui_form.get_text editor "loci" = Some "bank, wallet") "balances-setup-preserves-order";
+  let edited = { configure with overlay =
+    C.Modal_form (Ui_form.set_text editor "loci" "wallet, bank") } in
+  let reviewed = key ~width_of edited `Enter in
+  require (F.read bv_path = original_view) "balance-review-does-not-save";
+  let narrow = key ~dimensions:(48,14) ~width_of reviewed `Enter in
+  require (F.read bv_path = original_view
+           && (match narrow.overlay with C.Modal_form f -> Ui_form.id f = "review_balance_view" | _ -> false))
+    "balance-review-hidden-selection-refused";
+  let returned = key ~width_of narrow `Escape in
+  require
+    ((match returned.overlay with C.Modal_form f ->
+       Ui_form.get_text f "loci" = Some "wallet, bank" | _ -> false)
+     && F.read bv_path = original_view)
+    "balance-review-escape-retains-draft-without-writing";
+  let edited_button = key ~width_of (key ~width_of reviewed (`Arrow `Right)) `Enter in
+  require ((match edited_button.overlay with C.Modal_form f ->
+               Ui_form.get_text f "loci" = Some "wallet, bank" | _ -> false)
+           && F.read bv_path = original_view)
+    "balance-review-edit-button-retains-draft";
+  let cancelled = key ~width_of returned `Escape in
+  require (cancelled.overlay = C.No_overlay && F.read bv_path = original_view)
+    "balance-editor-escape-cancels";
+  let stale = key ~width_of edited `Enter in
+  replace_balance_view (original_view ^ "food\tjpy\n");
+  let changed = F.read bv_path in
+  let stale_refused = key ~width_of stale `Enter in
+  require (F.read bv_path = changed
+           && (match stale_refused.overlay with C.Modal_form f ->
+                Base.String.is_substring (Ui_form.notice f) ~substring:"changed" | _ -> false))
+    "balance-setup-stale-save-refused";
+  replace_balance_view original_view;
+  let published = key ~width_of (key ~width_of edited `Enter) `Enter in
+  require (published.overlay = C.No_overlay
+           && F.read bv_path = "bank\teur\nwallet\tjpy\nbank\tjpy\n")
+    "balance-setup-preserves-other-measure-and-selected-order";
+  let cold_balances = C.open_route (C.initial (F.load path)) W.Balances in
+  let cold_screen = C.screen ~width_of (120,30) cold_balances in
+  require (contains cold_screen "wallet" && contains cold_screen "bank"
+           && contains cold_screen "?")
+    "balance-setup-cold-reload-keeps-unknown";
+  let empty_editor = key ~width_of cold_balances (`ASCII 'c') in
+  let empty_editor = match empty_editor.overlay with
+    | C.Modal_form form ->
+        { empty_editor with overlay = C.Modal_form (Ui_form.set_text form "loci" "") }
+    | _ -> failwith "balances-empty-editor-not-opened" in
+  let empty_saved = key ~width_of (key ~width_of empty_editor `Enter) `Enter in
+  require (empty_saved.overlay = C.No_overlay && F.read bv_path = "bank\teur\n"
+           && not (contains (C.screen ~width_of (120,30) empty_saved) "wallet"))
+    "balance-explicit-empty-does-not-fallback-to-all-accounts";
+  replace_balance_view "malformed row\n";
+  let malformed = C.open_route (C.initial (F.load path)) W.Balances in
+  require (contains (C.screen ~width_of (120,30) malformed) "Balance view unavailable"
+           && (key ~width_of malformed (`ASCII 'c')).overlay = C.No_overlay
+           && F.read bv_path = "malformed row\n")
+    "balance-malformed-config-never-becomes-empty-selection";
+  replace_balance_view "bank\tjpy\nwallet\tjpy\n";
   let bal_print = key ~width_of bal_custom_bv (`ASCII 'p') in
   (match bal_print.overlay with
    | C.Modal_form f ->
@@ -1767,6 +1834,13 @@ let self_check ~width_of () =
   let cancelled_overlay = key ~width_of plan_cancelling `Escape in
   require (cancelled_overlay.workspace = closed_edit.workspace && F.read path = before)
     "scheduled-cancel-escape-retains-parent-and-bytes";
+  let date_only = Option.get (C.handle ~width_of
+    (key ~width_of cal (`ASCII 'r')) (`Key (`Tab, [`Shift]))) in
+  let date_only = key ~width_of date_only `Backspace in
+  let held_date = key ~width_of date_only `Escape in
+  let resumed_date = key ~width_of held_date (`ASCII 'r') in
+  require (C.has_record_draft held_date && resumed_date.record = held_date.record
+           && F.read path = before) "record-date-only-draft-survives-cancel-and-resume";
   let draft = prepare_record ~width_of cal in
   require (C.has_record_draft draft) "controller-record-draft";
   let review = key ~width_of draft `Enter in
@@ -2180,7 +2254,37 @@ let self_check ~width_of () =
   require (updated_role_state.overlay = C.No_overlay) "set-locus-role-submitted";
   let roles_final = C.accounting_roles updated_role_state in
   require (List.assoc_opt "metro" roles_final = Some Roles.Expense) "locus-role-updated-to-expense";
-  let loci_back = key ~width_of updated_role_state (`ASCII 'q') in
+  (* Locus label edit test (UI-30) *)
+  let label_edit_modal = key ~width_of updated_role_state (`ASCII 'l') in
+  require (match label_edit_modal.overlay with C.Modal_form f -> Ui_form.id f = "set_locus_label" | _ -> false) "l-opens-set-locus-label";
+  let label_form_ready =
+    match label_edit_modal.overlay with
+    | C.Modal_form f ->
+        let f = Ui_form.set_text f "label" "Subway Metro" in
+        let f = Ui_form.set_text f "help" "Commute subway pass" in
+        let f = Ui_form.set_focused f 2 in (* focus confirm button *)
+        { label_edit_modal with overlay = C.Modal_form f }
+    | _ -> failwith "expected modal form for set locus label"
+  in
+  let label_review_modal = key ~width_of label_form_ready `Enter in
+  require (match label_review_modal.overlay with C.Modal_form f -> Ui_form.id f = "review_locus_label" | _ -> false) "label-form-enters-review";
+  (* Test Esc returns to draft *)
+  let back_to_label_form = key ~width_of label_review_modal `Escape in
+  require (match back_to_label_form.overlay with C.Modal_form f -> Ui_form.id f = "set_locus_label" | _ -> false) "label-esc-returns-to-edit";
+  let re_review = key ~width_of back_to_label_form `Enter in
+  require (match re_review.overlay with C.Modal_form f -> Ui_form.id f = "review_locus_label" | _ -> false) "label-form-re-review";
+  (* Small terminal refusal *)
+  let narrow = key ~dimensions:(30, 10) ~width_of re_review `Enter in
+  require (match narrow.overlay with C.Modal_form f -> Ui_form.notice f = "Enlarge the terminal to review locus label before saving." | _ -> false) "label-save-rejects-narrow-terminal";
+  (* Normal terminal save *)
+  let label_saved = key ~width_of re_review `Enter in
+  require (label_saved.overlay = C.No_overlay) "label-save-succeeds";
+  require (B.label label_saved.session.book "metro" = "Subway Metro") "metro-label-updated";
+  require (B.help label_saved.session.book "metro" = "Commute subway pass") "metro-help-updated";
+  let reloaded_locus_book = (F.load path).book in
+  require (B.label reloaded_locus_book "metro" = "Subway Metro") "metro-label-cold-reloaded";
+  require (B.help reloaded_locus_book "metro" = "Commute subway pass") "metro-help-cold-reloaded";
+  let loci_back = key ~width_of label_saved (`ASCII 'q') in
   require (loci_back.workspace.route = W.Home) "loci-q-back-to-home";
   (* Exchange test *)
   let cmd_root = key ~width_of loci_back (`ASCII ' ') in
@@ -2223,7 +2327,16 @@ let self_check ~width_of () =
         { err_submitted with overlay = C.Modal_form f }
     | _ -> failwith "expected modal form for exchange"
   in
-  let exch_done = key ~width_of ok_form `Enter in
+  let exch_preview = key ~width_of ok_form `Enter in
+  require (match exch_preview.overlay with C.Modal_form f -> Ui_form.id f = "review_exchange" | _ -> false) "exchange-preview-opened";
+  (* Test Esc returns to draft *)
+  let back_to_form = key ~width_of exch_preview `Escape in
+  require (match back_to_form.overlay with C.Modal_form f -> Ui_form.id f = "exchange" | _ -> false) "exchange-esc-returns-to-edit";
+  (* Enter again to preview *)
+  let exch_preview2 = key ~width_of back_to_form `Enter in
+  require (match exch_preview2.overlay with C.Modal_form f -> Ui_form.id f = "review_exchange" | _ -> false) "exchange-preview2-opened";
+  (* Publish *)
+  let exch_done = key ~width_of exch_preview2 `Enter in
   require (exch_done.overlay = C.No_overlay) "exchange-committed";
   require (exch_done.message = "Published and read back. Previous bytes are kept separately.") "exchange-success-message";
   let reloaded_book = (F.load path).book in
@@ -2586,6 +2699,36 @@ let self_check ~width_of () =
   let screen_reloaded = C.screen ~width_of (120, 30) saved_state in
   require (contains screen_reloaded "Source: Pool [config/daily-pace.tsv]") "shows-configured-pool-source";
   let back_home2 = key ~width_of saved_state (`ASCII 'q') in
+  (* 4. Cycle boundary setup via 'b' and Commands -> Household setup *)
+  let cyc_state = key ~width_of saved_state (`ASCII 'b') in
+  let cyc_form = match cyc_state.overlay with
+    | C.Modal_form f ->
+        require (Ui_form.id f = "configure_cycle_boundaries") "cyc-boundaries-modal-id";
+        f
+    | _ -> failwith "expected cycle boundaries modal" in
+  require (Ui_form.get_text cyc_form "name" = Some "test-cycle") "cyc-loads-active-preset-name";
+  let new_stop = get (Cal.shift_days (F.today ()) 14) in
+  let cyc_edited = { cyc_state with overlay =
+    C.Modal_form (Ui_form.set_text cyc_form "dates" (F.today () ^ ", " ^ new_stop)) } in
+  let cyc_reviewed = key ~width_of (key ~width_of cyc_edited `Enter) `Enter in
+  require (F.read windows_path = boundaries_before) "cyc-review-does-not-save";
+  let cyc_narrow = key ~dimensions:(48, 14) ~width_of cyc_reviewed `Enter in
+  require (F.read windows_path = boundaries_before
+           && (match cyc_narrow.overlay with C.Modal_form f -> Ui_form.id f = "review_cycle_boundaries" | _ -> false))
+    "cyc-review-hidden-refused";
+  let cyc_esc = key ~width_of cyc_narrow `Escape in
+  require ((match cyc_esc.overlay with C.Modal_form f -> Ui_form.id f = "configure_cycle_boundaries" | _ -> false)
+           && F.read windows_path = boundaries_before)
+    "cyc-review-escape-retains-draft";
+  let cyc_published = key ~width_of (key ~width_of (key ~width_of cyc_esc `Enter) `Enter) `Enter in
+  require (cyc_published.overlay = C.No_overlay
+           && F.read windows_path = "test-cycle\t" ^ F.today () ^ "\t" ^ new_stop ^ "\n")
+    "cyc-boundaries-saved";
+  let setup_menu = { cyc_published with overlay = C.Commands { M.page = M.Setup; selected = 4 } } in
+  let from_cmd = key ~width_of setup_menu `Enter in
+  require (match from_cmd.overlay with C.Modal_form f -> Ui_form.id f = "configure_cycle_boundaries" | _ -> false)
+    "commands-setup-opens-cycle-boundaries";
+  require ((key ~width_of from_cmd `Escape).overlay = C.No_overlay) "commands-setup-cycle-escapes";
   require (back_home2.workspace.route = W.Home) "pace-q-back-to-home";
   (* Common hardware cursor position & IME anchor verification across UI *)
   (* 1. Home workspace (browse mode) -> None (cursor hidden) *)

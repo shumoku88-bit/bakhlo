@@ -140,6 +140,10 @@ type state = {
   settlements : (Stl.t, string) result;
   settlement_scope : Stl.scope;
   balance_mode : [ `Accounting | `Current ];
+  balance_review : (Form.t * BalView.t) option;
+  cycle_review : (Form.t * string * string list) option;
+  label_review : (Form.t * string * string * string) option;
+  exchange_review : (Form.t * A.transaction * string) option;
   actual_workspace : Act.t;
   drill_parent : W.route option;
   drill_book : B.t option;
@@ -177,6 +181,10 @@ let initial ?config_home session =
     settlements;
     settlement_scope = Stl.Open_only;
     balance_mode = `Current;
+    balance_review = None;
+    cycle_review = None;
+    label_review = None;
+    exchange_review = None;
     actual_workspace = Act.create ~focus_date:(F.today ());
     drill_parent = None;
     drill_book = None;
@@ -707,7 +715,7 @@ let exchange_form ?(default_date = F.today ()) () =
       Form.text_field ~id:"destination_locus" ~label:"Destination Locus" ~placeholder:"e.g. wallet_usd" ();
       Form.text_field ~id:"destination_measure" ~label:"Destination Measure" ~placeholder:"e.g. usd" ();
       Form.text_field ~id:"destination_amount" ~label:"Destination amount" ~placeholder:"Positive amount (added)" ();
-      Form.action_buttons ~confirm:"Publish Exchange" ~cancel:"Cancel" ();
+      Form.action_buttons ~confirm:"Preview Exchange" ~cancel:"Cancel" ();
     ]
     ()
 
@@ -750,32 +758,6 @@ let observe_quantity_form ?default_locus ?default_measure ?current_amount state 
       Form.action_buttons ~confirm:"Observe" ~cancel:"Cancel" ();
     ]
     ()
-
-let open_command state = function
-  | M.Record -> open_record { state with overlay = No_overlay }
-  | M.New_plan -> open_plan_record { state with overlay = No_overlay }
-  | M.Actual -> open_route state W.Actual
-  | M.Scheduled -> open_route state W.Scheduled
-  | M.Balances -> open_route state W.Balances
-  | M.Daily_pace -> open_route state W.Daily_pace
-  | M.Attention -> open_route state W.Attention
-  | M.Manage_loci -> open_route state W.Loci
-  | M.Exchange -> open_exchange { state with overlay = No_overlay }
-  | M.Settlements -> open_route state W.Settlements
-  | M.Observe -> { state with overlay = Modal_form (observe_quantity_form state); message = "" }
-  | M.Home -> open_route state W.Home
-  | M.Income_expense -> open_route state W.Income_expense
-  | M.Stock_flow -> open_route state W.Stock_flow
-  | M.Transactions_flow -> open_route state W.Transactions_flow
-  | M.Calendar -> open_route state W.Calendar
-  | M.Theme ->
-      let rec index i = function
-        | [] -> 0
-        | theme :: rest -> if theme = state.theme then i else index (i + 1) rest
-      in
-      let return_menu = match state.overlay with Commands menu -> menu | _ -> M.initial in
-      { state with overlay = Themes { selected = index 0 P.all_themes;
-                                     original = state.theme; return_menu } }
 
 let input_text value = function
   | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
@@ -824,21 +806,21 @@ let read_pace_config state name =
   | F.Refused why | Sys_error why -> Error why
   | Unix.Unix_error (err, fn, arg) -> Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
 
-let write_pace_pool state ~expected content =
-  let path = config_file_path state "daily-pace.tsv" in
+let write_config_file state name ~expected content =
+  let path = config_file_path state name in
   let tmp = ref None in
   try
     F.with_writer path (fun () ->
-      match read_pace_config state "daily-pace.tsv" with
+      match read_pace_config state name with
       | Error why -> Error why
-      | Ok current when current <> expected -> Error "Pool configuration changed. Reopen the editor."
+      | Ok current when current <> expected -> Error "Configuration changed. Reopen the editor."
       | Ok _ ->
           let target = path ^ ".tmp-" ^ F.nonce () in
           tmp := Some target;
           F.write_new target content;
           Sys.rename target path;
           F.sync_parent path;
-          F.require (F.read path = content) "pace-config-readback-changed";
+          F.require (F.read path = content) "config-readback-changed";
           Ok ())
   with
   | F.Refused why | Sys_error why ->
@@ -854,9 +836,12 @@ let accounting_roles state =
   | None -> []
 
 let balance_view_coords state =
-  let path = BalView.file_path ?config_home:state.config_home state.session.F.path in
-  let configured = BalView.load_file path in
-  List.map (fun (c : BalView.coordinate) -> (c.locus, c.measure)) configured
+  Result.bind (read_pace_config state "balance-view.tsv") (function
+    | None -> Ok None
+    | Some text ->
+        Result.map (fun coords ->
+          Some (List.map (fun (c : BalView.coordinate) -> (c.locus, c.measure)) coords))
+          (BalView.of_string text))
 let stock_flow_result state =
   let parse_selection text =
     let valid_token s =
@@ -1007,14 +992,167 @@ let configure_pace_form state =
       Form.action_buttons ~confirm:"Save Pool" ~cancel:"Cancel" ();
     ] ()
 
+let decode_boundary_presets text =
+  let canonical_date day =
+    match A.normalize_date day with Ok canonical -> canonical = day | Error _ -> false
+  in
+  let rec increasing = function
+    | a :: b :: rest -> a < b && increasing (b :: rest)
+    | [] | [_] -> true
+  in
+  let lines =
+    match List.rev (String.split_on_char '\n' text) with
+    | "" :: rest -> List.rev rest
+    | rows -> List.rev rows
+  in
+  let rec loop names acc = function
+    | [] -> Ok (List.rev acc)
+    | line :: rest ->
+        if String.starts_with ~prefix:"#" (String.trim line) then loop names acc rest
+        else match String.split_on_char '\t' line with
+        | name :: dates
+          when config_token name && not (List.mem name names)
+               && List.length dates >= 2 && List.for_all canonical_date dates
+               && increasing dates ->
+            loop (name :: names) ((name, dates) :: acc) rest
+        | _ -> Error "Boundary preset config malformed. Refusing implicit replacement."
+  in
+  loop [] [] lines
+
+let current_window_for presets today =
+  let rec window_in = function
+    | a :: b :: tail -> if a <= today && today < b then Some (a, b) else window_in (b :: tail)
+    | _ -> None
+  in
+  let windows = List.filter_map (fun (name, dates) ->
+    Option.map (fun (a, b) -> (name, a, b)) (window_in dates)) presets in
+  match windows with
+  | [w] -> Ok w
+  | [] -> Error "no configured boundary preset contains the current date"
+  | _ -> Error "multiple configured boundary presets contain the current date"
+
+let cycle_boundaries_form state =
+  let today = F.today () in
+  Result.bind (read_pace_config state "boundary-presets.tsv") (fun raw ->
+    Result.map (fun presets ->
+      let name, dates =
+        match current_window_for presets today with
+        | Ok (source, _, _) ->
+            let ds = Option.value ~default:[] (List.assoc_opt source presets) in
+            (source, String.concat ", " ds)
+        | Error _ ->
+            (match presets with
+             | [(n, ds)] -> (n, String.concat ", " ds)
+             | _ -> ("pension", ""))
+      in
+      let payload = match raw with None -> "missing" | Some text -> "present\n" ^ text in
+      Form.create ~id:"configure_cycle_boundaries" ~payload
+        ~title:"Daily Pace / Cycle boundaries"
+        ~summary:[
+          "Enter explicit dates, including today's cycle (" ^ today ^ ").";
+          "Example: 2026-10-15, 2026-12-15";
+          "No dates are extrapolated or repeated; other presets stay untouched.";
+        ]
+        ~fields:[
+          Form.text_field ~id:"name" ~label:"Name" ~value:name ();
+          Form.text_field ~id:"dates" ~label:"Dates" ~value:dates ();
+          Form.action_buttons ~confirm:"Review" ~cancel:"Cancel" ();
+        ] ())
+      (match raw with None -> Ok [] | Some text -> decode_boundary_presets text))
+
+let cycle_boundaries_review name dates =
+  Form.create ~id:"review_cycle_boundaries" ~title:"Daily Pace / Review explicit cycle boundaries"
+    ~summary:(
+      [ "Preset: " ^ name;
+        "Only this named preset will be replaced.";
+        "No dates are extrapolated or repeated.";
+        "Other named presets and ledger remain unchanged.";
+        "Boundaries:" ]
+      @ List.map (fun d -> "  " ^ d) dates)
+    ~fields:[Form.action_buttons ~confirm:"Save boundaries" ~cancel:"Edit" ()] ()
+
+let balance_display_form state =
+  Result.bind (read_pace_config state "balance-view.tsv") (fun raw ->
+    Result.map
+      (fun previous ->
+        let measure = state.workspace.measure in
+        let selected =
+          List.filter_map
+            (fun (c : BalView.coordinate) ->
+              if c.measure = measure then Some c.locus else None)
+            previous
+        in
+        let payload = match raw with None -> "missing" | Some text -> "present\n" ^ text in
+        Form.create ~id:"configure_balance_view" ~payload
+          ~title:"Visible Balance accounts"
+          ~summary:[
+            "Measure: " ^ measure ^ " (only this Measure changes).";
+            "Choose admitted Loci or previously selected Loci; comma-separated.";
+            "An empty selection displays no accounts. Unknown balances stay '?'.";
+          ]
+          ~fields:[
+            Form.text_field ~id:"loci" ~label:"Visible Loci"
+              ~value:(String.concat ", " selected) ();
+            Form.action_buttons ~confirm:"Review" ~cancel:"Cancel" ();
+          ] ())
+      (match raw with None -> Ok [] | Some text -> BalView.of_string text))
+
+let balance_display_review measure chosen =
+  Form.create ~id:"review_balance_view" ~title:"Review visible accounts"
+    ~summary:(
+      [ "Measure: " ^ measure;
+        "Only the selected Measure's display rows will change.";
+        "Other Measures and household quantities stay untouched.";
+        "Selected in display order:" ]
+      @ (if chosen = [] then ["(none)"] else
+           List.map (fun (c : BalView.coordinate) -> c.locus ^ " × " ^ c.measure) chosen))
+    ~fields:[Form.action_buttons ~confirm:"Save selection" ~cancel:"Edit" ()] ()
+
+let open_command state = function
+  | M.Record -> open_record { state with overlay = No_overlay }
+  | M.New_plan -> open_plan_record { state with overlay = No_overlay }
+  | M.Actual -> open_route state W.Actual
+  | M.Scheduled -> open_route state W.Scheduled
+  | M.Balances -> open_route state W.Balances
+  | M.Daily_pace -> open_route state W.Daily_pace
+  | M.Attention -> open_route state W.Attention
+  | M.Manage_loci | M.Friendly_locus_names -> open_route state W.Loci
+  | M.Exchange -> open_exchange { state with overlay = No_overlay }
+  | M.Settlements -> open_route state W.Settlements
+  | M.Observe -> { state with overlay = Modal_form (observe_quantity_form state); message = "" }
+  | M.Home -> open_route state W.Home
+  | M.Income_expense -> open_route state W.Income_expense
+  | M.Stock_flow -> open_route state W.Stock_flow
+  | M.Transactions_flow -> open_route state W.Transactions_flow
+  | M.Calendar -> open_route state W.Calendar
+  | M.Pace_pool ->
+      { state with overlay = Modal_form (configure_pace_form state); message = "" }
+  | M.Cycle_boundaries ->
+      (match cycle_boundaries_form state with
+       | Ok form -> { state with overlay = Modal_form form; cycle_review = None; message = "" }
+       | Error why -> { state with overlay = No_overlay; cycle_review = None; message = "Cycle setup unavailable: " ^ why })
+  | M.Balance_display ->
+      (match balance_display_form state with
+       | Ok form -> { state with overlay = Modal_form form; balance_review = None; message = "" }
+       | Error why -> { state with overlay = No_overlay; balance_review = None; message = "Balance setup unavailable: " ^ why })
+  | M.Theme ->
+      let rec index i = function
+        | [] -> 0
+        | theme :: rest -> if theme = state.theme then i else index (i + 1) rest
+      in
+      let return_menu = match state.overlay with Commands menu -> menu | _ -> M.initial in
+      { state with overlay = Themes { selected = index 0 P.all_themes;
+                                     original = state.theme; return_menu } }
+
 let balance_items state =
   match state.balance_mode with
   | `Accounting ->
       let roles = accounting_roles state in
       O.role_balance_items ~book:state.session.book ~roles
   | `Current ->
-      let coords = balance_view_coords state in
-      O.current_balance_items ~book:state.session.book ~coords
+      (match balance_view_coords state with
+       | Ok coords -> O.current_balance_items ~book:state.session.book ~coords
+       | Error why -> [O.Header_row ("Balance view unavailable: " ^ why)])
 
 let balance_lines ?(width_of = String.length) state =
   let items = balance_items state in
@@ -1136,6 +1274,55 @@ let set_locus_role_form ~locus ~current_role =
     ~fields:[
       Form.choice_field ~id:"role" ~label:"Accounting Role" ~options:role_option_strings ~selected:(index_of_role current_role) ();
       Form.action_buttons ~confirm:"Save Role" ~cancel:"Cancel" ();
+    ]
+    ()
+
+let set_locus_label_form ~locus ~current_label ~current_help =
+  Form.create
+    ~id:"set_locus_label"
+    ~payload:locus
+    ~title:("Edit Display Name / " ^ locus)
+    ~summary:[
+      "Target Locus: " ^ locus;
+      "Display name is shown across views instead of the raw coordinate token.";
+      "Help text provides description in locus detail.";
+    ]
+    ~fields:[
+      Form.text_field ~id:"label" ~label:"Display name" ~value:current_label ();
+      Form.text_field ~id:"help" ~label:"Help / description (optional)" ~value:current_help ();
+      Form.action_buttons ~confirm:"Review" ~cancel:"Cancel" ();
+    ]
+    ()
+
+let review_locus_label locus label help =
+  Form.create
+    ~id:"review_locus_label"
+    ~payload:locus
+    ~title:"Review Locus Display Name"
+    ~summary:[
+      "Stable identity: " ^ locus;
+      "Display name:    " ^ label;
+      "Help:            " ^ help;
+    ]
+    ~fields:[
+      Form.action_buttons ~confirm:"Save display name" ~cancel:"Edit" ();
+    ]
+    ()
+
+let exchange_review_form ~canon_day ~memo ~src_locus ~src_measure ~src_quanta_str ~dst_locus ~dst_measure ~dst_quanta_str =
+  let memo_line = match memo with Some m -> "Description:        " ^ m | None -> "Description:        (none)" in
+  Form.create
+    ~id:"review_exchange"
+    ~title:"Exchange / Preview"
+    ~summary:[
+      "Date:               " ^ canon_day;
+      memo_line;
+      Printf.sprintf "Source Effect:      -%s %s at %s" src_quanta_str src_measure src_locus;
+      Printf.sprintf "Destination Effect: +%s %s at %s" dst_quanta_str dst_measure dst_locus;
+      "Exact observed quantities only; no FX rate is inferred.";
+    ]
+    ~fields:[
+      Form.action_buttons ~confirm:"Publish Exchange" ~cancel:"Edit" ();
     ]
     ()
 
@@ -1491,7 +1678,17 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                   else { state with overlay = Search value }))
     | Modal_form form -> (
         match Form.handle_input form input with
-        | Form.Cancel -> Some { state with overlay = No_overlay }
+        | Form.Cancel ->
+            (match state.balance_review, state.cycle_review, state.label_review, state.exchange_review with
+             | Some (editing, _), _, _, _ when Form.id form = "review_balance_view" ->
+                 Some { state with overlay = Modal_form editing; balance_review = None }
+             | _, Some (editing, _, _), _, _ when Form.id form = "review_cycle_boundaries" ->
+                 Some { state with overlay = Modal_form editing; cycle_review = None }
+             | _, _, Some (editing, _, _, _), _ when Form.id form = "review_locus_label" ->
+                 Some { state with overlay = Modal_form editing; label_review = None }
+             | _, _, _, Some (editing, _, _) when Form.id form = "review_exchange" ->
+                 Some { state with overlay = Modal_form editing; exchange_review = None }
+             | _ -> Some { state with overlay = No_overlay; balance_review = None; cycle_review = None; label_review = None; exchange_review = None })
         | Form.Updated updated -> Some { state with overlay = Modal_form updated }
         | Form.Submit submitted -> (
             match Form.id submitted with
@@ -1579,6 +1776,47 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 | Ok () ->
                     let role_str = match role_opt with None -> "None" | Some r -> Roles.role_label r in
                     Some { state with overlay = No_overlay; message = Printf.sprintf "Set accounting role for %s to %s." locus role_str })
+            | "set_locus_label" ->
+                let locus = Form.payload submitted in
+                let label_val = Option.value ~default:"" (Form.get_text submitted "label") |> String.trim in
+                let help_val = Option.value ~default:"" (Form.get_text submitted "help") |> String.trim in
+                let valid_str s =
+                  s <> "" && String.length s <= 80
+                  && String.for_all (fun c -> Char.code c >= 32 && Char.code c <> 127) s
+                in
+                if not (valid_str label_val) then
+                  Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Display name must be 1-80 characters without control characters.")) }
+                else
+                  let existing_help = B.help state.session.book locus in
+                  let resolved_help =
+                    if help_val <> "" then help_val
+                    else if existing_help <> "" then existing_help
+                    else label_val
+                  in
+                  if not (valid_str resolved_help) then
+                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Help description must be 1-80 characters without control characters.")) }
+                  else
+                    Some { state with overlay = Modal_form (review_locus_label locus label_val resolved_help);
+                                      label_review = Some (submitted, locus, label_val, resolved_help) }
+            | "review_locus_label" ->
+                (match state.label_review with
+                 | None -> Some { state with overlay = No_overlay; message = tr "Locus label review expired; reopen setup." }
+                 | Some (_editing, locus, label_val, help_val) ->
+                     let body_w, body_h = body_dimensions ~dimensions ~width_of state in
+                     let pane_w = min 64 (max 8 (body_w - 4)) in
+                     let rows = Form.render_rows ~width:(max 0 (pane_w - 6)) ~height:10000 ~width_of submitted in
+                     if pane_w < 48 || List.length rows + 2 > body_h then
+                       Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enlarge the terminal to review locus label before saving.")) }
+                     else
+                       let res = A.commit_set_locus_label ~session:state.session ~base_bytes:state.session.bytes ~id:locus ~label:label_val ~help:help_val () in
+                       (match res with
+                        | A.Refused why ->
+                            Some { state with overlay = Modal_form (Form.set_notice submitted why) }
+                        | A.Conflict | A.Conflict_base_changed ->
+                            Some { state with overlay = Modal_form (Form.set_notice submitted (tr "File changed on disk. Reload to inspect.")) }
+                        | A.Published _ | A.Idempotent_duplicate _ | _ ->
+                            let next_state = { state with overlay = No_overlay; label_review = None; message = Printf.sprintf "Saved display name for %s." locus } in
+                            Some (apply_commit_result next_state ~draft:next_state res)))
             | "exchange" ->
                 let date_str = Option.value ~default:"" (Form.get_text submitted "date") |> String.trim in
                 let memo_str = Option.value ~default:"" (Form.get_text submitted "memo") |> String.trim in
@@ -1613,6 +1851,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                       | Error why ->
                           let msg =
                             if why = "non-positive-amount" then tr "Source amount must be positive."
+                            else if why = "division-by-zero" then tr "Source amount divides by zero."
+                            else if why = "indivisible-amount" then tr "Source result cannot fit the Measure scale."
                             else if why = "measure-scale-not-supplied" then
                               Printf.sprintf "Measure '%s' scale is not configured." src_measure
                             else tr "Source amount is invalid."
@@ -1623,6 +1863,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                           | Error why ->
                               let msg =
                                 if why = "non-positive-amount" then tr "Destination amount must be positive."
+                                else if why = "division-by-zero" then tr "Destination amount divides by zero."
+                                else if why = "indivisible-amount" then tr "Destination result cannot fit the Measure scale."
                                 else if why = "measure-scale-not-supplied" then
                                   Printf.sprintf "Measure '%s' scale is not configured." dst_measure
                                 else tr "Destination amount is invalid."
@@ -1667,15 +1909,30 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                                   }
                                 in
                                 let tx = { A.entry; replace = false; plan = None } in
-                                let res = A.commit_transaction ~session:state.session ~base_bytes:state.session.bytes tx in
-                                (match res with
-                                | A.Refused why ->
-                                    Some { state with overlay = Modal_form (Form.set_notice submitted why) }
-                                | A.Conflict | A.Conflict_base_changed ->
-                                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "File changed on disk. Reload to inspect.")) }
-                                | A.Published _ | A.Idempotent_duplicate _ | _ ->
-                                    let next_state = { state with overlay = No_overlay; message = tr "Exchange recorded." } in
-                                    Some (apply_commit_result next_state ~draft:next_state res)))))
+                                let src_fmt = B.format state.session.book src_measure src_quanta in
+                                let dst_fmt = B.format state.session.book dst_measure dst_quanta in
+                                let rev_form = exchange_review_form ~canon_day ~memo ~src_locus ~src_measure ~src_quanta_str:src_fmt ~dst_locus ~dst_measure ~dst_quanta_str:dst_fmt in
+                                Some { state with overlay = Modal_form rev_form;
+                                                  exchange_review = Some (submitted, tx, state.session.bytes) })))
+            | "review_exchange" ->
+                (match state.exchange_review with
+                 | None -> Some { state with overlay = No_overlay; message = tr "Exchange review expired; reopen." }
+                 | Some (_editing, tx, base_bytes) ->
+                     let body_w, body_h = body_dimensions ~dimensions ~width_of state in
+                     let pane_w = min 64 (max 8 (body_w - 4)) in
+                     let rows = Form.render_rows ~width:(max 0 (pane_w - 6)) ~height:10000 ~width_of submitted in
+                     if pane_w < 48 || List.length rows + 2 > body_h then
+                       Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enlarge the terminal to review the full exchange before publishing.")) }
+                     else
+                       let res = A.commit_transaction ~session:state.session ~base_bytes tx in
+                       (match res with
+                        | A.Refused why ->
+                            Some { state with overlay = Modal_form (Form.set_notice submitted why) }
+                        | A.Conflict | A.Conflict_base_changed ->
+                            Some { state with overlay = Modal_form (Form.set_notice submitted (tr "File changed on disk. Reload to inspect.")) }
+                        | A.Published _ | A.Idempotent_duplicate _ | _ ->
+                            let next_state = { state with overlay = No_overlay; exchange_review = None; message = tr "Exchange recorded." } in
+                            Some (apply_commit_result next_state ~draft:next_state res)))
             | "add_settlement" ->
                 let label_str = Option.value ~default:"" (Form.get_text submitted "label") |> String.trim in
                 let debtor = Option.value ~default:"" (Form.get_text submitted "debtor") |> String.trim in
@@ -1693,6 +1950,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                   | Error why ->
                       let msg =
                         if why = "non-positive-amount" then tr "Committed amount must be positive."
+                        else if why = "division-by-zero" then tr "Amount divides by zero."
+                        else if why = "indivisible-amount" then tr "Result cannot fit the Measure scale."
                         else if why = "measure-scale-not-supplied" then
                           Printf.sprintf "Measure '%s' scale is not configured." measure
                         else tr "Invalid amount."
@@ -1721,6 +1980,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                       | Error why ->
                           let msg =
                             if why = "non-positive-amount" then tr "Amount must be positive."
+                            else if why = "division-by-zero" then tr "Amount divides by zero."
+                            else if why = "indivisible-amount" then tr "Result cannot fit the Measure scale."
                             else if why = "measure-scale-not-supplied" then
                               Printf.sprintf "Measure '%s' scale is not configured." r.measure
                             else tr "Invalid amount."
@@ -1819,11 +2080,176 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 else Error "Pool configuration was unreadable; reopen after repairing it." in
               let content = String.concat "" (List.map
                 (fun locus -> locus ^ "\t" ^ state.workspace.measure ^ "\n") loci) in
-              (match Result.bind expected (fun expected -> write_pace_pool state ~expected content) with
+              (match Result.bind expected (fun expected -> write_config_file state "daily-pace.tsv" ~expected content) with
               | Error why -> Some { state with overlay = Modal_form (Form.set_notice submitted
                   ("Pool save not confirmed: " ^ why ^ " Reopen to inspect before retrying.")) }
               | Ok () -> Some { state with overlay = No_overlay;
                   message = "Daily Pace pool saved. Period presets unchanged." })
+        | "configure_cycle_boundaries" ->
+            let raw = Form.payload submitted in
+            let previous =
+              if raw = "missing" then Ok []
+              else if String.starts_with ~prefix:"present\n" raw then
+                decode_boundary_presets (String.sub raw 8 (String.length raw - 8))
+              else Error "Boundary preset configuration was unreadable; reopen after repairing it."
+            in
+            let name = String.trim (Option.value ~default:"" (Form.get_text submitted "name")) in
+            let dates_str = String.trim (Option.value ~default:"" (Form.get_text submitted "dates")) in
+            let days = if dates_str = "" then [] else
+              List.map String.trim (String.split_on_char ',' dates_str) in
+            if List.length days > 32 then
+              Some { state with overlay = Modal_form (Form.set_notice submitted
+                "Too many dates. Enter up to 32 explicit boundaries.") }
+            else
+              (match previous, decode_boundary_presets (name ^ "\t" ^ String.concat "\t" days ^ "\n") with
+               | Error why, _ ->
+                   Some { state with overlay = Modal_form (Form.set_notice submitted why) }
+               | _, Error _ | _, Ok [] | _, Ok (_ :: _ :: _) ->
+                   Some { state with overlay = Modal_form (Form.set_notice submitted
+                     "Enter a token name and at least two REAL, strictly increasing YYYY-MM-DD dates, separated by commas.") }
+               | Ok presets, Ok [(preset_name, preset_dates)] ->
+                   let next =
+                     if List.mem_assoc preset_name presets then
+                       List.map (fun (n, ds) -> if n = preset_name then (preset_name, preset_dates) else (n, ds)) presets
+                     else presets @ [(preset_name, preset_dates)]
+                   in
+                   (match current_window_for next (F.today ()) with
+                    | Error why ->
+                        Some { state with overlay = Modal_form (Form.set_notice submitted
+                          ("Explicit dates must define exactly one current cycle: " ^ why)) }
+                    | Ok (source, _, _) when source <> preset_name ->
+                        Some { state with overlay = Modal_form (Form.set_notice submitted
+                          "These dates do not cover the current cycle. Edit the current preset instead.") }
+                    | Ok _ ->
+                        Some { state with overlay = Modal_form (cycle_boundaries_review preset_name preset_dates);
+                          cycle_review = Some (submitted, preset_name, preset_dates) }))
+        | "review_cycle_boundaries" ->
+            (match state.cycle_review with
+             | None -> Some { state with overlay = No_overlay;
+                 message = "Cycle boundary review expired; reopen setup." }
+             | Some (editing, preset_name, preset_dates) ->
+                 let body_w, body_h = body_dimensions ~dimensions ~width_of state in
+                 let pane_w = min 64 (max 8 (body_w - 4)) in
+                 let rows = Form.render_rows ~width:(max 0 (pane_w - 6))
+                   ~height:10000 ~width_of submitted in
+                 if pane_w < 48 || List.length rows + 2 > body_h then
+                   Some { state with overlay = Modal_form (Form.set_notice submitted
+                     "Enlarge the terminal to review every cycle boundary before saving.") }
+                 else
+                   let payload = Form.payload editing in
+                   let expected =
+                     if payload = "missing" then Ok None
+                     else if String.starts_with ~prefix:"present\n" payload then
+                       Ok (Some (String.sub payload 8 (String.length payload - 8)))
+                     else Error "Boundary preset configuration was unreadable." in
+                   let admission =
+                     try
+                       match B.of_string (F.read state.session.path) with
+                       | Error why -> Error ("Household read refused: " ^ why)
+                       | Ok _ -> Ok ()
+                     with F.Refused why | Sys_error why -> Error why
+                       | Unix.Unix_error (err, _, _) -> Error (Unix.error_message err) in
+                   let result =
+                     Result.bind expected (fun expected ->
+                       Result.bind admission (fun () ->
+                         Result.bind (match expected with None -> Ok [] | Some raw -> decode_boundary_presets raw)
+                           (fun presets ->
+                             let next =
+                               if List.mem_assoc preset_name presets then
+                                 List.map (fun (n, ds) -> if n = preset_name then (preset_name, preset_dates) else (n, ds)) presets
+                               else presets @ [(preset_name, preset_dates)]
+                             in
+                             Result.bind (current_window_for next (F.today ())) (fun (source, _, _) ->
+                               if source <> preset_name then
+                                 Error "These dates do not cover the current cycle. Edit the current preset instead."
+                               else
+                                 let content = String.concat "" (List.map (fun (n, ds) ->
+                                   n ^ "\t" ^ String.concat "\t" ds ^ "\n") next) in
+                                 write_config_file state "boundary-presets.tsv" ~expected content))))
+                   in
+                   (match result with
+                    | Ok () -> Some { state with overlay = No_overlay; cycle_review = None;
+                        message = "Explicit Daily Pace cycle boundaries saved." }
+                    | Error why ->
+                        Some { state with overlay = Modal_form (Form.set_notice submitted
+                          ("Cycle boundary save not confirmed: " ^ why
+                           ^ " Reopen to inspect before retrying.")) }))
+        | "configure_balance_view" ->
+            let raw = Form.payload submitted in
+            let previous =
+              if raw = "missing" then Ok []
+              else if String.starts_with ~prefix:"present\n" raw then
+                BalView.of_string (String.sub raw 8 (String.length raw - 8))
+              else Error "Balance view configuration was unreadable; reopen after repairing it."
+            in
+            let selected = String.trim (Option.value ~default:"" (Form.get_text submitted "loci")) in
+            let loci = if selected = "" then [] else
+              List.map String.trim (String.split_on_char ',' selected) in
+            (match previous with
+             | Error why ->
+                 Some { state with overlay = Modal_form (Form.set_notice submitted why) }
+             | Ok previous ->
+                 let measure = state.workspace.measure in
+                 let old = List.filter_map (fun (c : BalView.coordinate) ->
+                   if c.measure = measure then Some c.locus else None) previous in
+                 let candidates = old @ Option.value ~default:[] (B.approved_loci state.session.book) in
+                 if not (List.mem_assoc measure (B.measures state.session.book))
+                    || not (List.for_all (fun locus ->
+                      config_token locus && List.mem locus candidates) loci)
+                    || List.length (List.sort_uniq String.compare loci) <> List.length loci then
+                   Some { state with overlay = Modal_form (Form.set_notice submitted
+                     "Choose distinct admitted or previously selected Loci for this Measure.") }
+                 else
+                   let chosen = List.map (fun locus -> { BalView.locus; measure }) loci in
+                   Some { state with overlay = Modal_form (balance_display_review measure chosen);
+                     balance_review = Some (submitted, chosen) })
+        | "review_balance_view" ->
+            (match state.balance_review with
+             | None -> Some { state with overlay = No_overlay;
+                 message = "Balance selection review expired; reopen setup." }
+             | Some (editing, chosen) ->
+                 let body_w, body_h = body_dimensions ~dimensions ~width_of state in
+                 let pane_w = min 64 (max 8 (body_w - 4)) in
+                 let rows = Form.render_rows ~width:(max 0 (pane_w - 6))
+                   ~height:10000 ~width_of submitted in
+                 if pane_w < 48 || List.length rows + 2 > body_h then
+                   Some { state with overlay = Modal_form (Form.set_notice submitted
+                     "Enlarge the terminal to review every selected account before saving.") }
+                 else
+                   let payload = Form.payload editing in
+                   let expected =
+                     if payload = "missing" then Ok None
+                     else if String.starts_with ~prefix:"present\n" payload then
+                       Ok (Some (String.sub payload 8 (String.length payload - 8)))
+                     else Error "Balance view configuration was unreadable." in
+                   let admission =
+                     try
+                       match B.of_string (F.read state.session.path) with
+                       | Error why -> Error ("Household read refused: " ^ why)
+                       | Ok book when B.approved_loci book = B.approved_loci state.session.book
+                                   && B.measures book = B.measures state.session.book -> Ok ()
+                       | Ok _ -> Error "Admitted Loci or Measures changed; reopen setup."
+                     with F.Refused why | Sys_error why -> Error why
+                       | Unix.Unix_error (err, _, _) -> Error (Unix.error_message err) in
+                   let result =
+                     Result.bind expected (fun expected ->
+                       Result.bind admission (fun () ->
+                         Result.bind (match expected with None -> Ok [] | Some raw -> BalView.of_string raw)
+                           (fun previous ->
+                             let other = List.filter
+                               (fun (c : BalView.coordinate) -> c.measure <> state.workspace.measure)
+                               previous in
+                             write_config_file state "balance-view.tsv" ~expected
+                               (BalView.to_string (other @ chosen)))))
+                   in
+                   (match result with
+                    | Ok () -> Some { state with overlay = No_overlay; balance_review = None;
+                        workspace = { state.workspace with balance_selected = 0 };
+                        message = "Visible Balance accounts saved. Unknown values remain '?'." }
+                    | Error why ->
+                        Some { state with overlay = Modal_form (Form.set_notice submitted
+                          ("Balance view save not confirmed: " ^ why
+                           ^ " Reopen to inspect before retrying.")) }))
         | _ -> Some state))
     | No_overlay -> (
         let key = match input with `Key (key, mods) -> Some (key, mods) | _ -> None in
@@ -1913,6 +2339,10 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some { state with overlay = Modal_form (what_if_form state) }
         | Some (`ASCII 'c', []) when state.workspace.route = W.Daily_pace ->
             Some { state with overlay = Modal_form (configure_pace_form state) }
+        | Some (`ASCII 'b', []) when state.workspace.route = W.Daily_pace ->
+            (match cycle_boundaries_form state with
+             | Ok form -> Some { state with overlay = Modal_form form; cycle_review = None }
+             | Error why -> Some { state with message = "Cycle setup unavailable: " ^ why })
         | Some (`ASCII ('1' .. '5' as c), []) when state.workspace.route = W.Daily_pace ->
             let preset = match c with
               | '1' -> Trend.Ten_days
@@ -2094,6 +2524,14 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 let roles = accounting_roles state in
                 let current_role = List.assoc_opt locus roles in
                 Some { state with overlay = Modal_form (set_locus_role_form ~locus ~current_role) })
+        | Some (`ASCII ('l' | 'e'), []) when state.workspace.route = W.Loci -> (
+            match selected_locus state with
+            | None -> Some { state with message = tr "No locus selected." }
+            | Some locus ->
+                let current_label = B.label state.session.book locus in
+                let current_label = if current_label = locus then "" else current_label in
+                let current_help = B.help state.session.book locus in
+                Some { state with overlay = Modal_form (set_locus_label_form ~locus ~current_label ~current_help) })
         | Some (`ASCII 'n', []) when state.workspace.route = W.Settlements ->
             Some { state with overlay = Modal_form (add_settlement_form state) }
         | Some (`ASCII 'a', []) when state.workspace.route = W.Settlements -> (
@@ -2141,6 +2579,10 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               else form
             in
             Some { state with overlay = Modal_form form }
+        | Some (`ASCII 'c', []) when state.workspace.route = W.Balances ->
+            (match balance_display_form state with
+             | Ok form -> Some { state with overlay = Modal_form form; balance_review = None }
+             | Error why -> Some { state with message = "Balance setup unavailable: " ^ why })
         | Some (`ASCII 'v', []) when state.workspace.route = W.Balances ->
             let next_mode =
               match state.balance_mode with
@@ -3173,7 +3615,15 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
       | "daily_pace_what_if" ->
           [ "Enter simulate scenario  Tab switch field/button  Esc close"; "Read-only simulation - does not publish any entries" ]
       | "configure_daily_pace" ->
-          [ "Enter save configuration  Tab switch field  Esc cancel"; "Saves to daily-pace.tsv and boundary-presets.tsv" ]
+          [ "Enter save configuration  Tab switch field  Esc cancel"; "Edits only daily-pace.tsv" ]
+      | "configure_cycle_boundaries" ->
+          [ "Enter review  Tab switch field  Esc cancel"; "Edits only boundary-presets.tsv" ]
+      | "review_cycle_boundaries" ->
+          [ "Enter save  Tab choose Edit  Esc edit"; "Full boundaries must fit before saving" ]
+      | "configure_balance_view" ->
+          [ "Enter review  Tab switch field  Esc cancel"; "Edits only balance-view.tsv" ]
+      | "review_balance_view" ->
+          [ "Enter save  Tab choose Edit  Esc edit"; "Full selection must fit before saving" ]
       | _ ->
           [ "Enter submit  Tab next field  Esc cancel"; "Arrow keys / space to choose options" ])
   | No_overlay | Commands _ | Jump _ | Search _ ->
@@ -3242,18 +3692,18 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   | W.Balances, W.Calendar ->
       let v_label = match state.balance_mode with `Accounting -> "v current" | `Current -> "v accounting" in
       [
-        Printf.sprintf "j/k select  Enter/i/Tab Detail  o observe  %s  p print  r record" v_label;
+        Printf.sprintf "j/k select  Enter/i Detail  c visible accounts  o observe  %s  p print" v_label;
         "PgUp/Dn Home/End range  Space Commands  q/Esc Home  Ctrl-r reload";
       ]
   | W.Balances, W.Detail ->
       [
-        "j/k scroll  PgUp/Dn Home/End range  Tab/w list  o observe  r record";
+        "j/k scroll  PgUp/Dn Home/End  Tab/w list  c visible accounts  o observe";
         "q/Esc back to list  Space Commands  Ctrl-r reload";
       ]
   | W.Daily_pace, W.Calendar ->
-      [ "1-5 period  h/l day  v style  Tab/i detail  w what-if  c configure  r Record"; "Home/End ends  Space Commands  q/Esc Home  Ctrl-r reload" ]
+      [ "1-5 period  h/l day  v style  Tab/i detail  w what-if  c configure  b cycle dates  r Record"; "Home/End ends  Space Commands  q/Esc Home  Ctrl-r reload" ]
   | W.Daily_pace, W.Detail ->
-      [ "j/k scroll  Tab/w timeline  w what-if  c configure  r Record"; "q/Esc back to timeline  Space Commands  Ctrl-r reload" ]
+      [ "j/k scroll  Tab/w timeline  w what-if  c configure  b cycle dates  r Record"; "q/Esc back to timeline  Space Commands  Ctrl-r reload" ]
   | W.Income_expense, W.Calendar ->
       [ "1-5 period  [ / ] shift  p print  Tab detail  r Record"; "Space Commands  q/Esc Home  Ctrl-r reload" ]
   | W.Income_expense, W.Detail ->

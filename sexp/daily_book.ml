@@ -1,6 +1,7 @@
 (* A corrected-entry book. Earlier input versions belong in separate backups.
    The existing Application owns quantities, reversal and exchange admission. *)
 module D = Bakhlo_domain
+module R = Q
 module A = Bakhlo_application
 module Q = A.Current_quantity_query
 module X = Sexplib0.Sexp
@@ -791,6 +792,14 @@ let label t id =
       | None -> id
       | Some (_, name, _) -> name)
 
+let help t id =
+  match t.data.labels with
+  | None -> ""
+  | Some rows -> (
+      match List.find_opt (fun (key, _, _) -> key = id) rows with
+      | None -> ""
+      | Some (_, _, h) -> h)
+
 let scale t m =
   get "unknown-measure"
     (match List.assoc_opt m t.data.measures with Some n -> Ok n | None -> Error ())
@@ -819,16 +828,29 @@ let normalize_amount_text text =
       if c3 >= 0x90 && c3 <= 0x99 then begin
         Buffer.add_char b (Char.chr (Char.code '0' + (c3 - 0x90)));
         loop (i + 3)
-      end else if c3 = 0x8C then begin
-        Buffer.add_char b ',';
-        loop (i + 3)
-      end else if c3 = 0x8E then begin
-        Buffer.add_char b '.';
-        loop (i + 3)
       end else begin
-        Buffer.add_substring b text i 3;
+        (match c3 with
+         | 0x8C -> Buffer.add_char b ','
+         | 0x8E -> Buffer.add_char b '.'
+         | 0x8B -> Buffer.add_char b '+'
+         | 0x8D -> Buffer.add_char b '-'
+         | 0x8A -> Buffer.add_char b '*'
+         | 0x8F -> Buffer.add_char b '/'
+         | 0x88 -> Buffer.add_char b '('
+         | 0x89 -> Buffer.add_char b ')'
+         | _ -> Buffer.add_substring b text i 3);
         loop (i + 3)
       end
+    else if i + 1 < len && text.[i] = '\xc3'
+            && (text.[i + 1] = '\x97' || text.[i + 1] = '\xb7') then begin
+      Buffer.add_char b (if text.[i + 1] = '\x97' then '*' else '/');
+      loop (i + 2)
+    end
+    else if i + 2 < len && text.[i] = '\xe3'
+            && text.[i + 1] = '\x80' && text.[i + 2] = '\x80' then begin
+      Buffer.add_char b ' ';
+      loop (i + 3)
+    end
     else begin
       Buffer.add_char b text.[i];
       loop (i + 1)
@@ -856,10 +878,80 @@ let parse_whole whole =
           rest;
         String.concat "" groups
 
+let calculate_amount decimals text =
+  (* shortcut: cap expression input to bound recursive nesting, raise it if real receipts need more. *)
+  require (String.length text <= 4096) "invalid-amount";
+  let length = String.length text and pos = ref 0 in
+  let rec spaces () =
+    if !pos < length && text.[!pos] = ' ' then (incr pos; spaces ())
+  in
+  let decimal () =
+    spaces ();
+    let start = !pos in
+    while !pos < length &&
+          (match text.[!pos] with '0' .. '9' | ',' | '.' -> true | _ -> false) do
+      incr pos
+    done;
+    let raw = String.sub text start (!pos - start) in
+    match String.split_on_char '.' raw with
+    | [whole] -> R.of_bigint (integer (parse_whole whole))
+    | [whole; fraction] ->
+        require (fraction <> "" && String.for_all (fun c -> c >= '0' && c <= '9') fraction)
+          "invalid-amount";
+        let whole = parse_whole whole in
+        R.make (integer (whole ^ fraction)) (Z.pow (Z.of_int 10) (String.length fraction))
+    | _ -> raise (Refused "invalid-amount")
+  in
+  let rec atom () =
+    spaces ();
+    if !pos < length && text.[!pos] = '(' then (
+      incr pos;
+      let value = expression () in
+      spaces ();
+      require (!pos < length && text.[!pos] = ')') "invalid-amount";
+      incr pos;
+      value)
+    else decimal ()
+  and product () =
+    let rec more value =
+      spaces ();
+      if !pos < length && (text.[!pos] = '*' || text.[!pos] = '/') then (
+        let op = text.[!pos] in
+        incr pos;
+        let right = atom () in
+        if op = '/' then require (not (R.equal right R.zero)) "division-by-zero";
+        more (if op = '*' then R.mul value right else R.div value right))
+      else value
+    in
+    more (atom ())
+  and expression () =
+    let rec more value =
+      spaces ();
+      if !pos < length && (text.[!pos] = '+' || text.[!pos] = '-') then (
+        let op = text.[!pos] in
+        incr pos;
+        let right = product () in
+        more (if op = '+' then R.add value right else R.sub value right))
+      else value
+    in
+    more (product ())
+  in
+  let value = expression () in
+  spaces ();
+  require (!pos = length) "invalid-amount";
+  require (R.sign value > 0) "non-positive-amount";
+  let quanta = R.mul value (R.of_bigint (Z.pow (Z.of_int 10) decimals)) in
+  require (Z.equal (R.den quanta) Z.one) "indivisible-amount";
+  R.num quanta
+
 let parse_amount t m text =
   protect (fun () ->
       let decimals = scale t m in
       let norm = normalize_amount_text text in
+      let expression =
+        String.exists (function '+' | '-' | '*' | '/' | '(' | ')' -> true | _ -> false) norm
+      in
+      if expression then calculate_amount decimals norm else
       let is_digit c = c >= '0' && c <= '9' in
       let n =
         match String.split_on_char '.' norm with
@@ -1133,6 +1225,43 @@ let add_locus t id =
       | Some ids ->
           require (not (List.mem id ids)) "duplicate-locus";
           admit ~entries_cached:t.entries_cached { t.data with approved = Some (ids @ [ id ]) })
+
+let set_locus_label t ~id ~label ?help () =
+  protect (fun () ->
+      ignore (lid id);
+      Option.iter (fun ids -> require (List.mem id ids) "locus-not-approved") t.data.approved;
+      let valid_str s =
+        s <> "" && String.length s <= 80
+        && String.for_all (fun c -> Char.code c >= 32 && Char.code c <> 127) s
+      in
+      let label = String.trim label in
+      require (valid_str label) "invalid-label";
+      let existing_help = match t.data.labels with
+        | None -> None
+        | Some rows ->
+            match List.find_opt (fun (key, _, _) -> key = id) rows with
+            | Some (_, _, h) -> Some h
+            | None -> None
+      in
+      let resolved_help =
+        match help with
+        | Some h ->
+            let trimmed = String.trim h in
+            if trimmed = "" then Option.value ~default:label existing_help else trimmed
+        | None -> Option.value ~default:label existing_help
+      in
+      require (valid_str resolved_help) "invalid-label";
+      let next_rows =
+        let new_row = (id, label, resolved_help) in
+        match t.data.labels with
+        | None -> [ new_row ]
+        | Some rows ->
+            if List.exists (fun (key, _, _) -> key = id) rows then
+              List.map (fun (key, n, h) -> if key = id then new_row else (key, n, h)) rows
+            else
+              rows @ [ new_row ]
+      in
+      admit ~entries_cached:t.entries_cached { t.data with labels = Some next_rows })
 
 let observe_quantities t rows =
   protect (fun () ->

@@ -15,6 +15,8 @@ type t = {
   day : string;
   description : string;
   measure : string;
+  initial_day : string;
+  initial_measure : string;
   rows : row list;
   focus : int;
   cursor : int option;
@@ -31,16 +33,16 @@ let is_plan t = match t.mode with A.Plan_new | A.Plan_edit _ -> true | A.New | A
 let has_draft t =
   match t.mode with
   | A.Edit _ | A.Pay _ | A.Plan_edit _ -> true
-  | A.Plan_new -> List.exists (fun row -> row.amount <> "" || row.locus <> "") t.rows
-  | A.New -> t.description <> "" || List.exists (fun row -> row.amount <> "" || row.locus <> "") t.rows
+  | A.New | A.Plan_new -> t.day <> t.initial_day || t.measure <> t.initial_measure
+      || t.description <> "" || List.exists (fun row -> row.amount <> "" || row.locus <> "") t.rows
 
 let create ~book:_ ~day ~measure () =
-  { mode = A.New; day; description = ""; measure;
+  { mode = A.New; day; description = ""; measure; initial_day = day; initial_measure = measure;
     rows = [{key=None; locus=""; amount=""}; {key=None; locus=""; amount=""}];
     focus=1; cursor=None; candidate=0; notice=""; review=None; paste=None }
 
 let create_plan ~book:_ ~day ~measure () =
-  { mode = A.Plan_new; day; description = ""; measure;
+  { mode = A.Plan_new; day; description = ""; measure; initial_day = day; initial_measure = measure;
     rows = [{key=None; locus=""; amount=""}; {key=None; locus=""; amount=""}];
     focus=0; cursor=None; candidate=0; notice=""; review=None; paste=None }
 

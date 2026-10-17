@@ -80,11 +80,13 @@ val open_plans : t -> plan list
 val measures : t -> (string * int) list
 val approved_loci : t -> string list option
 val label : t -> string -> string
+val help : t -> string -> string
+val set_locus_label : t -> id:string -> label:string -> ?help:string -> unit -> (t, string) result
 val image : t -> Q.t
 val format : t -> string -> Z.t -> string
 
 val parse_amount : t -> string -> string -> (Z.t, string) result
-(** Positive exact decimal input at the explicitly supplied scale. No rounding. *)
+(** Positive exact decimal or arithmetic input (+, -, *, /, parentheses) at the explicitly supplied scale. No rounding. *)
 
 type daily_pace = {
   measure : string;

@@ -407,6 +407,12 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
                 in
                 err ~field:Field_amount ~raw:"amount-precision"
                   (format_message "The amount exceeds Measure %s precision (%s)." form.measure exp)
+            | Error "division-by-zero" ->
+                err ~field:Field_amount ~raw:"division-by-zero"
+                  (tr "The amount expression divides by zero.")
+            | Error "indivisible-amount" ->
+                err ~field:Field_amount ~raw:"indivisible-amount"
+                  (tr "The result cannot be represented at this Measure's decimal scale.")
             | Error why ->
                 err ~field:Field_amount ~raw:why (format_message "Invalid amount (%s)." why)
             | Ok amount -> (
@@ -458,6 +464,9 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
                 err ~raw:why (format_message "%s. Enter a positive amount magnitude." why)
             | Error why when Base.String.is_substring why ~substring:"amount-precision" ->
                 err ~raw:why (format_message "%s. Check the Measure decimal scale." why)
+            | Error why when Base.String.is_substring why ~substring:"division-by-zero"
+                          || Base.String.is_substring why ~substring:"indivisible-amount" ->
+                err ~raw:why (R.format_residual_error why)
             | Error why when Base.String.is_substring why ~substring:"empty-locus" ->
                 err ~raw:why (format_message "%s. Select an admitted Locus." why)
             | Error why -> err ~raw:why (format_message "Invalid postings (%s)." why)
@@ -484,6 +493,9 @@ let build_plan ~book ~mode ~day ~draft : (B.plan * bool, transaction_error) resu
             err ~raw:why (format_message "%s. Enter a positive amount magnitude." why)
         | Error why when Base.String.is_substring why ~substring:"amount-precision" ->
             err ~raw:why (format_message "%s. Check the Measure decimal scale." why)
+        | Error why when Base.String.is_substring why ~substring:"division-by-zero"
+                      || Base.String.is_substring why ~substring:"indivisible-amount" ->
+            err ~raw:why (R.format_residual_error why)
         | Error why when Base.String.is_substring why ~substring:"empty-locus" ->
             err ~raw:why (format_message "%s. Select an admitted Locus." why)
         | Error why -> err ~raw:why (format_message "Invalid postings (%s)." why)
@@ -762,6 +774,14 @@ let commit_payload ~session ~base_bytes = function
   | Entry_tx tx -> commit_transaction ~session ~base_bytes tx
   | Plan_tx { plan; replace } -> commit_plan ~session ~base_bytes ~replace plan
 
+let commit_set_locus_label ~session ~base_bytes ~id ~label ?help () : commit_result =
+  if base_bytes <> session.F.bytes then Conflict_base_changed
+  else if session.format = F.Records then
+    Refused (tr "Records publication does not support updating Locus labels. No bytes were changed.")
+  else
+    match B.set_locus_label session.book ~id ~label ?help () with
+    | Error why -> Refused why
+    | Ok candidate -> publish_candidate ~session candidate
 let commit_add_locus ~session name : commit_result =
   let name = String.trim name in
   if String.equal name "" then Refused (tr "Enter the new Locus token.")

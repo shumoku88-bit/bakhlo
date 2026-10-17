@@ -237,6 +237,50 @@ err invalid-amount
 err invalid-amount
 |}]
 
+let%expect_test "calculator expressions are exact and do not round or accept malformed inputs" =
+  let book = get (B.of_string fixture) in
+  let check measure text =
+    match B.parse_amount book measure text with
+    | Ok n -> Stdio.printf "%s => %s\n" text (Z.to_string n)
+    | Error why -> Stdio.printf "%s => %s\n" text why
+  in
+  check "jpy" "500+300";
+  check "jpy" "2+3*4";
+  check "jpy" "(2+3)*4";
+  check "jpy" "10-3-2";
+  check "jpy" "１，０００＋５００";
+  check "jpy" "2×(3＋4)";
+  check "eur" "12.50+3.75";
+  check "eur" "10/4";
+  check "eur" "0.001*1000";
+  check "jpy" "2500/3";
+  check "eur" "10/3";
+  check "jpy" "500/0";
+  check "jpy" "500+";
+  check "jpy" "1000-1200";
+  check "jpy" "1,00+2";
+  check "jpy" "3+2)";
+  check "jpy" "2/0*0";
+  [%expect {|
+500+300 => 800
+2+3*4 => 14
+(2+3)*4 => 20
+10-3-2 => 5
+１，０００＋５００ => 1500
+2×(3＋4) => 14
+12.50+3.75 => 1625
+10/4 => 250
+0.001*1000 => 100
+2500/3 => indivisible-amount
+10/3 => indivisible-amount
+500/0 => division-by-zero
+500+ => invalid-amount
+1000-1200 => non-positive-amount
+1,00+2 => invalid-amount
+3+2) => invalid-amount
+2/0*0 => division-by-zero
+|}]
+
 let%expect_test "daily roundtrip keeps every support family and byte-exact metadata" =
   let huge = "1234567890123456789012345678901234567890" in
   let text =
@@ -897,5 +941,30 @@ let%expect_test "observe_quantities updates current balance and persists across 
     unapproved: locus-not-approved
     unknown measure: measure-scale-not-supplied
     zero origin collision: support-admission
+  |}]
+
+let%expect_test "set_locus_label validates, updates labels and preserves across roundtrip" =
+  let base = get (B.of_string fixture) in
+  Stdio.printf "initial label wallet: %s, help: %s\n" (B.label base "wallet") (B.help base "wallet");
+  let updated = get (B.set_locus_label base ~id:"wallet" ~label:"Personal Wallet" ~help:"Primary cash wallet" ()) in
+  Stdio.printf "after set_locus_label: %s, help: %s\n" (B.label updated "wallet") (B.help updated "wallet");
+  let cold = get (B.of_string (B.to_string updated)) in
+  Stdio.printf "cold after roundtrip: %s, help: %s\n" (B.label cold "wallet") (B.help cold "wallet");
+  let updated2 = get (B.set_locus_label updated ~id:"wallet" ~label:"Cash Wallet" ()) in
+  Stdio.printf "after label only update: %s, help: %s\n" (B.label updated2 "wallet") (B.help updated2 "wallet");
+  let err_unapproved = B.set_locus_label base ~id:"nonexistent" ~label:"Test" () in
+  let err_empty_label = B.set_locus_label base ~id:"wallet" ~label:"   " () in
+  let err_control_char = B.set_locus_label base ~id:"wallet" ~label:"Wallet\n1" () in
+  Stdio.printf "unapproved: %s\n" (match err_unapproved with Error e -> e | Ok _ -> "ok");
+  Stdio.printf "empty label: %s\n" (match err_empty_label with Error e -> e | Ok _ -> "ok");
+  Stdio.printf "control char: %s\n" (match err_control_char with Error e -> e | Ok _ -> "ok");
+  [%expect {|
+    initial label wallet: 財布, help: 現金
+    after set_locus_label: Personal Wallet, help: Primary cash wallet
+    cold after roundtrip: Personal Wallet, help: Primary cash wallet
+    after label only update: Cash Wallet, help: Primary cash wallet
+    unapproved: locus-not-approved
+    empty label: invalid-label
+    control char: invalid-label
   |}]
 

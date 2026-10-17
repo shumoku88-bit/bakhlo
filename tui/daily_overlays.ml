@@ -357,11 +357,12 @@ let role_balance_items ~book ~roles =
 
 let current_balance_items ~book ~coords =
   let coords =
-    if coords <> [] then coords
-    else
-      let loci = Option.value ~default:[] (B.approved_loci book) in
-      let measures = List.map fst (B.measures book) in
-      List.concat_map (fun l -> List.map (fun m -> (l, m)) measures) loci
+    match coords with
+    | Some coords -> coords
+    | None ->
+        let loci = Option.value ~default:[] (B.approved_loci book) in
+        let measures = List.map fst (B.measures book) in
+        List.concat_map (fun l -> List.map (fun m -> (l, m)) measures) loci
   in
   let rows =
     List.map
@@ -374,7 +375,7 @@ let current_balance_items ~book ~coords =
     Header_row "Selected Locus × Measure; balance-view order only.";
     Blank_row;
   ]
-  @ (if rows = [] then [ Header_row "  (no coordinates configured or approved)" ] else rows)
+  @ (if rows = [] then [ Header_row "  (no coordinates selected)" ] else rows)
 
 let balance_item_line ?(width_of = String.length) ~book item =
   match item with

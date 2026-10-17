@@ -65,6 +65,10 @@ let format_residual_error why =
       line_prefix ^ tr "Enter a positive amount magnitude."
     else if Base.String.is_substring why ~substring:"amount-precision" then
       line_prefix ^ tr "The amount exceeds the Measure decimal scale."
+    else if Base.String.is_substring why ~substring:"division-by-zero" then
+      line_prefix ^ tr "The amount expression divides by zero."
+    else if Base.String.is_substring why ~substring:"indivisible-amount" then
+      line_prefix ^ tr "The result cannot be represented at this Measure's decimal scale."
     else why
 
 let residual book draft =

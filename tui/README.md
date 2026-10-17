@@ -56,7 +56,7 @@ HomeはCalendarと対象期間のActual / ScheduledのDetail。Day / Month / Yea
 - `q`：子から親へ、Home / DetailではCalendarへ、Home / Calendarで終了。
   閲覧中の`Ctrl-Q`：終了。`Ctrl-R`：明示的な再読込。
 
-CommandsはTransactions、Plans and attention、Reports and analysis、Household setup。
+CommandsはTransactions、Plans and attention、Reports and analysis、Household setup（Theme、Manage Loci、Daily Pace / spendable accounts、Daily Pace / cycle dates、Balances / visible accounts、Home）。
 実装済み入口だけを置き、削除したEnvelope budgetは置かない。
 記帳中のSpaceや`q`は文字入力で、背面のコマンドを実行しない。
 Actual / Scheduled / Selected Dayで選択・検索・詳細と復帰を共有する。別明細の訂正・支払いで
@@ -81,6 +81,7 @@ Date、Description、Measure、符号付きPostingを入力する。科目名／
 編集中の項目は表示位置が追従し、長い入力でも実セル幅に合わせてカーソル周辺を見せる。
 通常入力は青系、訂正／完了はアンバー、Cancel選択はローズの枠のみで区別する。
 Cancelは削除ではなく下書き保持。本文と背景は通常のトーンを維持する。
+DateまたはMeasureだけを変更した場合も、Esc後の次回Record起動でその下書きを再開する（終了・再起動後には残らない）。
 
 - `Tab`／`Shift-Tab`：項目。Enter：候補確定・次項目・Preview。
 - `←→`／Home／End／Backspace：文字カーソルと削除。
@@ -234,7 +235,7 @@ Homeで`d`を押すと、今日の目安（Daily Pace）画面が開き、過去
 - **シミュレーションと設定**:
   - `w`: What-Ifシミュレーション（仮の支出影響の試算）。
   - `c`: 対象口座プール（`daily-pace.tsv`）の編集。
-
+  - `b`: サイクル境界（`boundary-presets.tsv`）の編集（Commands → Household setup → Daily Pace / cycle dates と同一）。
 ## 収支レポート（Income & Expense）
 
 `Space`（Commands）→ `Reports and analysis` → `Income & Expense` で開く。
@@ -326,6 +327,9 @@ Homeで `i` または `Space`（Commands）→ `Attention` で開く。
 
 Homeで`b`を押すと、LOAM準拠の**Balances / Current**（現在の各口座・通貨の残高一覧）が開く。
 `balance-view.tsv`で指定された順序で中立座標（Locus × Measure）を表示し、未設定時は承認済みLocusを表示する。
+`c`で現在のMeasureの表示対象を編集し、選択内容を全文確認してから保存する。他Measureの選択は保持する。
+空選択は「全件」へ置換せず、表示行なしになる。不正／読めない設定は空として扱わず拒否する。
+保存先は選択された`balance-view.tsv`だけ。競合時は保存せず、再度開いて確認する。
 
 - **一覧操作**:
   - `j/k`・`↑/↓`: 1行移動。
@@ -336,6 +340,9 @@ Homeで`b`を押すと、LOAM準拠の**Balances / Current**（現在の各口�
 - **モード切替 (`v`)**:
   - `v`を押すと**Balances / Accounting**（資産・負債・純資産・収益・費用の会計分類表示）に切り替わる。
   - 再度`v`を押すと**Balances / Current**に戻る。
+- **表示対象の編集 (`c`)**:
+  - 許可済み、または既存設定に残るLocusをカンマ区切りで指定する。順序は表示順。
+  - Enterで確認画面へ進み、Esc／Editで入力に戻る。確認画面で全文を表示できる寸法のときだけSaveが有効。
 - **印刷プレビュー (`p`)**:
   - 画面内Printプレビュー（200行上限）を開き、CurrentまたはAccountingの全文を確認できる。
 - **観測記録 (`o`)**:
@@ -349,7 +356,7 @@ role-aware収支カレンダー、完全なSeries／coverage管理・定期補�
 実取引への配分を伴う精算・後日カード決済、広いレポート群は未対応。
 単一S式の予定作成（Scheduled `n`）・変更（`e`）・取消（`x`）・支払い（`c`）は接続済み。
 Actual `x`は元明細を残す正確な反転の新規記帳。Recordsは対応外の変更・取消・反転を拒否する。
-CommandsからExchange、Manage Loci／役割設定、Attention、限定commitment精算へ進める。
+CommandsからExchange（入力→全文Preview→確定）、Manage Loci／役割設定／表示名（`l`またはHousehold setup `Account / category display names`→Review→保存）、Attention、限定commitment精算へ進める。
 Home／Calendar／Balances `o`はObserve。これらの存在は全LOAM互換を意味しない。
 Balancesは既存照会で通貨別に表示し、不明・存在あり量不明・ゼロを区別する。
 Daily Paceは明示pool・Measure・今日・期間末の既存計算を表示する。

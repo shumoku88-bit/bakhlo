@@ -43,6 +43,10 @@ let self_check ~width_of () =
     List.exists (fun (_,line) -> Base.String.is_substring line ~substring:needle) (screen state) in
   let create ()=S.create ~book ~day:"2026-10-11" ~measure:"jpy" () in
   require (not (S.has_draft (create ()))) "fresh-record-is-empty";
+  let date_only = key (update (create ()) (`Key (`Tab, [`Shift]))) `Backspace in
+  require (S.has_draft date_only) "date-only-record-edit-is-retained";
+  let measure_only = key (key (create ()) `Tab) `Backspace in
+  require (S.has_draft measure_only) "measure-only-record-edit-is-retained";
   let prepare ?(amount="100") ?(description="q 食事") ?(locus_query="wallet") () =
     let state=text (create ()) description in
     let state=key (key state `Tab) `Tab in
@@ -95,6 +99,16 @@ let self_check ~width_of () =
   let unbalanced=prepare ~amount:"100" () |> fun t -> key t `Backspace |> fun t -> text t "1"
       |> fun t -> key t `Enter in
   require (contains unbalanced "unbalanced" && not (contains unbalanced "Record / Preview")) "exact-unbalanced-refusal";
+  let calculated = prepare ~amount:"(500+300)/2" () |> fun t -> key t `Enter in
+  (match handle calculated (`Key (`Enter, [])) with
+   | S.Publish (A.Entry_tx tx, _, _) ->
+       require (List.map A.quanta tx.entry.effects = [Z.of_int (-400); Z.of_int 400])
+         "calculator-record-publishes-exact-quanta"
+   | _ -> failwith "calculator-record-review-refused");
+  let invalid = prepare ~amount:"500/0" () |> fun t -> key t `Enter in
+  require (contains invalid "divides by zero" && contains invalid "500/0"
+           && not (contains invalid "Record / Preview"))
+    "calculator-refusal-retains-raw-draft";
   let huge=String.make 70 '9' in
   let huge_review=prepare ~amount:huge () |> fun t -> key t `Enter |> fun t -> key t `End in
   (match handle huge_review (`Key (`Enter,[])) with
@@ -294,14 +308,18 @@ let self_check ~width_of () =
   require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"+500") s_filled_screen) "ctrl-u-correct-adjustment-amount";
   let plan_draft = S.create_plan ~book ~day:"2026-10-15" ~measure:"jpy" () in
   require (not (S.has_draft plan_draft)) "fresh-plan-draft-is-empty";
+  require (S.has_draft (key plan_draft `Backspace))
+    "date-only-plan-edit-is-retained";
+  require (S.has_draft (key (key plan_draft `Tab) `Backspace))
+    "measure-only-plan-edit-is-retained";
   require (S.mode plan_draft = A.Plan_new) "is-plan-identified";
   require (contains plan_draft "Scheduled / Create") "plan-create-title";
   require (S.border_intent plan_draft = `Create) "plan-create-border-intent";
   let plan_draft = key (key plan_draft `Tab) `Tab in
   let plan_draft = key (text plan_draft "wallet") `Enter in
-  let plan_draft = key (text plan_draft "-500") `Tab in
+  let plan_draft = key (text plan_draft "-1000/2") `Tab in
   let plan_draft = key (text plan_draft "food") `Enter in
-  let plan_draft = text plan_draft "+500" in
+  let plan_draft = text plan_draft "+250*2" in
   require (S.has_draft plan_draft) "plan-has-draft-after-input";
   let plan_review = key plan_draft `Enter in
   require (contains plan_review "Scheduled / Preview") "plan-preview-title";

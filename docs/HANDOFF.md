@@ -14,6 +14,37 @@ requirements. Other external output and Print/diagnostics remain separate,
 not implicitly excluded. Historical interchange designs are not current
 implementation instructions for hledger.
 
+UI-24 Current Balances now has a bounded `c` editor for visible Loci in the
+current Measure: input → full Review → save only `balance-view.tsv`. Other
+Measures remain selected; explicit empty differs from missing, and malformed
+or unreadable config is Unavailable rather than silently skipped. Stale config
+is refused. Native synthetic checks and one cold Bonsai trial passed; see
+[verification](VERIFICATION.md#balances-visible-account-setup-2026-10-17).
+The LOAM setup picker and paired UI acceptance are not done. A rapid queued
+resize/Enter saved after the prior full-size review; terminal resize timing
+still needs qualification before claiming a strict current-dimension gate.
+
+UI-33 / UI-02 Daily Pace cycle boundaries and Household setup commands are now
+connected: `Space` → `Household setup` exposes `Daily Pace / spendable accounts`,
+`Daily Pace / cycle dates`, and `Balances / visible accounts`, and pressing `b` in
+Daily Pace opens the cycle boundary editor (`name`, comma-separated increasing
+YYYY-MM-DD dates covering today, up to 32 boundaries) → full Review → save only
+`boundary-presets.tsv` while preserving other named presets. Review Escape/Edit
+returns to the retained input; narrow views refuse confirmation. Native synthetic
+checks and a cold Bonsai trial passed; see
+[cycle boundary evidence](VERIFICATION.md#cycle-boundary-setup--household-setup-commands-2026-10-17).
+LOAM paired UI, IME and operational acceptance remain open.
+
+UI-30 Locus display names (`B.set_locus_label`, `B.help`, `A.commit_set_locus_label`)
+and UI-29 Exchange 2-step Preview are connected: `Space` → `Household setup` →
+`Account / category display names` (and `l`/`e` in Manage Loci) edits a Locus's
+display name and optional help description through a full-visibility Review gate
+before updating the monolithic book's `labels`. Exchange (`Space` → `Transactions`
+→ `Exchange`) now validates inputs and transitions to `Exchange / Preview` with
+Escape/Edit draft retention and a narrow-terminal confirmation gate before
+publishing. Core and native self-checks passed; see
+[evidence](VERIFICATION.md#locus-display-names--exchange-preview-gate-2026-10-17).
+
 UI-34 first-run initialization is connected for an interactive `--book FILE` startup:
 missing paths may be prefilled; existing unreadable paths start with a blank destination.
 The user supplies one Measure/scale, reviews the exact destination and empty-book meaning,
@@ -507,7 +538,10 @@ themes and unused helpers may be replaced or deleted without compatibility.
 Calendar Home is selected. Preserve Bakhlo's accounting contracts; this UI work
 does not restore budgets, authorize new accounting assumptions, require LOAM's
 entire accounting feature set, or introduce a new frontend framework.
-Calculator input UX-3 remains designed but deferred.
+Calculator UX-3 now accepts exact arithmetic in positive amount fields via
+`Daily_book.parse_amount`; signed Posting prefixes apply to the entire expression.
+Core/native Record checks cover precedence, quanta, refusal and retained drafts.
+Paired LOAM UI, IME and real terminal acceptance remain open.
 
 Scope lesson: “LOAM-compatible UI” means its appearance and interaction, including
 the Home structure and navigation; do not reduce it to styling or treat English

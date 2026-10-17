@@ -3625,3 +3625,98 @@ After clean exit, book SHA-256 remained
 No writer, admission or Calendar state change; no fresh LOAM comparison was needed
 to establish this local display inconsistency. Human/IME acceptance, broader
 Selected Day parity and power-loss/P7 remain unqualified.
+
+## Exact calculator amount input (2026-10-17)
+
+`Daily_book.parse_amount` evaluates `+ - * /` and parentheses as exact rationals,
+then requires positive integer quanta at the selected Measure scale. Plain
+decimal inputs retain their former precision/refusal behavior. Core expectations
+cover precedence, left association, full-width operators/digits, grouping,
+fractional intermediate values, non-integral results, zero division and syntax
+refusal. Native Record checks cover exact Preview/publication, Scheduled creation
+and retained expression text on error. `./tools/check` and
+`./tools/tui --self-check` passed.
+
+Actual Bonsai TUI smoke at 100×30 used a fresh synthetic copy under ignored
+`scratch/calculator-smoke.L0CUjj`. Record entered `-(500+300)/2` and `+200*2`;
+Preview displayed `-400 jpy` and `+400 jpy`. Enter on Publish reported
+`Published and read back`; cold `--check` admitted the book and its single
+new entry retained those two integer quanta. A second draft containing
+`-500/0` remained visible with `row-1: The amount expression divides by zero.`;
+no second entry appeared in the saved file. No LOAM runtime comparison,
+human/IME acceptance, injected writer failure or power-loss/P7 qualification
+is claimed from this slice.
+
+## Balances visible-account setup (2026-10-17)
+
+LOAM source `BalanceViewSetupSession.lean`/`BalanceViewConfig.lean` requires
+whole-file config decoding, keeps prior selections from other Measures, admits
+previously selected historical Loci, checks stale config/admission and keeps
+unknown quantities as `?`. Bakhlo's old `Balance_view_data.of_string` silently
+discarded malformed rows, and `load_file` returned `[]` on read failure; its
+Current view also treated an explicitly empty selection as the default all-Loci
+list. These weaker behaviors were removed in the bounded Bakhlo setup path.
+
+The native synthetic check covers review/cancel/Edit nonwrites, refusal at
+48×14, stale config refusal without replacement, preservation of another
+Measure and row order, explicit empty selection, malformed config Unavailable,
+and cold reloading an unknown coordinate. `./tools/check` and
+`./tools/tui --self-check` passed.
+
+The actual Bonsai UI ran at 100×30 with a fresh ignored synthetic copy in
+`scratch/balance-view-smoke.fj1SPJ`: Home `b` → Balances `c` → `bank, wallet`
+→ Review; Escape twice wrote no config. Re-entering and saving produced
+`bank<TAB>jpy`, `wallet<TAB>jpy`; source book SHA-256 stayed
+`2ffc331709f9e729e9beac4609d6548513085d412d5a4fc020e3a1d2379b247b`.
+After exit and cold TUI reopen, Current listed bank as `? unsupported` and
+wallet as `+1000 jpy` in the chosen order.
+
+One rapid tmux resize-to-48×14 immediately followed by Enter saved while
+the last displayed review had still been at 100×30. The synthetic controller
+refuses confirmation when invoked with 48×14 dimensions, but the queued
+terminal resize/Enter timing is not qualified by that check. LOAM paired
+interaction, independent failure injection, IME/user acceptance and
+power-loss/P7 remain open.
+
+## Cycle boundary setup & Household setup commands (2026-10-17)
+
+Household setup in Commands (`Space` → `Household setup`) exposes:
+- Theme
+- Manage Loci / Admitted vocabulary
+- Daily Pace / spendable accounts (`daily-pace.tsv`)
+- Daily Pace / cycle dates (`boundary-presets.tsv`)
+- Balances / visible accounts (`balance-view.tsv`)
+- Home / Bonsai
+
+The cycle boundary editor (`b` in Daily Pace, or via Commands → Household setup → Daily Pace / cycle dates) supports:
+- Editing explicit cycle dates for the named preset covering today.
+- Input validation (requires token name and at least two strictly increasing real dates covering today, up to 32 boundaries).
+- Full Review screen with explicit boundary listing, requiring confirmation before writing.
+- Two-tier Escape/Cancel handling: Escape on Review returns to the input form with edited values preserved; Escape on input cancels without writing.
+- Atomic config save to `boundary-presets.tsv` preserving other named presets and original book.
+- Terminal geometry gate refusing confirmation if boundaries don't fit or width < 48.
+
+`./tools/check` and `./tools/tui --self-check` passed with zero warnings.
+
+Actual Bonsai TUI smoke at 100×30 (`TERM=xterm-256color`) used a fresh synthetic copy under ignored `scratch/cycle-setup-smoke.X7U7H8`:
+- Commands (`Space`) → `Household setup` → `Daily Pace / cycle dates` opened the modal form.
+- Input `pension`, `2026-10-01, 2026-11-01` → Review.
+- Escape returned to input form with dates preserved; second Escape cancelled back to Home.
+- Verified `boundary-presets.tsv` was not created.
+- Navigated to Daily Pace (`d`), opened cycle dates editor via `b`, entered `2026-10-01, 2026-11-01` → Review → Enter to save.
+- Verified `boundary-presets.tsv` contains `pension\t2026-10-01\t2026-11-01\n`.
+- Daily Pace updated immediately to show 24 days remaining and cycle end `2026-11-01`.
+- Cold TUI reopen confirmed persistence and accurate display of the 2026-11-01 cycle end.
+
+LOAM paired execution, IME/preedit, power loss/P7, and human acceptance remain unexercised.
+
+## Locus display names & Exchange preview gate (2026-10-17)
+
+- **UI-30 Locus display names & descriptions**:
+  - `Daily_book.help` and `Daily_book.set_locus_label` validate admitted Locus tokens, non-empty printable labels (<= 80 chars) and optional help descriptions, preserving existing help when omitted and updating `(labels (provided ...))` across S-expression roundtrips.
+  - `Daily_actions.commit_set_locus_label` publishes to monolithic books and refuses Records format without mutating bytes.
+  - `Space` → `Household setup` → `Account / category display names` and `Manage Loci` (`l` / `e`) open the display-name editor → full Review (`Save display name` / `Edit`) with a terminal geometry gate (`pane_w >= 48` and full rows visible).
+- **UI-29 Exchange 2-step Preview gate**:
+  - Submitting the Exchange form validates date, distinct Measures, positive exact amounts and admitted Loci, then opens `Exchange / Preview` showing exact signed source/destination Effects and the non-inferred FX note before publication.
+  - Escape or `Edit` returns to the retained input form without writing; narrow terminals (`< 48` cols or overflowing rows) refuse confirmation; `Publish Exchange` commits against the captured `base_bytes`.
+- `./tools/check` (including `daily_book_tests.ml` roundtrip/validation tests) and `./tools/tui --self-check` (including narrow-terminal refusal, Escape draft retention, and cold reload checks) passed with zero warnings; synthetic tmux smoke ran in `scratch/smoke_ui_29_30`. LOAM paired runtime comparison, IME acceptance and P7 remain open.

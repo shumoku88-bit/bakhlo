@@ -45,6 +45,16 @@ let validate form =
   if String.trim destination = "" then error "Enter a new book file path."
   else if String.length destination > 240 || String.exists (fun c -> Char.code c < 32 || Char.code c = 127) destination then
     error "Book file path must be one printable line of at most 240 bytes."
+  else if Uutf.String.fold_utf_8
+               (fun hidden _ -> function
+                 | `Uchar c ->
+                     let n = Uchar.to_int c in
+                     hidden || n = 0x61c || n = 0x200e || n = 0x200f
+                     || (n >= 0x202a && n <= 0x202e)
+                     || (n >= 0x2066 && n <= 0x2069)
+                 | `Malformed _ -> true)
+               false destination then
+    error "Book file path contains invalid UTF-8 or bidirectional controls."
   else
     match D.Identifier.Measure.of_string measure with
     | Error _ -> error "Enter a valid Measure token."
@@ -188,6 +198,17 @@ let check ~width_of () =
         (not (ready_to_create ~dimensions:(48, 14) ~width_of long_reviewed)
          && ready_to_create ~dimensions:(80, 24) ~width_of long_reviewed)
         "long-destination-must-fit-inside-frame";
+      List.iter
+        (fun name ->
+          let misleading = Form.set_text form "destination" (Filename.concat root name) in
+          match handle { phase = Editing misleading } (`Key (`Enter, [])) with
+          | Continue { phase = Editing _ } -> ()
+          | _ -> failwith "first-run-check: invisible-or-reordered-path-accepted")
+        ["abc\226\128\174txt"; "abc\255txt"];
+      let japanese = Form.set_text form "destination" (Filename.concat root "家計.sexp") in
+      (match handle { phase = Editing japanese } (`Key (`Enter, [])) with
+       | Continue { phase = Reviewing _ } -> ()
+       | _ -> failwith "first-run-check: valid-unicode-path-refused");
       (match handle (refuse_confirmation reviewed) (`Key (`Escape, [])) with
        | Continue { phase = Editing form } ->
            require (Form.get_text form "destination" = Some (Filename.concat root "new.sexp")
