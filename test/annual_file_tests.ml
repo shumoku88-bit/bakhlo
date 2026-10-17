@@ -41,8 +41,8 @@ let%expect_test "opt-in annual storage uses existing writer; wrong-year commits 
   Unix.mkdir root 0o700;
   let p26 = Stdlib.Filename.concat root "2026.sexp" in
   let p27 = Stdlib.Filename.concat root "2027.sexp" in
-  let annual26 = File.create_empty ~annual_year:2026 ~path:p26 ~measure:"jpy" ~scale:0 in
-  let annual27 = File.create_empty ~annual_year:2027 ~path:p27 ~measure:"jpy" ~scale:0 in
+  let annual26 = File.create_annual_empty ~year:2026 ~path:p26 ~measure:"jpy" ~scale:0 in
+  let annual27 = File.create_annual_empty ~year:2027 ~path:p27 ~measure:"jpy" ~scale:0 in
   let old27 = File.read p27 in
   let original26 = fixture "2026-12-31" in
   let saved26 =
@@ -70,7 +70,7 @@ let%expect_test "opt-in annual storage uses existing writer; wrong-year commits 
   require (Result.is_error (Scope.check_path ~year:2026 p27)) "year-mismatch";
   let refused f = try f (); false with File.Refused _ -> true in
   require (refused (fun () -> ignore (File.load ~annual_year:2026 p27))) "wrong-year-selection";
-  require (refused (fun () -> ignore (File.create_empty ~annual_year:2026
+  require (refused (fun () -> ignore (File.create_annual_empty ~year:2026
     ~path:(Stdlib.Filename.concat root "wrong.sexp") ~measure:"jpy" ~scale:0)))
     "unsafe-annual-create";
   ignore annual27;
