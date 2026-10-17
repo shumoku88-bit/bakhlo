@@ -4,6 +4,7 @@
 module B = Bakhlo_sexp.Daily_book
 module RB = Bakhlo_sexp.Records_book
 module DA = Bakhlo_sexp.Durable_append
+module Annual = Bakhlo_sexp.Annual_scope
 
 exception Refused of string
 
@@ -19,6 +20,7 @@ type t = {
   format : format;
   engine : DA.engine option;
   session : DA.client_session option;
+  annual_year : int option;
 }
 
 type outcome = Written of t | Conflict | Refused_input of string | Uncertain
@@ -57,14 +59,31 @@ let read path =
 
 let records_revision ~lsn ~crc = Printf.sprintf "records:lsn:%d:crc:%s" lsn crc
 
-let load path =
+let check_annual_path annual_year path =
+  Option.iter
+    (fun year -> get "annual-file-name-mismatch" (Annual.check_path ~year path))
+    annual_year
+
+let check_annual_book annual_year book =
+  Option.iter
+    (fun year ->
+      match Annual.check_book ~year book with
+      | Ok () -> ()
+      | Error why -> raise (Refused why))
+    annual_year
+
+let load ?annual_year path =
+  check_annual_path annual_year path;
   let initial_bytes = read path in
   let format = detect_format initial_bytes in
   match format with
   | Monolithic ->
       let book = get "book-refused" (B.of_string initial_bytes) in
-      { path; bytes = initial_bytes; book; format = Monolithic; engine = None; session = None }
+      check_annual_book annual_year book;
+      { path; bytes = initial_bytes; book; format = Monolithic; engine = None; session = None;
+        annual_year }
   | Records ->
+      require (annual_year = None) "annual-records-unsupported";
       (* 1. First recover and open engine under lock to ensure clean truncated state *)
       let eng, act = get "records-engine-failed" (DA.recover_and_open path) in
       (match act with
@@ -94,7 +113,8 @@ let load path =
         (fun tok -> DA.acknowledge_session sess ~token:tok ~lsn:(DA.current_lsn eng))
         (DA.latest_token eng);
       let session_bytes = records_revision ~lsn:last_parsed_lsn ~crc:last_crc in
-      { path; bytes = session_bytes; book; format = Records; engine = Some eng; session = Some sess }
+      { path; bytes = session_bytes; book; format = Records; engine = Some eng;
+        session = Some sess; annual_year = None }
 
 let nonce () =
   let fd = Unix.openfile "/dev/urandom" [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
@@ -132,12 +152,14 @@ let sync_parent path =
   let fd = Unix.openfile (Filename.dirname path) [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
   Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> Unix.fsync fd)
 
-let create_empty ~path ~measure ~scale =
+let create_empty ?annual_year ~path ~measure ~scale =
+  check_annual_path annual_year path;
   let book = get "empty-book-refused" (B.empty ~measure ~scale) in
+  check_annual_book annual_year book;
   let bytes = B.to_string book in
   write_new path bytes;
   sync_parent path;
-  let session = load path in
+  let session = load ?annual_year path in
   require (session.bytes = bytes) "first-run-cold-readback-changed";
   session
 
@@ -345,6 +367,8 @@ let publish ?(checkpoint = fun _ -> ()) session book =
     let bytes = B.to_string book in
     let checked = get "printed-book-refused" (B.of_string bytes) in
     require (B.to_string checked = bytes) "unstable-printer";
+    check_annual_path session.annual_year session.path;
+    check_annual_book session.annual_year checked;
     with_writer session.path (fun () ->
         require_finished session.path;
         if read session.path <> session.bytes then Conflict
