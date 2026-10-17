@@ -3768,3 +3768,34 @@ LOAM paired execution, IME/preedit, power loss/P7, and human acceptance remain u
   - Submitting the Exchange form validates date, distinct Measures, positive exact amounts and admitted Loci, then opens `Exchange / Preview` showing exact signed source/destination Effects and the non-inferred FX note before publication.
   - Escape or `Edit` returns to the retained input form without writing; narrow terminals (`< 48` cols or overflowing rows) refuse confirmation; `Publish Exchange` commits against the captured `base_bytes`.
 - `./tools/check` (including `daily_book_tests.ml` roundtrip/validation tests) and `./tools/tui --self-check` (including narrow-terminal refusal, Escape draft retention, and cold reload checks) passed with zero warnings; synthetic tmux smoke ran in `scratch/smoke_ui_29_30`. LOAM paired runtime comparison, IME acceptance and P7 remain open.
+
+## UI-33 Daily Pace / Trend fail-closed and bounded verification (2026-10-17)
+
+- **Fail-closed fixes (`daily_pace_trend.ml`, `daily_pace_trend.mli`, `daily_interaction.ml`)**:
+  - **Current pace & balance errors**: `Trend.format_pace_error` translates internal error tokens (`daily-pace-balance-support-unknown:LOCUS:MEASURE`, `daily-pace-balance-amount-unknown:LOCUS:MEASURE`, `daily-pace-non-positive-horizon`, `daily-pace-duplicate-coordinate`, `daily-pace-pool-measure-mismatch`, `unknown-measure`) into clear, human-readable causes (`Pool locus balance is unknown: ...`, `Pool locus balance support is unknown: ...`).
+  - **Pool balance verification (`query_pool_balance`)**: Queries `B.image book` for each coordinate using `Q.query`. Exact balances are summed; coordinates with `Known_present` or `Support_unknown` immediately return formatted refusal errors. Silent conversion of calculation failures to `Z.zero` is completely eliminated.
+  - **Boundary presets verification (`resolve_end_exclusive`)**: `10d`, `30d`, and `Month` presets require an explicit containing cycle window in `boundary-presets.tsv` to establish a true horizon. Missing `boundary-presets.tsv`, malformed rows, out-of-range dates, and ambiguous overlapping windows covering today immediately return exact refusal errors (`Period not configured...`, `Malformed boundary-presets.tsv...`, `Multiple boundary presets contain today; selection is ambiguous.`, `No explicit boundary preset contains today.`). Silent 1-day fallback (`through_day + 1`) is eliminated.
+  - **Config load handling**: `workspace_rows` binds `resolve_pace_pool` and `read_pace_config "boundary-presets.tsv"` without silent fallbacks to `[]` or `None`.
+  - **What-if simulator**: Refuses simulation with exact cause when current pace is unavailable (`Daily pace unavailable (...); simulation is disabled.`), preventing fictitious purchase projections.
+  - **Responsive Unavailable display**: Unavailable messages wrap with `left_width - 6` room to respect inner padding and borders across all viewport sizes without text truncation.
+
+- **Automated verification (`daily_interaction_checks.ml`)**:
+  - Missing pool config: 80×24, 48×14, 32×9 show `Daily Pace unavailable:` and `Daily Pace pool not configured (daily-pace.tsv missing).`; What-if form and submit display exact cause; plot and calculated numbers absent.
+  - Malformed pool config: `Malformed daily-pace.tsv or mismatched Measure` displayed and verified.
+  - Empty pool config: `Daily Pace pool is empty.` displayed and verified.
+  - Unknown coordinate balance: `Pool locus balance support is unknown: bank jpy` displayed; What-if simulation disabled with exact cause.
+  - Missing `boundary-presets.tsv`: `Period not configured (boundary-presets.tsv missing).` displayed across all presets `1`..`4`.
+  - Malformed `boundary-presets.tsv`: `Malformed boundary-presets.tsv; no period was inferred.` displayed.
+  - Ambiguous `boundary-presets.tsv`: `Multiple boundary presets contain today; selection is ambiguous.` displayed.
+  - Out-of-window `boundary-presets.tsv`: `No explicit boundary preset contains today.` displayed.
+  - Normal operations: 80×24, 48×14, 32×9 display `Daily Pace` and `Pace Detail & Evidence`; `Period progress:` and `Through end:` metrics shown; presets `1`..`4` switch smoothly; graph style `v` toggles Line/Dots; timeline `h`/`l` steps selection; `i`/`Tab` opens detail pane, `j`/`k` scrolls, `q`/`Esc` returns to timeline; What-if simulates `2000` JPY purchase; `q` returns cleanly to Home.
+
+- **LOAM read-only comparison**:
+  - Read-only source consultation of LOAM `Loam/Tui/DailyPaceTrend.lean`, `Loam/Review/DailyPacePeriods.lean`, and `Loam/Review/CycleSpendingPaceReview.lean`.
+  - Verified parity on fail-closed policy: LOAM raises `Except String` on missing/malformed `boundary-presets.tsv`, empty/unreadable `daily-pace.tsv`, and non-exact balances, displaying `unavailable (i: cause)` / `History unavailable: <cause>` without zero substitution.
+
+- **Test execution**:
+  - `./tools/check`: all 354 inline and unit tests passed in 8.00s.
+  - `./tools/build-bonsai-tui` and `_build/daily-bonsai/_build/default/ui/bonsai_daily.exe --self-check`: all checks passed with `PASS: UI-33 Daily Pace / Trend fail-closed and bounded verification (unknown balances, corrupted configs, ambiguous periods, multi-dimensions) passed.`
+
+LOAM paired execution, physical terminal IME/preedit, power loss/P7, and human operational acceptance remain unexercised.

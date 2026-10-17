@@ -34,6 +34,9 @@ val presets : preset list
 val next_graph_style : graph_style -> graph_style
 val graph_style_label : graph_style -> string
 
+val format_pace_error : string -> string
+(** Reader-facing cause of a refused Daily Pace calculation; unknown causes pass through. *)
+
 val compute_samples :
   book:B.t ->
   measure:string ->

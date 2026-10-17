@@ -21,6 +21,7 @@ module Att = Attention_data
 module Roles = Locus_roles
 module D = Bakhlo_domain
 module Stl = Settlement_data
+module Trend = Daily_pace_trend
 
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
@@ -2063,6 +2064,250 @@ let event_merchant_integration_checks ~width_of ~directory () =
 
   print_endline "PASS: Event Merchant classification normal, nonmerchant, unresolved, duplicate refusal, unknown event, invalid party, correction/reversal, cancel, save fail, stale conflict, records refusal, cold reopen, rollover."
 
+(* UI-33: Daily Pace / Trend must refuse a missing, malformed, empty, ambiguous
+   or unsupported pool/period instead of inferring a zero balance or a period. *)
+let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
+  let directory = directory ^ "/daily-pace-fail-closed" in
+  Unix.mkdir directory 0o700;
+  let path = directory ^ "/book.sexp" in
+  F.create_copy ~source:"examples/daily-book.sexp" ~target:path;
+  let home = C.initial ~config_home:directory (F.load path) in
+  let pool_path = directory ^ "/daily-pace.tsv" in
+  let windows_path = directory ^ "/boundary-presets.tsv" in
+  let replace path bytes =
+    if Sys.file_exists path then Unix.unlink path;
+    F.write_new path bytes
+  in
+  let remove path = if Sys.file_exists path then Unix.unlink path in
+  let today = F.today () in
+  let stop = get (Cal.shift_days today 7) in
+  let view () = C.open_route { home with session = F.load path } W.Daily_pace in
+  (* Painted rows carry frame glyphs and padding; drop them and clip each row to
+     its pane so wrapped text still reads as one contiguous string. *)
+  let clean text =
+    let out = Buffer.create (String.length text) in
+    let rec loop index =
+      if index >= String.length text then ()
+      else if
+        index + 3 <= String.length text
+        && (let glyph = String.sub text index 3 in
+            Base.String.equal glyph "\xe2\x94\x82" || Base.String.equal glyph "\xe2\x80\xa6")
+      then loop (index + 3)
+      else (
+        (match text.[index] with
+        | ' ' | '\t' | '\r' | '\n' -> ()
+        | char -> Buffer.add_char out char);
+        loop (index + 1))
+    in
+    loop 0;
+    Buffer.contents out
+  in
+  let shows ?(pane = `Left) ~width_of (width, height) state needle =
+    let left_width, _ = C.browser_pane_widths width in
+    let room = match pane with `Left -> left_width | `Right -> width in
+    let rows = C.screen ~width_of (width, height) state in
+    let text =
+      List.map
+        (fun (_, row) ->
+          clean (if pane = `Left then Daily_overlays.clip_text ~width_of room row else row))
+        rows
+      |> String.concat ""
+    in
+    Base.String.is_substring text ~substring:(clean needle)
+  in
+  let screen_has ~width_of dimensions state needle message =
+    require (shows ~width_of dimensions state needle) message
+  in
+  let modal_form state =
+    match state.C.overlay with
+    | C.Modal_form form -> form
+    | _ -> raise (F.Refused "expected-modal-form")
+  in
+  let modal_summary state = String.concat "\n" (modal_form state).Ui_form.summary in
+  let submit_what_if state amount =
+    let form = Ui_form.set_focused (Ui_form.set_text (modal_form state) "amount" amount) 1 in
+    match C.handle ~width_of { state with C.overlay = C.Modal_form form } (`Key (`Enter, [])) with
+    | Some next -> next
+    | None -> raise (F.Refused "what-if-submit-exited")
+  in
+  (* 1. Missing daily-pace.tsv: no pool is not an empty pool. *)
+  remove pool_path;
+  remove windows_path;
+  let missing = view () in
+  List.iter
+    (fun ((width, height) as dimensions) ->
+      let where = Printf.sprintf "%dx%d" width height in
+      screen_has ~width_of dimensions missing "Daily Pace unavailable:"
+        ("daily-pace-missing-pool-header-" ^ where);
+      screen_has ~width_of dimensions missing
+        (if width < 48 then "Daily Pace pool not config"
+         else "Daily Pace pool not configured (daily-pace.tsv missing).")
+        ("daily-pace-missing-pool-reason-" ^ where);
+      require
+        (not (shows ~width_of dimensions missing "Daily Pace:"))
+        ("daily-pace-missing-pool-calculated-" ^ where);
+      require
+        (not (shows ~width_of dimensions missing "jpy/day"))
+        ("daily-pace-missing-pool-plot-" ^ where))
+    [ (80, 24); (48, 14); (32, 9) ];
+  let what_if = key ~width_of missing (`ASCII 'w') in
+  require (Ui_form.id (modal_form what_if) = "daily_pace_what_if") "daily-pace-what-if-modal-id";
+  require
+    (Base.String.is_substring (modal_summary what_if) ~substring:"Daily pace unavailable")
+    "daily-pace-missing-what-if-summary";
+  require
+    (Base.String.is_substring (modal_summary what_if)
+       ~substring:"Daily Pace pool not configured (daily-pace.tsv missing).")
+    "daily-pace-missing-what-if-reason";
+  let refused_what_if = submit_what_if what_if "1000" in
+  require
+    (Ui_form.notice (modal_form refused_what_if)
+     = "Current pace unavailable: Daily Pace pool not configured (daily-pace.tsv missing).")
+    "daily-pace-missing-what-if-notice";
+  require
+    ((key ~width_of refused_what_if `Escape).C.overlay = C.No_overlay)
+    "daily-pace-missing-what-if-closes";
+  (* 2. Malformed pool: a mismatched Measure is refused, never partially read. *)
+  replace pool_path "wallet\tusd\n";
+  remove windows_path;
+  let malformed_pool = view () in
+  screen_has ~width_of (80, 24) malformed_pool "Daily Pace unavailable:"
+    "daily-pace-malformed-pool-header";
+  screen_has ~width_of (80, 24) malformed_pool "Malformed daily-pace.tsv or mismatched Measure"
+    "daily-pace-malformed-pool-reason";
+  (* 3. Comment-only pool: configured but empty, and still not a calculation. *)
+  replace pool_path "# comment\n";
+  let empty_pool = view () in
+  screen_has ~width_of (80, 24) empty_pool "Daily Pace unavailable:" "daily-pace-empty-pool-header";
+  screen_has ~width_of (80, 24) empty_pool "Daily Pace pool is empty." "daily-pace-empty-pool-reason";
+  (* 4. Unknown pool balance: refuse the exact coordinate, never assume zero. *)
+  replace pool_path "bank\tjpy\n";
+  replace windows_path ("cycle\t" ^ today ^ "\t" ^ stop ^ "\n");
+  let unknown_balance = view () in
+  screen_has ~width_of (80, 24) unknown_balance "Daily Pace unavailable:"
+    "daily-pace-unknown-balance-header";
+  screen_has ~width_of (80, 24) unknown_balance "Pool locus balance support is unknown: bank jpy"
+    "daily-pace-unknown-balance-reason";
+  let unknown_what_if = key ~width_of unknown_balance (`ASCII 'w') in
+  require
+    (Base.String.is_substring (modal_summary unknown_what_if)
+       ~substring:"Pool locus balance support is unknown: bank jpy")
+    "daily-pace-unknown-balance-what-if-summary";
+  let unknown_refused = submit_what_if unknown_what_if "1000" in
+  require
+    (Ui_form.notice (modal_form unknown_refused)
+     = "Current pace unavailable: Pool locus balance support is unknown: bank jpy")
+    "daily-pace-unknown-balance-what-if-notice";
+  require
+    ((key ~width_of unknown_refused `Escape).C.overlay = C.No_overlay)
+    "daily-pace-unknown-balance-what-if-closes";
+  (* 5. Valid pool, missing boundary-presets.tsv: every period refuses. *)
+  replace pool_path "wallet\tjpy\n";
+  remove windows_path;
+  let no_period = view () in
+  screen_has ~width_of (80, 24) no_period "Daily Pace unavailable:" "daily-pace-missing-period-header";
+  screen_has ~width_of (80, 24) no_period "Period not configured (boundary-presets.tsv missing)."
+    "daily-pace-missing-period-reason";
+  List.iter
+    (fun preset_key ->
+      let pressed = key ~width_of no_period (`ASCII preset_key) in
+      let where = String.make 1 preset_key in
+      require (pressed.workspace.route = W.Daily_pace) ("daily-pace-missing-period-route-" ^ where);
+      screen_has ~width_of (32, 9) pressed "Daily Pace unavailable:"
+        ("daily-pace-missing-period-header-" ^ where);
+      screen_has ~width_of (32, 9) pressed "Period not configured"
+        ("daily-pace-missing-period-reason-" ^ where))
+    [ '1'; '2'; '3'; '4' ];
+  (* 6. Malformed boundary-presets.tsv. *)
+  replace windows_path "broken\tnot-a-date\n";
+  let malformed_windows = view () in
+  screen_has ~width_of (80, 24) malformed_windows "Daily Pace unavailable:"
+    "daily-pace-malformed-period-header";
+  screen_has ~width_of (80, 24) malformed_windows "Malformed boundary-presets.tsv; no period was inferred."
+    "daily-pace-malformed-period-reason";
+  (* 7. Two presets contain today: ambiguous, not first-match. *)
+  replace windows_path (Printf.sprintf "p1\t%s\t%s\np2\t%s\t%s\n" today stop today stop);
+  let ambiguous = view () in
+  screen_has ~width_of (80, 24) ambiguous "Daily Pace unavailable:" "daily-pace-ambiguous-header";
+  screen_has ~width_of (80, 24) ambiguous
+    "Multiple boundary presets contain today; selection is ambiguous."
+    "daily-pace-ambiguous-reason";
+  (* 8. No preset contains today. *)
+  replace windows_path "old\t2020-01-01\t2020-02-01\n";
+  let stale_period = view () in
+  screen_has ~width_of (80, 24) stale_period "Daily Pace unavailable:" "daily-pace-stale-period-header";
+  screen_has ~width_of (80, 24) stale_period "No explicit boundary preset contains today."
+    "daily-pace-stale-period-reason";
+  (* 9. Explicit pool and period: bounded calculation and interaction. *)
+  replace windows_path ("cycle\t" ^ today ^ "\t" ^ stop ^ "\n");
+  replace pool_path "wallet\tjpy\n";
+  let pace = view () in
+  let pace_detail = key ~width_of pace (`ASCII 'i') in
+  require (pace_detail.workspace.pane = W.Detail) "daily-pace-i-focuses-detail";
+  List.iter
+    (fun ((width, height) as dimensions) ->
+      let where = Printf.sprintf "%dx%d" width height in
+      require (shows ~width_of dimensions pace "Daily Pace") ("daily-pace-pane-title-" ^ where);
+      require
+        (shows ~pane:`Right ~width_of dimensions pace_detail "Pace Detail & Evidence")
+        ("daily-pace-detail-title-" ^ where))
+    [ (80, 24); (48, 14); (32, 9) ];
+  require
+    (shows ~pane:`Right ~width_of (80, 24) pace "Period progress:")
+    "daily-pace-period-progress";
+  require (shows ~pane:`Right ~width_of (80, 24) pace "Through end:") "daily-pace-through-end";
+  let preset_key char preset =
+    let pressed = key ~width_of pace (`ASCII char) in
+    require (pressed.workspace.route = W.Daily_pace)
+      ("daily-pace-preset-route-" ^ String.make 1 char);
+    require (pressed.pace_trend.preset = preset) ("daily-pace-preset-" ^ String.make 1 char)
+  in
+  preset_key '1' Trend.Ten_days;
+  preset_key '2' Trend.Thirty_days;
+  preset_key '3' Trend.Month;
+  preset_key '4' Trend.Cycle;
+  let dotted = key ~width_of pace (`ASCII 'v') in
+  require (dotted.pace_trend.graph_style = Trend.Dots) "daily-pace-graph-dots";
+  require
+    ((key ~width_of dotted (`ASCII 'v')).pace_trend.graph_style = Trend.Line)
+    "daily-pace-graph-line";
+  let stepped = key ~width_of pace (`ASCII 'l') in
+  require
+    (stepped.pace_trend.selected_index = pace.pace_trend.selected_index + 1)
+    "daily-pace-l-steps-timeline";
+  require
+    ((key ~width_of stepped (`ASCII 'h')).pace_trend.selected_index = pace.pace_trend.selected_index)
+    "daily-pace-h-steps-back";
+  let scrolled = key ~width_of pace_detail (`ASCII 'j') in
+  require (scrolled.scroll > pace_detail.scroll) "daily-pace-j-scrolls-detail";
+  require
+    ((key ~width_of scrolled (`ASCII 'k')).scroll = pace_detail.scroll)
+    "daily-pace-k-scrolls-back";
+  let escaped_detail = key ~width_of pace_detail `Escape in
+  require
+    (escaped_detail.workspace.pane = W.Calendar && escaped_detail.workspace.route = W.Daily_pace)
+    "daily-pace-esc-returns-calendar";
+  let quit_detail = key ~width_of pace_detail (`ASCII 'q') in
+  require
+    (quit_detail.workspace.pane = W.Calendar && quit_detail.workspace.route = W.Daily_pace)
+    "daily-pace-q-returns-calendar";
+  let simulated = submit_what_if (key ~width_of pace (`ASCII 'w')) "2000" in
+  require
+    (Base.String.is_substring (Ui_form.notice (modal_form simulated)) ~substring:"Simulated pace:")
+    "daily-pace-what-if-simulated-pace";
+  require
+    (Base.String.is_substring (Ui_form.notice (modal_form simulated))
+       ~substring:"Remaining available:")
+    "daily-pace-what-if-remaining-available";
+  let closed_what_if = key ~width_of simulated `Escape in
+  require (closed_what_if.C.overlay = C.No_overlay) "daily-pace-what-if-closes";
+  require
+    ((key ~width_of closed_what_if (`ASCII 'q')).workspace.route = W.Home)
+    "daily-pace-q-returns-home";
+  print_endline
+    "PASS: UI-33 Daily Pace / Trend fail-closed and bounded verification (unknown balances, \
+     corrupted configs, ambiguous periods, multi-dimensions) passed."
+
 let self_check ~width_of () =
   let directory = "scratch/english-ui-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
@@ -2084,6 +2329,7 @@ let self_check ~width_of () =
   annual_lifecycle_checks ~width_of ~directory ();
   original_amount_integration_checks ~width_of ~directory ();
   event_merchant_integration_checks ~width_of ~directory ();
+  daily_pace_trend_fail_closed_checks ~width_of ~directory ();
   (* An annual book is not a qualified carry-forward. Its normal Actual and
      Scheduled tools remain available, but current-quantity projections must
      not be displayed as household balances. *)

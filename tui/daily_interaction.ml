@@ -1025,14 +1025,13 @@ let current_pace_result state =
   Result.bind (resolve_pace_pool state) (fun pool ->
     Result.bind (resolve_pace_window state) (fun (start_day, end_exclusive) ->
       Result.map (fun p -> (p, start_day, end_exclusive))
-        (B.daily_pace state.session.book ~measure ~pool ~observed_at:today ~end_exclusive)))
-
-let current_pace_data state = Result.to_option (current_pace_result state)
+        (Result.map_error Trend.format_pace_error
+           (B.daily_pace state.session.book ~measure ~pool ~observed_at:today ~end_exclusive))))
 
 let what_if_form ?amount ?result state =
   let summary =
-    match current_pace_data state with
-    | Some (pace, _start, _end_excl) ->
+    match current_pace_result state with
+    | Ok (pace, _start, _end_excl) ->
         let cur = B.format state.session.book pace.B.measure pace.daily_pace_quanta in
         let avail = B.format state.session.book pace.B.measure pace.available_through_end in
         [
@@ -1040,8 +1039,8 @@ let what_if_form ?amount ?result state =
           Printf.sprintf "Available: %s %s over %d remaining days." avail pace.measure pace.remaining_days;
           "Simulate an immediate purchase outflow without publishing any transaction.";
         ]
-    | None ->
-        [ "Daily pace is not currently calculated; enter amount to simulate." ]
+    | Error why ->
+        [ Printf.sprintf "Daily pace unavailable (%s); simulation is disabled." why ]
   in
   let notice = Option.value ~default:"" result in
   Form.create
@@ -2209,10 +2208,10 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                   if Z.leq quantity Z.zero then
                     Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter a positive amount for purchase outflow.")) }
                   else
-                    match current_pace_data state with
-                    | None ->
-                        Some { state with overlay = Modal_form (Form.set_notice submitted "Current pace is not available to simulate.") }
-                    | Some (pace, _start, _end_excl) ->
+                    match current_pace_result state with
+                    | Error why ->
+                        Some { state with overlay = Modal_form (Form.set_notice submitted ("Current pace unavailable: " ^ why)) }
+                    | Ok (pace, _start, _end_excl) ->
                         let remaining_days = pace.remaining_days in
                         let cur_pace = pace.daily_pace_quanta in
                         let new_avail = Z.sub pace.available_through_end quantity in
@@ -3228,6 +3227,11 @@ let pace_detail_lines state =
       let pool_origin = match resolve_pace_pool state with
         | Ok _ -> "configured (daily-pace.tsv)" | Error why -> why in
       let window_origin = "configured (boundary-presets.tsv)" in
+      let pace_status =
+        match current_pace_result state with
+        | Ok _ -> "calculated"
+        | Error why -> "unavailable: " ^ why
+      in
       [
         "Daily Pace Calculation & Evidence";
         "";
@@ -3244,6 +3248,7 @@ let pace_detail_lines state =
         "Configuration Status:";
         "  Pool source: " ^ pool_origin;
         "  Window source: " ^ window_origin;
+        "  Current pace: " ^ pace_status;
         "";
         "Actions:";
         "  Press 'w' to simulate a purchase scenario (What-If).";
@@ -3398,21 +3403,23 @@ let workspace_rows ~width_of ~width ~height state =
       ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Daily_pace then
     let measure = workspace.measure in
-    let pool_loci = match resolve_pace_pool state with Ok coords -> List.map (fun c -> A.lstr c.D.Effect_coordinate.locus) coords | Error _ -> [] in
-    let boundary_text = match read_pace_config state "boundary-presets.tsv" with Ok opt -> opt | Error _ -> None in
-    let compute_trend () =
-      Trend.compute_samples ~book ~measure ~pool:pool_loci ~boundary_presets_text:boundary_text
-        ~today:(F.today ()) ~preset:state.pace_trend.preset in
     let trend_res =
-      match state.session.F.annual_year with
-      | None -> compute_trend ()
-      | Some _ ->
-          Result.bind (current_pace_result state) (fun _ ->
-            Result.bind (compute_trend ()) (fun ((start_day, through_day, _) as result) ->
-              Result.bind (annual_history_bounds state) (function
-                | Some (first, last) when start_day < first || through_day >= last ->
-                    Error "Trend extends outside verified annual history."
-                | _ -> Ok result)))
+      Result.bind (resolve_pace_pool state) (fun pool_coords ->
+        let pool_loci = List.map (fun c -> A.lstr c.D.Effect_coordinate.locus) pool_coords in
+        Result.bind (read_pace_config state "boundary-presets.tsv") (fun boundary_text ->
+          let compute_trend () =
+            Trend.compute_samples ~book ~measure ~pool:pool_loci ~boundary_presets_text:boundary_text
+              ~today:(F.today ()) ~preset:state.pace_trend.preset
+          in
+          match state.session.F.annual_year with
+          | None -> compute_trend ()
+          | Some _ ->
+              Result.bind (current_pace_result state) (fun _ ->
+                Result.bind (compute_trend ()) (fun ((start_day, through_day, _) as result) ->
+                  Result.bind (annual_history_bounds state) (function
+                    | Some (first, last) when start_day < first || through_day >= last ->
+                        Error "Trend extends outside verified annual history."
+                    | _ -> Ok result)))))
     in
     let is_detail = workspace.pane = W.Detail in
     let left_width, right_width = browser_pane_widths width in
@@ -3436,7 +3443,14 @@ let workspace_rows ~width_of ~width ~height state =
     | Error why ->
         let left_title = Printf.sprintf "Daily Pace / %s" (Trend.preset_label state.pace_trend.preset) in
         let right_title = "Pace Detail & Evidence" in
-        let left_rows = [ tr "Daily Pace unavailable:"; why; "Supply an explicit daily-pace.tsv pool and boundary-presets.tsv period." ] in
+        let left_rows =
+          List.concat_map (O.wrap_text ~width_of (max 1 (left_width - 6)))
+            [
+              tr "Daily Pace unavailable:";
+              why;
+              "Supply an explicit daily-pace.tsv pool and boundary-presets.tsv period.";
+            ]
+        in
         let right_rows = pace_detail_lines state in
         let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) right_rows in
         split_pane

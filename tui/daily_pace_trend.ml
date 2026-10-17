@@ -4,6 +4,7 @@ module O = Daily_overlays
 module Cal = Daily_calendar
 module A = Daily_actions
 module D = Bakhlo_domain
+module Q = Bakhlo_application.Current_quantity_query
 module F = Daily_file
 module Panel = Ui_panel
 
@@ -150,114 +151,179 @@ let dates_between start_day through_day =
   List.init count (fun i ->
       match Cal.shift_days start_day i with Ok d -> d | Error _ -> start_day)
 
-let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
-  match resolve_range ~today ~preset ~boundary_presets_text with
-  | Error msg -> Error msg
-  | Ok (start_day, through_day, cycle_end_opt) ->
-      let end_exclusive =
-        match cycle_end_opt with
-        | Some e -> e
-        | None -> (
-            match boundary_presets_text with
-            | Some text -> (
-                match parse_boundary_presets text with
-                | Ok windows -> (
-                    match List.filter (fun (_, a, b) -> a <= today && today < b) windows with
-                    | [ (_, _, b) ] -> b
-                    | _ -> match Cal.shift_days through_day 1 with Ok d -> d | Error _ -> through_day)
-                | Error _ -> match Cal.shift_days through_day 1 with Ok d -> d | Error _ -> through_day)
-            | None -> match Cal.shift_days through_day 1 with Ok d -> d | Error _ -> through_day)
-      in
-      let coords =
-        List.map
-          (fun locus ->
-            {
-              D.Effect_coordinate.locus = A.get_id (D.Identifier.Locus.of_string locus);
-              measure = A.get_id (D.Identifier.Measure.of_string measure);
-            })
-          pool
-      in
-      let current_pace_res =
-        B.daily_pace book ~measure ~pool:coords ~observed_at:today ~end_exclusive
-      in
-      let current_pool_balance =
-        match current_pace_res with
-        | Ok p -> p.eligible_pool
-        | Error _ -> Z.zero
-      in
-      let entries = B.entries book in
-      let plans = B.open_plans book in
-      let days = dates_between start_day through_day in
-      let samples =
-        List.map
-          (fun day ->
-            let remaining_days =
-              let d_num = day_number day in
-              let e_num = day_number end_exclusive in
-              max 0 (e_num - d_num)
-            in
-            if remaining_days <= 0 then
-              {
-                day;
-                pace_quanta = None;
-                available_through_end = Z.zero;
-                pool_balance = Z.zero;
-                deductions = Z.zero;
-                remaining_days = 0;
-                end_exclusive;
-              }
-            else
-              (* 1. Pool balance at date 'day' = current_pool_balance - sum(effects where entry.day > day) *)
-              let post_effects =
-                List.filter (fun (e : B.entry) -> e.day > day && e.day <= today) entries
-                |> List.concat_map (fun (e : B.entry) -> e.effects)
-                |> List.filter (fun eff ->
-                       A.mstr (D.Effect.measure eff) = measure
-                       && List.mem (A.lstr (D.Effect.locus eff)) pool)
-              in
-              let post_sum =
-                List.fold_left (fun acc eff -> Z.add acc (A.quanta eff)) Z.zero post_effects
-              in
-              let pool_balance = Z.sub current_pool_balance post_sum in
+(* Exact cause of a refused pool balance, with its coordinate when recoverable. *)
+let format_pace_error why =
+  let coordinate () =
+    match String.split_on_char ':' why with
+    | _ :: locus :: measure :: [] -> Some (locus ^ " " ^ measure)
+    | _ -> None
+  in
+  let balance label =
+    match coordinate () with Some c -> label ^ ": " ^ c | None -> label ^ "."
+  in
+  if String.starts_with ~prefix:"daily-pace-balance-amount-unknown:" why then
+    balance "Pool locus balance is unknown"
+  else if String.starts_with ~prefix:"daily-pace-balance-support-unknown:" why then
+    balance "Pool locus balance support is unknown"
+  else if String.equal why "daily-pace-non-positive-horizon" then
+    "Period end must be after observation date."
+  else if String.equal why "daily-pace-duplicate-coordinate" then
+    "Duplicate coordinate in Daily Pace pool."
+  else if String.equal why "daily-pace-pool-measure-mismatch" then
+    "Daily Pace pool contains mixed Measures."
+  else if String.equal why "unknown-measure" then "Unknown Measure in Daily Pace pool."
+  else why
 
-              (* 2. Plan deductions at date 'day' *)
-              let active_plans =
-                List.filter
-                  (fun (p : B.plan) ->
-                    p.measure = measure && p.day >= day && p.day < end_exclusive
-                    && p.cancelled_on = None && p.paid_by = None)
-                  plans
-              in
-              let deductions =
-                List.fold_left
-                  (fun total (p : B.plan) ->
-                    let plan_net =
-                      List.fold_left
-                        (fun acc (loc, q) ->
-                          if List.mem loc pool then Z.add acc q else acc)
-                        Z.zero p.changes
+(* Sum exact pool balances; unknown or unsupported balances refuse instead of defaulting. *)
+let query_pool_balance book measure coords =
+  let rec sum acc = function
+    | [] -> Ok acc
+    | (c : D.Effect_coordinate.t) :: rest -> (
+        match Q.query (B.image book) c with
+        | Ok (Q.Exact answer) -> sum (Z.add acc (D.Quantity.quanta (Q.quantity answer))) rest
+        | Ok (Q.Known_present _) ->
+            Error
+              (format_pace_error
+                 ("daily-pace-balance-amount-unknown:" ^ A.lstr c.locus ^ ":" ^ A.mstr c.measure))
+        | Error (Q.Support_unknown _) ->
+            Error
+              (format_pace_error
+                 ("daily-pace-balance-support-unknown:" ^ A.lstr c.locus ^ ":" ^ A.mstr c.measure)))
+  in
+  sum Z.zero coords
+
+let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
+  if pool = [] then Error "Daily Pace pool is empty."
+  else
+    match resolve_range ~today ~preset ~boundary_presets_text with
+    | Error msg -> Error msg
+    | Ok (start_day, through_day, cycle_end_opt) -> (
+        let end_exclusive_res =
+          match cycle_end_opt with
+          | Some e -> Ok e
+          | None -> (
+              match boundary_presets_text with
+              | None -> Error "Period not configured (boundary-presets.tsv missing)."
+              | Some text -> (
+                  match parse_boundary_presets text with
+                  | Error e -> Error e
+                  | Ok windows -> (
+                      let matching =
+                        List.filter (fun (_, a, b) -> a <= today && today < b) windows
+                      in
+                      match matching with
+                      | [ (_, _, b) ] -> Ok b
+                      | [] -> Error "No explicit boundary preset contains today."
+                      | _ ->
+                          Error
+                            "Multiple boundary presets contain today; selection is ambiguous.")))
+        in
+        match end_exclusive_res with
+        | Error why -> Error why
+        | Ok end_exclusive -> (
+            let coords =
+              List.map
+                (fun locus ->
+                  {
+                    D.Effect_coordinate.locus = A.get_id (D.Identifier.Locus.of_string locus);
+                    measure = A.get_id (D.Identifier.Measure.of_string measure);
+                  })
+                pool
+            in
+            match query_pool_balance book measure coords with
+            | Error why -> Error why
+            | Ok current_pool_balance -> (
+                let horizon_res =
+                  if end_exclusive > today then
+                    match
+                      B.daily_pace book ~measure ~pool:coords ~observed_at:today ~end_exclusive
+                    with
+                    | Ok _ -> Ok ()
+                    | Error why -> Error (format_pace_error why)
+                  else Ok ()
+                in
+                match horizon_res with
+                | Error why -> Error why
+                | Ok () ->
+                    let entries = B.entries book in
+                    let plans = B.open_plans book in
+                    let days = dates_between start_day through_day in
+                    let samples =
+                      List.map
+                        (fun day ->
+                          let remaining_days =
+                            let d_num = day_number day in
+                            let e_num = day_number end_exclusive in
+                            max 0 (e_num - d_num)
+                          in
+                          if remaining_days <= 0 then
+                            {
+                              day;
+                              pace_quanta = None;
+                              available_through_end = Z.zero;
+                              pool_balance = Z.zero;
+                              deductions = Z.zero;
+                              remaining_days = 0;
+                              end_exclusive;
+                            }
+                          else
+                            (* 1. Pool balance at date 'day' = current_pool_balance - sum(effects where entry.day > day) *)
+                            let post_effects =
+                              List.filter
+                                (fun (e : B.entry) -> e.day > day && e.day <= today)
+                                entries
+                              |> List.concat_map (fun (e : B.entry) -> e.effects)
+                              |> List.filter (fun eff ->
+                                     A.mstr (D.Effect.measure eff) = measure
+                                     && List.mem (A.lstr (D.Effect.locus eff)) pool)
+                            in
+                            let post_sum =
+                              List.fold_left
+                                (fun acc eff -> Z.add acc (A.quanta eff))
+                                Z.zero post_effects
+                            in
+                            let pool_balance = Z.sub current_pool_balance post_sum in
+
+                            (* 2. Plan deductions at date 'day' *)
+                            let active_plans =
+                              List.filter
+                                (fun (p : B.plan) ->
+                                  p.measure = measure && p.day >= day
+                                  && p.day < end_exclusive && p.cancelled_on = None
+                                  && p.paid_by = None)
+                                plans
+                            in
+                            let deductions =
+                              List.fold_left
+                                (fun total (p : B.plan) ->
+                                  let plan_net =
+                                    List.fold_left
+                                      (fun acc (loc, q) ->
+                                        if List.mem loc pool then Z.add acc q else acc)
+                                      Z.zero p.changes
+                                  in
+                                  if Z.sign plan_net < 0 then Z.add total (Z.neg plan_net)
+                                  else total)
+                                Z.zero active_plans
+                            in
+                            let available_through_end = Z.sub pool_balance deductions in
+                            let pace_quanta =
+                              if remaining_days > 0 then
+                                Some (Z.ediv available_through_end (Z.of_int remaining_days))
+                              else None
+                            in
+                            {
+                              day;
+                              pace_quanta;
+                              available_through_end;
+                              pool_balance;
+                              deductions;
+                              remaining_days;
+                              end_exclusive;
+                            })
+                        days
                     in
-                    if Z.sign plan_net < 0 then Z.add total (Z.neg plan_net) else total)
-                  Z.zero active_plans
-              in
-              let available_through_end = Z.sub pool_balance deductions in
-              let pace_quanta =
-                if remaining_days > 0 then
-                  Some (Z.ediv available_through_end (Z.of_int remaining_days))
-                else None
-              in
-              {
-                day;
-                pace_quanta;
-                available_through_end;
-                pool_balance;
-                deductions;
-                remaining_days;
-                end_exclusive;
-              })
-          days
-      in
-      Ok (start_day, through_day, samples)
+                    Ok (start_day, through_day, samples))))
 
 let render_trend ~width ~height ~width_of ~measure ~samples ~selected_index ~graph_style =
   if width < 8 || height < 4 || samples = [] then []
