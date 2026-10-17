@@ -345,6 +345,7 @@ let raw_entries_2026 : B.entry list =
       effects = [ posting "wallet" "jpy" 10000 None; posting "bank" "jpy" (-10000) None ];
       reversal_of = Some "e_2025_deposit";
       exchange = None;
+      original_amount = None;
     };
     {
       id = "e_2026_pay_plan";
@@ -353,6 +354,7 @@ let raw_entries_2026 : B.entry list =
       effects = [ posting "wallet" "jpy" (-12000) None; posting "rent" "jpy" 12000 None ];
       reversal_of = None;
       exchange = None;
+      original_amount = None;
     };
     {
       id = "e_2026_fx";
@@ -361,6 +363,7 @@ let raw_entries_2026 : B.entry list =
       effects = [ posting "wallet" "jpy" (-15000) (Some "from"); posting "wallet" "eur" 10000 (Some "to") ];
       reversal_of = None;
       exchange = Some ("from", "to");
+      original_amount = None;
     };
   ]
 
@@ -453,6 +456,7 @@ let%expect_test "Case B: Cross-Year Plan Payment and Duplicate Payment Preventio
       effects = [ posting "wallet" "jpy" (-12000) None; posting "rent" "jpy" 12000 None ];
       reversal_of = None;
       exchange = None;
+      original_amount = None;
     }
   in
   let bad_res =
@@ -576,6 +580,7 @@ let%expect_test "Case E: Rejection of Corrupt/Inconsistent States (Unknown to Ze
       effects = [ posting "wallet" "jpy" 100 None; posting "bank" "jpy" (-100) None ];
       reversal_of = Some "nonexistent_target_12345";
       exchange = None;
+      original_amount = None;
     }
   in
   let bad_res =

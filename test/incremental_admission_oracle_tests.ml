@@ -89,6 +89,7 @@ let%expect_test "incremental admission matches full oracle on sequential transac
         effects = [ posting "wallet" "jpy" (-3000) None; posting "food" "jpy" 3000 None ];
         reversal_of = None;
         exchange = None;
+        original_amount = None;
       };
       {
         B.id = "tx2";
@@ -97,6 +98,7 @@ let%expect_test "incremental admission matches full oracle on sequential transac
         effects = [ posting "wallet" "jpy" (-10000) None; posting "bank" "jpy" 10000 None ];
         reversal_of = None;
         exchange = None;
+        original_amount = None;
       };
       {
         B.id = "tx3";
@@ -105,6 +107,7 @@ let%expect_test "incremental admission matches full oracle on sequential transac
         effects = [ posting "wallet" "usd" (-5) None; posting "expense" "usd" 5 None ];
         reversal_of = None;
         exchange = None;
+        original_amount = None;
       };
       {
         B.id = "tx4";
@@ -118,6 +121,7 @@ let%expect_test "incremental admission matches full oracle on sequential transac
           ];
         reversal_of = None;
         exchange = None;
+        original_amount = None;
       };
     ]
   in
@@ -150,6 +154,7 @@ let%expect_test "incremental admission matches full oracle on plan payments" =
       effects = [ posting "bank" "jpy" (-10000) None; posting "expense" "jpy" 10000 None ];
       reversal_of = None;
       exchange = None;
+      original_amount = None;
     }
   in
   let inc = get (B.put_entry base ~replace:false rent_payment ~plan:(Some "rent")) in
@@ -178,6 +183,7 @@ let%expect_test "incremental admission matches full oracle on error refusals" =
       effects = [ posting "wallet" "jpy" (-100) None; posting "food" "jpy" 100 None ];
       reversal_of = None;
       exchange = None;
+      original_amount = None;
     }
   in
   (* 1. Duplicate ID *)
@@ -241,6 +247,7 @@ let%expect_test "fallback cases trigger full oracle correctly and match results"
       effects = [ posting "wallet" "jpy" (-1000) None; posting "food" "jpy" 1000 None ];
       reversal_of = None;
       exchange = None;
+      original_amount = None;
     }
   in
   let added = get (B.put_entry base ~replace:false orig ~plan:None) in
@@ -258,6 +265,7 @@ let%expect_test "fallback cases trigger full oracle correctly and match results"
       effects = [ posting "wallet" "jpy" 1000 None; posting "food" "jpy" (-1000) None ];
       reversal_of = Some "mod_me";
       exchange = None;
+      original_amount = None;
     }
   in
   let res_inc_rev = B.put_entry added ~replace:false reversal ~plan:None in
@@ -273,6 +281,7 @@ let%expect_test "fallback cases trigger full oracle correctly and match results"
       effects = [ posting "wallet" "jpy" (-15000) (Some "src"); posting "wallet" "usd" 100 (Some "dst") ];
       reversal_of = None;
       exchange = Some ("src", "dst");
+      original_amount = None;
     }
   in
   let res_inc_fx = B.put_entry base ~replace:false fx ~plan:None in
@@ -305,6 +314,7 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
       effects = [ posting "wallet" "jpy" (-3000) None; posting "food" "jpy" 3000 None ];
       reversal_of = None;
       exchange = None;
+      original_amount = None;
     }
   in
   let inc_past = get (B.put_entry base ~replace:false past_tx ~plan:None) in
@@ -344,6 +354,7 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
       effects = [ posting "wallet" "jpy" 3000 None; posting "food" "jpy" (-3000) None ];
       reversal_of = Some "past_e";
       exchange = None;
+      original_amount = None;
     }
   in
   let inc_rev = get (B.put_entry inc_replaced ~replace:false rev_tx ~plan:None) in
@@ -362,6 +373,7 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
       effects = [ posting "wallet" "jpy" (-15000) (Some "src"); posting "wallet" "usd" 100 (Some "dst") ];
       reversal_of = None;
       exchange = Some ("src", "dst");
+      original_amount = None;
     }
   in
   let inc_fx = get (B.put_entry inc_rev ~replace:false fx_tx ~plan:None) in
@@ -379,6 +391,7 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
       effects = [ posting "bank" "jpy" (-10000) None; posting "expense" "jpy" 10000 None ];
       reversal_of = None;
       exchange = None;
+      original_amount = None;
     }
   in
   let inc_pay = get (B.put_entry inc_fx ~replace:false pay_tx ~plan:(Some "rent")) in

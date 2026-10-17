@@ -43,6 +43,7 @@ type entry = {
   effects : D.Effect.t list;
   reversal_of : string option;
   exchange : (string * string) option;
+  original_amount : (string * Z.t) option;
 }
 
 type plan = {
@@ -174,6 +175,19 @@ let admit ?entries_cached data =
                        : A.Actual_reversals.fact))
                    e.reversal_of)
                entries;
+           original_amounts =
+             List.filter_map
+               (fun (e : entry) ->
+                 Option.map
+                   (fun (m, q) ->
+                     ({
+                        A.Original_amounts.root = eid e.id;
+                        measure = mid m;
+                        quantity = D.Quantity.of_quanta q;
+                      }
+                       : A.Original_amounts.fact))
+                   e.original_amount)
+               entries;
            exchanges =
              List.filter_map
                (fun (e : entry) ->
@@ -252,6 +266,16 @@ let field name rows =
   | [] -> raise (Refused "missing-field")
   | _ :: _ -> raise (Refused "duplicate-field")
 
+let field_opt name rows =
+  match
+    List.filter_map
+      (function
+        | X.List (X.Atom tag :: xs) when tag = name -> Some xs | X.Atom _ | X.List _ -> None)
+      rows
+  with
+  | [ xs ] -> Some xs
+  | [] -> None
+  | _ :: _ -> raise (Refused "duplicate-field")
 let fields allowed rows =
   let names =
     List.map
@@ -278,7 +302,8 @@ let decode_entry version = function
   | X.List (X.Atom "entry" :: X.Atom id :: rows) ->
       fields
         (if version = "1" then [ "date"; "memo"; "postings"; "reversal-of" ]
-         else [ "date"; "memo"; "postings"; "reversal-of"; "exchange" ])
+         else if version = "2" then [ "date"; "memo"; "postings"; "reversal-of"; "exchange" ]
+         else [ "date"; "memo"; "postings"; "reversal-of"; "exchange"; "original-amount" ])
         rows;
       let exchange =
         if version = "1" then None
@@ -295,6 +320,16 @@ let decode_entry version = function
         effects = List.map decode_posting (field "postings" rows);
         reversal_of = optional (one (field "reversal-of" rows));
         exchange;
+        original_amount =
+          (if version = "1" || version = "2" then None
+           else
+             match field_opt "original-amount" rows with
+             | None | Some [ X.List [ X.Atom "none" ] ] -> None
+             | Some [ X.List [ X.Atom "amount"; X.Atom m; X.Atom q ] ] ->
+                 let q = integer q in
+                 require (Z.sign q > 0) "non-positive-amount";
+                 Some (m, q)
+             | _ -> raise (Refused "invalid-original-amount"));
       }
   | X.Atom _ | X.List _ -> raise (Refused "invalid-entry")
 
@@ -486,6 +521,7 @@ let of_records (rb : Records_book.t) =
               effects = e.effects;
               reversal_of = e.reversal_of;
               exchange = e.exchange;
+              original_amount = e.original_amount;
             })
           (Records_book.entries rb)
       in
@@ -594,6 +630,7 @@ let to_records ?(request_tokens = []) (t : t) : Records_book.t =
              effects = e.effects;
              reversal_of = e.reversal_of;
              exchange = e.exchange;
+             original_amount = e.original_amount;
              opaque = [];
            }))
     (Lazy.force t.entries_cached);
@@ -648,6 +685,12 @@ let payload_sexps (b : payload) =
                    (match e.exchange with
                    | None -> f "none" []
                    | Some (a_, b_) -> f "keys" [ a a_; a b_ ]);
+                 ];
+               f "original-amount"
+                 [
+                   (match e.original_amount with
+                   | None -> f "none" []
+                   | Some (m, q) -> f "amount" [ a m; a (Z.to_string q) ]);
                  ];
              ])
          b.entries);
@@ -733,7 +776,7 @@ let render_into out x =
   let is_tag = function
     | "bakhlo-daily" | "scope" | "measures" | "measure" | "labels" | "label" | "approved-loci"
     | "entries" | "entry" | "date" | "memo" | "postings" | "posting" | "reversal-of" | "exchange"
-    | "keys" | "plans" | "plan" | "changes" | "paid-by" | "cancelled-on" | "support"
+    | "keys" | "original-amount" | "amount" | "plans" | "plan" | "changes" | "paid-by" | "cancelled-on" | "support"
     | "zero-origin" | "openings" | "observations" | "observation" | "reflected"
     | "quantities" | "presence" | "coordinates" | "provided" | "not-supplied" | "none" | "some"
     | "bakhlo-annual" | "year" | "prior" | "fingerprint" ->
@@ -1249,7 +1292,7 @@ let put_entry_incremental t (e : entry) ~plan =
       { data; image; entries_cached })
 
 let put_entry t ~replace (e : entry) ~plan =
-  if (not replace) && e.reversal_of = None && e.exchange = None then
+  if (not replace) && e.reversal_of = None && e.exchange = None && e.original_amount = None then
     put_entry_incremental t e ~plan
   else
     put_entry_full t ~replace e ~plan

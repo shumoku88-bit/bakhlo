@@ -53,7 +53,8 @@ let add_entry book ~day ~memo ~locus1 ~amt1 ~locus2 ~amt2 =
                            amount = string_of_int (abs amt2);
                          };
                        ];
-                   };
+                    };
+                 original_amount = None;
                })))
   in
   get (B.put_entry book ~replace:false entry.entry ~plan:None)

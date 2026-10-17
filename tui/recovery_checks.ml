@@ -62,6 +62,7 @@ let self_check () =
       effects = [ posting measure "wallet" (Z.neg huge); posting measure "food" huge ];
       reversal_of = None;
       exchange = None;
+      original_amount = None;
     }
   in
   let payment = entry "recovery-payment" "jpy" in

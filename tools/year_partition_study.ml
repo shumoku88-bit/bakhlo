@@ -53,7 +53,8 @@ let entry year i : B.entry =
     memo = Some (Printf.sprintf "Synthetic 記帳 %d-%d — quoted \"memo\"\nsecond line" year i);
     effects;
     reversal_of = (if reversal then Some (Printf.sprintf "tx-%04d-%06d" year (i - 1)) else None);
-    exchange = None }
+    exchange = None;
+    original_amount = None }
 
 let new_entry name day : B.entry =
   { id = name;
@@ -61,7 +62,8 @@ let new_entry name day : B.entry =
     memo = Some "synthetic publication";
     effects = [posting "jpy" "wallet" (Z.of_int (-1000)); posting "jpy" "food" (Z.of_int 1000)];
     reversal_of = None;
-    exchange = None }
+    exchange = None;
+    original_amount = None }
 
 let calc_fingerprint str =
   Stdlib.Digest.to_hex (Stdlib.Digest.string str)

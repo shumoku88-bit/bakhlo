@@ -89,7 +89,8 @@ let render_cases state =
                            amount = String.make 70 '9';
                          };
                        ];
-                   };
+                    };
+                 original_amount = None;
                })))
   in
   let book = get (B.put_entry home.session.book ~replace:false entry.entry ~plan:None) in
@@ -220,7 +221,7 @@ let home_layout_check ~width_of home =
   let entry : B.entry =
     { id = "home-layout-entry"; day; memo = Some "選択日の買い物";
       effects = [ posting "wallet" (-37); posting "food" 37 ];
-      reversal_of = None; exchange = None } in
+      reversal_of = None; exchange = None; original_amount = None } in
   let book = get (B.put_entry home.C.session.book ~replace:false entry ~plan:None) in
   let plan : B.plan =
     { id = "home-layout-plan"; day; measure = "jpy";
@@ -650,7 +651,7 @@ let actual_browsing_checks ~width_of ~directory home =
         else Printf.sprintf "Synthetic purchase %02d" n);
       effects = [posting "wallet" (Z.neg (if n=17 then huge else Z.of_int (1234+n)));
         posting "food" (if n=17 then huge else Z.of_int (1234+n))];
-      reversal_of = None; exchange = None } in
+      reversal_of = None; exchange = None; original_amount = None } in
   let book = List.fold_left (fun book n -> get (B.put_entry book ~replace:false (entry n) ~plan:None))
     home.C.session.book (List.init 18 Fun.id) in
   let path = directory ^ "/actual-browsing.sexp" in
@@ -910,7 +911,7 @@ let reversal_checks ~width_of ~directory home =
     ~quantity:(D.Quantity.of_quanta (Z.of_int quantity)) in
   let target : B.entry = { id = "reverse-target"; day = "2026-10-10";
     memo = Some "Original / 日本語"; effects = [effect "wallet" (-37); effect "food" 37];
-    reversal_of = None; exchange = None } in
+    reversal_of = None; exchange = None; original_amount = None } in
   let book = get (B.put_entry home.C.session.book ~replace:false target ~plan:None) in
   let path = directory ^ "/book.sexp" in
   F.write_new path (B.to_string book);
@@ -1093,7 +1094,7 @@ let date_correction_checks ~width_of ~directory home =
     ~quantity:(D.Quantity.of_quanta (Z.of_int n)) in
   let target : B.entry = { id = "date-target"; day = "2026-10-15"; memo = Some "Date / 日本語";
     effects = [effect "out" "wallet" (-123); effect "in" "food" 123];
-    reversal_of = None; exchange = None } in
+    reversal_of = None; exchange = None; original_amount = None } in
   let plan : B.plan = { id = "date-paid-plan"; day = "2026-10-01"; measure = "jpy";
     changes = ["wallet", Z.of_int (-123); "food", Z.of_int 123];
     paid_by = None; cancelled_on = None } in
@@ -1593,6 +1594,160 @@ let annual_lifecycle_checks ~width_of ~directory () =
     "annual-stale-provenance-still-answers";
   print_endline "PASS: annual explicit rollover Keep/tiny gates, cold balances/Pace, overdue payment and stale provenance."
 
+let original_amount_integration_checks ~width_of ~directory () =
+  let dir = directory ^ "/original-amount-integration" in
+  let contains rows needle = List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) rows in
+  let rec_screen s = S.screen ~book:s.C.session.book ~dimensions:(80, 24) ~width_of (Option.get s.C.record) in
+  Unix.mkdir dir 0o700;
+  let path = dir ^ "/book.sexp" in
+  let fixture =
+    "(bakhlo-daily 3)\n(scope corrected-entries explicit-plans)\n\
+     (measures (measure \"jpy\" 0) (measure \"usd\" 2))\n\
+     (labels (provided (label \"wallet\" \"財布\" \"Cash\") (label \"food\" \"食費\" \"Food\")))\n\
+     (approved-loci (provided \"wallet\" \"food\"))\n(entries)\n\
+     (plans)\n\
+     (support (zero-origin (\"food\" \"jpy\")) (openings)\n\
+       (observations (observation (reflected) (quantities (\"wallet\" \"jpy\" 10000))))\n\
+       (presence (not-supplied)))\n"
+  in
+  F.write_new path fixture;
+  let initial_state = C.initial ~config_home:dir (F.load path) in
+  let initial_bytes = F.read path in
+
+  (* 1. 通常 (normal / happy path): Record with OriginalAmount -> Preview -> Publish -> Cold reload -> Detail check *)
+  let actual_view = C.open_route initial_state W.Actual in
+  let recording = C.handle ~width_of actual_view (`Key (`ASCII 'n', [])) in
+  let rec_state = match recording with Some s -> s | None -> raise (F.Refused "orig-open-record") in
+  let open_orig = C.handle ~width_of rec_state (`Key (`ASCII 'o', [`Ctrl])) in
+  let orig_ed = match open_orig with Some s -> s | None -> raise (F.Refused "orig-open-orig-editor") in
+  let with_m = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) orig_ed ['u'; 's'; 'd'] in
+  let to_amount = Option.get (C.handle ~width_of with_m (`Key (`Enter, []))) in
+  let with_amt = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) to_amount ['3'; '0'; '.'; '0'; '0'] in
+  let attached = Option.get (C.handle ~width_of with_amt (`Key (`Enter, []))) in
+  require (contains (rec_screen attached) "Original amount: 30.00 usd") "orig-attached-screen-summary";
+
+  let filled = List.fold_left (fun s _ -> Option.get (C.handle ~width_of s (`Key (`Tab, [])))) attached (List.init 2 Fun.id) in
+  let filled = Option.get (C.handle ~width_of filled (`Key (`Enter, []))) in
+  let filled = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) filled ['-'; '4'; '5'; '0'; '0'] in
+  let filled = Option.get (C.handle ~width_of filled (`Key (`Tab, []))) in
+  let filled = Option.get (C.handle ~width_of filled (`Key (`Enter, []))) in
+  let filled = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) filled ['+'; '4'; '5'; '0'; '0'] in
+
+  let preview = Option.get (C.handle ~width_of filled (`Key (`Enter, []))) in
+  let preview_screen = rec_screen preview in
+  require (contains preview_screen "Record / Preview") "orig-preview-opened";
+  require (contains preview_screen "Original amount: 30.00 usd") "orig-preview-shows-original-amount";
+
+  (* 2. 取消 (cancellation): Cancel in Preview leaves disk file unchanged *)
+  let cancel_preview = Option.get (C.handle ~width_of (Option.get (C.handle ~width_of preview (`Key (`Tab, [])))) (`Key (`Enter, []))) in
+  require (cancel_preview.record_visible && F.read path = initial_bytes) "orig-cancel-preview-leaves-disk-unchanged";
+  let cancel_record = Option.get (C.handle ~width_of cancel_preview (`Key (`Escape, []))) in
+  require ((not cancel_record.record_visible) && F.read path = initial_bytes) "orig-cancel-record-leaves-disk-unchanged";
+
+  let re_resumed = Option.get (C.handle ~width_of cancel_record (`Key (`ASCII 'n', []))) in (* re-open retained draft *)
+  let re_preview = Option.get (C.handle ~width_of re_resumed (`Key (`ASCII 's', [`Ctrl]))) in (* open preview *)
+  let re_preview_end = Option.get (C.handle ~width_of re_preview (`Key (`End, []))) in
+  let published = Option.get (C.handle ~width_of re_preview_end (`Key (`Enter, []))) in (* confirm publish *)
+  require (not published.record_visible) "orig-published-closes-record";
+  let published_bytes = F.read path in
+  require (published_bytes <> initial_bytes) "orig-published-mutated-disk";
+
+  let cold_session = F.load path in
+  let entries = B.entries cold_session.book in
+  require (List.length entries = 1) "orig-cold-one-entry";
+  let saved_entry = List.hd entries in
+  require (saved_entry.original_amount = Some ("usd", Z.of_int 3000)) "orig-cold-entry-has-original-amount";
+  let cold_state = C.initial ~config_home:dir cold_session in
+  let actual_detail = C.open_route cold_state W.Actual in
+  let actual_detail = Option.get (C.handle ~width_of actual_detail (`Key (`ASCII 'i', []))) in
+  require (contains (C.screen ~width_of (80, 24) actual_detail) "Original amount: 30.00 usd") "orig-actual-detail-shows-amount";
+
+  let rec_path = dir ^ "/book.log" in
+  F.write_new rec_path (B.to_records_string cold_session.book);
+  let rec_session = F.load rec_path in
+  let rec_entries = B.entries rec_session.book in
+  require (List.length rec_entries = 1) "orig-records-one-entry";
+  let rec_entry = List.hd rec_entries in
+  require (rec_entry.original_amount = Some ("usd", Z.of_int 3000)) "orig-records-entry-has-original-amount";
+
+  (* 3. 保存失敗 (save failure): Filesystem read-only error preserves draft and file *)
+  let new_rec = C.handle ~width_of cold_state (`Key (`ASCII 'n', [])) |> Option.get in
+  let new_rec = C.handle ~width_of new_rec (`Key (`ASCII 'o', [`Ctrl])) |> Option.get in
+  let new_rec = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) new_rec ['u'; 's'; 'd'] in
+  let new_rec = Option.get (C.handle ~width_of new_rec (`Key (`Enter, []))) in
+  let new_rec = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) new_rec ['1'; '0'; '.'; '0'; '0'] in
+  let new_rec = Option.get (C.handle ~width_of new_rec (`Key (`Enter, []))) in
+  let new_rec = List.fold_left (fun s _ -> Option.get (C.handle ~width_of s (`Key (`Tab, [])))) new_rec (List.init 2 Fun.id) in
+  let new_rec = Option.get (C.handle ~width_of new_rec (`Key (`Enter, []))) in
+  let new_rec = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) new_rec ['-'; '1'; '5'; '0'; '0'] in
+  let new_rec = Option.get (C.handle ~width_of new_rec (`Key (`Tab, []))) in
+  let new_rec = Option.get (C.handle ~width_of new_rec (`Key (`Enter, []))) in
+  let new_rec = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) new_rec ['+'; '1'; '5'; '0'; '0'] in
+  let fail_preview = Option.get (C.handle ~width_of new_rec (`Key (`ASCII 's', [`Ctrl]))) in
+  let fail_preview = Option.get (C.handle ~width_of fail_preview (`Key (`End, []))) in
+  let fail_state = { fail_preview with session = { fail_preview.session with path = dir ^ "/missing/book.sexp" } } in
+  let fail_attempt = C.handle ~width_of fail_state (`Key (`Enter, [])) |> Option.get in
+  require (fail_attempt.record_visible && F.read path = published_bytes) "orig-save-failure-preserves-draft-and-disk";
+
+  (* 4. Stale (stale detection): Concurrent disk modification stops publication and preserves draft *)
+  let stale_preview = { fail_preview with session = { fail_preview.session with path } } in
+  let dummy_entry : B.entry = {
+    id = "dummy_tx"; day = "2026-10-04"; memo = None;
+    effects = [ D.Effect.create ~locus:(C.get_id (D.Identifier.Locus.of_string "wallet")) ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy")) ~quantity:(D.Quantity.of_quanta (Z.of_int (-100))) ~key:None;
+                D.Effect.create ~locus:(C.get_id (D.Identifier.Locus.of_string "food")) ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy")) ~quantity:(D.Quantity.of_quanta (Z.of_int 100)) ~key:None ];
+    reversal_of = None; exchange = None; original_amount = None;
+  } in
+  let updated_book = get (B.put_entry (F.load path).book ~replace:false dummy_entry ~plan:None) in
+  let oc = open_out_bin path in output_string oc (B.to_string updated_book); close_out oc;
+  let changed_disk_bytes = F.read path in
+  let stale_pub = Option.get (C.handle ~width_of stale_preview (`Key (`Enter, []))) in
+  require (stale_pub.blocked && stale_pub.record_visible && F.read path = changed_disk_bytes) "orig-stale-stops-publication-and-preserves-disk";
+
+  (* 5. 結果不明 (unknown result): Uncertain commit preserves draft and file *)
+  let uncertain_attempt =
+    C.apply_commit_result stale_preview ~draft:stale_preview
+      (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
+                                 evidence = Daily_actions.Monolithic_candidate changed_disk_bytes })
+  in
+  require (uncertain_attempt.blocked && uncertain_attempt.record_visible && F.read path = changed_disk_bytes)
+    "orig-uncertain-preserves-draft-and-disk";
+
+  (* 6. 年越し (year rollover): 2026 entry with OriginalAmount carries forward, predecessor read-only, backup exact *)
+  let annual_dir = dir ^ "/annual" in
+  Unix.mkdir annual_dir 0o700;
+  let p26 = annual_dir ^ "/2026.sexp" in
+  let prior_2026 = get (B.of_string (Printf.sprintf
+      "(bakhlo-daily 3) (scope corrected-entries explicit-plans)
+       (measures (measure jpy 0) (measure usd 2)) (labels (not-supplied))
+       (approved-loci (provided wallet food))
+       (entries (entry e26 (date 2026-10-10) (memo (some \"2026 purchase\"))
+         (postings (posting wallet jpy -3000 (none)) (posting food jpy 3000 (none)))
+         (reversal-of (none)) (exchange (none)) (original-amount (amount \"usd\" 2000))))
+       (plans)
+       (support (zero-origin (food jpy)) (openings)
+         (observations (observation (reflected) (quantities (wallet jpy 10000))))
+         (presence (not-supplied)))")) in
+  F.write_new p26 (B.to_string prior_2026);
+  let bytes_26 = F.read p26 in
+  let sess26 = F.load ~annual_year:2026 p26 in
+  let state26 = C.initial ~config_home:annual_dir sess26 in
+  let rollover_dialog = C.open_command state26 M.Annual_rollover in
+  let do_rollover = Option.get (C.handle ~width_of rollover_dialog (`Key (`Arrow `Right, []))) in
+  let _ = Option.get (C.handle ~width_of do_rollover (`Key (`Enter, []))) in
+  let p27 = annual_dir ^ "/2027.sexp" in
+  require (Sys.file_exists p27 && F.read p26 = bytes_26) "orig-annual-rollover-created-2027-and-predecessor-unmutated";
+  let sess27 = F.load ~annual_year:2027 p27 in
+  let decoded_entries = B.entries sess27.book in
+  let e26_in_27 = List.find (fun (e : B.entry) -> e.id = "e26") decoded_entries in
+  require (e26_in_27.original_amount = Some ("usd", Z.of_int 2000)) "orig-annual-rollover-preserves-original-amount";
+  let archive_path = annual_dir ^ "/backup.sexp" in
+  ignore (Annual_backup.backup ~session:sess27 ~target:archive_path);
+  let restore_dir = annual_dir ^ "/restored" in
+  ignore (Annual_backup.restore ~source:archive_path ~directory:restore_dir);
+  require (F.read (restore_dir ^ "/2026.sexp") = bytes_26) "orig-annual-backup-restore-predecessor-byte-exact";
+  require (F.read (restore_dir ^ "/2027.sexp") = F.read p27) "orig-annual-backup-restore-successor-byte-exact";
+  print_endline "PASS: OriginalAmount normal Record/Preview/Detail, cancel, save failure, stale state, unknown result, and year rollover."
+
 let self_check ~width_of () =
   let directory = "scratch/english-ui-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
@@ -1612,6 +1767,7 @@ let self_check ~width_of () =
   months_checks ~width_of ~directory home;
   continuation_checks ~width_of ~directory home;
   annual_lifecycle_checks ~width_of ~directory ();
+  original_amount_integration_checks ~width_of ~directory ();
   (* An annual book is not a qualified carry-forward. Its normal Actual and
      Scheduled tools remain available, but current-quantity projections must
      not be displayed as household balances. *)
@@ -2089,7 +2245,8 @@ let self_check ~width_of () =
                            amount = "200";
                          };
                        ];
-                   };
+                    };
+                 original_amount = None;
                })))
   in
   (match Daily_actions.commit_transaction ~session:records ~base_bytes:records.bytes payment with

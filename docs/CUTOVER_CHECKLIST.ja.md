@@ -91,7 +91,7 @@ Daily v4・予算APIは非現行。限定コンバータ・既存Book CLI・型�
 | --- | --- | --- | --- |
 | F01 | 外貨の普通の記帳 | 試用：明示Measure・scale | 通貨を混ぜない。入力できることと外貨レポートは別 |
 | F02 | 両替 | 局部：両通貨・数量modalから既存publisherへ、Exchangeキーを保存 | 独立Preview・候補・狭小全文確認・失敗時の復帰は未同等。RecordのPreview拒否をこのmodalの保証にしない |
-| F03 | 原額を記帳通貨と別に保持 | 未接続 | ApplicationのOriginalAmountだけではDailyに保存できない |
+| F03 | 原額を記帳通貨と別に保持 | 接続済み | Record Ctrl-O、Preview、同一保存操作、Actual詳細、再起動、訂正時保持、年別保存・バックアップで保持 | 独立Preview・入力・保存・年越しを合成データで検査完了 |
 | F04–F06 | 立替・部分精算・相殺・非支払減少 | 一部：commitment累計額の試用sidecar／操作 | ActualのEffectとの配分、独立した決済通貨・証拠・訂正／撤回は未同等 |
 
 精算画面があることをLOAM Settlementの移植完了としない。

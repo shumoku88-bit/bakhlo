@@ -91,7 +91,7 @@ let posting p =
   D.Identifier.Measure.to_string (D.Effect.measure p),
   Z.to_string (D.Quantity.quanta (D.Effect.quantity p)),
   Option.map D.Identifier.Effect_key.to_string (D.Effect.key p)
-let entry_value (e : B.entry) = e.day, e.memo, List.map posting e.effects, e.reversal_of, e.exchange
+let entry_value (e : B.entry) = e.day, e.memo, List.map posting e.effects, e.reversal_of, e.exchange, e.original_amount
 let plan_value (p : B.plan) =
   p.day, p.measure, List.map (fun (l, q) -> l, Z.to_string q) p.changes, p.paid_by, p.cancelled_on
 let delta before after =

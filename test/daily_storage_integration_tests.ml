@@ -49,6 +49,7 @@ let make_test_entry id day token amount : RB.entry =
     effects = [ p1; p2 ];
     reversal_of = None;
     exchange = None;
+    original_amount = None;
     opaque = [];
   }
 

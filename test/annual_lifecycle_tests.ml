@@ -95,6 +95,7 @@ let%expect_test "rollover with overdue plan payment, unchanged prior, and repeat
     effects = [ posting "wallet" "jpy" (-100); posting "food" "jpy" 100 ];
     reversal_of = None;
     exchange = None;
+    original_amount = None;
   } in
   let book27_paid = get (B.put_entry session27.book ~replace:false pay_entry_27 ~plan:(Some "p_overdue")) in
   let saved27 =
@@ -114,6 +115,7 @@ let%expect_test "rollover with overdue plan payment, unchanged prior, and repeat
     effects = [ posting "wallet" "jpy" (-100); posting "food" "jpy" 100 ];
     reversal_of = None;
     exchange = None;
+    original_amount = None;
   } in
   let repeat_pay_result = B.put_entry saved27.book ~replace:false repeat_pay_entry ~plan:(Some "p_overdue") in
   require (Result.is_error repeat_pay_result) "repeat-payment-refused";
@@ -178,6 +180,7 @@ let%expect_test "reopen balances and Daily Pace equal monolithic B oracle across
     effects = [ posting "wallet" "jpy" (-20000); posting "living" "jpy" 20000 ];
     reversal_of = None;
     exchange = None;
+    original_amount = None;
   } in
   let book27 = get (B.put_entry session27.book ~replace:false spend_jan ~plan:None) in
   let _saved27 =
@@ -333,6 +336,7 @@ let%expect_test "changes, missing, corrupt prior refuse successor and stale load
     effects = [ posting "wallet" "jpy" (-10); posting "food" "jpy" 10 ];
     reversal_of = None;
     exchange = None;
+    original_amount = None;
   } in
   let book27 = get (B.put_entry session27.book ~replace:false entry27 ~plan:None) in
   let stale_pub_refused =
@@ -408,6 +412,7 @@ let%expect_test "old year publish refused even when loaded via unscoped numeric 
     effects = [ posting "wallet" "jpy" (-10); posting "food" "jpy" 10 ];
     reversal_of = None;
     exchange = None;
+    original_amount = None;
   } in
   let modified_book26 = get (B.put_entry unscoped_session26.book ~replace:false new_entry26 ~plan:None) in
   let old_publish_refused =
@@ -490,6 +495,7 @@ let%expect_test "chain 2028: closed paid plans remain closed across multi-year c
     effects = [ posting "wallet" "jpy" (-100); posting "food" "jpy" 100 ];
     reversal_of = None;
     exchange = None;
+    original_amount = None;
   } in
   let book27 = get (B.put_entry session27.book ~replace:false pay27 ~plan:(Some "p_closed_in_27")) in
   let session27_saved =
@@ -588,6 +594,7 @@ let%expect_test "publication checkpoints uncertainty and recovery on annual enve
     effects = [ posting "wallet" "jpy" (-20); posting "food" "jpy" 20 ];
     reversal_of = None;
     exchange = None;
+    original_amount = None;
   } in
   let cand_book = get (B.put_entry session27.book ~replace:false entry27 ~plan:None) in
 
@@ -651,6 +658,7 @@ let%expect_test "deterministic fork collision and SIGKILL release fixture" =
     effects = [ posting "wallet" "jpy" (-15); posting "food" "jpy" 15 ];
     reversal_of = None;
     exchange = None;
+    original_amount = None;
   } in
   let cand_book = get (B.put_entry session27.book ~replace:false entry27 ~plan:None) in
 

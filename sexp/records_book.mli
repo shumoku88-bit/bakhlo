@@ -28,6 +28,7 @@ type entry = {
   effects : D.Effect.t list;
   reversal_of : string option;
   exchange : (string * string) option;
+  original_amount : (string * Z.t) option;
   opaque : X.t list;
 }
 

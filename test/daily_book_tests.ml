@@ -39,6 +39,7 @@ let entry id n : B.entry =
     effects = [ posting "wallet" "jpy" (-n) None; posting "food" "jpy" n None ];
     reversal_of = None;
     exchange = None;
+    original_amount = None;
   }
 
 let quantity book locus measure =
@@ -136,6 +137,7 @@ let%expect_test "daily data preserves explicit exchange and exact foreign quanti
       day = "2026-10-03";
       memo = None;
       reversal_of = None;
+      original_amount = None;
       effects =
         [ posting "wallet" "jpy" (-100) (Some "from"); posting "wallet" "eur" 70 (Some "to") ];
       exchange = Some ("from", "to");
@@ -968,3 +970,59 @@ let%expect_test "set_locus_label validates, updates labels and preserves across 
     control char: invalid-label
   |}]
 
+let%expect_test "original amount retains positive facts across monolithic and records codecs without inferring rates or support" =
+  let base = get (B.of_string fixture) in
+  let e : B.entry = {
+    id = "orig_tx";
+    day = "2026-10-03";
+    memo = Some "Paris coffee";
+    effects = [ posting "wallet" "jpy" (-1200) None; posting "food" "jpy" 1200 None ];
+    reversal_of = None;
+    exchange = None;
+    original_amount = Some ("eur", Z.of_int 750);
+  } in
+  let book = get (B.put_entry base ~replace:false e ~plan:None) in
+  let stored = Option.value_exn (B.find_entry book "orig_tx") in
+  Stdio.printf "found orig: %s %s\n" (fst (Option.value_exn stored.original_amount)) (Z.to_string (snd (Option.value_exn stored.original_amount)));
+  let mono_bytes = B.to_string book in
+  Stdio.printf "mono has orig: %b\n" (Base.String.is_substring mono_bytes ~substring:"(original-amount (amount \"eur\" 750))");
+  let cold_mono = get (B.of_string mono_bytes) in
+  let cold_stored = Option.value_exn (B.find_entry cold_mono "orig_tx") in
+  Stdio.printf "cold mono match: %b\n" (Option.equal (fun (m1, q1) (m2, q2) -> String.equal m1 m2 && Z.equal q1 q2) stored.original_amount cold_stored.original_amount);
+  let rec_bytes = B.to_records_string book in
+  let cold_rec = get (B.of_string rec_bytes) in
+  let cold_rec_stored = Option.value_exn (B.find_entry cold_rec "orig_tx") in
+  Stdio.printf "cold rec match: %b\n" (Option.equal (fun (m1, q1) (m2, q2) -> String.equal m1 m2 && Z.equal q1 q2) stored.original_amount cold_rec_stored.original_amount);
+  (* Support and balance unaffected *)
+  Stdio.printf "wallet jpy: %s, food jpy: %s\n" (quantity book "wallet" "jpy") (quantity book "food" "jpy");
+  Stdio.printf "wallet eur unchanged: %s\n" (quantity book "wallet" "eur");
+  (* Reversals keep target original amount, inverse has None *)
+  let refund : B.entry = {
+    id = "orig_refund";
+    day = "2026-10-04";
+    memo = Some "Refund";
+    effects = [ posting "wallet" "jpy" 1200 None; posting "food" "jpy" (-1200) None ];
+    reversal_of = Some "orig_tx";
+    exchange = None;
+    original_amount = None;
+  } in
+  let rev_book = get (B.put_entry book ~replace:false refund ~plan:None) in
+  let target_in_rev = Option.value_exn (B.find_entry rev_book "orig_tx") in
+  let rev_in_rev = Option.value_exn (B.find_entry rev_book "orig_refund") in
+  Stdio.printf "rev target orig: %b, rev entry orig: %b\n" (Option.is_some target_in_rev.original_amount) (Option.is_some rev_in_rev.original_amount);
+  (* Syntax / domain validation: non-positive amount *)
+  let bad_zero = Base.String.substr_replace_first mono_bytes ~pattern:"(original-amount (amount \"eur\" 750))" ~with_:"(original-amount (amount \"eur\" 0))" in
+  let bad_neg = Base.String.substr_replace_first mono_bytes ~pattern:"(original-amount (amount \"eur\" 750))" ~with_:"(original-amount (amount \"eur\" -10))" in
+  Stdio.printf "bad zero: %s\n" (match B.of_string bad_zero with Error e -> e | Ok _ -> "ok");
+  Stdio.printf "bad neg: %s\n" (match B.of_string bad_neg with Error e -> e | Ok _ -> "ok");
+  [%expect {|
+    found orig: eur 750
+    mono has orig: true
+    cold mono match: true
+    cold rec match: true
+    wallet jpy: -200, food jpy: 1200
+    wallet eur unchanged: unknown
+    rev target orig: true, rev entry orig: false
+    bad zero: non-positive-amount
+    bad neg: non-positive-amount
+  |}]

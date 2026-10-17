@@ -2015,6 +2015,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                                     effects = [ src_effect; dst_effect ];
                                     reversal_of = None;
                                     exchange = Some ("exchange-source", "exchange-destination");
+                                    original_amount = None;
                                   }
                                 in
                                 let tx = { A.entry; replace = false; plan = None } in

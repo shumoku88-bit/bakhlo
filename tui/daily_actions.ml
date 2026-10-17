@@ -35,7 +35,12 @@ type single_form = {
 
 type draft_content =
   | Single of single_form
-  | Multiple of { day : string; memo : string; draft : R.t }
+  | Multiple of {
+      day : string;
+      memo : string;
+      draft : R.t;
+      original_amount : (string * Z.t) option;
+    }
 
 let pair effects =
   match effects with
@@ -312,7 +317,7 @@ let is_valid_date day =
 
 let build_transaction ~book ~mode content : (transaction, transaction_error) result =
   let err ?field ~raw message = Error { message; field; raw_cause = raw } in
-  let validate_and_put ~day ~memo_str ~effects =
+  let validate_and_put ~day ~memo_str ~effects ~original_amount =
     match D.Movement.validate effects with
     | Error (D.Movement.Empty :: _) ->
         err ~raw:"empty-movement" (tr "At least one posting is required.")
@@ -339,7 +344,7 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
           match mode with
           | Edit e -> ({ e with day; memo; effects }, true, None)
           | New | Pay _ | Plan_new | Plan_edit _ ->
-              ( { B.id = F.new_id (); day; memo; effects; reversal_of = None; exchange = None },
+              ( { B.id = F.new_id (); day; memo; effects; reversal_of = None; exchange = None; original_amount },
                 false,
                 match mode with Pay id -> Some id | New | Edit _ | Plan_new | Plan_edit _ -> None )
         in
@@ -443,8 +448,8 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
                 in
                 match effects_res with
                 | Error why -> err ~raw:why (format_message "Invalid Locus (%s)." why)
-                | Ok effects -> validate_and_put ~day:canon_day ~memo_str:form.memo ~effects)))
-  | Multiple { day; memo = memo_str; draft } -> (
+                | Ok effects -> validate_and_put ~day:canon_day ~memo_str:form.memo ~effects ~original_amount:None)))
+  | Multiple { day; memo = memo_str; draft; original_amount } -> (
       match normalize_date day with
       | Error _ ->
           err ~field:Field_date ~raw:"invalid-date"
@@ -470,7 +475,7 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
             | Error why when Base.String.is_substring why ~substring:"empty-locus" ->
                 err ~raw:why (format_message "%s. Select an admitted Locus." why)
             | Error why -> err ~raw:why (format_message "Invalid postings (%s)." why)
-            | Ok effects -> validate_and_put ~day:canon_day ~memo_str ~effects))
+            | Ok effects -> validate_and_put ~day:canon_day ~memo_str ~effects ~original_amount))
 
 let build_plan ~book ~mode ~day ~draft : (B.plan * bool, transaction_error) result =
   let err ?field ~raw message = Error { message; field; raw_cause = raw } in
@@ -617,6 +622,7 @@ let to_records_entry (e : B.entry) : Bakhlo_sexp.Records_book.entry =
     effects = e.effects;
     reversal_of = e.reversal_of;
     exchange = e.exchange;
+    original_amount = e.original_amount;
     opaque = [];
   }
 
@@ -627,6 +633,9 @@ let entry_equals (a : B.entry) (b : B.entry) =
   && Option.equal
        (fun (x1, y1) (x2, y2) -> String.equal x1 x2 && String.equal y1 y2)
        a.exchange b.exchange
+  && Option.equal
+       (fun (m1, q1) (m2, q2) -> String.equal m1 m2 && Z.equal q1 q2)
+       a.original_amount b.original_amount
   && List.equal
        (fun e1 e2 ->
          D.Identifier.Locus.equal (D.Effect.locus e1) (D.Effect.locus e2)
@@ -764,6 +773,7 @@ let commit_reverse_entry ~session ~base_bytes ~id ~day : commit_result =
               effects = inverse_effects;
               reversal_of = Some target.id;
               exchange = None;
+              original_amount = None;
             }
           in
           match B.put_entry session.book ~replace:false reversal ~plan:None with

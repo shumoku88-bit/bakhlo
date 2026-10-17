@@ -746,8 +746,10 @@ let () =
            --restore-copy-from SOURCE --book FRESH_FILE";
         exit 2
   with
-  | F.Refused why when Array.to_list Sys.argv = [ Sys.argv.(0); "--self-check" ] ->
-      prerr_endline ("self-check failed: " ^ why);
+  | exn when Array.to_list Sys.argv = [ Sys.argv.(0); "--self-check" ] ->
+      (match exn with
+      | F.Refused why -> prerr_endline ("self-check failed: " ^ why)
+      | _ -> prerr_endline ("self-check exception: " ^ Printexc.to_string exn));
       exit 1
   | F.Refused why
     when Array.length Sys.argv > 1

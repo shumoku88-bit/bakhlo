@@ -28,6 +28,7 @@ let make_test_entry id day token_opt amount_jpy : RB.entry =
     effects = [ p1; p2 ];
     reversal_of = None;
     exchange = None;
+    original_amount = None;
     opaque = [];
   }
 

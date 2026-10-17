@@ -25,7 +25,7 @@ let amount i = if i=20 then Z.shift_left Z.one 180 else Z.of_int(100+i)
 let name i=Printf.sprintf "e%02d" i
 let entry i : B.entry = let id=name i and m=measure i and n=amount i in
   {id;day="2000-01-01";memo=Some "合成 \"quoted\"\\\n\000\127";
-   effects=[posting m "wallet" (id^"-src") (Z.neg n);posting m "food" (id^"-dst") n];reversal_of=None;exchange=None}
+   effects=[posting m "wallet" (id^"-src") (Z.neg n);posting m "food" (id^"-dst") n];reversal_of=None;exchange=None;original_amount=None}
 let initial () =
   let header : R.header={version=1;measures=["jpy",0;"eur",2;"usd",2];labels=Some[];
     approved_loci=Some["wallet";"food";"fees";"bank"];
@@ -33,7 +33,7 @@ let initial () =
     openings=[];presence=None;opaque=[];
     observations=[{A.Current_quantity_groups.reflected_roots=List.init 10(fun i->ident(D.Identifier.Event.of_string(name(i+1))));
       assertions=List.map(fun m->{A.Current_quantity_projection.coordinate=coordinate "wallet" m;quantity=D.Quantity.of_quanta(Z.of_int 1000)})currencies}]} in
-  let entries=List.init 20(fun j->let e=entry(j+1) in R.Entry {id=e.id;day=e.day;memo=e.memo;token=None;effects=e.effects;reversal_of=None;exchange=None;opaque=[]}) in
+  let entries=List.init 20(fun j->let e=entry(j+1) in R.Entry {id=e.id;day=e.day;memo=e.memo;token=None;effects=e.effects;reversal_of=None;exchange=None;original_amount=None;opaque=[]}) in
   let plans=List.init 3(fun j->R.Plan {id=Printf.sprintf "p%d" (j+1);day="2000-01-03";measure="jpy";
     changes=["wallet",Z.of_int(-15);"food",Z.of_int 15];paid_by=None;cancelled_on=None;opaque=[]}) in
   get(B.of_records {header;frames=List.mapi(fun i p->R.encode_frame(i+1)p)(entries@plans)})

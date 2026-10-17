@@ -10,7 +10,7 @@ let reference_render x =
   let tags =
     String.split_on_char ' '
       "bakhlo-daily scope measures measure labels label approved-loci entries entry date memo \
-       postings posting reversal-of exchange keys plans plan changes paid-by cancelled-on support \
+       postings posting reversal-of exchange keys original-amount amount plans plan changes paid-by cancelled-on support \
        zero-origin openings observations observation reflected quantities presence coordinates \
        provided not-supplied none some"
   in
@@ -101,6 +101,7 @@ let%expect_test "Daily Buffer printer preserves former bytes and layout boundari
       effects = [ posting "wallet" (Z.neg amount); posting "food" amount ];
       reversal_of = None;
       exchange = None;
+      original_amount = None;
     }
   in
   let checked = ref 0 in

@@ -8,6 +8,7 @@ module O = Daily_overlays
 module Fm = Daily_form
 let tr = Ui_text.tr
 
+type original_editor = { measure : string; amount : string; focus : int }
 type row = { key : D.Identifier.Effect_key.t option; locus : string; amount : string }
 type review = { payload : A.payload; base_bytes : string; action : int; scroll : int }
 type t = {
@@ -24,6 +25,8 @@ type t = {
   notice : string;
   review : review option;
   paste : (string * bool) option;
+  original_amount : (string * Z.t) option;
+  original_editor : original_editor option;
 }
 type outcome = Updated of t | Closed of t | Publish of A.payload * string * t
 
@@ -34,17 +37,19 @@ let has_draft t =
   match t.mode with
   | A.Edit _ | A.Pay _ | A.Plan_edit _ -> true
   | A.New | A.Plan_new -> t.day <> t.initial_day || t.measure <> t.initial_measure
-      || t.description <> "" || List.exists (fun row -> row.amount <> "" || row.locus <> "") t.rows
+      || t.description <> "" || t.original_amount <> None || List.exists (fun (r : row) -> r.amount <> "" || r.locus <> "") t.rows
 
 let create ~book:_ ~day ~measure () =
   { mode = A.New; day; description = ""; measure; initial_day = day; initial_measure = measure;
     rows = [{key=None; locus=""; amount=""}; {key=None; locus=""; amount=""}];
-    focus=1; cursor=None; candidate=0; notice=""; review=None; paste=None }
+    focus=1; cursor=None; candidate=0; notice=""; review=None; paste=None;
+    original_amount=None; original_editor=None }
 
 let create_plan ~book:_ ~day ~measure () =
   { mode = A.Plan_new; day; description = ""; measure; initial_day = day; initial_measure = measure;
     rows = [{key=None; locus=""; amount=""}; {key=None; locus=""; amount=""}];
-    focus=0; cursor=None; candidate=0; notice=""; review=None; paste=None }
+    focus=0; cursor=None; candidate=0; notice=""; review=None; paste=None;
+    original_amount=None; original_editor=None }
 
 let rows_of_draft (draft : R.t) =
   List.map (fun (r:R.row) ->
@@ -59,7 +64,7 @@ let of_edit ~book entry =
       | Ok draft ->
           let t = create ~book ~day:entry.day ~measure:draft.measure () in
           Ok {t with mode=A.Edit entry; description=Option.value ~default:"" entry.memo;
-            rows=rows_of_draft draft})
+            rows=rows_of_draft draft; original_amount=entry.original_amount})
 
 let of_edit_plan ~book (plan : B.plan) =
   if plan.paid_by <> None then Error (tr "This Scheduled occurrence is already completed.")
@@ -270,7 +275,7 @@ let preview ~book ~base_bytes ~blocked t =
     | Ok (plan, replace) ->
         {t with review=Some {payload=A.Plan_tx {plan; replace}; base_bytes; action=0; scroll=0}; notice=""; paste=None}
   else
-    match A.build_transaction ~book ~mode:t.mode (A.Multiple {day=t.day; memo=t.description; draft=draft t}) with
+    match A.build_transaction ~book ~mode:t.mode (A.Multiple {day=t.day; memo=t.description; draft=draft t; original_amount=t.original_amount}) with
     | Error error -> with_notice t error.A.message
     | Ok transaction ->
         {t with review=Some {payload=A.Entry_tx transaction; base_bytes; action=0; scroll=0}; notice=""; paste=None}
@@ -326,6 +331,47 @@ let safe_text text =
 let is_date_char = function
   | '0' .. '9' | '-' | '/' | '.' -> true
   | _ -> false
+let format_amount_str ~scale quanta =
+  if scale = 0 then Z.to_string quanta
+  else
+    let is_neg = Z.sign quanta < 0 in
+    let s = Z.to_string (Z.abs quanta) in
+    let len = String.length s in
+    let whole, frac =
+      if len <= scale then ("0", String.make (scale - len) '0' ^ s)
+      else (String.sub s 0 (len - scale), String.sub s (len - scale) scale)
+    in
+    (if is_neg then "-" else "") ^ whole ^ "." ^ frac
+
+let parse_original_quanta ~scale amount_str =
+  let trimmed = String.trim amount_str in
+  if trimmed = "" then Error `Invalid
+  else if String.starts_with ~prefix:"-" trimmed then Error `Non_positive
+  else
+    let core = if String.starts_with ~prefix:"+" trimmed then String.sub trimmed 1 (String.length trimmed - 1) else trimmed in
+    let core = String.concat "" (String.split_on_char ',' core) in
+    let is_digit c = c >= '0' && c <= '9' in
+    match String.split_on_char '.' core with
+    | [ whole ] ->
+        let whole = String.trim whole in
+        if whole = "" || not (String.for_all is_digit whole) then Error `Invalid
+        else
+          let q = Z.mul (Z.of_string whole) (Z.pow (Z.of_int 10) scale) in
+          if Z.sign q <= 0 then Error `Non_positive else Ok q
+    | [ whole; fraction ] ->
+        let whole = String.trim whole in
+        let fraction = String.trim fraction in
+        let whole_ok = whole = "" || String.for_all is_digit whole in
+        let frac_ok = fraction <> "" && String.for_all is_digit fraction in
+        if not (whole_ok && frac_ok) then Error `Invalid
+        else if String.length fraction > scale then Error `Precision
+        else
+          let whole_val = if whole = "" then Z.zero else Z.of_string whole in
+          let frac_padded = fraction ^ String.make (scale - String.length fraction) '0' in
+          let frac_val = if frac_padded = "" then Z.zero else Z.of_string frac_padded in
+          let q = Z.add (Z.mul whole_val (Z.pow (Z.of_int 10) scale)) frac_val in
+          if Z.sign q <= 0 then Error `Non_positive else Ok q
+    | _ -> Error `Invalid
 
 let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.input) =
   let update t=Updated t in
@@ -335,16 +381,23 @@ let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.in
       let t={t with paste=None} in
       if blocked then update t
       else if invalid || not (safe_text text) then update (with_notice t (tr "Paste refused: use one printable line; no control keys."))
-      else if t.review<>None || t.focus>=action_start t then update t
-      else if t.focus = 0 && not (String.for_all is_date_char (String.trim text)) then
-        update (with_notice t (tr "Invalid date format; enter YYYY-MM-DD."))
-      else update (insert t text)
+      else (match t.original_editor with
+      | Some ed ->
+          let cur_val = if ed.focus = 0 then ed.measure else ed.amount in
+          let updated, cur = Fm.insert_at ~value:cur_val ~cursor:t.cursor text in
+          let next_ed = if ed.focus = 0 then { ed with measure = updated } else { ed with amount = updated } in
+          update { t with original_editor = Some next_ed; cursor = Some cur; notice = "" }
+      | None ->
+          if t.review<>None || t.focus>=action_start t then update t
+          else if t.focus = 0 && not (String.for_all is_date_char (String.trim text)) then
+            update (with_notice t (tr "Invalid date format; enter YYYY-MM-DD."))
+          else update (insert t text))
   | `Key (`ASCII c,[]), Some (text,invalid) ->
       update {t with paste=Some (text ^ String.make 1 c, invalid || Char.code c<32 || Char.code c=127)}
   | `Key (`Uchar c,[]), Some (text,invalid) ->
       update {t with paste=Some (text ^ O.utf8 c,invalid || not (O.printable_uchar c))}
   | `Key _, Some (text,_) -> update {t with paste=Some (text,true)}
-  | `Key (`Escape,[]), None -> Closed {t with review=None; paste=None}
+  | `Key (`Escape,[]), None -> Closed {t with original_editor=None; review=None; paste=None}
   | `Key (button,mods), None ->
       let button=match button,mods with `ASCII c,[`Ctrl] -> `ASCII (Char.lowercase_ascii c) | _ -> button in
       (match t.review with
@@ -374,13 +427,77 @@ let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.in
           | _ -> update t)
       | None when blocked -> update t
       | None ->
-          (match button,mods with
-          | `Tab,[] -> update (move_focus t 1)
-          | `Tab,[`Shift] -> update (move_focus t (-1))
-          | `ASCII 'n',[`Ctrl] -> update (add_row t)
-          | `ASCII 'd',[`Ctrl] -> update (drop_row t)
-          | `ASCII 'u',[`Ctrl] -> update (fill_unresolved_remainder ~book t)
-          | `ASCII 's',[`Ctrl] -> update (preview ~book ~base_bytes ~blocked t)
+          (match t.original_editor with
+          | Some ed ->
+              (match button,mods with
+              | `Tab,[] | `Tab,[`Shift] ->
+                  update { t with original_editor = Some { ed with focus = 1 - ed.focus }; cursor = None; notice = "" }
+              | `ASCII 'd',[`Ctrl] ->
+                  update { t with original_amount = None; original_editor = None; cursor = None; notice = tr "Original amount cleared." }
+              | `ASCII 'o',[`Ctrl] ->
+                  update { t with original_editor = None; cursor = None; notice = "" }
+              | `Enter,[] ->
+                  if ed.focus = 0 then
+                    update { t with original_editor = Some { ed with focus = 1 }; cursor = None; notice = "" }
+                  else
+                    let trimmed_m = String.trim ed.measure in
+                    if trimmed_m = "" || not (safe_text trimmed_m) || String.contains trimmed_m ' '
+                       || Result.is_error (D.Identifier.Measure.of_string trimmed_m) then
+                      update (with_notice t (tr "Enter a nonempty single-line original Measure token."))
+                    else
+                      let scale = match List.assoc_opt trimmed_m (B.measures book) with Some s -> s | None -> 0 in
+                      (match parse_original_quanta ~scale ed.amount with
+                      | Error `Precision | Error `Invalid ->
+                          update (with_notice t (A.format_message "Enter a positive original amount with at most %d decimal places." scale))
+                      | Error `Non_positive ->
+                          update (with_notice t (tr "Original amount must be positive."))
+                      | Ok quanta ->
+                          update { t with original_amount = Some (trimmed_m, quanta); original_editor = None; cursor = None; notice = "" })
+              | `Arrow `Left,[] | `Arrow `Right,[] ->
+                  let cur_val = if ed.focus = 0 then ed.measure else ed.amount in
+                  let step = if button = `Arrow `Left then -1 else 1 in
+                  update { t with cursor = Some (Fm.move_cursor ~value:cur_val ~cursor:t.cursor step) }
+              | `Home,[] -> update { t with cursor = Some 0 }
+              | `End,[] -> update { t with cursor = None }
+              | `Backspace,[] ->
+                  let cur_val = if ed.focus = 0 then ed.measure else ed.amount in
+                  let updated, cur = Fm.erase_at ~value:cur_val ~cursor:t.cursor in
+                  let next_ed = if ed.focus = 0 then { ed with measure = updated } else { ed with amount = updated } in
+                  update { t with original_editor = Some next_ed; cursor = Some cur; notice = "" }
+              | `ASCII c,[] when Char.code c >= 32 && Char.code c <> 127 ->
+                  let cur_val = if ed.focus = 0 then ed.measure else ed.amount in
+                  let updated, cur = Fm.insert_at ~value:cur_val ~cursor:t.cursor (String.make 1 c) in
+                  let next_ed = if ed.focus = 0 then { ed with measure = updated } else { ed with amount = updated } in
+                  update { t with original_editor = Some next_ed; cursor = Some cur; notice = "" }
+              | `Uchar c,[] when O.printable_uchar c ->
+                  let cur_val = if ed.focus = 0 then ed.measure else ed.amount in
+                  let updated, cur = Fm.insert_at ~value:cur_val ~cursor:t.cursor (O.utf8 c) in
+                  let next_ed = if ed.focus = 0 then { ed with measure = updated } else { ed with amount = updated } in
+                  update { t with original_editor = Some next_ed; cursor = Some cur; notice = "" }
+              | _ -> update t)
+          | None ->
+              (match button,mods with
+              | `ASCII 'o',[`Ctrl] ->
+                  if is_plan t then update t
+                  else (match t.mode with
+                  | A.Edit _ -> update (with_notice t (tr "Original amount is not changed by the current Correction editor."))
+                  | A.Pay _ -> update (with_notice t (tr "Original amount is available from new Actual Record, not Scheduled completion."))
+                  | A.New ->
+                      let scale m = match List.assoc_opt m (B.measures book) with Some s -> s | None -> 0 in
+                      let ed =
+                        match t.original_amount with
+                        | None -> { measure = ""; amount = ""; focus = 0 }
+                        | Some (m, q) ->
+                            { measure = m; amount = format_amount_str ~scale:(scale m) q; focus = 0 }
+                      in
+                      update { t with original_editor = Some ed; cursor = None; notice = "" }
+                  | A.Plan_new | A.Plan_edit _ -> update t)
+              | `Tab,[] -> update (move_focus t 1)
+              | `Tab,[`Shift] -> update (move_focus t (-1))
+              | `ASCII 'n',[`Ctrl] -> update (add_row t)
+              | `ASCII 'd',[`Ctrl] -> update (drop_row t)
+              | `ASCII 'u',[`Ctrl] -> update (fill_unresolved_remainder ~book t)
+              | `ASCII 's',[`Ctrl] -> update (preview ~book ~base_bytes ~blocked t)
           | `Enter,[] ->
               if is_locus t then update (accept ~book t)
               else if t.focus=action_start t || t.focus=action_start t-1 then
@@ -408,7 +525,7 @@ let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.in
           | `Uchar c,[] when t.focus<action_start t && O.printable_uchar c ->
               if t.focus = 0 then update t
               else update (insert t (O.utf8 c))
-          | _ -> update t))
+          | _ -> update t)))
   | `End,_ -> Closed {t with paste=None;review=None}
   | `Resize _,_ | `Mouse _,_ | `Paste `End,None -> update t
 
@@ -476,14 +593,58 @@ let inner_line ~width_of ~width style text =
   let padded = content ^ String.make (max 0 (room - width_of content)) ' ' in
   (style, left ^ padded ^ right)
 
+let original_amount_screen ~book:_ ~dimensions:(width,height) ~width_of t (ed : original_editor) =
+  let width = max 0 width and height = max 0 height in
+  let raw style text = style, O.pad ~width_of width text in
+  let title_row = raw O.Heading (tr "Record / Original amount") in
+  let feedback = notice_lines ~dimensions:(width,height) ~width_of t in
+  let feedback_rows = List.map (raw O.Status) feedback in
+  let nav1 = tr "Tab/Shift-Tab focus   [Enter] next/attach" in
+  let nav2 = tr "Ctrl-D clear   Ctrl-O return   [Esc] cancel" in
+  let navigation = [ raw O.Chrome nav1; raw O.Chrome nav2 ] in
+  let footer_h = List.length navigation + List.length feedback_rows in
+  let avail = max 0 (height - 1 - footer_h) in
+  let m_text, m_caret = field_text ~width_of (width - 2) (ed.focus = 0) t.cursor "Measure" ed.measure in
+  let a_text, a_caret = field_text ~width_of (width - 2) (ed.focus = 1) t.cursor "Amount" ed.amount in
+  let m_s = match m_caret with Some c -> O.Input (1 + c) | None -> O.Plain in
+  let a_s = match a_caret with Some c -> O.Input (1 + c) | None -> O.Plain in
+  let fields_panel = [
+    sub_border ~width_of ~width ~style:O.Focused_frame "Original amount";
+    inner_line ~width_of ~width m_s m_text;
+    inner_line ~width_of ~width a_s a_text;
+    sub_bottom ~width_of ~width ~style:O.Focused_frame ();
+  ] in
+  let meaning_h = max 0 (avail - 4) in
+  let meaning_panel =
+    if meaning_h < 3 then []
+    else
+      let expl = [
+        tr "Merchant/card amount; not another posting.";
+        tr "No FX inference or Movement Measure change.";
+        tr "Attach to draft; Publish later in Preview.";
+      ] in
+      let cap = max 0 (meaning_h - 2) in
+      let expl_lines = List.concat_map (O.wrap_text ~width_of (max 1 (width - 4))) expl in
+      let shown_expl = List.filteri (fun i _ -> i < cap) expl_lines in
+      let expl_rows = List.map (fun s -> inner_line ~width_of ~width O.Chrome s) shown_expl in
+      let pad_len = max 0 (cap - List.length expl_rows) in
+      let pad_rows = List.init pad_len (fun _ -> inner_line ~width_of ~width O.Plain "") in
+      [ sub_border ~width_of ~width ~style:O.Frame "Meaning" ]
+      @ expl_rows @ pad_rows
+      @ [ sub_bottom ~width_of ~width ~style:O.Frame () ]
+  in
+  let all_rows = [ title_row ] @ fields_panel @ meaning_panel @ feedback_rows @ navigation in
+  List.filteri (fun i _ -> i < height) all_rows
+  @ List.init (max 0 (height - List.length all_rows)) (fun _ -> raw O.Plain "")
 
 let screen ~book ~dimensions:(width,height) ~width_of t =
   let width = max 0 width and height = max 0 height in
   let raw style text = style, O.pad ~width_of width text in
   let navigation = match t.review with
     | None ->
-        if width < 50 then [tr "Tab field  Enter next / Preview"; tr "C-n/d rows  C-u remainder  Esc draft"]
-        else [tr "Tab/Shift-Tab field  Enter next / Preview"; tr "C-n/d rows  C-u remainder  Esc hold draft"]
+        let orig_nav = if is_plan t then "" else "  C-o original" in
+        if width < 50 then [tr "Tab field  Enter next / Preview"; tr ("C-n/d rows  C-u remainder" ^ orig_nav ^ "  Esc draft")]
+        else [tr "Tab/Shift-Tab field  Enter next / Preview"; tr ("C-n/d rows  C-u remainder" ^ orig_nav ^ "  Esc hold draft")]
     | Some _ ->
         if width < 50 then [tr "↑↓ review  PgUp/Dn  Home/End"; tr "Tab action  Enter choose  Esc hold"]
         else [tr "↑↓ review  PgUp/Dn page  Home/End"; tr "Tab action  Enter choose  Esc hold draft"]
@@ -536,15 +697,30 @@ let screen ~book ~dimensions:(width,height) ~width_of t =
         let all_rows = [ raw O.Heading title ] @ panel @ feedback_rows @ gate_rows @ action_rows @ navigation in
         List.filteri (fun i _ -> i < height) all_rows
         @ List.init (max 0 (height - List.length all_rows)) (fun _ -> raw O.Plain "")
-    | None ->
-        let feedback = notice_lines ~dimensions:(width,height) ~width_of t in
-        let action_height = if height >= 7 then 1 else 0 in
-        let footer_height = 2 + action_height + List.length feedback in
-        let available = max 0 (height - footer_height) in
-        let body_height = max 0 (available - 1) in
-        let pane_height = body_height - 5 in
-        let wide = width >= 72 in
-        if (wide && pane_height >= 7) || ((not wide) && pane_height >= 11) then
+    | None -> (
+        match t.original_editor with
+        | Some ed -> original_amount_screen ~book ~dimensions:(width,height) ~width_of t ed
+        | None ->
+            let orig_summary_rows =
+              if is_plan t then []
+              else
+                let summary =
+                  match t.original_amount with
+                  | None -> tr "Original amount: (none)   Ctrl-O add"
+                  | Some (m, q) ->
+                      tr "Original amount: " ^ O.format_amount book m q ^ " " ^ m ^ tr "   Ctrl-O edit"
+                in
+                [ raw O.Chrome summary ]
+            in
+            let orig_summary_h = if is_plan t then 0 else 1 in
+            let feedback = notice_lines ~dimensions:(width,height) ~width_of t in
+            let action_height = if height >= 7 then 1 else 0 in
+            let footer_height = 2 + action_height + orig_summary_h + List.length feedback in
+            let available = max 0 (height - footer_height) in
+            let body_height = max 0 (available - 1) in
+            let pane_height = body_height - 5 in
+            let wide = width >= 72 in
+            if (wide && pane_height >= 7) || ((not wide) && pane_height >= 11) then
           let title_row = raw O.Heading title in
           (* Movement panel (height 5) *)
           let movement_focused = t.focus < 3 in
@@ -656,16 +832,16 @@ let screen ~book ~dimensions:(width,height) ~width_of t =
           in
           let feedback_rows = List.map (raw O.Status) feedback in
           let action_rows = if action_height = 0 then [] else [ raw O.Heading (action_line ~width_of width t) ] in
-          let all_rows = [ title_row ] @ movement_panel @ lower_panes @ feedback_rows @ action_rows @ navigation in
-          List.filteri (fun i _ -> i < height) all_rows
-          @ List.init (max 0 (height - List.length all_rows)) (fun _ -> raw O.Plain "")
+              let all_rows = [ title_row ] @ movement_panel @ lower_panes @ feedback_rows @ orig_summary_rows @ action_rows @ navigation in
+              List.filteri (fun i _ -> i < height) all_rows
+              @ List.init (max 0 (height - List.length all_rows)) (fun _ -> raw O.Plain "")
         else
           (* Compact / degraded layout (width < 72 or low height) *)
           let title_row = raw O.Heading title in
           let feedback = notice_lines ~dimensions:(width,height) ~width_of t in
           let action_height = if height >= 7 then 1 else 0 in
           let nav_height = List.length navigation in
-          let footer_height = List.length feedback + action_height + nav_height in
+          let footer_height = List.length feedback + action_height + orig_summary_h + nav_height in
           let panel_height = max 3 (height - footer_height - 1) in
           let capacity = max 0 (panel_height - 2) in
           let field index label value =
@@ -721,6 +897,6 @@ let screen ~book ~dimensions:(width,height) ~width_of t =
           in
           let feedback_rows = List.map (raw O.Status) feedback in
           let action_rows = if action_height = 0 then [] else [ raw O.Heading (action_line ~width_of width t) ] in
-          let all_rows = [ title_row ] @ panel @ feedback_rows @ action_rows @ navigation in
-          List.filteri (fun i _ -> i < height) all_rows
-          @ List.init (max 0 (height - List.length all_rows)) (fun _ -> raw O.Plain "")
+              let all_rows = [ title_row ] @ panel @ feedback_rows @ orig_summary_rows @ action_rows @ navigation in
+              List.filteri (fun i _ -> i < height) all_rows
+              @ List.init (max 0 (height - List.length all_rows)) (fun _ -> raw O.Plain ""))

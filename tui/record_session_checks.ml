@@ -360,4 +360,80 @@ let self_check ~width_of () =
   let date_screen = S.screen ~book ~dimensions ~width_of date_editor in
   require (List.exists (fun (_,line) -> Base.String.is_substring line ~substring:"2026-10-14") date_screen)
     "date-field-rejects-non-date-and-japanese-input";
+
+  (* Original amount LOAM-compatible end-to-end tests *)
+  let draft_with_orig = prepare ~amount:"3000" () in
+  require (contains draft_with_orig "Original amount: (none)   Ctrl-O add") "empty-original-amount-summary";
+  require (contains draft_with_orig "C-o original") "ctrl-o-original-in-nav";
+  let orig_editor = ctrl draft_with_orig 'o' in
+  require (contains orig_editor "Record / Original amount") "orig-amount-screen-title";
+  require (contains orig_editor "╭") "orig-amount-rounded-frame";
+  require (contains orig_editor "not another posting") "orig-amount-meaning-posting";
+  require (contains orig_editor "No FX inference") "orig-amount-meaning-fx";
+  require (contains orig_editor "Publish later in Preview") "orig-amount-meaning-preview";
+  require (contains orig_editor "[Enter] next/attach" && contains orig_editor "[Esc] cancel") "orig-amount-footer-shortcuts";
+
+  (* Validation: empty Measure *)
+  let bad_m = key orig_editor `Enter in
+  let bad_m_attached = key bad_m `Enter in
+  require (contains bad_m_attached "Enter a nonempty single-line original Measure token.") "orig-amount-empty-measure-refused";
+
+  (* Type Measure "eur", Enter advances focus to Amount *)
+  let with_m = text orig_editor "eur" in
+  let to_amount = key with_m `Enter in
+
+  (* Validation: excess decimals (eur scale 2, input 30.001) *)
+  let too_precise = key (text to_amount "30.001") `Enter in
+  require (contains too_precise "Enter a positive original amount with at most 2 decimal places.") "orig-amount-precision-refused";
+
+  (* Validation: zero or negative amount *)
+  let zero_amt = key (text (key (key to_amount `Home) `End) "0.00") `Enter in
+  require (contains zero_amt "Original amount must be positive.") "orig-amount-zero-refused";
+
+  (* Valid input: 30.00 eur *)
+  let valid_orig = key (text to_amount "30.00") `Enter in
+  require (contains valid_orig "Original amount: 30.00 eur   Ctrl-O edit") "orig-amount-attached-summary";
+  require (S.has_draft valid_orig) "orig-amount-attached-has-draft";
+
+  (* Preview shows Original amount *)
+  let orig_preview = key valid_orig `Enter in
+  require (contains orig_preview "Record / Preview") "orig-amount-preview-opened";
+  require (contains orig_preview "Original amount: 30.00 eur") "orig-amount-visible-in-preview";
+
+  (* Publish carries exact original amount *)
+  (match handle orig_preview (`Key (`Enter, [])) with
+   | S.Publish (A.Entry_tx tx, _, _) ->
+       require (tx.entry.original_amount = Some ("eur", Z.of_int 3000)) "orig-amount-published-quanta";
+       (* Correction editor retains original amount and forbids modifying it via Ctrl-O *)
+       let book_with_orig = get (B.put_entry book ~replace:false tx.entry ~plan:None) in
+       let edit_with_orig = get (S.of_edit ~book:book_with_orig tx.entry) in
+       require (contains edit_with_orig "Original amount: 30.00 eur") "edit-retains-original-amount-summary";
+       let edit_ctrl_o = ctrl edit_with_orig 'o' in
+       require (contains edit_ctrl_o "Original amount is not changed by the current Correction editor.")
+         "correction-editor-ctrl-o-refused"
+   | _ -> failwith "orig-amount-publish-failed");
+
+  (* Scheduled completion (Pay) forbids Ctrl-O *)
+  let pay_session = get (S.of_plan ~day:"2026-10-11" ~book plan) in
+  let pay_ctrl_o = ctrl pay_session 'o' in
+  require (contains pay_ctrl_o "Original amount is available from new Actual Record, not Scheduled completion.")
+    "scheduled-completion-ctrl-o-refused";
+
+  (* Clearing via Ctrl-D *)
+  let open_to_clear = ctrl valid_orig 'o' in
+  let cleared = ctrl open_to_clear 'd' in
+  require (contains cleared "Original amount cleared.") "ctrl-d-notice";
+  require (contains cleared "Original amount: (none)   Ctrl-O add") "cleared-summary";
+
+  (* Esc cancels Record *)
+  let open_to_esc = ctrl valid_orig 'o' in
+  (match handle open_to_esc (`Key (`Escape, [])) with
+   | S.Closed _ -> ()
+   | _ -> failwith "orig-amount-esc-must-close");
+
+  (* Returning via Ctrl-O without changes *)
+  let open_to_return = ctrl valid_orig 'o' in
+  let returned = ctrl open_to_return 'o' in
+  require (contains returned "Original amount: 30.00 eur   Ctrl-O edit") "orig-amount-return-keeps-attached";
+
   require (B.to_string book=before) "record-checks-leave-book-unchanged"

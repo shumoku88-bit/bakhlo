@@ -517,7 +517,7 @@ module Cold_start_loader = struct
                   | _ -> None)
                 |> Option.value ~default:[]
               in
-              ({ id; day; memo; effects; reversal_of; exchange } : B.entry)
+              ({ id; day; memo; effects; reversal_of; exchange; original_amount = None } : B.entry)
             | _ -> failwith "invalid entry sexp")
         in
         let current_plans : B.plan list =
@@ -879,6 +879,7 @@ let%expect_test "Test 3: Cold-Start Restoration Matching Monolithic Oracle & Dup
       effects = [ posting "wallet" "jpy" (-12000) None; posting "rent" "jpy" 12000 None ];
       reversal_of = None;
       exchange = None;
+      original_amount = None;
     }
   in
   let dup_pay_res =

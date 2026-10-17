@@ -30,7 +30,8 @@ let effect_equal a b =
 
 let entry_equal (a : B.entry) (b : B.entry) =
   a.id = b.id && a.day = b.day && a.memo = b.memo && a.reversal_of = b.reversal_of
-  && a.exchange = b.exchange && List.equal effect_equal a.effects b.effects
+  && a.exchange = b.exchange && a.original_amount = b.original_amount
+  && List.equal effect_equal a.effects b.effects
 
 let plan_equal (a : B.plan) (b : B.plan) =
   a.id = b.id && a.day = b.day && a.measure = b.measure && a.paid_by = b.paid_by

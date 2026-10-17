@@ -508,6 +508,19 @@ let locus_candidates book query =
     let exact, rest = List.partition (fun id -> String.lowercase_ascii id = query) matches in
     exact @ rest
 
+let format_amount book measure quanta =
+  let decimals = match List.assoc_opt measure (B.measures book) with Some s -> s | None -> 0 in
+  if decimals = 0 then Z.to_string quanta
+  else
+    let is_neg = Z.sign quanta < 0 in
+    let s = Z.to_string (Z.abs quanta) in
+    let len = String.length s in
+    let whole, frac =
+      if len <= decimals then ("0", String.make (decimals - len) '0' ^ s)
+      else (String.sub s 0 (len - decimals), String.sub s (len - decimals) decimals)
+    in
+    (if is_neg then "-" else "") ^ whole ^ "." ^ frac
+
 let signed book measure amount =
   (if Z.sign amount > 0 then "+" else "") ^ B.format book measure amount ^ " " ^ measure
 
@@ -523,6 +536,8 @@ let entry_lines book (entry : B.entry) =
       entry.effects)
   @ [ ""; tr "Description:" ^ " " ^ (match entry.memo with None -> tr "(no description)" | Some text -> visible text);
       tr "Date:" ^ " " ^ entry.day; "ID: " ^ visible entry.id ]
+  @ (match entry.original_amount with None -> [] | Some (m, q) ->
+      [tr "Original amount:" ^ " " ^ format_amount book m q ^ " " ^ visible m])
   @ (match entry.reversal_of with None -> [] | Some id -> [tr "Reversal of:" ^ " " ^ visible id])
   @ (match entry.exchange with None -> [] | Some (a,b) -> [tr "Exchange keys:" ^ " " ^ visible a ^ " → " ^ visible b])
   @ (B.plans book |> List.filter_map (fun (p : B.plan) ->

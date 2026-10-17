@@ -65,6 +65,7 @@ type entry = {
   effects : D.Effect.t list;
   reversal_of : string option;
   exchange : (string * string) option;
+  original_amount : (string * Z.t) option;
   opaque : X.t list;
 }
 
@@ -318,6 +319,12 @@ let encode_entry (e : entry) =
            | None -> f "none" []
            | Some (x, y) -> f "keys" [ a x; a y ]);
          ];
+       f "original-amount"
+         [
+           (match e.original_amount with
+           | None -> f "none" []
+           | Some (m, q) -> f "amount" [ a m; a (Z.to_string q) ]);
+         ];
        f "effects"
          (List.map
             (fun p ->
@@ -335,7 +342,7 @@ let encode_entry (e : entry) =
 let decode_entry rows =
   let known, opaque =
     partition_fields
-      [ "id"; "day"; "token"; "memo"; "reversal-of"; "exchange"; "effects" ]
+      [ "id"; "day"; "token"; "memo"; "reversal-of"; "exchange"; "original-amount"; "effects" ]
       rows
   in
   let id = atom (one (field_req known "id")) in
@@ -362,6 +369,15 @@ let decode_entry rows =
     | Some [ X.List [ X.Atom "keys"; X.Atom x; X.Atom y ] ] -> Some (x, y)
     | _ -> raise (Refused "invalid-exchange")
   in
+  let original_amount =
+    match field_opt known "original-amount" with
+    | None | Some [ X.List [ X.Atom "none" ] ] -> None
+    | Some [ X.List [ X.Atom "amount"; X.Atom m; X.Atom q ] ] ->
+        let q = integer q in
+        require (Z.sign q > 0) "non-positive-amount";
+        Some (m, q)
+    | _ -> raise (Refused "invalid-original-amount")
+  in
   let effects =
     List.map
       (function
@@ -370,7 +386,7 @@ let decode_entry rows =
         | _ -> raise (Refused "invalid-posting"))
       (field_req known "effects")
   in
-  { id; day; token; memo; effects; reversal_of; exchange; opaque }
+  { id; day; token; memo; effects; reversal_of; exchange; original_amount; opaque }
 
 let encode_plan (p : plan) =
   f "plan"
