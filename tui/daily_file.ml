@@ -225,6 +225,11 @@ type comparison = Candidate_current | Before_current | Unresolved | Unreadable o
 type recovery_item = { name : string; attempt_id : string option; comparison : comparison }
 type recovery_report = { selected : (t, string) result; items : recovery_item list }
 
+(* A reload must retain the opt-in annual admission gate. Dropping it would
+   make Ctrl-R/recovery review silently turn an annual session into an ordinary
+   unscoped book, permitting subsequent cross-year publication. *)
+let reload session = load ?annual_year:session.annual_year session.path
+
 let load_result path =
   try Ok (load path) with
   | Refused why -> Error why
