@@ -15,6 +15,7 @@ type entry = {
   reversal_of : string option;
   exchange : (string * string) option;
   original_amount : (string * Z.t) option;
+  merchant : Bakhlo_application.Event_merchants.disposition option;
 }
 
 type plan = {
@@ -148,6 +149,14 @@ val put_entry_full : t -> replace:bool -> entry -> plan:string option -> (t, str
 val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) result
 (** Checked append or replacement. Uses incremental admission for ordinary new entries,
     and safely falls back to full admission for replacements, reversals, and exchanges. *)
+
+val classify_merchant :
+  t ->
+  id:string ->
+  disposition:Bakhlo_application.Event_merchants.disposition ->
+  (t, string) result
+(** Classify the independent Event Merchant disposition for an existing Actual entry.
+    First classification only; replacement or reclassification is refused. *)
 
 val add_locus : t -> string -> (t, string) result
 (** Explicit vocabulary addition only; never supplies zero balance or a role. *)

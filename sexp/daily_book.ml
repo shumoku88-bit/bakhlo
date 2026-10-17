@@ -44,6 +44,7 @@ type entry = {
   reversal_of : string option;
   exchange : (string * string) option;
   original_amount : (string * Z.t) option;
+  merchant : A.Event_merchants.disposition option;
 }
 
 type plan = {
@@ -166,6 +167,14 @@ let admit ?entries_cached data =
                    (fun text ->
                      ({ A.Event_descriptions.event = eid e.id; text } : A.Event_descriptions.fact))
                    e.memo)
+               entries;
+           merchants =
+             List.filter_map
+               (fun (e : entry) ->
+                 Option.map
+                   (fun disposition ->
+                     ({ A.Event_merchants.event = eid e.id; disposition } : A.Event_merchants.fact))
+                   e.merchant)
                entries;
            reversals =
              List.filter_map
@@ -294,6 +303,9 @@ let optional = function
   | X.List [ X.Atom "none" ] -> None
   | X.List [ X.Atom "some"; X.Atom s ] -> Some s
   | X.Atom _ | X.List _ -> raise (Refused "invalid-optional-value")
+let valid_token s =
+  s <> "" && not (String.contains s '\t' || String.contains s '\n' || String.contains s '\r')
+
 
 let decode_posting = function
   | X.List [ X.Atom "posting"; X.Atom l; X.Atom m; X.Atom n; k ] -> posting l m n (optional k)
@@ -304,7 +316,7 @@ let decode_entry version = function
       fields
         (if version = "1" then [ "date"; "memo"; "postings"; "reversal-of" ]
          else if version = "2" then [ "date"; "memo"; "postings"; "reversal-of"; "exchange" ]
-         else [ "date"; "memo"; "postings"; "reversal-of"; "exchange"; "original-amount" ])
+         else [ "date"; "memo"; "postings"; "reversal-of"; "exchange"; "original-amount"; "merchant" ])
         rows;
       let exchange =
         if version = "1" then None
@@ -331,6 +343,17 @@ let decode_entry version = function
                  require (Z.sign q > 0) "non-positive-amount";
                  Some (m, q)
              | _ -> raise (Refused "invalid-original-amount"));
+        merchant =
+          (if version = "1" || version = "2" then None
+           else
+             match field_opt "merchant" rows with
+             | None | Some [ X.List [ X.Atom "none" ] ] -> None
+             | Some [ X.List [ X.Atom "nonmerchant" ] ] -> Some A.Event_merchants.Nonmerchant
+             | Some [ X.List [ X.Atom "party"; X.Atom p ] ] ->
+                 require (valid_token p) "invalid-merchant-party";
+                 let party = get "invalid-merchant-party" (D.Identifier.External_party.of_string p) in
+                 Some (A.Event_merchants.Merchant party)
+             | _ -> raise (Refused "invalid-merchant"));
       }
   | X.Atom _ | X.List _ -> raise (Refused "invalid-entry")
 
@@ -523,6 +546,7 @@ let of_records (rb : Records_book.t) =
               reversal_of = e.reversal_of;
               exchange = e.exchange;
               original_amount = e.original_amount;
+              merchant = e.merchant;
             })
           (Records_book.entries rb)
       in
@@ -632,6 +656,7 @@ let to_records ?(request_tokens = []) (t : t) : Records_book.t =
              reversal_of = e.reversal_of;
              exchange = e.exchange;
              original_amount = e.original_amount;
+             merchant = e.merchant;
              opaque = [];
            }))
     (Lazy.force t.entries_cached);
@@ -692,6 +717,13 @@ let payload_sexps (b : payload) =
                    (match e.original_amount with
                    | None -> f "none" []
                    | Some (m, q) -> f "amount" [ a m; a (Z.to_string q) ]);
+                 ];
+               f "merchant"
+                 [
+                   (match e.merchant with
+                   | None -> f "none" []
+                   | Some Nonmerchant -> f "nonmerchant" []
+                   | Some (Merchant p) -> f "party" [ a (D.Identifier.External_party.to_string p) ]);
                  ];
              ])
          b.entries);
@@ -777,7 +809,7 @@ let render_into out x =
   let is_tag = function
     | "bakhlo-daily" | "scope" | "measures" | "measure" | "labels" | "label" | "approved-loci"
     | "entries" | "entry" | "date" | "memo" | "postings" | "posting" | "reversal-of" | "exchange"
-    | "keys" | "original-amount" | "amount" | "plans" | "plan" | "changes" | "paid-by" | "cancelled-on" | "support"
+    | "keys" | "original-amount" | "amount" | "merchant" | "party" | "nonmerchant" | "plans" | "plan" | "changes" | "paid-by" | "cancelled-on" | "support"
     | "zero-origin" | "openings" | "observations" | "observation" | "reflected"
     | "quantities" | "presence" | "coordinates" | "provided" | "not-supplied" | "none" | "some"
     | "bakhlo-annual" | "year" | "prior" | "fingerprint" ->
@@ -1226,6 +1258,14 @@ let put_entry_full t ~replace (e : entry) ~plan =
       approve_effects t e.effects;
       let exists = Entry_map.mem e.id t.data.entry_map in
       require (exists = replace) (if replace then "unknown-entry" else "duplicate-entry");
+      if replace then (
+        let old_e = Entry_map.find e.id t.data.entry_map in
+        match old_e.merchant with
+        | Some old_m ->
+            require (e.merchant = Some old_m)
+              "loam: Event Merchant is already classified; replacement is not qualified"
+        | None -> ()
+      );
       let entries =
         if replace then
           List.map (fun (row : entry) -> if row.id = e.id then e else row) (entries t)
@@ -1293,10 +1333,28 @@ let put_entry_incremental t (e : entry) ~plan =
       { data; image; entries_cached })
 
 let put_entry t ~replace (e : entry) ~plan =
-  if (not replace) && e.reversal_of = None && e.exchange = None && e.original_amount = None then
+  if (not replace) && e.reversal_of = None && e.exchange = None && e.original_amount = None && e.merchant = None then
     put_entry_incremental t e ~plan
   else
     put_entry_full t ~replace e ~plan
+
+let classify_merchant t ~id ~disposition =
+  protect (fun () ->
+      let e =
+        match Entry_map.find_opt id t.data.entry_map with
+        | Some e -> e
+        | None -> raise (Refused "loam: Merchant classification requires an existing Event")
+      in
+      if e.merchant <> None then
+        raise (Refused "loam: Event Merchant is already classified; replacement is not qualified");
+      (match disposition with
+      | A.Event_merchants.Merchant p ->
+          let tok = D.Identifier.External_party.to_string p in
+          require (valid_token tok)
+            "loam: Merchant party token must be a non-empty single text field"
+      | Nonmerchant -> ());
+      let updated = { e with merchant = Some disposition } in
+      get "classify-merchant" (put_entry_full t ~replace:true updated ~plan:None))
 
 let add_locus t id =
   protect (fun () ->

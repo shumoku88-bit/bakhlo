@@ -349,7 +349,7 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
           match mode with
           | Edit e -> ({ e with day; memo; effects }, true, None)
           | New | Pay _ | Plan_new | Plan_edit _ ->
-              ( { B.id = F.new_id (); day; memo; effects; reversal_of = None; exchange = None; original_amount },
+              ( { B.id = F.new_id (); day; memo; effects; reversal_of = None; exchange = None; original_amount; merchant = None },
                 false,
                 match mode with Pay id -> Some id | New | Edit _ | Plan_new | Plan_edit _ -> None )
         in
@@ -628,6 +628,7 @@ let to_records_entry (e : B.entry) : Bakhlo_sexp.Records_book.entry =
     reversal_of = e.reversal_of;
     exchange = e.exchange;
     original_amount = e.original_amount;
+    merchant = e.merchant;
     opaque = [];
   }
 
@@ -641,6 +642,7 @@ let entry_equals (a : B.entry) (b : B.entry) =
   && Option.equal
        (fun (m1, q1) (m2, q2) -> String.equal m1 m2 && Z.equal q1 q2)
        a.original_amount b.original_amount
+  && a.merchant = b.merchant
   && List.equal
        (fun e1 e2 ->
          D.Identifier.Locus.equal (D.Effect.locus e1) (D.Effect.locus e2)
@@ -779,11 +781,22 @@ let commit_reverse_entry ~session ~base_bytes ~id ~day : commit_result =
               reversal_of = Some target.id;
               exchange = None;
               original_amount = None;
+              merchant = None;
             }
           in
           match B.put_entry session.book ~replace:false reversal ~plan:None with
           | Error why -> Refused why
           | Ok candidate -> publish_candidate ~session candidate
+let commit_classify_merchant ~session ~base_bytes ~id ~disposition : commit_result =
+  if base_bytes <> session.F.bytes then Conflict_base_changed
+  else if session.format = F.Records then
+    Refused
+      (tr "Records publication does not support Event Merchant classification. No bytes were changed.")
+  else
+    match B.classify_merchant session.book ~id ~disposition with
+    | Error why -> Refused why
+    | Ok candidate -> publish_candidate ~session candidate
+
 
 let commit_payload ~session ~base_bytes = function
   | Entry_tx tx -> commit_transaction ~session ~base_bytes tx

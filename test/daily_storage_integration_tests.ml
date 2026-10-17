@@ -50,6 +50,7 @@ let make_test_entry id day token amount : RB.entry =
     reversal_of = None;
     exchange = None;
     original_amount = None;
+    merchant = None;
     opaque = [];
   }
 

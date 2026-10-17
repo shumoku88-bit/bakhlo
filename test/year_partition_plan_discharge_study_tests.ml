@@ -706,7 +706,7 @@ let%expect_test "Case D: Payment Entry Reversal Semantics (Accounting & Explicit
 
   (* Verify that without explicit revocation, candidate re-payment is blocked *)
   let candidate_d = { Plan_link_model.plan_id = "p_2025_rent"; entry_id = "e_2027_new_pay"; discharge_year = 2027 } in
-  let fake_entry = { B.id = "e_2027_new_pay"; day = "2027-02-01"; memo = None; effects = []; reversal_of = None; exchange = None; original_amount = None } in
+  let fake_entry = { B.id = "e_2027_new_pay"; day = "2027-02-01"; memo = None; effects = []; reversal_of = None; exchange = None; original_amount = None; merchant = None } in
   let verify_res =
     Cross_year_plan_verifier.verify_candidate_discharge
       ~candidate_discharge:candidate_d

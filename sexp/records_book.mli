@@ -29,6 +29,7 @@ type entry = {
   reversal_of : string option;
   exchange : (string * string) option;
   original_amount : (string * Z.t) option;
+  merchant : A.Event_merchants.disposition option;
   opaque : X.t list;
 }
 

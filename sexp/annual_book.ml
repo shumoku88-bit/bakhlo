@@ -31,6 +31,7 @@ let effect_equal a b =
 let entry_equal (a : B.entry) (b : B.entry) =
   a.id = b.id && a.day = b.day && a.memo = b.memo && a.reversal_of = b.reversal_of
   && a.exchange = b.exchange && a.original_amount = b.original_amount
+  && a.merchant = b.merchant
   && List.equal effect_equal a.effects b.effects
 
 let plan_equal (a : B.plan) (b : B.plan) =

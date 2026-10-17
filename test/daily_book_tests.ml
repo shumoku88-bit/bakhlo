@@ -31,6 +31,10 @@ let posting locus measure n key =
            Result.ok_or_failwith
              (Result.map_error (D.Identifier.Effect_key.of_string key) ~f:(fun _ -> "key"))))
 
+let party s =
+  Result.ok_or_failwith
+    (Result.map_error (D.Identifier.External_party.of_string s) ~f:(fun _ -> "party"))
+
 let entry id n : B.entry =
   {
     id;
@@ -40,6 +44,7 @@ let entry id n : B.entry =
     reversal_of = None;
     exchange = None;
     original_amount = None;
+    merchant = None;
   }
 
 let quantity book locus measure =
@@ -138,6 +143,7 @@ let%expect_test "daily data preserves explicit exchange and exact foreign quanti
       memo = None;
       reversal_of = None;
       original_amount = None;
+      merchant = None;
       effects =
         [ posting "wallet" "jpy" (-100) (Some "from"); posting "wallet" "eur" 70 (Some "to") ];
       exchange = Some ("from", "to");
@@ -980,6 +986,7 @@ let%expect_test "original amount retains positive facts across monolithic and re
     reversal_of = None;
     exchange = None;
     original_amount = Some ("eur", Z.of_int 750);
+    merchant = None;
   } in
   let book = get (B.put_entry base ~replace:false e ~plan:None) in
   let stored = Option.value_exn (B.find_entry book "orig_tx") in
@@ -1005,6 +1012,7 @@ let%expect_test "original amount retains positive facts across monolithic and re
     reversal_of = Some "orig_tx";
     exchange = None;
     original_amount = None;
+    merchant = None;
   } in
   let rev_book = get (B.put_entry book ~replace:false refund ~plan:None) in
   let target_in_rev = Option.value_exn (B.find_entry rev_book "orig_tx") in
@@ -1042,4 +1050,146 @@ let%expect_test "original amount retains positive facts across monolithic and re
     unregistered measure sexp refused: measure-scale-not-supplied
     scale 0 stored: jpy 5000
     scale 0 roundtrip: true
+  |}]
+let%expect_test "event merchant classification LOAM-compatible end-to-end semantics" =
+  let module M = Bakhlo_application.Event_merchants in
+  let base = get (B.of_string fixture) in
+  let e1 : B.entry = {
+    id = "e_merch";
+    day = "2026-10-03";
+    memo = Some "Lunch at cafe";
+    effects = [ posting "wallet" "jpy" (-1200) None; posting "food" "jpy" 1200 None ];
+    reversal_of = None;
+    exchange = None;
+    original_amount = None;
+    merchant = None;
+  } in
+  let e2 : B.entry = {
+    id = "e_nonmerch";
+    day = "2026-10-03";
+    memo = Some "Peer transfer";
+    effects = [ posting "wallet" "jpy" (-500) None; posting "food" "jpy" 500 None ];
+    reversal_of = None;
+    exchange = None;
+    original_amount = None;
+    merchant = None;
+  } in
+  let book = get (B.put_entry base ~replace:false e1 ~plan:None) in
+  let book = get (B.put_entry book ~replace:false e2 ~plan:None) in
+
+  (* 1. Initial state is Unresolved (None), distinct from Nonmerchant *)
+  let stored_unresolved = Option.value_exn (B.find_entry book "e_merch") in
+  Stdio.printf "unresolved is None: %b\n" (Option.is_none stored_unresolved.merchant);
+
+  let party_shop = party "coffee-shop" in
+  let classified_shop = get (B.classify_merchant book ~id:"e_merch" ~disposition:(M.Merchant party_shop)) in
+  let entry_shop = Option.value_exn (B.find_entry classified_shop "e_merch") in
+  (match entry_shop.merchant with
+  | Some (M.Merchant p) -> Stdio.printf "classified merchant: %s\n" (D.Identifier.External_party.to_string p)
+  | _ -> Stdio.printf "unexpected merchant state\n");
+
+  (* 3. Nonmerchant classification *)
+  let classified_both = get (B.classify_merchant classified_shop ~id:"e_nonmerch" ~disposition:M.Nonmerchant) in
+  let entry_nonmerch = Option.value_exn (B.find_entry classified_both "e_nonmerch") in
+  (match entry_nonmerch.merchant with
+  | Some M.Nonmerchant -> Stdio.printf "classified nonmerchant: true\n"
+  | _ -> Stdio.printf "unexpected nonmerchant state\n");
+
+  (* 4. S-expression & Records codec roundtrip *)
+  let mono_bytes = B.to_string classified_both in
+  Stdio.printf "mono has merchant party: %b\n"
+    (Base.String.is_substring mono_bytes ~substring:"(merchant (party \"coffee-shop\"))");
+  Stdio.printf "mono has nonmerchant: %b\n"
+    (Base.String.is_substring mono_bytes ~substring:"(merchant (nonmerchant))");
+  let cold_mono = get (B.of_string mono_bytes) in
+  let cold_e1 = Option.value_exn (B.find_entry cold_mono "e_merch") in
+  let cold_e2 = Option.value_exn (B.find_entry cold_mono "e_nonmerch") in
+  Stdio.printf "cold mono e1 match: %b; cold mono e2 match: %b\n"
+    (Poly.equal cold_e1.merchant entry_shop.merchant) (Poly.equal cold_e2.merchant entry_nonmerch.merchant);
+
+  let rec_bytes = B.to_records_string classified_both in
+  Stdio.printf "rec has merchant party: %b\n"
+    (Base.String.is_substring rec_bytes ~substring:"(merchant(party coffee-shop))"
+     || Base.String.is_substring rec_bytes ~substring:"(merchant (party coffee-shop))");
+  Stdio.printf "rec has nonmerchant: %b\n"
+    (Base.String.is_substring rec_bytes ~substring:"(merchant(nonmerchant))"
+     || Base.String.is_substring rec_bytes ~substring:"(merchant (nonmerchant))");
+  let cold_rec = get (B.of_string rec_bytes) in
+  let rec_e1 = Option.value_exn (B.find_entry cold_rec "e_merch") in
+  let rec_e2 = Option.value_exn (B.find_entry cold_rec "e_nonmerch") in
+  Stdio.printf "cold rec e1 match: %b; cold rec e2 match: %b\n"
+    (Poly.equal rec_e1.merchant entry_shop.merchant) (Poly.equal rec_e2.merchant entry_nonmerch.merchant);
+
+  (* Old formats without merchant read as None (Unresolved) *)
+  let old_v1 = "(bakhlo-daily 1) (scope corrected-entries explicit-plans) (measures (measure jpy 0)) (labels (provided)) (approved-loci (provided wallet food)) (entries (entry \"e_old\" (date \"2026-10-01\") (memo (none)) (postings (posting wallet jpy -100 (none)) (posting food jpy 100 (none))) (reversal-of (none)))) (plans) (support (zero-origin) (openings) (observations) (presence (not-supplied)))" in
+  let loaded_v1 = get (B.of_string old_v1) in
+  let old_e = Option.value_exn (B.find_entry loaded_v1 "e_old") in
+  Stdio.printf "old v1 entry merchant is None: %b\n" (Option.is_none old_e.merchant);
+
+  (* 5. Duplicate refusal: reclassification / replacement explicitly rejected *)
+  let repeat_res = B.classify_merchant classified_both ~id:"e_merch" ~disposition:M.Nonmerchant in
+  Stdio.printf "repeat classification refused: %s\n"
+    (match repeat_res with Error e -> e | Ok _ -> "ok");
+
+  let replace_res = B.put_entry classified_both ~replace:true { entry_shop with merchant = Some M.Nonmerchant } ~plan:None in
+  Stdio.printf "put_entry replacing merchant refused: %s\n"
+    (match replace_res with Error e -> e | Ok _ -> "ok");
+
+  (* Same merchant preserved on edit is accepted *)
+  let memo_edit_res = B.put_entry classified_both ~replace:true { entry_shop with memo = Some "Updated memo" } ~plan:None in
+  Stdio.printf "put_entry preserving merchant succeeds: %b\n" (Result.is_ok memo_edit_res);
+
+  (* 6. Unknown event refusal *)
+  let unknown_res = B.classify_merchant classified_both ~id:"nonexistent" ~disposition:M.Nonmerchant in
+  Stdio.printf "unknown event refused: %s\n"
+    (match unknown_res with Error e -> e | Ok _ -> "ok");
+
+  (* 7. Invalid party ID refusal *)
+  let bad_tab_party = party "bad\tshop" in
+  let bad_tab_res = B.classify_merchant book ~id:"e_merch" ~disposition:(M.Merchant bad_tab_party) in
+  Stdio.printf "party with tab refused: %s\n"
+    (match bad_tab_res with Error e -> e | Ok _ -> "ok");
+  (* 8. Reversal noninheritance: reversing classified entry produces unresolved reversal *)
+  let refund : B.entry = {
+    id = "refund_merch";
+    day = "2026-10-04";
+    memo = Some "Refund";
+    effects = [ posting "wallet" "jpy" 1200 None; posting "food" "jpy" (-1200) None ];
+    reversal_of = Some "e_merch";
+    exchange = None;
+    original_amount = None;
+    merchant = None;
+  } in
+  let rev_book = get (B.put_entry classified_both ~replace:false refund ~plan:None) in
+  let target_in_rev = Option.value_exn (B.find_entry rev_book "e_merch") in
+  let refund_in_rev = Option.value_exn (B.find_entry rev_book "refund_merch") in
+  Stdio.printf "target in rev retains merchant: %b; reversal entry merchant is None: %b\n"
+    (Option.is_some target_in_rev.merchant) (Option.is_none refund_in_rev.merchant);
+
+  (* 9. Quantities and Daily Pace completely unaffected by Merchant classification *)
+  Stdio.printf "wallet jpy before: %s, after: %s\n"
+    (quantity book "wallet" "jpy") (quantity classified_both "wallet" "jpy");
+  let pace_before = B.daily_pace book ~measure:"jpy" ~pool:[ pace_coordinate "wallet" "jpy" ] ~observed_at:"2026-10-03" ~end_exclusive:"2026-10-05" in
+  let pace_after = B.daily_pace classified_both ~measure:"jpy" ~pool:[ pace_coordinate "wallet" "jpy" ] ~observed_at:"2026-10-03" ~end_exclusive:"2026-10-05" in
+  Stdio.printf "pace equal: %b\n"
+    (Z.equal (get pace_before).daily_pace_quanta (get pace_after).daily_pace_quanta);
+  [%expect {|
+    unresolved is None: true
+    classified merchant: coffee-shop
+    classified nonmerchant: true
+    mono has merchant party: true
+    mono has nonmerchant: true
+    cold mono e1 match: true; cold mono e2 match: true
+    rec has merchant party: true
+    rec has nonmerchant: true
+    cold rec e1 match: true; cold rec e2 match: true
+    old v1 entry merchant is None: true
+    repeat classification refused: loam: Event Merchant is already classified; replacement is not qualified
+    put_entry replacing merchant refused: loam: Event Merchant is already classified; replacement is not qualified
+    put_entry preserving merchant succeeds: true
+    unknown event refused: loam: Merchant classification requires an existing Event
+    party with tab refused: loam: Merchant party token must be a non-empty single text field
+    target in rev retains merchant: true; reversal entry merchant is None: true
+    wallet jpy before: -700, after: -700
+    pace equal: true
   |}]

@@ -43,14 +43,15 @@ let entry i : B.entry =
     memo = Some (Printf.sprintf "Synthetic 記帳 %d — quoted \"memo\"\nsecond line" i);
     effects; reversal_of = (if reversal then Some (Printf.sprintf "tx-%06d" (i - 1)) else None);
     exchange = None;
-    original_amount = None }
+    original_amount = None;
+    merchant = None }
 let changes (e : B.entry) =
   List.map (fun p -> (D.Identifier.Locus.to_string (D.Effect.locus p),
                      D.Quantity.quanta (D.Effect.quantity p))) e.effects
 let new_entry name : B.entry =
   { id = name; day = "2030-01-01"; memo = Some "synthetic publication";
     effects = [posting "jpy" "wallet" (Z.of_int (-1000)); posting "jpy" "food" (Z.of_int 1000)];
-    reversal_of = None; exchange = None; original_amount = None }
+    reversal_of = None; exchange = None; original_amount = None; merchant = None }
 let rss_kib () =
   let ic = Unix.open_process_in (Printf.sprintf "ps -o rss= -p %d" (Unix.getpid ())) in
   let text = input_line ic in

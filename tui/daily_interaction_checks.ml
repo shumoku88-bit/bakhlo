@@ -8,6 +8,8 @@ module M = Ui_commands
 module S = Record_session
 module Rev = Reversal_session
 module Date = Date_correction_session
+module Merchant = Merchant_session
+module Act = Actual_workspace
 module Cancel = Scheduled_cancellation_session
 module Months = Scheduled_months
 module Cont = Scheduled_continuation_session
@@ -221,7 +223,7 @@ let home_layout_check ~width_of home =
   let entry : B.entry =
     { id = "home-layout-entry"; day; memo = Some "選択日の買い物";
       effects = [ posting "wallet" (-37); posting "food" 37 ];
-      reversal_of = None; exchange = None; original_amount = None } in
+      reversal_of = None; exchange = None; original_amount = None; merchant = None } in
   let book = get (B.put_entry home.C.session.book ~replace:false entry ~plan:None) in
   let plan : B.plan =
     { id = "home-layout-plan"; day; measure = "jpy";
@@ -651,7 +653,7 @@ let actual_browsing_checks ~width_of ~directory home =
         else Printf.sprintf "Synthetic purchase %02d" n);
       effects = [posting "wallet" (Z.neg (if n=17 then huge else Z.of_int (1234+n)));
         posting "food" (if n=17 then huge else Z.of_int (1234+n))];
-      reversal_of = None; exchange = None; original_amount = None } in
+      reversal_of = None; exchange = None; original_amount = None; merchant = None } in
   let book = List.fold_left (fun book n -> get (B.put_entry book ~replace:false (entry n) ~plan:None))
     home.C.session.book (List.init 18 Fun.id) in
   let path = directory ^ "/actual-browsing.sexp" in
@@ -911,7 +913,7 @@ let reversal_checks ~width_of ~directory home =
     ~quantity:(D.Quantity.of_quanta (Z.of_int quantity)) in
   let target : B.entry = { id = "reverse-target"; day = "2026-10-10";
     memo = Some "Original / 日本語"; effects = [effect "wallet" (-37); effect "food" 37];
-    reversal_of = None; exchange = None; original_amount = None } in
+    reversal_of = None; exchange = None; original_amount = None; merchant = None } in
   let book = get (B.put_entry home.C.session.book ~replace:false target ~plan:None) in
   let path = directory ^ "/book.sexp" in
   F.write_new path (B.to_string book);
@@ -1094,7 +1096,7 @@ let date_correction_checks ~width_of ~directory home =
     ~quantity:(D.Quantity.of_quanta (Z.of_int n)) in
   let target : B.entry = { id = "date-target"; day = "2026-10-15"; memo = Some "Date / 日本語";
     effects = [effect "out" "wallet" (-123); effect "in" "food" 123];
-    reversal_of = None; exchange = None; original_amount = None } in
+    reversal_of = None; exchange = None; original_amount = None; merchant = None } in
   let plan : B.plan = { id = "date-paid-plan"; day = "2026-10-01"; measure = "jpy";
     changes = ["wallet", Z.of_int (-123); "food", Z.of_int 123];
     paid_by = None; cancelled_on = None } in
@@ -1720,7 +1722,7 @@ let original_amount_integration_checks ~width_of ~directory () =
     id = "dummy_tx"; day = "2026-10-04"; memo = None;
     effects = [ D.Effect.create ~locus:(C.get_id (D.Identifier.Locus.of_string "wallet")) ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy")) ~quantity:(D.Quantity.of_quanta (Z.of_int (-100))) ~key:None;
                 D.Effect.create ~locus:(C.get_id (D.Identifier.Locus.of_string "food")) ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy")) ~quantity:(D.Quantity.of_quanta (Z.of_int 100)) ~key:None ];
-    reversal_of = None; exchange = None; original_amount = None;
+    reversal_of = None; exchange = None; original_amount = None; merchant = None;
   } in
   let updated_book = get (B.put_entry (F.load path).book ~replace:false dummy_entry ~plan:None) in
   let oc = open_out_bin path in output_string oc (B.to_string updated_book); close_out oc;
@@ -1772,6 +1774,294 @@ let original_amount_integration_checks ~width_of ~directory () =
   require (F.read (restore_dir ^ "/2026.sexp") = bytes_26) "orig-annual-backup-restore-predecessor-byte-exact";
   require (F.read (restore_dir ^ "/2027.sexp") = F.read p27) "orig-annual-backup-restore-successor-byte-exact";
   print_endline "PASS: OriginalAmount normal Record/Preview/Detail, cancel, save failure, stale state, unknown result, and year rollover."
+let event_merchant_integration_checks ~width_of ~directory () =
+  let module EM = Bakhlo_application.Event_merchants in
+  let dir = directory ^ "/event-merchant-integration" in
+  let contains rows needle = List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) rows in
+  Unix.mkdir dir 0o700;
+  let path = dir ^ "/book.sexp" in
+  let fixture =
+    "(bakhlo-daily 3)\n(scope corrected-entries explicit-plans)\n\
+     (measures (measure \"jpy\" 0) (measure \"usd\" 2))\n\
+     (labels (provided (label \"wallet\" \"財布\" \"Cash\") (label \"food\" \"食費\" \"Food\")))\n\
+     (approved-loci (provided \"wallet\" \"food\"))\n\
+     (entries (entry \"e1\" (date \"2026-10-10\") (memo (some \"Sanwa shopping\"))\n\
+     (postings (posting \"wallet\" \"jpy\" -3000 (none)) (posting \"food\" \"jpy\" 3000 (none)))\n\
+     (reversal-of (none)) (exchange (none)) (original-amount (none)) (merchant (none))))\n\
+     (plans)\n\
+     (support (zero-origin (\"food\" \"jpy\")) (openings)\n\
+       (observations (observation (reflected) (quantities (\"wallet\" \"jpy\" 10000))))\n\
+       (presence (not-supplied)))\n"
+  in
+  F.write_new path fixture;
+  let initial_state = C.initial ~config_home:dir (F.load path) in
+  let initial_bytes = F.read path in
+
+  (* 1. Actual workspace: search typing non-collision *)
+  let actual_view = C.open_route initial_state W.Actual in
+  let search_started = Option.get (C.handle ~width_of actual_view (`Key (`ASCII '/', []))) in
+  require (Act.search_editing search_started.actual_workspace) "merch-search-editing-active";
+  let search_typed_m = Option.get (C.handle ~width_of search_started (`Key (`ASCII 'm', []))) in
+  require (Act.search_editing search_typed_m.actual_workspace && Act.search_query search_typed_m.actual_workspace = "m")
+    "merch-typing-m-in-search-updates-query";
+  require (search_typed_m.overlay = C.No_overlay) "merch-search-does-not-open-editor";
+  let search_cleared = Option.get (C.handle ~width_of search_typed_m (`Key (`Escape, []))) in
+  require (not (Act.search_editing search_cleared.actual_workspace)) "merch-search-cleared";
+
+  (* 2. Open Event Merchant editor on unclassified Actual 'e1' *)
+  let merch_opened = Option.get (C.handle ~width_of search_cleared (`Key (`ASCII 'm', []))) in
+  let editor = match merch_opened.overlay with
+    | C.Event_merchant ed -> ed
+    | _ -> failwith "merch-editor-not-opened"
+  in
+  require (Merchant.choice editor = Merchant.Merchant && Merchant.party_input editor = "")
+    "merch-editor-starts-unresolved";
+  let screen_editing = Option.get (C.overlay_screen ~dimensions:(80, 24) ~width_of merch_opened) in
+  require (contains screen_editing "Event Merchant / Edit" && contains screen_editing "Target: e1"
+           && contains screen_editing "Description: Sanwa shopping" && contains screen_editing "Disposition: Merchant")
+    "merch-editing-screen-labels";
+
+  (* Empty party ID refusal on Enter *)
+  let empty_enter = Option.get (C.handle ~width_of merch_opened (`Key (`Enter, []))) in
+  let empty_ed = match empty_enter.overlay with C.Event_merchant ed -> ed | _ -> failwith "empty-ed-lost" in
+  require (not (Merchant.is_preview empty_ed) && empty_enter.message = "") "empty-stays-editing";
+  let empty_screen = Option.get (C.overlay_screen ~dimensions:(80, 24) ~width_of empty_enter) in
+  require (contains empty_screen "Merchant party id must be a non-empty single text field.")
+    "merch-empty-party-notice";
+
+  (* Tab toggles to Nonmerchant *)
+  let tab_nonmerch = Option.get (C.handle ~width_of empty_enter (`Key (`Tab, []))) in
+  let nonmerch_ed = match tab_nonmerch.overlay with C.Event_merchant ed -> ed | _ -> failwith "nonmerch-ed-lost" in
+  require (Merchant.choice nonmerch_ed = Merchant.Nonmerchant) "merch-tab-toggles-nonmerchant";
+  let nonmerch_screen = Option.get (C.overlay_screen ~dimensions:(80, 24) ~width_of tab_nonmerch) in
+  require (contains nonmerch_screen "Disposition: Nonmerchant" && contains nonmerch_screen "Party id: (not applicable)")
+    "merch-nonmerchant-screen";
+
+  (* In Nonmerchant, character typing is ignored *)
+  let ignore_type = Option.get (C.handle ~width_of tab_nonmerch (`Key (`ASCII 's', []))) in
+  let ignore_ed = match ignore_type.overlay with C.Event_merchant ed -> ed | _ -> failwith "ignore-ed-lost" in
+  require (Merchant.party_input ignore_ed = "") "merch-nonmerchant-ignores-typing";
+
+  (* Tab back to Merchant *)
+  let tab_merch = Option.get (C.handle ~width_of ignore_type (`Key (`Tab, []))) in
+  let merch_ed = match tab_merch.overlay with C.Event_merchant ed -> ed | _ -> failwith "merch-ed-lost" in
+  require (Merchant.choice merch_ed = Merchant.Merchant) "merch-tab-toggles-merchant";
+
+  (* Type party 'sanwa' *)
+  let typed = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, []))))
+    tab_merch ['s'; 'a'; 'n'; 'w'; 'a'] in
+
+  (* Cancel leaves disk unchanged *)
+  let cancelled = Option.get (C.handle ~width_of typed (`Key (`Escape, []))) in
+  require (cancelled.overlay = C.No_overlay && F.read path = initial_bytes) "merch-cancel-preserves-disk";
+  require (cancelled.message = "Merchant classification cancelled.") "merch-cancel-message";
+
+  (* Reopen and transition to Preview *)
+  let reopened = Option.get (C.handle ~width_of cancelled (`Key (`ASCII 'm', []))) in
+  let typed_again = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, []))))
+    reopened ['s'; 'a'; 'n'; 'w'; 'a'] in
+  let preview = Option.get (C.handle ~width_of typed_again (`Key (`Enter, []))) in
+  let prev_ed = match preview.overlay with C.Event_merchant ed -> ed | _ -> failwith "prev-ed-lost" in
+  require (Merchant.is_preview prev_ed) "merch-preview-mode";
+  let prev_screen = Option.get (C.overlay_screen ~dimensions:(80, 24) ~width_of preview) in
+  require (contains prev_screen "Event Merchant / Preview" && contains prev_screen "Target remains: e1"
+           && contains prev_screen "Proposed: Merchant sanwa") "merch-preview-screen";
+
+  (* Edit return from Preview via 'e' *)
+  let returned_edit = Option.get (C.handle ~width_of preview (`Key (`ASCII 'e', []))) in
+  let ret_ed = match returned_edit.overlay with C.Event_merchant ed -> ed | _ -> failwith "ret-ed-lost" in
+  require (not (Merchant.is_preview ret_ed) && Merchant.party_input ret_ed = "sanwa")
+    "merch-return-preserves-input";
+  let preview_again = Option.get (C.handle ~width_of returned_edit (`Key (`Enter, []))) in
+
+  (* Tiny terminal gate refuses Enter in preview *)
+  let tiny_attempt = Option.get (C.handle ~dimensions:(32, 9) ~width_of preview_again (`Key (`Enter, []))) in
+  let tiny_screen = Option.get (C.overlay_screen ~dimensions:(32, 9) ~width_of tiny_attempt) in
+  require (contains tiny_screen "Enlarge terminal") "merch-tiny-gate-notice";
+  require (List.exists (fun line -> Base.String.is_substring line ~substring:"Enlarge terminal to review the Merchant target and proposal before Publish.")
+             (C.footer ~dimensions:(32, 9) ~width_of tiny_attempt)) "merch-tiny-footer-notice";
+  require (F.read path = initial_bytes) "merch-tiny-gate-preserves-disk";
+
+  (* Publish at normal dimensions *)
+  let published = Option.get (C.handle ~width_of preview_again (`Key (`Enter, []))) in
+  require (published.overlay = C.No_overlay) "merch-published-closes-overlay";
+  require (published.message = "Published Merchant sanwa for e1.") "merch-published-message";
+  let published_bytes = F.read path in
+  require (published_bytes <> initial_bytes) "merch-published-mutated-disk";
+
+  (* Cold read verifies entry is classified as Merchant sanwa *)
+  let cold_session = F.load path in
+  let cold_e1 = Option.get (B.find_entry cold_session.book "e1") in
+  require (cold_e1.merchant = Some (EM.Merchant (C.get_id (D.Identifier.External_party.of_string "sanwa"))))
+    "merch-cold-verified";
+
+  (* Detail view in Actual displays 'Merchant: Merchant sanwa' *)
+  let actual_post = C.open_route (C.initial ~config_home:dir cold_session) W.Actual in
+  let actual_info = Option.get (C.handle ~width_of actual_post (`Key (`ASCII 'i', []))) in
+  let actual_detail = C.screen ~width_of (80, 24) actual_info in
+  require (contains actual_detail "Merchant: Merchant sanwa") "merch-actual-detail-displays";
+
+  (* 3. Duplicate classification refusal: pressing 'm' on classified entry *)
+  let repeat_attempt = Option.get (C.handle ~width_of actual_post (`Key (`ASCII 'm', []))) in
+  require (repeat_attempt.overlay = C.No_overlay) "merch-repeat-does-not-open";
+  require (repeat_attempt.message = "Merchant already classified: Merchant sanwa.") "merch-repeat-message";
+
+  (* 4. Nonmerchant publication on second entry *)
+  let e2 : B.entry = {
+    id = "e2";
+    day = "2026-10-11";
+    memo = Some "Peer refund";
+    effects = [ D.Effect.create ~locus:(C.get_id (D.Identifier.Locus.of_string "wallet"))
+                  ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+                  ~quantity:(D.Quantity.of_quanta (Z.of_int 500)) ~key:None;
+                D.Effect.create ~locus:(C.get_id (D.Identifier.Locus.of_string "food"))
+                  ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+                  ~quantity:(D.Quantity.of_quanta (Z.of_int (-500))) ~key:None ];
+    reversal_of = None;
+    exchange = None;
+    original_amount = None;
+    merchant = None;
+  } in
+  let book_with_e2 = get (B.put_entry cold_session.book ~replace:false e2 ~plan:None) in
+  let _ = match F.publish cold_session book_with_e2 with F.Written s -> s | _ -> failwith "pub-e2-fail" in
+  let sess_e2 = F.load path in
+  let state_e2 = C.open_route (C.initial ~config_home:dir sess_e2) W.Actual in
+  let e2_opened = Option.get (C.handle ~width_of state_e2 (`Key (`ASCII 'm', []))) in
+  let e2_tab = Option.get (C.handle ~width_of e2_opened (`Key (`Tab, []))) in
+  let e2_prev = Option.get (C.handle ~width_of e2_tab (`Key (`Enter, []))) in
+  let e2_pub = Option.get (C.handle ~width_of e2_prev (`Key (`Enter, []))) in
+  require (e2_pub.message = "Published Nonmerchant for e2.") "merch-e2-pub-message";
+  let cold_e2_sess = F.load path in
+  let cold_e2 = Option.get (B.find_entry cold_e2_sess.book "e2") in
+  require (cold_e2.merchant = Some EM.Nonmerchant) "merch-e2-cold-nonmerchant";
+
+  (* 5. Selected Day workspace integration *)
+  let e3 : B.entry = {
+    id = "e3";
+    day = "2026-10-12";
+    memo = Some "Bakery visit";
+    effects = [ D.Effect.create ~locus:(C.get_id (D.Identifier.Locus.of_string "wallet"))
+                  ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+                  ~quantity:(D.Quantity.of_quanta (Z.of_int (-400))) ~key:None;
+                D.Effect.create ~locus:(C.get_id (D.Identifier.Locus.of_string "food"))
+                  ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+                  ~quantity:(D.Quantity.of_quanta (Z.of_int 400)) ~key:None ];
+    reversal_of = None;
+    exchange = None;
+    original_amount = None;
+    merchant = None;
+  } in
+  let book_with_e3 = get (B.put_entry cold_e2_sess.book ~replace:false e3 ~plan:None) in
+  let _ = match F.publish cold_e2_sess book_with_e3 with F.Written s -> s | _ -> failwith "pub-e3-fail" in
+  let sess_e3 = F.load path in
+  let day_state = C.open_route (C.initial ~config_home:dir sess_e3) (W.Selected_day "2026-10-12") in
+  let e3_opened = Option.get (C.handle ~width_of day_state (`Key (`ASCII 'm', []))) in
+  let e3_typed = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, []))))
+    e3_opened ['b'; 'a'; 'k'; 'e'; 'r'; 'y'] in
+  let e3_prev = Option.get (C.handle ~width_of e3_typed (`Key (`Enter, []))) in
+  let e3_pub = Option.get (C.handle ~width_of e3_prev (`Key (`Enter, []))) in
+  require (e3_pub.message = "Published Merchant bakery for e3.") "merch-e3-published-on-selected-day";
+
+  (* 6. Reversal noninheritance *)
+  let actual_for_rev = C.open_route (C.initial ~config_home:dir (F.load path)) W.Actual in
+  let rev_session = C.reverse_entry_selected actual_for_rev in
+  let rev_preview = Option.get (C.handle ~width_of rev_session (`Key (`Enter, []))) in
+  let _ = Option.get (C.handle ~width_of rev_preview (`Key (`Enter, []))) in
+  let post_rev_session = F.load path in
+  let rev_entries = B.entries post_rev_session.book in
+  let rev_entry = List.find (fun (e : B.entry) -> e.reversal_of = Some "e3") rev_entries in
+  require (rev_entry.merchant = None) "reversal-entry-has-no-merchant";
+  let orig_entry = Option.get (B.find_entry post_rev_session.book "e3") in
+  require (orig_entry.merchant = Some (EM.Merchant (C.get_id (D.Identifier.External_party.of_string "bakery"))))
+    "original-entry-retains-merchant";
+
+  (* 7. Save failure retains draft *)
+  let e_unclass : B.entry = {
+    id = "e_unclass";
+    day = "2026-10-14";
+    memo = Some "Hardware store";
+    effects = [ D.Effect.create ~locus:(C.get_id (D.Identifier.Locus.of_string "wallet"))
+                  ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+                  ~quantity:(D.Quantity.of_quanta (Z.of_int (-1500))) ~key:None;
+                D.Effect.create ~locus:(C.get_id (D.Identifier.Locus.of_string "food"))
+                  ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+                  ~quantity:(D.Quantity.of_quanta (Z.of_int 1500)) ~key:None ];
+    reversal_of = None;
+    exchange = None;
+    original_amount = None;
+    merchant = None;
+  } in
+  let book_with_unclass = get (B.put_entry post_rev_session.book ~replace:false e_unclass ~plan:None) in
+  let _ = match F.publish post_rev_session book_with_unclass with F.Written s -> s | _ -> failwith "pub-unclass-fail" in
+  let sess_unclass = F.load path in
+  let cur_bytes = F.read path in
+  let state_unclass = C.open_route (C.initial ~config_home:dir sess_unclass) (W.Selected_day "2026-10-14") in
+  let ed_fail = Option.get (C.handle ~width_of state_unclass (`Key (`ASCII 'm', []))) in
+  let ed_fail_typed = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, []))))
+    ed_fail ['t'; 'o'; 'o'; 'l'; 's'] in
+  let ed_fail_prev = Option.get (C.handle ~width_of ed_fail_typed (`Key (`Enter, []))) in
+  let bad_path_state = { ed_fail_prev with session = { ed_fail_prev.session with path = dir ^ "/missing_dir/book.sexp" } } in
+  let fail_pub = Option.get (C.handle ~width_of bad_path_state (`Key (`Enter, []))) in
+  require (fail_pub.overlay <> C.No_overlay && F.read path = cur_bytes) "merch-save-fail-preserves-draft-and-disk";
+
+  (* 8. Stale conflict: another writer modified disk *)
+  let stale_state = { ed_fail_prev with session = { ed_fail_prev.session with path } } in
+  let dummy : B.entry = {
+    id = "dummy_concurrent";
+    day = "2026-10-15";
+    memo = None;
+    effects = [ D.Effect.create ~locus:(C.get_id (D.Identifier.Locus.of_string "wallet"))
+                  ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+                  ~quantity:(D.Quantity.of_quanta (Z.of_int (-10))) ~key:None;
+                D.Effect.create ~locus:(C.get_id (D.Identifier.Locus.of_string "food"))
+                  ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+                  ~quantity:(D.Quantity.of_quanta (Z.of_int 10)) ~key:None ];
+    reversal_of = None;
+    exchange = None;
+    original_amount = None;
+    merchant = None;
+  } in
+  let concurrent_book = get (B.put_entry (F.load path).book ~replace:false dummy ~plan:None) in
+  let oc = open_out_bin path in output_string oc (B.to_string concurrent_book); close_out oc;
+  let stale_pub = Option.get (C.handle ~width_of stale_state (`Key (`Enter, []))) in
+  require (stale_pub.blocked) "merch-stale-conflict-blocked";
+
+  (* 9. Records session refusal *)
+  let rec_path = dir ^ "/records.log" in
+  F.write_new rec_path (B.to_records_string (F.load path).book);
+  let rec_sess = F.load rec_path in
+  let rec_classify = Daily_actions.commit_classify_merchant ~session:rec_sess ~base_bytes:rec_sess.bytes ~id:"e1" ~disposition:EM.Nonmerchant in
+  require (rec_classify = Daily_actions.Refused "Records publication does not support Event Merchant classification. No bytes were changed.")
+    "records-format-refuses-classification";
+
+  (* 10. Year rollover & backup preserves classification *)
+  let annual_dir = dir ^ "/annual_merch" in
+  Unix.mkdir annual_dir 0o700;
+  let p26 = annual_dir ^ "/2026.sexp" in
+  F.write_new p26 (B.to_string (F.load path).book);
+  let bytes_26 = F.read p26 in
+  let sess26 = F.load ~annual_year:2026 p26 in
+  let state26 = C.initial ~config_home:annual_dir sess26 in
+  let rollover_dialog = C.open_command state26 M.Annual_rollover in
+  let do_rollover = Option.get (C.handle ~width_of rollover_dialog (`Key (`Arrow `Right, []))) in
+  let _ = Option.get (C.handle ~width_of do_rollover (`Key (`Enter, []))) in
+  let p27 = annual_dir ^ "/2027.sexp" in
+  require (Sys.file_exists p27 && F.read p26 = bytes_26) "merch-annual-rollover-created-2027-and-predecessor-unmutated";
+  let sess27 = F.load ~annual_year:2027 p27 in
+  let decoded = B.entries sess27.book in
+  let e1_27 = List.find (fun (e : B.entry) -> e.id = "e1") decoded in
+  require (e1_27.merchant = Some (EM.Merchant (C.get_id (D.Identifier.External_party.of_string "sanwa"))))
+    "merch-rollover-preserves-merchant";
+  let e2_27 = List.find (fun (e : B.entry) -> e.id = "e2") decoded in
+  require (e2_27.merchant = Some EM.Nonmerchant) "merch-rollover-preserves-nonmerchant";
+  let archive_path = annual_dir ^ "/backup.sexp" in
+  ignore (Annual_backup.backup ~session:sess27 ~target:archive_path);
+  let restore_dir = annual_dir ^ "/restored" in
+  ignore (Annual_backup.restore ~source:archive_path ~directory:restore_dir);
+  require (F.read (restore_dir ^ "/2026.sexp") = bytes_26) "merch-backup-restore-predecessor-byte-exact";
+  require (F.read (restore_dir ^ "/2027.sexp") = F.read p27) "merch-backup-restore-successor-byte-exact";
+
+  print_endline "PASS: Event Merchant classification normal, nonmerchant, unresolved, duplicate refusal, unknown event, invalid party, correction/reversal, cancel, save fail, stale conflict, records refusal, cold reopen, rollover."
 
 let self_check ~width_of () =
   let directory = "scratch/english-ui-check-" ^ F.new_id () in
@@ -1793,6 +2083,7 @@ let self_check ~width_of () =
   continuation_checks ~width_of ~directory home;
   annual_lifecycle_checks ~width_of ~directory ();
   original_amount_integration_checks ~width_of ~directory ();
+  event_merchant_integration_checks ~width_of ~directory ();
   (* An annual book is not a qualified carry-forward. Its normal Actual and
      Scheduled tools remain available, but current-quantity projections must
      not be displayed as household balances. *)

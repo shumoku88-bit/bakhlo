@@ -526,6 +526,11 @@ let entry_lines book (entry : B.entry) =
   @ (match entry.original_amount with None -> [] | Some (m, q) ->
       [tr "Original amount:" ^ " " ^ B.format book m q ^ " " ^ visible m])
   @ (match entry.reversal_of with None -> [] | Some id -> [tr "Reversal of:" ^ " " ^ visible id])
+  @ [tr "Merchant:" ^ " " ^
+      (match entry.merchant with
+       | None -> tr "Unresolved"
+       | Some Nonmerchant -> tr "Nonmerchant"
+       | Some (Merchant p) -> tr "Merchant " ^ visible (D.Identifier.External_party.to_string p))]
   @ (match entry.exchange with None -> [] | Some (a,b) -> [tr "Exchange keys:" ^ " " ^ visible a ^ " → " ^ visible b])
   @ (B.plans book |> List.filter_map (fun (p : B.plan) ->
       if p.paid_by = Some entry.id then Some (tr "Completed Scheduled:" ^ " " ^ visible p.id ^ " / " ^ p.day)

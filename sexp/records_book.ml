@@ -44,6 +44,9 @@ let optional = function
   | X.List [ X.Atom "none" ] -> None
   | X.List [ X.Atom "some"; X.Atom s ] -> Some s
   | _ -> raise (Refused "invalid-option")
+let valid_token s =
+  s <> "" && not (String.contains s '\t' || String.contains s '\n' || String.contains s '\r')
+
 
 type header = {
   version : int;
@@ -66,6 +69,7 @@ type entry = {
   reversal_of : string option;
   exchange : (string * string) option;
   original_amount : (string * Z.t) option;
+  merchant : A.Event_merchants.disposition option;
   opaque : X.t list;
 }
 
@@ -325,6 +329,13 @@ let encode_entry (e : entry) =
            | None -> f "none" []
            | Some (m, q) -> f "amount" [ a m; a (Z.to_string q) ]);
          ];
+       f "merchant"
+         [
+           (match e.merchant with
+           | None -> f "none" []
+           | Some Nonmerchant -> f "nonmerchant" []
+           | Some (Merchant p) -> f "party" [ a (D.Identifier.External_party.to_string p) ]);
+         ];
        f "effects"
          (List.map
             (fun p ->
@@ -342,7 +353,7 @@ let encode_entry (e : entry) =
 let decode_entry rows =
   let known, opaque =
     partition_fields
-      [ "id"; "day"; "token"; "memo"; "reversal-of"; "exchange"; "original-amount"; "effects" ]
+      [ "id"; "day"; "token"; "memo"; "reversal-of"; "exchange"; "original-amount"; "merchant"; "effects" ]
       rows
   in
   let id = atom (one (field_req known "id")) in
@@ -378,6 +389,20 @@ let decode_entry rows =
         Some (m, q)
     | _ -> raise (Refused "invalid-original-amount")
   in
+  let merchant =
+    match field_opt known "merchant" with
+    | None | Some [ X.List [ X.Atom "none" ] ] -> None
+    | Some [ X.List [ X.Atom "nonmerchant" ] ] -> Some A.Event_merchants.Nonmerchant
+    | Some [ X.List [ X.Atom "party"; X.Atom p ] ] ->
+        if not (valid_token p) then raise (Refused "invalid-merchant-party");
+        let party =
+          match D.Identifier.External_party.of_string p with
+          | Ok p -> p
+          | Error _ -> raise (Refused "invalid-merchant-party")
+        in
+        Some (A.Event_merchants.Merchant party)
+    | _ -> raise (Refused "invalid-merchant")
+  in
   let effects =
     List.map
       (function
@@ -386,7 +411,7 @@ let decode_entry rows =
         | _ -> raise (Refused "invalid-posting"))
       (field_req known "effects")
   in
-  { id; day; token; memo; effects; reversal_of; exchange; original_amount; opaque }
+  { id; day; token; memo; effects; reversal_of; exchange; original_amount; merchant; opaque }
 
 let encode_plan (p : plan) =
   f "plan"

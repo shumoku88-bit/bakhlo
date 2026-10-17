@@ -415,6 +415,7 @@ let raw_entries_2026 : B.entry list =
       reversal_of = Some "e_2025_deposit";
       exchange = None;
       original_amount = None;
+      merchant = None;
     };
     {
       id = "e_2026_pay_plan";
@@ -424,6 +425,7 @@ let raw_entries_2026 : B.entry list =
       reversal_of = None;
       exchange = None;
       original_amount = None;
+      merchant = None;
     };
     {
       id = "e_2026_fx";
@@ -433,6 +435,7 @@ let raw_entries_2026 : B.entry list =
       reversal_of = None;
       exchange = Some ("from", "to");
       original_amount = None;
+      merchant = None;
     };
   ]
 

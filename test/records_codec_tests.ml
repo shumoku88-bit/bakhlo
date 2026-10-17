@@ -45,6 +45,7 @@ let make_entry id day n : DB.entry =
     reversal_of = None;
     exchange = None;
     original_amount = None;
+    merchant = None;
   }
 
 let make_fixture () =
@@ -238,6 +239,7 @@ let%test_unit "records_codec multicurrency, reversal, and exchange semantics" =
     reversal_of = Some "e1";
     exchange = None;
     original_amount = None;
+    merchant = None;
   } in
   let base = get (DB.put_entry base ~replace:false rev_entry ~plan:None) in
   let rec_str = DB.to_records_string base in

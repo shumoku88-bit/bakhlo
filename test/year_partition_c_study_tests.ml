@@ -346,6 +346,7 @@ let raw_entries_2026 : B.entry list =
       reversal_of = Some "e_2025_deposit";
       exchange = None;
       original_amount = None;
+      merchant = None;
     };
     {
       id = "e_2026_pay_plan";
@@ -355,6 +356,7 @@ let raw_entries_2026 : B.entry list =
       reversal_of = None;
       exchange = None;
       original_amount = None;
+      merchant = None;
     };
     {
       id = "e_2026_fx";
@@ -364,6 +366,7 @@ let raw_entries_2026 : B.entry list =
       reversal_of = None;
       exchange = Some ("from", "to");
       original_amount = None;
+      merchant = None;
     };
   ]
 
@@ -457,6 +460,7 @@ let%expect_test "Case B: Cross-Year Plan Payment and Duplicate Payment Preventio
       reversal_of = None;
       exchange = None;
       original_amount = None;
+      merchant = None;
     }
   in
   let bad_res =
@@ -581,6 +585,7 @@ let%expect_test "Case E: Rejection of Corrupt/Inconsistent States (Unknown to Ze
       reversal_of = Some "nonexistent_target_12345";
       exchange = None;
       original_amount = None;
+      merchant = None;
     }
   in
   let bad_res =

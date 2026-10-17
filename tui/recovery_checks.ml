@@ -63,6 +63,7 @@ let self_check () =
       reversal_of = None;
       exchange = None;
       original_amount = None;
+      merchant = None;
     }
   in
   let payment = entry "recovery-payment" "jpy" in

@@ -90,6 +90,7 @@ let%expect_test "incremental admission matches full oracle on sequential transac
         reversal_of = None;
         exchange = None;
         original_amount = None;
+        merchant = None;
       };
       {
         B.id = "tx2";
@@ -99,6 +100,7 @@ let%expect_test "incremental admission matches full oracle on sequential transac
         reversal_of = None;
         exchange = None;
         original_amount = None;
+        merchant = None;
       };
       {
         B.id = "tx3";
@@ -108,6 +110,7 @@ let%expect_test "incremental admission matches full oracle on sequential transac
         reversal_of = None;
         exchange = None;
         original_amount = None;
+        merchant = None;
       };
       {
         B.id = "tx4";
@@ -122,6 +125,7 @@ let%expect_test "incremental admission matches full oracle on sequential transac
         reversal_of = None;
         exchange = None;
         original_amount = None;
+        merchant = None;
       };
     ]
   in
@@ -155,6 +159,7 @@ let%expect_test "incremental admission matches full oracle on plan payments" =
       reversal_of = None;
       exchange = None;
       original_amount = None;
+      merchant = None;
     }
   in
   let inc = get (B.put_entry base ~replace:false rent_payment ~plan:(Some "rent")) in
@@ -184,6 +189,7 @@ let%expect_test "incremental admission matches full oracle on error refusals" =
       reversal_of = None;
       exchange = None;
       original_amount = None;
+      merchant = None;
     }
   in
   (* 1. Duplicate ID *)
@@ -248,6 +254,7 @@ let%expect_test "fallback cases trigger full oracle correctly and match results"
       reversal_of = None;
       exchange = None;
       original_amount = None;
+      merchant = None;
     }
   in
   let added = get (B.put_entry base ~replace:false orig ~plan:None) in
@@ -266,6 +273,7 @@ let%expect_test "fallback cases trigger full oracle correctly and match results"
       reversal_of = Some "mod_me";
       exchange = None;
       original_amount = None;
+      merchant = None;
     }
   in
   let res_inc_rev = B.put_entry added ~replace:false reversal ~plan:None in
@@ -282,6 +290,7 @@ let%expect_test "fallback cases trigger full oracle correctly and match results"
       reversal_of = None;
       exchange = Some ("src", "dst");
       original_amount = None;
+      merchant = None;
     }
   in
   let res_inc_fx = B.put_entry base ~replace:false fx ~plan:None in
@@ -315,6 +324,7 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
       reversal_of = None;
       exchange = None;
       original_amount = None;
+      merchant = None;
     }
   in
   let inc_past = get (B.put_entry base ~replace:false past_tx ~plan:None) in
@@ -355,6 +365,7 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
       reversal_of = Some "past_e";
       exchange = None;
       original_amount = None;
+      merchant = None;
     }
   in
   let inc_rev = get (B.put_entry inc_replaced ~replace:false rev_tx ~plan:None) in
@@ -374,6 +385,7 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
       reversal_of = None;
       exchange = Some ("src", "dst");
       original_amount = None;
+      merchant = None;
     }
   in
   let inc_fx = get (B.put_entry inc_rev ~replace:false fx_tx ~plan:None) in
@@ -392,6 +404,7 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
       reversal_of = None;
       exchange = None;
       original_amount = None;
+      merchant = None;
     }
   in
   let inc_pay = get (B.put_entry inc_fx ~replace:false pay_tx ~plan:(Some "rent")) in

@@ -11,6 +11,7 @@ module M = Ui_commands
 module S = Record_session
 module Rev = Reversal_session
 module Date = Date_correction_session
+module Merchant = Merchant_session
 module Sch = Scheduled_session
 module Cancel = Scheduled_cancellation_session
 module Act = Actual_workspace
@@ -61,6 +62,7 @@ type overlay =
   | Modal_form of Form.t
   | Reversal of Rev.t
   | Date_correction of Date.t
+  | Event_merchant of Merchant.t
   | Scheduled_create of Sch.t
   | Scheduled_cancel of Cancel.t
   | Scheduled_continuation of Cont.t
@@ -252,8 +254,11 @@ let finish_publication state session message =
           " Next-plan inspection unavailable; no additional Scheduled created." })
   | _ -> next
 
-let apply_commit_result state ~draft result =
-  let published session message = finish_publication state session message in
+let apply_commit_result ?published_message state ~draft result =
+  let published session default_msg =
+    let msg = match published_message with Some m -> m | None -> default_msg in
+    finish_publication state session msg
+  in
   let stopped ?(pending = draft.pending) message =
     { draft with blocked = true; pending; message }
   in
@@ -318,6 +323,9 @@ let reload state =
       | Date_correction editor when Date.base_bytes editor <> session.bytes ->
           { state with session; blocked = true;
             message = tr "Date correction target generation changed. Cancel, reload and reselect." }
+      | Event_merchant editor when Merchant.base_bytes editor <> session.bytes ->
+          { state with session; blocked = true;
+            message = tr "Merchant classification target generation changed. Draft retained; cancel, reload and reselect." }
       | Scheduled_cancel editor when Cancel.base_bytes editor <> session.bytes ->
           { state with session; blocked = true;
             message = tr "Scheduled cancellation target generation changed. Keep, reload and reselect." }
@@ -551,6 +559,29 @@ let reverse_entry_selected state =
             message = "";
           }
     | _ -> { state with message = tr "Select an Actual entry to reverse." }
+let classify_merchant_selected state =
+  if state.blocked then state
+  else if has_record_draft state then
+    { state with message = tr "A draft is retained. Resume or discard it before classifying." }
+  else
+    match selected state with
+    | Some (W.Actual_entry entry) -> (
+        match entry.merchant with
+        | Some disposition ->
+            let disp_text =
+              match disposition with
+              | Bakhlo_application.Event_merchants.Nonmerchant -> "Nonmerchant"
+              | Merchant p -> "Merchant " ^ D.Identifier.External_party.to_string p
+            in
+            { state with message = "Merchant already classified: " ^ disp_text ^ "." }
+        | None ->
+            {
+              state with
+              overlay = Event_merchant (Merchant.create ~base_bytes:state.session.bytes entry);
+              message = "";
+            })
+    | _ -> { state with message = tr "Select an Actual entry to classify Merchant." }
+
 
 let open_attentions state =
   match state.attention with Ok t -> Att.open_items t | Error _ -> []
@@ -670,6 +701,9 @@ let reversal_dimensions ~dimensions ~width_of state =
 
 let date_dimensions ~dimensions ~width_of state =
   Date.dimensions (body_dimensions ~dimensions ~width_of state)
+let merchant_dimensions ~dimensions ~width_of state =
+  Merchant.dimensions (body_dimensions ~dimensions ~width_of state)
+
 
 let scheduled_dimensions ~dimensions ~width_of state =
   Sch.dimensions (body_dimensions ~dimensions ~width_of state)
@@ -1661,6 +1695,24 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 let draft = { state with overlay = Date_correction (Date.edit editor) } in
                 Some (apply_commit_result state ~draft
                   (A.commit_transaction ~session:state.session ~base_bytes tx))))
+    | Event_merchant editor -> (
+        match input with
+        | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
+        | _ -> (
+            match Merchant.handle ~blocked:state.blocked
+              ~dimensions:(merchant_dimensions ~dimensions ~width_of state) ~width_of editor input with
+            | Merchant.Updated editor -> Some { state with overlay = Event_merchant editor }
+            | Merchant.Closed -> Some { state with overlay = No_overlay; message = tr "Merchant classification cancelled." }
+            | Merchant.Publish (target_id, disposition, base_bytes) ->
+                let draft = { state with overlay = Event_merchant (Merchant.edit editor) } in
+                let disp_text =
+                  match disposition with
+                  | Bakhlo_application.Event_merchants.Nonmerchant -> "Nonmerchant"
+                  | Merchant p -> "Merchant " ^ D.Identifier.External_party.to_string p
+                in
+                let pub_msg = Printf.sprintf "Published %s for %s." disp_text target_id in
+                Some (apply_commit_result ~published_message:pub_msg state ~draft
+                  (A.commit_classify_merchant ~session:state.session ~base_bytes ~id:target_id ~disposition))))
     | Reversal editor -> (
         match input with
         | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
@@ -2016,6 +2068,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                                     reversal_of = None;
                                     exchange = Some ("exchange-source", "exchange-destination");
                                     original_amount = None;
+                                    merchant = None;
                                   }
                                 in
                                 let tx = { A.entry; replace = false; plan = None } in
@@ -2380,6 +2433,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 Some (reverse_entry_selected state)
             | `Key (`ASCII ('d' | 'D'), []) when not (Act.search_editing state.actual_workspace) ->
                 Some (correct_date_selected state)
+            | `Key (`ASCII ('m' | 'M'), []) when not (Act.search_editing state.actual_workspace) ->
+                Some (classify_merchant_selected state)
             | _ ->
                 let actual_dim = actual_dimensions ~dimensions ~width_of state in
                 let next_ws, cmd =
@@ -2659,6 +2714,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some (open_route state W.Balances)
         | Some (`ASCII 'd', []) when (match state.workspace.route with W.Selected_day _ -> true | _ -> false) ->
             Some (correct_date_selected state)
+        | Some (`ASCII 'm', []) when (match state.workspace.route with W.Selected_day _ -> true | _ -> false) ->
+            Some (classify_merchant_selected state)
         | Some (`ASCII 'd', []) when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
             Some (open_route state W.Daily_pace)
         | Some (`ASCII 'i', []) when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
@@ -3725,10 +3782,11 @@ let workspace_rows ~width_of ~width ~height state =
 
 let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   match state.overlay with
-  | (Reversal _ | Date_correction _ | Scheduled_cancel _) when state.blocked ->
+  | (Reversal _ | Date_correction _ | Scheduled_cancel _ | Event_merchant _) when state.blocked ->
       [ "Writes stopped; date retained"; "Ctrl-r inspect/reload  q keep" ]
   | Reversal editor -> Rev.footer editor
   | Date_correction editor -> Date.footer editor
+  | Event_merchant editor -> Merchant.footer editor
   | Scheduled_create editor -> Sch.footer editor
   | Scheduled_cancel editor -> Cancel.footer editor
   | Scheduled_continuation prompt -> Cont.footer prompt
@@ -3818,7 +3876,7 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
       ]
   | W.Selected_day _, W.Calendar ->
       [
-        "j/k select  Enter/i/Tab Detail  c Correct  d Date  x Reverse  e Extend  b Batch  g Loci  r Record";
+        "j/k select  Enter/i/Tab Detail  c Correct  d Date  x Reverse  m Merchant  e Extend  b Batch  g Loci  r Record";
         (match state.drill_parent with
          | Some W.Actual -> "Space Commands  q/Esc Actual  Ctrl-r reload"
          | _ -> "Space Commands  q/Esc Home  Ctrl-r reload");
@@ -4107,6 +4165,21 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
         let origin_y = max 0 ((body_h - pane_h) / 2) in
         let cursor = Option.map (fun (col, row) -> (origin_x + col, origin_y + row))
           (O.cursor_in_rows ~width_of ~width:pane_w rows) in
+        Some { origin_x; origin_y; pane_width = pane_w; pane_height = pane_h; rows; cursor }
+    | Event_merchant editor ->
+        let pane_dimensions = merchant_dimensions ~dimensions ~width_of state in
+        let pane_w = fst pane_dimensions in
+        let rows = Merchant.screen ~dimensions:pane_dimensions ~width_of editor in
+        let pane_h = List.length rows in
+        let origin_x = max 0 ((width - pane_w) / 2) in
+        let origin_y = max 0 ((body_h - pane_h) / 2) in
+        let cursor =
+          match O.cursor_in_rows ~width_of ~width:pane_w rows with
+          | Some (col, row) ->
+              let c = origin_x + col and r = origin_y + row in
+              if c < width && r < height then Some (c, r) else None
+          | None -> None
+        in
         Some { origin_x; origin_y; pane_width = pane_w; pane_height = pane_h; rows; cursor }
     | Reversal editor ->
         let pane_dimensions = reversal_dimensions ~dimensions ~width_of state in

@@ -699,18 +699,18 @@ let footer ~dimensions ~width_of t =
   else if t.pane = Details then
     [
       "[j/k] scroll details  [h/l] pane  [Esc/i] return to Actuals";
-      "[Enter] open selected  [d] date  [n] new  [q] back";
+      "[Enter] open selected  [d] date  [m] merchant  [n] new  [q] back";
     ]
   else
     let detailed =
       "[j/k] select  [h/l] pane  [Tab] cycle  [i] details  [f] filter  [s] sort  [/] search"
     in
     if width_of detailed <= width then
-      [ detailed; "[Enter] open selected  [d] date  [n] new  [q] back" ]
+      [ detailed; "[Enter] open selected  [d] date  [m] merchant  [n] new  [q] back" ]
     else
       [
         "[j/k] sel [h/l] pane [Tab] cycle [i] info [f] filter [s] sort [/] search";
-        "[Enter] open [d] date [n] new [q] back";
+        "[Enter] open [d] date [m] merchant [n] new [q] back";
       ]
 
 let search_line ~width ~width_of t =
