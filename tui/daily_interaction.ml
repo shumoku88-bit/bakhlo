@@ -423,7 +423,26 @@ let open_plan_record state =
       message = "";
     }
 
+(* The first annual-file slice has no verified previous-year opening state.
+   Never present year-only projections as an authoritative household balance. *)
+let annual_unavailable state =
+  match state.session.F.annual_year with
+  | None -> None
+  | Some year ->
+      Some (Printf.sprintf
+        "%04d annual book: carried opening balances and cross-year evidence are unavailable." year)
+
+let annual_needs_history = function
+  | W.Balances | W.Daily_pace | W.Stock_flow | W.Income_expense
+  | W.Transactions_flow -> true
+  | W.Home | W.Calendar | W.Selected_day _ | W.Actual | W.Scheduled
+  | W.Attention | W.Loci | W.Settlements -> false
+
 let open_route state route =
+  if annual_needs_history route && state.session.F.annual_year <> None then
+    { state with overlay = No_overlay;
+      message = Option.value ~default:"Annual opening evidence unavailable." (annual_unavailable state) }
+  else
   let state =
     if route = W.Actual then
       let focus_date = state.workspace.calendar.selected_day in
@@ -932,6 +951,9 @@ let resolve_pace_pool state =
     | Some text -> coordinates [] (config_lines text))
 
 let current_pace_result state =
+  match annual_unavailable state with
+  | Some why -> Error why
+  | None ->
   let today = F.today () and measure = state.workspace.measure in
   Result.bind (resolve_pace_pool state) (fun pool ->
     Result.bind (resolve_pace_window state) (fun (start_day, end_exclusive) ->
@@ -3140,8 +3162,21 @@ let workspace_rows ~width_of ~width ~height state =
         draw_frame ~width_of ~width ~height ~focused:true
           ?heading:left_heading ~title:left_title ~scroll:left_scroll ~selected:left_selected left_rows
   in
-  if workspace.route = W.Home then
-    O.bonsai_home_lines ~width ~height ~width_of ~today:(F.today ())
+  if annual_needs_history workspace.route && state.session.F.annual_year <> None then
+    draw_frame ~width_of ~width ~height ~focused:true ~title:(title ^ " / Unavailable")
+      ~scroll:0 ~selected:None
+      [ "Annual file does not contain a qualified prior-year opening.";
+        "Balances, Daily Pace and cross-year reports are unavailable.";
+        Option.value ~default:"Opening evidence unavailable." (annual_unavailable state);
+        "Actual entries and Scheduled records in this file remain inspectable.";
+        "No zero opening or carried balance is inferred." ]
+  else if workspace.route = W.Home then
+    (match annual_unavailable state with
+     | None -> O.bonsai_home_lines ~width ~height ~width_of ~today:(F.today ())
+     | Some notice ->
+         (Status, notice)
+         :: O.bonsai_home_lines ~width ~height:(max 0 (height - 1))
+              ~width_of ~today:(F.today ()))
   else if workspace.route = W.Calendar then
     let calendar_focused = workspace.pane = W.Calendar in
     let detail =
@@ -3449,10 +3484,13 @@ let workspace_rows ~width_of ~width ~height state =
           let role_opt = List.assoc_opt locus roles in
           let role_str = match role_opt with None -> "None / Unassigned" | Some r -> Roles.role_label r in
           let balances =
-            List.map (fun (m, _) ->
-              let q = O.quantity ~book ~measure:m locus in
-              Printf.sprintf "  %s: %s" (String.uppercase_ascii m) q)
-              (B.measures book)
+            if state.session.F.annual_year <> None then
+              [ "  Unavailable: prior-year opening evidence is not connected." ]
+            else
+              List.map (fun (m, _) ->
+                let q = O.quantity ~book ~measure:m locus in
+                Printf.sprintf "  %s: %s" (String.uppercase_ascii m) q)
+                (B.measures book)
           in
           [
             "Locus Token:      " ^ locus;
