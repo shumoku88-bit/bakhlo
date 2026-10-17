@@ -37,9 +37,11 @@ Favaとhledgerへの出力はユーザー指定で対象外。Print／診断や�
 - 単一S式のDaily台帳で、単発予定の作成・変更・日付付き取消を画面から試せる（Recordsは拒否）。
   取消済み予定は残し、支払い済み／取消済みの再支払いを拒否する。
 - `Daily_book.daily_pace`でLOAM Home `d`相当の今日の目安を計算し、英語のDaily Pace画面で設定・現在の量・予定控除を表示する。
-  対象口座・通貨・観測日・期間末は明示する。現在値・What-ifとPool編集は接続済み、履歴Trendは未接続。
+  対象口座・通貨・観測日・期間末は明示する。現在値・What-if・Pool編集・Trendは接続済み。
+  Trendの今日の値は期限超過の未払い予定も含めて同じCore計算を使う。過去日は既存の別の再構成経路を維持する。
   Pool未設定・不正・混合通貨、期間未設定・不正・曖昧な選択は拒否し、口座や月末を推測しない。
-  Pool編集は`daily-pace.tsv`だけを保存し、全`boundary-presets.tsv`を保全する。赤字をゼロに丸めない。
+  Pool編集は既存設定→入力→旧／新Review→明示保存。確認内容が収まらない端末では保存せず、Esc／Editと編集取消で下書きを保持する。
+  別Measure・不正・読めない既存Poolの置換は拒否する。`daily-pace.tsv`だけを保存し、全`boundary-presets.tsv`を保全する。赤字をゼロに丸めない。
 - Daily画面の両替、数量観測、Manage Loci／明示役割設定、Attention、限定的な精算残額管理を試せる。
   Attention／精算の不正・読込失敗は空やゼロにせずUnavailableとして表示する。
   保存失敗・協調writer競合では入力と旧状態を残す。これらのsidecarは全家計移行・耐久保存認定ではない。

@@ -233,18 +233,19 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
             match query_pool_balance book measure coords with
             | Error why -> Error why
             | Ok current_pool_balance -> (
-                let horizon_res =
+                (* Keep the current answer; past-day reconstruction stays unchanged. *)
+                let horizon_pace =
                   if end_exclusive > today then
                     match
                       B.daily_pace book ~measure ~pool:coords ~observed_at:today ~end_exclusive
                     with
-                    | Ok _ -> Ok ()
+                    | Ok pace -> Ok (Some pace)
                     | Error why -> Error (format_pace_error why)
-                  else Ok ()
+                  else Ok None
                 in
-                match horizon_res with
+                match horizon_pace with
                 | Error why -> Error why
-                | Ok () ->
+                | Ok today_pace ->
                     let entries = B.entries book in
                     let plans = B.open_plans book in
                     let days = dates_between start_day through_day in
@@ -267,6 +268,18 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
                               end_exclusive;
                             }
                           else
+                            (match today_pace with
+                            | Some pace when day = today ->
+                                {
+                                  day;
+                                  pace_quanta = Some pace.B.daily_pace_quanta;
+                                  available_through_end = pace.B.available_through_end;
+                                  pool_balance = pace.B.eligible_pool;
+                                  deductions = pace.B.automatic_deductions;
+                                  remaining_days = pace.B.remaining_days;
+                                  end_exclusive;
+                                }
+                            | _ ->
                             (* 1. Pool balance at date 'day' = current_pool_balance - sum(effects where entry.day > day) *)
                             let post_effects =
                               List.filter
@@ -320,106 +333,244 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
                               deductions;
                               remaining_days;
                               end_exclusive;
-                            })
+                            }))
                         days
                     in
                     Ok (start_day, through_day, samples))))
 
-let render_trend ~width ~height ~width_of ~measure ~samples ~selected_index ~graph_style =
-  if width < 8 || height < 4 || samples = [] then []
+(* Cursor within the actually rendered range: clamp the stored index to the
+   real last row before stepping. Range failure stays an explicit error. *)
+let move_selection ~today ~preset ~boundary_presets_text ~position delta =
+  match resolve_range ~today ~preset ~boundary_presets_text with
+  | Error msg -> Error msg
+  | Ok (start_day, through_day, _) ->
+      let last = max 0 (day_number through_day - day_number start_day) in
+      Ok (Panel.move ~last ~position delta)
+
+(* Braille 2x4 subcell plot with integer-only nice ticks.
+   Amounts use the book's Measure scale with 3-digit grouping, never raw
+   quanta; a value that cannot fit is omitted whole, never cut mid-number. *)
+let group_digits text =
+  let len = String.length text in
+  let out = Buffer.create (len + len / 3) in
+  String.iteri (fun i ch ->
+    if i > 0 && (len - i) mod 3 = 0 then Buffer.add_char out ',';
+    Buffer.add_char out ch) text;
+  Buffer.contents out
+
+let format_money book measure q =
+  let raw = B.format book measure q in
+  let sign = String.starts_with ~prefix:"-" raw in
+  let digits = if sign then String.sub raw 1 (String.length raw - 1) else raw in
+  let int_part, frac =
+    match String.index_opt digits '.' with
+    | None -> (digits, None)
+    | Some dot ->
+        ( String.sub digits 0 dot,
+          Some (String.sub digits (dot + 1) (String.length digits - dot - 1)) )
+  in
+  (if sign then "-" else "") ^ group_digits int_part
+  ^ (match frac with None -> "" | Some f -> "." ^ f)
+
+let ceil_div a b = if Z.sign a >= 0 then Z.div (Z.add a (Z.sub b Z.one)) b else Z.div a b
+
+let nice_ceiling raw =
+  (* raw is positive; 1/2/5×10^n cover, all in Z so 400-digit spans stay bounded. *)
+  assert (Z.sign raw > 0);
+  let digits = String.length (Z.to_string raw) - 1 in
+  let unit = Z.pow (Z.of_int 10) digits in
+  if Z.compare raw unit <= 0 then unit
+  else if Z.compare raw (Z.mul unit (Z.of_int 2)) <= 0 then Z.mul unit (Z.of_int 2)
+  else if Z.compare raw (Z.mul unit (Z.of_int 5)) <= 0 then Z.mul unit (Z.of_int 5)
+  else Z.mul unit (Z.of_int 10)
+
+let short_day day = if String.length day >= 10 then String.sub day 5 5 else day
+
+let braille_mask =
+  [| (0, 0, 0x01); (0, 1, 0x02); (0, 2, 0x04); (1, 0, 0x08); (1, 1, 0x10); (1, 2, 0x20); (0, 3, 0x40); (1, 3, 0x80) |]
+
+let render_trend ~width ~height ~width_of ~book ~today ~measure ~samples ~selected_index ~graph_style =
+  if width < 8 || height < 1 || samples = [] then []
   else
     let count = List.length samples in
-    let quant_list = List.filter_map (fun s -> s.pace_quanta) samples in
-    if quant_list = [] then [ (O.Chrome, "No valid pace data in this period.") ]
+    let arr = Array.of_list samples in
+    let selected = Panel.move ~last:(count - 1) ~position:selected_index 0 in
+    let sel = arr.(selected) in
+    let money q = format_money book measure q ^ " " ^ measure ^ "/day" in
+    let mark = if sel.day = today then " (today)" else "" in
+    let full_summary =
+      match sel.pace_quanta with
+      | Some q -> sel.day ^ mark ^ " ◆ " ^ money q
+      | None -> sel.day ^ mark ^ " unavailable"
+    in
+    let summary =
+      if width_of full_summary <= width then full_summary
+      else
+        let compact =
+          match sel.pace_quanta with
+          | Some q -> sel.day ^ mark ^ " ◆ " ^ format_money book measure q
+          | None -> sel.day ^ mark ^ " unavailable"
+        in
+        let bare =
+          match sel.pace_quanta with
+          | Some q -> sel.day ^ " ◆ " ^ money q
+          | None -> sel.day ^ " unavailable"
+        in
+        let cue = sel.day ^ " ◆ … (i detail)" in
+        if width_of bare <= width then bare
+        else if width_of compact <= width then compact
+        else if width_of cue <= width then cue
+        else O.clip_text ~width_of width (sel.day ^ " ◆ …")
+    in
+    let summary_row = (O.Active, O.pad ~width_of width summary) in
+    (* The sample list yields to graph and selection: change drops before
+       amounts, and an unfit amount becomes an explicit detail cue. *)
+    let list_rows cap start =
+      List.init cap (fun k ->
+          let i = start + k in
+          let s = arr.(i) in
+          let marker = if i = selected then "◆ " else if s.pace_quanta = None then "  " else "● " in
+          let pace_text =
+            match s.pace_quanta with
+            | None -> "unavailable"
+            | Some q ->
+                let base = money q in
+                let change =
+                  if i = 0 then ""
+                  else
+                    match arr.(i - 1).pace_quanta with
+                    | None -> ""
+                    | Some p ->
+                        let diff = Z.sub q p in
+                        if Z.equal diff Z.zero then ""
+                        else " (" ^ (if Z.sign diff > 0 then "+" else "") ^ format_money book measure diff ^ ")"
+                in
+                if width_of (marker ^ s.day ^ "  " ^ base ^ change) <= width then base ^ change
+                else if width_of (marker ^ s.day ^ "  " ^ base) <= width then base
+                else "…"
+          in
+          let full_row = marker ^ s.day ^ "  " ^ pace_text in
+          let row_text = if width_of full_row <= width then full_row else marker ^ s.day ^ "  …" in
+          ((if i = selected then O.Active else O.Plain), O.pad ~width_of width row_text))
+    in
+    if height < 3 then [ summary_row ]
     else
-      let min_q = List.fold_left Z.min (List.hd quant_list) quant_list in
-      let max_q = List.fold_left Z.max (List.hd quant_list) quant_list in
-      let chart_h = max 3 (min 6 (height / 2 - 1)) in
-      let axis_w = max 6 (min 10 (width_of (Z.to_string max_q))) in
-      let plot_w = max 1 (width - axis_w - 4) in
-
-      (* 1. Plot rows *)
-      let plot_rows =
-        List.init chart_h (fun row_idx ->
-            let y_ratio =
-              if chart_h <= 1 then 0.5
-              else float_of_int (chart_h - 1 - row_idx) /. float_of_int (chart_h - 1)
-            in
-            let tick_val =
-              let span = Z.to_float (Z.sub max_q min_q) in
-              Z.add min_q (Z.of_float (span *. y_ratio))
-            in
-            let tick_str = O.pad_left ~width_of axis_w (Z.to_string tick_val) in
-            let cols =
-              String.init plot_w (fun col_idx ->
-                  let sample_idx =
-                    if plot_w <= 1 then 0
-                    else col_idx * (count - 1) / (plot_w - 1)
-                  in
-                  let sample = List.nth samples (min (count - 1) sample_idx) in
-                  let is_sel = sample_idx = selected_index in
-                  match sample.pace_quanta with
-                  | None -> ' '
-                  | Some q ->
-                      let target_row =
-                        if Z.equal max_q min_q then chart_h / 2
-                        else
-                          let frac =
-                            Z.to_float (Z.sub q min_q) /. Z.to_float (Z.sub max_q min_q)
-                          in
-                          chart_h - 1 - int_of_float (frac *. float_of_int (chart_h - 1))
-                      in
-                      if target_row = row_idx then
-                        if is_sel then '^'
-                        else match graph_style with Line -> '*' | Dots -> '.'
-                      else if is_sel && row_idx > target_row then '|'
-                      else ' ')
-            in
-            (O.Plain, tick_str ^ " │ " ^ cols))
+      let plot_h = max 1 (min 12 (if height >= 10 then (height - 2) / 2 else height - 2)) in
+      let valid =
+        Array.fold_left (fun acc s -> match s.pace_quanta with None -> acc | Some q -> q :: acc) [] arr
       in
-
-      (* 2. Axis rule *)
-      let axis_rule =
-        (O.Chrome, String.make axis_w ' ' ^ " ╰─" ^ O.rule ~width_of plot_w)
-      in
-
-      (* 3. Timeline samples list *)
-      let list_capacity = max 0 (height - chart_h - 2) in
-      let start_idx = max 0 (min (count - list_capacity) (selected_index - list_capacity / 2)) in
-      let visible_samples =
-        samples
-        |> List.filteri (fun i _ -> i >= start_idx && i < start_idx + list_capacity)
-      in
-      let sample_lines =
-        List.mapi
-          (fun local_idx (s : sample) ->
-            let global_idx = start_idx + local_idx in
-            let is_sel = global_idx = selected_index in
-            let marker = if is_sel then "> " else "  " in
-            let pace_str =
-              match s.pace_quanta with
-              | Some q -> Z.to_string q ^ " " ^ measure ^ "/day"
-              | None -> "unavailable"
-            in
-            let change_str =
-              if global_idx = 0 then ""
-              else
-                let prev = List.nth samples (global_idx - 1) in
-                match s.pace_quanta, prev.pace_quanta with
-                | Some cur, Some prv ->
-                    let diff = Z.sub cur prv in
-                    let sign = if Z.sign diff > 0 then "+" else "" in
-                    " (" ^ sign ^ Z.to_string diff ^ ")"
-                | _ -> ""
-            in
-            let line_text =
-              marker ^ s.day ^ "  " ^ O.pad_left ~width_of 16 pace_str ^ change_str
-            in
-            let style = if is_sel then O.Active else O.Plain in
-            (style, O.pad ~width_of width line_text))
-          visible_samples
-      in
-      plot_rows @ [ axis_rule ] @ sample_lines
+      match valid with
+      | [] ->
+          let list_cap = max 0 (min count (height - 2)) in
+          let start = max 0 (min (count - list_cap) (selected - list_cap / 2)) in
+          (O.Chrome, O.pad ~width_of width "No valid pace data in this period.")
+          :: summary_row :: list_rows list_cap start
+      | _ ->
+          let min_q = List.fold_left Z.min (List.hd valid) valid in
+          let max_q = List.fold_left Z.max (List.hd valid) valid in
+          let span = Z.sub max_q min_q in
+          let step = if Z.equal span Z.zero then Z.one else
+            nice_ceiling (ceil_div span (Z.of_int (max 1 (min 4 (plot_h - 1))))) in
+          let lower, upper =
+            if Z.equal span Z.zero then Z.pred min_q, Z.succ max_q
+            else Z.mul (Z.ediv min_q step) step, Z.mul (ceil_div max_q step) step in
+          let range = Z.sub upper lower in
+          let rec ticks_from t acc =
+            if Z.compare t upper > 0 then List.rev acc
+            else ticks_from (Z.add t step) (t :: acc) in
+          let ticks = ticks_from lower [] in
+          let tick_row t =
+            Z.to_int (Z.ediv (Z.mul (Z.sub upper t) (Z.of_int (plot_h - 1))) range) in
+          let tick_at =
+            List.fold_left
+              (fun acc t ->
+                let r = tick_row t in
+                if List.mem_assoc r acc then acc else (r, t) :: acc)
+              [] ticks
+          in
+          let natural_axis = List.fold_left (fun w t -> max w (width_of (format_money book measure t))) 0 ticks in
+          let axis_w = min natural_axis (max 1 (min 12 (width / 3))) in
+          let plot_w = max 1 (width - axis_w - 3) in
+          let sub_w = 2 * plot_w and sub_h = 4 * plot_h in
+          let dots = Array.make (sub_w * sub_h) false in
+          let set_dot sx sy =
+            if sx >= 0 && sy >= 0 && sx < sub_w && sy < sub_h then dots.(sy * sub_w + sx) <- true
+          in
+          let col_of i = if count <= 1 then 0 else i * (sub_w - 1) / (count - 1) in
+          let sub_row_of q =
+            Z.to_int (Z.ediv (Z.mul (Z.sub upper q) (Z.of_int (sub_h - 1))) range) in
+          let points = Array.mapi (fun i s ->
+            Option.map (fun q -> col_of i, sub_row_of q) s.pace_quanta) arr in
+          Array.iter (Option.iter (fun (x, y) -> set_dot x y)) points;
+          (* Joins are display-only interpolation: adjacent valid days sharing
+             one end_exclusive only, never across holes or cycle resets. *)
+          let joinable i =
+            i + 1 < count && arr.(i).pace_quanta <> None && arr.(i + 1).pace_quanta <> None
+            && arr.(i).end_exclusive = arr.(i + 1).end_exclusive
+            && day_number arr.(i + 1).day = day_number arr.(i).day + 1
+          in
+          (match graph_style with
+          | Dots -> ()
+          | Line ->
+              for i = 0 to count - 2 do
+                if joinable i then
+                  match points.(i), points.(i + 1) with
+                  | Some (x0, y0), Some (x1, y1) ->
+                      let steps = max (abs (x1 - x0)) (abs (y1 - y0)) in
+                      if steps > 1 then
+                        for s = 1 to steps - 1 do
+                          set_dot (x0 + (x1 - x0) * s / steps) (y0 + (y1 - y0) * s / steps)
+                        done
+                  | None, _ | _, None -> ()
+              done);
+          let plot_text = Array.init plot_h (fun _ -> Array.make plot_w " ") in
+          for y = 0 to plot_h - 1 do
+            let grid = List.mem_assoc y tick_at in
+            for x = 0 to plot_w - 1 do
+              let mask = ref 0 in
+              Array.iter
+                (fun (dx, dy, bit) ->
+                  if dots.((4 * y + dy) * sub_w + (2 * x + dx)) then mask := !mask lor bit)
+                braille_mask;
+              plot_text.(y).(x) <-
+                (if !mask = 0 then (if grid then "·" else " ") else O.utf8 (Uchar.of_int (0x2800 + !mask)))
+            done
+          done;
+          (* Each sample is drawn once; the selected cell always wins. *)
+          let draw_marker i glyph =
+            match points.(i) with
+            | None -> ()
+            | Some (x, y) -> plot_text.(y / 4).(x / 2) <- glyph
+          in
+          for i = 0 to count - 1 do
+            if i <> selected then draw_marker i "●"
+          done;
+          draw_marker selected "◆";
+          let plot_rows =
+            List.init plot_h (fun y ->
+                let label =
+                  match List.assoc_opt y tick_at with
+                  | None -> ""
+                  | Some t ->
+                      let full = format_money book measure t in
+                      if width_of full <= axis_w then full else if axis_w >= width_of "…" then "…" else ""
+                in
+                let row_text = String.concat "" (Array.to_list plot_text.(y)) in
+                (O.Plain, O.pad_left ~width_of axis_w label ^ " │ " ^ row_text))
+          in
+          let start_day = short_day arr.(0).day and end_day = short_day arr.(count - 1).day in
+          let rule_line =
+            let prefix = String.make axis_w ' ' ^ " ╰─" ^ start_day in
+            let room = width - width_of prefix - width_of end_day in
+            if room >= 0 then prefix ^ O.rule ~width_of room ^ end_day
+            else
+              let compact = start_day ^ "–" ^ end_day in
+              if width_of compact <= width then O.pad ~width_of width compact
+              else O.pad ~width_of width start_day
+          in
+          let list_cap = max 0 (min count (height - plot_h - 2)) in
+          let start = max 0 (min (count - list_cap) (selected - list_cap / 2)) in
+          plot_rows @ [ (O.Chrome, O.pad ~width_of width rule_line); summary_row ] @ list_rows list_cap start
 
 let render_detail ~width ~width_of ~book ~measure ~sample ~prev_sample ~today ~preset =
   match sample with

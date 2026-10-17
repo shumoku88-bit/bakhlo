@@ -46,10 +46,22 @@ val compute_samples :
   preset:preset ->
   (string * string * sample list, string) result
 
+val move_selection :
+  today:string ->
+  preset:preset ->
+  boundary_presets_text:string option ->
+  position:int ->
+  int ->
+  (int, string) result
+(** Bounded pace cursor: real last sample from the resolved range, clamped
+    before stepping. Range failure is an explicit error, never a zero sample. *)
+
 val render_trend :
   width:int ->
   height:int ->
   width_of:(string -> int) ->
+  book:B.t ->
+  today:string ->
   measure:string ->
   samples:sample list ->
   selected_index:int ->

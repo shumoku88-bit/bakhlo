@@ -217,6 +217,7 @@ Scheduledでopen予定を選び、`g`を押すと定期生成（Scheduled / Gene
 ## Daily Paceの推移（Trend）
 
 Homeで`d`を押すと、今日の目安（Daily Pace）画面が開き、過去から現在に至る日々の消化ペース推移（Trend）を表示する。
+今日のTrendはCurrent／What-ifと同じ`Daily_book.daily_pace`の回答を使い、期限超過の未払い予定も控除する。過去日の再構成方法は変更しない。
 
 - **期間プリセット切替 (`1`〜`5`)**:
   - `1`: 10d（過去10日間）
@@ -229,12 +230,15 @@ Homeで`d`を押すと、今日の目安（Daily Pace）画面が開き、過去
 - **タイムライン日移動**:
   - `h`/`l`・`←`/`→`: 日付を前後に1日移動し、選択日の詳細を表示。
   - `Home`/`End`: 表示期間の最初／最後の日にジャンプ。
+  - プリセット切替後は最新日を選ぶ。移動は表示期間内へ制限され、`End`後も`h`／`←`／`PageUp`で戻れる。
 - **詳細ペインの展開とスクロール (`Tab` / `i` / `Enter`)**:
   - 選択日のペース、前日比増減、残日数、サイクル終了日（排他）、口座プール残高、予定控除額、終了日までの利用可能額を表示。
   - `j/k`・`PageUp/Down`で詳細文をスクロール。`Esc`/`q`でタイムラインへ復帰。
 - **シミュレーションと設定**:
   - `w`: What-Ifシミュレーション（仮の支出影響の試算）。
-  - `c`: 対象口座プール（`daily-pace.tsv`）の編集。
+  - `c`: 対象口座プール（`daily-pace.tsv`）の既存設定を表示し、入力→旧／新Review→`Save`で保存。
+    Reviewの`Esc`／`Edit`は入力へ戻る。入力画面の`Esc`／`Cancel`は閉じるが、同Measureの`c`／Household setupで下書きを再開できる。
+    Review全文を読めない端末では保存しない。48×14／32×9は保存拒否となり、拡大後に再確認する。
   - `b`: サイクル境界（`boundary-presets.tsv`）の編集（Commands → Household setup → Daily Pace / cycle dates と同一）。
 ## 収支レポート（Income & Expense）
 
@@ -364,9 +368,12 @@ Daily Paceは明示pool・Measure・今日・期間末の既存計算を表示�
 `w`は読み取り専用What-if、`c`はPool編集。未設定・不正・重複・混合Measureは計算しない。
 明示された実日付・昇順境界を持つpresetが今日を含むものとして一意でなければ拒否する。
 月末・Asset分類・全許可Locusから条件を補完せず、What-ifの負数もゼロに丸めない。
-Pool編集は選択ファイルのbytesを再確認し`daily-pace.tsv`だけを更新する。
+Pool編集は取得時点の旧設定と新設定をReviewし、選択ファイルのbytesを再確認して`daily-pace.tsv`だけを更新する。
+別Measureを含む設定、不正／読めない既存設定は置換しない。書込み前の失敗・競合時は設定と下書きを保全する。
+rename後の結果不明は保存成功とせず、現ファイルを確認する。自動rollbackや新しい保存形式は導入していない。
+下書きはプロセス内のみ。競合後も取得時の旧bytesは自動更新しないため、新しい設定からやり直すには再起動が必要（下書きは消える）。
 `boundary-presets.tsv`の他期間・過去境界は変更せず、この画面で期間末を編集しない。
-履歴Trend・期間比較は未対応。Calendar選択日を今日の観測日に置き換えない。
+Trendは現在台帳からの限定的な再構成表示で、過去日はCurrentと別の既存計算経路を使う。期間比較は未対応。Calendar選択日を今日の観測日に置き換えない。
 Daily_bookは単一S式v1〜v3とRecords v1を読み、単一S式ではv3を書く。旧予算v4・予算APIは非対応。
 通常Bookのrecord / exchange CLIとは混用せず、未知フィールドを飛ばして保存しない。
 

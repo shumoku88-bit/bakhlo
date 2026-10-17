@@ -144,6 +144,8 @@ type state = {
   balance_mode : [ `Accounting | `Current ];
   balance_review : (Form.t * BalView.t) option;
   cycle_review : (Form.t * string * string list) option;
+  pool_draft : (string * Form.t) option;
+  pool_review : (Form.t * string * string list) option;
   label_review : (Form.t * string * string * string) option;
   exchange_review : (Form.t * A.transaction * string) option;
   actual_workspace : Act.t;
@@ -193,6 +195,8 @@ let initial ?config_home session =
     balance_mode = `Current;
     balance_review = None;
     cycle_review = None;
+    pool_draft = None;
+    pool_review = None;
     label_review = None;
     exchange_review = None;
     actual_workspace = Act.create ~focus_date:focus_day;
@@ -1012,6 +1016,17 @@ let resolve_pace_pool state =
     | None -> Error "Daily Pace pool not configured (daily-pace.tsv missing)."
     | Some text -> coordinates [] (config_lines text))
 
+let move_pace_selection state delta =
+  let position =
+    Result.bind (read_pace_config state "boundary-presets.tsv") (fun boundary_presets_text ->
+      Trend.move_selection ~today:(F.today ()) ~preset:state.pace_trend.preset
+        ~boundary_presets_text ~position:state.pace_trend.selected_index delta)
+  in
+  match position with
+  | Ok selected_index ->
+      { state with pace_trend = { state.pace_trend with selected_index }; scroll = 0 }
+  | Error why -> { state with message = "Daily Pace range unavailable: " ^ why }
+
 let current_pace_result state =
   match annual_unavailable state with
   | Some why -> Error why
@@ -1054,31 +1069,75 @@ let what_if_form ?amount ?result state =
     ]
     ()
 
-let configure_pace_form state =
-  let current_pool_loci = match resolve_pace_pool state with
-    | Ok coords -> String.concat ", " (List.map (fun c -> A.lstr c.D.Effect_coordinate.locus) coords)
-    | Error _ -> ""
+let pool_rows_of_text ~measure text =
+  let rec coords acc = function
+    | [] -> Ok (List.rev acc)
+    | line :: rest ->
+        (match String.split_on_char '\t' line with
+         | [locus; m] when config_token locus && m = measure && config_token m ->
+             if List.mem locus acc then Error "Duplicate Daily Pace coordinate."
+             else coords (locus :: acc) rest
+         | [_; m] when config_token m && m <> measure ->
+             Error ("Existing Pool uses another Measure: " ^ m ^ ". Refusing replacement.")
+         | _ -> Error "Malformed daily-pace.tsv; no rows were skipped.")
   in
-  let payload, notice = match read_pace_config state "daily-pace.tsv" with
+  coords [] (config_lines text)
+
+let pool_old_of_payload ~measure payload =
+  if payload = "missing" then Ok []
+  else if String.starts_with ~prefix:"present\n" payload then
+    pool_rows_of_text ~measure (String.sub payload 8 (String.length payload - 8))
+  else Error "Pool configuration was unreadable; reopen after repairing it."
+
+let configure_pace_form state =
+  let measure = state.workspace.measure in
+  let payload, read_notice = match read_pace_config state "daily-pace.tsv" with
     | Ok None -> ("missing", "")
     | Ok (Some text) -> ("present\n" ^ text, "")
     | Error why -> ("unreadable", why)
   in
+  let old_loci, old_why =
+    match pool_old_of_payload ~measure payload with
+    | Ok loci -> (loci, None)
+    | Error why -> ([], Some why)
+  in
+  let notice = if read_notice <> "" then read_notice else Option.value ~default:"" old_why in
   let period = match resolve_pace_window state with
     | Ok (start, stop) -> Printf.sprintf "Explicit period: %s -> %s (exclusive)." start stop
     | Error why -> why
   in
   Form.create ~id:"configure_daily_pace" ~payload ~notice
     ~title:"Configure Daily Pace Pool"
-    ~summary:[
-      "Save only daily-pace.tsv; no account is selected automatically.";
-      period;
-      "Period boundaries are read-only here; edit boundary-presets.tsv separately.";
-    ]
+    ~summary:(
+      [ "Measure: " ^ measure; "Existing Pool (captured):" ]
+      @ (match old_why with
+         | Some why -> [why]
+         | None when old_loci = [] -> ["  (none)"]
+         | None -> List.map (fun locus -> "  " ^ locus ^ " " ^ measure) old_loci)
+      @ [ period; "Only daily-pace.tsv changes after Review." ])
     ~fields:[
-      Form.text_field ~id:"pool_loci" ~label:"Pool accounts (comma-separated)" ~value:current_pool_loci ();
-      Form.action_buttons ~confirm:"Save Pool" ~cancel:"Cancel" ();
+      Form.text_field ~id:"pool_loci" ~label:"Accounts" ~value:(String.concat ", " old_loci) ();
+      Form.action_buttons ~confirm:"Review" ~cancel:"Cancel" ();
     ] ()
+
+let pool_review_form measure old_loci new_loci =
+  Form.create ~id:"review_pool" ~title:"Review Pool accounts"
+    ~summary:(
+      [ "Measure: " ^ measure;
+        "Only daily-pace.tsv changes.";
+        "Old:" ]
+      @ (if old_loci = [] then ["  (none)"] else List.map (fun l -> "  " ^ l) old_loci)
+      @ ["New:"]
+      @ (if new_loci = [] then ["  (none)"] else List.map (fun l -> "  " ^ l) new_loci))
+    ~fields:[Form.action_buttons ~confirm:"Save" ~cancel:"Edit" ()] ()
+
+let open_pool_editor state =
+  let measure = state.workspace.measure in
+  match state.pool_draft with
+  | Some (draft_measure, draft) when draft_measure = measure ->
+      { state with overlay = Modal_form draft; pool_review = None; message = "" }
+  | _ -> { state with overlay = Modal_form (configure_pace_form state);
+      pool_review = None; message = "" }
 
 let decode_boundary_presets text =
   let canonical_date day =
@@ -1241,8 +1300,7 @@ let open_command state = function
   | M.Stock_flow -> open_route state W.Stock_flow
   | M.Transactions_flow -> open_route state W.Transactions_flow
   | M.Calendar -> open_route state W.Calendar
-  | M.Pace_pool ->
-      { state with overlay = Modal_form (configure_pace_form state); message = "" }
+  | M.Pace_pool -> open_pool_editor state
   | M.Cycle_boundaries ->
       (match cycle_boundaries_form state with
        | Ok form -> { state with overlay = Modal_form form; cycle_review = None; message = "" }
@@ -1814,16 +1872,23 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
     | Modal_form form -> (
         match Form.handle_input form input with
         | Form.Cancel ->
-            (match state.balance_review, state.cycle_review, state.label_review, state.exchange_review with
-             | Some (editing, _), _, _, _ when Form.id form = "review_balance_view" ->
+            (match state.balance_review, state.cycle_review, state.label_review, state.exchange_review, state.pool_review with
+             | Some (editing, _), _, _, _, _ when Form.id form = "review_balance_view" ->
                  Some { state with overlay = Modal_form editing; balance_review = None }
-             | _, Some (editing, _, _), _, _ when Form.id form = "review_cycle_boundaries" ->
+             | _, Some (editing, _, _), _, _, _ when Form.id form = "review_cycle_boundaries" ->
                  Some { state with overlay = Modal_form editing; cycle_review = None }
-             | _, _, Some (editing, _, _, _), _ when Form.id form = "review_locus_label" ->
+             | _, _, Some (editing, _, _, _), _, _ when Form.id form = "review_locus_label" ->
                  Some { state with overlay = Modal_form editing; label_review = None }
-             | _, _, _, Some (editing, _, _) when Form.id form = "review_exchange" ->
+             | _, _, _, Some (editing, _, _), _ when Form.id form = "review_exchange" ->
                  Some { state with overlay = Modal_form editing; exchange_review = None }
+             | _, _, _, _, Some (editing, _, _) when Form.id form = "review_pool" ->
+                 Some { state with overlay = Modal_form editing; pool_review = None }
+             | _ when Form.id form = "configure_daily_pace" ->
+                 Some { state with overlay = No_overlay; pool_review = None;
+                   pool_draft = Some (state.workspace.measure, form) }
              | _ -> Some { state with overlay = No_overlay; balance_review = None; cycle_review = None; label_review = None; exchange_review = None })
+        | Form.Updated updated when Form.id updated = "configure_daily_pace" ->
+            Some { state with overlay = Modal_form updated; pool_draft = Some (state.workspace.measure, updated) }
         | Form.Updated updated -> Some { state with overlay = Modal_form updated }
         | Form.Submit submitted -> (
             match Form.id submitted with
@@ -2226,27 +2291,53 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                         Some { state with overlay = Modal_form (what_if_form ~amount:amount_str ~result:res_msg state) })
         | "configure_daily_pace" ->
             let pool_loci_str = String.trim (Option.value ~default:"" (Form.get_text submitted "pool_loci")) in
-            let loci = String.split_on_char ',' pool_loci_str |> List.map String.trim in
+            let loci = if pool_loci_str = "" then [] else
+              List.map String.trim (String.split_on_char ',' pool_loci_str) in
             let approved = B.approved_loci state.session.book in
-            let valid = List.for_all (fun locus -> config_token locus
+            let valid = loci <> [] && List.for_all (fun locus -> config_token locus
               && (match approved with Some ids -> List.mem locus ids | None -> false)) loci
               && List.length (List.sort_uniq String.compare loci) = List.length loci in
             if not valid then
               Some { state with overlay = Modal_form (Form.set_notice submitted
                 "Choose distinct admitted Locus tokens, separated by commas.") }
             else
-              let payload = Form.payload submitted in
-              let expected = if payload = "missing" then Ok None
-                else if String.starts_with ~prefix:"present\n" payload then
-                  Ok (Some (String.sub payload 8 (String.length payload - 8)))
-                else Error "Pool configuration was unreadable; reopen after repairing it." in
-              let content = String.concat "" (List.map
-                (fun locus -> locus ^ "\t" ^ state.workspace.measure ^ "\n") loci) in
-              (match Result.bind expected (fun expected -> write_config_file state "daily-pace.tsv" ~expected content) with
-              | Error why -> Some { state with overlay = Modal_form (Form.set_notice submitted
-                  ("Pool save not confirmed: " ^ why ^ " Reopen to inspect before retrying.")) }
-              | Ok () -> Some { state with overlay = No_overlay;
-                  message = "Daily Pace pool saved. Period presets unchanged." })
+              (match pool_old_of_payload ~measure:state.workspace.measure (Form.payload submitted) with
+               | Error why ->
+                   Some { state with overlay = Modal_form (Form.set_notice submitted why);
+                     pool_draft = Some (state.workspace.measure, submitted); pool_review = None }
+               | Ok old_loci ->
+                   Some { state with overlay = Modal_form (pool_review_form state.workspace.measure old_loci loci);
+                     pool_draft = Some (state.workspace.measure, submitted);
+                     pool_review = Some (submitted, state.workspace.measure, loci) })
+        | "review_pool" ->
+            (match state.pool_review, state.pool_draft with
+             | Some (editing, measure, new_loci), Some (draft_measure, draft)
+               when measure = state.workspace.measure && draft_measure = measure
+                 && Form.payload editing = Form.payload draft ->
+                 let body_w, body_h = body_dimensions ~dimensions ~width_of state in
+                 let pane_w = min 64 (max 8 (body_w - 4)) in
+                 let rows = Form.render_rows ~width:(max 0 (pane_w - 6))
+                   ~height:10000 ~width_of submitted in
+                 if pane_w < 48 || List.length rows + 2 > body_h then
+                   Some { state with overlay = Modal_form (Form.set_notice submitted
+                     "Not saved: too small.") }
+                 else
+                   let expected =
+                     if Form.payload editing = "missing" then Ok None
+                     else if String.starts_with ~prefix:"present\n" (Form.payload editing) then
+                       Ok (Some (String.sub (Form.payload editing) 8 (String.length (Form.payload editing) - 8)))
+                     else Error "Pool configuration was unreadable." in
+                   let content = String.concat "" (List.map
+                     (fun locus -> locus ^ "\t" ^ measure ^ "\n") new_loci) in
+                   (match Result.bind expected (fun expected ->
+                      Result.bind (pool_old_of_payload ~measure (Form.payload editing)) (fun _ ->
+                        write_config_file state "daily-pace.tsv" ~expected content)) with
+                    | Error why -> Some { state with overlay = Modal_form (Form.set_notice submitted
+                        ("Pool save not confirmed: " ^ why ^ " Reopen to inspect before retrying.")) }
+                    | Ok () -> Some { state with overlay = No_overlay; pool_draft = None; pool_review = None;
+                        message = "Daily Pace pool saved. Period presets unchanged." })
+             | _ -> Some { state with overlay = No_overlay; pool_review = None;
+                 message = "Pool review expired; reopen setup." })
         | "configure_cycle_boundaries" ->
             let raw = Form.payload submitted in
             let previous =
@@ -2502,7 +2593,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII 'w', []) when state.workspace.route = W.Daily_pace ->
             Some { state with overlay = Modal_form (what_if_form state) }
         | Some (`ASCII 'c', []) when state.workspace.route = W.Daily_pace ->
-            Some { state with overlay = Modal_form (configure_pace_form state) }
+            Some (open_pool_editor state)
         | Some (`ASCII 'b', []) when state.workspace.route = W.Daily_pace ->
             (match cycle_boundaries_form state with
              | Ok form -> Some { state with overlay = Modal_form form; cycle_review = None }
@@ -2514,14 +2605,14 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               | '3' -> Trend.Month
               | '4' -> Trend.Cycle
               | _ -> Trend.Previous_cycle in
-            Some { state with pace_trend = { state.pace_trend with preset; selected_index = max_int / 4 }; scroll = 0 }
+            Some (move_pace_selection { state with pace_trend = { state.pace_trend with preset } } max_int)
         | Some (`ASCII 'v', []) when state.workspace.route = W.Daily_pace ->
             Some { state with pace_trend = { state.pace_trend with graph_style = Trend.next_graph_style state.pace_trend.graph_style } }
         | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), [])
           when state.workspace.route = W.Daily_pace && state.workspace.pane = W.Calendar ->
             let delta = match Option.map normalize key with
               | Some ((`ASCII 'h' | `Arrow `Left), _) -> -1 | _ -> 1 in
-            Some { state with pace_trend = { state.pace_trend with selected_index = max 0 (state.pace_trend.selected_index + delta) }; scroll = 0 }
+            Some (move_pace_selection state delta)
         | Some ((`Enter | `ASCII 'i'), [])
           when state.workspace.route = W.Daily_pace && state.workspace.pane = W.Calendar ->
             Some { state with workspace = { state.workspace with pane = W.Detail }; scroll = 0 }
@@ -2863,8 +2954,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               if state.workspace.pane = W.Detail then
                 Some { state with scroll = max 0 (state.scroll + step) }
               else
-                Some { state with pace_trend = { state.pace_trend with
-                  selected_index = max 0 (state.pace_trend.selected_index + step) }; scroll = 0 }
+                Some (move_pace_selection state step)
             else if state.workspace.route = W.Income_expense then
               Some { state with scroll = max 0 (state.scroll + step) }
             else if state.workspace.route = W.Transactions_flow then
@@ -2899,7 +2989,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 Some { state with workspace = { state.workspace with balance_selected = 0 } }
             else if state.workspace.route = W.Daily_pace then
               if state.workspace.pane = W.Detail then Some { state with scroll = 0 }
-              else Some { state with pace_trend = { state.pace_trend with selected_index = 0 }; scroll = 0 }
+              else
+                Some (move_pace_selection state (-max_int))
             else if state.workspace.route = W.Income_expense then
               Some { state with scroll = 0 }
             else if state.workspace.route = W.Transactions_flow then
@@ -2930,7 +3021,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 Some { state with workspace = { state.workspace with balance_selected = max 0 (count - 1) } }
             else if state.workspace.route = W.Daily_pace then
               if state.workspace.pane = W.Detail then Some { state with scroll = max_int / 4 }
-              else Some { state with pace_trend = { state.pace_trend with selected_index = max_int / 4 }; scroll = 0 }
+              else
+                Some (move_pace_selection state max_int)
             else if state.workspace.route = W.Income_expense then
               Some { state with scroll = max_int / 4 }
             else if state.workspace.route = W.Transactions_flow then
@@ -3429,7 +3521,7 @@ let workspace_rows ~width_of ~width ~height state =
         let selected_idx = max 0 (min (count - 1) state.pace_trend.selected_index) in
         let left_title = Printf.sprintf "Daily Pace / Trend • %s [%s]" (Trend.preset_label state.pace_trend.preset) (Trend.graph_style_label state.pace_trend.graph_style) in
         let right_title = "Pace Detail & Evidence" in
-        let left_rows = List.map snd (Trend.render_trend ~width:(max 0 (left_width - 4)) ~height:(max 0 (height - 4)) ~width_of ~measure ~samples ~selected_index:selected_idx ~graph_style:state.pace_trend.graph_style) in
+        let left_rows = List.map snd (Trend.render_trend ~width:(max 0 (left_width - 6)) ~height:(Panel.capacity ~height ~heading:false) ~width_of ~book ~today:(F.today ()) ~measure ~samples ~selected_index:selected_idx ~graph_style:state.pace_trend.graph_style) in
         let sample = List.nth_opt samples selected_idx in
         let prev_sample = if selected_idx > 0 then List.nth_opt samples (selected_idx - 1) else None in
         let detail_rows = List.map snd (Trend.render_detail ~width:(max 0 (right_width - 6)) ~width_of ~book ~measure ~sample ~prev_sample ~today:(F.today ()) ~preset:state.pace_trend.preset) in
@@ -3821,7 +3913,9 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
       | "daily_pace_what_if" ->
           [ "Enter simulate scenario  Tab switch field/button  Esc close"; "Read-only simulation - does not publish any entries" ]
       | "configure_daily_pace" ->
-          [ "Enter save configuration  Tab switch field  Esc cancel"; "Edits only daily-pace.tsv" ]
+          [ "Enter review  Tab switch field  Esc cancel"; "Edits only daily-pace.tsv" ]
+      | "review_pool" ->
+          [ "Enter save  Tab choose Edit  Esc edit"; "Full pool must fit before saving" ]
       | "configure_cycle_boundaries" ->
           [ "Enter review  Tab switch field  Esc cancel"; "Edits only boundary-presets.tsv" ]
       | "review_cycle_boundaries" ->

@@ -458,15 +458,22 @@ let safety_checks ~width_of ~directory () =
     "negative-what-if-uses-floor-division-without-clamping";
   let form = C.configure_pace_form home |> fun f -> Ui_form.set_text f "pool_loci" "wallet, bank"
     |> fun f -> Ui_form.set_focused f 1 in
-  let saved = key ~width_of { home with overlay = C.Modal_form form } `Enter in
-  require (saved.overlay = C.No_overlay && F.read windows_path = boundaries) "pool-save-preserves-all-presets";
+  let reviewed = key ~width_of { home with overlay = C.Modal_form form } `Enter in
+  require ((match reviewed.overlay with C.Modal_form f -> Ui_form.id f = "review_pool" | _ -> false)
+    && F.read pool_path = "wallet\tjpy\n" && F.read windows_path = boundaries) "pool-review-does-not-save";
+  let saved = key ~width_of reviewed `Enter in
+  require (saved.overlay = C.No_overlay && F.read pool_path = "wallet\tjpy\nbank\tjpy\n"
+    && F.read windows_path = boundaries) "pool-save-preserves-all-presets";
   let stale = C.configure_pace_form home |> fun f -> Ui_form.set_focused f 1 in
   replace pool_path "bank\tjpy\n";
-  require (failed (key ~width_of { home with overlay = C.Modal_form stale } `Enter)) "stale-pool-editor-refused";
+  let stale_review = key ~width_of { home with overlay = C.Modal_form stale } `Enter in
+  require (F.read pool_path = "bank\tjpy\n") "stale-pool-review-does-not-save";
+  require (failed (key ~width_of stale_review `Enter)) "stale-pool-save-refused";
   require (F.read pool_path = "bank\tjpy\n" && F.read windows_path = boundaries) "stale-config-preserved";
   Unix.unlink windows_path;
   let form = C.configure_pace_form home |> fun f -> Ui_form.set_focused f 1 in
-  let saved = key ~width_of { home with overlay = C.Modal_form form } `Enter in
+  let reviewed = key ~width_of { home with overlay = C.Modal_form form } `Enter in
+  let saved = key ~width_of reviewed `Enter in
   require (saved.overlay = C.No_overlay && not (Sys.file_exists windows_path)) "pool-save-does-not-invent-period";
   print_endline "PASS: sidecar refusal/draft preservation, strict inputs, explicit Pace, negative What-if and non-destructive Pool edits."
 
@@ -2213,10 +2220,10 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
       let pressed = key ~width_of no_period (`ASCII preset_key) in
       let where = String.make 1 preset_key in
       require (pressed.workspace.route = W.Daily_pace) ("daily-pace-missing-period-route-" ^ where);
-      screen_has ~width_of (32, 9) pressed "Daily Pace unavailable:"
-        ("daily-pace-missing-period-header-" ^ where);
-      screen_has ~width_of (32, 9) pressed "Period not configured"
-        ("daily-pace-missing-period-reason-" ^ where))
+      require (Result.is_error (C.current_pace_result pressed))
+        ("daily-pace-missing-period-refused-" ^ where);
+      require (not (shows ~pane:`Right ~width_of (32, 9) pressed "jpy/day"))
+        ("daily-pace-missing-period-no-invented-pace-" ^ where))
     [ '1'; '2'; '3'; '4' ];
   (* 6. Malformed boundary-presets.tsv. *)
   replace windows_path "broken\tnot-a-date\n";
@@ -2308,6 +2315,485 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
     "PASS: UI-33 Daily Pace / Trend fail-closed and bounded verification (unknown balances, \
      corrupted configs, ambiguous periods, multi-dimensions) passed."
 
+(* Today's sample uses Current; past-day reconstruction is kept separate. *)
+let daily_pace_today_sample_checks () =
+  let book =
+    get
+      (B.of_string
+         ("(bakhlo-daily 1)\n" ^ "(scope corrected-entries explicit-plans)\n"
+        ^ "(measures (measure \"jpy\" 0))\n"
+        ^ "(labels (provided))\n"
+        ^ "(approved-loci (provided \"wallet\" \"food\"))\n" ^ "(entries)\n" ^ "(plans\n"
+        ^ "  (plan \"unpaid-yesterday\" (date \"2026-06-14\") (measure \"jpy\")\n"
+        ^ "    (changes (\"wallet\" -500) (\"food\" 500)) (paid-by (none))))\n" ^ "(support\n"
+        ^ "  (zero-origin (\"food\" \"jpy\"))\n" ^ "  (openings)\n" ^ "  (observations\n"
+        ^ "    (observation (reflected) (quantities (\"wallet\" \"jpy\" 1000))))\n"
+        ^ "  (presence (not-supplied)))\n"))
+  in
+  let today = "2026-06-15" and stop = "2026-06-16" in
+  let coord locus : D.Effect_coordinate.t =
+    {
+      D.Effect_coordinate.locus = C.get_id (D.Identifier.Locus.of_string locus);
+      measure = C.get_id (D.Identifier.Measure.of_string "jpy");
+    }
+  in
+  let pool = [ coord "wallet" ] in
+  let boundary = Some ("cycle\t" ^ today ^ "\t" ^ stop ^ "\n") in
+  let pace =
+    get (B.daily_pace book ~measure:"jpy" ~pool ~observed_at:today ~end_exclusive:stop)
+  in
+  require
+    (Z.equal pace.B.eligible_pool (Z.of_int 1000)
+    && Z.equal pace.B.automatic_deductions (Z.of_int 500)
+    && Z.equal pace.B.available_through_end (Z.of_int 500)
+    && pace.B.remaining_days = 1 && Z.equal pace.B.daily_pace_quanta (Z.of_int 500))
+    "daily-pace-today-core500";
+  let _, _, samples =
+    get
+      (Trend.compute_samples ~book ~measure:"jpy" ~pool:[ "wallet" ]
+         ~boundary_presets_text:boundary ~today ~preset:Trend.Cycle)
+  in
+  require
+    (match samples with
+    | [ sample ] ->
+        sample.Trend.day = today && sample.Trend.end_exclusive = stop
+        && Z.equal sample.Trend.pool_balance pace.B.eligible_pool
+        && Z.equal sample.Trend.deductions pace.B.automatic_deductions
+        && Z.equal sample.Trend.available_through_end pace.B.available_through_end
+        && sample.Trend.remaining_days = pace.B.remaining_days
+        && sample.Trend.pace_quanta = Some pace.B.daily_pace_quanta
+    | _ -> false)
+    "daily-pace-today-matches-core";
+  let _, _, history =
+    get
+      (Trend.compute_samples ~book ~measure:"jpy" ~pool:[ "wallet" ]
+         ~boundary_presets_text:boundary ~today ~preset:Trend.Ten_days)
+  in
+  let yesterday = List.find (fun (sample : Trend.sample) -> sample.day = "2026-06-14") history in
+  require
+    (yesterday.pace_quanta = Some (Z.of_int 250)
+    && Z.equal yesterday.available_through_end (Z.of_int 500)
+    && yesterday.remaining_days = 2)
+    "daily-pace-past-sample-unchanged";
+  (* A plan due exactly on the exclusive end is outside the period. *)
+  let at_end : B.plan =
+    {
+      id = "due-at-end";
+      day = stop;
+      measure = "jpy";
+      changes = [ ("wallet", Z.of_int (-700)); ("food", Z.of_int 700) ];
+      paid_by = None;
+      cancelled_on = None;
+    }
+  in
+  let later_book = get (B.put_plan book ~replace:false at_end) in
+  let later_pace =
+    get (B.daily_pace later_book ~measure:"jpy" ~pool ~observed_at:today ~end_exclusive:stop)
+  in
+  require
+    (Z.equal later_pace.B.automatic_deductions (Z.of_int 500))
+    "daily-pace-end-exclusive-daily-pace";
+  let _, _, later_samples =
+    get
+      (Trend.compute_samples ~book:later_book ~measure:"jpy" ~pool:[ "wallet" ]
+         ~boundary_presets_text:boundary ~today ~preset:Trend.Cycle)
+  in
+  require
+    (match later_samples with [ s ] -> Z.equal s.Trend.deductions (Z.of_int 500) | _ -> false)
+    "daily-pace-end-exclusive-sample";
+  (* A deficit flows through as a negative pace, never clamped to zero. *)
+  let extra : B.plan =
+    {
+      id = "due-today-extra";
+      day = today;
+      measure = "jpy";
+      changes = [ ("wallet", Z.of_int (-1000)); ("food", Z.of_int 1000) ];
+      paid_by = None;
+      cancelled_on = None;
+    }
+  in
+  let deficit_book = get (B.put_plan book ~replace:false extra) in
+  let deficit_pace =
+    get (B.daily_pace deficit_book ~measure:"jpy" ~pool ~observed_at:today ~end_exclusive:stop)
+  in
+  require
+    (Z.equal deficit_pace.B.available_through_end (Z.of_int (-500)))
+    "daily-pace-deficit-available";
+  require
+    (Z.equal deficit_pace.B.daily_pace_quanta (Z.of_int (-500)))
+    "daily-pace-deficit-pace";
+  let _, _, deficit_samples =
+    get
+      (Trend.compute_samples ~book:deficit_book ~measure:"jpy" ~pool:[ "wallet" ]
+         ~boundary_presets_text:boundary ~today ~preset:Trend.Cycle)
+  in
+  require
+    (match deficit_samples with
+    | [ s ] ->
+        Z.equal s.Trend.available_through_end (Z.of_int (-500))
+        && (match s.Trend.pace_quanta with Some q -> Z.equal q (Z.of_int (-500)) | None -> false)
+    | _ -> false)
+    "daily-pace-deficit-sample";
+  print_endline
+    "PASS: Daily Pace today sample equals Daily_book.daily_pace (synthetic overdue plan, \
+     exclusive end, deficit)."
+
+(* UI-33B: the pace cursor moves within the actually rendered range. After a
+   preset or End the stored index rests past the last row, so stepping must
+   clamp to the real last sample first: the visible Selected date moves to
+   the previous day, not just the stored number. Head/tail stay clamped. *)
+let daily_pace_selection_clamp_checks ~width_of ~directory () =
+  let directory = directory ^ "/daily-pace-selection" in
+  Unix.mkdir directory 0o700;
+  let path = directory ^ "/book.sexp" in
+  F.create_copy ~source:"examples/daily-book.sexp" ~target:path;
+  let home = C.initial ~config_home:directory (F.load path) in
+  let today = F.today () in
+  let stop = get (Cal.shift_days today 7) in
+  let yesterday = get (Cal.shift_days today (-1)) in
+  let entry_head = get (Cal.shift_days today (-9)) in
+  let entry_next = get (Cal.shift_days today (-8)) in
+  let boundary_text = "cycle\t" ^ today ^ "\t" ^ stop ^ "\n" in
+  F.write_new (directory ^ "/daily-pace.tsv") "wallet\tjpy\n";
+  F.write_new (directory ^ "/boundary-presets.tsv") boundary_text;
+  let view () = C.open_route { home with session = F.load path } W.Daily_pace in
+  let clean text =
+    let out = Buffer.create (String.length text) in
+    String.iter
+      (fun char ->
+        match char with ' ' | '\t' | '\r' | '\n' -> () | _ -> Buffer.add_char out char)
+      text;
+    Buffer.contents out
+  in
+  let shows_selected state date =
+    let text =
+      List.map (fun (_, row) -> clean row) (C.screen ~width_of (80, 24) state) |> String.concat ""
+    in
+    Base.String.is_substring text ~substring:(clean ("Selected date: " ^ date))
+  in
+  let entry = view () in
+  let measure = entry.workspace.measure in
+  let _, through_day, samples =
+    get
+      (Trend.compute_samples ~book:home.C.session.book ~measure ~pool:[ "wallet" ]
+         ~boundary_presets_text:(Some boundary_text) ~today ~preset:Trend.Thirty_days)
+  in
+  let count = List.length samples in
+  let day_at index = (List.nth samples index).Trend.day in
+  require (through_day = today && day_at (count - 1) = today) "daily-pace-sel-anchor-tail";
+  require (day_at (count - 2) = yesterday) "daily-pace-sel-anchor-prev";
+  (* Entry uses the Ten_days range; its first two rows are independent dates. *)
+  require (shows_selected entry entry_head) "daily-pace-sel-entry-head";
+  let stepped = key ~width_of entry (`ASCII 'l') in
+  require (shows_selected stepped entry_next) "daily-pace-sel-entry-step";
+  require (shows_selected (key ~width_of stepped (`ASCII 'h')) entry_head) "daily-pace-sel-entry-back";
+  let preset = key ~width_of entry (`ASCII '2') in
+  require (preset.workspace.route = W.Daily_pace) "daily-pace-sel-preset-route";
+  require (preset.pace_trend.preset = Trend.Thirty_days) "daily-pace-sel-preset-kind";
+  require (shows_selected preset today) "daily-pace-sel-preset-tail";
+  let back = key ~width_of preset (`ASCII 'h') in
+  require (shows_selected back yesterday) "daily-pace-sel-preset-h-prev";
+  require (not (shows_selected back today)) "daily-pace-sel-preset-h-moved";
+  let tail = key ~width_of preset `End in
+  require (shows_selected tail today) "daily-pace-sel-end-tail";
+  require (shows_selected (key ~width_of tail (`ASCII 'h')) yesterday) "daily-pace-sel-end-h-prev";
+  require
+    (shows_selected (key ~width_of tail (`Arrow `Left)) yesterday)
+    "daily-pace-sel-end-left-prev";
+  let paged = key ~width_of tail (`Page `Up) in
+  require
+    (shows_selected paged (day_at (max 0 (count - 1 - 32))))
+    "daily-pace-sel-end-page";
+  require (shows_selected (key ~width_of tail (`ASCII 'l')) today) "daily-pace-sel-end-stays";
+  let head = key ~width_of tail `Home in
+  require (shows_selected head (day_at 0)) "daily-pace-sel-home-head";
+  require (shows_selected (key ~width_of head (`ASCII 'h')) (day_at 0)) "daily-pace-sel-home-stays";
+  (* Cursor keys on a refused range keep the fail-closed screen. *)
+  let bare = directory ^ "/bare" in
+  Unix.mkdir bare 0o700;
+  let bare_path = bare ^ "/book.sexp" in
+  F.create_copy ~source:"examples/daily-book.sexp" ~target:bare_path;
+  let bare_home = C.initial ~config_home:bare (F.load bare_path) in
+  let missing = C.open_route { bare_home with session = F.load bare_path } W.Daily_pace in
+  List.iter
+    (fun button ->
+      let moved = key ~width_of missing button in
+      let label =
+        match button with
+        | `ASCII c -> "key-" ^ String.make 1 c
+        | `Arrow `Left -> "left"
+        | `Arrow `Right -> "right"
+        | `Page `Up -> "pageup"
+        | `Page `Down -> "pagedown"
+        | `Home -> "home"
+        | `End -> "end"
+        | _ -> "other"
+      in
+      require (moved.workspace.route = W.Daily_pace) ("daily-pace-sel-missing-route-" ^ label);
+      let text =
+        List.map (fun (_, row) -> clean row) (C.screen ~width_of (80, 24) moved)
+        |> String.concat ""
+      in
+      require
+        (Base.String.is_substring text ~substring:(clean "Daily Pace unavailable:"))
+        ("daily-pace-sel-missing-screen-" ^ label))
+    [ `ASCII 'h'; `ASCII 'l'; `Arrow `Left; `Arrow `Right; `Page `Up; `Page `Down; `Home; `End ];
+  print_endline
+    "PASS: Daily Pace selection clamps to the rendered range (preset/End stepping, head/tail, \
+     refused range)."
+(* Integer graph geometry, qualified joins and exact currency presentation. *)
+let daily_pace_graph_render_checks ~width_of () =
+  let book =
+    get
+      (B.of_string
+         ("(bakhlo-daily 1)\n" ^ "(scope corrected-entries explicit-plans)\n"
+        ^ "(measures (measure \"jpy\" 0) (measure \"eur\" 2))\n" ^ "(labels (provided))\n"
+        ^ "(approved-loci (provided \"wallet\"))\n" ^ "(entries)\n" ^ "(plans)\n" ^ "(support\n"
+        ^ "  (zero-origin (\"wallet\" \"jpy\") (\"wallet\" \"eur\"))\n" ^ "(openings)\n"
+        ^ "  (observations)\n"
+        ^ "  (presence (not-supplied)))\n"))
+  in
+  let sample ~day ?(q = 4464) ?(stop = "2026-11-01") () =
+    {
+      Trend.day;
+      pace_quanta = Some (Z.of_int q);
+      available_through_end = Z.of_int q;
+      pool_balance = Z.of_int q;
+      deductions = Z.zero;
+      remaining_days = 1;
+      end_exclusive = stop;
+    }
+  in
+  let none_sample ~day ~stop () =
+    { (sample ~day ~stop ()) with Trend.pace_quanta = None }
+  in
+  let days = List.init 10 (fun i -> Printf.sprintf "2026-10-%02d" (18 + i)) in
+  let samples = List.mapi (fun i day -> sample ~day ~q:(4464 - i * 23) ()) days in
+  let rows ~width ~height =
+    Trend.render_trend ~width ~height ~width_of ~book ~today:"2026-10-26" ~measure:"jpy" ~samples
+      ~selected_index:8 ~graph_style:Trend.Line
+  in
+  List.iter
+    (fun (width, height, grouped) ->
+      let painted = Trend.render_trend ~width ~height ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
+        ~samples ~selected_index:8 ~graph_style:Trend.Line in
+      let tag = Printf.sprintf "%dx%d" width height in
+      require (List.length painted <= height) ("pace-graph-height-" ^ tag);
+      require (List.for_all (fun (_, t) -> width_of t <= width) painted) ("pace-graph-width-" ^ tag);
+      let glued = String.concat "\n" (List.map snd painted) in
+      require (Base.String.is_substring glued ~substring:"2026-10-26") ("pace-graph-selected-day-" ^ tag);
+      require (Base.String.is_substring glued ~substring:"◆") ("pace-graph-selected-glyph-" ^ tag);
+      require (Base.String.is_substring glued ~substring:grouped) ("pace-graph-grouped-" ^ tag))
+    [ (52, 30, "4,280"); (35, 18, "4,280"); (42, 8, "4,280") ];
+  let narrow = rows ~width:26 ~height:3 in
+  require (List.length narrow <= 3) "pace-graph-narrow-height";
+  require (List.for_all (fun (_, t) -> width_of t <= 26) narrow) "pace-graph-narrow-width";
+  require
+    ((List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"◆") narrow)
+    && List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"2026-10-26") narrow)
+    "pace-graph-narrow-summary";
+  (* Constant, zero, negative, mixed-sign and 400-digit spans stay bounded
+     and keep selecting the intended sample. *)
+  let const_samples = List.map (fun day -> sample ~day ()) days in
+  let zero_samples = List.map (fun day -> sample ~day ~q:0 ()) days in
+  List.iter
+    (fun (label, made) ->
+      List.iter
+        (fun (width, height) ->
+          let painted = made ~width ~height in
+          require (List.length painted <= height) (label ^ "-height");
+          require (List.for_all (fun (_, t) -> width_of t <= width) painted) (label ^ "-width");
+          let glued = String.concat "\n" (List.map snd painted) in
+          require (Base.String.is_substring glued ~substring:"◆") (label ^ "-selected"))
+        [ (52, 30); (35, 18) ])
+    [
+      ("pace-graph-const", fun ~width ~height ->
+          Trend.render_trend ~width ~height ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
+            ~samples:const_samples ~selected_index:9 ~graph_style:Line);
+      ("pace-graph-zero", fun ~width ~height ->
+          Trend.render_trend ~width ~height ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
+            ~samples:zero_samples ~selected_index:0 ~graph_style:Line);
+    ];
+  let mixed =
+    List.mapi
+      (fun i day -> sample ~day ~q:(if i mod 2 = 0 then 3000 - i * 1000 else -2000 + i * 500) ())
+      days
+  in
+  let painted is_line =
+    String.concat "\n"
+      (List.map snd
+         (Trend.render_trend ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
+            ~samples:mixed ~selected_index:3 ~graph_style:(if is_line then Trend.Line else Trend.Dots)))
+  in
+  let ink text =
+    Uutf.String.fold_utf_8
+      (fun n _ -> function
+        | `Uchar c -> if Uchar.to_int c >= 0x2800 && Uchar.to_int c <= 0x28FF then n + 1 else n
+        | `Malformed _ -> n)
+      0 text
+  in
+  require (ink (painted true) > ink (painted false)) "pace-graph-line-inks";
+  let huge_digit = Z.of_string (String.make 400 '7') in
+  let huge_samples =
+    List.mapi
+      (fun i day ->
+        {
+          (sample ~day ()) with
+          Trend.pace_quanta = Some (if i = 4 then huge_digit else Z.of_int (1000 + i));
+        })
+      days
+  in
+  let huge = Trend.render_trend ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
+    ~samples:huge_samples ~selected_index:4 ~graph_style:Line in
+  require (List.length huge <= 30) "pace-graph-huge-height";
+  require (List.for_all (fun (_, t) -> width_of t <= 52) huge) "pace-graph-huge-width";
+  require
+    (Base.String.is_substring (String.concat "\n" (List.map snd huge)) ~substring:"◆")
+    "pace-graph-huge-selected";
+  let detail = Trend.render_detail ~width:52 ~width_of ~book ~measure:"jpy"
+    ~sample:(Some (List.nth huge_samples 4)) ~prev_sample:None ~today:"2026-10-26" ~preset:Trend.Ten_days in
+  require (List.exists (fun (_, line) ->
+    Base.String.is_substring line ~substring:(Z.to_string huge_digit)) detail)
+    "pace-graph-huge-detail-exact";
+  let euro = Trend.render_trend ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26"
+    ~measure:"eur"
+    ~samples:(List.map (fun day -> sample ~day ~q:446400 ()) days)
+    ~selected_index:8 ~graph_style:Line in
+  require
+    (Base.String.is_substring (String.concat "\n" (List.map snd euro)) ~substring:"4,464.00")
+    "pace-graph-eur-scale";
+  let pair = [sample ~day:"2026-10-18" ~q:4000 (); sample ~day:"2026-10-19" ~q:5000 ()] in
+  let render style values =
+    Trend.render_trend ~width:52 ~height:8 ~width_of ~book ~today:"2026-10-19"
+      ~measure:"jpy" ~samples:values ~selected_index:1 ~graph_style:style |> List.map snd in
+  require (render Trend.Line pair <> render Trend.Dots pair) "pace-graph-adjacent-joined";
+  let gaps = [
+    [List.hd pair; none_sample ~day:"2026-10-19" ~stop:"2026-11-01" ();
+      sample ~day:"2026-10-20" ~q:5000 ()];
+    [List.hd pair; sample ~day:"2026-10-20" ~q:5000 ()];
+    [List.hd pair; sample ~day:"2026-10-19" ~q:5000 ~stop:"2026-12-01" ()];
+  ] in
+  List.iter (fun values ->
+    require (render Trend.Line values = render Trend.Dots values) "pace-graph-gap-not-bridged") gaps;
+  (* A leading hole keeps unknown labelled, and the tail selection never clips. *)
+  let leading = none_sample ~day:"2026-10-18" ~stop:"2026-11-01" () :: List.tl samples in
+  let tail_glued =
+    String.concat "\n"
+      (List.map snd
+         (Trend.render_trend ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-27" ~measure:"jpy"
+            ~samples ~selected_index:9 ~graph_style:Line))
+  in
+  require (Base.String.is_substring tail_glued ~substring:"2026-10-27 (today) ◆") "pace-graph-tail-selected-full";
+  let leading_glued =
+    String.concat "\n"
+      (List.map snd
+         (Trend.render_trend ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
+            ~samples:leading ~selected_index:0 ~graph_style:Line))
+  in
+  require (Base.String.is_substring leading_glued ~substring:"unavailable") "pace-graph-hole-labelled";
+  print_endline
+    "PASS: Daily Pace braille graph fits panes (Line vs Dots, holes/cycle resets, grouped Measure scale)."
+
+let pool_review_checks ~width_of ~directory () =
+  let directory = directory ^ "/pool-review" in
+  Unix.mkdir directory 0o700;
+  let path = directory ^ "/book.sexp" in
+  F.create_copy ~source:"examples/daily-book.sexp" ~target:path;
+  let pool_path = directory ^ "/daily-pace.tsv" in
+  let windows_path = directory ^ "/boundary-presets.tsv" in
+  let before = "wallet\tjpy\n" and after = "bank\tjpy\n" in
+  let boundaries = "old\t1900-01-01\t1901-01-01\ncycle\t" ^ F.today ()
+    ^ "\t" ^ get (Cal.shift_days (F.today ()) 7) ^ "\n" in
+  F.write_new pool_path before;
+  F.write_new windows_path boundaries;
+  let ledger = F.read path in
+  let fresh () = C.open_route (C.initial ~config_home:directory (F.load path)) W.Daily_pace in
+  let press state button = key ~dimensions:(80, 24) ~width_of state button in
+  let form (state : C.state) = match state.overlay with
+    | C.Modal_form form -> form
+    | _ -> raise (F.Refused "pool-review-expected-form") in
+  let editing state = Ui_form.id (form state) = "configure_daily_pace" in
+  let reviewing state = Ui_form.id (form state) = "review_pool" in
+  let text state = Ui_form.get_text (form state) "pool_loci" in
+  let submit value state =
+    let updated = Ui_form.set_text (form state) "pool_loci" value
+      |> fun f -> Ui_form.set_focused f 1 in
+    press { state with C.overlay = C.Modal_form updated } `Enter in
+  let opened = press (fresh ()) (`ASCII 'c') in
+  require (text opened = Some "wallet") "pool-editor-shows-existing";
+  let review = submit "bank" opened in
+  let displayed = C.overlay_screen ~dimensions:(80, 24) ~width_of review
+    |> Option.value ~default:[] |> List.map snd |> String.concat "\n" in
+  require (reviewing review && F.read pool_path = before
+    && Base.String.is_substring displayed ~substring:"wallet"
+    && Base.String.is_substring displayed ~substring:"bank"
+    && Base.String.is_substring displayed ~substring:"jpy") "pool-old-new-visible-before-write";
+  let escaped = press review `Escape in
+  require (editing escaped && text escaped = Some "bank" && F.read pool_path = before)
+    "pool-review-escape-retains-input";
+  let edited = press (press (submit "bank" escaped) (`Arrow `Right)) `Enter in
+  require (editing edited && text edited = Some "bank") "pool-review-edit-retains-input";
+  let closed = press edited `Escape in
+  require (closed.overlay = C.No_overlay && F.read pool_path = before) "pool-cancel-no-write";
+  let resumed = press closed (`ASCII 'c') in
+  require (text resumed = Some "bank") "pool-cancel-reopen-retains-input";
+  let via_commands = C.open_command (press resumed `Escape) Ui_commands.Pace_pool in
+  require (text via_commands = Some "bank") "pool-commands-resume-same-draft";
+  List.iter (fun dimensions ->
+    let refused = key ~dimensions ~width_of review `Enter in
+    require (reviewing refused && Ui_form.notice (form refused) <> ""
+      && F.read pool_path = before) "pool-narrow-review-no-write";
+    let back = key ~dimensions ~width_of refused `Escape in
+    require (editing back && text back = Some "bank") "pool-narrow-escape-retains-input")
+    [(48, 14); (32, 9)];
+  Unix.mkdir (pool_path ^ ".lock") 0o700;
+  let failed = press review `Enter in
+  require (reviewing failed && Ui_form.notice (form failed) <> ""
+    && F.read pool_path = before) "pool-write-failure-preserves-old";
+  require (text (press failed `Escape) = Some "bank") "pool-write-failure-retains-draft";
+  Unix.rmdir (pool_path ^ ".lock");
+  let replace bytes = Unix.unlink pool_path; F.write_new pool_path bytes in
+  let concurrent = "wallet\tjpy\nbank\tjpy\n" in
+  replace concurrent;
+  let stale = press review `Enter in
+  require (reviewing stale && F.read pool_path = concurrent
+    && Ui_form.notice (form stale) <> "") "pool-stale-preserves-concurrent-setting";
+  require (text (press stale `Escape) = Some "bank") "pool-stale-keeps-new-input";
+  replace before;
+  let saved = press (submit "bank" (press (fresh ()) (`ASCII 'c'))) `Enter in
+  require (saved.overlay = C.No_overlay && F.read pool_path = after) "pool-explicit-save";
+  require (text (press saved (`ASCII 'c')) = Some "bank") "pool-success-clears-old-draft";
+  let cold = fresh () in
+  require (match C.resolve_pace_pool cold with
+    | Ok [coordinate] -> C.A.lstr coordinate.D.Effect_coordinate.locus = "bank"
+    | _ -> false) "pool-save-cold-reopen";
+  List.iter (fun raw ->
+    replace raw;
+    let blocked = submit "bank" (press (fresh ()) (`ASCII 'c')) in
+    require (editing blocked && F.read pool_path = raw
+      && Ui_form.notice (form blocked) <> "") "pool-foreign-or-malformed-not-replaced")
+    ["wallet\teur\n"; "wallet\tjpy\nbank\teur\n"; "broken\n"];
+  replace before;
+  let invalid = submit "wallet, wallet" (press (fresh ()) (`ASCII 'c')) in
+  require (editing invalid && text invalid = Some "wallet, wallet"
+    && F.read pool_path = before) "pool-invalid-input-retained";
+  let many = List.init 20 (fun i -> Printf.sprintf "retained-%02d\tjpy\n" i)
+    |> String.concat "" in
+  replace many;
+  let hidden = submit "bank" (press (fresh ()) (`ASCII 'c')) |> fun s -> press s `Enter in
+  require (reviewing hidden && F.read pool_path = many) "pool-hidden-old-rows-cannot-save";
+  Unix.unlink pool_path;
+  let created = press (submit "bank" (press (fresh ()) (`ASCII 'c'))) `Enter in
+  require (created.overlay = C.No_overlay && F.read pool_path = after) "pool-missing-explicit-create";
+  Unix.unlink pool_path;
+  Unix.mkdir pool_path 0o700;
+  let unreadable = submit "bank" (press (fresh ()) (`ASCII 'c')) in
+  require (editing unreadable && Sys.is_directory pool_path) "pool-unreadable-not-replaced";
+  Unix.rmdir pool_path;
+  require (F.read path = ledger && F.read windows_path = boundaries) "pool-only-config-changes";
+  print_endline "PASS: Pool old/new Review, Esc/Edit/cancel drafts, narrow/hidden refusal, \
+    lock/stale/Measure protection, cold save and unchanged ledger/boundaries."
+
 let self_check ~width_of () =
   let directory = "scratch/english-ui-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
@@ -2330,6 +2816,10 @@ let self_check ~width_of () =
   original_amount_integration_checks ~width_of ~directory ();
   event_merchant_integration_checks ~width_of ~directory ();
   daily_pace_trend_fail_closed_checks ~width_of ~directory ();
+  daily_pace_today_sample_checks ();
+  daily_pace_selection_clamp_checks ~width_of ~directory ();
+  daily_pace_graph_render_checks ~width_of ();
+  pool_review_checks ~width_of ~directory ();
   (* An annual book is not a qualified carry-forward. Its normal Actual and
      Scheduled tools remain available, but current-quantity projections must
      not be displayed as household balances. *)
@@ -3516,21 +4006,30 @@ let self_check ~width_of () =
     | Some s -> s
     | None -> failwith "unexpected exit on cfg err submit"
   in
-  (match err_state.overlay with
-   | C.Modal_form f_notice ->
-       require (Ui_form.notice f_notice = "Choose distinct admitted Locus tokens, separated by commas.")
-         "cfg-pace-validates-pool"
-   | _ -> failwith "expected notice on invalid pool");
-  let form_cfg_valid = Ui_form.set_text form_cfg "pool_loci" "wallet" in
+  require
+    (F.read pace_path = "wallet\tjpy\n"
+    && (match err_state.overlay with C.Modal_form f ->
+         Ui_form.get_text f "pool_loci" = Some "wallet, wallet" | _ -> false))
+    "cfg-pace-invalid-retains-input-and-config";
+  let form_cfg_valid = Ui_form.set_text form_cfg "pool_loci" "wallet, bank" in
   let form_cfg_valid = Ui_form.set_focused form_cfg_valid 1 in
-  let saved_state =
+  let reviewed_state =
     match C.handle ~width_of { cfg_state with overlay = C.Modal_form form_cfg_valid } (`Key (`Enter, [])) with
     | Some s -> s
-    | None -> failwith "unexpected exit on cfg save"
+    | None -> failwith "unexpected exit on cfg review"
   in
+  require ((match reviewed_state.overlay with C.Modal_form f -> Ui_form.id f = "review_pool" | _ -> false)
+    && F.read pace_path = "wallet\tjpy\n") "cfg-pace-review-does-not-save";
+  let back_to_edit = key ~width_of reviewed_state `Escape in
+  require ((match back_to_edit.overlay with C.Modal_form f -> Ui_form.id f = "configure_daily_pace" | _ -> false)
+    && F.read pace_path = "wallet\tjpy\n") "cfg-pace-review-escape-retains-draft";
+  let re_reviewed = key ~width_of back_to_edit `Enter in
+  require ((match re_reviewed.overlay with C.Modal_form f -> Ui_form.id f = "review_pool" | _ -> false)
+    && F.read pace_path = "wallet\tjpy\n") "cfg-pace-re-review-does-not-save";
+  let saved_state = key ~width_of re_reviewed `Enter in
   require (saved_state.overlay = C.No_overlay) "cfg-pace-saved-overlay-cleared";
-  require (saved_state.message = "Daily Pace pool saved. Period presets unchanged.") "cfg-pace-saved-message";
   require (F.read windows_path = boundaries_before) "pool-editor-preserves-boundaries-byte-exactly";
+  require (F.read pace_path = "wallet\tjpy\nbank\tjpy\n") "cfg-pace-saved-bytes";
   let screen_reloaded = C.screen ~width_of (120, 30) saved_state in
   require (contains screen_reloaded "Source: Pool [config/daily-pace.tsv]") "shows-configured-pool-source";
   let back_home2 = key ~width_of saved_state (`ASCII 'q') in

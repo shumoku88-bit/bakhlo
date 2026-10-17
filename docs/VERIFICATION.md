@@ -3799,3 +3799,35 @@ LOAM paired execution, IME/preedit, power loss/P7, and human acceptance remain u
   - `./tools/build-bonsai-tui` and `_build/daily-bonsai/_build/default/ui/bonsai_daily.exe --self-check`: all checks passed with `PASS: UI-33 Daily Pace / Trend fail-closed and bounded verification (unknown balances, corrupted configs, ambiguous periods, multi-dimensions) passed.`
 
 LOAM paired execution, physical terminal IME/preedit, power loss/P7, and human operational acceptance remain unexercised.
+## Daily Pace paired comparison and Braille graph (2026-10-18)
+
+- **Paired synthetic comparison against existing LOAM binary**:
+  - Binaries: LOAM `04f0187...` / `.lake/build/bin/loam` (sha256 `9b17146cdc1e003e3a80d435212691c031efe57d0cccb923fc754c3113752379`), Bakhlo `bonsai_daily.exe` (sha256 `7079a5aaa43cf670b2cc89e3f7a267f009c68cc16c1fae13b8182994e5f426f9`).
+  - Matched synthetic facts: observed on `2026-10-18`, pool `wallet` with `74,500` JPY, Scheduled payment `utility` on `2026-10-19` for `12,000` JPY, cycle window `2026-10-01 .. 2026-11-01` (14 days remaining). Both UIs calculated identical current truth: `4,464 jpy/day` and identical 10-day retrospective history (`3,782`, `3,727`, `3,904`, `3,975`, `3,657`, `3,861`, `3,911`, `4,081`, `4,300`, `4,464`).
+  - Terminal matrix: `120×36`, `80×24`, `48×14`, `32×9` in private tmux sessions (`TERM=xterm-256color`).
+  - Identified 9 UI differences:
+    1. Graph lines: LOAM uses Braille 2×4 continuous line; Bakhlo used ASCII asterisk blocks (`*`).
+    2. Ticks/Axis: LOAM uses integer 1/2/5×10ⁿ nice ticks (`3,500`, `4,000`, `4,500`); Bakhlo used literal min/max fractional steps without grouping.
+    3. Date axis: LOAM shows start/end dates on axis line (`2026-10-09 ... 2026-10-18`); Bakhlo had no date axis.
+    4. Selected day: LOAM keeps selected day and amount in header/summary across all sizes; Bakhlo lost selected day in 48×14.
+    5. Truncation: Bakhlo left pane had `…` on right borders due to passing unpadded width.
+    6. Layout: LOAM uses top chart + bottom history/details; Bakhlo uses side-by-side split pane.
+    7. History columns: LOAM shows Day, Quanta/day, Spent, Pace diff; Bakhlo shows Day, Quanta/day (change).
+    8. Fail-closed: Both correctly refuse unobserved pool with `Unavailable` (no zero substitution).
+    9. Edge cases: Zero (`0 jpy/day`), negative (`-1,000 jpy/day`), 400-digit integer spans verified without float overflow.
+
+- **Implementation improvements (`daily_pace_trend.ml`, `daily_pace_trend.mli`, `daily_interaction.ml`)**:
+  - Replaced float/staircase chart with integer-only nice tick calculation (`nice_ceiling`, `ceil_div`) and Braille 2×4 subcell raster.
+  - Line interpolation connects adjacent valid days sharing the same `end_exclusive`; holes, unobserved days, and cycle boundaries break the line without interpolation.
+  - Dots mode plots sample points (`●`) and selected point (`◆`) without line ink.
+  - Rule line displays short start/end dates (`MM-DD ─── MM-DD`).
+  - Selection summary row displays `YYYY-MM-DD (today) ◆ 4,464 jpy/day` and degrades gracefully on narrow terminals.
+  - Corrected Panel capacity and content width passed from controller (`left_width - 6`), eliminating row truncation `…`.
+  - Amounts formatted using `B.format` with Measure scale and 3-digit comma grouping.
+
+- **Verification results**:
+  - `rtk test ./tools/check`: all tests passed in 8.20s.
+  - `rtk test ./tools/tui --self-check`: all checks passed in 9.77s (including new `daily_pace_graph_render_checks`, `pool_review_checks`, `daily_pace_today_sample_checks`, `daily_pace_selection_clamp_checks`).
+  - PTY captures verified across 120×36, 80×24, 48×14, and 32×9.
+  - Zero pace (`0 jpy/day`), deficit pace (`-1,000 jpy/day`), and unobserved balance (`Unavailable`) verified on synthetic PTY.
+  - Mac physical terminal IME/preedit and operational adoption remain unqualified; LOAM remains production authority.
