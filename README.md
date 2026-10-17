@@ -164,7 +164,7 @@ Bakhloのコア実装・Daily保存・TUI接続・運用認定を別々に確認
 [順序付き受入計画](tasks/todo.md)で一連の生活操作を進め、[UI差分台帳](docs/LOAM_UI_GAP_LEDGER.ja.md)で残る不足を管理する。
 [LOAM互換の機能・見た目と使い勝手](docs/UI_DIRECTION.ja.md)は、英語UIの土台が接続した段階。
 実装・self-check・LOAM対照実行・人間の実機受入・保存／再起動／故障時の保証を区別し、全面互換や運用認定と混同しない。
-次の第一研究候補は[暦年別S式](docs/YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)。
+保存方針は[年別S式の第一実装](docs/YEARLY_SEXP_IMPLEMENTATION_DECISION.ja.md)に決定（[実装Issue #34](https://github.com/shumoku88-bit/bakhlo/issues/34)）。
 原則1月1日〜12月31日を1ファイルとし、当年＋必要な期首根拠で日常操作を扱えるか調べる。
 分析期間・実際に採択した支給日の年金サイクルは年度境界と独立させる。繰越の失効、
 年度間参照、年度切替・複数ファイルの原子性/復旧は未解決で、**本番方式の採用ではない**。
@@ -172,7 +172,7 @@ Bakhloのコア実装・Daily保存・TUI接続・運用認定を別々に確認
 [長期保存調査](docs/LONG_TERM_STORAGE_STUDY.ja.md)は既存費用を所有する。
 [Irmin Phase 1](docs/IRMIN_STORAGE_RESEARCH.ja.md)・[Phase 2](docs/IRMIN_PHASE2_RESULTS.ja.md)は保存済み。
 HEAD途中書込み故障とdurable Saved未確立のため本体導入を保留し、SQLiteは比較候補として残す。
-現在の実装は単一S式等のまま。年度分割の実装・正データ切替はまだ行わない。
+現在の実装は単一S式等のまま。年別S式を優先実装する方針だが、年度切替・繰越・運用切替は未実装。IrminとGitの実験成果は保全し、本体導入の前提にはしない。
 金額欄では `500+300`、`(500+300)/2` などの式を入力できる。全角数字・演算子にも対応し、
 整数／有理数で計算する。通貨の最小単位に収まらない結果・ゼロ除算・非正値は拒否し、下書きを保持する。
 符号付きPostingでは先頭の `-`／`+` が式全体の向きに作用する（`-500+300` は `-(500+300)`）。
