@@ -75,6 +75,9 @@ let check_annual_book annual_year book =
 let load ?annual_year path =
   check_annual_path annual_year path;
   let initial_bytes = read path in
+  (match annual_year, B.source_format_of_string initial_bytes with
+   | Some _, `Records _ -> raise (Refused "annual-records-unsupported")
+   | _ -> ());
   let format = detect_format initial_bytes in
   match format with
   | Monolithic ->
