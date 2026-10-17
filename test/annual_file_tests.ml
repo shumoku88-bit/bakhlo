@@ -33,8 +33,7 @@ let%expect_test "year guard checks path, dates and correction moves" =
     (Scope.check_book ~year:2026 (fixture "2027-01-01")
       = Error "annual-entry-outside-year:spend")
     "cross-year-correction";
-  print_endline "PASS: pure annual guards";
-  [%expect {| PASS: pure annual guards |}]
+  [%expect {| |}]
 
 let%expect_test "opt-in annual storage uses existing writer; wrong-year commits cannot alter file" =
   let root = Stdlib.Filename.temp_file "bakhlo-annual-scope-" "" in
@@ -75,5 +74,4 @@ let%expect_test "opt-in annual storage uses existing writer; wrong-year commits 
     ~path:(Stdlib.Filename.concat root "wrong.sexp") ~measure:"jpy" ~scale:0)))
     "unsafe-annual-create";
   ignore annual27;
-  print_endline "PASS: yearly file writes and refusal; independent cold reopen";
-  [%expect {| PASS: yearly file writes and refusal; independent cold reopen |}]
+  [%expect {| |}]
