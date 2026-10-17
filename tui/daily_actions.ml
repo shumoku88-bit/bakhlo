@@ -318,6 +318,11 @@ let is_valid_date day =
 let build_transaction ~book ~mode content : (transaction, transaction_error) result =
   let err ?field ~raw message = Error { message; field; raw_cause = raw } in
   let validate_and_put ~day ~memo_str ~effects ~original_amount =
+    match original_amount with
+    | Some (m, _) when not (List.mem_assoc m (B.measures book)) ->
+        err ~field:Field_currency ~raw:"measure-scale-not-supplied"
+          (tr "The Measure scale is not supplied in this book.")
+    | _ -> (
     match D.Movement.validate effects with
     | Error (D.Movement.Empty :: _) ->
         err ~raw:"empty-movement" (tr "At least one posting is required.")
@@ -372,7 +377,7 @@ let build_transaction ~book ~mode content : (transaction, transaction_error) res
               (tr
                  "Movement admission refused (entry-admission); check conservation and \
                   relationships.")
-        | Error why -> err ~raw:why (format_message "Record refused (%s). Review the draft." why))
+        | Error why -> err ~raw:why (format_message "Record refused (%s). Review the draft." why)))
   in
   match content with
   | Single form -> (

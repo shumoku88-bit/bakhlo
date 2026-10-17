@@ -275,10 +275,14 @@ let preview ~book ~base_bytes ~blocked t =
     | Ok (plan, replace) ->
         {t with review=Some {payload=A.Plan_tx {plan; replace}; base_bytes; action=0; scroll=0}; notice=""; paste=None}
   else
-    match A.build_transaction ~book ~mode:t.mode (A.Multiple {day=t.day; memo=t.description; draft=draft t; original_amount=t.original_amount}) with
-    | Error error -> with_notice t error.A.message
-    | Ok transaction ->
-        {t with review=Some {payload=A.Entry_tx transaction; base_bytes; action=0; scroll=0}; notice=""; paste=None}
+    match t.original_amount with
+    | Some (m, _) when not (List.mem_assoc m (B.measures book)) ->
+        with_notice t (A.format_message "Measure '%s' scale is not configured in this book." m)
+    | _ ->
+        (match A.build_transaction ~book ~mode:t.mode (A.Multiple {day=t.day; memo=t.description; draft=draft t; original_amount=t.original_amount}) with
+        | Error error -> with_notice t error.A.message
+        | Ok transaction ->
+            {t with review=Some {payload=A.Entry_tx transaction; base_bytes; action=0; scroll=0}; notice=""; paste=None})
 
 let insert t text =
   let updated, cursor=Fm.insert_at ~value:(value t) ~cursor:t.cursor text in
@@ -437,22 +441,25 @@ let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.in
               | `ASCII 'o',[`Ctrl] ->
                   update { t with original_editor = None; cursor = None; notice = "" }
               | `Enter,[] ->
-                  if ed.focus = 0 then
-                    update { t with original_editor = Some { ed with focus = 1 }; cursor = None; notice = "" }
-                  else
-                    let trimmed_m = String.trim ed.measure in
-                    if trimmed_m = "" || not (safe_text trimmed_m) || String.contains trimmed_m ' '
-                       || Result.is_error (D.Identifier.Measure.of_string trimmed_m) then
-                      update (with_notice t (tr "Enter a nonempty single-line original Measure token."))
-                    else
-                      let scale = match List.assoc_opt trimmed_m (B.measures book) with Some s -> s | None -> 0 in
-                      (match parse_original_quanta ~scale ed.amount with
-                      | Error `Precision | Error `Invalid ->
-                          update (with_notice t (A.format_message "Enter a positive original amount with at most %d decimal places." scale))
-                      | Error `Non_positive ->
-                          update (with_notice t (tr "Original amount must be positive."))
-                      | Ok quanta ->
-                          update { t with original_amount = Some (trimmed_m, quanta); original_editor = None; cursor = None; notice = "" })
+                  let trimmed_m = String.trim ed.measure in
+                  if trimmed_m = "" || not (safe_text trimmed_m) || String.contains trimmed_m ' '
+                     || Result.is_error (D.Identifier.Measure.of_string trimmed_m) then
+                    update (with_notice t (tr "Enter a nonempty single-line original Measure token."))
+                  else (
+                    match List.assoc_opt trimmed_m (B.measures book) with
+                    | None ->
+                        update (with_notice t (A.format_message "Measure '%s' scale is not configured in this book." trimmed_m))
+                    | Some scale ->
+                        if ed.focus = 0 then
+                          update { t with original_editor = Some { ed with focus = 1 }; cursor = None; notice = "" }
+                        else
+                          (match parse_original_quanta ~scale ed.amount with
+                          | Error `Precision | Error `Invalid ->
+                              update (with_notice t (A.format_message "Enter a positive original amount with at most %d decimal places." scale))
+                          | Error `Non_positive ->
+                              update (with_notice t (tr "Original amount must be positive."))
+                          | Ok quanta ->
+                              update { t with original_amount = Some (trimmed_m, quanta); original_editor = None; cursor = None; notice = "" }))
               | `Arrow `Left,[] | `Arrow `Right,[] ->
                   let cur_val = if ed.focus = 0 then ed.measure else ed.amount in
                   let step = if button = `Arrow `Left then -1 else 1 in
@@ -482,15 +489,18 @@ let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.in
                   else (match t.mode with
                   | A.Edit _ -> update (with_notice t (tr "Original amount is not changed by the current Correction editor."))
                   | A.Pay _ -> update (with_notice t (tr "Original amount is available from new Actual Record, not Scheduled completion."))
-                  | A.New ->
-                      let scale m = match List.assoc_opt m (B.measures book) with Some s -> s | None -> 0 in
-                      let ed =
-                        match t.original_amount with
-                        | None -> { measure = ""; amount = ""; focus = 0 }
-                        | Some (m, q) ->
-                            { measure = m; amount = format_amount_str ~scale:(scale m) q; focus = 0 }
-                      in
-                      update { t with original_editor = Some ed; cursor = None; notice = "" }
+                  | A.New -> (
+                      match t.original_amount with
+                      | None ->
+                          let ed = { measure = ""; amount = ""; focus = 0 } in
+                          update { t with original_editor = Some ed; cursor = None; notice = "" }
+                      | Some (m, q) -> (
+                          match List.assoc_opt m (B.measures book) with
+                          | Some scale ->
+                              let ed = { measure = m; amount = format_amount_str ~scale q; focus = 0 } in
+                              update { t with original_editor = Some ed; cursor = None; notice = "" }
+                          | None ->
+                              update (with_notice t (A.format_message "Measure '%s' scale is not configured in this book." m))))
                   | A.Plan_new | A.Plan_edit _ -> update t)
               | `Tab,[] -> update (move_focus t 1)
               | `Tab,[`Shift] -> update (move_focus t (-1))
@@ -708,7 +718,7 @@ let screen ~book ~dimensions:(width,height) ~width_of t =
                   match t.original_amount with
                   | None -> tr "Original amount: (none)   Ctrl-O add"
                   | Some (m, q) ->
-                      tr "Original amount: " ^ O.format_amount book m q ^ " " ^ m ^ tr "   Ctrl-O edit"
+                      tr "Original amount: " ^ B.format book m q ^ " " ^ m ^ tr "   Ctrl-O edit"
                 in
                 [ raw O.Chrome summary ]
             in

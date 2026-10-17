@@ -145,6 +145,7 @@ let admit ?entries_cached data =
     List.map
       (fun (e : entry) ->
         List.iter (fun p -> known (mstr (D.Effect.measure p))) e.effects;
+        Option.iter (fun (m, _) -> known m) e.original_amount;
         get "invalid-entry" (D.Event.create ~id:(eid e.id) ~effects:e.effects))
       entries
   in

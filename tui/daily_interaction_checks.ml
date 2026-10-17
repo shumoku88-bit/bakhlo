@@ -1620,7 +1620,32 @@ let original_amount_integration_checks ~width_of ~directory () =
   let rec_state = match recording with Some s -> s | None -> raise (F.Refused "orig-open-record") in
   let open_orig = C.handle ~width_of rec_state (`Key (`ASCII 'o', [`Ctrl])) in
   let orig_ed = match open_orig with Some s -> s | None -> raise (F.Refused "orig-open-orig-editor") in
-  let with_m = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) orig_ed ['u'; 's'; 'd'] in
+  (* Test 1a: Unregistered measure refusal *)
+  let unreg_m = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) orig_ed ['g'; 'b'; 'p'] in
+  let unreg_refused = Option.get (C.handle ~width_of unreg_m (`Key (`Enter, []))) in
+  require (contains (rec_screen unreg_refused) "Measure 'gbp' scale is not configured in this book.")
+    "orig-integration-unregistered-measure-refused";
+  let clean_ed = List.fold_left (fun s _ -> Option.get (C.handle ~width_of s (`Key (`Backspace, [])))) unreg_refused (List.init 3 Fun.id) in
+
+  (* Test 1b: Registered scale 0 (JPY) allows integer, rejects decimals *)
+  let jpy_m = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) clean_ed ['j'; 'p'; 'y'] in
+  let jpy_amt_focus = Option.get (C.handle ~width_of jpy_m (`Key (`Enter, []))) in
+  let jpy_decimal = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) jpy_amt_focus ['5'; '0'; '.'; '5'] in
+  let jpy_dec_refused = Option.get (C.handle ~width_of jpy_decimal (`Key (`Enter, []))) in
+  require (contains (rec_screen jpy_dec_refused) "Enter a positive original amount with at most 0 decimal places.")
+    "orig-integration-scale-0-decimal-refused";
+  let jpy_clean = List.fold_left (fun s _ -> Option.get (C.handle ~width_of s (`Key (`Backspace, [])))) jpy_dec_refused (List.init 4 Fun.id) in
+  let jpy_valid_amt = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) jpy_clean ['5'; '0'; '0'; '0'] in
+  let jpy_attached = Option.get (C.handle ~width_of jpy_valid_amt (`Key (`Enter, []))) in
+  require (contains (rec_screen jpy_attached) "Original amount: 5000 jpy") "orig-integration-scale-0-attached";
+  (* Clear via Ctrl-O -> Ctrl-D *)
+  let open_to_clear = Option.get (C.handle ~width_of jpy_attached (`Key (`ASCII 'o', [`Ctrl]))) in
+  let cleared_state = Option.get (C.handle ~width_of open_to_clear (`Key (`ASCII 'd', [`Ctrl]))) in
+  require (contains (rec_screen cleared_state) "Original amount: (none)") "orig-integration-cleared";
+
+  (* Test 1c: Registered scale 2 (USD): enter "usd" and "30.00" *)
+  let reopen_ed = Option.get (C.handle ~width_of cleared_state (`Key (`ASCII 'o', [`Ctrl]))) in
+  let with_m = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) reopen_ed ['u'; 's'; 'd'] in
   let to_amount = Option.get (C.handle ~width_of with_m (`Key (`Enter, []))) in
   let with_amt = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) to_amount ['3'; '0'; '.'; '0'; '0'] in
   let attached = Option.get (C.handle ~width_of with_amt (`Key (`Enter, []))) in

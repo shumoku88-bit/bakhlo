@@ -1015,6 +1015,19 @@ let%expect_test "original amount retains positive facts across monolithic and re
   let bad_neg = Base.String.substr_replace_first mono_bytes ~pattern:"(original-amount (amount \"eur\" 750))" ~with_:"(original-amount (amount \"eur\" -10))" in
   Stdio.printf "bad zero: %s\n" (match B.of_string bad_zero with Error e -> e | Ok _ -> "ok");
   Stdio.printf "bad neg: %s\n" (match B.of_string bad_neg with Error e -> e | Ok _ -> "ok");
+  (* Unregistered Measure is explicitly refused by admit *)
+  let unreg_entry : B.entry = { e with id = "unreg_tx"; original_amount = Some ("usd", Z.of_int 100) } in
+  let unreg_res = B.put_entry base ~replace:false unreg_entry ~plan:None in
+  Stdio.printf "unregistered measure refused: %s\n" (match unreg_res with Error e -> e | Ok _ -> "ok");
+  let bad_unreg_sexp = Base.String.substr_replace_first mono_bytes ~pattern:"(original-amount (amount \"eur\" 750))" ~with_:"(original-amount (amount \"usd\" 100))" in
+  Stdio.printf "unregistered measure sexp refused: %s\n" (match B.of_string bad_unreg_sexp with Error e -> e | Ok _ -> "ok");
+  (* Registered scale 0 (JPY) is allowed and formats without decimals *)
+  let scale0_entry : B.entry = { e with id = "scale0_tx"; original_amount = Some ("jpy", Z.of_int 5000) } in
+  let scale0_book = get (B.put_entry base ~replace:false scale0_entry ~plan:None) in
+  let scale0_stored = Option.value_exn (B.find_entry scale0_book "scale0_tx") in
+  Stdio.printf "scale 0 stored: %s %s\n" (fst (Option.value_exn scale0_stored.original_amount)) (B.format scale0_book (fst (Option.value_exn scale0_stored.original_amount)) (snd (Option.value_exn scale0_stored.original_amount)));
+  let scale0_cold = get (B.of_string (B.to_string scale0_book)) in
+  Stdio.printf "scale 0 roundtrip: %b\n" (Option.is_some (B.find_entry scale0_cold "scale0_tx"));
   [%expect {|
     found orig: eur 750
     mono has orig: true
@@ -1025,4 +1038,8 @@ let%expect_test "original amount retains positive facts across monolithic and re
     rev target orig: true, rev entry orig: false
     bad zero: non-positive-amount
     bad neg: non-positive-amount
+    unregistered measure refused: measure-scale-not-supplied
+    unregistered measure sexp refused: measure-scale-not-supplied
+    scale 0 stored: jpy 5000
+    scale 0 roundtrip: true
   |}]

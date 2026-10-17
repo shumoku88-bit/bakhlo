@@ -377,17 +377,36 @@ let self_check ~width_of () =
   let bad_m = key orig_editor `Enter in
   let bad_m_attached = key bad_m `Enter in
   require (contains bad_m_attached "Enter a nonempty single-line original Measure token.") "orig-amount-empty-measure-refused";
+  (* Validation: unregistered Measure *)
+  let unreg_m = text orig_editor "usd" in
+  let unreg_m_refused = key unreg_m `Enter in
+  require (contains unreg_m_refused "Measure 'usd' scale is not configured in this book.") "orig-amount-unregistered-measure-refused";
 
-  (* Type Measure "eur", Enter advances focus to Amount *)
-  let with_m = text orig_editor "eur" in
+  (* Scale 0 (JPY): allows integer, rejects decimals *)
+  let jpy_editor = key orig_editor `Backspace in
+  let jpy_editor = text jpy_editor "jpy" in
+  let jpy_amount = key jpy_editor `Enter in
+  let jpy_decimal = key (text jpy_amount "500.5") `Enter in
+  require (contains jpy_decimal "Enter a positive original amount with at most 0 decimal places.") "orig-amount-scale-0-decimal-refused";
+  let jpy_valid = key (text (key (key jpy_amount `Home) `End) "5000") `Enter in
+  require (contains jpy_valid "Original amount: 5000 jpy   Ctrl-O edit") "orig-amount-scale-0-attached-summary";
+  let jpy_preview = key jpy_valid `Enter in
+  require (contains jpy_preview "Original amount: 5000 jpy") "orig-amount-scale-0-preview";
+
+  (* Clear via Ctrl-O -> Ctrl-D *)
+  let cleared = ctrl (ctrl jpy_valid 'o') 'd' in
+  require (contains cleared "Original amount: (none)   Ctrl-O add") "cleared-jpy-summary";
+
+  (* Open fresh original editor for EUR (scale 2) *)
+  let eur_editor = ctrl cleared 'o' in
+  let with_m = text eur_editor "eur" in
   let to_amount = key with_m `Enter in
-
   (* Validation: excess decimals (eur scale 2, input 30.001) *)
   let too_precise = key (text to_amount "30.001") `Enter in
   require (contains too_precise "Enter a positive original amount with at most 2 decimal places.") "orig-amount-precision-refused";
 
   (* Validation: zero or negative amount *)
-  let zero_amt = key (text (key (key to_amount `Home) `End) "0.00") `Enter in
+  let zero_amt = key (text to_amount "0.00") `Enter in
   require (contains zero_amt "Original amount must be positive.") "orig-amount-zero-refused";
 
   (* Valid input: 30.00 eur *)
