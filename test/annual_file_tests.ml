@@ -21,17 +21,17 @@ let fixture day =
   get (B.of_string bytes)
 
 let%expect_test "year guard checks path, dates and correction moves" =
-  require (Scope.of_string "2026" = Ok 2026) "parse";
+  require (Poly.equal (Scope.of_string "2026") (Ok 2026)) "parse";
   require (Result.is_error (Scope.of_string "0000")) "zero-year";
   require (Result.is_error (Scope.of_string "26")) "short-year";
   require (Result.is_error (Scope.of_string "202x")) "invalid-year";
-  require (Scope.check_path ~year:2026 "/tmp/books/2026.sexp" = Ok ()) "year-name";
+  require (Poly.equal (Scope.check_path ~year:2026 "/tmp/books/2026.sexp") (Ok ())) "year-name";
   require (Result.is_error (Scope.check_path ~year:2026 "/tmp/books/2027.sexp")) "wrong-name";
-  require (Scope.check_book ~year:2026 (fixture "2026-12-31") = Ok ()) "last-day";
-  require (Scope.check_book ~year:2027 (fixture "2027-01-01") = Ok ()) "next-year";
+  require (Poly.equal (Scope.check_book ~year:2026 (fixture "2026-12-31")) (Ok ())) "last-day";
+  require (Poly.equal (Scope.check_book ~year:2027 (fixture "2027-01-01")) (Ok ())) "next-year";
   require
-    (Scope.check_book ~year:2026 (fixture "2027-01-01")
-      = Error "annual-entry-outside-year:spend")
+    (Poly.equal (Scope.check_book ~year:2026 (fixture "2027-01-01"))
+      (Error "annual-entry-outside-year:spend"))
     "cross-year-correction";
   [%expect {| |}]
 
@@ -52,19 +52,20 @@ let%expect_test "opt-in annual storage uses existing writer; wrong-year commits 
   in
   require (B.entry_count (File.load ~annual_year:2026 p26).book = 1) "cold-open-2026";
   require (B.entry_count (File.load ~annual_year:2027 p27).book = 0) "cold-open-2027";
-  require (File.read p27 = old27) "other-year-mutated";
+  require (String.equal (File.read p27) old27) "other-year-mutated";
   let original26_bytes = File.read p26 in
   (match File.publish saved26 (fixture "2027-01-01") with
    | File.Refused_input "annual-entry-outside-year:spend" -> ()
    | _ -> failwith "wrong-year-publication-not-refused");
-  require (File.read p26 = original26_bytes) "cross-year-mutated-original";
+  require (String.equal (File.read p26) original26_bytes) "cross-year-mutated-original";
   let corrected26 = fixture "2026-11-30" in
   (match File.publish saved26 corrected26 with
    | File.Written _ -> ()
    | _ -> failwith "within-year-correction-refused");
   require
-    (List.map (B.entries (File.load ~annual_year:2026 p26).book) ~f:(fun e -> e.day)
-      = [ "2026-11-30" ])
+    (Poly.equal
+      (List.map (B.entries (File.load ~annual_year:2026 p26).book) ~f:(fun e -> e.day))
+      [ "2026-11-30" ])
     "same-year-cold-correction";
   require (File.read p27 = old27) "correction-touched-other-year";
   require (Result.is_error (Scope.check_path ~year:2026 p27)) "year-mismatch";
