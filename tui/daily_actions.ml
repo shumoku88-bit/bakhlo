@@ -825,7 +825,7 @@ type reload_result =
 
 let reload ~session ~pending ~mode : reload_result =
   try
-    let loaded = F.load session.F.path in
+    let loaded = F.reload session in
     match recovery_notice ~session:loaded with
     | Some notice -> Recovery_required (loaded, notice)
     | None -> (
