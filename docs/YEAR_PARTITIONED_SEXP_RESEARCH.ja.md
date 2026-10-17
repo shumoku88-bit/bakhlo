@@ -1,6 +1,7 @@
-# 暦年別S式 — 次の第一研究候補
+# 暦年別S式 — 既存研究とGit年別運用候補
 
-状態: **研究方針のみ。年度分割の実装・新しい正データ形式の採用・運用切替はしていない。**
+状態: **合成年度分割研究と選択的な検証読込部品は既存。年度別の本番保存方式・新形式・運用切替は未採用。**
+関連: [研究棚卸し](YEAR_PARTITION_RESEARCH_INVENTORY.ja.md)、[Year_read境界](YEAR_READ_BOUNDARY.ja.md)。
 ここで「年度」は会計年度でなく、原則**1月1日〜12月31日の暦年**を指す。
 現行の単一S式を意味/回答/拒否のcontrolにして、通常操作の読込・保存・backup範囲を
 小さくできるかを確かめる。S式であることや年別fileであること自体を耐久保証にしない。
@@ -13,7 +14,68 @@
 | [長期保存調査](LONG_TERM_STORAGE_STUDY.ja.md) | 単一S式等の既存費用と測定限界。直接printer試作等は未採用 |
 | この文書 | 暦年配置と分析期間、繰越、年度間更新の未解決点、最初の合成検証計画 |
 | [Irmin Phase 1](IRMIN_STORAGE_RESEARCH.ja.md) / [Phase 2](IRMIN_PHASE2_RESULTS.ja.md) | 調査・限定検証の履歴。HEAD部分書込み故障でdangling選択参照を観測し、durable Saved未確立。**本体導入保留** |
-| SQLite | 比較候補として維持。同じ意味・transaction/安全性・性能・依存/保守費を今後比較。BakhloのOCaml backendは未実験 |
+| SQLite | [合成永続化試験](VERIFICATION.md#unixsqlite-synthetic-persistence-bounded-outer-trial-no-saved-qualification)の記録はあるが本番backendとして未採用。Irmin/Gitと保証範囲を揃えるまで優劣を決めない |
+
+## TacklerのGit運用から借りる最小の年別構成（2026-10-16 調査）
+
+**判断: 年別配置とコミット固定読込は有望。Irmin/年度別branch/新しいmanifestの導入は決めない。**
+これは設計候補の比較であり、実装・本番採用・既存正データ移行の承認ではない。
+
+[Tackler Production Setup](https://tackler.fi/docs/tackler/latest/examples/production-setups/)は、
+journalリポジトリの一つの`main`に全年度を年別directoryで置き、設定も同じリポジトリに含める。
+年別Git branchの例もあるが**年ごとのbranchは必須でない**。
+[Git Storage Guide](https://tackler.fi/docs/tackler/latest/journal/git-storage/)は、
+branch/tag（先端が移動する参照）とcommit ID（固定時点）を明確に分け、レポートに使用commitを残す。
+Tacklerの取引ファイル分割粒度や会計モデルをBakhloへ輸入する提案ではない。
+
+候補の**論理的な**配置例（正式なwire/path/schemaではない）:
+
+```text
+book/
+  years/
+    2025.sexp
+    2026.sexp
+  shared/
+    ...  # 科目・解釈設定・年度を跨ぐ必要根拠（範囲と形式は未選定）
+```
+
+- 普段は`main`で現年度を使い、過年度の明細/比較が必要になれば指定年度を読み込む。
+  年切替で旧年度を消去・移動せず、年別branchも自動作成しない。
+- 過去時点の参照では、**一つの解決済みcommit**のtreeから全年・必要な共通設定を選ぶ。
+  `main`の移動を複数回のread間で追従して混在させず、結果にcommitを示す。
+  年別ファイル名、最終更新時刻、ユーザー入力のhashだけを選択の真正性とみなさない。
+- 既存の`Bakhlo_sexp.Year_read`（[境界](YEAR_READ_BOUNDARY.ja.md)）を再利用する。
+  その`VERIFIED_SELECTION_SOURCE`の実供給源は未実装であり、Git commitを固定するだけで
+  家計の入場/書込権限/真正性を自動で保証するわけではない。
+- Gitのcommitで複数ファイルの**読取時点**は固定できる一方、Bakhloが実データを保存して
+  durable Savedと返すための排他、stage、commit/ref更新、同期、Ack-loss、故障復旧は別課題。
+  `git add`/`git commit`の成功やOS上のreadbackを無条件に電源断耐久とみなさない。
+- 前年訂正で当年の繰越・予定完了・root cut/支持が影響される場合、全関係を
+  **一つの検証済み候補状態**として扱う。Git/Irminのtext mergeや自動mergeで意味を決めない。
+  同一コミットから読めることと、全年度の家計意味が正しいことは別。
+- BakhloのS式は**Irminの内部pack形式へ閉じ込める必要はない**。
+  まず既存Git＋通常の読みやすいS式ファイルで比較する。
+  `irmin-git`はGit形式への別adapter候補、`irmin-pack`は
+  [Phase 2](IRMIN_PHASE2_RESULTS.ja.md)のbranch部分書込故障により保留中。
+  両者とも採用前に依存量、バックアップ、MirageOS制約と保存安全性を別々に確認する。
+
+### 次に試す一件だけの合成read-only受入
+
+1. 2025/2026の小さな**架空の**S式と必要設定を単一Git commit Aに固定し、
+   2025年、2026年、年跨ぎ期間を同じ選択から再読込する。
+   現在の単一S式control、既存Coreの回答/拒否と比較し、差を隠さない。
+2. commit Bで2025年の記帳日付・数量を訂正した候補を作り、
+   依存する2026年の繰越と予定の扱いを検証する。
+   旧Aの表示が変わらず、Bの新しい参照が古い繰越を誤用しないこと。
+3. 欠落年度、未解決commit、違うcommitの混在、破損、year外entry、
+   年度を跨ぐ予定完了と日付移動を拒否・識別する。未対応は失敗として記録する。
+4. 実装前に、選択元をどう検証するか、Gitの保全対象とbackup/restore、
+   失敗時の保存応答を具体化する。**read-only成功をwriter採用と混同しない**。
+
+**停止条件**: 実供給源の検証に独自の汎用store/二重authorityが必要になる、
+参照閉包を正しく構成できない、Irmin導入が単純なGit/S式運用より
+ファイル・依存・保守負担を増やす場合は、導入を見送る。
+現在の`Year_read`、C方式/TLA+合成資産を優先し、同種の研究を作り直さない。
 
 ## 保存単位と分析単位を独立させる
 
@@ -60,7 +122,11 @@
 - 外部config・未知bytes・必要根拠・publication照合を含む全restore対象を明示する。
   過年度fileを開けない状況を「空年度」として自動補完しない。保持/backup削除は別判断。
 
-## 最初の合成比較: 2025-10-15〜2026-10-14
+## 初期研究で設定した合成比較: 2025-10-15〜2026-10-14
+
+**以下は当初の実験計画の記録。** 後続のC方式/年度間計画/Year_read合成検証は
+[研究棚卸し](YEAR_PARTITION_RESEARCH_INVENTORY.ja.md)と[検証境界](YEAR_READ_BOUNDARY.ja.md)に保存済み。
+この計画を未実施の新規開発タスクとして丸ごと繰り返さない。
 
 外側は半開区間 `[2025-10-15, 2026-10-15)`。次の**明示採択した合成境界**で6つの
 2か月サイクルを比較する。これは実家計の支給日や常時15日の契約ではない。
