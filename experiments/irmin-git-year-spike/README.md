@@ -52,3 +52,35 @@ and SQLite rather than developing a second persistence framework.
 References: `docs/IRMIN_PHASE2_RESULTS.ja.md`,
 `docs/YEAR_PARTITION_RESEARCH_INVENTORY.ja.md`,
 `sexp/year_read.mli`.
+
+## Follow-up: fixed Git commit → existing Bakhlo Core (synthetic only)
+
+The `scripts/core_bridge.ml` probe uses **real Bakhlo Daily v3 S-expressions**
+with `Bakhlo_sexp.Year_read.Make` and the existing current quantity query.
+A source constructed inside this synthetic experiment captures one observed
+Irmin-Git commit, obtains the exact 2025/2026 book bytes and revisions from
+that immutable commit, then lets `Year_read` perform year and Core admission.
+Its selection is not an independent, durable or authenticated authority.
+
+The test checks all four prior-year answer categories: exact quantities,
+explicit zero-origin, known-present and unknown. It then revises the 2025
+book, confirms that an old carry cannot enter a new session, verifies that
+an old pinned session remains historical, closes/reopens the repository and
+checks Bakhlo admission again. An intentionally malformed year refuses.
+
+It deliberately does **not** inject an opening balance into 2026 or claim
+a combined 2026 total. `current_book` remains the isolated current book,
+and `carry_balance` is only the preceding year's verified answer.
+
+The bridge uses the repository's ordinary Bakhlo Core compiled in an ephemeral
+CI switch plus `irmin-git.3.11.0`. Run it in an appropriate isolated setup:
+
+```sh
+sh experiments/irmin-git-year-spike/scripts/build-core-bridge.sh
+```
+
+No Bakhlo product dependency is added. Production `VERIFIED_SELECTION_SOURCE`
+and safe persisted CarryForward are still missing. A Git commit does not
+provide fail-safe, durable `Saved`, stale-writer CAS, ack-loss reconciliation,
+cross-year scheduled linking, source-level conflict checks, backup or GC.
+These remain explicit prerequisites before any live migration.
