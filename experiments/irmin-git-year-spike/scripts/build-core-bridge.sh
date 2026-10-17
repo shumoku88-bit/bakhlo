@@ -1,20 +1,24 @@
 #!/bin/sh
-# Build only in a fresh isolated runner; do not modify the user's product switch.
+# Reuse Dune's dependency and virtual-library implementation resolution.
+# This probe is built in an isolated, temporary copy of Bakhlo's pure Core.
+# Do not alter the product Dune/opam setup or the user's installed switch.
 set -eu
 umask 077
-opam exec -- dune build \
-  lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa sexp/bakhlo_sexp.cmxa
-out=$(mktemp -d)
-trap 'rm -rf "$out"' EXIT
-src=_build/default
-incs="-I $src/lib/.bakhlo_domain.objs/byte -I $src/lib/.bakhlo_domain.objs/native -I $src/application/.bakhlo_application.objs/byte -I $src/application/.bakhlo_application.objs/native -I $src/sexp/.bakhlo_sexp.objs/byte -I $src/sexp/.bakhlo_sexp.objs/native"
-# The Irmin Git dependency graph exposes transitive link modules.
-# Manual ocamlopt linkage must name their findlib packages explicitly.
-# shellcheck disable=SC2086
-opam exec -- ocamlfind ocamlopt -strict-sequence -w +8+9+11 -warn-error +8+9+11 \
-  -package base,zarith,parsexp,unix,lwt.unix,irmin-git.unix,digestif.ocaml,checkseum,mirage-mtime.unix,mirage-sleep.unix,mirage-ptime.unix -linkpkg $incs \
-  "$src/lib/bakhlo_domain.cmxa" \
-  "$src/application/bakhlo_application.cmxa" \
-  "$src/sexp/bakhlo_sexp.cmxa" \
-  experiments/irmin-git-year-spike/scripts/core_bridge.ml -o "$out/core-bridge"
-"$out/core-bridge"
+
+out=$(mktemp -d "${TMPDIR:-/tmp}/bakhlo-irmin-core-XXXXXXXX")
+trap 'rm -rf "$out"' EXIT HUP INT TERM
+
+cp dune-project dune bakhlo.opam "$out/"
+cp -R lib application sexp "$out/"
+mkdir "$out/probe"
+cp experiments/irmin-git-year-spike/scripts/core_bridge.ml "$out/probe/probe.ml"
+cat > "$out/probe/dune" <<'DUNE'
+(executable
+ (name probe)
+ (libraries bakhlo_domain bakhlo_application bakhlo_sexp irmin-git.unix lwt.unix unix))
+DUNE
+
+# Unlike a hand-written ocamlfind/ocamlopt link line, Dune selects the Unix
+# implementations of transitive virtual libraries required by irmin-git.unix.
+# The scratch project is not part of Bakhlo's product workspace.
+opam exec -- dune exec --root "$out" ./probe/probe.exe
