@@ -1562,6 +1562,20 @@ let self_check ~width_of () =
   in
   require (shows annual "2027 annual book") "annual-home-not-labeled";
   require
+    (List.map (fun (b : F.annual_book_summary) ->
+       (b.year, b.entries, b.open_plans))
+       (F.list_annual_books ~directory) = [ (2027, 0, 0) ])
+    "annual-list-did-not-discover-one-valid-book";
+  let corrupt_annual = directory ^ "/2028.sexp" in
+  F.write_new corrupt_annual "not a Daily S-expression";
+  require
+    (try ignore (F.list_annual_books ~directory); false
+     with F.Refused _ -> true)
+    "annual-list-silently-skipped-corrupt-book";
+  require
+    (B.entry_count (F.load ~annual_year:2027 annual_path).book = 0)
+    "annual-list-touched-healthy-year";
+  require
     (match C.current_pace_result annual with Error _ -> true | Ok _ -> false)
     "annual-pace-must-not-publish-unqualified-quantity";
   List.iter
