@@ -155,7 +155,15 @@ type state = {
 
 let initial ?config_home session =
   let measure = match B.measures session.F.book with (id, _) :: _ -> id | [] -> "" in
-  let workspace = get (W.create ~today:(F.today ()) ~measure) in
+  let today = F.today () in
+  let focus_day =
+    match session.F.annual_year with
+    | None -> today
+    | Some year ->
+        let prefix = Printf.sprintf "%04d-" year in
+        if String.starts_with ~prefix today then today else prefix ^ "01-01"
+  in
+  let workspace = get (W.create ~today:focus_day ~measure) in
   let notice = A.recovery_notice ~session in
   let attention_path = Att.file_path ?config_home session.F.path in
   let attention = Att.load_file attention_path in
@@ -185,7 +193,7 @@ let initial ?config_home session =
     cycle_review = None;
     label_review = None;
     exchange_review = None;
-    actual_workspace = Act.create ~focus_date:(F.today ());
+    actual_workspace = Act.create ~focus_date:focus_day;
     drill_parent = None;
     drill_book = None;
     pace_trend = Trend.initial ();
