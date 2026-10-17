@@ -20,7 +20,11 @@ jobs:
           ocaml-compiler: "5.3.0"
           opam-pin: false
           dune-cache: false
-      - name: Install Irmin Git for research only
-        run: opam install -y dune irmin-git.3.11.0
+      - name: Install Bakhlo Core and Irmin Git in isolated runner
+        run: |
+          opam install . --deps-only --with-test --locked -y
+          opam install -y irmin-git.3.11.0
       - name: Build and exercise isolated year paths
         run: opam exec -- dune exec --root experiments/irmin-git-year-spike ./spike.exe
+      - name: Connect selected Git commit to Bakhlo Year_read and Core
+        run: sh experiments/irmin-git-year-spike/scripts/build-core-bridge.sh
