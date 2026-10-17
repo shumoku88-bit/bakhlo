@@ -4,6 +4,10 @@
  (_
   (inline_tests enabled)))
 
+; Test the production single-file publisher without a Bonsai dependency.
+; The source is copied into this test build only; no new storage implementation.
+(copy_files ../tui/daily_file.ml)
+
 (library
  (name bakhlo_tests)
  (package bakhlo)
@@ -17,7 +21,8 @@
   bakhlo_cli
   base
   zarith
-  base_quickcheck)
+  base_quickcheck
+  unix)
  (inline_tests
   (flags -verbose))
  (preprocess
