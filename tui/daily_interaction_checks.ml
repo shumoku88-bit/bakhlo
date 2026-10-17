@@ -1547,6 +1547,41 @@ let self_check ~width_of () =
   cancellation_checks ~width_of ~directory home;
   months_checks ~width_of ~directory home;
   continuation_checks ~width_of ~directory home;
+  (* An annual book is not a qualified carry-forward. Its normal Actual and
+     Scheduled tools remain available, but current-quantity projections must
+     not be displayed as household balances. *)
+  let annual_path = directory ^ "/2027.sexp" in
+  let annual_session =
+    F.create_annual_empty ~year:2027 ~path:annual_path ~measure:"jpy" ~scale:0
+  in
+  let annual = C.initial ~config_home:directory annual_session in
+  let shows state needle =
+    List.exists
+      (fun (_, content) -> Base.String.is_substring content ~substring:needle)
+      (C.screen ~width_of (100, 28) state)
+  in
+  require (shows annual "2027 annual book") "annual-home-not-labeled";
+  require
+    (match C.current_pace_result annual with Error _ -> true | Ok _ -> false)
+    "annual-pace-must-not-publish-unqualified-quantity";
+  List.iter
+    (fun route ->
+      let blocked = C.open_route annual route in
+      require
+        (blocked.workspace.route = W.Home && blocked.message <> "")
+        "annual-derived-report-route-not-blocked";
+      let forced = { annual with workspace = W.enter annual.workspace route } in
+      require
+        (shows forced "No zero opening or carried balance is inferred.")
+        "annual-derived-report-could-display-partial-balance")
+    [ W.Balances; W.Daily_pace; W.Stock_flow; W.Income_expense;
+      W.Transactions_flow ];
+  require ((C.open_route annual W.Actual).workspace.route = W.Actual)
+    "annual-actual-browsing-blocked";
+  require ((C.open_route annual W.Scheduled).workspace.route = W.Scheduled)
+    "annual-scheduled-browsing-blocked";
+  require ((C.open_route home W.Balances).workspace.route = W.Balances)
+    "ordinary-book-balances-regressed";
   let before = F.read path in
   require
     (home.workspace.route = W.Home && not home.record_visible)
