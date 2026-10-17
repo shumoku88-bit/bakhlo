@@ -93,7 +93,7 @@ module Source = struct
     in
     match selected with
     | None -> Error (Y.Year_missing year)
-    | Some s ->
+    | Some _ ->
         (match find snapshot.pinned (path year "book") with
          | None -> Error (Y.Original_missing year)
          | Some contents ->
