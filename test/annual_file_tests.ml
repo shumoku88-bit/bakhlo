@@ -58,6 +58,12 @@ let%expect_test "opt-in annual storage uses existing writer; wrong-year commits 
    | File.Refused_input "annual-entry-outside-year:spend" -> ()
    | _ -> failwith "wrong-year-publication-not-refused");
   require (String.equal (File.read p26) original26_bytes) "cross-year-mutated-original";
+  let reloaded26 = File.reload saved26 in
+  require (Poly.equal reloaded26.annual_year (Some 2026)) "annual-reload-lost-scope";
+  (match File.publish reloaded26 (fixture "2027-01-01") with
+   | File.Refused_input "annual-entry-outside-year:spend" -> ()
+   | _ -> failwith "reloaded-annual-scope-bypassed");
+  require (String.equal (File.read p26) original26_bytes) "reload-cross-year-mutated";
   let corrected26 = fixture "2026-11-30" in
   (match File.publish saved26 corrected26 with
    | File.Written _ -> ()
