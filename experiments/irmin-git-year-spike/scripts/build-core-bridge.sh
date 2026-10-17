@@ -8,10 +8,10 @@ out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
 src=_build/default
 incs="-I $src/lib/.bakhlo_domain.objs/byte -I $src/lib/.bakhlo_domain.objs/native -I $src/application/.bakhlo_application.objs/byte -I $src/application/.bakhlo_application.objs/native -I $src/sexp/.bakhlo_sexp.objs/byte -I $src/sexp/.bakhlo_sexp.objs/native"
+# The Irmin Git dependency graph exposes transitive link modules.
+# Manual ocamlopt linkage must name their findlib packages explicitly.
 # shellcheck disable=SC2086
 opam exec -- ocamlfind ocamlopt -strict-sequence -w +8+9+11 -warn-error +8+9+11 \
-  # The Irmin Git dependency graph exposes these modules through transitive
-  # ocamlfind packages; manual ocamlopt linkage must name them explicitly.
   -package base,zarith,parsexp,unix,lwt.unix,irmin-git.unix,digestif.ocaml,checkseum,mirage-mtime,mirage-sleep,mirage-ptime -linkpkg $incs \
   "$src/lib/bakhlo_domain.cmxa" \
   "$src/application/bakhlo_application.cmxa" \
