@@ -658,6 +658,15 @@ let () =
           | Ok year -> year | Error why -> raise (F.Refused why) in
         ignore (F.load ~annual_year:year path);
         print_endline "PASS: annual book admitted (no payload output; no carried balance claimed)."
+    | [ _; "--annual-list"; directory ] ->
+        let books = F.list_annual_books ~directory in
+        if books = [] then
+          print_endline "No YYYY.sexp books found. No opening balance is inferred."
+        else
+          List.iter (fun (book : F.annual_book_summary) ->
+            Printf.printf "%04d  Actual %d  open Scheduled %d  (file-local; no carry)\n"
+              book.year book.entries book.open_plans)
+            books
     | [ _; "--check"; path ] ->
         ignore (F.load path);
         print_endline "PASS: daily book admitted (no payload output)."
@@ -675,7 +684,7 @@ let () =
            explicit."
     | _ ->
         prerr_endline
-          "Usage: tools/tui --book FILE | --annual-book YYYY --book YYYY.sexp | --annual-check YYYY --book YYYY.sexp | --check FILE | --copy-from SOURCE --book FRESH_FILE | \
+          "Usage: tools/tui --book FILE | --annual-book YYYY --book YYYY.sexp | --annual-check YYYY --book YYYY.sexp | --annual-list DIR | --check FILE | --copy-from SOURCE --book FRESH_FILE | \
            --inspect-recovery --book FILE | --confirm-current-attempt ID --book FILE | \
            --restore-copy-from SOURCE --book FRESH_FILE";
         exit 2
