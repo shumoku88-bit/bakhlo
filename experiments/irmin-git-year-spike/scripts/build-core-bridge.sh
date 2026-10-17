@@ -12,7 +12,7 @@ incs="-I $src/lib/.bakhlo_domain.objs/byte -I $src/lib/.bakhlo_domain.objs/nativ
 # Manual ocamlopt linkage must name their findlib packages explicitly.
 # shellcheck disable=SC2086
 opam exec -- ocamlfind ocamlopt -strict-sequence -w +8+9+11 -warn-error +8+9+11 \
-  -package base,zarith,parsexp,unix,lwt.unix,irmin-git.unix,digestif.ocaml,checkseum,mirage-mtime,mirage-sleep,mirage-ptime -linkpkg $incs \
+  -package base,zarith,parsexp,unix,lwt.unix,irmin-git.unix,digestif.ocaml,checkseum,mirage-mtime.unix,mirage-sleep.unix,mirage-ptime.unix -linkpkg $incs \
   "$src/lib/bakhlo_domain.cmxa" \
   "$src/application/bakhlo_application.cmxa" \
   "$src/sexp/bakhlo_sexp.cmxa" \
