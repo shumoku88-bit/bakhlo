@@ -1,5 +1,9 @@
 # Handoff
 
+## Storage direction (2026-10-17)
+
+The user selected **calendar-year S-expression files as the first implementation path**; see [decision](YEARLY_SEXP_IMPLEMENTATION_DECISION.ja.md) and [issue #34](https://github.com/shumoku88-bit/bakhlo/issues/34). Start with the bounded 2026/2027 synthetic file-selection and record/reopen slice, preserving existing single-file writer safety and forbidding wrong-year mutations. **Do not claim qualified rollover/current carried balances, cross-year mutation atomicity, durability or operational cutover.** Irmin PR #32 and open #33 plus Git/Tackler PR #30 remain optional research, not product dependencies. LOAM remains the actual ledger. Continue ordinary UI work independently.
+
 ## Current task
 
 The user selected systematic reproduction of all LOAM user-facing functionality,
