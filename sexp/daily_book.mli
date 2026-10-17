@@ -164,3 +164,22 @@ val observe_quantities : t -> (string * string * Z.t) list -> (t, string) result
 val has_zero_origin : t -> locus:string -> measure:string -> bool
 (** Whether the coordinate has admitted zero-origin support. Does not imply
     support for any nonzero opening or observation family. *)
+
+module Annual_internal : sig
+  type payload = {
+    measures : (string * int) list;
+    labels : (string * string * string) list option;
+    approved : string list option;
+    entries : entry list;
+    plans : plan list;
+    origins : D.Effect_coordinate.t list;
+    openings : Q.opening list;
+    observations : Bakhlo_application.Current_quantity_groups.group list;
+    presence : Q.presence option;
+  }
+
+  val export_payload : t -> payload
+  val admit_payload : payload -> (t, string) result
+  val render_annual : year:int -> prior_year:int -> prior_fingerprint:string -> payload -> string
+  val parse_annual : string -> (string * string * string * payload, string) result
+end

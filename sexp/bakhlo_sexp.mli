@@ -11,6 +11,7 @@ module Annual_scope = Annual_scope
 module Records_book = Records_book
 
 module Durable_append = Durable_append
+module Annual_book = Annual_book
 
 
 

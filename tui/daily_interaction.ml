@@ -431,14 +431,7 @@ let open_plan_record state =
       message = "";
     }
 
-(* The first annual-file slice has no verified previous-year opening state.
-   Never present year-only projections as an authoritative household balance. *)
-let annual_unavailable state =
-  match state.session.F.annual_year with
-  | None -> None
-  | Some year ->
-      Some (Printf.sprintf
-        "%04d annual book: carried opening balances and cross-year evidence are unavailable." year)
+let annual_unavailable state = F.annual_unavailable state.session
 
 let annual_needs_history = function
   | W.Balances | W.Daily_pace | W.Stock_flow | W.Income_expense
@@ -447,7 +440,7 @@ let annual_needs_history = function
   | W.Attention | W.Loci | W.Settlements -> false
 
 let open_route state route =
-  if annual_needs_history route && state.session.F.annual_year <> None then
+  if annual_needs_history route && annual_unavailable state <> None then
     { state with overlay = No_overlay;
       message = Option.value ~default:"Annual opening evidence unavailable." (annual_unavailable state) }
   else
@@ -869,6 +862,35 @@ let balance_view_coords state =
         Result.map (fun coords ->
           Some (List.map (fun (c : BalView.coordinate) -> (c.locus, c.measure)) coords))
           (BalView.of_string text))
+
+let annual_history_bounds state =
+  try
+    match state.session.F.annual_year with
+    | None -> Ok None
+    | Some year ->
+        let sources = F.annual_sources state.session in
+        let first_path, _ = List.hd sources in
+        let first_year = String.sub (Filename.basename first_path) 0 4 in
+        Ok (Some (first_year ^ "-01-01", Printf.sprintf "%04d-01-01" (year + 1)))
+  with
+  | F.Refused why -> Error why
+  | Unix.Unix_error _ | Sys_error _ -> Error "Annual history source unavailable."
+
+let checked_report_period state preset offset =
+  match annual_unavailable state with
+  | Some why -> Error why
+  | None ->
+      Result.bind (read_pace_config state "boundary-presets.tsv") (fun boundary_presets_text ->
+        Result.bind (IncExp.resolve_period ~today:(F.today ()) ~preset ~offset ~boundary_presets_text)
+          (fun period ->
+            Result.bind (annual_history_bounds state) (function
+              | None -> Ok period
+              | Some (start_day, end_exclusive) ->
+                  if preset = IncExp.All_time then
+                    Ok { period with start_day; end_exclusive; label = "Selected linked annual history" }
+                  else if period.IncExp.start_day < start_day || period.end_exclusive > end_exclusive then
+                    Error "Requested period extends outside verified annual history. Open the required linked years."
+                  else Ok period)))
 let stock_flow_result state =
   let parse_selection text =
     let valid_token s =
@@ -894,12 +916,10 @@ let stock_flow_result state =
           match tracked_coords with
           | [] -> Error "Stock–Flow requires a nonempty balance-view.tsv selection."
           | (_, measure) :: _ ->
-              Result.bind (read_pace_config state "boundary-presets.tsv") (fun boundary_presets_text ->
-                Result.bind
-                  (IncExp.resolve_period ~today:(F.today ()) ~preset:state.stock_flow.preset
-                     ~offset:state.stock_flow.period_offset ~boundary_presets_text)
-                  (fun period -> StockFlow.compute_report ~book:state.session.book
-                     ~measure ~tracked_coords ~period))))
+              Result.bind
+                (checked_report_period state state.stock_flow.preset state.stock_flow.period_offset)
+                (fun period -> StockFlow.compute_report ~book:state.session.book
+                   ~measure ~tracked_coords ~period)))
 
 let config_lines text =
   String.split_on_char '\n' text |> List.filter (fun line ->
@@ -962,6 +982,11 @@ let current_pace_result state =
   match annual_unavailable state with
   | Some why -> Error why
   | None ->
+  let current_year = String.sub (F.today ()) 0 4 in
+  if (match state.session.F.annual_year with
+      | Some year -> current_year <> Printf.sprintf "%04d" year
+      | None -> false) then Error "Daily Pace requires the current calendar year's annual book."
+  else
   let today = F.today () and measure = state.workspace.measure in
   Result.bind (resolve_pace_pool state) (fun pool ->
     Result.bind (resolve_pace_window state) (fun (start_day, end_exclusive) ->
@@ -1138,6 +1163,34 @@ let balance_display_review measure chosen =
            List.map (fun (c : BalView.coordinate) -> c.locus ^ " × " ^ c.measure) chosen))
     ~fields:[Form.action_buttons ~confirm:"Save selection" ~cancel:"Edit" ()] ()
 
+let open_annual_rollover state =
+  if state.blocked || has_record_draft state then
+    { state with overlay = No_overlay;
+      message = "Resume or discard the retained draft and resolve recovery before starting a year." }
+  else
+    match state.session.F.annual_year with
+    | None -> { state with overlay = No_overlay; message = "Open an explicitly named annual book first." }
+    | Some year when year >= 9999 ->
+        { state with overlay = No_overlay; message = "No successor year is representable." }
+    | Some year ->
+        let target = Filename.concat (Filename.dirname state.session.path)
+            (Bakhlo_sexp.Annual_scope.file_name (year + 1)) in
+        let form = Form.create ~id:"annual_rollover" ~payload:state.session.bytes
+            ~title:"Start next annual book"
+            ~summary:[
+              "Source: " ^ state.session.path;
+              "Create: " ^ target;
+              "Carry verified evidence and surviving plans; unknown stays unknown.";
+              "The source becomes read-only. Only the successor may discharge plans.";
+              "No source rewrite, automatic reconciliation or operational cutover.";
+            ]
+            ~fields:[Form.buttons_field ~id:"decision" ~selected:0
+                ~buttons:[
+                  { Form.label = "Keep current year"; is_cancel = true };
+                  { Form.label = "Create next year"; is_cancel = false };
+                ] ()] () in
+        { state with overlay = Modal_form form; message = "" }
+
 let open_command state = function
   | M.Record -> open_record { state with overlay = No_overlay }
   | M.New_plan -> open_plan_record { state with overlay = No_overlay }
@@ -1165,6 +1218,7 @@ let open_command state = function
       (match balance_display_form state with
        | Ok form -> { state with overlay = Modal_form form; balance_review = None; message = "" }
        | Error why -> { state with overlay = No_overlay; balance_review = None; message = "Balance setup unavailable: " ^ why })
+  | M.Annual_rollover -> open_annual_rollover state
   | M.Theme ->
       let rec index i = function
         | [] -> 0
@@ -1722,6 +1776,31 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Form.Updated updated -> Some { state with overlay = Modal_form updated }
         | Form.Submit submitted -> (
             match Form.id submitted with
+            | "annual_rollover" ->
+                let body_w, body_h = body_dimensions ~dimensions ~width_of state in
+                let pane_w = min 64 (max 8 (body_w - 4)) in
+                let rows = Form.render_rows ~width:(max 0 (pane_w - 6)) ~height:10000 ~width_of submitted in
+                if pane_w < 48 || List.length rows + 4 > body_h then
+                  let reset = Form.update_field submitted "decision" (function
+                    | Form.Buttons buttons -> Form.Buttons { buttons with selected = 0 }
+                    | other -> other) in
+                  Some { state with overlay = Modal_form (Form.set_notice reset
+                      "Enlarge the terminal to review both paths before creating a year.") }
+                else if state.blocked || has_record_draft state
+                     || Form.payload submitted <> state.session.bytes then
+                  Some { state with overlay = No_overlay;
+                    message = "Annual review expired or a draft/recovery is held. Reopen the review." }
+                else
+                  (try
+                     let session = F.rollover ~session:state.session in
+                     Some { (initial ?config_home:state.config_home session) with
+                       message = "Next annual book created and verified from disk. Prior year is read-only." }
+                   with
+                   | F.Refused why ->
+                       Some { state with overlay = No_overlay; message = "Annual rollover refused: " ^ why }
+                   | Unix.Unix_error _ | Sys_error _ ->
+                       Some { state with overlay = No_overlay; blocked = true;
+                         message = "Annual creation result is uncertain. Inspect both years; do not retry blindly." })
             | "discard_record" ->
                 let width, height = body_dimensions ~dimensions ~width_of state in
                 if width < 48 || height < 12 then
@@ -2403,16 +2482,15 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             let delta = if fst (Option.get key) = `ASCII '[' then -1 else 1 in
             Some { state with income_expense = { state.income_expense with period_offset = state.income_expense.period_offset + delta }; scroll = 0 }
         | Some (`ASCII 'p', []) when state.workspace.route = W.Income_expense ->
-            let boundary_text = match read_pace_config state "boundary-presets.tsv" with Ok opt -> opt | Error _ -> None in
-            let period = match IncExp.resolve_period ~today:(F.today ()) ~preset:state.income_expense.preset ~offset:state.income_expense.period_offset ~boundary_presets_text:boundary_text with
-              | Ok p -> p
-              | Error _ -> { preset = state.income_expense.preset; start_day = "2000-01-01"; end_exclusive = "2099-12-31"; label = "Period Unavailable" } in
-            let roles = accounting_roles state in
-            let rep = IncExp.compute_report ~book:state.session.book ~roles ~period in
-            let lines = IncExp.print_summary ~book:state.session.book ~report:rep in
-            let form = Form.create ~id:"income_expense_print_preview" ~title:(tr "Income & Expense / Print Preview")
-              ~summary:lines ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ] () in
-            Some { state with overlay = Modal_form form }
+            (match checked_report_period state state.income_expense.preset state.income_expense.period_offset with
+             | Error why -> Some { state with message = why }
+             | Ok period ->
+                 let roles = accounting_roles state in
+                 let rep = IncExp.compute_report ~book:state.session.book ~roles ~period in
+                 let lines = IncExp.print_summary ~book:state.session.book ~report:rep in
+                 let form = Form.create ~id:"income_expense_print_preview" ~title:(tr "Income & Expense / Print Preview")
+                   ~summary:lines ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ] () in
+                 Some { state with overlay = Modal_form form })
         | Some ((`Enter | `ASCII 'i' | `Tab | `ASCII 'w'), []) when state.workspace.route = W.Income_expense ->
             Some { state with workspace = { state.workspace with pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) }; scroll = 0 }
         | Some (`ASCII ('1' .. '5' as c), []) when state.workspace.route = W.Transactions_flow ->
@@ -2429,16 +2507,14 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             let delta = if fst (Option.get key) = `ASCII '[' then -1 else 1 in
             Some { state with transactions_flow = { state.transactions_flow with period_offset = state.transactions_flow.period_offset + delta; selected_row = 0 }; scroll = 0 }
         | Some (`ASCII 'p', []) when state.workspace.route = W.Transactions_flow ->
-            let boundary_text = match read_pace_config state "boundary-presets.tsv" with Ok opt -> opt | Error _ -> None in
-            let period = match IncExp.resolve_period ~today:(F.today ()) ~preset:state.transactions_flow.preset ~offset:state.transactions_flow.period_offset ~boundary_presets_text:boundary_text with
-              | Ok p -> p
-              | Error _ -> { preset = state.transactions_flow.preset; label = "Period Unavailable"; start_day = "2000-01-01"; end_exclusive = "2000-01-01" }
-            in
-            let rep = Flow.compute_report ~book:state.session.book ~period in
-            let lines = Flow.print_summary ~book:state.session.book ~report:rep in
-            let form = Form.create ~id:"transactions_flow_print_preview" ~title:(tr "Transactions Flow / Print Preview")
-              ~summary:lines ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ] () in
-            Some { state with overlay = Modal_form form }
+            (match checked_report_period state state.transactions_flow.preset state.transactions_flow.period_offset with
+             | Error why -> Some { state with message = why }
+             | Ok period ->
+                 let rep = Flow.compute_report ~book:state.session.book ~period in
+                 let lines = Flow.print_summary ~book:state.session.book ~report:rep in
+                 let form = Form.create ~id:"transactions_flow_print_preview" ~title:(tr "Transactions Flow / Print Preview")
+                   ~summary:lines ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ] () in
+                 Some { state with overlay = Modal_form form })
         | Some ((`Enter | `ASCII 'i' | `Tab | `ASCII 'w'), []) when state.workspace.route = W.Transactions_flow ->
             Some { state with workspace = { state.workspace with pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) }; scroll = 0 }
         | Some (`ASCII ('1' .. '5' as c), []) when state.workspace.route = W.Stock_flow ->
@@ -3170,7 +3246,7 @@ let workspace_rows ~width_of ~width ~height state =
         draw_frame ~width_of ~width ~height ~focused:true
           ?heading:left_heading ~title:left_title ~scroll:left_scroll ~selected:left_selected left_rows
   in
-  if annual_needs_history workspace.route && state.session.F.annual_year <> None then
+  if annual_needs_history workspace.route && annual_unavailable state <> None then
     draw_frame ~width_of ~width ~height ~focused:true ~title:(title ^ " / Unavailable")
       ~scroll:0 ~selected:None
       [ "Annual file does not contain a qualified prior-year opening.";
@@ -3179,7 +3255,7 @@ let workspace_rows ~width_of ~width ~height state =
         "Actual entries and Scheduled records in this file remain inspectable.";
         "No zero opening or carried balance is inferred." ]
   else if workspace.route = W.Home then
-    (match annual_unavailable state with
+    (match F.annual_notice state.session with
      | None -> O.bonsai_home_lines ~width ~height ~width_of ~today:(F.today ())
      | Some notice ->
          (Status, notice)
@@ -3266,7 +3342,20 @@ let workspace_rows ~width_of ~width ~height state =
     let measure = workspace.measure in
     let pool_loci = match resolve_pace_pool state with Ok coords -> List.map (fun c -> A.lstr c.D.Effect_coordinate.locus) coords | Error _ -> [] in
     let boundary_text = match read_pace_config state "boundary-presets.tsv" with Ok opt -> opt | Error _ -> None in
-    let trend_res = Trend.compute_samples ~book ~measure ~pool:pool_loci ~boundary_presets_text:boundary_text ~today:(F.today ()) ~preset:state.pace_trend.preset in
+    let compute_trend () =
+      Trend.compute_samples ~book ~measure ~pool:pool_loci ~boundary_presets_text:boundary_text
+        ~today:(F.today ()) ~preset:state.pace_trend.preset in
+    let trend_res =
+      match state.session.F.annual_year with
+      | None -> compute_trend ()
+      | Some _ ->
+          Result.bind (current_pace_result state) (fun _ ->
+            Result.bind (compute_trend ()) (fun ((start_day, through_day, _) as result) ->
+              Result.bind (annual_history_bounds state) (function
+                | Some (first, last) when start_day < first || through_day >= last ->
+                    Error "Trend extends outside verified annual history."
+                | _ -> Ok result)))
+    in
     let is_detail = workspace.pane = W.Detail in
     let left_width, right_width = browser_pane_widths width in
     match trend_res with
@@ -3299,8 +3388,7 @@ let workspace_rows ~width_of ~width ~height state =
           ~right_scroll:(if is_detail then state.scroll else 0)
           ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Income_expense then
-    let boundary_text = match read_pace_config state "boundary-presets.tsv" with Ok opt -> opt | Error _ -> None in
-    let period_res = IncExp.resolve_period ~today:(F.today ()) ~preset:state.income_expense.preset ~offset:state.income_expense.period_offset ~boundary_presets_text:boundary_text in
+    let period_res = checked_report_period state state.income_expense.preset state.income_expense.period_offset in
     let is_detail = workspace.pane = W.Detail in
     let left_width, right_width = browser_pane_widths width in
     match period_res with
@@ -3329,8 +3417,7 @@ let workspace_rows ~width_of ~width ~height state =
           ~right_focused:is_detail ~right_title
           ~right_scroll:0 ~right_selected:None ~right_rows:[ why ] ()
   else if workspace.route = W.Transactions_flow then
-    let boundary_text = match read_pace_config state "boundary-presets.tsv" with Ok opt -> opt | Error _ -> None in
-    let period_res = IncExp.resolve_period ~today:(F.today ()) ~preset:state.transactions_flow.preset ~offset:state.transactions_flow.period_offset ~boundary_presets_text:boundary_text in
+    let period_res = checked_report_period state state.transactions_flow.preset state.transactions_flow.period_offset in
     let is_detail = workspace.pane = W.Detail in
     let left_width, right_width = browser_pane_widths width in
     match period_res with
@@ -3492,7 +3579,7 @@ let workspace_rows ~width_of ~width ~height state =
           let role_opt = List.assoc_opt locus roles in
           let role_str = match role_opt with None -> "None / Unassigned" | Some r -> Roles.role_label r in
           let balances =
-            if state.session.F.annual_year <> None then
+            if annual_unavailable state <> None then
               [ "  Unavailable: prior-year opening evidence is not connected." ]
             else
               List.map (fun (m, _) ->

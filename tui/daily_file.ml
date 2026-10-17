@@ -7,7 +7,7 @@ module DA = Bakhlo_sexp.Durable_append
 module Annual = Bakhlo_sexp.Annual_scope
 module Year_read = Bakhlo_sexp.Year_read
 module Effect_coordinate = Bakhlo_domain.Effect_coordinate
-
+module Wire = Bakhlo_sexp.Annual_book
 exception Refused of string
 
 let require p why = if not p then raise (Refused why)
@@ -23,6 +23,7 @@ type t = {
   engine : DA.engine option;
   session : DA.client_session option;
   annual_year : int option;
+  annual_prior : t option;
 }
 
 type outcome = Written of t | Conflict | Refused_input of string | Uncertain
@@ -74,22 +75,104 @@ let check_annual_book annual_year book =
       | Error why -> raise (Refused why))
     annual_year
 
-let load ?annual_year path =
-  check_annual_path annual_year path;
+let fingerprint bytes = Digest.to_hex (Digest.string bytes)
+
+let unfinished_names path =
+  let base = Filename.basename path in
+  let attempt_prefix = base ^ ".attempt-" and pending_prefix = base ^ ".pending-" in
+  Sys.readdir (Filename.dirname path)
+  |> Array.to_list
+  |> List.filter (fun name ->
+      String.starts_with ~prefix:attempt_prefix name
+      || String.starts_with ~prefix:pending_prefix name)
+  |> List.sort String.compare
+
+let require_finished path = require (unfinished_names path = []) "recovery-required"
+
+let writer_locks : (string, int) Hashtbl.t = Hashtbl.create 8
+
+let with_writer path f =
+  let lockpath = path ^ ".lock" in
+  match Hashtbl.find_opt writer_locks lockpath with
+  | Some count ->
+      Hashtbl.replace writer_locks lockpath (count + 1);
+      Fun.protect ~finally:(fun () -> Hashtbl.replace writer_locks lockpath count) f
+  | None ->
+      (try require ((Unix.lstat lockpath).st_kind = Unix.S_REG) "nonregular-lock"
+       with Unix.Unix_error (Unix.ENOENT, _, _) -> ());
+      let fd = Unix.openfile lockpath [ Unix.O_RDWR; Unix.O_CREAT; Unix.O_CLOEXEC ] 0o600 in
+      Hashtbl.replace writer_locks lockpath 1;
+      Fun.protect
+        ~finally:(fun () ->
+          Hashtbl.remove writer_locks lockpath;
+          Unix.close fd)
+        (fun () ->
+          let stat = Unix.fstat fd and named = Unix.lstat lockpath in
+          require
+            (stat.st_kind = Unix.S_REG && named.st_kind = Unix.S_REG
+             && stat.st_dev = named.st_dev && stat.st_ino = named.st_ino)
+            "changed-lock";
+          Unix.lockf fd Unix.F_TLOCK 0;
+          f ())
+
+let rec with_writers paths f =
+  match paths with
+  | [] -> f ()
+  | path :: rest -> with_writer path (fun () -> with_writers rest f)
+
+let inferred_annual_year path =
+  let base = Filename.basename path in
+  if Filename.check_suffix base ".sexp" then
+    match Annual.of_string (Filename.chop_suffix base ".sexp") with
+    | Ok year -> Some year
+    | Error _ -> None
+  else None
+
+let rec discover_annual_chain ~seen ?annual_year path =
+  let effective = match annual_year with Some _ -> annual_year | None -> inferred_annual_year path in
+  check_annual_path effective path;
+  require (not (List.mem path seen)) "annual-cycle";
+  let bytes = read path in
+  match Wire.of_string bytes with
+  | Ok env ->
+      let year = Wire.year env in
+      Option.iter (fun expected -> require (expected = year) "annual-year-mismatch") effective;
+      let reference = Wire.reference env in
+      let prior_path = Filename.concat (Filename.dirname path) (Annual.file_name reference.year) in
+      discover_annual_chain ~seen:(path :: seen) ~annual_year:reference.year prior_path @ [path]
+  | Error _ -> [path]
+
+let rec load_locked ?annual_year ~require_clean path =
+  let effective = match annual_year with Some _ -> annual_year | None -> inferred_annual_year path in
+  check_annual_path effective path;
+  if require_clean then require_finished path;
   let initial_bytes = read path in
-  (match annual_year, B.source_format_of_string initial_bytes with
+  (match effective, B.source_format_of_string initial_bytes with
    | Some _, `Records _ -> raise (Refused "annual-records-unsupported")
    | _ -> ());
-  let format = detect_format initial_bytes in
-  match format with
-  | Monolithic ->
-      let book = get "book-refused" (B.of_string initial_bytes) in
-      check_annual_book annual_year book;
-      { path; bytes = initial_bytes; book; format = Monolithic; engine = None; session = None;
-        annual_year }
+  match detect_format initial_bytes with
+  | Monolithic -> (
+      match Wire.of_string initial_bytes with
+      | Ok env when annual_year = None || annual_year = Some (Wire.year env) ->
+          let year = Wire.year env in
+          let reference = Wire.reference env in
+          let prior_path =
+            Filename.concat (Filename.dirname path) (Annual.file_name reference.year)
+          in
+          let prior = load_locked ~annual_year:reference.year ~require_clean:true prior_path in
+          require (fingerprint prior.bytes = reference.fingerprint) "annual-fingerprint-mismatch";
+          let book = get "annual-book-refused" (Wire.decode ~prior:prior.book env) in
+          require (read path = initial_bytes) "changed-during-annual-load";
+          { path; bytes = initial_bytes; book; format = Monolithic; engine = None; session = None;
+            annual_year = Some year; annual_prior = Some prior }
+      | Ok _ -> raise (Refused "annual-year-mismatch")
+      | Error _ ->
+          let book = get "book-refused" (B.of_string initial_bytes) in
+          check_annual_book effective book;
+          { path; bytes = initial_bytes; book; format = Monolithic; engine = None; session = None;
+            annual_year = effective; annual_prior = None })
   | Records ->
-      require (annual_year = None) "annual-records-unsupported";
-      (* 1. First recover and open engine under lock to ensure clean truncated state *)
+      require (effective = None) "annual-records-unsupported";
       let eng, act = get "records-engine-failed" (DA.recover_and_open path) in
       (match act with
       | DA.Corrupt_fail_closed { offset; reason } ->
@@ -97,12 +180,8 @@ let load ?annual_year path =
       | DA.Truncate_failed err ->
           raise (Refused ("records-truncate-failed: " ^ err))
       | DA.Clean _ | DA.Torn_write_truncated _ -> ());
-
-      (* 2. Read back clean content after recovery truncate, and parse book *)
       let clean_bytes = read path in
       let book = get "book-refused" (B.of_string clean_bytes) in
-
-      (* 3. Verify consistency between Book and Engine LSN to guard against race condition *)
       let parsed_records = get "records-parse-failed" (RB.of_string clean_bytes) in
       let last_parsed_lsn, last_crc =
         match List.rev parsed_records.frames with
@@ -112,14 +191,22 @@ let load ?annual_year path =
         | f :: _ -> (f.lsn, f.crc)
       in
       require (DA.current_lsn eng = last_parsed_lsn) "records-engine-book-lsn-mismatch";
-
       let sess = DA.create_session ~session_id:"tui-daily" () in
       Option.iter
         (fun tok -> DA.acknowledge_session sess ~token:tok ~lsn:(DA.current_lsn eng))
         (DA.latest_token eng);
       let session_bytes = records_revision ~lsn:last_parsed_lsn ~crc:last_crc in
       { path; bytes = session_bytes; book; format = Records; engine = Some eng;
-        session = Some sess; annual_year = None }
+        session = Some sess; annual_year = None; annual_prior = None }
+
+let load ?annual_year path =
+  let paths = discover_annual_chain ~seen:[] ?annual_year path in
+  match paths with
+  | [single] when annual_year = None && inferred_annual_year single = None ->
+      load_locked ?annual_year ~require_clean:false single
+  | _ ->
+      with_writers (List.sort_uniq String.compare paths)
+        (fun () -> load_locked ?annual_year ~require_clean:false path)
 
 let nonce () =
   let fd = Unix.openfile "/dev/urandom" [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
@@ -174,17 +261,6 @@ let create_empty ~path ~measure ~scale =
 let create_annual_empty ~year ~path ~measure ~scale =
   create_empty_with_scope ~annual_year:(Some year) ~path ~measure ~scale
 
-let unfinished_names path =
-  let base = Filename.basename path in
-  let attempt_prefix = base ^ ".attempt-" and pending_prefix = base ^ ".pending-" in
-  Sys.readdir (Filename.dirname path)
-  |> Array.to_list
-  |> List.filter (fun name ->
-      String.starts_with ~prefix:attempt_prefix name
-      || String.starts_with ~prefix:pending_prefix name)
-  |> List.sort String.compare
-
-let require_finished path = require (unfinished_names path = []) "recovery-required"
 
 type annual_book_summary = { year : int; entries : int; open_plans : int }
 
@@ -209,21 +285,6 @@ let list_annual_books ~directory =
        { year; entries = B.entry_count session.book;
          open_plans = List.length (B.open_plans session.book) })
 
-let with_writer path f =
-  let lockpath = path ^ ".lock" in
-  (try require ((Unix.lstat lockpath).st_kind = Unix.S_REG) "nonregular-lock"
-   with Unix.Unix_error (Unix.ENOENT, _, _) -> ());
-  let fd = Unix.openfile lockpath [ Unix.O_RDWR; Unix.O_CREAT; Unix.O_CLOEXEC ] 0o600 in
-  Fun.protect
-    ~finally:(fun () -> Unix.close fd)
-    (fun () ->
-      let stat = Unix.fstat fd and named = Unix.lstat lockpath in
-      require
-        (stat.st_kind = Unix.S_REG && named.st_kind = Unix.S_REG && stat.st_dev = named.st_dev
-       && stat.st_ino = named.st_ino)
-        "changed-lock";
-      Unix.lockf fd Unix.F_TLOCK 0;
-      f ())
 
 let valid_attempt_id id =
   String.length id = 24
@@ -255,6 +316,118 @@ type recovery_report = { selected : (t, string) result; items : recovery_item li
    unscoped book, permitting subsequent cross-year publication. *)
 let reload session = load ?annual_year:session.annual_year session.path
 
+
+let rec chain_nodes session =
+  match session.annual_prior with
+  | None -> [session]
+  | Some prior -> chain_nodes prior @ [session]
+
+let with_session_writers session f =
+  match session.annual_year with
+  | None -> with_writer session.path f
+  | Some year ->
+      let paths = List.map (fun s -> s.path) (chain_nodes session) in
+      let paths =
+        if year < 9999 then
+          Filename.concat (Filename.dirname session.path) (Annual.file_name (year + 1)) :: paths
+        else paths
+      in
+      with_writers (List.sort_uniq String.compare paths) f
+
+let verify_annual_sources session =
+  let rec verify = function
+    | [] -> ()
+    | [current] -> require (read current.path = current.bytes) "annual-selected-changed"
+    | prior :: (next :: _ as rest) ->
+        require_finished prior.path;
+        require (read prior.path = prior.bytes) "annual-source-changed";
+        let env = get "annual-envelope-invalid" (Wire.of_string next.bytes) in
+        require ((Wire.reference env).fingerprint = fingerprint prior.bytes)
+          "annual-fingerprint-mismatch";
+        verify rest
+  in
+  verify (chain_nodes session)
+
+let annual_sources session =
+  with_session_writers session (fun () ->
+    verify_annual_sources session;
+    List.map (fun s -> (s.path, s.bytes)) (chain_nodes session))
+
+let successor_linked session =
+  match session.annual_year with
+  | None -> false
+  | Some year when year >= 9999 -> false
+  | Some year ->
+      let next = Filename.concat (Filename.dirname session.path) (Annual.file_name (year + 1)) in
+      if unfinished_names next <> [] then raise (Refused "annual-successor-unfinished")
+      else if not (Sys.file_exists next) then false
+      else
+        let bytes = read next in
+        match Wire.of_string bytes with
+        | Ok env ->
+            require ((Wire.reference env).year = year) "annual-successor-invalid";
+            true
+        | Error _ ->
+            let book = get "annual-successor-corrupt" (B.of_string bytes) in
+            check_annual_book (Some (year + 1)) book;
+            false
+
+let require_annual_writable session =
+  if successor_linked session then raise (Refused "annual-predecessor-locked")
+
+let annual_unavailable session =
+  match session.annual_year, session.annual_prior with
+  | None, _ -> None
+  | Some year, None ->
+      Some (Printf.sprintf
+        "%04d annual book: carried opening balances and cross-year evidence are unavailable." year)
+  | Some year, Some _ ->
+      (try
+         with_session_writers session (fun () -> verify_annual_sources session);
+         None
+       with
+       | Refused why ->
+           Some (Printf.sprintf "%04d annual provenance unavailable: %s." year why)
+       | Unix.Unix_error _ | Sys_error _ ->
+           Some (Printf.sprintf "%04d annual provenance unavailable: source file unreadable." year))
+
+let annual_notice session =
+  match annual_unavailable session with
+  | Some why -> Some why
+  | None ->
+      match session.annual_year with
+      | None -> None
+      | Some year ->
+          let locked =
+            try with_session_writers session (fun () -> successor_linked session)
+            with _ -> true
+          in
+          if locked then
+            Some (Printf.sprintf "%04d annual book (verified carry; read-only: %04d exists)."
+                    year (year + 1))
+          else
+            Some (Printf.sprintf "%04d annual book (verified opening from %04d)." year (year - 1))
+
+let rollover ~session =
+  let year = match session.annual_year with
+    | Some year when year >= 1 && year < 9999 -> year
+    | _ -> raise (Refused "annual-rollover-requires-annual-book")
+  in
+  let next_year = year + 1 in
+  let target = Filename.concat (Filename.dirname session.path) (Annual.file_name next_year) in
+  with_session_writers session (fun () ->
+    require_finished session.path;
+    require_finished target;
+    require (not (Sys.file_exists target)) "annual-rollover-target-exists";
+    verify_annual_sources session;
+    let reference : Wire.reference = { year; fingerprint = fingerprint session.bytes } in
+    let bytes = get "annual-rollover-refused" (Wire.start ~year:next_year ~reference ~prior:session.book) in
+    write_new target bytes;
+    sync_parent target;
+    let created = load ~annual_year:next_year target in
+    require (created.bytes = bytes) "annual-rollover-readback-changed";
+    require (read session.path = session.bytes) "annual-rollover-mutated-prior";
+    created)
 let load_result path =
   try Ok (load path) with
   | Refused why -> Error why
@@ -284,7 +457,12 @@ let inspect_recovery path =
           | Some _, Error _ -> Unreadable "selected-unavailable"
           | Some id, Ok current -> (
               let candidate_path = Filename.concat (Filename.dirname path) name in
-              match load_result candidate_path with
+              let candidate =
+                try Ok (load_locked ~require_clean:false candidate_path) with
+                | Refused why -> Error why
+                | Unix.Unix_error _ | Sys_error _ -> Error "file-unavailable"
+              in
+              match candidate with
               | Error why -> Unreadable ("candidate-" ^ why)
               | Ok candidate -> (
                   require
@@ -292,7 +470,11 @@ let inspect_recovery path =
                     "recovery-changed-during-inspection";
                   if current.bytes = candidate.bytes then Candidate_current
                   else
-                    let before = load_result (before_path path id) in
+                    let before =
+                      try Ok (load_locked ~require_clean:false (before_path path id)) with
+                      | Refused why -> Error why
+                      | Unix.Unix_error _ | Sys_error _ -> Error "file-unavailable"
+                    in
                     match before with
                     | Ok before when before.bytes = current.bytes -> Before_current
                     | Ok _ | Error _ -> Unresolved))
@@ -339,7 +521,7 @@ let confirm_current ~session ~attempt_id =
       in
       let has_attempt = exists attempt and has_pending = exists pending in
       require (has_attempt || has_pending) "attempt-not-found";
-      let candidate = load (if has_attempt then attempt else pending) in
+      let candidate = load_locked ~require_clean:false (if has_attempt then attempt else pending) in
       require (candidate.bytes = current.bytes) "candidate-not-current";
       if has_pending then require (read pending = candidate.bytes) "pending-differs";
       sync_file session.path;
@@ -355,6 +537,7 @@ let confirm_current ~session ~attempt_id =
    checked copy is not automatic adoption, reconciliation or a format upgrade. *)
 let restore_copy ~source ~target =
   let original = load source in
+  require (original.annual_year = None) "cannot-restore-annual-without-provenance";
   require (original.format = Monolithic) "cannot-restore-records-as-monolithic-copy";
   write_new target original.bytes;
   sync_parent target;
@@ -363,6 +546,7 @@ let restore_copy ~source ~target =
 
 let create_copy ~source ~target =
   let original = load source in
+  require (original.annual_year = None) "cannot-copy-annual-without-provenance";
   require (original.format = Monolithic) "cannot-copy-records-as-monolithic";
   require_finished source;
   let bytes = B.to_string original.book in
@@ -381,6 +565,7 @@ let copy_records ~source ~target =
   require (copied.bytes = original.bytes) "copied-records-readback-changed"
 
 let export_monolithic ~session ~target =
+  require (session.annual_year = None) "cannot-export-annual-without-provenance";
   let bytes = B.to_string session.book in
   ignore (get "printed-book-refused" (B.of_string bytes));
   write_new target bytes;
@@ -403,15 +588,30 @@ let publish ?(checkpoint = fun _ -> ()) session book =
   require (session.format = Monolithic) "cannot-rewrite-records-format-as-monolithic";
   let attempted = ref false in
   try
-    let bytes = B.to_string book in
-    let checked = get "printed-book-refused" (B.of_string bytes) in
-    require (B.to_string checked = bytes) "unstable-printer";
     check_annual_path session.annual_year session.path;
-    check_annual_book session.annual_year checked;
-    with_writer session.path (fun () ->
+    let bytes, checked =
+      match session.annual_year, session.annual_prior with
+      | Some year, Some prior ->
+          let reference : Wire.reference =
+            { year = year - 1; fingerprint = fingerprint prior.bytes }
+          in
+          let bytes = get "annual-book-refused" (Wire.encode ~year ~reference ~prior:prior.book book) in
+          let env = get "printed-annual-refused" (Wire.of_string bytes) in
+          let checked = get "printed-annual-refused" (Wire.decode ~prior:prior.book env) in
+          (bytes, checked)
+      | _ ->
+          let bytes = B.to_string book in
+          let checked = get "printed-book-refused" (B.of_string bytes) in
+          require (B.to_string checked = bytes) "unstable-printer";
+          check_annual_book session.annual_year checked;
+          (bytes, checked)
+    in
+    with_session_writers session (fun () ->
         require_finished session.path;
+        require_annual_writable session;
         if read session.path <> session.bytes then Conflict
-        else
+        else (
+          verify_annual_sources session;
           let suffix = nonce () in
           let attempt = attempt_path session.path suffix in
           let pending = pending_path session.path suffix in
@@ -439,7 +639,7 @@ let publish ?(checkpoint = fun _ -> ()) session book =
             Unix.unlink attempt;
             checkpoint Attempt_removed;
             sync_parent session.path;
-            Written { session with bytes; book = checked }))
+            Written { session with bytes; book = checked })))
   with
   | Refused why -> if !attempted then Uncertain else Refused_input why
   | Unix.Unix_error _ | Sys_error _ ->

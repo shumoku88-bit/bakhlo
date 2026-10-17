@@ -687,18 +687,31 @@ let () =
         let year = match Annual.of_string year with
           | Ok year -> year | Error why -> raise (F.Refused why) in
         run ~annual_year:year path
+    | [ _; "--annual-rollover"; year; "--book"; path ] ->
+        let year = match Annual.of_string year with
+          | Ok year -> year | Error why -> raise (F.Refused why) in
+        let next = F.rollover ~session:(F.load ~annual_year:year path) in
+        Printf.printf "Created and cold-verified %s; predecessor is read-only.\n" next.path
+    | [ _; "--annual-backup"; year; "--book"; path; "--output"; target ] ->
+        let year = match Annual.of_string year with
+          | Ok year -> year | Error why -> raise (F.Refused why) in
+        let digest = Annual_backup.backup ~session:(F.load ~annual_year:year path) ~target in
+        Printf.printf "Validated exact-byte annual backup: %s (fingerprint %s).\n" target digest
+    | [ _; "--annual-restore"; source; "--directory"; directory ] ->
+        let path = Annual_backup.restore ~source ~directory in
+        Printf.printf "Validated restored copy: %s\nNot adopted. Explicitly open this copy to accept it.\n" path
     | [ _; "--annual-check"; year; "--book"; path ] ->
         let year = match Annual.of_string year with
           | Ok year -> year | Error why -> raise (F.Refused why) in
         ignore (F.load ~annual_year:year path);
-        print_endline "PASS: annual book admitted (no payload output; no carried balance claimed)."
+        print_endline "PASS: annual book and any linked predecessor chain admitted."
     | [ _; "--annual-list"; directory ] ->
         let books = F.list_annual_books ~directory in
         if books = [] then
           print_endline "No YYYY.sexp books found. No opening balance is inferred."
         else
           List.iter (fun (book : F.annual_book_summary) ->
-            Printf.printf "%04d  Actual %d  open Scheduled %d  (file-local; no carry)\n"
+            Printf.printf "%04d  Actual %d  open Scheduled %d  (validated selected history)\n"
               book.year book.entries book.open_plans)
             books
     | [ _; "--annual-rollover-preview"; year; "--directory"; directory; "--coordinate"; locus; measure ] ->
@@ -728,7 +741,7 @@ let () =
            explicit."
     | _ ->
         prerr_endline
-          "Usage: tools/tui --book FILE | --annual-book YYYY --book YYYY.sexp | --annual-check YYYY --book YYYY.sexp | --annual-list DIR | --annual-rollover-preview YYYY --directory DIR --coordinate LOCUS MEASURE | --check FILE | --copy-from SOURCE --book FRESH_FILE | \
+          "Usage: tools/tui --book FILE | --annual-book YYYY --book YYYY.sexp | --annual-rollover YYYY --book YYYY.sexp | --annual-backup YYYY --book YYYY.sexp --output FRESH_ARCHIVE | --annual-restore ARCHIVE --directory FRESH_DIR | --annual-check YYYY --book YYYY.sexp | --annual-list DIR | --annual-rollover-preview YYYY --directory DIR --coordinate LOCUS MEASURE | --check FILE | --copy-from SOURCE --book FRESH_FILE | \
            --inspect-recovery --book FILE | --confirm-current-attempt ID --book FILE | \
            --restore-copy-from SOURCE --book FRESH_FILE";
         exit 2

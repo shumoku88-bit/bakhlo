@@ -7,6 +7,7 @@
 ; Test the production single-file publisher without a Bonsai dependency.
 ; The source is copied into this test build only; no new storage implementation.
 (copy_files ../tui/daily_file.ml)
+(copy_files ../tui/annual_backup.ml)
 
 (library
  (name bakhlo_tests)

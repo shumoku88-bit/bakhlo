@@ -331,86 +331,121 @@ let supplied decode = function
   | [ X.List (X.Atom "provided" :: xs) ] -> Some (List.map decode xs)
   | [] | _ :: _ -> raise (Refused "invalid-supply")
 
+type payload = {
+  measures : (string * int) list;
+  labels : (string * string * string) list option;
+  approved : string list option;
+  entries : entry list;
+  plans : plan list;
+  origins : D.Effect_coordinate.t list;
+  openings : Q.opening list;
+  observations : A.Current_quantity_groups.group list;
+  presence : Q.presence option;
+}
+
+let parse_payload version rows =
+  fields [ "scope"; "measures"; "labels"; "approved-loci"; "entries"; "plans"; "support" ] rows;
+  require
+    (List.map atom (field "scope" rows) = [ "corrected-entries"; "explicit-plans" ])
+    "unsupported-scope";
+  let support = field "support" rows in
+  fields [ "zero-origin"; "openings"; "observations"; "presence" ] support;
+  let presence =
+    match field "presence" support with
+    | [ X.List [ X.Atom "not-supplied" ] ] -> None
+    | [ X.List (X.Atom "provided" :: xs) ] ->
+        fields [ "reflected"; "coordinates" ] xs;
+        Some
+          {
+            Q.reflected_roots = List.map (fun x -> eid (atom x)) (field "reflected" xs);
+            coordinates = List.map decode_coord (field "coordinates" xs);
+          }
+    | [] | _ :: _ -> raise (Refused "invalid-presence")
+  in
+  let entries = List.map (decode_entry version) (field "entries" rows) in
+  ({
+    measures =
+      List.map
+        (function
+          | X.List [ X.Atom "measure"; X.Atom m; X.Atom n ] ->
+              let n = integer n in
+              require (Z.geq n Z.zero && Z.leq n (Z.of_int 9)) "invalid-scale";
+              (m, Z.to_int n)
+          | X.Atom _ | X.List _ -> raise (Refused "invalid-measure"))
+        (field "measures" rows);
+    labels =
+      supplied
+        (function
+          | X.List [ X.Atom "label"; X.Atom id; X.Atom label; X.Atom help ] ->
+              (id, label, help)
+          | X.Atom _ | X.List _ -> raise (Refused "invalid-label"))
+        (field "labels" rows);
+    approved = supplied atom (field "approved-loci" rows);
+    entries;
+    plans = List.map (decode_plan version) (field "plans" rows);
+    origins = List.map decode_coord (field "zero-origin" support);
+    openings =
+      List.map
+        (function
+          | X.List [ X.Atom l; X.Atom m; X.Atom e ] ->
+              ({ Q.coordinate = coord l m; opening_event = eid e } : Q.opening)
+          | X.Atom _ | X.List _ -> raise (Refused "invalid-opening"))
+        (field "openings" support);
+    observations =
+      List.map
+        (function
+          | X.List (X.Atom "observation" :: xs) ->
+              fields [ "reflected"; "quantities" ] xs;
+              {
+                A.Current_quantity_groups.reflected_roots =
+                  List.map (fun x -> eid (atom x)) (field "reflected" xs);
+                assertions =
+                  List.map
+                    (function
+                      | X.List [ X.Atom l; X.Atom m; X.Atom n ] ->
+                          ({
+                             A.Current_quantity_projection.coordinate = coord l m;
+                             quantity = qty n;
+                           }
+                            : A.Current_quantity_projection.assertion)
+                      | X.Atom _ | X.List _ -> raise (Refused "invalid-assertion"))
+                    (field "quantities" xs);
+              }
+          | X.Atom _ | X.List _ -> raise (Refused "invalid-observation"))
+        (field "observations" support);
+    presence;
+  } : payload)
+
+let admit_payload (p : payload) =
+  protect (fun () ->
+    let data =
+      make_data ~measures:p.measures ~labels:p.labels ~approved:p.approved
+        ~entries:p.entries ~plans:p.plans ~origins:p.origins ~openings:p.openings
+        ~observations:p.observations ~presence:p.presence
+    in
+    admit ~entries_cached:(lazy p.entries) data)
+
+let export_payload (t : t) : payload =
+  {
+    measures = t.data.measures;
+    labels = t.data.labels;
+    approved = t.data.approved;
+    entries = Lazy.force t.entries_cached;
+    plans = t.data.plans;
+    origins = t.data.origins;
+    openings = t.data.openings;
+    observations = t.data.observations;
+    presence = t.data.presence;
+  }
+
 let of_monolithic_string bytes =
   protect (fun () ->
       match get "syntax" (Parsexp.Many.parse_string bytes) with
       | X.List [ X.Atom "bakhlo-daily"; X.Atom version ] :: rows
         when version = "1" || version = "2" || version = "3" ->
-          fields [ "scope"; "measures"; "labels"; "approved-loci"; "entries"; "plans"; "support" ] rows;
-          require
-            (List.map atom (field "scope" rows) = [ "corrected-entries"; "explicit-plans" ])
-            "unsupported-scope";
-          let support = field "support" rows in
-          fields [ "zero-origin"; "openings"; "observations"; "presence" ] support;
-          let presence =
-            match field "presence" support with
-            | [ X.List [ X.Atom "not-supplied" ] ] -> None
-            | [ X.List (X.Atom "provided" :: xs) ] ->
-                fields [ "reflected"; "coordinates" ] xs;
-                Some
-                  {
-                    Q.reflected_roots = List.map (fun x -> eid (atom x)) (field "reflected" xs);
-                    coordinates = List.map decode_coord (field "coordinates" xs);
-                  }
-            | [] | _ :: _ -> raise (Refused "invalid-presence")
-          in
-          let entries = List.map (decode_entry version) (field "entries" rows) in
-          let data =
-            make_data
-              ~measures:
-                (List.map
-                   (function
-                     | X.List [ X.Atom "measure"; X.Atom m; X.Atom n ] ->
-                         let n = integer n in
-                         require (Z.geq n Z.zero && Z.leq n (Z.of_int 9)) "invalid-scale";
-                         (m, Z.to_int n)
-                     | X.Atom _ | X.List _ -> raise (Refused "invalid-measure"))
-                   (field "measures" rows))
-              ~labels:
-                (supplied
-                   (function
-                     | X.List [ X.Atom "label"; X.Atom id; X.Atom label; X.Atom help ] ->
-                         (id, label, help)
-                     | X.Atom _ | X.List _ -> raise (Refused "invalid-label"))
-                   (field "labels" rows))
-              ~approved:(supplied atom (field "approved-loci" rows))
-              ~entries
-              ~plans:(List.map (decode_plan version) (field "plans" rows))
-              ~origins:(List.map decode_coord (field "zero-origin" support))
-              ~openings:
-                (List.map
-                   (function
-                     | X.List [ X.Atom l; X.Atom m; X.Atom e ] ->
-                         ({ Q.coordinate = coord l m; opening_event = eid e } : Q.opening)
-                     | X.Atom _ | X.List _ -> raise (Refused "invalid-opening"))
-                   (field "openings" support))
-              ~observations:
-                (List.map
-                   (function
-                     | X.List (X.Atom "observation" :: xs) ->
-                         fields [ "reflected"; "quantities" ] xs;
-                         {
-                           A.Current_quantity_groups.reflected_roots =
-                             List.map (fun x -> eid (atom x)) (field "reflected" xs);
-                           assertions =
-                             List.map
-                               (function
-                                 | X.List [ X.Atom l; X.Atom m; X.Atom n ] ->
-                                     ({
-                                        A.Current_quantity_projection.coordinate = coord l m;
-                                        quantity = qty n;
-                                      }
-                                       : A.Current_quantity_projection.assertion)
-                                 | X.Atom _ | X.List _ -> raise (Refused "invalid-assertion"))
-                               (field "quantities" xs);
-                         }
-                     | X.Atom _ | X.List _ -> raise (Refused "invalid-observation"))
-                   (field "observations" support))
-              ~presence
-          in
-          admit ~entries_cached:(lazy entries) data
+          let payload = parse_payload version rows in
+          (match admit_payload payload with Ok t -> t | Error why -> raise (Refused why))
       | [] | _ :: _ -> raise (Refused "unsupported-book-header"))
-
 let source_format_of_string bytes =
   let lines = String.split_on_char '\n' bytes in
   let non_comment =
@@ -578,14 +613,12 @@ let f tag xs = l (a tag :: xs)
 let opt = function None -> f "none" [] | Some s -> f "some" [ a s ]
 let coordinate (c : D.Effect_coordinate.t) = l [ a (lstr c.locus); a (mstr c.measure) ]
 
-let sexps t =
-  let b = t.data in
+let payload_sexps (b : payload) =
   let supplied encode = function
     | None -> f "not-supplied" []
     | Some xs -> f "provided" (List.map encode xs)
   in
   [
-    f "bakhlo-daily" [ a "3" ];
     f "scope" [ a "corrected-entries"; a "explicit-plans" ];
     f "measures" (List.map (fun (m, n) -> f "measure" [ a m; a (string_of_int n) ]) b.measures);
     f "labels" [ supplied (fun (id, name, help) -> f "label" [ a id; a name; a help ]) b.labels ];
@@ -617,7 +650,7 @@ let sexps t =
                    | Some (a_, b_) -> f "keys" [ a a_; a b_ ]);
                  ];
              ])
-         (Lazy.force t.entries_cached));
+         b.entries);
     f "plans"
       (List.map
          (fun (p : plan) ->
@@ -676,6 +709,9 @@ let sexps t =
       ];
   ]
 
+let sexps t =
+  f "bakhlo-daily" [ a "3" ] :: payload_sexps (export_payload t)
+
 let quote s =
   let b = Buffer.create (String.length s + 2) in
   Buffer.add_char b '"';
@@ -699,7 +735,8 @@ let render_into out x =
     | "entries" | "entry" | "date" | "memo" | "postings" | "posting" | "reversal-of" | "exchange"
     | "keys" | "plans" | "plan" | "changes" | "paid-by" | "cancelled-on" | "support"
     | "zero-origin" | "openings" | "observations" | "observation" | "reflected"
-    | "quantities" | "presence" | "coordinates" | "provided" | "not-supplied" | "none" | "some" ->
+    | "quantities" | "presence" | "coordinates" | "provided" | "not-supplied" | "none" | "some"
+    | "bakhlo-annual" | "year" | "prior" | "fingerprint" ->
         true
     | _ -> false
   in
@@ -1305,4 +1342,44 @@ let has_zero_origin t ~locus ~measure =
   List.exists
     (fun candidate -> D.Effect_coordinate.equal candidate coordinate)
     t.data.origins
+
+module Annual_internal = struct
+  type nonrec payload = payload = {
+    measures : (string * int) list;
+    labels : (string * string * string) list option;
+    approved : string list option;
+    entries : entry list;
+    plans : plan list;
+    origins : D.Effect_coordinate.t list;
+    openings : Q.opening list;
+    observations : A.Current_quantity_groups.group list;
+    presence : Q.presence option;
+  }
+  let export_payload = export_payload
+  let admit_payload = admit_payload
+  let render_annual ~year ~prior_year ~prior_fingerprint payload =
+    let out = Buffer.create 1024 in
+    Buffer.add_string out "; Calendar-year S-expression book with source-linked predecessor provenance.\n";
+    let header = [
+      f "bakhlo-annual" [ a "1" ];
+      f "year" [ a (Printf.sprintf "%04d" year) ];
+      f "prior" [
+        f "year" [ a (Printf.sprintf "%04d" prior_year) ];
+        f "fingerprint" [ a prior_fingerprint ];
+      ];
+    ] @ payload_sexps payload in
+    List.iteri (fun n x -> if n > 0 then Buffer.add_string out "\n\n"; render_into out x) header;
+    Buffer.add_char out '\n';
+    Buffer.contents out
+  let parse_annual bytes =
+    protect (fun () ->
+      match get "syntax" (Parsexp.Many.parse_string bytes) with
+      | X.List [ X.Atom "bakhlo-annual"; X.Atom "1" ]
+        :: X.List [ X.Atom "year"; X.Atom year_str ]
+        :: X.List [ X.Atom "prior";
+                    X.List [ X.Atom "year"; X.Atom prior_str ];
+                    X.List [ X.Atom "fingerprint"; X.Atom fp ] ] :: rows ->
+          (year_str, prior_str, fp, parse_payload "3" rows)
+      | _ -> raise (Refused "unsupported-annual-envelope"))
+end
 

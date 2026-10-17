@@ -118,50 +118,31 @@ Esc／Cancelは下書きを保持する。起動時に台帳を開けない場�
 保存先の確認では全パスが表示される寸法を要求し、不正なUTF-8や表示順を変える双方向制御文字を含むパスは拒否する。
 [操作・対応範囲・保存の限界](tui/README.md)も参照。
 
-### 年別S式の試用（合成データのみ）
+### 年別S式の運用候補（合成データのみ）
 
-明示的に選択した暦年ファイルを扱う**試用入口**を追加した。
-`--annual-book` は既存の `--book` と並存し、従来の単一S式運用を自動的に切り替えない。
+明示的に選択した暦年ファイルを扱う入口を追加した。`--annual-book` は既存の `--book` と並存し、従来の単一S式運用を自動的に切り替えない。
 
 ```sh
-# 最初の起動では既存の First run 画面で、空の2026年用S式を明示的に作成する
+# 最初の年は既存の First run 画面で空の年別S式を明示作成する
 ./tools/tui --annual-book 2026 --book scratch/my-daily-trial/2026.sexp
 
-# 翌年は別の空帳簿を明示作成する。2026年ファイルを書き換えない
-./tools/tui --annual-book 2027 --book scratch/my-daily-trial/2027.sexp
+# 前年の検証済み原本から翌年を開始する（TUIの Household setup からも同じ確認画面を開ける）
+./tools/tui --annual-rollover 2026 --book scratch/my-daily-trial/2026.sexp
 
-# 対話せず、指定年の原本を検査するだけ
-./tools/tui --annual-check 2026 --book scratch/my-daily-trial/2026.sexp
-
-# そのディレクトリ内のYYYY.sexpを確認する（完全に読めるまで何も表示しない）
+# 指定年と参照元の全連鎖を検証する
+./tools/tui --annual-check 2027 --book scratch/my-daily-trial/2027.sexp
 ./tools/tui --annual-list scratch/my-daily-trial
 
-# 前年の締め残高と未完了予定を、両年の検証済みスナップショットから確認するだけ
-./tools/tui --annual-rollover-preview 2027 --directory scratch/my-daily-trial \
-  --coordinate wallet jpy
+# 原本連鎖をバイト完全な単一アーカイブへ出力・新規ディレクトリへ復元する（自動採用しない）
+./tools/tui --annual-backup 2027 --book scratch/my-daily-trial/2027.sexp \
+  --output scratch/my-daily-trial/backup.sexp
+./tools/tui --annual-restore scratch/my-daily-trial/backup.sexp \
+  --directory scratch/my-daily-trial/restored
 ```
 
-ファイル名は厳密に `YYYY.sexp`。帳簿内の実績日付が指定年から外れていれば読込・
-書込を拒絶し、編集で日付を別年へ動かす操作も拒絶する。予定の将来日付は別年でもよい。
-作成は既存のFirst run確認と排他的作成、安全な単一ファイル保存を再利用する。
-読込不正は正常な空帳簿として扱わないが、別の新規保存先を選ぶ既存First runは可能。
+翌年ファイルは `(bakhlo-annual 1 ...)` として前年の年度・fingerprintと当年の明細、現在の予定・元の数量根拠を保持する。読込・保存時には協調writerロック下で前年までの全原本を照合し、明細を合成して既存Coreの入場検査を通す。繰越額を独立観測として挿入せず、Exact・Zero-origin・Known-present・Unknown、反映済root、通貨・ID境界を保持する。
 
-**2027年に2026年の残高が繰り越されたわけではない。**
-年別S式として開いたTUIは、Homeに年度と繰越未確認の注意を表示し、
-残高・Daily Pace・残高に依存するレポートを未対応として拒否する。
-その年のActual・Scheduled閲覧と記帳は使える。通常の単一S式は影響を受けない。
-`--annual-list` は年別ファイルを**読取検証して列挙するだけ**で、欠損を補完せず、
-不正な年別ファイルや未確定保存の痕跡があれば一覧全体を拒否する。
-年度をまたぐ予定完了や訂正・期間横断レポート、正確な繰越付き残高は未実装。
-`--annual-rollover-preview` は隣接する両年を既存writerのロック下で読み、
-`Year_read` / Coreから前年締めのExact・Zero-origin・Known-present・Unknownと、
-未完了予定（期限超過・翌年日付を含む）の元ID・日付・数量、両原本のfingerprintを表示する。
-完了／取消済み予定は含めず、年度間のID重複・欠損・破損・未確定保存・writer競合は拒否する。
-これは読取時点の派生プレビューで、**2027年の現在残高でも、予定の取込・支払い許可でもない**。
-ロックファイルは作成され得るが、帳簿・バックアップ・予定は変更しない。
-年別ファイルは引き続き独立した帳簿であり、次回の確認では原本から再導出する。
-正式な移行・本番使用の承認ではなく、今の正データは引き続きLOAM。
-
+翌年を開始すると前年原本は変更せず読取専用とし、未完了予定（期限超過を含む）の支払い・取消権限は翌年へ一回だけ移る。検証済み連鎖が揃っている間は翌年のCurrent Balances、当年のDaily Pace、選択履歴範囲内の期間横断・年金サイクル照会を使える。前年原本の改変・欠損・破損・未確定保存があれば翌年の残高表示と保存を拒否する。元の独立した空年別作成や `--annual-rollover-preview` も維持する。電源断・P7・非協調writer耐性と本番移行は未認定であり、現在の正データは引き続きLOAM。
 ### UIの方針
 
 LOAMの機能・見た目・使い勝手を、予算だけを延期してBakhloでも再現する。Calendar Homeの

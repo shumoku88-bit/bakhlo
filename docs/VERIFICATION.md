@@ -6,6 +6,15 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Annual S-expression ledger completion (2026-10-17)
+
+`76cb22a` plus `Annual_book`, `Daily_file` chain verification/rollover, `Annual_backup` and TUI annual lifecycle integration. Local macOS x86_64: Core OCaml 5.3.0, isolated Bonsai 5.2.0+ox, synthetic files only.
+
+- `rtk test ./tools/check` passed, including `annual_file_tests.ml`, `annual_lifecycle_tests.ml` and `annual_backup_tests.ml`: rollover + 2027 payment of an overdue 2026 plan with unchanged 2026 bytes, repeat payment/cancellation refusal, cold 2027 balance and Daily Pace agreement with an independent monolithic Core oracle across a Dec/Jan pension cycle, Exact 0 vs Zero-origin vs Known-present vs Unknown and reflected root-cut preservation, tampered/missing/corrupt/unfinished predecessor refusal, frozen predecessor refusal (including unscoped numeric path loads), 2026→2027→2028 closed-plan monotonicity, `Selected_replaced` checkpoint uncertainty + `inspect_recovery` / `confirm_current`, deterministic fork/pipe lock collision + SIGKILL release, and exact-byte backup/restore validation before directory creation.
+- `rtk err ./tools/build-bonsai-tui` and native `bonsai_daily.exe --self-check` passed, including `annual_lifecycle_checks` (Keep default, narrow-terminal refusal + Keep reset, rollover, cold Balances/Daily Pace, overdue payment and stale-provenance route blocking).
+- Owned 120×36 tmux smoke on synthetic `2025.sexp`→`2026.sexp` confirmed TUI rollover, unchanged `2025.sexp` SHA-256, overdue plan completion in 2026, Current Balances (`wallet +1700 jpy`, `food +300 jpy`), Daily Pace (`29 jpy/day` across `2025-12-15..2026-10-15`), `--annual-check`, `--annual-list`, and byte-identical `--annual-backup` / `--annual-restore`.
+- Unqualified: true power loss, post-save Ack loss (P7), noncooperative external writers, paired LOAM runtime/IME acceptance and operational cutover.
+
 ## Annual S-expression and read-only rollover preview
 
 2026-10-17, base `2f65925` plus the annual-preview change. Local macOS x86_64:
