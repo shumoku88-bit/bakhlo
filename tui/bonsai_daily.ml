@@ -274,8 +274,13 @@ let first_run_app ?annual_year initial ~outcome ~exit ~dimensions graph =
              | First_run.Create details ->
                  (try
                     let session =
-                      F.create_empty ?annual_year ~path:details.destination ~measure:details.measure
-                        ~scale:details.scale
+                      match annual_year with
+                      | None ->
+                          F.create_empty ~path:details.destination ~measure:details.measure
+                            ~scale:details.scale
+                      | Some year ->
+                          F.create_annual_empty ~year ~path:details.destination
+                            ~measure:details.measure ~scale:details.scale
                     in
                     outcome := Some (First_run_created session)
                   with
