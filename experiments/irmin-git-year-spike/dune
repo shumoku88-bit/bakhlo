@@ -1,0 +1,3 @@
+(executable
+ (name spike)
+ (libraries irmin-git.unix lwt.unix unix))
