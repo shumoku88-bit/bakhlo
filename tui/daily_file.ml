@@ -155,7 +155,7 @@ let sync_parent path =
   let fd = Unix.openfile (Filename.dirname path) [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
   Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> Unix.fsync fd)
 
-let create_empty ?annual_year ~path ~measure ~scale =
+let create_empty_with_scope ~annual_year ~path ~measure ~scale =
   check_annual_path annual_year path;
   let book = get "empty-book-refused" (B.empty ~measure ~scale) in
   check_annual_book annual_year book;
@@ -165,6 +165,12 @@ let create_empty ?annual_year ~path ~measure ~scale =
   let session = load ?annual_year path in
   require (session.bytes = bytes) "first-run-cold-readback-changed";
   session
+
+let create_empty ~path ~measure ~scale =
+  create_empty_with_scope ~annual_year:None ~path ~measure ~scale
+
+let create_annual_empty ~year ~path ~measure ~scale =
+  create_empty_with_scope ~annual_year:(Some year) ~path ~measure ~scale
 
 let unfinished_names path =
   let base = Filename.basename path in
