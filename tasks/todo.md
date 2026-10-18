@@ -29,7 +29,7 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
 ### CIによる検証の段階（2026-10-18）
 
 - **段階1、合成self-check合格**：main pushでCore（通常OCaml 5.3）と、対象TUI/Coreソース変更でOxCaml + Bonsai_term native build／`./tools/tui --self-check`を実行する。Core run `39092086513` とTUI run `39094690207`でそれぞれ成功。固定registry revisionとBonsai_term sourceを維持し、Macの私用switchは変更しない。固定依存キャッシュは `4fe9f1d` で追加したが、CI run `39096625299`でcache保存は確認済み。再利用・速度改善は未確認。キャッシュhitでもTUI本体をビルドしself-checkを毎回走らせる。
-- **段階2、未実装**：同じ合成台帳に対しpty経由のキー／resize／cold reopenを120×36・80×24・48×14・32×9で自動対照し、authority bytes、signed/unknown、短い確認全文gateも検査する。単純なscreen snapshotだけでUXを合格にしない。
+- **段階2、部分接続・限定PTY検査済み**：`tools/ci_tui_pty.py` が合成fixtureで起動、キー、Balances、resize（120×36・80×24・48×14・32×9）、Ctrl-Q、authority bytes不変を自動検査する。run `39098165655`では4ケース全件PASS。ただし後続pushによってrun全体はcancelled、最新mainの再実行 `39098268276` は結果照合待ち。**未接続**：PTY終了後のcold再起動、Actual／Scheduled操作やPreview全文gate、保存失敗・不明状態、他通貨、実IME、LOAM binary実行一致。画面描画snapshotのみで受入としない。
 - **段階3、別受入**：Mac実機IME／フォント／手触り、LOAM同一意味fixture・既存binaryとの比較、保存失敗／P7・実運用資格はCI greenと分ける。CI runnerではLOAM本番／私用台帳を取得しない。
 
 ### 全slice共通の受入証拠
