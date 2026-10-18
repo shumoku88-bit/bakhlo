@@ -55,8 +55,3 @@ val unescape_text : string -> (string, string) result
 val of_string : string -> (t, string) result
 val to_string : t -> string
 
-val file_path : ?config_home:string -> string -> string
-val load_file : string -> (t, string) result
-(** Only a missing file means an empty trial; unreadable or invalid inputs refuse. *)
-val save_file : string -> expected:t -> t -> (unit, string) result
-(** Recheck the loaded state under the existing cooperative writer lock. *)

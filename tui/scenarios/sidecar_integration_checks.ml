@@ -20,9 +20,9 @@ let safety_checks ~width_of ~directory () =
     ~due:Att.Due_undetermined) in
   require (get (Att.of_string (Att.to_string att)) = att) "attention-escape-round-trip";
   require (Att.next_id att <> "attention-2") "attention-id-does-not-collide";
-  let att_path = Att.file_path ~config_home:dir path in
-  get (Att.save_file att_path ~expected:Att.empty att);
-  require (Result.is_error (Att.save_file att_path ~expected:Att.empty Att.empty)) "attention-stale-write-refused";
+  let att_path = Attention_file.file_path ~config_home:dir path in
+  get (Attention_file.save_file att_path ~expected:Att.empty att);
+  require (Result.is_error (Attention_file.save_file att_path ~expected:Att.empty Att.empty)) "attention-stale-write-refused";
   let att_bytes = F.read att_path in
   let state = C.initial ~config_home:dir (F.load path) in
   Unix.mkdir (att_path ^ ".lock.block") 0o700;
@@ -46,25 +46,25 @@ let safety_checks ~width_of ~directory () =
   require (F.read att_path = "broken\n") "attention-invalid-bytes-preserved";
   Unix.unlink att_path;
   Unix.mkdir att_path 0o700;
-  require (Result.is_error (Att.load_file att_path)) "attention-nonregular-read-refused";
+  require (Result.is_error (Attention_file.load_file att_path)) "attention-nonregular-read-refused";
   Unix.rmdir att_path;
   Unix.symlink (dir ^ "/missing-target") att_path;
-  require (Att.file_path ~config_home:dir path = att_path && Result.is_error (Att.load_file att_path))
+  require (Attention_file.file_path ~config_home:dir path = att_path && Result.is_error (Attention_file.load_file att_path))
     "attention-dangling-link-refuses-without-fallback";
   Unix.unlink att_path;
-  get (Att.save_file att_path ~expected:Att.empty att);
+  get (Attention_file.save_file att_path ~expected:Att.empty att);
   require ((C.reload broken).attention = Ok att) "explicit-reload-refreshes-sidecar";
   List.iter (fun raw -> require (Result.is_error (Stl.of_string raw)) "settlement-invalid-input-refused")
     [ "broken\n"; "id\t\ta\tb\tjpy\tbad\t0\t0\n";
       "id\t\ta\tb\tjpy\t10\t11\t0\n"; "id\t\ta\tb\tjpy\t10\t-1\t0\n";
       "id\t\ta\tb\tjpy\t10\t0\t0\nid\t\ta\tb\tjpy\t10\t0\t0\n" ];
-  let stl_path = Stl.file_path ~config_home:dir path in
+  let stl_path = Settlement_file.file_path ~config_home:dir path in
   F.write_new stl_path "id\t\ta\tb\tjpy\tbad\t0\t0\n";
   let broken = C.initial ~config_home:dir (F.load path) in
   require (Result.is_error broken.settlements) "settlement-load-failure-is-not-zero";
   require (contains (R.screen ~width_of (120, 30) (C.open_route broken W.Settlements)) "Unavailable")
     "settlement-load-failure-visible";
-  require (Result.is_error (Stl.save_file stl_path ~expected:Stl.empty Stl.empty)) "settlement-corruption-blocks-save";
+  require (Result.is_error (Settlement_file.save_file stl_path ~expected:Stl.empty Stl.empty)) "settlement-corruption-blocks-save";
   let stl_bytes = F.read stl_path in
   let form = X.add_settlement_form home in
   let form = Ui_form.set_text form "debtor" "a" |> fun f -> Ui_form.set_text f "creditor" "b"
@@ -82,10 +82,10 @@ let safety_checks ~width_of ~directory () =
   let huge = Z.pow (Z.of_int 10) 70 in
   let commitments = get (Stl.add_row Stl.empty ~id:"huge" ~label:"合成のみ"
     ~debtor:"a" ~creditor:"b" ~measure:"jpy" ~committed:huge ()) in
-  get (Stl.save_file stl_path ~expected:Stl.empty commitments);
-  require (get (Stl.load_file stl_path) = commitments) "settlement-exact-huge-cold-round-trip";
-  require (Result.is_error (Stl.save_file stl_path ~expected:Stl.empty Stl.empty)) "settlement-stale-write-refused";
-  require (get (Stl.load_file stl_path) = commitments) "settlement-stale-write-preserves-evidence";
+  get (Settlement_file.save_file stl_path ~expected:Stl.empty commitments);
+  require (get (Settlement_file.load_file stl_path) = commitments) "settlement-exact-huge-cold-round-trip";
+  require (Result.is_error (Settlement_file.save_file stl_path ~expected:Stl.empty Stl.empty)) "settlement-stale-write-refused";
+  require (get (Settlement_file.load_file stl_path) = commitments) "settlement-stale-write-preserves-evidence";
   require (Result.is_error (resolve_pace_pool home)) "missing-pool-is-not-inferred";
   require (Result.is_error (resolve_pace_window home)) "missing-window-is-not-month-end";
   let pool_path = dir ^ "/daily-pace.tsv" and windows_path = dir ^ "/boundary-presets.tsv" in

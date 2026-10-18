@@ -103,7 +103,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                       String.concat "; " (List.map (fun (locus, amount) ->
                         locus ^ " " ^ B.format state.session.book source.measure amount ^ " " ^ source.measure) source.changes) in
                     Result.bind (Att.add_item expected ~id ~context ~due:Att.Due_undetermined) (fun attention ->
-                      Result.map (fun () -> attention, id) (Att.save_file state.attention_path ~expected attention))) in
+                      Result.map (fun () -> attention, id) (Attention_file.save_file state.attention_path ~expected attention))) in
                   (match result with
                    | Ok (attention, id) -> Some { state with overlay = No_overlay; attention = Ok attention;
                        message = "Completion retained. Deferred continuation as " ^ id ^ "; no additional Scheduled created." }

@@ -91,6 +91,6 @@ let run ~width_of ~directory ~path (exch_done : C.state) =
   let back_home = key ~width_of all_scope_state (`ASCII 'q') in
   require (back_home.workspace.route = W.Home) "settlements-q-back-to-home";
   (* Disk persistence verify *)
-  let stl_file = get (Stl.load_file (Stl.file_path ~config_home:directory path)) in
+  let stl_file = get (Settlement_file.load_file (Settlement_file.file_path ~config_home:directory path)) in
   require (List.length stl_file.rows = 1) "settlements-persisted-to-file";
   back_home

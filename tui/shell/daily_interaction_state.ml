@@ -162,10 +162,10 @@ let initial ?config_home session =
   in
   let workspace = get (W.create ~today:focus_day ~measure) in
   let notice = A.recovery_notice ~session in
-  let attention_path = Att.file_path ?config_home session.F.path in
-  let attention = Att.load_file attention_path in
-  let settlement_path = Stl.file_path ?config_home session.F.path in
-  let settlements = Stl.load_file settlement_path in
+  let attention_path = Attention_file.file_path ?config_home session.F.path in
+  let attention = Attention_file.load_file attention_path in
+  let settlement_path = Settlement_file.file_path ?config_home session.F.path in
+  let settlements = Settlement_file.load_file settlement_path in
   {
     session;
     workspace;
@@ -283,8 +283,8 @@ let apply_commit_result ?published_message state ~draft result =
 
 let reload state =
   let state = { state with
-    attention = Att.load_file state.attention_path;
-    settlements = Stl.load_file state.settlement_path;
+    attention = Attention_file.load_file state.attention_path;
+    settlements = Settlement_file.load_file state.settlement_path;
   } in
   match A.reload ~session:state.session ~pending:state.pending ~mode:(mode state) with
   | A.Pending_confirmed session ->

@@ -699,7 +699,7 @@ let commit_attention state submitted update message =
     if state.blocked then Error "Writes stopped. Reload to inspect."
     else Result.bind state.attention (fun expected ->
       Result.bind (update expected) (fun updated ->
-        Result.map (fun () -> updated) (Att.save_file state.attention_path ~expected updated)))
+        Result.map (fun () -> updated) (Attention_file.save_file state.attention_path ~expected updated)))
   in
   match result with
   | Ok attention -> { state with overlay = No_overlay; attention = Ok attention; message }
@@ -711,7 +711,7 @@ let commit_settlements state submitted update message =
     if state.blocked then Error "Writes stopped. Reload to inspect."
     else Result.bind state.settlements (fun expected ->
       Result.bind (update expected) (fun updated ->
-        Result.map (fun () -> updated) (Stl.save_file state.settlement_path ~expected updated)))
+        Result.map (fun () -> updated) (Settlement_file.save_file state.settlement_path ~expected updated)))
   in
   match result with
   | Ok settlements -> { state with overlay = No_overlay; settlements = Ok settlements; message }

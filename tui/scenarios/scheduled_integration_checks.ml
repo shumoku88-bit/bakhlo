@@ -372,7 +372,7 @@ let continuation_checks ~width_of ~directory home =
            && Cont.base_bytes (prompt failed) = none.session.bytes)
     "continuation-defer-failure-does-not-rollback-completion";
   let deferred = key ~width_of defer `Enter in
-  let attention = get (Att.load_file none.attention_path) in
+  let attention = get (Attention_file.load_file none.attention_path) in
   require (deferred.overlay = C.No_overlay && F.read none_path = none_bytes
            && List.exists (fun (item : Att.item) -> item.due = Att.Due_undetermined
              && Base.String.is_substring item.context ~substring:source.id) (Att.open_items attention))
