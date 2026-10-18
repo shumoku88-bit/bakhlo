@@ -26,6 +26,26 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
 以下の番号は未了の受入項目の一覧として維持し、この優先順位を上書きしない。必要な共有機構だけを利用元に沿って直す。
 機能完成・表示完成・実機受入を区別し、PTY成功や部分実装だけでユーザー未確認の画面を完成扱いにしない。
 
+### 次に実行する小単位（2026-10-18現在）
+
+AIは**先頭の着手可能な小単位を一つずつ**進める。下記は第1〜9工程を置き換える新しい進捗台帳ではない。状態は[UI差分台帳](../docs/LOAM_UI_GAP_LEDGER.ja.md)、実行証拠は[VERIFICATION](../docs/VERIFICATION.md)のみで更新する。先行項目が保留なら原因・再開条件を台帳へ残して、依存しない次項目へ進める。既存の接続機能を二重に実装しない。
+
+1. **UI-33-V1：Daily Paceの上下配置。** LOAMのchart／History／detail構成を比較し、BakhloのBraille線・dots・選択日・整数目盛・Unavailableを維持して通常幅の配置を合わせる。120×36／80×24／48×14／32×9、resize・focusを確認。計算／保存を見た目の作業で変えない。
+2. **UI-33-V2：Historyの情報密度。** LOAMのDay／Quanta/day／Spent／Pace diff列と選択追従を比較する。根拠の無い日別情報を推測せず、保持・照会情報が不足ならF課題へ分ける。line/dots、負数／0／不明、巨大数量を回帰検査。
+3. **UI-33-V3：選択日の詳細。** LOAMの日別根拠・内訳・選択日の移動、Tab/i、j/k、Escape/qでの詳細展開／復帰を照合する。狭小画面でも選択日と可用性を失わず、未確認根拠を表示しない。
+4. **UI-24-B1：Balancesの表示。** Current／Accounting／detail／初期選択と、Exact 0／Known-present／Unknown／Unavailable、ロール別集計・スクロール・縮退を同じ合成入力で対照する。
+5. **UI-24-B2：Balancesの設定・観測。** 表示Locus picker、他Measureの保持、複数座標の同時観測画像、Review・再起動を比較する。F不足は独立の意味・保存課題として記録する。
+6. **その後：** 既存第3〜9工程の未達F/O/V/Qを、Record → Actual/Selected Day → Scheduled Series/coverage → Home/Calendar → 精算・非予算Reports・設定／出力へ依存順に分解する。実装済み操作の「未実装」への巻戻しを防ぐ。
+
+### AIの実行・停止サイクル
+
+1. 毎回HEAD／未commit差分／open PRを点検し、既存作業を保護する。対象UI行、コード、直近の検証証拠を照合し、欠損をF（意味・保存）、O（操作）、V（表示）、Q（安全・実行比較）に分類する。
+2. 順序表の最初のready項目について、ID・担当・対象ファイル／関数・非対象範囲・ユーザー操作・受入条件を確定する。共通controller・renderer・testsを複数AIが同時編集しない。
+3. 最小の縦切りを実装し、関係するself-check、`./tools/check`、`./tools/tui --self-check`、必要なsynthetic PTY・固定済みLOAM binary対照を実施する。比較不能なら不能と明記。docsのみならID・リンク・契約を点検し、未実行testを成功扱いしない。
+4. 「実装」「self-check」「LOAM実行対照」「人間のIME／実機受入」「保存失敗／電源断認定」を分けて判定する。不明結果を勝手に再試行せず、既存の安全拒否を緩めない。
+5. VERIFICATIONにrevision・binary／fixture・端末寸法・操作・結果・反例・未確認点、UI差分台帳に当該sliceの状態・次の一手を更新する。1 sliceが進んでも全画面完成・全互換／cutoverにはしない。
+6. 次sliceは委任範囲でのみ継続する。**main直接push／PR merge／新依存／本番・私用データ更新／移行・切替は含まない**。必要になった時点で止め、具体的な判断材料を提示する。
+
 ### 全slice共通の受入証拠
 
 - **実装**：日常の入口から対象選択・入力・確認・取消／確定・親復帰まで接続する。
