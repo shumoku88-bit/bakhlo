@@ -2544,6 +2544,35 @@ let daily_pace_activity_checks () =
     && Z.equal rev.Trend.discretionary_inflow Z.zero
     && Z.equal rev.Trend.discretionary_outflow Z.zero)
     "pace-activity-crossday-reversal-scheduled";
+  let rendered_activity day =
+    Trend.render_detail ~width:80 ~width_of:String.length ~book ~measure:"jpy"
+      ~sample:(Some (sample day)) ~prev_sample:None ~today:"2026-10-18"
+      ~preset:Trend.Cycle
+    |> List.map snd |> String.concat "\n"
+  in
+  let reversing_day = rendered_activity "2026-10-17" in
+  require
+    (Base.String.is_substring reversing_day
+       ~substring:"Scheduled-linked inflow/reversal: +400 jpy"
+     && not (Base.String.is_substring reversing_day ~substring:"Unscheduled inflow:"))
+    "pace-detail-scheduled-reversal-not-discretionary-receipt";
+  let paying_day = rendered_activity "2026-10-13" in
+  require
+    (Base.String.is_substring paying_day ~substring:"Settled: 300 jpy (as planned)"
+     && not (Base.String.is_substring paying_day ~substring:"Scheduled-linked inflow/reversal:"))
+    "pace-detail-outflow-has-no-false-scheduled-inflow";
+  let unknown_pace_day = { (sample "2026-10-17") with
+    Trend.pace_quanta = None; unavailable = Some "Historical pace unavailable" } in
+  let unknown_detail =
+    Trend.render_detail ~width:80 ~width_of:String.length ~book ~measure:"jpy"
+      ~sample:(Some unknown_pace_day) ~prev_sample:None ~today:"2026-10-18"
+      ~preset:Trend.Cycle |> List.map snd |> String.concat "\n"
+  in
+  require
+    (Base.String.is_substring unknown_detail ~substring:"Daily Pace: unavailable"
+     && Base.String.is_substring unknown_detail
+          ~substring:"Scheduled-linked inflow/reversal: +400 jpy")
+    "pace-detail-independent-known-activity-when-pace-unknown";
   let d12 = sample "2026-10-12" and d13 = sample "2026-10-13" in
   require
     (d12.Trend.pace_quanta <> None && d13.Trend.pace_quanta <> None
