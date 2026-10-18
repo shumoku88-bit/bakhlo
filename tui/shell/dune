@@ -17,6 +17,7 @@
   bakhlo_screen_exchange
   bakhlo_screen_editors
   bakhlo_screen_actual
+  bakhlo_screen_scheduled
   bakhlo.store
   bakhlo.domain
   bakhlo.application

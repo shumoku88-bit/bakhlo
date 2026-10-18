@@ -41,8 +41,8 @@ let self_check ~width_of () =
   (* 1. Controller integration *)
   let state = C.initial ~config_home:directory (F.load path)
     |> fun s -> C.open_route s Ui_workspace.Scheduled
-    |> fun s -> C.sync { s with workspace = Ui_workspace.set_query s.workspace source.id } in
-  let opened = C.extend_plan_selected state in
+    |> fun s -> Interaction_check_fixture.with_plan_query s source.id in
+  let opened = Interaction_check_fixture.extend_plan_selected state in
   require (match Interaction_check_fixture.session_of opened with Some (Record_editors.Scheduled_generate _) -> true | _ -> false)
     "controller-extend_plan_selected-opens-generate";
   let opened_by_key = Option.get (H.handle ~dimensions:(140, 40) ~width_of state (key (`ASCII 'g'))) in
@@ -179,7 +179,7 @@ let self_check ~width_of () =
 
   (* 8. Held record draft prevents extend *)
   let held = C.open_record state |> fun s -> ckey s (`ASCII 'x') |> fun s -> ckey s `Escape in
-  let refused = C.extend_plan_selected held in
+  let refused = Interaction_check_fixture.extend_plan_selected held in
   require (C.has_record_draft held && refused.record = held.record
            && (Interaction_check_fixture.no_modal refused) && F.read path = cold_controller.bytes)
     "controller-held-record-prevents-extend";

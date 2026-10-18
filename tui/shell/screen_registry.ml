@@ -16,9 +16,10 @@ type t = {
   exchange : Exchange_screen.t;
   editors : Record_editors.t;
   actual : Actual_screen.t;
+  scheduled : Scheduled_screen.t;
 }
 
-let create () =
+let create ~scheduled_months =
   {
     pace = Daily_pace_screen.create ();
     balances = Balances_screen.create ();
@@ -32,6 +33,7 @@ let create () =
     exchange = Exchange_screen.create ();
     editors = Record_editors.create ();
     actual = Actual_screen.create ();
+    scheduled = Scheduled_screen.create scheduled_months;
   }
 
 type 'a owner = {
@@ -236,6 +238,21 @@ let all =
         published = Screen.no_publication;
         reloaded = Screen.no_reload;
         book_changed = Actual_screen.book_changed;
+      };
+    Owner
+      {
+        route = Some W.Scheduled;
+        config_files = Scheduled_screen.config_files;
+        get = (fun t -> t.scheduled);
+        set = (fun t scheduled -> { t with scheduled });
+        enter = Scheduled_screen.enter;
+        modal = Scheduled_screen.modal;
+        handle = Scheduled_screen.handle;
+        view = Scheduled_screen.view;
+        saved = Scheduled_screen.saved;
+        published = Screen.no_publication;
+        reloaded = Scheduled_screen.reloaded;
+        book_changed = Scheduled_screen.book_changed;
       };
   ]
 

@@ -128,7 +128,6 @@ let actual_browsing_checks ~width_of ~directory home =
       "actual-single-enter-opens-with-parent";
     let returned = key ~dimensions ~width_of direct `Escape in
     require (returned.screens.actual = at_second.screens.actual
-             && returned.workspace.actual = at_second.workspace.actual
              && not (actual_detail returned))
       "actual-single-enter-return-preserves-list";
     let same_day_book = get (B.put_entry book ~replace:true
@@ -218,14 +217,12 @@ let actual_browsing_checks ~width_of ~directory home =
   let filtered_drill = key ~dimensions:(80,24) ~width_of filtered `Enter in
   let filtered_return = key ~dimensions:(80,24) ~width_of filtered_drill (`ASCII 'q') in
   require (filtered_return.screens.actual = filtered.screens.actual
-           && filtered_return.workspace.actual = filtered.workspace.actual
            && actual_detail filtered_return
            && (actual_scroll filtered_return) = (actual_scroll filtered))
     "actual-return-preserves-filter-order-locus-detail-and-scroll";
   let refreshed = C.finish_publication filtered
     { filtered.session with book = corrected_book } "Synthetic publication" in
   require (refreshed.screens.actual = filtered.screens.actual
-           && refreshed.workspace.actual = filtered.workspace.actual
            && actual_detail refreshed && (actual_scroll refreshed) = (actual_scroll filtered))
     "actual-publication-preserves-filter-order-locus-detail-and-scroll";
   let unmatched_book = get (B.put_entry book ~replace:true
@@ -929,7 +926,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
 
   (* 6. Reversal noninheritance *)
   let actual_for_rev = C.open_route (C.initial ~config_home:dir (F.load path)) W.Actual in
-  let rev_session = C.reverse_entry_selected actual_for_rev in
+  let rev_session = Interaction_check_fixture.reverse_entry_selected actual_for_rev in
   let rev_preview = Option.get (H.handle ~width_of rev_session (`Key (`Enter, []))) in
   let _ = Option.get (H.handle ~width_of rev_preview (`Key (`Enter, []))) in
   let post_rev_session = F.load path in

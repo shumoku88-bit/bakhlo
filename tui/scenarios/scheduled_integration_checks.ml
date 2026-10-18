@@ -12,53 +12,53 @@ let scheduled_panel_checks ~width_of ~directory home =
   F.write_new path (B.to_string book);
   let before = F.read path in
   let state = C.open_route (C.initial ~config_home:directory (F.load path)) W.Scheduled in
-  let count = List.length (W.rows ~book state.workspace) in
+  let count = List.length (plan_rows state) in
   List.iter (fun dimensions ->
     let key = key ~dimensions ~width_of in
     let detail = key state `Enter in
-    let height, view = X.browser_viewport ~dimensions ~width_of detail in
-    let identity = (W.browser detail.workspace).selected_id in
+    let height, view = plan_window ~dimensions ~width_of detail in
+    let identity = (plan_id detail) in
     require (view.last>0) "scheduled-long-detail-overflows";
     let ended = key detail `End in
-    require (ended.scroll=view.last && (W.browser ended.workspace).selected_id=identity)
+    require ((plan_scroll ended)=view.last && (plan_id ended)=identity)
       "scheduled-detail-end-preserves-identity";
-    require ((key ended (`ASCII 'j')).scroll=view.last
-      && (key ended (`ASCII 'k')).scroll=view.last-1
-      && (key ended `Home).scroll=0) "scheduled-detail-endpoints-and-immediate-up";
-    require ((key detail (`Page `Down)).scroll=min view.last (max 1 view.capacity))
+    require ((plan_scroll (key ended (`ASCII 'j')))=view.last
+      && (plan_scroll (key ended (`ASCII 'k')))=view.last-1
+      && (plan_scroll (key ended `Home))=0) "scheduled-detail-endpoints-and-immediate-up";
+    require ((plan_scroll (key detail (`Page `Down)))=min view.last (max 1 view.capacity))
       "scheduled-detail-page-visible-rows";
     let ctrl_down = get (match H.handle ~dimensions ~width_of detail (`Key (`ASCII 'd',[`Ctrl])) with
       | Some state -> Ok state | None -> Error "scheduled-ctrl-page-exited") in
-    require (ctrl_down.scroll=(key detail (`Page `Down)).scroll) "scheduled-ctrl-page-same-capacity";
+    require ((plan_scroll ctrl_down)=(plan_scroll (key detail (`Page `Down)))) "scheduled-ctrl-page-same-capacity";
     let listed = key ended `Tab in
     let restored = key listed `Tab in
-    require (listed.workspace.pane=W.Calendar && restored.workspace.pane=W.Detail
-      && restored.scroll=ended.scroll && (W.browser restored.workspace).selected_id=identity)
+    require (not (plan_detail listed) && plan_detail restored
+      && (plan_scroll restored)=(plan_scroll ended) && (plan_id restored)=identity)
       "scheduled-focus-roundtrip-retains-detail-and-selection";
-    require ((key detail (`ASCII 'h')).workspace.pane=W.Calendar
-      && (key (key detail (`ASCII 'h')) (`ASCII 'l')).workspace.pane=W.Detail)
+    require (not (plan_detail (key detail (`ASCII 'h')))
+      && plan_detail (key (key detail (`ASCII 'h')) (`ASCII 'l')))
       "scheduled-browser-horizontal-focus";
     let back = key ended `Escape in
-    require (back.workspace.pane=W.Calendar && (W.browser back.workspace).selected_id=identity)
+    require (not (plan_detail back) && (plan_id back)=identity)
       "scheduled-back-keeps-selection";
-    require ((key ended (`ASCII 'f')).scroll=0) "scheduled-filter-resets-detail";
+    require ((plan_scroll (key ended (`ASCII 'f')))=0) "scheduled-filter-resets-detail";
     let reloaded = get (match H.handle ~dimensions ~width_of ended (`Key (`ASCII 'r',[`Ctrl])) with
       | Some state -> Ok state | None -> Error "scheduled-reload-exited") in
-    require (reloaded.scroll=0 && (W.browser reloaded.workspace).selected_id=identity)
+    require ((plan_scroll reloaded)=0 && (plan_id reloaded)=identity)
       "scheduled-reload-anchors-identity-and-resets-detail";
     let page = key state (`Page `Down) in
-    require ((W.browser page.workspace).selected=min (count-1) (max 1 (height-2)))
+    require ((plan_row page)=min (count-1) (max 1 (height-2)))
       "scheduled-list-page-excludes-borders-no-heading";
-    require ((W.browser (key state `End).workspace).selected=count-1
-      && (W.browser (key (key state `End) `Home).workspace).selected=0) "scheduled-list-real-endpoints";
+    require ((plan_row (key state `End))=count-1
+      && (plan_row (key (key state `End) `Home))=0) "scheduled-list-real-endpoints";
     List.iter (fun state ->
       let rows = R.screen ~width_of dimensions state in
       require (List.length rows<=snd dimensions && List.for_all (fun (_,line)->width_of line<=fst dimensions) rows)
         "scheduled-shared-panels-bounded") [state;page;ended]) [32,9;48,14;80,24;120,36];
   let small = key ~dimensions:(32,9) ~width_of state `Enter |> fun s -> key ~dimensions:(32,9) ~width_of s `End in
   let resized = key ~dimensions:(120,36) ~width_of small (`ASCII '!') in
-  let _, view = X.browser_viewport ~dimensions:(120,36) ~width_of resized in
-  require (resized.scroll=view.last && (W.browser resized.workspace).selected_id=(W.browser small.workspace).selected_id)
+  let _, view = plan_window ~dimensions:(120,36) ~width_of resized in
+  require (view.start=view.last && (plan_id resized)=(plan_id small))
     "scheduled-resize-clamps-offset-not-identity";
   let editing = key ~width_of state (`ASCII 'e') in
   let draft = text ~width_of editing "q 日本語" in
@@ -84,7 +84,7 @@ let cancellation_checks ~width_of ~directory home =
   F.write_new path (B.to_string book);
   let before = F.read path in
   let base = C.open_route (C.initial ~config_home:directory (F.load path)) W.Scheduled
-    |> fun s -> C.sync { s with workspace = W.set_query s.workspace plan.id } in
+    |> fun s -> Interaction_check_fixture.with_plan_query s plan.id in
   let editor state = match session_of state with
     | Some (E.Scheduled_cancel e) -> e | _ -> raise (F.Refused "cancel-review-lost") in
   let input state event = match H.handle ~width_of state event with
@@ -188,43 +188,44 @@ let months_checks ~width_of ~directory home =
   let before = F.read path in
   let initial = C.initial ~config_home:directory (F.load path) in
   let workspace = get (W.create ~today:"2026-11-15" ~measure:"jpy") in
-  let listed = C.open_route { initial with workspace } W.Scheduled
-    |> fun s -> C.sync { s with workspace = W.set_query s.workspace "month-02" } in
-  let list_browser = listed.workspace.scheduled in
+  let scheduled = Plans.create (get (Months.create ~today:"2026-11-15")) in
+  let listed = C.open_route { initial with workspace; screens = { initial.screens with scheduled } } W.Scheduled
+    |> fun s -> with_plan_query s "month-02" in
+  let list_browser = plan_list listed in
   let months = key ~width_of listed (`ASCII 'v') in
-  require (List.map W.identity (W.rows ~book months.workspace)
+  require (List.map W.identity (plan_rows months)
            = List.map (fun (p : B.plan) -> (W.Scheduled_row, p.id)) plans
-           && months.workspace.scheduled = list_browser)
+           && plan_list months = list_browser)
     "months-projects-all-current-open-without-list-filter";
-  require ((W.browser months.workspace).selected_id = Some (W.Scheduled_row, "month-02")
-           && Months.visible_months months.workspace.months
+  require ((plan_id months) = Some (W.Scheduled_row, "month-02")
+           && Months.visible_months (plan_months months)
               = ["2026-11-01";"2026-12-01";"2027-01-01";"2027-02-01";"2027-03-01";"2027-04-01"])
     "months-year-crossing-window-preserves-target";
   let january = key ~width_of months (`ASCII 'j') in
   let restored = key ~width_of january (`ASCII 'v') in
-  require (restored.workspace.schedule_view = W.List_view && restored.workspace.scheduled = list_browser)
+  require (not (plan_months_view restored) && plan_list restored = list_browser)
     "months-return-keeps-list-filters-and-visible-selection";
-  let all_list = C.sync { listed with workspace = W.set_query listed.workspace "" } in
+  let all_list = with_plan_query listed "" in
   let all_months = key ~width_of all_list (`ASCII 'v') |> fun s -> key ~width_of s `End in
   let returned_all = key ~width_of all_months (`ASCII 'v') in
-  require ((W.browser returned_all.workspace).selected_id = Some (W.Scheduled_row, "month-06")
-           && Months.first_month all_months.workspace.months = "2027-07-01")
+  require ((plan_id returned_all) = Some (W.Scheduled_row, "month-06")
+           && Months.first_month (plan_months all_months) = "2027-07-01")
     "months-selection-follows-horizon-and-returns-by-id";
   let oldest = key ~width_of all_months `Home in
-  require ((W.browser oldest.workspace).selected_id = Some (W.Scheduled_row, "month-00")
-           && Months.first_month oldest.workspace.months = "2026-11-01")
+  require ((plan_id oldest) = Some (W.Scheduled_row, "month-00")
+           && Months.first_month (plan_months oldest) = "2026-11-01")
     "months-overdue-selection-does-not-shift-before-current-month";
   let shifted = key ~width_of oldest (`ASCII 'l') in
-  require (Months.first_month shifted.workspace.months = "2026-12-01"
-           && (W.browser shifted.workspace).selected_id = (W.browser oldest.workspace).selected_id
-           && (key ~width_of shifted (`ASCII 'h')).workspace.months = oldest.workspace.months)
+  require (Months.first_month (plan_months shifted) = "2026-12-01"
+           && (plan_id shifted) = (plan_id oldest)
+           && plan_months (key ~width_of shifted (`ASCII 'h')) = (plan_months oldest))
     "months-horizontal-window-move-does-not-reselect-or-auto-follow";
   let no_earlier = key ~width_of oldest (`ASCII 'h') in
-  require (no_earlier.workspace.months = oldest.workspace.months) "months-clamps-current-month-floor";
+  require ((plan_months no_earlier) = (plan_months oldest)) "months-clamps-current-month-floor";
   List.iter (fun button ->
     let refused = key ~width_of months button in
-    require ((no_modal refused) && W.rows ~book refused.workspace = W.rows ~book months.workspace
-             && refused.workspace.scheduled = list_browser) "months-keeps-unfiltered-frontier")
+    require ((no_modal refused) && plan_rows refused = plan_rows months
+             && plan_list refused = list_browser) "months-keeps-unfiltered-frontier")
     [`ASCII '/'; `ASCII 'f'];
   let contains rows needle = List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) rows in
   List.iter (fun dimensions ->
@@ -237,14 +238,14 @@ let months_checks ~width_of ~directory home =
     [32,9;48,14;80,24;120,36];
   let detail = key ~width_of january `Tab in
   require (contains (R.screen ~width_of (120,36) detail) "1234.56 eur"
-           && (key ~width_of detail `Escape).workspace.pane = W.Calendar)
+           && not (plan_detail (key ~width_of detail `Escape)))
     "months-exact-currency-details-and-board-return";
   let paying = key ~width_of months `Enter in
   require (paying.record_visible && (match S.mode (Option.get paying.record) with
     | Daily_actions.Pay id -> id = "month-02" | _ -> false) && F.read path = before)
     "months-enter-opens-selected-completion-without-publishing";
   let cancelled_pay = key ~width_of paying `Escape in
-  require (cancelled_pay.workspace = months.workspace && C.has_record_draft cancelled_pay)
+  require (cancelled_pay.workspace = months.workspace && cancelled_pay.screens.scheduled = months.screens.scheduled && C.has_record_draft cancelled_pay)
     "months-completion-cancel-retains-parent-and-draft";
   let kept = key ~width_of months (`ASCII 'x') |> fun s -> key ~width_of s `Enter
     |> fun s -> key ~width_of s `Enter in
@@ -252,26 +253,26 @@ let months_checks ~width_of ~directory home =
   let limit = get (Months.create ~today:"9999-12-31") in
   require (Months.visible_months limit = ["9999-12-01"]
            && Result.is_error (Months.shift limit 1)
-           && Result.is_error (Months.shift oldest.workspace.months (-1)))
+           && Result.is_error (Months.shift (plan_months oldest) (-1)))
     "months-supported-calendar-boundaries";
-  require (Result.is_error (Months.shift months.workspace.months max_int)
-           && Result.is_error (Months.shift months.workspace.months min_int))
+  require (Result.is_error (Months.shift (plan_months months) max_int)
+           && Result.is_error (Months.shift (plan_months months) min_int))
     "months-extreme-shifts-refuse-without-overflow";
   let split = Months.screen ~book ~plans ~dimensions:(120,36) ~width_of
-    ~selected:(Some (List.nth plans 4)) months.workspace.months in
+    ~selected:(Some (List.nth plans 4)) (plan_months months) in
   require (contains split "split (3)") "months-split-does-not-invent-a-total";
   let crowded = List.init 12 (fun n -> { (plan n "2026-11-29") with
     changes = ["wallet", Z.of_int (-100-n); "food", Z.of_int (100+n)] }) in
   let selected = Some (List.nth crowded 11) in
-  let cards = Months.screen ~book ~plans:crowded ~dimensions:(80,19) ~width_of ~selected months.workspace.months
+  let cards = Months.screen ~book ~plans:crowded ~dimensions:(80,19) ~width_of ~selected (plan_months months)
     |> List.filter (fun (style, _) -> match style with Daily_overlays.Columns _ -> true | _ -> false) in
   require (contains cards "111 jpy") "months-card-follows-selection-beyond-first-page";
   let huge = Z.of_string (String.make 600 '9') in
   let huge_plan = { (List.nth plans 1) with changes = ["wallet", Z.neg huge; "food", huge] } in
   require (contains (Months.screen ~book ~plans:[huge_plan] ~dimensions:(80,19) ~width_of
-    ~selected:(Some huge_plan) months.workspace.months) "see details") "months-huge-amount-not-clipped-as-a-number";
+    ~selected:(Some huge_plan) (plan_months months)) "see details") "months-huge-amount-not-clipped-as-a-number";
   List.iter (fun dimensions ->
-    let rows = Months.screen ~book ~plans ~dimensions ~width_of ~selected:(Some (List.nth plans 2)) months.workspace.months in
+    let rows = Months.screen ~book ~plans ~dimensions ~width_of ~selected:(Some (List.nth plans 2)) (plan_months months) in
     require (List.length rows <= snd dimensions
              && List.for_all (fun (_, line) -> width_of line <= fst dimensions) rows) "months-zero-and-tiny-surface-bounds")
     [0,0;0,1;1,1;1,9];
@@ -282,8 +283,8 @@ let months_checks ~width_of ~directory home =
   require (List.find (fun (p : B.plan) -> p.id = "month-02") (B.plans cold.book)
              = { (List.nth plans 2) with cancelled_on = Some (F.today ()) }
            && B.entries cold.book = B.entries book
-           && (W.browser retired.workspace).selected_id = Some (W.Scheduled_row, "month-03")
-           && retired.workspace.scheduled = list_browser)
+           && (plan_id retired) = Some (W.Scheduled_row, "month-03")
+           && plan_list retired = list_browser)
     "months-cancellation-retires-selected-id-and-clamps-to-next-plan";
   print_endline "PASS: Scheduled Months projects six current-open months, stable IDs and filters, exact details, horizon/floor/year boundaries, compact resize and non-saving completion/Keep."
 
@@ -307,9 +308,9 @@ let continuation_checks ~width_of ~directory home =
   let complete path book target =
     F.write_new path (B.to_string book);
     let base = C.open_route (C.initial ~config_home:directory (F.load path)) W.Scheduled
-      |> fun s -> C.sync { s with workspace = W.set_query s.workspace target.B.id } in
+      |> fun s -> Interaction_check_fixture.with_plan_query s target.B.id in
     let before = F.read path in
-    let review = C.submit (C.pay_selected base) in
+    let review = C.submit (Interaction_check_fixture.pay_selected base) in
     require (review.record_visible && F.read path = before) "continuation-does-not-precede-payment";
     key ~width_of review `Enter in
   let prompt state = match session_of state with
@@ -385,8 +386,8 @@ let continuation_checks ~width_of ~directory home =
   let uncertain_path = directory ^ "/continuation-uncertain.sexp" in
   F.write_new uncertain_path (B.to_string source_book);
   let base = C.open_route (C.initial ~config_home:directory (F.load uncertain_path)) W.Scheduled
-    |> fun s -> C.sync { s with workspace = W.set_query s.workspace source.id } in
-  let pay = C.submit (C.pay_selected base) in
+    |> fun s -> Interaction_check_fixture.with_plan_query s source.id in
+  let pay = C.submit (Interaction_check_fixture.pay_selected base) in
   let tx = match S.handle ~new_id:Daily_file.new_id ~book:source_book ~base_bytes:pay.session.bytes ~blocked:false
     ~dimensions:(140,40) ~width_of (Option.get pay.record) (`Key (`Enter, [])) with
     | S.Publish (Daily_actions.Entry_tx tx, _, _) -> tx

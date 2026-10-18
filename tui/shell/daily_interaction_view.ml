@@ -5,7 +5,6 @@ open Daily_interaction_context
 let row_title = Record_lines.row_title
 let actual_amount = Record_lines.actual_amount
 let actual_table = Record_lines.actual_table
-let scheduled_table = Record_lines.scheduled_table
 
 let calendar_rows ?(width = 80) state =
   let calendar = state.workspace.calendar and book = state.session.book in
@@ -209,20 +208,10 @@ let workspace_rows ?route_view ~width_of ~width ~height state =
       else detail_frame ~width ~height
   else if Option.is_some route_view then
     Lazy.force (Option.get route_view).Screen.rows
-  else if is_scheduled_months state then
-    if workspace.pane = W.Detail then
-      let detail = browser_detail_rows ~width_of ~width state in
-      Panel.frame ~width_of ~width ~height ~focused:true ~title:"Selected Scheduled"
-        ~scroll:state.scroll ~selected:None detail
-    else
-      let plans = List.filter_map (function W.Scheduled_plan p -> Some p | _ -> None) rows in
-      let selected = match selected state with Some (W.Scheduled_plan p) -> Some p | _ -> None in
-      Months.screen ~book ~plans ~dimensions:(width, height) ~width_of ~selected workspace.months
   else
     let is_detail = workspace.pane = W.Detail in
     let right_title =
       match workspace.route with
-      | W.Scheduled -> "Plan Detail"
       | _ -> "Selected Record"
     in
 
@@ -230,14 +219,12 @@ let workspace_rows ?route_view ~width_of ~width ~height state =
     let wrapped_detail = browser_detail_rows ~width_of ~width:right_width state in
     let list_title =
       match workspace.route with
-      | W.Scheduled -> Printf.sprintf "Scheduled / List (%d)" (List.length rows)
       | W.Selected_day day -> Printf.sprintf "Day %s (%d)" day (List.length rows)
       | _ -> title
     in
     let left_rows =
       if rows = [] then [ tr "No records in this view." ]
       else match workspace.route with
-      | W.Scheduled -> scheduled_table ~width_of ~width:left_width book rows
       | W.Selected_day _ ->
           let _, ts = actual_table ~width_of ~width:left_width book rows in
           ts
@@ -269,15 +256,6 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   match route_screen_view ~dimensions ~width_of state with
   | Some view -> view.footer
   | None ->
-  if is_scheduled_months state then
-    if state.workspace.pane = W.Detail then
-      [ "j/k PgUp/Dn Home/End scroll  Tab Months"; "Enter/c complete  g generate  b batch  x cancel  v List  q back" ]
-    else if fst dimensions < 46 then
-      [ "j/k select  h/l months  v List"; "Enter complete  x cancel  q back" ]
-    else
-      [ "j/k select  h/l months  Enter/c complete  q back";
-        "i/Tab detail  b batch  r/e edit  g generate  x cancel  n new  v List" ]
-  else
   match (state.workspace.W.route, state.workspace.pane) with
   | W.Home, _ ->
       let attn_badge =
@@ -302,20 +280,10 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
         "q/Esc Calendar  j/k select  Enter Selected Day  Tab/w pane";
         "r Record  Space Commands  a/s/b/d views";
       ]
-  | W.Scheduled, W.Calendar ->
-      [
-        "j/k select  Enter/i/Tab Detail  h/l pane  c Complete  e Edit  g Generate  x Cancel";
-        "b Batch amount  v Months  n New Plan  f Filter  / search  Space Commands  q/Esc Home";
-      ]
   | W.Actual, W.Calendar ->
       [
         "j/k select  Enter/i/Tab Detail  h/l pane  c Correct  x Reverse  f Day/All  s Order";
         "n Record  / search  Space Commands  q/Esc Home  Ctrl-r reload";
-      ]
-  | W.Scheduled, W.Detail ->
-      [
-        "j/k scroll  Page Up/Down page  Home/End range  h/l/Tab pane";
-        "b Batch amount  v Months  q/Esc list  c Complete  e Edit  g Generate  x Cancel  n New Plan  Ctrl-r reload";
       ]
   | W.Actual, W.Detail ->
       [
@@ -375,7 +343,7 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
              | W.Home -> tr "Home"
              | W.Calendar -> tr "Calendar"
              | W.Actual -> tr "Actual"
-             | W.Scheduled -> tr (if is_scheduled_months state then "Scheduled / Months" else "Scheduled")
+             | W.Scheduled -> tr "Scheduled"
              | W.Selected_day _ -> tr "Selected Day"
              | W.Balances -> tr "Balances"
              | W.Daily_pace -> tr "Daily Pace"
@@ -386,8 +354,7 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
              | W.Stock_flow -> tr "Stock–Flow"
              | W.Settlements -> tr "Settlements"));
           line ~width_of width Chrome
-            ((if is_scheduled_months state then "Explicit current-open plans; no recurrence inferred."
-              else match state.workspace.route with
+            ((match state.workspace.route with
                 | W.Selected_day day -> day ^ "   " ^ tr "Day" ^ tr " view"
                 | _ -> date_line ())
             ^ draft);

@@ -39,8 +39,8 @@ let self_check ~width_of () =
   F.write_new path base;
   let state = C.initial ~config_home:directory (F.load path)
     |> fun s -> C.open_route s Ui_workspace.Scheduled
-    |> fun s -> C.sync { s with workspace = Ui_workspace.set_query s.workspace source.id } in
-  let opened = C.batch_plan_selected state in
+    |> fun s -> Interaction_check_fixture.with_plan_query s source.id in
+  let opened = Interaction_check_fixture.batch_plan_selected state in
   require (match Interaction_check_fixture.session_of opened with Some (Record_editors.Scheduled_bulk _) -> true | _ -> false)
     "controller-opens-bulk-for-selected-plan";
   let ckey state button = Option.get (H.handle ~dimensions:(140,40) ~width_of state (key button)) in
@@ -68,7 +68,7 @@ let self_check ~width_of () =
     "controller-reload-cannot-bless-stale-batch";
   let held = C.open_record state |> fun state -> ckey state (`ASCII 'x')
     |> fun state -> ckey state `Escape in
-  let refused = C.batch_plan_selected held in
+  let refused = Interaction_check_fixture.batch_plan_selected held in
   require (C.has_record_draft held && refused.record = held.record
            && (Interaction_check_fixture.no_modal refused) && F.read path = cold.bytes)
     "controller-held-record-prevents-batch";

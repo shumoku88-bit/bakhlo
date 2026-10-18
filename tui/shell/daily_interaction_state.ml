@@ -16,7 +16,6 @@ module Merchant = Merchant_session
 module Sch = Scheduled_session
 module Cancel = Scheduled_cancellation_session
 module Act = Actual_workspace
-module Months = Scheduled_months
 module Cont = Scheduled_continuation_session
 module Bulk = Scheduled_bulk_session
 module Gen = Scheduled_generation_session
@@ -120,7 +119,7 @@ let initial ?config_home session =
     attention;
     settlement_path;
     settlements;
-    screens = Screen_registry.create ();
+    screens = Screen_registry.create ~scheduled_months:(get (Scheduled_months.create ~today:focus_day));
     drill_parent = None;
     drill_book = None;
   }
@@ -137,7 +136,7 @@ let mode state = match state.record with None -> A.New | Some record -> S.mode r
 
 let sync state =
   let book = state.session.book in
-  let workspace = W.sync ~book state.workspace |> W.follow_months_selection ~book in
+  let workspace = W.sync ~book state.workspace in
   { state with workspace; scroll = 0 }
 
 let finish_publication state session message =
@@ -342,7 +341,12 @@ let open_route state route =
                     drill_parent = None; drill_book = None;
                     screens = Screen_registry.enter route ~focus_day:state.workspace.calendar.selected_day state.screens }
 
-let selected state = W.selected_row ~book:state.session.book state.workspace
+(* Only the central routes still select through the workspace; owner routes
+   name their target in a Record_action request. *)
+let selected state =
+  match state.workspace.route with
+  | W.Actual | W.Scheduled -> None
+  | _ -> W.selected_row ~book:state.session.book state.workspace
 
 let edit_target state target =
   if state.blocked then state

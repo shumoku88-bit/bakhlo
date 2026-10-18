@@ -45,7 +45,7 @@ let annual_lifecycle_checks ~width_of ~directory () =
            && Z.equal pace.available_through_end (Z.of_int 970))
     "annual-pace-lost-prior-evidence-or-overdue-plan";
   let scheduled = C.open_route cold W.Scheduled in
-  let paying = C.pay_selected scheduled |> C.submit in
+  let paying = Interaction_check_fixture.pay_selected scheduled |> C.submit in
   let paid = key ~width_of paying `Enter in
   let reopened = F.load (path year) in
   require (List.for_all (fun (p:B.plan) -> p.paid_by <> None) (B.plans reopened.book)

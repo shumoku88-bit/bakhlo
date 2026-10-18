@@ -3,11 +3,6 @@ open Daily_interaction_state
 open Daily_interaction_context
 
 let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : input) =
-  let state =
-    if is_record_browser state && not state.record_visible then
-      let _, view = browser_viewport ~dimensions ~width_of state in
-      { state with scroll = view.start }
-    else state in
   if state.paste_blocked then
     match input with
     | `Paste `End ->
@@ -199,47 +194,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               else Some (open_route state W.Home)
             else Some (back state)
         | Some (`ASCII 'b', []) when (match state.workspace.route with
-            | W.Scheduled | W.Selected_day _ -> true | _ -> false) ->
+            | W.Selected_day _ -> true | _ -> false) ->
             Some (batch_plan_selected state)
-        | Some (`ASCII 'g', []) when state.workspace.route = W.Scheduled ->
-            Some (extend_plan_selected state)
-        | Some (`ASCII 'v', []) when state.workspace.route = W.Scheduled ->
-            Some (sync { state with workspace = W.toggle_schedule_view ~book:state.session.book state.workspace;
-              message = (if state.blocked then state.message else "") })
-        | Some ((`ASCII 'h' | `Arrow `Left | `ASCII 'l' | `Arrow `Right), [])
-          when is_scheduled_months state && state.workspace.pane = W.Calendar ->
-            let delta = match Option.map normalize key with
-              | Some ((`ASCII 'h' | `Arrow `Left), _) -> -1 | _ -> 1 in
-            (match Months.shift state.workspace.months delta with
-             | Ok months -> Some { state with workspace = { state.workspace with months } }
-             | Error message -> Some { state with message = (if state.blocked then state.message else message) })
-        | Some (`ASCII ('f' | '/'), []) when is_scheduled_months state ->
-            Some { state with message = (if state.blocked then state.message else
-              "Months uses all current-open plans; v opens filtered List.") }
-        | Some (`Enter, []) when is_scheduled_months state -> Some (pay_selected state)
-        | Some (`ASCII 'r', []) when is_scheduled_months state -> Some (edit_selected state)
-        | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), [])
-          when is_record_browser state ->
-            Some { state with workspace = { state.workspace with
-              pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) };
-              scroll = 0 }
-        | Some ((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)), [])
-        | Some (`ASCII ('u' | 'd'), [ `Ctrl ]) when is_record_browser state ->
-            let height, view = browser_viewport ~dimensions ~width_of state in
-            let detail = state.workspace.pane = W.Detail in
-            let page = max 1 (if detail then view.capacity else if is_scheduled_months state then 8 else
-              Panel.capacity ~height ~heading:(state.workspace.route = W.Actual)) in
-            let delta = match Option.map normalize key with
-              | Some (`Home, _) -> -max_int
-              | Some (`End, _) -> max_int
-              | Some (`Page `Up, _) | Some (`ASCII 'u', [ `Ctrl ]) -> -page
-              | Some (`Page `Down, _) | Some (`ASCII 'd', [ `Ctrl ]) -> page
-              | Some ((`ASCII 'k' | `Arrow `Up), _) -> -1
-              | _ -> 1 in
-            if detail then
-              Some { state with scroll = Panel.move ~last:view.last ~position:view.start delta }
-            else Some { state with scroll = 0;
-              workspace = W.move_selection ~book:state.session.book state.workspace delta }
         | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
             Some
               {
@@ -249,7 +205,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                     state.workspace with
                     pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar);
                   };
-                scroll = (if is_record_browser state then state.scroll else 0);
+                scroll = 0;
               }
         | Some (`ASCII 't', []) when state.workspace.route = W.Calendar ->
             Some (update_calendar state (Cal.Today (F.today ())))
@@ -262,9 +218,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 overlay = (if state.workspace.route = W.Calendar then Jump ""
                   else Search (W.browser state.workspace).query);
               }
-        | Some (`ASCII 'r', []) | Some (`ASCII 'n', [])
-          when state.workspace.route = W.Scheduled ->
-            Some (open_plan_record state)
         | Some (`ASCII 'r', []) | Some (`ASCII 'n', []) -> Some (open_record state)
         | Some (`ASCII 'a', []) when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
             Some (open_route state W.Actual)
@@ -283,20 +236,11 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII 'o', [])
           when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
             Some (open_observe state)
-        | Some (`ASCII 'f', [])
-          when state.workspace.route = W.Scheduled ->
-            Some (sync { state with workspace = W.toggle_day_filter state.workspace })
-        | Some (`ASCII 'x', []) when state.workspace.route = W.Scheduled ->
-            Some (cancel_plan_selected state)
         | Some (`ASCII 'x', []) -> (
             match selected state with
             | Some (W.Scheduled_plan _) -> Some (cancel_plan_selected state)
             | Some (W.Actual_entry _) -> Some (reverse_entry_selected state)
             | _ -> Some state)
-        | Some (`ASCII 'c', []) when state.workspace.route = W.Scheduled ->
-            Some (pay_selected state)
-        | Some (`ASCII 'e', []) when state.workspace.route = W.Scheduled ->
-            Some (edit_selected state)
         | Some (`ASCII 'c', []) | Some (`ASCII 'e', []) | Some (`ASCII 'e', [ `Ctrl ]) ->
             Some (edit_selected state)
         | Some (`ASCII 'i', []) ->

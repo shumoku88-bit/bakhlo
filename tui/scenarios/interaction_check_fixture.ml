@@ -15,6 +15,7 @@ module Merchant = Merchant_session
 module Act = Actual_workspace
 module Cancel = Scheduled_cancellation_session
 module Months = Scheduled_months
+module Plans = Scheduled_screen
 module Cont = Scheduled_continuation_session
 module Sch = Scheduled_session
 module Bulk = Scheduled_bulk_session
@@ -126,6 +127,33 @@ let no_modal (state : C.state) =
 
 let is_reversal state = match session_of state with Some (E.Reversal _) -> true | _ -> false
 let is_plan_create state = match session_of state with Some (E.Scheduled_create _) -> true | _ -> false
+
+(* The Scheduled owner, read through its own interface. *)
+let plans (state : C.state) = Plans.synced state.session.book state.screens.scheduled
+let plan_rows (state : C.state) = Plans.rows state.session.book state.screens.scheduled
+let plan_browser state = Plans.browser (plans state)
+let plan_id state = (plan_browser state).selected_id
+let plan_row state = (plan_browser state).selected
+let plan_detail state = Plans.detail_focused (plans state)
+let plan_scroll state = Plans.scroll (plans state)
+let plan_months state = Plans.months (plans state)
+let plan_list (state : C.state) = Plans.list_browser state.screens.scheduled
+let plan_months_view state = Plans.months_view (plans state)
+let plan_window ~dimensions ~width_of (state : C.state) =
+  Plans.detail_window (X.screen_env ~config_files:[] state) (X.screen_geometry ~dimensions ~width_of state) state.screens.scheduled
+let with_plan_query (state : C.state) query =
+  { state with screens = { state.screens with scheduled = Plans.with_query state.session.book state.screens.scheduled query } }
+
+(* The Shell's record-action openers, targeted at what the route owner selects. *)
+let selected_target (state : C.state) =
+  match state.workspace.route with
+  | W.Actual -> Option.map (fun e -> W.Actual_entry e) (Act.selected_entry ~book:state.session.book state.screens.actual)
+  | W.Scheduled -> Option.map (fun p -> W.Scheduled_plan p) (Plans.selected_plan state.session.book state.screens.scheduled)
+  | _ -> C.selected state
+let pay_selected s = C.pay_target s (selected_target s)
+let batch_plan_selected s = C.batch_plan_target s (selected_target s)
+let extend_plan_selected s = C.extend_plan_target s (selected_target s)
+let reverse_entry_selected s = C.reverse_entry_target s (selected_target s)
 
 (* The Actual owner, read through its own interface. *)
 let actual_dims ~dimensions ~width_of (state : C.state) =

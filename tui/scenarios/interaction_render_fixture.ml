@@ -52,11 +52,11 @@ let render_cases state =
   in
   let book = get (B.put_entry home.session.book ~replace:false entry.entry ~plan:None) in
   let rich = { home with session = { home.session with book } } in
-  let reversal = C.reverse_entry_selected (C.open_route rich W.Actual) in
+  let reversal = key (C.open_route rich W.Actual) (`ASCII 'x') in
   let reversal_preview = key reversal `Enter in
-  let date = C.correct_date_selected (C.open_route rich W.Actual) in
+  let date = key (C.open_route rich W.Actual) (`ASCII 'd') in
   let date_preview = key date `Enter in
-  let cancellation = C.cancel_plan_selected (C.open_route rich W.Scheduled) in
+  let cancellation = key (C.open_route rich W.Scheduled) (`ASCII 'x') in
   let cancellation_preview = key cancellation `Enter in
   let source = List.hd (B.plans book) in
   let continuation_none = with_session rich (E.Scheduled_continuation
@@ -76,7 +76,10 @@ let render_cases state =
   let generate_preview = key generate `Enter in
   let detail route =
     let view = C.open_route rich route in
-    { view with workspace = { view.workspace with pane = W.Detail } }
+    match route with
+    | W.Actual | W.Scheduled | W.Income_expense | W.Transactions_flow | W.Stock_flow ->
+        key view (`ASCII 'i')  (* the owner's own detail key *)
+    | _ -> { view with workspace = { view.workspace with pane = W.Detail } }
   in
   [
     home;

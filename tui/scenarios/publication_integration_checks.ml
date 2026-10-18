@@ -110,7 +110,7 @@ let run ~width_of ~directory ~path (home : C.state) =
     "scheduled-wide-two-pane-visible";
   let inspected = key ~width_of scheduled `Enter in
   require
-    (inspected.workspace.pane = W.Detail && not inspected.record_visible)
+    (plan_detail inspected && not inspected.record_visible)
     "scheduled-enter-detail-only";
   let wide_inspected = R.screen ~width_of (120, 30) inspected in
   require (contains wide_inspected "Scheduled / List" && contains wide_inspected "Plan Detail")

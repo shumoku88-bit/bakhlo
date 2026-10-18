@@ -172,6 +172,14 @@ let screen_env ~config_files state : Screen.env =
 (* After a successful reload, an open editor may refuse its captured generation. *)
 let reload state =
   let state = Daily_interaction_state.reload state in
+  (* The route owner re-anchors on the reloaded book (e.g. resets a detail offset). *)
+  let state =
+    match Screen_registry.for_route state.workspace.route with
+    | Some (Screen_registry.Owner o) when not (o.modal (o.get state.screens)) ->
+        let value, _ = o.reloaded (screen_env ~config_files:o.config_files state) (o.get state.screens) in
+        { state with screens = o.set state.screens value }
+    | _ -> state
+  in
   if state.blocked then state
   else
     match Screen_registry.modal state.screens with
@@ -484,12 +492,6 @@ let open_command state = function
       { state with overlay = Themes { selected = index 0 P.all_themes;
                                      original = state.theme; return_menu } }
 
-let is_scheduled_months state =
-  state.workspace.route = W.Scheduled && state.workspace.schedule_view = W.Months
-
-let is_record_browser state =
-  state.workspace.route = W.Scheduled
-
 let browser_pane_widths width =
   if width < 80 then (width, width)
   else let left = max 36 (min 58 (width * 52 / 100)) in (left, width - left - 1)
@@ -501,14 +503,6 @@ let browser_detail_rows ~width_of ~width state =
     | None -> [ tr "No selected record." ] in
   List.concat_map (O.wrap_text ~width_of (max 1 (width - 6))) lines
 
-let browser_viewport ~dimensions ~width_of state =
-  let width, body_height = body_dimensions ~dimensions ~width_of state in
-  let height = max 0 (body_height - 2) in
-  let _, detail_width = if is_scheduled_months state then (width, width) else browser_pane_widths width in
-  let view = Panel.window ~capacity:(Panel.capacity ~height ~heading:false)
-    ~count:(List.length (browser_detail_rows ~width_of ~width:detail_width state))
-    ~scroll:state.scroll ~selected:None in
-  (height, view)
 let print_motion = function
   | `Key ((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)), [])
   | `Key (`ASCII ('u' | 'd'), [`Ctrl]) -> true
