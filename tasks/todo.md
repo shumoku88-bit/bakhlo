@@ -20,9 +20,12 @@
 - [x] checksを製品binaryから分離：tools/tui --self-check = dune test。画面単体checksは純粋。
 - [x] tools/arch（Core runtest）とtest/arch.tの負のテスト。docs/TUI_OWNERSHIP.mdが構造の正本。
 - [ ] Scheduled保存操作でowner→intent→Shell→単一writer→owner結果を検証。
-- [ ] 残る画面を tui/screens へ忠実移植：Reports3種 → Attention → Settlements → Loci →
+- [x] Reports3種を screens/reports へ移植（7600ad6）。Screen_registry で登録1箇所。
+- [ ] 残る画面を tui/screens へ忠実移植：Attention → Settlements → Loci →
   Observe/Exchange → Scheduled(+各session) → Actual/Selected day → Calendar/Home。
   Publication要求（Screen.Publish＋結果の画面返却）を最初の保存系移行で導入。
+  次の着手点：Attention_data/Settlement_data を純粋モデル(book)とファイルI/O(shell)に分割し、
+  env に attention を渡す。Save_attention/Save_settlements 要求を追加（typed expected を維持）。
 - [ ] 中央 daily_interaction*.ml を routing／Record保持／Shell overlay／publication だけの
   Shell へ縮退し、legacy_shared_literals を空にする。
 - [ ] 全中央checksを画面・primitive・横断scenario・保存復旧へ移管しassertion対応を記録。
