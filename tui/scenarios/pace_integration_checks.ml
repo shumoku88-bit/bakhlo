@@ -182,7 +182,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
   replace pool_path "wallet\tjpy\n";
   let pace = view () in
   let pace_detail = key ~width_of pace (`ASCII 'i') in
-  require (Pace.detail_focused pace_detail.C.pace) "daily-pace-i-focuses-detail";
+  require (Pace.detail_focused pace_detail.C.screens.pace) "daily-pace-i-focuses-detail";
   List.iter
     (fun ((width, height) as dimensions) ->
       List.iter
@@ -197,24 +197,24 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
     let pressed = key ~width_of pace (`ASCII char) in
     require (pressed.workspace.route = W.Daily_pace)
       ("daily-pace-preset-route-" ^ String.make 1 char);
-    require ((Pace.trend pressed.C.pace).Trend.preset = preset) ("daily-pace-preset-" ^ String.make 1 char)
+    require ((Pace.trend pressed.C.screens.pace).Trend.preset = preset) ("daily-pace-preset-" ^ String.make 1 char)
   in
   preset_key '1' Trend.Ten_days;
   preset_key '2' Trend.Thirty_days;
   preset_key '3' Trend.Month;
   preset_key '4' Trend.Cycle;
   let dotted = key ~width_of pace (`ASCII 'v') in
-  require ((Pace.trend dotted.C.pace).Trend.graph_style = Trend.Dots) "daily-pace-graph-dots";
+  require ((Pace.trend dotted.C.screens.pace).Trend.graph_style = Trend.Dots) "daily-pace-graph-dots";
   require
-    ((Pace.trend (key ~width_of dotted (`ASCII 'v')).C.pace).Trend.graph_style = Trend.Line)
+    ((Pace.trend (key ~width_of dotted (`ASCII 'v')).C.screens.pace).Trend.graph_style = Trend.Line)
     "daily-pace-graph-line";
   let escaped_detail = key ~width_of pace_detail `Escape in
   require
-    (not (Pace.detail_focused escaped_detail.C.pace) && escaped_detail.workspace.route = W.Daily_pace)
+    (not (Pace.detail_focused escaped_detail.C.screens.pace) && escaped_detail.workspace.route = W.Daily_pace)
     "daily-pace-esc-returns-calendar";
   let quit_detail = key ~width_of pace_detail (`ASCII 'q') in
   require
-    (not (Pace.detail_focused quit_detail.C.pace) && quit_detail.workspace.route = W.Daily_pace)
+    (not (Pace.detail_focused quit_detail.C.screens.pace) && quit_detail.workspace.route = W.Daily_pace)
     "daily-pace-q-returns-calendar";
   let simulated = submit_what_if (key ~width_of pace (`ASCII 'w')) "2000" in
   require
@@ -554,7 +554,7 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
      read the date off the sample — never match decorative wording. *)
   let selected_date samples state =
     let last = List.length samples - 1 in
-    (List.nth samples (max 0 (min last ((Pace.trend state.C.pace).Trend.selected_index)))).Trend.day
+    (List.nth samples (max 0 (min last ((Pace.trend state.C.screens.pace).Trend.selected_index)))).Trend.day
   in
   require (through_day = today && day_at (count - 1) = today) "daily-pace-sel-anchor-tail";
   require (day_at (count - 2) = yesterday) "daily-pace-sel-anchor-prev";
@@ -565,7 +565,7 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   require (selected_date ten_samples (key ~width_of back (`ASCII 'l')) = today) "daily-pace-sel-entry-l-today";
   let preset = key ~width_of entry (`ASCII '2') in
   require (preset.workspace.route = W.Daily_pace) "daily-pace-sel-preset-route";
-  require ((Pace.trend preset.C.pace).Trend.preset = Trend.Thirty_days) "daily-pace-sel-preset-kind";
+  require ((Pace.trend preset.C.screens.pace).Trend.preset = Trend.Thirty_days) "daily-pace-sel-preset-kind";
   require (selected_date samples preset = today) "daily-pace-sel-preset-tail";
   let back = key ~width_of preset (`ASCII 'h') in
   require (selected_date samples back = yesterday) "daily-pace-sel-preset-h-prev";
@@ -595,42 +595,42 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   (* A refused new range never resets the cursor: change_preset is an error. *)
   require
     (Result.is_error
-       (Trend.change_preset ~today ~boundary_presets_text:None (Pace.trend thirty.C.pace) Trend.Cycle))
+       (Trend.change_preset ~today ~boundary_presets_text:None (Pace.trend thirty.C.screens.pace) Trend.Cycle))
     "daily-pace-sel-refused-preset-keeps-cursor";
   require
     (Result.is_error
        (Trend.move_selection ~today ~preset:Trend.Cycle ~boundary_presets_text:None
-          ~position:((Pace.trend thirty.C.pace).Trend.selected_index) 1))
+          ~position:((Pace.trend thirty.C.screens.pace).Trend.selected_index) 1))
     "daily-pace-sel-missing-range-refuses-step";
   require
     (Result.is_error
        (Trend.move_selection ~today ~preset:Trend.Cycle
           ~boundary_presets_text:(Some (Printf.sprintf "p1\t%s\t%s\np2\t%s\t%s\n" today stop today stop))
-          ~position:((Pace.trend thirty.C.pace).Trend.selected_index) 1))
+          ~position:((Pace.trend thirty.C.screens.pace).Trend.selected_index) 1))
     "daily-pace-sel-ambiguous-range-refuses-step";
   (* Focused full-width detail: End -> Up moves the painted viewport, the
      selected date stays put, and a resize clamps through the new viewport. *)
   let dim = (80, 14) in
   let detail = key ~dimensions:dim ~width_of tail (`ASCII 'i') in
-  require (Pace.detail_focused detail.C.pace) "daily-pace-sel-detail-focused";
+  require (Pace.detail_focused detail.C.screens.pace) "daily-pace-sel-detail-focused";
   let view0 = pace_detail_viewport ~dimensions:dim ~width_of detail in
   require (view0.last > 0) "daily-pace-detail-overflows";
-  let sel_before = (Pace.trend detail.C.pace).Trend.selected_index in
+  let sel_before = (Pace.trend detail.C.screens.pace).Trend.selected_index in
   let at_end = key ~dimensions:dim ~width_of detail `End in
   let view_end = pace_detail_viewport ~dimensions:dim ~width_of at_end in
-  require (view_end.start = view_end.last && Pace.detail_scroll at_end.C.pace = view_end.last)
+  require (view_end.start = view_end.last && Pace.detail_scroll at_end.C.screens.pace = view_end.last)
     "daily-pace-detail-end-rests-on-last";
   let up = key ~dimensions:dim ~width_of at_end (`Arrow `Up) in
   let view_up = pace_detail_viewport ~dimensions:dim ~width_of up in
   require (view_up.start = view_end.start - 1) "daily-pace-detail-end-up-moves-viewport";
-  require ((Pace.trend up.C.pace).Trend.selected_index = sel_before) "daily-pace-detail-scroll-keeps-date";
+  require ((Pace.trend up.C.screens.pace).Trend.selected_index = sel_before) "daily-pace-detail-scroll-keeps-date";
   let paged_detail = key ~dimensions:dim ~width_of at_end (`Page `Up) in
-  require (Pace.detail_scroll at_end.C.pace - Pace.detail_scroll paged_detail.C.pace = min view_end.last (max 1 view_end.capacity))
+  require (Pace.detail_scroll at_end.C.screens.pace - Pace.detail_scroll paged_detail.C.screens.pace = min view_end.last (max 1 view_end.capacity))
     "daily-pace-detail-page-uses-capacity";
   let resized_up = key ~dimensions:(80, 24) ~width_of at_end (`Arrow `Up) in
   let view_resized = pace_detail_viewport ~dimensions:(80, 24) ~width_of resized_up in
-  require (Pace.detail_scroll resized_up.C.pace <= view_resized.last) "daily-pace-detail-resize-up-clamps-to-painted-last";
-  require ((Pace.trend resized_up.C.pace).Trend.selected_index = sel_before)
+  require (Pace.detail_scroll resized_up.C.screens.pace <= view_resized.last) "daily-pace-detail-resize-up-clamps-to-painted-last";
+  require ((Pace.trend resized_up.C.screens.pace).Trend.selected_index = sel_before)
     "daily-pace-detail-resize-keeps-date";
   require (selected_date samples (key ~width_of tail (`ASCII 'l')) = today) "daily-pace-sel-end-stays";
   let head = key ~width_of tail `Home in

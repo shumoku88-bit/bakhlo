@@ -1,0 +1,3 @@
+(test
+ (name reports_checks)
+ (libraries bakhlo_screen_reports bakhlo_tui_book bakhlo_tui_kit bakhlo.domain bakhlo.sexp zarith))

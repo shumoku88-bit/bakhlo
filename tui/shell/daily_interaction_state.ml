@@ -21,10 +21,6 @@ module Cont = Scheduled_continuation_session
 module Bulk = Scheduled_bulk_session
 module Gen = Scheduled_generation_session
 module Form = Ui_form
-module IncExp = Income_expense_report
-module Flow = Transactions_flow_report
-module StockFlow = Stock_flow_report
-module Trend = Daily_pace_trend
 module Panel = Ui_panel
 module Att = Attention_data
 module Roles = Locus_roles
@@ -145,17 +141,13 @@ type state = {
   settlement_path : string;
   settlements : (Stl.t, string) result;
   settlement_scope : Stl.scope;
-  balances : Balances.t;
+  screens : Screen_registry.t;
   label_review : (Form.t * string * string * string) option;
   exchange_review : (Form.t * A.transaction * string) option;
   observe_draft : observe_draft option;
   actual_workspace : Act.t;
   drill_parent : W.route option;
   drill_book : B.t option;
-  pace : Pace.t;
-  income_expense : IncExp.t;
-  stock_flow : StockFlow.t;
-  transactions_flow : Flow.t;
 }
 
 let initial ?config_home session =
@@ -193,17 +185,13 @@ let initial ?config_home session =
     settlement_path;
     settlements;
     settlement_scope = Stl.Open_only;
-    balances = Balances.create ();
+    screens = Screen_registry.create ();
     label_review = None;
     exchange_review = None;
     observe_draft = None;
     actual_workspace = Act.create ~focus_date:focus_day;
     drill_parent = None;
     drill_book = None;
-    pace = Pace.create ();
-    income_expense = IncExp.initial ();
-    stock_flow = StockFlow.initial ();
-    transactions_flow = Flow.initial ();
   }
 
 let has_record_draft state =
@@ -465,9 +453,9 @@ let open_route state route =
       sync_actual_to_workspace { state with actual_workspace }
     else state
   in
-  let pace = if route = W.Daily_pace then Pace.enter state.pace else state.pace in
   sync { state with workspace = W.enter state.workspace route; overlay = No_overlay; scroll = 0;
-                    drill_parent = None; drill_book = None; pace }
+                    drill_parent = None; drill_book = None;
+                    screens = Screen_registry.enter route state.screens }
 
 let selected state =
   if state.workspace.route = W.Actual then

@@ -28,33 +28,43 @@ module Trend = Daily_pace_trend
 module O = Daily_overlays
 module Balances = Balances_screen
 
-let balance_items (state : C.state) = Balances.items (X.balances_env state) state.balances
+let balance_items (state : C.state) = Balances.items (X.balances_env state) state.screens.balances
 
 module Pace = Daily_pace_screen
 
 let pace_detail_viewport ~dimensions ~width_of (state : C.state) =
-  Pace.detail_viewport (X.pace_env state) (X.screen_geometry ~dimensions ~width_of state) state.pace
+  Pace.detail_viewport (X.pace_env state) (X.screen_geometry ~dimensions ~width_of state) state.screens.pace
 
 let resolve_pace_pool (state : C.state) = Pace.resolve_pool (X.pace_env state)
 let resolve_pace_window (state : C.state) = Pace.resolve_window (X.pace_env state)
 let current_pace_result (state : C.state) = Pace.current_pace (X.pace_env state)
 
+let stock_flow_result (state : C.state) =
+  Stock_flow_screen.result (X.screen_env ~config_files:Stock_flow_screen.config_files state)
+    state.screens.stock_flow
+
 (* The Commands entry: the pool editor opens over the current route. *)
 let open_pool_editor (state : C.state) =
-  { state with C.pace = Pace.open_pool (X.pace_env state) state.pace }
+  { state with screens = { state.screens with pace = Pace.open_pool (X.pace_env state) state.screens.pace } }
 
 (* The modal form the user currently sees, whichever owner holds it; mirrors the
    view precedence so scenarios do not depend on where a form is stored. *)
 let visible_form (state : C.state) =
-  if Pace.modal state.pace then Pace.form state.pace
-  else if Balances.modal state.balances then Balances.form state.balances
+  if Pace.modal state.screens.pace then Pace.form state.screens.pace
+  else if Income_expense_screen.modal state.screens.income_expense then
+    Income_expense_screen.form state.screens.income_expense
+  else if Transactions_flow_screen.modal state.screens.transactions_flow then
+    Transactions_flow_screen.form state.screens.transactions_flow
+  else if Stock_flow_screen.modal state.screens.stock_flow then
+    Stock_flow_screen.form state.screens.stock_flow
+  else if Balances.modal state.screens.balances then Balances.form state.screens.balances
   else match state.overlay with C.Modal_form form -> Some form | _ -> None
 
 let visible_form_id state = Option.map Ui_form.id (visible_form state)
 
 (* Replace the visible form content, equivalent to typing into it. *)
 let with_visible_form (state : C.state) form =
-  if Pace.modal state.pace then { state with pace = Pace.with_form form state.pace }
+  if Pace.modal state.screens.pace then { state with screens = { state.screens with pace = Pace.with_form form state.screens.pace } }
   else match state.overlay with
     | C.Modal_form _ -> { state with overlay = C.Modal_form form }
     | _ -> raise (F.Refused "no-visible-form")
@@ -62,7 +72,7 @@ let with_visible_form (state : C.state) form =
 let b2_overlay_open (state : C.state) =
   (match state.C.overlay with
    | C.No_overlay ->
-       Balances.modal state.balances || Pace.modal state.pace
+       Balances.modal state.screens.balances || Pace.modal state.screens.pace
    | _ -> true)
 
 

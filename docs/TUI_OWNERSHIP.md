@@ -74,9 +74,8 @@ tokens (`Durable_append`, `open_out`, `Sys.rename`, `Daily_file`,
 migrated screen's form ids, field ids or configuration files; sources in a
 directory without a Dune stanza or outside a known layer; and `*_checks`
 modules that their runner never calls. `test/arch.t` creates one violation per
-rule and asserts the rejection message. A few literals still shared with
-unmigrated Shell workflows are listed in `legacy_shared_literals`; that list
-may only shrink.
+rule and asserts the rejection message. `legacy_shared_literals` (now empty) is the only
+escape hatch for a file shared with an unmigrated workflow; it may not grow.
 
 ## Tests
 

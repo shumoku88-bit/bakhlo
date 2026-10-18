@@ -9,6 +9,7 @@
   bakhlo_tui_protocol
   bakhlo_screen_balances
   bakhlo_screen_pace
+  bakhlo_screen_reports
   bakhlo.store
   bakhlo.domain
   bakhlo.application

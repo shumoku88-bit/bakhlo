@@ -371,104 +371,47 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay)) state = fun
       apply_request ~saved state request
 
 let pace_env state = screen_env ~config_files:Pace.config_files state
-
-let apply_pace ~dimensions ~width_of state (pace, request) =
-  apply_request { state with pace } request ~saved:(fun state result ->
-    let pace, request =
-      Pace.saved (pace_env state) (screen_geometry ~dimensions ~width_of state) result state.pace in
-    ({ state with pace }, request))
-
 let balances_env state = screen_env ~config_files:Balances.config_files state
 
-let apply_balances ~dimensions ~width_of state (balances, request) =
-  apply_request { state with balances } request ~saved:(fun state result ->
-    let balances, request =
-      Balances.saved (balances_env state) (screen_geometry ~dimensions ~width_of state) result
-        state.balances in
-    ({ state with balances }, request))
+(* Migrated screen owners through the registry. A screen with an open editor
+   takes all input but Ctrl-R; otherwise the route's owner sees input after the
+   Shell's Ctrl keys and returns Ignored for anything that is not its own. *)
+let apply_owner ~dimensions ~width_of (o : _ Screen_registry.owner) state (value, request) =
+  apply_request { state with screens = o.set state.screens value } request
+    ~saved:(fun state result ->
+      let value, request =
+        o.saved (screen_env ~config_files:o.config_files state)
+          (screen_geometry ~dimensions ~width_of state) result (o.get state.screens) in
+      ({ state with screens = o.set state.screens value }, request))
 
-(* Migrated screen owners. A screen with an open editor takes all input but
-   Ctrl-R; otherwise the route's owner sees input after the Shell's Ctrl keys
-   and returns Ignored for anything that is not its own. *)
+let owner_input ~dimensions ~width_of (Screen_registry.Owner o) state input =
+  let value, request =
+    o.handle (screen_env ~config_files:o.config_files state)
+      (screen_geometry ~dimensions ~width_of state) (o.get state.screens) input in
+  if request = Screen.Ignored then None
+  else Some (apply_owner ~dimensions ~width_of o state (value, request))
+
+let owner_view ~dimensions ~width_of (Screen_registry.Owner o) state =
+  o.view (screen_env ~config_files:o.config_files state)
+    (screen_geometry ~dimensions ~width_of state) (o.get state.screens)
+
 let modal_screen_input ~dimensions ~width_of state input =
-  let geometry = screen_geometry ~dimensions ~width_of state in
-  if Pace.modal state.pace then
-    Some (apply_pace ~dimensions ~width_of state
-      (Pace.handle (pace_env state) geometry state.pace input))
-  else if Balances.modal state.balances then
-    Some (apply_balances ~dimensions ~width_of state
-      (Balances.handle (balances_env state) geometry state.balances input))
-  else None
+  Option.bind (Screen_registry.modal state.screens) (fun owner ->
+    match owner_input ~dimensions ~width_of owner state input with
+    | Some state -> Some state
+    | None -> Some state)
 
 let route_screen_input ~dimensions ~width_of state input =
-  let geometry = screen_geometry ~dimensions ~width_of state in
-  let step apply (owner, request) =
-    if request = Screen.Ignored then None else Some (apply ~dimensions ~width_of state (owner, request))
-  in
-  match state.workspace.route with
-  | W.Daily_pace -> step apply_pace (Pace.handle (pace_env state) geometry state.pace input)
-  | W.Balances ->
-      step apply_balances (Balances.handle (balances_env state) geometry state.balances input)
-  | _ -> None
+  Option.bind (Screen_registry.for_route state.workspace.route) (fun owner ->
+    owner_input ~dimensions ~width_of owner state input)
 
 let modal_screen_view ~dimensions ~width_of state =
-  let geometry = screen_geometry ~dimensions ~width_of state in
-  if Pace.modal state.pace then Some (Pace.view (pace_env state) geometry state.pace)
-  else if Balances.modal state.balances then
-    Some (Balances.view (balances_env state) geometry state.balances)
-  else None
+  Option.map (fun owner -> owner_view ~dimensions ~width_of owner state)
+    (Screen_registry.modal state.screens)
 
 let route_screen_view ~dimensions ~width_of state =
-  let geometry = screen_geometry ~dimensions ~width_of state in
-  match state.workspace.route with
-  | W.Daily_pace -> Some (Pace.view (pace_env state) geometry state.pace)
-  | W.Balances -> Some (Balances.view (balances_env state) geometry state.balances)
-  | _ -> None
-
-let checked_report_period state preset offset =
-  match annual_unavailable state with
-  | Some why -> Error why
-  | None ->
-      Result.bind (read_pace_config state "boundary-presets.tsv") (fun boundary_presets_text ->
-        Result.bind (IncExp.resolve_period ~today:(F.today ()) ~preset ~offset ~boundary_presets_text)
-          (fun period ->
-            Result.bind (annual_history_bounds state) (function
-              | None -> Ok period
-              | Some (start_day, end_exclusive) ->
-                  if preset = IncExp.All_time then
-                    Ok { period with start_day; end_exclusive; label = "Selected linked annual history" }
-                  else if period.IncExp.start_day < start_day || period.end_exclusive > end_exclusive then
-                    Error "Requested period extends outside verified annual history. Open the required linked years."
-                  else Ok period)))
-let stock_flow_result state =
-  let parse_selection text =
-    let valid_token s =
-      s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
-    in
-    let rec rows acc = function
-      | [] -> Ok (List.rev acc)
-      | raw :: rest ->
-          let line = String.trim raw in
-          if line = "" || String.starts_with ~prefix:"#" line || String.starts_with ~prefix:";" line then
-            rows acc rest
-          else match String.split_on_char '\t' line with
-          | [locus; measure] when valid_token locus && valid_token measure ->
-              rows ((locus, measure) :: acc) rest
-          | _ -> Error "Invalid balance-view.tsv; no partial selection used."
-    in
-    rows [] (String.split_on_char '\n' text)
-  in
-  Result.bind (read_pace_config state "balance-view.tsv") (function
-    | None -> Error "Stock–Flow requires an explicit balance-view.tsv selection."
-    | Some text ->
-        Result.bind (parse_selection text) (fun tracked_coords ->
-          match tracked_coords with
-          | [] -> Error "Stock–Flow requires a nonempty balance-view.tsv selection."
-          | (_, measure) :: _ ->
-              Result.bind
-                (checked_report_period state state.stock_flow.preset state.stock_flow.period_offset)
-                (fun period -> StockFlow.compute_report ~book:state.session.book
-                   ~measure ~tracked_coords ~period)))
+  Option.map (fun owner -> owner_view ~dimensions ~width_of owner state)
+    (Screen_registry.for_route state.workspace.route)
 
 let config_lines text =
   String.split_on_char '\n' text |> List.filter (fun line ->
@@ -524,14 +467,15 @@ let open_command state = function
   | M.Transactions_flow -> open_route state W.Transactions_flow
   | M.Calendar -> open_route state W.Calendar
   | M.Pace_pool ->
-      { state with overlay = No_overlay; pace = Pace.open_pool (pace_env state) state.pace; message = "" }
+      { state with overlay = No_overlay; message = "";
+        screens = { state.screens with pace = Pace.open_pool (pace_env state) state.screens.pace } }
   | M.Cycle_boundaries ->
-      let pace, request = Pace.open_cycle (pace_env state) state.pace in
-      apply_request { state with overlay = No_overlay; pace } request
+      let pace, request = Pace.open_cycle (pace_env state) state.screens.pace in
+      apply_request { state with overlay = No_overlay; screens = { state.screens with pace } } request
   | M.Balance_display ->
       let state = open_route state W.Balances in
-      let balances, request = Balances.open_config (balances_env state) state.balances in
-      apply_request { state with balances } request
+      let balances, request = Balances.open_config (balances_env state) state.screens.balances in
+      apply_request { state with screens = { state.screens with balances } } request
   | M.Annual_rollover -> open_annual_rollover state
   | M.Theme ->
       let rec index i = function

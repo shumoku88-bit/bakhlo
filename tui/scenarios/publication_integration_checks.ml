@@ -132,17 +132,17 @@ let run ~width_of ~directory ~path (home : C.state) =
     | _ -> false)
     "balances-initial-selection-is-first-coordinate";
   let bal_detail_open = key ~width_of balances_view `Enter in
-  require (Balances.detail_focused bal_detail_open.balances) "balances-enter-opens-detail";
+  require (Balances.detail_focused bal_detail_open.screens.balances) "balances-enter-opens-detail";
   let bal_detail_back = key ~width_of bal_detail_open `Escape in
-  require (not (Balances.detail_focused bal_detail_back.balances) && bal_detail_back.workspace.route = W.Balances)
+  require (not (Balances.detail_focused bal_detail_back.screens.balances) && bal_detail_back.workspace.route = W.Balances)
     "balances-detail-escape-returns-to-list";
   let bal_end = key ~width_of balances_view `End in
   let count = List.length (balance_items balances_view) in
-  require (Balances.selected bal_end.C.balances = max 0 (count - 1)) "balances-end-selects-last-row";
+  require (Balances.selected bal_end.C.screens.balances = max 0 (count - 1)) "balances-end-selects-last-row";
   let bal_home = key ~width_of bal_end `Home in
-  require (Balances.selected bal_home.C.balances = 0) "balances-home-selects-first-row";
+  require (Balances.selected bal_home.C.screens.balances = 0) "balances-home-selects-first-row";
   let bal_page = key ~width_of bal_home (`Page `Down) in
-  require (Balances.selected bal_page.C.balances > 0 || count <= 1) "balances-page-down-moves-selection";
+  require (Balances.selected bal_page.C.screens.balances > 0 || count <= 1) "balances-page-down-moves-selection";
   let roles_path = directory ^ "/accounting-roles.tsv" in
   F.write_new roles_path "ROLE\twallet\tASSET\nROLE\tbank\tASSET\nROLE\tfood\tEXPENSE\n";
   let bal_with_roles = C.open_route { home with session = F.load path } W.Balances in
@@ -152,7 +152,7 @@ let run ~width_of ~directory ~path (home : C.state) =
     "balances-v-toggles-to-accounting-roles";
   let bal_restored_current = key ~width_of bal_accounting (`ASCII 'v') in
   require
-    (Balances.mode bal_restored_current.balances = `Current
+    (Balances.mode bal_restored_current.screens.balances = `Current
      && List.for_all (function O.Account_row _ -> true | _ -> false)
           (balance_items bal_restored_current))
     "balances-current-restores-neutral-coordinate-rows";
@@ -169,11 +169,11 @@ let run ~width_of ~directory ~path (home : C.state) =
   replace_balance_view "malformed row\n";
   let malformed = C.open_route (C.initial (F.load path)) W.Balances in
   require (contains (R.screen ~width_of (120,30) malformed) "Balance view unavailable"
-           && not (Balances.modal (key ~width_of malformed (`ASCII 'c')).balances)
+           && not (Balances.modal (key ~width_of malformed (`ASCII 'c')).C.screens.balances)
            && F.read bv_path = "malformed row\n")
     "balance-malformed-config-never-becomes-empty-selection";
   let malformed_print = key ~width_of malformed (`ASCII 'p') in
-  (match Balances.form malformed_print.balances with
+  (match Balances.form malformed_print.screens.balances with
    | Some f ->
        require (Ui_form.id f = "balance_print_refused")
          "balances-malformed-config-refuses-print"
@@ -182,13 +182,13 @@ let run ~width_of ~directory ~path (home : C.state) =
     "balances-refused-print-does-not-write-config";
   replace_balance_view "bank\tjpy\nwallet\tjpy\n";
   let bal_print = key ~width_of bal_custom_bv (`ASCII 'p') in
-  (match Balances.form bal_print.balances with
+  (match Balances.form bal_print.screens.balances with
    | Some f ->
        require (Ui_form.id f = "balance_print_preview") "balances-p-opens-print-preview";
        require (Ui_form.title f = "Balances / Print Preview") "balances-print-title"
    | None -> failwith "expected print preview modal");
   let bal_after_print = key ~width_of bal_print `Escape in
-  require (not (Balances.modal bal_after_print.balances)) "balances-print-escapes";
+  require (not (Balances.modal bal_after_print.screens.balances)) "balances-print-escapes";
   let items = balance_items bal_with_roles in
   let acct_idx =
     let rec find i = function
@@ -198,7 +198,7 @@ let run ~width_of ~directory ~path (home : C.state) =
     in
     find 0 items
   in
-  let bal_on_account = { bal_with_roles with balances = Balances.set_selected acct_idx bal_with_roles.balances } in
+  let bal_on_account = { bal_with_roles with screens = { bal_with_roles.screens with balances = Balances.set_selected acct_idx bal_with_roles.screens.balances } } in
   let bal_obs = key ~width_of bal_on_account (`ASCII 'o') in
   (match bal_obs.overlay with
    | C.Modal_form f ->

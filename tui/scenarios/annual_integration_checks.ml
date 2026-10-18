@@ -53,7 +53,7 @@ let annual_lifecycle_checks ~width_of ~directory () =
     "annual-overdue-plan-not-paid-exactly-once";
   require (not paid.record_visible) "annual-payment-draft-not-cleared";
   let current = C.initial ~config_home:directory reopened in
-  let period = get (X.checked_report_period current C.IncExp.All_time 0) in
+  let period = get (Report_period.checked (X.screen_env ~config_files:[ Report_period.boundary_file ] current) Income_expense_report.All_time 0) in
   require (period.start_day = Printf.sprintf "%04d-01-01" prior_year
            && period.end_exclusive = Printf.sprintf "%04d-01-01" (year + 1))
     "annual-selected-history-boundaries";

@@ -76,7 +76,7 @@ let forbidden_tokens =
 
 (* Literals still shared with legacy Shell workflows that have not moved to a
    screen owner yet. Migration debt: this list may only shrink. *)
-let legacy_shared_literals = [ "boundary-presets.tsv"; "balance-view.tsv" ]
+let legacy_shared_literals : string list = []
 
 type stanza = { kind : string; names : string list; libraries : string list; dir : string list }
 

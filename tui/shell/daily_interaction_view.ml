@@ -206,7 +206,7 @@ let workspace_rows ?route_view ~width_of ~width ~height state =
     | W.Selected_day day -> "Household Day Workspace / " ^ day
     | W.Actual -> "Actual"
     | W.Scheduled -> "Scheduled / List"
-    | W.Balances -> Balances.title state.balances
+    | W.Balances -> Balances.title state.screens.balances
     | W.Daily_pace -> "Daily Pace"
     | W.Income_expense -> "Income & Expense"
     | W.Transactions_flow -> "Transactions Flow"
@@ -315,91 +315,6 @@ let workspace_rows ?route_view ~width_of ~width ~height state =
       else detail_frame ~width ~height
   else if Option.is_some route_view then
     Lazy.force (Option.get route_view).Screen.rows
-  else if workspace.route = W.Income_expense then
-    let period_res = checked_report_period state state.income_expense.preset state.income_expense.period_offset in
-    let is_detail = workspace.pane = W.Detail in
-    let left_width, right_width = browser_pane_widths width in
-    match period_res with
-    | Ok period ->
-        let roles = accounting_roles state in
-        let rep = IncExp.compute_report ~book:state.session.book ~roles ~period in
-        let left_title = Printf.sprintf "Income & Expense • %s" (IncExp.preset_label state.income_expense.preset) in
-        let right_title = "Report Details & Formulas" in
-        let left_rows = List.map snd (IncExp.render_report_lines ~width:(max 0 (left_width - 4)) ~width_of ~book:state.session.book ~report:rep) in
-        let detail_rows = List.map snd (IncExp.render_detail_lines ~width:(max 0 (right_width - 6)) ~width_of ~book:state.session.book ~report:rep ~selected_row:0) in
-        let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail_rows in
-        split_pane
-          ~left_focused:(not is_detail) ~left_title ~left_scroll:(if not is_detail then state.scroll else 0)
-          ~left_selected:None ~left_rows
-          ~right_focused:is_detail ~right_title
-          ~right_scroll:(if is_detail then state.scroll else 0)
-          ~right_selected:None ~right_rows:wrapped_detail ()
-    | Error why ->
-        let left_title = "Income & Expense" in
-        let right_title = "Period Unavailable" in
-        let left_rows = [ tr "Report period unavailable:"; why; "Supply an explicit boundary-presets.tsv or choose Month / Year." ] in
-        let wrapped_left = List.concat_map (O.wrap_text ~width_of (max 1 (left_width - 6))) left_rows in
-        split_pane
-          ~left_focused:(not is_detail) ~left_title ~left_scroll:0
-          ~left_selected:None ~left_rows:wrapped_left
-          ~right_focused:is_detail ~right_title
-          ~right_scroll:0 ~right_selected:None ~right_rows:[ why ] ()
-  else if workspace.route = W.Transactions_flow then
-    let period_res = checked_report_period state state.transactions_flow.preset state.transactions_flow.period_offset in
-    let is_detail = workspace.pane = W.Detail in
-    let left_width, right_width = browser_pane_widths width in
-    match period_res with
-    | Ok period ->
-        let rep = Flow.compute_report ~book:state.session.book ~period in
-        let selected_row = min (max 0 (List.length rep.rows - 1)) state.transactions_flow.selected_row in
-        let left_title = Printf.sprintf "Transactions Flow • %s" (IncExp.preset_label state.transactions_flow.preset) in
-        let right_title = "Flow Detail & Transactions" in
-        let left_rows = List.map snd (Flow.render_summary_lines ~width:(max 0 (left_width - 4)) ~width_of ~book:state.session.book ~report:rep ~selected_row) in
-        let detail_rows = List.map snd (Flow.render_detail_lines ~width:(max 0 (right_width - 6)) ~width_of ~book:state.session.book ~report:rep ~selected_row) in
-        let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail_rows in
-        split_pane
-          ~left_focused:(not is_detail) ~left_title ~left_scroll:(if not is_detail then state.scroll else 0)
-          ~left_selected:None ~left_rows
-          ~right_focused:is_detail ~right_title
-          ~right_scroll:(if is_detail then state.scroll else 0)
-          ~right_selected:None ~right_rows:wrapped_detail ()
-    | Error why ->
-        let left_title = "Transactions Flow" in
-        let right_title = "Period Unavailable" in
-        let left_rows = [ tr "Report period unavailable:"; why; "Supply an explicit boundary-presets.tsv or choose Month / Year." ] in
-        let wrapped_left = List.concat_map (O.wrap_text ~width_of (max 1 (left_width - 6))) left_rows in
-        split_pane
-          ~left_focused:(not is_detail) ~left_title ~left_scroll:0
-          ~left_selected:None ~left_rows:wrapped_left
-          ~right_focused:is_detail ~right_title
-          ~right_scroll:0 ~right_selected:None ~right_rows:[ why ] ()
-  else if workspace.route = W.Stock_flow then
-    let rep_res = stock_flow_result state in
-    let is_detail = workspace.pane = W.Detail in
-    let left_width, right_width = browser_pane_widths width in
-    match rep_res with
-    | Ok rep ->
-        let left_title = Printf.sprintf "Stock–Flow • %s (%s)" (IncExp.preset_label state.stock_flow.preset) rep.measure in
-        let right_title = "Principles & Evidence" in
-        let left_rows = List.map snd (StockFlow.render_summary_lines ~width:(max 0 (left_width - 4)) ~width_of ~book:state.session.book ~report:rep) in
-        let detail_rows = List.map snd (StockFlow.render_detail_lines ~width:(max 0 (right_width - 6)) ~width_of ~book:state.session.book ~report:rep) in
-        let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail_rows in
-        split_pane
-          ~left_focused:(not is_detail) ~left_title ~left_scroll:(if not is_detail then state.scroll else 0)
-          ~left_selected:None ~left_rows
-          ~right_focused:is_detail ~right_title
-          ~right_scroll:(if is_detail then state.scroll else 0)
-          ~right_selected:None ~right_rows:wrapped_detail ()
-    | Error why ->
-        let left_title = "Stock–Flow" in
-        let right_title = "Stock–Flow Unavailable" in
-        let left_rows = [ tr "Stock–Flow unavailable:"; why; "Review balance coordinates and boundary presets." ] in
-        let wrapped_left = List.concat_map (O.wrap_text ~width_of (max 1 (left_width - 6))) left_rows in
-        split_pane
-          ~left_focused:(not is_detail) ~left_title ~left_scroll:0
-          ~left_selected:None ~left_rows:wrapped_left
-          ~right_focused:is_detail ~right_title
-          ~right_scroll:0 ~right_selected:None ~right_rows:[ why ] ()
   else if workspace.route = W.Attention then
     let items = open_attentions state in
     let left_title = match state.attention with
@@ -747,18 +662,6 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
          | Some W.Actual -> "Space Commands  q/Esc Actual  Ctrl-r reload"
          | _ -> "Space Commands  q/Esc Home  Ctrl-r reload");
       ]
-  | W.Income_expense, W.Calendar ->
-      [ "1-5 period  [ / ] shift  p print  Tab detail  r Record"; "Space Commands  q/Esc Home  Ctrl-r reload" ]
-  | W.Income_expense, W.Detail ->
-      [ "j/k scroll  Tab report  p print  q/Esc back to report  r Record"; "Space Commands  Ctrl-r reload" ]
-  | W.Transactions_flow, W.Calendar ->
-      [ "1-5 period  [ / ] shift  j/k row  p print  Tab detail  r Record"; "Space Commands  q/Esc Home  Ctrl-r reload" ]
-  | W.Transactions_flow, W.Detail ->
-      [ "j/k scroll  Tab report  p print  q/Esc back to report  r Record"; "Space Commands  Ctrl-r reload" ]
-  | W.Stock_flow, W.Calendar ->
-      [ "1-5 period  [ / ] shift  p print  Tab detail  r Record"; "Space Commands  q/Esc Home  Ctrl-r reload" ]
-  | W.Stock_flow, W.Detail ->
-      [ "j/k scroll  Tab report  p print  q/Esc back to report  r Record"; "Space Commands  Ctrl-r reload" ]
   | W.Attention, W.Calendar ->
       [
         "n new  r resolve  x drop  j/k select  Enter/Tab detail";

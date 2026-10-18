@@ -24,18 +24,18 @@ let run ~width_of ~directory (back_home : C.state) =
   let wide_shifted = R.screen ~width_of (120, 30) ie_shifted in
   require (contains wide_shifted "Income & Expense") "income-expense-bracket-shift";
   let ie_detail = key ~width_of ie_ctl `Enter in
-  require (ie_detail.workspace.pane = W.Detail) "income-expense-enter-opens-detail";
+  require (Income_expense_screen.detail_focused ie_detail.C.screens.income_expense) "income-expense-enter-opens-detail";
   let ie_back_report = key ~width_of ie_detail `Escape in
-  require (ie_back_report.workspace.pane = W.Calendar && ie_back_report.workspace.route = W.Income_expense)
+  require (not (Income_expense_screen.detail_focused ie_back_report.C.screens.income_expense) && ie_back_report.workspace.route = W.Income_expense)
     "income-expense-esc-returns-to-report";
   let ie_print = key ~width_of ie_ctl (`ASCII 'p') in
-  (match ie_print.overlay with
-   | C.Modal_form f ->
+  (match visible_form ie_print with
+   | Some f ->
        require (Ui_form.id f = "income_expense_print_preview") "ie-p-opens-print-preview";
        require (Ui_form.title f = "Income & Expense / Print Preview") "ie-print-title"
-   | _ -> failwith "expected ie print preview modal");
+   | None -> failwith "expected ie print preview modal");
   let ie_after_print = key ~width_of ie_print `Escape in
-  require (ie_after_print.overlay = C.No_overlay) "ie-print-escapes";
+  require (ie_after_print.overlay = C.No_overlay && visible_form ie_after_print = None) "ie-print-escapes";
   let ie_back_home = key ~width_of ie_ctl (`ASCII 'q') in
   require (ie_back_home.workspace.route = W.Home) "ie-q-back-to-home";
   (* Test Transactions Flow report with Cycle / Month / Year / All-Time *)
@@ -67,23 +67,23 @@ let run ~width_of ~directory (back_home : C.state) =
   require (contains (R.screen ~width_of (120, 36) flow_shift_fwd) "Month of 2026-10") "flow-shift-fwd";
   (* Selection navigation with j/k *)
   let flow_j = key ~width_of flow_all (`ASCII 'j') in
-  require (flow_j.transactions_flow.selected_row >= 0) "flow-j-moves-row";
+  require (Transactions_flow_screen.selected_row flow_j.C.screens.transactions_flow >= 0) "flow-j-moves-row";
   let flow_k = key ~width_of flow_j (`ASCII 'k') in
-  require (flow_k.transactions_flow.selected_row = 0) "flow-k-moves-row-back";
+  require (Transactions_flow_screen.selected_row flow_k.C.screens.transactions_flow = 0) "flow-k-moves-row-back";
   (* Detail toggle with Tab *)
   let flow_tab = key ~width_of flow_all `Tab in
-  require (flow_tab.workspace.pane = W.Detail) "flow-tab-toggles-detail";
+  require (Transactions_flow_screen.detail_focused flow_tab.C.screens.transactions_flow) "flow-tab-toggles-detail";
   let flow_tab_back = key ~width_of flow_tab `Tab in
-  require (flow_tab_back.workspace.pane = W.Calendar) "flow-tab-toggles-calendar";
+  require (not (Transactions_flow_screen.detail_focused flow_tab_back.C.screens.transactions_flow)) "flow-tab-toggles-calendar";
   (* p opens print preview modal *)
   let flow_print = key ~width_of flow_all (`ASCII 'p') in
-  (match flow_print.overlay with
-   | C.Modal_form f ->
+  (match visible_form flow_print with
+   | Some f ->
        require (Ui_form.id f = "transactions_flow_print_preview") "flow-p-opens-print-preview";
        require (Ui_form.title f = "Transactions Flow / Print Preview") "flow-print-title"
-   | _ -> failwith "expected flow print preview modal");
+   | None -> failwith "expected flow print preview modal");
   let flow_after_print = key ~width_of flow_print `Escape in
-  require (flow_after_print.overlay = C.No_overlay) "flow-print-escapes";
+  require (flow_after_print.overlay = C.No_overlay && visible_form flow_after_print = None) "flow-print-escapes";
   let flow_back_home = key ~width_of flow_ctl (`ASCII 'q') in
   require (flow_back_home.workspace.route = W.Home) "flow-q-back-to-home";
   let sf_dir = directory ^ "/stock-flow" in
@@ -97,9 +97,9 @@ let run ~width_of ~directory (back_home : C.state) =
     F.write_new bv_path bytes
   in
   let refused () =
-    require (Result.is_error (X.stock_flow_result sf_ctl)) "sf-invalid-evidence-refuses";
+    require (Result.is_error (stock_flow_result sf_ctl)) "sf-invalid-evidence-refuses";
     let printed = key ~width_of sf_ctl (`ASCII 'p') in
-    require (printed.overlay = C.No_overlay && printed.message <> "")
+    require (printed.overlay = C.No_overlay && visible_form printed = None && printed.message <> "")
       "sf-invalid-evidence-cannot-print-numeric-report"
   in
   refused ();
@@ -107,13 +107,13 @@ let run ~width_of ~directory (back_home : C.state) =
     ["bank\tjpy\n"; "wallet\tjpy\n"; "food\tjpy\nbad-row\n";
      "food\tjpy\nwallet\teur\n"; "food\tjpy\nfood\tjpy\n"; ""];
   configure "food\tjpy\n";
-  let report = get (X.stock_flow_result sf_ctl) in
+  let report = get (stock_flow_result sf_ctl) in
   require (report.measure = "jpy" && Z.equal report.reconstructed_start Z.zero
            && Z.equal report.reconstructed_end Z.zero)
     "sf-explicit-zero-origin-boundaries";
   let detail = key ~width_of sf_ctl `Tab in
   let returned = key ~width_of detail `Escape in
-  require (returned.workspace.route = W.Stock_flow && returned.workspace.pane = W.Calendar)
+  require (returned.workspace.route = W.Stock_flow && not (Stock_flow_screen.detail_focused returned.C.screens.stock_flow))
     "sf-detail-return-retains-report";
   let sf_back_home = key ~width_of returned (`ASCII 'q') in
   require (sf_back_home.workspace.route = W.Home) "sf-report-return-home";

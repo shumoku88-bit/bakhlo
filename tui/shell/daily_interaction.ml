@@ -41,7 +41,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                else
                  apply_commit_result state ~draft
                    (A.commit_payload ~session:state.session ~base_bytes payload)))
-  else if Pace.modal state.pace || Balances.modal state.balances then
+  else if Option.is_some (Screen_registry.modal state.screens) then
     match input with
     | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
     | _ -> modal_screen_input ~dimensions ~width_of state input
@@ -740,7 +740,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some ((`Escape | `ASCII 'q'), []) ->
             if state.workspace.route = W.Loci || state.workspace.route = W.Settlements then
               Some (open_route state W.Home)
-            else if state.workspace.route = W.Attention || state.workspace.route = W.Income_expense || state.workspace.route = W.Transactions_flow || state.workspace.route = W.Stock_flow then
+            else if state.workspace.route = W.Attention then
               if state.workspace.pane = W.Detail then
                 Some { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
               else Some (open_route state W.Home)
@@ -768,77 +768,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                      })
               else Some (open_route state W.Home)
             else Some (back state)
-        | Some (`ASCII ('1' .. '5' as c), []) when state.workspace.route = W.Income_expense ->
-            let preset = match c with
-              | '1' -> IncExp.Month
-              | '2' -> IncExp.Cycle
-              | '3' -> IncExp.Previous_cycle
-              | '4' -> IncExp.Year
-              | _ -> IncExp.All_time in
-            Some { state with income_expense = { state.income_expense with preset; period_offset = 0 }; scroll = 0 }
-        | Some (`ASCII ('[' | ']'), []) when state.workspace.route = W.Income_expense ->
-            let delta = if fst (Option.get key) = `ASCII '[' then -1 else 1 in
-            Some { state with income_expense = { state.income_expense with period_offset = state.income_expense.period_offset + delta }; scroll = 0 }
-        | Some (`ASCII 'p', []) when state.workspace.route = W.Income_expense ->
-            (match checked_report_period state state.income_expense.preset state.income_expense.period_offset with
-             | Error why -> Some { state with message = why }
-             | Ok period ->
-                 let roles = accounting_roles state in
-                 let rep = IncExp.compute_report ~book:state.session.book ~roles ~period in
-                 let lines = IncExp.print_summary ~book:state.session.book ~report:rep in
-                 let form = Form.create ~id:"income_expense_print_preview" ~title:(tr "Income & Expense / Print Preview")
-                   ~summary:lines ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ] () in
-                 Some { state with overlay = Modal_form form })
-        | Some ((`Enter | `ASCII 'i' | `Tab | `ASCII 'w'), []) when state.workspace.route = W.Income_expense ->
-            Some { state with workspace = { state.workspace with pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) }; scroll = 0 }
-        | Some (`ASCII ('1' .. '5' as c), []) when state.workspace.route = W.Transactions_flow ->
-            let preset = match c with
-              | '1' -> IncExp.Month
-              | '2' -> IncExp.Cycle
-              | '3' -> IncExp.Previous_cycle
-              | '4' -> IncExp.Year
-              | '5' -> IncExp.All_time
-              | _ -> IncExp.Month
-            in
-            Some { state with transactions_flow = { state.transactions_flow with preset; period_offset = 0; selected_row = 0 }; scroll = 0 }
-        | Some (`ASCII ('[' | ']'), []) when state.workspace.route = W.Transactions_flow ->
-            let delta = if fst (Option.get key) = `ASCII '[' then -1 else 1 in
-            Some { state with transactions_flow = { state.transactions_flow with period_offset = state.transactions_flow.period_offset + delta; selected_row = 0 }; scroll = 0 }
-        | Some (`ASCII 'p', []) when state.workspace.route = W.Transactions_flow ->
-            (match checked_report_period state state.transactions_flow.preset state.transactions_flow.period_offset with
-             | Error why -> Some { state with message = why }
-             | Ok period ->
-                 let rep = Flow.compute_report ~book:state.session.book ~period in
-                 let lines = Flow.print_summary ~book:state.session.book ~report:rep in
-                 let form = Form.create ~id:"transactions_flow_print_preview" ~title:(tr "Transactions Flow / Print Preview")
-                   ~summary:lines ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ] () in
-                 Some { state with overlay = Modal_form form })
-        | Some ((`Enter | `ASCII 'i' | `Tab | `ASCII 'w'), []) when state.workspace.route = W.Transactions_flow ->
-            Some { state with workspace = { state.workspace with pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) }; scroll = 0 }
-        | Some (`ASCII ('1' .. '5' as c), []) when state.workspace.route = W.Stock_flow ->
-            let preset = match c with
-              | '1' -> IncExp.Month
-              | '2' -> IncExp.Cycle
-              | '3' -> IncExp.Previous_cycle
-              | '4' -> IncExp.Year
-              | '5' -> IncExp.All_time
-              | _ -> IncExp.Month
-            in
-            Some { state with stock_flow = { preset; period_offset = 0 }; scroll = 0 }
-        | Some (`ASCII ('[' | ']'), []) when state.workspace.route = W.Stock_flow ->
-            let delta = if fst (Option.get key) = `ASCII '[' then -1 else 1 in
-            Some { state with stock_flow = { state.stock_flow with period_offset = state.stock_flow.period_offset + delta }; scroll = 0 }
-        | Some (`ASCII 'p', []) when state.workspace.route = W.Stock_flow ->
-            (match stock_flow_result state with
-             | Ok rep ->
-                 let lines = StockFlow.print_summary ~book:state.session.book ~report:rep in
-                 let form = Form.create ~id:"stock_flow_print_preview" ~title:(tr "Stock–Flow / Print Preview")
-                   ~summary:lines ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ] () in
-                 Some { state with overlay = Modal_form form }
-             | Error why ->
-                 Some { state with message = why })
-        | Some ((`Enter | `ASCII 'i' | `Tab | `ASCII 'w'), []) when state.workspace.route = W.Stock_flow ->
-            Some { state with workspace = { state.workspace with pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) }; scroll = 0 }
         | Some ((`Enter | `ASCII 'i' | `Tab | `ASCII 'w'), []) when state.workspace.route = W.Attention ->
             Some { state with workspace = { state.workspace with pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) }; scroll = 0 }
         | Some (`ASCII 'b', []) when (match state.workspace.route with
@@ -1029,13 +958,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               Some (move_locus state delta)
             else if state.workspace.route = W.Settlements then
               Some (move_settlement state delta)
-            else if state.workspace.route = W.Stock_flow then
-              Some { state with scroll = Panel.move ~last:max_int ~position:state.scroll delta }
-            else if state.workspace.route = W.Transactions_flow then
-              if state.workspace.pane = W.Detail then
-                Some { state with scroll = max 0 (state.scroll + delta) }
-              else
-                Some { state with transactions_flow = { state.transactions_flow with selected_row = max 0 (state.transactions_flow.selected_row + delta) }; scroll = 0 }
             else
               Some
                 {
@@ -1050,16 +972,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               | _ -> 1
             in
             let step = delta * max 1 (snd dimensions - 8) in
-            if state.workspace.route = W.Income_expense then
-              Some { state with scroll = max 0 (state.scroll + step) }
-            else if state.workspace.route = W.Transactions_flow then
-              if state.workspace.pane = W.Detail then
-                Some { state with scroll = max 0 (state.scroll + step) }
-              else
-                Some { state with transactions_flow = { state.transactions_flow with selected_row = max 0 (state.transactions_flow.selected_row + step) }; scroll = 0 }
-            else if state.workspace.route = W.Stock_flow then
-              Some { state with scroll = max 0 (state.scroll + step) }
-            else if state.workspace.route = W.Attention then
+            if state.workspace.route = W.Attention then
               if state.workspace.pane = W.Detail then
                 Some { state with scroll = max 0 (state.scroll + step) }
               else
@@ -1077,16 +990,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 }
             else Some { state with scroll = max 0 (state.scroll + step) }
         | Some (`Home, []) ->
-            if state.workspace.route = W.Income_expense then
-              Some { state with scroll = 0 }
-            else if state.workspace.route = W.Transactions_flow then
-              if state.workspace.pane = W.Detail then
-                Some { state with scroll = 0 }
-              else
-                Some { state with transactions_flow = { state.transactions_flow with selected_row = 0 }; scroll = 0 }
-            else if state.workspace.route = W.Stock_flow then
-              Some { state with scroll = 0 }
-            else if state.workspace.route = W.Attention then
+            if state.workspace.route = W.Attention then
               if state.workspace.pane = W.Detail then
                 Some { state with scroll = 0 }
               else
@@ -1099,16 +1003,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                   workspace = W.move_selection ~book:state.session.book state.workspace (-max_int);
                 }
         | Some (`End, []) ->
-            if state.workspace.route = W.Income_expense then
-              Some { state with scroll = max_int / 4 }
-            else if state.workspace.route = W.Transactions_flow then
-              if state.workspace.pane = W.Detail then
-                Some { state with scroll = max_int / 4 }
-              else
-                Some { state with transactions_flow = { state.transactions_flow with selected_row = max_int / 4 }; scroll = 0 }
-            else if state.workspace.route = W.Stock_flow then
-              Some { state with scroll = max_int / 4 }
-            else if state.workspace.route = W.Attention then
+            if state.workspace.route = W.Attention then
               if state.workspace.pane = W.Detail then
                 Some { state with scroll = max_int / 4 }
               else
