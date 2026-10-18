@@ -3099,6 +3099,19 @@ let balance_display_checks ~width_of ~directory () =
   let current = key ~width_of accounting (`ASCII 'v') in
   require (coordinate accounting = Some ("wallet", "eur") && coordinate current = Some ("wallet", "eur"))
     "balance-mode-switch-keeps-exact-coordinate-not-header";
+  List.iter (fun dimensions ->
+    let head = key ~dimensions ~width_of accounting `Home in
+    let rec painted_capacity inside count = function
+      | [] -> count
+      | (_, row) :: rest ->
+          if inside && String.starts_with ~prefix:"╰" row then count
+          else if inside then painted_capacity true (count + 1) rest
+          else painted_capacity (String.starts_with ~prefix:"╭" row) count rest in
+    let capacity = painted_capacity false 0 (C.screen ~width_of dimensions head) in
+    let next = key ~dimensions ~width_of head (`Page `Down) in
+    require (next.workspace.balance_selected = min capacity (List.length (C.balance_items head) - 1))
+      "balance-page-matches-actual-painted-list-capacity")
+    [(120,36); (80,24); (48,14); (32,9)];
   let medium_rows = C.screen ~width_of (80, 24) view in
   require (not (List.exists (function C.Columns _, _ -> true | _ -> false) medium_rows)
     && has (String.concat "\n" (List.map snd medium_rows)) "+74,500 jpy")
@@ -3112,6 +3125,11 @@ let balance_display_checks ~width_of ~directory () =
     let at_end = key ~dimensions ~width_of detail `End in
     let up = key ~dimensions ~width_of at_end (`Arrow `Up) in
     let _, viewport = C.balance_viewport ~dimensions ~width_of detail in
+    let page = key ~dimensions ~width_of detail (`Page `Down) in
+    let stepped = List.fold_left (fun state _ -> key ~dimensions ~width_of state (`ASCII 'j'))
+        detail (List.init viewport.capacity Fun.id) in
+    require (C.screen ~width_of dimensions page = C.screen ~width_of dimensions stepped)
+      "balance-detail-page-matches-visible-capacity";
     if viewport.last > 0 then require
       (C.screen ~width_of dimensions up <> C.screen ~width_of dimensions at_end)
       "balance-end-up-moves-visible-detail";

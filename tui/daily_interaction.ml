@@ -3231,8 +3231,14 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             if state.workspace.route = W.Balances then
               if state.workspace.pane = W.Detail then
                 let _, view = balance_viewport ~dimensions ~width_of state in
-                Some { state with scroll = Panel.move ~last:view.last ~position:view.start step }
+                Some { state with scroll = Panel.move ~last:view.last ~position:view.start
+                  (delta * max 1 view.capacity) }
               else
+                let _, body = body_dimensions ~dimensions ~width_of state in
+                let height = max 0 (body - 2) in
+                let stacked = fst dimensions >= 72 && fst dimensions < 120 && height >= 18 in
+                let list_height = if stacked then height / 2 else height in
+                let step = delta * max 1 (Panel.capacity ~height:list_height ~heading:false) in
                 let count = List.length (balance_items state) in
                 let current = state.workspace.balance_selected in
                 Some { state with workspace = { state.workspace with
