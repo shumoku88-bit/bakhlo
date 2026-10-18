@@ -228,6 +228,116 @@ let%test_unit "records_codec opaque fields and records preservation" =
   assert (String.is_substring reserialized ~substring:"custom-extension");
   assert (String.is_substring reserialized ~substring:"plugin-configuration")
 
+let%test_unit "records_to_daily fail-closed rejection of uninterpreted extensions and opaque frames" =
+  let opaque_elem = X.List [ X.Atom "custom-extension"; X.Atom "payload-data" ] in
+  let make_base_header ?(opaque = []) () : RB.header =
+    {
+      version = 1;
+      measures = [ ("jpy", 0) ];
+      labels = None;
+      approved_loci = None;
+      origins = [];
+      openings = [];
+      observations = [];
+      presence = None;
+      opaque;
+    }
+  in
+  let test_rejection make_frame expected_err =
+    let h = make_base_header () in
+    let f0 = RB.encode_frame 0 (RB.Header h) in
+    let f1 = make_frame () in
+    let bytes = RB.serialize_frame f0 ^ "\n" ^ RB.serialize_frame f1 ^ "\n" in
+    let rb = match RB.of_string bytes with Ok b -> b | Error e -> failwith e in
+    (match DB.of_records rb with
+    | Error err -> assert (String.equal err expected_err)
+    | Ok _ -> failwith ("Expected rejection with " ^ expected_err));
+    (match DB.of_string bytes with
+    | Error err -> assert (String.equal err expected_err)
+    | Ok _ -> failwith ("Expected rejection with " ^ expected_err))
+  in
+  (* 1. Header opaque *)
+  let h_opaque = make_base_header ~opaque:[ opaque_elem ] () in
+  let f0_opaque = RB.encode_frame 0 (RB.Header h_opaque) in
+  let bytes_h = RB.serialize_frame f0_opaque ^ "\n" in
+  let rb_h = match RB.of_string bytes_h with Ok b -> b | Error e -> failwith e in
+  (match DB.of_records rb_h with
+  | Error err -> assert (String.equal err "unsupported-opaque-header")
+  | Ok _ -> failwith "Expected unsupported-opaque-header");
+  (match DB.of_string bytes_h with
+  | Error err -> assert (String.equal err "unsupported-opaque-header")
+  | Ok _ -> failwith "Expected unsupported-opaque-header");
+  (* 2. Opaque frame *)
+  test_rejection
+    (fun () -> RB.encode_frame 1 (RB.Opaque opaque_elem))
+    "unsupported-opaque-frame";
+  (* 3. Entry opaque *)
+  test_rejection
+    (fun () ->
+      let e : RB.entry =
+        {
+          id = "e1";
+          day = "2026-10-02";
+          token = None;
+          memo = None;
+          effects = [ posting "wallet" "jpy" (-100) None; posting "food" "jpy" 100 None ];
+          reversal_of = None;
+          exchange = None;
+          original_amount = None;
+          merchant = None;
+          opaque = [ opaque_elem ];
+        }
+      in
+      RB.encode_frame 1 (RB.Entry e))
+    "unsupported-opaque-entry";
+  (* 4. Plan opaque *)
+  test_rejection
+    (fun () ->
+      let p : RB.plan =
+        {
+          id = "p1";
+          day = "2026-10-10";
+          measure = "jpy";
+          changes = [ ("wallet", Z.of_int (-200)); ("food", Z.of_int 200) ];
+          paid_by = None;
+          cancelled_on = None;
+          opaque = [ opaque_elem ];
+        }
+      in
+      RB.encode_frame 1 (RB.Plan p))
+    "unsupported-opaque-plan";
+  (* 5. Observation opaque *)
+  test_rejection
+    (fun () ->
+      let o : RB.observation =
+        {
+          id = None;
+          reflected_roots = [];
+          quantities = [ ("wallet", "jpy", Z.of_int 1000) ];
+          opaque = [ opaque_elem ];
+        }
+      in
+      RB.encode_frame 1 (RB.Observation o))
+    "unsupported-opaque-observation";
+  (* 6. Origin opaque *)
+  test_rejection
+    (fun () ->
+      let orig : RB.origin =
+        {
+          token = "tok1";
+          event_id = "e1";
+          opaque = [ opaque_elem ];
+        }
+      in
+      RB.encode_frame 1 (RB.Origin orig))
+    "unsupported-opaque-origin";
+  (* 7. Add_locus opaque *)
+  test_rejection
+    (fun () ->
+      let al : RB.add_locus = { locus = "bank"; opaque = [ opaque_elem ] } in
+      RB.encode_frame 1 (RB.Add_locus al))
+    "unsupported-opaque-add-locus"
+
 let%test_unit "records_codec multicurrency, reversal, and exchange semantics" =
   let base = get (DB.of_string base_fixture) in
   let base = get (DB.put_entry base ~replace:false (make_entry "e1" "2026-10-02" 10000) ~plan:None) in

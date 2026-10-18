@@ -529,6 +529,24 @@ let source_format_of_string bytes =
 let of_records (rb : Records_book.t) =
   protect (fun () ->
       let h = Records_book.header rb in
+      require (h.opaque = []) "unsupported-opaque-header";
+      List.iter
+        (fun (f : Records_book.frame) ->
+          match f.payload with
+          | Records_book.Opaque _ -> raise (Refused "unsupported-opaque-frame")
+          | Records_book.Header h2 ->
+              require (h2.opaque = []) "unsupported-opaque-header"
+          | Records_book.Entry e ->
+              require (e.opaque = []) "unsupported-opaque-entry"
+          | Records_book.Plan p ->
+              require (p.opaque = []) "unsupported-opaque-plan"
+          | Records_book.Observation o ->
+              require (o.opaque = []) "unsupported-opaque-observation"
+          | Records_book.Origin orig ->
+              require (orig.opaque = []) "unsupported-opaque-origin"
+          | Records_book.Add_locus al ->
+              require (al.opaque = []) "unsupported-opaque-add-locus")
+        (Records_book.frames rb);
       let approved =
         let init = match h.approved_loci with None -> [] | Some xs -> xs in
         let added = Records_book.added_loci rb in
