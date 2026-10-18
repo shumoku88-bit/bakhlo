@@ -7,7 +7,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
   let directory = directory ^ "/daily-pace-fail-closed" in
   Unix.mkdir directory 0o700;
   let path = directory ^ "/book.sexp" in
-  F.create_copy ~source:"examples/daily-book.sexp" ~target:path;
+  F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let home = C.initial ~config_home:directory (F.load path) in
   let pool_path = directory ^ "/daily-pace.tsv" in
   let windows_path = directory ^ "/boundary-presets.tsv" in
@@ -527,7 +527,7 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   let directory = directory ^ "/daily-pace-selection" in
   Unix.mkdir directory 0o700;
   let path = directory ^ "/book.sexp" in
-  F.create_copy ~source:"examples/daily-book.sexp" ~target:path;
+  F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let home = C.initial ~config_home:directory (F.load path) in
   let today = F.today () in
   let stop = get (Cal.shift_days today 7) in
@@ -642,7 +642,7 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   let bare = directory ^ "/bare" in
   Unix.mkdir bare 0o700;
   let bare_path = bare ^ "/book.sexp" in
-  F.create_copy ~source:"examples/daily-book.sexp" ~target:bare_path;
+  F.create_copy ~source:Interaction_check_fixture.example_book ~target:bare_path;
   let bare_home = C.initial ~config_home:bare (F.load bare_path) in
   let missing = C.open_route { bare_home with session = F.load bare_path } W.Daily_pace in
   let clean text =
@@ -872,7 +872,7 @@ let pool_review_checks ~width_of ~directory () =
   let directory = directory ^ "/pool-review" in
   Unix.mkdir directory 0o700;
   let path = directory ^ "/book.sexp" in
-  F.create_copy ~source:"examples/daily-book.sexp" ~target:path;
+  F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let pool_path = directory ^ "/daily-pace.tsv" in
   let windows_path = directory ^ "/boundary-presets.tsv" in
   let before = "wallet\tjpy\n" and after = "bank\tjpy\n" in

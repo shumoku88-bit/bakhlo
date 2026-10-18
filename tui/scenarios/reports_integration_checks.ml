@@ -89,7 +89,7 @@ let run ~width_of ~directory (back_home : C.state) =
   let sf_dir = directory ^ "/stock-flow" in
   Unix.mkdir sf_dir 0o700;
   let sf_path = sf_dir ^ "/book.sexp" in
-  F.create_copy ~source:"examples/daily-book.sexp" ~target:sf_path;
+  F.create_copy ~source:Interaction_check_fixture.example_book ~target:sf_path;
   let sf_ctl = C.open_route (C.initial ~config_home:sf_dir (F.load sf_path)) W.Stock_flow in
   let bv_path = sf_dir ^ "/balance-view.tsv" in
   let configure bytes =

@@ -46,7 +46,7 @@ let quantity book locus measure =
 let self_check () =
   let directory = "scratch/recovery-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
-  let wire = F.read "examples/daily-book.sexp" in
+  let wire = F.read Interaction_check_fixture.example_book in
   let base = get (B.of_string wire) in
   let huge = Z.of_string "12345678901234567890123456789012" in
   let posting measure locus amount =

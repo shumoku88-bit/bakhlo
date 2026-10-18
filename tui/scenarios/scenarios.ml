@@ -1,4 +1,5 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Cross-screen, publication, recovery and persistence scenarios through the Shell.
+   Each suite owns its scenario; this runner only registers them in order. *)
 open Interaction_check_fixture
 
 open Home_integration_checks
@@ -9,13 +10,12 @@ open Annual_integration_checks
 open Pace_integration_checks
 open Balances_integration_checks
 
-let render_cases = Interaction_render_fixture.render_cases
-
-let self_check ~width_of () =
+let run ~width_of () =
+  Recovery_checks.self_check ();
   let directory = "scratch/english-ui-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
   let path = directory ^ "/book.sexp" in
-  F.create_copy ~source:"examples/daily-book.sexp" ~target:path;
+  F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let home = C.initial ~config_home:directory (F.load path) in
   bonsai_home_layout_check ~width_of home;
   home_layout_check ~width_of home;
@@ -54,4 +54,5 @@ let self_check ~width_of () =
   print_endline
     "PASS: English Calendar / Commands / Record / child navigation / exact cold save and safety \
      guards.";
-  home
+  Scheduled_bulk_checks.self_check ~width_of ();
+  Scheduled_generation_checks.self_check ~width_of ()

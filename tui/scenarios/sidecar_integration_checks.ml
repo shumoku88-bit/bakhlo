@@ -5,7 +5,7 @@ let safety_checks ~width_of ~directory () =
   let dir = directory ^ "/safety" in
   Unix.mkdir dir 0o700;
   let path = dir ^ "/book.sexp" in
-  F.create_copy ~source:"examples/daily-book.sexp" ~target:path;
+  F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let home = C.initial ~config_home:dir (F.load path) in
   let contains rows needle = List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows in
   let failed state = match visible_form state with Some f -> Ui_form.notice f <> "" | None -> false in

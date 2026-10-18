@@ -52,13 +52,13 @@ let balance_display_checks ~width_of ~directory () =
     "balance-unknown-presence-zero-distinct";
   let view = C.open_route home W.Balances in
   let coordinate state =
-    match List.nth_opt (balance_items state) state.C.workspace.balance_selected with
+    match List.nth_opt (balance_items state) (Balances.selected state.C.balances) with
     | Some (O.Account_row { locus; measure; _ }) -> Some (locus, measure)
     | _ -> None in
   let eur_index = Option.get (List.find_index (function
     | O.Account_row { locus = "wallet"; measure = "eur"; _ } -> true | _ -> false)
     (balance_items view)) in
-  let eur = { view with workspace = { view.workspace with balance_selected = eur_index } } in
+  let eur = { view with balances = Balances.set_selected eur_index view.balances } in
   let accounting = key ~width_of eur (`ASCII 'v') in
   let current = key ~width_of accounting (`ASCII 'v') in
   require (coordinate accounting = Some ("wallet", "eur") && coordinate current = Some ("wallet", "eur"))
@@ -73,7 +73,7 @@ let balance_display_checks ~width_of ~directory () =
           else painted_capacity (String.starts_with ~prefix:"╭" row) count rest in
     let capacity = painted_capacity false 0 (R.screen ~width_of dimensions head) in
     let next = key ~dimensions ~width_of head (`Page `Down) in
-    require (next.workspace.balance_selected = min capacity (List.length (balance_items head) - 1))
+    require (Balances.selected next.C.balances = min capacity (List.length (balance_items head) - 1))
       "balance-page-matches-actual-painted-list-capacity")
     [(120,36); (80,24); (48,14); (32,9)];
   let medium_rows = R.screen ~width_of (80, 24) view in
@@ -88,7 +88,7 @@ let balance_display_checks ~width_of ~directory () =
     let detail = key ~dimensions ~width_of large (`ASCII 'i') in
     let at_end = key ~dimensions ~width_of detail `End in
     let up = key ~dimensions ~width_of at_end (`Arrow `Up) in
-    let _, viewport = Balances.detail_viewport ~dimensions ~width_of ~book:detail.session.book ~measure:detail.workspace.measure ~roles:(X.accounting_roles detail) ~balance_view_text:(X.read_pace_config detail "balance-view.tsv") detail.balances_owner in
+    let _, viewport = Balances.detail_viewport (X.balances_env detail) (X.screen_geometry ~dimensions ~width_of detail) detail.balances in
     let page = key ~dimensions ~width_of detail (`Page `Down) in
     let stepped = List.fold_left (fun state _ -> key ~dimensions ~width_of state (`ASCII 'j'))
         detail (List.init viewport.capacity Fun.id) in
@@ -101,10 +101,10 @@ let balance_display_checks ~width_of ~directory () =
     let printed_end = key ~dimensions ~width_of printed `End in
     let printed_up = key ~dimensions ~width_of printed_end (`Arrow `Up) in
     require (printed_end.scroll = at_end.scroll
-      && printed_end.workspace.balance_selected = large.workspace.balance_selected)
+      && (Balances.selected printed_end.C.balances) = (Balances.selected large.C.balances))
       "balance-print-keeps-parent-context";
-    require (Balances.has_overlay printed.balances_owner) "balance-print-overlay-open";
-    (match Balances.print_preview_summary printed.balances_owner with
+    require (Balances.modal printed.balances) "balance-print-overlay-open";
+    (match Balances.print_preview_summary printed.balances with
      | Some summary ->
          let pane_w = min 64 (max 8 (fst dimensions - 4)) in
          let rows = List.concat_map (O.wrap_text ~width_of (max 1 (pane_w - 6))) summary in
@@ -121,10 +121,10 @@ let balance_display_checks ~width_of ~directory () =
            require (s_end <> s_up) "balance-print-end-up-moves-visible-report"
          end
      | None -> raise (F.Refused "balance-print-not-open"));
-    require (not (Balances.has_overlay (key ~dimensions ~width_of printed_end `Enter).balances_owner))
+    require (not (Balances.modal (key ~dimensions ~width_of printed_end `Enter).balances))
       "balance-print-enter-closes-without-save";
     let closed = key ~dimensions ~width_of printed_end `Escape in
-    require (closed.scroll = at_end.scroll && not (Balances.has_overlay closed.balances_owner)
+    require (closed.scroll = at_end.scroll && not (Balances.modal closed.balances)
       && F.read path = home.session.bytes) "balance-print-close-preserves-parent-without-save")
     [(120,36); (80,24); (48,14); (32,9)];
   require (Balances.print_fits [String.make 32767 'x']
@@ -134,10 +134,13 @@ let balance_display_checks ~width_of ~directory () =
     "balance-print-exact-byte-and-line-limits-including-newlines";
   let oversized = get (B.observe_quantities book
     [("wallet", "jpy", Z.of_string (String.make 25000 '7'))]) in
-  let refused = Balances.print_preview_form ~book:oversized ~measure:view.workspace.measure ~roles:(X.accounting_roles view) ~balance_view_text:(X.read_pace_config view "balance-view.tsv") view.balances_owner in
+  let refused = Balances.print_preview_form { (X.balances_env view) with book = oversized } view.balances in
   require (Ui_form.id refused = "balance_print_refused" && F.read path = home.session.bytes)
     "balance-print-refuses-real-oversized-quantity-without-save";
-  require ((key ~width_of { view with overlay = C.Modal_form refused } `Enter).overlay = C.No_overlay)
+  let oversized_view = { view with session = { view.session with book = oversized } } in
+  let refusal = key ~width_of oversized_view (`ASCII 'p') in
+  require (Option.map Ui_form.id (Balances.form refusal.balances) = Some "balance_print_refused"
+           && not (Balances.modal (key ~width_of refusal `Enter).balances))
     "balance-print-refusal-enter-closes";
   require (O.current_balance_items ~book ~coords:(Some []) = [])
     "balance-empty-has-no-selectable-placeholder";
@@ -151,7 +154,7 @@ let balance_display_checks ~width_of ~directory () =
    restyling; asserts LOAM-parity behavior, not widget ids. *)
 
 let b2_overlay_open (state : C.state) =
-  (match state.C.overlay with C.No_overlay -> Balances.has_overlay state.balances_owner | _ -> true)
+  (match state.C.overlay with C.No_overlay -> Balances.modal state.balances | _ -> true)
 
 let b2_screen ~width_of dimensions state =
   R.screen ~width_of dimensions state

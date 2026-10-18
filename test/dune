@@ -2,7 +2,9 @@
 
 (env
  (_
-  (inline_tests enabled)))
+  (inline_tests enabled)
+  (binaries
+   (../tools/arch/arch_check.exe as arch_check))))
 
 (library
  (name bakhlo_tests)
@@ -77,3 +79,8 @@
   ../application/.bakhlo_application.objs/byte/bakhlo_application__Exchange_evidence.cmi
   ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_query.cmi
   ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_answer.cmi))
+
+; Negative architecture checks: every rule must reject an intentional violation.
+(cram
+ (applies_to arch)
+ (deps %{bin:arch_check}))

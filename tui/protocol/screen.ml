@@ -9,6 +9,7 @@ type env = {
   measure : string;
   today : string;
   annual : annual;
+  accounting_roles : (string * Daily_overlays.accounting_role) list Lazy.t;
   blocked : bool;
   config : string -> (string option, string) result;
 }
@@ -20,7 +21,7 @@ type geometry = {
   width_of : string -> int;
 }
 
-type admission = Unconditional | Household_readable
+type admission = Unconditional | Household_readable | Vocabulary_unchanged
 
 type request =
   | Stay
@@ -29,6 +30,8 @@ type request =
   | Home
   | Commands
   | Reload
+  | Cycle_measure of [ `Next | `Prev ]
+  | Observe of { locus : string; measure : string; amount : Z.t option }
   | Save_config of {
       file : string;
       expected : string option;

@@ -2,4 +2,4 @@
 (library
  (name bakhlo_tui_protocol)
  (wrapped false)
- (libraries bakhlo_tui_kit bakhlo.sexp))
+ (libraries bakhlo_tui_kit bakhlo_tui_book bakhlo.sexp zarith))

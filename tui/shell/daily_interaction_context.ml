@@ -296,6 +296,7 @@ let screen_env ~config_files state : Screen.env =
       unavailable = lazy (annual_unavailable state);
       history = lazy (annual_history_bounds state);
     };
+    accounting_roles = lazy (accounting_roles state);
     blocked = state.blocked;
     config = (fun name ->
       match List.assoc_opt name captured with
@@ -318,6 +319,14 @@ let save_config state ~file ~expected ~content ~admission =
           | Ok _ -> Ok ()
         with F.Refused why | Sys_error why -> Error why
           | Unix.Unix_error (err, _, _) -> Error (Unix.error_message err))
+    | Screen.Vocabulary_unchanged -> (
+        try
+          let book = (F.reload state.session).book in
+          if B.approved_loci book = B.approved_loci state.session.book
+             && B.measures book = B.measures state.session.book then Ok ()
+          else Error "Admitted Loci or Measures changed; reopen setup."
+        with F.Refused why | Sys_error why -> Error why
+          | Unix.Unix_error (err, _, _) -> Error (Unix.error_message err))
   in
   Result.bind admitted (fun () -> write_config_file state file ~expected content)
 
@@ -328,6 +337,35 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay)) state = fun
   | Screen.Home -> open_route state W.Home
   | Screen.Commands -> { state with overlay = Commands M.initial }
   | Screen.Reload -> reload state
+  | Screen.Cycle_measure direction ->
+      let current = state.workspace.measure in
+      let measure =
+        match List.map fst (B.measures state.session.book) with
+        | [] -> current
+        | measures ->
+            let rec next = function
+              | [] | [ _ ] -> List.hd measures
+              | x :: y :: _ when x = current -> y
+              | _ :: rest -> next rest
+            in
+            let rec prev acc = function
+              | [] -> List.hd (List.rev measures)
+              | [ x ] when x = current -> (match acc with None -> x | Some p -> p)
+              | x :: _ when x = current ->
+                  (match acc with None -> List.hd (List.rev measures) | Some p -> p)
+              | x :: rest -> prev (Some x) rest
+            in
+            (match direction with `Next -> next measures | `Prev -> prev None measures)
+      in
+      { state with workspace = { state.workspace with measure } }
+  | Screen.Observe { locus; measure; amount } ->
+      let current_amount = Option.map Z.to_string amount in
+      let form = observe_quantity_form ~default_locus:locus ~default_measure:measure
+          ?current_amount state in
+      let form = Form.set_focused form (Form.find_field_index form "amount") in
+      { state with overlay = Modal_form form;
+        observe_draft = Some { rows = []; base_bytes = state.session.bytes;
+          pending = ("", state.workspace.measure, ""); uncertain = false } }
   | Screen.Save_config { file; expected; content; admission } ->
       let state, request = saved state (save_config state ~file ~expected ~content ~admission) in
       apply_request ~saved state request
@@ -339,6 +377,53 @@ let apply_pace ~dimensions ~width_of state (pace, request) =
     let pace, request =
       Pace.saved (pace_env state) (screen_geometry ~dimensions ~width_of state) result state.pace in
     ({ state with pace }, request))
+
+let balances_env state = screen_env ~config_files:Balances.config_files state
+
+let apply_balances ~dimensions ~width_of state (balances, request) =
+  apply_request { state with balances } request ~saved:(fun state result ->
+    let balances, request =
+      Balances.saved (balances_env state) (screen_geometry ~dimensions ~width_of state) result
+        state.balances in
+    ({ state with balances }, request))
+
+(* Migrated screen owners. A screen with an open editor takes all input but
+   Ctrl-R; otherwise the route's owner sees input after the Shell's Ctrl keys
+   and returns Ignored for anything that is not its own. *)
+let modal_screen_input ~dimensions ~width_of state input =
+  let geometry = screen_geometry ~dimensions ~width_of state in
+  if Pace.modal state.pace then
+    Some (apply_pace ~dimensions ~width_of state
+      (Pace.handle (pace_env state) geometry state.pace input))
+  else if Balances.modal state.balances then
+    Some (apply_balances ~dimensions ~width_of state
+      (Balances.handle (balances_env state) geometry state.balances input))
+  else None
+
+let route_screen_input ~dimensions ~width_of state input =
+  let geometry = screen_geometry ~dimensions ~width_of state in
+  let step apply (owner, request) =
+    if request = Screen.Ignored then None else Some (apply ~dimensions ~width_of state (owner, request))
+  in
+  match state.workspace.route with
+  | W.Daily_pace -> step apply_pace (Pace.handle (pace_env state) geometry state.pace input)
+  | W.Balances ->
+      step apply_balances (Balances.handle (balances_env state) geometry state.balances input)
+  | _ -> None
+
+let modal_screen_view ~dimensions ~width_of state =
+  let geometry = screen_geometry ~dimensions ~width_of state in
+  if Pace.modal state.pace then Some (Pace.view (pace_env state) geometry state.pace)
+  else if Balances.modal state.balances then
+    Some (Balances.view (balances_env state) geometry state.balances)
+  else None
+
+let route_screen_view ~dimensions ~width_of state =
+  let geometry = screen_geometry ~dimensions ~width_of state in
+  match state.workspace.route with
+  | W.Daily_pace -> Some (Pace.view (pace_env state) geometry state.pace)
+  | W.Balances -> Some (Balances.view (balances_env state) geometry state.balances)
+  | _ -> None
 
 let checked_report_period state preset offset =
   match annual_unavailable state with
@@ -444,13 +529,9 @@ let open_command state = function
       let pace, request = Pace.open_cycle (pace_env state) state.pace in
       apply_request { state with overlay = No_overlay; pace } request
   | M.Balance_display ->
-      let balance_view_text = read_pace_config state "balance-view.tsv" in
       let state = open_route state W.Balances in
-      let balances_owner =
-        Balances.open_config ~book:state.session.book ~measure:state.workspace.measure
-          ~balance_view_text state.balances_owner
-      in
-      { state with balances_owner; message = Balances.notice balances_owner }
+      let balances, request = Balances.open_config (balances_env state) state.balances in
+      apply_request { state with balances } request
   | M.Annual_rollover -> open_annual_rollover state
   | M.Theme ->
       let rec index i = function

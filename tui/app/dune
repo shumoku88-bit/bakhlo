@@ -1,21 +1,25 @@
-; Shell, publication executor, remaining legacy controller and Bonsai adapter.
-(executable
- (name bonsai_daily)
+; Bonsai terminal adapter and the command-line entry point.
+(library
+ (name bakhlo_tui_terminal)
+ (wrapped false)
+ (modules bonsai_terminal)
  (libraries
   bakhlo_tui_kit
   bakhlo_tui_book
-  bakhlo_tui_protocol
-  bakhlo_screen_balances
-  bakhlo_screen_pace
+  bakhlo_tui_shell
   bakhlo.store
   bakhlo.domain
-  bakhlo.application
   bakhlo.sexp
-  zarith
   unix
   uutf
+  zarith
   base
   notty-community
   bonsai_term
   async
   core))
+
+(executable
+ (name bonsai_daily)
+ (modules bonsai_daily)
+ (libraries bakhlo_tui_terminal bakhlo.store bakhlo.domain bakhlo.sexp zarith unix))

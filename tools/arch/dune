@@ -1,0 +1,13 @@
+; The TUI architecture check runs in the Core workspace, where the tui tree
+; is visible as data only (see the root dune file).
+(executable
+ (name arch_check)
+ (libraries parsexp sexplib0 str))
+
+(rule
+ (alias runtest)
+ (deps
+  (source_tree %{workspace_root}/tui)
+  (glob_files_rec %{workspace_root}/dune))
+ (action
+  (run %{exe:arch_check.exe} %{workspace_root})))

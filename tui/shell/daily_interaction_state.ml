@@ -30,7 +30,7 @@ module Att = Attention_data
 module Roles = Locus_roles
 module Stl = Settlement_data
 module BalView = Balance_view_data
-module Balances = Balances_owner
+module Balances = Balances_screen
 module Pace = Daily_pace_screen
 
 let tr = Ui_text.tr
@@ -145,7 +145,7 @@ type state = {
   settlement_path : string;
   settlements : (Stl.t, string) result;
   settlement_scope : Stl.scope;
-  balances_owner : Balances.t;
+  balances : Balances.t;
   label_review : (Form.t * string * string * string) option;
   exchange_review : (Form.t * A.transaction * string) option;
   observe_draft : observe_draft option;
@@ -193,7 +193,7 @@ let initial ?config_home session =
     settlement_path;
     settlements;
     settlement_scope = Stl.Open_only;
-    balances_owner = Balances.create ();
+    balances = Balances.create ();
     label_review = None;
     exchange_review = None;
     observe_draft = None;

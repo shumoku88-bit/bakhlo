@@ -194,7 +194,7 @@ let calendar_rows ?(width = 80) state =
 
 
 
-let workspace_rows ~width_of ~width ~height state =
+let workspace_rows ?route_view ~width_of ~width ~height state =
   let draw_frame = Panel.frame in
   let book = state.session.book and workspace = state.workspace in
   let rows = W.rows ~book workspace in
@@ -206,7 +206,7 @@ let workspace_rows ~width_of ~width ~height state =
     | W.Selected_day day -> "Household Day Workspace / " ^ day
     | W.Actual -> "Actual"
     | W.Scheduled -> "Scheduled / List"
-    | W.Balances -> Balances.title state.balances_owner
+    | W.Balances -> Balances.title state.balances
     | W.Daily_pace -> "Daily Pace"
     | W.Income_expense -> "Income & Expense"
     | W.Transactions_flow -> "Transactions Flow"
@@ -313,15 +313,8 @@ let workspace_rows ~width_of ~width ~height state =
         @ detail_frame ~width ~height:(height - calendar_height - 1)
       else if calendar_focused then calendar_frame ~width ~height
       else detail_frame ~width ~height
-  else if workspace.route = W.Balances then
-    Balances.screen ~book:state.session.book ~measure:workspace.measure
-      ~roles:(accounting_roles state)
-      ~balance_view_text:(read_pace_config state "balance-view.tsv")
-      ~dimensions:(width, height) ~width_of state.balances_owner
-  else if workspace.route = W.Daily_pace then
-    let content = (width, height) in
-    Lazy.force (Pace.view (pace_env state)
-      { Screen.screen = content; body = content; content; width_of } state.pace).rows
+  else if Option.is_some route_view then
+    Lazy.force (Option.get route_view).Screen.rows
   else if workspace.route = W.Income_expense then
     let period_res = checked_report_period state state.income_expense.preset state.income_expense.period_offset in
     let is_detail = workspace.pane = W.Detail in
@@ -658,9 +651,9 @@ let workspace_rows ~width_of ~width ~height state =
       ~right_selected:None ~right_rows:wrapped_detail ()
 
 let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
-  if Pace.modal state.pace then
-    (Pace.view (pace_env state) (screen_geometry ~dimensions ~width_of state) state.pace).footer
-  else
+  match modal_screen_view ~dimensions ~width_of state with
+  | Some view -> view.footer
+  | None ->
   match state.overlay with
   | (Reversal _ | Date_correction _ | Scheduled_cancel _ | Event_merchant _) when state.blocked ->
       [ "Writes stopped; date retained"; "Ctrl-r inspect/reload  q keep" ]
@@ -689,12 +682,11 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
       | _ ->
           [ "Enter submit  Tab next field  Esc cancel"; "Arrow keys / space to choose options" ])
   | No_overlay | Commands _ | Jump _ | Search _ ->
-  if state.workspace.W.route = W.Balances then
-    Balances.footer ~dimensions ~width_of state.balances_owner
-  else if state.workspace.W.route = W.Actual then
+  match route_screen_view ~dimensions ~width_of state with
+  | Some view -> view.footer
+  | None ->
+  if state.workspace.W.route = W.Actual then
     Act.footer ~dimensions ~width_of state.actual_workspace
-  else if state.workspace.W.route = W.Daily_pace then
-    (Pace.view (pace_env state) (screen_geometry ~dimensions ~width_of state) state.pace).footer
   else if is_scheduled_months state then
     if state.workspace.pane = W.Detail then
       [ "j/k PgUp/Dn Home/End scroll  Tab Months"; "Enter/c complete  g generate  b batch  x cancel  v List  q back" ]
@@ -811,6 +803,7 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
     | None -> List.init height (fun _ -> (Plain, ""))
   else
     let body_height = max 0 (height - List.length feedback - 2) in
+    let route_view = route_screen_view ~dimensions ~width_of state in
     let headers =
       if state.workspace.route = W.Home then []
       else if state.workspace.route = W.Actual then
@@ -847,20 +840,17 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
              | W.Settlements -> tr "Settlements"));
           line ~width_of width Chrome
             ((if is_scheduled_months state then "Explicit current-open plans; no recurrence inferred."
-              else match state.workspace.route with
-                | W.Selected_day day -> day ^ "   " ^ tr "Day" ^ tr " view"
-                | W.Daily_pace ->
-                    Option.value ~default:""
-                      (Pace.view (pace_env state) (screen_geometry ~dimensions ~width_of state)
-                         state.pace).subtitle
-                | _ -> state.workspace.calendar.selected_day ^ "   " ^ Cal.title state.workspace.calendar ^ tr " view")
+              else match route_view, state.workspace.route with
+                | Some { Screen.subtitle = Some subtitle; _ }, _ -> subtitle
+                | _, W.Selected_day day -> day ^ "   " ^ tr "Day" ^ tr " view"
+                | _, _ -> state.workspace.calendar.selected_day ^ "   " ^ Cal.title state.workspace.calendar ^ tr " view")
             ^ if has_record_draft state then "   Draft retained" else "");
         ]
     in
     let header_count = List.length headers in
     let body =
       headers
-      @ workspace_rows ~width_of ~width ~height:(max 0 (body_height - header_count)) state
+      @ workspace_rows ?route_view ~width_of ~width ~height:(max 0 (body_height - header_count)) state
     in
     let visible_body = List.filteri (fun i _ -> i < body_height) body in
     let bottom_pad = max 0 (body_height - List.length visible_body) in
@@ -923,7 +913,7 @@ let commands_overlay_rows ~width_of ~width ~height (menu : M.t) =
   :: content
   @ [ O.panel_bottom ~width ~style ~width_of () ]
 
-type overlay_frame = Balances_owner.overlay_frame = {
+type overlay_frame = Ui_overlay.frame = {
   origin_x : int;
   origin_y : int;
   pane_width : int;
@@ -979,10 +969,8 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
             | None -> None
           in
           Some { origin_x; origin_y; pane_width = pane_w; pane_height = actual_h; rows; cursor }
-  else if Pace.modal state.pace then
-    (Pace.view (pace_env state) (screen_geometry ~dimensions ~width_of state) state.pace).overlay
-  else if state.workspace.route = W.Balances && Balances.has_overlay state.balances_owner then
-    Balances.overlay ~dimensions ~body_dimensions:(body_w, body_h) ~width_of state.balances_owner
+  else if Option.is_some (modal_screen_view ~dimensions ~width_of state) then
+    Option.bind (modal_screen_view ~dimensions ~width_of state) (fun view -> view.Screen.overlay)
   else if state.overlay = No_overlay || body_w < 8 || body_h < 3 then None
   else
     match state.overlay with
@@ -1141,9 +1129,6 @@ let cursor_position ~width_of ((width, height) as dimensions) state : (int * int
             let rows = S.screen ~book:state.session.book ~dimensions:pane_dimensions ~width_of record in
             let painted = List.filteri (fun i _ -> i < max 0 height) rows in
             O.cursor_in_rows ~width_of ~width:(min width (fst pane_dimensions)) painted
-      else if state.workspace.route = W.Balances then
-        let body_w, body_h = body_dimensions ~dimensions ~width_of state in
-        Balances.cursor_position ~dimensions ~body_dimensions:(body_w, body_h) ~width_of state.balances_owner
       else if state.workspace.route = W.Actual then
         Act.cursor_position ~dimensions ~width_of state.actual_workspace
       else None

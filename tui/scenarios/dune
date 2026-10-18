@@ -1,0 +1,19 @@
+; Cross-screen scenarios driven through the Shell with synthetic files.
+(library
+ (name bakhlo_tui_scenarios)
+ (wrapped false)
+ (libraries
+  bakhlo_tui_kit
+  bakhlo_tui_book
+  bakhlo_tui_protocol
+  bakhlo_screen_balances
+  bakhlo_screen_pace
+  bakhlo_tui_shell
+  bakhlo.store
+  bakhlo.domain
+  bakhlo.application
+  bakhlo.sexp
+  zarith
+  unix
+  uutf
+  base))

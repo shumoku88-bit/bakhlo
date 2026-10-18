@@ -26,6 +26,8 @@ type env = {
   measure : string;  (** Shell-selected Measure. *)
   today : string;
   annual : annual;
+  accounting_roles : (string * Daily_overlays.accounting_role) list Lazy.t;
+      (** Explicit Locus roles from accounting-roles.tsv; none when absent. *)
   blocked : bool;  (** Writes stopped after a conflict, recovery or uncertain outcome. *)
   config : string -> (string option, string) result;
       (** Bytes of a configuration file captured for this event: [Ok None] is
@@ -44,6 +46,8 @@ type geometry = {
 type admission =
   | Unconditional
   | Household_readable  (** The household file still parses. *)
+  | Vocabulary_unchanged
+      (** Admitted Loci and Measures of the current file equal the screen's book. *)
 
 type request =
   | Stay
@@ -52,6 +56,9 @@ type request =
   | Home
   | Commands
   | Reload
+  | Cycle_measure of [ `Next | `Prev ]  (** Change the Shell-selected Measure. *)
+  | Observe of { locus : string; measure : string; amount : Z.t option }
+      (** Open the Observe editor for this coordinate; [amount] is a known current value. *)
   | Save_config of {
       file : string;
       expected : string option;  (** Captured bytes; a different file refuses. *)

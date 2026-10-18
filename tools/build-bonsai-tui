@@ -61,11 +61,14 @@ for dir in lib application sexp store tui; do
   rm -rf "$build/$dir"
   cp -R "$root/$dir" "$build/$dir"
 done
+# Synthetic fixture shared by the TUI checks; never household data.
+mkdir -p "$build/examples"
+cp "$root/examples/daily-book.sexp" "$build/examples/daily-book.sexp"
 # Undeclared transitive library use is a compile error: library boundaries
-# are the architecture, see tui/README.md and tools/arch-check.
+# are the architecture, see tui/README.md and tools/arch.
 printf '%s\n' '(lang dune 3.24)' '(name bakhlo)' '(package (name bakhlo))' > "$build/dune-project"
 printf '%s\n' '(lang dune 3.24)' '(implicit_transitive_deps false)' > "$build/tui/dune-project"
-printf '%s\n' '(dirs lib application sexp store tui)' \
+printf '%s\n' '(dirs lib application sexp store tui examples)' \
   '(env (_ (flags (:standard -strict-sequence -w +8+9+11 -warn-error +8+9+11))))' > "$build/dune"
 if [ "${BAKHLO_BONSAI_CI:-0}" = 0 ]; then
   export OPAMROOT=$trial/opam-root

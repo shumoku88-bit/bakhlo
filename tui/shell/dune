@@ -1,0 +1,19 @@
+; Transitional Shell: routing, the legacy controller, editor sessions not yet
+; owned by a screen, and the publication executor over bakhlo.store.
+(library
+ (name bakhlo_tui_shell)
+ (wrapped false)
+ (libraries
+  bakhlo_tui_kit
+  bakhlo_tui_book
+  bakhlo_tui_protocol
+  bakhlo_screen_balances
+  bakhlo_screen_pace
+  bakhlo.store
+  bakhlo.domain
+  bakhlo.application
+  bakhlo.sexp
+  zarith
+  unix
+  uutf
+  base))

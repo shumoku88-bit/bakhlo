@@ -1,4 +1,6 @@
-(** balances_owner.ml - Vertical owner for Balances screen. *)
+(* Balances: current visible accounts and accounting-role view, the visible-
+   account picker and print preview. The picker saves balance-view.tsv only
+   through the Shell, with the bytes captured when it opened. *)
 
 module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
@@ -656,3 +658,70 @@ let footer ~dimensions:_ ~width_of:_ t =
         "j/k move  Tab measure  v view  c config  o observe  p print  Esc home";
         "Selected coordinate balance details remain inspectable";
       ]
+
+(* Screen contract *)
+
+let config_files = [ "balance-view.tsv" ]
+let modal = has_overlay
+let form = active_form
+let detail_focused t = t.pane = `Detail
+
+let context (env : Screen.env) =
+  (env.book, env.measure, Lazy.force env.accounting_roles, env.config "balance-view.tsv")
+
+let request_of t next = function
+  | Stay when next.notice <> "" && next.notice <> t.notice -> Screen.Message next.notice
+  | Stay -> Screen.Stay
+  | Back_to_home -> Screen.Home
+  | Open_commands -> Screen.Commands
+  | Cycle_measure direction -> Screen.Cycle_measure direction
+  | Observe { locus; measure; amount } -> Screen.Observe { locus; measure; amount }
+  | Save_balance_view { expected; content } ->
+      Screen.Save_config
+        { file = "balance-view.tsv"; expected; content; admission = Vocabulary_unchanged }
+  | Reload -> Screen.Reload
+
+let handle env (geometry : Screen.geometry) t input =
+  let book, measure, roles, balance_view_text = context env in
+  let next, command =
+    handle ~blocked:env.blocked ~book ~measure ~roles ~balance_view_text
+      ~dimensions:geometry.screen ~width_of:geometry.width_of t input
+  in
+  (next, request_of t next command)
+
+let saved _env _geometry result t =
+  match result with
+  | Ok () -> (notify_saved t, Screen.Message "Visible Balance accounts saved. Unknown values remain '?'.")
+  | Error why -> (notify_save_failed t why, Screen.Stay)
+
+let open_config env t =
+  let book, measure, _, balance_view_text = context env in
+  let next = open_config ~book ~measure ~balance_view_text t in
+  (next, if next.notice <> "" then Screen.Message next.notice else Screen.Message "")
+
+let items env t =
+  let book, measure, roles, balance_view_text = context env in
+  items ~book ~measure ~roles ~balance_view_text t
+
+let detail_viewport env (geometry : Screen.geometry) t =
+  let book, measure, roles, balance_view_text = context env in
+  detail_viewport ~dimensions:geometry.screen ~width_of:geometry.width_of ~book ~measure ~roles
+    ~balance_view_text t
+
+let print_preview_form env t =
+  let book, measure, roles, balance_view_text = context env in
+  print_preview_form ~book ~measure ~roles ~balance_view_text t
+
+let view env (geometry : Screen.geometry) t =
+  let book, measure, roles, balance_view_text = context env in
+  let overlay = overlay ~dimensions:geometry.screen ~body_dimensions:geometry.body
+      ~width_of:geometry.width_of t in
+  {
+    Screen.title = Ui_text.tr "Balances";
+    subtitle = None;
+    rows = lazy (screen ~book ~measure ~roles ~balance_view_text ~dimensions:geometry.content
+                   ~width_of:geometry.width_of t);
+    footer = footer ~dimensions:geometry.screen ~width_of:geometry.width_of t;
+    overlay;
+    cursor = Option.bind overlay (fun frame -> frame.Ui_overlay.cursor);
+  }

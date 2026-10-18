@@ -41,12 +41,10 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                else
                  apply_commit_result state ~draft
                    (A.commit_payload ~session:state.session ~base_bytes payload)))
-  else if Pace.modal state.pace then
+  else if Pace.modal state.pace || Balances.modal state.balances then
     match input with
     | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
-    | _ ->
-        Some (apply_pace ~dimensions ~width_of state
-          (Pace.handle (pace_env state) (screen_geometry ~dimensions ~width_of state) state.pace input))
+    | _ -> modal_screen_input ~dimensions ~width_of state input
   else
     match state.overlay with
     | Scheduled_bulk editor -> (
@@ -297,7 +295,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Form.Updated updated -> Some { state with overlay = Modal_form updated }
         | Form.Submit submitted -> (
             match Form.id submitted with
-            | "balance_print_refused" -> Some { state with overlay = No_overlay }
             | "annual_rollover" ->
                 let body_w, body_h = body_dimensions ~dimensions ~width_of state in
                 let pane_w = min 64 (max 8 (body_w - 4)) in
@@ -685,8 +682,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | _ -> Some state))
     | No_overlay -> (
         let key = match input with `Key (key, mods) -> Some (key, mods) | _ -> None in
-        let pace_step = lazy (Pace.handle (pace_env state)
-          (screen_geometry ~dimensions ~width_of state) state.pace input) in
+        let route_step = lazy (route_screen_input ~dimensions ~width_of state input) in
         let normalize (key, mods) =
           match key with `ASCII c -> (`ASCII (Char.lowercase_ascii c), mods) | _ -> (key, mods)
         in
@@ -727,120 +723,10 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 | Act.Record_new -> Some (open_record state)
                 | Act.Back -> Some (open_route state W.Home)
                 | Act.Redraw -> Some state))
-        | _ when state.workspace.route = W.Balances ->
-            let balance_view_text = read_pace_config state "balance-view.tsv" in
-            let owner =
-              if Balances.selected state.balances_owner <> state.workspace.balance_selected then
-                Balances.set_selected state.workspace.balance_selected state.balances_owner
-              else state.balances_owner
-            in
-            let next_owner, cmd =
-              Balances.handle
-                ~blocked:state.blocked
-                ~book:state.session.book
-                ~measure:state.workspace.measure
-                ~roles:(accounting_roles state)
-                ~balance_view_text
-                ~dimensions
-                ~width_of
-                owner
-                input
-            in
-            let next_pane =
-              match Balances.pane next_owner with
-              | `List -> W.Calendar
-              | `Detail -> W.Detail
-            in
-            let state =
-              { state with
-                balances_owner = next_owner;
-                workspace =
-                  { state.workspace with
-                    balance_selected = Balances.selected next_owner;
-                    pane = next_pane;
-                  };
-                message =
-                  (if Balances.notice next_owner <> "" then
-                     Balances.notice next_owner
-                   else state.message);
-              }
-            in
-            (match cmd with
-            | Balances.Stay -> Some state
-            | Balances.Back_to_home -> Some (open_route state W.Home)
-            | Balances.Open_commands -> Some { state with overlay = Commands M.initial }
-            | Balances.Cycle_measure direction ->
-                let measures = List.map fst (B.measures state.session.book) in
-                let next_measure =
-                  match measures with
-                  | [] -> state.workspace.measure
-                  | ms ->
-                      let rec next = function
-                        | [] -> List.hd ms
-                        | [ x ] -> List.hd ms
-                        | x :: y :: _ when x = state.workspace.measure -> y
-                        | _ :: rest -> next rest
-                      in
-                      let rec prev acc = function
-                        | [] -> List.hd (List.rev ms)
-                        | [ x ] when x = state.workspace.measure -> (match acc with None -> x | Some p -> p)
-                        | x :: _ when x = state.workspace.measure -> (match acc with None -> List.hd (List.rev ms) | Some p -> p)
-                        | x :: rest -> prev (Some x) rest
-                      in
-                      match direction with
-                      | `Next -> next ms
-                      | `Prev -> prev None ms
-                in
-                Some { state with workspace = { state.workspace with measure = next_measure } }
-            | Balances.Observe { locus; measure; amount } ->
-                let default_amount =
-                  match amount with Some z -> Z.to_string z | None -> ""
-                in
-                let form = observe_quantity_form ~default_locus:locus ~default_measure:measure ?current_amount:(if default_amount = "" then None else Some default_amount) state in
-                let form = Form.set_focused form (Form.find_field_index form "amount") in
-                Some
-                  {
-                    state with
-                    overlay = Modal_form form;
-                    observe_draft =
-                      Some
-                        {
-                          rows = [];
-                          base_bytes = state.session.bytes;
-                          pending = ("", state.workspace.measure, "");
-                          uncertain = false;
-                        };
-                  }
-            | Balances.Save_balance_view { expected; content } ->
-                let admission =
-                  try
-                    let book = (F.reload state.session).book in
-                    if B.approved_loci book = B.approved_loci state.session.book
-                       && B.measures book = B.measures state.session.book then Ok ()
-                    else Error "Admitted Loci or Measures changed; reopen setup."
-                  with F.Refused why | Sys_error why -> Error why
-                    | Unix.Unix_error (err, _, _) -> Error (Unix.error_message err) in
-                let result = Result.bind admission (fun () ->
-                  write_config_file state "balance-view.tsv" ~expected content) in
-                (match result with
-                | Ok () ->
-                    let saved_owner = Balances.notify_saved next_owner in
-                    Some
-                      {
-                        state with
-                        balances_owner = saved_owner;
-                        message = "Visible Balance accounts saved. Unknown values remain '?'.";
-                      }
-                | Error why ->
-                    let failed_owner = Balances.notify_save_failed next_owner why in
-                    Some { state with balances_owner = failed_owner })
-            | Balances.Reload -> Some (reload state))
+        | _ when Option.is_some (Lazy.force route_step) -> Lazy.force route_step
         | Some (`ASCII ' ', []) -> Some { state with overlay = Commands M.initial }
         | Some (`Uchar c, []) when Uchar.to_int c = 32 ->
             Some { state with overlay = Commands M.initial }
-        | _ when state.workspace.route = W.Daily_pace
-                 && snd (Lazy.force pace_step) <> Screen.Ignored ->
-            Some (apply_pace ~dimensions ~width_of state (Lazy.force pace_step))
         | Some ((`Escape | `ASCII 'q'), []) when state.workspace.route = W.Home ->
             None
         | Some (`ASCII 'g', []) when state.workspace.route = W.Home ->

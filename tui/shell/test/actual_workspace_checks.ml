@@ -59,8 +59,7 @@ let add_entry book ~day ~memo ~locus1 ~amt1 ~locus2 ~amt2 =
   in
   get (B.put_entry book ~replace:false entry.entry ~plan:None)
 
-let self_check () =
-  let width_of text = Bonsai_term.View.width (Bonsai_term.View.text text) in
+let self_check ~width_of () =
   let book = get (B.of_string fixture) in
   let book = add_entry book ~day:"2026-10-15" ~memo:"Supermarket" ~locus1:"assets:cash" ~amt1:(-1000) ~locus2:"expenses:groceries" ~amt2:1000 in
   let book = add_entry book ~day:"2026-10-14" ~memo:"Apartment rent" ~locus1:"assets:cash" ~amt1:(-50000) ~locus2:"expenses:rent" ~amt2:50000 in

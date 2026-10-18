@@ -26,15 +26,9 @@ module D = Bakhlo_domain
 module Stl = Settlement_data
 module Trend = Daily_pace_trend
 module O = Daily_overlays
-module Balances = Balances_owner
+module Balances = Balances_screen
 
-let balance_items (state : C.state) =
-  Balances.items
-    ~book:state.C.session.book
-    ~measure:state.workspace.measure
-    ~roles:(X.accounting_roles state)
-    ~balance_view_text:(X.read_pace_config state "balance-view.tsv")
-    state.balances_owner
+let balance_items (state : C.state) = Balances.items (X.balances_env state) state.balances
 
 module Pace = Daily_pace_screen
 
@@ -53,8 +47,7 @@ let open_pool_editor (state : C.state) =
    view precedence so scenarios do not depend on where a form is stored. *)
 let visible_form (state : C.state) =
   if Pace.modal state.pace then Pace.form state.pace
-  else if state.workspace.route = W.Balances && Balances.has_overlay state.balances_owner then
-    Balances.active_form state.balances_owner
+  else if Balances.modal state.balances then Balances.form state.balances
   else match state.overlay with C.Modal_form form -> Some form | _ -> None
 
 let visible_form_id state = Option.map Ui_form.id (visible_form state)
@@ -69,9 +62,20 @@ let with_visible_form (state : C.state) form =
 let b2_overlay_open (state : C.state) =
   (match state.C.overlay with
    | C.No_overlay ->
-       Balances.has_overlay state.balances_owner || Pace.modal state.pace
+       Balances.modal state.balances || Pace.modal state.pace
    | _ -> true)
 
+
+(* Regular private copy of the synthetic examples/daily-book.sexp, made by the
+   check runner: Dune may provide the original as a symlink, which the writer
+   correctly refuses. *)
+let example_book = "scratch/examples/daily-book.sexp"
+
+let materialize_example_book () =
+  let bytes = In_channel.with_open_bin "examples/daily-book.sexp" In_channel.input_all in
+  if not (Sys.file_exists "scratch/examples") then Unix.mkdir "scratch/examples" 0o700;
+  if Sys.file_exists example_book then Unix.unlink example_book;
+  F.write_new example_book bytes
 
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)

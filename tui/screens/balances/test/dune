@@ -1,0 +1,9 @@
+(test
+ (name balances_checks)
+ (libraries
+  bakhlo_screen_balances
+  bakhlo_tui_protocol
+  bakhlo_tui_book
+  bakhlo_tui_kit
+  bakhlo.sexp
+  zarith))
