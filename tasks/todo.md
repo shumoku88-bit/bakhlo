@@ -111,6 +111,7 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
    正確なゼロ、存在のみ既知、根拠なし、失敗を区別する。Locus／role設定に必要な意味も接続する。
    2026-10-18: Daily Paceの表示sliceに続き、Balancesの初期座標／狭幅金額消失を修正。4寸法の合成対照・unknown詳細復帰・cold reopenを実行。広い受入は未了（[証拠](../docs/VERIFICATION.md#pace-history-and-narrow-balances-paired-2026-10-18)、画面別残差はUI-24）。
    **UI-24-B2（表示口座設定・複数座標観測）**：候補pickerの選択／Review／取消／現Measure保存と他Measure保全、ObserveのAdd→Preview→Publish／Editを接続。合成Core/native検査、既存LOAM binary対照、保存後cold再読込、重複／支持衝突／狭小／競合拒否と実保存失敗→結果不明→再送停止を確認（[証拠](../docs/VERIFICATION.md#ui-24-b2-balances-picker-and-grouped-observation-2026-10-18)）。この限定sliceの実装・検証であり、Balances全体・本人受入の完了ではない。
+   **UI-24-V3（80列配置／不正設定Print拒否）**：2026-10-18 mainに限定修正とsynthetic self-checkを追加。72〜119列／高さ18以上ではCurrent／Accountingの一覧を上、Selected Balanceを下へ配置し、設定読込失敗のCurrent Print Previewは拒否する。**この変更のビルド／self-check／LOAM実行対照は未実施**（[証拠](../docs/VERIFICATION.md#balances-medium-layout-and-print-refusal-source-only-2026-10-18)）。次の環境で最初に確認し、80×24、120×36、48×14、32×9とresize／Accounting／Printを検証。残る見出し・計算・役割・出力の全面受入を別に維持する。
 7. [ ] **Daily Pace／Trendを揃える。** 明示Pool・通貨・観測日・期間、現在値／What-if・負数、
    Pool／期間設定と履歴Trendの10d／30d／Month／Cycle／Previous Cycle、履歴支持・推移を照合する。
    予定控除・日数・整数演算、欠損／曖昧条件の拒否、設定取消・保存・再起動と既存preset保全を含める。
