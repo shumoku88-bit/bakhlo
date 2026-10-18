@@ -1,6 +1,24 @@
 name: Core build and tests
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "lib/**"
+      - "application/**"
+      - "sexp/**"
+      - "text/**"
+      - "loam_read/**"
+      - "presentation/**"
+      - "cli/**"
+      - "bin/**"
+      - "test/**"
+      - "examples/**"
+      - "tui/**"
+      - "tools/check"
+      - "dune*"
+      - "bakhlo.opam*"
+      - ".github/workflows/core.yml"
   pull_request:
     paths:
       - "lib/**"
@@ -13,6 +31,8 @@ on:
       - "bin/**"
       - "test/**"
       - "examples/**"
+      - "tui/**"
+      - "tools/check"
       - "dune*"
       - "bakhlo.opam*"
       - ".github/workflows/core.yml"
