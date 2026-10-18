@@ -6,6 +6,14 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Native PTY Record Preview refusal and non-writing cancellation (2026-10-18)
+
+- Bounded new test in `tools/ci_tui_pty.py` on tracked source `3bb847df702cb8a7ef3a0ab96d96086e64e0d851`. Creates a fresh file copy of public, explicitly synthetic `examples/daily-book.sexp` in a private 0700 temporary directory; does not access any household or LOAM originals.
+- Linux 80x24 real PTY: Home > Record (r), entered synthetic memo `PTY snack` and two signed postings (wallet -37 jpy; food +37 jpy), opened `Record / Preview`, then resized the controlling PTY to **32x9**. Enter on the initially selected Publish is refused by the existing narrow-preview gate. Enlarged back to 80x24: same Preview remains; Escape closes non-saving. Reopening Record with r reveals the retained **same-process** draft and its memo. Escape and Ctrl-Q quit.
+- The test asserts byte-identical SHA-256 of the candidate ledger before/after Preview, narrow Enter, Escape and final exit, with no extra files alongside the synthetic authority. This checks **refusal and cancellation**, not a successful commit, durable draft, forced OS error, or unknown-write outcome.
+- [GitHub Actions run `39099170205`](https://github.com/shumoku88-bit/bakhlo/actions/runs/39099170205) **completed successfully**: both the established 120x36/80x24/48x14/32x9 navigation/resize/cold-balance smoke and the new Record narrow-Preview non-publication case passed. Same run confirmed exact Bonsai compiled-dependency cache hit. Main entry source had no new publisher/storage behavior changes.
+- Remaining: PTY Publish successful-save/cold amount parity, deliberate filesystem failure and blocked uncertain result, Japanese IME/rapid-resize on macOS, LOAM binary paired acceptance and P7/power-loss.
+
 ## First CI automation on direct main pushes (2026-10-18)
 
 - Added `push: main` trigger to the previously PR-only Core workflow, including changes under `tui/` and Core contracts. Existing locked OCaml 5.3 tests remain unchanged.
