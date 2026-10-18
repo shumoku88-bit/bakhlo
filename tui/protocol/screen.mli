@@ -12,6 +12,7 @@
       val modal : t -> bool
       val saved : Screen.env -> Screen.geometry -> (unit, string) result -> t -> t * Screen.request
       val published : Screen.env -> Screen.geometry -> Screen.publish_outcome -> t -> t * Screen.request
+      val reloaded : Screen.env -> t -> t * Screen.request  (* after a successful reload *)
     ]} *)
 
 type annual = {
@@ -24,6 +25,8 @@ type annual = {
 
 type env = {
   book : Bakhlo_sexp.Daily_book.t;
+  bytes : string;  (** Household file bytes the book was read from: a publication base. *)
+  new_id : unit -> string;  (** Fresh identity for a new entry or plan. *)
   measure : string;  (** Shell-selected Measure. *)
   today : string;
   annual : annual;
@@ -59,6 +62,10 @@ type admission =
 type publication =
   | Add_locus of string
   | Set_locus_label of { locus : string; label : string; help : string }
+  | Commit_transaction of { transaction : Daily_draft.transaction; base : string }
+      (** Publish an entry reviewed against [base]; a different file refuses. *)
+  | Observe_quantities of { rows : (string * string * Z.t) list; base : string }
+      (** Observe exact quantities together as one reconciliation group. *)
 
 type publish_outcome =
   | Published  (** Read back; the Shell already reported it and reloaded the book. *)
@@ -81,6 +88,8 @@ type request =
   | Save_settlements of { expected : Settlement_data.t; next : Settlement_data.t }
       (** Replace the commitments if they still equal [expected]; answered by [saved]. *)
   | Publish of publication
+  | Stop_writes of string option
+      (** Stop all writes until reload; [Some why] also replaces the feedback line. *)
   | Save_config of {
       file : string;
       expected : string option;  (** Captured bytes; a different file refuses. *)
@@ -98,5 +107,15 @@ type view = {
   cursor : (int * int) option;
 }
 
+val no_reload : env -> 'a -> 'a * request
+(** [reloaded] of an owner whose state never depends on the reloaded bytes. *)
+
 val no_publication : env -> geometry -> publish_outcome -> 'a -> 'a * request
 (** [published] of an owner that never publishes. *)
+
+val env_for_checks :
+  ?accounting_roles:(string * Daily_overlays.accounting_role) list ->
+  ?config:(string -> (string option, string) result) ->
+  book:Bakhlo_sexp.Daily_book.t -> measure:string -> today:string -> unit -> env
+(** A synthetic environment for owner checks: no annual book, empty sidecars,
+    writes allowed, undeclared configuration refused. *)

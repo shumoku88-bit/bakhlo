@@ -12,6 +12,8 @@
   bakhlo_screen_attention
   bakhlo_screen_settlements
   bakhlo_screen_loci
+  bakhlo_screen_observe
+  bakhlo_screen_exchange
   bakhlo_tui_shell
   bakhlo.store
   bakhlo.domain

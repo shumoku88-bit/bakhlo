@@ -85,116 +85,6 @@ let back state =
           workspace = W.enter state.workspace W.Actual; overlay = No_overlay }
   | _ -> open_route state W.Home
 
-let exchange_form ?(default_date = F.today ()) () =
-  Form.create
-    ~id:"exchange"
-    ~title:"Exchange / Record"
-    ~summary:[
-      "Record one direct exchange between two Measures.";
-      "Amounts are entered as positive magnitudes.";
-      "Source Effect is negative; Destination Effect is positive.";
-      "No FX rate or valuation is inferred.";
-    ]
-    ~fields:[
-      Form.text_field ~id:"date" ~label:"Date" ~value:default_date ();
-      Form.text_field ~id:"memo" ~label:"Description" ~placeholder:"Optional description" ();
-      Form.text_field ~id:"source_locus" ~label:"Source Locus" ~placeholder:"e.g. wallet_jpy" ();
-      Form.text_field ~id:"source_measure" ~label:"Source Measure" ~value:"jpy" ();
-      Form.text_field ~id:"source_amount" ~label:"Source amount" ~placeholder:"Positive amount (deducted)" ();
-      Form.text_field ~id:"destination_locus" ~label:"Destination Locus" ~placeholder:"e.g. wallet_usd" ();
-      Form.text_field ~id:"destination_measure" ~label:"Destination Measure" ~placeholder:"e.g. usd" ();
-      Form.text_field ~id:"destination_amount" ~label:"Destination amount" ~placeholder:"Positive amount (added)" ();
-      Form.action_buttons ~confirm:"Preview Exchange" ~cancel:"Cancel" ();
-    ]
-    ()
-
-let open_exchange state =
-  let default_date =
-    match state.workspace.route with
-    | W.Selected_day day -> day
-    | _ -> state.workspace.calendar.selected_day
-  in
-  let form = exchange_form ~default_date () in
-  { state with overlay = Modal_form form; message = "" }
-
-let observe_quantity_form ?default_locus ?default_measure ?current_amount ?(rows = []) ?(notice = "") state =
-  let def_measure =
-    match default_measure with
-    | Some m -> m
-    | None -> (match B.measures state.session.book with (m, _) :: _ -> m | [] -> "jpy")
-  in
-  let locus_val = Option.value ~default:"" default_locus in
-  let locus_ph =
-    if locus_val <> "" then locus_val
-    else match B.approved_loci state.session.book with Some (l :: _) -> l | _ -> "wallet"
-  in
-  let amount_ph =
-    match current_amount with
-    | Some amt -> Printf.sprintf "e.g. %s" amt
-    | None -> "e.g. 50000"
-  in
-  let summary =
-    [ "Record newly verified balance for an account (Locus).";
-      "Existing observations for other loci remain preserved." ]
-    @ (if rows = [] then ["  (no observations added yet)"]
-       else List.mapi (fun i (l, m, q) ->
-         Printf.sprintf "  %d. %s  %s %s" (i + 1) l (B.format state.session.book m q) m) rows)
-    @ [ "Enter on amount adds a row; Preview reviews all rows without writing." ]
-  in
-  Form.create
-    ~id:"observe_quantity"
-    ~title:"Observe Quantities"
-    ~notice
-    ~summary
-    ~fields:[
-      Form.text_field ~id:"locus" ~label:"Locus" ~value:locus_val ~placeholder:(Printf.sprintf "e.g. %s" locus_ph) ();
-      Form.text_field ~id:"measure" ~label:"Measure" ~value:def_measure ();
-      Form.text_field ~id:"amount" ~label:"Observed amount" ~placeholder:amount_ph ();
-      Form.buttons_field ~id:"action"
-        ~buttons:[ { Form.label = "Add"; is_cancel = false };
-                   { Form.label = "Preview"; is_cancel = false };
-                   { Form.label = "Cancel"; is_cancel = true } ] ();
-    ]
-    ()
-
-let observe_preview_form state rows ~notice =
-  let lines = List.mapi (fun i (l, m, q) ->
-    Printf.sprintf "  %d. %s  %s %s" (i + 1) l (B.format state.session.book m q) m) rows in
-  Form.create
-    ~id:"observe_preview"
-    ~title:"Observe / Preview"
-    ~notice
-    ~summary:(
-      [ "New reconciliation group:";
-        "All rows describe quantities observed together at this boundary.";
-        "Unmentioned prior observations are preserved; re-observed move here.";
-        "The shared publisher derives the Event root cut." ]
-      @ (if lines = [] then ["  (none)"] else lines)
-      @ [ "Tab select  Enter confirm  e edit  Esc cancel" ])
-    ~fields:[Form.buttons_field ~id:"action"
-      ~buttons:[ { Form.label = "Publish"; is_cancel = false };
-                 { Form.label = "Edit"; is_cancel = true };
-                 { Form.label = "Cancel"; is_cancel = true } ] ()]
-    ()
-
-let open_observe state =
-  { state with overlay = Modal_form (observe_quantity_form state);
-    observe_draft = Some { rows = []; base_bytes = state.session.bytes;
-      pending = ("", state.workspace.measure, ""); uncertain = false }; message = "" }
-
-let edit_observe state (draft : observe_draft) =
-  let locus, measure, amount = draft.pending in
-  let form = observe_quantity_form ~default_locus:locus ~default_measure:measure
-      ~rows:draft.rows state |> fun form -> Form.set_text form "amount" amount in
-  { state with overlay = Modal_form form }
-
-let review_fits ~dimensions ~width_of state form =
-  let body_w, body_h = body_dimensions ~dimensions ~width_of state in
-  let pane_w = min 64 (max 8 (body_w - 4)) in
-  let rows = Form.render_rows ~width:(max 0 (pane_w - 6))
-      ~height:max_int ~width_of form in
-  pane_w >= 48 && List.length rows <= Panel.capacity ~height:body_h ~heading:false
-
 let input_text value = function
   | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
       Some (value ^ String.make 1 c)
@@ -289,6 +179,8 @@ let screen_env ~config_files state : Screen.env =
   let captured = List.map (fun name -> (name, read_pace_config state name)) config_files in
   {
     book = state.session.book;
+    bytes = state.session.bytes;
+    new_id = F.new_id;
     measure = state.workspace.measure;
     today = F.today ();
     annual = {
@@ -305,6 +197,27 @@ let screen_env ~config_files state : Screen.env =
       | Some bytes -> bytes
       | None -> Error ("Configuration " ^ name ^ " was not declared by this screen."));
   }
+
+(* After a successful reload, an open editor may refuse its captured generation. *)
+let reload state =
+  let state = Daily_interaction_state.reload state in
+  if state.blocked then state
+  else
+    match Screen_registry.modal state.screens with
+    | None -> state
+    | Some (Screen_registry.Owner o) -> (
+        let value, request =
+          o.reloaded (screen_env ~config_files:o.config_files state) (o.get state.screens) in
+        let state = { state with screens = o.set state.screens value } in
+        match request with
+        | Screen.Stop_writes why ->
+            { state with blocked = true; message = Option.value ~default:state.message why }
+        | _ -> state)
+
+(* Home/Calendar [o] and Commands: an empty observation draft over any route. *)
+let open_observe state =
+  { state with screens = { state.screens with
+      observe = Observe_screen.open_editor (screen_env ~config_files:[] state) state.screens.observe } }
 
 let screen_geometry ~dimensions ~width_of state : Screen.geometry =
   let width, body = body_dimensions ~dimensions ~width_of state in
@@ -339,6 +252,22 @@ let execute_publication state = function
   | Screen.Set_locus_label { locus; label; help } ->
       A.commit_set_locus_label ~session:state.session ~base_bytes:state.session.bytes
         ~id:locus ~label ~help ()
+  | Screen.Commit_transaction { transaction; base } ->
+      A.commit_transaction ~session:state.session ~base_bytes:base transaction
+  | Screen.Observe_quantities _ -> invalid_arg "observations publish through publish_observation"
+
+(* Observations publish a whole candidate book; their outcomes map directly. *)
+let publish_observation state ~rows ~base =
+  if base <> state.session.bytes then ({ state with blocked = true }, Screen.Publish_conflict)
+  else
+    match B.observe_quantities state.session.book rows with
+    | Error why -> (state, Screen.Publish_refused ("Observation refused: " ^ why))
+    | Ok book -> (
+        match (try F.publish state.session book with F.Refused why -> F.Refused_input why) with
+        | F.Written session -> (sync { state with session }, Screen.Published)
+        | F.Conflict -> ({ state with blocked = true }, Screen.Publish_conflict)
+        | F.Refused_input why -> (state, Screen.Publish_refused ("Observation save refused: " ^ why))
+        | F.Uncertain -> ({ state with blocked = true }, Screen.Publish_stopped))
 
 (* [saved] hands a configuration save result back to the requesting owner. *)
 let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
@@ -370,13 +299,15 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
       in
       { state with workspace = { state.workspace with measure } }
   | Screen.Observe { locus; measure; amount } ->
-      let current_amount = Option.map Z.to_string amount in
-      let form = observe_quantity_form ~default_locus:locus ~default_measure:measure
-          ?current_amount state in
-      let form = Form.set_focused form (Form.find_field_index form "amount") in
-      { state with overlay = Modal_form form;
-        observe_draft = Some { rows = []; base_bytes = state.session.bytes;
-          pending = ("", state.workspace.measure, ""); uncertain = false } }
+      { state with screens = { state.screens with
+          observe = Observe_screen.open_editor ~locus ~measure ?amount:(Option.map Z.to_string amount)
+              (screen_env ~config_files:[] state) state.screens.observe } }
+  | Screen.Publish (Screen.Observe_quantities { rows; base }) ->
+      let state, outcome = publish_observation state ~rows ~base in
+      let state, request = published state outcome in
+      apply_request ~saved ~published state request
+  | Screen.Stop_writes why ->
+      { state with blocked = true; message = Option.value ~default:state.message why }
   | Screen.Publish publication ->
       let result = execute_publication state publication in
       let state, request =
@@ -497,9 +428,13 @@ let open_command state = function
   | M.Daily_pace -> open_route state W.Daily_pace
   | M.Attention -> open_route state W.Attention
   | M.Manage_loci | M.Friendly_locus_names -> open_route state W.Loci
-  | M.Exchange -> open_exchange { state with overlay = No_overlay }
+  | M.Exchange ->
+      let default_date = match state.workspace.route with
+        | W.Selected_day day -> day | _ -> state.workspace.calendar.selected_day in
+      { state with overlay = No_overlay; message = "";
+        screens = { state.screens with exchange = Exchange_screen.open_editor ~default_date state.screens.exchange } }
   | M.Settlements -> open_route state W.Settlements
-  | M.Observe -> open_observe state
+  | M.Observe -> { (open_observe state) with overlay = No_overlay; message = "" }
   | M.Home -> open_route state W.Home
   | M.Income_expense -> open_route state W.Income_expense
   | M.Stock_flow -> open_route state W.Stock_flow
@@ -524,23 +459,6 @@ let open_command state = function
       let return_menu = match state.overlay with Commands menu -> menu | _ -> M.initial in
       { state with overlay = Themes { selected = index 0 P.all_themes;
                                      original = state.theme; return_menu } }
-
-let exchange_review_form ~canon_day ~memo ~src_locus ~src_measure ~src_quanta_str ~dst_locus ~dst_measure ~dst_quanta_str =
-  let memo_line = match memo with Some m -> "Description:        " ^ m | None -> "Description:        (none)" in
-  Form.create
-    ~id:"review_exchange"
-    ~title:"Exchange / Preview"
-    ~summary:[
-      "Date:               " ^ canon_day;
-      memo_line;
-      Printf.sprintf "Source Effect:      -%s %s at %s" src_quanta_str src_measure src_locus;
-      Printf.sprintf "Destination Effect: +%s %s at %s" dst_quanta_str dst_measure dst_locus;
-      "Exact observed quantities only; no FX rate is inferred.";
-    ]
-    ~fields:[
-      Form.action_buttons ~confirm:"Publish Exchange" ~cancel:"Edit" ();
-    ]
-    ()
 
 let is_scheduled_months state =
   state.workspace.route = W.Scheduled && state.workspace.schedule_view = W.Months

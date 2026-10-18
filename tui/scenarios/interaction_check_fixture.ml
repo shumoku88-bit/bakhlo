@@ -62,6 +62,8 @@ let visible_form (state : C.state) =
   else if Settlements_screen.modal state.screens.settlements then
     Settlements_screen.form state.screens.settlements
   else if Loci_screen.modal state.screens.loci then Loci_screen.form state.screens.loci
+  else if Observe_screen.modal state.screens.observe then Observe_screen.form state.screens.observe
+  else if Exchange_screen.modal state.screens.exchange then Exchange_screen.form state.screens.exchange
   else if Income_expense_screen.modal state.screens.income_expense then
     Income_expense_screen.form state.screens.income_expense
   else if Transactions_flow_screen.modal state.screens.transactions_flow then
@@ -81,6 +83,10 @@ let with_visible_form (state : C.state) form =
       attention = Attention_screen.with_form form state.screens.attention } }
   else if Loci_screen.modal state.screens.loci then
     { state with screens = { state.screens with loci = Loci_screen.with_form form state.screens.loci } }
+  else if Observe_screen.modal state.screens.observe then
+    { state with screens = { state.screens with observe = Observe_screen.with_form form state.screens.observe } }
+  else if Exchange_screen.modal state.screens.exchange then
+    { state with screens = { state.screens with exchange = Exchange_screen.with_form form state.screens.exchange } }
   else if Settlements_screen.modal state.screens.settlements then
     { state with screens = { state.screens with
       settlements = Settlements_screen.with_form form state.screens.settlements } }
@@ -91,7 +97,7 @@ let with_visible_form (state : C.state) form =
 let b2_overlay_open (state : C.state) =
   (match state.C.overlay with
    | C.No_overlay ->
-       Balances.modal state.screens.balances || Pace.modal state.screens.pace
+       Option.is_some (Screen_registry.modal state.screens)
    | _ -> true)
 
 

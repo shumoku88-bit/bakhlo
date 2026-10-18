@@ -12,39 +12,39 @@ let run ~width_of ~directory (back_home : C.state) =
   let obs_modal = key ~width_of back_home (`ASCII 'o') in
   require (b2_overlay_open obs_modal) "observe-modal-opens";
   let form_obs =
-    match obs_modal.overlay with
-    | C.Modal_form f -> f
-    | _ -> failwith "expected modal form for observe_quantity" in
+    match visible_form obs_modal with
+    | Some f -> f
+    | None -> failwith "expected modal form for observe_quantity" in
   let invalid_form = Ui_form.set_text form_obs "locus" "unknown_card" in
   let invalid_form = Ui_form.set_text invalid_form "amount" "abc" in
   let invalid_form = Ui_form.set_focused invalid_form 2 in
   let invalid_state =
-    match H.handle ~width_of { obs_modal with overlay = C.Modal_form invalid_form } (`Key (`Enter, [])) with
+    match H.handle ~width_of (with_visible_form obs_modal invalid_form) (`Key (`Enter, [])) with
     | Some s -> s
     | None -> failwith "unexpected exit on invalid observe submit" in
-  require ((match invalid_state.overlay with C.Modal_form f -> Ui_form.notice f <> "" | _ -> false)
+  require ((match visible_form invalid_state with Some f -> Ui_form.notice f <> "" | None -> false)
     && b2_check_qty invalid_state.C.session.book "wallet" "jpy" = q_before) "refuses-invalid-observe";
   let cancelled_obs = key ~width_of invalid_state `Escape in
-  require (cancelled_obs.overlay = C.No_overlay) "observe-cancel-escapes";
+  require (cancelled_obs.overlay = C.No_overlay && visible_form cancelled_obs = None) "observe-cancel-escapes";
   let check_qty book locus measure = b2_check_qty book locus measure in
   let observe_one base_state locus amount =
     let st = key ~width_of base_state (`ASCII 'o') in
-    let form = match st.C.overlay with C.Modal_form f -> f | _ -> raise (F.Refused "observe-open") in
+    let form = match visible_form st with Some f -> f | None -> raise (F.Refused "observe-open") in
     let form = Ui_form.set_text form "locus" locus in
     let form = Ui_form.set_text form "measure" "jpy" in
     let form = Ui_form.set_text form "amount" amount in
     let form = Ui_form.set_focused form (Ui_form.find_field_index form "action") in
-    let st = match H.handle ~width_of ~dimensions:(100, 30) { st with C.overlay = C.Modal_form form } (`Key (`Enter, [])) with
+    let st = match H.handle ~width_of ~dimensions:(100, 30) (with_visible_form st form) (`Key (`Enter, [])) with
       | Some s -> s | None -> raise (F.Refused "observe-exit") in
     let pick idx s =
-      (match s.C.overlay with
-       | C.Modal_form f ->
+      (match visible_form s with
+       | Some f ->
            let form = Ui_form.update_field f "action" (function
              | Ui_form.Buttons b -> Ui_form.Buttons { b with selected = idx } | other -> other) in
            let form = Ui_form.set_focused form (Ui_form.find_field_index form "action") in
-           (match H.handle ~width_of ~dimensions:(100, 30) { s with C.overlay = C.Modal_form form } (`Key (`Enter, [])) with
+           (match H.handle ~width_of ~dimensions:(100, 30) (with_visible_form s form) (`Key (`Enter, [])) with
             | Some s -> s | None -> raise (F.Refused "observe-advance"))
-       | _ -> s) in
+       | None -> s) in
     pick 0 (pick 1 st) in
   let observed_state = observe_one back_home "wallet" "5000" in
   require (check_qty observed_state.session.book "wallet" "jpy" = "5000") "wallet-balance-observed-5000";

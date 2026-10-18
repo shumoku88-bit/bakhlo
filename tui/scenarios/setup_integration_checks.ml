@@ -84,7 +84,7 @@ let run ~width_of ~directory ~path =
   let tx_menu = key ~width_of cmd_root `Enter in
   let to_exch = key ~width_of (key ~width_of (key ~width_of tx_menu (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down) in
   let exch_modal = key ~width_of to_exch `Enter in
-  require (C.is_exchange exch_modal.overlay) "commands-opens-exchange-form";
+  require (visible_form_id exch_modal = Some "exchange") "commands-opens-exchange-form";
   (* Validate error on same measure *)
   let err_form =
     match visible_form exch_modal with
@@ -100,8 +100,8 @@ let run ~width_of ~directory ~path =
     | None -> failwith "expected modal form for exchange"
   in
   let err_submitted = key ~width_of err_form `Enter in
-  require (match err_submitted.overlay with
-           | C.Modal_form f -> Ui_form.notice f = "Source and destination Measures must differ."
+  require (match visible_form err_submitted with
+           | Some f -> Ui_form.notice f = "Source and destination Measures must differ."
            | _ -> false)
     "exchange-rejects-same-measure";
   (* Successful exchange JPY -> EUR *)

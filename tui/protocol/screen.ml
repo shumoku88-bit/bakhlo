@@ -6,6 +6,8 @@ type annual = {
 
 type env = {
   book : Bakhlo_sexp.Daily_book.t;
+  bytes : string;
+  new_id : unit -> string;
   measure : string;
   today : string;
   annual : annual;
@@ -28,6 +30,8 @@ type admission = Unconditional | Household_readable | Vocabulary_unchanged
 type publication =
   | Add_locus of string
   | Set_locus_label of { locus : string; label : string; help : string }
+  | Commit_transaction of { transaction : Daily_draft.transaction; base : string }
+  | Observe_quantities of { rows : (string * string * Z.t) list; base : string }
 
 type publish_outcome = Published | Publish_refused of string | Publish_conflict | Publish_stopped
 
@@ -43,6 +47,7 @@ type request =
   | Save_attention of { expected : Attention_data.t; next : Attention_data.t }
   | Save_settlements of { expected : Settlement_data.t; next : Settlement_data.t }
   | Publish of publication
+  | Stop_writes of string option
   | Save_config of {
       file : string;
       expected : string option;
@@ -60,3 +65,16 @@ type view = {
 }
 
 let no_publication _env _geometry _outcome t = (t, Stay)
+let no_reload _env t = (t, Stay)
+
+let env_for_checks ?(accounting_roles = []) ?(config = fun name -> Error ("undeclared " ^ name))
+    ~book ~measure ~today () =
+  {
+    book; bytes = ""; new_id = (let n = ref 0 in fun () -> incr n; Printf.sprintf "check-%d" !n);
+    measure; today;
+    annual = { year = None; unavailable = lazy None; history = lazy (Ok None) };
+    accounting_roles = lazy accounting_roles;
+    attention = Ok Attention_data.empty;
+    settlements = Ok Settlement_data.empty;
+    blocked = false; config;
+  }

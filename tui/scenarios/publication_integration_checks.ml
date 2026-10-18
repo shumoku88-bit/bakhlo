@@ -200,14 +200,14 @@ let run ~width_of ~directory ~path (home : C.state) =
   in
   let bal_on_account = { bal_with_roles with screens = { bal_with_roles.screens with balances = Balances.set_selected acct_idx bal_with_roles.screens.balances } } in
   let bal_obs = key ~width_of bal_on_account (`ASCII 'o') in
-  (match bal_obs.overlay with
-   | C.Modal_form f ->
+  (match visible_form bal_obs with
+   | Some f ->
        require (Ui_form.id f = "observe_quantity") "balances-o-opens-observe-form";
        require (Ui_form.get_text f "locus" <> Some "") "balances-o-prefilled-locus";
        require (Ui_form.focused f = Ui_form.find_field_index f "amount") "balances-o-focuses-amount"
-   | _ -> failwith "expected observe quantity modal");
+   | None -> failwith "expected observe quantity modal");
   let bal_obs_cancel = key ~width_of bal_obs `Escape in
-  require (bal_obs_cancel.overlay = C.No_overlay) "balances-observe-cancel-escapes";
+  require (bal_obs_cancel.overlay = C.No_overlay && visible_form bal_obs_cancel = None) "balances-observe-cancel-escapes";
   (* Test toggle to Accounting view with 'v' *)
   let bal_back_acct = key ~width_of bal_custom_bv (`ASCII 'v') in
   let wide_back_acct = R.screen ~width_of (120, 30) bal_back_acct in

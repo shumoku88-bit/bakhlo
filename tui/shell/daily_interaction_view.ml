@@ -385,10 +385,6 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
       | "discard_record" ->
           [ "Left/Right choose  Enter confirm  Esc keep";
             "Keep draft is the protective default; no book write" ]
-      | "observe_quantity" ->
-          [ "Enter next/Add  Tab fields  Left/Right action"; "Add observed rows together, then Preview; Esc cancels" ]
-      | "observe_preview" ->
-          [ "Left/Right choose  Enter confirm  e edit  Esc cancel"; "Full image must fit before Publish; no partial save" ]
       | _ ->
           [ "Enter submit  Tab next field  Esc cancel"; "Arrow keys / space to choose options" ])
   | No_overlay | Commands _ | Jump _ | Search _ ->

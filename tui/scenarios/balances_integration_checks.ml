@@ -154,7 +154,7 @@ let balance_display_checks ~width_of ~directory () =
    restyling; asserts LOAM-parity behavior, not widget ids. *)
 
 let b2_overlay_open (state : C.state) =
-  (match state.C.overlay with C.No_overlay -> Balances.modal state.screens.balances | _ -> true)
+  (match state.C.overlay with C.No_overlay -> Option.is_some (Screen_registry.modal state.screens) | _ -> true)
 
 let b2_screen ~width_of dimensions state =
   R.screen ~width_of dimensions state
@@ -307,14 +307,14 @@ let observe_multi_checks ~width_of ~directory () =
   F.write_new path b2_book_fixture;
   let fresh_home () = C.initial ~config_home:directory (F.load path) in
   let modal state =
-    match state.C.overlay with C.Modal_form f -> f | _ -> raise (F.Refused "observe-open") in
+    match visible_form state with Some f -> f | None -> raise (F.Refused "observe-open") in
   let notice state = Ui_form.notice (modal state) in
   let fill state locus measure amount =
     let form = modal state in
     let form = Ui_form.set_text form "locus" locus in
     let form = Ui_form.set_text form "measure" measure in
     let form = Ui_form.set_text form "amount" amount in
-    { state with C.overlay = C.Modal_form (Ui_form.set_focused form 2) } in
+    with_visible_form state (Ui_form.set_focused form 2) in
   let press state =
     match H.handle ~width_of ~dimensions:(100, 30) state (`Key (`Enter, [])) with
     | Some s -> s | None -> raise (F.Refused "observe-exit") in
@@ -323,14 +323,13 @@ let observe_multi_checks ~width_of ~directory () =
     let form = Ui_form.update_field form "action" (function
       | Ui_form.Buttons b -> Ui_form.Buttons { b with selected = idx }
       | other -> other) in
-    { state with C.overlay = C.Modal_form
-        (Ui_form.set_focused form (Ui_form.find_field_index form "action")) } in
+    with_visible_form state (Ui_form.set_focused form (Ui_form.find_field_index form "action")) in
   let to_preview state = press (set_action state 1) in
   let publish state = press (set_action state 0) in
   let is_preview state =
-    match state.C.overlay with C.Modal_form f -> Ui_form.id f = "observe_preview" | _ -> false in
+    visible_form_id state = Some "observe_preview" in
   let is_editing state =
-    match state.C.overlay with C.Modal_form f -> Ui_form.id f = "observe_quantity" | _ -> false in
+    visible_form_id state = Some "observe_quantity" in
   let home = fresh_home () in
   let book_before = F.read path in
   let opened = key ~width_of home (`ASCII 'o') in
@@ -360,7 +359,7 @@ let observe_multi_checks ~width_of ~directory () =
     "observe-edit-retains-rows";
   (* Publish once: wallet 1234, bank 0, unmentioned food 5500 preserved. *)
   let published = publish (to_preview edited) in
-  require (published.C.overlay = C.No_overlay) "observe-publish-closes";
+  require (published.C.overlay = C.No_overlay && visible_form published = None) "observe-publish-closes";
   let cold = (F.load path).book in
   require (b2_check_qty cold "wallet" "jpy" = "1234" && b2_check_qty cold "bank" "jpy" = "0"
     && b2_check_qty cold "food" "jpy" = "5500") "observe-publish-wallet-bank-preserves-food";
@@ -397,7 +396,7 @@ let observe_multi_checks ~width_of ~directory () =
    require (is_preview st && notice st <> "" && F.read path = bytes_before)
      "observe-duplicate-retains-preview-refusal";
    let closed = key ~width_of ~dimensions:(100, 30) st `Escape in
-   require (closed.C.overlay = C.No_overlay && F.read path = bytes_before) "observe-duplicate-cancel-no-write");
+   require (closed.C.overlay = C.No_overlay && visible_form closed = None && F.read path = bytes_before) "observe-duplicate-cancel-no-write");
   (* Blocked publish retains Preview; small terminal refuses publish; both no-write. *)
   (let st = key ~width_of (fresh_home ()) (`ASCII 'o') in
    let st = press (fill st "wallet" "jpy" "7") in

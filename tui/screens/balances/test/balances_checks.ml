@@ -24,13 +24,8 @@ let test_roles =
   [ ("wallet", O.Asset); ("bank", O.Asset); ("food", O.Expense) ]
 
 let env ~book balance_view_text : Screen.env =
-  {
-    book; measure = "jpy"; today = "2026-10-18";
-    annual = { year = None; unavailable = lazy None; history = lazy (Ok None) };
-    accounting_roles = lazy test_roles; attention = Ok Attention_data.empty;
-    settlements = Ok Settlement_data.empty; blocked = false;
-    config = (function "balance-view.tsv" -> balance_view_text | name -> Error ("undeclared " ^ name));
-  }
+  Screen.env_for_checks ~accounting_roles:test_roles ~book ~measure:"jpy" ~today:"2026-10-18"
+    ~config:(function "balance-view.tsv" -> balance_view_text | name -> Error ("undeclared " ^ name)) ()
 
 let geometry ?(dimensions = (80, 24)) ~width_of () : Screen.geometry =
   { screen = dimensions; body = dimensions; content = dimensions; width_of }

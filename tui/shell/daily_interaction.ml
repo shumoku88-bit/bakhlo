@@ -252,41 +252,11 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                   else { state with overlay = Search value }))
     | Modal_form form -> (
         let result =
-          match Form.id form, input with
-          | "observe_preview", `Key (`ASCII ('e' | 'E'), []) -> Form.Cancel
-          | "observe_preview", `Key (`Tab, mods)
-              when mods = [] || mods = [`Shift] ->
-              Form.handle_input form (`Key (`Arrow (if mods = [] then `Right else `Left), []))
-          | "observe_quantity", `Key (`Tab, mods) when mods = [] || mods = [`Shift] ->
-              let action = Form.find_field_index form "action" in
-              let position = if Form.focused form = action then
-                  action + Option.value ~default:0 (Form.get_button form "action")
-                else Form.focused form in
-              let next = (position + (if mods = [] then 1 else 5)) mod 6 in
-              let form = Form.set_focused form (min action next) in
-              let form = Form.update_field form "action" (function
-                | Form.Buttons buttons -> Form.Buttons { buttons with selected = max 0 (next - action) }
-                | field -> field) in
-              Form.Updated form
-          | _, `Key (`ASCII ('r' | 'R'), [`Ctrl]) -> Form.Updated form
+          match input with
+          | `Key (`ASCII ('r' | 'R'), [`Ctrl]) -> Form.Updated form
           | _ -> Form.handle_input form input in
         match result with
-        | Form.Cancel ->
-            let observe_edit =
-              Form.id form = "observe_preview"
-              && (input = `Key (`ASCII 'e', []) || input = `Key (`ASCII 'E', [])
-                  || (input = `Key (`Enter, []) && Form.get_button form "action" = Some 1)) in
-            if observe_edit then
-              Some (match state.observe_draft with
-                | Some draft -> edit_observe state draft
-                | None -> { state with overlay = No_overlay })
-            else if Form.id form = "observe_quantity" || Form.id form = "observe_preview" then
-              Some { state with overlay = No_overlay; observe_draft = None }
-            else
-            (match state.exchange_review with
-             | Some (editing, _, _) when Form.id form = "review_exchange" ->
-                 Some { state with overlay = Modal_form editing; exchange_review = None }
-             | _ -> Some { state with overlay = No_overlay; exchange_review = None })
+        | Form.Cancel -> Some { state with overlay = No_overlay }
         | Form.Updated _ when input = `Key (`ASCII 'r', [`Ctrl])
                               || input = `Key (`ASCII 'R', [`Ctrl]) ->
             Some (reload state)
@@ -325,180 +295,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                     message = (if state.blocked then state.message
                       else tr "Enlarge the terminal to confirm draft discard.") }
                 else Some (discard { state with overlay = No_overlay })
-            | "exchange" ->
-                let date_str = Option.value ~default:"" (Form.get_text submitted "date") |> String.trim in
-                let memo_str = Option.value ~default:"" (Form.get_text submitted "memo") |> String.trim in
-                let src_locus = Option.value ~default:"" (Form.get_text submitted "source_locus") |> String.trim in
-                let src_measure = Option.value ~default:"" (Form.get_text submitted "source_measure") |> String.trim in
-                let src_amount_str = Option.value ~default:"" (Form.get_text submitted "source_amount") |> String.trim in
-                let dst_locus = Option.value ~default:"" (Form.get_text submitted "destination_locus") |> String.trim in
-                let dst_measure = Option.value ~default:"" (Form.get_text submitted "destination_measure") |> String.trim in
-                let dst_amount_str = Option.value ~default:"" (Form.get_text submitted "destination_amount") |> String.trim in
-                let valid_token s =
-                  s <> "" && not (String.contains s ' ') && not (String.contains s '\t')
-                  && not (String.contains s '\n') && not (String.contains s '\r')
-                in
-                (match A.normalize_date date_str with
-                | Error _ ->
-                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Invalid date (YYYY-MM-DD).")) }
-                | Ok canon_day ->
-                    if not (A.is_valid_canonical_date canon_day) then
-                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter a real calendar date in YYYY-MM-DD form.")) }
-                    else if not (valid_token src_locus) then
-                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Source Locus must be a nonempty single-line token.")) }
-                    else if not (valid_token dst_locus) then
-                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Destination Locus must be a nonempty single-line token.")) }
-                    else if not (valid_token src_measure) then
-                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Source Measure must be a nonempty single-line token.")) }
-                    else if not (valid_token dst_measure) then
-                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Destination Measure must be a nonempty single-line token.")) }
-                    else if String.equal src_measure dst_measure then
-                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Source and destination Measures must differ.")) }
-                    else
-                      (match B.parse_amount state.session.book src_measure src_amount_str with
-                      | Error why ->
-                          let msg =
-                            if why = "non-positive-amount" then tr "Source amount must be positive."
-                            else if why = "division-by-zero" then tr "Source amount divides by zero."
-                            else if why = "indivisible-amount" then tr "Source result cannot fit the Measure scale."
-                            else if why = "measure-scale-not-supplied" then
-                              Printf.sprintf "Measure '%s' scale is not configured." src_measure
-                            else tr "Source amount is invalid."
-                          in
-                          Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
-                      | Ok src_quanta ->
-                          (match B.parse_amount state.session.book dst_measure dst_amount_str with
-                          | Error why ->
-                              let msg =
-                                if why = "non-positive-amount" then tr "Destination amount must be positive."
-                                else if why = "division-by-zero" then tr "Destination amount divides by zero."
-                                else if why = "indivisible-amount" then tr "Destination result cannot fit the Measure scale."
-                                else if why = "measure-scale-not-supplied" then
-                                  Printf.sprintf "Measure '%s' scale is not configured." dst_measure
-                                else tr "Destination amount is invalid."
-                              in
-                              Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
-                          | Ok dst_quanta ->
-                              let approved = B.approved_loci state.session.book in
-                              let unapproved =
-                                match approved with
-                                | None -> []
-                                | Some ids ->
-                                    let check loc = if not (List.mem loc ids) then [ loc ] else [] in
-                                    check src_locus @ check dst_locus
-                              in
-                              if unapproved <> [] then
-                                let msg = Printf.sprintf "Locus '%s' is not admitted." (String.concat ", " unapproved) in
-                                Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
-                              else
-                                let src_effect =
-                                  D.Effect.create
-                                    ~key:(Some (Result.get_ok (D.Identifier.Effect_key.of_string "exchange-source")))
-                                    ~locus:(Result.get_ok (D.Identifier.Locus.of_string src_locus))
-                                    ~measure:(Result.get_ok (D.Identifier.Measure.of_string src_measure))
-                                    ~quantity:(D.Quantity.of_quanta (Z.neg src_quanta))
-                                in
-                                let dst_effect =
-                                  D.Effect.create
-                                    ~key:(Some (Result.get_ok (D.Identifier.Effect_key.of_string "exchange-destination")))
-                                    ~locus:(Result.get_ok (D.Identifier.Locus.of_string dst_locus))
-                                    ~measure:(Result.get_ok (D.Identifier.Measure.of_string dst_measure))
-                                    ~quantity:(D.Quantity.of_quanta dst_quanta)
-                                in
-                                let memo = if memo_str = "" then None else Some memo_str in
-                                let entry =
-                                  {
-                                    B.id = F.new_id ();
-                                    day = canon_day;
-                                    memo;
-                                    effects = [ src_effect; dst_effect ];
-                                    reversal_of = None;
-                                    exchange = Some ("exchange-source", "exchange-destination");
-                                    original_amount = None;
-                                    merchant = None;
-                                  }
-                                in
-                                let tx = { A.entry; replace = false; plan = None } in
-                                let src_fmt = B.format state.session.book src_measure src_quanta in
-                                let dst_fmt = B.format state.session.book dst_measure dst_quanta in
-                                let rev_form = exchange_review_form ~canon_day ~memo ~src_locus ~src_measure ~src_quanta_str:src_fmt ~dst_locus ~dst_measure ~dst_quanta_str:dst_fmt in
-                                Some { state with overlay = Modal_form rev_form;
-                                                  exchange_review = Some (submitted, tx, state.session.bytes) })))
-            | "review_exchange" ->
-                (match state.exchange_review with
-                 | None -> Some { state with overlay = No_overlay; message = tr "Exchange review expired; reopen." }
-                 | Some (_editing, tx, base_bytes) ->
-                     let body_w, body_h = body_dimensions ~dimensions ~width_of state in
-                     let pane_w = min 64 (max 8 (body_w - 4)) in
-                     let rows = Form.render_rows ~width:(max 0 (pane_w - 6)) ~height:10000 ~width_of submitted in
-                     if pane_w < 48 || List.length rows + 2 > body_h then
-                       Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enlarge the terminal to review the full exchange before publishing.")) }
-                     else
-                       let res = A.commit_transaction ~session:state.session ~base_bytes tx in
-                       (match res with
-                        | A.Refused why ->
-                            Some { state with overlay = Modal_form (Form.set_notice submitted why) }
-                        | A.Conflict | A.Conflict_base_changed ->
-                            Some { state with overlay = Modal_form (Form.set_notice submitted (tr "File changed on disk. Reload to inspect.")) }
-                        | A.Published _ | A.Idempotent_duplicate _ | _ ->
-                            let next_state = { state with overlay = No_overlay; exchange_review = None; message = tr "Exchange recorded." } in
-                            Some (apply_commit_result next_state ~draft:next_state res)))
-        | "observe_quantity" ->
-            let refused why = Some { state with overlay = Modal_form (Form.set_notice submitted why) } in
-            (match state.observe_draft with
-             | None -> refused "Observation session expired. Cancel and reopen."
-             | Some draft ->
-                 if Form.focused submitted = Form.find_field_index submitted "action"
-                    && Form.get_button submitted "action" = Some 1 then
-                   if draft.rows = [] then refused "Add at least one observed quantity before Preview."
-                   else
-                     let pending =
-                       (Option.value ~default:"" (Form.get_text submitted "locus"),
-                        Option.value ~default:"" (Form.get_text submitted "measure"),
-                        Option.value ~default:"" (Form.get_text submitted "amount")) in
-                     Some { state with observe_draft = Some { draft with pending };
-                       overlay = Modal_form (observe_preview_form state draft.rows ~notice:"") }
-                 else
-                   let locus = String.trim (Option.value ~default:"" (Form.get_text submitted "locus")) in
-                   let measure = String.lowercase_ascii (String.trim (Option.value ~default:"" (Form.get_text submitted "measure"))) in
-                   let amount = String.trim (Option.value ~default:"" (Form.get_text submitted "amount")) in
-                   if not (config_token locus && config_token measure) then
-                     refused "Enter single-line Locus and Measure tokens."
-                   else match B.parse_signed_amount state.session.book measure amount with
-                   | Error why -> refused ("Invalid observed amount: " ^ why)
-                   | Ok quantity ->
-                       let rows = draft.rows @ [locus, measure, quantity] in
-                       Some { state with observe_draft = Some
-                           { draft with rows; pending = ("", measure, "") };
-                         overlay = Modal_form (observe_quantity_form ~default_measure:measure ~rows state) })
-        | "observe_preview" ->
-            let refused ?(blocked = state.blocked) why =
-              Some { state with blocked; overlay = Modal_form (Form.set_notice submitted why) } in
-            (match state.observe_draft with
-             | None -> refused "Observation session expired. Cancel and reopen."
-             | Some draft ->
-                 if state.blocked || draft.uncertain || draft.base_bytes <> state.session.bytes then
-                   refused ~blocked:true "Observation stopped. Cancel and reload to inspect; do not retry this image."
-                 else if not (review_fits ~dimensions ~width_of state submitted) then
-                   refused "Enlarge the terminal to review every observation before publishing."
-                 else
-                   match B.observe_quantities state.session.book draft.rows with
-                   | Error why -> refused ("Observation refused: " ^ why)
-                   | Ok book ->
-                       let outcome =
-                         try F.publish state.session book
-                         with F.Refused why -> F.Refused_input why in
-                       (match outcome with
-                        | F.Written session ->
-                            Some (sync { state with session; overlay = No_overlay; observe_draft = None;
-                              message = Printf.sprintf "Observed %d coordinates together." (List.length draft.rows) })
-                        | F.Conflict -> refused ~blocked:true "File changed on disk. Draft retained; cancel and reload to inspect."
-                        | F.Refused_input why -> refused ("Observation save refused: " ^ why)
-                        | F.Uncertain ->
-                            Some { state with blocked = true;
-                              observe_draft = Some { draft with uncertain = true };
-                              overlay = Modal_form (Form.set_notice submitted
-                                "Observation save uncertain. Do not retry; reload to inspect.") }))
         | _ -> Some state))
     | No_overlay -> (
         let key = match input with `Key (key, mods) -> Some (key, mods) | _ -> None in
@@ -666,16 +462,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some (open_route state W.Attention)
         | Some (`ASCII 'o', [])
           when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
-            let default_locus, default_measure, current_amount = (None, None, None) in
-            let form = observe_quantity_form ?default_locus ?default_measure ?current_amount state in
-            let form =
-              if default_locus <> None then
-                Form.set_focused form (Form.find_field_index form "amount")
-              else form
-            in
-            Some { state with overlay = Modal_form form;
-              observe_draft = Some { rows = []; base_bytes = state.session.bytes;
-                pending = ("", state.workspace.measure, ""); uncertain = false } }
+            Some (open_observe state)
         | Some (`ASCII 's', []) when state.workspace.route = W.Actual ->
             Some (sync { state with workspace = W.cycle_order state.workspace })
         | Some (`ASCII 'f', [])

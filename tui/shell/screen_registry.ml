@@ -12,6 +12,8 @@ type t = {
   attention : Attention_screen.t;
   settlements : Settlements_screen.t;
   loci : Loci_screen.t;
+  observe : Observe_screen.t;
+  exchange : Exchange_screen.t;
 }
 
 let create () =
@@ -24,10 +26,12 @@ let create () =
     attention = Attention_screen.create ();
     settlements = Settlements_screen.create ();
     loci = Loci_screen.create ();
+    observe = Observe_screen.create ();
+    exchange = Exchange_screen.create ();
   }
 
 type 'a owner = {
-  route : W.route;
+  route : W.route option;  (* None: an editor that opens over any route *)
   config_files : string list;
   get : t -> 'a;
   set : t -> 'a -> t;
@@ -37,15 +41,18 @@ type 'a owner = {
   view : Screen.env -> Screen.geometry -> 'a -> Screen.view;
   saved : Screen.env -> Screen.geometry -> (unit, string) result -> 'a -> 'a * Screen.request;
   published : Screen.env -> Screen.geometry -> Screen.publish_outcome -> 'a -> 'a * Screen.request;
+  reloaded : Screen.env -> 'a -> 'a * Screen.request;
 }
 
 type owner_ref = Owner : 'a owner -> owner_ref
+
+let no_save _env _geometry _result t = (t, Screen.Stay)
 
 let all =
   [
     Owner
       {
-        route = W.Daily_pace;
+        route = Some W.Daily_pace;
         config_files = Daily_pace_screen.config_files;
         get = (fun t -> t.pace);
         set = (fun t pace -> { t with pace });
@@ -55,10 +62,11 @@ let all =
         view = Daily_pace_screen.view;
         saved = Daily_pace_screen.saved;
         published = Screen.no_publication;
+        reloaded = Screen.no_reload;
       };
     Owner
       {
-        route = W.Balances;
+        route = Some W.Balances;
         config_files = Balances_screen.config_files;
         get = (fun t -> t.balances);
         set = (fun t balances -> { t with balances });
@@ -68,10 +76,11 @@ let all =
         view = Balances_screen.view;
         saved = Balances_screen.saved;
         published = Screen.no_publication;
+        reloaded = Screen.no_reload;
       };
     Owner
       {
-        route = W.Income_expense;
+        route = Some W.Income_expense;
         config_files = Income_expense_screen.config_files;
         get = (fun t -> t.income_expense);
         set = (fun t income_expense -> { t with income_expense });
@@ -81,10 +90,11 @@ let all =
         view = Income_expense_screen.view;
         saved = Income_expense_screen.saved;
         published = Screen.no_publication;
+        reloaded = Screen.no_reload;
       };
     Owner
       {
-        route = W.Transactions_flow;
+        route = Some W.Transactions_flow;
         config_files = Transactions_flow_screen.config_files;
         get = (fun t -> t.transactions_flow);
         set = (fun t transactions_flow -> { t with transactions_flow });
@@ -94,10 +104,11 @@ let all =
         view = Transactions_flow_screen.view;
         saved = Transactions_flow_screen.saved;
         published = Screen.no_publication;
+        reloaded = Screen.no_reload;
       };
     Owner
       {
-        route = W.Stock_flow;
+        route = Some W.Stock_flow;
         config_files = Stock_flow_screen.config_files;
         get = (fun t -> t.stock_flow);
         set = (fun t stock_flow -> { t with stock_flow });
@@ -107,10 +118,11 @@ let all =
         view = Stock_flow_screen.view;
         saved = Stock_flow_screen.saved;
         published = Screen.no_publication;
+        reloaded = Screen.no_reload;
       };
     Owner
       {
-        route = W.Attention;
+        route = Some W.Attention;
         config_files = Attention_screen.config_files;
         get = (fun t -> t.attention);
         set = (fun t attention -> { t with attention });
@@ -120,10 +132,11 @@ let all =
         view = Attention_screen.view;
         saved = Attention_screen.saved;
         published = Screen.no_publication;
+        reloaded = Screen.no_reload;
       };
     Owner
       {
-        route = W.Settlements;
+        route = Some W.Settlements;
         config_files = Settlements_screen.config_files;
         get = (fun t -> t.settlements);
         set = (fun t settlements -> { t with settlements });
@@ -133,10 +146,11 @@ let all =
         view = Settlements_screen.view;
         saved = Settlements_screen.saved;
         published = Screen.no_publication;
+        reloaded = Screen.no_reload;
       };
     Owner
       {
-        route = W.Loci;
+        route = Some W.Loci;
         config_files = Loci_screen.config_files;
         get = (fun t -> t.loci);
         set = (fun t loci -> { t with loci });
@@ -146,10 +160,39 @@ let all =
         view = Loci_screen.view;
         saved = Loci_screen.saved;
         published = Loci_screen.published;
+        reloaded = Screen.no_reload;
+      };
+    Owner
+      {
+        route = None;
+        config_files = Observe_screen.config_files;
+        get = (fun t -> t.observe);
+        set = (fun t observe -> { t with observe });
+        enter = Fun.id;
+        modal = Observe_screen.modal;
+        handle = Observe_screen.handle;
+        view = Observe_screen.view;
+        saved = no_save;
+        published = Observe_screen.published;
+        reloaded = Observe_screen.reloaded;
+      };
+    Owner
+      {
+        route = None;
+        config_files = Exchange_screen.config_files;
+        get = (fun t -> t.exchange);
+        set = (fun t exchange -> { t with exchange });
+        enter = Fun.id;
+        modal = Exchange_screen.modal;
+        handle = Exchange_screen.handle;
+        view = Exchange_screen.view;
+        saved = no_save;
+        published = Exchange_screen.published;
+        reloaded = Screen.no_reload;
       };
   ]
 
-let for_route route = List.find_opt (fun (Owner o) -> o.route = route) all
+let for_route route = List.find_opt (fun (Owner o) -> o.route = Some route) all
 let modal t = List.find_opt (fun (Owner o) -> o.modal (o.get t)) all
 
 let enter route t =

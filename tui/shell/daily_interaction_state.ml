@@ -53,13 +53,6 @@ type style = O.style =
   | Input of int
 
 
-type observe_draft = {
-  rows : (string * string * Z.t) list;
-  base_bytes : string;
-  pending : string * string * string;
-  uncertain : bool;
-}
-
 type overlay =
   | No_overlay
   | Commands of M.t
@@ -85,14 +78,6 @@ let is_scheduled_create = function
   | Scheduled_create _ -> true
   | _ -> false
 
-let is_exchange = function
-  | Modal_form f when Form.id f = "exchange" -> true
-  | _ -> false
-
-let is_observe_quantity = function
-  | Modal_form f when Form.id f = "observe_quantity" -> true
-  | _ -> false
-
 
 type state = {
   session : F.t;
@@ -113,8 +98,6 @@ type state = {
   settlement_path : string;
   settlements : (Stl.t, string) result;
   screens : Screen_registry.t;
-  exchange_review : (Form.t * A.transaction * string) option;
-  observe_draft : observe_draft option;
   actual_workspace : Act.t;
   drill_parent : W.route option;
   drill_book : B.t option;
@@ -155,8 +138,6 @@ let initial ?config_home session =
     settlement_path;
     settlements;
     screens = Screen_registry.create ();
-    exchange_review = None;
-    observe_draft = None;
     actual_workspace = Act.create ~focus_date:focus_day;
     drill_parent = None;
     drill_book = None;
@@ -275,10 +256,6 @@ let reload state =
   | A.Recovery_required (session, message) -> { state with session; blocked = true; message }
   | A.Reloaded session -> (
       match state.overlay with
-      | Modal_form _ when Option.fold ~none:false ~some:(fun draft ->
-            draft.uncertain || draft.base_bytes <> session.bytes) state.observe_draft ->
-          { state with session; blocked = true;
-            message = "Observation generation changed or save is uncertain. Cancel and inspect; do not retry." }
       | Reversal editor when Rev.base_bytes editor <> session.bytes ->
           { state with session; blocked = true;
             message = tr "Reversal target generation changed. Date retained; cancel, reload and reselect." }
