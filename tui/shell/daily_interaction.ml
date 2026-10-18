@@ -158,7 +158,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII 'q', [ `Ctrl ]) -> None
         | Some (`ASCII 'r', [ `Ctrl ]) -> Some (reload state)
         | Some (`ASCII 'n', [ `Ctrl ]) -> Some (request_discard state)
-        | _ when Option.is_some (Lazy.force route_step) -> Lazy.force route_step
+        | _ when Option.is_some (Lazy.force route_step) -> (
+            match Lazy.force route_step with Some (`State state) -> Some state | _ -> None)
         | Some (`ASCII ' ', []) -> Some { state with overlay = Commands M.initial }
         | Some (`Uchar c, []) when Uchar.to_int c = 32 ->
             Some { state with overlay = Commands M.initial }

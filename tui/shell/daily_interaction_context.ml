@@ -152,6 +152,7 @@ let screen_env ~config_files state : Screen.env =
     bytes = state.session.bytes;
     new_id = F.new_id;
     measure = state.workspace.measure;
+    calendar = state.workspace.calendar;
     today = F.today ();
     annual = {
       year = state.session.F.annual_year;
@@ -288,6 +289,14 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
       let state, outcome = publish_observation state ~rows ~base in
       let state, request = published state outcome in
       apply_request ~saved ~published state request
+  | Screen.Open_route route -> open_route state route
+  | Screen.Back -> back state
+  | Screen.Quit -> state  (* handled by route_screen_input before applying *)
+  | Screen.Set_calendar calendar ->
+      sync { state with workspace = { state.workspace with calendar; pane = W.Calendar }; scroll = 0;
+             message = (if state.blocked then state.message else "") }
+  | Screen.Open_observe -> open_observe state
+  | Screen.New_plan -> open_plan_record state
   | Screen.Record_action { action; target } -> (
       let target = Option.map (function
           | Screen.Entry e -> W.Actual_entry e | Screen.Plan p -> W.Scheduled_plan p) target in
@@ -371,8 +380,10 @@ let owner_input ~dimensions ~width_of (Screen_registry.Owner o) state input =
   let value, request =
     o.handle (screen_env ~config_files:o.config_files state)
       (screen_geometry ~dimensions ~width_of state) (o.get state.screens) input in
-  if request = Screen.Ignored then None
-  else Some (apply_owner ~dimensions ~width_of o state (value, request))
+  match request with
+  | Screen.Ignored -> None
+  | Screen.Quit -> Some `Quit
+  | _ -> Some (`State (apply_owner ~dimensions ~width_of o state (value, request)))
 
 let owner_view ~dimensions ~width_of (Screen_registry.Owner o) state =
   o.view (screen_env ~config_files:o.config_files state)
@@ -381,8 +392,8 @@ let owner_view ~dimensions ~width_of (Screen_registry.Owner o) state =
 let modal_screen_input ~dimensions ~width_of state input =
   Option.bind (Screen_registry.modal state.screens) (fun owner ->
     match owner_input ~dimensions ~width_of owner state input with
-    | Some state -> Some state
-    | None -> Some state)
+    | Some (`State state) -> Some state
+    | Some `Quit | None -> Some state)
 
 let route_screen_input ~dimensions ~width_of state input =
   Option.bind (Screen_registry.for_route state.workspace.route) (fun owner ->

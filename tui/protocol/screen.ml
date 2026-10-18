@@ -1,3 +1,7 @@
+type route =
+  | Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace
+  | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow
+
 type annual = {
   year : int option;
   unavailable : string option Lazy.t;
@@ -9,6 +13,7 @@ type env = {
   bytes : string;
   new_id : unit -> string;
   measure : string;
+  calendar : Daily_calendar.t;
   today : string;
   annual : annual;
   accounting_roles : (string * Daily_overlays.accounting_role) list Lazy.t;
@@ -60,6 +65,12 @@ type request =
   | Observe of { locus : string; measure : string; amount : Z.t option }
   | Save_attention of { expected : Attention_data.t; next : Attention_data.t }
   | Save_settlements of { expected : Settlement_data.t; next : Settlement_data.t }
+  | Open_route of route
+  | Back
+  | Quit
+  | Set_calendar of Daily_calendar.t
+  | Open_observe
+  | New_plan
   | Record_action of { action : record_action; target : record_target option }
   | New_record
   | Drill of { day : string; entry : string }
@@ -90,7 +101,7 @@ let env_for_checks ?(accounting_roles = []) ?(config = fun name -> Error ("undec
     ~book ~measure ~today () =
   {
     book; bytes = ""; new_id = (let n = ref 0 in fun () -> incr n; Printf.sprintf "check-%d" !n);
-    measure; today;
+    measure; today; calendar = Result.get_ok (Daily_calendar.create today);
     annual = { year = None; unavailable = lazy None; history = lazy (Ok None) };
     accounting_roles = lazy accounting_roles;
     attention = Ok Attention_data.empty;

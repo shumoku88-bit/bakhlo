@@ -1,7 +1,9 @@
 module B = Bakhlo_sexp.Daily_book
 module A = Daily_draft
 
-type route = Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow
+type route = Screen.route =
+  | Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace
+  | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow
 type pane = Calendar | Detail
 module RB = Record_browser
 

@@ -15,6 +15,11 @@
       val reloaded : Screen.env -> t -> t * Screen.request  (* after a successful reload *)
     ]} *)
 
+(** The Shell's routes; a screen asks for one with [Open_route]. *)
+type route =
+  | Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace
+  | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow
+
 type annual = {
   year : int option;  (** Explicitly named annual book, if any. *)
   unavailable : string option Lazy.t;
@@ -28,6 +33,7 @@ type env = {
   bytes : string;  (** Household file bytes the book was read from: a publication base. *)
   new_id : unit -> string;  (** Fresh identity for a new entry or plan. *)
   measure : string;  (** Shell-selected Measure. *)
+  calendar : Daily_calendar.t;  (** Shell focus day and zoom, shared by every route. *)
   today : string;
   annual : annual;
   accounting_roles : (string * Daily_overlays.accounting_role) list Lazy.t;
@@ -104,6 +110,12 @@ type request =
       (** Replace the Attention memory if it still equals [expected]; answered by [saved]. *)
   | Save_settlements of { expected : Settlement_data.t; next : Settlement_data.t }
       (** Replace the commitments if they still equal [expected]; answered by [saved]. *)
+  | Open_route of route
+  | Back  (** Leave this route: to the screen it was drilled from, or Home. *)
+  | Quit  (** Leave the application (Home Esc / q). *)
+  | Set_calendar of Daily_calendar.t  (** Move the Shell focus day or zoom. *)
+  | Open_observe  (** Open an empty Observe draft over this route. *)
+  | New_plan  (** Open the Scheduled creation editor on the focus day. *)
   | Record_action of { action : record_action; target : record_target option }
       (** Open the workflow for this record; [None] reports that nothing is selected. *)
   | New_record  (** Open (or resume) the retained Record draft. *)
