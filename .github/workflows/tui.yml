@@ -1,0 +1,86 @@
+name: Bonsai TUI synthetic checks
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tui/**"
+      - "lib/**"
+      - "application/**"
+      - "sexp/**"
+      - "tools/build-bonsai-tui"
+      - "tools/tui"
+      - ".github/workflows/tui.yml"
+  pull_request:
+    paths:
+      - "tui/**"
+      - "lib/**"
+      - "application/**"
+      - "sexp/**"
+      - "tools/build-bonsai-tui"
+      - "tools/tui"
+      - ".github/workflows/tui.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bonsai-tui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bonsai-native:
+    name: OxCaml / Bonsai native self-check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TERM: xterm-256color
+      LANG: C.UTF-8
+      BAKHLO_BONSAI_CI: "1"
+    steps:
+      - name: Checkout tracked source (no private household inputs)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # The normal Core switch targets OCaml 5.3. Bonsai_term requires OxCaml
+      # and lives in an intentionally separate switch. Freeze both registries
+      # to the previously qualified synthetic trial checkpoints.
+      - name: Set up isolated OxCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: "ocaml-variants.5.2.0+ox"
+          opam-pin: false
+          dune-cache: false
+          opam-repositories: |
+            ox: git+https://github.com/oxcaml/opam-repository.git#f1bd228dda31430bf6271f0f9adb2e604c6957ca
+            default: git+https://github.com/ocaml/opam-repository.git#ac27950e5eac6c981ad809dff370c937820b7893
+
+      - name: Pin the existing Bonsai_term trial source
+        run: |
+          opam pin add -yn bonsai_term 'git+https://github.com/janestreet/bonsai_term.git#2457232d3aa144fb887a053748a920544db60f72'
+          opam install -y dune.3.24.2 zarith uutf parsexp core async bonsai_term
+
+      - name: Show isolated compiler and installed library versions
+        run: |
+          opam exec -- ocamlc -version
+          opam list --installed --short | grep -E '^(ocaml-variants|bonsai_term|core|async|dune|zarith|uutf|parsexp)[.]' || true
+
+      - name: Build the tracked Bonsai TUI in an isolated generated directory
+        run: ./tools/build-bonsai-tui
+
+      - name: Native synthetic controller and rendering self-checks
+        run: ./tools/tui --self-check
+
+      - name: Summarize qualification boundary
+        if: always()
+        run: |
+          {
+            echo '### Bakhlo Bonsai TUI CI'
+            echo
+            echo '- Target: Linux x86_64 OxCaml/Bonsai native synthetic build and self-check only.'
+            echo '- Original LOAM household data are not present or used.'
+            echo '- A green run does **not** qualify paired LOAM UI, live IME, true power loss/P7 or operational cutover.'
+            echo '- PTY key-input/resize and the four terminal dimensions need their own explicit matrix before acceptance.'
+          } >> "$GITHUB_STEP_SUMMARY"
