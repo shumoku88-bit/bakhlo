@@ -5,4 +5,4 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 cd "$root"
 
 ./tools/build-bonsai-tui
-exec _build/daily-bonsai/_build/default/ui/bonsai_daily.exe "$@"
+exec _build/daily-bonsai/_build/default/tui/app/bonsai_daily.exe "$@"

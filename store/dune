@@ -1,0 +1,13 @@
+; The single household writer: session load, atomic publication, recovery and
+; annual backup. Only the TUI Shell's publication executor may depend on it.
+(library
+ (name bakhlo_store)
+ (public_name bakhlo.store)
+ (wrapped false)
+ (libraries
+  bakhlo_domain
+  bakhlo_application
+  bakhlo_sexp
+  parsexp
+  sexplib0
+  unix))

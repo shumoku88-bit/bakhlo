@@ -1,0 +1,4 @@
+(library
+ (name bakhlo_screen_balances)
+ (wrapped false)
+ (libraries bakhlo_tui_kit bakhlo_tui_book bakhlo.domain bakhlo.sexp zarith))

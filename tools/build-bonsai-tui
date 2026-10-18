@@ -1,12 +1,21 @@
 #!/bin/sh
 # Use the existing isolated Ox/Bonsai switch. No installation or main-switch changes.
+#   tools/build-bonsai-tui              build the TUI executable
+#   tools/build-bonsai-tui --test [DIR] also run the Dune tests below tui/DIR
+#                                       (all TUI suites when DIR is omitted)
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
-if [ "$#" -ne 0 ]; then
-  printf '%s\n' 'Usage: tools/build-bonsai-tui' >&2
-  exit 2
-fi
-name=bonsai_daily
+test_dir=
+case "$#:${1:-}" in
+  0:) ;;
+  1:--test) test_dir=tui ;;
+  2:--test)
+    case "$2" in
+      ''|/*|*..*) printf '%s\n' 'Test directory must be relative to tui/.' >&2; exit 2 ;;
+    esac
+    test_dir=tui/$2 ;;
+  *) printf '%s\n' 'Usage: tools/build-bonsai-tui [--test [DIR]]' >&2; exit 2 ;;
+esac
 workspace=daily-bonsai
 trial=$root/scratch/tui_comparison_review
 # CI opts into an independent OxCaml switch prepared by setup-ocaml; the
@@ -33,40 +42,43 @@ case "$build" in
   "$root/_build/daily-bonsai") ;;
   *) printf '%s\n' 'Unexpected generated UI build root.' >&2; exit 2 ;;
 esac
-if [ -L "$root/_build" ] || [ -L "$build" ] || [ -L "$build/ui" ]; then
+if [ -L "$root/_build" ] || [ -L "$build" ]; then
   printf '%s\n' 'Generated UI build directories must not be symlinks.' >&2
   exit 2
 fi
-mkdir -p "$build/ui"
-for dir in lib application sexp; do
+if [ -n "$(find "$root/tui" -type l)" ]; then
+  printf '%s\n' 'The tui source tree must not contain symlinks.' >&2
+  exit 2
+fi
+mkdir -p "$build"
+# The generated sources are an exact snapshot of whole directories. Dune
+# discovers every module and library itself, so nothing is registered here.
+for dir in lib application sexp store tui; do
   if [ -L "$build/$dir" ]; then
     printf '%s\n' 'Generated source directories must not be symlinks.' >&2
     exit 2
   fi
-  mkdir -p "$build/$dir"
-  # Keep the generated source snapshot exact, including removal of obsolete modules.
-  rm -f "$build/$dir/"*.ml "$build/$dir/"*.mli
-  cp "$root/$dir/"*.ml "$root/$dir/"*.mli "$root/$dir/dune" "$build/$dir/"
+  rm -rf "$build/$dir"
+  cp -R "$root/$dir" "$build/$dir"
 done
-# Generated sources are an exact snapshot, including retired UI module removal.
-rm -f "$build/ui/"*.ml "$build/ui/"*.mli
-modules='daily_file annual_backup ui_preferences ui_input ui_text posting_draft daily_actions daily_form daily_overlays ui_panel ui_overlay ui_form first_run attention_data locus_roles balance_view_data settlement_data reversal_session date_correction_session merchant_session scheduled_cancellation_session scheduled_continuation_session scheduled_bulk_session scheduled_bulk_checks scheduled_generation_session scheduled_generation_checks record_session scheduled_session actual_workspace actual_workspace_checks scheduled_session_checks record_session_checks daily_calendar scheduled_months ui_workspace daily_pace_trend income_expense_report transactions_flow_report stock_flow_report stock_flow_checks ui_commands balances_owner daily_pace_owner daily_interaction_state daily_interaction_context daily_interaction daily_interaction_view daily_interaction_checks balances_owner_checks daily_pace_owner_checks recovery_checks bonsai_daily'
-for module in $modules; do
-  cp "$root/tui/$module.ml" "$build/ui/"
-  if [ -f "$root/tui/$module.mli" ]; then
-    cp "$root/tui/$module.mli" "$build/ui/"
-  fi
-done
+# Undeclared transitive library use is a compile error: library boundaries
+# are the architecture, see tui/README.md and tools/arch-check.
 printf '%s\n' '(lang dune 3.24)' '(name bakhlo)' '(package (name bakhlo))' > "$build/dune-project"
-printf '%s\n' '(dirs lib application sexp ui)' '(env (_ (flags (:standard -strict-sequence -w +8+9+11 -warn-error +8+9+11))))' > "$build/dune"
-printf '%s\n' "(executable (name $name) (modules $modules) (libraries bakhlo_domain bakhlo_application bakhlo_sexp zarith unix uutf bonsai_term async core))" > "$build/ui/dune"
-if [ "${BAKHLO_BONSAI_CI:-0}" = 1 ]; then
+printf '%s\n' '(lang dune 3.24)' '(implicit_transitive_deps false)' > "$build/tui/dune-project"
+printf '%s\n' '(dirs lib application sexp store tui)' \
+  '(env (_ (flags (:standard -strict-sequence -w +8+9+11 -warn-error +8+9+11))))' > "$build/dune"
+if [ "${BAKHLO_BONSAI_CI:-0}" = 0 ]; then
+  export OPAMROOT=$trial/opam-root
+  export OPAMSWITCH=$trial/bonsai-env
+  export OPAMNOENVNOTICE=true
+  export OPAMNODEPEXTS=true
+  unset OCAMLPATH CAML_LD_LIBRARY_PATH OCAML_TOPLEVEL_PATH
+  opam=$root/.tools/opam
+else
   # Never install packages or modify the main project switch from this script.
-  exec opam exec -- dune build --root "$build" --profile release "ui/$name.exe"
+  opam=opam
 fi
-export OPAMROOT=$trial/opam-root
-export OPAMSWITCH=$trial/bonsai-env
-export OPAMNOENVNOTICE=true
-export OPAMNODEPEXTS=true
-unset OCAMLPATH CAML_LD_LIBRARY_PATH OCAML_TOPLEVEL_PATH
-exec "$root/.tools/opam" exec -- dune build --root "$build" --profile release "ui/$name.exe"
+"$opam" exec -- dune build --root "$build" --profile release tui/app/bonsai_daily.exe
+if [ -n "$test_dir" ]; then
+  exec "$opam" exec -- dune test --root "$build" --profile release --force "$test_dir"
+fi

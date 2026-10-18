@@ -1,0 +1,21 @@
+; Shell, publication executor, remaining legacy controller and Bonsai adapter.
+(executable
+ (name bonsai_daily)
+ (libraries
+  bakhlo_tui_kit
+  bakhlo_tui_book
+  bakhlo_tui_protocol
+  bakhlo_screen_balances
+  bakhlo_screen_pace
+  bakhlo.store
+  bakhlo.domain
+  bakhlo.application
+  bakhlo.sexp
+  zarith
+  unix
+  uutf
+  base
+  notty-community
+  bonsai_term
+  async
+  core))

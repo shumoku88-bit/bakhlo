@@ -1,0 +1,5 @@
+; The complete contract between the Shell and screen owners. Types only.
+(library
+ (name bakhlo_tui_protocol)
+ (wrapped false)
+ (libraries bakhlo_tui_kit bakhlo.sexp))

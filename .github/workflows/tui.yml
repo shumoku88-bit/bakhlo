@@ -8,6 +8,7 @@ on:
       - "lib/**"
       - "application/**"
       - "sexp/**"
+      - "store/**"
       - "tools/build-bonsai-tui"
       - "tools/tui"
       - "tools/ci_tui_pty.py"
@@ -19,6 +20,7 @@ on:
       - "lib/**"
       - "application/**"
       - "sexp/**"
+      - "store/**"
       - "tools/build-bonsai-tui"
       - "tools/tui"
       - "tools/ci_tui_pty.py"
@@ -98,7 +100,7 @@ jobs:
       - name: Native Linux PTY keyboard, resize and non-writing matrix
         run: |
           python3 tools/ci_tui_pty.py \
-            _build/daily-bonsai/_build/default/ui/bonsai_daily.exe \
+            _build/daily-bonsai/_build/default/tui/app/bonsai_daily.exe \
             examples/daily-book.sexp
 
       # Only a completed self-check may publish an immutable dependency

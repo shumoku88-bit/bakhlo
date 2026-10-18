@@ -1,0 +1,6 @@
+; UI primitives: input vocabulary, cell geometry, frames, viewports and forms.
+; Must not know the household book, editors, screens, the Shell or the writer.
+(library
+ (name bakhlo_tui_kit)
+ (wrapped false)
+ (libraries uutf))

@@ -1,9 +1,8 @@
 ; Synthetic package/bootstrap experiments are not part of the product workspace.
 
-; The tui directory has no Dune target in this root workspace. It is
-; visible for copy_files of the existing single-file writer into isolated
-; Core tests, while the Bonsai UI still builds only in its own workspace.
-(dirs :standard \ scratch experiments)
+; The tui tree builds only in its isolated OxCaml/Bonsai workspace
+; (tools/build-bonsai-tui); the Core workspace must never see it.
+(dirs :standard \ scratch experiments tui)
 
 ; Preserve typed-result/evolution checks even in package/release builds.
 ; Sequencing must consume unit; discarding a value requires an explicit choice.
