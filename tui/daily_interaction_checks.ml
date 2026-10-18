@@ -1,5 +1,8 @@
 (* Synthetic conformance checks for the English workspace controller. *)
-module C = Daily_interaction
+module C = Daily_interaction_state
+module H = Daily_interaction
+module X = Daily_interaction_context
+module R = Daily_interaction_view
 module B = Bakhlo_sexp.Daily_book
 module F = Daily_file
 module W = Ui_workspace
@@ -28,7 +31,7 @@ let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
 
 let key ?(dimensions = (140, 40)) ?(width_of = String.length) state button =
-  match C.handle ~dimensions ~width_of state (`Key (button, [])) with
+  match H.handle ~dimensions ~width_of state (`Key (button, [])) with
   | Some state -> state
   | None -> raise (F.Refused "unexpected-controller-exit")
 
@@ -178,7 +181,7 @@ let bonsai_home_layout_check ~width_of home =
   let contains rows needle = List.exists
       (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows in
   List.iter (fun ((width, height) as dimensions) ->
-      let rows = C.screen ~width_of dimensions home in
+      let rows = R.screen ~width_of dimensions home in
       require (List.length rows <= height
                && List.for_all (fun (_, text) -> width_of text <= width) rows)
         "bonsai-bounded-layout";
@@ -211,8 +214,8 @@ let bonsai_home_layout_check ~width_of home =
   require (pace.workspace.route = W.Daily_pace) "bonsai-d-opens-daily-pace";
   let ignored_l = key ~width_of home (`ASCII 'l') in
   require (ignored_l.workspace = home.workspace) "bonsai-ignores-calendar-nav-l";
-  require (C.handle home (`Key (`ASCII 'q', [])) = None) "bonsai-q-exits";
-  require (C.handle home (`Key (`Escape, [])) = None) "bonsai-esc-exits";
+  require (H.handle home (`Key (`ASCII 'q', [])) = None) "bonsai-q-exits";
+  require (H.handle home (`Key (`Escape, [])) = None) "bonsai-esc-exits";
   print_endline "PASS: responsive bonsai launcher, entrance layout, optical centering and boundary isolation."
 
 let home_layout_check ~width_of home =
@@ -238,7 +241,7 @@ let home_layout_check ~width_of home =
   let contains rows needle = List.exists
       (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows in
   List.iter (fun ((width, height) as dimensions) ->
-      let rows = C.screen ~width_of dimensions state in
+      let rows = R.screen ~width_of dimensions state in
       require (List.length rows <= height
                && List.for_all (fun (_, text) -> width_of text <= width) rows)
         "home-polish-bounded-layout";
@@ -256,13 +259,13 @@ let home_layout_check ~width_of home =
         require (last_frame < 20) "home-calendar-not-empty-full-height"))
     [ 80, 24; 90, 24; 120, 40; 140, 40 ];
   List.iter (fun ((width, height) as dimensions) ->
-      let rows = C.screen ~width_of dimensions state in
+      let rows = R.screen ~width_of dimensions state in
       require (contains rows "[18]") "home-tiny-selected-sunday-visible";
       require (List.length rows <= height
                && List.for_all (fun (_, text) -> width_of text <= width) rows)
         "home-tiny-calendar-cell-width";
       let focused = { state with workspace = { state.workspace with pane = W.Detail } } in
-      let rows = C.screen ~width_of dimensions focused in
+      let rows = R.screen ~width_of dimensions focused in
       require (contains rows "Detail / ") "home-small-focused-detail-visible")
     [ 32, 9; 48, 14 ];
   let month = { state with workspace = { state.workspace with
@@ -270,7 +273,7 @@ let home_layout_check ~width_of home =
   let year = { state with workspace = { state.workspace with
       calendar = { state.workspace.calendar with zoom = Cal.Year } } } in
   List.iter (fun state ->
-      let rows = C.screen ~width_of (80, 24) state in
+      let rows = R.screen ~width_of (80, 24) state in
       require (contains rows "Detail / ") "home-period-detail-visible-at-80-columns";
       require (contains rows "q/Esc Home" && contains rows "Space Commands")
         "home-primary-footer-not-clipped") [ state; month; year ];
@@ -294,7 +297,7 @@ let theme_check ~width_of ~directory home =
   let choose index =
     let setup = { base with C.overlay = C.Commands { M.page = M.Setup; selected = 0 } } in
     let picker = key ~width_of setup `Enter in
-    require (C.footer picker = [ "j/k or Up/Down preview theme"; "Enter save  Esc/q cancel" ])
+    require (R.footer picker = [ "j/k or Up/Down preview theme"; "Enter save  Esc/q cancel" ])
       "theme-picker-contextual-operations";
     List.fold_left (fun state _ -> key ~width_of state (`Arrow `Down)) picker
       (List.init index Fun.id)
@@ -385,7 +388,7 @@ let safety_checks ~width_of ~directory () =
   F.write_new att_path "broken\n";
   let broken = C.initial ~config_home:dir (F.load path) in
   require (Result.is_error broken.attention) "attention-load-failure-is-not-empty";
-  require (contains (C.screen ~width_of (120, 30) (C.open_route broken W.Attention)) "Unavailable")
+  require (contains (R.screen ~width_of (120, 30) (C.open_route broken W.Attention)) "Unavailable")
     "attention-load-failure-visible";
   require (failed (key ~width_of { broken with overlay = ready.overlay } `Enter)) "attention-invalid-load-blocks-save";
   require (F.read att_path = "broken\n") "attention-invalid-bytes-preserved";
@@ -407,11 +410,11 @@ let safety_checks ~width_of ~directory () =
   F.write_new stl_path "id\t\ta\tb\tjpy\tbad\t0\t0\n";
   let broken = C.initial ~config_home:dir (F.load path) in
   require (Result.is_error broken.settlements) "settlement-load-failure-is-not-zero";
-  require (contains (C.screen ~width_of (120, 30) (C.open_route broken W.Settlements)) "Unavailable")
+  require (contains (R.screen ~width_of (120, 30) (C.open_route broken W.Settlements)) "Unavailable")
     "settlement-load-failure-visible";
   require (Result.is_error (Stl.save_file stl_path ~expected:Stl.empty Stl.empty)) "settlement-corruption-blocks-save";
   let stl_bytes = F.read stl_path in
-  let form = C.add_settlement_form home in
+  let form = X.add_settlement_form home in
   let form = Ui_form.set_text form "debtor" "a" |> fun f -> Ui_form.set_text f "creditor" "b"
     |> fun f -> Ui_form.set_text f "amount" "10" |> fun f -> Ui_form.set_focused f 5 in
   require (failed (key ~width_of { broken with overlay = C.Modal_form form } `Enter)) "settlement-corruption-ui-refuses";
@@ -431,33 +434,33 @@ let safety_checks ~width_of ~directory () =
   require (get (Stl.load_file stl_path) = commitments) "settlement-exact-huge-cold-round-trip";
   require (Result.is_error (Stl.save_file stl_path ~expected:Stl.empty Stl.empty)) "settlement-stale-write-refused";
   require (get (Stl.load_file stl_path) = commitments) "settlement-stale-write-preserves-evidence";
-  require (Result.is_error (C.resolve_pace_pool home)) "missing-pool-is-not-inferred";
-  require (Result.is_error (C.resolve_pace_window home)) "missing-window-is-not-month-end";
+  require (Result.is_error (X.resolve_pace_pool home)) "missing-pool-is-not-inferred";
+  require (Result.is_error (X.resolve_pace_window home)) "missing-window-is-not-month-end";
   let pool_path = dir ^ "/daily-pace.tsv" and windows_path = dir ^ "/boundary-presets.tsv" in
   let replace path bytes = if Sys.file_exists path then Unix.unlink path; F.write_new path bytes in
   List.iter (fun raw -> replace pool_path raw;
-    require (Result.is_error (C.resolve_pace_pool home)) "pool-rejects-bad-duplicate-or-mixed-rows")
+    require (Result.is_error (X.resolve_pace_pool home)) "pool-rejects-bad-duplicate-or-mixed-rows")
     ["wallet\tjpy\nbad\n"; "wallet\tjpy\nwallet\tjpy\n"; "wallet\tjpy\nbank\teur\n"];
   replace pool_path "wallet\tjpy\n";
   let today = F.today () and stop = get (Cal.shift_days (F.today ()) 7) in
   let window = "cycle\t" ^ today ^ "\t" ^ stop ^ "\n" in
   List.iter (fun raw -> replace windows_path raw;
-    require (Result.is_error (C.resolve_pace_window home)) "window-rejects-malformed-or-ambiguous-presets")
+    require (Result.is_error (X.resolve_pace_window home)) "window-rejects-malformed-or-ambiguous-presets")
     [window ^ "other\t" ^ today ^ "\t" ^ stop ^ "\n";
      window ^ "old\t2026-02-30\t2026-03-01\n";
      window ^ "old\t1900/01/01\t1901/01/01\n";
      "cycle\t" ^ stop ^ "\t" ^ today ^ "\n"];
   let boundaries = "old\t1900-01-01\t1901-01-01\n" ^ window in
   replace windows_path boundaries;
-  let pace, _, _ = get (C.current_pace_result home) in
+  let pace, _, _ = get (X.current_pace_result home) in
   let amount = Z.add pace.B.available_through_end Z.one in
-  let form = C.what_if_form home |> fun f -> Ui_form.set_text f "amount" (Z.to_string amount)
+  let form = X.what_if_form home |> fun f -> Ui_form.set_text f "amount" (Z.to_string amount)
     |> fun f -> Ui_form.set_focused f 1 in
   let simulated = key ~width_of { home with overlay = C.Modal_form form } `Enter in
   require (match simulated.overlay with C.Modal_form f ->
     Base.String.is_substring (Ui_form.notice f) ~substring:"Simulated pace: -1 jpy/day" | _ -> false)
     "negative-what-if-uses-floor-division-without-clamping";
-  let form = C.configure_pace_form home |> fun f -> Ui_form.set_text f "pool_loci" "wallet, bank"
+  let form = X.configure_pace_form home |> fun f -> Ui_form.set_text f "pool_loci" "wallet, bank"
     |> fun f -> Ui_form.set_focused f 1 in
   let reviewed = key ~width_of { home with overlay = C.Modal_form form } `Enter in
   require ((match reviewed.overlay with C.Modal_form f -> Ui_form.id f = "review_pool" | _ -> false)
@@ -465,14 +468,14 @@ let safety_checks ~width_of ~directory () =
   let saved = key ~width_of reviewed `Enter in
   require (saved.overlay = C.No_overlay && F.read pool_path = "wallet\tjpy\nbank\tjpy\n"
     && F.read windows_path = boundaries) "pool-save-preserves-all-presets";
-  let stale = C.configure_pace_form home |> fun f -> Ui_form.set_focused f 1 in
+  let stale = X.configure_pace_form home |> fun f -> Ui_form.set_focused f 1 in
   replace pool_path "bank\tjpy\n";
   let stale_review = key ~width_of { home with overlay = C.Modal_form stale } `Enter in
   require (F.read pool_path = "bank\tjpy\n") "stale-pool-review-does-not-save";
   require (failed (key ~width_of stale_review `Enter)) "stale-pool-save-refused";
   require (F.read pool_path = "bank\tjpy\n" && F.read windows_path = boundaries) "stale-config-preserved";
   Unix.unlink windows_path;
-  let form = C.configure_pace_form home |> fun f -> Ui_form.set_focused f 1 in
+  let form = X.configure_pace_form home |> fun f -> Ui_form.set_focused f 1 in
   let reviewed = key ~width_of { home with overlay = C.Modal_form form } `Enter in
   let saved = key ~width_of reviewed `Enter in
   require (saved.overlay = C.No_overlay && not (Sys.file_exists windows_path)) "pool-save-does-not-invent-period";
@@ -591,7 +594,7 @@ let scheduled_panel_checks ~width_of ~directory home =
   List.iter (fun dimensions ->
     let key = key ~dimensions ~width_of in
     let detail = key state `Enter in
-    let height, view = C.browser_viewport ~dimensions ~width_of detail in
+    let height, view = X.browser_viewport ~dimensions ~width_of detail in
     let identity = (W.browser detail.workspace).selected_id in
     require (view.last>0) "scheduled-long-detail-overflows";
     let ended = key detail `End in
@@ -602,7 +605,7 @@ let scheduled_panel_checks ~width_of ~directory home =
       && (key ended `Home).scroll=0) "scheduled-detail-endpoints-and-immediate-up";
     require ((key detail (`Page `Down)).scroll=min view.last (max 1 view.capacity))
       "scheduled-detail-page-visible-rows";
-    let ctrl_down = get (match C.handle ~dimensions ~width_of detail (`Key (`ASCII 'd',[`Ctrl])) with
+    let ctrl_down = get (match H.handle ~dimensions ~width_of detail (`Key (`ASCII 'd',[`Ctrl])) with
       | Some state -> Ok state | None -> Error "scheduled-ctrl-page-exited") in
     require (ctrl_down.scroll=(key detail (`Page `Down)).scroll) "scheduled-ctrl-page-same-capacity";
     let listed = key ended `Tab in
@@ -617,7 +620,7 @@ let scheduled_panel_checks ~width_of ~directory home =
     require (back.workspace.pane=W.Calendar && (W.browser back.workspace).selected_id=identity)
       "scheduled-back-keeps-selection";
     require ((key ended (`ASCII 'f')).scroll=0) "scheduled-filter-resets-detail";
-    let reloaded = get (match C.handle ~dimensions ~width_of ended (`Key (`ASCII 'r',[`Ctrl])) with
+    let reloaded = get (match H.handle ~dimensions ~width_of ended (`Key (`ASCII 'r',[`Ctrl])) with
       | Some state -> Ok state | None -> Error "scheduled-reload-exited") in
     require (reloaded.scroll=0 && (W.browser reloaded.workspace).selected_id=identity)
       "scheduled-reload-anchors-identity-and-resets-detail";
@@ -627,12 +630,12 @@ let scheduled_panel_checks ~width_of ~directory home =
     require ((W.browser (key state `End).workspace).selected=count-1
       && (W.browser (key (key state `End) `Home).workspace).selected=0) "scheduled-list-real-endpoints";
     List.iter (fun state ->
-      let rows = C.screen ~width_of dimensions state in
+      let rows = R.screen ~width_of dimensions state in
       require (List.length rows<=snd dimensions && List.for_all (fun (_,line)->width_of line<=fst dimensions) rows)
         "scheduled-shared-panels-bounded") [state;page;ended]) [32,9;48,14;80,24;120,36];
   let small = key ~dimensions:(32,9) ~width_of state `Enter |> fun s -> key ~dimensions:(32,9) ~width_of s `End in
   let resized = key ~dimensions:(120,36) ~width_of small (`ASCII '!') in
-  let _, view = C.browser_viewport ~dimensions:(120,36) ~width_of resized in
+  let _, view = X.browser_viewport ~dimensions:(120,36) ~width_of resized in
   require (resized.scroll=view.last && (W.browser resized.workspace).selected_id=(W.browser small.workspace).selected_id)
     "scheduled-resize-clamps-offset-not-identity";
   let editing = key ~width_of state (`ASCII 'e') in
@@ -640,7 +643,7 @@ let scheduled_panel_checks ~width_of ~directory home =
   let closed = key ~width_of draft `Escape in
   require (closed.workspace=state.workspace && C.has_record_draft closed && not closed.record_visible)
     "scheduled-edit-cancel-retains-draft-and-parent";
-  let resumed = C.open_command closed M.Record in
+  let resumed = X.open_command closed M.Record in
   require (S.screen ~book ~dimensions:(72,20) ~width_of (Option.get draft.record)
     = S.screen ~book ~dimensions:(72,20) ~width_of (Option.get resumed.record))
     "scheduled-draft-resumed-through-existing-record-command";
@@ -670,18 +673,18 @@ let actual_browsing_checks ~width_of ~directory home =
   let before = F.read path in
   let state = C.open_route (C.initial ~config_home:directory (F.load path)) W.Actual in
   let contains rows needle = List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) rows in
-  require (C.actual_amount book (entry 0) = "+1,234 jpy") "actual-grouped-exact-amount";
+  require (R.actual_amount book (entry 0) = "+1,234 jpy") "actual-grouped-exact-amount";
   let euro = { (entry 0) with effects = [posting ~measure:"eur" "food" (Z.of_int 123456)] } in
-  require (C.actual_amount book euro = "+1,234.56 eur") "actual-grouping-retains-decimals";
-  require (C.actual_amount book {euro with effects=[posting ~measure:"eur" "food" (Z.of_int (-123456))]}
+  require (R.actual_amount book euro = "+1,234.56 eur") "actual-grouping-retains-decimals";
+  require (R.actual_amount book {euro with effects=[posting ~measure:"eur" "food" (Z.of_int (-123456))]}
     = "-1,234.56 eur") "actual-negative-amount-sign";
-  require (C.actual_amount book {euro with effects=[]} = "—") "actual-missing-effects-not-zero";
-  require (C.actual_amount book {euro with effects=[posting "food" Z.zero]} = "0 jpy") "actual-explicit-zero";
-  require (C.actual_amount book {euro with effects=[posting "wallet" (Z.of_int (-3));
+  require (R.actual_amount book {euro with effects=[]} = "—") "actual-missing-effects-not-zero";
+  require (R.actual_amount book {euro with effects=[posting "food" Z.zero]} = "0 jpy") "actual-explicit-zero";
+  require (R.actual_amount book {euro with effects=[posting "wallet" (Z.of_int (-3));
     posting "food" Z.one; posting "bank" (Z.of_int 2)]} = "split") "actual-split-not-invented-total";
-  require (C.actual_amount book {euro with effects=posting "food" Z.one :: euro.effects} = "multi (2)")
+  require (R.actual_amount book {euro with effects=posting "food" Z.one :: euro.effects} = "multi (2)")
     "actual-mixed-measures-not-summed";
-  let heading, titles = C.actual_table ~width_of ~width:58 book [W.Actual_entry (entry 0); W.Actual_entry (entry 17)] in
+  let heading, titles = R.actual_table ~width_of ~width:58 book [W.Actual_entry (entry 0); W.Actual_entry (entry 17)] in
   require (Base.String.is_substring heading ~substring:"Amount"
     && Base.String.is_substring (List.hd titles) ~substring:"+1,234 jpy"
     && Base.String.is_substring (List.nth titles 1) ~substring:"see details"
@@ -690,7 +693,7 @@ let actual_browsing_checks ~width_of ~directory home =
   List.iter (fun dimensions ->
     let key = key ~dimensions ~width_of in
     let detail = key state (`ASCII 'i') in
-    let height, view = C.browser_viewport ~dimensions ~width_of detail in
+    let height, view = X.browser_viewport ~dimensions ~width_of detail in
     let capacity = view.Ui_panel.capacity and last = view.last in
     let identity = (W.browser detail.workspace).selected_id in
     let ended = key detail `End in
@@ -705,7 +708,7 @@ let actual_browsing_checks ~width_of ~directory home =
     require (listed.workspace.pane=W.Calendar && (W.browser listed.workspace).selected_id=identity)
       "actual-back-retains-selection";
     let page = key state (`Page `Down) in
-    let actual_h = snd (C.actual_dimensions ~dimensions ~width_of state) in
+    let actual_h = snd (X.actual_dimensions ~dimensions ~width_of state) in
     let wide = fst dimensions >= 80 && actual_h >= 14 in
     let loci_h = if wide then max 4 (min 7 (actual_h * 30 / 100)) else actual_h in
     let tx_h = if wide then max 0 (actual_h - loci_h) else actual_h in
@@ -715,7 +718,7 @@ let actual_browsing_checks ~width_of ~directory home =
     let last_row = key state `End in
     require ((W.browser last_row.workspace).selected=17 && last_row.scroll=0) "actual-list-end-real-last";
     List.iter (fun state ->
-      let rows = C.screen ~width_of dimensions state in
+      let rows = R.screen ~width_of dimensions state in
       require (List.length rows<=snd dimensions && List.for_all (fun (_,line)->width_of line<=fst dimensions) rows)
         "actual-bounded-layout";
       if snd dimensions>=14 && state.workspace.pane=W.Detail then
@@ -723,19 +726,19 @@ let actual_browsing_checks ~width_of ~directory home =
     [32,9;48,14;80,24;120,36];
   let detail = key ~dimensions:(32,9) ~width_of state (`ASCII 'i') |> fun s -> key ~dimensions:(32,9) ~width_of s `End in
   let resized = key ~dimensions:(120,36) ~width_of detail (`ASCII '!') in
-  let _, resized_view = C.browser_viewport ~dimensions:(120,36) ~width_of resized in
+  let _, resized_view = X.browser_viewport ~dimensions:(120,36) ~width_of resized in
   require (resized.scroll=resized_view.Ui_panel.last && (W.browser resized.workspace).selected_id=(W.browser detail.workspace).selected_id)
     "actual-resize-clamps-without-reselection";
   let query = String.make 80 'x' ^ "日本語末尾" in
   let searching = key ~width_of state (`ASCII '/') |> fun s -> text ~width_of s query in
   List.iter (fun ((width, _) as dimensions) ->
-    let rows = C.screen ~width_of dimensions searching in
+    let rows = R.screen ~width_of dimensions searching in
     let header = snd (List.nth rows 1) in
     let caret = String.length header - 1 in
     require (Base.String.is_substring header ~substring:"日本語末尾")
       "actual-long-search-keeps-insertion-tail-visible";
     require (header.[caret] = ' ' && width_of header < width
-             && C.cursor_position ~width_of dimensions searching
+             && R.cursor_position ~width_of dimensions searching
                 = Some (width_of (String.sub header 0 caret), 1))
       "actual-search-caret-matches-painted-insertion-cell";
     require ((W.browser searching.workspace).query=query)
@@ -743,10 +746,10 @@ let actual_browsing_checks ~width_of ~directory home =
     [32,9;48,14;80,24;120,36];
   let accepted = key ~width_of searching `Enter in
   require ((W.browser accepted.workspace).query=query
-           && C.cursor_position ~width_of (32,9) accepted=None)
+           && R.cursor_position ~width_of (32,9) accepted=None)
     "actual-long-search-accept-keeps-full-query-and-hides-caret";
-  require (C.cursor_position ~width_of (0,9) searching=None
-           && C.cursor_position ~width_of (32,1) searching=None)
+  require (R.cursor_position ~width_of (0,9) searching=None
+           && R.cursor_position ~width_of (32,1) searching=None)
     "actual-search-hides-caret-without-visible-input-cell";
   let searched = key ~width_of state (`ASCII '/') |> fun s -> text ~width_of s "purchase 03" in
   require (List.length (W.rows ~book searched.workspace)=1 && (W.browser searched.workspace).query="purchase 03")
@@ -810,7 +813,7 @@ let actual_browsing_checks ~width_of ~directory home =
       let state = { state with C.workspace = { state.C.workspace with
         calendar = { state.workspace.calendar with zoom } } } in
       List.iter (fun ((width, _) as dimensions) ->
-        let rows = C.screen ~width_of dimensions state in
+        let rows = R.screen ~width_of dimensions state in
         let expected = (entry 16).day ^ "   Day view"
           ^ if C.has_record_draft state then "   Draft retained" else "" in
         require (snd (List.nth rows 1) = Daily_overlays.clip_text ~width_of width expected)
@@ -883,13 +886,13 @@ let actual_browsing_checks ~width_of ~directory home =
     { filtered.session with book = unmatched_book } "Synthetic publication" in
   require (C.selected unmatched = None && unmatched.workspace.pane = W.Detail
            && unmatched.scroll = 0
-           && contains (C.screen ~width_of (80,24) unmatched) "no longer matches")
+           && contains (R.screen ~width_of (80,24) unmatched) "no longer matches")
     "actual-publication-filter-exit-is-explicit-and-does-not-retain-stale-detail";
   require (F.read path=before) "actual-browsing-and-draft-did-not-write";
   let correcting = key ~width_of at_details (`ASCII 'c') in
   require correcting.record_visible "actual-correction-opens-record";
   let correcting = key ~width_of correcting (`ASCII '!') in
-  let correcting = Option.get (C.handle ~width_of correcting (`Key (`Tab, [`Shift]))) in
+  let correcting = Option.get (H.handle ~width_of correcting (`Key (`Tab, [`Shift]))) in
   let correcting = List.fold_left (fun s _ -> key ~width_of s `Backspace)
     correcting (List.init 10 Fun.id) in
   let correcting = String.fold_left (fun s c -> key ~width_of s (`ASCII c))
@@ -934,7 +937,7 @@ let reversal_checks ~width_of ~directory home =
   let unchanged label = require (F.read path = before && names () = before_names) label in
   let editor state = match state.C.overlay with
     | C.Reversal editor -> editor | _ -> raise (F.Refused "reversal-editor-lost") in
-  let input state event = match C.handle ~width_of state event with
+  let input state event = match H.handle ~width_of state event with
     | Some s -> s | None -> raise (F.Refused "reversal-exited-controller") in
   let date state value =
     let state = List.fold_left (fun s _ -> key ~width_of s `Backspace) state
@@ -953,21 +956,21 @@ let reversal_checks ~width_of ~directory home =
   let same_review state = Rev.is_preview (editor state)
     && Rev.day (editor state) = Rev.day (editor review)
     && Rev.base_bytes (editor state) = Rev.base_bytes (editor review)
-    && C.overlay_screen ~dimensions:(80,24) ~width_of state
-       = C.overlay_screen ~dimensions:(80,24) ~width_of review in
+    && R.overlay_screen ~dimensions:(80,24) ~width_of state
+       = R.overlay_screen ~dimensions:(80,24) ~width_of review in
   require (same_review (input review (`Key (`Enter, [ `Ctrl ]))))
     "reversal-ctrl-enter-does-not-publish";
-  let body = Option.get (C.overlay_screen ~dimensions:(80,24) ~width_of review) in
+  let body = Option.get (R.overlay_screen ~dimensions:(80,24) ~width_of review) in
   let contains needle = List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) body in
   List.iter (fun s -> require (contains s) ("reversal-review-missing-" ^ s))
     ["reverse-target"; "2026-10-10"; "2026-10-09"; "日本語"; "Original postings";
       "Inverse postings"; "wallet  -37 jpy"; "wallet  +37 jpy"; "food  +37 jpy"; "food  -37 jpy"];
-  require (C.cursor_position ~width_of (80,24) opened <> None
-           && C.cursor_position ~width_of (80,24) review = None)
+  require (R.cursor_position ~width_of (80,24) opened <> None
+           && R.cursor_position ~width_of (80,24) review = None)
     "reversal-date-caret-only";
   List.iter (fun dimensions ->
-    let date_view = Option.get (C.overlay_screen ~dimensions ~width_of opened) in
-    let preview = Option.get (C.overlay_screen ~dimensions ~width_of review) in
+    let date_view = Option.get (R.overlay_screen ~dimensions ~width_of opened) in
+    let preview = Option.get (R.overlay_screen ~dimensions ~width_of review) in
     List.iter (fun rows -> require
       (List.length rows <= snd dimensions
        && List.for_all (fun (_, s) -> width_of s <= fst dimensions) rows)
@@ -1057,7 +1060,7 @@ let reversal_checks ~width_of ~directory home =
   let stopped = key ~width_of reloaded `Enter in
   require (stopped.blocked && F.read path = changed_bytes) "reversal-stale-preview-cannot-publish";
   require (List.exists (fun (_, line) -> Base.String.is_substring line ~substring:"Writes stopped")
-             (C.screen ~width_of (80,24) stopped))
+             (R.screen ~width_of (80,24) stopped))
     "reversal-blocked-screen-does-not-offer-confirmation";
   let reset = input (key ~width_of reloaded (`ASCII 'q')) (`Key (`ASCII 'r', [ `Ctrl ])) in
   require (not reset.blocked) "reversal-explicit-cancel-reload-unblocks";
@@ -1118,7 +1121,7 @@ let date_correction_checks ~width_of ~directory home =
   let base = C.open_route (C.initial ~config_home:directory (F.load path)) (W.Selected_day target.day) in
   let editor state = match state.C.overlay with
     | C.Date_correction e -> e | _ -> raise (F.Refused "date-editor-lost") in
-  let input state event = match C.handle ~width_of state event with
+  let input state event = match H.handle ~width_of state event with
     | Some s -> s | None -> raise (F.Refused "date-controller-exited") in
   let date state value =
     let state = List.fold_left (fun s _ -> key ~width_of s `Backspace)
@@ -1222,7 +1225,7 @@ let cancellation_checks ~width_of ~directory home =
     |> fun s -> C.sync { s with workspace = W.set_query s.workspace plan.id } in
   let editor state = match state.C.overlay with
     | C.Scheduled_cancel e -> e | _ -> raise (F.Refused "cancel-review-lost") in
-  let input state event = match C.handle ~width_of state event with
+  let input state event = match H.handle ~width_of state event with
     | Some s -> s | None -> raise (F.Refused "cancel-controller-exited") in
   let date state value =
     let state = List.fold_left (fun s _ -> key ~width_of s `Backspace)
@@ -1363,7 +1366,7 @@ let months_checks ~width_of ~directory home =
     [`ASCII '/'; `ASCII 'f'];
   let contains rows needle = List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) rows in
   List.iter (fun dimensions ->
-    let rows = C.screen ~width_of dimensions months in
+    let rows = R.screen ~width_of dimensions months in
     require (List.length rows <= snd dimensions
              && List.for_all (fun (_, line) -> width_of line <= fst dimensions) rows) "months-resize-bounded";
     if fst dimensions >= 80 && snd dimensions >= 24 then
@@ -1371,7 +1374,7 @@ let months_checks ~width_of ~directory home =
         ["2026-11";"2026-12";"2027-01";"2027-02";"2027-03";"2027-04"])
     [32,9;48,14;80,24;120,36];
   let detail = key ~width_of january `Tab in
-  require (contains (C.screen ~width_of (120,36) detail) "1234.56 eur"
+  require (contains (R.screen ~width_of (120,36) detail) "1234.56 eur"
            && (key ~width_of detail `Escape).workspace.pane = W.Calendar)
     "months-exact-currency-details-and-board-return";
   let paying = key ~width_of months `Enter in
@@ -1449,7 +1452,7 @@ let continuation_checks ~width_of ~directory home =
     key ~width_of review `Enter in
   let prompt state = match state.C.overlay with
     | C.Scheduled_continuation p -> p | _ -> raise (F.Refused "continuation-prompt-missing") in
-  let input state event = match C.handle ~width_of state event with
+  let input state event = match H.handle ~width_of state event with
     | Some state -> state | None -> raise (F.Refused "continuation-controller-exit") in
   let path = directory ^ "/continuation.sexp" in
   let completed = complete path book source in
@@ -1463,12 +1466,12 @@ let continuation_checks ~width_of ~directory home =
   let kept = key ~width_of completed `Enter in
   require (kept.overlay = C.No_overlay && F.read path = after_payment) "continuation-keep-never-creates";
   let review = key ~width_of completed `Tab |> fun s -> key ~width_of s `Tab |> fun s -> key ~width_of s `Enter in
-  let rows = Option.get (C.overlay_screen ~dimensions:(80,24) ~width_of review) in
+  let rows = Option.get (R.overlay_screen ~dimensions:(80,24) ~width_of review) in
   require (List.exists (fun (_, line) -> Base.String.is_substring line ~substring:later.id) rows)
     "continuation-review-retains-existing-plan-identity";
   List.iter (fun dimensions ->
     let ended = key ~dimensions ~width_of review `End in
-    let rows = Option.get (C.overlay_screen ~dimensions ~width_of ended) in
+    let rows = Option.get (R.overlay_screen ~dimensions ~width_of ended) in
     require (List.length rows <= snd dimensions
              && List.for_all (fun (_, line) -> width_of line <= fst dimensions) rows)
       "continuation-review-resize-bounded") [32,9;48,14;80,24;120,36];
@@ -1560,7 +1563,7 @@ let annual_lifecycle_checks ~width_of ~directory () =
   F.write_new (path prior_year) (B.to_string prior);
   let base = C.initial ~config_home:directory (F.load ~annual_year:prior_year (path prior_year)) in
   let bytes = F.read (path prior_year) in
-  let review = C.open_command base M.Annual_rollover in
+  let review = X.open_command base M.Annual_rollover in
   let kept = key ~width_of review `Enter in
   require (not (Sys.file_exists (path year)) && kept.overlay = C.No_overlay)
     "annual-keep-created-year";
@@ -1579,7 +1582,7 @@ let annual_lifecycle_checks ~width_of ~directory () =
   F.write_new (directory ^ "/daily-pace.tsv") "wallet\tjpy\n";
   F.write_new (directory ^ "/boundary-presets.tsv")
     (Printf.sprintf "explicit-cycle\t%04d-12-15\t%04d-12-15\n" prior_year year);
-  let pace, _, _ = get (C.current_pace_result cold) in
+  let pace, _, _ = get (X.current_pace_result cold) in
   require (Z.equal pace.B.eligible_pool (Z.of_int 1000)
            && Z.equal pace.automatic_deductions (Z.of_int 30)
            && Z.equal pace.available_through_end (Z.of_int 970))
@@ -1593,7 +1596,7 @@ let annual_lifecycle_checks ~width_of ~directory () =
     "annual-overdue-plan-not-paid-exactly-once";
   require (not paid.record_visible) "annual-payment-draft-not-cleared";
   let current = C.initial ~config_home:directory reopened in
-  let period = get (C.checked_report_period current C.IncExp.All_time 0) in
+  let period = get (X.checked_report_period current C.IncExp.All_time 0) in
   require (period.start_day = Printf.sprintf "%04d-01-01" prior_year
            && period.end_exclusive = Printf.sprintf "%04d-01-01" (year + 1))
     "annual-selected-history-boundaries";
@@ -1627,63 +1630,63 @@ let original_amount_integration_checks ~width_of ~directory () =
 
   (* 1. 通常 (normal / happy path): Record with OriginalAmount -> Preview -> Publish -> Cold reload -> Detail check *)
   let actual_view = C.open_route initial_state W.Actual in
-  let recording = C.handle ~width_of actual_view (`Key (`ASCII 'n', [])) in
+  let recording = H.handle ~width_of actual_view (`Key (`ASCII 'n', [])) in
   let rec_state = match recording with Some s -> s | None -> raise (F.Refused "orig-open-record") in
-  let open_orig = C.handle ~width_of rec_state (`Key (`ASCII 'o', [`Ctrl])) in
+  let open_orig = H.handle ~width_of rec_state (`Key (`ASCII 'o', [`Ctrl])) in
   let orig_ed = match open_orig with Some s -> s | None -> raise (F.Refused "orig-open-orig-editor") in
   (* Test 1a: Unregistered measure refusal *)
-  let unreg_m = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) orig_ed ['g'; 'b'; 'p'] in
-  let unreg_refused = Option.get (C.handle ~width_of unreg_m (`Key (`Enter, []))) in
+  let unreg_m = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, [])))) orig_ed ['g'; 'b'; 'p'] in
+  let unreg_refused = Option.get (H.handle ~width_of unreg_m (`Key (`Enter, []))) in
   require (contains (rec_screen unreg_refused) "Measure 'gbp' scale is not configured in this book.")
     "orig-integration-unregistered-measure-refused";
-  let clean_ed = List.fold_left (fun s _ -> Option.get (C.handle ~width_of s (`Key (`Backspace, [])))) unreg_refused (List.init 3 Fun.id) in
+  let clean_ed = List.fold_left (fun s _ -> Option.get (H.handle ~width_of s (`Key (`Backspace, [])))) unreg_refused (List.init 3 Fun.id) in
 
   (* Test 1b: Registered scale 0 (JPY) allows integer, rejects decimals *)
-  let jpy_m = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) clean_ed ['j'; 'p'; 'y'] in
-  let jpy_amt_focus = Option.get (C.handle ~width_of jpy_m (`Key (`Enter, []))) in
-  let jpy_decimal = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) jpy_amt_focus ['5'; '0'; '.'; '5'] in
-  let jpy_dec_refused = Option.get (C.handle ~width_of jpy_decimal (`Key (`Enter, []))) in
+  let jpy_m = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, [])))) clean_ed ['j'; 'p'; 'y'] in
+  let jpy_amt_focus = Option.get (H.handle ~width_of jpy_m (`Key (`Enter, []))) in
+  let jpy_decimal = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, [])))) jpy_amt_focus ['5'; '0'; '.'; '5'] in
+  let jpy_dec_refused = Option.get (H.handle ~width_of jpy_decimal (`Key (`Enter, []))) in
   require (contains (rec_screen jpy_dec_refused) "Enter a positive original amount with at most 0 decimal places.")
     "orig-integration-scale-0-decimal-refused";
-  let jpy_clean = List.fold_left (fun s _ -> Option.get (C.handle ~width_of s (`Key (`Backspace, [])))) jpy_dec_refused (List.init 4 Fun.id) in
-  let jpy_valid_amt = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) jpy_clean ['5'; '0'; '0'; '0'] in
-  let jpy_attached = Option.get (C.handle ~width_of jpy_valid_amt (`Key (`Enter, []))) in
+  let jpy_clean = List.fold_left (fun s _ -> Option.get (H.handle ~width_of s (`Key (`Backspace, [])))) jpy_dec_refused (List.init 4 Fun.id) in
+  let jpy_valid_amt = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, [])))) jpy_clean ['5'; '0'; '0'; '0'] in
+  let jpy_attached = Option.get (H.handle ~width_of jpy_valid_amt (`Key (`Enter, []))) in
   require (contains (rec_screen jpy_attached) "Original amount: 5000 jpy") "orig-integration-scale-0-attached";
   (* Clear via Ctrl-O -> Ctrl-D *)
-  let open_to_clear = Option.get (C.handle ~width_of jpy_attached (`Key (`ASCII 'o', [`Ctrl]))) in
-  let cleared_state = Option.get (C.handle ~width_of open_to_clear (`Key (`ASCII 'd', [`Ctrl]))) in
+  let open_to_clear = Option.get (H.handle ~width_of jpy_attached (`Key (`ASCII 'o', [`Ctrl]))) in
+  let cleared_state = Option.get (H.handle ~width_of open_to_clear (`Key (`ASCII 'd', [`Ctrl]))) in
   require (contains (rec_screen cleared_state) "Original amount: (none)") "orig-integration-cleared";
 
   (* Test 1c: Registered scale 2 (USD): enter "usd" and "30.00" *)
-  let reopen_ed = Option.get (C.handle ~width_of cleared_state (`Key (`ASCII 'o', [`Ctrl]))) in
-  let with_m = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) reopen_ed ['u'; 's'; 'd'] in
-  let to_amount = Option.get (C.handle ~width_of with_m (`Key (`Enter, []))) in
-  let with_amt = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) to_amount ['3'; '0'; '.'; '0'; '0'] in
-  let attached = Option.get (C.handle ~width_of with_amt (`Key (`Enter, []))) in
+  let reopen_ed = Option.get (H.handle ~width_of cleared_state (`Key (`ASCII 'o', [`Ctrl]))) in
+  let with_m = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, [])))) reopen_ed ['u'; 's'; 'd'] in
+  let to_amount = Option.get (H.handle ~width_of with_m (`Key (`Enter, []))) in
+  let with_amt = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, [])))) to_amount ['3'; '0'; '.'; '0'; '0'] in
+  let attached = Option.get (H.handle ~width_of with_amt (`Key (`Enter, []))) in
   require (contains (rec_screen attached) "Original amount: 30.00 usd") "orig-attached-screen-summary";
 
-  let filled = List.fold_left (fun s _ -> Option.get (C.handle ~width_of s (`Key (`Tab, [])))) attached (List.init 2 Fun.id) in
-  let filled = Option.get (C.handle ~width_of filled (`Key (`Enter, []))) in
-  let filled = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) filled ['-'; '4'; '5'; '0'; '0'] in
-  let filled = Option.get (C.handle ~width_of filled (`Key (`Tab, []))) in
-  let filled = Option.get (C.handle ~width_of filled (`Key (`Enter, []))) in
-  let filled = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) filled ['+'; '4'; '5'; '0'; '0'] in
+  let filled = List.fold_left (fun s _ -> Option.get (H.handle ~width_of s (`Key (`Tab, [])))) attached (List.init 2 Fun.id) in
+  let filled = Option.get (H.handle ~width_of filled (`Key (`Enter, []))) in
+  let filled = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, [])))) filled ['-'; '4'; '5'; '0'; '0'] in
+  let filled = Option.get (H.handle ~width_of filled (`Key (`Tab, []))) in
+  let filled = Option.get (H.handle ~width_of filled (`Key (`Enter, []))) in
+  let filled = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, [])))) filled ['+'; '4'; '5'; '0'; '0'] in
 
-  let preview = Option.get (C.handle ~width_of filled (`Key (`Enter, []))) in
+  let preview = Option.get (H.handle ~width_of filled (`Key (`Enter, []))) in
   let preview_screen = rec_screen preview in
   require (contains preview_screen "Record / Preview") "orig-preview-opened";
   require (contains preview_screen "Original amount: 30.00 usd") "orig-preview-shows-original-amount";
 
   (* 2. 取消 (cancellation): Cancel in Preview leaves disk file unchanged *)
-  let cancel_preview = Option.get (C.handle ~width_of (Option.get (C.handle ~width_of preview (`Key (`Tab, [])))) (`Key (`Enter, []))) in
+  let cancel_preview = Option.get (H.handle ~width_of (Option.get (H.handle ~width_of preview (`Key (`Tab, [])))) (`Key (`Enter, []))) in
   require (cancel_preview.record_visible && F.read path = initial_bytes) "orig-cancel-preview-leaves-disk-unchanged";
-  let cancel_record = Option.get (C.handle ~width_of cancel_preview (`Key (`Escape, []))) in
+  let cancel_record = Option.get (H.handle ~width_of cancel_preview (`Key (`Escape, []))) in
   require ((not cancel_record.record_visible) && F.read path = initial_bytes) "orig-cancel-record-leaves-disk-unchanged";
 
-  let re_resumed = Option.get (C.handle ~width_of cancel_record (`Key (`ASCII 'n', []))) in (* re-open retained draft *)
-  let re_preview = Option.get (C.handle ~width_of re_resumed (`Key (`ASCII 's', [`Ctrl]))) in (* open preview *)
-  let re_preview_end = Option.get (C.handle ~width_of re_preview (`Key (`End, []))) in
-  let published = Option.get (C.handle ~width_of re_preview_end (`Key (`Enter, []))) in (* confirm publish *)
+  let re_resumed = Option.get (H.handle ~width_of cancel_record (`Key (`ASCII 'n', []))) in (* re-open retained draft *)
+  let re_preview = Option.get (H.handle ~width_of re_resumed (`Key (`ASCII 's', [`Ctrl]))) in (* open preview *)
+  let re_preview_end = Option.get (H.handle ~width_of re_preview (`Key (`End, []))) in
+  let published = Option.get (H.handle ~width_of re_preview_end (`Key (`Enter, []))) in (* confirm publish *)
   require (not published.record_visible) "orig-published-closes-record";
   let published_bytes = F.read path in
   require (published_bytes <> initial_bytes) "orig-published-mutated-disk";
@@ -1695,8 +1698,8 @@ let original_amount_integration_checks ~width_of ~directory () =
   require (saved_entry.original_amount = Some ("usd", Z.of_int 3000)) "orig-cold-entry-has-original-amount";
   let cold_state = C.initial ~config_home:dir cold_session in
   let actual_detail = C.open_route cold_state W.Actual in
-  let actual_detail = Option.get (C.handle ~width_of actual_detail (`Key (`ASCII 'i', []))) in
-  require (contains (C.screen ~width_of (80, 24) actual_detail) "Original amount: 30.00 usd") "orig-actual-detail-shows-amount";
+  let actual_detail = Option.get (H.handle ~width_of actual_detail (`Key (`ASCII 'i', []))) in
+  require (contains (R.screen ~width_of (80, 24) actual_detail) "Original amount: 30.00 usd") "orig-actual-detail-shows-amount";
 
   let rec_path = dir ^ "/book.log" in
   F.write_new rec_path (B.to_records_string cold_session.book);
@@ -1707,22 +1710,22 @@ let original_amount_integration_checks ~width_of ~directory () =
   require (rec_entry.original_amount = Some ("usd", Z.of_int 3000)) "orig-records-entry-has-original-amount";
 
   (* 3. 保存失敗 (save failure): Filesystem read-only error preserves draft and file *)
-  let new_rec = C.handle ~width_of cold_state (`Key (`ASCII 'n', [])) |> Option.get in
-  let new_rec = C.handle ~width_of new_rec (`Key (`ASCII 'o', [`Ctrl])) |> Option.get in
-  let new_rec = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) new_rec ['u'; 's'; 'd'] in
-  let new_rec = Option.get (C.handle ~width_of new_rec (`Key (`Enter, []))) in
-  let new_rec = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) new_rec ['1'; '0'; '.'; '0'; '0'] in
-  let new_rec = Option.get (C.handle ~width_of new_rec (`Key (`Enter, []))) in
-  let new_rec = List.fold_left (fun s _ -> Option.get (C.handle ~width_of s (`Key (`Tab, [])))) new_rec (List.init 2 Fun.id) in
-  let new_rec = Option.get (C.handle ~width_of new_rec (`Key (`Enter, []))) in
-  let new_rec = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) new_rec ['-'; '1'; '5'; '0'; '0'] in
-  let new_rec = Option.get (C.handle ~width_of new_rec (`Key (`Tab, []))) in
-  let new_rec = Option.get (C.handle ~width_of new_rec (`Key (`Enter, []))) in
-  let new_rec = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, [])))) new_rec ['+'; '1'; '5'; '0'; '0'] in
-  let fail_preview = Option.get (C.handle ~width_of new_rec (`Key (`ASCII 's', [`Ctrl]))) in
-  let fail_preview = Option.get (C.handle ~width_of fail_preview (`Key (`End, []))) in
+  let new_rec = H.handle ~width_of cold_state (`Key (`ASCII 'n', [])) |> Option.get in
+  let new_rec = H.handle ~width_of new_rec (`Key (`ASCII 'o', [`Ctrl])) |> Option.get in
+  let new_rec = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, [])))) new_rec ['u'; 's'; 'd'] in
+  let new_rec = Option.get (H.handle ~width_of new_rec (`Key (`Enter, []))) in
+  let new_rec = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, [])))) new_rec ['1'; '0'; '.'; '0'; '0'] in
+  let new_rec = Option.get (H.handle ~width_of new_rec (`Key (`Enter, []))) in
+  let new_rec = List.fold_left (fun s _ -> Option.get (H.handle ~width_of s (`Key (`Tab, [])))) new_rec (List.init 2 Fun.id) in
+  let new_rec = Option.get (H.handle ~width_of new_rec (`Key (`Enter, []))) in
+  let new_rec = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, [])))) new_rec ['-'; '1'; '5'; '0'; '0'] in
+  let new_rec = Option.get (H.handle ~width_of new_rec (`Key (`Tab, []))) in
+  let new_rec = Option.get (H.handle ~width_of new_rec (`Key (`Enter, []))) in
+  let new_rec = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, [])))) new_rec ['+'; '1'; '5'; '0'; '0'] in
+  let fail_preview = Option.get (H.handle ~width_of new_rec (`Key (`ASCII 's', [`Ctrl]))) in
+  let fail_preview = Option.get (H.handle ~width_of fail_preview (`Key (`End, []))) in
   let fail_state = { fail_preview with session = { fail_preview.session with path = dir ^ "/missing/book.sexp" } } in
-  let fail_attempt = C.handle ~width_of fail_state (`Key (`Enter, [])) |> Option.get in
+  let fail_attempt = H.handle ~width_of fail_state (`Key (`Enter, [])) |> Option.get in
   require (fail_attempt.record_visible && F.read path = published_bytes) "orig-save-failure-preserves-draft-and-disk";
 
   (* 4. Stale (stale detection): Concurrent disk modification stops publication and preserves draft *)
@@ -1736,7 +1739,7 @@ let original_amount_integration_checks ~width_of ~directory () =
   let updated_book = get (B.put_entry (F.load path).book ~replace:false dummy_entry ~plan:None) in
   let oc = open_out_bin path in output_string oc (B.to_string updated_book); close_out oc;
   let changed_disk_bytes = F.read path in
-  let stale_pub = Option.get (C.handle ~width_of stale_preview (`Key (`Enter, []))) in
+  let stale_pub = Option.get (H.handle ~width_of stale_preview (`Key (`Enter, []))) in
   require (stale_pub.blocked && stale_pub.record_visible && F.read path = changed_disk_bytes) "orig-stale-stops-publication-and-preserves-disk";
 
   (* 5. 結果不明 (unknown result): Uncertain commit preserves draft and file *)
@@ -1767,9 +1770,9 @@ let original_amount_integration_checks ~width_of ~directory () =
   let bytes_26 = F.read p26 in
   let sess26 = F.load ~annual_year:2026 p26 in
   let state26 = C.initial ~config_home:annual_dir sess26 in
-  let rollover_dialog = C.open_command state26 M.Annual_rollover in
-  let do_rollover = Option.get (C.handle ~width_of rollover_dialog (`Key (`Arrow `Right, []))) in
-  let _ = Option.get (C.handle ~width_of do_rollover (`Key (`Enter, []))) in
+  let rollover_dialog = X.open_command state26 M.Annual_rollover in
+  let do_rollover = Option.get (H.handle ~width_of rollover_dialog (`Key (`Arrow `Right, []))) in
+  let _ = Option.get (H.handle ~width_of do_rollover (`Key (`Enter, []))) in
   let p27 = annual_dir ^ "/2027.sexp" in
   require (Sys.file_exists p27 && F.read p26 = bytes_26) "orig-annual-rollover-created-2027-and-predecessor-unmutated";
   let sess27 = F.load ~annual_year:2027 p27 in
@@ -1808,91 +1811,91 @@ let event_merchant_integration_checks ~width_of ~directory () =
 
   (* 1. Actual workspace: search typing non-collision *)
   let actual_view = C.open_route initial_state W.Actual in
-  let search_started = Option.get (C.handle ~width_of actual_view (`Key (`ASCII '/', []))) in
+  let search_started = Option.get (H.handle ~width_of actual_view (`Key (`ASCII '/', []))) in
   require (Act.search_editing search_started.actual_workspace) "merch-search-editing-active";
-  let search_typed_m = Option.get (C.handle ~width_of search_started (`Key (`ASCII 'm', []))) in
+  let search_typed_m = Option.get (H.handle ~width_of search_started (`Key (`ASCII 'm', []))) in
   require (Act.search_editing search_typed_m.actual_workspace && Act.search_query search_typed_m.actual_workspace = "m")
     "merch-typing-m-in-search-updates-query";
   require (search_typed_m.overlay = C.No_overlay) "merch-search-does-not-open-editor";
-  let search_cleared = Option.get (C.handle ~width_of search_typed_m (`Key (`Escape, []))) in
+  let search_cleared = Option.get (H.handle ~width_of search_typed_m (`Key (`Escape, []))) in
   require (not (Act.search_editing search_cleared.actual_workspace)) "merch-search-cleared";
 
   (* 2. Open Event Merchant editor on unclassified Actual 'e1' *)
-  let merch_opened = Option.get (C.handle ~width_of search_cleared (`Key (`ASCII 'm', []))) in
+  let merch_opened = Option.get (H.handle ~width_of search_cleared (`Key (`ASCII 'm', []))) in
   let editor = match merch_opened.overlay with
     | C.Event_merchant ed -> ed
     | _ -> failwith "merch-editor-not-opened"
   in
   require (Merchant.choice editor = Merchant.Merchant && Merchant.party_input editor = "")
     "merch-editor-starts-unresolved";
-  let screen_editing = Option.get (C.overlay_screen ~dimensions:(80, 24) ~width_of merch_opened) in
+  let screen_editing = Option.get (R.overlay_screen ~dimensions:(80, 24) ~width_of merch_opened) in
   require (contains screen_editing "Event Merchant / Edit" && contains screen_editing "Target: e1"
            && contains screen_editing "Description: Sanwa shopping" && contains screen_editing "Disposition: Merchant")
     "merch-editing-screen-labels";
 
   (* Empty party ID refusal on Enter *)
-  let empty_enter = Option.get (C.handle ~width_of merch_opened (`Key (`Enter, []))) in
+  let empty_enter = Option.get (H.handle ~width_of merch_opened (`Key (`Enter, []))) in
   let empty_ed = match empty_enter.overlay with C.Event_merchant ed -> ed | _ -> failwith "empty-ed-lost" in
   require (not (Merchant.is_preview empty_ed) && empty_enter.message = "") "empty-stays-editing";
-  let empty_screen = Option.get (C.overlay_screen ~dimensions:(80, 24) ~width_of empty_enter) in
+  let empty_screen = Option.get (R.overlay_screen ~dimensions:(80, 24) ~width_of empty_enter) in
   require (contains empty_screen "Merchant party id must be a non-empty single text field.")
     "merch-empty-party-notice";
 
   (* Tab toggles to Nonmerchant *)
-  let tab_nonmerch = Option.get (C.handle ~width_of empty_enter (`Key (`Tab, []))) in
+  let tab_nonmerch = Option.get (H.handle ~width_of empty_enter (`Key (`Tab, []))) in
   let nonmerch_ed = match tab_nonmerch.overlay with C.Event_merchant ed -> ed | _ -> failwith "nonmerch-ed-lost" in
   require (Merchant.choice nonmerch_ed = Merchant.Nonmerchant) "merch-tab-toggles-nonmerchant";
-  let nonmerch_screen = Option.get (C.overlay_screen ~dimensions:(80, 24) ~width_of tab_nonmerch) in
+  let nonmerch_screen = Option.get (R.overlay_screen ~dimensions:(80, 24) ~width_of tab_nonmerch) in
   require (contains nonmerch_screen "Disposition: Nonmerchant" && contains nonmerch_screen "Party id: (not applicable)")
     "merch-nonmerchant-screen";
 
   (* In Nonmerchant, character typing is ignored *)
-  let ignore_type = Option.get (C.handle ~width_of tab_nonmerch (`Key (`ASCII 's', []))) in
+  let ignore_type = Option.get (H.handle ~width_of tab_nonmerch (`Key (`ASCII 's', []))) in
   let ignore_ed = match ignore_type.overlay with C.Event_merchant ed -> ed | _ -> failwith "ignore-ed-lost" in
   require (Merchant.party_input ignore_ed = "") "merch-nonmerchant-ignores-typing";
 
   (* Tab back to Merchant *)
-  let tab_merch = Option.get (C.handle ~width_of ignore_type (`Key (`Tab, []))) in
+  let tab_merch = Option.get (H.handle ~width_of ignore_type (`Key (`Tab, []))) in
   let merch_ed = match tab_merch.overlay with C.Event_merchant ed -> ed | _ -> failwith "merch-ed-lost" in
   require (Merchant.choice merch_ed = Merchant.Merchant) "merch-tab-toggles-merchant";
 
   (* Type party 'sanwa' *)
-  let typed = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, []))))
+  let typed = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, []))))
     tab_merch ['s'; 'a'; 'n'; 'w'; 'a'] in
 
   (* Cancel leaves disk unchanged *)
-  let cancelled = Option.get (C.handle ~width_of typed (`Key (`Escape, []))) in
+  let cancelled = Option.get (H.handle ~width_of typed (`Key (`Escape, []))) in
   require (cancelled.overlay = C.No_overlay && F.read path = initial_bytes) "merch-cancel-preserves-disk";
   require (cancelled.message = "Merchant classification cancelled.") "merch-cancel-message";
 
   (* Reopen and transition to Preview *)
-  let reopened = Option.get (C.handle ~width_of cancelled (`Key (`ASCII 'm', []))) in
-  let typed_again = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, []))))
+  let reopened = Option.get (H.handle ~width_of cancelled (`Key (`ASCII 'm', []))) in
+  let typed_again = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, []))))
     reopened ['s'; 'a'; 'n'; 'w'; 'a'] in
-  let preview = Option.get (C.handle ~width_of typed_again (`Key (`Enter, []))) in
+  let preview = Option.get (H.handle ~width_of typed_again (`Key (`Enter, []))) in
   let prev_ed = match preview.overlay with C.Event_merchant ed -> ed | _ -> failwith "prev-ed-lost" in
   require (Merchant.is_preview prev_ed) "merch-preview-mode";
-  let prev_screen = Option.get (C.overlay_screen ~dimensions:(80, 24) ~width_of preview) in
+  let prev_screen = Option.get (R.overlay_screen ~dimensions:(80, 24) ~width_of preview) in
   require (contains prev_screen "Event Merchant / Preview" && contains prev_screen "Target remains: e1"
            && contains prev_screen "Proposed: Merchant sanwa") "merch-preview-screen";
 
   (* Edit return from Preview via 'e' *)
-  let returned_edit = Option.get (C.handle ~width_of preview (`Key (`ASCII 'e', []))) in
+  let returned_edit = Option.get (H.handle ~width_of preview (`Key (`ASCII 'e', []))) in
   let ret_ed = match returned_edit.overlay with C.Event_merchant ed -> ed | _ -> failwith "ret-ed-lost" in
   require (not (Merchant.is_preview ret_ed) && Merchant.party_input ret_ed = "sanwa")
     "merch-return-preserves-input";
-  let preview_again = Option.get (C.handle ~width_of returned_edit (`Key (`Enter, []))) in
+  let preview_again = Option.get (H.handle ~width_of returned_edit (`Key (`Enter, []))) in
 
   (* Tiny terminal gate refuses Enter in preview *)
-  let tiny_attempt = Option.get (C.handle ~dimensions:(32, 9) ~width_of preview_again (`Key (`Enter, []))) in
-  let tiny_screen = Option.get (C.overlay_screen ~dimensions:(32, 9) ~width_of tiny_attempt) in
+  let tiny_attempt = Option.get (H.handle ~dimensions:(32, 9) ~width_of preview_again (`Key (`Enter, []))) in
+  let tiny_screen = Option.get (R.overlay_screen ~dimensions:(32, 9) ~width_of tiny_attempt) in
   require (contains tiny_screen "Enlarge terminal") "merch-tiny-gate-notice";
   require (List.exists (fun line -> Base.String.is_substring line ~substring:"Enlarge terminal to review the Merchant target and proposal before Publish.")
-             (C.footer ~dimensions:(32, 9) ~width_of tiny_attempt)) "merch-tiny-footer-notice";
+             (R.footer ~dimensions:(32, 9) ~width_of tiny_attempt)) "merch-tiny-footer-notice";
   require (F.read path = initial_bytes) "merch-tiny-gate-preserves-disk";
 
   (* Publish at normal dimensions *)
-  let published = Option.get (C.handle ~width_of preview_again (`Key (`Enter, []))) in
+  let published = Option.get (H.handle ~width_of preview_again (`Key (`Enter, []))) in
   require (published.overlay = C.No_overlay) "merch-published-closes-overlay";
   require (published.message = "Published Merchant sanwa for e1.") "merch-published-message";
   let published_bytes = F.read path in
@@ -1906,12 +1909,12 @@ let event_merchant_integration_checks ~width_of ~directory () =
 
   (* Detail view in Actual displays 'Merchant: Merchant sanwa' *)
   let actual_post = C.open_route (C.initial ~config_home:dir cold_session) W.Actual in
-  let actual_info = Option.get (C.handle ~width_of actual_post (`Key (`ASCII 'i', []))) in
-  let actual_detail = C.screen ~width_of (80, 24) actual_info in
+  let actual_info = Option.get (H.handle ~width_of actual_post (`Key (`ASCII 'i', []))) in
+  let actual_detail = R.screen ~width_of (80, 24) actual_info in
   require (contains actual_detail "Merchant: Merchant sanwa") "merch-actual-detail-displays";
 
   (* 3. Duplicate classification refusal: pressing 'm' on classified entry *)
-  let repeat_attempt = Option.get (C.handle ~width_of actual_post (`Key (`ASCII 'm', []))) in
+  let repeat_attempt = Option.get (H.handle ~width_of actual_post (`Key (`ASCII 'm', []))) in
   require (repeat_attempt.overlay = C.No_overlay) "merch-repeat-does-not-open";
   require (repeat_attempt.message = "Merchant already classified: Merchant sanwa.") "merch-repeat-message";
 
@@ -1935,10 +1938,10 @@ let event_merchant_integration_checks ~width_of ~directory () =
   let _ = match F.publish cold_session book_with_e2 with F.Written s -> s | _ -> failwith "pub-e2-fail" in
   let sess_e2 = F.load path in
   let state_e2 = C.open_route (C.initial ~config_home:dir sess_e2) W.Actual in
-  let e2_opened = Option.get (C.handle ~width_of state_e2 (`Key (`ASCII 'm', []))) in
-  let e2_tab = Option.get (C.handle ~width_of e2_opened (`Key (`Tab, []))) in
-  let e2_prev = Option.get (C.handle ~width_of e2_tab (`Key (`Enter, []))) in
-  let e2_pub = Option.get (C.handle ~width_of e2_prev (`Key (`Enter, []))) in
+  let e2_opened = Option.get (H.handle ~width_of state_e2 (`Key (`ASCII 'm', []))) in
+  let e2_tab = Option.get (H.handle ~width_of e2_opened (`Key (`Tab, []))) in
+  let e2_prev = Option.get (H.handle ~width_of e2_tab (`Key (`Enter, []))) in
+  let e2_pub = Option.get (H.handle ~width_of e2_prev (`Key (`Enter, []))) in
   require (e2_pub.message = "Published Nonmerchant for e2.") "merch-e2-pub-message";
   let cold_e2_sess = F.load path in
   let cold_e2 = Option.get (B.find_entry cold_e2_sess.book "e2") in
@@ -1964,18 +1967,18 @@ let event_merchant_integration_checks ~width_of ~directory () =
   let _ = match F.publish cold_e2_sess book_with_e3 with F.Written s -> s | _ -> failwith "pub-e3-fail" in
   let sess_e3 = F.load path in
   let day_state = C.open_route (C.initial ~config_home:dir sess_e3) (W.Selected_day "2026-10-12") in
-  let e3_opened = Option.get (C.handle ~width_of day_state (`Key (`ASCII 'm', []))) in
-  let e3_typed = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, []))))
+  let e3_opened = Option.get (H.handle ~width_of day_state (`Key (`ASCII 'm', []))) in
+  let e3_typed = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, []))))
     e3_opened ['b'; 'a'; 'k'; 'e'; 'r'; 'y'] in
-  let e3_prev = Option.get (C.handle ~width_of e3_typed (`Key (`Enter, []))) in
-  let e3_pub = Option.get (C.handle ~width_of e3_prev (`Key (`Enter, []))) in
+  let e3_prev = Option.get (H.handle ~width_of e3_typed (`Key (`Enter, []))) in
+  let e3_pub = Option.get (H.handle ~width_of e3_prev (`Key (`Enter, []))) in
   require (e3_pub.message = "Published Merchant bakery for e3.") "merch-e3-published-on-selected-day";
 
   (* 6. Reversal noninheritance *)
   let actual_for_rev = C.open_route (C.initial ~config_home:dir (F.load path)) W.Actual in
   let rev_session = C.reverse_entry_selected actual_for_rev in
-  let rev_preview = Option.get (C.handle ~width_of rev_session (`Key (`Enter, []))) in
-  let _ = Option.get (C.handle ~width_of rev_preview (`Key (`Enter, []))) in
+  let rev_preview = Option.get (H.handle ~width_of rev_session (`Key (`Enter, []))) in
+  let _ = Option.get (H.handle ~width_of rev_preview (`Key (`Enter, []))) in
   let post_rev_session = F.load path in
   let rev_entries = B.entries post_rev_session.book in
   let rev_entry = List.find (fun (e : B.entry) -> e.reversal_of = Some "e3") rev_entries in
@@ -2005,12 +2008,12 @@ let event_merchant_integration_checks ~width_of ~directory () =
   let sess_unclass = F.load path in
   let cur_bytes = F.read path in
   let state_unclass = C.open_route (C.initial ~config_home:dir sess_unclass) (W.Selected_day "2026-10-14") in
-  let ed_fail = Option.get (C.handle ~width_of state_unclass (`Key (`ASCII 'm', []))) in
-  let ed_fail_typed = List.fold_left (fun s c -> Option.get (C.handle ~width_of s (`Key (`ASCII c, []))))
+  let ed_fail = Option.get (H.handle ~width_of state_unclass (`Key (`ASCII 'm', []))) in
+  let ed_fail_typed = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, []))))
     ed_fail ['t'; 'o'; 'o'; 'l'; 's'] in
-  let ed_fail_prev = Option.get (C.handle ~width_of ed_fail_typed (`Key (`Enter, []))) in
+  let ed_fail_prev = Option.get (H.handle ~width_of ed_fail_typed (`Key (`Enter, []))) in
   let bad_path_state = { ed_fail_prev with session = { ed_fail_prev.session with path = dir ^ "/missing_dir/book.sexp" } } in
-  let fail_pub = Option.get (C.handle ~width_of bad_path_state (`Key (`Enter, []))) in
+  let fail_pub = Option.get (H.handle ~width_of bad_path_state (`Key (`Enter, []))) in
   require (fail_pub.overlay <> C.No_overlay && F.read path = cur_bytes) "merch-save-fail-preserves-draft-and-disk";
 
   (* 8. Stale conflict: another writer modified disk *)
@@ -2032,7 +2035,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   } in
   let concurrent_book = get (B.put_entry (F.load path).book ~replace:false dummy ~plan:None) in
   let oc = open_out_bin path in output_string oc (B.to_string concurrent_book); close_out oc;
-  let stale_pub = Option.get (C.handle ~width_of stale_state (`Key (`Enter, []))) in
+  let stale_pub = Option.get (H.handle ~width_of stale_state (`Key (`Enter, []))) in
   require (stale_pub.blocked) "merch-stale-conflict-blocked";
 
   (* 9. Records session refusal *)
@@ -2051,9 +2054,9 @@ let event_merchant_integration_checks ~width_of ~directory () =
   let bytes_26 = F.read p26 in
   let sess26 = F.load ~annual_year:2026 p26 in
   let state26 = C.initial ~config_home:annual_dir sess26 in
-  let rollover_dialog = C.open_command state26 M.Annual_rollover in
-  let do_rollover = Option.get (C.handle ~width_of rollover_dialog (`Key (`Arrow `Right, []))) in
-  let _ = Option.get (C.handle ~width_of do_rollover (`Key (`Enter, []))) in
+  let rollover_dialog = X.open_command state26 M.Annual_rollover in
+  let do_rollover = Option.get (H.handle ~width_of rollover_dialog (`Key (`Arrow `Right, []))) in
+  let _ = Option.get (H.handle ~width_of do_rollover (`Key (`Enter, []))) in
   let p27 = annual_dir ^ "/2027.sexp" in
   require (Sys.file_exists p27 && F.read p26 = bytes_26) "merch-annual-rollover-created-2027-and-predecessor-unmutated";
   let sess27 = F.load ~annual_year:2027 p27 in
@@ -2111,9 +2114,9 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
     Buffer.contents out
   in
   let shows ?(pane = `Left) ~width_of (width, height) state needle =
-    let left_width, _ = C.browser_pane_widths width in
+    let left_width, _ = X.browser_pane_widths width in
     let room = match pane with `Left -> left_width | `Right -> width in
-    let rows = C.screen ~width_of (width, height) state in
+    let rows = R.screen ~width_of (width, height) state in
     let text =
       List.map
         (fun (_, row) ->
@@ -2134,7 +2137,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
   let modal_summary state = String.concat "\n" (modal_form state).Ui_form.summary in
   let submit_what_if state amount =
     let form = Ui_form.set_focused (Ui_form.set_text (modal_form state) "amount" amount) 1 in
-    match C.handle ~width_of { state with C.overlay = C.Modal_form form } (`Key (`Enter, [])) with
+    match H.handle ~width_of { state with C.overlay = C.Modal_form form } (`Key (`Enter, [])) with
     | Some next -> next
     | None -> raise (F.Refused "what-if-submit-exited")
   in
@@ -2221,7 +2224,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
       let pressed = key ~width_of no_period (`ASCII preset_key) in
       let where = String.make 1 preset_key in
       require (pressed.workspace.route = W.Daily_pace) ("daily-pace-missing-period-route-" ^ where);
-      require (Result.is_error (C.current_pace_result pressed))
+      require (Result.is_error (X.current_pace_result pressed))
         ("daily-pace-missing-period-refused-" ^ where);
       require (not (shows ~pane:`Right ~width_of (32, 9) pressed "jpy/day"))
         ("daily-pace-missing-period-no-invented-pace-" ^ where))
@@ -2256,7 +2259,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
     (fun ((width, height) as dimensions) ->
       List.iter
         (fun state ->
-          let rows = C.screen ~width_of dimensions state in
+          let rows = R.screen ~width_of dimensions state in
           require (List.length rows <= height
             && List.for_all (fun (_, row) -> width_of row <= width) rows)
             "daily-pace-chart-detail-resize-geometry")
@@ -2646,7 +2649,7 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   require
     (selected_date samples (key ~width_of tail (`Arrow `Left)) = yesterday)
     "daily-pace-sel-end-left-prev";
-  let painted = C.screen ~width_of (140, 40) tail |> List.map snd |> String.concat "\n" in
+  let painted = R.screen ~width_of (140, 40) tail |> List.map snd |> String.concat "\n" in
   let visible_days = List.filter (fun (sample : Trend.sample) ->
     Base.String.is_substring painted ~substring:sample.day) samples |> List.length in
   let paged = key ~width_of tail (`Page `Up) in
@@ -2682,22 +2685,22 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   let dim = (80, 14) in
   let detail = key ~dimensions:dim ~width_of tail (`ASCII 'i') in
   require (detail.workspace.pane = W.Detail) "daily-pace-sel-detail-focused";
-  let view0 = C.pace_detail_viewport ~dimensions:dim ~width_of detail in
+  let view0 = X.pace_detail_viewport ~dimensions:dim ~width_of detail in
   require (view0.last > 0) "daily-pace-detail-overflows";
   let sel_before = detail.C.pace_trend.selected_index in
   let at_end = key ~dimensions:dim ~width_of detail `End in
-  let view_end = C.pace_detail_viewport ~dimensions:dim ~width_of at_end in
+  let view_end = X.pace_detail_viewport ~dimensions:dim ~width_of at_end in
   require (view_end.start = view_end.last && at_end.C.scroll = view_end.last)
     "daily-pace-detail-end-rests-on-last";
   let up = key ~dimensions:dim ~width_of at_end (`Arrow `Up) in
-  let view_up = C.pace_detail_viewport ~dimensions:dim ~width_of up in
+  let view_up = X.pace_detail_viewport ~dimensions:dim ~width_of up in
   require (view_up.start = view_end.start - 1) "daily-pace-detail-end-up-moves-viewport";
   require (up.C.pace_trend.selected_index = sel_before) "daily-pace-detail-scroll-keeps-date";
   let paged_detail = key ~dimensions:dim ~width_of at_end (`Page `Up) in
   require (at_end.C.scroll - paged_detail.C.scroll = min view_end.last (max 1 view_end.capacity))
     "daily-pace-detail-page-uses-capacity";
   let resized_up = key ~dimensions:(80, 24) ~width_of at_end (`Arrow `Up) in
-  let view_resized = C.pace_detail_viewport ~dimensions:(80, 24) ~width_of resized_up in
+  let view_resized = X.pace_detail_viewport ~dimensions:(80, 24) ~width_of resized_up in
   require (resized_up.C.scroll <= view_resized.last) "daily-pace-detail-resize-up-clamps-to-painted-last";
   require (resized_up.C.pace_trend.selected_index = sel_before)
     "daily-pace-detail-resize-keeps-date";
@@ -2738,7 +2741,7 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
       in
       require (moved.workspace.route = W.Daily_pace) ("daily-pace-sel-missing-route-" ^ label);
       let text =
-        List.map (fun (_, row) -> clean row) (C.screen ~width_of (80, 24) moved)
+        List.map (fun (_, row) -> clean row) (R.screen ~width_of (80, 24) moved)
         |> String.concat ""
       in
       require
@@ -2965,7 +2968,7 @@ let pool_review_checks ~width_of ~directory () =
   let opened = press (fresh ()) (`ASCII 'c') in
   require (text opened = Some "wallet") "pool-editor-shows-existing";
   let review = submit "bank" opened in
-  let displayed = C.overlay_screen ~dimensions:(80, 24) ~width_of review
+  let displayed = R.overlay_screen ~dimensions:(80, 24) ~width_of review
     |> Option.value ~default:[] |> List.map snd |> String.concat "\n" in
   require (reviewing review && F.read pool_path = before
     && Base.String.is_substring displayed ~substring:"wallet"
@@ -2980,7 +2983,7 @@ let pool_review_checks ~width_of ~directory () =
   require (closed.overlay = C.No_overlay && F.read pool_path = before) "pool-cancel-no-write";
   let resumed = press closed (`ASCII 'c') in
   require (text resumed = Some "bank") "pool-cancel-reopen-retains-input";
-  let via_commands = C.open_command (press resumed `Escape) Ui_commands.Pace_pool in
+  let via_commands = X.open_command (press resumed `Escape) Ui_commands.Pace_pool in
   require (text via_commands = Some "bank") "pool-commands-resume-same-draft";
   List.iter (fun dimensions ->
     let refused = key ~dimensions ~width_of review `Enter in
@@ -3007,7 +3010,7 @@ let pool_review_checks ~width_of ~directory () =
   require (saved.overlay = C.No_overlay && F.read pool_path = after) "pool-explicit-save";
   require (text (press saved (`ASCII 'c')) = Some "bank") "pool-success-clears-old-draft";
   let cold = fresh () in
-  require (match C.resolve_pace_pool cold with
+  require (match X.resolve_pace_pool cold with
     | Ok [coordinate] -> C.A.lstr coordinate.D.Effect_coordinate.locus = "bank"
     | _ -> false) "pool-save-cold-reopen";
   List.iter (fun raw ->
@@ -3088,12 +3091,12 @@ let balance_display_checks ~width_of ~directory () =
     "balance-unknown-presence-zero-distinct";
   let view = C.open_route home W.Balances in
   let coordinate state =
-    match List.nth_opt (C.balance_items state) state.C.workspace.balance_selected with
+    match List.nth_opt (X.balance_items state) state.C.workspace.balance_selected with
     | Some (O.Account_row { locus; measure; _ }) -> Some (locus, measure)
     | _ -> None in
   let eur_index = Option.get (List.find_index (function
     | O.Account_row { locus = "wallet"; measure = "eur"; _ } -> true | _ -> false)
-    (C.balance_items view)) in
+    (X.balance_items view)) in
   let eur = { view with workspace = { view.workspace with balance_selected = eur_index } } in
   let accounting = key ~width_of eur (`ASCII 'v') in
   let current = key ~width_of accounting (`ASCII 'v') in
@@ -3107,16 +3110,16 @@ let balance_display_checks ~width_of ~directory () =
           if inside && String.starts_with ~prefix:"╰" row then count
           else if inside then painted_capacity true (count + 1) rest
           else painted_capacity (String.starts_with ~prefix:"╭" row) count rest in
-    let capacity = painted_capacity false 0 (C.screen ~width_of dimensions head) in
+    let capacity = painted_capacity false 0 (R.screen ~width_of dimensions head) in
     let next = key ~dimensions ~width_of head (`Page `Down) in
-    require (next.workspace.balance_selected = min capacity (List.length (C.balance_items head) - 1))
+    require (next.workspace.balance_selected = min capacity (List.length (X.balance_items head) - 1))
       "balance-page-matches-actual-painted-list-capacity")
     [(120,36); (80,24); (48,14); (32,9)];
-  let medium_rows = C.screen ~width_of (80, 24) view in
+  let medium_rows = R.screen ~width_of (80, 24) view in
   require (not (List.exists (function C.Columns _, _ -> true | _ -> false) medium_rows)
     && has (String.concat "\n" (List.map snd medium_rows)) "+74,500 jpy")
     "balances-medium-stacks-with-complete-quantity";
-  let painted = C.screen ~width_of (32, 9) view |> List.map snd |> String.concat "\n" in
+  let painted = R.screen ~width_of (32, 9) view |> List.map snd |> String.concat "\n" in
   require (has painted "+74,500 jpy") "balance-tiny-first-coordinate-visible";
   let huge_book = get (B.observe_quantities book [("wallet", "jpy", Z.neg huge)]) in
   let large = C.open_route { home with session = { home.session with book = huge_book } } W.Balances in
@@ -3124,14 +3127,14 @@ let balance_display_checks ~width_of ~directory () =
     let detail = key ~dimensions ~width_of large (`ASCII 'i') in
     let at_end = key ~dimensions ~width_of detail `End in
     let up = key ~dimensions ~width_of at_end (`Arrow `Up) in
-    let _, viewport = C.balance_viewport ~dimensions ~width_of detail in
+    let _, viewport = X.balance_viewport ~dimensions ~width_of detail in
     let page = key ~dimensions ~width_of detail (`Page `Down) in
     let stepped = List.fold_left (fun state _ -> key ~dimensions ~width_of state (`ASCII 'j'))
         detail (List.init viewport.capacity Fun.id) in
-    require (C.screen ~width_of dimensions page = C.screen ~width_of dimensions stepped)
+    require (R.screen ~width_of dimensions page = R.screen ~width_of dimensions stepped)
       "balance-detail-page-matches-visible-capacity";
     if viewport.last > 0 then require
-      (C.screen ~width_of dimensions up <> C.screen ~width_of dimensions at_end)
+      (R.screen ~width_of dimensions up <> R.screen ~width_of dimensions at_end)
       "balance-end-up-moves-visible-detail";
     let printed = key ~dimensions ~width_of at_end (`ASCII 'p') in
     let printed_end = key ~dimensions ~width_of printed `End in
@@ -3141,12 +3144,12 @@ let balance_display_checks ~width_of ~directory () =
       "balance-print-keeps-parent-context";
     (match printed.overlay with
      | C.Modal_form form ->
-         let _, _, rows, viewport = C.balance_print_viewport ~dimensions ~width_of printed form in
+         let _, _, rows, viewport = X.balance_print_viewport ~dimensions ~width_of printed form in
          require (has (String.concat "" rows) (O.format_money huge_book "jpy" (Z.neg huge)))
            "balance-print-wrap-retains-full-negative-quantity";
          if viewport.last > 0 then require
-           (C.overlay_screen ~dimensions ~width_of printed_end
-            <> C.overlay_screen ~dimensions ~width_of printed_up)
+           (R.overlay_screen ~dimensions ~width_of printed_end
+            <> R.overlay_screen ~dimensions ~width_of printed_up)
            "balance-print-end-up-moves-visible-report"
      | _ -> raise (F.Refused "balance-print-not-open"));
     require ((key ~dimensions ~width_of printed_end `Enter).overlay = C.No_overlay)
@@ -3155,14 +3158,14 @@ let balance_display_checks ~width_of ~directory () =
     require (closed.scroll = at_end.scroll && closed.overlay = C.No_overlay
       && F.read path = home.session.bytes) "balance-print-close-preserves-parent-without-save")
     [(120,36); (80,24); (48,14); (32,9)];
-  require (C.balance_print_fits [String.make 32767 'x']
-    && not (C.balance_print_fits [String.make 32768 'x'])
-    && C.balance_print_fits (List.init 200 (fun _ -> ""))
-    && not (C.balance_print_fits (List.init 201 (fun _ -> ""))))
+  require (X.balance_print_fits [String.make 32767 'x']
+    && not (X.balance_print_fits [String.make 32768 'x'])
+    && X.balance_print_fits (List.init 200 (fun _ -> ""))
+    && not (X.balance_print_fits (List.init 201 (fun _ -> ""))))
     "balance-print-exact-byte-and-line-limits-including-newlines";
   let oversized = get (B.observe_quantities book
     [("wallet", "jpy", Z.of_string (String.make 25000 '7'))]) in
-  let refused = C.balance_print_preview { view with session = { view.session with book = oversized } } in
+  let refused = X.balance_print_preview { view with session = { view.session with book = oversized } } in
   require (Ui_form.id refused = "balance_print_refused" && F.read path = home.session.bytes)
     "balance-print-refuses-real-oversized-quantity-without-save";
   require ((key ~width_of { view with overlay = C.Modal_form refused } `Enter).overlay = C.No_overlay)
@@ -3170,7 +3173,7 @@ let balance_display_checks ~width_of ~directory () =
   require (O.current_balance_items ~book ~coords:(Some []) = [])
     "balance-empty-has-no-selectable-placeholder";
   F.write_new (directory ^ "/balance-view.tsv") "";
-  let empty = C.screen ~width_of (32, 9) view |> List.map snd |> String.concat "\n" in
+  let empty = R.screen ~width_of (32, 9) view |> List.map snd |> String.concat "\n" in
   require (has empty "0–0 / 0") "balance-empty-counter-is-zero";
   print_endline "PASS: Balances first coordinate, exact-or-detail quantities and empty evidence states."
 
@@ -3182,10 +3185,10 @@ let b2_overlay_open (state : C.state) =
   (match state.C.overlay with C.No_overlay -> false | _ -> true)
 
 let b2_screen ~width_of dimensions state =
-  C.screen ~width_of dimensions state
+  R.screen ~width_of dimensions state
 
 let b2_overlay_text ~width_of dimensions state =
-  match C.overlay_screen ~dimensions ~width_of state with
+  match R.overlay_screen ~dimensions ~width_of state with
   | None -> ""
   | Some rows -> String.concat "\n" (List.map snd rows)
 
@@ -3341,7 +3344,7 @@ let observe_multi_checks ~width_of ~directory () =
     let form = Ui_form.set_text form "amount" amount in
     { state with C.overlay = C.Modal_form (Ui_form.set_focused form 2) } in
   let press state =
-    match C.handle ~width_of ~dimensions:(100, 30) state (`Key (`Enter, [])) with
+    match H.handle ~width_of ~dimensions:(100, 30) state (`Key (`Enter, [])) with
     | Some s -> s | None -> raise (F.Refused "observe-exit") in
   let set_action state idx =
     let form = modal state in
@@ -3445,7 +3448,7 @@ let observe_multi_checks ~width_of ~directory () =
    require (is_preview conflict && notice conflict <> "" && F.read path = concurrent)
      "observe-conflict-preserves-concurrent-retains-preview";
    let reloaded =
-     match C.handle ~width_of conflict (`Key (`ASCII 'r', [ `Ctrl ])) with
+     match H.handle ~width_of conflict (`Key (`ASCII 'r', [ `Ctrl ])) with
      | Some s -> s | None -> raise (F.Refused "observe-reload-exited") in
    require (F.read path = concurrent) "observe-reload-writes-nothing";
    let retried = publish reloaded in
@@ -3504,7 +3507,7 @@ let self_check ~width_of () =
   let shows state needle =
     List.exists
       (fun (_, content) -> Base.String.is_substring content ~substring:needle)
-      (C.screen ~width_of (100, 28) state)
+      (R.screen ~width_of (100, 28) state)
   in
   require
     (List.map (fun (b : F.annual_book_summary) ->
@@ -3521,7 +3524,7 @@ let self_check ~width_of () =
     (B.entry_count (F.load ~annual_year:2027 annual_path).book = 0)
     "annual-list-touched-healthy-year";
   require
-    (match C.current_pace_result annual with Error _ -> true | Ok _ -> false)
+    (match X.current_pace_result annual with Error _ -> true | Ok _ -> false)
     "annual-pace-must-not-publish-unqualified-quantity";
   List.iter
     (fun route ->
@@ -3566,15 +3569,15 @@ let self_check ~width_of () =
   require ((key ~width_of selected (`ASCII 'q')).workspace.route = W.Home) "child-q-does-not-quit";
   let detail = key ~width_of cal `Tab in
   require ((key ~width_of detail (`ASCII 'q')).workspace.pane = W.Calendar) "home-detail-q-back";
-  require (C.handle home (`Key (`ASCII 'q', [])) = None) "calendar-q-exits";
+  require (H.handle home (`Key (`ASCII 'q', [])) = None) "calendar-q-exits";
   let outside_paste =
-    match C.handle home (`Paste `Start) with
+    match H.handle home (`Paste `Start) with
     | Some state -> state
     | None -> raise (F.Refused "paste-start-exited")
   in
   let outside_paste = key ~width_of (key ~width_of outside_paste (`ASCII 'r')) (`ASCII 'j') in
   let outside_paste =
-    match C.handle outside_paste (`Paste `End) with
+    match H.handle outside_paste (`Paste `End) with
     | Some state -> state
     | None -> raise (F.Refused "paste-end-exited")
   in
@@ -3606,7 +3609,7 @@ let self_check ~width_of () =
     && Result.is_error (Cal.shift_days "9999-12-31" 1))
     "calendar-boundary";
   let opened = key ~width_of home (`ASCII ' ') in
-  (match C.overlay_screen ~dimensions:(80, 24) ~width_of opened with
+  (match R.overlay_screen ~dimensions:(80, 24) ~width_of opened with
    | None -> failwith "commands-overlay-missing"
    | Some rows ->
        require (List.exists (fun (_, text) -> Base.String.is_substring text ~substring:"Home / Commands") rows)
@@ -3624,7 +3627,7 @@ let self_check ~width_of () =
   require
     (match menu.overlay with C.Commands { page = M.Planning; _ } -> true | _ -> false)
     "commands-enter-group";
-  (match C.overlay_screen ~dimensions:(80, 24) ~width_of menu with
+  (match R.overlay_screen ~dimensions:(80, 24) ~width_of menu with
    | None -> failwith "commands-group-overlay-missing"
    | Some rows ->
        require (List.exists (fun (_, text) -> Base.String.is_substring text ~substring:"Commands / Plans and attention") rows)
@@ -3641,29 +3644,29 @@ let self_check ~width_of () =
   require (scheduled.workspace.route = W.Scheduled) "commands-scheduled-route";
   let contains rows needle = List.exists
       (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows in
-  let wide_sched = C.screen ~width_of (120, 30) scheduled in
+  let wide_sched = R.screen ~width_of (120, 30) scheduled in
   require (contains wide_sched "Scheduled / List" && contains wide_sched "Plan Detail")
     "scheduled-wide-two-pane-visible";
   let inspected = key ~width_of scheduled `Enter in
   require
     (inspected.workspace.pane = W.Detail && not inspected.record_visible)
     "scheduled-enter-detail-only";
-  let wide_inspected = C.screen ~width_of (120, 30) inspected in
+  let wide_inspected = R.screen ~width_of (120, 30) inspected in
   require (contains wide_inspected "Scheduled / List" && contains wide_inspected "Plan Detail")
     "scheduled-wide-detail-focus-retains-two-pane";
-  let narrow_sched_list = C.screen ~width_of (48, 14) scheduled in
+  let narrow_sched_list = R.screen ~width_of (48, 14) scheduled in
   require (contains narrow_sched_list "Scheduled / List" && not (contains narrow_sched_list "Plan Detail"))
     "scheduled-narrow-shows-list-only";
-  let narrow_sched_detail = C.screen ~width_of (48, 14) inspected in
+  let narrow_sched_detail = R.screen ~width_of (48, 14) inspected in
   require (contains narrow_sched_detail "Plan Detail" && not (contains narrow_sched_detail "Scheduled / List"))
     "scheduled-narrow-shows-detail-only";
   let actual_view = C.open_route home W.Actual in
-  let wide_actual = C.screen ~width_of (120, 30) actual_view in
+  let wide_actual = R.screen ~width_of (120, 30) actual_view in
   require (contains wide_actual "Actuals (" && contains wide_actual "Actual Detail")
     "actual-wide-two-pane-visible";
   let balances_view = C.open_route home W.Balances in
   require
-    (match C.balance_items balances_view with
+    (match X.balance_items balances_view with
     | O.Account_row { locus = "wallet"; measure = "jpy"; _ } :: _ -> true
     | _ -> false)
     "balances-initial-selection-is-first-coordinate";
@@ -3673,7 +3676,7 @@ let self_check ~width_of () =
   require (bal_detail_back.workspace.pane = W.Calendar && bal_detail_back.workspace.route = W.Balances)
     "balances-detail-escape-returns-to-list";
   let bal_end = key ~width_of balances_view `End in
-  let count = List.length (C.balance_items balances_view) in
+  let count = List.length (X.balance_items balances_view) in
   require (bal_end.workspace.balance_selected = max 0 (count - 1)) "balances-end-selects-last-row";
   let bal_home = key ~width_of bal_end `Home in
   require (bal_home.workspace.balance_selected = 0) "balances-home-selects-first-row";
@@ -3683,19 +3686,19 @@ let self_check ~width_of () =
   F.write_new roles_path "ROLE\twallet\tASSET\nROLE\tbank\tASSET\nROLE\tfood\tEXPENSE\n";
   let bal_with_roles = C.open_route { home with session = F.load path } W.Balances in
   let bal_accounting = key ~width_of bal_with_roles (`ASCII 'v') in
-  let wide_with_roles = C.screen ~width_of (120, 30) bal_accounting in
+  let wide_with_roles = R.screen ~width_of (120, 30) bal_accounting in
   require (contains wide_with_roles "Balances / Accounting" && contains wide_with_roles "Asset" && contains wide_with_roles "Expense" && contains wide_with_roles "Net Worth")
     "balances-v-toggles-to-accounting-roles";
   let bal_restored_current = key ~width_of bal_accounting (`ASCII 'v') in
   require
     (bal_restored_current.balance_mode = `Current
      && List.for_all (function O.Account_row _ -> true | _ -> false)
-          (C.balance_items bal_restored_current))
+          (X.balance_items bal_restored_current))
     "balances-current-restores-neutral-coordinate-rows";
   let bv_path = directory ^ "/balance-view.tsv" in
   F.write_new bv_path "bank\tjpy\nwallet\tjpy\n";
   let bal_custom_bv = C.open_route { home with session = F.load path } W.Balances in
-  let wide_custom_bv = C.screen ~width_of (120, 30) bal_custom_bv in
+  let wide_custom_bv = R.screen ~width_of (120, 30) bal_custom_bv in
   require (contains wide_custom_bv "bank" && contains wide_custom_bv "wallet")
     "balances-custom-balance-view-loaded-by-default";
   let replace_balance_view bytes =
@@ -3704,7 +3707,7 @@ let self_check ~width_of () =
   in
   replace_balance_view "malformed row\n";
   let malformed = C.open_route (C.initial (F.load path)) W.Balances in
-  require (contains (C.screen ~width_of (120,30) malformed) "Balance view unavailable"
+  require (contains (R.screen ~width_of (120,30) malformed) "Balance view unavailable"
            && (key ~width_of malformed (`ASCII 'c')).overlay = C.No_overlay
            && F.read bv_path = "malformed row\n")
     "balance-malformed-config-never-becomes-empty-selection";
@@ -3725,7 +3728,7 @@ let self_check ~width_of () =
    | _ -> failwith "expected print preview modal");
   let bal_after_print = key ~width_of bal_print `Escape in
   require (bal_after_print.overlay = C.No_overlay) "balances-print-escapes";
-  let items = C.balance_items bal_with_roles in
+  let items = X.balance_items bal_with_roles in
   let acct_idx =
     let rec find i = function
       | [] -> 0
@@ -3746,7 +3749,7 @@ let self_check ~width_of () =
   require (bal_obs_cancel.overlay = C.No_overlay) "balances-observe-cancel-escapes";
   (* Test toggle to Accounting view with 'v' *)
   let bal_back_acct = key ~width_of bal_custom_bv (`ASCII 'v') in
-  let wide_back_acct = C.screen ~width_of (120, 30) bal_back_acct in
+  let wide_back_acct = R.screen ~width_of (120, 30) bal_back_acct in
   require (contains wide_back_acct "Balances / Accounting")
     "balances-v-toggles-to-accounting";
   let pace_path = directory ^ "/daily-pace.tsv" in
@@ -3774,7 +3777,7 @@ let self_check ~width_of () =
   let cancelled_overlay = key ~width_of plan_cancelling `Escape in
   require (cancelled_overlay.workspace = closed_edit.workspace && F.read path = before)
     "scheduled-cancel-escape-retains-parent-and-bytes";
-  let date_only = Option.get (C.handle ~width_of
+  let date_only = Option.get (H.handle ~width_of
     (key ~width_of cal (`ASCII 'r')) (`Key (`Tab, [`Shift]))) in
   let date_only = key ~width_of date_only `Backspace in
   let held_date = key ~width_of date_only `Escape in
@@ -3790,7 +3793,7 @@ let self_check ~width_of () =
   let cancelled = key ~width_of edit `Escape in
   require ((not cancelled.record_visible) && C.has_record_draft cancelled) "cancel-lost-held-draft";
   let request_discard state = Option.get
-    (C.handle ~width_of state (`Key (`ASCII 'n', [`Ctrl]))) in
+    (H.handle ~width_of state (`Key (`ASCII 'n', [`Ctrl]))) in
   let confirming = request_discard cancelled in
   require (confirming.record = cancelled.record && C.has_record_draft confirming
            && F.read path = before) "discard-shortcut-must-not-delete-without-confirmation";
@@ -3977,7 +3980,7 @@ let self_check ~width_of () =
     (fun dimensions ->
       List.iter
         (fun state ->
-          let rows = C.screen ~width_of dimensions state in
+          let rows = R.screen ~width_of dimensions state in
           require
             (List.length rows <= snd dimensions
             && List.for_all (fun (_, line) -> width_of line <= fst dimensions) rows)
@@ -4072,7 +4075,7 @@ let self_check ~width_of () =
   List.iter (fun ((width, height) as dimensions) ->
       List.iter (fun overlay ->
           let state = { home with C.overlay } in
-          match C.resolve_overlay ~dimensions ~width_of state with
+          match R.resolve_overlay ~dimensions ~width_of state with
           | None -> raise (F.Refused "form-overlay-missing")
           | Some frame ->
               let local = O.cursor_in_rows ~width_of ~width:frame.pane_width frame.rows in
@@ -4124,7 +4127,7 @@ let self_check ~width_of () =
   let open_items = C.open_attentions added_state in
   require (List.length open_items = 2) "attention-two-items-added";
   (* Test screen layout, header rule, and overdue signal *)
-  let att_screen = C.screen ~width_of (120, 36) added_state in
+  let att_screen = R.screen ~width_of (120, 36) added_state in
   require (contains att_screen "Attention (2 open • ! 1 overdue)") "attention-overdue-title";
   require (contains att_screen "! 2026-10-01") "attention-overdue-flag";
   require (contains att_screen "Renew passport") "attention-item1-context";
@@ -4132,7 +4135,7 @@ let self_check ~width_of () =
   (* Test Tab detail toggle *)
   let att_tab = key ~width_of added_state `Tab in
   require (att_tab.workspace.pane = W.Detail) "attention-tab-toggles-detail";
-  let att_detail_screen = C.screen ~width_of (120, 36) att_tab in
+  let att_detail_screen = R.screen ~width_of (120, 36) att_tab in
   require (contains att_detail_screen "! OVERDUE") "attention-detail-shows-overdue";
   let att_tab_back = key ~width_of att_tab `Tab in
   require (att_tab_back.workspace.pane = W.Calendar) "attention-tab-toggles-back";
@@ -4167,9 +4170,9 @@ let self_check ~width_of () =
   in
   let admitted_state = key ~width_of admit_form_ready `Enter in
   require (admitted_state.overlay = C.No_overlay) "admit-locus-submitted";
-  let all_loci = C.admitted_loci admitted_state in
+  let all_loci = X.admitted_loci admitted_state in
   require (List.mem "metro" all_loci) "admitted-locus-present-in-catalog";
-  let roles_after = C.accounting_roles admitted_state in
+  let roles_after = X.accounting_roles admitted_state in
   require (List.assoc_opt "metro" roles_after = Some Roles.Asset) "admitted-locus-has-asset-role";
   let sel_idx =
     let rec find i = function
@@ -4193,7 +4196,7 @@ let self_check ~width_of () =
   in
   let updated_role_state = key ~width_of role_form_ready `Enter in
   require (updated_role_state.overlay = C.No_overlay) "set-locus-role-submitted";
-  let roles_final = C.accounting_roles updated_role_state in
+  let roles_final = X.accounting_roles updated_role_state in
   require (List.assoc_opt "metro" roles_final = Some Roles.Expense) "locus-role-updated-to-expense";
   (* Locus label edit test (UI-30) *)
   let label_edit_modal = key ~width_of updated_role_state (`ASCII 'l') in
@@ -4302,7 +4305,7 @@ let self_check ~width_of () =
   let to_settlements = key ~width_of (key ~width_of (key ~width_of plan_menu (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down) in (* Scheduled 0, New Plan 1, Attention 2, Settlements 3 *)
   let stl_view = key ~width_of to_settlements `Enter in
   require (stl_view.workspace.route = W.Settlements) "commands-opens-settlements-view";
-  let wide_stl = C.screen ~width_of (120, 30) stl_view in
+  let wide_stl = R.screen ~width_of (120, 30) stl_view in
   require (contains wide_stl "Settlements [Open]" && contains wide_stl "Commitment Details") "settlements-wide-two-pane-visible";
   (* Add settlement commitment *)
   let add_modal = key ~width_of stl_view (`ASCII 'n') in
@@ -4321,7 +4324,7 @@ let self_check ~width_of () =
   in
   let added_state = key ~width_of add_ready `Enter in
   require (added_state.overlay = C.No_overlay) "add-settlement-submitted";
-  let stl_rows = C.settlement_rows added_state in
+  let stl_rows = X.settlement_rows added_state in
   require (List.length stl_rows = 1) "settlement-row-added";
   let r = List.hd stl_rows in
   require (r.Stl.id = "comm-1" && r.label = Some "Dinner reimbursement") "settlement-row-fields";
@@ -4340,7 +4343,7 @@ let self_check ~width_of () =
   in
   let settled_state = key ~width_of act_ready `Enter in
   require (settled_state.overlay = C.No_overlay) "settle-action-submitted";
-  let r2 = List.hd (C.settlement_rows settled_state) in
+  let r2 = List.hd (X.settlement_rows settled_state) in
   require (Z.equal (Stl.outstanding r2) (Z.of_int 2000)) "settlement-outstanding-after-settle-2000";
   require (Z.equal r2.settled (Z.of_int 3000)) "settled-amount-3000";
   (* Reduce without payment: 1,000 jpy *)
@@ -4356,7 +4359,7 @@ let self_check ~width_of () =
   in
   let reduced_state = key ~width_of act_ready2 `Enter in
   require (reduced_state.overlay = C.No_overlay) "reduce-action-submitted";
-  let r3 = List.hd (C.settlement_rows reduced_state) in
+  let r3 = List.hd (X.settlement_rows reduced_state) in
   require (Z.equal (Stl.outstanding r3) (Z.of_int 1000)) "settlement-outstanding-after-reduce-1000";
   require (Z.equal r3.extinguished (Z.of_int 1000)) "extinguished-amount-1000";
   (* Full final settlement of remaining 1,000 jpy *)
@@ -4371,13 +4374,13 @@ let self_check ~width_of () =
     | _ -> failwith "expected modal form for action settlement"
   in
   let fully_settled_state = key ~width_of act_ready3 `Enter in
-  require (C.settlement_rows fully_settled_state = []) "open-rows-empty-after-full-settle";
+  require (X.settlement_rows fully_settled_state = []) "open-rows-empty-after-full-settle";
   (* Scope cycle to All current *)
   let all_scope_state = key ~width_of fully_settled_state (`ASCII 's') in
   require (all_scope_state.settlement_scope = Stl.All) "scope-toggled-to-all";
-  let all_rows = C.settlement_rows all_scope_state in
+  let all_rows = X.settlement_rows all_scope_state in
   require (List.length all_rows = 1) "all-scope-has-completed-row";
-  let wide_all = C.screen ~width_of (120, 30) all_scope_state in
+  let wide_all = R.screen ~width_of (120, 30) all_scope_state in
   require (contains wide_all "done") "all-scope-shows-done-marker";
   (* q returns to Home *)
   let back_home = key ~width_of all_scope_state (`ASCII 'q') in
@@ -4388,22 +4391,22 @@ let self_check ~width_of () =
   (* Test Income & Expense report with Cycle / Month / Year / All-Time *)
   let ie_ctl = C.open_route back_home W.Income_expense in
   require (ie_ctl.workspace.route = W.Income_expense) "route-income-expense";
-  let wide_ie = C.screen ~width_of (120, 30) ie_ctl in
+  let wide_ie = R.screen ~width_of (120, 30) ie_ctl in
   require (contains wide_ie "Income & Expense" && contains wide_ie "Report Details") "income-expense-wide-visible";
   let ie_cycle = key ~width_of ie_ctl (`ASCII '2') in
-  let wide_cycle = C.screen ~width_of (120, 30) ie_cycle in
+  let wide_cycle = R.screen ~width_of (120, 30) ie_cycle in
   require (contains wide_cycle "Cycle" || contains wide_cycle "Income & Expense") "income-expense-2-cycle";
   let ie_prev_cycle = key ~width_of ie_cycle (`ASCII '3') in
-  let wide_prev_cycle = C.screen ~width_of (120, 30) ie_prev_cycle in
+  let wide_prev_cycle = R.screen ~width_of (120, 30) ie_prev_cycle in
   require (contains wide_prev_cycle "Cycle" || contains wide_prev_cycle "Period") "income-expense-3-prev-cycle";
   let ie_year = key ~width_of ie_prev_cycle (`ASCII '4') in
-  let wide_year = C.screen ~width_of (120, 30) ie_year in
+  let wide_year = R.screen ~width_of (120, 30) ie_year in
   require (contains wide_year "Year") "income-expense-4-year";
   let ie_all = key ~width_of ie_year (`ASCII '5') in
-  let wide_all = C.screen ~width_of (120, 30) ie_all in
+  let wide_all = R.screen ~width_of (120, 30) ie_all in
   require (contains wide_all "All Time") "income-expense-5-all-time";
   let ie_shifted = key ~width_of ie_ctl (`ASCII '[') in
-  let wide_shifted = C.screen ~width_of (120, 30) ie_shifted in
+  let wide_shifted = R.screen ~width_of (120, 30) ie_shifted in
   require (contains wide_shifted "Income & Expense") "income-expense-bracket-shift";
   let ie_detail = key ~width_of ie_ctl `Enter in
   require (ie_detail.workspace.pane = W.Detail) "income-expense-enter-opens-detail";
@@ -4423,30 +4426,30 @@ let self_check ~width_of () =
   (* Test Transactions Flow report with Cycle / Month / Year / All-Time *)
   let flow_ctl = C.open_route back_home W.Transactions_flow in
   require (flow_ctl.workspace.route = W.Transactions_flow) "flow-route-opens";
-  let flow_screen = C.screen ~width_of (120, 36) flow_ctl in
+  let flow_screen = R.screen ~width_of (120, 36) flow_ctl in
   require (contains flow_screen "Transactions Flow") "flow-screen-shows-heading";
   require (contains flow_screen "active coordinate") "flow-screen-shows-active-coordinates";
   require (contains flow_screen "Gross") "flow-screen-shows-gross-column";
   (* 1: Month *)
   let flow_m = key ~width_of flow_ctl (`ASCII '1') in
-  require (contains (C.screen ~width_of (120, 36) flow_m) "Month of") "flow-preset-month";
+  require (contains (R.screen ~width_of (120, 36) flow_m) "Month of") "flow-preset-month";
   (* 2: Cycle *)
   let flow_cyc = key ~width_of flow_ctl (`ASCII '2') in
-  require (contains (C.screen ~width_of (120, 36) flow_cyc) "Cycle" || contains (C.screen ~width_of (120, 36) flow_cyc) "Transactions Flow") "flow-preset-cycle";
+  require (contains (R.screen ~width_of (120, 36) flow_cyc) "Cycle" || contains (R.screen ~width_of (120, 36) flow_cyc) "Transactions Flow") "flow-preset-cycle";
   (* 3: Previous Cycle *)
   let flow_prev_cyc = key ~width_of flow_ctl (`ASCII '3') in
-  require (contains (C.screen ~width_of (120, 36) flow_prev_cyc) "Cycle" || contains (C.screen ~width_of (120, 36) flow_prev_cyc) "Period") "flow-preset-prev-cycle";
+  require (contains (R.screen ~width_of (120, 36) flow_prev_cyc) "Cycle" || contains (R.screen ~width_of (120, 36) flow_prev_cyc) "Period") "flow-preset-prev-cycle";
   (* 4: Year *)
   let flow_yr = key ~width_of flow_ctl (`ASCII '4') in
-  require (contains (C.screen ~width_of (120, 36) flow_yr) "Year") "flow-preset-year";
+  require (contains (R.screen ~width_of (120, 36) flow_yr) "Year") "flow-preset-year";
   (* 5: All Time *)
   let flow_all = key ~width_of flow_ctl (`ASCII '5') in
-  require (contains (C.screen ~width_of (120, 36) flow_all) "All Time") "flow-preset-all-time";
+  require (contains (R.screen ~width_of (120, 36) flow_all) "All Time") "flow-preset-all-time";
   (* Shift period with [ and ] *)
   let flow_shift = key ~width_of flow_m (`ASCII '[') in
-  require (contains (C.screen ~width_of (120, 36) flow_shift) "Month of 2026-09") "flow-shift-back";
+  require (contains (R.screen ~width_of (120, 36) flow_shift) "Month of 2026-09") "flow-shift-back";
   let flow_shift_fwd = key ~width_of flow_shift (`ASCII ']') in
-  require (contains (C.screen ~width_of (120, 36) flow_shift_fwd) "Month of 2026-10") "flow-shift-fwd";
+  require (contains (R.screen ~width_of (120, 36) flow_shift_fwd) "Month of 2026-10") "flow-shift-fwd";
   (* Selection navigation with j/k *)
   let flow_j = key ~width_of flow_all (`ASCII 'j') in
   require (flow_j.transactions_flow.selected_row >= 0) "flow-j-moves-row";
@@ -4479,7 +4482,7 @@ let self_check ~width_of () =
     F.write_new bv_path bytes
   in
   let refused () =
-    require (Result.is_error (C.stock_flow_result sf_ctl)) "sf-invalid-evidence-refuses";
+    require (Result.is_error (X.stock_flow_result sf_ctl)) "sf-invalid-evidence-refuses";
     let printed = key ~width_of sf_ctl (`ASCII 'p') in
     require (printed.overlay = C.No_overlay && printed.message <> "")
       "sf-invalid-evidence-cannot-print-numeric-report"
@@ -4489,7 +4492,7 @@ let self_check ~width_of () =
     ["bank\tjpy\n"; "wallet\tjpy\n"; "food\tjpy\nbad-row\n";
      "food\tjpy\nwallet\teur\n"; "food\tjpy\nfood\tjpy\n"; ""];
   configure "food\tjpy\n";
-  let report = get (C.stock_flow_result sf_ctl) in
+  let report = get (X.stock_flow_result sf_ctl) in
   require (report.measure = "jpy" && Z.equal report.reconstructed_start Z.zero
            && Z.equal report.reconstructed_end Z.zero)
     "sf-explicit-zero-origin-boundaries";
@@ -4512,7 +4515,7 @@ let self_check ~width_of () =
   let invalid_form = Ui_form.set_text invalid_form "amount" "abc" in
   let invalid_form = Ui_form.set_focused invalid_form 2 in
   let invalid_state =
-    match C.handle ~width_of { obs_modal with overlay = C.Modal_form invalid_form } (`Key (`Enter, [])) with
+    match H.handle ~width_of { obs_modal with overlay = C.Modal_form invalid_form } (`Key (`Enter, [])) with
     | Some s -> s
     | None -> failwith "unexpected exit on invalid observe submit" in
   require ((match invalid_state.overlay with C.Modal_form f -> Ui_form.notice f <> "" | _ -> false)
@@ -4527,7 +4530,7 @@ let self_check ~width_of () =
     let form = Ui_form.set_text form "measure" "jpy" in
     let form = Ui_form.set_text form "amount" amount in
     let form = Ui_form.set_focused form (Ui_form.find_field_index form "action") in
-    let st = match C.handle ~width_of ~dimensions:(100, 30) { st with C.overlay = C.Modal_form form } (`Key (`Enter, [])) with
+    let st = match H.handle ~width_of ~dimensions:(100, 30) { st with C.overlay = C.Modal_form form } (`Key (`Enter, [])) with
       | Some s -> s | None -> raise (F.Refused "observe-exit") in
     let pick idx s =
       (match s.C.overlay with
@@ -4535,7 +4538,7 @@ let self_check ~width_of () =
            let form = Ui_form.update_field f "action" (function
              | Ui_form.Buttons b -> Ui_form.Buttons { b with selected = idx } | other -> other) in
            let form = Ui_form.set_focused form (Ui_form.find_field_index form "action") in
-           (match C.handle ~width_of ~dimensions:(100, 30) { s with C.overlay = C.Modal_form form } (`Key (`Enter, [])) with
+           (match H.handle ~width_of ~dimensions:(100, 30) { s with C.overlay = C.Modal_form form } (`Key (`Enter, [])) with
             | Some s -> s | None -> raise (F.Refused "observe-advance"))
        | _ -> s) in
     pick 0 (pick 1 st) in
@@ -4560,7 +4563,7 @@ let self_check ~width_of () =
   let form_wi_filled = Ui_form.set_text form_wi "amount" "2000" in
   let form_wi_filled = Ui_form.set_focused form_wi_filled 1 in
   let sim_res_state =
-    match C.handle ~width_of { what_if_state with overlay = C.Modal_form form_wi_filled } (`Key (`Enter, [])) with
+    match H.handle ~width_of { what_if_state with overlay = C.Modal_form form_wi_filled } (`Key (`Enter, [])) with
     | Some s -> s
     | None -> failwith "unexpected exit on what-if submit"
   in
@@ -4588,7 +4591,7 @@ let self_check ~width_of () =
   let form_cfg_err = Ui_form.set_text form_cfg "pool_loci" "wallet, wallet" in
   let form_cfg_err = Ui_form.set_focused form_cfg_err 1 in
   let err_state =
-    match C.handle ~width_of { cfg_state with overlay = C.Modal_form form_cfg_err } (`Key (`Enter, [])) with
+    match H.handle ~width_of { cfg_state with overlay = C.Modal_form form_cfg_err } (`Key (`Enter, [])) with
     | Some s -> s
     | None -> failwith "unexpected exit on cfg err submit"
   in
@@ -4600,7 +4603,7 @@ let self_check ~width_of () =
   let form_cfg_valid = Ui_form.set_text form_cfg "pool_loci" "wallet, bank" in
   let form_cfg_valid = Ui_form.set_focused form_cfg_valid 1 in
   let reviewed_state =
-    match C.handle ~width_of { cfg_state with overlay = C.Modal_form form_cfg_valid } (`Key (`Enter, [])) with
+    match H.handle ~width_of { cfg_state with overlay = C.Modal_form form_cfg_valid } (`Key (`Enter, [])) with
     | Some s -> s
     | None -> failwith "unexpected exit on cfg review"
   in
@@ -4650,10 +4653,10 @@ let self_check ~width_of () =
   require (back_home2.workspace.route = W.Home) "pace-q-back-to-home";
   (* Common hardware cursor position & IME anchor verification across UI *)
   (* 1. Home workspace (browse mode) -> None (cursor hidden) *)
-  require (C.cursor_position ~width_of (80, 24) home = None) "cursor-hidden-on-home";
+  require (R.cursor_position ~width_of (80, 24) home = None) "cursor-hidden-on-home";
   (* 2. Modal form active on text field -> Some (col, row) *)
   let form_ja_state = { home with overlay = C.Modal_form form_ja } in
-  (match C.cursor_position ~width_of (80, 24) form_ja_state with
+  (match R.cursor_position ~width_of (80, 24) form_ja_state with
    | Some (col, row) ->
        require (col > 0 && col < 80) "cursor-modal-col-bounded";
        require (row > 0 && row < 24) "cursor-modal-row-bounded"
@@ -4661,30 +4664,30 @@ let self_check ~width_of () =
   (* 3. Record session active -> Some (col, row) matches Input caret cell *)
   let rec_state = key ~width_of home (`ASCII 'r') in
   require rec_state.record_visible "record-visible";
-  (match C.cursor_position ~width_of (80, 24) rec_state with
+  (match R.cursor_position ~width_of (80, 24) rec_state with
    | Some (col, row) ->
        require (col > 0 && col < 80) "cursor-record-col-bounded";
        require (row > 0 && row < 24) "cursor-record-row-bounded"
    | None -> failwith "expected-record-session-cursor");
   (* 4. Jump and Search overlays -> Some (col, row) *)
   let jump_state = { home with overlay = C.Jump "2026-10" } in
-  (match C.cursor_position ~width_of (80, 24) jump_state with
+  (match R.cursor_position ~width_of (80, 24) jump_state with
    | Some (col, row) ->
        require (col > 0 && col < 80) "cursor-jump-col-bounded";
        require (row > 0 && row < 24) "cursor-jump-row-bounded"
    | None -> failwith "expected-jump-overlay-cursor");
   let search_state = { home with overlay = C.Search "ramen" } in
-  (match C.cursor_position ~width_of (80, 24) search_state with
+  (match R.cursor_position ~width_of (80, 24) search_state with
    | Some (col, row) ->
        require (col > 0 && col < 80) "cursor-search-col-bounded";
        require (row > 0 && row < 24) "cursor-search-row-bounded"
    | None -> failwith "expected-search-overlay-cursor");
   (* 5. Single source of truth: resolve_overlay must strictly match cursor_position across overlays *)
   let check_overlay_sync state label =
-    match C.resolve_overlay ~dimensions:(80, 24) ~width_of state with
+    match R.resolve_overlay ~dimensions:(80, 24) ~width_of state with
     | None -> failwith ("expected-overlay-frame-" ^ label)
     | Some frame ->
-        require (C.cursor_position ~width_of (80, 24) state = frame.cursor)
+        require (R.cursor_position ~width_of (80, 24) state = frame.cursor)
           ("overlay-cursor-sync-" ^ label);
         (match frame.cursor with
         | Some (col, row) ->

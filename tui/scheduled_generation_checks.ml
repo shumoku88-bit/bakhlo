@@ -2,7 +2,8 @@ module B = Bakhlo_sexp.Daily_book
 module F = Daily_file
 module A = Daily_actions
 module S = Scheduled_generation_session
-module C = Daily_interaction
+module C = Daily_interaction_state
+module H = Daily_interaction
 
 let require = F.require
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
@@ -44,11 +45,11 @@ let self_check ~width_of () =
   let opened = C.extend_plan_selected state in
   require (match opened.C.overlay with C.Scheduled_generate _ -> true | _ -> false)
     "controller-extend_plan_selected-opens-generate";
-  let opened_by_key = Option.get (C.handle ~dimensions:(140, 40) ~width_of state (key (`ASCII 'g'))) in
+  let opened_by_key = Option.get (H.handle ~dimensions:(140, 40) ~width_of state (key (`ASCII 'g'))) in
   require (match opened_by_key.C.overlay with C.Scheduled_generate _ -> true | _ -> false)
     "controller-key-g-opens-generate";
-  let ckey state button = Option.get (C.handle ~dimensions:(140, 40) ~width_of state (key button)) in
-  let cstep state event = Option.get (C.handle ~dimensions:(140, 40) ~width_of state event) in
+  let ckey state button = Option.get (H.handle ~dimensions:(140, 40) ~width_of state (key button)) in
+  let cstep state event = Option.get (H.handle ~dimensions:(140, 40) ~width_of state event) in
 
   (* Cancel in parameters closes overlay without write *)
   let cancelled = ckey opened `Escape in

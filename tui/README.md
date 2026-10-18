@@ -410,7 +410,11 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 - daily_calendar / ui_workspace / ui_commands：純粋な暦・画面・選択・階層ナビ。
 - record_session / ui_input：一つの下書き・Previewと入力型。
 - reversal_session：反転の日付と固定snapshotの元／逆Posting確認。ID割当・永続inverse構築・I/Oは持たない。
-- daily_interaction：全体の遷移・英語表示・既存検査／publisherへの接続。
+- daily_interaction_state：一つのcontroller state、初期化、route／親復帰、下書き保持と既存publisherの結果処理。
+- daily_interaction_context：問い合わせ・config／form準備、feedbackと共有viewport／寸法計算。入力と表示が同じ計算を使う。
+- daily_interaction：キー／paste／overlayの入力dispatchと既存session／publisherへの接続。
+- daily_interaction_view：workspace／footer／screen、overlay配置とpaint済みmetadataからのterminal caret。
+  依存はstate → context → interaction／viewの順（矢印の右が左を利用）。interactionとviewは相互依存せず、旧APIの再exportはしない。
 - daily_overlays / ui_text：cell幅・枠・完全な数量詳細と将来の言語カタログ入口。
 - ui_panel：一覧・詳細の共通枠、可視行数、選択追従viewport、整数overflowを避ける端移動。
   ActualとScheduledの描画・ページ送りが同じ規則を使う。対象の意味・キー割当・保存判断は持たない。

@@ -6,6 +6,79 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## TUI controller responsibility split (2026-10-18)
+
+- Baseline: clean `eb9cbef3873ab5025aaae049ce6ec8037069b870`, matching remote HEAD. The 4,698-line `tui/daily_interaction.ml` was split by existing declaration boundaries: `daily_interaction_state.ml` (697 lines, shared state/navigation/publication-result transitions), `daily_interaction_context.ml` (1,135, shared queries/config/form preparation/viewport geometry), `daily_interaction.ml` (1,505, input dispatch), and `daily_interaction_view.ml` (1,373, painting/overlay placement/caret). Original function bodies were moved, not redesigned; no state copies, compatibility re-exports, dependency, format or writer changes.
+- Production frontend and controller/recovery/Scheduled regression consumers now call the explicit owner; `tools/build-bonsai-tui` registers all new modules. Input and view share the same dimension/viewport implementation; Bonsai still reads dynamic dimensions when applying an action. Existing behavioral assertions were retained, not replaced with source/module-wiring tests.
+- **Passed locally:** `rtk err ./tools/build-bonsai-tui`, `rtk test ./tools/check`, `rtk test ./tools/tui --self-check`. The native checks cover successful publication/cold reload, stale and uncertain-save refusal, retained drafts/parent identities, Scheduled bulk/generation and bounded overlay/cursor/render geometry.
+- **Actual native tmux smoke:** fresh mode-0700 synthetic roots under `/private/tmp/bakhlo-controller-split-29444`, copied only from public `examples/daily-book.sexp`; separate config homes and an owned tmux socket with no user tmux config. At **120×36, 80×24, 48×14 and 32×9**, Home/Calendar → Balances, j/k, Current/Accounting switches, detail/return, resize and cold new-process reopen retained exact **+1,000 jpy**. Each authority stayed byte-identical. At 80×24, Record `split smoke` with wallet −37 / food +37 opened Preview without writing; 32×9 Enter refused publication; restoration to 80×24, Escape and Record resume retained the draft and unchanged authority.
+- The temporary Expect harness initially stopped on local Tcl 8.5's missing `try`, user-configured tmux window indexing, and `send-keys` option parsing for `-37`; these were harness failures, not application failures. After fixing only that temporary harness, the complete matrix and Record refusal/cancel scenario passed. Harness removed after use; no new runtime/test dependency or permanent harness added.
+- Exercised binary SHA-256: `d4090848ce951fda03f6c569f49f4492e13b2020188d3c1516cccc0bd892696f`. This is local synthetic regression evidence, **not** a new Linux CI, paired LOAM, physical IME/human, power-loss/P7 or operational qualification. No household or private comparison data was accessed.
+- Other large-file candidates remain unchanged: `tui/daily_interaction_checks.ml` (4,713 lines after owner imports; screen-family split is the clearest next step), `sexp/daily_book.ml` (1,487; codec/admission/queries), and `tui/daily_pace_trend.ml` (923; history computation and presentation). Large study/test files and already-local Record/action/file owners do not justify automatic decomposition by size alone.
+- Independent read-only review found no patch-introduced defect: the four moved bodies exactly partition the original 4,698 lines, consumer changes are owner qualifications only, dependencies are acyclic, and the shared state/geometry and action-time dimensions remain single-owned. Build/runtime qualification above was performed by the integrating pit, not inferred from that structural review.
+
+### Final local regression gates
+
+- `rtk test ./tools/check`, `rtk err ./tools/build-bonsai-tui` and `rtk test ./tools/tui --self-check` passed again on the final product sources. Existing `balance-print-exact-byte-and-line-limits-including-newlines`, huge/unknown/currency/history cases, parent/draft identities, stale/uncertain refusal and Record tiny gates remain unchanged.
+- The **same Mac tmux sequence passed before and after** at 120×36 / 80×24 / 48×14 / 32×9: Balances Current/Accounting, j/k, detail End/Up/return, Print End/Up and Enter/Escape close, Pace detail/resize/return, cold process reopen and exact +1,000 jpy. Synthetic ledger **and** explicit Pool/cycle-config bytes were unchanged. Synthetic roots: `/private/tmp/bakhlo-issue38-before-45792` and `/private/tmp/bakhlo-issue38-after-46132`, copied only from public fixtures with isolated config homes and owned tmux sockets.
+- Both binaries also passed the same 80×24 Record input/Preview → 32×9 Publish refusal → 80×24 Escape/resume test with the exact retained `issue38 snack` draft and unchanged authority. This is non-writing refusal/cancel evidence; successful save/cold and forced unknown-save remain covered by the retained native checks, not by this PTY case. Temporary benchmark/Expect runners were removed after use; raw synthetic results remain ignored.
+
+### Issue #38 final audit and same-Mac development measurements
+
+- Final read-only audit again found no defect: the moved bodies form an exact, contiguous partition of the original controller; all five consumers change only owner qualifications; the four-module dependency graph is acyclic. All three new files must be staged. Both workflows include `tui/**`, so the new source files are covered by their push filters.
+- Measurement host: **MacBookPro15,2, x86_64, 8 logical CPUs, 16 GiB, macOS 15.7.9 (24G830)**. Existing Core OCaml **5.3.0**, isolated TUI **5.2.0+ox**, Dune **3.24.2**; no dependency or switch changes.
+- Before = public tracked-source archive at `eb9cbef`; after = a separate copy with only this split's TUI/build changes overlaid. Raw timings, action logs and `results.json` remain ignored under `scratch/issue38-bench.AISsep`. No private captures/config or household inputs were copied.
+- Commands: Core `tools/opam exec -- dune build --root <snapshot> @all` and `dune runtest --root <snapshot> --force`; TUI uses the same generated build/copy script, with only its existing toolchain paths bound back to the original isolated switch, then the built binary's `--self-check`. Timed TUI builds include source copying and link; self-check timings exclude building. Builds/tests ran sequentially with `DUNE_CACHE=disabled`.
+- **Cold** below means a fresh project `_build`, with installed dependencies already built. OS file caches were not purged and thermal/other-system load was uncontrolled. Warm builds are unchanged-source no-ops. Each test/self-check sample starts a fresh process; “first” is the first run after the build, not proof of an OS-cache-cold test. Initial before samples precede after samples; do not attribute every time difference to the refactor.
+
+| Operation, wall seconds | Before | After | Samples / interpretation |
+| --- | --- | --- | --- |
+| Core build, project-cold | 13.90 | 24.97 | 1 each; Core sources are identical, so this is not evidence of a split-induced Core regression |
+| Core build, warm no-op | 0.39 / 0.35 / 0.35 | 0.83 / 0.43 / 0.47 | 3 each |
+| Core forced tests, first | 10.32 | 13.49 | 1 each, fresh process |
+| Core forced tests, repeats | 6.88 / 7.05 | 9.14 / 9.33 | 2 each, fresh processes |
+| TUI build, project-cold | 50.19 | 48.94 | 1 each |
+| TUI build, warm no-op | 0.89 / 0.81 / 0.85 | 0.91 / 0.92 / 1.15 | 3 each |
+| Native self-check, first | 4.34 | 4.39 | 1 each, fresh process |
+| Native self-check, repeats | 3.33 / 3.90 | 3.60 / 4.84 | 2 each, fresh processes |
+
+No stable general cold/warm build or test speedup is established. Full cold dependency installation, OS-cache-cold timing and actual OMP response/token latency were **not measured**.
+
+#### Actual incremental recompilation
+
+Only the isolated exported snapshots were edited: one display/error string was changed without changing a signature, then restored and rebuilt before the next probe. Each incremental probe has **one** measured run; order alternated before/after by scenario. Compiler actions are from `dune build --profile release --display short`, not a dependency-graph prediction. The initial nested-PTY invocation was aborted before a result; it was not counted.
+
+| Isolated implementation edit | Before seconds | After seconds | Native modules compiled, before → after |
+| --- | --- | --- | --- |
+| Pace view, `Daily Pace / Trend` label | 33.74 | 18.77 | 6 → 3 |
+| Balances view, `Selected Balance` label | 30.89 | 27.74 | 6 → 3 |
+| Pace shared context, unavailable-range message | 31.34 | 22.36 | 6 → 8 |
+| Balances shared context, Print-limit message | 26.24 | 23.54 | 6 → 8 |
+| Existing `daily_pace_trend` leaf, unsupported-change message | 24.56 | 23.25 | 7 → 10 |
+| Existing `balance_view_data` leaf, malformed-input message | 23.64 | 22.32 | 7 → 10 |
+
+- Before controller edits compile `Daily_interaction`, `Scheduled_bulk_checks`, `Scheduled_generation_checks`, `Recovery_checks`, `Daily_interaction_checks`, `Bonsai_daily`, then link.
+- After view-only edits compile **`Daily_interaction_view`, `Daily_interaction_checks`, `Bonsai_daily`**, then link. State, Context, input dispatch and Scheduled/recovery checks do not recompile.
+- After Context edits compile **Context, View, input dispatch, the four checks above, Bonsai_daily**, then link; State does not recompile. Leaf edits compile that leaf plus State, Context, View, input dispatch, all four checks and Bonsai_daily. The stable leaf `.mli` avoids interface retyping, but native `.cmx` dependencies still propagate through the shared State aliases. No flag/interface workaround was added.
+- Conclusion: display-only changes have a demonstrated narrower rebuild boundary; shared-context/leaf changes do **not**. Their single observed elapsed times are not a repeatable speed guarantee. The split keeps all-screen coupling in Context/input/View rather than providing separate Pace/Balances owners.
+
+#### OMP reading scope and remaining Issue conditions
+
+| Source scope | Before lines / bytes | After lines / bytes |
+| --- | --- | --- |
+| Whole controller / all four units | 4,698 / 243,593 | 4,710 / 244,040 |
+| Whole rendering owner | same 4,698 / 243,593 file | View: 1,373 / 70,200 |
+| Whole input owner | same controller file | input: 1,505 / 98,483 |
+| Whole context/query owner | same controller file | Context: 1,135 / 49,582 |
+| State/navigation/publication-result owner | same controller file | State: 697 / 25,775 |
+| Controller checks | 4,710 / 280,400 | 4,713 / 280,506 |
+
+These are source-context sizes, **not measured model tokens or mandatory whole-file reads**. Range-based reading already worked before: e.g. the unchanged Balances render branch is old `daily_interaction.ml:3700-3740` / new `daily_interaction_view.ml:375-415` (41 lines); Pace is old `:3741-3817` / new View `:416-492` (77 lines). The small relevant bodies did not shrink. Start searches in View for `workspace_rows`/`W.Balances`/`W.Daily_pace`, Context for `balance_items`/`balance_print_preview`/`balance_viewport`/`pace_samples`/`pace_detail_viewport`, input for route keys, and State for `state`/`open_route`/`apply_commit_result`. Read the corresponding checks and relevant callee/interface rather than all four files. Cross-cutting work can still require all units plus the monolithic checks.
+
+- Per the user's finish instruction, the four modules are retained and no further large split is made. Checks splitting is deferred to [#39](https://github.com/shumoku88-bit/bakhlo/issues/39): useful for reading/edit ownership, but no execution-time saving is established; moving shared fixtures/draft/parent/save checks has a real regression cost. It is **not a prerequisite** for Scheduled development.
+- Original #38 “Single finish line” requires **multiple screen-specific owners** and dispatch-only ownership of screen rendering. This four-way layer split does **not** meet that condition; all-screen `workspace_rows` and route-specific `handle` remain. Checks owner extraction is also not done. Keep **#38 open**, without silently rewriting its acceptance criteria or treating #39 creation as implementation.
+- Scheduled's next functional slice remains the explicit monitoring rule + Series Calendar (UI-23 → UI-12) in `tasks/todo.md`; no new Scheduled feature was implemented during this finish pass.
+
 ## Daily Pace and Balances responsive completion sprint (2026-10-18)
 
 ### Baseline and boundaries

@@ -1,7 +1,8 @@
 (* Synthetic persistence/restart checks; never inspect household inputs.
    Checkpoint faults and SIGKILL are not hardware power-loss qualification. *)
 module F = Daily_file
-module C = Daily_interaction
+module C = Daily_interaction_state
+module H = Daily_interaction
 module A = Daily_actions
 module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
@@ -106,7 +107,7 @@ let self_check () =
     let state = cold (F.load session.F.path) in
     require state.blocked "recovery-cold-open-not-frozen";
     let reset =
-      match C.handle state (`Key (`ASCII 'N', [ `Ctrl ])) with
+      match H.handle state (`Key (`ASCII 'N', [ `Ctrl ])) with
       | Some s -> s
       | None -> raise (F.Refused "recovery-reset-exited")
     in

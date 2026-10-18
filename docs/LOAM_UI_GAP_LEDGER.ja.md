@@ -134,7 +134,7 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 | Record／Actual／Selected Day | `record_session.ml`、`reversal_session.ml`、`date_correction_session.ml`、controllerのedit／reverse／date／Actual／Selected_day | `Record.lean`／`RecordSession.lean`、`ActualWorkspace.lean`、`SelectedDay.lean`／`SelectedDaySession.lean`、`ActualDateCorrection.lean`、`ActualReversal.lean`／`ActualReversalSession.lean`、`EventMerchant.lean` |
 | Scheduled | `ui_workspace.ml`、`scheduled_months.ml`、`scheduled_session.ml`、`scheduled_cancellation_session.ml`、`scheduled_continuation_session.ml`、`scheduled_bulk_session.ml`、`scheduled_generation_session.ml`、`record_session.ml`、controllerのScheduled／cancel／bulk／generate | `ScheduledWorkspace.lean`／`ScheduledWorkspaceSession.lean`、`ScheduledCreation.lean`、`ScheduledCompletion.lean`、`ScheduledCancellation.lean`、`ScheduledReplacement.lean`、`ScheduledBulkEdit.lean`／`ScheduledBulkEditSession.lean`、`ScheduledGeneration.lean`／`ScheduledGenerationSession.lean` |
 | Balances／Reports／Pace | `daily_overlays.ml`、`balance_view_data.ml`、`daily_pace_trend.ml`、controllerのbalance／pace／what-if／trend | `Balances.lean`、`BalanceViewSetupSession.lean`、`RoleBalances.lean`、`ReportsView.lean`／`ReportsSession.lean`、`DailyPaceTrend.lean`／`DailyPacePoolSetupSession.lean`／`CycleBoundarySetupSession.lean`、`DailyPaceWhatIf.lean` |
-| Household setup／first-run | Bakhloの明示的初期化UIなし。既存config読込は`daily_interaction.ml`等 | `LocusLabelSetup.lean`／`LocusLabelSetupSession.lean`、`FirstRun.lean` |
+| Household setup／first-run | `first_run.ml`、`daily_interaction_context.ml`のconfig/form準備と`daily_interaction.ml`の入力接続 | `LocusLabelSetup.lean`／`LocusLabelSetupSession.lean`、`FirstRun.lean` |
 | Attention／Settlement／Exchange | 各data module、controllerのform／action／一覧 | `AttentionAdministration.lean`／`AttentionAdministrationSession.lean`、`SettlementWorkspace.lean`、`SettlementAction.lean`、`Exchange.lean`／`ExchangeSession.lean` |
 
 `Ui_workspace.set_locus`は現行controllerから呼ばれていない。旧`Groups`／`cycle_schedule_view`は削除し、`toggle_schedule_view`で実在するList／Monthsだけを切り替える。
@@ -160,7 +160,10 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 
 | 境界 | 主なファイル／関数（Bakhloからの相対path） | 扱い |
 | --- | --- | --- |
-| 中央controller | `tui/daily_interaction.ml` の `handle`、`workspace_rows`、`screen`、`overlay_screen`、`footer`、各form | Actual／Scheduled／Balances／Pace／Attention／Commands等が同居。編集・接続は一人ずつ統合 |
+| controller state／遷移 | `tui/daily_interaction_state.ml` の一つのstate、初期化、route／親復帰、publication結果処理 | 下書き・stale／uncertain停止を一元維持。会計・writerは既存owner |
+| controller context | `tui/daily_interaction_context.ml` の問い合わせ、config／form準備、feedback／viewport／寸法 | 入力と描画が同じgeometryを使用。共有契約変更は一人が統合 |
+| controller input | `tui/daily_interaction.ml` の `handle` | キー／paste／overlayとsession／publisher接続。別画面でも同関数の同時編集不可 |
+| controller view | `tui/daily_interaction_view.ml` の `workspace_rows`、`screen`、`resolve_overlay`、`footer`、caret | 描画・配置を入力dispatchから分離。state → context → input／view（右が左を利用）、旧moduleの互換再exportなし |
 | Renderer／テーマ | `tui/bonsai_daily.ml` の `attributes`、`border_attributes`、`lines`／`render`、`tui/ui_preferences.ml` | 見た目を任せられるが全画面へ波及。input adapter／event-loopは同じ依頼に混ぜない |
 | 既存描画・回答 | `tui/daily_overlays.ml` の `clip_text`／`wrap_text`／枠、`entry_lines`／`plan_lines`／残高、`bonsai_home_lines` | 幅・金額・会計回答・Homeが同居。担当関数を決め、file全体のformat／renameは禁止 |
 | 共通panel | `tui/ui_panel.ml/.mli` の `capacity`／`window`／`move`／`frame` | Actual／Scheduled等が利用。API変更は専任統合。見た目担当が独自viewportを複製しない |

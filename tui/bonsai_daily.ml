@@ -2,7 +2,10 @@
 module B = Bonsai_term
 module Bonsai = B.Bonsai
 module V = B.View
-module C = Daily_interaction
+module C = Daily_interaction_state
+module H = Daily_interaction
+module X = Daily_interaction_context
+module R = Daily_interaction_view
 module F = Daily_file
 module Annual = Bakhlo_sexp.Annual_scope
 module P = Ui_preferences
@@ -151,17 +154,17 @@ let backdrop theme view =
         ~bg:(color palette.background)
 
 let width_of text = V.width (V.text text)
-let overlay_screen dimensions state = C.overlay_screen ~dimensions ~width_of state
+let overlay_screen dimensions state = R.overlay_screen ~dimensions ~width_of state
 
 let editor_border state =
   if state.C.record_visible then Option.map Record_session.border_intent state.C.record else None
 
 let base_view ((width, height) as dimensions) theme state =
   let border = if overlay_screen dimensions state = None then editor_border state else None in
-  C.screen ~width_of dimensions state |> lines ?border theme |> fit width height |> backdrop theme
+  R.screen ~width_of dimensions state |> lines ?border theme |> fit width height |> backdrop theme
 
 let overlay_view dimensions theme state =
-  match C.resolve_overlay ~dimensions ~width_of state with
+  match R.resolve_overlay ~dimensions ~width_of state with
   | None -> None
   | Some frame ->
       let pane = lines ?border:(editor_border state) theme frame.rows in
@@ -216,7 +219,7 @@ let app initial ~exit ~dimensions graph =
             match active_dimensions with
             | Bonsai.Computation_status.Inactive -> state
             | Active (dimensions : B.Dimensions.t) -> (
-                match C.handle ~dimensions:(dimensions.width, dimensions.height)
+                match H.handle ~dimensions:(dimensions.width, dimensions.height)
                   ~width_of state (input_of_event event) with
                 | Some state -> state
                 | None ->
@@ -230,7 +233,7 @@ let app initial ~exit ~dimensions graph =
   let set_cursor = B.Cursor.set_cursor_position graph in
   let cursor_pos =
     Bonsai.arr2 graph state dimensions ~f:(fun state (dimensions : B.Dimensions.t) ->
-        C.cursor_position ~width_of (dimensions.width, dimensions.height) state)
+        R.cursor_position ~width_of (dimensions.width, dimensions.height) state)
   in
   let cursor_effect =
     Bonsai.arr2 graph set_cursor cursor_pos ~f:(fun set_cursor cursor_pos ->
@@ -499,7 +502,7 @@ let self_check () =
                     "Bonsai-panel-bounded-to-terminal";
                   if width >= pane_width && height >= List.length rows then (
                     let left, top =
-                      C.overlay_position ~dimensions ~width_of state ~pane_width
+                      R.overlay_position ~dimensions ~width_of state ~pane_width
                         ~pane_height:(List.length rows)
                     in
                     F.require
@@ -549,7 +552,7 @@ let self_check () =
                 { state with C.theme; blocked = true;
                   message = String.concat "" (List.init 12 (fun _ -> "Stop 日本語 warning ")) }
               in
-              let feedback = C.feedback_lines ~dimensions ~width_of state in
+              let feedback = X.feedback_lines ~dimensions ~width_of state in
               let feedback_height = List.length feedback in
               F.require (feedback_height > 1) "Bonsai-long-warning-wrapped";
               F.require
@@ -587,7 +590,7 @@ let self_check () =
   F.require (V.width (V.text "財布") = 4) "Bonsai-unicode-width";
   F.require
     (match
-       C.handle state
+       H.handle state
          (input_of_event
             (B.Event.Key_press { key = B.Event.Key.ASCII 'Q'; mods = [ B.Event.Modifier.Ctrl ] }))
      with
@@ -598,14 +601,14 @@ let self_check () =
     (fun key ->
       let event = B.Event.Key_press { key; mods = [] } in
       F.require
-        (match C.handle state (input_of_event event) with
+        (match H.handle state (input_of_event event) with
         | Some opened -> overlay_screen (80, 24) opened <> None
         | None -> false)
         "Bonsai-space-event-to-shared-overlay")
     [ B.Event.Key.ASCII ' '; B.Event.Key.Uchar (Uchar.of_int 0x20) ];
   F.require
     (match
-       C.handle state
+       H.handle state
          (input_of_event
             (B.Event.Key_press { key = B.Event.Key.ASCII 'r'; mods = [] }))
      with

@@ -2,7 +2,8 @@ module B = Bakhlo_sexp.Daily_book
 module F = Daily_file
 module A = Daily_actions
 module S = Scheduled_bulk_session
-module C = Daily_interaction
+module C = Daily_interaction_state
+module H = Daily_interaction
 
 let require = F.require
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
@@ -36,15 +37,15 @@ let self_check ~width_of () =
   let base = B.to_string book in
   let path = directory ^ "/controller.sexp" in
   F.write_new path base;
-  let state = Daily_interaction.initial ~config_home:directory (F.load path)
-    |> fun s -> Daily_interaction.open_route s Ui_workspace.Scheduled
-    |> fun s -> Daily_interaction.sync { s with workspace = Ui_workspace.set_query s.workspace source.id } in
-  let opened = Daily_interaction.batch_plan_selected state in
-  require (match opened.Daily_interaction.overlay with Daily_interaction.Scheduled_bulk _ -> true | _ -> false)
+  let state = C.initial ~config_home:directory (F.load path)
+    |> fun s -> C.open_route s Ui_workspace.Scheduled
+    |> fun s -> C.sync { s with workspace = Ui_workspace.set_query s.workspace source.id } in
+  let opened = C.batch_plan_selected state in
+  require (match opened.C.overlay with C.Scheduled_bulk _ -> true | _ -> false)
     "controller-opens-bulk-for-selected-plan";
-  let ckey state button = Option.get (C.handle ~dimensions:(140,40) ~width_of state (key button)) in
+  let ckey state button = Option.get (H.handle ~dimensions:(140,40) ~width_of state (key button)) in
   let controller_preview = List.fold_left (fun state event ->
-      Option.get (C.handle ~dimensions:(140,40) ~width_of state event)) opened (text "40.00")
+      Option.get (H.handle ~dimensions:(140,40) ~width_of state event)) opened (text "40.00")
     |> fun state -> ckey state `Enter
     |> fun state -> ckey state (`ASCII 'a')
     |> fun state -> ckey state `Enter in

@@ -34,11 +34,14 @@ LOAMのLean実装は既存調査の知見の参照だけとし、今回コード
 | `tui/daily_overlays.ml:locus_candidates` | KEEP | 許可済みLocusのprefix候補、exact token優先 | candidate index、候補確定後のfocus、Record/Scheduled固有入力規則。新しいpicker frameworkは作らない |
 | `tui/ui_panel.ml/.mli` | KEEP＋styled contentの枠を既存geometryへ接続 | 枠・padding・capacity/window/move・content内のmetadata座標変換 | ID、query/filter、workspace state、publication判断 |
 | `tui/ui_form.ml/.mli` | split geometryを切替 | 既存Text/Choice/Buttons配置、focus行の可視化、local notice、bounded paint/caretの一体化 | Record/Scheduled/Reversalのreview lifecycle、独立Previewや保存gate |
-| `tui/daily_interaction.ml` | KEEP・重複caret式を撤去する設計 | global feedback・footer/body割当、sessionへの寸法供給、route/parent接続、surface配置とlocal→terminal座標 | childの保持値からcursor再計算、表示による会計判断 |
+| `tui/daily_interaction_state.ml` | 責務分割済み | 一つのstate、初期化、route/parent接続、下書き保持とpublication結果処理 | childの入力・paint、会計判断や独立writer |
+| `tui/daily_interaction_context.ml` | 責務分割済み | 問い合わせ・config/form準備、global feedbackと共有viewport／寸法計算 | キーdispatch、別のstateや寸法計算の複製 |
+| `tui/daily_interaction.ml` | 入力dispatchに限定 | キー/paste/overlay、既存sessionへのlive寸法供給と確定意図の接続 | 描画、保存形式、会計判断 |
+| `tui/daily_interaction_view.ml` | 責務分割済み | workspace/footer/screen、surface配置とpaint済みmetadataのlocal→terminal変換 | childの保持値からcursor再計算、表示による会計判断 |
 | 各session・workspace | KEEP LOCAL | field構成、対象ID、選択・query・sort、draft、戻り先、review gate、発行意図と拒否後の復帰 | 共有表示機構の複製 |
 | `tui/bonsai_daily.ml` | KEEP | 実幅計算、native合成、最終fit、input adapter、after-display cursor | 会計・耐久保存・復旧、独自の幅表や第二renderer |
 
-`Ui_workspace`と`Actual_workspace`のstateは統合しない。`Daily_interaction.open_route`はActualを新規作成し、`sync_actual_to_workspace`はbrowser側へ状態をコピーする。`Actual_workspace.returned_from_detail`は実装・宣言だけで利用元が未接続なので、ID維持復帰の成功根拠にしない。接続済みcontroller経由のdrill-down/back検証が必要である。
+`Ui_workspace`と`Actual_workspace`のstateは統合しない。`Daily_interaction_state.open_route`はActualを新規作成し、`sync_actual_to_workspace`はbrowser側へ状態をコピーする。`Actual_workspace.returned_from_detail`は同state moduleの復帰・publication経路へ接続済みだが、限定回帰を全面のLOAM操作一致や本人受入へ拡張しない。
 
 ## 入力・描画契約
 
@@ -112,7 +115,7 @@ generic formだけ直して終了せず、以下を共有機構単位で移行�
 | Record | `record_session.ml:field_text/combine_side_by_side/screen`、controllerのfloating/fullのInput探索、`record_session_checks.ml`のtop-level Input検査 | Date/Description/Measure/posting、候補・中間編集、draft、review_geometryとPublish gate |
 | Scheduled作成 | `scheduled_session.ml:screen`内`field_row`、`cursor_position`、`handle`のbyte-step矢印、optional notice | Due・fixed Measure・posting数・候補確定・独立draft・Preview gate |
 | Actual検索 | `actual_workspace.ml:search_line/cursor_position`とcontroller header | caption/query/filterと右端予約。G-2修正済みの挙動を退行させない |
-| Jump | `daily_interaction.ml:resolve_overlay`のJump branchをUi_form／styled frameへ接続済み | 日付parser・適用・取消 |
+| Jump | `daily_interaction_view.ml:resolve_overlay`のJump branchをUi_form／styled frameへ接続済み | 日付parser・適用・取消 |
 | Search overlay | 同Search branchを接続済み | query適用・解除、Actual inline searchとの差 |
 | Modal_form | 同Modal_form branch、寸法付き`ui_form.ml/.mli:render_rows`、`daily_interaction_checks.ml` | Text/Choice/Buttons・field順序・Submit/Cancel |
 | Reversal Date | `reversal_session.ml:screen`のUi_form／styled frame。controllerはpaint済みrowsからcaret取得 | 固定target/base・Date→Preview・正確なinverse・uncertainty停止 |
@@ -144,7 +147,7 @@ Modal_formのcontroller索引：`add_attention_form`、`resolve_attention_form`�
 製品を変えないのでbuild/self-check/PTYを新しく実行せず、新しいruntime・IME・performanceの成功を主張しない。read/grepで次を照合する。
 
 1. `path=tui`、`pattern=render_rows|cursor_offset|combine_side_by_side|Columns \(|returned_from_detail`で全利用元表・API撤去対象を確認する。
-2. `path=tui/daily_interaction.ml`、`pattern=let .*_form|Modal_form|Form\.create`でgeneric form索引を照合する。
+2. `path=tui/daily_interaction_state.ml;tui/daily_interaction_context.ml;tui/daily_interaction.ml`、`pattern=let .*_form|Modal_form|Form\.create`でgeneric form索引を照合する。
 3. Jump/Search/Scheduledのsplit geometryを漏らさず、Recordのstyle変更とrecursive cursorを同時に行う順序を読めること。表示機構とpublication責任を混同しないこと。
 4. auto-wrap／独自幅表／renderer総刷新を採用済み、Ui_formだけで完了、テスト成功でIME受入済みと解釈する記述がないこと。
 5. 上記6文書のMarkdown相対リンクをread-only検査する。コード・fixture・config・exports・build registration・テストは意図的に変更なし。
