@@ -43,29 +43,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                    (A.commit_payload ~session:state.session ~base_bytes payload)))
   else
     match state.overlay with
-    | Balance_picker picker ->
-        let move delta = Some { state with overlay = Balance_picker
-            { picker with cursor = Panel.move ~last:(List.length picker.candidates - 1)
-                ~position:picker.cursor delta } } in
-        (match input with
-         | `Key ((`Escape | `ASCII ('q' | 'Q')), []) ->
-             Some { state with overlay = No_overlay; balance_review = None }
-         | `Key ((`Arrow `Up | `ASCII 'k'), []) -> move (-1)
-         | `Key ((`Arrow `Down | `ASCII 'j'), []) -> move 1
-         | `Key (`ASCII ' ', []) ->
-             let chosen = match List.nth_opt picker.candidates picker.cursor with
-               | None -> picker.chosen
-               | Some locus ->
-                   if List.mem locus picker.chosen then List.filter ((<>) locus) picker.chosen
-                   else picker.chosen @ [locus] in
-             Some { state with overlay = Balance_picker { picker with chosen } }
-         | `Key (`Enter, []) ->
-             let chosen = List.map (fun locus ->
-                 { BalView.locus; measure = state.workspace.measure }) picker.chosen in
-             Some { state with overlay = Modal_form
-                 (balance_display_review state.workspace.measure chosen);
-               balance_review = Some (picker, chosen) }
-         | _ -> Some state)
     | Scheduled_bulk editor -> (
         match input with
         | `Key (`ASCII ('r' | 'R'), [`Ctrl]) -> Some (reload state)
@@ -269,19 +246,11 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                     sync { state with overlay = Search value;
                       workspace = W.set_query state.workspace value }
                   else { state with overlay = Search value }))
-    | Modal_form form when is_balance_print form && print_motion input ->
-        let _, _, _, view = balance_print_viewport ~dimensions ~width_of state form in
-        let delta = match input with
-          | `Key (`Home, _) -> -max_int | `Key (`End, _) -> max_int
-          | `Key ((`Page `Up | `ASCII 'u'), _) -> -(max 1 view.capacity)
-          | `Key ((`Page `Down | `ASCII 'd'), _) -> max 1 view.capacity
-          | `Key ((`ASCII 'k' | `Arrow `Up), _) -> -1 | _ -> 1 in
-        Some { state with balance_print_scroll = Panel.move ~last:view.last ~position:view.start delta }
     | Modal_form form -> (
         let result =
           match Form.id form, input with
-          | ("review_balance_view" | "observe_preview"), `Key (`ASCII ('e' | 'E'), []) -> Form.Cancel
-          | ("review_balance_view" | "observe_preview"), `Key (`Tab, mods)
+          | "observe_preview", `Key (`ASCII ('e' | 'E'), []) -> Form.Cancel
+          | "observe_preview", `Key (`Tab, mods)
               when mods = [] || mods = [`Shift] ->
               Form.handle_input form (`Key (`Arrow (if mods = [] then `Right else `Left), []))
           | "observe_quantity", `Key (`Tab, mods) when mods = [] || mods = [`Shift] ->
@@ -310,21 +279,19 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             else if Form.id form = "observe_quantity" || Form.id form = "observe_preview" then
               Some { state with overlay = No_overlay; observe_draft = None }
             else
-            (match state.balance_review, state.cycle_review, state.label_review, state.exchange_review, state.pool_review with
-             | Some (editing, _), _, _, _, _ when Form.id form = "review_balance_view" ->
-                 Some { state with overlay = Balance_picker editing; balance_review = None }
-             | _, Some (editing, _, _), _, _, _ when Form.id form = "review_cycle_boundaries" ->
+            (match state.cycle_review, state.label_review, state.exchange_review, state.pool_review with
+             | Some (editing, _, _), _, _, _ when Form.id form = "review_cycle_boundaries" ->
                  Some { state with overlay = Modal_form editing; cycle_review = None }
-             | _, _, Some (editing, _, _, _), _, _ when Form.id form = "review_locus_label" ->
+             | _, Some (editing, _, _, _), _, _ when Form.id form = "review_locus_label" ->
                  Some { state with overlay = Modal_form editing; label_review = None }
-             | _, _, _, Some (editing, _, _), _ when Form.id form = "review_exchange" ->
+             | _, _, Some (editing, _, _), _ when Form.id form = "review_exchange" ->
                  Some { state with overlay = Modal_form editing; exchange_review = None }
-             | _, _, _, _, Some (editing, _, _) when Form.id form = "review_pool" ->
+             | _, _, _, Some (editing, _, _) when Form.id form = "review_pool" ->
                  Some { state with overlay = Modal_form editing; pool_review = None }
              | _ when Form.id form = "configure_daily_pace" ->
                  Some { state with overlay = No_overlay; pool_review = None;
                    pool_draft = Some (state.workspace.measure, form) }
-             | _ -> Some { state with overlay = No_overlay; balance_review = None; cycle_review = None; label_review = None; exchange_review = None })
+             | _ -> Some { state with overlay = No_overlay; cycle_review = None; label_review = None; exchange_review = None })
         | Form.Updated _ when input = `Key (`ASCII 'r', [`Ctrl])
                               || input = `Key (`ASCII 'R', [`Ctrl]) ->
             Some (reload state)
@@ -333,8 +300,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Form.Updated updated -> Some { state with overlay = Modal_form updated }
         | Form.Submit submitted -> (
             match Form.id submitted with
-            | "balance_print_preview" | "balance_print_refused" ->
-                Some { state with overlay = No_overlay }
+            | "balance_print_refused" -> Some { state with overlay = No_overlay }
             | "annual_rollover" ->
                 let body_w, body_h = body_dimensions ~dimensions ~width_of state in
                 let pane_w = min 64 (max 8 (body_w - 4)) in
@@ -885,38 +851,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                         Some { state with overlay = Modal_form (Form.set_notice submitted
                           ("Cycle boundary save not confirmed: " ^ why
                            ^ " Reopen to inspect before retrying.")) }))
-        | "review_balance_view" ->
-            (match state.balance_review with
-             | None -> Some { state with overlay = No_overlay;
-                 message = "Balance selection review expired; reopen setup." }
-             | Some (picker, chosen) ->
-                 if state.blocked then
-                   Some { state with overlay = Modal_form (Form.set_notice submitted
-                     "Writes stopped. Cancel and reload to inspect.") }
-                 else if not (review_fits ~dimensions ~width_of state submitted) then
-                   Some { state with overlay = Modal_form (Form.set_notice submitted
-                     "Enlarge the terminal to review every selected account before saving.") }
-                 else
-                   let admission =
-                     try
-                       let book = (F.reload state.session).book in
-                       if B.approved_loci book = B.approved_loci state.session.book
-                          && B.measures book = B.measures state.session.book then Ok ()
-                       else Error "Admitted Loci or Measures changed; reopen setup."
-                     with F.Refused why | Sys_error why -> Error why
-                       | Unix.Unix_error (err, _, _) -> Error (Unix.error_message err) in
-                   let result = Result.bind admission (fun () ->
-                     let other = List.filter (fun (c : BalView.coordinate) ->
-                         c.measure <> state.workspace.measure) picker.previous in
-                     write_config_file state "balance-view.tsv" ~expected:picker.raw_before
-                       (BalView.to_string (other @ chosen))) in
-                   (match result with
-                    | Ok () -> Some { state with overlay = No_overlay; balance_review = None;
-                        workspace = { state.workspace with balance_selected = 0 };
-                        message = "Visible Balance accounts saved. Unknown values remain '?'." }
-                    | Error why ->
-                        Some { state with overlay = Modal_form (Form.set_notice submitted
-                          ("Balance view save not confirmed: " ^ why ^ " Reopen to inspect.")) }))
         | _ -> Some state))
     | No_overlay -> (
         let key = match input with `Key (key, mods) -> Some (key, mods) | _ -> None in
@@ -960,6 +894,114 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 | Act.Record_new -> Some (open_record state)
                 | Act.Back -> Some (open_route state W.Home)
                 | Act.Redraw -> Some state))
+        | _ when state.workspace.route = W.Balances ->
+            let balance_view_text = read_pace_config state "balance-view.tsv" in
+            let owner =
+              if Balances.selected state.balances_owner <> state.workspace.balance_selected then
+                Balances.set_selected state.workspace.balance_selected state.balances_owner
+              else state.balances_owner
+            in
+            let next_owner, cmd =
+              Balances.handle
+                ~blocked:state.blocked
+                ~book:state.session.book
+                ~measure:state.workspace.measure
+                ~roles:(accounting_roles state)
+                ~balance_view_text
+                ~dimensions
+                ~width_of
+                owner
+                input
+            in
+            let next_pane =
+              match Balances.pane next_owner with
+              | `List -> W.Calendar
+              | `Detail -> W.Detail
+            in
+            let state =
+              { state with
+                balances_owner = next_owner;
+                workspace =
+                  { state.workspace with
+                    balance_selected = Balances.selected next_owner;
+                    pane = next_pane;
+                  };
+                message =
+                  (if Balances.notice next_owner <> "" then
+                     Balances.notice next_owner
+                   else state.message);
+              }
+            in
+            (match cmd with
+            | Balances.Stay -> Some state
+            | Balances.Back_to_home -> Some (open_route state W.Home)
+            | Balances.Open_commands -> Some { state with overlay = Commands M.initial }
+            | Balances.Cycle_measure direction ->
+                let measures = List.map fst (B.measures state.session.book) in
+                let next_measure =
+                  match measures with
+                  | [] -> state.workspace.measure
+                  | ms ->
+                      let rec next = function
+                        | [] -> List.hd ms
+                        | [ x ] -> List.hd ms
+                        | x :: y :: _ when x = state.workspace.measure -> y
+                        | _ :: rest -> next rest
+                      in
+                      let rec prev acc = function
+                        | [] -> List.hd (List.rev ms)
+                        | [ x ] when x = state.workspace.measure -> (match acc with None -> x | Some p -> p)
+                        | x :: _ when x = state.workspace.measure -> (match acc with None -> List.hd (List.rev ms) | Some p -> p)
+                        | x :: rest -> prev (Some x) rest
+                      in
+                      match direction with
+                      | `Next -> next ms
+                      | `Prev -> prev None ms
+                in
+                Some { state with workspace = { state.workspace with measure = next_measure } }
+            | Balances.Observe { locus; measure; amount } ->
+                let default_amount =
+                  match amount with Some z -> Z.to_string z | None -> ""
+                in
+                let form = observe_quantity_form ~default_locus:locus ~default_measure:measure ?current_amount:(if default_amount = "" then None else Some default_amount) state in
+                let form = Form.set_focused form (Form.find_field_index form "amount") in
+                Some
+                  {
+                    state with
+                    overlay = Modal_form form;
+                    observe_draft =
+                      Some
+                        {
+                          rows = [];
+                          base_bytes = state.session.bytes;
+                          pending = ("", state.workspace.measure, "");
+                          uncertain = false;
+                        };
+                  }
+            | Balances.Save_balance_view { expected; content } ->
+                let admission =
+                  try
+                    let book = (F.reload state.session).book in
+                    if B.approved_loci book = B.approved_loci state.session.book
+                       && B.measures book = B.measures state.session.book then Ok ()
+                    else Error "Admitted Loci or Measures changed; reopen setup."
+                  with F.Refused why | Sys_error why -> Error why
+                    | Unix.Unix_error (err, _, _) -> Error (Unix.error_message err) in
+                let result = Result.bind admission (fun () ->
+                  write_config_file state "balance-view.tsv" ~expected content) in
+                (match result with
+                | Ok () ->
+                    let saved_owner = Balances.notify_saved next_owner in
+                    Some
+                      {
+                        state with
+                        balances_owner = saved_owner;
+                        message = "Visible Balance accounts saved. Unknown values remain '?'.";
+                      }
+                | Error why ->
+                    let failed_owner = Balances.notify_save_failed next_owner why in
+                    Some { state with balances_owner = failed_owner })
+            | Balances.Reload -> Some (reload state))
         | Some (`ASCII ' ', []) -> Some { state with overlay = Commands M.initial }
         | Some (`Uchar c, []) when Uchar.to_int c = 32 ->
             Some { state with overlay = Commands M.initial }
@@ -976,7 +1018,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some ((`Escape | `ASCII 'q'), []) ->
             if state.workspace.route = W.Loci || state.workspace.route = W.Settlements then
               Some (open_route state W.Home)
-            else if state.workspace.route = W.Attention || state.workspace.route = W.Balances || state.workspace.route = W.Daily_pace || state.workspace.route = W.Income_expense || state.workspace.route = W.Transactions_flow || state.workspace.route = W.Stock_flow then
+            else if state.workspace.route = W.Attention || state.workspace.route = W.Daily_pace || state.workspace.route = W.Income_expense || state.workspace.route = W.Transactions_flow || state.workspace.route = W.Stock_flow then
               if state.workspace.pane = W.Detail then
                 Some { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
               else Some (open_route state W.Home)
@@ -1160,7 +1202,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`Enter, []) when is_scheduled_months state -> Some (pay_selected state)
         | Some (`ASCII 'r', []) when is_scheduled_months state -> Some (edit_selected state)
         | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), [])
-          when is_record_browser state || state.workspace.route = W.Balances ->
+          when is_record_browser state ->
             Some { state with workspace = { state.workspace with
               pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) };
               scroll = 0 }
@@ -1181,9 +1223,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               Some { state with scroll = Panel.move ~last:view.last ~position:view.start delta }
             else Some { state with scroll = 0;
               workspace = W.move_selection ~book:state.session.book state.workspace delta }
-        | Some ((`Enter | `ASCII 'i'), [])
-          when state.workspace.route = W.Balances && state.workspace.pane = W.Calendar ->
-            Some { state with workspace = { state.workspace with pane = W.Detail }; scroll = 0 }
         | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
             Some
               {
@@ -1261,21 +1300,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII 'i', []) when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
             Some (open_route state W.Attention)
         | Some (`ASCII 'o', [])
-          when state.workspace.route = W.Home || state.workspace.route = W.Balances || state.workspace.route = W.Calendar ->
-            let default_locus, default_measure, current_amount =
-              if state.workspace.route = W.Balances then
-                let items = balance_items state in
-                match List.nth_opt items state.workspace.balance_selected with
-                | Some (O.Account_row { locus; measure; value; _ }) ->
-                    let amt_str =
-                      match value with
-                      | O.Exact n -> Some (B.format state.session.book measure n)
-                      | _ -> None
-                    in
-                    (Some locus, Some measure, amt_str)
-                | _ -> (None, None, None)
-              else (None, None, None)
-            in
+          when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
+            let default_locus, default_measure, current_amount = (None, None, None) in
             let form = observe_quantity_form ?default_locus ?default_measure ?current_amount state in
             let form =
               if default_locus <> None then
@@ -1285,30 +1311,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some { state with overlay = Modal_form form;
               observe_draft = Some { rows = []; base_bytes = state.session.bytes;
                 pending = ("", state.workspace.measure, ""); uncertain = false } }
-        | Some (`ASCII 'c', []) when state.workspace.route = W.Balances ->
-            Some (open_balance_picker state)
-        | Some (`ASCII 'v', []) when state.workspace.route = W.Balances ->
-            let next_mode =
-              match state.balance_mode with
-              | `Accounting -> `Current
-              | `Current -> `Accounting
-            in
-            let coordinate = function
-              | O.Account_row { locus; measure; _ } -> Some (locus, measure)
-              | _ -> None in
-            let previous = Option.bind
-                (List.nth_opt (balance_items state) state.workspace.balance_selected) coordinate in
-            let next = { state with balance_mode = next_mode } in
-            let items = balance_items next in
-            let selected =
-              match List.find_index (fun item -> previous <> None && coordinate item = previous) items with
-              | Some index -> index
-              | None -> Option.value ~default:0
-                  (List.find_index (fun item -> coordinate item <> None) items) in
-            Some { next with scroll = 0;
-              workspace = { state.workspace with balance_selected = selected } }
-        | Some (`ASCII 'p', []) when state.workspace.route = W.Balances ->
-            Some { state with overlay = Modal_form (balance_print_preview state); balance_print_scroll = 0 }
         | Some (`ASCII 's', []) when state.workspace.route = W.Actual ->
             Some (sync { state with workspace = W.cycle_order state.workspace })
         | Some (`ASCII 'f', [])
@@ -1356,24 +1358,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             in
             if state.workspace.route = W.Calendar && state.workspace.pane = W.Calendar then
               Some (update_calendar state (if delta < 0 then Cal.Up else Cal.Down))
-            else if state.workspace.pane = W.Detail && state.workspace.route <> W.Calendar && state.workspace.route <> W.Home && state.workspace.route <> W.Balances then
+            else if state.workspace.pane = W.Detail && state.workspace.route <> W.Calendar && state.workspace.route <> W.Home then
               Some { state with scroll = max 0 (state.scroll + delta) }
-            else if state.workspace.route = W.Balances then
-              if state.workspace.pane = W.Detail then
-                let _, view = balance_viewport ~dimensions ~width_of state in
-                Some { state with scroll = Panel.move ~last:view.last ~position:view.start delta }
-              else
-              let count = List.length (balance_items state) in
-              Some
-                {
-                  state with
-                  workspace =
-                    {
-                      state.workspace with
-                      balance_selected =
-                        max 0 (min (max 0 (count - 1)) (state.workspace.balance_selected + delta));
-                    };
-                }
             else if state.workspace.route = W.Attention then
               if state.workspace.pane = W.Detail then
                 Some { state with scroll = max 0 (state.scroll + delta) }
@@ -1404,22 +1390,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               | _ -> 1
             in
             let step = delta * max 1 (snd dimensions - 8) in
-            if state.workspace.route = W.Balances then
-              if state.workspace.pane = W.Detail then
-                let _, view = balance_viewport ~dimensions ~width_of state in
-                Some { state with scroll = Panel.move ~last:view.last ~position:view.start
-                  (delta * max 1 view.capacity) }
-              else
-                let _, body = body_dimensions ~dimensions ~width_of state in
-                let height = max 0 (body - 2) in
-                let stacked = fst dimensions >= 72 && fst dimensions < 120 && height >= 18 in
-                let list_height = if stacked then height / 2 else height in
-                let step = delta * max 1 (Panel.capacity ~height:list_height ~heading:false) in
-                let count = List.length (balance_items state) in
-                let current = state.workspace.balance_selected in
-                Some { state with workspace = { state.workspace with
-                  balance_selected = max 0 (min (max 0 (count - 1)) (current + step)) } }
-            else if state.workspace.route = W.Income_expense then
+            if state.workspace.route = W.Income_expense then
               Some { state with scroll = max 0 (state.scroll + step) }
             else if state.workspace.route = W.Transactions_flow then
               if state.workspace.pane = W.Detail then
@@ -1446,12 +1417,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 }
             else Some { state with scroll = max 0 (state.scroll + step) }
         | Some (`Home, []) ->
-            if state.workspace.route = W.Balances then
-              if state.workspace.pane = W.Detail then
-                Some { state with scroll = 0 }
-              else
-                Some { state with workspace = { state.workspace with balance_selected = 0 } }
-            else if state.workspace.route = W.Income_expense then
+            if state.workspace.route = W.Income_expense then
               Some { state with scroll = 0 }
             else if state.workspace.route = W.Transactions_flow then
               if state.workspace.pane = W.Detail then
@@ -1473,14 +1439,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                   workspace = W.move_selection ~book:state.session.book state.workspace (-max_int);
                 }
         | Some (`End, []) ->
-            if state.workspace.route = W.Balances then
-              if state.workspace.pane = W.Detail then
-                let _, view = balance_viewport ~dimensions ~width_of state in
-                Some { state with scroll = view.last }
-              else
-                let count = List.length (balance_items state) in
-                Some { state with workspace = { state.workspace with balance_selected = max 0 (count - 1) } }
-            else if state.workspace.route = W.Income_expense then
+            if state.workspace.route = W.Income_expense then
               Some { state with scroll = max_int / 4 }
             else if state.workspace.route = W.Transactions_flow then
               if state.workspace.pane = W.Detail then

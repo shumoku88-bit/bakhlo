@@ -373,6 +373,7 @@ let self_check () =
   Record_session_checks.self_check ~width_of ();
   Scheduled_session_checks.self_check ~width_of ();
   Actual_workspace_checks.self_check ();
+  Balances_owner_checks.self_check ~width_of ~directory:"scratch";
   Scheduled_bulk_checks.self_check ~width_of ();
   Scheduled_generation_checks.self_check ~width_of ();
   let ansi view =

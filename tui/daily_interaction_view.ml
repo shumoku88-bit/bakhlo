@@ -262,10 +262,7 @@ let workspace_rows ~width_of ~width ~height state =
     | W.Selected_day day -> "Household Day Workspace / " ^ day
     | W.Actual -> "Actual"
     | W.Scheduled -> "Scheduled / List"
-    | W.Balances ->
-        (match state.balance_mode with
-        | `Accounting -> "Balances / Accounting"
-        | `Current -> "Balances / Current")
+    | W.Balances -> Balances.title state.balances_owner
     | W.Daily_pace -> "Daily Pace"
     | W.Income_expense -> "Income & Expense"
     | W.Transactions_flow -> "Transactions Flow"
@@ -373,46 +370,10 @@ let workspace_rows ~width_of ~width ~height state =
       else if calendar_focused then calendar_frame ~width ~height
       else detail_frame ~width ~height
   else if workspace.route = W.Balances then
-    let items = balance_items state in
-    (* A medium terminal needs room for complete quantities. Preserve the
-       existing split view on wide screens and the focus-only view on tiny ones. *)
-    let stacked = width >= 72 && width < 120 && height >= 18 in
-    let list_width =
-      if stacked then width
-      else if width >= 80 then let left, _ = browser_pane_widths width in left
-      else width
-    in
-    let lines = balance_lines ~width_of ~width:(max 0 (list_width - 6)) state in
-    let detail =
-      match List.nth_opt items workspace.balance_selected with
-      | None -> [ tr "No supplied Locus / Measure coordinates." ]
-      | Some item -> O.balance_item_detail ~book item
-    in
-    let right_width =
-      if stacked then width
-      else if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1
-      else width
-    in
-    let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
-    let is_detail = workspace.pane = W.Detail in
-    if stacked then
-      let list_height = height / 2 in
-      draw_frame ~width_of ~width ~height:list_height
-        ~focused:(not is_detail) ~title ~scroll:0
-        ~selected:(if lines = [] then None else Some workspace.balance_selected)
-        ?heading:(if lines = [] then Some "No balances are selected." else None)
-        lines
-      @ draw_frame ~width_of ~width ~height:(height - list_height)
-          ~focused:is_detail ~title:"Selected Balance" ~scroll:state.scroll
-          ~selected:None wrapped_detail
-    else
-      split_pane
-        ?left_heading:(if lines = [] then Some "No balances are selected." else None)
-        ~left_focused:(not is_detail) ~left_title:title ~left_scroll:0
-        ~left_selected:(if lines = [] then None else Some workspace.balance_selected)
-        ~left_rows:lines
-        ~right_focused:is_detail ~right_title:"Selected Balance"
-        ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
+    Balances.screen ~book:state.session.book ~measure:workspace.measure
+      ~roles:(accounting_roles state)
+      ~balance_view_text:(read_pace_config state "balance-view.tsv")
+      ~dimensions:(width, height) ~width_of state.balances_owner
   else if workspace.route = W.Daily_pace then
     let measure = workspace.measure in
     let trend_res = pace_samples state in
@@ -827,7 +788,6 @@ let workspace_rows ~width_of ~width ~height state =
 
 let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   match state.overlay with
-  | Balance_picker _ -> [ "j/k select  Space toggle  Enter review"; "Esc/q cancel; unknown stays '?'  no write until confirmed" ]
   | (Reversal _ | Date_correction _ | Scheduled_cancel _ | Event_merchant _) when state.blocked ->
       [ "Writes stopped; date retained"; "Ctrl-r inspect/reload  q keep" ]
   | Reversal editor -> Rev.footer editor
@@ -845,8 +805,6 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   | Themes _ -> [ "j/k or Up/Down preview theme"; "Enter save  Esc/q cancel" ]
   | Modal_form form -> (
       match Form.id form with
-      | "balance_print_preview" | "balance_print_refused" ->
-          [ "PgUp/Dn scroll  Home/End  Enter/Esc close"; "Preview only; no terminal output or book write" ]
       | "discard_record" ->
           [ "Left/Right choose  Enter confirm  Esc keep";
             "Keep draft is the protective default; no book write" ]
@@ -864,12 +822,12 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
           [ "Enter review  Tab switch field  Esc cancel"; "Edits only boundary-presets.tsv" ]
       | "review_cycle_boundaries" ->
           [ "Enter save  Tab choose Edit  Esc edit"; "Full boundaries must fit before saving" ]
-      | "review_balance_view" ->
-          [ "Enter save  Tab choose Edit  Esc edit"; "Full selection must fit before saving" ]
       | _ ->
           [ "Enter submit  Tab next field  Esc cancel"; "Arrow keys / space to choose options" ])
   | No_overlay | Commands _ | Jump _ | Search _ ->
-  if state.workspace.W.route = W.Actual then
+  if state.workspace.W.route = W.Balances then
+    Balances.footer ~dimensions ~width_of state.balances_owner
+  else if state.workspace.W.route = W.Actual then
     Act.footer ~dimensions ~width_of state.actual_workspace
   else if is_scheduled_months state then
     if state.workspace.pane = W.Detail then
@@ -930,23 +888,6 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
         (match state.drill_parent with
          | Some W.Actual -> "Space Commands  q/Esc Actual  Ctrl-r reload"
          | _ -> "Space Commands  q/Esc Home  Ctrl-r reload");
-      ]
-  | W.Balances, W.Calendar ->
-      if fst dimensions < 64 then
-        [ "j/k select  i detail  v mode"; "c setup  o observe  p print  q" ]
-      else
-      let v_label = match state.balance_mode with `Accounting -> "v current" | `Current -> "v accounting" in
-      [
-        Printf.sprintf "j/k select  Enter/i Detail  c visible accounts  o observe  %s  p print" v_label;
-        "PgUp/Dn Home/End range  Space Commands  q/Esc Home  Ctrl-r reload";
-      ]
-  | W.Balances, W.Detail ->
-      if fst dimensions < 64 then
-        [ "j/k scroll PgUp/Dn Home/End"; "Tab list  o observe  p print  q" ]
-      else
-      [
-        "j/k scroll  PgUp/Dn Home/End  Tab/w list  c visible accounts  o observe";
-        "q/Esc back to list  Space Commands  Ctrl-r reload";
       ]
   | W.Daily_pace, W.Calendar ->
       if fst dimensions < 64 then
@@ -1131,7 +1072,7 @@ let commands_overlay_rows ~width_of ~width ~height (menu : M.t) =
   :: content
   @ [ O.panel_bottom ~width ~style ~width_of () ]
 
-type overlay_frame = {
+type overlay_frame = Balances_owner.overlay_frame = {
   origin_x : int;
   origin_y : int;
   pane_width : int;
@@ -1187,6 +1128,8 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
             | None -> None
           in
           Some { origin_x; origin_y; pane_width = pane_w; pane_height = actual_h; rows; cursor }
+  else if state.workspace.route = W.Balances && Balances.has_overlay state.balances_owner then
+    Balances.overlay ~dimensions ~body_dimensions:(body_w, body_h) ~width_of state.balances_owner
   else if state.overlay = No_overlay || body_w < 8 || body_h < 3 then None
   else
     match state.overlay with
@@ -1291,19 +1234,6 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
         let origin_x = max 0 ((width - pane_w) / 2) in
         let origin_y = max 0 ((body_h - pane_h) / 2) in
         Some { origin_x; origin_y; pane_width = pane_w; pane_height = List.length rows; rows; cursor = None }
-    | Balance_picker picker ->
-        let pane_w = min 64 (max 8 (body_w - 4)) in
-        let pane_h = min body_h (max 5 (List.length picker.candidates + 3)) in
-        let rows = List.map (fun locus ->
-            (if List.mem locus picker.chosen then "[x] " else "[ ] ")
-            ^ locus ^ " / " ^ state.workspace.measure) picker.candidates in
-        let rows = Panel.frame ~width_of ~width:pane_w ~height:pane_h ~focused:true
-            ~title:("Balances / Visible accounts (" ^ state.workspace.measure ^ ")")
-            ~heading:(Printf.sprintf "Chosen: %d; unknown stays '?'" (List.length picker.chosen))
-            ~scroll:0 ~selected:(Some picker.cursor) rows in
-        Some { origin_x = max 0 ((width - pane_w) / 2);
-          origin_y = max 0 ((body_h - pane_h) / 2); pane_width = pane_w;
-          pane_height = List.length rows; rows; cursor = None }
     | Themes { selected; _ } ->
         let pane_w = min 54 (max 8 (body_w - 4)) in
         let items = List.map P.theme_label P.all_themes in
@@ -1325,15 +1255,6 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
           (Form.create ~id:"search" ~title:(tr "Search Actual / Scheduled")
              ~fields:[Form.text_field ~id:"value" ~label:"" ~value ()]
              ~notice:(tr "Enter apply; Esc clear") ())
-    | Modal_form form when is_balance_print form ->
-        let pane_width, pane_height, content, _ =
-          balance_print_viewport ~dimensions ~width_of state form in
-        let rows = Panel.frame ~width_of ~width:pane_width ~height:pane_height
-          ~focused:true ~title:(Form.title form) ~scroll:state.balance_print_scroll
-          ~selected:None content in
-        Some { origin_x = max 0 ((width - pane_width) / 2);
-          origin_y = max 0 ((body_h - pane_height) / 2);
-          pane_width; pane_height; rows; cursor = None }
     | Modal_form form ->
         framed_form ~pane_w:(min 64 (max 8 (body_w - 4))) form
     | No_overlay -> None
@@ -1367,6 +1288,9 @@ let cursor_position ~width_of ((width, height) as dimensions) state : (int * int
             let rows = S.screen ~book:state.session.book ~dimensions:pane_dimensions ~width_of record in
             let painted = List.filteri (fun i _ -> i < max 0 height) rows in
             O.cursor_in_rows ~width_of ~width:(min width (fst pane_dimensions)) painted
+      else if state.workspace.route = W.Balances then
+        let body_w, body_h = body_dimensions ~dimensions ~width_of state in
+        Balances.cursor_position ~dimensions ~body_dimensions:(body_w, body_h) ~width_of state.balances_owner
       else if state.workspace.route = W.Actual then
         Act.cursor_position ~dimensions ~width_of state.actual_workspace
       else None

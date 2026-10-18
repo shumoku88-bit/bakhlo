@@ -271,14 +271,6 @@ let accounting_roles state =
   | Some text -> O.parse_accounting_roles text
   | None -> []
 
-let balance_view_coords state =
-  Result.bind (read_pace_config state "balance-view.tsv") (function
-    | None -> Ok None
-    | Some text ->
-        Result.map (fun coords ->
-          Some (List.map (fun (c : BalView.coordinate) -> (c.locus, c.measure)) coords))
-          (BalView.of_string text))
-
 let annual_history_bounds state =
   try
     match state.session.F.annual_year with
@@ -598,40 +590,6 @@ let cycle_boundaries_review name dates =
     ~fields:[Form.action_buttons ~confirm:"Save boundaries" ~cancel:"Edit" ()] ()
 
 
-let balance_display_review measure chosen =
-  Form.create ~id:"review_balance_view" ~title:"Review visible accounts"
-    ~summary:(
-      [ "Measure: " ^ measure;
-        "Only the selected Measure's display rows will change.";
-        "Other Measures and household quantities stay untouched.";
-        "Selected in display order:" ]
-      @ (if chosen = [] then ["(none)"] else
-           List.map (fun (c : BalView.coordinate) -> c.locus ^ " × " ^ c.measure) chosen))
-    ~fields:[Form.buttons_field ~id:"action"
-      ~buttons:[ { Form.label = "Save selection"; is_cancel = false };
-                 { Form.label = "Edit"; is_cancel = true } ] ()] ()
-
-let open_balance_picker state =
-  match read_pace_config state "balance-view.tsv" with
-  | Error why -> { state with overlay = No_overlay;
-      balance_review = None; message = "Balance setup unavailable: " ^ why }
-  | Ok raw -> (
-      let previous = match raw with
-        | None -> Ok [] | Some text -> BalView.of_string text in
-      match previous with
-      | Error _why -> { state with overlay = No_overlay;
-          balance_review = None; message = "Balance setup unavailable: malformed balance-view.tsv." }
-      | Ok previous ->
-          let measure = state.workspace.measure in
-          let old = List.filter_map (fun (c : BalView.coordinate) ->
-            if c.measure = measure then Some c.locus else None) previous in
-          let approved = Option.value ~default:[] (B.approved_loci state.session.book) in
-          let candidates = old @ List.filter (fun l -> not (List.mem l old)) approved in
-          let cursor = 0 in
-          { state with overlay = Balance_picker { candidates; chosen = old;
-              cursor; raw_before = raw; previous };
-            balance_review = None; message = "" })
-
 let open_annual_rollover state =
   if state.blocked || has_record_draft state then
     { state with overlay = No_overlay;
@@ -682,7 +640,14 @@ let open_command state = function
       (match cycle_boundaries_form state with
        | Ok form -> { state with overlay = Modal_form form; cycle_review = None; message = "" }
        | Error why -> { state with overlay = No_overlay; cycle_review = None; message = "Cycle setup unavailable: " ^ why })
-  | M.Balance_display -> open_balance_picker state
+  | M.Balance_display ->
+      let balance_view_text = read_pace_config state "balance-view.tsv" in
+      let state = open_route state W.Balances in
+      let balances_owner =
+        Balances.open_config ~book:state.session.book ~measure:state.workspace.measure
+          ~balance_view_text state.balances_owner
+      in
+      { state with balances_owner; message = Balances.notice balances_owner }
   | M.Annual_rollover -> open_annual_rollover state
   | M.Theme ->
       let rec index i = function
@@ -692,54 +657,6 @@ let open_command state = function
       let return_menu = match state.overlay with Commands menu -> menu | _ -> M.initial in
       { state with overlay = Themes { selected = index 0 P.all_themes;
                                      original = state.theme; return_menu } }
-
-let balance_items state =
-  match state.balance_mode with
-  | `Accounting ->
-      let roles = accounting_roles state in
-      O.role_balance_items ~book:state.session.book ~roles
-  | `Current ->
-      (match balance_view_coords state with
-       | Ok coords -> O.current_balance_items ~book:state.session.book ~coords
-       | Error why -> [O.Header_row ("Balance view unavailable: " ^ why)])
-
-let balance_lines ?(width_of = String.length) ?(width = max_int) state =
-  let items = balance_items state in
-  List.map (O.balance_item_line ~width_of ~width ~book:state.session.book) items
-
-let balance_print_fits rows =
-  let rec fits bytes = function
-    | [] -> true
-    | row :: rest ->
-        let size = String.length row + 1 in
-        size <= 32768 - bytes && fits (bytes + size) rest in
-  List.length rows <= 200 && fits 0 rows
-
-let balance_print_preview state =
-  let refused summary =
-    Form.create ~id:"balance_print_refused" ~title:(tr "Print Refused") ~summary
-      ~fields:[ Form.action_buttons ~confirm:(tr "OK") ~cancel:(tr "Close") () ] ()
-  in
-  let view_error = match state.balance_mode with
-    | `Accounting -> None
-    | `Current -> (match balance_view_coords state with Error why -> Some why | Ok _ -> None) in
-  match view_error with
-  | Some why -> refused [
-      tr "Print refused: visible-account configuration is unavailable.";
-      why; tr "Review balance-view.tsv before printing." ]
-  | None ->
-      let header = match state.balance_mode with
-        | `Current -> [ tr "Balances / Current";
-            tr "Selected Locus × Measure; unknown is not zero."; "" ]
-        | `Accounting -> [ tr "Balances / Accounting";
-            tr "Current role-based quantities; different Measures are not combined."; "" ] in
-      let summary = header @ balance_lines state in
-      if not (balance_print_fits summary) then
-        refused [ tr "Print refused: more than 200 lines or 32768 UTF-8 bytes.";
-          tr "Narrow the balance selection first." ]
-      else
-        Form.create ~id:"balance_print_preview" ~title:(tr "Balances / Print Preview")
-          ~summary ~fields:[ Form.action_buttons ~confirm:(tr "Done") ~cancel:(tr "Close") () ] ()
 
 let admitted_loci state =
   let book = state.session.book in
@@ -998,24 +915,6 @@ let browser_viewport ~dimensions ~width_of state =
     ~count:(List.length (browser_detail_rows ~width_of ~width:detail_width state))
     ~scroll:state.scroll ~selected:None in
   (height, view)
-(* Balances detail shares the painted wrap width and Panel capacity so motion
-   clamps to the actually visible last row, including after a resize. *)
-let balance_viewport ~dimensions:((width, _) as dimensions) ~width_of state =
-  let _, body_height = body_dimensions ~dimensions ~width_of state in
-  let height = max 0 (body_height - 2) in
-  let stacked = width >= 72 && width < 120 && height >= 18 in
-  let right_width = if stacked then width else snd (browser_pane_widths width) in
-  let detail_height = if stacked then height - height / 2 else height in
-  let detail =
-    match List.nth_opt (balance_items state) state.workspace.balance_selected with
-    | None -> [ tr "No supplied Locus / Measure coordinates." ]
-    | Some item -> O.balance_item_detail ~book:state.session.book item
-  in
-  let wrapped = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
-  let view = Panel.window ~capacity:(Panel.capacity ~height:detail_height ~heading:false)
-    ~count:(List.length wrapped) ~scroll:state.scroll ~selected:None in
-  (detail_height, view)
-
 let pace_detail_lines state =
   let today = F.today () and measure = state.workspace.measure in
   match resolve_pace_window state with
@@ -1115,18 +1014,6 @@ let pace_detail_viewport ~dimensions ~width_of state =
         (pace_detail_lines state) in
   Panel.window ~capacity:(Panel.capacity ~height ~heading:false)
     ~count:(List.length rows) ~scroll:state.scroll ~selected:None
-
-let is_balance_print form =
-  Form.id form = "balance_print_preview" || Form.id form = "balance_print_refused"
-
-let balance_print_viewport ~dimensions ~width_of state form =
-  let body_w, body_h = body_dimensions ~dimensions ~width_of state in
-  let width = min 64 (max 8 (body_w - 4)) in
-  let rows = List.concat_map (O.wrap_text ~width_of (max 1 (width - 6))) form.Form.summary in
-  let height = min body_h (max 3 (List.length rows + 2)) in
-  let view = Panel.window ~capacity:(Panel.capacity ~height ~heading:false)
-      ~count:(List.length rows) ~scroll:state.balance_print_scroll ~selected:None in
-  width, height, rows, view
 
 let print_motion = function
   | `Key ((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)), [])

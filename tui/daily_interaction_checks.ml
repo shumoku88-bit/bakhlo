@@ -26,6 +26,16 @@ module D = Bakhlo_domain
 module Stl = Settlement_data
 module Trend = Daily_pace_trend
 module O = Daily_overlays
+module Balances = Balances_owner
+
+let balance_items (state : C.state) =
+  Balances.items
+    ~book:state.C.session.book
+    ~measure:state.workspace.measure
+    ~roles:(X.accounting_roles state)
+    ~balance_view_text:(X.read_pace_config state "balance-view.tsv")
+    state.balances_owner
+
 
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
@@ -3091,12 +3101,12 @@ let balance_display_checks ~width_of ~directory () =
     "balance-unknown-presence-zero-distinct";
   let view = C.open_route home W.Balances in
   let coordinate state =
-    match List.nth_opt (X.balance_items state) state.C.workspace.balance_selected with
+    match List.nth_opt (balance_items state) state.C.workspace.balance_selected with
     | Some (O.Account_row { locus; measure; _ }) -> Some (locus, measure)
     | _ -> None in
   let eur_index = Option.get (List.find_index (function
     | O.Account_row { locus = "wallet"; measure = "eur"; _ } -> true | _ -> false)
-    (X.balance_items view)) in
+    (balance_items view)) in
   let eur = { view with workspace = { view.workspace with balance_selected = eur_index } } in
   let accounting = key ~width_of eur (`ASCII 'v') in
   let current = key ~width_of accounting (`ASCII 'v') in
@@ -3112,7 +3122,7 @@ let balance_display_checks ~width_of ~directory () =
           else painted_capacity (String.starts_with ~prefix:"╭" row) count rest in
     let capacity = painted_capacity false 0 (R.screen ~width_of dimensions head) in
     let next = key ~dimensions ~width_of head (`Page `Down) in
-    require (next.workspace.balance_selected = min capacity (List.length (X.balance_items head) - 1))
+    require (next.workspace.balance_selected = min capacity (List.length (balance_items head) - 1))
       "balance-page-matches-actual-painted-list-capacity")
     [(120,36); (80,24); (48,14); (32,9)];
   let medium_rows = R.screen ~width_of (80, 24) view in
@@ -3127,7 +3137,7 @@ let balance_display_checks ~width_of ~directory () =
     let detail = key ~dimensions ~width_of large (`ASCII 'i') in
     let at_end = key ~dimensions ~width_of detail `End in
     let up = key ~dimensions ~width_of at_end (`Arrow `Up) in
-    let _, viewport = X.balance_viewport ~dimensions ~width_of detail in
+    let _, viewport = Balances.detail_viewport ~dimensions ~width_of ~book:detail.session.book ~measure:detail.workspace.measure ~roles:(X.accounting_roles detail) ~balance_view_text:(X.read_pace_config detail "balance-view.tsv") detail.balances_owner in
     let page = key ~dimensions ~width_of detail (`Page `Down) in
     let stepped = List.fold_left (fun state _ -> key ~dimensions ~width_of state (`ASCII 'j'))
         detail (List.init viewport.capacity Fun.id) in
@@ -3142,30 +3152,38 @@ let balance_display_checks ~width_of ~directory () =
     require (printed_end.scroll = at_end.scroll
       && printed_end.workspace.balance_selected = large.workspace.balance_selected)
       "balance-print-keeps-parent-context";
-    (match printed.overlay with
-     | C.Modal_form form ->
-         let _, _, rows, viewport = X.balance_print_viewport ~dimensions ~width_of printed form in
+    require (Balances.has_overlay printed.balances_owner) "balance-print-overlay-open";
+    (match Balances.print_preview_summary printed.balances_owner with
+     | Some summary ->
+         let pane_w = min 64 (max 8 (fst dimensions - 4)) in
+         let rows = List.concat_map (O.wrap_text ~width_of (max 1 (pane_w - 6))) summary in
          require (has (String.concat "" rows) (O.format_money huge_book "jpy" (Z.neg huge)))
            "balance-print-wrap-retains-full-negative-quantity";
-         if viewport.last > 0 then require
-           (R.overlay_screen ~dimensions ~width_of printed_end
-            <> R.overlay_screen ~dimensions ~width_of printed_up)
-           "balance-print-end-up-moves-visible-report"
-     | _ -> raise (F.Refused "balance-print-not-open"));
-    require ((key ~dimensions ~width_of printed_end `Enter).overlay = C.No_overlay)
+         let pane_h = min (snd dimensions) (max 3 (List.length rows + 2)) in
+         let print_view = Ui_panel.window ~capacity:(Ui_panel.capacity ~height:pane_h ~heading:false) ~count:(List.length rows) ~scroll:0 ~selected:None in
+         if print_view.last > 0 then begin
+           let s_end = R.overlay_screen ~dimensions ~width_of printed_end in
+           let s_up = R.overlay_screen ~dimensions ~width_of printed_up in
+           if s_end = s_up then
+             Printf.eprintf "DIM %dx%d: print_view.last=%d, s_end is equal to s_up!\n%!"
+               (fst dimensions) (snd dimensions) print_view.last;
+           require (s_end <> s_up) "balance-print-end-up-moves-visible-report"
+         end
+     | None -> raise (F.Refused "balance-print-not-open"));
+    require (not (Balances.has_overlay (key ~dimensions ~width_of printed_end `Enter).balances_owner))
       "balance-print-enter-closes-without-save";
     let closed = key ~dimensions ~width_of printed_end `Escape in
-    require (closed.scroll = at_end.scroll && closed.overlay = C.No_overlay
+    require (closed.scroll = at_end.scroll && not (Balances.has_overlay closed.balances_owner)
       && F.read path = home.session.bytes) "balance-print-close-preserves-parent-without-save")
     [(120,36); (80,24); (48,14); (32,9)];
-  require (X.balance_print_fits [String.make 32767 'x']
-    && not (X.balance_print_fits [String.make 32768 'x'])
-    && X.balance_print_fits (List.init 200 (fun _ -> ""))
-    && not (X.balance_print_fits (List.init 201 (fun _ -> ""))))
+  require (Balances.print_fits [String.make 32767 'x']
+    && not (Balances.print_fits [String.make 32768 'x'])
+    && Balances.print_fits (List.init 200 (fun _ -> ""))
+    && not (Balances.print_fits (List.init 201 (fun _ -> ""))))
     "balance-print-exact-byte-and-line-limits-including-newlines";
   let oversized = get (B.observe_quantities book
     [("wallet", "jpy", Z.of_string (String.make 25000 '7'))]) in
-  let refused = X.balance_print_preview { view with session = { view.session with book = oversized } } in
+  let refused = Balances.print_preview_form ~book:oversized ~measure:view.workspace.measure ~roles:(X.accounting_roles view) ~balance_view_text:(X.read_pace_config view "balance-view.tsv") view.balances_owner in
   require (Ui_form.id refused = "balance_print_refused" && F.read path = home.session.bytes)
     "balance-print-refuses-real-oversized-quantity-without-save";
   require ((key ~width_of { view with overlay = C.Modal_form refused } `Enter).overlay = C.No_overlay)
@@ -3182,7 +3200,7 @@ let balance_display_checks ~width_of ~directory () =
    restyling; asserts LOAM-parity behavior, not widget ids. *)
 
 let b2_overlay_open (state : C.state) =
-  (match state.C.overlay with C.No_overlay -> false | _ -> true)
+  (match state.C.overlay with C.No_overlay -> Balances.has_overlay state.balances_owner | _ -> true)
 
 let b2_screen ~width_of dimensions state =
   R.screen ~width_of dimensions state
@@ -3666,7 +3684,7 @@ let self_check ~width_of () =
     "actual-wide-two-pane-visible";
   let balances_view = C.open_route home W.Balances in
   require
-    (match X.balance_items balances_view with
+    (match balance_items balances_view with
     | O.Account_row { locus = "wallet"; measure = "jpy"; _ } :: _ -> true
     | _ -> false)
     "balances-initial-selection-is-first-coordinate";
@@ -3676,7 +3694,7 @@ let self_check ~width_of () =
   require (bal_detail_back.workspace.pane = W.Calendar && bal_detail_back.workspace.route = W.Balances)
     "balances-detail-escape-returns-to-list";
   let bal_end = key ~width_of balances_view `End in
-  let count = List.length (X.balance_items balances_view) in
+  let count = List.length (balance_items balances_view) in
   require (bal_end.workspace.balance_selected = max 0 (count - 1)) "balances-end-selects-last-row";
   let bal_home = key ~width_of bal_end `Home in
   require (bal_home.workspace.balance_selected = 0) "balances-home-selects-first-row";
@@ -3691,9 +3709,9 @@ let self_check ~width_of () =
     "balances-v-toggles-to-accounting-roles";
   let bal_restored_current = key ~width_of bal_accounting (`ASCII 'v') in
   require
-    (bal_restored_current.balance_mode = `Current
+    (Balances.mode bal_restored_current.balances_owner = `Current
      && List.for_all (function O.Account_row _ -> true | _ -> false)
-          (X.balance_items bal_restored_current))
+          (balance_items bal_restored_current))
     "balances-current-restores-neutral-coordinate-rows";
   let bv_path = directory ^ "/balance-view.tsv" in
   F.write_new bv_path "bank\tjpy\nwallet\tjpy\n";
@@ -3708,27 +3726,27 @@ let self_check ~width_of () =
   replace_balance_view "malformed row\n";
   let malformed = C.open_route (C.initial (F.load path)) W.Balances in
   require (contains (R.screen ~width_of (120,30) malformed) "Balance view unavailable"
-           && (key ~width_of malformed (`ASCII 'c')).overlay = C.No_overlay
+           && not (Balances.has_overlay (key ~width_of malformed (`ASCII 'c')).balances_owner)
            && F.read bv_path = "malformed row\n")
     "balance-malformed-config-never-becomes-empty-selection";
   let malformed_print = key ~width_of malformed (`ASCII 'p') in
-  (match malformed_print.overlay with
-   | C.Modal_form f ->
+  (match Balances.active_form malformed_print.balances_owner with
+   | Some f ->
        require (Ui_form.id f = "balance_print_refused")
          "balances-malformed-config-refuses-print"
-   | _ -> failwith "malformed balance view unexpectedly allowed print");
+   | None -> failwith "malformed balance view unexpectedly allowed print");
   require (F.read bv_path = "malformed row\n")
     "balances-refused-print-does-not-write-config";
   replace_balance_view "bank\tjpy\nwallet\tjpy\n";
   let bal_print = key ~width_of bal_custom_bv (`ASCII 'p') in
-  (match bal_print.overlay with
-   | C.Modal_form f ->
+  (match Balances.active_form bal_print.balances_owner with
+   | Some f ->
        require (Ui_form.id f = "balance_print_preview") "balances-p-opens-print-preview";
        require (Ui_form.title f = "Balances / Print Preview") "balances-print-title"
-   | _ -> failwith "expected print preview modal");
+   | None -> failwith "expected print preview modal");
   let bal_after_print = key ~width_of bal_print `Escape in
-  require (bal_after_print.overlay = C.No_overlay) "balances-print-escapes";
-  let items = X.balance_items bal_with_roles in
+  require (not (Balances.has_overlay bal_after_print.balances_owner)) "balances-print-escapes";
+  let items = balance_items bal_with_roles in
   let acct_idx =
     let rec find i = function
       | [] -> 0

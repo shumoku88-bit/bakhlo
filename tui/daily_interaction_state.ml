@@ -30,6 +30,7 @@ module Att = Attention_data
 module Roles = Locus_roles
 module Stl = Settlement_data
 module BalView = Balance_view_data
+module Balances = Balances_owner
 
 let tr = Ui_text.tr
 let get = A.get
@@ -54,13 +55,6 @@ type style = O.style =
   | Columns of int * style * style
   | Input of int
 
-type balance_picker = {
-  candidates : string list;
-  chosen : string list;
-  cursor : int;
-  raw_before : string option;
-  previous : BalView.t;
-}
 
 type observe_draft = {
   rows : (string * string * Z.t) list;
@@ -76,7 +70,6 @@ type overlay =
   | Jump of string
   | Search of string
   | Modal_form of Form.t
-  | Balance_picker of balance_picker
   | Reversal of Rev.t
   | Date_correction of Date.t
   | Event_merchant of Merchant.t
@@ -152,15 +145,13 @@ type state = {
   pending : A.uncertain_evidence option;
   config_home : string option;
   scroll : int;
-  balance_print_scroll : int;
   paste_blocked : bool;
   attention_path : string;
   attention : (Att.t, string) result;
   settlement_path : string;
   settlements : (Stl.t, string) result;
   settlement_scope : Stl.scope;
-  balance_mode : [ `Accounting | `Current ];
-  balance_review : (balance_picker * BalView.t) option;
+  balances_owner : Balances.t;
   cycle_review : (Form.t * string * string list) option;
   pool_draft : (string * Form.t) option;
   pool_review : (Form.t * string * string list) option;
@@ -205,15 +196,13 @@ let initial ?config_home session =
     pending = None;
     config_home;
     scroll = 0;
-    balance_print_scroll = 0;
     paste_blocked = false;
     attention_path;
     attention;
     settlement_path;
     settlements;
     settlement_scope = Stl.Open_only;
-    balance_mode = `Current;
-    balance_review = None;
+    balances_owner = Balances.create ();
     cycle_review = None;
     pool_draft = None;
     pool_review = None;
