@@ -6,6 +6,15 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Balances medium layout and Print refusal: source only (2026-10-18)
+
+- Baseline `main` was `8bc490f3a43c8c8e8869062c1bcd3779e361d558` (already included the locally qualified Daily Pace history and UI-24-B2 grouped observation work).
+- Direct-to-main source commits `79b0f19` and `9ae06b4` modify only `tui/daily_interaction.ml` and `tui/daily_interaction_checks.ml`. New layout: in Balances, terminals 72..119 cells wide and at least 18 rows tall render the same current list above the Selected Balance details, with native `Panel.frame` and the existing selected row, detail focus and scroll. Width >=120 retains the two-column layout, and very small terminals retain the previous focused-pane fallback.
+- New Current Print guard refuses a malformed, unreadable or otherwise unavailable `balance-view.tsv` instead of offering its error message as a printable balance projection. Accounting Print remains on the existing role-based route; normal Current print has the existing unbounded exact amounts and 200-row preview limit.
+- Added synthetic check cases: at 80x24 the list and Selected Balance appear on distinct rows with the full `+74,500 jpy` amount; a malformed view refuses Print without changing config bytes.
+- **Validation status: source and test assertions were added remotely; no OCaml build, self-check, paired LOAM binary, terminal resize/IME or filesystem-failure test was executed for these new commits in this environment.** Do not promote this to `T/P successful` or human acceptance until a later worker runs `./tools/check`, `./tools/tui --self-check` and the affected synthetic screen matrix. Prior UI-24-B2 evidence remains valid only for the earlier bounded code.
+- LOAM remains production authority; no household files accessed. P7, current role safety, full Accounting/Print parity and cutover remain open.
+
 ## Annual S-expression ledger completion (2026-10-17)
 
 `76cb22a` plus `Annual_book`, `Daily_file` chain verification/rollover, `Annual_backup` and TUI annual lifecycle integration. Local macOS x86_64: Core OCaml 5.3.0, isolated Bonsai 5.2.0+ox, synthetic files only.
