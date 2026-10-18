@@ -130,12 +130,12 @@ def smoke(binary, fixture, width, height, root):
     before = digest(book)
     sess = Session(binary, book, width, height)
     try:
-        sess.wait_for(b"Bakhlo")
+        sess.wait_for(b"bakhlo")
         # Home -> Calendar -> Balances; inspect first account, switch mode,
         # inspect detail, then resize while the same actual PTY stays alive.
         sess.send(b"\r")
         sess.send(b"b")
-        sess.wait_for(b"Balances")
+        sess.wait_for(b"Balances / Current")
         sess.send(b"j")
         sess.send(b"k")
         sess.send(b"v")
