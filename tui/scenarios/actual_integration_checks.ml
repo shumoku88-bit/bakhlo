@@ -133,16 +133,76 @@ let actual_browsing_checks ~width_of ~directory home =
     let same_day_book = get (B.put_entry book ~replace:true
       { (entry 15) with day = (entry 16).day } ~plan:None) in
     let parent = { at_second with session = { at_second.session with book = same_day_book } } in
-    let parent = { parent with workspace = { parent.workspace with
-      selected_day = { parent.workspace.selected_day with query = "stale unmatched search";
-        locus = Some "absent"; day = Some "2020-01-01" } } } in
+    let parent = with_day_browser parent { (day_browser parent) with query = "stale unmatched search";
+        locus = Some "absent"; day = Some "2020-01-01" } in
     let parent = key ~dimensions ~width_of parent (`ASCII 'j') in
     let direct = key ~dimensions ~width_of parent `Enter in
-    require (match C.selected direct with
+    require (match day_selected direct with
       | Some (W.Actual_entry e) -> e.id = "actual-16"
       | _ -> false) "actual-drill-opens-exact-id-despite-same-day-and-old-filters";
     require (F.read path = before) "actual-drill-and-return-do-not-write")
     [ (80,24); (48,14); (32,9) ];
+  (* Selected Day retains the old deferred overlay and raw detail-motion contract. *)
+  let day_book = List.fold_left (fun book n -> get (B.put_entry book ~replace:true
+      { (entry n) with day = (entry 16).day } ~plan:None)) book [15;17] in
+  let day_base = { state with session = { state.session with book = day_book };
+    workspace = { state.workspace with detail = { state.workspace.detail with
+      selected = 7; selected_id = Some (W.Actual_row, "calendar-parent") } } } in
+  let day = C.open_route day_base (W.Selected_day (entry 16).day) in
+  require (day.workspace.detail = day_base.workspace.detail)
+    "selected-day-entry-preserves-calendar-browser";
+  require (day_id day = Some (W.Actual_row, "actual-17")
+           && day_id (key ~width_of day (`Arrow `Down)) = Some (W.Actual_row, "actual-16")
+           && day_id (key ~width_of (key ~width_of day (`ASCII 'J')) (`Arrow `Up)) = day_id day)
+    "selected-day-entry-syncs-before-first-normalized-motion";
+  let stale = with_day_browser day_base { (day_browser day) with selected = 99;
+    selected_id = Some (W.Actual_row, "missing") } in
+  let clamped = C.open_route stale (W.Selected_day (entry 16).day) in
+  require ((Day.browser clamped.screens.day).selected = 2
+           && day_id clamped = Some (W.Actual_row, "actual-15")
+           && day_id (key ~width_of clamped (`Arrow `Up)) = Some (W.Actual_row, "actual-16"))
+    "selected-day-entry-persists-clamped-selection-before-motion";
+  let detail = key ~width_of day (`ASCII 'I') in
+  let ended = key ~width_of detail `End in
+  require (day_detail ended && day_id ended = Some (W.Actual_row, "actual-15")
+           && day_scroll ended = max_int / 4
+           && day_scroll (key ~width_of ended (`ASCII 'K')) = max_int / 4 - 1)
+    "selected-day-detail-end-reselects-and-retains-unclamped-scroll";
+  let first = key ~width_of ended `Home in
+  require (day_detail first && day_id first = Some (W.Actual_row, "actual-17") && day_scroll first = 0)
+    "selected-day-detail-home-reselects-first";
+  List.iter (fun dimensions ->
+    let paged = key ~dimensions ~width_of first (`Page `Down) in
+    require (day_scroll paged = max 1 (snd dimensions - 8)
+             && day_id paged = day_id first && day_detail paged)
+      "selected-day-detail-page-uses-screen-height-minus-eight") [(32,9);(48,14);(80,24);(120,36)];
+  let retained : Record_browser.t = { query = "purchase"; locus = Some "wallet";
+    day = Some (entry 16).day; order = W.Oldest; selected = 1;
+    selected_id = Some (W.Actual_row, "actual-16") } in
+  let retained_day = with_day_browser day retained in
+  let revisited = C.open_route (C.open_route retained_day W.Home) (W.Selected_day (entry 16).day) in
+  require (Day.browser revisited.screens.day = retained && not (day_detail revisited)
+           && day_scroll revisited = 0)
+    "selected-day-revisit-retains-filter-order-and-identity";
+  let searching = key ~width_of { day with message = "search sentinel";
+      record = closed.record } (`ASCII '/') |> fun s -> text ~width_of s "purchase 16" in
+  require ((day_browser searching).query = "" && List.length (day_rows searching) = 3
+           && Day.modal searching.screens.day)
+    "selected-day-search-defers-query-until-enter";
+  List.iter (fun c ->
+    let swallowed = match H.handle ~width_of searching (`Key (`ASCII c, [`Ctrl])) with
+      | Some state -> state | None -> raise (F.Refused "selected-day-search-ran-quit") in
+    require (swallowed.screens.day = searching.screens.day && swallowed.message = searching.message
+             && swallowed.overlay = C.No_overlay && swallowed.record = searching.record
+             && swallowed.session.bytes = searching.session.bytes && F.read path = before)
+      "selected-day-search-swallows-global-quit-discard-reload") ['q';'Q';'n';'N';'r';'R'];
+  let applied = key ~width_of searching `Enter in
+  require ((day_browser applied).query = "purchase 16" && List.length (day_rows applied) = 1
+           && day_id applied = Some (W.Actual_row, "actual-16") && not (Day.modal applied.screens.day))
+    "selected-day-search-enter-applies-retained-query";
+  let cleared_day = key ~width_of (key ~width_of applied (`ASCII '/')) `Escape in
+  require ((day_browser cleared_day).query = "" && List.length (day_rows cleared_day) = 3
+           && not (Day.modal cleared_day.screens.day)) "selected-day-search-escape-clears";
   let day_path = directory ^ "/selected-day-record.sexp" in
   F.write_new day_path (B.to_string book);
   let day_parent = { drilled with session = F.load day_path;
@@ -194,7 +254,7 @@ let actual_browsing_checks ~width_of ~directory home =
   require ((actual_row returned) = 1) "actual-return-preserves-selected-row";
   require (actual_detail returned && (actual_scroll returned) = (actual_scroll at_details))
     "actual-return-restores-detail-focus-and-scroll";
-  require (returned.workspace.selected_day = drilled.workspace.selected_day)
+  require (Day.browser returned.screens.day = Day.browser drilled.screens.day)
     "actual-return-does-not-overwrite-selected-day-browser";
   let corrected_book = get (B.put_entry book ~replace:true
     { (entry 16) with day = "2026-09-01" } ~plan:None) in
@@ -520,7 +580,7 @@ let date_correction_checks ~width_of ~directory home =
     |> fun s -> key ~width_of s (`ASCII 'i') |> fun s -> key ~width_of s `Enter in
   let moved = key ~width_of drilled (`ASCII 'd') |> fun s -> date s "2026-10-12"
     |> fun s -> key ~width_of s `Enter |> fun s -> key ~width_of s `Enter in
-  require (moved.workspace.route = W.Selected_day target.day && W.rows ~book:moved.session.book moved.workspace = [])
+  require (moved.workspace.route = W.Selected_day target.day && day_rows moved = [])
     "date-moved-entry-leaves-old-selected-day";
   let parent = key ~width_of moved (`ASCII 'q') in
   require (parent.workspace.route = W.Actual && actual_detail parent

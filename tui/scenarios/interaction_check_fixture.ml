@@ -16,6 +16,7 @@ module Act = Actual_workspace
 module Cancel = Scheduled_cancellation_session
 module Months = Scheduled_months
 module Plans = Scheduled_screen
+module Day = Selected_day_screen
 module Cont = Scheduled_continuation_session
 module Sch = Scheduled_session
 module Bulk = Scheduled_bulk_session
@@ -144,11 +145,23 @@ let plan_window ~dimensions ~width_of (state : C.state) =
 let with_plan_query (state : C.state) query =
   { state with screens = { state.screens with scheduled = Plans.with_query state.session.book state.screens.scheduled query } }
 
+(* Selected Day, read through its owner. *)
+let days (state : C.state) = Day.synced state.session.book state.screens.day
+let day_rows (state : C.state) = Day.rows state.session.book state.screens.day
+let day_browser state = Day.browser (days state)
+let day_id state = (day_browser state).selected_id
+let day_detail state = Day.detail_focused (days state)
+let day_scroll state = Day.scroll (days state)
+let day_selected (state : C.state) = Day.selected_row state.session.book state.screens.day
+let with_day_browser (state : C.state) browser =
+  { state with screens = { state.screens with day = Day.with_browser state.screens.day browser } }
+
 (* The Shell's record-action openers, targeted at what the route owner selects. *)
 let selected_target (state : C.state) =
   match state.workspace.route with
   | W.Actual -> Option.map (fun e -> W.Actual_entry e) (Act.selected_entry ~book:state.session.book state.screens.actual)
   | W.Scheduled -> Option.map (fun p -> W.Scheduled_plan p) (Plans.selected_plan state.session.book state.screens.scheduled)
+  | W.Selected_day _ -> day_selected state
   | _ -> C.selected state
 let pay_selected s = C.pay_target s (selected_target s)
 let batch_plan_selected s = C.batch_plan_target s (selected_target s)

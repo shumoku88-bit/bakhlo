@@ -296,3 +296,14 @@ Record外のbracketed pasteからHome／Commandsの操作を実行しないこ�
 レビュー: 固定 route は従来と同じ等値判定、floating editor は常に非所有。
 既存 enter は追加の route 引数を無視して元の関数へ委譲する。次は Selected Day の owner 移行。
 ローカル検査は合格。matching SHA のCI・実PTY・IME・P7の追加資格はこの準備変更では未確認。
+
+### Selected Day owner スライス
+
+- [x] 状態・検索・入力・描画を `screens/day` へ忠実移植し、中央の browser mirror を削除する。
+- [x] Registry の modal reload 方針を明示し、検索中の Ctrl-Q/N/R の非実行を保つ。
+- [x] fixture と既存assertionを owner 問合せへ移し、検索・Detail Home/End・再訪保持の回帰条件を追加する。
+- [x] TUI 34 PASS完全一致・ラベル消失なし・arch・Coreと差分レビューを実施し証跡を更新する。
+
+レビュー: 同期対象を Day owner へ移し、Calendar browser は保持する。入場直後の選択identity・
+範囲補正と最初の移動を回帰確認した。従来の検索遅延・Ctrlキー消費・Detailでの選択変更／
+未clamp offset・再訪filter/order保持を維持。次は Calendar/Home。Day実装SHAのCIは未実行。

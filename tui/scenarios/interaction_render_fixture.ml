@@ -77,7 +77,7 @@ let render_cases state =
   let detail route =
     let view = C.open_route rich route in
     match route with
-    | W.Actual | W.Scheduled | W.Income_expense | W.Transactions_flow | W.Stock_flow ->
+    | W.Selected_day _ | W.Actual | W.Scheduled | W.Income_expense | W.Transactions_flow | W.Stock_flow ->
         key view (`ASCII 'i')  (* the owner's own detail key *)
     | _ -> { view with workspace = { view.workspace with pane = W.Detail } }
   in

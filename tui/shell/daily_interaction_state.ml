@@ -136,8 +136,13 @@ let mode state = match state.record with None -> A.New | Some record -> S.mode r
 
 let sync state =
   let book = state.session.book in
-  let workspace = W.sync ~book state.workspace in
-  { state with workspace; scroll = 0 }
+  match state.workspace.route with
+  | W.Selected_day _ ->
+      { state with screens = { state.screens with
+          day = Selected_day_screen.synced book state.screens.day }; scroll = 0 }
+  | _ ->
+      let workspace = W.sync ~book state.workspace in
+      { state with workspace; scroll = 0 }
 
 let finish_publication state session message =
   let next = sync { state with session; record = None; record_visible = false;
@@ -345,7 +350,7 @@ let open_route state route =
    name their target in a Record_action request. *)
 let selected state =
   match state.workspace.route with
-  | W.Actual | W.Scheduled -> None
+  | W.Actual | W.Scheduled | W.Selected_day _ -> None
   | _ -> W.selected_row ~book:state.session.book state.workspace
 
 let edit_target state target =

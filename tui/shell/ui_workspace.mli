@@ -21,7 +21,6 @@ type t = {
   route : route;
   calendar : Daily_calendar.t;
   pane : pane;
-  selected_day : browser;
   detail : browser;
   measure : string;
 }

@@ -109,28 +109,6 @@ let workspace_rows ?route_view ~width_of ~width ~height state =
     | W.Settlements -> "Settlements / Reimbursements"
   in
   let pad rows = rows @ List.init (max 0 (height - List.length rows)) (fun _ -> (Plain, "")) in
-  let split_pane ?left_heading ~left_focused ~left_title ~left_scroll ~left_selected ~left_rows
-      ~right_focused ~right_title ~right_scroll ~right_selected ~right_rows () =
-    if width >= 80 then
-      let left_width, right_width = browser_pane_widths width in
-      let left_panel =
-        draw_frame ?heading:left_heading ~width_of ~width:left_width ~height ~focused:left_focused
-          ~title:left_title ~scroll:left_scroll ~selected:left_selected left_rows
-      in
-      let right_panel =
-        draw_frame ~width_of ~width:right_width ~height ~focused:right_focused
-          ~title:right_title ~scroll:right_scroll ~selected:right_selected right_rows
-      in
-      pad (List.map2 (fun (style_l, text_l) (style_r, text_r) ->
-          (Columns (left_width, style_l, style_r), text_l ^ " " ^ text_r)) left_panel right_panel)
-    else
-      if right_focused then
-        draw_frame ~width_of ~width ~height ~focused:true
-          ~title:right_title ~scroll:right_scroll ~selected:right_selected right_rows
-      else
-        draw_frame ~width_of ~width ~height ~focused:true
-          ?heading:left_heading ~title:left_title ~scroll:left_scroll ~selected:left_selected left_rows
-  in
   if annual_needs_history workspace.route && annual_unavailable state <> None then
     draw_frame ~width_of ~width ~height ~focused:true ~title:(title ^ " / Unavailable")
       ~scroll:0 ~selected:None
@@ -206,38 +184,9 @@ let workspace_rows ?route_view ~width_of ~width ~height state =
         @ detail_frame ~width ~height:(height - calendar_height - 1)
       else if calendar_focused then calendar_frame ~width ~height
       else detail_frame ~width ~height
-  else if Option.is_some route_view then
-    Lazy.force (Option.get route_view).Screen.rows
-  else
-    let is_detail = workspace.pane = W.Detail in
-    let right_title =
-      match workspace.route with
-      | _ -> "Selected Record"
-    in
-
-    let left_width, right_width = browser_pane_widths width in
-    let wrapped_detail = browser_detail_rows ~width_of ~width:right_width state in
-    let list_title =
-      match workspace.route with
-      | W.Selected_day day -> Printf.sprintf "Day %s (%d)" day (List.length rows)
-      | _ -> title
-    in
-    let left_rows =
-      if rows = [] then [ tr "No records in this view." ]
-      else match workspace.route with
-      | W.Selected_day _ ->
-          let _, ts = actual_table ~width_of ~width:left_width book rows in
-          ts
-      | _ -> titles
-    in
-    split_pane
-      ~left_focused:(not is_detail) ~left_title:list_title
-      ~left_scroll:(if is_detail then 0 else state.scroll)
-      ~left_selected:(if titles = [] then None else Some (W.browser workspace).selected)
-      ~left_rows
-      ~right_focused:is_detail ~right_title
-      ~right_scroll:(if is_detail then state.scroll else 0)
-      ~right_selected:None ~right_rows:wrapped_detail ()
+  else match route_view with
+  | Some view -> Lazy.force view.Screen.rows
+  | None -> []
 
 let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   match modal_screen_view ~dimensions ~width_of state with
@@ -289,13 +238,6 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
       [
         "j/k scroll  Page Up/Down page  Home/End range  h/l/Tab pane";
         "q/Esc list  c Correct  x Reverse  n Record  / search  Ctrl-r reload";
-      ]
-  | W.Selected_day _, W.Calendar ->
-      [
-        "j/k select  Enter/i/Tab Detail  c Correct  d Date  x Reverse  m Merchant  e Extend  b Batch  g Loci  r Record";
-        (match state.drill_parent with
-         | Some W.Actual -> "Space Commands  q/Esc Actual  Ctrl-r reload"
-         | _ -> "Space Commands  q/Esc Home  Ctrl-r reload");
       ]
   | _, _ ->
       [

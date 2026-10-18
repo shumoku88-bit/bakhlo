@@ -24,7 +24,6 @@ type t = {
   route : route;
   calendar : Daily_calendar.t;
   pane : pane;
-  selected_day : browser;
   detail : browser;
   measure : string;
 }
@@ -35,7 +34,7 @@ let create ~today ~measure =
   match Daily_calendar.create today with
   | Error _ as error -> error
   | Ok calendar ->
-      Ok { route = Home; calendar; pane = Calendar; selected_day = empty; detail = empty; measure }
+      Ok { route = Home; calendar; pane = Calendar; detail = empty; measure }
 
 let identity = RB.identity
 let date = RB.date
@@ -44,14 +43,12 @@ let all_rows = RB.all_rows
 
 let browser state =
   match state.route with
-  | Selected_day _ -> state.selected_day
-  | Home | Calendar | Actual | Scheduled | Balances | Daily_pace | Attention | Loci | Settlements
+  | Home | Calendar | Selected_day _ | Actual | Scheduled | Balances | Daily_pace | Attention | Loci | Settlements
   | Income_expense | Transactions_flow | Stock_flow -> state.detail
 
 let update_browser state browser =
   match state.route with
-  | Selected_day _ -> { state with selected_day = browser }
-  | Home | Calendar | Actual | Scheduled | Balances | Daily_pace | Attention | Loci | Settlements
+  | Home | Calendar | Selected_day _ | Actual | Scheduled | Balances | Daily_pace | Attention | Loci | Settlements
   | Income_expense | Transactions_flow | Stock_flow -> { state with detail = browser }
 
 let sorted = RB.sorted
@@ -65,9 +62,8 @@ let rows ~book state =
   let browser = browser state in
   let candidates =
     match state.route with
-    | Selected_day day -> all_rows book |> List.filter (fun row -> date row = day)
     | Calendar -> home_rows ~book state
-    | Home | Actual | Scheduled | Balances | Daily_pace | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow -> []
+    | Home | Selected_day _ | Actual | Scheduled | Balances | Daily_pace | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow -> []
   in
   candidates |> List.filter (row_matches ~book browser) |> sorted browser.order
 

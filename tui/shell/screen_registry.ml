@@ -17,6 +17,7 @@ type t = {
   editors : Record_editors.t;
   actual : Actual_screen.t;
   scheduled : Scheduled_screen.t;
+  day : Selected_day_screen.t;
 }
 
 let create ~scheduled_months =
@@ -34,6 +35,7 @@ let create ~scheduled_months =
     editors = Record_editors.create ();
     actual = Actual_screen.create ();
     scheduled = Scheduled_screen.create scheduled_months;
+    day = Selected_day_screen.create ();
   }
 
 type 'a owner = {
@@ -43,6 +45,7 @@ type 'a owner = {
   set : t -> 'a -> t;
   enter : W.route -> focus_day:string -> 'a -> 'a;  (* the Shell's focus day *)
   modal : 'a -> bool;
+  reload_in_modal : bool;  (* Editors allow Ctrl-R; legacy text overlays consume it. *)
   handle : Screen.env -> Screen.geometry -> 'a -> Ui_input.input -> 'a * Screen.request;
   view : Screen.env -> Screen.geometry -> 'a -> Screen.view;
   saved : Screen.env -> Screen.geometry -> (unit, string) result -> 'a -> 'a * Screen.request;
@@ -67,6 +70,7 @@ let all =
         set = (fun t pace -> { t with pace });
         enter = (fun _ ~focus_day:_ t -> Daily_pace_screen.enter t);
         modal = Daily_pace_screen.modal;
+        reload_in_modal = true;
         handle = Daily_pace_screen.handle;
         view = Daily_pace_screen.view;
         saved = Daily_pace_screen.saved;
@@ -82,6 +86,7 @@ let all =
         set = (fun t balances -> { t with balances });
         enter = (fun _ ~focus_day:_ t -> t);
         modal = Balances_screen.modal;
+        reload_in_modal = true;
         handle = Balances_screen.handle;
         view = Balances_screen.view;
         saved = Balances_screen.saved;
@@ -97,6 +102,7 @@ let all =
         set = (fun t income_expense -> { t with income_expense });
         enter = (fun _ ~focus_day:_ t -> Income_expense_screen.enter t);
         modal = Income_expense_screen.modal;
+        reload_in_modal = true;
         handle = Income_expense_screen.handle;
         view = Income_expense_screen.view;
         saved = Income_expense_screen.saved;
@@ -112,6 +118,7 @@ let all =
         set = (fun t transactions_flow -> { t with transactions_flow });
         enter = (fun _ ~focus_day:_ t -> Transactions_flow_screen.enter t);
         modal = Transactions_flow_screen.modal;
+        reload_in_modal = true;
         handle = Transactions_flow_screen.handle;
         view = Transactions_flow_screen.view;
         saved = Transactions_flow_screen.saved;
@@ -127,6 +134,7 @@ let all =
         set = (fun t stock_flow -> { t with stock_flow });
         enter = (fun _ ~focus_day:_ t -> Stock_flow_screen.enter t);
         modal = Stock_flow_screen.modal;
+        reload_in_modal = true;
         handle = Stock_flow_screen.handle;
         view = Stock_flow_screen.view;
         saved = Stock_flow_screen.saved;
@@ -142,6 +150,7 @@ let all =
         set = (fun t attention -> { t with attention });
         enter = (fun _ ~focus_day:_ t -> Attention_screen.enter t);
         modal = Attention_screen.modal;
+        reload_in_modal = true;
         handle = Attention_screen.handle;
         view = Attention_screen.view;
         saved = Attention_screen.saved;
@@ -157,6 +166,7 @@ let all =
         set = (fun t settlements -> { t with settlements });
         enter = (fun _ ~focus_day:_ t -> Settlements_screen.enter t);
         modal = Settlements_screen.modal;
+        reload_in_modal = true;
         handle = Settlements_screen.handle;
         view = Settlements_screen.view;
         saved = Settlements_screen.saved;
@@ -172,6 +182,7 @@ let all =
         set = (fun t loci -> { t with loci });
         enter = (fun _ ~focus_day:_ t -> Loci_screen.enter t);
         modal = Loci_screen.modal;
+        reload_in_modal = true;
         handle = Loci_screen.handle;
         view = Loci_screen.view;
         saved = Loci_screen.saved;
@@ -187,6 +198,7 @@ let all =
         set = (fun t observe -> { t with observe });
         enter = (fun _ ~focus_day:_ t -> t);
         modal = Observe_screen.modal;
+        reload_in_modal = true;
         handle = Observe_screen.handle;
         view = Observe_screen.view;
         saved = no_save;
@@ -202,6 +214,7 @@ let all =
         set = (fun t exchange -> { t with exchange });
         enter = (fun _ ~focus_day:_ t -> t);
         modal = Exchange_screen.modal;
+        reload_in_modal = true;
         handle = Exchange_screen.handle;
         view = Exchange_screen.view;
         saved = no_save;
@@ -217,6 +230,7 @@ let all =
         set = (fun t editors -> { t with editors });
         enter = (fun _ ~focus_day:_ t -> t);
         modal = Record_editors.modal;
+        reload_in_modal = true;
         handle = Record_editors.handle;
         view = Record_editors.view;
         saved = Record_editors.saved;
@@ -232,6 +246,7 @@ let all =
         set = (fun t actual -> { t with actual });
         enter = (fun _ -> Actual_screen.enter);
         modal = Actual_screen.modal;
+        reload_in_modal = true;
         handle = Actual_screen.handle;
         view = Actual_screen.view;
         saved = Actual_screen.saved;
@@ -247,6 +262,7 @@ let all =
         set = (fun t scheduled -> { t with scheduled });
         enter = (fun _ -> Scheduled_screen.enter);
         modal = Scheduled_screen.modal;
+        reload_in_modal = true;
         handle = Scheduled_screen.handle;
         view = Scheduled_screen.view;
         saved = Scheduled_screen.saved;
@@ -254,10 +270,27 @@ let all =
         reloaded = Scheduled_screen.reloaded;
         book_changed = Scheduled_screen.book_changed;
       };
+    Owner
+      {
+        owns = (function W.Selected_day _ -> true | _ -> false);
+        config_files = Selected_day_screen.config_files;
+        get = (fun t -> t.day);
+        set = (fun t day -> { t with day });
+        enter = Selected_day_screen.enter;
+        modal = Selected_day_screen.modal;
+        reload_in_modal = false;
+        handle = Selected_day_screen.handle;
+        view = Selected_day_screen.view;
+        saved = Selected_day_screen.saved;
+        published = Screen.no_publication;
+        reloaded = Selected_day_screen.reloaded;
+        book_changed = Selected_day_screen.book_changed;
+      };
   ]
 
 let for_route route = List.find_opt (fun (Owner o) -> o.owns route) all
 let modal t = List.find_opt (fun (Owner o) -> o.modal (o.get t)) all
+let modal_allows_reload t = match modal t with Some (Owner o) -> o.reload_in_modal | None -> false
 
 let enter route ~focus_day t =
   match for_route route with Some (Owner o) -> o.set t (o.enter route ~focus_day (o.get t)) | None -> t

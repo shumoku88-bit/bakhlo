@@ -38,7 +38,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                    (A.commit_payload ~session:state.session ~base_bytes payload)))
   else if Option.is_some (Screen_registry.modal state.screens) then
     match input with
-    | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
+    | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) when Screen_registry.modal_allows_reload state.screens -> Some (reload state)
     | _ -> modal_screen_input ~dimensions ~width_of state input
   else
     match state.overlay with
@@ -166,8 +166,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some (open_route state W.Calendar)
         | Some (`ASCII 'g', []) when state.workspace.route = W.Calendar ->
             Some (open_route state W.Home)
-        | Some (`ASCII 'g', []) when (match state.workspace.route with W.Selected_day _ -> true | _ -> false) ->
-            Some (open_route state W.Loci)
         | Some ((`Escape | `ASCII 'q'), []) ->
             if state.workspace.route = W.Calendar then
               if state.workspace.pane = W.Detail then
@@ -193,9 +191,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                      })
               else Some (open_route state W.Home)
             else Some (back state)
-        | Some (`ASCII 'b', []) when (match state.workspace.route with
-            | W.Selected_day _ -> true | _ -> false) ->
-            Some (batch_plan_selected state)
         | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
             Some
               {
@@ -225,10 +220,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some (open_route state W.Scheduled)
         | Some (`ASCII 'b', []) when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
             Some (open_route state W.Balances)
-        | Some (`ASCII 'd', []) when (match state.workspace.route with W.Selected_day _ -> true | _ -> false) ->
-            Some (correct_date_selected state)
-        | Some (`ASCII 'm', []) when (match state.workspace.route with W.Selected_day _ -> true | _ -> false) ->
-            Some (classify_merchant_selected state)
         | Some (`ASCII 'd', []) when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
             Some (open_route state W.Daily_pace)
         | Some (`ASCII 'i', []) when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->

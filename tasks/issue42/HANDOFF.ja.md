@@ -13,9 +13,9 @@ fail-closed、single writer、atomic publication、Record Preview 全文、狭�
 migration/cutover/権限変更なし。新依存なし。Python 禁止（OCaml/shell/Expect）。
 P7/IME/人手受け入れを主張しない。
 
-## 1. 現状（HEAD `a1885fa` 時点）
+## 1. 現状（2026-10-19 Selected Day owner 移行後）
 
-完了してブランチに push 済み:
+完了した移行（push/CI の資格は下記と `docs/VERIFICATION.md` を参照）:
 
 | 画面 | 所有者 | 場所 |
 |---|---|---|
@@ -27,6 +27,7 @@ P7/IME/人手受け入れを主張しない。
 | Record 系 editor session 8種 | `Record_editors` | `tui/screens/editors` |
 | Actual | `Actual_screen`(+`Actual_workspace`) | `tui/screens/actual` |
 | Scheduled List/Months | `Scheduled_screen`(+`Scheduled_months`) | `tui/screens/scheduled` |
+| Selected Day | `Selected_day_screen` | `tui/screens/day` |
 
 共通部品: `tui/book/record_browser.ml`（行identity・filter・順序・identity追従選択、純粋）、
 `tui/book/record_lines.ml`（Actual/Scheduled 一行表示）。
@@ -34,15 +35,19 @@ P7/IME/人手受け入れを主張しない。
 Set_calendar / Open_observe / New_plan / Record_action{action;target} / New_record /
 Drill{day;entry} / Publish / Stop_writes / Save_*` 等、`env.calendar` は Shell の焦点日。
 
-中央に**残っているもの**（`tui/shell/daily_interaction*.ml` 合計 約1970行 + `ui_workspace.ml`）:
-- Selected Day（`W.Selected_day day`）、Calendar（Day/Month/Year + Detail）、Home の入力・描画
+中央に**残っているもの**（`tui/shell/daily_interaction*.ml` 合計1804行 + `ui_workspace.ml`）:
+- Calendar（Day/Month/Year + Detail）、Home の入力・描画
 - Commands/Themes/Jump/Search オーバーレイ、discard 確認、annual rollover、publication executor、Record 保持
-- `C.selected` は Selected Day / Calendar のみに応答（owner route は `None`）
+- `C.selected` は Calendar のみに応答（Selected Day を含む owner route は `None`）
+- Selected Day は browser mirror を削除済み。検索は owner 内で Enter/Esc まで遅延し、
+  Registry の `reload_in_modal = false` で従来どおり Ctrl-Q/N/R を消費する。
 
 CI: `gh workflow run tui.yml|core.yml --ref reconstruct/issue-42` で手動起動できる
 （branch push では自動起動しない）。`a1885fa` で run 39149879420 (TUI) / 39149881823 (Core)
 を実行し、**両方 success**（matching SHA `a1885fa`、PTY 4寸法を含む TUI workflow）。
 以降のコミットでも同様に手動起動して SHA 一致の結果を確認すること。
+Registry 準備変更 `77bc95f` も Core run 39150877353 / TUI run 39150918791 が
+matching SHA で両方 success。Selected Day 移行後のCI資格とは別。
 
 ## 2. 検証手順（各スライスで毎回）
 
@@ -64,7 +69,7 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
 
 ## 3. 次の作業（順番に、1スライス=1コミット）
 
-### 3.1 Registry を route 述語化（Selected Day の前提）
+### 3.1 Registry を route 述語化（完了: `77bc95f`）
 `tui/shell/screen_registry.ml`:
 - `route : W.route option` → `owns : W.route -> bool`（例 `owns = (( = ) W.Actual)`、editor は `fun _ -> false`）
 - `enter : focus_day:string -> 'a -> 'a` → `enter : W.route -> focus_day:string -> 'a -> 'a`
@@ -72,7 +77,7 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
 - `for_route route = List.find_opt (fun (Owner o) -> o.owns route) all`、`enter route` は route を渡す。
 - 挙動変化なし → 検証してコミット。
 
-### 3.2 Selected Day を `tui/screens/day/selected_day_screen.ml(.mli)` へ
+### 3.2 Selected Day を `tui/screens/day/selected_day_screen.ml(.mli)` へ（完了; 以下は移植契約の参照）
 状態: `{ day; browser : Record_browser.t; pane : List|Detail; scroll; search : string option; parent : string option }`
 - `enter (Selected_day d) ~focus_day` → `day=d; pane=List; scroll=0; search=None; parent=None`。
   **browser（query/locus/day/order）は訪問をまたいで保持**（旧 `workspace.selected_day` と同じ）。

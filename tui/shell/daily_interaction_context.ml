@@ -321,10 +321,11 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
   | Screen.Drill { day; entry } ->
       let parent = state.workspace.route in
       let drilled = open_route state (W.Selected_day day) in
-      let browser = { drilled.workspace.selected_day with
-        selected_id = Some (W.Actual_row, entry); query = ""; locus = None; day = None } in
-      let drilled = sync { drilled with workspace = W.update_browser drilled.workspace browser } in
-      { drilled with drill_parent = Some parent; drill_book = Some state.session.book }
+      let day = Selected_day_screen.drill ~entry
+          ~parent:(match parent with W.Actual -> "Actual" | _ -> "") drilled.screens.day
+          |> Selected_day_screen.synced state.session.book in
+      { drilled with screens = { drilled.screens with day };
+        drill_parent = Some parent; drill_book = Some state.session.book }
   | Screen.Stop_writes why ->
       { state with blocked = true; message = Option.value ~default:state.message why }
   | Screen.Publish publication ->
@@ -495,13 +496,6 @@ let open_command state = function
 let browser_pane_widths width =
   if width < 80 then (width, width)
   else let left = max 36 (min 58 (width * 52 / 100)) in (left, width - left - 1)
-
-let browser_detail_rows ~width_of ~width state =
-  let lines = match selected state with
-    | Some (W.Actual_entry entry) -> O.entry_lines state.session.book entry
-    | Some (W.Scheduled_plan plan) -> O.plan_lines state.session.book plan
-    | None -> [ tr "No selected record." ] in
-  List.concat_map (O.wrap_text ~width_of (max 1 (width - 6))) lines
 
 let print_motion = function
   | `Key ((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)), [])

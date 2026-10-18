@@ -59,9 +59,13 @@ its global keys), `Message`, `Home`, `Commands`, `Reload`, `Cycle_measure`,
 Owners never receive Shell state, never write and never see another screen.
 
 Shell input order: paste guard, retained Record, a screen with an open editor
-(takes everything but Ctrl-R), Shell overlays, Ctrl-Q/R/N, the route's owner,
+(takes everything but Ctrl-R when its registry policy permits reload), Shell overlays, Ctrl-Q/R/N, the route's owner,
 then global keys. The view composes Shell header/feedback/footer around the
 route owner's rows and draws the modal owner's overlay on top.
+Selected Day owns its retained browser, panes, viewport and deferred search.
+Its search preserves the legacy text-overlay policy: Ctrl-Q/N/R are consumed,
+and the browser query changes only on Enter or Escape. Calendar's browser is
+unchanged while Selected Day synchronizes its own selection.
 
 ## Enforcement (`tools/arch`, run by Core `dune runtest`)
 
