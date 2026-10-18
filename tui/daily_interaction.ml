@@ -1398,6 +1398,25 @@ let balance_lines ?(width_of = String.length) ?(width = max_int) state =
   List.map (O.balance_item_line ~width_of ~width ~book:state.session.book) items
 
 let balance_print_preview state =
+  let view_error =
+    match state.balance_mode with
+    | `Accounting -> None
+    | `Current ->
+        (match balance_view_coords state with
+         | Error why -> Some why
+         | Ok _ -> None)
+  in
+  match view_error with
+  | Some why ->
+      Form.create ~id:"balance_print_refused" ~title:(tr "Print Refused")
+        ~summary:[
+          tr "Print refused: visible-account configuration is unavailable.";
+          why;
+          tr "Review balance-view.tsv before printing.";
+        ]
+        ~fields:[ Form.action_buttons ~confirm:(tr "OK") ~cancel:(tr "Close") () ]
+        ()
+  | None ->
   let lines = balance_lines state in
   if List.length lines > 200 then
     Form.create ~id:"balance_print_refused" ~title:(tr "Print Refused")
@@ -3569,23 +3588,45 @@ let workspace_rows ~width_of ~width ~height state =
       else detail_frame ~width ~height
   else if workspace.route = W.Balances then
     let items = balance_items state in
-    let list_width = if width >= 80 then let left, _ = browser_pane_widths width in left else width in
+    (* A medium terminal needs room for complete quantities. Preserve the
+       existing split view on wide screens and the focus-only view on tiny ones. *)
+    let stacked = width >= 72 && width < 120 && height >= 18 in
+    let list_width =
+      if stacked then width
+      else if width >= 80 then let left, _ = browser_pane_widths width in left
+      else width
+    in
     let lines = balance_lines ~width_of ~width:(max 0 (list_width - 6)) state in
     let detail =
       match List.nth_opt items workspace.balance_selected with
       | None -> [ tr "No supplied Locus / Measure coordinates." ]
       | Some item -> O.balance_item_detail ~book item
     in
-    let right_width = if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1 else width in
+    let right_width =
+      if stacked then width
+      else if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1
+      else width
+    in
     let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
     let is_detail = workspace.pane = W.Detail in
-    split_pane
-      ?left_heading:(if lines = [] then Some "No balances are selected." else None)
-      ~left_focused:(not is_detail) ~left_title:title ~left_scroll:0
-      ~left_selected:(if lines = [] then None else Some workspace.balance_selected)
-      ~left_rows:lines
-      ~right_focused:is_detail ~right_title:"Selected Balance"
-      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
+    if stacked then
+      let list_height = height / 2 in
+      draw_frame ~width_of ~width ~height:list_height
+        ~focused:(not is_detail) ~title ~scroll:0
+        ~selected:(if lines = [] then None else Some workspace.balance_selected)
+        ?heading:(if lines = [] then Some "No balances are selected." else None)
+        lines
+      @ draw_frame ~width_of ~width ~height:(height - list_height)
+          ~focused:is_detail ~title:"Selected Balance" ~scroll:state.scroll
+          ~selected:None wrapped_detail
+    else
+      split_pane
+        ?left_heading:(if lines = [] then Some "No balances are selected." else None)
+        ~left_focused:(not is_detail) ~left_title:title ~left_scroll:0
+        ~left_selected:(if lines = [] then None else Some workspace.balance_selected)
+        ~left_rows:lines
+        ~right_focused:is_detail ~right_title:"Selected Balance"
+        ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Daily_pace then
     let measure = workspace.measure in
     let trend_res =
