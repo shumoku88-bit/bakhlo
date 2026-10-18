@@ -327,43 +327,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                     message = (if state.blocked then state.message
                       else tr "Enlarge the terminal to confirm draft discard.") }
                 else Some (discard { state with overlay = No_overlay })
-            | "add_attention" ->
-                let context = Option.value ~default:"" (Form.get_text submitted "context") in
-                let due_kind_idx = Option.value ~default:0 (Form.get_choice submitted "due_kind") in
-                let due_date = Option.value ~default:"" (Form.get_text submitted "due_date") in
-                if String.trim context = "" then
-                  Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter a short household matter description.")) }
-                else
-                  let due_res =
-                    match due_kind_idx with
-                    | 0 -> Ok Att.No_due_date
-                    | 1 -> Ok Att.Due_undetermined
-                    | 2 ->
-                        (match A.normalize_date due_date with
-                        | Error _ -> Error (tr "Invalid date (YYYY-MM-DD).")
-                        | Ok canon_day ->
-                            if not (A.is_valid_canonical_date canon_day) then
-                              Error (tr "Enter a real calendar date in YYYY-MM-DD form.")
-                            else Ok (Att.Due_on canon_day))
-                    | _ -> Ok Att.No_due_date
-                  in
-                  (match due_res with
-                  | Error notice ->
-                      Some { state with overlay = Modal_form (Form.set_notice submitted notice) }
-                  | Ok due ->
-                      Some (commit_attention state submitted
-                        (fun t -> Att.add_item t ~id:(Att.next_id t) ~context ~due)
-                        "Attention added and read back."))
-            | "resolve_attention" ->
-                let item_id = Form.payload submitted in
-                Some (commit_attention state submitted
-                  (fun t -> Att.close_item t ~id:item_id ~known_on:(F.today ()) ~kind:Att.Resolved)
-                  (Printf.sprintf "Resolved %s." item_id))
-            | "drop_attention" ->
-                let item_id = Form.payload submitted in
-                Some (commit_attention state submitted
-                  (fun t -> Att.close_item t ~id:item_id ~known_on:(F.today ()) ~kind:Att.Dropped)
-                  (Printf.sprintf "Dropped %s." item_id))
             | "admit_locus" ->
                 let token = Option.value ~default:"" (Form.get_text submitted "token") |> String.trim in
                 let role_idx = Option.value ~default:0 (Form.get_choice submitted "role") in
@@ -740,10 +703,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some ((`Escape | `ASCII 'q'), []) ->
             if state.workspace.route = W.Loci || state.workspace.route = W.Settlements then
               Some (open_route state W.Home)
-            else if state.workspace.route = W.Attention then
-              if state.workspace.pane = W.Detail then
-                Some { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
-              else Some (open_route state W.Home)
             else if state.workspace.route = W.Calendar then
               if state.workspace.pane = W.Detail then
                 Some { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
@@ -768,8 +727,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                      })
               else Some (open_route state W.Home)
             else Some (back state)
-        | Some ((`Enter | `ASCII 'i' | `Tab | `ASCII 'w'), []) when state.workspace.route = W.Attention ->
-            Some { state with workspace = { state.workspace with pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) }; scroll = 0 }
         | Some (`ASCII 'b', []) when (match state.workspace.route with
             | W.Scheduled | W.Selected_day _ -> true | _ -> false) ->
             Some (batch_plan_selected state)
@@ -834,16 +791,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 overlay = (if state.workspace.route = W.Calendar then Jump ""
                   else Search (W.browser state.workspace).query);
               }
-        | Some (`ASCII 'n', []) when state.workspace.route = W.Attention ->
-            Some { state with overlay = Modal_form (add_attention_form ~today:(F.today ())) }
-        | Some (`ASCII 'r', []) when state.workspace.route = W.Attention -> (
-            match selected_attention state with
-            | None -> Some { state with message = tr "No attention item selected to resolve." }
-            | Some item -> Some { state with overlay = Modal_form (resolve_attention_form ~today:(F.today ()) item) })
-        | Some (`ASCII 'x', []) when state.workspace.route = W.Attention -> (
-            match selected_attention state with
-            | None -> Some { state with message = tr "No attention item selected to drop." }
-            | Some item -> Some { state with overlay = Modal_form (drop_attention_form ~today:(F.today ()) item) })
         | Some (`ASCII 'n', []) when state.workspace.route = W.Loci ->
             let count = List.length (admitted_loci state) in
             Some { state with overlay = Modal_form (admit_locus_form ~count) }
@@ -949,11 +896,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               Some (update_calendar state (if delta < 0 then Cal.Up else Cal.Down))
             else if state.workspace.pane = W.Detail && state.workspace.route <> W.Calendar && state.workspace.route <> W.Home then
               Some { state with scroll = max 0 (state.scroll + delta) }
-            else if state.workspace.route = W.Attention then
-              if state.workspace.pane = W.Detail then
-                Some { state with scroll = max 0 (state.scroll + delta) }
-              else
-                Some (move_attention state delta)
             else if state.workspace.route = W.Loci then
               Some (move_locus state delta)
             else if state.workspace.route = W.Settlements then
@@ -972,12 +914,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               | _ -> 1
             in
             let step = delta * max 1 (snd dimensions - 8) in
-            if state.workspace.route = W.Attention then
-              if state.workspace.pane = W.Detail then
-                Some { state with scroll = max 0 (state.scroll + step) }
-              else
-                Some (move_attention state step)
-            else if
+            if
               state.workspace.pane = W.Calendar && state.workspace.route <> W.Home
               && state.workspace.route <> W.Daily_pace
               || (state.workspace.route = W.Home && state.workspace.pane = W.Detail)
@@ -990,12 +927,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 }
             else Some { state with scroll = max 0 (state.scroll + step) }
         | Some (`Home, []) ->
-            if state.workspace.route = W.Attention then
-              if state.workspace.pane = W.Detail then
-                Some { state with scroll = 0 }
-              else
-                Some (move_attention state (-max_int))
-            else
               Some
                 {
                   state with
@@ -1003,12 +934,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                   workspace = W.move_selection ~book:state.session.book state.workspace (-max_int);
                 }
         | Some (`End, []) ->
-            if state.workspace.route = W.Attention then
-              if state.workspace.pane = W.Detail then
-                Some { state with scroll = max_int / 4 }
-              else
-                Some (move_attention state max_int)
-            else
               Some
                 {
                   state with

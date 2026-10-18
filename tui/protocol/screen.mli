@@ -28,6 +28,8 @@ type env = {
   annual : annual;
   accounting_roles : (string * Daily_overlays.accounting_role) list Lazy.t;
       (** Explicit Locus roles from accounting-roles.tsv; none when absent. *)
+  attention : (Attention_data.t, string) result;
+      (** Attention memory loaded by the Shell; an error is never an empty list. *)
   blocked : bool;  (** Writes stopped after a conflict, recovery or uncertain outcome. *)
   config : string -> (string option, string) result;
       (** Bytes of a configuration file captured for this event: [Ok None] is
@@ -59,6 +61,8 @@ type request =
   | Cycle_measure of [ `Next | `Prev ]  (** Change the Shell-selected Measure. *)
   | Observe of { locus : string; measure : string; amount : Z.t option }
       (** Open the Observe editor for this coordinate; [amount] is a known current value. *)
+  | Save_attention of { expected : Attention_data.t; next : Attention_data.t }
+      (** Replace the Attention memory if it still equals [expected]; answered by [saved]. *)
   | Save_config of {
       file : string;
       expected : string option;  (** Captured bytes; a different file refuses. *)

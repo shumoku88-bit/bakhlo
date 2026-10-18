@@ -28,12 +28,13 @@ let safety_checks ~width_of ~directory () =
   Unix.mkdir (att_path ^ ".lock.block") 0o700;
   Unix.unlink (att_path ^ ".lock");
   Unix.rename (att_path ^ ".lock.block") (att_path ^ ".lock");
-  let form = C.add_attention_form ~today:(F.today ()) |> fun f -> Ui_form.set_text f "context" "Retain me" in
-  let ready = { state with C.overlay = C.Modal_form (Ui_form.set_focused form 3) } in
+  let adding state = key ~width_of (C.open_route state W.Attention) (`ASCII 'n') in
+  let form = Option.get (visible_form (adding state)) |> fun f -> Ui_form.set_text f "context" "Retain me" in
+  let ready = with_visible_form (adding state) (Ui_form.set_focused form 3) in
   let refused = key ~width_of ready `Enter in
   require (failed refused && refused.attention = state.attention) "attention-save-failure-preserves-state";
-  (match refused.overlay with C.Modal_form f -> require (Ui_form.get_text f "context" = Some "Retain me")
-      "attention-save-failure-preserves-draft" | _ -> require false "attention-draft-lost");
+  (match visible_form refused with Some f -> require (Ui_form.get_text f "context" = Some "Retain me")
+      "attention-save-failure-preserves-draft" | None -> require false "attention-draft-lost");
   require (F.read att_path = att_bytes) "attention-save-failure-preserves-file";
   Unix.rmdir (att_path ^ ".lock");
   Unix.unlink att_path;
@@ -42,7 +43,7 @@ let safety_checks ~width_of ~directory () =
   require (Result.is_error broken.attention) "attention-load-failure-is-not-empty";
   require (contains (R.screen ~width_of (120, 30) (C.open_route broken W.Attention)) "Unavailable")
     "attention-load-failure-visible";
-  require (failed (key ~width_of { broken with overlay = ready.overlay } `Enter)) "attention-invalid-load-blocks-save";
+  require (failed (key ~width_of (with_visible_form (adding broken) (Ui_form.set_focused form 3)) `Enter)) "attention-invalid-load-blocks-save";
   require (F.read att_path = "broken\n") "attention-invalid-bytes-preserved";
   Unix.unlink att_path;
   Unix.mkdir att_path 0o700;

@@ -315,83 +315,6 @@ let workspace_rows ?route_view ~width_of ~width ~height state =
       else detail_frame ~width ~height
   else if Option.is_some route_view then
     Lazy.force (Option.get route_view).Screen.rows
-  else if workspace.route = W.Attention then
-    let items = open_attentions state in
-    let left_title = match state.attention with
-      | Ok t ->
-          let s = Att.summarize ~today:(F.today ()) t in
-          if s.overdue_count > 0 then
-            Printf.sprintf "Attention (%d open • ! %d overdue)" (List.length items) s.overdue_count
-          else
-            Printf.sprintf "Attention (%d open)" (List.length items)
-      | Error _ -> "Attention / Unavailable" in
-    let right_title = "Selected matter" in
-    let left_width, right_width = browser_pane_widths width in
-    let pad_w = max 0 (left_width - 4) in
-    let col_due = 14 in
-    let col_ctx = max 16 (pad_w - col_due - 4) in
-    let th = "  " ^ O.pad ~width_of col_due "Due" ^ "  " ^ O.pad ~width_of col_ctx "Matter / Context" in
-    let rule = O.rule ~width_of pad_w in
-    let left_rows = match state.attention with
-      | Error why -> O.wrap_text ~width_of (max 1 (left_width - 6))
-          ("Attention unavailable: " ^ why ^ ". Writes refused; Ctrl-R reloads.")
-      | Ok _ ->
-          if items = [] then [ tr "No open attention items." ]
-          else
-            [ th; rule ]
-            @ List.mapi
-                (fun idx (item : Att.item) ->
-                  let is_sel = idx = workspace.attention.selected in
-                  let marker = if is_sel then "> " else "  " in
-                  let due_text = Att.due_display ~today:(F.today ()) item.due in
-                  let line = marker ^ O.pad ~width_of col_due due_text ^ "  " ^ item.context in
-                  line)
-                items
-    in
-    let detail =
-      match state.attention, selected_attention state with
-      | Error why, _ -> [ "Attention unavailable (not empty)."; why; "Writes refused; Ctrl-R reloads." ]
-      | Ok _, None -> [ tr "No selected attention item."; ""; tr "Press 'n' to add a household matter." ]
-      | Ok _, Some item ->
-          let urgency_str =
-            match item.due with
-            | Att.Due_on d ->
-                if d < F.today () then Printf.sprintf "! OVERDUE (due %s, today %s)" d (F.today ())
-                else if d = F.today () then "DUE TODAY"
-                else Printf.sprintf "Due on %s" d
-            | Att.No_due_date -> "No due date specified"
-            | Att.Due_undetermined -> "Due date undetermined / timing unknown"
-          in
-          [
-            "Matter / Description:";
-            "  " ^ item.context;
-            "";
-            "Urgency / Due:";
-            "  " ^ urgency_str;
-            "";
-            "Item ID:    " ^ item.id;
-            "Lifecycle:  Open (unresolved)";
-            "";
-            "Actions:";
-            "  n : Add new attention item";
-            "  r : Resolve this item (record completed)";
-            "  x : Drop this item (abandon/cancel)";
-            "";
-            "Navigation:";
-            "  Tab / i : Toggle detail scroll";
-            "  j / k   : Select next/previous matter";
-            "  q / Esc : Return to Home";
-          ]
-    in
-    let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
-    let is_detail = workspace.pane = W.Detail in
-    split_pane
-      ~left_focused:(not is_detail) ~left_title ~left_scroll:0
-      ~left_selected:(if items = [] then None else Some (workspace.attention.selected + 2))
-      ~left_rows
-      ~right_focused:is_detail ~right_title
-      ~right_scroll:(if is_detail then state.scroll else 0)
-      ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Loci then
     let loci = admitted_loci state in
     let roles = accounting_roles state in
@@ -661,16 +584,6 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
         (match state.drill_parent with
          | Some W.Actual -> "Space Commands  q/Esc Actual  Ctrl-r reload"
          | _ -> "Space Commands  q/Esc Home  Ctrl-r reload");
-      ]
-  | W.Attention, W.Calendar ->
-      [
-        "n new  r resolve  x drop  j/k select  Enter/Tab detail";
-        "q/Esc Home  Space Commands  Ctrl-r reload";
-      ]
-  | W.Attention, W.Detail ->
-      [
-        "j/k scroll  Tab list  n new  r resolve  x drop";
-        "q/Esc back to list  Space Commands  Ctrl-r reload";
       ]
   | W.Loci, _ ->
       [

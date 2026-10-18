@@ -85,18 +85,6 @@ let is_scheduled_create = function
   | Scheduled_create _ -> true
   | _ -> false
 
-let is_add_attention = function
-  | Modal_form f when Form.id f = "add_attention" -> true
-  | _ -> false
-
-let is_resolve_attention = function
-  | Modal_form f when Form.id f = "resolve_attention" -> true
-  | _ -> false
-
-let is_drop_attention = function
-  | Modal_form f when Form.id f = "drop_attention" -> true
-  | _ -> false
-
 let is_admit_locus = function
   | Modal_form f when Form.id f = "admit_locus" -> true
   | _ -> false
@@ -577,73 +565,6 @@ let classify_merchant_selected state =
             })
     | _ -> { state with message = tr "Select an Actual entry to classify Merchant." }
 
-
-let open_attentions state =
-  match state.attention with Ok t -> Att.open_items t | Error _ -> []
-
-let selected_attention state =
-  let items = open_attentions state in
-  let sel = state.workspace.attention.selected in
-  List.nth_opt items sel
-
-let move_attention state delta =
-  let items = open_attentions state in
-  let count = List.length items in
-  if count = 0 then state
-  else
-    let current = state.workspace.attention.selected in
-    let last = count - 1 in
-    let selected = max 0 (min last (current + delta)) in
-    { state with workspace = { state.workspace with attention = { state.workspace.attention with selected } } }
-
-let add_attention_form ~today =
-  Form.create
-    ~id:"add_attention"
-    ~title:"Add Attention"
-    ~summary:["Record a household matter needing attention."]
-    ~fields:[
-      Form.text_field ~id:"context" ~label:"Context" ~placeholder:"Matter description" ();
-      Form.choice_field ~id:"due_kind" ~label:"Due" ~options:["No due date"; "Due undetermined"; "Due on date"] ~selected:0 ();
-      Form.text_field ~id:"due_date" ~label:"Due date" ~value:today ~placeholder:"YYYY-MM-DD" ();
-      Form.action_buttons ~confirm:"Add Attention" ~cancel:"Cancel" ();
-    ]
-    ()
-
-let resolve_attention_form ~today (item : Att.item) =
-  let summary =
-    [
-      "Target: " ^ item.id;
-      "Context: " ^ item.context;
-      Att.due_label item.due;
-    ]
-  in
-  Form.create
-    ~id:"resolve_attention"
-    ~payload:item.id
-    ~title:"Resolve Attention"
-    ~summary
-    ~fields:[
-      Form.action_buttons ~confirm:"Confirm Resolve" ~cancel:"Keep Open" ();
-    ]
-    ()
-
-let drop_attention_form ~today (item : Att.item) =
-  let summary =
-    [
-      "Target: " ^ item.id;
-      "Context: " ^ item.context;
-      Att.due_label item.due;
-    ]
-  in
-  Form.create
-    ~id:"drop_attention"
-    ~payload:item.id
-    ~title:"Drop Attention"
-    ~summary
-    ~fields:[
-      Form.action_buttons ~confirm:"Confirm Drop" ~cancel:"Keep Open" ();
-    ]
-    ()
 
 let pay_selected state =
   if state.blocked then state

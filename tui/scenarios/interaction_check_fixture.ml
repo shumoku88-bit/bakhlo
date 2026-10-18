@@ -39,6 +39,9 @@ let resolve_pace_pool (state : C.state) = Pace.resolve_pool (X.pace_env state)
 let resolve_pace_window (state : C.state) = Pace.resolve_window (X.pace_env state)
 let current_pace_result (state : C.state) = Pace.current_pace (X.pace_env state)
 
+let open_attentions (state : C.state) =
+  match state.attention with Ok t -> Att.open_items t | Error _ -> []
+
 let stock_flow_result (state : C.state) =
   Stock_flow_screen.result (X.screen_env ~config_files:Stock_flow_screen.config_files state)
     state.screens.stock_flow
@@ -51,6 +54,8 @@ let open_pool_editor (state : C.state) =
    view precedence so scenarios do not depend on where a form is stored. *)
 let visible_form (state : C.state) =
   if Pace.modal state.screens.pace then Pace.form state.screens.pace
+  else if Attention_screen.modal state.screens.attention then
+    Attention_screen.form state.screens.attention
   else if Income_expense_screen.modal state.screens.income_expense then
     Income_expense_screen.form state.screens.income_expense
   else if Transactions_flow_screen.modal state.screens.transactions_flow then
@@ -65,6 +70,9 @@ let visible_form_id state = Option.map Ui_form.id (visible_form state)
 (* Replace the visible form content, equivalent to typing into it. *)
 let with_visible_form (state : C.state) form =
   if Pace.modal state.screens.pace then { state with screens = { state.screens with pace = Pace.with_form form state.screens.pace } }
+  else if Attention_screen.modal state.screens.attention then
+    { state with screens = { state.screens with
+      attention = Attention_screen.with_form form state.screens.attention } }
   else match state.overlay with
     | C.Modal_form _ -> { state with overlay = C.Modal_form form }
     | _ -> raise (F.Refused "no-visible-form")

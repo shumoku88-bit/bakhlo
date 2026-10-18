@@ -9,6 +9,7 @@ type t = {
   income_expense : Income_expense_screen.t;
   transactions_flow : Transactions_flow_screen.t;
   stock_flow : Stock_flow_screen.t;
+  attention : Attention_screen.t;
 }
 
 let create () =
@@ -18,6 +19,7 @@ let create () =
     income_expense = Income_expense_screen.create ();
     transactions_flow = Transactions_flow_screen.create ();
     stock_flow = Stock_flow_screen.create ();
+    attention = Attention_screen.create ();
   }
 
 type 'a owner = {
@@ -95,6 +97,18 @@ let all =
         handle = Stock_flow_screen.handle;
         view = Stock_flow_screen.view;
         saved = Stock_flow_screen.saved;
+      };
+    Owner
+      {
+        route = W.Attention;
+        config_files = Attention_screen.config_files;
+        get = (fun t -> t.attention);
+        set = (fun t attention -> { t with attention });
+        enter = Attention_screen.enter;
+        modal = Attention_screen.modal;
+        handle = Attention_screen.handle;
+        view = Attention_screen.view;
+        saved = Attention_screen.saved;
       };
   ]
 

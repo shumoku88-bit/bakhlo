@@ -297,6 +297,7 @@ let screen_env ~config_files state : Screen.env =
       history = lazy (annual_history_bounds state);
     };
     accounting_roles = lazy (accounting_roles state);
+    attention = state.attention;
     blocked = state.blocked;
     config = (fun name ->
       match List.assoc_opt name captured with
@@ -366,6 +367,12 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay)) state = fun
       { state with overlay = Modal_form form;
         observe_draft = Some { rows = []; base_bytes = state.session.bytes;
           pending = ("", state.workspace.measure, ""); uncertain = false } }
+  | Screen.Save_attention { expected; next } ->
+      let result =
+        Result.map (fun () -> next) (Attention_file.save_file state.attention_path ~expected next) in
+      let state = match result with Ok a -> { state with attention = Ok a } | Error _ -> state in
+      let state, request = saved state (Result.map ignore result) in
+      apply_request ~saved state request
   | Screen.Save_config { file; expected; content; admission } ->
       let state, request = saved state (save_config state ~file ~expected ~content ~admission) in
       apply_request ~saved state request
@@ -693,18 +700,6 @@ let action_settlement_form (r : Stl.row) =
       Form.action_buttons ~confirm:"Confirm Action" ~cancel:"Cancel" ();
     ]
     ()
-
-let commit_attention state submitted update message =
-  let result =
-    if state.blocked then Error "Writes stopped. Reload to inspect."
-    else Result.bind state.attention (fun expected ->
-      Result.bind (update expected) (fun updated ->
-        Result.map (fun () -> updated) (Attention_file.save_file state.attention_path ~expected updated)))
-  in
-  match result with
-  | Ok attention -> { state with overlay = No_overlay; attention = Ok attention; message }
-  | Error why -> { state with overlay = Modal_form (Form.set_notice submitted
-      ("Attention not confirmed: " ^ why ^ " Reload to inspect before retrying.")) }
 
 let commit_settlements state submitted update message =
   let result =
