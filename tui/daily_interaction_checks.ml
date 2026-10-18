@@ -2987,6 +2987,12 @@ let balance_display_checks ~width_of ~directory () =
      && has (line ~width:26 (item (O.Exact Z.zero))) "0 jpy")
     "balance-unknown-presence-zero-distinct";
   let view = C.open_route home W.Balances in
+  let medium_rows = C.screen ~width_of (80, 24) view |> List.map snd in
+  require
+    (List.exists (fun row -> has row "Balances / Current" && not (has row "Selected Balance")) medium_rows
+     && List.exists (fun row -> has row "Selected Balance" && not (has row "Balances / Current")) medium_rows
+     && has (String.concat "\n" medium_rows) "+74,500 jpy")
+    "balances-medium-stacks-list-over-detail-with-complete-quantity";
   let painted = C.screen ~width_of (32, 9) view |> List.map snd |> String.concat "\n" in
   require (has painted "+74,500 jpy") "balance-tiny-first-coordinate-visible";
   require (O.current_balance_items ~book ~coords:(Some []) = [])
@@ -3530,6 +3536,14 @@ let self_check ~width_of () =
            && (key ~width_of malformed (`ASCII 'c')).overlay = C.No_overlay
            && F.read bv_path = "malformed row\n")
     "balance-malformed-config-never-becomes-empty-selection";
+  let malformed_print = key ~width_of malformed (`ASCII 'p') in
+  (match malformed_print.overlay with
+   | C.Modal_form f ->
+       require (Ui_form.id f = "balance_print_refused")
+         "balances-malformed-config-refuses-print"
+   | _ -> failwith "malformed balance view unexpectedly allowed print");
+  require (F.read bv_path = "malformed row\n")
+    "balances-refused-print-does-not-write-config";
   replace_balance_view "bank\tjpy\nwallet\tjpy\n";
   let bal_print = key ~width_of bal_custom_bv (`ASCII 'p') in
   (match bal_print.overlay with
