@@ -18,15 +18,19 @@ requirements. Other external output and Print/diagnostics remain separate,
 not implicitly excluded. Historical interchange designs are not current
 implementation instructions for hledger.
 
-UI-24 Current Balances now has a bounded `c` editor for visible Loci in the
-current Measure: input → full Review → save only `balance-view.tsv`. Other
-Measures remain selected; explicit empty differs from missing, and malformed
-or unreadable config is Unavailable rather than silently skipped. Stale config
-is refused. Native synthetic checks and one cold Bonsai trial passed; see
-[verification](VERIFICATION.md#balances-visible-account-setup-2026-10-17).
-The LOAM setup picker and paired UI acceptance are not done. A rapid queued
-resize/Enter saved after the prior full-size review; terminal resize timing
-still needs qualification before claiming a strict current-dimension gate.
+UI-24-B2 connects the visible-account picker (`c` / Household setup) and
+multi-coordinate Observe. Picker uses j/k, Space, Enter Review, Esc/e Edit;
+it preserves other Measures, historical selections, empty vs missing and
+unknown quantities. Only `balance-view.tsv` changes, with stale/admission checks.
+Observe uses Add → Preview → Publish/Edit/Cancel and the existing grouped Core
+and writer; unmentioned observations remain intact. Duplicate/support conflict,
+hidden review, stale base and uncertain-save retry are refused without dropping
+the retained Preview. Synthetic Core/native checks, paired LOAM binary interaction,
+normal save/cold reopen and an actual permission-failure/uncertain-reload refusal
+passed for this bounded scope; see [B2 evidence](VERIFICATION.md#ui-24-b2-balances-picker-and-grouped-observation-2026-10-18).
+Current headings/80-column layout, Accounting/Print, full runtime/IME/human
+acceptance, queued resize timing, power loss/P7 and operational adoption remain open.
+Daily Pace dated-support and completed/cancelled-plan history remain unqualified.
 
 UI-33 / UI-02 Daily Pace cycle boundaries and Household setup commands are now
 connected: `Space` → `Household setup` exposes `Daily Pace / spendable accounts`,
@@ -248,22 +252,18 @@ Balances Current view (UI-24) is connected to match LOAM's `Balances.lean` model
 - `Esc` or `q` in Detail returns to the List pane without exiting Balances; `Esc`/`q` in List returns to Home.
 - `v` toggles between `Balances / Current` and `Balances / Accounting` (RoleBalances).
 - `p` opens Print Preview formatted with LOAM's canonical header lines (capped at 200 lines).
-- `o` opens Observe Quantity prefilled with the selected coordinate and exact amount.
+- `o` opens the selected Locus/Measure collector (exact amount is only a hint); Add → Preview → Publish observes one or more coordinates together.
 Core/native self-checks and synthetic tmux walks (opening Current, Page/Home/End navigation,
 detail expand/collapse, Print modal, `v` accounting toggle, and Home return) passed;
 see [Balances evidence](VERIFICATION.md#balances-current-view).
 
 Daily Pace Trend is connected through `daily_pace_trend.ml/.mli` and `daily_interaction.ml`:
-- Home `d` opens `Daily Pace / Trend` with timeline graph and retrospective daily samples.
-- Preset keys `1`–`5` switch between `10d`, `30d`, `Month`, `Cycle`, and `Previous Cycle`.
-- Graph style toggle `v` switches between `line` (`*`) and `dots` (`.`).
-- Timeline navigation: `h`/`l`/Arrows move selected day, updating right Detail pane with
-  pace quanta, day-to-day change, remaining days, available amount, pool balance, and deductions.
-- Detail pane expansion (`Tab`/`i`/`Enter`) and `Esc`/`q` back to timeline without exiting to Home.
-- What-If (`w`) and Pool configuration (`c`) remain connected.
-Core/native self-checks and synthetic tmux walks (10d timeline, style toggle, Month preset `3`,
-Detail inspection, and Esc return) passed;
-see [Daily Pace Trend evidence](VERIFICATION.md#daily-pace-trend-analysis).
+- Home `d` initially selects today. Presets `1`–`5`, qualified Braille line/dots (`v`), bounded day navigation, What-if and explicit Pool/cycle setup remain connected.
+- The chart is above History / Selected day; compact views prioritize the chart and open full-screen details. History separates discretionary Spent and same-day Pace diff from prior-day change.
+- Day activity nets each entry across the Pool, separates Scheduled completions and reversals, ignores same-day reversal pairs, and keeps Measures distinct. Adjacent-day explanations use exact integer arithmetic and refuse cycle resets/unsupported days.
+- A current quantity observation alone no longer manufactures historical Pace. Older days require zero-origin support for every Pool coordinate; unsupported days retain independently known activity but do not paint dummy zero balances.
+- Paired synthetic current-only and zero-origin books, four terminal sizes, detail/return and cold reopen passed for this bounded display slice. Broader dated history, completed/cancelled-plan history, LOAM geometry/keys and human acceptance remain open.
+See [paired history and narrow Balances evidence](VERIFICATION.md#pace-history-and-narrow-balances-paired-2026-10-18).
 
 Income & Expense Report (UI-25) is connected through `income_expense_report.ml/.mli` and `daily_interaction.ml`:
 - Launched via Commands (`Space` -> `Reports and analysis` -> `Income & Expense`) or `open_route W.Income_expense`.

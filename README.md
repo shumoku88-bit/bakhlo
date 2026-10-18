@@ -38,15 +38,17 @@ Favaとhledgerへの出力はユーザー指定で対象外。Print／診断や�
   取消済み予定は残し、支払い済み／取消済みの再支払いを拒否する。
 - `Daily_book.daily_pace`でLOAM Home `d`相当の今日の目安を計算し、英語のDaily Pace画面で設定・現在の量・予定控除を表示する。
   対象口座・通貨・観測日・期間末は明示する。現在値・What-if・Pool編集・Trendは接続済み。
-  Trendの今日の値は期限超過の未払い予定も含めて同じCore計算を使う。過去日は既存の別の再構成経路を維持する。
+  Trendの今日の値は期限超過の未払い予定も含めて同じCore計算を使う。過去日は全Pool座標のゼロ起点支持を要求し、現在観測だけから過去の残高を推測しない。
   Pool未設定・不正・混合通貨、期間未設定・不正・曖昧な選択は拒否し、口座や月末を推測しない。
   Pool編集は既存設定→入力→旧／新Review→明示保存。確認内容が収まらない端末では保存せず、Esc／Editと編集取消で下書きを保持する。
   別Measure・不正・読めない既存Poolの置換は拒否する。`daily-pace.tsv`だけを保存し、全`boundary-presets.tsv`を保全する。赤字をゼロに丸めない。
 - Daily画面の両替、数量観測、Manage Loci／明示役割設定、Attention、限定的な精算残額管理を試せる。
   Attention／精算の不正・読込失敗は空やゼロにせずUnavailableとして表示する。
   保存失敗・協調writer競合では入力と旧状態を残す。これらのsidecarは全家計移行・耐久保存認定ではない。
-- Balances Currentの`c`で現Measureの表示対象を入力→確認→保存できる。他Measureは保持し、明示空選択は空表示、
+- Balances Currentの`c`で現Measureの表示対象を候補一覧からSpaceで選択→確認→保存できる。他Measureは保持し、明示空選択は空表示、
   不正／読めない`balance-view.tsv`は全件への暗黙の置換をせずUnavailableとして表示する。
+- Observeは同時に確認した複数のLocus × Measure × 数量をAdd→Preview→Publishで一括保存する。
+  未指定座標の観測を保全し、重複・既存支持との衝突・古い台帳・結果不明は拒否／停止する。Preview／Edit／取消は非保存。
 - Daily台帳はv1〜v3とRecords v1を読み、単一S式ではv3を書く。旧試用の予算APIとv4は削除済み。
 - `record` で単一通貨の支出・収入・振替を記録できる。
 - v3 Bookでは `exchange` で両替元と両替先の通貨・数量を明示した両替を記録でき、

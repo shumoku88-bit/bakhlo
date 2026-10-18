@@ -22,6 +22,7 @@ module Roles = Locus_roles
 module D = Bakhlo_domain
 module Stl = Settlement_data
 module Trend = Daily_pace_trend
+module O = Daily_overlays
 
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
@@ -2253,16 +2254,14 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
   require (pace_detail.workspace.pane = W.Detail) "daily-pace-i-focuses-detail";
   List.iter
     (fun ((width, height) as dimensions) ->
-      let where = Printf.sprintf "%dx%d" width height in
-      require (shows ~width_of dimensions pace "Daily Pace") ("daily-pace-pane-title-" ^ where);
-      require
-        (shows ~pane:`Right ~width_of dimensions pace_detail "Pace Detail & Evidence")
-        ("daily-pace-detail-title-" ^ where))
-    [ (80, 24); (48, 14); (32, 9) ];
-  require
-    (shows ~pane:`Right ~width_of (80, 24) pace "Period progress:")
-    "daily-pace-period-progress";
-  require (shows ~pane:`Right ~width_of (80, 24) pace "Through end:") "daily-pace-through-end";
+      List.iter
+        (fun state ->
+          let rows = C.screen ~width_of dimensions state in
+          require (List.length rows <= height
+            && List.for_all (fun (_, row) -> width_of row <= width) rows)
+            "daily-pace-chart-detail-resize-geometry")
+        [ pace; pace_detail ])
+    [ (120, 36); (80, 24); (48, 14); (32, 9) ];
   let preset_key char preset =
     let pressed = key ~width_of pace (`ASCII char) in
     require (pressed.workspace.route = W.Daily_pace)
@@ -2278,13 +2277,6 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
   require
     ((key ~width_of dotted (`ASCII 'v')).pace_trend.graph_style = Trend.Line)
     "daily-pace-graph-line";
-  let stepped = key ~width_of pace (`ASCII 'l') in
-  require
-    (stepped.pace_trend.selected_index = pace.pace_trend.selected_index + 1)
-    "daily-pace-l-steps-timeline";
-  require
-    ((key ~width_of stepped (`ASCII 'h')).pace_trend.selected_index = pace.pace_trend.selected_index)
-    "daily-pace-h-steps-back";
   let scrolled = key ~width_of pace_detail (`ASCII 'j') in
   require (scrolled.scroll > pace_detail.scroll) "daily-pace-j-scrolls-detail";
   require
@@ -2370,11 +2362,40 @@ let daily_pace_today_sample_checks () =
          ~boundary_presets_text:boundary ~today ~preset:Trend.Ten_days)
   in
   let yesterday = List.find (fun (sample : Trend.sample) -> sample.day = "2026-06-14") history in
+  (* No zero-origin for wallet: past pace stays None, activity preserved, never fabricated. *)
+  require (yesterday.Trend.pace_quanta = None) "daily-pace-guarded-past-none";
+  require (yesterday.Trend.unavailable <> None) "daily-pace-guarded-past-cause";
+  require (yesterday.Trend.activity <> None) "daily-pace-guarded-past-activity";
+  (* Known zero-origin for every pool locus: past reconstruction is supported. *)
+  let supported_book =
+    get
+      (B.of_string
+         ("(bakhlo-daily 1)\n" ^ "(scope corrected-entries explicit-plans)\n"
+        ^ "(measures (measure \"jpy\" 0))\n" ^ "(labels (provided))\n"
+        ^ "(approved-loci (provided \"wallet\" \"food\"))\n"
+        ^ "(entries (entry seed (date 2026-06-01) (memo (none))"
+        ^ " (postings (posting wallet jpy 1000 (none)) (posting food jpy -1000 (none)))"
+        ^ " (reversal-of (none))))\n(plans\n"
+        ^ "  (plan \"unpaid-yesterday\" (date \"2026-06-14\") (measure \"jpy\")\n"
+        ^ "    (changes (\"wallet\" -500) (\"food\" 500)) (paid-by (none))))\n" ^ "(support\n"
+        ^ "  (zero-origin (\"wallet\" \"jpy\") (\"food\" \"jpy\"))\n" ^ "  (openings)\n"
+        ^ "  (observations)\n"
+        ^ "  (presence (not-supplied)))\n"))
+  in
+  let _, _, supported_history =
+    get
+      (Trend.compute_samples ~book:supported_book ~measure:"jpy" ~pool:[ "wallet" ]
+         ~boundary_presets_text:boundary ~today ~preset:Trend.Ten_days)
+  in
+  let supported_yesterday =
+    List.find (fun (sample : Trend.sample) -> sample.day = "2026-06-14") supported_history
+  in
   require
-    (yesterday.pace_quanta = Some (Z.of_int 250)
-    && Z.equal yesterday.available_through_end (Z.of_int 500)
-    && yesterday.remaining_days = 2)
-    "daily-pace-past-sample-unchanged";
+    (supported_yesterday.Trend.pace_quanta = Some (Z.of_int 250)
+     && Z.equal supported_yesterday.Trend.pool_balance (Z.of_int 1000)
+     && Z.equal supported_yesterday.Trend.deductions (Z.of_int 500)
+     && supported_yesterday.Trend.unavailable = None)
+    "daily-pace-zero-origin-past-supported";
   (* A plan due exactly on the exclusive end is outside the period. *)
   let at_end : B.plan =
     {
@@ -2438,6 +2459,111 @@ let daily_pace_today_sample_checks () =
     "PASS: Daily Pace today sample equals Daily_book.daily_pace (synthetic overdue plan, \
      exclusive end, deficit)."
 
+(* Activity classification is source-agnostic: discretionary vs scheduled-settled
+   vs reserved, intra-pool netting, reversal pairing and measure isolation. *)
+let daily_pace_activity_checks () =
+  let text =
+    "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
+     (measures (measure jpy 0) (measure eur 2)) (labels (not-supplied))\n\
+     (approved-loci (provided wallet food bank))\n\
+     (entries\n\
+     (entry seed (date 2026-10-01) (memo (none))\n\
+     (postings (posting wallet jpy 10000 (none)) (posting food jpy -10000 (none)))\n\
+     (reversal-of (none)))\n\
+     (entry e_eur (date 2026-10-11) (memo (none))\n\
+     (postings (posting wallet eur -999 (none)) (posting food eur 999 (none)))\n\
+     (reversal-of (none)))\n\
+     (entry e_disc (date 2026-10-12) (memo (none))\n\
+     (postings (posting wallet jpy -500 (none)) (posting food jpy 500 (none)))\n\
+     (reversal-of (none)))\n\
+     (entry e_pay (date 2026-10-13) (memo (none))\n\
+     (postings (posting wallet jpy -300 (none)) (posting food jpy 300 (none)))\n\
+     (reversal-of (none)))\n\
+     (entry e_trans (date 2026-10-14) (memo (none))\n\
+     (postings (posting wallet jpy -200 (none)) (posting bank jpy 200 (none)))\n\
+     (reversal-of (none)))\n\
+     (entry e_t (date 2026-10-15) (memo (none))\n\
+     (postings (posting wallet jpy -100 (none)) (posting food jpy 100 (none)))\n\
+     (reversal-of (none)))\n\
+     (entry e_r (date 2026-10-15) (memo (none))\n\
+     (postings (posting wallet jpy 100 (none)) (posting food jpy -100 (none)))\n\
+     (reversal-of (some e_t)))\n\
+     (entry e_orig (date 2026-10-16) (memo (none))\n\
+     (postings (posting wallet jpy -400 (none)) (posting food jpy 400 (none)))\n\
+     (reversal-of (none)))\n\
+     (entry e_rev (date 2026-10-17) (memo (none))\n\
+     (postings (posting wallet jpy 400 (none)) (posting food jpy -400 (none)))\n\
+     (reversal-of (some e_orig))))\n\
+     (plans\n\
+     (plan p_eur (date 2026-10-11) (measure eur) (changes (wallet -999) (food 999)) (paid-by (some e_eur)))\n\
+     (plan p_sched (date 2026-10-13) (measure jpy) (changes (wallet -300) (food 300)) (paid-by (some e_pay)))\n\
+     (plan p_orig (date 2026-10-16) (measure jpy) (changes (wallet -400) (food 400)) (paid-by (some e_orig))))\n\
+     (support (zero-origin (wallet jpy) (food jpy) (bank jpy)) (openings)\n\
+     (observations)\n\
+     (presence (not-supplied)))"
+  in
+  let book = get (B.of_string text) in
+  let boundary = Some "cycle\t2026-10-10\t2026-10-28\n" in
+  let _, _, samples =
+    get
+      (Trend.compute_samples ~book ~measure:"jpy" ~pool:[ "wallet"; "bank" ]
+         ~boundary_presets_text:boundary ~today:"2026-10-18" ~preset:Trend.Cycle)
+  in
+  let sample day = List.find (fun (s : Trend.sample) -> s.Trend.day = day) samples in
+  let activity day =
+    match (sample day).Trend.activity with
+    | Some a -> a
+    | None -> raise (F.Refused ("pace-activity-missing-" ^ day))
+  in
+  let is_zero (a : Trend.day_activity) =
+    Z.equal a.Trend.discretionary_outflow Z.zero
+    && Z.equal a.Trend.discretionary_inflow Z.zero
+    && Z.equal a.Trend.scheduled_settled_outflow Z.zero
+    && Z.equal a.Trend.scheduled_settled_inflow Z.zero
+    && Z.equal a.Trend.scheduled_reserved_outflow Z.zero
+  in
+  let eur = activity "2026-10-11" in
+  require (is_zero eur) "pace-activity-eur-plan-ignored-in-jpy";
+  let disc = activity "2026-10-12" in
+  require
+    (Z.equal disc.Trend.discretionary_outflow (Z.of_int 500)
+    && Z.equal disc.Trend.scheduled_settled_outflow Z.zero
+    && Z.equal disc.Trend.scheduled_reserved_outflow Z.zero)
+    "pace-activity-discretionary-outflow";
+  let paid = activity "2026-10-13" in
+  require
+    (Z.equal paid.Trend.scheduled_settled_outflow (Z.of_int 300)
+    && Z.equal paid.Trend.scheduled_reserved_outflow (Z.of_int 300)
+    && Z.equal paid.Trend.discretionary_outflow Z.zero)
+    "pace-activity-paid-plan-scheduled";
+  require (is_zero (activity "2026-10-14")) "pace-activity-intra-pool-cancels";
+  require (is_zero (activity "2026-10-15")) "pace-activity-same-day-reversal-ignored";
+  let rev = activity "2026-10-17" in
+  require
+    (Z.equal rev.Trend.scheduled_settled_inflow (Z.of_int 400)
+    && Z.equal rev.Trend.discretionary_inflow Z.zero
+    && Z.equal rev.Trend.discretionary_outflow Z.zero)
+    "pace-activity-crossday-reversal-scheduled";
+  let d12 = sample "2026-10-12" and d13 = sample "2026-10-13" in
+  require
+    (d12.Trend.pace_quanta <> None && d13.Trend.pace_quanta <> None
+    && d12.Trend.pace_quanta <> d13.Trend.pace_quanta)
+    "pace-activity-spent-moves-pace";
+  let change = get (Trend.compare_change ~prev:d12 ~current:d13) in
+  require
+    (Z.equal change.Trend.change_per_day (Z.of_int 20)
+     && Z.equal change.time_passage_effect (Z.of_int 40)
+     && Z.equal change.free_money_effect (Z.of_int (-20))
+     && Z.equal change.pool_balance_change (Z.of_int (-300))
+     && Z.equal change.protection_release Z.zero
+     && Z.equal change.free_through_end_change (Z.of_int (-300)))
+    "pace-change-exact-integer-decomposition";
+  let d14 = sample "2026-10-14" in
+  require (Result.is_error (Trend.compare_change ~prev:d12 ~current:d14)) "pace-compare-skipped-day-refused";
+  let reset = { d13 with Trend.end_exclusive = "2099-01-01" } in
+  require (Result.is_error (Trend.compare_change ~prev:d12 ~current:reset)) "pace-compare-cycle-reset-refused";
+  print_endline "PASS: Daily Pace activity classification, currency isolation and guarded change (synthetic)."
+
 (* UI-33B: the pace cursor moves within the actually rendered range. After a
    preset or End the stored index rests past the last row, so stepping must
    clamp to the real last sample first: the visible Selected date moves to
@@ -2451,12 +2577,68 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   let today = F.today () in
   let stop = get (Cal.shift_days today 7) in
   let yesterday = get (Cal.shift_days today (-1)) in
-  let entry_head = get (Cal.shift_days today (-9)) in
-  let entry_next = get (Cal.shift_days today (-8)) in
   let boundary_text = "cycle\t" ^ today ^ "\t" ^ stop ^ "\n" in
   F.write_new (directory ^ "/daily-pace.tsv") "wallet\tjpy\n";
   F.write_new (directory ^ "/boundary-presets.tsv") boundary_text;
   let view () = C.open_route { home with session = F.load path } W.Daily_pace in
+  let entry = view () in
+  let measure = entry.workspace.measure in
+  let resolve preset =
+    let _, through_day, samples =
+      get
+        (Trend.compute_samples ~book:home.C.session.book ~measure ~pool:[ "wallet" ]
+           ~boundary_presets_text:(Some boundary_text) ~today ~preset)
+    in
+    (through_day, samples)
+  in
+  let _, ten_samples = resolve Trend.Ten_days in
+  let through_day, samples = resolve Trend.Thirty_days in
+  let count = List.length samples in
+  let day_at index = (List.nth samples index).Trend.day in
+  (* Semantic selection: clamp the stored index to the resolved range, then
+     read the date off the sample — never match decorative wording. *)
+  let selected_date samples state =
+    let last = List.length samples - 1 in
+    (List.nth samples (max 0 (min last state.C.pace_trend.selected_index))).Trend.day
+  in
+  require (through_day = today && day_at (count - 1) = today) "daily-pace-sel-anchor-tail";
+  require (day_at (count - 2) = yesterday) "daily-pace-sel-anchor-prev";
+  (* Entry rests on the Ten_days tail: today; h steps to yesterday, l returns. *)
+  require (selected_date ten_samples entry = today) "daily-pace-sel-entry-today";
+  let back = key ~width_of entry (`ASCII 'h') in
+  require (selected_date ten_samples back = yesterday) "daily-pace-sel-entry-h-prev";
+  require (selected_date ten_samples (key ~width_of back (`ASCII 'l')) = today) "daily-pace-sel-entry-l-today";
+  let preset = key ~width_of entry (`ASCII '2') in
+  require (preset.workspace.route = W.Daily_pace) "daily-pace-sel-preset-route";
+  require (preset.pace_trend.preset = Trend.Thirty_days) "daily-pace-sel-preset-kind";
+  require (selected_date samples preset = today) "daily-pace-sel-preset-tail";
+  let back = key ~width_of preset (`ASCII 'h') in
+  require (selected_date samples back = yesterday) "daily-pace-sel-preset-h-prev";
+  let tail = key ~width_of preset `End in
+  require (selected_date samples tail = today) "daily-pace-sel-end-tail";
+  require
+    (selected_date samples (key ~width_of tail (`ASCII 'h')) = yesterday)
+    "daily-pace-sel-end-h-prev";
+  require
+    (selected_date samples (key ~width_of tail (`Arrow `Left)) = yesterday)
+    "daily-pace-sel-end-left-prev";
+  let paged = key ~width_of tail (`Page `Up) in
+  require
+    (selected_date samples paged = day_at (max 0 (count - 1 - 32)))
+    "daily-pace-sel-end-page";
+  require (selected_date samples (key ~width_of tail (`ASCII 'l')) = today) "daily-pace-sel-end-stays";
+  let head = key ~width_of tail `Home in
+  require (selected_date samples head = day_at 0) "daily-pace-sel-home-head";
+  require
+    (selected_date samples (key ~width_of head (`ASCII 'h')) = day_at 0)
+    "daily-pace-sel-home-stays";
+  (* Cursor keys on a refused range keep the fail-closed screen. *)
+  let bare = directory ^ "/bare" in
+  Unix.mkdir bare 0o700;
+  let bare_path = bare ^ "/book.sexp" in
+  F.create_copy ~source:"examples/daily-book.sexp" ~target:bare_path;
+  let bare_home = C.initial ~config_home:bare (F.load bare_path) in
+  let missing = C.open_route { bare_home with session = F.load bare_path } W.Daily_pace in
   let clean text =
     let out = Buffer.create (String.length text) in
     String.iter
@@ -2465,56 +2647,6 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
       text;
     Buffer.contents out
   in
-  let shows_selected state date =
-    let text =
-      List.map (fun (_, row) -> clean row) (C.screen ~width_of (80, 24) state) |> String.concat ""
-    in
-    Base.String.is_substring text ~substring:(clean ("Selected date: " ^ date))
-  in
-  let entry = view () in
-  let measure = entry.workspace.measure in
-  let _, through_day, samples =
-    get
-      (Trend.compute_samples ~book:home.C.session.book ~measure ~pool:[ "wallet" ]
-         ~boundary_presets_text:(Some boundary_text) ~today ~preset:Trend.Thirty_days)
-  in
-  let count = List.length samples in
-  let day_at index = (List.nth samples index).Trend.day in
-  require (through_day = today && day_at (count - 1) = today) "daily-pace-sel-anchor-tail";
-  require (day_at (count - 2) = yesterday) "daily-pace-sel-anchor-prev";
-  (* Entry uses the Ten_days range; its first two rows are independent dates. *)
-  require (shows_selected entry entry_head) "daily-pace-sel-entry-head";
-  let stepped = key ~width_of entry (`ASCII 'l') in
-  require (shows_selected stepped entry_next) "daily-pace-sel-entry-step";
-  require (shows_selected (key ~width_of stepped (`ASCII 'h')) entry_head) "daily-pace-sel-entry-back";
-  let preset = key ~width_of entry (`ASCII '2') in
-  require (preset.workspace.route = W.Daily_pace) "daily-pace-sel-preset-route";
-  require (preset.pace_trend.preset = Trend.Thirty_days) "daily-pace-sel-preset-kind";
-  require (shows_selected preset today) "daily-pace-sel-preset-tail";
-  let back = key ~width_of preset (`ASCII 'h') in
-  require (shows_selected back yesterday) "daily-pace-sel-preset-h-prev";
-  require (not (shows_selected back today)) "daily-pace-sel-preset-h-moved";
-  let tail = key ~width_of preset `End in
-  require (shows_selected tail today) "daily-pace-sel-end-tail";
-  require (shows_selected (key ~width_of tail (`ASCII 'h')) yesterday) "daily-pace-sel-end-h-prev";
-  require
-    (shows_selected (key ~width_of tail (`Arrow `Left)) yesterday)
-    "daily-pace-sel-end-left-prev";
-  let paged = key ~width_of tail (`Page `Up) in
-  require
-    (shows_selected paged (day_at (max 0 (count - 1 - 32))))
-    "daily-pace-sel-end-page";
-  require (shows_selected (key ~width_of tail (`ASCII 'l')) today) "daily-pace-sel-end-stays";
-  let head = key ~width_of tail `Home in
-  require (shows_selected head (day_at 0)) "daily-pace-sel-home-head";
-  require (shows_selected (key ~width_of head (`ASCII 'h')) (day_at 0)) "daily-pace-sel-home-stays";
-  (* Cursor keys on a refused range keep the fail-closed screen. *)
-  let bare = directory ^ "/bare" in
-  Unix.mkdir bare 0o700;
-  let bare_path = bare ^ "/book.sexp" in
-  F.create_copy ~source:"examples/daily-book.sexp" ~target:bare_path;
-  let bare_home = C.initial ~config_home:bare (F.load bare_path) in
-  let missing = C.open_route { bare_home with session = F.load bare_path } W.Daily_pace in
   List.iter
     (fun button ->
       let moved = key ~width_of missing button in
@@ -2562,6 +2694,8 @@ let daily_pace_graph_render_checks ~width_of () =
       deductions = Z.zero;
       remaining_days = 1;
       end_exclusive = stop;
+      activity = Some Trend.zero_activity;
+      unavailable = None;
     }
   in
   let none_sample ~day ~stop () =
@@ -2570,12 +2704,12 @@ let daily_pace_graph_render_checks ~width_of () =
   let days = List.init 10 (fun i -> Printf.sprintf "2026-10-%02d" (18 + i)) in
   let samples = List.mapi (fun i day -> sample ~day ~q:(4464 - i * 23) ()) days in
   let rows ~width ~height =
-    Trend.render_trend ~width ~height ~width_of ~book ~today:"2026-10-26" ~measure:"jpy" ~samples
+    Trend.render_chart ~width ~height ~width_of ~book ~today:"2026-10-26" ~measure:"jpy" ~samples
       ~selected_index:8 ~graph_style:Trend.Line
   in
   List.iter
     (fun (width, height, grouped) ->
-      let painted = Trend.render_trend ~width ~height ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
+      let painted = Trend.render_chart ~width ~height ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
         ~samples ~selected_index:8 ~graph_style:Trend.Line in
       let tag = Printf.sprintf "%dx%d" width height in
       require (List.length painted <= height) ("pace-graph-height-" ^ tag);
@@ -2608,10 +2742,10 @@ let daily_pace_graph_render_checks ~width_of () =
         [ (52, 30); (35, 18) ])
     [
       ("pace-graph-const", fun ~width ~height ->
-          Trend.render_trend ~width ~height ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
+          Trend.render_chart ~width ~height ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
             ~samples:const_samples ~selected_index:9 ~graph_style:Line);
       ("pace-graph-zero", fun ~width ~height ->
-          Trend.render_trend ~width ~height ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
+          Trend.render_chart ~width ~height ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
             ~samples:zero_samples ~selected_index:0 ~graph_style:Line);
     ];
   let mixed =
@@ -2622,7 +2756,7 @@ let daily_pace_graph_render_checks ~width_of () =
   let painted is_line =
     String.concat "\n"
       (List.map snd
-         (Trend.render_trend ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
+         (Trend.render_chart ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
             ~samples:mixed ~selected_index:3 ~graph_style:(if is_line then Trend.Line else Trend.Dots)))
   in
   let ink text =
@@ -2643,7 +2777,7 @@ let daily_pace_graph_render_checks ~width_of () =
         })
       days
   in
-  let huge = Trend.render_trend ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
+  let huge = Trend.render_chart ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
     ~samples:huge_samples ~selected_index:4 ~graph_style:Line in
   require (List.length huge <= 30) "pace-graph-huge-height";
   require (List.for_all (fun (_, t) -> width_of t <= 52) huge) "pace-graph-huge-width";
@@ -2652,10 +2786,12 @@ let daily_pace_graph_render_checks ~width_of () =
     "pace-graph-huge-selected";
   let detail = Trend.render_detail ~width:52 ~width_of ~book ~measure:"jpy"
     ~sample:(Some (List.nth huge_samples 4)) ~prev_sample:None ~today:"2026-10-26" ~preset:Trend.Ten_days in
-  require (List.exists (fun (_, line) ->
-    Base.String.is_substring line ~substring:(Z.to_string huge_digit)) detail)
+  let detail_digits =
+    String.concat "" (List.map snd detail) |> String.split_on_char ',' |> String.concat ""
+  in
+  require (Base.String.is_substring detail_digits ~substring:(Z.to_string huge_digit))
     "pace-graph-huge-detail-exact";
-  let euro = Trend.render_trend ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26"
+  let euro = Trend.render_chart ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26"
     ~measure:"eur"
     ~samples:(List.map (fun day -> sample ~day ~q:446400 ()) days)
     ~selected_index:8 ~graph_style:Line in
@@ -2664,7 +2800,7 @@ let daily_pace_graph_render_checks ~width_of () =
     "pace-graph-eur-scale";
   let pair = [sample ~day:"2026-10-18" ~q:4000 (); sample ~day:"2026-10-19" ~q:5000 ()] in
   let render style values =
-    Trend.render_trend ~width:52 ~height:8 ~width_of ~book ~today:"2026-10-19"
+    Trend.render_chart ~width:52 ~height:8 ~width_of ~book ~today:"2026-10-19"
       ~measure:"jpy" ~samples:values ~selected_index:1 ~graph_style:style |> List.map snd in
   require (render Trend.Line pair <> render Trend.Dots pair) "pace-graph-adjacent-joined";
   let gaps = [
@@ -2677,20 +2813,35 @@ let daily_pace_graph_render_checks ~width_of () =
     require (render Trend.Line values = render Trend.Dots values) "pace-graph-gap-not-bridged") gaps;
   (* A leading hole keeps unknown labelled, and the tail selection never clips. *)
   let leading = none_sample ~day:"2026-10-18" ~stop:"2026-11-01" () :: List.tl samples in
-  let tail_glued =
-    String.concat "\n"
-      (List.map snd
-         (Trend.render_trend ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-27" ~measure:"jpy"
-            ~samples ~selected_index:9 ~graph_style:Line))
-  in
-  require (Base.String.is_substring tail_glued ~substring:"2026-10-27 (today) ◆") "pace-graph-tail-selected-full";
   let leading_glued =
     String.concat "\n"
       (List.map snd
-         (Trend.render_trend ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
+         (Trend.render_chart ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26" ~measure:"jpy"
             ~samples:leading ~selected_index:0 ~graph_style:Line))
   in
   require (Base.String.is_substring leading_glued ~substring:"unavailable") "pace-graph-hole-labelled";
+  let spent =
+    { Trend.zero_activity with discretionary_outflow = Z.of_int 1000 }
+  in
+  let current = { (sample ~day:"2026-10-19" ()) with activity = Some spent } in
+  let history = [ sample ~day:"2026-10-18" ~q:4233 (); current ] in
+  let painted_history width height =
+    Trend.render_history ~width ~height ~width_of ~book ~measure:"jpy"
+      ~samples:history ~selected_index:1
+  in
+  let full = painted_history 70 4 |> List.map snd |> String.concat "\n" in
+  require
+    (Base.String.is_substring full ~substring:"1,000"
+     && Base.String.is_substring full ~substring:"+3,464"
+     && not (Base.String.is_substring full ~substring:"+231"))
+    "pace-history-same-day-margin-not-prior-day-change";
+  List.iter
+    (fun (width, height) ->
+      let rows = painted_history width height in
+      require (List.length rows <= height
+        && List.for_all (fun (_, row) -> width_of row <= width) rows)
+        "pace-history-geometry")
+    [ (0, 0); (1, 1); (26, 2); (46, 4); (70, 4) ];
   print_endline
     "PASS: Daily Pace braille graph fits panes (Line vs Dots, holes/cycle resets, grouped Measure scale)."
 
@@ -2794,6 +2945,343 @@ let pool_review_checks ~width_of ~directory () =
   print_endline "PASS: Pool old/new Review, Esc/Edit/cancel drafts, narrow/hidden refusal, \
     lock/stale/Measure protection, cold save and unchanged ledger/boundaries."
 
+let balance_display_checks ~width_of ~directory () =
+  let directory = directory ^ "/balance-display" in
+  Unix.mkdir directory 0o700;
+  let path = directory ^ "/book.sexp" in
+  F.write_new path
+    "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
+     (measures (measure jpy 0) (measure eur 2)) (labels (not-supplied))\n\
+     (approved-loci (provided wallet zero bank)) (entries) (plans)\n\
+     (support (zero-origin (zero jpy)) (openings)\n\
+     (observations (observation (reflected) (quantities (wallet jpy 74500))))\n\
+     (presence (not-supplied)))";
+  let home = C.initial ~config_home:directory (F.load path) in
+  let book = home.session.book in
+  let item value = O.Account_row { locus = "wallet"; measure = "jpy"; role = None; value } in
+  let exact = item (O.Exact (Z.of_int 74500)) in
+  let line ~width row = O.balance_item_line ~width_of ~width ~book row in
+  let has text needle = Base.String.is_substring text ~substring:needle in
+  require (has (line ~width:26 exact) "+74,500 jpy") "balance-narrow-exact-amount";
+  let huge = Z.of_string (String.make 100 '7') in
+  let huge_item = item (O.Exact huge) in
+  require
+    (has (line ~width:26 huge_item) "details"
+     && not (has (line ~width:26 huge_item) "777"))
+    "balance-unfit-quantity-is-not-partial-digits";
+  require
+    (has (O.balance_item_line ~width_of ~book huge_item) (O.format_money book "jpy" huge))
+    "balance-unbounded-print-retains-huge-quantity";
+  require (O.format_money book "eur" (Z.of_int (-123456)) = "-1,234.56")
+    "balance-grouping-preserves-sign-scale";
+  List.iter
+    (fun value ->
+      List.iter
+        (fun width -> require (width_of (line ~width (item value)) <= width)
+            "balance-row-fits-real-width")
+        [ 0; 1; 8; 26; 42; 80 ])
+    [ O.Exact huge; O.Exact (Z.of_int (-74500)); O.Unsupported; O.Known_present ];
+  require
+    (has (line ~width:26 (item O.Unsupported)) "unsupported"
+     && has (line ~width:26 (item O.Known_present)) "present"
+     && has (line ~width:26 (item (O.Exact Z.zero))) "0 jpy")
+    "balance-unknown-presence-zero-distinct";
+  let view = C.open_route home W.Balances in
+  let painted = C.screen ~width_of (32, 9) view |> List.map snd |> String.concat "\n" in
+  require (has painted "+74,500 jpy") "balance-tiny-first-coordinate-visible";
+  require (O.current_balance_items ~book ~coords:(Some []) = [])
+    "balance-empty-has-no-selectable-placeholder";
+  F.write_new (directory ^ "/balance-view.tsv") "";
+  let empty = C.screen ~width_of (32, 9) view |> List.map snd |> String.concat "\n" in
+  require (has empty "0–0 / 0") "balance-empty-counter-is-zero";
+  print_endline "PASS: Balances first coordinate, exact-or-detail quantities and empty evidence states."
+
+(* UI-24-B2: visible-account picker and multi-coordinate observation. Drives
+   only keys/screen/file-bytes/cold quantities so it survives controller
+   restyling; asserts LOAM-parity behavior, not widget ids. *)
+
+let b2_overlay_open (state : C.state) =
+  (match state.C.overlay with C.No_overlay -> false | _ -> true)
+
+let b2_screen ~width_of dimensions state =
+  C.screen ~width_of dimensions state
+
+let b2_overlay_text ~width_of dimensions state =
+  match C.overlay_screen ~dimensions ~width_of state with
+  | None -> ""
+  | Some rows -> String.concat "\n" (List.map snd rows)
+
+let b2_check_qty book locus measure =
+  let module Q = Bakhlo_application.Current_quantity_query in
+  let locus = C.get_id (D.Identifier.Locus.of_string locus) in
+  let measure = C.get_id (D.Identifier.Measure.of_string measure) in
+  match Q.query (B.image book) { D.Effect_coordinate.locus; measure } with
+  | Ok (Q.Exact x) -> Z.to_string (D.Quantity.quanta (Q.quantity x))
+  | _ -> "unexpected"
+
+let b2_book_fixture =
+  "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
+   (measures (measure jpy 0) (measure eur 2)) (labels (not-supplied))\n\
+   (approved-loci (provided wallet bank food zero)) (entries) (plans)\n\
+   (support (zero-origin (zero jpy)) (openings)\n\
+   (observations (observation (reflected) (quantities (food jpy 5500))))\n\
+   (presence (not-supplied)))"
+
+let balance_picker_checks ~width_of ~directory () =
+  let directory = directory ^ "/balance-picker" in
+  Unix.mkdir directory 0o700;
+  let path = directory ^ "/book.sexp" in
+  F.write_new path b2_book_fixture;
+  let bv = directory ^ "/balance-view.tsv" in
+  let replace file bytes = (if Sys.file_exists file then Unix.unlink file); F.write_new file bytes in
+  F.write_new bv "wallet\tjpy\nbank\tjpy\nbank\teur\n";
+  let fresh () = C.open_route (C.initial ~config_home:directory (F.load path)) W.Balances in
+  let view = fresh () in
+  let before = F.read bv and book_before = F.read path in
+  (* Open picker: must open without writing. *)
+  let opened = key ~width_of view (`ASCII 'c') in
+  require (b2_overlay_open opened && F.read bv = before && F.read path = book_before)
+    "picker-open-no-write";
+  let shown = b2_overlay_text ~width_of (100, 30) opened in
+  require (Base.String.is_substring shown ~substring:"wallet" && Base.String.is_substring shown ~substring:"bank")
+    "picker-lists-candidates";
+  (* j/k/up/down clamp without crashing or writing. *)
+  let moved = key ~width_of ~dimensions:(100, 30) opened (`ASCII 'j') in
+  let moved = key ~width_of ~dimensions:(100, 30) moved (`ASCII 'j') in
+  let moved = key ~width_of ~dimensions:(100, 30) moved (`ASCII 'k') in
+  let moved = key ~width_of ~dimensions:(100, 30) moved (`Arrow `Up) in
+  let moved = key ~width_of ~dimensions:(100, 30) moved (`Arrow `Down) in
+  require (b2_overlay_open moved && F.read bv = before) "picker-motion-no-write";
+  (* Toggle then review: still no write at 100x30. *)
+  let toggled = key ~width_of ~dimensions:(100, 30) moved (`ASCII ' ') in
+  require (b2_overlay_open toggled && F.read bv = before) "picker-toggle-no-write";
+  let review = key ~width_of ~dimensions:(100, 30) toggled `Enter in
+  require (b2_overlay_open review && F.read bv = before) "picker-review-no-write";
+  (* j j k Up Down from cursor 0 over [wallet; bank; food; zero]: lands bank;
+     Space deselects bank, so review lists wallet without bank. *)
+  let rtext = b2_overlay_text ~width_of (100, 30) review in
+  require (Base.String.is_substring rtext ~substring:"wallet" && not (Base.String.is_substring rtext ~substring:"bank"))
+    "picker-review-lists-chosen";
+  (* Review Esc/e retains chosen without writing; cancel from choose writes nothing. *)
+  let back = key ~width_of ~dimensions:(100, 30) review `Escape in
+  require (b2_overlay_open back && F.read bv = before) "picker-review-esc-retains-no-write";
+  let back_e = key ~width_of ~dimensions:(100, 30) review (`ASCII 'e') in
+  require (b2_overlay_open back_e && F.read bv = before) "picker-review-e-retains-no-write";
+  let cancelled = key ~width_of ~dimensions:(100, 30) back (`ASCII 'q') in
+  require (not (b2_overlay_open cancelled) && F.read bv = before) "picker-cancel-no-write";
+  let cancelled_esc = key ~width_of ~dimensions:(100, 30) back `Escape in
+  require (F.read bv = before) "picker-escape-no-write";
+  ignore cancelled_esc;
+  (* 80x24 normal review must remain usable: full open/toggle/review/save path. *)
+  let o80 = key ~dimensions:(80, 24) ~width_of view (`ASCII 'c') in
+  require (b2_overlay_open o80) "picker-80x24-opens";
+  let r80 = key ~dimensions:(80, 24) ~width_of (key ~dimensions:(80, 24) ~width_of o80 (`ASCII ' ')) `Enter in
+  require (b2_overlay_open r80 && F.read bv = before) "picker-80x24-review-no-write";
+  let saved80 = key ~dimensions:(80, 24) ~width_of r80 `Enter in
+  require (not (b2_overlay_open saved80)) "picker-80x24-save-closes";
+  (* Space on cursor 0 deselects wallet: remaining jpy row is bank; eur row kept. *)
+  let after80 = F.read bv in
+  require (after80 = "bank\teur\nbank\tjpy\n") "picker-80x24-save-exact-bytes";
+  let cold = fresh () in
+  let painted = b2_screen ~width_of (120, 30) cold |> List.map snd |> String.concat "\n" in
+  require (Base.String.is_substring painted ~substring:"bank"
+    && not (Base.String.is_substring painted ~substring:"wallet"))
+    "picker-cold-keeps-bank-only";
+  require (Base.String.is_substring painted ~substring:"?") "picker-cold-unknown-stays-question";
+  (* Historical previously-selected locus stays offered, never silently erased. *)
+  replace bv "oldshop\tjpy\nbank\tjpy\n";
+  let hist = key ~width_of (fresh ()) (`ASCII 'c') in
+  require (b2_overlay_open hist && Base.String.is_substring (b2_overlay_text ~width_of (100, 30) hist) ~substring:"oldshop")
+    "picker-historical-candidate-visible";
+  require (F.read path = book_before) "picker-historical-no-book-write";
+  (* Explicit empty clears this Measure, keeps others. Deselect both known
+     candidates, then save via review at 100x30. *)
+  replace bv "bank\tjpy\nwallet\tjpy\nbank\teur\n";
+  let empty_open = key ~width_of (fresh ()) (`ASCII 'c') in
+  let empty_open = key ~width_of ~dimensions:(100, 30) empty_open (`ASCII ' ') in
+  let empty_open = key ~width_of ~dimensions:(100, 30) empty_open (`Arrow `Down) in
+  let empty_open = key ~width_of ~dimensions:(100, 30) empty_open (`ASCII ' ') in
+  let empty_review = key ~width_of ~dimensions:(100, 30) empty_open `Enter in
+  require (F.read bv = "bank\tjpy\nwallet\tjpy\nbank\teur\n") "picker-review-empty-no-write";
+  let empty_saved = key ~width_of ~dimensions:(100, 30) empty_review `Enter in
+  let empty_bytes = F.read bv in
+  require (Base.String.is_substring empty_bytes ~substring:"bank\teur\n") "picker-explicit-empty-keeps-other-measure";
+  require (not (Base.String.is_substring empty_bytes ~substring:"\tjpy\n")) "picker-explicit-empty-clears-measure";
+  ignore empty_saved;
+  (* Malformed config never becomes empty selection: 'c' refuses without write. *)
+  replace bv "malformed row\n";
+  let malformed_bytes = F.read bv in
+  let malformed = key ~width_of (fresh ()) (`ASCII 'c') in
+  require (not (b2_overlay_open malformed) && F.read bv = malformed_bytes) "picker-malformed-refuses-no-write";
+  (* Missing config opens (explicit create on save); unreadable path refuses. *)
+  Unix.unlink bv;
+  let missing = key ~width_of (fresh ()) (`ASCII 'c') in
+  require (b2_overlay_open missing) "picker-missing-opens-for-explicit-create";
+  let _ = key ~width_of ~dimensions:(100, 30) missing (`ASCII 'q') in
+  Unix.mkdir bv 0o700;
+  let unreadable = key ~width_of (fresh ()) (`ASCII 'c') in
+  require (not (b2_overlay_open unreadable)) "picker-unreadable-refuses";
+  Unix.rmdir bv;
+  (* Stale concurrent change refuses; concurrent bytes preserved. *)
+  replace bv "bank\tjpy\nwallet\tjpy\n";
+  let stale_open = key ~width_of (fresh ()) (`ASCII 'c') in
+  let stale_toggled = key ~width_of ~dimensions:(100, 30) stale_open (`ASCII ' ') in
+  let stale_review = key ~width_of ~dimensions:(100, 30) stale_toggled `Enter in
+  replace bv "bank\tjpy\nwallet\tjpy\nfood\tjpy\n";
+  let concurrent = F.read bv in
+  let stale_try = key ~width_of ~dimensions:(100, 30) stale_review `Enter in
+  require (F.read bv = concurrent && b2_overlay_open stale_try)
+    "picker-stale-preserves-concurrent";
+  (* Small terminal refuses save without writing. *)
+  replace bv "bank\tjpy\nwallet\tjpy\n";
+  let small_base = F.read bv in
+  let small_open = key ~dimensions:(48, 14) ~width_of (fresh ()) (`ASCII 'c') in
+  let small_try =
+    if b2_overlay_open small_open then
+      let s1 = key ~dimensions:(48, 14) ~width_of small_open (`ASCII ' ') in
+      let s2 = key ~dimensions:(48, 14) ~width_of s1 `Enter in
+      key ~dimensions:(48, 14) ~width_of s2 `Enter
+    else small_open in
+  require (F.read bv = small_base) "picker-small-no-write";
+  ignore small_try;
+  require (F.read path = book_before) "picker-only-config-changes";
+  print_endline "PASS: Balances picker order/toggle/review/cancel/save/cold, other-Measure/historical, empty/malformed/missing/stale/small (synthetic)."
+
+let observe_multi_checks ~width_of ~directory () =
+  let directory = directory ^ "/observe-multi" in
+  Unix.mkdir directory 0o700;
+  let path = directory ^ "/book.sexp" in
+  F.write_new path b2_book_fixture;
+  let fresh_home () = C.initial ~config_home:directory (F.load path) in
+  let modal state =
+    match state.C.overlay with C.Modal_form f -> f | _ -> raise (F.Refused "observe-open") in
+  let notice state = Ui_form.notice (modal state) in
+  let fill state locus measure amount =
+    let form = modal state in
+    let form = Ui_form.set_text form "locus" locus in
+    let form = Ui_form.set_text form "measure" measure in
+    let form = Ui_form.set_text form "amount" amount in
+    { state with C.overlay = C.Modal_form (Ui_form.set_focused form 2) } in
+  let press state =
+    match C.handle ~width_of ~dimensions:(100, 30) state (`Key (`Enter, [])) with
+    | Some s -> s | None -> raise (F.Refused "observe-exit") in
+  let set_action state idx =
+    let form = modal state in
+    let form = Ui_form.update_field form "action" (function
+      | Ui_form.Buttons b -> Ui_form.Buttons { b with selected = idx }
+      | other -> other) in
+    { state with C.overlay = C.Modal_form
+        (Ui_form.set_focused form (Ui_form.find_field_index form "action")) } in
+  let to_preview state = press (set_action state 1) in
+  let publish state = press (set_action state 0) in
+  let is_preview state =
+    match state.C.overlay with C.Modal_form f -> Ui_form.id f = "observe_preview" | _ -> false in
+  let is_editing state =
+    match state.C.overlay with C.Modal_form f -> Ui_form.id f = "observe_quantity" | _ -> false in
+  let home = fresh_home () in
+  let book_before = F.read path in
+  let opened = key ~width_of home (`ASCII 'o') in
+  require (Ui_form.id (modal opened) = "observe_quantity"
+    && Ui_form.get_button (modal opened) "action" = Some 0 && F.read path = book_before)
+    "observe-open-add-default-no-write";
+  (* Enter on amount Adds the row without writing; measure kept, locus cleared. *)
+  let added = press (fill opened "wallet" "jpy" "1234") in
+  require (is_editing added && F.read path = book_before) "observe-add-no-write";
+  let kept = modal added in
+  require (Ui_form.get_text kept "measure" = Some "jpy" && Ui_form.get_text kept "locus" = Some "")
+    "observe-add-keeps-measure-clears-locus";
+  require (Base.String.is_substring (b2_overlay_text ~width_of (100, 30) added) ~substring:"wallet")
+    "observe-add-row-visible";
+  (* Second row accumulates; Preview lists both, still no write. *)
+  let added2 = press (fill added "bank" "JPY" "0") in
+  require (is_editing added2 && F.read path = book_before) "observe-add2-no-write";
+  let preview = to_preview added2 in
+  require (is_preview preview && F.read path = book_before) "observe-preview-no-write";
+  let pt = b2_overlay_text ~width_of (100, 30) preview in
+  require (Base.String.is_substring pt ~substring:"wallet" && Base.String.is_substring pt ~substring:"bank"
+    && Base.String.is_substring pt ~substring:"1234") "observe-preview-lists-rows";
+  (* Edit retains rows and pending input. *)
+  let edited = key ~width_of ~dimensions:(100, 30) preview (`ASCII 'e') in
+  require (is_editing edited && F.read path = book_before) "observe-edit-no-write";
+  require (Base.String.is_substring (b2_overlay_text ~width_of (100, 30) edited) ~substring:"wallet")
+    "observe-edit-retains-rows";
+  (* Publish once: wallet 1234, bank 0, unmentioned food 5500 preserved. *)
+  let published = publish (to_preview edited) in
+  require (published.C.overlay = C.No_overlay) "observe-publish-closes";
+  let cold = (F.load path).book in
+  require (b2_check_qty cold "wallet" "jpy" = "1234" && b2_check_qty cold "bank" "jpy" = "0"
+    && b2_check_qty cold "food" "jpy" = "5500") "observe-publish-wallet-bank-preserves-food";
+  (* Exact signed via UI Add→Preview→Publish→cold. *)
+  let s0 = fill (key ~width_of published (`ASCII 'o')) "wallet" "jpy" "-123" in
+  let spub = publish (to_preview (press s0)) in
+  require (b2_check_qty (F.load path).book "wallet" "jpy" = "-123") "observe-signed-ui-cold";
+  ignore spub;
+  (* Multi-Measure via UI: eur scale 2, "12.34" is exactly 1234 quanta. *)
+  let m0 = fill (key ~width_of (fresh_home ()) (`ASCII 'o')) "wallet" "eur" "12.34" in
+  let mpub = publish (to_preview (press m0)) in
+  require (b2_check_qty (F.load path).book "wallet" "eur" = "1234") "observe-multi-measure-ui-cold";
+  ignore mpub;
+  (* Refusals retain Preview + notice with identical bytes. *)
+  let bytes_before = F.read path in
+  let refuse locus measure amount label =
+    let st = press (fill (key ~width_of (fresh_home ()) (`ASCII 'o')) locus measure amount) in
+    let st = if is_preview st then st else to_preview st in
+    let st = publish st in
+    require (is_preview st && notice st <> "" && F.read path = bytes_before)
+      ("observe-" ^ label ^ "-retains-preview-refusal") in
+  refuse "nope" "jpy" "5" "unapproved";
+  refuse "zero" "jpy" "5" "zero-origin";
+  List.iter (fun (measure, amount) ->
+      let st = press (fill (key ~width_of (fresh_home ()) (`ASCII 'o')) "wallet" measure amount) in
+      require (is_editing st && notice st <> "" && F.read path = bytes_before)
+        "observe-invalid-amount-or-measure-refuses-add")
+    ["xxm", "5"; "jpy", "abc"];
+  (* Duplicate coordinate in one group is refused atomically at publish. *)
+  (let st = key ~width_of (fresh_home ()) (`ASCII 'o') in
+   let st = press (fill st "bank" "jpy" "1") in
+   let st = press (fill st "bank" "jpy" "2") in
+   let st = publish (to_preview st) in
+   require (is_preview st && notice st <> "" && F.read path = bytes_before)
+     "observe-duplicate-retains-preview-refusal";
+   let closed = key ~width_of ~dimensions:(100, 30) st `Escape in
+   require (closed.C.overlay = C.No_overlay && F.read path = bytes_before) "observe-duplicate-cancel-no-write");
+  (* Blocked publish retains Preview; small terminal refuses publish; both no-write. *)
+  (let st = key ~width_of (fresh_home ()) (`ASCII 'o') in
+   let st = press (fill st "wallet" "jpy" "7") in
+   let st = to_preview st in
+   require (is_preview st) "observe-preview-ready";
+   let blocked = publish { st with C.blocked = true } in
+   require (is_preview blocked && F.read path = bytes_before) "observe-blocked-retains-preview";
+   let small = key ~dimensions:(48, 14) ~width_of st `Enter in
+   require (F.read path = bytes_before) "observe-small-no-write";
+   ignore small);
+  (* Save conflict: concurrent writer wins, draft retained with refusal. *)
+  (let st = key ~width_of (fresh_home ()) (`ASCII 'o') in
+   let st = press (fill st "wallet" "jpy" "11") in
+   let st = to_preview st in
+   let live = get (B.observe_quantities (get (B.of_string (F.read path))) [ ("bank", "jpy", Z.of_int 3) ]) in
+   (match F.publish (fresh_home ()).session live with
+    | F.Written _ -> () | _ -> raise (F.Refused "observe-conflict-setup"));
+   let concurrent = F.read path in
+   let conflict = publish st in
+   require (is_preview conflict && notice conflict <> "" && F.read path = concurrent)
+     "observe-conflict-preserves-concurrent-retains-preview";
+   let reloaded =
+     match C.handle ~width_of conflict (`Key (`ASCII 'r', [ `Ctrl ])) with
+     | Some s -> s | None -> raise (F.Refused "observe-reload-exited") in
+   require (F.read path = concurrent) "observe-reload-writes-nothing";
+   let retried = publish reloaded in
+   require (retried.C.blocked && is_preview retried && F.read path = concurrent)
+     "observe-reload-cannot-bless-old-image");
+  (let st = press (fill (key ~width_of (fresh_home ()) (`ASCII 'o')) "wallet" "jpy" "13")
+       |> to_preview in
+   Unix.rename path (path ^ ".held");
+   let failed = publish st in
+   require (is_preview failed && notice failed <> "" && not (Sys.file_exists path))
+     "observe-save-failure-retains-preview";
+   Unix.rename (path ^ ".held") path);
+  print_endline "PASS: Observe Add/Preview/Publish/Edit, exact zero/signed/multi-Measure UI cold reads, atomic refusals, blocked/small/conflict/reload (synthetic)."
+
 let self_check ~width_of () =
   let directory = "scratch/english-ui-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
@@ -2817,9 +3305,13 @@ let self_check ~width_of () =
   event_merchant_integration_checks ~width_of ~directory ();
   daily_pace_trend_fail_closed_checks ~width_of ~directory ();
   daily_pace_today_sample_checks ();
+  daily_pace_activity_checks ();
   daily_pace_selection_clamp_checks ~width_of ~directory ();
   daily_pace_graph_render_checks ~width_of ();
   pool_review_checks ~width_of ~directory ();
+  balance_display_checks ~width_of ~directory ();
+  balance_picker_checks ~width_of ~directory ();
+  observe_multi_checks ~width_of ~directory ();
   (* An annual book is not a qualified carry-forward. Its normal Actual and
      Scheduled tools remain available, but current-quantity projections must
      not be displayed as household balances. *)
@@ -2992,11 +3484,11 @@ let self_check ~width_of () =
   require (contains wide_actual "Actuals (" && contains wide_actual "Actual Detail")
     "actual-wide-two-pane-visible";
   let balances_view = C.open_route home W.Balances in
-  let wide_balances = C.screen ~width_of (120, 30) balances_view in
-  require (contains wide_balances "Balances / Current" && contains wide_balances "Selected Balance")
-    "balances-starts-in-current-mode";
-  require (contains wide_balances "Selected Locus × Measure; balance-view order only.")
-    "balances-current-header-displayed";
+  require
+    (match C.balance_items balances_view with
+    | O.Account_row { locus = "wallet"; measure = "jpy"; _ } :: _ -> true
+    | _ -> false)
+    "balances-initial-selection-is-first-coordinate";
   let bal_detail_open = key ~width_of balances_view `Enter in
   require (bal_detail_open.workspace.pane = W.Detail) "balances-enter-opens-detail";
   let bal_detail_back = key ~width_of bal_detail_open `Escape in
@@ -3017,9 +3509,11 @@ let self_check ~width_of () =
   require (contains wide_with_roles "Balances / Accounting" && contains wide_with_roles "Asset" && contains wide_with_roles "Expense" && contains wide_with_roles "Net Worth")
     "balances-v-toggles-to-accounting-roles";
   let bal_restored_current = key ~width_of bal_accounting (`ASCII 'v') in
-  let wide_current = C.screen ~width_of (120, 30) bal_restored_current in
-  require (contains wide_current "Balances / Current" && contains wide_current "Selected Locus × Measure")
-    "balances-v-toggles-back-to-current";
+  require
+    (bal_restored_current.balance_mode = `Current
+     && List.for_all (function O.Account_row _ -> true | _ -> false)
+          (C.balance_items bal_restored_current))
+    "balances-current-restores-neutral-coordinate-rows";
   let bv_path = directory ^ "/balance-view.tsv" in
   F.write_new bv_path "bank\tjpy\nwallet\tjpy\n";
   let bal_custom_bv = C.open_route { home with session = F.load path } W.Balances in
@@ -3030,62 +3524,6 @@ let self_check ~width_of () =
     Unix.unlink bv_path;
     F.write_new bv_path bytes
   in
-  replace_balance_view "bank\tjpy\nwallet\tjpy\nbank\teur\n";
-  let original_view = F.read bv_path in
-  let configure = key ~width_of bal_custom_bv (`ASCII 'c') in
-  let editor = match configure.overlay with
-    | C.Modal_form form -> form
-    | _ -> failwith "balances-setup-not-opened" in
-  require (Ui_form.get_text editor "loci" = Some "bank, wallet") "balances-setup-preserves-order";
-  let edited = { configure with overlay =
-    C.Modal_form (Ui_form.set_text editor "loci" "wallet, bank") } in
-  let reviewed = key ~width_of edited `Enter in
-  require (F.read bv_path = original_view) "balance-review-does-not-save";
-  let narrow = key ~dimensions:(48,14) ~width_of reviewed `Enter in
-  require (F.read bv_path = original_view
-           && (match narrow.overlay with C.Modal_form f -> Ui_form.id f = "review_balance_view" | _ -> false))
-    "balance-review-hidden-selection-refused";
-  let returned = key ~width_of narrow `Escape in
-  require
-    ((match returned.overlay with C.Modal_form f ->
-       Ui_form.get_text f "loci" = Some "wallet, bank" | _ -> false)
-     && F.read bv_path = original_view)
-    "balance-review-escape-retains-draft-without-writing";
-  let edited_button = key ~width_of (key ~width_of reviewed (`Arrow `Right)) `Enter in
-  require ((match edited_button.overlay with C.Modal_form f ->
-               Ui_form.get_text f "loci" = Some "wallet, bank" | _ -> false)
-           && F.read bv_path = original_view)
-    "balance-review-edit-button-retains-draft";
-  let cancelled = key ~width_of returned `Escape in
-  require (cancelled.overlay = C.No_overlay && F.read bv_path = original_view)
-    "balance-editor-escape-cancels";
-  let stale = key ~width_of edited `Enter in
-  replace_balance_view (original_view ^ "food\tjpy\n");
-  let changed = F.read bv_path in
-  let stale_refused = key ~width_of stale `Enter in
-  require (F.read bv_path = changed
-           && (match stale_refused.overlay with C.Modal_form f ->
-                Base.String.is_substring (Ui_form.notice f) ~substring:"changed" | _ -> false))
-    "balance-setup-stale-save-refused";
-  replace_balance_view original_view;
-  let published = key ~width_of (key ~width_of edited `Enter) `Enter in
-  require (published.overlay = C.No_overlay
-           && F.read bv_path = "bank\teur\nwallet\tjpy\nbank\tjpy\n")
-    "balance-setup-preserves-other-measure-and-selected-order";
-  let cold_balances = C.open_route (C.initial (F.load path)) W.Balances in
-  let cold_screen = C.screen ~width_of (120,30) cold_balances in
-  require (contains cold_screen "wallet" && contains cold_screen "bank"
-           && contains cold_screen "?")
-    "balance-setup-cold-reload-keeps-unknown";
-  let empty_editor = key ~width_of cold_balances (`ASCII 'c') in
-  let empty_editor = match empty_editor.overlay with
-    | C.Modal_form form ->
-        { empty_editor with overlay = C.Modal_form (Ui_form.set_text form "loci" "") }
-    | _ -> failwith "balances-empty-editor-not-opened" in
-  let empty_saved = key ~width_of (key ~width_of empty_editor `Enter) `Enter in
-  require (empty_saved.overlay = C.No_overlay && F.read bv_path = "bank\teur\n"
-           && not (contains (C.screen ~width_of (120,30) empty_saved) "wallet"))
-    "balance-explicit-empty-does-not-fallback-to-all-accounts";
   replace_balance_view "malformed row\n";
   let malformed = C.open_route (C.initial (F.load path)) W.Balances in
   require (contains (C.screen ~width_of (120,30) malformed) "Balance view unavailable"
@@ -3125,19 +3563,11 @@ let self_check ~width_of () =
   let wide_back_acct = C.screen ~width_of (120, 30) bal_back_acct in
   require (contains wide_back_acct "Balances / Accounting")
     "balances-v-toggles-to-accounting";
-  let pace_view = C.open_route home W.Daily_pace in
-  let wide_pace = C.screen ~width_of (120, 30) pace_view in
-  require (contains wide_pace "Daily Pace" && contains wide_pace "Pace Detail & Evidence")
-    "daily-pace-wide-two-pane-visible";
   let pace_path = directory ^ "/daily-pace.tsv" in
   let windows_path = directory ^ "/boundary-presets.tsv" in
   F.write_new pace_path "wallet\tjpy\n";
   F.write_new windows_path ("test-cycle\t" ^ F.today () ^ "\t"
     ^ get (Cal.shift_days (F.today ()) 7) ^ "\n");
-  let pace_configured = C.open_route { home with session = F.load path } W.Daily_pace in
-  let wide_pace_conf = C.screen ~width_of (120, 30) pace_configured in
-  require (contains wide_pace_conf "Period progress:" && contains wide_pace_conf "Through end:")
-    "daily-pace-progress-and-metrics-visible";
   let completion = key ~width_of inspected (`ASCII 'c') in
   require completion.record_visible "scheduled-completion-explicit";
   let _ = C.discard completion in
@@ -3883,85 +4313,55 @@ let self_check ~width_of () =
     "sf-detail-return-retains-report";
   let sf_back_home = key ~width_of returned (`ASCII 'q') in
   require (sf_back_home.workspace.route = W.Home) "sf-report-return-home";
-  (* Observe Quantities modal form workflow *)
-  (* 1. Launch via 'o' key from back_home *)
+  (* Observe Quantities: open writes nothing; invalid input refused with a
+     notice; cancel closes; valid observations land and persist. *)
+  let q_before = b2_check_qty back_home.C.session.book "wallet" "jpy" in
   let obs_modal = key ~width_of back_home (`ASCII 'o') in
+  require (b2_overlay_open obs_modal) "observe-modal-opens";
   let form_obs =
     match obs_modal.overlay with
-    | C.Modal_form f ->
-        require (Ui_form.id f = "observe_quantity") "observe-modal-form-id";
-        require (Ui_form.get_text f "measure" = Some "jpy") "observe-default-measure-jpy";
-        f
-    | _ -> failwith "expected modal form for observe_quantity"
-  in
-  (* 2. Test validation failure on unapproved locus *)
-  let invalid_locus_form = Ui_form.set_text form_obs "locus" "unknown_card" in
-  let invalid_locus_form = Ui_form.set_text invalid_locus_form "amount" "1000" in
-  let invalid_locus_form = Ui_form.set_focused invalid_locus_form 2 in
-  let invalid_locus_state =
-    match C.handle ~width_of { obs_modal with overlay = C.Modal_form invalid_locus_form } (`Key (`Enter, [])) with
+    | C.Modal_form f -> f
+    | _ -> failwith "expected modal form for observe_quantity" in
+  let invalid_form = Ui_form.set_text form_obs "locus" "unknown_card" in
+  let invalid_form = Ui_form.set_text invalid_form "amount" "abc" in
+  let invalid_form = Ui_form.set_focused invalid_form 2 in
+  let invalid_state =
+    match C.handle ~width_of { obs_modal with overlay = C.Modal_form invalid_form } (`Key (`Enter, [])) with
     | Some s -> s
-    | None -> failwith "unexpected exit on invalid locus submit"
-  in
-  (match invalid_locus_state.overlay with
-   | C.Modal_form f ->
-       require (Ui_form.notice f = "Locus 'unknown_card' is not in approved vocabulary.") "refuses-unapproved-locus"
-   | _ -> failwith "expected modal form with notice");
-  (* Cancel out with Esc *)
-  let cancelled_obs = key ~width_of invalid_locus_state `Escape in
+    | None -> failwith "unexpected exit on invalid observe submit" in
+  require ((match invalid_state.overlay with C.Modal_form f -> Ui_form.notice f <> "" | _ -> false)
+    && b2_check_qty invalid_state.C.session.book "wallet" "jpy" = q_before) "refuses-invalid-observe";
+  let cancelled_obs = key ~width_of invalid_state `Escape in
   require (cancelled_obs.overlay = C.No_overlay) "observe-cancel-escapes";
-  (* 3. Successfully observe wallet = 5,000 JPY *)
-  let obs_modal2 = key ~width_of back_home (`ASCII 'o') in
-  let valid_form =
-    match obs_modal2.overlay with
-    | C.Modal_form f ->
-        let f = Ui_form.set_text f "locus" "wallet" in
-        let f = Ui_form.set_text f "amount" "5000" in
-        Ui_form.set_focused f 2
-    | _ -> failwith "expected modal form for observe_quantity"
-  in
-  let observed_state =
-    match C.handle ~width_of { obs_modal2 with overlay = C.Modal_form valid_form } (`Key (`Enter, [])) with
-    | Some s -> s
-    | None -> failwith "unexpected exit on valid observe submit"
-  in
-  require (observed_state.overlay = C.No_overlay) "observe-submitted-overlay-cleared";
-  require (Base.String.is_substring observed_state.message ~substring:"Observed wallet jpy = 5000.") "observe-success-message";
-  let check_qty book locus measure =
-    let module Q = Bakhlo_application.Current_quantity_query in
-    let locus = C.get_id (D.Identifier.Locus.of_string locus) in
-    let measure = C.get_id (D.Identifier.Measure.of_string measure) in
-    match Q.query (B.image book) { D.Effect_coordinate.locus; measure } with
-    | Ok (Q.Exact x) -> Z.to_string (D.Quantity.quanta (Q.quantity x))
-    | _ -> "unexpected"
-  in
+  let check_qty book locus measure = b2_check_qty book locus measure in
+  let observe_one base_state locus amount =
+    let st = key ~width_of base_state (`ASCII 'o') in
+    let form = match st.C.overlay with C.Modal_form f -> f | _ -> raise (F.Refused "observe-open") in
+    let form = Ui_form.set_text form "locus" locus in
+    let form = Ui_form.set_text form "measure" "jpy" in
+    let form = Ui_form.set_text form "amount" amount in
+    let form = Ui_form.set_focused form (Ui_form.find_field_index form "action") in
+    let st = match C.handle ~width_of ~dimensions:(100, 30) { st with C.overlay = C.Modal_form form } (`Key (`Enter, [])) with
+      | Some s -> s | None -> raise (F.Refused "observe-exit") in
+    let pick idx s =
+      (match s.C.overlay with
+       | C.Modal_form f ->
+           let form = Ui_form.update_field f "action" (function
+             | Ui_form.Buttons b -> Ui_form.Buttons { b with selected = idx } | other -> other) in
+           let form = Ui_form.set_focused form (Ui_form.find_field_index form "action") in
+           (match C.handle ~width_of ~dimensions:(100, 30) { s with C.overlay = C.Modal_form form } (`Key (`Enter, [])) with
+            | Some s -> s | None -> raise (F.Refused "observe-advance"))
+       | _ -> s) in
+    pick 0 (pick 1 st) in
+  let observed_state = observe_one back_home "wallet" "5000" in
   require (check_qty observed_state.session.book "wallet" "jpy" = "5000") "wallet-balance-observed-5000";
-  (* 4. Successfully observe bank = 0 JPY *)
-  let obs_modal3 = key ~width_of observed_state (`ASCII 'o') in
-  let valid_form_zero =
-    match obs_modal3.overlay with
-    | C.Modal_form f ->
-        let f = Ui_form.set_text f "locus" "bank" in
-        let f = Ui_form.set_text f "amount" "0" in
-        Ui_form.set_focused f 2
-    | _ -> failwith "expected modal form for observe_quantity zero"
-  in
-  let zero_state =
-    match C.handle ~width_of { obs_modal3 with overlay = C.Modal_form valid_form_zero } (`Key (`Enter, [])) with
-    | Some s -> s
-    | None -> failwith "unexpected exit on valid zero observe submit"
-  in
+  let zero_state = observe_one observed_state "bank" "0" in
   require (check_qty zero_state.session.book "bank" "jpy" = "0") "bank-balance-observed-0";
   require (check_qty zero_state.session.book "wallet" "jpy" = "5000") "wallet-balance-retained-5000";
   (* Daily Pace workflow & what-if simulator *)
   (* 1. Navigate to Daily Pace from Home via 'd' *)
   let pace_home = key ~width_of zero_state (`ASCII 'd') in
   require (pace_home.workspace.route = W.Daily_pace) "route-daily-pace";
-  let screen_pace = C.screen ~width_of (120, 30) pace_home in
-  require (contains screen_pace "Daily Pace:") "daily-pace-explicitly-configured";
-  require (contains screen_pace "Period progress:") "daily-pace-progress-bar";
-  require (contains screen_pace "w what-if") "pace-footer-what-if-hint";
-  require (contains screen_pace "c configure") "pace-footer-configure-hint";
   (* 2. What-If simulator modal via 'w' *)
   let what_if_state = key ~width_of pace_home (`ASCII 'w') in
   let form_wi =
@@ -4030,8 +4430,6 @@ let self_check ~width_of () =
   require (saved_state.overlay = C.No_overlay) "cfg-pace-saved-overlay-cleared";
   require (F.read windows_path = boundaries_before) "pool-editor-preserves-boundaries-byte-exactly";
   require (F.read pace_path = "wallet\tjpy\nbank\tjpy\n") "cfg-pace-saved-bytes";
-  let screen_reloaded = C.screen ~width_of (120, 30) saved_state in
-  require (contains screen_reloaded "Source: Pool [config/daily-pace.tsv]") "shows-configured-pool-source";
   let back_home2 = key ~width_of saved_state (`ASCII 'q') in
   (* 4. Cycle boundary setup via 'b' and Commands -> Household setup *)
   let cyc_state = key ~width_of saved_state (`ASCII 'b') in

@@ -364,20 +364,27 @@ let current_balance_items ~book ~coords =
         let measures = List.map fst (B.measures book) in
         List.concat_map (fun l -> List.map (fun m -> (l, m)) measures) loci
   in
-  let rows =
     List.map
       (fun (locus, measure) ->
         let value = quantity_value ~book ~measure locus in
         Account_row { locus; measure; role = None; value })
       coords
-  in
-  [
-    Header_row "Selected Locus × Measure; balance-view order only.";
-    Blank_row;
-  ]
-  @ (if rows = [] then [ Header_row "  (no coordinates selected)" ] else rows)
 
-let balance_item_line ?(width_of = String.length) ~book item =
+let format_money book measure q =
+  let raw = B.format book measure q in
+  let negative = String.starts_with ~prefix:"-" raw in
+  let start = if negative then 1 else 0 in
+  let stop = Option.value ~default:(String.length raw) (String.index_opt raw '.') in
+  let out = Buffer.create (String.length raw + (stop - start) / 3) in
+  if negative then Buffer.add_char out '-';
+  for i = start to stop - 1 do
+    if i > start && (stop - i) mod 3 = 0 then Buffer.add_char out ',';
+    Buffer.add_char out raw.[i]
+  done;
+  Buffer.add_substring out raw stop (String.length raw - stop);
+  Buffer.contents out
+
+let balance_item_line ?(width_of = String.length) ?(width = max_int) ~book item =
   match item with
   | Blank_row -> ""
   | Header_row text -> text
@@ -388,14 +395,29 @@ let balance_item_line ?(width_of = String.length) ~book item =
           Printf.sprintf "%s [%s]" label locus
         else locus
       in
-      let val_str =
+      let full_val =
         match value with
         | Exact n ->
-            (if Z.sign n > 0 then "+" else "") ^ B.format book measure n ^ " " ^ measure
+            (if Z.sign n > 0 then "+" else "") ^ format_money book measure n ^ " " ^ measure
         | Unsupported -> "? unsupported"
         | Known_present -> "? amount unknown, known present"
       in
-      "  " ^ pad ~width_of 22 name ^ "  " ^ pad_left ~width_of 18 val_str
+      (* Narrow fallback names the preserved state; exact digits are never truncated. *)
+      let short_val =
+        match value with
+        | Exact _ -> "see details"
+        | Unsupported -> "? unsupported"
+        | Known_present -> "? known present"
+      in
+      let room = max 0 width in
+      let val_w = width_of full_val in
+      if room >= 2 + 22 + 2 + 18 && val_w <= 18 then
+        "  " ^ pad ~width_of 22 name ^ "  " ^ pad_left ~width_of 18 full_val
+      else
+        let val_str = if 4 + val_w <= room then full_val else short_val in
+        let name_room = min 22 (room - 4 - width_of val_str) in
+        if name_room >= 1 then "  " ^ pad ~width_of name_room name ^ "  " ^ val_str
+        else clip_text ~width_of room val_str
   | Subtotal_row { role = _; measure; subtotal } ->
       let sign_str = if Z.sign subtotal > 0 then "+" else "" in
       Printf.sprintf "  Known subtotal: %s%s %s" sign_str (B.format book measure subtotal) measure
@@ -434,7 +456,7 @@ let balance_item_detail ~book item =
       let support_text =
         match value with
         | Exact n ->
-            A.format_message "Exact current balance: %s %s" (B.format book measure n) measure
+            A.format_message "Exact current balance: %s %s" (format_money book measure n) measure
         | Unsupported ->
             tr "Unsupported: No current quantity support is justified for this coordinate. Do not infer zero."
         | Known_present ->
