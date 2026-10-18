@@ -172,6 +172,70 @@ def smoke(binary, fixture, width, height, root):
     print(f"PASS: PTY {width}x{height} -> {next_width}x{next_height} -> {width}x{height}, keyboard, exact +1,000 jpy, cold reopen, exit, bytes unchanged", flush=True)
 
 
+def smoke_record_preview_refusal(binary, fixture, root):
+    """Real PTY: valid draft -> narrow preview refusal -> cancel, no write.
+
+    Never send Publish while full-size. The only attempted Publish occurs at
+    32x9, where the shared Record gate must refuse. The fixture and all
+    generated trial files remain isolated in a fresh temporary directory.
+    """
+    owned = root / "record-preview-refusal"
+    owned.mkdir(mode=0o700)
+    book = owned / "book.sexp"
+    shutil.copyfile(fixture, book)
+    before = digest(book)
+    sess = Session(binary, book, 80, 24)
+    try:
+        sess.wait_for(b"bakhlo")
+        sess.send(b"r")
+        sess.wait_for(b"Record / Edit")
+        # Same positive/negative synthetic postings as Record_session_checks.
+        # The writer is not invoked by typing or opening the Preview.
+        sess.send(b"PTY snack")
+        sess.send(b"\\t\\t")
+        sess.send(b"wallet")
+        sess.send(b"\\r")
+        sess.send(b"-37")
+        sess.send(b"\\t")
+        sess.send(b"food")
+        sess.send(b"\\r")
+        sess.send(b"+37")
+        sess.send(b"\\r")
+        sess.wait_for(b"Record / Preview")
+        if digest(book) != before:
+            raise AssertionError("opening Record Preview wrote authority bytes")
+        sess.resize(32, 9)
+        # On a 32x9 window, even a chosen Publish must refuse. A successful
+        # save would mutate the book and/or create publication artifacts.
+        sess.send(b"\\r")
+        if sess.exit_code() is not None:
+            raise AssertionError("narrow Preview Enter unexpectedly exited TUI")
+        if digest(book) != before:
+            raise AssertionError("narrow Preview Enter published hidden evidence")
+        # Once enlarged the original Preview must still exist; Escape closes
+        # without publishing and retains the draft for an explicit revisit.
+        sess.buffer.clear()
+        sess.resize(80, 24)
+        sess.wait_for(b"Record / Preview")
+        sess.send(b"\\x1b")
+        if digest(book) != before:
+            raise AssertionError("Preview Escape wrote authority bytes")
+        sess.buffer.clear()
+        sess.send(b"r")
+        sess.wait_for(b"Record / Edit")
+        sess.wait_for(b"PTY snack")
+        # Ctrl-Q from the returned Home, not from inside an active editor.
+        sess.send(b"\\x1b")
+        sess.finish()
+    finally:
+        sess.close()
+    if digest(book) != before:
+        raise AssertionError("Record draft cancel modified authority")
+    if sorted(p.name for p in owned.iterdir()) != ["book.sexp"]:
+        raise AssertionError("Record preview/cancel created unexpected files")
+    print("PASS: PTY Record draft -> Preview -> 32x9 Publish refusal -> Escape/cold draft resume, exact unchanged authority", flush=True)
+
+
 def main():
     if len(sys.argv) != 3:
         raise SystemExit("usage: ci_tui_pty.py NATIVE_BINARY SYNTHETIC_FIXTURE")
@@ -185,7 +249,8 @@ def main():
         os.chmod(tmp, 0o700)
         for width, height in DIMENSIONS:
             smoke(binary, fixture, width, height, Path(tmp))
-    print("PASS: all four real PTY dimensions (synthetic, no LOAM/IME claim)", flush=True)
+        smoke_record_preview_refusal(binary, fixture, Path(tmp))
+    print("PASS: four PTY dimensions and narrow Record Preview non-publication (synthetic, no LOAM/IME claim)", flush=True)
 
 
 if __name__ == "__main__":
