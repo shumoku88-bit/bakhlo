@@ -13,6 +13,12 @@ on-demand references, not a compulsory reading list or an implementation backlog
 - After verifying, update the existing ledger and evidence, then commit/push the slice to `main`. Distinguish code connected, tests passing, paired runtime acceptance and human/IME acceptance. Never fabricate a success, infer a missing balance, or silently weaken Preview/save refusal.
 - Never modify LOAM originals/private household data, change live-data authority, perform a cutover or migration, add dependencies or overwrite another worker's uncommitted edits by implication. P7/power loss stays separately unqualified.
 
+## CI scope (2026-10-18)
+
+- `.github/workflows/core.yml` runs locked OCaml 5.3 Core builds/tests for selected `main` pushes and PRs. `.github/workflows/tui.yml` independently attempts a Linux OxCaml 5.2.0+ox / pinned Bonsai_term build and `./tools/tui --self-check` on relevant tracked-source pushes/PRs. The TUI workflow does not use the locally ignored Mac Bonsai switch or production household files; `BAKHLO_BONSAI_CI=1` is an explicit opt-in for the generated TUI build.
+- Do not claim a new source change is qualified merely because the workflow exists or was triggered. Inspect the **matching commit SHA** and run/job result, then investigate failures and preserve their evidence. Core green does not imply Bonsai TUI green. Synthetic self-check green does not imply real PTY key/resize, IME, LOAM paired parity or P7/cutover acceptance.
+- The next CI extension, only after the isolated Ox build is reproducible, is a bounded synthetic PTY/key/cold-reopen matrix at 120x36, 80x24, 48x14 and 32x9. Do not use live household data, copy private captures to artifacts or call a synthetic render a physical-terminal acceptance.
+
 ## Current status
 
 - **Completed & Merged**: Trial 06, PR 5 (records format, durable append, application/TUI integration, incremental admission), PR 6 (records strip bytes copy optimization, entry indexing via immutable Map & reversed list), PR UX-1 (natural Japanese error display, field targeting, fail-closed draft preservation), and PR UX-2 (flexible amount parsing with half/full-width & 3-digit commas, flexible date parsing with YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD & Gregorian validation, 't' key today reset, Command Palette calendar navigation with pure calendar arithmetic).
