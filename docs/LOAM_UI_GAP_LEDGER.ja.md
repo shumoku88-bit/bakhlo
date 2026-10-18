@@ -162,7 +162,7 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 1. **いまの最優先はUI-33-V1→V2→V3、次はUI-24-B1→B2。** 完了条件は`tasks/todo.md`、状態は上の作業slice表に記す。既存処理を再利用し、情報が不足する場合はF課題を明示する。
 2. **共有機構のO/V/Q（既存移行の成果）**：[責務設計と移行順序](TUI_LAYOUT_STABILITY_ROADMAP.ja.md) に従い、共有input／再帰Input metadata→Ui_form＋styled frameと全form利用元（Modal_form・Jump・Search overlay・Reversal Date）→RecordのColumns＋recursive caretとScheduledの入力／UTF-8移動／focus／notice→list/detailのcapacity整合・controller復帰の順に移行する。UI-03の長文検索（G-2）の限定合格は保持し、G-1/G-3/G-4と全画面は未完了。横断受入後に以下の機能差分へ戻る。
    移行順1〜4は接続・限定検査済みだが、横断受入・LOAM対照・IME／本人受入は未了（[証拠](VERIFICATION.md#listdetail-capacity-and-drill-downback-cutover)）。Record lifecycle、Actual/Selected Day、Scheduledの機能不足も受入計画に残す。
-3. **Recordの一連操作**：Home→入力／候補→Preview→修正／取消／確定→Actual→再起動。原額・Merchant等のF不足を装飾で隠さない。
+3. **Recordの一連操作**：Home→入力／候補→Preview→修正／取消／確定→Actual→再起動。原額・Merchantの既存Daily保存・UI接続を尊重し、未照合の差や追加のF不足を装飾で隠さない。
 4. **Actual／Selected Day**：Locus／検索／scope／sort／detail／親復帰。旧P04の実装完了だけでは現行geometry・操作一致を認めない。
 5. **Scheduled**：作成／置換／取消／完了の安全な確認・cold照合から、Series／Months／監視・継続／一括操作へ。
 6. **残る非予算機能**：Balances／Observe／roles、Pace／Trend、Attention／精算／Exchange、Reports／設定／出力、索引未掲載の操作を順に対照する。
