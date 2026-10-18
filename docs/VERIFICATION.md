@@ -31,6 +31,11 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 - Final paging follow-through: an 80×24 Accounting list painted seven rows but Page Down moved 16 (terminal-height shortcut). List paging now uses its own painted capacity and detail paging uses its own viewport, with four-size regressions. Fresh native 80×24 Home→Page Down selected row 8 instead of 17; Pace 30d Page Up moved October 18→11 at 80×24 and →6 at 120×36, matching seven/twelve visible data rows. Final local binary SHA-256 `f2c02cc8a3d9f99aae78adf2b2d5793c4defc103a5b8dc6a1eebee98a8aa9101` passed native self-check; synthetic multi-currency authority stayed `0768830562b4ce6981d6ed95b93ed2ec57d8d09f7f3813484a5d0034a87ab73c`.
 - LOAM existing binary comparison: current-only 80×24 agreed on wallet 74,500, Pace 4,464, Spent 1,000, margin +3,464 and 1/10 supported days. Its scrollback Print consent was explicitly cancelled without output. Zero-origin-supported 120×36 matched the ten daily Paces **2,952 / 3,077 / 3,209 / 3,350 / 3,500 / 3,661 / 3,835 / 4,025 / 4,233 / 4,464**, Spent 100…1,000 and same-day differences. Bakhlo's detail retains the distinct +231/day prior-day change, +302 time effect and −71 free-money effect. This is bounded answer/display comparison, not full interaction equivalence.
 
+### CI qualification
+
+- Final code commit `58cf5ee70eaa805fb12f05b9e5751c177bda0939`: [Core `39103732892`](https://github.com/shumoku88-bit/bakhlo/actions/runs/39103732892) **passed** build/contract/regression tests; [Bonsai TUI `39103732915`](https://github.com/shumoku88-bit/bakhlo/actions/runs/39103732915) **passed** native build, complete self-check and the existing four-dimension Linux PTY/cold-reopen/Record narrow-Preview refusal checks.
+- The preceding integration commit `5104cda` also completed both workflows successfully (`39103541444` / `39103541394`). The paging follow-through was pushed only after those runs completed; no run was cancelled by the next push. CI confirms synthetic checks, not physical Mac/human acceptance or power-loss safety. The later CI-evidence commit changes documentation only.
+
 ### Remaining work
 
 Physical Mac IME/font/rapid queued resize acceptance, dated bounded-history support,
