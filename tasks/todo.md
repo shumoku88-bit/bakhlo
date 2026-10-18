@@ -11,14 +11,22 @@
 - [x] #28/#38/#39/#40/#41/#42をread-only確認。全てopen。
 - [x] 方式比較：別TUI並存ではなく、既存Core/session/rendererを再利用し中央4層を縦ownerへ置換。
   第二実装の回帰負担を避け、旧branchは移行ごとに削除。単なる横分割は完成としない。
-- [ ] 基準復旧：OMP Paceの構文・入力拒否・captured-baseの安全性を修復しnative基準を確立。
-  Coreは開始時成功（warm 7.71s）。nativeは構文エラーで未実行。
-- [ ] pure編集契約／UI primitiveからwriter依存を切断。画面間描画型依存を除去。
-- [ ] Balances/Paceの局所状態・query・input・view・checksを独立させる。
+- [x] 基準確立：efda2a3でCore合格・native self-check PASS 34行（scratch/base-selfcheck.log）。
+  OMP Pace ownerは再実装による挙動ドリフト（周期境界・年度guard・Pool文言・Commands遷移・
+  グローバルキー喪失）のため不採用。旧controllerから忠実移植（bddbd9b）。
+- [x] Dune層（store/kit/book/protocol/screens/shell/app）＋implicit_transitive_deps false。
+  writerはCore workspaceの bakhlo.store。手書きmodule一覧とcopy_filesを廃止。
+- [x] Screen契約（tui/protocol/screen.mli）。Pace・Balancesが契約で動作。Shellの画面別glue除去。
+- [x] checksを製品binaryから分離：tools/tui --self-check = dune test。画面単体checksは純粋。
+- [x] tools/arch（Core runtest）とtest/arch.tの負のテスト。docs/TUI_OWNERSHIP.mdが構造の正本。
 - [ ] Scheduled保存操作でowner→intent→Shell→単一writer→owner結果を検証。
-- [ ] Actual/Record/Home/Calendar/Reports/Attention/Loci/Settlementと残るformを移行。
+- [ ] 残る画面を tui/screens へ忠実移植：Reports3種 → Attention → Settlements → Loci →
+  Observe/Exchange → Scheduled(+各session) → Actual/Selected day → Calendar/Home。
+  Publication要求（Screen.Publish＋結果の画面返却）を最初の保存系移行で導入。
+- [ ] 中央 daily_interaction*.ml を routing／Record保持／Shell overlay／publication だけの
+  Shell へ縮退し、legacy_shared_literals を空にする。
 - [ ] 全中央checksを画面・primitive・横断scenario・保存復旧へ移管しassertion対応を記録。
-- [ ] 限定suite実行、Dune境界、依存・登録検査とnegative testsをCIへ接続。
+- [ ] CI：Core runtestでarch検査済み。tui.ymlのself-checkは --test 経由。実SHAで要確認。
 - [ ] 旧経路・不要な互換層を除去し責務文書を更新。
 - [ ] Core/native/self-check/4寸法PTY/保存・cold reloadを検証。
 - [ ] 代表変更の局所性・再コンパイル・cold/warm時間を前後比較。

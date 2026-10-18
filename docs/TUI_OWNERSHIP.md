@@ -1,77 +1,101 @@
-# TUI ownership target (#42)
+# TUI ownership architecture (#42)
 
-This is the implementation boundary decision, not a completion claim. Progress is
-owned by `tasks/todo.md`; exercised qualifications by `VERIFICATION.md`.
+This file owns the TUI structure and its enforcement. Progress lives in
+`tasks/todo.md`; exercised qualifications in `docs/VERIFICATION.md`; screen
+behaviour in `tui/README.md`.
 
 ## Decision
 
-Replace the horizontal controller with vertical screen owners, reusing the existing
-Core, sessions, native renderer and publication implementation. Do not create a
-second product TUI. The independent assessment found reusable review/draft/tiny
-gates in Record, cancellation, bulk, generation and reversal sessions. Recreating
-these in a parallel frontend increases regression work without removing the need
-for ownership boundaries. Keeping the old State/Context/View architecture and
-adding wrappers is also insufficient: its shared workspace and publication-result
-handlers still interpret screen-private state.
+Keep the existing Core, writer, editor sessions and renderer; replace the
+horizontal controller (one State, one Context, one input function, one view
+for every screen) with screen owners behind one small contract and a thin
+Shell. A second parallel TUI was rejected: the mature sessions (Record,
+reversal, date correction, cancellation, bulk, generation) and ~1,400
+scenario assertions would have to be re-earned with no structural gain.
+Migrated code is ported faithfully from the controller; an owner that
+re-implements behaviour is not accepted (the unverified OMP Daily Pace owner
+was replaced for this reason, see `0e537c8`).
 
-Each migrated owner replaces its old implementation; no long-lived dual routing.
-No accounting semantics, wire format, production authority or new feature is part
-of this reconstruction. All experiments use synthetic data.
+## Layers
 
-## Dependencies and capabilities
+All TUI code builds in its own Dune project (`tools/build-bonsai-tui`) with
+`implicit_transitive_deps false`, so using an undeclared library is a compile
+error. Directory = layer:
 
-The intended dependency direction is:
+| Directory | Library | May use |
+|---|---|---|
+| `store/` (Core workspace) | `bakhlo.store` | Core. The single household writer. |
+| `tui/kit` | `bakhlo_tui_kit` | nothing of Bakhlo: input, cell geometry, frames, viewports, forms, overlays |
+| `tui/book` | `bakhlo_tui_book` | kit, Core: pure drafts/candidates, calendar arithmetic, evidence text |
+| `tui/protocol` | `bakhlo_tui_protocol` | kit, book: `Screen`, the Shell/screen contract |
+| `tui/screens/<s>` | `bakhlo_screen_<s>` | kit, book, protocol, Core |
+| `tui/screens/<s>/test` | test | its own screen and lower layers |
+| `tui/shell` | `bakhlo_tui_shell` | everything below, `bakhlo.store`, `unix` |
+| `tui/shell/test`, `tui/scenarios` | check libraries | Shell and below |
+| `tui/app` | `bakhlo_tui_terminal`, `bonsai_daily` | Shell, Bonsai runtime |
+| `tui/app/test` | `app_checks` | whole program |
 
+Core never sees `tui/` (data only, for the check below).
+
+## The screen contract (`tui/protocol/screen.mli`)
+
+A screen owner is an ordinary module with private state:
+
+```ocaml
+val config_files : string list
+val create : unit -> t
+val modal : t -> bool
+val handle : Screen.env -> Screen.geometry -> t -> Ui_input.input -> t * Screen.request
+val view : Screen.env -> Screen.geometry -> t -> Screen.view
+val saved : Screen.env -> Screen.geometry -> (unit, string) result -> t -> t * Screen.request
 ```
-Bonsai adapter -> Shell -> screen owners -> pure UI/editor/query modules -> Core
-                       -> publication executor -> existing single writer -> Core
-```
 
-Owners receive a book snapshot, explicit configuration values, current dimensions
-and their own state. They never receive the Shell state. Their interfaces expose
-only events, rendering, concrete intents and results needed by callers. Ordinary
-OCaml modules and `.mli` boundaries suffice; there is no plugin/event framework.
+`Screen.env` is read-only household context (book snapshot, Shell-selected
+Measure, today, lazily verified annual provenance, accounting roles, captured
+bytes of the declared configuration files, writes-stopped flag).
+`Screen.request` is the only way out: `Stay`, `Ignored` (the Shell then applies
+its global keys), `Message`, `Home`, `Commands`, `Reload`, `Cycle_measure`,
+`Observe`, `Save_config` (with captured bytes and an admission precondition).
+Owners never receive Shell state, never write and never see another screen.
 
-- **UI primitives** own input, frame, viewport and caret mechanics. A generic
-  overlay frame belongs here, not to Balances or Pace.
-- **Pure editor contracts** own draft/payload construction and validation. They
-  cannot import publication or filesystem capabilities. Time/ID generation must
-  enter explicitly when needed; a module alias must not smuggle in a writer.
-- **Screen owners** own local selection, focus, scrolling, query assembly, input,
-  rendering, forms and tests. Other screens cannot inspect private models.
-- **Shell** owns routing, terminal-wide events, explicit cross-screen transfers,
-  retained Record drafts, serialization of publication requests and global
-  conflict/uncertainty inhibition. It dispatches results; it does not interpret
-  a screen's selected row, form fields or follow-up workflow.
-- **Publication executor** invokes the existing writer. Requests retain captured
-  base bytes and payloads. No auto-retry follows uncertainty. Configuration writes
-  retain their own captured bytes and admission requirements.
-- **Bonsai adapter** supplies the current dimensions at event application and
-  renders the result. Captured stale dimensions must not admit publication.
+Shell input order: paste guard, retained Record, a screen with an open editor
+(takes everything but Ctrl-R), Shell overlays, Ctrl-Q/R/N, the route's owner,
+then global keys. The view composes Shell header/feedback/footer around the
+route owner's rows and draws the modal owner's overlay on top.
 
-Local state is stored once. In particular, synchronizing owner state into a second
-all-screen `Ui_workspace.t` is a migration debt, not the target architecture.
+## Enforcement (`tools/arch`, run by Core `dune runtest`)
 
-## Acceptance of boundaries
+Dune enforces declared library use. `tools/arch/arch_check.ml` additionally
+rejects: Core depending on TUI libraries; a library depending on a higher or
+sibling layer (screen to screen, screen to Shell, kit to anything); `bakhlo.store`
+or `unix` below the Shell; Bonsai/Notty outside `tui/app`; file access or writer
+tokens (`Durable_append`, `open_out`, `Sys.rename`, `Daily_file`,
+`Daily_actions`, …) in kit/book/protocol/screens; the Shell mentioning a
+migrated screen's form ids, field ids or configuration files; sources in a
+directory without a Dune stanza or outside a known layer; and `*_checks`
+modules that their runner never calls. `test/arch.t` creates one violation per
+rule and asserts the rejection message. A few literals still shared with
+unmigrated Shell workflows are listed in `legacy_shared_literals`; that list
+may only shrink.
 
-Compiler/Dune boundaries and a small dependency check must reject Core-to-UI,
-owner-to-Shell, owner-to-writer (including aliases/transitive paths), primitive-to-
-screen and private cross-screen imports. Negative tests must demonstrate rejection
-for the intended reason. Build/test registration must cover every source and
-suite. A line-count cap or passing grep alone does not establish ownership.
+## Tests
 
-Feature tests belong to their owners; cross-screen and publication scenarios keep
-their own small suites. Existing assertions, fixture transitions, refusals and
-loop inputs are preserved with a migration map. The runner contains registration,
-not feature assertions. Narrow execution should not require running all suites.
+- `tools/tui --self-check` = `tools/build-bonsai-tui --test`: every TUI check.
+- `tools/build-bonsai-tui --test screens/pace` (any subdirectory): one owner.
+- Screen owner checks are pure (`Screen.env` built in memory, no files).
+- `tui/app/test/app_checks` runs Shell session checks, cross-screen scenarios
+  and Bonsai adapter checks with the real cell width, outside Dune's sandbox
+  (the writer refuses symlinked inputs) from a materialized synthetic copy of
+  `examples/daily-book.sexp`.
+- The 34 suite PASS lines are compared with `efda2a3` after every slice;
+  assertion labels and conditions were compared when files moved
+  (40 conditions changed only where state moved into an owner; none weakened).
 
-## Measurement
+## Known defects found while migrating (not yet changed)
 
-Compare a representative screen-only change and a public-interface change using
-the same toolchain: touched source files, compiled units, cold/warm wall time and
-relevant/full suite time. Record actual read/edit scope separately from estimates
-about future AI effort or merge conflicts. No speedup is implied by extraction.
-
-The beginning baseline is `efda2a3` plus preserved OMP changes: Core passes;
-native compilation fails in unfinished Pace code. That failure is not a usable
-runtime baseline. Restore and verify it before making before/after runtime claims.
+- `accounting-roles.tsv` is read through a path search that turns an
+  unreadable file into empty roles, and the Loci role editor writes it
+  non-atomically and ignores one save error. To be fixed when Loci moves to
+  `Save_config`.
+- Cycle-boundary saves now check the pure preconditions before the household
+  admission; any failure still refuses with the same message family.
