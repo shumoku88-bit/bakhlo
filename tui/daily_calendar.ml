@@ -4,7 +4,7 @@ type action = Left | Right | Up | Down | Cycle_zoom | Drill | Today of string | 
 type transition = Moved of t | Open_day of t | Refused of string
 
 let parts text =
-  match Daily_actions.normalize_date text with
+  match Daily_draft.normalize_date text with
   | Error _ -> Error "Enter a real Gregorian date."
   | Ok day ->
       Ok
@@ -14,10 +14,10 @@ let parts text =
 
 let canonical y m d =
   if y < 1 || y > 9999 || m < 1 || m > 12 then Error "Date is outside 0001–9999."
-  else Daily_actions.normalize_date (Printf.sprintf "%04d-%02d-%02d" y m d)
+  else Daily_draft.normalize_date (Printf.sprintf "%04d-%02d-%02d" y m d)
 
 let create day =
-  match Daily_actions.normalize_date day with
+  match Daily_draft.normalize_date day with
   | Ok selected_day -> Ok { selected_day; zoom = Day }
   | Error _ -> Error "Enter a real Gregorian date."
 
@@ -25,13 +25,13 @@ let day_number y m d =
   let prior = y - 1 in
   let before = [| 0; 0; 31; 59; 90; 120; 151; 181; 212; 243; 273; 304; 334 |] in
   (prior * 365) + (prior / 4) - (prior / 100) + (prior / 400) + before.(m)
-  + (if m > 2 && Daily_actions.is_leap_year y then 1 else 0)
+  + (if m > 2 && Daily_draft.is_leap_year y then 1 else 0)
   + d - 1
 
 let weekday day =
   match parts day with Error _ as error -> error | Ok (y, m, d) -> Ok (day_number y m d mod 7)
 
-let shift_days = Daily_actions.shift_calendar_day
+let shift_days = Daily_draft.shift_calendar_day
 
 let shift_months day delta =
   match parts day with
@@ -41,14 +41,14 @@ let shift_months day delta =
       if index < 0 || index >= 9999 * 12 then Error "Date is outside 0001–9999."
       else
         let year = (index / 12) + 1 and month = (index mod 12) + 1 in
-        canonical year month (min d (Daily_actions.days_in_month ~year ~month))
+        canonical year month (min d (Daily_draft.days_in_month ~year ~month))
 
 let shift_years day delta =
   match parts day with
   | Error _ as error -> error
   | Ok (y, m, d) ->
       let year = y + delta in
-      canonical year m (min d (Daily_actions.days_in_month ~year ~month:m))
+      canonical year m (min d (Daily_draft.days_in_month ~year ~month:m))
 
 let parse_jump ~base input =
   let input = String.trim input |> String.map (fun c -> if c = '/' then '-' else c) in
@@ -75,7 +75,7 @@ let parse_jump ~base input =
                 (String.sub input 0 4 ^ "-" ^ String.sub input 4 2 ^ "-" ^ String.sub input 6 2, Day)
             | _ -> (input, Day))
       in
-      match Daily_actions.normalize_date date with
+      match Daily_draft.normalize_date date with
       | Ok selected_day -> Ok { selected_day; zoom }
       | Error _ -> Error "Jump: use YYYY-MM-DD, YYYY-MM, YYYY, MM-DD or a day.")
 
@@ -117,7 +117,7 @@ let month_slots day =
   | Error _ as error -> error
   | Ok (year, month, _) ->
       let first = day_number year month 1 mod 7 in
-      let count = Daily_actions.days_in_month ~year ~month in
+      let count = Daily_draft.days_in_month ~year ~month in
       let slots = (first + count + 6) / 7 * 7 in
       Ok
         (List.init slots (fun i ->

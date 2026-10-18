@@ -279,24 +279,15 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             else if Form.id form = "observe_quantity" || Form.id form = "observe_preview" then
               Some { state with overlay = No_overlay; observe_draft = None }
             else
-            (match state.cycle_review, state.label_review, state.exchange_review, state.pool_review with
-             | Some (editing, _, _), _, _, _ when Form.id form = "review_cycle_boundaries" ->
-                 Some { state with overlay = Modal_form editing; cycle_review = None }
-             | _, Some (editing, _, _, _), _, _ when Form.id form = "review_locus_label" ->
+            (match state.label_review, state.exchange_review with
+             | Some (editing, _, _, _), _ when Form.id form = "review_locus_label" ->
                  Some { state with overlay = Modal_form editing; label_review = None }
-             | _, _, Some (editing, _, _), _ when Form.id form = "review_exchange" ->
+             | _, Some (editing, _, _) when Form.id form = "review_exchange" ->
                  Some { state with overlay = Modal_form editing; exchange_review = None }
-             | _, _, _, Some (editing, _, _) when Form.id form = "review_pool" ->
-                 Some { state with overlay = Modal_form editing; pool_review = None }
-             | _ when Form.id form = "configure_daily_pace" ->
-                 Some { state with overlay = No_overlay; pool_review = None;
-                   pool_draft = Some (state.workspace.measure, form) }
-             | _ -> Some { state with overlay = No_overlay; cycle_review = None; label_review = None; exchange_review = None })
+             | _ -> Some { state with overlay = No_overlay; label_review = None; exchange_review = None })
         | Form.Updated _ when input = `Key (`ASCII 'r', [`Ctrl])
                               || input = `Key (`ASCII 'R', [`Ctrl]) ->
             Some (reload state)
-        | Form.Updated updated when Form.id updated = "configure_daily_pace" ->
-            Some { state with overlay = Modal_form updated; pool_draft = Some (state.workspace.measure, updated) }
         | Form.Updated updated -> Some { state with overlay = Modal_form updated }
         | Form.Submit submitted -> (
             match Form.id submitted with
@@ -685,172 +676,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                               observe_draft = Some { draft with uncertain = true };
                               overlay = Modal_form (Form.set_notice submitted
                                 "Observation save uncertain. Do not retry; reload to inspect.") }))
-        | "daily_pace_what_if" ->
-            let amount_str = String.trim (Option.value ~default:"" (Form.get_text submitted "amount")) in
-            if amount_str = "" then
-              Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter purchase amount to simulate.")) }
-            else
-              (match B.parse_signed_amount state.session.book state.workspace.measure amount_str with
-              | Error _ ->
-                  Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Invalid amount.")) }
-              | Ok quantity ->
-                  if Z.leq quantity Z.zero then
-                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter a positive amount for purchase outflow.")) }
-                  else
-                    match current_pace_result state with
-                    | Error why ->
-                        Some { state with overlay = Modal_form (Form.set_notice submitted ("Current pace unavailable: " ^ why)) }
-                    | Ok (pace, _start, _end_excl) ->
-                        let remaining_days = pace.remaining_days in
-                        let cur_pace = pace.daily_pace_quanta in
-                        let new_avail = Z.sub pace.available_through_end quantity in
-                        let new_pace = Z.ediv new_avail (Z.of_int remaining_days) in
-                        let diff = Z.sub new_pace cur_pace in
-                        let fmt z = O.format_money state.session.book pace.measure z ^ " " ^ pace.measure in
-                        let diff_str = (if Z.gt diff Z.zero then "+" else "") ^ fmt diff ^ "/day" in
-                        let res_msg =
-                          Printf.sprintf "Simulated pace: %s/day (%s). Remaining available: %s."
-                            (fmt new_pace) diff_str (fmt new_avail)
-                        in
-                        Some { state with overlay = Modal_form (what_if_form ~amount:amount_str ~result:res_msg state) })
-        | "configure_daily_pace" ->
-            let pool_loci_str = String.trim (Option.value ~default:"" (Form.get_text submitted "pool_loci")) in
-            let loci = if pool_loci_str = "" then [] else
-              List.map String.trim (String.split_on_char ',' pool_loci_str) in
-            let approved = B.approved_loci state.session.book in
-            let valid = loci <> [] && List.for_all (fun locus -> config_token locus
-              && (match approved with Some ids -> List.mem locus ids | None -> false)) loci
-              && List.length (List.sort_uniq String.compare loci) = List.length loci in
-            if not valid then
-              Some { state with overlay = Modal_form (Form.set_notice submitted
-                "Choose distinct admitted Locus tokens, separated by commas.") }
-            else
-              (match pool_old_of_payload ~measure:state.workspace.measure (Form.payload submitted) with
-               | Error why ->
-                   Some { state with overlay = Modal_form (Form.set_notice submitted why);
-                     pool_draft = Some (state.workspace.measure, submitted); pool_review = None }
-               | Ok old_loci ->
-                   Some { state with overlay = Modal_form (pool_review_form state.workspace.measure old_loci loci);
-                     pool_draft = Some (state.workspace.measure, submitted);
-                     pool_review = Some (submitted, state.workspace.measure, loci) })
-        | "review_pool" ->
-            (match state.pool_review, state.pool_draft with
-             | Some (editing, measure, new_loci), Some (draft_measure, draft)
-               when measure = state.workspace.measure && draft_measure = measure
-                 && Form.payload editing = Form.payload draft ->
-                 let body_w, body_h = body_dimensions ~dimensions ~width_of state in
-                 let pane_w = min 64 (max 8 (body_w - 4)) in
-                 let rows = Form.render_rows ~width:(max 0 (pane_w - 6))
-                   ~height:10000 ~width_of submitted in
-                 if pane_w < 48 || List.length rows + 2 > body_h then
-                   Some { state with overlay = Modal_form (Form.set_notice submitted
-                     "Not saved: too small.") }
-                 else
-                   let expected =
-                     if Form.payload editing = "missing" then Ok None
-                     else if String.starts_with ~prefix:"present\n" (Form.payload editing) then
-                       Ok (Some (String.sub (Form.payload editing) 8 (String.length (Form.payload editing) - 8)))
-                     else Error "Pool configuration was unreadable." in
-                   let content = String.concat "" (List.map
-                     (fun locus -> locus ^ "\t" ^ measure ^ "\n") new_loci) in
-                   (match Result.bind expected (fun expected ->
-                      Result.bind (pool_old_of_payload ~measure (Form.payload editing)) (fun _ ->
-                        write_config_file state "daily-pace.tsv" ~expected content)) with
-                    | Error why -> Some { state with overlay = Modal_form (Form.set_notice submitted
-                        ("Pool save not confirmed: " ^ why ^ " Reopen to inspect before retrying.")) }
-                    | Ok () -> Some { state with overlay = No_overlay; pool_draft = None; pool_review = None;
-                        message = "Daily Pace pool saved. Period presets unchanged." })
-             | _ -> Some { state with overlay = No_overlay; pool_review = None;
-                 message = "Pool review expired; reopen setup." })
-        | "configure_cycle_boundaries" ->
-            let raw = Form.payload submitted in
-            let previous =
-              if raw = "missing" then Ok []
-              else if String.starts_with ~prefix:"present\n" raw then
-                decode_boundary_presets (String.sub raw 8 (String.length raw - 8))
-              else Error "Boundary preset configuration was unreadable; reopen after repairing it."
-            in
-            let name = String.trim (Option.value ~default:"" (Form.get_text submitted "name")) in
-            let dates_str = String.trim (Option.value ~default:"" (Form.get_text submitted "dates")) in
-            let days = if dates_str = "" then [] else
-              List.map String.trim (String.split_on_char ',' dates_str) in
-            if List.length days > 32 then
-              Some { state with overlay = Modal_form (Form.set_notice submitted
-                "Too many dates. Enter up to 32 explicit boundaries.") }
-            else
-              (match previous, decode_boundary_presets (name ^ "\t" ^ String.concat "\t" days ^ "\n") with
-               | Error why, _ ->
-                   Some { state with overlay = Modal_form (Form.set_notice submitted why) }
-               | _, Error _ | _, Ok [] | _, Ok (_ :: _ :: _) ->
-                   Some { state with overlay = Modal_form (Form.set_notice submitted
-                     "Enter a token name and at least two REAL, strictly increasing YYYY-MM-DD dates, separated by commas.") }
-               | Ok presets, Ok [(preset_name, preset_dates)] ->
-                   let next =
-                     if List.mem_assoc preset_name presets then
-                       List.map (fun (n, ds) -> if n = preset_name then (preset_name, preset_dates) else (n, ds)) presets
-                     else presets @ [(preset_name, preset_dates)]
-                   in
-                   (match current_window_for next (F.today ()) with
-                    | Error why ->
-                        Some { state with overlay = Modal_form (Form.set_notice submitted
-                          ("Explicit dates must define exactly one current cycle: " ^ why)) }
-                    | Ok (source, _, _) when source <> preset_name ->
-                        Some { state with overlay = Modal_form (Form.set_notice submitted
-                          "These dates do not cover the current cycle. Edit the current preset instead.") }
-                    | Ok _ ->
-                        Some { state with overlay = Modal_form (cycle_boundaries_review preset_name preset_dates);
-                          cycle_review = Some (submitted, preset_name, preset_dates) }))
-        | "review_cycle_boundaries" ->
-            (match state.cycle_review with
-             | None -> Some { state with overlay = No_overlay;
-                 message = "Cycle boundary review expired; reopen setup." }
-             | Some (editing, preset_name, preset_dates) ->
-                 let body_w, body_h = body_dimensions ~dimensions ~width_of state in
-                 let pane_w = min 64 (max 8 (body_w - 4)) in
-                 let rows = Form.render_rows ~width:(max 0 (pane_w - 6))
-                   ~height:10000 ~width_of submitted in
-                 if pane_w < 48 || List.length rows + 2 > body_h then
-                   Some { state with overlay = Modal_form (Form.set_notice submitted
-                     "Enlarge the terminal to review every cycle boundary before saving.") }
-                 else
-                   let payload = Form.payload editing in
-                   let expected =
-                     if payload = "missing" then Ok None
-                     else if String.starts_with ~prefix:"present\n" payload then
-                       Ok (Some (String.sub payload 8 (String.length payload - 8)))
-                     else Error "Boundary preset configuration was unreadable." in
-                   let admission =
-                     try
-                       match B.of_string (F.read state.session.path) with
-                       | Error why -> Error ("Household read refused: " ^ why)
-                       | Ok _ -> Ok ()
-                     with F.Refused why | Sys_error why -> Error why
-                       | Unix.Unix_error (err, _, _) -> Error (Unix.error_message err) in
-                   let result =
-                     Result.bind expected (fun expected ->
-                       Result.bind admission (fun () ->
-                         Result.bind (match expected with None -> Ok [] | Some raw -> decode_boundary_presets raw)
-                           (fun presets ->
-                             let next =
-                               if List.mem_assoc preset_name presets then
-                                 List.map (fun (n, ds) -> if n = preset_name then (preset_name, preset_dates) else (n, ds)) presets
-                               else presets @ [(preset_name, preset_dates)]
-                             in
-                             Result.bind (current_window_for next (F.today ())) (fun (source, _, _) ->
-                               if source <> preset_name then
-                                 Error "These dates do not cover the current cycle. Edit the current preset instead."
-                               else
-                                 let content = String.concat "" (List.map (fun (n, ds) ->
-                                   n ^ "\t" ^ String.concat "\t" ds ^ "\n") next) in
-                                 write_config_file state "boundary-presets.tsv" ~expected content))))
-                   in
-                   (match result with
-                    | Ok () -> Some { state with overlay = No_overlay; cycle_review = None;
-                        message = "Explicit Daily Pace cycle boundaries saved." }
-                    | Error why ->
-                        Some { state with overlay = Modal_form (Form.set_notice submitted
-                          ("Cycle boundary save not confirmed: " ^ why
-                           ^ " Reopen to inspect before retrying.")) }))
         | _ -> Some state))
     | No_overlay -> (
         let key = match input with `Key (key, mods) -> Some (key, mods) | _ -> None in
@@ -1002,6 +827,90 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                     let failed_owner = Balances.notify_save_failed next_owner why in
                     Some { state with balances_owner = failed_owner })
             | Balances.Reload -> Some (reload state))
+        | _ when state.workspace.route = W.Daily_pace ->
+            let daily_pace_tsv = read_pace_config state "daily-pace.tsv" in
+            let boundary_presets_tsv = read_pace_config state "boundary-presets.tsv" in
+            let annual_bounds =
+              match annual_history_bounds state with
+              | Ok opt -> opt
+              | Error _ -> None
+            in
+            let next_owner, cmd =
+              Daily_pace.handle
+                ~blocked:state.blocked
+                ~book:state.session.book
+                ~measure:state.workspace.measure
+                ~daily_pace_tsv
+                ~boundary_presets_tsv
+                ~annual_bounds
+                ~today:(F.today ())
+                ~dimensions
+                ~width_of
+                state.daily_pace_owner
+                input
+            in
+            let next_pane =
+              match Daily_pace.pane next_owner with
+              | `Calendar -> W.Calendar
+              | `Detail -> W.Detail
+            in
+            let state =
+              { state with
+                daily_pace_owner = next_owner;
+                workspace = { state.workspace with pane = next_pane };
+                scroll = Daily_pace.detail_scroll next_owner;
+                message =
+                  (if Daily_pace.notice next_owner <> "" then
+                     Daily_pace.notice next_owner
+                   else state.message);
+              }
+            in
+            (match cmd with
+            | Daily_pace.Stay -> Some state
+            | Daily_pace.Back_to_home -> Some (open_route state W.Home)
+            | Daily_pace.Open_commands -> Some { state with overlay = Commands M.initial }
+            | Daily_pace.Cycle_measure direction ->
+                let measures = List.map fst (B.measures state.session.book) in
+                let next_measure =
+                  match measures with
+                  | [] -> state.workspace.measure
+                  | ms ->
+                      let rec next = function
+                        | [] -> List.hd ms
+                        | [ x ] -> List.hd ms
+                        | x :: y :: _ when x = state.workspace.measure -> y
+                        | _ :: rest -> next rest
+                      in
+                      let rec prev acc = function
+                        | [] -> List.hd (List.rev ms)
+                        | [ x ] when x = state.workspace.measure -> (match acc with None -> x | Some p -> p)
+                        | x :: _ when x = state.workspace.measure -> (match acc with None -> List.hd (List.rev ms) | Some p -> p)
+                        | x :: rest -> prev (Some x) rest
+                      in
+                      match direction with
+                      | `Next -> next ms
+                      | `Prev -> prev None ms
+                in
+                Some { state with workspace = { state.workspace with measure = next_measure } }
+            | Daily_pace.Save_pool { expected; content } ->
+                let result = write_config_file state "daily-pace.tsv" ~expected content in
+                (match result with
+                | Ok () ->
+                    let saved = Daily_pace.notify_pool_saved next_owner in
+                    Some { state with daily_pace_owner = saved; message = Daily_pace.notice saved }
+                | Error why ->
+                    let failed = Daily_pace.notify_pool_save_failed next_owner why in
+                    Some { state with daily_pace_owner = failed })
+            | Daily_pace.Save_cycle { expected; content } ->
+                let result = write_config_file state "boundary-presets.tsv" ~expected content in
+                (match result with
+                | Ok () ->
+                    let saved = Daily_pace.notify_cycle_saved next_owner in
+                    Some { state with daily_pace_owner = saved; message = Daily_pace.notice saved }
+                | Error why ->
+                    let failed = Daily_pace.notify_cycle_save_failed next_owner why in
+                    Some { state with daily_pace_owner = failed })
+            | Daily_pace.Reload -> Some (reload state))
         | Some (`ASCII ' ', []) -> Some { state with overlay = Commands M.initial }
         | Some (`Uchar c, []) when Uchar.to_int c = 32 ->
             Some { state with overlay = Commands M.initial }
@@ -1018,7 +927,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some ((`Escape | `ASCII 'q'), []) ->
             if state.workspace.route = W.Loci || state.workspace.route = W.Settlements then
               Some (open_route state W.Home)
-            else if state.workspace.route = W.Attention || state.workspace.route = W.Daily_pace || state.workspace.route = W.Income_expense || state.workspace.route = W.Transactions_flow || state.workspace.route = W.Stock_flow then
+            else if state.workspace.route = W.Attention || state.workspace.route = W.Income_expense || state.workspace.route = W.Transactions_flow || state.workspace.route = W.Stock_flow then
               if state.workspace.pane = W.Detail then
                 Some { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
               else Some (open_route state W.Home)
@@ -1046,68 +955,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                      })
               else Some (open_route state W.Home)
             else Some (back state)
-        | Some (`ASCII 'w', []) when state.workspace.route = W.Daily_pace ->
-            Some { state with overlay = Modal_form (what_if_form state) }
-        | Some (`ASCII 'c', []) when state.workspace.route = W.Daily_pace ->
-            Some (open_pool_editor state)
-        | Some (`ASCII 'b', []) when state.workspace.route = W.Daily_pace ->
-            (match cycle_boundaries_form state with
-             | Ok form -> Some { state with overlay = Modal_form form; cycle_review = None }
-             | Error why -> Some { state with message = "Cycle setup unavailable: " ^ why })
-        | Some (`ASCII ('1' .. '5' as c), []) when state.workspace.route = W.Daily_pace ->
-            let preset = match c with
-              | '1' -> Trend.Ten_days
-              | '2' -> Trend.Thirty_days
-              | '3' -> Trend.Month
-              | '4' -> Trend.Cycle
-              | _ -> Trend.Previous_cycle in
-            (match Result.bind (read_pace_config state "boundary-presets.tsv")
-                (fun boundary_presets_text -> Trend.change_preset ~today:(F.today ())
-                  ~boundary_presets_text state.pace_trend preset) with
-             | Ok pace_trend -> Some { state with pace_trend; scroll = 0 }
-             | Error why -> Some { state with message = "Daily Pace range unavailable: " ^ why })
-        | Some (`ASCII 'v', []) when state.workspace.route = W.Daily_pace ->
-            Some { state with pace_trend = { state.pace_trend with graph_style = Trend.next_graph_style state.pace_trend.graph_style } }
-        | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), [])
-          when state.workspace.route = W.Daily_pace ->
-            let delta = match Option.map normalize key with
-              | Some ((`ASCII 'h' | `Arrow `Left), _) -> -1 | _ -> 1 in
-            Some (move_pace_selection state delta)
-        | Some ((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)), [])
-        | Some (`ASCII ('u' | 'd'), [ `Ctrl ]) when state.workspace.route = W.Daily_pace ->
-            let detail = state.workspace.pane = W.Detail in
-            let view = if detail then Some (pace_detail_viewport ~dimensions ~width_of state) else None in
-            let page = match view with
-              | Some view -> max 1 view.capacity
-              | None when (match input with
-                  | `Key (`Page _, []) | `Key (`ASCII ('u' | 'd'), [`Ctrl]) -> true | _ -> false) ->
-                  let width, body = body_dimensions ~dimensions ~width_of state in
-                  let height = max 0 (body - 2) in
-                  let wide = width >= 80 && height >= 15 in
-                  let history_width = if wide then width - min 60 (max 30 (width * 40 / 100)) - 1 else width in
-                  let capacity = if height >= 15 then max 7 (height / 2) - 2
-                    else if height >= 9 then 1 else 0 in
-                  (match pace_samples state with
-                   | Error _ -> 1
-                   | Ok (_, _, samples) ->
-                       Trend.render_history ~width:(max 0 (history_width - 6)) ~height:capacity
-                         ~width_of ~book:state.session.book ~measure:state.workspace.measure ~samples
-                         ~selected_index:state.pace_trend.selected_index
-                       |> List.fold_left (fun count (style, _) ->
-                            if style = O.Chrome then count else count + 1) 0
-                       |> max 1)
-              | None -> 1 in
-            let delta = match Option.map normalize key with
-              | Some (`Home, _) -> -max_int | Some (`End, _) -> max_int
-              | Some (`Page `Up, _) | Some (`ASCII 'u', _) -> -page
-              | Some (`Page `Down, _) | Some (`ASCII 'd', _) -> page
-              | Some ((`ASCII 'k' | `Arrow `Up), _) -> -1 | _ -> 1 in
-            (match view with
-             | Some view -> Some { state with scroll = Panel.move ~last:view.last ~position:view.start delta }
-             | None -> Some (move_pace_selection state delta))
-        | Some ((`Enter | `ASCII 'i'), []) when state.workspace.route = W.Daily_pace ->
-            Some { state with workspace = { state.workspace with
-              pane = (if state.workspace.pane = W.Calendar then W.Detail else W.Calendar) }; scroll = 0 }
         | Some (`ASCII ('1' .. '5' as c), []) when state.workspace.route = W.Income_expense ->
             let preset = match c with
               | '1' -> IncExp.Month

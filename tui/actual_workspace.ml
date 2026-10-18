@@ -4,7 +4,7 @@
 
 module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
-module A = Daily_actions
+module A = Daily_draft
 module O = Daily_overlays
 module Panel = Ui_panel
 

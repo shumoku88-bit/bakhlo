@@ -1,5 +1,5 @@
 module B = Bakhlo_sexp.Daily_book
-module A = Daily_actions
+module A = Daily_draft
 type t
 type outcome = Updated of t | Closed of t | Publish of A.payload * string * t
 val create : book:B.t -> day:string -> measure:string -> unit -> t
@@ -15,8 +15,8 @@ val surface_dimensions : int * int -> int * int
 val has_draft : t -> bool
 val is_plan : t -> bool
 val with_notice : t -> string -> t
-val preview : book:B.t -> base_bytes:string -> blocked:bool -> t -> t
-val handle : book:B.t -> base_bytes:string -> blocked:bool -> dimensions:int * int ->
+val preview : new_id:(unit -> string) -> book:B.t -> base_bytes:string -> blocked:bool -> t -> t
+val handle : new_id:(unit -> string) -> book:B.t -> base_bytes:string -> blocked:bool -> dimensions:int * int ->
   width_of:(string -> int) -> t -> Ui_input.input -> outcome
 val screen : book:B.t -> dimensions:int * int -> width_of:(string -> int) -> t ->
   (Daily_overlays.style * string) list

@@ -2,7 +2,7 @@ module B = Bakhlo_sexp.Daily_book
 module O = Daily_overlays
 module Panel = Ui_panel
 module Form = Ui_form
-module A = Daily_actions
+module A = Daily_draft
 
 type t = {
   book : B.t;

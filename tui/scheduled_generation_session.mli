@@ -13,6 +13,7 @@ val base_bytes : t -> string
 val with_publish_error : t -> string -> t
 val dimensions : int * int -> int * int
 val handle :
+  new_id:(unit -> string) ->
   blocked:bool ->
   dimensions:int * int ->
   width_of:(string -> int) ->

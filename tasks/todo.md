@@ -1,5 +1,38 @@
 # LOAMの機能・見た目・使い勝手をBakhloで再現する
 
+## 最優先：#42 構造再構築（2026-10-18）
+
+今回のユーザー依頼は既存機能を保った完成形への再構築。以下は従来の機能追加順に優先する。
+新規Series／coverage等は保留。mainへ未検証版を統合しない。
+
+- [x] OMP作業の現状確認と保全。開始HEAD efda2a3、remote main d39b354。
+  tracked差分7件とuntracked source4件、全refs bundle、status/reflogを
+  ignored `scratch/reconstruction-42/omp-preservation` と別tmpへ保存。bundle verify成功。
+- [x] #28/#38/#39/#40/#41/#42をread-only確認。全てopen。
+- [x] 方式比較：別TUI並存ではなく、既存Core/session/rendererを再利用し中央4層を縦ownerへ置換。
+  第二実装の回帰負担を避け、旧branchは移行ごとに削除。単なる横分割は完成としない。
+- [ ] 基準復旧：OMP Paceの構文・入力拒否・captured-baseの安全性を修復しnative基準を確立。
+  Coreは開始時成功（warm 7.71s）。nativeは構文エラーで未実行。
+- [ ] pure編集契約／UI primitiveからwriter依存を切断。画面間描画型依存を除去。
+- [ ] Balances/Paceの局所状態・query・input・view・checksを独立させる。
+- [ ] Scheduled保存操作でowner→intent→Shell→単一writer→owner結果を検証。
+- [ ] Actual/Record/Home/Calendar/Reports/Attention/Loci/Settlementと残るformを移行。
+- [ ] 全中央checksを画面・primitive・横断scenario・保存復旧へ移管しassertion対応を記録。
+- [ ] 限定suite実行、Dune境界、依存・登録検査とnegative testsをCIへ接続。
+- [ ] 旧経路・不要な互換層を除去し責務文書を更新。
+- [ ] Core/native/self-check/4寸法PTY/保存・cold reloadを検証。
+- [ ] 代表変更の局所性・再コンパイル・cold/warm時間を前後比較。
+- [ ] 実装SHA一致のGitHub CIを確認し関連Issueの実装済／未了を整合。
+
+完成条件は依頼の10項目すべて。P7／電源断・実IME・本人受入・完全LOAM対照は別資格。
+詳細なF/O/V/Qは既存の差分台帳のみ。作業branchは `reconstruct/issue-42`。
+
+### 再構築レビュー
+
+開始時のOMP版は未検証で、native構文エラーに加えPoolの非空・admitted Locus拒否と
+編集中base保持に後退の疑いを確認。保全済み原本と旧controllerを照合して修復する。
+完了宣言なし。既存Core・保存契約・年度履歴は変更対象ではなく回帰検証対象。
+
 ## 範囲
 
 Bakhloは未運用で、旧UIの後方互換性は不要。LOAMの全ユーザー向け機能・回答・英語表記・

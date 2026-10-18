@@ -192,62 +192,6 @@ let calendar_rows ?(width = 80) state =
           let actual, planned = count prefix in
           Printf.sprintf "%s%s    A%d  S%d" (if y = year then "> " else "  ") prefix actual planned)
 
-let pace_lines state =
-  let measure = state.workspace.measure in
-  match current_pace_result state with
-  | Error why -> [ tr "Daily Pace unavailable (not zero):"; why;
-      "Supply an explicit daily-pace.tsv pool and boundary-presets.tsv period.";
-      "Historical Trend is unavailable." ]
-  | Ok (pace, start_day, end_exclusive) ->
-          let amount n = B.format state.session.book measure n ^ " " ^ measure in
-          let total_period_days =
-            let day_num y m d =
-              let prior = y - 1 in
-              let before = [| 0; 0; 31; 59; 90; 120; 151; 181; 212; 243; 273; 304; 334 |] in
-              (prior * 365) + (prior / 4) - (prior / 100) + (prior / 400) + before.(m)
-              + (if m > 2 && A.is_leap_year y then 1 else 0)
-              + d - 1
-            in
-            match (Cal.parts start_day, Cal.parts end_exclusive) with
-            | Ok (y1, m1, d1), Ok (y2, m2, d2) ->
-                let j1 = day_num y1 m1 d1 and j2 = day_num y2 m2 d2 in
-                max 1 (j2 - j1)
-            | _ -> max 1 pace.remaining_days
-          in
-          let elapsed_days = max 0 (total_period_days - pace.remaining_days) in
-          let progress_ratio = float_of_int elapsed_days /. float_of_int total_period_days in
-          let bar = O.progress_bar ~width:28 ~ratio:progress_ratio in
-          let pool_origin = "config/daily-pace.tsv" in
-          let window_origin = "config/boundary-presets.tsv" in
-          [
-            Printf.sprintf "Daily Pace: %s / day" (amount pace.daily_pace_quanta);
-            "";
-            Printf.sprintf "Period progress: %s %d/%d days" bar elapsed_days total_period_days;
-            Printf.sprintf "Through end: %s (Available)" (amount pace.available_through_end);
-            Printf.sprintf "Days remaining: %d days  (Observed: %s -> End: %s)"
-              pace.remaining_days pace.observed_at pace.end_exclusive;
-            Printf.sprintf "Source: Pool [%s] | Window [%s]" pool_origin window_origin;
-            "";
-            "Eligible Pool:";
-          ]
-          @ (if pace.pool_balances = [] then [ "  (none)" ]
-             else
-               List.map
-                 (fun (coordinate, n) ->
-                   let locus = A.lstr coordinate.D.Effect_coordinate.locus in
-                   let label = B.label state.session.book locus in
-                   let name = if label <> "" && label <> locus then Printf.sprintf "%s [%s]" label locus else locus in
-                   Printf.sprintf "  %-24s %s" name (amount n))
-                 pace.pool_balances)
-          @ [ ""; "Scheduled Deductions:" ]
-          @ (if pace.plan_deductions = [] then [ "  (no upcoming deductions)" ]
-             else
-               List.map
-                 (fun (id, n) -> Printf.sprintf "  %-24s -%s" ("Plan " ^ id) (amount n))
-                 pace.plan_deductions)
-          @ [ ""; "Net Pool: " ^ amount pace.eligible_pool;
-              "Total Deductions: -" ^ amount pace.automatic_deductions ]
-
 
 
 let workspace_rows ~width_of ~width ~height state =
@@ -375,82 +319,12 @@ let workspace_rows ~width_of ~width ~height state =
       ~balance_view_text:(read_pace_config state "balance-view.tsv")
       ~dimensions:(width, height) ~width_of state.balances_owner
   else if workspace.route = W.Daily_pace then
-    let measure = workspace.measure in
-    let trend_res = pace_samples state in
-    let is_detail = workspace.pane = W.Detail in
-    let left_width, right_width = browser_pane_widths width in
-    match trend_res with
-    | Ok (_, _, samples) ->
-        let count = List.length samples in
-        let selected_idx = max 0 (min (count - 1) state.pace_trend.selected_index) in
-        let title = Printf.sprintf "Daily Pace / Trend • %s [%s]"
-            (Trend.preset_label state.pace_trend.preset)
-            (Trend.graph_style_label state.pace_trend.graph_style) in
-        let wide = width >= 80 && height >= 15 in
-        let lower_height =
-          if height >= 15 then max 7 (height / 2)
-          else if height >= 9 then 3 else 0 in
-        let detail_width = if is_detail then width
-          else if wide then min 60 (max 30 (width * 40 / 100)) else width in
-        let detail_height = if wide then lower_height else 0 in
-        let history_width = if wide then width - detail_width - 1 else width in
-        let history_height = lower_height in
-        let detail_panel ~height =
-          let detail_rows = pace_sample_detail ~width_of ~width:detail_width state samples in
-          draw_frame ~width_of ~width:detail_width ~height ~focused:is_detail
-            ~title:"Selected day" ~scroll:state.scroll ~selected:None detail_rows
-        in
-        if is_detail then detail_panel ~height
-        else
-          let chart_height = height - lower_height in
-          let chart =
-            Trend.render_chart ~width:(max 0 (width - 6))
-              ~height:(Panel.capacity ~height:chart_height ~heading:false)
-              ~width_of ~book ~today:(F.today ()) ~measure ~samples
-              ~selected_index:selected_idx ~graph_style:state.pace_trend.graph_style
-            |> Panel.frame_rows ~width_of ~width ~height:chart_height
-                 ~focused:(not is_detail) ~title
-          in
-          let history =
-            Trend.render_history ~width:(max 0 (history_width - 6))
-              ~height:(Panel.capacity ~height:history_height ~heading:false)
-              ~width_of ~book ~measure ~samples ~selected_index:selected_idx
-            |> Panel.frame_rows ~width_of ~width:history_width ~height:history_height
-                 ~focused:(not is_detail) ~title:"History"
-          in
-          let lower =
-            if wide then
-              List.map2
-                (fun (left_style, left_text) (right_style, right_text) ->
-                  (Columns (history_width, left_style, right_style), left_text ^ " " ^ right_text))
-                history (detail_panel ~height:detail_height)
-            else history @ (if detail_height = 0 then [] else detail_panel ~height:detail_height)
-          in
-          chart @ lower
-    | Error why ->
-        if is_detail then
-          draw_frame ~width_of ~width ~height ~focused:true ~title:"Pace Detail & Evidence"
-            ~scroll:state.scroll ~selected:None
-            (List.concat_map (O.wrap_text ~width_of (max 1 (width - 6))) (pace_detail_lines state))
-        else
-        let left_title = Printf.sprintf "Daily Pace / %s" (Trend.preset_label state.pace_trend.preset) in
-        let right_title = "Pace Detail & Evidence" in
-        let left_rows =
-          List.concat_map (O.wrap_text ~width_of (max 1 (left_width - 6)))
-            [
-              tr "Daily Pace unavailable:";
-              why;
-              "Supply an explicit daily-pace.tsv pool and boundary-presets.tsv period.";
-            ]
-        in
-        let right_rows = pace_detail_lines state in
-        let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) right_rows in
-        split_pane
-          ~left_focused:(not is_detail) ~left_title ~left_scroll:0
-          ~left_selected:None ~left_rows
-          ~right_focused:is_detail ~right_title
-          ~right_scroll:(if is_detail then state.scroll else 0)
-          ~right_selected:None ~right_rows:wrapped_detail ()
+    Daily_pace.screen ~book:state.session.book ~measure:workspace.measure
+      ~daily_pace_tsv:(read_pace_config state "daily-pace.tsv")
+      ~boundary_presets_tsv:(read_pace_config state "boundary-presets.tsv")
+      ~annual_bounds:(match annual_history_bounds state with Ok opt -> opt | Error _ -> None)
+      ~today:(F.today ())
+      ~dimensions:(width, height) ~width_of state.daily_pace_owner
   else if workspace.route = W.Income_expense then
     let period_res = checked_report_period state state.income_expense.preset state.income_expense.period_offset in
     let is_detail = workspace.pane = W.Detail in
@@ -812,16 +686,6 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
           [ "Enter next/Add  Tab fields  Left/Right action"; "Add observed rows together, then Preview; Esc cancels" ]
       | "observe_preview" ->
           [ "Left/Right choose  Enter confirm  e edit  Esc cancel"; "Full image must fit before Publish; no partial save" ]
-      | "daily_pace_what_if" ->
-          [ "Enter simulate scenario  Tab switch field/button  Esc close"; "Read-only simulation - does not publish any entries" ]
-      | "configure_daily_pace" ->
-          [ "Enter review  Tab switch field  Esc cancel"; "Edits only daily-pace.tsv" ]
-      | "review_pool" ->
-          [ "Enter save  Tab choose Edit  Esc edit"; "Full pool must fit before saving" ]
-      | "configure_cycle_boundaries" ->
-          [ "Enter review  Tab switch field  Esc cancel"; "Edits only boundary-presets.tsv" ]
-      | "review_cycle_boundaries" ->
-          [ "Enter save  Tab choose Edit  Esc edit"; "Full boundaries must fit before saving" ]
       | _ ->
           [ "Enter submit  Tab next field  Esc cancel"; "Arrow keys / space to choose options" ])
   | No_overlay | Commands _ | Jump _ | Search _ ->
@@ -829,6 +693,8 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
     Balances.footer ~dimensions ~width_of state.balances_owner
   else if state.workspace.W.route = W.Actual then
     Act.footer ~dimensions ~width_of state.actual_workspace
+  else if state.workspace.W.route = W.Daily_pace then
+    Daily_pace.footer ~dimensions ~width_of state.daily_pace_owner
   else if is_scheduled_months state then
     if state.workspace.pane = W.Detail then
       [ "j/k PgUp/Dn Home/End scroll  Tab Months"; "Enter/c complete  g generate  b batch  x cancel  v List  q back" ]
@@ -889,18 +755,6 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
          | Some W.Actual -> "Space Commands  q/Esc Actual  Ctrl-r reload"
          | _ -> "Space Commands  q/Esc Home  Ctrl-r reload");
       ]
-  | W.Daily_pace, W.Calendar ->
-      if fst dimensions < 64 then
-        [ "h/l day  i detail  1-5 period"; "w what-if  v style  q back" ]
-      else
-        [ "1-5 period  h/l day  v style  Tab/i detail  w what-if";
-          "PgUp/Dn Home/End  c pool  b cycle  Space Commands  q back" ]
-  | W.Daily_pace, W.Detail ->
-      if fst dimensions < 64 then
-        [ "j/k scroll  h/l day  Tab trend"; "PgUp/Dn Home/End  q back" ]
-      else
-        [ "j/k PgUp/Dn Home/End scroll  h/l day  Tab/i timeline";
-          "w what-if  c pool  b cycle  q/Esc timeline" ]
   | W.Income_expense, W.Calendar ->
       [ "1-5 period  [ / ] shift  p print  Tab detail  r Record"; "Space Commands  q/Esc Home  Ctrl-r reload" ]
   | W.Income_expense, W.Detail ->
@@ -996,12 +850,11 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
               else match state.workspace.route with
                 | W.Selected_day day -> day ^ "   " ^ tr "Day" ^ tr " view"
                 | W.Daily_pace ->
-                    (match current_pace_result state with
-                     | Error _ -> "Today: unavailable (not zero)"
-                     | Ok (pace, _, _) ->
-                         let text = "Today: " ^ O.format_money state.session.book pace.measure
-                             pace.daily_pace_quanta ^ " " ^ pace.measure ^ "/day" in
-                         if width_of text <= width then text else "Today: End, then i for full value")
+                    Daily_pace.header_summary ~book:state.session.book ~measure:state.workspace.measure
+                      ~daily_pace_tsv:(read_pace_config state "daily-pace.tsv")
+                      ~boundary_presets_tsv:(read_pace_config state "boundary-presets.tsv")
+                      ~annual_bounds:(match annual_history_bounds state with Ok opt -> opt | Error _ -> None)
+                      ~today:(F.today ()) ~width ~width_of state.daily_pace_owner
                 | _ -> state.workspace.calendar.selected_day ^ "   " ^ Cal.title state.workspace.calendar ^ tr " view")
             ^ if has_record_draft state then "   Draft retained" else "");
         ]
@@ -1130,6 +983,8 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
           Some { origin_x; origin_y; pane_width = pane_w; pane_height = actual_h; rows; cursor }
   else if state.workspace.route = W.Balances && Balances.has_overlay state.balances_owner then
     Balances.overlay ~dimensions ~body_dimensions:(body_w, body_h) ~width_of state.balances_owner
+  else if state.workspace.route = W.Daily_pace && Daily_pace.has_overlay state.daily_pace_owner then
+    Daily_pace.overlay ~dimensions ~body_dimensions:(body_w, body_h) ~width_of state.daily_pace_owner
   else if state.overlay = No_overlay || body_w < 8 || body_h < 3 then None
   else
     match state.overlay with
@@ -1291,6 +1146,9 @@ let cursor_position ~width_of ((width, height) as dimensions) state : (int * int
       else if state.workspace.route = W.Balances then
         let body_w, body_h = body_dimensions ~dimensions ~width_of state in
         Balances.cursor_position ~dimensions ~body_dimensions:(body_w, body_h) ~width_of state.balances_owner
+      else if state.workspace.route = W.Daily_pace then
+        let body_w, body_h = body_dimensions ~dimensions ~width_of state in
+        Daily_pace.cursor_position ~dimensions ~body_dimensions:(body_w, body_h) ~width_of state.daily_pace_owner
       else if state.workspace.route = W.Actual then
         Act.cursor_position ~dimensions ~width_of state.actual_workspace
       else None

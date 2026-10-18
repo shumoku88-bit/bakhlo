@@ -31,6 +31,7 @@ module Roles = Locus_roles
 module Stl = Settlement_data
 module BalView = Balance_view_data
 module Balances = Balances_owner
+module Daily_pace = Daily_pace_owner
 
 let tr = Ui_text.tr
 let get = A.get
@@ -152,16 +153,13 @@ type state = {
   settlements : (Stl.t, string) result;
   settlement_scope : Stl.scope;
   balances_owner : Balances.t;
-  cycle_review : (Form.t * string * string list) option;
-  pool_draft : (string * Form.t) option;
-  pool_review : (Form.t * string * string list) option;
   label_review : (Form.t * string * string * string) option;
   exchange_review : (Form.t * A.transaction * string) option;
   observe_draft : observe_draft option;
   actual_workspace : Act.t;
   drill_parent : W.route option;
   drill_book : B.t option;
-  pace_trend : Trend.t;
+  daily_pace_owner : Daily_pace.t;
   income_expense : IncExp.t;
   stock_flow : StockFlow.t;
   transactions_flow : Flow.t;
@@ -203,16 +201,13 @@ let initial ?config_home session =
     settlements;
     settlement_scope = Stl.Open_only;
     balances_owner = Balances.create ();
-    cycle_review = None;
-    pool_draft = None;
-    pool_review = None;
     label_review = None;
     exchange_review = None;
     observe_draft = None;
     actual_workspace = Act.create ~focus_date:focus_day;
     drill_parent = None;
     drill_book = None;
-    pace_trend = Trend.initial ();
+    daily_pace_owner = Daily_pace.create ();
     income_expense = IncExp.initial ();
     stock_flow = StockFlow.initial ();
     transactions_flow = Flow.initial ();

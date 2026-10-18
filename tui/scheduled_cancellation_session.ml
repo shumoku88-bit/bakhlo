@@ -1,6 +1,6 @@
 (* Cancellation captures its review evidence; the existing writer rechecks lifecycle and base. *)
 module B = Bakhlo_sexp.Daily_book
-module A = Daily_actions
+module A = Daily_draft
 module O = Daily_overlays
 module Form = Ui_form
 module Panel = Ui_panel

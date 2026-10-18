@@ -3,7 +3,7 @@
 module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
 module Q = Bakhlo_application.Current_quantity_query
-module A = Daily_actions
+module A = Daily_draft
 let tr = Ui_text.tr
 
 type style = Plain | Active | Heading | Status | Chrome | Frame | Focused_frame | Calendar_dates

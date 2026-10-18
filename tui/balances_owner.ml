@@ -9,7 +9,7 @@ module BalView = Balance_view_data
 
 type mode = [ `Current | `Accounting ]
 type pane = [ `List | `Detail ]
-type overlay_frame = {
+type overlay_frame = Ui_overlay.frame = {
   origin_x : int;
   origin_y : int;
   pane_width : int;

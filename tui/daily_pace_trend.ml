@@ -2,10 +2,9 @@
 module B = Bakhlo_sexp.Daily_book
 module O = Daily_overlays
 module Cal = Daily_calendar
-module A = Daily_actions
+module A = Daily_draft
 module D = Bakhlo_domain
 module Q = Bakhlo_application.Current_quantity_query
-module F = Daily_file
 module Panel = Ui_panel
 
 type preset =

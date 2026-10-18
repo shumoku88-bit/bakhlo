@@ -1,7 +1,7 @@
 (* English-first Record editor. Drafts and preview navigation are local state;
    only an explicit selected Publish action requests the existing publisher. *)
 module B = Bakhlo_sexp.Daily_book
-module A = Daily_actions
+module A = Daily_draft
 module D = Bakhlo_domain
 module R = Posting_draft
 module O = Daily_overlays
@@ -267,10 +267,10 @@ let draft t =
       let amount=if signed then String.sub row.amount 1 (String.length row.amount-1) else row.amount in
       {R.key=row.key; locus=row.locus; negative; amount}) t.rows }
 
-let preview ~book ~base_bytes ~blocked t =
+let preview ~new_id ~book ~base_bytes ~blocked t =
   if blocked then with_notice t (tr "Writes are stopped; the draft is retained.")
   else if is_plan t then
-    match A.build_plan ~book ~mode:t.mode ~day:t.day ~draft:(draft t) with
+    match A.build_plan ~new_id ~book ~mode:t.mode ~day:t.day ~draft:(draft t) with
     | Error error -> with_notice t error.A.message
     | Ok (plan, replace) ->
         {t with review=Some {payload=A.Plan_tx {plan; replace}; base_bytes; action=0; scroll=0}; notice=""; paste=None}
@@ -279,7 +279,7 @@ let preview ~book ~base_bytes ~blocked t =
     | Some (m, _) when not (List.mem_assoc m (B.measures book)) ->
         with_notice t (A.format_message "Measure '%s' scale is not configured in this book." m)
     | _ ->
-        (match A.build_transaction ~book ~mode:t.mode (A.Multiple {day=t.day; memo=t.description; draft=draft t; original_amount=t.original_amount}) with
+        (match A.build_transaction ~new_id ~book ~mode:t.mode (A.Multiple {day=t.day; memo=t.description; draft=draft t; original_amount=t.original_amount}) with
         | Error error -> with_notice t error.A.message
         | Ok transaction ->
             {t with review=Some {payload=A.Entry_tx transaction; base_bytes; action=0; scroll=0}; notice=""; paste=None})
@@ -377,7 +377,7 @@ let parse_original_quanta ~scale amount_str =
           if Z.sign q <= 0 then Error `Non_positive else Ok q
     | _ -> Error `Invalid
 
-let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.input) =
+let handle ~new_id ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.input) =
   let update t=Updated t in
   match input,t.paste with
   | `Paste `Start, _ -> update {t with paste=Some ("",false)}
@@ -507,11 +507,11 @@ let handle ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.in
               | `ASCII 'n',[`Ctrl] -> update (add_row t)
               | `ASCII 'd',[`Ctrl] -> update (drop_row t)
               | `ASCII 'u',[`Ctrl] -> update (fill_unresolved_remainder ~book t)
-              | `ASCII 's',[`Ctrl] -> update (preview ~book ~base_bytes ~blocked t)
+              | `ASCII 's',[`Ctrl] -> update (preview ~new_id ~book ~base_bytes ~blocked t)
           | `Enter,[] ->
               if is_locus t then update (accept ~book t)
               else if t.focus=action_start t || t.focus=action_start t-1 then
-                update (preview ~book ~base_bytes ~blocked t)
+                update (preview ~new_id ~book ~base_bytes ~blocked t)
               else if t.focus=action_start t+1 then update (add_row t)
               else if t.focus=action_start t+2 then drop_row t |> update
               else if t.focus=action_start t+3 then Closed t

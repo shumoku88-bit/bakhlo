@@ -3,7 +3,7 @@ module B = Bakhlo_sexp.Daily_book
 module Roles = Locus_roles
 module O = Daily_overlays
 module Cal = Daily_calendar
-module A = Daily_actions
+module A = Daily_draft
 module D = Bakhlo_domain
 
 type period_preset =

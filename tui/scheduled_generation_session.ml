@@ -4,8 +4,7 @@ module O = Daily_overlays
 module Panel = Ui_panel
 module Form = Ui_form
 module Cal = Daily_calendar
-module A = Daily_actions
-module F = Daily_file
+module A = Daily_draft
 
 type cadence =
   | Monthly
@@ -111,7 +110,7 @@ let text t field = Option.value ~default:"" (Form.get_text t.form field)
 let selected_cadence t =
   cadence_of_index (Option.value ~default:0 (Form.get_choice t.form "cadence"))
 
-let generate_occurrences ~source ~cadence ~through_day =
+let generate_occurrences ~new_id ~source ~cadence ~through_day =
   let step = cadence_months cadence in
   let rec loop k acc =
     match Cal.shift_months source.B.day (k * step) with
@@ -121,7 +120,7 @@ let generate_occurrences ~source ~cadence ~through_day =
         else
           let plan : B.plan =
             {
-              id = F.new_id ();
+              id = new_id ();
               day = target_date;
               measure = source.measure;
               changes = source.changes;
@@ -133,7 +132,7 @@ let generate_occurrences ~source ~cadence ~through_day =
   in
   loop 1 []
 
-let validate_and_generate t =
+let validate_and_generate ~new_id t =
   let through_day = text t "through" in
   let cadence = selected_cadence t in
   if not (valid_date through_day) then
@@ -141,7 +140,7 @@ let validate_and_generate t =
   else if through_day <= t.source.day then
     Error "Through date must be strictly later than source date."
   else
-    let plans = generate_occurrences ~source:t.source ~cadence ~through_day in
+    let plans = generate_occurrences ~new_id ~source:t.source ~cadence ~through_day in
     if plans = [] then
       Error "No occurrences generated before the through date."
     else
@@ -186,7 +185,7 @@ let viewport ~dimensions:(width, height) ~width_of t =
   in
   (wrapped, view)
 
-let handle ~blocked ~dimensions:((width, height) as dims) ~width_of t input =
+let handle ~new_id ~blocked ~dimensions:((width, height) as dims) ~width_of t input =
   let _, view = viewport ~dimensions:dims ~width_of t in
   let t = { t with scroll = view.start } in
   let updated t = Updated t in
@@ -226,7 +225,7 @@ let handle ~blocked ~dimensions:((width, height) as dims) ~width_of t input =
       match input with
       | `Key (`Escape, []) -> Closed
       | `Key (`Enter, []) -> (
-          match validate_and_generate t with
+          match validate_and_generate ~new_id t with
           | Error message -> updated { t with notice = message }
           | Ok (through_day, cadence, plans) ->
               updated { t with generated = Some plans; through_day; cadence; choice = 0; scroll = 0; notice = "" })
@@ -236,7 +235,7 @@ let handle ~blocked ~dimensions:((width, height) as dims) ~width_of t input =
           | Form.Updated form -> updated { t with form; notice = "" }
           | Form.Submit form -> (
               let t = { t with form } in
-              match validate_and_generate t with
+              match validate_and_generate ~new_id t with
               | Error message -> updated { t with notice = message }
               | Ok (through_day, cadence, plans) ->
                   updated { t with generated = Some plans; through_day; cadence; choice = 0; scroll = 0; notice = "" })))

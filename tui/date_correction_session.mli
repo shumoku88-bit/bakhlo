@@ -1,5 +1,5 @@
 module B = Bakhlo_sexp.Daily_book
-module A = Daily_actions
+module A = Daily_draft
 type t
 type outcome = Updated of t | Closed | Publish of A.transaction * string
 val create : base_bytes:string -> B.entry -> t
