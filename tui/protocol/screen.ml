@@ -11,6 +11,7 @@ type env = {
   annual : annual;
   accounting_roles : (string * Daily_overlays.accounting_role) list Lazy.t;
   attention : (Attention_data.t, string) result;
+  settlements : (Settlement_data.t, string) result;
   blocked : bool;
   config : string -> (string option, string) result;
 }
@@ -34,6 +35,7 @@ type request =
   | Cycle_measure of [ `Next | `Prev ]
   | Observe of { locus : string; measure : string; amount : Z.t option }
   | Save_attention of { expected : Attention_data.t; next : Attention_data.t }
+  | Save_settlements of { expected : Settlement_data.t; next : Settlement_data.t }
   | Save_config of {
       file : string;
       expected : string option;

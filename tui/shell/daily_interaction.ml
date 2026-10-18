@@ -526,66 +526,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                         | A.Published _ | A.Idempotent_duplicate _ | _ ->
                             let next_state = { state with overlay = No_overlay; exchange_review = None; message = tr "Exchange recorded." } in
                             Some (apply_commit_result next_state ~draft:next_state res)))
-            | "add_settlement" ->
-                let label_str = Option.value ~default:"" (Form.get_text submitted "label") |> String.trim in
-                let debtor = Option.value ~default:"" (Form.get_text submitted "debtor") |> String.trim in
-                let creditor = Option.value ~default:"" (Form.get_text submitted "creditor") |> String.trim in
-                let measure = Option.value ~default:"" (Form.get_text submitted "measure") |> String.trim in
-                let amount_str = Option.value ~default:"" (Form.get_text submitted "amount") |> String.trim in
-                if debtor = "" then
-                  Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter debtor endpoint.")) }
-                else if creditor = "" then
-                  Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter creditor endpoint.")) }
-                else if measure = "" then
-                  Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter measure token.")) }
-                else
-                  (match B.parse_amount state.session.book measure amount_str with
-                  | Error why ->
-                      let msg =
-                        if why = "non-positive-amount" then tr "Committed amount must be positive."
-                        else if why = "division-by-zero" then tr "Amount divides by zero."
-                        else if why = "indivisible-amount" then tr "Result cannot fit the Measure scale."
-                        else if why = "measure-scale-not-supplied" then
-                          Printf.sprintf "Measure '%s' scale is not configured." measure
-                        else tr "Invalid amount."
-                      in
-                      Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
-                  | Ok committed ->
-                      let label = if label_str = "" then None else Some label_str in
-                      Some (commit_settlements state submitted
-                        (fun t -> Stl.add_row t ~id:(Stl.next_id t) ?label ~debtor ~creditor ~measure ~committed ())
-                        "Commitment added and read back."))
-            | "action_settlement" ->
-                let id = Form.payload submitted in
-                let kind_idx = Option.value ~default:0 (Form.get_choice submitted "action_kind") in
-                let amount_str = Option.value ~default:"" (Form.get_text submitted "amount") |> String.trim in
-                (match Result.bind state.settlements (fun t ->
-                   match Stl.find_row t id with Some r -> Ok r | None -> Error "Commitment not found.") with
-                | Error why ->
-                    Some { state with overlay = Modal_form (Form.set_notice submitted why) }
-                | Ok r ->
-                    if kind_idx = 2 then
-                      Some (commit_settlements state submitted
-                        (fun t -> Stl.retract_row t ~id)
-                        (Printf.sprintf "Retracted commitment %s." id))
-                    else
-                      (match B.parse_amount state.session.book r.measure amount_str with
-                      | Error why ->
-                          let msg =
-                            if why = "non-positive-amount" then tr "Amount must be positive."
-                            else if why = "division-by-zero" then tr "Amount divides by zero."
-                            else if why = "indivisible-amount" then tr "Result cannot fit the Measure scale."
-                            else if why = "measure-scale-not-supplied" then
-                              Printf.sprintf "Measure '%s' scale is not configured." r.measure
-                            else tr "Invalid amount."
-                          in
-                          Some { state with overlay = Modal_form (Form.set_notice submitted msg) }
-                      | Ok amount ->
-                          let verb = if kind_idx = 0 then "Settled" else "Reduced" in
-                          Some (commit_settlements state submitted
-                            (fun t -> if kind_idx = 0 then Stl.settle_row t ~id ~amount
-                              else Stl.reduce_row t ~id ~amount)
-                            (Printf.sprintf "%s %s on %s." verb (Z.to_string amount) id))))
         | "observe_quantity" ->
             let refused why = Some { state with overlay = Modal_form (Form.set_notice submitted why) } in
             (match state.observe_draft with
@@ -701,7 +641,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII 'g', []) when (match state.workspace.route with W.Selected_day _ -> true | _ -> false) ->
             Some (open_route state W.Loci)
         | Some ((`Escape | `ASCII 'q'), []) ->
-            if state.workspace.route = W.Loci || state.workspace.route = W.Settlements then
+            if state.workspace.route = W.Loci then
               Some (open_route state W.Home)
             else if state.workspace.route = W.Calendar then
               if state.workspace.pane = W.Detail then
@@ -809,14 +749,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 let current_label = if current_label = locus then "" else current_label in
                 let current_help = B.help state.session.book locus in
                 Some { state with overlay = Modal_form (set_locus_label_form ~locus ~current_label ~current_help) })
-        | Some (`ASCII 'n', []) when state.workspace.route = W.Settlements ->
-            Some { state with overlay = Modal_form (add_settlement_form state) }
-        | Some (`ASCII 'a', []) when state.workspace.route = W.Settlements -> (
-            match selected_settlement state with
-            | None -> Some { state with message = tr "No commitment selected." }
-            | Some r -> Some { state with overlay = Modal_form (action_settlement_form r) })
-        | Some (`ASCII 's', []) when state.workspace.route = W.Settlements ->
-            Some (cycle_settlement_scope state)
         | Some (`ASCII 'r', []) | Some (`ASCII 'n', [])
           when state.workspace.route = W.Scheduled ->
             Some (open_plan_record state)
@@ -898,8 +830,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               Some { state with scroll = max 0 (state.scroll + delta) }
             else if state.workspace.route = W.Loci then
               Some (move_locus state delta)
-            else if state.workspace.route = W.Settlements then
-              Some (move_settlement state delta)
             else
               Some
                 {

@@ -10,6 +10,7 @@
   bakhlo_screen_pace
   bakhlo_screen_reports
   bakhlo_screen_attention
+  bakhlo_screen_settlements
   bakhlo_tui_shell
   bakhlo.store
   bakhlo.domain

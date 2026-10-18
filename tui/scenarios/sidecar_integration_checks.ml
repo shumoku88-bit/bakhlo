@@ -67,16 +67,17 @@ let safety_checks ~width_of ~directory () =
     "settlement-load-failure-visible";
   require (Result.is_error (Settlement_file.save_file stl_path ~expected:Stl.empty Stl.empty)) "settlement-corruption-blocks-save";
   let stl_bytes = F.read stl_path in
-  let form = X.add_settlement_form home in
+  let adding_stl state = key ~width_of (C.open_route state W.Settlements) (`ASCII 'n') in
+  let form = Option.get (visible_form (adding_stl home)) in
   let form = Ui_form.set_text form "debtor" "a" |> fun f -> Ui_form.set_text f "creditor" "b"
     |> fun f -> Ui_form.set_text f "amount" "10" |> fun f -> Ui_form.set_focused f 5 in
-  require (failed (key ~width_of { broken with overlay = C.Modal_form form } `Enter)) "settlement-corruption-ui-refuses";
+  require (failed (key ~width_of (with_visible_form (adding_stl broken) form) `Enter)) "settlement-corruption-ui-refuses";
   require (F.read stl_path = stl_bytes) "settlement-corruption-preserved";
   Unix.unlink stl_path;
   Unix.mkdir (stl_path ^ ".lock.block") 0o700;
   Unix.unlink (stl_path ^ ".lock");
   Unix.rename (stl_path ^ ".lock.block") (stl_path ^ ".lock");
-  let refused = key ~width_of { home with overlay = C.Modal_form form } `Enter in
+  let refused = key ~width_of (with_visible_form (adding_stl home) form) `Enter in
   require (failed refused && refused.settlements = home.settlements) "settlement-save-failure-preserves-state";
   require (not (Sys.file_exists stl_path)) "settlement-save-failure-no-file";
   Unix.rmdir (stl_path ^ ".lock");

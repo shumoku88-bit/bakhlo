@@ -386,63 +386,6 @@ let workspace_rows ?route_view ~width_of ~width ~height state =
       ~left_rows
       ~right_focused:is_detail ~right_title
       ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
-  else if workspace.route = W.Settlements then
-    let rows = settlement_rows state in
-    let scope_label = match state.settlement_scope with Stl.Open_only -> "Open" | Stl.All -> "All current" in
-    let left_title = match state.settlements with
-      | Ok _ -> Printf.sprintf "Settlements [%s] (%d)" scope_label (List.length rows)
-      | Error _ -> "Settlements / Unavailable" in
-    let right_title = "Commitment Details" in
-    let row_line r =
-      let desc = match r.Stl.label with Some l -> l | None -> r.id in
-      let rem = Stl.outstanding r in
-      let status = if Z.equal rem Z.zero then "done" else "" in
-      let trunc_desc = if String.length desc > 22 then String.sub desc 0 19 ^ "..." else desc in
-      Printf.sprintf "%-22s  %10s %-4s %s" trunc_desc (Z.to_string rem) r.measure status
-    in
-    let left_rows = match state.settlements with
-      | Error why -> O.wrap_text ~width_of (max 1 (width / 2 - 6))
-          ("Settlements unavailable: " ^ why ^ ". Writes refused; Ctrl-R reloads.")
-      | Ok _ -> if rows = [] then [ tr "  (no commitments in this scope)" ] else List.map row_line rows
-    in
-    let detail =
-      match state.settlements, selected_settlement state with
-      | Error why, _ -> [ "Settlements unavailable (not empty)."; why; "Writes refused; Ctrl-R reloads." ]
-      | Ok _, None -> [ tr "No selected commitment."; ""; tr "Press 'n' to add a new settlement commitment." ]
-      | Ok _, Some r ->
-          let rem = Stl.outstanding r in
-          let desc = match r.label with Some l -> l | None -> "(no description)" in
-          let effective = match r.effective_on with Some d -> d | None -> "(date unknown)" in
-          [
-            "Identity:    " ^ r.id;
-            "Description: " ^ desc;
-            "Direction:   " ^ r.debtor ^ " -> " ^ r.creditor;
-            "Measure:     " ^ r.measure;
-            "Committed:   " ^ Z.to_string r.committed ^ " " ^ r.measure;
-            "Settled:     " ^ Z.to_string r.settled ^ " " ^ r.measure;
-            "Adjusted:    " ^ Z.to_string r.extinguished ^ " " ^ r.measure;
-            "Remaining:   " ^ Z.to_string rem ^ " " ^ r.measure;
-            "Effective:   " ^ effective;
-            "";
-            "Allocations:";
-            (if Z.gt r.settled Z.zero then Printf.sprintf "  Settled payment: %s %s" (Z.to_string r.settled) r.measure else "  Direct settlement: (none)");
-            (if Z.gt r.extinguished Z.zero then Printf.sprintf "  Non-payment reduction: %s %s" (Z.to_string r.extinguished) r.measure else "  Reductions: (none)");
-            "";
-            "Actions:";
-            "  a / Enter : Settlement action (Settle / Reduce / Retract)";
-            "  s         : Cycle scope (Open only <-> All current)";
-            "  n         : Add new settlement commitment";
-          ]
-    in
-    let right_width = if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1 else width in
-    let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
-    let is_detail = workspace.pane = W.Detail in
-    split_pane
-      ~left_focused:(not is_detail) ~left_title ~left_scroll:0
-      ~left_selected:(if rows = [] then None else Some workspace.settlements.selected)
-      ~left_rows
-      ~right_focused:is_detail ~right_title
-      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Actual then
     Act.screen ~book:state.session.book ~dimensions:(width, height) ~width_of state.actual_workspace
   else if is_scheduled_months state then
@@ -588,11 +531,6 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   | W.Loci, _ ->
       [
         "n admit locus  r set role  j/k select  Enter/Tab detail";
-        "q/Esc Home  Space Commands  Ctrl-r reload";
-      ]
-  | W.Settlements, _ ->
-      [
-        "n add  a action  s scope  j/k select  Enter/Tab detail";
         "q/Esc Home  Space Commands  Ctrl-r reload";
       ]
   | _, _ ->

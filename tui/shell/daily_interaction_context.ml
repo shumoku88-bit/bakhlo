@@ -298,6 +298,7 @@ let screen_env ~config_files state : Screen.env =
     };
     accounting_roles = lazy (accounting_roles state);
     attention = state.attention;
+    settlements = state.settlements;
     blocked = state.blocked;
     config = (fun name ->
       match List.assoc_opt name captured with
@@ -371,6 +372,12 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay)) state = fun
       let result =
         Result.map (fun () -> next) (Attention_file.save_file state.attention_path ~expected next) in
       let state = match result with Ok a -> { state with attention = Ok a } | Error _ -> state in
+      let state, request = saved state (Result.map ignore result) in
+      apply_request ~saved state request
+  | Screen.Save_settlements { expected; next } ->
+      let result =
+        Result.map (fun () -> next) (Settlement_file.save_file state.settlement_path ~expected next) in
+      let state = match result with Ok s -> { state with settlements = Ok s } | Error _ -> state in
       let state, request = saved state (Result.map ignore result) in
       apply_request ~saved state request
   | Screen.Save_config { file; expected; content; admission } ->
@@ -626,92 +633,6 @@ let exchange_review_form ~canon_day ~memo ~src_locus ~src_measure ~src_quanta_st
       Form.action_buttons ~confirm:"Publish Exchange" ~cancel:"Edit" ();
     ]
     ()
-
-let settlement_rows state =
-  match state.settlements with
-  | Ok t -> Stl.visible_rows t state.settlement_scope
-  | Error _ -> []
-
-let selected_settlement state =
-  let rows = settlement_rows state in
-  let sel = state.workspace.settlements.selected in
-  List.nth_opt rows sel
-
-let move_settlement state delta =
-  let rows = settlement_rows state in
-  let count = List.length rows in
-  if count = 0 then state
-  else
-    let current = state.workspace.settlements.selected in
-    let last = count - 1 in
-    let selected = max 0 (min last (current + delta)) in
-    { state with workspace = { state.workspace with settlements = { state.workspace.settlements with selected } } }
-
-let cycle_settlement_scope state =
-  let settlement_scope =
-    match state.settlement_scope with
-    | Stl.Open_only -> Stl.All
-    | Stl.All -> Stl.Open_only
-  in
-  let rows = match state.settlements with
-    | Ok t -> Stl.visible_rows t settlement_scope
-    | Error _ -> [] in
-  let count = List.length rows in
-  let current = state.workspace.settlements.selected in
-  let selected = if count = 0 then 0 else min (count - 1) current in
-  { state with settlement_scope; workspace = { state.workspace with settlements = { state.workspace.settlements with selected } } }
-
-let add_settlement_form state =
-  let def_measure = match B.measures state.session.book with (m, _) :: _ -> m | [] -> "jpy" in
-  Form.create
-    ~id:"add_settlement"
-    ~title:"Add Settlement Commitment"
-    ~summary:[
-      "Track one reimbursement or external obligation.";
-      "Debtor owes Creditor; positive remaining balance indicates open obligation.";
-    ]
-    ~fields:[
-      Form.text_field ~id:"label" ~label:"Description" ~placeholder:"e.g. Dinner reimbursement, 懇親会立替" ();
-      Form.text_field ~id:"debtor" ~label:"Debtor (owes)" ~value:"external" ();
-      Form.text_field ~id:"creditor" ~label:"Creditor (owed)" ~value:"household" ();
-      Form.text_field ~id:"measure" ~label:"Measure" ~value:def_measure ();
-      Form.text_field ~id:"amount" ~label:"Committed amount" ~placeholder:"e.g. 5000" ();
-      Form.action_buttons ~confirm:"Add Commitment" ~cancel:"Cancel" ();
-    ]
-    ()
-
-let action_options = [ "Settle (Payment received/made)"; "Reduce without payment"; "Retract commitment" ]
-
-let action_settlement_form (r : Stl.row) =
-  let rem = Stl.outstanding r in
-  let desc = match r.label with Some l -> l | None -> r.id in
-  Form.create
-    ~id:"action_settlement"
-    ~payload:r.id
-    ~title:("Settlement Action / " ^ r.id)
-    ~summary:[
-      "Target: " ^ desc;
-      Printf.sprintf "Direction: %s -> %s" r.debtor r.creditor;
-      Printf.sprintf "Committed: %s %s  Remaining: %s %s" (Z.to_string r.committed) r.measure (Z.to_string rem) r.measure;
-    ]
-    ~fields:[
-      Form.choice_field ~id:"action_kind" ~label:"Action" ~options:action_options ~selected:0 ();
-      Form.text_field ~id:"amount" ~label:"Amount" ~value:(Z.to_string rem) ();
-      Form.action_buttons ~confirm:"Confirm Action" ~cancel:"Cancel" ();
-    ]
-    ()
-
-let commit_settlements state submitted update message =
-  let result =
-    if state.blocked then Error "Writes stopped. Reload to inspect."
-    else Result.bind state.settlements (fun expected ->
-      Result.bind (update expected) (fun updated ->
-        Result.map (fun () -> updated) (Settlement_file.save_file state.settlement_path ~expected updated)))
-  in
-  match result with
-  | Ok settlements -> { state with overlay = No_overlay; settlements = Ok settlements; message }
-  | Error why -> { state with overlay = Modal_form (Form.set_notice submitted
-      ("Settlements not confirmed: " ^ why ^ " Reload to inspect before retrying.")) }
 
 let is_scheduled_months state =
   state.workspace.route = W.Scheduled && state.workspace.schedule_view = W.Months

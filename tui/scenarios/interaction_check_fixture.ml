@@ -42,6 +42,9 @@ let current_pace_result (state : C.state) = Pace.current_pace (X.pace_env state)
 let open_attentions (state : C.state) =
   match state.attention with Ok t -> Att.open_items t | Error _ -> []
 
+let settlement_rows (state : C.state) =
+  Settlements_screen.rows (X.screen_env ~config_files:[] state) state.screens.settlements
+
 let stock_flow_result (state : C.state) =
   Stock_flow_screen.result (X.screen_env ~config_files:Stock_flow_screen.config_files state)
     state.screens.stock_flow
@@ -56,6 +59,8 @@ let visible_form (state : C.state) =
   if Pace.modal state.screens.pace then Pace.form state.screens.pace
   else if Attention_screen.modal state.screens.attention then
     Attention_screen.form state.screens.attention
+  else if Settlements_screen.modal state.screens.settlements then
+    Settlements_screen.form state.screens.settlements
   else if Income_expense_screen.modal state.screens.income_expense then
     Income_expense_screen.form state.screens.income_expense
   else if Transactions_flow_screen.modal state.screens.transactions_flow then
@@ -73,6 +78,9 @@ let with_visible_form (state : C.state) form =
   else if Attention_screen.modal state.screens.attention then
     { state with screens = { state.screens with
       attention = Attention_screen.with_form form state.screens.attention } }
+  else if Settlements_screen.modal state.screens.settlements then
+    { state with screens = { state.screens with
+      settlements = Settlements_screen.with_form form state.screens.settlements } }
   else match state.overlay with
     | C.Modal_form _ -> { state with overlay = C.Modal_form form }
     | _ -> raise (F.Refused "no-visible-form")

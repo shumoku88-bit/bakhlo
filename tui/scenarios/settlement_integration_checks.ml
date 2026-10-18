@@ -14,76 +14,76 @@ let run ~width_of ~directory ~path (exch_done : C.state) =
   require (contains wide_stl "Settlements [Open]" && contains wide_stl "Commitment Details") "settlements-wide-two-pane-visible";
   (* Add settlement commitment *)
   let add_modal = key ~width_of stl_view (`ASCII 'n') in
-  require (C.is_add_settlement add_modal.overlay) "n-opens-add-settlement-form";
+  require (visible_form_id add_modal = Some "add_settlement") "n-opens-add-settlement-form";
   let add_ready =
-    match add_modal.overlay with
-    | C.Modal_form f ->
+    match visible_form add_modal with
+    | Some f ->
         let f = Ui_form.set_text f "label" "Dinner reimbursement" in
         let f = Ui_form.set_text f "debtor" "yamada" in
         let f = Ui_form.set_text f "creditor" "household" in
         let f = Ui_form.set_text f "measure" "jpy" in
         let f = Ui_form.set_text f "amount" "5000" in
         let f = Ui_form.set_focused f 5 in (* Action buttons *)
-        { add_modal with overlay = C.Modal_form f }
-    | _ -> failwith "expected modal form for add settlement"
+        with_visible_form add_modal f
+    | None -> failwith "expected modal form for add settlement"
   in
   let added_state = key ~width_of add_ready `Enter in
-  require (added_state.overlay = C.No_overlay) "add-settlement-submitted";
-  let stl_rows = X.settlement_rows added_state in
+  require (added_state.overlay = C.No_overlay && visible_form added_state = None) "add-settlement-submitted";
+  let stl_rows = settlement_rows added_state in
   require (List.length stl_rows = 1) "settlement-row-added";
   let r = List.hd stl_rows in
   require (r.Stl.id = "comm-1" && r.label = Some "Dinner reimbursement") "settlement-row-fields";
   require (Z.equal (Stl.outstanding r) (Z.of_int 5000)) "settlement-outstanding-5000";
   (* Settle partial amount: 3,000 jpy *)
   let act_modal = key ~width_of added_state (`ASCII 'a') in
-  require (C.is_action_settlement act_modal.overlay) "a-opens-action-settlement-form";
+  require (visible_form_id act_modal = Some "action_settlement") "a-opens-action-settlement-form";
   let act_ready =
-    match act_modal.overlay with
-    | C.Modal_form f ->
+    match visible_form act_modal with
+    | Some f ->
         let f = Ui_form.set_choice f "action_kind" 0 in (* Settle *)
         let f = Ui_form.set_text f "amount" "3000" in
         let f = Ui_form.set_focused f 2 in
-        { act_modal with overlay = C.Modal_form f }
-    | _ -> failwith "expected modal form for action settlement"
+        with_visible_form act_modal f
+    | None -> failwith "expected modal form for action settlement"
   in
   let settled_state = key ~width_of act_ready `Enter in
-  require (settled_state.overlay = C.No_overlay) "settle-action-submitted";
-  let r2 = List.hd (X.settlement_rows settled_state) in
+  require (settled_state.overlay = C.No_overlay && visible_form settled_state = None) "settle-action-submitted";
+  let r2 = List.hd (settlement_rows settled_state) in
   require (Z.equal (Stl.outstanding r2) (Z.of_int 2000)) "settlement-outstanding-after-settle-2000";
   require (Z.equal r2.settled (Z.of_int 3000)) "settled-amount-3000";
   (* Reduce without payment: 1,000 jpy *)
   let act_modal2 = key ~width_of settled_state (`ASCII 'a') in
   let act_ready2 =
-    match act_modal2.overlay with
-    | C.Modal_form f ->
+    match visible_form act_modal2 with
+    | Some f ->
         let f = Ui_form.set_choice f "action_kind" 1 in (* Reduce *)
         let f = Ui_form.set_text f "amount" "1000" in
         let f = Ui_form.set_focused f 2 in
-        { act_modal2 with overlay = C.Modal_form f }
-    | _ -> failwith "expected modal form for action settlement"
+        with_visible_form act_modal2 f
+    | None -> failwith "expected modal form for action settlement"
   in
   let reduced_state = key ~width_of act_ready2 `Enter in
-  require (reduced_state.overlay = C.No_overlay) "reduce-action-submitted";
-  let r3 = List.hd (X.settlement_rows reduced_state) in
+  require (reduced_state.overlay = C.No_overlay && visible_form reduced_state = None) "reduce-action-submitted";
+  let r3 = List.hd (settlement_rows reduced_state) in
   require (Z.equal (Stl.outstanding r3) (Z.of_int 1000)) "settlement-outstanding-after-reduce-1000";
   require (Z.equal r3.extinguished (Z.of_int 1000)) "extinguished-amount-1000";
   (* Full final settlement of remaining 1,000 jpy *)
   let act_modal3 = key ~width_of reduced_state (`ASCII 'a') in
   let act_ready3 =
-    match act_modal3.overlay with
-    | C.Modal_form f ->
+    match visible_form act_modal3 with
+    | Some f ->
         let f = Ui_form.set_choice f "action_kind" 0 in (* Settle *)
         let f = Ui_form.set_text f "amount" "1000" in
         let f = Ui_form.set_focused f 2 in
-        { act_modal3 with overlay = C.Modal_form f }
-    | _ -> failwith "expected modal form for action settlement"
+        with_visible_form act_modal3 f
+    | None -> failwith "expected modal form for action settlement"
   in
   let fully_settled_state = key ~width_of act_ready3 `Enter in
-  require (X.settlement_rows fully_settled_state = []) "open-rows-empty-after-full-settle";
+  require (settlement_rows fully_settled_state = []) "open-rows-empty-after-full-settle";
   (* Scope cycle to All current *)
   let all_scope_state = key ~width_of fully_settled_state (`ASCII 's') in
-  require (all_scope_state.settlement_scope = Stl.All) "scope-toggled-to-all";
-  let all_rows = X.settlement_rows all_scope_state in
+  require (Settlements_screen.scope all_scope_state.C.screens.settlements = Stl.All) "scope-toggled-to-all";
+  let all_rows = settlement_rows all_scope_state in
   require (List.length all_rows = 1) "all-scope-has-completed-row";
   let wide_all = R.screen ~width_of (120, 30) all_scope_state in
   require (contains wide_all "done") "all-scope-shows-done-marker";

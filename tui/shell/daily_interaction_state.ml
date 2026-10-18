@@ -97,14 +97,6 @@ let is_exchange = function
   | Modal_form f when Form.id f = "exchange" -> true
   | _ -> false
 
-let is_add_settlement = function
-  | Modal_form f when Form.id f = "add_settlement" -> true
-  | _ -> false
-
-let is_action_settlement = function
-  | Modal_form f when Form.id f = "action_settlement" -> true
-  | _ -> false
-
 let is_observe_quantity = function
   | Modal_form f when Form.id f = "observe_quantity" -> true
   | _ -> false
@@ -128,7 +120,6 @@ type state = {
   attention : (Att.t, string) result;
   settlement_path : string;
   settlements : (Stl.t, string) result;
-  settlement_scope : Stl.scope;
   screens : Screen_registry.t;
   label_review : (Form.t * string * string * string) option;
   exchange_review : (Form.t * A.transaction * string) option;
@@ -172,7 +163,6 @@ let initial ?config_home session =
     attention;
     settlement_path;
     settlements;
-    settlement_scope = Stl.Open_only;
     screens = Screen_registry.create ();
     label_review = None;
     exchange_review = None;

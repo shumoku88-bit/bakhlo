@@ -30,6 +30,8 @@ type env = {
       (** Explicit Locus roles from accounting-roles.tsv; none when absent. *)
   attention : (Attention_data.t, string) result;
       (** Attention memory loaded by the Shell; an error is never an empty list. *)
+  settlements : (Settlement_data.t, string) result;
+      (** Settlement commitments loaded by the Shell; an error is never empty. *)
   blocked : bool;  (** Writes stopped after a conflict, recovery or uncertain outcome. *)
   config : string -> (string option, string) result;
       (** Bytes of a configuration file captured for this event: [Ok None] is
@@ -63,6 +65,8 @@ type request =
       (** Open the Observe editor for this coordinate; [amount] is a known current value. *)
   | Save_attention of { expected : Attention_data.t; next : Attention_data.t }
       (** Replace the Attention memory if it still equals [expected]; answered by [saved]. *)
+  | Save_settlements of { expected : Settlement_data.t; next : Settlement_data.t }
+      (** Replace the commitments if they still equal [expected]; answered by [saved]. *)
   | Save_config of {
       file : string;
       expected : string option;  (** Captured bytes; a different file refuses. *)

@@ -10,6 +10,7 @@ type t = {
   transactions_flow : Transactions_flow_screen.t;
   stock_flow : Stock_flow_screen.t;
   attention : Attention_screen.t;
+  settlements : Settlements_screen.t;
 }
 
 let create () =
@@ -20,6 +21,7 @@ let create () =
     transactions_flow = Transactions_flow_screen.create ();
     stock_flow = Stock_flow_screen.create ();
     attention = Attention_screen.create ();
+    settlements = Settlements_screen.create ();
   }
 
 type 'a owner = {
@@ -109,6 +111,18 @@ let all =
         handle = Attention_screen.handle;
         view = Attention_screen.view;
         saved = Attention_screen.saved;
+      };
+    Owner
+      {
+        route = W.Settlements;
+        config_files = Settlements_screen.config_files;
+        get = (fun t -> t.settlements);
+        set = (fun t settlements -> { t with settlements });
+        enter = Settlements_screen.enter;
+        modal = Settlements_screen.modal;
+        handle = Settlements_screen.handle;
+        view = Settlements_screen.view;
+        saved = Settlements_screen.saved;
       };
   ]
 
