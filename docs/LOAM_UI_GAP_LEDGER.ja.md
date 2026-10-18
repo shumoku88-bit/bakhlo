@@ -36,6 +36,22 @@ LOAMの**予算以外の全ユーザー向け機能・見た目・操作感・�
 
 ## 2. 共通の品質基準
 
+### AI引継ぎ用の作業slice状態（2026-10-18初期値）
+
+`tasks/todo.md` が優先順と受入条件、この台帳だけが画面別進捗、`VERIFICATION.md` が実行証拠を所有する。`UI-33-V1` 等は既存のUI IDを細分した作業単位で、別の機能IDではない。AIは着手・終了時にこの小表と該当UI行を更新する。
+
+| slice | 状態 | 次の実行・残る関門 |
+| --- | --- | --- |
+| UI-33-V1 上下配置 | **未着手（次）** | Braille等の既存動作を維持し、LOAM配置と4寸法の対照 |
+| UI-33-V2 History列 | **未着手（待機）** | Spent／Pace diffの根拠・描画と負数／不明 |
+| UI-33-V3 日別詳細 | **未着手（待機）** | 選択日・根拠／内訳・遷移／復帰・狭小 |
+| UI-24-B1 残高表示 | **未着手（待機）** | Current／Accounting・不明の回答／表示対照 |
+| UI-24-B2 設定・観測 | **未着手（待機）** | visible accounts・複数座標観測の意味／保存対照 |
+
+状態は `未着手`／`作業中（担当）`／`実装検査済`／`LOAM対照済`／`本人受入待ち`／`完了`／`保留（原因・再開条件）` から選ぶ。自動テスト・PTY合格を人間のIME／使い勝手の受入にしない。機械的工程を終えたsliceが本人受入待ちでも、独立する次のsliceは進めてよい。F不足・失敗が出たら「見た目完成」で隠さず該当UI行へ戻す。
+
+
+
 | 基準 | 守ること |
 | --- | --- |
 | C-1 寸法 | 80×24／120×36と32×9／48×14。選択・リサイズ・長文・日本語でもcell幅と高さを守る |
@@ -77,7 +93,7 @@ LOAMの内部構造・保存形式・研究基盤の移植は目的ではない�
 | **UI-01** | Home／Calendar | 試用：固定盆栽Home、Day／Month／Year、期間内Actual／open予定のDetail | **F** role-aware日次収支・月年集計。**O** LOAM Bonsai Home↔Calendarの復帰、全文Help／key grammar等。**V/Q** 配置・縮退・同一操作対照と本人受入 | 現行LOAM：通常起動で6入口の盆栽Home、Calendarは日次role-aware money grid（wide）／週ナビ＋Detail（compact）、Actual／open予定／Pending根拠、全画面Help。BakhloはUI対照・同一収支根拠が未了 |
 | **UI-02** | Commands | 試用：階層palette、実装済み入口（Transactions、Plans and attention、Reports and analysis、Household setup） | **O** 残るレポート等の入口差。**V/Q** 同一rectangle・選択・短い端末で対照 | 現行LOAMはReports/analysis 11項目とHousehold setupを公開。BakhloはHousehold setup（Theme, Manage Loci, Daily Pace pool/cycle dates, Balances visible accounts, Home）を接続。予算2項目は延期、残る非予算レポート等を継続追記 |
 | **UI-03** | Actual一覧・検索・詳細 | 接続済み：3ペイン、Locus絞込、live検索、scope／sort、Detailsスクロール、Enter一回で選択明細、tx_height容量整合、Selected_dayからのdrill-back。復帰時の別browser上書きと詳細focus／scroll消失を修正 | **O/V/Q** 現行LOAMとのheader・pane・枠・footer、全操作・実IME／本人受入が残る | 現行LOAMはAll Current／newest-first、`f`で選択日／全件を切替。80×24の検索、48×14の完全な`+37 jpy`／`+11 jpy`、32×9の検索保持、長いCJK検索末尾／caret、5寸法の空台帳／0件表示を限定確認（[検索証拠](VERIFICATION.md#actual-empty-search-and-cjk-resize-follow-up)）。後続対照で検索確定＋scope／sort、空Enter拒否、一覧からEnter一回→32×9／48×14で親pane・検索・並び・選択復帰、明示`i`からのDetails復帰を確認。authority hash不変。[往復証拠](VERIFICATION.md#actual-single-enter-and-filtered-return)。全組合せ・Locus操作対照、他のcaret／寸法、IME、人間の受入は未了 |
-| **UI-04** | Selected Day | 試用：選択日のActual／open予定とDetail。ActualからEnter一回で明細IDに追従し旧Selected Dayフィルタを解除、親Actualへ復帰。`d`日付訂正を接続。context行はroute日付＋Day表示 | **F** role-aware収支、Merchant／原額等。**O/V/Q** LOAMの専用Transaction detailとの画面差、混在一覧・空・狭小と対照受入 | T：同日複数明細＋旧filterでも選択IDを開く回帰を3寸法で確認。親復帰で別browserを上書きせずpane／scrollを保全（[往復証拠](VERIFICATION.md#actual-single-enter-and-filtered-return)）。背景Calendarの誤日付／zoomをcontextへ表示する不整合を修正、4寸法×3zoom×draft有無とnative resize／Record初期日を限定確認（[context証拠](VERIFICATION.md#selected-day-context-date-and-zoom)）。日付訂正の保存／cold／親ID追従。新規Recordは表示中の日を初期値とし取消／resume／保存／cold／親Actual復帰を確認（[記帳証拠](VERIFICATION.md#selected-day-record-date-and-return)）。全画面の受入ではない |
+| **UI-04** | Selected Day | 試用：選択日のActual／open予定とDetail。ActualからEnter一回で明細IDに追従し旧Selected Dayフィルタを解除、親Actualへ復帰。`d`日付訂正を接続。context行はroute日付＋Day表示 | **F** role-aware収支。Merchant／原額はDaily保存・編集／詳細へ接続済みだが実行対照は未完。**O/V/Q** LOAMの専用Transaction detailとの画面差、混在一覧・空・狭小と対照受入 | T：同日複数明細＋旧filterでも選択IDを開く回帰を3寸法で確認。親復帰で別browserを上書きせずpane／scrollを保全（[往復証拠](VERIFICATION.md#actual-single-enter-and-filtered-return)）。背景Calendarの誤日付／zoomをcontextへ表示する不整合を修正、4寸法×3zoom×draft有無とnative resize／Record初期日を限定確認（[context証拠](VERIFICATION.md#selected-day-context-date-and-zoom)）。日付訂正の保存／cold／親ID追従。新規Recordは表示中の日を初期値とし取消／resume／保存／cold／親Actual復帰を確認（[記帳証拠](VERIFICATION.md#selected-day-record-date-and-return)）。全画面の受入ではない |
 | **UI-05** | Record入力・Locus候補 | 試用：Date／Description／Measure／複数Posting、許可済み候補 | **O/V/Q** 対照受入・実機検証待ち（ブラッシュアップ完了）。**F/O** 原額（UI-07）は未接続 | T：Unicode、paste、構造制約、追加行、floating／極小。P02完了：Movement上部枠＋横並びマルチペイン化、狭小Fields縮退、Locus前方一致（LOAM isPrefixOf準拠）、Date入力ガード、draft誤再開防止、resolve_overlayによるカーソル位置・描画座標の完全同期（macOS IME安定化）。[80×24の単発Record対照](VERIFICATION.md#paired-record-happy-path-and-cancellation-2026-10-16)：入力・数量・cold一致、Ctrl-S／Esc後の下書き・配置差が残る。閲覧中Ctrl-Nは即破棄でなくKeep初期選択の確認へ変更。狭小拒否・不明結果の保持・非保存をchecksと合成PTYで限定確認（[証拠](VERIFICATION.md#retained-draft-discard-confirmation)） |
 | **UI-06** | Record Preview | 試用：Publish／Edit／Cancel、exact全体確認、狭小確定拒否 | **V/Q** 対照受入・実機検証待ち（ブラッシュアップ完了）。全文gateを弱めない | T：巨大数量、キー／支払リンク、狭小・未読末尾の拒否。P02完了：Publication gate（recheck evidence + Locus admission）案内行、中画面縦3段レイアウト、枠線・ボタン整列、キャレット17カラム化、全文gate維持を実装・検証完了。単発Preview→取消非保存／Publishの[対照](VERIFICATION.md#paired-record-happy-path-and-cancellation-2026-10-16)、Edit／Cancelと[狭小gate対照](VERIFICATION.md#paired-record-editcancel-and-narrow-preview-gates-2026-10-16)を実施。LOAM既存binaryは32×9で確認本文が全て隠れたままPublishできたため、Bakhloの拒否を弱めない。[単独の保存失敗実機試行](VERIFICATION.md#record-native-pre-write-filesystem-failure-2026-10-16)ではBakhloのdraft／旧bytes保持と再試行停止を確認。LOAM保存失敗対照・表示順・幅・他モードは未受入 |
 | **UI-07** | Original amount | 接続済み：Record Ctrl-O入力、Preview、同一保存操作、Actual詳細、再起動、訂正時保持、年別保存・バックアップを端から端まで接続 | **V/Q** 対照受入・実機検証待ち。換算値での推定・FX捏造なし | F03完了：application/original_amounts.*再利用、正数量・安定root制約、通常・取消・保存失敗・stale・結果不明・年越し検査合格 |
@@ -134,7 +150,7 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 | Record／Actual／Selected Day | `record_session.ml`、`reversal_session.ml`、`date_correction_session.ml`、controllerのedit／reverse／date／Actual／Selected_day | `Record.lean`／`RecordSession.lean`、`ActualWorkspace.lean`、`SelectedDay.lean`／`SelectedDaySession.lean`、`ActualDateCorrection.lean`、`ActualReversal.lean`／`ActualReversalSession.lean`、`EventMerchant.lean` |
 | Scheduled | `ui_workspace.ml`、`scheduled_months.ml`、`scheduled_session.ml`、`scheduled_cancellation_session.ml`、`scheduled_continuation_session.ml`、`scheduled_bulk_session.ml`、`scheduled_generation_session.ml`、`record_session.ml`、controllerのScheduled／cancel／bulk／generate | `ScheduledWorkspace.lean`／`ScheduledWorkspaceSession.lean`、`ScheduledCreation.lean`、`ScheduledCompletion.lean`、`ScheduledCancellation.lean`、`ScheduledReplacement.lean`、`ScheduledBulkEdit.lean`／`ScheduledBulkEditSession.lean`、`ScheduledGeneration.lean`／`ScheduledGenerationSession.lean` |
 | Balances／Reports／Pace | `daily_overlays.ml`、`balance_view_data.ml`、`daily_pace_trend.ml`、controllerのbalance／pace／what-if／trend | `Balances.lean`、`BalanceViewSetupSession.lean`、`RoleBalances.lean`、`ReportsView.lean`／`ReportsSession.lean`、`DailyPaceTrend.lean`／`DailyPacePoolSetupSession.lean`／`CycleBoundarySetupSession.lean`、`DailyPaceWhatIf.lean` |
-| Household setup／first-run | Bakhloの明示的初期化UIなし。既存config読込は`daily_interaction.ml`等 | `LocusLabelSetup.lean`／`LocusLabelSetupSession.lean`、`FirstRun.lean` |
+| Household setup／first-run | Bakhloは`first_run.ml`と`daily_interaction.ml`でinteractive `--book`初期化を接続。LOAMのdirectory root・全設定との差はUI-34で継続 | `LocusLabelSetup.lean`／`LocusLabelSetupSession.lean`、`FirstRun.lean` |
 | Attention／Settlement／Exchange | 各data module、controllerのform／action／一覧 | `AttentionAdministration.lean`／`AttentionAdministrationSession.lean`、`SettlementWorkspace.lean`、`SettlementAction.lean`、`Exchange.lean`／`ExchangeSession.lean` |
 
 `Ui_workspace.set_locus`は現行controllerから呼ばれていない。旧`Groups`／`cycle_schedule_view`は削除し、`toggle_schedule_view`で実在するList／Monthsだけを切り替える。
@@ -143,12 +159,13 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 
 ### 優先して切る差分
 
-1. **共有機構のO/V/Q**：[責務設計と移行順序](TUI_LAYOUT_STABILITY_ROADMAP.ja.md) に従い、共有input／再帰Input metadata→Ui_form＋styled frameと全form利用元（Modal_form・Jump・Search overlay・Reversal Date）→RecordのColumns＋recursive caretとScheduledの入力／UTF-8移動／focus／notice→list/detailのcapacity整合・controller復帰の順に移行する。UI-03の長文検索（G-2）の限定合格は保持し、G-1/G-3/G-4と全画面は未完了。横断受入後に以下の機能差分へ戻る。
+1. **いまの最優先はUI-33-V1→V2→V3、次はUI-24-B1→B2。** 完了条件は`tasks/todo.md`、状態は上の作業slice表に記す。既存処理を再利用し、情報が不足する場合はF課題を明示する。
+2. **共有機構のO/V/Q（既存移行の成果）**：[責務設計と移行順序](TUI_LAYOUT_STABILITY_ROADMAP.ja.md) に従い、共有input／再帰Input metadata→Ui_form＋styled frameと全form利用元（Modal_form・Jump・Search overlay・Reversal Date）→RecordのColumns＋recursive caretとScheduledの入力／UTF-8移動／focus／notice→list/detailのcapacity整合・controller復帰の順に移行する。UI-03の長文検索（G-2）の限定合格は保持し、G-1/G-3/G-4と全画面は未完了。横断受入後に以下の機能差分へ戻る。
    移行順1〜4は接続・限定検査済みだが、横断受入・LOAM対照・IME／本人受入は未了（[証拠](VERIFICATION.md#listdetail-capacity-and-drill-downback-cutover)）。Record lifecycle、Actual/Selected Day、Scheduledの機能不足も受入計画に残す。
-2. **Recordの一連操作**：Home→入力／候補→Preview→修正／取消／確定→Actual→再起動。原額・Merchant等のF不足を装飾で隠さない。
-3. **Actual／Selected Day**：Locus／検索／scope／sort／detail／親復帰。旧P04の実装完了だけでは現行geometry・操作一致を認めない。
-4. **Scheduled**：作成／置換／取消／完了の安全な確認・cold照合から、Series／Months／監視・継続／一括操作へ。
-5. **残る非予算機能**：Balances／Observe／roles、Pace／Trend、Attention／精算／Exchange、Reports／設定／出力、索引未掲載の操作を順に対照する。
+3. **Recordの一連操作**：Home→入力／候補→Preview→修正／取消／確定→Actual→再起動。原額・Merchant等のF不足を装飾で隠さない。
+4. **Actual／Selected Day**：Locus／検索／scope／sort／detail／親復帰。旧P04の実装完了だけでは現行geometry・操作一致を認めない。
+5. **Scheduled**：作成／置換／取消／完了の安全な確認・cold照合から、Series／Months／監視・継続／一括操作へ。
+6. **残る非予算機能**：Balances／Observe／roles、Pace／Trend、Attention／精算／Exchange、Reports／設定／出力、索引未掲載の操作を順に対照する。
    保持情報／query／writerが不足する場合は機能から実装し、架空の表示で穴埋めしない。P7／電源断は独立した未認定課題。
 
 ファジー検索・wheel／clipboard等の追加改善は、必要性・現行LOAMとの差を確認して別依頼にする。
