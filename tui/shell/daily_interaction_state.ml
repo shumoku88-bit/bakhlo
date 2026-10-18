@@ -56,8 +56,6 @@ type overlay =
   | No_overlay
   | Commands of M.t
   | Themes of { selected : int; original : P.theme; return_menu : M.t }
-  | Jump of string
-  | Search of string
   | Modal_form of Form.t
 
 
@@ -74,7 +72,6 @@ type state = {
   blocked : bool;
   pending : A.uncertain_evidence option;
   config_home : string option;
-  scroll : int;
   paste_blocked : bool;
   attention_path : string;
   attention : (Att.t, string) result;
@@ -113,7 +110,6 @@ let initial ?config_home session =
     blocked = notice <> None;
     pending = None;
     config_home;
-    scroll = 0;
     paste_blocked = false;
     attention_path;
     attention;
@@ -136,13 +132,12 @@ let mode state = match state.record with None -> A.New | Some record -> S.mode r
 
 let sync state =
   let book = state.session.book in
-  match state.workspace.route with
-  | W.Selected_day _ ->
-      { state with screens = { state.screens with
-          day = Selected_day_screen.synced book state.screens.day }; scroll = 0 }
-  | _ ->
-      let workspace = W.sync ~book state.workspace in
-      { state with workspace; scroll = 0 }
+  let screens = { state.screens with calendar_home = Calendar_home_screen.synchronize
+      ~route:state.workspace.route ~book ~calendar:state.workspace.calendar state.screens.calendar_home } in
+  let screens = match state.workspace.route with
+    | W.Selected_day _ -> { screens with day = Selected_day_screen.synced book screens.day }
+    | _ -> screens in
+  { state with screens }
 
 let finish_publication state session message =
   let next = sync { state with session; record = None; record_visible = false;
@@ -342,16 +337,15 @@ let open_route state route =
     { state with overlay = No_overlay;
       message = Option.value ~default:"Annual opening evidence unavailable." (annual_unavailable state) }
   else
-  sync { state with workspace = W.enter state.workspace route; overlay = No_overlay; scroll = 0;
+  sync { state with workspace = W.enter state.workspace route; overlay = No_overlay;
                     drill_parent = None; drill_book = None;
                     screens = Screen_registry.enter route ~focus_day:state.workspace.calendar.selected_day state.screens }
 
-(* Only the central routes still select through the workspace; owner routes
-   name their target in a Record_action request. *)
+(* Record-action targets are named by route owners. *)
 let selected state =
-  match state.workspace.route with
-  | W.Actual | W.Scheduled | W.Selected_day _ -> None
-  | _ -> W.selected_row ~book:state.session.book state.workspace
+  if state.workspace.route = W.Calendar then
+    Calendar_home_screen.selected_row ~book:state.session.book ~calendar:state.workspace.calendar state.screens.calendar_home
+  else None
 
 let edit_target state target =
   if state.blocked then state

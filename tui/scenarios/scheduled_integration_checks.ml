@@ -63,14 +63,14 @@ let scheduled_panel_checks ~width_of ~directory home =
   let editing = key ~width_of state (`ASCII 'e') in
   let draft = text ~width_of editing "q 日本語" in
   let closed = key ~width_of draft `Escape in
-  require (closed.workspace=state.workspace && C.has_record_draft closed && not closed.record_visible)
+  require ((same_workspace closed state) && C.has_record_draft closed && not closed.record_visible)
     "scheduled-edit-cancel-retains-draft-and-parent";
   let resumed = X.open_command closed M.Record in
   require (S.screen ~book ~dimensions:(72,20) ~width_of (Option.get draft.record)
     = S.screen ~book ~dimensions:(72,20) ~width_of (Option.get resumed.record))
     "scheduled-draft-resumed-through-existing-record-command";
   let cancelled = key ~width_of (key ~width_of state (`ASCII 'x')) `Escape in
-  require (cancelled.workspace=state.workspace && no_modal cancelled)
+  require ((same_workspace cancelled state) && no_modal cancelled)
     "scheduled-cancel-overlay-return-context";
   require (F.read path=before) "scheduled-shared-panels-no-write";
   print_endline "PASS: Scheduled uses shared viewport, clamped detail/list paging, focus/resize, retained draft and cancelled action context (synthetic)."
@@ -101,7 +101,7 @@ let cancellation_checks ~width_of ~directory home =
   require (Cancel.is_preview (editor review) && Cancel.day (editor review) = "2026-10-16"
            && F.read path = before) "cancel-date-enter-is-read-only-preview";
   let kept = key ~width_of review `Enter in
-  require ((no_modal kept) && kept.workspace = base.workspace && F.read path = before)
+  require ((no_modal kept) && (same_workspace kept base) && F.read path = before)
     "cancel-protective-default-keeps-plan";
   let edited = key ~width_of review (`ASCII 'e') in
   require (not (Cancel.is_preview (editor edited)) && Cancel.day (editor edited) = "2026-10-16")
@@ -113,7 +113,7 @@ let cancellation_checks ~width_of ~directory home =
       "cancel-tiny-confirmation-refused") [32,9;48,14;80,14];
   List.iter (fun keycode ->
     let kept = key ~width_of selected keycode in
-    require (kept.workspace = base.workspace && F.read path = before) "cancel-explicit-keep-never-writes")
+    require ((same_workspace kept base) && F.read path = before) "cancel-explicit-keep-never-writes")
     [`Escape; `ASCII 'q'];
   let pasted = input selected (`Paste `Start) |> fun s -> input s (`Key (`Enter, []))
     |> fun s -> input s (`Paste `End) in
@@ -245,11 +245,11 @@ let months_checks ~width_of ~directory home =
     | Daily_actions.Pay id -> id = "month-02" | _ -> false) && F.read path = before)
     "months-enter-opens-selected-completion-without-publishing";
   let cancelled_pay = key ~width_of paying `Escape in
-  require (cancelled_pay.workspace = months.workspace && cancelled_pay.screens.scheduled = months.screens.scheduled && C.has_record_draft cancelled_pay)
+  require ((same_workspace cancelled_pay months) && cancelled_pay.screens.scheduled = months.screens.scheduled && C.has_record_draft cancelled_pay)
     "months-completion-cancel-retains-parent-and-draft";
   let kept = key ~width_of months (`ASCII 'x') |> fun s -> key ~width_of s `Enter
     |> fun s -> key ~width_of s `Enter in
-  require (kept.workspace = months.workspace && F.read path = before) "months-cancel-keep-is-read-only";
+  require ((same_workspace kept months) && F.read path = before) "months-cancel-keep-is-read-only";
   let limit = get (Months.create ~today:"9999-12-31") in
   require (Months.visible_months limit = ["9999-12-01"]
            && Result.is_error (Months.shift limit 1)

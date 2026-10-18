@@ -67,6 +67,22 @@ Its search preserves the legacy text-overlay policy: Ctrl-Q/N/R are consumed,
 and the browser query changes only on Enter or Escape. Calendar's browser is
 unchanged while Selected Day synchronizes its own selection.
 
+Home and Calendar share `Calendar_home_screen`: one retained browser, pane,
+raw scroll offset and deferred Search/Jump inputs. Home search also filters
+later Calendar visits; the old ambient search on other owners remains visible
+and keeps the underlying route footer. Its modal policy consumes Ctrl-Q/N/R.
+Every route entry notifies this owner; synchronization resets selection on
+empty external routes, preserves filters/order, and leaves its browser alone
+on Selected Day. A direct drill return to Actual only notifies entry, without
+synchronizing the Calendar browser. Legacy fallback navigation changes this
+owner's private model rather than a Shell pane/browser mirror.
+`Ui_workspace` now contains only route, calendar focus and Measure (plus record
+target type aliases). Calendar focus/zoom remain Shell authority through
+`Set_calendar`; its explicit feedback policy preserves Esc zoom-back warnings.
+Home paints the entire headerless body and alone forces the lazy annual notice.
+The Shell retains the cross-year unavailable frame, including when predecessor
+provenance becomes stale while a guarded screen is already open.
+
 ## Enforcement (`tools/arch`, run by Core `dune runtest`)
 
 Dune enforces declared library use. `tools/arch/arch_check.ml` additionally

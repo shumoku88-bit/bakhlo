@@ -79,8 +79,9 @@ let render_cases state =
     match route with
     | W.Selected_day _ | W.Actual | W.Scheduled | W.Income_expense | W.Transactions_flow | W.Stock_flow ->
         key view (`ASCII 'i')  (* the owner's own detail key *)
-    | _ -> { view with workspace = { view.workspace with pane = W.Detail } }
+    | _ -> key view `Tab
   in
+  let let_search state = key state (`ASCII '/') |> fun s -> text ~width_of:String.length s "財布" in
   [
     home;
     key home `Tab;
@@ -126,7 +127,7 @@ let render_cases state =
     { home with overlay = C.Commands M.initial };
     { home with overlay = C.Commands { M.page = M.Analysis; selected = 1 } };
     { home with overlay = C.Themes { selected = 0; original = home.theme; return_menu = M.initial } };
-    { home with overlay = C.Jump "2026-10" };
-    { home with overlay = C.Search "財布" };
+    { home with screens = { home.screens with calendar_home = Calendar_home.start_jump "2026-10" home.screens.calendar_home } };
+    let_search home;
   ]
 

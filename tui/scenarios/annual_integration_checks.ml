@@ -57,12 +57,19 @@ let annual_lifecycle_checks ~width_of ~directory () =
   require (period.start_day = Printf.sprintf "%04d-01-01" prior_year
            && period.end_exclusive = Printf.sprintf "%04d-01-01" (year + 1))
     "annual-selected-history-boundaries";
+  let active_routes = List.map (C.open_route current)
+    [ W.Balances; W.Daily_pace; W.Income_expense; W.Transactions_flow; W.Stock_flow ] in
   let stale_bytes = bytes ^ "\n" in
   let oc = open_out_bin (path prior_year) in
   output_string oc stale_bytes; close_out oc;
   require (C.annual_unavailable current <> None
            && (C.open_route current W.Balances).workspace.route = W.Home)
     "annual-stale-provenance-still-answers";
+  List.iter (fun active ->
+    let rows = R.screen ~width_of (120,36) active in
+    require (List.exists (fun (_, text) -> Base.String.is_substring text
+      ~substring:"No zero opening or carried balance is inferred.") rows)
+      "annual-active-route-stale-provenance-refuses-render") active_routes;
   print_endline "PASS: annual explicit rollover Keep/tiny gates, cold balances/Pace, overdue payment and stale provenance."
 
 

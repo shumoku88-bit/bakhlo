@@ -156,12 +156,37 @@ let day_selected (state : C.state) = Day.selected_row state.session.book state.s
 let with_day_browser (state : C.state) browser =
   { state with screens = { state.screens with day = Day.with_browser state.screens.day browser } }
 
+(* Calendar/Home and legacy ambient navigation read through their owner. *)
+module Calendar_home = Calendar_home_screen
+let calendar_jump (s : C.state) value =
+  { s with screens = { s.screens with calendar_home = Calendar_home.start_jump value s.screens.calendar_home } }
+let calendar_search (s : C.state) value =
+  { s with screens = { s.screens with calendar_home = Calendar_home.start_search ~value s.screens.calendar_home } }
+let calendar_browser (s : C.state) = Calendar_home.browser s.screens.calendar_home
+let calendar_detail (s : C.state) = Calendar_home.detail_focused s.screens.calendar_home
+let calendar_scroll (s : C.state) = Calendar_home.scroll s.screens.calendar_home
+let with_calendar_browser (s : C.state) browser =
+  { s with screens = { s.screens with calendar_home = Calendar_home.with_browser s.screens.calendar_home browser } }
+
+(* The old workspace record included both browsers and the central pane.
+   Retention assertions must compare those semantic fields after ownership moves. *)
+let same_workspace (a : C.state) (b : C.state) =
+  a.workspace = b.workspace
+  && Day.browser a.screens.day = Day.browser b.screens.day
+  && Calendar_home.browser a.screens.calendar_home = Calendar_home.browser b.screens.calendar_home
+  && (let pane s = match s.C.workspace.route with
+      | W.Selected_day _ -> Day.detail_focused s.screens.day
+      | _ -> Calendar_home.detail_focused s.screens.calendar_home in
+      pane a = pane b)
+
 (* The Shell's record-action openers, targeted at what the route owner selects. *)
 let selected_target (state : C.state) =
   match state.workspace.route with
   | W.Actual -> Option.map (fun e -> W.Actual_entry e) (Act.selected_entry ~book:state.session.book state.screens.actual)
   | W.Scheduled -> Option.map (fun p -> W.Scheduled_plan p) (Plans.selected_plan state.session.book state.screens.scheduled)
   | W.Selected_day _ -> day_selected state
+  | W.Calendar -> Calendar_home.selected_row ~book:state.session.book
+      ~calendar:state.workspace.calendar state.screens.calendar_home
   | _ -> C.selected state
 let pay_selected s = C.pay_target s (selected_target s)
 let batch_plan_selected s = C.batch_plan_target s (selected_target s)

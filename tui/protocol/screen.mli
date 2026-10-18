@@ -21,6 +21,7 @@ type route =
   | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow
 
 type annual = {
+  notice : string option Lazy.t; (** Home-only annual notice; do not force on other routes. *)
   year : int option;  (** Explicitly named annual book, if any. *)
   unavailable : string option Lazy.t;
       (** Qualified prior-year opening evidence is missing (verified on demand). *)
@@ -113,7 +114,7 @@ type request =
   | Open_route of route
   | Back  (** Leave this route: to the screen it was drilled from, or Home. *)
   | Quit  (** Leave the application (Home Esc / q). *)
-  | Set_calendar of Daily_calendar.t  (** Move the Shell focus day or zoom. *)
+  | Set_calendar of { calendar : Daily_calendar.t; clear_message : bool }  (** Move the Shell focus day or zoom; Esc zoom-back preserves existing feedback. *)
   | Open_observe  (** Open an empty Observe draft over this route. *)
   | New_plan  (** Open the Scheduled creation editor on the focus day. *)
   | Record_action of { action : record_action; target : record_target option }

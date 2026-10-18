@@ -28,6 +28,8 @@ P7/IME/人手受け入れを主張しない。
 | Actual | `Actual_screen`(+`Actual_workspace`) | `tui/screens/actual` |
 | Scheduled List/Months | `Scheduled_screen`(+`Scheduled_months`) | `tui/screens/scheduled` |
 | Selected Day | `Selected_day_screen` | `tui/screens/day` |
+| Calendar/Home + ambient Search | `Calendar_home_screen` | `tui/screens/calendar` |
+| Selected Day | `Selected_day_screen` | `tui/screens/day` |
 
 共通部品: `tui/book/record_browser.ml`（行identity・filter・順序・identity追従選択、純粋）、
 `tui/book/record_lines.ml`（Actual/Scheduled 一行表示）。
@@ -35,12 +37,13 @@ P7/IME/人手受け入れを主張しない。
 Set_calendar / Open_observe / New_plan / Record_action{action;target} / New_record /
 Drill{day;entry} / Publish / Stop_writes / Save_*` 等、`env.calendar` は Shell の焦点日。
 
-中央に**残っているもの**（`tui/shell/daily_interaction*.ml` 合計1804行 + `ui_workspace.ml`）:
-- Calendar（Day/Month/Year + Detail）、Home の入力・描画
-- Commands/Themes/Jump/Search オーバーレイ、discard 確認、annual rollover、publication executor、Record 保持
-- `C.selected` は Calendar のみに応答（Selected Day を含む owner route は `None`）
-- Selected Day は browser mirror を削除済み。検索は owner 内で Enter/Esc まで遅延し、
-  Registry の `reload_in_modal = false` で従来どおり Ctrl-Q/N/R を消費する。
+中央に**残っているもの**（`daily_interaction*.ml` 合計1428行）:
+- Commands/Themes、discard確認、annual rollover、publication executor、Record保持と画面間調停。
+- 年度来歴がactive route上で古くなった場合のUnavailable frameはShellの安全境界として保持。
+- `Ui_workspace`はroute/calendar/measureとrecord-target型aliasのみ。pane/browser/scroll mirrorなし。
+- `C.selected`はCalendar ownerのtarget問い合わせだけを行う。c/e等のglobal fallbackはtarget=None。
+- 他ownerのIgnored入力から開ける旧Searchと隠れたnavigationはCalendar ownerが保持し、
+  ambient検索中のfooterは元routeのものを表示する。無作用化・意味変更はしない。
 
 CI: `gh workflow run tui.yml|core.yml --ref reconstruct/issue-42` で手動起動できる
 （branch push では自動起動しない）。`a1885fa` で run 39149879420 (TUI) / 39149881823 (Core)
@@ -77,7 +80,7 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
 - `for_route route = List.find_opt (fun (Owner o) -> o.owns route) all`、`enter route` は route を渡す。
 - 挙動変化なし → 検証してコミット。
 
-### 3.2 Selected Day を `tui/screens/day/selected_day_screen.ml(.mli)` へ（完了; 以下は移植契約の参照）
+### 3.2 Selected Day（完了 `e190f22`、以下は移植契約）（完了; 以下は移植契約の参照）
 状態: `{ day; browser : Record_browser.t; pane : List|Detail; scroll; search : string option; parent : string option }`
 - `enter (Selected_day d) ~focus_day` → `day=d; pane=List; scroll=0; search=None; parent=None`。
   **browser（query/locus/day/order）は訪問をまたいで保持**（旧 `workspace.selected_day` と同じ）。
@@ -113,7 +116,7 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
   `interaction_check_fixture.ml` に `day_rows / day_id / day_detail ...` を追加し、
   `selected_target` に Selected_day 分岐を追加。
 
-### 3.3 Calendar（Day/Month/Year + Detail）と Home
+### 3.3 Calendar/Home（ローカル検証済み、以下は維持する契約）
 - 焦点日/zoom は Shell 所有の `env.calendar`。画面は `Set_calendar` request で変更を依頼
   （`update_calendar` の `Refused`→message、`Open_day`→`Open_route (Selected_day d)`）。
 - Calendar の描画（`calendar_rows`, `calendar_frame`, `detail_frame`, 120列/72列分岐、
@@ -124,7 +127,14 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
 - Home: Esc/q→`Quit`、g/Enter→Calendar、a/s/b/d/i/o 同上、footer の Attention badge。
 - 注意: Page/Home/End の中央ロジック（`snd dimensions - 8` ステップ等）は Home/Calendar にも
   効いている。移植時に route 条件を正確に再現すること。
-- 終了時: `Ui_workspace` を消すか「route + calendar + measure」だけに縮小。
+- `Ui_workspace`はroute/calendar/measureに縮小済み。新規ownerの純粋checksと既存scenarioの
+  assertionを維持し、34 PASS一致・ラベル消失なし・arch/Coreを確認。
+- Homeの`/`はJumpでなくSearch。queryは後のCalendarへ保持する。
+- Escだけzoomを戻しmessageを保持、qはzoomを保持してHome。普通の移動はblocked以外のmessageを消す。
+- 他routeへのentryでshared browser選択は空rowsにsync、Selected Dayではbrowserを保持。
+  Actualへのdrill returnはentry通知のみでsyncしない。publication/reloadは旧route境界の同期を維持。
+- annual.noticeはlazyでHome paintだけがforce。Homeはheaderなしのbody全高を描く。
+- 次は3.4の仕上げ。Calendar/Homeのmatching SHA CIはcommit後に手動実行する。
 
 ### 3.4 Shell 仕上げ
 - `daily_interaction*.ml` を Shell（routing, global keys, Commands/Themes, discard 確認,

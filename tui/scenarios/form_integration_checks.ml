@@ -88,8 +88,7 @@ let run ~width_of (home : C.state) =
              (render ~width:20 ~height:6 warning))
     "form-long-warning-explicit-overflow";
   List.iter (fun ((width, height) as dimensions) ->
-      List.iter (fun overlay ->
-          let state = { home with C.overlay } in
+      List.iter (fun state ->
           match R.resolve_overlay ~dimensions ~width_of state with
           | None -> raise (F.Refused "form-overlay-missing")
           | Some frame ->
@@ -103,10 +102,10 @@ let run ~width_of (home : C.state) =
               | None -> raise (F.Refused "form-overlay-caret-hidden"));
               let cancelled = key ~dimensions ~width_of state `Escape in
               require (no_modal cancelled
-                       && cancelled.workspace = home.workspace
+                       && (same_workspace cancelled home)
                        && cancelled.session.bytes = home.session.bytes)
                 "form-overlay-cancel-preserves-parent")
-        [C.Jump long_value; C.Search long_value; C.Modal_form long_form])
+        [calendar_jump home long_value; calendar_search home long_value; { home with C.overlay = C.Modal_form long_form }])
     [80,24; 120,36; 48,14; 32,9];
   form_ja
 
@@ -130,13 +129,13 @@ let cursor_checks ~width_of (home : C.state) form_ja =
        require (row > 0 && row < 24) "cursor-record-row-bounded"
    | None -> failwith "expected-record-session-cursor");
   (* 4. Jump and Search overlays -> Some (col, row) *)
-  let jump_state = { home with overlay = C.Jump "2026-10" } in
+  let jump_state = calendar_jump home "2026-10" in
   (match R.cursor_position ~width_of (80, 24) jump_state with
    | Some (col, row) ->
        require (col > 0 && col < 80) "cursor-jump-col-bounded";
        require (row > 0 && row < 24) "cursor-jump-row-bounded"
    | None -> failwith "expected-jump-overlay-cursor");
-  let search_state = { home with overlay = C.Search "ramen" } in
+  let search_state = calendar_search home "ramen" in
   (match R.cursor_position ~width_of (80, 24) search_state with
    | Some (col, row) ->
        require (col > 0 && col < 80) "cursor-search-col-bounded";
@@ -164,6 +163,6 @@ let cursor_checks ~width_of (home : C.state) form_ja =
   (* 6. Japanese text IME cursor anchor stability *)
   let rec_ja = text ~width_of rec_state "コンビニ" in
   check_overlay_sync rec_ja "record-with-japanese-text";
-  let search_ja = { home with overlay = C.Search "食費" } in
+  let search_ja = calendar_search home "食費" in
   check_overlay_sync search_ja "search-with-japanese-text";
   ()

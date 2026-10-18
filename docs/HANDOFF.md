@@ -1,5 +1,16 @@
 # Handoff
 
+## Active reconstruction branch (2026-10-19)
+
+Read `tasks/issue42/HANDOFF.ja.md` first for the isolated `reconstruct/issue-42`
+work. Registry and Selected Day are committed; Calendar/Home are now owned by
+`Calendar_home_screen`, with local synthetic evidence in `VERIFICATION.md`.
+The remaining pass is the bounded Shell/checks/architecture/measurement audit,
+followed by matching-implementation-SHA CI. Existing Home/ambient search,
+Calendar navigation quirks and annual refusal behavior are preserved rather
+than corrected during extraction. Main integration still requires the user's
+explicit approval; no operational cutover or private-data access is authorized.
+
 ## Storage direction (2026-10-17)
 
 The user selected **calendar-year S-expression files as the first implementation path**; see [decision](YEARLY_SEXP_IMPLEMENTATION_DECISION.ja.md) and [issue #34](https://github.com/shumoku88-bit/bakhlo/issues/34). Source-linked annual envelopes (`bakhlo-annual 1`), explicit rollover in TUI (`Household setup` → `Annual books / Start next year`) and CLI (`--annual-rollover`), current-year Balances/Daily Pace across pension cycles, single-authority cross-year plan discharge, frozen-predecessor and stale-provenance refusals, bounded multi-year reports, and exact-byte `--annual-backup` / `--annual-restore` are connected and verified on synthetic files. Power-loss/P7, noncooperative writers, real IME/human acceptance and operational cutover remain unqualified; LOAM stays production authority. See [verification](VERIFICATION.md#annual-sexp-ledger-completion-2026-10-17).

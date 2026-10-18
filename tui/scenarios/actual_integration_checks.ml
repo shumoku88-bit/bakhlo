@@ -111,7 +111,7 @@ let actual_browsing_checks ~width_of ~directory home =
   let draft = prepare_record ~width_of parent in
   let draft_rows = S.screen ~book ~dimensions:(72,20) ~width_of (Option.get draft.record) in
   let closed = key ~width_of draft `Escape in
-  require (closed.workspace=parent.workspace && C.has_record_draft closed && not closed.record_visible)
+  require ((same_workspace closed parent) && C.has_record_draft closed && not closed.record_visible)
     "actual-record-cancel-retains-parent-and-draft";
   let resumed = key ~width_of closed (`ASCII 'n') in
   require (resumed.record_visible && S.screen ~book ~dimensions:(72,20) ~width_of (Option.get resumed.record)=draft_rows)
@@ -145,11 +145,10 @@ let actual_browsing_checks ~width_of ~directory home =
   (* Selected Day retains the old deferred overlay and raw detail-motion contract. *)
   let day_book = List.fold_left (fun book n -> get (B.put_entry book ~replace:true
       { (entry n) with day = (entry 16).day } ~plan:None)) book [15;17] in
-  let day_base = { state with session = { state.session with book = day_book };
-    workspace = { state.workspace with detail = { state.workspace.detail with
-      selected = 7; selected_id = Some (W.Actual_row, "calendar-parent") } } } in
+  let day_base = with_calendar_browser { state with session = { state.session with book = day_book } }
+    { (calendar_browser state) with selected = 7; selected_id = Some (W.Actual_row, "calendar-parent") } in
   let day = C.open_route day_base (W.Selected_day (entry 16).day) in
-  require (day.workspace.detail = day_base.workspace.detail)
+  require (calendar_browser day = calendar_browser day_base)
     "selected-day-entry-preserves-calendar-browser";
   require (day_id day = Some (W.Actual_row, "actual-17")
            && day_id (key ~width_of day (`Arrow `Down)) = Some (W.Actual_row, "actual-16")
@@ -177,7 +176,7 @@ let actual_browsing_checks ~width_of ~directory home =
              && day_id paged = day_id first && day_detail paged)
       "selected-day-detail-page-uses-screen-height-minus-eight") [(32,9);(48,14);(80,24);(120,36)];
   let retained : Record_browser.t = { query = "purchase"; locus = Some "wallet";
-    day = Some (entry 16).day; order = W.Oldest; selected = 1;
+    day = Some (entry 16).day; order = Record_browser.Oldest; selected = 1;
     selected_id = Some (W.Actual_row, "actual-16") } in
   let retained_day = with_day_browser day retained in
   let revisited = C.open_route (C.open_route retained_day W.Home) (W.Selected_day (entry 16).day) in
@@ -212,7 +211,7 @@ let actual_browsing_checks ~width_of ~directory home =
   require (contains day_rows (entry 16).day)
     "selected-day-record-inherits-route-date-not-background-calendar";
   let held = key ~width_of day_draft `Escape in
-  require (held.workspace = day_parent.workspace && held.drill_parent = day_parent.drill_parent
+  require ((same_workspace held day_parent) && held.drill_parent = day_parent.drill_parent
            && F.read day_path = before && C.has_record_draft held)
     "selected-day-record-cancel-retains-draft-parent-and-bytes";
   List.iter (fun state ->
@@ -390,13 +389,13 @@ let reversal_checks ~width_of ~directory home =
   let edit_action = key ~width_of (key ~width_of review `Tab) `Enter in
   require (not (Rev.is_preview (editor edit_action))) "reversal-selected-edit";
   List.iter (fun cancelled ->
-    require ((no_modal cancelled) && cancelled.workspace = opened.workspace
-             && cancelled.screens.actual = opened.screens.actual && cancelled.scroll = opened.scroll) "reversal-cancel-retains-parent")
+    require ((no_modal cancelled) && (same_workspace cancelled opened)
+             && cancelled.screens.actual = opened.screens.actual && calendar_scroll cancelled = calendar_scroll opened) "reversal-cancel-retains-parent")
     [key ~width_of opened `Escape; key ~width_of review (`ASCII 'q');
       key ~width_of (key ~width_of (key ~width_of review `Tab) `Tab) `Enter];
   let day_view = C.open_route base (W.Selected_day target.day) in
   let day_cancel = key ~width_of (key ~width_of day_view (`ASCII 'x')) `Escape in
-  require (day_cancel.workspace = day_view.workspace) "reversal-selected-day-parent-retained";
+  require ((same_workspace day_cancel day_view)) "reversal-selected-day-parent-retained";
   let held = prepare_record ~width_of base |> fun s -> key ~width_of s `Escape in
   let guarded = key ~width_of held (`ASCII 'x') in
   require ((no_modal guarded) && guarded.record = held.record && C.has_record_draft guarded)
@@ -544,7 +543,7 @@ let date_correction_checks ~width_of ~directory home =
   require (not (Date.is_preview (editor back)) && Date.day (editor back) = "2026-10-12")
     "date-preview-escape-keeps-input";
   let cancelled = key ~width_of review (`ASCII 'q') in
-  require ((no_modal cancelled) && cancelled.workspace = base.workspace && F.read path = before)
+  require ((no_modal cancelled) && (same_workspace cancelled base) && F.read path = before)
     "date-cancel-retains-parent-and-bytes";
   List.iter (fun dimensions ->
     let small = key ~dimensions ~width_of review `Enter in

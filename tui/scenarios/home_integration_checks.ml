@@ -37,7 +37,7 @@ let bonsai_home_layout_check ~width_of home =
   let pace = key ~width_of home (`ASCII 'd') in
   require (pace.workspace.route = W.Daily_pace) "bonsai-d-opens-daily-pace";
   let ignored_l = key ~width_of home (`ASCII 'l') in
-  require (ignored_l.workspace = home.workspace) "bonsai-ignores-calendar-nav-l";
+  require ((same_workspace ignored_l home)) "bonsai-ignores-calendar-nav-l";
   require (H.handle home (`Key (`ASCII 'q', [])) = None) "bonsai-q-exits";
   require (H.handle home (`Key (`Escape, [])) = None) "bonsai-esc-exits";
   print_endline "PASS: responsive bonsai launcher, entrance layout, optical centering and boundary isolation."
@@ -60,8 +60,9 @@ let home_layout_check ~width_of home =
       paid_by = None; cancelled_on = None } in
   let book = get (B.put_plan book ~replace:false plan) in
   let state = { home with C.session = { home.session with book };
-      workspace = { home.workspace with route = W.Calendar; pane = W.Calendar;
-                    calendar = get (Cal.create day) }; scroll = 0; message = "" } in
+      workspace = { home.workspace with route = W.Calendar;
+                    calendar = get (Cal.create day) }; message = "" } in
+  let state = C.open_route state W.Calendar in
   let contains rows needle = List.exists
       (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows in
   List.iter (fun ((width, height) as dimensions) ->
@@ -88,7 +89,7 @@ let home_layout_check ~width_of home =
       require (List.length rows <= height
                && List.for_all (fun (_, text) -> width_of text <= width) rows)
         "home-tiny-calendar-cell-width";
-      let focused = { state with workspace = { state.workspace with pane = W.Detail } } in
+      let focused = key ~width_of state `Tab in
       let rows = R.screen ~width_of dimensions focused in
       require (contains rows "Detail / ") "home-small-focused-detail-visible")
     [ 32, 9; 48, 14 ];
@@ -101,6 +102,41 @@ let home_layout_check ~width_of home =
       require (contains rows "Detail / ") "home-period-detail-visible-at-80-columns";
       require (contains rows "q/Esc Home" && contains rows "Space Commands")
         "home-primary-footer-not-clipped") [ state; month; year ];
+  let warned = { state with message = "held calendar warning";
+    workspace = { state.workspace with calendar = { state.workspace.calendar with zoom = Cal.Year } } } in
+  let escaped = key ~width_of warned `Escape in
+  require (escaped.workspace.calendar.zoom = Cal.Month && escaped.message = warned.message)
+    "calendar-escape-zoom-keeps-existing-feedback";
+  let quit = key ~width_of warned (`ASCII 'q') in
+  require (quit.workspace.route = W.Home && quit.workspace.calendar.zoom = Cal.Year)
+    "calendar-q-keeps-zoom-and-returns-home";
+  let moved = key ~width_of warned (`ASCII 'l') in
+  require (moved.message = "") "calendar-normal-move-clears-unblocked-feedback";
+  let list_page = key ~width_of ~dimensions:(80,24) state (`Page `Down) in
+  require ((calendar_browser list_page).selected = 1 && list_page.workspace.calendar = state.workspace.calendar)
+    "calendar-list-page-moves-record-selection-not-date";
+  let detail = key ~width_of state `Tab in
+  let detail_page = key ~width_of ~dimensions:(80,24) detail (`Page `Down) in
+  require (calendar_detail detail_page && calendar_scroll detail_page = 16
+           && calendar_browser detail_page = calendar_browser detail)
+    "calendar-detail-page-retains-selection-and-raw-offset";
+  let parent = C.open_route state W.Home in
+  let search = key ~width_of parent (`ASCII '/') |> fun s -> text ~width_of s "選択日" in
+  require ((calendar_browser search).query = "") "home-search-does-not-filter-before-enter";
+  let searched = key ~width_of search `Enter |> fun s -> key ~width_of s `Enter in
+  require (searched.workspace.route = W.Calendar
+           && List.length (Calendar_home.rows ~book ~calendar:searched.workspace.calendar searched.screens.calendar_home) = 1)
+    "home-search-filters-later-calendar-rows";
+  let pace = C.open_route state W.Daily_pace in
+  let footer = R.footer pace in
+  let ambient = key ~width_of pace (`ASCII '/') |> fun s -> text ~width_of s "ambient" in
+  require (Calendar_home.ambient ambient.screens.calendar_home && R.footer ambient = footer
+           && Option.is_some (R.overlay_screen ~dimensions:(80,24) ~width_of ambient))
+    "ambient-search-keeps-underlying-route-footer-and-overlay";
+  let ambient = key ~width_of ambient `Enter |> fun s -> C.open_route s W.Calendar in
+  require ((calendar_browser ambient).query = "ambient"
+           && Calendar_home.rows ~book ~calendar:ambient.workspace.calendar ambient.screens.calendar_home = [])
+    "ambient-search-updates-retained-calendar-query";
   require (B.entry_count home.session.book = 0) "home-polish-mutated-original-book";
   print_endline "PASS: responsive Home context, compact calendar, tiny Sunday selection, exact period counts and restrained frame height."
 
@@ -113,7 +149,7 @@ let theme_check ~width_of ~directory home =
                             message = "household-warning" } in
   let unchanged state =
     require
-      (state.C.session == base.session && state.workspace = base.workspace
+      (state.C.session == base.session && (same_workspace state base)
        && state.record = base.record && not state.record_visible
        && state.blocked && state.message = base.message && F.read path = before)
       "theme-change-preserves-household-context-draft-and-warning"

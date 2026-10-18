@@ -29,7 +29,7 @@ let run ~width_of ~directory ~path (home : C.state) =
     "selected-day-drill";
   require ((key ~width_of selected (`ASCII 'q')).workspace.route = W.Home) "child-q-does-not-quit";
   let detail = key ~width_of cal `Tab in
-  require ((key ~width_of detail (`ASCII 'q')).workspace.pane = W.Calendar) "home-detail-q-back";
+  require (not (calendar_detail (key ~width_of detail (`ASCII 'q')))) "home-detail-q-back";
   require (H.handle home (`Key (`ASCII 'q', [])) = None) "calendar-q-exits";
   let outside_paste =
     match H.handle home (`Paste `Start) with
@@ -43,7 +43,7 @@ let run ~width_of ~directory ~path (home : C.state) =
     | None -> raise (F.Refused "paste-end-exited")
   in
   require
-    (outside_paste.workspace = home.workspace
+    ((same_workspace outside_paste home)
     && (not outside_paste.record_visible)
     && (not (C.has_record_draft outside_paste))
     && F.read path = before)
@@ -96,7 +96,7 @@ let run ~width_of ~directory ~path (home : C.state) =
        require (List.exists (fun (_, text) -> Base.String.is_substring text ~substring:"Scheduled household work.") rows)
          "commands-group-header-description-visible");
   let leaf = key ~width_of menu (`Arrow `Right) in
-  require (leaf.overlay = menu.overlay && leaf.workspace = menu.workspace) "right-leaf-no-action";
+  require (leaf.overlay = menu.overlay && (same_workspace leaf menu)) "right-leaf-no-action";
   let parent = key ~width_of leaf `Escape in
   require
     (match parent.overlay with C.Commands { page = M.Root; selected = 1 } -> true | _ -> false)
@@ -236,7 +236,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   let closed_edit = C.discard (key ~width_of plan_editing `Escape) in
   let plan_cancelling = key ~width_of closed_edit (`ASCII 'x') in
   let cancelled_overlay = key ~width_of plan_cancelling `Escape in
-  require (cancelled_overlay.workspace = closed_edit.workspace && F.read path = before)
+  require ((same_workspace cancelled_overlay closed_edit) && F.read path = before)
     "scheduled-cancel-escape-retains-parent-and-bytes";
   let date_only = Option.get (H.handle ~width_of
     (key ~width_of cal (`ASCII 'r')) (`Key (`Tab, [`Shift]))) in
@@ -265,7 +265,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   let kept = key ~width_of confirming `Enter in
   let escaped = key ~width_of confirming `Escape in
   require (kept.record = cancelled.record && escaped.record = cancelled.record
-           && kept.workspace = cancelled.workspace && (no_modal kept))
+           && (same_workspace kept cancelled) && (no_modal kept))
     "discard-keep-and-escape-retain-exact-draft-and-parent";
   let selected = key ~width_of confirming (`Arrow `Right) in
   let tiny = key ~dimensions:(32,9) ~width_of selected `Enter in
@@ -276,7 +276,7 @@ let run ~width_of ~directory ~path (home : C.state) =
     "discard-tiny-refusal-resets-protective-choice";
   let discarded = key ~width_of selected `Enter in
   require (discarded.record = None && not discarded.record_visible
-           && discarded.workspace = cancelled.workspace && F.read path = before)
+           && (same_workspace discarded cancelled) && F.read path = before)
     "discard-explicit-choice-clears-only-draft-without-writing";
   require (request_discard discarded == discarded) "discard-without-draft-is-noop";
   let uncertain = { cancelled with pending = Some (Daily_actions.Monolithic_candidate before);
@@ -417,7 +417,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   let cancel_preview = key ~width_of cancel_modal `Enter in
   require (F.read cancel_ledger_path = cancel_session.bytes) "cancel-date-enter-only-previews";
   let kept = key ~width_of cancel_preview `Enter in
-  require (F.read cancel_ledger_path = cancel_session.bytes && kept.workspace = cancel_ctl.workspace)
+  require (F.read cancel_ledger_path = cancel_session.bytes && (same_workspace kept cancel_ctl))
     "cancel-preview-default-keeps-plan";
   let cancel_done = key ~width_of kept (`ASCII 'x') |> fun s -> key ~width_of s `Enter
     |> fun s -> key ~width_of s `Tab |> fun s -> key ~width_of s `Enter in

@@ -2,6 +2,16 @@
 
 ## 最優先：#42 構造再構築（2026-10-18）
 
+### Calendar/Home owner slice（2026-10-19）
+- [x] Calendar/Home の共有browser・pane・scroll・Jump/Searchをownerへ忠実移植し、中央mirrorを削除。
+- [x] Home検索、Esc/q差、ambient検索、route/publication/reload同期、120/72列layoutを限定回帰で固定。
+- [x] 34 PASS完全一致・ラベル消失なし・architecture/Coreを実行し、結果と残件を既存文書へ記録。
+
+Calendar/Home sliceレビュー: `Calendar_home_screen`へ忠実移植し、`Ui_workspace`はroute/calendar/measureへ縮小。
+既存34 PASS・ラベル・arch/Coreを維持。Home/ambient検索、Esc/q feedback、raw Page/End、route同期、
+active年度来歴拒否を限定回帰で確認。次はShell/checks/architecture/実測の最終監査と新SHA CI。
+main統合・全体完了・LOAM/IME/P7受入とは区別する（詳細は既存VERIFICATION欄）。
+
 今回のユーザー依頼は既存機能を保った完成形への再構築。以下は従来の機能追加順に優先する。
 新規Series／coverage等は保留。mainへ未検証版を統合しない。
 

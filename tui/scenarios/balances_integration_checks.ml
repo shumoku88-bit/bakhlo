@@ -100,7 +100,7 @@ let balance_display_checks ~width_of ~directory () =
     let printed = key ~dimensions ~width_of at_end (`ASCII 'p') in
     let printed_end = key ~dimensions ~width_of printed `End in
     let printed_up = key ~dimensions ~width_of printed_end (`Arrow `Up) in
-    require (printed_end.scroll = at_end.scroll
+    require (calendar_scroll printed_end = calendar_scroll at_end
       && (Balances.selected printed_end.C.screens.balances) = (Balances.selected large.C.screens.balances))
       "balance-print-keeps-parent-context";
     require (Balances.modal printed.screens.balances) "balance-print-overlay-open";
@@ -124,7 +124,7 @@ let balance_display_checks ~width_of ~directory () =
     require (not (Balances.modal (key ~dimensions ~width_of printed_end `Enter).C.screens.balances))
       "balance-print-enter-closes-without-save";
     let closed = key ~dimensions ~width_of printed_end `Escape in
-    require (closed.scroll = at_end.scroll && not (Balances.modal closed.screens.balances)
+    require (calendar_scroll closed = calendar_scroll at_end && not (Balances.modal closed.screens.balances)
       && F.read path = home.session.bytes) "balance-print-close-preserves-parent-without-save")
     [(120,36); (80,24); (48,14); (32,9)];
   require (Balances.print_fits [String.make 32767 'x']

@@ -31,28 +31,17 @@ let record_dimensions ~dimensions:((width, height) as dimensions) ~width_of stat
   S.surface_dimensions
     (width, max 0 (height - List.length (feedback_lines ~dimensions ~width_of state)))
 
-let update_calendar state action =
-  match Cal.apply state.workspace.calendar action with
-  | Cal.Refused why -> { state with message = tr why }
-  | Cal.Moved calendar ->
-      sync
-        {
-          state with
-          workspace = { state.workspace with calendar; pane = W.Calendar };
-          scroll = 0;
-          message = (if state.blocked then state.message else "");
-        }
-  | Cal.Open_day calendar -> open_route state (W.Selected_day calendar.selected_day)
-
 let back state =
-  if state.workspace.pane = W.Detail then
-    { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
-  else match state.drill_parent with
+  match Calendar_home_screen.back_to_list state.screens.calendar_home with
+  | Some calendar_home -> { state with screens = { state.screens with calendar_home } }
+  | None -> match state.drill_parent with
   | Some W.Actual ->
       let before = Option.value ~default:state.session.book state.drill_book in
       let screens, _ = Screen_registry.book_changed W.Actual ~before ~after:state.session.book state.screens in
-      { state with screens; drill_parent = None; drill_book = None;
-        workspace = W.enter state.workspace W.Actual; overlay = No_overlay }
+      { state with drill_parent = None; drill_book = None;
+        workspace = W.enter state.workspace W.Actual; overlay = No_overlay;
+        screens = { screens with calendar_home = Calendar_home_screen.entered W.Actual
+          ~focus_day:state.workspace.calendar.selected_day screens.calendar_home } }
   | _ -> open_route state W.Home
 
 let input_text value = function
@@ -155,6 +144,7 @@ let screen_env ~config_files state : Screen.env =
     calendar = state.workspace.calendar;
     today = F.today ();
     annual = {
+      notice = lazy (F.annual_notice state.session);
       year = state.session.F.annual_year;
       unavailable = lazy (annual_unavailable state);
       history = lazy (annual_history_bounds state);
@@ -300,9 +290,9 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
   | Screen.Open_route route -> open_route state route
   | Screen.Back -> back state
   | Screen.Quit -> state  (* handled by route_screen_input before applying *)
-  | Screen.Set_calendar calendar ->
-      sync { state with workspace = { state.workspace with calendar; pane = W.Calendar }; scroll = 0;
-             message = (if state.blocked then state.message else "") }
+  | Screen.Set_calendar { calendar; clear_message } ->
+      sync { state with workspace = { state.workspace with calendar };
+             message = (if state.blocked || not clear_message then state.message else "") }
   | Screen.Open_observe -> open_observe state
   | Screen.New_plan -> open_plan_record state
   | Screen.Record_action { action; target } -> (
@@ -408,13 +398,28 @@ let route_screen_input ~dimensions ~width_of state input =
   Option.bind (Screen_registry.for_route state.workspace.route) (fun owner ->
     owner_input ~dimensions ~width_of owner state input)
 
-let modal_screen_view ~dimensions ~width_of state =
-  Option.map (fun owner -> owner_view ~dimensions ~width_of owner state)
-    (Screen_registry.modal state.screens)
-
 let route_screen_view ~dimensions ~width_of state =
   Option.map (fun owner -> owner_view ~dimensions ~width_of owner state)
     (Screen_registry.for_route state.workspace.route)
+
+let modal_screen_view ~dimensions ~width_of state =
+  Option.map (fun owner ->
+    let view = owner_view ~dimensions ~width_of owner state in
+    if Calendar_home_screen.ambient state.screens.calendar_home then
+      match route_screen_view ~dimensions ~width_of state with
+      | Some route -> { view with Screen.footer = route.Screen.footer }
+      | None -> view
+    else view)
+    (Screen_registry.modal state.screens)
+
+let ambient_screen_input ~dimensions ~width_of state input =
+  let calendar_home, request = Calendar_home_screen.ambient_handle
+      (screen_env ~config_files:[] state) (screen_geometry ~dimensions ~width_of state)
+      state.screens.calendar_home input in
+  match request with
+  | Screen.Ignored -> None
+  | Screen.Stay -> Some { state with screens = { state.screens with calendar_home } }
+  | _ -> None (* Ambient input only changes retained UI state. *)
 
 let config_lines text =
   String.split_on_char '\n' text |> List.filter (fun line ->

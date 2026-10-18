@@ -3,6 +3,7 @@ type route =
   | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow
 
 type annual = {
+  notice : string option Lazy.t;
   year : int option;
   unavailable : string option Lazy.t;
   history : ((string * string) option, string) result Lazy.t;
@@ -68,7 +69,7 @@ type request =
   | Open_route of route
   | Back
   | Quit
-  | Set_calendar of Daily_calendar.t
+  | Set_calendar of { calendar : Daily_calendar.t; clear_message : bool }
   | Open_observe
   | New_plan
   | Record_action of { action : record_action; target : record_target option }
@@ -102,7 +103,7 @@ let env_for_checks ?(accounting_roles = []) ?(config = fun name -> Error ("undec
   {
     book; bytes = ""; new_id = (let n = ref 0 in fun () -> incr n; Printf.sprintf "check-%d" !n);
     measure; today; calendar = Result.get_ok (Daily_calendar.create today);
-    annual = { year = None; unavailable = lazy None; history = lazy (Ok None) };
+    annual = { notice = lazy None; year = None; unavailable = lazy None; history = lazy (Ok None) };
     accounting_roles = lazy accounting_roles;
     attention = Ok Attention_data.empty;
     settlements = Ok Settlement_data.empty;
