@@ -57,6 +57,20 @@ jobs:
             ox: git+https://github.com/oxcaml/opam-repository.git#f1bd228dda31430bf6271f0f9adb2e604c6957ca
             default: git+https://github.com/ocaml/opam-repository.git#ac27950e5eac6c981ad809dff370c937820b7893
 
+      # setup-ocaml caches only the compiler baseline, not the additional
+      # 200+ installed Bonsai dependencies. Restore a *separate*, immutable
+      # dependency-switch cache only after setup-ocaml has selected OxCaml.
+      # Cache key binds architecture, toolchain, both registry snapshots,
+      # Bonsai source revision and the tracked dependency lock. Bump v1 when
+      # the install command or dependency qualifications change. Never cache
+      # tracked code or the generated TUI binary.
+      - name: Restore qualified OxCaml / Bonsai dependency switch
+        id: bonsai-deps
+        uses: actions/cache/restore@v4
+        with:
+          path: _opam
+          key: bonsai-deps-v1-ubuntu24-x64-ox520-f1bd228-ac27950-2457232d-${{ hashFiles('bakhlo.opam.locked') }}
+
       - name: Pin the existing Bonsai_term trial source
         run: |
           opam pin add -yn bonsai_term 'git+https://github.com/janestreet/bonsai_term.git#2457232d3aa144fb887a053748a920544db60f72'
@@ -76,6 +90,16 @@ jobs:
           # Recovery and other self-checks create only synthetic children here.
           install -d -m 0700 scratch
           ./tools/tui --self-check
+
+      # Only a completed self-check may publish an immutable dependency
+      # cache. Cache size/upload cost must be measured before treating this
+      # as a speedup; never skip the build or tests on cache hits.
+      - name: Cache qualified Bonsai dependencies for next push
+        if: github.ref == 'refs/heads/main' && steps.bonsai-deps.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: _opam
+          key: ${{ steps.bonsai-deps.outputs.cache-primary-key }}
 
       - name: Summarize qualification boundary
         if: always()
