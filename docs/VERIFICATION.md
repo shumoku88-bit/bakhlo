@@ -6,6 +6,13 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## First CI automation on direct main pushes (2026-10-18)
+
+- Added `push: main` trigger to the previously PR-only Core workflow, including changes under `tui/` and Core contracts. Existing locked OCaml 5.3 tests remain unchanged.
+- Added `.github/workflows/tui.yml` with a **separate** OxCaml 5.2.0+ox switch, frozen Ox/default opam registry checkpoints from the prior synthetic trial, Bonsai_term pinned to `2457232d3aa144fb887a053748a920544db60f72`, generated exact tracked-source native build, and `./tools/tui --self-check`. Build script CI opt-in does not change the default private macOS Bonsai switch.
+- Tracked initial workflow run IDs: Core `39091982586` and Bonsai TUI `39092011892`. They were **in progress** at initial inspection, not successful qualifications. Consult their final conclusions and the specific test logs before updating this verdict. TUI CI depends on a potentially costly Ox opam bootstrap; if dependency solving/build fails, repair that failure rather than ignoring it.
+- This is a Linux build/native synthetic-check entrance, **not** a PTY 4-size matrix, real IME, paired LOAM runtime test, power-loss/P7 or cutover. No private household data is used.
+
 ## Balances medium layout and Print refusal: source only (2026-10-18)
 
 - Baseline `main` was `8bc490f3a43c8c8e8869062c1bcd3779e361d558` (already included the locally qualified Daily Pace history and UI-24-B2 grouped observation work).
