@@ -839,7 +839,19 @@ let render_detail ~width:_ ~width_of:_ ~book ~measure ~sample ~prev_sample ~toda
                 ]
               else []
             in
-            (O.Plain, spent) :: (inflow @ settled)
+            (* Scheduled payments and their reversals are distinct from
+               discretionary income. A positive linked reversal restores
+               pool funds, but it is not a new unscheduled receipt. *)
+            let scheduled_inflow =
+              if Z.sign a.scheduled_settled_inflow > 0 then
+                [
+                  ( O.Plain,
+                    "Scheduled-linked inflow/reversal: +"
+                    ^ O.format_money book measure a.scheduled_settled_inflow ^ " " ^ measure );
+                ]
+              else []
+            in
+            (O.Plain, spent) :: (inflow @ settled @ scheduled_inflow)
       in
       let change_lines =
         match prev_sample with
