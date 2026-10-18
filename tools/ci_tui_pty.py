@@ -158,7 +158,7 @@ def smoke(binary, fixture, width, height, root):
     reopened = Session(binary, book, width, height)
     try:
         reopened.wait_for(b"bakhlo")
-        reopened.send(b"\\r")
+        reopened.send(b"\r")
         reopened.send(b"b")
         reopened.wait_for(b"Balances / Current")
         reopened.wait_for(b"+1,000 jpy")
