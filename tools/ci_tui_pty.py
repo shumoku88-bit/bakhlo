@@ -192,22 +192,22 @@ def smoke_record_preview_refusal(binary, fixture, root):
         # Same positive/negative synthetic postings as Record_session_checks.
         # The writer is not invoked by typing or opening the Preview.
         sess.send(b"PTY snack")
-        sess.send(b"\\t\\t")
+        sess.send(b"\t\t")
         sess.send(b"wallet")
-        sess.send(b"\\r")
+        sess.send(b"\r")
         sess.send(b"-37")
         sess.send(b"\\t")
         sess.send(b"food")
-        sess.send(b"\\r")
+        sess.send(b"\r")
         sess.send(b"+37")
-        sess.send(b"\\r")
+        sess.send(b"\r")
         sess.wait_for(b"Record / Preview")
         if digest(book) != before:
             raise AssertionError("opening Record Preview wrote authority bytes")
         sess.resize(32, 9)
         # On a 32x9 window, even a chosen Publish must refuse. A successful
         # save would mutate the book and/or create publication artifacts.
-        sess.send(b"\\r")
+        sess.send(b"\r")
         if sess.exit_code() is not None:
             raise AssertionError("narrow Preview Enter unexpectedly exited TUI")
         if digest(book) != before:
@@ -217,7 +217,7 @@ def smoke_record_preview_refusal(binary, fixture, root):
         sess.buffer.clear()
         sess.resize(80, 24)
         sess.wait_for(b"Record / Preview")
-        sess.send(b"\\x1b")
+        sess.send(b"\x1b")
         if digest(book) != before:
             raise AssertionError("Preview Escape wrote authority bytes")
         sess.buffer.clear()
@@ -225,7 +225,7 @@ def smoke_record_preview_refusal(binary, fixture, root):
         sess.wait_for(b"Record / Edit")
         sess.wait_for(b"PTY snack")
         # Ctrl-Q from the returned Home, not from inside an active editor.
-        sess.send(b"\\x1b")
+        sess.send(b"\x1b")
         sess.finish()
     finally:
         sess.close()
