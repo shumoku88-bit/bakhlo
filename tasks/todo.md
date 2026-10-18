@@ -112,17 +112,22 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
    replacement・日付付きcancel、実績化、次回／複数回／期限までの補充、Expected paceを確認する。
    専用確認・tiny gate・取消初期選択、支払済み／取消済み拒否、Actualとの一括対応、
    再起動後のopen／completedと二重発行拒否を含める。予定の未供給を「義務なし」にしない。
+   **次のまとまった実装単位：明示監視ルール＋Series Calendar（UI-23→UI-12）**。単発作成、期間一括生成、完了後の継続Promptは接続済みであり、再実装しない。
+   1. 選択済み明示occurrenceのanchor・正負Locus集合と、人が選んだ月cadence（1／2／3／6／12）をreplaceable監視設定として保存する。金額・名前・履歴から周期やSeries同一性を推測しない。既存config publicationの競合・不正読込・全文Review／tiny拒否を保つ。
+   2. 監視ルールと検証済みopen／completed対応から月別Reviewを作り、予定日・完了印・期待月の未供給を区別する。取消／欠損Actual／不正完了参照を完了証拠にせず、`!`を予定authorityやNotDueへ昇格しない。
+   3. List／Series Calendar／Monthsの選択・月窓・詳細・継続／補充へ接続し、合成の明示設定→保存→cold→月別欠損／完了表示と4寸法・拒否／競合を一単位で受け入れる。設定だけ／見た目だけでSeries完成としない。
 6. [ ] **Balances／Observeを揃える。** 初期表示・Current／Accounting・履歴、数量の根拠と
    不明表示、同時観測画像・複数座標・既存支持の扱い、独立確認と保存後の再照会を照合する。
    正確なゼロ、存在のみ既知、根拠なし、失敗を区別する。Locus／role設定に必要な意味も接続する。
    2026-10-18: Daily Paceの表示sliceに続き、Balancesの初期座標／狭幅金額消失を修正。4寸法の合成対照・unknown詳細復帰・cold reopenを実行。広い受入は未了（[証拠](../docs/VERIFICATION.md#pace-history-and-narrow-balances-paired-2026-10-18)、画面別残差はUI-24）。
    **UI-24-B2（表示口座設定・複数座標観測）**：候補pickerの選択／Review／取消／現Measure保存と他Measure保全、ObserveのAdd→Preview→Publish／Editを接続。合成Core/native検査、既存LOAM binary対照、保存後cold再読込、重複／支持衝突／狭小／競合拒否と実保存失敗→結果不明→再送停止を確認（[証拠](../docs/VERIFICATION.md#ui-24-b2-balances-picker-and-grouped-observation-2026-10-18)）。この限定sliceの実装・検証であり、Balances全体・本人受入の完了ではない。
-   **UI-24-V3（80列配置／不正設定Print拒否）**：2026-10-18 mainに限定修正とsynthetic self-checkを追加。72〜119列／高さ18以上ではCurrent／Accountingの一覧を上、Selected Balanceを下へ配置し、設定読込失敗のCurrent Print Previewは拒否する。**この変更のビルド／self-check／LOAM実行対照は未実施**（[証拠](../docs/VERIFICATION.md#balances-medium-layout-and-print-refusal-source-only-2026-10-18)）。次の環境で最初に確認し、80×24、120×36、48×14、32×9とresize／Accounting／Printを検証。残る見出し・計算・役割・出力の全面受入を別に維持する。
+   **UI-24-V3＋responsive sprint**：80列上下配置と不正設定Print拒否をローカルCore/native self-checkと4寸法PTYで確認。Current／Accountingの座標保持、未知／巨大数量の通貨表示、End→Up／resize、全文スクロールできるPrintの行／バイト上限とEnter取消を追加。Observeの2座標Preview→狭小拒否→Edit→Publish→cold、表示口座のReview取消／保存→coldも合成確認。本人受入・完全なAccounting／外部出力・roles保存安全境界は未了（[証拠](../docs/VERIFICATION.md#daily-pace-and-balances-responsive-completion-sprint-2026-10-18)）。
 7. [ ] **Daily Pace／Trendを揃える。** 明示Pool・通貨・観測日・期間、現在値／What-if・負数、
    Pool／期間設定と履歴Trendの10d／30d／Month／Cycle／Previous Cycle、履歴支持・推移を照合する。
    予定控除・日数・整数演算、欠損／曖昧条件の拒否、設定取消・保存・再起動と既存preset保全を含める。
    Daily Paceを予算扱いして延期せず、月末や名前から条件を推測しない。
    2026-10-18: History／日別内訳／上下配置を接続し、current-onlyの過去日推測を拒否。ゼロ起点支持あり／なしの合成対照と4寸法・cold reopenを確認。全面の履歴／実機受入は未了（[証拠](../docs/VERIFICATION.md#pace-history-and-narrow-balances-paired-2026-10-18)、残差はUI-33）。
+   responsive sprint：Today表示、短い金額内訳、全幅詳細、選択日の期間切替保持、可視容量に沿うページ／端／resizeを接続・合成4寸法PTY確認。What-ifの金額・根拠を整列し非保存／負数計算を維持。LOAM既存binaryとのcurrent-only 80×24、zero-origin支持120×36の回答一致を確認。全面の履歴・IME／本人受入は閉じない。
    **未完了を維持**：dated bounded-history支持、支払済み／取消済み予定を含む過去Paceは今回未検証。UI-24-B2の成功で履歴受入を閉じない。
 8. [ ] **Attention／Settlement／Exchangeを揃える。** Attentionの期限の意味・追加／解決／撤回、
    SettlementのActual／Effect配分・部分精算・相殺・非支払減少・独立した通貨／証拠・訂正、

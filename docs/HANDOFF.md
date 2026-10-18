@@ -28,9 +28,16 @@ hidden review, stale base and uncertain-save retry are refused without dropping
 the retained Preview. Synthetic Core/native checks, paired LOAM binary interaction,
 normal save/cold reopen and an actual permission-failure/uncertain-reload refusal
 passed for this bounded scope; see [B2 evidence](VERIFICATION.md#ui-24-b2-balances-picker-and-grouped-observation-2026-10-18).
-Current headings/80-column layout, Accounting/Print, full runtime/IME/human
-acceptance, queued resize timing, power loss/P7 and operational adoption remain open.
-Daily Pace dated-support and completed/cancelled-plan history remain unqualified.
+Daily Pace/Balances responsive sprint now has local Core/native self-check and
+four-size synthetic PTY evidence. Pace uses a separate Today summary, compact
+exact basis rows, date-preserving period switches and full-width focused detail.
+Balances keeps the selected coordinate across Current/Accounting, retains Measure
+on unknown/overflow rows, and fixes End→Up/resize motion. Print Preview is scrollable,
+closes on Enter/Escape, keeps parent context and refuses >200 lines/>32768 UTF-8 bytes.
+The existing 80-column stacked layout and malformed-view Print refusal are exercised.
+See [sprint evidence](VERIFICATION.md#daily-pace-and-balances-responsive-completion-sprint-2026-10-18).
+Full Accounting/output parity, dated Pace support and paid/cancelled-plan history,
+physical IME/human acceptance, power loss/P7 and adoption remain open.
 
 UI-33 / UI-02 Daily Pace cycle boundaries and Household setup commands are now
 connected: `Space` → `Household setup` exposes `Daily Pace / spendable accounts`,
@@ -251,7 +258,7 @@ Balances Current view (UI-24) is connected to match LOAM's `Balances.lean` model
 - `Enter`, `i`, `Tab`, or `h/l` expands the scrollable Detail pane (`Selected Balance`).
 - `Esc` or `q` in Detail returns to the List pane without exiting Balances; `Esc`/`q` in List returns to Home.
 - `v` toggles between `Balances / Current` and `Balances / Accounting` (RoleBalances).
-- `p` opens Print Preview formatted with LOAM's canonical header lines (capped at 200 lines).
+- `p` opens a scrollable, preview-only Current/Accounting report (200 lines / 32768 UTF-8 bytes including headings/newlines); Enter/Esc/q closes without losing parent selection/scroll.
 - `o` opens the selected Locus/Measure collector (exact amount is only a hint); Add → Preview → Publish observes one or more coordinates together.
 Core/native self-checks and synthetic tmux walks (opening Current, Page/Home/End navigation,
 detail expand/collapse, Print modal, `v` accounting toggle, and Home return) passed;

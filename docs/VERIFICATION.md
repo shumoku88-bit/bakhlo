@@ -6,6 +6,39 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Daily Pace and Balances responsive completion sprint (2026-10-18)
+
+### Baseline and boundaries
+
+- Started with a clean local `a84131c`, fetched and fast-forwarded to remote main `58d0de9`; retained the scheduled-linked inflow/reversal detail and its checks.
+- Read-only LOAM source checkpoint `11f806d4b61121dffee744de0a14f93e2dd17441`; existing binary SHA-256 `9b17146cdc1e003e3a80d435212691c031efe57d0cccb923fc754c3113752379`. Source/binary correspondence remains unestablished. No LOAM build, operational household/config access, converter refresh or cutover.
+- Fresh ignored synthetic roots under `scratch/pace-balances-sprint.I8O6Hy`: current-only and zero-origin-supported copies of the earlier documented `parity-display-20261018.c44xx8` fixtures, a separate Observe/picker copy, and a hand-written JPY/EUR huge-quantity fixture. No private captured facts were used.
+
+### Reproduced problems and changes
+
+- At 80×24, Pace's narrow selected-day pane spent five visible rows on headings, combined Spent/diff on a wrapped line, and left useful amounts below its viewport. Today context was the background Calendar date/zoom. Detail now has one date/period line, separate Pace/Spent/diff and short Available/Pool/Protected basis rows; Enter/i/Tab gives full-width detail at every size. The separate Today header stays independent of the selected historical day.
+- Preset changes previously reset to today. They now preserve the date, clamp to the new range, and refuse unresolved periods without inventing a sample. Timeline j/k, arrows and paging move days; detail paging uses the painted capacity. End→Up was stuck because a sentinel offset was only clamped for paint; both Pace and Balances now clamp before motion, including after resize.
+- History uses the full four-column table only if each complete column fits; narrow history retains date + exact Pace/cue. 48×14 gains a one-row History strip; 32×9 retains a date/Pace summary and short actionable footer. A one-row graph omits ambiguous Y-axis tick labels rather than labelling distinct bands on the same row.
+- Balances preserves Locus × Measure across Current/Accounting instead of selecting a heading. Unknown/presence and overflow-cue rows keep their Measure. The existing 80-column stacked layout is retained. Print Preview now has its own bounded scrolling offset, preserves parent selection/detail position, and closes on Enter/Esc/q. Preview preparation refuses over 200 lines or 32768 UTF-8 bytes including headings/newlines; malformed Current view configuration remains refused. This is not terminal-scrollback printing.
+- Independent source review found Enter did not close the old Print form: it reached an unhandled Submit case. Reproduced in the native UI, fixed both normal/refused forms and retained regressions. The review's History width-allocation mismatch was also removed. Core arithmetic, historical-support qualification, storage formats, writers and publication gates are unchanged.
+
+### Exercised local evidence
+
+- `rtk test ./tools/check`, `rtk err ./tools/build-bonsai-tui` and direct native `bonsai_daily.exe --self-check` passed. Focused regressions cover date-preserving presets, actual visible-page motion, End→Up/resize, 400-digit negative Pace and linked +400 jpy wrapping, unknown-Pace suppression, Measure-preserving cues, mode-switch coordinate identity, Print close/context/full values and exact row/byte boundaries. Obsolete raw-scroll and label-only assertions were removed rather than repinned.
+- Owned tmux sockets, `TERM=xterm-256color`: actual native **120×36, 80×24, 48×14, 32×9** runs covered Pace selection, 10d→30d date retention, full detail, End/Up and resize back to 80×24; What-if purchase 10,000 produced **3,750 jpy/day**, change −714 and remaining 52,500. Balances covered wallet +74,500, exact zero, unsupported bank, detail/End/Up, Current/Accounting, both Print previews and return. Cold new processes reopened the same wallet/Pace. The current-only authority remained byte-identical (`ec66d29e8e9300c89da35adb436f960a504c9966415164050ec197dd6e33f9fe`).
+- Fresh native 80×24 Observe: Add wallet 1234 + bank 0 → Preview (authority unchanged) → 32×9 Publish refused → restore 80×24 → Edit retained both rows → explicit Publish. Balances and cold reopen showed wallet 1,234, bank 0, unmentioned zero 0 and food 5,500; authority SHA-256 `772c54901e2db0cf728b85e119bc063688da048c1c9a8b8d97e042324f24fc60`. Picker Review hid wallet, refused confirmation at 48×14, cancelled without changing config, then explicitly saved zero/bank/food and cold-reopened that selection; book bytes stayed unchanged by picker.
+- Hand-written JPY/EUR fixture: at 80×24, a 90-digit negative EUR quantity became `see details eur`, unsupported JPY/EUR rows stayed distinct, Current→Accounting→Current retained wallet/EUR, and detail/Print retained the signed scale-2 amount. At 32×9 Print End→Up moved the actual report; Enter closed to the same selected coordinate without writes.
+- LOAM existing binary comparison: current-only 80×24 agreed on wallet 74,500, Pace 4,464, Spent 1,000, margin +3,464 and 1/10 supported days. Its scrollback Print consent was explicitly cancelled without output. Zero-origin-supported 120×36 matched the ten daily Paces **2,952 / 3,077 / 3,209 / 3,350 / 3,500 / 3,661 / 3,835 / 4,025 / 4,233 / 4,464**, Spent 100…1,000 and same-day differences. Bakhlo's detail retains the distinct +231/day prior-day change, +302 time effect and −71 free-money effect. This is bounded answer/display comparison, not full interaction equivalence.
+
+### Remaining work
+
+Physical Mac IME/font/rapid queued resize acceptance, dated bounded-history support,
+paid/cancelled-plan historical protection, full Accounting/role persistence and actual
+consent-based scrollback output remain unqualified. Print remains preview-only.
+Scheduled Series Calendar/coverage is not implemented by this sprint; the coherent
+monitoring-rule + month-review + UI/cold/refusal slice is recorded in `tasks/todo.md`.
+Power loss/P7 and operational adoption remain separate unresolved conditions.
+
 ## Daily Pace selected-day scheduled-linked inflow/reversal (2026-10-18)
 
 - Source `aa0d082` connects existing `day_activity.scheduled_settled_inflow` to the Daily Pace **Selected day** detail. The amount is displayed with an explicit positive sign and Measure, labelled `Scheduled-linked inflow/reversal` so that plan-related receipts and later reversals of scheduled payments are not misrepresented as discretionary income or excluded from the activity.
