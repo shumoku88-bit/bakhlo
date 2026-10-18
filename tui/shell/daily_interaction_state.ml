@@ -85,14 +85,6 @@ let is_scheduled_create = function
   | Scheduled_create _ -> true
   | _ -> false
 
-let is_admit_locus = function
-  | Modal_form f when Form.id f = "admit_locus" -> true
-  | _ -> false
-
-let is_set_locus_role = function
-  | Modal_form f when Form.id f = "set_locus_role" -> true
-  | _ -> false
-
 let is_exchange = function
   | Modal_form f when Form.id f = "exchange" -> true
   | _ -> false
@@ -121,7 +113,6 @@ type state = {
   settlement_path : string;
   settlements : (Stl.t, string) result;
   screens : Screen_registry.t;
-  label_review : (Form.t * string * string * string) option;
   exchange_review : (Form.t * A.transaction * string) option;
   observe_draft : observe_draft option;
   actual_workspace : Act.t;
@@ -164,7 +155,6 @@ let initial ?config_home session =
     settlement_path;
     settlements;
     screens = Screen_registry.create ();
-    label_review = None;
     exchange_review = None;
     observe_draft = None;
     actual_workspace = Act.create ~focus_date:focus_day;

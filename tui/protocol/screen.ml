@@ -25,6 +25,12 @@ type geometry = {
 
 type admission = Unconditional | Household_readable | Vocabulary_unchanged
 
+type publication =
+  | Add_locus of string
+  | Set_locus_label of { locus : string; label : string; help : string }
+
+type publish_outcome = Published | Publish_refused of string | Publish_conflict | Publish_stopped
+
 type request =
   | Stay
   | Ignored
@@ -36,6 +42,7 @@ type request =
   | Observe of { locus : string; measure : string; amount : Z.t option }
   | Save_attention of { expected : Attention_data.t; next : Attention_data.t }
   | Save_settlements of { expected : Settlement_data.t; next : Settlement_data.t }
+  | Publish of publication
   | Save_config of {
       file : string;
       expected : string option;
@@ -51,3 +58,5 @@ type view = {
   overlay : Ui_overlay.frame option;
   cursor : (int * int) option;
 }
+
+let no_publication _env _geometry _outcome t = (t, Stay)

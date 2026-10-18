@@ -92,9 +92,13 @@ escape hatch for a file shared with an unmigrated workflow; it may not grow.
 
 ## Known defects found while migrating (not yet changed)
 
-- `accounting-roles.tsv` is read through a path search that turns an
-  unreadable file into empty roles, and the Loci role editor writes it
-  non-atomically and ignores one save error. To be fixed when Loci moves to
-  `Save_config`.
+- `accounting-roles.tsv` is still read through a path search that turns an
+  unreadable file into empty roles (`Screen.env.accounting_roles`). Writing
+  was fixed when Loci moved: roles are saved with `Save_config` (captured
+  bytes, atomic, failures shown), including the role chosen at admission.
+- Settlements and Loci keep legacy navigation: Esc/q always return Home and
+  Page/Home/End reset the list to its first row. Print previews stay open on
+  Done. A successful publication still clears a retained Record draft
+  (`finish_publication`), even when it came from another screen.
 - Cycle-boundary saves now check the pure preconditions before the household
   admission; any failure still refuses with the same message family.

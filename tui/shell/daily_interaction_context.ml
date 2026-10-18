@@ -267,7 +267,7 @@ let write_config_file state name ~expected content =
       Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
 
 let accounting_roles state =
-  match read_config state "accounting-roles.tsv" with
+  match read_config state Locus_roles.file_name with
   | Some text -> O.parse_accounting_roles text
   | None -> []
 
@@ -332,8 +332,17 @@ let save_config state ~file ~expected ~content ~admission =
   in
   Result.bind admitted (fun () -> write_config_file state file ~expected content)
 
+(* Ledger publications requested by screen owners go through the single writer
+   against the current session; the result is reported like any publication. *)
+let execute_publication state = function
+  | Screen.Add_locus token -> A.commit_add_locus ~session:state.session token
+  | Screen.Set_locus_label { locus; label; help } ->
+      A.commit_set_locus_label ~session:state.session ~base_bytes:state.session.bytes
+        ~id:locus ~label ~help ()
+
 (* [saved] hands a configuration save result back to the requesting owner. *)
-let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay)) state = function
+let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
+    ?(published = fun state _ -> (state, Screen.Stay)) state = function
   | Screen.Stay | Screen.Ignored -> state
   | Screen.Message message -> { state with message }
   | Screen.Home -> open_route state W.Home
@@ -368,21 +377,32 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay)) state = fun
       { state with overlay = Modal_form form;
         observe_draft = Some { rows = []; base_bytes = state.session.bytes;
           pending = ("", state.workspace.measure, ""); uncertain = false } }
+  | Screen.Publish publication ->
+      let result = execute_publication state publication in
+      let state, request =
+        match result with
+        | A.Refused why -> published state (Screen.Publish_refused why)
+        | A.Conflict | A.Conflict_base_changed -> published state Screen.Publish_conflict
+        | A.Published _ | A.Idempotent_duplicate _ ->
+            published (apply_commit_result state ~draft:state result) Screen.Published
+        | _ -> published (apply_commit_result state ~draft:state result) Screen.Publish_stopped
+      in
+      apply_request ~saved ~published state request
   | Screen.Save_attention { expected; next } ->
       let result =
         Result.map (fun () -> next) (Attention_file.save_file state.attention_path ~expected next) in
       let state = match result with Ok a -> { state with attention = Ok a } | Error _ -> state in
       let state, request = saved state (Result.map ignore result) in
-      apply_request ~saved state request
+      apply_request ~saved ~published state request
   | Screen.Save_settlements { expected; next } ->
       let result =
         Result.map (fun () -> next) (Settlement_file.save_file state.settlement_path ~expected next) in
       let state = match result with Ok s -> { state with settlements = Ok s } | Error _ -> state in
       let state, request = saved state (Result.map ignore result) in
-      apply_request ~saved state request
+      apply_request ~saved ~published state request
   | Screen.Save_config { file; expected; content; admission } ->
       let state, request = saved state (save_config state ~file ~expected ~content ~admission) in
-      apply_request ~saved state request
+      apply_request ~saved ~published state request
 
 let pace_env state = screen_env ~config_files:Pace.config_files state
 let balances_env state = screen_env ~config_files:Balances.config_files state
@@ -396,6 +416,11 @@ let apply_owner ~dimensions ~width_of (o : _ Screen_registry.owner) state (value
       let value, request =
         o.saved (screen_env ~config_files:o.config_files state)
           (screen_geometry ~dimensions ~width_of state) result (o.get state.screens) in
+      ({ state with screens = o.set state.screens value }, request))
+    ~published:(fun state outcome ->
+      let value, request =
+        o.published (screen_env ~config_files:o.config_files state)
+          (screen_geometry ~dimensions ~width_of state) outcome (o.get state.screens) in
       ({ state with screens = o.set state.screens value }, request))
 
 let owner_input ~dimensions ~width_of (Screen_registry.Owner o) state input =
@@ -499,123 +524,6 @@ let open_command state = function
       let return_menu = match state.overlay with Commands menu -> menu | _ -> M.initial in
       { state with overlay = Themes { selected = index 0 P.all_themes;
                                      original = state.theme; return_menu } }
-
-let admitted_loci state =
-  let book = state.session.book in
-  match B.approved_loci book with
-  | Some loci when loci <> [] -> loci
-  | _ ->
-      let from_entries =
-        List.concat_map
-          (fun (e : B.entry) ->
-            List.map (fun p -> A.lstr (D.Effect.locus p)) e.effects)
-          (B.entries book)
-      in
-      let from_plans =
-        List.concat_map
-          (fun (p : B.plan) -> List.map fst p.changes)
-          (B.plans book)
-      in
-      List.sort_uniq String.compare (from_entries @ from_plans)
-
-let selected_locus state =
-  let loci = admitted_loci state in
-  let sel = state.workspace.loci.selected in
-  List.nth_opt loci sel
-
-let move_locus state delta =
-  let loci = admitted_loci state in
-  let count = List.length loci in
-  if count = 0 then state
-  else
-    let current = state.workspace.loci.selected in
-    let last = count - 1 in
-    let selected = max 0 (min last (current + delta)) in
-    { state with workspace = { state.workspace with loci = { state.workspace.loci with selected } } }
-
-let role_option_strings =
-  [ "(None / Unassigned)"; "Asset"; "Liability"; "Equity"; "Income"; "Expense" ]
-
-let role_of_index = function
-  | 1 -> Some Roles.Asset
-  | 2 -> Some Roles.Liability
-  | 3 -> Some Roles.Equity
-  | 4 -> Some Roles.Income
-  | 5 -> Some Roles.Expense
-  | _ -> None
-
-let index_of_role = function
-  | Some Roles.Asset -> 1
-  | Some Roles.Liability -> 2
-  | Some Roles.Equity -> 3
-  | Some Roles.Income -> 4
-  | Some Roles.Expense -> 5
-  | None -> 0
-
-let admit_locus_form ~count =
-  Form.create
-    ~id:"admit_locus"
-    ~title:"Admit New Locus"
-    ~summary:[
-      Printf.sprintf "Currently admitted: %d loci" count;
-      "Admission establishes an approved coordinate token in the book.";
-      "Accounting role can be assigned immediately or configured later.";
-    ]
-    ~fields:[
-      Form.text_field ~id:"token" ~label:"Stable token" ~placeholder:"e.g. cash, wallet, grocery" ();
-      Form.choice_field ~id:"role" ~label:"Accounting Role" ~options:role_option_strings ~selected:0 ();
-      Form.action_buttons ~confirm:"Admit Locus" ~cancel:"Cancel" ();
-    ]
-    ()
-
-let set_locus_role_form ~locus ~current_role =
-  let curr_label = match current_role with None -> "None" | Some r -> Roles.role_label r in
-  Form.create
-    ~id:"set_locus_role"
-    ~payload:locus
-    ~title:("Set Accounting Role / " ^ locus)
-    ~summary:[
-      "Target Locus: " ^ locus;
-      "Current role: " ^ curr_label;
-      "Saved to accounting-roles.tsv for role-aware balance sheets and reports.";
-    ]
-    ~fields:[
-      Form.choice_field ~id:"role" ~label:"Accounting Role" ~options:role_option_strings ~selected:(index_of_role current_role) ();
-      Form.action_buttons ~confirm:"Save Role" ~cancel:"Cancel" ();
-    ]
-    ()
-
-let set_locus_label_form ~locus ~current_label ~current_help =
-  Form.create
-    ~id:"set_locus_label"
-    ~payload:locus
-    ~title:("Edit Display Name / " ^ locus)
-    ~summary:[
-      "Target Locus: " ^ locus;
-      "Display name is shown across views instead of the raw coordinate token.";
-      "Help text provides description in locus detail.";
-    ]
-    ~fields:[
-      Form.text_field ~id:"label" ~label:"Display name" ~value:current_label ();
-      Form.text_field ~id:"help" ~label:"Help / description (optional)" ~value:current_help ();
-      Form.action_buttons ~confirm:"Review" ~cancel:"Cancel" ();
-    ]
-    ()
-
-let review_locus_label locus label help =
-  Form.create
-    ~id:"review_locus_label"
-    ~payload:locus
-    ~title:"Review Locus Display Name"
-    ~summary:[
-      "Stable identity: " ^ locus;
-      "Display name:    " ^ label;
-      "Help:            " ^ help;
-    ]
-    ~fields:[
-      Form.action_buttons ~confirm:"Save display name" ~cancel:"Edit" ();
-    ]
-    ()
 
 let exchange_review_form ~canon_day ~memo ~src_locus ~src_measure ~src_quanta_str ~dst_locus ~dst_measure ~dst_quanta_str =
   let memo_line = match memo with Some m -> "Description:        " ^ m | None -> "Description:        (none)" in

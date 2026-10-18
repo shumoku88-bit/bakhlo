@@ -61,6 +61,7 @@ let visible_form (state : C.state) =
     Attention_screen.form state.screens.attention
   else if Settlements_screen.modal state.screens.settlements then
     Settlements_screen.form state.screens.settlements
+  else if Loci_screen.modal state.screens.loci then Loci_screen.form state.screens.loci
   else if Income_expense_screen.modal state.screens.income_expense then
     Income_expense_screen.form state.screens.income_expense
   else if Transactions_flow_screen.modal state.screens.transactions_flow then
@@ -78,6 +79,8 @@ let with_visible_form (state : C.state) form =
   else if Attention_screen.modal state.screens.attention then
     { state with screens = { state.screens with
       attention = Attention_screen.with_form form state.screens.attention } }
+  else if Loci_screen.modal state.screens.loci then
+    { state with screens = { state.screens with loci = Loci_screen.with_form form state.screens.loci } }
   else if Settlements_screen.modal state.screens.settlements then
     { state with screens = { state.screens with
       settlements = Settlements_screen.with_form form state.screens.settlements } }

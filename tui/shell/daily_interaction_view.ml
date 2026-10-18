@@ -315,77 +315,6 @@ let workspace_rows ?route_view ~width_of ~width ~height state =
       else detail_frame ~width ~height
   else if Option.is_some route_view then
     Lazy.force (Option.get route_view).Screen.rows
-  else if workspace.route = W.Loci then
-    let loci = admitted_loci state in
-    let roles = accounting_roles state in
-    let left_title = Printf.sprintf "Manage Loci (%d admitted)" (List.length loci) in
-    let right_title = "Locus Detail" in
-    let locus_line locus =
-      let label = B.label book locus in
-      let role_opt = List.assoc_opt locus roles in
-      let role_tag =
-        match role_opt with
-        | Some r -> "[" ^ Roles.role_label r ^ "]"
-        | None -> "[--]"
-      in
-      if label <> "" && label <> locus then
-        Printf.sprintf "%-18s  %-12s  %s" locus role_tag label
-      else
-        Printf.sprintf "%-18s  %-12s" locus role_tag
-    in
-    let left_rows =
-      if loci = [] then [ tr "No admitted loci in this book." ]
-      else List.map locus_line loci
-    in
-    let detail =
-      match selected_locus state with
-      | None -> [ tr "No selected locus."; ""; tr "Press 'n' to admit a new coordinate token." ]
-      | Some locus ->
-          let label = B.label book locus in
-          let role_opt = List.assoc_opt locus roles in
-          let role_str = match role_opt with None -> "None / Unassigned" | Some r -> Roles.role_label r in
-          let balances =
-            if annual_unavailable state <> None then
-              [ "  Unavailable: prior-year opening evidence is not connected." ]
-            else
-              List.map (fun (m, _) ->
-                let q = O.quantity ~book ~measure:m locus in
-                Printf.sprintf "  %s: %s" (String.uppercase_ascii m) q)
-                (B.measures book)
-          in
-          [
-            "Locus Token:      " ^ locus;
-            "Display Label:    " ^ (if label <> "" then label else "(same as token)");
-            "Accounting Role:  " ^ role_str;
-            "";
-            "Current Balances:";
-          ]
-          @ (if balances = [] then [ "  (no measures)" ] else balances)
-          @ [
-            "";
-            "Role Impact:";
-            (match role_opt with
-             | Some Roles.Asset -> "  Asset: Positive balance represents owned resources."
-             | Some Roles.Liability -> "  Liability: Positive balance represents debt owed."
-             | Some Roles.Equity -> "  Equity: Capital / opening balance baseline."
-             | Some Roles.Income -> "  Income: Inflow tracking for reporting."
-             | Some Roles.Expense -> "  Expense: Outflow tracking for reporting."
-             | None -> "  Unassigned: Available for general posting; excluded from role summaries.");
-            "";
-            "Actions:";
-            "  n : Admit new Locus token";
-            "  r : Set / change accounting role";
-          ]
-    in
-    let right_width = if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1 else width in
-    let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
-    let is_detail = workspace.pane = W.Detail in
-    split_pane
-      ~left_focused:(not is_detail) ~left_title ~left_scroll:0
-      ~left_selected:(if loci = [] then None else Some workspace.loci.selected)
-      ~left_rows
-      ~right_focused:is_detail ~right_title
-      ~right_scroll:state.scroll ~right_selected:None ~right_rows:wrapped_detail ()
   else if workspace.route = W.Actual then
     Act.screen ~book:state.session.book ~dimensions:(width, height) ~width_of state.actual_workspace
   else if is_scheduled_months state then
@@ -527,11 +456,6 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
         (match state.drill_parent with
          | Some W.Actual -> "Space Commands  q/Esc Actual  Ctrl-r reload"
          | _ -> "Space Commands  q/Esc Home  Ctrl-r reload");
-      ]
-  | W.Loci, _ ->
-      [
-        "n admit locus  r set role  j/k select  Enter/Tab detail";
-        "q/Esc Home  Space Commands  Ctrl-r reload";
       ]
   | _, _ ->
       [

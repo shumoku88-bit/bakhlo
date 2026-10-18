@@ -11,6 +11,7 @@ type t = {
   stock_flow : Stock_flow_screen.t;
   attention : Attention_screen.t;
   settlements : Settlements_screen.t;
+  loci : Loci_screen.t;
 }
 
 let create () =
@@ -22,6 +23,7 @@ let create () =
     stock_flow = Stock_flow_screen.create ();
     attention = Attention_screen.create ();
     settlements = Settlements_screen.create ();
+    loci = Loci_screen.create ();
   }
 
 type 'a owner = {
@@ -34,6 +36,7 @@ type 'a owner = {
   handle : Screen.env -> Screen.geometry -> 'a -> Ui_input.input -> 'a * Screen.request;
   view : Screen.env -> Screen.geometry -> 'a -> Screen.view;
   saved : Screen.env -> Screen.geometry -> (unit, string) result -> 'a -> 'a * Screen.request;
+  published : Screen.env -> Screen.geometry -> Screen.publish_outcome -> 'a -> 'a * Screen.request;
 }
 
 type owner_ref = Owner : 'a owner -> owner_ref
@@ -51,6 +54,7 @@ let all =
         handle = Daily_pace_screen.handle;
         view = Daily_pace_screen.view;
         saved = Daily_pace_screen.saved;
+        published = Screen.no_publication;
       };
     Owner
       {
@@ -63,6 +67,7 @@ let all =
         handle = Balances_screen.handle;
         view = Balances_screen.view;
         saved = Balances_screen.saved;
+        published = Screen.no_publication;
       };
     Owner
       {
@@ -75,6 +80,7 @@ let all =
         handle = Income_expense_screen.handle;
         view = Income_expense_screen.view;
         saved = Income_expense_screen.saved;
+        published = Screen.no_publication;
       };
     Owner
       {
@@ -87,6 +93,7 @@ let all =
         handle = Transactions_flow_screen.handle;
         view = Transactions_flow_screen.view;
         saved = Transactions_flow_screen.saved;
+        published = Screen.no_publication;
       };
     Owner
       {
@@ -99,6 +106,7 @@ let all =
         handle = Stock_flow_screen.handle;
         view = Stock_flow_screen.view;
         saved = Stock_flow_screen.saved;
+        published = Screen.no_publication;
       };
     Owner
       {
@@ -111,6 +119,7 @@ let all =
         handle = Attention_screen.handle;
         view = Attention_screen.view;
         saved = Attention_screen.saved;
+        published = Screen.no_publication;
       };
     Owner
       {
@@ -123,6 +132,20 @@ let all =
         handle = Settlements_screen.handle;
         view = Settlements_screen.view;
         saved = Settlements_screen.saved;
+        published = Screen.no_publication;
+      };
+    Owner
+      {
+        route = W.Loci;
+        config_files = Loci_screen.config_files;
+        get = (fun t -> t.loci);
+        set = (fun t loci -> { t with loci });
+        enter = Loci_screen.enter;
+        modal = Loci_screen.modal;
+        handle = Loci_screen.handle;
+        view = Loci_screen.view;
+        saved = Loci_screen.saved;
+        published = Loci_screen.published;
       };
   ]
 

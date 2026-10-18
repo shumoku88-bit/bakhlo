@@ -11,6 +11,7 @@
       val view : Screen.env -> Screen.geometry -> t -> Screen.view
       val modal : t -> bool
       val saved : Screen.env -> Screen.geometry -> (unit, string) result -> t -> t * Screen.request
+      val published : Screen.env -> Screen.geometry -> Screen.publish_outcome -> t -> t * Screen.request
     ]} *)
 
 type annual = {
@@ -53,6 +54,18 @@ type admission =
   | Vocabulary_unchanged
       (** Admitted Loci and Measures of the current file equal the screen's book. *)
 
+(** A household ledger change the Shell publishes through the single writer
+    against its current session; answered by the owner's [published]. *)
+type publication =
+  | Add_locus of string
+  | Set_locus_label of { locus : string; label : string; help : string }
+
+type publish_outcome =
+  | Published  (** Read back; the Shell already reported it and reloaded the book. *)
+  | Publish_refused of string  (** Nothing written; the editor keeps its input. *)
+  | Publish_conflict  (** The file changed on disk; nothing written. *)
+  | Publish_stopped  (** Writes stopped or the outcome is unknown; the Shell reports it. *)
+
 type request =
   | Stay
   | Ignored  (** Not this screen's input; the Shell applies its global keys. *)
@@ -67,6 +80,7 @@ type request =
       (** Replace the Attention memory if it still equals [expected]; answered by [saved]. *)
   | Save_settlements of { expected : Settlement_data.t; next : Settlement_data.t }
       (** Replace the commitments if they still equal [expected]; answered by [saved]. *)
+  | Publish of publication
   | Save_config of {
       file : string;
       expected : string option;  (** Captured bytes; a different file refuses. *)
@@ -83,3 +97,6 @@ type view = {
   overlay : Ui_overlay.frame option;
   cursor : (int * int) option;
 }
+
+val no_publication : env -> geometry -> publish_outcome -> 'a -> 'a * request
+(** [published] of an owner that never publishes. *)

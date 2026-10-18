@@ -283,12 +283,10 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             else if Form.id form = "observe_quantity" || Form.id form = "observe_preview" then
               Some { state with overlay = No_overlay; observe_draft = None }
             else
-            (match state.label_review, state.exchange_review with
-             | Some (editing, _, _, _), _ when Form.id form = "review_locus_label" ->
-                 Some { state with overlay = Modal_form editing; label_review = None }
-             | _, Some (editing, _, _) when Form.id form = "review_exchange" ->
+            (match state.exchange_review with
+             | Some (editing, _, _) when Form.id form = "review_exchange" ->
                  Some { state with overlay = Modal_form editing; exchange_review = None }
-             | _ -> Some { state with overlay = No_overlay; label_review = None; exchange_review = None })
+             | _ -> Some { state with overlay = No_overlay; exchange_review = None })
         | Form.Updated _ when input = `Key (`ASCII 'r', [`Ctrl])
                               || input = `Key (`ASCII 'R', [`Ctrl]) ->
             Some (reload state)
@@ -327,87 +325,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                     message = (if state.blocked then state.message
                       else tr "Enlarge the terminal to confirm draft discard.") }
                 else Some (discard { state with overlay = No_overlay })
-            | "admit_locus" ->
-                let token = Option.value ~default:"" (Form.get_text submitted "token") |> String.trim in
-                let role_idx = Option.value ~default:0 (Form.get_choice submitted "role") in
-                let role_opt = role_of_index role_idx in
-                if token = "" then
-                  Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enter the new Locus token.")) }
-                else
-                  let res = A.commit_add_locus ~session:state.session token in
-                  (match res with
-                  | A.Refused why ->
-                      Some { state with overlay = Modal_form (Form.set_notice submitted why) }
-                  | A.Conflict | A.Conflict_base_changed ->
-                      Some { state with overlay = Modal_form (Form.set_notice submitted (tr "File changed on disk. Reload to inspect.")) }
-                  | A.Published _ | A.Idempotent_duplicate _ ->
-                      (match role_opt with
-                      | Some r ->
-                          let path = Locus_roles_file.file_path ?config_home:state.config_home state.session.F.path in
-                          let roles = Locus_roles_file.load_file path in
-                          let updated_roles = Roles.set_role roles token (Some r) in
-                          let _ = Locus_roles_file.save_file path updated_roles in
-                          ()
-                      | None -> ());
-                      let next_state = { state with overlay = No_overlay; message = Printf.sprintf "Admitted locus %s." token } in
-                      Some (apply_commit_result next_state ~draft:next_state res)
-                  | _ ->
-                      let next_state = { state with overlay = No_overlay; message = Printf.sprintf "Admitted locus %s." token } in
-                      Some (apply_commit_result next_state ~draft:next_state res))
-            | "set_locus_role" ->
-                let locus = Form.payload submitted in
-                let role_idx = Option.value ~default:0 (Form.get_choice submitted "role") in
-                let role_opt = role_of_index role_idx in
-                let path = Locus_roles_file.file_path ?config_home:state.config_home state.session.F.path in
-                let roles = Locus_roles_file.load_file path in
-                let updated_roles = Roles.set_role roles locus role_opt in
-                (match Locus_roles_file.save_file path updated_roles with
-                | Error why ->
-                    Some { state with overlay = Modal_form (Form.set_notice submitted why) }
-                | Ok () ->
-                    let role_str = match role_opt with None -> "None" | Some r -> Roles.role_label r in
-                    Some { state with overlay = No_overlay; message = Printf.sprintf "Set accounting role for %s to %s." locus role_str })
-            | "set_locus_label" ->
-                let locus = Form.payload submitted in
-                let label_val = Option.value ~default:"" (Form.get_text submitted "label") |> String.trim in
-                let help_val = Option.value ~default:"" (Form.get_text submitted "help") |> String.trim in
-                let valid_str s =
-                  s <> "" && String.length s <= 80
-                  && String.for_all (fun c -> Char.code c >= 32 && Char.code c <> 127) s
-                in
-                if not (valid_str label_val) then
-                  Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Display name must be 1-80 characters without control characters.")) }
-                else
-                  let existing_help = B.help state.session.book locus in
-                  let resolved_help =
-                    if help_val <> "" then help_val
-                    else if existing_help <> "" then existing_help
-                    else label_val
-                  in
-                  if not (valid_str resolved_help) then
-                    Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Help description must be 1-80 characters without control characters.")) }
-                  else
-                    Some { state with overlay = Modal_form (review_locus_label locus label_val resolved_help);
-                                      label_review = Some (submitted, locus, label_val, resolved_help) }
-            | "review_locus_label" ->
-                (match state.label_review with
-                 | None -> Some { state with overlay = No_overlay; message = tr "Locus label review expired; reopen setup." }
-                 | Some (_editing, locus, label_val, help_val) ->
-                     let body_w, body_h = body_dimensions ~dimensions ~width_of state in
-                     let pane_w = min 64 (max 8 (body_w - 4)) in
-                     let rows = Form.render_rows ~width:(max 0 (pane_w - 6)) ~height:10000 ~width_of submitted in
-                     if pane_w < 48 || List.length rows + 2 > body_h then
-                       Some { state with overlay = Modal_form (Form.set_notice submitted (tr "Enlarge the terminal to review locus label before saving.")) }
-                     else
-                       let res = A.commit_set_locus_label ~session:state.session ~base_bytes:state.session.bytes ~id:locus ~label:label_val ~help:help_val () in
-                       (match res with
-                        | A.Refused why ->
-                            Some { state with overlay = Modal_form (Form.set_notice submitted why) }
-                        | A.Conflict | A.Conflict_base_changed ->
-                            Some { state with overlay = Modal_form (Form.set_notice submitted (tr "File changed on disk. Reload to inspect.")) }
-                        | A.Published _ | A.Idempotent_duplicate _ | _ ->
-                            let next_state = { state with overlay = No_overlay; label_review = None; message = Printf.sprintf "Saved display name for %s." locus } in
-                            Some (apply_commit_result next_state ~draft:next_state res)))
             | "exchange" ->
                 let date_str = Option.value ~default:"" (Form.get_text submitted "date") |> String.trim in
                 let memo_str = Option.value ~default:"" (Form.get_text submitted "memo") |> String.trim in
@@ -641,9 +558,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII 'g', []) when (match state.workspace.route with W.Selected_day _ -> true | _ -> false) ->
             Some (open_route state W.Loci)
         | Some ((`Escape | `ASCII 'q'), []) ->
-            if state.workspace.route = W.Loci then
-              Some (open_route state W.Home)
-            else if state.workspace.route = W.Calendar then
+            if state.workspace.route = W.Calendar then
               if state.workspace.pane = W.Detail then
                 Some { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
               else if fst (Option.get key) = `Escape && state.workspace.calendar.zoom <> Cal.Day then
@@ -731,24 +646,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 overlay = (if state.workspace.route = W.Calendar then Jump ""
                   else Search (W.browser state.workspace).query);
               }
-        | Some (`ASCII 'n', []) when state.workspace.route = W.Loci ->
-            let count = List.length (admitted_loci state) in
-            Some { state with overlay = Modal_form (admit_locus_form ~count) }
-        | Some (`ASCII 'r', []) when state.workspace.route = W.Loci -> (
-            match selected_locus state with
-            | None -> Some { state with message = tr "No locus selected." }
-            | Some locus ->
-                let roles = accounting_roles state in
-                let current_role = List.assoc_opt locus roles in
-                Some { state with overlay = Modal_form (set_locus_role_form ~locus ~current_role) })
-        | Some (`ASCII ('l' | 'e'), []) when state.workspace.route = W.Loci -> (
-            match selected_locus state with
-            | None -> Some { state with message = tr "No locus selected." }
-            | Some locus ->
-                let current_label = B.label state.session.book locus in
-                let current_label = if current_label = locus then "" else current_label in
-                let current_help = B.help state.session.book locus in
-                Some { state with overlay = Modal_form (set_locus_label_form ~locus ~current_label ~current_help) })
         | Some (`ASCII 'r', []) | Some (`ASCII 'n', [])
           when state.workspace.route = W.Scheduled ->
             Some (open_plan_record state)
@@ -828,8 +725,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               Some (update_calendar state (if delta < 0 then Cal.Up else Cal.Down))
             else if state.workspace.pane = W.Detail && state.workspace.route <> W.Calendar && state.workspace.route <> W.Home then
               Some { state with scroll = max 0 (state.scroll + delta) }
-            else if state.workspace.route = W.Loci then
-              Some (move_locus state delta)
             else
               Some
                 {

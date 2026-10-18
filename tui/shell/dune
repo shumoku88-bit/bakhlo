@@ -12,6 +12,7 @@
   bakhlo_screen_reports
   bakhlo_screen_attention
   bakhlo_screen_settlements
+  bakhlo_screen_loci
   bakhlo.store
   bakhlo.domain
   bakhlo.application

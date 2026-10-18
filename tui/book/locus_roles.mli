@@ -21,3 +21,6 @@ val set_role : t -> string -> role option -> t
 val of_string : string -> t
 val to_string : t -> string
 
+
+val file_name : string
+(** Configuration file holding explicit Locus accounting roles. *)
