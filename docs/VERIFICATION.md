@@ -6,6 +6,12 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Issue #42 Registry route predicates (2026-10-19)
+
+- Baseline: clean `reconstruct/issue-42` at `da13db8`. Only `tui/shell/screen_registry.ml` changes compiled behavior: fixed routes retain their equality predicates, floating editors own no route, and existing enter functions ignore the new route argument. No screen behavior, writer, data or dependency changes.
+- Passed with exit 0: `./tools/build-bonsai-tui --test`, exact sorted 34-PASS comparison against `tasks/issue42/pass-base.txt`, assertion-label disappearance check against `tasks/issue42/labels-base.txt` (empty), `./tools/opam exec -- dune build --root . @tools/arch/runtest` (`arch_check: ok`), `./tools/check`, and `git diff --check`.
+- Local logs: `/tmp/issue42-registry-{tui,arch,core}.log`; extracted current labels: `/tmp/issue42-registry-labels.txt`. Non-fatal Xcode file-event/cache-directory diagnostics appeared during the TUI build. No matching-SHA CI, new PTY/paired LOAM, IME/human, power-loss/P7 or cutover qualification is claimed by this local result.
+
 ## Whole-repository architecture audit (2026-10-18)
 
 - Baseline: clean main/remote `4d7b431859501fe0bfe48e73494cdc1c8ac83da0`; compiled product source remains `f80f39f79667c39c94453d287459109e57f169fb`. No product implementation, writer, format or household-data change.

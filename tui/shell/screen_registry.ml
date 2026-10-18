@@ -37,11 +37,11 @@ let create ~scheduled_months =
   }
 
 type 'a owner = {
-  route : W.route option;  (* None: an editor that opens over any route *)
+  owns : W.route -> bool;  (* false for an editor that opens over any route *)
   config_files : string list;
   get : t -> 'a;
   set : t -> 'a -> t;
-  enter : focus_day:string -> 'a -> 'a;  (* the Shell's focus day *)
+  enter : W.route -> focus_day:string -> 'a -> 'a;  (* the Shell's focus day *)
   modal : 'a -> bool;
   handle : Screen.env -> Screen.geometry -> 'a -> Ui_input.input -> 'a * Screen.request;
   view : Screen.env -> Screen.geometry -> 'a -> Screen.view;
@@ -61,11 +61,11 @@ let all =
   [
     Owner
       {
-        route = Some W.Daily_pace;
+        owns = (( = ) W.Daily_pace);
         config_files = Daily_pace_screen.config_files;
         get = (fun t -> t.pace);
         set = (fun t pace -> { t with pace });
-        enter = (fun ~focus_day:_ t -> Daily_pace_screen.enter t);
+        enter = (fun _ ~focus_day:_ t -> Daily_pace_screen.enter t);
         modal = Daily_pace_screen.modal;
         handle = Daily_pace_screen.handle;
         view = Daily_pace_screen.view;
@@ -76,11 +76,11 @@ let all =
       };
     Owner
       {
-        route = Some W.Balances;
+        owns = (( = ) W.Balances);
         config_files = Balances_screen.config_files;
         get = (fun t -> t.balances);
         set = (fun t balances -> { t with balances });
-        enter = (fun ~focus_day:_ t -> t);
+        enter = (fun _ ~focus_day:_ t -> t);
         modal = Balances_screen.modal;
         handle = Balances_screen.handle;
         view = Balances_screen.view;
@@ -91,11 +91,11 @@ let all =
       };
     Owner
       {
-        route = Some W.Income_expense;
+        owns = (( = ) W.Income_expense);
         config_files = Income_expense_screen.config_files;
         get = (fun t -> t.income_expense);
         set = (fun t income_expense -> { t with income_expense });
-        enter = (fun ~focus_day:_ t -> Income_expense_screen.enter t);
+        enter = (fun _ ~focus_day:_ t -> Income_expense_screen.enter t);
         modal = Income_expense_screen.modal;
         handle = Income_expense_screen.handle;
         view = Income_expense_screen.view;
@@ -106,11 +106,11 @@ let all =
       };
     Owner
       {
-        route = Some W.Transactions_flow;
+        owns = (( = ) W.Transactions_flow);
         config_files = Transactions_flow_screen.config_files;
         get = (fun t -> t.transactions_flow);
         set = (fun t transactions_flow -> { t with transactions_flow });
-        enter = (fun ~focus_day:_ t -> Transactions_flow_screen.enter t);
+        enter = (fun _ ~focus_day:_ t -> Transactions_flow_screen.enter t);
         modal = Transactions_flow_screen.modal;
         handle = Transactions_flow_screen.handle;
         view = Transactions_flow_screen.view;
@@ -121,11 +121,11 @@ let all =
       };
     Owner
       {
-        route = Some W.Stock_flow;
+        owns = (( = ) W.Stock_flow);
         config_files = Stock_flow_screen.config_files;
         get = (fun t -> t.stock_flow);
         set = (fun t stock_flow -> { t with stock_flow });
-        enter = (fun ~focus_day:_ t -> Stock_flow_screen.enter t);
+        enter = (fun _ ~focus_day:_ t -> Stock_flow_screen.enter t);
         modal = Stock_flow_screen.modal;
         handle = Stock_flow_screen.handle;
         view = Stock_flow_screen.view;
@@ -136,11 +136,11 @@ let all =
       };
     Owner
       {
-        route = Some W.Attention;
+        owns = (( = ) W.Attention);
         config_files = Attention_screen.config_files;
         get = (fun t -> t.attention);
         set = (fun t attention -> { t with attention });
-        enter = (fun ~focus_day:_ t -> Attention_screen.enter t);
+        enter = (fun _ ~focus_day:_ t -> Attention_screen.enter t);
         modal = Attention_screen.modal;
         handle = Attention_screen.handle;
         view = Attention_screen.view;
@@ -151,11 +151,11 @@ let all =
       };
     Owner
       {
-        route = Some W.Settlements;
+        owns = (( = ) W.Settlements);
         config_files = Settlements_screen.config_files;
         get = (fun t -> t.settlements);
         set = (fun t settlements -> { t with settlements });
-        enter = (fun ~focus_day:_ t -> Settlements_screen.enter t);
+        enter = (fun _ ~focus_day:_ t -> Settlements_screen.enter t);
         modal = Settlements_screen.modal;
         handle = Settlements_screen.handle;
         view = Settlements_screen.view;
@@ -166,11 +166,11 @@ let all =
       };
     Owner
       {
-        route = Some W.Loci;
+        owns = (( = ) W.Loci);
         config_files = Loci_screen.config_files;
         get = (fun t -> t.loci);
         set = (fun t loci -> { t with loci });
-        enter = (fun ~focus_day:_ t -> Loci_screen.enter t);
+        enter = (fun _ ~focus_day:_ t -> Loci_screen.enter t);
         modal = Loci_screen.modal;
         handle = Loci_screen.handle;
         view = Loci_screen.view;
@@ -181,11 +181,11 @@ let all =
       };
     Owner
       {
-        route = None;
+        owns = (fun _ -> false);
         config_files = Observe_screen.config_files;
         get = (fun t -> t.observe);
         set = (fun t observe -> { t with observe });
-        enter = (fun ~focus_day:_ t -> t);
+        enter = (fun _ ~focus_day:_ t -> t);
         modal = Observe_screen.modal;
         handle = Observe_screen.handle;
         view = Observe_screen.view;
@@ -196,11 +196,11 @@ let all =
       };
     Owner
       {
-        route = None;
+        owns = (fun _ -> false);
         config_files = Exchange_screen.config_files;
         get = (fun t -> t.exchange);
         set = (fun t exchange -> { t with exchange });
-        enter = (fun ~focus_day:_ t -> t);
+        enter = (fun _ ~focus_day:_ t -> t);
         modal = Exchange_screen.modal;
         handle = Exchange_screen.handle;
         view = Exchange_screen.view;
@@ -211,11 +211,11 @@ let all =
       };
     Owner
       {
-        route = None;
+        owns = (fun _ -> false);
         config_files = Record_editors.config_files;
         get = (fun t -> t.editors);
         set = (fun t editors -> { t with editors });
-        enter = (fun ~focus_day:_ t -> t);
+        enter = (fun _ ~focus_day:_ t -> t);
         modal = Record_editors.modal;
         handle = Record_editors.handle;
         view = Record_editors.view;
@@ -226,11 +226,11 @@ let all =
       };
     Owner
       {
-        route = Some W.Actual;
+        owns = (( = ) W.Actual);
         config_files = Actual_screen.config_files;
         get = (fun t -> t.actual);
         set = (fun t actual -> { t with actual });
-        enter = Actual_screen.enter;
+        enter = (fun _ -> Actual_screen.enter);
         modal = Actual_screen.modal;
         handle = Actual_screen.handle;
         view = Actual_screen.view;
@@ -241,11 +241,11 @@ let all =
       };
     Owner
       {
-        route = Some W.Scheduled;
+        owns = (( = ) W.Scheduled);
         config_files = Scheduled_screen.config_files;
         get = (fun t -> t.scheduled);
         set = (fun t scheduled -> { t with scheduled });
-        enter = Scheduled_screen.enter;
+        enter = (fun _ -> Scheduled_screen.enter);
         modal = Scheduled_screen.modal;
         handle = Scheduled_screen.handle;
         view = Scheduled_screen.view;
@@ -256,11 +256,11 @@ let all =
       };
   ]
 
-let for_route route = List.find_opt (fun (Owner o) -> o.route = Some route) all
+let for_route route = List.find_opt (fun (Owner o) -> o.owns route) all
 let modal t = List.find_opt (fun (Owner o) -> o.modal (o.get t)) all
 
 let enter route ~focus_day t =
-  match for_route route with Some (Owner o) -> o.set t (o.enter ~focus_day (o.get t)) | None -> t
+  match for_route route with Some (Owner o) -> o.set t (o.enter route ~focus_day (o.get t)) | None -> t
 
 (* Let the route's owner keep its place across a book change. *)
 let book_changed route ~before ~after t =

@@ -286,3 +286,13 @@ Record外のbracketed pasteからHome／Commandsの操作を実行しないこ�
 
 - 実装指示書: `tasks/issue42/HANDOFF.ja.md`（次は Registry 述語化 → Selected Day → Calendar/Home → Shell 仕上げ）。
 - 検証基準: `tasks/issue42/pass-base.txt`（34 PASS）、`tasks/issue42/labels-base.txt`（assert ラベル）。
+
+### Registry 述語化スライス
+
+- [x] `Screen_registry` の route 所有判定を述語にし、enter に route を渡す。既存 owner の挙動は保つ。
+- [x] TUI 全検査と34 PASS完全一致・ラベル消失なし・arch・Coreを確認する。
+- [x] 差分をレビューし、検証結果と限界を記録する。main への統合は行わない。
+
+レビュー: 固定 route は従来と同じ等値判定、floating editor は常に非所有。
+既存 enter は追加の route 引数を無視して元の関数へ委譲する。次は Selected Day の owner 移行。
+ローカル検査は合格。matching SHA のCI・実PTY・IME・P7の追加資格はこの準備変更では未確認。
