@@ -2277,11 +2277,6 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
   require
     ((key ~width_of dotted (`ASCII 'v')).pace_trend.graph_style = Trend.Line)
     "daily-pace-graph-line";
-  let scrolled = key ~width_of pace_detail (`ASCII 'j') in
-  require (scrolled.scroll > pace_detail.scroll) "daily-pace-j-scrolls-detail";
-  require
-    ((key ~width_of scrolled (`ASCII 'k')).scroll = pace_detail.scroll)
-    "daily-pace-k-scrolls-back";
   let escaped_detail = key ~width_of pace_detail `Escape in
   require
     (escaped_detail.workspace.pane = W.Calendar && escaped_detail.workspace.route = W.Daily_pace)
@@ -2651,10 +2646,61 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   require
     (selected_date samples (key ~width_of tail (`Arrow `Left)) = yesterday)
     "daily-pace-sel-end-left-prev";
+  let painted = C.screen ~width_of (140, 40) tail |> List.map snd |> String.concat "\n" in
+  let visible_days = List.filter (fun (sample : Trend.sample) ->
+    Base.String.is_substring painted ~substring:sample.day) samples |> List.length in
   let paged = key ~width_of tail (`Page `Up) in
+  require (selected_date samples paged = day_at (max 0 (count - 1 - visible_days)))
+    "daily-pace-page-matches-visible-history-dates";
   require
-    (selected_date samples paged = day_at (max 0 (count - 1 - 32)))
-    "daily-pace-sel-end-page";
+    (selected_date samples (key ~width_of paged (`Page `Down)) = today)
+    "daily-pace-sel-page-down-restores";
+  (* Yesterday survives a 10d -> 30d -> 10d round trip via date preservation. *)
+  let back10 = key ~width_of entry (`ASCII 'h') in
+  let thirty = key ~width_of back10 (`ASCII '2') in
+  require (selected_date samples thirty = yesterday) "daily-pace-sel-roundtrip-30d-keeps-yesterday";
+  let ten_again = key ~width_of thirty (`ASCII '1') in
+  require (selected_date ten_samples ten_again = yesterday) "daily-pace-sel-roundtrip-10d-keeps-yesterday";
+  (* A refused new range never resets the cursor: change_preset is an error. *)
+  require
+    (Result.is_error
+       (Trend.change_preset ~today ~boundary_presets_text:None thirty.C.pace_trend Trend.Cycle))
+    "daily-pace-sel-refused-preset-keeps-cursor";
+  require
+    (Result.is_error
+       (Trend.move_selection ~today ~preset:Trend.Cycle ~boundary_presets_text:None
+          ~position:thirty.C.pace_trend.selected_index 1))
+    "daily-pace-sel-missing-range-refuses-step";
+  require
+    (Result.is_error
+       (Trend.move_selection ~today ~preset:Trend.Cycle
+          ~boundary_presets_text:(Some (Printf.sprintf "p1\t%s\t%s\np2\t%s\t%s\n" today stop today stop))
+          ~position:thirty.C.pace_trend.selected_index 1))
+    "daily-pace-sel-ambiguous-range-refuses-step";
+  (* Focused full-width detail: End -> Up moves the painted viewport, the
+     selected date stays put, and a resize clamps through the new viewport. *)
+  let dim = (80, 14) in
+  let detail = key ~dimensions:dim ~width_of tail (`ASCII 'i') in
+  require (detail.workspace.pane = W.Detail) "daily-pace-sel-detail-focused";
+  let view0 = C.pace_detail_viewport ~dimensions:dim ~width_of detail in
+  require (view0.last > 0) "daily-pace-detail-overflows";
+  let sel_before = detail.C.pace_trend.selected_index in
+  let at_end = key ~dimensions:dim ~width_of detail `End in
+  let view_end = C.pace_detail_viewport ~dimensions:dim ~width_of at_end in
+  require (view_end.start = view_end.last && at_end.C.scroll = view_end.last)
+    "daily-pace-detail-end-rests-on-last";
+  let up = key ~dimensions:dim ~width_of at_end (`Arrow `Up) in
+  let view_up = C.pace_detail_viewport ~dimensions:dim ~width_of up in
+  require (view_up.start = view_end.start - 1) "daily-pace-detail-end-up-moves-viewport";
+  require (up.C.pace_trend.selected_index = sel_before) "daily-pace-detail-scroll-keeps-date";
+  let paged_detail = key ~dimensions:dim ~width_of at_end (`Page `Up) in
+  require (at_end.C.scroll - paged_detail.C.scroll = min view_end.last (max 1 view_end.capacity))
+    "daily-pace-detail-page-uses-capacity";
+  let resized_up = key ~dimensions:(80, 24) ~width_of at_end (`Arrow `Up) in
+  let view_resized = C.pace_detail_viewport ~dimensions:(80, 24) ~width_of resized_up in
+  require (resized_up.C.scroll <= view_resized.last) "daily-pace-detail-resize-up-clamps-to-painted-last";
+  require (resized_up.C.pace_trend.selected_index = sel_before)
+    "daily-pace-detail-resize-keeps-date";
   require (selected_date samples (key ~width_of tail (`ASCII 'l')) = today) "daily-pace-sel-end-stays";
   let head = key ~width_of tail `Home in
   require (selected_date samples head = day_at 0) "daily-pace-sel-home-head";
@@ -2820,6 +2866,23 @@ let daily_pace_graph_render_checks ~width_of () =
   in
   require (Base.String.is_substring detail_digits ~substring:(Z.to_string huge_digit))
     "pace-graph-huge-detail-exact";
+  List.iter (fun width ->
+    let selected = { (List.nth huge_samples 4) with
+      Trend.pace_quanta = Some (Z.neg huge_digit);
+      activity = Some { Trend.zero_activity with scheduled_settled_inflow = Z.of_int 400 } } in
+    let rows = Trend.render_detail ~width ~width_of ~book ~measure:"jpy"
+      ~sample:(Some selected) ~prev_sample:None ~today:"2026-10-26" ~preset:Trend.Ten_days in
+    require (List.for_all (fun (_, row) -> width_of row <= width) rows) "pace-detail-wrap-width";
+    let joined = String.concat "" (List.map snd rows) in
+    require (Base.String.is_substring joined ~substring:("-" ^ O.format_money book "jpy" huge_digit ^ " jpy/day")
+      && Base.String.is_substring joined ~substring:"Scheduled-linked inflow/reversal: +400 jpy")
+      "pace-detail-wrap-keeps-signed-quantity-and-linked-inflow";
+    let unknown = { selected with Trend.pace_quanta = None; pool_balance = Z.of_int 12345678 } in
+    let rows = Trend.render_detail ~width ~width_of ~book ~measure:"jpy"
+      ~sample:(Some unknown) ~prev_sample:None ~today:"2026-10-26" ~preset:Trend.Ten_days in
+    require (not (Base.String.is_substring (String.concat "" (List.map snd rows))
+      ~substring:"12,345,678")) "pace-unknown-never-paints-dummy-pool")
+    [26; 42; 74; 114];
   let euro = Trend.render_chart ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26"
     ~measure:"eur"
     ~samples:(List.map (fun day -> sample ~day ~q:446400 ()) days)
@@ -2998,6 +3061,14 @@ let balance_display_checks ~width_of ~directory () =
     (has (line ~width:26 huge_item) "details"
      && not (has (line ~width:26 huge_item) "777"))
     "balance-unfit-quantity-is-not-partial-digits";
+  List.iter (fun measure ->
+    let row = O.Account_row { locus = "wallet"; measure; role = None; value = O.Unsupported } in
+    require (has (O.balance_item_line ~width_of ~width:26 ~book row) measure)
+      "balance-unknown-row-keeps-measure";
+    let row = O.Account_row { locus = "wallet"; measure; role = None; value = O.Exact huge } in
+    require (has (O.balance_item_line ~width_of ~width:26 ~book row) measure)
+      "balance-huge-cue-keeps-measure")
+    ["jpy"; "eur"];
   require
     (has (O.balance_item_line ~width_of ~book huge_item) (O.format_money book "jpy" huge))
     "balance-unbounded-print-retains-huge-quantity";
@@ -3016,14 +3087,68 @@ let balance_display_checks ~width_of ~directory () =
      && has (line ~width:26 (item (O.Exact Z.zero))) "0 jpy")
     "balance-unknown-presence-zero-distinct";
   let view = C.open_route home W.Balances in
-  let medium_rows = C.screen ~width_of (80, 24) view |> List.map snd in
-  require
-    (List.exists (fun row -> has row "Balances / Current" && not (has row "Selected Balance")) medium_rows
-     && List.exists (fun row -> has row "Selected Balance" && not (has row "Balances / Current")) medium_rows
-     && has (String.concat "\n" medium_rows) "+74,500 jpy")
-    "balances-medium-stacks-list-over-detail-with-complete-quantity";
+  let coordinate state =
+    match List.nth_opt (C.balance_items state) state.C.workspace.balance_selected with
+    | Some (O.Account_row { locus; measure; _ }) -> Some (locus, measure)
+    | _ -> None in
+  let eur_index = Option.get (List.find_index (function
+    | O.Account_row { locus = "wallet"; measure = "eur"; _ } -> true | _ -> false)
+    (C.balance_items view)) in
+  let eur = { view with workspace = { view.workspace with balance_selected = eur_index } } in
+  let accounting = key ~width_of eur (`ASCII 'v') in
+  let current = key ~width_of accounting (`ASCII 'v') in
+  require (coordinate accounting = Some ("wallet", "eur") && coordinate current = Some ("wallet", "eur"))
+    "balance-mode-switch-keeps-exact-coordinate-not-header";
+  let medium_rows = C.screen ~width_of (80, 24) view in
+  require (not (List.exists (function C.Columns _, _ -> true | _ -> false) medium_rows)
+    && has (String.concat "\n" (List.map snd medium_rows)) "+74,500 jpy")
+    "balances-medium-stacks-with-complete-quantity";
   let painted = C.screen ~width_of (32, 9) view |> List.map snd |> String.concat "\n" in
   require (has painted "+74,500 jpy") "balance-tiny-first-coordinate-visible";
+  let huge_book = get (B.observe_quantities book [("wallet", "jpy", Z.neg huge)]) in
+  let large = C.open_route { home with session = { home.session with book = huge_book } } W.Balances in
+  List.iter (fun dimensions ->
+    let detail = key ~dimensions ~width_of large (`ASCII 'i') in
+    let at_end = key ~dimensions ~width_of detail `End in
+    let up = key ~dimensions ~width_of at_end (`Arrow `Up) in
+    let _, viewport = C.balance_viewport ~dimensions ~width_of detail in
+    if viewport.last > 0 then require
+      (C.screen ~width_of dimensions up <> C.screen ~width_of dimensions at_end)
+      "balance-end-up-moves-visible-detail";
+    let printed = key ~dimensions ~width_of at_end (`ASCII 'p') in
+    let printed_end = key ~dimensions ~width_of printed `End in
+    let printed_up = key ~dimensions ~width_of printed_end (`Arrow `Up) in
+    require (printed_end.scroll = at_end.scroll
+      && printed_end.workspace.balance_selected = large.workspace.balance_selected)
+      "balance-print-keeps-parent-context";
+    (match printed.overlay with
+     | C.Modal_form form ->
+         let _, _, rows, viewport = C.balance_print_viewport ~dimensions ~width_of printed form in
+         require (has (String.concat "" rows) (O.format_money huge_book "jpy" (Z.neg huge)))
+           "balance-print-wrap-retains-full-negative-quantity";
+         if viewport.last > 0 then require
+           (C.overlay_screen ~dimensions ~width_of printed_end
+            <> C.overlay_screen ~dimensions ~width_of printed_up)
+           "balance-print-end-up-moves-visible-report"
+     | _ -> raise (F.Refused "balance-print-not-open"));
+    require ((key ~dimensions ~width_of printed_end `Enter).overlay = C.No_overlay)
+      "balance-print-enter-closes-without-save";
+    let closed = key ~dimensions ~width_of printed_end `Escape in
+    require (closed.scroll = at_end.scroll && closed.overlay = C.No_overlay
+      && F.read path = home.session.bytes) "balance-print-close-preserves-parent-without-save")
+    [(120,36); (80,24); (48,14); (32,9)];
+  require (C.balance_print_fits [String.make 32767 'x']
+    && not (C.balance_print_fits [String.make 32768 'x'])
+    && C.balance_print_fits (List.init 200 (fun _ -> ""))
+    && not (C.balance_print_fits (List.init 201 (fun _ -> ""))))
+    "balance-print-exact-byte-and-line-limits-including-newlines";
+  let oversized = get (B.observe_quantities book
+    [("wallet", "jpy", Z.of_string (String.make 25000 '7'))]) in
+  let refused = C.balance_print_preview { view with session = { view.session with book = oversized } } in
+  require (Ui_form.id refused = "balance_print_refused" && F.read path = home.session.bytes)
+    "balance-print-refuses-real-oversized-quantity-without-save";
+  require ((key ~width_of { view with overlay = C.Modal_form refused } `Enter).overlay = C.No_overlay)
+    "balance-print-refusal-enter-closes";
   require (O.current_balance_items ~book ~coords:(Some []) = [])
     "balance-empty-has-no-selectable-placeholder";
   F.write_new (directory ^ "/balance-view.tsv") "";

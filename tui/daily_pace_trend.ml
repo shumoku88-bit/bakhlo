@@ -468,6 +468,25 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
                     in
                     Ok (start_day, through_day, samples))))
 
+(* Preset switch preserving the selected calendar date when the old range
+   resolves; clamps to the new range, falls back to today when the old date
+   is unavailable. A refused new range is an error, never a reset. *)
+let change_preset ~today ~boundary_presets_text state preset =
+  match resolve_range ~today ~preset ~boundary_presets_text with
+  | Error msg -> Error msg
+  | Ok (new_start, new_through, _) ->
+      let selected_day =
+        match resolve_range ~today ~preset:state.preset ~boundary_presets_text with
+        | Error _ -> day_number today
+        | Ok (old_start, old_through, _) ->
+            let first = day_number old_start in
+            let last = max 0 (day_number old_through - first) in
+            first + Panel.move ~last ~position:state.selected_index 0
+      in
+      let last = max 0 (day_number new_through - day_number new_start) in
+      let at = max 0 (min last (selected_day - day_number new_start)) in
+      Ok { state with preset; selected_index = at }
+
 (* Cursor within the actually rendered range: clamp the stored index to the
    real last row before stepping. Range failure stays an explicit error. *)
 let move_selection ~today ~preset ~boundary_presets_text ~position delta =
@@ -587,22 +606,40 @@ let summary_text ~width ~width_of ~book ~today ~measure sel =
     else O.clip_text ~width_of width (sel.day ^ " ◆ …")
 
 (* Shared history rows over the existing samples: full Day | Quanta/day |
-   Spent | Pace diff only at width>=46 with activity; otherwise selection +
-   exact pace or a detail cue, never a truncated number. *)
+   Spent | Pace diff only when every column fits a meaningful value;
+   otherwise selection + exact pace or a detail cue, never a truncated
+   number. *)
 let render_history ~width ~height ~width_of ~book ~measure ~samples ~selected_index =
   if width < 8 || height < 1 || samples = [] then []
   else
     let count = List.length samples in
     let arr = Array.of_list samples in
     let selected = Panel.move ~last:(count - 1) ~position:selected_index 0 in
-    let wide = width >= 46 && Array.exists (fun s -> s.activity <> None) arr in
+    let pace_text s =
+      match s.pace_quanta with None -> "unknown" | Some q -> money_of book measure q
+    in
+    let spent_diff s =
+      match s.activity with
+      | None -> ("—", "—")
+      | Some activity ->
+          ( O.format_money book measure activity.discretionary_outflow,
+            match s.pace_quanta with
+            | None -> "—"
+            | Some q -> signed_money book measure (Z.sub q activity.discretionary_outflow) )
+    in
+    let pace_w, spent_width, diff_width =
+      if width < 64 then 0, 0, 0
+      else Array.fold_left (fun (pace_w, spent_w, diff_w) sample ->
+        let spent, diff = spent_diff sample in
+        max pace_w (width_of (pace_text sample)),
+        max spent_w (width_of spent), max diff_w (width_of diff))
+        (width_of "Quanta/day", width_of "Spent", width_of "Pace diff") arr in
+    let pace_width = width - 15 - spent_width - diff_width in
+    let wide = width >= 64 && Array.exists (fun s -> s.activity <> None) arr
+      && pace_w <= pace_width in
     let heading = wide && height >= 2 in
     let cap = min count (height - if heading then 1 else 0) in
     let start = max 0 (min (count - cap) (selected - cap / 2)) in
-    let budget = width - 15 in
-    let spent_width = max 8 (budget * 28 / 100) in
-    let diff_width = max 9 (budget * 28 / 100) in
-    let pace_width = budget - spent_width - diff_width in
     let cell width text = O.pad_left ~width_of width (fit_value ~width_of width text "see details") in
     let table_row marker day pace spent diff =
       marker ^ O.pad ~width_of 10 day ^ " " ^ cell pace_width pace ^ " "
@@ -613,24 +650,13 @@ let render_history ~width ~height ~width_of ~book ~measure ~samples ~selected_in
         let i = start + offset in
         let sample = arr.(i) in
         let marker = if i = selected then "◆ " else "  " in
-        let pace = match sample.pace_quanta with
-          | None -> "unknown"
-          | Some q -> money_of book measure q
-        in
         let text =
           if wide then
-            let spent, diff = match sample.activity with
-              | None -> "—", "—"
-              | Some activity ->
-                  O.format_money book measure activity.discretionary_outflow,
-                  (match sample.pace_quanta with
-                   | None -> "—"
-                   | Some q -> signed_money book measure (Z.sub q activity.discretionary_outflow))
-            in
-            table_row marker sample.day pace spent diff
+            let spent, diff = spent_diff sample in
+            table_row marker sample.day (pace_text sample) spent diff
           else
             let prefix = marker ^ sample.day ^ "  " in
-            prefix ^ fit_value ~width_of (width - width_of prefix) pace "…"
+            prefix ^ fit_value ~width_of (width - width_of prefix) (pace_text sample) "…"
         in
         (if i = selected then O.Active else O.Plain), O.pad ~width_of width text)
     in
@@ -757,6 +783,8 @@ let render_chart ~width ~height ~width_of ~book ~today ~measure ~samples ~select
           let plot_rows =
             List.init plot_h (fun y ->
                 let label =
+                  (* One painted row cannot distinguish the tick bands. *)
+                  if plot_h = 1 then "" else
                   match List.assoc_opt y tick_at with
                   | None -> ""
                   | Some t ->
@@ -778,30 +806,27 @@ let render_chart ~width ~height ~width_of ~book ~today ~measure ~samples ~select
           in
           head @ plot_rows @ [ (O.Chrome, O.pad ~width_of width rule_line) ]
 
-let render_detail ~width:_ ~width_of:_ ~book ~measure ~sample ~prev_sample ~today ~preset =
+let render_detail ~width ~width_of ~book ~measure ~sample ~prev_sample ~today ~preset =
+  (* The frame crops; wrap here so every row fits and huge amounts stay
+     reachable by scrolling instead of cropped mid-number. *)
+  let wrap rows =
+    if width <= 0 then rows
+    else
+      List.concat_map
+        (fun (style, line) -> List.map (fun w -> (style, w)) (O.wrap_text ~width_of (max 1 width) line))
+        rows
+  in
   match sample with
-  | None -> [ (O.Chrome, "No sample selected.") ]
+  | None -> wrap [ (O.Chrome, "No sample selected.") ]
   | Some s ->
+      (* Compact context replaces the Daily Pace Detail / Selected date /
+         Period heading stack; the date carries the context. *)
       let header =
-        [
-          (O.Heading, "Daily Pace Detail");
-          (O.Plain, "Selected date: " ^ s.day ^ (if s.day = today then " (Today)" else ""));
-          (O.Plain, "Period: " ^ preset_label preset);
-          (O.Chrome, "");
-        ]
+        [ (O.Heading, s.day ^ (if s.day = today then " (Today)" else "") ^ " · " ^ preset_label preset) ]
       in
       let pace_line =
         match s.pace_quanta with
-        | Some q ->
-            let change =
-              match prev_sample with
-              | None -> ""
-              | Some ps -> (
-                  match compare_change ~prev:ps ~current:s with
-                  | Ok b -> " (change: " ^ signed_money book measure b.change_per_day ^ " " ^ measure ^ "/day)"
-                  | Error _ -> "")
-            in
-            [ (O.Active, "Daily Pace: " ^ money_of book measure q ^ change) ]
+        | Some q -> [ (O.Active, "Daily Pace: " ^ money_of book measure q) ]
         | None -> (
             match s.unavailable with
             | Some why -> [ (O.Status, "Daily Pace: unavailable (" ^ why ^ ")") ]
@@ -811,13 +836,18 @@ let render_detail ~width:_ ~width_of:_ ~book ~measure ~sample ~prev_sample ~toda
         match s.activity with
         | None -> []
         | Some a ->
-            let spent = "Spent: " ^ O.format_money book measure a.discretionary_outflow ^ " " ^ measure in
             let spent =
+              [ (O.Plain, "Spent: " ^ O.format_money book measure a.discretionary_outflow ^ " " ^ measure) ]
+            in
+            (* Same-day margin on its own row so neither value crops mid-number. *)
+            let diff =
               match s.pace_quanta with
-              | None -> spent
+              | None -> []
               | Some q ->
-                  spent ^ " (diff: " ^ signed_money book measure (Z.sub q a.discretionary_outflow) ^ " " ^ measure
-                  ^ ")"
+                  [
+                    ( O.Plain,
+                      "Pace diff: " ^ signed_money book measure (Z.sub q a.discretionary_outflow) ^ " " ^ measure );
+                  ]
             in
             let inflow =
               if Z.sign a.discretionary_inflow > 0 then
@@ -851,7 +881,21 @@ let render_detail ~width:_ ~width_of:_ ~book ~measure ~sample ~prev_sample ~toda
                 ]
               else []
             in
-            (O.Plain, spent) :: (inflow @ settled @ scheduled_inflow)
+            spent @ diff @ inflow @ settled @ scheduled_inflow
+      in
+      (* Day basis before the day-to-day change explanation; unknown pace
+         paints no pool/free/protected figures, never a dummy zero. *)
+      let basis =
+        match s.pace_quanta with
+        | Some _ ->
+            [
+              (O.Plain, "Available: " ^ O.format_money book measure s.available_through_end ^ " " ^ measure);
+              (O.Plain, "Pool: " ^ O.format_money book measure s.pool_balance ^ " " ^ measure);
+              (O.Plain, "Protected: -" ^ O.format_money book measure s.deductions ^ " " ^ measure);
+              (O.Plain, "Days remaining: " ^ string_of_int s.remaining_days);
+              (O.Plain, "Cycle end (exclusive): " ^ s.end_exclusive);
+            ]
+        | None -> [ (O.Plain, "Cycle end (exclusive): " ^ s.end_exclusive) ]
       in
       let change_lines =
         match prev_sample with
@@ -860,6 +904,7 @@ let render_detail ~width:_ ~width_of:_ ~book ~measure ~sample ~prev_sample ~toda
             match compare_change ~prev:ps ~current:s with
             | Ok b ->
                 [
+                  (O.Plain, "Day-to-day change: " ^ signed_money book measure b.change_per_day ^ " " ^ measure ^ "/day");
                   (O.Plain, "Time passage: " ^ signed_money book measure b.time_passage_effect ^ " " ^ measure ^ "/day");
                   (O.Plain, "Free money effect: " ^ signed_money book measure b.free_money_effect ^ " " ^ measure ^ "/day");
                   (O.Plain, "Pool balance delta: " ^ signed_money book measure b.pool_balance_change ^ " " ^ measure);
@@ -868,28 +913,11 @@ let render_detail ~width:_ ~width_of:_ ~book ~measure ~sample ~prev_sample ~toda
                 ]
             | Error why -> [ (O.Plain, "Day-to-day breakdown unavailable (" ^ why ^ ")") ])
       in
-      let breakdown =
-        (match s.pace_quanta with
-        | Some _ ->
-            [
-              (O.Chrome, "");
-              (O.Plain, "Through end: " ^ O.format_money book measure s.available_through_end ^ " " ^ measure ^ " (Available)");
-              (O.Plain, Printf.sprintf "Period progress: %d days remaining to cycle end" s.remaining_days);
-              (O.Plain, "Pool accounts balance: " ^ O.format_money book measure s.pool_balance ^ " " ^ measure);
-              (O.Plain, "Protected scheduled:   -" ^ O.format_money book measure s.deductions ^ " " ^ measure);
-              (O.Plain, "Days remaining:        " ^ string_of_int s.remaining_days ^ " days");
-              (O.Plain, "Cycle end (exclusive): " ^ s.end_exclusive);
-              (O.Plain, "Source: Pool [config/daily-pace.tsv] | Window [config/boundary-presets.tsv]");
-              (O.Chrome, "");
-              (O.Chrome, "Reconstructed current truth; no separate daily snapshot is kept.");
-            ]
-        | None ->
-            [
-              (O.Chrome, "");
-              (O.Plain, "Cycle end (exclusive): " ^ s.end_exclusive);
-              (O.Plain, "Source: Pool [config/daily-pace.tsv] | Window [config/boundary-presets.tsv]");
-              (O.Chrome, "");
-              (O.Chrome, "Reconstructed current truth; no separate daily snapshot is kept.");
-            ])
+      let provenance =
+        [
+          (O.Plain, "Source: Pool [config/daily-pace.tsv] | Window [config/boundary-presets.tsv]");
+          (O.Chrome, "");
+          (O.Chrome, "Reconstructed current truth; no separate daily snapshot is kept.");
+        ]
       in
-      header @ pace_line @ activity_lines @ change_lines @ breakdown
+      wrap (header @ pace_line @ activity_lines @ basis @ change_lines @ provenance)

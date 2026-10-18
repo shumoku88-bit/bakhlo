@@ -95,8 +95,19 @@ val render_history :
   samples:sample list ->
   selected_index:int ->
   (Daily_overlays.style * string) list
-(** History table; full width (>= 46) with activity shows Day | Quanta/day | Spent | Pace diff. *)
+(** History table; full width (>= 64) with activity and every column fitting
+    whole shows Day | Quanta/day | Spent | Pace diff. Narrower widths show
+    date + exact pace or a detail cue, never a truncated number. *)
 
+val change_preset :
+  today:string ->
+  boundary_presets_text:string option ->
+  t ->
+  preset ->
+  (t, string) result
+(** Preset switch preserving the selected calendar date when the old range
+    resolves; clamps to the new range, falls back to today when the old
+    date is unavailable. A refused new range is an error, never a reset. *)
 
 val move_selection :
   today:string ->
@@ -105,8 +116,7 @@ val move_selection :
   position:int ->
   int ->
   (int, string) result
-(** Bounded pace cursor: real last sample from the resolved range, clamped
-    before stepping. Range failure is an explicit error, never a zero sample. *)
+(** Clamp to the resolved range before stepping; range failure stays explicit. *)
 
 val render_detail :
   width:int ->

@@ -399,15 +399,15 @@ let balance_item_line ?(width_of = String.length) ?(width = max_int) ~book item 
         match value with
         | Exact n ->
             (if Z.sign n > 0 then "+" else "") ^ format_money book measure n ^ " " ^ measure
-        | Unsupported -> "? unsupported"
-        | Known_present -> "? amount unknown, known present"
+        | Unsupported -> "? unsupported " ^ measure
+        | Known_present -> "? amount unknown, known present " ^ measure
       in
       (* Narrow fallback names the preserved state; exact digits are never truncated. *)
       let short_val =
         match value with
-        | Exact _ -> "see details"
-        | Unsupported -> "? unsupported"
-        | Known_present -> "? known present"
+        | Exact _ -> "see details " ^ measure
+        | Unsupported -> "? unsupported " ^ measure
+        | Known_present -> "? known present " ^ measure
       in
       let room = max 0 width in
       let val_w = width_of full_val in
