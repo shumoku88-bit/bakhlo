@@ -71,7 +71,11 @@ jobs:
         run: ./tools/build-bonsai-tui
 
       - name: Native synthetic controller and rendering self-checks
-        run: ./tools/tui --self-check
+        run: |
+          # The local ignored scratch/ directory does not exist on a fresh runner.
+          # Recovery and other self-checks create only synthetic children here.
+          install -d -m 0700 scratch
+          ./tools/tui --self-check
 
       - name: Summarize qualification boundary
         if: always()
