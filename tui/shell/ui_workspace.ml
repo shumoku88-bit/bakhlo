@@ -31,7 +31,6 @@ type t = {
   loci : browser;
   settlements : browser;
   schedule_view : schedule_view;
-  balance_selected : int;
   measure : string;
 }
 
@@ -60,7 +59,6 @@ let create ~today ~measure =
               loci = empty;
               settlements = empty;
               schedule_view = List_view;
-              balance_selected = 0;
               measure;
             })
 

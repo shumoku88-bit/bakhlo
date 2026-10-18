@@ -30,7 +30,6 @@ type t = {
   loci : browser;
   settlements : browser;
   schedule_view : schedule_view;
-  balance_selected : int;
   measure : string;
 }
 
