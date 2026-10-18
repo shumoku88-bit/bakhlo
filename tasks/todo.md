@@ -281,3 +281,8 @@ Record外のbracketed pasteからHome／Commandsの操作を実行しないこ�
 日本語切替、役割別収支カレンダー、完全なSeries管理、Attention、履歴Trendは未実装。
 現段階は英語UIの土台であり、全面的なLOAM互換・Jane Street品質・POSIX非依存・
 例外排除・フローティング編集枠や3色枠線の完成を意味しない。
+
+## Issue #42 引き継ぎ (2026-10-19)
+
+- 実装指示書: `tasks/issue42/HANDOFF.ja.md`（次は Registry 述語化 → Selected Day → Calendar/Home → Shell 仕上げ）。
+- 検証基準: `tasks/issue42/pass-base.txt`（34 PASS）、`tasks/issue42/labels-base.txt`（assert ラベル）。
