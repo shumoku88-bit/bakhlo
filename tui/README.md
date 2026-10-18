@@ -9,6 +9,12 @@ native renderer検査で引き続き使う。新依存・global環境変更は�
 科目名・メモ等のユーザーデータは翻訳しない。
 [UI方針](../docs/UI_DIRECTION.ja.md)、[UI差分管理台帳](../docs/LOAM_UI_GAP_LEDGER.ja.md)も参照。LOAMの正データ・普段の記帳先は変更しない。
 
+## GitHub Actionsでの限定検証
+
+trackedなBonsai UIの変更をmainへpushすると、`/.github/workflows/tui.yml`がLinuxの隔離OxCaml環境でnative buildと`--self-check`を試す。通常の`./tools/tui`は従来どおりローカルの隔離Bonsai試用環境を使用する。CI専用の`BAKHLO_BONSAI_CI=1`でのみGitHub runnerの別switchを使用する。
+
+**Actionsの初回結果を確認するまではCI合格としない。** self-checkが合格してもPTYでの4寸法キー操作、macOS実IME／フォント、LOAMの実行対照、P7・運用認定は別。Core CIとBonsai TUI CIの合格も独立している。
+
 ## 起動
 
 Bakhloディレクトリから`./ui`（親のmokoからは`./bakhlo/ui`）で、選択した比較コピーを開く。
