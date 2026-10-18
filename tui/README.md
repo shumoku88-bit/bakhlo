@@ -13,7 +13,7 @@ native renderer検査で引き続き使う。新依存・global環境変更は�
 
 trackedなBonsai UIの変更をmainへpushすると、`/.github/workflows/tui.yml`がLinuxの隔離OxCaml環境でnative buildと`--self-check`を試す。通常の`./tools/tui`は従来どおりローカルの隔離Bonsai試用環境を使用する。CI専用の`BAKHLO_BONSAI_CI=1`でのみGitHub runnerの別switchを使用する。
 
-**Actionsの初回結果を確認するまではCI合格としない。** self-checkが合格してもPTYでの4寸法キー操作、macOS実IME／フォント、LOAMの実行対照、P7・運用認定は別。Core CIとBonsai TUI CIの合格も独立している。
+初回のBonsai native/self-checkはActions run `39094690207`で合格。固定依存cacheも次のrun `39096625299`で保存できた（cache hitによる速度改善は未測定）。`tools/ci_tui_pty.py`でLinux実PTYの4寸法（120×36／80×24／48×14／32×9）、キー／resize／Ctrl-Q／authority bytesを検査する工程を追加した。**PTY新工程のActions実行・結果は未確認の段階**。Mac実IME／フォント、LOAMの実行対照、P7・運用認定は別。Core CIとBonsai TUI CIの合格も独立している。
 
 ## 起動
 
