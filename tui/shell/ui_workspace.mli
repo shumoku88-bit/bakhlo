@@ -2,12 +2,12 @@ module B = Bakhlo_sexp.Daily_book
 
 type route = Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow
 type pane = Calendar | Detail
-type family = Actual_row | Scheduled_row
-type row = Actual_entry of B.entry | Scheduled_plan of B.plan
-type order = Newest | Oldest
+type family = Record_browser.family = Actual_row | Scheduled_row
+type row = Record_browser.row = Actual_entry of B.entry | Scheduled_plan of B.plan
+type order = Record_browser.order = Newest | Oldest
 type schedule_view = Months | List_view
 
-type browser = {
+type browser = Record_browser.t = {
   selected : int;
   selected_id : (family * string) option;
   query : string;

@@ -3,12 +3,14 @@ module A = Daily_draft
 
 type route = Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow
 type pane = Calendar | Detail
-type family = Actual_row | Scheduled_row
-type row = Actual_entry of B.entry | Scheduled_plan of B.plan
-type order = Newest | Oldest
+module RB = Record_browser
+
+type family = RB.family = Actual_row | Scheduled_row
+type row = RB.row = Actual_entry of B.entry | Scheduled_plan of B.plan
+type order = RB.order = Newest | Oldest
 type schedule_view = Months | List_view
 
-type browser = {
+type browser = RB.t = {
   selected : int;
   selected_id : (family * string) option;
   query : string;
@@ -34,8 +36,7 @@ type t = {
   measure : string;
 }
 
-let empty =
-  { selected = 0; selected_id = None; query = ""; locus = None; day = None; order = Newest }
+let empty = RB.empty
 
 let create ~today ~measure =
   match Daily_calendar.create today with
@@ -62,32 +63,10 @@ let create ~today ~measure =
               measure;
             })
 
-let identity = function
-  | Actual_entry e -> (Actual_row, e.B.id)
-  | Scheduled_plan p -> (Scheduled_row, p.B.id)
-
-let date = function Actual_entry e -> e.B.day | Scheduled_plan p -> p.B.day
-
-let row_matches ~book browser row =
-  let text, loci =
-    match row with
-    | Actual_entry e ->
-        ( e.id ^ " " ^ Option.value ~default:"" e.memo,
-          List.map (fun p -> A.lstr (Bakhlo_domain.Effect.locus p)) e.effects )
-    | Scheduled_plan p -> (p.id, List.map fst p.changes)
-  in
-  let text =
-    date row ^ " " ^ text ^ " "
-    ^ String.concat " " (List.map (fun id -> id ^ " " ^ B.label book id) loci)
-  in
-  (match browser.day with None -> true | Some d -> date row = d)
-  && (match browser.locus with None -> true | Some id -> List.mem id loci)
-  && Base.String.is_substring (String.lowercase_ascii text)
-       ~substring:(String.lowercase_ascii browser.query)
-
-let all_rows book =
-  List.map (fun e -> Actual_entry e) (B.entries book)
-  @ List.map (fun p -> Scheduled_plan p) (B.open_plans book)
+let identity = RB.identity
+let date = RB.date
+let row_matches = RB.matches
+let all_rows = RB.all_rows
 
 let browser state =
   match state.route with
@@ -115,13 +94,7 @@ let update_browser state browser =
   | Settlements -> { state with settlements = browser }
   | Home | Calendar | Balances | Daily_pace | Income_expense | Transactions_flow | Stock_flow -> { state with detail = browser }
 
-let sorted order rows =
-  List.sort
-    (fun a b ->
-      let compare_day = String.compare (date a) (date b) in
-      let comparison = if compare_day = 0 then compare (identity a) (identity b) else compare_day in
-      match order with Newest -> -comparison | Oldest -> comparison)
-    rows
+let sorted = RB.sorted
 
 let home_rows ~book state =
   all_rows book
@@ -142,22 +115,7 @@ let rows ~book state =
   | Scheduled, Months -> sorted Oldest candidates
   | _ -> candidates |> List.filter (row_matches ~book browser) |> sorted browser.order
 
-let sync ~book state =
-  let browser = browser state in
-  let rows = rows ~book state in
-  let selected =
-    match browser.selected_id with
-    | None -> browser.selected
-    | Some wanted ->
-        let rec find i = function
-          | [] -> browser.selected
-          | row :: rest -> if wanted = identity row then i else find (i + 1) rest
-        in
-        find 0 rows
-  in
-  let selected = max 0 (min (max 0 (List.length rows - 1)) selected) in
-  update_browser state
-    { browser with selected; selected_id = Option.map identity (List.nth_opt rows selected) }
+let sync ~book state = update_browser state (RB.sync (browser state) (rows ~book state))
 
 let selected_row ~book state = List.nth_opt (rows ~book state) (browser state).selected
 
@@ -187,20 +145,7 @@ let toggle_schedule_view ~book state =
   { destination with route = state.route }
 
 let move_selection ~book state delta =
-  let browser = browser state and count = List.length (rows ~book state) in
-  let last = max 0 (count - 1) in
-  let current = max 0 (min last browser.selected) in
-  let selected =
-    if delta > 0 then current + min delta (last - current)
-    else if delta < -current then 0
-    else current + delta
-  in
-  update_browser state
-    {
-      browser with
-      selected;
-      selected_id = Option.map identity (List.nth_opt (rows ~book state) selected);
-    }
+  update_browser state (RB.move (browser state) (rows ~book state) delta)
   |> follow_months_selection ~book
 
 let enter state route = { state with route; pane = Calendar }
@@ -211,29 +156,9 @@ let back state =
 
 let has_parent state = state.route <> Home || state.pane = Detail
 
-let cycle_order state =
-  let browser = browser state in
-  update_browser state
-    {
-      browser with
-      order = (match browser.order with Newest -> Oldest | Oldest -> Newest);
-      selected = 0;
-      selected_id = None;
-    }
-
-let set_query state query =
-  update_browser state { (browser state) with query; selected = 0; selected_id = None }
-
-let set_locus state locus =
-  update_browser state { (browser state) with locus; selected = 0; selected_id = None }
+let cycle_order state = update_browser state (RB.cycle_order (browser state))
+let set_query state query = update_browser state (RB.with_query (browser state) query)
+let set_locus state locus = update_browser state (RB.with_locus (browser state) locus)
 
 let toggle_day_filter state =
-  let browser = browser state in
-  update_browser state
-    {
-      browser with
-      day = (match browser.day with None -> Some state.calendar.selected_day | Some _ -> None);
-      selected = 0;
-      selected_id = None;
-    }
-
+  update_browser state (RB.toggle_day (browser state) ~focus_day:state.calendar.selected_day)
