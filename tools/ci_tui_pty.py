@@ -136,6 +136,7 @@ def smoke(binary, fixture, width, height, root):
         sess.send(b"\r")
         sess.send(b"b")
         sess.wait_for(b"Balances / Current")
+        sess.wait_for(b"+1,000 jpy")
         sess.send(b"j")
         sess.send(b"k")
         sess.send(b"v")
@@ -152,9 +153,23 @@ def smoke(binary, fixture, width, height, root):
         sess.close()
     if digest(book) != before:
         raise AssertionError("read-only PTY session modified book bytes")
+    # A new *process*, not a redraw of the same controller. Verify that
+    # navigation and the supported exact balance survive cold reloading.
+    reopened = Session(binary, book, width, height)
+    try:
+        reopened.wait_for(b"bakhlo")
+        reopened.send(b"\\r")
+        reopened.send(b"b")
+        reopened.wait_for(b"Balances / Current")
+        reopened.wait_for(b"+1,000 jpy")
+        reopened.finish()
+    finally:
+        reopened.close()
+    if digest(book) != before:
+        raise AssertionError("cold PTY reopen modified book bytes")
     if sorted(p.name for p in owned.iterdir()) != ["book.sexp"]:
         raise AssertionError("read-only PTY session created extra authority/config files")
-    print(f"PASS: PTY {width}x{height} -> {next_width}x{next_height} -> {width}x{height}, keyboard, exit, bytes unchanged", flush=True)
+    print(f"PASS: PTY {width}x{height} -> {next_width}x{next_height} -> {width}x{height}, keyboard, exact +1,000 jpy, cold reopen, exit, bytes unchanged", flush=True)
 
 
 def main():
