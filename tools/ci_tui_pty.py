@@ -196,7 +196,7 @@ def smoke_record_preview_refusal(binary, fixture, root):
         sess.send(b"wallet")
         sess.send(b"\r")
         sess.send(b"-37")
-        sess.send(b"\\t")
+        sess.send(b"\t")
         sess.send(b"food")
         sess.send(b"\r")
         sess.send(b"+37")
