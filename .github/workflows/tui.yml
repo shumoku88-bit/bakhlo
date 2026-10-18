@@ -10,6 +10,8 @@ on:
       - "sexp/**"
       - "tools/build-bonsai-tui"
       - "tools/tui"
+      - "tools/ci_tui_pty.py"
+      - "examples/daily-book.sexp"
       - ".github/workflows/tui.yml"
   pull_request:
     paths:
@@ -19,6 +21,8 @@ on:
       - "sexp/**"
       - "tools/build-bonsai-tui"
       - "tools/tui"
+      - "tools/ci_tui_pty.py"
+      - "examples/daily-book.sexp"
       - ".github/workflows/tui.yml"
   workflow_dispatch:
 
@@ -91,6 +95,12 @@ jobs:
           install -d -m 0700 scratch
           ./tools/tui --self-check
 
+      - name: Native Linux PTY keyboard, resize and non-writing matrix
+        run: |
+          python3 tools/ci_tui_pty.py \
+            _build/daily-bonsai/_build/default/ui/bonsai_daily.exe \
+            examples/daily-book.sexp
+
       # Only a completed self-check may publish an immutable dependency
       # cache. Cache size/upload cost must be measured before treating this
       # as a speedup; never skip the build or tests on cache hits.
@@ -110,5 +120,5 @@ jobs:
             echo '- Target: Linux x86_64 OxCaml/Bonsai native synthetic build and self-check only.'
             echo '- Original LOAM household data are not present or used.'
             echo '- A green run does **not** qualify paired LOAM UI, live IME, true power loss/P7 or operational cutover.'
-            echo '- PTY key-input/resize and the four terminal dimensions need their own explicit matrix before acceptance.'
+            echo '- Four Linux PTY dimensions exercise Home/Calendar/Balances, mode keys, focus, resize, Ctrl-Q and unchanged synthetic ledger bytes; **not** macOS IME or paired LOAM acceptance.'
           } >> "$GITHUB_STEP_SUMMARY"
