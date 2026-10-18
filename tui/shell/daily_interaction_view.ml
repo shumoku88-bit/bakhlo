@@ -315,8 +315,6 @@ let workspace_rows ?route_view ~width_of ~width ~height state =
       else detail_frame ~width ~height
   else if Option.is_some route_view then
     Lazy.force (Option.get route_view).Screen.rows
-  else if workspace.route = W.Actual then
-    Act.screen ~book:state.session.book ~dimensions:(width, height) ~width_of state.actual_workspace
   else if is_scheduled_months state then
     if workspace.pane = W.Detail then
       let detail = browser_detail_rows ~width_of ~width state in
@@ -377,9 +375,7 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   match route_screen_view ~dimensions ~width_of state with
   | Some view -> view.footer
   | None ->
-  if state.workspace.W.route = W.Actual then
-    Act.footer ~dimensions ~width_of state.actual_workspace
-  else if is_scheduled_months state then
+  if is_scheduled_months state then
     if state.workspace.pane = W.Detail then
       [ "j/k PgUp/Dn Home/End scroll  Tab Months"; "Enter/c complete  g generate  b batch  x cancel  v List  q back" ]
     else if fst dimensions < 46 then
@@ -464,24 +460,21 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
   else
     let body_height = max 0 (height - List.length feedback - 2) in
     let route_view = route_screen_view ~dimensions ~width_of state in
+    let draft = if has_record_draft state then "   Draft retained" else "" in
+    let date_line () =
+      state.workspace.calendar.selected_day ^ "   " ^ Cal.title state.workspace.calendar ^ tr " view" in
     let headers =
       if state.workspace.route = W.Home then []
-      else if state.workspace.route = W.Actual then
-        [
-          line ~width_of width Heading
-            (tr "Bakhlo" ^ "  /  " ^ tr "Actual" ^ "  |  "
-            ^ Act.scope_text state.actual_workspace ^ "  |  "
-            ^ Act.current_locus_name ~book:state.session.book state.actual_workspace);
-          (if Act.search_editing state.actual_workspace || Act.search_query state.actual_workspace <> "" then
-             let style, text = Act.search_line ~width ~width_of state.actual_workspace in
-             line ~width_of width style text
-           else
-             line ~width_of width Chrome
-               (state.workspace.calendar.selected_day ^ "   "
-                ^ Cal.title state.workspace.calendar ^ tr " view"
-                ^ if has_record_draft state then "   Draft retained" else ""));
-        ]
-      else
+      else match route_view with
+      | Some view ->
+          [
+            line ~width_of width Heading (tr "Bakhlo" ^ "  /  " ^ view.Screen.title);
+            (match view.subtitle with
+             | Screen.Default -> line ~width_of width Chrome (date_line () ^ draft)
+             | Screen.Text text -> line ~width_of width Chrome (text ^ draft)
+             | Screen.Styled (style, text) -> line ~width_of width style text);
+          ]
+      | None ->
         [
           line ~width_of width Heading
             (tr "Bakhlo" ^ "  /  " ^ (match state.workspace.route with
@@ -500,11 +493,10 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
              | W.Settlements -> tr "Settlements"));
           line ~width_of width Chrome
             ((if is_scheduled_months state then "Explicit current-open plans; no recurrence inferred."
-              else match route_view, state.workspace.route with
-                | Some { Screen.subtitle = Some subtitle; _ }, _ -> subtitle
-                | _, W.Selected_day day -> day ^ "   " ^ tr "Day" ^ tr " view"
-                | _, _ -> state.workspace.calendar.selected_day ^ "   " ^ Cal.title state.workspace.calendar ^ tr " view")
-            ^ if has_record_draft state then "   Draft retained" else "");
+              else match state.workspace.route with
+                | W.Selected_day day -> day ^ "   " ^ tr "Day" ^ tr " view"
+                | _ -> date_line ())
+            ^ draft);
         ]
     in
     let header_count = List.length headers in
@@ -697,7 +689,5 @@ let cursor_position ~width_of ((width, height) as dimensions) state : (int * int
             let rows = S.screen ~book:state.session.book ~dimensions:pane_dimensions ~width_of record in
             let painted = List.filteri (fun i _ -> i < max 0 height) rows in
             O.cursor_in_rows ~width_of ~width:(min width (fst pane_dimensions)) painted
-      else if state.workspace.route = W.Actual then
-        Act.cursor_position ~dimensions ~width_of state.actual_workspace
-      else None
+      else Option.bind (route_screen_view ~dimensions ~width_of state) (fun view -> view.Screen.cursor)
 

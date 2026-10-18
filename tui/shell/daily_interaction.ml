@@ -101,11 +101,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some
               (match input_text value input with
               | None -> state
-              | Some value ->
-                  if state.workspace.route = W.Actual then
-                    sync { state with overlay = Search value;
-                      workspace = W.set_query state.workspace value }
-                  else { state with overlay = Search value }))
+              | Some value -> { state with overlay = Search value }))
     | Modal_form form -> (
         let result =
           match input with
@@ -162,39 +158,6 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII 'q', [ `Ctrl ]) -> None
         | Some (`ASCII 'r', [ `Ctrl ]) -> Some (reload state)
         | Some (`ASCII 'n', [ `Ctrl ]) -> Some (request_discard state)
-        | _ when state.workspace.route = W.Actual -> (
-            match input with
-            | `Key (`ASCII ' ', []) when not (Act.search_editing state.actual_workspace) ->
-                Some { state with overlay = Commands M.initial }
-            | `Key (`ASCII ('c' | 'C' | 'e' | 'E'), []) when not (Act.search_editing state.actual_workspace) ->
-                Some (edit_selected state)
-            | `Key (`ASCII ('x' | 'X'), []) when not (Act.search_editing state.actual_workspace) ->
-                Some (reverse_entry_selected state)
-            | `Key (`ASCII ('d' | 'D'), []) when not (Act.search_editing state.actual_workspace) ->
-                Some (correct_date_selected state)
-            | `Key (`ASCII ('m' | 'M'), []) when not (Act.search_editing state.actual_workspace) ->
-                Some (classify_merchant_selected state)
-            | _ ->
-                let actual_dim = actual_dimensions ~dimensions ~width_of state in
-                let next_ws, cmd =
-                  Act.handle ~book:state.session.book ~dimensions:actual_dim ~width_of state.actual_workspace input
-                in
-                let state =
-                  sync_actual_to_workspace
-                    { state with actual_workspace = next_ws; message = Act.notice next_ws }
-                in
-                (match cmd with
-                | Act.Stay -> Some state
-                | Act.Open_selected entry ->
-                    let drilled = open_route state (W.Selected_day entry.day) in
-                    let browser = { drilled.workspace.selected_day with
-                      selected_id = Some (W.Actual_row, entry.id);
-                      query = ""; locus = None; day = None } in
-                    let drilled = sync { drilled with workspace = W.update_browser drilled.workspace browser } in
-                    Some { drilled with drill_parent = Some W.Actual; drill_book = Some state.session.book }
-                | Act.Record_new -> Some (open_record state)
-                | Act.Back -> Some (open_route state W.Home)
-                | Act.Redraw -> Some state))
         | _ when Option.is_some (Lazy.force route_step) -> Lazy.force route_step
         | Some (`ASCII ' ', []) -> Some { state with overlay = Commands M.initial }
         | Some (`Uchar c, []) when Uchar.to_int c = 32 ->
@@ -319,15 +282,11 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII 'o', [])
           when state.workspace.route = W.Home || state.workspace.route = W.Calendar ->
             Some (open_observe state)
-        | Some (`ASCII 's', []) when state.workspace.route = W.Actual ->
-            Some (sync { state with workspace = W.cycle_order state.workspace })
         | Some (`ASCII 'f', [])
-          when state.workspace.route = W.Actual || state.workspace.route = W.Scheduled ->
+          when state.workspace.route = W.Scheduled ->
             Some (sync { state with workspace = W.toggle_day_filter state.workspace })
         | Some (`ASCII 'x', []) when state.workspace.route = W.Scheduled ->
             Some (cancel_plan_selected state)
-        | Some (`ASCII 'x', []) when state.workspace.route = W.Actual ->
-            Some (reverse_entry_selected state)
         | Some (`ASCII 'x', []) -> (
             match selected state with
             | Some (W.Scheduled_plan _) -> Some (cancel_plan_selected state)

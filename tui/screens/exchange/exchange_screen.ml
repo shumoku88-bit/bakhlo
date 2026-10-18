@@ -170,7 +170,7 @@ let view _env (geometry : Screen.geometry) t =
       (Ui_overlay.form ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body) in
   {
     Screen.title = tr "Exchange";
-    subtitle = None;
+    subtitle = Default;
     rows = lazy [];
     footer = [ "Enter submit  Tab next field  Esc cancel"; "Arrow keys / space to choose options" ];
     overlay;

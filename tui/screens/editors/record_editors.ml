@@ -246,7 +246,7 @@ let view (env : Screen.env) (geometry : Screen.geometry) t =
   in
   {
     Screen.title = tr "Edit";
-    subtitle = None;
+    subtitle = Default;
     rows = lazy [];
     footer;
     overlay;

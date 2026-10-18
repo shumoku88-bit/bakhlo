@@ -44,6 +44,11 @@ type publication =
 
 type publish_outcome = Published | Publish_refused of string | Publish_conflict | Publish_stopped
 
+type record_target = Entry of Bakhlo_sexp.Daily_book.entry | Plan of Bakhlo_sexp.Daily_book.plan
+
+type record_action =
+  | Edit | Pay | Reverse | Correct_date | Classify_merchant | Cancel | Batch | Generate
+
 type request =
   | Stay
   | Ignored
@@ -55,6 +60,9 @@ type request =
   | Observe of { locus : string; measure : string; amount : Z.t option }
   | Save_attention of { expected : Attention_data.t; next : Attention_data.t }
   | Save_settlements of { expected : Settlement_data.t; next : Settlement_data.t }
+  | Record_action of { action : record_action; target : record_target option }
+  | New_record
+  | Drill of { day : string; entry : string }
   | Publish of publication
   | Stop_writes of string option
   | Save_config of {
@@ -64,9 +72,11 @@ type request =
       admission : admission;
     }
 
+type subtitle = Default | Text of string | Styled of Ui_render.style * string
+
 type view = {
   title : string;
-  subtitle : string option;
+  subtitle : subtitle;
   rows : (Ui_render.style * string) list Lazy.t;
   footer : string list;
   overlay : Ui_overlay.frame option;

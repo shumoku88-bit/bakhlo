@@ -15,6 +15,7 @@ type t = {
   observe : Observe_screen.t;
   exchange : Exchange_screen.t;
   editors : Record_editors.t;
+  actual : Actual_screen.t;
 }
 
 let create () =
@@ -30,6 +31,7 @@ let create () =
     observe = Observe_screen.create ();
     exchange = Exchange_screen.create ();
     editors = Record_editors.create ();
+    actual = Actual_screen.create ();
   }
 
 type 'a owner = {
@@ -37,18 +39,21 @@ type 'a owner = {
   config_files : string list;
   get : t -> 'a;
   set : t -> 'a -> t;
-  enter : 'a -> 'a;
+  enter : focus_day:string -> 'a -> 'a;  (* the Shell's focus day *)
   modal : 'a -> bool;
   handle : Screen.env -> Screen.geometry -> 'a -> Ui_input.input -> 'a * Screen.request;
   view : Screen.env -> Screen.geometry -> 'a -> Screen.view;
   saved : Screen.env -> Screen.geometry -> (unit, string) result -> 'a -> 'a * Screen.request;
   published : Screen.env -> Screen.geometry -> Screen.publish_outcome -> 'a -> 'a * Screen.request;
   reloaded : Screen.env -> 'a -> 'a * Screen.request;
+  book_changed : before:Bakhlo_sexp.Daily_book.t -> after:Bakhlo_sexp.Daily_book.t -> 'a -> 'a * string;
+      (* after a publication or a drill return; the string is a notice *)
 }
 
 type owner_ref = Owner : 'a owner -> owner_ref
 
 let no_save _env _geometry _result t = (t, Screen.Stay)
+let no_change ~before:_ ~after:_ t = (t, "")
 
 let all =
   [
@@ -58,13 +63,14 @@ let all =
         config_files = Daily_pace_screen.config_files;
         get = (fun t -> t.pace);
         set = (fun t pace -> { t with pace });
-        enter = Daily_pace_screen.enter;
+        enter = (fun ~focus_day:_ t -> Daily_pace_screen.enter t);
         modal = Daily_pace_screen.modal;
         handle = Daily_pace_screen.handle;
         view = Daily_pace_screen.view;
         saved = Daily_pace_screen.saved;
         published = Screen.no_publication;
         reloaded = Screen.no_reload;
+        book_changed = no_change;
       };
     Owner
       {
@@ -72,13 +78,14 @@ let all =
         config_files = Balances_screen.config_files;
         get = (fun t -> t.balances);
         set = (fun t balances -> { t with balances });
-        enter = Fun.id;
+        enter = (fun ~focus_day:_ t -> t);
         modal = Balances_screen.modal;
         handle = Balances_screen.handle;
         view = Balances_screen.view;
         saved = Balances_screen.saved;
         published = Screen.no_publication;
         reloaded = Screen.no_reload;
+        book_changed = no_change;
       };
     Owner
       {
@@ -86,13 +93,14 @@ let all =
         config_files = Income_expense_screen.config_files;
         get = (fun t -> t.income_expense);
         set = (fun t income_expense -> { t with income_expense });
-        enter = Income_expense_screen.enter;
+        enter = (fun ~focus_day:_ t -> Income_expense_screen.enter t);
         modal = Income_expense_screen.modal;
         handle = Income_expense_screen.handle;
         view = Income_expense_screen.view;
         saved = Income_expense_screen.saved;
         published = Screen.no_publication;
         reloaded = Screen.no_reload;
+        book_changed = no_change;
       };
     Owner
       {
@@ -100,13 +108,14 @@ let all =
         config_files = Transactions_flow_screen.config_files;
         get = (fun t -> t.transactions_flow);
         set = (fun t transactions_flow -> { t with transactions_flow });
-        enter = Transactions_flow_screen.enter;
+        enter = (fun ~focus_day:_ t -> Transactions_flow_screen.enter t);
         modal = Transactions_flow_screen.modal;
         handle = Transactions_flow_screen.handle;
         view = Transactions_flow_screen.view;
         saved = Transactions_flow_screen.saved;
         published = Screen.no_publication;
         reloaded = Screen.no_reload;
+        book_changed = no_change;
       };
     Owner
       {
@@ -114,13 +123,14 @@ let all =
         config_files = Stock_flow_screen.config_files;
         get = (fun t -> t.stock_flow);
         set = (fun t stock_flow -> { t with stock_flow });
-        enter = Stock_flow_screen.enter;
+        enter = (fun ~focus_day:_ t -> Stock_flow_screen.enter t);
         modal = Stock_flow_screen.modal;
         handle = Stock_flow_screen.handle;
         view = Stock_flow_screen.view;
         saved = Stock_flow_screen.saved;
         published = Screen.no_publication;
         reloaded = Screen.no_reload;
+        book_changed = no_change;
       };
     Owner
       {
@@ -128,13 +138,14 @@ let all =
         config_files = Attention_screen.config_files;
         get = (fun t -> t.attention);
         set = (fun t attention -> { t with attention });
-        enter = Attention_screen.enter;
+        enter = (fun ~focus_day:_ t -> Attention_screen.enter t);
         modal = Attention_screen.modal;
         handle = Attention_screen.handle;
         view = Attention_screen.view;
         saved = Attention_screen.saved;
         published = Screen.no_publication;
         reloaded = Screen.no_reload;
+        book_changed = no_change;
       };
     Owner
       {
@@ -142,13 +153,14 @@ let all =
         config_files = Settlements_screen.config_files;
         get = (fun t -> t.settlements);
         set = (fun t settlements -> { t with settlements });
-        enter = Settlements_screen.enter;
+        enter = (fun ~focus_day:_ t -> Settlements_screen.enter t);
         modal = Settlements_screen.modal;
         handle = Settlements_screen.handle;
         view = Settlements_screen.view;
         saved = Settlements_screen.saved;
         published = Screen.no_publication;
         reloaded = Screen.no_reload;
+        book_changed = no_change;
       };
     Owner
       {
@@ -156,13 +168,14 @@ let all =
         config_files = Loci_screen.config_files;
         get = (fun t -> t.loci);
         set = (fun t loci -> { t with loci });
-        enter = Loci_screen.enter;
+        enter = (fun ~focus_day:_ t -> Loci_screen.enter t);
         modal = Loci_screen.modal;
         handle = Loci_screen.handle;
         view = Loci_screen.view;
         saved = Loci_screen.saved;
         published = Loci_screen.published;
         reloaded = Screen.no_reload;
+        book_changed = no_change;
       };
     Owner
       {
@@ -170,13 +183,14 @@ let all =
         config_files = Observe_screen.config_files;
         get = (fun t -> t.observe);
         set = (fun t observe -> { t with observe });
-        enter = Fun.id;
+        enter = (fun ~focus_day:_ t -> t);
         modal = Observe_screen.modal;
         handle = Observe_screen.handle;
         view = Observe_screen.view;
         saved = no_save;
         published = Observe_screen.published;
         reloaded = Observe_screen.reloaded;
+        book_changed = no_change;
       };
     Owner
       {
@@ -184,13 +198,14 @@ let all =
         config_files = Exchange_screen.config_files;
         get = (fun t -> t.exchange);
         set = (fun t exchange -> { t with exchange });
-        enter = Fun.id;
+        enter = (fun ~focus_day:_ t -> t);
         modal = Exchange_screen.modal;
         handle = Exchange_screen.handle;
         view = Exchange_screen.view;
         saved = no_save;
         published = Exchange_screen.published;
         reloaded = Screen.no_reload;
+        book_changed = no_change;
       };
     Owner
       {
@@ -198,21 +213,43 @@ let all =
         config_files = Record_editors.config_files;
         get = (fun t -> t.editors);
         set = (fun t editors -> { t with editors });
-        enter = Fun.id;
+        enter = (fun ~focus_day:_ t -> t);
         modal = Record_editors.modal;
         handle = Record_editors.handle;
         view = Record_editors.view;
         saved = Record_editors.saved;
         published = Record_editors.published;
         reloaded = Record_editors.reloaded;
+        book_changed = no_change;
+      };
+    Owner
+      {
+        route = Some W.Actual;
+        config_files = Actual_screen.config_files;
+        get = (fun t -> t.actual);
+        set = (fun t actual -> { t with actual });
+        enter = Actual_screen.enter;
+        modal = Actual_screen.modal;
+        handle = Actual_screen.handle;
+        view = Actual_screen.view;
+        saved = Actual_screen.saved;
+        published = Screen.no_publication;
+        reloaded = Screen.no_reload;
+        book_changed = Actual_screen.book_changed;
       };
   ]
 
 let for_route route = List.find_opt (fun (Owner o) -> o.route = Some route) all
 let modal t = List.find_opt (fun (Owner o) -> o.modal (o.get t)) all
 
-let enter route t =
-  match for_route route with Some (Owner o) -> o.set t (o.enter (o.get t)) | None -> t
+let enter route ~focus_day t =
+  match for_route route with Some (Owner o) -> o.set t (o.enter ~focus_day (o.get t)) | None -> t
+
+(* Let the route's owner keep its place across a book change. *)
+let book_changed route ~before ~after t =
+  match for_route route with
+  | Some (Owner o) -> let value, notice = o.book_changed ~before ~after (o.get t) in (o.set t value, notice)
+  | None -> (t, "")
 
 (* A finished publication closes every editor floating over the route. *)
 let dismiss_floating t =

@@ -63,3 +63,7 @@ val screen :
 val footer : dimensions:int * int -> width_of:(string -> int) -> t -> string list
 val search_line : width:int -> width_of:(string -> int) -> t -> Daily_overlays.style * string
 val cursor_position : dimensions:int * int -> width_of:(string -> int) -> t -> (int * int) option
+
+val detail_window :
+  book:B.t -> dimensions:int * int -> width_of:(string -> int) -> t -> Ui_panel.window
+(** Details pane viewport for the content dimensions the workspace is given. *)

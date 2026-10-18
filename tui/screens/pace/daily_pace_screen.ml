@@ -807,7 +807,7 @@ let view env (geometry : Screen.geometry) t =
       (Ui_overlay.form ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body) in
   {
     Screen.title = tr "Daily Pace";
-    subtitle = Some (header_summary env ~width:(fst geometry.screen) ~width_of:geometry.width_of);
+    subtitle = Text (header_summary env ~width:(fst geometry.screen) ~width_of:geometry.width_of);
     rows = lazy (rows env geometry t);
     footer = footer geometry t;
     overlay;

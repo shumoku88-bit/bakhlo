@@ -31,10 +31,6 @@ let record_dimensions ~dimensions:((width, height) as dimensions) ~width_of stat
   S.surface_dimensions
     (width, max 0 (height - List.length (feedback_lines ~dimensions ~width_of state)))
 
-let actual_dimensions ~dimensions ~width_of state =
-  let width, body_height = body_dimensions ~dimensions ~width_of state in
-  (width, max 0 (body_height - 2))
-
 let update_calendar state action =
   match Cal.apply state.workspace.calendar action with
   | Cal.Refused why -> { state with message = tr why }
@@ -53,12 +49,10 @@ let back state =
     { state with workspace = { state.workspace with pane = W.Calendar }; scroll = 0 }
   else match state.drill_parent with
   | Some W.Actual ->
-      let before_book = Option.value ~default:state.session.book state.drill_book in
-      let actual_workspace =
-        Act.returned_from_detail ~before_book ~after_book:state.session.book state.actual_workspace in
-      sync_actual_to_workspace
-        { state with actual_workspace; drill_parent = None; drill_book = None;
-          workspace = W.enter state.workspace W.Actual; overlay = No_overlay }
+      let before = Option.value ~default:state.session.book state.drill_book in
+      let screens, _ = Screen_registry.book_changed W.Actual ~before ~after:state.session.book state.screens in
+      { state with screens; drill_parent = None; drill_book = None;
+        workspace = W.enter state.workspace W.Actual; overlay = No_overlay }
   | _ -> open_route state W.Home
 
 let input_text value = function
@@ -294,6 +288,26 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
       let state, outcome = publish_observation state ~rows ~base in
       let state, request = published state outcome in
       apply_request ~saved ~published state request
+  | Screen.Record_action { action; target } -> (
+      let target = Option.map (function
+          | Screen.Entry e -> W.Actual_entry e | Screen.Plan p -> W.Scheduled_plan p) target in
+      match action with
+      | Screen.Edit -> edit_target state target
+      | Screen.Pay -> pay_target state target
+      | Screen.Reverse -> reverse_entry_target state target
+      | Screen.Correct_date -> correct_date_target state target
+      | Screen.Classify_merchant -> classify_merchant_target state target
+      | Screen.Cancel -> cancel_plan_target state target
+      | Screen.Batch -> batch_plan_target state target
+      | Screen.Generate -> extend_plan_target state target)
+  | Screen.New_record -> open_record state
+  | Screen.Drill { day; entry } ->
+      let parent = state.workspace.route in
+      let drilled = open_route state (W.Selected_day day) in
+      let browser = { drilled.workspace.selected_day with
+        selected_id = Some (W.Actual_row, entry); query = ""; locus = None; day = None } in
+      let drilled = sync { drilled with workspace = W.update_browser drilled.workspace browser } in
+      { drilled with drill_parent = Some parent; drill_book = Some state.session.book }
   | Screen.Stop_writes why ->
       { state with blocked = true; message = Option.value ~default:state.message why }
   | Screen.Publish publication ->
@@ -463,7 +477,7 @@ let is_scheduled_months state =
   state.workspace.route = W.Scheduled && state.workspace.schedule_view = W.Months
 
 let is_record_browser state =
-  state.workspace.route = W.Actual || state.workspace.route = W.Scheduled
+  state.workspace.route = W.Scheduled
 
 let browser_pane_widths width =
   if width < 80 then (width, width)

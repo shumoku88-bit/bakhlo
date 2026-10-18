@@ -718,7 +718,7 @@ let view env (geometry : Screen.geometry) t =
       ~width_of:geometry.width_of t in
   {
     Screen.title = Ui_text.tr "Balances";
-    subtitle = None;
+    subtitle = Default;
     rows = lazy (screen ~book ~measure ~roles ~balance_view_text ~dimensions:geometry.content
                    ~width_of:geometry.width_of t);
     footer = footer ~dimensions:geometry.screen ~width_of:geometry.width_of t;

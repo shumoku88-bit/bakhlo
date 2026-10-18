@@ -41,41 +41,41 @@ let actual_browsing_checks ~width_of ~directory home =
   List.iter (fun dimensions ->
     let key = key ~dimensions ~width_of in
     let detail = key state (`ASCII 'i') in
-    let height, view = X.browser_viewport ~dimensions ~width_of detail in
+    let height, view = actual_window ~dimensions ~width_of detail in
     let capacity = view.Ui_panel.capacity and last = view.last in
-    let identity = (W.browser detail.workspace).selected_id in
+    let identity = (actual_selected_id detail) in
     let ended = key detail `End in
-    require (ended.scroll=last && (W.browser ended.workspace).selected_id=identity)
+    require ((actual_scroll ended)=last && (actual_selected_id ended)=identity)
       "actual-detail-end-does-not-reselect";
-    require ((key ended (`ASCII 'j')).scroll=last && (key ended (`ASCII 'k')).scroll=max 0 (last-1))
+    require (actual_scroll (key ended (`ASCII 'j'))=last && actual_scroll (key ended (`ASCII 'k'))=max 0 (last-1))
       "actual-detail-bottom-is-clamped-and-up-is-immediate";
-    require ((key ended `Home).scroll=0 && (W.browser (key ended `Home).workspace).selected_id=identity)
+    require (actual_scroll (key ended `Home)=0 && (actual_selected_id (key ended `Home))=identity)
       "actual-detail-home-does-not-reselect";
-    require ((key detail (`Page `Down)).scroll=min last (max 1 capacity)) "actual-detail-page-visible-capacity";
+    require (actual_scroll (key detail (`Page `Down))=min last (max 1 capacity)) "actual-detail-page-visible-capacity";
     let listed = key ended `Escape in
-    require (listed.workspace.pane=W.Calendar && (W.browser listed.workspace).selected_id=identity)
+    require (not (actual_detail listed) && (actual_selected_id listed)=identity)
       "actual-back-retains-selection";
     let page = key state (`Page `Down) in
-    let actual_h = snd (X.actual_dimensions ~dimensions ~width_of state) in
+    let actual_h = snd (actual_dims ~dimensions ~width_of state) in
     let wide = fst dimensions >= 80 && actual_h >= 14 in
     let loci_h = if wide then max 4 (min 7 (actual_h * 30 / 100)) else actual_h in
     let tx_h = if wide then max 0 (actual_h - loci_h) else actual_h in
     let expected_page = min 17 (max 1 (tx_h - 2 - (if tx_h >= 4 then 1 else 0))) in
-    require ((W.browser page.workspace).selected = expected_page)
+    require ((actual_row page) = expected_page)
       "actual-list-page-excludes-borders-and-heading";
     let last_row = key state `End in
-    require ((W.browser last_row.workspace).selected=17 && last_row.scroll=0) "actual-list-end-real-last";
+    require ((actual_row last_row)=17 && (actual_scroll last_row)=0) "actual-list-end-real-last";
     List.iter (fun state ->
       let rows = R.screen ~width_of dimensions state in
       require (List.length rows<=snd dimensions && List.for_all (fun (_,line)->width_of line<=fst dimensions) rows)
         "actual-bounded-layout";
-      if snd dimensions>=14 && state.workspace.pane=W.Detail then
+      if snd dimensions>=14 && actual_detail state then
         require (contains rows "ID: actual-17") "actual-long-detail-complete-id-at-end") [state;page;ended])
     [32,9;48,14;80,24;120,36];
   let detail = key ~dimensions:(32,9) ~width_of state (`ASCII 'i') |> fun s -> key ~dimensions:(32,9) ~width_of s `End in
   let resized = key ~dimensions:(120,36) ~width_of detail (`ASCII '!') in
-  let _, resized_view = X.browser_viewport ~dimensions:(120,36) ~width_of resized in
-  require (resized.scroll=resized_view.Ui_panel.last && (W.browser resized.workspace).selected_id=(W.browser detail.workspace).selected_id)
+  let _, resized_view = actual_window ~dimensions:(120,36) ~width_of resized in
+  require ((actual_scroll resized)=resized_view.Ui_panel.last && (actual_selected_id resized)=(actual_selected_id detail))
     "actual-resize-clamps-without-reselection";
   let query = String.make 80 'x' ^ "日本語末尾" in
   let searching = key ~width_of state (`ASCII '/') |> fun s -> text ~width_of s query in
@@ -89,23 +89,23 @@ let actual_browsing_checks ~width_of ~directory home =
              && R.cursor_position ~width_of dimensions searching
                 = Some (width_of (String.sub header 0 caret), 1))
       "actual-search-caret-matches-painted-insertion-cell";
-    require ((W.browser searching.workspace).query=query)
+    require ((actual_query searching)=query)
       "actual-search-resize-does-not-truncate-filter")
     [32,9;48,14;80,24;120,36];
   let accepted = key ~width_of searching `Enter in
-  require ((W.browser accepted.workspace).query=query
+  require ((actual_query accepted)=query
            && R.cursor_position ~width_of (32,9) accepted=None)
     "actual-long-search-accept-keeps-full-query-and-hides-caret";
   require (R.cursor_position ~width_of (0,9) searching=None
            && R.cursor_position ~width_of (32,1) searching=None)
     "actual-search-hides-caret-without-visible-input-cell";
   let searched = key ~width_of state (`ASCII '/') |> fun s -> text ~width_of s "purchase 03" in
-  require (List.length (W.rows ~book searched.workspace)=1 && (W.browser searched.workspace).query="purchase 03")
+  require (List.length (actual_rows searched)=1 && (actual_query searched)="purchase 03")
     "actual-search-filters-while-typing";
   let kept = key ~width_of searched `Enter in
-  require ((W.browser kept.workspace).query="purchase 03") "actual-search-enter-keeps";
+  require ((actual_query kept)="purchase 03") "actual-search-enter-keeps";
   let cleared = key ~width_of (key ~width_of kept (`ASCII '/')) `Escape in
-  require ((W.browser cleared.workspace).query="" && List.length (W.rows ~book cleared.workspace)=18)
+  require ((actual_query cleared)="" && List.length (actual_rows cleared)=18)
     "actual-search-escape-clears";
   let parent = key ~width_of state (`ASCII 'j') in
   let draft = prepare_record ~width_of parent in
@@ -127,9 +127,9 @@ let actual_browsing_checks ~width_of ~directory home =
              && direct.drill_parent = Some W.Actual)
       "actual-single-enter-opens-with-parent";
     let returned = key ~dimensions ~width_of direct `Escape in
-    require (returned.actual_workspace = at_second.actual_workspace
+    require (returned.screens.actual = at_second.screens.actual
              && returned.workspace.actual = at_second.workspace.actual
-             && returned.workspace.pane = W.Calendar)
+             && not (actual_detail returned))
       "actual-single-enter-return-preserves-list";
     let same_day_book = get (B.put_entry book ~replace:true
       { (entry 15) with day = (entry 16).day } ~plan:None) in
@@ -177,7 +177,7 @@ let actual_browsing_checks ~width_of ~directory home =
   let saved = key ~width_of (key ~width_of review `End) `Enter in
   require (not saved.record_visible && not saved.blocked
            && saved.workspace.route = day_parent.workspace.route
-           && (W.browser saved.workspace).selected_id = (W.browser day_parent.workspace).selected_id)
+           && (actual_selected_id saved) = (actual_selected_id day_parent))
     "selected-day-record-publication-retains-parent-selection";
   let cold = F.load day_path in
   let added = List.filter (fun (e : B.entry) -> not (List.exists
@@ -187,13 +187,13 @@ let actual_browsing_checks ~width_of ~directory home =
              && List.map Daily_actions.quanta e.effects = [Z.of_int (-37); Z.of_int 37]
     | _ -> false) "selected-day-record-cold-retains-route-date-and-exact-postings";
   let back = key ~width_of saved (`ASCII 'q') in
-  require (back.workspace.route = W.Actual && back.workspace.pane = W.Detail
-           && (W.browser back.workspace).selected_id = Some (W.Actual_row, "actual-16"))
+  require (back.workspace.route = W.Actual && actual_detail back
+           && (actual_selected_id back) = Some "actual-16")
     "selected-day-record-publication-preserves-drill-back-to-actual";
   let returned = key ~width_of drilled (`ASCII 'q') in
   require (returned.workspace.route = W.Actual) "selected-day-q-returns-to-actual";
-  require ((W.browser returned.workspace).selected = 1) "actual-return-preserves-selected-row";
-  require (returned.workspace.pane = W.Detail && returned.scroll = at_details.scroll)
+  require ((actual_row returned) = 1) "actual-return-preserves-selected-row";
+  require (actual_detail returned && (actual_scroll returned) = (actual_scroll at_details))
     "actual-return-restores-detail-focus-and-scroll";
   require (returned.workspace.selected_day = drilled.workspace.selected_day)
     "actual-return-does-not-overwrite-selected-day-browser";
@@ -201,9 +201,9 @@ let actual_browsing_checks ~width_of ~directory home =
     { (entry 16) with day = "2026-09-01" } ~plan:None) in
   let corrected = { drilled with session = { drilled.session with book = corrected_book } } in
   let returned_corrected = key ~width_of corrected `Escape in
-  require ((W.browser returned_corrected.workspace).selected_id = Some (W.Actual_row, "actual-16")
-           && (W.browser returned_corrected.workspace).selected = 17
-           && returned_corrected.workspace.pane = W.Detail)
+  require ((actual_selected_id returned_corrected) = Some "actual-16"
+           && (actual_row returned_corrected) = 17
+           && actual_detail returned_corrected)
     "actual-return-after-date-correction-follows-id-not-row";
   let filtered = key ~width_of state (`ASCII '/')
     |> fun s -> text ~width_of s "日本語"
@@ -214,26 +214,26 @@ let actual_browsing_checks ~width_of ~directory home =
     |> fun s -> key ~width_of s (`ASCII 'l')
     |> fun s -> key ~width_of s (`ASCII 'i')
     |> fun s -> key ~dimensions:(80,24) ~width_of s `End in
-  require (filtered.scroll > 0) "actual-return-fixture-has-scrolled-detail";
+  require ((actual_scroll filtered) > 0) "actual-return-fixture-has-scrolled-detail";
   let filtered_drill = key ~dimensions:(80,24) ~width_of filtered `Enter in
   let filtered_return = key ~dimensions:(80,24) ~width_of filtered_drill (`ASCII 'q') in
-  require (filtered_return.actual_workspace = filtered.actual_workspace
+  require (filtered_return.screens.actual = filtered.screens.actual
            && filtered_return.workspace.actual = filtered.workspace.actual
-           && filtered_return.workspace.pane = W.Detail
-           && filtered_return.scroll = filtered.scroll)
+           && actual_detail filtered_return
+           && (actual_scroll filtered_return) = (actual_scroll filtered))
     "actual-return-preserves-filter-order-locus-detail-and-scroll";
   let refreshed = C.finish_publication filtered
     { filtered.session with book = corrected_book } "Synthetic publication" in
-  require (refreshed.actual_workspace = filtered.actual_workspace
+  require (refreshed.screens.actual = filtered.screens.actual
            && refreshed.workspace.actual = filtered.workspace.actual
-           && refreshed.workspace.pane = W.Detail && refreshed.scroll = filtered.scroll)
+           && actual_detail refreshed && (actual_scroll refreshed) = (actual_scroll filtered))
     "actual-publication-preserves-filter-order-locus-detail-and-scroll";
   let unmatched_book = get (B.put_entry book ~replace:true
     { (entry 17) with memo = Some "No longer matches" } ~plan:None) in
   let unmatched = C.finish_publication filtered
     { filtered.session with book = unmatched_book } "Synthetic publication" in
-  require (C.selected unmatched = None && unmatched.workspace.pane = W.Detail
-           && unmatched.scroll = 0
+  require (actual_selected unmatched = None && actual_detail unmatched
+           && (actual_scroll unmatched) = 0
            && contains (R.screen ~width_of (80,24) unmatched) "no longer matches")
     "actual-publication-filter-exit-is-explicit-and-does-not-retain-stale-detail";
   require (F.read path=before) "actual-browsing-and-draft-did-not-write";
@@ -250,10 +250,10 @@ let actual_browsing_checks ~width_of ~directory home =
   let published = key ~width_of (key ~width_of review `End) `Enter in
   require (not published.record_visible && not published.blocked)
     "actual-correction-published";
-  require (published.workspace.route = W.Actual && published.workspace.pane = W.Detail
-           && (W.browser published.workspace).selected_id = Some (W.Actual_row, "actual-16")
-           && (W.browser published.workspace).selected = 17
-           && (match C.selected published with
+  require (published.workspace.route = W.Actual && actual_detail published
+           && (actual_selected_id published) = Some "actual-16"
+           && (actual_row published) = 17
+           && (match actual_selected published with
                | Some (W.Actual_entry e) -> e.id = "actual-16" | _ -> false))
     "actual-correction-return-follows-id-not-old-row";
   let cold = F.load path in
@@ -334,7 +334,7 @@ let reversal_checks ~width_of ~directory home =
   require (not (Rev.is_preview (editor edit_action))) "reversal-selected-edit";
   List.iter (fun cancelled ->
     require ((no_modal cancelled) && cancelled.workspace = opened.workspace
-             && cancelled.scroll = opened.scroll) "reversal-cancel-retains-parent")
+             && cancelled.screens.actual = opened.screens.actual && cancelled.scroll = opened.scroll) "reversal-cancel-retains-parent")
     [key ~width_of opened `Escape; key ~width_of review (`ASCII 'q');
       key ~width_of (key ~width_of (key ~width_of review `Tab) `Tab) `Enter];
   let day_view = C.open_route base (W.Selected_day target.day) in
@@ -514,8 +514,8 @@ let date_correction_checks ~width_of ~directory home =
   require ((no_modal saved) && B.find_entry cold.book target.id = Some { target with day = "2026-10-12" }
            && B.plans cold.book = B.plans book && List.length (B.entries cold.book) = List.length (B.entries book))
     "date-cold-save-changes-only-date-preserves-keys-and-plan-link";
-  require ((W.browser saved.workspace).selected_id = Some (W.Actual_row, target.id)
-           && (W.browser saved.workspace).selected = 1)
+  require (actual_selected_id saved = Some target.id
+           && actual_row saved = 1)
     "date-actual-save-follows-moved-id";
   let day_path = directory ^ "/date-selected-day.sexp" in
   F.write_new day_path before;
@@ -526,9 +526,9 @@ let date_correction_checks ~width_of ~directory home =
   require (moved.workspace.route = W.Selected_day target.day && W.rows ~book:moved.session.book moved.workspace = [])
     "date-moved-entry-leaves-old-selected-day";
   let parent = key ~width_of moved (`ASCII 'q') in
-  require (parent.workspace.route = W.Actual && parent.workspace.pane = W.Detail
-           && (W.browser parent.workspace).selected_id = Some (W.Actual_row, target.id)
-           && (W.browser parent.workspace).selected = 1
+  require (parent.workspace.route = W.Actual && actual_detail parent
+           && actual_selected_id parent = Some target.id
+           && actual_row parent = 1
            && B.find_entry (F.load day_path).book target.id = Some { target with day = "2026-10-12" })
     "date-selected-day-save-cold-load-and-drill-back-follow-id";
   let stale = key ~width_of review `Enter in
@@ -765,13 +765,13 @@ let event_merchant_integration_checks ~width_of ~directory () =
   (* 1. Actual workspace: search typing non-collision *)
   let actual_view = C.open_route initial_state W.Actual in
   let search_started = Option.get (H.handle ~width_of actual_view (`Key (`ASCII '/', []))) in
-  require (Act.search_editing search_started.actual_workspace) "merch-search-editing-active";
+  require (Act.search_editing search_started.screens.actual) "merch-search-editing-active";
   let search_typed_m = Option.get (H.handle ~width_of search_started (`Key (`ASCII 'm', []))) in
-  require (Act.search_editing search_typed_m.actual_workspace && Act.search_query search_typed_m.actual_workspace = "m")
+  require (Act.search_editing search_typed_m.screens.actual && Act.search_query search_typed_m.screens.actual = "m")
     "merch-typing-m-in-search-updates-query";
   require ((no_modal search_typed_m)) "merch-search-does-not-open-editor";
   let search_cleared = Option.get (H.handle ~width_of search_typed_m (`Key (`Escape, []))) in
-  require (not (Act.search_editing search_cleared.actual_workspace)) "merch-search-cleared";
+  require (not (Act.search_editing search_cleared.screens.actual)) "merch-search-cleared";
 
   (* 2. Open Event Merchant editor on unclassified Actual 'e1' *)
   let merch_opened = Option.get (H.handle ~width_of search_cleared (`Key (`ASCII 'm', []))) in

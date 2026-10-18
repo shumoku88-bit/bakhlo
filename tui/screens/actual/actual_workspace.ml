@@ -728,3 +728,9 @@ let cursor_position ~dimensions:(width, height) ~width_of t =
   match search_line ~width ~width_of t with
   | O.Input caret, _ when height > 1 -> Some (caret, 1)
   | _ -> None
+
+let detail_window ~book ~dimensions ~width_of t =
+  let geometry = terminal_geometry dimensions in
+  let last = detail_scroll_limit ~book ~width_of geometry t in
+  { Panel.capacity = Panel.capacity ~height:(max 0 geometry.panel_height) ~heading:false;
+    start = min last t.detail_scroll; last }

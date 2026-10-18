@@ -127,6 +127,22 @@ let no_modal (state : C.state) =
 let is_reversal state = match session_of state with Some (E.Reversal _) -> true | _ -> false
 let is_plan_create state = match session_of state with Some (E.Scheduled_create _) -> true | _ -> false
 
+(* The Actual owner, read through its own interface. *)
+let actual_dims ~dimensions ~width_of (state : C.state) =
+  (X.screen_geometry ~dimensions ~width_of state).content
+let actual_window ~dimensions ~width_of (state : C.state) =
+  let content = actual_dims ~dimensions ~width_of state in
+  (snd content, Act.detail_window ~book:state.session.book ~dimensions:content ~width_of state.screens.actual)
+let actual_selected_id (state : C.state) =
+  Option.map (fun (e : B.entry) -> e.id) (Act.selected_entry ~book:state.session.book state.screens.actual)
+let actual_detail (state : C.state) = Act.pane state.screens.actual = Act.Details
+let actual_scroll state = if actual_detail state then Act.detail_scroll state.C.screens.actual else 0
+let actual_row (state : C.state) = Act.transaction_row state.screens.actual
+let actual_query (state : C.state) = Act.search_query state.screens.actual
+let actual_selected (state : C.state) =
+  Option.map (fun e -> W.Actual_entry e) (Act.selected_entry ~book:state.session.book state.screens.actual)
+let actual_rows (state : C.state) = Act.visible_entries ~book:state.session.book state.screens.actual
+
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
 

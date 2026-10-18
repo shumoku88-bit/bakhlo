@@ -196,7 +196,7 @@ let view _env (geometry : Screen.geometry) t =
       (Ui_overlay.form ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body) in
   {
     Screen.title = tr "Observe";
-    subtitle = None;
+    subtitle = Default;
     rows = lazy [];
     footer =
       (match t.editor with

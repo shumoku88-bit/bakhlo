@@ -235,7 +235,7 @@ let view env (geometry : Screen.geometry) t =
       (Ui_overlay.form ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body) in
   {
     Screen.title = tr "Attention";
-    subtitle = None;
+    subtitle = Default;
     rows = lazy (rows env geometry t);
     footer =
       (match t.editor, t.pane with

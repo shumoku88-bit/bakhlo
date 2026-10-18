@@ -334,7 +334,7 @@ let view env (geometry : Screen.geometry) t =
       (Ui_overlay.form ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body) in
   {
     Screen.title = tr "Manage Loci";
-    subtitle = None;
+    subtitle = Default;
     rows = lazy (paint env geometry t);
     footer =
       (if Option.is_some t.editor then

@@ -16,6 +16,7 @@
   bakhlo_screen_observe
   bakhlo_screen_exchange
   bakhlo_screen_editors
+  bakhlo_screen_actual
   bakhlo.store
   bakhlo.domain
   bakhlo.application

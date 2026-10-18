@@ -83,6 +83,13 @@ type publish_outcome =
   | Publish_conflict  (** The file changed on disk; nothing written. *)
   | Publish_stopped  (** Writes stopped or the outcome is unknown; the Shell reports it. *)
 
+(** A record a browser acts on, and the editor workflows the Shell opens for it
+    (the Shell owns the retained Record draft and the editor sessions). *)
+type record_target = Entry of Bakhlo_sexp.Daily_book.entry | Plan of Bakhlo_sexp.Daily_book.plan
+
+type record_action =
+  | Edit | Pay | Reverse | Correct_date | Classify_merchant | Cancel | Batch | Generate
+
 type request =
   | Stay
   | Ignored  (** Not this screen's input; the Shell applies its global keys. *)
@@ -97,6 +104,11 @@ type request =
       (** Replace the Attention memory if it still equals [expected]; answered by [saved]. *)
   | Save_settlements of { expected : Settlement_data.t; next : Settlement_data.t }
       (** Replace the commitments if they still equal [expected]; answered by [saved]. *)
+  | Record_action of { action : record_action; target : record_target option }
+      (** Open the workflow for this record; [None] reports that nothing is selected. *)
+  | New_record  (** Open (or resume) the retained Record draft. *)
+  | Drill of { day : string; entry : string }
+      (** Open the Selected Day of [entry]; returning resumes this screen. *)
   | Publish of publication
   | Stop_writes of string option
       (** Stop all writes until reload; [Some why] also replaces the feedback line. *)
@@ -107,9 +119,13 @@ type request =
       admission : admission;
     }  (** Answered by the owner's [saved] function. *)
 
+(** [Default] is the Shell date line; [Text] gets the Shell's draft notice
+    appended; [Styled] is painted as given (e.g. a live search input). *)
+type subtitle = Default | Text of string | Styled of Ui_render.style * string
+
 type view = {
   title : string;  (** Header path segment after "Bakhlo  /  ". *)
-  subtitle : string option;  (** Second header line; [None] keeps the Shell date line. *)
+  subtitle : subtitle;  (** Second header line. *)
   rows : (Ui_render.style * string) list Lazy.t;
       (** Sized to [geometry.content]; forced only when this screen is the route. *)
   footer : string list;

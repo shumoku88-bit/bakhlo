@@ -82,7 +82,6 @@ type state = {
   settlement_path : string;
   settlements : (Stl.t, string) result;
   screens : Screen_registry.t;
-  actual_workspace : Act.t;
   drill_parent : W.route option;
   drill_book : B.t option;
 }
@@ -122,7 +121,6 @@ let initial ?config_home session =
     settlement_path;
     settlements;
     screens = Screen_registry.create ();
-    actual_workspace = Act.create ~focus_date:focus_day;
     drill_parent = None;
     drill_book = None;
   }
@@ -142,34 +140,14 @@ let sync state =
   let workspace = W.sync ~book state.workspace |> W.follow_months_selection ~book in
   { state with workspace; scroll = 0 }
 
-let sync_actual_to_workspace state =
-  let entry_opt = Act.selected_entry ~book:state.session.book state.actual_workspace in
-  let browser : W.browser =
-    {
-      selected = Act.transaction_row state.actual_workspace;
-      selected_id = Option.map (fun (e : B.entry) -> (W.Actual_row, e.id)) entry_opt;
-      day = (match Act.scope state.actual_workspace with Act.Focus_day -> Some (Act.focus_date state.actual_workspace) | Act.All_current -> None);
-      order = (match Act.sort_order state.actual_workspace with Act.Asc -> W.Oldest | Act.Desc -> W.Newest);
-      query = Act.search_query state.actual_workspace;
-      locus = Act.selected_locus ~book:state.session.book state.actual_workspace;
-    }
-  in
-  let pane = if Act.pane state.actual_workspace = Act.Details then W.Detail else W.Calendar in
-  let scroll = if pane = W.Detail then Act.detail_scroll state.actual_workspace else 0 in
-  { state with workspace = { state.workspace with actual = browser; pane }; scroll }
-
 let finish_publication state session message =
   let next = sync { state with session; record = None; record_visible = false;
     overlay = No_overlay; pending = None; blocked = false; message = tr message;
     screens = Screen_registry.dismiss_floating state.screens } in
   let next =
-    if state.workspace.route = W.Actual then
-      let actual_workspace = Act.returned_from_detail
-        ~before_book:state.session.book ~after_book:session.book state.actual_workspace in
-      let notice = Act.notice actual_workspace in
-      sync_actual_to_workspace { next with actual_workspace;
-        message = next.message ^ (if notice = "" then "" else "\n" ^ tr notice) }
-    else next
+    let screens, notice = Screen_registry.book_changed state.workspace.route
+        ~before:state.session.book ~after:session.book next.screens in
+    { next with screens; message = next.message ^ (if notice = "" then "" else "\n" ^ tr notice) }
   in
   match mode state with
   | A.Pay id -> (
@@ -360,24 +338,13 @@ let open_route state route =
     { state with overlay = No_overlay;
       message = Option.value ~default:"Annual opening evidence unavailable." (annual_unavailable state) }
   else
-  let state =
-    if route = W.Actual then
-      let focus_date = state.workspace.calendar.selected_day in
-      let actual_workspace = Act.create ~focus_date in
-      sync_actual_to_workspace { state with actual_workspace }
-    else state
-  in
   sync { state with workspace = W.enter state.workspace route; overlay = No_overlay; scroll = 0;
                     drill_parent = None; drill_book = None;
-                    screens = Screen_registry.enter route state.screens }
+                    screens = Screen_registry.enter route ~focus_day:state.workspace.calendar.selected_day state.screens }
 
-let selected state =
-  if state.workspace.route = W.Actual then
-    Option.map (fun e -> W.Actual_entry e)
-      (Act.selected_entry ~book:state.session.book state.actual_workspace)
-  else W.selected_row ~book:state.session.book state.workspace
+let selected state = W.selected_row ~book:state.session.book state.workspace
 
-let edit_selected state =
+let edit_target state target =
   if state.blocked then state
   else if has_record_draft state then
     {
@@ -385,7 +352,7 @@ let edit_selected state =
       message = tr "A draft is retained. Resume or discard it before editing.";
     }
   else
-    match selected state with
+    match target with
     | Some (W.Actual_entry entry) -> (
         match S.of_edit ~book:state.session.book entry with
         | Ok record -> { state with record = Some record; record_visible = true; message = "" }
@@ -396,23 +363,23 @@ let edit_selected state =
         | Error why -> { state with message = why })
     | None -> { state with message = tr "Select an Actual or Scheduled occurrence to edit." }
 
-let correct_date_selected state =
+let correct_date_target state target =
   if state.blocked then state
   else if has_record_draft state then
     { state with message = tr "A draft is retained. Resume or discard it before changing a date." }
-  else match selected state with
+  else match target with
   | Some (W.Actual_entry entry) ->
       { (open_editor state (Record_editors.Date_correction (Date.create ~base_bytes:state.session.bytes entry)))
         with message = "" }
   | _ -> { state with message = tr "Select an Actual entry to change its date." }
 
 
-let cancel_plan_selected state =
+let cancel_plan_target state target =
   if state.blocked then state
   else if has_record_draft state then
     { state with message = tr "A draft is retained. Resume or discard it before cancelling a Scheduled occurrence." }
   else
-    match selected state with
+    match target with
     | Some (W.Scheduled_plan plan) ->
         if plan.paid_by <> None then
           { state with message = tr "This Scheduled occurrence is already completed." }
@@ -427,34 +394,34 @@ let cancel_plan_selected state =
           }
     | _ -> { state with message = tr "Select an open Scheduled occurrence to cancel." }
 
-let batch_plan_selected state =
+let batch_plan_target state target =
   if state.blocked then state
   else if has_record_draft state then
     { state with message = tr "A draft is retained. Resume or discard it before batch editing." }
-  else match selected state with
+  else match target with
   | Some (W.Scheduled_plan plan) -> (
       match Bulk.create ~book:state.session.book ~base_bytes:state.session.bytes ~from_day:plan.day plan with
       | Ok editor -> { (open_editor state (Record_editors.Scheduled_bulk editor)) with message = "" }
       | Error message -> { state with message })
   | _ -> { state with message = tr "Select an open Scheduled occurrence for batch amount editing." }
 
-let extend_plan_selected state =
+let extend_plan_target state target =
   if state.blocked then state
   else if has_record_draft state then
     { state with message = tr "A draft is retained. Resume or discard it before generating plans." }
-  else match selected state with
+  else match target with
   | Some (W.Scheduled_plan plan) -> (
       match Gen.create ~book:state.session.book ~base_bytes:state.session.bytes ~source:plan with
       | Ok editor -> { (open_editor state (Record_editors.Scheduled_generate editor)) with message = "" }
       | Error message -> { state with message })
   | _ -> { state with message = tr "Select an open Scheduled occurrence to generate." }
 
-let reverse_entry_selected state =
+let reverse_entry_target state target =
   if state.blocked then state
   else if has_record_draft state then
     { state with message = tr "A draft is retained. Resume or discard it before reversing." }
   else
-    match selected state with
+    match target with
     | Some (W.Actual_entry entry) ->
         if entry.reversal_of <> None then
           { state with message = tr "This entry is already a Reversal; it cannot be reversed." }
@@ -468,12 +435,12 @@ let reverse_entry_selected state =
             message = "";
           }
     | _ -> { state with message = tr "Select an Actual entry to reverse." }
-let classify_merchant_selected state =
+let classify_merchant_target state target =
   if state.blocked then state
   else if has_record_draft state then
     { state with message = tr "A draft is retained. Resume or discard it before classifying." }
   else
-    match selected state with
+    match target with
     | Some (W.Actual_entry entry) -> (
         match entry.merchant with
         | Some disposition ->
@@ -493,7 +460,7 @@ let classify_merchant_selected state =
     | _ -> { state with message = tr "Select an Actual entry to classify Merchant." }
 
 
-let pay_selected state =
+let pay_target state target =
   if state.blocked then state
   else if has_record_draft state then
     {
@@ -501,7 +468,7 @@ let pay_selected state =
       message = tr "A draft is retained. Resume or discard it before completing Scheduled.";
     }
   else
-    match selected state with
+    match target with
     | Some (W.Scheduled_plan plan) -> (
         match S.of_plan ~day:(F.today ()) ~book:state.session.book plan with
         | Ok record -> { state with record = Some record; record_visible = true; message = "" }
@@ -509,3 +476,13 @@ let pay_selected state =
     | Some (W.Actual_entry _) | None ->
         { state with message = tr "Select a Scheduled occurrence to complete." }
 
+
+(* Routes still browsed by the central controller act on their selected row. *)
+let edit_selected state = edit_target state (selected state)
+let correct_date_selected state = correct_date_target state (selected state)
+let cancel_plan_selected state = cancel_plan_target state (selected state)
+let batch_plan_selected state = batch_plan_target state (selected state)
+let extend_plan_selected state = extend_plan_target state (selected state)
+let reverse_entry_selected state = reverse_entry_target state (selected state)
+let classify_merchant_selected state = classify_merchant_target state (selected state)
+let pay_selected state = pay_target state (selected state)

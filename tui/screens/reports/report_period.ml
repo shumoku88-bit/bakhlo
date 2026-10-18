@@ -82,7 +82,7 @@ let view_of ~title ~(geometry : Screen.geometry) ~rows ~footer preview : Screen.
       (Ui_overlay.form ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body) in
   {
     title = Ui_text.tr title;
-    subtitle = None;
+    subtitle = Default;
     rows;
     footer = (if Option.is_some preview then preview_footer else footer);
     overlay;
