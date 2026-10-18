@@ -26,6 +26,12 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
 以下の番号は未了の受入項目の一覧として維持し、この優先順位を上書きしない。必要な共有機構だけを利用元に沿って直す。
 機能完成・表示完成・実機受入を区別し、PTY成功や部分実装だけでユーザー未確認の画面を完成扱いにしない。
 
+### CIによる検証の段階（2026-10-18）
+
+- **段階1、構成追加済み・実行結果は要照合**：main pushでCore（通常OCaml 5.3）と、追跡中のTUI/Coreソース変更でOxCaml + Bonsai_term native build／`./tools/tui --self-check`を実行する。`.github/workflows/core.yml` と `.github/workflows/tui.yml`を参照。Linux Ox環境は以前の試用で使ったregistry revisionとBonsai_term source revisionへ固定し、Coreのlock／ローカルMac試用switchを変更しない。初回実行のgreenは未確認のまま記載しない。
+- **段階2、未実装**：同じ合成台帳に対しpty経由のキー／resize／cold reopenを120×36・80×24・48×14・32×9で自動対照し、authority bytes、signed/unknown、短い確認全文gateも検査する。単純なscreen snapshotだけでUXを合格にしない。
+- **段階3、別受入**：Mac実機IME／フォント／手触り、LOAM同一意味fixture・既存binaryとの比較、保存失敗／P7・実運用資格はCI greenと分ける。CI runnerではLOAM本番／私用台帳を取得しない。
+
 ### 全slice共通の受入証拠
 
 - **実装**：日常の入口から対象選択・入力・確認・取消／確定・親復帰まで接続する。
