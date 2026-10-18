@@ -32,6 +32,15 @@ type publication =
   | Set_locus_label of { locus : string; label : string; help : string }
   | Commit_transaction of { transaction : Daily_draft.transaction; base : string }
   | Observe_quantities of { rows : (string * string * Z.t) list; base : string }
+  | Reverse_entry of { id : string; day : string; base : string }
+  | Correct_entry of { transaction : Daily_draft.transaction; base : string }
+  | Classify_merchant of {
+      id : string; disposition : Bakhlo_application.Event_merchants.disposition; base : string;
+      message : string;
+    }
+  | Cancel_plan of { id : string; day : string; base : string }
+  | Plan_batch of { plans : Bakhlo_sexp.Daily_book.plan list; replace : bool; base : string }
+  | Create_plan of { plan : Bakhlo_sexp.Daily_book.plan; base : string }
 
 type publish_outcome = Published | Publish_refused of string | Publish_conflict | Publish_stopped
 

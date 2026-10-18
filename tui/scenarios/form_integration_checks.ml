@@ -102,7 +102,7 @@ let run ~width_of (home : C.state) =
                   require (col < width && row < height) "form-overlay-terminal-bounds"
               | None -> raise (F.Refused "form-overlay-caret-hidden"));
               let cancelled = key ~dimensions ~width_of state `Escape in
-              require (cancelled.overlay = C.No_overlay
+              require (no_modal cancelled
                        && cancelled.workspace = home.workspace
                        && cancelled.session.bytes = home.session.bytes)
                 "form-overlay-cancel-preserves-parent")

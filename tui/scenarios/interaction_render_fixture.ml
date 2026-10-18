@@ -59,20 +59,20 @@ let render_cases state =
   let cancellation = C.cancel_plan_selected (C.open_route rich W.Scheduled) in
   let cancellation_preview = key cancellation `Enter in
   let source = List.hd (B.plans book) in
-  let continuation_none = { rich with overlay = C.Scheduled_continuation
-    (Cont.create ~book ~base_bytes:rich.session.bytes source) } in
+  let continuation_none = with_session rich (E.Scheduled_continuation
+    (Cont.create ~book ~base_bytes:rich.session.bytes source)) in
   let later = { source with id = "render-later"; day = get (Cal.shift_months source.day 1) } in
   let continuation_book = get (B.put_plan book ~replace:false later) in
-  let continuation = { rich with overlay = C.Scheduled_continuation
-    (Cont.create ~book:continuation_book ~base_bytes:rich.session.bytes source) } in
+  let continuation = with_session rich (E.Scheduled_continuation
+    (Cont.create ~book:continuation_book ~base_bytes:rich.session.bytes source)) in
   let continuation_review = key (key (key continuation `Tab) `Tab) `Enter in
-  let bulk = { rich with overlay = C.Scheduled_bulk
-    (get (Bulk.create ~book ~base_bytes:rich.session.bytes ~from_day:source.day source)) } in
+  let bulk = with_session rich (E.Scheduled_bulk
+    (get (Bulk.create ~book ~base_bytes:rich.session.bytes ~from_day:source.day source))) in
   let bulk_selection = String.fold_left (fun state c -> key state (`ASCII c)) bulk "321"
     |> fun state -> key state `Enter in
   let bulk_preview = key (key bulk_selection (`ASCII 'a')) `Enter in
-  let generate = { rich with overlay = C.Scheduled_generate
-    (get (Gen.create ~book ~base_bytes:rich.session.bytes ~source)) } in
+  let generate = with_session rich (E.Scheduled_generate
+    (get (Gen.create ~book ~base_bytes:rich.session.bytes ~source))) in
   let generate_preview = key generate `Enter in
   let detail route =
     let view = C.open_route rich route in

@@ -41,7 +41,7 @@ let self_check ~width_of () =
     |> fun s -> C.open_route s Ui_workspace.Scheduled
     |> fun s -> C.sync { s with workspace = Ui_workspace.set_query s.workspace source.id } in
   let opened = C.batch_plan_selected state in
-  require (match opened.C.overlay with C.Scheduled_bulk _ -> true | _ -> false)
+  require (match Interaction_check_fixture.session_of opened with Some (Record_editors.Scheduled_bulk _) -> true | _ -> false)
     "controller-opens-bulk-for-selected-plan";
   let ckey state button = Option.get (H.handle ~dimensions:(140,40) ~width_of state (key button)) in
   let controller_preview = List.fold_left (fun state event ->
@@ -50,27 +50,27 @@ let self_check ~width_of () =
     |> fun state -> ckey state (`ASCII 'a')
     |> fun state -> ckey state `Enter in
   let not_published = ckey controller_preview `Enter in
-  require (F.read path = base && not_published.overlay <> C.No_overlay)
+  require (F.read path = base && Option.is_some (Interaction_check_fixture.session_of not_published))
     "controller-back-is-read-only";
   let publishable = ckey controller_preview `Tab |> fun state -> ckey state `End in
   let saved = ckey publishable `Enter in
   let cold = F.load path in
-  require (saved.overlay = C.No_overlay
+  require ((Interaction_check_fixture.no_modal saved)
            && List.for_all (fun id ->
              let plan = List.find (fun (plan:B.plan) -> plan.id = id) (B.plans cold.book) in
              plan.changes = ["cash", Z.of_int (-4000); "food", Z.of_int 4000])
              [p1.id; p2.id]
            && List.find (fun (plan:B.plan) -> plan.id = p3.id) (B.plans cold.book) = p3)
     "controller-publishes-whole-reviewed-batch-cold";
-  let stale = C.reload publishable |> fun state -> ckey state `Enter in
+  let stale = Daily_interaction_context.reload publishable |> fun state -> ckey state `Enter in
   require (stale.blocked && F.read path = cold.bytes
-           && match stale.overlay with C.Scheduled_bulk editor -> S.base_bytes editor = base | _ -> false)
+           && match Interaction_check_fixture.session_of stale with Some (Record_editors.Scheduled_bulk editor) -> S.base_bytes editor = base | _ -> false)
     "controller-reload-cannot-bless-stale-batch";
   let held = C.open_record state |> fun state -> ckey state (`ASCII 'x')
     |> fun state -> ckey state `Escape in
   let refused = C.batch_plan_selected held in
   require (C.has_record_draft held && refused.record = held.record
-           && refused.overlay = C.No_overlay && F.read path = cold.bytes)
+           && (Interaction_check_fixture.no_modal refused) && F.read path = cold.bytes)
     "controller-held-record-prevents-batch";
   let s = get (S.create ~book ~base_bytes:base ~from_day:source.day source) in
   let terminal_source = { source with paid_by = Some "closed" } in

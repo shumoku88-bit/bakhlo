@@ -18,7 +18,7 @@ let run ~width_of ~directory ~path =
     | None -> failwith "expected modal form for admit locus"
   in
   let admitted_state = key ~width_of admit_form_ready `Enter in
-  require (admitted_state.overlay = C.No_overlay && visible_form admitted_state = None) "admit-locus-submitted";
+  require (no_modal admitted_state) "admit-locus-submitted";
   let all_loci = Loci_screen.admitted_loci admitted_state.session.book in
   require (List.mem "metro" all_loci) "admitted-locus-present-in-catalog";
   let roles_after = X.accounting_roles admitted_state in
@@ -44,7 +44,7 @@ let run ~width_of ~directory ~path =
     | None -> failwith "expected modal form for set locus role"
   in
   let updated_role_state = key ~width_of role_form_ready `Enter in
-  require (updated_role_state.overlay = C.No_overlay && visible_form updated_role_state = None) "set-locus-role-submitted";
+  require (no_modal updated_role_state) "set-locus-role-submitted";
   let roles_final = X.accounting_roles updated_role_state in
   require (List.assoc_opt "metro" roles_final = Some Roles.Expense) "locus-role-updated-to-expense";
   (* Locus label edit test (UI-30) *)
@@ -71,7 +71,7 @@ let run ~width_of ~directory ~path =
   require (match visible_form narrow with Some f -> Ui_form.notice f = "Enlarge the terminal to review locus label before saving." | None -> false) "label-save-rejects-narrow-terminal";
   (* Normal terminal save *)
   let label_saved = key ~width_of re_review `Enter in
-  require (label_saved.overlay = C.No_overlay && visible_form label_saved = None) "label-save-succeeds";
+  require (no_modal label_saved) "label-save-succeeds";
   require (B.label label_saved.session.book "metro" = "Subway Metro") "metro-label-updated";
   require (B.help label_saved.session.book "metro" = "Commute subway pass") "metro-help-updated";
   let reloaded_locus_book = (F.load path).book in
@@ -130,7 +130,7 @@ let run ~width_of ~directory ~path =
   require (match visible_form exch_preview2 with Some f -> Ui_form.id f = "review_exchange" | None -> false) "exchange-preview2-opened";
   (* Publish *)
   let exch_done = key ~width_of exch_preview2 `Enter in
-  require (exch_done.overlay = C.No_overlay && visible_form exch_done = None) "exchange-committed";
+  require (no_modal exch_done) "exchange-committed";
   require (exch_done.message = "Published and read back. Previous bytes are kept separately.") "exchange-success-message";
   let reloaded_book = (F.load path).book in
   let latest_entry = List.hd (List.rev (B.entries reloaded_book)) in

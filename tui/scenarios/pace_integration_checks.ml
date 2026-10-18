@@ -104,7 +104,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
      = "Current pace unavailable: Daily Pace pool not configured (daily-pace.tsv missing).")
     "daily-pace-missing-what-if-notice";
   require
-    ((key ~width_of refused_what_if `Escape).C.overlay = C.No_overlay)
+    (no_modal (key ~width_of refused_what_if `Escape))
     "daily-pace-missing-what-if-closes";
   (* 2. Malformed pool: a mismatched Measure is refused, never partially read. *)
   replace pool_path "wallet\tusd\n";
@@ -138,7 +138,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
      = "Current pace unavailable: Pool locus balance support is unknown: bank jpy")
     "daily-pace-unknown-balance-what-if-notice";
   require
-    ((key ~width_of unknown_refused `Escape).C.overlay = C.No_overlay)
+    (no_modal (key ~width_of unknown_refused `Escape))
     "daily-pace-unknown-balance-what-if-closes";
   (* 5. Valid pool, missing boundary-presets.tsv: every period refuses. *)
   replace pool_path "wallet\tjpy\n";
@@ -225,7 +225,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
        ~substring:"Remaining available:")
     "daily-pace-what-if-remaining-available";
   let closed_what_if = key ~width_of simulated `Escape in
-  require (closed_what_if.C.overlay = C.No_overlay) "daily-pace-what-if-closes";
+  require (no_modal closed_what_if) "daily-pace-what-if-closes";
   require
     ((key ~width_of closed_what_if (`ASCII 'q')).workspace.route = W.Home)
     "daily-pace-q-returns-home";
@@ -938,7 +938,7 @@ let pool_review_checks ~width_of ~directory () =
   require (text (press stale `Escape) = Some "bank") "pool-stale-keeps-new-input";
   replace before;
   let saved = press (submit "bank" (press (fresh ()) (`ASCII 'c'))) `Enter in
-  require (saved.overlay = C.No_overlay && F.read pool_path = after) "pool-explicit-save";
+  require (no_modal saved && F.read pool_path = after) "pool-explicit-save";
   require (text (press saved (`ASCII 'c')) = Some "bank") "pool-success-clears-old-draft";
   let cold = fresh () in
   require (match resolve_pace_pool cold with
@@ -961,7 +961,7 @@ let pool_review_checks ~width_of ~directory () =
   require (reviewing hidden && F.read pool_path = many) "pool-hidden-old-rows-cannot-save";
   Unix.unlink pool_path;
   let created = press (submit "bank" (press (fresh ()) (`ASCII 'c'))) `Enter in
-  require (created.overlay = C.No_overlay && F.read pool_path = after) "pool-missing-explicit-create";
+  require (no_modal created && F.read pool_path = after) "pool-missing-explicit-create";
   Unix.unlink pool_path;
   Unix.mkdir pool_path 0o700;
   let unreadable = submit "bank" (press (fresh ()) (`ASCII 'c')) in

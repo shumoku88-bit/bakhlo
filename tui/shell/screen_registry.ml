@@ -14,6 +14,7 @@ type t = {
   loci : Loci_screen.t;
   observe : Observe_screen.t;
   exchange : Exchange_screen.t;
+  editors : Record_editors.t;
 }
 
 let create () =
@@ -28,6 +29,7 @@ let create () =
     loci = Loci_screen.create ();
     observe = Observe_screen.create ();
     exchange = Exchange_screen.create ();
+    editors = Record_editors.create ();
   }
 
 type 'a owner = {
@@ -190,6 +192,20 @@ let all =
         published = Exchange_screen.published;
         reloaded = Screen.no_reload;
       };
+    Owner
+      {
+        route = None;
+        config_files = Record_editors.config_files;
+        get = (fun t -> t.editors);
+        set = (fun t editors -> { t with editors });
+        enter = Fun.id;
+        modal = Record_editors.modal;
+        handle = Record_editors.handle;
+        view = Record_editors.view;
+        saved = Record_editors.saved;
+        published = Record_editors.published;
+        reloaded = Record_editors.reloaded;
+      };
   ]
 
 let for_route route = List.find_opt (fun (Owner o) -> o.route = Some route) all
@@ -197,3 +213,8 @@ let modal t = List.find_opt (fun (Owner o) -> o.modal (o.get t)) all
 
 let enter route t =
   match for_route route with Some (Owner o) -> o.set t (o.enter (o.get t)) | None -> t
+
+(* A finished publication closes every editor floating over the route. *)
+let dismiss_floating t =
+  { t with observe = Observe_screen.create (); exchange = Exchange_screen.create ();
+           editors = Record_editors.create () }

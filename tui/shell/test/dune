@@ -5,6 +5,7 @@
   bakhlo_tui_kit
   bakhlo_tui_book
   bakhlo_tui_shell
+  bakhlo_screen_editors
   bakhlo.store
   bakhlo.domain
   bakhlo.sexp

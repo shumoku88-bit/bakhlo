@@ -70,7 +70,7 @@ let scheduled_panel_checks ~width_of ~directory home =
     = S.screen ~book ~dimensions:(72,20) ~width_of (Option.get resumed.record))
     "scheduled-draft-resumed-through-existing-record-command";
   let cancelled = key ~width_of (key ~width_of state (`ASCII 'x')) `Escape in
-  require (cancelled.workspace=state.workspace && cancelled.overlay=C.No_overlay)
+  require (cancelled.workspace=state.workspace && no_modal cancelled)
     "scheduled-cancel-overlay-return-context";
   require (F.read path=before) "scheduled-shared-panels-no-write";
   print_endline "PASS: Scheduled uses shared viewport, clamped detail/list paging, focus/resize, retained draft and cancelled action context (synthetic)."
@@ -85,8 +85,8 @@ let cancellation_checks ~width_of ~directory home =
   let before = F.read path in
   let base = C.open_route (C.initial ~config_home:directory (F.load path)) W.Scheduled
     |> fun s -> C.sync { s with workspace = W.set_query s.workspace plan.id } in
-  let editor state = match state.C.overlay with
-    | C.Scheduled_cancel e -> e | _ -> raise (F.Refused "cancel-review-lost") in
+  let editor state = match session_of state with
+    | Some (E.Scheduled_cancel e) -> e | _ -> raise (F.Refused "cancel-review-lost") in
   let input state event = match H.handle ~width_of state event with
     | Some s -> s | None -> raise (F.Refused "cancel-controller-exited") in
   let date state value =
@@ -101,7 +101,7 @@ let cancellation_checks ~width_of ~directory home =
   require (Cancel.is_preview (editor review) && Cancel.day (editor review) = "2026-10-16"
            && F.read path = before) "cancel-date-enter-is-read-only-preview";
   let kept = key ~width_of review `Enter in
-  require (kept.overlay = C.No_overlay && kept.workspace = base.workspace && F.read path = before)
+  require ((no_modal kept) && kept.workspace = base.workspace && F.read path = before)
     "cancel-protective-default-keeps-plan";
   let edited = key ~width_of review (`ASCII 'e') in
   require (not (Cancel.is_preview (editor edited)) && Cancel.day (editor edited) = "2026-10-16")
@@ -122,14 +122,14 @@ let cancellation_checks ~width_of ~directory home =
   let held = prepare_record ~width_of home |> fun s -> key ~width_of s `Escape
     |> fun s -> C.open_route s W.Scheduled in
   let guarded = key ~width_of held (`ASCII 'x') in
-  require (guarded.overlay = C.No_overlay && guarded.record = held.record && C.has_record_draft guarded)
+  require ((no_modal guarded) && guarded.record = held.record && C.has_record_draft guarded)
     "cancel-does-not-destroy-record-draft";
   let missing = { selected with session = { selected.session with path = directory ^ "/absent-cancel/book.sexp" } } in
   let failed = key ~width_of missing `Enter in
   require (Cancel.day (editor failed) = "2026-10-16" && Cancel.base_bytes (editor failed) = before
            && F.read path = before) "cancel-storage-failure-keeps-date-target-and-base";
   let kept_failed = key ~width_of failed `Enter in
-  require (kept_failed.overlay = C.No_overlay && F.read path = before) "cancel-failure-resets-choice-to-keep";
+  require ((no_modal kept_failed) && F.read path = before) "cancel-failure-resets-choice-to-keep";
   let records_path = directory ^ "/cancellation-records.sexp" in
   F.write_new records_path (B.to_records_string book);
   let records = { base with session = F.load records_path } in
@@ -140,7 +140,7 @@ let cancellation_checks ~width_of ~directory home =
     "cancel-records-refusal-keeps-confirmation-without-write";
   let saved = key ~width_of selected `Enter in
   let cold = F.load path in
-  require (saved.overlay = C.No_overlay
+  require ((no_modal saved)
            && List.find (fun (p : B.plan) -> p.id = plan.id) (B.plans cold.book)
               = { plan with cancelled_on = Some "2026-10-16" }
            && B.entries cold.book = B.entries book
@@ -223,7 +223,7 @@ let months_checks ~width_of ~directory home =
   require (no_earlier.workspace.months = oldest.workspace.months) "months-clamps-current-month-floor";
   List.iter (fun button ->
     let refused = key ~width_of months button in
-    require (refused.overlay = C.No_overlay && W.rows ~book refused.workspace = W.rows ~book months.workspace
+    require ((no_modal refused) && W.rows ~book refused.workspace = W.rows ~book months.workspace
              && refused.workspace.scheduled = list_browser) "months-keeps-unfiltered-frontier")
     [`ASCII '/'; `ASCII 'f'];
   let contains rows needle = List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) rows in
@@ -312,8 +312,8 @@ let continuation_checks ~width_of ~directory home =
     let review = C.submit (C.pay_selected base) in
     require (review.record_visible && F.read path = before) "continuation-does-not-precede-payment";
     key ~width_of review `Enter in
-  let prompt state = match state.C.overlay with
-    | C.Scheduled_continuation p -> p | _ -> raise (F.Refused "continuation-prompt-missing") in
+  let prompt state = match session_of state with
+    | Some (E.Scheduled_continuation p) -> p | _ -> raise (F.Refused "continuation-prompt-missing") in
   let input state event = match H.handle ~width_of state event with
     | Some state -> state | None -> raise (F.Refused "continuation-controller-exit") in
   let path = directory ^ "/continuation.sexp" in
@@ -326,7 +326,7 @@ let continuation_checks ~width_of ~directory home =
    | Cont.Closed (Some p) -> require (p.id = later.id) "continuation-earliest-later-positive-locus-set"
    | _ -> raise (F.Refused "continuation-default-not-keep"));
   let kept = key ~width_of completed `Enter in
-  require (kept.overlay = C.No_overlay && F.read path = after_payment) "continuation-keep-never-creates";
+  require ((no_modal kept) && F.read path = after_payment) "continuation-keep-never-creates";
   let review = key ~width_of completed `Tab |> fun s -> key ~width_of s `Tab |> fun s -> key ~width_of s `Enter in
   let rows = Option.get (R.overlay_screen ~dimensions:(80,24) ~width_of review) in
   require (List.exists (fun (_, line) -> Base.String.is_substring line ~substring:later.id) rows)
@@ -338,10 +338,10 @@ let continuation_checks ~width_of ~directory home =
              && List.for_all (fun (_, line) -> width_of line <= fst dimensions) rows)
       "continuation-review-resize-bounded") [32,9;48,14;80,24;120,36];
   let added = key ~width_of completed `Tab |> fun s -> key ~width_of s `Enter in
-  let editor = match added.overlay with C.Scheduled_create e -> e | _ -> raise (F.Refused "continuation-add-editor") in
+  let editor = match session_of added with Some (E.Scheduled_create e) -> e | _ -> raise (F.Refused "continuation-add-editor") in
   require (Sch.day editor = "" && Sch.measure editor = "eur") "continuation-does-not-infer-date-or-copy-candidate-measure";
   let cancelled = key ~width_of added `Escape in
-  require (cancelled.overlay = C.No_overlay && F.read path = after_payment
+  require ((no_modal cancelled) && F.read path = after_payment
            && (List.find (fun (p : B.plan) -> p.id = source.id) (B.plans (F.load path).book)) = paid_source)
     "continuation-cancel-add-keeps-published-completion";
   let next = String.fold_left (fun s c -> key ~width_of s (`ASCII c)) added "2026-12-20" in
@@ -351,7 +351,7 @@ let continuation_checks ~width_of ~directory home =
   let saved = key ~width_of next `Enter in
   let cold = F.load path in
   let created = List.find (fun (p : B.plan) -> p.day = "2026-12-20") (B.plans cold.book) in
-  require (saved.overlay = C.No_overlay && created.id <> source.id && created.measure = source.measure
+  require ((no_modal saved) && created.id <> source.id && created.measure = source.measure
            && created.changes = source.changes && created.paid_by = None && created.cancelled_on = None
            && B.entries cold.book = B.entries completed.session.book
            && List.find (fun (p : B.plan) -> p.id = source.id) (B.plans cold.book) = paid_source)
@@ -365,7 +365,7 @@ let continuation_checks ~width_of ~directory home =
   let none = complete none_path source_book source in
   let none_bytes = F.read none_path in
   let done_ = key ~width_of none `Enter in
-  require (done_.overlay = C.No_overlay && F.read none_path = none_bytes) "continuation-done-never-adds";
+  require ((no_modal done_) && F.read none_path = none_bytes) "continuation-done-never-adds";
   let defer = key ~width_of none `Tab in
   let failed = key ~width_of { defer with attention_path = directory } `Enter in
   require (F.read none_path = none_bytes && not failed.record_visible
@@ -373,7 +373,7 @@ let continuation_checks ~width_of ~directory home =
     "continuation-defer-failure-does-not-rollback-completion";
   let deferred = key ~width_of defer `Enter in
   let attention = get (Attention_file.load_file none.attention_path) in
-  require (deferred.overlay = C.No_overlay && F.read none_path = none_bytes
+  require ((no_modal deferred) && F.read none_path = none_bytes
            && List.exists (fun (item : Att.item) -> item.due = Att.Due_undetermined
              && Base.String.is_substring item.context ~substring:source.id) (Att.open_items attention))
     "continuation-defer-cold-retains-undecided-attention-only";
@@ -395,11 +395,11 @@ let continuation_checks ~width_of ~directory home =
   let unknown = C.apply_commit_result pay ~draft:pay
     (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
       evidence = Daily_actions.Monolithic_candidate (B.to_string candidate) }) in
-  let unconfirmed = C.reload unknown in
-  require (unconfirmed.blocked && unconfirmed.record_visible && unconfirmed.overlay = C.No_overlay)
+  let unconfirmed = Daily_interaction_context.reload unknown in
+  require (unconfirmed.blocked && unconfirmed.record_visible && (no_modal unconfirmed))
     "continuation-unknown-completion-cannot-offer-add";
   (match F.publish base.session candidate with F.Written _ -> () | _ -> raise (F.Refused "continuation-confirmation-setup"));
-  let confirmed = C.reload unconfirmed in
+  let confirmed = Daily_interaction_context.reload unconfirmed in
   require (not confirmed.blocked && confirmed.pending = None && not confirmed.record_visible
            && B.entry_count confirmed.session.book = B.entry_count source_book + 1
            && Cont.base_bytes (prompt confirmed) = confirmed.session.bytes)

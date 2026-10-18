@@ -28,7 +28,7 @@ let run ~width_of ~directory ~path (exch_done : C.state) =
     | None -> failwith "expected modal form for add settlement"
   in
   let added_state = key ~width_of add_ready `Enter in
-  require (added_state.overlay = C.No_overlay && visible_form added_state = None) "add-settlement-submitted";
+  require (no_modal added_state) "add-settlement-submitted";
   let stl_rows = settlement_rows added_state in
   require (List.length stl_rows = 1) "settlement-row-added";
   let r = List.hd stl_rows in
@@ -47,7 +47,7 @@ let run ~width_of ~directory ~path (exch_done : C.state) =
     | None -> failwith "expected modal form for action settlement"
   in
   let settled_state = key ~width_of act_ready `Enter in
-  require (settled_state.overlay = C.No_overlay && visible_form settled_state = None) "settle-action-submitted";
+  require (no_modal settled_state) "settle-action-submitted";
   let r2 = List.hd (settlement_rows settled_state) in
   require (Z.equal (Stl.outstanding r2) (Z.of_int 2000)) "settlement-outstanding-after-settle-2000";
   require (Z.equal r2.settled (Z.of_int 3000)) "settled-amount-3000";
@@ -63,7 +63,7 @@ let run ~width_of ~directory ~path (exch_done : C.state) =
     | None -> failwith "expected modal form for action settlement"
   in
   let reduced_state = key ~width_of act_ready2 `Enter in
-  require (reduced_state.overlay = C.No_overlay && visible_form reduced_state = None) "reduce-action-submitted";
+  require (no_modal reduced_state) "reduce-action-submitted";
   let r3 = List.hd (settlement_rows reduced_state) in
   require (Z.equal (Stl.outstanding r3) (Z.of_int 1000)) "settlement-outstanding-after-reduce-1000";
   require (Z.equal r3.extinguished (Z.of_int 1000)) "extinguished-amount-1000";

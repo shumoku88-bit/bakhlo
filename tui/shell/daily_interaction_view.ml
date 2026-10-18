@@ -365,20 +365,6 @@ let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   | Some view -> view.footer
   | None ->
   match state.overlay with
-  | (Reversal _ | Date_correction _ | Scheduled_cancel _ | Event_merchant _) when state.blocked ->
-      [ "Writes stopped; date retained"; "Ctrl-r inspect/reload  q keep" ]
-  | Reversal editor -> Rev.footer editor
-  | Date_correction editor -> Date.footer editor
-  | Event_merchant editor -> Merchant.footer editor
-  | Scheduled_create editor -> Sch.footer editor
-  | Scheduled_cancel editor -> Cancel.footer editor
-  | Scheduled_continuation prompt -> Cont.footer prompt
-  | Scheduled_bulk _ when state.blocked ->
-      [ "Writes stopped; batch retained"; "Ctrl-r inspect/reload  Esc cancel" ]
-  | Scheduled_bulk editor -> Bulk.footer editor
-  | Scheduled_generate _ when state.blocked ->
-      [ "Writes stopped; generation retained"; "Ctrl-r inspect/reload  Esc cancel" ]
-  | Scheduled_generate editor -> Gen.footer editor
   | Themes _ -> [ "j/k or Up/Down preview theme"; "Enter save  Esc/q cancel" ]
   | Modal_form form -> (
       match Form.id form with
@@ -648,98 +634,6 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
   else if state.overlay = No_overlay || body_w < 8 || body_h < 3 then None
   else
     match state.overlay with
-    | Scheduled_bulk editor ->
-        let pane_dimensions = bulk_dimensions ~dimensions ~width_of state in
-        let pane_w = fst pane_dimensions in
-        let rows = Bulk.screen ~dimensions:pane_dimensions ~width_of editor in
-        let pane_h = List.length rows in
-        let origin_x = max 0 ((width - pane_w) / 2) in
-        let origin_y = max 0 ((body_h - pane_h) / 2) in
-        let cursor = Option.map (fun (col, row) -> (origin_x + col, origin_y + row))
-          (O.cursor_in_rows ~width_of ~width:pane_w rows) in
-        Some { origin_x; origin_y; pane_width = pane_w; pane_height = pane_h; rows; cursor }
-    | Scheduled_generate editor ->
-        let pane_dimensions = generate_dimensions ~dimensions ~width_of state in
-        let pane_w = fst pane_dimensions in
-        let rows = Gen.screen ~dimensions:pane_dimensions ~width_of editor in
-        let pane_h = List.length rows in
-        let origin_x = max 0 ((width - pane_w) / 2) in
-        let origin_y = max 0 ((body_h - pane_h) / 2) in
-        let cursor = Option.map (fun (col, row) -> (origin_x + col, origin_y + row))
-          (O.cursor_in_rows ~width_of ~width:pane_w rows) in
-        Some { origin_x; origin_y; pane_width = pane_w; pane_height = pane_h; rows; cursor }
-    | Scheduled_continuation prompt ->
-        let pane_dimensions = continuation_dimensions ~dimensions ~width_of state in
-        let pane_w = fst pane_dimensions in
-        let rows = Cont.screen ~dimensions:pane_dimensions ~width_of prompt in
-        let pane_h = List.length rows in
-        Some { origin_x = max 0 ((width - pane_w) / 2); origin_y = max 0 ((body_h - pane_h) / 2);
-          pane_width = pane_w; pane_height = pane_h; rows; cursor = None }
-    | Scheduled_cancel editor ->
-        let pane_dimensions = cancellation_dimensions ~dimensions ~width_of state in
-        let pane_w = fst pane_dimensions in
-        let rows = Cancel.screen ~dimensions:pane_dimensions ~width_of editor in
-        let pane_h = List.length rows in
-        let origin_x = max 0 ((width - pane_w) / 2) in
-        let origin_y = max 0 ((body_h - pane_h) / 2) in
-        let cursor = Option.map (fun (col, row) -> (origin_x + col, origin_y + row))
-          (O.cursor_in_rows ~width_of ~width:pane_w rows) in
-        Some { origin_x; origin_y; pane_width = pane_w; pane_height = pane_h; rows; cursor }
-    | Date_correction editor ->
-        let pane_dimensions = date_dimensions ~dimensions ~width_of state in
-        let pane_w = fst pane_dimensions in
-        let rows = Date.screen ~dimensions:pane_dimensions ~width_of editor in
-        let pane_h = List.length rows in
-        let origin_x = max 0 ((width - pane_w) / 2) in
-        let origin_y = max 0 ((body_h - pane_h) / 2) in
-        let cursor = Option.map (fun (col, row) -> (origin_x + col, origin_y + row))
-          (O.cursor_in_rows ~width_of ~width:pane_w rows) in
-        Some { origin_x; origin_y; pane_width = pane_w; pane_height = pane_h; rows; cursor }
-    | Event_merchant editor ->
-        let pane_dimensions = merchant_dimensions ~dimensions ~width_of state in
-        let pane_w = fst pane_dimensions in
-        let rows = Merchant.screen ~dimensions:pane_dimensions ~width_of editor in
-        let pane_h = List.length rows in
-        let origin_x = max 0 ((width - pane_w) / 2) in
-        let origin_y = max 0 ((body_h - pane_h) / 2) in
-        let cursor =
-          match O.cursor_in_rows ~width_of ~width:pane_w rows with
-          | Some (col, row) ->
-              let c = origin_x + col and r = origin_y + row in
-              if c < width && r < height then Some (c, r) else None
-          | None -> None
-        in
-        Some { origin_x; origin_y; pane_width = pane_w; pane_height = pane_h; rows; cursor }
-    | Reversal editor ->
-        let pane_dimensions = reversal_dimensions ~dimensions ~width_of state in
-        let pane_w = fst pane_dimensions in
-        let rows = Rev.screen ~dimensions:pane_dimensions ~width_of editor in
-        let pane_h = List.length rows in
-        let origin_x = max 0 ((width - pane_w) / 2) in
-        let origin_y = max 0 ((body_h - pane_h) / 2) in
-        let cursor =
-          match O.cursor_in_rows ~width_of ~width:pane_w rows with
-          | Some (col, row) ->
-              let c = origin_x + col and r = origin_y + row in
-              if c < width && r < height then Some (c, r) else None
-          | None -> None
-        in
-        Some { origin_x; origin_y; pane_width = pane_w; pane_height = pane_h; rows; cursor }
-    | Scheduled_create editor ->
-        let pane_dimensions = scheduled_dimensions ~dimensions ~width_of state in
-        let pane_w = fst pane_dimensions in
-        let rows = Sch.screen ~book:state.session.book ~dimensions:pane_dimensions ~width_of editor in
-        let pane_h = List.length rows in
-        let origin_x = max 0 ((width - pane_w) / 2) in
-        let origin_y = max 0 ((body_h - pane_h) / 2) in
-        let cursor =
-          match O.cursor_in_rows ~width_of ~width:pane_w rows with
-          | Some (col, row) ->
-              let c = origin_x + col and r = origin_y + row in
-              if c < width && r < height then Some (c, r) else None
-          | None -> None
-        in
-        Some { origin_x; origin_y; pane_width = pane_w; pane_height = pane_h; rows; cursor }
     | Commands menu ->
         let can_float = body_w >= 60 && body_h >= 14 in
         let pane_w = min 54 (max 8 (body_w - 4)) in

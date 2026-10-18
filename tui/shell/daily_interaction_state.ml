@@ -60,23 +60,7 @@ type overlay =
   | Jump of string
   | Search of string
   | Modal_form of Form.t
-  | Reversal of Rev.t
-  | Date_correction of Date.t
-  | Event_merchant of Merchant.t
-  | Scheduled_create of Sch.t
-  | Scheduled_cancel of Cancel.t
-  | Scheduled_continuation of Cont.t
-  | Scheduled_bulk of Bulk.t
-  | Scheduled_generate of Gen.t
 
-
-let is_reverse_entry = function
-  | Reversal _ -> true
-  | _ -> false
-
-let is_scheduled_create = function
-  | Scheduled_create _ -> true
-  | _ -> false
 
 
 type state = {
@@ -143,6 +127,10 @@ let initial ?config_home session =
     drill_book = None;
   }
 
+let open_editor state session =
+  { state with screens = { state.screens with
+      editors = Record_editors.open_session session state.screens.editors } }
+
 let has_record_draft state =
   match state.record with None -> false | Some record -> S.has_draft record
 
@@ -172,7 +160,8 @@ let sync_actual_to_workspace state =
 
 let finish_publication state session message =
   let next = sync { state with session; record = None; record_visible = false;
-    overlay = No_overlay; pending = None; blocked = false; message = tr message } in
+    overlay = No_overlay; pending = None; blocked = false; message = tr message;
+    screens = Screen_registry.dismiss_floating state.screens } in
   let next =
     if state.workspace.route = W.Actual then
       let actual_workspace = Act.returned_from_detail
@@ -186,8 +175,8 @@ let finish_publication state session message =
   | A.Pay id -> (
       match List.find_opt (fun (p : B.plan) -> p.id = id && p.paid_by <> None) (B.plans session.book) with
       | Some source ->
-          { next with overlay = Scheduled_continuation
-              (Cont.create ~book:session.book ~base_bytes:session.bytes source);
+          { (open_editor next (Record_editors.Scheduled_continuation
+              (Cont.create ~book:session.book ~base_bytes:session.bytes source))) with
             message = next.message ^ " No additional Scheduled created." }
       | None -> { next with message = next.message ^
           " Next-plan inspection unavailable; no additional Scheduled created." })
@@ -256,27 +245,6 @@ let reload state =
   | A.Recovery_required (session, message) -> { state with session; blocked = true; message }
   | A.Reloaded session -> (
       match state.overlay with
-      | Reversal editor when Rev.base_bytes editor <> session.bytes ->
-          { state with session; blocked = true;
-            message = tr "Reversal target generation changed. Date retained; cancel, reload and reselect." }
-      | Date_correction editor when Date.base_bytes editor <> session.bytes ->
-          { state with session; blocked = true;
-            message = tr "Date correction target generation changed. Cancel, reload and reselect." }
-      | Event_merchant editor when Merchant.base_bytes editor <> session.bytes ->
-          { state with session; blocked = true;
-            message = tr "Merchant classification target generation changed. Draft retained; cancel, reload and reselect." }
-      | Scheduled_cancel editor when Cancel.base_bytes editor <> session.bytes ->
-          { state with session; blocked = true;
-            message = tr "Scheduled cancellation target generation changed. Keep, reload and reselect." }
-      | Scheduled_continuation prompt when Cont.base_bytes prompt <> session.bytes ->
-          { state with session; blocked = true;
-            message = tr "Completion remains published. Later-plan evidence changed; close and reload to inspect." }
-      | Scheduled_bulk editor when Bulk.base_bytes editor <> session.bytes ->
-          { state with session; blocked = true;
-            message = tr "Batch target generation changed. Cancel, reload and reselect." }
-      | Scheduled_generate editor when Gen.base_bytes editor <> session.bytes ->
-          { state with session; blocked = true;
-            message = tr "Generation target generation changed. Cancel, reload and reselect." }
       | _ -> sync { state with session; blocked = false; message = tr "Reloaded. Unsaved draft retained." })
   | A.Reload_failed why ->
       {
@@ -373,7 +341,8 @@ let open_plan_record state =
     let measure = state.workspace.measure in
     {
       state with
-      overlay = Scheduled_create (Sch.create ~book:state.session.book ~day ~measure);
+      screens = (open_editor state (Record_editors.Scheduled_create
+        (Sch.create ~book:state.session.book ~day ~measure))).screens;
       record_visible = false;
       message = "";
     }
@@ -433,8 +402,8 @@ let correct_date_selected state =
     { state with message = tr "A draft is retained. Resume or discard it before changing a date." }
   else match selected state with
   | Some (W.Actual_entry entry) ->
-      { state with overlay = Date_correction (Date.create ~base_bytes:state.session.bytes entry);
-        message = "" }
+      { (open_editor state (Record_editors.Date_correction (Date.create ~base_bytes:state.session.bytes entry)))
+        with message = "" }
   | _ -> { state with message = tr "Select an Actual entry to change its date." }
 
 
@@ -452,8 +421,8 @@ let cancel_plan_selected state =
         else
           {
             state with
-            overlay = Scheduled_cancel (Cancel.create ~book:state.session.book
-              ~base_bytes:state.session.bytes ~day:(F.today ()) plan);
+            screens = (open_editor state (Record_editors.Scheduled_cancel (Cancel.create
+              ~book:state.session.book ~base_bytes:state.session.bytes ~day:(F.today ()) plan))).screens;
             message = "";
           }
     | _ -> { state with message = tr "Select an open Scheduled occurrence to cancel." }
@@ -465,7 +434,7 @@ let batch_plan_selected state =
   else match selected state with
   | Some (W.Scheduled_plan plan) -> (
       match Bulk.create ~book:state.session.book ~base_bytes:state.session.bytes ~from_day:plan.day plan with
-      | Ok editor -> { state with overlay = Scheduled_bulk editor; message = "" }
+      | Ok editor -> { (open_editor state (Record_editors.Scheduled_bulk editor)) with message = "" }
       | Error message -> { state with message })
   | _ -> { state with message = tr "Select an open Scheduled occurrence for batch amount editing." }
 
@@ -476,7 +445,7 @@ let extend_plan_selected state =
   else match selected state with
   | Some (W.Scheduled_plan plan) -> (
       match Gen.create ~book:state.session.book ~base_bytes:state.session.bytes ~source:plan with
-      | Ok editor -> { state with overlay = Scheduled_generate editor; message = "" }
+      | Ok editor -> { (open_editor state (Record_editors.Scheduled_generate editor)) with message = "" }
       | Error message -> { state with message })
   | _ -> { state with message = tr "Select an open Scheduled occurrence to generate." }
 
@@ -494,8 +463,8 @@ let reverse_entry_selected state =
         else
           {
             state with
-            overlay = Reversal (Rev.create ~book:state.session.book
-              ~base_bytes:state.session.bytes ~day:(F.today ()) entry);
+            screens = (open_editor state (Record_editors.Reversal (Rev.create ~book:state.session.book
+              ~base_bytes:state.session.bytes ~day:(F.today ()) entry))).screens;
             message = "";
           }
     | _ -> { state with message = tr "Select an Actual entry to reverse." }
@@ -517,7 +486,8 @@ let classify_merchant_selected state =
         | None ->
             {
               state with
-              overlay = Event_merchant (Merchant.create ~base_bytes:state.session.bytes entry);
+              screens = (open_editor state (Record_editors.Event_merchant
+                (Merchant.create ~base_bytes:state.session.bytes entry))).screens;
               message = "";
             })
     | _ -> { state with message = tr "Select an Actual entry to classify Merchant." }

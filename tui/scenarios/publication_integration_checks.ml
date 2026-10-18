@@ -207,7 +207,7 @@ let run ~width_of ~directory ~path (home : C.state) =
        require (Ui_form.focused f = Ui_form.find_field_index f "amount") "balances-o-focuses-amount"
    | None -> failwith "expected observe quantity modal");
   let bal_obs_cancel = key ~width_of bal_obs `Escape in
-  require (bal_obs_cancel.overlay = C.No_overlay && visible_form bal_obs_cancel = None) "balances-observe-cancel-escapes";
+  require (no_modal bal_obs_cancel) "balances-observe-cancel-escapes";
   (* Test toggle to Accounting view with 'v' *)
   let bal_back_acct = key ~width_of bal_custom_bv (`ASCII 'v') in
   let wide_back_acct = R.screen ~width_of (120, 30) bal_back_acct in
@@ -222,10 +222,10 @@ let run ~width_of ~directory ~path (home : C.state) =
   require completion.record_visible "scheduled-completion-explicit";
   let _ = C.discard completion in
   let plan_creating = key ~width_of scheduled (`ASCII 'n') in
-  require (C.is_scheduled_create plan_creating.overlay)
+  require (is_plan_create plan_creating)
     "scheduled-key-n-opens-plan";
   let closed_plan = key ~width_of plan_creating `Escape in
-  require (closed_plan.overlay = C.No_overlay)
+  require ((no_modal closed_plan))
     "scheduled-plan-cancel-closes-overlay";
   let plan_editing = key ~width_of closed_plan (`ASCII 'e') in
   require (plan_editing.record_visible && Option.is_some plan_editing.record)
@@ -265,14 +265,14 @@ let run ~width_of ~directory ~path (home : C.state) =
   let kept = key ~width_of confirming `Enter in
   let escaped = key ~width_of confirming `Escape in
   require (kept.record = cancelled.record && escaped.record = cancelled.record
-           && kept.workspace = cancelled.workspace && kept.overlay = C.No_overlay)
+           && kept.workspace = cancelled.workspace && (no_modal kept))
     "discard-keep-and-escape-retain-exact-draft-and-parent";
   let selected = key ~width_of confirming (`Arrow `Right) in
   let tiny = key ~dimensions:(32,9) ~width_of selected `Enter in
   require (tiny.record = cancelled.record && C.has_record_draft tiny)
     "discard-unreadable-confirmation-refused";
   let kept_after_resize = key ~width_of tiny `Enter in
-  require (kept_after_resize.record = cancelled.record && kept_after_resize.overlay = C.No_overlay)
+  require (kept_after_resize.record = cancelled.record && (no_modal kept_after_resize))
     "discard-tiny-refusal-resets-protective-choice";
   let discarded = key ~width_of selected `Enter in
   require (discarded.record = None && not discarded.record_visible
@@ -320,7 +320,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   let closed_actual_edit = C.discard (key ~width_of actual_editing `Escape) in
   let actual_reversing = key ~width_of closed_actual_edit (`ASCII 'x') in
   require
-    (C.is_reverse_entry actual_reversing.overlay)
+    (is_reversal actual_reversing)
     "actual-key-x-opens-reverse-overlay";
   let reversal_preview = key ~width_of actual_reversing `Enter in
   require (F.read path = cold.bytes) "reversal-date-enter-is-preview-only";
@@ -334,7 +334,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   require (rev_entry.reversal_of = Some orig_entry.id) "reversal-links-to-original";
   let actual_after = C.open_route { reversed with session = cold_after_reverse } W.Actual in
   let try_double_reverse = key ~width_of actual_after (`ASCII 'x') in
-  require (try_double_reverse.overlay = C.No_overlay && try_double_reverse.message <> "")
+  require ((no_modal try_double_reverse) && try_double_reverse.message <> "")
     "double-reversal-blocked";
   let records_path = directory ^ "/records.sexp" in
   F.write_new records_path (B.to_records_string home.session.book);
@@ -425,7 +425,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   let p = List.hd (B.plans cancelled_cold.book) in
   require (p.cancelled_on <> None) "plan-cold-cancelled-on-set";
   let re_cancel = key ~width_of cancel_done (`ASCII 'x') in
-  require (re_cancel.overlay = C.No_overlay && re_cancel.message <> "")
+  require ((no_modal re_cancel) && re_cancel.message <> "")
     "already-cancelled-cancel-refused";
   let re_edit = key ~width_of cancel_done (`ASCII 'e') in
   require ((not re_edit.record_visible) && re_edit.message <> "")

@@ -112,7 +112,7 @@ let self_check () =
       | None -> raise (F.Refused "recovery-reset-exited")
     in
     require
-      (reset.blocked && (C.reload reset).blocked && C.submit reset == reset)
+      (reset.blocked && (Daily_interaction_context.reload reset).blocked && C.submit reset == reset)
       "recovery-reset-reload-or-submit-bypassed-stop";
     (match F.publish session candidate with
     | F.Refused_input "recovery-required" -> ()
@@ -208,12 +208,12 @@ let self_check () =
                  evidence = A.Monolithic_candidate candidate_bytes;
                })
         in
-        let stopped = C.reload memory in
+        let stopped = Daily_interaction_context.reload memory in
         require
           (stopped.blocked && stopped.pending = Some (A.Monolithic_candidate candidate_bytes))
           "recovery-reload-silently-acknowledged-marker";
         ignore (F.confirm_current ~session:loaded ~attempt_id:id);
-        let resumed = C.reload stopped in
+        let resumed = Daily_interaction_context.reload stopped in
         require
           ((not resumed.blocked) && resumed.pending = None && not (C.has_record_draft resumed))
           "recovery-confirmation-retained-retry-draft";

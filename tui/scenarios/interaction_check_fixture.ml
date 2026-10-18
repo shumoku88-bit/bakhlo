@@ -112,6 +112,21 @@ let materialize_example_book () =
   if Sys.file_exists example_book then Unix.unlink example_book;
   F.write_new example_book bytes
 
+(* The open record editor session, whichever route it floats over. *)
+module E = Record_editors
+
+let session_of (state : C.state) = E.active state.screens.editors
+
+let with_session (state : C.state) session =
+  { state with screens = { state.screens with editors = E.open_session session state.screens.editors } }
+
+(* Nothing modal is open: neither a Shell overlay nor any owner's editor. *)
+let no_modal (state : C.state) =
+  state.overlay = C.No_overlay && Option.is_none (Screen_registry.modal state.screens)
+
+let is_reversal state = match session_of state with Some (E.Reversal _) -> true | _ -> false
+let is_plan_create state = match session_of state with Some (E.Scheduled_create _) -> true | _ -> false
+
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
 

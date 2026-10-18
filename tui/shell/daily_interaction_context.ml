@@ -31,30 +31,6 @@ let record_dimensions ~dimensions:((width, height) as dimensions) ~width_of stat
   S.surface_dimensions
     (width, max 0 (height - List.length (feedback_lines ~dimensions ~width_of state)))
 
-let reversal_dimensions ~dimensions ~width_of state =
-  Rev.dimensions (body_dimensions ~dimensions ~width_of state)
-
-let date_dimensions ~dimensions ~width_of state =
-  Date.dimensions (body_dimensions ~dimensions ~width_of state)
-let merchant_dimensions ~dimensions ~width_of state =
-  Merchant.dimensions (body_dimensions ~dimensions ~width_of state)
-
-
-let scheduled_dimensions ~dimensions ~width_of state =
-  Sch.dimensions (body_dimensions ~dimensions ~width_of state)
-
-let continuation_dimensions ~dimensions ~width_of state =
-  Cont.dimensions (body_dimensions ~dimensions ~width_of state)
-
-let cancellation_dimensions ~dimensions ~width_of state =
-  Cancel.dimensions (body_dimensions ~dimensions ~width_of state)
-
-let bulk_dimensions ~dimensions ~width_of state =
-  Bulk.dimensions (body_dimensions ~dimensions ~width_of state)
-
-let generate_dimensions ~dimensions ~width_of state =
-  Gen.dimensions (body_dimensions ~dimensions ~width_of state)
-
 let actual_dimensions ~dimensions ~width_of state =
   let width, body_height = body_dimensions ~dimensions ~width_of state in
   (width, max 0 (body_height - 2))
@@ -254,6 +230,18 @@ let execute_publication state = function
         ~id:locus ~label ~help ()
   | Screen.Commit_transaction { transaction; base } ->
       A.commit_transaction ~session:state.session ~base_bytes:base transaction
+  | Screen.Reverse_entry { id; day; base } ->
+      A.commit_reverse_entry ~session:state.session ~base_bytes:base ~id ~day
+  | Screen.Correct_entry { transaction; base } ->
+      A.commit_transaction ~session:state.session ~base_bytes:base transaction
+  | Screen.Classify_merchant { id; disposition; base; message = _ } ->
+      A.commit_classify_merchant ~session:state.session ~base_bytes:base ~id ~disposition
+  | Screen.Cancel_plan { id; day; base } ->
+      A.commit_cancel_plan ~session:state.session ~base_bytes:base ~id ~day
+  | Screen.Plan_batch { plans; replace; base } ->
+      A.commit_plan_batch ~replace ~session:state.session ~base_bytes:base plans
+  | Screen.Create_plan { plan; base } ->
+      A.commit_payload ~session:state.session ~base_bytes:base (A.Plan_tx { plan; replace = false })
   | Screen.Observe_quantities _ -> invalid_arg "observations publish through publish_observation"
 
 (* Observations publish a whole candidate book; their outcomes map directly. *)
@@ -310,13 +298,24 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
       { state with blocked = true; message = Option.value ~default:state.message why }
   | Screen.Publish publication ->
       let result = execute_publication state publication in
+      let outcome = function
+        | A.Published _ | A.Idempotent_duplicate _ -> Screen.Published
+        | A.Refused why -> Screen.Publish_refused why
+        | A.Conflict | A.Conflict_base_changed -> Screen.Publish_conflict
+        | _ -> Screen.Publish_stopped
+      in
+      (* Editor sessions keep their review open and the Shell reports every
+         outcome; Loci and Exchange show refusals and conflicts in their form. *)
+      let shell_reports = match publication with
+        | Screen.Add_locus _ | Screen.Set_locus_label _ | Screen.Commit_transaction _ -> false
+        | _ -> true in
+      let published_message = match publication with
+        | Screen.Classify_merchant { message; _ } -> Some message | _ -> None in
       let state, request =
         match result with
-        | A.Refused why -> published state (Screen.Publish_refused why)
-        | A.Conflict | A.Conflict_base_changed -> published state Screen.Publish_conflict
-        | A.Published _ | A.Idempotent_duplicate _ ->
-            published (apply_commit_result state ~draft:state result) Screen.Published
-        | _ -> published (apply_commit_result state ~draft:state result) Screen.Publish_stopped
+        | (A.Refused _ | A.Conflict | A.Conflict_base_changed) when not shell_reports ->
+            published state (outcome result)
+        | _ -> published (apply_commit_result ?published_message state ~draft:state result) (outcome result)
       in
       apply_request ~saved ~published state request
   | Screen.Save_attention { expected; next } ->

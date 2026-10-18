@@ -66,6 +66,16 @@ type publication =
       (** Publish an entry reviewed against [base]; a different file refuses. *)
   | Observe_quantities of { rows : (string * string * Z.t) list; base : string }
       (** Observe exact quantities together as one reconciliation group. *)
+  (* Editor sessions: the Shell reports every outcome itself, as for Record. *)
+  | Reverse_entry of { id : string; day : string; base : string }
+  | Correct_entry of { transaction : Daily_draft.transaction; base : string }
+  | Classify_merchant of {
+      id : string; disposition : Bakhlo_application.Event_merchants.disposition; base : string;
+      message : string;  (** Success report replacing the generic one. *)
+    }
+  | Cancel_plan of { id : string; day : string; base : string }
+  | Plan_batch of { plans : Bakhlo_sexp.Daily_book.plan list; replace : bool; base : string }
+  | Create_plan of { plan : Bakhlo_sexp.Daily_book.plan; base : string }
 
 type publish_outcome =
   | Published  (** Read back; the Shell already reported it and reloaded the book. *)

@@ -19,7 +19,7 @@ let run ~width_of (home : C.state) =
     | None -> failwith "expected modal form"
   in
   let state_with_overdue = key ~width_of form_with_text `Enter in
-  require (state_with_overdue.overlay = C.No_overlay && visible_form state_with_overdue = None) "attention-overdue-submitted";
+  require (no_modal state_with_overdue) "attention-overdue-submitted";
   (* 2. Add second item (No due date) *)
   let modal_add2 = key ~width_of state_with_overdue (`ASCII 'n') in
   let form_with_text2 =
@@ -32,7 +32,7 @@ let run ~width_of (home : C.state) =
     | None -> failwith "expected modal form"
   in
   let added_state = key ~width_of form_with_text2 `Enter in
-  require (added_state.overlay = C.No_overlay && visible_form added_state = None) "attention-add-submitted";
+  require (no_modal added_state) "attention-add-submitted";
   let open_items = open_attentions added_state in
   require (List.length open_items = 2) "attention-two-items-added";
   (* Test screen layout, header rule, and overdue signal *)
@@ -52,13 +52,13 @@ let run ~width_of (home : C.state) =
   let modal_drop = key ~width_of added_state (`ASCII 'x') in
   require (visible_form_id modal_drop = Some "drop_attention") "attention-x-opens-drop-form";
   let dropped_state = key ~width_of modal_drop `Enter in
-  require (dropped_state.overlay = C.No_overlay && visible_form dropped_state = None) "attention-drop-submitted";
+  require (no_modal dropped_state) "attention-drop-submitted";
   require (List.length (open_attentions dropped_state) = 1) "attention-item-dropped";
   (* Test resolve 'r' on second item *)
   let modal_resolve = key ~width_of dropped_state (`ASCII 'r') in
   require (visible_form_id modal_resolve = Some "resolve_attention") "attention-r-opens-resolve-form";
   let resolved_state = key ~width_of modal_resolve `Enter in
-  require (resolved_state.overlay = C.No_overlay && visible_form resolved_state = None) "attention-resolve-submitted";
+  require (no_modal resolved_state) "attention-resolve-submitted";
   require (List.length (open_attentions resolved_state) = 0) "attention-all-items-resolved";
   let back_home = key ~width_of resolved_state (`ASCII 'q') in
   require (back_home.workspace.route = W.Home) "attention-q-back-to-home";

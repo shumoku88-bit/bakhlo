@@ -22,13 +22,13 @@ let annual_lifecycle_checks ~width_of ~directory () =
   let bytes = F.read (path prior_year) in
   let review = X.open_command base M.Annual_rollover in
   let kept = key ~width_of review `Enter in
-  require (not (Sys.file_exists (path year)) && kept.overlay = C.No_overlay)
+  require (not (Sys.file_exists (path year)) && no_modal kept)
     "annual-keep-created-year";
   let selected = key ~width_of review (`Arrow `Right) in
   let narrow = key ~width_of ~dimensions:(48,14) selected `Enter in
   require (not (Sys.file_exists (path year))) "annual-hidden-review-created";
   let kept_after_resize = key ~width_of narrow `Enter in
-  require (not (Sys.file_exists (path year)) && kept_after_resize.overlay = C.No_overlay)
+  require (not (Sys.file_exists (path year)) && no_modal kept_after_resize)
     "annual-resize-kept-dangerous-choice";
   let created = key ~width_of selected `Enter in
   require (created.session.F.annual_year = Some year && F.read (path prior_year) = bytes)

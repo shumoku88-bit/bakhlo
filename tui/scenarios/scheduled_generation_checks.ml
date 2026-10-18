@@ -43,17 +43,17 @@ let self_check ~width_of () =
     |> fun s -> C.open_route s Ui_workspace.Scheduled
     |> fun s -> C.sync { s with workspace = Ui_workspace.set_query s.workspace source.id } in
   let opened = C.extend_plan_selected state in
-  require (match opened.C.overlay with C.Scheduled_generate _ -> true | _ -> false)
+  require (match Interaction_check_fixture.session_of opened with Some (Record_editors.Scheduled_generate _) -> true | _ -> false)
     "controller-extend_plan_selected-opens-generate";
   let opened_by_key = Option.get (H.handle ~dimensions:(140, 40) ~width_of state (key (`ASCII 'g'))) in
-  require (match opened_by_key.C.overlay with C.Scheduled_generate _ -> true | _ -> false)
+  require (match Interaction_check_fixture.session_of opened_by_key with Some (Record_editors.Scheduled_generate _) -> true | _ -> false)
     "controller-key-g-opens-generate";
   let ckey state button = Option.get (H.handle ~dimensions:(140, 40) ~width_of state (key button)) in
   let cstep state event = Option.get (H.handle ~dimensions:(140, 40) ~width_of state event) in
 
   (* Cancel in parameters closes overlay without write *)
   let cancelled = ckey opened `Escape in
-  require (cancelled.overlay = C.No_overlay && F.read path = base)
+  require ((Interaction_check_fixture.no_modal cancelled) && F.read path = base)
     "controller-generate-cancel-leaves-disk-unchanged";
 
   (* 2. Terminal source refusal *)
@@ -167,21 +167,21 @@ let self_check ~width_of () =
   let controller_ended = ckey controller_to_publish `End in
   let published_state = ckey controller_ended `Enter in
   let cold_controller = F.load path in
-  require (published_state.overlay = C.No_overlay
+  require ((Interaction_check_fixture.no_modal published_state)
            && List.length (B.plans cold_controller.book) = 3) (* source + 2026-11-15 + 2026-12-15 *)
     "controller-publishes-all-generated-plans-atomically";
 
   (* 7. Stale base protection on reload *)
-  let stale = C.reload controller_run |> fun s -> ckey s `Enter in
+  let stale = Daily_interaction_context.reload controller_run |> fun s -> ckey s `Enter in
   require (stale.blocked && F.read path = cold_controller.bytes
-           && match stale.overlay with C.Scheduled_generate editor -> S.base_bytes editor = base | _ -> false)
+           && match Interaction_check_fixture.session_of stale with Some (Record_editors.Scheduled_generate editor) -> S.base_bytes editor = base | _ -> false)
     "controller-reload-cannot-bless-stale-generation";
 
   (* 8. Held record draft prevents extend *)
   let held = C.open_record state |> fun s -> ckey s (`ASCII 'x') |> fun s -> ckey s `Escape in
   let refused = C.extend_plan_selected held in
   require (C.has_record_draft held && refused.record = held.record
-           && refused.overlay = C.No_overlay && F.read path = cold_controller.bytes)
+           && (Interaction_check_fixture.no_modal refused) && F.read path = cold_controller.bytes)
     "controller-held-record-prevents-extend";
 
   print_endline "PASS: Scheduled generation proposes explicit dates, preserves exact quanta, validates boundaries, enforces Cancel default, end/tiny gates, stale reload refusal and atomic cold commit."

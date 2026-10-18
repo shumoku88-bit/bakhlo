@@ -141,7 +141,7 @@ let theme_check ~width_of ~directory home =
             "theme-cancel-restores-original-without-save";
           unchanged cancelled) [ `Escape; `ASCII 'q' ];
       let saved = key ~width_of preview `Enter in
-      require (saved.theme = theme && saved.overlay = C.No_overlay
+      require (saved.theme = theme && no_modal saved
                && saved.ui_notice = Some "Theme saved.") "theme-enter-saves";
       require ((C.initial ~config_home:directory (F.load path)).theme = theme)
         "theme-cold-reopen";
@@ -157,7 +157,7 @@ let theme_check ~width_of ~directory home =
   unchanged cancelled;
   let preview = choose 1 in
   let failed = key ~width_of { preview with C.config_home = Some path } `Enter in
-  require (failed.theme = P.Bakhlo_light && failed.overlay = C.No_overlay
+  require (failed.theme = P.Bakhlo_light && no_modal failed
            && failed.ui_notice = Some
                 "Theme changed for this session only; settings could not be saved.")
     "theme-save-failure-keeps-session-choice-and-reports-limit";

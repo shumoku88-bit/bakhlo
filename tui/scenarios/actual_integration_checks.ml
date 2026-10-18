@@ -283,8 +283,8 @@ let reversal_checks ~width_of ~directory home =
   let names () = Sys.readdir directory |> Array.to_list |> List.sort String.compare in
   let before_names = names () in
   let unchanged label = require (F.read path = before && names () = before_names) label in
-  let editor state = match state.C.overlay with
-    | C.Reversal editor -> editor | _ -> raise (F.Refused "reversal-editor-lost") in
+  let editor state = match session_of state with
+    | Some (E.Reversal editor) -> editor | _ -> raise (F.Refused "reversal-editor-lost") in
   let input state event = match H.handle ~width_of state event with
     | Some s -> s | None -> raise (F.Refused "reversal-exited-controller") in
   let date state value =
@@ -333,7 +333,7 @@ let reversal_checks ~width_of ~directory home =
   let edit_action = key ~width_of (key ~width_of review `Tab) `Enter in
   require (not (Rev.is_preview (editor edit_action))) "reversal-selected-edit";
   List.iter (fun cancelled ->
-    require (cancelled.C.overlay = C.No_overlay && cancelled.workspace = opened.workspace
+    require ((no_modal cancelled) && cancelled.workspace = opened.workspace
              && cancelled.scroll = opened.scroll) "reversal-cancel-retains-parent")
     [key ~width_of opened `Escape; key ~width_of review (`ASCII 'q');
       key ~width_of (key ~width_of (key ~width_of review `Tab) `Tab) `Enter];
@@ -342,7 +342,7 @@ let reversal_checks ~width_of ~directory home =
   require (day_cancel.workspace = day_view.workspace) "reversal-selected-day-parent-retained";
   let held = prepare_record ~width_of base |> fun s -> key ~width_of s `Escape in
   let guarded = key ~width_of held (`ASCII 'x') in
-  require (guarded.overlay = C.No_overlay && guarded.record = held.record && C.has_record_draft guarded)
+  require ((no_modal guarded) && guarded.record = held.record && C.has_record_draft guarded)
     "reversal-does-not-destroy-retained-record-draft";
   let paste = input review (`Paste `Start) in
   let paste = input paste (`Key (`Enter, [])) |> fun s -> input s (`Key (`ASCII 'q', [])) in
@@ -351,7 +351,7 @@ let reversal_checks ~width_of ~directory home =
   unchanged "reversal-input-review-cancel-refusal-do-not-write-or-allocate-artifacts";
   let missing = { review with session = { review.session with path = directory ^ "/missing/book.sexp" } } in
   let failed = key ~width_of missing `Enter in
-  require (C.is_reverse_entry failed.overlay && not (Rev.is_preview (editor failed))
+  require (is_reversal failed && not (Rev.is_preview (editor failed))
            && Rev.day (editor failed) = "2026-10-09"
            && Rev.base_bytes (editor failed) = before && failed.message <> "")
     "reversal-storage-refusal-keeps-date-target-and-base";
@@ -361,7 +361,7 @@ let reversal_checks ~width_of ~directory home =
   let records = C.initial ~config_home:directory (F.load records_path) |> fun s -> C.open_route s W.Actual in
   let records_bytes = F.read records_path in
   let records_refused = key ~width_of (key ~width_of (key ~width_of records (`ASCII 'x')) `Enter) `Enter in
-  require (C.is_reverse_entry records_refused.overlay && not (Rev.is_preview (editor records_refused))
+  require (is_reversal records_refused && not (Rev.is_preview (editor records_refused))
            && F.read records_path = records_bytes
            && Bakhlo_sexp.Durable_append.current_lsn (Option.get records.session.engine)
               = Bakhlo_sexp.Durable_append.current_lsn (Option.get records_refused.session.engine))
@@ -415,7 +415,7 @@ let reversal_checks ~width_of ~directory home =
   let fresh = key ~width_of (key ~width_of (key ~width_of reset (`ASCII 'x')) `Enter) `Enter in
   let cold = F.load path in
   let reversal = List.find (fun (e : B.entry) -> e.reversal_of = Some target.id) (B.entries cold.book) in
-  require (fresh.overlay = C.No_overlay && B.find_entry cold.book target.id = Some changed_target
+  require ((no_modal fresh) && B.find_entry cold.book target.id = Some changed_target
            && reversal.day = F.today () && List.length reversal.effects = List.length target.effects)
     "reversal-cold-readback-original-and-relation";
   List.iter2 (fun original inverse -> require
@@ -429,13 +429,13 @@ let reversal_checks ~width_of ~directory home =
   let unknown_base = C.initial ~config_home:directory (F.load unknown_path) |> fun s -> C.open_route s W.Actual in
   let unknown_review = key ~width_of (key ~width_of unknown_base (`ASCII 'x')) `Enter in
   let candidate = get (B.put_entry book ~replace:false { reversal with id = "unknown-reversal" } ~plan:None) in
-  let draft = { unknown_review with overlay = C.Reversal (Rev.with_publish_error (editor unknown_review)) } in
+  let draft = (with_session unknown_review (E.Reversal (Rev.with_publish_error (editor unknown_review)))) in
   let unknown () = C.apply_commit_result unknown_review ~draft
     (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
       evidence = Daily_actions.Monolithic_candidate (B.to_string candidate) }) in
   let unconfirmed = input (unknown ()) (`Key (`ASCII 'r', [ `Ctrl ])) in
   require (unconfirmed.blocked && unconfirmed.pending <> None
-           && C.is_reverse_entry unconfirmed.overlay && F.read unknown_path = before)
+           && is_reversal unconfirmed && F.read unknown_path = before)
     "reversal-unknown-reload-does-not-retry";
   let attempted = key ~width_of unconfirmed `Enter in
   require (not (Rev.is_preview (editor attempted)) && attempted.pending = unconfirmed.pending)
@@ -443,7 +443,7 @@ let reversal_checks ~width_of ~directory home =
   (match F.publish unknown_base.session candidate with F.Written _ -> () | _ -> raise (F.Refused "reversal-ack-setup"));
   let present_bytes = F.read unknown_path in
   let confirmed = input (unknown ()) (`Key (`ASCII 'r', [ `Ctrl ])) in
-  require (not confirmed.blocked && confirmed.pending = None && confirmed.overlay = C.No_overlay
+  require (not confirmed.blocked && confirmed.pending = None && (no_modal confirmed)
            && F.read unknown_path = present_bytes && List.length (B.entries confirmed.session.book) = 2)
     "reversal-confirmed-reload-closes-draft-without-duplicate";
   print_endline "PASS: reversal date/Preview, exact signed quantities, tiny/end gates, cancel/draft retention, stale base, storage/Records refusal, unknown/reload and cold inverse (synthetic)."
@@ -467,8 +467,8 @@ let date_correction_checks ~width_of ~directory home =
   F.write_new path (B.to_string book);
   let before = F.read path in
   let base = C.open_route (C.initial ~config_home:directory (F.load path)) (W.Selected_day target.day) in
-  let editor state = match state.C.overlay with
-    | C.Date_correction e -> e | _ -> raise (F.Refused "date-editor-lost") in
+  let editor state = match session_of state with
+    | Some (E.Date_correction e) -> e | _ -> raise (F.Refused "date-editor-lost") in
   let input state event = match H.handle ~width_of state event with
     | Some s -> s | None -> raise (F.Refused "date-controller-exited") in
   let date state value =
@@ -487,7 +487,7 @@ let date_correction_checks ~width_of ~directory home =
   require (not (Date.is_preview (editor back)) && Date.day (editor back) = "2026-10-12")
     "date-preview-escape-keeps-input";
   let cancelled = key ~width_of review (`ASCII 'q') in
-  require (cancelled.overlay = C.No_overlay && cancelled.workspace = base.workspace && F.read path = before)
+  require ((no_modal cancelled) && cancelled.workspace = base.workspace && F.read path = before)
     "date-cancel-retains-parent-and-bytes";
   List.iter (fun dimensions ->
     let small = key ~dimensions ~width_of review `Enter in
@@ -495,7 +495,7 @@ let date_correction_checks ~width_of ~directory home =
       "date-tiny-preview-cannot-publish") [32,9;48,14;80,14];
   let held = prepare_record ~width_of base |> fun s -> key ~width_of s `Escape in
   let refused = key ~width_of held (`ASCII 'd') in
-  require (refused.overlay = C.No_overlay && refused.record = held.record)
+  require ((no_modal refused) && refused.record = held.record)
     "date-does-not-discard-record-draft";
   let pasted = input review (`Paste `Start)
     |> fun s -> input s (`Key (`Enter, []))
@@ -511,7 +511,7 @@ let date_correction_checks ~width_of ~directory home =
     |> fun s -> key ~width_of s `Enter in
   let saved = key ~width_of actual_review `Enter in
   let cold = F.load path in
-  require (saved.overlay = C.No_overlay && B.find_entry cold.book target.id = Some { target with day = "2026-10-12" }
+  require ((no_modal saved) && B.find_entry cold.book target.id = Some { target with day = "2026-10-12" }
            && B.plans cold.book = B.plans book && List.length (B.entries cold.book) = List.length (B.entries book))
     "date-cold-save-changes-only-date-preserves-keys-and-plan-link";
   require ((W.browser saved.workspace).selected_id = Some (W.Actual_row, target.id)
@@ -769,14 +769,14 @@ let event_merchant_integration_checks ~width_of ~directory () =
   let search_typed_m = Option.get (H.handle ~width_of search_started (`Key (`ASCII 'm', []))) in
   require (Act.search_editing search_typed_m.actual_workspace && Act.search_query search_typed_m.actual_workspace = "m")
     "merch-typing-m-in-search-updates-query";
-  require (search_typed_m.overlay = C.No_overlay) "merch-search-does-not-open-editor";
+  require ((no_modal search_typed_m)) "merch-search-does-not-open-editor";
   let search_cleared = Option.get (H.handle ~width_of search_typed_m (`Key (`Escape, []))) in
   require (not (Act.search_editing search_cleared.actual_workspace)) "merch-search-cleared";
 
   (* 2. Open Event Merchant editor on unclassified Actual 'e1' *)
   let merch_opened = Option.get (H.handle ~width_of search_cleared (`Key (`ASCII 'm', []))) in
-  let editor = match merch_opened.overlay with
-    | C.Event_merchant ed -> ed
+  let editor = match session_of merch_opened with
+    | Some (E.Event_merchant ed) -> ed
     | _ -> failwith "merch-editor-not-opened"
   in
   require (Merchant.choice editor = Merchant.Merchant && Merchant.party_input editor = "")
@@ -788,7 +788,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
 
   (* Empty party ID refusal on Enter *)
   let empty_enter = Option.get (H.handle ~width_of merch_opened (`Key (`Enter, []))) in
-  let empty_ed = match empty_enter.overlay with C.Event_merchant ed -> ed | _ -> failwith "empty-ed-lost" in
+  let empty_ed = match session_of empty_enter with Some (E.Event_merchant ed) -> ed | _ -> failwith "empty-ed-lost" in
   require (not (Merchant.is_preview empty_ed) && empty_enter.message = "") "empty-stays-editing";
   let empty_screen = Option.get (R.overlay_screen ~dimensions:(80, 24) ~width_of empty_enter) in
   require (contains empty_screen "Merchant party id must be a non-empty single text field.")
@@ -796,7 +796,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
 
   (* Tab toggles to Nonmerchant *)
   let tab_nonmerch = Option.get (H.handle ~width_of empty_enter (`Key (`Tab, []))) in
-  let nonmerch_ed = match tab_nonmerch.overlay with C.Event_merchant ed -> ed | _ -> failwith "nonmerch-ed-lost" in
+  let nonmerch_ed = match session_of tab_nonmerch with Some (E.Event_merchant ed) -> ed | _ -> failwith "nonmerch-ed-lost" in
   require (Merchant.choice nonmerch_ed = Merchant.Nonmerchant) "merch-tab-toggles-nonmerchant";
   let nonmerch_screen = Option.get (R.overlay_screen ~dimensions:(80, 24) ~width_of tab_nonmerch) in
   require (contains nonmerch_screen "Disposition: Nonmerchant" && contains nonmerch_screen "Party id: (not applicable)")
@@ -804,12 +804,12 @@ let event_merchant_integration_checks ~width_of ~directory () =
 
   (* In Nonmerchant, character typing is ignored *)
   let ignore_type = Option.get (H.handle ~width_of tab_nonmerch (`Key (`ASCII 's', []))) in
-  let ignore_ed = match ignore_type.overlay with C.Event_merchant ed -> ed | _ -> failwith "ignore-ed-lost" in
+  let ignore_ed = match session_of ignore_type with Some (E.Event_merchant ed) -> ed | _ -> failwith "ignore-ed-lost" in
   require (Merchant.party_input ignore_ed = "") "merch-nonmerchant-ignores-typing";
 
   (* Tab back to Merchant *)
   let tab_merch = Option.get (H.handle ~width_of ignore_type (`Key (`Tab, []))) in
-  let merch_ed = match tab_merch.overlay with C.Event_merchant ed -> ed | _ -> failwith "merch-ed-lost" in
+  let merch_ed = match session_of tab_merch with Some (E.Event_merchant ed) -> ed | _ -> failwith "merch-ed-lost" in
   require (Merchant.choice merch_ed = Merchant.Merchant) "merch-tab-toggles-merchant";
 
   (* Type party 'sanwa' *)
@@ -818,7 +818,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
 
   (* Cancel leaves disk unchanged *)
   let cancelled = Option.get (H.handle ~width_of typed (`Key (`Escape, []))) in
-  require (cancelled.overlay = C.No_overlay && F.read path = initial_bytes) "merch-cancel-preserves-disk";
+  require ((no_modal cancelled) && F.read path = initial_bytes) "merch-cancel-preserves-disk";
   require (cancelled.message = "Merchant classification cancelled.") "merch-cancel-message";
 
   (* Reopen and transition to Preview *)
@@ -826,7 +826,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   let typed_again = List.fold_left (fun s c -> Option.get (H.handle ~width_of s (`Key (`ASCII c, []))))
     reopened ['s'; 'a'; 'n'; 'w'; 'a'] in
   let preview = Option.get (H.handle ~width_of typed_again (`Key (`Enter, []))) in
-  let prev_ed = match preview.overlay with C.Event_merchant ed -> ed | _ -> failwith "prev-ed-lost" in
+  let prev_ed = match session_of preview with Some (E.Event_merchant ed) -> ed | _ -> failwith "prev-ed-lost" in
   require (Merchant.is_preview prev_ed) "merch-preview-mode";
   let prev_screen = Option.get (R.overlay_screen ~dimensions:(80, 24) ~width_of preview) in
   require (contains prev_screen "Event Merchant / Preview" && contains prev_screen "Target remains: e1"
@@ -834,7 +834,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
 
   (* Edit return from Preview via 'e' *)
   let returned_edit = Option.get (H.handle ~width_of preview (`Key (`ASCII 'e', []))) in
-  let ret_ed = match returned_edit.overlay with C.Event_merchant ed -> ed | _ -> failwith "ret-ed-lost" in
+  let ret_ed = match session_of returned_edit with Some (E.Event_merchant ed) -> ed | _ -> failwith "ret-ed-lost" in
   require (not (Merchant.is_preview ret_ed) && Merchant.party_input ret_ed = "sanwa")
     "merch-return-preserves-input";
   let preview_again = Option.get (H.handle ~width_of returned_edit (`Key (`Enter, []))) in
@@ -849,7 +849,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
 
   (* Publish at normal dimensions *)
   let published = Option.get (H.handle ~width_of preview_again (`Key (`Enter, []))) in
-  require (published.overlay = C.No_overlay) "merch-published-closes-overlay";
+  require ((no_modal published)) "merch-published-closes-overlay";
   require (published.message = "Published Merchant sanwa for e1.") "merch-published-message";
   let published_bytes = F.read path in
   require (published_bytes <> initial_bytes) "merch-published-mutated-disk";
@@ -868,7 +868,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
 
   (* 3. Duplicate classification refusal: pressing 'm' on classified entry *)
   let repeat_attempt = Option.get (H.handle ~width_of actual_post (`Key (`ASCII 'm', []))) in
-  require (repeat_attempt.overlay = C.No_overlay) "merch-repeat-does-not-open";
+  require ((no_modal repeat_attempt)) "merch-repeat-does-not-open";
   require (repeat_attempt.message = "Merchant already classified: Merchant sanwa.") "merch-repeat-message";
 
   (* 4. Nonmerchant publication on second entry *)
@@ -967,7 +967,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   let ed_fail_prev = Option.get (H.handle ~width_of ed_fail_typed (`Key (`Enter, []))) in
   let bad_path_state = { ed_fail_prev with session = { ed_fail_prev.session with path = dir ^ "/missing_dir/book.sexp" } } in
   let fail_pub = Option.get (H.handle ~width_of bad_path_state (`Key (`Enter, []))) in
-  require (fail_pub.overlay <> C.No_overlay && F.read path = cur_bytes) "merch-save-fail-preserves-draft-and-disk";
+  require (Option.is_some (session_of fail_pub) && F.read path = cur_bytes) "merch-save-fail-preserves-draft-and-disk";
 
   (* 8. Stale conflict: another writer modified disk *)
   let stale_state = { ed_fail_prev with session = { ed_fail_prev.session with path } } in

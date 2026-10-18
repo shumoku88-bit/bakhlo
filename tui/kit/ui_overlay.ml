@@ -28,3 +28,21 @@ let form_fits ~width_of ~body:((_, body_h) as body) form =
   let pane_w = modal_width ~body in
   let rows = Ui_form.render_rows ~width:(max 0 (pane_w - 6)) ~height:max_int ~width_of form in
   pane_w >= 48 && List.length rows <= Ui_panel.capacity ~height:body_h ~heading:false
+
+let centered ~width_of ~screen:(width, height) ~body:(body_w, body_h) ~pane_width ~caret rows =
+  if body_w < 8 || body_h < 3 then None
+  else
+    let pane_height = List.length rows in
+    let origin_x = max 0 ((width - pane_width) / 2) in
+    let origin_y = max 0 ((body_h - pane_height) / 2) in
+    let cursor =
+      match caret with
+      | `None -> None
+      | `Free | `Bounded -> (
+          match Ui_render.cursor_in_rows ~width_of ~width:pane_width rows with
+          | Some (col, row) ->
+              let c = origin_x + col and r = origin_y + row in
+              if caret = `Bounded && not (c < width && r < height) then None else Some (c, r)
+          | None -> None)
+    in
+    Some { origin_x; origin_y; pane_width; pane_height; rows; cursor }

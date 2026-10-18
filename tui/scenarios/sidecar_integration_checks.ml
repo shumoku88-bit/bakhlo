@@ -54,7 +54,7 @@ let safety_checks ~width_of ~directory () =
     "attention-dangling-link-refuses-without-fallback";
   Unix.unlink att_path;
   get (Attention_file.save_file att_path ~expected:Att.empty att);
-  require ((C.reload broken).attention = Ok att) "explicit-reload-refreshes-sidecar";
+  require ((Daily_interaction_context.reload broken).attention = Ok att) "explicit-reload-refreshes-sidecar";
   List.iter (fun raw -> require (Result.is_error (Stl.of_string raw)) "settlement-invalid-input-refused")
     [ "broken\n"; "id\t\ta\tb\tjpy\tbad\t0\t0\n";
       "id\t\ta\tb\tjpy\t10\t11\t0\n"; "id\t\ta\tb\tjpy\t10\t-1\t0\n";
@@ -122,7 +122,7 @@ let safety_checks ~width_of ~directory () =
   require ((visible_form_id reviewed = Some "review_pool")
     && F.read pool_path = "wallet\tjpy\n" && F.read windows_path = boundaries) "pool-review-does-not-save";
   let saved = key ~width_of reviewed `Enter in
-  require (saved.overlay = C.No_overlay && visible_form saved = None
+  require (no_modal saved
     && F.read pool_path = "wallet\tjpy\nbank\tjpy\n"
     && F.read windows_path = boundaries) "pool-save-preserves-all-presets";
   let stale_open = open_pool_editor home in
@@ -137,6 +137,6 @@ let safety_checks ~width_of ~directory () =
   let form = Option.get (visible_form opened) |> fun f -> Ui_form.set_focused f 1 in
   let reviewed = key ~width_of (with_visible_form opened form) `Enter in
   let saved = key ~width_of reviewed `Enter in
-  require (saved.overlay = C.No_overlay && visible_form saved = None && not (Sys.file_exists windows_path)) "pool-save-does-not-invent-period";
+  require (no_modal saved && not (Sys.file_exists windows_path)) "pool-save-does-not-invent-period";
   print_endline "PASS: sidecar refusal/draft preservation, strict inputs, explicit Pace, negative What-if and non-destructive Pool edits."
 

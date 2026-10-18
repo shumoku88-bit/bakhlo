@@ -359,7 +359,7 @@ let observe_multi_checks ~width_of ~directory () =
     "observe-edit-retains-rows";
   (* Publish once: wallet 1234, bank 0, unmentioned food 5500 preserved. *)
   let published = publish (to_preview edited) in
-  require (published.C.overlay = C.No_overlay && visible_form published = None) "observe-publish-closes";
+  require (no_modal published) "observe-publish-closes";
   let cold = (F.load path).book in
   require (b2_check_qty cold "wallet" "jpy" = "1234" && b2_check_qty cold "bank" "jpy" = "0"
     && b2_check_qty cold "food" "jpy" = "5500") "observe-publish-wallet-bank-preserves-food";
@@ -396,7 +396,7 @@ let observe_multi_checks ~width_of ~directory () =
    require (is_preview st && notice st <> "" && F.read path = bytes_before)
      "observe-duplicate-retains-preview-refusal";
    let closed = key ~width_of ~dimensions:(100, 30) st `Escape in
-   require (closed.C.overlay = C.No_overlay && visible_form closed = None && F.read path = bytes_before) "observe-duplicate-cancel-no-write");
+   require (no_modal closed && F.read path = bytes_before) "observe-duplicate-cancel-no-write");
   (* Blocked publish retains Preview; small terminal refuses publish; both no-write. *)
   (let st = key ~width_of (fresh_home ()) (`ASCII 'o') in
    let st = press (fill st "wallet" "jpy" "7") in

@@ -35,7 +35,7 @@ let run ~width_of ~directory (back_home : C.state) =
        require (Ui_form.title f = "Income & Expense / Print Preview") "ie-print-title"
    | None -> failwith "expected ie print preview modal");
   let ie_after_print = key ~width_of ie_print `Escape in
-  require (ie_after_print.overlay = C.No_overlay && visible_form ie_after_print = None) "ie-print-escapes";
+  require (no_modal ie_after_print) "ie-print-escapes";
   let ie_back_home = key ~width_of ie_ctl (`ASCII 'q') in
   require (ie_back_home.workspace.route = W.Home) "ie-q-back-to-home";
   (* Test Transactions Flow report with Cycle / Month / Year / All-Time *)
@@ -83,7 +83,7 @@ let run ~width_of ~directory (back_home : C.state) =
        require (Ui_form.title f = "Transactions Flow / Print Preview") "flow-print-title"
    | None -> failwith "expected flow print preview modal");
   let flow_after_print = key ~width_of flow_print `Escape in
-  require (flow_after_print.overlay = C.No_overlay && visible_form flow_after_print = None) "flow-print-escapes";
+  require (no_modal flow_after_print) "flow-print-escapes";
   let flow_back_home = key ~width_of flow_ctl (`ASCII 'q') in
   require (flow_back_home.workspace.route = W.Home) "flow-q-back-to-home";
   let sf_dir = directory ^ "/stock-flow" in
@@ -99,7 +99,7 @@ let run ~width_of ~directory (back_home : C.state) =
   let refused () =
     require (Result.is_error (stock_flow_result sf_ctl)) "sf-invalid-evidence-refuses";
     let printed = key ~width_of sf_ctl (`ASCII 'p') in
-    require (printed.overlay = C.No_overlay && visible_form printed = None && printed.message <> "")
+    require (no_modal printed && printed.message <> "")
       "sf-invalid-evidence-cannot-print-numeric-report"
   in
   refused ();

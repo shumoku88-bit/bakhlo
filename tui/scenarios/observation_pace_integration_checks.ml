@@ -25,7 +25,7 @@ let run ~width_of ~directory (back_home : C.state) =
   require ((match visible_form invalid_state with Some f -> Ui_form.notice f <> "" | None -> false)
     && b2_check_qty invalid_state.C.session.book "wallet" "jpy" = q_before) "refuses-invalid-observe";
   let cancelled_obs = key ~width_of invalid_state `Escape in
-  require (cancelled_obs.overlay = C.No_overlay && visible_form cancelled_obs = None) "observe-cancel-escapes";
+  require (no_modal cancelled_obs) "observe-cancel-escapes";
   let check_qty book locus measure = b2_check_qty book locus measure in
   let observe_one base_state locus amount =
     let st = key ~width_of base_state (`ASCII 'o') in
@@ -79,7 +79,7 @@ let run ~width_of ~directory (back_home : C.state) =
    | _ -> failwith "expected what_if result modal");
   (* Close simulator with Escape without altering ledger *)
   let closed_sim = key ~width_of sim_res_state `Escape in
-  require (closed_sim.overlay = C.No_overlay && visible_form closed_sim = None) "what-if-closed-on-esc";
+  require (no_modal closed_sim) "what-if-closed-on-esc";
   require (check_qty closed_sim.session.book "wallet" "jpy" = "5000") "what-if-does-not-alter-ledger";
   (* 3. Configure Daily Pace modal via 'c' *)
   let cfg_state = key ~width_of closed_sim (`ASCII 'c') in
@@ -121,7 +121,7 @@ let run ~width_of ~directory (back_home : C.state) =
   require (visible_form_id re_reviewed = Some "review_pool"
     && F.read pace_path = "wallet\tjpy\n") "cfg-pace-re-review-does-not-save";
   let saved_state = key ~width_of re_reviewed `Enter in
-  require (saved_state.overlay = C.No_overlay && visible_form saved_state = None) "cfg-pace-saved-overlay-cleared";
+  require (no_modal saved_state) "cfg-pace-saved-overlay-cleared";
   require (F.read windows_path = boundaries_before) "pool-editor-preserves-boundaries-byte-exactly";
   require (F.read pace_path = "wallet\tjpy\nbank\tjpy\n") "cfg-pace-saved-bytes";
   let back_home2 = key ~width_of saved_state (`ASCII 'q') in
@@ -147,7 +147,7 @@ let run ~width_of ~directory (back_home : C.state) =
            && F.read windows_path = boundaries_before)
     "cyc-review-escape-retains-draft";
   let cyc_published = key ~width_of (key ~width_of (key ~width_of cyc_esc `Enter) `Enter) `Enter in
-  require (cyc_published.overlay = C.No_overlay && visible_form cyc_published = None
+  require (no_modal cyc_published
            && F.read windows_path = "test-cycle\t" ^ F.today () ^ "\t" ^ new_stop ^ "\n")
     "cyc-boundaries-saved";
   let setup_menu = { cyc_published with overlay = C.Commands { M.page = M.Setup; selected = 4 } } in
@@ -155,6 +155,6 @@ let run ~width_of ~directory (back_home : C.state) =
   require (visible_form_id from_cmd = Some "configure_cycle_boundaries")
     "commands-setup-opens-cycle-boundaries";
   require (let closed = key ~width_of from_cmd `Escape in
-           closed.overlay = C.No_overlay && visible_form closed = None) "commands-setup-cycle-escapes";
+           no_modal closed) "commands-setup-cycle-escapes";
   require (back_home2.workspace.route = W.Home) "pace-q-back-to-home";
   ()
