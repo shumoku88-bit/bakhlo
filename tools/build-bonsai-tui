@@ -9,10 +9,23 @@ fi
 name=bonsai_daily
 workspace=daily-bonsai
 trial=$root/scratch/tui_comparison_review
-if [ ! -x "$trial/bonsai-env/_opam/bin/ocamlopt" ] || [ ! -d "$trial/bonsai-env/_opam/lib/bonsai_term" ]; then
-  printf '%s\n' 'Existing isolated Bonsai environment unavailable; nothing installed.' >&2
-  exit 2
-fi
+# CI opts into an independent OxCaml switch prepared by setup-ocaml; the
+# default local entry retains its existing isolated trial environment.
+case "${BAKHLO_BONSAI_CI:-0}" in
+  0)
+    if [ ! -x "$trial/bonsai-env/_opam/bin/ocamlopt" ] || [ ! -d "$trial/bonsai-env/_opam/lib/bonsai_term" ]; then
+      printf '%s\n' 'Existing isolated Bonsai environment unavailable; nothing installed.' >&2
+      exit 2
+    fi ;;
+  1)
+    command -v opam >/dev/null 2>&1 || { printf '%s\n' 'CI opam missing.' >&2; exit 2; }
+    ci_prefix=$(opam var prefix)
+    if [ ! -x "$ci_prefix/bin/ocamlopt" ] || [ ! -d "$ci_prefix/lib/bonsai_term" ]; then
+      printf '%s\n' 'CI OxCaml/Bonsai switch unavailable; not using the local trial.' >&2
+      exit 2
+    fi ;;
+  *) printf '%s\n' 'BAKHLO_BONSAI_CI must be 0 or 1.' >&2; exit 2 ;;
+esac
 # Compiler ABIs differ: rebuild the SAME tracked sources in a separate build root.
 # Do not use the archived/stale ox-build sources or copy household inputs.
 build=$root/_build/$workspace
@@ -47,6 +60,10 @@ done
 printf '%s\n' '(lang dune 3.24)' '(name bakhlo)' '(package (name bakhlo))' > "$build/dune-project"
 printf '%s\n' '(dirs lib application sexp ui)' '(env (_ (flags (:standard -strict-sequence -w +8+9+11 -warn-error +8+9+11))))' > "$build/dune"
 printf '%s\n' "(executable (name $name) (modules $modules) (libraries bakhlo_domain bakhlo_application bakhlo_sexp zarith unix uutf bonsai_term async core))" > "$build/ui/dune"
+if [ "${BAKHLO_BONSAI_CI:-0}" = 1 ]; then
+  # Never install packages or modify the main project switch from this script.
+  exec opam exec -- dune build --root "$build" --profile release "ui/$name.exe"
+fi
 export OPAMROOT=$trial/opam-root
 export OPAMSWITCH=$trial/bonsai-env
 export OPAMNOENVNOTICE=true
