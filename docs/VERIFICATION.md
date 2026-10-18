@@ -6,6 +6,15 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Whole-repository architecture audit (2026-10-18)
+
+- Baseline: clean main/remote `4d7b431859501fe0bfe48e73494cdc1c8ac83da0`; compiled product source remains `f80f39f79667c39c94453d287459109e57f169fb`. No product implementation, writer, format or household-data change.
+- The [integrated architecture audit](ARCHITECTURE_AUDIT_2026_10.ja.md) owns this audit's all-module inventory, source/native dependency distinction, A–H scenarios, fresh Mac timings, matching-source CI step durations, design rules and P0/P1/P2 decisions. This entry is an evidence index, not a second progress table.
+- Passed: `rtk test ./tools/check`, `rtk err ./tools/build-bonsai-tui`, `rtk test ./tools/tui --self-check`, three direct native self-check processes, the existing Core inline runner restricted to `daily_book_tests.ml` (25 tests, from `test/`), and direct native `--check examples/daily-book.sexp`.
+- Public tracked-source archives were built and modified only in a new temporary experiment root. Project-cold/warm and implementation/interface incremental probes used existing compiler switches, disabled Dune cache and no new dependencies. Native import counts are not actual recompilation counts; the report records the actual compiler actions separately. No general speedup is claimed.
+- A standalone synthetic OCaml probe reproduced admitted Records header/frame opaque information disappearing through `Daily_book` conversion (1/1 → 0/0). Tracked separately in [#40](https://github.com/shumoku88-bit/bakhlo/issues/40), not fixed by the audit and not attributed to the normal Records append path.
+- #38/#39 remain open with their original acceptance conditions unchanged. Scheduled may proceed with a bounded explicit-rule/month-review/Calendar owner; a wholesale structural rewrite is not a prerequisite. No new PTY/paired LOAM/physical IME/power-loss/P7/operational qualification was performed.
+
 ## TUI controller responsibility split (2026-10-18)
 
 - Baseline: clean `eb9cbef3873ab5025aaae049ce6ec8037069b870`, matching remote HEAD. The 4,698-line `tui/daily_interaction.ml` was split by existing declaration boundaries: `daily_interaction_state.ml` (697 lines, shared state/navigation/publication-result transitions), `daily_interaction_context.ml` (1,135, shared queries/config/form preparation/viewport geometry), `daily_interaction.ml` (1,505, input dispatch), and `daily_interaction_view.ml` (1,373, painting/overlay placement/caret). Original function bodies were moved, not redesigned; no state copies, compatibility re-exports, dependency, format or writer changes.
