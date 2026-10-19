@@ -10,13 +10,13 @@ LOAMの既存ソース・binaryを読み取り比較し、計算・支持条件�
 - [x] Balances：Current／Accountingの見出し・配置・選択・詳細・footerの差を照合して揃える。
 - [x] 他画面の保存成功では保持中Recordを消さず、自身のRecord保存と区別する。回帰条件を追加する。
 - [x] Core／architecture／native self-checkと合成4寸法PTY・LOAM対照・cold reopenを実行する。
-- [ ] 正確なdiffをレビューし、既存画面台帳・検証記録・引き継ぎを更新して、小さな単位でmainへcommit/pushする。
+- [x] 正確なdiffをレビューし、既存画面台帳・検証記録・引き継ぎを更新して、小さな単位でmainへcommit/pushする。
 
 本人のMac／IME受入、全履歴・全Reports／Series・coverage、P7／運用切替はこの限定sliceの完了へ含めない。
 
 レビュー：期間・今日の支出／差、広幅の親位置保持、狭幅Historyと操作案内、Currentの列・表示名・小数通貨・詳細往復を改善。
 Core／arch／35 suitesと両binaryの4寸法、3種のcold新規プロセスで合成確認。未知値・全量・gateは保持。
-下書き修正 `1c34695` はmainとmatching Core/TUI CI成功。表示の全面一致・本人受入は未了。
+下書き修正 `1c34695` と表示変更 `f5ac74a` はmainとmatching Core/TUI CI成功。表示の全面一致・本人受入は未了。
 詳細は[検証記録](../docs/VERIFICATION.md#daily-pace--balances-interaction-parity-pass-2026-10-19)。
 
 ## #42 構造再構築（main統合済み・以下は移植途中の履歴）

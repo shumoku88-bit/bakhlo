@@ -5,8 +5,12 @@
 The #42 reconstruction was integrated into main at `18af340`; its matching Core
 and TUI CI passed. #38/#39/#41 are closed; #40 remains open independently.
 `tasks/issue42/HANDOFF.ja.md` is the reconstruction reference, not a pending merge.
-Current work returns to Daily Pace/Balances appearance and interaction parity;
-`tasks/todo.md`, the UI gap ledger and `VERIFICATION.md` own scope and evidence.
+The bounded Daily Pace/Balances context/navigation pass is on main at `f5ac74a`,
+with matching Core/TUI CI, paired four-size synthetic native walks and cold reads.
+Period/Today/Spent context, wide detail neighbours, Current columns and detail
+return are improved; exact full-screen/Accounting and physical IME/human
+acceptance remain open. `tasks/todo.md`, the UI gap ledger and `VERIFICATION.md`
+own scope and evidence; this is not whole-screen parity acceptance.
 Other-screen publication now preserves a held Record/Pay draft; only its own
 confirmed publication clears it. No operational cutover or private-data access
 is authorized.

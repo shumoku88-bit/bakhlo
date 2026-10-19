@@ -78,7 +78,7 @@ LOAMの内部構造・保存形式・研究基盤の移植は目的ではない�
 | **UI-02** | Commands | 試用：階層palette、実装済み入口（Transactions、Plans and attention、Reports and analysis、Household setup） | **O** 残るレポート等の入口差。**V/Q** 同一rectangle・選択・短い端末で対照 | 現行LOAMはReports/analysis 11項目とHousehold setupを公開。BakhloはHousehold setup（Theme, Manage Loci, Daily Pace pool/cycle dates, Balances visible accounts, Home）を接続。予算2項目は延期、残る非予算レポート等を継続追記 |
 | **UI-03** | Actual一覧・検索・詳細 | 接続済み：3ペイン、Locus絞込、live検索、scope／sort、Detailsスクロール、Enter一回で選択明細、tx_height容量整合、Selected_dayからのdrill-back。復帰時の別browser上書きと詳細focus／scroll消失を修正 | **O/V/Q** 現行LOAMとのheader・pane・枠・footer、全操作・実IME／本人受入が残る | 現行LOAMはAll Current／newest-first、`f`で選択日／全件を切替。80×24の検索、48×14の完全な`+37 jpy`／`+11 jpy`、32×9の検索保持、長いCJK検索末尾／caret、5寸法の空台帳／0件表示を限定確認（[検索証拠](VERIFICATION.md#actual-empty-search-and-cjk-resize-follow-up)）。後続対照で検索確定＋scope／sort、空Enter拒否、一覧からEnter一回→32×9／48×14で親pane・検索・並び・選択復帰、明示`i`からのDetails復帰を確認。authority hash不変。[往復証拠](VERIFICATION.md#actual-single-enter-and-filtered-return)。全組合せ・Locus操作対照、他のcaret／寸法、IME、人間の受入は未了 |
 | **UI-04** | Selected Day | 試用：選択日のActual／open予定とDetail。ActualからEnter一回で明細IDに追従し旧Selected Dayフィルタを解除、親Actualへ復帰。`d`日付訂正を接続。context行はroute日付＋Day表示 | **F** role-aware収支。Merchant／原額はDaily保存・UI入口に接続済みだが対照は未完。**O/V/Q** LOAMの専用Transaction detailとの画面差、混在一覧・空・狭小と対照受入 | T：同日複数明細＋旧filterでも選択IDを開く回帰を3寸法で確認。親復帰で別browserを上書きせずpane／scrollを保全（[往復証拠](VERIFICATION.md#actual-single-enter-and-filtered-return)）。背景Calendarの誤日付／zoomをcontextへ表示する不整合を修正、4寸法×3zoom×draft有無とnative resize／Record初期日を限定確認（[context証拠](VERIFICATION.md#selected-day-context-date-and-zoom)）。日付訂正の保存／cold／親ID追従。新規Recordは表示中の日を初期値とし取消／resume／保存／cold／親Actual復帰を確認（[記帳証拠](VERIFICATION.md#selected-day-record-date-and-return)）。全画面の受入ではない |
-| **UI-05** | Record入力・Locus候補 | 試用：Date／Description／Measure／複数Posting、許可済み候補 | **O/V/Q** 対照受入・実機検証待ち（ブラッシュアップ完了）。**F/O** 原額（UI-07）は未接続 | T：Unicode、paste、構造制約、追加行、floating／極小。P02完了：Movement上部枠＋横並びマルチペイン化、狭小Fields縮退、Locus前方一致（LOAM isPrefixOf準拠）、Date入力ガード、draft誤再開防止、resolve_overlayによるカーソル位置・描画座標の完全同期（macOS IME安定化）。[80×24の単発Record対照](VERIFICATION.md#paired-record-happy-path-and-cancellation-2026-10-16)：入力・数量・cold一致、Ctrl-S／Esc後の下書き・配置差が残る。閲覧中Ctrl-Nは即破棄でなくKeep初期選択の確認へ変更。狭小拒否・不明結果の保持・非保存をchecksと合成PTYで限定確認（[証拠](VERIFICATION.md#retained-draft-discard-confirmation)） |
+| **UI-05** | Record入力・Locus候補 | 試用：Date／Description／Measure／複数Posting、許可済み候補、Ctrl-O原額（UI-07） | **O/V/Q** 全lifecycle・配置の対照受入、IME／本人検証が未了 | T：Unicode、paste、構造制約、追加行、floating／極小。P02のMovement枠・マルチペイン・狭小Fields・Locus前方一致・Dateガード・caret同期を維持。[単発Record対照](VERIFICATION.md#paired-record-happy-path-and-cancellation-2026-10-16)は入力・数量・coldの限定一致であり全面受入ではない。Ctrl-NのKeep初期選択・狭小拒否・不明結果の保持は[既存証拠](VERIFICATION.md#retained-draft-discard-confirmation)。他画面保存後のRecord／Pay保持と本人保存の区別を[10/19修正](VERIFICATION.md#retained-record-publication-ownership-2026-10-19)で回帰確認。原額未接続という旧記述は撤回 |
 | **UI-06** | Record Preview | 試用：Publish／Edit／Cancel、exact全体確認、狭小確定拒否 | **V/Q** 対照受入・実機検証待ち（ブラッシュアップ完了）。全文gateを弱めない | T：巨大数量、キー／支払リンク、狭小・未読末尾の拒否。P02完了：Publication gate（recheck evidence + Locus admission）案内行、中画面縦3段レイアウト、枠線・ボタン整列、キャレット17カラム化、全文gate維持を実装・検証完了。単発Preview→取消非保存／Publishの[対照](VERIFICATION.md#paired-record-happy-path-and-cancellation-2026-10-16)、Edit／Cancelと[狭小gate対照](VERIFICATION.md#paired-record-editcancel-and-narrow-preview-gates-2026-10-16)を実施。LOAM既存binaryは32×9で確認本文が全て隠れたままPublishできたため、Bakhloの拒否を弱めない。[単独の保存失敗実機試行](VERIFICATION.md#record-native-pre-write-filesystem-failure-2026-10-16)ではBakhloのdraft／旧bytes保持と再試行停止を確認。LOAM保存失敗対照・表示順・幅・他モードは未受入 |
 | **UI-07** | Original amount | 接続済み：Record Ctrl-O入力、Preview、同一保存操作、Actual詳細、再起動、訂正時保持、年別保存・バックアップを端から端まで接続 | **V/Q** 対照受入・実機検証待ち。換算値での推定・FX捏造なし | F03完了：application/original_amounts.*再利用、正数量・安定root制約、通常・取消・保存失敗・stale・結果不明・年越し検査合格 |
 | **UI-08** | unresolved有効化 | 試用：Ctrl-Uによる貸借差額自動補完（suspense行追加・調整・削除）接続済 | **F/O** 未解決語彙の明示admission・元draftへの復帰。**Q** 拒否 | T：Ctrl-U差額ゼロ時削除、符号反転補完、Posting上限（6行）ガード、単一S式保存。LOAM Unresolved remainder仕様準拠 |
@@ -124,7 +124,11 @@ Bakhloが保存先を隠したまま作成できる反例を修正し、修正�
 故障・IME・初回設定全体の受入は未了
 （[証拠](VERIFICATION.md#paired-narrow-first-run-and-hidden-destination-gate-2026-10-17)）。
 
-### ソース対照の入口
+### ソース対照の入口（#42以前の索引）
+
+以下のcontroller／旧ファイル名と第4節の分担表は、抽出前の比較根拠として残す。
+2026-10-19にmainへ統合した画面owner構造・現行パス・依存境界は
+[TUI ownership](TUI_OWNERSHIP.md)を参照する。旧中央controllerへの追記指示ではない。
 
 LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む。画面名が同じことだけで意味の一致を推定しない。
 
