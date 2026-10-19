@@ -72,7 +72,7 @@ let render_cases state =
     |> fun state -> key state `Enter in
   let bulk_preview = key (key bulk_selection (`ASCII 'a')) `Enter in
   let generate = with_session rich (E.Scheduled_generate
-    (get (Gen.create ~book ~base_bytes:rich.session.bytes ~source))) in
+    (get (Gen.create ~book ~base_bytes:rich.session.bytes ~source ()))) in
   let generate_preview = key generate `Enter in
   let detail route =
     let view = C.open_route rich route in

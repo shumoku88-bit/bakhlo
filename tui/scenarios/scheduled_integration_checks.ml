@@ -453,19 +453,22 @@ let coverage_checks ~width_of ~directory home =
   let book = List.fold_left (fun book (p : B.plan) ->
     get (B.cancel_plan book ~id:p.id ~day:today)) home.C.session.book (B.open_plans home.session.book) in
   let book = List.fold_left (fun book p -> get (B.put_plan book ~replace:false p)) book
-      [ plan "cov-a" (month_after 0 ^ "-28") food; plan "cov-b" (month_after 1 ^ "-28") food ] in
+      [ plan "cov-a" (month_after 0 ^ "-28") food; plan "cov-b" (month_after 1 ^ "-28") food;
+        plan "cov-f" (month_after 0 ^ "-15") [ ("bank", Z.of_int (-500)); ("wallet", Z.of_int 500) ];
+        plan "cov-u" (month_after 0 ^ "-10") [ ("bank", Z.of_int (-100)); ("food", Z.of_int 100) ] ] in
   let sub = directory ^ "/coverage-" ^ F.new_id () in
   Unix.mkdir sub 0o700;
   let path = sub ^ "/book.sexp" in
   F.write_new path (B.to_string book);
   F.write_new (sub ^ "/scheduled-coverage.tsv")
-    ("groceries\t" ^ month_after 0 ^ "-01\t1\twallet\tfood\nbills\t" ^ month_after 0 ^ "-01\t0\tbank\tfood\n");
+    (("groceries\t" ^ month_after 0 ^ "-01\t1\twallet\tfood\nbills\t" ^ month_after 0 ^ "-01\t0\tbank\tfood\n"
+     ^ "fees\t" ^ month_after 0 ^ "-01\t2\tbank\twallet\n"));
   let before = F.read path in
   let initial = C.initial ~config_home:sub (F.load path) in
   let opened = C.open_route initial W.Scheduled in
   let contains state needle =
     List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) (R.screen ~width_of (120, 36) state) in
-  require (contains opened "Scheduled Series Calendar" && contains opened "Monitored plans (2)"
+  require (contains opened "Scheduled Series Calendar" && contains opened "Monitored plans (3)"
            && contains opened "groceries" && contains opened "monthly" && contains opened "undecided"
            && contains opened "! = expected gap")
     "coverage-is-scheduled-entrance-with-monitored-rows";
@@ -491,6 +494,21 @@ let coverage_checks ~width_of ~directory home =
   let cancelled = key ~width_of paying `Escape in
   require (contains cancelled "Scheduled / Plan / groceries" && F.read path = before)
     "coverage-completion-cancel-returns-to-plan";
+  let replenishing = key ~width_of opened (`ASCII 'e') in
+  require ((match session_of replenishing with
+            | Some (E.Scheduled_generate g) -> (Gen.source g).id = "cov-b" && Gen.selected_months g = 1
+            | _ -> false)
+           && F.read path = before)
+    "coverage-e-replenishes-from-latest-on-pace-occurrence";
+  let closed = key ~width_of replenishing `Escape in
+  require (no_modal closed && F.read path = before) "coverage-replenish-cancel-is-read-only";
+  let fees = key ~width_of (key ~width_of opened (`ASCII 'j')) (`ASCII 'e') in
+  require (match session_of fees with
+           | Some (E.Scheduled_generate g) -> (Gen.source g).id = "cov-f" && Gen.selected_months g = 2
+           | _ -> false) "coverage-e-preselects-two-month-cadence";
+  let undecided = key ~width_of (key ~width_of (key ~width_of opened (`ASCII 'j')) (`ASCII 'j')) (`ASCII 'e') in
+  require (no_modal undecided && contains undecided "cannot be extended automatically")
+    "coverage-undecided-cannot-replenish";
   let back = key ~width_of detail (`ASCII 'q') in
   require (contains back "Scheduled Series Calendar") "coverage-plan-q-returns-to-overview";
   let months = key ~width_of opened (`ASCII 'v') in

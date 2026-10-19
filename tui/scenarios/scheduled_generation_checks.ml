@@ -58,11 +58,11 @@ let self_check ~width_of () =
 
   (* 2. Terminal source refusal *)
   let closed_source = { source with paid_by = Some "entry-1" } in
-  require (Result.is_error (S.create ~book ~base_bytes:base ~source:closed_source))
+  require (Result.is_error (S.create ~book ~base_bytes:base ~source:closed_source ()))
     "terminal-source-rejected-by-create";
 
   (* 3. Session creation & parameter boundaries *)
-  let s = get (S.create ~book ~base_bytes:base ~source) in
+  let s = get (S.create ~book ~base_bytes:base ~source ()) in
   require (S.base_bytes s = base) "captured-base-bytes";
 
   (* Screen resize bounds at various dimensions *)

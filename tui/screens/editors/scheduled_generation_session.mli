@@ -8,7 +8,9 @@ type outcome =
   | Closed
   | Publish of B.plan list * string
 
-val create : book:B.t -> base_bytes:string -> source:B.plan -> (t, string) result
+val create :
+  ?cadence_months:int -> book:B.t -> base_bytes:string -> source:B.plan -> unit -> (t, string) result
+(** [cadence_months] (1, 2, 3, 6 or 12) preselects a monitored cadence; others refuse. *)
 val base_bytes : t -> string
 val with_publish_error : t -> string -> t
 val dimensions : int * int -> int * int
@@ -26,3 +28,8 @@ val screen :
   t ->
   (Daily_overlays.style * string) list
 val footer : t -> string list
+
+(** Read-only queries for checks. *)
+
+val source : t -> B.plan
+val selected_months : t -> int

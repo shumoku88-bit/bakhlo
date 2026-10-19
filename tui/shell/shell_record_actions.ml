@@ -63,13 +63,13 @@ let batch_plan_target state target =
       | Error message -> { state with message })
   | _ -> { state with message = tr "Select an open Scheduled occurrence for batch amount editing." }
 
-let extend_plan_target state target =
+let extend_plan_target ?cadence_months state target =
   if state.blocked then state
   else if has_record_draft state then
     { state with message = tr "A draft is retained. Resume or discard it before generating plans." }
   else match target with
   | Some (Screen.Plan plan) -> (
-      match Gen.create ~book:state.session.book ~base_bytes:state.session.bytes ~source:plan with
+      match Gen.create ?cadence_months ~book:state.session.book ~base_bytes:state.session.bytes ~source:plan () with
       | Ok editor -> { (open_editor state (Record_editors.Scheduled_generate editor)) with message = "" }
       | Error message -> { state with message })
   | _ -> { state with message = tr "Select an open Scheduled occurrence to generate." }

@@ -173,7 +173,8 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
       | Screen.Classify_merchant -> classify_merchant_target state target
       | Screen.Cancel -> cancel_plan_target state target
       | Screen.Batch -> batch_plan_target state target
-      | Screen.Generate -> extend_plan_target state target)
+      | Screen.Generate -> extend_plan_target state target
+      | Screen.Generate_every months -> extend_plan_target ~cadence_months:months state target)
   | Screen.New_record -> open_record state
   | Screen.Drill { day; entry } ->
       let parent = state.workspace.route in

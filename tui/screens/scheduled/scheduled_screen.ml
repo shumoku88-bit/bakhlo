@@ -158,6 +158,26 @@ let latest_plan env t =
   Option.bind (selected_rule env t) (fun row ->
       List.fold_left (fun _ p -> Some p) None (Cov.plans_for row.rule (B.plans env.book)))
 
+(* LOAM replenishment source: before the first gap, the latest open occurrence
+   on the monitored cadence; with no gap, the latest open occurrence. *)
+let replenishment_source env t =
+  Option.bind (selected_rule env t) (fun (row : Cov.row) ->
+      let plans = Cov.plans_for row.rule (B.plans env.book) in
+      let candidates = match row.first_missing with
+        | None -> plans
+        | Some month ->
+            List.filter (fun (p : B.plan) -> p.day < month ^ "-01" && Cov.expected_on row.rule p.day) plans in
+      Option.map (fun p -> (row.rule, p)) (List.fold_left (fun _ p -> Some p) None candidates))
+
+let replenish env t =
+  match replenishment_source env t with
+  | None ->
+      (t, unless_blocked env "No explicit Scheduled occurrence on the monitored pace is available before the first gap.")
+  | Some (rule, _) when not (List.mem rule.Cov.every_months [ 1; 2; 3; 6; 12 ]) ->
+      (t, unless_blocked env "This monitoring pattern cannot be extended automatically.")
+  | Some (rule, p) ->
+      (t, Screen.Record_action { action = Screen.Generate_every rule.every_months; target = Some (Screen.Plan p) })
+
 let pace_width width = if width >= 31 then 11 else 0
 let plan_width width = min 28 (max 2 (width - pace_width width - 8))
 let month_window width = max 0 ((width - plan_width width - pace_width width) / 8)
@@ -169,7 +189,7 @@ let flow ~width_of width tokens =
       | current :: rest when width_of (current ^ " " ^ token) <= width -> (current ^ " " ^ token) :: rest
       | _ -> token :: lines) [] tokens)
 
-let not_connected = "Not connected in Bakhlo yet; use List (v) for explicit plan edits."
+let not_connected = "Not connected in Bakhlo yet; pace and monitoring changes stay in the config file."
 
 let handle_coverage (env : Screen.env) t key =
   let stay t = (t, Screen.Stay) and say t m = (t, unless_blocked env m) in
@@ -207,7 +227,9 @@ let handle_coverage (env : Screen.env) t key =
       match latest_plan env t with
       | Some p -> (t, Screen.Record_action { action = Screen.Batch; target = Some (Screen.Plan p) })
       | None -> say t "Select an explicit Scheduled reference for batch amount editing.")
-  | Some (`ASCII ('e' | 'p' | 's' | 'g' | 'm'), []) -> say t not_connected
+  | Some (`ASCII 'e', []) -> replenish env t
+  | Some (`ASCII 'g', []) -> say t "Use e to replenish the selected recurring plan."
+  | Some (`ASCII ('p' | 's' | 'm'), []) -> say t not_connected
   | Some (`ASCII 'v', []) -> (toggle_view env env.book t, unless_blocked env "")
   | Some (`ASCII 'n', []) -> (t, Screen.New_plan)
   | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Back)
@@ -242,7 +264,9 @@ let handle_plan (env : Screen.env) t key =
       match latest_plan env t with
       | Some p -> (t, Screen.Record_action { action = Screen.Batch; target = Some (Screen.Plan p) })
       | None -> say t "Select an explicit Scheduled reference for batch amount editing.")
-  | Some (`ASCII ('e' | 'p' | 's' | 'g' | 'm'), []) -> say t not_connected
+  | Some (`ASCII 'e', []) -> replenish env t
+  | Some (`ASCII 'g', []) -> say t "Use e to replenish the selected recurring plan."
+  | Some (`ASCII ('p' | 's' | 'm'), []) -> say t not_connected
   | Some (`ASCII 'f', []) -> say t "Plan Detail always shows the selected plan's current-open occurrences."
   | Some ((`Escape | `ASCII ('q' | 'v')), []) -> stay { t with view = Coverage_view; plan_row = 0 }
   | Some (`ASCII 'n', []) -> (t, Screen.New_plan)
@@ -459,13 +483,13 @@ let footer (geometry : Screen.geometry) t =
   | Coverage_view, _ ->
       if width >= 79 then
         [ "[j/k] plan  [h/l] months  [Enter] detail  [q] back";
-          "[b] batch  [n] new  [v] views  (e/p/s not connected)" ]
-      else if width >= 47 then [ "[j/k] plan [h/l] months [Enter] detail [q] back"; "[b] batch [n] new [v] views" ]
+          "[e] replenish  [b] batch  [n] new  [v] views  (p/s not connected)" ]
+      else if width >= 47 then [ "[j/k] plan [h/l] months [Enter] detail [q] back"; "[e] replenish [b] batch [n] new [v] views" ]
       else [ "[j/k] plan [q] back"; "[Enter] detail [v] views" ]
   | Plan_view, _ ->
       if width >= 79 then
         [ "[j/k] select  [c/Enter] complete  [q] overview";
-          "[b] batch  [r] replace  [x] cancel  [n] new  (e/p/s not connected)" ]
+          "[e] replenish  [b] batch  [r] replace  [x] cancel  (p/s not connected)" ]
       else if width >= 47 then [ "[j/k] select [c/Enter] complete [q] overview"; "[b] batch [r] replace [x] cancel" ]
       else [ "[j/k] select [q] overview"; "[c/Enter] complete [x] cancel" ]
   | Months_view, Detail_pane ->

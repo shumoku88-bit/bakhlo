@@ -65,10 +65,17 @@ let default_through day =
   | Ok target -> target
   | Error _ -> day
 
-let create ~book ~base_bytes ~source =
+(* A monitored cadence preselects the choice; other month counts have no form. *)
+let create ?cadence_months ~book ~base_bytes ~source () =
+  let preset = match cadence_months with
+    | None -> Some 0
+    | Some 1 -> Some 0 | Some 2 -> Some 1 | Some 3 -> Some 2 | Some 6 -> Some 3 | Some 12 -> Some 4
+    | Some _ -> None in
   if not (List.exists (( = ) source) (B.open_plans book)) then
     Error "Selected Scheduled plan is not open."
-  else
+  else match preset with
+  | None -> Error "This monitoring pattern cannot be extended automatically."
+  | Some selected ->
     let through_val = default_through source.day in
     let form =
       Form.create ~id:"scheduled_generate" ~title:"Scheduled / Generate Plans"
@@ -80,7 +87,7 @@ let create ~book ~base_bytes ~source =
         ~fields:
           [
             Form.text_field ~id:"through" ~label:"Through (exclusive)" ~value:through_val ();
-            Form.choice_field ~id:"cadence" ~label:"Cadence" ~options:cadence_options ~selected:0 ();
+            Form.choice_field ~id:"cadence" ~label:"Cadence" ~options:cadence_options ~selected ();
             Form.action_buttons ~confirm:"Generate Preview" ~cancel:"Cancel" ();
           ]
         ()
@@ -93,7 +100,7 @@ let create ~book ~base_bytes ~source =
         form;
         generated = None;
         through_day = through_val;
-        cadence = Monthly;
+        cadence = cadence_of_index selected;
         choice = 0;
         scroll = 0;
         notice = "";
@@ -282,3 +289,6 @@ let screen ~dimensions:((width, height) as dims) ~width_of t =
     in
     List.filteri (fun index _ -> index < height) rows
     |> List.map (fun (style, text) -> style, O.pad ~width_of width text)
+
+let source t = t.source
+let selected_months t = cadence_months (selected_cadence t)

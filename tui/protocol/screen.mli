@@ -100,6 +100,7 @@ type record_target = Entry of Bakhlo_sexp.Daily_book.entry | Plan of Bakhlo_sexp
 
 type record_action =
   | Edit | Pay | Reverse | Correct_date | Classify_merchant | Cancel | Batch | Generate
+  | Generate_every of int  (** Generate with a monitored cadence in months preselected. *)
 
 type request =
   | Stay
