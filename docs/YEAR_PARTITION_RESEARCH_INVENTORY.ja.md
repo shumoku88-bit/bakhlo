@@ -1,5 +1,7 @@
 # Bakhlo 年度別正データ研究 成果棚卸し・整理・保全レポート
 
+> **廃止（2026-10-20）**: 年別S式・`Year_read`・Recordsはユーザー判断で削除した。この文書は経緯の記録で、現在の方針はAGENTS.mdの Storage direction と[長期保存調査の第5段階](LONG_TERM_STORAGE_STUDY.ja.md)。
+
 状態: **TLA+形式検証および年度別S式合成実験の成果確定・保全記録**  
 ブランチ: `research/canonical-storage-checkpoint`  
 作成日: 2026-10-13  

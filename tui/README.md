@@ -124,7 +124,6 @@ EnterはPreview、PreviewのEnterだけが保存。現在日付・変更先・�
 Selected Dayは元の日に残り、対象が移れば一覧から消える。親Actualへ戻ると同じIDを追従する
 （scope／検索から外れた場合は既存のclamp／通知に従う）。
 保持中のRecord draftがあれば開始を拒否。stale／結果不明は停止し、reloadで古い確認を有効化しない。
-Records形式は既存Actualの置換をサポートしないため、非保存で拒否する。
 合成操作・通常再起動は確認済み。LOAM対照・IME／本人受入・P7の認定ではない。
 
 ## Actualの反転
@@ -136,7 +135,7 @@ Previewには元ID・元日付・説明・反転日・元／逆Postingの完全�
 PreviewのEsc／e／Editは日付へ、q／Cancelは元の一覧・詳細へ戻る。日付側のEsc／qは取消。
 保持したRecord draftがある間は反転を開かず、保存拒否では反転の日付・target・baseを残す。
 Ctrl-rのreloadで世代が変わってもPreviewを新しいbaseへ更新しない。取消→reload→再選択が必要。
-結果不明は停止し、reloadで既存candidateを確認しても自動再発行しない。Recordsの反転は拒否する。
+結果不明は停止し、reloadで既存candidateを確認しても自動再発行しない。
 
 ## ScheduledのMonths表示
 
@@ -165,7 +164,7 @@ Tab／←→でCancel Scheduledを選び、確認後のEnterだけが既存write
 末尾未確認・狭小、短い画面に全文が収まらない場合は確定拒否。Endは保存操作ではない。
 取消済み予定はID・期日・数量を保持してopen一覧から外れ、Actualや残高は増減しない。
 保持中のRecord draftがあれば開始を拒否する。保存拒否では取消日と対象を残し、選択をKeepへ戻す。
-stale／結果不明は停止し、reloadで古い確認を有効化しない。Recordsは取消非対応のまま。
+stale／結果不明は停止し、reloadで古い確認を有効化しない。
 LOAMは対象だけの取消確認だが、Bakhloは既存のdated-cancel契約に従って取消日の入力を残す。
 合成PTY・通常再起動は確認済み。LOAMとの実行対照・本人受入は未了。
 
@@ -204,7 +203,7 @@ ScheduledまたはSelected Dayでopen予定を選び、`b`を押すと一括金�
    - EnterでPreview画面へ進み、変更前の金額・変更後の金額を全件確認する。
    - **Backが初期選択**（非保存で選択へ戻る）。
    - `Tab`／`←→`でPublish allを選び、末尾までスクロールしてEnterを押すことで、全件が**1回のトランザクションで原子的に保存**される。途中で一部だけ保存されることはない。
-   - 狭小端末での確定拒否、Records形式の拒否、競合（stale）停止の安全策を備える。
+   - 狭小端末での確定拒否、競合（stale）停止の安全策を備える。
 
 ## Scheduledの定期生成（期間展開）
 
@@ -376,7 +375,7 @@ Homeで`b`を押すと、LOAM準拠の**Balances / Current**（現在の各口�
 role-aware収支カレンダー、完全なSeries／coverage管理・定期補充／監視、履歴Trend、原額・Merchant、
 実取引への配分を伴う精算・後日カード決済、広いレポート群は未対応。
 単一S式の予定作成（Scheduled `n`）・変更（`e`）・取消（`x`）・支払い（`c`）は接続済み。
-Actual `x`は元明細を残す正確な反転の新規記帳。Recordsは対応外の変更・取消・反転を拒否する。
+Actual `x`は元明細を残す正確な反転の新規記帳。
 CommandsからExchange（入力→全文Preview→確定）、Manage Loci／役割設定／表示名（`l`またはHousehold setup `Account / category display names`→Review→保存）、Attention、限定commitment精算へ進める。
 Home／Calendar／Balances `o`はObserve。これらの存在は全LOAM互換を意味しない。
 Balancesは既存照会で通貨別に表示し、不明・存在あり量不明・ゼロを区別する。
@@ -391,7 +390,7 @@ rename後の結果不明は保存成功とせず、現ファイルを確認す�
 下書きはプロセス内のみ。競合後も取得時の旧bytesは自動更新しないため、新しい設定からやり直すには再起動が必要（下書きは消える）。
 `boundary-presets.tsv`の他期間・過去境界は変更せず、この画面で期間末を編集しない。
 Trendは現在台帳からの限定的な再構成表示で、ゼロ起点で裏付けられない過去日はUnavailableとなる。LOAMのdated bounded-history支持、支払済み／取消済み予定を含む全履歴の一致は未認定。期間比較は未対応。Calendar選択日を今日の観測日に置き換えない。
-Daily_bookは単一S式v1〜v3とRecords v1を読み、単一S式ではv3を書く。旧予算v4・予算APIは非対応。
+Daily_bookは単一S式v1〜v3・v5を読み、v3（期間付き履歴があればv5）を書く。旧予算v4・予算APIは非対応。
 通常Bookのrecord / exchange CLIとは混用せず、未知フィールドを飛ばして保存しない。
 
 ## テーマと実装
@@ -417,9 +416,9 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 - reversal_session：反転の日付と固定snapshotの元／逆Posting確認。ID割当・永続inverse構築・I/Oは持たない。
 - shell_state：Shell state、初期化、route入場・同期、Record下書き保持とpublication結果処理。
 - shell_record_actions：route ownerが明示Entry/Plan targetで要求したRecord操作のeditor起動・拒否理由。
-- shell_files：画面設定ファイルの捕捉読取・admission付き原子的保存と年度来歴範囲（ledger writer以外のShell I/O）。
+- shell_files：画面設定ファイルの捕捉読取・admission付き原子的保存（ledger writer以外のShell I/O）。
 - shell_publication：screen ownerが要求したledger publicationを単一writerで実行。
-- shell_dispatch：Screen.env/geometry、owner入力・描画、request適用、reload、戻り、Commands、年度rollover。
+- shell_dispatch：Screen.env/geometry、owner入力・描画、request適用、reload、戻り、Commands。
 - shell_input：paste guard、Record、modal owner、Shell overlay、Ctrl鍵、route owner、global鍵の順の入力dispatch。
 - shell_view：header/feedback/footerの合成、overlay配置とterminal caret。
   依存はstate → record_actions／files／publication → dispatch → input／view。画面ごとの状態・入力・描画は`tui/screens/<s>`が持つ（`docs/TUI_OWNERSHIP.md`）。
@@ -466,9 +465,6 @@ Escでフォームを閉じCtrl-R／再起動で現在内容を確認する。�
 単一S式は全文検査、協調writerロック、読込元との全文比較、同期したattempt / pending / before、
 renameと読戻しを使う。beforeは残す。結果不明artifact・不正名・非通常ファイル・照会失敗では
 cold open／再読込／新規でも書込み停止する。自動再送・採用・backup削除は行わない。
-Recordsは既存append engineを使い、起動時に途切れた末尾書込みをrecoverする場合がある。
-Recordsのpublisherは予定完了の対応リンクと既存Actualの置換を永続化するプロトコルが未対応。
-この二つは書込み前に明示拒否し、実績だけの部分保存をしない。現在の予定支払い・訂正は単一S式台帳が対象。
 永続した発行後Ack証拠（P7）は未解決。単一S式の復旧検査はその証明にならない。
 結果不明では記帳を止め、現行・before・attempt・pendingを保全してから照会する。
 

@@ -80,11 +80,7 @@ unknown unknown
 2026-10-10 payment|}]
 
 (* Deliberately restricted to entry facts: not equality of canonical books. *)
-let entry_view book =
-  let module R = Bakhlo_sexp.Records_book in
-  List.map
-    (R.entries (B.to_records book))
-    ~f:(fun e -> Sexplib0.Sexp.to_string (R.encode_payload (R.Entry e)))
+let entry_view book = B.entries book
 
 let%expect_test "daily identical entry facts need independent observation cuts" =
   let base = get (B.of_string fixture) in
@@ -105,8 +101,8 @@ let%expect_test "daily identical entry facts need independent observation cuts" 
   in
   let unsupported = get (B.put_entry unsupported_base ~replace:false (entry "e" 100) ~plan:None) in
   Stdio.printf "same entries: %b\n"
-    (List.equal String.equal (entry_view unreflected) (entry_view reflected)
-    && List.equal String.equal (entry_view unreflected) (entry_view unsupported));
+    (Poly.equal (entry_view unreflected) (entry_view reflected)
+    && Poly.equal (entry_view unreflected) (entry_view unsupported));
   Stdio.printf "wallet: %s / %s\n"
     (quantity unreflected "wallet" "jpy")
     (quantity reflected "wallet" "jpy");
@@ -123,7 +119,7 @@ let%expect_test "daily identical actual facts do not infer scheduled completion"
   let unlinked = get (B.of_string (B.to_string unlinked)) in
   let completed = get (B.of_string (B.to_string completed)) in
   Stdio.printf "same entries: %b\n"
-    (List.equal String.equal (entry_view unlinked) (entry_view completed));
+    (Poly.equal (entry_view unlinked) (entry_view completed));
   Stdio.printf "wallet: %s / %s\n"
     (quantity unlinked "wallet" "jpy")
     (quantity completed "wallet" "jpy");
@@ -989,7 +985,7 @@ let%expect_test "set_locus_label validates, updates labels and preserves across 
     control char: invalid-label
   |}]
 
-let%expect_test "original amount retains positive facts across monolithic and records codecs without inferring rates or support" =
+let%expect_test "original amount retains positive facts across the codec without inferring rates or support" =
   let base = get (B.of_string fixture) in
   let e : B.entry = {
     id = "orig_tx";
@@ -1009,10 +1005,6 @@ let%expect_test "original amount retains positive facts across monolithic and re
   let cold_mono = get (B.of_string mono_bytes) in
   let cold_stored = Option.value_exn (B.find_entry cold_mono "orig_tx") in
   Stdio.printf "cold mono match: %b\n" (Option.equal (fun (m1, q1) (m2, q2) -> String.equal m1 m2 && Z.equal q1 q2) stored.original_amount cold_stored.original_amount);
-  let rec_bytes = B.to_records_string book in
-  let cold_rec = get (B.of_string rec_bytes) in
-  let cold_rec_stored = Option.value_exn (B.find_entry cold_rec "orig_tx") in
-  Stdio.printf "cold rec match: %b\n" (Option.equal (fun (m1, q1) (m2, q2) -> String.equal m1 m2 && Z.equal q1 q2) stored.original_amount cold_rec_stored.original_amount);
   (* Support and balance unaffected *)
   Stdio.printf "wallet jpy: %s, food jpy: %s\n" (quantity book "wallet" "jpy") (quantity book "food" "jpy");
   Stdio.printf "wallet eur unchanged: %s\n" (quantity book "wallet" "eur");
@@ -1053,7 +1045,6 @@ let%expect_test "original amount retains positive facts across monolithic and re
     found orig: eur 750
     mono has orig: true
     cold mono match: true
-    cold rec match: true
     wallet jpy: -200, food jpy: 1200
     wallet eur unchanged: unknown
     rev target orig: true, rev entry orig: false
@@ -1108,7 +1099,7 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
   | Some M.Nonmerchant -> Stdio.printf "classified nonmerchant: true\n"
   | _ -> Stdio.printf "unexpected nonmerchant state\n");
 
-  (* 4. S-expression & Records codec roundtrip *)
+  (* 4. S-expression codec roundtrip *)
   let mono_bytes = B.to_string classified_both in
   Stdio.printf "mono has merchant party: %b\n"
     (Base.String.is_substring mono_bytes ~substring:"(merchant (party \"coffee-shop\"))");
@@ -1119,19 +1110,6 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
   let cold_e2 = Option.value_exn (B.find_entry cold_mono "e_nonmerch") in
   Stdio.printf "cold mono e1 match: %b; cold mono e2 match: %b\n"
     (Poly.equal cold_e1.merchant entry_shop.merchant) (Poly.equal cold_e2.merchant entry_nonmerch.merchant);
-
-  let rec_bytes = B.to_records_string classified_both in
-  Stdio.printf "rec has merchant party: %b\n"
-    (Base.String.is_substring rec_bytes ~substring:"(merchant(party coffee-shop))"
-     || Base.String.is_substring rec_bytes ~substring:"(merchant (party coffee-shop))");
-  Stdio.printf "rec has nonmerchant: %b\n"
-    (Base.String.is_substring rec_bytes ~substring:"(merchant(nonmerchant))"
-     || Base.String.is_substring rec_bytes ~substring:"(merchant (nonmerchant))");
-  let cold_rec = get (B.of_string rec_bytes) in
-  let rec_e1 = Option.value_exn (B.find_entry cold_rec "e_merch") in
-  let rec_e2 = Option.value_exn (B.find_entry cold_rec "e_nonmerch") in
-  Stdio.printf "cold rec e1 match: %b; cold rec e2 match: %b\n"
-    (Poly.equal rec_e1.merchant entry_shop.merchant) (Poly.equal rec_e2.merchant entry_nonmerch.merchant);
 
   (* Old formats without merchant read as None (Unresolved) *)
   let old_v1 = "(bakhlo-daily 1) (scope corrected-entries explicit-plans) (measures (measure jpy 0)) (labels (provided)) (approved-loci (provided wallet food)) (entries (entry \"e_old\" (date \"2026-10-01\") (memo (none)) (postings (posting wallet jpy -100 (none)) (posting food jpy 100 (none))) (reversal-of (none)))) (plans) (support (zero-origin) (openings) (observations) (presence (not-supplied)))" in
@@ -1193,9 +1171,6 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
     mono has merchant party: true
     mono has nonmerchant: true
     cold mono e1 match: true; cold mono e2 match: true
-    rec has merchant party: true
-    rec has nonmerchant: true
-    cold rec e1 match: true; cold rec e2 match: true
     old v1 entry merchant is None: true
     repeat classification refused: loam: Event Merchant is already classified; replacement is not qualified
     put_entry replacing merchant refused: loam: Event Merchant is already classified; replacement is not qualified
@@ -1263,10 +1238,6 @@ let%expect_test "bounded history support restates past pools and keeps its own e
       ~pattern:"(\"wallet\" \"jpy\" \"2026-10-04\")" ~with_:""
   in
   Stdio.printf "empty v5: %s\n" (parse empty_v5);
-  Stdio.printf "records: %s\n"
-    (match B.to_records_string bounded with
-    | _ -> "written"
-    | exception Invalid_argument _ -> "refused");
   [%expect {|
     unsupported wallet: error:history-support-missing:wallet:jpy
     zero-origin food: 0 100
@@ -1284,5 +1255,4 @@ let%expect_test "bounded history support restates past pools and keeps its own e
     duplicate: duplicate-bounded-history-coordinate; date: invalid-date; measure: measure-scale-not-supplied
     v4 header: unsupported-book-header; v3 with field: unsupported-field
     empty v5: empty-bounded-history
-    records: refused
     |}]

@@ -50,9 +50,9 @@ stale captures nor synthetic checks qualify as a fresh real-data comparison.
 Keep synthetic regression, paired real-data observation, human/IME and P7 acceptance
 separate. No unattended synchronization or scheduler is requested.
 
-## Storage direction (2026-10-17)
+## Storage direction (2026-10-20)
 
-The user selected **calendar-year S-expression files as the first implementation path**; see [decision](YEARLY_SEXP_IMPLEMENTATION_DECISION.ja.md) and [issue #34](https://github.com/shumoku88-bit/bakhlo/issues/34). Source-linked annual envelopes (`bakhlo-annual 1`), explicit rollover in TUI (`Household setup` → `Annual books / Start next year`) and CLI (`--annual-rollover`), current-year Balances/Daily Pace across pension cycles, single-authority cross-year plan discharge, frozen-predecessor and stale-provenance refusals, bounded multi-year reports, and exact-byte `--annual-backup` / `--annual-restore` are connected and verified on synthetic files. Power-loss/P7, noncooperative writers, real IME/human acceptance and operational cutover remain unqualified; LOAM stays production authority. See [verification](VERIFICATION.md#annual-sexp-ledger-completion-2026-10-17).
+The single-file S-expression book is the only format. Records v1 and calendar-year annual files (`bakhlo-annual 1`, rollover, chain backup, `Year_read`) were removed by user decision because Bakhlo is not in daily use. The current plan, targets and order are in AGENTS.md "Storage direction"; measurements are [stage 5](LONG_TERM_STORAGE_STUDY.ja.md). The 2026-10-17 [annual decision](YEARLY_SEXP_IMPLEMENTATION_DECISION.ja.md) is history. LOAM stays production authority.
 
 ## Current task
 
@@ -235,7 +235,7 @@ Date-only correction is now connected through `date_correction_session.ml/.mli`:
 `d` from Actual/Selected Day opens a captured-target Date → Preview flow; the existing
 `commit_transaction` replaces only the date and retains ID, Effects/keys and paid-plan links.
 Tiny/unreviewed-target confirmation refuses, retained Record drafts block entry, and
-stale reload cannot bless the captured base. Records replacement remains refused.
+stale reload cannot bless the captured base.
 Core/native checks and synthetic tmux cancel, shrink/refuse, publish, parent-ID return
 and cold restart passed; see [date evidence](VERIFICATION.md#actual-date-only-correction).
 Paired LOAM execution, IME and user acceptance are not supplied by these checks.
@@ -542,8 +542,7 @@ The current implementation direction and exercised slice are at the top of this 
 The first synthetic comparison is 2025-10-15 through 2026-10-14, six two-month cycles;
 actual adopted payment dates define cycles, never an implicit always-the-15th rule.
 Compare meaning, answers and refusals against the existing single-file Core/Daily_book oracle.
-Persisted rollover/multi-file atomicity and recovery remain unresolved. The historical
-comparison is not a requirement to repeat research before completing usable slices.
+Annual files were removed on 2026-10-20; this paragraph is history only.
 
 Irmin [Phase 1](IRMIN_STORAGE_RESEARCH.ja.md) and [Phase 2](IRMIN_PHASE2_RESULTS.ja.md)
 are complete within their stated scopes. Partial branch writes followed by EIO/SIGKILL
@@ -639,21 +638,17 @@ labels as an optional translation of the old Japanese UI.
   CLI are separate from Daily_book. v3 Book records explicit two-Measure
   exchanges; it does not represent all Daily plans or LOAM household families.
 - `sexp/daily_book.mli` owns Daily's current contract: corrected entries,
-  explicit plans and independent quantity support; reads monolithic v1..v3/v5
-  and Records v1, writes monolithic v3 (v5 only with explicit bounded-history support,
-  which Records v1 and annual envelopes refuse rather than drop). Experimental budget allocation/routing
+  explicit plans and independent quantity support; reads v1..v3/v5 and
+  writes v3 (v5 only with explicit bounded-history support). Experimental budget allocation/routing
   APIs and trial v4 support were removed. Old budget-only trials may be recreated.
 - Ordinary same-Measure recording, multi-posting drafts, date/amount/memo edits,
   browsing, admitted-Locus candidates, transaction preview and explicit plan
   payment are connected to the trial UI. Editing preserves stable IDs, posting
   structure/keys and payment links; unsupported Exchange/Reversal-related edits
   refuse instead of dropping their relationships.
-  Replacement and Scheduled completion publication are supported by the monolithic
-  path only. Records refuses both before append because its protocol cannot persist
-  the replacement/completion link atomically; it must not append a partial Actual.
 - `put_plan`/`cancel_plan` are connected to single-occurrence create/edit/cancel UI.
   Paid/cancelled plans cannot be edited or paid again; cancellation retains the
-  occurrence and does not change physical quantities. Records refuses these writes.
+  occurrence and does not change physical quantities.
   The browser exposes current-open occurrences, not full Series/Months/completed views.
 - `daily_pace` computes an explicit one-Measure balance pool less open-plan net
   drains before a supplied exclusive end, divided by remaining calendar days.
@@ -736,13 +731,6 @@ for current keys and recovery commands.
 
 ## Storage and unresolved safety
 
-`Bakhlo_sexp.Year_read` adds an opt-in annual validation boundary only; see
-[YEAR_READ_BOUNDARY.ja.md](YEAR_READ_BOUNDARY.ja.md). Its authoritative verified
-selection source is connected only for the locked, read-only rollover preview described above.
-It checks original bytes and Core admission, derives opaque prior-year carry, and rejects stale/mixed inputs.
-It does not synthesize current balances, persist annual data or alter default
-single-S-expression operation. Do not advertise it as a usable annual store.
-
 Monolithic publication performs full admission/printer checks, cooperative writer
 locking, expected-base comparisons, synced attempt/pending/pre-edit backup writes,
 selected rename and readback. Remaining/malformed/nonregular attempt/pending
@@ -752,12 +740,7 @@ is limited to a candidate exactly matching the selected file now and does not
 prove the outcome of an earlier publication. Restore-copy uses a fresh path;
 copy success does not select a new operational ledger.
 
-Records uses the existing append engine, request tokens and LSN checks instead
-of monolithic attempt/pending files. Opening Records can recover a torn final
-write; corruption refuses. Scheduled completion and replacement of an existing
-Actual are refused before append; their bytes and cold state remain unchanged.
-Do not describe every open/recovery operation as
-read-only. Persistent client acknowledgement after restart/Ack loss (P7) remains
+Persistent client acknowledgement after restart/Ack loss (P7) remains
 an independent unresolved safety boundary; monolithic recovery is not its proof.
 
 Stable parent namespaces and cooperative writers are assumptions. Process-kill

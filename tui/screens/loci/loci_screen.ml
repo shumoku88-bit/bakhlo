@@ -290,12 +290,9 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
         let role_opt = List.assoc_opt locus roles in
         let role_str = match role_opt with None -> "None / Unassigned" | Some r -> Roles.role_label r in
         let balances =
-          if Lazy.force env.annual.unavailable <> None then
-            [ "  Unavailable: prior-year opening evidence is not connected." ]
-          else
-            List.map (fun (m, _) ->
-              Printf.sprintf "  %s: %s" (String.uppercase_ascii m) (O.quantity ~book ~measure:m locus))
-              (B.measures book)
+          List.map (fun (m, _) ->
+            Printf.sprintf "  %s: %s" (String.uppercase_ascii m) (O.quantity ~book ~measure:m locus))
+            (B.measures book)
         in
         [
           "Locus Token:      " ^ locus;

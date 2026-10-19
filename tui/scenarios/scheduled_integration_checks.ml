@@ -132,14 +132,6 @@ let cancellation_checks ~width_of ~directory home =
            && F.read path = before) "cancel-storage-failure-keeps-date-target-and-base";
   let kept_failed = key ~width_of failed `Enter in
   require ((no_modal kept_failed) && F.read path = before) "cancel-failure-resets-choice-to-keep";
-  let records_path = directory ^ "/cancellation-records.sexp" in
-  F.write_new records_path (B.to_records_string book);
-  let records = { base with session = F.load records_path } in
-  let records_bytes = F.read records_path in
-  let refused = key ~width_of records (`ASCII 'x') |> fun s -> key ~width_of s `Enter
-    |> fun s -> key ~width_of s `Tab |> fun s -> key ~width_of s `Enter in
-  require (Cancel.is_preview (editor refused) && F.read records_path = records_bytes)
-    "cancel-records-refusal-keeps-confirmation-without-write";
   let saved = key ~width_of selected `Enter in
   let cold = F.load path in
   require ((no_modal saved)
@@ -168,7 +160,7 @@ let cancellation_checks ~width_of ~directory home =
    | _ -> raise (F.Refused "cancel-reviewed-end-refused"));
   (match Cancel.handle ~blocked:false ~dimensions:(32,9) ~width_of ended (`Key (`Enter, [])) with
    | Cancel.Updated _ -> () | _ -> raise (F.Refused "cancel-shrink-after-end-bypassed-gate"));
-  print_endline "PASS: Scheduled cancellation has read-only Preview, default Keep, date/target/end/tiny gates, retained drafts, stale/Records/storage refusal and cold non-destructive retirement."
+  print_endline "PASS: Scheduled cancellation has read-only Preview, default Keep, date/target/end/tiny gates, retained drafts, stale/storage refusal and cold non-destructive retirement."
 
 let months_checks ~width_of ~directory home =
   let days = ["2026-10-20"; "2026-11-30"; "2026-12-31"; "2027-01-15";

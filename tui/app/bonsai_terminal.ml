@@ -7,10 +7,8 @@ module H = Shell_input
 module X = Shell_dispatch
 module R = Shell_view
 module F = Daily_file
-module Annual = Bakhlo_sexp.Annual_scope
 module P = Ui_preferences
 module D = Bakhlo_domain
-module Y = Bakhlo_sexp.Year_read
 
 let fit width height view =
   let view = V.crop ~r:(max 0 (V.width view - width)) ~b:(max 0 (V.height view - height)) view in
@@ -259,7 +257,7 @@ type first_run_result = First_run_created of F.t | First_run_cancelled | First_r
 
 type first_run_action = First_run_event of B.Event.t
 
-let first_run_app ?annual_year initial ~outcome ~exit ~dimensions graph =
+let first_run_app initial ~outcome ~exit ~dimensions graph =
   let state, inject =
     Bonsai.state_machine_with_input ~default_model:initial
       ~apply_action:(fun context active_dimensions state (First_run_event event) ->
@@ -279,13 +277,8 @@ let first_run_app ?annual_year initial ~outcome ~exit ~dimensions graph =
              | First_run.Create details ->
                  (try
                     let session =
-                      match annual_year with
-                      | None ->
-                          F.create_empty ~path:details.destination ~measure:details.measure
-                            ~scale:details.scale
-                      | Some year ->
-                          F.create_annual_empty ~year ~path:details.destination
-                            ~measure:details.measure ~scale:details.scale
+                      F.create_empty ~path:details.destination ~measure:details.measure
+                        ~scale:details.scale
                     in
                     outcome := Some (First_run_created session)
                   with
@@ -320,14 +313,14 @@ let first_run_app ?annual_year initial ~outcome ~exit ~dimensions graph =
   let handler = Bonsai.arr1 graph inject ~f:(fun inject event -> inject (First_run_event event)) in
   (~view, ~handler)
 
-let start_first_run ?annual_year path read_error =
+let start_first_run path read_error =
   F.require (Unix.isatty Unix.stdin && Unix.isatty Unix.stdout) "interactive-tty-required";
   let initial = First_run.initial ~source_path:path ~read_error in
   let outcome = ref None in
   (match
      Async.Thread_safe.block_on_async_exn (fun () ->
        B.start_with_exit ~dispose:true ~mouse:B.Mouse_reporting.No_mouse_events ~bpaste:true
-         (first_run_app ?annual_year initial ~outcome))
+         (first_run_app initial ~outcome))
    with
    | Ok () -> ()
    | Error _ -> raise (F.Refused "Bonsai-terminal-unavailable"));
@@ -348,10 +341,9 @@ let run_loaded session =
   | Ok () -> ()
   | Error _ -> raise (F.Refused "Bonsai-terminal-unavailable")
 
-let run ?annual_year path =
-  F.check_annual_path annual_year path;
+let run path =
   match
-    try Ok (F.load ?annual_year path)
+    try Ok (F.load path)
     with
     | F.Refused why -> Error why
     | Unix.Unix_error (error, _, _) -> Error (Unix.error_message error)
@@ -361,6 +353,6 @@ let run ?annual_year path =
       F.require (Unix.isatty Unix.stdin && Unix.isatty Unix.stdout) "interactive-tty-required";
       run_loaded session
   | Error why ->
-      (match start_first_run ?annual_year path why with
+      (match start_first_run path why with
        | None -> ()
        | Some session -> run_loaded session)

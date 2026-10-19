@@ -85,14 +85,7 @@ type state = {
 let initial ?config_home session =
   let measure = match B.measures session.F.book with (id, _) :: _ -> id | [] -> "" in
   let today = F.today () in
-  let focus_day =
-    match session.F.annual_year with
-    | None -> today
-    | Some year ->
-        let prefix = Printf.sprintf "%04d-" year in
-        if String.starts_with ~prefix today then today else prefix ^ "01-01"
-  in
-  let workspace = get (W.create ~today:focus_day ~measure) in
+  let workspace = get (W.create ~today ~measure) in
   let notice = A.recovery_notice ~session in
   let attention_path = Attention_file.file_path ?config_home session.F.path in
   let attention = Attention_file.load_file attention_path in
@@ -116,7 +109,7 @@ let initial ?config_home session =
     attention;
     settlement_path;
     settlements;
-    screens = Screen_registry.create ~scheduled_months:(get (Scheduled_months.create ~today:focus_day));
+    screens = Screen_registry.create ~scheduled_months:(get (Scheduled_months.create ~today));
     drill_parent = None;
     drill_book = None;
   }
@@ -174,21 +167,12 @@ let apply_commit_result ?published_message ?(record_publication = false) state ~
   match result with
   | A.Published session ->
       published session "Published and read back. Previous bytes are kept separately."
-  | A.Idempotent_duplicate { session; _ } ->
-      published session "Already published; no duplicate was applied."
   | A.Conflict_base_changed ->
       stopped ~pending:None
         (tr "The preview generation changed. Draft retained; reload and review.")
   | A.Conflict ->
       stopped ~pending:None
         (tr "Another writer changed the book. Draft retained; reload and review.")
-  | A.Conflict_lsn { expected; actual } ->
-      stopped ~pending:None
-        (A.format_message "Append conflict: expected LSN %d, found %d. Draft retained." expected
-           actual)
-  | A.Payload_drift_refused why ->
-      stopped
-        (A.format_message "Same ID has a different payload (%s). Retry stopped; draft retained." why)
   | A.Recovery_blocked -> stopped A.recovery_message
   | A.Storage_failed why ->
       stopped (A.format_message "Storage failed (%s). Writes stopped; draft retained." why)
@@ -330,19 +314,7 @@ let open_plan_record state =
       message = "";
     }
 
-let annual_unavailable state = F.annual_unavailable state.session
-
-let annual_needs_history = function
-  | W.Balances | W.Daily_pace | W.Stock_flow | W.Income_expense
-  | W.Transactions_flow -> true
-  | W.Home | W.Calendar | W.Selected_day _ | W.Actual | W.Scheduled
-  | W.Attention | W.Loci | W.Settlements -> false
-
 let open_route state route =
-  if annual_needs_history route && annual_unavailable state <> None then
-    { state with overlay = No_overlay;
-      message = Option.value ~default:"Annual opening evidence unavailable." (annual_unavailable state) }
-  else
   sync { state with workspace = W.enter state.workspace route; overlay = No_overlay;
                     drill_parent = None; drill_book = None;
                     screens = Screen_registry.enter route ~focus_day:state.workspace.calendar.selected_day state.screens }

@@ -20,15 +20,6 @@ type route =
   | Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace
   | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow
 
-type annual = {
-  notice : string option Lazy.t; (** Home-only annual notice; do not force on other routes. *)
-  year : int option;  (** Explicitly named annual book, if any. *)
-  unavailable : string option Lazy.t;
-      (** Qualified prior-year opening evidence is missing (verified on demand). *)
-  history : ((string * string) option, string) result Lazy.t;
-      (** Verified linked history as [first_day, end_exclusive]. *)
-}
-
 type env = {
   book : Bakhlo_sexp.Daily_book.t;
   bytes : string;  (** Household file bytes the book was read from: a publication base. *)
@@ -36,7 +27,6 @@ type env = {
   measure : string;  (** Shell-selected Measure. *)
   calendar : Daily_calendar.t;  (** Shell focus day and zoom, shared by every route. *)
   today : string;
-  annual : annual;
   accounting_roles : (string * Daily_overlays.accounting_role) list Lazy.t;
       (** Explicit Locus roles from accounting-roles.tsv; none when absent. *)
   attention : (Attention_data.t, string) result;
@@ -161,5 +151,5 @@ val env_for_checks :
   ?accounting_roles:(string * Daily_overlays.accounting_role) list ->
   ?config:(string -> (string option, string) result) ->
   book:Bakhlo_sexp.Daily_book.t -> measure:string -> today:string -> unit -> env
-(** A synthetic environment for owner checks: no annual book, empty sidecars,
+(** A synthetic environment for owner checks: empty sidecars,
     writes allowed, undeclared configuration refused. *)

@@ -230,9 +230,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
   let rows = rows ~book ~calendar:env.calendar t in
   let titles = List.map (Record_lines.row_title book) rows in
   if t.route = Screen.Home then
-    match Lazy.force env.annual.notice with
-    | None -> O.bonsai_home_lines ~width ~height ~width_of ~today:env.today
-    | Some notice -> (O.Status, notice) :: O.bonsai_home_lines ~width ~height:(max 0 (height - 1)) ~width_of ~today:env.today
+    O.bonsai_home_lines ~width ~height ~width_of ~today:env.today
   else
     let calendar_focused = t.pane = Calendar_pane in
     let detail =

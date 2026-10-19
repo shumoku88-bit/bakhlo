@@ -3,7 +3,6 @@
 module D = Bakhlo_domain
 module Q = Bakhlo_application.Current_quantity_query
 module B = Bakhlo_sexp.Daily_book
-module RB = Bakhlo_sexp.Records_book
 
 let get = function Ok x -> x | Error why -> failwith why
 let id = function Ok x -> x | Error _ -> failwith "invalid-id"
@@ -39,21 +38,34 @@ let entry i : B.entry =
     reversal_of = (if reversal then Some (Printf.sprintf "tx-%06d" (i - 1)) else None);
     exchange = None; original_amount = None; merchant = None }
 
+(* Ordinary S-expression text, so the fixture never depends on a writer path. *)
 let generate n =
-  let header : RB.header =
-    { version = 1; measures = ["jpy",0; "eur",2; "usd",2]; labels = None;
-      approved_loci = Some ["wallet"; "food"; "fees"; "bank"];
-      origins = List.concat_map (fun m -> [coordinate "food" m; coordinate "fees" m]) (Array.to_list currencies);
-      openings = []; presence = None; opaque = [];
-      observations = [ { Bakhlo_application.Current_quantity_groups.reflected_roots = [];
-        assertions = List.map (fun m ->
-          { Bakhlo_application.Current_quantity_projection.coordinate = coordinate "wallet" m;
-            quantity = D.Quantity.of_quanta (Z.of_int 1000000) }) (Array.to_list currencies) } ] } in
-  let payloads = List.init n (fun i -> let e = entry (i + 1) in RB.Entry
-    { id=e.id; day=e.day; memo=e.memo; token=None; effects=e.effects;
-      reversal_of=e.reversal_of; exchange=e.exchange; original_amount=None; merchant=None; opaque=[] }) in
-  let rb : RB.t = {header; frames = List.mapi (fun i p -> RB.encode_frame (i + 1) p) payloads} in
-  B.to_string (get (B.of_records rb))
+  let b = Buffer.create (n * 300) in
+  let add = Buffer.add_string b in
+  add "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n";
+  add "(measures (measure jpy 0) (measure eur 2) (measure usd 2))\n";
+  add "(labels (not-supplied)) (approved-loci (provided wallet food fees bank))\n(entries\n";
+  for i = 1 to n do
+    let e = entry i in
+    let postings =
+      String.concat " "
+        (List.map (fun p ->
+             Printf.sprintf "(posting %s %s %s (none))"
+               (D.Identifier.Locus.to_string (D.Effect.locus p))
+               (D.Identifier.Measure.to_string (D.Effect.measure p))
+               (Z.to_string (D.Quantity.quanta (D.Effect.quantity p))))
+           e.effects)
+    in
+    Printf.bprintf b "(entry %s (date %s) (memo (some \"%s\")) (postings %s) (reversal-of %s))\n"
+      e.id e.day (Option.get e.memo) postings
+      (match e.reversal_of with None -> "(none)" | Some t -> "(some " ^ t ^ ")")
+  done;
+  add ")\n(plans)\n(support (zero-origin";
+  Array.iter (fun m -> Printf.bprintf b " (food %s) (fees %s)" m m) currencies;
+  add ") (openings)\n(observations (observation (reflected) (quantities";
+  Array.iter (fun m -> Printf.bprintf b " (wallet %s 1000000)" m) currencies;
+  add "))) (presence (not-supplied)))\n";
+  B.to_string (get (B.of_string (Buffer.contents b)))
 
 let read path = In_channel.with_open_bin path In_channel.input_all
 let write path s = Out_channel.with_open_bin path (fun oc -> output_string oc s)

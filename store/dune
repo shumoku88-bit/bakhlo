@@ -1,5 +1,5 @@
-; The single household writer: session load, atomic publication, recovery and
-; annual backup. Only the TUI Shell's publication executor may depend on it.
+; The single household writer: session load, atomic publication and recovery.
+; Only the TUI Shell's publication executor may depend on it.
 (library
  (name bakhlo_store)
  (public_name bakhlo.store)

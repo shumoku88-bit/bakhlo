@@ -137,38 +137,19 @@ let resolve_pool (env : Screen.env) =
 (* Queries *)
 
 let current_pace (env : Screen.env) =
-  match Lazy.force env.annual.unavailable with
-  | Some why -> Error why
-  | None ->
-      let current_year = String.sub env.today 0 4 in
-      if (match env.annual.year with
-          | Some year -> current_year <> Printf.sprintf "%04d" year
-          | None -> false) then Error "Daily Pace requires the current calendar year's annual book."
-      else
-        Result.bind (resolve_pool env) (fun pool ->
-          Result.bind (resolve_window env) (fun (start_day, end_exclusive) ->
-            Result.map (fun p -> (p, start_day, end_exclusive))
-              (Result.map_error Trend.format_pace_error
-                 (B.daily_pace env.book ~measure:env.measure ~pool ~observed_at:env.today
-                    ~end_exclusive))))
+  Result.bind (resolve_pool env) (fun pool ->
+    Result.bind (resolve_window env) (fun (start_day, end_exclusive) ->
+      Result.map (fun p -> (p, start_day, end_exclusive))
+        (Result.map_error Trend.format_pace_error
+           (B.daily_pace env.book ~measure:env.measure ~pool ~observed_at:env.today
+              ~end_exclusive))))
 
 let samples (env : Screen.env) t =
   Result.bind (resolve_pool env) (fun pool_coords ->
     let pool_loci = List.map (fun c -> A.lstr c.D.Effect_coordinate.locus) pool_coords in
     Result.bind (env.config boundary_file) (fun boundary_text ->
-      let compute () =
-        Trend.compute_samples ~book:env.book ~measure:env.measure ~pool:pool_loci
-          ~boundary_presets_text:boundary_text ~today:env.today ~preset:t.trend.preset
-      in
-      match env.annual.year with
-      | None -> compute ()
-      | Some _ ->
-          Result.bind (current_pace env) (fun _ ->
-            Result.bind (compute ()) (fun ((first_day, through_day, _) as result) ->
-              Result.bind (Lazy.force env.annual.history) (function
-                | Some (first, last) when first_day < first || through_day >= last ->
-                    Error "Trend extends outside verified annual history."
-                | _ -> Ok result)))))
+      Trend.compute_samples ~book:env.book ~measure:env.measure ~pool:pool_loci
+        ~boundary_presets_text:boundary_text ~today:env.today ~preset:t.trend.preset))
 
 let detail_lines (env : Screen.env) =
   let today = env.today and measure = env.measure in

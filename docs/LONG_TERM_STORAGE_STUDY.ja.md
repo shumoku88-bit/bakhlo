@@ -1,6 +1,6 @@
 # 長期保存方式の調査
 
-状態: **既存経路baseline・保存費用分解・印字試作・起動/snapshot/メモリ応答（第5段階）は測定済み。方式採用・運用認定は未完了。**
+状態: **第1〜5段階は測定済み。Records・年別S式は2026-10-20に削除。次の方針はAGENTS.mdの Storage direction（差分更新Core→追記ログ＋捨てられるsnapshot）。**
 
 最新の配置/分析・繰越・年度間参照・原子性/復旧と合成検証計画は
 [暦年別S式研究](YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)が所有する。
@@ -375,5 +375,4 @@ macOS x86_64 / OCaml 5.3.0。filesystem cacheはflushしていない。冷ロー
 次の候補順: (1) 訂正等の差分入場を、全体入場と同じ拒否を保ったまま可能か調べる、
 (2) 全操作を1レコードで表す追記ログ＋捨てられるsnapshot、(3) 古い年の遅延読込。
 SQLiteは当面使わない（ユーザー判断 2026-10-20）。
-既存`tools/storage-study`/`tools/storage-breakdown`は`tui/daily_file.ml`移動とentry field追加に
-追従しておらず、現HEADでは実行できない（今回修正していない）。
+旧`tools/storage-study`/`tools/storage-breakdown`等は現HEADで実行できなくなっていたため、2026-10-20に削除した（結果は上の記録に残る）。

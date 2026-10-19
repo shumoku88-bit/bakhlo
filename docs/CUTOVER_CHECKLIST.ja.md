@@ -50,7 +50,7 @@ Daily v4・予算APIは非現行。限定コンバータ・既存Book CLI・型�
 | R04 | 日付・金額・摘要・内訳の訂正 | 一部：同じIDで訂正、Postingキー・支払い対応を保持 | 既存Postingの構成変更、Exchange／Reversal関連の訂正は拒否 |
 | R05 | 探す・詳細を見る | 一部：Actualの検索modal内live絞込、日付絞込、昇降順、2ペイン詳細 | 共通viewport・安全な数量列は合成／PTY検証。Locus絞込UI、画面内検索、独立Transaction detail・actions・復帰文脈は差が残る |
 | R06 | 未分類を明示的に仮置き | 一部：許可済み通常Locusへ手入力 | unresolved語彙の追加確認・内訳補助は未同等 |
-| R07 | 実際の返金・反転 | 試用：xの日付入力→専用exact inverse Preview→既存writer。元Actualを残す | 末尾／狭小gate、捕捉base・stale／失敗／unknown停止、coldは合成・PTYで限定検証。Recordsはdraftを保持して拒否。LOAMのr・対照表示／実機受入は別のO/V/Q課題 |
+| R07 | 実際の返金・反転 | 試用：xの日付入力→専用exact inverse Preview→既存writer。元Actualを残す | 末尾／狭小gate、捕捉base・stale／失敗／unknown停止、coldは合成・PTYで限定検証。LOAMのr・対照表示／実機受入は別のO/V/Q課題 |
 | R08 | Merchant／非Merchant分類 | 未接続 | Coreの検査はあるがDaily永続項目・入力なし |
 | R09–R10 | 口座・費目の一覧／検索／選択 | 試用：許可済みID・表示名の候補 | 同名候補、長い文字、取消後の下書き・位置を比較 |
 | R11–R12 | Focusと短命な補助pane | 一部：Calendar／Detail、Record／候補／Preview。Actual・Scheduledの共通panel | Actual／Scheduledの端・ページ・resize・draftは限定検証。Selected DayからCalendarへの親復帰、Help、他のmodalは別のO/Q課題 |
@@ -65,7 +65,7 @@ Daily v4・予算APIは非現行。限定コンバータ・既存Book CLI・型�
 | --- | --- | --- | --- |
 | S01 | 単発予定の作成 | 試用：Record系のPlan入力・Preview | 単一S式のみ。純粋APIだけの段階から画面接続済み |
 | S02 | 変更・日付付き取消 | 試用：単発Edit／Previewと、日付付き取消modal | paid／cancelledを再利用しない。取消modalのKeep初期選択・独立確認・狭小gateはEdit Previewと別に比較する |
-| S03 | 予定を実績化 | 試用：Actual入力とpaid-byを同時保存 | 単一S式のみ。Recordsは部分Actual追記前に拒否 |
+| S03 | 予定を実績化 | 試用：Actual入力とpaid-byを同時保存 | 単一S式（唯一の形式） |
 | S04 | 未払い・完了・月別を見分ける | 局部：Home sはcurrent-open List／単発detail／検索。枠・viewportはActualと共用 | Series Calendar、六か月Months、Series内Plan Detail、open／completedの併記は未接続。ListのT/PTY成功をそれらの実装済みと数えない |
 | S05 | 次回／複数回／期限まで補充 | 未接続 | 実際の予定を確認して発行する操作が必要。周期から事実を捏造しない |
 | S06 | Expected pace・未補充監視 | 未接続 | 観測設定と明示された予定を分離する |
@@ -92,7 +92,7 @@ Daily v4・予算APIは非現行。限定コンバータ・既存Book CLI・型�
 | --- | --- | --- | --- |
 | F01 | 外貨の普通の記帳 | 試用：明示Measure・scale | 通貨を混ぜない。入力できることと外貨レポートは別 |
 | F02 | 両替 | 局部：両通貨・数量modalから既存publisherへ、Exchangeキーを保存 | 独立Preview・候補・狭小全文確認・失敗時の復帰は未同等。RecordのPreview拒否をこのmodalの保証にしない |
-| F03 | 原額を記帳通貨と別に保持 | 接続済み | Record Ctrl-O、Preview、同一保存操作、Actual詳細、再起動、訂正時保持、年別保存・バックアップで保持 | 独立Preview・入力・保存・年越しを合成データで検査完了 |
+| F03 | 原額を記帳通貨と別に保持 | 接続済み | Record Ctrl-O、Preview、同一保存操作、Actual詳細、再起動、訂正時保持 | 独立Preview・入力・保存を合成データで検査完了 |
 | F04–F06 | 立替・部分精算・相殺・非支払減少 | 一部：commitment累計額の試用sidecar／操作 | ActualのEffectとの配分、独立した決済通貨・証拠・訂正／撤回は未同等 |
 
 精算画面があることをLOAM Settlementの移植完了としない。
@@ -123,7 +123,7 @@ Poolの設定画面は`daily-pace.tsv`だけを更新し、全境界presetをbyt
 
 | ID | 生活操作 | 基準時点の状態／判定条件 |
 | --- | --- | --- |
-| O01 | 記帳・終了・再開 | 単一S式／Recordsの既存保存・拒否テストを維持。永続Ack（P7）・電源断は未認定 |
+| O01 | 記帳・終了・再開 | 単一S式の既存保存・拒否テストを維持。永続Ack（P7）・電源断は未認定 |
 | O02 | 確認・バックアップ復旧 | inspect／confirm／restore-copyあり。保持、別媒体、不一致候補の採用条件は未確定 |
 | O03 | 外部会計形式への出力 | hledger出力はユーザー指定で対象外。他形式は別途判定。Daily経路には未接続で、S式が読めることを他形式の対応としない |
 | O04 | Fava | ユーザー指定で対象外。運用切替の必須条件にしない |

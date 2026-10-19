@@ -6,7 +6,6 @@ open Home_integration_checks
 open Ui_primitive_checks
 open Actual_integration_checks
 open Scheduled_integration_checks
-open Annual_integration_checks
 open Pace_integration_checks
 open Balances_integration_checks
 
@@ -30,7 +29,6 @@ let run ~width_of () =
   months_checks ~width_of ~directory home;
   coverage_checks ~width_of ~directory home;
   continuation_checks ~width_of ~directory home;
-  annual_lifecycle_checks ~width_of ~directory ();
   original_amount_integration_checks ~width_of ~directory ();
   event_merchant_integration_checks ~width_of ~directory ();
   daily_pace_trend_fail_closed_checks ~width_of ~directory ();
@@ -42,7 +40,6 @@ let run ~width_of () =
   balance_display_checks ~width_of ~directory ();
   balance_picker_checks ~width_of ~directory ();
   observe_multi_checks ~width_of ~directory ();
-  Annual_integration_checks.route_checks ~width_of ~directory home;
   Publication_integration_checks.run ~width_of ~directory ~path home;
   let form_ja = Form_integration_checks.run ~width_of home in
   Attention_integration_checks.run ~width_of home;

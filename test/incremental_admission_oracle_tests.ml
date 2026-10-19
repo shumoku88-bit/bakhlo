@@ -415,8 +415,8 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
   let paid_plan = Option.value_exn (List.find (B.plans inc_pay) ~f:(fun p -> String.equal p.id "rent")) in
   assert (Option.equal String.equal paid_plan.paid_by (Some "pay_rent"));
 
-  (* 7. Records S-expression format export & reload *)
-  let rec_str = B.to_records_string inc_pay in
+  (* 7. S-expression export & reload *)
+  let rec_str = B.to_string inc_pay in
   let reloaded_rec = get (B.of_string rec_str) in
   assert (B.entry_count reloaded_rec = 5);
   let rec_fwd_ids = List.map (B.entries reloaded_rec) ~f:(fun e -> e.id) in
@@ -433,7 +433,7 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
           let q_orig = query_str inc_pay l m in
           let q_rec = query_str reloaded_rec l m in
           if not (String.equal q_orig q_rec) then
-            failwith (Printf.sprintf "records_roundtrip balance mismatch at (%s, %s): %s vs %s" l m q_orig q_rec)));
+            failwith (Printf.sprintf "roundtrip balance mismatch at (%s, %s): %s vs %s" l m q_orig q_rec)));
 
   Stdio.printf "PR 6b comprehensive regression invariants hold\n";
   [%expect {|

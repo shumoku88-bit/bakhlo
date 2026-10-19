@@ -143,12 +143,5 @@ let self_check ~width_of () =
       require (F.read path=unchanged) "duplicate-no-write";
       require (match A.commit_plan_batch ~session ~base_bytes:"stale" plans with A.Conflict_base_changed -> true | _ -> false) "stale-refused";
       require (match A.commit_plan_batch ~session ~base_bytes:session.bytes [] with A.Refused _ -> true | _ -> false) "empty-refused";
-      let records_path = directory ^ "/records.sexp" in
-      let records_before = B.to_records_string cold.book in
-      F.write_new records_path records_before;
-      let records_session = F.load records_path in
-      require (match A.commit_plan_batch ~session:records_session ~base_bytes:records_session.bytes plans with
-        | A.Refused _ -> true | _ -> false) "records-refused";
-      require (F.read records_path = records_before) "records-no-write";
-      print_endline "PASS: Scheduled bulk amount editing preserves metadata, exact decimal quanta, candidate/selection boundaries, Back default, terminal/stale/Records refusal and atomic cold reload."
+      print_endline "PASS: Scheduled bulk amount editing preserves metadata, exact decimal quanta, candidate/selection boundaries, Back default, terminal/stale refusal and atomic cold reload."
   | _ -> raise (F.Refused "publish-choice-navigation")

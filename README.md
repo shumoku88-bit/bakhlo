@@ -31,10 +31,7 @@ Favaとhledgerへの出力はユーザー指定で対象外。Print／診断や�
   編集前の内容は別バックアップに残し、正データの明細IDは保つ（まだ試用保存）。
 - 金額・日付入力の柔軟化（PR UX-2のパーサを維持）: 全角・半角数字、正しい3桁カンマ区切り、小数通貨、グレゴリオ暦厳守の日付入力（`-`, `/`, `.` 対応）。新UIの日付移動はHome / Calendarの暦ナビ・`t`（今日）・`/`（jump）を使う。
 - 入力エラー表示と下書き保護（PR UX-1の検査境界を維持し、新UIの表記は英語）: 不備や不確定時に入力と下書きを保護し、安全に停止する。
-- レコード形式（Records）の耐久追記保存と高速インデックス化（PR 5, PR 6）。
-  Recordsでは予定完了リンクの同時保存と既存明細の置換が未対応のため、両操作を追記前に拒否する。
-  予定の支払い・既存明細の訂正を試す場合は単一S式の試用コピーを使う。
-- 単一S式のDaily台帳で、単発予定の作成・変更・日付付き取消を画面から試せる（Recordsは拒否）。
+- 単一S式のDaily台帳で、単発予定の作成・変更・日付付き取消を画面から試せる。
   取消済み予定は残し、支払い済み／取消済みの再支払いを拒否する。
 - `Daily_book.daily_pace`でLOAM Home `d`相当の今日の目安を計算し、英語のDaily Pace画面で設定・現在の量・予定控除を表示する。
   対象口座・通貨・観測日・期間末は明示する。現在値・What-if・Pool編集・Trendは接続済み。
@@ -49,7 +46,7 @@ Favaとhledgerへの出力はユーザー指定で対象外。Print／診断や�
   不正／読めない`balance-view.tsv`は全件への暗黙の置換をせずUnavailableとして表示する。
 - Observeは同時に確認した複数のLocus × Measure × 数量をAdd→Preview→Publishで一括保存する。
   未指定座標の観測を保全し、重複・既存支持との衝突・古い台帳・結果不明は拒否／停止する。Preview／Edit／取消は非保存。
-- Daily台帳はv1〜v3とRecords v1を読み、単一S式ではv3を書く。旧試用の予算APIとv4は削除済み。
+- Daily台帳は単一S式のv1〜v3・v5を読み、v3（期間付き履歴があればv5）を書く。旧試用の予算APIとv4は削除済み。
 - `record` で単一通貨の支出・収入・振替を記録できる。
 - v3 Bookでは `exchange` で両替元と両替先の通貨・数量を明示した両替を記録でき、
   受け取った現地通貨は通常の `record --measure` で使える。
@@ -137,31 +134,11 @@ Esc／Cancelは下書きを保持する。起動時に台帳を開けない場�
 保存先の確認では全パスが表示される寸法を要求し、不正なUTF-8や表示順を変える双方向制御文字を含むパスは拒否する。
 [操作・対応範囲・保存の限界](tui/README.md)も参照。
 
-### 年別S式の運用候補（合成データのみ）
+### 保存形式
 
-明示的に選択した暦年ファイルを扱う入口を追加した。`--annual-book` は既存の `--book` と並存し、従来の単一S式運用を自動的に切り替えない。
+単一S式ファイルだけを使う。Records形式と年別S式（`bakhlo-annual`）は2026-10-20に削除した（Bakhloは普段使い前のため互換性を残さない）。
+次の方針は差分更新するCore＋追記ログ＋捨てられるスナップショットで、計測は[長期保存調査の第5段階](docs/LONG_TERM_STORAGE_STUDY.ja.md)を参照。現在の正データは引き続きLOAM。
 
-```sh
-# 最初の年は既存の First run 画面で空の年別S式を明示作成する
-./tools/tui --annual-book 2026 --book scratch/my-daily-trial/2026.sexp
-
-# 前年の検証済み原本から翌年を開始する（TUIの Household setup からも同じ確認画面を開ける）
-./tools/tui --annual-rollover 2026 --book scratch/my-daily-trial/2026.sexp
-
-# 指定年と参照元の全連鎖を検証する
-./tools/tui --annual-check 2027 --book scratch/my-daily-trial/2027.sexp
-./tools/tui --annual-list scratch/my-daily-trial
-
-# 原本連鎖をバイト完全な単一アーカイブへ出力・新規ディレクトリへ復元する（自動採用しない）
-./tools/tui --annual-backup 2027 --book scratch/my-daily-trial/2027.sexp \
-  --output scratch/my-daily-trial/backup.sexp
-./tools/tui --annual-restore scratch/my-daily-trial/backup.sexp \
-  --directory scratch/my-daily-trial/restored
-```
-
-翌年ファイルは `(bakhlo-annual 1 ...)` として前年の年度・fingerprintと当年の明細、現在の予定・元の数量根拠を保持する。読込・保存時には協調writerロック下で前年までの全原本を照合し、明細を合成して既存Coreの入場検査を通す。繰越額を独立観測として挿入せず、Exact・Zero-origin・Known-present・Unknown、反映済root、通貨・ID境界を保持する。
-
-翌年を開始すると前年原本は変更せず読取専用とし、未完了予定（期限超過を含む）の支払い・取消権限は翌年へ一回だけ移る。検証済み連鎖が揃っている間は翌年のCurrent Balances、当年のDaily Pace、選択履歴範囲内の期間横断・年金サイクル照会を使える。前年原本の改変・欠損・破損・未確定保存があれば翌年の残高表示と保存を拒否する。元の独立した空年別作成や `--annual-rollover-preview` も維持する。電源断・P7・非協調writer耐性と本番移行は未認定であり、現在の正データは引き続きLOAM。
 ### UIの方針
 
 LOAMの機能・見た目・使い勝手を、予算だけを延期してBakhloでも再現する。Calendar Homeの
@@ -191,8 +168,6 @@ Bakhloはまだ実運用前なので、旧UIとの互換性を維持するため
 - `lib/`：識別子・金額・取引の小さな型。
 - `application/`：検査と数量の問い合わせ。
 - `sexp/`：既存Bookと、新しい `Daily_book` の純粋な読取・更新。
-  `Year_read` は[年度版の検証境界](docs/YEAR_READ_BOUNDARY.ja.md)で、
-  年越し読取プレビューのロック済み供給源に接続済み。永続繰越・本番認定ではない。
 - `tui/`：Bonsai_termの英語UI、共有の操作・表示と、明示的なファイル入出力。
 - `cli/`、`presentation/`、`bin/`：引数・表示・入出力。
 - `loam_read/`：限定された読み取り専用LOAM入力。完全な移行アダプタではない。
@@ -212,15 +187,11 @@ Bakhloのコア実装・Daily保存・TUI接続・運用認定を別々に確認
 [順序付き受入計画](tasks/todo.md)で一連の生活操作を進め、[UI差分台帳](docs/LOAM_UI_GAP_LEDGER.ja.md)で残る不足を管理する。
 [LOAM互換の機能・見た目と使い勝手](docs/UI_DIRECTION.ja.md)は、英語UIの土台が接続した段階。
 実装・self-check・LOAM対照実行・人間の実機受入・保存／再起動／故障時の保証を区別し、全面互換や運用認定と混同しない。
-保存方針は[年別S式の第一実装](docs/YEARLY_SEXP_IMPLEMENTATION_DECISION.ja.md)に決定（[実装Issue #34](https://github.com/shumoku88-bit/bakhlo/issues/34)）。
-原則1月1日〜12月31日を1ファイルとし、当年＋必要な期首根拠で日常操作を扱えるか調べる。
-分析期間・実際に採択した支給日の年金サイクルは年度境界と独立させる。繰越の失効、
-年度間参照、年度切替・複数ファイルの原子性/復旧は未解決で、**本番方式の採用ではない**。
+保存は単一S式のみ。年別S式とRecordsは削除済みで、次の方針はAGENTS.mdの Storage direction を正とする。
 [論理設計](docs/CANONICAL_DATA_DESIGN.ja.md)は意味・保持境界、
 [長期保存調査](docs/LONG_TERM_STORAGE_STUDY.ja.md)は既存費用を所有する。
 [Irmin Phase 1](docs/IRMIN_STORAGE_RESEARCH.ja.md)・[Phase 2](docs/IRMIN_PHASE2_RESULTS.ja.md)は保存済み。
-HEAD途中書込み故障とdurable Saved未確立のため本体導入を保留し、SQLiteは比較候補として残す。
-現在の実装は単一S式等のまま。年別S式を優先実装する方針だが、年度切替・繰越・運用切替は未実装。IrminとGitの実験成果は保全し、本体導入の前提にはしない。
+HEAD途中書込み故障とdurable Saved未確立のため本体導入を保留。SQLiteは当面使わない。IrminとGitの実験成果は保全する。
 金額欄では `500+300`、`(500+300)/2` などの式を入力できる。全角数字・演算子にも対応し、
 整数／有理数で計算する。通貨の最小単位に収まらない結果・ゼロ除算・非正値は拒否し、下書きを保持する。
 符号付きPostingでは先頭の `-`／`+` が式全体の向きに作用する（`-500+300` は `-(500+300)`）。

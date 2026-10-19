@@ -3,22 +3,7 @@ open Shell_state
 open Shell_dispatch
 
 let workspace_rows ?route_view ~width_of ~width ~height state =
-  if annual_needs_history state.workspace.route && annual_unavailable state <> None then
-    let title = match state.workspace.route with
-      | W.Balances -> Balances.title state.screens.balances
-      | W.Daily_pace -> "Daily Pace"
-      | W.Income_expense -> "Income & Expense"
-      | W.Transactions_flow -> "Transactions Flow"
-      | W.Stock_flow -> "Stock–Flow"
-      | _ -> assert false in
-    Panel.frame ~width_of ~width ~height ~focused:true ~title:(title ^ " / Unavailable")
-      ~scroll:0 ~selected:None
-      [ "Annual file does not contain a qualified prior-year opening.";
-        "Balances, Daily Pace and cross-year reports are unavailable.";
-        Option.value ~default:"Opening evidence unavailable." (annual_unavailable state);
-        "Actual entries and Scheduled records in this file remain inspectable.";
-        "No zero opening or carried balance is inferred." ]
-  else match route_view with Some view -> Lazy.force view.Screen.rows | None -> []
+  match route_view with Some view -> Lazy.force view.Screen.rows | None -> []
 
 let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   match modal_screen_view ~dimensions ~width_of state with

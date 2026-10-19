@@ -525,7 +525,7 @@ let export_payload (t : t) : payload =
     bounded = t.data.bounded;
   }
 
-let of_monolithic_string bytes =
+let of_string bytes =
   protect (fun () ->
       match get "syntax" (Parsexp.Many.parse_string bytes) with
       | X.List [ X.Atom "bakhlo-daily"; X.Atom version ] :: rows
@@ -533,190 +533,6 @@ let of_monolithic_string bytes =
           let payload = parse_payload version rows in
           (match admit_payload payload with Ok t -> t | Error why -> raise (Refused why))
       | [] | _ :: _ -> raise (Refused "unsupported-book-header"))
-let source_format_of_string bytes =
-  let lines = String.split_on_char '\n' bytes in
-  let non_comment =
-    List.find_opt
-      (fun s ->
-        let t = String.trim s in
-        t <> "" && not (String.starts_with ~prefix:";" t))
-      lines
-  in
-  match non_comment with
-  | None -> `Unknown
-  | Some line -> (
-      match Parsexp.Single.parse_string line with
-      | Ok (X.List [ X.Atom "bakhlo-daily"; X.Atom v ]) -> `Monolithic v
-      | Ok (X.List (X.Atom "frame" :: _)) -> `Records 1
-      | _ -> (
-          match Parsexp.Many.parse_string bytes with
-          | Ok (X.List [ X.Atom "bakhlo-daily"; X.Atom v ] :: _) -> `Monolithic v
-          | Ok (X.List (X.Atom "frame" :: _) :: _) -> `Records 1
-          | _ -> `Unknown))
-
-let of_records (rb : Records_book.t) =
-  protect (fun () ->
-      let h = Records_book.header rb in
-      require (h.opaque = []) "unsupported-opaque-header";
-      List.iter
-        (fun (f : Records_book.frame) ->
-          match f.payload with
-          | Records_book.Opaque _ -> raise (Refused "unsupported-opaque-frame")
-          | Records_book.Header h2 ->
-              require (h2.opaque = []) "unsupported-opaque-header"
-          | Records_book.Entry e ->
-              require (e.opaque = []) "unsupported-opaque-entry"
-          | Records_book.Plan p ->
-              require (p.opaque = []) "unsupported-opaque-plan"
-          | Records_book.Observation o ->
-              require (o.opaque = []) "unsupported-opaque-observation"
-          | Records_book.Origin orig ->
-              require (orig.opaque = []) "unsupported-opaque-origin"
-          | Records_book.Add_locus al ->
-              require (al.opaque = []) "unsupported-opaque-add-locus")
-        (Records_book.frames rb);
-      let approved =
-        let init = match h.approved_loci with None -> [] | Some xs -> xs in
-        let added = Records_book.added_loci rb in
-        if init = [] && added = [] then h.approved_loci
-        else Some (List.sort_uniq String.compare (init @ added))
-      in
-      let entries =
-        List.map
-          (fun (e : Records_book.entry) ->
-            {
-              id = e.id;
-              day = e.day;
-              memo = e.memo;
-              effects = e.effects;
-              reversal_of = e.reversal_of;
-              exchange = e.exchange;
-              original_amount = e.original_amount;
-              merchant = e.merchant;
-            })
-          (Records_book.entries rb)
-      in
-      let plans =
-        List.map
-          (fun (p : Records_book.plan) ->
-            {
-              id = p.id;
-              day = p.day;
-              measure = p.measure;
-              changes = p.changes;
-              paid_by = p.paid_by;
-              cancelled_on = p.cancelled_on;
-            })
-          (Records_book.plans rb)
-      in
-      let frame_obs =
-        List.map
-          (fun (o : Records_book.observation) ->
-            {
-              A.Current_quantity_groups.reflected_roots =
-                List.map (fun r -> eid r) o.reflected_roots;
-              assertions =
-                List.map
-                  (fun (l, m, q) ->
-                    {
-                      A.Current_quantity_projection.coordinate = coord l m;
-                      quantity = D.Quantity.of_quanta q;
-                    })
-                  o.quantities;
-            })
-          (Records_book.observations rb)
-      in
-      let data =
-        make_data
-          ~measures:h.measures
-          ~labels:h.labels
-          ~approved
-          ~entries
-          ~plans
-          ~origins:h.origins
-          ~openings:h.openings
-          ~observations:(h.observations @ frame_obs)
-          ~presence:h.presence
-          ~bounded:[]
-      in
-      admit ~entries_cached:(lazy entries) data)
-
-let of_string bytes =
-  match source_format_of_string bytes with
-  | `Records _ -> (
-      match Records_book.of_string bytes with
-      | Ok rb -> of_records rb
-      | Error err -> Error err)
-  | `Monolithic _ | `Unknown -> of_monolithic_string bytes
-
-let to_records ?(request_tokens = []) (t : t) : Records_book.t =
-  let b = t.data in
-  if b.bounded <> [] then
-    invalid_arg "Daily_book.to_records: bounded history support has no Records v1 form";
-  let header : Records_book.header =
-    {
-      version = 1;
-      measures = b.measures;
-      labels = b.labels;
-      approved_loci = b.approved;
-      origins = b.origins;
-      openings = b.openings;
-      observations = b.observations;
-      presence = b.presence;
-      opaque = [];
-    }
-  in
-  let lsn = ref 1 in
-  let frames = ref [] in
-  let emit payload =
-    let f = Records_book.encode_frame !lsn payload in
-    incr lsn;
-    frames := f :: !frames
-  in
-  List.iter
-    (fun (p : plan) ->
-      emit
-        (Records_book.Plan
-           {
-             id = p.id;
-             day = p.day;
-             measure = p.measure;
-             changes = p.changes;
-             paid_by = p.paid_by;
-             cancelled_on = p.cancelled_on;
-             opaque = [];
-           }))
-    b.plans;
-  List.iter
-    (fun (e : entry) ->
-      let tok =
-        List.find_map
-          (fun (token, eid) -> if eid = e.id then Some token else None)
-          request_tokens
-      in
-      emit
-        (Records_book.Entry
-           {
-             id = e.id;
-             day = e.day;
-             token = tok;
-             memo = e.memo;
-             effects = e.effects;
-             reversal_of = e.reversal_of;
-             exchange = e.exchange;
-             original_amount = e.original_amount;
-             merchant = e.merchant;
-             opaque = [];
-           }))
-    (Lazy.force t.entries_cached);
-  List.iter
-    (fun (token, event_id) ->
-      emit (Records_book.Origin { token; event_id; opaque = [] }))
-    request_tokens;
-  { header; frames = List.rev !frames }
-
-let to_records_string ?request_tokens t =
-  Records_book.to_string (to_records ?request_tokens t)
 
 
 let a s = X.Atom s
@@ -870,8 +686,7 @@ let render_into out x =
     | "entries" | "entry" | "date" | "memo" | "postings" | "posting" | "reversal-of" | "exchange"
     | "keys" | "original-amount" | "amount" | "merchant" | "party" | "nonmerchant" | "plans" | "plan" | "changes" | "paid-by" | "cancelled-on" | "support"
     | "zero-origin" | "openings" | "observations" | "observation" | "reflected"
-    | "quantities" | "presence" | "bounded-history" | "coordinates" | "provided" | "not-supplied" | "none" | "some"
-    | "bakhlo-annual" | "year" | "prior" | "fingerprint" ->
+    | "quantities" | "presence" | "bounded-history" | "coordinates" | "provided" | "not-supplied" | "none" | "some" ->
         true
     | _ -> false
   in
@@ -1581,45 +1396,3 @@ let pool_at_end_of_day t ~measure ~pool ~day =
               in
               Z.add total (Z.sub current (sum c (fun d -> d > day))))
         Z.zero pool)
-
-module Annual_internal = struct
-  type nonrec payload = payload = {
-    measures : (string * int) list;
-    labels : (string * string * string) list option;
-    approved : string list option;
-    entries : entry list;
-    plans : plan list;
-    origins : D.Effect_coordinate.t list;
-    openings : Q.opening list;
-    observations : A.Current_quantity_groups.group list;
-    presence : Q.presence option;
-    bounded : (D.Effect_coordinate.t * string) list;
-  }
-  let export_payload = export_payload
-  let admit_payload = admit_payload
-  let render_annual ~year ~prior_year ~prior_fingerprint payload =
-    let out = Buffer.create 1024 in
-    Buffer.add_string out "; Calendar-year S-expression book with source-linked predecessor provenance.\n";
-    let header = [
-      f "bakhlo-annual" [ a "1" ];
-      f "year" [ a (Printf.sprintf "%04d" year) ];
-      f "prior" [
-        f "year" [ a (Printf.sprintf "%04d" prior_year) ];
-        f "fingerprint" [ a prior_fingerprint ];
-      ];
-    ] @ payload_sexps payload in
-    List.iteri (fun n x -> if n > 0 then Buffer.add_string out "\n\n"; render_into out x) header;
-    Buffer.add_char out '\n';
-    Buffer.contents out
-  let parse_annual bytes =
-    protect (fun () ->
-      match get "syntax" (Parsexp.Many.parse_string bytes) with
-      | X.List [ X.Atom "bakhlo-annual"; X.Atom "1" ]
-        :: X.List [ X.Atom "year"; X.Atom year_str ]
-        :: X.List [ X.Atom "prior";
-                    X.List [ X.Atom "year"; X.Atom prior_str ];
-                    X.List [ X.Atom "fingerprint"; X.Atom fp ] ] :: rows ->
-          (year_str, prior_str, fp, parse_payload "3" rows)
-      | _ -> raise (Refused "unsupported-annual-envelope"))
-end
-

@@ -1,6 +1,5 @@
 (* Explicit report periods shared by the report screens: presets resolve only
-   from configured boundaries, and an annual book refuses periods outside its
-   verified linked history. *)
+   from configured boundaries. *)
 module IncExp = Income_expense_report
 
 let boundary_file = "boundary-presets.tsv"
@@ -13,20 +12,8 @@ let preset_of_key = function
   | _ -> IncExp.All_time
 
 let checked (env : Screen.env) preset offset =
-  match Lazy.force env.annual.unavailable with
-  | Some why -> Error why
-  | None ->
-      Result.bind (env.config boundary_file) (fun boundary_presets_text ->
-        Result.bind (IncExp.resolve_period ~today:env.today ~preset ~offset ~boundary_presets_text)
-          (fun period ->
-            Result.bind (Lazy.force env.annual.history) (function
-              | None -> Ok period
-              | Some (start_day, end_exclusive) ->
-                  if preset = IncExp.All_time then
-                    Ok { period with start_day; end_exclusive; label = "Selected linked annual history" }
-                  else if period.IncExp.start_day < start_day || period.end_exclusive > end_exclusive then
-                    Error "Requested period extends outside verified annual history. Open the required linked years."
-                  else Ok period)))
+  Result.bind (env.config boundary_file) (fun boundary_presets_text ->
+    IncExp.resolve_period ~today:env.today ~preset ~offset ~boundary_presets_text)
 
 (* Report pane / detail pane, print preview and the keys every report shares. *)
 type pane = Report | Detail

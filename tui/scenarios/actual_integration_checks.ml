@@ -481,16 +481,6 @@ let reversal_checks ~width_of ~directory home =
            && Rev.base_bytes (editor failed) = before && failed.message <> "")
     "reversal-storage-refusal-keeps-date-target-and-base";
   unchanged "reversal-failed-storage-keeps-original";
-  let records_path = directory ^ "/records.sexp" in
-  F.write_new records_path (B.to_records_string book);
-  let records = C.initial ~config_home:directory (F.load records_path) |> fun s -> C.open_route s W.Actual in
-  let records_bytes = F.read records_path in
-  let records_refused = key ~width_of (key ~width_of (key ~width_of records (`ASCII 'x')) `Enter) `Enter in
-  require (is_reversal records_refused && not (Rev.is_preview (editor records_refused))
-           && F.read records_path = records_bytes
-           && Bakhlo_sexp.Durable_append.current_lsn (Option.get records.session.engine)
-              = Bakhlo_sexp.Durable_append.current_lsn (Option.get records_refused.session.engine))
-    "reversal-records-refusal-keeps-draft-and-lsn";
   let large = Z.of_string (String.make 225 '9' ^ "03") in
   let eur_effect locus n = D.Effect.create ~key:None
     ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
@@ -571,7 +561,7 @@ let reversal_checks ~width_of ~directory home =
   require (not confirmed.blocked && confirmed.pending = None && (no_modal confirmed)
            && F.read unknown_path = present_bytes && List.length (B.entries confirmed.session.book) = 2)
     "reversal-confirmed-reload-closes-draft-without-duplicate";
-  print_endline "PASS: reversal date/Preview, exact signed quantities, tiny/end gates, cancel/draft retention, stale base, storage/Records refusal, unknown/reload and cold inverse (synthetic)."
+  print_endline "PASS: reversal date/Preview, exact signed quantities, tiny/end gates, cancel/draft retention, stale base, storage refusal, unknown/reload and cold inverse (synthetic)."
 
 let date_correction_checks ~width_of ~directory home =
   let effect key locus n = D.Effect.create
@@ -662,14 +652,6 @@ let date_correction_checks ~width_of ~directory home =
   let stopped = key ~width_of reloaded `Enter in
   require (reloaded.blocked && stopped.blocked && Date.base_bytes (editor stopped) = before
            && F.read path = cold.bytes) "date-reload-cannot-bless-stale-target";
-  let records_path = directory ^ "/date-records.sexp" in
-  F.write_new records_path (B.to_records_string book);
-  let records = C.open_route (C.initial ~config_home:directory (F.load records_path)) W.Actual in
-  let records_before = F.read records_path in
-  let refused = key ~width_of records (`ASCII 'd') |> fun s -> date s "2026-10-12"
-    |> fun s -> key ~width_of s `Enter |> fun s -> key ~width_of s `Enter in
-  require (not (Date.is_preview (editor refused)) && F.read records_path = records_before)
-    "date-records-replacement-refused-without-write";
   let long = Date.create ~base_bytes:before { target with id = String.make 1200 'x' } in
   let update t key = match Date.handle ~blocked:false ~dimensions:(72,16) ~width_of t (`Key (key, [])) with
     | Date.Updated t -> t | _ -> raise (F.Refused "date-long-target-not-reviewable") in
@@ -684,7 +666,7 @@ let date_correction_checks ~width_of ~directory home =
     require (List.for_all (fun (_, line) -> not (String.contains line '\027' || String.contains line '\n'))
       (Date.screen ~dimensions:(72,16) ~width_of editor))
       "date-target-cannot-inject-terminal-controls") [unsafe; update unsafe `Enter];
-  print_endline "PASS: date-only correction validates dates, reviews target, refuses tiny/stale/Records, preserves drafts, keys and completed plans, and cold-loads the same Actual."
+  print_endline "PASS: date-only correction validates dates, reviews target, refuses tiny/stale, preserves drafts, keys and completed plans, and cold-loads the same Actual."
 
 let original_amount_integration_checks ~width_of ~directory () =
   let dir = directory ^ "/original-amount-integration" in
@@ -779,14 +761,6 @@ let original_amount_integration_checks ~width_of ~directory () =
   let actual_detail = Option.get (H.handle ~width_of actual_detail (`Key (`ASCII 'i', []))) in
   require (contains (R.screen ~width_of (80, 24) actual_detail) "Original amount: 30.00 usd") "orig-actual-detail-shows-amount";
 
-  let rec_path = dir ^ "/book.log" in
-  F.write_new rec_path (B.to_records_string cold_session.book);
-  let rec_session = F.load rec_path in
-  let rec_entries = B.entries rec_session.book in
-  require (List.length rec_entries = 1) "orig-records-one-entry";
-  let rec_entry = List.hd rec_entries in
-  require (rec_entry.original_amount = Some ("usd", Z.of_int 3000)) "orig-records-entry-has-original-amount";
-
   (* 3. 保存失敗 (save failure): Filesystem read-only error preserves draft and file *)
   let new_rec = H.handle ~width_of cold_state (`Key (`ASCII 'n', [])) |> Option.get in
   let new_rec = H.handle ~width_of new_rec (`Key (`ASCII 'o', [`Ctrl])) |> Option.get in
@@ -829,41 +803,7 @@ let original_amount_integration_checks ~width_of ~directory () =
   require (uncertain_attempt.blocked && uncertain_attempt.record_visible && F.read path = changed_disk_bytes)
     "orig-uncertain-preserves-draft-and-disk";
 
-  (* 6. 年越し (year rollover): 2026 entry with OriginalAmount carries forward, predecessor read-only, backup exact *)
-  let annual_dir = dir ^ "/annual" in
-  Unix.mkdir annual_dir 0o700;
-  let p26 = annual_dir ^ "/2026.sexp" in
-  let prior_2026 = get (B.of_string (Printf.sprintf
-      "(bakhlo-daily 3) (scope corrected-entries explicit-plans)
-       (measures (measure jpy 0) (measure usd 2)) (labels (not-supplied))
-       (approved-loci (provided wallet food))
-       (entries (entry e26 (date 2026-10-10) (memo (some \"2026 purchase\"))
-         (postings (posting wallet jpy -3000 (none)) (posting food jpy 3000 (none)))
-         (reversal-of (none)) (exchange (none)) (original-amount (amount \"usd\" 2000))))
-       (plans)
-       (support (zero-origin (food jpy)) (openings)
-         (observations (observation (reflected) (quantities (wallet jpy 10000))))
-         (presence (not-supplied)))")) in
-  F.write_new p26 (B.to_string prior_2026);
-  let bytes_26 = F.read p26 in
-  let sess26 = F.load ~annual_year:2026 p26 in
-  let state26 = C.initial ~config_home:annual_dir sess26 in
-  let rollover_dialog = X.open_command state26 M.Annual_rollover in
-  let do_rollover = Option.get (H.handle ~width_of rollover_dialog (`Key (`Arrow `Right, []))) in
-  let _ = Option.get (H.handle ~width_of do_rollover (`Key (`Enter, []))) in
-  let p27 = annual_dir ^ "/2027.sexp" in
-  require (Sys.file_exists p27 && F.read p26 = bytes_26) "orig-annual-rollover-created-2027-and-predecessor-unmutated";
-  let sess27 = F.load ~annual_year:2027 p27 in
-  let decoded_entries = B.entries sess27.book in
-  let e26_in_27 = List.find (fun (e : B.entry) -> e.id = "e26") decoded_entries in
-  require (e26_in_27.original_amount = Some ("usd", Z.of_int 2000)) "orig-annual-rollover-preserves-original-amount";
-  let archive_path = annual_dir ^ "/backup.sexp" in
-  ignore (Annual_backup.backup ~session:sess27 ~target:archive_path);
-  let restore_dir = annual_dir ^ "/restored" in
-  ignore (Annual_backup.restore ~source:archive_path ~directory:restore_dir);
-  require (F.read (restore_dir ^ "/2026.sexp") = bytes_26) "orig-annual-backup-restore-predecessor-byte-exact";
-  require (F.read (restore_dir ^ "/2027.sexp") = F.read p27) "orig-annual-backup-restore-successor-byte-exact";
-  print_endline "PASS: OriginalAmount normal Record/Preview/Detail, cancel, save failure, stale state, unknown result, and year rollover."
+  print_endline "PASS: OriginalAmount normal Record/Preview/Detail, cancel, save failure, stale state and unknown result."
 let event_merchant_integration_checks ~width_of ~directory () =
   let module EM = Bakhlo_application.Event_merchants in
   let dir = directory ^ "/event-merchant-integration" in
@@ -1116,40 +1056,5 @@ let event_merchant_integration_checks ~width_of ~directory () =
   let stale_pub = Option.get (H.handle ~width_of stale_state (`Key (`Enter, []))) in
   require (stale_pub.blocked) "merch-stale-conflict-blocked";
 
-  (* 9. Records session refusal *)
-  let rec_path = dir ^ "/records.log" in
-  F.write_new rec_path (B.to_records_string (F.load path).book);
-  let rec_sess = F.load rec_path in
-  let rec_classify = Daily_actions.commit_classify_merchant ~session:rec_sess ~base_bytes:rec_sess.bytes ~id:"e1" ~disposition:EM.Nonmerchant in
-  require (rec_classify = Daily_actions.Refused "Records publication does not support Event Merchant classification. No bytes were changed.")
-    "records-format-refuses-classification";
-
-  (* 10. Year rollover & backup preserves classification *)
-  let annual_dir = dir ^ "/annual_merch" in
-  Unix.mkdir annual_dir 0o700;
-  let p26 = annual_dir ^ "/2026.sexp" in
-  F.write_new p26 (B.to_string (F.load path).book);
-  let bytes_26 = F.read p26 in
-  let sess26 = F.load ~annual_year:2026 p26 in
-  let state26 = C.initial ~config_home:annual_dir sess26 in
-  let rollover_dialog = X.open_command state26 M.Annual_rollover in
-  let do_rollover = Option.get (H.handle ~width_of rollover_dialog (`Key (`Arrow `Right, []))) in
-  let _ = Option.get (H.handle ~width_of do_rollover (`Key (`Enter, []))) in
-  let p27 = annual_dir ^ "/2027.sexp" in
-  require (Sys.file_exists p27 && F.read p26 = bytes_26) "merch-annual-rollover-created-2027-and-predecessor-unmutated";
-  let sess27 = F.load ~annual_year:2027 p27 in
-  let decoded = B.entries sess27.book in
-  let e1_27 = List.find (fun (e : B.entry) -> e.id = "e1") decoded in
-  require (e1_27.merchant = Some (EM.Merchant (C.get_id (D.Identifier.External_party.of_string "sanwa"))))
-    "merch-rollover-preserves-merchant";
-  let e2_27 = List.find (fun (e : B.entry) -> e.id = "e2") decoded in
-  require (e2_27.merchant = Some EM.Nonmerchant) "merch-rollover-preserves-nonmerchant";
-  let archive_path = annual_dir ^ "/backup.sexp" in
-  ignore (Annual_backup.backup ~session:sess27 ~target:archive_path);
-  let restore_dir = annual_dir ^ "/restored" in
-  ignore (Annual_backup.restore ~source:archive_path ~directory:restore_dir);
-  require (F.read (restore_dir ^ "/2026.sexp") = bytes_26) "merch-backup-restore-predecessor-byte-exact";
-  require (F.read (restore_dir ^ "/2027.sexp") = F.read p27) "merch-backup-restore-successor-byte-exact";
-
-  print_endline "PASS: Event Merchant classification normal, nonmerchant, unresolved, duplicate refusal, unknown event, invalid party, correction/reversal, cancel, save fail, stale conflict, records refusal, cold reopen, rollover."
+  print_endline "PASS: Event Merchant classification normal, nonmerchant, unresolved, duplicate refusal, unknown event, invalid party, correction/reversal, cancel, save fail, stale conflict and cold reopen."
 

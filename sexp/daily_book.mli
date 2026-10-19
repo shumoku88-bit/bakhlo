@@ -35,25 +35,14 @@ val empty : measure:string -> scale:int -> (t, string) result
 (** A v3-ready empty book with one explicitly supplied Measure/scale and no
     admitted Loci, entries, plans, or quantity evidence. *)
 
-val source_format_of_string : string -> [ `Monolithic of string | `Records of int | `Unknown ]
-(** Detect whether input is Monolithic S-expression (bakhlo-daily v1..v3) or Records S-expression (bakhlo-records v1). *)
-
 val of_string : string -> (t, string) result
-(** Safe compatible reader. Parses Monolithic (v1..v3) or Records (v1) format transparently.
-    Domain invariants are uniformly validated. Does not perform automatic rewriting or migration. *)
+(** Reader for the single-file S-expression book (v1..v3, v5). Domain invariants
+    are uniformly validated. Does not perform automatic rewriting or migration. *)
 
 val to_string : t -> string
 (** Serializes the book in the canonical Monolithic S-expression format (v3).
     Trial-only v4 budget data is deliberately unsupported. *)
 
-val of_records : Records_book.t -> (t, string) result
-(** Construct a Daily_book from a Records_book through Core invariant gates. *)
-
-val to_records : ?request_tokens:(string * string) list -> t -> Records_book.t
-(** Convert a Daily_book to a Records_book with sequential LSNs and CRC32 framing. *)
-
-val to_records_string : ?request_tokens:(string * string) list -> t -> string
-(** Explicitly serialize in the Records S-expression format. *)
 
 
 val entries : t -> entry list
@@ -194,22 +183,3 @@ val pool_at_end_of_day :
     with zero-origin/opening or an unanchored bounded coordinate refuses the whole
     answer; no partial total or invented zero. *)
 
-module Annual_internal : sig
-  type payload = {
-    measures : (string * int) list;
-    labels : (string * string * string) list option;
-    approved : string list option;
-    entries : entry list;
-    plans : plan list;
-    origins : D.Effect_coordinate.t list;
-    openings : Q.opening list;
-    observations : Bakhlo_application.Current_quantity_groups.group list;
-    presence : Q.presence option;
-    bounded : (D.Effect_coordinate.t * string) list;
-  }
-
-  val export_payload : t -> payload
-  val admit_payload : payload -> (t, string) result
-  val render_annual : year:int -> prior_year:int -> prior_fingerprint:string -> payload -> string
-  val parse_annual : string -> (string * string * string * payload, string) result
-end

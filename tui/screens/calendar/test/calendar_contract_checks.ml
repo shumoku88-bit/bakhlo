@@ -50,10 +50,6 @@ let () =
   let cleared = C.synchronize ~route:Screen.Actual ~book ~calendar:env.calendar calendar in
   require ((C.browser cleared).selected = 0 && (C.browser cleared).selected_id = None && (C.browser cleared).query = "x")
     "calendar-external-route-resets-selection-only";
-  let notice_forced = ref false in
-  let env = { env with annual = { env.annual with notice = lazy (notice_forced := true; None) } } in
-  ignore (Lazy.force (C.view env geometry (C.entered Screen.Calendar ~focus_day:env.today home)).rows);
-  require (not !notice_forced) "calendar-does-not-force-home-annual-notice";
   let view = C.view env geometry home in
 
-  require (List.length (Lazy.force view.rows) = snd geometry.body && !notice_forced) "home-owner-uses-entire-headerless-body"
+  require (List.length (Lazy.force view.rows) = snd geometry.body) "home-owner-uses-entire-headerless-body"

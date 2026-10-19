@@ -2,13 +2,6 @@ type route =
   | Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace
   | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow
 
-type annual = {
-  notice : string option Lazy.t;
-  year : int option;
-  unavailable : string option Lazy.t;
-  history : ((string * string) option, string) result Lazy.t;
-}
-
 type env = {
   book : Bakhlo_sexp.Daily_book.t;
   bytes : string;
@@ -16,7 +9,6 @@ type env = {
   measure : string;
   calendar : Daily_calendar.t;
   today : string;
-  annual : annual;
   accounting_roles : (string * Daily_overlays.accounting_role) list Lazy.t;
   attention : (Attention_data.t, string) result;
   settlements : (Settlement_data.t, string) result;
@@ -106,7 +98,6 @@ let env_for_checks ?(accounting_roles = []) ?(config = fun name -> Error ("undec
   {
     book; bytes = ""; new_id = (let n = ref 0 in fun () -> incr n; Printf.sprintf "check-%d" !n);
     measure; today; calendar = Result.get_ok (Daily_calendar.create today);
-    annual = { notice = lazy None; year = None; unavailable = lazy None; history = lazy (Ok None) };
     accounting_roles = lazy accounting_roles;
     attention = Ok Attention_data.empty;
     settlements = Ok Settlement_data.empty;

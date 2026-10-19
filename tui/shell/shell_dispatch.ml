@@ -1,5 +1,5 @@
 (* Shell dispatch: screen env/geometry, owner input/view, request application,
-   reload, back navigation, Commands and annual rollover. *)
+   reload, back navigation and Commands. *)
 open Shell_state
 open Shell_files
 open Shell_publication
@@ -58,12 +58,6 @@ let screen_env ~config_files state : Screen.env =
     measure = state.workspace.measure;
     calendar = state.workspace.calendar;
     today = F.today ();
-    annual = {
-      notice = lazy (F.annual_notice state.session);
-      year = state.session.F.annual_year;
-      unavailable = lazy (annual_unavailable state);
-      history = lazy (annual_history_bounds state);
-    };
     accounting_roles = lazy (accounting_roles state);
     attention = state.attention;
     settlements = state.settlements;
@@ -189,7 +183,7 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
   | Screen.Publish publication ->
       let result = execute_publication state publication in
       let outcome = function
-        | A.Published _ | A.Idempotent_duplicate _ -> Screen.Published
+        | A.Published _ -> Screen.Published
         | A.Refused why -> Screen.Publish_refused why
         | A.Conflict | A.Conflict_base_changed -> Screen.Publish_conflict
         | _ -> Screen.Publish_stopped
@@ -289,34 +283,6 @@ let ambient_screen_input ~dimensions ~width_of state input =
   | Screen.Stay -> Some { state with screens = { state.screens with calendar_home } }
   | _ -> None (* Ambient input only changes retained UI state. *)
 
-let open_annual_rollover state =
-  if state.blocked || has_record_draft state then
-    { state with overlay = No_overlay;
-      message = "Resume or discard the retained draft and resolve recovery before starting a year." }
-  else
-    match state.session.F.annual_year with
-    | None -> { state with overlay = No_overlay; message = "Open an explicitly named annual book first." }
-    | Some year when year >= 9999 ->
-        { state with overlay = No_overlay; message = "No successor year is representable." }
-    | Some year ->
-        let target = Filename.concat (Filename.dirname state.session.path)
-            (Bakhlo_sexp.Annual_scope.file_name (year + 1)) in
-        let form = Form.create ~id:"annual_rollover" ~payload:state.session.bytes
-            ~title:"Start next annual book"
-            ~summary:[
-              "Source: " ^ state.session.path;
-              "Create: " ^ target;
-              "Carry verified evidence and surviving plans; unknown stays unknown.";
-              "The source becomes read-only. Only the successor may discharge plans.";
-              "No source rewrite, automatic reconciliation or operational cutover.";
-            ]
-            ~fields:[Form.buttons_field ~id:"decision" ~selected:0
-                ~buttons:[
-                  { Form.label = "Keep current year"; is_cancel = true };
-                  { Form.label = "Create next year"; is_cancel = false };
-                ] ()] () in
-        { state with overlay = Modal_form form; message = "" }
-
 let open_command state = function
   | M.Record -> open_record { state with overlay = No_overlay }
   | M.New_plan -> open_plan_record { state with overlay = No_overlay }
@@ -348,7 +314,6 @@ let open_command state = function
       let state = open_route state W.Balances in
       let balances, request = Balances.open_config (balances_env state) state.screens.balances in
       apply_request { state with screens = { state.screens with balances } } request
-  | M.Annual_rollover -> open_annual_rollover state
   | M.Theme ->
       let rec index i = function
         | [] -> 0

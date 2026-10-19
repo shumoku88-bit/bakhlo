@@ -1,6 +1,5 @@
 (* The Shell's own file access besides the ledger writer: screen configuration
-   files (captured reads, admission-checked atomic saves) and annual history
-   bounds. Screens only see captured bytes through Screen.env. *)
+   files (captured reads and admission-checked atomic saves). Screens only see captured bytes through Screen.env. *)
 open Shell_state
 
 let read_config state name =
@@ -71,19 +70,6 @@ let accounting_roles state =
   match read_config state Locus_roles.file_name with
   | Some text -> O.parse_accounting_roles text
   | None -> []
-
-let annual_history_bounds state =
-  try
-    match state.session.F.annual_year with
-    | None -> Ok None
-    | Some year ->
-        let sources = F.annual_sources state.session in
-        let first_path, _ = List.hd sources in
-        let first_year = String.sub (Filename.basename first_path) 0 4 in
-        Ok (Some (first_year ^ "-01-01", Printf.sprintf "%04d-01-01" (year + 1)))
-  with
-  | F.Refused why -> Error why
-  | Unix.Unix_error _ | Sys_error _ -> Error "Annual history source unavailable."
 
 let save_config state ~file ~expected ~content ~admission =
   let admitted =
