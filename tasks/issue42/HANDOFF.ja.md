@@ -147,7 +147,7 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
 残り:
 - （完了）計測: 中央 4469 行 → Shell 1389 行。release exe ビルド: cold 約36s→24s、1画面の実装変更後 約20〜21s→8〜9s（`docs/VERIFICATION.md` の build-time measurement）。
 - 各コミットで CI を matching SHA で手動起動し成功確認（PTY 4寸法は TUI workflow 内）。
-- Issue #28/#38/#39/#40/#41/#42 は重複 issue を作らず #42 にコメントで集約。
+- （完了）#42 に進捗・計測・関連 issue 整理案をコメント。#38/#39/#41 のクローズは main 統合後にユーザー判断。#40・#28 は継続。
 - main への統合はユーザー承認後（AGENTS.md は main 直コミット方針だが、本件は大規模な隔離作業）。
 
 ## 4. 既知の欠陥・挙動変化（記録済み、意図的に未修正）
