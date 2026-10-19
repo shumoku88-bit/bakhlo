@@ -62,7 +62,7 @@ let proposal_shape ~operation (book : B.t) (entry : B.entry) =
   else if Option.is_some entry.merchant then Error "merchant-classification"
   else if paid_by_entry then Error "scheduled-fulfillment"
   else if has_separator entry.day then Error "date-transport"
-  else if Option.value_map entry.memo ~default:false ~f:has_separator then Error "memo-transport"
+  else if Option.value_map entry.memo ~default:false ~f:(fun s -> String.is_empty s || has_separator s) then Error "memo-transport"
   else if List.exists entry.effects ~f:(fun e -> Option.is_some (D.Effect.key e)) then
     Error "keyed-effects-not-qualified"
   else
@@ -133,6 +133,7 @@ let%expect_test "loss-bearing special facts never degrade to ordinary Movement" 
             ~quantity:(D.Quantity.of_quanta (Z.of_int 120)) ~key:None ] };
   check "unbalanced" { entry with effects = [posting "wallet" (-100); posting "food" 120] };
   check "embedded newline" { entry with memo = Some "hello\nworld" };
+  check "empty description" { entry with memo = Some "" };
   Stdio.printf "bad operation: %s\n" (refusal (proposal_shape ~operation:"" book entry));
   [%expect {|
     reversal: reversal-relation
@@ -142,5 +143,6 @@ let%expect_test "loss-bearing special facts never degrade to ordinary Movement" 
     mixed measures: multiple-measures
     unbalanced: unbalanced
     embedded newline: memo-transport
+    empty description: memo-transport
     bad operation: operation-token
   |}]
