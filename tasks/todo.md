@@ -24,15 +24,16 @@
 - [x] TrendのSelected／change行、完全日付の両端ラベル、partial Historyの見出し／選択印だけをLOAMへ揃える。
 - [x] narrow／partial／huge／negativeの既存条件を維持し、必要な表示回帰を追加する。
 - [x] Core／architecture／native全self-check、限定paired 4寸法／coldを実行する（新規8 walks、支持2種のauthority/config不変）。
-- [ ] diff・既存証跡をレビューして小さい変更としてcommit／pushする。
+- [x] diff・既存証跡をレビューして小さい変更としてcommit／pushする（`d696d80`）。
 
 Previous Cycleの拒否・Today contextの計算、target、grid／Braille、Detail全文の順序はこの表示sliceに含めない。
 
 本人の実機／IME受入は最後に実画面で確認する別段階。根拠不足の推測・live原本変更・運用切替はしない。
 調査上、`BAKHLO_CONFIG_HOME`はテーマ用であり、通常起動の家計configはbook隣を読む。参照先の混同を原因とした前ターンの断定は撤回。
 
-レビュー：履歴再構成とLOAM workspace geometry（History窓・印・list hidden・Page 1日）を接続。Core／arch／TUI self-check合格。
-LOAM binary対照・4寸法PTY・cold・matching CIは未実行。bounded-history形式・表示の全面一致は未了。
+レビュー：履歴再構成とLOAM workspace geometryに続き、Selected／change行・年付き日付軸・partial Historyを整合。
+Core／arch／TUI全self-check、変更前16 walks＋別4 cold、変更後8 walksと合成原本不変を確認し、`d696d80`をmainへpush。
+`d696d80`のmatching Core／TUI CIも成功。bounded-history形式・残る表示／操作差・本人受入は未了。詳細は既存VERIFICATION欄。
 
 ## Daily Pace / Balances の操作・表示対照（2026-10-19）
 

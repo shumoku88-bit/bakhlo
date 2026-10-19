@@ -13,7 +13,7 @@ acceptance remain open. `tasks/todo.md`, the UI gap ledger and `VERIFICATION.md`
 own scope and evidence; this is not whole-screen parity acceptance.
 The latest Daily Pace probe covers zero-origin/current-anchor-only paired four-size
 walks, cold explicit Previous Cycle and separate LOAM bounded/opening observations.
-A bounded presentation follow-up aligns Selected/change rows, full-date graph
+A bounded presentation follow-up (`d696d80`) aligns Selected/change rows, full-date graph
 endpoints and partial fallback History heading/selection. Grid/Braille, Detail
 wording/order, target, missing-Previous-Cycle behavior and bounded-history evidence
 remain gaps; arithmetic, support and publication gates are unchanged.
