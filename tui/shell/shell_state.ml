@@ -68,6 +68,9 @@ type state = {
   ui_notice : string option;
   blocked : bool;
   pending : A.uncertain_evidence option;
+  (* A confirmed publication clears only the requesting Record, even if hidden
+     while waiting for reload. Other screen publications may share this state. *)
+  pending_record_publication : bool;
   config_home : string option;
   paste_blocked : bool;
   attention_path : string;
@@ -106,6 +109,7 @@ let initial ?config_home session =
     ui_notice = None;
     blocked = notice <> None;
     pending = None;
+    pending_record_publication = false;
     config_home;
     paste_blocked = false;
     attention_path;
@@ -136,17 +140,20 @@ let sync state =
     | _ -> screens in
   { state with screens }
 
-let finish_publication state session message =
-  let next = sync { state with session; record = None; record_visible = false;
+let finish_publication ~record_publication state session message =
+  let next = sync { state with session;
+    record = (if record_publication then None else state.record);
+    record_visible = (if record_publication then false else state.record_visible);
     overlay = No_overlay; pending = None; blocked = false; message = tr message;
+    pending_record_publication = false;
     screens = Screen_registry.dismiss_floating state.screens } in
   let next =
     let screens, notice = Screen_registry.book_changed state.workspace.route
         ~before:state.session.book ~after:session.book next.screens in
     { next with screens; message = next.message ^ (if notice = "" then "" else "\n" ^ tr notice) }
   in
-  match mode state with
-  | A.Pay id -> (
+  match (record_publication, mode state) with
+  | true, A.Pay id -> (
       match List.find_opt (fun (p : B.plan) -> p.id = id && p.paid_by <> None) (B.plans session.book) with
       | Some source ->
           { (open_editor next (Record_editors.Scheduled_continuation
@@ -156,10 +163,10 @@ let finish_publication state session message =
           " Next-plan inspection unavailable; no additional Scheduled created." })
   | _ -> next
 
-let apply_commit_result ?published_message state ~draft result =
+let apply_commit_result ?published_message ?(record_publication = false) state ~draft result =
   let published session default_msg =
     let msg = match published_message with Some m -> m | None -> default_msg in
-    finish_publication state session msg
+    finish_publication ~record_publication state session msg
   in
   let stopped ?(pending = draft.pending) message =
     { draft with blocked = true; pending; message }
@@ -188,10 +195,11 @@ let apply_commit_result ?published_message state ~draft result =
   | A.Refused why ->
       { draft with message = A.format_message "Publication refused (%s). Draft retained." why }
   | A.Uncertain { message; evidence } ->
-      stopped ~pending:(Some evidence)
+      let stopped = stopped ~pending:(Some evidence)
         (A.format_message
            "Publication outcome is unknown (%s). Do not retry; reload to inspect. Draft retained."
-           message)
+           message) in
+      { stopped with pending_record_publication = record_publication }
 
 let reload state =
   let state = { state with
@@ -200,7 +208,8 @@ let reload state =
   } in
   match A.reload ~session:state.session ~pending:state.pending ~mode:(mode state) with
   | A.Pending_confirmed session ->
-      finish_publication state session "The pending publication is present now. No retry."
+      finish_publication ~record_publication:state.pending_record_publication
+        state session "The pending publication is present now. No retry."
   | A.Pending_unconfirmed session ->
       {
         state with

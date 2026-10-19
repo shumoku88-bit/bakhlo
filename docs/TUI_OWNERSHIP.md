@@ -131,8 +131,10 @@ escape hatch for a file shared with an unmigrated workflow; it may not grow.
   bytes, atomic, failures shown), including the role chosen at admission.
 - Settlements and Loci keep legacy navigation: Esc/q always return Home and
   Page/Home/End reset the list to its first row. Print previews stay open on
-  Done. A successful publication still clears a retained Record draft
-  (`finish_publication`), even when it came from another screen.
+  Done. Record publication ownership is now explicit: only that Record's
+  confirmed publication clears its draft and opens its Pay continuation.
+  Unrelated screen publications preserve the held Record/Pay draft, including
+  uncertain outcomes later confirmed by reload.
 - Cycle-boundary saves now check the pure preconditions before the household
   admission; any failure still refuses with the same message family.
 - Decision (2026-10-19, user: "the natural UI"): every open search or editor

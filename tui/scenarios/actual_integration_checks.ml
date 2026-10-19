@@ -348,14 +348,14 @@ let actual_browsing_checks ~width_of ~directory home =
            && actual_detail filtered_return
            && (actual_scroll filtered_return) = (actual_scroll filtered))
     "actual-return-preserves-filter-order-locus-detail-and-scroll";
-  let refreshed = C.finish_publication filtered
+  let refreshed = C.finish_publication ~record_publication:false filtered
     { filtered.session with book = corrected_book } "Synthetic publication" in
   require (refreshed.screens.actual = filtered.screens.actual
            && actual_detail refreshed && (actual_scroll refreshed) = (actual_scroll filtered))
     "actual-publication-preserves-filter-order-locus-detail-and-scroll";
   let unmatched_book = get (B.put_entry book ~replace:true
     { (entry 17) with memo = Some "No longer matches" } ~plan:None) in
-  let unmatched = C.finish_publication filtered
+  let unmatched = C.finish_publication ~record_publication:false filtered
     { filtered.session with book = unmatched_book } "Synthetic publication" in
   require (actual_selected unmatched = None && actual_detail unmatched
            && (actual_scroll unmatched) = 0
@@ -555,7 +555,7 @@ let reversal_checks ~width_of ~directory home =
   let unknown_review = key ~width_of (key ~width_of unknown_base (`ASCII 'x')) `Enter in
   let candidate = get (B.put_entry book ~replace:false { reversal with id = "unknown-reversal" } ~plan:None) in
   let draft = (with_session unknown_review (E.Reversal (Rev.with_publish_error (editor unknown_review)))) in
-  let unknown () = C.apply_commit_result unknown_review ~draft
+  let unknown () = C.apply_commit_result ~record_publication:false unknown_review ~draft
     (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
       evidence = Daily_actions.Monolithic_candidate (B.to_string candidate) }) in
   let unconfirmed = input (unknown ()) (`Key (`ASCII 'r', [ `Ctrl ])) in
@@ -822,7 +822,7 @@ let original_amount_integration_checks ~width_of ~directory () =
 
   (* 5. 結果不明 (unknown result): Uncertain commit preserves draft and file *)
   let uncertain_attempt =
-    C.apply_commit_result stale_preview ~draft:stale_preview
+    C.apply_commit_result ~record_publication:true stale_preview ~draft:stale_preview
       (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
                                  evidence = Daily_actions.Monolithic_candidate changed_disk_bytes })
   in

@@ -5,6 +5,7 @@ open Interaction_render_fixture
 open Balances_integration_checks
 
 let run ~width_of ~directory ~path (home : C.state) =
+  Retained_record_publication_checks.run ~width_of ~directory home;
   let before = F.read path in
   require
     (home.workspace.route = W.Home && not home.record_visible)
@@ -280,6 +281,7 @@ let run ~width_of ~directory ~path (home : C.state) =
     "discard-explicit-choice-clears-only-draft-without-writing";
   require (request_discard discarded == discarded) "discard-without-draft-is-noop";
   let uncertain = { cancelled with pending = Some (Daily_actions.Monolithic_candidate before);
+    pending_record_publication = true;
     blocked = true; message = "Publication outcome is unknown; do not retry." } in
   let uncertain_choice = key ~width_of (request_discard uncertain) (`Arrow `Right) in
   let uncertain_tiny = key ~dimensions:(32,9) ~width_of uncertain_choice `Enter in

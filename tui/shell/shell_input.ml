@@ -34,7 +34,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some
               (if state.blocked then draft
                else
-                 apply_commit_result state ~draft
+                 apply_commit_result ~record_publication:true state ~draft
                    (A.commit_payload ~session:state.session ~base_bytes payload)))
   else if Option.is_some (Screen_registry.modal state.screens) then
     match input with

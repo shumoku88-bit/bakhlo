@@ -119,7 +119,7 @@ let self_check () =
     | _ -> raise (F.Refused "recovery-direct-publisher-bypassed-stop"));
     let result = A.commit_add_locus ~session "new-recovery-only" in
     require (result = A.Recovery_blocked) "recovery-application-did-not-freeze";
-    let applied = C.apply_commit_result (cold session) ~draft:(cold session) result in
+    let applied = C.apply_commit_result ~record_publication:false (cold session) ~draft:(cold session) result in
     require applied.blocked "recovery-commit-stop-not-reflected";
     refuses "recovery-required" (fun () ->
         F.create_copy ~source:session.path ~target:(session.path ^ ".ordinary-copy"))
@@ -201,7 +201,7 @@ let self_check () =
       check_candidate (F.load copy).book;
       if selected_changed step then (
         let memory =
-          C.apply_commit_result (cold session) ~draft:(cold session)
+          C.apply_commit_result ~record_publication:false (cold session) ~draft:(cold session)
             (A.Uncertain
                {
                  message = "一括書換の成否が不確定です";

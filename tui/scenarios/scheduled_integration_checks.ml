@@ -395,7 +395,7 @@ let continuation_checks ~width_of ~directory home =
     | S.Publish (Daily_actions.Entry_tx tx, _, _) -> tx
     | _ -> raise (F.Refused "continuation-uncertain-intent") in
   let candidate = get (B.put_entry source_book ~replace:tx.replace tx.entry ~plan:tx.plan) in
-  let unknown = C.apply_commit_result pay ~draft:pay
+  let unknown = C.apply_commit_result ~record_publication:true pay ~draft:pay
     (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
       evidence = Daily_actions.Monolithic_candidate (B.to_string candidate) }) in
   let unconfirmed = Shell_dispatch.reload unknown in

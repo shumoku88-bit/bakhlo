@@ -6,6 +6,12 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Retained Record publication ownership (2026-10-19)
+
+- Baseline `028a816`: `finish_publication` cleared any held Record and used its mode for Pay continuation even when another editor published. The Shell now marks the Record commit entrance explicitly and retains that ownership with uncertain-publication evidence. Normal and reload-confirmed success clear only the requesting Record; another screen's success retains the exact Record/Pay draft. Writer, admission, Preview and storage formats are unchanged.
+- Passed: `./tools/check`, architecture target (`arch_check: ok`), `./tools/tui --self-check`, and `git diff --check`. The complete TUI run retained all 34 baseline PASS suites and added one publication-ownership suite (35 total). New synthetic checks exercise a real Locus-label publication with a held Record/Pay, resume and own publication, competing writer after Preview, own Pay continuation only, unrelated/own uncertain outcome confirmed on reload (including hiding the Record first), storage failure and refusal. Existing direct publication checks now identify their actual requesting editor explicitly.
+- Local evidence: `/tmp/bakhlo-parity-20261019/selfcheck.log` and `pass-final.txt`. Earlier compilation errors in the new test type annotations/direct callers were corrected before the passing run. P7/durable acknowledgement, real IME and operational adoption remain unqualified. No household originals, private data or new dependency was used.
+
 ## Issue #42 Registry route predicates (2026-10-19)
 
 - Baseline: clean `reconstruct/issue-42` at `da13db8`. Only `tui/shell/screen_registry.ml` changes compiled behavior: fixed routes retain their equality predicates, floating editors own no route, and existing enter functions ignore the new route argument. No screen behavior, writer, data or dependency changes.
