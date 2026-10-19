@@ -5,6 +5,7 @@ module C = Shell_state
 module H = Shell_input
 module A = Daily_actions
 module B = Bakhlo_sexp.Daily_book
+module RB = Bakhlo_sexp.Records_book
 module D = Bakhlo_domain
 module Q = Bakhlo_application.Current_quantity_query
 
@@ -472,6 +473,9 @@ let self_check () =
   F.write_new rec_path rec_log;
   let rec_session = F.load rec_path in
   require (rec_session.format = F.Records) "records-format-not-detected";
+  require
+    (B.to_string rec_session.book = B.to_string (get (B.of_string rec_log)))
+    "records-empty-cold-load-differs-from-reader";
 
   (* Safe guard 1: Attempting monolithic publish on Records format MUST be refused *)
   refuses "cannot-rewrite-records-format-as-monolithic" (fun () ->
@@ -499,6 +503,9 @@ let self_check () =
       require (reloaded.format = F.Records) "reloaded-not-records";
       require (List.length (B.entries reloaded.book) = 1) "reloaded-entries-not-preserved";
       require (reloaded.bytes = updated.bytes) "reloaded-bytes-not-matching-updated";
+      require
+        (B.to_string reloaded.book = B.to_string (get (B.of_string (F.read rec_path))))
+        "records-cold-load-differs-from-reader";
 
       (* PR 6a audit 1: Attempting monolithic restore_copy on Records format MUST fail-closed *)
       let target_restore = Filename.concat directory "restored.log" in
@@ -553,6 +560,23 @@ let self_check () =
       ignore (Unix.write_substring fd (rec_log ^ bad_line) 0 (String.length rec_log + String.length bad_line));
       Unix.close fd;
       refuses_starts_with "records-log-corrupt-at-" (fun () -> ignore (F.load corrupt_path));
+      (* CRC-valid frames must still pass whole-book semantic admission. *)
+      let duplicate_wire =
+        RB.to_string
+          {
+            header = rec_h;
+            frames =
+              [
+                RB.encode_frame 1 (RB.Entry rec_entry);
+                RB.encode_frame 2 (RB.Entry rec_entry);
+              ];
+          }
+      in
+      ignore (get (RB.of_string duplicate_wire));
+      let duplicate_path = Filename.concat directory "duplicate-records.log" in
+      F.write_new duplicate_path duplicate_wire;
+      refuses "book-refused" (fun () -> ignore (F.load duplicate_path));
+      require (F.read duplicate_path = duplicate_wire) "records-semantic-refusal-changed-bytes";
       (* In-doubt / recovery notice check *)
       let in_doubt_msg = A.recovery_notice ~session:updated in
       require (in_doubt_msg = None) "in-doubt-unexpectedly-present"

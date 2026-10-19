@@ -181,8 +181,11 @@ let rec load_locked ?annual_year ~require_clean path =
           raise (Refused ("records-truncate-failed: " ^ err))
       | DA.Clean _ | DA.Torn_write_truncated _ -> ());
       let clean_bytes = read path in
-      let book = get "book-refused" (B.of_string clean_bytes) in
-      let parsed_records = get "records-parse-failed" (RB.of_string clean_bytes) in
+      (* Post-recovery bytes are independently read and CRC/LSN checked once.
+         Reuse that parsed value for full Daily semantic admission; keep the
+         independent recovery scan, fresh read and engine/book LSN comparison. *)
+      let parsed_records = get "book-refused" (RB.of_string clean_bytes) in
+      let book = get "book-refused" (B.of_records parsed_records) in
       let last_parsed_lsn, last_crc =
         match List.rev parsed_records.frames with
         | [] ->
