@@ -517,6 +517,40 @@ let coverage_checks ~width_of ~directory home =
   require (plan_months_view months && contains listed "Scheduled / List"
            && contains again "Scheduled Series Calendar")
     "coverage-view-cycle-overview-months-list";
+  let coverage_text () = F.read (sub ^ "/scheduled-coverage.tsv") in
+  let original_rules = coverage_text () in
+  let anchor_b = month_after 1 ^ "-28" in
+  let choosing = key ~width_of opened (`ASCII 'p') in
+  require (not (no_modal choosing) && contains choosing "Scheduled / Plan Monitoring"
+           && contains choosing "Expected pace" && contains choosing "> Monthly")
+    "coverage-p-opens-expected-pace-chooser";
+  let kept = key ~width_of choosing `Escape in
+  require (no_modal kept && coverage_text () = original_rules
+           && Base.String.is_substring kept.message ~substring:"Plan monitoring unchanged")
+    "coverage-pace-escape-keeps-config";
+  let paced = key ~width_of (key ~width_of choosing (`ASCII 'j')) `Enter in
+  require (no_modal paced && F.read path = before
+           && Base.String.is_substring (coverage_text ()) ~substring:("groceries\t" ^ anchor_b ^ "\t2\twallet\tfood\n")
+           && Base.String.is_substring paced.message ~substring:("Monitoring groceries: Every 2 months from " ^ anchor_b)
+           && contains paced "> groceries")
+    "coverage-p-saves-cadence-reanchors-and-follows-row";
+  let undecided = key ~width_of paced (`ASCII 's') in
+  require (F.read path = before
+           && Base.String.is_substring (coverage_text ()) ~substring:("groceries\t" ^ anchor_b ^ "\t0\twallet\tfood\n")
+           && Base.String.is_substring undecided.message ~substring:"Future pace is undecided"
+           && contains undecided "> groceries")
+    "coverage-s-makes-pace-undecided-keeping-anchor-and-name";
+  let stale = key ~width_of undecided (`ASCII 'p') in
+  F.write_new (sub ^ "/other") original_rules;
+  Unix.rename (sub ^ "/other") (sub ^ "/scheduled-coverage.tsv");
+  let refused = key ~width_of stale `Enter in
+  (* LOAM upserts into the image current at save time, so a change made
+     elsewhere meanwhile is kept, never overwritten by a stale snapshot. *)
+  require (F.read path = before
+           && coverage_text () = String.concat "" [ "groceries\t" ^ anchor_b ^ "\t1\twallet\tfood\n";
+               "bills\t" ^ month_after 0 ^ "-01\t0\tbank\tfood\n"; "fees\t" ^ month_after 0 ^ "-01\t2\tbank\twallet\n" ]
+           && Base.String.is_substring refused.message ~substring:"Monitoring groceries: Monthly")
+    "coverage-pace-applies-onto-current-config";
   F.write_new (sub ^ "/bad") "";
   Unix.rename (sub ^ "/bad") (sub ^ "/scheduled-coverage.tsv");
   let malformed = C.open_route (C.initial ~config_home:sub (F.load path)) W.Scheduled in

@@ -25,6 +25,8 @@ type t = {
   coverage_row : int;
   coverage_offset : int;  (* first visible coverage month *)
   plan_row : int;
+  pace : (B.plan * int) option;  (* the Expected pace chooser: source plan, choice *)
+  pending : (B.plan * string) option;  (* monitoring save in flight: source, success notice *)
 }
 
 let coverage_file = "scheduled-coverage.tsv"
@@ -33,7 +35,8 @@ let coverage_months = 18
 
 let create months =
   { view = Coverage_view; list = RB.empty; months_list = { RB.empty with order = RB.Oldest }; months;
-    pane = List_pane; scroll = 0; search = None; coverage_row = 0; coverage_offset = 0; plan_row = 0 }
+    pane = List_pane; scroll = 0; search = None; coverage_row = 0; coverage_offset = 0; plan_row = 0;
+    pace = None; pending = None }
 
 (* Monitoring rules are read-side configuration; a missing file is no rule, a
    malformed or unreadable one is an explicit error, never an empty overview. *)
@@ -51,14 +54,13 @@ let monitored env = match coverage env with Ok (_, []) -> false | Ok _ | Error _
 let current env t =
   match t.view with (Coverage_view | Plan_view) when not (monitored env) -> List_view | v -> v
 
-let modal t = Option.is_some t.search
+let modal t = Option.is_some t.search || Option.is_some t.pace
 let months_view t = t.view = Months_view
 let detail_focused t = t.pane = Detail_pane
 let scroll t = t.scroll
 let months t = t.months
 let list_browser t = t.list
 let reloaded _env t = ({ t with scroll = 0 }, Screen.Stay)
-let saved _env _geometry _result t = (t, Screen.Stay)
 
 let browser t = match t.view with
   | Coverage_view | Plan_view | List_view -> t.list | Months_view -> t.months_list
@@ -178,6 +180,119 @@ let replenish env t =
   | Some (rule, p) ->
       (t, Screen.Record_action { action = Screen.Generate_every rule.every_months; target = Some (Screen.Plan p) })
 
+(* LOAM groups the whole part by three digits; the exact fraction is kept. *)
+let grouped amount =
+  match String.split_on_char '.' amount with
+  | [] -> amount
+  | whole :: rest ->
+      let b = Buffer.create (String.length amount + 8) in
+      String.iteri (fun i c ->
+          if i > 0 && (String.length whole - i) mod 3 = 0 then Buffer.add_char b ',';
+          Buffer.add_char b c) whole;
+      String.concat "." (Buffer.contents b :: rest)
+
+(* --- Monitoring edits (LOAM p / s): only scheduled-coverage.tsv changes --- *)
+
+let pace_choices = [ ("Monthly", 1); ("Every 2 months", 2); ("Every 3 months", 3);
+                     ("Every 6 months", 6); ("Yearly", 12) ]
+
+(* LOAM selectedActionRecord: a Plan Detail occurrence, else the plan's latest. *)
+let action_record env t =
+  match t.view, selected_entry env t with
+  | Plan_view, Some (Occurrence (p, _)) -> Some p
+  | _ -> latest_plan env t
+
+(* Whole-image replacement against the captured bytes; the Shell refuses a
+   changed file. The new image must decode again before it is offered. *)
+let save_rule (env : Screen.env) t (source : B.plan) rule success =
+  match env.config coverage_file with
+  | Error why -> (t, unless_blocked env why)
+  | Ok expected -> (
+      let current = match expected with None -> Ok [] | Some text -> Cov.of_string text in
+      match Result.bind current (fun rules -> Cov.upsert rules rule) with
+      | Error why -> (t, unless_blocked env why)
+      | Ok rules -> (
+          let content = Cov.to_string rules in
+          match Cov.of_string content with
+          | Error why -> (t, unless_blocked env why)
+          | Ok _ ->
+              let name = match List.find_opt (fun (r : Cov.rule) ->
+                  r.negative = rule.Cov.negative && r.positive = rule.positive) rules with
+                | Some r -> r.name | None -> rule.name in
+              ({ t with pending = Some (source, success name) },
+               Screen.Save_config { file = coverage_file; expected; content;
+                                    admission = Screen.Household_readable })))
+
+let change_pace env t =
+  match action_record env t with
+  | None -> (t, unless_blocked env "No current-open Scheduled occurrence is available for the selected recurring plan.")
+  | Some p -> ({ t with pace = Some (p, 0) }, Screen.Stay)
+
+let stop_monitoring env t =
+  match action_record env t with
+  | None -> (t, unless_blocked env "No recurring plan is selected.")
+  | Some p ->
+      let monitored = List.find_opt (fun (row : Cov.row) -> Cov.matches row.rule p) (coverage_rows env) in
+      let rule = match monitored with
+        | Some row -> Ok { row.rule with every_months = 0 }
+        | None -> Result.map (fun r -> { r with Cov.every_months = 0 }) (Cov.rule_for p ~months:1) in
+      (match rule with
+       | Error why -> (t, unless_blocked env why)
+       | Ok rule ->
+           save_rule env t p rule (fun _ ->
+               "Future pace is undecided for this plan. Existing Scheduled occurrences were not changed."))
+
+let handle_pace env t (source, choice) key =
+  let count = List.length pace_choices in
+  match key with
+  | Some ((`Escape | `ASCII 'q'), []) -> ({ t with pace = None }, Screen.Message "Plan monitoring unchanged.")
+  | Some ((`ASCII 'k' | `Arrow `Up), []) | Some (`Tab, [ `Shift ]) ->
+      ({ t with pace = Some (source, (choice + count - 1) mod count) }, Screen.Stay)
+  | Some ((`ASCII 'j' | `Arrow `Down | `Tab), []) ->
+      ({ t with pace = Some (source, (choice + 1) mod count) }, Screen.Stay)
+  | Some (`Enter, []) -> (
+      let label, months = List.nth pace_choices choice in
+      match Cov.rule_for source ~months with
+      | Error why -> (t, unless_blocked env why)
+      | Ok rule ->
+          save_rule env t source rule (fun name ->
+              "Monitoring " ^ name ^ ": " ^ label ^ " from " ^ rule.anchor
+              ^ ". No Scheduled occurrence was created."))
+  | _ -> (t, Screen.Stay)
+
+(* After a monitoring save the overview follows the source plan's row, which
+   may move when its cadence changes the order. *)
+let saved env _geometry result t =
+  match result, t.pending with
+  | Ok (), Some (source, notice) ->
+      let rows = coverage_rows env in
+      let rec find i = function
+        | [] -> t.coverage_row
+        | (row : Cov.row) :: rest -> if Cov.matches row.rule source then i else find (i + 1) rest in
+      ({ t with pace = None; pending = None; coverage_row = find 0 rows }, Screen.Message notice)
+  | Ok (), None -> (t, Screen.Stay)
+  | Error why, _ -> ({ t with pending = None }, Screen.Message why)
+
+let pace_paint (geometry : Screen.geometry) book ((source : B.plan), choice) =
+  let width_of = geometry.width_of and width, height = geometry.content in
+  (* LOAM ScheduledReview.summary wording; the amount is Measure-scaled. *)
+  let changes = match List.filter (fun (_, q) -> Z.sign q < 0) source.changes,
+                      List.filter (fun (_, q) -> Z.sign q > 0) source.changes with
+    | [ (from, _) ], [ (into, q) ] -> from ^ " -> " ^ into ^ ": " ^ B.format book source.measure q ^ " " ^ source.measure
+    | _ -> string_of_int (List.length source.changes) ^ " movement change(s)  " ^ source.measure in
+  let header = [ (O.Plain, O.clip_text ~width_of width ("Selected: " ^ source.day ^ "  " ^ changes));
+                 (O.Status, "Choose the expected pace of explicit plans.") ] in
+  let header = if height >= 10 then header else List.filteri (fun i _ -> i = 0) header in
+  let note = if height >= 12 then [ (O.Status, "Monitoring only. No future Scheduled is created.") ] else [] in
+  let panel_h = max 0 (min (List.length pace_choices + 2) (height - List.length header - List.length note)) in
+  let options = List.mapi (fun i (label, _) ->
+      ((if i = choice then O.Active else O.Plain), (if i = choice then "> " else "  ") ^ label)) pace_choices in
+  header
+  @ Panel.frame_rows ~inset:0 ~width_of ~width ~height:panel_h ~focused:true
+      ~bottom_label:(Printf.sprintf "%d/%d" (choice + 1) (List.length pace_choices))
+      ~title:"Expected pace" options
+  @ note
+
 let pace_width width = if width >= 31 then 11 else 0
 let plan_width width = min 28 (max 2 (width - pace_width width - 8))
 let month_window width = max 0 ((width - plan_width width - pace_width width) / 8)
@@ -188,8 +303,6 @@ let flow ~width_of width tokens =
       match lines with
       | current :: rest when width_of (current ^ " " ^ token) <= width -> (current ^ " " ^ token) :: rest
       | _ -> token :: lines) [] tokens)
-
-let not_connected = "Not connected in Bakhlo yet; pace and monitoring changes stay in the config file."
 
 let handle_coverage (env : Screen.env) t key =
   let stay t = (t, Screen.Stay) and say t m = (t, unless_blocked env m) in
@@ -229,7 +342,8 @@ let handle_coverage (env : Screen.env) t key =
       | None -> say t "Select an explicit Scheduled reference for batch amount editing.")
   | Some (`ASCII 'e', []) -> replenish env t
   | Some (`ASCII 'g', []) -> say t "Use e to replenish the selected recurring plan."
-  | Some (`ASCII ('p' | 's' | 'm'), []) -> say t not_connected
+  | Some (`ASCII ('p' | 'm'), []) -> change_pace env t
+  | Some (`ASCII 's', []) -> stop_monitoring env t
   | Some (`ASCII 'v', []) -> (toggle_view env env.book t, unless_blocked env "")
   | Some (`ASCII 'n', []) -> (t, Screen.New_plan)
   | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Back)
@@ -266,7 +380,8 @@ let handle_plan (env : Screen.env) t key =
       | None -> say t "Select an explicit Scheduled reference for batch amount editing.")
   | Some (`ASCII 'e', []) -> replenish env t
   | Some (`ASCII 'g', []) -> say t "Use e to replenish the selected recurring plan."
-  | Some (`ASCII ('p' | 's' | 'm'), []) -> say t not_connected
+  | Some (`ASCII ('p' | 'm'), []) -> change_pace env t
+  | Some (`ASCII 's', []) -> stop_monitoring env t
   | Some (`ASCII 'f', []) -> say t "Plan Detail always shows the selected plan's current-open occurrences."
   | Some ((`Escape | `ASCII ('q' | 'v')), []) -> stay { t with view = Coverage_view; plan_row = 0 }
   | Some (`ASCII 'n', []) -> (t, Screen.New_plan)
@@ -317,17 +432,6 @@ let coverage_paint (env : Screen.env) (geometry : Screen.geometry) t =
         ~bottom_label:((if count = 0 then "0/0" else Printf.sprintf "%d/%d" (selected + 1) count) ^ more)
         ~title:(Printf.sprintf "Monitored plans (%d)" count) body
       @ legend
-
-(* LOAM groups the whole part by three digits; the exact fraction is kept. *)
-let grouped amount =
-  match String.split_on_char '.' amount with
-  | [] -> amount
-  | whole :: rest ->
-      let b = Buffer.create (String.length amount + 8) in
-      String.iteri (fun i c ->
-          if i > 0 && (String.length whole - i) mod 3 = 0 then Buffer.add_char b ',';
-          Buffer.add_char b c) whole;
-      String.concat "." (Buffer.contents b :: rest)
 
 let entry_quantity book = function
   | Missing_month _ -> "—"
@@ -399,10 +503,11 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
         | _ -> None
       in
       let t = { t with view = current env t } in
-      match t.view with
-      | Coverage_view -> handle_coverage env t key
-      | Plan_view -> handle_plan env t key
-      | Months_view | List_view ->
+      match t.pace, t.view with
+      | Some chooser, _ -> handle_pace env t chooser key
+      | None, Coverage_view -> handle_coverage env t key
+      | None, Plan_view -> handle_plan env t key
+      | None, (Months_view | List_view) ->
       let months = months_view t and detail = t.pane = Detail_pane in
       let toggle_pane t = { t with pane = (if t.pane = List_pane then Detail_pane else List_pane) } in
       match key with
@@ -455,17 +560,18 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
   let t = synced book t in
   let rows = rows book t in
   let is_detail = t.pane = Detail_pane in
-  match t.view with
-  | Coverage_view -> coverage_paint env geometry t
-  | Plan_view -> plan_paint env geometry t
-  | Months_view ->
+  match t.pace, t.view with
+  | Some chooser, _ -> pace_paint geometry book chooser
+  | None, Coverage_view -> coverage_paint env geometry t
+  | None, Plan_view -> plan_paint env geometry t
+  | None, Months_view ->
       if is_detail then
         Panel.frame ~width_of ~width ~height ~focused:true ~title:"Selected Scheduled"
           ~scroll:t.scroll ~selected:None (detail_rows ~width_of ~width book t)
       else
         let plans = List.filter_map (function RB.Scheduled_plan p -> Some p | _ -> None) rows in
         Months.screen ~book ~plans ~dimensions:(width, height) ~width_of ~selected:(selected_plan book t) t.months
-  | List_view ->
+  | None, List_view ->
       let left_width, right_width = Panel.split_widths width in
       Panel.split ~width_of ~width ~height
         ~left_focused:(not is_detail) ~left_title:(Printf.sprintf "Scheduled / List (%d)" (List.length rows))
@@ -480,16 +586,17 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
 let footer (geometry : Screen.geometry) t =
   let width = fst geometry.screen in
   match t.view, t.pane with
+  | _ when t.pace <> None -> [ "Enter save monitoring  Up/Down choose  Esc cancel" ]
   | Coverage_view, _ ->
       if width >= 79 then
         [ "[j/k] plan  [h/l] months  [Enter] detail  [q] back";
-          "[e] replenish  [b] batch  [n] new  [v] views  (p/s not connected)" ]
-      else if width >= 47 then [ "[j/k] plan [h/l] months [Enter] detail [q] back"; "[e] replenish [b] batch [n] new [v] views" ]
+          "[e] replenish  [b] batch  [p] pace  [s] undecided  [n] new  [v] views" ]
+      else if width >= 47 then [ "[j/k] plan [h/l] months [Enter] detail [q] back"; "[e] replenish [b] batch [p] pace [s] undecided" ]
       else [ "[j/k] plan [q] back"; "[Enter] detail [v] views" ]
   | Plan_view, _ ->
       if width >= 79 then
         [ "[j/k] select  [c/Enter] complete  [q] overview";
-          "[e] replenish  [b] batch  [r] replace  [x] cancel  (p/s not connected)" ]
+          "[e] replenish  [b] batch  [r] replace  [x] cancel  [p] pace  [s] undecided" ]
       else if width >= 47 then [ "[j/k] select [c/Enter] complete [q] overview"; "[b] batch [r] replace [x] cancel" ]
       else [ "[j/k] select [q] overview"; "[c/Enter] complete [x] cancel" ]
   | Months_view, Detail_pane ->
@@ -517,12 +624,14 @@ let view env (geometry : Screen.geometry) t =
            ~notice:(tr "Enter apply; Esc clear") ())) in
   {
     Screen.title = (match t.view, selected_rule env t with
+      | _ when t.pace <> None -> "Scheduled / Plan Monitoring"
       | Coverage_view, _ -> "Scheduled Series Calendar"
       | Plan_view, Some row -> "Scheduled / Plan / " ^ row.rule.name
       | Plan_view, None -> "Scheduled / Plan"
       | Months_view, _ -> tr "Scheduled / Months"
       | List_view, _ -> tr "Scheduled");
     subtitle = (match t.view, selected_rule env t, coverage env with
+      | _ when t.pace <> None -> Screen.Text "Monitoring only; Scheduled occurrences are unchanged."
       | Coverage_view, _, Ok (months, _) ->
           let width = max 0 (fst geometry.content - 2) in
           let shown = List.filteri (fun i _ -> i >= t.coverage_offset

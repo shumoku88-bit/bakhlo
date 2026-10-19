@@ -56,3 +56,15 @@ val month_label : string -> string
 
 val plans_for : rule -> B.plan list -> B.plan list
 (** Matching current-open plans, by date then ID. *)
+
+val rule_for : B.plan -> months:int -> (rule, string) result
+(** LOAM monitoring rule from an explicit plan: its date anchors, its signed-Locus
+    shape selects, the single positive Locus (else the plan ID) names it. Zero
+    months refuses here; undecided is an existing rule with zero months. *)
+
+val upsert : rule list -> rule -> (rule list, string) result
+(** Same shape: replaced in place, keeping its existing name. New shape: appended,
+    unless its name already monitors another shape (refused, never renamed). *)
+
+val to_string : rule list -> string
+(** One row per rule, newline-terminated; the empty list is the empty file. *)

@@ -146,3 +146,28 @@ let month_label month =
 let plans_for rule plans =
   List.filter (fun (p : B.plan) -> p.paid_by = None && p.cancelled_on = None && matches rule p) plans
   |> List.stable_sort (fun (a : B.plan) (b : B.plan) -> compare (a.day, a.id) (b.day, b.id))
+
+let rule_for (p : B.plan) ~months =
+  let negative = signed p (fun s -> s < 0) and positive = signed p (fun s -> s > 0) in
+  if months <= 0 then Error "Monitoring cadence must be at least one month."
+  else if negative = [] || positive = [] then
+    Error "The selected Scheduled occurrence has no usable signed-Locus shape."
+  else
+    Ok { name = (match positive with [ only ] -> only | _ -> p.id); anchor = p.day;
+         every_months = months; negative; positive }
+
+let same_shape a b = a.negative = b.negative && a.positive = b.positive
+
+let upsert rules rule =
+  match List.find_opt (same_shape rule) rules with
+  | Some existing ->
+      Ok (List.map (fun r -> if same_shape r existing then { rule with name = existing.name } else r) rules)
+  | None ->
+      if List.exists (fun r -> r.name = rule.name) rules then
+        Error ("Scheduled coverage name already monitors a different plan: " ^ rule.name)
+      else Ok (rules @ [ rule ])
+
+let to_string rules =
+  String.concat "" (List.map (fun r ->
+      String.concat "\t" [ r.name; r.anchor; string_of_int r.every_months;
+                           String.concat "," r.negative; String.concat "," r.positive ] ^ "\n") rules)
