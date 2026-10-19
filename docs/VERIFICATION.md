@@ -6,6 +6,13 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Daily_book cold-equivalence oracle (2026-10-20)
+
+- `test/daily_book_oracle_tests.ml`: 300 seeded sequences × 30 random mutations (record, plan payment, replace, reversal, observe, put/cancel plan, add locus, merchant classification; with invalid dates, zero/unbalanced/unknown-Measure postings and duplicate IDs). Each mutation must give the same refusal reason, or the same observable book (serialization, every balance answer with its premise kind, Daily Pace with deductions, open plans), on the in-memory book and on its cold-loaded twin; the result must also be cold-equivalent. Every family is admitted ≥ 20 times. Runs in ~3 s.
+- Mutation check: reverting the observation fix below makes it fail (seed 2, step 8).
+- Known gap pinned by its own test: after an incremental record, the evidence explanation (`Current_quantity_explanation`, CLI) omits the new entry until the next whole admission; answers agree. To be removed by the incremental redesign.
+- Passed: `./tools/check`, `git diff --check`. Synthetic only.
+
 ## Observation after incremental record (2026-10-20)
 
 - Found while measuring: `Daily_book.observe_quantities` took reflected roots from the image's admission-time frontier. `put_entry`'s incremental path does not extend that frontier, so an entry added since the last full admission stayed unreflected and was counted twice (synthetic: wallet 1000, spend 100, observe 900 → 800, persisted after save/reload). The monolithic TUI publisher re-admits after saving, which masks it there; the Records append path keeps the incremental book and is exposed.
