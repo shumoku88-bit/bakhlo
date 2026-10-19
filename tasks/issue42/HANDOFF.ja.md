@@ -134,8 +134,8 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
   Actualへのdrill returnはentry通知のみでsyncしない。publication/reloadは旧route境界の同期を維持。
 - annual.noticeはlazyでHome paintだけがforce。Homeはheaderなしのbody全高を描く。
 
-### 3.4 Shell 仕上げ（一部完了）
-完了（このスライス）:
+### 3.4 Shell 仕上げ（一部完了 `59a7d10`、CI Core 39182025928 / TUI 39182023522 success）
+完了:
 - Shell の record action 対象を `Screen.record_target`（Entry/Plan）に統一。`Ui_workspace` の
   row/family alias、`*_selected` ラッパー、未使用 helper（`browser_pane_widths`, `print_motion` 等）を削除。
 - Actual / Scheduled session の純粋 checks を `tui/screens/actual/test`・`tui/screens/editors/test`
