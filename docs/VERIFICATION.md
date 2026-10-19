@@ -11,6 +11,7 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 - User decision (Bakhlo not in daily use; destructive changes allowed): removed Records v1 (`records_book`, `durable_append`, `crc32`), calendar-year annual files (`annual_book`, `annual_scope`, `year_read`, `annual_backup`, `Daily_book.Annual_internal`), their store paths (`Daily_file` is now single-file only), TUI annual rollover/notice/history gates and Records publication branches, CLI `--annual-*` options, their tests, the year-partition study tests and the stale storage research tools. Ordinary single-file load/publish/recovery code is unchanged apart from removing those branches.
 - `tools/startup-probe` now writes its fixture as ordinary S-expression text; fixtures are byte-identical to the previous run (285,736 / 10,473,607 bytes, same balances).
 - Passed: `./tools/check` (exit 0, `arch_check: ok`), `./tools/tui --self-check` (35 PASS suites, exit 0; the only suite no longer present is the annual rollover suite), `git diff --check`. Synthetic only; latest-data paired comparison not executed (no displayed-answer change for single-file books).
+- Matching implementation `ea71b08`: [Core 39284457912](https://github.com/shumoku88-bit/bakhlo/actions/runs/39284457912) and [Bonsai TUI 39284457870](https://github.com/shumoku88-bit/bakhlo/actions/runs/39284457870) completed/success (synthetic CI).
 
 ## Daily_book cold-equivalence oracle (2026-10-20)
 
