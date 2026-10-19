@@ -1,6 +1,6 @@
 (* Workspace painting, overlay placement and terminal caret coordinates. *)
-open Daily_interaction_state
-open Daily_interaction_context
+open Shell_state
+open Shell_dispatch
 
 let workspace_rows ?route_view ~width_of ~width ~height state =
   if annual_needs_history state.workspace.route && annual_unavailable state <> None then

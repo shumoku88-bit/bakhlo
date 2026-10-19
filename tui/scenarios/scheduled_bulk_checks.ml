@@ -2,8 +2,8 @@ module B = Bakhlo_sexp.Daily_book
 module F = Daily_file
 module A = Daily_actions
 module S = Scheduled_bulk_session
-module C = Daily_interaction_state
-module H = Daily_interaction
+module C = Shell_state
+module H = Shell_input
 
 let require = F.require
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
@@ -62,7 +62,7 @@ let self_check ~width_of () =
              [p1.id; p2.id]
            && List.find (fun (plan:B.plan) -> plan.id = p3.id) (B.plans cold.book) = p3)
     "controller-publishes-whole-reviewed-batch-cold";
-  let stale = Daily_interaction_context.reload publishable |> fun state -> ckey state `Enter in
+  let stale = Shell_dispatch.reload publishable |> fun state -> ckey state `Enter in
   require (stale.blocked && F.read path = cold.bytes
            && match Interaction_check_fixture.session_of stale with Some (Record_editors.Scheduled_bulk editor) -> S.base_bytes editor = base | _ -> false)
     "controller-reload-cannot-bless-stale-batch";

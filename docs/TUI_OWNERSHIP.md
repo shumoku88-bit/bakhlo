@@ -37,6 +37,15 @@ error. Directory = layer:
 
 Core never sees `tui/` (data only, for the check below).
 
+Shell modules (`tui/shell`): `shell_state` (state, route entry, Record retention,
+publication results) → `shell_record_actions` (Record_action targets),
+`shell_files` (configuration and annual-history I/O), `shell_publication`
+(ledger publications through the single writer) → `shell_dispatch` (env,
+geometry, owner input/view, request application, reload, back, Commands,
+annual rollover) → `shell_input` and `shell_view`. `screen_registry` lists
+every owner; `daily_actions` and `record_session` are the retained Record
+flow over `bakhlo.store`.
+
 ## The screen contract (`tui/protocol/screen.mli`)
 
 A screen owner is an ordinary module with private state:

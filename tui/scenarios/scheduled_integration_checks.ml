@@ -396,11 +396,11 @@ let continuation_checks ~width_of ~directory home =
   let unknown = C.apply_commit_result pay ~draft:pay
     (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
       evidence = Daily_actions.Monolithic_candidate (B.to_string candidate) }) in
-  let unconfirmed = Daily_interaction_context.reload unknown in
+  let unconfirmed = Shell_dispatch.reload unknown in
   require (unconfirmed.blocked && unconfirmed.record_visible && (no_modal unconfirmed))
     "continuation-unknown-completion-cannot-offer-add";
   (match F.publish base.session candidate with F.Written _ -> () | _ -> raise (F.Refused "continuation-confirmation-setup"));
-  let confirmed = Daily_interaction_context.reload unconfirmed in
+  let confirmed = Shell_dispatch.reload unconfirmed in
   require (not confirmed.blocked && confirmed.pending = None && not confirmed.record_visible
            && B.entry_count confirmed.session.book = B.entry_count source_book + 1
            && Cont.base_bytes (prompt confirmed) = confirmed.session.bytes)

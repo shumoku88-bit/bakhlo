@@ -1,5 +1,9 @@
-(* Shared queries, forms and viewport geometry for input and display. *)
-open Daily_interaction_state
+(* Shell dispatch: screen env/geometry, owner input/view, request application,
+   reload, back navigation, Commands and annual rollover. *)
+open Shell_state
+open Shell_files
+open Shell_publication
+open Shell_record_actions
 
 let line ~width_of width style text = (style, O.clip_text ~width_of (max 0 width) text)
 
@@ -44,95 +48,6 @@ let back state =
           ~focus_day:state.workspace.calendar.selected_day screens.calendar_home } }
   | _ -> open_route state W.Home
 
-let input_text value = function
-  | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
-      Some (value ^ String.make 1 c)
-  | `Key (`Uchar c, []) when O.printable_uchar c -> Some (value ^ O.utf8 c)
-  | `Key (`Backspace, []) -> Some (Daily_form.backspace value)
-  | _ -> None
-
-let read_config state name =
-  let directory = Filename.dirname state.session.F.path in
-  let candidates =
-    List.filter_map Fun.id
-      [
-        Option.map (fun home -> Filename.concat home name) state.config_home;
-        Some (Filename.concat directory name);
-        Some (Filename.concat (Filename.concat directory "config") name);
-      ]
-  in
-  let rec read = function
-    | [] -> None
-    | filename :: rest -> (
-        if not (Sys.file_exists filename) then read rest
-        else
-          try Some (F.read filename) with F.Refused _ | Unix.Unix_error _ | Sys_error _ -> Some "")
-  in
-  read candidates
-
-let config_file_path state name =
-  let dir = Option.value ~default:(Filename.dirname state.session.F.path) state.config_home in
-  let nested = Filename.concat (Filename.concat dir "config") name in
-  let present =
-    try let _ = Unix.lstat nested in true
-    with Unix.Unix_error (Unix.ENOENT, _, _) -> false | Unix.Unix_error _ -> true
-  in
-  if present then nested else Filename.concat dir name
-
-let read_pace_config state name =
-  let path = config_file_path state name in
-  try
-    let exists =
-      try let _ = Unix.lstat path in true
-      with Unix.Unix_error (Unix.ENOENT, _, _) -> false
-    in
-    if exists then Ok (Some (F.read path)) else Ok None
-  with
-  | F.Refused why | Sys_error why -> Error why
-  | Unix.Unix_error (err, fn, arg) -> Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
-
-let write_config_file state name ~expected content =
-  let path = config_file_path state name in
-  let tmp = ref None in
-  try
-    F.with_writer path (fun () ->
-      match read_pace_config state name with
-      | Error why -> Error why
-      | Ok current when current <> expected -> Error "Configuration changed. Reopen the editor."
-      | Ok _ ->
-          let target = path ^ ".tmp-" ^ F.nonce () in
-          tmp := Some target;
-          F.write_new target content;
-          Sys.rename target path;
-          F.sync_parent path;
-          F.require (F.read path = content) "config-readback-changed";
-          Ok ())
-  with
-  | F.Refused why | Sys_error why ->
-      Option.iter (fun p -> try Unix.unlink p with Unix.Unix_error _ -> ()) !tmp;
-      Error why
-  | Unix.Unix_error (err, fn, arg) ->
-      Option.iter (fun p -> try Unix.unlink p with Unix.Unix_error _ -> ()) !tmp;
-      Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
-
-let accounting_roles state =
-  match read_config state Locus_roles.file_name with
-  | Some text -> O.parse_accounting_roles text
-  | None -> []
-
-let annual_history_bounds state =
-  try
-    match state.session.F.annual_year with
-    | None -> Ok None
-    | Some year ->
-        let sources = F.annual_sources state.session in
-        let first_path, _ = List.hd sources in
-        let first_year = String.sub (Filename.basename first_path) 0 4 in
-        Ok (Some (first_year ^ "-01-01", Printf.sprintf "%04d-01-01" (year + 1)))
-  with
-  | F.Refused why -> Error why
-  | Unix.Unix_error _ | Sys_error _ -> Error "Annual history source unavailable."
-
 (* Shell side of the screen owner protocol ({!Screen}). *)
 let screen_env ~config_files state : Screen.env =
   let captured = List.map (fun name -> (name, read_pace_config state name)) config_files in
@@ -161,7 +76,7 @@ let screen_env ~config_files state : Screen.env =
 
 (* After a successful reload, an open editor may refuse its captured generation. *)
 let reload state =
-  let state = Daily_interaction_state.reload state in
+  let state = Shell_state.reload state in
   (* The route owner re-anchors on the reloaded book (e.g. resets a detail offset). *)
   let state =
     match Screen_registry.for_route state.workspace.route with
@@ -191,64 +106,6 @@ let open_observe state =
 let screen_geometry ~dimensions ~width_of state : Screen.geometry =
   let width, body = body_dimensions ~dimensions ~width_of state in
   { screen = dimensions; body = (width, body); content = (width, max 0 (body - 2)); width_of }
-
-let save_config state ~file ~expected ~content ~admission =
-  let admitted =
-    match admission with
-    | Screen.Unconditional -> Ok ()
-    | Screen.Household_readable -> (
-        try
-          match B.of_string (F.read state.session.path) with
-          | Error why -> Error ("Household read refused: " ^ why)
-          | Ok _ -> Ok ()
-        with F.Refused why | Sys_error why -> Error why
-          | Unix.Unix_error (err, _, _) -> Error (Unix.error_message err))
-    | Screen.Vocabulary_unchanged -> (
-        try
-          let book = (F.reload state.session).book in
-          if B.approved_loci book = B.approved_loci state.session.book
-             && B.measures book = B.measures state.session.book then Ok ()
-          else Error "Admitted Loci or Measures changed; reopen setup."
-        with F.Refused why | Sys_error why -> Error why
-          | Unix.Unix_error (err, _, _) -> Error (Unix.error_message err))
-  in
-  Result.bind admitted (fun () -> write_config_file state file ~expected content)
-
-(* Ledger publications requested by screen owners go through the single writer
-   against the current session; the result is reported like any publication. *)
-let execute_publication state = function
-  | Screen.Add_locus token -> A.commit_add_locus ~session:state.session token
-  | Screen.Set_locus_label { locus; label; help } ->
-      A.commit_set_locus_label ~session:state.session ~base_bytes:state.session.bytes
-        ~id:locus ~label ~help ()
-  | Screen.Commit_transaction { transaction; base } ->
-      A.commit_transaction ~session:state.session ~base_bytes:base transaction
-  | Screen.Reverse_entry { id; day; base } ->
-      A.commit_reverse_entry ~session:state.session ~base_bytes:base ~id ~day
-  | Screen.Correct_entry { transaction; base } ->
-      A.commit_transaction ~session:state.session ~base_bytes:base transaction
-  | Screen.Classify_merchant { id; disposition; base; message = _ } ->
-      A.commit_classify_merchant ~session:state.session ~base_bytes:base ~id ~disposition
-  | Screen.Cancel_plan { id; day; base } ->
-      A.commit_cancel_plan ~session:state.session ~base_bytes:base ~id ~day
-  | Screen.Plan_batch { plans; replace; base } ->
-      A.commit_plan_batch ~replace ~session:state.session ~base_bytes:base plans
-  | Screen.Create_plan { plan; base } ->
-      A.commit_payload ~session:state.session ~base_bytes:base (A.Plan_tx { plan; replace = false })
-  | Screen.Observe_quantities _ -> invalid_arg "observations publish through publish_observation"
-
-(* Observations publish a whole candidate book; their outcomes map directly. *)
-let publish_observation state ~rows ~base =
-  if base <> state.session.bytes then ({ state with blocked = true }, Screen.Publish_conflict)
-  else
-    match B.observe_quantities state.session.book rows with
-    | Error why -> (state, Screen.Publish_refused ("Observation refused: " ^ why))
-    | Ok book -> (
-        match (try F.publish state.session book with F.Refused why -> F.Refused_input why) with
-        | F.Written session -> (sync { state with session }, Screen.Published)
-        | F.Conflict -> ({ state with blocked = true }, Screen.Publish_conflict)
-        | F.Refused_input why -> (state, Screen.Publish_refused ("Observation save refused: " ^ why))
-        | F.Uncertain -> ({ state with blocked = true }, Screen.Publish_stopped))
 
 (* [saved] hands a configuration save result back to the requesting owner. *)
 let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
@@ -418,14 +275,6 @@ let ambient_screen_input ~dimensions ~width_of state input =
   | Screen.Ignored -> None
   | Screen.Stay -> Some { state with screens = { state.screens with calendar_home } }
   | _ -> None (* Ambient input only changes retained UI state. *)
-
-let config_lines text =
-  String.split_on_char '\n' text |> List.filter (fun line ->
-    let s = String.trim line in s <> "" && not (String.starts_with ~prefix:"#" s))
-
-let config_token s =
-  s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
-
 
 let open_annual_rollover state =
   if state.blocked || has_record_draft state then

@@ -410,11 +410,14 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 - daily_calendar / ui_workspace / ui_commands：純粋な暦・画面・選択・階層ナビ。
 - record_session / ui_input：一つの下書き・Previewと入力型。
 - reversal_session：反転の日付と固定snapshotの元／逆Posting確認。ID割当・永続inverse構築・I/Oは持たない。
-- daily_interaction_state：一つのcontroller state、初期化、route／親復帰、下書き保持と既存publisherの結果処理。
-- daily_interaction_context：問い合わせ・config／form準備、feedbackと共有viewport／寸法計算。入力と表示が同じ計算を使う。
-- daily_interaction：キー／paste／overlayの入力dispatchと既存session／publisherへの接続。
-- daily_interaction_view：workspace／footer／screen、overlay配置とpaint済みmetadataからのterminal caret。
-  依存はstate → context → interaction／viewの順（矢印の右が左を利用）。interactionとviewは相互依存せず、旧APIの再exportはしない。
+- shell_state：Shell state、初期化、route入場・同期、Record下書き保持とpublication結果処理。
+- shell_record_actions：route ownerが明示Entry/Plan targetで要求したRecord操作のeditor起動・拒否理由。
+- shell_files：画面設定ファイルの捕捉読取・admission付き原子的保存と年度来歴範囲（ledger writer以外のShell I/O）。
+- shell_publication：screen ownerが要求したledger publicationを単一writerで実行。
+- shell_dispatch：Screen.env/geometry、owner入力・描画、request適用、reload、戻り、Commands、年度rollover。
+- shell_input：paste guard、Record、modal owner、Shell overlay、Ctrl鍵、route owner、global鍵の順の入力dispatch。
+- shell_view：header/feedback/footerの合成、overlay配置とterminal caret。
+  依存はstate → record_actions／files／publication → dispatch → input／view。画面ごとの状態・入力・描画は`tui/screens/<s>`が持つ（`docs/TUI_OWNERSHIP.md`）。
 - daily_overlays / ui_text：cell幅・枠・完全な数量詳細と将来の言語カタログ入口。
 - ui_panel：一覧・詳細の共通枠、可視行数、選択追従viewport、整数overflowを避ける端移動。
   ActualとScheduledの描画・ページ送りが同じ規則を使う。対象の意味・キー割当・保存判断は持たない。

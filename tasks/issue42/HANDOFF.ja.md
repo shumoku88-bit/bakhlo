@@ -143,11 +143,9 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
   （重複時は `put_entry ~replace:false` が失敗するので弱くならない）。
 - arch rule 5: Shell は `Record_browser` を直接/別名経由で使えない。負例 2 件 + コメント/文字列の正例を `test/arch.t` に追加。
 
+- Shell を責務ごとに分割・改名（挙動不変）: `shell_state` / `shell_record_actions` / `shell_files` /
+  `shell_publication` / `shell_dispatch` / `shell_input` / `shell_view`（旧 `daily_interaction*`）。
 残り:
-- `daily_interaction{,_state,_context,_view}.ml` を Shell の責務（routing, global keys, Commands/Themes,
-  discard 確認, annual rollover, publication executor, Record 保持, 年度来歴 Unavailable frame）
-  ごとに整理し、名前も実態に合わせる（例 `shell.ml`, `shell_publication.ml`）。**挙動は変えない**。
-- `docs/TUI_OWNERSHIP.md` の最終化（Enforcement 節に rule 5、Tests 節にテスト配置）。
 - 計測: 中央行数の推移（4469 → 1398）、代表ビルド時間の before/after（efda2a3 と現 HEAD、同一マシン）。
 - 各コミットで CI を matching SHA で手動起動し成功確認（PTY 4寸法は TUI workflow 内）。
 - Issue #28/#38/#39/#40/#41/#42 は重複 issue を作らず #42 にコメントで集約。

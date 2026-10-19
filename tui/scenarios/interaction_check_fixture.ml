@@ -1,8 +1,8 @@
 (* Synthetic conformance checks for the English workspace controller. *)
-module C = Daily_interaction_state
-module H = Daily_interaction
-module X = Daily_interaction_context
-module R = Daily_interaction_view
+module C = Shell_state
+module H = Shell_input
+module X = Shell_dispatch
+module R = Shell_view
 module B = Bakhlo_sexp.Daily_book
 module F = Daily_file
 module W = Ui_workspace
@@ -191,10 +191,10 @@ let selected_target (state : C.state) =
   | W.Calendar -> Option.map target (Calendar_home.selected_row ~book:state.session.book
       ~calendar:state.workspace.calendar state.screens.calendar_home)
   | _ -> None
-let pay_selected s = C.pay_target s (selected_target s)
-let batch_plan_selected s = C.batch_plan_target s (selected_target s)
-let extend_plan_selected s = C.extend_plan_target s (selected_target s)
-let reverse_entry_selected s = C.reverse_entry_target s (selected_target s)
+let pay_selected s = Shell_record_actions.pay_target s (selected_target s)
+let batch_plan_selected s = Shell_record_actions.batch_plan_target s (selected_target s)
+let extend_plan_selected s = Shell_record_actions.extend_plan_target s (selected_target s)
+let reverse_entry_selected s = Shell_record_actions.reverse_entry_target s (selected_target s)
 
 (* The Actual owner, read through its own interface. *)
 let actual_dims ~dimensions ~width_of (state : C.state) =

@@ -2,8 +2,8 @@ module B = Bakhlo_sexp.Daily_book
 module F = Daily_file
 module A = Daily_actions
 module S = Scheduled_generation_session
-module C = Daily_interaction_state
-module H = Daily_interaction
+module C = Shell_state
+module H = Shell_input
 
 let require = F.require
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
@@ -172,7 +172,7 @@ let self_check ~width_of () =
     "controller-publishes-all-generated-plans-atomically";
 
   (* 7. Stale base protection on reload *)
-  let stale = Daily_interaction_context.reload controller_run |> fun s -> ckey s `Enter in
+  let stale = Shell_dispatch.reload controller_run |> fun s -> ckey s `Enter in
   require (stale.blocked && F.read path = cold_controller.bytes
            && match Interaction_check_fixture.session_of stale with Some (Record_editors.Scheduled_generate editor) -> S.base_bytes editor = base | _ -> false)
     "controller-reload-cannot-bless-stale-generation";

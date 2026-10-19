@@ -21,7 +21,7 @@ let run ~width_of ~directory ~path =
   require (no_modal admitted_state) "admit-locus-submitted";
   let all_loci = Loci_screen.admitted_loci admitted_state.session.book in
   require (List.mem "metro" all_loci) "admitted-locus-present-in-catalog";
-  let roles_after = X.accounting_roles admitted_state in
+  let roles_after = Shell_files.accounting_roles admitted_state in
   require (List.assoc_opt "metro" roles_after = Some Roles.Asset) "admitted-locus-has-asset-role";
   let sel_idx =
     let rec find i = function
@@ -45,7 +45,7 @@ let run ~width_of ~directory ~path =
   in
   let updated_role_state = key ~width_of role_form_ready `Enter in
   require (no_modal updated_role_state) "set-locus-role-submitted";
-  let roles_final = X.accounting_roles updated_role_state in
+  let roles_final = Shell_files.accounting_roles updated_role_state in
   require (List.assoc_opt "metro" roles_final = Some Roles.Expense) "locus-role-updated-to-expense";
   (* Locus label edit test (UI-30) *)
   let label_edit_modal = key ~width_of updated_role_state (`ASCII 'l') in

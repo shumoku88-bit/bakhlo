@@ -1,6 +1,6 @@
 (* Input dispatch; state transitions and painting have separate owners. *)
-open Daily_interaction_state
-open Daily_interaction_context
+open Shell_state
+open Shell_dispatch
 
 let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : input) =
   if state.paste_blocked then
@@ -136,7 +136,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some { state with overlay = Commands M.initial }
         | Some ((`Escape | `ASCII 'q'), []) -> Some (back state)
         | Some (`ASCII ('r' | 'n'), []) -> Some (open_record state)
-        | Some (`ASCII ('c' | 'e'), []) | Some (`ASCII 'e', [ `Ctrl ]) -> Some (edit_target state None)
+        | Some (`ASCII ('c' | 'e'), []) | Some (`ASCII 'e', [ `Ctrl ]) -> Some (Shell_record_actions.edit_target state None)
         | _ -> (
             match ambient_screen_input ~dimensions ~width_of state input with
             | Some state -> Some state

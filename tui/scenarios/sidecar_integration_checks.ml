@@ -54,7 +54,7 @@ let safety_checks ~width_of ~directory () =
     "attention-dangling-link-refuses-without-fallback";
   Unix.unlink att_path;
   get (Attention_file.save_file att_path ~expected:Att.empty att);
-  require ((Daily_interaction_context.reload broken).attention = Ok att) "explicit-reload-refreshes-sidecar";
+  require ((Shell_dispatch.reload broken).attention = Ok att) "explicit-reload-refreshes-sidecar";
   List.iter (fun raw -> require (Result.is_error (Stl.of_string raw)) "settlement-invalid-input-refused")
     [ "broken\n"; "id\t\ta\tb\tjpy\tbad\t0\t0\n";
       "id\t\ta\tb\tjpy\t10\t11\t0\n"; "id\t\ta\tb\tjpy\t10\t-1\t0\n";
