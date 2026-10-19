@@ -300,6 +300,8 @@ Record外のbracketed pasteからHome／Commandsの操作を実行しないこ�
 
 ## Issue #42 引き継ぎ (2026-10-19)
 
+- 2026-10-19: #42 の再構築を main `18af340` に統合（main CI 両方 success）。#38/#39/#41 クローズ。#42 は #40 の修正待ちで open。
+
 - 実装指示書: `tasks/issue42/HANDOFF.ja.md`（次は Registry 述語化 → Selected Day → Calendar/Home → Shell 仕上げ）。
 - 検証基準: `tasks/issue42/pass-base.txt`（34 PASS）、`tasks/issue42/labels-base.txt`（assert ラベル）。
 

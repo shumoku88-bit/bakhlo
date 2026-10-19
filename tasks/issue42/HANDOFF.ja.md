@@ -148,7 +148,8 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
 - （完了）計測: 中央 4469 行 → Shell 1389 行。release exe ビルド: cold 約36s→24s、1画面の実装変更後 約20〜21s→8〜9s（`docs/VERIFICATION.md` の build-time measurement）。
 - 各コミットで CI を matching SHA で手動起動し成功確認（PTY 4寸法は TUI workflow 内）。
 - （完了）#42 に進捗・計測・関連 issue 整理案をコメント。#38/#39/#41 のクローズは main 統合後にユーザー判断。#40・#28 は継続。
-- main への統合はユーザー承認後（AGENTS.md は main 直コミット方針だが、本件は大規模な隔離作業）。
+- （完了 2026-10-19）ユーザー承認により main を `18af340` へ fast-forward。main push CI Core 39185069290 / TUI 39185069310 success。#38・#39・#41 はクローズ。
+- #42 に残る条件: マイルストーン0の #40（Records→Daily 変換で未知拡張が消える境界の fail-closed 修正）。受入（LOAM paired・IME・P7）は別。
 
 ## 4. 既知の欠陥・挙動変化（記録済み、意図的に未修正）
 `docs/TUI_OWNERSHIP.md` 参照。要点: accounting-roles 読取で unreadable が空 roles になる、
