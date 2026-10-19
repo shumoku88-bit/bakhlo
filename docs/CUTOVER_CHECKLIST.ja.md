@@ -21,6 +21,7 @@ Actual閲覧、共通viewportの限定検証を含むが、後続実装の現在
 Daily v4・予算APIは非現行。限定コンバータ・既存Book CLI・型だけをDaily TUI接続に数えない。
 実データの内容・使用件数は扱わない。
 
+本人が乗り換え前に差分を見る要約は[乗り換え前のLOAM差分台帳](CUTOVER_DIFF_LEDGER.ja.md)。
 画面別の不足・現在進捗・並行依頼の唯一の管理先は
 [LOAM_UI_GAP_LEDGER.ja.md](LOAM_UI_GAP_LEDGER.ja.md)。この文書は生活操作と切替の判定条件を所有する。
 同台帳は **F:機能・保持情報／O:操作・接続／V:見た目／Q:検証・安全性** を分ける。

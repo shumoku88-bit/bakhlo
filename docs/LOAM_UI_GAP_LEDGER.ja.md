@@ -15,6 +15,7 @@ LOAMの**予算以外の全ユーザー向け機能・見た目・操作感・�
 - **現行ソース棚卸し checkpoint（2026-10-16）**：Bakhlo `6b676c5`、LOAM `bb208173`。LOAMは `db631763..bb208173` の `Loam/Tui` と `docs/TUI.md`／`docs/TUI_NON_BUDGET_WORKLIST.md` の差分を読み取り専用で確認（TUI 60ファイル変更）。現行契約から確認できた差分をUI-01〜33とUI-34へ対応づけた。さらにUI-34の未存在rootだけを使った80×24のpaired startup checkを実施し、既存binaryのhashと結果を[検証記録](VERIFICATION.md#first-run-comparison-2026-10-16)へ記録。これは初期化画面の限定比較であり、同じ意味のfinancial fixture・実データ対照・未記載挙動の網羅ではない。LOAM sourceとbinaryの一致も主張しない。
 - 現行LOAMの影響点：盆栽Home／Calendarの詳細なrole-aware日次収支・help・復帰、Actualの初期scope／選択日切替、ScheduledのSeries Calendarと完了印、Reportsの11項目palette、Household setupの表示名・Balances表示対象・Daily Pace pool／cycle dates、first-run/unreadable-rootの明示的初期化。予算配分等・Budget Windowは引き続き対象外。詳細な対応先とBakhlo側の不足はUI-01〜04、12、23〜25、30、32〜34を参照。
 - 最初の対照実行：Bakhlo `cfed583`＋Actual検索修正、LOAMソース `da4dfb65`。既存LOAM binaryのソース一致は未認定。binary hash・合成入力・操作列・結果は [VERIFICATION.md](VERIFICATION.md) のActual検索対照欄を参照する。
+- 本人向けの乗り換え前の要約は[乗り換え前のLOAM差分台帳](CUTOVER_DIFF_LEDGER.ja.md)。この台帳の差分を見つけた・直したら同じ作業で要約も更新する。
 - LOAMの本番台帳・configを変更しない。運用切替・二重記帳・自動同期・storage研究の着手許可ではない。
 
 ### 差分は四種類に分ける
