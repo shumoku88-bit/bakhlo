@@ -65,12 +65,26 @@ let file_from (_, _, files) name =
   match List.assoc_opt name files with Some (Some (_, b)) -> Some b | _ -> None
 let needed snapshot name = match file_from snapshot name with
   | Some b -> b | None -> raise (Refused "required-capture-input-missing")
+(* Explicit LOAM claims only; an absent section is no claim, never inferred support. *)
+let bounded_history raw =
+  let env = get "source-envelope" (E.of_string raw) in
+  match List.find_opt (fun (s : E.section) -> s.name = "BoundedHistorySupport") (E.sections env) with
+  | None -> []
+  | Some s ->
+      List.map (fun row -> match String.split_on_char '\t' row with
+        | [ "SUPPORT"; locus; measure; day ] -> locus, measure, day
+        | _ -> raise (Refused "invalid-bounded-history-row"))
+        (C.rows "LOAM-BOUNDED-HISTORY-SUPPORT\t1" s.body)
 let convert snapshot =
+  let raw = needed snapshot "household.loam" in
   let candidate, _, _, _ = C.from_loam
-    ~raw:(needed snapshot "household.loam")
+    ~raw
     ~measure_config:(needed snapshot "config/measure-presentation.tsv")
     ~label_config:(file_from snapshot "config/locus-catalog.tsv") in
   let book = get "current-daily-codec-refused" (B.of_string (C.to_string candidate)) in
+  let book = match bounded_history raw with
+    | [] -> book
+    | rows -> get "bounded-history-support-refused" (B.with_bounded_history book rows) in
   let printed = B.to_string book in
   let cold = get "candidate-cold-read-refused" (B.of_string printed) in
   require (B.to_string cold = printed) "candidate-roundtrip-changed";
@@ -207,6 +221,7 @@ let fixture ~changed =
     "OpeningSupport", "LOAM-OPENING-SUPPORT\t1\n";
     "CurrentQuantityAnchor", "LOAM-CURRENT-QUANTITY-ANCHOR\t2\nGROUP\nASSERT\twallet\tjpy\t1000\nEND\n";
     "CurrentQuantityPresence", "LOAM-CURRENT-QUANTITY-PRESENCE\t1\n";
+    "BoundedHistorySupport", "LOAM-BOUNDED-HISTORY-SUPPORT\t1\nSUPPORT\twallet\tjpy\t2026-10-01\n";
     "LocusAdmission", "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\nLOCUS\tfood\n" ] in
   "LOAM-HOUSEHOLD-IMAGE\t2\n" ^ String.concat "" (List.map (fun (name, body) ->
     Printf.sprintf "SECTION\t%s\t%d\n%s" name (String.length body) body) sections)
@@ -272,6 +287,10 @@ let self_check () =
    | Ok (Q.Exact quantity) -> require (Z.equal (D.Quantity.quanta (Q.quantity quantity))
                                          (Z.of_int 982)) "independent-quantity-expectation"
    | Ok (Q.Known_present _) | Error _ -> raise (Refused "expected-exact-quantity"));
+  let at day = B.pool_at_end_of_day updated ~measure:"jpy" ~pool:[ C.coord "wallet" "jpy" ] ~day in
+  require (B.bounded_history_start updated ~locus:"wallet" ~measure:"jpy" = Some "2026-10-01"
+           && at "2026-10-11" = Ok (Z.of_int 985) && Result.is_error (at "2026-09-29"))
+    "bounded-history-not-carried";
   require (bytes (first ^ "/imported.sexp") = first_bytes) "previous-capture-changed";
   require (bytes (second ^ "/source/household.loam") = bytes (source ^ "/household.loam"))
     "source-not-copied-exactly";

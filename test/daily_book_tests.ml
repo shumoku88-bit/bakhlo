@@ -1193,3 +1193,83 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
     wallet jpy before: -700, after: -700
     pace equal: true
   |}]
+
+let%expect_test "bounded history support restates past pools and keeps its own encoding" =
+  let base = get (B.of_string fixture) in
+  let dated id day n = { (entry id n) with day } in
+  let book = get (B.put_entry base ~replace:false (dated "a" "2026-10-03" 100) ~plan:None) in
+  let book = get (B.put_entry book ~replace:false (dated "b" "2026-10-05" 50) ~plan:None) in
+  let show = function Ok n -> Z.to_string n | Error why -> "error:" ^ why in
+  let at book loci day =
+    show
+      (B.pool_at_end_of_day book ~measure:"jpy"
+         ~pool:(List.map loci ~f:(fun locus -> pace_coordinate locus "jpy"))
+         ~day)
+  in
+  Stdio.printf "unsupported wallet: %s\n" (at book [ "wallet" ] "2026-10-04");
+  Stdio.printf "zero-origin food: %s %s\n" (at book [ "food" ] "2026-10-02")
+    (at book [ "food" ] "2026-10-03");
+  let bounded = get (B.with_bounded_history book [ ("wallet", "jpy", "2026-10-04") ]) in
+  Stdio.printf "start: %s\n"
+    (Option.value ~default:"none" (B.bounded_history_start bounded ~locus:"wallet" ~measure:"jpy"));
+  List.iter [ "2026-10-02"; "2026-10-03"; "2026-10-04"; "2026-10-05"; "2026-10-06" ] ~f:(fun day ->
+      Stdio.printf "wallet %s: %s\n" day (at bounded [ "wallet" ] day));
+  Stdio.printf "wallet+food 2026-10-04: %s; with bank: %s\n"
+    (at bounded [ "wallet"; "food" ] "2026-10-04")
+    (at bounded [ "wallet"; "bank" ] "2026-10-04");
+  let printed = B.to_string bounded in
+  let cold = get (B.of_string printed) in
+  Stdio.printf "v5: %b; stable: %b; cold wallet 2026-10-04: %s\n"
+    (String.is_substring printed ~substring:"(bakhlo-daily 5)")
+    (String.equal (B.to_string cold) printed)
+    (at cold [ "wallet" ] "2026-10-04");
+  let cleared = get (B.with_bounded_history bounded []) in
+  Stdio.printf "cleared prints v3: %b\n"
+    (String.is_substring (B.to_string cleared) ~substring:"(bakhlo-daily 3)");
+  let conflict = get (B.with_bounded_history book [ ("food", "jpy", "2026-10-01") ]) in
+  Stdio.printf "conflict: %s\n" (at conflict [ "food" ] "2026-10-04");
+  let unanchored = get (B.with_bounded_history book [ ("bank", "jpy", "2026-10-01") ]) in
+  Stdio.printf "unanchored: %s\n" (at unanchored [ "bank" ] "2026-10-04");
+  let refusal rows =
+    match B.with_bounded_history book rows with Ok _ -> "ok" | Error why -> why
+  in
+  Stdio.printf "duplicate: %s; date: %s; measure: %s\n"
+    (refusal [ ("wallet", "jpy", "2026-10-04"); ("wallet", "jpy", "2026-10-05") ])
+    (refusal [ ("wallet", "jpy", "2026-02-30") ])
+    (refusal [ ("wallet", "usd", "2026-10-04") ]);
+  let replace_header version text =
+    String.substr_replace_first text ~pattern:"(bakhlo-daily 5)"
+      ~with_:("(bakhlo-daily " ^ version ^ ")")
+  in
+  let parse text = match B.of_string text with Ok _ -> "ok" | Error why -> why in
+  Stdio.printf "v4 header: %s; v3 with field: %s\n" (parse (replace_header "4" printed))
+    (parse (replace_header "3" printed));
+  let empty_v5 =
+    String.substr_replace_first
+      (B.to_string (get (B.with_bounded_history book [ ("wallet", "jpy", "2026-10-04") ])))
+      ~pattern:"(\"wallet\" \"jpy\" \"2026-10-04\")" ~with_:""
+  in
+  Stdio.printf "empty v5: %s\n" (parse empty_v5);
+  Stdio.printf "records: %s\n"
+    (match B.to_records_string bounded with
+    | _ -> "written"
+    | exception Invalid_argument _ -> "refused");
+  [%expect {|
+    unsupported wallet: error:history-support-missing:wallet:jpy
+    zero-origin food: 0 100
+    start: 2026-10-04
+    wallet 2026-10-02: error:history-precedes-bounded-start:wallet:jpy
+    wallet 2026-10-03: 900
+    wallet 2026-10-04: 900
+    wallet 2026-10-05: 850
+    wallet 2026-10-06: 850
+    wallet+food 2026-10-04: 1000; with bank: error:history-support-missing:bank:jpy
+    v5: true; stable: true; cold wallet 2026-10-04: 900
+    cleared prints v3: true
+    conflict: error:history-support-conflict:food:jpy
+    unanchored: error:history-bounded-anchor-missing:bank:jpy
+    duplicate: duplicate-bounded-history-coordinate; date: invalid-date; measure: measure-scale-not-supplied
+    v4 header: unsupported-book-header; v3 with field: unsupported-field
+    empty v5: empty-bounded-history
+    records: refused
+    |}]

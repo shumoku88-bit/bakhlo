@@ -305,6 +305,25 @@ let compute_activities book measure pool =
   table
 
 
+(* Core refusal codes carry "code:locus:measure"; name the coordinate, never guess. *)
+let history_reason code =
+  let kind, coordinate =
+    match String.index_opt code ':' with
+    | Some i -> (String.sub code 0 i, String.sub code (i + 1) (String.length code - i - 1))
+    | None -> (code, "")
+  in
+  match kind with
+  | "history-support-missing" ->
+      "History unsupported: no zero-origin or bounded history for " ^ coordinate ^ "."
+  | "history-precedes-bounded-start" ->
+      "History unavailable: before bounded history start for " ^ coordinate ^ "."
+  | "history-bounded-anchor-missing" ->
+      "History unavailable: bounded history needs an exact current observation for "
+      ^ coordinate ^ "."
+  | "history-support-conflict" ->
+      "History refused: overlapping history support for " ^ coordinate ^ "."
+  | _ -> "History unavailable: " ^ code
+
 let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
   let ( let* ) = Result.bind in
   if pool = [] then Error "Daily Pace pool is empty."
@@ -334,15 +353,10 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
     let activities = compute_activities book measure pool in
     let activity_of day = Some (Option.value ~default:zero_activity (Hashtbl.find_opt activities day)) in
     (* Opening/current observation alone does not certify a complete historical
-       interval. The second LOAM route needs explicit bounded-history evidence,
-       which the current Bakhlo support format does not carry. *)
-    let supported_history =
-      List.for_all (fun locus -> B.has_zero_origin book ~locus ~measure) pool in
-    let net effects = List.fold_left (fun sum eff ->
-      if A.mstr (D.Effect.measure eff) = measure && List.mem (A.lstr (D.Effect.locus eff)) pool
-      then Z.add sum (A.quanta eff) else sum) Z.zero effects in
-    let history_pool day = List.fold_left (fun total (entry : B.entry) ->
-      if entry.day <= day then Z.add total (net entry.effects) else total) Z.zero entries in
+       interval: Core routes each coordinate through zero-origin or explicit
+       bounded-history support, and refuses otherwise. *)
+    let history_pool day =
+      Result.map_error history_reason (B.pool_at_end_of_day book ~measure ~pool:coords ~day) in
     let deductions_for day stop =
       List.fold_left (fun result (plan : B.plan) ->
         let* total = result in
@@ -371,15 +385,14 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
               deductions = today_pace.B.automatic_deductions;
               remaining_days = today_pace.B.remaining_days; end_exclusive = stop;
               activity = activity_of day; unavailable = None }
-          else if not supported_history then
-            unavailable day stop "History unsupported: no zero-origin for every pool locus."
-          else
+          else match history_pool day with
+          | Error why -> unavailable day stop why
+          | Ok pool_balance ->
             let remaining_days = day_number stop - day_number day in
             if remaining_days <= 0 then unavailable day stop "Past pace has no remaining calendar horizon."
             else match deductions_for day stop with
               | Error why -> unavailable day stop why
               | Ok deductions ->
-                  let pool_balance = history_pool day in
                   let available_through_end = Z.sub pool_balance deductions in
                   { day; pace_quanta = Some (Z.ediv available_through_end (Z.of_int remaining_days));
                     available_through_end; pool_balance; deductions; remaining_days;

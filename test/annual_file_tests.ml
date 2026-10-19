@@ -316,3 +316,13 @@ let%expect_test "annual rollover preview verifies adjacent years, closing states
         require contention_refused "lock-contention-refused")
   );
   [%expect {| |}]
+
+let%expect_test "annual envelopes refuse bounded history support instead of dropping it" =
+  let prior = fixture "2026-03-01" in
+  let bounded = get (B.with_bounded_history prior [ ("wallet", "jpy", "2026-01-01") ]) in
+  let reference = { Bakhlo_sexp.Annual_book.year = 2026; fingerprint = String.make 32 '0' } in
+  Stdio.print_endline
+    (match Bakhlo_sexp.Annual_book.start ~year:2027 ~reference ~prior:bounded with
+    | Ok _ -> "written"
+    | Error why -> why);
+  [%expect {| annual-bounded-history-unsupported |}]

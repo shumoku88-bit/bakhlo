@@ -15,8 +15,12 @@ The latest Daily Pace probe covers zero-origin/current-anchor-only paired four-s
 walks, cold explicit Previous Cycle and separate LOAM bounded/opening observations.
 A bounded presentation follow-up (`d696d80`) aligns Selected/change rows, full-date graph
 endpoints and partial fallback History heading/selection. Grid/Braille, Detail
-wording/order, target, missing-Previous-Cycle behavior and bounded-history evidence
-remain gaps; arithmetic, support and publication gates are unchanged.
+wording/order, target and missing-Previous-Cycle behavior remain gaps; arithmetic,
+support and publication gates are unchanged. LOAM `BoundedHistorySupport` is now
+retained as explicit Daily v5 support and routed per coordinate (zero-origin forward or
+bounded backward from an exact current observation); on the latest real-data copy all
+five periods' Selected/change/History rows match LOAM at 120×36 and 80×24 (see
+[evidence](VERIFICATION.md#bounded-history-support-and-real-data-pace-history-2026-10-19)).
 Other-screen publication now preserves a held Record/Pay draft; only its own
 confirmed publication clears it. Operational cutover is not authorized. The user
 authorized fresh read-only household/config copies and private paired observation for
@@ -632,8 +636,9 @@ labels as an optional translation of the old Japanese UI.
   CLI are separate from Daily_book. v3 Book records explicit two-Measure
   exchanges; it does not represent all Daily plans or LOAM household families.
 - `sexp/daily_book.mli` owns Daily's current contract: corrected entries,
-  explicit plans and independent quantity support; reads monolithic v1..v3
-  and Records v1, writes monolithic v3. Experimental budget allocation/routing
+  explicit plans and independent quantity support; reads monolithic v1..v3/v5
+  and Records v1, writes monolithic v3 (v5 only with explicit bounded-history support,
+  which Records v1 and annual envelopes refuse rather than drop). Experimental budget allocation/routing
   APIs and trial v4 support were removed. Old budget-only trials may be recreated.
 - Ordinary same-Measure recording, multi-posting drafts, date/amount/memo edits,
   browsing, admitted-Locus candidates, transaction preview and explicit plan

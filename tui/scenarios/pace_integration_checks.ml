@@ -296,6 +296,23 @@ let daily_pace_today_sample_checks () =
   require (yesterday.Trend.pace_quanta = None) "daily-pace-guarded-past-none";
   require (yesterday.Trend.unavailable <> None) "daily-pace-guarded-past-cause";
   require (yesterday.Trend.activity <> None) "daily-pace-guarded-past-activity";
+  (* Explicit bounded history from 06-14 with the exact current observation: the
+     end of 06-13 (= start of 06-14) is supported, earlier dates name the cause. *)
+  let bounded_book = get (B.with_bounded_history book [ ("wallet", "jpy", "2026-06-14") ]) in
+  let _, _, bounded_history =
+    get
+      (Trend.compute_samples ~book:bounded_book ~measure:"jpy" ~pool:[ "wallet" ]
+         ~boundary_presets_text:history_boundary ~today ~preset:Trend.Ten_days)
+  in
+  let on day = List.find (fun (sample : Trend.sample) -> sample.day = day) bounded_history in
+  require
+    ((on "2026-06-14").Trend.pace_quanta = Some (Z.of_int 250)
+     && Z.equal (on "2026-06-13").Trend.pool_balance (Z.of_int 1000)
+     && (on "2026-06-13").Trend.unavailable = None
+     && (on "2026-06-12").Trend.pace_quanta = None
+     && (on "2026-06-12").Trend.unavailable
+        = Some "History unavailable: before bounded history start for wallet:jpy.")
+    "daily-pace-bounded-history-route";
   (* Known zero-origin for every pool locus: past reconstruction is supported. *)
   let supported_book =
     get

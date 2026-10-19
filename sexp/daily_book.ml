@@ -70,6 +70,7 @@ type data = {
   openings : Q.opening list;
   observations : A.Current_quantity_groups.group list;
   presence : Q.presence option;
+  bounded : (D.Effect_coordinate.t * string) list;
 }
 
 type t = {
@@ -78,7 +79,7 @@ type t = {
   entries_cached : entry list Lazy.t;
 }
 
-let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~observations ~presence =
+let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~observations ~presence ~bounded =
   let entry_count = List.length entries in
   let entries_rev = List.rev entries in
   let entry_map =
@@ -96,6 +97,7 @@ let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~ob
     openings;
     observations;
     presence;
+    bounded;
   }
 
 let empty_command : A.Actual_source.command =
@@ -241,6 +243,12 @@ let admit ?entries_cached data =
         g.assertions)
     data.observations;
   Option.iter (fun (p : Q.presence) -> List.iter known_coord p.coordinates) data.presence;
+  (* Explicit claims only; route conflicts are refused when a history is asked. *)
+  unique
+    (List.map (fun ((c : D.Effect_coordinate.t), _) -> lstr c.locus ^ "\x00" ^ mstr c.measure)
+       data.bounded)
+    "duplicate-bounded-history-coordinate";
+  List.iter (fun (c, day) -> known_coord c; valid_date day) data.bounded;
   let entries_cached =
     match entries_cached with
     | Some c -> c
@@ -261,7 +269,7 @@ let empty ~measure ~scale =
   protect (fun () ->
       admit
         (make_data ~measures:[ (measure, scale) ] ~labels:None ~approved:(Some [])
-           ~entries:[] ~plans:[] ~origins:[] ~openings:[] ~observations:[] ~presence:None))
+           ~entries:[] ~plans:[] ~origins:[] ~openings:[] ~observations:[] ~presence:None ~bounded:[]))
 
 let atom = function X.Atom s -> s | X.List _ -> raise (Refused "expected-atom")
 
@@ -400,6 +408,7 @@ type payload = {
   openings : Q.opening list;
   observations : A.Current_quantity_groups.group list;
   presence : Q.presence option;
+  bounded : (D.Effect_coordinate.t * string) list;
 }
 
 let parse_payload version rows =
@@ -408,7 +417,24 @@ let parse_payload version rows =
     (List.map atom (field "scope" rows) = [ "corrected-entries"; "explicit-plans" ])
     "unsupported-scope";
   let support = field "support" rows in
-  fields [ "zero-origin"; "openings"; "observations"; "presence" ] support;
+  (* v4 was the removed budget trial: never reinterpret it. v5 is v3 plus
+     non-empty bounded history support; v3 stays the encoding without it. *)
+  let bounded_version = version = "5" in
+  let version = if bounded_version then "3" else version in
+  fields
+    ([ "zero-origin"; "openings"; "observations"; "presence" ]
+     @ if bounded_version then [ "bounded-history" ] else [])
+    support;
+  let bounded =
+    if not bounded_version then []
+    else
+      List.map
+        (function
+          | X.List [ X.Atom l; X.Atom m; X.Atom day ] -> (coord l m, day)
+          | X.Atom _ | X.List _ -> raise (Refused "invalid-bounded-history"))
+        (field "bounded-history" support)
+  in
+  require (not bounded_version || bounded <> []) "empty-bounded-history";
   let presence =
     match field "presence" support with
     | [ X.List [ X.Atom "not-supplied" ] ] -> None
@@ -473,6 +499,7 @@ let parse_payload version rows =
           | X.Atom _ | X.List _ -> raise (Refused "invalid-observation"))
         (field "observations" support);
     presence;
+    bounded;
   } : payload)
 
 let admit_payload (p : payload) =
@@ -480,7 +507,7 @@ let admit_payload (p : payload) =
     let data =
       make_data ~measures:p.measures ~labels:p.labels ~approved:p.approved
         ~entries:p.entries ~plans:p.plans ~origins:p.origins ~openings:p.openings
-        ~observations:p.observations ~presence:p.presence
+        ~observations:p.observations ~presence:p.presence ~bounded:p.bounded
     in
     admit ~entries_cached:(lazy p.entries) data)
 
@@ -495,13 +522,14 @@ let export_payload (t : t) : payload =
     openings = t.data.openings;
     observations = t.data.observations;
     presence = t.data.presence;
+    bounded = t.data.bounded;
   }
 
 let of_monolithic_string bytes =
   protect (fun () ->
       match get "syntax" (Parsexp.Many.parse_string bytes) with
       | X.List [ X.Atom "bakhlo-daily"; X.Atom version ] :: rows
-        when version = "1" || version = "2" || version = "3" ->
+        when version = "1" || version = "2" || version = "3" || version = "5" ->
           let payload = parse_payload version rows in
           (match admit_payload payload with Ok t -> t | Error why -> raise (Refused why))
       | [] | _ :: _ -> raise (Refused "unsupported-book-header"))
@@ -609,6 +637,7 @@ let of_records (rb : Records_book.t) =
           ~openings:h.openings
           ~observations:(h.observations @ frame_obs)
           ~presence:h.presence
+          ~bounded:[]
       in
       admit ~entries_cached:(lazy entries) data)
 
@@ -622,6 +651,8 @@ let of_string bytes =
 
 let to_records ?(request_tokens = []) (t : t) : Records_book.t =
   let b = t.data in
+  if b.bounded <> [] then
+    invalid_arg "Daily_book.to_records: bounded history support has no Records v1 form";
   let header : Records_book.header =
     {
       version = 1;
@@ -759,8 +790,8 @@ let payload_sexps (b : payload) =
              ])
          b.plans);
     f "support"
-      [
-        f "zero-origin" (List.map coordinate b.origins);
+      ([
+         f "zero-origin" (List.map coordinate b.origins);
         f "openings"
           (List.map
              (fun (o : Q.opening) ->
@@ -800,11 +831,21 @@ let payload_sexps (b : payload) =
                     f "coordinates" (List.map coordinate p.coordinates);
                   ]);
           ];
-      ];
+      ]
+      @ (if b.bounded = [] then []
+         else
+           [
+             f "bounded-history"
+               (List.map
+                  (fun ((c : D.Effect_coordinate.t), day) ->
+                    l [ a (lstr c.locus); a (mstr c.measure); a day ])
+                  b.bounded);
+           ]));
   ]
 
 let sexps t =
-  f "bakhlo-daily" [ a "3" ] :: payload_sexps (export_payload t)
+  f "bakhlo-daily" [ a (if t.data.bounded = [] then "3" else "5") ]
+  :: payload_sexps (export_payload t)
 
 let quote s =
   let b = Buffer.create (String.length s + 2) in
@@ -829,7 +870,7 @@ let render_into out x =
     | "entries" | "entry" | "date" | "memo" | "postings" | "posting" | "reversal-of" | "exchange"
     | "keys" | "original-amount" | "amount" | "merchant" | "party" | "nonmerchant" | "plans" | "plan" | "changes" | "paid-by" | "cancelled-on" | "support"
     | "zero-origin" | "openings" | "observations" | "observation" | "reflected"
-    | "quantities" | "presence" | "coordinates" | "provided" | "not-supplied" | "none" | "some"
+    | "quantities" | "presence" | "bounded-history" | "coordinates" | "provided" | "not-supplied" | "none" | "some"
     | "bakhlo-annual" | "year" | "prior" | "fingerprint" ->
         true
     | _ -> false
@@ -1304,6 +1345,7 @@ let put_entry_full t ~replace (e : entry) ~plan =
           ~approved:t.data.approved ~entries ~plans ~origins:t.data.origins
           ~openings:t.data.openings ~observations:t.data.observations
           ~presence:t.data.presence
+          ~bounded:t.data.bounded
       in
       admit ~entries_cached:(lazy entries) data)
 
@@ -1463,6 +1505,81 @@ let has_zero_origin t ~locus ~measure =
     (fun candidate -> D.Effect_coordinate.equal candidate coordinate)
     t.data.origins
 
+let bounded_history_start t ~locus ~measure =
+  let coordinate = coord locus measure in
+  List.find_map
+    (fun (candidate, day) ->
+      if D.Effect_coordinate.equal candidate coordinate then Some day else None)
+    t.data.bounded
+
+let with_bounded_history t rows =
+  protect (fun () ->
+      let bounded = List.map (fun (l, m, day) -> (coord l m, day)) rows in
+      admit ~entries_cached:t.entries_cached { t.data with bounded })
+
+(* LOAM's two independent history routes, per coordinate: zero-origin sums
+   forward; bounded support subtracts later Effects from the exact current
+   anchor. Overlap is refused rather than given a precedence. *)
+let pool_at_end_of_day t ~measure ~pool ~day =
+  protect (fun () ->
+      let next_start = day_number day + 1 in
+      ignore (scale t measure);
+      let selected_measure = mid measure in
+      require
+        (List.length (List.sort_uniq D.Effect_coordinate.compare pool) = List.length pool)
+        "history-duplicate-coordinate";
+      require
+        (List.for_all
+           (fun (c : D.Effect_coordinate.t) ->
+             D.Identifier.Measure.equal c.measure selected_measure)
+           pool)
+        "history-pool-measure-mismatch";
+      let entries = entries t in
+      let sum c keep =
+        List.fold_left
+          (fun total (e : entry) ->
+            if not (keep e.day) then total
+            else
+              List.fold_left
+                (fun total eff ->
+                  if
+                    D.Identifier.Locus.equal (D.Effect.locus eff) c.D.Effect_coordinate.locus
+                    && D.Identifier.Measure.equal (D.Effect.measure eff) c.measure
+                  then Z.add total (D.Quantity.quanta (D.Effect.quantity eff))
+                  else total)
+                total e.effects)
+          Z.zero entries
+      in
+      List.fold_left
+        (fun total (c : D.Effect_coordinate.t) ->
+          let label = lstr c.locus ^ ":" ^ measure in
+          let zero = List.exists (D.Effect_coordinate.equal c) t.data.origins in
+          let opening =
+            List.exists
+              (fun (o : Q.opening) -> D.Effect_coordinate.equal o.coordinate c)
+              t.data.openings
+          in
+          match zero, bounded_history_start t ~locus:(lstr c.locus) ~measure with
+          | true, Some _ -> raise (Refused ("history-support-conflict:" ^ label))
+          | true, None -> Z.add total (sum c (fun d -> d <= day))
+          | false, None -> raise (Refused ("history-support-missing:" ^ label))
+          | false, Some first ->
+              require (not opening) ("history-support-conflict:" ^ label);
+              require (next_start >= day_number first)
+                ("history-precedes-bounded-start:" ^ label);
+              let current =
+                match Q.query t.image c with
+                | Ok (Q.Exact answer) -> (
+                    match Q.premise answer with
+                    | Q.Current_assertion _ -> D.Quantity.quanta (Q.quantity answer)
+                    | Q.Zero_origin | Q.Opening _ ->
+                        raise (Refused ("history-bounded-anchor-missing:" ^ label)))
+                | Ok (Q.Known_present _) | Error (Q.Support_unknown _) ->
+                    raise (Refused ("history-bounded-anchor-missing:" ^ label))
+              in
+              Z.add total (Z.sub current (sum c (fun d -> d > day))))
+        Z.zero pool)
+
 module Annual_internal = struct
   type nonrec payload = payload = {
     measures : (string * int) list;
@@ -1474,6 +1591,7 @@ module Annual_internal = struct
     openings : Q.opening list;
     observations : A.Current_quantity_groups.group list;
     presence : Q.presence option;
+    bounded : (D.Effect_coordinate.t * string) list;
   }
   let export_payload = export_payload
   let admit_payload = admit_payload

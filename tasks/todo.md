@@ -47,7 +47,7 @@ LOAM終了後に使用し、取得拒否では起動せず、旧コピー・試�
 
 - [ ] LOAMの履歴回答をzero-origin／current anchorのみ／bounded-history／openingのみで対照し、同じavailable／unknown条件を実装する。
 - [x] 各日の明示cycle、期限超過・支払済み・取消済み予定、反転・複数通貨、Previous Cycleを同じ現在真実で再構成する（合成回帰）。
-- [ ] 欠落するbounded-historyの独立根拠を、既存原本を保つ明示形式／読取変換で保持する。過去の試用budget v4は再解釈しない。
+- [x] 欠落するbounded-historyの独立根拠を、既存原本を保つ明示形式／読取変換で保持する。過去の試用budget v4は再解釈しない（Daily v5・比較取込で保持。年次／Records v1は拒否）。
 - [ ] 同じ端末寸法のcontext／Trend／History／Selected day／feedback／操作案内、グラフと日付軸・件数・選択・scroll・戻りを揃える。
 - [ ] 同じ合成入力と操作でLOAMとBakhloを4寸法対照し、全5期間・known／partial／unavailable・resize・coldを実行する。見た目だけ／グラフが出るだけを受入にしない。
 - [ ] Core・architecture・native全検査・必要な保存／年別／backup回帰とmatching SHA CIを確認し、既存UI台帳・引き継ぎへ記録する。

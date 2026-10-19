@@ -93,6 +93,7 @@ let encode ~year ~reference ~prior book =
     check_reference ~year reference;
     let prior_entries = B.entries prior in
     let full = I.export_payload book in
+    require (full.bounded = []) "annual-bounded-history-unsupported";
     let prior_len = List.length prior_entries in
     let full_len = List.length full.entries in
     require (full_len >= prior_len) "annual-prior-entries-removed";

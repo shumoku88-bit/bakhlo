@@ -175,6 +175,25 @@ val has_zero_origin : t -> locus:string -> measure:string -> bool
 (** Whether the coordinate has admitted zero-origin support. Does not imply
     support for any nonzero opening or observation family. *)
 
+val bounded_history_start : t -> locus:string -> measure:string -> string option
+(** Explicit bounded-history claim: every real change of this coordinate from the
+    start of the returned day is represented by retained Actual entries. Never
+    inferred from equal endpoints, an opening or a current observation. *)
+
+val with_bounded_history : t -> (string * string * string) list -> (t, string) result
+(** Replace the whole bounded-history image with (locus, measure, start day) rows.
+    Refuses duplicate coordinates, invalid dates and unknown Measures. Such a book
+    prints as monolithic v5 and has no Records v1 or annual form (both refuse). *)
+
+val pool_at_end_of_day :
+  t -> measure:string -> pool:D.Effect_coordinate.t list -> day:string -> (Z.t, string) result
+(** Exact pool total at the end of [day] (= start of the next day), restated from
+    current truth. Each coordinate needs exactly one route: zero-origin (forward
+    sum) or bounded history starting no later than the next day with an exact
+    current observation (current minus later Effects). Missing support, overlap
+    with zero-origin/opening or an unanchored bounded coordinate refuses the whole
+    answer; no partial total or invented zero. *)
+
 module Annual_internal : sig
   type payload = {
     measures : (string * int) list;
@@ -186,6 +205,7 @@ module Annual_internal : sig
     openings : Q.opening list;
     observations : Bakhlo_application.Current_quantity_groups.group list;
     presence : Q.presence option;
+    bounded : (D.Effect_coordinate.t * string) list;
   }
 
   val export_payload : t -> payload
