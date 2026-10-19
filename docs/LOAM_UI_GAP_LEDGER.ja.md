@@ -109,6 +109,16 @@ LOAMの内部構造・保存形式・研究基盤の移植は目的ではない�
 | **UI-33** | Daily Pace／Trend／設定 | 試用：独立Today、明示Pool／一意period・What-if・設定Review、5プリセット、Brailleグラフ。期間名・選択位置／件数・全文が収まるToday／Spent／差のcontext、LOAM準拠の単一点目盛りとfooter。LOAM geometry準拠の全幅workspace（最終行予約・文脈2行・Trend下枠に位置／list hidden、History下枠に件数、空行＋見出し＋末尾追従窓と ` > `／` * ` 印）。広幅のfocused DetailはTrend／Historyを残し、panel 15行未満はHistoryを隠してPageは1日。選択日を保つ期間切替・同日diff／Pool／保護額・clamp済みscroll・scheduled-linked入金／反転表示は維持 | **F/Q** 過去Paceは各日の明示cycle終端・期限超過計上・支払日までの保護・取消除外で現在真実から再構成（合成回帰）。全Poolゼロ起点なしはunknown、bounded-history根拠の保持形式は未実装。**V/O/Q** 細かな配置・Detail全文・全操作と実IME／本人受入は残る | [10/19対照証拠](VERIFICATION.md#daily-pace--balances-interaction-parity-pass-2026-10-19)：Core／35 suites、両binaryの4寸法で4,807 jpy/day・1/10支持、詳細・resize・非保存を確認。正負単一点軸・period context・狭幅History/pageは追加回帰。従来の期間／What-if／coldは[sprint](VERIFICATION.md#daily-pace-and-balances-responsive-completion-sprint-2026-10-18)、[scheduled入金](VERIFICATION.md#daily-pace-selected-day-scheduled-linked-inflowreversal-2026-10-18)。全画面完了とはしない |
 | **UI-34** | First-run／Unreadable household | 局部：interactive `--book FILE`のmissing／unreadable first-run、空v3 book＋明示Measure／scale、既存Manage Lociから初Locus admission | **F/O/V/Q** LOAMのdirectory rootとBakhlo単一fileの差、LOAMの未存在root起動・初回設定全体・実機操作は未受入。Permission／失敗境界と運用保証も別途確認 | 80×24 PTYでreview→tiny拒否→resize→exclusive作成→Home／cold `--check`。unreadable sourceはblank先・Escape非保存。fresh-rootのpaired RecordではBakhlo first-run＋Locus admission・保存／coldを実行（LOAM側rootは`loam init`）。self-checkで既存target/source bytes保全・非TTY拒否。詳細：[first-run証拠](VERIFICATION.md#first-run-empty-book-creation)、[paired証拠](VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)、[契約](HANDOFF.md) |
 
+UI-33限定更新（2026-10-19）：最新binaryの[合成対照](VERIFICATION.md#latest-binary-paired-daily-pace-acceptance-probe-2026-10-19)で
+zero-origin／current-anchor-only × 両binary × 4寸法の16 walksと別4 coldを実行。
+10d履歴の3,077→4,807、partial／unknown、明示Previous Cycleの0／unknownは一致する一方、
+TrendのSelected／change行、日付軸、grid／Braille、partial Historyの見出し／印、Detail順序、
+target、欠落Previous Cycleの画面遷移と期間外Today contextに差を確認。boundedはLOAMで8/10、
+openingのみは1/10。Bakhloのbounded根拠保持は未実装のまま。全面一致・本人受入とはしない。
+続く[限定表示slice](VERIFICATION.md#bounded-selectedchartpartial-history-presentation-follow-up-2026-10-19)で
+Selected／change、日付両端、partial fallbackの見出し／` > `を修正し、新規8 walks・全self-checkと
+合成authority/config不変を確認。grid／Braille・Detail・partial feedback・target・period/context差は残る。
+
 UI-34限定更新（2026-10-17）：合成missing-rootの80×24対照で、両UIのreview Escが
 入力値を保持して戻り、入力Escで非保存終了することを確認。Bakhloの即終了差を修正し、
 BakhloのEditボタンと再reviewも非保存で確認（[証拠](VERIFICATION.md#paired-first-run-review-cancellation-2026-10-17)）。

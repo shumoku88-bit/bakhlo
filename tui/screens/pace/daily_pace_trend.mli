@@ -90,7 +90,9 @@ val render_chart :
   selected_index:int ->
   graph_style:graph_style ->
   (Daily_overlays.style * string) list
-(** Summary plus braille plot and date axis; history rows live in {!render_history}. *)
+(** Selected date/pace plus change/activity or partial-support summary, braille
+    plot and full-date axis; tiny panes retain the exact selected amount when
+    it fits. History rows live in {!render_history}. *)
 
 val render_history :
   width:int ->
@@ -104,7 +106,8 @@ val render_history :
   detail_focused:bool ->
   (Daily_overlays.style * string) list
 (** LOAM History rows for an inner [height]: blank, heading and a trailing
-    window of [height - 2] dates; empty below one date row. *)
+    window of [height - 2] dates; empty below one date row. Partial history's
+    narrow Value / status fallback keeps its selected marker during detail focus. *)
 
 val change_preset :
   today:string ->

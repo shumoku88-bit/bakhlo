@@ -486,38 +486,40 @@ let nice_ceiling raw =
   else if Z.compare raw (Z.mul unit (Z.of_int 5)) <= 0 then Z.mul unit (Z.of_int 5)
   else Z.mul unit (Z.of_int 10)
 
-let short_day day = if String.length day >= 10 then String.sub day 5 5 else day
-
 let braille_mask =
   [| (0, 0, 0x01); (0, 1, 0x02); (0, 2, 0x04); (1, 0, 0x08); (1, 1, 0x10); (1, 2, 0x20); (0, 3, 0x40); (1, 3, 0x80) |]
 
 (* Selected date/pace summary: exact grouped amount or detail cue, never a
    truncated number. *)
-let summary_text ~width ~width_of ~book ~today ~measure sel =
-  let money q = money_of book measure q in
-  let mark = if sel.day = today then " (today)" else "" in
-  let full_summary =
-    match sel.pace_quanta with
-    | Some q -> sel.day ^ mark ^ " ◆ " ^ money q
-    | None -> sel.day ^ mark ^ " unavailable"
-  in
-  if width_of full_summary <= width then full_summary
-  else
-    let compact =
-      match sel.pace_quanta with
-      | Some q -> sel.day ^ mark ^ " ◆ " ^ O.format_money book measure q
-      | None -> sel.day ^ mark ^ " unavailable"
-    in
-    let bare =
-      match sel.pace_quanta with
-      | Some q -> sel.day ^ " ◆ " ^ money q
-      | None -> sel.day ^ " unavailable"
-    in
-    let cue = sel.day ^ " ◆ … (i detail)" in
-    if width_of bare <= width then bare
-    else if width_of compact <= width then compact
-    else if width_of cue <= width then cue
-    else O.clip_text ~width_of width (sel.day ^ " ◆ …")
+let fit_value ~width ~width_of text =
+  if width_of text <= width then text
+  else if width >= 11 then "see details" else if width > 0 then "…" else ""
+
+let summary_text ~width ~width_of ~book ~today ~measure ~partial sel =
+  let value = match sel.pace_quanta with
+    | Some q -> money_of book measure q
+    | None -> "unavailable (not zero)" in
+  let label = " Selected " ^ sel.day ^ "   " in
+  let marker =
+    if not partial && sel.day = today && width >= 38
+       && width_of (label ^ value ^ "  current") <= width then "  current" else "" in
+  let room = max 0 (width - width_of (label ^ marker)) in
+  (* A tiny pane keeps the exact amount reachable beside its date. *)
+  let compact = sel.day ^ " ◆ " ^ value in
+  if width < 38 && width_of compact <= width then compact
+  else if width_of label <= width then
+    label ^ fit_value ~width:room ~width_of value ^ marker
+  else O.clip_text ~width_of width (sel.day ^ " ◆ …")
+
+let summary_change ~book ~measure ~samples ~selected =
+  if selected = 0 then "first point"
+  else match List.nth_opt samples (selected - 1), List.nth_opt samples selected with
+    | Some previous, Some current ->
+        if previous.end_exclusive <> current.end_exclusive then "change unavailable (cycle reset)"
+        else (match previous.pace_quanta, current.pace_quanta with
+          | Some prior, Some now -> "change " ^ signed_money book measure (Z.sub now prior) ^ " " ^ measure ^ "/day"
+          | _ -> "change unavailable")
+    | _ -> "previous day unavailable"
 
 (* LOAM historyRows: blank, heading, then a trailing window of [height - 2]
    dates. The selected date is marked " > ", or " * " while details own focus. *)
@@ -535,6 +537,7 @@ let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~sele
     let cell room text = O.pad_left ~width_of room (fit room text) in
     let pace_text s =
       match s.pace_quanta with None -> "unknown" | Some q -> money_of book measure q in
+    let partial = count_supported samples < count in
     let table = width >= 46 && List.exists (fun s -> s.activity <> None) samples in
     let heading, row =
       if table then
@@ -556,10 +559,11 @@ let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~sele
             O.pad ~width_of 11 s.day ^ cell pace_width (pace_text s) ^ cell spent_width spent
             ^ cell diff_width diff )
       else
-        let current_width = if width >= 39 then 9 else 0 in
+        let current_width = if not partial && width >= 39 then 9 else 0 in
         let date_width = min 12 (width - 3) in
         let value_width = max 0 (width - 3 - date_width - current_width) in
-        ( "   " ^ O.pad ~width_of date_width "Day" ^ O.pad_left ~width_of value_width "Quanta/day",
+        ( "   " ^ O.pad ~width_of date_width "Day"
+          ^ O.pad_left ~width_of value_width (if partial then "Value / status" else "Quanta/day"),
           fun s ->
             O.pad ~width_of date_width s.day ^ cell value_width (pace_text s)
             ^ if current_width > 0 && s.day = today then "  current" else "" )
@@ -568,8 +572,9 @@ let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~sele
       List.filteri (fun i _ -> i >= start && i < start + capacity) samples
       |> List.mapi (fun offset s ->
            let chosen = start + offset = selected in
-           let marker = if not chosen then "   " else if detail_focused then " * " else " > " in
-           ( (if chosen && not detail_focused then O.Active else O.Plain),
+           let selected_active = chosen && (not detail_focused || (partial && not table)) in
+           let marker = if not chosen then "   " else if detail_focused && not selected_active then " * " else " > " in
+           ( (if selected_active then O.Active else O.Plain),
              O.pad ~width_of width (marker ^ row s) ))
     in
     (O.Plain, "") :: (O.Chrome, O.pad ~width_of width heading) :: rows
@@ -584,19 +589,30 @@ let render_chart ~width ~height ~width_of ~book ~today ~measure ~samples ~select
     let arr = Array.of_list samples in
     let selected = Panel.move ~last:(count - 1) ~position:selected_index 0 in
     let sel = arr.(selected) in
-    let summary_row =
-      (O.Active, O.pad ~width_of width (summary_text ~width ~width_of ~book ~today ~measure sel))
-    in
     let supported = count_supported samples in
+    let partial = supported < count in
+    let summary_row =
+      (O.Active, O.pad ~width_of width (summary_text ~width ~width_of ~book ~today ~measure ~partial sel)) in
     let head =
-      if supported < count then
+      if partial then
         [
           summary_row;
           ( O.Chrome,
             O.pad ~width_of width
-              (Printf.sprintf "%d/%d supported days; unknown days stay gaps" supported count) );
+              (Printf.sprintf " %d/%d supported days • %s; unknown days stay gaps"
+                 supported count (graph_style_label graph_style)) );
         ]
-      else [ summary_row ]
+      else
+        let change = summary_change ~book ~measure ~samples ~selected in
+        let suffix = match sel.pace_quanta, sel.activity with
+          | Some pace, Some activity ->
+              " • spent " ^ O.format_money book measure activity.discretionary_outflow ^ " " ^ measure
+              ^ " (" ^ signed_money book measure (Z.sub pace activity.discretionary_outflow) ^ " vs pace)"
+          | _ -> "" in
+        let second = " " ^ change ^ suffix in
+        [summary_row; (O.Chrome, O.pad ~width_of width
+          (if width_of second <= width then second
+           else " " ^ fit_value ~width:(max 0 (width - 1)) ~width_of change))]
     in
     let header_h = List.length head in
     if height <= header_h then List.filteri (fun i _ -> i < height) head
@@ -712,13 +728,12 @@ let render_chart ~width ~height ~width_of ~book ~today ~measure ~samples ~select
                 let row_text = String.concat "" (Array.to_list plot_text.(y)) in
                 (O.Plain, O.pad_left ~width_of axis_w label ^ " │ " ^ row_text))
           in
-          let start_day = short_day arr.(0).day and end_day = short_day arr.(count - 1).day in
+          let start_day = arr.(0).day and end_day = arr.(count - 1).day in
           let rule_line =
-            let prefix = String.make axis_w ' ' ^ " ╰─" ^ start_day in
-            let room = width - width_of prefix - width_of end_day in
-            if room >= 0 then prefix ^ O.rule ~width_of room ^ end_day
+            let prefix = String.make (axis_w + 3) ' ' in
+            if plot_w >= 21 then prefix ^ O.pad ~width_of (plot_w - 10) start_day ^ end_day
             else
-              let compact = start_day ^ "–" ^ end_day in
+              let compact = start_day ^ " ... " ^ end_day in
               if width_of compact <= width then O.pad ~width_of width compact
               else O.pad ~width_of width start_day
           in

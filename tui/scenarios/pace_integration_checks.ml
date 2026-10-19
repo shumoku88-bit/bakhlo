@@ -663,7 +663,7 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   let narrow_dimensions = (48, 14) in
   let narrow_rows = R.screen ~width_of narrow_dimensions entry |> List.map snd in
   require (List.exists (fun text -> Base.String.is_substring text ~substring:"╰ 10/10 • list hidden ") narrow_rows
-    && List.exists (fun text -> Base.String.is_substring text ~substring:(today ^ " (today) ◆")) narrow_rows
+    && List.exists (fun text -> Base.String.is_substring text ~substring:("Selected " ^ today)) narrow_rows
     && not (List.exists (fun text -> Base.String.is_substring text ~substring:"History") narrow_rows))
     "daily-pace-narrow-retains-selected-history-strip";
   let narrow_page = key ~dimensions:narrow_dimensions ~width_of entry (`Page `Up) in
@@ -688,7 +688,8 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
     "daily-pace-sel-end-left-prev";
   let painted = R.screen ~width_of (140, 40) tail |> List.map snd |> String.concat "\n" in
   let visible_days = List.filter (fun (sample : Trend.sample) ->
-    Base.String.is_substring painted ~substring:sample.day) samples |> List.length in
+    Base.String.is_substring painted ~substring:("│   " ^ sample.day)
+    || Base.String.is_substring painted ~substring:("│ > " ^ sample.day)) samples |> List.length in
   let paged = key ~width_of tail (`Page `Up) in
   require (selected_date samples paged = day_at (max 0 (count - 1 - visible_days)))
     "daily-pace-page-matches-visible-history-dates";
@@ -841,6 +842,20 @@ let daily_pace_graph_render_checks ~width_of () =
     ((List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"◆") narrow)
     && List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"2026-10-26") narrow)
     "pace-graph-narrow-summary";
+  let wide = rows ~width:114 ~height:15 |> List.map snd in
+  require (Base.String.is_substring (List.hd wide)
+      ~substring:" Selected 2026-10-26   4,280 jpy/day  current"
+    && Base.String.is_substring (List.nth wide 1)
+      ~substring:" change -23 jpy/day • spent 0 jpy (+4,280 vs pace)")
+    "pace-chart-selected-change-and-spent-rows";
+  let axis = List.hd (List.rev wide) in
+  require (Base.String.is_substring axis ~substring:"2026-10-18"
+    && Base.String.is_substring axis ~substring:"2026-10-27")
+    "pace-chart-full-date-axis";
+  let compact = rows ~width:42 ~height:8 |> List.map snd in
+  require (Base.String.is_substring (List.nth compact 1) ~substring:"change -23 jpy/day"
+    && not (Base.String.is_substring (List.nth compact 1) ~substring:"spent"))
+    "pace-chart-omits-whole-spent-clause";
   (* Constant, zero, negative, mixed-sign and 400-digit spans stay bounded
      and keep selecting the intended sample. *)
   let const_samples = List.map (fun day -> sample ~day ()) days in
@@ -945,7 +960,8 @@ let daily_pace_graph_render_checks ~width_of () =
   let pair = [sample ~day:"2026-10-18" ~q:4000 (); sample ~day:"2026-10-19" ~q:5000 ()] in
   let render style values =
     Trend.render_chart ~width:52 ~height:8 ~width_of ~book ~today:"2026-10-19"
-      ~measure:"jpy" ~samples:values ~selected_index:1 ~graph_style:style |> List.map snd in
+      ~measure:"jpy" ~samples:values ~selected_index:1 ~graph_style:style
+    |> List.filteri (fun index _ -> index >= 2) |> List.map snd in
   require (render Trend.Line pair <> render Trend.Dots pair) "pace-graph-adjacent-joined";
   let gaps = [
     [List.hd pair; none_sample ~day:"2026-10-19" ~stop:"2026-11-01" ();
@@ -964,6 +980,20 @@ let daily_pace_graph_render_checks ~width_of () =
             ~samples:leading ~selected_index:0 ~graph_style:Line))
   in
   require (Base.String.is_substring leading_glued ~substring:"unavailable") "pace-graph-hole-labelled";
+  require (Base.String.is_substring leading_glued ~substring:"unavailable (not zero)"
+    && Base.String.is_substring leading_glued ~substring:"9/10 supported days • line")
+    "pace-chart-partial-selected-status";
+  List.iter (fun detail_focused ->
+    let rows = Trend.render_history ~width:43 ~height:5 ~width_of ~book ~today:"2026-10-26"
+      ~measure:"jpy" ~samples:leading ~selected_index:8 ~detail_focused in
+    let text = String.concat "\n" (List.map snd rows) in
+    require (Base.String.is_substring text ~substring:"Value / status"
+      && Base.String.is_substring text ~substring:" > 2026-10-26"
+      && Base.String.is_substring text ~substring:"4,280 jpy/day"
+      && not (Base.String.is_substring text ~substring:"current")
+      && List.exists (fun (style, row) -> style = O.Active
+        && Base.String.is_substring row ~substring:"2026-10-26") rows)
+      "pace-partial-history-value-column-and-detail-focus-marker") [false; true];
   let spent =
     { Trend.zero_activity with discretionary_outflow = Z.of_int 1000 }
   in

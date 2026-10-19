@@ -13,6 +13,21 @@
 - [ ] Core・architecture・native全検査・必要な保存／年別／backup回帰とmatching SHA CIを確認し、既存UI台帳・引き継ぎへ記録する。
 
 計画の確認：本ターン冒頭でDaily Paceの計算根拠・表示・操作まで揃える方針を共有済み。
+2026-10-19再開：ユーザーが合成データ・4寸法LOAM比較からの続行を承認。
+
+- [x] 最新mainと既存合成fixture／harnessを確認し、現行Bonsai binaryをbuild・全self-checkする。
+- [x] 新しい隔離コピーで両binaryを4寸法・5期間・detail／選択／resize／cold対照する（16 walks、別4 cold。欠落Previous Cycleは拒否差、明示Previous Cycleはcoldで対照）。
+- [x] 既知／partial／unavailableの回答差と表示差、非書込証跡を既存検証欄へ記録する（bounded／openingはLOAMのみ。全面一致は未了）。
+
+対照後の限定表示slice（計算・支持条件・保存gateは保持）：
+
+- [x] TrendのSelected／change行、完全日付の両端ラベル、partial Historyの見出し／選択印だけをLOAMへ揃える。
+- [x] narrow／partial／huge／negativeの既存条件を維持し、必要な表示回帰を追加する。
+- [x] Core／architecture／native全self-check、限定paired 4寸法／coldを実行する（新規8 walks、支持2種のauthority/config不変）。
+- [ ] diff・既存証跡をレビューして小さい変更としてcommit／pushする。
+
+Previous Cycleの拒否・Today contextの計算、target、grid／Braille、Detail全文の順序はこの表示sliceに含めない。
+
 本人の実機／IME受入は最後に実画面で確認する別段階。根拠不足の推測・live原本変更・運用切替はしない。
 調査上、`BAKHLO_CONFIG_HOME`はテーマ用であり、通常起動の家計configはbook隣を読む。参照先の混同を原因とした前ターンの断定は撤回。
 
