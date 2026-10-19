@@ -146,3 +146,32 @@ let%expect_test "loss-bearing special facts never degrade to ordinary Movement" 
     empty description: memo-transport
     bad operation: operation-token
   |}]
+
+
+(* Source entry ID is not a safe stand-in for immutable migration operation ID:
+   Daily_book permits replacing the selected content under the same ID.
+   The LOAM idempotent publisher returns the old Event for a repeated operation
+   token without checking the new source payload. A separate bound manifest
+   / refusal gate is required before any practical exporter. *)
+let%expect_test "same Bakhlo entry ID can have changed payload" =
+  let book, entry = canonical_trial () in
+  let updated =
+    { entry with effects = [ posting "wallet" (-140); posting "food" 140 ] }
+  in
+  let revised_book = get (B.put_entry book ~replace:true updated ~plan:None) in
+  let revised_book = get (B.of_string (B.to_string revised_book)) in
+  let revised =
+    match B.find_entry revised_book entry.id with
+    | Some value -> value
+    | None -> failwith "corrected source not retained"
+  in
+  let old_proposal = get (proposal_shape ~operation:"bakhlo-return-e1" book entry) in
+  let new_proposal = get (proposal_shape ~operation:"bakhlo-return-e1" revised_book revised) in
+  Stdio.printf "entry ID unchanged: %b\n" (String.equal entry.id revised.id);
+  Stdio.printf "payload changed: %b\n" (not (String.equal old_proposal new_proposal));
+  Stdio.print_endline "MUST refuse replay without a matching immutable source fingerprint";
+  [%expect {|
+    entry ID unchanged: true
+    payload changed: true
+    MUST refuse replay without a matching immutable source fingerprint
+  |}]
