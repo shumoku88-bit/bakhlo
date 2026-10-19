@@ -21,6 +21,9 @@ retained as explicit Daily v5 support and routed per coordinate (zero-origin for
 bounded backward from an exact current observation); on the latest real-data copy all
 five periods' Selected/change/History rows match LOAM at 120×36 and 80×24 (see
 [evidence](VERIFICATION.md#bounded-history-support-and-real-data-pace-history-2026-10-19)).
+Scheduled now opens on LOAM's Series Calendar from `scheduled-coverage.tsv` (read-only;
+replenish/pace/undecided writes not connected), matching the latest real data; see
+[evidence](VERIFICATION.md#scheduled-series-calendar-and-real-data-balances-2026-10-19).
 Other-screen publication now preserves a held Record/Pay draft; only its own
 confirmed publication clears it. Operational cutover is not authorized. The user
 authorized fresh read-only household/config copies and private paired observation for

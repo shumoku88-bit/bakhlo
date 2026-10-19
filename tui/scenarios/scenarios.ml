@@ -28,6 +28,7 @@ let run ~width_of () =
   date_correction_checks ~width_of ~directory home;
   cancellation_checks ~width_of ~directory home;
   months_checks ~width_of ~directory home;
+  coverage_checks ~width_of ~directory home;
   continuation_checks ~width_of ~directory home;
   annual_lifecycle_checks ~width_of ~directory ();
   original_amount_integration_checks ~width_of ~directory ();

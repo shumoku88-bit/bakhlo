@@ -409,3 +409,107 @@ let continuation_checks ~width_of ~directory home =
     "continuation-only-confirmed-reload-opens-awareness-without-retry";
   print_endline "PASS: post-completion Keep/Review/Add/Done/Defer, later positive-Locus awareness, exact independent next plan, no inferred date, cold Attention, stale and unknown completion guards."
 
+
+(* LOAM Series Calendar: pure projection with a fixed date, then the screen
+   over a book-adjacent scheduled-coverage.tsv relative to today's month. *)
+module Cov = Scheduled_coverage
+
+let coverage_checks ~width_of ~directory home =
+  let plan ?paid ?cancelled id day changes : B.plan =
+    { id; day; measure = "jpy"; changes; paid_by = paid; cancelled_on = cancelled } in
+  let rent = [ ("bank", Z.of_int (-50000)); ("rent", Z.of_int 50000) ] in
+  let rules = get (Cov.of_string
+    "rent\t2026-09-27\t1\tbank\trent\nwater\t2026-10-05\t2\tbank\twater\nlater\t2026-01-01\t0\tbank\tgym\n") in
+  let plans = [
+    plan ~paid:"e1" "r-oct" "2026-10-27" rent; plan "r-nov" "2026-11-27" rent;
+    plan "r-nov2" "2026-11-30" rent; plan ~cancelled:"2026-10-01" "r-dec" "2026-12-27" rent;
+    plan "split" "2026-11-03" [ ("bank", Z.of_int (-5)); ("wallet", Z.of_int (-5)); ("rent", Z.of_int 10) ];
+    plan "w-dec" "2026-12-05" [ ("bank", Z.of_int (-9)); ("water", Z.of_int 9) ] ] in
+  let months, rows = get (Cov.project rules ~plans ~today:"2026-10-19" ~months:4) in
+  require (months = [ "2026-10"; "2026-11"; "2026-12"; "2027-01" ]) "coverage-month-window";
+  require (List.map (fun (r : Cov.row) -> r.rule.name) rows = [ "rent"; "water"; "later" ])
+    "coverage-cadence-then-undecided-order";
+  let cells name = List.map Cov.cell_text
+      (List.find (fun (r : Cov.row) -> r.rule.name = name) rows).cells in
+  require (cells "rent" = [ "27✓"; "27,30"; "!"; "!" ]) "coverage-rent-open-completed-cancelled-gap";
+  require (cells "water" = [ "!"; ""; "05"; "" ]) "coverage-water-two-month-cadence";
+  require (cells "later" = [ ""; ""; ""; "" ]) "coverage-undecided-expects-nothing";
+  require ((List.hd rows).first_missing = Some "2026-12") "coverage-first-missing";
+  require (Cov.cell_text { Cov.month = "2026-11"; expected = true;
+             open_days = [ "01"; "02"; "03" ]; completed_days = [ "04" ] } = "3p/1✓")
+    "coverage-wide-cell-counts";
+  List.iter (fun bad -> require (Result.is_error (Cov.of_string bad)) "coverage-malformed-refused")
+    [ "rent\t2026-02-30\t1\tbank\trent\n"; "rent\t2026-01-01\tx\tbank\trent\n";
+      "rent\t2026-01-01\t1\t\trent\n"; "rent\t2026-01-01\t1\tbank,bank\trent\n";
+      "a\t2026-01-01\t1\tbank\trent\nb\t2026-01-01\t2\tbank\trent\n";
+      "a\t2026-01-01\t1\tbank\trent\na\t2026-01-01\t2\tbank\tfood\n"; "\n\n" ];
+  require (Cov.of_string "" = Ok []) "coverage-empty-file-no-rules";
+  (* Screen: today's month, independent of the wall clock. *)
+  let today = F.today () in
+  let month_after n =
+    let index = (int_of_string (String.sub today 0 4) * 12) + int_of_string (String.sub today 5 2) - 1 + n in
+    Printf.sprintf "%04d-%02d" (index / 12) ((index mod 12) + 1) in
+  let food = [ ("wallet", Z.of_int (-1234)); ("food", Z.of_int 1234) ] in
+  let book = List.fold_left (fun book (p : B.plan) ->
+    get (B.cancel_plan book ~id:p.id ~day:today)) home.C.session.book (B.open_plans home.session.book) in
+  let book = List.fold_left (fun book p -> get (B.put_plan book ~replace:false p)) book
+      [ plan "cov-a" (month_after 0 ^ "-28") food; plan "cov-b" (month_after 1 ^ "-28") food ] in
+  let sub = directory ^ "/coverage-" ^ F.new_id () in
+  Unix.mkdir sub 0o700;
+  let path = sub ^ "/book.sexp" in
+  F.write_new path (B.to_string book);
+  F.write_new (sub ^ "/scheduled-coverage.tsv")
+    ("groceries\t" ^ month_after 0 ^ "-01\t1\twallet\tfood\nbills\t" ^ month_after 0 ^ "-01\t0\tbank\tfood\n");
+  let before = F.read path in
+  let initial = C.initial ~config_home:sub (F.load path) in
+  let opened = C.open_route initial W.Scheduled in
+  let contains state needle =
+    List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) (R.screen ~width_of (120, 36) state) in
+  require (contains opened "Scheduled Series Calendar" && contains opened "Monitored plans (2)"
+           && contains opened "groceries" && contains opened "monthly" && contains opened "undecided"
+           && contains opened "! = expected gap")
+    "coverage-is-scheduled-entrance-with-monitored-rows";
+  List.iter (fun dimensions ->
+    let rows = R.screen ~width_of dimensions opened in
+    require (List.length rows <= snd dimensions
+             && List.for_all (fun (_, line) -> width_of line <= fst dimensions) rows) "coverage-resize-bounded")
+    [ 32, 9; 48, 14; 80, 24; 120, 36 ];
+  let shifted = key ~width_of opened (`ASCII 'l') in
+  require (contains shifted ("Month window: " ^ month_after 1)) "coverage-month-offset";
+  let detail = key ~width_of opened `Enter in
+  require (contains detail "Scheduled / Plan / groceries" && contains detail "[on pace]"
+           && contains detail "MISSING monitored month" && contains detail "1,234 jpy")
+    "coverage-enter-opens-plan-entries-and-gaps";
+  let gap = key ~width_of (key ~width_of detail (`ASCII 'j')) (`ASCII 'j') in
+  let refused = key ~width_of gap (`ASCII 'c') in
+  require (no_modal refused && not refused.record_visible && F.read path = before)
+    "coverage-missing-month-is-not-an-occurrence";
+  let paying = key ~width_of detail `Enter in
+  require (paying.record_visible && (match S.mode (Option.get paying.record) with
+    | Daily_actions.Pay id -> id = "cov-a" | _ -> false) && F.read path = before)
+    "coverage-plan-enter-opens-completion-without-publishing";
+  let cancelled = key ~width_of paying `Escape in
+  require (contains cancelled "Scheduled / Plan / groceries" && F.read path = before)
+    "coverage-completion-cancel-returns-to-plan";
+  let back = key ~width_of detail (`ASCII 'q') in
+  require (contains back "Scheduled Series Calendar") "coverage-plan-q-returns-to-overview";
+  let months = key ~width_of opened (`ASCII 'v') in
+  let listed = key ~width_of months (`ASCII 'v') in
+  let again = key ~width_of listed (`ASCII 'v') in
+  require (plan_months_view months && contains listed "Scheduled / List"
+           && contains again "Scheduled Series Calendar")
+    "coverage-view-cycle-overview-months-list";
+  F.write_new (sub ^ "/bad") "";
+  Unix.rename (sub ^ "/bad") (sub ^ "/scheduled-coverage.tsv");
+  let malformed = C.open_route (C.initial ~config_home:sub (F.load path)) W.Scheduled in
+  require (contains malformed "Scheduled / List") "coverage-empty-config-falls-back-to-list";
+  F.write_new (sub ^ "/bad") "groceries\tnot-a-date\t1\twallet\tfood\n";
+  Unix.rename (sub ^ "/bad") (sub ^ "/scheduled-coverage.tsv");
+  let broken = C.open_route (C.initial ~config_home:sub (F.load path)) W.Scheduled in
+  require (contains broken "Monitored plans [Unavailable]" && contains broken "malformed")
+    "coverage-malformed-config-is-visible-not-empty";
+  Unix.unlink (sub ^ "/scheduled-coverage.tsv");
+  let none = C.open_route (C.initial ~config_home:sub (F.load path)) W.Scheduled in
+  require (contains none "Scheduled / List") "coverage-missing-config-keeps-list-entrance";
+  require (F.read path = before) "coverage-read-only";
+  print_endline "PASS: Scheduled Series Calendar coverage rules/projection, entrance, month window, plan entries/gaps, completion handoff/cancel, view cycle, malformed/missing config and read-only bytes."
