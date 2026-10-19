@@ -49,6 +49,14 @@ let self_check () =
   Unix.mkdir directory 0o700;
   let wire = F.read Interaction_check_fixture.example_book in
   let base = get (B.of_string wire) in
+  (* Leading/trailing ASCII whitespace must not change monolithic detection. *)
+  let spaced_mono_path = Filename.concat directory "spaced-monolithic.sexp" in
+  F.write_new spaced_mono_path (" \n\t" ^ wire ^ " \n");
+  let spaced_mono = F.load spaced_mono_path in
+  require
+    (spaced_mono.format = F.Monolithic
+     && B.to_string spaced_mono.book = B.to_string base)
+    "monolithic-whitespace-format-or-answer-changed";
   let huge = Z.of_string "12345678901234567890123456789012" in
   let posting measure locus amount =
     D.Effect.create ~key:None
@@ -471,6 +479,18 @@ let self_check () =
   } in
   let rec_log = Bakhlo_sexp.Records_book.to_string { header = rec_h; frames = [] } in
   F.write_new rec_path rec_log;
+  (* Records header detection must skip whitespace without trimming the file. *)
+  let spaced_records_path = Filename.concat directory "spaced-records.log" in
+  F.write_new spaced_records_path (" \n\t" ^ rec_log);
+  let spaced_records = F.load spaced_records_path in
+  require
+    (spaced_records.format = F.Records
+     && B.to_string spaced_records.book = B.to_string (get (B.of_string rec_log)))
+    "records-whitespace-format-or-answer-changed";
+  (* The year-scoped Records refusal is a separate mandatory format gate. *)
+  let annual_records_path = Filename.concat directory "2026.sexp" in
+  F.write_new annual_records_path rec_log;
+  refuses "annual-records-unsupported" (fun () -> ignore (F.load annual_records_path));
   let rec_session = F.load rec_path in
   require (rec_session.format = F.Records) "records-format-not-detected";
   require
