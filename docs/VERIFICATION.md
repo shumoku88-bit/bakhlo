@@ -6,6 +6,12 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Observation after incremental record (2026-10-20)
+
+- Found while measuring: `Daily_book.observe_quantities` took reflected roots from the image's admission-time frontier. `put_entry`'s incremental path does not extend that frontier, so an entry added since the last full admission stayed unreflected and was counted twice (synthetic: wallet 1000, spend 100, observe 900 → 800, persisted after save/reload). The monolithic TUI publisher re-admits after saving, which masks it there; the Records append path keeps the incremental book and is exposed.
+- Fix: roots now come from a fresh admission of the current data (observation already ended with a full admission). Regression test in `test/daily_book_tests.ml`.
+- Passed: `./tools/check`, `./tools/tui --self-check` (36 PASS suites, exit 0), `git diff --check`. Synthetic only; latest-data paired comparison not executed (Core-only fix, no screen change). The incremental image's stale `source` frontier remains for other readers (`presentation/current_quantity_explanation.ml`, used from freshly loaded CLI books only).
+
 ## Startup, snapshot and in-memory response probe (2026-10-20)
 
 - `./tools/startup-probe` on synthetic 1,000 / 36,500 / 109,500-entry books at `3bda3ca` (macOS x86_64, OCaml 5.3.0, cache not flushed). Results and limits: [stage 5](LONG_TERM_STORAGE_STUDY.ja.md#第5段階-起動スナップショットメモリ上応答2026-10-20). Measurement only; no product, storage or format change. No originals or private copies read.

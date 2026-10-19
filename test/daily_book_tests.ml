@@ -951,6 +951,19 @@ let%expect_test "observe_quantities updates current balance and persists across 
     zero origin collision: support-admission
   |}]
 
+let%expect_test "observation after an incremental record reflects that record once" =
+  let base = get (B.of_string fixture) in
+  let spent = get (B.put_entry base ~replace:false (entry "after_obs" 100) ~plan:None) in
+  Stdio.printf "after spend: %s\n" (quantity spent "wallet" "jpy");
+  let observed = get (B.observe_quantities spent [ ("wallet", "jpy", Z.of_int 900) ]) in
+  let cold = get (B.of_string (B.to_string observed)) in
+  Stdio.printf "observed: %s, cold: %s\n" (quantity observed "wallet" "jpy")
+    (quantity cold "wallet" "jpy");
+  [%expect {|
+    after spend: 900
+    observed: 900, cold: 900
+  |}]
+
 let%expect_test "set_locus_label validates, updates labels and preserves across roundtrip" =
   let base = get (B.of_string fixture) in
   Stdio.printf "initial label wallet: %s, help: %s\n" (B.label base "wallet") (B.help base "wallet");

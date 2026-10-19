@@ -1481,7 +1481,9 @@ let observe_quantities t rows =
           rows
       in
       unique (List.map (fun (l, m, _) -> l ^ "\x00" ^ m) rows) "duplicate-coordinate";
-      let groups = Q.source_groups t.image in
+      (* An incrementally extended image keeps its admission-time frontier; the
+         reflected cut must cover every current entry or they count twice. *)
+      let groups = Q.source_groups (admit ~entries_cached:t.entries_cached t.data).image in
       let frontier = A.Current_quantity_groups.source_frontier groups in
       let roots =
         List.map A.Correction_frontier.root_id (A.Correction_frontier.lineages frontier)
