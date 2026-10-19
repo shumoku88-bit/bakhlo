@@ -18,8 +18,28 @@ endpoints and partial fallback History heading/selection. Grid/Braille, Detail
 wording/order, target, missing-Previous-Cycle behavior and bounded-history evidence
 remain gaps; arithmetic, support and publication gates are unchanged.
 Other-screen publication now preserves a held Record/Pay draft; only its own
-confirmed publication clears it. No operational cutover or private-data access
-is authorized.
+confirmed publication clears it. Operational cutover is not authorized. The user
+authorized stopped, read-only fresh captures and private paired observation for
+AI development; raw private data must stay in restricted ignored scratch.
+
+The AI must compare the latest ordinary LOAM data itself at each day's development
+start and when resuming after ordinary LOAM updates; the optional human `./ui --daily` entrance does not satisfy
+this requirement. Inspect source/remote status and pending edits, then run
+`./tools/compare refresh` before that day's development with all LOAM instances closed. Never
+terminate user processes. Build current Bakhlo in the existing isolated environment
+and walk the relevant screens before/after changes (including Core answers and
+Daily Pace/Balances when relevant) with the existing LOAM executable on separate copies
+from the same fresh capture, at normal user geometry and narrow geometry as relevant.
+Reuse that generation within the pass; a small tool action does not need another
+refresh. Use read-only navigation/details/resize/return flows and verify household/config
+bytes are unchanged; no real household actions or writes without an explicit request.
+Record only non-private findings, source/build identity, freshness, geometry and
+limitations in existing verification/ledger sections. A running LOAM, refused/
+unsupported conversion or missing executable means **latest-data paired comparison
+not executed**, with the reason. Independent development may continue; neither
+stale captures nor synthetic checks qualify as a fresh real-data comparison.
+Keep synthetic regression, paired real-data observation, human/IME and P7 acceptance
+separate. No unattended synchronization or scheduler is requested.
 
 ## Storage direction (2026-10-17)
 
@@ -640,7 +660,10 @@ labels as an optional translation of the old Japanese UI.
 
 ## UI and direct owners
 
-Daily manual review uses ordinary LOAM recording, then Home `q` in every LOAM
+AI daily development review follows the standing latest-data workflow above:
+`./tools/compare refresh`, then current Bakhlo and existing LOAM on the selected
+same-generation private copies (`./ui` / `./ui loam`). The AI performs this review.
+Optional manual review uses ordinary LOAM recording, then Home `q` in every LOAM
 tab/window, then `./ui --daily` (`./bakhlo/ui --daily` from moko). It requires
 interactive stdin/stdout before acquisition and opens Bakhlo only after a successful
 refresh; refusal never opens the previous selection. Every refresh creates a new
