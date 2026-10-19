@@ -305,7 +305,19 @@ let () =
               (literals text))
           srcs)
     layered;
-  (* 5. Every check module is run by its test executable. *)
+  (* 5. Record browsing belongs to screen owners, including module aliases.
+     Shell actions carry the protocol's explicit Entry/Plan targets instead. *)
+  List.iter
+    (fun (layer, rel, srcs, _) ->
+      if layer = Shell then
+        List.iter
+          (fun (_, file, text) ->
+            if contains_token (code_only text) "Record_browser" then
+              fail "tui/%s/%s: shell may not use Record_browser (screen-owned browsing)"
+                (String.concat "/" rel) file)
+          srcs)
+    layered;
+  (* 6. Every check module is run by its test executable. *)
   List.iter
     (fun (_, rel, srcs, stanzas) ->
       let mains = List.concat_map (fun s -> if s.kind <> "library" then s.names else []) stanzas in

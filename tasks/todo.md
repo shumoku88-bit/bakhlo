@@ -2,6 +2,12 @@
 
 ## 最優先：#42 構造再構築（2026-10-18）
 
+### Shell 仕上げスライス（2026-10-19）
+- [x] Shell の対象を Screen.record_target に揃え、browser alias・未使用helperを除去する。
+- [x] Actual / Scheduled session の純粋checksをownerのtest libraryへ移し、native幅関数・全条件を保持する。
+- [x] Shell の Record_browser 禁止と直接／alias負例を追加し、責務・現行引継ぎ文書を整合する。
+- [x] 34 PASS完全一致・ラベル消失なし・arch/Core・exact diffを確認し、証跡と限界を記録する。
+
 ### Calendar/Home owner slice（2026-10-19）
 - [x] Calendar/Home の共有browser・pane・scroll・Jump/Searchをownerへ忠実移植し、中央mirrorを削除。
 - [x] Home検索、Esc/q差、ambient検索、route/publication/reload同期、120/72列layoutを限定回帰で固定。

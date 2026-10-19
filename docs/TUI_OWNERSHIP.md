@@ -76,8 +76,8 @@ empty external routes, preserves filters/order, and leaves its browser alone
 on Selected Day. A direct drill return to Actual only notifies entry, without
 synchronizing the Calendar browser. Legacy fallback navigation changes this
 owner's private model rather than a Shell pane/browser mirror.
-`Ui_workspace` now contains only route, calendar focus and Measure (plus record
-target type aliases). Calendar focus/zoom remain Shell authority through
+`Ui_workspace` now contains only route, calendar focus and Measure; Shell
+record actions take the protocol's explicit `Screen.Entry`/`Screen.Plan` target. Calendar focus/zoom remain Shell authority through
 `Set_calendar`; its explicit feedback policy preserves Esc zoom-back warnings.
 Home paints the entire headerless body and alone forces the lazy annual notice.
 The Shell retains the cross-year unavailable frame, including when predecessor
@@ -93,7 +93,8 @@ tokens (`Durable_append`, `open_out`, `Sys.rename`, `Daily_file`,
 `Daily_actions`, …) in kit/book/protocol/screens; the Shell mentioning a
 migrated screen's form ids, field ids or configuration files; sources in a
 directory without a Dune stanza or outside a known layer; and `*_checks`
-modules that their runner never calls. `test/arch.t` creates one violation per
+modules that their runner never calls; and the Shell using `Record_browser`
+(directly or through a module alias), since record browsing is screen-owned. `test/arch.t` creates one violation per
 rule and asserts the rejection message. `legacy_shared_literals` (now empty) is the only
 escape hatch for a file shared with an unmigrated workflow; it may not grow.
 
@@ -102,7 +103,10 @@ escape hatch for a file shared with an unmigrated workflow; it may not grow.
 - `tools/tui --self-check` = `tools/build-bonsai-tui --test`: every TUI check.
 - `tools/build-bonsai-tui --test screens/pace` (any subdirectory): one owner.
 - Screen owner checks are pure (`Screen.env` built in memory, no files).
-- `tui/app/test/app_checks` runs Shell session checks, cross-screen scenarios
+- Pure checks of a screen library live beside it in `tui/screens/<s>/test`
+  (Actual workspace, Scheduled sessions); the app runner passes the native
+  cell width.
+- `tui/app/test/app_checks` runs Shell session checks, owner checks, cross-screen scenarios
   and Bonsai adapter checks with the real cell width, outside Dune's sandbox
   (the writer refuses symlinked inputs) from a materialized synthetic copy of
   `examples/daily-book.sexp`.
@@ -122,3 +126,6 @@ escape hatch for a file shared with an unmigrated workflow; it may not grow.
   (`finish_publication`), even when it came from another screen.
 - Cycle-boundary saves now check the pure preconditions before the household
   admission; any failure still refuses with the same message family.
+- Scheduled `/` search is a registry modal that permits Ctrl-R (reload); the
+  old central Search overlay consumed Ctrl-R. Selected Day and Calendar keep
+  the old policy. Not intended; align Scheduled with a regression if wanted.

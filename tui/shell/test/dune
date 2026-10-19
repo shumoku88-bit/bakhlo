@@ -6,10 +6,6 @@
   bakhlo_tui_book
   bakhlo_tui_shell
   bakhlo_screen_editors
-  bakhlo_screen_actual
-  bakhlo_screen_scheduled
-  bakhlo_screen_calendar
-  bakhlo_screen_day
   bakhlo.store
   bakhlo.domain
   bakhlo.sexp

@@ -2,10 +2,6 @@
 open Daily_interaction_state
 open Daily_interaction_context
 
-let row_title = Record_lines.row_title
-let actual_amount = Record_lines.actual_amount
-let actual_table = Record_lines.actual_table
-
 let workspace_rows ?route_view ~width_of ~width ~height state =
   if annual_needs_history state.workspace.route && annual_unavailable state <> None then
     let title = match state.workspace.route with

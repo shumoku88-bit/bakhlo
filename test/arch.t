@@ -79,6 +79,20 @@ The Shell may not take back a migrated screen's forms or configuration files.
   tui/shell/s.ml: "pace_editor" belongs to screen pace
   [1]
 
+The Shell cannot take back a browser, directly or through a module alias.
+Comments and strings remain harmless.
+
+  $ base; echo 'let rows = Record_browser.all_rows' > t/tui/shell/s.ml; arch_check t
+  tui/shell/s.ml: shell may not use Record_browser (screen-owned browsing)
+  [1]
+
+  $ base; echo 'module RB = Record_browser' > t/tui/shell/s.ml; arch_check t
+  tui/shell/s.ml: shell may not use Record_browser (screen-owned browsing)
+  [1]
+
+  $ base; echo '(* module RB = Record_browser *) let text = "Record_browser"' > t/tui/shell/s.ml; arch_check t
+  arch_check: ok
+
 Every source belongs to a known layer directory with a Dune stanza.
 
   $ base; mkdir t/tui/screens/other/lost; echo 'let x = 1' > t/tui/screens/other/lost/l.ml; arch_check t

@@ -32,7 +32,7 @@ let synchronize ~route ~book ~calendar t =
 let entered route ~focus_day:_ t = { t with route; pane = Calendar_pane; scroll = 0; overlay = None }
 let selected_row ~book ~calendar t = RB.selected_row t.browser (rows ~book ~calendar t)
 let book_changed ~before:_ ~after:_ t = (t, "") (* Shell synchronization has the current calendar. *)
-let reloaded _env t = ({ t with scroll = 0 }, Screen.Stay)
+let reloaded env t = ((if env.Screen.blocked then t else { t with scroll = 0 }), Screen.Stay)
 let start_search ?value t = { t with overlay = Some (Search (Option.value ~default:t.browser.query value)) }
 let start_jump value t = { t with overlay = Some (Jump value) }
 

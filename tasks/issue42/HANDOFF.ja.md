@@ -29,7 +29,6 @@ P7/IME/人手受け入れを主張しない。
 | Scheduled List/Months | `Scheduled_screen`(+`Scheduled_months`) | `tui/screens/scheduled` |
 | Selected Day | `Selected_day_screen` | `tui/screens/day` |
 | Calendar/Home + ambient Search | `Calendar_home_screen` | `tui/screens/calendar` |
-| Selected Day | `Selected_day_screen` | `tui/screens/day` |
 
 共通部品: `tui/book/record_browser.ml`（行identity・filter・順序・identity追従選択、純粋）、
 `tui/book/record_lines.ml`（Actual/Scheduled 一行表示）。
@@ -37,10 +36,10 @@ P7/IME/人手受け入れを主張しない。
 Set_calendar / Open_observe / New_plan / Record_action{action;target} / New_record /
 Drill{day;entry} / Publish / Stop_writes / Save_*` 等、`env.calendar` は Shell の焦点日。
 
-中央に**残っているもの**（`daily_interaction*.ml` 合計1428行）:
+中央に**残っているもの**（`daily_interaction*.ml` 合計1398行、基準 efda2a3 は約4469行）:
 - Commands/Themes、discard確認、annual rollover、publication executor、Record保持と画面間調停。
 - 年度来歴がactive route上で古くなった場合のUnavailable frameはShellの安全境界として保持。
-- `Ui_workspace`はroute/calendar/measureとrecord-target型aliasのみ。pane/browser/scroll mirrorなし。
+- `Ui_workspace`はroute/calendar/measureのみ（record-target型aliasも除去、Shellは`Screen.record_target`を使う）。pane/browser/scroll mirrorなし。
 - `C.selected`はCalendar ownerのtarget問い合わせだけを行う。c/e等のglobal fallbackはtarget=None。
 - 他ownerのIgnored入力から開ける旧Searchと隠れたnavigationはCalendar ownerが保持し、
   ambient検索中のfooterは元routeのものを表示する。無作用化・意味変更はしない。
@@ -80,7 +79,7 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
 - `for_route route = List.find_opt (fun (Owner o) -> o.owns route) all`、`enter route` は route を渡す。
 - 挙動変化なし → 検証してコミット。
 
-### 3.2 Selected Day（完了 `e190f22`、以下は移植契約）（完了; 以下は移植契約の参照）
+### 3.2 Selected Day（完了 `e190f22`、以下は移植契約の参照）
 状態: `{ day; browser : Record_browser.t; pane : List|Detail; scroll; search : string option; parent : string option }`
 - `enter (Selected_day d) ~focus_day` → `day=d; pane=List; scroll=0; search=None; parent=None`。
   **browser（query/locus/day/order）は訪問をまたいで保持**（旧 `workspace.selected_day` と同じ）。
@@ -116,7 +115,7 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
   `interaction_check_fixture.ml` に `day_rows / day_id / day_detail ...` を追加し、
   `selected_target` に Selected_day 分岐を追加。
 
-### 3.3 Calendar/Home（ローカル検証済み、以下は維持する契約）
+### 3.3 Calendar/Home（完了 `7d54c6a`、CI Core 39152231758 / TUI 39152237812 success。以下は維持する契約）
 - 焦点日/zoom は Shell 所有の `env.calendar`。画面は `Set_calendar` request で変更を依頼
   （`update_calendar` の `Refused`→message、`Open_day`→`Open_route (Selected_day d)`）。
 - Calendar の描画（`calendar_rows`, `calendar_frame`, `detail_frame`, 120列/72列分岐、
@@ -134,18 +133,23 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
 - 他routeへのentryでshared browser選択は空rowsにsync、Selected Dayではbrowserを保持。
   Actualへのdrill returnはentry通知のみでsyncしない。publication/reloadは旧route境界の同期を維持。
 - annual.noticeはlazyでHome paintだけがforce。Homeはheaderなしのbody全高を描く。
-- 次は3.4の仕上げ。Calendar/Homeのmatching SHA CIはcommit後に手動実行する。
 
-### 3.4 Shell 仕上げ
-- `daily_interaction*.ml` を Shell（routing, global keys, Commands/Themes, discard 確認,
-  annual rollover, publication executor, Record 保持）だけにし、ファイル名も `shell.ml` 等へ整理可。
-- owner が `Ignored` を返したキーが中央の汎用 arm（c/e/x 等）に落ちて
-  "Select an Actual or Scheduled occurrence..." を出す既存挙動がある。route 移行完了後は
-  汎用 arm を消すので、その結果が変わらないか（テストで）確認。
-- `tools/arch/arch_check.ml` に「Shell が `W.rows`/browser を持たない」等のルール追加を検討（負例を `test/arch.t` に）。
-- `docs/TUI_OWNERSHIP.md`・`tasks/todo.md`・`docs/LOAM_UI_GAP_LEDGER.ja.md`（該当があれば）を更新。
-  計測（行数、ビルド時間の before/after: 基準 efda2a3 の中央 4469 行）を記録。
-- CI を matching SHA で手動起動し成功を確認。PTY 4寸法（120x36/80x24/48x14/32x9）は TUI workflow 内。
+### 3.4 Shell 仕上げ（一部完了）
+完了（このスライス）:
+- Shell の record action 対象を `Screen.record_target`（Entry/Plan）に統一。`Ui_workspace` の
+  row/family alias、`*_selected` ラッパー、未使用 helper（`browser_pane_widths`, `print_motion` 等）を削除。
+- Actual / Scheduled session の純粋 checks を `tui/screens/actual/test`・`tui/screens/editors/test`
+  へ移動（app runner が native 幅関数を渡す）。Actual fixture の ID は store 非依存の決定的 ID
+  （重複時は `put_entry ~replace:false` が失敗するので弱くならない）。
+- arch rule 5: Shell は `Record_browser` を直接/別名経由で使えない。負例 2 件 + コメント/文字列の正例を `test/arch.t` に追加。
+
+残り:
+- `daily_interaction{,_state,_context,_view}.ml` を Shell の責務（routing, global keys, Commands/Themes,
+  discard 確認, annual rollover, publication executor, Record 保持, 年度来歴 Unavailable frame）
+  ごとに整理し、名前も実態に合わせる（例 `shell.ml`, `shell_publication.ml`）。**挙動は変えない**。
+- `docs/TUI_OWNERSHIP.md` の最終化（Enforcement 節に rule 5、Tests 節にテスト配置）。
+- 計測: 中央行数の推移（4469 → 1398）、代表ビルド時間の before/after（efda2a3 と現 HEAD、同一マシン）。
+- 各コミットで CI を matching SHA で手動起動し成功確認（PTY 4寸法は TUI workflow 内）。
 - Issue #28/#38/#39/#40/#41/#42 は重複 issue を作らず #42 にコメントで集約。
 - main への統合はユーザー承認後（AGENTS.md は main 直コミット方針だが、本件は大規模な隔離作業）。
 
@@ -154,6 +158,9 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
 Settlements/Loci の Esc が常に Home・Page/Home/End が先頭リセット、print preview が Done で閉じない、
 finish_publication が保持中 Record 下書きを消す、owner editor は Ctrl-R 以外全入力を取る
 （Balances picker で Ctrl-Q/N 不可）、IncExp の j/k が Calendar 選択を動かさない。
+Scheduled の `/` 検索中の Ctrl-R: owner editor 扱い（`reload_in_modal = true`）で
+reload される。旧中央 Search overlay は Ctrl-R を消費していた（Selected Day / Calendar は旧挙動を維持）。
+意図した変更ではないので、揃えるなら Scheduled の検索を `reload_in_modal = false` 相当にし回帰を追加。
 新たに見つけたら同ファイルへ追記（修正は別スライス、意味変更ならユーザーに確認）。
 
 ## 5. はまりどころ

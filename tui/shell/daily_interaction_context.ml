@@ -296,8 +296,6 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
   | Screen.Open_observe -> open_observe state
   | Screen.New_plan -> open_plan_record state
   | Screen.Record_action { action; target } -> (
-      let target = Option.map (function
-          | Screen.Entry e -> W.Actual_entry e | Screen.Plan p -> W.Scheduled_plan p) target in
       match action with
       | Screen.Edit -> edit_target state target
       | Screen.Pay -> pay_target state target
@@ -497,13 +495,3 @@ let open_command state = function
       let return_menu = match state.overlay with Commands menu -> menu | _ -> M.initial in
       { state with overlay = Themes { selected = index 0 P.all_themes;
                                      original = state.theme; return_menu } }
-
-let browser_pane_widths width =
-  if width < 80 then (width, width)
-  else let left = max 36 (min 58 (width * 52 / 100)) in (left, width - left - 1)
-
-let print_motion = function
-  | `Key ((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)), [])
-  | `Key (`ASCII ('u' | 'd'), [`Ctrl]) -> true
-  | _ -> false
-

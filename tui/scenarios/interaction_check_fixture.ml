@@ -146,7 +146,7 @@ let with_plan_query (state : C.state) query =
   { state with screens = { state.screens with scheduled = Plans.with_query state.session.book state.screens.scheduled query } }
 
 (* Selected Day, read through its owner. *)
-let days (state : C.state) = Day.synced state.session.book state.screens.day
+let days (state : C.state) = state.screens.day
 let day_rows (state : C.state) = Day.rows state.session.book state.screens.day
 let day_browser state = Day.browser (days state)
 let day_id state = (day_browser state).selected_id
@@ -181,13 +181,16 @@ let same_workspace (a : C.state) (b : C.state) =
 
 (* The Shell's record-action openers, targeted at what the route owner selects. *)
 let selected_target (state : C.state) =
+  let target = function
+    | Record_browser.Actual_entry e -> Screen.Entry e
+    | Record_browser.Scheduled_plan p -> Screen.Plan p in
   match state.workspace.route with
-  | W.Actual -> Option.map (fun e -> W.Actual_entry e) (Act.selected_entry ~book:state.session.book state.screens.actual)
-  | W.Scheduled -> Option.map (fun p -> W.Scheduled_plan p) (Plans.selected_plan state.session.book state.screens.scheduled)
-  | W.Selected_day _ -> day_selected state
-  | W.Calendar -> Calendar_home.selected_row ~book:state.session.book
-      ~calendar:state.workspace.calendar state.screens.calendar_home
-  | _ -> C.selected state
+  | W.Actual -> Option.map (fun e -> Screen.Entry e) (Act.selected_entry ~book:state.session.book state.screens.actual)
+  | W.Scheduled -> Option.map (fun p -> Screen.Plan p) (Plans.selected_plan state.session.book state.screens.scheduled)
+  | W.Selected_day _ -> Option.map target (day_selected state)
+  | W.Calendar -> Option.map target (Calendar_home.selected_row ~book:state.session.book
+      ~calendar:state.workspace.calendar state.screens.calendar_home)
+  | _ -> None
 let pay_selected s = C.pay_target s (selected_target s)
 let batch_plan_selected s = C.batch_plan_target s (selected_target s)
 let extend_plan_selected s = C.extend_plan_target s (selected_target s)
@@ -206,7 +209,7 @@ let actual_scroll state = if actual_detail state then Act.detail_scroll state.C.
 let actual_row (state : C.state) = Act.transaction_row state.screens.actual
 let actual_query (state : C.state) = Act.search_query state.screens.actual
 let actual_selected (state : C.state) =
-  Option.map (fun e -> W.Actual_entry e) (Act.selected_entry ~book:state.session.book state.screens.actual)
+  Option.map (fun e -> Record_browser.Actual_entry e) (Act.selected_entry ~book:state.session.book state.screens.actual)
 let actual_rows (state : C.state) = Act.visible_entries ~book:state.session.book state.screens.actual
 
 let require = F.require

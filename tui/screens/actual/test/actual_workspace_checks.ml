@@ -4,7 +4,7 @@
    record selection, and clean cursor positioning. *)
 
 module B = Bakhlo_sexp.Daily_book
-module A = Daily_actions
+module A = Daily_draft
 module Act = Actual_workspace
 
 let require condition name =
@@ -29,9 +29,9 @@ let add_entry book ~day ~memo ~locus1 ~amt1 ~locus2 ~amt2 =
   let entry =
     get
       (Result.map_error
-         (fun error -> error.Daily_actions.message)
-         (Daily_actions.build_transaction ~book ~mode:Daily_actions.New
-            (Daily_actions.Multiple
+         (fun error -> error.A.message)
+         (A.build_transaction ~new_id:(fun () -> day ^ ":" ^ memo) ~book ~mode:A.New
+            (A.Multiple
                {
                  day;
                  memo;

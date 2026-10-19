@@ -15,16 +15,13 @@ module Date = Date_correction_session
 module Merchant = Merchant_session
 module Sch = Scheduled_session
 module Cancel = Scheduled_cancellation_session
-module Act = Actual_workspace
 module Cont = Scheduled_continuation_session
 module Bulk = Scheduled_bulk_session
 module Gen = Scheduled_generation_session
 module Form = Ui_form
 module Panel = Ui_panel
 module Att = Attention_data
-module Roles = Locus_roles
 module Stl = Settlement_data
-module BalView = Balance_view_data
 module Balances = Balances_screen
 module Pace = Daily_pace_screen
 
@@ -342,11 +339,6 @@ let open_route state route =
                     screens = Screen_registry.enter route ~focus_day:state.workspace.calendar.selected_day state.screens }
 
 (* Record-action targets are named by route owners. *)
-let selected state =
-  if state.workspace.route = W.Calendar then
-    Calendar_home_screen.selected_row ~book:state.session.book ~calendar:state.workspace.calendar state.screens.calendar_home
-  else None
-
 let edit_target state target =
   if state.blocked then state
   else if has_record_draft state then
@@ -356,11 +348,11 @@ let edit_target state target =
     }
   else
     match target with
-    | Some (W.Actual_entry entry) -> (
+    | Some (Screen.Entry entry) -> (
         match S.of_edit ~book:state.session.book entry with
         | Ok record -> { state with record = Some record; record_visible = true; message = "" }
         | Error why -> { state with message = why })
-    | Some (W.Scheduled_plan plan) -> (
+    | Some (Screen.Plan plan) -> (
         match S.of_edit_plan ~book:state.session.book plan with
         | Ok record -> { state with record = Some record; record_visible = true; message = "" }
         | Error why -> { state with message = why })
@@ -371,7 +363,7 @@ let correct_date_target state target =
   else if has_record_draft state then
     { state with message = tr "A draft is retained. Resume or discard it before changing a date." }
   else match target with
-  | Some (W.Actual_entry entry) ->
+  | Some (Screen.Entry entry) ->
       { (open_editor state (Record_editors.Date_correction (Date.create ~base_bytes:state.session.bytes entry)))
         with message = "" }
   | _ -> { state with message = tr "Select an Actual entry to change its date." }
@@ -383,7 +375,7 @@ let cancel_plan_target state target =
     { state with message = tr "A draft is retained. Resume or discard it before cancelling a Scheduled occurrence." }
   else
     match target with
-    | Some (W.Scheduled_plan plan) ->
+    | Some (Screen.Plan plan) ->
         if plan.paid_by <> None then
           { state with message = tr "This Scheduled occurrence is already completed." }
         else if plan.cancelled_on <> None then
@@ -402,7 +394,7 @@ let batch_plan_target state target =
   else if has_record_draft state then
     { state with message = tr "A draft is retained. Resume or discard it before batch editing." }
   else match target with
-  | Some (W.Scheduled_plan plan) -> (
+  | Some (Screen.Plan plan) -> (
       match Bulk.create ~book:state.session.book ~base_bytes:state.session.bytes ~from_day:plan.day plan with
       | Ok editor -> { (open_editor state (Record_editors.Scheduled_bulk editor)) with message = "" }
       | Error message -> { state with message })
@@ -413,7 +405,7 @@ let extend_plan_target state target =
   else if has_record_draft state then
     { state with message = tr "A draft is retained. Resume or discard it before generating plans." }
   else match target with
-  | Some (W.Scheduled_plan plan) -> (
+  | Some (Screen.Plan plan) -> (
       match Gen.create ~book:state.session.book ~base_bytes:state.session.bytes ~source:plan with
       | Ok editor -> { (open_editor state (Record_editors.Scheduled_generate editor)) with message = "" }
       | Error message -> { state with message })
@@ -425,7 +417,7 @@ let reverse_entry_target state target =
     { state with message = tr "A draft is retained. Resume or discard it before reversing." }
   else
     match target with
-    | Some (W.Actual_entry entry) ->
+    | Some (Screen.Entry entry) ->
         if entry.reversal_of <> None then
           { state with message = tr "This entry is already a Reversal; it cannot be reversed." }
         else if List.exists (fun (e : B.entry) -> e.reversal_of = Some entry.id) (B.entries state.session.book) then
@@ -444,7 +436,7 @@ let classify_merchant_target state target =
     { state with message = tr "A draft is retained. Resume or discard it before classifying." }
   else
     match target with
-    | Some (W.Actual_entry entry) -> (
+    | Some (Screen.Entry entry) -> (
         match entry.merchant with
         | Some disposition ->
             let disp_text =
@@ -472,20 +464,9 @@ let pay_target state target =
     }
   else
     match target with
-    | Some (W.Scheduled_plan plan) -> (
+    | Some (Screen.Plan plan) -> (
         match S.of_plan ~day:(F.today ()) ~book:state.session.book plan with
         | Ok record -> { state with record = Some record; record_visible = true; message = "" }
         | Error why -> { state with message = why })
-    | Some (W.Actual_entry _) | None ->
+    | Some (Screen.Entry _) | None ->
         { state with message = tr "Select a Scheduled occurrence to complete." }
-
-
-(* Routes still browsed by the central controller act on their selected row. *)
-let edit_selected state = edit_target state (selected state)
-let correct_date_selected state = correct_date_target state (selected state)
-let cancel_plan_selected state = cancel_plan_target state (selected state)
-let batch_plan_selected state = batch_plan_target state (selected state)
-let extend_plan_selected state = extend_plan_target state (selected state)
-let reverse_entry_selected state = reverse_entry_target state (selected state)
-let classify_merchant_selected state = classify_merchant_target state (selected state)
-let pay_selected state = pay_target state (selected state)

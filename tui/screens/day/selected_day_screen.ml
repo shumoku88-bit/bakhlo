@@ -26,12 +26,12 @@ let scroll t = t.scroll
 let modal t = Option.is_some t.search
 let rows book t = RB.all_rows book |> List.filter (fun row -> RB.date row = t.day) |> RB.visible ~book t.browser
 let synced book t = { t with browser = RB.sync t.browser (rows book t) }
-let selected_row book t = RB.selected_row (synced book t).browser (rows book t)
+let selected_row book t = RB.selected_row t.browser (rows book t)
 let drill ~entry ~parent t =
   { t with browser = { t.browser with selected_id = Some (RB.Actual_row, entry);
     query = ""; locus = None; day = None }; parent = Some parent }
 let book_changed ~before:_ ~after t = (synced after { t with scroll = 0 }, "")
-let reloaded _env t = ({ t with scroll = 0 }, Screen.Stay)
+let reloaded env t = ((if env.Screen.blocked then t else { t with scroll = 0 }), Screen.Stay)
 let saved _env _geometry _result t = (t, Screen.Stay)
 
 let input_text value = function
@@ -99,7 +99,6 @@ let detail_rows ~width_of ~width book t =
 
 let paint (env : Screen.env) (geometry : Screen.geometry) t =
   let width, height = geometry.content in
-  let t = synced env.book t in
   let rows = rows env.book t in
   let left_width, right_width = Panel.split_widths width in
   let detail = t.pane = Detail in

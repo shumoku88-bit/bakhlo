@@ -8,6 +8,8 @@
   bakhlo_tui_book
   bakhlo_tui_shell
   bakhlo_tui_shell_checks
+  bakhlo_screen_actual_checks
+  bakhlo_screen_editors_checks
   bakhlo_tui_scenarios
   bakhlo_tui_terminal
   bakhlo.store

@@ -193,11 +193,11 @@ let months_checks ~width_of ~directory home =
     |> fun s -> with_plan_query s "month-02" in
   let list_browser = plan_list listed in
   let months = key ~width_of listed (`ASCII 'v') in
-  require (List.map W.identity (plan_rows months)
-           = List.map (fun (p : B.plan) -> (W.Scheduled_row, p.id)) plans
+  require (List.map Record_browser.identity (plan_rows months)
+           = List.map (fun (p : B.plan) -> (Record_browser.Scheduled_row, p.id)) plans
            && plan_list months = list_browser)
     "months-projects-all-current-open-without-list-filter";
-  require ((plan_id months) = Some (W.Scheduled_row, "month-02")
+  require ((plan_id months) = Some (Record_browser.Scheduled_row, "month-02")
            && Months.visible_months (plan_months months)
               = ["2026-11-01";"2026-12-01";"2027-01-01";"2027-02-01";"2027-03-01";"2027-04-01"])
     "months-year-crossing-window-preserves-target";
@@ -208,11 +208,11 @@ let months_checks ~width_of ~directory home =
   let all_list = with_plan_query listed "" in
   let all_months = key ~width_of all_list (`ASCII 'v') |> fun s -> key ~width_of s `End in
   let returned_all = key ~width_of all_months (`ASCII 'v') in
-  require ((plan_id returned_all) = Some (W.Scheduled_row, "month-06")
+  require ((plan_id returned_all) = Some (Record_browser.Scheduled_row, "month-06")
            && Months.first_month (plan_months all_months) = "2027-07-01")
     "months-selection-follows-horizon-and-returns-by-id";
   let oldest = key ~width_of all_months `Home in
-  require ((plan_id oldest) = Some (W.Scheduled_row, "month-00")
+  require ((plan_id oldest) = Some (Record_browser.Scheduled_row, "month-00")
            && Months.first_month (plan_months oldest) = "2026-11-01")
     "months-overdue-selection-does-not-shift-before-current-month";
   let shifted = key ~width_of oldest (`ASCII 'l') in
@@ -283,7 +283,7 @@ let months_checks ~width_of ~directory home =
   require (List.find (fun (p : B.plan) -> p.id = "month-02") (B.plans cold.book)
              = { (List.nth plans 2) with cancelled_on = Some (F.today ()) }
            && B.entries cold.book = B.entries book
-           && (plan_id retired) = Some (W.Scheduled_row, "month-03")
+           && (plan_id retired) = Some (Record_browser.Scheduled_row, "month-03")
            && plan_list retired = list_browser)
     "months-cancellation-retires-selected-id-and-clamps-to-next-plan";
   print_endline "PASS: Scheduled Months projects six current-open months, stable IDs and filters, exact details, horizon/floor/year boundaries, compact resize and non-saving completion/Keep."

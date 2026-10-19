@@ -21,18 +21,18 @@ let actual_browsing_checks ~width_of ~directory home =
   let before = F.read path in
   let state = C.open_route (C.initial ~config_home:directory (F.load path)) W.Actual in
   let contains rows needle = List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) rows in
-  require (R.actual_amount book (entry 0) = "+1,234 jpy") "actual-grouped-exact-amount";
+  require (Record_lines.actual_amount book (entry 0) = "+1,234 jpy") "actual-grouped-exact-amount";
   let euro = { (entry 0) with effects = [posting ~measure:"eur" "food" (Z.of_int 123456)] } in
-  require (R.actual_amount book euro = "+1,234.56 eur") "actual-grouping-retains-decimals";
-  require (R.actual_amount book {euro with effects=[posting ~measure:"eur" "food" (Z.of_int (-123456))]}
+  require (Record_lines.actual_amount book euro = "+1,234.56 eur") "actual-grouping-retains-decimals";
+  require (Record_lines.actual_amount book {euro with effects=[posting ~measure:"eur" "food" (Z.of_int (-123456))]}
     = "-1,234.56 eur") "actual-negative-amount-sign";
-  require (R.actual_amount book {euro with effects=[]} = "—") "actual-missing-effects-not-zero";
-  require (R.actual_amount book {euro with effects=[posting "food" Z.zero]} = "0 jpy") "actual-explicit-zero";
-  require (R.actual_amount book {euro with effects=[posting "wallet" (Z.of_int (-3));
+  require (Record_lines.actual_amount book {euro with effects=[]} = "—") "actual-missing-effects-not-zero";
+  require (Record_lines.actual_amount book {euro with effects=[posting "food" Z.zero]} = "0 jpy") "actual-explicit-zero";
+  require (Record_lines.actual_amount book {euro with effects=[posting "wallet" (Z.of_int (-3));
     posting "food" Z.one; posting "bank" (Z.of_int 2)]} = "split") "actual-split-not-invented-total";
-  require (R.actual_amount book {euro with effects=posting "food" Z.one :: euro.effects} = "multi (2)")
+  require (Record_lines.actual_amount book {euro with effects=posting "food" Z.one :: euro.effects} = "multi (2)")
     "actual-mixed-measures-not-summed";
-  let heading, titles = R.actual_table ~width_of ~width:58 book [W.Actual_entry (entry 0); W.Actual_entry (entry 17)] in
+  let heading, titles = Record_lines.actual_table ~width_of ~width:58 book [Record_browser.Actual_entry (entry 0); Record_browser.Actual_entry (entry 17)] in
   require (Base.String.is_substring heading ~substring:"Amount"
     && Base.String.is_substring (List.hd titles) ~substring:"+1,234 jpy"
     && Base.String.is_substring (List.nth titles 1) ~substring:"see details"
@@ -138,7 +138,7 @@ let actual_browsing_checks ~width_of ~directory home =
     let parent = key ~dimensions ~width_of parent (`ASCII 'j') in
     let direct = key ~dimensions ~width_of parent `Enter in
     require (match day_selected direct with
-      | Some (W.Actual_entry e) -> e.id = "actual-16"
+      | Some (Record_browser.Actual_entry e) -> e.id = "actual-16"
       | _ -> false) "actual-drill-opens-exact-id-despite-same-day-and-old-filters";
     require (F.read path = before) "actual-drill-and-return-do-not-write")
     [ (80,24); (48,14); (32,9) ];
@@ -146,29 +146,29 @@ let actual_browsing_checks ~width_of ~directory home =
   let day_book = List.fold_left (fun book n -> get (B.put_entry book ~replace:true
       { (entry n) with day = (entry 16).day } ~plan:None)) book [15;17] in
   let day_base = with_calendar_browser { state with session = { state.session with book = day_book } }
-    { (calendar_browser state) with selected = 7; selected_id = Some (W.Actual_row, "calendar-parent") } in
+    { (calendar_browser state) with selected = 7; selected_id = Some (Record_browser.Actual_row, "calendar-parent") } in
   let day = C.open_route day_base (W.Selected_day (entry 16).day) in
   require (calendar_browser day = calendar_browser day_base)
     "selected-day-entry-preserves-calendar-browser";
-  require (day_id day = Some (W.Actual_row, "actual-17")
-           && day_id (key ~width_of day (`Arrow `Down)) = Some (W.Actual_row, "actual-16")
+  require (day_id day = Some (Record_browser.Actual_row, "actual-17")
+           && day_id (key ~width_of day (`Arrow `Down)) = Some (Record_browser.Actual_row, "actual-16")
            && day_id (key ~width_of (key ~width_of day (`ASCII 'J')) (`Arrow `Up)) = day_id day)
     "selected-day-entry-syncs-before-first-normalized-motion";
   let stale = with_day_browser day_base { (day_browser day) with selected = 99;
-    selected_id = Some (W.Actual_row, "missing") } in
+    selected_id = Some (Record_browser.Actual_row, "missing") } in
   let clamped = C.open_route stale (W.Selected_day (entry 16).day) in
   require ((Day.browser clamped.screens.day).selected = 2
-           && day_id clamped = Some (W.Actual_row, "actual-15")
-           && day_id (key ~width_of clamped (`Arrow `Up)) = Some (W.Actual_row, "actual-16"))
+           && day_id clamped = Some (Record_browser.Actual_row, "actual-15")
+           && day_id (key ~width_of clamped (`Arrow `Up)) = Some (Record_browser.Actual_row, "actual-16"))
     "selected-day-entry-persists-clamped-selection-before-motion";
   let detail = key ~width_of day (`ASCII 'I') in
   let ended = key ~width_of detail `End in
-  require (day_detail ended && day_id ended = Some (W.Actual_row, "actual-15")
+  require (day_detail ended && day_id ended = Some (Record_browser.Actual_row, "actual-15")
            && day_scroll ended = max_int / 4
            && day_scroll (key ~width_of ended (`ASCII 'K')) = max_int / 4 - 1)
     "selected-day-detail-end-reselects-and-retains-unclamped-scroll";
   let first = key ~width_of ended `Home in
-  require (day_detail first && day_id first = Some (W.Actual_row, "actual-17") && day_scroll first = 0)
+  require (day_detail first && day_id first = Some (Record_browser.Actual_row, "actual-17") && day_scroll first = 0)
     "selected-day-detail-home-reselects-first";
   List.iter (fun dimensions ->
     let paged = key ~dimensions ~width_of first (`Page `Down) in
@@ -177,12 +177,40 @@ let actual_browsing_checks ~width_of ~directory home =
       "selected-day-detail-page-uses-screen-height-minus-eight") [(32,9);(48,14);(80,24);(120,36)];
   let retained : Record_browser.t = { query = "purchase"; locus = Some "wallet";
     day = Some (entry 16).day; order = Record_browser.Oldest; selected = 1;
-    selected_id = Some (W.Actual_row, "actual-16") } in
+    selected_id = Some (Record_browser.Actual_row, "actual-16") } in
   let retained_day = with_day_browser day retained in
   let revisited = C.open_route (C.open_route retained_day W.Home) (W.Selected_day (entry 16).day) in
   require (Day.browser revisited.screens.day = retained && not (day_detail revisited)
            && day_scroll revisited = 0)
     "selected-day-revisit-retains-filter-order-and-identity";
+  (* A refused reload can replace the snapshot without admitting browser sync.
+     Reads, painting and action targets must all keep the same raw row index. *)
+  let stale_browser = { (day_browser day) with selected = 2;
+    selected_id = Some (Record_browser.Actual_row, "actual-15") } in
+  let raw = Day.with_browser day.screens.day stale_browser in
+  let reordered = get (B.put_entry day_book ~replace:false
+    { (entry 18) with day = (entry 16).day; memo = Some "Inserted before retained rows" } ~plan:None) in
+  let env = Screen.env_for_checks ~book:reordered ~measure:"jpy" ~today:(entry 16).day () in
+  let env = { env with blocked = true } in
+  let geometry : Screen.geometry = { screen = (120,36); body = (120,34); content = (120,32); width_of } in
+  require (match Day.selected_row reordered raw with
+    | Some (Record_browser.Actual_entry e) -> e.id = "actual-16" | _ -> false)
+    "selected-day-refused-snapshot-read-keeps-raw-index";
+  let _, request = Day.handle env geometry raw (`Key (`ASCII 'e', [])) in
+  require (match request with
+    | Screen.Record_action { target = Some (Screen.Entry e); _ } -> e.id = "actual-16"
+    | _ -> false) "selected-day-refused-snapshot-action-matches-raw-selection";
+  let detail, _ = Day.handle env geometry raw (`Key (`ASCII 'i', [])) in
+  require (contains (Lazy.force (Day.view env geometry detail).rows) "Synthetic purchase 16"
+           && Day.browser detail = stale_browser)
+    "selected-day-refused-snapshot-paint-keeps-raw-browser";
+  let moved, _ = Day.handle env geometry raw (`Key (`ASCII 'j', [])) in
+  require (match Day.selected_row reordered moved with
+    | Some (Record_browser.Actual_entry e) -> e.id = "actual-15" | _ -> false)
+    "selected-day-refused-snapshot-first-motion-advances-visible-row";
+  require ((Day.browser (Day.synced reordered raw)).selected = 3
+           && (Day.browser (Day.synced reordered raw)).selected_id = stale_browser.selected_id)
+    "selected-day-qualified-sync-explicitly-reanchors-identity";
   let searching = key ~width_of { day with message = "search sentinel";
       record = closed.record } (`ASCII '/') |> fun s -> text ~width_of s "purchase 16" in
   require ((day_browser searching).query = "" && List.length (day_rows searching) = 3
@@ -197,11 +225,42 @@ let actual_browsing_checks ~width_of ~directory home =
       "selected-day-search-swallows-global-quit-discard-reload") ['q';'Q';'n';'N';'r';'R'];
   let applied = key ~width_of searching `Enter in
   require ((day_browser applied).query = "purchase 16" && List.length (day_rows applied) = 1
-           && day_id applied = Some (W.Actual_row, "actual-16") && not (Day.modal applied.screens.day))
+           && day_id applied = Some (Record_browser.Actual_row, "actual-16") && not (Day.modal applied.screens.day))
     "selected-day-search-enter-applies-retained-query";
   let cleared_day = key ~width_of (key ~width_of applied (`ASCII '/')) `Escape in
   require ((day_browser cleared_day).query = "" && List.length (day_rows cleared_day) = 3
            && not (Day.modal cleared_day.screens.day)) "selected-day-search-escape-clears";
+  (* A failed reload kept the old central viewport; both extracted owners must
+     preserve that viewport and a retained Record without accepting bad bytes. *)
+  List.iter (fun (name, route, focus, scroll, browser) ->
+    let reload_path = directory ^ "/" ^ name ^ "-reload.sexp" in
+    let bytes = B.to_string day_book in
+    F.write_new reload_path bytes;
+    let base = C.initial ~config_home:directory (F.load reload_path) in
+    let base = { base with workspace = { base.workspace with calendar = get (Cal.create (entry 16).day) } } in
+    let detailed : C.state = focus (C.open_route base route) in
+    let detailed = { detailed with record = closed.record } in
+    let old_scroll = scroll detailed and old_browser = browser detailed in
+    require (old_scroll > 0 && C.has_record_draft detailed) "owner-failed-reload-fixture-holds-viewport-and-draft";
+    let corrupt = "invalid synthetic reload fixture" in
+    Out_channel.with_open_bin reload_path (fun oc -> output_string oc corrupt);
+    let refused = match H.handle ~width_of detailed (`Key (`ASCII 'r', [`Ctrl])) with
+      | Some s -> s | None -> raise (F.Refused "owner-failed-reload-quit") in
+    require (refused.blocked && refused.message <> "" && scroll refused = old_scroll
+             && browser refused = old_browser && same_workspace refused detailed
+             && refused.record = detailed.record && not refused.record_visible
+             && refused.session.bytes = bytes && F.read reload_path = corrupt)
+      "owner-failed-reload-preserves-viewport-selection-book-and-held-draft";
+    Out_channel.with_open_bin reload_path (fun oc -> output_string oc bytes);
+    let restored = match H.handle ~width_of refused (`Key (`ASCII 'r', [`Ctrl])) with
+      | Some s -> s | None -> raise (F.Refused "owner-successful-reload-quit") in
+    require (not restored.blocked && scroll restored = 0 && browser restored = old_browser
+             && restored.record = detailed.record && F.read reload_path = bytes)
+      "owner-successful-reload-resets-viewport-and-retains-held-draft")
+    [ ("day", W.Selected_day (entry 16).day,
+        (fun s -> key ~width_of (key ~width_of s (`ASCII 'i')) `End), day_scroll, day_browser);
+      ("calendar", W.Calendar,
+        (fun s -> key ~width_of (key ~width_of s `Tab) (`Page `Down)), calendar_scroll, calendar_browser) ];
   let day_path = directory ^ "/selected-day-record.sexp" in
   F.write_new day_path (B.to_string book);
   let day_parent = { drilled with session = F.load day_path;
@@ -310,7 +369,7 @@ let actual_browsing_checks ~width_of ~directory home =
            && (actual_selected_id published) = Some "actual-16"
            && (actual_row published) = 17
            && (match actual_selected published with
-               | Some (W.Actual_entry e) -> e.id = "actual-16" | _ -> false))
+               | Some (Record_browser.Actual_entry e) -> e.id = "actual-16" | _ -> false))
     "actual-correction-return-follows-id-not-old-row";
   let cold = F.load path in
   let corrected = List.find (fun (e : B.entry) -> e.id = "actual-16") (B.entries cold.book) in

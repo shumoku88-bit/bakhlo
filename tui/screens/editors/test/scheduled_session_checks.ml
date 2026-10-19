@@ -4,7 +4,6 @@
    Preview navigation and tiny-terminal publication gates. *)
 
 module B = Bakhlo_sexp.Daily_book
-module A = Daily_actions
 module Sch = Scheduled_session
 
 let require condition name =

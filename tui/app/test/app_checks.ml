@@ -10,6 +10,8 @@ let () =
   try
     Interaction_check_fixture.materialize_example_book ();
     Shell_checks.run ~width_of ();
+    Scheduled_session_checks.self_check ~width_of ();
+    Actual_workspace_checks.self_check ~width_of ();
     Scenarios.run ~width_of ();
     Terminal_checks.run ()
   with

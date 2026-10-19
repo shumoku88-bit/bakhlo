@@ -40,7 +40,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
     Buffer.contents out
   in
   let shows ?(pane = `Left) ~width_of (width, height) state needle =
-    let left_width, _ = X.browser_pane_widths width in
+    let left_width = if width < 80 then width else max 36 (min 58 (width * 52 / 100)) in
     let room = match pane with `Left -> left_width | `Right -> width in
     let rows = R.screen ~width_of (width, height) state in
     let text =
