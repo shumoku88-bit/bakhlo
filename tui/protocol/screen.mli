@@ -49,6 +49,10 @@ type env = {
           missing, never empty; an error is never a default. *)
 }
 
+type layout = Standard | Workspace
+(** Workspace owns its context rows and reserves the terminal's last column
+    and row. The Shell still owns feedback and the two navigation rows. *)
+
 type geometry = {
   screen : int * int;  (** Whole terminal. *)
   body : int * int;  (** Region above feedback and footer; overlays float here. *)

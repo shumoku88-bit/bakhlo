@@ -57,13 +57,16 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
           @ List.map (fun (style, text) -> line ~width_of width style text) help
     | None -> List.init height (fun _ -> (Plain, ""))
   else
+    let layout = route_layout state in
+    let width, height = canvas_dimensions layout dimensions in
+    let feedback = feedback_lines ~dimensions:(width, height) ~width_of state in
     let body_height = max 0 (height - List.length feedback - 2) in
     let route_view = route_screen_view ~dimensions ~width_of state in
     let draft = if has_record_draft state then "   Draft retained" else "" in
     let date_line () =
       state.workspace.calendar.selected_day ^ "   " ^ Cal.title state.workspace.calendar ^ tr " view" in
     let headers =
-      if state.workspace.route = W.Home then []
+      if state.workspace.route = W.Home || layout = Screen.Workspace then []
       else match route_view with
       | Some view ->
           [
@@ -105,7 +108,11 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
     let visible_body = List.filteri (fun i _ -> i < body_height) body in
     let bottom_pad = max 0 (body_height - List.length visible_body) in
     let full_body = visible_body @ List.init bottom_pad (fun _ -> (Plain, "")) in
-    full_body @ feedback @ List.map (line ~width_of width Chrome) (footer ~dimensions ~width_of state)
+    let rows = full_body @ feedback
+      @ List.map (line ~width_of width Chrome) (footer ~dimensions ~width_of state) in
+    match layout with
+    | Screen.Standard -> rows
+    | Screen.Workspace -> rows @ [Plain, ""]
 
 let commands_overlay_rows ~width_of ~width ~height (menu : M.t) =
   let framed = height >= 5 && width >= 8 in

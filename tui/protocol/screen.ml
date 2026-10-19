@@ -24,6 +24,8 @@ type env = {
   config : string -> (string option, string) result;
 }
 
+type layout = Standard | Workspace
+
 type geometry = {
   screen : int * int;
   body : int * int;

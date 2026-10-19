@@ -53,7 +53,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
     Base.String.is_substring text ~substring:(clean needle)
   in
   let screen_has ~width_of dimensions state needle message =
-    require (shows ~width_of dimensions state needle) message
+    require (shows ~pane:`Right ~width_of dimensions state needle) message
   in
   let modal_form state =
     match visible_form state with
@@ -76,17 +76,20 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
   List.iter
     (fun ((width, height) as dimensions) ->
       let where = Printf.sprintf "%dx%d" width height in
-      screen_has ~width_of dimensions missing "Daily Pace unavailable:"
+      (* LOAM: an empty Trend owns the whole workspace, not a left pane. *)
+      require (shows ~pane:`Right ~width_of dimensions missing "Daily Pace unavailable:")
         ("daily-pace-missing-pool-header-" ^ where);
-      screen_has ~width_of dimensions missing
-        (if width < 48 then "Daily Pace pool not config"
-         else "Daily Pace pool not configured (daily-pace.tsv missing).")
+      (* Below one wrapped reason row the context says unavailable and points to `i`. *)
+      require (height >= 10 || shows ~pane:`Right ~width_of dimensions missing "unavailable(i:cause)")
+        ("daily-pace-missing-pool-cause-hint-" ^ where);
+      require (height < 10 || shows ~pane:`Right ~width_of dimensions missing
+         "Daily Pace pool not configured (daily-pace.tsv missing).")
         ("daily-pace-missing-pool-reason-" ^ where);
       require
-        (not (shows ~width_of dimensions missing "Daily Pace:"))
+        (not (shows ~pane:`Right ~width_of dimensions missing "Daily Pace:"))
         ("daily-pace-missing-pool-calculated-" ^ where);
       require
-        (not (shows ~width_of dimensions missing "jpy/day"))
+        (not (shows ~pane:`Right ~width_of dimensions missing "jpy/day"))
         ("daily-pace-missing-pool-plot-" ^ where))
     [ (80, 24); (48, 14); (32, 9) ];
   let what_if = key ~width_of missing (`ASCII 'w') in
@@ -282,10 +285,11 @@ let daily_pace_today_sample_checks () =
         && sample.Trend.pace_quanta = Some pace.B.daily_pace_quanta
     | _ -> false)
     "daily-pace-today-matches-core";
+  let history_boundary = Some ("cycle\t2026-06-01\t" ^ stop ^ "\n") in
   let _, _, history =
     get
       (Trend.compute_samples ~book ~measure:"jpy" ~pool:[ "wallet" ]
-         ~boundary_presets_text:boundary ~today ~preset:Trend.Ten_days)
+         ~boundary_presets_text:history_boundary ~today ~preset:Trend.Ten_days)
   in
   let yesterday = List.find (fun (sample : Trend.sample) -> sample.day = "2026-06-14") history in
   (* No zero-origin for wallet: past pace stays None, activity preserved, never fabricated. *)
@@ -311,7 +315,7 @@ let daily_pace_today_sample_checks () =
   let _, _, supported_history =
     get
       (Trend.compute_samples ~book:supported_book ~measure:"jpy" ~pool:[ "wallet" ]
-         ~boundary_presets_text:boundary ~today ~preset:Trend.Ten_days)
+         ~boundary_presets_text:history_boundary ~today ~preset:Trend.Ten_days)
   in
   let supported_yesterday =
     List.find (fun (sample : Trend.sample) -> sample.day = "2026-06-14") supported_history
@@ -506,17 +510,57 @@ let daily_pace_activity_checks () =
     "pace-activity-spent-moves-pace";
   let change = get (Trend.compare_change ~prev:d12 ~current:d13) in
   require
-    (Z.equal change.Trend.change_per_day (Z.of_int 20)
-     && Z.equal change.time_passage_effect (Z.of_int 40)
-     && Z.equal change.free_money_effect (Z.of_int (-20))
+    (Z.equal change.Trend.change_per_day (Z.of_int 36)
+     && Z.equal change.time_passage_effect (Z.of_int 36)
+     && Z.equal change.free_money_effect Z.zero
      && Z.equal change.pool_balance_change (Z.of_int (-300))
-     && Z.equal change.protection_release Z.zero
-     && Z.equal change.free_through_end_change (Z.of_int (-300)))
+     && Z.equal change.protection_release (Z.of_int 300)
+     && Z.equal change.free_through_end_change Z.zero)
     "pace-change-exact-integer-decomposition";
   let d14 = sample "2026-10-14" in
   require (Result.is_error (Trend.compare_change ~prev:d12 ~current:d14)) "pace-compare-skipped-day-refused";
   let reset = { d13 with Trend.end_exclusive = "2099-01-01" } in
   require (Result.is_error (Trend.compare_change ~prev:d12 ~current:reset)) "pace-compare-cycle-reset-refused";
+  require (Z.equal d12.deductions (Z.of_int 700)
+    && Z.equal d13.deductions (Z.of_int 400)
+    && Z.equal (sample "2026-10-16").deductions Z.zero
+    && Z.equal (sample "2026-10-17").deductions Z.zero)
+    "pace-history-payment-date-closes-protection-and-reversal-does-not-reopen";
+  let plan id amount : B.plan =
+    { id; day = "2026-10-01"; measure = "jpy";
+      changes = ["wallet", Z.of_int (-amount); "food", Z.of_int amount];
+      paid_by = None; cancelled_on = None } in
+  let with_overdue = get (B.put_plan book ~replace:false (plan "overdue" 50)) in
+  let with_cancelled = get (B.put_plan with_overdue ~replace:false (plan "cancelled" 999))
+    |> fun book -> get (B.cancel_plan book ~id:"cancelled" ~day:"2026-10-17") in
+  let resolve ?(boundary = boundary) ?(preset = Trend.Cycle) book =
+    let _, _, values = get (Trend.compute_samples ~book ~measure:"jpy" ~pool:["wallet";"bank"]
+      ~boundary_presets_text:boundary ~today:"2026-10-18" ~preset) in
+    values in
+  let find day values = List.find (fun (s : Trend.sample) -> s.day = day) values in
+  let protected = resolve with_cancelled in
+  require (Z.equal (find "2026-10-12" protected).deductions (Z.of_int 750)
+    && Z.equal (find "2026-10-17" protected).deductions (Z.of_int 50))
+    "pace-history-overdue-counts-and-cancelled-is-restated-closed";
+  let payment = List.find (fun (e : B.entry) -> e.id = "e_pay") (B.entries book) in
+  let future = get (B.put_entry book ~replace:false
+    { payment with id = "future"; day = "2026-10-25" } ~plan:None) in
+  require (Z.equal (find "2026-10-12" (resolve future)).pool_balance (Z.of_int 9500))
+    "pace-zero-origin-history-forwards-only-through-point-date";
+  let extended = Some "cycle\t2026-10-01\t2026-10-10\t2026-10-28\n" in
+  let crossing = resolve ~boundary:extended ~preset:Trend.Thirty_days book in
+  let before = find "2026-10-09" crossing and after = find "2026-10-10" crossing in
+  require (before.end_exclusive = "2026-10-10" && before.remaining_days = 1
+    && Z.equal before.deductions Z.zero && before.pace_quanta = Some (Z.of_int 10000)
+    && after.end_exclusive = "2026-10-28" && after.remaining_days = 18)
+    "pace-history-each-day-uses-its-explicit-cycle-end";
+  let absent = find "2026-09-30" crossing in
+  require (absent.pace_quanta = None && absent.unavailable <> None && absent.end_exclusive = "")
+    "pace-history-outside-explicit-boundaries-is-unknown";
+  let previous = resolve ~boundary:extended ~preset:Trend.Previous_cycle book in
+  require (List.length previous = 9
+    && (find "2026-10-09" previous).pace_quanta = before.pace_quanta)
+    "pace-previous-cycle-uses-same-restated-current-truth";
   print_endline "PASS: Daily Pace activity classification, currency isolation and guarded change (synthetic)."
 
 (* UI-33B: the pace cursor moves within the actually rendered range. After a
@@ -604,20 +648,23 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   let wide_detail = key ~dimensions:(120, 36) ~width_of entry (`ASCII 'i') in
   let painted_wide = R.screen ~width_of (120, 36) wide_detail |> List.map snd |> String.concat "\n" in
   require (Base.String.is_substring painted_wide ~substring:"Trend"
-    && Base.String.is_substring painted_wide ~substring:"History 10/10"
+    && Base.String.is_substring painted_wide ~substring:"History"
+    && Base.String.is_substring painted_wide ~substring:"╰ 10/10 "
     && Base.String.is_substring painted_wide ~substring:"Selected day")
     "daily-pace-wide-detail-retains-trend-and-history-position";
   let wide_geometry = X.screen_geometry ~dimensions:(120, 36) ~width_of wide_detail in
   let wide_view = pace_detail_viewport ~dimensions:(120, 36) ~width_of wide_detail in
   require (wide_view.capacity = Ui_panel.capacity
-      ~height:(max 7 (snd wide_geometry.content / 2)) ~heading:false)
+      ~height:(max 7 ((snd wide_geometry.content - 2) / 2)) ~heading:false)
+    (* LOAM geometry: half of the panel area below the two context rows. *)
     "daily-pace-wide-detail-navigation-matches-painted-height";
-  (* A low terminal retains the existing three-line History strip: frame,
-     selected date, frame. Its one visible date is also the page step. *)
+  (* LOAM: below a 15-row panel the History list is hidden; Trend names the
+     selected date and says so, and Page then moves one date (max 1 0). *)
   let narrow_dimensions = (48, 14) in
   let narrow_rows = R.screen ~width_of narrow_dimensions entry |> List.map snd in
-  require (List.exists (fun text -> Base.String.is_substring text ~substring:"History 10/10") narrow_rows
-    && List.exists (fun text -> Base.String.is_substring text ~substring:("◆ " ^ today)) narrow_rows)
+  require (List.exists (fun text -> Base.String.is_substring text ~substring:"╰ 10/10 • list hidden ") narrow_rows
+    && List.exists (fun text -> Base.String.is_substring text ~substring:(today ^ " (today) ◆")) narrow_rows
+    && not (List.exists (fun text -> Base.String.is_substring text ~substring:"History") narrow_rows))
     "daily-pace-narrow-retains-selected-history-strip";
   let narrow_page = key ~dimensions:narrow_dimensions ~width_of entry (`Page `Up) in
   require (selected_date ten_samples narrow_page = yesterday)
@@ -923,10 +970,10 @@ let daily_pace_graph_render_checks ~width_of () =
   let current = { (sample ~day:"2026-10-19" ()) with activity = Some spent } in
   let history = [ sample ~day:"2026-10-18" ~q:4233 (); current ] in
   let painted_history width height =
-    Trend.render_history ~width ~height ~width_of ~book ~measure:"jpy"
-      ~samples:history ~selected_index:1
+    Trend.render_history ~width ~height ~width_of ~book ~today:"2026-10-19" ~measure:"jpy"
+      ~samples:history ~selected_index:1 ~detail_focused:false
   in
-  let full = painted_history 70 4 |> List.map snd |> String.concat "\n" in
+  let full = painted_history 70 5 |> List.map snd |> String.concat "\n" in
   require
     (Base.String.is_substring full ~substring:"1,000"
      && Base.String.is_substring full ~substring:"+3,464"

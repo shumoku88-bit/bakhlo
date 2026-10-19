@@ -19,10 +19,13 @@ val frame :
 (** Uses the same capacity/window rules as navigation. No domain or publication decisions. *)
 
 val frame_rows :
+  ?inset:int -> ?bottom_label:string ->
   width_of:(string -> int) -> width:int -> height:int -> focused:bool ->
   title:string -> (Ui_render.style * string) list ->
   (Ui_render.style * string) list
-(** Non-selected styled content; input metadata is translated by the frame inset. *)
+(** Non-selected styled content; input metadata is translated by the frame inset.
+    Default [inset=2] preserves the existing comfortable frame; [inset=0]
+    uses the whole inner rectangle, matching LOAM workspaces. *)
 
 val split_widths : int -> int * int
 (** Left and right pane widths of a two-pane browser; equal full widths below 80 cells. *)

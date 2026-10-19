@@ -69,6 +69,12 @@ val compute_samples :
   today:string ->
   preset:preset ->
   (string * string * sample list, string) result
+(** Restated current-truth history, not an as-known-at-day log. Each date uses
+    its explicit window in today's uniquely selected named cycle preset.
+    Past quantities require historical support; unsupported dates stay unknown.
+    Retained paid occurrences reserve their net Pool drain until their Actual
+    payment date; cancelled occurrences are closed throughout the reconstruction.
+    Overdue open occurrences count without a lower due-date bound. *)
 
 val compare_change : prev:sample -> current:sample -> (change_breakdown, string) result
 (** Guarded adjacent-day decomposition; error names the refusal cause. *)
@@ -91,13 +97,14 @@ val render_history :
   height:int ->
   width_of:(string -> int) ->
   book:B.t ->
+  today:string ->
   measure:string ->
   samples:sample list ->
   selected_index:int ->
+  detail_focused:bool ->
   (Daily_overlays.style * string) list
-(** History table; full width (>= 64) with activity and every column fitting
-    whole shows Day | Quanta/day | Spent | Pace diff. Narrower widths show
-    date + exact pace or a detail cue, never a truncated number. *)
+(** LOAM History rows for an inner [height]: blank, heading and a trailing
+    window of [height - 2] dates; empty below one date row. *)
 
 val change_preset :
   today:string ->

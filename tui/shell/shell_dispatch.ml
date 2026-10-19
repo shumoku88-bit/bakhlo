@@ -103,9 +103,21 @@ let open_observe state =
   { state with screens = { state.screens with
       observe = Observe_screen.open_editor (screen_env ~config_files:[] state) state.screens.observe } }
 
-let screen_geometry ~dimensions ~width_of state : Screen.geometry =
-  let width, body = body_dimensions ~dimensions ~width_of state in
-  { screen = dimensions; body = (width, body); content = (width, max 0 (body - 2)); width_of }
+let route_layout state =
+  match Screen_registry.for_route state.workspace.route with
+  | Some (Screen_registry.Owner owner) -> owner.layout
+  | None -> Screen.Standard
+
+let canvas_dimensions layout (width, height) = match layout with
+  | Screen.Standard -> width, height
+  | Screen.Workspace -> (if width > 1 then width - 1 else width), max 0 (height - 1)
+
+let screen_geometry ?layout ~dimensions ~width_of state : Screen.geometry =
+  let layout = Option.value ~default:(route_layout state) layout in
+  let canvas = canvas_dimensions layout dimensions in
+  let width, body = body_dimensions ~dimensions:canvas ~width_of state in
+  let content_height = match layout with Screen.Standard -> max 0 (body - 2) | Screen.Workspace -> body in
+  { screen = dimensions; body = (width, body); content = (width, content_height); width_of }
 
 (* [saved] hands a configuration save result back to the requesting owner. *)
 let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
@@ -222,18 +234,18 @@ let apply_owner ~dimensions ~width_of (o : _ Screen_registry.owner) state (value
     ~saved:(fun state result ->
       let value, request =
         o.saved (screen_env ~config_files:o.config_files state)
-          (screen_geometry ~dimensions ~width_of state) result (o.get state.screens) in
+          (screen_geometry ~layout:o.layout ~dimensions ~width_of state) result (o.get state.screens) in
       ({ state with screens = o.set state.screens value }, request))
     ~published:(fun state outcome ->
       let value, request =
         o.published (screen_env ~config_files:o.config_files state)
-          (screen_geometry ~dimensions ~width_of state) outcome (o.get state.screens) in
+          (screen_geometry ~layout:o.layout ~dimensions ~width_of state) outcome (o.get state.screens) in
       ({ state with screens = o.set state.screens value }, request))
 
 let owner_input ~dimensions ~width_of (Screen_registry.Owner o) state input =
   let value, request =
     o.handle (screen_env ~config_files:o.config_files state)
-      (screen_geometry ~dimensions ~width_of state) (o.get state.screens) input in
+      (screen_geometry ~layout:o.layout ~dimensions ~width_of state) (o.get state.screens) input in
   match request with
   | Screen.Ignored -> None
   | Screen.Quit -> Some `Quit
@@ -241,7 +253,7 @@ let owner_input ~dimensions ~width_of (Screen_registry.Owner o) state input =
 
 let owner_view ~dimensions ~width_of (Screen_registry.Owner o) state =
   o.view (screen_env ~config_files:o.config_files state)
-    (screen_geometry ~dimensions ~width_of state) (o.get state.screens)
+    (screen_geometry ~layout:o.layout ~dimensions ~width_of state) (o.get state.screens)
 
 let modal_screen_input ~dimensions ~width_of state input =
   Option.bind (Screen_registry.modal state.screens) (fun owner ->

@@ -41,6 +41,7 @@ let create ~scheduled_months =
   }
 
 type 'a owner = {
+  layout : Screen.layout;
   owns : W.route -> bool;  (* false for an editor that opens over any route *)
   config_files : string list;
   get : t -> 'a;
@@ -65,6 +66,7 @@ let all =
   [
     Owner
       {
+        layout = Screen.Workspace;
         owns = (( = ) W.Daily_pace);
         config_files = Daily_pace_screen.config_files;
         get = (fun t -> t.pace);
@@ -80,6 +82,7 @@ let all =
       };
     Owner
       {
+        layout = Screen.Standard;
         owns = (( = ) W.Balances);
         config_files = Balances_screen.config_files;
         get = (fun t -> t.balances);
@@ -95,6 +98,7 @@ let all =
       };
     Owner
       {
+        layout = Screen.Standard;
         owns = (( = ) W.Income_expense);
         config_files = Income_expense_screen.config_files;
         get = (fun t -> t.income_expense);
@@ -110,6 +114,7 @@ let all =
       };
     Owner
       {
+        layout = Screen.Standard;
         owns = (( = ) W.Transactions_flow);
         config_files = Transactions_flow_screen.config_files;
         get = (fun t -> t.transactions_flow);
@@ -125,6 +130,7 @@ let all =
       };
     Owner
       {
+        layout = Screen.Standard;
         owns = (( = ) W.Stock_flow);
         config_files = Stock_flow_screen.config_files;
         get = (fun t -> t.stock_flow);
@@ -140,6 +146,7 @@ let all =
       };
     Owner
       {
+        layout = Screen.Standard;
         owns = (( = ) W.Attention);
         config_files = Attention_screen.config_files;
         get = (fun t -> t.attention);
@@ -155,6 +162,7 @@ let all =
       };
     Owner
       {
+        layout = Screen.Standard;
         owns = (( = ) W.Settlements);
         config_files = Settlements_screen.config_files;
         get = (fun t -> t.settlements);
@@ -170,6 +178,7 @@ let all =
       };
     Owner
       {
+        layout = Screen.Standard;
         owns = (( = ) W.Loci);
         config_files = Loci_screen.config_files;
         get = (fun t -> t.loci);
@@ -185,6 +194,7 @@ let all =
       };
     Owner
       {
+        layout = Screen.Standard;
         owns = (fun _ -> false);
         config_files = Observe_screen.config_files;
         get = (fun t -> t.observe);
@@ -200,6 +210,7 @@ let all =
       };
     Owner
       {
+        layout = Screen.Standard;
         owns = (fun _ -> false);
         config_files = Exchange_screen.config_files;
         get = (fun t -> t.exchange);
@@ -215,6 +226,7 @@ let all =
       };
     Owner
       {
+        layout = Screen.Standard;
         owns = (fun _ -> false);
         config_files = Record_editors.config_files;
         get = (fun t -> t.editors);
@@ -230,6 +242,7 @@ let all =
       };
     Owner
       {
+        layout = Screen.Standard;
         owns = (( = ) W.Actual);
         config_files = Actual_screen.config_files;
         get = (fun t -> t.actual);
@@ -245,6 +258,7 @@ let all =
       };
     Owner
       {
+        layout = Screen.Standard;
         owns = (( = ) W.Scheduled);
         config_files = Scheduled_screen.config_files;
         get = (fun t -> t.scheduled);
@@ -260,6 +274,7 @@ let all =
       };
     Owner
       {
+        layout = Screen.Standard;
         owns = (function W.Selected_day _ -> true | _ -> false);
         config_files = Selected_day_screen.config_files;
         get = (fun t -> t.day);
@@ -274,6 +289,7 @@ let all =
         book_changed = Selected_day_screen.book_changed;
       };
     Owner {
+      layout = Screen.Standard;
       owns = (function W.Home | W.Calendar -> true | _ -> false);
       config_files = Calendar_home_screen.config_files;
       get = (fun t -> t.calendar_home);

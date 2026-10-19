@@ -6,6 +6,14 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Daily Pace restated history and LOAM workspace geometry (2026-10-19)
+
+- Baseline main `cf196f9`. LOAM source read-only (`Loam/Tui/DailyPaceTrend.lean` geometry, `historyRows`, `activityTableRows`, paging); no LOAM build, binary run, household/config access or dependency change.
+- Past Pace is restated from current truth: each date uses its own explicit window of today's uniquely selected cycle name (outside any window: unknown, no fabricated end), overdue open plans count, a paid plan stays protected until its Actual payment date, cancelled plans are closed, other Measures are ignored, and the division is the same `Z.ediv` as `Daily_book.daily_pace`. Without zero-origin for every Pool Locus past dates remain unknown; no bounded-history evidence format was added.
+- Pace now uses a LOAM workspace canvas (last terminal column and row reserved, two context rows, inset-0 frames). Trend's bottom label carries `n/N` with `↑/↓` or `• list hidden`; History is titled `History` with `n/N` below and paints blank + heading + a trailing window of `height - 4` dates marked ` > ` (` * ` while details are focused). Below a 15-row panel History is hidden and Page moves one date (LOAM `max 1 capacity`). An unavailable Pace owns the whole Trend panel with `i for details`.
+- Checks updated to these LOAM semantics, not weakened: unavailable reason/negative checks read full rows; at 32×9 the visible requirement is `unavailable (i: cause)` plus no fabricated pace; wide detail height uses the panel area below the context rows; terminal feedback checks use the workspace canvas. New synthetic regressions cover per-day cycle ends, unknown outside windows, overdue/cancelled/paid-date protection, forward-only zero-origin balance and Previous Cycle reuse.
+- Passed: `./tools/check`, architecture target, `./tools/tui --self-check` (exit 0), `git diff --check`. **Not executed:** paired LOAM binary walk, 4-dimension PTY, cold reopen and matching-SHA CI for this change; human/IME acceptance and P7 remain separate.
+
 ## Daily Pace / Balances interaction parity pass (2026-10-19)
 
 - Started at clean main `028a816`; retained-draft repair is the separate `1c34695`. LOAM source was read-only at `cc89a8cf7fd88022bdcbb6dfe37e36c4e4705748`; existing launcher SHA-256 `9b17146cdc1e003e3a80d435212691c031efe57d0cccb923fc754c3113752379`. Source/binary correspondence is not certified. No LOAM build, original household/config access, capture refresh, dependency or authority change.

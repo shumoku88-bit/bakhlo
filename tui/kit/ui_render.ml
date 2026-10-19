@@ -110,8 +110,9 @@ let rule ~width_of room =
   String.concat "" (List.init (max 0 room / cells) (fun _ -> "─"))
   ^ String.make (max 0 room mod cells) ' '
 
-let panel_border ?(width = panel_width) ?(style = Focused_frame) ~width_of title =
-  let left = "╭─" and right = "─╮" in
+let panel_border ?(width = panel_width) ?(style = Focused_frame) ?(inset = 1) ~width_of title =
+  let left = "╭" ^ rule ~width_of (max 0 inset)
+  and right = rule ~width_of (max 0 inset) ^ "╮" in
   let room = max 0 (width - width_of left - width_of right) in
   let title = clip_text ~width_of room (" " ^ title ^ " ") in
   (style, left ^ title ^ rule ~width_of (room - width_of title) ^ right)

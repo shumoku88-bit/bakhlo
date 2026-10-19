@@ -234,7 +234,7 @@ let detail_lines (env : Screen.env) =
 let sample_detail ~width_of ~width (env : Screen.env) t samples =
   let selected = Panel.move ~last:(List.length samples - 1)
       ~position:t.trend.selected_index 0 in
-  Trend.render_detail ~width:(max 1 (width - 6)) ~width_of
+  Trend.render_detail ~width:(max 1 (width - 2)) ~width_of
     ~book:env.book ~measure:env.measure
     ~sample:(List.nth_opt samples selected)
     ~prev_sample:(if selected = 0 then None else List.nth_opt samples (selected - 1))
@@ -244,22 +244,27 @@ let sample_detail ~width_of ~width (env : Screen.env) t samples =
 (* The focused detail keeps its neighbours on wide terminals, just as LOAM's
    trend workspace does. Navigation must use these exact painted dimensions. *)
 let panel_geometry (geometry : Screen.geometry) =
-  let width, height = geometry.content in
+  let width, body_height = geometry.content in
+  let context_rows = if body_height >= 5 then 2 else if body_height >= 4 then 1 else 0 in
+  let height = max 0 (body_height - context_rows) in
   let wide = width >= 79 && height >= 15 in
-  let lower_height = if height >= 15 then max 7 (height / 2)
-    else if height >= 9 then 3 else 0 in
+  let lower_height = if height >= 15 then max 7 (height / 2) else 0 in
   let detail_width = if wide then min 60 (max 30 (width * 40 / 100)) else width in
   (wide, lower_height, detail_width)
 
 let detail_viewport env (geometry : Screen.geometry) t =
   let wide, lower_height, detail_width = panel_geometry geometry in
+  let _, body_height = geometry.content in
+  let context_rows = if body_height >= 5 then 2 else if body_height >= 4 then 1 else 0 in
+  let panel_height = max 0 (body_height - context_rows) in
   let width, height = match samples env t with
     | Ok _ when wide -> detail_width, lower_height
-    | Ok _ | Error _ -> geometry.content in
+    | Ok _ when lower_height >= 12 -> detail_width, 6
+    | Ok _ | Error _ -> fst geometry.content, panel_height in
   let width_of = geometry.width_of in
   let rows = match samples env t with
     | Ok (_, _, samples) -> sample_detail ~width_of ~width env t samples
-    | Error _ -> List.concat_map (O.wrap_text ~width_of (max 1 (width - 6))) (detail_lines env) in
+    | Error _ -> List.concat_map (O.wrap_text ~width_of (max 1 (width - 2))) (detail_lines env) in
   Panel.window ~capacity:(Panel.capacity ~height ~heading:false)
     ~count:(List.length rows) ~scroll:t.scroll ~selected:None
 
@@ -615,20 +620,11 @@ let handle_form env geometry t form input =
       | Cycle_review r -> submit_cycle_review env geometry t r submitted
       | No_overlay -> (t, Screen.Stay))
 
-let history_page (env : Screen.env) (geometry : Screen.geometry) t =
-  let width, _ = geometry.content in
-  let wide, lower_height, detail_width = panel_geometry geometry in
-  let history_width = if wide then width - detail_width - 1 else width in
-  let capacity = Panel.capacity ~height:lower_height ~heading:false in
-  match samples env t with
-  | Error _ -> 1
-  | Ok (_, _, samples) ->
-      Trend.render_history ~width:(max 0 (history_width - 6)) ~height:capacity
-        ~width_of:geometry.width_of ~book:env.book ~measure:env.measure ~samples
-        ~selected_index:t.trend.selected_index
-      |> List.fold_left (fun count (style, _) ->
-           if style = O.Chrome then count else count + 1) 0
-      |> max 1
+(* LOAM historyCapacityForBounds: the painted History data rows, at least one. *)
+let history_page (geometry : Screen.geometry) =
+  let wide, lower_height, _ = panel_geometry geometry in
+  let history_height = if not wide && lower_height >= 12 then lower_height - 6 else lower_height in
+  max 1 (history_height - 4)
 
 let toggle_pane t =
   ({ t with pane = (if t.pane = Trend_pane then Detail_pane else Trend_pane); scroll = 0 }, Screen.Stay)
@@ -672,7 +668,7 @@ let handle_screen (env : Screen.env) geometry t input =
       let paging = match k with `Page _ | `ASCII ('u' | 'd') -> true | _ -> false in
       let page = match view with
         | Some view -> max 1 view.capacity
-        | None when paging -> history_page env geometry t
+        | None when paging -> history_page geometry
         | None -> 1 in
       let delta = match k with
         | `Home -> -max_int | `End -> max_int
@@ -713,9 +709,9 @@ let saved _env _geometry result t =
 let header_summary env t ~width ~width_of =
   let current = current_pace env in
   let today = match current with
-  | Error _ -> "Today: unavailable (not zero)"
+  | Error _ -> "Today: unavailable (i: cause)"
   | Ok (pace, _, _) ->
-      let text = "Today: " ^ O.format_money env.Screen.book pace.B.measure
+      let text = " Today: " ^ O.format_money env.Screen.book pace.B.measure
           pace.daily_pace_quanta ^ " " ^ pace.measure ^ "/day" in
       if width_of text <= width then text else "Today: End, then i for full value" in
   let choices = Trend.presets |> List.mapi (fun index preset ->
@@ -741,44 +737,69 @@ let header_summary env t ~width ~width_of =
     if width_of context <= width then context else today
 
 let rows (env : Screen.env) (geometry : Screen.geometry) t =
-  let width, height = geometry.content in
+  let width, body_height = geometry.content in
   let width_of = geometry.width_of in
+  let context_count = if body_height >= 5 then 2 else if body_height >= 4 then 1 else 0 in
+  let height = max 0 (body_height - context_count) in
+  let context =
+    if context_count = 1 then [O.Plain, header_summary env t ~width ~width_of]
+    else if context_count = 2 then
+      [O.Plain, O.clip_text ~width_of width (" Daily Pace / Trend • " ^ Trend.preset_label t.trend.preset ^ "   [w] what-if");
+       O.Chrome, O.clip_text ~width_of width (header_summary env t ~width ~width_of)]
+    else [] in
   let is_detail = t.pane = Detail_pane in
-  match samples env t with
+  let panel ~width ~height ~focused ~title ~bottom rows =
+    Panel.frame_rows ~inset:0 ~bottom_label:bottom ~width_of ~width ~height ~focused ~title rows in
+  let detail_panel ~width ~height rows =
+    let view = Panel.window ~capacity:(max 0 (height - 2)) ~count:(List.length rows)
+        ~scroll:t.scroll ~selected:None in
+    let bottom = Printf.sprintf "%d-%d/%d%s%s"
+      (if view.capacity = 0 then 0 else view.start + 1)
+      (min (view.start + view.capacity) (List.length rows)) (List.length rows)
+      (if view.start > 0 then " ↑" else "")
+      (if view.start + view.capacity < List.length rows then " ↓" else "") in
+    List.filteri (fun i _ -> i >= view.start && i < view.start + view.capacity) rows
+    |> List.map (fun text -> O.Plain, text)
+    |> panel ~width ~height ~focused:is_detail
+        ~title:("Selected day" ^ if is_detail then " [active]" else "") ~bottom in
+  context @ (match samples env t with
   | Ok (_, _, samples) ->
       let count = List.length samples in
       let selected_idx = max 0 (min (count - 1) t.trend.selected_index) in
-      let title = Printf.sprintf "Trend • %s [%s] %d/%d"
-          (Trend.preset_label t.trend.preset)
-          (Trend.graph_style_label t.trend.graph_style)
-          (if count = 0 then 0 else selected_idx + 1) count in
+      let title = "Trend" ^ (if is_detail then "" else " [active]")
+          ^ (if width >= 38 then " • " ^ Trend.graph_style_label t.trend.graph_style else "") in
       let wide, lower_height, detail_width = panel_geometry geometry in
-      let detail_height = if wide then lower_height else 0 in
+      let detail_height = if wide then lower_height else if lower_height >= 12 then 6 else 0 in
       let history_width = if wide then width - detail_width - 1 else width in
-      let history_height = lower_height in
-      let detail_panel ~height =
+      let history_height = if wide then lower_height else lower_height - detail_height in
+      let render_detail ~height =
         let detail_rows = sample_detail ~width_of ~width:detail_width env t samples in
-        Panel.frame ~width_of ~width:detail_width ~height ~focused:is_detail
-          ~title:"Selected day" ~scroll:t.scroll ~selected:None detail_rows
+        detail_panel ~width:detail_width ~height detail_rows
       in
-      if is_detail && not wide then detail_panel ~height
+      if is_detail && detail_height = 0 then render_detail ~height
       else
         let chart_height = height - lower_height in
         let chart =
-          Trend.render_chart ~width:(max 0 (width - 6))
+          let history_capacity = max 0 (history_height - 4) in
+          let start = max 0 (selected_idx - max 0 (history_capacity - 1)) in
+          let position = Printf.sprintf "%d/%d%s"
+            (if count = 0 then 0 else selected_idx + 1) count
+            (if history_capacity = 0 then " • list hidden" else
+             (if start > 0 then " ↑" else "") ^ (if start + history_capacity < count then " ↓" else "")) in
+          Trend.render_chart ~width:(max 0 (width - 2))
             ~height:(Panel.capacity ~height:chart_height ~heading:false)
             ~width_of ~book:env.book ~today:env.today ~measure:env.measure ~samples
             ~selected_index:selected_idx ~graph_style:t.trend.graph_style
-          |> Panel.frame_rows ~width_of ~width ~height:chart_height
-               ~focused:(not is_detail) ~title
+          |> List.map (fun (style, text) -> (if is_detail && style = O.Active then O.Plain else style), text)
+          |> panel ~width ~height:chart_height ~focused:(not is_detail) ~title ~bottom:position
         in
         let history =
-          Trend.render_history ~width:(max 0 (history_width - 6))
+          Trend.render_history ~width:(max 0 (history_width - 2))
             ~height:(Panel.capacity ~height:history_height ~heading:false)
-            ~width_of ~book:env.book ~measure:env.measure ~samples ~selected_index:selected_idx
-          |> Panel.frame_rows ~width_of ~width:history_width ~height:history_height
-               ~focused:(not is_detail)
-               ~title:(Printf.sprintf "History %d/%d"
+            ~width_of ~book:env.book ~today:env.today ~measure:env.measure ~samples
+            ~selected_index:selected_idx ~detail_focused:is_detail
+          |> panel ~width:history_width ~height:history_height ~focused:(not is_detail)
+               ~title:"History" ~bottom:(Printf.sprintf "%d/%d"
                  (if count = 0 then 0 else selected_idx + 1) count)
         in
         let lower =
@@ -786,36 +807,28 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
             List.map2
               (fun (left_style, left_text) (right_style, right_text) ->
                 (O.Columns (history_width, left_style, right_style), left_text ^ " " ^ right_text))
-              history (detail_panel ~height:detail_height)
-          else history @ (if detail_height = 0 then [] else detail_panel ~height:detail_height)
+              history (render_detail ~height:detail_height)
+          else history @ (if detail_height = 0 then [] else render_detail ~height:detail_height)
         in
         chart @ lower
   | Error why ->
       if is_detail then
-        Panel.frame ~width_of ~width ~height ~focused:true ~title:"Pace Detail & Evidence"
-          ~scroll:t.scroll ~selected:None
-          (List.concat_map (O.wrap_text ~width_of (max 1 (width - 6))) (detail_lines env))
+        detail_panel ~width ~height
+          (List.concat_map (O.wrap_text ~width_of (max 1 (width - 2))) (detail_lines env))
       else
-        let left_width, right_width = Panel.split_widths width in
         let left_rows =
-          List.concat_map (O.wrap_text ~width_of (max 1 (left_width - 6)))
+          List.concat_map (O.wrap_text ~width_of (max 1 (width - 2)))
             [
               tr "Daily Pace unavailable:";
               why;
               "Supply an explicit daily-pace.tsv pool and boundary-presets.tsv period.";
             ]
         in
-        let wrapped_detail =
-          List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) (detail_lines env) in
-        Panel.split ~width_of ~width ~height
-          ~left_focused:true ~left_title:(Printf.sprintf "Daily Pace / %s"
-            (Trend.preset_label t.trend.preset))
-          ~left_scroll:0 ~left_selected:None ~left_rows
-          ~right_focused:false ~right_title:"Pace Detail & Evidence" ~right_scroll:0
-          ~right_selected:None ~right_rows:wrapped_detail ()
+        panel ~width ~height ~focused:true ~title:"Trend [active]" ~bottom:"i for details"
+          (List.map (fun text -> O.Chrome, text) left_rows))
 
 let footer (geometry : Screen.geometry) t =
-  let narrow = fst geometry.screen < 64 in
+  let narrow = fst geometry.content < 79 in
   match t.overlay, t.pane with
   | What_if _, _ ->
       [ "Enter simulate scenario  Tab switch field/button  Esc close"; "Read-only simulation - does not publish any entries" ]
@@ -824,15 +837,13 @@ let footer (geometry : Screen.geometry) t =
   | Cycle _, _ -> [ "Enter review  Tab switch field  Esc cancel"; "Edits only boundary-presets.tsv" ]
   | Cycle_review _, _ -> [ "Enter save  Tab choose Edit  Esc edit"; "Full boundaries must fit before saving" ]
   | No_overlay, Trend_pane ->
-      if narrow then [ "h/l day  v view  i info  q back"; "1-5 period  C-u/d page  Home/End" ]
+      if narrow then [ "[h/l] day [v] view [i] info [q] back"; "[1-5] period [C-u/d] page [Home/End] ends" ]
       else
-        [ "h/l day  v view  i/Enter details  q back  w what-if";
-          "1-5 period  C-u/d page  Home/End ends  c pool  b cycle" ]
+        [ "[h/l] day [v] view [i/Enter] details [q] back";
+          "[1-5] period [C-u/d] page [Home/End] ends" ]
   | No_overlay, Detail_pane ->
-      if narrow then [ "j/k scroll  v view  i/q trend"; "h/l day  1-5 period  C-u/d page" ]
-      else
-        [ "j/k scroll  v view  i/q trend  h/l day  w what-if";
-          "1-5 period  C-u/d page  Home/End ends  c pool  b cycle" ]
+      [ "[j/k] scroll [v] view [i/q] trend [h/l] day";
+        "[1-5] period [C-u/d] page [Home/End] ends" ]
 
 let view env (geometry : Screen.geometry) t =
   let overlay = Option.bind (form t)

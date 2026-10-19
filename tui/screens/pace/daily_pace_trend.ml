@@ -306,166 +306,86 @@ let compute_activities book measure pool =
 
 
 let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
+  let ( let* ) = Result.bind in
   if pool = [] then Error "Daily Pace pool is empty."
   else
-    match resolve_range ~today ~preset ~boundary_presets_text with
-    | Error msg -> Error msg
-    | Ok (start_day, through_day, cycle_end_opt) -> (
-        let end_exclusive_res =
-          match cycle_end_opt with
-          | Some e -> Ok e
-          | None -> (
-              match boundary_presets_text with
-              | None -> Error "Period not configured (boundary-presets.tsv missing)."
-              | Some text -> (
-                  match parse_boundary_presets text with
-                  | Error e -> Error e
-                  | Ok windows -> (
-                      let matching =
-                        List.filter (fun (_, a, b) -> a <= today && today < b) windows
-                      in
-                      match matching with
-                      | [ (_, _, b) ] -> Ok b
-                      | [] -> Error "No explicit boundary preset contains today."
-                      | _ ->
-                          Error
-                            "Multiple boundary presets contain today; selection is ambiguous.")))
-        in
-        match end_exclusive_res with
-        | Error why -> Error why
-        | Ok end_exclusive -> (
-            let coords =
-              List.map
-                (fun locus ->
-                  {
-                    D.Effect_coordinate.locus = A.get_id (D.Identifier.Locus.of_string locus);
-                    measure = A.get_id (D.Identifier.Measure.of_string measure);
-                  })
-                pool
-            in
-            match query_pool_balance book measure coords with
-            | Error why -> Error why
-            | Ok current_pool_balance -> (
-                (* Keep the current answer; past-day reconstruction stays unchanged. *)
-                let horizon_pace =
-                  if end_exclusive > today then
-                    match
-                      B.daily_pace book ~measure ~pool:coords ~observed_at:today ~end_exclusive
-                    with
-                    | Ok pace -> Ok (Some pace)
-                    | Error why -> Error (format_pace_error why)
-                  else Ok None
-                in
-                match horizon_pace with
-                | Error why -> Error why
-                | Ok today_pace ->
-                    let plans = B.open_plans book in
-                    let activities = compute_activities book measure pool in
-                    (* shortcut: history requires zero-origin, extend when dated support is admitted. *)
-                    let supported_history =
-                      List.for_all (fun locus -> B.has_zero_origin book ~locus ~measure) pool
-                    in
-                    let activity_of day =
-                      match Hashtbl.find_opt activities day with
-                      | Some a -> Some a
-                      | None -> Some zero_activity
-                    in
-                    let past_unsupported = "History unsupported: no zero-origin for every pool locus." in
-                    let entries = B.entries book in
-                    let days = dates_between start_day through_day in
-                    let poor_sample day unsupported_past =
-                      {
-                        day;
-                        pace_quanta = None;
-                        available_through_end = Z.zero;
-                        pool_balance = Z.zero;
-                        deductions = Z.zero;
-                        remaining_days = 0;
-                        end_exclusive;
-                        activity = activity_of day;
-                        unavailable =
-                          (if unsupported_past then Some past_unsupported
-                           else Some "Past pace is not supported by current truth.");
-                      }
-                    in
-                    let samples =
-                      List.map
-                        (fun day ->
-                          let remaining_days =
-                            let d_num = day_number day in
-                            let e_num = day_number end_exclusive in
-                            max 0 (e_num - d_num)
-                          in
-                          if remaining_days <= 0 then poor_sample day false
-                          else
-                            (match today_pace with
-                            | Some pace when day = today ->
-                                {
-                                  day;
-                                  pace_quanta = Some pace.B.daily_pace_quanta;
-                                  available_through_end = pace.B.available_through_end;
-                                  pool_balance = pace.B.eligible_pool;
-                                  deductions = pace.B.automatic_deductions;
-                                  remaining_days = pace.B.remaining_days;
-                                  end_exclusive;
-                                  activity = activity_of day;
-                                  unavailable = None;
-                                }
-                            | _ ->
-                                if day < today && not supported_history then poor_sample day true
-                                else
-                                  let post_effects =
-                                    List.filter
-                                      (fun (e : B.entry) -> e.day > day && e.day <= today)
-                                      entries
-                                    |> List.concat_map (fun (e : B.entry) -> e.effects)
-                                    |> List.filter (fun eff ->
-                                           A.mstr (D.Effect.measure eff) = measure
-                                           && List.mem (A.lstr (D.Effect.locus eff)) pool)
-                                  in
-                                  let post_sum =
-                                    List.fold_left
-                                      (fun acc eff -> Z.add acc (A.quanta eff))
-                                      Z.zero post_effects
-                                  in
-                                  let pool_balance = Z.sub current_pool_balance post_sum in
-                                  let active_plans =
-                                    List.filter
-                                      (fun (p : B.plan) ->
-                                        p.measure = measure && p.day >= day
-                                        && p.day < end_exclusive && p.cancelled_on = None
-                                        && p.paid_by = None)
-                                      plans
-                                  in
-                                  let deductions =
-                                    List.fold_left
-                                      (fun total (p : B.plan) ->
-                                        let plan_net =
-                                          List.fold_left
-                                            (fun acc (loc, q) ->
-                                              if List.mem loc pool then Z.add acc q else acc)
-                                            Z.zero p.changes
-                                        in
-                                        if Z.sign plan_net < 0 then Z.add total (Z.neg plan_net)
-                                        else total)
-                                      Z.zero active_plans
-                                  in
-                                  let available_through_end = Z.sub pool_balance deductions in
-                                  {
-                                    day;
-                                    pace_quanta =
-                                      Some (Z.ediv available_through_end (Z.of_int remaining_days));
-                                    available_through_end;
-                                    pool_balance;
-                                    deductions;
-                                    remaining_days;
-                                    end_exclusive;
-                                    activity = activity_of day;
-                                    unavailable = None;
-                                  }))
-                        days
-                    in
-                    Ok (start_day, through_day, samples))))
+    let* start_day, through_day, _ = resolve_range ~today ~preset ~boundary_presets_text in
+    let* windows = match boundary_presets_text with
+      | None -> Error "Period not configured (boundary-presets.tsv missing)."
+      | Some text -> parse_boundary_presets text in
+    let* name, current_end =
+      match List.filter (fun (_, a, b) -> a <= today && today < b) windows with
+      | [ (name, _, stop) ] -> Ok (name, stop)
+      | [] -> Error "No explicit boundary preset contains today."
+      | _ -> Error "Multiple boundary presets contain today; selection is ambiguous." in
+    let end_for day =
+      match List.filter (fun (n, a, b) -> n = name && a <= day && day < b) windows with
+      | [ (_, _, stop) ] -> Ok stop
+      | _ -> Error ("No explicit cycle boundary for " ^ day ^ ".") in
+    let coords = List.map (fun locus ->
+      { D.Effect_coordinate.locus = A.get_id (D.Identifier.Locus.of_string locus);
+        measure = A.get_id (D.Identifier.Measure.of_string measure) }) pool in
+    let* _ = query_pool_balance book measure coords in
+    let* today_pace = match B.daily_pace book ~measure ~pool:coords ~observed_at:today
+        ~end_exclusive:current_end with
+      | Ok pace -> Ok pace
+      | Error why -> Error (format_pace_error why) in
+    let plans = B.plans book and entries = B.entries book in
+    let activities = compute_activities book measure pool in
+    let activity_of day = Some (Option.value ~default:zero_activity (Hashtbl.find_opt activities day)) in
+    (* Opening/current observation alone does not certify a complete historical
+       interval. The second LOAM route needs explicit bounded-history evidence,
+       which the current Bakhlo support format does not carry. *)
+    let supported_history =
+      List.for_all (fun locus -> B.has_zero_origin book ~locus ~measure) pool in
+    let net effects = List.fold_left (fun sum eff ->
+      if A.mstr (D.Effect.measure eff) = measure && List.mem (A.lstr (D.Effect.locus eff)) pool
+      then Z.add sum (A.quanta eff) else sum) Z.zero effects in
+    let history_pool day = List.fold_left (fun total (entry : B.entry) ->
+      if entry.day <= day then Z.add total (net entry.effects) else total) Z.zero entries in
+    let deductions_for day stop =
+      List.fold_left (fun result (plan : B.plan) ->
+        let* total = result in
+        let drain = if plan.measure <> measure then Z.zero else
+          Z.neg (Z.min Z.zero (List.fold_left (fun sum (locus, q) ->
+            if List.mem locus pool then Z.add sum q else sum) Z.zero plan.changes)) in
+        if Z.equal drain Z.zero || plan.day >= stop || plan.cancelled_on <> None then Ok total
+        else match plan.paid_by with
+          | None -> Ok (Z.add total drain)
+          | Some id -> (match List.find_opt (fun (entry : B.entry) -> entry.id = id) entries with
+              | None -> Error ("History unavailable: Scheduled completion Actual " ^ id ^ " is not retained.")
+              | Some paid -> Ok (if paid.day <= day then total else Z.add total drain)))
+        (Ok Z.zero) plans in
+    let unavailable day stop why =
+      { day; pace_quanta = None; available_through_end = Z.zero; pool_balance = Z.zero;
+        deductions = Z.zero; remaining_days = 0; end_exclusive = stop;
+        activity = activity_of day; unavailable = Some why } in
+    let samples = List.map (fun day ->
+      match end_for day with
+      | Error why -> unavailable day "" why
+      | Ok stop ->
+          if day = today then
+            { day; pace_quanta = Some today_pace.B.daily_pace_quanta;
+              available_through_end = today_pace.B.available_through_end;
+              pool_balance = today_pace.B.eligible_pool;
+              deductions = today_pace.B.automatic_deductions;
+              remaining_days = today_pace.B.remaining_days; end_exclusive = stop;
+              activity = activity_of day; unavailable = None }
+          else if not supported_history then
+            unavailable day stop "History unsupported: no zero-origin for every pool locus."
+          else
+            let remaining_days = day_number stop - day_number day in
+            if remaining_days <= 0 then unavailable day stop "Past pace has no remaining calendar horizon."
+            else match deductions_for day stop with
+              | Error why -> unavailable day stop why
+              | Ok deductions ->
+                  let pool_balance = history_pool day in
+                  let available_through_end = Z.sub pool_balance deductions in
+                  { day; pace_quanta = Some (Z.ediv available_through_end (Z.of_int remaining_days));
+                    available_through_end; pool_balance; deductions; remaining_days;
+                    end_exclusive = stop; activity = activity_of day; unavailable = None })
+      (dates_between start_day through_day) in
+    Ok (start_day, through_day, samples)
 
 (* Preset switch preserving the selected calendar date when the old range
    resolves; clamps to the new range, falls back to today when the old date
@@ -549,11 +469,6 @@ let money_of book measure q = O.format_money book measure q ^ " " ^ measure ^ "/
 let signed_money book measure q =
   (if Z.sign q > 0 then "+" else "") ^ O.format_money book measure q
 
-let fit_value ~width_of v full fallback =
-  if width_of full <= v then full
-  else if v >= width_of "…" && width_of fallback <= v then fallback
-  else "…"
-
 let count_supported samples =
   List.fold_left
     (fun acc s -> match s.pace_quanta with None -> acc | Some _ -> acc + 1)
@@ -604,63 +519,60 @@ let summary_text ~width ~width_of ~book ~today ~measure sel =
     else if width_of cue <= width then cue
     else O.clip_text ~width_of width (sel.day ^ " ◆ …")
 
-(* Shared history rows over the existing samples: full Day | Quanta/day |
-   Spent | Pace diff only when every column fits a meaningful value;
-   otherwise selection + exact pace or a detail cue, never a truncated
-   number. *)
-let render_history ~width ~height ~width_of ~book ~measure ~samples ~selected_index =
-  if width < 8 || height < 1 || samples = [] then []
+(* LOAM historyRows: blank, heading, then a trailing window of [height - 2]
+   dates. The selected date is marked " > ", or " * " while details own focus. *)
+let render_history ~width ~height ~width_of ~book ~today ~measure ~samples ~selected_index
+    ~detail_focused =
+  let capacity = height - 2 in
+  if width < 8 || capacity <= 0 || samples = [] then []
   else
     let count = List.length samples in
-    let arr = Array.of_list samples in
     let selected = Panel.move ~last:(count - 1) ~position:selected_index 0 in
+    let start = if selected < capacity then 0 else selected + 1 - capacity in
+    let fit room text =
+      if width_of text <= room then text
+      else if room >= 11 then "see details" else if room > 0 then "…" else "" in
+    let cell room text = O.pad_left ~width_of room (fit room text) in
     let pace_text s =
-      match s.pace_quanta with None -> "unknown" | Some q -> money_of book measure q
-    in
-    let spent_diff s =
-      match s.activity with
-      | None -> ("—", "—")
-      | Some activity ->
-          ( O.format_money book measure activity.discretionary_outflow,
-            match s.pace_quanta with
-            | None -> "—"
-            | Some q -> signed_money book measure (Z.sub q activity.discretionary_outflow) )
-    in
-    let pace_w, spent_width, diff_width =
-      if width < 64 then 0, 0, 0
-      else Array.fold_left (fun (pace_w, spent_w, diff_w) sample ->
-        let spent, diff = spent_diff sample in
-        max pace_w (width_of (pace_text sample)),
-        max spent_w (width_of spent), max diff_w (width_of diff))
-        (width_of "Quanta/day", width_of "Spent", width_of "Pace diff") arr in
-    let pace_width = width - 15 - spent_width - diff_width in
-    let wide = width >= 64 && Array.exists (fun s -> s.activity <> None) arr
-      && pace_w <= pace_width in
-    let heading = wide && height >= 2 in
-    let cap = min count (height - if heading then 1 else 0) in
-    let start = max 0 (min (count - cap) (selected - cap / 2)) in
-    let cell width text = O.pad_left ~width_of width (fit_value ~width_of width text "see details") in
-    let table_row marker day pace spent diff =
-      marker ^ O.pad ~width_of 10 day ^ " " ^ cell pace_width pace ^ " "
-      ^ cell spent_width spent ^ " " ^ cell diff_width diff
+      match s.pace_quanta with None -> "unknown" | Some q -> money_of book measure q in
+    let table = width >= 46 && List.exists (fun s -> s.activity <> None) samples in
+    let heading, row =
+      if table then
+        let rest = width - 3 - 11 in
+        let pace_width = max 14 (rest * 42 / 100) and spent_width = max 9 (rest * 28 / 100) in
+        let diff_width = max 0 (rest - pace_width - spent_width) in
+        ( "   " ^ O.pad ~width_of 11 "Day" ^ O.pad_left ~width_of pace_width "Quanta/day"
+          ^ O.pad_left ~width_of spent_width "Spent" ^ O.pad_left ~width_of diff_width "Pace diff",
+          fun s ->
+            let spent, diff =
+              match s.activity with
+              | None -> "—", "—"
+              | Some activity ->
+                  ( O.format_money book measure activity.discretionary_outflow,
+                    match s.pace_quanta with
+                    | None -> "—"
+                    | Some q -> signed_money book measure (Z.sub q activity.discretionary_outflow) )
+            in
+            O.pad ~width_of 11 s.day ^ cell pace_width (pace_text s) ^ cell spent_width spent
+            ^ cell diff_width diff )
+      else
+        let current_width = if width >= 39 then 9 else 0 in
+        let date_width = min 12 (width - 3) in
+        let value_width = max 0 (width - 3 - date_width - current_width) in
+        ( "   " ^ O.pad ~width_of date_width "Day" ^ O.pad_left ~width_of value_width "Quanta/day",
+          fun s ->
+            O.pad ~width_of date_width s.day ^ cell value_width (pace_text s)
+            ^ if current_width > 0 && s.day = today then "  current" else "" )
     in
     let rows =
-      List.init cap (fun offset ->
-        let i = start + offset in
-        let sample = arr.(i) in
-        let marker = if i = selected then "◆ " else "  " in
-        let text =
-          if wide then
-            let spent, diff = spent_diff sample in
-            table_row marker sample.day (pace_text sample) spent diff
-          else
-            let prefix = marker ^ sample.day ^ "  " in
-            prefix ^ fit_value ~width_of (width - width_of prefix) (pace_text sample) "…"
-        in
-        (if i = selected then O.Active else O.Plain), O.pad ~width_of width text)
+      List.filteri (fun i _ -> i >= start && i < start + capacity) samples
+      |> List.mapi (fun offset s ->
+           let chosen = start + offset = selected in
+           let marker = if not chosen then "   " else if detail_focused then " * " else " > " in
+           ( (if chosen && not detail_focused then O.Active else O.Plain),
+             O.pad ~width_of width (marker ^ row s) ))
     in
-    if heading then (O.Chrome, table_row "  " "Day" "Quanta/day" "Spent" "Pace diff") :: rows
-    else rows
+    (O.Plain, "") :: (O.Chrome, O.pad ~width_of width heading) :: rows
 
 (* Summary plus braille plot and date axis; history rows live in
    render_history. Tiny heights keep the selected date/pace summary, with

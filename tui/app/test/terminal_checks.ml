@@ -167,11 +167,14 @@ let run () =
           let view =
             render (64, 20) state
           in
-          let buffer = Buffer.create 64 in
-          Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0) (64, 1)
-            (V.Private.notty_image (V.crop ~t:17 ~b:2 view));
+          (* Feedback sits on row 17, or row 16 when a LOAM workspace reserves
+             the terminal's last row below the two navigation rows. *)
+          let buffer = Buffer.create 128 in
+          Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0) (64, 2)
+            (V.Private.notty_image (V.crop ~t:16 ~b:2 view));
           F.require
-            (String.trim (Buffer.contents buffer) = "household-warning")
+            (List.exists (fun line -> String.trim line = "household-warning")
+               (String.split_on_char '\n' (Buffer.contents buffer)))
             "Bonsai-overlay-household-warning-visible")
         (Interaction_render_fixture.render_cases state))
     P.all_themes;
@@ -185,7 +188,11 @@ let run () =
                 { state with C.theme; blocked = true;
                   message = String.concat "" (List.init 12 (fun _ -> "Stop 日本語 warning ")) }
               in
-              let feedback = X.feedback_lines ~dimensions ~width_of state in
+              (* A LOAM workspace wraps feedback in its canvas, one column narrower
+                 and one row above the reserved last terminal row. *)
+              let canvas = X.canvas_dimensions (X.route_layout state) dimensions in
+              let reserved = snd dimensions - snd canvas in
+              let feedback = X.feedback_lines ~dimensions:canvas ~width_of state in
               let feedback_height = List.length feedback in
               F.require (feedback_height > 1) "Bonsai-long-warning-wrapped";
               F.require
@@ -193,10 +200,10 @@ let run () =
                 "Bonsai-feedback-cell-width-bounded";
               let view = render dimensions state in
               let buffer = Buffer.create 512 in
-              let top = height - 2 - feedback_height in
+              let top = height - reserved - 2 - feedback_height in
               F.require (top >= 0) "Bonsai-feedback-bounded";
               let image =
-                Notty.I.crop ~t:top ~b:2 (V.Private.notty_image view)
+                Notty.I.crop ~t:top ~b:(2 + reserved) (V.Private.notty_image view)
               in
               Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0)
                 (width, feedback_height) image;

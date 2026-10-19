@@ -49,9 +49,27 @@ let frame ?heading ~width_of ~width ~height ~focused ~title ~scroll ~selected ro
             (if view.capacity = 0 then 0 else view.start + min view.capacity (count - view.start))
             count) () ]
 
-let frame_rows ~width_of ~width ~height ~focused ~title rows =
+let frame_rows ?(inset = 2) ?bottom_label ~width_of ~width ~height ~focused ~title rows =
+  if inset = 0 then
+    if width < 2 || height < 2 then []
+    else
+      let style = if focused then O.Focused_frame else O.Frame in
+      let capacity = max 0 (height - 2) in
+      let shown = List.filteri (fun i _ -> i < capacity) rows in
+      let shown = shown @ List.init (max 0 (capacity - List.length shown)) (fun _ -> O.Plain, "") in
+      [O.panel_border ~width ~style ~inset:0 ~width_of title]
+      @ List.map (fun (row_style, text) ->
+          row_style, "│" ^ O.pad ~width_of (width - 2) text ^ "│") shown
+      @ [O.panel_bottom ~width ~style ~width_of ~title:(Option.value ~default:"" bottom_label) ()]
+  else
   let painted = frame ~width_of ~width ~height ~focused ~title ~scroll:0 ~selected:None
       (List.map snd rows) in
+  let painted = match bottom_label with
+    | None -> painted
+    | Some title -> List.mapi (fun i row ->
+        if i = height - 1 && width >= 6 && height >= 2 then
+          O.panel_bottom ~width ~width_of ~style:(if focused then O.Focused_frame else O.Frame) ~title ()
+        else row) painted in
   if width < 6 || height < 2 then painted
   else
     let content = Array.of_list rows in

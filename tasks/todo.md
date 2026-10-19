@@ -1,5 +1,24 @@
 # LOAMの機能・見た目・使い勝手をBakhloで再現する
 
+## Daily PaceをLOAMと同じ表示・回答へ揃える（2026-10-19）
+
+ユーザー「loamと同じ表示になるまで開発したい」。前回の描画改善を全面互換の完了としない。
+最初にDaily Paceを通し、次にBalancesと残る画面へ進む。基準main `cf196f9`、既存LOAM binaryと現在sourceを区別する。
+
+- [ ] LOAMの履歴回答をzero-origin／current anchorのみ／bounded-history／openingのみで対照し、同じavailable／unknown条件を実装する。
+- [x] 各日の明示cycle、期限超過・支払済み・取消済み予定、反転・複数通貨、Previous Cycleを同じ現在真実で再構成する（合成回帰）。
+- [ ] 欠落するbounded-historyの独立根拠を、既存原本を保つ明示形式／読取変換で保持する。過去の試用budget v4は再解釈しない。
+- [ ] 同じ端末寸法のcontext／Trend／History／Selected day／feedback／操作案内、グラフと日付軸・件数・選択・scroll・戻りを揃える。
+- [ ] 同じ合成入力と操作でLOAMとBakhloを4寸法対照し、全5期間・known／partial／unavailable・resize・coldを実行する。見た目だけ／グラフが出るだけを受入にしない。
+- [ ] Core・architecture・native全検査・必要な保存／年別／backup回帰とmatching SHA CIを確認し、既存UI台帳・引き継ぎへ記録する。
+
+計画の確認：本ターン冒頭でDaily Paceの計算根拠・表示・操作まで揃える方針を共有済み。
+本人の実機／IME受入は最後に実画面で確認する別段階。根拠不足の推測・live原本変更・運用切替はしない。
+調査上、`BAKHLO_CONFIG_HOME`はテーマ用であり、通常起動の家計configはbook隣を読む。参照先の混同を原因とした前ターンの断定は撤回。
+
+レビュー：履歴再構成とLOAM workspace geometry（History窓・印・list hidden・Page 1日）を接続。Core／arch／TUI self-check合格。
+LOAM binary対照・4寸法PTY・cold・matching CIは未実行。bounded-history形式・表示の全面一致は未了。
+
 ## Daily Pace / Balances の操作・表示対照（2026-10-19）
 
 ユーザー「揃えよう」を受け、画面別owner移行後のmain `028a816`から進める。
