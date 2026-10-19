@@ -29,12 +29,22 @@ type t = {
 type outcome = Written of t | Conflict | Refused_input of string | Uncertain
 
 let detect_format bytes =
-  let trimmed = String.trim bytes in
-  if String.starts_with ~prefix:";; Bakhlo Records S-expression" trimmed
-     || String.starts_with ~prefix:"(frame" trimmed then
-    Records
-  else
-    Monolithic
+  (* Inspect only the leading prefix. Trimming a whole household file
+     allocates a second full-size string when it ends with whitespace. *)
+  let len = String.length bytes in
+  let i = ref 0 in
+  while !i < len &&
+        (match bytes.[!i] with
+         | ' ' | '\t' | '\n' | '\r' | '\012' -> true
+         | _ -> false) do
+    incr i
+  done;
+  let starts prefix =
+    let n = String.length prefix in
+    !i + n <= len && String.sub bytes !i n = prefix
+  in
+  if starts ";; Bakhlo Records S-expression" || starts "(frame" then Records
+  else Monolithic
 
 let read path =
   let initial = Unix.lstat path in
@@ -147,9 +157,14 @@ let rec load_locked ?annual_year ~require_clean path =
   check_annual_path effective path;
   if require_clean then require_finished path;
   let initial_bytes = read path in
-  (match effective, B.source_format_of_string initial_bytes with
-   | Some _, `Records _ -> raise (Refused "annual-records-unsupported")
-   | _ -> ());
+  (* Only year-scoped paths need the independent annual Records refusal.
+     Normal daily opens otherwise split and probe every line unnecessarily. *)
+  (match effective with
+   | None -> ()
+   | Some _ ->
+       (match B.source_format_of_string initial_bytes with
+        | `Records _ -> raise (Refused "annual-records-unsupported")
+        | _ -> ()));
   match detect_format initial_bytes with
   | Monolithic -> (
       match Wire.of_string initial_bytes with
