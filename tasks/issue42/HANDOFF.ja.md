@@ -142,11 +142,10 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
   へ移動（app runner が native 幅関数を渡す）。Actual fixture の ID は store 非依存の決定的 ID
   （重複時は `put_entry ~replace:false` が失敗するので弱くならない）。
 - arch rule 5: Shell は `Record_browser` を直接/別名経由で使えない。負例 2 件 + コメント/文字列の正例を `test/arch.t` に追加。
-
 - Shell を責務ごとに分割・改名（挙動不変）: `shell_state` / `shell_record_actions` / `shell_files` /
   `shell_publication` / `shell_dispatch` / `shell_input` / `shell_view`（旧 `daily_interaction*`）。
 残り:
-- 計測: 中央行数の推移（4469 → 1398）、代表ビルド時間の before/after（efda2a3 と現 HEAD、同一マシン）。
+- （完了）計測: 中央 4469 行 → Shell 1389 行。release exe ビルド: cold 約36s→24s、1画面の実装変更後 約20〜21s→8〜9s（`docs/VERIFICATION.md` の build-time measurement）。
 - 各コミットで CI を matching SHA で手動起動し成功確認（PTY 4寸法は TUI workflow 内）。
 - Issue #28/#38/#39/#40/#41/#42 は重複 issue を作らず #42 にコメントで集約。
 - main への統合はユーザー承認後（AGENTS.md は main 直コミット方針だが、本件は大規模な隔離作業）。

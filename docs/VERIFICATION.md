@@ -21,6 +21,24 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 - Passed with exit 0: `./tools/build-bonsai-tui --test` (`/tmp/issue42-day-tui-final.log`), exact sorted 34-PASS comparison with the committed baseline, label-disappearance comparison (empty, `/tmp/issue42-day-labels.txt`), architecture target (`/tmp/issue42-day-arch.log`, `arch_check: ok`), `./tools/check` (`/tmp/issue42-day-core.log`) and `git diff --check`. Earlier full runs also passed; a non-fatal useless-record-with warning in the added test was removed before the final run. Non-fatal Xcode file-event/cache-directory diagnostics remain.
 - Matching Day implementation SHA `e190f221ecff0ec99a51663ffcfc3cbda5af0a5c`: [Core 39151344404](https://github.com/shumoku88-bit/bakhlo/actions/runs/39151344404) and [TUI 39151378555](https://github.com/shumoku88-bit/bakhlo/actions/runs/39151378555) both completed/success. The TUI log confirms all four PTY dimensions with exact +1,000 jpy, cold reopen and unchanged synthetic bytes, plus Record tiny refusal and retained-draft resume. This does not qualify later Calendar source, paired LOAM, real IME/human, power-loss/P7 or operational adoption. No private input, original household authority, schema, writer or dependency changed.
 
+## Issue #42 build-time measurement (2026-10-19)
+
+- Same macOS machine and isolated Bonsai environment; clean detached worktrees of `efda2a3` (before #42) and `de70b02`; `tools/build-bonsai-tui` (release build of `bonsai_daily.exe` only, tests excluded); two rounds each. Edit probe: append `let () = ignore (Sys.opaque_identity 0)` (interface unchanged) to the module that owns the screen, rebuild, count `.cmx` newer than a marker.
+
+| | efda2a3 | de70b02 |
+|---|---|---|
+| cold build | 37.1 / 35.6 s | 23.1 / 24.5 s |
+| no-op rebuild | 0.8 / 0.8 s | 0.7 / 1.5 s |
+| Daily Pace edit (`daily_interaction.ml` → `screens/pace/daily_pace_screen.ml`) | 20.2 / 20.3 s, 7 cmx | 9.5 / 8.4 s, 19 cmx |
+| Balances edit (`balances_owner.ml` → `screens/balances/balances_screen.ml`) | 21.3 / 21.5 s, 11 cmx | 8.2 / 8.2 s, 19 cmx |
+
+- Reading: a single-screen edit rebuilds in about 40% of the former time and a cold build in about 65%, although more (smaller) modules recompile: the release profile propagates implementation changes through cross-module inlining, and the old cost was dominated by the large central modules. Not measured: test-suite build/run time, dev profile, other machines. Two samples per cell; treat as indicative, not a benchmark.
+
+## Issue #42 Shell split and naming (2026-10-19)
+
+- Baseline: `9e40083`. `daily_interaction{,_state,_context,_view}` become `shell_input`, `shell_state`, `shell_dispatch`, `shell_view`; configuration/annual-history I/O moves to `shell_files`, ledger publications to `shell_publication`, Record_action openers to `shell_record_actions`; unused helpers are removed. Function bodies move unchanged; only module qualifications change. Shell total 1389 lines in `shell_*.ml`.
+- Passed with exit 0: `./tools/build-bonsai-tui --test`, exact 34-PASS comparison, label-disappearance check (empty), `arch_check: ok`, `./tools/check`, `git diff --cached --check`. Matching SHA `de70b02`: [Core 39183202765](https://github.com/shumoku88-bit/bakhlo/actions/runs/39183202765) and [TUI 39183200390](https://github.com/shumoku88-bit/bakhlo/actions/runs/39183200390) both completed/success.
+
 ## Issue #42 Shell record targets and owner checks (2026-10-19)
 
 - Baseline: `7d54c6a`. Shell record actions take `Screen.Entry`/`Screen.Plan`; `Ui_workspace` row aliases, `*_selected` wrappers and unused helpers are removed; Actual workspace and Scheduled session pure checks move to `tui/screens/{actual,editors}/test` (Actual fixture uses deterministic store-free IDs). New arch rule: the Shell may not use `Record_browser`, directly or by alias (two negative cases, one comment/string positive case in `test/arch.t`). Central `daily_interaction*.ml`: 1398 lines.
