@@ -6,6 +6,7 @@ cd "$root"
 umask 077
 usage() {
   printf '%s\n' './ui             Bakhlo comparison copy' \
+    './ui --daily     Refresh after closing LOAM, then open a fresh Bakhlo copy' \
     './ui loam        LOAM copy from the same captured generation (no build)' \
     './ui --refresh   Refresh copies after closing LOAM; retain old captures' \
     './ui --demo      Synthetic-only UI preview' \
@@ -16,12 +17,16 @@ mode=${1:-bakhlo}
 case "$mode" in
   --help|-h) usage; exit 0 ;;
   --refresh) exec ./tools/compare refresh ;;
-  bakhlo|loam|--demo) ;;
+  bakhlo|loam|--demo|--daily) ;;
   *) usage >&2; exit 2 ;;
 esac
 if [ ! -t 0 ] || [ ! -t 1 ]; then
   printf '%s\n' 'Run ./ui in an interactive terminal.' >&2
   exit 2
+fi
+if [ "$mode" = --daily ]; then
+  # A failed acquisition must never continue into the previous selected copy.
+  ./tools/compare refresh
 fi
 if [ -L "$root/scratch" ]; then
   printf '%s\n' 'Comparison directories must not be symlinks.' >&2; exit 2
@@ -57,6 +62,9 @@ else
   trial=$state/$capture
   if [ -L "$trial" ] || [ ! -f "$trial/COMPLETE" ]; then
     printf '%s\n' 'Incomplete comparison copy; nothing opened.' >&2; exit 2
+  fi
+  if [ "$mode" = --daily ]; then
+    printf 'Fresh Bakhlo comparison copy: %s\n' "$capture"
   fi
   if [ "$mode" = loam ]; then
     bin=$root/../loam/.lake/build/bin/loam

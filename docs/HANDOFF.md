@@ -640,7 +640,15 @@ labels as an optional translation of the old Japanese UI.
 
 ## UI and direct owners
 
-`./ui --refresh` uses the existing private Daily conversion trial after LOAM is
+Daily manual review uses ordinary LOAM recording, then Home `q` in every LOAM
+tab/window, then `./ui --daily` (`./bakhlo/ui --daily` from moko). It requires
+interactive stdin/stdout before acquisition and opens Bakhlo only after a successful
+refresh; refusal never opens the previous selection. Every refresh creates a new
+generation. Previous Bakhlo and LOAM trial edits remain in their old copies and
+are not merged into the new one. `./ui` revisits the selected copy and
+`./ui --refresh` acquires only.
+
+The refresh uses the existing private Daily conversion trial after LOAM is
 closed, retaining exact household/config inputs, a fresh supported Daily v3 book,
 a private entry/plan delta, and previous captures under `scratch/loam-comparison`.
 It does not date-filter/append blindly, merge trial edits, or update originals.

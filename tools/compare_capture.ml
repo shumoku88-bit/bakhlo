@@ -194,10 +194,41 @@ let self_check () =
   refresh ~source ~state ~baseline ();
   let first = Option.get (selected state) in
   let first_bytes = bytes (first ^ "/imported.sexp") in
+  (* Both UIs are writable trials. Refresh must use source/imported evidence,
+     preserving these edits without merging them into the next generation. *)
+  let trial_book = get "trial-book-admission" (B.of_string first_bytes) in
+  let trial_entry = Option.get (B.find_entry trial_book "old") in
+  let trial_book = get "trial-edit-refused"
+      (B.put_entry trial_book ~replace:true
+         { trial_entry with memo = Some "Bakhlo trial-only edit" } ~plan:None) in
+  let trial_book = get "trial-addition-refused"
+      (B.put_entry trial_book ~replace:false
+         { trial_entry with id = "fresh"; memo = Some "Bakhlo trial-only addition" } ~plan:None) in
+  Unix.unlink (first ^ "/book.sexp");
+  write_new (first ^ "/book.sexp") (B.to_string trial_book);
+  Unix.unlink (first ^ "/config/daily-pace.tsv");
+  write_new (first ^ "/config/daily-pace.tsv") "food\tjpy\n";
+  Unix.unlink (first ^ "/loam-view/household.loam");
+  write_new (first ^ "/loam-view/household.loam")
+    (Base.String.substr_replace_all (fixture ~changed:false)
+       ~pattern:"DESC\tbefore" ~with_:"DESC\tLOAM trial-only edit");
+  Unix.unlink (first ^ "/loam-view/config/daily-pace.tsv");
+  write_new (first ^ "/loam-view/config/daily-pace.tsv") "food\tjpy\n";
+  let preserved = List.map (fun suffix -> suffix, bytes (first ^ suffix))
+      [ "/book.sexp"; "/imported.sexp"; "/source/household.loam";
+        "/source/config/daily-pace.tsv"; "/config/daily-pace.tsv";
+        "/loam-view/household.loam"; "/loam-view/config/daily-pace.tsv" ] in
   Unix.unlink (source ^ "/household.loam");
   write_new (source ^ "/household.loam") (fixture ~changed:true);
   refresh ~source ~state ~baseline ();
   let second = Option.get (selected state) in
+  require (first <> second) "refresh-reused-trial";
+  List.iter (fun (suffix, before) ->
+      require (bytes (first ^ suffix) = before) "previous-trial-edit-changed") preserved;
+  let _, expected_fresh = convert (snapshot source) in
+  require (bytes (second ^ "/book.sexp") = expected_fresh
+           && bytes (second ^ "/imported.sexp") = expected_fresh)
+    "fresh-book-merged-trial-edits";
   let updated = get "test-cold-admission" (B.of_string (bytes (second ^ "/book.sexp"))) in
   let entry = Option.get (B.find_entry updated "old") in
   require (B.entry_count updated = 2 && B.mem_entry updated "fresh"
@@ -213,8 +244,10 @@ let self_check () =
   require (bytes (second ^ "/source/household.loam") = bytes (source ^ "/household.loam"))
     "source-not-copied-exactly";
   require (bytes (second ^ "/config/daily-pace.tsv") = "wallet\tjpy\n") "config-not-copied";
+  require (bytes (second ^ "/loam-view/config/daily-pace.tsv") = "wallet\tjpy\n")
+    "loam-config-merged-trial-edits";
   let report = bytes (second ^ "/delta.private.txt") in
-  require (Base.String.is_substring report ~substring:"ADDED_ENTRY"
+  require (Base.String.is_substring report ~substring:"ADDED_ENTRY\t\"fresh\""
            && Base.String.is_substring report ~substring:"CHANGED_ENTRY"
            && Base.String.is_substring report ~substring:"CHANGED_PLAN") "delta-missed-old-changes";
   let selector = bytes (state ^ "/CURRENT") in
@@ -232,7 +265,7 @@ let self_check () =
    | exception Refused "nonregular-or-oversized-input" -> ()
    | exception Refused _ -> raise (Refused "wrong-symlink-refusal"));
   require (bytes (state ^ "/CURRENT") = selector) "symlink-refusal-changed-selector";
-  print_endline "PASS: synthetic full refresh, old-date correction, payment links, exact capture/configs, private delta and changed-source refusal."
+  print_endline "PASS: synthetic full refresh, preserved unmerged trial edits, old-date correction, payment links, exact capture/configs, private delta and changed-source refusal."
 let () =
   try match Array.to_list Sys.argv with
   | [ _; "self-check" ] -> self_check ()

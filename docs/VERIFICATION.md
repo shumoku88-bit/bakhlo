@@ -6,6 +6,13 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Daily LOAM comparison refresh-and-open entrance (2026-10-19)
+
+- `./ui --daily` checks interactive stdin/stdout before invoking the existing stopped-LOAM capture, then opens only the newly selected Bakhlo comparison copy. A failed refresh exits without opening an old selection. Ordinary `./ui`, acquisition-only `--refresh`, paired `loam` and synthetic `--demo` retain their existing behavior. No capture/conversion/publisher semantics or dependencies changed; the converter remains the existing ignored local helper.
+- `./tools/compare self-check` passed with synthetic source additions, old-date corrections and Scheduled completion links. Extended checks retain byte-identical old Bakhlo book/config, imported/source snapshots and LOAM trial household/config after a new refresh; the new book/imported bytes match fresh source conversion, and the delta uses the imported baseline despite a conflicting trial-only addition. Existing changed-source and symlink refusals keep the old selector.
+- Disposable Expect PTY harness `/tmp/bakhlo-daily-launch-check.exp` passed: non-TTY stdin and redirected stdout both refuse before refresh; a simulated refresh exit 7 opens nothing and preserves the old selector/book; success refreshes before opening only the fresh selected book. Stubbed tools/fixtures are under `/private/tmp/bakhlo-daily-launch-taeGPf`. The initial harness path expectation was corrected from `/tmp` to its canonical `/private/tmp`; no product defect was attributed to it.
+- `sh -n ui`, `sh -n tools/compare` and `git diff --check` passed. Tests used synthetic copies only; no live household/config acquisition, private data output, real user-terminal/IME acceptance or operational cutover was performed. This is a daily local comparison convenience, not automatic synchronization or a complete migration.
+
 ## Daily Pace restated history and LOAM workspace geometry (2026-10-19)
 
 - Baseline main `cf196f9`. LOAM source read-only (`Loam/Tui/DailyPaceTrend.lean` geometry, `historyRows`, `activityTableRows`, paging); no LOAM build, binary run, household/config access or dependency change.
