@@ -5,19 +5,9 @@ umask 077
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 cd "$root"
 case "${1:-}" in
-  refresh|self-check) [ "$#" -eq 1 ] || exit 2 ;;
-  *) printf '%s\n' 'Usage: tools/compare refresh | self-check' >&2; exit 2 ;;
+  refresh|self-check|clean-copies) [ "$#" -eq 1 ] || exit 2 ;;
+  *) printf '%s\n' 'Usage: tools/compare refresh | self-check | clean-copies' >&2; exit 2 ;;
 esac
-if [ "$1" = refresh ]; then
-  # Do not stop another terminal/process or capture an actively used authority.
-  processes=$(ps -ax -o comm=) || exit 2
-  if printf '%s\n' "$processes" | grep -Eq '/(loam|loamTui|loamMovement)$'; then
-    printf '%s\n' 'Close LOAM in all tabs/windows before refreshing. Originals untouched.' >&2
-    ps -ax -o pid=,tty=,comm= | awk '/\/(loam|loamTui|loamMovement)$/ {printf "  LOAM still running: PID=%s  terminal=%s\n", $1, $2}' >&2
-    printf '%s\n' 'Exit those LOAM screens with q, then retry ./ui --refresh.' >&2
-    exit 2
-  fi
-fi
 trial=$root/scratch/daily_book_candidate_v1
 build=$root/scratch/loam-comparison-tools
 state=$root/scratch/loam-comparison
@@ -47,6 +37,9 @@ cp "$root/tools/compare_capture.ml" "$build/compare_capture.ml"
   "$build/daily.ml" "$build/compare_capture.ml" -o "$build/compare-capture"
 if [ "$1" = self-check ]; then
   exec "$build/compare-capture" self-check
+fi
+if [ "$1" = clean-copies ]; then
+  exec "$build/compare-capture" clean-copies "$state"
 fi
 source=$(CDPATH= cd -- "$root/../loam-data" && pwd -P)
 exec "$build/compare-capture" refresh "$source" "$state" "$trial/household.sexp"

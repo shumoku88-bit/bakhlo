@@ -19,14 +19,16 @@ wording/order, target, missing-Previous-Cycle behavior and bounded-history evide
 remain gaps; arithmetic, support and publication gates are unchanged.
 Other-screen publication now preserves a held Record/Pay draft; only its own
 confirmed publication clears it. Operational cutover is not authorized. The user
-authorized stopped, read-only fresh captures and private paired observation for
+authorized fresh read-only household/config copies and private paired observation for
 AI development; raw private data must stay in restricted ignored scratch.
 
 The AI must compare the latest ordinary LOAM data itself at each day's development
 start and when resuming after ordinary LOAM updates; the optional human `./ui --daily` entrance does not satisfy
 this requirement. Inspect source/remote status and pending edits, then run
-`./tools/compare refresh` before that day's development with all LOAM instances closed. Never
-terminate user processes. Build current Bakhlo in the existing isolated environment
+`./tools/compare refresh` before that day's development. LOAM may remain open;
+the existing before/after source checks refuse changes during copying and retain
+the previous CURRENT. No new lock protocol is needed. Never terminate user processes
+or write originals. Build current Bakhlo in the existing isolated environment
 and walk the relevant screens before/after changes (including Core answers and
 Daily Pace/Balances when relevant) with the existing LOAM executable on separate copies
 from the same fresh capture, at normal user geometry and narrow geometry as relevant.
@@ -34,7 +36,7 @@ Reuse that generation within the pass; a small tool action does not need another
 refresh. Use read-only navigation/details/resize/return flows and verify household/config
 bytes are unchanged; no real household actions or writes without an explicit request.
 Record only non-private findings, source/build identity, freshness, geometry and
-limitations in existing verification/ledger sections. A running LOAM, refused/
+limitations in existing verification/ledger sections. Refused/
 unsupported conversion or missing executable means **latest-data paired comparison
 not executed**, with the reason. Independent development may continue; neither
 stale captures nor synthetic checks qualify as a fresh real-data comparison.
@@ -567,7 +569,7 @@ with LOAM's labels first. Japanese UI is undecided. Implement Bonsai first;
 a later Notty implementation remains an option, not an excluded frontend.
 The English foundation is connected; full LOAM parity remains a target.
 Home and basic Record / Preview polish have reached a verified checkpoint.
-The earlier approved comparison slice provides stopped LOAM refresh into separate private
+The comparison helper copies current LOAM data read-only into separate private
 copies, short Bakhlo/LOAM launch commands, and direct root-palette theme selection.
 These remain available; the current storage investigation does not authorize cutover
 or expansion into accounting features.
@@ -612,10 +614,10 @@ labels as an optional translation of the old Japanese UI.
   `scratch/daily_book_candidate_v1/household.sexp` exist. UI work/tests use
   synthetic copies instead. Do not put private contents, counts, screenshots
   or logs into fixtures, commits or public output.
-- New approval also covers bounded read-only inventory of retained operation
-  evidence in LOAM canonical history, using fresh stopped captures and stability
-  checks. Preserve old captures/trials; do not read the live originals while LOAM
-  is running or silently substitute older evidence. Unknown/imported/current-only
+- Approval also covers bounded read-only inventory of retained operation
+  evidence in LOAM canonical history, using fresh copies and stability
+  checks. Preserve old captures/trials; LOAM may remain open during copying,
+  but changed inputs refuse. Do not silently substitute older evidence. Unknown/imported/current-only
   evidence is not a full count of user actions. No private counts in public docs.
 - Private inputs/results remain ignored, with restrictive permissions. Do not
   copy LOAM implementation source, install dependencies or adopt a production
@@ -663,21 +665,25 @@ labels as an optional translation of the old Japanese UI.
 AI daily development review follows the standing latest-data workflow above:
 `./tools/compare refresh`, then current Bakhlo and existing LOAM on the selected
 same-generation private copies (`./ui` / `./ui loam`). The AI performs this review.
-Optional manual review uses ordinary LOAM recording, then Home `q` in every LOAM
-tab/window, then `./ui --daily` (`./bakhlo/ui --daily` from moko). It requires
+After the walk, stop only the AI's comparison processes and run
+`./tools/compare clean-copies`; it removes the selected raw source/LOAM view,
+retaining Bakhlo book/imported baseline/config and all earlier trials. A later
+LOAM comparison requires a fresh copy, with no fallback to originals.
+Optional manual review uses `./ui --daily` (`./bakhlo/ui --daily` from moko),
+without closing LOAM. It requires
 interactive stdin/stdout before acquisition and opens Bakhlo only after a successful
 refresh; refusal never opens the previous selection. Every refresh creates a new
 generation. Previous Bakhlo and LOAM trial edits remain in their old copies and
 are not merged into the new one. `./ui` revisits the selected copy and
 `./ui --refresh` acquires only.
 
-The refresh uses the existing private Daily conversion trial after LOAM is
-closed, retaining exact household/config inputs, a fresh supported Daily v3 book,
+The refresh copies household/config read-only using the existing private Daily
+conversion trial, retaining exact inputs, a fresh supported Daily v3 book,
 a private entry/plan delta, and previous captures under `scratch/loam-comparison`.
 It does not date-filter/append blindly, merge trial edits, or update originals.
 Unsupported Actual/profile data and changed acquisition refuse without advancing
 CURRENT. This local helper needs the earlier ignored converter; it is not full
-household migration, live capture, complete backup or canonical-store adoption.
+household migration, atomic multi-file snapshot, complete backup or canonical-store adoption.
 `./ui` opens the selected Bakhlo trial copy; `./ui loam` opens a separate LOAM trial
 copy of the same capture using the already-built executable, never building LOAM
 or falling back to live originals. UI theme settings are isolated in `ui-config`.

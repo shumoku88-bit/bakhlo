@@ -118,6 +118,9 @@ openingのみは1/10。Bakhloのbounded根拠保持は未実装のまま。全�
 続く[限定表示slice](VERIFICATION.md#bounded-selectedchartpartial-history-presentation-follow-up-2026-10-19)で
 Selected／change、日付両端、partial fallbackの見出し／` > `を修正し、新規8 walks・全self-checkと
 合成authority/config不変を確認。grid／Braille・Detail・partial feedback・target・period/context差は残る。
+最新実データの[読み取り対照](VERIFICATION.md#latest-real-data-copy-and-paired-observation-2026-10-19)では
+80×24／120×36で今日のPace回答が一致。過去日はLOAMが回答しBakhloがunknownになる差が残る。
+Balancesは選択・詳細・戻り・resizeを確認したが、金額の意味的な対応は未受入。全面一致とはしない。
 
 UI-34限定更新（2026-10-17）：合成missing-rootの80×24対照で、両UIのreview Escが
 入力値を保持して戻り、入力Escで非保存終了することを確認。Bakhloの即終了差を修正し、

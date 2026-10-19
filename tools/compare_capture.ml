@@ -86,6 +86,49 @@ let selected state =
       let path = state ^ "/" ^ name in
       require (stat (path ^ "/COMPLETE") <> None) "incomplete-selected-comparison";
       Some path
+let clean_copies ~state =
+  require (match stat state with Some s -> s.st_kind = Unix.S_DIR | None -> false)
+    "missing-comparison-state";
+  let target = match selected state with Some path -> path
+    | None -> raise (Refused "missing-comparison-selector") in
+  require (match stat target with Some s -> s.st_kind = Unix.S_DIR | None -> false)
+    "nonregular-comparison-directory";
+  ignore (bytes (target ^ "/COMPLETE"));
+  let selector = bytes (state ^ "/CURRENT") in
+  (* Preflight both bounded trees before deleting anything; never follow links. *)
+  let rec tree path depth = match stat path with
+    | None -> []
+    | Some s when s.st_kind = Unix.S_REG && depth > 0 -> [path, s]
+    | Some s when s.st_kind = Unix.S_DIR && depth <= 1 ->
+        let names = Array.to_list (Sys.readdir path) in
+        require (List.length names <= 4096) "copy-cleanup-budget";
+        List.concat_map (fun name ->
+          let child = path ^ "/" ^ name in
+          match stat child with
+          | Some child_stat when child_stat.st_kind = Unix.S_DIR ->
+              require (depth = 0 && name = "config") "unexpected-copy-directory";
+              tree child (depth + 1)
+          | _ -> tree child (depth + 1)) names @ [path, s]
+    | Some _ -> raise (Refused "unsafe-copy-cleanup-input") in
+  let roots = [target ^ "/source"; target ^ "/loam-view"] in
+  let nodes = List.concat_map (fun path -> tree path 0) roots in
+  List.iter (fun (path, before) ->
+      require (Option.map stamp (stat path) = Some (stamp before)) "copy-changed-before-cleanup") nodes;
+  require (bytes (state ^ "/CURRENT") = selector) "selector-changed-before-cleanup";
+  let directories = List.filter (fun (_, s) -> s.Unix.st_kind = Unix.S_DIR) nodes in
+  List.iter (fun (path, before) ->
+      List.iter (fun (directory, original) ->
+        if String.starts_with ~prefix:(directory ^ "/") path then
+          require (match stat directory with
+            | Some current -> current.st_kind = Unix.S_DIR
+                && current.st_dev = original.Unix.st_dev && current.st_ino = original.st_ino
+            | None -> false) "copy-directory-changed-during-cleanup") directories;
+      require (match stat path with
+        | Some current -> current.st_kind = before.Unix.st_kind
+            && current.st_dev = before.st_dev && current.st_ino = before.st_ino
+        | None -> false) "copy-changed-during-cleanup";
+      if before.st_kind = Unix.S_DIR then Unix.rmdir path else Unix.unlink path) nodes;
+  print_endline "PASS: selected raw comparison copies removed; Bakhlo book and older generations retained."
 let posting p =
   D.Identifier.Locus.to_string (D.Effect.locus p),
   D.Identifier.Measure.to_string (D.Effect.measure p),
@@ -112,17 +155,6 @@ let delta before after =
   Buffer.add_string buffer
     "The complete new supported book is regenerated, including support and metadata; not date-filtered or blindly appended.\nCorrection/date versions, retired/replaced Scheduled and unsupported household families remain in source/household.loam.\nBoth UIs use separate trial copies; neither is operational authority.\n";
   Buffer.contents buffer
-let require_stopped () =
-  let channel = Unix.open_process_in "ps -ax -o comm=" in
-  let rec loop active = match input_line channel with
-    | name ->
-        let name = String.trim name in
-        loop (active || List.exists (fun suffix -> String.ends_with ~suffix name)
-                [ "/loam"; "/loamTui"; "/loamMovement" ])
-    | exception End_of_file -> active in
-  let active = loop false in
-  require (Unix.close_process_in channel = Unix.WEXITED 0) "cannot-check-stopped-writers";
-  require (not active) "close-loam-before-refresh"
 let refresh ?(between = fun () -> ()) ~source ~state ~baseline () =
   directory state;
   let old = match selected state with
@@ -135,7 +167,7 @@ let refresh ?(between = fun () -> ()) ~source ~state ~baseline () =
       (int_of_float (Unix.gettimeofday ())) (Unix.getpid ()) (Random.bits ()) in
   let target = state ^ "/" ^ name in
   Unix.mkdir target 0o700;
-  write_new (target ^ "/INCOMPLETE") "Only COMPLETE marks a validated stopped comparison capture.\n";
+  write_new (target ^ "/INCOMPLETE") "Only COMPLETE marks a validated comparison capture.\n";
   List.iter (fun suffix -> Unix.mkdir (target ^ suffix) 0o700)
     [ "/source"; "/source/config"; "/loam-view"; "/loam-view/config"; "/config" ];
   let _, _, files = captured in
@@ -152,7 +184,7 @@ let refresh ?(between = fun () -> ()) ~source ~state ~baseline () =
   between ();
   require (captured = snapshot source) "source-changed-during-capture";
   write_new (target ^ "/COMPLETE")
-    "Stopped scoped comparison capture; not a complete backup, full migration or production authority.\n";
+    "Scoped comparison capture; not a complete backup, full migration or production authority.\n";
   let selector = state ^ "/CURRENT-" ^ string_of_int (Unix.getpid ()) in
   write_new selector (name ^ "\n");
   Unix.rename selector (state ^ "/CURRENT");
@@ -250,6 +282,27 @@ let self_check () =
   require (Base.String.is_substring report ~substring:"ADDED_ENTRY\t\"fresh\""
            && Base.String.is_substring report ~substring:"CHANGED_ENTRY"
            && Base.String.is_substring report ~substring:"CHANGED_PLAN") "delta-missed-old-changes";
+  let retained = List.map (fun suffix -> suffix, bytes (second ^ suffix))
+      [ "/book.sexp"; "/imported.sexp"; "/config/daily-pace.tsv"; "/COMPLETE" ] in
+  let before_cleanup = bytes (state ^ "/CURRENT") in
+  Unix.symlink (source ^ "/household.loam") (second ^ "/loam-view/unsafe-link");
+  (match clean_copies ~state with
+   | () -> raise (Refused "unsafe-cleanup-was-accepted")
+   | exception Refused "unsafe-copy-cleanup-input" -> ()
+   | exception Refused _ -> raise (Refused "wrong-cleanup-refusal"));
+  require (stat (second ^ "/source/household.loam") <> None) "cleanup-refusal-deleted-source-copy";
+  Unix.unlink (second ^ "/loam-view/unsafe-link");
+  clean_copies ~state;
+  require (stat (second ^ "/source") = None && stat (second ^ "/loam-view") = None)
+    "cleanup-left-raw-copies";
+  require (bytes (state ^ "/CURRENT") = before_cleanup) "cleanup-changed-selector";
+  List.iter (fun (suffix, before) -> require (bytes (second ^ suffix) = before)
+      "cleanup-changed-bakhlo-input") retained;
+  List.iter (fun (suffix, before) -> require (bytes (first ^ suffix) = before)
+      "cleanup-changed-old-generation") preserved;
+  require (bytes (source ^ "/household.loam") = fixture ~changed:true) "cleanup-changed-original";
+  refresh ~source ~state ~baseline ();
+  require (Option.get (selected state) <> second) "refresh-after-cleanup-failed";
   let selector = bytes (state ^ "/CURRENT") in
   (match refresh ~between:(fun () ->
        Unix.unlink (source ^ "/config/daily-pace.tsv");
@@ -265,13 +318,13 @@ let self_check () =
    | exception Refused "nonregular-or-oversized-input" -> ()
    | exception Refused _ -> raise (Refused "wrong-symlink-refusal"));
   require (bytes (state ^ "/CURRENT") = selector) "symlink-refusal-changed-selector";
-  print_endline "PASS: synthetic full refresh, preserved unmerged trial edits, old-date correction, payment links, exact capture/configs, private delta and changed-source refusal."
+  print_endline "PASS: synthetic refresh, preserved edits, correction/payment/configs, changed-source refusal, bounded raw-copy cleanup and refresh after cleanup."
 let () =
   try match Array.to_list Sys.argv with
   | [ _; "self-check" ] -> self_check ()
+  | [ _; "clean-copies"; state ] -> clean_copies ~state
   | [ _; "refresh"; source; state; baseline ] ->
-      require_stopped ();
-      refresh ~between:require_stopped ~source ~state ~baseline ()
+      refresh ~source ~state ~baseline ()
   | _ -> raise (Refused "explicit-mode-required")
   with
   | Refused why -> prerr_endline ("Comparison refused: " ^ why ^ "; originals untouched."); exit 2
