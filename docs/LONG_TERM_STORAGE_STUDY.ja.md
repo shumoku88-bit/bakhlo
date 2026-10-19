@@ -1,6 +1,6 @@
 # 長期保存方式の調査
 
-状態: **既存経路baseline・保存費用分解・印字試作は測定済み。次の第一研究候補は暦年別S式で、方式採用・運用認定は未完了。**
+状態: **既存経路baseline・保存費用分解・印字試作・起動/snapshot/メモリ応答（第5段階）は測定済み。方式採用・運用認定は未完了。**
 
 最新の配置/分析・繰越・年度間参照・原子性/復旧と合成検証計画は
 [暦年別S式研究](YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)が所有する。
@@ -349,3 +349,31 @@ LOAMの過去ベンチは[長期Actual調査](https://github.com/shumoku88-bit/l
 現行単一S式や年別配置をそのまま長期運用に認定しない。構文再比較は必要時の別軸。
 研究文書/既存合成再現ソースの研究ブランチへの保存・pushは今回承認済みだが、
 年度分割実装、正データ切替、依存追加、backup削除、main push/PR/mergeは含めない。
+
+## 第5段階: 起動・スナップショット・メモリ上応答（2026-10-20）
+
+`./tools/startup-probe`（合成のみ、原本/私用コピーは読まない）。Bakhlo `3bda3ca`、
+macOS x86_64 / OCaml 5.3.0。filesystem cacheはflushしていない。冷ロードは新規プロセスで3回。
+目標値はユーザー指定の案（30年≒109,500件で起動100ms・保存5ms・キー応答16ms）。
+
+| 件数 | S式起動（冷） | うちParsexp | Marshal起動（冷） | 既存明細の置換（メモリ） | 新規追加（メモリ） | live book |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1,000 | 19 ms | 6.7 ms | 5 ms | 5.1 ms | 0.002 ms | 0.9 MiB |
+| 36,500 | 770 ms | 336 ms | 62〜69 ms | 249 ms | 0.002 ms | 33 MiB |
+| 109,500 | 2,370 ms | 969 ms | 185〜196 ms | 796 ms | 0.002 ms | 100 MiB |
+
+- S式起動の約4割が構文解析、残りがdecode/`make_data`/全体入場。
+- `Marshal.Closures`で入場済み`Daily_book.t`を保存すると冷ロードは約12倍速く、残高も一致。
+  ただし量に比例し、30年で100msには届かない。Marshalは同一binary限定の捨てられる
+  cache候補としてのみ測った。正データ形式や採用ではない。
+- **新規の素の明細以外（訂正・Reversal・Exchange・OriginalAmount・Merchant・予定支払い）は
+  `put_entry_full`で全体再入場する**（`sexp/daily_book.ml:1395`）。保存方式と独立に、
+  訂正1回が10年で約0.25秒、30年で約0.8秒の応答停止になる。
+- 30MBのS式がlive約100MiB。うち`Q.t` imageが約80MiB（entries listと共有部分あり、単純加算しない）。
+- 残高照会・`daily_pace`は約1µs以下。
+
+次の候補順: (1) 訂正等の差分入場を、全体入場と同じ拒否を保ったまま可能か調べる、
+(2) 全操作を1レコードで表す追記ログ＋捨てられるsnapshot、(3) 古い年の遅延読込。
+SQLiteは当面使わない（ユーザー判断 2026-10-20）。
+既存`tools/storage-study`/`tools/storage-breakdown`は`tui/daily_file.ml`移動とentry field追加に
+追従しておらず、現HEADでは実行できない（今回修正していない）。

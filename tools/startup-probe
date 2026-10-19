@@ -1,0 +1,32 @@
+#!/bin/sh
+# Research only: synthetic startup, Marshal snapshot and in-memory response timings.
+set -eu
+umask 077
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+cd "$root"
+if [ "$#" -eq 0 ]; then set -- 1000 36500 109500; fi
+for count do
+  case "$count" in ''|*[!0-9]*) printf '%s\n' 'Usage: tools/startup-probe [ENTRY_COUNTS]' >&2; exit 2 ;; esac
+done
+[ ! -L scratch ] || exit 2
+mkdir -p scratch
+run=$(mktemp -d "$root/scratch/startup-probe-XXXXXX")
+printf '%s\n' "Synthetic evidence: $run"
+{ date -u '+%Y-%m-%dT%H:%M:%SZ'; git rev-parse HEAD; uname -sm; ./tools/opam exec -- ocamlopt -version; } > "$run/environment.txt"
+./tools/opam exec -- dune build lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa sexp/bakhlo_sexp.cmxa
+cp tools/startup_probe.ml "$run/"
+./tools/opam exec -- ocamlfind ocamlopt -strict-sequence -w +8+9+11 -warn-error +8+9+11 \
+  -package base,zarith,parsexp,unix -linkpkg \
+  -I _build/default/lib/.bakhlo_domain.objs/byte -I _build/default/lib/.bakhlo_domain.objs/native \
+  -I _build/default/application/.bakhlo_application.objs/byte -I _build/default/application/.bakhlo_application.objs/native \
+  -I _build/default/sexp/.bakhlo_sexp.objs/byte -I _build/default/sexp/.bakhlo_sexp.objs/native \
+  _build/default/lib/bakhlo_domain.cmxa _build/default/application/bakhlo_application.cmxa \
+  _build/default/sexp/bakhlo_sexp.cmxa "$run/startup_probe.ml" -o "$run/probe"
+for count do
+  dir="$run/entries-$count"
+  mkdir "$dir"
+  "$run/probe" gen "$dir" "$count"
+  "$run/probe" detail "$dir"
+  for _ in 1 2 3; do "$run/probe" load-sexp "$dir"; "$run/probe" load-snap "$dir"; done
+done | tee "$run/results.txt"
+printf '%s\n' 'Synthetic only; no originals accessed. Filesystem cache not flushed.'

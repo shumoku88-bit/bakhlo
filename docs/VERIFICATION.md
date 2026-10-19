@@ -6,6 +6,11 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Startup, snapshot and in-memory response probe (2026-10-20)
+
+- `./tools/startup-probe` on synthetic 1,000 / 36,500 / 109,500-entry books at `3bda3ca` (macOS x86_64, OCaml 5.3.0, cache not flushed). Results and limits: [stage 5](LONG_TERM_STORAGE_STUDY.ja.md#第5段階-起動スナップショットメモリ上応答2026-10-20). Measurement only; no product, storage or format change. No originals or private copies read.
+- Key finding: replacing an existing entry (and every non-plain `put_entry`) re-admits the whole book, 796 ms in memory at 109,500 entries.
+
 ## Series Calendar pace and undecided (2026-10-19)
 
 - `p` (and LOAM's `m`) in the Series Calendar or Plan Detail opens `Scheduled / Plan Monitoring` for LOAM's action record (the selected Plan Detail occurrence, else the plan's latest open occurrence): five cadences (Monthly, Every 2/3/6 months, Yearly), j/k/Tab wrap, Enter saves, Esc reports "Plan monitoring unchanged.". The rule is LOAM's `ruleFor?`: the source date re-anchors, the signed-Locus shape selects, an existing rule with that shape keeps its name; a new shape whose name is taken refuses. `s` sets the matching rule (or a new one from the source) to undecided (0) keeping its anchor, without a chooser. Both write only `scheduled-coverage.tsv` through the existing `Save_config` (re-decoded before it is offered; captured-bytes check at write); Scheduled occurrences and the household file are untouched. Like LOAM's `upsertAt`, the upsert applies to the image current at save time, so a change made elsewhere meanwhile is kept. After saving, the overview follows the plan's row.
