@@ -38,7 +38,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                    (A.commit_payload ~session:state.session ~base_bytes payload)))
   else if Option.is_some (Screen_registry.modal state.screens) then
     match input with
-    | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) when Screen_registry.modal_allows_reload state.screens -> Some (reload state)
+    | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
     | _ -> modal_screen_input ~dimensions ~width_of state input
   else
     match state.overlay with

@@ -68,18 +68,18 @@ its global keys), `Message`, `Home`, `Commands`, `Reload`, `Cycle_measure`,
 Owners never receive Shell state, never write and never see another screen.
 
 Shell input order: paste guard, retained Record, a screen with an open editor
-(takes everything but Ctrl-R when its registry policy permits reload), Shell overlays, Ctrl-Q/R/N, the route's owner,
+(takes everything but Ctrl-R, which always reloads), Shell overlays, Ctrl-Q/R/N, the route's owner,
 then global keys. The view composes Shell header/feedback/footer around the
 route owner's rows and draws the modal owner's overlay on top.
 Selected Day owns its retained browser, panes, viewport and deferred search.
-Its search preserves the legacy text-overlay policy: Ctrl-Q/N/R are consumed,
+Its search ignores Ctrl-Q/N while typing (Ctrl-R reloads under it, keeping the text),
 and the browser query changes only on Enter or Escape. Calendar's browser is
 unchanged while Selected Day synchronizes its own selection.
 
 Home and Calendar share `Calendar_home_screen`: one retained browser, pane,
 raw scroll offset and deferred Search/Jump inputs. Home search also filters
 later Calendar visits; the old ambient search on other owners remains visible
-and keeps the underlying route footer. Its modal policy consumes Ctrl-Q/N/R.
+and keeps the underlying route footer. Its searches ignore Ctrl-Q/N; Ctrl-R reloads.
 Every route entry notifies this owner; synchronization resets selection on
 empty external routes, preserves filters/order, and leaves its browser alone
 on Selected Day. A direct drill return to Actual only notifies entry, without
@@ -135,6 +135,7 @@ escape hatch for a file shared with an unmigrated workflow; it may not grow.
   (`finish_publication`), even when it came from another screen.
 - Cycle-boundary saves now check the pure preconditions before the household
   admission; any failure still refuses with the same message family.
-- Scheduled `/` search is a registry modal that permits Ctrl-R (reload); the
-  old central Search overlay consumed Ctrl-R. Selected Day and Calendar keep
-  the old policy. Not intended; align Scheduled with a regression if wanted.
+- Decision (2026-10-19, user: "the natural UI"): every open search or editor
+  takes all keys but Ctrl-R. Ctrl-R reloads (as the footer advertises) and keeps
+  the search text; Ctrl-Q/N stay ignored while typing. The old central Search
+  overlay consumed Ctrl-R. Checked for Selected Day, Home and Scheduled.

@@ -222,7 +222,17 @@ let actual_browsing_checks ~width_of ~directory home =
     require (swallowed.screens.day = searching.screens.day && swallowed.message = searching.message
              && swallowed.overlay = C.No_overlay && swallowed.record = searching.record
              && swallowed.session.bytes = searching.session.bytes && F.read path = before)
-      "selected-day-search-swallows-global-quit-discard-reload") ['q';'Q';'n';'N';'r';'R'];
+      "selected-day-search-swallows-global-quit-discard") ['q';'Q';'n';'N'];
+  List.iter (fun c ->
+    let reloaded = match H.handle ~width_of searching (`Key (`ASCII c, [`Ctrl])) with
+      | Some state -> state | None -> raise (F.Refused "selected-day-search-reload-exited") in
+    require (Day.modal reloaded.screens.day && (day_browser reloaded).query = ""
+             && reloaded.message = C.tr "Reloaded. Unsaved draft retained."
+             && reloaded.record = searching.record && F.read path = before
+             && (key ~width_of reloaded `Enter |> day_browser).query = "purchase 16")
+      "selected-day-search-ctrl-r-reloads-and-keeps-search") ['r';'R'];
+  search_control_checks ~width_of ~path ~label:"home" ~query:(fun s -> (calendar_browser s).query)
+    (C.open_route day W.Home) "purchase";
   let applied = key ~width_of searching `Enter in
   require ((day_browser applied).query = "purchase 16" && List.length (day_rows applied) = 1
            && day_id applied = Some (Record_browser.Actual_row, "actual-16") && not (Day.modal applied.screens.day))

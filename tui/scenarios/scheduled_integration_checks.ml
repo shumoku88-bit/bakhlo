@@ -60,6 +60,8 @@ let scheduled_panel_checks ~width_of ~directory home =
   let _, view = plan_window ~dimensions:(120,36) ~width_of resized in
   require (view.start=view.last && (plan_id resized)=(plan_id small))
     "scheduled-resize-clamps-offset-not-identity";
+  search_control_checks ~width_of ~path ~label:"scheduled" ~query:(fun s -> (plan_browser s).query)
+    state "panel-plan-03";
   let editing = key ~width_of state (`ASCII 'e') in
   let draft = text ~width_of editing "q 日本語" in
   let closed = key ~width_of draft `Escape in

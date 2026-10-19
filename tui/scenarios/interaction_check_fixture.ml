@@ -242,3 +242,24 @@ let prepare_record ~width_of state =
 (* Shared text predicate only; individual suites own their scenarios. *)
 let contains rows needle =
   List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows
+
+(* An open search takes every key but Ctrl-R: Ctrl-Q/N are ignored while
+   typing; Ctrl-R reloads under the search, keeping its text, and Enter still
+   applies it. [query] reads the owner's applied query. *)
+let search_control_checks ~width_of ~path ~label ~query state value =
+  let before = F.read path in
+  let searching = text ~width_of (key ~width_of state (`ASCII '/')) value in
+  require (not (no_modal searching)) (label ^ "-search-opens");
+  let press c = match H.handle ~width_of searching (`Key (`ASCII c, [`Ctrl])) with
+    | Some state -> state | None -> failwith (label ^ "-search-control-exited") in
+  List.iter (fun c ->
+    let s = press c in
+    require (not (no_modal s) && s.message = searching.message && s.record = searching.record
+             && s.overlay = searching.overlay && query s = query searching)
+      (label ^ "-search-ignores-quit-discard")) ['q';'Q';'n';'N'];
+  List.iter (fun c ->
+    let s = press c in
+    require (not (no_modal s) && s.message = C.tr "Reloaded. Unsaved draft retained."
+             && s.record = searching.record && F.read path = before
+             && query (key ~width_of s `Enter) = value)
+      (label ^ "-search-ctrl-r-reloads-and-keeps-search")) ['r';'R']

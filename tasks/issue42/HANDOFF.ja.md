@@ -155,9 +155,8 @@ comm -23 tasks/issue42/labels-base.txt /tmp/l-now.txt              # 空であ�
 Settlements/Loci の Esc が常に Home・Page/Home/End が先頭リセット、print preview が Done で閉じない、
 finish_publication が保持中 Record 下書きを消す、owner editor は Ctrl-R 以外全入力を取る
 （Balances picker で Ctrl-Q/N 不可）、IncExp の j/k が Calendar 選択を動かさない。
-Scheduled の `/` 検索中の Ctrl-R: owner editor 扱い（`reload_in_modal = true`）で
-reload される。旧中央 Search overlay は Ctrl-R を消費していた（Selected Day / Calendar は旧挙動を維持）。
-意図した変更ではないので、揃えるなら Scheduled の検索を `reload_in_modal = false` 相当にし回帰を追加。
+検索中の Ctrl-R（ユーザー判断 2026-10-19「UI として自然な方」）: すべての検索・editor で Ctrl-R は reload（検索文字は保持）、
+Ctrl-Q/N は入力中は無視。`reload_in_modal` は廃止。Selected Day / Home / Scheduled で回帰あり。
 新たに見つけたら同ファイルへ追記（修正は別スライス、意味変更ならユーザーに確認）。
 
 ## 5. はまりどころ
