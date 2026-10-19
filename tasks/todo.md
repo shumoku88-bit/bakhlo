@@ -1,6 +1,28 @@
 # LOAMの機能・見た目・使い勝手をBakhloで再現する
 
-## 最優先：#42 構造再構築（2026-10-18）
+## Daily Pace / Balances の操作・表示対照（2026-10-19）
+
+ユーザー「揃えよう」を受け、画面別owner移行後のmain `028a816`から進める。
+今回の範囲はDaily Pace / Balancesの残る表示・操作差と、他画面保存時のRecord下書き消失。
+LOAMの既存ソース・binaryを読み取り比較し、計算・支持条件・保存gateを保持する。
+
+- [x] Daily Pace：期間context、選択位置／件数、広幅のTrend／Detail配置とfooterをLOAMと照合して揃える。
+- [x] Balances：Current／Accountingの見出し・配置・選択・詳細・footerの差を照合して揃える。
+- [x] 他画面の保存成功では保持中Recordを消さず、自身のRecord保存と区別する。回帰条件を追加する。
+- [x] Core／architecture／native self-checkと合成4寸法PTY・LOAM対照・cold reopenを実行する。
+- [ ] 正確なdiffをレビューし、既存画面台帳・検証記録・引き継ぎを更新して、小さな単位でmainへcommit/pushする。
+
+本人のMac／IME受入、全履歴・全Reports／Series・coverage、P7／運用切替はこの限定sliceの完了へ含めない。
+
+レビュー：期間・今日の支出／差、広幅の親位置保持、狭幅Historyと操作案内、Currentの列・表示名・小数通貨・詳細往復を改善。
+Core／arch／35 suitesと両binaryの4寸法、3種のcold新規プロセスで合成確認。未知値・全量・gateは保持。
+下書き修正 `1c34695` はmainとmatching Core/TUI CI成功。表示の全面一致・本人受入は未了。
+詳細は[検証記録](../docs/VERIFICATION.md#daily-pace--balances-interaction-parity-pass-2026-10-19)。
+
+## #42 構造再構築（main統合済み・以下は移植途中の履歴）
+
+2026-10-19に`18af340`までmainへ統合・matching Core/TUI CI成功。下の未チェック行を現在の未移植と読まない。
+#42の残件は独立した#40。現状の構造は`docs/TUI_OWNERSHIP.md`、統合記録は`tasks/issue42/HANDOFF.ja.md`末尾を参照。
 
 ### Shell 仕上げスライス（2026-10-19）
 - [x] Shell の対象を Screen.record_target に揃え、browser alias・未使用helperを除去する。

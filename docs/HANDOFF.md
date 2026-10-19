@@ -1,15 +1,15 @@
 # Handoff
 
-## Active reconstruction branch (2026-10-19)
+## Current parity pass (2026-10-19)
 
-Read `tasks/issue42/HANDOFF.ja.md` first for the isolated `reconstruct/issue-42`
-work. Registry and Selected Day are committed; Calendar/Home are now owned by
-`Calendar_home_screen`, with local synthetic evidence in `VERIFICATION.md`.
-The remaining pass is the bounded Shell/checks/architecture/measurement audit,
-followed by matching-implementation-SHA CI. Existing Home/ambient search,
-Calendar navigation quirks and annual refusal behavior are preserved rather
-than corrected during extraction. Main integration still requires the user's
-explicit approval; no operational cutover or private-data access is authorized.
+The #42 reconstruction was integrated into main at `18af340`; its matching Core
+and TUI CI passed. #38/#39/#41 are closed; #40 remains open independently.
+`tasks/issue42/HANDOFF.ja.md` is the reconstruction reference, not a pending merge.
+Current work returns to Daily Pace/Balances appearance and interaction parity;
+`tasks/todo.md`, the UI gap ledger and `VERIFICATION.md` own scope and evidence.
+Other-screen publication now preserves a held Record/Pay draft; only its own
+confirmed publication clears it. No operational cutover or private-data access
+is authorized.
 
 ## Storage direction (2026-10-17)
 

@@ -17,7 +17,7 @@ let test_book_fixture =
    (approved-loci (provided \"wallet\" \"bank\" \"food\"))\n(entries)\n\
    (plans)\n\
    (support (zero-origin (\"food\" \"jpy\")) (openings)\n\
-     (observations (observation (reflected) (quantities (\"wallet\" \"jpy\" 74500) (\"bank\" \"jpy\" 200000))))\n\
+     (observations (observation (reflected) (quantities (\"wallet\" \"jpy\" 74500) (\"wallet\" \"eur\" 12345) (\"bank\" \"jpy\" 200000))))\n\
      (presence (not-supplied)))\n"
 
 let test_roles =
@@ -91,6 +91,24 @@ let unit_checks ~width_of () =
     handle owner (char_key 'i')
   in
   require (Balances.detail_focused owner_detail) "i-opens-detail";
+  let owner_enter_list, _ = handle owner_detail (key `Enter) in
+  require (not (Balances.detail_focused owner_enter_list)) "enter-from-detail-returns-list";
+  let owner_upper_detail, _ = handle owner (char_key 'I') in
+  require (Balances.detail_focused owner_upper_detail) "uppercase-i-opens-detail";
+  let owner_i_list, _ = handle owner_detail (char_key 'i') in
+  require (not (Balances.detail_focused owner_i_list)) "i-from-detail-returns-list";
+  List.iter (fun mods ->
+    let tab_detail, request = handle owner (key ~mods `Tab) in
+    require (Balances.detail_focused tab_detail && request = Screen.Stay)
+      "tab-detail-toggle-keeps-measure";
+    let tab_list, request = handle tab_detail (key ~mods `Tab) in
+    require (not (Balances.detail_focused tab_list) && request = Screen.Stay)
+      "tab-detail-toggle-returns-list") [ []; [ `Shift ] ];
+  let uppercase_back, request = handle owner_detail (char_key 'Q') in
+  require (not (Balances.detail_focused uppercase_back) && request = Screen.Stay)
+    "uppercase-q-detail-returns-list";
+  let _, request = handle uppercase_back (char_key 'Q') in
+  require (request = Screen.Home) "uppercase-q-list-returns-home";
   let _owner_detail_down, _ =
     handle owner_detail (char_key 'j')
   in
@@ -147,10 +165,36 @@ let unit_checks ~width_of () =
     Lazy.force (Balances.view bv (geometry ~dimensions:(80, 24) ~width_of ()) owner).rows
   in
   require (List.length scr_stacked = 24) "screen-stacked-height-24";
+  let contains text needle =
+    let rec loop i =
+      i + String.length needle <= String.length text &&
+      (String.sub text i (String.length needle) = needle || loop (i + 1)) in
+    loop 0 in
+  let painted_has rows needle = List.exists (fun (_, text) -> contains text needle) rows in
+  require (painted_has scr_stacked "Amount" && painted_has scr_stacked "Measure"
+    && painted_has scr_stacked "State") "current-full-columns-present";
+  require (painted_has scr_stacked "+200,000" && painted_has scr_stacked "exact")
+    "current-column-exact-amount-and-state";
+  require (painted_has scr_stacked "銀行 [bank]" && painted_has scr_stacked "財布 [wallet]")
+    "current-columns-preserve-label-and-stable-id";
+  let eur_env = env ~book (Ok (Some "wallet\teur\n")) in
+  let eur_rows = Lazy.force
+    (Balances.view eur_env (geometry ~dimensions:(80, 24) ~width_of ()) owner).rows in
+  require (painted_has eur_rows "Amount" && painted_has eur_rows "+123.45 eur")
+    "current-amount-column-uses-scale-two-eur-not-raw-quanta";
+  let unknown_env = env ~book (Ok (Some "bank\teur\nfood\tjpy\n")) in
+  let unknown_rows = Lazy.force
+    (Balances.view unknown_env (geometry ~dimensions:(80, 24) ~width_of ()) owner).rows in
+  require (painted_has unknown_rows "unsupported" && painted_has unknown_rows "eur")
+    "current-columns-retain-unsupported-and-measure";
+  require (painted_has unknown_rows "exact" && painted_has unknown_rows "jpy")
+    "current-columns-retain-supported-zero";
   let scr_split =
     Lazy.force (Balances.view bv (geometry ~dimensions:(120, 36) ~width_of ()) owner).rows
   in
   require (List.length scr_split = 36) "screen-split-height-36";
+  require (painted_has scr_split "Amount" && painted_has scr_split "State")
+    "current-wide-keeps-full-columns";
   let scr_tiny =
     Lazy.force (Balances.view bv (geometry ~dimensions:(32, 9) ~width_of ()) owner).rows
   in
@@ -159,6 +203,53 @@ let unit_checks ~width_of () =
   (* 13. Footer formatting *)
   let ft = (Balances.view bv (geometry ~width_of ()) owner).footer in
   require (List.length ft = 2) "footer-has-2-lines";
+  require (List.exists (fun line -> contains line "i/Enter/Tab details") ft)
+    "list-footer-advertises-detail";
+  let detail_ft = (Balances.view bv (geometry ~width_of ()) owner_detail).footer in
+  require (List.exists (fun line -> contains line "Esc/i/Enter/Tab/q list") detail_ft)
+    "detail-footer-advertises-return";
+  require ((Balances.view bv (geometry ~width_of ()) owner).subtitle =
+    Screen.Text "Selected Locus × Measure; balance-view order only.")
+    "current-context-describes-coordinate-order";
+  List.iter (fun dimensions ->
+    List.iter (fun state ->
+      let footer = (Balances.view bv (geometry ~dimensions ~width_of ()) state).footer in
+      require (List.for_all (fun line -> width_of line <= fst dimensions) footer)
+        "responsive-footer-fits-cell-width";
+      require (List.exists (fun line -> contains line "p print") footer)
+        "responsive-footer-keeps-print";
+      require (List.exists (fun line -> contains line "page") footer)
+        "responsive-footer-keeps-paging") [ owner; owner_detail ])
+    [ (120,36); (80,24); (48,14); (32,9) ];
+  require (List.for_all (fun hint -> List.exists (fun line -> contains line hint) ft)
+    [ "w measure"; "v view"; "c config"; "o observe"; "Space commands" ])
+    "medium-footer-keeps-feature-discovery";
+  let scroll_env = env ~book (Ok (Some "bank\tjpy\nwallet\tjpy\nfood\tjpy\n")) in
+  let tiny = geometry ~dimensions:(32,9) ~width_of () in
+  let scroll_handle dimensions state input =
+    fst (Balances.handle scroll_env (geometry ~dimensions ~width_of ()) state input) in
+  let scrolled = Balances.set_selected 1 owner
+    |> fun state -> scroll_handle (32,9) state (char_key 'i')
+    |> fun state -> scroll_handle (32,9) state (key `End) in
+  let _, scroll_before = Balances.detail_viewport scroll_env tiny scrolled in
+  require (scroll_before.start > 0) "detail-scroll-fixture-really-scrolled";
+  List.iter (fun return_key ->
+    let returned = scroll_handle (32,9) scrolled return_key in
+    let reopened = scroll_handle (32,9) returned (char_key 'i') in
+    let _, after = Balances.detail_viewport scroll_env tiny reopened in
+    require (after.start = scroll_before.start) "same-coordinate-return-retains-detail-scroll")
+    [char_key 'i'; key `Enter; key `Escape; char_key 'q'; char_key 'h'];
+  List.iter (fun dimensions ->
+    List.iter (fun (motion, selected) ->
+      let state = scroll_handle (32,9) scrolled (char_key 'i') in
+      let state = scroll_handle dimensions state motion in
+      let state = scroll_handle dimensions state (char_key 'i') in
+      let _, after = Balances.detail_viewport scroll_env
+        (geometry ~dimensions ~width_of ()) state in
+      require (Balances.selected state = selected && after.start = 0)
+        "changed-coordinate-starts-detail-at-top-after-resize")
+      [ (key `Home,0); (key `End,2); (key (`Page `Up),0); (key (`Page `Down),2);
+        (char_key 'j',2); (char_key 'k',0) ]) [(32,9);(48,14);(80,24)];
   print_endline "PASS: Balances vertical owner pure unit verification (state, query, motion, overlays, screen)."
 
 let () = unit_checks ~width_of:String.length ()

@@ -701,12 +701,19 @@ let render_chart ~width ~height ~width_of ~book ~today ~measure ~samples ~select
       | _ ->
           let min_q = List.fold_left Z.min (List.hd valid) valid in
           let max_q = List.fold_left Z.max (List.hd valid) valid in
-          let span = Z.sub max_q min_q in
-          let step = if Z.equal span Z.zero then Z.one else
-            nice_ceiling (ceil_div span (Z.of_int (max 1 (min 4 (plot_h - 1))))) in
+          (* LOAM Chart.scaleFor pads a flat series by ten percent before
+             choosing nice ticks. This also keeps a single supported point
+             readable, instead of misleading ±1-quanta axis labels. *)
+          let seed_low, seed_high =
+            if Z.equal min_q max_q then
+              let pad = Z.max Z.one (Z.ediv (Z.abs min_q) (Z.of_int 10)) in
+              Z.sub min_q pad, Z.add max_q pad
+            else min_q, max_q in
+          let span = Z.sub seed_high seed_low in
+          let step = nice_ceiling (ceil_div span (Z.of_int 4)) in
           let lower, upper =
-            if Z.equal span Z.zero then Z.pred min_q, Z.succ max_q
-            else Z.mul (Z.ediv min_q step) step, Z.mul (ceil_div max_q step) step in
+            Z.mul (Z.ediv seed_low step) step,
+            Z.mul (ceil_div seed_high step) step in
           let range = Z.sub upper lower in
           let rec ticks_from t acc =
             if Z.compare t upper > 0 then List.rev acc

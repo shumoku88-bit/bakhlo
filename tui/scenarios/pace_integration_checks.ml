@@ -560,6 +560,68 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   require (day_at (count - 2) = yesterday) "daily-pace-sel-anchor-prev";
   (* Entry rests on the Ten_days tail: today; h steps to yesterday, l returns. *)
   require (selected_date ten_samples entry = today) "daily-pace-sel-entry-today";
+  let context = (Pace.view (X.pace_env entry)
+      (X.screen_geometry ~dimensions:(120, 36) ~width_of entry) entry.C.screens.pace).Screen.subtitle in
+  require (match context with Screen.Text text ->
+    Base.String.is_substring text ~substring:"1:10d*"
+    && Base.String.is_substring text ~substring:"5:Previous Cycle"
+    | _ -> false) "daily-pace-context-names-period-choices";
+  let env = X.pace_env entry in
+  let context_at ?(env = env) width screen =
+    let geometry = X.screen_geometry ~dimensions:(width, 24) ~width_of entry in
+    match (Pace.view env geometry screen).Screen.subtitle with
+    | Screen.Text text -> text | _ -> "" in
+  let current = context_at 80 entry.C.screens.pace in
+  let pace, _, _ = get (Pace.current_pace env) in
+  let margin = O.format_money env.book env.measure pace.B.daily_pace_quanta in
+  require (Base.String.is_substring current ~substring:"Spent: 0 jpy"
+    && Base.String.is_substring current ~substring:("(+" ^ margin ^ " vs pace)")
+    && Base.String.is_substring current ~substring:"[1-5] period")
+    "daily-pace-current-context-discloses-spent-and-margin";
+  List.iter (fun width ->
+    let text = context_at width entry.C.screens.pace in
+    require (width_of text <= width
+      && not (Base.String.is_substring text ~substring:"Spent:"))
+      ("daily-pace-context-omits-whole-spent-clause-" ^ string_of_int width)) [32; 48];
+  let unavailable_env = { env with Screen.config = (fun _ -> Ok None) } in
+  let unavailable = context_at ~env:unavailable_env 80 entry.C.screens.pace in
+  require (Base.String.is_substring unavailable ~substring:"unavailable"
+    && not (Base.String.is_substring unavailable ~substring:"Spent:"))
+    "daily-pace-unavailable-context-does-not-infer-spent";
+  let previous_start = get (Cal.shift_days today (-7)) in
+  let previous_env = { env with Screen.config = (fun name ->
+    if name = "boundary-presets.tsv" then
+      Ok (Some ("cycle\t" ^ previous_start ^ "\t" ^ today ^ "\t" ^ stop ^ "\n"))
+    else env.config name) } in
+  let previous, _ = Pace.handle previous_env
+      (X.screen_geometry ~dimensions:(120, 24) ~width_of entry)
+      entry.C.screens.pace (`Key (`ASCII '5', [])) in
+  require ((Pace.trend previous).Trend.preset = Trend.Previous_cycle)
+    "daily-pace-context-previous-cycle-fixture-admitted";
+  let previous_context = context_at ~env:previous_env 120 previous in
+  require (not (Base.String.is_substring previous_context ~substring:"Spent:"))
+    "daily-pace-absent-today-sample-does-not-infer-spent";
+  let wide_detail = key ~dimensions:(120, 36) ~width_of entry (`ASCII 'i') in
+  let painted_wide = R.screen ~width_of (120, 36) wide_detail |> List.map snd |> String.concat "\n" in
+  require (Base.String.is_substring painted_wide ~substring:"Trend"
+    && Base.String.is_substring painted_wide ~substring:"History 10/10"
+    && Base.String.is_substring painted_wide ~substring:"Selected day")
+    "daily-pace-wide-detail-retains-trend-and-history-position";
+  let wide_geometry = X.screen_geometry ~dimensions:(120, 36) ~width_of wide_detail in
+  let wide_view = pace_detail_viewport ~dimensions:(120, 36) ~width_of wide_detail in
+  require (wide_view.capacity = Ui_panel.capacity
+      ~height:(max 7 (snd wide_geometry.content / 2)) ~heading:false)
+    "daily-pace-wide-detail-navigation-matches-painted-height";
+  (* A low terminal retains the existing three-line History strip: frame,
+     selected date, frame. Its one visible date is also the page step. *)
+  let narrow_dimensions = (48, 14) in
+  let narrow_rows = R.screen ~width_of narrow_dimensions entry |> List.map snd in
+  require (List.exists (fun text -> Base.String.is_substring text ~substring:"History 10/10") narrow_rows
+    && List.exists (fun text -> Base.String.is_substring text ~substring:("◆ " ^ today)) narrow_rows)
+    "daily-pace-narrow-retains-selected-history-strip";
+  let narrow_page = key ~dimensions:narrow_dimensions ~width_of entry (`Page `Up) in
+  require (selected_date ten_samples narrow_page = yesterday)
+    "daily-pace-narrow-history-page-matches-one-visible-date";
   let back = key ~width_of entry (`ASCII 'h') in
   require (selected_date ten_samples back = yesterday) "daily-pace-sel-entry-h-prev";
   require (selected_date ten_samples (key ~width_of back (`ASCII 'l')) = today) "daily-pace-sel-entry-l-today";
@@ -736,6 +798,18 @@ let daily_pace_graph_render_checks ~width_of () =
      and keep selecting the intended sample. *)
   let const_samples = List.map (fun day -> sample ~day ()) days in
   let zero_samples = List.map (fun day -> sample ~day ~q:0 ()) days in
+  (* LOAM Chart.scaleFor [500] pads to [450,550]. Four intervals ask
+     for 25 quanta; niceStep rounds up to 50, yielding 450/500/550.
+     The negative series mirrors those exact ticks. *)
+  List.iter (fun (q, ticks) ->
+    let single = [sample ~day:"2026-10-26" ~q ()] in
+    let painted = Trend.render_chart ~width:52 ~height:30 ~width_of ~book
+      ~today:"2026-10-26" ~measure:"jpy" ~samples:single ~selected_index:0 ~graph_style:Line in
+    let text = String.concat "\n" (List.map snd painted) in
+    require (List.for_all (fun tick ->
+      Base.String.is_substring text ~substring:(tick ^ " │ ")) ticks)
+      "pace-single-point-loam-nice-tick-breathing-room")
+    [500, ["450"; "500"; "550"]; -500, ["-550"; "-500"; "-450"]];
   List.iter
     (fun (label, made) ->
       List.iter

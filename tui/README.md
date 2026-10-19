@@ -224,7 +224,7 @@ Scheduledでopen予定を選び、`g`を押すと定期生成（Scheduled / Gene
 
 Homeで`d`を押すと、今日の目安（Daily Pace）画面が開き、過去から現在に至る日々の消化ペース推移（Trend）を表示する。
 今日のTrendはCurrent／What-ifと同じ`Daily_book.daily_pace`の回答を使い、期限超過の未払い予定も控除する。過去日のPaceには全Pool座標のゼロ起点支持が必要。現在観測だけの台帳では過去日を`unknown`として残し、グラフの線を繋がない。独立に分かる当日の取引額まで不明やゼロに置換しない。
-通常寸法では上段が全幅グラフ、下段がHistory／Selected day。上部のTodayは選択日と独立して今日の目安を表示する。48×14では短いHistory、32×9では日付と完全なPaceを優先する。`i`／Enter／Tabで全幅の詳細へ切り替える。Historyは各列の完全な値が収まる幅ならDay／Quanta/day／Spent／Pace diffを表示し、狭幅では日付とPaceに絞る。`Spent`はPoolの取引ごとの純流出から支払済み予定・同日反転の対を除いた予定外支出、`Pace diff`は同日のPace − Spentであり、前日比ではない。
+通常寸法では上段が全幅グラフ、下段がHistory／Selected day。上部のTodayは選択日と独立して今日の目安を表示し、今日の支持されたactivityがあり全文が収まればSpentと同日の差も表示する。期間名・選択位置／件数を表示する。48×14では短いHistory、32×9では日付と完全なPaceを優先する。`i`／Enter／Tabで詳細へ切り替え、広幅ではグラフとHistoryを残し、狭幅では詳細へ全幅を渡す。定数系列・単一点にもLOAM同様の余白付き目盛りを使う。Historyは各列の完全な値が収まる幅ならDay／Quanta/day／Spent／Pace diffを表示し、狭幅では日付とPaceに絞る。`Spent`はPoolの取引ごとの純流出から支払済み予定・同日反転の対を除いた予定外支出、`Pace diff`は同日のPace − Spentであり、前日比ではない。
 
 - **期間プリセット切替 (`1`〜`5`)**:
   - `1`: 10d（過去10日間）
@@ -347,11 +347,12 @@ Homeで`b`を押すと、LOAM準拠の**Balances / Current**（現在の各口�
   - `j/k`・`↑/↓`: 1行移動。
   - `Page Up/Down`・`Ctrl-u/d`: 画面単位のページ移動。
   - `Home`/`End`: 最初／最後の残高へジャンプ。
-  - `Enter`・`i`・`Tab`・`h/l`: 選択した残高の詳細（Selected Balance）を右ペインに表示・スクロール。
+  - `Enter`・`i`・`Tab`／Shift-Tab・`h/l`: 一覧と選択した残高の詳細（Selected Balance）のfocusを切り替える。同じ座標なら詳細位置を保持し、別の座標へ移動したら先頭から表示する。
   - `Esc`・`q`: 詳細ペインから一覧ペインへ戻る。一覧ペインで`Esc`/`q`を押すとHomeへ戻る。
 - **モード切替 (`v`)**:
   - `v`を押すと**Balances / Accounting**（資産・負債・純資産・収益・費用の会計分類表示）に切り替わる。
   - 再度`v`でCurrentへ戻る。同じLocus × Measureがあれば選択を保持し、なければ最初の座標へ移る。詳細のEnd後・resize後の上移動も実際の可視範囲へ制限する。
+  - `w`は表示対象設定を編集するMeasureを切り替える。一覧自体は設定された全Measureを表示する。
 - **表示対象の編集 (`c`)**:
   - 許可済み、または既存設定に残るLocusを候補一覧から選ぶ。`j/k`／`↑/↓`で移動、Spaceで追加／解除。追加は選択順の末尾へ入る。
   - Enterで確認、Esc／`e`／Editで選択を保持して一覧へ戻る。一覧のEsc／`q`は非保存取消。確認全文が表示できる寸法でのみSaveする。

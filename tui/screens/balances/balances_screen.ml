@@ -66,7 +66,9 @@ let mode t = t.mode
 let pane t = t.pane
 let selected t = t.selected
 let notice t = t.notice
-let set_selected selected t = { t with selected = max 0 selected }
+let set_selected selected t =
+  let selected = max 0 selected in
+  { t with selected; detail_scroll = if selected = t.selected then t.detail_scroll else 0 }
 
 let title t =
   match t.mode with
@@ -75,6 +77,9 @@ let title t =
 
 let browser_pane_widths width =
   if width < 80 then (width, width)
+  else if width >= 120 then
+    let right = min 60 (max 48 (width * 34 / 100)) in
+    (width - right - 1, right)
   else
     let left = max 36 (min 58 (width * 52 / 100)) in
     (left, width - left - 1)
@@ -135,6 +140,38 @@ let selected_account ~book ~measure ~roles ~balance_view_text t =
 
 let balance_lines ?(width_of = String.length) ?(width = max_int) ~book items_list =
   List.map (O.balance_item_line ~width_of ~width ~book) items_list
+
+(* Full quantities stay available in detail/Print. A table cell never clips
+   a quantity into a different number. *)
+let current_table ~width_of ~width ~book items_list =
+  let room = max 0 (width - width_of "│ " - width_of " │" - width_of "  ") in
+  let measure_width = List.fold_left (fun size -> function
+    | O.Account_row { measure; _ } -> max size (width_of measure)
+    | _ -> size) 7 items_list in
+  if room < 54 || measure_width > 12 then
+    ("  Locus / Measure  Value / state",
+     balance_lines ~width_of ~width:room ~book items_list)
+  else
+    let state_width = if room >= 74 then 23 else 11 in
+    let quantity_width = min 22 (max 12 (room - measure_width - state_width - 13)) in
+    let locus_width = max 1 (room - quantity_width - measure_width - state_width - 5) in
+    let row locus quantity measure state =
+      O.pad ~width_of locus_width locus ^ "  " ^ O.pad_left ~width_of quantity_width quantity
+      ^ " " ^ O.pad ~width_of measure_width measure ^ "  " ^ O.pad ~width_of state_width state
+    in
+    let lines = List.map (function
+      | O.Account_row { locus; measure; value; _ } ->
+          let quantity, state = match value with
+            | O.Exact n ->
+                ((if Z.sign n > 0 then "+" else "") ^ O.format_money book measure n, "exact")
+            | O.Known_present -> ("?", if state_width < 23 then "present, ?" else "present, amount unknown")
+            | O.Unsupported -> ("?", "unsupported") in
+          let quantity = if width_of quantity <= quantity_width then quantity else "see details" in
+          let label = B.label book locus in
+          let name = if label <> "" && label <> locus then label ^ " [" ^ locus ^ "]" else locus in
+          row name quantity measure state
+      | item -> O.balance_item_line ~width_of ~width:room ~book item) items_list in
+    ("  " ^ row "Locus" "Amount" "Measure" "State", lines)
 
 let balance_print_fits rows =
   let rec fits bytes = function
@@ -222,7 +259,7 @@ let detail_viewport ~dimensions ~width_of ~book ~measure ~roles ~balance_view_te
   let stacked = fst dimensions >= 72 && fst dimensions < 120 && usable_h >= 18 in
   let right_width =
     if stacked then fst dimensions
-    else if fst dimensions >= 80 then fst dimensions - max 36 (min 58 (fst dimensions * 52 / 100)) - 1
+    else if fst dimensions >= 80 then snd (browser_pane_widths (fst dimensions))
     else fst dimensions
   in
   let items_list = items ~book ~measure ~roles ~balance_view_text t in
@@ -375,11 +412,11 @@ let cursor_position ~dimensions ~body_dimensions ~width_of t =
   | Some frame -> frame.cursor
   | None -> None
 
-let list_capacity ~dimensions:(width, height) =
+let list_capacity ~heading ~dimensions:(width, height) =
   let usable_h = max 0 (height - 5) in
   let stacked = width >= 72 && width < 120 && usable_h >= 18 in
   let list_height = if stacked then usable_h / 2 else usable_h in
-  Panel.capacity ~height:list_height ~heading:false
+  Panel.capacity ~height:list_height ~heading
 
 let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~width_of t (input : Ui_input.input) =
   match t.overlay with
@@ -482,18 +519,20 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~width_
       match input with
       | `Key ((`Escape | `ASCII ('q' | 'Q')), []) ->
           if t.pane = `Detail then
-            ({ t with pane = `List; detail_scroll = 0 }, Stay)
+            ({ t with pane = `List }, Stay)
           else (t, Back_to_home)
       | `Key ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), []) ->
           let next_pane = if t.pane = `List then `Detail else `List in
-          ({ t with pane = next_pane; detail_scroll = 0 }, Stay)
-      | `Key ((`Enter | `ASCII 'i'), []) when t.pane = `List ->
-          ({ t with pane = `Detail; detail_scroll = 0 }, Stay)
+          ({ t with pane = next_pane }, Stay)
+      | `Key ((`Enter | `ASCII ('i' | 'I')), []) ->
+          let pane = if t.pane = `List then `Detail else `List in
+          ({ t with pane }, Stay)
       | `Key (`ASCII ' ', []) ->
           (t, Open_commands)
-      | `Key (`Tab, []) ->
-          (t, Cycle_measure `Next)
-      | `Key (`Tab, [ `Shift ]) | `Key (`ASCII 'w', []) ->
+      | `Key (`Tab, mods) when mods = [] || mods = [ `Shift ] ->
+          let pane = if t.pane = `List then `Detail else `List in
+          ({ t with pane }, Stay)
+      | `Key (`ASCII 'w', []) ->
           (t, Cycle_measure `Prev)
       | `Key (`ASCII 'v', []) ->
           let prev_coord = selected_coordinate ~book ~measure ~roles ~balance_view_text t in
@@ -527,15 +566,15 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~width_
           | None -> (t, Stay))
       | `Key (`Home, []) ->
           if t.pane = `Detail then ({ t with detail_scroll = 0 }, Stay)
-          else ({ t with selected = 0 }, Stay)
+          else (set_selected 0 t, Stay)
       | `Key (`End, []) ->
           let all_items = items ~book ~measure ~roles ~balance_view_text t in
           let count = List.length all_items in
           if t.pane = `Detail then
             let _, view = detail_viewport ~dimensions ~width_of ~book ~measure ~roles ~balance_view_text t in
             ({ t with detail_scroll = view.last }, Stay)
-          else ({ t with selected = max 0 (count - 1) }, Stay)
-      | `Key ((`Arrow `Up | `ASCII 'k'), []) ->
+          else (set_selected (count - 1) t, Stay)
+      | `Key ((`Arrow `Up | `ASCII ('k' | 'K')), []) ->
           let all_items = items ~book ~measure ~roles ~balance_view_text t in
           let count = List.length all_items in
           if t.pane = `Detail then
@@ -544,8 +583,8 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~width_
             ({ t with detail_scroll = next_scroll }, Stay)
           else
             let next_sel = max 0 (min (max 0 (count - 1)) (t.selected - 1)) in
-            ({ t with selected = next_sel }, Stay)
-      | `Key ((`Arrow `Down | `ASCII 'j'), []) ->
+            (set_selected next_sel t, Stay)
+      | `Key ((`Arrow `Down | `ASCII ('j' | 'J')), []) ->
           let all_items = items ~book ~measure ~roles ~balance_view_text t in
           let count = List.length all_items in
           if t.pane = `Detail then
@@ -554,7 +593,7 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~width_
             ({ t with detail_scroll = next_scroll }, Stay)
           else
             let next_sel = max 0 (min (max 0 (count - 1)) (t.selected + 1)) in
-            ({ t with selected = next_sel }, Stay)
+            (set_selected next_sel t, Stay)
       | `Key ((`Page `Up | `ASCII 'u'), _) ->
           let all_items = items ~book ~measure ~roles ~balance_view_text t in
           let count = List.length all_items in
@@ -563,9 +602,9 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~width_
             let next_scroll = Panel.move ~last:view.last ~position:view.start (-(max 1 view.capacity)) in
             ({ t with detail_scroll = next_scroll }, Stay)
           else
-            let step = list_capacity ~dimensions in
+            let step = list_capacity ~heading:(t.mode = `Current) ~dimensions in
             let next_sel = max 0 (min (max 0 (count - 1)) (t.selected - step)) in
-            ({ t with selected = next_sel }, Stay)
+            (set_selected next_sel t, Stay)
       | `Key ((`Page `Down | `ASCII 'd'), _) ->
           let all_items = items ~book ~measure ~roles ~balance_view_text t in
           let count = List.length all_items in
@@ -574,9 +613,9 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~width_
             let next_scroll = Panel.move ~last:view.last ~position:view.start (max 1 view.capacity) in
             ({ t with detail_scroll = next_scroll }, Stay)
           else
-            let step = list_capacity ~dimensions in
+            let step = list_capacity ~heading:(t.mode = `Current) ~dimensions in
             let next_sel = max 0 (min (max 0 (count - 1)) (t.selected + step)) in
-            ({ t with selected = next_sel }, Stay)
+            (set_selected next_sel t, Stay)
       | _ -> (t, Stay))
 
 let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) ~width_of t =
@@ -589,7 +628,12 @@ let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) 
       left
     else width
   in
-  let lines = balance_lines ~width_of ~width:(max 0 (list_width - 6)) ~book items_list in
+  let heading, lines = match t.mode with
+    | `Current ->
+        let heading, lines = current_table ~width_of ~width:list_width ~book items_list in
+        (Some heading, lines)
+    | `Accounting -> (None, balance_lines ~width_of ~width:(max 0 (list_width - 6)) ~book items_list) in
+  let heading = if lines = [] then Some "No balances are selected." else heading in
   let detail =
     match List.nth_opt items_list t.selected with
     | None -> [ Ui_text.tr "No supplied Locus / Measure coordinates." ]
@@ -597,7 +641,7 @@ let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) 
   in
   let right_width =
     if stacked then width
-    else if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1
+    else if width >= 80 then snd (browser_pane_widths width)
     else width
   in
   let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
@@ -609,14 +653,14 @@ let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) 
     Panel.frame ~width_of ~width ~height:list_height ~focused:(not is_detail) ~title:title_text
       ~scroll:0
       ~selected:(if lines = [] then None else Some t.selected)
-      ?heading:(if lines = [] then Some "No balances are selected." else None)
+      ?heading
       lines
     @ Panel.frame ~width_of ~width ~height:(height - list_height) ~focused:is_detail
         ~title:"Selected Balance" ~scroll:t.detail_scroll ~selected:None wrapped_detail
   else if width >= 80 then
     let left_width, right_width = browser_pane_widths width in
     let left_panel =
-      Panel.frame ?heading:(if lines = [] then Some "No balances are selected." else None)
+      Panel.frame ?heading
         ~width_of ~width:left_width ~height ~focused:(not is_detail) ~title:title_text ~scroll:0
         ~selected:(if lines = [] then None else Some t.selected)
         lines
@@ -634,29 +678,42 @@ let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) 
     Panel.frame ~width_of ~width ~height ~focused:true ~title:"Selected Balance"
       ~scroll:t.detail_scroll ~selected:None wrapped_detail
   else
-    Panel.frame ?heading:(if lines = [] then Some "No balances are selected." else None)
+    Panel.frame ?heading
       ~width_of ~width ~height ~focused:true ~title:title_text ~scroll:0
       ~selected:(if lines = [] then None else Some t.selected)
       lines
 
-let footer ~dimensions:_ ~width_of:_ t =
+let footer ~dimensions:(width, _) ~width_of t =
+  let fit choices =
+    match List.find_opt (fun text -> width_of text <= max 0 width) choices with
+    | Some text -> text
+    | None -> O.clip_text ~width_of (max 0 width) (List.hd (List.rev choices)) in
   match t.overlay with
   | Config_picker _ ->
       [
-        "j/k select  Space toggle  Enter review";
-        "Esc/q cancel; unknown stays '?'  no write until confirmed";
+        fit [ "j/k select  Space toggle  Enter review"; "j/k sel Space toggle Enter review"; "j/k Space Enter review" ];
+        fit [ "Esc/q cancel; unknown stays '?'  no write until confirmed"; "Esc/q cancel; '?' stays unknown"; "Esc/q cancel; no write" ];
       ]
   | Config_review _ ->
-      [ "Enter save  Tab choose Edit  Esc edit"; "Full selection must fit before saving" ]
+      [ fit [ "Enter save  Tab choose Edit  Esc edit"; "Enter save Tab/Esc edit" ];
+        fit [ "Full selection must fit before saving"; "Full review required to save" ] ]
   | Print_preview _ ->
       [
-        "PgUp/Dn scroll  Home/End  Enter/Esc close";
-        "Preview only; no terminal output or book write";
+        fit [ "PgUp/Dn scroll  Home/End  Enter/Esc close"; "PgUp/Dn Home/End Enter/Esc close"; "j/k scroll Enter/Esc close" ];
+        fit [ "Preview only; no terminal output or book write"; "Preview only; no output or write"; "Preview only; no write" ];
       ]
   | No_overlay ->
       [
-        "j/k move  Tab measure  v view  c config  o observe  p print  Esc home";
-        "Selected coordinate balance details remain inspectable";
+        (if t.pane = `Detail then
+           fit [ "j/k scroll  Esc/i/Enter/Tab/q list  Space commands";
+                 "j/k scroll Esc/i/Enter/q list"; "j/k scroll i/q list SPC cmds" ]
+         else fit [ "j/k select  i/Enter/Tab details  Esc/q back  Space commands";
+                    "j/k sel i/Enter info q back Space commands";
+                    "j/k sel i info q back SPC cmds" ]);
+        fit [ "C-u/d page  Home/End ends  w measure  v view  c config  o observe  p print view";
+              "C-u/d page Home/End ends w measure v view c config o observe p print view";
+              "C-u/d page Home/End ends p print";
+              "C-u/d page p print" ];
       ]
 
 (* Screen contract *)
@@ -718,7 +775,9 @@ let view env (geometry : Screen.geometry) t =
       ~width_of:geometry.width_of t in
   {
     Screen.title = Ui_text.tr "Balances";
-    subtitle = Default;
+    subtitle = Text (match t.mode with
+      | `Current -> "Selected Locus × Measure; balance-view order only."
+      | `Accounting -> "Current role-based quantities; different Measures are not combined.");
     rows = lazy (screen ~book ~measure ~roles ~balance_view_text ~dimensions:geometry.content
                    ~width_of:geometry.width_of t);
     footer = footer ~dimensions:geometry.screen ~width_of:geometry.width_of t;

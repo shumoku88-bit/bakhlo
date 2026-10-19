@@ -241,8 +241,21 @@ let sample_detail ~width_of ~width (env : Screen.env) t samples =
     ~today:env.today ~preset:t.trend.preset
   |> List.map snd
 
-let detail_viewport env (geometry : Screen.geometry) t =
+(* The focused detail keeps its neighbours on wide terminals, just as LOAM's
+   trend workspace does. Navigation must use these exact painted dimensions. *)
+let panel_geometry (geometry : Screen.geometry) =
   let width, height = geometry.content in
+  let wide = width >= 79 && height >= 15 in
+  let lower_height = if height >= 15 then max 7 (height / 2)
+    else if height >= 9 then 3 else 0 in
+  let detail_width = if wide then min 60 (max 30 (width * 40 / 100)) else width in
+  (wide, lower_height, detail_width)
+
+let detail_viewport env (geometry : Screen.geometry) t =
+  let wide, lower_height, detail_width = panel_geometry geometry in
+  let width, height = match samples env t with
+    | Ok _ when wide -> detail_width, lower_height
+    | Ok _ | Error _ -> geometry.content in
   let width_of = geometry.width_of in
   let rows = match samples env t with
     | Ok (_, _, samples) -> sample_detail ~width_of ~width env t samples
@@ -603,11 +616,10 @@ let handle_form env geometry t form input =
       | No_overlay -> (t, Screen.Stay))
 
 let history_page (env : Screen.env) (geometry : Screen.geometry) t =
-  let width, height = geometry.content in
-  let wide = width >= 80 && height >= 15 in
-  let history_width = if wide then width - min 60 (max 30 (width * 40 / 100)) - 1 else width in
-  let capacity = if height >= 15 then max 7 (height / 2) - 2
-    else if height >= 9 then 1 else 0 in
+  let width, _ = geometry.content in
+  let wide, lower_height, detail_width = panel_geometry geometry in
+  let history_width = if wide then width - detail_width - 1 else width in
+  let capacity = Panel.capacity ~height:lower_height ~heading:false in
   match samples env t with
   | Error _ -> 1
   | Ok (_, _, samples) ->
@@ -698,13 +710,35 @@ let saved _env _geometry result t =
 
 (* Painting *)
 
-let header_summary env ~width ~width_of =
-  match current_pace env with
+let header_summary env t ~width ~width_of =
+  let current = current_pace env in
+  let today = match current with
   | Error _ -> "Today: unavailable (not zero)"
   | Ok (pace, _, _) ->
       let text = "Today: " ^ O.format_money env.Screen.book pace.B.measure
           pace.daily_pace_quanta ^ " " ^ pace.measure ^ "/day" in
-      if width_of text <= width then text else "Today: End, then i for full value"
+      if width_of text <= width then text else "Today: End, then i for full value" in
+  let choices = Trend.presets |> List.mapi (fun index preset ->
+    Printf.sprintf "%d:%s%s" (index + 1) (Trend.preset_label preset)
+      (if preset = t.trend.preset then "*" else "")) |> String.concat " " in
+  let period = if width >= 85 then "   " ^ choices else "   [1-5] period" in
+  let spent = match current, samples env t with
+    | Ok (pace, _, _), Ok (_, _, samples) ->
+        (match List.find_opt (fun (sample : Trend.sample) -> sample.day = env.today) samples with
+        | Some { activity = Some activity; pace_quanta = Some _; _ } ->
+            let money q = O.format_money env.book pace.B.measure q in
+            let margin = Z.sub pace.daily_pace_quanta activity.discretionary_outflow in
+            " • Spent: " ^ money activity.discretionary_outflow ^ " " ^ pace.measure
+            ^ " (" ^ (if Z.sign margin > 0 then "+" else "") ^ money margin
+            ^ " vs pace)"
+        | Some _ | None -> "")
+    | Error _, _ | _, Error _ -> "" in
+  (* Keep quantities whole. Activity is shown only from today's qualified
+     sample; selecting Previous Cycle must not invent a current-day sample. *)
+  let full = today ^ spent ^ period in
+  if width_of full <= width then full
+  else let context = today ^ period in
+    if width_of context <= width then context else today
 
 let rows (env : Screen.env) (geometry : Screen.geometry) t =
   let width, height = geometry.content in
@@ -714,15 +748,11 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
   | Ok (_, _, samples) ->
       let count = List.length samples in
       let selected_idx = max 0 (min (count - 1) t.trend.selected_index) in
-      let title = Printf.sprintf "Daily Pace / Trend • %s [%s]"
+      let title = Printf.sprintf "Trend • %s [%s] %d/%d"
           (Trend.preset_label t.trend.preset)
-          (Trend.graph_style_label t.trend.graph_style) in
-      let wide = width >= 80 && height >= 15 in
-      let lower_height =
-        if height >= 15 then max 7 (height / 2)
-        else if height >= 9 then 3 else 0 in
-      let detail_width = if is_detail then width
-        else if wide then min 60 (max 30 (width * 40 / 100)) else width in
+          (Trend.graph_style_label t.trend.graph_style)
+          (if count = 0 then 0 else selected_idx + 1) count in
+      let wide, lower_height, detail_width = panel_geometry geometry in
       let detail_height = if wide then lower_height else 0 in
       let history_width = if wide then width - detail_width - 1 else width in
       let history_height = lower_height in
@@ -731,7 +761,7 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
         Panel.frame ~width_of ~width:detail_width ~height ~focused:is_detail
           ~title:"Selected day" ~scroll:t.scroll ~selected:None detail_rows
       in
-      if is_detail then detail_panel ~height
+      if is_detail && not wide then detail_panel ~height
       else
         let chart_height = height - lower_height in
         let chart =
@@ -747,7 +777,9 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
             ~height:(Panel.capacity ~height:history_height ~heading:false)
             ~width_of ~book:env.book ~measure:env.measure ~samples ~selected_index:selected_idx
           |> Panel.frame_rows ~width_of ~width:history_width ~height:history_height
-               ~focused:(not is_detail) ~title:"History"
+               ~focused:(not is_detail)
+               ~title:(Printf.sprintf "History %d/%d"
+                 (if count = 0 then 0 else selected_idx + 1) count)
         in
         let lower =
           if wide then
@@ -792,22 +824,22 @@ let footer (geometry : Screen.geometry) t =
   | Cycle _, _ -> [ "Enter review  Tab switch field  Esc cancel"; "Edits only boundary-presets.tsv" ]
   | Cycle_review _, _ -> [ "Enter save  Tab choose Edit  Esc edit"; "Full boundaries must fit before saving" ]
   | No_overlay, Trend_pane ->
-      if narrow then [ "h/l day  i detail  1-5 period"; "w what-if  v style  q back" ]
+      if narrow then [ "h/l day  v view  i info  q back"; "1-5 period  C-u/d page  Home/End" ]
       else
-        [ "1-5 period  h/l day  v style  Tab/i detail  w what-if";
-          "PgUp/Dn Home/End  c pool  b cycle  Space Commands  q back" ]
+        [ "h/l day  v view  i/Enter details  q back  w what-if";
+          "1-5 period  C-u/d page  Home/End ends  c pool  b cycle" ]
   | No_overlay, Detail_pane ->
-      if narrow then [ "j/k scroll  h/l day  Tab trend"; "PgUp/Dn Home/End  q back" ]
+      if narrow then [ "j/k scroll  v view  i/q trend"; "h/l day  1-5 period  C-u/d page" ]
       else
-        [ "j/k PgUp/Dn Home/End scroll  h/l day  Tab/i timeline";
-          "w what-if  c pool  b cycle  q/Esc timeline" ]
+        [ "j/k scroll  v view  i/q trend  h/l day  w what-if";
+          "1-5 period  C-u/d page  Home/End ends  c pool  b cycle" ]
 
 let view env (geometry : Screen.geometry) t =
   let overlay = Option.bind (form t)
       (Ui_overlay.form ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body) in
   {
-    Screen.title = tr "Daily Pace";
-    subtitle = Text (header_summary env ~width:(fst geometry.screen) ~width_of:geometry.width_of);
+    Screen.title = tr "Daily Pace / Trend" ^ " • " ^ Trend.preset_label t.trend.preset;
+    subtitle = Text (header_summary env t ~width:(fst geometry.screen) ~width_of:geometry.width_of);
     rows = lazy (rows env geometry t);
     footer = footer geometry t;
     overlay;
