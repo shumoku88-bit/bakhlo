@@ -51,6 +51,7 @@ Bakhloを日常のauthorityに移した後、Bakhloで追加した記帳を、�
   Bakhloへ取り込んだ旧LOAM Actualを再投入しない（重複防止）。
 - Bakhloの新entry ID ↔ LOAM publisherが割当てたEvent ID、idempotency operation、
   Scheduled plan ↔ Actual、Reversal targetの対応表が必要。ID一致を推測しない。
+- **重要: LOAMのidempotent Movement入口は、同じoperation IDが既にあれば元Eventを返し、再送payloadの一致を検査しない。** Bakhloでは同じentry IDの内容が訂正で変わり得る。従ってentry IDだけからoperationを作って再送するのは禁止。移行単位ごとに固定したBakhloのソース世代/バイトまたは内容fingerprint・出力内容・LOAMでの結果を検証可能なmanifestに結び、driftは必ず停止する。既存のLOAMを修正したという意味にはしない。
 - 切替**前**のLOAM EventをBakhloで訂正した場合、差分の単純追加では戻せない。
   正規の訂正処理か、明示した移行制約が必要。
 - Bakhloが保持しない旧LOAM correction chainはLOAMのsnapshotで保全する。
