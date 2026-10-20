@@ -67,7 +67,7 @@ LOAM終了後に使用し、取得拒否では起動せず、旧コピー・試�
 
 - [x] LOAM `detailLines`（全期間版／partial版）の順序・文言・muted・indentへ`render_detail`を揃える。意図的な差（scheduled-linked行・不明日の既知activity・通貨スケール）は回帰で固定。
 - [x] Core／TUI self-check、合成4寸法と最新実データ2寸法の対照、原本不変・clean-copies。
-- [ ] commit／pushとmatching SHA CI。
+- [x] commit／pushとmatching SHA CI（`295e811`、Core／TUIともsuccess）。
 - 残す差：partial時の`History partial`フィードバック行（Shell feedback契約の拡張が必要）、グラフ描画、`[?] why`／`[t] target`。
 
 ## Daily PaceをLOAMと同じ表示・回答へ揃える（2026-10-19）

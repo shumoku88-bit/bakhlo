@@ -4412,6 +4412,8 @@ P7/power-loss behavior have **not been executed**.
   header and chart rows. `../loam-data` hashes unchanged; AI tmux stopped; private
   captures deleted; `./tools/compare clean-copies` passed.
 
+- Matching implementation `295e811`: [Core 39397549899](https://github.com/shumoku88-bit/bakhlo/actions/runs/39397549899) and [Bonsai TUI 39397549927](https://github.com/shumoku88-bit/bakhlo/actions/runs/39397549927) completed/success (synthetic CI).
+
 ### Limits
 
 The `History partial` feedback row needs a screen-supplied feedback line in the Shell
