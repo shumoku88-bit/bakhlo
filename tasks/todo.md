@@ -1,5 +1,16 @@
 # LOAMの機能・見た目・使い勝手をBakhloで再現する
 
+## Scheduled 補充 e の入力／Preview（2026-10-21）
+
+- [ ] 既存の周期付き補充入口だけを、LOAMの次の1回／次のN回／指定日入力へ揃える。通常の`g`生成と共有Shell/API/Core/kitは変更しない。
+- [ ] 合成回帰・端末操作で明示日付／exact数量・Preview末尾／狭小／stale拒否を確認し、`./tools/check`、`./tools/tui --self-check`、`git diff --check`と該当台帳／証拠を更新する。
+- [ ] `omp/scheduled-replenish`で小さいcommitに分ける。push・main／他worktree変更・実家計アクセス・`./tools/compare`／`./ui`は行わない。
+
+停止理由：LOAMは観測日より後の補充期限を要求し、過去の候補を除外する。既存
+`Scheduled_generation_session.create`に観測日がなく、`shell_record_actions.ml`から渡す
+共有変更の許可が必要。入力だけを変更してこの条件を省略せず、コード編集前に停止。
+[調査・検査結果](../docs/VERIFICATION.md#scheduled-replenishment-input-scope-blocker-2026-10-21)。
+
 ## Manage Lociの実データ対照と一覧のページ移動（2026-10-21）
 
 - [x] 同一取得世代で120×36／80×24の読み取り対照。LOAMは追加フォームが入口、Bakhloは一覧＋詳細。差は台帳へ。[証拠](../docs/VERIFICATION.md#manage-loci-paired-comparison-and-list-paging-2026-10-21)

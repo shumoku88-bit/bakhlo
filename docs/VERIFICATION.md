@@ -6,6 +6,16 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Scheduled replenishment input scope blocker (2026-10-21)
+
+- Branch/base: `omp/scheduled-replenish` at `710129f`. **Implementation stopped before code edits**, following the instruction to stop if a shared Shell/API/Core/kit change is needed. Only this slice's task/ledger/evidence notes changed; no feature or test implementation was added.
+- Read-only LOAM reference: `Tui/ScheduledGenerationSession.lean:338-353` supplies Next occurrence / Next 3 occurrences / Next 6 occurrences / Custom date; custom date is an **exclusive fill-through limit**, not one arbitrary occurrence date. `Tui/ScheduledGeneration.lean:102-120` validates it against both `observedAt` and the source date. `Application/ScheduledGeneration.lean:155-196` omits candidates before `observedAt`; nonexistent nominal month-end dates require explicit human resolution, not clamping.
+- Scoped part is feasible: existing `Screen.Generate_every months` reaches `Scheduled_generation_session.create ~cadence_months` while ordinary `g` omits that argument. The editor can distinguish replenishment without changing the protocol, Core or kit.
+- Blocking input: `tui/screens/editors/scheduled_generation_session.mli:11-13` takes book, source, revision and optional cadence, **not the observation date**. The caller is `tui/shell/shell_record_actions.ml:66-75`, outside the allowed files. Existing generation validates only `through > source.day` and uses `Daily_calendar.shift_months` clamping. Replacing the controls alone would leave past-anchor generation and custom-date acceptance different from LOAM.
+- Required permission: allow the Shell constructor call to pass its captured observation date into the owned editor interface. Keep `g` unchanged; use the date explicitly for monitored `e`, with no clock read or missing-date fallback inside the pure editor. Month-end date resolution can then stay inside the owned editor. No shared change was made.
+- Baseline-only verification: `rtk test ./tools/check` — exit 0; `rtk test ./tools/tui --self-check` — exit 0, including current generation end/tiny/stale/atomic-cold checks; `rtk git diff --check` — exit 0. These results cover **unchanged behavior**, not the requested new replenishment flow.
+- **Not executed:** new-flow synthetic native walkthrough/regressions (no implementation), LOAM binary comparison, latest-data comparison, human/IME acceptance, CI and push. No `./tools/compare`, `./ui`, household/config input or `../loam-data` access; no sibling Lean build/modification/source copy, dependencies, Python, main or other-worktree edits.
+
 ## Scheduled Months and List local parity (2026-10-21)
 
 - Scope: `omp/scheduled-months-list`, implementation `7ae43a8`, based on `a6f57ce`; Scheduled-owned rendering/input and its scenario tests only. No shared Shell/API/Core, Loci screen or storage changes.
