@@ -22,6 +22,13 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 - During integration the TUI check first exposed an inline styled-row type error, then an overflow fixture that fitted the wider detail and obsolete two-pane wording checks. All were corrected before the passing run; no validation was suppressed.
 - Independent review caught a stale day-scope Locus on re-entry, no-op Loci navigation retargeting an occurrence, unguarded background batch/generate and ambiguous search-empty text. Added regression guards; `rtk test ./tools/build-bonsai-tui --test app` reproduced `list-loci-pane-does-not-act-on-a-background-occurrence` before the action fix (exit 1).
 - Not executed: LOAM binary paired comparison (synthetic or latest data), real household comparison, human/macOS IME acceptance, P7/power-loss qualification and CI (this branch is not pushed). Privacy token comparison is not executed without a private copy in this worktree. These are not inferred from synthetic success.
+- Integration: rebased onto `e600e31` (implementation `2888296`, docs `ac3f83c`; only the
+  `tasks/todo.md` heading conflict was resolved). On the main checkout `./tools/check`,
+  `./tools/privacy-scan --all` (private tokens compared, no match), `./tools/tui --self-check`
+  (39 PASS) and `git diff --check` passed. Pushed `ac3f83c`; matching-SHA
+  [Core CI 39473259869](https://github.com/shumoku88-bit/bakhlo/actions/runs/39473259869)
+  and [Bonsai TUI CI 39473259938](https://github.com/shumoku88-bit/bakhlo/actions/runs/39473259938)
+  both succeeded.
 - Remaining intentional/local limits: scaled `Amount` rather than LOAM raw `Quanta`; search and optional full detail are retained additions. All occurrence actions (including batch/generate) require occurrence/detail focus, unlike LOAM's background batch entrance; no-op Loci movement retains the target rather than silently selecting another plan. These safety differences have regression checks. Shared Shell outer geometry and the Series/coverage/monitoring/extension workflows are unchanged by this slice; no whole-screen parity or cutover claim.
 
 ## Real-data trial saves, exit compaction and unapproved-Locus correction comparison (2026-10-20)
