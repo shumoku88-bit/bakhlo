@@ -28,6 +28,16 @@ val source_cut : t -> Reflected_root_cut.t
 val assertions : t -> assertion list
 val with_added_effects : t -> Bakhlo_domain.Effect.t list -> t
 
+val with_replaced_effects :
+  t ->
+  event:Bakhlo_domain.Identifier.Event.t ->
+  old_effects:Bakhlo_domain.Effect.t list ->
+  new_effects:Bakhlo_domain.Effect.t list ->
+  t
+(** Exact answer update when one retained root keeps its identity but its Effects
+    change: unchanged when the cut reflects that root, otherwise every answer moves
+    by new minus old. The cut and its listed events are NOT rebuilt. *)
+
 type answer
 type unavailable = Assertion_unknown of { coordinate : Bakhlo_domain.Effect_coordinate.t }
 

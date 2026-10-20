@@ -74,6 +74,10 @@ val label : t -> string -> string
 val help : t -> string -> string
 val set_locus_label : t -> id:string -> label:string -> ?help:string -> unit -> (t, string) result
 val image : t -> Q.t
+(** Balance answers are always exact. After an in-place record or correction the
+    image's admitted source (evidence explanation, cut listings) still describes
+    the last whole admission; reload or re-admit before explaining evidence. *)
+
 val format : t -> string -> Z.t -> string
 
 val parse_amount : t -> string -> string -> (Z.t, string) result
@@ -123,7 +127,7 @@ val put_plan : t -> replace:bool -> plan -> (t, string) result
 (** Append a new open plan or replace an existing open one with the same ID.
     Caller supplies identity/date/Measure/exact signed changes, with both terminal
     fields None. No ID allocation or I/O. Checks current vocabulary and nonempty,
-    nonzero balanced single-Measure Movement, then admits the whole book. Closed
+    nonzero balanced single-Measure Movement, then checks the plan stage only. Closed
     plans cannot be changed/reopened. Other plans, entries and support are preserved. *)
 
 val cancel_plan : t -> id:string -> day:string -> (t, string) result
@@ -136,8 +140,26 @@ val put_entry_full : t -> replace:bool -> entry -> plan:string option -> (t, str
 (** Reference oracle: complete whole-book admission verification without incremental fast path. *)
 
 val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) result
-(** Checked append or replacement. Uses incremental admission for ordinary new entries,
-    and safely falls back to full admission for replacements, reversals, and exchanges. *)
+(** Checked append or replacement. New plain entries and corrections outside
+    Reversal/Exchange/opening/presence relations are admitted locally and update
+    balances in place; everything else falls back to whole-book admission. *)
+
+module Full : sig
+  val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) result
+  val put_plan : t -> replace:bool -> plan -> (t, string) result
+  val cancel_plan : t -> id:string -> day:string -> (t, string) result
+
+  val classify_merchant :
+    t -> id:string -> disposition:Bakhlo_application.Event_merchants.disposition -> (t, string) result
+
+  val add_locus : t -> string -> (t, string) result
+
+  val set_locus_label :
+    t -> id:string -> label:string -> ?help:string -> unit -> (t, string) result
+end
+(** Reference oracle: the same candidates, each re-admitted as a whole book. Every
+    ordinary mutation must agree with its counterpart here (refusal reason or
+    observable book); see test/daily_book_oracle_tests.ml. Never used by the UI. *)
 
 val classify_merchant :
   t ->

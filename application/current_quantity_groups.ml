@@ -74,20 +74,27 @@ let create ~frontier ~groups =
 let source_frontier t = t.frontier
 let groups t = List.map t.qualified_groups ~f:(fun group -> group.facts)
 
+let reindex t qualified_groups =
+  let owners =
+    List.fold qualified_groups ~init:(Map.empty (module Effect_coordinate))
+      ~f:(fun owners qg ->
+        List.fold qg.facts.assertions ~init:owners ~f:(fun owners (assertion : Projection.assertion) ->
+            Map.set owners ~key:assertion.coordinate ~data:qg.projection))
+  in
+  { t with qualified_groups; owners }
+
+let with_replaced_effects t ~event ~old_effects ~new_effects =
+  reindex t
+    (List.map t.qualified_groups ~f:(fun qg ->
+         { qg with
+           projection = Projection.with_replaced_effects qg.projection ~event ~old_effects ~new_effects }))
+
 let with_added_effects t effects =
   if List.is_empty effects || List.is_empty t.qualified_groups then t
   else
-    let qualified_groups =
-      List.map t.qualified_groups ~f:(fun qg ->
-          { qg with projection = Projection.with_added_effects qg.projection effects })
-    in
-    let owners =
-      List.fold qualified_groups ~init:(Map.empty (module Effect_coordinate))
-        ~f:(fun owners qg ->
-          List.fold qg.facts.assertions ~init:owners ~f:(fun owners (assertion : Projection.assertion) ->
-              Map.set owners ~key:assertion.coordinate ~data:qg.projection))
-    in
-    { t with qualified_groups; owners }
+    reindex t
+      (List.map t.qualified_groups ~f:(fun qg ->
+           { qg with projection = Projection.with_added_effects qg.projection effects }))
 
 let group_for t coordinate = Map.find t.owners coordinate
 

@@ -31,6 +31,15 @@ val source_frontier : t -> Correction_frontier.t
 val groups : t -> group list
 val with_added_effects : t -> Bakhlo_domain.Effect.t list -> t
 
+val with_replaced_effects :
+  t ->
+  event:Bakhlo_domain.Identifier.Event.t ->
+  old_effects:Bakhlo_domain.Effect.t list ->
+  new_effects:Bakhlo_domain.Effect.t list ->
+  t
+(** {!Current_quantity_projection.with_replaced_effects} for every group; owners
+    and cuts are unchanged. *)
+
 val group_for : t -> Bakhlo_domain.Effect_coordinate.t -> Current_quantity_projection.t option
 (** Unique already-qualified group; None means no exact assertion owner. *)
 

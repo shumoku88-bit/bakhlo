@@ -30,6 +30,9 @@ val source_frontier : t -> Correction_frontier.t
 val reflected_roots : t -> Bakhlo_domain.Identifier.Event.t list
 (** Exact supplied declarations in original order, unmodified. *)
 
+val is_reflected : t -> Bakhlo_domain.Identifier.Event.t -> bool
+(** Indexed membership in the supplied declarations; no traversal. *)
+
 val remaining_lineages : t -> Correction_frontier.lineage list
 (** Materialized unreflected rows in original root-Event order. May differ from
     [Correction_frontier.frontier_events] order even for empty declarations.

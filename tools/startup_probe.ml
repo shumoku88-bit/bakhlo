@@ -113,6 +113,10 @@ let () = match Sys.argv with
       median "put_entry (new)" 21 (fun () -> get (B.put_entry b ~replace:false e ~plan:None));
       let old = get (Option.to_result ~none:"no" (B.find_entry b "tx-000001")) in
       median "put_entry replace old" 21 (fun () -> get (B.put_entry b ~replace:true { old with memo = Some "x" } ~plan:None));
+      let plan : B.plan = { id = "probe-plan"; day = "2030-01-31"; measure = "jpy";
+        changes = [ ("wallet", Z.of_int (-500)); ("food", Z.of_int 500) ]; paid_by = None; cancelled_on = None } in
+      median "put_plan (new)" 21 (fun () -> get (B.put_plan b ~replace:false plan));
+      median "add_locus" 21 (fun () -> get (B.add_locus b "probe-locus"));
       median "balance query" 101 (fun () -> balance b);
       let pool = [coordinate "wallet" "jpy"] in
       median "daily_pace" 21 (fun () -> B.daily_pace b ~measure:"jpy" ~pool ~observed_at:"2030-01-01" ~end_exclusive:"2030-02-01")

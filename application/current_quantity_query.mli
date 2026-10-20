@@ -85,6 +85,17 @@ val with_added_effects : t -> Bakhlo_domain.Effect.t list -> t
 (** Incrementally update exact totals with newly admitted terminal effects.
     Preserves exact coordinates, coverage, and premise indices without full rebuild. *)
 
+val with_replaced_effects :
+  t ->
+  event:Bakhlo_domain.Identifier.Event.t ->
+  old_effects:Bakhlo_domain.Effect.t list ->
+  new_effects:Bakhlo_domain.Effect.t list ->
+  t option
+(** Exact update when an admitted root keeps its identity and only its Effects change.
+    None when it cannot be exact without rebuilding: presence evidence is supplied
+    (touch sets would need recount) or the root witnesses an opening. The caller must
+    have re-admitted the changed Event locally; [source] is NOT rebuilt. *)
+
 val query : t -> Bakhlo_domain.Effect_coordinate.t -> (outcome, unavailable) result
 (** Indexed lookup; exact/present payloads are disjoint and abstract. Stale/absent
     support remains unknown, never zero; no traversal, chronology or I/O. *)

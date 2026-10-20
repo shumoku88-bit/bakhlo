@@ -57,6 +57,7 @@ type plan = {
 }
 
 module Entry_map = Map.Make(String)
+module Entry_set = Set.Make(String)
 
 type data = {
   measures : (string * int) list;
@@ -65,6 +66,7 @@ type data = {
   entries_rev : entry list;
   entry_map : entry Entry_map.t;
   entry_count : int;
+  reversal_targets : Entry_set.t;  (** IDs some retained entry reverses. *)
   plans : plan list;
   origins : D.Effect_coordinate.t list;
   openings : Q.opening list;
@@ -85,6 +87,11 @@ let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~ob
   let entry_map =
     List.fold_left (fun m (e : entry) -> Entry_map.add e.id e m) Entry_map.empty entries
   in
+  let reversal_targets =
+    List.fold_left
+      (fun s (e : entry) -> Option.fold ~none:s ~some:(fun id -> Entry_set.add id s) e.reversal_of)
+      Entry_set.empty entries
+  in
   {
     measures;
     labels;
@@ -92,6 +99,7 @@ let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~ob
     entries_rev;
     entry_map;
     entry_count;
+    reversal_targets;
     plans;
     origins;
     openings;
@@ -117,14 +125,18 @@ let empty_command : A.Actual_source.command =
 
 let valid_date day = require (A.Actual_validity.valid_date day) "invalid-date"
 
-let admit ?entries_cached data =
+(* Admission stages. A mutation that changes only one family may run only that
+   family's stage on an admitted book: the other stages depend on nothing it
+   changes, so they would pass again, and stage order keeps the same first refusal. *)
+let known_measure data m = require (List.mem_assoc m data.measures) "measure-scale-not-supplied"
+
+let check_vocabulary data =
   unique (List.map fst data.measures) "duplicate-measure";
   List.iter
     (fun (m, n) ->
       ignore (mid m);
       require (n >= 0 && n <= 9) "invalid-scale")
     data.measures;
-  let known m = require (List.mem_assoc m data.measures) "measure-scale-not-supplied" in
   Option.iter
     (fun rows ->
       unique (List.map (fun (id, _, _) -> id) rows) "duplicate-label";
@@ -138,7 +150,32 @@ let admit ?entries_cached data =
     (fun ids ->
       unique ids "duplicate-approved-locus";
       List.iter (fun id -> ignore (lid id)) ids)
-    data.approved;
+    data.approved
+
+let check_plans data =
+  let known = known_measure data in
+  unique (List.map (fun (p : plan) -> p.id) data.plans) "duplicate-plan";
+  unique (List.filter_map (fun (p : plan) -> p.paid_by) data.plans) "duplicate-plan-payment";
+  List.iter
+    (fun (p : plan) ->
+      require (p.id <> "") "invalid-plan-id";
+      valid_date p.day;
+      known p.measure;
+      List.iter (fun (l, _) -> ignore (lid l)) p.changes;
+      require
+        (Z.equal Z.zero (List.fold_left (fun total (_, n) -> Z.add total n) Z.zero p.changes))
+        "unbalanced-plan";
+      require (p.paid_by = None || p.cancelled_on = None) "plan-paid-and-cancelled";
+      Option.iter valid_date p.cancelled_on;
+      Option.iter
+        (fun id ->
+          require (Entry_map.mem id data.entry_map) "unknown-plan-payment")
+        p.paid_by)
+    data.plans
+
+let admit ?entries_cached data =
+  check_vocabulary data;
+  let known = known_measure data in
   let entries =
     match entries_cached with
     | Some c -> Lazy.force c
@@ -215,24 +252,7 @@ let admit ?entries_cached data =
                entries;
          })
   in
-  unique (List.map (fun (p : plan) -> p.id) data.plans) "duplicate-plan";
-  unique (List.filter_map (fun (p : plan) -> p.paid_by) data.plans) "duplicate-plan-payment";
-  List.iter
-    (fun (p : plan) ->
-      require (p.id <> "") "invalid-plan-id";
-      valid_date p.day;
-      known p.measure;
-      List.iter (fun (l, _) -> ignore (lid l)) p.changes;
-      require
-        (Z.equal Z.zero (List.fold_left (fun total (_, n) -> Z.add total n) Z.zero p.changes))
-        "unbalanced-plan";
-      require (p.paid_by = None || p.cancelled_on = None) "plan-paid-and-cancelled";
-      Option.iter valid_date p.cancelled_on;
-      Option.iter
-        (fun id ->
-          require (Entry_map.mem id data.entry_map) "unknown-plan-payment")
-        p.paid_by)
-    data.plans;
+  check_plans data;
   let known_coord (c : D.Effect_coordinate.t) = known (mstr c.measure) in
   List.iter known_coord data.origins;
   List.iter (fun (o : Q.opening) -> known_coord o.coordinate) data.openings;
@@ -1094,38 +1114,45 @@ let require_open_plan (p : plan) =
   require (p.paid_by = None) "plan-already-paid";
   require (p.cancelled_on = None) "plan-cancelled"
 
-let put_plan t ~replace (p : plan) =
-  protect (fun () ->
-      require (plan_is_open p) "plan-terminal-not-input";
-      let exists = List.exists (fun (row : plan) -> row.id = p.id) t.data.plans in
-      require (exists = replace) (if replace then "unknown-plan" else "duplicate-plan");
-      if replace then require_open_plan (find_plan t p.id);
-      let effects =
-        List.map
-          (fun (loc, n) ->
-            D.Effect.create ~locus:(lid loc) ~measure:(mid p.measure)
-              ~quantity:(D.Quantity.of_quanta n) ~key:None)
-          p.changes
-      in
-      approve_effects t effects;
-      ignore (get "invalid-plan-movement" (D.Movement.validate effects));
-      let plans =
-        if replace then List.map (fun (row : plan) -> if row.id = p.id then p else row) t.data.plans
-        else t.data.plans @ [ p ]
-      in
-      admit ~entries_cached:t.entries_cached { t.data with plans })
+(* Every mutation builds its candidate once. The ordinary entry point checks only
+   the stages the change can affect (see the admission stages); [Full] re-admits
+   the whole candidate and is the reference the oracle compares against. *)
+let plan_candidate t ~replace (p : plan) =
+  require (plan_is_open p) "plan-terminal-not-input";
+  let exists = List.exists (fun (row : plan) -> row.id = p.id) t.data.plans in
+  require (exists = replace) (if replace then "unknown-plan" else "duplicate-plan");
+  if replace then require_open_plan (find_plan t p.id);
+  let effects =
+    List.map
+      (fun (loc, n) ->
+        D.Effect.create ~locus:(lid loc) ~measure:(mid p.measure)
+          ~quantity:(D.Quantity.of_quanta n) ~key:None)
+      p.changes
+  in
+  approve_effects t effects;
+  ignore (get "invalid-plan-movement" (D.Movement.validate effects));
+  let plans =
+    if replace then List.map (fun (row : plan) -> if row.id = p.id then p else row) t.data.plans
+    else t.data.plans @ [ p ]
+  in
+  { t.data with plans }
 
-let cancel_plan t ~id ~day =
-  protect (fun () ->
-      let selected = find_plan t id in
-      require_open_plan selected;
-      valid_date day;
-      let plans =
-        List.map
-          (fun (p : plan) -> if p.id = id then { p with cancelled_on = Some day } else p)
-          t.data.plans
-      in
-      admit ~entries_cached:t.entries_cached { t.data with plans })
+let cancel_candidate t ~id ~day =
+  let selected = find_plan t id in
+  require_open_plan selected;
+  valid_date day;
+  let plans =
+    List.map
+      (fun (p : plan) -> if p.id = id then { p with cancelled_on = Some day } else p)
+      t.data.plans
+  in
+  { t.data with plans }
+
+(* Plans feed no balance answer, so the admitted image is reused unchanged. *)
+let with_plans t data = check_plans data; { t with data }
+
+let put_plan t ~replace p = protect (fun () -> with_plans t (plan_candidate t ~replace p))
+let cancel_plan t ~id ~day = protect (fun () -> with_plans t (cancel_candidate t ~id ~day))
 
 let put_entry_full t ~replace (e : entry) ~plan =
   protect (fun () ->
@@ -1181,15 +1208,21 @@ let check_effects_balanced effects =
         raise (Refused "entry-admission"))
     totals
 
+(* The local part of admission for one changed entry, in admission order:
+   known Measures, Event construction, then the Actual stage's own refusals. *)
+let admit_entry_locally t (e : entry) =
+  let known = known_measure t.data in
+  List.iter (fun p -> known (mstr (D.Effect.measure p))) e.effects;
+  Option.iter (fun (m, _) -> known m) e.original_amount;
+  let _ = get "invalid-entry" (D.Event.create ~id:(eid e.id) ~effects:e.effects) in
+  check_effects_balanced e.effects;
+  (try valid_date e.day with _ -> raise (Refused "entry-admission"));
+  Option.iter (fun (_, q) -> require (Z.sign q > 0) "entry-admission") e.original_amount
+
 let put_entry_incremental t (e : entry) ~plan =
   protect (fun () ->
       approve_effects t e.effects;
       require (not (Entry_map.mem e.id t.data.entry_map)) "duplicate-entry";
-      let known m = require (List.mem_assoc m t.data.measures) "measure-scale-not-supplied" in
-      List.iter (fun p -> known (mstr (D.Effect.measure p))) e.effects;
-      check_effects_balanced e.effects;
-      let _ = get "invalid-entry" (D.Event.create ~id:(eid e.id) ~effects:e.effects) in
-      (try valid_date e.day with _ -> raise (Refused "entry-admission"));
       let plans =
         match plan with
         | None -> t.data.plans
@@ -1199,6 +1232,7 @@ let put_entry_incremental t (e : entry) ~plan =
               (fun (p : plan) -> if p.id = id then { p with paid_by = Some e.id } else p)
               t.data.plans
       in
+      admit_entry_locally t e;
       let entries_rev = e :: t.data.entries_rev in
       let entry_map = Entry_map.add e.id e t.data.entry_map in
       let entry_count = t.data.entry_count + 1 in
@@ -1207,13 +1241,52 @@ let put_entry_incremental t (e : entry) ~plan =
       let entries_cached = lazy (List.rev data.entries_rev) in
       { data; image; entries_cached })
 
-let put_entry t ~replace (e : entry) ~plan =
-  if (not replace) && e.reversal_of = None && e.exchange = None && e.original_amount = None && e.merchant = None then
-    put_entry_incremental t e ~plan
-  else
-    put_entry_full t ~replace e ~plan
+exception Needs_full_admission
 
-let classify_merchant t ~id ~disposition =
+(* A correction that keeps the entry outside every cross-entry relation (Reversal
+   pair, Exchange evidence, opening witness, presence evidence) changes only its own
+   facts and its Effects' contribution; anything else is re-admitted whole. *)
+let put_entry_replace_incremental t (e : entry) =
+  protect (fun () ->
+      approve_effects t e.effects;
+      let old_e =
+        match Entry_map.find_opt e.id t.data.entry_map with
+        | Some old_e -> old_e
+        | None -> raise (Refused "unknown-entry")
+      in
+      (match old_e.merchant with
+      | Some old_m ->
+          require (e.merchant = Some old_m)
+            "loam: Event Merchant is already classified; replacement is not qualified"
+      | None -> ());
+      if old_e.reversal_of <> None || e.reversal_of <> None || old_e.exchange <> None
+         || e.exchange <> None || Entry_set.mem e.id t.data.reversal_targets
+      then raise Needs_full_admission;
+      admit_entry_locally t e;
+      let image =
+        match
+          Q.with_replaced_effects t.image ~event:(eid e.id) ~old_effects:old_e.effects
+            ~new_effects:e.effects
+        with
+        | Some image -> image
+        | None -> raise Needs_full_admission
+      in
+      let entries_rev =
+        List.map (fun (row : entry) -> if row.id = e.id then e else row) t.data.entries_rev
+      in
+      let data = { t.data with entries_rev; entry_map = Entry_map.add e.id e t.data.entry_map } in
+      { data; image; entries_cached = lazy (List.rev entries_rev) })
+
+let plain (e : entry) =
+  e.reversal_of = None && e.exchange = None && e.original_amount = None && e.merchant = None
+
+let put_entry t ~replace (e : entry) ~plan =
+  if (not replace) && plain e then put_entry_incremental t e ~plan
+  else if replace && plan = None then
+    try put_entry_replace_incremental t e with Needs_full_admission -> put_entry_full t ~replace e ~plan
+  else put_entry_full t ~replace e ~plan
+
+let classify_with put t ~id ~disposition =
   protect (fun () ->
       let e =
         match Entry_map.find_opt id t.data.entry_map with
@@ -1229,53 +1302,74 @@ let classify_merchant t ~id ~disposition =
             "loam: Merchant party token must be a non-empty single text field"
       | Nonmerchant -> ());
       let updated = { e with merchant = Some disposition } in
-      get "classify-merchant" (put_entry_full t ~replace:true updated ~plan:None))
+      get "classify-merchant" (put t ~replace:true updated ~plan:None))
 
-let add_locus t id =
-  protect (fun () ->
-      ignore (lid id);
-      match t.data.approved with
-      | None -> raise (Refused "locus-policy-not-supplied")
-      | Some ids ->
-          require (not (List.mem id ids)) "duplicate-locus";
-          admit ~entries_cached:t.entries_cached { t.data with approved = Some (ids @ [ id ]) })
+let classify_merchant = classify_with put_entry
+
+let add_locus_candidate t id =
+  ignore (lid id);
+  match t.data.approved with
+  | None -> raise (Refused "locus-policy-not-supplied")
+  | Some ids ->
+      require (not (List.mem id ids)) "duplicate-locus";
+      { t.data with approved = Some (ids @ [ id ]) }
+
+let label_candidate t ~id ~label ?help () =
+  ignore (lid id);
+  Option.iter (fun ids -> require (List.mem id ids) "locus-not-approved") t.data.approved;
+  let valid_str s =
+    s <> "" && String.length s <= 80
+    && String.for_all (fun c -> Char.code c >= 32 && Char.code c <> 127) s
+  in
+  let label = String.trim label in
+  require (valid_str label) "invalid-label";
+  let existing_help = match t.data.labels with
+    | None -> None
+    | Some rows ->
+        match List.find_opt (fun (key, _, _) -> key = id) rows with
+        | Some (_, _, h) -> Some h
+        | None -> None
+  in
+  let resolved_help =
+    match help with
+    | Some h ->
+        let trimmed = String.trim h in
+        if trimmed = "" then Option.value ~default:label existing_help else trimmed
+    | None -> Option.value ~default:label existing_help
+  in
+  require (valid_str resolved_help) "invalid-label";
+  let next_rows =
+    let new_row = (id, label, resolved_help) in
+    match t.data.labels with
+    | None -> [ new_row ]
+    | Some rows ->
+        if List.exists (fun (key, _, _) -> key = id) rows then
+          List.map (fun (key, n, h) -> if key = id then new_row else (key, n, h)) rows
+        else
+          rows @ [ new_row ]
+  in
+  { t.data with labels = Some next_rows }
+
+
+(* Vocabulary feeds no stored fact or balance answer. *)
+let with_vocabulary t data = check_vocabulary data; { t with data }
+
+let add_locus t id = protect (fun () -> with_vocabulary t (add_locus_candidate t id))
 
 let set_locus_label t ~id ~label ?help () =
-  protect (fun () ->
-      ignore (lid id);
-      Option.iter (fun ids -> require (List.mem id ids) "locus-not-approved") t.data.approved;
-      let valid_str s =
-        s <> "" && String.length s <= 80
-        && String.for_all (fun c -> Char.code c >= 32 && Char.code c <> 127) s
-      in
-      let label = String.trim label in
-      require (valid_str label) "invalid-label";
-      let existing_help = match t.data.labels with
-        | None -> None
-        | Some rows ->
-            match List.find_opt (fun (key, _, _) -> key = id) rows with
-            | Some (_, _, h) -> Some h
-            | None -> None
-      in
-      let resolved_help =
-        match help with
-        | Some h ->
-            let trimmed = String.trim h in
-            if trimmed = "" then Option.value ~default:label existing_help else trimmed
-        | None -> Option.value ~default:label existing_help
-      in
-      require (valid_str resolved_help) "invalid-label";
-      let next_rows =
-        let new_row = (id, label, resolved_help) in
-        match t.data.labels with
-        | None -> [ new_row ]
-        | Some rows ->
-            if List.exists (fun (key, _, _) -> key = id) rows then
-              List.map (fun (key, n, h) -> if key = id then new_row else (key, n, h)) rows
-            else
-              rows @ [ new_row ]
-      in
-      admit ~entries_cached:t.entries_cached { t.data with labels = Some next_rows })
+  protect (fun () -> with_vocabulary t (label_candidate t ~id ~label ?help ()))
+
+module Full = struct
+  let readmit data = admit ~entries_cached:(lazy (List.rev data.entries_rev)) data
+  let put_entry = put_entry_full
+  let put_plan t ~replace p = protect (fun () -> readmit (plan_candidate t ~replace p))
+  let cancel_plan t ~id ~day = protect (fun () -> readmit (cancel_candidate t ~id ~day))
+  let classify_merchant = classify_with put_entry_full
+  let add_locus t id = protect (fun () -> readmit (add_locus_candidate t id))
+
+  let set_locus_label t ~id ~label ?help () =
+    protect (fun () -> readmit (label_candidate t ~id ~label ?help ()))
+end
 
 let observe_quantities t rows =
   protect (fun () ->

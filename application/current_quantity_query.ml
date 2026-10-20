@@ -203,6 +203,20 @@ let with_added_effects t effects =
   in
   { t with totals; source_groups; present_index }
 
+let with_replaced_effects t ~event ~old_effects ~new_effects =
+  let witness = List.exists t.openings ~f:(fun (o : opening) -> D.Identifier.Event.equal o.opening_event event) in
+  if Option.is_some t.presence || witness then None
+  else
+    let negated =
+      List.map old_effects ~f:(fun change ->
+          D.Effect.create ~key:(D.Effect.key change) ~locus:(D.Effect.locus change)
+            ~measure:(D.Effect.measure change) ~quantity:(D.Quantity.neg (D.Effect.quantity change)))
+    in
+    Some
+      { t with
+        totals = Effect_sum.add_effects t.totals (new_effects @ negated);
+        source_groups = H.with_replaced_effects t.source_groups ~event ~old_effects ~new_effects }
+
 let query t coordinate =
   if D.Zero_origin_coverage.covers t.coverage coordinate then
     Ok (Exact { coordinate; quantity = Effect_sum.at t.totals coordinate; premise = Zero_origin })

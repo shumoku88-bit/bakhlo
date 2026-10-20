@@ -46,8 +46,9 @@ let locus s = ident D.Identifier.Locus.of_string s
 let measure s = ident D.Identifier.Measure.of_string s
 let coordinate l m : D.Effect_coordinate.t = { locus = locus l; measure = measure m }
 
-let posting l m n =
-  D.Effect.create ~key:None ~locus:(locus l) ~measure:(measure m)
+let posting ?key l m n =
+  D.Effect.create
+    ~key:(Option.map key ~f:(ident D.Identifier.Effect_key.of_string)) ~locus:(locus l) ~measure:(measure m)
     ~quantity:(D.Quantity.of_quanta (Z.of_int n))
 
 let day st =
@@ -61,7 +62,8 @@ let effects st =
   let a = amount st in
   let other = pick st loci in
   let base = [ posting "wallet" m (-a); posting other m a ] in
-  if chance st 5 then [ posting "wallet" m (-a); posting other m (a + 1) ]
+  if chance st 4 then [ posting ~key:"k" "wallet" m (-a); posting ~key:"k" other m a ]
+  else if chance st 5 then [ posting "wallet" m (-a); posting other m (a + 1) ]
   else if chance st 20 then [ posting "wallet" m (-a); posting other m (a - 1); posting "food" m 1 ]
   else base
 
@@ -79,7 +81,7 @@ let fresh_entry st id : B.entry =
     reversal_of = None;
     exchange = None;
     original_amount =
-      (if chance st 10 then Some (pick st [| "jpy"; "usd" |], Z.of_int (R.int st 3 - 1 + 100))
+      (if chance st 10 then Some (pick st [| "jpy"; "usd"; "xxx" |], Z.of_int (pick st [| -5; 0; 120 |]))
        else None);
     merchant = None;
   }
@@ -126,7 +128,7 @@ let generate st book =
             else if chance st 50 then { old with day = day st }
             else { (fresh_entry st old.id) with reversal_of = old.reversal_of }
           in
-          Put { replace = true; entry; plan = None })
+          Put { replace = true; entry; plan = (if chance st 5 then Some (pick st plan_ids) else None) })
   | n when n < 68 -> (
       match existing () with
       | None -> Add_locus "ghost"
@@ -160,7 +162,11 @@ let generate st book =
   | n when n < 97 -> Add_locus "ghost"
   | _ ->
       let id = match existing () with Some e when chance st 80 -> e.id | _ -> "nobody" in
-      Classify { id; disposition = M.Nonmerchant }
+      let disposition =
+        if chance st 50 then M.Nonmerchant
+        else M.Merchant (ident D.Identifier.External_party.of_string "shop")
+      in
+      Classify { id; disposition }
 
 let apply book = function
   | Put { replace; entry; plan } -> B.put_entry book ~replace entry ~plan
@@ -169,6 +175,15 @@ let apply book = function
   | Cancel_plan { id; day } -> B.cancel_plan book ~id ~day
   | Add_locus l -> B.add_locus book l
   | Classify { id; disposition } -> B.classify_merchant book ~id ~disposition
+
+(* The whole-book reference for the same operation; observation is already whole. *)
+let apply_full book = function
+  | Put { replace; entry; plan } -> B.Full.put_entry book ~replace entry ~plan
+  | Observe rows -> B.observe_quantities book rows
+  | Put_plan { replace; plan } -> B.Full.put_plan book ~replace plan
+  | Cancel_plan { id; day } -> B.Full.cancel_plan book ~id ~day
+  | Add_locus l -> B.Full.add_locus book l
+  | Classify { id; disposition } -> B.Full.classify_merchant book ~id ~disposition
 
 (* Everything a caller can read from a book, rendered for exact comparison. *)
 let observable book =
@@ -236,31 +251,44 @@ let kind = function
   | Add_locus _ -> "add_locus"
   | Classify _ -> "classify"
 
-let run ~seed ~steps ~admitted =
+let agree ~seed ~step ~trace label a b =
+  match (a, b) with
+  | Ok a, Ok b -> check ~seed ~step ~trace (label ^ ": result differs") (observable a) (observable b)
+  | Error a, Error b -> check ~seed ~step ~trace (label ^ ": refusal differs") a b
+  | Ok _, Error b -> check ~seed ~step ~trace (label ^ ": only one admitted") "admitted" b
+  | Error a, Ok _ -> check ~seed ~step ~trace (label ^ ": only one admitted") a "admitted"
+
+let run ~fixture ~seed ~steps ~admitted =
   let st = R.make [| seed |] in
   let book = ref (get (B.of_string fixture)) in
   let trace = ref [] in
   for step = 1 to steps do
     let op = generate st !book in
     trace := describe op :: !trace;
-    let reference = cold !book in
-    match (apply !book op, apply reference op) with
-    | Ok next, Ok next_ref ->
+    let result = apply !book op in
+    agree ~seed ~step ~trace:!trace "cold twin" result (apply (cold !book) op);
+    agree ~seed ~step ~trace:!trace "whole-book reference" result (apply_full !book op);
+    match result with
+    | Ok next ->
         Hashtbl.incr admitted (kind op);
-        check ~seed ~step ~trace:!trace "result differs" (observable next) (observable next_ref);
         check ~seed ~step ~trace:!trace "not cold-equivalent" (observable next)
           (observable (cold next));
         book := next
-    | Error a, Error b -> check ~seed ~step ~trace:!trace "refusal differs" a b
-    | Ok _, Error b -> check ~seed ~step ~trace:!trace "in-memory admitted" "admitted" b
-    | Error a, Ok _ -> check ~seed ~step ~trace:!trace "in-memory refused" a "admitted"
+    | Error _ -> ()
   done
 
-let%expect_test "every mutation is cold-equivalent and agrees with its cold-loaded twin" =
+let%expect_test "every mutation agrees with its cold-loaded twin and its whole-book reference" =
   let admitted = Hashtbl.create (module String) in
-  for seed = 1 to 300 do
-    run ~seed ~steps:30 ~admitted
-  done;
+  (* The second fixture supplies presence evidence, which corrections cannot
+     update in place: it pins the whole-book fallback. *)
+  let with_presence =
+    String.substr_replace_first fixture ~pattern:"(presence (not-supplied))"
+      ~with_:"(presence (provided (reflected) (coordinates (bank usd))))"
+  in
+  List.iter [ fixture; with_presence ] ~f:(fun fixture ->
+      for seed = 1 to 200 do
+        run ~fixture ~seed ~steps:30 ~admitted
+      done);
   (* Guard against a generator that only exercises refusals. *)
   List.iter
     [ "record"; "plan payment"; "replace"; "reversal"; "observe"; "put_plan"; "cancel_plan";
@@ -280,8 +308,8 @@ let%expect_test "every mutation is cold-equivalent and agrees with its cold-load
     classify admitted at least 20 times: true
     |}]
 
-(* KNOWN GAP, pinned on purpose: the incremental record path extends balances
-   but not the image's admitted source, so the evidence explanation omits the
+(* KNOWN GAP, pinned on purpose: the in-place record and correction paths update
+   balances but not the image's admitted source, so the evidence explanation omits the
    new entry until the next whole admission. Answers agree (oracle above). The
    incremental redesign must make both lines say true. *)
 let%expect_test "known gap: incremental record leaves the evidence explanation stale" =

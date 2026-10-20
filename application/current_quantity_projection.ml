@@ -59,20 +59,31 @@ let create ~cut ~assertions =
 let source_cut model = model.source_cut
 let assertions model = model.assertions
 
+let apply_net model net =
+  let answers =
+    Base.Map.map model.answers ~f:(fun answer ->
+        let eff = Effect_sum.at net answer.coordinate in
+        if Q.equal eff Q.zero then answer
+        else
+          let delta = Q.add answer.delta eff in
+          let quantity = Q.add answer.asserted_quantity delta in
+          { answer with delta; quantity })
+  in
+  { model with answers }
+
 let with_added_effects model effects =
   if Base.List.is_empty effects || Base.Map.is_empty model.answers then model
+  else apply_net model (Effect_sum.add_effects Effect_sum.empty effects)
+
+let negate change =
+  D.Effect.create ~key:(D.Effect.key change) ~locus:(D.Effect.locus change)
+    ~measure:(D.Effect.measure change) ~quantity:(Q.neg (D.Effect.quantity change))
+
+let with_replaced_effects model ~event ~old_effects ~new_effects =
+  if Base.Map.is_empty model.answers || Reflected_root_cut.is_reflected model.source_cut event then model
   else
-    let net = Effect_sum.add_effects Effect_sum.empty effects in
-    let answers =
-      Base.Map.map model.answers ~f:(fun answer ->
-          let eff = Effect_sum.at net answer.coordinate in
-          if Q.equal eff Q.zero then answer
-          else
-            let delta = Q.add answer.delta eff in
-            let quantity = Q.add answer.asserted_quantity delta in
-            { answer with delta; quantity })
-    in
-    { model with answers }
+    apply_net model
+      (Effect_sum.add_effects Effect_sum.empty (new_effects @ Base.List.map old_effects ~f:negate))
 
 let query model coordinate =
   match Base.Map.find model.answers coordinate with

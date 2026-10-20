@@ -6,6 +6,14 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## In-place corrections, plan and vocabulary edits (2026-10-20)
+
+- `Daily_book`: admission split into stages (vocabulary, entries/Actual, plans, support). Plan create/replace/cancel check only the plan stage and reuse the balance image; locus add/label check only vocabulary. Corrections outside Reversal/Exchange/opening-witness/presence relations are admitted locally (same first refusal as whole admission) and update balances via the new `Current_quantity_query.with_replaced_effects` (per-group: unchanged when the cut reflects the root, else new minus old; `Reflected_root_cut.is_reflected` is indexed). Everything else falls back to whole admission. New plain entries now check the plan before local admission, matching whole-admission refusal order.
+- `Daily_book.Full` keeps the whole-book variants as the reference. The oracle compares every operation with both its cold-loaded twin and `Full` (two fixtures, one with presence evidence; 400 sequences × 30 ops; generator adds repeated posting keys, plan-attached corrections, nonpositive/unknown original amounts, merchant parties).
+- Mutation check: skipping the balance update, ignoring reflection, dropping the reversal-target guard, skipping the date check, skipping local checks for new entries and skipping the plan stage each fail the oracle.
+- Synthetic probe at 109,500 entries: correction 796 ms → 4.3 ms; plan add and locus add ≈1 µs. [Stage 6](LONG_TERM_STORAGE_STUDY.ja.md).
+- Passed: `./tools/check` (exit 0), `./tools/tui --self-check` (35 PASS, exit 0), `git diff --check`. Synthetic only; latest-data paired comparison not executed (no displayed-answer change intended). The TUI reads no evidence view that in-place updates leave stale; the CLI explanation loads fresh.
+
 ## Records and annual files removed (2026-10-20)
 
 - User decision (Bakhlo not in daily use; destructive changes allowed): removed Records v1 (`records_book`, `durable_append`, `crc32`), calendar-year annual files (`annual_book`, `annual_scope`, `year_read`, `annual_backup`, `Daily_book.Annual_internal`), their store paths (`Daily_file` is now single-file only), TUI annual rollover/notice/history gates and Records publication branches, CLI `--annual-*` options, their tests, the year-partition study tests and the stale storage research tools. Ordinary single-file load/publish/recovery code is unchanged apart from removing those branches.
