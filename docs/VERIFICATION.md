@@ -4686,6 +4686,24 @@ Physical terminal/IME, human acceptance and P7 were **not executed**.
   - `git diff --check`: clean (no trailing whitespace or conflict markers).
 - Matching implementation `16d8cc6`: [Core 39412295863](https://github.com/shumoku88-bit/bakhlo/actions/runs/39412295863) and [Bonsai TUI 39412295871](https://github.com/shumoku88-bit/bakhlo/actions/runs/39412295871) completed/success (synthetic CI).
 
+### Latest-data paired comparison (added after the commit)
+
+- Fresh `./tools/compare refresh` (LOAM open, originals not written during the copy, no user
+  process terminated). Bakhlo SHA-256
+  `44147638f67baef28f86cf979c116c4823134b58e473dabf51862e2db347d5cf` (main `cb258c6`),
+  existing LOAM `312467cd9af30778873bb9afabf0d87143e874d67c828e828c42f8573b8840c3`.
+  Read-only walks (open, j, i, h, h+j, s, f) at 120×36 and 80×24.
+- At 80×24 every row is identical except the Details bottom label (`▼ [i] more`, because
+  Bakhlo appends the Merchant line) and the footer `[d] date [m] merchant`. At 120×36 the
+  same two, plus the Loci list order: both use first appearance over current records, but
+  LOAM moves a corrected record to its correction position while Bakhlo keeps the same
+  ID at its original position (the same cause as the pool candidate order). Recorded as
+  an intentional consequence of same-ID correction, not reproduced.
+- `../loam-data` hashes differed from the morning values (ordinary LOAM recording in
+  between). A before-run hash was **not captured** for this walk, so before/after equality
+  of the originals is not claimed for it; every walk used the private copies. AI tmux
+  stopped; private captures deleted; `./tools/compare clean-copies` passed.
+
 ### Limits
 
 Physical terminal/IME, human acceptance and P7 were **not executed**.
