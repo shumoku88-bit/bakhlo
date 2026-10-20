@@ -4812,6 +4812,8 @@ User decision (2026-10-20): correction (`c`) follows LOAM.
   Bakhlo's `|` caret on the focused field. Originals' hashes equal before and after;
   private captures deleted; `clean-copies` passed.
 
+- Matching implementation `510e77e`: [Core 39428509940](https://github.com/shumoku88-bit/bakhlo/actions/runs/39428509940) and [Bonsai TUI 39428510276](https://github.com/shumoku88-bit/bakhlo/actions/runs/39428510276) completed/success (synthetic CI).
+
 ### Limits
 
 No real-data correction was saved. Physical terminal/IME, human acceptance and P7 were

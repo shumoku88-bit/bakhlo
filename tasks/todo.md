@@ -83,7 +83,7 @@ LOAM終了後に使用し、取得拒否では起動せず、旧コピー・試�
 - [x] Ctrl-U：suspense未許可時にLOAMの確認画面、Enterで科目追加→下書きに戻り差額を埋める。合成・実データ（読み取り）で対照。
 - [x] Ctrl-Uのcommit／pushとmatching SHA CI（`f9ebb4a`、Core／TUIともsuccess）。
 - [x] 訂正c：口座変更・行の追加削除・日付保持（同一ID、口座を変えた行だけキーを外す、支払linkは保持）。合成・実データ（読み取り）で対照。
-- [ ] 訂正cのcommit／pushとmatching SHA CI。
+- [x] 訂正cのcommit／pushとmatching SHA CI（`510e77e`、Core／TUIともsuccess）。
 - [ ] 記帳の一行入力（LOAMの新しい入口）：要判断。
 
 ## Daily PaceのグラフとTargetをLOAMへ揃える（2026-10-20）
