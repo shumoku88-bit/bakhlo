@@ -10,6 +10,7 @@ module Form = Ui_form
 module Panel = Ui_panel
 module Trend = Daily_pace_trend
 module Target = Daily_pace_target
+module Why = Daily_pace_why
 
 let tr = Ui_text.tr
 let pool_file = "daily-pace.tsv"
@@ -26,6 +27,7 @@ type overlay =
   | No_overlay
   | What_if of Form.t
   | Target of Target.t  (** Read-only target plan; not a form. *)
+  | Why of Why.t  (** Read-only terms of today's answer. *)
   | Pool of Form.t
   | Pool_review of pool_review
   | Cycle of Form.t
@@ -46,18 +48,18 @@ let enter t = { t with pane = Trend_pane; scroll = 0; overlay = No_overlay }
 
 let form t =
   match t.overlay with
-  | No_overlay | Target _ -> None
+  | No_overlay | Target _ | Why _ -> None
   | What_if form | Pool form | Cycle form
   | Pool_review { form; _ } -> Some form
   | Cycle_review { form; _ } -> Some form
 
-let modal t = Option.is_some (form t) || (match t.overlay with Target _ -> true | _ -> false)
+let modal t = Option.is_some (form t) || (match t.overlay with Target _ | Why _ -> true | _ -> false)
 
 let with_form form t =
   let overlay =
     match t.overlay with
     | No_overlay -> No_overlay
-    | Target _ as target -> target
+    | (Target _ | Why _) as read_only -> read_only
     | What_if _ -> What_if form
     | Pool _ -> Pool form
     | Cycle _ -> Cycle form
@@ -587,7 +589,7 @@ let handle_form env geometry t form input =
       | Cycle_review r -> ({ t with overlay = Cycle r.editing }, Screen.Stay)
       | Pool_review r -> ({ t with overlay = Pool r.editing }, Screen.Stay)
       | Pool _ -> ({ t with overlay = No_overlay; pool_draft = Some (env.Screen.measure, form) }, Screen.Stay)
-      | No_overlay | Target _ | What_if _ | Cycle _ -> ({ t with overlay = No_overlay }, Screen.Stay))
+      | No_overlay | Target _ | Why _ | What_if _ | Cycle _ -> ({ t with overlay = No_overlay }, Screen.Stay))
   | Form.Updated updated -> (
       match t.overlay with
       | Pool _ ->
@@ -600,7 +602,7 @@ let handle_form env geometry t form input =
       | Pool_review r -> submit_pool_review env geometry t r submitted
       | Cycle _ -> submit_cycle env t submitted
       | Cycle_review r -> submit_cycle_review env geometry t r submitted
-      | No_overlay | Target _ -> (t, Screen.Stay))
+      | No_overlay | Target _ | Why _ -> (t, Screen.Stay))
 
 (* LOAM historyCapacityForBounds: the painted History data rows, at least one. *)
 let history_page (geometry : Screen.geometry) =
@@ -623,6 +625,7 @@ let handle_screen (env : Screen.env) geometry t input =
       else (t, Screen.Home)
   | Some (`ASCII 'w', []) -> ({ t with overlay = What_if (what_if_form env) }, Screen.Stay)
   | Some (`ASCII 't', []) -> ({ t with overlay = Target (Target.create ()) }, Screen.Stay)
+  | Some (`ASCII '?', []) -> ({ t with overlay = Why (Why.create ()) }, Screen.Stay)
   | Some (`ASCII 'c', []) -> (open_pool env t, Screen.Message "")
   | Some (`ASCII 'b', []) -> (
       match cycle_form env with
@@ -673,6 +676,11 @@ let handle env geometry t input =
       match Target.update ~book:env.Screen.book ~pace:(target_pace env) target input with
       | Target.Stay target -> ({ t with overlay = Target target }, Screen.Stay)
       | Target.Back -> ({ t with overlay = No_overlay }, Screen.Stay))
+  | Why why, _ -> (
+      match Why.update ~width_of:geometry.Screen.width_of ~body:geometry.body ~book:env.Screen.book
+              ~pace:(target_pace env) why input with
+      | Why.Stay why -> ({ t with overlay = Why why }, Screen.Stay)
+      | Why.Back -> ({ t with overlay = No_overlay }, Screen.Stay))
   | _, Some form -> handle_form env geometry t form input
   | _, None -> handle_screen env geometry t input
 
@@ -691,7 +699,7 @@ let saved _env _geometry result t =
       ({ t with overlay = Cycle_review { r with form = notice r.form
            ("Cycle boundary save not confirmed: " ^ why ^ " Reopen to inspect before retrying.") } },
        Screen.Stay)
-  | (No_overlay | Target _ | What_if _ | Pool _ | Cycle _), _ -> (t, Screen.Stay)
+  | (No_overlay | Target _ | Why _ | What_if _ | Pool _ | Cycle _), _ -> (t, Screen.Stay)
 
 (* Painting *)
 
@@ -733,7 +741,7 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
   let context =
     if context_count = 1 then [O.Plain, header_summary env t ~width ~width_of]
     else if context_count = 2 then
-      [O.Plain, O.clip_text ~width_of width (" Daily Pace / Trend • " ^ Trend.preset_label t.trend.preset ^ "   [w] what-if  [t] target");
+      [O.Plain, O.clip_text ~width_of width (" Daily Pace / Trend • " ^ Trend.preset_label t.trend.preset ^ "   [?] why  [w] what-if  [t] target");
        O.Chrome, O.clip_text ~width_of width (header_summary env t ~width ~width_of)]
     else [] in
   let is_detail = t.pane = Detail_pane in
@@ -820,6 +828,7 @@ let footer (geometry : Screen.geometry) t =
   let narrow = fst geometry.content < 79 in
   match t.overlay, t.pane with
   | Target _, _ -> [ "[Tab] field [j/k] horizon [Esc/q] back"; "Read-only plan; nothing is recorded" ]
+  | Why _, _ -> [ "[j/k] scroll [Esc/q/?] back"; "Terms of today's answer; nothing is recorded" ]
   | What_if _, _ ->      [ "Enter simulate scenario  Tab switch field/button  Esc close"; "Read-only simulation - does not publish any entries" ]
   | Pool _, _ -> [ "Enter review  Tab switch field  Esc cancel"; "Edits only daily-pace.tsv" ]
   | Pool_review _, _ -> [ "Enter save  Tab choose Edit  Esc edit"; "Full pool must fit before saving" ]
@@ -839,6 +848,9 @@ let view env (geometry : Screen.geometry) t =
     | Target target ->
         Target.frame ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
           ~book:env.Screen.book ~pace:(target_pace env) target
+    | Why why ->
+        Why.frame ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
+          ~book:env.Screen.book ~pace:(target_pace env) why
     | _ -> Option.bind (form t)
         (Ui_overlay.form ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body) in
   {

@@ -96,6 +96,11 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
         (not (shows ~pane:`Right ~width_of dimensions missing "jpy/day"))
         ("daily-pace-missing-pool-plot-" ^ where))
     [ (80, 24); (48, 14); (32, 9) ];
+  let missing_why = Option.value ~default:[] (R.overlay_screen ~dimensions:(80, 24) ~width_of
+      (key ~width_of missing (`ASCII '?'))) |> List.map snd |> String.concat "\n" in
+  require (Base.String.is_substring missing_why ~substring:"Explanation unavailable (not zero)"
+    && not (Base.String.is_substring missing_why ~substring:"Free through cycle end"))
+    "daily-pace-why-unavailable-not-zero";
   let what_if = key ~width_of missing (`ASCII 'w') in
   require (Ui_form.id (modal_form what_if) = "daily_pace_what_if") "daily-pace-what-if-modal-id";
   require
@@ -249,6 +254,21 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
     [ (120, 36); (80, 24); (48, 14); (32, 9) ];
   require (no_modal (key ~width_of targeting `Escape) && no_modal (key ~width_of targeting (`ASCII 'q'))
     && F.read path = before_target) "daily-pace-target-closes-without-writes";
+  (* Why: the terms of today's answer, scrollable, closed by Esc/q/?. *)
+  let why = key ~width_of pace (`ASCII '?') in
+  List.iter (fun ((width, height) as dimensions) ->
+      let rows = Option.value ~default:[] (R.overlay_screen ~dimensions ~width_of why) in
+      let text = String.concat "\n" (List.map snd rows) in
+      require (rows <> [] && List.length rows <= height
+        && List.for_all (fun (_, row) -> width_of row <= width) rows
+        && Base.String.is_substring text ~substring:" Today "
+        && (height < 24 || Base.String.is_substring text ~substring:"Free through cycle end"))
+        "daily-pace-why-paints-terms-within-geometry")
+    [ (120, 36); (80, 24); (48, 14); (32, 9) ];
+  let scrolled = List.fold_left (fun s k -> key ~width_of s k) why [ `End; `Arrow `Up; `Home; `ASCII 'j' ] in
+  require (List.for_all (fun closer -> no_modal (key ~width_of scrolled closer))
+      [ `Escape; `ASCII 'q'; `ASCII '?' ] && F.read path = before_target)
+    "daily-pace-why-scrolls-and-closes-without-writes";
   require
     ((key ~width_of closed_what_if (`ASCII 'q')).workspace.route = W.Home)
     "daily-pace-q-returns-home";

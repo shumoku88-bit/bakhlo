@@ -4509,7 +4509,52 @@ needed.
   identical; input rows differed only by the caret. `../loam-data` hashes unchanged; AI
   tmux stopped; private captures deleted; `./tools/compare clean-copies` passed.
 
+- Matching implementation `7855f94`: [Core 39401386087](https://github.com/shumoku88-bit/bakhlo/actions/runs/39401386087) and [Bonsai TUI 39401386081](https://github.com/shumoku88-bit/bakhlo/actions/runs/39401386081) completed/success (synthetic CI).
+
 ### Limits
 
-LOAM's `[?] why` explanation remains unimplemented. Physical terminal/IME, human
-acceptance and P7 were **not executed**.
+Physical terminal/IME, human acceptance and P7 were **not executed**.
+
+## Daily Pace Why (2026-10-20)
+
+User decision (2026-10-20): LOAM's `[?] why` is needed.
+
+### Implemented boundary
+
+- New `tui/screens/pace/daily_pace_why.ml` follows LOAM `DailyPaceWhy` over the same
+  `Daily_book.daily_pace` answer: today's pace and the division (`free ÷ days left`,
+  cycle end), Pool total with each balance (largest first) and its support (`recorded
+  history` for zero-origin, `opening balance`, `observed` for a current assertion,
+  otherwise `unsupported`, from the book's quantity query premise), Protected Scheduled
+  with each occurrence by date, its payee (positive receiving Loci outside the pool, by
+  label, else the plan ID) and `overdue, still open` before today, then Free through
+  cycle end. Name and amount columns follow LOAM's widths. No arithmetic beyond the
+  answer's own terms; an unavailable answer shows `Explanation unavailable (not zero)`.
+- `?` opens it from Daily Pace (header now `[?] why  [w] what-if  [t] target`); j/k,
+  arrows, Page, Ctrl-d/u and Home/End scroll; Esc/q/? close; nothing is written.
+  Floating from 62×20 body cells (LOAM's threshold, width ≤ 90), otherwise an unframed
+  body view with LOAM's title line. As with Target, navigation stays in the Shell
+  footer, so fewer rows are visible at the same terminal size.
+
+### Evidence
+
+- New controller checks: unavailable pace shows the cause, never the terms; an available
+  pace paints within 120×36, 80×24, 48×14 and 32×9; End/Up/Home/j scroll and Esc/q/?
+  close without changing book bytes. `./tools/check`, `./tools/tui --self-check`
+  (35 PASS) and `git diff --check` passed.
+- Synthetic paired run (zero-origin and anchor-only fixtures; Bakhlo SHA-256
+  `106dfd888be5e548ad7489c10a65ab7615250666ce1e488107499d65f053da47`, existing LOAM
+  `312467cd9af30778873bb9afabf0d87143e874d67c828e828c42f8573b8840c3`) at 120×36: every
+  pane row identical (`recorded history` and `observed` routes, overdue deduction)
+  apart from LOAM's in-pane navigation row. Fixture bytes unchanged.
+- Latest-data paired comparison: fresh `./tools/compare refresh` (LOAM open, originals
+  not written, no user process terminated). At 120×36 (open, End, j j, PageDown) all
+  non-blank pane rows are identical. At 80×24 LOAM shows 19 body rows and Bakhlo 16, so
+  scrolled windows differ; Bakhlo at 80×27 (19 rows) against LOAM 80×24 after End
+  showed identical pane content (only background outside the pane differed).
+  `../loam-data` hashes unchanged; AI tmux stopped; private captures deleted;
+  `./tools/compare clean-copies` passed.
+
+### Limits
+
+Physical terminal/IME, human acceptance and P7 were **not executed**.
