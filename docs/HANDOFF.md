@@ -21,9 +21,14 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   ~110k synthetic entries: save 0.6 ms, record/refund/exchange <0.01 ms, correction
   4 ms, observation 6 ms, startup 2.2 s (deferred by the user). Details:
   [long-term storage study](LONG_TERM_STORAGE_STUDY.ja.md) stages 5–9.
-- The 2026-10-20 storage work was checked on the latest real-data copy (Core identical
-  to pre-today code; Balances and Daily Pace match LOAM). Trial saves on a private
-  copy were not made (writes need the user's explicit request).
+- The 2026-10-20 storage work was checked on the latest real-data copy: Core identical
+  to pre-today code; Balances and Daily Pace match LOAM; trial saves in TUI (record,
+  correction, date correction, merchant, reversal) and 200-record exit compaction
+  (keeping byte-identical `.prev`, `records = 0`, matching cold reload and `Full`)
+  verified on an isolated real-data copy (5.90 ms/save incl. `fsync`). For entries
+  whose Loci are no longer in `approved-loci`, both LOAM and Bakhlo refuse `c`
+  (including memo-only) and reversal, while LOAM allows `d` (date-only) and `m`
+  (merchant) where Bakhlo currently refuses via `put_entry ~replace:true`.
 - Unqualified: P7 (persistent post-save acknowledgement), power loss, real macOS IME,
   human acceptance.
 
@@ -59,8 +64,10 @@ After pushing, check CI for the matching commit SHA.
 
 ## Next candidates
 
-1. Trial saves on a private copy (if the user asks); compare correcting entries with
-   retired Loci against LOAM.
+1. Decide whether Bakhlo should allow date-only (`d`) and merchant (`m`) updates on
+   entries whose existing Loci are no longer in `approved-loci` (matching LOAM's
+   `ActualValidityPublisher` / `EventMerchantPublisher`), while keeping `c` and
+   reversal gated by `approved-loci`.
 2. Daily-use parity in the five areas of the cutover diff ledger, ordered by
    `tasks/todo.md`.
 3. Startup snapshot only when startup is felt slow.

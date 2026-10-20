@@ -27,11 +27,11 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 | 狭い画面での保存確認 | 🟦 意図的な差 | LOAMは確認本文が隠れたまま保存できる。Bakhloは全文が見えるまで保存を拒否 | なし | [狭小gate](VERIFICATION.md#paired-record-editcancel-and-narrow-preview-gates-2026-10-16) |
 | 未分類（貸借差額）の仮置き | 🟨 差あり | Ctrl-Uで差額行を自動補完。LOAMの「未解決語彙を明示的に許可して戻る」流れとは違う | 要判断 | UI-08 |
 | Actual一覧・検索・詳細 | 🟨 差あり | 検索・並び・詳細往復は合成で一致。見出し・枠・下部案内が違う。**実データ未照合** | 要判断 | UI-03 |
-| 既存記録の訂正 | ⬜ 未確認 | 同じIDで訂正。LOAMで表現できる訂正範囲との照合が未了 | 要判断 | UI-09 |
-| 日付だけの訂正 | ⬜ 未確認 | 専用の日付訂正あり。LOAMとの照合が未了 | なし | UI-10 |
-| 返金・取り消し（反転） | 🟨 差あり | Bakhloは `x`、LOAMは `r`。元の記録は残す点は同じ | 要判断 | UI-11 |
+| 既存記録の訂正 | 🟨 差あり | 同じIDで訂正（Bakhloは仕訳の口座・符号・行数を固定して金額・メモ・日付を編集、LOAMは日付以外の行も置換可）。`approved-loci` から外れた口座を含む明細の `c` 訂正は、メモのみでも両者とも拒否（120×36・80×24実データで確認） | 要判断 | UI-09, [実データ試し保存・訂正比較](VERIFICATION.md#real-data-trial-saves-exit-compaction-and-unapproved-locus-correction-comparison-2026-10-20) |
+| 日付だけの訂正 | 🟨 差あり | 承認済み口座の明細は両者とも `d` で変更・保存可。`approved-loci` から外れた口座を含む明細は、LOAMは日付変更を通すがBakhloは `locus-unapproved` で拒否（120×36・80×24実データで確認） | 要判断 | UI-10, [実データ試し保存・訂正比較](VERIFICATION.md#real-data-trial-saves-exit-compaction-and-unapproved-locus-correction-comparison-2026-10-20) |
+| 返金・取り消し（反転） | 🟨 差あり | Bakhloは `x`、LOAMは `r`。元の記録は残し、承認済み口座では保存、外れた口座を含む明細は両者とも拒否（120×36・80×24実データで確認） | 要判断 | UI-11, [実データ試し保存・訂正比較](VERIFICATION.md#real-data-trial-saves-exit-compaction-and-unapproved-locus-correction-comparison-2026-10-20) |
 | 原額（外貨の元の金額） | ⬜ 未確認 | 入力・保存・再起動は接続済み（年越しは年別保存とともに削除）。LOAMとの照合が未了 | なし | UI-07 |
-| Merchant分類 | ⬜ 未確認 | 接続済み、照合未了 | なし | R08 |
+| Merchant分類 | 🟨 差あり | 承認済み口座の明細は両者とも `m` で保存可。`approved-loci` から外れた口座を含む明細は、LOAMは分類を通すがBakhloは `classify-merchant`（`locus-unapproved`）で拒否（120×36・80×24実データで確認） | 要判断 | R08, [実データ試し保存・訂正比較](VERIFICATION.md#real-data-trial-saves-exit-compaction-and-unapproved-locus-correction-comparison-2026-10-20) |
 
 ## 2. 予定（Scheduled）
 
@@ -86,9 +86,9 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 | 項目 | 判定 | 内容 | 乗り換え | 根拠 |
 | --- | --- | --- | --- | --- |
 | 全家計データの移行 | 🟥 未実装 | 今の変換は比較用の限定コピー。取り込めない区画（Capacity・Routing等）の扱いと、元データの保全を決めていない | **止める** | [乗り換え判定](CUTOVER_CHECKLIST.ja.md#切替は別の判断) |
-| 年度の切替（年次ファイル） | 🟥 未実装 | 実データはbounded-history付きのため、年次ファイルへの切替を今は拒否する | **止める** | [履歴対照](VERIFICATION.md#bounded-history-support-and-real-data-pace-history-2026-10-19) |
+| 年度の切替（単一帳簿での年またぎ） | ✅ 解決（設計変更） | 年別ファイル分割を廃止し、1冊の帳簿（スナップショット＋追記ログ、200件以上で終了時にまとめ直しと `.prev` 保持）に統一（2026-10-20実データコピーでも追記・200件まとめ直しを確認） | なし | [年別廃止](VERIFICATION.md#records-and-annual-files-removed-2026-10-20), [実データ試し保存・訂正比較](VERIFICATION.md#real-data-trial-saves-exit-compaction-and-unapproved-locus-correction-comparison-2026-10-20) |
 | 保存の確認・電源断（P7） | 🟥 未実装 | 保存完了の永続的な確認と電源断時の安全性が未検証 | **止める** | O01 |
-| バックアップと復旧の手順 | 🟨 差あり | inspect／confirm／restore-copyはある。保存先や採用条件が未確定 | 要判断 | O02 |
+| バックアップと復旧の手順 | 🟨 差あり | `--inspect-recovery`／`--discard-torn-tail`／`--restore-copy-from` とまとめ直し時の `.prev` 保持はある。長期履歴のGit運用や採用手順は未確定 | 要判断 | O02 |
 | 本人の実機・日本語入力での確認 | ⬜ 未確認 | Macの端末で本人が触って確認していない | **止める** | — |
 | 切替日と記帳先 | ⬜ 未確認 | 本人が明示して決める。二重記帳・自動同期はしない | **止める** | [乗り換え判定](CUTOVER_CHECKLIST.ja.md#切替は別の判断) |
 | Fava・hledger出力 | 🟦 意図的な差 | 本人の指定で対象外 | なし | — |
@@ -98,4 +98,4 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 - 差を見つけた・直した・照合したら、同じ作業の中でこの台帳の該当行を更新する（判定・差の内容・根拠リンク）。行を消さずに判定を変える。
 - 「✅ 一致」には、どのデータ（実データ／合成）で、どの画面サイズで確かめたかを根拠先に残す。
 - 本人が「この差は許容する」と決めた行は「乗り換え」列を「なし（本人了承 YYYY-MM-DD）」にする。
-- 最終更新：2026-10-19（Bakhlo p/s接続後）。
+- 最終更新：2026-10-20（実データコピーでの試し保存・200件まとめ直し・外れた口座の訂正比較後）。
