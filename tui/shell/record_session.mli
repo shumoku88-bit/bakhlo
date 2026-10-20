@@ -16,6 +16,8 @@ val surface_dimensions : int * int -> int * int
 val has_draft : t -> bool
 val is_plan : t -> bool
 val with_notice : t -> string -> t
+val with_roles : (string * Daily_overlays.accounting_role) list -> t -> t
+(** Accounting roles for quick capture's Locus words (the Shell reads them). *)
 val after_unresolved_enabled : book:B.t -> t -> t
 (** Back to the draft after suspense was admitted, filling the remainder as LOAM does. *)
 val unresolved_not_enabled : t -> string -> t

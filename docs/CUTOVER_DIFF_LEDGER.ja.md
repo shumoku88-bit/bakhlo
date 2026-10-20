@@ -24,7 +24,7 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 | 項目 | 判定 | LOAMとの差 | 乗り換え | 根拠 |
 | --- | --- | --- | --- | --- |
 | 支出・収入・振替の入力→Preview→保存→再起動 | ✅ 一致（合成） | 単発の入力・数量・再起動後の照合が一致 | なし | [Record対照](VERIFICATION.md#paired-record-happy-path-and-cancellation-2026-10-16) |
-| 記帳の一行入力（クイック入力） | 🟥 未実装 | 現在のLOAMは記帳を一行入力（説明→合計→口座、例「パン屋 420 card」）で始め、Tabで詳細フォームへ切り替える。Bakhloは詳細フォームのみ（2026-10-20に発見） | 要判断 | [Ctrl-U対照](VERIFICATION.md#record-ctrl-u-enables-unresolved-recording-as-in-loam-2026-10-20) |
+| 記帳の一行入力（クイック入力） | 🟨 実装（合成のみ） | LOAMと同じく新規記帳を一行入力（説明→合計→口座、例「パン屋 420 card」）で始め、過去の同じ説明を雛形に提案、Tabで詳細フォームへ。意図的な差：既定の日付はLOAMの今日ではなくRecordの表示日。LOAMとの対照（実データ・合成とも）は未実施 | 要判断 | [クイック入力証拠](VERIFICATION.md#record-quick-capture-as-in-loam-2026-10-20) |
 | 狭い画面での保存確認 | 🟦 意図的な差 | LOAMは確認本文が隠れたまま保存できる。Bakhloは全文が見えるまで保存を拒否 | なし | [狭小gate](VERIFICATION.md#paired-record-editcancel-and-narrow-preview-gates-2026-10-16) |
 | 未分類（貸借差額）の仮置き | ✅ 一致（合成・実データ） | Ctrl-Uで差額行を自動補完。suspense が未許可のときはLOAMと同じ確認画面を出し、Enterで科目だけを追加して下書きに戻り差額を埋める（本人判断 2026-10-20：LOAMと同じにする）。Bakhloの記帳枠は浮かぶ枠のため配置だけ違う | なし | UI-08 |
 | Actual一覧・検索・詳細 | ✅ 一致（実データ・限定） | 見出し・3画面の配置・一覧と詳細の表記をLOAMへ揃え、実データ120×36・80×24の14通りで比較。違いは意図的な3点（詳細欄のMerchantなど補足行、下部案内の`[d] date [m] merchant`）と、Loci一覧の一部の並び（LOAMは訂正した記録を訂正時点へ移すが、Bakhloは同じIDのまま元の位置に保つため） | なし | UI-03, [Actual対照](VERIFICATION.md#actual-workspace-layout-and-details-parity-with-loam-2026-10-20) |

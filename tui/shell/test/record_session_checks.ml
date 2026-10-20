@@ -42,7 +42,9 @@ let self_check ~width_of () =
   let screen ?(dimensions=dimensions) state = S.screen ~book ~dimensions ~width_of state in
   let contains state needle =
     List.exists (fun (_,line) -> Base.String.is_substring line ~substring:needle) (screen state) in
-  let create ()=S.create ~book ~day:"2026-10-11" ~measure:"jpy" () in
+  (* New Records start in quick capture; Tab continues in the full form. *)
+  let full t = match handle t (`Key (`Tab, [])) with S.Updated next -> next | _ -> failwith "quick-tab" in
+  let create ()=full (S.create ~book ~day:"2026-10-11" ~measure:"jpy" ()) in
   require (not (S.has_draft (create ()))) "fresh-record-is-empty";
   let date_only = key (update (create ()) (`Key (`Tab, [`Shift]))) `Backspace in
   require (S.has_draft date_only) "date-only-record-edit-is-retained";
@@ -307,7 +309,7 @@ let self_check ~width_of () =
   let s_book = get (B.of_string suspense_fixture) in
   require (contains (S.after_unresolved_enabled ~book:s_book no_suspense_editor) "Unresolved recording enabled.")
     "ctrl-u-enabled-returns-to-draft-with-notice";
-  let s_create () = S.create ~book:s_book ~day:"2026-10-11" ~measure:"jpy" () in
+  let s_create () = full (S.create ~book:s_book ~day:"2026-10-11" ~measure:"jpy" ()) in
   let s_handle ?(blocked=false) ?(dimensions=dimensions) state input =
     S.handle ~new_id:Daily_file.new_id ~book:s_book ~base_revision ~blocked ~dimensions ~width_of state input in
   let s_update ?blocked ?dimensions state input =
@@ -389,7 +391,7 @@ let self_check ~width_of () =
   let candidates_prefix_o = O.locus_candidates s_book "o" in
   require (candidates_prefix_o = []) "prefix-search-excludes-middle-substring-match";
   (* Date field input protection check *)
-  let date_editor = S.create ~book ~day:"2026-10-14" ~measure:"jpy" () in
+  let date_editor = full (S.create ~book ~day:"2026-10-14" ~measure:"jpy" ()) in
   let date_editor = update date_editor (`Key (`Tab, [`Shift])) in
   let date_editor = text date_editor "コンビニ" in
   let date_editor = key date_editor (`ASCII 'x') in

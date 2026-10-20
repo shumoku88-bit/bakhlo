@@ -1,0 +1,110 @@
+(* Quick capture checks, the cases of LOAM TuiRecord.checkQuickCapture on a
+   synthetic book. Pure: nothing is written or published. *)
+module B = Bakhlo_sexp.Daily_book
+module D = Bakhlo_domain
+module O = Daily_overlays
+module Q = Quick_capture
+
+let require condition cause = if not condition then failwith cause
+let get = function Ok x -> x | Error why -> failwith why
+let id = function Ok x -> x | Error _ -> failwith "synthetic-identifier"
+
+let fixture =
+  "(bakhlo-daily 3)\n(scope corrected-entries explicit-plans)\n\
+   (measures (measure \"jpy\" 0) (measure \"usd\" 2))\n\
+   (labels (provided (label \"food\" \"食費\" \"Synthetic\") (label \"drinks\" \"飲み物\" \"Synthetic\") (label \"wallet\" \"財布\" \"Synthetic\")\n\
+     (label \"card\" \"カード\" \"Synthetic\") (label \"synthpay\" \"SynthPay\" \"Synthetic\") (label \"books\" \"本\" \"Synthetic\")))\n\
+   (approved-loci (provided \"food\" \"drinks\" \"wallet\" \"card\" \"synthpay\" \"books\" \"synthnet\" \"synthbank\"))\n\
+   (entries)\n(plans)\n\
+   (support (zero-origin) (openings) (observations) (presence (not-supplied)))\n"
+
+let effect measure (locus, quanta) =
+  D.Effect.create ~key:None ~locus:(id (D.Identifier.Locus.of_string locus))
+    ~measure:(id (D.Identifier.Measure.of_string measure)) ~quantity:(D.Quantity.of_quanta (Z.of_int quanta))
+
+let entry ?(measure = "jpy") ?reversal_of id day memo postings : B.entry =
+  { id; day; memo = Some memo; effects = List.map (effect measure) postings; reversal_of;
+    exchange = None; original_amount = None; merchant = None }
+
+let self_check ~width_of () =
+  let bakery = [ ("food", 300); ("drinks", 120); ("wallet", -420) ] in
+  let book =
+    List.fold_left (fun book e -> get (B.put_entry book ~replace:false e ~plan:None)) (get (B.of_string fixture))
+      [ entry "q1" "2026-10-01" "本屋" [ ("books", 1200); ("synthpay", -1200) ];
+        entry "q2" "2026-10-02" "パン屋" bakery;
+        entry "q3" "2026-10-03" "パン屋" bakery;
+        entry "q4" "2026-10-06" "パン屋" [ ("drinks", 120); ("wallet", -120) ];
+        entry "q5" "2026-10-04" "パン屋" bakery;
+        entry ~measure:"usd" "q6" "2026-10-07" "外貨" [ ("books", 500); ("synthpay", -500) ];
+        entry "q7" "2026-10-08" "消えた" [ ("books", 9); ("synthpay", -9) ];
+        entry ~reversal_of:"q7" "q8" "2026-10-09" "消えた" [ ("books", -9); ("synthpay", 9) ] ]
+  in
+  let roles = [ ("food", O.Expense); ("drinks", O.Expense); ("books", O.Expense);
+                ("wallet", O.Asset); ("card", O.Liability); ("synthpay", O.Asset) ] in
+  let start = Q.initial ~book ~day:"2026-10-19" ~measure:"jpy" ~roles in
+  let typed text = Q.append start text in
+  let press t input = Q.update ~book t input in
+  let enter t = press t (`Key (`Enter, [])) in
+  let screen ?(dimensions = (80, 24)) t =
+    Q.view ~book ~width_of ~width:(fst dimensions) ~height:(snd dimensions) t in
+  let painted t = String.concat "\n" (List.map snd (screen t)) in
+  let preview t = match enter t with
+    | Q.Preview p -> p | _ -> failwith ("quick-not-previewed: " ^ Q.text t) in
+  let edit t = match enter t with
+    | Q.Edit p -> p | _ -> failwith ("quick-not-edited: " ^ Q.text t) in
+  (* Descriptions complete by prefix, then substring; other Measures and reversed
+     records are not learned. *)
+  let lines_with t needle = List.filter (fun (_, row) -> Base.String.is_substring row ~substring:needle) (screen t) in
+  require (lines_with (typed "パ") "パン屋" <> [] && lines_with (typed "パ") "本屋" = []) "quick-prefix-suggestion";
+  let both = painted (typed "屋") in
+  require (Base.String.is_substring both ~substring:"パン屋" && Base.String.is_substring both ~substring:"本屋"
+           && Base.String.substr_index both ~pattern:"パン屋" < Base.String.substr_index both ~pattern:"本屋")
+    "quick-substring-suggestions-after-prefix";
+  require (Base.String.is_substring (painted (typed "消")) ~substring:"New description"
+           && Base.String.is_substring (painted (typed "外")) ~substring:"New description")
+    "quick-ignores-reversed-and-other-measure-records";
+  let completed = match enter (typed "パ") with Q.Stay t -> t | _ -> failwith "quick-description-enter" in
+  require (Q.text completed = "パン屋 ") "quick-enter-completes-description";
+  (* The template used most among the latest ten replays exactly. *)
+  let usual = preview completed in
+  require (usual.description = "パン屋" && usual.day = "2026-10-19"
+           && usual.rows = [ ("drinks", "120"); ("food", "300"); ("wallet", "-420") ])
+    "quick-replays-usual-split";
+  require ((preview (typed "パン屋 450 食費 300")).rows = [ ("drinks", "150"); ("food", "300"); ("wallet", "-450") ])
+    "quick-named-part-gives-rest-to-other-part";
+  require ((preview (typed "パン屋 card")).rows = [ ("drinks", "120"); ("food", "300"); ("card", "-420") ])
+    "quick-named-payer-replaces-template-payer";
+  require ((preview (typed "パン屋 120")).rows = [ ("drinks", "120"); ("wallet", "-120") ])
+    "quick-total-prefers-matching-template";
+  let open_split = edit (typed "パン屋 700") in
+  require (open_split.rows = [ ("drinks", ""); ("food", ""); ("wallet", "-700") ] && open_split.focus = 4)
+    "quick-undetermined-split-opens-form-at-first-missing-amount";
+  ignore (edit (typed "パン屋 420 nosuch"));
+  require (Base.String.is_substring (painted (typed "パン屋 420 nosuch")) ~substring:"Not understood: nosuch")
+    "quick-unknown-locus-word-is-not-ignored";
+  require ((preview (typed "ラーメン 900 本 synthpay")).rows = [ ("books", "900"); ("synthpay", "-900") ])
+    "quick-new-description-takes-loci-from-line";
+  let unroled = Q.append (Q.with_roles [] start) "新規 10 synthnet synthbank" in
+  require ((preview unroled).rows = [ ("synthnet", "10"); ("synthbank", "-10") ])
+    "quick-roleless-loci-fill-receiving-then-paying";
+  (* Dated today (here Record's day) unless a leading date word names another day. *)
+  let day_of text = match press (typed text) (`Key (`Tab, [])) with Q.Edit p -> p.day | _ -> failwith "quick-tab" in
+  require (day_of "パン屋" = "2026-10-19" && day_of "10-18 パン屋" = "2026-10-18"
+           && day_of "2025-12-31 パン屋" = "2025-12-31" && day_of "12/31 パン屋" = "2025-12-31"
+           && day_of "10-18" = "2026-10-19")
+    "quick-leading-date-word";
+  let earlier = match enter (typed "10-18 パ") with Q.Stay t -> t | _ -> failwith "quick-dated-description" in
+  require (Q.text earlier = "10-18 パン屋 " && (preview earlier).day = "2026-10-18") "quick-dated-template";
+  require ((edit (typed "10-32 本屋 900")).day = "10-32") "quick-unreal-date-left-for-record";
+  require ((match press completed (`Key (`Tab, [])) with Q.Edit _ -> true | _ -> false)
+           && (match press completed (`Key (`Escape, [])) with Q.Cancel -> true | _ -> false))
+    "quick-tab-opens-form-and-esc-cancels";
+  List.iter (fun ((width, height) as dimensions) ->
+      List.iter (fun t ->
+          let rows = screen ~dimensions t in
+          require (List.length rows <= height && List.for_all (fun (_, row) -> width_of row <= width) rows
+                   && List.length (List.filter (fun (style, _) -> match style with O.Input _ -> true | _ -> false) rows) = 1)
+            "quick-view-bounded-with-one-caret")
+        [ start; typed "パ"; completed; typed "パン屋 700 nosuch"; typed "2025-12-31 パン屋 " ])
+    [ (32, 9); (48, 14); (80, 24) ];
+  print_endline "PASS: Quick capture suggests past descriptions, replays the usual template, takes totals, parts, payer and date words, and hands Record a complete or open form (LOAM cases)."

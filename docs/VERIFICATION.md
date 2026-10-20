@@ -4837,3 +4837,45 @@ User decision (2026-10-20): no private household text may enter this repository.
 - `./tools/check` now ends with the changed-file scan. Measured: `--all` 84 s over 504 files,
   changed-file mode under 1 s. A planted private token in an untracked file was detected
   (exit 1, reported as `12 bytes` only) and the file was removed.
+
+## Record quick capture as in LOAM (2026-10-20)
+
+Closes the difference found during the Ctrl-U comparison: LOAM opens a new Record in a
+one-line quick-entry mode.
+
+### Implemented boundary
+
+- New `tui/shell/quick_capture.ml/.mli`: one line of description, optional total and
+  optional Locus words (token, label or unique prefix). Past current, unreversed,
+  single-Measure entries with the same description are proposed as templates (most used
+  among the latest ten, then latest); a total equal to a template's replays it exactly,
+  any other total keeps only its Loci. A named Locus replaces the payer/part with the same
+  accounting role or joins its side; the one unamounted line per side takes what the total
+  leaves. A leading date word (`2026-10-18`, `10-18`, `10/18`) dates the record; an unreal
+  date is passed to Record unchanged so Record's own validation refuses it.
+- Nothing is retained or published by quick capture: a complete balanced line goes to
+  Record's own Preview (same gates), anything else (or Tab/Ctrl keys) to the full form
+  prefilled with focus on the first missing field. Unknown words are shown as
+  `Not understood` and never ignored. Amounts are exact quanta at the Measure's scale.
+- `record_session.ml`: only a new Record starts in quick capture; edit, Pay, Plan and
+  correction open the full form as before. Esc keeps the typed line as a retained draft.
+- Kept Bakhlo difference: the default date is Record's day (the shown/selected day), as
+  Bakhlo's full form already does; LOAM's quick capture uses today.
+
+### Evidence
+
+- `tui/shell/test/quick_capture_checks.ml` (cases of LOAM `checkQuickCapture`, synthetic):
+  prefix then substring suggestions, reversed and other-Measure records not learned, usual
+  split replayed, named part/payer, matching-total preference, open split focus, unknown
+  word refusal, roleless Loci, date words, Tab/Esc, bounded view with one caret at 32×9,
+  48×14 and 80×24.
+- Shell scenario: after one ordinary Record, `r`, `Eng`, Enter, Enter reaches
+  `Record / Preview`; Publish appends a second entry with a new ID and the same memo and
+  postings after cold load. Existing scenarios now press Tab to reach the full form.
+- `./tools/check` (privacy scan no match), `./tools/tui --self-check` (38 PASS),
+  `git diff --check` passed.
+
+### Limits
+
+Latest-data paired comparison, synthetic paired comparison against LOAM, physical
+terminal/IME, human acceptance and P7 were **not executed**.

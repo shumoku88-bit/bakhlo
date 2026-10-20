@@ -28,29 +28,39 @@ type t = {
   original_amount : (string * Z.t) option;
   original_editor : original_editor option;
   enabling : bool;  (** LOAM unresolved-recording confirmation before admitting suspense. *)
+  quick : Quick_capture.t option;  (** LOAM quick capture in front of a new Record. *)
 }
 type outcome = Updated of t | Closed of t | Publish of A.payload * string * t | Enable_unresolved of t
 
 let mode t = t.mode
 let with_notice t notice = { t with notice }
+let with_roles roles t = { t with quick = Option.map (Quick_capture.with_roles roles) t.quick }
+
+(* Continue from a quick-capture line in the full Record form. *)
+let of_quick (p : Quick_capture.prefill) t =
+  { t with quick = None; day = p.day; description = p.description;
+    rows = List.map (fun (locus, amount) -> { key = None; locus; amount }) p.rows;
+    focus = p.focus; cursor = None; candidate = 0; notice = "" }
 let is_plan t = match t.mode with A.Plan_new | A.Plan_edit _ -> true | A.New | A.Edit _ | A.Pay _ -> false
 let has_draft t =
+  (match t.quick with Some q -> Quick_capture.text q <> "" | None -> false) ||
   match t.mode with
   | A.Edit _ | A.Pay _ | A.Plan_edit _ -> true
   | A.New | A.Plan_new -> t.day <> t.initial_day || t.measure <> t.initial_measure
       || t.description <> "" || t.original_amount <> None || List.exists (fun (r : row) -> r.amount <> "" || r.locus <> "") t.rows
 
-let create ~book:_ ~day ~measure () =
+let create ~book ~day ~measure () =
   { mode = A.New; day; description = ""; measure; initial_day = day; initial_measure = measure;
     rows = [{key=None; locus=""; amount=""}; {key=None; locus=""; amount=""}];
     focus=1; cursor=None; candidate=0; notice=""; review=None; paste=None;
-    original_amount=None; original_editor=None; enabling=false }
+    original_amount=None; original_editor=None; enabling=false;
+    quick=Some (Quick_capture.initial ~book ~day ~measure ~roles:[]) }
 
 let create_plan ~book:_ ~day ~measure () =
   { mode = A.Plan_new; day; description = ""; measure; initial_day = day; initial_measure = measure;
     rows = [{key=None; locus=""; amount=""}; {key=None; locus=""; amount=""}];
     focus=0; cursor=None; candidate=0; notice=""; review=None; paste=None;
-    original_amount=None; original_editor=None; enabling=false }
+    original_amount=None; original_editor=None; enabling=false; quick=None }
 
 let rows_of_draft (draft : R.t) =
   List.map (fun (r:R.row) ->
@@ -64,7 +74,7 @@ let of_edit ~book entry =
       | Error why -> Error why
       | Ok draft ->
           let t = create ~book ~day:entry.day ~measure:draft.measure () in
-          Ok {t with mode=A.Edit entry; description=Option.value ~default:"" entry.memo;
+          Ok {t with quick=None; mode=A.Edit entry; description=Option.value ~default:"" entry.memo;
             rows=rows_of_draft draft; original_amount=entry.original_amount})
 
 let of_edit_plan ~book (plan : B.plan) =
@@ -101,7 +111,7 @@ let of_plan ?day ~book (plan:B.plan) =
     | Error why -> Error why
     | Ok draft ->
         let t = create ~book ~day:(Option.value ~default:plan.day day) ~measure:plan.measure () in
-        Ok {t with mode=A.Pay plan.id; rows=rows_of_draft draft}
+        Ok {t with quick=None; mode=A.Pay plan.id; rows=rows_of_draft draft}
 
 let action_start t = 3 + 2 * List.length t.rows
 let border_intent t =
@@ -380,7 +390,7 @@ let parse_original_quanta ~scale amount_str =
           if Z.sign q <= 0 then Error `Non_positive else Ok q
     | _ -> Error `Invalid
 
-let handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t (input:Ui_input.input) =
+let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t (input:Ui_input.input) =
   let update t=Updated t in
   match input,t.paste with
   | `Paste `Start, _ -> update {t with paste=Some ("",false)}
@@ -388,6 +398,7 @@ let handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t (input:
       let t={t with paste=None} in
       if blocked then update t
       else if invalid || not (safe_text text) then update (with_notice t (tr "Paste refused: use one printable line; no control keys."))
+      else if t.quick <> None then update { t with quick = Option.map (fun q -> Quick_capture.append q text) t.quick }
       else (match t.original_editor with
       | Some ed ->
           let cur_val = if ed.focus = 0 then ed.measure else ed.amount in
@@ -404,6 +415,17 @@ let handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t (input:
   | `Key (`Uchar c,[]), Some (text,invalid) ->
       update {t with paste=Some (text ^ O.utf8 c,invalid || not (O.printable_uchar c))}
   | `Key _, Some (text,_) -> update {t with paste=Some (text,true)}
+  | `Key (`ASCII _, [`Ctrl]), None when t.quick <> None && t.review = None ->
+      (* Record's control keys continue in the full form, then act there. *)
+      (match Quick_capture.update ~book (Option.get t.quick) (`Key (`Tab, [])) with
+      | Quick_capture.Edit p -> handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of (of_quick p t) input
+      | _ -> update t)
+  | `Key _, None when t.quick <> None && t.review = None ->
+      (match Quick_capture.update ~book (Option.get t.quick) input with
+      | Quick_capture.Stay q -> update { t with quick = Some q }
+      | Quick_capture.Cancel -> Closed t
+      | Quick_capture.Edit p -> update (of_quick p t)
+      | Quick_capture.Preview p -> update (preview ~new_id ~book ~base_revision ~blocked (of_quick p t)))
   | `Key (`Escape,[]), None -> Closed {t with original_editor=None; review=None; paste=None; enabling=false}
   | `Key (button,[]), None when t.enabling ->
       (match button with
@@ -659,6 +681,12 @@ let original_amount_screen ~book:_ ~dimensions:(width,height) ~width_of t (ed : 
 let screen ~book ~dimensions:(width,height) ~width_of t =
   let width = max 0 width and height = max 0 height in
   let raw style text = style, O.pad ~width_of width text in
+  match t.quick with
+  | Some q when t.review = None ->
+      raw O.Heading (tr "Record")
+      :: List.map (fun (style, text) -> (style, O.pad ~width_of width text))
+           (Quick_capture.view ~book ~width_of ~width ~height:(max 0 (height - 1)) q)
+  | _ ->
   if t.enabling then
     (* LOAM unresolvedEnableView: one vocabulary admission, not a Movement. *)
     let box title lines h =

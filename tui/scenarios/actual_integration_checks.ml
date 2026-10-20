@@ -782,6 +782,7 @@ let original_amount_integration_checks ~width_of ~directory () =
   let actual_view = C.open_route initial_state W.Actual in
   let recording = H.handle ~width_of actual_view (`Key (`ASCII 'n', [])) in
   let rec_state = match recording with Some s -> s | None -> raise (F.Refused "orig-open-record") in
+  let rec_state = key ~width_of rec_state `Tab (* quick capture -> full form *) in
   let open_orig = H.handle ~width_of rec_state (`Key (`ASCII 'o', [`Ctrl])) in
   let orig_ed = match open_orig with Some s -> s | None -> raise (F.Refused "orig-open-orig-editor") in
   (* Test 1a: Unregistered measure refusal *)
@@ -1166,7 +1167,7 @@ let unresolved_enable_checks ~width_of ~directory () =
     | _ -> raise (F.Refused "unresolved-editor-unexpected-outcome") in
   let typed record text = String.fold_left (fun r c -> step r (`Key (`ASCII c, []))) record text in
   (* wallet -500 and food +300: an unbalanced draft whose remainder is +200. *)
-  let draft = S.create ~book ~day:"2026-10-11" ~measure:"jpy" () in
+  let draft = step (S.create ~book ~day:"2026-10-11" ~measure:"jpy" ()) (`Key (`Tab, [])) in
   let draft = typed (step (step draft (`Key (`Tab, []))) (`Key (`Tab, []))) "wallet" in
   let draft = typed (step draft (`Key (`Tab, []))) "-500" in
   let draft = typed (step draft (`Key (`Tab, []))) "food" in
@@ -1188,3 +1189,30 @@ let unresolved_enable_checks ~width_of ~directory () =
     && List.length (B.entries enabled.session.book) = List.length (B.entries book))
     "unresolved-enable-fills-remainder-without-recording-movement";
   print_endline "PASS: Ctrl-U without suspense asks, admits only the ordinary Locus, cold-loads it and returns to the filled draft without recording the Movement."
+
+(* Quick capture through the Shell: after one ordinary Record, "r", the start of
+   its description, Enter and Enter preview the same Movement; Publish appends a
+   second entry with the same description and postings. *)
+let quick_capture_integration_checks ~width_of ~directory () =
+  let dir = directory ^ "/quick-capture" in
+  Unix.mkdir dir 0o700;
+  let path = dir ^ "/book.sexp" in
+  F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
+  let home = C.initial ~config_home:dir (F.load path) in
+  let first = key ~width_of (key ~width_of (C.submit (prepare_record ~width_of home)) `End) `Enter in
+  require (not first.record_visible && List.length (B.entries first.session.book) = 1) "quick-first-record-published";
+  let quick = key ~width_of first (`ASCII 'r') in
+  let quick = String.fold_left (fun s c -> key ~width_of s (`ASCII c)) quick "Eng" in
+  let quick = key ~width_of (key ~width_of quick `Enter) `Enter in
+  let review_rows = S.screen ~book:quick.session.book ~dimensions:(80, 24) ~width_of (Option.get quick.record) in
+  require (contains review_rows "Record / Preview") "quick-enter-enter-reaches-record-preview";
+  let saved = key ~width_of (key ~width_of quick `End) `Enter in
+  let entries = B.entries (F.load path).book in
+  let same (a : B.entry) (b : B.entry) =
+    let postings (e : B.entry) = List.sort compare
+        (List.map (fun p -> (Daily_draft.lstr (D.Effect.locus p), Z.to_string (Daily_draft.quanta p))) e.effects) in
+    a.memo = b.memo && postings a = postings b in
+  require (not saved.record_visible && List.length entries = 2
+           && (match entries with [ a; b ] -> same a b && a.id <> b.id | _ -> false))
+    "quick-capture-publishes-same-movement-as-new-entry-cold";
+  print_endline "PASS: Quick capture through the Shell previews and publishes a repeat of a past Record as a new entry (cold)."

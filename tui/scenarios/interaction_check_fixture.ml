@@ -256,7 +256,8 @@ let text ~width_of state value =
     state value
 
 let prepare_record ~width_of state =
-  let state = key ~width_of state (`ASCII 'r') in
+  (* New Records start in quick capture; Tab continues in the full form. *)
+  let state = key ~width_of (key ~width_of state (`ASCII 'r')) `Tab in
   let state = text ~width_of state "English UI / 日本語のメモ" in
   let state = key ~width_of (key ~width_of state `Tab) `Tab in
   let state = key ~width_of (text ~width_of state "wallet") `Enter in

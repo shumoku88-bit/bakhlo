@@ -240,7 +240,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   require ((same_workspace cancelled_overlay closed_edit) && F.read path = before)
     "scheduled-cancel-escape-retains-parent-and-bytes";
   let date_only = Option.get (H.handle ~width_of
-    (key ~width_of cal (`ASCII 'r')) (`Key (`Tab, [`Shift]))) in
+    (key ~width_of (key ~width_of cal (`ASCII 'r')) `Tab) (`Key (`Tab, [`Shift]))) in
   let date_only = key ~width_of date_only `Backspace in
   let held_date = key ~width_of date_only `Escape in
   let resumed_date = key ~width_of held_date (`ASCII 'r') in

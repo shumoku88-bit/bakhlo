@@ -25,7 +25,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         match
           S.handle ~new_id:Daily_file.new_id ~book:state.session.book ~base_revision:state.session.revision ~blocked:state.blocked
             ~dimensions:(record_dimensions ~dimensions ~width_of state)
-            ~width_of record input
+            ~width_of (S.with_roles (Shell_files.accounting_roles state) record) input
         with
         | S.Updated record -> Some { state with record = Some record }
         | S.Closed record -> Some { state with record = Some record; record_visible = false }

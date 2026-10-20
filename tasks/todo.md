@@ -1,5 +1,11 @@
 # LOAMの機能・見た目・使い勝手をBakhloで再現する
 
+## 新規記帳の一行入力（クイック入力）をLOAMへ揃える（2026-10-20）
+
+- [x] `Quick_capture`（説明・合計・Locus語・日付語、過去記録の雛形）を追加し、新規Recordの前段に接続。完成行はRecordのPreviewへ、それ以外は詳細フォームへ引き継ぐ。
+- [x] 単体（LOAM `checkQuickCapture`相当）とShellシナリオ（cold）を追加、既存シナリオはTabで詳細フォームへ。`./tools/check`、`./tools/tui --self-check`、`git diff --check`成功。
+- [ ] LOAMとの対照（最新データ・2寸法）は**未実施**。
+
 ## Daily Paceグラフで選択日の垂直ガイド線を表示（2026-10-20）
 
 - [x] LOAMの`renderInRange`／`renderManyInRange`設計に合わせ、`Pace_chart.qualified_rows`に選択日の垂直ガイド線（`│`）および近傍水平ガイド線（`─`）の描画を追加。
