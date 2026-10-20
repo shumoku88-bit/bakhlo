@@ -4878,6 +4878,9 @@ one-line quick-entry mode.
   (`tools/ci_tui_pty.py` still expected the full form right after `r`). The PTY script now
   waits for quick capture and presses Tab; the local native PTY matrix passed (4 dimensions
   and the narrow Preview refusal).
+- Matching CI: Core [39446688761](https://github.com/shumoku88-bit/bakhlo/actions/runs/39446688761)
+  success on `697f92e`; Bonsai TUI [39447458903](https://github.com/shumoku88-bit/bakhlo/actions/runs/39447458903)
+  success on `26829b8` (same code plus the PTY script; Core is not triggered by that path).
 
 ### Limits
 
