@@ -65,6 +65,20 @@ let admitted_loci book =
 
 let selected_locus (env : Screen.env) t = List.nth_opt (admitted_loci env.book) t.selected
 
+(* As in LOAM, a role is an initial assignment: only a Locus with no role that no
+   Actual or Scheduled evidence uses yet may receive one, and none is replaced. *)
+let locus_used book locus =
+  List.exists (fun (e : B.entry) -> List.exists (fun p -> A.lstr (D.Effect.locus p) = locus) e.effects)
+    (B.entries book)
+  || List.exists (fun (p : B.plan) -> List.mem_assoc locus p.changes) (B.plans book)
+
+let role_refusal (env : Screen.env) locus =
+  if locus_used env.book locus then
+    Some (tr "Already used by Actual or Scheduled evidence; role cannot be assigned.")
+  else if List.mem_assoc locus (Lazy.force env.accounting_roles) then
+    Some (tr "This Locus already has an accounting role; roles are never replaced.")
+  else None
+
 let move (env : Screen.env) t delta =
   let count = List.length (admitted_loci env.book) in
   if count = 0 then t else { t with selected = max 0 (min (count - 1) (t.selected + delta)) }
@@ -79,20 +93,12 @@ let role_of_index = function
   | 5 -> Some Roles.Expense
   | _ -> None
 
-let index_of_role = function
-  | Some Roles.Asset -> 1
-  | Some Roles.Liability -> 2
-  | Some Roles.Equity -> 3
-  | Some Roles.Income -> 4
-  | Some Roles.Expense -> 5
-  | None -> 0
-
 let admit_form ~count =
   Form.create ~id:"admit_locus" ~title:"Admit New Locus"
     ~summary:[
       Printf.sprintf "Currently admitted: %d loci" count;
       "Admission establishes an approved coordinate token in the book.";
-      "Accounting role can be assigned immediately or configured later.";
+      "An accounting role can be assigned now, or later while the Locus is unused.";
     ]
     ~fields:[
       Form.text_field ~id:"token" ~label:"Stable token" ~placeholder:"e.g. cash, wallet, grocery" ();
@@ -100,17 +106,15 @@ let admit_form ~count =
       Form.action_buttons ~confirm:"Admit Locus" ~cancel:"Cancel" ();
     ] ()
 
-let role_form ~locus ~current_role =
-  let curr_label = match current_role with None -> "None" | Some r -> Roles.role_label r in
-  Form.create ~id:"set_locus_role" ~payload:locus ~title:("Set Accounting Role / " ^ locus)
+let role_form ~locus =
+  Form.create ~id:"set_locus_role" ~payload:locus ~title:("Assign Accounting Role / " ^ locus)
     ~summary:[
       "Target Locus: " ^ locus;
-      "Current role: " ^ curr_label;
+      "Initial assignment only: an assigned role is never replaced.";
       "Saved to accounting-roles.tsv for role-aware balance sheets and reports.";
     ]
     ~fields:[
-      Form.choice_field ~id:"role" ~label:"Accounting Role" ~options:role_option_strings
-        ~selected:(index_of_role current_role) ();
+      Form.choice_field ~id:"role" ~label:"Accounting Role" ~options:role_option_strings ~selected:0 ();
       Form.action_buttons ~confirm:"Save Role" ~cancel:"Cancel" ();
     ] ()
 
@@ -156,6 +160,10 @@ let submit (env : Screen.env) (geometry : Screen.geometry) t submitted =
   | Some (Role _) -> (
       let locus = Form.payload submitted in
       let role = role_of_index (Option.value ~default:0 (Form.get_choice submitted "role")) in
+      match role_refusal env locus, role with
+      | Some why, _ -> keep (fun f -> Role f) why
+      | None, None -> keep (fun f -> Role f) (tr "Choose an accounting role.")
+      | None, Some _ ->
       match save_role env locus role with
       | Error why -> keep (fun f -> Role f) why
       | Ok request -> ({ t with editor = Some (Role submitted) }, request))
@@ -184,7 +192,7 @@ let submit (env : Screen.env) (geometry : Screen.geometry) t submitted =
          Screen.Publish (Set_locus_label { locus = r.locus; label = r.label; help = r.help }))
 
 (* Legacy navigation is kept: Esc/q return Home, Enter/i open the detail and
-   Page/Home/End fall back to the first row. *)
+   Page/Home/End move within the list. *)
 let handle (env : Screen.env) (geometry : Screen.geometry) t input =
   let stay t = (t, Screen.Stay) in
   let detail = t.pane = Detail_pane in
@@ -212,9 +220,10 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
       | Some (`ASCII 'r', []) -> (
           match selected_locus env t with
           | None -> (t, Screen.Message (tr "No locus selected."))
-          | Some locus ->
-              let current_role = List.assoc_opt locus (Lazy.force env.accounting_roles) in
-              stay { t with editor = Some (Role (role_form ~locus ~current_role)) })
+          | Some locus -> (
+              match role_refusal env locus with
+              | Some why -> (t, Screen.Message why)
+              | None -> stay { t with editor = Some (Role (role_form ~locus)) }))
       | Some (`ASCII ('l' | 'e'), []) -> (
           match selected_locus env t with
           | None -> (t, Screen.Message (tr "No locus selected."))
@@ -265,10 +274,30 @@ let published (env : Screen.env) _geometry outcome t =
       match pending with
       | None -> (t, Screen.Stay)
       | Some (locus, role) -> (
-          match save_role env locus (Some role) with
+          match (match role_refusal env locus with Some why -> Error why | None -> save_role env locus (Some role)) with
           | Ok request -> (t, request)
           | Error why -> (t, Screen.Message ("Locus admitted; accounting role not saved: " ^ why))))
   | Screen.Published, Some _ -> ({ t with editor = None }, Screen.Stay)
+
+(* Detail prose breaks between words, continuing at the line's indent; a word
+   wider than the room falls back to the character wrap. *)
+let wrap_words ~width_of room text =
+  let body = String.trim text in
+  let rec leading i = if i < String.length text && text.[i] = ' ' then leading (i + 1) else i in
+  let indent = String.make (leading 0) ' ' in
+  let room' = room - String.length indent in
+  if body = "" || width_of text <= room || room' < 8 then O.wrap_text ~width_of room text
+  else
+    let words = List.filter (( <> ) "") (String.split_on_char ' ' body) in
+    let lines, current =
+      List.fold_left (fun (lines, current) word ->
+          let next = if current = "" then word else current ^ " " ^ word in
+          if width_of next <= room' then (lines, next)
+          else if current = "" then (lines, word)
+          else (current :: lines, word))
+        ([], "") words in
+    List.concat_map (fun line -> List.map (fun piece -> indent ^ piece) (O.wrap_text ~width_of room' line))
+      (List.rev (current :: lines))
 
 let paint (env : Screen.env) (geometry : Screen.geometry) t =
   let width, height = geometry.content in
@@ -276,11 +305,21 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
   let book = env.book in
   let loci = admitted_loci book in
   let roles = Lazy.force env.accounting_roles in
+  let role_tag locus =
+    match List.assoc_opt locus roles with Some r -> "[" ^ Roles.role_label r ^ "]" | None -> "[--]" in
+  (* Columns fit the list pane; when the label would be squeezed out the role
+     column yields first, since the detail pane names the role. *)
+  let left_width = if width >= 80 then max 36 (min 58 (width * 52 / 100)) else width in
+  let room = left_width - 6 in
+  let widest f = List.fold_left (fun w locus -> max w (width_of (f locus))) 0 loci in
+  let token_w = min 18 (widest Fun.id) and role_w = widest role_tag in
+  let with_role = room >= token_w + 2 + role_w + 2 + 8 in
   let locus_line locus =
     let label = B.label book locus in
-    let role_tag = match List.assoc_opt locus roles with Some r -> "[" ^ Roles.role_label r ^ "]" | None -> "[--]" in
-    if label <> "" && label <> locus then Printf.sprintf "%-18s  %-12s  %s" locus role_tag label
-    else Printf.sprintf "%-18s  %-12s" locus role_tag
+    let label = if label <> "" && label <> locus then label else "" in
+    let cells = O.pad ~width_of token_w locus
+                :: (if with_role then [ O.pad ~width_of role_w (role_tag locus) ] else []) in
+    String.concat "  " (cells @ [ label ])
   in
   let left_rows = if loci = [] then [ tr "No admitted loci in this book." ] else List.map locus_line loci in
   let detail =
@@ -316,7 +355,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
           "";
           "Actions:";
           "  n : Admit new Locus token";
-          "  r : Set / change accounting role";
+          "  r : Assign role (unused Locus without one)";
         ]
   in
   let right_width = if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1 else width in
@@ -325,7 +364,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
     ~left_focused:(not is_detail) ~left_title:(Printf.sprintf "Manage Loci (%d admitted)" (List.length loci))
     ~left_scroll:0 ~left_selected:(if loci = [] then None else Some t.selected) ~left_rows
     ~right_focused:is_detail ~right_title:"Locus Detail" ~right_scroll:t.scroll ~right_selected:None
-    ~right_rows:(List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail) ()
+    ~right_rows:(List.concat_map (wrap_words ~width_of (max 1 (right_width - 6))) detail) ()
 
 let view env (geometry : Screen.geometry) t =
   let overlay = Option.bind (form t)
@@ -337,7 +376,7 @@ let view env (geometry : Screen.geometry) t =
     footer =
       (if Option.is_some t.editor then
          [ "Enter submit  Tab next field  Esc cancel"; "Arrow keys / space to choose options" ]
-       else [ "n admit locus  r set role  j/k select  Enter/Tab detail"; "q/Esc Home  Space Commands  Ctrl-r reload" ]);
+       else [ "n admit locus  r assign role  j/k select  Enter/Tab detail"; "q/Esc Home  Space Commands  Ctrl-r reload" ]);
     overlay;
     cursor = Option.bind overlay (fun frame -> frame.Ui_overlay.cursor);
   }

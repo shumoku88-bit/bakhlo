@@ -5095,3 +5095,40 @@ standalone full-household importer or operational cutover.
 
 Display-name screens, saves, physical terminal/IME, human acceptance and P7 were
 **not executed**.
+
+## Manage Loci initial role assignment and 80-column list (2026-10-21)
+
+User decision (2026-10-21): keep Bakhlo's list + detail Manage Loci; adopt LOAM's
+initial-only AccountingRole rule; fix the 80×24 list and detail.
+
+### Change
+
+- `tui/screens/loci/loci_screen.ml`: `r` and its submission, and a role chosen while
+  admitting, are refused for a Locus named by any Actual entry or Scheduled plan
+  (`Already used by Actual or Scheduled evidence; role cannot be assigned.`) and for a
+  Locus that already has a role (`... roles are never replaced.`). The role form starts
+  unselected and refuses saving no role. Unused `index_of_role` removed.
+- List columns fit the list pane: token and role widths come from the shown Loci, and the
+  role column is dropped before the label when the pane is narrow (the detail names the
+  role). Tokens are never clipped. Detail prose wraps between words at its indent, with the
+  shared character wrap only for a word wider than the room.
+
+### Evidence
+
+- `tui/scenarios/setup_integration_checks.ml` (synthetic): replacement refused and the
+  role kept; a used Locus refused; a Locus admitted without a role gets one, an empty
+  choice is refused, a second `r` is refused; at 80×24 the list row keeps the label and
+  the detail keeps `represents` whole. Reverting the column fit or the word wrap fails
+  `loci-80x24-list-keeps-label` / `loci-80x24-detail-wraps-between-words`.
+- `./tools/check` (privacy scan no match), `./tools/tui --self-check` (39 PASS),
+  `git diff --check` passed.
+- Bakhlo on the retained comparison book (generation `capture-1792518557-51651-293b919a`,
+  read-only): 80×24 list shows token and label, detail wraps between words, `r` on a used
+  Locus shows the refusal on one line; book SHA-256 unchanged. LOAM was not rerun (its
+  copy had been cleaned); the rule follows LOAM's observed `Virgin Locus only; no role
+  replacement` screen from the comparison above.
+
+### Limits
+
+Correcting a wrong role is no longer possible in the UI, as in LOAM. Physical
+terminal/IME, human acceptance and P7 were **not executed**.

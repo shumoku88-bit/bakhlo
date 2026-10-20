@@ -37,30 +37,58 @@ let run ~width_of ~directory ~path =
   require (List.mem "metro" all_loci) "admitted-locus-present-in-catalog";
   let roles_after = Shell_files.accounting_roles admitted_state in
   require (List.assoc_opt "metro" roles_after = Some Roles.Asset) "admitted-locus-has-asset-role";
-  let sel_idx =
+  let select state locus =
+    let loci = Loci_screen.admitted_loci state.C.session.book in
     let rec find i = function
-      | [] -> 0
-      | x :: rest -> if x = "metro" then i else find (i + 1) rest
-    in
-    find 0 all_loci
+      | [] -> failwith ("locus not admitted: " ^ locus)
+      | x :: rest -> if x = locus then i else find (i + 1) rest in
+    List.fold_left (fun state _ -> key ~width_of state (`ASCII 'j')) (key ~width_of state `Home)
+      (List.init (find 0 loci) Fun.id)
   in
-  let state_on_metro =
-    List.fold_left (fun state _ -> key ~width_of state (`ASCII 'j')) admitted_state (List.init sel_idx Fun.id)
+  (* Roles are an initial assignment only: no replacement, nothing for used Loci. *)
+  let replace_refused = key ~width_of (select admitted_state "metro") (`ASCII 'r') in
+  require (no_modal replace_refused
+           && replace_refused.message = C.tr "This Locus already has an accounting role; roles are never replaced.")
+    "loci-r-refuses-role-replacement";
+  require (List.assoc_opt "metro" (Shell_files.accounting_roles replace_refused) = Some Roles.Asset)
+    "loci-refused-replacement-keeps-role";
+  let used =
+    match List.find_opt (Loci_screen.locus_used admitted_state.session.book) all_loci with
+    | Some locus -> locus
+    | None -> failwith "fixture has no used Locus"
   in
-  let role_modal = key ~width_of state_on_metro (`ASCII 'r') in
-  require (visible_form_id role_modal = Some "set_locus_role") "loci-r-opens-set-role-form";
-  let role_form_ready =
-    match visible_form role_modal with
+  let used_refused = key ~width_of (select admitted_state used) (`ASCII 'r') in
+  require (no_modal used_refused
+           && used_refused.message = C.tr "Already used by Actual or Scheduled evidence; role cannot be assigned.")
+    "loci-r-refuses-used-locus";
+  let admit_modal = key ~width_of used_refused (`ASCII 'n') in
+  let admit_tram =
+    match visible_form admit_modal with
     | Some f ->
-        let f2 = Ui_form.set_choice f "role" 5 in (* Expense *)
-        let f3 = Ui_form.set_focused f2 1 in (* focus confirm button *)
-        with_visible_form role_modal f3
+        let f = Ui_form.set_focused (Ui_form.set_text f "token" "tram") 2 in
+        key ~width_of (with_visible_form admit_modal f) `Enter
+    | None -> failwith "expected modal form for admit locus"
+  in
+  require (no_modal admit_tram && not (List.mem_assoc "tram" (Shell_files.accounting_roles admit_tram)))
+    "admitted-locus-without-role";
+  let role_modal = key ~width_of (select admit_tram "tram") (`ASCII 'r') in
+  require (visible_form_id role_modal = Some "set_locus_role") "loci-r-opens-set-role-form";
+  let submit_role state choice =
+    match visible_form state with
+    | Some f ->
+        let f = Ui_form.set_focused (Ui_form.set_choice f "role" choice) 1 in (* confirm button *)
+        key ~width_of (with_visible_form state f) `Enter
     | None -> failwith "expected modal form for set locus role"
   in
-  let updated_role_state = key ~width_of role_form_ready `Enter in
-  require (no_modal updated_role_state) "set-locus-role-submitted";
-  let roles_final = Shell_files.accounting_roles updated_role_state in
-  require (List.assoc_opt "metro" roles_final = Some Roles.Expense) "locus-role-updated-to-expense";
+  let no_choice = submit_role role_modal 0 in
+  require (match visible_form no_choice with Some f -> Ui_form.notice f = "Choose an accounting role." | None -> false)
+    "loci-role-requires-a-choice";
+  let assigned = submit_role no_choice 5 in (* Expense *)
+  require (no_modal assigned) "set-locus-role-submitted";
+  require (List.assoc_opt "tram" (Shell_files.accounting_roles assigned) = Some Roles.Expense)
+    "unused-locus-role-assigned-once";
+  require (no_modal (key ~width_of assigned (`ASCII 'r'))) "loci-r-refuses-after-initial-assignment";
+  let updated_role_state = select assigned "metro" in
   (* Locus label edit test (UI-30) *)
   let label_edit_modal = key ~width_of updated_role_state (`ASCII 'l') in
   require (match visible_form label_edit_modal with Some f -> Ui_form.id f = "set_locus_label" | None -> false) "l-opens-set-locus-label";
@@ -88,6 +116,11 @@ let run ~width_of ~directory ~path =
   require (no_modal label_saved) "label-save-succeeds";
   require (B.label label_saved.session.book "metro" = "Subway Metro") "metro-label-updated";
   require (B.help label_saved.session.book "metro" = "Commute subway pass") "metro-help-updated";
+  let narrow_lines = R.screen ~width_of (80, 24) label_saved |> List.map snd in
+  require (List.exists (fun line -> Base.String.is_substring line ~substring:"metro" && Base.String.is_substring line ~substring:"Subway Metro") narrow_lines)
+    "loci-80x24-list-keeps-label";
+  require (List.exists (fun line -> Base.String.is_substring line ~substring:"represents") narrow_lines)
+    "loci-80x24-detail-wraps-between-words";
   let reloaded_locus_book = (F.load path).book in
   require (B.label reloaded_locus_book "metro" = "Subway Metro") "metro-label-cold-reloaded";
   require (B.help reloaded_locus_book "metro" = "Commute subway pass") "metro-help-cold-reloaded";
