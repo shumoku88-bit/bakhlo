@@ -5198,3 +5198,94 @@ coordinates without any evidence were listed.
 
 Other Measures than jpy, physical terminal/IME, human acceptance and P7 were **not
 executed**.
+## Balances Current list detail and key guide (2026-10-21)
+
+### Scope and source reference
+
+- Worker branch `omp/balances-ui24`, base `710129f`. Product edits are confined to
+  `tui/screens/balances/balances_screen.ml`; regression edits to its owner test and
+  `tui/scenarios/balances_integration_checks.ml`. No shared Shell/API/Core/kit,
+  exported interface, dependency declaration or storage format changed.
+- Read-only reference: LOAM `Loam/Tui/Balances.lean` quantity/detail lines 61–94,
+  footer/geometry 117–155, table/panels 180–238. LOAM was neither built nor run;
+  this is source alignment plus synthetic Bakhlo verification, not paired parity.
+- Current list and Print Preview use stable IDs and grouped raw integer Quanta,
+  without positive adjustment `+` or Measure scaling. Detail order is Locus,
+  Measure, Quanta with Measure, State, any unknown explanation, neutral-coordinate
+  note. Exact zero, presence-only and unsupported remain different.
+- Reused `Ui_panel.frame_rows ~inset:0` for Current markers, muted detail rows,
+  one-cell indent and position/overflow indicators. One owned layout serves
+  painting, list paging and detail scrolling: 80×24 uses a 10-row list, spacer and
+  8-row detail; 120×36 splits; 48×14 and 32×9 switch to focused detail when needed.
+  The Screen's supplied content height, including warning reductions, is used.
+
+### Intentional differences and unchanged boundaries
+
+- Compact rows preserve the Measure before clipping a long Locus. If the whole
+  Measure cannot fit, the row shows a detail cue instead of digits that could be
+  mistaken for another currency. Long Measures use compact form rather than a
+  clipped currency column. Owner regressions cover both overflow cases.
+- Existing `w` Measure, `v` Accounting, `c` configuration, `o` Observe and Space
+  Commands remain connected; wide/medium key guides include them (abbreviated at
+  80 columns). LOAM's navigation/page/print guides use bracketed keys. Tiny guides
+  retain navigation, paging and print; other actions remain available.
+- Accounting still uses the existing role-based, scaled Amount presentation.
+  Its coordinate-preserving mode switch and paging are covered by synthetic
+  scenarios; full LOAM Accounting acceptance is not claimed.
+- Shell Standard chrome still owns the Bakhlo header, feedback and last row.
+  Matching LOAM's complete outer canvas would require the integration owner's
+  shared layout decision; no shared file was changed. Print remains an in-screen
+  preview, not consented terminal output.
+- Picker Review/Save, stale/blocked/uncertain refusal, unknown Observe amounts,
+  separate Measures and print line/byte limits were not weakened.
+
+### Executed synthetic evidence
+
+- `rtk err ./tools/bootstrap`: passed; created only the worker's isolated locked
+  Core environment.
+- `rtk test ./tools/check`: **PASS** (Core build/tests and architecture checks).
+  Its privacy-scan step, and a separate `./tools/privacy-scan` after the doc edits,
+  reported **not executed** because this worktree has no private household copy
+  under `scratch/`. No real-data copy was obtained to enable that scan.
+- `rtk git diff --check`: **PASS**.
+- `rtk test ./tools/tui --self-check`: attempted, exit **2**:
+  `Existing isolated Bonsai environment unavailable; nothing installed.`
+  Native build and native suites were **not executed**.
+- For reachable coverage without installing TUI dependencies, copied the tracked
+  source directories and public synthetic fixture into a disposable ignored
+  workspace. Used the already-installed standard OCaml 5.4.1 libraries; compiled
+  the existing bootstrap-installed Parsexp sources locally because the global
+  switch lacks that library. No project dependency was added. `OCAMLPARAM` selected
+  the 5.2 keyword set so existing identifiers named `effect` parse unchanged.
+- `env OCAMLPARAM=_,keywords=5.2 rtk test opam exec -- dune test --root
+  scratch/balances-ui24-pure --profile release --force tui/screens/balances/test`:
+  **PASS**. Regressions cover raw scale-2 EUR list/Print, unchanged raw Observe
+  intent, exact zero versus unknown/presence-only, 100-digit negative detail,
+  nonnumeric overflow cues, currency preservation, detail field order, page
+  capacities and selection/scroll retention across resize and return.
+- A disposable OCaml runner called `Scenarios.run` and the actual
+  `Shell_input`/`Shell_view` path using synthetic files, with Uucp cell widths.
+  `env OCAMLPARAM=_,keywords=5.2 rtk test opam exec -- dune exec --root
+  scratch/balances-ui24-pure --profile release smoke/balances_smoke.exe --
+  "$PWD/scratch/balances-ui24-pure"` passed. Balances display/paging, picker
+  Review/cancel/save/cold, multi-Measure Observe and refusal scenarios passed.
+- Directly ran the compiled disposable runner against another fresh synthetic
+  directory and observed the Shell-rendered surfaces at **80×24, 120×36,
+  48×14 and 32×9**. Keys: select next, `i` detail, End, Esc, `p`, Esc. Raw Quanta
+  and separate Measures, inactive selection, unknown detail/scroll indicators,
+  compact layout and Print cancellation were visible; book bytes were unchanged.
+  This is renderer/controller smoke, **not a native terminal/PTY run**.
+
+### Other limits and integration note
+
+- A broader standard-OCaml check attempt also exposed existing fatal warning 8
+  in `tui/shell/test/record_session_checks.ml:211–213,226–228`: matches omit
+  `Enable_unresolved _`. Those shared tests were not edited or warnings disabled;
+  the successful standalone runner excludes `Shell_checks.run`. This is separate
+  from the missing native environment.
+- Latest-data paired comparison, `./tools/compare`, `./ui`, physical terminal/IME,
+  human acceptance, P7/power-loss qualification, push and matching-SHA CI were
+  **not executed**. No household/LOAM data or other worktree was accessed for runs.
+- Disposable workspace/runner files are not part of the deliverable.
+- Read-only review of the owned source found no actionable correctness defects;
+  it did not independently run checks.

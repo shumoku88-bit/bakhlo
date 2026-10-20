@@ -188,7 +188,7 @@ let unit_checks ~width_of () =
   require (painted_has scr_stacked "Selected balance")
     "stacked-detail-title-present";
 
-  (* Raw Quanta stay unscaled and unsigned; Measure and zeros are not inferred. *)
+  (* Raw Quanta stay unscaled, without an adjustment '+'. Measures and zeros stay explicit. *)
   let eur_env = env ~book (Ok (Some "wallet\teur\n")) in
   let eur_rows = Lazy.force
     (Balances.view eur_env stacked_geometry owner).rows in
