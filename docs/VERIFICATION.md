@@ -4365,6 +4365,8 @@ Read-only independent review checked the Measure/completion/reversal classifier,
   before and after; the selected Bakhlo capture was unchanged; AI tmux server stopped;
   isolated trial copies deleted; `./tools/compare clean-copies` passed.
 
+- Matching implementation `9697382`: [Core 39394378171](https://github.com/shumoku88-bit/bakhlo/actions/runs/39394378171) and [Bonsai TUI 39394378109](https://github.com/shumoku88-bit/bakhlo/actions/runs/39394378109) completed/success (synthetic CI).
+
 ### Limits
 
 LOAM publication was not repeated on this generation (it was observed earlier on a

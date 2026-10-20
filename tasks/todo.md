@@ -16,7 +16,7 @@ reversalは引き続きapproved-lociで拒否し、`put_entry`全体を迂回す
 - [x] `./tools/startup-probe`で対象mutationを計測する（109.5k件で日付4.14 ms／Merchant 4.03 ms）。
 - [x] 同一取得世代のfresh paired comparisonを120×36と80×24で実施し、原本不変を確認して`clean-copies`を行う。
 - [x] ledgers／evidence／HANDOFF／reviewをローカル実装結果に合わせて更新する。
-- [ ] exact diffを最終確認してcommit／pushし、matching SHAのCore／TUI CIを確認する。
+- [x] exact diffを最終確認してcommit／pushし、matching SHAのCore／TUI CIを確認する（`9697382`、両方success）。
 
 レビュー（ローカル実装時点）：専用operationにより日付だけを更新し、MerchantもEffectを再発行しない
 metadata更新として扱う。`Daily_book.Full`とcold reloadの一致、専用log codec／失敗時非書込、TUIの
