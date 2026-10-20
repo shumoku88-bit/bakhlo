@@ -85,6 +85,11 @@ let with_replaced_effects model ~event ~old_effects ~new_effects =
     apply_net model
       (Effect_sum.add_effects Effect_sum.empty (new_effects @ Base.List.map old_effects ~f:negate))
 
+let restrict model ~keep =
+  { model with
+    assertions = Base.List.filter model.assertions ~f:(fun (a : assertion) -> keep a.coordinate);
+    answers = Base.Map.filteri model.answers ~f:(fun ~key ~data:_ -> keep key) }
+
 let query model coordinate =
   match Base.Map.find model.answers coordinate with
   | None -> Error (Assertion_unknown { coordinate })

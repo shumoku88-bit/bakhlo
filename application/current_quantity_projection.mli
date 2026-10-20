@@ -38,6 +38,9 @@ val with_replaced_effects :
     change: unchanged when the cut reflects that root, otherwise every answer moves
     by new minus old. The cut and its listed events are NOT rebuilt. *)
 
+val restrict : t -> keep:(Bakhlo_domain.Effect_coordinate.t -> bool) -> t
+(** The same answers for the kept coordinates; nothing is recomputed. *)
+
 type answer
 type unavailable = Assertion_unknown of { coordinate : Bakhlo_domain.Effect_coordinate.t }
 

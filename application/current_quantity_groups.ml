@@ -139,3 +139,38 @@ let reobserve t incoming =
                   (group_position + 1, owners)))
           |> Result.map ~f:(fun (_, owners) ->
               materialize ~frontier:t.frontier ~qualified_groups owners))
+
+(* [reobserve] for an incoming group whose cut reflects every admitted root: older
+   groups keep their existing answers for the coordinates they still own, so
+   deltas accumulated in place survive (a rebuild from their cuts would not). *)
+let reobserve_in_place t ~cut assertions =
+  match Projection.create ~cut ~assertions with
+  | Error error -> Error (Invalid_assertions { group_position = 1; error })
+  | Ok projection ->
+      let incoming =
+        { facts = { reflected_roots = Reflected_root_cut.reflected_roots cut; assertions }; projection }
+      in
+      let replaced =
+        Set.of_list (module Effect_coordinate)
+          (List.map assertions ~f:(fun (assertion : Projection.assertion) -> assertion.coordinate))
+      in
+      let keep coordinate = not (Set.mem replaced coordinate) in
+      let reduced =
+        List.filter_map t.qualified_groups ~f:(fun group ->
+            let kept =
+              List.filter group.facts.assertions ~f:(fun (a : Projection.assertion) -> keep a.coordinate)
+            in
+            if List.is_empty kept then None
+            else if Int.equal (List.length kept) (List.length group.facts.assertions) then Some group
+            else
+              Some
+                { facts = { group.facts with assertions = kept };
+                  projection = Projection.restrict group.projection ~keep })
+      in
+      let qualified_groups = reduced @ [ incoming ] in
+      List.fold_result qualified_groups
+        ~init:(1, Map.empty (module Effect_coordinate))
+        ~f:(fun (group_position, owners) group ->
+          Result.map (index_group ~group_position owners group) ~f:(fun owners ->
+              (group_position + 1, owners)))
+      |> Result.map ~f:(fun (_, owners) -> materialize ~frontier:t.frontier ~qualified_groups owners)

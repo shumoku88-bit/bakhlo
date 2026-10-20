@@ -74,8 +74,8 @@ val label : t -> string -> string
 val help : t -> string -> string
 val set_locus_label : t -> id:string -> label:string -> ?help:string -> unit -> (t, string) result
 val image : t -> Q.t
-(** Balance answers are always exact. After an in-place record or correction the
-    image's admitted source (evidence explanation, cut listings) still describes
+(** Balance answers are always exact. After an in-place record, correction or
+    observation the image's admitted source (evidence explanation, cut listings) still describes
     the last whole admission; reload or re-admit before explaining evidence. *)
 
 val format : t -> string -> Z.t -> string
@@ -140,9 +140,10 @@ val put_entry_full : t -> replace:bool -> entry -> plan:string option -> (t, str
 (** Reference oracle: complete whole-book admission verification without incremental fast path. *)
 
 val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) result
-(** Checked append or replacement. New plain entries and corrections outside
-    Reversal/Exchange/opening/presence relations are admitted locally and update
-    balances in place; everything else falls back to whole-book admission. *)
+(** Checked append or replacement. Every new entry, and every correction that keeps
+    its Reversal link and is no opening witness under no presence evidence, is
+    admitted with its Reversal partners only and updates balances in place; anything
+    else falls back to whole-book admission. Refusals match {!Full.put_entry}. *)
 
 module Full : sig
   val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) result
@@ -153,6 +154,7 @@ module Full : sig
     t -> id:string -> disposition:Bakhlo_application.Event_merchants.disposition -> (t, string) result
 
   val add_locus : t -> string -> (t, string) result
+  val observe_quantities : t -> (string * string * Z.t) list -> (t, string) result
 
   val set_locus_label :
     t -> id:string -> label:string -> ?help:string -> unit -> (t, string) result
@@ -178,6 +180,8 @@ val parse_signed_amount : t -> string -> string -> (Z.t, string) result
 val observe_quantities : t -> (string * string * Z.t) list -> (t, string) result
 (** Observe one reconciliation group of current quantities for one or more coordinates
     (locus, measure, quantity_quanta) observed together against the current stable-root cut.
+    The new group reflects every admitted entry, so it is built in place; older groups
+    keep their answers for the coordinates they still own. Matches {!Full}.
     Unmentioned prior observations are preserved; re-observed coordinates are replaced.
     Refuses if any coordinate overlaps zero-origin or opening support, or if Locus/Measure
     is invalid, or if duplicate coordinates are supplied. *)

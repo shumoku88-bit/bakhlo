@@ -5,7 +5,7 @@ module F = Correction_frontier
 type t = {
   source_frontier : F.t;
   reflected_roots : Id.t list;
-  reflected : (Id.t, int, Id.comparator_witness) Base.Map.t;
+  is_reflected : Id.t -> bool;
   remaining_lineages : F.lineage list;
   remaining_events : D.Event.t list;
 }
@@ -38,10 +38,15 @@ let create ~frontier ~reflected_roots =
         Base.List.filter lineages ~f:(fun row -> not (Base.Map.mem reflected (F.root_id row)))
       in
       let remaining_events = Base.List.map remaining_lineages ~f:F.terminal_event in
-      Ok { source_frontier = frontier; reflected_roots; reflected; remaining_lineages; remaining_events }
+      Ok
+        { source_frontier = frontier; reflected_roots;
+          is_reflected = (fun id -> Base.Map.mem reflected id); remaining_lineages; remaining_events }
 
 let source_frontier cut = cut.source_frontier
 let reflected_roots cut = cut.reflected_roots
-let is_reflected cut id = Base.Map.mem cut.reflected id
+let is_reflected cut id = cut.is_reflected id
+
+let reflecting_all ~frontier ~reflected_roots ~is_reflected =
+  { source_frontier = frontier; reflected_roots; is_reflected; remaining_lineages = []; remaining_events = [] }
 let remaining_lineages cut = cut.remaining_lineages
 let remaining_events cut = cut.remaining_events

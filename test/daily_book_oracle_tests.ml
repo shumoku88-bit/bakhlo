@@ -112,15 +112,34 @@ let generate st book =
     | es -> Some (List.nth_exn es (R.int st (List.length es)))
   in
   match R.int st 100 with
-  | n when n < 35 ->
+  | n when n < 30 ->
       let plan = if chance st 15 then Some (pick st plan_ids) else None in
       Put_entry { replace = false; entry = fresh_entry st (pick st entry_ids); plan }
+  | n when n < 35 ->
+      (* Exchange: keyed source and destination in two Measures; sometimes malformed. *)
+      let a = 1 + R.int st 5000 and b = 1 + R.int st 50 in
+      let dest = if chance st 15 then "jpy" else "usd" in
+      let entry =
+        { (fresh_entry st (pick st entry_ids)) with
+          effects =
+            [ posting ~key:"s" "wallet" "jpy" (-a);
+              posting ~key:"d" (pick st [| "wallet"; "bank" |]) dest (if chance st 10 then -b else b) ];
+          exchange = Some ("s", if chance st 10 then "x" else "d");
+          original_amount = None }
+      in
+      Put_entry { replace = false; entry; plan = None }
   | n when n < 55 -> (
       match existing () with
       | None -> Add_locus "ghost"
       | Some old ->
           let entry =
-            if chance st 50 then { old with memo = Some "edited" }
+            if chance st 15 then
+              (* Change the Reversal link: drop it, or point it at another entry
+                 with that entry's exact inverse. *)
+              match (old.reversal_of, existing ()) with
+              | Some _, _ | None, None -> { old with reversal_of = None }
+              | None, Some target -> { old with reversal_of = Some target.id; effects = inverse target }
+            else if chance st 50 then { old with memo = Some "edited" }
             else if chance st 50 then { old with day = day st }
             else { (fresh_entry st old.id) with reversal_of = old.reversal_of }
           in
@@ -170,10 +189,10 @@ let generate st book =
 
 let apply = apply
 
-(* The whole-book reference for the same operation; observation is already whole. *)
+(* The whole-book reference for the same operation. *)
 let apply_full book = function
   | Put_entry { replace; entry; plan } -> B.Full.put_entry book ~replace entry ~plan
-  | Observe rows -> B.observe_quantities book rows
+  | Observe rows -> B.Full.observe_quantities book rows
   | Put_plan { replace; plan } -> B.Full.put_plan book ~replace plan
   | Cancel_plan { id; day } -> B.Full.cancel_plan book ~id ~day
   | Add_locus l -> B.Full.add_locus book l
@@ -221,7 +240,7 @@ let cold book = get (B.of_string (B.to_string book))
 let first_difference a b =
   let a = Array.of_list (String.split_lines a) and b = Array.of_list (String.split_lines b) in
   let n = Int.max (Array.length a) (Array.length b) in
-  let line xs i = if i < Array.length xs then xs.(i) else "<end>" in
+  let line xs i = if i >= 0 && i < Array.length xs then xs.(i) else "<none>" in
   let rec find i = if i >= n || not (String.equal (line a i) (line b i)) then i else find (i + 1) in
   let i = find 0 in
   let around xs = List.init 4 ~f:(fun k -> line xs (i - 1 + k)) |> String.concat ~sep:"\n" in
@@ -238,6 +257,7 @@ let check ~seed ~step ~trace label a b =
 let kind = function
   | Put_entry { replace = true; _ } -> "replace"
   | Put_entry { entry = { reversal_of = Some _; _ }; _ } -> "reversal"
+  | Put_entry { entry = { exchange = Some _; _ }; replace = false; _ } -> "exchange"
   | Put_entry { plan = Some _; _ } -> "plan payment"
   | Put_entry _ -> "record"
   | Observe _ -> "observe"
@@ -287,7 +307,7 @@ let%expect_test "every mutation agrees with its cold-loaded twin and its whole-b
       done);
   (* Guard against a generator that only exercises refusals. *)
   List.iter
-    [ "record"; "plan payment"; "replace"; "reversal"; "observe"; "put_plan"; "cancel_plan";
+    [ "record"; "plan payment"; "replace"; "reversal"; "exchange"; "observe"; "put_plan"; "cancel_plan";
       "add_locus"; "classify"; "label" ]
     ~f:(fun k ->
       Stdio.printf "%s admitted at least 20 times: %b\n" k
@@ -297,6 +317,7 @@ let%expect_test "every mutation agrees with its cold-loaded twin and its whole-b
     plan payment admitted at least 20 times: true
     replace admitted at least 20 times: true
     reversal admitted at least 20 times: true
+    exchange admitted at least 20 times: true
     observe admitted at least 20 times: true
     put_plan admitted at least 20 times: true
     cancel_plan admitted at least 20 times: true

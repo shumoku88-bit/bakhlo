@@ -33,6 +33,16 @@ val reflected_roots : t -> Bakhlo_domain.Identifier.Event.t list
 val is_reflected : t -> Bakhlo_domain.Identifier.Event.t -> bool
 (** Indexed membership in the supplied declarations; no traversal. *)
 
+val reflecting_all :
+  frontier:Correction_frontier.t ->
+  reflected_roots:Bakhlo_domain.Identifier.Event.t list ->
+  is_reflected:(Bakhlo_domain.Identifier.Event.t -> bool) ->
+  t
+(** A cut reflecting every root the caller has admitted, so nothing remains. NOT
+    checked against [frontier]: the caller guarantees [reflected_roots] are exactly
+    its current admitted roots and [is_reflected] is their membership. [frontier]
+    is provenance only and may predate in-place additions. *)
+
 val remaining_lineages : t -> Correction_frontier.lineage list
 (** Materialized unreflected rows in original root-Event order. May differ from
     [Correction_frontier.frontier_events] order even for empty declarations.

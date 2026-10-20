@@ -127,6 +127,19 @@ let () = match Sys.argv with
           match Daily_file.append !session [ Bakhlo_sexp.Book_log.Put_entry { replace = false; entry = e; plan = None } ] with
           | Daily_file.Written s -> session := s
           | _ -> failwith "save-refused");
+      let target = get (Option.to_result ~none:"no" (B.find_entry b "tx-000002")) in
+      let refund = { target with id = "probe-refund"; reversal_of = Some target.id;
+        effects = List.map (fun p -> D.Effect.create ~key:(D.Effect.key p) ~locus:(D.Effect.locus p)
+          ~measure:(D.Effect.measure p) ~quantity:(D.Quantity.neg (D.Effect.quantity p))) target.effects } in
+      median "refund (reversal)" 21 (fun () -> get (B.put_entry b ~replace:false refund ~plan:None));
+      let key k = Option.get (Result.to_option (D.Identifier.Effect_key.of_string k)) in
+      let exchange = { (entry 3) with id = "probe-exchange"; reversal_of = None; exchange = Some ("s", "d");
+        effects = [ D.Effect.create ~key:(Some (key "s")) ~locus:(id (D.Identifier.Locus.of_string "wallet"))
+                      ~measure:(id (D.Identifier.Measure.of_string "jpy")) ~quantity:(D.Quantity.of_quanta (Z.of_int (-1000)));
+                    D.Effect.create ~key:(Some (key "d")) ~locus:(id (D.Identifier.Locus.of_string "wallet"))
+                      ~measure:(id (D.Identifier.Measure.of_string "usd")) ~quantity:(D.Quantity.of_quanta (Z.of_int 700)) ] } in
+      median "exchange" 21 (fun () -> get (B.put_entry b ~replace:false exchange ~plan:None));
+      median "observe" 21 (fun () -> get (B.observe_quantities b [ ("wallet", "jpy", Z.of_int 5000) ]));
       median "balance query" 101 (fun () -> balance b);
       let pool = [coordinate "wallet" "jpy"] in
       median "daily_pace" 21 (fun () -> B.daily_pace b ~measure:"jpy" ~pool ~observed_at:"2030-01-01" ~end_exclusive:"2030-02-01")

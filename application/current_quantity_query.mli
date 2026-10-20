@@ -96,6 +96,17 @@ val with_replaced_effects :
     (touch sets would need recount) or the root witnesses an opening. The caller must
     have re-admitted the changed Event locally; [source] is NOT rebuilt. *)
 
+val reobserve_in_place :
+  t ->
+  reflected_roots:Bakhlo_domain.Identifier.Event.t list ->
+  is_reflected:(Bakhlo_domain.Identifier.Event.t -> bool) ->
+  Current_quantity_projection.assertion list ->
+  (t, error) result
+(** Replace the asserted coordinates with one new group reflecting every admitted
+    root ([reflected_roots], in admission order, with membership [is_reflected]),
+    rechecking the support separations of [create] for them. The caller guarantees
+    those are exactly its admitted roots; [source] is NOT rebuilt. *)
+
 val query : t -> Bakhlo_domain.Effect_coordinate.t -> (outcome, unavailable) result
 (** Indexed lookup; exact/present payloads are disjoint and abstract. Stale/absent
     support remains unknown, never zero; no traversal, chronology or I/O. *)

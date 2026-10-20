@@ -217,6 +217,42 @@ let with_replaced_effects t ~event ~old_effects ~new_effects =
         totals = Effect_sum.add_effects t.totals (new_effects @ negated);
         source_groups = H.with_replaced_effects t.source_groups ~event ~old_effects ~new_effects }
 
+(* Re-observation against every admitted root, without rebuilding the source: the
+   new group owns its coordinates with zero delta, and the support separations of
+   [create] are rechecked for them. *)
+let reobserve_in_place t ~reflected_roots ~is_reflected assertions =
+  let ( let* ) result f = Result.bind result ~f in
+  let cut =
+    Reflected_root_cut.reflecting_all ~frontier:(Actual_source.frontier t.source) ~reflected_roots
+      ~is_reflected
+  in
+  let* source_groups =
+    Result.map_error (H.reobserve_in_place t.source_groups ~cut assertions) ~f:(fun error ->
+        Groups error)
+  in
+  let group_position = List.length (H.groups source_groups) in
+  let* _ =
+    List.fold_result assertions ~init:1
+      ~f:(fun assertion_position ({ coordinate; quantity = _ } : P.assertion) ->
+        if D.Zero_origin_coverage.covers t.coverage coordinate then
+          Error (Assertion_overlaps_origin { coordinate; group_position; assertion_position })
+        else
+          match Map.find t.opening_index coordinate with
+          | Some (opening, _) ->
+              Error (Assertion_overlaps_opening { opening; group_position; assertion_position })
+          | None -> Ok (assertion_position + 1))
+  in
+  let* _ =
+    match t.presence with
+    | None -> Ok 1
+    | Some { reflected_roots = _; coordinates } ->
+        List.fold_result coordinates ~init:1 ~f:(fun position coordinate ->
+            if Option.is_some (H.group_for source_groups coordinate) then
+              Error (Presence_overlaps_exact { coordinate; position })
+            else Ok (position + 1))
+  in
+  Ok { t with source_groups }
+
 let query t coordinate =
   if D.Zero_origin_coverage.covers t.coverage coordinate then
     Ok (Exact { coordinate; quantity = Effect_sum.at t.totals coordinate; premise = Zero_origin })

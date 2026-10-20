@@ -6,6 +6,15 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## In-place refunds, exchanges and observations (2026-10-20)
+
+- `Daily_book`: admission's entry stage split into `entry_event` and `actual_source`; local admission runs the real `Actual_source.create` over the changed entry plus its Reversal partners (every Actual check concerns one entry or one Reversal pair), with the only book-wide rule (a target is reversed once) checked against the new `reversed_by` index after event construction. All new entries (plain, refund, exchange, original amount, merchant) are now in place; corrections are in place unless they change the Reversal link or touch an opening witness/presence evidence.
+- Observation: `Reflected_root_cut.reflecting_all` (membership function, no O(N) map), `Projection.restrict`, `Current_quantity_groups.reobserve_in_place` (older groups restricted, not rebuilt, so in-place deltas survive) and `Current_quantity_query.reobserve_in_place` (rechecks zero-origin/opening/presence separations). The previous implementation is kept as `Daily_book.Full.observe_quantities`.
+- Oracle: compares observation with `Full`; generator adds valid and malformed exchanges and corrections that change or drop a Reversal link. Found while testing: a refund of an already-refunded entry with a repeated posting key reported `entry-admission` instead of the whole-book `invalid-entry` (fixed by checking the endpoint after event construction); the oracle's diff helper crashed on a first-line difference (fixed).
+- Mutation check: accepting a second refund, ignoring a correction's refund partner, a refund ignoring its target, in-place correction of a changed link, a stale `reversed_by`, rebuilding older observation groups from their cuts, skipping the zero-origin or presence separation, reversed reflected-root order and not reflecting earlier entries each fail the oracle.
+- Synthetic probe at 109,500 entries: refund 0.008 ms, exchange 0.006 ms, observation 5.7 ms (≈0.8 s or more before). [Stage 9](LONG_TERM_STORAGE_STUDY.ja.md).
+- Passed: `./tools/check` (exit 0), `./tools/tui --self-check` (35 PASS, exit 0), `git diff --check`. Synthetic only; latest-data paired comparison not executed.
+
 ## Session revision instead of whole-file bytes (2026-10-20)
 
 - `Daily_file.t` drops `bytes`; it keeps `revision` (size + digest of the final 4 KiB), `size`, `tail` and `torn_bytes`. An append computes the next revision from the appended line only; `Uncertain` carries the `expected` revision and `confirms` compares it after reload. Helpers: `revision_of_bytes`, `read_revision`, `revision_after`. Restore/copy/compaction readbacks compare revisions.

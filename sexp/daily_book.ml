@@ -57,7 +57,6 @@ type plan = {
 }
 
 module Entry_map = Map.Make(String)
-module Entry_set = Set.Make(String)
 
 type data = {
   measures : (string * int) list;
@@ -66,7 +65,7 @@ type data = {
   entries_rev : entry list;
   entry_map : entry Entry_map.t;
   entry_count : int;
-  reversal_targets : Entry_set.t;  (** IDs some retained entry reverses. *)
+  reversed_by : string Entry_map.t;  (** Target ID to the ID of the entry reversing it. *)
   plans : plan list;
   origins : D.Effect_coordinate.t list;
   openings : Q.opening list;
@@ -87,10 +86,10 @@ let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~ob
   let entry_map =
     List.fold_left (fun m (e : entry) -> Entry_map.add e.id e m) Entry_map.empty entries
   in
-  let reversal_targets =
+  let reversed_by =
     List.fold_left
-      (fun s (e : entry) -> Option.fold ~none:s ~some:(fun id -> Entry_set.add id s) e.reversal_of)
-      Entry_set.empty entries
+      (fun m (e : entry) -> Option.fold ~none:m ~some:(fun target -> Entry_map.add target e.id m) e.reversal_of)
+      Entry_map.empty entries
   in
   {
     measures;
@@ -99,7 +98,7 @@ let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~ob
     entries_rev;
     entry_map;
     entry_count;
-    reversal_targets;
+    reversed_by;
     plans;
     origins;
     openings;
@@ -173,23 +172,17 @@ let check_plans data =
         p.paid_by)
     data.plans
 
-let admit ?entries_cached data =
-  check_vocabulary data;
+(* The entry stage: per entry, known Measures then Event construction; then the
+   Actual source over those entries. Every Actual check concerns one entry or one
+   Reversal pair, so running it over an entry and its partners admits exactly that
+   entry's share of the whole-book check. *)
+let entry_event data (e : entry) =
   let known = known_measure data in
-  let entries =
-    match entries_cached with
-    | Some c -> Lazy.force c
-    | None -> List.rev data.entries_rev
-  in
-  let events =
-    List.map
-      (fun (e : entry) ->
-        List.iter (fun p -> known (mstr (D.Effect.measure p))) e.effects;
-        Option.iter (fun (m, _) -> known m) e.original_amount;
-        get "invalid-entry" (D.Event.create ~id:(eid e.id) ~effects:e.effects))
-      entries
-  in
-  let source =
+  List.iter (fun p -> known (mstr (D.Effect.measure p))) e.effects;
+  Option.iter (fun (m, _) -> known m) e.original_amount;
+  get "invalid-entry" (D.Event.create ~id:(eid e.id) ~effects:e.effects)
+
+let actual_source events (entries : entry list) =
     get "entry-admission"
       (A.Actual_source.create
          {
@@ -251,7 +244,16 @@ let admit ?entries_cached data =
                    e.exchange)
                entries;
          })
+
+let admit ?entries_cached data =
+  check_vocabulary data;
+  let known = known_measure data in
+  let entries =
+    match entries_cached with
+    | Some c -> Lazy.force c
+    | None -> List.rev data.entries_rev
   in
+  let source = actual_source (List.map (entry_event data) entries) entries in
   check_plans data;
   let known_coord (c : D.Effect_coordinate.t) = known (mstr c.measure) in
   List.iter known_coord data.origins;
@@ -1189,33 +1191,17 @@ let put_entry_full t ~replace (e : entry) ~plan =
       in
       admit ~entries_cached:(lazy entries) data)
 
-let check_effects_balanced effects =
-  let rec fold acc = function
-    | [] -> acc
-    | p :: rest ->
-        let q = D.Effect.quantity p in
-        if D.Quantity.equal q D.Quantity.zero then raise (Refused "entry-admission");
-        let m = mstr (D.Effect.measure p) in
-        let cur = match List.assoc_opt m acc with None -> D.Quantity.zero | Some v -> v in
-        fold ((m, D.Quantity.add cur q) :: List.remove_assoc m acc) rest
-  in
-  let totals = fold [] effects in
-  List.iter
-    (fun (_, net) ->
-      if not (D.Quantity.equal net D.Quantity.zero) then
-        raise (Refused "entry-admission"))
-    totals
+(* The local share of admission for one changed entry: its known Measures and
+   Event, then the Actual source over the entry and its Reversal partners. The
+   only whole-book Actual rule, disjoint Reversal endpoints, is checked against
+   the [reversed_by] index by the callers. *)
+let admit_entry_locally ?(endpoints_disjoint = true) t (e : entry) ~partners =
+  let event = entry_event t.data e in
+  let partner_events = List.map (entry_event t.data) partners in
+  require endpoints_disjoint "entry-admission";
+  ignore (actual_source (event :: partner_events) (e :: partners))
 
-(* The local part of admission for one changed entry, in admission order:
-   known Measures, Event construction, then the Actual stage's own refusals. *)
-let admit_entry_locally t (e : entry) =
-  let known = known_measure t.data in
-  List.iter (fun p -> known (mstr (D.Effect.measure p))) e.effects;
-  Option.iter (fun (m, _) -> known m) e.original_amount;
-  let _ = get "invalid-entry" (D.Event.create ~id:(eid e.id) ~effects:e.effects) in
-  check_effects_balanced e.effects;
-  (try valid_date e.day with _ -> raise (Refused "entry-admission"));
-  Option.iter (fun (_, q) -> require (Z.sign q > 0) "entry-admission") e.original_amount
+let partner t id = Entry_map.find_opt id t.data.entry_map
 
 let put_entry_incremental t (e : entry) ~plan =
   protect (fun () ->
@@ -1230,20 +1216,37 @@ let put_entry_incremental t (e : entry) ~plan =
               (fun (p : plan) -> if p.id = id then { p with paid_by = Some e.id } else p)
               t.data.plans
       in
-      admit_entry_locally t e;
+      let partners =
+        match e.reversal_of with
+        | None -> []
+        | Some target ->
+            Option.to_list (partner t target)
+      in
+      (* A target may be reversed once (whether it is itself a Reversal is checked
+         with it as a partner). *)
+      let endpoints_disjoint =
+        match e.reversal_of with
+        | Some target -> not (Entry_map.mem target t.data.reversed_by)
+        | None -> true
+      in
+      admit_entry_locally ~endpoints_disjoint t e ~partners;
       let entries_rev = e :: t.data.entries_rev in
       let entry_map = Entry_map.add e.id e t.data.entry_map in
       let entry_count = t.data.entry_count + 1 in
-      let data = { t.data with entries_rev; entry_map; entry_count; plans } in
+      let reversed_by =
+        Option.fold ~none:t.data.reversed_by
+          ~some:(fun target -> Entry_map.add target e.id t.data.reversed_by) e.reversal_of
+      in
+      let data = { t.data with entries_rev; entry_map; entry_count; reversed_by; plans } in
       let image = Q.with_added_effects t.image e.effects in
       let entries_cached = lazy (List.rev data.entries_rev) in
       { data; image; entries_cached })
 
 exception Needs_full_admission
 
-(* A correction that keeps the entry outside every cross-entry relation (Reversal
-   pair, Exchange evidence, opening witness, presence evidence) changes only its own
-   facts and its Effects' contribution; anything else is re-admitted whole. *)
+(* A correction keeps the entry's identity and its Reversal role; it is admitted
+   with its partner and updates balances in place. Changing the Reversal relation,
+   an opening witness or presence evidence is re-admitted whole. *)
 let put_entry_replace_incremental t (e : entry) =
   protect (fun () ->
       approve_effects t e.effects;
@@ -1257,10 +1260,12 @@ let put_entry_replace_incremental t (e : entry) =
           require (e.merchant = Some old_m)
             "loam: Event Merchant is already classified; replacement is not qualified"
       | None -> ());
-      if old_e.reversal_of <> None || e.reversal_of <> None || old_e.exchange <> None
-         || e.exchange <> None || Entry_set.mem e.id t.data.reversal_targets
-      then raise Needs_full_admission;
-      admit_entry_locally t e;
+      if old_e.reversal_of <> e.reversal_of then raise Needs_full_admission;
+      let partners =
+        List.filter_map (partner t)
+          (Option.to_list e.reversal_of @ Option.to_list (Entry_map.find_opt e.id t.data.reversed_by))
+      in
+      admit_entry_locally t e ~partners;
       let image =
         match
           Q.with_replaced_effects t.image ~event:(eid e.id) ~old_effects:old_e.effects
@@ -1275,12 +1280,9 @@ let put_entry_replace_incremental t (e : entry) =
       let data = { t.data with entries_rev; entry_map = Entry_map.add e.id e t.data.entry_map } in
       { data; image; entries_cached = lazy (List.rev entries_rev) })
 
-let plain (e : entry) =
-  e.reversal_of = None && e.exchange = None && e.original_amount = None && e.merchant = None
-
 let put_entry t ~replace (e : entry) ~plan =
-  if (not replace) && plain e then put_entry_incremental t e ~plan
-  else if replace && plan = None then
+  if not replace then put_entry_incremental t e ~plan
+  else if plan = None then
     try put_entry_replace_incremental t e with Needs_full_admission -> put_entry_full t ~replace e ~plan
   else put_entry_full t ~replace e ~plan
 
@@ -1357,20 +1359,8 @@ let add_locus t id = protect (fun () -> with_vocabulary t (add_locus_candidate t
 let set_locus_label t ~id ~label ?help () =
   protect (fun () -> with_vocabulary t (label_candidate t ~id ~label ?help ()))
 
-module Full = struct
-  let readmit data = admit ~entries_cached:(lazy (List.rev data.entries_rev)) data
-  let put_entry = put_entry_full
-  let put_plan t ~replace p = protect (fun () -> readmit (plan_candidate t ~replace p))
-  let cancel_plan t ~id ~day = protect (fun () -> readmit (cancel_candidate t ~id ~day))
-  let classify_merchant = classify_with put_entry_full
-  let add_locus t id = protect (fun () -> readmit (add_locus_candidate t id))
 
-  let set_locus_label t ~id ~label ?help () =
-    protect (fun () -> readmit (label_candidate t ~id ~label ?help ()))
-end
-
-let observe_quantities t rows =
-  protect (fun () ->
+let observation_assertions t rows =
       require (rows <> []) "empty-observations";
       let assertions =
         List.map
@@ -1388,6 +1378,30 @@ let observe_quantities t rows =
           rows
       in
       unique (List.map (fun (l, m, _) -> l ^ "\x00" ^ m) rows) "duplicate-coordinate";
+      assertions
+
+(* Every admitted entry is reflected, so the new group's answers are its asserted
+   amounts; older groups only lose the re-observed coordinates. *)
+let observe_quantities t rows =
+  protect (fun () ->
+      let assertions = observation_assertions t rows in
+      let reflected_roots = List.map (fun (e : entry) -> eid e.id) (entries t) in
+      let entry_map = t.data.entry_map in
+      let is_reflected id = Entry_map.mem (estr id) entry_map in
+      match Q.reobserve_in_place t.image ~reflected_roots ~is_reflected assertions with
+      | Error (Q.Groups (A.Current_quantity_groups.Invalid_cut _)) -> raise (Refused "invalid-cut")
+      | Error (Q.Groups (A.Current_quantity_groups.Invalid_assertions _)) ->
+          raise (Refused "invalid-assertions")
+      | Error (Q.Groups (A.Current_quantity_groups.Repeated_coordinate _)) ->
+          raise (Refused "repeated-coordinate")
+      | Error _ -> raise (Refused "support-admission")
+      | Ok image ->
+          let observations = A.Current_quantity_groups.groups (Q.source_groups image) in
+          { t with data = { t.data with observations }; image })
+
+let observe_quantities_full t rows =
+  protect (fun () ->
+      let assertions = observation_assertions t rows in
       (* An incrementally extended image keeps its admission-time frontier; the
          reflected cut must cover every current entry or they count twice. *)
       let groups = Q.source_groups (admit ~entries_cached:t.entries_cached t.data).image in
@@ -1507,3 +1521,16 @@ let render_line x =
   in
   go x;
   Buffer.contents out
+
+module Full = struct
+  let readmit data = admit ~entries_cached:(lazy (List.rev data.entries_rev)) data
+  let put_entry = put_entry_full
+  let put_plan t ~replace p = protect (fun () -> readmit (plan_candidate t ~replace p))
+  let cancel_plan t ~id ~day = protect (fun () -> readmit (cancel_candidate t ~id ~day))
+  let classify_merchant = classify_with put_entry_full
+  let observe_quantities = observe_quantities_full
+  let add_locus t id = protect (fun () -> readmit (add_locus_candidate t id))
+
+  let set_locus_label t ~id ~label ?help () =
+    protect (fun () -> readmit (label_candidate t ~id ~label ?help ()))
+end
