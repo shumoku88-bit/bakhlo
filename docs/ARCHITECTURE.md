@@ -255,7 +255,7 @@ This candidate avoids freezing old wire structure without discarding meaning. It
 proved cheaper/lossless for the complete household. Resolve the field/interpretation scope and
 unknown families before canonical codec/migration; keep original archives and earned trials
 intact. Further trial UI/setup and physical-store expansion stays paused meanwhile.
-For independent syntax review, the [synthetic-only pasteable comparison](FORMAT_COMPARISON_PROMPT.ja.md)
+For independent syntax review, the [synthetic-only pasteable comparison](archive/FORMAT_COMPARISON_PROMPT.ja.md)
 pairs S-expressions + minimal Parsexp with custom fact text under the SAME logical obligations.
 S-expression was previously selected and remains the implemented baseline. The user now reopens
 logical design and syntax comparison; [canonical data research](CANONICAL_DATA_DESIGN.ja.md)

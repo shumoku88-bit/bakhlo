@@ -1,6 +1,6 @@
 # 年度版読込・検証境界（PR 1）
 
-> **廃止（2026-10-20）**: 年別S式・`Year_read`・Recordsはユーザー判断で削除した。この文書は経緯の記録で、現在の方針はAGENTS.mdの Storage direction と[長期保存調査の第5段階](LONG_TERM_STORAGE_STUDY.ja.md)。
+> **廃止（2026-10-20）**: 年別S式・`Year_read`・Recordsはユーザー判断で削除した。この文書は経緯の記録で、現在の方針はAGENTS.mdの Storage direction と[長期保存調査の第5段階](../LONG_TERM_STORAGE_STUDY.ja.md)。
 
 `Bakhlo_sexp.Year_read` は明示的に呼ぶ検証部品。**本番利用可能な年度別
 ストレージではない**。既定の単一S式、CLI、TUI、正式な正データ形式は変更しない。

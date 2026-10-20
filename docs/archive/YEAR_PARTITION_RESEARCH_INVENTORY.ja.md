@@ -1,6 +1,6 @@
 # Bakhlo 年度別正データ研究 成果棚卸し・整理・保全レポート
 
-> **廃止（2026-10-20）**: 年別S式・`Year_read`・Recordsはユーザー判断で削除した。この文書は経緯の記録で、現在の方針はAGENTS.mdの Storage direction と[長期保存調査の第5段階](LONG_TERM_STORAGE_STUDY.ja.md)。
+> **廃止（2026-10-20）**: 年別S式・`Year_read`・Recordsはユーザー判断で削除した。この文書は経緯の記録で、現在の方針はAGENTS.mdの Storage direction と[長期保存調査の第5段階](../LONG_TERM_STORAGE_STUDY.ja.md)。
 
 状態: **TLA+形式検証および年度別S式合成実験の成果確定・保全記録**  
 ブランチ: `research/canonical-storage-checkpoint`  
@@ -32,7 +32,7 @@
 | `test/year_partition_study_tests.ml` | 暦年物理分割の可逆性と選択読込の基礎検証 | 素朴分割の入場拒絶（`unknown-plan-payment`, `entry-admission`）、再結合での完全一致、同封参照閉包での一致 | Dune expect-test (`year_partition_study_tests.ml`) | 2026年に2025年原本を複製同封するA方式であり、過年度訂正時の整合性同期が困難 | C方式プロトタイプ（B/C方式比較）へ展開 |
 | `test/year_partition_c_study_tests.ml` | C方式（CarryForward＋Resolver）のメモリ合成試作 | 普段の残高照会での2025年スキップ、過年度反転・跨年度予定の遅延抽出、二重計上防止（root cut）、前年訂正での失効拒絶 | Dune expect-test (`year_partition_c_study_tests.ml`) | インメモリ合成のみで、S式文字列としての永続化・再起動後の復元が未検証 | 永続化境界実験へ展開 |
 | `test/year_partition_c_persistence_study_tests.ml` | C方式の永続化境界とコールドスタート復元 | S式保存・再読込でのカテゴリカル残高完全復元、`plan-discharge`方式の優位性、コールドスタートからの完全一致、Fail-Closed検査 | Dune expect-test (`year_partition_c_persistence_study_tests.ml`) | 単一プロセス内の文字列再構築であり、ファイルシステム障害や電源断は対象外 | 本棚卸し・保全 |
-| `docs/YEAR_PARTITION_STUDY_RESULTS.ja.md` | 初期合成意味検証実験の記録 | 素朴分割の入場拒否理由、Lossless Partition、Selective Read、年金サイクル比較の記録 | 文書記録 | C方式や永続化境界の成果を含む前の初期記録 | 本インベントリ文書で補完・統括 |
+| `docs/archive/YEAR_PARTITION_STUDY_RESULTS.ja.md` | 初期合成意味検証実験の記録 | 素朴分割の入場拒否理由、Lossless Partition、Selective Read、年金サイクル比較の記録 | 文書記録 | C方式や永続化境界の成果を含む前の初期記録 | 本インベントリ文書で補完・統括 |
 
 ---
 
@@ -143,8 +143,8 @@
 ## 7. 保全コミットと最終状態
 
 - コミット対象ファイル:
-  - `docs/YEAR_PARTITION_RESEARCH_INVENTORY.ja.md` (本インベントリ文書)
-  - `docs/YEAR_PARTITION_STUDY_RESULTS.ja.md`
+  - `docs/archive/YEAR_PARTITION_RESEARCH_INVENTORY.ja.md` (本インベントリ文書)
+  - `docs/archive/YEAR_PARTITION_STUDY_RESULTS.ja.md`
   - `formal/bakhlo-yearclose-v01/`
   - `formal/bakhlo-yearclose-v01-audited/`
   - `formal/bakhlo-yearclose-v02/`

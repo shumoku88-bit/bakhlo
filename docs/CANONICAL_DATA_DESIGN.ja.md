@@ -1,9 +1,9 @@
 # 正データの論理設計研究
 
 状態: **論理設計の研究中。新スキーマ・構文・保存方式は未採用。**
-次の物理保存の第一候補は[暦年別S式](YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)。
+次の物理保存の第一候補は[暦年別S式](archive/YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)。
 この文書は意味・保持境界を所有し、年度/cycle・繰越・複数file復旧の研究計画はリンク先に集約する。
-Irminの本体導入は[Phase 2結果](IRMIN_PHASE2_RESULTS.ja.md)を受け保留、SQLiteは比較候補として維持。
+Irminの本体導入は[Phase 2結果](archive/IRMIN_PHASE2_RESULTS.ja.md)を受け保留、SQLiteは比較候補として維持。
 
 問いは「S式か行形式か」の前に、**何を独立して残せば、必要な家計の回答・訂正・復旧が成立するか**。
 処理費用・30年間の増加・復元/移行・別実装への持ち出しを、その同じ情報で比較する。
@@ -499,7 +499,7 @@ backupからの抽出対象には必要な外部configとpublicationの照合根
 
 ## 論理設計の継続課題
 
-直近の最小実験は[暦年別S式の合成比較計画](YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)に集約する。
+直近の最小実験は[暦年別S式の合成比較計画](archive/YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)に集約する。
 以下は必要な範囲から扱う論理設計課題で、全項目の先行完了や新しい意味研究の繰返しを要求しない。
 年別配置だけで根拠/参照閉包・OpeningSupport・combined C authorityが解決したとは言わない。
 

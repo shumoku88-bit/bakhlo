@@ -174,7 +174,7 @@ Bakhloはまだ実運用前なので、旧UIとの互換性を維持するため
 - `test/`：既存のOCamlテスト。
 
 全体の依存・変更owner・ビルド実測と改善判断は
-[アーキテクチャ監査](docs/ARCHITECTURE_AUDIT_2026_10.ja.md)を参照する。
+[アーキテクチャ監査](docs/archive/ARCHITECTURE_AUDIT_2026_10.ja.md)を参照する。
 これは監査時点の地図であり、画面進捗は既存のUI差分台帳を正とする。
 
 ## 次の作業と参考
@@ -190,19 +190,19 @@ Bakhloのコア実装・Daily保存・TUI接続・運用認定を別々に確認
 保存は単一S式のみ。年別S式とRecordsは削除済みで、次の方針はAGENTS.mdの Storage direction を正とする。
 [論理設計](docs/CANONICAL_DATA_DESIGN.ja.md)は意味・保持境界、
 [長期保存調査](docs/LONG_TERM_STORAGE_STUDY.ja.md)は既存費用を所有する。
-[Irmin Phase 1](docs/IRMIN_STORAGE_RESEARCH.ja.md)・[Phase 2](docs/IRMIN_PHASE2_RESULTS.ja.md)は保存済み。
+[Irmin Phase 1](docs/archive/IRMIN_STORAGE_RESEARCH.ja.md)・[Phase 2](docs/archive/IRMIN_PHASE2_RESULTS.ja.md)は保存済み。
 HEAD途中書込み故障とdurable Saved未確立のため本体導入を保留。SQLiteは当面使わない。IrminとGitの実験成果は保全する。
 金額欄では `500+300`、`(500+300)/2` などの式を入力できる。全角数字・演算子にも対応し、
 整数／有理数で計算する。通貨の最小単位に収まらない結果・ゼロ除算・非正値は拒否し、下書きを保持する。
 符号付きPostingでは先頭の `-`／`+` が式全体の向きに作用する（`-500+300` は `-(500+300)`）。
 式の途中の単項演算子は使わない。
-詳細は[電卓入力設計メモ](docs/UX3_CALCULATOR_INPUT_DESIGN.ja.md)。LOAMとの実画面対照は未了。
+詳細は[電卓入力設計メモ](docs/archive/UX3_CALCULATOR_INPUT_DESIGN.ja.md)。LOAMとの実画面対照は未了。
 家計正データは引き続きLOAMが管理し、本番データは変更しない。
 
 - [意味の契約](docs/SEMANTIC_CONTRACT.md)
 - [開発手順](docs/DEVELOPMENT.md)
 - [現在の実装・実験の設計資料](docs/ARCHITECTURE.md)
 - [検証記録と限界](docs/VERIFICATION.md)
-- [電卓入力設計メモ (PR UX-3候補)](docs/UX3_CALCULATOR_INPUT_DESIGN.ja.md)
+- [電卓入力設計メモ (PR UX-3候補)](docs/archive/UX3_CALCULATOR_INPUT_DESIGN.ja.md)
 
 実データ・秘密情報はGitに入れない。試作の成功だけで本番移行や公開はしない。

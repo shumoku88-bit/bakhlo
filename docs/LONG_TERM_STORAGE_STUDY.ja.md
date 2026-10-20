@@ -3,8 +3,8 @@
 状態: **第1〜5段階は測定済み。Records・年別S式は2026-10-20に削除。次の方針はAGENTS.mdの Storage direction（差分更新Core→追記ログ＋捨てられるsnapshot）。**
 
 最新の配置/分析・繰越・年度間参照・原子性/復旧と合成検証計画は
-[暦年別S式研究](YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)が所有する。
-[Irmin Phase 1](IRMIN_STORAGE_RESEARCH.ja.md)・[Phase 2](IRMIN_PHASE2_RESULTS.ja.md)は保存済み。
+[暦年別S式研究](archive/YEAR_PARTITIONED_SEXP_RESEARCH.ja.md)が所有する。
+[Irmin Phase 1](archive/IRMIN_STORAGE_RESEARCH.ja.md)・[Phase 2](archive/IRMIN_PHASE2_RESULTS.ja.md)は保存済み。
 限定通常操作は成功したが、HEAD途中書込み故障で選択参照不整合を観測し、durable Saved未確立。
 Irminの本体導入は保留、SQLiteはtransaction/安全性/費用/保守の比較候補として残す。
 この文書の第1〜4段階は**S式既存経路の測定履歴**で、IrminのPhase番号とは別。

@@ -50,11 +50,11 @@ umask 077
 run=$(mktemp -d "$PWD/scratch/irmin-replay-XXXXXX")
 mkdir "$run/source" "$run/experiment" "$run/results" "$run/plan"
 git archive a81d0df1e2c35aa0ba98dd1810bf54ba403dfeca | tar -xf - -C "$run/source"
-(cd docs/irmin-phase2 && shasum -a 256 -c SHA256SUMS)
-cp docs/irmin-phase2/trial_*.ml docs/irmin-phase2/io_fault.c "$run/experiment/"
-cp docs/irmin-phase2/build.sh "$run/experiment/build"
-cp docs/irmin-phase2/env-opam.sh "$run/env-opam"
-cp docs/irmin-phase2/install-atoms.txt "$run/plan/"
+(cd docs/archive/irmin-phase2 && shasum -a 256 -c SHA256SUMS)
+cp docs/archive/irmin-phase2/trial_*.ml docs/archive/irmin-phase2/io_fault.c "$run/experiment/"
+cp docs/archive/irmin-phase2/build.sh "$run/experiment/build"
+cp docs/archive/irmin-phase2/env-opam.sh "$run/env-opam"
+cp docs/archive/irmin-phase2/install-atoms.txt "$run/plan/"
 df -k "$run" > "$run/plan/space-before.txt"
 sh "$run/env-opam" init --bare --no-setup --yes default \
   'git+https://github.com/ocaml/opam-repository.git#ac27950e5eac6c981ad809dff370c937820b7893'
@@ -67,7 +67,7 @@ sh "$run/env-opam" install --yes --no-depexts --jobs=4 \
   $(tr '\n' ' ' < "$run/plan/install-atoms.txt")
 sh "$run/env-opam" list --installed --columns=name,version --color=never \
   > "$run/plan/packages.txt"
-cmp docs/irmin-phase2/packages.txt "$run/plan/packages.txt"
+cmp docs/archive/irmin-phase2/packages.txt "$run/plan/packages.txt"
 sh "$run/env-opam" switch export "$run/plan/dependencies.export"
 sh "$run/env-opam" exec -- dune build --root "$run/source" \
   lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa sexp/bakhlo_sexp.cmxa

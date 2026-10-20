@@ -1,6 +1,6 @@
 # Bakhlo保存方針：年別S式を第一実装にする
 
-> **廃止（2026-10-20）**: 年別S式・`Year_read`・Recordsはユーザー判断で削除した。この文書は経緯の記録で、現在の方針はAGENTS.mdの Storage direction と[長期保存調査の第5段階](LONG_TERM_STORAGE_STUDY.ja.md)。
+> **廃止（2026-10-20）**: 年別S式・`Year_read`・Recordsはユーザー判断で削除した。この文書は経緯の記録で、現在の方針はAGENTS.mdの Storage direction と[長期保存調査の第5段階](../LONG_TERM_STORAGE_STUDY.ja.md)。
 
 2026-10-17 決定。実装の追跡: [#34](https://github.com/shumoku88-bit/bakhlo/issues/34)。
 

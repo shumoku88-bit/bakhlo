@@ -7,8 +7,8 @@
 
 目的は部分更新、一体公開、永続的な世代共有と、既存Coreの家計意味を組み合わせられるか。
 IrminのmergeやSQLiteのSQLを第二の家計意味エンジンにしない。
-[意味の契約](SEMANTIC_CONTRACT.md)、[論理設計](CANONICAL_DATA_DESIGN.ja.md)、
-[保存費用の既存測定](LONG_TERM_STORAGE_STUDY.ja.md)が前提。
+[意味の契約](../SEMANTIC_CONTRACT.md)、[論理設計](../CANONICAL_DATA_DESIGN.ja.md)、
+[保存費用の既存測定](../LONG_TERM_STORAGE_STUDY.ja.md)が前提。
 この文書の保存方式A/B/Cは、論理設計文書の履歴保持候補A/B/Cとは別軸。
 
 ## 調査対象と制限
@@ -62,20 +62,20 @@ SQLite相当のdurable transactionをそのまま得られる、とはまだ認�
 
 ### LOAMで解決済みと未認定を分ける
 
-[LOAM text/SQLite study](../../loam/docs/research/external-pressure/LOAM_TEXT_SQLITE_PERSISTENCE_STUDY_2026-10.md)
+[LOAM text/SQLite study](../../../loam/docs/research/external-pressure/LOAM_TEXT_SQLITE_PERSISTENCE_STUDY_2026-10.md)
 のE3.3は、初期encoderの反復全探索/伸長list appendを既にproductionで修正した。
 現`NormalizedActualPersistence.lean:encodeNormalizedActual?`も入場を残し、groupを一度組み立て、
 historical wire順を維持している。旧encoderの計測値を現在のLOAM性能に使わない。
 
-[`HouseholdAuthority`](../../loam/Loam/Authority/HouseholdAuthority.lean)の
+[`HouseholdAuthority`](../../../loam/Loam/Authority/HouseholdAuthority.lean)の
 `loadCurrentWithActual?`はadmitted Actualを局所pairで返し、
-[`ActualAuthority`](../../loam/Loam/Authority/ActualAuthority.lean)の
+[`ActualAuthority`](../../../loam/Loam/Authority/ActualAuthority.lean)の
 `loadHouseholdObserved?`が再利用する。全callerの重複decodeが除去済みとは言わない:
 `decodeHouseholdGeneration?`経由や公開時には独立した再入場も残る。
-[`TuiHomeActualGeneration`](../../loam/Loam/Tests/TuiHomeActualGeneration.lean)等は
+[`TuiHomeActualGeneration`](../../../loam/Loam/Tests/TuiHomeActualGeneration.lean)等は
 選択済みActualを後続readへ運ぶ期待値を持つが、外部configも含む全世界snapshotの証明ではない。
 
-[`HouseholdAuthority` test](../../loam/Loam/Tests/HouseholdAuthority.lean)はstale拒否、
+[`HouseholdAuthority` test](../../../loam/Loam/Tests/HouseholdAuthority.lean)はstale拒否、
 unknown保持、previous選択の明示、partial stageの非選択を検査する。
 現publisherのsourceはwrite/readback/renameで、**file/parent fsyncは見つからない**。
 この論理公開/復旧資産を、そのまま電源断耐久やBakhloのP7解決として引用しない。

@@ -1,6 +1,6 @@
 # 暦年別S式 最小合成意味検証実験レポート
 
-> **廃止（2026-10-20）**: 年別S式・`Year_read`・Recordsはユーザー判断で削除した。この文書は経緯の記録で、現在の方針はAGENTS.mdの Storage direction と[長期保存調査の第5段階](LONG_TERM_STORAGE_STUDY.ja.md)。
+> **廃止（2026-10-20）**: 年別S式・`Year_read`・Recordsはユーザー判断で削除した。この文書は経緯の記録で、現在の方針はAGENTS.mdの Storage direction と[長期保存調査の第5段階](../LONG_TERM_STORAGE_STUDY.ja.md)。
 
 状態: **合成実験完了・分析記録。本体Coreや正データ形式の移行・採用はしていません。**
 ブランチ: `research/canonical-storage-checkpoint`

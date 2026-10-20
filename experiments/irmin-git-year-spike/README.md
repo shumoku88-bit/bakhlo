@@ -49,6 +49,6 @@ selection before any product backend adoption. If the proof becomes more
 complicated than the year-per-book goal, stop and compare to plain year-S-expressions
 and SQLite rather than developing a second persistence framework.
 
-References: `docs/IRMIN_PHASE2_RESULTS.ja.md`,
-`docs/YEAR_PARTITION_RESEARCH_INVENTORY.ja.md`,
+References: `docs/archive/IRMIN_PHASE2_RESULTS.ja.md`,
+`docs/archive/YEAR_PARTITION_RESEARCH_INVENTORY.ja.md`,
 `sexp/year_read.mli`.

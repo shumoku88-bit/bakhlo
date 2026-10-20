@@ -1,6 +1,6 @@
 # 暦年別S式 — 次の第一研究候補
 
-> **廃止（2026-10-20）**: 年別S式・`Year_read`・Recordsはユーザー判断で削除した。この文書は経緯の記録で、現在の方針はAGENTS.mdの Storage direction と[長期保存調査の第5段階](LONG_TERM_STORAGE_STUDY.ja.md)。
+> **廃止（2026-10-20）**: 年別S式・`Year_read`・Recordsはユーザー判断で削除した。この文書は経緯の記録で、現在の方針はAGENTS.mdの Storage direction と[長期保存調査の第5段階](../LONG_TERM_STORAGE_STUDY.ja.md)。
 
 状態: **研究方針のみ。年度分割の実装・新しい正データ形式の採用・運用切替はしていない。**
 ここで「年度」は会計年度でなく、原則**1月1日〜12月31日の暦年**を指す。
@@ -11,8 +11,8 @@
 
 | 文書 / 候補 | 役割 / 現在の判断 |
 | --- | --- |
-| [論理設計](CANONICAL_DATA_DESIGN.ja.md) | identity、現在活動、独立支持、固定元参照、保持閉包。配置変更で意味を縮めない |
-| [長期保存調査](LONG_TERM_STORAGE_STUDY.ja.md) | 単一S式等の既存費用と測定限界。直接printer試作等は未採用 |
+| [論理設計](../CANONICAL_DATA_DESIGN.ja.md) | identity、現在活動、独立支持、固定元参照、保持閉包。配置変更で意味を縮めない |
+| [長期保存調査](../LONG_TERM_STORAGE_STUDY.ja.md) | 単一S式等の既存費用と測定限界。直接printer試作等は未採用 |
 | この文書 | 暦年配置と分析期間、繰越、年度間更新の未解決点、最初の合成検証計画 |
 | [Irmin Phase 1](IRMIN_STORAGE_RESEARCH.ja.md) / [Phase 2](IRMIN_PHASE2_RESULTS.ja.md) | 調査・限定検証の履歴。HEAD部分書込み故障でdangling選択参照を観測し、durable Saved未確立。**本体導入保留** |
 | SQLite | 比較候補として維持。同じ意味・transaction/安全性・性能・依存/保守費を今後比較。BakhloのOCaml backendは未実験 |
