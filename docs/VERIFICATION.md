@@ -4600,6 +4600,8 @@ Both are recorded as intentional differences; no code changed.
   Every non-input pane row identical. `../loam-data` hashes unchanged; AI tmux stopped;
   private captures deleted; `./tools/compare clean-copies` passed.
 
+- Matching implementation `223e971`: [Core 39403550358](https://github.com/shumoku88-bit/bakhlo/actions/runs/39403550358) and [Bonsai TUI 39403550597](https://github.com/shumoku88-bit/bakhlo/actions/runs/39403550597) completed/success (synthetic CI).
+
 ### Limits
 
 Pool setup (`c`) was not compared in this slice. Physical terminal/IME, human
