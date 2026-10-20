@@ -63,12 +63,19 @@ LOAM終了後に使用し、取得拒否では起動せず、旧コピー・試�
 前回の両UI試用編集は残すが合流しない。`4837462`のCore／TUI CIも成功。
 実家計の取得・起動は今回未実施。
 
+## Daily Pace選択日の詳細欄をLOAMへ揃える（2026-10-20）
+
+- [x] LOAM `detailLines`（全期間版／partial版）の順序・文言・muted・indentへ`render_detail`を揃える。意図的な差（scheduled-linked行・不明日の既知activity・通貨スケール）は回帰で固定。
+- [x] Core／TUI self-check、合成4寸法と最新実データ2寸法の対照、原本不変・clean-copies。
+- [ ] commit／pushとmatching SHA CI。
+- 残す差：partial時の`History partial`フィードバック行（Shell feedback契約の拡張が必要）、グラフ描画、`[?] why`／`[t] target`。
+
 ## Daily PaceをLOAMと同じ表示・回答へ揃える（2026-10-19）
 
 ユーザー「loamと同じ表示になるまで開発したい」。前回の描画改善を全面互換の完了としない。
 最初にDaily Paceを通し、次にBalancesと残る画面へ進む。基準main `cf196f9`、既存LOAM binaryと現在sourceを区別する。
 
-- [ ] LOAMの履歴回答をzero-origin／current anchorのみ／bounded-history／openingのみで対照し、同じavailable／unknown条件を実装する。
+- [x] LOAMの履歴回答をzero-origin／current anchorのみ／bounded-history／openingのみで対照し、同じavailable／unknown条件を実装する（bounded-historyはDaily v5で実データ全期間一致。opening-onlyはLOAM側の観察のみ）。
 - [x] 各日の明示cycle、期限超過・支払済み・取消済み予定、反転・複数通貨、Previous Cycleを同じ現在真実で再構成する（合成回帰）。
 - [x] 欠落するbounded-historyの独立根拠を、既存原本を保つ明示形式／読取変換で保持する。過去の試用budget v4は再解釈しない（Daily v5・比較取込で保持。年次／Records v1は拒否）。
 - [ ] 同じ端末寸法のcontext／Trend／History／Selected day／feedback／操作案内、グラフと日付軸・件数・選択・scroll・戻りを揃える。

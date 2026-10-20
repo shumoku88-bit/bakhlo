@@ -4372,3 +4372,48 @@ Read-only independent review checked the Measure/completion/reversal classifier,
 LOAM publication was not repeated on this generation (it was observed earlier on a
 previous generation). A physical-terminal or IME run, human acceptance and
 P7/power-loss behavior have **not been executed**.
+
+## Daily Pace Selected day detail matches LOAM (2026-10-20)
+
+### Implemented boundary
+
+- `Daily_pace_trend.render_detail` now takes the period's samples and selected index
+  and follows LOAM `DailyPaceTrend.detailLines`: full history (every day supported:
+  Period, Display, Selected, Pace with `current`, change, activity, cycle basis,
+  From/Through, disclosure, adjacent-day breakdown) or partial history (Supported k/n,
+  `Selected D: pace` or `unavailable, not zero` plus cause, `previous day unavailable`,
+  Origin, basis, disclosure, breakdown only between two known days). Wording, order,
+  muted rows and LOAM's one-space indent match; the Daily Pace screen now keeps row
+  styles instead of painting every detail row plain. Bakhlo's `Source:` row was removed.
+- Intentional differences kept and checked: the scheduled-linked inflow/reversal row;
+  a day's known activity beneath an unknown pace (never a dummy pool or zero); amounts
+  use the Measure's decimal scale; Bakhlo's own unknown-cause text.
+- Not changed: calculations, support conditions, chart, History, context, footer.
+
+### Evidence
+
+- New `pace-detail-full-history-loam-order`, `pace-detail-partial-history-loam-order`
+  and `pace-detail-partial-unknown-cause-and-known-activity` compare exact rows and
+  styles; existing wrap, huge/negative, scheduled-linked and dummy-pool checks adapted
+  to the indent. `./tools/check`, `./tools/tui --self-check` (35 PASS) and
+  `git diff --check` passed.
+- Synthetic paired run on fresh copies of the 2026-10-19 zero-origin and anchor-only
+  fixtures (Bakhlo SHA-256 `df3f62d46960917d28564e850d95f5df8f0b677900cddd1a93f9e757fccc11a7`,
+  existing LOAM `312467cd9af30778873bb9afabf0d87143e874d67c828e828c42f8573b8840c3`,
+  source correspondence not certified): zero-origin Selected day pane identical at
+  120×36 and 80×24, whole screen identical at 48×14 and 32×9. Anchor-only differs only
+  in the unknown-cause text, the intentional activity row, and LOAM's
+  `History partial; unknown dates kept as gaps.` feedback row; elsewhere header
+  `[?] why`/`[t] target` and chart drawing (known gaps). Fixture bytes unchanged.
+- Latest-data paired comparison: fresh `./tools/compare refresh` (LOAM open, originals
+  not written, no user process terminated); 12 walks (End, Up steps, periods 2–4,
+  Home) at 120×36 and 80×24 plus three scrolled-to-end focused walks at 120×36. The
+  Selected day pane was identical in all 15; remaining differing rows were only the
+  header and chart rows. `../loam-data` hashes unchanged; AI tmux stopped; private
+  captures deleted; `./tools/compare clean-copies` passed.
+
+### Limits
+
+The `History partial` feedback row needs a screen-supplied feedback line in the Shell
+contract and is left open. Physical terminal/IME, human acceptance and P7 were **not
+executed**.

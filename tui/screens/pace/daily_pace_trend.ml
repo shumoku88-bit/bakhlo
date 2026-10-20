@@ -752,118 +752,100 @@ let render_chart ~width ~height ~width_of ~book ~today ~measure ~samples ~select
           in
           head @ plot_rows @ [ (O.Chrome, O.pad ~width_of width rule_line) ]
 
-let render_detail ~width ~width_of ~book ~measure ~sample ~prev_sample ~today ~preset =
-  (* The frame crops; wrap here so every row fits and huge amounts stay
-     reachable by scrolling instead of cropped mid-number. *)
-  let wrap rows =
-    if width <= 0 then rows
-    else
-      List.concat_map
-        (fun (style, line) -> List.map (fun w -> (style, w)) (O.wrap_text ~width_of (max 1 width) line))
-        rows
+(* LOAM DailyPaceTrend detailLines: full history (every day supported) or
+   partial history (Supported k/n, unknown dates kept as gaps). Two deliberate
+   additions: a scheduled-linked inflow/reversal row, and a day's known
+   activity beneath an unknown pace, never a dummy pool or zero. *)
+let render_detail ~width ~width_of ~book ~measure ~samples ~selected_index ~today ~preset =
+  let line style text =
+    List.map (fun part -> (style, " " ^ part)) (O.wrap_text ~width_of (max 1 (width - 1)) text)
   in
-  match sample with
-  | None -> wrap [ (O.Chrome, "No sample selected.") ]
+  let plain = line O.Plain and muted = line O.Chrome in
+  let amount q = O.format_money book measure q in
+  let count = List.length samples in
+  let index = max 0 (min (count - 1) selected_index) in
+  let activity_lines ~pace (a : day_activity) =
+    let spent = "Spent: " ^ amount a.discretionary_outflow ^ " " ^ measure in
+    plain
+      (match pace with
+      | Some q -> spent ^ " (diff: " ^ signed_money book measure (Z.sub q a.discretionary_outflow) ^ " " ^ measure ^ ")"
+      | None -> spent)
+    @ (if Z.sign a.discretionary_inflow > 0 then
+         muted ("Unscheduled inflow: +" ^ amount a.discretionary_inflow ^ " " ^ measure)
+       else [])
+    @ (if Z.sign a.scheduled_settled_outflow > 0 || Z.sign a.scheduled_reserved_outflow > 0 then
+         let variance = Z.sub a.scheduled_reserved_outflow a.scheduled_settled_outflow in
+         muted
+           ("Settled: " ^ amount a.scheduled_settled_outflow ^ " " ^ measure
+           ^ if Z.equal variance Z.zero then " (as planned)"
+             else " (" ^ signed_money book measure variance ^ " vs plan)")
+       else [])
+    (* Scheduled payments and their reversals are distinct from discretionary
+       income: a linked reversal restores pool funds but is not a receipt. *)
+    @ (if Z.sign a.scheduled_settled_inflow > 0 then
+         muted ("Scheduled-linked inflow/reversal: +" ^ amount a.scheduled_settled_inflow ^ " " ^ measure)
+       else [])
+  in
+  let activity (s : sample) =
+    match s.activity with None -> [] | Some a -> activity_lines ~pace:s.pace_quanta a
+  in
+  let disclosure =
+    muted "Reconstructed current truth." @ muted "no separate daily snapshot is kept."
+  in
+  let movement prev current =
+    match compare_change ~prev ~current with
+    | Ok b ->
+        muted ("Time passage: " ^ signed_money book measure b.time_passage_effect ^ " " ^ measure ^ "/day")
+        @ muted ("Free money effect: " ^ signed_money book measure b.free_money_effect ^ " " ^ measure ^ "/day")
+        @ muted ("Pool balance delta: " ^ signed_money book measure b.pool_balance_change ^ " " ^ measure)
+        @ muted ("Scheduled protection release: " ^ signed_money book measure b.protection_release ^ " " ^ measure)
+        @ muted ("Free-through-end delta: " ^ signed_money book measure b.free_through_end_change ^ " " ^ measure)
+    | Error _ -> muted "Day-to-day breakdown unavailable (not adjacent within one cycle)."
+  in
+  let prev = if index = 0 then None else List.nth_opt samples (index - 1) in
+  match List.nth_opt samples index with
+  | None -> muted "No sample selected."
+  | Some s when count_supported samples < count ->
+      let known (x : sample) = x.pace_quanta <> None in
+      let header = muted (Printf.sprintf "Supported: %d/%d days" (count_supported samples) count) in
+      let body =
+        match s.pace_quanta with
+        | None ->
+            plain ("Selected " ^ s.day ^ ": unavailable, not zero")
+            @ muted (Option.value s.unavailable ~default:"Historical pace unavailable.")
+            @ activity s
+        | Some q ->
+            plain ("Selected " ^ s.day ^ ": " ^ money_of book measure q)
+            @ muted
+                (match prev with
+                | None -> "first point"
+                | Some p when known p -> summary_change ~book ~measure ~samples ~selected:index
+                | Some _ -> "previous day unavailable")
+            @ activity s
+            @ muted ("Origin: " ^ if s.day = today then "current admitted truth"
+                     else "reconstructed from current knowledge, not as-known history")
+            @ muted ("Cycle end (exclusive): " ^ s.end_exclusive)
+            @ muted ("Remaining days: " ^ string_of_int s.remaining_days)
+            @ muted ("Pool: " ^ amount s.pool_balance ^ " " ^ measure)
+            @ muted ("Scheduled deductions: " ^ amount s.deductions)
+            @ muted ("Available: " ^ amount s.available_through_end)
+      in
+      header @ body @ disclosure
+      @ (match prev with Some p when known p && known s -> movement p s | _ -> [])
   | Some s ->
-      (* Compact context replaces the Daily Pace Detail / Selected date /
-         Period heading stack; the date carries the context. *)
-      let header =
-        [ (O.Heading, s.day ^ (if s.day = today then " (Today)" else "") ^ " · " ^ preset_label preset) ]
-      in
-      let pace_line =
-        match s.pace_quanta with
-        | Some q -> [ (O.Active, "Daily Pace: " ^ money_of book measure q) ]
-        | None -> (
-            match s.unavailable with
-            | Some why -> [ (O.Status, "Daily Pace: unavailable (" ^ why ^ ")") ]
-            | None -> [ (O.Status, "Daily Pace: unavailable") ])
-      in
-      let activity_lines =
-        match s.activity with
-        | None -> []
-        | Some a ->
-            let spent =
-              [ (O.Plain, "Spent: " ^ O.format_money book measure a.discretionary_outflow ^ " " ^ measure) ]
-            in
-            (* Same-day margin on its own row so neither value crops mid-number. *)
-            let diff =
-              match s.pace_quanta with
-              | None -> []
-              | Some q ->
-                  [
-                    ( O.Plain,
-                      "Pace diff: " ^ signed_money book measure (Z.sub q a.discretionary_outflow) ^ " " ^ measure );
-                  ]
-            in
-            let inflow =
-              if Z.sign a.discretionary_inflow > 0 then
-                [ (O.Plain, "Unscheduled inflow: +" ^ O.format_money book measure a.discretionary_inflow ^ " " ^ measure)
-                ]
-              else []
-            in
-            let settled =
-              if Z.sign a.scheduled_settled_outflow > 0 || Z.sign a.scheduled_reserved_outflow > 0 then
-                let variance = Z.sub a.scheduled_reserved_outflow a.scheduled_settled_outflow in
-                let variance_text =
-                  if Z.equal variance Z.zero then " (as planned)"
-                  else " (" ^ signed_money book measure variance ^ " vs plan)"
-                in
-                [
-                  ( O.Plain,
-                    "Settled: " ^ O.format_money book measure a.scheduled_settled_outflow ^ " " ^ measure
-                    ^ variance_text );
-                ]
-              else []
-            in
-            (* Scheduled payments and their reversals are distinct from
-               discretionary income. A positive linked reversal restores
-               pool funds, but it is not a new unscheduled receipt. *)
-            let scheduled_inflow =
-              if Z.sign a.scheduled_settled_inflow > 0 then
-                [
-                  ( O.Plain,
-                    "Scheduled-linked inflow/reversal: +"
-                    ^ O.format_money book measure a.scheduled_settled_inflow ^ " " ^ measure );
-                ]
-              else []
-            in
-            spent @ diff @ inflow @ settled @ scheduled_inflow
-      in
-      (* Day basis before the day-to-day change explanation; unknown pace
-         paints no pool/free/protected figures, never a dummy zero. *)
-      let basis =
-        match s.pace_quanta with
-        | Some _ ->
-            [
-              (O.Plain, "Available: " ^ O.format_money book measure s.available_through_end ^ " " ^ measure);
-              (O.Plain, "Pool: " ^ O.format_money book measure s.pool_balance ^ " " ^ measure);
-              (O.Plain, "Protected: -" ^ O.format_money book measure s.deductions ^ " " ^ measure);
-              (O.Plain, "Days remaining: " ^ string_of_int s.remaining_days);
-              (O.Plain, "Cycle end (exclusive): " ^ s.end_exclusive);
-            ]
-        | None -> [ (O.Plain, "Cycle end (exclusive): " ^ s.end_exclusive) ]
-      in
-      let change_lines =
-        match prev_sample with
-        | None -> []
-        | Some ps -> (
-            match compare_change ~prev:ps ~current:s with
-            | Ok b ->
-                [
-                  (O.Plain, "Day-to-day change: " ^ signed_money book measure b.change_per_day ^ " " ^ measure ^ "/day");
-                  (O.Plain, "Time passage: " ^ signed_money book measure b.time_passage_effect ^ " " ^ measure ^ "/day");
-                  (O.Plain, "Free money effect: " ^ signed_money book measure b.free_money_effect ^ " " ^ measure ^ "/day");
-                  (O.Plain, "Pool balance delta: " ^ signed_money book measure b.pool_balance_change ^ " " ^ measure);
-                  (O.Plain, "Scheduled protection release: " ^ signed_money book measure b.protection_release ^ " " ^ measure);
-                  (O.Plain, "Free-through-end delta: " ^ signed_money book measure b.free_through_end_change ^ " " ^ measure);
-                ]
-            | Error why -> [ (O.Plain, "Day-to-day breakdown unavailable (" ^ why ^ ")") ])
-      in
-      let provenance =
-        [
-          (O.Plain, "Source: Pool [config/daily-pace.tsv] | Window [config/boundary-presets.tsv]");
-          (O.Chrome, "");
-          (O.Chrome, "Reconstructed current truth; no separate daily snapshot is kept.");
-        ]
-      in
-      wrap (header @ pace_line @ activity_lines @ basis @ change_lines @ provenance)
+      let first = (List.hd samples).day and last = (List.nth samples (count - 1)).day in
+      let pace = match s.pace_quanta with Some q -> money_of book measure q | None -> "unavailable" in
+      muted ("Period: " ^ preset_label preset)
+      @ muted ("Display: " ^ first ^ " through " ^ last)
+      @ plain ("Selected " ^ s.day)
+      @ plain ("Pace: " ^ pace ^ if s.day = today then "  current" else "")
+      @ muted (summary_change ~book ~measure ~samples ~selected:index)
+      @ activity s
+      @ muted ("Cycle end (exclusive): " ^ s.end_exclusive)
+      @ muted ("Remaining days: " ^ string_of_int s.remaining_days)
+      @ muted ("Pool: " ^ amount s.pool_balance ^ " " ^ measure)
+      @ muted ("Scheduled deductions: " ^ amount s.deductions)
+      @ muted ("Available: " ^ amount s.available_through_end ^ " / remaining days")
+      @ muted ("From: " ^ first) @ muted ("Through: " ^ last)
+      @ disclosure
+      @ (match prev with Some p -> movement p s | None -> [])

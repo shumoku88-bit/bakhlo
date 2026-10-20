@@ -1,6 +1,10 @@
 (* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
 open Interaction_check_fixture
 
+(* Selected day rows carry LOAM's one-space indent; drop it to rejoin wraps. *)
+let unindent (_, row) =
+  if String.starts_with ~prefix:" " row then String.sub row 1 (String.length row - 1) else row
+
 (* UI-33: Daily Pace / Trend must refuse a missing, malformed, empty, ambiguous
    or unsupported pool/period instead of inferring a zero balance or a period. *)
 let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
@@ -493,7 +497,7 @@ let daily_pace_activity_checks () =
     "pace-activity-crossday-reversal-scheduled";
   let rendered_activity day =
     Trend.render_detail ~width:80 ~width_of:String.length ~book ~measure:"jpy"
-      ~sample:(Some (sample day)) ~prev_sample:None ~today:"2026-10-18"
+      ~samples:[sample day] ~selected_index:0 ~today:"2026-10-18"
       ~preset:Trend.Cycle
     |> List.map snd |> String.concat "\n"
   in
@@ -512,11 +516,11 @@ let daily_pace_activity_checks () =
     Trend.pace_quanta = None; unavailable = Some "Historical pace unavailable" } in
   let unknown_detail =
     Trend.render_detail ~width:80 ~width_of:String.length ~book ~measure:"jpy"
-      ~sample:(Some unknown_pace_day) ~prev_sample:None ~today:"2026-10-18"
+      ~samples:[unknown_pace_day] ~selected_index:0 ~today:"2026-10-18"
       ~preset:Trend.Cycle |> List.map snd |> String.concat "\n"
   in
   require
-    (Base.String.is_substring unknown_detail ~substring:"Daily Pace: unavailable"
+    (Base.String.is_substring unknown_detail ~substring:"Selected 2026-10-17: unavailable, not zero"
      && Base.String.is_substring unknown_detail
           ~substring:"Scheduled-linked inflow/reversal: +400 jpy")
     "pace-detail-independent-known-activity-when-pace-unknown";
@@ -944,9 +948,9 @@ let daily_pace_graph_render_checks ~width_of () =
     (Base.String.is_substring (String.concat "\n" (List.map snd huge)) ~substring:"◆")
     "pace-graph-huge-selected";
   let detail = Trend.render_detail ~width:52 ~width_of ~book ~measure:"jpy"
-    ~sample:(Some (List.nth huge_samples 4)) ~prev_sample:None ~today:"2026-10-26" ~preset:Trend.Ten_days in
+    ~samples:[List.nth huge_samples 4] ~selected_index:0 ~today:"2026-10-26" ~preset:Trend.Ten_days in
   let detail_digits =
-    String.concat "" (List.map snd detail) |> String.split_on_char ',' |> String.concat ""
+    String.concat "" (List.map unindent detail) |> String.split_on_char ',' |> String.concat ""
   in
   require (Base.String.is_substring detail_digits ~substring:(Z.to_string huge_digit))
     "pace-graph-huge-detail-exact";
@@ -955,18 +959,49 @@ let daily_pace_graph_render_checks ~width_of () =
       Trend.pace_quanta = Some (Z.neg huge_digit);
       activity = Some { Trend.zero_activity with scheduled_settled_inflow = Z.of_int 400 } } in
     let rows = Trend.render_detail ~width ~width_of ~book ~measure:"jpy"
-      ~sample:(Some selected) ~prev_sample:None ~today:"2026-10-26" ~preset:Trend.Ten_days in
+      ~samples:[selected] ~selected_index:0 ~today:"2026-10-26" ~preset:Trend.Ten_days in
     require (List.for_all (fun (_, row) -> width_of row <= width) rows) "pace-detail-wrap-width";
-    let joined = String.concat "" (List.map snd rows) in
+    let joined = String.concat "" (List.map unindent rows) in
     require (Base.String.is_substring joined ~substring:("-" ^ O.format_money book "jpy" huge_digit ^ " jpy/day")
       && Base.String.is_substring joined ~substring:"Scheduled-linked inflow/reversal: +400 jpy")
       "pace-detail-wrap-keeps-signed-quantity-and-linked-inflow";
     let unknown = { selected with Trend.pace_quanta = None; pool_balance = Z.of_int 12345678 } in
     let rows = Trend.render_detail ~width ~width_of ~book ~measure:"jpy"
-      ~sample:(Some unknown) ~prev_sample:None ~today:"2026-10-26" ~preset:Trend.Ten_days in
-    require (not (Base.String.is_substring (String.concat "" (List.map snd rows))
+      ~samples:[unknown] ~selected_index:0 ~today:"2026-10-26" ~preset:Trend.Ten_days in
+    require (not (Base.String.is_substring (String.concat "" (List.map unindent rows))
       ~substring:"12,345,678")) "pace-unknown-never-paints-dummy-pool")
     [26; 42; 74; 114];
+  (* Selected day follows LOAM detailLines order, wording and muted rows. *)
+  let basis ~day ~remaining ~q =
+    { (sample ~day ~q ()) with Trend.available_through_end = Z.of_int 62500;
+      pool_balance = Z.of_int 74500; deductions = Z.of_int 12000; remaining_days = remaining } in
+  let d18 = basis ~day:"2026-10-18" ~remaining:14 ~q:4464
+  and d19 = basis ~day:"2026-10-19" ~remaining:13 ~q:4807 in
+  let unknown18 = { d18 with Trend.pace_quanta = None; unavailable = Some "Historical pace unavailable." } in
+  let detail samples selected_index =
+    Trend.render_detail ~width:60 ~width_of ~book ~measure:"jpy" ~samples ~selected_index
+      ~today:"2026-10-19" ~preset:Trend.Ten_days in
+  let loam_rows plain rows =
+    List.map (fun row -> ((if List.mem row plain then O.Plain else O.Chrome), " " ^ row)) rows in
+  let tail = [ "Cycle end (exclusive): 2026-11-01"; "Remaining days: 13"; "Pool: 74,500 jpy";
+    "Scheduled deductions: 12,000" ] in
+  let disclosure = [ "Reconstructed current truth."; "no separate daily snapshot is kept." ] in
+  let spent = "Spent: 0 jpy (diff: +4,807 jpy)" in
+  require (detail [d18; d19] 1 = loam_rows [ "Selected 2026-10-19"; "Pace: 4,807 jpy/day  current"; spent ]
+    ([ "Period: 10d"; "Display: 2026-10-18 through 2026-10-19"; "Selected 2026-10-19";
+       "Pace: 4,807 jpy/day  current"; "change +343 jpy/day"; spent ] @ tail
+     @ [ "Available: 62,500 / remaining days"; "From: 2026-10-18"; "Through: 2026-10-19" ] @ disclosure
+     @ [ "Time passage: +343 jpy/day"; "Free money effect: 0 jpy/day"; "Pool balance delta: 0 jpy";
+         "Scheduled protection release: 0 jpy"; "Free-through-end delta: 0 jpy" ]))
+    "pace-detail-full-history-loam-order";
+  require (detail [unknown18; d19] 1 = loam_rows [ "Selected 2026-10-19: 4,807 jpy/day"; spent ]
+    ([ "Supported: 1/2 days"; "Selected 2026-10-19: 4,807 jpy/day"; "previous day unavailable"; spent;
+       "Origin: current admitted truth" ] @ tail @ [ "Available: 62,500" ] @ disclosure))
+    "pace-detail-partial-history-loam-order";
+  require (detail [unknown18; d19] 0 = loam_rows [ "Selected 2026-10-18: unavailable, not zero"; "Spent: 0 jpy" ]
+    ([ "Supported: 1/2 days"; "Selected 2026-10-18: unavailable, not zero"; "Historical pace unavailable.";
+       "Spent: 0 jpy" ] @ disclosure))
+    "pace-detail-partial-unknown-cause-and-known-activity";
   let euro = Trend.render_chart ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26"
     ~measure:"eur"
     ~samples:(List.map (fun day -> sample ~day ~q:446400 ()) days)

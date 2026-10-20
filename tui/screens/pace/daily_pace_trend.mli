@@ -133,8 +133,10 @@ val render_detail :
   width_of:(string -> int) ->
   book:B.t ->
   measure:string ->
-  sample:sample option ->
-  prev_sample:sample option ->
+  samples:sample list ->
+  selected_index:int ->
   today:string ->
   preset:preset ->
   (Daily_overlays.style * string) list
+(** LOAM Selected day lines, already wrapped to [width]: full history when every
+    day is supported, otherwise Supported k/n with unknown dates as gaps. *)

@@ -75,7 +75,7 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 | --- | --- | --- | --- | --- |
 | 今日のPace | ✅ 一致（実データ） | 120×36・80×24で一致（2026-10-20の保存方式変更後も再確認。グラフの目盛り位置と曲線の形は既知の差） | なし | [実データ対照](VERIFICATION.md#latest-real-data-copy-and-paired-observation-2026-10-19), [再確認](VERIFICATION.md#latest-data-check-of-the-2026-10-20-storage-work-2026-10-20) |
 | 過去のPace（5期間のHistory・選択行） | ✅ 一致（実データ） | bounded-history根拠を取り込み、全期間で一致 | なし | [履歴対照](VERIFICATION.md#bounded-history-support-and-real-data-pace-history-2026-10-19) |
-| 選択日の詳細欄 | 🟨 差あり | 文言と並び順が違う | なし | UI-33 |
+| 選択日の詳細欄 | ✅ 一致（実データ） | 並び順・文言を揃え、120×36・80×24の実データ15通りで詳細欄が一致（スクロール後を含む）。Bakhloは予定支払いの戻り行と、Paceが不明な日の当日の動きを追加で表示（意図的）。一部の日だけ分かるときにLOAMが出す「History partial」案内行はまだない | なし | UI-33, [詳細欄対照](VERIFICATION.md#daily-pace-selected-day-detail-matches-loam-2026-10-20) |
 | グラフの描き方 | 🟨 差あり | 目盛り・グリッド・点字の描き方が違う。値は同じ | なし | UI-33 |
 | 目標（`[t] target`） | 🟥 未実装 | LOAMにある目標の表がない | 要判断 | UI-33 |
 | 直前の周期の境界がないとき | 🟨 差あり | LOAMはPrevious Cycleを unavailable で開く。BakhloはCycleのまま拒否を表示 | なし | UI-33 |

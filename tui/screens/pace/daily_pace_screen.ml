@@ -216,11 +216,8 @@ let sample_detail ~width_of ~width (env : Screen.env) t samples =
   let selected = Panel.move ~last:(List.length samples - 1)
       ~position:t.trend.selected_index 0 in
   Trend.render_detail ~width:(max 1 (width - 2)) ~width_of
-    ~book:env.book ~measure:env.measure
-    ~sample:(List.nth_opt samples selected)
-    ~prev_sample:(if selected = 0 then None else List.nth_opt samples (selected - 1))
+    ~book:env.book ~measure:env.measure ~samples ~selected_index:selected
     ~today:env.today ~preset:t.trend.preset
-  |> List.map snd
 
 (* The focused detail keeps its neighbours on wide terminals, just as LOAM's
    trend workspace does. Navigation must use these exact painted dimensions. *)
@@ -245,7 +242,8 @@ let detail_viewport env (geometry : Screen.geometry) t =
   let width_of = geometry.width_of in
   let rows = match samples env t with
     | Ok (_, _, samples) -> sample_detail ~width_of ~width env t samples
-    | Error _ -> List.concat_map (O.wrap_text ~width_of (max 1 (width - 2))) (detail_lines env) in
+    | Error _ -> List.concat_map (O.wrap_text ~width_of (max 1 (width - 2))) (detail_lines env)
+        |> List.map (fun text -> (O.Plain, text)) in
   Panel.window ~capacity:(Panel.capacity ~height ~heading:false)
     ~count:(List.length rows) ~scroll:t.scroll ~selected:None
 
@@ -740,7 +738,6 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
       (if view.start > 0 then " ↑" else "")
       (if view.start + view.capacity < List.length rows then " ↓" else "") in
     List.filteri (fun i _ -> i >= view.start && i < view.start + view.capacity) rows
-    |> List.map (fun text -> O.Plain, text)
     |> panel ~width ~height ~focused:is_detail
         ~title:("Selected day" ^ if is_detail then " [active]" else "") ~bottom in
   context @ (match samples env t with
@@ -795,7 +792,8 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
   | Error why ->
       if is_detail then
         detail_panel ~width ~height
-          (List.concat_map (O.wrap_text ~width_of (max 1 (width - 2))) (detail_lines env))
+          (List.concat_map (O.wrap_text ~width_of (max 1 (width - 2))) (detail_lines env)
+           |> List.map (fun text -> (O.Plain, text)))
       else
         let left_rows =
           List.concat_map (O.wrap_text ~width_of (max 1 (width - 2)))
