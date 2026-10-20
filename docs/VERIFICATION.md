@@ -4710,6 +4710,12 @@ Physical terminal/IME, human acceptance and P7 were **not executed**.
 
 ## Daily Pace chart selected day vertical guide (2026-10-20)
 
+Correction (later the same day): LOAM's Trend chart uses `renderQualifiedInRange`, which draws
+no selected-day guide; a synthetic paired capture after `h h h` at 120×36 shows the `│`
+column only in Bakhlo. This guide is therefore a deliberate Bakhlo addition (the day
+cursor stays visible on gaps and while moving), not LOAM parity. Before it, every chart row
+matched LOAM ([chart comparison](#daily-pace-chart-follows-loam-chart-2026-10-20)).
+
 ### Implemented boundary
 
 - `tui/screens/pace/pace_chart.ml`: updated `qualified_rows` to render a vertical guide line (`│`) along the selected day column (`col = selected_x`), and short local horizontal guides (`─`) around the selected point, matching LOAM's `renderInRange` / `renderManyInRange` design principles.
