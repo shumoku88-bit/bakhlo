@@ -168,22 +168,10 @@ let selected_account ~book ~measure ~roles ~balance_view_text t =
 let balance_lines ?(width_of = String.length) ?(width = max_int) ~book items_list =
   List.map (O.balance_item_line ~width_of ~width ~book) items_list
 
-(* Current presents the selected Locus × Measure evidence: the exact ID and raw
-   Quanta, never a label, a scaled Amount, or a signed adjustment. *)
-let group_quanta n =
-  let raw = Z.to_string n in
-  let length = String.length raw in
-  let start = if raw.[0] = '-' then 1 else 0 in
-  let out = Buffer.create (length + (length - start) / 3) in
-  if start = 1 then Buffer.add_char out '-';
-  for i = start to length - 1 do
-    if i > start && (length - i) mod 3 = 0 then Buffer.add_char out ',';
-    Buffer.add_char out raw.[i]
-  done;
-  Buffer.contents out
-
-let current_quanta = function
-  | O.Exact n -> group_quanta n
+(* Current presents the selected Locus × Measure evidence: the exact ID and the
+   Measure-scaled Amount, never a label or a signed adjustment. *)
+let current_amount ~book ~measure = function
+  | O.Exact n -> O.format_money book measure n
   | O.Known_present | O.Unsupported -> "?"
 
 let current_state ~compact = function
@@ -225,7 +213,7 @@ let current_table ~width_of ~width ~book items_list =
               let quantity =
                 if not identified then "see details"
                 else match value with
-                | O.Exact _ -> current_quanta value
+                | O.Exact _ -> current_amount ~book ~measure value
                 | O.Known_present | O.Unsupported -> current_state ~compact:true value
               in
               O.pad ~width_of name_width name ^ "  "
@@ -239,7 +227,8 @@ let current_table ~width_of ~width ~book items_list =
     let measure_width = min 12 measure_width in
     let state_width = if room >= 74 then 23 else 11 in
     let desired = List.fold_left (fun size -> function
-      | O.Account_row { value; _ } -> max size (width_of (current_quanta value))
+      | O.Account_row { measure; value; _ } ->
+          max size (width_of (current_amount ~book ~measure value))
       | _ -> size) 12 items_list |> min 22 in
     let quantity_width = min desired (room - measure_width - state_width - 13) in
     let locus_width = max 1 (room - quantity_width - measure_width - state_width - 5) in
@@ -254,12 +243,12 @@ let current_table ~width_of ~width ~book items_list =
       List.map
         (function
           | O.Account_row { locus; measure; value; _ } ->
-              row locus (current_quanta value) measure
+              row locus (current_amount ~book ~measure value) measure
                 (current_state ~compact:(state_width < 23) value)
           | item -> O.balance_item_line ~width_of ~width:room ~book item)
         items_list
     in
-    (row "Locus" "Quanta" "Measure" "State", lines)
+    (row "Locus" "Amount" "Measure" "State", lines)
 
 let current_detail ~book item =
   match item with
@@ -278,7 +267,7 @@ let current_detail ~book item =
       [
         "Locus: " ^ locus;
         "Measure: " ^ measure;
-        "Quanta: " ^ current_quanta value ^ " " ^ measure;
+        "Amount: " ^ current_amount ~book ~measure value ^ " " ^ measure;
         "State: " ^ current_state ~compact:false value;
       ]
       @ explanation
@@ -306,12 +295,12 @@ let detail_rows ~width_of ~width ~book t items_list =
            |> List.map (fun text -> style, " " ^ text))
   |> List.concat
 
-(* Print keeps every exact digit; Current prints the same raw Quanta as the list. *)
+(* Print keeps every exact digit; Current prints the same scaled Amount as the list. *)
 let current_print_lines ~book items_list =
   List.map
     (function
       | O.Account_row { locus; measure; value; _ } ->
-          "  " ^ locus ^ "  " ^ current_quanta value ^ " " ^ measure ^ "  "
+          "  " ^ locus ^ "  " ^ current_amount ~book ~measure value ^ " " ^ measure ^ "  "
           ^ current_state ~compact:false value
       | item -> O.balance_item_line ~book item)
     items_list

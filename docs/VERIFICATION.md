@@ -5209,10 +5209,11 @@ executed**.
 - Read-only reference: LOAM `Loam/Tui/Balances.lean` quantity/detail lines 61–94,
   footer/geometry 117–155, table/panels 180–238. LOAM was neither built nor run;
   this is source alignment plus synthetic Bakhlo verification, not paired parity.
-- Current list and Print Preview use stable IDs and grouped raw integer Quanta,
-  without positive adjustment `+` or Measure scaling. Detail order is Locus,
-  Measure, Quanta with Measure, State, any unknown explanation, neutral-coordinate
-  note. Exact zero, presence-only and unsupported remain different.
+- Current list, detail and Print Preview use stable IDs and exact Measure-scaled
+  **Amount**, without a positive adjustment `+`. The initial raw-Quanta version
+  described below was superseded by the review correction in this section.
+  Detail order is Locus, Measure, Amount with Measure, State, any unknown
+  explanation, neutral-coordinate note. Zero, presence-only and unsupported stay distinct.
 - Reused `Ui_panel.frame_rows ~inset:0` for Current markers, muted detail rows,
   one-cell indent and position/overflow indicators. One owned layout serves
   painting, list paging and detail scrolling: 80×24 uses a 10-row list, spacer and
@@ -5221,6 +5222,12 @@ executed**.
 
 ### Intentional differences and unchanged boundaries
 
+- Review decision (2026-10-21): retain exact Measure scaling as a safer difference
+  from LOAM's raw integer Quanta. `12,345 eur` for 123.45 EUR invites a 100×
+  misreading; show `123.45 eur` and label the column/detail **Amount** instead.
+  Reuse `Daily_overlays.format_money` for list, detail, width calculation and
+  Print; do not rescale the stored quantity or the Observe intent. Scale-zero JPY
+  stays `74,500 jpy`, and no positive `+` is added. The local raw formatter is removed.
 - Compact rows preserve the Measure before clipping a long Locus. If the whole
   Measure cannot fit, the row shows a detail cue instead of digits that could be
   mistaken for another currency. Long Measures use compact form rather than a
@@ -5239,7 +5246,7 @@ executed**.
 - Picker Review/Save, stale/blocked/uncertain refusal, unknown Observe amounts,
   separate Measures and print line/byte limits were not weakened.
 
-### Executed synthetic evidence
+### Initial synthetic evidence (before the scaled Amount correction)
 
 - `rtk err ./tools/bootstrap`: passed; created only the worker's isolated locked
   Core environment.
@@ -5276,7 +5283,7 @@ executed**.
   compact layout and Print cancellation were visible; book bytes were unchanged.
   This is renderer/controller smoke, **not a native terminal/PTY run**.
 
-### Other limits and integration note
+### Initial-pass limits and integration note
 
 - A broader standard-OCaml check attempt also exposed existing fatal warning 8
   in `tui/shell/test/record_session_checks.ml:211–213,226–228`: matches omit
@@ -5289,3 +5296,41 @@ executed**.
 - Disposable workspace/runner files are not part of the deliverable.
 - Read-only review of the owned source found no actionable correctness defects;
   it did not independently run checks.
+
+### Scaled Amount safety correction (2026-10-21)
+
+- Continued from Claude's rebased `89f99bd` on `dc62a1f`; did not rebase again.
+  The merged Accounting behavior and tests were retained.
+- Replaced the local raw-integer formatter with existing
+  `Daily_overlays.format_money`, including the table's width calculation.
+  Current column/detail labels are **Amount**; list, detail and Print show
+  `123.45 eur` for 12345 quanta, without a positive `+`. IDs, field order,
+  geometry, overflow cues, unknown states, footer and publication gates are unchanged.
+- `env OCAMLPARAM=_,keywords=5.2 rtk test opam exec -- dune test --root
+  scratch/balances-scaled-review --profile release --force
+  tui/screens/balances/test`: **PASS**. EUR list/detail/Print require the scaled
+  form and reject the raw form. Decimal edge fixtures prove `0.01`, `-0.01` and
+  exact `0.00`; Observe still returns the original 12345 integer quanta.
+  Scale-zero JPY, huge values, unknown/presence-only, overflow and geometry
+  regressions remain green.
+- This uses the same disposable standard-OCaml workspace method as the initial
+  pass, with existing installed dependencies only; no dependency was added.
+- Native `./tools/tui --self-check`: **not executed** in this correction pass.
+  The worktree still lacks the required isolated Bonsai environment; the prior
+  prerequisite refusal was not rerun. Native qualification remains with the
+  integration owner. Latest-data comparison, physical terminal/IME and P7 were
+  **not executed**; no household/LOAM data was accessed and nothing was pushed.
+- Built and ran a disposable OCaml smoke runner with `Scenarios.run` followed by
+  the actual Balances `Screen.handle`/`Screen.view` and Print paths:
+  `env OCAMLPARAM=_,keywords=5.2 rtk err opam exec -- dune build --root
+  scratch/balances-scaled-review --profile release smoke/scaled_smoke.exe`,
+  then `scratch/balances-scaled-review/_build/default/smoke/scaled_smoke.exe
+  "$PWD/scratch/balances-scaled-review"`: **PASS**. Observed Amount headers,
+  `123.45 eur`, `74,500 jpy` and matching Print content at 80×24, 120×36,
+  48×14 and 32×9; Observe retained 12345 quanta. The merged Accounting,
+  Balances paging/picker/Observe and other scenario checks passed. This is
+  synthetic renderer/controller evidence, not native terminal acceptance.
+- `rtk git diff --check`: **PASS**.
+- `rtk test ./tools/check`: **PASS** (Core build/tests and architecture checks).
+  `./tools/privacy-scan` reported **not executed** because the synthetic-only
+  worktree has no private household reference copy; none was obtained.

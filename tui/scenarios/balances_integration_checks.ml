@@ -92,10 +92,10 @@ let balance_display_checks ~width_of ~directory () =
   let medium = String.concat "\n" (List.map snd medium_rows) in
   require (not (List.exists (function C.Columns _, _ -> true | _ -> false) medium_rows)
     && has medium "74,500 jpy" && not (has medium "+74,500"))
-    "balances-medium-stacks-with-raw-quanta-and-measure";
+    "balances-medium-stacks-with-scaled-amount-and-measure";
   let painted = R.screen ~width_of (32, 9) view |> List.map snd |> String.concat "\n" in
   require (has painted "74,500" && has painted "jpy" && not (has painted "+74,500"))
-    "balance-tiny-first-coordinate-shows-raw-quanta-and-measure";
+    "balance-tiny-first-coordinate-shows-scaled-amount-and-measure";
   let huge_book = get (B.observe_quantities book [("wallet", "jpy", Z.neg huge)]) in
   let large = C.open_route { home with session = { home.session with book = huge_book } } W.Balances in
   List.iter (fun dimensions ->

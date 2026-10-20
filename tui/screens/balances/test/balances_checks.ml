@@ -169,52 +169,70 @@ let unit_checks ~width_of () =
     loop 0 in
   let painted_has rows needle = List.exists (fun (_, text) -> contains text needle) rows in
 
-  (* 12. Current rendering: exact IDs and raw integer Quanta in owned geometry *)
+  (* 12. Current rendering: exact IDs and Measure-scaled Amount in owned geometry *)
   let stacked_geometry = geometry ~dimensions:(80, 24) ~width_of () in
   let scr_stacked = Lazy.force (Balances.view bv stacked_geometry owner).rows in
   require (List.length scr_stacked = 19) "screen-stacked-content-height-19";
-  require (painted_has scr_stacked "Quanta" && painted_has scr_stacked "Measure"
+  require (painted_has scr_stacked "Amount" && painted_has scr_stacked "Measure"
     && painted_has scr_stacked "State") "current-full-columns-present";
   require (painted_has scr_stacked "200,000" && painted_has scr_stacked "exact")
-    "current-column-raw-quanta-and-state";
+    "current-column-scaled-amount-and-state";
   require (painted_has scr_stacked "bank" && painted_has scr_stacked "wallet"
     && not (painted_has scr_stacked "財布") && not (painted_has scr_stacked "銀行"))
     "current-columns-use-ids-not-labels";
   let ordered_detail, _ = Balances.detail_viewport bv stacked_geometry owner in
   require (match ordered_detail with
-    | " Locus: bank" :: " Measure: jpy" :: " Quanta: 200,000 jpy" :: " State: exact" :: _ -> true
+    | " Locus: bank" :: " Measure: jpy" :: " Amount: 200,000 jpy" :: " State: exact" :: _ -> true
     | _ -> false)
-    "selected-detail-keeps-coordinate-quantity-state-order";
+    "selected-detail-keeps-coordinate-amount-state-order";
   require (painted_has scr_stacked "Selected balance")
     "stacked-detail-title-present";
 
-  (* Raw Quanta stay unscaled, without an adjustment '+'. Measures and zeros stay explicit. *)
+  (* Amounts are Measure-scaled, without an adjustment '+'. Measures and zeros stay explicit. *)
   let eur_env = env ~book (Ok (Some "wallet\teur\n")) in
   let eur_rows = Lazy.force
     (Balances.view eur_env stacked_geometry owner).rows in
-  require (painted_has eur_rows "12,345" && not (painted_has eur_rows "123.45"))
-    "current-eur-shows-raw-quanta-not-scaled-amount";
+  require (painted_has eur_rows "123.45" && not (painted_has eur_rows "12,345"))
+    "current-eur-shows-scaled-amount-not-raw-quanta";
+  let eur_detail, _ = Balances.detail_viewport eur_env stacked_geometry owner in
+  require (contains (String.concat "" eur_detail) "Amount: 123.45 eur")
+    "detail-amount-is-scaled-and-labelled";
   let eur_print = Balances.print_preview_form eur_env owner in
-  require (List.exists (fun line -> contains line "12,345 eur") eur_print.Ui_form.summary
-    && not (List.exists (fun line -> contains line "123.45") eur_print.Ui_form.summary))
-    "print-shares-raw-quanta-with-current-list";
+  require (List.exists (fun line -> contains line "123.45 eur") eur_print.Ui_form.summary
+    && not (List.exists (fun line -> contains line "12,345") eur_print.Ui_form.summary))
+    "print-shares-scaled-amount-with-current-list";
+  (* Scale-2 edges: exact one minor unit both signs and exact zero keep decimals. *)
+  let edge_book = get (B.of_string test_book_fixture) in
+  let edge_book = get (B.observe_quantities edge_book
+    [ ("wallet", "eur", Z.of_int 1); ("bank", "eur", Z.of_int (-1)); ("food", "eur", Z.zero) ]) in
+  let edge_env = env ~book:edge_book (Ok (Some "wallet\teur\nbank\teur\nfood\teur\n")) in
+  let edge_detail index =
+    let rows, _ = Balances.detail_viewport edge_env stacked_geometry (Balances.set_selected index owner) in
+    String.concat "" rows in
+  require (contains (edge_detail 0) "Amount: 0.01 eur") "scale2-positive-one-minor-unit";
+  require (contains (edge_detail 1) "Amount: -0.01 eur") "scale2-negative-one-minor-unit";
+  require (contains (edge_detail 2) "Amount: 0.00 eur") "scale2-exact-zero-keeps-decimals";
+  let edge_rows = Lazy.force (Balances.view edge_env stacked_geometry owner).rows in
+  require (painted_has edge_rows "0.01" && painted_has edge_rows "-0.01"
+    && not (painted_has edge_rows "+0.01"))
+    "current-table-shows-signed-scaled-amount-without-plus";
   let _, eur_observe = Balances.handle eur_env stacked_geometry owner (char_key 'o') in
   require (eur_observe = Screen.Observe { locus = "wallet"; measure = "eur"; amount = Some (Z.of_int 12345) })
-    "quanta-presentation-does-not-rescale-observe-intent";
+    "amount-presentation-does-not-rescale-observe-intent";
   let unknown_env = env ~book (Ok (Some "bank\teur\nfood\tjpy\n")) in
   let bank_detail, _ =
     Balances.detail_viewport unknown_env stacked_geometry (Balances.set_selected 0 owner) in
   let bank_text = String.concat "" bank_detail in
-  require (contains bank_text "Quanta: ? eur" && contains bank_text "State: unsupported")
-    "unknown-quanta-is-question-with-measure";
+  require (contains bank_text "Amount: ? eur" && contains bank_text "State: unsupported")
+    "unknown-amount-is-question-with-measure";
   let food_detail, _ =
     Balances.detail_viewport unknown_env stacked_geometry (Balances.set_selected 1 owner) in
-  require (contains (String.concat "" food_detail) "Quanta: 0 jpy"
+  require (contains (String.concat "" food_detail) "Amount: 0 jpy"
     && contains (String.concat "" food_detail) "State: exact")
-    "zero-quanta-is-exact-not-unknown";
+    "zero-amount-is-exact-not-unknown";
   let present_env = env ~book (Ok (Some "present\teur\n")) in
   let present_detail, _ = Balances.detail_viewport present_env stacked_geometry owner in
-  require (contains (String.concat "" present_detail) "Quanta: ? eur"
+  require (contains (String.concat "" present_detail) "Amount: ? eur"
     && contains (String.concat "" present_detail) "State: present, amount unknown")
     "presence-does-not-become-an-exact-zero";
   let _, observe_unknown = Balances.handle present_env stacked_geometry owner (char_key 'o') in
@@ -227,8 +245,8 @@ let unit_checks ~width_of () =
     Balances.detail_viewport huge_env stacked_geometry (Balances.set_selected 0 owner) in
   require (contains (String.concat "" (List.map (fun line ->
     String.sub line 1 (String.length line - 1)) huge_detail))
-    ("Quanta: " ^ O.format_money huge_book "jpy" (Z.neg huge) ^ " jpy"))
-    "detail-keeps-huge-negative-quanta-exact";
+    ("Amount: " ^ O.format_money huge_book "jpy" (Z.neg huge) ^ " jpy"))
+    "detail-keeps-huge-negative-amount-exact";
   let huge_rows = Lazy.force (Balances.view huge_env stacked_geometry owner).rows in
   require (painted_has huge_rows "see details"
     && not (painted_has huge_rows (String.make 20 '7')))
