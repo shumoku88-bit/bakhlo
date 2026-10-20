@@ -766,4 +766,49 @@ let coverage_checks ~width_of ~directory home =
   let none = C.open_route (C.initial ~config_home:sub (F.load path)) W.Scheduled in
   require (contains none "Scheduled / List") "coverage-missing-config-keeps-list-entrance";
   require (F.read path = before) "coverage-read-only";
+
+  (* e through the controller: one explicit plan, atomic cold write, then a
+     stale reload that must not publish. Synthetic dates derived from today. *)
+  let esub = directory ^ "/coverage-e-" ^ F.new_id () in
+  Unix.mkdir esub 0o700;
+  let ebook =
+    List.fold_left (fun b (p : B.plan) -> get (B.cancel_plan b ~id:p.id ~day:today))
+      home.session.book (B.open_plans home.session.book) in
+  let ebook = get (B.put_plan ebook ~replace:false (plan "e-base" (month_after 0 ^ "-28") food)) in
+  let ebook = get (B.put_plan ebook ~replace:false (plan "e-src" (month_after 1 ^ "-28") food)) in
+  let epath = esub ^ "/book.sexp" in
+  F.write_new epath (B.to_string ebook);
+  F.write_new (esub ^ "/scheduled-coverage.tsv")
+    ("groceries\t" ^ month_after 0 ^ "-01\t1\twallet\tfood\n");
+  let estate = C.open_route (C.initial ~config_home:esub (F.load epath)) W.Scheduled in
+  let eopen = key ~width_of estate (`ASCII 'e') in
+  require (match session_of eopen with Some (E.Scheduled_generate _) -> true | _ -> false)
+    "coverage-e-opens-monitored-horizon";
+  let epublished =
+    key ~width_of
+      (key ~width_of (key ~width_of (key ~width_of eopen `Enter) `Tab) `End) `Enter in
+  let ecold = F.load epath in
+  let escope = month_after 2 ^ "-28" in
+  let eplan = List.find (fun (p : B.plan) -> p.day = escope) (B.plans ecold.book) in
+  require (no_modal epublished
+           && List.length (B.plans ecold.book) = List.length (B.plans ebook) + 1
+           && eplan.measure = "jpy" && eplan.changes = food
+           && eplan.paid_by = None && eplan.cancelled_on = None)
+    "coverage-e-publishes-one-explicit-plan-atomically-cold";
+
+  let epath2 = esub ^ "/stale.sexp" in
+  F.write_new epath2 (B.to_string ebook);
+  let estate2 = C.open_route (C.initial ~config_home:esub (F.load epath2)) W.Scheduled in
+  let epending = key ~width_of (key ~width_of (key ~width_of estate2 (`ASCII 'e')) `Enter) `Tab in
+  let changed_book =
+    get (B.put_plan ebook ~replace:false (plan "outside" (month_after 0 ^ "-01") food)) in
+  let tmp = epath2 ^ ".tmp" in
+  F.write_new tmp (B.to_string changed_book);
+  Unix.rename tmp epath2;
+  let erefused = key ~width_of (Shell_dispatch.reload epending) `Enter in
+  require (erefused.blocked && F.read_revision epath2 = F.revision_of_bytes (B.to_string changed_book)
+           && not (List.exists (fun (p : B.plan) -> p.day = escope)
+                     (B.plans (F.load epath2).book)))
+    "coverage-e-stale-reload-cannot-publish";
+
   print_endline "PASS: Scheduled Series Calendar coverage rules/projection, entrance, month window, plan entries/gaps, completion handoff/cancel, view cycle, malformed/missing config and read-only bytes."
