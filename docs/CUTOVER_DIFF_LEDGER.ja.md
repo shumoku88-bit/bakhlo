@@ -77,7 +77,7 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 | 過去のPace（5期間のHistory・選択行） | ✅ 一致（実データ） | bounded-history根拠を取り込み、全期間で一致 | なし | [履歴対照](VERIFICATION.md#bounded-history-support-and-real-data-pace-history-2026-10-19) |
 | 選択日の詳細欄 | ✅ 一致（実データ） | 並び順・文言を揃え、120×36・80×24の実データ15通りで詳細欄が一致（スクロール後を含む）。Bakhloは予定支払いの戻り行と、Paceが不明な日の当日の動きを追加で表示（意図的）。一部の日だけ分かるときにLOAMが出す「History partial」案内行はまだない（本人判断 2026-10-20：必要か未判断のため保留） | なし | UI-33, [詳細欄対照](VERIFICATION.md#daily-pace-selected-day-detail-matches-loam-2026-10-20) |
 | グラフの描き方 | ✅ 一致（実データ） | LOAMの描き方（目盛り・`┤`軸・`┄`格子・点字の補間・●／◆）へ移植し、実データ120×36・80×24の14通りで画面が見出し1行以外一致。Bakhloは極端に大きい金額でもグラフを描く（LOAMは描画を断る） | なし | UI-33, [グラフ対照](VERIFICATION.md#daily-pace-chart-follows-loam-chart-2026-10-20) |
-| 目標（`[t] target`） | 🟥 未実装 | LOAMにある目標の表がない。本人判断（2026-10-20）：必要 | 止める | UI-33 |
+| 目標（`[t] target`） | ✅ 一致（実データ） | 目標ペース計画（候補表・最短日・日付指定の計画・今日の仮想支出・推移グラフ）を実装。実データ6通りでLOAMと内容一致（入力欄のキャレット表示と操作案内の位置だけ違う）。Bakhloは円以外の単位でも動く。本人判断（2026-10-20）：必要 | なし | UI-33, [Target対照](VERIFICATION.md#daily-pace-target-plan-2026-10-20) |
 | 直前の周期の境界がないとき | 🟨 差あり | LOAMはPrevious Cycleを unavailable で開く。BakhloはCycleのまま拒否を表示。本人判断（2026-10-20）：必要か未判断のため保留 | なし | UI-33 |
 | What-if・Pool設定 | ⬜ 未確認 | 接続済み、照合未了 | なし | V11 |
 

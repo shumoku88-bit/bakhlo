@@ -76,6 +76,9 @@ val compute_samples :
     payment date; cancelled occurrences are closed throughout the reconstruction.
     Overdue open occurrences count without a lower due-date bound. *)
 
+val day_number : string -> int
+(** Proleptic Gregorian day ordinal of a valid ISO date; 0 when invalid. *)
+
 val compare_change : prev:sample -> current:sample -> (change_breakdown, string) result
 (** Guarded adjacent-day decomposition; error names the refusal cause. *)
 

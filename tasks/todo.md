@@ -68,8 +68,9 @@ LOAM終了後に使用し、取得拒否では起動せず、旧コピー・試�
 本人判断（2026-10-20）：partial案内行とPrevious Cycle境界なしは必要か未判断のため保留。グラフはLOAMと同じかより良く。`[t] target`は必要。
 
 - [x] LOAM `Tui.Chart`を`Pace_chart`へ移植し、Trendグラフを置換。合成3寸法×10通り・実データ2寸法×7通りでグラフ行一致。
-- [ ] グラフのcommit／pushとmatching SHA CI。
-- [ ] `[t]` Target plan（読み取り専用：目標額・目標日・今日の仮想支出、候補表・最短日・推移グラフ）をLOAM `DailyPaceTarget`どおり実装し、合成・実データで対照する。
+- [x] グラフのcommit／pushとmatching SHA CI（`28d876b`、Core／TUIともsuccess）。
+- [x] `[t]` Target plan（読み取り専用：目標額・目標日・今日の仮想支出、候補表・最短日・推移グラフ）をLOAM `DailyPaceTarget`どおり実装し、合成・実データで対照する。
+- [ ] Targetのcommit／pushとmatching SHA CI。
 
 ## Daily Pace選択日の詳細欄をLOAMへ揃える（2026-10-20）
 

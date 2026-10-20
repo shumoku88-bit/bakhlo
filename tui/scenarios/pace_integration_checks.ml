@@ -233,6 +233,22 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
     "daily-pace-what-if-remaining-available";
   let closed_what_if = key ~width_of simulated `Escape in
   require (no_modal closed_what_if) "daily-pace-what-if-closes";
+  (* Target plan: read-only overlay; typing never writes, Esc/q close. *)
+  let before_target = F.read path in
+  let targeting = List.fold_left (fun s c -> key ~width_of s (`ASCII c))
+      (key ~width_of pace (`ASCII 't')) [ '6'; '0'; '0'; '0'; 'x' ] in
+  require (not (no_modal targeting)) "daily-pace-target-opens-modal";
+  List.iter (fun ((width, height) as dimensions) ->
+      let rows = Option.value ~default:[] (R.overlay_screen ~dimensions ~width_of targeting) in
+      let text = String.concat "\n" (List.map snd rows) in
+      require (rows <> [] && List.length rows <= height
+        && List.for_all (fun (_, row) -> width_of row <= width) rows
+        && Base.String.is_substring text ~substring:"Target JPY/day: 6000"
+        && (width < 48 || Base.String.is_substring text ~substring:"Target accepts JPY digits only"))
+        "daily-pace-target-paints-within-geometry")
+    [ (120, 36); (80, 24); (48, 14); (32, 9) ];
+  require (no_modal (key ~width_of targeting `Escape) && no_modal (key ~width_of targeting (`ASCII 'q'))
+    && F.read path = before_target) "daily-pace-target-closes-without-writes";
   require
     ((key ~width_of closed_what_if (`ASCII 'q')).workspace.route = W.Home)
     "daily-pace-q-returns-home";
@@ -1002,6 +1018,38 @@ let daily_pace_graph_render_checks ~width_of () =
     ([ "Supported: 1/2 days"; "Selected 2026-10-18: unavailable, not zero"; "Historical pace unavailable.";
        "Spent: 0 jpy" ] @ disclosure))
     "pace-detail-partial-unknown-cause-and-known-activity";
+  (* Target plan arithmetic, as LOAM DailyPaceTarget on the same answer. *)
+  let pace : B.daily_pace = {
+    measure = "jpy"; observed_at = "2026-10-20"; end_exclusive = "2026-11-01"; remaining_days = 12;
+    pool_balances = []; plan_deductions = []; eligible_pool = Z.of_int 74500;
+    automatic_deductions = Z.of_int 12000; available_through_end = Z.of_int 62500;
+    daily_pace_quanta = Z.of_int 5208 } in
+  let module T = Daily_pace_target in
+  let options = get (T.options ~book pace ~target:"6000" ~purchase:"") in
+  let summary (p : T.plan) = (p.target_date, p.days, Z.to_int p.daily_spend, p.reachable) in
+  require (List.map summary options.horizons
+           = [ ("2026-10-23", 3, 2833, true); ("2026-10-27", 7, 4642, true) ]
+    && Option.map summary options.earliest = Some ("2026-10-22", 2, 1250, true))
+    "pace-target-horizons-and-earliest";
+  let dated = get (T.plan ~book pace ~target:"6000" ~date:"25" ~purchase:"") in
+  let bought = get (T.plan ~book pace ~target:"6000" ~date:"10-25" ~purchase:"3000") in
+  require (summary dated = ("2026-10-25", 5, 4100, true) && summary bought = ("2026-10-25", 5, 3500, true)
+    && Z.equal bought.purchase (Z.of_int 3000)
+    && List.map Z.to_int bought.path = [ 4958; 5090; 5250; 5444; 5687; 6000 ])
+    "pace-target-dated-plan-and-purchase";
+  let unreachable = get (T.plan ~book pace ~target:"99999" ~date:"2026-10-31" ~purchase:"") in
+  require (not unreachable.reachable && Z.equal unreachable.daily_spend Z.zero) "pace-target-unreachable";
+  let refusal ~target ~date ~purchase =
+    match T.plan ~book pace ~target ~date ~purchase with Ok _ -> "ok" | Error why -> why in
+  require (refusal ~target:"6000" ~date:"11-01" ~purchase:""
+           = "No day 11-01 after today and before cycle end 2026-11-01 (exclusive)."
+    && refusal ~target:"6000" ~date:"2026-02-30" ~purchase:"" = "Enter a real target date as YYYY-MM-DD."
+    && refusal ~target:"6000" ~date:"2026-10-20" ~purchase:""
+       = "Target date must be after today and before cycle end 2026-11-01 (exclusive)."
+    && refusal ~target:"" ~date:"25" ~purchase:"" = "Enter a nonnegative target JPY/day (up to 18 digits)."
+    && refusal ~target:"6000" ~date:"25" ~purchase:"-1"
+       = "Spend today accepts nonnegative JPY digits only (up to 18).")
+    "pace-target-refusals";
   let euro = Trend.render_chart ~width:52 ~height:30 ~width_of ~book ~today:"2026-10-26"
     ~measure:"eur"
     ~samples:(List.map (fun day -> sample ~day ~q:446400 ()) days)

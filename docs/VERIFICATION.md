@@ -4455,7 +4455,61 @@ executed**.
   identical except header row 1. `../loam-data` hashes unchanged; AI tmux stopped;
   private captures deleted; `./tools/compare clean-copies` passed.
 
+- Matching implementation `28d876b`: [Core 39399700062](https://github.com/shumoku88-bit/bakhlo/actions/runs/39399700062) and [Bonsai TUI 39399700046](https://github.com/shumoku88-bit/bakhlo/actions/runs/39399700046) completed/success (synthetic CI).
+
 ### Limits
 
 Physical terminal/IME rendering of braille and ambiguous-width markers, human
+acceptance and P7 were **not executed**.
+
+## Daily Pace Target plan (2026-10-20)
+
+User decision (2026-10-20): `[t] target` is needed. The `History partial` feedback row
+and the missing-boundary Previous Cycle remain on hold until the user decides they are
+needed.
+
+### Implemented boundary
+
+- New `tui/screens/pace/daily_pace_target.ml` follows LOAM `DailyPaceTarget` on the
+  same current `Daily_book.daily_pace` answer: largest whole daily spend
+  `floor((A - N·(R - k)) / k)`, pace path, optional hypothetical spend today, short
+  dates (`26`, `11-02`) resolved to the first such day after today before cycle end,
+  3/7/14/21/28/42-day horizons before the last day, earliest reachable day, `j/k`
+  horizon selection, the option table's width layouts, result rows, and the target
+  chart (`Pace_chart.line_rows` with the `target` guide row, purchase resampling).
+- `t` opens it from Daily Pace; Esc/q close; nothing is written or reserved. Floating
+  from 62×20 body cells (LOAM's threshold), otherwise an unframed full-body view with
+  LOAM's title line.
+- Intentional differences: inputs are whole units of the pace Measure (LOAM accepts JPY
+  only); the caret is Bakhlo's `|` cell as in other forms; navigation and the
+  read-only note stay in the Shell footer, so the floating pane is shorter and its chart
+  has fewer rows at the same terminal size; the compact view drops LOAM's assumption
+  footer lines so answer rows keep priority (the Shell footer states nothing is
+  recorded).
+
+### Evidence
+
+- New checks: `pace-target-horizons-and-earliest`, `pace-target-dated-plan-and-purchase`
+  (spend and exact pace path), `pace-target-unreachable`, `pace-target-refusals`
+  (short date outside the cycle, impossible date, today, empty target, non-digit spend),
+  and controller checks that `t` opens a modal painted within 120×36, 80×24, 48×14 and
+  32×9 and that Esc/q close without changing the book bytes. `./tools/check`,
+  `./tools/tui --self-check` (35 PASS) and `git diff --check` passed. A tmux probe put
+  the terminal cursor on the caret in floating and compact views.
+- Synthetic paired run (zero-origin fixture; Bakhlo SHA-256
+  `caa25265c885c4363a300596c857dc2f3de5e75cdceaca82db13452aea9a2549`, existing LOAM
+  `312467cd9af30778873bb9afabf0d87143e874d67c828e828c42f8573b8840c3`): LOAM 120×36 against
+  Bakhlo 120×39 (same chart height) for table, `j`, dated plan, dated plan with spend,
+  unreachable/out-of-cycle date, invalid key notice, empty form and full date: every
+  pane row is identical except the active field's caret and LOAM's in-pane navigation
+  row. At equal height the target chart is identical. Fixture bytes unchanged.
+- Latest-data paired comparison: fresh `./tools/compare refresh` (LOAM open, originals
+  not written, no user process terminated); six target walks (table, `j`, dated plan,
+  dated plan with spend, unreachable target, M-D date). All non-input pane rows were
+  identical; input rows differed only by the caret. `../loam-data` hashes unchanged; AI
+  tmux stopped; private captures deleted; `./tools/compare clean-copies` passed.
+
+### Limits
+
+LOAM's `[?] why` explanation remains unimplemented. Physical terminal/IME, human
 acceptance and P7 were **not executed**.
