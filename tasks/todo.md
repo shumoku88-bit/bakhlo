@@ -4,7 +4,7 @@
 
 - [x] LOAMの`renderInRange`／`renderManyInRange`設計に合わせ、`Pace_chart.qualified_rows`に選択日の垂直ガイド線（`│`）および近傍水平ガイド線（`─`）の描画を追加。
 - [x] 日付移動時に縦線が左右に追従し、データ欠落日（unavailable）でも選択位置が明示されることを確認。
-- [x] `pace_integration_checks.ml`に垂直ガイド線の存在検査を追加し、`./tools/tui --self-check`および`./tools/check`がすべて成功することを確認。
+- [x] `pace_integration_checks.ml`に垂直ガイド線の存在検査を追加し、`./tools/tui --self-check`および`./tools/check`がすべて成功することを確認（`2a6983c`）。
 
 ## Actual画面の配置・表示・詳細をLOAMへ揃える（2026-10-20）
 

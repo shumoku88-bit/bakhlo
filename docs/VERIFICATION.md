@@ -4705,6 +4705,7 @@ Physical terminal/IME, human acceptance and P7 were **not executed**.
   - `./tools/check`: 1008 test cases passed.
   - `./tools/tui --self-check`: all 35 Bonsai scenario suites passed.
   - `git diff --check`: clean (no trailing whitespace or conflict markers).
+- Matching implementation `2a6983c`: [Core 39415381331](https://github.com/shumoku88-bit/bakhlo/actions/runs/39415381331) and [Bonsai TUI 39415380979](https://github.com/shumoku88-bit/bakhlo/actions/runs/39415380979) completed/success (synthetic CI).
 
 ### Limits
 
