@@ -4881,8 +4881,25 @@ one-line quick-entry mode.
 - Matching CI: Core [39446688761](https://github.com/shumoku88-bit/bakhlo/actions/runs/39446688761)
   success on `697f92e`; Bonsai TUI [39447458903](https://github.com/shumoku88-bit/bakhlo/actions/runs/39447458903)
   success on `26829b8` (same code plus the PTY script; Core is not triggered by that path).
+- Latest-data paired comparison on fresh generation `capture-1792510023-32503-293b919a`
+  at 120×36 and 80×24 (read-only flows: `r`, prefix typing, description completion via Enter,
+  template proposal, ↓ navigation between templates, Enter to Preview, Esc to Home; partial
+  line with total and Locus words):
+  - Prefix suggestions, counts (e.g. 158×, 2×, 1×) and recency dates match LOAM exactly.
+  - Template proposal rankings, postings, split amounts and totals match LOAM exactly.
+  - Enter reaches identical Record Preview (amounts, Loci, signed postings, date).
+  - Esc returns Home without mutating the book or authority bytes (verified by SHA-256 before
+    and after). AI tmux sessions closed, `clean-copies` passed.
+  - Differences observed during paired comparison:
+    1. Presentation: LOAM renders quick capture inside a bounded framed panel
+       (`╭ Record ──...╮`) with the footer inside the box; Bakhlo renders it full-width
+       without a box frame, and the footer is pinned to the terminal bottom.
+    2. Comparison environment dependency: `tools/compare_capture.ml` does not yet extract
+       `household.loam`'s `AccountingRole` section into `config/accounting-roles.tsv`;
+       with the roles provided, Locus role replacement (e.g. paying Asset replacement) matches
+       LOAM identically.
 
 ### Limits
 
-Latest-data paired comparison, synthetic paired comparison against LOAM, physical
-terminal/IME, human acceptance and P7 were **not executed**.
+Synthetic paired comparison against LOAM, physical terminal/IME, human acceptance and P7
+were **not executed**.
