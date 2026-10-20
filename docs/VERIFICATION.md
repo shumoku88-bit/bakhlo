@@ -5372,3 +5372,30 @@ executed**.
   and [Bonsai TUI CI 39478790974](https://github.com/shumoku88-bit/bakhlo/actions/runs/39478790974)
   both succeeded.
 - Physical terminal/IME, human acceptance and P7 were **not executed**.
+
+## Scheduled replenishment integration and latest-data comparison (2026-10-21)
+
+- Integrated `omp/scheduled-replenish` (`1044248`, `aa87144`, `da48b67`, rebased on
+  `cc8a06d`). The only shared edit is the authorized `Gen.create` call in
+  `tui/shell/shell_record_actions.ml`, which passes `F.today ()` only for monitored `e`.
+- On the main checkout: `./tools/check`, `./tools/privacy-scan --all` (no match),
+  `./tools/tui --self-check` (39 PASS), `git diff --check` and the local native PTY matrix
+  passed.
+- Latest-data paired comparison on generation `capture-1792524331-63399-293b919a` at
+  120×36, read-only: Series Calendar first monitored plan, `e`, Next 3 occurrences.
+  - Equal: source occurrence and date, known-through date, pattern, the four choices,
+    and the first generated due date.
+  - Different: LOAM continues into the ordinary Scheduled edit form for each occurrence and
+    a per-occurrence Preview (Publish focused); Bakhlo shows one Preview of all three
+    exact copies (Cancel focused). LOAM shows `Only reviewed explicit dates will be
+    created.` on the choice screen; Bakhlo shows it in its Preview. LOAM Esc from its
+    Preview cancels the whole generation; Bakhlo returns to the choices.
+  - Nothing was published in either app: Bakhlo book SHA-256 and household/config SHA-256
+    unchanged, no file in LOAM's copy newer than the capture. AI tmux sessions closed,
+    `clean-copies` passed.
+- `cc8a06d`: matching-SHA
+  [Core CI 39482494062](https://github.com/shumoku88-bit/bakhlo/actions/runs/39482494062)
+  and [Bonsai TUI CI 39482494087](https://github.com/shumoku88-bit/bakhlo/actions/runs/39482494087)
+  both succeeded.
+- 80×24, custom date, missing-month-day resolution against LOAM, physical terminal/IME and
+  P7 were **not executed**.
