@@ -12,12 +12,17 @@ let get why = function Ok x -> x | Error _ -> raise (Refused why)
 
 type stamp = { dev : int; ino : int; size : int; mtime : float }
 
+(* A session does not keep the file text: its revision names the file by size and
+   final bytes, enough to tell successive saves apart without copying the file. *)
 type t = {
   path : string;
-  bytes : string;  (** The whole file as read or written by this session. *)
+  revision : string;  (** {!revision_of_bytes} of the file this session last saw. *)
+  size : int;
+  tail : string;  (** The file's last [tail_check] bytes (fewer for a short file). *)
   book : B.t;
   records : int;  (** Complete records after the snapshot. *)
   torn : bool;  (** An interrupted final append follows the complete records. *)
+  torn_bytes : int;  (** Length of that unterminated final line, else 0. *)
   stamp : stamp;
 }
 
@@ -25,8 +30,9 @@ type outcome =
   | Written of t
   | Conflict
   | Refused_input of string
-  | Uncertain of { base_length : int; line : string }
-      (** The append may or may not have reached the file; [line] is what was sent. *)
+  | Uncertain of { expected : string }
+      (** The append may or may not have reached the file; [expected] is the revision
+          the file has if it did. *)
 
 let stamp_of (s : Unix.stats) = { dev = s.st_dev; ino = s.st_ino; size = s.st_size; mtime = s.st_mtime }
 
@@ -82,10 +88,22 @@ let with_writer path f =
           Unix.lockf fd Unix.F_TLOCK 0;
           f ())
 
+let tail_check = 4096
+
+let tail_of bytes =
+  let n = min tail_check (String.length bytes) in
+  String.sub bytes (String.length bytes - n) n
+let revision_of ~size ~tail = Printf.sprintf "%d:%s" size (Digest.to_hex (Digest.string tail))
+let revision_of_bytes bytes = revision_of ~size:(String.length bytes) ~tail:(tail_of bytes)
+let read_revision path = revision_of_bytes (read path)
+
 let of_bytes path bytes stamp =
   match L.load bytes with
   | Error why -> raise (Refused ("book-refused: " ^ why))
-  | Ok loaded -> { path; bytes; book = loaded.book; records = loaded.records; torn = loaded.torn; stamp }
+  | Ok loaded ->
+      let size = String.length bytes and tail = tail_of bytes in
+      { path; revision = revision_of ~size ~tail; size; tail; book = loaded.book;
+        records = loaded.records; torn = loaded.torn; torn_bytes = size - loaded.valid_length; stamp }
 
 let load path =
   let bytes, stamp = read_stamped path in
@@ -143,7 +161,7 @@ let create_empty ~path ~measure ~scale =
   write_new path bytes;
   sync_parent path;
   let session = load path in
-  require (session.bytes = bytes) "first-run-cold-readback-changed";
+  require (session.revision = revision_of_bytes bytes) "first-run-cold-readback-changed";
   session
 
 (* The last [n] bytes of the file, read through one descriptor. *)
@@ -165,15 +183,12 @@ let read_tail path n =
       loop 0;
       Bytes.to_string b)
 
-let tail_check = 4096
-
 (* The file is still exactly what this session last saw: same inode, size and
    modification time, and the same final bytes. *)
 let unchanged session =
   match Unix.lstat session.path with
   | s when stamp_of s = session.stamp && s.st_kind = Unix.S_REG ->
-      let n = min tail_check (String.length session.bytes) in
-      read_tail session.path n = String.sub session.bytes (String.length session.bytes - n) n
+      read_tail session.path (String.length session.tail) = session.tail
   | _ -> false
   | exception Unix.Unix_error (Unix.ENOENT, _, _) -> false
 
@@ -182,7 +197,12 @@ type publication_step = Appended | Synced
 (* What [append] writes for [ops]: the record line, on a line of its own. *)
 let appended_bytes session ops =
   let line = L.record_line ~seq:(session.records + 1) ops in
-  if session.bytes = "" || String.ends_with ~suffix:"\n" session.bytes then line else "\n" ^ line
+  if session.tail = "" || String.ends_with ~suffix:"\n" session.tail then line else "\n" ^ line
+
+(* The revision the file has once [append] writes [ops]. *)
+let revision_after session ops =
+  let line = appended_bytes session ops in
+  revision_of ~size:(session.size + String.length line) ~tail:(tail_of (session.tail ^ line))
 
 (* Checkpoints are for deterministic fault/child-process interruption checks;
    ordinary callers use the no-op default and cannot bypass any gate. *)
@@ -197,8 +217,10 @@ let append ?(checkpoint = fun _ -> ()) session ops =
     with_writer session.path (fun () ->
         if not (unchanged session) then Conflict
         else (
-          let base_length = String.length session.bytes in
-          attempted := Some (base_length, line);
+          let size = session.size + String.length line in
+          let tail = tail_of (session.tail ^ line) in
+          let expected = revision_of ~size ~tail in
+          attempted := Some expected;
           let fd = Unix.openfile session.path [ Unix.O_WRONLY; Unix.O_APPEND; Unix.O_CLOEXEC ] 0 in
           Fun.protect
             ~finally:(fun () -> Unix.close fd)
@@ -208,24 +230,22 @@ let append ?(checkpoint = fun _ -> ()) session ops =
               Unix.fsync fd;
               checkpoint Synced);
           let s = Unix.lstat session.path in
-          require (s.st_size = base_length + String.length line) "appended-size-changed";
+          require (s.st_size = size) "appended-size-changed";
           require (read_tail session.path (String.length line) = line) "appended-readback-changed";
           Written
-            { session with bytes = session.bytes ^ line; book; records = seq; stamp = stamp_of s }))
+            { session with revision = expected; size; tail; book; records = seq; stamp = stamp_of s }))
   with
   | Refused why -> (
       match !attempted with
-      | Some (base_length, line) -> Uncertain { base_length; line }
+      | Some expected -> Uncertain { expected }
       | None -> Refused_input why)
   | Unix.Unix_error _ | Sys_error _ -> (
       match !attempted with
-      | Some (base_length, line) -> Uncertain { base_length; line }
+      | Some expected -> Uncertain { expected }
       | None -> Refused_input "file-or-writer-unavailable")
 
-(* Whether the file now holds exactly the session's base followed by [line]. *)
-let confirms ~base_length ~line session =
-  String.length session.bytes = base_length + String.length line
-  && String.ends_with ~suffix:line session.bytes
+(* Whether a reloaded session shows the revision an uncertain append promised. *)
+let confirms ~expected session = session.revision = expected
 
 type compaction_step = Snapshot_written | Previous_kept | Replaced
 
@@ -270,7 +290,8 @@ let compact ?(checkpoint = fun _ -> ()) session =
           sync_parent session.path;
           checkpoint Replaced;
           let loaded = load session.path in
-          require (loaded.bytes = snapshot && loaded.records = 0) "compacted-readback-changed";
+          require (loaded.revision = revision_of_bytes snapshot && loaded.records = 0)
+            "compacted-readback-changed";
           Compacted loaded))
   with
   | Refused why -> if !attempted then Compaction_uncertain else Not_compacted why
@@ -301,24 +322,17 @@ type recovery_report = { selected : (t, string) result; torn_bytes : int }
 (* Read-only description, not publication permission or proof of a past outcome. *)
 let inspect_recovery path =
   let selected = load_result path in
-  let torn_bytes =
-    match selected with
-    | Ok session when session.torn -> (
-        match L.load session.bytes with
-        | Ok loaded -> String.length session.bytes - loaded.valid_length
-        | Error _ -> 0)
-    | Ok _ | Error _ -> 0
-  in
-  { selected; torn_bytes }
+  { selected; torn_bytes = (match selected with Ok s -> s.torn_bytes | Error _ -> 0) }
 
 (* Restore only to an explicitly fresh target, preserving original bytes. A
    checked copy is not automatic adoption, reconciliation or a format upgrade. *)
 let restore_copy ~source ~target =
-  let original = load source in
-  write_new target original.bytes;
+  let bytes, _ = read_stamped source in
+  let original = of_bytes source bytes (stamp_of (Unix.lstat source)) in
+  write_new target bytes;
   sync_parent target;
-  require (read source = original.bytes) "source-changed-during-restore";
-  require ((load target).bytes = original.bytes) "restored-readback-changed"
+  require (read source = bytes) "source-changed-during-restore";
+  require ((load target).revision = original.revision) "restored-readback-changed"
 
 let create_copy ~source ~target =
   let original = load source in
@@ -327,7 +341,7 @@ let create_copy ~source ~target =
   ignore (get "printed-book-refused" (B.of_string bytes));
   write_new target bytes;
   sync_parent target;
-  require (read source = original.bytes) "source-changed-during-copy"
+  require (revision_of_bytes (read source) = original.revision) "source-changed-during-copy"
 
 let today () =
   let tm = Unix.localtime (Unix.time ()) in

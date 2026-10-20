@@ -6,6 +6,14 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Session revision instead of whole-file bytes (2026-10-20)
+
+- `Daily_file.t` drops `bytes`; it keeps `revision` (size + digest of the final 4 KiB), `size`, `tail` and `torn_bytes`. An append computes the next revision from the appended line only; `Uncertain` carries the `expected` revision and `confirms` compares it after reload. Helpers: `revision_of_bytes`, `read_revision`, `revision_after`. Restore/copy/compaction readbacks compare revisions.
+- TUI: `session.bytes`/`env.bytes`/`~base_bytes` renamed to `revision`/`base_revision` (all were opaque bases); uncertain evidence is `Expected_revision`. Scenarios: file-content assertions go through `F.read_revision`/`F.revision_of_bytes`; every place where one variable served as both file content and an editor base was split (audited all `=`/`<>` comparisons involving revisions so none passes trivially).
+- Synthetic probe: save ≈0.6 ms at 1,000 / 36,500 / 109,500 entries (36.5 ms before at 109,500). [Stage 8](LONG_TERM_STORAGE_STUDY.ja.md).
+- Limit: a revision identifies successive saves, not every byte; writes stay guarded by the inode/size/mtime/tail check.
+- Passed: `./tools/check` (exit 0), `./tools/tui --self-check` (35 PASS, exit 0), `git diff --check`. Synthetic only.
+
 ## Append-only saves (2026-10-20)
 
 - `Daily_file` rewritten around `Book_log`: `append` (apply ops in Core → unchanged check of inode/size/mtime/tail under the writer lock → write one record line, fsync, tail readback; records start on their own line even when the file lacks a final newline), `Uncertain` carries the sent line and `confirms` checks it after reload, `discard_torn_tail` (explicit, locked, only an unterminated last line), `compact` (temp snapshot → hard-link old file to `.prev` → atomic rename; spare link removed when rename(2) is a no-op on same-file links), `compact_if_due` (≥200 records) run after the TUI exits. Old attempt/pending/before files and `confirm_current` removed. User decisions recorded in AGENTS.md.
@@ -13,6 +21,7 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 - Tests: `test/daily_file_tests.ml` (append/cold load, refusal and foreign change write nothing, faults at both checkpoints are uncertain and confirmable, torn tail stops writes and explicit discard restores, compaction faults at all three steps keep the book and leave no temporaries on retry, SIGKILL at both checkpoints, missing final newline). `tui/scenarios/recovery_checks.ml` rewritten for the append protocol (torn tail freeze across cold open/Ctrl-N/reload/direct write, 2 faults + 2 SIGKILL, writer lock, real write failure, foreign rewrite never confirms, missing file, healthy save leaves no artifacts).
 - Synthetic probe: save 4.73 s → 36.5 ms at 109,500 entries, 0.66 ms at 1,000 ([stage 7](LONG_TERM_STORAGE_STUDY.ja.md)).
 - Passed: `./tools/check` (exit 0), `./tools/tui --self-check` (35 PASS, exit 0), `git diff --check`. Synthetic only; latest-data paired comparison not executed; not P7/power-loss qualification.
+- Matching implementation `9a7e64f`: [Core 39350837090](https://github.com/shumoku88-bit/bakhlo/actions/runs/39350837090) and [Bonsai TUI 39350836734](https://github.com/shumoku88-bit/bakhlo/actions/runs/39350836734) completed/success (synthetic CI).
 
 ## Book log format and replay (2026-10-20)
 

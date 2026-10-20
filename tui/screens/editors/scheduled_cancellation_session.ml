@@ -8,7 +8,7 @@ module Panel = Ui_panel
 type t = {
   book : B.t;
   target : B.plan;
-  base_bytes : string;
+  base_revision : string;
   form : Form.t;
   preview : bool;
   cancel_selected : bool;
@@ -17,14 +17,14 @@ type t = {
 
 type outcome = Updated of t | Closed | Publish of string * string * string
 
-let create ~book ~base_bytes ~day (target : B.plan) =
+let create ~book ~base_revision ~day (target : B.plan) =
   let form = Form.create ~id:"cancel_plan" ~title:"Scheduled / Cancel / Date"
     ~summary:["Target: " ^ O.visible target.id; "Due: " ^ target.day]
     ~fields:[Form.text_field ~id:"date" ~label:"Cancel on" ~value:day ();
       Form.action_buttons ~confirm:"Preview cancellation" ~cancel:"Keep" ()] () in
-  { book; target; base_bytes; form; preview = false; cancel_selected = false; scroll = 0 }
+  { book; target; base_revision; form; preview = false; cancel_selected = false; scroll = 0 }
 
-let base_bytes t = t.base_bytes
+let base_revision t = t.base_revision
 let day t = Option.value ~default:"" (Form.get_text t.form "date")
 let is_preview t = t.preview
 let with_publish_error t = { t with cancel_selected = false }
@@ -78,7 +78,7 @@ let handle ~blocked ~dimensions:((width, height) as dimensions) ~width_of t inpu
         Updated (with_notice t "Enlarge terminal to review the Scheduled effects.")
       else if view.start < view.last then
         Updated (with_notice t "Review to the end before cancelling." )
-      else Publish (t.target.id, day t, t.base_bytes)
+      else Publish (t.target.id, day t, t.base_revision)
   | _ -> Updated t
 
 let footer t =

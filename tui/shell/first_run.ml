@@ -246,7 +246,7 @@ let check ~width_of () =
         F.create_empty ~path:(Filename.concat root "new.sexp") ~measure:"jpy" ~scale:0
       in
       require
-        (F.read created.F.path = created.F.bytes
+        (F.read_revision created.F.path = created.F.revision
          && B.measures created.F.book = ["jpy", 0]
          && B.entry_count created.F.book = 0
          && B.approved_loci created.F.book = Some [])

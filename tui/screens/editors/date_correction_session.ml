@@ -7,7 +7,7 @@ module Panel = Ui_panel
 
 type t = {
   target : B.entry;
-  base_bytes : string;
+  base_revision : string;
   form : Form.t;
   preview : bool;
   scroll : int;
@@ -15,14 +15,14 @@ type t = {
 
 type outcome = Updated of t | Closed | Publish of A.transaction * string
 
-let create ~base_bytes (target : B.entry) =
+let create ~base_revision (target : B.entry) =
   let form = Form.create ~id:"actual_date" ~title:"Actual / Date / Edit"
     ~summary:["Current date: " ^ target.day; "Target Actual: " ^ O.visible target.id]
     ~fields:[Form.text_field ~id:"date" ~label:"New date" ~value:target.day ();
       Form.action_buttons ~confirm:"Preview date change" ~cancel:"Keep Actual" ()] () in
-  { target; base_bytes; form; preview = false; scroll = 0 }
+  { target; base_revision; form; preview = false; scroll = 0 }
 
-let base_bytes t = t.base_bytes
+let base_revision t = t.base_revision
 let day t = Option.value ~default:"" (Form.get_text t.form "date")
 let is_preview t = t.preview
 let edit t = { t with preview = false; scroll = 0;
@@ -73,7 +73,7 @@ let handle ~blocked ~dimensions:((width, height) as dimensions) ~width_of t inpu
         Updated (with_notice t "Enlarge terminal to review the date and target before Publish.")
       else if view.start < view.last then
         Updated (with_notice t "Review to the end before Publish.")
-      else Publish ({ A.entry = { t.target with day = day t }; replace = true; plan = None }, t.base_bytes)
+      else Publish ({ A.entry = { t.target with day = day t }; replace = true; plan = None }, t.base_revision)
   | _ -> Updated t
 
 let footer t =

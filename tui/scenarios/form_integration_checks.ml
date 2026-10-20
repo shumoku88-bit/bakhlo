@@ -103,7 +103,7 @@ let run ~width_of (home : C.state) =
               let cancelled = key ~dimensions ~width_of state `Escape in
               require (no_modal cancelled
                        && (same_workspace cancelled home)
-                       && cancelled.session.bytes = home.session.bytes)
+                       && cancelled.session.revision = home.session.revision)
                 "form-overlay-cancel-preserves-parent")
         [calendar_jump home long_value; calendar_search home long_value; { home with C.overlay = C.Modal_form long_form }])
     [80,24; 120,36; 48,14; 32,9];

@@ -4,7 +4,7 @@ type route =
 
 type env = {
   book : Bakhlo_sexp.Daily_book.t;
-  bytes : string;
+  revision : string;
   new_id : unit -> string;
   measure : string;
   calendar : Daily_calendar.t;
@@ -96,7 +96,7 @@ let no_reload _env t = (t, Stay)
 let env_for_checks ?(accounting_roles = []) ?(config = fun name -> Error ("undeclared " ^ name))
     ~book ~measure ~today () =
   {
-    book; bytes = ""; new_id = (let n = ref 0 in fun () -> incr n; Printf.sprintf "check-%d" !n);
+    book; revision = ""; new_id = (let n = ref 0 in fun () -> incr n; Printf.sprintf "check-%d" !n);
     measure; today; calendar = Result.get_ok (Daily_calendar.create today);
     accounting_roles = lazy accounting_roles;
     attention = Ok Attention_data.empty;

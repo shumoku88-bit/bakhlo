@@ -6,7 +6,7 @@ module A = Daily_actions
 let run ~width_of ~directory (home : C.state) =
   let fresh name =
     let path = directory ^ "/retained-record-" ^ name ^ ".sexp" in
-    F.write_new path home.session.bytes;
+    F.write_new path (F.read home.session.path);
     C.initial ~config_home:directory (F.load path)
   in
   let rename state label =
@@ -21,8 +21,8 @@ let run ~width_of ~directory (home : C.state) =
   let held = key ~width_of (prepare_record ~width_of base) `Escape in
   let renamed = rename held "Wallet renamed" in
   unchanged_record held renamed "other-publication-retains-record-exactly";
-  require (renamed.session.bytes <> base.session.bytes
-    && F.read base.session.path = renamed.session.bytes
+  require (renamed.session.revision <> base.session.revision
+    && F.read_revision base.session.path = renamed.session.revision
     && not renamed.blocked && renamed.pending = None)
     "other-publication-writes-and-refreshes-session";
   let resumed = key ~width_of renamed (`ASCII 'r') in
@@ -44,7 +44,7 @@ let run ~width_of ~directory (home : C.state) =
       "Competing rename" in
   let refused = key ~width_of review `Enter in
   unchanged_record review refused "record-conflict-retains-reviewed-draft";
-  require (refused.blocked && F.read base.session.path = competitor.session.bytes
+  require (refused.blocked && F.read_revision base.session.path = competitor.session.revision
     && B.entry_count (F.load base.session.path).book = B.entry_count base.session.book)
     "record-conflict-does-not-publish";
 
@@ -70,14 +70,14 @@ let run ~width_of ~directory (home : C.state) =
   let saved = rename held "Uncertain rename" in
   let uncertain = C.apply_commit_result held ~draft:held
       (A.Uncertain { message = "Synthetic lost acknowledgement";
-        evidence = A.Expected_file saved.session.bytes }) in
+        evidence = A.Expected_revision saved.session.revision }) in
   unchanged_record held uncertain "other-uncertain-retains-record";
   require (uncertain.blocked && uncertain.pending <> None)
     "other-uncertain-stops-writes";
   let confirmed = X.reload uncertain in
   unchanged_record held confirmed "other-confirmed-publication-retains-record";
   require (not confirmed.blocked && confirmed.pending = None
-    && confirmed.session.bytes = saved.session.bytes)
+    && confirmed.session.revision = saved.session.revision)
     "other-confirmed-publication-resumes-writes";
 
   let base = fresh "own-uncertain" in
@@ -85,7 +85,7 @@ let run ~width_of ~directory (home : C.state) =
   let saved = key ~width_of review `Enter in
   let uncertain = C.apply_commit_result ~record_publication:true review ~draft:review
       (A.Uncertain { message = "Synthetic lost acknowledgement";
-        evidence = A.Expected_file saved.session.bytes }) in
+        evidence = A.Expected_revision saved.session.revision }) in
   unchanged_record review uncertain "own-uncertain-retains-record";
   let hidden = key ~width_of uncertain `Escape in
   require (not hidden.record_visible && C.has_record_draft hidden)
@@ -93,7 +93,7 @@ let run ~width_of ~directory (home : C.state) =
   let confirmed = X.reload hidden in
   require (confirmed.record = None && not confirmed.record_visible
     && not confirmed.blocked && confirmed.pending = None
-    && confirmed.session.bytes = saved.session.bytes)
+    && confirmed.session.revision = saved.session.revision)
     "own-confirmed-publication-clears-draft-even-after-hide";
   List.iter (fun result ->
     let refused = C.apply_commit_result held ~draft:held result in

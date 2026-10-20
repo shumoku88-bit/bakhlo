@@ -2,8 +2,8 @@ module B = Bakhlo_sexp.Daily_book
 module A = Daily_draft
 type t
 type outcome = Updated of t | Closed | Publish of A.transaction * string
-val create : base_bytes:string -> B.entry -> t
-val base_bytes : t -> string
+val create : base_revision:string -> B.entry -> t
+val base_revision : t -> string
 val day : t -> string
 val is_preview : t -> bool
 val edit : t -> t

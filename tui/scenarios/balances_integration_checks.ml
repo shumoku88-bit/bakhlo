@@ -125,7 +125,7 @@ let balance_display_checks ~width_of ~directory () =
       "balance-print-enter-closes-without-save";
     let closed = key ~dimensions ~width_of printed_end `Escape in
     require (calendar_scroll closed = calendar_scroll at_end && not (Balances.modal closed.screens.balances)
-      && F.read path = home.session.bytes) "balance-print-close-preserves-parent-without-save")
+      && F.read_revision path = home.session.revision) "balance-print-close-preserves-parent-without-save")
     [(120,36); (80,24); (48,14); (32,9)];
   require (Balances.print_fits [String.make 32767 'x']
     && not (Balances.print_fits [String.make 32768 'x'])
@@ -135,7 +135,7 @@ let balance_display_checks ~width_of ~directory () =
   let oversized = get (B.observe_quantities book
     [("wallet", "jpy", Z.of_string (String.make 25000 '7'))]) in
   let refused = Balances.print_preview_form { (X.balances_env view) with book = oversized } view.screens.balances in
-  require (Ui_form.id refused = "balance_print_refused" && F.read path = home.session.bytes)
+  require (Ui_form.id refused = "balance_print_refused" && F.read_revision path = home.session.revision)
     "balance-print-refuses-real-oversized-quantity-without-save";
   let oversized_view = { view with session = { view.session with book = oversized } } in
   let refusal = key ~width_of oversized_view (`ASCII 'p') in

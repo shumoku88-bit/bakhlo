@@ -17,8 +17,8 @@ let recovery_message =
 
 let recovery_notice ~session = if session.F.torn then Some recovery_message else None
 
-(* The whole file as it would read had the save landed. *)
-type uncertain_evidence = Expected_file of string
+(* The file revision had the save landed. *)
+type uncertain_evidence = Expected_revision of string
 
 type commit_result =
   | Published of F.t
@@ -36,29 +36,25 @@ let publish_ops ~session ops : commit_result =
     | F.Conflict -> Conflict
     | F.Refused_input "torn-tail" -> Recovery_blocked
     | F.Refused_input why -> Refused why
-    | F.Uncertain { base_length; line } ->
-        Uncertain
-          {
-            message = tr "Save outcome is uncertain.";
-            evidence = Expected_file (String.sub session.F.bytes 0 base_length ^ line);
-          }
+    | F.Uncertain { expected } ->
+        Uncertain { message = tr "Save outcome is uncertain."; evidence = Expected_revision expected }
   with
   | Unix.Unix_error (err, fn, arg) ->
       Storage_failed (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
   | Sys_error msg -> Storage_failed msg
 
-let commit_transaction ~session ~base_bytes (tx : transaction) : commit_result =
-  if base_bytes <> session.F.bytes then Conflict_base_changed
+let commit_transaction ~session ~base_revision (tx : transaction) : commit_result =
+  if base_revision <> session.F.revision then Conflict_base_changed
   else
     publish_ops ~session [ L.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ]
 
-let commit_plan ~session ~base_bytes ~replace (plan : B.plan) : commit_result =
-  if base_bytes <> session.F.bytes then Conflict_base_changed
+let commit_plan ~session ~base_revision ~replace (plan : B.plan) : commit_result =
+  if base_revision <> session.F.revision then Conflict_base_changed
   else
     publish_ops ~session [ L.Put_plan { replace; plan } ]
 
-let commit_plan_batch ?(replace = true) ~session ~base_bytes (plans : B.plan list) : commit_result =
-  if base_bytes <> session.F.bytes then Conflict_base_changed
+let commit_plan_batch ?(replace = true) ~session ~base_revision (plans : B.plan list) : commit_result =
+  if base_revision <> session.F.revision then Conflict_base_changed
   else if plans = [] then Refused (tr "No Scheduled changes selected.")
   else
     let ids = List.map (fun (p : B.plan) -> p.id) plans in
@@ -67,13 +63,13 @@ let commit_plan_batch ?(replace = true) ~session ~base_bytes (plans : B.plan lis
     else
       publish_ops ~session (List.map (fun plan -> L.Put_plan { replace; plan }) plans)
 
-let commit_cancel_plan ~session ~base_bytes ~id ~day : commit_result =
-  if base_bytes <> session.F.bytes then Conflict_base_changed
+let commit_cancel_plan ~session ~base_revision ~id ~day : commit_result =
+  if base_revision <> session.F.revision then Conflict_base_changed
   else
     publish_ops ~session [ L.Cancel_plan { id; day } ]
 
-let commit_reverse_entry ~session ~base_bytes ~id ~day : commit_result =
-  if base_bytes <> session.F.bytes then Conflict_base_changed
+let commit_reverse_entry ~session ~base_revision ~id ~day : commit_result =
+  if base_revision <> session.F.revision then Conflict_base_changed
   else
     match B.find_entry session.book id with
     | None -> Refused (tr "The Actual occurrence is unavailable.")
@@ -107,18 +103,18 @@ let commit_reverse_entry ~session ~base_bytes ~id ~day : commit_result =
             }
           in
           publish_ops ~session [ L.Put_entry { replace = false; entry = reversal; plan = None } ]
-let commit_classify_merchant ~session ~base_bytes ~id ~disposition : commit_result =
-  if base_bytes <> session.F.bytes then Conflict_base_changed
+let commit_classify_merchant ~session ~base_revision ~id ~disposition : commit_result =
+  if base_revision <> session.F.revision then Conflict_base_changed
   else
     publish_ops ~session [ L.Classify_merchant { id; disposition } ]
 
 
-let commit_payload ~session ~base_bytes = function
-  | Entry_tx tx -> commit_transaction ~session ~base_bytes tx
-  | Plan_tx { plan; replace } -> commit_plan ~session ~base_bytes ~replace plan
+let commit_payload ~session ~base_revision = function
+  | Entry_tx tx -> commit_transaction ~session ~base_revision tx
+  | Plan_tx { plan; replace } -> commit_plan ~session ~base_revision ~replace plan
 
-let commit_set_locus_label ~session ~base_bytes ~id ~label ?help () : commit_result =
-  if base_bytes <> session.F.bytes then Conflict_base_changed
+let commit_set_locus_label ~session ~base_revision ~id ~label ?help () : commit_result =
+  if base_revision <> session.F.revision then Conflict_base_changed
   else
     publish_ops ~session [ L.Set_locus_label { id; label; help } ]
 let commit_add_locus ~session name : commit_result =
@@ -146,11 +142,11 @@ let reload ~session ~pending ~mode : reload_result =
     | Some notice -> Recovery_required (loaded, notice)
     | None -> (
         match pending with
-        | Some (Expected_file bytes) when loaded.bytes = bytes -> Pending_confirmed loaded
+        | Some (Expected_revision revision) when loaded.revision = revision -> Pending_confirmed loaded
         | Some _ -> Pending_unconfirmed loaded
         | None -> (
             match mode with
-            | (Edit _ | Plan_edit _) when loaded.bytes <> session.bytes -> Edit_base_changed loaded
+            | (Edit _ | Plan_edit _) when loaded.revision <> session.revision -> Edit_base_changed loaded
             | New | Pay _ | Edit _ | Plan_new | Plan_edit _ -> Reloaded loaded))
   with
   | F.Refused why -> Reload_failed why

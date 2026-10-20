@@ -23,19 +23,19 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
     | None -> Some { state with record_visible = false }
     | Some record -> (
         match
-          S.handle ~new_id:Daily_file.new_id ~book:state.session.book ~base_bytes:state.session.bytes ~blocked:state.blocked
+          S.handle ~new_id:Daily_file.new_id ~book:state.session.book ~base_revision:state.session.revision ~blocked:state.blocked
             ~dimensions:(record_dimensions ~dimensions ~width_of state)
             ~width_of record input
         with
         | S.Updated record -> Some { state with record = Some record }
         | S.Closed record -> Some { state with record = Some record; record_visible = false }
-        | S.Publish (payload, base_bytes, record) ->
+        | S.Publish (payload, base_revision, record) ->
             let draft = { state with record = Some record } in
             Some
               (if state.blocked then draft
                else
                  apply_commit_result ~record_publication:true state ~draft
-                   (A.commit_payload ~session:state.session ~base_bytes payload)))
+                   (A.commit_payload ~session:state.session ~base_revision payload)))
   else if Option.is_some (Screen_registry.modal state.screens) then
     match input with
     | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)

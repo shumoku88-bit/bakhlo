@@ -85,7 +85,7 @@ let open_editor ?locus ?measure ?amount (env : Screen.env) _t =
   let form = quantity_form ?default_locus:locus ?default_measure:measure ?current_amount:amount env in
   let form = if Option.is_some locus then Form.set_focused form (Form.find_field_index form "amount") else form in
   { editor = Some (Quantity form);
-    draft = Some { rows = []; base = env.bytes; pending = ("", env.measure, ""); uncertain = false } }
+    draft = Some { rows = []; base = env.revision; pending = ("", env.measure, ""); uncertain = false } }
 
 let edit (env : Screen.env) t (draft : draft) =
   let locus, measure, amount = draft.pending in
@@ -124,7 +124,7 @@ let submit_preview (env : Screen.env) (geometry : Screen.geometry) t submitted =
   match t.draft with
   | None -> (refused "Observation session expired. Cancel and reopen.", Screen.Stay)
   | Some draft ->
-      if env.blocked || draft.uncertain || draft.base <> env.bytes then
+      if env.blocked || draft.uncertain || draft.base <> env.revision then
         (refused "Observation stopped. Cancel and reload to inspect; do not retry this image.",
          Screen.Stop_writes None)
       else if not (Ui_overlay.form_fits ~width_of:geometry.width_of ~body:geometry.body submitted) then
@@ -186,7 +186,7 @@ let published _env _geometry outcome t =
 
 let reloaded (env : Screen.env) t =
   match t.editor, t.draft with
-  | Some _, Some draft when draft.uncertain || draft.base <> env.bytes ->
+  | Some _, Some draft when draft.uncertain || draft.base <> env.revision ->
       (t, Screen.Stop_writes
             (Some "Observation generation changed or save is uncertain. Cancel and inspect; do not retry."))
   | _ -> (t, Screen.Stay)

@@ -128,7 +128,7 @@ let cancellation_checks ~width_of ~directory home =
     "cancel-does-not-destroy-record-draft";
   let missing = { selected with session = { selected.session with path = directory ^ "/absent-cancel/book.sexp" } } in
   let failed = key ~width_of missing `Enter in
-  require (Cancel.day (editor failed) = "2026-10-16" && Cancel.base_bytes (editor failed) = before
+  require (Cancel.day (editor failed) = "2026-10-16" && Cancel.base_revision (editor failed) = F.revision_of_bytes before
            && F.read path = before) "cancel-storage-failure-keeps-date-target-and-base";
   let kept_failed = key ~width_of failed `Enter in
   require ((no_modal kept_failed) && F.read path = before) "cancel-failure-resets-choice-to-keep";
@@ -142,21 +142,21 @@ let cancellation_checks ~width_of ~directory home =
               = Daily_overlays.quantity ~book ~measure:"jpy" "wallet")
     "cancel-cold-retains-target-due-exact-effects-and-actual-balance";
   let stale = key ~width_of selected `Enter in
-  require (stale.blocked && Cancel.base_bytes (editor stale) = before && F.read path = cold.bytes)
+  require (stale.blocked && Cancel.base_revision (editor stale) = F.revision_of_bytes before && F.read_revision path = cold.revision)
     "cancel-stale-confirmation-stops";
   let reloaded = input selected (`Key (`ASCII 'r', [`Ctrl])) |> fun s -> key ~width_of s `Enter in
-  require (reloaded.blocked && Cancel.base_bytes (editor reloaded) = before && F.read path = cold.bytes)
+  require (reloaded.blocked && Cancel.base_revision (editor reloaded) = F.revision_of_bytes before && F.read_revision path = cold.revision)
     "cancel-reload-cannot-bless-captured-confirmation";
   let huge = Z.of_string (String.make 600 '9') in
   let long_plan = { plan with id = String.make 600 'x'; changes = ["wallet", Z.neg huge; "food", huge] } in
-  let long = Cancel.create ~book ~base_bytes:before ~day:"2026-10-16" long_plan in
+  let long = Cancel.create ~book ~base_revision:(F.revision_of_bytes before) ~day:"2026-10-16" long_plan in
   let update t key = match Cancel.handle ~blocked:false ~dimensions:(72,19) ~width_of t (`Key (key, [])) with
     | Cancel.Updated t -> t | _ -> raise (F.Refused "cancel-long-review-transition") in
   let long = update long `Enter |> fun s -> update s `Tab |> fun s -> update s `Enter in
   let ended = update long `End in
   (match Cancel.handle ~blocked:false ~dimensions:(72,19) ~width_of ended (`Key (`Enter, [])) with
    | Cancel.Publish (id, day, bytes) ->
-       require (id = long_plan.id && day = "2026-10-16" && bytes = before) "cancel-reviewed-fixed-intent"
+       require (id = long_plan.id && day = "2026-10-16" && bytes = F.revision_of_bytes before) "cancel-reviewed-fixed-intent"
    | _ -> raise (F.Refused "cancel-reviewed-end-refused"));
   (match Cancel.handle ~blocked:false ~dimensions:(32,9) ~width_of ended (`Key (`Enter, [])) with
    | Cancel.Updated _ -> () | _ -> raise (F.Refused "cancel-shrink-after-end-bypassed-gate"));
@@ -353,8 +353,8 @@ let continuation_checks ~width_of ~directory home =
     "continuation-cold-add-is-independent-and-preserves-exact-eur-quanta";
   let stale = input completed (`Key (`ASCII 'r', [`Ctrl]))
     |> fun s -> key ~width_of s `Tab |> fun s -> key ~width_of s `Enter in
-  require (stale.blocked && not stale.record_visible && F.read path = cold.bytes
-           && Cont.base_bytes (prompt stale) = completed.session.bytes)
+  require (stale.blocked && not stale.record_visible && F.read_revision path = cold.revision
+           && Cont.base_revision (prompt stale) = completed.session.revision)
     "continuation-reload-does-not-bless-stale-awareness";
   let none_path = directory ^ "/continuation-none.sexp" in
   let none = complete none_path source_book source in
@@ -364,7 +364,7 @@ let continuation_checks ~width_of ~directory home =
   let defer = key ~width_of none `Tab in
   let failed = key ~width_of { defer with attention_path = directory } `Enter in
   require (F.read none_path = none_bytes && not failed.record_visible
-           && Cont.base_bytes (prompt failed) = none.session.bytes)
+           && Cont.base_revision (prompt failed) = none.session.revision)
     "continuation-defer-failure-does-not-rollback-completion";
   let deferred = key ~width_of defer `Enter in
   let attention = get (Attention_file.load_file none.attention_path) in
@@ -382,14 +382,14 @@ let continuation_checks ~width_of ~directory home =
   let base = C.open_route (C.initial ~config_home:directory (F.load uncertain_path)) W.Scheduled
     |> fun s -> Interaction_check_fixture.with_plan_query s source.id in
   let pay = C.submit (Interaction_check_fixture.pay_selected base) in
-  let tx = match S.handle ~new_id:Daily_file.new_id ~book:source_book ~base_bytes:pay.session.bytes ~blocked:false
+  let tx = match S.handle ~new_id:Daily_file.new_id ~book:source_book ~base_revision:pay.session.revision ~blocked:false
     ~dimensions:(140,40) ~width_of (Option.get pay.record) (`Key (`Enter, [])) with
     | S.Publish (Daily_actions.Entry_tx tx, _, _) -> tx
     | _ -> raise (F.Refused "continuation-uncertain-intent") in
   let op = [ L.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ] in
   let unknown = C.apply_commit_result ~record_publication:true pay ~draft:pay
     (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
-      evidence = Daily_actions.Expected_file (expected_after base.session op) }) in
+      evidence = Daily_actions.Expected_revision (expected_after base.session op) }) in
   let unconfirmed = Shell_dispatch.reload unknown in
   require (unconfirmed.blocked && unconfirmed.record_visible && (no_modal unconfirmed))
     "continuation-unknown-completion-cannot-offer-add";
@@ -397,7 +397,7 @@ let continuation_checks ~width_of ~directory home =
   let confirmed = Shell_dispatch.reload unconfirmed in
   require (not confirmed.blocked && confirmed.pending = None && not confirmed.record_visible
            && B.entry_count confirmed.session.book = B.entry_count source_book + 1
-           && Cont.base_bytes (prompt confirmed) = confirmed.session.bytes)
+           && Cont.base_revision (prompt confirmed) = confirmed.session.revision)
     "continuation-only-confirmed-reload-opens-awareness-without-retry";
   print_endline "PASS: post-completion Keep/Review/Add/Done/Defer, later positive-Locus awareness, exact independent next plan, no inferred date, cold Attention, stale and unknown completion guards."
 

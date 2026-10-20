@@ -133,7 +133,7 @@ let submit_editing (env : Screen.env) submitted =
                       ~src_quanta_str:(B.format env.book src_measure src_quanta) ~dst_locus ~dst_measure
                       ~dst_quanta_str:(B.format env.book dst_measure dst_quanta)
                   in
-                  ({ editor = Some (Review { form; editing = submitted; base = env.bytes;
+                  ({ editor = Some (Review { form; editing = submitted; base = env.revision;
                                              transaction = { A.entry; replace = false; plan = None } }) },
                    Screen.Stay))
 

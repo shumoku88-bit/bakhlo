@@ -221,7 +221,7 @@ let actual_browsing_checks ~width_of ~directory home =
       | Some state -> state | None -> raise (F.Refused "selected-day-search-ran-quit") in
     require (swallowed.screens.day = searching.screens.day && swallowed.message = searching.message
              && swallowed.overlay = C.No_overlay && swallowed.record = searching.record
-             && swallowed.session.bytes = searching.session.bytes && F.read path = before)
+             && swallowed.session.revision = searching.session.revision && F.read path = before)
       "selected-day-search-swallows-global-quit-discard") ['q';'Q';'n';'N'];
   List.iter (fun c ->
     let reloaded = match H.handle ~width_of searching (`Key (`ASCII c, [`Ctrl])) with
@@ -259,7 +259,7 @@ let actual_browsing_checks ~width_of ~directory home =
     require (refused.blocked && refused.message <> "" && scroll refused = old_scroll
              && browser refused = old_browser && same_workspace refused detailed
              && refused.record = detailed.record && not refused.record_visible
-             && refused.session.bytes = bytes && F.read reload_path = corrupt)
+             && refused.session.revision = F.revision_of_bytes bytes && F.read reload_path = corrupt)
       "owner-failed-reload-preserves-viewport-selection-book-and-held-draft";
     Out_channel.with_open_bin reload_path (fun oc -> output_string oc bytes);
     let restored = match H.handle ~width_of refused (`Key (`ASCII 'r', [`Ctrl])) with
@@ -428,7 +428,7 @@ let reversal_checks ~width_of ~directory home =
   require (Rev.is_preview (editor ctrl_review)) "reversal-ctrl-enter-only-previews-date";
   let same_review state = Rev.is_preview (editor state)
     && Rev.day (editor state) = Rev.day (editor review)
-    && Rev.base_bytes (editor state) = Rev.base_bytes (editor review)
+    && Rev.base_revision (editor state) = Rev.base_revision (editor review)
     && R.overlay_screen ~dimensions:(80,24) ~width_of state
        = R.overlay_screen ~dimensions:(80,24) ~width_of review in
   require (same_review (input review (`Key (`Enter, [ `Ctrl ]))))
@@ -478,7 +478,7 @@ let reversal_checks ~width_of ~directory home =
   let failed = key ~width_of missing `Enter in
   require (is_reversal failed && not (Rev.is_preview (editor failed))
            && Rev.day (editor failed) = "2026-10-09"
-           && Rev.base_bytes (editor failed) = before && failed.message <> "")
+           && Rev.base_revision (editor failed) = F.revision_of_bytes before && failed.message <> "")
     "reversal-storage-refusal-keeps-date-target-and-base";
   unchanged "reversal-failed-storage-keeps-original";
   let large = Z.of_string (String.make 225 '9' ^ "03") in
@@ -489,7 +489,7 @@ let reversal_checks ~width_of ~directory home =
     effects = [eur_effect "wallet" (Z.neg large); eur_effect "food" large] } in
   F.write_new (directory ^ "/large-input.sexp")
     (B.to_string (get (B.put_entry home.session.book ~replace:false long_target ~plan:None)));
-  let long = Rev.create ~book ~base_bytes:before ~day:"2026-10-09" long_target in
+  let long = Rev.create ~book ~base_revision:(F.revision_of_bytes before) ~day:"2026-10-09" long_target in
   let long = match Rev.handle ~blocked:false ~dimensions:(80,24) ~width_of long (`Key (`Enter, [])) with
     | Rev.Updated t -> t | _ -> raise (F.Refused "reversal-long-date-preview") in
   let rows = Rev.screen ~dimensions:(160,100) ~width_of long in
@@ -504,7 +504,7 @@ let reversal_checks ~width_of ~directory home =
   let ended = match Rev.handle ~blocked:false ~dimensions:(80,24) ~width_of long (`Key (`End, [])) with
     | Rev.Updated t -> t | _ -> raise (F.Refused "reversal-end") in
   (match Rev.handle ~blocked:false ~dimensions:(80,24) ~width_of ended (`Key (`Enter, [])) with
-   | Rev.Publish (id, day, bytes) -> require (id = target.id && day = "2026-10-09" && bytes = before)
+   | Rev.Publish (id, day, bytes) -> require (id = target.id && day = "2026-10-09" && bytes = F.revision_of_bytes before)
        "reversal-fixed-intent" | _ -> raise (F.Refused "reversal-reviewed-end-not-publishable"));
   let compact = match Rev.handle ~blocked:false ~dimensions:(48,14) ~width_of ended (`Key (`End, [])) with
     | Rev.Updated t -> t | _ -> raise (F.Refused "reversal-compact-end") in
@@ -517,8 +517,8 @@ let reversal_checks ~width_of ~directory home =
   require (conflict.blocked && Rev.day (editor conflict) = "2026-10-09"
            && F.read path = changed_bytes) "reversal-disk-conflict-retains-draft";
   let reloaded = input review (`Key (`ASCII 'r', [ `Ctrl ])) in
-  require (reloaded.blocked && Rev.base_bytes (editor reloaded) = before
-           && reloaded.session.bytes = changed_bytes) "reversal-reload-cannot-bless-stale-preview";
+  require (reloaded.blocked && Rev.base_revision (editor reloaded) = F.revision_of_bytes before
+           && reloaded.session.revision = F.revision_of_bytes changed_bytes) "reversal-reload-cannot-bless-stale-preview";
   let stopped = key ~width_of reloaded `Enter in
   require (stopped.blocked && F.read path = changed_bytes) "reversal-stale-preview-cannot-publish";
   require (List.exists (fun (_, line) -> Base.String.is_substring line ~substring:"Writes stopped")
@@ -546,7 +546,7 @@ let reversal_checks ~width_of ~directory home =
   let draft = (with_session unknown_review (E.Reversal (Rev.with_publish_error (editor unknown_review)))) in
   let unknown () = C.apply_commit_result ~record_publication:false unknown_review ~draft
     (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
-      evidence = Daily_actions.Expected_file (expected_after unknown_base.session unknown_op) }) in
+      evidence = Daily_actions.Expected_revision (expected_after unknown_base.session unknown_op) }) in
   let unconfirmed = input (unknown ()) (`Key (`ASCII 'r', [ `Ctrl ])) in
   require (unconfirmed.blocked && unconfirmed.pending <> None
            && is_reversal unconfirmed && F.read unknown_path = before)
@@ -618,7 +618,7 @@ let date_correction_checks ~width_of ~directory home =
   let missing = { review with session = { review.session with path = directory ^ "/absent-date/book.sexp" } } in
   let failed = key ~width_of missing `Enter in
   require (Date.day (editor failed) = "2026-10-12"
-           && Date.base_bytes (editor failed) = before && F.read path = before)
+           && Date.base_revision (editor failed) = F.revision_of_bytes before && F.read path = before)
     "date-storage-failure-retains-input-and-base";
   let actual = C.open_route (C.initial ~config_home:directory (F.load path)) W.Actual in
   let actual_review = key ~width_of actual (`ASCII 'd') |> fun s -> date s "2026-10-12"
@@ -649,9 +649,9 @@ let date_correction_checks ~width_of ~directory home =
   require (stale.blocked && Date.day (editor stale) = "2026-10-12") "date-stale-preview-stops";
   let reloaded = input review (`Key (`ASCII 'r', [`Ctrl])) in
   let stopped = key ~width_of reloaded `Enter in
-  require (reloaded.blocked && stopped.blocked && Date.base_bytes (editor stopped) = before
-           && F.read path = cold.bytes) "date-reload-cannot-bless-stale-target";
-  let long = Date.create ~base_bytes:before { target with id = String.make 1200 'x' } in
+  require (reloaded.blocked && stopped.blocked && Date.base_revision (editor stopped) = F.revision_of_bytes before
+           && F.read_revision path = cold.revision) "date-reload-cannot-bless-stale-target";
+  let long = Date.create ~base_revision:(F.revision_of_bytes before) { target with id = String.make 1200 'x' } in
   let update t key = match Date.handle ~blocked:false ~dimensions:(72,16) ~width_of t (`Key (key, [])) with
     | Date.Updated t -> t | _ -> raise (F.Refused "date-long-target-not-reviewable") in
   let long = update long `Enter in
@@ -660,7 +660,7 @@ let date_correction_checks ~width_of ~directory home =
   (match Date.handle ~blocked:false ~dimensions:(72,16) ~width_of ended (`Key (`Enter, [])) with
    | Date.Publish (tx, _) -> require (tx.entry.id = String.make 1200 'x') "date-full-target-reviewed"
    | _ -> raise (F.Refused "date-reviewed-target-not-publishable"));
-  let unsafe = Date.create ~base_bytes:before { target with id = "target\027[31m\nnext" } in
+  let unsafe = Date.create ~base_revision:(F.revision_of_bytes before) { target with id = "target\027[31m\nnext" } in
   List.iter (fun editor ->
     require (List.for_all (fun (_, line) -> not (String.contains line '\027' || String.contains line '\n'))
       (Date.screen ~dimensions:(72,16) ~width_of editor))
@@ -797,7 +797,7 @@ let original_amount_integration_checks ~width_of ~directory () =
   let uncertain_attempt =
     C.apply_commit_result ~record_publication:true stale_preview ~draft:stale_preview
       (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
-                                 evidence = Daily_actions.Expected_file changed_disk_bytes })
+                                 evidence = Daily_actions.Expected_revision (F.revision_of_bytes changed_disk_bytes) })
   in
   require (uncertain_attempt.blocked && uncertain_attempt.record_visible && F.read path = changed_disk_bytes)
     "orig-uncertain-preserves-draft-and-disk";

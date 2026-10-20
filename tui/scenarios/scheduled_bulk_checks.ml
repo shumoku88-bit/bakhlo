@@ -37,6 +37,7 @@ let self_check ~width_of () =
   let base = B.to_string book in
   let path = directory ^ "/controller.sexp" in
   F.write_new path base;
+  let base_rev = F.revision_of_bytes base in
   let state = C.initial ~config_home:directory (F.load path)
     |> fun s -> C.open_route s Ui_workspace.Scheduled
     |> fun s -> Interaction_check_fixture.with_plan_query s source.id in
@@ -63,25 +64,25 @@ let self_check ~width_of () =
            && List.find (fun (plan:B.plan) -> plan.id = p3.id) (B.plans cold.book) = p3)
     "controller-publishes-whole-reviewed-batch-cold";
   let stale = Shell_dispatch.reload publishable |> fun state -> ckey state `Enter in
-  require (stale.blocked && F.read path = cold.bytes
-           && match Interaction_check_fixture.session_of stale with Some (Record_editors.Scheduled_bulk editor) -> S.base_bytes editor = base | _ -> false)
+  require (stale.blocked && F.read_revision path = cold.revision
+           && match Interaction_check_fixture.session_of stale with Some (Record_editors.Scheduled_bulk editor) -> S.base_revision editor = base_rev | _ -> false)
     "controller-reload-cannot-bless-stale-batch";
   let held = C.open_record state |> fun state -> ckey state (`ASCII 'x')
     |> fun state -> ckey state `Escape in
   let refused = Interaction_check_fixture.batch_plan_selected held in
   require (C.has_record_draft held && refused.record = held.record
-           && (Interaction_check_fixture.no_modal refused) && F.read path = cold.bytes)
+           && (Interaction_check_fixture.no_modal refused) && F.read_revision path = cold.revision)
     "controller-held-record-prevents-batch";
-  let s = get (S.create ~book ~base_bytes:base ~from_day:source.day source) in
+  let s = get (S.create ~book ~base_revision:base_rev ~from_day:source.day source) in
   let terminal_source = { source with paid_by = Some "closed" } in
-  require (Result.is_error (S.create ~book ~base_bytes:base ~from_day:source.day terminal_source))
+  require (Result.is_error (S.create ~book ~base_revision:base_rev ~from_day:source.day terminal_source))
     "terminal-source-refused";
-  require (S.base_bytes s = base) "captured-base";
+  require (S.base_revision s = base_rev) "captured-base";
   List.iter (fun dims ->
     let rows = S.screen ~dimensions:dims ~width_of s in
     require (List.length rows <= max 0 (snd dims)) "parameter-screen-height")
     [0,0; 1,1; 32,9; 48,14; 80,24; 120,36];
-  let empty = get (S.create ~book ~base_bytes:base ~from_day:source.day source) in
+  let empty = get (S.create ~book ~base_revision:base_rev ~from_day:source.day source) in
   let empty = List.fold_left (step ~width_of ~dims:(80,24)) empty (text "1.00") in
   let empty = step ~width_of ~dims:(80,24) empty (key `Tab) in
   let empty = List.fold_left (step ~width_of ~dims:(80,24)) empty
@@ -91,7 +92,7 @@ let self_check ~width_of () =
   let empty = step ~width_of ~dims:(80,24) empty (key (`ASCII 'j')) in
   let empty = step ~width_of ~dims:(80,24) empty (key (`ASCII ' ')) in
   ignore (step ~width_of ~dims:(80,24) empty (key `End));
-  let nav = get (S.create ~book ~base_bytes:base ~from_day:source.day source) in
+  let nav = get (S.create ~book ~base_revision:base_rev ~from_day:source.day source) in
   let nav = List.fold_left (step ~width_of ~dims:(80,24)) nav (text "40.00") in
   let nav = step ~width_of ~dims:(80,24) nav (key `Enter) in
   let nav = step ~width_of ~dims:(80,24) nav (key `End) in
@@ -118,11 +119,11 @@ let self_check ~width_of () =
   let s = step ~width_of ~dims:(80,24) s (key `End) in
   match S.handle ~blocked:false ~dimensions:(80,24) ~width_of s (key `Enter) with
   | S.Publish (plans, captured) ->
-      require (captured = base && List.length plans = 2) "selected-replacements";
+      require (captured = base_rev && List.length plans = 2) "selected-replacements";
       let path = directory ^ "/book.sexp" in
       F.write_new path base;
       let session = F.load path in
-      (match A.commit_plan_batch ~session ~base_bytes:captured plans with
+      (match A.commit_plan_batch ~session ~base_revision:captured plans with
        | A.Published _ -> ()
        | _ -> raise (F.Refused "batch-commit-failed"));
       let cold = F.load path in
@@ -135,13 +136,13 @@ let self_check ~width_of () =
       let jpy = List.find (fun (p:B.plan) -> p.id="bulk-jpy") (B.plans cold.book) in
       require (jpy = p3) "unselected-plan-preserved";
       let invalid = { (List.nth plans 1) with changes=["not-approved", Z.of_int (-4000); "food", Z.of_int 4000] } in
-      require (match A.commit_plan_batch ~session ~base_bytes:session.bytes [List.hd plans; invalid] with
+      require (match A.commit_plan_batch ~session ~base_revision:session.revision [List.hd plans; invalid] with
         | A.Refused _ -> true | _ -> false) "late-invalid-plan-refused";
       require (F.read path=unchanged) "late-invalid-no-partial-write";
-      let duplicate = A.commit_plan_batch ~session ~base_bytes:session.bytes [List.hd plans; List.hd plans] in
+      let duplicate = A.commit_plan_batch ~session ~base_revision:session.revision [List.hd plans; List.hd plans] in
       require (match duplicate with A.Refused _ -> true | _ -> false) "duplicate-refused";
       require (F.read path=unchanged) "duplicate-no-write";
-      require (match A.commit_plan_batch ~session ~base_bytes:"stale" plans with A.Conflict_base_changed -> true | _ -> false) "stale-refused";
-      require (match A.commit_plan_batch ~session ~base_bytes:session.bytes [] with A.Refused _ -> true | _ -> false) "empty-refused";
+      require (match A.commit_plan_batch ~session ~base_revision:"stale" plans with A.Conflict_base_changed -> true | _ -> false) "stale-refused";
+      require (match A.commit_plan_batch ~session ~base_revision:session.revision [] with A.Refused _ -> true | _ -> false) "empty-refused";
       print_endline "PASS: Scheduled bulk amount editing preserves metadata, exact decimal quanta, candidate/selection boundaries, Back default, terminal/stale refusal and atomic cold reload."
   | _ -> raise (F.Refused "publish-choice-navigation")

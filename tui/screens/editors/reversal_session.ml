@@ -11,7 +11,7 @@ let tr = Ui_text.tr
 type t = {
   book : B.t;
   target : B.entry;
-  base_bytes : string;
+  base_revision : string;
   form : Form.t;
   preview : bool;
   scroll : int;
@@ -20,17 +20,17 @@ type t = {
 
 type outcome = Updated of t | Closed | Publish of string * string * string
 
-let create ~book ~base_bytes ~day (target : B.entry) =
+let create ~book ~base_revision ~day (target : B.entry) =
   let form = Form.create ~id:"reverse_entry" ~payload:target.id ~title:"Actual / Reverse / Date"
     ~summary:["Target: " ^ target.id; "Target date: " ^ target.day]
     ~fields:[
       Form.text_field ~id:"date" ~label:"Reversal on" ~value:day ();
       Form.action_buttons ~confirm:"Preview reversal" ~cancel:"Keep Actual" ();
     ] () in
-  { book; target; base_bytes; form; preview = false; scroll = 0; action = 0 }
+  { book; target; base_revision; form; preview = false; scroll = 0; action = 0 }
 
 let is_preview t = t.preview
-let base_bytes t = t.base_bytes
+let base_revision t = t.base_revision
 let day t = Option.value ~default:"" (Form.get_text t.form "date")
 let edit t = { t with preview = false; form = Form.set_focused (Form.set_notice t.form "") 0 }
 let with_publish_error = edit
@@ -105,7 +105,7 @@ let handle ~blocked ~dimensions:((width, height) as dimensions) ~width_of t inpu
         Updated (with_notice t "Enlarge terminal to review.")
       else if view.start < view.last then
         Updated (with_notice t "Review to the end before Publish.")
-      else Publish (t.target.id, day t, t.base_bytes)
+      else Publish (t.target.id, day t, t.base_revision)
   | _ -> Updated t
 
 let footer t =

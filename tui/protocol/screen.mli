@@ -22,7 +22,7 @@ type route =
 
 type env = {
   book : Bakhlo_sexp.Daily_book.t;
-  bytes : string;  (** Household file bytes the book was read from: a publication base. *)
+  revision : string;  (** Revision of the household file the book was read from: a publication base. *)
   new_id : unit -> string;  (** Fresh identity for a new entry or plan. *)
   measure : string;  (** Shell-selected Measure. *)
   calendar : Daily_calendar.t;  (** Shell focus day and zoom, shared by every route. *)

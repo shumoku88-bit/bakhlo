@@ -40,7 +40,7 @@ let cadence_of_index = function
 type t = {
   book : B.t;
   source : B.plan;
-  base_bytes : string;
+  base_revision : string;
   form : Form.t;
   generated : B.plan list option;
   through_day : string;
@@ -66,7 +66,7 @@ let default_through day =
   | Error _ -> day
 
 (* A monitored cadence preselects the choice; other month counts have no form. *)
-let create ?cadence_months ~book ~base_bytes ~source () =
+let create ?cadence_months ~book ~base_revision ~source () =
   let preset = match cadence_months with
     | None -> Some 0
     | Some 1 -> Some 0 | Some 2 -> Some 1 | Some 3 -> Some 2 | Some 6 -> Some 3 | Some 12 -> Some 4
@@ -96,7 +96,7 @@ let create ?cadence_months ~book ~base_bytes ~source () =
       {
         book;
         source;
-        base_bytes;
+        base_revision;
         form;
         generated = None;
         through_day = through_val;
@@ -106,7 +106,7 @@ let create ?cadence_months ~book ~base_bytes ~source () =
         notice = "";
       }
 
-let base_bytes t = t.base_bytes
+let base_revision t = t.base_revision
 
 let with_publish_error t msg = { t with notice = msg; choice = 0 }
 
@@ -225,7 +225,7 @@ let handle ~new_id ~blocked ~dimensions:((width, height) as dims) ~width_of t in
             updated { t with notice = "Review to the end before publishing." }
           else
             (match t.generated with
-            | Some plans -> Publish (plans, t.base_bytes)
+            | Some plans -> Publish (plans, t.base_revision)
             | None -> updated t)
       | _ -> updated t)
   | _ -> (

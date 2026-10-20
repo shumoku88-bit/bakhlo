@@ -2,14 +2,14 @@
 type t
 
 type outcome = Updated of t | Closed | Publish of string * string * string
-(** [Publish (target_id, reversal_day, base_bytes)] is an intent, not a saved entry. *)
+(** [Publish (target_id, reversal_day, base_revision)] is an intent, not a saved entry. *)
 
 val create :
-  book:Bakhlo_sexp.Daily_book.t -> base_bytes:string -> day:string ->
+  book:Bakhlo_sexp.Daily_book.t -> base_revision:string -> day:string ->
   Bakhlo_sexp.Daily_book.entry -> t
 
 val is_preview : t -> bool
-val base_bytes : t -> string
+val base_revision : t -> string
 val day : t -> string
 val with_publish_error : t -> t
 (** Return to date input without replacing the captured target or publication base. *)

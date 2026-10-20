@@ -748,8 +748,9 @@ Stable parent namespaces and cooperative writers are assumptions. Process-kill
 tests do not certify power loss, media failure, hostile/noncooperative writers
 or a fresh-host recovery environment. Backup retention, separate-media copies,
 and long-term history (Git or similar) are operational choices outside the store.
-A save still copies the whole file text in memory (36 ms at 109,500 entries);
-replacing it with a revision token is the next storage slice. UI completion is not durable-store qualification or cutover approval.
+Sessions keep a revision (size + final 4 KiB digest), not the file text; a
+save costs about 0.6 ms at any size. A revision distinguishes successive saves;
+writes are additionally guarded by the inode/mtime/tail check. UI completion is not durable-store qualification or cutover approval.
 
 ## Verify and continue
 

@@ -10,7 +10,7 @@ let tr = Ui_text.tr
 
 type original_editor = { measure : string; amount : string; focus : int }
 type row = { key : D.Identifier.Effect_key.t option; locus : string; amount : string }
-type review = { payload : A.payload; base_bytes : string; action : int; scroll : int }
+type review = { payload : A.payload; base_revision : string; action : int; scroll : int }
 type t = {
   mode : A.mode;
   day : string;
@@ -267,13 +267,13 @@ let draft t =
       let amount=if signed then String.sub row.amount 1 (String.length row.amount-1) else row.amount in
       {R.key=row.key; locus=row.locus; negative; amount}) t.rows }
 
-let preview ~new_id ~book ~base_bytes ~blocked t =
+let preview ~new_id ~book ~base_revision ~blocked t =
   if blocked then with_notice t (tr "Writes are stopped; the draft is retained.")
   else if is_plan t then
     match A.build_plan ~new_id ~book ~mode:t.mode ~day:t.day ~draft:(draft t) with
     | Error error -> with_notice t error.A.message
     | Ok (plan, replace) ->
-        {t with review=Some {payload=A.Plan_tx {plan; replace}; base_bytes; action=0; scroll=0}; notice=""; paste=None}
+        {t with review=Some {payload=A.Plan_tx {plan; replace}; base_revision; action=0; scroll=0}; notice=""; paste=None}
   else
     match t.original_amount with
     | Some (m, _) when not (List.mem_assoc m (B.measures book)) ->
@@ -282,7 +282,7 @@ let preview ~new_id ~book ~base_bytes ~blocked t =
         (match A.build_transaction ~new_id ~book ~mode:t.mode (A.Multiple {day=t.day; memo=t.description; draft=draft t; original_amount=t.original_amount}) with
         | Error error -> with_notice t error.A.message
         | Ok transaction ->
-            {t with review=Some {payload=A.Entry_tx transaction; base_bytes; action=0; scroll=0}; notice=""; paste=None})
+            {t with review=Some {payload=A.Entry_tx transaction; base_revision; action=0; scroll=0}; notice=""; paste=None})
 
 let insert t text =
   let updated, cursor=Fm.insert_at ~value:(value t) ~cursor:t.cursor text in
@@ -377,7 +377,7 @@ let parse_original_quanta ~scale amount_str =
           if Z.sign q <= 0 then Error `Non_positive else Ok q
     | _ -> Error `Invalid
 
-let handle ~new_id ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_input.input) =
+let handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t (input:Ui_input.input) =
   let update t=Updated t in
   match input,t.paste with
   | `Paste `Start, _ -> update {t with paste=Some ("",false)}
@@ -427,7 +427,7 @@ let handle ~new_id ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_
                   update (with_notice t (tr "Not enough room for the whole preview; enlarge the terminal."))
                 else if scroll<last then
                   update (with_notice t (tr "Review to the end before Publish."))
-                else Publish (review.payload,review.base_bytes,t)
+                else Publish (review.payload,review.base_revision,t)
           | _ -> update t)
       | None when blocked -> update t
       | None ->
@@ -507,11 +507,11 @@ let handle ~new_id ~book ~base_bytes ~blocked ~dimensions ~width_of t (input:Ui_
               | `ASCII 'n',[`Ctrl] -> update (add_row t)
               | `ASCII 'd',[`Ctrl] -> update (drop_row t)
               | `ASCII 'u',[`Ctrl] -> update (fill_unresolved_remainder ~book t)
-              | `ASCII 's',[`Ctrl] -> update (preview ~new_id ~book ~base_bytes ~blocked t)
+              | `ASCII 's',[`Ctrl] -> update (preview ~new_id ~book ~base_revision ~blocked t)
           | `Enter,[] ->
               if is_locus t then update (accept ~book t)
               else if t.focus=action_start t || t.focus=action_start t-1 then
-                update (preview ~new_id ~book ~base_bytes ~blocked t)
+                update (preview ~new_id ~book ~base_revision ~blocked t)
               else if t.focus=action_start t+1 then update (add_row t)
               else if t.focus=action_start t+2 then drop_row t |> update
               else if t.focus=action_start t+3 then Closed t

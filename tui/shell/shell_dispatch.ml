@@ -53,7 +53,7 @@ let screen_env ~config_files state : Screen.env =
   let captured = List.map (fun name -> (name, read_pace_config state name)) config_files in
   {
     book = state.session.book;
-    bytes = state.session.bytes;
+    revision = state.session.revision;
     new_id = F.new_id;
     measure = state.workspace.measure;
     calendar = state.workspace.calendar;

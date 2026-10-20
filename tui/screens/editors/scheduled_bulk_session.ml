@@ -7,7 +7,7 @@ module A = Daily_draft
 type t = {
   book : B.t;
   source : B.plan;
-  base_bytes : string;
+  base_revision : string;
   form : Form.t;
   candidates : B.plan list;
   selected : string list;
@@ -53,7 +53,7 @@ let matching_candidates book (source : B.plan) =
              let by_date = String.compare left.day right.day in
              if by_date = 0 then String.compare left.id right.id else by_date))
 
-let create ~book ~base_bytes ~from_day (source : B.plan) =
+let create ~book ~base_revision ~from_day (source : B.plan) =
   match matching_candidates book source with
   | Error message -> Error message
   | Ok candidates ->
@@ -68,11 +68,11 @@ let create ~book ~base_bytes ~from_day (source : B.plan) =
               Form.text_field ~id:"through" ~label:"Through (optional)" () ] ()
       in
       Ok
-        { book; source; base_bytes; form; candidates; selected = [];
+        { book; source; base_revision; form; candidates; selected = [];
           selecting = false; focus = 0; preview_plans = None; choice = 0;
           scroll = 0; notice = "" }
 
-let base_bytes session = session.base_bytes
+let base_revision session = session.base_revision
 let with_publish_error session message = { session with notice = message; choice = 0 }
 let dimensions (width, height) = max 0 width, max 0 height
 let text session field = Option.value ~default:"" (Form.get_text session.form field)
@@ -254,7 +254,7 @@ let handle ~blocked ~dimensions:((width, height) as dimensions) ~width_of sessio
             updated { session with notice = "Review to the end before publishing." }
           else
             match session.preview_plans with
-            | Some plans -> Publish (plans, session.base_bytes)
+            | Some plans -> Publish (plans, session.base_revision)
             | None -> updated session)
       | _ -> updated session)
   | _ when session.selecting ->

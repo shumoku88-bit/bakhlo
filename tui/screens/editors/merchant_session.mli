@@ -10,10 +10,10 @@ type outcome =
   | Updated of t
   | Closed
   | Publish of string * M.disposition * string
-(** [Publish (target_id, disposition, base_bytes)] is an intent, not a saved entry. *)
+(** [Publish (target_id, disposition, base_revision)] is an intent, not a saved entry. *)
 
-val create : base_bytes:string -> B.entry -> t
-val base_bytes : t -> string
+val create : base_revision:string -> B.entry -> t
+val base_revision : t -> string
 val target : t -> string
 val choice : t -> choice
 val party_input : t -> string

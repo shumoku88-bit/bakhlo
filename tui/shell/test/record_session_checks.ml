@@ -23,9 +23,9 @@ let fixture =
 let self_check ~width_of () =
   let book=get (B.of_string fixture) in
   let before=B.to_string book in
-  let dimensions=100,30 and base_bytes="synthetic-generation" in
+  let dimensions=100,30 and base_revision="synthetic-generation" in
   let handle ?(book=book) ?(blocked=false) ?(dimensions=dimensions) state input =
-    S.handle ~new_id:Daily_file.new_id ~book ~base_bytes ~blocked ~dimensions ~width_of state input in
+    S.handle ~new_id:Daily_file.new_id ~book ~base_revision ~blocked ~dimensions ~width_of state input in
   let update ?book ?blocked ?dimensions state input =
     match handle ?book ?blocked ?dimensions state input with
     | S.Updated next -> next
@@ -66,7 +66,7 @@ let self_check ~width_of () =
    | _ -> failwith "escape-cancels-without-publishing");
   let tx=match handle review (`Key (`Enter,[])) with
     | S.Publish (A.Entry_tx tx,base,retained) ->
-        require (base=base_bytes && S.has_draft retained) "publication-carries-generation-and-draft"; tx
+        require (base=base_revision && S.has_draft retained) "publication-carries-generation-and-draft"; tx
     | _ -> failwith "selected-publish-enter" in
   require (tx.entry.memo=Some "q 食事") "publication-preserves-description";
   require (List.map A.quanta tx.entry.effects=[Z.of_int (-100);Z.of_int 100]) "signed-conservation";
@@ -120,14 +120,14 @@ let self_check ~width_of () =
       |> fun t -> key t `Home |> fun t -> text t "+" in
   require (contains sign_locked "keeps the posting sign") "edit-sign-locked-to-retained-effects";
   require (contains (ctrl edit 'n') "keeps the posting structure") "edit-row-structure-locked";
-  let edit_review=S.preview ~new_id:Daily_file.new_id ~book:edit_book ~base_bytes ~blocked:false edit in
+  let edit_review=S.preview ~new_id:Daily_file.new_id ~book:edit_book ~base_revision ~blocked:false edit in
   (match handle ~book:edit_book edit_review (`Key (`Enter,[])) with
    | S.Publish (A.Entry_tx next,_,_) ->
        require (next.entry.id=tx.entry.id && next.entry.effects=tx.entry.effects && next.replace) "edit-preserves-identity-structure"
    | _ -> failwith "edit-preview-publish");
   let plan=List.hd (B.plans book) in
   let completion=get (S.of_plan ~day:"2026-10-11" ~book plan) in
-  let completion=S.preview ~new_id:Daily_file.new_id ~book ~base_bytes ~blocked:false completion in
+  let completion=S.preview ~new_id:Daily_file.new_id ~book ~base_revision ~blocked:false completion in
   (match handle completion (`Key (`Enter,[])) with
    | S.Publish (A.Entry_tx next,_,_) -> require (next.plan=Some plan.id && next.entry.day="2026-10-11") "scheduled-link-and-actual-day"
    | _ -> failwith "scheduled-completion-preview");
@@ -227,7 +227,7 @@ let self_check ~width_of () =
         ~quantity:(D.Effect.quantity posting)) tx.entry.effects} in
   let keyed_book=get (B.put_entry book ~replace:false keyed ~plan:(Some plan.id)) in
   let keyed_editor=get (S.of_edit ~book:keyed_book keyed) in
-  let keyed_review=S.preview ~new_id:Daily_file.new_id ~book:keyed_book ~base_bytes ~blocked:false keyed_editor in
+  let keyed_review=S.preview ~new_id:Daily_file.new_id ~book:keyed_book ~base_revision ~blocked:false keyed_editor in
   (match handle ~book:keyed_book keyed_review (`Key (`Enter,[])) with
    | S.Publish (A.Entry_tx next,_,_) ->
        require (next.entry.id=keyed.id && next.entry.effects=keyed.effects) "edit-preserves-posting-keys";
@@ -273,7 +273,7 @@ let self_check ~width_of () =
   let s_book = get (B.of_string suspense_fixture) in
   let s_create () = S.create ~book:s_book ~day:"2026-10-11" ~measure:"jpy" () in
   let s_handle ?(blocked=false) ?(dimensions=dimensions) state input =
-    S.handle ~new_id:Daily_file.new_id ~book:s_book ~base_bytes ~blocked ~dimensions ~width_of state input in
+    S.handle ~new_id:Daily_file.new_id ~book:s_book ~base_revision ~blocked ~dimensions ~width_of state input in
   let s_update ?blocked ?dimensions state input =
     match s_handle ?blocked ?dimensions state input with
     | S.Updated next -> next | _ -> failwith "suspense-test-unexpected" in
@@ -325,7 +325,7 @@ let self_check ~width_of () =
   require (contains plan_review "Scheduled / Preview") "plan-preview-title";
   (match handle plan_review (`Key (`Enter, [])) with
    | S.Publish (A.Plan_tx { plan = new_p; replace }, base, retained) ->
-       require (base = base_bytes && S.has_draft retained) "plan-publish-carries-generation";
+       require (base = base_revision && S.has_draft retained) "plan-publish-carries-generation";
        require (not replace) "new-plan-replace-is-false";
        require (new_p.day = "2026-10-15") "new-plan-due-day";
        require (new_p.measure = "jpy") "new-plan-measure";
@@ -335,7 +335,7 @@ let self_check ~width_of () =
        let plan_editor = get (S.of_edit_plan ~book:plan_book new_p) in
        require (contains plan_editor "Scheduled / Edit") "plan-edit-title";
        require (S.border_intent plan_editor = `Change) "plan-edit-border-intent";
-       let plan_edit_review = S.preview ~new_id:Daily_file.new_id ~book:plan_book ~base_bytes ~blocked:false plan_editor in
+       let plan_edit_review = S.preview ~new_id:Daily_file.new_id ~book:plan_book ~base_revision ~blocked:false plan_editor in
        (match handle ~book:plan_book plan_edit_review (`Key (`Enter, [])) with
         | S.Publish (A.Plan_tx { plan = edited_p; replace = edit_replace }, _, _) ->
             require edit_replace "edited-plan-replace-is-true";

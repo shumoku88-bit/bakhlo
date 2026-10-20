@@ -37,7 +37,7 @@ let%expect_test "each save appends one record and a cold load yields the saved b
   done;
   let cold = F.load !s.path in
   Stdio.printf "records %d; bytes match file: %b; same book: %b; wallet %s\n" cold.records
-    (String.equal (F.read !s.path) !s.bytes)
+    (String.equal (F.revision_of_bytes (F.read !s.path)) !s.revision)
     (String.equal (book_text cold) (book_text !s))
     (O.observable cold.book |> String.split_lines |> List.find_exn ~f:(String.is_prefix ~prefix:"wallet/jpy"));
   [%expect {| records 5; bytes match file: true; same book: true; wallet wallet/jpy: 49500 (observation) |}]
@@ -50,7 +50,7 @@ let%expect_test "a refused operation or a changed file writes nothing" =
   Stdio.printf "unchanged: %b\n" (String.equal (F.read s.path) before);
   let other = written (F.append (F.load s.path) [ put 7 ]) in
   Stdio.printf "stale session: %s; other writer kept: %b\n" (describe (F.append s [ put 8 ]))
-    (String.equal (F.read s.path) other.bytes);
+    (String.equal (F.revision_of_bytes (F.read s.path)) other.revision);
   [%expect {|
     duplicate: refused duplicate-entry
     batch with a refused op: refused duplicate-entry
@@ -62,10 +62,10 @@ let%expect_test "an interruption after the line is sent is uncertain and confirm
   List.iter [ F.Appended; F.Synced ] ~f:(fun step ->
       let s = start () in
       match F.append ~checkpoint:(fun r -> if Poly.equal r step then raise (Sys_error "fault")) s [ put 1 ] with
-      | F.Uncertain { base_length; line } ->
+      | F.Uncertain { expected } ->
           let cold = F.load s.path in
           Stdio.printf "uncertain; confirmed on reload: %b; not torn: %b\n"
-            (F.confirms ~base_length ~line cold) (not cold.torn)
+            (F.confirms ~expected cold) (not cold.torn)
       | other -> Stdio.printf "%s\n" (describe other));
   [%expect {|
     uncertain; confirmed on reload: true; not torn: true
@@ -98,7 +98,7 @@ let%expect_test "compaction keeps the book and the previous file, even when inte
   for n = 1 to 3 do
     s := written (F.append !s [ put n ])
   done;
-  let old_bytes = !s.bytes in
+  let old_bytes = F.read !s.path in
   (match F.compact !s with
   | F.Compacted c ->
       Stdio.printf "records %d; same book: %b; prev is old file: %b\n" c.records

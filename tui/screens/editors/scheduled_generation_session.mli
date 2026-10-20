@@ -9,9 +9,9 @@ type outcome =
   | Publish of B.plan list * string
 
 val create :
-  ?cadence_months:int -> book:B.t -> base_bytes:string -> source:B.plan -> unit -> (t, string) result
+  ?cadence_months:int -> book:B.t -> base_revision:string -> source:B.plan -> unit -> (t, string) result
 (** [cadence_months] (1, 2, 3, 6 or 12) preselects a monitored cadence; others refuse. *)
-val base_bytes : t -> string
+val base_revision : t -> string
 val with_publish_error : t -> string -> t
 val dimensions : int * int -> int * int
 val handle :

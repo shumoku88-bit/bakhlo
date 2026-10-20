@@ -38,13 +38,13 @@ let active t = t.active
 let open_session session _t = { active = Some session; defer = None }
 
 let base = function
-  | Reversal e -> Some (Rev.base_bytes e)
-  | Date_correction e -> Some (Date.base_bytes e)
-  | Event_merchant e -> Some (Merchant.base_bytes e)
-  | Scheduled_cancel e -> Some (Cancel.base_bytes e)
-  | Scheduled_continuation e -> Some (Cont.base_bytes e)
-  | Scheduled_bulk e -> Some (Bulk.base_bytes e)
-  | Scheduled_generate e -> Some (Gen.base_bytes e)
+  | Reversal e -> Some (Rev.base_revision e)
+  | Date_correction e -> Some (Date.base_revision e)
+  | Event_merchant e -> Some (Merchant.base_revision e)
+  | Scheduled_cancel e -> Some (Cancel.base_revision e)
+  | Scheduled_continuation e -> Some (Cont.base_revision e)
+  | Scheduled_bulk e -> Some (Bulk.base_revision e)
+  | Scheduled_generate e -> Some (Gen.base_revision e)
   | Scheduled_create _ -> None
 
 let stay t = (t, Screen.Stay)
@@ -163,7 +163,7 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
               B.id = env.new_id (); day = draft.Sch.scheduled_on; measure = draft.Sch.measure;
               changes = draft.Sch.changes; paid_by = None; cancelled_on = None;
             } in
-            (failed, Screen.Publish (Create_plan { plan; base = env.bytes })))
+            (failed, Screen.Publish (Create_plan { plan; base = env.revision })))
 
 let published _env _geometry outcome t =
   match outcome with
@@ -196,7 +196,7 @@ let stale_message = function
 
 let reloaded (env : Screen.env) t =
   match t.active with
-  | Some session when (match base session with Some b -> b <> env.bytes | None -> false) ->
+  | Some session when (match base session with Some b -> b <> env.revision | None -> false) ->
       (t, Screen.Stop_writes (Some (stale_message session)))
   | _ -> stay t
 

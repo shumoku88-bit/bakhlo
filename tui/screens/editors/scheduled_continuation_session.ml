@@ -6,7 +6,7 @@ module Panel = Ui_panel
 type t = {
   book : B.t;
   source : B.plan;
-  base_bytes : string;
+  base_revision : string;
   candidate : B.plan option;
   additional : int;
   choice : int;
@@ -21,17 +21,17 @@ let positive_loci (plan : B.plan) =
   plan.changes |> List.filter_map (fun (locus, amount) -> if Z.sign amount > 0 then Some locus else None)
   |> List.sort_uniq String.compare
 
-let create ~book ~base_bytes (source : B.plan) =
+let create ~book ~base_revision (source : B.plan) =
   let loci = positive_loci source in
   let candidates = B.open_plans book
     |> List.filter (fun (p : B.plan) -> source.day < p.day && loci <> [] && positive_loci p = loci)
     |> List.sort (fun (a : B.plan) b -> let date = String.compare a.day b.day in
       if date = 0 then String.compare a.id b.id else date) in
-  { book; source; base_bytes; candidate = List.nth_opt candidates 0;
+  { book; source; base_revision; candidate = List.nth_opt candidates 0;
     additional = max 0 (List.length candidates - 1); choice = 0;
     reviewing = false; scroll = 0; notice = "" }
 
-let base_bytes t = t.base_bytes
+let base_revision t = t.base_revision
 let with_notice t notice = { t with notice; choice = 0; reviewing = false; scroll = 0 }
 
 let dimensions (width, height) =

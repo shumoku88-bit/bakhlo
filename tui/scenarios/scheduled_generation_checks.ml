@@ -37,6 +37,7 @@ let self_check ~width_of () =
   let base = B.to_string book in
   let path = directory ^ "/controller.sexp" in
   F.write_new path base;
+  let base_rev = F.revision_of_bytes base in
 
   (* 1. Controller integration *)
   let state = C.initial ~config_home:directory (F.load path)
@@ -58,12 +59,12 @@ let self_check ~width_of () =
 
   (* 2. Terminal source refusal *)
   let closed_source = { source with paid_by = Some "entry-1" } in
-  require (Result.is_error (S.create ~book ~base_bytes:base ~source:closed_source ()))
+  require (Result.is_error (S.create ~book ~base_revision:base_rev ~source:closed_source ()))
     "terminal-source-rejected-by-create";
 
   (* 3. Session creation & parameter boundaries *)
-  let s = get (S.create ~book ~base_bytes:base ~source ()) in
-  require (S.base_bytes s = base) "captured-base-bytes";
+  let s = get (S.create ~book ~base_revision:base_rev ~source ()) in
+  require (S.base_revision s = base_rev) "captured-base-bytes";
 
   (* Screen resize bounds at various dimensions *)
   List.iter (fun dims ->
@@ -132,7 +133,7 @@ let self_check ~width_of () =
   let ended = step ~width_of ~dims:(80, 16) to_publish (key `End) in
   (match S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(80, 16) ~width_of ended (key `Enter) with
    | S.Publish (plans, captured) ->
-       require (captured = base) "captured-base-matches";
+       require (captured = base_rev) "captured-base-matches";
        (* Monthly from 2026-10-15 through 2028-02-15 exclusive: 15 occurrences *)
        require (List.length plans = 15) "generated-occurrence-count";
        require ((List.hd plans).day = "2026-11-15" && (List.nth plans 14).day = "2028-01-15")
@@ -144,7 +145,7 @@ let self_check ~width_of () =
        let book_path = directory ^ "/book.sexp" in
        F.write_new book_path base;
        let sess = F.load book_path in
-       (match A.commit_plan_batch ~replace:false ~session:sess ~base_bytes:captured plans with
+       (match A.commit_plan_batch ~replace:false ~session:sess ~base_revision:captured plans with
         | A.Published _ -> ()
         | _ -> raise (F.Refused "atomic-commit-failed"));
 
@@ -173,15 +174,15 @@ let self_check ~width_of () =
 
   (* 7. Stale base protection on reload *)
   let stale = Shell_dispatch.reload controller_run |> fun s -> ckey s `Enter in
-  require (stale.blocked && F.read path = cold_controller.bytes
-           && match Interaction_check_fixture.session_of stale with Some (Record_editors.Scheduled_generate editor) -> S.base_bytes editor = base | _ -> false)
+  require (stale.blocked && F.read_revision path = cold_controller.revision
+           && match Interaction_check_fixture.session_of stale with Some (Record_editors.Scheduled_generate editor) -> S.base_revision editor = base_rev | _ -> false)
     "controller-reload-cannot-bless-stale-generation";
 
   (* 8. Held record draft prevents extend *)
   let held = C.open_record state |> fun s -> ckey s (`ASCII 'x') |> fun s -> ckey s `Escape in
   let refused = Interaction_check_fixture.extend_plan_selected held in
   require (C.has_record_draft held && refused.record = held.record
-           && (Interaction_check_fixture.no_modal refused) && F.read path = cold_controller.bytes)
+           && (Interaction_check_fixture.no_modal refused) && F.read_revision path = cold_controller.revision)
     "controller-held-record-prevents-extend";
 
   print_endline "PASS: Scheduled generation proposes explicit dates, preserves exact quanta, validates boundaries, enforces Cancel default, end/tiny gates, stale reload refusal and atomic cold commit."

@@ -280,7 +280,7 @@ let run ~width_of ~directory ~path (home : C.state) =
            && (same_workspace discarded cancelled) && F.read path = before)
     "discard-explicit-choice-clears-only-draft-without-writing";
   require (request_discard discarded == discarded) "discard-without-draft-is-noop";
-  let uncertain = { cancelled with pending = Some (Daily_actions.Expected_file before);
+  let uncertain = { cancelled with pending = Some (Daily_actions.Expected_revision (F.revision_of_bytes before));
     pending_record_publication = true;
     blocked = true; message = "Publication outcome is unknown; do not retry." } in
   let uncertain_choice = key ~width_of (request_discard uncertain) (`Arrow `Right) in
@@ -325,7 +325,7 @@ let run ~width_of ~directory ~path (home : C.state) =
     (is_reversal actual_reversing)
     "actual-key-x-opens-reverse-overlay";
   let reversal_preview = key ~width_of actual_reversing `Enter in
-  require (F.read path = cold.bytes) "reversal-date-enter-is-preview-only";
+  require (F.read_revision path = cold.revision) "reversal-date-enter-is-preview-only";
   let reversed = key ~width_of reversal_preview `Enter in
   require (not (C.has_record_draft reversed)) "reversed-draft-clean";
   let cold_after_reverse = F.load path in
@@ -344,9 +344,9 @@ let run ~width_of ~directory ~path (home : C.state) =
   let cancel_ctl = C.initial cancel_session |> fun s -> C.open_route s W.Scheduled in
   let cancel_modal = key ~width_of cancel_ctl (`ASCII 'x') in
   let cancel_preview = key ~width_of cancel_modal `Enter in
-  require (F.read cancel_ledger_path = cancel_session.bytes) "cancel-date-enter-only-previews";
+  require (F.read_revision cancel_ledger_path = cancel_session.revision) "cancel-date-enter-only-previews";
   let kept = key ~width_of cancel_preview `Enter in
-  require (F.read cancel_ledger_path = cancel_session.bytes && (same_workspace kept cancel_ctl))
+  require (F.read_revision cancel_ledger_path = cancel_session.revision && (same_workspace kept cancel_ctl))
     "cancel-preview-default-keeps-plan";
   let cancel_done = key ~width_of kept (`ASCII 'x') |> fun s -> key ~width_of s `Enter
     |> fun s -> key ~width_of s `Tab |> fun s -> key ~width_of s `Enter in

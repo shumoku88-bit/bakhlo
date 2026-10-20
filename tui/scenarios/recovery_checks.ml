@@ -135,7 +135,7 @@ let self_check () =
   io_refuses (fun () -> F.restore_copy ~source:torn.path ~target:fresh);
   let removed, after = F.discard_torn_tail torn.path in
   require
-    (removed = String.length next - 5 && F.read torn.path = saved.bytes && not (cold after).blocked)
+    (removed = String.length next - 5 && F.read_revision torn.path = saved.revision && not (cold after).blocked)
     "recovery-discard-changed-complete-records";
   check_candidate after.book;
   refuses "no-torn-tail" (fun () -> ignore (F.discard_torn_tail torn.path));
@@ -147,11 +147,11 @@ let self_check () =
       F.append ~checkpoint:(fun r -> if r = step then raise (Sys_error "synthetic checkpoint failure"))
         session ops
     with
-    | F.Uncertain { base_length; line } ->
+    | F.Uncertain { expected } ->
         let loaded = F.load session.path in
-        require (F.confirms ~base_length ~line loaded && not loaded.torn) "recovery-sent-line-missing";
+        require (F.confirms ~expected loaded && not loaded.torn) "recovery-sent-line-missing";
         check_candidate loaded.book;
-        let evidence = A.Expected_file (String.sub session.bytes 0 base_length ^ line) in
+        let evidence = A.Expected_revision expected in
         let memory =
           C.apply_commit_result ~record_publication:false (cold session) ~draft:(cold session)
             (A.Uncertain { message = "一括書換の成否が不確定です"; evidence })
@@ -179,10 +179,10 @@ let self_check () =
     | F.Written s -> s | _ -> raise (F.Refused "external-setup") in
   let memory =
     C.apply_commit_result ~record_publication:false (cold external_) ~draft:(cold external_)
-      (A.Uncertain { message = "synthetic"; evidence = A.Expected_file (Interaction_check_fixture.expected_after external_ ops) })
+      (A.Uncertain { message = "synthetic"; evidence = A.Expected_revision (Interaction_check_fixture.expected_after external_ ops) })
   in
   let stopped = Shell_dispatch.reload memory in
-  require (stopped.blocked && stopped.pending <> None && F.read external_.path = other.bytes)
+  require (stopped.blocked && stopped.pending <> None && F.read_revision external_.path = other.revision)
     "recovery-other-writer-counted-as-confirmation";
 
   (* Child processes die while holding the actual writer lock, not a mock state. *)

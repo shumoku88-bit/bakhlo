@@ -150,7 +150,7 @@ let finish_publication ~record_publication state session message =
       match List.find_opt (fun (p : B.plan) -> p.id = id && p.paid_by <> None) (B.plans session.book) with
       | Some source ->
           { (open_editor next (Record_editors.Scheduled_continuation
-              (Cont.create ~book:session.book ~base_bytes:session.bytes source))) with
+              (Cont.create ~book:session.book ~base_revision:session.revision source))) with
             message = next.message ^ " No additional Scheduled created." }
       | None -> { next with message = next.message ^
           " Next-plan inspection unavailable; no additional Scheduled created." })
@@ -230,7 +230,7 @@ let submit state =
           state with
           record =
             Some
-              (S.preview ~new_id:Daily_file.new_id ~book:state.session.book ~base_bytes:state.session.bytes
+              (S.preview ~new_id:Daily_file.new_id ~book:state.session.book ~base_revision:state.session.revision
                  ~blocked:state.blocked record);
           record_visible = true;
         }

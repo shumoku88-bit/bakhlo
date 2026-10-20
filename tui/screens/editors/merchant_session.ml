@@ -14,7 +14,7 @@ type t = {
   party_input : string;
   mode : mode;
   notice : string;
-  base_bytes : string;
+  base_revision : string;
 }
 
 type outcome =
@@ -22,7 +22,7 @@ type outcome =
   | Closed
   | Publish of string * M.disposition * string
 
-let create ~base_bytes (entry : B.entry) : t =
+let create ~base_revision (entry : B.entry) : t =
   {
     target = entry.id;
     description = Option.value ~default:"" entry.memo;
@@ -30,10 +30,10 @@ let create ~base_bytes (entry : B.entry) : t =
     party_input = "";
     mode = Editing;
     notice = "";
-    base_bytes;
+    base_revision;
   }
 
-let base_bytes t = t.base_bytes
+let base_revision t = t.base_revision
 let target t = t.target
 let choice t = t.choice
 let party_input t = t.party_input
@@ -178,7 +178,7 @@ let handle ~blocked ~dimensions:(width, height) ~width_of t (input : Ui_input.in
             Updated { t with notice = "Writes stopped; draft retained." }
           else (
             match draft_disposition t with
-            | Ok disposition -> Publish (t.target, disposition, t.base_bytes)
+            | Ok disposition -> Publish (t.target, disposition, t.base_revision)
             | Error message -> Updated { t with mode = Editing; notice = message })
       | _ -> Updated t)
 
