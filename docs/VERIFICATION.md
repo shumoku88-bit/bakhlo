@@ -4951,6 +4951,11 @@ were **not executed**.
   framed warning occlusion and impossible compact-footer text assertion; all were
   addressed, and the Shell boundary regression was added.
 - `./tools/privacy-scan --all` passed with no match; `git diff --check` passed.
+- Pushed `810abc9` to `main`; matching-SHA Core CI
+  [39461777012](https://github.com/shumoku88-bit/bakhlo/actions/runs/39461777012)
+  and Bonsai TUI CI
+  [39461777079](https://github.com/shumoku88-bit/bakhlo/actions/runs/39461777079)
+  both succeeded. AI-owned synthetic trial directories and tmux sessions were removed.
 
 ### Limits
 
