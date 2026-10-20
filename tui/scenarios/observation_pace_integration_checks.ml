@@ -57,26 +57,13 @@ let run ~width_of ~directory (back_home : C.state) =
   require (pace_home.workspace.route = W.Daily_pace) "route-daily-pace";
   (* 2. What-If simulator modal via 'w' *)
   let what_if_state = key ~width_of pace_home (`ASCII 'w') in
-  let form_wi =
-    match visible_form what_if_state with
-    | Some f ->
-        require (Ui_form.id f = "daily_pace_what_if") "what-if-modal-id";
-        f
-    | None -> failwith "expected what_if modal"
-  in
-  let filled =
-    with_visible_form what_if_state (Ui_form.set_focused (Ui_form.set_text form_wi "amount" "2000") 1)
-  in
-  let sim_res_state =
-    match H.handle ~width_of filled (`Key (`Enter, [])) with
-    | Some s -> s
-    | None -> failwith "unexpected exit on what-if submit"
-  in
-  (match visible_form sim_res_state with
-   | Some f_res ->
-       require (Base.String.is_substring (Ui_form.notice f_res) ~substring:"Simulated pace:") "what-if-result-calculated";
-       require (Base.String.is_substring (Ui_form.notice f_res) ~substring:"Remaining available:") "what-if-remaining-shown"
-   | _ -> failwith "expected what_if result modal");
+  require (not (no_modal what_if_state)) "what-if-modal-opens";
+  let sim_res_state = String.fold_left (fun s c -> key ~width_of s (`ASCII c)) what_if_state "2000" in
+  let painted =
+    Option.value ~default:[] (R.overlay_screen ~dimensions:(120, 36) ~width_of sim_res_state)
+    |> List.map snd |> String.concat "\n" in
+  require (Base.String.is_substring painted ~substring:"After purchase:") "what-if-result-calculated";
+  require (Base.String.is_substring painted ~substring:"Available after:") "what-if-remaining-shown";
   (* Close simulator with Escape without altering ledger *)
   let closed_sim = key ~width_of sim_res_state `Escape in
   require (no_modal closed_sim) "what-if-closed-on-esc";

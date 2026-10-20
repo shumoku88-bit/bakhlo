@@ -4566,3 +4566,41 @@ behavior for the partial-history feedback row (not shown; the same caution is in
 Trend summary, History `unknown` rows and the Detail `Supported` line) and for a
 Previous Cycle without a boundary (stay on the current period and report the cause).
 Both are recorded as intentional differences; no code changed.
+
+## Daily Pace What-if follows LOAM (2026-10-20)
+
+### Implemented boundary
+
+- The form-based What-if (amount field, Simulate button, result in the notice) was
+  deleted. New `tui/screens/pace/daily_pace_what_if.ml` follows LOAM
+  `DailyPaceWhatIf`: a read-only pane priced as you type over the same current
+  `Daily_book.daily_pace` answer — Current, Remaining days, Already protected
+  Scheduled, then After purchase (`floor((available - amount) / days)`), Daily change
+  and Available after, with LOAM's footer lines. Esc/q close; nothing is written.
+  Floating 18 rows from 62×20 body cells (width ≤ 86), otherwise covering the body.
+- Intentional differences: any pool Measure works, with `.` accepted only for Measures
+  with decimals (LOAM: JPY only); the caret is Bakhlo's `|`; an unavailable answer
+  still names the book's Measure in the input label.
+
+### Evidence
+
+- Checks rewritten for the overlay: missing pool and unknown balance show `Current
+  projection unavailable (not zero)` with the cause and no After purchase; typed `2000x`
+  shows After purchase/Daily change/Available after and the digits-only notice; the
+  observation scenario prices 2000 without changing the book; the negative case still
+  floors to `-1 jpy/day` without clamping. `./tools/check`, `./tools/tui --self-check`
+  (35 PASS) and `git diff --check` passed.
+- Synthetic paired run (zero-origin fixture; Bakhlo SHA-256
+  `a4809a1e4ca144768b254b318dc5cdeba77649228ee5b035ffd900c1d28e648f`, existing LOAM
+  `312467cd9af30778873bb9afabf0d87143e874d67c828e828c42f8573b8840c3`) at 120×36: empty,
+  2000, invalid key, six nines and Backspace — every pane row identical except the
+  input row's caret (`_` empty in LOAM).
+- Latest-data paired comparison: fresh `./tools/compare refresh` (LOAM open, originals
+  not written, no user process terminated); four walks at each of 120×36 and 80×24.
+  Every non-input pane row identical. `../loam-data` hashes unchanged; AI tmux stopped;
+  private captures deleted; `./tools/compare clean-copies` passed.
+
+### Limits
+
+Pool setup (`c`) was not compared in this slice. Physical terminal/IME, human
+acceptance and P7 were **not executed**.

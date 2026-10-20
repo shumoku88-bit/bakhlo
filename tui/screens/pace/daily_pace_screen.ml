@@ -11,6 +11,7 @@ module Panel = Ui_panel
 module Trend = Daily_pace_trend
 module Target = Daily_pace_target
 module Why = Daily_pace_why
+module What_if = Daily_pace_what_if
 
 let tr = Ui_text.tr
 let pool_file = "daily-pace.tsv"
@@ -25,7 +26,7 @@ type cycle_review = { form : Form.t; editing : Form.t; name : string; dates : st
 
 type overlay =
   | No_overlay
-  | What_if of Form.t
+  | What_if of What_if.t  (** Read-only purchase scenario; not a form. *)
   | Target of Target.t  (** Read-only target plan; not a form. *)
   | Why of Why.t  (** Read-only terms of today's answer. *)
   | Pool of Form.t
@@ -48,19 +49,18 @@ let enter t = { t with pane = Trend_pane; scroll = 0; overlay = No_overlay }
 
 let form t =
   match t.overlay with
-  | No_overlay | Target _ | Why _ -> None
-  | What_if form | Pool form | Cycle form
+  | No_overlay | Target _ | Why _ | What_if _ -> None
+  | Pool form | Cycle form
   | Pool_review { form; _ } -> Some form
   | Cycle_review { form; _ } -> Some form
 
-let modal t = Option.is_some (form t) || (match t.overlay with Target _ | Why _ -> true | _ -> false)
+let modal t = Option.is_some (form t) || (match t.overlay with Target _ | Why _ | What_if _ -> true | _ -> false)
 
 let with_form form t =
   let overlay =
     match t.overlay with
     | No_overlay -> No_overlay
-    | (Target _ | Why _) as read_only -> read_only
-    | What_if _ -> What_if form
+    | (Target _ | Why _ | What_if _) as read_only -> read_only
     | Pool _ -> Pool form
     | Cycle _ -> Cycle form
     | Pool_review (r : pool_review) -> Pool_review { r with form }
@@ -254,33 +254,6 @@ let detail_viewport env (geometry : Screen.geometry) t =
 
 (* Forms *)
 
-let what_if_form ?amount ?result env =
-  let summary =
-    match current_pace env with
-    | Ok (pace, _start, _end_excl) ->
-        let fmt q = O.format_money env.Screen.book pace.B.measure q ^ " " ^ pace.measure in
-        [
-          "Current pace: " ^ fmt pace.daily_pace_quanta ^ "/day";
-          "Pool balance: " ^ fmt pace.eligible_pool;
-          "Protected Scheduled: " ^ fmt pace.automatic_deductions;
-          Printf.sprintf "Available: %s over %d remaining days." (fmt pace.available_through_end) pace.remaining_days;
-          "Simulate an immediate purchase; no transaction or reservation is published.";
-        ]
-    | Error why ->
-        [ Printf.sprintf "Daily pace unavailable (%s); simulation is disabled." why ]
-  in
-  let notice = Option.value ~default:"" result in
-  Form.create
-    ~id:"daily_pace_what_if"
-    ~title:"Daily Pace What-If (Purchase Scenario)"
-    ~summary
-    ~notice
-    ~fields:[
-      Form.text_field ~id:"amount" ~label:"Purchase amount" ?value:amount ~placeholder:"e.g. 10000" ();
-      Form.action_buttons ~confirm:"Simulate" ~cancel:"Close" ();
-    ]
-    ()
-
 let pool_rows_of_text ~measure text =
   let rec coords acc = function
     | [] -> Ok (List.rev acc)
@@ -449,30 +422,6 @@ let move_selection (env : Screen.env) t delta =
   | Ok selected_index -> ({ t with trend = { t.trend with selected_index }; scroll = 0 }, Screen.Stay)
   | Error why -> (t, Screen.Message ("Daily Pace range unavailable: " ^ why))
 
-let submit_what_if (env : Screen.env) t submitted =
-  let stay form = ({ t with overlay = What_if form }, Screen.Stay) in
-  let amount_str = String.trim (Option.value ~default:"" (Form.get_text submitted "amount")) in
-  if amount_str = "" then stay (notice submitted (tr "Enter purchase amount to simulate."))
-  else
-    match B.parse_signed_amount env.book env.measure amount_str with
-    | Error _ -> stay (notice submitted (tr "Invalid amount."))
-    | Ok quantity when Z.leq quantity Z.zero ->
-        stay (notice submitted (tr "Enter a positive amount for purchase outflow."))
-    | Ok quantity ->
-        match current_pace env with
-        | Error why -> stay (notice submitted ("Current pace unavailable: " ^ why))
-        | Ok (pace, _start, _end_excl) ->
-            let new_avail = Z.sub pace.available_through_end quantity in
-            let new_pace = Z.ediv new_avail (Z.of_int pace.remaining_days) in
-            let diff = Z.sub new_pace pace.daily_pace_quanta in
-            let fmt z = O.format_money env.book pace.measure z ^ " " ^ pace.measure in
-            let diff_str = (if Z.gt diff Z.zero then "+" else "") ^ fmt diff ^ "/day" in
-            let result =
-              Printf.sprintf "Simulated pace: %s/day (%s). Remaining available: %s."
-                (fmt new_pace) diff_str (fmt new_avail)
-            in
-            stay (what_if_form ~amount:amount_str ~result env)
-
 let submit_pool (env : Screen.env) t submitted =
   let pool_loci_str = String.trim (Option.value ~default:"" (Form.get_text submitted "pool_loci")) in
   let loci = if pool_loci_str = "" then [] else
@@ -597,12 +546,11 @@ let handle_form env geometry t form input =
       | _ -> (with_form updated t, Screen.Stay))
   | Form.Submit submitted -> (
       match t.overlay with
-      | What_if _ -> submit_what_if env t submitted
       | Pool _ -> submit_pool env t submitted
       | Pool_review r -> submit_pool_review env geometry t r submitted
       | Cycle _ -> submit_cycle env t submitted
       | Cycle_review r -> submit_cycle_review env geometry t r submitted
-      | No_overlay | Target _ | Why _ -> (t, Screen.Stay))
+      | No_overlay | Target _ | Why _ | What_if _ -> (t, Screen.Stay))
 
 (* LOAM historyCapacityForBounds: the painted History data rows, at least one. *)
 let history_page (geometry : Screen.geometry) =
@@ -623,7 +571,7 @@ let handle_screen (env : Screen.env) geometry t input =
   | Some ((`Escape | `ASCII 'q'), []) ->
       if t.pane = Detail_pane then ({ t with pane = Trend_pane; scroll = 0 }, Screen.Stay)
       else (t, Screen.Home)
-  | Some (`ASCII 'w', []) -> ({ t with overlay = What_if (what_if_form env) }, Screen.Stay)
+  | Some (`ASCII 'w', []) -> ({ t with overlay = What_if (What_if.create ()) }, Screen.Stay)
   | Some (`ASCII 't', []) -> ({ t with overlay = Target (Target.create ()) }, Screen.Stay)
   | Some (`ASCII '?', []) -> ({ t with overlay = Why (Why.create ()) }, Screen.Stay)
   | Some (`ASCII 'c', []) -> (open_pool env t, Screen.Message "")
@@ -676,6 +624,10 @@ let handle env geometry t input =
       match Target.update ~book:env.Screen.book ~pace:(target_pace env) target input with
       | Target.Stay target -> ({ t with overlay = Target target }, Screen.Stay)
       | Target.Back -> ({ t with overlay = No_overlay }, Screen.Stay))
+  | What_if what_if, _ -> (
+      match What_if.update ~book:env.Screen.book ~measure:env.measure ~pace:(target_pace env) what_if input with
+      | What_if.Stay what_if -> ({ t with overlay = What_if what_if }, Screen.Stay)
+      | What_if.Back -> ({ t with overlay = No_overlay }, Screen.Stay))
   | Why why, _ -> (
       match Why.update ~width_of:geometry.Screen.width_of ~body:geometry.body ~book:env.Screen.book
               ~pace:(target_pace env) why input with
@@ -829,7 +781,7 @@ let footer (geometry : Screen.geometry) t =
   match t.overlay, t.pane with
   | Target _, _ -> [ "[Tab] field [j/k] horizon [Esc/q] back"; "Read-only plan; nothing is recorded" ]
   | Why _, _ -> [ "[j/k] scroll [Esc/q/?] back"; "Terms of today's answer; nothing is recorded" ]
-  | What_if _, _ ->      [ "Enter simulate scenario  Tab switch field/button  Esc close"; "Read-only simulation - does not publish any entries" ]
+  | What_if _, _ -> [ "[Esc/q] close"; "Read-only scenario; nothing is recorded" ]
   | Pool _, _ -> [ "Enter review  Tab switch field  Esc cancel"; "Edits only daily-pace.tsv" ]
   | Pool_review _, _ -> [ "Enter save  Tab choose Edit  Esc edit"; "Full pool must fit before saving" ]
   | Cycle _, _ -> [ "Enter review  Tab switch field  Esc cancel"; "Edits only boundary-presets.tsv" ]
@@ -848,6 +800,9 @@ let view env (geometry : Screen.geometry) t =
     | Target target ->
         Target.frame ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
           ~book:env.Screen.book ~pace:(target_pace env) target
+    | What_if what_if ->
+        What_if.frame ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
+          ~book:env.Screen.book ~measure:env.Screen.measure ~pace:(target_pace env) what_if
     | Why why ->
         Why.frame ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
           ~book:env.Screen.book ~pace:(target_pace env) why

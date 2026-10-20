@@ -108,12 +108,12 @@ let safety_checks ~width_of ~directory () =
   replace windows_path boundaries;
   let pace, _, _ = get (current_pace_result home) in
   let amount = Z.add pace.B.available_through_end Z.one in
-  let what_if = open_what_if ~width_of home in
-  let form = Option.get (visible_form what_if) |> fun f -> Ui_form.set_text f "amount" (Z.to_string amount)
-    |> fun f -> Ui_form.set_focused f 1 in
-  let simulated = key ~width_of (with_visible_form what_if form) `Enter in
-  require (match visible_form simulated with Some f ->
-    Base.String.is_substring (Ui_form.notice f) ~substring:"Simulated pace: -1 jpy/day" | None -> false)
+  let simulated = String.fold_left (fun s c -> key ~width_of s (`ASCII c))
+      (open_what_if ~width_of home) (Z.to_string amount) in
+  require (match R.overlay_screen ~dimensions:(80, 24) ~width_of simulated with
+    | Some rows -> List.exists (fun (_, row) ->
+        Base.String.is_substring row ~substring:"After purchase: -1 jpy/day") rows
+    | None -> false)
     "negative-what-if-uses-floor-division-without-clamping";
   let opened = open_pool_editor home in
   let form = Option.get (visible_form opened) |> fun f -> Ui_form.set_text f "pool_loci" "wallet, bank"

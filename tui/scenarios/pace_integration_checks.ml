@@ -59,20 +59,15 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
   let screen_has ~width_of dimensions state needle message =
     require (shows ~pane:`Right ~width_of dimensions state needle) message
   in
-  let modal_form state =
-    match visible_form state with
-    | Some form -> form
-    | None -> raise (F.Refused "expected-modal-form")
-  in
-  let modal_summary state = String.concat "\n" (modal_form state).Ui_form.summary in
-  let submit_what_if state amount =
-    let state =
-      with_visible_form state (Ui_form.set_focused (Ui_form.set_text (modal_form state) "amount" amount) 1)
-    in
-    match H.handle ~width_of state (`Key (`Enter, [])) with
-    | Some next -> next
-    | None -> raise (F.Refused "what-if-submit-exited")
-  in
+  (* What-if is a read-only overlay priced as you type; read its painted rows. *)
+  let overlay_text state =
+    let inner row =
+      let row = Base.String.chop_prefix_if_exists row ~prefix:"│" in
+      Base.String.rstrip (Base.String.chop_suffix_if_exists row ~suffix:"│") in
+    Option.value ~default:[] (R.overlay_screen ~dimensions:(80, 24) ~width_of state)
+    |> List.map (fun (_, row) -> inner row) |> String.concat "" in
+  let type_amount state amount =
+    String.fold_left (fun s c -> key ~width_of s (`ASCII c)) state amount in
   (* 1. Missing daily-pace.tsv: no pool is not an empty pool. *)
   remove pool_path;
   remove windows_path;
@@ -102,19 +97,14 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
     && not (Base.String.is_substring missing_why ~substring:"Free through cycle end"))
     "daily-pace-why-unavailable-not-zero";
   let what_if = key ~width_of missing (`ASCII 'w') in
-  require (Ui_form.id (modal_form what_if) = "daily_pace_what_if") "daily-pace-what-if-modal-id";
+  require (not (no_modal what_if)) "daily-pace-what-if-opens";
+  let refused_what_if = type_amount what_if "1000" in
   require
-    (Base.String.is_substring (modal_summary what_if) ~substring:"Daily pace unavailable")
-    "daily-pace-missing-what-if-summary";
-  require
-    (Base.String.is_substring (modal_summary what_if)
-       ~substring:"Daily Pace pool not configured (daily-pace.tsv missing).")
-    "daily-pace-missing-what-if-reason";
-  let refused_what_if = submit_what_if what_if "1000" in
-  require
-    (Ui_form.notice (modal_form refused_what_if)
-     = "Current pace unavailable: Daily Pace pool not configured (daily-pace.tsv missing).")
-    "daily-pace-missing-what-if-notice";
+    (Base.String.is_substring (overlay_text refused_what_if) ~substring:"Current projection unavailable (not zero)."
+     && Base.String.is_substring (overlay_text refused_what_if)
+          ~substring:"Daily Pace pool not configured (daily-pace.tsv missing)."
+     && not (Base.String.is_substring (overlay_text refused_what_if) ~substring:"After purchase"))
+    "daily-pace-missing-what-if-reason-not-zero";
   require
     (no_modal (key ~width_of refused_what_if `Escape))
     "daily-pace-missing-what-if-closes";
@@ -140,15 +130,12 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
   screen_has ~width_of (80, 24) unknown_balance "Pool locus balance support is unknown: bank jpy"
     "daily-pace-unknown-balance-reason";
   let unknown_what_if = key ~width_of unknown_balance (`ASCII 'w') in
+  let unknown_refused = type_amount unknown_what_if "1000" in
   require
-    (Base.String.is_substring (modal_summary unknown_what_if)
-       ~substring:"Pool locus balance support is unknown: bank jpy")
-    "daily-pace-unknown-balance-what-if-summary";
-  let unknown_refused = submit_what_if unknown_what_if "1000" in
-  require
-    (Ui_form.notice (modal_form unknown_refused)
-     = "Current pace unavailable: Pool locus balance support is unknown: bank jpy")
-    "daily-pace-unknown-balance-what-if-notice";
+    (Base.String.is_substring (overlay_text unknown_refused)
+       ~substring:"Pool locus balance support is unknown: bank jpy"
+     && not (Base.String.is_substring (overlay_text unknown_refused) ~substring:"After purchase"))
+    "daily-pace-unknown-balance-what-if-reason";
   require
     (no_modal (key ~width_of unknown_refused `Escape))
     "daily-pace-unknown-balance-what-if-closes";
@@ -228,14 +215,11 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
   require
     (not (Pace.detail_focused quit_detail.C.screens.pace) && quit_detail.workspace.route = W.Daily_pace)
     "daily-pace-q-returns-calendar";
-  let simulated = submit_what_if (key ~width_of pace (`ASCII 'w')) "2000" in
+  let simulated = type_amount (key ~width_of pace (`ASCII 'w')) "2000x" in
   require
-    (Base.String.is_substring (Ui_form.notice (modal_form simulated)) ~substring:"Simulated pace:")
-    "daily-pace-what-if-simulated-pace";
-  require
-    (Base.String.is_substring (Ui_form.notice (modal_form simulated))
-       ~substring:"Remaining available:")
-    "daily-pace-what-if-remaining-available";
+    (List.for_all (fun substring -> Base.String.is_substring (overlay_text simulated) ~substring)
+       [ "After purchase:"; "Daily change:"; "Available after:"; "Only JPY digits, at most 18." ])
+    "daily-pace-what-if-prices-as-typed";
   let closed_what_if = key ~width_of simulated `Escape in
   require (no_modal closed_what_if) "daily-pace-what-if-closes";
   (* Target plan: read-only overlay; typing never writes, Esc/q close. *)
