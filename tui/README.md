@@ -462,26 +462,28 @@ Escでフォームを閉じCtrl-R／再起動で現在内容を確認する。�
 主台帳との複数ファイル原子性、永続Ack／P7、電源断・別ホスト復旧の保証ではない。
 役割設定sidecarは別の未認定境界で、この修正の保証を引き継がない。
 
-単一S式は全文検査、協調writerロック、読込元との全文比較、同期したattempt / pending / before、
-renameと読戻しを使う。beforeは残す。結果不明artifact・不正名・非通常ファイル・照会失敗では
-cold open／再読込／新規でも書込み停止する。自動再送・採用・backup削除は行わない。
-永続した発行後Ack証拠（P7）は未解決。単一S式の復旧検査はその証明にならない。
-結果不明では記帳を止め、現行・before・attempt・pendingを保全してから照会する。
+帳簿ファイルは単一S式（snapshot）の後ろに保存1回ごとの記録行を追記する形式（`Bakhlo_sexp.Book_log`）。
+保存は協調writerロック下で、読込時からファイルが変わっていない（inode・サイズ・更新時刻・末尾）ことを確かめ、
+記録行1行を追記してfsyncし、末尾を読み戻す。操作は保存前にCoreで適用し、拒否なら何も書かない。
+結果不明（追記中のI/O失敗）では記帳を止め、再読込でファイル末尾がその記録行と一致した場合だけ保存済みとする。
+最後の行が改行で終わらない（保存中断）場合は書込みを止め、自動修復しない。確認してから明示的に切り捨てる。
+終了時に記録が200件以上なら新しいsnapshotへ圧縮し、置き換え前のファイルを`.prev`として1世代残す
+（一時ファイル→hard link→原子的rename。どの時点でも帳簿ファイルは旧または新のsnapshotで同じ帳簿）。
+永続した発行後Ack証拠（P7）・電源断・別ホスト復旧は未認定。
 
 ```sh
 ./tools/tui --inspect-recovery --book FILE
-./tools/tui --confirm-current-attempt ID --book FILE
+./tools/tui --discard-torn-tail --book FILE
 ./tools/tui --restore-copy-from SOURCE --book FRESH_FILE
 ./tools/tui --check FRESH_FILE
 ```
 
-inspectは本文を出さず現在の全文一致のみ（未確認なし=0、確認必要=3、照会失敗=1）。
-candidate-is-current／before-is-currentは過去の発行成否を推測しない。confirmは現在候補との完全一致を
-同じwriterロックで再検査し、同期・読戻し後にそのattempt／一致pendingだけを除く。before・別試行を変えない。
+inspectは本文を出さず、完全な記録数と中断された最後の行の有無だけを示す（なし=0、中断あり=3、照会失敗=1）。
+discardは同じwriterロック下で再確認し、改行のない最後の1行だけを除く。完全な記録は変えない。
 restore-copyは存在しない別パスへadmittedなbyte-exactコピーを作り、元を変更しない。
 コピー成功は記帳先切替や済んだ支払いの再送ではない。
 安定した親namespaceと協調writerが前提。電源断・媒体故障・悪意あるwriter・別ホスト復旧は未認定。
-backup保持件数・期間・別媒体・不一致候補の採用条件も未決定。私用データ・画面・ログをGitへ入れない。
+長期履歴（Git等）・別媒体コピーは運用側で用意する。私用データ・画面・ログをGitへ入れない。
 
 ## 検証
 

@@ -8,6 +8,10 @@ module F = Daily_file
 module W = Ui_workspace
 module Cal = Daily_calendar
 module M = Ui_commands
+module L = Bakhlo_sexp.Book_log
+
+(* The whole file as it would read once the store appends [ops] to [session]. *)
+let expected_after (session : F.t) ops = session.bytes ^ F.appended_bytes session ops
 module S = Record_session
 module Rev = Reversal_session
 module Date = Date_correction_session

@@ -280,7 +280,7 @@ let run ~width_of ~directory ~path (home : C.state) =
            && (same_workspace discarded cancelled) && F.read path = before)
     "discard-explicit-choice-clears-only-draft-without-writing";
   require (request_discard discarded == discarded) "discard-without-draft-is-noop";
-  let uncertain = { cancelled with pending = Some (Daily_actions.Monolithic_candidate before);
+  let uncertain = { cancelled with pending = Some (Daily_actions.Expected_file before);
     pending_record_publication = true;
     blocked = true; message = "Publication outcome is unknown; do not retry." } in
   let uncertain_choice = key ~width_of (request_discard uncertain) (`Arrow `Right) in

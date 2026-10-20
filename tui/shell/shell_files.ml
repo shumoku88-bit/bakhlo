@@ -77,10 +77,10 @@ let save_config state ~file ~expected ~content ~admission =
     | Screen.Unconditional -> Ok ()
     | Screen.Household_readable -> (
         try
-          match B.of_string (F.read state.session.path) with
-          | Error why -> Error ("Household read refused: " ^ why)
-          | Ok _ -> Ok ()
-        with F.Refused why | Sys_error why -> Error why
+          ignore (F.load state.session.path);
+          Ok ()
+        with F.Refused why -> Error ("Household read refused: " ^ why)
+          | Sys_error why -> Error why
           | Unix.Unix_error (err, _, _) -> Error (Unix.error_message err))
     | Screen.Vocabulary_unchanged -> (
         try

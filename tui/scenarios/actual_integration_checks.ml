@@ -511,8 +511,7 @@ let reversal_checks ~width_of ~directory home =
   (match Rev.handle ~blocked:false ~dimensions:(48,14) ~width_of compact (`Key (`Enter, [])) with
    | Rev.Updated _ -> () | _ -> raise (F.Refused "reversal-compact-end-bypassed-gate"));
   let changed_target = { target with memo = Some "Concurrent correction" } in
-  let changed_book = get (B.put_entry book ~replace:true changed_target ~plan:None) in
-  (match F.publish base.session changed_book with F.Written _ -> () | _ -> raise (F.Refused "reversal-conflict-setup"));
+  (match F.append base.session [ L.Put_entry { replace = true; entry = changed_target; plan = None } ] with F.Written _ -> () | _ -> raise (F.Refused "reversal-conflict-setup"));
   let changed_bytes = F.read path in
   let conflict = key ~width_of review `Enter in
   require (conflict.blocked && Rev.day (editor conflict) = "2026-10-09"
@@ -543,11 +542,11 @@ let reversal_checks ~width_of ~directory home =
   F.write_new unknown_path before;
   let unknown_base = C.initial ~config_home:directory (F.load unknown_path) |> fun s -> C.open_route s W.Actual in
   let unknown_review = key ~width_of (key ~width_of unknown_base (`ASCII 'x')) `Enter in
-  let candidate = get (B.put_entry book ~replace:false { reversal with id = "unknown-reversal" } ~plan:None) in
+  let unknown_op = [ L.Put_entry { replace = false; entry = { reversal with id = "unknown-reversal" }; plan = None } ] in
   let draft = (with_session unknown_review (E.Reversal (Rev.with_publish_error (editor unknown_review)))) in
   let unknown () = C.apply_commit_result ~record_publication:false unknown_review ~draft
     (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
-      evidence = Daily_actions.Monolithic_candidate (B.to_string candidate) }) in
+      evidence = Daily_actions.Expected_file (expected_after unknown_base.session unknown_op) }) in
   let unconfirmed = input (unknown ()) (`Key (`ASCII 'r', [ `Ctrl ])) in
   require (unconfirmed.blocked && unconfirmed.pending <> None
            && is_reversal unconfirmed && F.read unknown_path = before)
@@ -555,7 +554,7 @@ let reversal_checks ~width_of ~directory home =
   let attempted = key ~width_of unconfirmed `Enter in
   require (not (Rev.is_preview (editor attempted)) && attempted.pending = unconfirmed.pending)
     "reversal-unknown-stays-stopped-with-date";
-  (match F.publish unknown_base.session candidate with F.Written _ -> () | _ -> raise (F.Refused "reversal-ack-setup"));
+  (match F.append unknown_base.session unknown_op with F.Written _ -> () | _ -> raise (F.Refused "reversal-ack-setup"));
   let present_bytes = F.read unknown_path in
   let confirmed = input (unknown ()) (`Key (`ASCII 'r', [ `Ctrl ])) in
   require (not confirmed.blocked && confirmed.pending = None && (no_modal confirmed)
@@ -798,7 +797,7 @@ let original_amount_integration_checks ~width_of ~directory () =
   let uncertain_attempt =
     C.apply_commit_result ~record_publication:true stale_preview ~draft:stale_preview
       (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
-                                 evidence = Daily_actions.Monolithic_candidate changed_disk_bytes })
+                                 evidence = Daily_actions.Expected_file changed_disk_bytes })
   in
   require (uncertain_attempt.blocked && uncertain_attempt.record_visible && F.read path = changed_disk_bytes)
     "orig-uncertain-preserves-draft-and-disk";
@@ -952,8 +951,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
     original_amount = None;
     merchant = None;
   } in
-  let book_with_e2 = get (B.put_entry cold_session.book ~replace:false e2 ~plan:None) in
-  let _ = match F.publish cold_session book_with_e2 with F.Written s -> s | _ -> failwith "pub-e2-fail" in
+  let _ = match F.append cold_session [ L.Put_entry { replace = false; entry = e2; plan = None } ] with F.Written s -> s | _ -> failwith "pub-e2-fail" in
   let sess_e2 = F.load path in
   let state_e2 = C.open_route (C.initial ~config_home:dir sess_e2) W.Actual in
   let e2_opened = Option.get (H.handle ~width_of state_e2 (`Key (`ASCII 'm', []))) in
@@ -981,8 +979,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
     original_amount = None;
     merchant = None;
   } in
-  let book_with_e3 = get (B.put_entry cold_e2_sess.book ~replace:false e3 ~plan:None) in
-  let _ = match F.publish cold_e2_sess book_with_e3 with F.Written s -> s | _ -> failwith "pub-e3-fail" in
+  let _ = match F.append cold_e2_sess [ L.Put_entry { replace = false; entry = e3; plan = None } ] with F.Written s -> s | _ -> failwith "pub-e3-fail" in
   let sess_e3 = F.load path in
   let day_state = C.open_route (C.initial ~config_home:dir sess_e3) (W.Selected_day "2026-10-12") in
   let e3_opened = Option.get (H.handle ~width_of day_state (`Key (`ASCII 'm', []))) in
@@ -1021,8 +1018,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
     original_amount = None;
     merchant = None;
   } in
-  let book_with_unclass = get (B.put_entry post_rev_session.book ~replace:false e_unclass ~plan:None) in
-  let _ = match F.publish post_rev_session book_with_unclass with F.Written s -> s | _ -> failwith "pub-unclass-fail" in
+  let _ = match F.append post_rev_session [ L.Put_entry { replace = false; entry = e_unclass; plan = None } ] with F.Written s -> s | _ -> failwith "pub-unclass-fail" in
   let sess_unclass = F.load path in
   let cur_bytes = F.read path in
   let state_unclass = C.open_route (C.initial ~config_home:dir sess_unclass) (W.Selected_day "2026-10-14") in

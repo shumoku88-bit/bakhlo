@@ -142,3 +142,7 @@ let load bytes =
                   | Ok book -> replay book (seq + 1) (n + 1)))
       in
       replay book 1 cut
+
+let decode_record_line ~seq line =
+  let line = if String.ends_with ~suffix:"\n" line then String.sub line 0 (String.length line - 1) else line in
+  match parse_record ~seq line with ops -> Ok ops | exception Corrupt -> Error "record-undecodable"

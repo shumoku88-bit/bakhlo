@@ -23,6 +23,9 @@ val record_line : seq:int -> op list -> string
 (** One newline-terminated line: [(record SEQ DIGEST OP...)]. Sequence numbers start
     at 1 after each snapshot. Raises [Invalid_argument] for no operations. *)
 
+val decode_record_line : seq:int -> string -> (op list, string) result
+(** Decode one record line (trailing newline optional), checking sequence and digest. *)
+
 type loaded = {
   book : Daily_book.t;
   snapshot : string;  (** Leading ordinary-book bytes. *)

@@ -23,15 +23,12 @@ let execute_publication state = function
       A.commit_payload ~session:state.session ~base_bytes:base (A.Plan_tx { plan; replace = false })
   | Screen.Observe_quantities _ -> invalid_arg "observations publish through publish_observation"
 
-(* Observations publish a whole candidate book; their outcomes map directly. *)
+(* Observations map their store outcomes directly. *)
 let publish_observation state ~rows ~base =
   if base <> state.session.bytes then ({ state with blocked = true }, Screen.Publish_conflict)
   else
-    match B.observe_quantities state.session.book rows with
-    | Error why -> (state, Screen.Publish_refused ("Observation refused: " ^ why))
-    | Ok book -> (
-        match (try F.publish state.session book with F.Refused why -> F.Refused_input why) with
-        | F.Written session -> (sync { state with session }, Screen.Published)
-        | F.Conflict -> ({ state with blocked = true }, Screen.Publish_conflict)
-        | F.Refused_input why -> (state, Screen.Publish_refused ("Observation save refused: " ^ why))
-        | F.Uncertain -> ({ state with blocked = true }, Screen.Publish_stopped))
+    match (try F.append state.session [ Bakhlo_sexp.Book_log.Observe rows ] with F.Refused why -> F.Refused_input why) with
+    | F.Written session -> (sync { state with session }, Screen.Published)
+    | F.Conflict -> ({ state with blocked = true }, Screen.Publish_conflict)
+    | F.Refused_input why -> (state, Screen.Publish_refused ("Observation refused: " ^ why))
+    | F.Uncertain _ -> ({ state with blocked = true }, Screen.Publish_stopped)

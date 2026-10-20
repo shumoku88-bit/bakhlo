@@ -4,31 +4,22 @@ let run = Bonsai_terminal.run
 
 let print_recovery path =
   let report = F.inspect_recovery path in
-  (match report.selected with
-  | Ok _ -> print_endline "selected: admitted (no payload output)"
-  | Error why -> Printf.printf "selected: unavailable (%s)\n" why);
-  List.iter
-    (fun (item : F.recovery_item) ->
-      let state =
-        match item.comparison with
-        | F.Candidate_current -> "candidate-is-current"
-        | F.Before_current -> "before-is-current"
-        | F.Unresolved -> "unresolved"
-        | F.Unreadable why -> "unreadable: " ^ why
-      in
-      Printf.printf "artifact=%S attempt=%s state=%s\n" item.name
-        (Option.value ~default:"unknown" item.attempt_id)
-        state)
-    report.items;
-  if report.items <> [] then
-    print_endline
-      "REVIEW REQUIRED: no adoption/retry. Equality describes current bytes, not past outcome.";
-  match (report.selected, report.items) with
-  | Ok _, [] ->
-      print_endline "No unfinished artifacts found.";
+  match report.selected with
+  | Error why ->
+      Printf.printf "selected: unavailable (%s)\n" why;
+      1
+  | Ok session when session.torn ->
+      Printf.printf
+        "selected: %d complete records, then an incomplete final record (%d bytes) from an \
+         interrupted save.\nThat save did not complete. Writes stay stopped until you run \
+         --discard-torn-tail; no automatic repair.\n"
+        session.records report.torn_bytes;
+      3
+  | Ok session ->
+      Printf.printf "selected: admitted, %d records after the snapshot (no payload output)\n"
+        session.records;
+      print_endline "No interrupted save found.";
       0
-  | Ok _, _ -> 3
-  | Error _, _ -> 1
 
 let () =
   try
@@ -41,9 +32,10 @@ let () =
         F.create_copy ~source ~target;
         print_endline "PASS: fresh trial copy created; original unchanged."
     | [ _; "--inspect-recovery"; "--book"; path ] -> exit (print_recovery path)
-    | [ _; "--confirm-current-attempt"; id; "--book"; path ] ->
-        ignore (F.confirm_current ~session:(F.load path) ~attempt_id:id);
-        print_endline "Current candidate confirmed; backup files untouched. No retry."
+    | [ _; "--discard-torn-tail"; "--book"; path ] ->
+        let removed, session = F.discard_torn_tail path in
+        Printf.printf "Removed the incomplete final record (%d bytes); %d complete records kept.\n"
+          removed session.records
     | [ _; "--restore-copy-from"; source; "--book"; target ] ->
         F.restore_copy ~source ~target;
         print_endline
@@ -52,7 +44,7 @@ let () =
     | _ ->
         prerr_endline
           "Usage: tools/tui --book FILE | --check FILE | --copy-from SOURCE --book FRESH_FILE | \
-           --inspect-recovery --book FILE | --confirm-current-attempt ID --book FILE | \
+           --inspect-recovery --book FILE | --discard-torn-tail --book FILE | \
            --restore-copy-from SOURCE --book FRESH_FILE";
         exit 2
   with

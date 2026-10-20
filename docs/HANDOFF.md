@@ -731,14 +731,15 @@ for current keys and recovery commands.
 
 ## Storage and unresolved safety
 
-Monolithic publication performs full admission/printer checks, cooperative writer
-locking, expected-base comparisons, synced attempt/pending/pre-edit backup writes,
-selected rename and readback. Remaining/malformed/nonregular attempt/pending
-artifacts or unavailable artifact inspection freeze writes across restart/reset/
-reload; no automatic retry, adoption or backup pruning. Explicit acknowledgement
-is limited to a candidate exactly matching the selected file now and does not
-prove the outcome of an earlier publication. Restore-copy uses a fresh path;
-copy success does not select a new operational ledger.
+The book file is a snapshot followed by appended records (`Book_log`). A save applies
+its operations in Core (refusal writes nothing), checks under the cooperative writer
+lock that the file is unchanged (inode, size, mtime, tail), appends one record line,
+fsyncs and reads the tail back. An uncertain append stops writes until a reload shows
+exactly that line. An unterminated final line (interrupted append) stops writes and
+is removed only by an explicit `--discard-torn-tail`. On exit, 200+ records are
+compacted into a fresh snapshot; the replaced file is kept as `.prev` (one
+generation). Restore-copy uses a fresh path; copy success does not select a new
+operational ledger.
 
 Persistent client acknowledgement after restart/Ack loss (P7) remains
 an independent unresolved safety boundary; monolithic recovery is not its proof.
@@ -746,9 +747,9 @@ an independent unresolved safety boundary; monolithic recovery is not its proof.
 Stable parent namespaces and cooperative writers are assumptions. Process-kill
 tests do not certify power loss, media failure, hostile/noncooperative writers
 or a fresh-host recovery environment. Backup retention, separate-media copies,
-and reconciliation/adoption of differing or unreadable candidates remain undecided.
-Full-before backups accumulate; whole-file admission/publication retains linear
-costs. UI completion is not durable-store qualification or cutover approval.
+and long-term history (Git or similar) are operational choices outside the store.
+A save still copies the whole file text in memory (36 ms at 109,500 entries);
+replacing it with a revision token is the next storage slice. UI completion is not durable-store qualification or cutover approval.
 
 ## Verify and continue
 

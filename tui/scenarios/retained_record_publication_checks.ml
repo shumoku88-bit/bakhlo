@@ -70,7 +70,7 @@ let run ~width_of ~directory (home : C.state) =
   let saved = rename held "Uncertain rename" in
   let uncertain = C.apply_commit_result held ~draft:held
       (A.Uncertain { message = "Synthetic lost acknowledgement";
-        evidence = A.Monolithic_candidate saved.session.bytes }) in
+        evidence = A.Expected_file saved.session.bytes }) in
   unchanged_record held uncertain "other-uncertain-retains-record";
   require (uncertain.blocked && uncertain.pending <> None)
     "other-uncertain-stops-writes";
@@ -85,7 +85,7 @@ let run ~width_of ~directory (home : C.state) =
   let saved = key ~width_of review `Enter in
   let uncertain = C.apply_commit_result ~record_publication:true review ~draft:review
       (A.Uncertain { message = "Synthetic lost acknowledgement";
-        evidence = A.Monolithic_candidate saved.session.bytes }) in
+        evidence = A.Expected_file saved.session.bytes }) in
   unchanged_record review uncertain "own-uncertain-retains-record";
   let hidden = key ~width_of uncertain `Escape in
   require (not hidden.record_visible && C.has_record_draft hidden)

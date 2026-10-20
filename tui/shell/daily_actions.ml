@@ -1,6 +1,7 @@
 (* Single publication coordinator. Pure candidate construction lives in Daily_draft. *)
 include Daily_draft
 module F = Daily_file
+module L = Bakhlo_sexp.Book_log
 
 (* Transitional caller adapters preserve existing controller/test contracts. *)
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
@@ -12,16 +13,12 @@ let build_plan ~book ~mode ~day ~draft =
   Daily_draft.build_plan ~new_id:F.new_id ~book ~mode ~day ~draft
 
 let recovery_message =
-  tr "Unconfirmed save evidence exists. Writes stopped; exit and use --inspect-recovery."
+  tr "An interrupted save left an incomplete final record. Writes stopped; exit and use --inspect-recovery."
 
-let recovery_notice ~session =
-  try if F.unfinished_names session.F.path = [] then None else Some recovery_message
-  with F.Refused _ | Unix.Unix_error _ | Sys_error _ ->
-    Some (tr "Recovery evidence is unavailable. Writes stopped; unavailable is not empty.")
+let recovery_notice ~session = if session.F.torn then Some recovery_message else None
 
-type uncertain_evidence =
-  | Monolithic_candidate of string
-  | Unspecified_evidence of string
+(* The whole file as it would read had the save landed. *)
+type uncertain_evidence = Expected_file of string
 
 type commit_result =
   | Published of F.t
@@ -32,18 +29,18 @@ type commit_result =
   | Storage_failed of string
   | Refused of string
 
-let publish_candidate ~session candidate : commit_result =
+let publish_ops ~session ops : commit_result =
   try
-    match F.publish session candidate with
+    match F.append session ops with
     | F.Written session -> Published session
     | F.Conflict -> Conflict
-    | F.Refused_input "recovery-required" -> Recovery_blocked
+    | F.Refused_input "torn-tail" -> Recovery_blocked
     | F.Refused_input why -> Refused why
-    | F.Uncertain ->
+    | F.Uncertain { base_length; line } ->
         Uncertain
           {
-            message = tr "Monolithic publication outcome is uncertain.";
-            evidence = Monolithic_candidate (B.to_string candidate);
+            message = tr "Save outcome is uncertain.";
+            evidence = Expected_file (String.sub session.F.bytes 0 base_length ^ line);
           }
   with
   | Unix.Unix_error (err, fn, arg) ->
@@ -53,16 +50,12 @@ let publish_candidate ~session candidate : commit_result =
 let commit_transaction ~session ~base_bytes (tx : transaction) : commit_result =
   if base_bytes <> session.F.bytes then Conflict_base_changed
   else
-    match B.put_entry session.book ~replace:tx.replace tx.entry ~plan:tx.plan with
-    | Error why -> Refused why
-    | Ok candidate -> publish_candidate ~session candidate
+    publish_ops ~session [ L.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ]
 
 let commit_plan ~session ~base_bytes ~replace (plan : B.plan) : commit_result =
   if base_bytes <> session.F.bytes then Conflict_base_changed
   else
-    match B.put_plan session.book ~replace plan with
-    | Error why -> Refused why
-    | Ok candidate -> publish_candidate ~session candidate
+    publish_ops ~session [ L.Put_plan { replace; plan } ]
 
 let commit_plan_batch ?(replace = true) ~session ~base_bytes (plans : B.plan list) : commit_result =
   if base_bytes <> session.F.bytes then Conflict_base_changed
@@ -72,19 +65,12 @@ let commit_plan_batch ?(replace = true) ~session ~base_bytes (plans : B.plan lis
     if List.length (List.sort_uniq String.compare ids) <> List.length ids then
       Refused (tr "A Scheduled occurrence may be selected only once.")
     else
-      let candidate = List.fold_left (fun result plan ->
-        Result.bind result (fun book -> B.put_plan book ~replace plan))
-        (Ok session.book) plans in
-      match candidate with
-      | Error why -> Refused why
-      | Ok candidate -> publish_candidate ~session candidate
+      publish_ops ~session (List.map (fun plan -> L.Put_plan { replace; plan }) plans)
 
 let commit_cancel_plan ~session ~base_bytes ~id ~day : commit_result =
   if base_bytes <> session.F.bytes then Conflict_base_changed
   else
-    match B.cancel_plan session.book ~id ~day with
-    | Error why -> Refused why
-    | Ok candidate -> publish_candidate ~session candidate
+    publish_ops ~session [ L.Cancel_plan { id; day } ]
 
 let commit_reverse_entry ~session ~base_bytes ~id ~day : commit_result =
   if base_bytes <> session.F.bytes then Conflict_base_changed
@@ -120,15 +106,11 @@ let commit_reverse_entry ~session ~base_bytes ~id ~day : commit_result =
               merchant = None;
             }
           in
-          match B.put_entry session.book ~replace:false reversal ~plan:None with
-          | Error why -> Refused why
-          | Ok candidate -> publish_candidate ~session candidate
+          publish_ops ~session [ L.Put_entry { replace = false; entry = reversal; plan = None } ]
 let commit_classify_merchant ~session ~base_bytes ~id ~disposition : commit_result =
   if base_bytes <> session.F.bytes then Conflict_base_changed
   else
-    match B.classify_merchant session.book ~id ~disposition with
-    | Error why -> Refused why
-    | Ok candidate -> publish_candidate ~session candidate
+    publish_ops ~session [ L.Classify_merchant { id; disposition } ]
 
 
 let commit_payload ~session ~base_bytes = function
@@ -138,18 +120,16 @@ let commit_payload ~session ~base_bytes = function
 let commit_set_locus_label ~session ~base_bytes ~id ~label ?help () : commit_result =
   if base_bytes <> session.F.bytes then Conflict_base_changed
   else
-    match B.set_locus_label session.book ~id ~label ?help () with
-    | Error why -> Refused why
-    | Ok candidate -> publish_candidate ~session candidate
+    publish_ops ~session [ L.Set_locus_label { id; label; help } ]
 let commit_add_locus ~session name : commit_result =
   let name = String.trim name in
   if String.equal name "" then Refused (tr "Enter the new Locus token.")
   else
-    match B.add_locus session.F.book name with
-    | Error "duplicate-locus" -> Refused (format_message "Locus %s is already admitted." name)
-    | Error "locus-policy-not-supplied" -> Refused (tr "Locus admission policy is not supplied.")
-    | Error why -> Refused (format_message "Locus admission refused (%s)" why)
-    | Ok candidate -> publish_candidate ~session candidate
+    match publish_ops ~session [ L.Add_locus name ] with
+    | Refused "duplicate-locus" -> Refused (format_message "Locus %s is already admitted." name)
+    | Refused "locus-policy-not-supplied" -> Refused (tr "Locus admission policy is not supplied.")
+    | Refused why -> Refused (format_message "Locus admission refused (%s)" why)
+    | result -> result
 
 type reload_result =
   | Pending_confirmed of F.t
@@ -166,8 +146,7 @@ let reload ~session ~pending ~mode : reload_result =
     | Some notice -> Recovery_required (loaded, notice)
     | None -> (
         match pending with
-        | Some (Monolithic_candidate bytes) when loaded.bytes = bytes -> Pending_confirmed loaded
-        | Some (Unspecified_evidence bytes) when loaded.bytes = bytes -> Pending_confirmed loaded
+        | Some (Expected_file bytes) when loaded.bytes = bytes -> Pending_confirmed loaded
         | Some _ -> Pending_unconfirmed loaded
         | None -> (
             match mode with

@@ -1,17 +1,36 @@
-(* One selected S-expression file and separate pre-edit backups.
-   Cooperative writers/stable parent namespaces; not a security sandbox or a
-   qualified power-loss protocol. No background retry, adoption or pruning. *)
+(* One book file: a snapshot followed by appended records (Bakhlo_sexp.Book_log).
+   Publication appends one fsynced record; compaction atomically replaces the file
+   with a fresh snapshot and keeps the previous file as [.prev]. Cooperative writers
+   and stable parent namespaces are assumed; not a security sandbox or a qualified
+   power-loss protocol. No background retry or automatic repair. *)
 module B = Bakhlo_sexp.Daily_book
+module L = Bakhlo_sexp.Book_log
 exception Refused of string
 
 let require p why = if not p then raise (Refused why)
 let get why = function Ok x -> x | Error _ -> raise (Refused why)
 
-type t = { path : string; bytes : string; book : B.t }
+type stamp = { dev : int; ino : int; size : int; mtime : float }
 
-type outcome = Written of t | Conflict | Refused_input of string | Uncertain
+type t = {
+  path : string;
+  bytes : string;  (** The whole file as read or written by this session. *)
+  book : B.t;
+  records : int;  (** Complete records after the snapshot. *)
+  torn : bool;  (** An interrupted final append follows the complete records. *)
+  stamp : stamp;
+}
 
-let read path =
+type outcome =
+  | Written of t
+  | Conflict
+  | Refused_input of string
+  | Uncertain of { base_length : int; line : string }
+      (** The append may or may not have reached the file; [line] is what was sent. *)
+
+let stamp_of (s : Unix.stats) = { dev = s.st_dev; ino = s.st_ino; size = s.st_size; mtime = s.st_mtime }
+
+let read_stamped path =
   let initial = Unix.lstat path in
   require (initial.st_kind = Unix.S_REG) "regular-file-required";
   let fd = Unix.openfile path [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
@@ -24,28 +43,18 @@ let read path =
         && s.st_ctime = initial.st_ctime
       in
       require (check (Unix.fstat fd)) "changed-at-open";
-      let b = Buffer.create 4096 and chunk = Bytes.create 4096 in
+      let b = Buffer.create (max 4096 initial.st_size) and chunk = Bytes.create 65536 in
       let rec loop () =
-        let n = Unix.read fd chunk 0 4096 in
+        let n = Unix.read fd chunk 0 65536 in
         if n > 0 then (
           Buffer.add_subbytes b chunk 0 n;
           loop ())
       in
       loop ();
       require (check (Unix.fstat fd) && check (Unix.lstat path)) "changed-during-read";
-      Buffer.contents b)
+      (Buffer.contents b, stamp_of initial))
 
-let unfinished_names path =
-  let base = Filename.basename path in
-  let attempt_prefix = base ^ ".attempt-" and pending_prefix = base ^ ".pending-" in
-  Sys.readdir (Filename.dirname path)
-  |> Array.to_list
-  |> List.filter (fun name ->
-      String.starts_with ~prefix:attempt_prefix name
-      || String.starts_with ~prefix:pending_prefix name)
-  |> List.sort String.compare
-
-let require_finished path = require (unfinished_names path = []) "recovery-required"
+let read path = fst (read_stamped path)
 
 let writer_locks : (string, int) Hashtbl.t = Hashtbl.create 8
 
@@ -73,9 +82,21 @@ let with_writer path f =
           Unix.lockf fd Unix.F_TLOCK 0;
           f ())
 
+let of_bytes path bytes stamp =
+  match L.load bytes with
+  | Error why -> raise (Refused ("book-refused: " ^ why))
+  | Ok loaded -> { path; bytes; book = loaded.book; records = loaded.records; torn = loaded.torn; stamp }
+
 let load path =
-  let bytes = read path in
-  { path; bytes; book = get "book-refused" (B.of_string bytes) }
+  let bytes, stamp = read_stamped path in
+  of_bytes path bytes stamp
+
+let reload session = load session.path
+
+let load_result path =
+  try Ok (load path) with
+  | Refused why -> Error why
+  | Unix.Unix_error _ | Sys_error _ -> Error "file-unavailable"
 
 let nonce () =
   let fd = Unix.openfile "/dev/urandom" [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
@@ -94,18 +115,21 @@ let nonce () =
 
 let new_id () = "entry-" ^ nonce ()
 
+let write_all fd bytes =
+  let rec loop n =
+    if n < String.length bytes then (
+      let count = Unix.write_substring fd bytes n (String.length bytes - n) in
+      require (count > 0) "zero-write";
+      loop (n + count))
+  in
+  loop 0
+
 let write_new path bytes =
   let fd = Unix.openfile path [ Unix.O_WRONLY; Unix.O_CREAT; Unix.O_EXCL; Unix.O_CLOEXEC ] 0o600 in
   Fun.protect
     ~finally:(fun () -> Unix.close fd)
     (fun () ->
-      let rec loop n =
-        if n < String.length bytes then (
-          let count = Unix.write_substring fd bytes n (String.length bytes - n) in
-          require (count > 0) "zero-write";
-          loop (n + count))
-      in
-      loop 0;
+      write_all fd bytes;
       Unix.fsync fd);
   require (read path = bytes) "readback-changed"
 
@@ -122,131 +146,170 @@ let create_empty ~path ~measure ~scale =
   require (session.bytes = bytes) "first-run-cold-readback-changed";
   session
 
-let valid_attempt_id id =
-  String.length id = 24
-  && String.for_all (fun c -> (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) id
-
-let attempt_path path id = path ^ ".attempt-" ^ id ^ ".sexp"
-let pending_path path id = path ^ ".pending-" ^ id
-let before_path path id = path ^ ".before-" ^ id ^ ".sexp"
-
-let artifact_id path name =
-  let base = Filename.basename path in
-  let attempt_prefix = base ^ ".attempt-" and pending_prefix = base ^ ".pending-" in
-  let extract prefix suffix =
-    let len = String.length name - String.length prefix - String.length suffix in
-    if len < 0 || not (Filename.check_suffix name suffix) then None
-    else
-      let id = String.sub name (String.length prefix) len in
-      if valid_attempt_id id then Some id else None
-  in
-  if String.starts_with ~prefix:attempt_prefix name then (true, extract attempt_prefix ".sexp")
-  else (false, extract pending_prefix "")
-
-type comparison = Candidate_current | Before_current | Unresolved | Unreadable of string
-type recovery_item = { name : string; attempt_id : string option; comparison : comparison }
-type recovery_report = { selected : (t, string) result; items : recovery_item list }
-
-let reload session = load session.path
-
-let load_result path =
-  try Ok (load path) with
-  | Refused why -> Error why
-  | Unix.Unix_error _ | Sys_error _ -> Error "file-unavailable"
-
-(* Read-only observations, not publication permission or proof of past outcome.
-   Unrecognised/partial artifacts remain visible and block ordinary publication. *)
-let inspect_recovery path =
-  let selected = load_result path in
-  let names = unfinished_names path in
-  let items =
-    names
-    |> List.filter (fun name ->
-        match artifact_id path name with
-        | false, Some id -> not (List.mem (Filename.basename (attempt_path path id)) names)
-        | _ -> true)
-    |> List.map (fun name ->
-        let _, attempt_id = artifact_id path name in
-        let comparison =
-          match (attempt_id, selected) with
-          | None, _ -> Unreadable "unrecognised-artifact-name"
-          | Some _, Error _ -> Unreadable "selected-unavailable"
-          | Some id, Ok current -> (
-              let candidate_path = Filename.concat (Filename.dirname path) name in
-              let candidate =
-                try Ok (load candidate_path) with
-                | Refused why -> Error why
-                | Unix.Unix_error _ | Sys_error _ -> Error "file-unavailable"
-              in
-              match candidate with
-              | Error why -> Unreadable ("candidate-" ^ why)
-              | Ok candidate -> (
-                  require
-                    (read candidate_path = candidate.bytes)
-                    "recovery-changed-during-inspection";
-                  if current.bytes = candidate.bytes then Candidate_current
-                  else
-                    let before =
-                      try Ok (load (before_path path id)) with
-                      | Refused why -> Error why
-                      | Unix.Unix_error _ | Sys_error _ -> Error "file-unavailable"
-                    in
-                    match before with
-                    | Ok before when before.bytes = current.bytes -> Before_current
-                    | Ok _ | Error _ -> Unresolved))
-        in
-        { name; attempt_id; comparison })
-  in
-  require (unfinished_names path = names) "recovery-changed-during-inspection";
-  let same_selection =
-    match (selected, load_result path) with
-    | Ok a, Ok b -> a.bytes = b.bytes
-    | Error a, Error b -> a = b
-    | _ -> false
-  in
-  require same_selection "recovery-changed-during-inspection";
-  { selected; items }
-
-let sync_file path =
+(* The last [n] bytes of the file, read through one descriptor. *)
+let read_tail path n =
   let fd = Unix.openfile path [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
   Fun.protect
     ~finally:(fun () -> Unix.close fd)
     (fun () ->
-      let stat = Unix.fstat fd and named = Unix.lstat path in
-      require
-        (stat.st_kind = Unix.S_REG && named.st_kind = Unix.S_REG && stat.st_dev = named.st_dev
-       && stat.st_ino = named.st_ino)
-        "changed-at-sync";
-      Unix.fsync fd)
-
-(* Explicitly acknowledge only an admitted candidate EXACTLY present now.
-   Never acknowledge a merely newer/different file or infer non-publication. *)
-let confirm_current ~session ~attempt_id =
-  require (valid_attempt_id attempt_id) "invalid-attempt-id";
-  with_writer session.path (fun () ->
-      let current = load session.path in
-      require (current.bytes = session.bytes) "confirmation-base-changed";
-      let attempt = attempt_path session.path attempt_id in
-      let pending = pending_path session.path attempt_id in
-      let exists path =
-        try
-          ignore (Unix.lstat path);
-          true
-        with Unix.Unix_error (Unix.ENOENT, _, _) -> false
+      let size = (Unix.fstat fd).st_size in
+      let n = min n size in
+      ignore (Unix.lseek fd (size - n) Unix.SEEK_SET);
+      let b = Bytes.create n in
+      let rec loop k =
+        if k < n then (
+          let count = Unix.read fd b k (n - k) in
+          require (count > 0) "short-tail-read";
+          loop (k + count))
       in
-      let has_attempt = exists attempt and has_pending = exists pending in
-      require (has_attempt || has_pending) "attempt-not-found";
-      let candidate = load (if has_attempt then attempt else pending) in
-      require (candidate.bytes = current.bytes) "candidate-not-current";
-      if has_pending then require (read pending = candidate.bytes) "pending-differs";
-      sync_file session.path;
-      sync_parent session.path;
-      require (read session.path = current.bytes) "confirmation-base-changed";
-      if has_pending then Unix.unlink pending;
-      if has_attempt then Unix.unlink attempt;
-      sync_parent session.path;
-      require (read session.path = current.bytes) "confirmation-readback-changed";
-      current)
+      loop 0;
+      Bytes.to_string b)
+
+let tail_check = 4096
+
+(* The file is still exactly what this session last saw: same inode, size and
+   modification time, and the same final bytes. *)
+let unchanged session =
+  match Unix.lstat session.path with
+  | s when stamp_of s = session.stamp && s.st_kind = Unix.S_REG ->
+      let n = min tail_check (String.length session.bytes) in
+      read_tail session.path n = String.sub session.bytes (String.length session.bytes - n) n
+  | _ -> false
+  | exception Unix.Unix_error (Unix.ENOENT, _, _) -> false
+
+type publication_step = Appended | Synced
+
+(* What [append] writes for [ops]: the record line, on a line of its own. *)
+let appended_bytes session ops =
+  let line = L.record_line ~seq:(session.records + 1) ops in
+  if session.bytes = "" || String.ends_with ~suffix:"\n" session.bytes then line else "\n" ^ line
+
+(* Checkpoints are for deterministic fault/child-process interruption checks;
+   ordinary callers use the no-op default and cannot bypass any gate. *)
+let append ?(checkpoint = fun _ -> ()) session ops =
+  let attempted = ref None in
+  try
+    require (not session.torn) "torn-tail";
+    let book = match L.apply_all session.book ops with Ok book -> book | Error why -> raise (Refused why) in
+    let seq = session.records + 1 in
+    require (L.decode_record_line ~seq (L.record_line ~seq ops) = Ok ops) "unstable-record";
+    let line = appended_bytes session ops in
+    with_writer session.path (fun () ->
+        if not (unchanged session) then Conflict
+        else (
+          let base_length = String.length session.bytes in
+          attempted := Some (base_length, line);
+          let fd = Unix.openfile session.path [ Unix.O_WRONLY; Unix.O_APPEND; Unix.O_CLOEXEC ] 0 in
+          Fun.protect
+            ~finally:(fun () -> Unix.close fd)
+            (fun () ->
+              write_all fd line;
+              checkpoint Appended;
+              Unix.fsync fd;
+              checkpoint Synced);
+          let s = Unix.lstat session.path in
+          require (s.st_size = base_length + String.length line) "appended-size-changed";
+          require (read_tail session.path (String.length line) = line) "appended-readback-changed";
+          Written
+            { session with bytes = session.bytes ^ line; book; records = seq; stamp = stamp_of s }))
+  with
+  | Refused why -> (
+      match !attempted with
+      | Some (base_length, line) -> Uncertain { base_length; line }
+      | None -> Refused_input why)
+  | Unix.Unix_error _ | Sys_error _ -> (
+      match !attempted with
+      | Some (base_length, line) -> Uncertain { base_length; line }
+      | None -> Refused_input "file-or-writer-unavailable")
+
+(* Whether the file now holds exactly the session's base followed by [line]. *)
+let confirms ~base_length ~line session =
+  String.length session.bytes = base_length + String.length line
+  && String.ends_with ~suffix:line session.bytes
+
+type compaction_step = Snapshot_written | Previous_kept | Replaced
+
+type compaction =
+  | Compacted of t
+  | Not_compacted of string  (** Nothing was written; the file is as it was. *)
+  | Compaction_uncertain  (** The file holds the old or the new snapshot (same book); reload. *)
+
+let prev_path path = path ^ ".prev"
+let compact_prefix path = Filename.basename path ^ ".compact-"
+
+(* Replace the file with a fresh snapshot of the same book. The book file exists at
+   every instant (old or new, same book); the replaced file becomes [.prev]. Stale
+   temporaries of an interrupted compaction are redundant and removed first. *)
+let compact ?(checkpoint = fun _ -> ()) session =
+  let attempted = ref false in
+  try
+    require (not session.torn) "torn-tail";
+    let snapshot = B.to_string session.book in
+    require (B.to_string (get "snapshot-refused" (B.of_string snapshot)) = snapshot) "unstable-printer";
+    with_writer session.path (fun () ->
+        if not (unchanged session) then Not_compacted "changed-on-disk"
+        else (
+          let dir = Filename.dirname session.path in
+          Sys.readdir dir
+          |> Array.iter (fun name ->
+              if String.starts_with ~prefix:(compact_prefix session.path) name then
+                Unix.unlink (Filename.concat dir name));
+          attempted := true;
+          let suffix = nonce () in
+          let tmp = session.path ^ ".compact-" ^ suffix in
+          write_new tmp snapshot;
+          checkpoint Snapshot_written;
+          let prev_tmp = session.path ^ ".compact-" ^ suffix ^ ".prev" in
+          Unix.link session.path prev_tmp;
+          Unix.rename prev_tmp (prev_path session.path);
+          (* rename(2) does nothing when both names already link the same file, as
+             after a compaction interrupted here; the spare link is then redundant. *)
+          (try Unix.unlink prev_tmp with Unix.Unix_error (Unix.ENOENT, _, _) -> ());
+          checkpoint Previous_kept;
+          Unix.rename tmp session.path;
+          sync_parent session.path;
+          checkpoint Replaced;
+          let loaded = load session.path in
+          require (loaded.bytes = snapshot && loaded.records = 0) "compacted-readback-changed";
+          Compacted loaded))
+  with
+  | Refused why -> if !attempted then Compaction_uncertain else Not_compacted why
+  | Unix.Unix_error _ | Sys_error _ ->
+      if !attempted then Compaction_uncertain else Not_compacted "file-or-writer-unavailable"
+
+let compaction_threshold = 200
+
+let compact_if_due session =
+  if session.records >= compaction_threshold && not session.torn then Some (compact session) else None
+
+(* Explicit, user-confirmed removal of an interrupted final append. Only an
+   unterminated last line is removed; the complete records stay. *)
+let discard_torn_tail path =
+  with_writer path (fun () ->
+      let bytes, _ = read_stamped path in
+      let loaded = match L.load bytes with Ok l -> l | Error why -> raise (Refused why) in
+      require loaded.torn "no-torn-tail";
+      Unix.truncate path loaded.valid_length;
+      let fd = Unix.openfile path [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
+      Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> Unix.fsync fd);
+      let after = load path in
+      require ((not after.torn) && after.records = loaded.records) "discard-readback-changed";
+      (String.length bytes - loaded.valid_length, after))
+
+type recovery_report = { selected : (t, string) result; torn_bytes : int }
+
+(* Read-only description, not publication permission or proof of a past outcome. *)
+let inspect_recovery path =
+  let selected = load_result path in
+  let torn_bytes =
+    match selected with
+    | Ok session when session.torn -> (
+        match L.load session.bytes with
+        | Ok loaded -> String.length session.bytes - loaded.valid_length
+        | Error _ -> 0)
+    | Ok _ | Error _ -> 0
+  in
+  { selected; torn_bytes }
 
 (* Restore only to an explicitly fresh target, preserving original bytes. A
    checked copy is not automatic adoption, reconciliation or a format upgrade. *)
@@ -259,66 +322,12 @@ let restore_copy ~source ~target =
 
 let create_copy ~source ~target =
   let original = load source in
-  require_finished source;
+  require (not original.torn) "torn-tail";
   let bytes = B.to_string original.book in
   ignore (get "printed-book-refused" (B.of_string bytes));
   write_new target bytes;
   sync_parent target;
   require (read source = original.bytes) "source-changed-during-copy"
-
-type publication_step =
-  | Attempt_synced
-  | Pending_written
-  | Backup_written
-  | Outputs_synced
-  | Selected_replaced
-  | Selected_synced
-  | Attempt_removed
-
-(* Checkpoints are for deterministic fault/child-process interruption checks;
-   ordinary callers use the no-op default and cannot bypass any gate. *)
-let publish ?(checkpoint = fun _ -> ()) session book =
-  let attempted = ref false in
-  try
-    let bytes = B.to_string book in
-    let checked = get "printed-book-refused" (B.of_string bytes) in
-    require (B.to_string checked = bytes) "unstable-printer";
-    with_writer session.path (fun () ->
-        require_finished session.path;
-        if read session.path <> session.bytes then Conflict
-        else (
-          let suffix = nonce () in
-          let attempt = attempt_path session.path suffix in
-          let pending = pending_path session.path suffix in
-          let backup = before_path session.path suffix in
-          attempted := true;
-          (* This independent candidate survives pending -> selected rename.
-             A partial attempt file also conservatively freezes cold writes. *)
-          write_new attempt bytes;
-          sync_parent session.path;
-          checkpoint Attempt_synced;
-          write_new pending bytes;
-          checkpoint Pending_written;
-          write_new backup session.bytes;
-          checkpoint Backup_written;
-          sync_parent session.path;
-          checkpoint Outputs_synced;
-          if read session.path <> session.bytes then Conflict
-          else (
-            Unix.rename pending session.path;
-            checkpoint Selected_replaced;
-            sync_parent session.path;
-            require (read session.path = bytes) "selected-readback-changed";
-            checkpoint Selected_synced;
-            (* Only our completed temporary attempt is removed; backups stay. *)
-            Unix.unlink attempt;
-            checkpoint Attempt_removed;
-            sync_parent session.path;
-            Written { session with bytes; book = checked })))
-  with
-  | Refused why -> if !attempted then Uncertain else Refused_input why
-  | Unix.Unix_error _ | Sys_error _ ->
-      if !attempted then Uncertain else Refused_input "file-or-writer-unavailable"
 
 let today () =
   let tm = Unix.localtime (Unix.time ()) in

@@ -117,6 +117,16 @@ let () = match Sys.argv with
         changes = [ ("wallet", Z.of_int (-500)); ("food", Z.of_int 500) ]; paid_by = None; cancelled_on = None } in
       median "put_plan (new)" 21 (fun () -> get (B.put_plan b ~replace:false plan));
       median "add_locus" 21 (fun () -> get (B.add_locus b "probe-locus"));
+      let file = Filename.concat dir "save.sexp" in
+      (try Sys.remove file with Sys_error _ -> ());
+      Out_channel.with_open_bin file (fun oc -> output_string oc bytes);
+      let session = ref (Daily_file.load file) and n = ref 0 in
+      median "save (append + fsync)" 21 (fun () ->
+          incr n;
+          let e = { (entry 1) with id = Printf.sprintf "save-%d" !n; day = "2030-01-02"; reversal_of = None } in
+          match Daily_file.append !session [ Bakhlo_sexp.Book_log.Put_entry { replace = false; entry = e; plan = None } ] with
+          | Daily_file.Written s -> session := s
+          | _ -> failwith "save-refused");
       median "balance query" 101 (fun () -> balance b);
       let pool = [coordinate "wallet" "jpy"] in
       median "daily_pace" 21 (fun () -> B.daily_pace b ~measure:"jpy" ~pool ~observed_at:"2030-01-01" ~end_exclusive:"2030-02-01")

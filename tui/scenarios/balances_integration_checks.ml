@@ -411,8 +411,7 @@ let observe_multi_checks ~width_of ~directory () =
   (let st = key ~width_of (fresh_home ()) (`ASCII 'o') in
    let st = press (fill st "wallet" "jpy" "11") in
    let st = to_preview st in
-   let live = get (B.observe_quantities (get (B.of_string (F.read path))) [ ("bank", "jpy", Z.of_int 3) ]) in
-   (match F.publish (fresh_home ()).session live with
+   (match F.append (fresh_home ()).session [ L.Observe [ ("bank", "jpy", Z.of_int 3) ] ] with
     | F.Written _ -> () | _ -> raise (F.Refused "observe-conflict-setup"));
    let concurrent = F.read path in
    let conflict = publish st in

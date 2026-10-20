@@ -6,6 +6,14 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Append-only saves (2026-10-20)
+
+- `Daily_file` rewritten around `Book_log`: `append` (apply ops in Core → unchanged check of inode/size/mtime/tail under the writer lock → write one record line, fsync, tail readback; records start on their own line even when the file lacks a final newline), `Uncertain` carries the sent line and `confirms` checks it after reload, `discard_torn_tail` (explicit, locked, only an unterminated last line), `compact` (temp snapshot → hard-link old file to `.prev` → atomic rename; spare link removed when rename(2) is a no-op on same-file links), `compact_if_due` (≥200 records) run after the TUI exits. Old attempt/pending/before files and `confirm_current` removed. User decisions recorded in AGENTS.md.
+- TUI: every publication (record/correction/reversal/merchant/plans/plan batch/cancel/locus/label/observation) sends `Book_log` operations; uncertain evidence is `Expected_file` (base + appended bytes); recovery notice = torn tail. CLI: `--inspect-recovery` reports torn tail, `--discard-torn-tail` added, `--confirm-current-attempt` removed. Found and fixed while testing: config saves checked the household file as a bare snapshot and would refuse any book with records.
+- Tests: `test/daily_file_tests.ml` (append/cold load, refusal and foreign change write nothing, faults at both checkpoints are uncertain and confirmable, torn tail stops writes and explicit discard restores, compaction faults at all three steps keep the book and leave no temporaries on retry, SIGKILL at both checkpoints, missing final newline). `tui/scenarios/recovery_checks.ml` rewritten for the append protocol (torn tail freeze across cold open/Ctrl-N/reload/direct write, 2 faults + 2 SIGKILL, writer lock, real write failure, foreign rewrite never confirms, missing file, healthy save leaves no artifacts).
+- Synthetic probe: save 4.73 s → 36.5 ms at 109,500 entries, 0.66 ms at 1,000 ([stage 7](LONG_TERM_STORAGE_STUDY.ja.md)).
+- Passed: `./tools/check` (exit 0), `./tools/tui --self-check` (35 PASS, exit 0), `git diff --check`. Synthetic only; latest-data paired comparison not executed; not P7/power-loss qualification.
+
 ## Book log format and replay (2026-10-20)
 
 - New pure `Bakhlo_sexp.Book_log`: a book file is the ordinary single-file book (snapshot) followed by appended `(record SEQ DIGEST OP...)` lines; a file without records is an ordinary book. Operations are exactly what the application publishes (`Put_entry`, `Put_plan`, `Cancel_plan`, `Observe`, `Add_locus`, `Set_locus_label`, `Classify_merchant`), with all inputs (IDs, dates) included; a record applies its operations all-or-nothing through the ordinary `Daily_book` functions. Entry/plan syntax reuses the book's v3 codec (`Daily_book.entry_to_sexp` etc., extracted without changing book bytes) and `render_line` (same quoting, one line).
@@ -13,6 +21,7 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 - `test/book_log_tests.ml`: 150 seeded runs load snapshot+records to the in-memory book at every step, across random compactions and two-operation records (>1000 records); every cut inside the final line of 40 runs is reported torn with the previous book; damage cases refuse; one record carries every operation kind (quotes, newline, tab, backslash, Unicode, 30-digit amount, keyed posting, merchant party). The oracle now drives `Book_log.op` (adds locus-label edits).
 - Mutation check: ignoring the digest, ignoring the sequence (a missing record then loaded silently) or applying an unterminated final line each fail the tests.
 - Not yet connected to the store or TUI; publication still rewrites the whole file. Passed: `./tools/check` (exit 0), `./tools/tui --self-check` (35 PASS, exit 0), `git diff --check`. Synthetic only.
+- Matching implementation `adc643d`: [Core 39349191425](https://github.com/shumoku88-bit/bakhlo/actions/runs/39349191425) and [Bonsai TUI 39349191404](https://github.com/shumoku88-bit/bakhlo/actions/runs/39349191404) completed/success (synthetic CI).
 
 ## In-place corrections, plan and vocabulary edits (2026-10-20)
 

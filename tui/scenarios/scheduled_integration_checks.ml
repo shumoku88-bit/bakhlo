@@ -386,14 +386,14 @@ let continuation_checks ~width_of ~directory home =
     ~dimensions:(140,40) ~width_of (Option.get pay.record) (`Key (`Enter, [])) with
     | S.Publish (Daily_actions.Entry_tx tx, _, _) -> tx
     | _ -> raise (F.Refused "continuation-uncertain-intent") in
-  let candidate = get (B.put_entry source_book ~replace:tx.replace tx.entry ~plan:tx.plan) in
+  let op = [ L.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ] in
   let unknown = C.apply_commit_result ~record_publication:true pay ~draft:pay
     (Daily_actions.Uncertain { message = "synthetic lost acknowledgement";
-      evidence = Daily_actions.Monolithic_candidate (B.to_string candidate) }) in
+      evidence = Daily_actions.Expected_file (expected_after base.session op) }) in
   let unconfirmed = Shell_dispatch.reload unknown in
   require (unconfirmed.blocked && unconfirmed.record_visible && (no_modal unconfirmed))
     "continuation-unknown-completion-cannot-offer-add";
-  (match F.publish base.session candidate with F.Written _ -> () | _ -> raise (F.Refused "continuation-confirmation-setup"));
+  (match F.append base.session op with F.Written _ -> () | _ -> raise (F.Refused "continuation-confirmation-setup"));
   let confirmed = Shell_dispatch.reload unconfirmed in
   require (not confirmed.blocked && confirmed.pending = None && not confirmed.record_visible
            && B.entry_count confirmed.session.book = B.entry_count source_book + 1
