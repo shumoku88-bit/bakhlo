@@ -5010,6 +5010,11 @@ part of this modal slice; its subsequent verification follows below. No cutover.
   private comparison trial or user UI configuration was touched.
 - Independent review: Ship. Its suggested regression for a present zero-length
   body was added, keeping missing, malformed-empty and explicit empty-map distinct.
+- Pushed `97d8dbb` to `main`; manually dispatched matching-SHA
+  [Core CI 39466812732](https://github.com/shumoku88-bit/bakhlo/actions/runs/39466812732)
+  and [Bonsai TUI CI 39466819241](https://github.com/shumoku88-bit/bakhlo/actions/runs/39466819241)
+  both succeeded. These standard workflows do not exercise the private converter;
+  the capture tool itself was compiled and exercised by the local synthetic checks.
 
 ### Limits
 
