@@ -62,7 +62,7 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 
 | 項目 | 判定 | LOAMとの差 | 乗り換え | 根拠 |
 | --- | --- | --- | --- | --- |
-| 現在残高の金額・通貨・状態 | ✅ 一致（実データ） | 表示中の全口座で一致 | なし | [Balances対照](VERIFICATION.md#scheduled-series-calendar-and-real-data-balances-2026-10-19) |
+| 現在残高の金額・通貨・状態 | ✅ 一致（実データ） | 表示中の全口座で一致（2026-10-20の保存方式変更後も120×36・80×24で再確認） | なし | [Balances対照](VERIFICATION.md#scheduled-series-calendar-and-real-data-balances-2026-10-19), [再確認](VERIFICATION.md#latest-data-check-of-the-2026-10-20-storage-work-2026-10-20) |
 | 一覧の見た目 | 🟨 差あり | Bakhloは表示名＋ID、見出しは Amount（スケール適用後の金額）。LOAMはIDと Quanta | なし | UI-24 |
 | 選択した残高の詳細・下部案内 | 🟨 差あり | 項目と並び順が違う | なし | UI-24 |
 | 確認した残高の入力（Observe） | 🟨 差あり | 複数口座を同時に入力・Preview・保存できる。入力欄の形がLOAMと違う。差分追加した明細が観測に反映済みと扱われず二重計上されるCore不具合を修正（合成で確認、2026-10-20） | なし | UI-31, [Observe修正](VERIFICATION.md#observation-after-incremental-record-2026-10-20) |
@@ -73,7 +73,7 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 
 | 項目 | 判定 | LOAMとの差 | 乗り換え | 根拠 |
 | --- | --- | --- | --- | --- |
-| 今日のPace | ✅ 一致（実データ） | 120×36・80×24で一致 | なし | [実データ対照](VERIFICATION.md#latest-real-data-copy-and-paired-observation-2026-10-19) |
+| 今日のPace | ✅ 一致（実データ） | 120×36・80×24で一致（2026-10-20の保存方式変更後も再確認。グラフの目盛り位置と曲線の形は既知の差） | なし | [実データ対照](VERIFICATION.md#latest-real-data-copy-and-paired-observation-2026-10-19), [再確認](VERIFICATION.md#latest-data-check-of-the-2026-10-20-storage-work-2026-10-20) |
 | 過去のPace（5期間のHistory・選択行） | ✅ 一致（実データ） | bounded-history根拠を取り込み、全期間で一致 | なし | [履歴対照](VERIFICATION.md#bounded-history-support-and-real-data-pace-history-2026-10-19) |
 | 選択日の詳細欄 | 🟨 差あり | 文言と並び順が違う | なし | UI-33 |
 | グラフの描き方 | 🟨 差あり | 目盛り・グリッド・点字の描き方が違う。値は同じ | なし | UI-33 |

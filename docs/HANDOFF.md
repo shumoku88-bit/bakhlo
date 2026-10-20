@@ -21,8 +21,9 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   ~110k synthetic entries: save 0.6 ms, record/refund/exchange <0.01 ms, correction
   4 ms, observation 6 ms, startup 2.2 s (deferred by the user). Details:
   [long-term storage study](LONG_TERM_STORAGE_STUDY.ja.md) stages 5–9.
-- Not yet done for the 2026-10-20 storage work: a latest-data paired comparison and
-  trial saves on a private copy (writes need the user's explicit request).
+- The 2026-10-20 storage work was checked on the latest real-data copy (Core identical
+  to pre-today code; Balances and Daily Pace match LOAM). Trial saves on a private
+  copy were not made (writes need the user's explicit request).
 - Unqualified: P7 (persistent post-save acknowledgement), power loss, real macOS IME,
   human acceptance.
 
@@ -58,8 +59,8 @@ After pushing, check CI for the matching commit SHA.
 
 ## Next candidates
 
-1. Latest-data paired check of the storage work (read-only now; trial saves if the
-   user asks).
+1. Trial saves on a private copy (if the user asks); compare correcting entries with
+   retired Loci against LOAM.
 2. Daily-use parity in the five areas of the cutover diff ledger, ordered by
    `tasks/todo.md`.
 3. Startup snapshot only when startup is felt slow.

@@ -6,6 +6,14 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Latest-data check of the 2026-10-20 storage work (2026-10-20)
+
+- Fresh `./tools/compare refresh` (LOAM open, originals not written, no user process terminated). Bakhlo `c773396` (implementation `334d413`), Bonsai executable SHA-256 `4a9b0f8836772a357bea094fffe016d69b73ffc99524b3ba6c76dec19116515b`; existing LOAM executable `1f408694a95efbc865726e2a8eefff4a4d83cf41b01e00897ee42bdee242c703` (source correspondence not certified).
+- **Core, real copy, in memory only:** today's code and the pre-today code (`3bda3ca`, built in a scratch worktree) give a byte-identical fingerprint (canonical serialization, every approved Locus × Measure answer with its support kind, plan counts). For every entry, the in-place path agreed with `Daily_book.Full` for a no-op correction, a memo correction (also cold-equivalent) and a refund; re-observing every observed coordinate at its value and value+1 agreed with `Full` and was cold-equivalent; 20 applicable corrections round-tripped through `Book_log` records.
+- **Paired UI (tmux, read-only), 120×36 and 80×24:** Balances/Current rows (account, amount, currency, state) identical; Daily Pace Today/Selected/change lines, every visible History row and the detail values (pace, pool, available, remaining days, cycle end) identical. Graph tick values and date axis identical; tick row placement (one row apart) and Braille curve shape differ — the known Grid/Braille gap, rendering code untouched today.
+- Finding (not a regression; same before today): entries whose Loci are no longer approved cannot be corrected, even memo-only (`locus-unapproved`, whole-book reference agrees). LOAM's behavior for this case is not yet compared.
+- Comparison copies (34 files) and LOAM originals (36 files) byte-identical before/after. Only the AI's tmux server was stopped; a user's own `./ui` session on the previous capture was left running. `./tools/compare clean-copies` run; worktree and private captures deleted. No trial saves were made (not requested). Not human/IME acceptance, P7 or cutover.
+
 ## In-place refunds, exchanges and observations (2026-10-20)
 
 - `Daily_book`: admission's entry stage split into `entry_event` and `actual_source`; local admission runs the real `Actual_source.create` over the changed entry plus its Reversal partners (every Actual check concerns one entry or one Reversal pair), with the only book-wide rule (a target is reversed once) checked against the new `reversed_by` index after event construction. All new entries (plain, refund, exchange, original amount, merchant) are now in place; corrections are in place unless they change the Reversal link or touch an opening witness/presence evidence.
