@@ -135,8 +135,8 @@ def smoke(binary, fixture, width, height, root):
         # inspect detail, then resize while the same actual PTY stays alive.
         sess.send(b"\r")
         sess.send(b"b")
-        sess.wait_for(b"Balances / Current")
-        sess.wait_for(b"+1,000 jpy")
+        sess.wait_for(b"Balances [active]")
+        sess.wait_for(b"1,000")
         sess.send(b"j")
         sess.send(b"k")
         sess.send(b"v")
@@ -160,8 +160,8 @@ def smoke(binary, fixture, width, height, root):
         reopened.wait_for(b"bakhlo")
         reopened.send(b"\r")
         reopened.send(b"b")
-        reopened.wait_for(b"Balances / Current")
-        reopened.wait_for(b"+1,000 jpy")
+        reopened.wait_for(b"Balances [active]")
+        reopened.wait_for(b"1,000")
         reopened.finish()
     finally:
         reopened.close()
@@ -169,7 +169,7 @@ def smoke(binary, fixture, width, height, root):
         raise AssertionError("cold PTY reopen modified book bytes")
     if sorted(p.name for p in owned.iterdir()) != ["book.sexp"]:
         raise AssertionError("read-only PTY session created extra authority/config files")
-    print(f"PASS: PTY {width}x{height} -> {next_width}x{next_height} -> {width}x{height}, keyboard, exact +1,000 jpy, cold reopen, exit, bytes unchanged", flush=True)
+    print(f"PASS: PTY {width}x{height} -> {next_width}x{next_height} -> {width}x{height}, keyboard, exact 1,000, cold reopen, exit, bytes unchanged", flush=True)
 
 
 def smoke_record_preview_refusal(binary, fixture, root):

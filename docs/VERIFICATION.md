@@ -5334,3 +5334,27 @@ executed**.
 - `rtk test ./tools/check`: **PASS** (Core build/tests and architecture checks).
   `./tools/privacy-scan` reported **not executed** because the synthetic-only
   worktree has no private household reference copy; none was obtained.
+
+## Balances UI-24 integration and latest-data comparison (2026-10-21)
+
+- Integrated `omp/balances-ui24` (`68edaf5`, `89f99bd`, `a83bfc4`) on top of `dc62a1f`;
+  the scenario conflict with the Accounting change kept both checks. Reviewer request
+  applied by the worker: Measure-scaled exact Amount instead of LOAM's raw Quanta for
+  Measures with a scale (intentional, to prevent misreading `12,345 eur` for 123.45 EUR).
+- `tools/ci_tui_pty.py` expected the old `Balances / Current` title and `+1,000 jpy`; it
+  now waits for `Balances [active]` and `1,000`. Local native PTY matrix passed (120×36,
+  80×24, 48×14, 32×9 and the narrow Record Preview refusal).
+- On the main checkout: `./tools/check`, `./tools/privacy-scan --all` (no match),
+  `./tools/tui --self-check` (39 PASS) and `git diff --check` passed.
+- Latest-data paired comparison on generation `capture-1792523574-57680-293b919a`,
+  read-only (Home `b`; LOAM Reports → Balances / Current) at 120×36 and 80×24: the list
+  rows (Locus ID, amount, Measure, state) are equal to LOAM's by script, and the selected
+  detail has the same items and order. Remaining visible differences: `Amount` vs
+  `Quanta` heading, Shell header line, extra Bakhlo keys in the guide, and at 80×24 the
+  list frame is one row taller. Household/config SHA-256 unchanged, comparison book
+  unchanged, AI tmux sessions closed, `clean-copies` passed.
+- Accounting commit `dc62a1f`: matching-SHA
+  [Core CI 39478791029](https://github.com/shumoku88-bit/bakhlo/actions/runs/39478791029)
+  and [Bonsai TUI CI 39478790974](https://github.com/shumoku88-bit/bakhlo/actions/runs/39478790974)
+  both succeeded.
+- Physical terminal/IME, human acceptance and P7 were **not executed**.
