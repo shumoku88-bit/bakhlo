@@ -115,28 +115,24 @@ let safety_checks ~width_of ~directory () =
         Base.String.is_substring row ~substring:"After purchase: -1 jpy/day") rows
     | None -> false)
     "negative-what-if-uses-floor-division-without-clamping";
-  let opened = open_pool_editor home in
-  let form = Option.get (visible_form opened) |> fun f -> Ui_form.set_text f "pool_loci" "wallet, bank"
-    |> fun f -> Ui_form.set_focused f 1 in
-  let reviewed = key ~width_of (with_visible_form opened form) `Enter in
-  require ((visible_form_id reviewed = Some "review_pool")
+  let reviewed = key ~width_of (pool_toggle ~width_of (open_pool_editor home) "food") `Enter in
+  require (pool_reviewing ~width_of reviewed
     && F.read pool_path = "wallet\tjpy\n" && F.read windows_path = boundaries) "pool-review-does-not-save";
   let saved = key ~width_of reviewed `Enter in
   require (no_modal saved
-    && F.read pool_path = "wallet\tjpy\nbank\tjpy\n"
+    && F.read pool_path = "wallet\tjpy\nfood\tjpy\n"
     && F.read windows_path = boundaries) "pool-save-preserves-all-presets";
   let stale_open = open_pool_editor home in
-  let stale = Option.get (visible_form stale_open) |> fun f -> Ui_form.set_focused f 1 in
   replace pool_path "bank\tjpy\n";
-  let stale_review = key ~width_of (with_visible_form stale_open stale) `Enter in
+  let stale_review = key ~width_of stale_open `Enter in
   require (F.read pool_path = "bank\tjpy\n") "stale-pool-review-does-not-save";
-  require (failed (key ~width_of stale_review `Enter)) "stale-pool-save-refused";
+  require (Base.String.is_substring (pool_text ~width_of (key ~width_of stale_review `Enter))
+    ~substring:"Pool save not confirmed") "stale-pool-save-refused";
   require (F.read pool_path = "bank\tjpy\n" && F.read windows_path = boundaries) "stale-config-preserved";
   Unix.unlink windows_path;
-  let opened = open_pool_editor home in
-  let form = Option.get (visible_form opened) |> fun f -> Ui_form.set_focused f 1 in
-  let reviewed = key ~width_of (with_visible_form opened form) `Enter in
+  let reviewed = key ~width_of (pool_toggle ~width_of (open_pool_editor home) "food") `Enter in
   let saved = key ~width_of reviewed `Enter in
-  require (no_modal saved && not (Sys.file_exists windows_path)) "pool-save-does-not-invent-period";
+  require (no_modal saved && F.read pool_path = "food\tjpy\n" && not (Sys.file_exists windows_path))
+    "pool-save-does-not-invent-period";
   print_endline "PASS: sidecar refusal/draft preservation, strict inputs, explicit Pace, negative What-if and non-destructive Pool edits."
 

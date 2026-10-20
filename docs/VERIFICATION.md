@@ -4606,3 +4606,55 @@ Both are recorded as intentional differences; no code changed.
 
 Pool setup (`c`) was not compared in this slice. Physical terminal/IME, human
 acceptance and P7 were **not executed**.
+
+## Daily Pace pool picker follows LOAM (2026-10-20)
+
+User decision (2026-10-20): replace the comma-separated pool editor with LOAM's picker.
+
+### Implemented boundary
+
+- The form-based pool editor (Locus tokens typed with commas, old/new review form) was
+  deleted. New `tui/screens/pace/daily_pace_pool.ml` follows LOAM
+  `DailyPacePoolSetup`: `Daily Pace / Spendable pool (<measure>)`, candidates are only
+  coordinates with an exact current balance, `j/k` move, Space toggles, Enter reviews
+  (empty selection refused), review Enter saves, `Esc/e` edits, `Esc/q` cancels. Rows and
+  wording match LOAM's choose and review views.
+- Candidate order follows LOAM's rule as far as Bakhlo's book can express it: grouped
+  by support (zero-origin, opening, current observation), each in first-appearance order
+  over retained entries (any Locus, as balances do), then admitted Loci without one.
+- Kept from Bakhlo: the save still goes through `Save_config` with the bytes captured at
+  open (a changed file refuses), a cancelled picker resumes for the same Measure, and
+  Commands → Daily Pace / spendable accounts opens the same picker.
+- Intentional differences: review refuses to save unless every review row is visible
+  and unclipped (LOAM truncates the chosen list); balances from the earlier pool that are
+  no longer exact-current are dropped and named in the picker notice and the review
+  (LOAM refuses to open); refusal notices wrap instead of being ellipsized; an unreadable,
+  malformed or foreign-Measure file opens with its cause and refuses review.
+
+### Evidence
+
+- Checks rewritten for the picker (driven through painted rows): existing pool pre-checked,
+  empty refusal, review before write, Esc/cancel/Commands draft resume, narrow and
+  clipped review refusal, write failure (lock) and stale file refusal keep the draft,
+  explicit save and cold reopen, foreign/malformed/unreadable refusal, dropped balances
+  named, missing file created, period file never invented, ledger and boundaries
+  unchanged. `./tools/check`, `./tools/tui --self-check` (35 PASS) and
+  `git diff --check` passed.
+- Synthetic paired run (zero-origin fixture; Bakhlo SHA-256
+  `a5cd88fb92125750204fe6db18d7140ac308120e61bbf73a77a6336a8af2fe0f`, existing LOAM
+  `312467cd9af30778873bb9afabf0d87143e874d67c828e828c42f8573b8840c3`): LOAM via Commands →
+  Household setup → Daily Pace / spendable accounts, Bakhlo via `c`: open, move, toggle,
+  review and back are row-identical apart from Bakhlo's two Shell footer rows. A first
+  attempt drove Bakhlo with LOAM's Commands key path, which lands elsewhere because the
+  Commands order differs (recorded under UI-02); that attempt saved a theme only in the
+  scratch fixture copy.
+- Latest-data paired comparison: fresh `./tools/compare refresh` (LOAM open, originals
+  not written, no user process terminated); read-only walks (open, move, toggle, review,
+  back; never confirming a save) at 120×36 and 80×24. Rows identical except one
+  candidate's position, which depends on LOAM's internal event-memory order. Comparison
+  copy bytes and `../loam-data` hashes unchanged; AI tmux stopped; private captures
+  deleted; `./tools/compare clean-copies` passed.
+
+### Limits
+
+Physical terminal/IME, human acceptance and P7 were **not executed**.

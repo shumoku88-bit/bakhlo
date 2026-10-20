@@ -224,6 +224,27 @@ let key ?(dimensions = (140, 40)) ?(width_of = String.length) state button =
   | Some state -> state
   | None -> raise (F.Refused "unexpected-controller-exit")
 
+(* Daily Pace [c]: the spendable-pool picker is painted, not a form; read and
+   drive it through its painted rows like a user would. *)
+let pool_text ?(dimensions = (140, 40)) ?(width_of = String.length) state =
+  Option.value ~default:[] (R.overlay_screen ~dimensions ~width_of state)
+  |> List.map snd |> String.concat "\n"
+
+let pool_reviewing ?dimensions ?width_of state =
+  Base.String.is_substring (pool_text ?dimensions ?width_of state) ~substring:"Review: these balances"
+
+let pool_toggle ?(dimensions = (140, 40)) ?(width_of = String.length) state locus =
+  let rows = String.split_on_char '\n' (pool_text ~dimensions ~width_of state) in
+  let index p = let rec go i = function [] -> None | r :: rest -> if p r then Some i else go (i + 1) rest in go 0 rows in
+  match index (fun r -> Base.String.is_substring r ~substring:("] " ^ locus ^ " / ")),
+        index (fun r -> String.starts_with ~prefix:"> " r) with
+  | Some target, Some cursor ->
+      let step = if target > cursor then `ASCII 'j' else `ASCII 'k' in
+      let moved = List.fold_left (fun s _ -> key ~dimensions ~width_of s step) state
+          (List.init (abs (target - cursor)) Fun.id) in
+      key ~dimensions ~width_of moved (`ASCII ' ')
+  | _ -> raise (F.Refused ("pool-candidate-not-painted-" ^ locus))
+
 (* Daily Pace [w]: the What-If editor of the Daily Pace route. *)
 let open_what_if ~width_of state = key ~width_of (C.open_route state W.Daily_pace) (`ASCII 'w')
 

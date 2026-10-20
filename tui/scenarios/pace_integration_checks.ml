@@ -1130,7 +1130,7 @@ let pool_review_checks ~width_of ~directory () =
   F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let pool_path = directory ^ "/daily-pace.tsv" in
   let windows_path = directory ^ "/boundary-presets.tsv" in
-  let before = "wallet\tjpy\n" and after = "bank\tjpy\n" in
+  let before = "wallet\tjpy\n" and after = "food\tjpy\n" in
   let boundaries = "old\t1900-01-01\t1901-01-01\ncycle\t" ^ F.today ()
     ^ "\t" ^ get (Cal.shift_days (F.today ()) 7) ^ "\n" in
   F.write_new pool_path before;
@@ -1138,91 +1138,80 @@ let pool_review_checks ~width_of ~directory () =
   let ledger = F.read path in
   let fresh () = C.open_route (C.initial ~config_home:directory (F.load path)) W.Daily_pace in
   let press state button = key ~dimensions:(80, 24) ~width_of state button in
-  let form (state : C.state) =
-    match visible_form state with
-    | Some form -> form
-    | None -> raise (F.Refused "pool-review-expected-form")
-  in
-  let editing state = Ui_form.id (form state) = "configure_daily_pace" in
-  let reviewing state = Ui_form.id (form state) = "review_pool" in
-  let text state = Ui_form.get_text (form state) "pool_loci" in
-  let submit value state =
-    let updated = Ui_form.set_text (form state) "pool_loci" value
-      |> fun f -> Ui_form.set_focused f 1 in
-    let state = with_visible_form state updated in
-    press state `Enter in
+  let painted ?(dimensions = (80, 24)) state = pool_text ~dimensions ~width_of state in
+  let reviewing ?(dimensions = (80, 24)) state = pool_reviewing ~dimensions ~width_of state in
+  let editing state = (not (reviewing state))
+    && Base.String.is_substring (painted state) ~substring:"Daily Pace / Spendable pool" in
+  let has state locus = Base.String.is_substring (painted state) ~substring:("[x] " ^ locus ^ " / ") in
+  let toggle state locus = pool_toggle ~dimensions:(80, 24) ~width_of state locus in
+  (* Wrapped notices may break anywhere; compare without line breaks or spaces. *)
+  let says state substring =
+    let squash s = String.concat "" (String.split_on_char ' ' (String.concat "" (String.split_on_char '\n' s))) in
+    Base.String.is_substring (squash (painted state)) ~substring:(squash substring) in
   let opened = press (fresh ()) (`ASCII 'c') in
-  require (text opened = Some "wallet") "pool-editor-shows-existing";
-  let review = submit "bank" opened in
-  let displayed = R.overlay_screen ~dimensions:(80, 24) ~width_of review
-    |> Option.value ~default:[] |> List.map snd |> String.concat "\n" in
+  require (has opened "wallet" && not (has opened "food")) "pool-picker-shows-existing";
+  let food_only state = toggle (toggle state "wallet") "food" in
+  let review = press (food_only opened) `Enter in
   require (reviewing review && F.read pool_path = before
-    && Base.String.is_substring displayed ~substring:"wallet"
-    && Base.String.is_substring displayed ~substring:"bank"
-    && Base.String.is_substring displayed ~substring:"jpy") "pool-old-new-visible-before-write";
+    && says review "  food / jpy" && says review "Selected: 1") "pool-review-visible-before-write";
   let escaped = press review `Escape in
-  require (editing escaped && text escaped = Some "bank" && F.read pool_path = before)
-    "pool-review-escape-retains-input";
-  let edited = press (press (submit "bank" escaped) (`Arrow `Right)) `Enter in
-  require (editing edited && text edited = Some "bank") "pool-review-edit-retains-input";
-  let closed = press edited `Escape in
+  require (editing escaped && has escaped "food" && not (has escaped "wallet")
+    && F.read pool_path = before) "pool-review-escape-retains-choice";
+  let closed = press escaped `Escape in
   require (not (b2_overlay_open closed) && F.read pool_path = before) "pool-cancel-no-write";
   let resumed = press closed (`ASCII 'c') in
-  require (text resumed = Some "bank") "pool-cancel-reopen-retains-input";
+  require (has resumed "food" && not (has resumed "wallet")) "pool-cancel-reopen-retains-choice";
   let via_commands = X.open_command (press resumed `Escape) Ui_commands.Pace_pool in
-  require (text via_commands = Some "bank") "pool-commands-resume-same-draft";
+  require (has via_commands "food") "pool-commands-resume-same-draft";
   List.iter (fun dimensions ->
     let refused = key ~dimensions ~width_of review `Enter in
-    require (reviewing refused && Ui_form.notice (form refused) <> ""
+    require (reviewing ~dimensions refused && says refused "Not saved: too small."
       && F.read pool_path = before) "pool-narrow-review-no-write";
     let back = key ~dimensions ~width_of refused `Escape in
-    require (editing back && text back = Some "bank") "pool-narrow-escape-retains-input")
+    require (editing back && has back "food") "pool-narrow-escape-retains-choice")
     [(48, 14); (32, 9)];
   Unix.mkdir (pool_path ^ ".lock") 0o700;
   let failed = press review `Enter in
-  require (reviewing failed && Ui_form.notice (form failed) <> ""
+  require (reviewing failed && says failed "Pool save not confirmed"
     && F.read pool_path = before) "pool-write-failure-preserves-old";
-  require (text (press failed `Escape) = Some "bank") "pool-write-failure-retains-draft";
+  require (has (press failed `Escape) "food") "pool-write-failure-retains-draft";
   Unix.rmdir (pool_path ^ ".lock");
   let replace bytes = Unix.unlink pool_path; F.write_new pool_path bytes in
   let concurrent = "wallet\tjpy\nbank\tjpy\n" in
   replace concurrent;
   let stale = press review `Enter in
-  require (reviewing stale && F.read pool_path = concurrent
-    && Ui_form.notice (form stale) <> "") "pool-stale-preserves-concurrent-setting";
-  require (text (press stale `Escape) = Some "bank") "pool-stale-keeps-new-input";
+  require (reviewing stale && F.read pool_path = concurrent && says stale "Pool save not confirmed")
+    "pool-stale-preserves-concurrent-setting";
+  require (has (press stale `Escape) "food") "pool-stale-keeps-choice";
   replace before;
-  let saved = press (submit "bank" (press (fresh ()) (`ASCII 'c'))) `Enter in
+  let saved = press (press (food_only (press (fresh ()) (`ASCII 'c'))) `Enter) `Enter in
   require (no_modal saved && F.read pool_path = after) "pool-explicit-save";
-  require (text (press saved (`ASCII 'c')) = Some "bank") "pool-success-clears-old-draft";
+  require (has (press saved (`ASCII 'c')) "food") "pool-success-shows-saved-pool";
   let cold = fresh () in
   require (match resolve_pace_pool cold with
-    | Ok [coordinate] -> Daily_draft.lstr coordinate.D.Effect_coordinate.locus = "bank"
+    | Ok [coordinate] -> Daily_draft.lstr coordinate.D.Effect_coordinate.locus = "food"
     | _ -> false) "pool-save-cold-reopen";
   List.iter (fun raw ->
     replace raw;
-    let blocked = submit "bank" (press (fresh ()) (`ASCII 'c')) in
-    require (editing blocked && F.read pool_path = raw
-      && Ui_form.notice (form blocked) <> "") "pool-foreign-or-malformed-not-replaced")
+    let blocked = press (toggle (press (fresh ()) (`ASCII 'c')) "food") `Enter in
+    require (editing blocked && F.read pool_path = raw && says blocked "No changes can be saved")
+      "pool-foreign-or-malformed-not-replaced")
     ["wallet\teur\n"; "wallet\tjpy\nbank\teur\n"; "broken\n"];
-  replace before;
-  let invalid = submit "wallet, wallet" (press (fresh ()) (`ASCII 'c')) in
-  require (editing invalid && text invalid = Some "wallet, wallet"
-    && F.read pool_path = before) "pool-invalid-input-retained";
-  let many = List.init 20 (fun i -> Printf.sprintf "retained-%02d\tjpy\n" i)
-    |> String.concat "" in
+  let many = List.init 20 (fun i -> Printf.sprintf "retained-%02d\tjpy\n" i) |> String.concat "" in
   replace many;
-  let hidden = submit "bank" (press (fresh ()) (`ASCII 'c')) |> fun s -> press s `Enter in
-  require (reviewing hidden && F.read pool_path = many) "pool-hidden-old-rows-cannot-save";
+  let dropping = press (toggle (press (fresh ()) (`ASCII 'c')) "food") `Enter in
+  require (reviewing dropping && says dropping "Dropped (not exact-current): retained-00")
+    "pool-dropped-balances-named-in-review";
+  require (reviewing (press dropping `Enter) && F.read pool_path = many) "pool-clipped-review-cannot-save";
   Unix.unlink pool_path;
-  let created = press (submit "bank" (press (fresh ()) (`ASCII 'c'))) `Enter in
+  let created = press (press (toggle (press (fresh ()) (`ASCII 'c')) "food") `Enter) `Enter in
   require (no_modal created && F.read pool_path = after) "pool-missing-explicit-create";
   Unix.unlink pool_path;
   Unix.mkdir pool_path 0o700;
-  let unreadable = submit "bank" (press (fresh ()) (`ASCII 'c')) in
+  let unreadable = press (toggle (press (fresh ()) (`ASCII 'c')) "food") `Enter in
   require (editing unreadable && Sys.is_directory pool_path) "pool-unreadable-not-replaced";
   Unix.rmdir pool_path;
   require (F.read path = ledger && F.read windows_path = boundaries) "pool-only-config-changes";
-  print_endline "PASS: Pool old/new Review, Esc/Edit/cancel drafts, narrow/hidden refusal, \
-    lock/stale/Measure protection, cold save and unchanged ledger/boundaries."
+  print_endline "PASS: Pool picker of exact balances, Review, Esc/cancel drafts, narrow/clipped refusal, \
+    dropped balances named, lock/stale/Measure protection, cold save and unchanged ledger/boundaries."
 

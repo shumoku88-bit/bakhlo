@@ -76,7 +76,8 @@ LOAM終了後に使用し、取得拒否では起動せず、旧コピー・試�
 - [x] partial案内行とPrevious Cycle境界なしは意図的な差として閉じる（本人判断 2026-10-20：Bakhloのままでよい）。
 - [x] What-ifをLOAM `DailyPaceWhatIf`どおりの即時更新・読み取り専用画面に置換し、合成・実データで対照する。
 - [x] What-ifのcommit／pushとmatching SHA CI（`223e971`、Core／TUIともsuccess）。
-- [ ] Pool設定（`c`）をLOAM `DailyPacePoolSetup`と対照する。
+- [x] Pool設定（`c`）をLOAM `DailyPacePoolSetup`の確定残高チェックリストに置換し、合成・実データで対照する（本人判断：やる）。
+- [ ] Pool設定のcommit／pushとmatching SHA CI。
 
 ## Daily Pace選択日の詳細欄をLOAMへ揃える（2026-10-20）
 

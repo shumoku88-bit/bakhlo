@@ -12,6 +12,7 @@ module Trend = Daily_pace_trend
 module Target = Daily_pace_target
 module Why = Daily_pace_why
 module What_if = Daily_pace_what_if
+module Pool = Daily_pace_pool
 
 let tr = Ui_text.tr
 let pool_file = "daily-pace.tsv"
@@ -21,7 +22,6 @@ let config_files = [ pool_file; boundary_file ]
 type pane = Trend_pane | Detail_pane
 
 (* A review keeps the editing form whose payload holds the captured bytes. *)
-type pool_review = { form : Form.t; editing : Form.t; measure : string; loci : string list }
 type cycle_review = { form : Form.t; editing : Form.t; name : string; dates : string list }
 
 type overlay =
@@ -29,8 +29,7 @@ type overlay =
   | What_if of What_if.t  (** Read-only purchase scenario; not a form. *)
   | Target of Target.t  (** Read-only target plan; not a form. *)
   | Why of Why.t  (** Read-only terms of today's answer. *)
-  | Pool of Form.t
-  | Pool_review of pool_review
+  | Pool of Pool.t  (** Spendable-pool picker and its review. *)
   | Cycle of Form.t
   | Cycle_review of cycle_review
 
@@ -39,7 +38,7 @@ type t = {
   pane : pane;
   scroll : int;
   overlay : overlay;
-  pool_draft : (string * Form.t) option;
+  pool_draft : Pool.t option;  (** Cancelled picker, resumed for the same Measure. *)
 }
 
 let create () =
@@ -49,21 +48,18 @@ let enter t = { t with pane = Trend_pane; scroll = 0; overlay = No_overlay }
 
 let form t =
   match t.overlay with
-  | No_overlay | Target _ | Why _ | What_if _ -> None
-  | Pool form | Cycle form
-  | Pool_review { form; _ } -> Some form
+  | No_overlay | Target _ | Why _ | What_if _ | Pool _ -> None
+  | Cycle form -> Some form
   | Cycle_review { form; _ } -> Some form
 
-let modal t = Option.is_some (form t) || (match t.overlay with Target _ | Why _ | What_if _ -> true | _ -> false)
+let modal t = Option.is_some (form t) || (match t.overlay with Target _ | Why _ | What_if _ | Pool _ -> true | _ -> false)
 
 let with_form form t =
   let overlay =
     match t.overlay with
     | No_overlay -> No_overlay
-    | (Target _ | Why _ | What_if _) as read_only -> read_only
-    | Pool _ -> Pool form
+    | (Target _ | Why _ | What_if _ | Pool _) as other -> other
     | Cycle _ -> Cycle form
-    | Pool_review (r : pool_review) -> Pool_review { r with form }
     | Cycle_review (r : cycle_review) -> Cycle_review { r with form }
   in
   { t with overlay }
@@ -80,11 +76,6 @@ let config_lines text =
 
 let config_token s =
   s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
-
-let payload_of = function
-  | Ok None -> ("missing", "")
-  | Ok (Some text) -> ("present\n" ^ text, "")
-  | Error why -> ("unreadable", why)
 
 let captured_text payload =
   String.sub payload 8 (String.length payload - 8)
@@ -254,64 +245,6 @@ let detail_viewport env (geometry : Screen.geometry) t =
 
 (* Forms *)
 
-let pool_rows_of_text ~measure text =
-  let rec coords acc = function
-    | [] -> Ok (List.rev acc)
-    | line :: rest ->
-        (match String.split_on_char '\t' line with
-         | [locus; m] when config_token locus && m = measure && config_token m ->
-             if List.mem locus acc then Error "Duplicate Daily Pace coordinate."
-             else coords (locus :: acc) rest
-         | [_; m] when config_token m && m <> measure ->
-             Error ("Existing Pool uses another Measure: " ^ m ^ ". Refusing replacement.")
-         | _ -> Error "Malformed daily-pace.tsv; no rows were skipped.")
-  in
-  coords [] (config_lines text)
-
-let pool_old_of_payload ~measure payload =
-  if payload = "missing" then Ok []
-  else if String.starts_with ~prefix:"present\n" payload then
-    pool_rows_of_text ~measure (captured_text payload)
-  else Error "Pool configuration was unreadable; reopen after repairing it."
-
-let pool_form (env : Screen.env) =
-  let measure = env.measure in
-  let payload, read_notice = payload_of (env.config pool_file) in
-  let old_loci, old_why =
-    match pool_old_of_payload ~measure payload with
-    | Ok loci -> (loci, None)
-    | Error why -> ([], Some why)
-  in
-  let notice = if read_notice <> "" then read_notice else Option.value ~default:"" old_why in
-  let period = match resolve_window env with
-    | Ok (start, stop) -> Printf.sprintf "Explicit period: %s -> %s (exclusive)." start stop
-    | Error why -> why
-  in
-  Form.create ~id:"configure_daily_pace" ~payload ~notice
-    ~title:"Configure Daily Pace Pool"
-    ~summary:(
-      [ "Measure: " ^ measure; "Existing Pool (captured):" ]
-      @ (match old_why with
-         | Some why -> [why]
-         | None when old_loci = [] -> ["  (none)"]
-         | None -> List.map (fun locus -> "  " ^ locus ^ " " ^ measure) old_loci)
-      @ [ period; "Only daily-pace.tsv changes after Review." ])
-    ~fields:[
-      Form.text_field ~id:"pool_loci" ~label:"Accounts" ~value:(String.concat ", " old_loci) ();
-      Form.action_buttons ~confirm:"Review" ~cancel:"Cancel" ();
-    ] ()
-
-let pool_review_form measure old_loci new_loci =
-  Form.create ~id:"review_pool" ~title:"Review Pool accounts"
-    ~summary:(
-      [ "Measure: " ^ measure;
-        "Only daily-pace.tsv changes.";
-        "Old:" ]
-      @ (if old_loci = [] then ["  (none)"] else List.map (fun l -> "  " ^ l) old_loci)
-      @ ["New:"]
-      @ (if new_loci = [] then ["  (none)"] else List.map (fun l -> "  " ^ l) new_loci))
-    ~fields:[Form.action_buttons ~confirm:"Save" ~cancel:"Edit" ()] ()
-
 let decode_boundary_presets text =
   let canonical_date day =
     match A.normalize_date day with Ok canonical -> canonical = day | Error _ -> false
@@ -400,8 +333,8 @@ let replace_preset presets name dates =
 
 let open_pool (env : Screen.env) t =
   match t.pool_draft with
-  | Some (draft_measure, draft) when draft_measure = env.measure -> { t with overlay = Pool draft }
-  | _ -> { t with overlay = Pool (pool_form env) }
+  | Some draft when Pool.measure draft = env.measure -> { t with overlay = Pool draft }
+  | _ -> { t with overlay = Pool (Pool.prepare ~book:env.book ~measure:env.measure ~config:(env.config pool_file)) }
 
 let open_cycle env t =
   match cycle_form env with
@@ -421,53 +354,6 @@ let move_selection (env : Screen.env) t delta =
   match position with
   | Ok selected_index -> ({ t with trend = { t.trend with selected_index }; scroll = 0 }, Screen.Stay)
   | Error why -> (t, Screen.Message ("Daily Pace range unavailable: " ^ why))
-
-let submit_pool (env : Screen.env) t submitted =
-  let pool_loci_str = String.trim (Option.value ~default:"" (Form.get_text submitted "pool_loci")) in
-  let loci = if pool_loci_str = "" then [] else
-    List.map String.trim (String.split_on_char ',' pool_loci_str) in
-  let approved = B.approved_loci env.book in
-  let valid = loci <> [] && List.for_all (fun locus -> config_token locus
-    && (match approved with Some ids -> List.mem locus ids | None -> false)) loci
-    && List.length (List.sort_uniq String.compare loci) = List.length loci in
-  if not valid then
-    ({ t with overlay = Pool (notice submitted
-        "Choose distinct admitted Locus tokens, separated by commas.") }, Screen.Stay)
-  else
-    let pool_draft = Some (env.measure, submitted) in
-    match pool_old_of_payload ~measure:env.measure (Form.payload submitted) with
-    | Error why -> ({ t with overlay = Pool (notice submitted why); pool_draft }, Screen.Stay)
-    | Ok old_loci ->
-        ({ t with
-           overlay = Pool_review { form = pool_review_form env.measure old_loci loci;
-             editing = submitted; measure = env.measure; loci };
-           pool_draft }, Screen.Stay)
-
-let submit_pool_review (env : Screen.env) (geometry : Screen.geometry) t (r : pool_review) submitted =
-  let review form = { t with overlay = Pool_review { r with form } } in
-  match t.pool_draft with
-  | Some (draft_measure, draft)
-    when r.measure = env.measure && draft_measure = r.measure
-      && Form.payload r.editing = Form.payload draft ->
-      if not (Ui_overlay.form_fits ~width_of:geometry.width_of ~body:geometry.body submitted) then
-        (review (notice submitted "Not saved: too small."), Screen.Stay)
-      else
-        let payload = Form.payload r.editing in
-        let expected =
-          if payload = "missing" then Ok None
-          else if String.starts_with ~prefix:"present\n" payload then Ok (Some (captured_text payload))
-          else Error "Pool configuration was unreadable." in
-        let content = String.concat "" (List.map
-          (fun locus -> locus ^ "\t" ^ r.measure ^ "\n") r.loci) in
-        (match Result.bind expected (fun expected ->
-           Result.map (fun _ -> expected) (pool_old_of_payload ~measure:r.measure payload)) with
-         | Error why ->
-             (review (notice submitted
-               ("Pool save not confirmed: " ^ why ^ " Reopen to inspect before retrying.")), Screen.Stay)
-         | Ok expected ->
-             (review submitted,
-              Screen.Save_config { file = pool_file; expected; content; admission = Unconditional }))
-  | _ -> ({ t with overlay = No_overlay }, Screen.Message "Pool review expired; reopen setup.")
 
 let submit_cycle (env : Screen.env) t submitted =
   let stay form = ({ t with overlay = Cycle form }, Screen.Stay) in
@@ -536,21 +422,13 @@ let handle_form env geometry t form input =
   | Form.Cancel -> (
       match t.overlay with
       | Cycle_review r -> ({ t with overlay = Cycle r.editing }, Screen.Stay)
-      | Pool_review r -> ({ t with overlay = Pool r.editing }, Screen.Stay)
-      | Pool _ -> ({ t with overlay = No_overlay; pool_draft = Some (env.Screen.measure, form) }, Screen.Stay)
-      | No_overlay | Target _ | Why _ | What_if _ | Cycle _ -> ({ t with overlay = No_overlay }, Screen.Stay))
-  | Form.Updated updated -> (
-      match t.overlay with
-      | Pool _ ->
-          ({ t with overlay = Pool updated; pool_draft = Some (env.measure, updated) }, Screen.Stay)
-      | _ -> (with_form updated t, Screen.Stay))
+      | No_overlay | Pool _ | Target _ | Why _ | What_if _ | Cycle _ -> ({ t with overlay = No_overlay }, Screen.Stay))
+  | Form.Updated updated -> (with_form updated t, Screen.Stay)
   | Form.Submit submitted -> (
       match t.overlay with
-      | Pool _ -> submit_pool env t submitted
-      | Pool_review r -> submit_pool_review env geometry t r submitted
       | Cycle _ -> submit_cycle env t submitted
       | Cycle_review r -> submit_cycle_review env geometry t r submitted
-      | No_overlay | Target _ | Why _ | What_if _ -> (t, Screen.Stay))
+      | No_overlay | Target _ | Why _ | What_if _ | Pool _ -> (t, Screen.Stay))
 
 (* LOAM historyCapacityForBounds: the painted History data rows, at least one. *)
 let history_page (geometry : Screen.geometry) =
@@ -628,6 +506,14 @@ let handle env geometry t input =
       match What_if.update ~book:env.Screen.book ~measure:env.measure ~pace:(target_pace env) what_if input with
       | What_if.Stay what_if -> ({ t with overlay = What_if what_if }, Screen.Stay)
       | What_if.Back -> ({ t with overlay = No_overlay }, Screen.Stay))
+  | Pool picker, _ -> (
+      let width, height = geometry.Screen.body in
+      match Pool.update ~width_of:geometry.width_of ~width ~height picker input with
+      | Pool.Stay picker -> ({ t with overlay = Pool picker }, Screen.Stay)
+      | Pool.Cancel picker -> ({ t with overlay = No_overlay; pool_draft = Some picker }, Screen.Stay)
+      | Pool.Save { picker; expected; content } ->
+          ({ t with overlay = Pool picker; pool_draft = Some picker },
+           Screen.Save_config { file = pool_file; expected; content; admission = Unconditional }))
   | Why why, _ -> (
       match Why.update ~width_of:geometry.Screen.width_of ~body:geometry.body ~book:env.Screen.book
               ~pace:(target_pace env) why input with
@@ -638,20 +524,20 @@ let handle env geometry t input =
 
 let saved _env _geometry result t =
   match t.overlay, result with
-  | Pool_review _, Ok () ->
+  | Pool _, Ok () ->
       ({ t with overlay = No_overlay; pool_draft = None },
        Screen.Message "Daily Pace pool saved. Period presets unchanged.")
-  | Pool_review r, Error why ->
-      ({ t with overlay = Pool_review { r with form = notice r.form
-           ("Pool save not confirmed: " ^ why ^ " Reopen to inspect before retrying.") } },
-       Screen.Stay)
+  | Pool picker, Error why ->
+      let picker = Pool.with_notice picker
+          ("Pool save not confirmed: " ^ why ^ " Reopen to inspect before retrying.") in
+      ({ t with overlay = Pool picker; pool_draft = Some picker }, Screen.Stay)
   | Cycle_review _, Ok () ->
       ({ t with overlay = No_overlay }, Screen.Message "Explicit Daily Pace cycle boundaries saved.")
   | Cycle_review r, Error why ->
       ({ t with overlay = Cycle_review { r with form = notice r.form
            ("Cycle boundary save not confirmed: " ^ why ^ " Reopen to inspect before retrying.") } },
        Screen.Stay)
-  | (No_overlay | Target _ | Why _ | What_if _ | Pool _ | Cycle _), _ -> (t, Screen.Stay)
+  | (No_overlay | Target _ | Why _ | What_if _ | Cycle _), _ -> (t, Screen.Stay)
 
 (* Painting *)
 
@@ -782,8 +668,9 @@ let footer (geometry : Screen.geometry) t =
   | Target _, _ -> [ "[Tab] field [j/k] horizon [Esc/q] back"; "Read-only plan; nothing is recorded" ]
   | Why _, _ -> [ "[j/k] scroll [Esc/q/?] back"; "Terms of today's answer; nothing is recorded" ]
   | What_if _, _ -> [ "[Esc/q] close"; "Read-only scenario; nothing is recorded" ]
-  | Pool _, _ -> [ "Enter review  Tab switch field  Esc cancel"; "Edits only daily-pace.tsv" ]
-  | Pool_review _, _ -> [ "Enter save  Tab choose Edit  Esc edit"; "Full pool must fit before saving" ]
+  | Pool picker, _ ->
+      if Pool.reviewing picker then [ "Enter save  Esc/e edit"; "Edits only daily-pace.tsv; the whole review must fit" ]
+      else [ "j/k select  Space toggle  Enter review  Esc cancel"; "Edits only daily-pace.tsv" ]
   | Cycle _, _ -> [ "Enter review  Tab switch field  Esc cancel"; "Edits only boundary-presets.tsv" ]
   | Cycle_review _, _ -> [ "Enter save  Tab choose Edit  Esc edit"; "Full boundaries must fit before saving" ]
   | No_overlay, Trend_pane ->
@@ -800,6 +687,14 @@ let view env (geometry : Screen.geometry) t =
     | Target target ->
         Target.frame ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
           ~book:env.Screen.book ~pace:(target_pace env) target
+    | Pool picker ->
+        let width, height = geometry.body in
+        Pool.rows ~width_of:geometry.width_of ~width ~height picker
+        |> List.filteri (fun i _ -> i < height)
+        |> (fun rows -> rows @ List.init (max 0 (height - List.length rows)) (fun _ -> (O.Plain, "")))
+        |> List.map (fun (style, text) -> (style, O.pad ~width_of:geometry.width_of width text))
+        |> Ui_overlay.centered ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
+             ~pane_width:width ~caret:`None
     | What_if what_if ->
         What_if.frame ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
           ~book:env.Screen.book ~measure:env.Screen.measure ~pace:(target_pace env) what_if

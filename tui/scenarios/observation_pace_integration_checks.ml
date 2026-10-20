@@ -68,45 +68,27 @@ let run ~width_of ~directory (back_home : C.state) =
   let closed_sim = key ~width_of sim_res_state `Escape in
   require (no_modal closed_sim) "what-if-closed-on-esc";
   require (check_qty closed_sim.session.book "wallet" "jpy" = "5000") "what-if-does-not-alter-ledger";
-  (* 3. Configure Daily Pace modal via 'c' *)
+  (* 3. Spendable pool picker via 'c': exact-current balances only, explicit review. *)
   let cfg_state = key ~width_of closed_sim (`ASCII 'c') in
-  let form_cfg =
-    match visible_form cfg_state with
-    | Some f ->
-        require (Ui_form.id f = "configure_daily_pace") "cfg-pace-modal-id";
-        f
-    | None -> failwith "expected cfg modal"
-  in
-  require (Ui_form.get_text form_cfg "end_date" = None) "period-is-read-only-in-pool-editor";
+  require (Base.String.is_substring (pool_text ~width_of cfg_state) ~substring:"Daily Pace / Spendable pool (jpy)"
+    && Base.String.is_substring (pool_text ~width_of cfg_state) ~substring:"[x] wallet / jpy"
+    && Base.String.is_substring (pool_text ~width_of cfg_state) ~substring:"[ ] bank / jpy")
+    "cfg-pace-picker-lists-exact-balances";
   let boundaries_before = F.read windows_path in
-  (* Invalid/duplicate pool must not save either configuration. *)
-  let form_cfg_err = Ui_form.set_text form_cfg "pool_loci" "wallet, wallet" in
-  let form_cfg_err = Ui_form.set_focused form_cfg_err 1 in
-  let err_state =
-    match H.handle ~width_of (with_visible_form cfg_state form_cfg_err) (`Key (`Enter, [])) with
-    | Some s -> s
-    | None -> failwith "unexpected exit on cfg err submit"
-  in
-  require
-    (F.read pace_path = "wallet\tjpy\n"
-    && (match visible_form err_state with Some f ->
-         Ui_form.get_text f "pool_loci" = Some "wallet, wallet" | None -> false))
-    "cfg-pace-invalid-retains-input-and-config";
-  let form_cfg_valid = Ui_form.set_text form_cfg "pool_loci" "wallet, bank" in
-  let form_cfg_valid = Ui_form.set_focused form_cfg_valid 1 in
-  let reviewed_state =
-    match H.handle ~width_of (with_visible_form cfg_state form_cfg_valid) (`Key (`Enter, [])) with
-    | Some s -> s
-    | None -> failwith "unexpected exit on cfg review"
-  in
-  require (visible_form_id reviewed_state = Some "review_pool"
-    && F.read pace_path = "wallet\tjpy\n") "cfg-pace-review-does-not-save";
+  let none = pool_toggle ~width_of cfg_state "wallet" in
+  let refused = key ~width_of none `Enter in
+  require (not (pool_reviewing ~width_of refused) && F.read pace_path = "wallet\tjpy\n"
+    && Base.String.is_substring (pool_text ~width_of refused) ~substring:"Select at least one known-current balance.")
+    "cfg-pace-empty-pool-refused";
+  let both = pool_toggle ~width_of (pool_toggle ~width_of refused "wallet") "bank" in
+  let reviewed_state = key ~width_of both `Enter in
+  require (pool_reviewing ~width_of reviewed_state && F.read pace_path = "wallet\tjpy\n") "cfg-pace-review-does-not-save";
   let back_to_edit = key ~width_of reviewed_state `Escape in
-  require (visible_form_id back_to_edit = Some "configure_daily_pace"
+  require (not (pool_reviewing ~width_of back_to_edit)
+    && Base.String.is_substring (pool_text ~width_of back_to_edit) ~substring:"Chosen: 2"
     && F.read pace_path = "wallet\tjpy\n") "cfg-pace-review-escape-retains-draft";
   let re_reviewed = key ~width_of back_to_edit `Enter in
-  require (visible_form_id re_reviewed = Some "review_pool"
-    && F.read pace_path = "wallet\tjpy\n") "cfg-pace-re-review-does-not-save";
+  require (pool_reviewing ~width_of re_reviewed && F.read pace_path = "wallet\tjpy\n") "cfg-pace-re-review-does-not-save";
   let saved_state = key ~width_of re_reviewed `Enter in
   require (no_modal saved_state) "cfg-pace-saved-overlay-cleared";
   require (F.read windows_path = boundaries_before) "pool-editor-preserves-boundaries-byte-exactly";
