@@ -14,6 +14,7 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 - Mutation check: accepting a second refund, ignoring a correction's refund partner, a refund ignoring its target, in-place correction of a changed link, a stale `reversed_by`, rebuilding older observation groups from their cuts, skipping the zero-origin or presence separation, reversed reflected-root order and not reflecting earlier entries each fail the oracle.
 - Synthetic probe at 109,500 entries: refund 0.008 ms, exchange 0.006 ms, observation 5.7 ms (≈0.8 s or more before). [Stage 9](LONG_TERM_STORAGE_STUDY.ja.md).
 - Passed: `./tools/check` (exit 0), `./tools/tui --self-check` (35 PASS, exit 0), `git diff --check`. Synthetic only; latest-data paired comparison not executed.
+- Matching implementation `334d413`: [Core 39353235218](https://github.com/shumoku88-bit/bakhlo/actions/runs/39353235218) and [Bonsai TUI 39353235222](https://github.com/shumoku88-bit/bakhlo/actions/runs/39353235222) completed/success (synthetic CI).
 
 ## Session revision instead of whole-file bytes (2026-10-20)
 
