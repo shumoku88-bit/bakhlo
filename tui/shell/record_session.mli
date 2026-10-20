@@ -2,6 +2,7 @@ module B = Bakhlo_sexp.Daily_book
 module A = Daily_draft
 type t
 type outcome = Updated of t | Closed of t | Publish of A.payload * string * t
+  | Enable_unresolved of t  (** Confirmed: admit the ordinary suspense Locus, then return. *)
 val create : book:B.t -> day:string -> measure:string -> unit -> t
 val create_plan : book:B.t -> day:string -> measure:string -> unit -> t
 val of_edit : book:B.t -> B.entry -> (t, string) result
@@ -15,6 +16,9 @@ val surface_dimensions : int * int -> int * int
 val has_draft : t -> bool
 val is_plan : t -> bool
 val with_notice : t -> string -> t
+val after_unresolved_enabled : book:B.t -> t -> t
+(** Back to the draft after suspense was admitted, filling the remainder as LOAM does. *)
+val unresolved_not_enabled : t -> string -> t
 val preview : new_id:(unit -> string) -> book:B.t -> base_revision:string -> blocked:bool -> t -> t
 val handle : new_id:(unit -> string) -> book:B.t -> base_revision:string -> blocked:bool -> dimensions:int * int ->
   width_of:(string -> int) -> t -> Ui_input.input -> outcome

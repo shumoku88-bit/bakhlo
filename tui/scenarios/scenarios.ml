@@ -31,6 +31,7 @@ let run ~width_of () =
   continuation_checks ~width_of ~directory home;
   original_amount_integration_checks ~width_of ~directory ();
   event_merchant_integration_checks ~width_of ~directory ();
+  unresolved_enable_checks ~width_of ~directory ();
   daily_pace_trend_fail_closed_checks ~width_of ~directory ();
   daily_pace_today_sample_checks ();
   daily_pace_activity_checks ();

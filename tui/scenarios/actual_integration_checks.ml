@@ -1139,3 +1139,44 @@ let event_merchant_integration_checks ~width_of ~directory () =
 
   print_endline "PASS: Event Merchant classification normal, nonmerchant, unresolved, duplicate refusal, unknown event, invalid party, correction/reversal, cancel, save fail, stale conflict and cold reopen."
 
+
+(* LOAM Ctrl-U without suspense: confirm, admit the ordinary Locus through the
+   single writer, and return to the same draft with the remainder filled. *)
+let unresolved_enable_checks ~width_of ~directory () =
+  let dir = directory ^ "/unresolved-enable" in
+  Unix.mkdir dir 0o700;
+  let path = dir ^ "/book.sexp" in
+  F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
+  let home = C.initial ~config_home:dir (F.load path) in
+  let book = home.session.book in
+  require (not (List.mem "suspense" (Option.value ~default:[] (B.approved_loci book))))
+    "unresolved-fixture-starts-without-suspense";
+  let step record input =
+    match S.handle ~new_id:F.new_id ~book ~base_revision:home.session.revision ~blocked:false
+            ~dimensions:(80, 24) ~width_of record input with
+    | S.Updated next -> next
+    | _ -> raise (F.Refused "unresolved-editor-unexpected-outcome") in
+  let typed record text = String.fold_left (fun r c -> step r (`Key (`ASCII c, []))) record text in
+  (* wallet -500 and food +300: an unbalanced draft whose remainder is +200. *)
+  let draft = S.create ~book ~day:"2026-10-11" ~measure:"jpy" () in
+  let draft = typed (step (step draft (`Key (`Tab, []))) (`Key (`Tab, []))) "wallet" in
+  let draft = typed (step draft (`Key (`Tab, []))) "-500" in
+  let draft = typed (step draft (`Key (`Tab, []))) "food" in
+  let draft = typed (step draft (`Key (`Tab, []))) "300" in
+  let asking = step draft (`Key (`ASCII 'u', [ `Ctrl ])) in
+  let state = { home with record = Some asking; record_visible = true } in
+  let before = F.read path in
+  let enabled = match H.handle ~dimensions:(80, 24) ~width_of state (`Key (`Enter, [])) with
+    | Some s -> s | None -> raise (F.Refused "unresolved-shell-exited") in
+  let approved b = List.mem "suspense" (Option.value ~default:[] (B.approved_loci b)) in
+  require (approved enabled.session.book && approved (F.load path).book && F.read path <> before)
+    "unresolved-enable-admits-suspense-and-cold-loads";
+  require (enabled.record_visible && Option.is_some enabled.record) "unresolved-enable-returns-to-draft";
+  let painted = S.screen ~book:enabled.session.book ~dimensions:(80, 24) ~width_of (Option.get enabled.record)
+    |> List.map snd |> String.concat "\n" in
+  require (Base.String.is_substring painted ~substring:"Unresolved recording enabled"
+    && Base.String.is_substring painted ~substring:"suspense"
+    && Base.String.is_substring painted ~substring:"+200"
+    && List.length (B.entries enabled.session.book) = List.length (B.entries book))
+    "unresolved-enable-fills-remainder-without-recording-movement";
+  print_endline "PASS: Ctrl-U without suspense asks, admits only the ordinary Locus, cold-loads it and returns to the filled draft without recording the Movement."

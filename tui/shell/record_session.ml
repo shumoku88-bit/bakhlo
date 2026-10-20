@@ -27,8 +27,9 @@ type t = {
   paste : (string * bool) option;
   original_amount : (string * Z.t) option;
   original_editor : original_editor option;
+  enabling : bool;  (** LOAM unresolved-recording confirmation before admitting suspense. *)
 }
-type outcome = Updated of t | Closed of t | Publish of A.payload * string * t
+type outcome = Updated of t | Closed of t | Publish of A.payload * string * t | Enable_unresolved of t
 
 let mode t = t.mode
 let with_notice t notice = { t with notice }
@@ -43,13 +44,13 @@ let create ~book:_ ~day ~measure () =
   { mode = A.New; day; description = ""; measure; initial_day = day; initial_measure = measure;
     rows = [{key=None; locus=""; amount=""}; {key=None; locus=""; amount=""}];
     focus=1; cursor=None; candidate=0; notice=""; review=None; paste=None;
-    original_amount=None; original_editor=None }
+    original_amount=None; original_editor=None; enabling=false }
 
 let create_plan ~book:_ ~day ~measure () =
   { mode = A.Plan_new; day; description = ""; measure; initial_day = day; initial_measure = measure;
     rows = [{key=None; locus=""; amount=""}; {key=None; locus=""; amount=""}];
     focus=0; cursor=None; candidate=0; notice=""; review=None; paste=None;
-    original_amount=None; original_editor=None }
+    original_amount=None; original_editor=None; enabling=false }
 
 let rows_of_draft (draft : R.t) =
   List.map (fun (r:R.row) ->
@@ -205,7 +206,7 @@ let fill_unresolved_remainder ~book t =
       | Some list -> List.mem locus list
     in
     if not (is_approved "suspense") then
-      with_notice t (tr "Unresolved recording is not enabled yet. Admit the 'suspense' Locus first.")
+      { t with enabling = true; notice = "" }
     else
       let rec check_rows idx sum count_suspense susp_idx = function
         | [] -> Ok (sum, count_suspense, susp_idx)
@@ -258,6 +259,15 @@ let fill_unresolved_remainder ~book t =
                       if i = idx then { r with amount = format_signed ~book ~measure:t.measure adjusted }
                       else r) t.rows in
                     { t with rows = next_rows; focus = action_start { t with rows = next_rows }; candidate = 0; cursor = None; notice = "" })
+
+let after_unresolved_enabled ~book t =
+  let base = { t with enabling = false; notice = "" } in
+  let filled = fill_unresolved_remainder ~book base in
+  if filled.notice = "" then { filled with notice = tr "Unresolved recording enabled; remainder filled." }
+  else { base with notice = tr "Unresolved recording enabled. " ^ filled.notice }
+
+let unresolved_not_enabled t why =
+  { t with enabling = false; notice = tr "Unresolved recording was not enabled: " ^ why }
 
 let draft t =
   { R.measure=t.measure;
@@ -401,7 +411,13 @@ let handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t (input:
   | `Key (`Uchar c,[]), Some (text,invalid) ->
       update {t with paste=Some (text ^ O.utf8 c,invalid || not (O.printable_uchar c))}
   | `Key _, Some (text,_) -> update {t with paste=Some (text,true)}
-  | `Key (`Escape,[]), None -> Closed {t with original_editor=None; review=None; paste=None}
+  | `Key (`Escape,[]), None -> Closed {t with original_editor=None; review=None; paste=None; enabling=false}
+  | `Key (button,[]), None when t.enabling ->
+      (match button with
+      | `Enter -> if blocked then update t else Enable_unresolved t
+      | `ASCII ('e' | 'E') | `Backspace -> update {t with enabling=false; notice=""}
+      | _ -> update t)
+  | `Key _, None when t.enabling -> update t
   | `Key (button,mods), None ->
       let button=match button,mods with `ASCII c,[`Ctrl] -> `ASCII (Char.lowercase_ascii c) | _ -> button in
       (match t.review with
@@ -650,6 +666,25 @@ let original_amount_screen ~book:_ ~dimensions:(width,height) ~width_of t (ed : 
 let screen ~book ~dimensions:(width,height) ~width_of t =
   let width = max 0 width and height = max 0 height in
   let raw style text = style, O.pad ~width_of width text in
+  if t.enabling then
+    (* LOAM unresolvedEnableView: one vocabulary admission, not a Movement. *)
+    let box title lines h =
+      Ui_panel.frame_rows ~inset:0 ~width_of ~width ~height:h ~focused:true ~title lines in
+    let feedback = if t.notice = "" then [ raw O.Plain "" ]
+      else List.map (raw O.Status) (O.wrap_text ~width_of (max 1 width) t.notice) in
+    let footer = feedback @ [ raw O.Active "[Enable unresolved recording]";
+        raw O.Chrome "[Enter] enable [e/E] return"; raw O.Chrome "[Backspace] return [Esc] hold draft" ] in
+    let meaning = List.concat_map (fun text ->
+        List.map (fun l -> (O.Chrome, l)) (O.wrap_text ~width_of (max 1 (width - 2)) text))
+        [ "This does not record the Movement."; "No Measure change or category guessing.";
+          "Return to draft; Preview before Publish." ] in
+    let available = max 0 (height - List.length footer - 1 - 3) in
+    let body = raw O.Heading "Unresolved recording / Enable"
+      :: box "Household vocabulary" [ (O.Plain, "Admit ordinary Locus: suspense.") ] 3
+      @ (if available >= 3 then box "Not a Movement publication" meaning available else []) in
+    let body = List.filteri (fun i _ -> i < height - List.length footer) body in
+    body @ List.init (max 0 (height - List.length footer - List.length body)) (fun _ -> raw O.Plain "") @ footer
+  else
   let navigation = match t.review with
     | None ->
         let orig_nav = if is_plan t then "" else "  C-o original" in

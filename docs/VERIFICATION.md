@@ -4734,3 +4734,44 @@ matched LOAM ([chart comparison](#daily-pace-chart-follows-loam-chart-2026-10-20
 ### Limits
 
 Physical terminal/IME, human acceptance and P7 were **not executed**.
+
+## Record Ctrl-U enables unresolved recording as in LOAM (2026-10-20)
+
+User decisions (2026-10-20): correction (`c`) should allow LOAM's Locus/row changes;
+reversal keeps Bakhlo's `x`; Ctrl-U should follow LOAM's enable flow.
+
+### Implemented boundary
+
+- `tui/shell/record_session.ml`: Ctrl-U while the ordinary `suspense` Locus is not
+  admitted opens LOAM's `unresolvedEnableView` (Household vocabulary: Admit ordinary Locus:
+  suspense; Not a Movement publication; `[Enable unresolved recording]`). `e/E`/Backspace
+  return to the draft, Esc holds the draft, Enter returns `Enable_unresolved` (refused while
+  writes are blocked).
+- `tui/shell/shell_input.ml`: the Shell publishes only `Add_locus "suspense"` through the
+  existing single writer (`commit_add_locus`), then returns to the same draft and fills the
+  remainder, reporting `Unresolved recording enabled; remainder filled.` or the fill cause;
+  a refusal returns with `Unresolved recording was not enabled: <cause>`. No Movement is
+  recorded by this step.
+
+### Evidence
+
+- Unit checks (enable view and bounds at four sizes, `e` return, Enter request, blocked
+  writes, failure cause, post-enable notice) and a Shell scenario: the example book gains
+  `suspense` in memory and after cold load, the draft stays open with a `+200` suspense
+  remainder, and no entry is added. `./tools/check`, `./tools/tui --self-check` (36 PASS),
+  `git diff --check` passed.
+- Synthetic paired run at 80×24 (Bakhlo SHA-256
+  `ad318a42d931e4e1f3c492256483ffc05b1cf9a302b768d77e2b99452323e1d0`, existing LOAM
+  `312467cd9af30778873bb9afabf0d87143e874d67c828e828c42f8573b8840c3`): the enable view has
+  the same wording and panels; Bakhlo paints it in its floating Record surface.
+- Latest-data read-only run (open Record, Ctrl-U, no Enter): `suspense` is already admitted
+  in the household, so both show the same `Complete every current Locus before filling the
+  unresolved remainder.` (an earlier ad-hoc grep wrongly reported it absent). Originals'
+  hashes equal before and after; private captures deleted; `clean-copies` passed.
+- Found while comparing: current LOAM opens Record in a one-line quick-entry mode
+  (`Description, then total and Loci if they differ`) with Tab to the full form; Bakhlo opens
+  the full form. Recorded in the cutover ledger as a Record difference.
+
+### Limits
+
+Physical terminal/IME, human acceptance and P7 were **not executed**.

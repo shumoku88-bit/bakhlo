@@ -35,7 +35,19 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
               (if state.blocked then draft
                else
                  apply_commit_result ~record_publication:true state ~draft
-                   (A.commit_payload ~session:state.session ~base_revision payload)))
+                   (A.commit_payload ~session:state.session ~base_revision payload))
+        | S.Enable_unresolved record ->
+            (* One add-only Locus admission, then back to the same draft. *)
+            let draft = { state with record = Some record } in
+            if state.blocked then Some draft
+            else
+              let next = apply_commit_result ~published_message:"Unresolved recording enabled." state ~draft
+                  (A.commit_add_locus ~session:state.session "suspense") in
+              let enabled = match Bakhlo_sexp.Daily_book.approved_loci next.session.book with
+                | Some loci -> List.mem "suspense" loci | None -> false in
+              Some { next with record_visible = true; record = Some (if enabled
+                then S.after_unresolved_enabled ~book:next.session.book record
+                else S.unresolved_not_enabled record next.message) })
   else if Option.is_some (Screen_registry.modal state.screens) then
     match input with
     | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)

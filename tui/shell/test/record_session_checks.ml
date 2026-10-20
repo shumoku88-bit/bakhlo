@@ -30,7 +30,8 @@ let self_check ~width_of () =
     match handle ?book ?blocked ?dimensions state input with
     | S.Updated next -> next
     | S.Closed _ -> failwith "record-check-unexpected-close"
-    | S.Publish _ -> failwith "record-check-unexpected-publication" in
+    | S.Publish _ -> failwith "record-check-unexpected-publication"
+    | S.Enable_unresolved _ -> failwith "record-check-unexpected-enable" in
   let key state button=update state (`Key (button,[])) in
   let ctrl state c=update state (`Key (`ASCII c,[`Ctrl])) in
   let text state value =
@@ -261,7 +262,23 @@ let self_check ~width_of () =
     "record-preview-contains-publication-gate";
   let no_suspense_editor = text (create ()) "wallet" in
   let no_suspense_editor = ctrl no_suspense_editor 'u' in
-  require (contains no_suspense_editor "Admit the 'suspense' Locus first") "ctrl-u-refused-without-suspense-admitted";
+  (* LOAM: Ctrl-U without suspense asks to admit it, then returns to the draft. *)
+  require (contains no_suspense_editor "Unresolved recording / Enable"
+    && contains no_suspense_editor "Admit ordinary Locus: suspense."
+    && contains no_suspense_editor "[Enable unresolved recording]") "ctrl-u-without-suspense-asks-to-enable";
+  List.iter (fun dimensions ->
+    let rows = screen ~dimensions no_suspense_editor in
+    require (List.length rows <= snd dimensions
+      && List.for_all (fun (_, line) -> width_of line <= fst dimensions) rows) "ctrl-u-enable-view-bounded")
+    [32,8; 48,14; 80,24; 140,40];
+  let returned = key no_suspense_editor (`ASCII 'e') in
+  require (not (contains returned "Unresolved recording / Enable") && S.has_draft returned) "ctrl-u-enable-e-returns-to-draft";
+  require (match handle no_suspense_editor (`Key (`Enter, [])) with S.Enable_unresolved _ -> true | _ -> false)
+    "ctrl-u-enable-enter-requests-admission";
+  require (match handle ~blocked:true no_suspense_editor (`Key (`Enter, [])) with S.Updated _ -> true | _ -> false)
+    "ctrl-u-enable-blocked-writes-no-admission";
+  require (contains (S.unresolved_not_enabled no_suspense_editor "locus-policy-not-supplied")
+      "Unresolved recording was not enabled: locus-policy-not-supplied") "ctrl-u-enable-failure-returns-with-cause";
   let suspense_fixture =
     "(bakhlo-daily 3)\n(scope corrected-entries explicit-plans)\n\
      (measures (measure \"jpy\" 0))\n\
@@ -271,6 +288,8 @@ let self_check ~width_of () =
      (support (zero-origin (\"food\" \"jpy\")) (openings) (observations) (presence (not-supplied)))\n"
   in
   let s_book = get (B.of_string suspense_fixture) in
+  require (contains (S.after_unresolved_enabled ~book:s_book no_suspense_editor) "Unresolved recording enabled.")
+    "ctrl-u-enabled-returns-to-draft-with-notice";
   let s_create () = S.create ~book:s_book ~day:"2026-10-11" ~measure:"jpy" () in
   let s_handle ?(blocked=false) ?(dimensions=dimensions) state input =
     S.handle ~new_id:Daily_file.new_id ~book:s_book ~base_revision ~blocked ~dimensions ~width_of state input in
