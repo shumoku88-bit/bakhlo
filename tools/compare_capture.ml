@@ -75,6 +75,29 @@ let bounded_history raw =
         | [ "SUPPORT"; locus; measure; day ] -> locus, measure, day
         | _ -> raise (Refused "invalid-bounded-history-row"))
         (C.rows "LOAM-BOUNDED-HISTORY-SUPPORT\t1" s.body)
+(* Household AccountingRole evidence is already the accounting-roles.tsv text. *)
+let role_tokens = [ "ASSET"; "LIABILITY"; "EQUITY"; "INCOME"; "EXPENSE" ]
+let accounting_roles env =
+  match List.find_opt (fun (s : E.section) -> s.name = "AccountingRole") (E.sections env) with
+  | None -> raise (Refused "accounting-role-authority-missing")
+  | Some s ->
+      let rows = match String.split_on_char '\n' s.body with
+        | "LOAM-ACCOUNTING-ROLE-MAP\t1" :: rows -> rows
+        | _ -> raise (Refused "unsupported-accounting-role-section") in
+      let rows = match List.rev rows with
+        | "" :: rows -> List.rev rows
+        | _ -> raise (Refused "unsupported-accounting-role-section") in
+      let seen = Hashtbl.create (List.length rows) in
+      List.iter (fun row -> match String.split_on_char '\t' row with
+        | [ "ROLE"; locus; role ] ->
+            (* Bakhlo role readers trim Locus identities; refuse rather than silently trim. *)
+            require (locus <> "" && String.trim locus = locus
+                     && not (String.contains locus '\r')
+                     && List.mem role role_tokens) "invalid-accounting-role-row";
+            require (not (Hashtbl.mem seen locus)) "duplicate-accounting-role-locus";
+            Hashtbl.replace seen locus ()
+        | _ -> raise (Refused "invalid-accounting-role-row")) rows;
+      s.body
 let convert snapshot =
   let raw = needed snapshot "household.loam" in
   let candidate, _, _, _ = C.from_loam
@@ -175,7 +198,8 @@ let refresh ?(between = fun () -> ()) ~source ~state ~baseline () =
     | Some path -> get "previous-import-refused" (B.of_string (bytes (path ^ "/imported.sexp")))
     | None -> get "baseline-candidate-refused" (B.of_string (bytes baseline)) in
   let captured = snapshot source in
-  ignore (get "household-framing-refused" (E.of_string (needed captured "household.loam")));
+  let envelope = get "household-framing-refused" (E.of_string (needed captured "household.loam")) in
+  let roles = accounting_roles envelope in
   let book, printed = convert captured in
   let name = Printf.sprintf "capture-%d-%d-%06x"
       (int_of_float (Unix.gettimeofday ())) (Unix.getpid ()) (Random.bits ()) in
@@ -190,8 +214,11 @@ let refresh ?(between = fun () -> ()) ~source ~state ~baseline () =
     | Some (_, b) ->
         write_new (target ^ "/source/" ^ name) b;
         write_new (target ^ "/loam-view/" ^ name) b;
-        if String.starts_with ~prefix:"config/" name then write_new (target ^ "/" ^ name) b)
+        (* Raw copies keep the standalone file; the household section owns Bakhlo config. *)
+        if String.starts_with ~prefix:"config/" name && name <> "config/accounting-roles.tsv"
+        then write_new (target ^ "/" ^ name) b)
     files;
+  write_new (target ^ "/config/accounting-roles.tsv") roles;
   write_new (target ^ "/imported.sexp") printed;
   write_new (target ^ "/book.sexp") printed;
   write_new (target ^ "/delta.private.txt") (delta old book);
@@ -203,7 +230,8 @@ let refresh ?(between = fun () -> ()) ~source ~state ~baseline () =
   write_new selector (name ^ "\n");
   Unix.rename selector (state ^ "/CURRENT");
   print_endline "PASS: private comparison refreshed; originals and previous trials unchanged."
-let fixture ~changed =
+let sample_roles = "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\twallet\tASSET\nROLE\tfood\tEXPENSE\n"
+let fixture ~roles ~changed =
   let amount = if changed then 15 else 10 in
   let actual = Printf.sprintf
     "LOAM-NORMALIZED-ACTUAL\t4\nTX\told\t2026-10-03\tDESC\tbefore\nEFFECT\twallet\tjpy\t-10\nEFFECT\tfood\tjpy\t10\nENDTX\n%s"
@@ -222,7 +250,8 @@ let fixture ~changed =
     "CurrentQuantityAnchor", "LOAM-CURRENT-QUANTITY-ANCHOR\t2\nGROUP\nASSERT\twallet\tjpy\t1000\nEND\n";
     "CurrentQuantityPresence", "LOAM-CURRENT-QUANTITY-PRESENCE\t1\n";
     "BoundedHistorySupport", "LOAM-BOUNDED-HISTORY-SUPPORT\t1\nSUPPORT\twallet\tjpy\t2026-10-01\n";
-    "LocusAdmission", "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\nLOCUS\tfood\n" ] in
+    "LocusAdmission", "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\nLOCUS\tfood\n" ]
+    @ (match roles with Some body -> [ "AccountingRole", body ] | None -> []) in
   "LOAM-HOUSEHOLD-IMAGE\t2\n" ^ String.concat "" (List.map (fun (name, body) ->
     Printf.sprintf "SECTION\t%s\t%d\n%s" name (String.length body) body) sections)
 let self_check () =
@@ -234,7 +263,9 @@ let self_check () =
   directory (source ^ "/config");
   write_new (source ^ "/config/measure-presentation.tsv") "jpy\t0\n";
   write_new (source ^ "/config/daily-pace.tsv") "wallet\tjpy\n";
-  write_new (source ^ "/household.loam") (fixture ~changed:false);
+  let standalone_roles = "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\twallet\tLIABILITY\n" in
+  write_new (source ^ "/config/accounting-roles.tsv") standalone_roles;
+  write_new (source ^ "/household.loam") (fixture ~roles:(Some sample_roles) ~changed:false);
   let baseline = base ^ "/baseline.sexp" in
   let _, old_bytes = convert (snapshot source) in
   write_new baseline old_bytes;
@@ -257,7 +288,7 @@ let self_check () =
   write_new (first ^ "/config/daily-pace.tsv") "food\tjpy\n";
   Unix.unlink (first ^ "/loam-view/household.loam");
   write_new (first ^ "/loam-view/household.loam")
-    (Base.String.substr_replace_all (fixture ~changed:false)
+    (Base.String.substr_replace_all (fixture ~roles:(Some sample_roles) ~changed:false)
        ~pattern:"DESC\tbefore" ~with_:"DESC\tLOAM trial-only edit");
   Unix.unlink (first ^ "/loam-view/config/daily-pace.tsv");
   write_new (first ^ "/loam-view/config/daily-pace.tsv") "food\tjpy\n";
@@ -266,7 +297,7 @@ let self_check () =
         "/source/config/daily-pace.tsv"; "/config/daily-pace.tsv";
         "/loam-view/household.loam"; "/loam-view/config/daily-pace.tsv" ] in
   Unix.unlink (source ^ "/household.loam");
-  write_new (source ^ "/household.loam") (fixture ~changed:true);
+  write_new (source ^ "/household.loam") (fixture ~roles:(Some sample_roles) ~changed:true);
   refresh ~source ~state ~baseline ();
   let second = Option.get (selected state) in
   require (first <> second) "refresh-reused-trial";
@@ -297,12 +328,19 @@ let self_check () =
   require (bytes (second ^ "/config/daily-pace.tsv") = "wallet\tjpy\n") "config-not-copied";
   require (bytes (second ^ "/loam-view/config/daily-pace.tsv") = "wallet\tjpy\n")
     "loam-config-merged-trial-edits";
+  (* Household AccountingRole authority owns the Bakhlo config copy; UI copies stay byte-exact. *)
+  require (bytes (second ^ "/config/accounting-roles.tsv") = sample_roles)
+    "household-roles-not-placed";
+  require (bytes (second ^ "/source/config/accounting-roles.tsv") = standalone_roles
+           && bytes (second ^ "/loam-view/config/accounting-roles.tsv") = standalone_roles)
+    "standalone-role-copy-changed";
   let report = bytes (second ^ "/delta.private.txt") in
   require (Base.String.is_substring report ~substring:"ADDED_ENTRY\t\"fresh\""
            && Base.String.is_substring report ~substring:"CHANGED_ENTRY"
            && Base.String.is_substring report ~substring:"CHANGED_PLAN") "delta-missed-old-changes";
   let retained = List.map (fun suffix -> suffix, bytes (second ^ suffix))
-      [ "/book.sexp"; "/imported.sexp"; "/config/daily-pace.tsv"; "/COMPLETE" ] in
+      [ "/book.sexp"; "/imported.sexp"; "/config/daily-pace.tsv";
+        "/config/accounting-roles.tsv"; "/COMPLETE" ] in
   let before_cleanup = bytes (state ^ "/CURRENT") in
   Unix.symlink (source ^ "/household.loam") (second ^ "/loam-view/unsafe-link");
   (match clean_copies ~state with
@@ -319,9 +357,50 @@ let self_check () =
       "cleanup-changed-bakhlo-input") retained;
   List.iter (fun (suffix, before) -> require (bytes (first ^ suffix) = before)
       "cleanup-changed-old-generation") preserved;
-  require (bytes (source ^ "/household.loam") = fixture ~changed:true) "cleanup-changed-original";
+  require (bytes (source ^ "/household.loam") = fixture ~roles:(Some sample_roles) ~changed:true)
+    "cleanup-changed-original";
   refresh ~source ~state ~baseline ();
-  require (Option.get (selected state) <> second) "refresh-after-cleanup-failed";
+  let third = Option.get (selected state) in
+  require (third <> second) "refresh-after-cleanup-failed";
+  (* Household AccountingRole is required LOAM evidence: refuse before selecting or publishing. *)
+  let third_selector = bytes (state ^ "/CURRENT") in
+  let role_trial = List.map (fun suffix -> suffix, bytes (third ^ suffix))
+      [ "/book.sexp"; "/config/accounting-roles.tsv"; "/COMPLETE" ] in
+  let refuse_roles roles why =
+    Unix.unlink (source ^ "/household.loam");
+    write_new (source ^ "/household.loam") (fixture ~roles ~changed:true);
+    (match refresh ~source ~state ~baseline () with
+     | () -> raise (Refused (why ^ "-accepted"))
+     | exception Refused actual -> require (actual = why) (why ^ "-misrefused"));
+    require (bytes (state ^ "/CURRENT") = third_selector
+             && Option.get (selected state) = third) (why ^ "-changed-selection");
+    List.iter (fun (suffix, before) -> require (bytes (third ^ suffix) = before)
+        (why ^ "-changed-prior-trial")) role_trial in
+  refuse_roles None "accounting-role-authority-missing";
+  refuse_roles (Some "") "unsupported-accounting-role-section";
+  refuse_roles (Some "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\twallet\tCAPITAL\n")
+    "invalid-accounting-role-row";
+  refuse_roles (Some "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\twallet\tASSET\nROLE\twallet\tEXPENSE\n")
+    "duplicate-accounting-role-locus";
+  refuse_roles (Some "LOAM-ACCOUNTING-ROLE-MAP\t2\nROLE\twallet\tASSET\n")
+    "unsupported-accounting-role-section";
+  refuse_roles (Some "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\twallet\tASSET")
+    "unsupported-accounting-role-section";
+  refuse_roles (Some "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\twallet\n")
+    "invalid-accounting-role-row";
+  (* Bakhlo readers trim Locus identities, so a spaced identity is refused, never normalized. *)
+  refuse_roles (Some "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\t wallet\tASSET\n")
+    "invalid-accounting-role-row";
+  Unix.unlink (source ^ "/household.loam");
+  write_new (source ^ "/household.loam")
+    (fixture ~roles:(Some "LOAM-ACCOUNTING-ROLE-MAP\t1\n") ~changed:true);
+  refresh ~source ~state ~baseline ();
+  let fourth = Option.get (selected state) in
+  require (fourth <> third) "empty-role-map-reused-capture";
+  require (bytes (fourth ^ "/config/accounting-roles.tsv") = "LOAM-ACCOUNTING-ROLE-MAP\t1\n")
+    "explicit-empty-role-map-not-written";
+  require (bytes (fourth ^ "/source/config/accounting-roles.tsv") = standalone_roles)
+    "standalone-role-copy-not-preserved";
   let selector = bytes (state ^ "/CURRENT") in
   (match refresh ~between:(fun () ->
        Unix.unlink (source ^ "/config/daily-pace.tsv");
@@ -337,7 +416,7 @@ let self_check () =
    | exception Refused "nonregular-or-oversized-input" -> ()
    | exception Refused _ -> raise (Refused "wrong-symlink-refusal"));
   require (bytes (state ^ "/CURRENT") = selector) "symlink-refusal-changed-selector";
-  print_endline "PASS: synthetic refresh, preserved edits, correction/payment/configs, changed-source refusal, bounded raw-copy cleanup and refresh after cleanup."
+  print_endline "PASS: synthetic refresh, preserved edits, correction/payment/configs, role authority/empty-map placement, changed-source refusal, bounded raw-copy cleanup and refresh after cleanup."
 let () =
   try match Array.to_list Sys.argv with
   | [ _; "self-check" ] -> self_check ()

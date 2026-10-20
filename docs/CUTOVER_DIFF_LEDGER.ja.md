@@ -24,7 +24,7 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 | 項目 | 判定 | LOAMとの差 | 乗り換え | 根拠 |
 | --- | --- | --- | --- | --- |
 | 支出・収入・振替の入力→Preview→保存→再起動 | ✅ 一致（合成） | 単発の入力・数量・再起動後の照合が一致 | なし | [Record対照](VERIFICATION.md#paired-record-happy-path-and-cancellation-2026-10-16) |
-| 記帳の一行入力（クイック入力） | 🟨 実装（入力は前回実データ対照、枠は合成対照） | 過去履歴のサジェスト・雛形提案・選択・Preview遷移は前回の実データ対照で一致。2026-10-21にLOAMと同じ枠付きモーダル／枠内フッターへ修正し、合成実画面で通常2寸法・狭小2寸法を照合。警告を覆う枠は縮退させる。残差：既定日付はRecord表示日、比較環境のAccountingRole自動配置は未了。今回の最新実データ対照は未実施 | 要判断 | [入力証拠](VERIFICATION.md#record-quick-capture-as-in-loam-2026-10-20)、[枠の証拠](VERIFICATION.md#record-quick-capture-framed-modal-2026-10-21) |
+| 記帳の一行入力（クイック入力） | 🟨 実装（入力は前回実データ対照、枠・自動ロール配置は合成対照） | 過去履歴のサジェスト・雛形提案・選択・Preview遷移は前回の実データ対照で一致。2026-10-21に枠付きモーダル／枠内フッターとAccountingRole自動配置を接続。警告を覆う枠は縮退させる。合成取込→支払側Locus置換→Preview→コピー整理後のcoldを確認。既定日付はRecord表示日のまま。今回の最新実データ対照は未実施 | 要判断 | [入力証拠](VERIFICATION.md#record-quick-capture-as-in-loam-2026-10-20)、[枠の証拠](VERIFICATION.md#record-quick-capture-framed-modal-2026-10-21)、[ロール取込](VERIFICATION.md#comparison-accounting-role-capture-2026-10-21) |
 | 狭い画面での保存確認 | 🟦 意図的な差 | LOAMは確認本文が隠れたまま保存できる。Bakhloは全文が見えるまで保存を拒否 | なし | [狭小gate](VERIFICATION.md#paired-record-editcancel-and-narrow-preview-gates-2026-10-16) |
 | 未分類（貸借差額）の仮置き | ✅ 一致（合成・実データ） | Ctrl-Uで差額行を自動補完。suspense が未許可のときはLOAMと同じ確認画面を出し、Enterで科目だけを追加して下書きに戻り差額を埋める（本人判断 2026-10-20：LOAMと同じにする）。Bakhloの記帳枠は浮かぶ枠のため配置だけ違う | なし | UI-08 |
 | Actual一覧・検索・詳細 | ✅ 一致（実データ・限定） | 見出し・3画面の配置・一覧と詳細の表記をLOAMへ揃え、実データ120×36・80×24の14通りで比較。違いは意図的な3点（詳細欄のMerchantなど補足行、下部案内の`[d] date [m] merchant`）と、Loci一覧の一部の並び（LOAMは訂正した記録を訂正時点へ移すが、Bakhloは同じIDのまま元の位置に保つため） | なし | UI-03, [Actual対照](VERIFICATION.md#actual-workspace-layout-and-details-parity-with-loam-2026-10-20) |

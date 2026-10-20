@@ -4960,5 +4960,60 @@ were **not executed**.
 ### Limits
 
 Latest-data paired comparison, physical terminal/IME, human acceptance and P7 /
-power-loss qualification were **not executed**. AccountingRole extraction into
-the comparison environment remains a separate open item. No cutover.
+power-loss qualification were **not executed**. AccountingRole extraction was not
+part of this modal slice; its subsequent verification follows below. No cutover.
+
+## Comparison AccountingRole capture (2026-10-21)
+
+### Boundary
+
+- `tools/compare_capture.ml` now validates the required household `AccountingRole`
+  section and writes its exact body to each new generation's
+  `config/accounting-roles.tsv`. No TUI, Core, CLI or dependency change.
+- LOAM's production AccountingRole authority requires the section and refuses
+  malformed maps. Capture uses the same exact version-1 header, trailing newline,
+  row shape, role tokens and unique-Locus requirement. Header-only empty maps are
+  valid; missing maps are not empty claims and no frozen standalone fallback is used.
+- Bakhlo's existing role readers trim Loci. Capture therefore refuses leading or
+  trailing whitespace in a Locus rather than silently change its identity. It does
+  not infer roles or add a new Locus-admission policy.
+- Source and LOAM-view config copies remain exact, including conflicting standalone
+  role files. Only the Bakhlo generation config uses household roles. Existing
+  `ui-config` trial overrides remain higher priority and are never deleted.
+- Role refusal occurs before a new capture is published; old CURRENT and trial
+  bytes remain unchanged. Copy cleanup keeps the derived role file.
+
+### Exercised evidence
+
+- Reproduced with an isolated synthetic household containing AccountingRole:
+  pre-change refresh succeeded but generated no `accounting-roles.tsv`.
+  Actual 80×24 quick capture then treated a replacement Asset as the receiving side
+  instead of replacing the payer. No publication was attempted.
+- Existing `./tools/compare self-check`, `./tools/check` and
+  `./tools/tui --self-check` all passed on the implementation's first run.
+  After removing an unnecessary whole-body copy from the parser and adding two
+  framing regressions, the final `./tools/compare self-check` passed again.
+- Extended the existing synthetic capture self-check: exact body placement,
+  conflicting standalone preservation, required missing-section refusal, unknown
+  role, duplicate Locus, wrong version, missing trailing newline, malformed field
+  count, whitespace-identity refusal, explicit empty-map publication, old CURRENT /
+  trial preservation, and derived config surviving cleanup.
+- Actual native TUI on the corrected synthetic generation: role-aware payer
+  replacement, exact signed-posting Preview at 80×24 / 120×36, Escape without saving,
+  then raw-copy cleanup and cold reopen at 48×14 with the same correct replacement.
+  No manual role setup was used. The old incorrect generation was preserved.
+- Synthetic book bytes equalled imported bytes after the non-saving flows;
+  source household SHA-256 was unchanged before and after. Both raw standalone
+  config copies matched their synthetic source bytes before cleanup.
+- `./tools/privacy-scan --all` and `git diff --check` passed. AI-owned tmux
+  sessions exited; the isolated `/tmp` smoke fixture was removed. No existing
+  private comparison trial or user UI configuration was touched.
+- Independent review: Ship. Its suggested regression for a present zero-length
+  body was added, keeping missing, malformed-empty and explicit empty-map distinct.
+
+### Limits
+
+Latest-data paired comparison, real household access, physical terminal/IME,
+human acceptance and P7 / power-loss qualification were **not executed**.
+The private converter remains an existing local prerequisite; this is not a
+standalone full-household importer or operational cutover.

@@ -20,6 +20,11 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   resize, Tab, Esc and long Japanese drafts retain input. Household warnings take
   priority over the frame. Core, native self-check and the PTY matrix passed.
   This slice did not access household data or repeat the latest-data comparison.
+- Comparison capture now derives `config/accounting-roles.tsv` from the required
+  household `AccountingRole` section, preserving raw config and trial overrides.
+  Synthetic refresh and TUI proved payer-role replacement through Preview and cold
+  reopen after copy cleanup. Missing/malformed roles refuse without changing CURRENT.
+  Latest-data paired comparison was not executed; household data was not accessed.
 - Storage (rebuilt 2026-10-20): one book file = single-file S-expression snapshot +
   appended `Book_log` records. Every `Daily_book` mutation is in place except
   corrections that change a Reversal link or touch an opening/presence witness. At

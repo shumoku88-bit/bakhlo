@@ -7,7 +7,7 @@
 - [x] 同一取得世代（`capture-1792510023-32503-293b919a`）のfresh paired comparisonを120×36と80×24で実施。サジェスト件数・順序、雛形提案、↓移動、Preview遷移・内訳一致を確認。原本不変、`clean-copies`完了。
 - [x] クイック入力をLOAMの枠付きモーダル（枠内フッター）へ揃える（2026-10-21）。合成実画面で80×24／120×36の枠と48×14／32×9の縮退、Tab／Esc・日本語下書き保持を確認。警告が隠れる場合は枠を外し、警告を優先する。[証拠](../docs/VERIFICATION.md#record-quick-capture-framed-modal-2026-10-21)。
 - [x] 枠付きモーダルをmainへcommit／pushし、同一SHAのCore／TUI CIを確認（`810abc9`、両方success）。
-- [ ] 比較環境での`accounting-roles.tsv`自動配置。今回の表示sliceには含めない。
+- [x] 比較環境での`accounting-roles.tsv`自動配置（2026-10-21）。家計簿内の必須AccountingRoleをそのまま配置し、欠落・不正・重複・識別子変形は旧CURRENTを保って拒否。合成取込→Quick capture支払側置換→Preview、コピー整理後coldを確認。[証拠](../docs/VERIFICATION.md#comparison-accounting-role-capture-2026-10-21)。
 
 ## Daily Paceグラフで選択日の垂直ガイド線を表示（2026-10-20）
 
