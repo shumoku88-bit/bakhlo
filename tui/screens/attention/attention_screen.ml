@@ -33,7 +33,11 @@ let selected_item env t = List.nth_opt (open_items env) t.selected
 
 let move env t delta =
   let count = List.length (open_items env) in
-  if count = 0 then t else { t with selected = max 0 (min (count - 1) (t.selected + delta)) }
+  (* Bounded before adding: Home/End pass +max_int, which would wrap. *)
+  if count = 0 then t
+  else
+    let current = max 0 (min (count - 1) t.selected) in
+    { t with selected = (if delta > 0 then current + min delta (count - 1 - current) else max 0 (current + delta)) }
 
 let add_form ~today =
   Form.create

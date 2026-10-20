@@ -4,7 +4,7 @@
 
 - [x] 同一取得世代で120×36／80×24の読み取り対照。LOAMは追加フォームが入口、Bakhloは一覧＋詳細。差は台帳へ。[証拠](../docs/VERIFICATION.md#manage-loci-paired-comparison-and-list-paging-2026-10-21)
 - [x] 一覧のPageDown/PageUp/Endが先頭へ戻る不具合を修正し回帰検査を追加。
-- [ ] Attentionの`End`も同じ桁あふれ（`max_int`）で先頭へ戻る。別sliceで修正。
+- [x] Attentionの`End`も同じ桁あふれ（`max_int`）で先頭へ戻る不具合を修正（2026-10-21）。[証拠](../docs/VERIFICATION.md#attention-end-selection-overflow-2026-10-21)
 - [x] 本人判断（2026-10-21）：画面の形は一覧＋詳細を維持し、役割はLOAMと同じ初回割当のみ。80×24のラベル列消失と語中折返しを修正。[証拠](../docs/VERIFICATION.md#manage-loci-initial-role-assignment-and-80-column-list-2026-10-21)
 - [ ] LOAMのComplete Since（履歴の完全性の記録）をパリティ一覧に入れるか要判断（Daily Paceの過去日に関わる）。
 

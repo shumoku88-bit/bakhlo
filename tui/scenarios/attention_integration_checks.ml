@@ -48,6 +48,10 @@ let run ~width_of (home : C.state) =
   require (contains att_detail_screen "! OVERDUE") "attention-detail-shows-overdue";
   let att_tab_back = key ~width_of att_tab `Tab in
   require (not (Attention_screen.detail_focused att_tab_back.C.screens.attention)) "attention-tab-toggles-back";
+  let att_selected state = Attention_screen.selected state.C.screens.attention in
+  let att_end = key ~width_of (key ~width_of added_state (`ASCII 'j')) `End in
+  require (att_selected att_end = 1) "attention-end-from-second-selects-last";
+  require (att_selected (key ~width_of att_end `Home) = 0) "attention-home-selects-first";
   (* Test drop 'x' on first item *)
   let modal_drop = key ~width_of added_state (`ASCII 'x') in
   require (visible_form_id modal_drop = Some "drop_attention") "attention-x-opens-drop-form";

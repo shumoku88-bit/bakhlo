@@ -5127,8 +5127,24 @@ initial-only AccountingRole rule; fix the 80×24 list and detail.
   Locus shows the refusal on one line; book SHA-256 unchanged. LOAM was not rerun (its
   copy had been cleaned); the rule follows LOAM's observed `Virgin Locus only; no role
   replacement` screen from the comparison above.
+- Pushed `710129f`; matching-SHA
+  [Core CI 39475744588](https://github.com/shumoku88-bit/bakhlo/actions/runs/39475744588)
+  and [Bonsai TUI CI 39475744583](https://github.com/shumoku88-bit/bakhlo/actions/runs/39475744583)
+  both succeeded.
 
 ### Limits
 
 Correcting a wrong role is no longer possible in the UI, as in LOAM. Physical
 terminal/IME, human acceptance and P7 were **not executed**.
+
+## Attention End selection overflow (2026-10-21)
+
+- `tui/screens/attention/attention_screen.ml`: `move` bounded the step after adding it, so
+  End (`+max_int`) wrapped to a negative index whenever the selection was not the first
+  item and selected the first item instead of the last. The step is now bounded first,
+  as in `Record_browser.move`.
+- Regression in `tui/scenarios/attention_integration_checks.ml` (synthetic, two open
+  items): j then End selects the last item, Home the first. It failed at
+  `attention-end-from-second-selects-last` before the fix.
+- `./tools/check`, `./tools/tui --self-check` (39 PASS) and `git diff --check` passed.
+  Latest-data comparison, physical terminal and P7 were **not executed**.
