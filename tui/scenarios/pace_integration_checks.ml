@@ -874,6 +874,7 @@ let daily_pace_graph_render_checks ~width_of () =
       let glued = String.concat "\n" (List.map snd painted) in
       require (Base.String.is_substring glued ~substring:"2026-10-26") ("pace-graph-selected-day-" ^ tag);
       require (Base.String.is_substring glued ~substring:"◆") ("pace-graph-selected-glyph-" ^ tag);
+      require (Base.String.is_substring glued ~substring:"│") ("pace-graph-selected-guide-" ^ tag);
       require (Base.String.is_substring glued ~substring:grouped) ("pace-graph-grouped-" ^ tag))
     [ (52, 30, "4,280"); (35, 18, "4,280"); (42, 8, "4,280") ];
   let narrow = rows ~width:26 ~height:3 in
@@ -1084,6 +1085,7 @@ let daily_pace_graph_render_checks ~width_of () =
             ~samples:leading ~selected_index:0 ~graph_style:Line))
   in
   require (Base.String.is_substring leading_glued ~substring:"unavailable") "pace-graph-hole-labelled";
+  require (Base.String.is_substring leading_glued ~substring:"│") "pace-graph-hole-selected-guide";
   require (Base.String.is_substring leading_glued ~substring:"unavailable (not zero)"
     && Base.String.is_substring leading_glued ~substring:"9/10 supported days • line")
     "pace-chart-partial-selected-status";

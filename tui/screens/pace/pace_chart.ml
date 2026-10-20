@@ -119,6 +119,9 @@ let qualified_rows ~width ~height ~values ~joins ~selected ~range ~connect ~grid
         (List.init width (fun col ->
              let base = if connect then braille_glyph sample range width height col row else " " in
              if selected_value <> None && col = selected_x && selected_y = Some row then "◆"
+             else if col = selected_x then (if base = " " then "│" else base)
+             else if selected_y <> None && selected_y = Some row && abs (col - selected_x) <= 2 then
+               (if base = " " then "─" else base)
              else if List.mem (col, row) markers then "●"
              else if base <> " " then base
              else if List.mem row grid_rows then "┄"

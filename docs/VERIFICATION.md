@@ -4689,3 +4689,23 @@ Physical terminal/IME, human acceptance and P7 were **not executed**.
 ### Limits
 
 Physical terminal/IME, human acceptance and P7 were **not executed**.
+
+## Daily Pace chart selected day vertical guide (2026-10-20)
+
+### Implemented boundary
+
+- `tui/screens/pace/pace_chart.ml`: updated `qualified_rows` to render a vertical guide line (`│`) along the selected day column (`col = selected_x`), and short local horizontal guides (`─`) around the selected point, matching LOAM's `renderInRange` / `renderManyInRange` design principles.
+- Graph line braille glyphs take precedence over guide lines so underlying curves are not interrupted.
+- When the selected day has no value (unavailable/hole), the vertical guide `│` remains visible on that column, making the date cursor's horizontal position explicit.
+- `tui/scenarios/pace_integration_checks.ml`: added assertions verifying vertical guide visibility for both normal selected points and missing/unavailable days.
+
+### Evidence
+
+- Unit and integration checks passed:
+  - `./tools/check`: 1008 test cases passed.
+  - `./tools/tui --self-check`: all 35 Bonsai scenario suites passed.
+  - `git diff --check`: clean (no trailing whitespace or conflict markers).
+
+### Limits
+
+Physical terminal/IME, human acceptance and P7 were **not executed**.

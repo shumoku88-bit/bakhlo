@@ -1,5 +1,11 @@
 # LOAMの機能・見た目・使い勝手をBakhloで再現する
 
+## Daily Paceグラフで選択日の垂直ガイド線を表示（2026-10-20）
+
+- [x] LOAMの`renderInRange`／`renderManyInRange`設計に合わせ、`Pace_chart.qualified_rows`に選択日の垂直ガイド線（`│`）および近傍水平ガイド線（`─`）の描画を追加。
+- [x] 日付移動時に縦線が左右に追従し、データ欠落日（unavailable）でも選択位置が明示されることを確認。
+- [x] `pace_integration_checks.ml`に垂直ガイド線の存在検査を追加し、`./tools/tui --self-check`および`./tools/check`がすべて成功することを確認。
+
 ## Actual画面の配置・表示・詳細をLOAMへ揃える（2026-10-20）
 
 - [x] Actual画面のlayoutをScreen.Workspaceに変更し、context_rows・LOAM table_row・amount_summary・detail_raw_lines・wide判定（98×16）をLOAM ActualWorkspaceに準拠させる。
