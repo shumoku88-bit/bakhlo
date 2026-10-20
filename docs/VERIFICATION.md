@@ -5059,6 +5059,10 @@ standalone full-household importer or operational cutover.
     Whether LOAM refuses a blank token at publication was not tested.
 - Household/config SHA-256 equal before and after; the comparison book copy was
   unchanged. AI tmux sessions closed, `clean-copies` passed.
+- Pushed `a81e5b8` to `main`; matching-SHA
+  [Core CI 39471308226](https://github.com/shumoku88-bit/bakhlo/actions/runs/39471308226)
+  and [Bonsai TUI CI 39471308113](https://github.com/shumoku88-bit/bakhlo/actions/runs/39471308113)
+  both succeeded.
 - Not fixed here: Attention's `End` has the same overflow pattern (`move` with
   `max_int` wraps to the first item when the selection is not the first).
 
