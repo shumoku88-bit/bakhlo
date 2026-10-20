@@ -4655,6 +4655,8 @@ User decision (2026-10-20): replace the comma-separated pool editor with LOAM's 
   copy bytes and `../loam-data` hashes unchanged; AI tmux stopped; private captures
   deleted; `./tools/compare clean-copies` passed.
 
+- Matching implementation `3461305`: [Core 39406808758](https://github.com/shumoku88-bit/bakhlo/actions/runs/39406808758) and [Bonsai TUI 39406808781](https://github.com/shumoku88-bit/bakhlo/actions/runs/39406808781) completed/success (synthetic CI).
+
 ### Limits
 
 Physical terminal/IME, human acceptance and P7 were **not executed**.
