@@ -75,14 +75,41 @@ let title t =
   | `Accounting -> "Balances / Accounting"
   | `Current -> "Balances / Current"
 
-let browser_pane_widths width =
-  if width < 80 then (width, width)
-  else if width >= 120 then
-    let right = min 60 (max 48 (width * 34 / 100)) in
-    (width - right - 1, right)
-  else
-    let left = max 36 (min 58 (width * 52 / 100)) in
-    (left, width - left - 1)
+(* One owned geometry: the Shell supplies content = screen minus header,
+   feedback and footer, so paging and scrolling use the painted sizes. *)
+type layout = {
+  wide : bool;
+  list_width : int;
+  list_height : int;
+  detail_width : int;
+  detail_height : int;
+  detail_only : bool;
+}
+
+let layout ~content:(width, height) ~screen_height ~detail =
+  let wide = width >= 119 && height >= 10 in
+  let detail_width = if wide then min 60 (max 48 (width * 34 / 100)) else width in
+  let base_detail_height =
+    if wide then height
+    else if height >= 12 then
+      (if screen_height >= 48 then 10 else if screen_height >= 36 then 8 else 6) + 2
+    else 0
+  in
+  let detail_only = detail && base_detail_height = 0 in
+  let detail_height = if detail_only then height else base_detail_height in
+  let list_height =
+    if detail_only then 0
+    else if wide then height
+    else height - detail_height - (if detail_height > 0 then 1 else 0)
+  in
+  {
+    wide;
+    list_width = (if wide then width - 1 - detail_width else width);
+    list_height;
+    detail_width;
+    detail_height;
+    detail_only;
+  }
 
 let admitted_loci book =
   match B.approved_loci book with
@@ -141,37 +168,153 @@ let selected_account ~book ~measure ~roles ~balance_view_text t =
 let balance_lines ?(width_of = String.length) ?(width = max_int) ~book items_list =
   List.map (O.balance_item_line ~width_of ~width ~book) items_list
 
-(* Full quantities stay available in detail/Print. A table cell never clips
-   a quantity into a different number. *)
+(* Current presents the selected Locus × Measure evidence: the exact ID and raw
+   Quanta, never a label, a scaled Amount, or a signed adjustment. *)
+let group_quanta n =
+  let raw = Z.to_string n in
+  let length = String.length raw in
+  let start = if raw.[0] = '-' then 1 else 0 in
+  let out = Buffer.create (length + (length - start) / 3) in
+  if start = 1 then Buffer.add_char out '-';
+  for i = start to length - 1 do
+    if i > start && (length - i) mod 3 = 0 then Buffer.add_char out ',';
+    Buffer.add_char out raw.[i]
+  done;
+  Buffer.contents out
+
+let current_quanta = function
+  | O.Exact n -> group_quanta n
+  | O.Known_present | O.Unsupported -> "?"
+
+let current_state ~compact = function
+  | O.Exact _ -> "exact"
+  | O.Known_present -> if compact then "present, ?" else "present, amount unknown"
+  | O.Unsupported -> "unsupported"
+
+(* A table cell never clips a quantity into a different number. *)
+let quantity_cell ~width_of ~width quantity =
+  if width_of quantity <= width then quantity
+  else if width >= 11 then "see details"
+  else "…"
+
 let current_table ~width_of ~width ~book items_list =
-  let room = max 0 (width - width_of "│ " - width_of " │" - width_of "  ") in
-  let measure_width = List.fold_left (fun size -> function
-    | O.Account_row { measure; _ } -> max size (width_of measure)
-    | _ -> size) 7 items_list in
+  let room = max 0 (width - 5) in
+  let measure_width =
+    List.fold_left
+      (fun size -> function
+        | O.Account_row { measure; _ } -> max size (width_of measure)
+        | _ -> size)
+      7 items_list
+  in
+  (* Preserve the Measure before the Locus; if neither fits, show no digits. *)
   if room < 54 || measure_width > 12 then
-    ("  Locus / Measure  Value / state",
-     balance_lines ~width_of ~width:room ~book items_list)
+    let quantity_width = min 14 (room / 2) in
+    let name_width = max 0 (room - quantity_width - 2) in
+    let name locus measure =
+      let suffix = " / " ^ measure in
+      if width_of suffix <= name_width then
+        (O.clip_text ~width_of (name_width - width_of suffix) locus ^ suffix, true)
+      else if width_of measure <= name_width then (measure, true)
+      else (locus, false)
+    in
+    let lines =
+      List.map
+        (function
+          | O.Account_row { locus; measure; value; _ } ->
+              let name, identified = name locus measure in
+              let quantity =
+                if not identified then "see details"
+                else match value with
+                | O.Exact _ -> current_quanta value
+                | O.Known_present | O.Unsupported -> current_state ~compact:true value
+              in
+              O.pad ~width_of name_width name ^ "  "
+              ^ O.pad_left ~width_of quantity_width
+                  (quantity_cell ~width_of ~width:quantity_width quantity)
+          | item -> O.balance_item_line ~width_of ~width:room ~book item)
+        items_list
+    in
+    ("Locus / Measure  Value / state", lines)
   else
+    let measure_width = min 12 measure_width in
     let state_width = if room >= 74 then 23 else 11 in
-    let quantity_width = min 22 (max 12 (room - measure_width - state_width - 13)) in
+    let desired = List.fold_left (fun size -> function
+      | O.Account_row { value; _ } -> max size (width_of (current_quanta value))
+      | _ -> size) 12 items_list |> min 22 in
+    let quantity_width = min desired (room - measure_width - state_width - 13) in
     let locus_width = max 1 (room - quantity_width - measure_width - state_width - 5) in
     let row locus quantity measure state =
-      O.pad ~width_of locus_width locus ^ "  " ^ O.pad_left ~width_of quantity_width quantity
-      ^ " " ^ O.pad ~width_of measure_width measure ^ "  " ^ O.pad ~width_of state_width state
+      O.pad ~width_of locus_width locus ^ "  "
+      ^ O.pad_left ~width_of quantity_width
+          (quantity_cell ~width_of ~width:quantity_width quantity)
+      ^ " " ^ O.pad ~width_of measure_width measure ^ "  "
+      ^ O.pad ~width_of state_width state
     in
-    let lines = List.map (function
+    let lines =
+      List.map
+        (function
+          | O.Account_row { locus; measure; value; _ } ->
+              row locus (current_quanta value) measure
+                (current_state ~compact:(state_width < 23) value)
+          | item -> O.balance_item_line ~width_of ~width:room ~book item)
+        items_list
+    in
+    (row "Locus" "Quanta" "Measure" "State", lines)
+
+let current_detail ~book item =
+  match item with
+  | O.Account_row { locus; measure; value; _ } ->
+      let explanation =
+        match value with
+        | O.Exact _ -> []
+        | O.Known_present ->
+            [ Ui_text.tr "Presence is known; the exact current amount is unknown, not zero." ]
+        | O.Unsupported ->
+            [
+              Ui_text.tr
+                "No current quantity support is justified for this coordinate. Do not infer zero.";
+            ]
+      in
+      [
+        "Locus: " ^ locus;
+        "Measure: " ^ measure;
+        "Quanta: " ^ current_quanta value ^ " " ^ measure;
+        "State: " ^ current_state ~compact:false value;
+      ]
+      @ explanation
+      @ [ Ui_text.tr "Locus × Measure; not an Account taxonomy." ]
+  | item -> O.balance_item_detail ~book item
+
+let detail_lines ~book t items_list =
+  match List.nth_opt items_list t.selected with
+  | None -> [ Ui_text.tr "No balances are selected in the current balance view." ]
+  | Some item -> (
+      match t.mode with
+      | `Accounting -> O.balance_item_detail ~book item
+      | `Current -> current_detail ~book item)
+
+let detail_rows ~width_of ~width ~book t items_list =
+  detail_lines ~book t items_list
+  |> List.mapi (fun index line ->
+       match t.mode with
+       | `Accounting ->
+           O.wrap_text ~width_of (max 1 (width - 6)) line
+           |> List.map (fun text -> O.Plain, text)
+       | `Current ->
+           let style = if index = 0 || index = 2 then O.Plain else O.Chrome in
+           O.wrap_text ~width_of (max 1 (width - 3)) line
+           |> List.map (fun text -> style, " " ^ text))
+  |> List.concat
+
+(* Print keeps every exact digit; Current prints the same raw Quanta as the list. *)
+let current_print_lines ~book items_list =
+  List.map
+    (function
       | O.Account_row { locus; measure; value; _ } ->
-          let quantity, state = match value with
-            | O.Exact n ->
-                ((if Z.sign n > 0 then "+" else "") ^ O.format_money book measure n, "exact")
-            | O.Known_present -> ("?", if state_width < 23 then "present, ?" else "present, amount unknown")
-            | O.Unsupported -> ("?", "unsupported") in
-          let quantity = if width_of quantity <= quantity_width then quantity else "see details" in
-          let label = B.label book locus in
-          let name = if label <> "" && label <> locus then label ^ " [" ^ locus ^ "]" else locus in
-          row name quantity measure state
-      | item -> O.balance_item_line ~width_of ~width:room ~book item) items_list in
-    ("  " ^ row "Locus" "Amount" "Measure" "State", lines)
+          "  " ^ locus ^ "  " ^ current_quanta value ^ " " ^ measure ^ "  "
+          ^ current_state ~compact:false value
+      | item -> O.balance_item_line ~book item)
+    items_list
 
 let balance_print_fits rows =
   let rec fits bytes = function
@@ -220,7 +363,12 @@ let balance_print_preview ~book ~measure ~roles ~balance_view_text t =
             ]
       in
       let items_list = items ~book ~measure ~roles ~balance_view_text t in
-      let summary = header @ balance_lines ~book items_list in
+      let summary =
+        header
+        @ (match t.mode with
+          | `Current -> current_print_lines ~book items_list
+          | `Accounting -> balance_lines ~book items_list)
+      in
       if not (balance_print_fits summary) then
         refused
           [
@@ -254,25 +402,13 @@ let print_preview_summary t =
   | _ -> None
 
 let print_preview_form = balance_print_preview
-let detail_viewport ~dimensions ~width_of ~book ~measure ~roles ~balance_view_text t =
-  let usable_h = max 0 (snd dimensions - 5) in
-  let stacked = fst dimensions >= 72 && fst dimensions < 120 && usable_h >= 18 in
-  let right_width =
-    if stacked then fst dimensions
-    else if fst dimensions >= 80 then snd (browser_pane_widths (fst dimensions))
-    else fst dimensions
-  in
+let detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t =
   let items_list = items ~book ~measure ~roles ~balance_view_text t in
-  let detail =
-    match List.nth_opt items_list t.selected with
-    | None -> [ Ui_text.tr "No supplied Locus / Measure coordinates." ]
-    | Some item -> O.balance_item_detail ~book item
-  in
-  let wrapped = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
-  let detail_height = if stacked then usable_h - usable_h / 2 else usable_h in
+  let wrapped = detail_rows ~width_of ~width:layout.detail_width ~book t items_list
+    |> List.map snd in
   let view =
     Panel.window
-      ~capacity:(Panel.capacity ~height:detail_height ~heading:false)
+      ~capacity:(Panel.capacity ~height:layout.detail_height ~heading:false)
       ~count:(List.length wrapped) ~scroll:t.detail_scroll ~selected:None
   in
   (wrapped, view)
@@ -412,13 +548,11 @@ let cursor_position ~dimensions ~body_dimensions ~width_of t =
   | Some frame -> frame.cursor
   | None -> None
 
-let list_capacity ~heading ~dimensions:(width, height) =
-  let usable_h = max 0 (height - 5) in
-  let stacked = width >= 72 && width < 120 && usable_h >= 18 in
-  let list_height = if stacked then usable_h / 2 else usable_h in
-  Panel.capacity ~height:list_height ~heading
+let list_capacity ~heading ~layout = Panel.capacity ~height:layout.list_height ~heading
 
-let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~width_of t (input : Ui_input.input) =
+let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~content ~width_of t
+    (input : Ui_input.input) =
+  let layout = layout ~content ~screen_height:(snd dimensions) ~detail:(t.pane = `Detail) in
   match t.overlay with
   | Print_preview { form; scroll } -> (
       let pane_width = min 64 (max 8 (fst dimensions - 4)) in
@@ -571,14 +705,14 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~width_
           let all_items = items ~book ~measure ~roles ~balance_view_text t in
           let count = List.length all_items in
           if t.pane = `Detail then
-            let _, view = detail_viewport ~dimensions ~width_of ~book ~measure ~roles ~balance_view_text t in
+            let _, view = detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t in
             ({ t with detail_scroll = view.last }, Stay)
           else (set_selected (count - 1) t, Stay)
       | `Key ((`Arrow `Up | `ASCII ('k' | 'K')), []) ->
           let all_items = items ~book ~measure ~roles ~balance_view_text t in
           let count = List.length all_items in
           if t.pane = `Detail then
-            let _, view = detail_viewport ~dimensions ~width_of ~book ~measure ~roles ~balance_view_text t in
+            let _, view = detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t in
             let next_scroll = Panel.move ~last:view.last ~position:view.start (-1) in
             ({ t with detail_scroll = next_scroll }, Stay)
           else
@@ -588,7 +722,7 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~width_
           let all_items = items ~book ~measure ~roles ~balance_view_text t in
           let count = List.length all_items in
           if t.pane = `Detail then
-            let _, view = detail_viewport ~dimensions ~width_of ~book ~measure ~roles ~balance_view_text t in
+            let _, view = detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t in
             let next_scroll = Panel.move ~last:view.last ~position:view.start 1 in
             ({ t with detail_scroll = next_scroll }, Stay)
           else
@@ -598,90 +732,110 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~width_
           let all_items = items ~book ~measure ~roles ~balance_view_text t in
           let count = List.length all_items in
           if t.pane = `Detail then
-            let _, view = detail_viewport ~dimensions ~width_of ~book ~measure ~roles ~balance_view_text t in
+            let _, view = detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t in
             let next_scroll = Panel.move ~last:view.last ~position:view.start (-(max 1 view.capacity)) in
             ({ t with detail_scroll = next_scroll }, Stay)
           else
-            let step = list_capacity ~heading:(t.mode = `Current) ~dimensions in
+            let step = list_capacity ~heading:(t.mode = `Current) ~layout in
             let next_sel = max 0 (min (max 0 (count - 1)) (t.selected - step)) in
             (set_selected next_sel t, Stay)
       | `Key ((`Page `Down | `ASCII 'd'), _) ->
           let all_items = items ~book ~measure ~roles ~balance_view_text t in
           let count = List.length all_items in
           if t.pane = `Detail then
-            let _, view = detail_viewport ~dimensions ~width_of ~book ~measure ~roles ~balance_view_text t in
+            let _, view = detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t in
             let next_scroll = Panel.move ~last:view.last ~position:view.start (max 1 view.capacity) in
             ({ t with detail_scroll = next_scroll }, Stay)
           else
-            let step = list_capacity ~heading:(t.mode = `Current) ~dimensions in
+            let step = list_capacity ~heading:(t.mode = `Current) ~layout in
             let next_sel = max 0 (min (max 0 (count - 1)) (t.selected + step)) in
             (set_selected next_sel t, Stay)
       | _ -> (t, Stay))
 
-let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) ~width_of t =
+let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) ~screen_height
+    ~width_of t =
   let items_list = items ~book ~measure ~roles ~balance_view_text t in
-  let stacked = width >= 72 && width < 120 && height >= 18 in
-  let list_width =
-    if stacked then width
-    else if width >= 80 then
-      let left, _ = browser_pane_widths width in
-      left
-    else width
-  in
-  let heading, lines = match t.mode with
+  let layout = layout ~content:(width, height) ~screen_height ~detail:(t.pane = `Detail) in
+  let heading, lines =
+    match t.mode with
     | `Current ->
-        let heading, lines = current_table ~width_of ~width:list_width ~book items_list in
-        (Some heading, lines)
-    | `Accounting -> (None, balance_lines ~width_of ~width:(max 0 (list_width - 6)) ~book items_list) in
-  let heading = if lines = [] then Some "No balances are selected." else heading in
-  let detail =
-    match List.nth_opt items_list t.selected with
-    | None -> [ Ui_text.tr "No supplied Locus / Measure coordinates." ]
-    | Some item -> O.balance_item_detail ~book item
+        let heading, lines = current_table ~width_of ~width:layout.list_width ~book items_list in
+        Some heading, lines
+    | `Accounting ->
+        (None, balance_lines ~width_of ~width:(max 0 (layout.list_width - 6)) ~book items_list)
   in
-  let right_width =
-    if stacked then width
-    else if width >= 80 then snd (browser_pane_widths width)
-    else width
-  in
-  let wrapped_detail = List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail in
+  let wrapped_detail = detail_rows ~width_of ~width:layout.detail_width ~book t items_list in
   let is_detail = t.pane = `Detail in
-  let title_text = title t in
-  let pad rows = rows @ List.init (max 0 (height - List.length rows)) (fun _ -> (O.Plain, "")) in
-  if stacked then
-    let list_height = height / 2 in
-    Panel.frame ~width_of ~width ~height:list_height ~focused:(not is_detail) ~title:title_text
-      ~scroll:0
-      ~selected:(if lines = [] then None else Some t.selected)
-      ?heading
-      lines
-    @ Panel.frame ~width_of ~width ~height:(height - list_height) ~focused:is_detail
-        ~title:"Selected Balance" ~scroll:t.detail_scroll ~selected:None wrapped_detail
-  else if width >= 80 then
-    let left_width, right_width = browser_pane_widths width in
-    let left_panel =
-      Panel.frame ?heading
-        ~width_of ~width:left_width ~height ~focused:(not is_detail) ~title:title_text ~scroll:0
-        ~selected:(if lines = [] then None else Some t.selected)
-        lines
-    in
-    let right_panel =
-      Panel.frame ~width_of ~width:right_width ~height ~focused:is_detail ~title:"Selected Balance"
-        ~scroll:t.detail_scroll ~selected:None wrapped_detail
-    in
-    pad
-      (List.map2
-         (fun (style_l, text_l) (style_r, text_r) ->
-           (O.Columns (left_width, style_l, style_r), text_l ^ " " ^ text_r))
-         left_panel right_panel)
-  else if is_detail then
-    Panel.frame ~width_of ~width ~height ~focused:true ~title:"Selected Balance"
-      ~scroll:t.detail_scroll ~selected:None wrapped_detail
+  let list_title =
+    match t.mode with
+    | `Accounting -> title t
+    | `Current -> if is_detail then "Balances" else "Balances [active]"
+  in
+  let detail_title =
+    match t.mode with
+    | `Accounting -> "Selected Balance"
+    | `Current -> if is_detail then "Selected balance [active]" else "Selected balance"
+  in
+  let list_panel ~height =
+    match t.mode with
+    | `Accounting ->
+        Panel.frame ?heading ~width_of ~width:layout.list_width ~height
+          ~focused:(not is_detail) ~title:list_title ~scroll:0
+          ~selected:(if lines = [] then None else Some t.selected) lines
+    | `Current ->
+        let count = List.length lines in
+        let window = Panel.window ~capacity:(Panel.capacity ~height ~heading:true)
+          ~count ~scroll:0 ~selected:(Some t.selected) in
+        let rows = if count = 0 then
+            O.wrap_text ~width_of (max 1 (layout.list_width - 3))
+              "No balances are selected in the current balance view."
+            |> List.map (fun text -> O.Chrome, " " ^ text)
+          else
+            List.filteri (fun i _ -> i >= window.start && i - window.start < window.capacity) lines
+            |> List.mapi (fun offset text ->
+                 let chosen = t.selected = window.start + offset in
+                 (if chosen && not is_detail then O.Active else O.Plain),
+                 (if chosen then (if is_detail then " * " else " > ") else "   ") ^ text) in
+        let rows = (if height >= 4 then
+            List.map (fun text -> O.Chrome, "   " ^ text) (Option.to_list heading)
+          else []) @ rows in
+        let bottom_label = Printf.sprintf "%d/%d%s%s"
+          (if count = 0 then 0 else min count (t.selected + 1)) count
+          (if window.start > 0 then " ↑" else "")
+          (if window.start + window.capacity < count then " ↓" else "") in
+        Panel.frame_rows ~inset:0 ~bottom_label ~width_of ~width:layout.list_width
+          ~height ~focused:(not is_detail) ~title:list_title rows
+  in
+  let detail_panel ~height =
+    match t.mode with
+    | `Accounting ->
+        Panel.frame ~width_of ~width:layout.detail_width ~height ~focused:is_detail
+          ~title:detail_title ~scroll:t.detail_scroll ~selected:None (List.map snd wrapped_detail)
+    | `Current ->
+        let count = List.length wrapped_detail in
+        let window = Panel.window ~capacity:(Panel.capacity ~height ~heading:false)
+          ~count ~scroll:t.detail_scroll ~selected:None in
+        let rows = List.filteri (fun i _ -> i >= window.start && i - window.start < window.capacity)
+          wrapped_detail in
+        let bottom_label = Printf.sprintf "%d-%d/%d%s%s"
+          (if window.capacity = 0 then 0 else window.start + 1)
+          (min count (window.start + window.capacity)) count
+          (if window.start > 0 then " ↑" else "")
+          (if window.start + window.capacity < count then " ↓" else "") in
+        Panel.frame_rows ~inset:0 ~bottom_label ~width_of ~width:layout.detail_width
+          ~height ~focused:is_detail ~title:detail_title rows
+  in
+  if layout.wide then
+    List.map2
+      (fun (style_l, text_l) (style_r, text_r) ->
+        (O.Columns (layout.list_width, style_l, style_r), text_l ^ " " ^ text_r))
+      (list_panel ~height:layout.list_height)
+      (detail_panel ~height:layout.list_height)
+  else if layout.detail_only then detail_panel ~height:layout.detail_height
   else
-    Panel.frame ?heading
-      ~width_of ~width ~height ~focused:true ~title:title_text ~scroll:0
-      ~selected:(if lines = [] then None else Some t.selected)
-      lines
+    list_panel ~height:layout.list_height
+    @ (if layout.detail_height = 0 then []
+       else [ (O.Plain, "") ] @ detail_panel ~height:layout.detail_height)
 
 let footer ~dimensions:(width, _) ~width_of t =
   let fit choices =
@@ -705,15 +859,15 @@ let footer ~dimensions:(width, _) ~width_of t =
   | No_overlay ->
       [
         (if t.pane = `Detail then
-           fit [ "j/k scroll  Esc/i/Enter/Tab/q list  Space commands";
-                 "j/k scroll Esc/i/Enter/q list"; "j/k scroll i/q list SPC cmds" ]
-         else fit [ "j/k select  i/Enter/Tab details  Esc/q back  Space commands";
-                    "j/k sel i/Enter info q back Space commands";
-                    "j/k sel i info q back SPC cmds" ]);
-        fit [ "C-u/d page  Home/End ends  w measure  v view  c config  o observe  p print view";
-              "C-u/d page Home/End ends w measure v view c config o observe p print view";
-              "C-u/d page Home/End ends p print";
-              "C-u/d page p print" ];
+           fit [ "[j/k] scroll [Esc/i/q] list [Space] commands";
+                 "[j/k] scroll [Esc/i/q] list" ]
+         else fit [ "[j/k] select [i/Enter] details [q] back [Space] commands";
+                    "[j/k] sel [i/Enter] info [q] back";
+                    "[j/k] sel [i] info [q] back" ]);
+        fit [ "[C-u/d] page [Home/End] ends [p] print view [w] measure [v] view [c] config [o] observe";
+              "[C-u/d] page [Home/End] ends [p] print view [w] unit [v] view [c] cfg [o] obs";
+              "[C-u/d] page [Home/End] ends [p] print view";
+              "[C-u/d] page [p] print" ];
       ]
 
 (* Screen contract *)
@@ -742,7 +896,7 @@ let handle env (geometry : Screen.geometry) t input =
   let book, measure, roles, balance_view_text = context env in
   let next, command =
     handle ~blocked:env.blocked ~book ~measure ~roles ~balance_view_text
-      ~dimensions:geometry.screen ~width_of:geometry.width_of t input
+      ~dimensions:geometry.screen ~content:geometry.content ~width_of:geometry.width_of t input
   in
   (next, request_of t next command)
 
@@ -762,7 +916,11 @@ let items env t =
 
 let detail_viewport env (geometry : Screen.geometry) t =
   let book, measure, roles, balance_view_text = context env in
-  detail_viewport ~dimensions:geometry.screen ~width_of:geometry.width_of ~book ~measure ~roles
+  let layout =
+    layout ~content:geometry.content ~screen_height:(snd geometry.screen)
+      ~detail:(t.pane = `Detail)
+  in
+  detail_viewport ~layout ~width_of:geometry.width_of ~book ~measure ~roles
     ~balance_view_text t
 
 let print_preview_form env t =
@@ -779,7 +937,7 @@ let view env (geometry : Screen.geometry) t =
       | `Current -> "Selected Locus × Measure; balance-view order only."
       | `Accounting -> "Current role-based quantities; different Measures are not combined.");
     rows = lazy (screen ~book ~measure ~roles ~balance_view_text ~dimensions:geometry.content
-                   ~width_of:geometry.width_of t);
+                   ~screen_height:(snd geometry.screen) ~width_of:geometry.width_of t);
     footer = footer ~dimensions:geometry.screen ~width_of:geometry.width_of t;
     overlay;
     cursor = Option.bind overlay (fun frame -> frame.Ui_overlay.cursor);

@@ -12,13 +12,13 @@ let get = function Ok x -> x | Error why -> failwith why
 
 let test_book_fixture =
   "(bakhlo-daily 3)\n(scope corrected-entries explicit-plans)\n\
-   (measures (measure \"jpy\" 0) (measure \"eur\" 2))\n\
+   (measures (measure \"jpy\" 0) (measure \"eur\" 2) (measure \"unambiguously-long-currency\" 0))\n\
    (labels (provided (label \"wallet\" \"財布\" \"Cash\") (label \"bank\" \"銀行\" \"Bank\") (label \"food\" \"食費\" \"Food\")))\n\
-   (approved-loci (provided \"wallet\" \"bank\" \"food\"))\n(entries)\n\
+   (approved-loci (provided \"wallet\" \"bank\" \"food\" \"present\"))\n(entries)\n\
    (plans)\n\
    (support (zero-origin (\"food\" \"jpy\")) (openings)\n\
-     (observations (observation (reflected) (quantities (\"wallet\" \"jpy\" 74500) (\"wallet\" \"eur\" 12345) (\"bank\" \"jpy\" 200000))))\n\
-     (presence (not-supplied)))\n"
+     (observations (observation (reflected) (quantities (\"wallet\" \"jpy\" 74500) (\"wallet\" \"eur\" 12345) (\"wallet\" \"unambiguously-long-currency\" 4567) (\"bank\" \"jpy\" 200000))))\n\
+     (presence (provided (reflected) (coordinates (\"present\" \"eur\")))))\n"
 
 let test_roles =
   [ ("wallet", O.Asset); ("bank", O.Asset); ("food", O.Expense) ]
@@ -28,7 +28,9 @@ let env ~book balance_view_text : Screen.env =
     ~config:(function "balance-view.tsv" -> balance_view_text | name -> Error ("undeclared " ^ name)) ()
 
 let geometry ?(dimensions = (80, 24)) ~width_of () : Screen.geometry =
-  { screen = dimensions; body = dimensions; content = dimensions; width_of }
+  let width, height = dimensions in
+  (* Shell Standard layout: content = screen minus header, feedback and footer. *)
+  { screen = dimensions; body = dimensions; content = (width, max 0 (height - 5)); width_of }
 
 let unit_checks ~width_of () =
   let book = get (B.of_string test_book_fixture) in
@@ -160,70 +162,154 @@ let unit_checks ~width_of () =
   in
   require (not (Balances.modal owner_cfg_closed)) "config-q-closes";
 
-  (* 12. Screen rendering in 3 layout configurations *)
-  let scr_stacked =
-    Lazy.force (Balances.view bv (geometry ~dimensions:(80, 24) ~width_of ()) owner).rows
-  in
-  require (List.length scr_stacked = 24) "screen-stacked-height-24";
   let contains text needle =
     let rec loop i =
       i + String.length needle <= String.length text &&
       (String.sub text i (String.length needle) = needle || loop (i + 1)) in
     loop 0 in
   let painted_has rows needle = List.exists (fun (_, text) -> contains text needle) rows in
-  require (painted_has scr_stacked "Amount" && painted_has scr_stacked "Measure"
+
+  (* 12. Current rendering: exact IDs and raw integer Quanta in owned geometry *)
+  let stacked_geometry = geometry ~dimensions:(80, 24) ~width_of () in
+  let scr_stacked = Lazy.force (Balances.view bv stacked_geometry owner).rows in
+  require (List.length scr_stacked = 19) "screen-stacked-content-height-19";
+  require (painted_has scr_stacked "Quanta" && painted_has scr_stacked "Measure"
     && painted_has scr_stacked "State") "current-full-columns-present";
-  require (painted_has scr_stacked "+200,000" && painted_has scr_stacked "exact")
-    "current-column-exact-amount-and-state";
-  require (painted_has scr_stacked "銀行 [bank]" && painted_has scr_stacked "財布 [wallet]")
-    "current-columns-preserve-label-and-stable-id";
+  require (painted_has scr_stacked "200,000" && painted_has scr_stacked "exact")
+    "current-column-raw-quanta-and-state";
+  require (painted_has scr_stacked "bank" && painted_has scr_stacked "wallet"
+    && not (painted_has scr_stacked "財布") && not (painted_has scr_stacked "銀行"))
+    "current-columns-use-ids-not-labels";
+  let ordered_detail, _ = Balances.detail_viewport bv stacked_geometry owner in
+  require (match ordered_detail with
+    | " Locus: bank" :: " Measure: jpy" :: " Quanta: 200,000 jpy" :: " State: exact" :: _ -> true
+    | _ -> false)
+    "selected-detail-keeps-coordinate-quantity-state-order";
+  require (painted_has scr_stacked "Selected balance")
+    "stacked-detail-title-present";
+
+  (* Raw Quanta stay unscaled and unsigned; Measure and zeros are not inferred. *)
   let eur_env = env ~book (Ok (Some "wallet\teur\n")) in
   let eur_rows = Lazy.force
-    (Balances.view eur_env (geometry ~dimensions:(80, 24) ~width_of ()) owner).rows in
-  require (painted_has eur_rows "Amount" && painted_has eur_rows "+123.45 eur")
-    "current-amount-column-uses-scale-two-eur-not-raw-quanta";
+    (Balances.view eur_env stacked_geometry owner).rows in
+  require (painted_has eur_rows "12,345" && not (painted_has eur_rows "123.45"))
+    "current-eur-shows-raw-quanta-not-scaled-amount";
+  let eur_print = Balances.print_preview_form eur_env owner in
+  require (List.exists (fun line -> contains line "12,345 eur") eur_print.Ui_form.summary
+    && not (List.exists (fun line -> contains line "123.45") eur_print.Ui_form.summary))
+    "print-shares-raw-quanta-with-current-list";
+  let _, eur_observe = Balances.handle eur_env stacked_geometry owner (char_key 'o') in
+  require (eur_observe = Screen.Observe { locus = "wallet"; measure = "eur"; amount = Some (Z.of_int 12345) })
+    "quanta-presentation-does-not-rescale-observe-intent";
   let unknown_env = env ~book (Ok (Some "bank\teur\nfood\tjpy\n")) in
-  let unknown_rows = Lazy.force
-    (Balances.view unknown_env (geometry ~dimensions:(80, 24) ~width_of ()) owner).rows in
-  require (painted_has unknown_rows "unsupported" && painted_has unknown_rows "eur")
-    "current-columns-retain-unsupported-and-measure";
-  require (painted_has unknown_rows "exact" && painted_has unknown_rows "jpy")
-    "current-columns-retain-supported-zero";
-  let scr_split =
-    Lazy.force (Balances.view bv (geometry ~dimensions:(120, 36) ~width_of ()) owner).rows
-  in
-  require (List.length scr_split = 36) "screen-split-height-36";
-  require (painted_has scr_split "Amount" && painted_has scr_split "State")
-    "current-wide-keeps-full-columns";
-  let scr_tiny =
-    Lazy.force (Balances.view bv (geometry ~dimensions:(32, 9) ~width_of ()) owner).rows
-  in
-  require (List.length scr_tiny = 9) "screen-tiny-height-9";
+  let bank_detail, _ =
+    Balances.detail_viewport unknown_env stacked_geometry (Balances.set_selected 0 owner) in
+  let bank_text = String.concat "" bank_detail in
+  require (contains bank_text "Quanta: ? eur" && contains bank_text "State: unsupported")
+    "unknown-quanta-is-question-with-measure";
+  let food_detail, _ =
+    Balances.detail_viewport unknown_env stacked_geometry (Balances.set_selected 1 owner) in
+  require (contains (String.concat "" food_detail) "Quanta: 0 jpy"
+    && contains (String.concat "" food_detail) "State: exact")
+    "zero-quanta-is-exact-not-unknown";
+  let present_env = env ~book (Ok (Some "present\teur\n")) in
+  let present_detail, _ = Balances.detail_viewport present_env stacked_geometry owner in
+  require (contains (String.concat "" present_detail) "Quanta: ? eur"
+    && contains (String.concat "" present_detail) "State: present, amount unknown")
+    "presence-does-not-become-an-exact-zero";
+  let _, observe_unknown = Balances.handle present_env stacked_geometry owner (char_key 'o') in
+  require (observe_unknown = Screen.Observe { locus = "present"; measure = "eur"; amount = None })
+    "observe-keeps-presence-amount-unknown";
+  let huge = Z.of_string (String.make 100 '7') in
+  let huge_book = get (B.observe_quantities book [ ("wallet", "jpy", Z.neg huge) ]) in
+  let huge_env = env ~book:huge_book (Ok (Some "wallet\tjpy\n")) in
+  let huge_detail, _ =
+    Balances.detail_viewport huge_env stacked_geometry (Balances.set_selected 0 owner) in
+  require (contains (String.concat "" (List.map (fun line ->
+    String.sub line 1 (String.length line - 1)) huge_detail))
+    ("Quanta: " ^ O.format_money huge_book "jpy" (Z.neg huge) ^ " jpy"))
+    "detail-keeps-huge-negative-quanta-exact";
+  let huge_rows = Lazy.force (Balances.view huge_env stacked_geometry owner).rows in
+  require (painted_has huge_rows "see details"
+    && not (painted_has huge_rows (String.make 20 '7')))
+    "current-huge-quantity-uses-see-details-without-partial-digits";
+  let long_measure_env = env ~book (Ok (Some "wallet\tverylongmeasure\n")) in
+  let long_measure_rows = Lazy.force
+    (Balances.view long_measure_env stacked_geometry owner).rows in
+  require (painted_has long_measure_rows "verylongmeasure"
+    && painted_has long_measure_rows "unsupported")
+    "long-measure-uses-compact-form-with-whole-token";
 
-  (* 13. Footer formatting *)
-  let ft = (Balances.view bv (geometry ~width_of ()) owner).footer in
+  (* 13. Owned geometry: 80 columns stack, wide splits, page steps match panels. *)
+  let scr_split = Lazy.force
+    (Balances.view bv (geometry ~dimensions:(120, 36) ~width_of ()) owner).rows in
+  require (List.length scr_split = 31) "screen-wide-content-height-31";
+  require (List.exists (function O.Columns _, _ -> true | _ -> false) scr_split)
+    "wide-layout-splits-list-and-detail";
+  require (not (List.exists (function O.Columns _, _ -> true | _ -> false) scr_stacked))
+    "stacked-layout-has-no-columns";
+  require (painted_has scr_split "Balances [active]")
+    "focused-list-title-marks-active";
+  let tiny_geometry = geometry ~dimensions:(32, 9) ~width_of () in
+  let scr_tiny = Lazy.force (Balances.view bv tiny_geometry owner).rows in
+  require (List.length scr_tiny = 4) "screen-tiny-content-height-4";
+  let long_locus_env = env ~book (Ok (Some "averyverylonglocus\teur\n")) in
+  let long_locus_rows = Lazy.force (Balances.view long_locus_env tiny_geometry owner).rows in
+  require (painted_has long_locus_rows "eur")
+    "narrow-compact-row-keeps-measure-under-long-locus";
+  let long_currency_env = env ~book (Ok (Some "wallet\tunambiguously-long-currency\n")) in
+  let long_currency_rows = Lazy.force (Balances.view long_currency_env tiny_geometry owner).rows in
+  require (painted_has long_currency_rows "see details"
+    && not (painted_has long_currency_rows "4,567"))
+    "hidden-currency-never-qualifies-visible-digits";
+  let paging_view =
+    Ok (Some (String.concat ""
+      (List.init 12 (fun i -> "p" ^ string_of_int i ^ "\tjpy\n")))) in
+  let paging_env = env ~book paging_view in
+  let page_down dimensions =
+    let state =
+      fst (Balances.handle paging_env (geometry ~dimensions ~width_of ()) owner (key (`Page `Down)))
+    in
+    Balances.selected state
+  in
+  require (page_down (80, 24) = 7) "page-step-matches-stacked-list-capacity";
+  require (page_down (48, 14) = 6) "page-step-matches-compact-list-capacity";
+  require (page_down (32, 9) = 1) "page-step-matches-tiny-list-capacity";
+  require (page_down (120, 36) = 11) "page-step-clamps-to-last-row-wide";
+  let warning_geometry = { stacked_geometry with Screen.content = (80, 15) } in
+  let warned = fst (Balances.handle paging_env warning_geometry owner (key (`Page `Down))) in
+  require (Balances.selected warned = 3
+    && List.length (Lazy.force (Balances.view paging_env warning_geometry warned).rows) = 15)
+    "warning-reduced-content-paints-and-pages-the-same-list";
+  let compact_warning = { stacked_geometry with Screen.content = (80, 11) } in
+  let focused = fst (Balances.handle bv compact_warning owner (char_key 'i')) in
+  let _, focused_view = Balances.detail_viewport bv compact_warning focused in
+  require (focused_view.capacity = 9
+    && List.length (Lazy.force (Balances.view bv compact_warning focused).rows) = 11)
+    "warning-reduced-content-keeps-focused-detail-scrollable";
+  let _, stacked_detail_view = Balances.detail_viewport bv stacked_geometry owner in
+  require (stacked_detail_view.capacity = 6) "stacked-detail-capacity-6";
+  let _, wide_detail_view =
+    Balances.detail_viewport bv (geometry ~dimensions:(120, 36) ~width_of ()) owner in
+  require (wide_detail_view.capacity = 29) "wide-detail-capacity-29";
+  let owner_tiny_detail = fst (Balances.handle bv tiny_geometry owner (char_key 'i')) in
+  let _, tiny_detail_view = Balances.detail_viewport bv tiny_geometry owner_tiny_detail in
+  require (tiny_detail_view.capacity = 2) "tiny-focused-detail-capacity-2";
+
+  (* 14. Footer formatting *)
+  let ft = (Balances.view bv stacked_geometry owner).footer in
   require (List.length ft = 2) "footer-has-2-lines";
-  require (List.exists (fun line -> contains line "i/Enter/Tab details") ft)
-    "list-footer-advertises-detail";
-  let detail_ft = (Balances.view bv (geometry ~width_of ()) owner_detail).footer in
-  require (List.exists (fun line -> contains line "Esc/i/Enter/Tab/q list") detail_ft)
-    "detail-footer-advertises-return";
-  require ((Balances.view bv (geometry ~width_of ()) owner).subtitle =
-    Screen.Text "Selected Locus × Measure; balance-view order only.")
-    "current-context-describes-coordinate-order";
+  let _, measure_request = Balances.handle bv stacked_geometry owner (char_key 'w') in
+  require (measure_request = Screen.Cycle_measure `Prev) "measure-key-stays-connected";
   List.iter (fun dimensions ->
     List.iter (fun state ->
       let footer = (Balances.view bv (geometry ~dimensions ~width_of ()) state).footer in
       require (List.for_all (fun line -> width_of line <= fst dimensions) footer)
         "responsive-footer-fits-cell-width";
-      require (List.exists (fun line -> contains line "p print") footer)
-        "responsive-footer-keeps-print";
-      require (List.exists (fun line -> contains line "page") footer)
-        "responsive-footer-keeps-paging") [ owner; owner_detail ])
+      require (List.exists (fun line -> contains line "[p]") footer
+        && List.exists (fun line -> contains line "[C-u/d]") footer)
+        "responsive-guide-keeps-print-and-paging") [ owner; owner_detail ])
     [ (120,36); (80,24); (48,14); (32,9) ];
-  require (List.for_all (fun hint -> List.exists (fun line -> contains line hint) ft)
-    [ "w measure"; "v view"; "c config"; "o observe"; "Space commands" ])
-    "medium-footer-keeps-feature-discovery";
   let scroll_env = env ~book (Ok (Some "bank\tjpy\nwallet\tjpy\nfood\tjpy\n")) in
   let tiny = geometry ~dimensions:(32,9) ~width_of () in
   let scroll_handle dimensions state input =

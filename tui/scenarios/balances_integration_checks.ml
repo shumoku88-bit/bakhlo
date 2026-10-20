@@ -69,25 +69,33 @@ let balance_display_checks ~width_of ~directory () =
   require (List.mem ("zero", "jpy") represented && not (List.mem ("wallet", "eur") represented)
            && not (List.exists (fun (locus, _) -> locus = "bank") represented))
     "accounting-represents-evidence-coordinates-not-admissions";
-  List.iter (fun dimensions ->
-    let head = key ~dimensions ~width_of accounting `Home in
-    let rec painted_capacity inside count = function
-      | [] -> count
-      | (_, row) :: rest ->
-          if inside && String.starts_with ~prefix:"╰" row then count
-          else if inside then painted_capacity true (count + 1) rest
-          else painted_capacity (String.starts_with ~prefix:"╭" row) count rest in
-    let capacity = painted_capacity false 0 (R.screen ~width_of dimensions head) in
-    let next = key ~dimensions ~width_of head (`Page `Down) in
-    require (Balances.selected next.C.screens.balances = min capacity (List.length (balance_items head) - 1))
-      "balance-page-matches-actual-painted-list-capacity")
-    [(120,36); (80,24); (48,14); (32,9)];
+  List.iter (fun state ->
+    let heading = Balances.mode state.C.screens.balances = `Current in
+    List.iter (fun dimensions ->
+      let head = key ~dimensions ~width_of state `Home in
+      (* Current paints one heading row inside the list frame; padding rows never
+         enlarge the scrollable capacity. *)
+      let rec painted_capacity inside count = function
+        | [] -> count
+        | (_, row) :: rest ->
+            if inside && String.starts_with ~prefix:"╰" row then
+              max 0 (count - (if heading then 1 else 0))
+            else if inside then painted_capacity true (count + 1) rest
+            else painted_capacity (String.starts_with ~prefix:"╭" row) count rest in
+      let capacity = painted_capacity false 0 (R.screen ~width_of dimensions head) in
+      let next = key ~dimensions ~width_of head (`Page `Down) in
+      require (Balances.selected next.C.screens.balances = min capacity (List.length (balance_items head) - 1))
+        "balance-page-matches-actual-painted-list-capacity")
+      [(120,36); (80,24); (48,14); (32,9)])
+    [accounting; current];
   let medium_rows = R.screen ~width_of (80, 24) view in
+  let medium = String.concat "\n" (List.map snd medium_rows) in
   require (not (List.exists (function C.Columns _, _ -> true | _ -> false) medium_rows)
-    && has (String.concat "\n" (List.map snd medium_rows)) "+74,500 jpy")
-    "balances-medium-stacks-with-complete-quantity";
+    && has medium "74,500 jpy" && not (has medium "+74,500"))
+    "balances-medium-stacks-with-raw-quanta-and-measure";
   let painted = R.screen ~width_of (32, 9) view |> List.map snd |> String.concat "\n" in
-  require (has painted "+74,500 jpy") "balance-tiny-first-coordinate-visible";
+  require (has painted "74,500" && has painted "jpy" && not (has painted "+74,500"))
+    "balance-tiny-first-coordinate-shows-raw-quanta-and-measure";
   let huge_book = get (B.observe_quantities book [("wallet", "jpy", Z.neg huge)]) in
   let large = C.open_route { home with session = { home.session with book = huge_book } } W.Balances in
   List.iter (fun dimensions ->
@@ -152,7 +160,9 @@ let balance_display_checks ~width_of ~directory () =
     "balance-empty-has-no-selectable-placeholder";
   F.write_new (directory ^ "/balance-view.tsv") "";
   let empty = R.screen ~width_of (32, 9) view |> List.map snd |> String.concat "\n" in
-  require (has empty "0–0 / 0") "balance-empty-counter-is-zero";
+  require
+    (has empty "No balances are selected" && has empty "0/0" && not (has empty "0 jpy"))
+    "balance-empty-shows-state-evidence-and-zero-counter-not-zero";
   print_endline "PASS: Balances first coordinate, exact-or-detail quantities and empty evidence states."
 
 (* UI-24-B2: visible-account picker and multi-coordinate observation. Drives
