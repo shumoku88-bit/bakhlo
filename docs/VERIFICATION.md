@@ -4772,6 +4772,47 @@ reversal keeps Bakhlo's `x`; Ctrl-U should follow LOAM's enable flow.
   (`Description, then total and Loci if they differ`) with Tab to the full form; Bakhlo opens
   the full form. Recorded in the cutover ledger as a Record difference.
 
+- Matching implementation `f9ebb4a`: [Core 39427583643](https://github.com/shumoku88-bit/bakhlo/actions/runs/39427583643) and [Bonsai TUI 39427583669](https://github.com/shumoku88-bit/bakhlo/actions/runs/39427583669) completed/success (synthetic CI).
+
 ### Limits
 
 Physical terminal/IME, human acceptance and P7 were **not executed**.
+
+## Actual correction edits Loci and rows as in LOAM (2026-10-20)
+
+User decision (2026-10-20): correction (`c`) follows LOAM.
+
+### Implemented boundary
+
+- `tui/shell/record_session.ml`: the correction editor no longer locks posting Loci,
+  signs or rows (add/drop rows and Ctrl-U work as in Record). As in LOAM Correction the
+  date is kept: labelled `Date (kept)`, skipped by focus, and typing there refuses with a
+  pointer to `d`. Title `Correction / Edit`, a `Target: <id>` row, unsigned positive
+  amounts in the prefilled rows.
+- Effect keys: a prefilled row keeps its key only while its Locus equals the original
+  posting's Locus with that key; a changed Locus publishes as a new posting. The same
+  entry ID, payment link and existing refusals (exchange/reversal-linked entries) remain.
+- Kept Bakhlo difference: Ctrl-O can still show and edit the retained original amount in a
+  correction (LOAM refuses Ctrl-O there).
+
+### Evidence
+
+- Unit checks: sign editable, row addable, `Date (kept)` label, focus skips the kept date,
+  a keyed entry whose first posting moves to another Locus drops only that key, keeps the
+  second key and the Scheduled payment link through `Daily_book.put_entry ~replace:true`.
+  Shell scenario: correcting the description keeps the same row and date after cold load;
+  a second correction changes the first posting's Locus under the same ID and cold-loads.
+  `./tools/check`, `./tools/tui --self-check` (36 PASS), `git diff --check` passed.
+- Synthetic paired view at 80×24 (Bakhlo SHA-256
+  `ac3f299bd660bff27f9e19352b73a217bded4c77f12ce27f9552a357ff4c72c7`, existing LOAM
+  `312467cd9af30778873bb9afabf0d87143e874d67c828e828c42f8573b8840c3`): same `Date (kept)`,
+  postings and amounts; Bakhlo paints in its floating Record surface.
+- Latest-data read-only paired view (two Actuals; open correction only, no save): every
+  field row (date kept, description, Measure, postings, amounts, Target) identical except
+  Bakhlo's `|` caret on the focused field. Originals' hashes equal before and after;
+  private captures deleted; `clean-copies` passed.
+
+### Limits
+
+No real-data correction was saved. Physical terminal/IME, human acceptance and P7 were
+**not executed**.

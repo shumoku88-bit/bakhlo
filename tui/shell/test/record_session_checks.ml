@@ -13,7 +13,7 @@ let fixture =
   "(bakhlo-daily 3)\n(scope corrected-entries explicit-plans)\n\
    (measures (measure \"jpy\" 0) (measure \"eur\" 2))\n\
    (labels (provided (label \"wallet\" \"財布\" \"Synthetic cash\") (label \"food\" \"食費\" \"Synthetic food\")))\n\
-   (approved-loci (provided \"wallet\" \"food\"))\n(entries)\n\
+   (approved-loci (provided \"wallet\" \"food\" \"bank\"))\n(entries)\n\
    (plans (plan \"scheduled-1\" (date \"2026-10-10\") (measure \"jpy\")\n\
      (changes (\"wallet\" -200) (\"food\" 200)) (paid-by (none)) (cancelled-on (none))))\n\
    (support (zero-origin (\"food\" \"jpy\")) (openings)\n\
@@ -119,8 +119,12 @@ let self_check ~width_of () =
   let edit=get (S.of_edit ~book:edit_book tx.entry) in
   let sign_locked=edit |> fun t -> key (key (key t `Tab) `Tab) `Tab
       |> fun t -> key t `Home |> fun t -> text t "+" in
-  require (contains sign_locked "keeps the posting sign") "edit-sign-locked-to-retained-effects";
-  require (contains (ctrl edit 'n') "keeps the posting structure") "edit-row-structure-locked";
+  (* LOAM Correction: signs, Loci and rows are editable; the date is kept. *)
+  require (not (contains sign_locked "keeps the posting sign")) "edit-sign-editable";
+  require (contains (ctrl edit 'n') "Posting 3") "edit-row-can-be-added";
+  require (contains edit "Date (kept)") "edit-date-labelled-kept";
+  let shifted = update edit (`Key (`Tab, [`Shift])) |> fun t -> update t (`Key (`Tab, [`Shift])) in
+  require (not (contains (text shifted "2") "keeps the date")) "edit-focus-skips-kept-date";
   let edit_review=S.preview ~new_id:Daily_file.new_id ~book:edit_book ~base_revision ~blocked:false edit in
   (match handle ~book:edit_book edit_review (`Key (`Enter,[])) with
    | S.Publish (A.Entry_tx next,_,_) ->
@@ -235,6 +239,19 @@ let self_check ~width_of () =
        let edited_book=get (B.put_entry keyed_book ~replace:true next.entry ~plan:next.plan) in
        require ((List.hd (B.plans edited_book)).paid_by=Some keyed.id) "edit-preserves-payment-link"
    | _ -> failwith "keyed-edit-preview");
+  (* Changing a keyed posting's Locus drops only that key; others and the link stay. *)
+  let relocated = keyed_editor |> fun t -> key (key t `Tab) `Tab
+    |> fun t -> List.fold_left (fun t _ -> key t `Backspace) t (List.init 20 Fun.id) |> fun t -> text t "bank" in
+  let relocated_review = S.preview ~new_id:Daily_file.new_id ~book:keyed_book ~base_revision ~blocked:false relocated in
+  (match handle ~book:keyed_book relocated_review (`Key (`Enter,[])) with
+   | S.Publish (A.Entry_tx next,_,_) ->
+       let keys = List.map D.Effect.key next.entry.effects in
+       require (next.entry.id = keyed.id && List.nth keys 0 = None
+         && List.nth keys 1 = D.Effect.key (List.nth keyed.effects 1)
+         && A.lstr (D.Effect.locus (List.hd next.entry.effects)) = "bank") "edit-locus-change-drops-only-its-key";
+       let edited_book = get (B.put_entry keyed_book ~replace:true next.entry ~plan:next.plan) in
+       require ((List.hd (B.plans edited_book)).paid_by = Some keyed.id) "edit-locus-change-keeps-payment-link"
+   | _ -> failwith "relocated-edit-preview");
   List.iter (fun dimensions ->
     List.iter (fun state ->
       let rows=screen ~dimensions state in

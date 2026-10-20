@@ -369,12 +369,8 @@ let actual_browsing_checks ~width_of ~directory home =
   require (F.read path=before) "actual-browsing-and-draft-did-not-write";
   let correcting = key ~width_of at_details (`ASCII 'c') in
   require correcting.record_visible "actual-correction-opens-record";
+  (* LOAM Correction keeps the date; date moves are [d]'s own check. *)
   let correcting = key ~width_of correcting (`ASCII '!') in
-  let correcting = Option.get (H.handle ~width_of correcting (`Key (`Tab, [`Shift]))) in
-  let correcting = List.fold_left (fun s _ -> key ~width_of s `Backspace)
-    correcting (List.init 10 Fun.id) in
-  let correcting = String.fold_left (fun s c -> key ~width_of s (`ASCII c))
-    correcting "2026-09-01" in
   let review = C.submit correcting in
   require (F.read path = before) "actual-correction-review-does-not-write";
   let published = key ~width_of (key ~width_of review `End) `Enter in
@@ -382,15 +378,27 @@ let actual_browsing_checks ~width_of ~directory home =
     "actual-correction-published";
   require (published.workspace.route = W.Actual && actual_detail published
            && (actual_selected_id published) = Some "actual-16"
-           && (actual_row published) = 17
+           && (actual_row published) = actual_row at_details
            && (match actual_selected published with
                | Some (Record_browser.Actual_entry e) -> e.id = "actual-16" | _ -> false))
     "actual-correction-return-follows-id-not-old-row";
   let cold = F.load path in
   let corrected = List.find (fun (e : B.entry) -> e.id = "actual-16") (B.entries cold.book) in
-  require (corrected.day = "2026-09-01" && corrected.memo = Some "Synthetic purchase 16!"
+  require (corrected.day = (entry 16).day && corrected.memo = Some "Synthetic purchase 16!"
            && corrected.effects = (entry 16).effects)
     "actual-correction-cold-retains-id-date-description-and-postings";
+  (* LOAM Correction may also change a posting's Locus under the same ID. *)
+  let first_locus (e : B.entry) = Daily_draft.lstr (D.Effect.locus (List.hd e.effects)) in
+  let target = if first_locus corrected = "bank" then "wallet" else "bank" in
+  let relocating = key ~width_of published (`ASCII 'c') in
+  let relocating = key ~width_of (key ~width_of relocating `Tab) `Tab in
+  let relocating = List.fold_left (fun s _ -> key ~width_of s `Backspace) relocating (List.init 20 Fun.id) in
+  let relocating = String.fold_left (fun s c -> key ~width_of s (`ASCII c)) relocating target in
+  let relocated = key ~width_of (key ~width_of (C.submit relocating) `End) `Enter in
+  let cold = (List.find (fun (e : B.entry) -> e.id = "actual-16") (B.entries (F.load path).book)) in
+  require (not relocated.record_visible && not relocated.blocked && first_locus cold = target
+           && List.length cold.effects = List.length corrected.effects && cold.day = corrected.day)
+    "actual-correction-changes-locus-same-id-cold";
   print_endline "PASS: Actual exact aligned summaries, live search, clamped detail/list paging, tiny resize, stable selection and retained Record drafts (synthetic)."
 
 let reversal_checks ~width_of ~directory home =

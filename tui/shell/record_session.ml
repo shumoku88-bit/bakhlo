@@ -54,7 +54,7 @@ let create_plan ~book:_ ~day ~measure () =
 
 let rows_of_draft (draft : R.t) =
   List.map (fun (r:R.row) ->
-    {key=r.key; locus=r.locus; amount=(if r.negative then "-" else "+") ^ r.amount}) draft.rows
+    {key=r.key; locus=r.locus; amount=(if r.negative then "-" else "") ^ r.amount}) draft.rows
 
 let of_edit ~book entry =
   match A.prepare_edit ~book entry with
@@ -118,7 +118,9 @@ let field_count t = action_start t + 4
 let row_index t = max 0 ((t.focus-3)/2)
 let is_locus t = t.focus>=3 && t.focus<action_start t && (t.focus-3) mod 2=0
 let is_amount t = t.focus>=3 && t.focus<action_start t && (t.focus-3) mod 2=1
-let editable_structure t = match t.mode with A.Edit _ -> false | A.New | A.Pay _ | A.Plan_new | A.Plan_edit _ -> true
+(* LOAM Correction: Loci, amounts, signs and rows are editable; the date is kept
+   (date-only changes use the dedicated [d] operation). *)
+let date_kept t = match t.mode with A.Edit _ -> true | A.New | A.Pay _ | A.Plan_new | A.Plan_edit _ -> false
 let value t =
   if t.focus=0 then t.day else if t.focus=1 then t.description else if t.focus=2 then t.measure
   else match List.nth_opt t.rows (row_index t) with
@@ -126,25 +128,15 @@ let value t =
 
 let set_value t text =
   let reset t = {t with cursor=None; candidate=0; notice=""} in
-  if t.focus=0 then reset {t with day=text}
+  if t.focus=0 then
+    if date_kept t then with_notice t (tr "Correction keeps the date; use d on the Actual to change it.")
+    else reset {t with day=text}
   else if t.focus=1 then reset {t with description=text}
   else if t.focus=2 then
-    if editable_structure t && List.for_all (fun row -> row.amount="") t.rows then reset {t with measure=text}
-    else with_notice t (tr "Measure is fixed after amounts are entered or during correction.")
+    if List.for_all (fun row -> row.amount="") t.rows then reset {t with measure=text}
+    else with_notice t (tr "Measure is fixed after amounts are entered.")
   else if t.focus < action_start t then
-    if is_locus t && not (editable_structure t) then
-      with_notice t (tr "Correction keeps posting Loci, signs, keys and structure.")
-    else if is_amount t && not (editable_structure t) then
-      let negative s = String.starts_with ~prefix:"-" s in
-      let original_negative = match t.mode with
-        | A.Edit entry ->
-            (match List.nth_opt entry.B.effects (row_index t) with
-             | Some posting -> Z.sign (A.quanta posting)<0 | None -> false)
-        | A.New | A.Pay _ | A.Plan_new | A.Plan_edit _ -> false in
-      if text<>"" && negative text <> original_negative then
-        with_notice t (tr "Correction keeps the posting sign; edit its amount magnitude.")
-      else reset {t with rows=List.mapi (fun i row -> if i=row_index t then {row with amount=text} else row) t.rows}
-    else reset {t with rows=List.mapi (fun i row -> if i<>row_index t then row
+    reset {t with rows=List.mapi (fun i row -> if i<>row_index t then row
       else if is_locus t then {row with locus=text} else {row with amount=text}) t.rows}
   else t
 
@@ -152,28 +144,24 @@ let move_focus t delta =
   let count = field_count t in
   let rec step f =
     let next = (f + delta + count) mod count in
-    if is_plan t && next = 1 then (next + delta + count) mod count else next
+    if (is_plan t && next = 1) || (date_kept t && next = 0) then (next + delta + count) mod count else next
   in
   {t with focus = step t.focus; cursor = None; candidate = 0; notice = ""}
 
 let candidates ~book t = if is_locus t then O.locus_candidates book (value t) else []
 let accept ~book t =
-  if not (editable_structure t) then move_focus t 1
-  else
     let choices = candidates ~book t in
     match List.nth_opt choices (if choices=[] then 0 else t.candidate mod List.length choices) with
     | Some id -> move_focus (set_value t id) 1
     | None -> move_focus t 1
 
 let add_row t =
-  if not (editable_structure t) then with_notice t (tr "Correction keeps the posting structure.")
-  else if List.length t.rows >= 6 then with_notice t (tr "This editor supports up to six posting rows.")
+  if List.length t.rows >= 6 then with_notice t (tr "This editor supports up to six posting rows.")
   else {t with rows=t.rows @ [{key=None;locus="";amount=""}]; focus=action_start t;
     candidate=0; cursor=None; notice=""}
 
 let drop_row t =
-  if not (editable_structure t) then with_notice t (tr "Correction keeps the posting structure.")
-  else if List.length t.rows<=2 then with_notice t (tr "Keep at least two postings.")
+  if List.length t.rows<=2 then with_notice t (tr "Keep at least two postings.")
   else
     let index = min (List.length t.rows-1) (row_index t) in
     let rows=List.filteri (fun i _ -> i<>index) t.rows in
@@ -196,8 +184,7 @@ let format_signed ~book ~measure (amount : Z.t) =
   (if Z.sign amount > 0 then "+" else "") ^ B.format book measure amount
 
 let fill_unresolved_remainder ~book t =
-  if not (editable_structure t) then with_notice t (tr "Correction keeps the posting structure.")
-  else if t.measure = "" then
+  if t.measure = "" then
     with_notice t (tr "Enter a valid Measure before filling the unresolved remainder.")
   else
     let is_approved locus =
@@ -275,7 +262,13 @@ let draft t =
       let negative=String.starts_with ~prefix:"-" row.amount in
       let signed=negative || String.starts_with ~prefix:"+" row.amount in
       let amount=if signed then String.sub row.amount 1 (String.length row.amount-1) else row.amount in
-      {R.key=row.key; locus=row.locus; negative; amount}) t.rows }
+      (* An Effect key stays only on a posting whose Locus is unchanged. *)
+      let key = match t.mode, row.key with
+        | A.Edit entry, Some key ->
+            if List.exists (fun p -> D.Effect.key p = Some key && A.lstr (D.Effect.locus p) = row.locus)
+                 entry.B.effects then Some key else None
+        | _, key -> key in
+      {R.key; locus=row.locus; negative; amount}) t.rows }
 
 let preview ~new_id ~book ~base_revision ~blocked t =
   if blocked then with_notice t (tr "Writes are stopped; the draft is retained.")
@@ -701,7 +694,7 @@ let screen ~book ~dimensions:(width,height) ~width_of t =
     | None, A.Plan_new -> tr "Scheduled / Create"
     | None, A.Plan_edit _ -> tr "Scheduled / Edit"
     | None, A.New -> tr "Record / Edit"
-    | None, A.Edit _ -> tr "Actual / Correct"
+    | None, A.Edit _ -> tr "Correction / Edit"
     | None, A.Pay _ -> tr "Scheduled / Complete"
   in
   if width < 4 || height < 4 then
@@ -755,7 +748,8 @@ let screen ~book ~dimensions:(width,height) ~width_of t =
                   | Some (m, q) ->
                       tr "Original amount: " ^ B.format book m q ^ " " ^ m ^ tr "   Ctrl-O edit"
                 in
-                [ raw O.Chrome summary ]
+                let target = match t.mode with A.Edit e -> "Target: " ^ O.visible e.B.id ^ "   " | _ -> "" in
+                [ raw O.Chrome (target ^ summary) ]
             in
             let orig_summary_h = if is_plan t then 0 else 1 in
             let feedback = notice_lines ~dimensions:(width,height) ~width_of t in
@@ -770,7 +764,7 @@ let screen ~book ~dimensions:(width,height) ~width_of t =
           (* Movement panel (height 5) *)
           let movement_focused = t.focus < 3 in
           let m_style = if movement_focused then O.Focused_frame else O.Frame in
-          let d_text, d_caret = field_text ~width_of (width - 2) (t.focus = 0) t.cursor "Date" t.day in
+          let d_text, d_caret = field_text ~width_of (width - 2) (t.focus = 0) t.cursor (if date_kept t then "Date (kept)" else "Date") t.day in
           let d_style = match d_caret with Some c -> O.Input (1 + c) | None -> O.Plain in
           let m_text, m_caret =
             if is_plan t then
@@ -900,7 +894,7 @@ let screen ~book ~dimensions:(width,height) ~width_of t =
           in
           let fields =
             (if is_plan t then [field 0 "Date" t.day; field 2 "Measure" t.measure]
-             else [field 0 "Date" t.day; field 1 "Description" t.description; field 2 "Measure" t.measure])
+             else [field 0 (if date_kept t then "Date (kept)" else "Date") t.day; field 1 "Description" t.description; field 2 "Measure" t.measure])
             @ List.concat (List.mapi (fun index row ->
                 [field (3 + 2 * index) (A.format_message "Posting %d" (index + 1)) row.locus;
                  field (4 + 2 * index) "Amount" row.amount]) t.rows)
