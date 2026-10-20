@@ -41,7 +41,7 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 | Series Calendar（初期画面・月表・✓・!） | ✅ 一致（実データ） | 120×36・80×24で表の中身が一致。案内行は1行にまとめている | なし | [Series対照](VERIFICATION.md#scheduled-series-calendar-and-real-data-balances-2026-10-19) |
 | シリーズのPlan Detail（予定と抜けた月） | ✅ 一致（実データ） | 全シリーズで一致。金額列の見出しは Amount（LOAMは Quanta） | なし | 同上 |
 | 補充（e）のひな形選び | ✅ 一致（実データ） | 全シリーズで同じ予定をひな形に選ぶ | なし | [補充](VERIFICATION.md#series-calendar-replenishment-2026-10-19) |
-| 補充（e）の入力画面 | 🟨 差あり・共有変更待ち | LOAMは次の1／3／6回または補充期限の指定（排他）。Bakhloは終了日＋周期のまま。LOAMの期限検査・過去候補除外に使う観測日がeditorへ渡らないため、Shell caller変更の許可待ちで実装停止 | 共有変更の許可 | UI-12, UI-21, [調査・停止理由](VERIFICATION.md#scheduled-replenishment-input-scope-blocker-2026-10-21) |
+| 補充（e）の入力画面 | 🟨 入力接続・合成確認 | LOAMソース参照で次の1／3／6回・排他的な補充期限、周期固定、観測日による候補除外と存在しない月末日の明示入力を接続。exact数量・初期Cancel・Preview末尾／狭小／stale gateを維持。通常gは変更せず、実データ対照・本人受入はcoordinator側で未実施 | 対照待ち | UI-12, UI-21, [補充の合成証拠](VERIFICATION.md#scheduled-replenishment-input-and-explicit-dates-2026-10-21) |
 | 周期の変更（p・m）・未定化（s） | ✅ 一致（選択画面は実データ、保存は合成） | Series CalendarとPlan Detailから `scheduled-coverage.tsv` を更新。実データのコピーへの保存照合はしていない | なし | [周期](VERIFICATION.md#series-calendar-pace-and-undecided-2026-10-19) |
 | ListやMonthsからの監視追加、予定作成直後の周期選択 | 🟥 未実装 | 監視していない予定を新しく監視に入れるには、今は監視済みシリーズの予定が必要 | 要判断 | UI-23 |
 | 予定の支払い完了 | ⬜ 未確認 | 接続済み（Plan Detail・Listから）。LOAMとの照合未了 | 要判断 | UI-17 |

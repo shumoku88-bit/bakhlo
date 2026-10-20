@@ -2,14 +2,12 @@
 
 ## Scheduled 補充 e の入力／Preview（2026-10-21）
 
-- [ ] 既存の周期付き補充入口だけを、LOAMの次の1回／次のN回／指定日入力へ揃える。通常の`g`生成と共有Shell/API/Core/kitは変更しない。
-- [ ] 合成回帰・端末操作で明示日付／exact数量・Preview末尾／狭小／stale拒否を確認し、`./tools/check`、`./tools/tui --self-check`、`git diff --check`と該当台帳／証拠を更新する。
-- [ ] `omp/scheduled-replenish`で小さいcommitに分ける。push・main／他worktree変更・実家計アクセス・`./tools/compare`／`./ui`は行わない。
+- [x] 監視付き`e`をLOAMの次の1／3／6回／Custom排他期限へ接続。観測日以降だけを候補とし、存在しない月末日を明示入力。通常`g`は変更せず、共有変更は許可されたShell constructor呼出しの観測日引渡しだけ。
+- [x] 失敗前回帰、合成端末4寸法、exact数量・Preview末尾／狭小／stale拒否・atomic coldと、`./tools/check`、`./tools/tui --self-check`、`git diff --check`を確認。[証拠](../docs/VERIFICATION.md#scheduled-replenishment-input-and-explicit-dates-2026-10-21)。
+- [x] `omp/scheduled-replenish`で実装をcommit（`aa87144`）。push・main／他worktree変更・実家計アクセス・`./tools/compare`／`./ui`は行わない。
 
-停止理由：LOAMは観測日より後の補充期限を要求し、過去の候補を除外する。既存
-`Scheduled_generation_session.create`に観測日がなく、`shell_record_actions.ml`から渡す
-共有変更の許可が必要。入力だけを変更してこの条件を省略せず、コード編集前に停止。
-[調査・検査結果](../docs/VERIFICATION.md#scheduled-replenishment-input-scope-blocker-2026-10-21)。
+観測日引渡しの停止（`1044248`）はcoordinatorの限定許可で解除。editor内の時計参照や
+日付欠落fallbackは追加しない。LOAM binary／最新データ対照・本人受入はcoordinator側へ残す。
 
 ## Manage Lociの実データ対照と一覧のページ移動（2026-10-21）
 
