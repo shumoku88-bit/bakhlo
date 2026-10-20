@@ -4558,3 +4558,11 @@ User decision (2026-10-20): LOAM's `[?] why` is needed.
 ### Limits
 
 Physical terminal/IME, human acceptance and P7 were **not executed**.
+
+Matching implementation `38b7155`: [Core 39402388604](https://github.com/shumoku88-bit/bakhlo/actions/runs/39402388604) and [Bonsai TUI 39402388686](https://github.com/shumoku88-bit/bakhlo/actions/runs/39402388686) completed/success (synthetic CI).
+
+User decision (2026-10-20), after the differences were explained: keep Bakhlo's
+behavior for the partial-history feedback row (not shown; the same caution is in the
+Trend summary, History `unknown` rows and the Detail `Supported` line) and for a
+Previous Cycle without a boundary (stay on the current period and report the cause).
+Both are recorded as intentional differences; no code changed.

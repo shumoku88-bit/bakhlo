@@ -65,14 +65,15 @@ LOAM終了後に使用し、取得拒否では起動せず、旧コピー・試�
 
 ## Daily PaceのグラフとTargetをLOAMへ揃える（2026-10-20）
 
-本人判断（2026-10-20）：partial案内行とPrevious Cycle境界なしは必要か未判断のため保留。グラフはLOAMと同じかより良く。`[t] target`は必要。
+本人判断（2026-10-20）：partial案内行とPrevious Cycle境界なしは保留後、同日にBakhloのまま（意図的な差）と決定。グラフはLOAMと同じかより良く。`[t] target`は必要。
 
 - [x] LOAM `Tui.Chart`を`Pace_chart`へ移植し、Trendグラフを置換。合成3寸法×10通り・実データ2寸法×7通りでグラフ行一致。
 - [x] グラフのcommit／pushとmatching SHA CI（`28d876b`、Core／TUIともsuccess）。
 - [x] `[t]` Target plan（読み取り専用：目標額・目標日・今日の仮想支出、候補表・最短日・推移グラフ）をLOAM `DailyPaceTarget`どおり実装し、合成・実データで対照する。
 - [x] Targetのcommit／pushとmatching SHA CI（`7855f94`、Core／TUIともsuccess）。
 - [x] `[?]` Why（今日のPaceの内訳）をLOAM `DailyPaceWhy`どおり実装し、合成・実データで対照する（本人判断：必要）。
-- [ ] Whyのcommit／pushとmatching SHA CI。
+- [x] Whyのcommit／pushとmatching SHA CI（`38b7155`、Core／TUIともsuccess）。
+- [x] partial案内行とPrevious Cycle境界なしは意図的な差として閉じる（本人判断 2026-10-20：Bakhloのままでよい）。
 
 ## Daily Pace選択日の詳細欄をLOAMへ揃える（2026-10-20）
 
