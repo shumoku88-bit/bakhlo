@@ -890,7 +890,7 @@ let daily_pace_graph_render_checks ~width_of () =
       ~today:"2026-10-26" ~measure:"jpy" ~samples:single ~selected_index:0 ~graph_style:Line in
     let text = String.concat "\n" (List.map snd painted) in
     require (List.for_all (fun tick ->
-      Base.String.is_substring text ~substring:(tick ^ " │ ")) ticks)
+      Base.String.is_substring text ~substring:(tick ^ " ┤ ")) ticks)
       "pace-single-point-loam-nice-tick-breathing-room")
     [500, ["450"; "500"; "550"]; -500, ["-550"; "-500"; "-450"]];
   List.iter

@@ -487,21 +487,6 @@ let count_supported samples =
     (fun acc s -> match s.pace_quanta with None -> acc | Some _ -> acc + 1)
     0 samples
 
-let ceil_div a b = if Z.sign a >= 0 then Z.div (Z.add a (Z.sub b Z.one)) b else Z.div a b
-
-let nice_ceiling raw =
-  (* raw is positive; 1/2/5×10^n cover, all in Z so 400-digit spans stay bounded. *)
-  assert (Z.sign raw > 0);
-  let digits = String.length (Z.to_string raw) - 1 in
-  let unit = Z.pow (Z.of_int 10) digits in
-  if Z.compare raw unit <= 0 then unit
-  else if Z.compare raw (Z.mul unit (Z.of_int 2)) <= 0 then Z.mul unit (Z.of_int 2)
-  else if Z.compare raw (Z.mul unit (Z.of_int 5)) <= 0 then Z.mul unit (Z.of_int 5)
-  else Z.mul unit (Z.of_int 10)
-
-let braille_mask =
-  [| (0, 0, 0x01); (0, 1, 0x02); (0, 2, 0x04); (1, 0, 0x08); (1, 1, 0x10); (1, 2, 0x20); (0, 3, 0x40); (1, 3, 0x80) |]
-
 (* Selected date/pace summary: exact grouped amount or detail cue, never a
    truncated number. *)
 let fit_value ~width ~width_of text =
@@ -627,130 +612,42 @@ let render_chart ~width ~height ~width_of ~book ~today ~measure ~samples ~select
           (if width_of second <= width then second
            else " " ^ fit_value ~width:(max 0 (width - 1)) ~width_of change))]
     in
-    let header_h = List.length head in
-    if height <= header_h then List.filteri (fun i _ -> i < height) head
-    else if height - header_h - 1 < 1 then head
+    (* LOAM trendPanel: two summary rows, then plot rows and a date axis only
+       when the pane has at least six rows. *)
+    let plot_h = if height >= 6 then height - 3 else 0 in
+    if plot_h = 0 then List.filteri (fun i _ -> i < height) head
     else
-      let plot_h =
-        max 1 (min 12 (height - header_h - 1))
+      let label q = O.format_money book measure q in
+      let values = List.map (fun s -> s.pace_quanta) samples in
+      let numbers = List.filter_map Fun.id values in
+      let axis = match numbers with
+        | [] -> 3
+        | _ -> Pace_chart.axis_width ~width_of width (Pace_chart.scale_for numbers) label in
+      let plot =
+        match numbers with
+        | [] -> [ " No qualified points in this range" ]
+        | _ ->
+            let scale = Pace_chart.scale_for numbers in
+            let joins =
+              List.init (max 0 (count - 1)) (fun i ->
+                  arr.(i).pace_quanta <> None && arr.(i + 1).pace_quanta <> None
+                  && arr.(i).end_exclusive = arr.(i + 1).end_exclusive
+                  && day_number arr.(i + 1).day = day_number arr.(i).day + 1)
+            in
+            Pace_chart.qualified_rows ~width:(max 1 (width - axis - 3)) ~height:plot_h ~values ~joins
+              ~selected ~range:scale.range ~connect:(graph_style = Line)
+              ~grid_rows:(List.map (Pace_chart.row_for_value plot_h scale.range) scale.ticks)
+            |> Pace_chart.with_value_axis ~width_of ~axis ~height:plot_h ~scale ~label
       in
-      let valid =
-        Array.fold_left (fun acc s -> match s.pace_quanta with None -> acc | Some q -> q :: acc) [] arr
+      let plot = List.init plot_h (fun i ->
+        (O.Plain, O.pad ~width_of width (match List.nth_opt plot i with Some row -> row | None -> ""))) in
+      let first = arr.(0).day and last = arr.(count - 1).day in
+      let left = axis + 3 in
+      let date_axis =
+        if width - left >= 21 then String.make left ' ' ^ O.pad ~width_of (width - left - 10) first ^ last
+        else O.clip_text ~width_of width (first ^ " ... " ^ last)
       in
-      match valid with
-      | [] -> head @ [ (O.Chrome, O.pad ~width_of width "No valid pace data in this period.") ]
-      | _ ->
-          let min_q = List.fold_left Z.min (List.hd valid) valid in
-          let max_q = List.fold_left Z.max (List.hd valid) valid in
-          (* LOAM Chart.scaleFor pads a flat series by ten percent before
-             choosing nice ticks. This also keeps a single supported point
-             readable, instead of misleading ±1-quanta axis labels. *)
-          let seed_low, seed_high =
-            if Z.equal min_q max_q then
-              let pad = Z.max Z.one (Z.ediv (Z.abs min_q) (Z.of_int 10)) in
-              Z.sub min_q pad, Z.add max_q pad
-            else min_q, max_q in
-          let span = Z.sub seed_high seed_low in
-          let step = nice_ceiling (ceil_div span (Z.of_int 4)) in
-          let lower, upper =
-            Z.mul (Z.ediv seed_low step) step,
-            Z.mul (ceil_div seed_high step) step in
-          let range = Z.sub upper lower in
-          let rec ticks_from t acc =
-            if Z.compare t upper > 0 then List.rev acc
-            else ticks_from (Z.add t step) (t :: acc) in
-          let ticks = ticks_from lower [] in
-          let tick_row t =
-            Z.to_int (Z.ediv (Z.mul (Z.sub upper t) (Z.of_int (plot_h - 1))) range) in
-          let tick_at =
-            List.fold_left
-              (fun acc t ->
-                let r = tick_row t in
-                if List.mem_assoc r acc then acc else (r, t) :: acc)
-              [] ticks
-          in
-          let natural_axis = List.fold_left (fun w t -> max w (width_of (O.format_money book measure t))) 0 ticks in
-          let axis_w = min natural_axis (max 1 (min 12 (width / 3))) in
-          let plot_w = max 1 (width - axis_w - 3) in
-          let sub_w = 2 * plot_w and sub_h = 4 * plot_h in
-          let dots = Array.make (sub_w * sub_h) false in
-          let set_dot sx sy =
-            if sx >= 0 && sy >= 0 && sx < sub_w && sy < sub_h then dots.(sy * sub_w + sx) <- true
-          in
-          let col_of i = if count <= 1 then 0 else i * (sub_w - 1) / (count - 1) in
-          let sub_row_of q =
-            Z.to_int (Z.ediv (Z.mul (Z.sub upper q) (Z.of_int (sub_h - 1))) range) in
-          let points = Array.mapi (fun i s ->
-            Option.map (fun q -> col_of i, sub_row_of q) s.pace_quanta) arr in
-          Array.iter (Option.iter (fun (x, y) -> set_dot x y)) points;
-          (* Joins are display-only interpolation: adjacent valid days sharing
-             one end_exclusive only, never across holes or cycle resets. *)
-          let joinable i =
-            i + 1 < count && arr.(i).pace_quanta <> None && arr.(i + 1).pace_quanta <> None
-            && arr.(i).end_exclusive = arr.(i + 1).end_exclusive
-            && day_number arr.(i + 1).day = day_number arr.(i).day + 1
-          in
-          (match graph_style with
-          | Dots -> ()
-          | Line ->
-              for i = 0 to count - 2 do
-                if joinable i then
-                  match points.(i), points.(i + 1) with
-                  | Some (x0, y0), Some (x1, y1) ->
-                      let steps = max (abs (x1 - x0)) (abs (y1 - y0)) in
-                      if steps > 1 then
-                        for s = 1 to steps - 1 do
-                          set_dot (x0 + (x1 - x0) * s / steps) (y0 + (y1 - y0) * s / steps)
-                        done
-                  | None, _ | _, None -> ()
-              done);
-          let plot_text = Array.init plot_h (fun _ -> Array.make plot_w " ") in
-          for y = 0 to plot_h - 1 do
-            let grid = List.mem_assoc y tick_at in
-            for x = 0 to plot_w - 1 do
-              let mask = ref 0 in
-              Array.iter
-                (fun (dx, dy, bit) ->
-                  if dots.((4 * y + dy) * sub_w + (2 * x + dx)) then mask := !mask lor bit)
-                braille_mask;
-              plot_text.(y).(x) <-
-                (if !mask = 0 then (if grid then "·" else " ") else O.utf8 (Uchar.of_int (0x2800 + !mask)))
-            done
-          done;
-          (* Each sample is drawn once; the selected cell always wins. *)
-          let draw_marker i glyph =
-            match points.(i) with
-            | None -> ()
-            | Some (x, y) -> plot_text.(y / 4).(x / 2) <- glyph
-          in
-          for i = 0 to count - 1 do
-            if i <> selected then draw_marker i "●"
-          done;
-          draw_marker selected "◆";
-          let plot_rows =
-            List.init plot_h (fun y ->
-                let label =
-                  (* One painted row cannot distinguish the tick bands. *)
-                  if plot_h = 1 then "" else
-                  match List.assoc_opt y tick_at with
-                  | None -> ""
-                  | Some t ->
-                      let full = O.format_money book measure t in
-                      if width_of full <= axis_w then full else if axis_w >= width_of "…" then "…" else ""
-                in
-                let row_text = String.concat "" (Array.to_list plot_text.(y)) in
-                (O.Plain, O.pad_left ~width_of axis_w label ^ " │ " ^ row_text))
-          in
-          let start_day = arr.(0).day and end_day = arr.(count - 1).day in
-          let rule_line =
-            let prefix = String.make (axis_w + 3) ' ' in
-            if plot_w >= 21 then prefix ^ O.pad ~width_of (plot_w - 10) start_day ^ end_day
-            else
-              let compact = start_day ^ " ... " ^ end_day in
-              if width_of compact <= width then O.pad ~width_of width compact
-              else O.pad ~width_of width start_day
-          in
-          head @ plot_rows @ [ (O.Chrome, O.pad ~width_of width rule_line) ]
+      head @ plot @ [ (O.Chrome, O.pad ~width_of width date_axis) ]
 
 (* LOAM DailyPaceTrend detailLines: full history (every day supported) or
    partial history (Supported k/n, unknown dates kept as gaps). Two deliberate

@@ -4419,3 +4419,43 @@ P7/power-loss behavior have **not been executed**.
 The `History partial` feedback row needs a screen-supplied feedback line in the Shell
 contract and is left open. Physical terminal/IME, human acceptance and P7 were **not
 executed**.
+
+## Daily Pace chart follows LOAM Chart (2026-10-20)
+
+### Implemented boundary
+
+- New `tui/screens/pace/pace_chart.ml` ports LOAM `Tui.Chart` to exact Z values:
+  `scaleFor` nice 1/2/5×10^n ticks with flat-series padding, `rowForValue` (floor from
+  the low bound), `axisWidth`, qualified day-aligned braille sampling (no
+  interpolation over unknown days or non-joinable edges), `●` known days, `◆` selected
+  day, `┄` empty tick-row cells, and `withValueAxis` (`label ┤` on tick rows, `│`
+  elsewhere). A continuous `line_rows` variant (LOAM `renderInRange` with the selected
+  guide) is included for the Target plan.
+- `Daily_pace_trend.render_chart` uses it with LOAM's trend geometry: plot height is
+  the pane's inner height minus three when at least six, otherwise only the two summary
+  rows. The old 12-row cap, Bakhlo's own line drawing and `·` grid were removed.
+- Intentional differences: tick labels use the Measure's decimal scale; nice steps are
+  not capped at 10^24, so huge values still chart where LOAM refuses.
+
+### Evidence
+
+- `./tools/check`, `./tools/tui --self-check` (35 PASS; the single-point tick check now
+  expects LOAM's `┤`) and `git diff --check` passed.
+- Synthetic paired run (fresh copies of the 2026-10-19 zero-origin and anchor-only
+  fixtures; Bakhlo SHA-256 `dcec899cc8b3eb4591f096f703d507341eaf978d6b89637e35774fef1bcc8f12`,
+  existing LOAM `312467cd9af30778873bb9afabf0d87143e874d67c828e828c42f8573b8840c3`):
+  at 120×36, 80×24 and 48×14 for End, Up steps, `v` (dots), 30d End/Home+Right, Month
+  and Cycle, every chart row is identical. Remaining rows: header `[?] why`/`[t] target`,
+  unknown-cause text, the `History partial` feedback row, Bakhlo's `…` on a clipped
+  48-column support line, Previous Cycle without a boundary, and Bakhlo's exact compact
+  value at 32×9 (all pre-existing or recorded elsewhere). Fixture bytes unchanged.
+- Latest-data paired comparison: fresh `./tools/compare refresh` (LOAM open, originals
+  not written, no user process terminated); 7 walks at each of 120×36 and 80×24 (End,
+  Up steps, dots, 30d, Month, Cycle, 30d Home+Right). All 14 whole screens were
+  identical except header row 1. `../loam-data` hashes unchanged; AI tmux stopped;
+  private captures deleted; `./tools/compare clean-copies` passed.
+
+### Limits
+
+Physical terminal/IME rendering of braille and ambiguous-width markers, human
+acceptance and P7 were **not executed**.

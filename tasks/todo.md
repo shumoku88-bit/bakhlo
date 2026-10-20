@@ -63,6 +63,14 @@ LOAM終了後に使用し、取得拒否では起動せず、旧コピー・試�
 前回の両UI試用編集は残すが合流しない。`4837462`のCore／TUI CIも成功。
 実家計の取得・起動は今回未実施。
 
+## Daily PaceのグラフとTargetをLOAMへ揃える（2026-10-20）
+
+本人判断（2026-10-20）：partial案内行とPrevious Cycle境界なしは必要か未判断のため保留。グラフはLOAMと同じかより良く。`[t] target`は必要。
+
+- [x] LOAM `Tui.Chart`を`Pace_chart`へ移植し、Trendグラフを置換。合成3寸法×10通り・実データ2寸法×7通りでグラフ行一致。
+- [ ] グラフのcommit／pushとmatching SHA CI。
+- [ ] `[t]` Target plan（読み取り専用：目標額・目標日・今日の仮想支出、候補表・最短日・推移グラフ）をLOAM `DailyPaceTarget`どおり実装し、合成・実データで対照する。
+
 ## Daily Pace選択日の詳細欄をLOAMへ揃える（2026-10-20）
 
 - [x] LOAM `detailLines`（全期間版／partial版）の順序・文言・muted・indentへ`render_detail`を揃える。意図的な差（scheduled-linked行・不明日の既知activity・通貨スケール）は回帰で固定。
