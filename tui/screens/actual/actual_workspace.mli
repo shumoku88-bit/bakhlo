@@ -55,6 +55,8 @@ val handle :
 
 val screen :
   book:B.t ->
+  today:string ->
+  draft_retained:bool ->
   dimensions:int * int ->
   width_of:(string -> int) ->
   t ->

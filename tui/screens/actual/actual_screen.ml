@@ -46,8 +46,9 @@ let view (env : Screen.env) (geometry : Screen.geometry) t =
          let style, text = Act.search_line ~width:(fst geometry.screen) ~width_of t in
          Screen.Styled (style, text)
        else Screen.Default);
-    rows = lazy (Act.screen ~book:env.book ~dimensions:geometry.content ~width_of t);
+    rows = lazy (Act.screen ~book:env.book ~today:env.today ~draft_retained:env.draft_retained
+                   ~dimensions:geometry.content ~width_of t);
     footer = Act.footer ~dimensions:geometry.screen ~width_of t;
     overlay = None;
-    cursor = Act.cursor_position ~dimensions:geometry.screen ~width_of t;
+    cursor = Act.cursor_position ~dimensions:geometry.content ~width_of t;
   }

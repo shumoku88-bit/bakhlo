@@ -124,7 +124,7 @@ let run ~width_of ~directory ~path (home : C.state) =
     "scheduled-narrow-shows-detail-only";
   let actual_view = C.open_route home W.Actual in
   let wide_actual = R.screen ~width_of (120, 30) actual_view in
-  require (contains wide_actual "Actuals (" && contains wide_actual "Actual Detail")
+  require (contains wide_actual "Actuals" && contains wide_actual "Details")
     "actual-wide-two-pane-visible";
   let balances_view = C.open_route home W.Balances in
   require

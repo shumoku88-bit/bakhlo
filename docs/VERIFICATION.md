@@ -4660,3 +4660,31 @@ User decision (2026-10-20): replace the comma-separated pool editor with LOAM's 
 ### Limits
 
 Physical terminal/IME, human acceptance and P7 were **not executed**.
+
+## Actual workspace layout and details parity with LOAM (2026-10-20)
+
+### Implemented boundary
+
+- `tui/screens/actual/actual_workspace.ml`: aligned geometry and formatting with LOAM `Loam/Tui/ActualWorkspace.lean`:
+  - `wide` threshold set to `writable >= 98 && panel_height >= 16`.
+  - Context rows (`context_rows = 2` when body capacity >= 5, 1 when >= 4, 0 otherwise) with LOAM-styled heading and date line.
+  - Table row and amount formatting aligned (`format_money`, no unary `+` on positive amounts, consistent column spacing).
+  - Detail pane (`detail_capacity` 8/10/12, `detail_raw_lines` matching LOAM order: Date, Effects, Blank, Description, ID, followed by Bakhlo's retained facts).
+  - Search caret placement on context row.
+- `tui/protocol/screen.mli`, `tui/protocol/screen.ml`: added `draft_retained : bool` to `Screen.env`.
+- `tui/shell/screen_registry.ml`: updated `Actual` owner layout to `Screen.Workspace`.
+- `tui/shell/shell_dispatch.ml`: populated `draft_retained = has_record_draft state`. Added `owner_layout` helper so that modal overlay geometry dynamically adheres to the underlying route's layout (`Screen.Workspace`), resolving modal overlay clipping over terminal feedback lines.
+- `tui/screens/actual/test/actual_workspace_checks.ml`: updated expectations for positive amounts (`500 jpy` instead of `+500 jpy`) and empty range (`0/0`).
+- `tui/scenarios/actual_integration_checks.ml`: updated expected list page calculation for the new context/panel geometry, and navigated to end of details for low-priority metadata assertions in 8-row detail pane.
+- `tui/scenarios/publication_integration_checks.ml`: adjusted wide two-pane title check (`Actuals` and `Details`).
+
+### Evidence
+
+- Unit and integration checks passed:
+  - `./tools/check`: 1008 test cases passed.
+  - `./tools/tui --self-check`: all Bonsai scenarios and terminal checks passed (including overlay feedback visibility under both Standard and Workspace route layouts).
+  - `git diff --check`: clean (no trailing whitespace or conflict markers).
+
+### Limits
+
+Physical terminal/IME, human acceptance and P7 were **not executed**.

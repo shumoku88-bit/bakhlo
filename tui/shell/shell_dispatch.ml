@@ -62,6 +62,7 @@ let screen_env ~config_files state : Screen.env =
     attention = state.attention;
     settlements = state.settlements;
     blocked = state.blocked;
+    draft_retained = has_record_draft state;
     config = (fun name ->
       match List.assoc_opt name captured with
       | Some bytes -> bytes
@@ -224,31 +225,37 @@ let balances_env state = screen_env ~config_files:Balances.config_files state
 (* Migrated screen owners through the registry. A screen with an open editor
    takes all input but Ctrl-R; otherwise the route's owner sees input after the
    Shell's Ctrl keys and returns Ignored for anything that is not its own. *)
+let owner_layout (o : _ Screen_registry.owner) state =
+  if o.owns state.workspace.route then o.layout else route_layout state
+
 let apply_owner ~dimensions ~width_of (o : _ Screen_registry.owner) state (value, request) =
+  let layout = owner_layout o state in
   apply_request { state with screens = o.set state.screens value } request
     ~saved:(fun state result ->
       let value, request =
         o.saved (screen_env ~config_files:o.config_files state)
-          (screen_geometry ~layout:o.layout ~dimensions ~width_of state) result (o.get state.screens) in
+          (screen_geometry ~layout ~dimensions ~width_of state) result (o.get state.screens) in
       ({ state with screens = o.set state.screens value }, request))
     ~published:(fun state outcome ->
       let value, request =
         o.published (screen_env ~config_files:o.config_files state)
-          (screen_geometry ~layout:o.layout ~dimensions ~width_of state) outcome (o.get state.screens) in
+          (screen_geometry ~layout ~dimensions ~width_of state) outcome (o.get state.screens) in
       ({ state with screens = o.set state.screens value }, request))
 
 let owner_input ~dimensions ~width_of (Screen_registry.Owner o) state input =
+  let layout = owner_layout o state in
   let value, request =
     o.handle (screen_env ~config_files:o.config_files state)
-      (screen_geometry ~layout:o.layout ~dimensions ~width_of state) (o.get state.screens) input in
+      (screen_geometry ~layout ~dimensions ~width_of state) (o.get state.screens) input in
   match request with
   | Screen.Ignored -> None
   | Screen.Quit -> Some `Quit
   | _ -> Some (`State (apply_owner ~dimensions ~width_of o state (value, request)))
 
 let owner_view ~dimensions ~width_of (Screen_registry.Owner o) state =
+  let layout = owner_layout o state in
   o.view (screen_env ~config_files:o.config_files state)
-    (screen_geometry ~layout:o.layout ~dimensions ~width_of state) (o.get state.screens)
+    (screen_geometry ~layout ~dimensions ~width_of state) (o.get state.screens)
 
 let modal_screen_input ~dimensions ~width_of state input =
   Option.bind (Screen_registry.modal state.screens) (fun owner ->

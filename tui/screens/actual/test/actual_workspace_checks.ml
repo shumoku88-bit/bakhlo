@@ -156,10 +156,10 @@ let self_check ~width_of () =
     require (Act.visible_entries ~book no_match = []) "empty-visible-entries";
     require (Act.selected_entry ~book no_match = None) "empty-no-selection";
     List.iter (fun dimensions ->
-      let rows = Act.screen ~book ~dimensions ~width_of no_match in
+      let rows = Act.screen ~book ~today:"2026-10-20" ~draft_retained:false ~dimensions ~width_of no_match in
       let contains text = List.exists (fun (_, row) ->
         Base.String.is_substring row ~substring:text) rows in
-      require (contains "0–0 / 0") "empty-range-is-zero";
+      require (contains "0/0") "empty-range-is-zero";
       if snd dimensions >= 9 then
         require (contains "(no matching Actual") "empty-explanation-visible")
       [ (120, 36); (80, 24); (48, 14); (32, 9); (32, 7) ])
@@ -224,11 +224,11 @@ let self_check ~width_of () =
   require (Act.notice ws = "No next Actual row.") "notice-no-next-tx";
 
   (* 9. Screen rendering (wide & compact) without exceptions *)
-  let lines_wide = Act.screen ~book ~dimensions:dim_wide ~width_of ws in
+  let lines_wide = Act.screen ~book ~today:"2026-10-20" ~draft_retained:false ~dimensions:dim_wide ~width_of ws in
   require (List.length lines_wide > 0) "wide-screen-rendered";
-  let lines_compact = Act.screen ~book ~dimensions:dim_compact ~width_of ws in
+  let lines_compact = Act.screen ~book ~today:"2026-10-20" ~draft_retained:false ~dimensions:dim_compact ~width_of ws in
   require (List.length lines_compact > 0) "compact-screen-rendered";
-  let lines_48 = Act.screen ~book ~dimensions:(48, 14) ~width_of ws in
+  let lines_48 = Act.screen ~book ~today:"2026-10-20" ~draft_retained:false ~dimensions:(48, 14) ~width_of ws in
   let coffee_row =
     List.find_opt
       (fun (_, line) -> Base.String.is_substring line ~substring:"Coffee shop")
@@ -236,7 +236,7 @@ let self_check ~width_of () =
   in
   require
     (match coffee_row with
-    | Some (_, line) -> Base.String.is_substring line ~substring:"+500 jpy"
+    | Some (_, line) -> Base.String.is_substring line ~substring:"500 jpy"
     | None -> false)
     "48-column-row-keeps-full-amount";
 

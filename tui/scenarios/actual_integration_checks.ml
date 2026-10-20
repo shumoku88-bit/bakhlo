@@ -56,10 +56,15 @@ let actual_browsing_checks ~width_of ~directory home =
     require (not (actual_detail listed) && (actual_selected_id listed)=identity)
       "actual-back-retains-selection";
     let page = key state (`Page `Down) in
-    let actual_h = snd (actual_dims ~dimensions ~width_of state) in
-    let wide = fst dimensions >= 80 && actual_h >= 14 in
-    let loci_h = if wide then max 4 (min 7 (actual_h * 30 / 100)) else actual_h in
-    let tx_h = if wide then max 0 (actual_h - loci_h) else actual_h in
+    let content_w, content_h = actual_dims ~dimensions ~width_of state in
+    let body_capacity = max 0 content_h + 1 in
+    let context_rows = if body_capacity >= 5 then 2 else if body_capacity >= 4 then 1 else 0 in
+    let panel_height = max 0 (content_h - context_rows) in
+    let terminal = content_h + 4 in
+    let detail_capacity = if terminal >= 48 then 12 else if terminal >= 36 then 10 else 8 in
+    let detail_height = if panel_height >= 16 then detail_capacity + 1 else 0 in
+    let wide = content_w >= 98 && panel_height >= 16 in
+    let tx_h = if wide then panel_height else max 0 (panel_height - detail_height) in
     let expected_page = min 17 (max 1 (tx_h - 2 - (if tx_h >= 4 then 1 else 0))) in
     require ((actual_row page) = expected_page)
       "actual-list-page-excludes-borders-and-heading";
@@ -836,7 +841,8 @@ let original_amount_integration_checks ~width_of ~directory () =
   let cold_state = C.initial ~config_home:dir cold_session in
   let actual_detail = C.open_route cold_state W.Actual in
   let actual_detail = Option.get (H.handle ~width_of actual_detail (`Key (`ASCII 'i', []))) in
-  require (contains (R.screen ~width_of (80, 24) actual_detail) "Original amount: 30.00 usd") "orig-actual-detail-shows-amount";
+  let actual_detail_end = Option.get (H.handle ~width_of actual_detail (`Key (`End, []))) in
+  require (contains (R.screen ~width_of (80, 24) actual_detail_end) "Original amount: 30.00 usd") "orig-actual-detail-shows-amount";
 
   (* 3. 保存失敗 (save failure): Filesystem read-only error preserves draft and file *)
   let new_rec = H.handle ~width_of cold_state (`Key (`ASCII 'n', [])) |> Option.get in
@@ -1005,7 +1011,8 @@ let event_merchant_integration_checks ~width_of ~directory () =
   (* Detail view in Actual displays 'Merchant: Merchant sanwa' *)
   let actual_post = C.open_route (C.initial ~config_home:dir cold_session) W.Actual in
   let actual_info = Option.get (H.handle ~width_of actual_post (`Key (`ASCII 'i', []))) in
-  let actual_detail = R.screen ~width_of (80, 24) actual_info in
+  let actual_info_end = Option.get (H.handle ~width_of actual_info (`Key (`End, []))) in
+  let actual_detail = R.screen ~width_of (80, 24) actual_info_end in
   require (contains actual_detail "Merchant: Merchant sanwa") "merch-actual-detail-displays";
 
   (* 3. Duplicate classification refusal: pressing 'm' on classified entry *)

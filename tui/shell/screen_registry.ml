@@ -242,7 +242,7 @@ let all =
       };
     Owner
       {
-        layout = Screen.Standard;
+        layout = Screen.Workspace;
         owns = (( = ) W.Actual);
         config_files = Actual_screen.config_files;
         get = (fun t -> t.actual);

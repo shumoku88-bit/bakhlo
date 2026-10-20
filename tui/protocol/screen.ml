@@ -13,6 +13,7 @@ type env = {
   attention : (Attention_data.t, string) result;
   settlements : (Settlement_data.t, string) result;
   blocked : bool;
+  draft_retained : bool;
   config : string -> (string option, string) result;
 }
 
@@ -101,5 +102,5 @@ let env_for_checks ?(accounting_roles = []) ?(config = fun name -> Error ("undec
     accounting_roles = lazy accounting_roles;
     attention = Ok Attention_data.empty;
     settlements = Ok Settlement_data.empty;
-    blocked = false; config;
+    blocked = false; draft_retained = false; config;
   }

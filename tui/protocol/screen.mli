@@ -34,6 +34,7 @@ type env = {
   settlements : (Settlement_data.t, string) result;
       (** Settlement commitments loaded by the Shell; an error is never empty. *)
   blocked : bool;  (** Writes stopped after a conflict, recovery or uncertain outcome. *)
+  draft_retained : bool;  (** A Record draft is retained; workspace screens show it in their context. *)
   config : string -> (string option, string) result;
       (** Bytes of a configuration file captured for this event: [Ok None] is
           missing, never empty; an error is never a default. *)
