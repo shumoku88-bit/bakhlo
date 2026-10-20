@@ -6,6 +6,14 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Book log format and replay (2026-10-20)
+
+- New pure `Bakhlo_sexp.Book_log`: a book file is the ordinary single-file book (snapshot) followed by appended `(record SEQ DIGEST OP...)` lines; a file without records is an ordinary book. Operations are exactly what the application publishes (`Put_entry`, `Put_plan`, `Cancel_plan`, `Observe`, `Add_locus`, `Set_locus_label`, `Classify_merchant`), with all inputs (IDs, dates) included; a record applies its operations all-or-nothing through the ordinary `Daily_book` functions. Entry/plan syntax reuses the book's v3 codec (`Daily_book.entry_to_sexp` etc., extracted without changing book bytes) and `render_line` (same quoting, one line).
+- Load: admit the snapshot, replay records in sequence. Only an unterminated final line is "torn" (reported with `valid_length`, not applied); a digest mismatch (digest covers the re-rendered decoded operations), garbled line, wrong/missing/repeated sequence, terminated bad final line or refused replay refuses the whole file.
+- `test/book_log_tests.ml`: 150 seeded runs load snapshot+records to the in-memory book at every step, across random compactions and two-operation records (>1000 records); every cut inside the final line of 40 runs is reported torn with the previous book; damage cases refuse; one record carries every operation kind (quotes, newline, tab, backslash, Unicode, 30-digit amount, keyed posting, merchant party). The oracle now drives `Book_log.op` (adds locus-label edits).
+- Mutation check: ignoring the digest, ignoring the sequence (a missing record then loaded silently) or applying an unterminated final line each fail the tests.
+- Not yet connected to the store or TUI; publication still rewrites the whole file. Passed: `./tools/check` (exit 0), `./tools/tui --self-check` (35 PASS, exit 0), `git diff --check`. Synthetic only.
+
 ## In-place corrections, plan and vocabulary edits (2026-10-20)
 
 - `Daily_book`: admission split into stages (vocabulary, entries/Actual, plans, support). Plan create/replace/cancel check only the plan stage and reuse the balance image; locus add/label check only vocabulary. Corrections outside Reversal/Exchange/opening-witness/presence relations are admitted locally (same first refusal as whole admission) and update balances via the new `Current_quantity_query.with_replaced_effects` (per-group: unchanged when the cut reflects the root, else new minus old; `Reflected_root_cut.is_reflected` is indexed). Everything else falls back to whole admission. New plain entries now check the plan before local admission, matching whole-admission refusal order.

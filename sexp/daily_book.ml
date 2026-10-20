@@ -561,6 +561,56 @@ let f tag xs = l (a tag :: xs)
 let opt = function None -> f "none" [] | Some s -> f "some" [ a s ]
 let coordinate (c : D.Effect_coordinate.t) = l [ a (lstr c.locus); a (mstr c.measure) ]
 
+let entry_sexp (e : entry) =
+  f "entry"
+    [
+      a e.id;
+      f "date" [ a e.day ];
+      f "memo" [ opt e.memo ];
+      f "postings"
+        (List.map
+           (fun p ->
+             f "posting"
+               [
+                 a (lstr (D.Effect.locus p));
+                 a (mstr (D.Effect.measure p));
+                 a (qstr (D.Effect.quantity p));
+                 opt (Option.map D.Identifier.Effect_key.to_string (D.Effect.key p));
+               ])
+           e.effects);
+      f "reversal-of" [ opt e.reversal_of ];
+      f "exchange"
+        [
+          (match e.exchange with
+          | None -> f "none" []
+          | Some (a_, b_) -> f "keys" [ a a_; a b_ ]);
+        ];
+      f "original-amount"
+        [
+          (match e.original_amount with
+          | None -> f "none" []
+          | Some (m, q) -> f "amount" [ a m; a (Z.to_string q) ]);
+        ];
+      f "merchant"
+        [
+          (match e.merchant with
+          | None -> f "none" []
+          | Some Nonmerchant -> f "nonmerchant" []
+          | Some (Merchant p) -> f "party" [ a (D.Identifier.External_party.to_string p) ]);
+        ];
+    ]
+
+let plan_sexp (p : plan) =
+  f "plan"
+    [
+      a p.id;
+      f "date" [ a p.day ];
+      f "measure" [ a p.measure ];
+      f "changes" (List.map (fun (loc, n) -> l [ a loc; a (Z.to_string n) ]) p.changes);
+      f "paid-by" [ opt p.paid_by ];
+      f "cancelled-on" [ opt p.cancelled_on ];
+    ]
+
 let payload_sexps (b : payload) =
   let supplied encode = function
     | None -> f "not-supplied" []
@@ -571,60 +621,8 @@ let payload_sexps (b : payload) =
     f "measures" (List.map (fun (m, n) -> f "measure" [ a m; a (string_of_int n) ]) b.measures);
     f "labels" [ supplied (fun (id, name, help) -> f "label" [ a id; a name; a help ]) b.labels ];
     f "approved-loci" [ supplied a b.approved ];
-    f "entries"
-      (List.map
-         (fun (e : entry) ->
-           f "entry"
-             [
-               a e.id;
-               f "date" [ a e.day ];
-               f "memo" [ opt e.memo ];
-               f "postings"
-                 (List.map
-                    (fun p ->
-                      f "posting"
-                        [
-                          a (lstr (D.Effect.locus p));
-                          a (mstr (D.Effect.measure p));
-                          a (qstr (D.Effect.quantity p));
-                          opt (Option.map D.Identifier.Effect_key.to_string (D.Effect.key p));
-                        ])
-                    e.effects);
-               f "reversal-of" [ opt e.reversal_of ];
-               f "exchange"
-                 [
-                   (match e.exchange with
-                   | None -> f "none" []
-                   | Some (a_, b_) -> f "keys" [ a a_; a b_ ]);
-                 ];
-               f "original-amount"
-                 [
-                   (match e.original_amount with
-                   | None -> f "none" []
-                   | Some (m, q) -> f "amount" [ a m; a (Z.to_string q) ]);
-                 ];
-               f "merchant"
-                 [
-                   (match e.merchant with
-                   | None -> f "none" []
-                   | Some Nonmerchant -> f "nonmerchant" []
-                   | Some (Merchant p) -> f "party" [ a (D.Identifier.External_party.to_string p) ]);
-                 ];
-             ])
-         b.entries);
-    f "plans"
-      (List.map
-         (fun (p : plan) ->
-           f "plan"
-             [
-               a p.id;
-               f "date" [ a p.day ];
-               f "measure" [ a p.measure ];
-               f "changes" (List.map (fun (loc, n) -> l [ a loc; a (Z.to_string n) ]) p.changes);
-               f "paid-by" [ opt p.paid_by ];
-               f "cancelled-on" [ opt p.cancelled_on ];
-             ])
-         b.plans);
+    f "entries" (List.map entry_sexp b.entries);
+    f "plans" (List.map plan_sexp b.plans);
     f "support"
       ([
          f "zero-origin" (List.map coordinate b.origins);
@@ -1490,3 +1488,22 @@ let pool_at_end_of_day t ~measure ~pool ~day =
               in
               Z.add total (Z.sub current (sum c (fun d -> d > day))))
         Z.zero pool)
+
+(* Entry/plan codec for operation logs: the same v3 syntax and quoting as the book,
+   rendered on one line (control characters are escaped, so no raw newline). *)
+let entry_to_sexp = entry_sexp
+let entry_of_sexp x = protect (fun () -> decode_entry "3" x)
+let plan_to_sexp = plan_sexp
+let plan_of_sexp x = protect (fun () -> decode_plan "3" x)
+
+let render_line x =
+  let out = Buffer.create 256 in
+  let rec go = function
+    | X.Atom s -> Buffer.add_string out (if integer_syntax s then s else quote s)
+    | X.List xs ->
+        Buffer.add_char out '(';
+        List.iteri (fun n x -> if n > 0 then Buffer.add_char out ' '; go x) xs;
+        Buffer.add_char out ')'
+  in
+  go x;
+  Buffer.contents out

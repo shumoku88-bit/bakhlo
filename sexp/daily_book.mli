@@ -205,3 +205,13 @@ val pool_at_end_of_day :
     with zero-origin/opening or an unanchored bounded coordinate refuses the whole
     answer; no partial total or invented zero. *)
 
+
+val entry_to_sexp : entry -> Sexplib0.Sexp.t
+val entry_of_sexp : Sexplib0.Sexp.t -> (entry, string) result
+val plan_to_sexp : plan -> Sexplib0.Sexp.t
+val plan_of_sexp : Sexplib0.Sexp.t -> (plan, string) result
+(** The book's own v3 entry/plan syntax, for operation logs. Decoding checks
+    syntax only; admission happens when the operation is applied. *)
+
+val render_line : Sexplib0.Sexp.t -> string
+(** One-line rendering with the book printer's quoting; never contains a newline. *)

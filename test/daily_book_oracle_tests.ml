@@ -86,16 +86,11 @@ let fresh_entry st id : B.entry =
     merchant = None;
   }
 
-type op =
-  | Put of { replace : bool; entry : B.entry; plan : string option }
-  | Observe of (string * string * Z.t) list
-  | Put_plan of { replace : bool; plan : B.plan }
-  | Cancel_plan of { id : string; day : string }
-  | Add_locus of string
-  | Classify of { id : string; disposition : M.disposition }
+(* The oracle drives exactly the operations a book log records. *)
+open Bakhlo_sexp.Book_log
 
 let describe = function
-  | Put { replace; entry; plan } ->
+  | Put_entry { replace; entry; plan } ->
       Printf.sprintf "put replace=%b id=%s day=%s rev=%s plan=%s effects=%d" replace entry.id
         entry.day
         (Option.value entry.reversal_of ~default:"-")
@@ -107,7 +102,8 @@ let describe = function
   | Put_plan { replace; plan } -> Printf.sprintf "put_plan replace=%b id=%s" replace plan.id
   | Cancel_plan { id; day } -> Printf.sprintf "cancel_plan %s %s" id day
   | Add_locus l -> "add_locus " ^ l
-  | Classify { id; _ } -> "classify " ^ id
+  | Classify_merchant { id; _ } -> "classify " ^ id
+  | Set_locus_label { id; label; _ } -> Printf.sprintf "label %s %S" id label
 
 let generate st book =
   let existing () =
@@ -118,7 +114,7 @@ let generate st book =
   match R.int st 100 with
   | n when n < 35 ->
       let plan = if chance st 15 then Some (pick st plan_ids) else None in
-      Put { replace = false; entry = fresh_entry st (pick st entry_ids); plan }
+      Put_entry { replace = false; entry = fresh_entry st (pick st entry_ids); plan }
   | n when n < 55 -> (
       match existing () with
       | None -> Add_locus "ghost"
@@ -128,7 +124,7 @@ let generate st book =
             else if chance st 50 then { old with day = day st }
             else { (fresh_entry st old.id) with reversal_of = old.reversal_of }
           in
-          Put { replace = true; entry; plan = (if chance st 5 then Some (pick st plan_ids) else None) })
+          Put_entry { replace = true; entry; plan = (if chance st 5 then Some (pick st plan_ids) else None) })
   | n when n < 68 -> (
       match existing () with
       | None -> Add_locus "ghost"
@@ -141,7 +137,7 @@ let generate st book =
               original_amount = None;
             }
           in
-          Put { replace = false; entry; plan = None })
+          Put_entry { replace = false; entry; plan = None })
   | n when n < 80 ->
       let row () = (pick st loci, pick st measures, Z.of_int (R.int st 200_000 - 50_000)) in
       Observe (if chance st 30 then [ row (); row () ] else [ row () ])
@@ -159,31 +155,30 @@ let generate st book =
       in
       Put_plan { replace = chance st 50; plan }
   | n when n < 94 -> Cancel_plan { id = pick st plan_ids; day = day st }
-  | n when n < 97 -> Add_locus "ghost"
+  | n when n < 95 -> Add_locus "ghost"
+  | n when n < 97 ->
+      let label = pick st [| "Wallet"; ""; "  "; "Bad\nline" |] in
+      Set_locus_label
+        { id = pick st loci; label; help = (if chance st 50 then None else Some (pick st [| "Cash"; "" |])) }
   | _ ->
       let id = match existing () with Some e when chance st 80 -> e.id | _ -> "nobody" in
       let disposition =
         if chance st 50 then M.Nonmerchant
         else M.Merchant (ident D.Identifier.External_party.of_string "shop")
       in
-      Classify { id; disposition }
+      Classify_merchant { id; disposition }
 
-let apply book = function
-  | Put { replace; entry; plan } -> B.put_entry book ~replace entry ~plan
-  | Observe rows -> B.observe_quantities book rows
-  | Put_plan { replace; plan } -> B.put_plan book ~replace plan
-  | Cancel_plan { id; day } -> B.cancel_plan book ~id ~day
-  | Add_locus l -> B.add_locus book l
-  | Classify { id; disposition } -> B.classify_merchant book ~id ~disposition
+let apply = apply
 
 (* The whole-book reference for the same operation; observation is already whole. *)
 let apply_full book = function
-  | Put { replace; entry; plan } -> B.Full.put_entry book ~replace entry ~plan
+  | Put_entry { replace; entry; plan } -> B.Full.put_entry book ~replace entry ~plan
   | Observe rows -> B.observe_quantities book rows
   | Put_plan { replace; plan } -> B.Full.put_plan book ~replace plan
   | Cancel_plan { id; day } -> B.Full.cancel_plan book ~id ~day
   | Add_locus l -> B.Full.add_locus book l
-  | Classify { id; disposition } -> B.Full.classify_merchant book ~id ~disposition
+  | Classify_merchant { id; disposition } -> B.Full.classify_merchant book ~id ~disposition
+  | Set_locus_label { id; label; help } -> B.Full.set_locus_label book ~id ~label ?help ()
 
 (* Everything a caller can read from a book, rendered for exact comparison. *)
 let observable book =
@@ -241,15 +236,16 @@ let check ~seed ~step ~trace label a b =
 
 (* Kind of each operation, to show the generator admits every family. *)
 let kind = function
-  | Put { replace = true; _ } -> "replace"
-  | Put { entry = { reversal_of = Some _; _ }; _ } -> "reversal"
-  | Put { plan = Some _; _ } -> "plan payment"
-  | Put _ -> "record"
+  | Put_entry { replace = true; _ } -> "replace"
+  | Put_entry { entry = { reversal_of = Some _; _ }; _ } -> "reversal"
+  | Put_entry { plan = Some _; _ } -> "plan payment"
+  | Put_entry _ -> "record"
   | Observe _ -> "observe"
   | Put_plan _ -> "put_plan"
   | Cancel_plan _ -> "cancel_plan"
   | Add_locus _ -> "add_locus"
-  | Classify _ -> "classify"
+  | Set_locus_label _ -> "label"
+  | Classify_merchant _ -> "classify"
 
 let agree ~seed ~step ~trace label a b =
   match (a, b) with
@@ -292,7 +288,7 @@ let%expect_test "every mutation agrees with its cold-loaded twin and its whole-b
   (* Guard against a generator that only exercises refusals. *)
   List.iter
     [ "record"; "plan payment"; "replace"; "reversal"; "observe"; "put_plan"; "cancel_plan";
-      "add_locus"; "classify" ]
+      "add_locus"; "classify"; "label" ]
     ~f:(fun k ->
       Stdio.printf "%s admitted at least 20 times: %b\n" k
         (Hashtbl.find admitted k |> Option.value ~default:0 >= 20));
@@ -306,6 +302,7 @@ let%expect_test "every mutation agrees with its cold-loaded twin and its whole-b
     cancel_plan admitted at least 20 times: true
     add_locus admitted at least 20 times: true
     classify admitted at least 20 times: true
+    label admitted at least 20 times: true
     |}]
 
 (* KNOWN GAP, pinned on purpose: the in-place record and correction paths update
