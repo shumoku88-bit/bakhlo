@@ -13,6 +13,7 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 - Mutation check: skipping the balance update, ignoring reflection, dropping the reversal-target guard, skipping the date check, skipping local checks for new entries and skipping the plan stage each fail the oracle.
 - Synthetic probe at 109,500 entries: correction 796 ms → 4.3 ms; plan add and locus add ≈1 µs. [Stage 6](LONG_TERM_STORAGE_STUDY.ja.md).
 - Passed: `./tools/check` (exit 0), `./tools/tui --self-check` (35 PASS, exit 0), `git diff --check`. Synthetic only; latest-data paired comparison not executed (no displayed-answer change intended). The TUI reads no evidence view that in-place updates leave stale; the CLI explanation loads fresh.
+- Matching implementation `5afbbc1`: [Core 39347902744](https://github.com/shumoku88-bit/bakhlo/actions/runs/39347902744) and [Bonsai TUI 39347902737](https://github.com/shumoku88-bit/bakhlo/actions/runs/39347902737) completed/success (synthetic CI).
 
 ## Records and annual files removed (2026-10-20)
 
