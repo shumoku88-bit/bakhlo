@@ -188,6 +188,9 @@ def smoke_record_preview_refusal(binary, fixture, root):
     try:
         sess.wait_for(b"bakhlo")
         sess.send(b"r")
+        # A new Record opens in quick capture; Tab continues in the full form.
+        sess.wait_for(b"full form")
+        sess.send(b"\t")
         sess.wait_for(b"Record / Edit")
         # Same positive/negative synthetic postings as Record_session_checks.
         # The writer is not invoked by typing or opening the Preview.

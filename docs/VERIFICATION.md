@@ -4874,6 +4874,10 @@ one-line quick-entry mode.
   postings after cold load. Existing scenarios now press Tab to reach the full form.
 - `./tools/check` (privacy scan no match), `./tools/tui --self-check` (38 PASS),
   `git diff --check` passed.
+- First push `697f92e`: Core CI success, Bonsai TUI CI failed in the Linux PTY matrix
+  (`tools/ci_tui_pty.py` still expected the full form right after `r`). The PTY script now
+  waits for quick capture and presses Tab; the local native PTY matrix passed (4 dimensions
+  and the narrow Preview refusal).
 
 ### Limits
 
