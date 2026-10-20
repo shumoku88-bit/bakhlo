@@ -47,7 +47,7 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 | 予定の支払い完了 | ⬜ 未確認 | 接続済み（Plan Detail・Listから）。LOAMとの照合未了 | 要判断 | UI-17 |
 | 予定の取り消し | 🟦 意図的な差 | Bakhloは取消日を入力する（既存の日付付き取消の契約） | なし | UI-18 |
 | 予定の置換・一括金額変更 | ⬜ 未確認 | 接続済み、照合未了 | なし | UI-19, UI-20 |
-| Months・List | 🟨 差あり | 両方あり。LOAM現行との配置・操作照合が未了 | なし | UI-14, UI-15 |
+| Months・List | 🟨 差あり（局部整合・合成確認） | LOAMソース参照でListの日付／ID昇順・Loci／日付filter・列・固定focus／8件page・Enter完了と詳細復帰、Monthsのカード・inline詳細を整合。scale付きAmount・検索／全文詳細は保持。共有Shell外枠は変更せず、両binaryの実行対照・本人受入は未実施 | なし | UI-14, UI-15, [合成証拠](VERIFICATION.md#scheduled-months-and-list-local-parity-2026-10-21) |
 | 予定がない日 | 🟦 意図的な差 | 「義務なし」とは表示しない（網羅性は不明のまま） | なし | S06 |
 
 ## 3. 科目（Loci）

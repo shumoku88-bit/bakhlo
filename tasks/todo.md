@@ -7,6 +7,12 @@
 - [ ] Attentionの`End`も同じ桁あふれ（`max_int`）で先頭へ戻る。別sliceで修正。
 - [ ] 80×24でのラベル列消失・詳細の語中折返し、LOAM型の入口（追加フォーム／初回役割／Complete Since）を採るか要判断。
 
+## Scheduled Months / List の限定整合（UI-14 / UI-15、2026-10-21）
+
+- [x] Scheduled 内だけでList初期選択・Loci／日付filter・列整列・詳細復帰・固定ナビ、Monthsのカード配置をLOAMの読取参照に揃える。
+- [x] 合成回帰・端末操作、`./tools/check` と `./tools/tui --self-check` を実行し、差分台帳と証拠を更新する。[証拠](../docs/VERIFICATION.md#scheduled-months-and-list-local-parity-2026-10-21)。
+- [x] `omp/scheduled-months-list` で実装をcommit（`7ae43a8`）。push・main変更・実家計へのアクセス・`./tools/compare` は行わない。
+
 ## 新規記帳の一行入力（クイック入力）をLOAMへ揃える（2026-10-20）
 
 - [x] `Quick_capture`（説明・合計・Locus語・日付語、過去記録の雛形）を追加し、新規Recordの前段に接続。完成行はRecordのPreviewへ、それ以外は詳細フォームへ引き継ぐ。
