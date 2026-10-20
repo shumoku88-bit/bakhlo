@@ -11,8 +11,8 @@ let execute_publication state = function
       A.commit_transaction ~session:state.session ~base_revision:base transaction
   | Screen.Reverse_entry { id; day; base } ->
       A.commit_reverse_entry ~session:state.session ~base_revision:base ~id ~day
-  | Screen.Correct_entry { transaction; base } ->
-      A.commit_transaction ~session:state.session ~base_revision:base transaction
+  | Screen.Correct_entry_date { id; day; base } ->
+      A.commit_correct_entry_date ~session:state.session ~base_revision:base ~id ~day
   | Screen.Classify_merchant { id; disposition; base; message = _ } ->
       A.commit_classify_merchant ~session:state.session ~base_revision:base ~id ~disposition
   | Screen.Cancel_plan { id; day; base } ->

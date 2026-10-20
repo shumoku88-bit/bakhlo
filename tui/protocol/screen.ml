@@ -33,7 +33,7 @@ type publication =
   | Commit_transaction of { transaction : Daily_draft.transaction; base : string }
   | Observe_quantities of { rows : (string * string * Z.t) list; base : string }
   | Reverse_entry of { id : string; day : string; base : string }
-  | Correct_entry of { transaction : Daily_draft.transaction; base : string }
+  | Correct_entry_date of { id : string; day : string; base : string }
   | Classify_merchant of {
       id : string; disposition : Bakhlo_application.Event_merchants.disposition; base : string;
       message : string;

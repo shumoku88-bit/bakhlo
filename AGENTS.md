@@ -10,6 +10,9 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 
 - Bakhlo is not in daily use. Destructive changes to Bakhlo's own code and formats
   are allowed; prefer deleting obsolete paths to keeping compatibility.
+- LOAM is a behavioral reference, not a source of bugs, unsafe behavior or poor UX
+  to reproduce. Keep an intentional safer or more correct difference when justified;
+  document and test the difference instead of silently calling it parity.
 - Before adding a mechanism, check, document or safety layer, ask what can be removed
   instead. Do not grow a protocol, format or doc to work around an earlier choice.
 - Measure before optimizing; state the result as numbers, not adjectives.

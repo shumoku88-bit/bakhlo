@@ -126,6 +126,7 @@ let%expect_test "a record carries every operation kind through its own codec" =
             { id = "m1"; day = "2026-10-06"; memo = Some "tab\tand \\ slash"; reversal_of = None;
               effects = [ O.posting ~key:"a" "wallet" "jpy" (-7); O.posting "food" "jpy" 7 ];
               exchange = None; original_amount = Some ("usd", Z.of_int 120); merchant = None } };
+      L.Correct_entry_date { id = "m1"; day = "2026-10-07" };
       L.Classify_merchant { id = "m1"; disposition = Bakhlo_application.Event_merchants.Merchant party } ]
   in
   let base = get (B.of_string O.fixture) in
@@ -136,3 +137,41 @@ let%expect_test "a record carries every operation kind through its own codec" =
     (String.count line ~f:(Char.equal '\n') = 1)
     (String.equal (O.observable loaded.book) (O.observable expected));
   [%expect {| one line: true; same book: true |}]
+
+let historical_fixture =
+  String.substr_replace_first O.fixture
+    ~pattern:"(approved-loci (provided wallet food bank expense))"
+    ~with_:"(approved-loci (provided food expense))"
+
+let entry book id =
+  List.find_exn (B.entries book) ~f:(fun (candidate : B.entry) -> String.equal candidate.id id)
+
+let%expect_test "date correction has its own codec and replays without reapproving historical loci" =
+  let base = get (B.of_string historical_fixture) in
+  let before = entry base "init" in
+  let op = L.Correct_entry_date { id = "init"; day = "2026-10-09" } in
+  let line = L.record_line ~seq:1 [ op ] in
+  (match get (L.decode_record_line ~seq:1 line) with
+  | [ L.Correct_entry_date { id; day } ] -> Stdio.printf "decoded %s %s\n" id day
+  | _ -> Stdio.printf "decoded wrong operation\n");
+  let loaded = get (load (B.to_string base ^ line)) in
+  let after = entry loaded.book "init" in
+  Stdio.printf "date %s; all other fields preserved: %b; records %d\n" after.day
+    (Poly.equal before { after with day = before.day }) loaded.records;
+  [%expect {|
+    decoded init 2026-10-09
+    date 2026-10-09; all other fields preserved: true; records 1
+    |}]
+
+let%expect_test "date correction replay refuses invalid input without a partial book" =
+  let base = get (B.of_string historical_fixture) in
+  let snapshot = B.to_string base in
+  let attempt op = refusal (snapshot ^ L.record_line ~seq:1 [ op ]) in
+  Stdio.printf "unknown: %s\n"
+    (attempt (L.Correct_entry_date { id = "missing"; day = "2026-10-09" }));
+  Stdio.printf "invalid date: %s\n"
+    (attempt (L.Correct_entry_date { id = "init"; day = "2026-02-30" }));
+  [%expect {|
+    unknown: log-replay-refused-at-record-1: unknown-entry
+    invalid date: log-replay-refused-at-record-1: invalid-date
+    |}]

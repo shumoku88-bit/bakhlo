@@ -27,8 +27,12 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   (keeping byte-identical `.prev`, `records = 0`, matching cold reload and `Full`)
   verified on an isolated real-data copy (5.90 ms/save incl. `fsync`). For entries
   whose Loci are no longer in `approved-loci`, both LOAM and Bakhlo refuse `c`
-  (including memo-only) and reversal, while LOAM allows `d` (date-only) and `m`
-  (merchant) where Bakhlo currently refuses via `put_entry ~replace:true`.
+  (including memo-only) and reversal. Bakhlo now has dedicated metadata operations
+  for `d` (date-only, `correct-entry-date` log record) and `m` (merchant), preserving
+  identity, Effects, links, original amount and plans without reapproving historical
+  Loci (4.1 ms each at ~110k synthetic entries). On the latest real-data copy at
+  120×36 and 80×24 both UIs reach the same `d`/`m` Previews; Bakhlo saves on an
+  isolated copy matched cold reload and `Full`.
 - Unqualified: P7 (persistent post-save acknowledgement), power loss, real macOS IME,
   human acceptance.
 
@@ -64,10 +68,6 @@ After pushing, check CI for the matching commit SHA.
 
 ## Next candidates
 
-1. Decide whether Bakhlo should allow date-only (`d`) and merchant (`m`) updates on
-   entries whose existing Loci are no longer in `approved-loci` (matching LOAM's
-   `ActualValidityPublisher` / `EventMerchantPublisher`), while keeping `c` and
-   reversal gated by `approved-loci`.
-2. Daily-use parity in the five areas of the cutover diff ledger, ordered by
+1. Daily-use parity in the five areas of the cutover diff ledger, ordered by
    `tasks/todo.md`.
-3. Startup snapshot only when startup is felt slow.
+2. Startup snapshot only when startup is felt slow.

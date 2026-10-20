@@ -665,7 +665,85 @@ let date_correction_checks ~width_of ~directory home =
     require (List.for_all (fun (_, line) -> not (String.contains line '\027' || String.contains line '\n'))
       (Date.screen ~dimensions:(72,16) ~width_of editor))
       "date-target-cannot-inject-terminal-controls") [unsafe; update unsafe `Enter];
-  print_endline "PASS: date-only correction validates dates, reviews target, refuses tiny/stale, preserves drafts, keys and completed plans, and cold-loads the same Actual."
+
+  (* A retained Actual may refer to a Locus that is no longer admitted for new
+     publication. Date and Merchant are independent metadata mutations; ordinary
+     correction and reversal remain new Movement publications and stay refused. *)
+  let retained_plan : B.plan = {
+    id = "retained-locus-plan"; day = "2026-10-11"; measure = "jpy";
+    changes = ["wallet", Z.of_int (-456); "food", Z.of_int 456];
+    paid_by = None; cancelled_on = None;
+  } in
+  let retained_target : B.entry = {
+    id = "retained-locus-target"; day = "2026-10-11"; memo = Some "Historical Locus";
+    effects = [effect "retained-out" "wallet" (-456); effect "retained-in" "food" 456];
+    reversal_of = None; exchange = None; original_amount = Some ("eur", Z.of_int 789);
+    merchant = None;
+  } in
+  let retained_admitted = get (B.put_plan home.C.session.book ~replace:false retained_plan) in
+  let retained_admitted = get (B.put_entry retained_admitted ~replace:false retained_target
+      ~plan:(Some retained_plan.id)) in
+  let admitted_bytes = B.to_string retained_admitted in
+  let retained_bytes = Base.String.substr_replace_first admitted_bytes
+    ~pattern:"(approved-loci (provided \"wallet\" \"food\" \"bank\"))"
+    ~with_:"(approved-loci (provided \"wallet\" \"bank\"))" in
+  require (retained_bytes <> admitted_bytes) "retained-locus-policy-fixture-changed";
+  let retained_book = get (B.of_string retained_bytes) in
+  require (B.approved_loci retained_book = Some ["wallet"; "bank"]
+           && B.find_entry retained_book retained_target.id = Some retained_target)
+    "retained-locus-fixture-loads-with-stable-entry";
+  let retained_path = directory ^ "/retained-locus-mutations.sexp" in
+  F.write_new retained_path retained_bytes;
+  let retained_initial () =
+    C.open_route (C.initial ~config_home:directory (F.load retained_path)) W.Actual in
+  let original_bytes = F.read retained_path in
+
+  let correction = key ~width_of (retained_initial ()) (`ASCII 'c') in
+  require correction.record_visible "retained-locus-correction-opens";
+  let correction_refused = C.submit correction in
+  let correction_rows = S.screen ~book:correction_refused.session.book
+      ~dimensions:(72, 20) ~width_of (Option.get correction_refused.record) in
+  require (correction_refused.record_visible && F.read retained_path = original_bytes
+           && List.exists (fun (_, line) ->
+                Base.String.is_substring line ~substring:"A Locus is not admitted") correction_rows)
+    "retained-locus-ordinary-correction-remains-refused";
+
+  let reversing = key ~width_of (retained_initial ()) (`ASCII 'x') in
+  let reversal_review = key ~width_of reversing `Enter in
+  let reversal_refused = key ~width_of reversal_review `Enter in
+  require (is_reversal reversal_refused && F.read retained_path = original_bytes
+           && Base.String.is_substring reversal_refused.message ~substring:"locus-unapproved")
+    "retained-locus-reversal-remains-refused";
+
+  let dating = key ~width_of (retained_initial ()) (`ASCII 'd') in
+  let date_review = date dating "2026-10-09" |> fun s -> key ~width_of s `Enter in
+  let date_saved = key ~width_of date_review `Enter in
+  require (no_modal date_saved) "retained-locus-date-publication-closes-editor";
+  require (Base.String.is_substring (F.read retained_path) ~substring:"\"correct-entry-date\"")
+    "retained-locus-date-appends-dedicated-operation";
+  let dated_session = F.load retained_path in
+  let dated_target = Option.get (B.find_entry dated_session.book retained_target.id) in
+  require (dated_target = { retained_target with day = "2026-10-09" }
+           && B.plans dated_session.book = B.plans retained_book
+           && List.map (fun (e : B.entry) -> e.id) (B.entries dated_session.book)
+              = List.map (fun (e : B.entry) -> e.id) (B.entries retained_book))
+    "retained-locus-date-cold-preserves-identity-effects-link-original-amount";
+
+  let merchant_state = C.open_route (C.initial ~config_home:directory dated_session) W.Actual in
+  let merchant_edit = key ~width_of merchant_state (`ASCII 'm')
+    |> fun s -> text ~width_of s "historical-shop" in
+  let merchant_review = key ~width_of merchant_edit `Enter in
+  let merchant_saved = key ~width_of merchant_review `Enter in
+  let party = C.get_id (D.Identifier.External_party.of_string "historical-shop") in
+  let merchant_cold = F.load retained_path in
+  let merchant_target = Option.get (B.find_entry merchant_cold.book retained_target.id) in
+  require (no_modal merchant_saved
+           && merchant_target = { retained_target with day = "2026-10-09";
+               merchant = Some (Bakhlo_application.Event_merchants.Merchant party) }
+           && B.plans merchant_cold.book = B.plans retained_book
+           && B.approved_loci merchant_cold.book = Some ["wallet"; "bank"])
+    "retained-locus-merchant-cold-preserves-identity-effects-link-original-amount";
+  print_endline "PASS: date-only correction validates dates, reviews target, refuses tiny/stale, preserves drafts, keys and completed plans; retained unapproved-Locus Actuals allow dedicated date/Merchant metadata while correction/reversal remain refused."
 
 let original_amount_integration_checks ~width_of ~directory () =
   let dir = directory ^ "/original-amount-integration" in

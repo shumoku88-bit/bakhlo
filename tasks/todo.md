@@ -1,5 +1,28 @@
 # LOAMの機能・見た目・使い勝手をBakhloで再現する
 
+## approved-loci外の既存明細でd/mをLOAMへ揃える（2026-10-20・計画）
+
+この限定sliceでは、保持済み明細のLocusが現在のapproved-lociから外れていても、LOAMと同じく
+日付だけの変更とMerchant変更を行える専用mutation経路を追加する。汎用の`c`（memoだけの変更を含む）と
+reversalは引き続きapproved-lociで拒否し、`put_entry`全体を迂回する広い例外は設けない。
+
+計画の確認：2026-10-20、実装開始前にユーザー承認済み。追加判断：LOAMは挙動の参照だが、
+確認したバグ・危険な挙動・低品質なUXまで再現しない。意図的に安全／正確にする差は明記して回帰検査する。
+
+- [x] 現在のCore／Book_log／TUI interfaceを調べ、維持する不変条件と回帰検査を固定する。
+- [x] incremental版と`Full`版に専用の日付mutationとMerchant固有更新を実装し、Book_log replayを接続する。identity・effect・link・original amountを保持する。
+- [x] oracle／log／file／TUI回帰を追加し、approved-loci外の既存明細で`d`／`m`が成功し、`c`／`x`が拒否されることをcold reloadと失敗経路を含めて証明する。
+- [x] `./tools/check`、`./tools/tui --self-check`、`git diff --check`を実行し、exact diffをレビューする。
+- [x] `./tools/startup-probe`で対象mutationを計測する（109.5k件で日付4.14 ms／Merchant 4.03 ms）。
+- [x] 同一取得世代のfresh paired comparisonを120×36と80×24で実施し、原本不変を確認して`clean-copies`を行う。
+- [x] ledgers／evidence／HANDOFF／reviewをローカル実装結果に合わせて更新する。
+- [ ] exact diffを最終確認してcommit／pushし、matching SHAのCore／TUI CIを確認する。
+
+レビュー（ローカル実装時点）：専用operationにより日付だけを更新し、MerchantもEffectを再発行しない
+metadata更新として扱う。`Daily_book.Full`とcold reloadの一致、専用log codec／失敗時非書込、TUIの
+`d`／`m`成功と`c`／`x`拒否を合成fixtureで確認。`./tools/check`、`./tools/tui --self-check`、
+`git diff --check`は成功。最新データ2寸法で両UIが同じ`d`／`m` Previewへ進み、Bakhlo隔離コピーの保存はcold／Fullと一致。LOAM側は今回Previewまで。
+
 ## AIが開発時に最新LOAMデータで比較する（2026-10-19・現在の指示）
 
 ユーザーの意図は、本人用の起動コマンドではなく、AIが毎日の開発時に最新の記帳内容で

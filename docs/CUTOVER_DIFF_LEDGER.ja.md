@@ -28,10 +28,10 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 | 未分類（貸借差額）の仮置き | 🟨 差あり | Ctrl-Uで差額行を自動補完。LOAMの「未解決語彙を明示的に許可して戻る」流れとは違う | 要判断 | UI-08 |
 | Actual一覧・検索・詳細 | 🟨 差あり | 検索・並び・詳細往復は合成で一致。見出し・枠・下部案内が違う。**実データ未照合** | 要判断 | UI-03 |
 | 既存記録の訂正 | 🟨 差あり | 同じIDで訂正（Bakhloは仕訳の口座・符号・行数を固定して金額・メモ・日付を編集、LOAMは日付以外の行も置換可）。`approved-loci` から外れた口座を含む明細の `c` 訂正は、メモのみでも両者とも拒否（120×36・80×24実データで確認） | 要判断 | UI-09, [実データ試し保存・訂正比較](VERIFICATION.md#real-data-trial-saves-exit-compaction-and-unapproved-locus-correction-comparison-2026-10-20) |
-| 日付だけの訂正 | 🟨 差あり | 承認済み口座の明細は両者とも `d` で変更・保存可。`approved-loci` から外れた口座を含む明細は、LOAMは日付変更を通すがBakhloは `locus-unapproved` で拒否（120×36・80×24実データで確認） | 要判断 | UI-10, [実データ試し保存・訂正比較](VERIFICATION.md#real-data-trial-saves-exit-compaction-and-unapproved-locus-correction-comparison-2026-10-20) |
+| 日付だけの訂正 | ✅ 一致（実データ・限定） | `approved-loci` から外れた口座を含む保持済み明細も、両者とも同じ日付Preview（`Only the occurrence date changes.`）へ進む。Bakhloは隔離コピーで保存し、cold・whole-book照合で日付以外不変（120×36・80×24）。LOAMは今回Previewまで（保存は前回世代で確認）。入口はLOAMがTransaction detail経由、BakhloはActual一覧から直接 | なし | UI-10, [専用mutation証拠](VERIFICATION.md#retained-unapproved-locus-date-and-merchant-mutations-2026-10-20), [変更前の実データ差](VERIFICATION.md#real-data-trial-saves-exit-compaction-and-unapproved-locus-correction-comparison-2026-10-20) |
 | 返金・取り消し（反転） | 🟨 差あり | Bakhloは `x`、LOAMは `r`。元の記録は残し、承認済み口座では保存、外れた口座を含む明細は両者とも拒否（120×36・80×24実データで確認） | 要判断 | UI-11, [実データ試し保存・訂正比較](VERIFICATION.md#real-data-trial-saves-exit-compaction-and-unapproved-locus-correction-comparison-2026-10-20) |
 | 原額（外貨の元の金額） | ⬜ 未確認 | 入力・保存・再起動は接続済み（年越しは年別保存とともに削除）。LOAMとの照合が未了 | なし | UI-07 |
-| Merchant分類 | 🟨 差あり | 承認済み口座の明細は両者とも `m` で保存可。`approved-loci` から外れた口座を含む明細は、LOAMは分類を通すがBakhloは `classify-merchant`（`locus-unapproved`）で拒否（120×36・80×24実データで確認） | 要判断 | R08, [実データ試し保存・訂正比較](VERIFICATION.md#real-data-trial-saves-exit-compaction-and-unapproved-locus-correction-comparison-2026-10-20) |
+| Merchant分類 | ✅ 一致（実データ・限定） | `approved-loci` から外れた口座を含む保持済み明細も、両者とも同じMerchant／Nonmerchant Previewへ進む。Bakhloは隔離コピーでNonmerchantを保存し、cold・whole-book照合でMerchant以外不変（120×36・80×24）。LOAMは今回Previewまで | なし | R08, [専用mutation証拠](VERIFICATION.md#retained-unapproved-locus-date-and-merchant-mutations-2026-10-20), [変更前の実データ差](VERIFICATION.md#real-data-trial-saves-exit-compaction-and-unapproved-locus-correction-comparison-2026-10-20) |
 
 ## 2. 予定（Scheduled）
 

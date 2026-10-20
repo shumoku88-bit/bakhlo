@@ -4292,3 +4292,81 @@ Read-only independent review checked the Measure/completion/reversal classifier,
 - Focused independent review found a dropped pre-existing lowercase normalization of typed Measures. Actual `bank / JPY / 0` reproduced the Add refusal; normalization was restored and the native multi-row cold test now uses `JPY`. Final binary SHA-256 `e853c9baeb23ce8edc57f3fc9a9285aecf37c9580b40609471457e24ea311bdf` passed the documented TUI self-check and actual 80×24 `bank / JPY / 0` → Preview (`bank 0 jpy`) → Publish → Balances. Its Household setup picker Review → Escape → Escape returned to the launching Calendar without changing book/config bytes. Only owned `b2pit` sessions were stopped.
 - Intentional safety differences: Bakhlo requires the entire Review at the event's dimensions; it does not copy LOAM's clipped confirmation text. Existing exact signed/scaled amount input is retained rather than imposing LOAM's raw integer-quanta input. Bakhlo uses existing framed modal appearance, not LOAM's unframed collector.
 - Not full UI-24/UI-31 acceptance: Current headings/80-column stacked layout, Accounting/Print, broad annual/Records/support-family paired cases, real IME/human acceptance and rapid queued resize/Enter timing remain open. Daily Pace dated bounded-history and completed/cancelled-plan history remain **unqualified and unchecked in this slice**. Power loss/P7, noncooperative writers and operational adoption remain separate unresolved conditions.
+
+## Retained unapproved-Locus date and Merchant mutations (2026-10-20)
+
+### Implemented boundary
+
+- The synthetic fixture first admits an Actual and its paid-plan link, then removes one
+  of that Actual's Loci from `approved-loci` while retaining the historical entry.
+- Date-only publication no longer sends the whole transaction through generic
+  `put_entry ~replace:true`. `Correct_entry_date` is a dedicated Core/Book-log
+  operation carrying only entry ID and day. It validates the ID and calendar date,
+  changes only `day`, and appends a replayable `correct-entry-date` record.
+- Merchant publication remains a dedicated operation and now updates only Merchant
+  metadata without reissuing the entry's Effects. Both incremental mutations retain
+  entry identity, Effect keys and quantities, reversal/payment links, memo, original
+  amount and the plan set. Their `Daily_book.Full` variants are the whole-book oracle.
+- Generic correction and reversal are still Movement publications. Their existing
+  `approved-loci` admission refusal is deliberately preserved; no broad exception was
+  added to `put_entry`.
+
+### Synthetic evidence that ran
+
+- `test/daily_book_oracle_tests.ml` compares incremental date and Merchant results
+  with `Daily_book.Full` on the retained unapproved-Locus fixture. `d` changes only
+  the date and `m` changes only Merchant. Generic correction, a new entry and a new
+  reversal using the removed Locus still return `locus-unapproved`. Invalid date,
+  invalid/unknown ID, duplicate Merchant and invalid Merchant token remain refused.
+  The randomized mutation oracle also admits at least 20 date corrections and checks
+  every step against both a cold-loaded twin and the whole-book reference.
+- `test/book_log_tests.ml` round-trips the new codec and replays it without reapproving
+  historical Loci. Unknown targets and invalid dates stop replay at that record.
+  `test/daily_file_tests.ml` confirms one valid append survives a cold load with all
+  other entry fields unchanged, while refused date operations append no bytes.
+- The TUI self-check drives the retained fixture through Actual: ordinary `c` opens
+  but publication remains refused without a write; `x` remains in its editor and is
+  refused without a write; `d` appends the dedicated operation and cold-loads the
+  date-only result; `m` then cold-loads the Merchant result. The checks compare the
+  retained entry, plan set, approved-Loci policy and relevant file bytes.
+- `./tools/check`, `./tools/tui --self-check`, and `git diff --check` passed for this
+  local slice.
+
+### Performance (synthetic, `./tools/startup-probe`)
+
+- At 109,500 entries (median of 21, filesystem cache not flushed):
+  `correct_entry_date` 4.14 ms, `classify_merchant (first)` 4.03 ms,
+  `put_entry replace old` 4.12 ms, save (append + fsync) 0.43 ms. Both new paths are
+  dominated by the O(n) `entries_rev` rewrite shared with replace; within the 5 ms
+  save target.
+
+### Latest-data paired comparison (2026-10-20)
+
+- Fresh `./tools/compare refresh` (LOAM open, originals not written, no user process
+  terminated). Bakhlo working tree on `10a854d` with this slice uncommitted, Bonsai
+  executable SHA-256 `f6034b5a96afc1eb18bb8860774e13e2b82f5b567f9a4ad608cbb0a4ac2d3b3b`;
+  existing LOAM executable SHA-256
+  `312467cd9af30778873bb9afabf0d87143e874d67c828e828c42f8573b8840c3` (differs from the
+  earlier recorded binary; source correspondence not certified).
+- Target: one retained entry whose Effects use a Locus outside `approved-loci`, at
+  120×36 and 80×24.
+- Bakhlo, on a separate isolated copy of the selected capture per geometry: `c` reaches
+  Preview and is refused (`A Locus is not admitted by the current book.`) without a
+  write; `x` is refused (`locus-unapproved`) without a write; `d` publishes one
+  `correct-entry-date` record; `m` publishes one Nonmerchant `classify-merchant`
+  record. Cold `Book_log.load` (2 records) shows only that entry's date and Merchant
+  changed, every other entry, the plans and `approved-loci` identical, and equals the
+  `Daily_book.Full` result byte for byte. Exit compaction did not run (<200 records).
+- LOAM, read-only on the same generation: from Transaction detail, `d` reaches the same
+  date Preview (`Only the occurrence date changes.`, `[Publish date change]`) and `m`
+  reaches the same Nonmerchant Preview; both were cancelled without publishing. LOAM
+  exposes `d`/`m` only from Transaction detail, Bakhlo also from the Actual list.
+- `../loam-data` household/config hashes and the LOAM comparison copy were identical
+  before and after; the selected Bakhlo capture was unchanged; AI tmux server stopped;
+  isolated trial copies deleted; `./tools/compare clean-copies` passed.
+
+### Limits
+
+LOAM publication was not repeated on this generation (it was observed earlier on a
+previous generation). A physical-terminal or IME run, human acceptance and
+P7/power-loss behavior have **not been executed**.

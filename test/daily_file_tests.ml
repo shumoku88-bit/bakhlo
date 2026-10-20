@@ -30,6 +30,19 @@ let describe = function
   | F.Written _ -> "written" | F.Conflict -> "conflict" | F.Refused_input why -> "refused " ^ why
   | F.Uncertain _ -> "uncertain"
 
+let historical_fixture =
+  String.substr_replace_first O.fixture
+    ~pattern:"(approved-loci (provided wallet food bank expense))"
+    ~with_:"(approved-loci (provided food expense))"
+
+let historical_start () =
+  let path = fresh_path () in
+  F.write_new path historical_fixture;
+  F.load path
+
+let find_entry book id =
+  List.find_exn (B.entries book) ~f:(fun (candidate : B.entry) -> String.equal candidate.id id)
+
 let%expect_test "each save appends one record and a cold load yields the saved book" =
   let s = ref (start ()) in
   for n = 1 to 5 do
@@ -41,6 +54,35 @@ let%expect_test "each save appends one record and a cold load yields the saved b
     (String.equal (book_text cold) (book_text !s))
     (O.observable cold.book |> String.split_lines |> List.find_exn ~f:(String.is_prefix ~prefix:"wallet/jpy"));
   [%expect {| records 5; bytes match file: true; same book: true; wallet wallet/jpy: 49500 (observation) |}]
+
+let%expect_test "a saved date correction survives a cold load and preserves the entry" =
+  let s = historical_start () in
+  let before = find_entry s.book "init" in
+  let saved =
+    written (F.append s [ L.Correct_entry_date { id = "init"; day = "2026-10-09" } ])
+  in
+  let cold = F.load saved.path in
+  let after = find_entry cold.book "init" in
+  Stdio.printf "records %d; date %s; all other fields preserved: %b; same book: %b\n"
+    cold.records after.day (Poly.equal before { after with day = before.day })
+    (String.equal (book_text cold) (book_text saved));
+  [%expect {|
+    records 1; date 2026-10-09; all other fields preserved: true; same book: true
+    |}]
+
+let%expect_test "a refused date correction writes no record" =
+  let s = historical_start () in
+  let before = F.read s.path in
+  Stdio.printf "unknown: %s\n"
+    (describe (F.append s [ L.Correct_entry_date { id = "missing"; day = "2026-10-09" } ]));
+  Stdio.printf "invalid date: %s\n"
+    (describe (F.append s [ L.Correct_entry_date { id = "init"; day = "2026-02-30" } ]));
+  Stdio.printf "unchanged: %b\n" (String.equal before (F.read s.path));
+  [%expect {|
+    unknown: refused unknown-entry
+    invalid date: refused invalid-date
+    unchanged: true
+    |}]
 
 let%expect_test "a refused operation or a changed file writes nothing" =
   let s = written (F.append (start ()) [ put 1 ]) in

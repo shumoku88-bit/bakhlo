@@ -2,6 +2,7 @@
    Marshal here is a disposable-cache candidate, not a storage format. *)
 module D = Bakhlo_domain
 module Q = Bakhlo_application.Current_quantity_query
+module M = Bakhlo_application.Event_merchants
 module B = Bakhlo_sexp.Daily_book
 
 let get = function Ok x -> x | Error why -> failwith why
@@ -113,6 +114,11 @@ let () = match Sys.argv with
       median "put_entry (new)" 21 (fun () -> get (B.put_entry b ~replace:false e ~plan:None));
       let old = get (Option.to_result ~none:"no" (B.find_entry b "tx-000001")) in
       median "put_entry replace old" 21 (fun () -> get (B.put_entry b ~replace:true { old with memo = Some "x" } ~plan:None));
+      median "correct_entry_date" 21 (fun () ->
+          get (B.correct_entry_date b ~id:"tx-000001" ~day:"2030-01-02"));
+      let merchant = id (D.Identifier.External_party.of_string "probe-merchant") in
+      median "classify_merchant (first)" 21 (fun () ->
+          get (B.classify_merchant b ~id:"tx-000001" ~disposition:(M.Merchant merchant)));
       let plan : B.plan = { id = "probe-plan"; day = "2030-01-31"; measure = "jpy";
         changes = [ ("wallet", Z.of_int (-500)); ("food", Z.of_int 500) ]; paid_by = None; cancelled_on = None } in
       median "put_plan (new)" 21 (fun () -> get (B.put_plan b ~replace:false plan));

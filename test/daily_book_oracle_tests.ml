@@ -95,6 +95,7 @@ let describe = function
         entry.day
         (Option.value entry.reversal_of ~default:"-")
         (Option.value plan ~default:"-") (List.length entry.effects)
+  | Correct_entry_date { id; day } -> Printf.sprintf "correct_date %s %s" id day
   | Observe rows ->
       "observe "
       ^ String.concat ~sep:","
@@ -128,6 +129,10 @@ let generate st book =
           original_amount = None }
       in
       Put_entry { replace = false; entry; plan = None }
+  | n when n < 40 -> (
+      match existing () with
+      | None -> Correct_entry_date { id = "nobody"; day = day st }
+      | Some old -> Correct_entry_date { id = old.id; day = day st })
   | n when n < 55 -> (
       match existing () with
       | None -> Add_locus "ghost"
@@ -192,6 +197,7 @@ let apply = apply
 (* The whole-book reference for the same operation. *)
 let apply_full book = function
   | Put_entry { replace; entry; plan } -> B.Full.put_entry book ~replace entry ~plan
+  | Correct_entry_date { id; day } -> B.Full.correct_entry_date book ~id ~day
   | Observe rows -> B.Full.observe_quantities book rows
   | Put_plan { replace; plan } -> B.Full.put_plan book ~replace plan
   | Cancel_plan { id; day } -> B.Full.cancel_plan book ~id ~day
@@ -260,6 +266,7 @@ let kind = function
   | Put_entry { entry = { exchange = Some _; _ }; replace = false; _ } -> "exchange"
   | Put_entry { plan = Some _; _ } -> "plan payment"
   | Put_entry _ -> "record"
+  | Correct_entry_date _ -> "correct_date"
   | Observe _ -> "observe"
   | Put_plan _ -> "put_plan"
   | Cancel_plan _ -> "cancel_plan"
@@ -307,7 +314,7 @@ let%expect_test "every mutation agrees with its cold-loaded twin and its whole-b
       done);
   (* Guard against a generator that only exercises refusals. *)
   List.iter
-    [ "record"; "plan payment"; "replace"; "reversal"; "exchange"; "observe"; "put_plan"; "cancel_plan";
+    [ "record"; "plan payment"; "replace"; "reversal"; "exchange"; "correct_date"; "observe"; "put_plan"; "cancel_plan";
       "add_locus"; "classify"; "label" ]
     ~f:(fun k ->
       Stdio.printf "%s admitted at least 20 times: %b\n" k
@@ -318,12 +325,75 @@ let%expect_test "every mutation agrees with its cold-loaded twin and its whole-b
     replace admitted at least 20 times: true
     reversal admitted at least 20 times: true
     exchange admitted at least 20 times: true
+    correct_date admitted at least 20 times: true
     observe admitted at least 20 times: true
     put_plan admitted at least 20 times: true
     cancel_plan admitted at least 20 times: true
     add_locus admitted at least 20 times: true
     classify admitted at least 20 times: true
     label admitted at least 20 times: true
+    |}]
+
+let result_text = function Ok _ -> "ok" | Error why -> why
+
+let%expect_test "date and Merchant-only changes accept retained unapproved Loci" =
+  let unapproved =
+    String.substr_replace_first fixture
+      ~pattern:"(approved-loci (provided wallet food bank expense))"
+      ~with_:"(approved-loci (provided food expense))"
+  in
+  let base = get (B.of_string unapproved) in
+  let initial = Option.value_exn (B.find_entry base "init") in
+  let dated = B.correct_entry_date base ~id:"init" ~day:"2026-10-02" in
+  let dated_full = B.Full.correct_entry_date base ~id:"init" ~day:"2026-10-02" in
+  agree ~seed:0 ~step:0 ~trace:[] "dedicated date reference" dated dated_full;
+  let dated_book = get dated in
+  let after_date = Option.value_exn (B.find_entry dated_book "init") in
+  Stdio.printf "date succeeds and changes only date: %b\n"
+    (String.equal after_date.day "2026-10-02"
+     && Poly.equal { after_date with day = initial.day } initial);
+  let classified = B.classify_merchant base ~id:"init" ~disposition:M.Nonmerchant in
+  let classified_full = B.Full.classify_merchant base ~id:"init" ~disposition:M.Nonmerchant in
+  agree ~seed:0 ~step:0 ~trace:[] "dedicated Merchant reference" classified classified_full;
+  let classified_book = get classified in
+  let after_merchant = Option.value_exn (B.find_entry classified_book "init") in
+  Stdio.printf "Merchant succeeds and changes only Merchant: %b\n"
+    (Poly.equal after_merchant.merchant (Some M.Nonmerchant)
+     && Poly.equal { after_merchant with merchant = initial.merchant } initial);
+  let correction = B.put_entry base ~replace:true { initial with memo = Some "edited" } ~plan:None in
+  let fresh = { initial with id = "fresh"; day = "2026-10-03" } in
+  let reversal =
+    { fresh with id = "refund"; effects = inverse initial; reversal_of = Some initial.id }
+  in
+  Stdio.printf "generic correction: %s\n" (result_text correction);
+  Stdio.printf "new entry: %s\n" (result_text (B.put_entry base ~replace:false fresh ~plan:None));
+  Stdio.printf "new reversal: %s\n"
+    (result_text (B.put_entry base ~replace:false reversal ~plan:None));
+  Stdio.printf "invalid date: %s\n"
+    (result_text (B.correct_entry_date base ~id:"init" ~day:"2026-02-30"));
+  Stdio.printf "invalid id: %s\n"
+    (result_text (B.correct_entry_date base ~id:"" ~day:"2026-10-02"));
+  Stdio.printf "unknown date target: %s\n"
+    (result_text (B.correct_entry_date base ~id:"nobody" ~day:"2026-10-02"));
+  Stdio.printf "unknown Merchant target: %s\n"
+    (result_text (B.classify_merchant base ~id:"nobody" ~disposition:M.Nonmerchant));
+  Stdio.printf "duplicate Merchant: %s\n"
+    (result_text (B.classify_merchant classified_book ~id:"init" ~disposition:M.Nonmerchant));
+  let bad_party = ident D.Identifier.External_party.of_string "bad\tparty" in
+  Stdio.printf "invalid Merchant token: %s\n"
+    (result_text (B.classify_merchant base ~id:"init" ~disposition:(M.Merchant bad_party)));
+  [%expect {|
+    date succeeds and changes only date: true
+    Merchant succeeds and changes only Merchant: true
+    generic correction: locus-unapproved
+    new entry: locus-unapproved
+    new reversal: locus-unapproved
+    invalid date: invalid-date
+    invalid id: invalid-entry-id
+    unknown date target: unknown-entry
+    unknown Merchant target: loam: Merchant classification requires an existing Event
+    duplicate Merchant: loam: Event Merchant is already classified; replacement is not qualified
+    invalid Merchant token: loam: Merchant party token must be a non-empty single text field
     |}]
 
 (* KNOWN GAP, pinned on purpose: the in-place record and correction paths update

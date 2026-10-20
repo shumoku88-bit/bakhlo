@@ -103,6 +103,11 @@ let commit_reverse_entry ~session ~base_revision ~id ~day : commit_result =
             }
           in
           publish_ops ~session [ L.Put_entry { replace = false; entry = reversal; plan = None } ]
+
+let commit_correct_entry_date ~session ~base_revision ~id ~day : commit_result =
+  if base_revision <> session.F.revision then Conflict_base_changed
+  else publish_ops ~session [ L.Correct_entry_date { id; day } ]
+
 let commit_classify_merchant ~session ~base_revision ~id ~disposition : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
   else

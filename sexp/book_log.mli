@@ -4,6 +4,7 @@
 
 type op =
   | Put_entry of { replace : bool; entry : Daily_book.entry; plan : string option }
+  | Correct_entry_date of { id : string; day : string }
   | Put_plan of { replace : bool; plan : Daily_book.plan }
   | Cancel_plan of { id : string; day : string }
   | Observe of (string * string * Z.t) list

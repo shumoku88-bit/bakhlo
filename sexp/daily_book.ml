@@ -1203,6 +1203,17 @@ let admit_entry_locally ?(endpoints_disjoint = true) t (e : entry) ~partners =
 
 let partner t id = Entry_map.find_opt id t.data.entry_map
 
+let partners_for_entry t (e : entry) =
+  List.filter_map (partner t)
+    (Option.to_list e.reversal_of @ Option.to_list (Entry_map.find_opt e.id t.data.reversed_by))
+
+let data_with_replaced_entry t (e : entry) =
+  let entries_rev =
+    List.map (fun (row : entry) -> if row.id = e.id then e else row) t.data.entries_rev
+  in
+  ({ t.data with entries_rev; entry_map = Entry_map.add e.id e t.data.entry_map },
+   lazy (List.rev entries_rev))
+
 let put_entry_incremental t (e : entry) ~plan =
   protect (fun () ->
       approve_effects t e.effects;
@@ -1261,10 +1272,7 @@ let put_entry_replace_incremental t (e : entry) =
             "loam: Event Merchant is already classified; replacement is not qualified"
       | None -> ());
       if old_e.reversal_of <> e.reversal_of then raise Needs_full_admission;
-      let partners =
-        List.filter_map (partner t)
-          (Option.to_list e.reversal_of @ Option.to_list (Entry_map.find_opt e.id t.data.reversed_by))
-      in
+      let partners = partners_for_entry t e in
       admit_entry_locally t e ~partners;
       let image =
         match
@@ -1274,11 +1282,8 @@ let put_entry_replace_incremental t (e : entry) =
         | Some image -> image
         | None -> raise Needs_full_admission
       in
-      let entries_rev =
-        List.map (fun (row : entry) -> if row.id = e.id then e else row) t.data.entries_rev
-      in
-      let data = { t.data with entries_rev; entry_map = Entry_map.add e.id e t.data.entry_map } in
-      { data; image; entries_cached = lazy (List.rev entries_rev) })
+      let data, entries_cached = data_with_replaced_entry t e in
+      { data; image; entries_cached })
 
 let put_entry t ~replace (e : entry) ~plan =
   if not replace then put_entry_incremental t e ~plan
@@ -1286,25 +1291,52 @@ let put_entry t ~replace (e : entry) ~plan =
     try put_entry_replace_incremental t e with Needs_full_admission -> put_entry_full t ~replace e ~plan
   else put_entry_full t ~replace e ~plan
 
-let classify_with put t ~id ~disposition =
-  protect (fun () ->
-      let e =
-        match Entry_map.find_opt id t.data.entry_map with
-        | Some e -> e
-        | None -> raise (Refused "loam: Merchant classification requires an existing Event")
-      in
-      if e.merchant <> None then
-        raise (Refused "loam: Event Merchant is already classified; replacement is not qualified");
-      (match disposition with
-      | A.Event_merchants.Merchant p ->
-          let tok = D.Identifier.External_party.to_string p in
-          require (valid_token tok)
-            "loam: Merchant party token must be a non-empty single text field"
-      | Nonmerchant -> ());
-      let updated = { e with merchant = Some disposition } in
-      get "classify-merchant" (put t ~replace:true updated ~plan:None))
+let correct_entry_date_candidate t ~id ~day =
+  ignore (eid id);
+  valid_date day;
+  let old_entry =
+    match Entry_map.find_opt id t.data.entry_map with
+    | Some e -> e
+    | None -> raise (Refused "unknown-entry")
+  in
+  let updated = { old_entry with day } in
+  let data, entries_cached = data_with_replaced_entry t updated in
+  (updated, data, entries_cached)
 
-let classify_merchant = classify_with put_entry
+let correct_entry_date t ~id ~day =
+  protect (fun () ->
+      let _, data, entries_cached = correct_entry_date_candidate t ~id ~day in
+      (* The existing entry and every fact except its base date are already
+         admitted. [valid_date] is the complete new condition for this
+         structurally date-only replacement; [Full] remains the whole-book
+         oracle. *)
+      { data; image = t.image; entries_cached })
+
+let classify_merchant_candidate t ~id ~disposition =
+  let old_entry =
+    match Entry_map.find_opt id t.data.entry_map with
+    | Some e -> e
+    | None -> raise (Refused "loam: Merchant classification requires an existing Event")
+  in
+  if old_entry.merchant <> None then
+    raise (Refused "loam: Event Merchant is already classified; replacement is not qualified");
+  (match disposition with
+  | A.Event_merchants.Merchant p ->
+      let tok = D.Identifier.External_party.to_string p in
+      require (valid_token tok)
+        "loam: Merchant party token must be a non-empty single text field"
+  | Nonmerchant -> ());
+  let updated = { old_entry with merchant = Some disposition } in
+  let data, entries_cached = data_with_replaced_entry t updated in
+  (updated, data, entries_cached)
+
+let classify_merchant t ~id ~disposition =
+  protect (fun () ->
+      let _, data, entries_cached = classify_merchant_candidate t ~id ~disposition in
+      (* The Event and its Effects/links are unchanged and already admitted.
+         The candidate performs the complete new Merchant checks: target
+         existence, first classification and a valid disposition token. *)
+      { data; image = t.image; entries_cached })
 
 let add_locus_candidate t id =
   ignore (lid id);
@@ -1527,7 +1559,14 @@ module Full = struct
   let put_entry = put_entry_full
   let put_plan t ~replace p = protect (fun () -> readmit (plan_candidate t ~replace p))
   let cancel_plan t ~id ~day = protect (fun () -> readmit (cancel_candidate t ~id ~day))
-  let classify_merchant = classify_with put_entry_full
+  let correct_entry_date t ~id ~day =
+    protect (fun () ->
+        let _, data, _ = correct_entry_date_candidate t ~id ~day in
+        readmit data)
+  let classify_merchant t ~id ~disposition =
+    protect (fun () ->
+        let _, data, _ = classify_merchant_candidate t ~id ~disposition in
+        readmit data)
   let observe_quantities = observe_quantities_full
   let add_locus t id = protect (fun () -> readmit (add_locus_candidate t id))
 

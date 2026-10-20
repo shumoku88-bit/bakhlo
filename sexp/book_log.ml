@@ -8,6 +8,7 @@ module X = Sexplib0.Sexp
 
 type op =
   | Put_entry of { replace : bool; entry : B.entry; plan : string option }
+  | Correct_entry_date of { id : string; day : string }
   | Put_plan of { replace : bool; plan : B.plan }
   | Cancel_plan of { id : string; day : string }
   | Observe of (string * string * Z.t) list
@@ -17,6 +18,7 @@ type op =
 
 let apply book = function
   | Put_entry { replace; entry; plan } -> B.put_entry book ~replace entry ~plan
+  | Correct_entry_date { id; day } -> B.correct_entry_date book ~id ~day
   | Put_plan { replace; plan } -> B.put_plan book ~replace plan
   | Cancel_plan { id; day } -> B.cancel_plan book ~id ~day
   | Observe rows -> B.observe_quantities book rows
@@ -36,6 +38,7 @@ let mode replace = a (if replace then "replace" else "new")
 
 let op_to_sexp = function
   | Put_entry { replace; entry; plan } -> f "put-entry" [ mode replace; B.entry_to_sexp entry; opt plan ]
+  | Correct_entry_date { id; day } -> f "correct-entry-date" [ a id; a day ]
   | Put_plan { replace; plan } -> f "put-plan" [ mode replace; B.plan_to_sexp plan ]
   | Cancel_plan { id; day } -> f "cancel-plan" [ a id; a day ]
   | Observe rows -> f "observe" (List.map (fun (l, m, q) -> X.List [ a l; a m; a (Z.to_string q) ]) rows)
@@ -67,6 +70,8 @@ let op_of_sexp x =
   match x with
   | X.List [ X.Atom "put-entry"; r; e; p ] ->
       Put_entry { replace = replace r; entry = ok (B.entry_of_sexp e); plan = opt p }
+  | X.List [ X.Atom "correct-entry-date"; X.Atom id; X.Atom day ] ->
+      Correct_entry_date { id; day }
   | X.List [ X.Atom "put-plan"; r; p ] -> Put_plan { replace = replace r; plan = ok (B.plan_of_sexp p) }
   | X.List [ X.Atom "cancel-plan"; X.Atom id; X.Atom day ] -> Cancel_plan { id; day }
   | X.List (X.Atom "observe" :: rows) ->

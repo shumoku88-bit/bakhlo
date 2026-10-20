@@ -131,7 +131,10 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
       | Date.Updated e -> stay (keep (Date_correction e))
       | Date.Closed -> stay (create ())
       | Date.Publish (transaction, base) ->
-          (keep (Date_correction (Date.edit e)), Screen.Publish (Correct_entry { transaction; base })))
+          (keep (Date_correction (Date.edit e)),
+           Screen.Publish
+             (Correct_entry_date
+                { id = transaction.entry.id; day = transaction.entry.day; base })))
   | Some (Event_merchant e) -> (
       match Merchant.handle ~blocked ~dimensions:(Merchant.dimensions body) ~width_of e input with
       | Merchant.Updated e -> stay (keep (Event_merchant e))

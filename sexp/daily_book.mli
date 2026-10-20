@@ -136,6 +136,12 @@ val cancel_plan : t -> id:string -> day:string -> (t, string) result
     balance change. Paid/already-cancelled/missing plans refuse. Cancellation does
     not require the historical loci to remain approved for new writes. *)
 
+val correct_entry_date : t -> id:string -> day:string -> (t, string) result
+(** Change only the validity date of one retained entry. The Event identity,
+    Effects (including keys), Reversal/exchange links, amount, memo and Merchant
+    disposition are preserved. Historical Loci need not remain approved because
+    no Effect changes or is newly admitted. *)
+
 val put_entry_full : t -> replace:bool -> entry -> plan:string option -> (t, string) result
 (** Reference oracle: complete whole-book admission verification without incremental fast path. *)
 
@@ -149,6 +155,7 @@ module Full : sig
   val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) result
   val put_plan : t -> replace:bool -> plan -> (t, string) result
   val cancel_plan : t -> id:string -> day:string -> (t, string) result
+  val correct_entry_date : t -> id:string -> day:string -> (t, string) result
 
   val classify_merchant :
     t -> id:string -> disposition:Bakhlo_application.Event_merchants.disposition -> (t, string) result
