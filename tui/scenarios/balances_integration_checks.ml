@@ -55,14 +55,20 @@ let balance_display_checks ~width_of ~directory () =
     match List.nth_opt (balance_items state) (Balances.selected state.C.screens.balances) with
     | Some (O.Account_row { locus; measure; _ }) -> Some (locus, measure)
     | _ -> None in
-  let eur_index = Option.get (List.find_index (function
-    | O.Account_row { locus = "wallet"; measure = "eur"; _ } -> true | _ -> false)
+  let wallet_index = Option.get (List.find_index (function
+    | O.Account_row { locus = "wallet"; measure = "jpy"; _ } -> true | _ -> false)
     (balance_items view)) in
-  let eur = { view with screens = { view.screens with balances = Balances.set_selected eur_index view.screens.balances } } in
-  let accounting = key ~width_of eur (`ASCII 'v') in
+  let wallet = { view with screens = { view.screens with balances = Balances.set_selected wallet_index view.screens.balances } } in
+  let accounting = key ~width_of wallet (`ASCII 'v') in
   let current = key ~width_of accounting (`ASCII 'v') in
-  require (coordinate accounting = Some ("wallet", "eur") && coordinate current = Some ("wallet", "eur"))
+  require (coordinate accounting = Some ("wallet", "jpy") && coordinate current = Some ("wallet", "jpy"))
     "balance-mode-switch-keeps-exact-coordinate-not-header";
+  (* As LOAM: Accounting represents evidence coordinates, not admission x Measure. *)
+  let represented = List.filter_map (function
+    | O.Account_row { locus; measure; _ } -> Some (locus, measure) | _ -> None) (balance_items accounting) in
+  require (List.mem ("zero", "jpy") represented && not (List.mem ("wallet", "eur") represented)
+           && not (List.exists (fun (locus, _) -> locus = "bank") represented))
+    "accounting-represents-evidence-coordinates-not-admissions";
   List.iter (fun dimensions ->
     let head = key ~dimensions ~width_of accounting `Home in
     let rec painted_capacity inside count = function

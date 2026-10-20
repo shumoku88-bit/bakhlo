@@ -147,6 +147,15 @@ let () = match Sys.argv with
       median "exchange" 21 (fun () -> get (B.put_entry b ~replace:false exchange ~plan:None));
       median "observe" 21 (fun () -> get (B.observe_quantities b [ ("wallet", "jpy", Z.of_int 5000) ]));
       median "balance query" 101 (fun () -> balance b);
+      median "represented coordinates (uncached)" 21 (fun () ->
+        let image = B.image b in
+        let frontier = Bakhlo_application.Actual_source.frontier (Q.source image) in
+        let seen = Hashtbl.create 64 in
+        List.iter (fun e -> List.iter (fun p ->
+            Hashtbl.replace seen (D.Effect.locus p, D.Effect.measure p) ()) (D.Event.effects e))
+          (Bakhlo_application.Correction_frontier.frontier_events frontier);
+        List.sort_uniq D.Effect_coordinate.compare
+          (Hashtbl.fold (fun (locus, measure) () acc -> ({ locus; measure } : D.Effect_coordinate.t) :: acc) seen []));
       let pool = [coordinate "wallet" "jpy"] in
       median "daily_pace" 21 (fun () -> B.daily_pace b ~measure:"jpy" ~pool ~observed_at:"2030-01-01" ~end_exclusive:"2030-02-01")
   | _ -> prerr_endline "usage"; exit 2

@@ -103,12 +103,54 @@ type balance_item =
     }
   | Blank_row
 
+(* As LOAM's Role Balance: the represented coordinates are those on the current
+   correction frontier or named by a support family, never the admission list,
+   in exact Locus-then-Measure order. Scanning the frontier costs ~21 ms at 109.5k
+   synthetic entries (tools/startup-probe), so the answer is kept for the last image
+   seen; a publication replaces the image and so recomputes it. *)
+let represented_cache : (Q.t * D.Effect_coordinate.t list) option ref = ref None
+
+let compute_represented_coordinates image =
+  let frontier = Bakhlo_application.Actual_source.frontier (Q.source image) in
+  let seen = Hashtbl.create 64 in
+  List.iter (fun event ->
+      List.iter (fun effect -> Hashtbl.replace seen (D.Effect.locus effect, D.Effect.measure effect) ())
+        (D.Event.effects event))
+    (Bakhlo_application.Correction_frontier.frontier_events frontier);
+  let from_events =
+    Hashtbl.fold (fun (locus, measure) () acc -> ({ locus; measure } : D.Effect_coordinate.t) :: acc) seen [] in
+  let from_groups =
+    List.concat_map
+      (fun (group : Bakhlo_application.Current_quantity_groups.group) ->
+        List.map (fun (a : Bakhlo_application.Current_quantity_projection.assertion) -> a.coordinate)
+          group.assertions)
+      (Bakhlo_application.Current_quantity_groups.groups (Q.source_groups image)) in
+  let from_openings = List.map (fun (o : Q.opening) -> o.coordinate) (Q.openings image) in
+  let from_presence = match Q.presence image with None -> [] | Some p -> p.coordinates in
+  List.sort_uniq D.Effect_coordinate.compare
+    (from_events @ Q.zero_origins image @ from_openings @ from_groups @ from_presence)
+
+let represented_coordinates book =
+  let image = B.image book in
+  match !represented_cache with
+  | Some (cached, coordinates) when cached == image -> coordinates
+  | _ ->
+      let coordinates = compute_represented_coordinates image in
+      represented_cache := Some (image, coordinates);
+      coordinates
+
 let role_balance_items ~book ~roles =
-  let measures = List.map fst (B.measures book) in
-  let approved = Option.value ~default:[] (B.approved_loci book) in
+  let coordinates = represented_coordinates book in
+  let measures =
+    List.filter (fun measure ->
+        List.exists (fun (c : D.Effect_coordinate.t) -> A.mstr c.measure = measure) coordinates)
+      (List.map fst (B.measures book)) in
   let items_for_measure measure =
     let loci_with_roles =
-      List.map (fun locus -> (locus, List.assoc_opt locus roles)) approved
+      List.filter_map (fun (c : D.Effect_coordinate.t) ->
+          if A.mstr c.measure = measure then Some (A.lstr c.locus, List.assoc_opt (A.lstr c.locus) roles)
+          else None)
+        coordinates
     in
     let rows_for_role target_role =
       List.filter_map

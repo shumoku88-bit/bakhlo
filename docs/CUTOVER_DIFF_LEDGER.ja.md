@@ -68,7 +68,7 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 | 一覧の見た目 | 🟨 差あり | Bakhloは表示名＋ID、見出しは Amount（スケール適用後の金額）。LOAMはIDと Quanta | なし | UI-24 |
 | 選択した残高の詳細・下部案内 | 🟨 差あり | 項目と並び順が違う | なし | UI-24 |
 | 確認した残高の入力（Observe） | 🟨 差あり | 複数口座を同時に入力・Preview・保存できる。入力欄の形がLOAMと違う。差分追加した明細が観測に反映済みと扱われず二重計上されるCore不具合を修正（合成で確認、2026-10-20） | なし | UI-31, [Observe修正](VERIFICATION.md#observation-after-incremental-record-2026-10-20) |
-| Accounting表示 | ⬜ 未確認 | あり。LOAMとの照合未了 | 要判断 | B01, V03 |
+| Accounting表示 | 🟨 差あり（数値は実データで一致） | 2026-10-21、Bakhloが登録済み科目（approved-loci）だけを数えていたため、記帳に使われているが未登録の科目（開始残高のEquityなど）が抜け、Equity欄とBalance Sheetが違っていた不具合を修正。LOAMと同じく記帳・残高根拠のある座標を数え、並びもトークン順に。120×36の実データで役割ごとの行・小計・Known Net Worthが一致。LOAMにある Answerability Map・次に必要な根拠・全残高の支持一覧はBakhloにない | 要判断 | B01, V03, [Accounting対照](VERIFICATION.md#accounting-represents-evidence-coordinates-2026-10-21) |
 | 印刷・端末への出力 | 🟨 差あり | 画面内のPrint previewのみ。LOAMの同意付き端末出力はない | 要判断 | UI-32 |
 
 ## 5. Daily Pace

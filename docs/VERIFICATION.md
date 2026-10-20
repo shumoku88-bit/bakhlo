@@ -5147,4 +5147,54 @@ terminal/IME, human acceptance and P7 were **not executed**.
   items): j then End selects the last item, Home the first. It failed at
   `attention-end-from-second-selects-last` before the fix.
 - `./tools/check`, `./tools/tui --self-check` (39 PASS) and `git diff --check` passed.
+- Pushed `e76dec1`; matching-SHA
+  [Core CI 39476432040](https://github.com/shumoku88-bit/bakhlo/actions/runs/39476432040)
+  and [Bonsai TUI CI 39476432576](https://github.com/shumoku88-bit/bakhlo/actions/runs/39476432576)
+  both succeeded.
   Latest-data comparison, physical terminal and P7 were **not executed**.
+
+## Accounting represents evidence coordinates (2026-10-21)
+
+### Difference found
+
+Latest-data paired comparison on generation `capture-1792521489-11910-293b919a` at
+120×36 (read-only: Home `b`, `v`; LOAM Reports → Balances / Accounting). LOAM's Equity
+section contained the opening-balance Equity coordinate; Bakhlo's showed
+`(no supported rows)` with a zero subtotal. Cause: `Daily_overlays.role_balance_items`
+enumerated `approved-loci` × every Measure, while LOAM's Role Balance
+(`Loam/Review/RoleBalanceReview.lean`) represents the union of the current correction
+frontier's coordinates and the zero-origin, opening, anchor and presence families. A
+coordinate used in entries but absent from `LocusAdmission` was dropped, and admitted
+coordinates without any evidence were listed.
+
+### Change
+
+- `represented_coordinates` builds that union from `Current_quantity_query` (frontier
+  Events' Effects, zero-origins, openings, assertion groups, presence) in
+  `Effect_coordinate.compare` order; Measures without a represented coordinate get no
+  section. Section structure, completeness flags and amounts are unchanged.
+- Cost measured with `./tools/startup-probe 109500` (synthetic): the first version took
+  46.5 ms (median of 21); Hashtbl de-duplication 21.3 ms. The result is cached for the
+  last book image (physical equality; a publication replaces the image), so only the first
+  Accounting paint after a change pays it.
+- `tui/scenarios/balances_integration_checks.ml`: the mode-switch check now uses a
+  coordinate present in both views (`wallet / jpy`); a new check requires the zero-origin
+  coordinate and excludes an admitted Locus without evidence and a Measure without evidence
+  (`accounting-represents-evidence-coordinates-not-admissions`).
+
+### Evidence
+
+- `./tools/check`, `./tools/tui --self-check` (39 PASS), `git diff --check` passed.
+- After the change on the same generation at 120×36: per-role row values (Asset 6,
+  Liability 3, Equity 1), role subtotals and jpy Known Net Worth equal LOAM's (compared by
+  script in ignored scratch; values not recorded). Row order now follows tokens as in
+  LOAM. 80×24 opened Accounting; only its first page was read (Equity is below the fold
+  there). Household/config SHA-256 unchanged, comparison book unchanged, AI tmux sessions
+  closed, `clean-copies` passed.
+- Remaining presentation difference: LOAM's Accounting also shows an Answerability Map,
+  next-evidence targets and an all-current-balance support list; Bakhlo does not.
+
+### Limits
+
+Other Measures than jpy, physical terminal/IME, human acceptance and P7 were **not
+executed**.
