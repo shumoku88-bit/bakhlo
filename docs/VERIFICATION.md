@@ -13,6 +13,7 @@ targets, storage, full normalized Actual admission, recovery and migration remai
 - Synthetic probe: save ≈0.6 ms at 1,000 / 36,500 / 109,500 entries (36.5 ms before at 109,500). [Stage 8](LONG_TERM_STORAGE_STUDY.ja.md).
 - Limit: a revision identifies successive saves, not every byte; writes stay guarded by the inode/size/mtime/tail check.
 - Passed: `./tools/check` (exit 0), `./tools/tui --self-check` (35 PASS, exit 0), `git diff --check`. Synthetic only.
+- Matching implementation `7df640e`: [Core 39351648933](https://github.com/shumoku88-bit/bakhlo/actions/runs/39351648933) and [Bonsai TUI 39351648955](https://github.com/shumoku88-bit/bakhlo/actions/runs/39351648955) completed/success (synthetic CI).
 
 ## Append-only saves (2026-10-20)
 
