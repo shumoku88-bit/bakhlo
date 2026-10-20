@@ -12,14 +12,16 @@ module Cov = Scheduled_coverage
 let tr = Ui_text.tr
 
 type view = Coverage_view | Plan_view | Months_view | List_view
-type pane = List_pane | Detail_pane
+type pane = List_pane | Loci_pane | Detail_pane
 
 type t = {
   view : view;
   list : RB.t;
   months_list : RB.t;
   months : Months.t;
+  focus_day : string;  (* captured through enter: the day scope's exact date *)
   pane : pane;
+  origin : pane;  (* the pane that opened the detail *)
   scroll : int;
   search : string option;  (* the search input while it is open *)
   coverage_row : int;
@@ -34,9 +36,10 @@ let config_files = [ coverage_file ]
 let coverage_months = 18
 
 let create months =
-  { view = Coverage_view; list = RB.empty; months_list = { RB.empty with order = RB.Oldest }; months;
-    pane = List_pane; scroll = 0; search = None; coverage_row = 0; coverage_offset = 0; plan_row = 0;
-    pace = None; pending = None }
+  { view = Coverage_view; list = { RB.empty with order = RB.Oldest };
+    months_list = { RB.empty with order = RB.Oldest }; months;
+    focus_day = ""; pane = List_pane; origin = List_pane; scroll = 0; search = None;
+    coverage_row = 0; coverage_offset = 0; plan_row = 0; pace = None; pending = None }
 
 (* Monitoring rules are read-side configuration; a missing file is no rule, a
    malformed or unreadable one is an explicit error, never an empty overview. *)
@@ -82,7 +85,41 @@ let selected_plan book t =
   | Some (RB.Scheduled_plan p) -> Some p
   | _ -> None
 
-let book_changed ~before:_ ~after t = (synced after { t with scroll = 0 }, "")
+(* The List's Loci pane derives its rows from the same scope the browser filters
+   on: all current-open plans, or the captured focus day. *)
+let scope_plans book t =
+  match t.list.day with
+  | None -> B.open_plans book
+  | Some day -> List.filter (fun (p : B.plan) -> p.day = day) (B.open_plans book)
+
+let loci book t =
+  List.sort_uniq String.compare
+    (List.concat_map (fun (p : B.plan) -> List.map fst p.changes) (scope_plans book t))
+
+(* Row 0 is [All loci]; the filter lives in the browser, so the pane and the
+   List can never disagree. *)
+let locus_row book t =
+  match t.list.locus with
+  | None -> 0
+  | Some id ->
+      let rec find i = function
+        | [] -> 0
+        | locus :: rest -> if locus = id then i + 1 else find (i + 1) rest in
+      find 0 (loci book t)
+
+let set_locus book t row =
+  let names = loci book t in
+  let row = max 0 (min (List.length names) row) in
+  let locus = if row = 0 then None else List.nth_opt names (row - 1) in
+  if t.list.locus = locus then synced book t
+  else synced book (with_browser { t with scroll = 0 } (RB.with_locus (browser t) locus))
+
+let book_changed ~before:_ ~after t =
+  (* A locus that left the new scope would filter everything out silently. *)
+  let t = match t.list.locus with
+    | Some id when not (List.mem id (loci after t)) -> { t with list = RB.with_locus t.list None }
+    | _ -> t in
+  (synced after { t with scroll = 0 }, "")
 
 let follow_months book t =
   match t.view, selected_plan book t with
@@ -97,8 +134,8 @@ let detail_rows ~width_of ~width book t =
 
 let detail_window (env : Screen.env) (geometry : Screen.geometry) t =
   let width, height = geometry.content in
-  let detail_width = if months_view t then width else snd (Panel.split_widths width) in
-  let count = List.length (detail_rows ~width_of:geometry.width_of ~width:detail_width env.book t) in
+  (* The full-detail pane is the whole body in both Months and List. *)
+  let count = List.length (detail_rows ~width_of:geometry.width_of ~width env.book t) in
   (height, Panel.window ~capacity:(Panel.capacity ~height ~heading:false) ~count ~scroll:t.scroll ~selected:None)
 
 let with_query book t query = synced book (with_browser t (RB.with_query (browser t) query))
@@ -112,7 +149,7 @@ let toggle_view env book t =
     | Plan_view -> Coverage_view
     | Months_view -> List_view
     | List_view -> if monitored env then Coverage_view else Months_view in
-  let destination = { t with view } in
+  let destination = { t with view; pane = List_pane; origin = List_pane; scroll = 0 } in
   let destination =
     match selected_id with
     | Some id when List.exists (fun row -> RB.identity row = id) (rows book destination) ->
@@ -485,6 +522,111 @@ let plan_paint (env : Screen.env) (geometry : Screen.geometry) t =
         ~title:"Occurrences / monitored gaps" body
       @ legend
 
+(* --- List: Loci pane, aligned occurrence table, inline selected record --- *)
+
+let list_shape (p : B.plan) =
+  let side positive =
+    List.sort_uniq String.compare
+      (List.filter_map (fun (id, q) -> if (Z.sign q > 0) = positive then Some id else None) p.changes) in
+  let negative, positive = (side false, side true) in
+  (* An arrow would claim a movement the changes do not state. *)
+  if negative = [] || positive = [] then String.concat "," (negative @ positive)
+  else String.concat "," negative ^ " -> " ^ String.concat "," positive
+
+let list_amount book (p : B.plan) = entry_quantity book (Occurrence (p, true))
+
+let side_by_side ~height left_width left_rows right_rows =
+  let pad rows = rows @ List.init (max 0 (height - List.length rows)) (fun _ -> (O.Plain, "")) in
+  List.map2 (fun (left_style, left) (right_style, right) ->
+      (O.Columns (left_width, left_style, right_style), left ^ " " ^ right))
+    (pad left_rows) (pad right_rows)
+
+let list_paint (env : Screen.env) (geometry : Screen.geometry) t =
+  let book = env.book and width_of = geometry.width_of in
+  let width, height = geometry.content in
+  let rows = rows book t in
+  let plans = List.filter_map (function RB.Scheduled_plan p -> Some p | _ -> None) rows in
+  let names = loci book t in
+  let detail_height =
+    if height < 13 then 0
+    else min ((if height >= 48 then 10 else if height >= 36 then 8 else 6) + 2) (height - 5) in
+  let panel_h = max 0 (height - detail_height) in
+  let focused = if t.pane = Loci_pane then Loci_pane else List_pane in
+  let locus_panel pane_w =
+    let inner_w = max 0 (pane_w - 2) in
+    let total = List.length names + 1 in
+    let selected = min (locus_row book t) (total - 1) in
+    let capacity = max 1 (panel_h - 2) in
+    let start = trailing_start selected capacity in
+    let active = t.pane = Loci_pane in
+    let label i = if i = 0 then "[All loci]" else Option.value ~default:"" (List.nth_opt names (i - 1)) in
+    let line i =
+      ((if i = selected && active then O.Active else O.Plain),
+       O.clip_text ~width_of inner_w ((if i = selected then (if active then "> " else "* ") else "  ") ^ label i)) in
+    let more = (if start > 0 then " ▲" else "") ^ (if start + capacity < total then " ▼" else "") in
+    Panel.frame_rows ~inset:0 ~width_of ~width:pane_w ~height:panel_h ~focused:active
+      ~title:(Printf.sprintf "Loci (%d)" (List.length names))
+      ~bottom_label:(Printf.sprintf "%d/%d%s" (selected + 1) total more)
+      (List.init (max 0 (min capacity (total - start))) (fun i -> line (start + i))) in
+  let occurrence_panel pane_w =
+    let inner_w = max 0 (pane_w - 2) in
+    let at = (browser t).selected in
+    let total = List.length plans in
+    let tabular = inner_w >= 32 in
+    let show_header = tabular && panel_h >= 4 in
+    let capacity = max 1 (max 0 (panel_h - 2) - (if show_header then 1 else 0)) in
+    let start = trailing_start at capacity in
+    let qty_w = min (max 0 (inner_w - 24))
+        (min 22 (max 12 (List.fold_left (fun w p -> max w (width_of (list_amount book p))) 0 plans))) in
+    let shape_w = max 0 (inner_w - 2 - 14 - qty_w) in
+    let cells date shape amount =
+      O.pad ~width_of 10 date ^ "  " ^ O.pad ~width_of shape_w (O.clip_text ~width_of shape_w shape)
+      ^ "  " ^ O.pad_left ~width_of qty_w (if width_of amount <= qty_w then amount else "too wide") in
+    let active = t.pane = List_pane in
+    let line index (p : B.plan) =
+      let text =
+        if tabular then
+          (if index = at then (if active then "> " else "* ") else "  ") ^ cells p.B.day (list_shape p) (list_amount book p)
+        else
+          let amount = list_amount book p in
+          (if index = at then (if active then "> " else "* ") else "  ") ^ p.day ^ " "
+          ^ (if width_of amount <= max 0 (inner_w - 13) then amount else "too wide") in
+      ((if index = at && active then O.Active else O.Plain), O.clip_text ~width_of inner_w text) in
+    let empty =
+      if total > 0 then []
+      else
+        [ (O.Status, " " ^ (if t.list.query <> "" then "No Scheduled occurrence matches this search and scope."
+            else match t.list.locus with
+            | Some _ -> "No matching Scheduled occurrences for this Locus."
+            | None -> if t.list.day <> None then "(none dated on this day)"
+              else "(no current-open Scheduled occurrences)")) ] in
+    let body =
+      if total = 0 then empty
+      else (if show_header then [ (O.Status, "  " ^ cells "Date" "Shape" "Amount") ] else [])
+        @ List.filteri (fun i _ -> i >= start && i - start < capacity) (List.mapi line plans) in
+    let more = (if start > 0 then " ▲" else "") ^ (if start + capacity < total then " ▼" else "") in
+    Panel.frame_rows ~inset:0 ~width_of ~width:pane_w ~height:panel_h ~focused:active
+      ~title:(Printf.sprintf "Scheduled (%d)" total)
+      ~bottom_label:((if total = 0 then "0/0" else Printf.sprintf "%d/%d" (at + 1) total) ^ more) body in
+  let panels =
+    if width >= 80 then
+      let left_width = min 30 (max 20 (width / 4)) in
+      side_by_side ~height:panel_h left_width
+        (locus_panel left_width) (occurrence_panel (max 0 (width - left_width - 1)))
+    else if focused = Loci_pane then locus_panel width else occurrence_panel width in
+  let details =
+    if detail_height = 0 then []
+    else
+      let lines = detail_rows ~width_of ~width:(max 1 (width - 2)) book t in
+      let capacity = max 0 (detail_height - 2) in
+      let overflow =
+        if List.length lines > capacity then
+          Some (Printf.sprintf "%d/%d lines ▼" capacity (List.length lines))
+        else None in
+      Panel.frame_rows ~inset:0 ?bottom_label:overflow ~width_of ~width ~height:detail_height
+        ~focused:false ~title:"Selected Scheduled" (List.map (fun line -> O.Plain, line) lines) in
+  panels @ details
+
 let handle (env : Screen.env) (geometry : Screen.geometry) t input =
   let book = env.book in
   let stay t = (t, Screen.Stay) in
@@ -507,30 +649,34 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
       | Some chooser, _ -> handle_pace env t chooser key
       | None, Coverage_view -> handle_coverage env t key
       | None, Plan_view -> handle_plan env t key
-      | None, (Months_view | List_view) ->
-      let months = months_view t and detail = t.pane = Detail_pane in
-      let toggle_pane t = { t with pane = (if t.pane = List_pane then Detail_pane else List_pane) } in
+      | None, Months_view -> (
+      let detail = t.pane = Detail_pane in
       match key with
       | Some ((`Escape | `ASCII ('q')), []) ->
           if detail then stay { t with pane = List_pane; scroll = 0 } else (t, Screen.Back)
       | Some (`ASCII 'b', []) -> action book t Screen.Batch
       | Some (`ASCII 'g', []) -> action book t Screen.Generate
-      | Some (`ASCII 'v', []) -> (toggle_view env book { t with scroll = 0 }, unless_blocked env "")
-      | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)) as k, []) when months && not detail -> (
+      | Some (`ASCII 'v', []) -> (toggle_view env book { t with pane = List_pane; scroll = 0 }, unless_blocked env "")
+      | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)) as k, []) when not detail -> (
           let delta = match k with `ASCII 'h' | `Arrow `Left -> -1 | _ -> 1 in
           match Months.shift t.months delta with
           | Ok months -> stay { t with months }
           | Error message -> (t, unless_blocked env message))
-      | Some (`ASCII ('f' | '/'), []) when months ->
+      | Some (`ASCII ('f' | '/'), []) ->
           (t, unless_blocked env "Months uses all current-open plans; v opens filtered List.")
-      | Some (`Enter, []) when months -> action book t Screen.Pay
-      | Some (`ASCII 'r', []) when months -> action book t Screen.Edit
-      | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), []) -> stay { (toggle_pane t) with scroll = 0 }
+      | Some (`Enter, []) -> action book t Screen.Pay
+      | Some (`ASCII 'r', []) -> action book t Screen.Edit
+      | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), []) ->
+          stay { t with pane = List_pane; scroll = 0 }
+      | Some (`ASCII 'c', []) -> action book t Screen.Pay
+      | Some (`ASCII 'x', []) -> action book t Screen.Cancel
+      | Some (`ASCII 'e', ([] | [ `Ctrl ])) -> action book t Screen.Edit
+      | Some (`ASCII 'i', []) ->
+          stay { t with pane = Detail_pane; origin = List_pane; scroll = 0 }
       | Some (((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)) as k), [])
       | Some ((`ASCII ('u' | 'd') as k), [ `Ctrl ]) ->
-          let height, view = detail_window env geometry t in
-          let page = max 1 (if detail then view.capacity else if months then 8
-                            else Panel.capacity ~height ~heading:false) in
+          let _, view = detail_window env geometry t in
+          let page = max 1 (if detail then view.capacity else 8) in
           let delta = match k with
             | `Home -> -max_int | `End -> max_int
             | `Page `Up | `ASCII 'u' -> -page | `Page `Down | `ASCII 'd' -> page
@@ -539,19 +685,71 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
           else
             let t = synced book t in
             stay (follow_months book { (with_browser t (RB.move (browser t) (rows book t) delta)) with scroll = 0 })
-      | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) -> stay (toggle_pane t)
-      | Some (`ASCII '/', []) -> stay { t with search = Some (browser t).query }
-      | Some (`ASCII ('r' | 'n'), []) -> (t, Screen.New_plan)
-      | Some (`ASCII ('f'), []) ->
-          stay (synced book (with_browser { t with scroll = 0 } (RB.toggle_day (browser t) ~focus_day:env.calendar.selected_day)))
-      | Some (`ASCII 'x', []) -> action book t Screen.Cancel
+      | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
+          stay (if detail then { t with pane = List_pane; scroll = 0 }
+                else { t with pane = Detail_pane; origin = List_pane; scroll = 0 })
+      | Some (`ASCII 'n', []) -> (t, Screen.New_plan)
+      | _ -> (t, Screen.Ignored))
+      | None, List_view ->
+      let detail = t.pane = Detail_pane in
+      let page = 8 in
+      let open_detail t = { t with pane = Detail_pane; origin = t.pane } in
+      let move_rows delta =
+        synced book (with_browser { t with scroll = 0 } (RB.move (browser t) (rows book t) delta)) in
+      let move_loci delta =
+        let last = List.length (loci book t) and row = locus_row book t in
+        let row =
+          if delta > 0 then row + min delta (last - row)
+          else if delta < -row then 0
+          else row + delta in
+        set_locus book t row in
+      match key with
+      | Some ((`Escape | `ASCII 'q'), []) ->
+          if detail then stay { t with pane = t.origin; scroll = 0 } else (t, Screen.Back)
+      | Some ((`ASCII ('h' | 'l') as k), []) | Some ((`Arrow (`Left | `Right)) as k, []) when not detail ->
+          stay { t with pane = (match k with `ASCII 'h' | `Arrow `Left -> Loci_pane | _ -> List_pane) }
+      | Some (`ASCII 'f', []) ->
+          let browser = RB.toggle_day (RB.with_locus (browser t) None) ~focus_day:t.focus_day in
+          stay (synced book (with_browser { t with pane = List_pane; scroll = 0 } browser))
+      | Some (`Enter, []) -> if t.pane = Loci_pane then stay t else action book t Screen.Pay
+      | Some (`ASCII 'i', []) -> stay (if detail then t else open_detail { t with scroll = 0 })
+      | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
+          stay (if detail then { t with pane = t.origin } else open_detail t)
+      | Some (`ASCII ('c' | 'r' | 'x' | 'e' | 'b' | 'g'), []) | Some (`ASCII 'e', [ `Ctrl ]) when t.pane = Loci_pane ->
+          (t, unless_blocked env "Focus the Scheduled pane with l before acting on an occurrence.")
       | Some (`ASCII 'c', []) -> action book t Screen.Pay
+      | Some (`ASCII 'r', []) -> action book t Screen.Edit
+      | Some (`ASCII 'x', []) -> action book t Screen.Cancel
+      | Some (`ASCII 'b', []) -> action book t Screen.Batch
+      | Some (`ASCII 'g', []) -> action book t Screen.Generate
       | Some (`ASCII 'e', ([] | [ `Ctrl ])) -> action book t Screen.Edit
-      | Some ((`Enter | `ASCII 'i'), []) -> stay { t with pane = Detail_pane; scroll = 0 }
+      | Some (`ASCII 'n', []) -> (t, Screen.New_plan)
+      | Some (`ASCII '/', []) -> stay { t with search = Some (browser t).query }
+      | Some (`ASCII 'v', []) ->
+          (toggle_view env book { t with pane = List_pane; scroll = 0 }, unless_blocked env "")
+      | Some ((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)) as k, [])
+      | Some ((`ASCII ('u' | 'd') as k), [ `Ctrl ]) ->
+          if detail then
+            let _, view = detail_window env geometry t in
+            let delta = match k with
+              | `Home -> -max_int | `End -> max_int
+              | `Page `Up | `ASCII 'u' -> -view.capacity | `Page `Down | `ASCII 'd' -> view.capacity
+              | `ASCII 'k' | `Arrow `Up -> -1 | _ -> 1 in
+            stay { t with scroll = Panel.move ~last:view.last ~position:view.start delta }
+          else
+            let delta = match k with
+              | `Home -> -max_int | `End -> max_int
+              | `Page `Up | `ASCII 'u' -> -page | `Page `Down | `ASCII 'd' -> page
+              | `ASCII 'k' | `Arrow `Up -> -1 | _ -> 1 in
+            stay (if t.pane = Loci_pane then move_loci delta else move_rows delta)
       | _ -> (t, Screen.Ignored))
 
-let enter ~focus_day:_ t =
-  { t with pane = List_pane; scroll = 0; search = None; plan_row = 0;
+let enter ~focus_day t =
+  let list = match t.list.day with
+    | None -> t.list
+    | Some day when day = focus_day -> t.list
+    | Some _ -> RB.with_locus { t.list with day = Some focus_day } None in
+  { t with focus_day; list; pane = List_pane; origin = List_pane; scroll = 0; search = None; plan_row = 0;
     view = (match t.view with Plan_view -> Coverage_view | v -> v) }
 
 let paint (env : Screen.env) (geometry : Screen.geometry) t =
@@ -572,16 +770,11 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
         let plans = List.filter_map (function RB.Scheduled_plan p -> Some p | _ -> None) rows in
         Months.screen ~book ~plans ~dimensions:(width, height) ~width_of ~selected:(selected_plan book t) t.months
   | None, List_view ->
-      let left_width, right_width = Panel.split_widths width in
-      Panel.split ~width_of ~width ~height
-        ~left_focused:(not is_detail) ~left_title:(Printf.sprintf "Scheduled / List (%d)" (List.length rows))
-        ~left_scroll:(if is_detail then 0 else t.scroll)
-        ~left_selected:(if rows = [] then None else Some (browser t).selected)
-        ~left_rows:(if rows = [] then [ tr "No records in this view." ]
-                    else Record_lines.scheduled_table ~width_of ~width:left_width book rows)
-        ~right_focused:is_detail ~right_title:"Plan Detail"
-        ~right_scroll:(if is_detail then t.scroll else 0)
-        ~right_selected:None ~right_rows:(detail_rows ~width_of ~width:right_width book t) ()
+      (* [i]/[Tab]/[w] retain the exact full-detail text and scroll. *)
+      if is_detail then
+        Panel.frame ~width_of ~width ~height ~focused:true ~title:"Selected Scheduled"
+          ~scroll:t.scroll ~selected:None (detail_rows ~width_of ~width book t)
+      else list_paint env geometry t
 
 let footer (geometry : Screen.geometry) t =
   let width = fst geometry.screen in
@@ -600,18 +793,43 @@ let footer (geometry : Screen.geometry) t =
       else if width >= 47 then [ "[j/k] select [c/Enter] complete [q] overview"; "[b] batch [r] replace [x] cancel" ]
       else [ "[j/k] select [q] overview"; "[c/Enter] complete [x] cancel" ]
   | Months_view, Detail_pane ->
-      [ "j/k PgUp/Dn Home/End scroll  Tab Months"; "Enter/c complete  g generate  b batch  x cancel  v List  q back" ]
-  | Months_view, List_pane ->
-      if fst geometry.screen < 46 then [ "j/k select  h/l months  v List"; "Enter complete  x cancel  q back" ]
-      else
+      if width >= 79 then
+        [ "j/k PgUp/Dn Home/End scroll  Tab/q Months";
+          "Enter/c complete  g generate  b batch  x cancel  v List" ]
+      else [ "j/k scroll  Tab/q Months"; "Enter complete  v List" ]
+  | Months_view, _ ->
+      if width >= 79 then
         [ "j/k select  h/l months  Enter/c complete  q back";
           "i/Tab detail  b batch  r/e edit  g generate  x cancel  n new  v List" ]
+      else if width >= 47 then
+        [ "j/k select  h/l months  Enter complete  q back";
+          "i detail b batch r edit x cancel n new v List" ]
+      else [ "j/k select  h/l months  v List"; "Enter complete  i detail  q back" ]
+  | List_view, Loci_pane ->
+      if width >= 79 then
+        [ "[j/k] Locus  [l] occurrences  [f] scope  [i] detail  [q] back";
+          "[n] new  [v] views  [/] search" ]
+      else if width >= 47 then
+        [ "[j/k] Locus [h/l] pane [f] scope [q] back";
+          "[l] occurrences [i] detail [v] views" ]
+      else if width >= 31 then [ "[j/k] Locus [i] detail [q] back"; "[h/l] pane [f] scope" ]
+      else [ "[j/k] [h/l]"; "[i] [f] [q]" ]
   | List_view, List_pane ->
-      [ "j/k select  Enter/i/Tab Detail  h/l pane  c Complete  e Edit  g Generate  x Cancel";
-        "b Batch amount  v Months  n New Plan  f Filter  / search  Space Commands  q/Esc Home" ]
+      if width >= 79 then
+        [ "[j/k] select  [h/l] pane  [f] scope  [Enter] complete  [q] back  [v] views";
+          "[i/Tab] detail  [b] batch  [r/e] edit  [g] generate  [x] cancel  [n] new" ]
+      else if width >= 47 then
+        [ "j/k select [h/l] pane [f] scope [q] back";
+          "Enter complete [i] detail [b] batch [x] cancel" ]
+      else if width >= 31 then [ "j/k select [f] scope [q] back"; "h/l pane [Enter] complete" ]
+      else [ "[j/k] [h/l]"; "[Enter] [q]" ]
   | List_view, Detail_pane ->
-      [ "j/k scroll  Page Up/Down page  Home/End range  h/l/Tab pane";
-        "b Batch amount  v Months  q/Esc list  c Complete  e Edit  g Generate  x Cancel  n New Plan  Ctrl-r reload" ]
+      if width >= 79 then
+        [ "j/k scroll  PgUp/Dn page  Home/End range  Tab pane  q/Esc back";
+          "Enter/c complete  b batch  r/e edit  g generate  x cancel  n new" ]
+      else if width >= 47 then
+        [ "j/k scroll  PgUp/Dn page  Tab/q back"; "Enter complete  b batch  r edit  x cancel" ]
+      else [ "j/k scroll  PgDn page"; "Tab back  Enter complete" ]
 
 let view env (geometry : Screen.geometry) t =
   let t = { t with view = current env t } in
@@ -629,7 +847,7 @@ let view env (geometry : Screen.geometry) t =
       | Plan_view, Some row -> "Scheduled / Plan / " ^ row.rule.name
       | Plan_view, None -> "Scheduled / Plan"
       | Months_view, _ -> tr "Scheduled / Months"
-      | List_view, _ -> tr "Scheduled");
+      | List_view, _ -> tr "Scheduled / List");
     subtitle = (match t.view, selected_rule env t, coverage env with
       | _ when t.pace <> None -> Screen.Text "Monitoring only; Scheduled occurrences are unchanged."
       | Coverage_view, _, Ok (months, _) ->
@@ -648,7 +866,14 @@ let view env (geometry : Screen.geometry) t =
             ^ " -> " ^ String.concat "," row.rule.positive)
       | Plan_view, None, _ -> Screen.Default
       | Months_view, _, _ -> Screen.Text "Explicit current-open plans; no recurrence inferred."
-      | List_view, _, _ -> Screen.Default);
+      | List_view, _, _ ->
+          let scope = match t.list.day with
+            | None -> "Scope: all current-open"
+            | Some day -> "Scope: focus day " ^ day in
+          let locus = match t.list.locus with
+            | None -> "Locus: all loci" | Some id -> "Locus: " ^ id in
+          let query = if t.list.query = "" then "" else "  |  Search: " ^ t.list.query in
+          Screen.Text (scope ^ "  |  " ^ locus ^ query));
     rows = lazy (paint env geometry t);
     footer = footer geometry t;
     overlay;

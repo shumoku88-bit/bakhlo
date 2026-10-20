@@ -106,22 +106,10 @@ let run ~width_of ~directory ~path (home : C.state) =
   require (scheduled.workspace.route = W.Scheduled) "commands-scheduled-route";
   let contains rows needle = List.exists
       (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows in
-  let wide_sched = R.screen ~width_of (120, 30) scheduled in
-  require (contains wide_sched "Scheduled / List" && contains wide_sched "Plan Detail")
-    "scheduled-wide-two-pane-visible";
-  let inspected = key ~width_of scheduled `Enter in
+  let inspected = key ~width_of scheduled (`ASCII 'i') in
   require
     (plan_detail inspected && not inspected.record_visible)
-    "scheduled-enter-detail-only";
-  let wide_inspected = R.screen ~width_of (120, 30) inspected in
-  require (contains wide_inspected "Scheduled / List" && contains wide_inspected "Plan Detail")
-    "scheduled-wide-detail-focus-retains-two-pane";
-  let narrow_sched_list = R.screen ~width_of (48, 14) scheduled in
-  require (contains narrow_sched_list "Scheduled / List" && not (contains narrow_sched_list "Plan Detail"))
-    "scheduled-narrow-shows-list-only";
-  let narrow_sched_detail = R.screen ~width_of (48, 14) inspected in
-  require (contains narrow_sched_detail "Plan Detail" && not (contains narrow_sched_detail "Scheduled / List"))
-    "scheduled-narrow-shows-detail-only";
+    "scheduled-inspect-detail-only";
   let actual_view = C.open_route home W.Actual in
   let wide_actual = R.screen ~width_of (120, 30) actual_view in
   require (contains wide_actual "Actuals" && contains wide_actual "Details")

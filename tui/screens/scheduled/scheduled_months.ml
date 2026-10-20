@@ -70,25 +70,29 @@ let month_card ~book ~plans ~width_of ~width ~height ~selected month =
     String.sub plan.day 0 7 = String.sub month 0 7) plans in
   let index = selected_index selected plans in
   let quantities = List.map (quantity book) plans in
-  let content_width = max 0 (width - 6) in
-  let quantity_width = min (max 0 (content_width - 14))
+  let content_width = max 0 (width - 2) in
+  let quantity_width = min (max 0 (content_width - 16))
     (min 22 (max 12 (List.fold_left (fun n value -> max n (width_of (O.visible value))) 0 quantities))) in
-  let shape_width = max 0 (content_width - 6 - quantity_width) in
+  let shape_width = max 0 (content_width - 8 - quantity_width) in
+  let capacity = P.capacity ~height ~heading:false in
+  let start = match index with
+    | None -> 0
+    | Some i -> min (max 0 (List.length plans - capacity)) (max 0 (i - capacity / 2)) in
   let rows = List.map2 (fun (plan : B.plan) quantity ->
     let quantity = O.visible quantity in
-    let quantity = if width_of quantity > quantity_width then "see details" else quantity in
-    let quantity = O.clip_text ~width_of quantity_width quantity in
-    String.sub plan.day 8 2 ^ "  " ^ O.pad ~width_of shape_width (shape plan) ^ "  "
-    ^ String.make (max 0 (quantity_width - width_of quantity)) ' ' ^ quantity) plans quantities in
+    let quantity = if width_of quantity > quantity_width then "too wide" else quantity in
+    let active = match selected with Some p -> p.B.id = plan.id | None -> false in
+    let marker = if active then "> " else "  " in
+    (if active then O.Active else O.Plain),
+    marker ^ String.sub plan.day 8 2 ^ "  " ^ O.pad ~width_of shape_width (shape plan) ^ "  "
+    ^ O.pad_left ~width_of quantity_width quantity) plans quantities
+    |> List.filteri (fun i _ -> i >= start && i - start < capacity) in
   let count = List.length plans in
-  let window = P.window ~capacity:(P.capacity ~height ~heading:false) ~count ~scroll:0 ~selected:index in
-  let more = (if window.start > 0 then " ▲" else "")
-    ^ (if window.start + window.capacity < count then " ▼" else "") in
-  let title = Printf.sprintf "%s / %d explicit%s" (String.sub month 0 7) count more in
-  if count = 0 then
-    P.frame_rows ~width_of ~width ~height ~focused:false ~title [O.Chrome, "No explicit plan"]
-  else
-    P.frame ~width_of ~width ~height ~focused:(index <> None) ~title ~scroll:0 ~selected:index rows
+  let more = (if start > 0 then " ▲" else "")
+    ^ (if start + capacity < count then " ▼" else "") in
+  P.frame_rows ~inset:0 ~width_of ~width ~height ~focused:(index <> None)
+    ~title:(String.sub month 0 7) ~bottom_label:(Printf.sprintf "%d explicit%s" count more)
+    (if count = 0 then [O.Chrome, " No explicit plan"] else rows)
 
 let board ~book ~plans ~width_of ~width ~height ~selected months =
   let left_width = (width - 1) / 2 in
@@ -134,9 +138,9 @@ let screen ~book ~plans ~dimensions:(width, height) ~width_of ~selected t =
         (match selected with
          | None -> ["No Scheduled occurrence selected."]
          | Some plan -> O.plan_lines book plan)
-        |> List.concat_map (O.wrap_text ~width_of (width - 6))
+        |> List.concat_map (O.wrap_text ~width_of (width - 2))
         |> List.map (fun text -> O.Plain, text) in
-    let detail_height = if detail_room >= 3 then min detail_room (List.length detail_content + 2) else 0 in
+    let detail_height = if detail_room >= 3 then min 8 detail_room else 0 in
     let board_height = available - detail_height in
     let surface =
       if can_show_board then
@@ -152,8 +156,9 @@ let screen ~book ~plans ~dimensions:(width, height) ~width_of ~selected t =
             (O.wrap_text ~width_of (width - 6) message |> List.map (fun text -> O.Chrome, text)) in
     let details = if detail_height = 0 then [] else
       let capacity = P.capacity ~height:detail_height ~heading:false in
-      let title = if List.length detail_content > capacity then
-          Printf.sprintf "Selected Scheduled / %d of %d lines ▼" capacity (List.length detail_content)
-        else "Selected Scheduled" in
-      P.frame_rows ~width_of ~width ~height:detail_height ~focused:false ~title detail_content in
+      let bottom_label = if List.length detail_content > capacity then
+          Printf.sprintf "%d/%d lines ▼" capacity (List.length detail_content)
+        else "" in
+      P.frame_rows ~inset:0 ~width_of ~width ~height:detail_height ~focused:false
+        ~title:"Selected Scheduled" ~bottom_label detail_content in
     context @ surface @ details

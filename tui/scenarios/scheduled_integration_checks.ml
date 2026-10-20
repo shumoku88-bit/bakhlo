@@ -1,8 +1,199 @@
 (* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
 open Interaction_check_fixture
 
-let scheduled_panel_checks ~width_of ~directory home =
+(* UI-15 List: ascending day/id, the local Loci pane, the day scope, fixed
+   8-row pages and the optional full detail. Synthetic plans only. *)
+let list_scope_checks ~width_of ~directory home =
+  let plan id day changes : B.plan =
+    { id; day; measure = "jpy"; changes; paid_by = None; cancelled_on = None } in
   let huge = Z.of_string (String.make 600 '9') in
+  let plans = [
+    plan "scope-a" "2026-11-10" ["wallet", Z.of_int (-100); "food", Z.of_int 100];
+    plan "scope-b" "2026-11-10" ["bank", Z.of_int (-200); "wallet", Z.of_int 200];
+    plan "scope-e" "2026-11-15" ["food", Z.of_int (-5); "wallet", Z.of_int 5];
+    plan "scope-c" "2026-11-20" ["bank", Z.of_int (-300); "food", Z.of_int 300];
+    plan "scope-d" "2026-12-01" ["food", Z.of_int (-1); "bank", Z.of_int 1] ]
+    @ List.init 8 (fun n ->
+        plan (Printf.sprintf "page-%02d" n) (Printf.sprintf "2026-12-%02d" (10 + n))
+          ["wallet", Z.of_int (-n - 1); "food", Z.of_int (n + 1)])
+    @ [ plan "scope-huge" "2026-12-20" ["wallet", Z.neg huge; "food", huge] ] in
+  let closing = List.fold_left (fun book (p : B.plan) ->
+      get (B.cancel_plan book ~id:p.id ~day:"2026-11-01"))
+      home.C.session.book (B.open_plans home.session.book) in
+  let book = List.fold_left (fun book p -> get (B.put_plan book ~replace:false p)) closing plans in
+  let path = directory ^ "/scheduled-list-scope.sexp" in
+  F.write_new path (B.to_string book);
+  let before = F.read path in
+  let initial = C.initial ~config_home:directory (F.load path) in
+  let workspace = get (W.create ~today:"2026-11-15" ~measure:"jpy") in
+  let scheduled = Plans.create (get (Months.create ~today:"2026-11-15")) in
+  let state = C.open_route { initial with workspace; screens = { initial.screens with scheduled } } W.Scheduled in
+  let ids state = List.map Record_browser.identity (plan_rows state) in
+  let ascending = ids state in
+  let row (p : B.plan) = (Record_browser.Scheduled_row, p.id) in
+  require ((plan_list state).order = Record_browser.Oldest
+           && ascending = List.map row plans
+           && Record_browser.date (List.hd (plan_rows state)) = "2026-11-10")
+    "list-defaults-to-ascending-day-then-id";
+  require ((plan_id state) = Some (row (List.hd plans)))
+    "list-initial-selection-is-earliest-date-and-smallest-id";
+  let loci = key ~width_of state (`ASCII 'h') in
+  require ((plan_list loci).locus = None && ids loci = ascending && (plan_list loci).selected = 0)
+    "list-h-selects-loci-without-changing-the-filter";
+  let filtered = key ~width_of (key ~width_of loci (`ASCII 'h')) (`ASCII 'j') in
+  let locus = (plan_list filtered).locus in
+  let expected locus = List.filter_map (fun (p : B.plan) ->
+      if List.mem locus (List.map fst p.changes) then Some (row p) else None) plans in
+  (match locus with
+   | None -> raise (F.Refused "list-loci-selection-did-not-filter")
+   | Some locus ->
+       require (ids filtered = expected locus
+                && List.length (ids filtered) < List.length ascending
+                && (plan_list filtered).selected = 0
+                && (plan_id filtered) = Some (List.hd (expected locus)))
+         "list-loci-selection-filters-exactly-and-resets-selection");
+  List.iter (fun button ->
+    let refused = key ~width_of filtered (`ASCII button) in
+    require (no_modal refused && plan_list refused = plan_list filtered && F.read path = before)
+      "list-loci-pane-does-not-act-on-a-background-occurrence") ['c'; 'r'; 'x'; 'e'; 'b'; 'g'];
+  let moved = key ~width_of (key ~width_of (key ~width_of filtered (`ASCII 'l')) (`ASCII 'l')) (`ASCII 'j') in
+  (match locus with
+   | None -> ()
+   | Some locus ->
+       require ((plan_list moved).locus = Some locus && (plan_list moved).selected = 1
+                && (plan_id moved) = List.nth_opt (expected locus) 1)
+         "list-l-equals-occurrence-pane-and-j-moves-the-plan");
+  let restored = key ~width_of (key ~width_of moved (`ASCII 'h')) (`ASCII 'k') in
+  require ((plan_list restored).locus = None && ids restored = ascending
+           && (plan_list restored).selected = 0)
+    "list-loci-all-row-restores-plans";
+  let banked = key ~width_of restored (`ASCII 'j') in
+  require (Option.is_some (plan_list banked).locus) "list-loci-refilters-after-restore";
+  let day = key ~width_of (key ~width_of banked (`ASCII 'l')) (`ASCII 'f') in
+  require ((plan_list day).day = Some "2026-11-15" && (plan_list day).locus = None
+           && (plan_list day).selected = 0
+           && (plan_id day) = Some (Record_browser.Scheduled_row, "scope-e")
+           && not (plan_detail day))
+    "list-f-day-scope-clears-locus-and-selection";
+  let all = key ~width_of day (`ASCII 'f') in
+  require ((plan_list all).day = None && (plan_list all).locus = None && ids all = ascending)
+    "list-f-restores-all-current-open-plans";
+  let paged = key ~dimensions:(32,9) ~width_of all (`Page `Down) in
+  let wide = key ~dimensions:(120,36) ~width_of all (`Page `Down) in
+  require ((plan_list paged).selected = 8 && (plan_list wide).selected = 8
+           && (plan_id paged) = Some (Record_browser.Scheduled_row, "page-03"))
+    "list-page-fixed-eight-rows-independent-of-viewport";
+  List.iter (fun button ->
+    let unchanged = key ~width_of (key ~width_of paged (`ASCII 'h')) button in
+    require (plan_list unchanged = plan_list paged)
+      "list-no-op-locus-navigation-keeps-the-occurrence-target") [`Home; `ASCII 'k'; `Page `Up];
+  require ((plan_list (key ~width_of paged (`Page `Up))).selected = 0
+           && (plan_list (key ~width_of paged `Home)).selected = 0
+           && (plan_list (key ~width_of paged `End)).selected = List.length ascending - 1)
+    "list-page-up-home-end";
+  let loci_paged = key ~width_of (key ~width_of all (`ASCII 'h')) (`Page `Down) in
+  require (Option.is_some (plan_list loci_paged).locus
+           && List.length (ids loci_paged) < List.length ascending)
+    "list-loci-page-moves-eight-rows";
+  let paying = key ~width_of paged `Enter in
+  require (paying.record_visible
+           && (match S.mode (Option.get paying.record) with
+               | Daily_actions.Pay id -> id = "page-03" | _ -> false)
+           && not (plan_detail paying) && F.read path = before)
+    "list-enter-completes-the-selected-occurrence-without-writing";
+  let paying_cancelled = key ~width_of paying `Escape in
+  require (not paying_cancelled.record_visible && F.read path = before)
+    "list-completion-cancel-keeps-the-plan";
+  let detail = key ~width_of paying_cancelled (`ASCII 'i') in
+  require (plan_detail detail && not detail.record_visible
+           && (plan_id detail) = Some (Record_browser.Scheduled_row, "page-03"))
+    "list-i-opens-optional-detail-keeping-the-plan";
+  require (plan_detail (key ~width_of paying_cancelled `Tab)
+           && plan_detail (key ~width_of paying_cancelled (`ASCII 'w')))
+    "list-tab-and-w-also-open-detail";
+  let backs = key ~width_of detail `Escape in
+  require (not (plan_detail backs) && (plan_id backs) = (plan_id detail)
+           && (plan_list backs).locus = None && (plan_list backs).day = None)
+    "list-detail-escape-keeps-selection-and-filters";
+  let loci_detail = key ~width_of (key ~width_of all (`ASCII 'h')) (`ASCII 'i') in
+  let origin = key ~width_of loci_detail `Escape in
+  require (plan_detail loci_detail && (plan_id origin) = (plan_id loci_detail)
+           && no_modal (key ~width_of origin `Enter))
+    "list-detail-escape-returns-to-the-origin-loci-pane";
+  let paid = key ~width_of (key ~width_of origin (`ASCII 'l')) `Enter in
+  require (paid.record_visible
+           && (match S.mode (Option.get paid.record) with
+               | Daily_actions.Pay id -> id = "scope-a" | _ -> false))
+    "list-occurrence-pane-enter-completes-the-selection";
+  let paid_closed = key ~width_of paid `Escape in
+  let queried = with_plan_query all "scope-c" in
+  let query_detail = key ~width_of queried (`ASCII 'i') in
+  let query_back = key ~width_of query_detail `Escape in
+  require ((plan_list query_back).query = "scope-c"
+           && (plan_id query_back) = Some (Record_browser.Scheduled_row, "scope-c")
+           && not (plan_detail (key ~width_of query_detail (`ASCII 'q'))))
+    "list-detail-escape-and-q-keep-the-applied-query";
+  let months = key ~width_of query_detail (`ASCII 'v') in
+  let listed = key ~width_of months (`ASCII 'v') in
+  require (plan_months_view months && not (plan_detail months)
+           && not (plan_months_view listed) && not (plan_detail listed)
+           && (plan_list listed).query = "scope-c")
+    "list-view-cycle-clears-detail-and-keeps-the-query";
+  let reentered = C.open_route (with_plan_query all "scope-c") W.Scheduled in
+  require ((plan_list reentered).query = "scope-c"
+           && (plan_id reentered) = Some (Record_browser.Scheduled_row, "scope-c")
+           && (plan_list reentered).day = None && (plan_list reentered).locus = None
+           && not (plan_detail reentered))
+    "list-route-reentry-retains-query-and-id";
+  let refiltered = C.open_route moved W.Scheduled in
+  require ((plan_list refiltered).locus = (plan_list moved).locus
+           && (plan_id refiltered) = (plan_id moved))
+    "list-route-reentry-retains-locus-and-selection";
+  let relater = C.open_route { all with workspace = get (W.create ~today:"2026-12-01" ~measure:"jpy") } W.Scheduled in
+  require ((plan_list (key ~width_of relater (`ASCII 'f'))).day = Some "2026-12-01"
+           && (plan_id (key ~width_of relater (`ASCII 'f'))) = Some (Record_browser.Scheduled_row, "scope-d"))
+    "list-enter-captures-the-current-focus-day";
+  let scoped_locus = key ~width_of (key ~width_of day (`ASCII 'h')) `End in
+  let same_day = C.open_route scoped_locus W.Scheduled in
+  require ((plan_list same_day).locus = (plan_list scoped_locus).locus)
+    "list-same-day-reentry-retains-the-locus";
+  let different_day = C.open_route
+      { scoped_locus with workspace = get (W.create ~today:"2026-12-01" ~measure:"jpy") } W.Scheduled in
+  require ((plan_list different_day).day = Some "2026-12-01"
+           && (plan_list different_day).locus = None
+           && (plan_id different_day) = Some (Record_browser.Scheduled_row, "scope-d"))
+    "list-changed-day-reentry-clears-the-obsolete-locus";
+  let toggled = key ~width_of (key ~width_of all (`ASCII 'w')) (`ASCII 'w') in
+  require (not (plan_detail toggled) && (plan_id toggled) = (plan_id all))
+    "list-w-twice-returns-to-the-origin-pane";
+  let toggled_pay = key ~width_of toggled `Enter in
+  require (toggled_pay.record_visible
+           && (match S.mode (Option.get toggled_pay.record) with
+               | Daily_actions.Pay id -> id = "scope-a" | _ -> false))
+    "list-w-twice-restores-the-occurrence-pane-selection";
+  let huged = with_plan_query all "scope-huge" in
+  let huge_detail = key ~width_of huged (`ASCII 'i') in
+  let huge_rows = R.screen ~width_of (120,36) huge_detail in
+  require (List.exists (fun (_, line) ->
+      Base.String.is_substring line ~substring:(String.make 20 '9')) huge_rows)
+    "list-huge-quantity-readable-in-optional-detail";
+  require (List.length huge_rows <= 36 && List.for_all (fun (_, line) -> width_of line <= 120) huge_rows)
+    "list-huge-detail-bounded";
+  List.iter (fun dimensions ->
+    List.iter (fun state ->
+      let rows = R.screen ~width_of dimensions state in
+      require (List.length rows <= snd dimensions
+               && List.for_all (fun (_, line) -> width_of line <= fst dimensions) rows)
+        "list-scope-resize-bounded") [loci; filtered; day; all; paged; huge_detail])
+    [32,9;48,14;80,24;120,36];
+  require ((same_workspace paid_closed all) && F.read path = before
+           && not paid_closed.record_visible) "list-scope-never-writes";
+  print_endline "PASS: Scheduled List is ascending by date/id with a local Loci filter, exact day scope, fixed 8-row pages, targeted completion, optional detail return and readable huge quantities (synthetic)."
+
+let scheduled_panel_checks ~width_of ~directory home =
+  (* The full-width detail pane at 120x36 fits any short overflow fixture, so
+     the amount is long enough to overflow the viewport at every dimension. *)
+  let huge = Z.of_string (String.make 2400 '9') in
   let plan n : B.plan = {id=Printf.sprintf "panel-plan-%02d-%s" n (String.make 180 'p');
     day=Printf.sprintf "2026-10-%02d" (n+1); measure="jpy";
     changes=["wallet", Z.neg huge; "food", huge]; paid_by=None; cancelled_on=None} in
@@ -15,8 +206,8 @@ let scheduled_panel_checks ~width_of ~directory home =
   let count = List.length (plan_rows state) in
   List.iter (fun dimensions ->
     let key = key ~dimensions ~width_of in
-    let detail = key state `Enter in
-    let height, view = plan_window ~dimensions ~width_of detail in
+    let detail = key state (`ASCII 'i') in
+    let _, view = plan_window ~dimensions ~width_of detail in
     let identity = (plan_id detail) in
     require (view.last>0) "scheduled-long-detail-overflows";
     let ended = key detail `End in
@@ -35,27 +226,33 @@ let scheduled_panel_checks ~width_of ~directory home =
     require (not (plan_detail listed) && plan_detail restored
       && (plan_scroll restored)=(plan_scroll ended) && (plan_id restored)=identity)
       "scheduled-focus-roundtrip-retains-detail-and-selection";
-    require (not (plan_detail (key detail (`ASCII 'h')))
-      && plan_detail (key (key detail (`ASCII 'h')) (`ASCII 'l')))
-      "scheduled-browser-horizontal-focus";
+    require (not (plan_detail (key state (`ASCII 'h')))
+      && not (plan_detail (key (key state (`ASCII 'h')) (`ASCII 'l')))
+      && (plan_list (key state (`ASCII 'h'))).locus = (plan_list state).locus)
+      "scheduled-list-horizontal-selects-panes-not-detail";
     let back = key ended `Escape in
     require (not (plan_detail back) && (plan_id back)=identity)
       "scheduled-back-keeps-selection";
-    require ((plan_scroll (key ended (`ASCII 'f')))=0) "scheduled-filter-resets-detail";
+    let scoped = key state (`ASCII 'f') in
+    require ((plan_list scoped).day = Some (F.today ()) && (plan_list scoped).locus = None
+      && (plan_list scoped).selected = 0 && not (plan_detail scoped))
+      "scheduled-f-day-scope-clears-locus-and-selection";
+    let unscoped = key scoped (`ASCII 'f') in
+    require ((plan_list unscoped).day = None && (plan_list unscoped).locus = None
+      && plan_rows unscoped = plan_rows state) "scheduled-f-restores-all-current-open";
     let reloaded = get (match H.handle ~dimensions ~width_of ended (`Key (`ASCII 'r',[`Ctrl])) with
       | Some state -> Ok state | None -> Error "scheduled-reload-exited") in
     require ((plan_scroll reloaded)=0 && (plan_id reloaded)=identity)
       "scheduled-reload-anchors-identity-and-resets-detail";
     let page = key state (`Page `Down) in
-    require ((plan_row page)=min (count-1) (max 1 (height-2)))
-      "scheduled-list-page-excludes-borders-no-heading";
+    require ((plan_row page)=min (count-1) 8) "scheduled-list-page-fixed-eight-rows";
     require ((plan_row (key state `End))=count-1
       && (plan_row (key (key state `End) `Home))=0) "scheduled-list-real-endpoints";
     List.iter (fun state ->
       let rows = R.screen ~width_of dimensions state in
       require (List.length rows<=snd dimensions && List.for_all (fun (_,line)->width_of line<=fst dimensions) rows)
         "scheduled-shared-panels-bounded") [state;page;ended]) [32,9;48,14;80,24;120,36];
-  let small = key ~dimensions:(32,9) ~width_of state `Enter |> fun s -> key ~dimensions:(32,9) ~width_of s `End in
+  let small = key ~dimensions:(32,9) ~width_of state (`ASCII 'i') |> fun s -> key ~dimensions:(32,9) ~width_of s `End in
   let resized = key ~dimensions:(120,36) ~width_of small (`ASCII '!') in
   let _, view = plan_window ~dimensions:(120,36) ~width_of resized in
   require (view.start=view.last && (plan_id resized)=(plan_id small))
@@ -75,7 +272,8 @@ let scheduled_panel_checks ~width_of ~directory home =
   require ((same_workspace cancelled state) && no_modal cancelled)
     "scheduled-cancel-overlay-return-context";
   require (F.read path=before) "scheduled-shared-panels-no-write";
-  print_endline "PASS: Scheduled uses shared viewport, clamped detail/list paging, focus/resize, retained draft and cancelled action context (synthetic)."
+  print_endline "PASS: Scheduled uses shared viewport, clamped detail/list paging, focus/resize, retained draft and cancelled action context (synthetic).";
+  list_scope_checks ~width_of ~directory home
 
 let cancellation_checks ~width_of ~directory home =
   let plan : B.plan = { id = "cancel-target"; day = "2026-10-20"; measure = "eur";
@@ -230,10 +428,13 @@ let months_checks ~width_of ~directory home =
       List.iter (fun month -> require (contains rows month) "months-six-cards-visible")
         ["2026-11";"2026-12";"2027-01";"2027-02";"2027-03";"2027-04"])
     [32,9;48,14;80,24;120,36];
-  let detail = key ~width_of january `Tab in
-  require (contains (R.screen ~width_of (120,36) detail) "1234.56 eur"
+  let detail = key ~width_of january (`ASCII 'i') in
+  require (plan_detail detail && contains (R.screen ~width_of (120,36) detail) "1234.56 eur"
            && not (plan_detail (key ~width_of detail `Escape)))
     "months-exact-currency-details-and-board-return";
+  require (plan_detail (key ~width_of january `Tab)
+           && plan_detail (key ~width_of january (`ASCII 'w')))
+    "months-tab-and-w-also-open-detail";
   let paying = key ~width_of months `Enter in
   require (paying.record_visible && (match S.mode (Option.get paying.record) with
     | Daily_actions.Pay id -> id = "month-02" | _ -> false) && F.read path = before)
@@ -263,8 +464,17 @@ let months_checks ~width_of ~directory home =
   require (contains cards "111 jpy") "months-card-follows-selection-beyond-first-page";
   let huge = Z.of_string (String.make 600 '9') in
   let huge_plan = { (List.nth plans 1) with changes = ["wallet", Z.neg huge; "food", huge] } in
-  require (contains (Months.screen ~book ~plans:[huge_plan] ~dimensions:(80,19) ~width_of
-    ~selected:(Some huge_plan) (plan_months months)) "see details") "months-huge-amount-not-clipped-as-a-number";
+  List.iter (fun dimensions ->
+    let rows = Months.screen ~book ~plans:[huge_plan] ~dimensions ~width_of
+      ~selected:(Some huge_plan) (plan_months months) in
+    require (List.length rows <= snd dimensions
+             && List.for_all (fun (_, line) -> width_of line <= fst dimensions) rows)
+      "months-huge-amount-stays-bounded") [32,9;48,14;80,24;120,36];
+  require ((plan_row (key ~dimensions:(32,9) ~width_of oldest (`Page `Down)))
+           = min (List.length (plan_rows oldest) - 1) 8
+           && (plan_row (key ~dimensions:(120,36) ~width_of oldest (`Page `Down)))
+              = min (List.length (plan_rows oldest) - 1) 8)
+    "months-page-fixed-eight-rows";
   List.iter (fun dimensions ->
     let rows = Months.screen ~book ~plans ~dimensions ~width_of ~selected:(Some (List.nth plans 2)) (plan_months months) in
     require (List.length rows <= snd dimensions
