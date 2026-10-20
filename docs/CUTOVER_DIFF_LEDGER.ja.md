@@ -54,7 +54,8 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 
 | 項目 | 判定 | LOAMとの差 | 乗り換え | 根拠 |
 | --- | --- | --- | --- | --- |
-| 新しい科目の追加 | ⬜ 未確認 | Manage Lociで追加できる。実データ未照合 | 要判断 | UI-30, B04 |
+| 新しい科目の追加 | 🟨 差あり（実データ・読み取りのみ） | LOAMのManage Lociは開くとすぐ追加フォーム（新しいトークン入力＋登録済み一覧の確認、Tabで初回の役割割当、Shift-Tabで履歴の完全性（Complete Since））。Bakhloは一覧＋詳細の画面で、`n`で追加の小窓を開き、追加と同時に役割も選べる（LOAMは追加時にラベル・役割を作らない）。一覧の並び（登録順）と件数は一致。保存は比較していない | 要判断 | UI-30, B04, [Loci対照](VERIFICATION.md#manage-loci-paired-comparison-and-list-paging-2026-10-21) |
+| 科目一覧の表示・移動 | 🟨 差あり | 2026-10-21にBakhloのPageDown/End/PageUpが先頭へ戻る不具合を修正（LOAMはこれらのキーを無視、Bakhloはページ移動・末尾選択）。80×24ではBakhloの一覧からラベル列が`…`で消え、詳細欄が単語の途中で折り返す。LOAMはトークンとラベルを表示 | なし | 同上 |
 | 表示名・説明の変更 | ⬜ 未確認 | 編集→Review→保存。照合未了 | なし | UI-30 |
 | 会計上の役割（AccountingRole） | 🟨 差あり | 設定はできる。LOAMの初回分類・使用済み科目の制約とは違う | 要判断 | B05 |
 | Balancesに出す科目の選択 | ✅ 一致（合成） | 選択・Review・保存・再起動を合成で確認 | なし | [B2](VERIFICATION.md#ui-24-b2-balances-picker-and-grouped-observation-2026-10-18) |

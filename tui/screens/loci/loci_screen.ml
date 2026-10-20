@@ -230,11 +230,12 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
           let delta = match k with `ASCII 'k' | `Arrow `Up -> -1 | _ -> 1 in
           if detail then stay { t with scroll = max 0 (t.scroll + delta) } else stay (move env t delta)
       | Some (`Page `Up, []) | Some (`ASCII 'u', [ `Ctrl ]) ->
-          if detail then stay { t with scroll = max 0 (t.scroll - page) } else stay { t with selected = 0 }
+          if detail then stay { t with scroll = max 0 (t.scroll - page) } else stay (move env t (-page))
       | Some (`Page `Down, []) | Some (`ASCII 'd', [ `Ctrl ]) ->
-          if detail then stay { t with scroll = max 0 (t.scroll + page) } else stay { t with selected = 0 }
-      | Some (`Home, []) -> stay { t with selected = 0; scroll = 0 }
-      | Some (`End, []) -> stay { t with selected = 0; scroll = max_int / 4 }
+          if detail then stay { t with scroll = max 0 (t.scroll + page) } else stay (move env t page)
+      | Some (`Home, []) -> if detail then stay { t with scroll = 0 } else stay { t with selected = 0 }
+      | Some (`End, []) ->
+          if detail then stay { t with scroll = max_int / 4 } else stay { t with selected = max 0 (List.length (admitted_loci env.book) - 1) }
       | _ -> (t, Screen.Ignored))
 
 let saved _env _geometry result t =

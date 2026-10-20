@@ -5022,3 +5022,47 @@ Latest-data paired comparison, real household access, physical terminal/IME,
 human acceptance and P7 / power-loss qualification were **not executed**.
 The private converter remains an existing local prerequisite; this is not a
 standalone full-household importer or operational cutover.
+
+## Manage Loci paired comparison and list paging (2026-10-21)
+
+### Change
+
+- `tui/screens/loci/loci_screen.ml`: in the Loci list, PageDown / Ctrl-d, PageUp /
+  Ctrl-u and End reset the selection to the first Locus (bug). They now move by one
+  page, stop at the last Locus, and End selects the last one; Home selects the first.
+  The detail pane keeps its scroll behaviour. LOAM ignores these keys on its Manage Loci
+  screen; Bakhlo keeps paging as an intentional addition.
+- Regression in `tui/scenarios/setup_integration_checks.ml` (synthetic): End, k then
+  PageDown, PageUp, Home, PageDown from the first item. With the screen fix reverted the
+  self-check fails at `loci-end-selects-last`.
+
+### Evidence
+
+- `./tools/tui --self-check` (38 PASS), `./tools/check` (privacy scan no match).
+- Latest-data paired comparison on fresh generation `capture-1792518557-51651-293b919a`,
+  read-only flows at 120×36 and 80×24: Commands → Household setup → Manage Loci; list
+  navigation; LOAM roles view (Tab), history support view (Shift-Tab); Bakhlo admit form
+  (`n`) opened and cancelled. After rebuilding, Bakhlo End / PageDown / PageUp / Home
+  selected the last / last / previous page / first Locus on the copy.
+  - Same admitted count and list order (admission order) in both.
+  - LOAM opens Manage Loci directly on the admit form (token field above, ↑/↓ inspect
+    10 admitted rows, `Admission creates no label, role, route, rename, or alias.`).
+    Tab opens initial AccountingRole assignment for unused Loci only; Shift-Tab opens
+    History Support / Complete Since. Bakhlo shows a list with a detail pane and opens
+    admission as a modal with an optional role.
+  - At 80×24 the Bakhlo list hides the label column (`…`) and the detail pane wraps in
+    the middle of words; LOAM shows token and label.
+  - Commands / Household setup: LOAM also lists `Observe quantities`; Bakhlo also lists
+    Theme and Home / Bonsai.
+  - During the LOAM run a stray key put a blank token into LOAM's admit field and reached
+    its Preview; it was left with Esc without publishing and the field was cleared.
+    Whether LOAM refuses a blank token at publication was not tested.
+- Household/config SHA-256 equal before and after; the comparison book copy was
+  unchanged. AI tmux sessions closed, `clean-copies` passed.
+- Not fixed here: Attention's `End` has the same overflow pattern (`move` with
+  `max_int` wraps to the first item when the selection is not the first).
+
+### Limits
+
+Display-name screens, saves, physical terminal/IME, human acceptance and P7 were
+**not executed**.

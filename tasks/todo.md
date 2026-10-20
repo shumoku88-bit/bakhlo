@@ -1,5 +1,12 @@
 # LOAMの機能・見た目・使い勝手をBakhloで再現する
 
+## Manage Lociの実データ対照と一覧のページ移動（2026-10-21）
+
+- [x] 同一取得世代で120×36／80×24の読み取り対照。LOAMは追加フォームが入口、Bakhloは一覧＋詳細。差は台帳へ。[証拠](../docs/VERIFICATION.md#manage-loci-paired-comparison-and-list-paging-2026-10-21)
+- [x] 一覧のPageDown/PageUp/Endが先頭へ戻る不具合を修正し回帰検査を追加。
+- [ ] Attentionの`End`も同じ桁あふれ（`max_int`）で先頭へ戻る。別sliceで修正。
+- [ ] 80×24でのラベル列消失・詳細の語中折返し、LOAM型の入口（追加フォーム／初回役割／Complete Since）を採るか要判断。
+
 ## 新規記帳の一行入力（クイック入力）をLOAMへ揃える（2026-10-20）
 
 - [x] `Quick_capture`（説明・合計・Locus語・日付語、過去記録の雛形）を追加し、新規Recordの前段に接続。完成行はRecordのPreviewへ、それ以外は詳細フォームへ引き継ぐ。

@@ -6,6 +6,20 @@ let run ~width_of ~directory ~path =
   let current_home = C.initial ~config_home:directory (F.load path) in
   let loci_state = C.open_route current_home W.Loci in
   require (loci_state.workspace.route = W.Loci) "open-route-loci";
+  let loci_count = List.length (Loci_screen.admitted_loci loci_state.session.book) in
+  let loci_selected state = Loci_screen.selected state.C.screens.loci in
+  require (loci_count >= 3) "loci-fixture-has-three-loci";
+  let loci_end = key ~width_of loci_state `End in
+  require (loci_selected loci_end = loci_count - 1) "loci-end-selects-last";
+  let loci_before_end = key ~width_of loci_end (`ASCII 'k') in
+  let loci_page_down = key ~width_of loci_before_end (`Page `Down) in
+  require (loci_selected loci_page_down = loci_count - 1) "loci-page-down-stops-at-last";
+  let loci_page_up = key ~width_of loci_page_down (`Page `Up) in
+  require (loci_selected loci_page_up < loci_count - 1) "loci-page-up-moves-back";
+  let loci_home = key ~width_of loci_page_up `Home in
+  require (loci_selected loci_home = 0) "loci-home-selects-first";
+  let loci_page_from_home = key ~width_of loci_home (`Page `Down) in
+  require (loci_selected loci_page_from_home > 0) "loci-page-down-moves-forward";
   let loci_modal_add = key ~width_of loci_state (`ASCII 'n') in
   require (visible_form_id loci_modal_add = Some "admit_locus") "loci-n-opens-admit-form";
   let admit_form_ready =
