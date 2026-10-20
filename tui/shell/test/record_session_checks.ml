@@ -493,4 +493,59 @@ let self_check ~width_of () =
   let returned = ctrl open_to_return 'o' in
   require (contains returned "Original amount: 30.00 eur   Ctrl-O edit") "orig-amount-return-keeps-attached";
 
+  (* LOAM quick capture: a bounded framed modal with its footer inside. *)
+  let quick = S.create ~book ~day:"2026-10-11" ~measure:"jpy" () in
+  require (S.in_quick_capture quick && not (S.in_quick_capture (create ())))
+    "quick-capture-is-in-front-of-a-new-record";
+  let modal ~dimensions state =
+    S.screen ~book ~dimensions ~surface:(Quick_capture.surface dimensions) ~width_of state in
+  let modal_rows = modal ~dimensions:(80,24) quick in
+  require (List.length modal_rows = 14
+           && Base.String.is_substring (snd (List.nth modal_rows 0)) ~substring:"╭ Record"
+           && Base.String.is_substring (snd (List.nth modal_rows 13)) ~substring:"╰")
+    "quick-modal-is-a-closed-fourteen-row-frame";
+  let footer_rows =
+    List.mapi (fun i (_, line) -> (i, line)) modal_rows
+    |> List.filter_map (fun (i, line) ->
+        if Base.String.is_substring line ~substring:"full form" then Some i else None) in
+  require (footer_rows <> [] && List.for_all (fun i -> i > 0 && i < 13) footer_rows)
+    "quick-modal-footer-stays-inside-the-frame";
+  let caret_rows = List.filter (fun (style, _) -> match style with O.Input _ -> true | _ -> false) modal_rows in
+  require (List.length caret_rows = 1) "quick-modal-has-one-caret";
+  let (caret_style, caret_line) = List.hd caret_rows in
+  let caret_cell = match caret_style with O.Input cell -> cell | _ -> 0 in
+  let caret_bar = String.rindex caret_line '|' in
+  require (width_of (String.sub caret_line 0 caret_bar) = caret_cell
+           && caret_cell > 0 && caret_cell < 74
+           && List.for_all (fun (_, line) -> width_of line = 75) modal_rows)
+    "quick-modal-caret-points-at-the-bar-inside-the-frame";
+  (* A long non-ASCII line keeps the caret inside the frame. *)
+  let pasted =
+    quick |> fun t -> update t (`Paste `Start)
+    |> fun t -> text t (String.concat "" (List.init 12 (fun _ -> "長い説明")))
+    |> fun t -> update t (`Paste `End) in
+  let pasted_rows = modal ~dimensions:(80,24) pasted in
+  let pasted_carets = List.filter (fun (style, _) -> match style with O.Input _ -> true | _ -> false) pasted_rows in
+  require (List.length pasted_carets = 1) "quick-modal-long-line-has-one-caret";
+  let (pasted_style, pasted_line) = List.hd pasted_carets in
+  let pasted_cell = match pasted_style with O.Input cell -> cell | _ -> 0 in
+  let pasted_bar = String.rindex pasted_line '|' in
+  require (width_of (String.sub pasted_line 0 pasted_bar) = pasted_cell
+           && pasted_cell > 0 && pasted_cell < 74
+           && List.for_all (fun (_, line) -> width_of line = 75) pasted_rows)
+    "quick-modal-long-unicode-caret-stays-inside-the-frame";
+  (* Tab continues in the full form with the same draft; Esc keeps it. *)
+  let tabbed = update pasted (`Key (`Tab, [])) in
+  require (not (S.in_quick_capture tabbed) && S.has_draft tabbed)
+    "quick-tab-continues-in-the-full-form-with-its-draft";
+  (match handle pasted (`Key (`Escape, [])) with
+   | S.Closed retained -> require (S.has_draft retained) "quick-escape-retains-the-draft"
+   | _ -> failwith "quick-escape-closes-without-publishing");
+  (* A small terminal uses the whole area, unframed, with the footer inside. *)
+  let compact = modal ~dimensions:(32,9) quick in
+  require (List.length compact = 9
+           && not (List.exists (fun (_, line) -> Base.String.is_substring line ~substring:"╭") compact)
+           && (match List.nth compact 7 with O.Chrome, text -> text <> "" | _ -> false)
+           && List.for_all (fun (_, line) -> width_of line <= 32) compact)
+    "quick-compact-terminal-uses-the-whole-area-unframed";
   require (B.to_string book=before) "record-checks-leave-book-unchanged"

@@ -15,6 +15,19 @@ val initial :
 val with_roles : (string * Daily_overlays.accounting_role) list -> t -> t
 val text : t -> string
 
+type surface = {
+  framed : bool;  (** The mode itself, never guessed from the height. *)
+  width : int;    (** Physical cells of the rectangle. *)
+  height : int;
+  top : int;      (** First row of the rectangle. *)
+  left : int;     (** First column of the rectangle. *)
+}
+
+val surface : int * int -> surface
+(** [surface (width, height)] is the LOAM quick capture rectangle over a
+    terminal of that size: framed and centered, or the whole area when the
+    terminal is too small to frame. *)
+
 type prefill = {
   day : string;
   description : string;

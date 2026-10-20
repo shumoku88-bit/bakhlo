@@ -107,4 +107,15 @@ let self_check ~width_of () =
             "quick-view-bounded-with-one-caret")
         [ start; typed "パ"; completed; typed "パン屋 700 nosuch"; typed "2025-12-31 パン屋 " ])
     [ (32, 9); (48, 14); (80, 24) ];
+  (* LOAM quick capture geometry: a bounded framed modal, or the whole area. *)
+  let surface = Q.surface in
+  let framed = surface (80,24) in
+  require (framed.framed && framed.width = 75 && framed.height = 14 && framed.top = 4 && framed.left = 2)
+    "quick-surface-is-a-bounded-framed-modal-at-80x24";
+  let wide = surface (120,36) in
+  require (wide.framed && wide.width = 80 && wide.height = 14 && wide.top = 10 && wide.left = 19)
+    "quick-surface-keeps-the-loam-width-bound-at-120x36";
+  require (not (surface (48,14)).framed && (surface (48,14)).width = 48
+           && not (surface (32,9)).framed && (surface (32,9)).width = 32)
+    "quick-surface-is-unframed-on-a-small-terminal";
   print_endline "PASS: Quick capture suggests past descriptions, replays the usual template, takes totals, parts, payer and date words, and hands Record a complete or open form (LOAM cases)."

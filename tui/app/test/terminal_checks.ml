@@ -2,6 +2,8 @@
    visibility and event translation over the synthetic scenario states. *)
 open Bonsai_terminal
 
+module O = Daily_overlays
+
 let run () =
   let directory = "scratch/terminal-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
@@ -257,6 +259,110 @@ let run () =
     "Bonsai-record-workspace-adapter";
   let paste = input_of_event (B.Event.Paste `Start) in
   F.require (paste = `Paste `Start) "Bonsai-paste-adapter";
+  (* Shell boundary: a new Record's quick capture is one bounded framed modal
+     over the parent screen. Its footer stays inside the frame, nothing
+     detaches at the terminal bottom, and the caret is the local input cell
+     placed inside that frame. *)
+  let quick_footer = "[Tab] full form" in
+  let opened = C.open_record state in
+  let typed =
+    List.fold_left
+      (fun acc c ->
+        match H.handle ~dimensions:(80, 24) ~width_of acc (`Key (`ASCII c, [])) with
+        | Some next -> next
+        | None -> acc)
+      opened (List.init (String.length "Coffee") (String.get "Coffee"))
+  in
+  F.require
+    (match typed.C.record with
+    | Some record -> Record_session.in_quick_capture record
+    | None -> false)
+    "Shell-new-record-opens-the-quick-capture";
+  F.require (C.editor_visible typed) "Shell-quick-capture-is-open";
+  let framed = overlay_screen (80, 24) typed in
+  F.require (match framed with Some rows -> List.length rows = 14 | None -> false)
+    "Shell-quick-capture-is-one-fourteen-row-overlay";
+  let rows = match framed with Some rows -> rows | None -> [] in
+  F.require
+    (String.starts_with (snd (List.nth rows 0)) ~prefix:"╭ Record"
+    && String.starts_with (snd (List.nth rows 13)) ~prefix:"╰")
+    "Shell-quick-capture-overlay-is-a-closed-frame";
+  F.require
+    (List.for_all
+       (fun (i, (_, text)) ->
+         i = 0 || i = 13 || String.starts_with text ~prefix:"│")
+       (List.mapi (fun i row -> (i, row)) rows))
+    "Shell-quick-capture-overlay-keeps-its-sides-closed";
+  F.require (List.for_all (fun (_, text) -> width_of text = 75) rows)
+    "Shell-quick-capture-overlay-rows-share-the-frame-width";
+  let footer_rows =
+    List.mapi (fun i (_, text) -> (i, text)) rows
+    |> List.filter_map (fun (i, text) ->
+           if Base.String.is_substring text ~substring:quick_footer then Some i else None)
+  in
+  F.require
+    (footer_rows <> [] && List.length footer_rows = 1
+    && List.for_all (fun i -> i > 0 && i < 13) footer_rows)
+    "Shell-quick-capture-footer-stays-inside-the-frame";
+  let base = R.screen ~width_of (80, 24) typed in
+  F.require
+    (not (List.exists (fun (_, text) -> Base.String.is_substring text ~substring:quick_footer) base))
+    "Shell-quick-capture-footer-is-not-detached-on-the-base-screen";
+  let carets =
+    List.mapi (fun i (style, _) -> match style with O.Input c -> Some (c, i) | _ -> None) rows
+    |> List.filter_map (fun x -> x)
+  in
+  F.require (List.length carets = 1) "Shell-quick-capture-has-one-caret";
+  let cell, row = match carets with [ (c, r) ] -> (c, r) | _ -> (0, 0) in
+  let origin_x, origin_y =
+    R.overlay_position ~dimensions:(80, 24) ~width_of typed ~pane_width:75 ~pane_height:14
+  in
+  F.require
+    (R.cursor_position ~width_of (80, 24) typed = Some (origin_x + cell, origin_y + row))
+    "Shell-quick-capture-caret-is-the-local-input-cell-inside-the-frame";
+  F.require
+    (cell > 0 && row > 0 && origin_x + cell < 80 && origin_y + row < 24)
+    "Shell-quick-capture-caret-stays-inside-the-terminal";
+  (* A small terminal keeps the capture whole and unframed: no overlay, bounded
+     rows and the retained input. *)
+  List.iter
+    (fun (width, height) ->
+      F.require (overlay_screen (width, height) typed = None)
+        (Printf.sprintf "Shell-quick-capture-has-no-overlay-at-%dx%d" width height);
+      let compact = R.screen ~width_of (width, height) typed in
+      F.require (List.length compact <= height)
+        (Printf.sprintf "Shell-quick-capture-rows-are-bounded-at-%dx%d" width height);
+      F.require
+        (List.for_all (fun (_, text) -> width_of text <= width) compact)
+        (Printf.sprintf "Shell-quick-capture-width-is-bounded-at-%dx%d" width height);
+      F.require
+        (List.exists (fun (_, text) -> Base.String.is_substring text ~substring:"Coffee") compact)
+        (Printf.sprintf "Shell-quick-capture-keeps-the-retained-input-at-%dx%d" width height);
+      F.require
+        (match R.cursor_position ~width_of (width, height) typed with
+        | Some (col, row) -> col < width && row < height
+        | None -> false)
+        (Printf.sprintf "Shell-quick-capture-caret-is-bounded-at-%dx%d" width height))
+    [ (48, 14); (32, 9) ];
+  (* A warning that leaves no room for the frame drops the frame, not the
+     notice. *)
+  let warned = { typed with C.message = "household-warning" } in
+  F.require (overlay_screen (57, 16) warned = None)
+    "Shell-quick-capture-frame-is-dropped-when-a-warning-leaves-no-room";
+  F.require
+    (List.exists
+       (fun (_, text) -> Base.String.is_substring text ~substring:"household-warning")
+       (R.screen ~width_of (57, 16) warned))
+    "Shell-quick-capture-keeps-the-household-warning-visible";
+  (* Back at the full terminal the same input sits in the framed modal again. *)
+  F.require
+    (match overlay_screen (80, 24) typed with
+    | Some rows ->
+        List.length rows = 14
+        && List.exists (fun (_, text) -> Base.String.is_substring text ~substring:quick_footer) rows
+        && List.exists (fun (_, text) -> Base.String.is_substring text ~substring:"Coffee") rows
+    | None -> false)
+    "Shell-quick-capture-returns-to-the-framed-modal";
   print_endline
     "PASS: Bonsai cell-width geometry, cyan/default and indexed colors/no truecolor, front overlays, \
      visible warnings, English Record and event adapters."

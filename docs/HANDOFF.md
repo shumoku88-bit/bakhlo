@@ -6,7 +6,7 @@ Per-screen progress: [UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md). Daily-use summar
 [VERIFICATION](VERIFICATION.md). The previous long handoff (per-feature evidence up
 to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
-## Where things stand (2026-10-20)
+## Where things stand (2026-10-21)
 
 - Bakhlo is a trial: LOAM remains the operational authority; no cutover is authorized.
 - Goal: reproduce LOAM's non-budget functionality and interaction (see AGENTS.md
@@ -15,6 +15,11 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   complete, batch, generation), Selected Day, Balances/Observe, Daily Pace (current,
   What-if, Pool, Trend), Manage Loci/roles, Exchange, Attention, limited settlements,
   reports. Remaining gaps and acceptance state live in the UI gap ledger.
+- Record quick capture now uses LOAM's bounded frame with its footer inside.
+  Synthetic terminal comparison covered 80×24 / 120×36 and compact 48×14 / 32×9;
+  resize, Tab, Esc and long Japanese drafts retain input. Household warnings take
+  priority over the frame. Core, native self-check and the PTY matrix passed.
+  This slice did not access household data or repeat the latest-data comparison.
 - Storage (rebuilt 2026-10-20): one book file = single-file S-expression snapshot +
   appended `Book_log` records. Every `Daily_book` mutation is in place except
   corrections that change a Reversal link or touch an opening/presence witness. At

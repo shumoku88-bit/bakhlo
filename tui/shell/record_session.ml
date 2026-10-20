@@ -42,6 +42,8 @@ let of_quick (p : Quick_capture.prefill) t =
     rows = List.map (fun (locus, amount) -> { key = None; locus; amount }) p.rows;
     focus = p.focus; cursor = None; candidate = 0; notice = "" }
 let is_plan t = match t.mode with A.Plan_new | A.Plan_edit _ -> true | A.New | A.Edit _ | A.Pay _ -> false
+(* LOAM quick capture is in front of a new Record, before its own preview. *)
+let in_quick_capture t = match t.quick with Some _ -> t.review = None | None -> false
 let has_draft t =
   (match t.quick with Some q -> Quick_capture.text q <> "" | None -> false) ||
   match t.mode with
@@ -634,6 +636,26 @@ let inner_line ~width_of ~width style text =
   let padded = content ^ String.make (max 0 (room - width_of content)) ' ' in
   (style, left ^ padded ^ right)
 
+(* LOAM quick capture: a bounded framed modal with the footer inside the frame.
+   The frame's border shifts the caret one cell to the right. *)
+let quick_modal ~book ~(surface : Quick_capture.surface) ~width_of t =
+  match t.quick with
+  | None -> []
+  | Some q ->
+      let framed = surface.framed in
+      let width = if framed then max 0 (surface.width - 2) else surface.width in
+      let height = if framed then max 0 (surface.height - 2) else surface.height in
+      let rows = Quick_capture.view ~book ~width_of ~width ~height q in
+      if not framed then rows
+      else
+        let shift (style, text) =
+          match style with O.Input cell -> (O.Input (cell + 1), text) | _ -> (style, text) in
+        [ sub_border ~width_of ~width:surface.width ~style:O.Focused_frame "Record" ]
+        @ List.map (fun (style, text) ->
+            let style, text = shift (style, text) in
+            inner_line ~width_of ~width:surface.width style text) rows
+        @ [ sub_bottom ~width_of ~width:surface.width ~style:O.Focused_frame () ]
+
 let original_amount_screen ~book:_ ~dimensions:(width,height) ~width_of t (ed : original_editor) =
   let width = max 0 width and height = max 0 height in
   let raw style text = style, O.pad ~width_of width text in
@@ -678,14 +700,14 @@ let original_amount_screen ~book:_ ~dimensions:(width,height) ~width_of t (ed : 
   List.filteri (fun i _ -> i < height) all_rows
   @ List.init (max 0 (height - List.length all_rows)) (fun _ -> raw O.Plain "")
 
-let screen ~book ~dimensions:(width,height) ~width_of t =
+let screen ?surface ~book ~dimensions:(width,height) ~width_of t =
   let width = max 0 width and height = max 0 height in
   let raw style text = style, O.pad ~width_of width text in
   match t.quick with
-  | Some q when t.review = None ->
-      raw O.Heading (tr "Record")
-      :: List.map (fun (style, text) -> (style, O.pad ~width_of width text))
-           (Quick_capture.view ~book ~width_of ~width ~height:(max 0 (height - 1)) q)
+  | Some _ when t.review = None ->
+      (* The quick capture is one bounded modal; the Shell places it. *)
+      quick_modal ~book
+        ~surface:(Option.value ~default:(Quick_capture.surface (width, height)) surface) ~width_of t
   | _ ->
   if t.enabling then
     (* LOAM unresolvedEnableView: one vocabulary admission, not a Movement. *)

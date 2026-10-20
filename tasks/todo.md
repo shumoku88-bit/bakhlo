@@ -5,7 +5,8 @@
 - [x] `Quick_capture`（説明・合計・Locus語・日付語、過去記録の雛形）を追加し、新規Recordの前段に接続。完成行はRecordのPreviewへ、それ以外は詳細フォームへ引き継ぐ。
 - [x] 単体（LOAM `checkQuickCapture`相当）とShellシナリオ（cold）を追加、既存シナリオはTabで詳細フォームへ。`./tools/check`、`./tools/tui --self-check`、`git diff --check`成功。
 - [x] 同一取得世代（`capture-1792510023-32503-293b919a`）のfresh paired comparisonを120×36と80×24で実施。サジェスト件数・順序、雛形提案、↓移動、Preview遷移・内訳一致を確認。原本不変、`clean-copies`完了。
-- [ ] 課題（今後の改善）：LOAMの枠付きモーダル（枠内フッター）に対する見た目の差、および比較環境での`accounting-roles.tsv`自動配置。
+- [x] クイック入力をLOAMの枠付きモーダル（枠内フッター）へ揃える（2026-10-21）。合成実画面で80×24／120×36の枠と48×14／32×9の縮退、Tab／Esc・日本語下書き保持を確認。警告が隠れる場合は枠を外し、警告を優先する。[証拠](../docs/VERIFICATION.md#record-quick-capture-framed-modal-2026-10-21)。
+- [ ] 比較環境での`accounting-roles.tsv`自動配置。今回の表示sliceには含めない。
 
 ## Daily Paceグラフで選択日の垂直ガイド線を表示（2026-10-20）
 

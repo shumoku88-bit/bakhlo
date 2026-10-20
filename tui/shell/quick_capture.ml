@@ -350,6 +350,26 @@ let update ~book t (input : Ui_input.input) =
         if complete plan then Preview (prefill ~book t plan) else Edit (prefill ~book t plan)
   | _ -> Stay t
 
+(* The quick capture's own surface over the terminal: a bounded framed modal
+   (LOAM ModalSurface.centered?), or the whole area when the terminal is too
+   small to frame. *)
+type surface = {
+  framed : bool;  (** The mode itself, never guessed from the height. *)
+  width : int;    (** Physical cells of the rectangle. *)
+  height : int;
+  top : int;      (** First row of the rectangle. *)
+  left : int;     (** First column of the rectangle. *)
+}
+
+let surface (width, height) =
+  let width = max 0 width and height = max 0 height in
+  let usable = max 0 (width - 1) in
+  if usable < 56 || height < 16 then { framed = false; width; height; top = 0; left = 0 }
+  else
+    let modal = min 80 (usable - 4) in
+    (* The terminal's final row stays reserved, as in LOAM. *)
+    { framed = true; width = modal; height = 14; top = (height - 1 - 14) / 2; left = (usable - modal) / 2 }
+
 (* Painting *)
 
 let name_of t token = match List.assoc_opt token t.catalog with Some l when l <> "" -> l | _ -> token

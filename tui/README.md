@@ -85,6 +85,11 @@ Actualの`c`はCorrect、ScheduledのEnterは閲覧だけのDetail、`c`は明�
 
 ## Record / EditとPreview
 
+新規Recordは一行のQuick captureから始める。Enterで説明候補を確定し、完成した入力は
+既存のPreviewへ、不足があれば詳細フォームへ進む。Tabは詳細フォーム、Escは下書き保持。
+通常寸法ではLOAMと同じ14行の枠内に入力・候補・操作案内をまとめ、狭小時は枠を外す。
+家計簿の警告を覆わない位置へ移し、収まらなければ全画面表示へ縮退する。
+
 Date、Description、Measure、符号付きPostingを入力する。科目名／IDを入力して許可済み候補を
 選び、名前から口座・費目の役割を推測しない。複数行も一つのRecord下書きで扱う。
 通常サイズでは親の日付を残す中央ペイン、狭い・短い端末では全画面へ畳む。

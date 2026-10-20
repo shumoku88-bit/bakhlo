@@ -4903,3 +4903,57 @@ one-line quick-entry mode.
 
 Synthetic paired comparison against LOAM, physical terminal/IME, human acceptance and P7
 were **not executed**.
+
+## Record quick capture framed modal (2026-10-21)
+
+### Boundary
+
+- Presentation only: quick-capture parsing, template ranking, default Record date,
+  publication gates, full-form Record layout and household storage are unchanged.
+- `Quick_capture.surface` describes the shared frame/caret rectangle. With no
+  warning, 80×24 uses a 75×14 frame at (2,4); 120×36 uses 80×14 at (19,10).
+  The footer stays inside the frame; 48×14 and 32×9 use the unframed available area.
+- The Shell no longer detaches a framed quick capture's last two rows. Compact
+  feedback stays above the two navigation rows. A frame moves upward or gives way
+  to compact rendering when it would cover household feedback (including 57×16).
+- Reused Record's existing frame helpers; no dependency, Core, format, CLI or
+  accounting-role configuration change.
+
+### Exercised evidence
+
+- Reproduced the unframed top-of-screen capture and detached bottom footer on the
+  pre-change native binary at 80×24 with `examples/daily-book.sexp`.
+- `./tools/check` passed (Core build/tests and changed-file privacy scan).
+- The first native build caught a missing `Quick_capture.surface` parameter type;
+  after that fix the existing `Bonsai-long-warning-visible-above-footer` regression
+  caught compact feedback below the footer. Both causes were fixed, not bypassed.
+- Final `./tools/tui --self-check` passed, including the existing warning-rendering
+  matrix and new frame/footer, non-ASCII caret, Shell overlay, compact roundtrip,
+  and 57×16 warning-priority checks.
+- `python3 tools/ci_tui_pty.py
+  _build/daily-bonsai/_build/default/tui/app/bonsai_daily.exe
+  examples/daily-book.sexp` passed: four PTY dimensions, keyboard/resize/cold reload,
+  exact quantities, narrow Record Preview Publish refusal, and unchanged authority.
+- Actual tmux surfaces, synthetic inputs only: direct existing LOAM binary with a
+  fresh `loam init` household, and Bakhlo with the tracked synthetic Daily fixture.
+  Compared empty quick-capture frames at 80×24 / 120×36 and unframed fallback at
+  48×14. Bakhlo also exercised 32×9, resize back to the frame with typed text, Tab
+  to the full form, Esc/resume of both full and quick drafts, and a long Japanese
+  quick draft whose caret remained inside the frame. This was a geometry comparison,
+  not a paired accounting-answer or history-template comparison.
+- Both synthetic household files had identical SHA-256 before and after. Only
+  AI-owned tmux sessions were used; no original household or private copy was read.
+- Built Bakhlo binary SHA-256:
+  `c5249f62d59c1e04d83cd1230150311c95c37dcfc803a441d47fc6c5a996c3a8`;
+  existing LOAM binary:
+  `4a413fa3df08c1490eb30e50e19b7b5fe4149a488e693a26696e68ba4cbe348c`.
+- Independent review identified the type annotation, compact feedback ordering,
+  framed warning occlusion and impossible compact-footer text assertion; all were
+  addressed, and the Shell boundary regression was added.
+- `./tools/privacy-scan --all` passed with no match; `git diff --check` passed.
+
+### Limits
+
+Latest-data paired comparison, physical terminal/IME, human acceptance and P7 /
+power-loss qualification were **not executed**. AccountingRole extraction into
+the comparison environment remains a separate open item. No cutover.
