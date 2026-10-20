@@ -5,7 +5,7 @@
 - [x] Actual画面のlayoutをScreen.Workspaceに変更し、context_rows・LOAM table_row・amount_summary・detail_raw_lines・wide判定（98×16）をLOAM ActualWorkspaceに準拠させる。
 - [x] Screen.envにdraft_retainedを追加し、保留中Record draftのWorkspace表示を接続。
 - [x] モーダル画面（Record_editors等）のgeometryがルート画面のlayout（Screen.Workspace）を尊重するよう`owner_layout`を修正し、モーダルによるFeedback行の隠蔽を解消。
-- [x] 単体テスト（actual_workspace_checks）、シナリオテスト（actual_integration_checks, publication_integration_checks, terminal_checks）を修正し、`./tools/tui --self-check`および`./tools/check`がすべて成功することを確認。
+- [x] 単体テスト（actual_workspace_checks）、シナリオテスト（actual_integration_checks, publication_integration_checks, terminal_checks）を修正し、`./tools/tui --self-check`および`./tools/check`がすべて成功することを確認（`16d8cc6`）。
 
 ## approved-loci外の既存明細でd/mをLOAMへ揃える（2026-10-20・計画）
 

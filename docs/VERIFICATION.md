@@ -4684,6 +4684,7 @@ Physical terminal/IME, human acceptance and P7 were **not executed**.
   - `./tools/check`: 1008 test cases passed.
   - `./tools/tui --self-check`: all Bonsai scenarios and terminal checks passed (including overlay feedback visibility under both Standard and Workspace route layouts).
   - `git diff --check`: clean (no trailing whitespace or conflict markers).
+- Matching implementation `16d8cc6`: [Core 39412295863](https://github.com/shumoku88-bit/bakhlo/actions/runs/39412295863) and [Bonsai TUI 39412295871](https://github.com/shumoku88-bit/bakhlo/actions/runs/39412295871) completed/success (synthetic CI).
 
 ### Limits
 
