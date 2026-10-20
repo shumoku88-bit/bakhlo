@@ -5,3 +5,5 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 cd "$root"
 ./tools/opam exec -- dune build --root . @all
 ./tools/opam exec -- dune runtest --root . --force
+# No private household text may enter the repository (user decision 2026-10-20).
+./tools/privacy-scan

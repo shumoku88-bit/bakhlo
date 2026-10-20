@@ -102,7 +102,10 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   approval. Approved: read-only copies of `household.loam` and its config, fresh
   private comparison copies, and bounded read-only inventory of retained operation
   evidence. Keep private data and counts in ignored scratch only; never in fixtures,
-  commits or public output. Preserve earlier captures, candidates, trial edits and the
+  commits or public output. User decision (2026-10-20): no private household text
+  (names, memos, identifiers, amounts) may enter this repository, its history or commit
+  messages. `./tools/check` runs `./tools/privacy-scan` on changed files; run
+  `--all` after broad doc edits. Never put private text in the scan's inputs or output. Preserve earlier captures, candidates, trial edits and the
   Irmin research artifacts.
 - Ordinary tests use synthetic inputs. Do not build/modify the sibling Lean repository
   or copy its source without separate authorization.

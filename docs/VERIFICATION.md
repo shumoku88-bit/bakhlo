@@ -4818,3 +4818,22 @@ User decision (2026-10-20): correction (`c`) follows LOAM.
 
 No real-data correction was saved. Physical terminal/IME, human acceptance and P7 were
 **not executed**.
+
+## Private household text kept out of the repository (2026-10-20)
+
+User decision (2026-10-20): no private household text may enter this repository.
+
+- Manual audit first: every tracked file and the full history of 434 commits (including
+  commit messages) were searched for Locus names, memos, entry identifiers and original
+  hashes seen in the private comparison copies; none was found. `scratch/` is ignored and
+  has no tracked file; `examples/` books are synthetic.
+- New `tools/privacy-scan`: takes the quoted strings of the ignored private book copies
+  under `scratch/` as tokens and refuses any whole-word match in changed and new files
+  (`--all`: every tracked and new file). Matches are reported as file, line and byte
+  length only. Generic words that also occur in the repository (25, e.g. `food`, `wallet`,
+  `rent`, synthetic `record-1`) were reviewed and recorded in the ignored
+  `scratch/privacy-baseline.txt`, so no private-derived list is committed. Without private
+  copies (CI) it reports `not executed`.
+- `./tools/check` now ends with the changed-file scan. Measured: `--all` 84 s over 504 files,
+  changed-file mode under 1 s. A planted private token in an untracked file was detected
+  (exit 1, reported as `12 bytes` only) and the file was removed.

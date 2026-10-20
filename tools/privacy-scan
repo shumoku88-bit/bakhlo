@@ -1,0 +1,54 @@
+#!/bin/sh
+# Refuse repository content that repeats text from the private household copies.
+#
+# Tokens are the quoted strings (Locus tokens and names, memos, identifiers) of
+# the ignored book copies under scratch/. Generic words that also occur in the
+# repository (e.g. a Locus called "food") are listed in the ignored
+# scratch/privacy-baseline.txt after review, so nothing private is ever written
+# to the repository. Matches are reported by file, line and length only; the
+# scan never prints private text. Without private copies it is not executed.
+#
+#   tools/privacy-scan               check files changed since HEAD and new files
+#   tools/privacy-scan --all         check every tracked and new file
+#   tools/privacy-scan --baseline    record every current match as reviewed generic text
+set -eu
+umask 077
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+cd "$root"
+case "${1:-}" in ''|--all|--baseline) ;; *) printf '%s\n' 'Usage: tools/privacy-scan [--all|--baseline]' >&2; exit 2 ;; esac
+[ ! -L scratch ] || { printf '%s\n' 'privacy-scan: scratch must not be a symlink.' >&2; exit 2; }
+baseline=scratch/privacy-baseline.txt
+work=$(mktemp -d "${TMPDIR:-/tmp}/bakhlo-privacy.XXXXXX")
+trap 'rm -rf "$work"' EXIT
+find scratch/loam-comparison scratch/daily_book_candidate_v1 -type f -name '*.sexp' \
+  -exec grep -ohE '"[^"]{3,}"' {} + 2>/dev/null \
+  | sed 's/^"//; s/"$//' \
+  | LC_ALL=C awk 'length($0) >= 4 && $0 !~ /^[-+0-9.,:\/ T()]*$/' \
+  | LC_ALL=C sort -u > "$work/all" || true
+if [ ! -s "$work/all" ]; then
+  printf '%s\n' 'privacy-scan: no private household copy under scratch/; not executed.'
+  exit 0
+fi
+if [ -f "$baseline" ]; then LC_ALL=C sort -u "$baseline" > "$work/allow"; else : > "$work/allow"; fi
+LC_ALL=C comm -23 "$work/all" "$work/allow" > "$work/tokens"
+if [ -n "${1:-}" ]; then git ls-files -co --exclude-standard -z > "$work/files"
+else
+  { git diff --name-only -z HEAD; git ls-files -o --exclude-standard -z; } > "$work/files"
+fi
+# Whole words only, so an identifier never matches inside a hash or longer name.
+xargs -0 grep -I -n -H -w -F -o -f "$work/tokens" -- < "$work/files" 2>/dev/null > "$work/raw" || true
+if [ "${1:-}" = --baseline ]; then
+  cut -d: -f3- "$work/raw" | cat - "$work/allow" | LC_ALL=C sort -u > "$baseline"
+  printf 'privacy-scan: %s reviewed generic token(s) recorded in %s (ignored).\n' \
+    "$(wc -l < "$baseline" | tr -d ' ')" "$baseline"
+  exit 0
+fi
+if [ -s "$work/raw" ]; then
+  LC_ALL=C awk -F: '{ t = $0; sub(/^[^:]*:[^:]*:/, "", t); printf "%s:%s: private token (%d bytes)\n", $1, $2, length(t) }' \
+    "$work/raw" >&2
+  printf 'privacy-scan: %s match(es) of private household text; do not commit.\n' \
+    "$(wc -l < "$work/raw" | tr -d ' ')" >&2
+  exit 1
+fi
+printf 'privacy-scan: %s private tokens checked against %s file(s); no match.\n' \
+  "$(wc -l < "$work/tokens" | tr -d ' ')" "$(tr -cd '\0' < "$work/files" | wc -c | tr -d ' ')"
