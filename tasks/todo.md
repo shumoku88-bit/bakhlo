@@ -1,5 +1,10 @@
 # LOAMの機能・見た目・使い勝手をBakhloで再現する
 
+## 中断中（2026-10-21）
+
+- [ ] 予定作成直後のExpected pace選択（UI-23の残り）：`omp/created-pace`のworktree（`../bakhlo-omp-scheduled`）に未コミットの途中作業（scheduled_screen.ml/.mli、shell_dispatch.ml）。Shell変更は`shell_dispatch.ml`の`apply_request`のみ承認済み、drillは保持する方針。テスト未完了・未検証。
+- [ ] `95ba940`の同一SHA CIは未確認。
+
 ## Trend / Locus comparisonの残り（2026-10-21）
 
 - [ ] 既定の系列：LOAMは家計の科目3つを固定、Bakhloは先頭の科目で空のグラフになりうる。設定で既定系列を選べるようにするか要判断。
