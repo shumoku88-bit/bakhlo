@@ -164,7 +164,7 @@ let render_summary_lines ~width ~width_of ~book ~report ~selected_row =
     in
     header @ [ (O.Chrome, th); rule ] @ rows_text
 
-let render_detail_lines ~width ~width_of ~book ~report ~selected_row =
+let render_detail_lines ~book ~report ~selected_row =
   match List.nth_opt report.rows selected_row with
   | None ->
       [

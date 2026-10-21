@@ -18,9 +18,9 @@ was replaced for this reason, see `0e537c8`).
 
 ## Layers
 
-All TUI code builds in its own Dune project (`tools/build-bonsai-tui`) with
+All TUI code is its own Dune project inside the main workspace (`tui/dune-project`) with
 `implicit_transitive_deps false`, so using an undeclared library is a compile
-error. Directory = layer:
+error; `tui/dune` repeats the root compiler policy. Directory = layer:
 
 | Directory | Library | May use |
 |---|---|---|
@@ -32,10 +32,10 @@ error. Directory = layer:
 | `tui/screens/<s>/test` | test | its own screen and lower layers |
 | `tui/shell` | `bakhlo_tui_shell` | everything below, `bakhlo.store`, `unix` |
 | `tui/shell/test`, `tui/scenarios` | check libraries | Shell and below |
-| `tui/app` | `bakhlo_tui_terminal`, `bonsai_daily` | Shell, Bonsai runtime |
+| `tui/app` | `bakhlo_tui_terminal`, `bakhlo_tui_cli`, `bakhlo_tui` | Shell, Notty (`notty-community`) |
 | `tui/app/test` | `app_checks` | whole program |
 
-Core never sees `tui/` (data only, for the check below).
+Core never depends on `tui/`.
 
 Shell modules (`tui/shell`): `shell_state` (state, route entry, Record retention,
 publication results) → `shell_record_actions` (Record_action targets),
@@ -97,7 +97,7 @@ provenance becomes stale while a guarded screen is already open.
 Dune enforces declared library use. `tools/arch/arch_check.ml` additionally
 rejects: Core depending on TUI libraries; a library depending on a higher or
 sibling layer (screen to screen, screen to Shell, kit to anything); `bakhlo.store`
-or `unix` below the Shell; Bonsai/Notty outside `tui/app`; file access or writer
+or `unix` below the Shell; Notty outside `tui/app`; file access or writer
 tokens (`Durable_append`, `open_out`, `Sys.rename`, `Daily_file`,
 `Daily_actions`, …) in kit/book/protocol/screens; the Shell mentioning a
 migrated screen's form ids, field ids or configuration files; sources in a
@@ -109,14 +109,14 @@ escape hatch for a file shared with an unmigrated workflow; it may not grow.
 
 ## Tests
 
-- `tools/tui --self-check` = `tools/build-bonsai-tui --test`: every TUI check.
-- `tools/build-bonsai-tui --test screens/pace` (any subdirectory): one owner.
+- `tools/tui --self-check` = `dune test tui`: every TUI check (also run by `./tools/check`).
+- `./tools/opam exec -- dune test tui/screens/pace` (any subdirectory): one owner.
 - Screen owner checks are pure (`Screen.env` built in memory, no files).
 - Pure checks of a screen library live beside it in `tui/screens/<s>/test`
   (Actual workspace, Scheduled sessions); the app runner passes the native
   cell width.
 - `tui/app/test/app_checks` runs Shell session checks, owner checks, cross-screen scenarios
-  and Bonsai adapter checks with the real cell width, outside Dune's sandbox
+  and Notty adapter checks with the real cell width, outside Dune's sandbox
   (the writer refuses symlinked inputs) from a materialized synthetic copy of
   `examples/daily-book.sexp`.
 - The 34 suite PASS lines are compared with `efda2a3` after every slice;

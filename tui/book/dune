@@ -1,6 +1,14 @@
 ; Pure book vocabulary shared by screens: draft/candidate construction,
 ; calendar arithmetic and read-only evidence formatting. No writer, no I/O.
+
 (library
  (name bakhlo_tui_book)
  (wrapped false)
- (libraries bakhlo_tui_kit bakhlo.domain bakhlo.application bakhlo.sexp zarith uutf base))
+ (libraries
+  bakhlo_tui_kit
+  bakhlo.domain
+  bakhlo.application
+  bakhlo.sexp
+  zarith
+  uutf
+  base))

@@ -532,7 +532,7 @@ let handle (env : Screen.env) (_geometry : Screen.geometry) t input =
 
 let marker_of index = Chart.markers.(index mod Array.length Chart.markers)
 
-let rack_text (env : Screen.env) (snap : R.snapshot) =
+let rack_text (snap : R.snapshot) =
   Array.to_list snap.R.series
   |> List.mapi (fun index series ->
       marker_of index ^ " " ^ series.R.label ^ " (" ^ series.R.coordinate.R.locus ^ ")")
@@ -731,7 +731,7 @@ let chart_rows (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snaps
             O.clip_text ~width_of width
               "full/partial = calendar window only, not household coverage or a balance." );
         ];
-    header := !header @ [ (O.Plain, O.clip_text ~width_of width (rack_text env snap)) ]);
+    header := !header @ [ (O.Plain, O.clip_text ~width_of width (rack_text snap)) ]);
   header :=
     !header @ [ (O.Plain, O.clip_text ~width_of width (period_line ~width_of ~width t snap index)) ];
   let legend = overlay_legend t in

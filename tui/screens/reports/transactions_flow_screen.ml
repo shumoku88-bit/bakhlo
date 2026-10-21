@@ -89,10 +89,7 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
              ~width_of ~book:env.book ~report:rep ~selected_row)
       in
       let detail_rows =
-        List.map snd
-          (Flow.render_detail_lines
-             ~width:(max 0 (right_width - 6))
-             ~width_of ~book:env.book ~report:rep ~selected_row)
+        List.map snd (Flow.render_detail_lines ~book:env.book ~report:rep ~selected_row)
       in
       P.split ~geometry ~pane:t.pane ~scroll:t.scroll
         ~left_title:(Printf.sprintf "Transactions Flow • %s" (IncExp.preset_label t.report.preset))

@@ -24,6 +24,7 @@ Status: ACCEPTED by the user's explicit approval on 2026-10-02.
 | Zarith | Runtime | Exact signed integer quantities without machine overflow |
 | Base_quickcheck (`base_quickcheck`) | Test only | Generated invariant checks with shrinking |
 | ppx_expect | Test only | Readable output regression checks, later CLI/TUI/serialization |
+| notty-community, uutf | Runtime, `tui/app` only | Terminal input/output and cell-width-aware painting for the TUI. User decision 2026-10-21: replaces Bonsai_term, which needed a separate OxCaml switch; alternatives compared in VERIFICATION (Notty trial). Revisit if the terminal adapter needs what Notty lacks. |
 
 Core and Async are not introduced. Initially no storage dependency was selected. A later
 Unix+SQLite-first roadmap earned isolated trials, not main dependency adoption; the

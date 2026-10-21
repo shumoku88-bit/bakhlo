@@ -84,7 +84,7 @@ let actual_browsing_checks ~width_of ~directory home =
     (fun dimensions ->
       let key = key ~dimensions ~width_of in
       let detail = key state (`ASCII 'i') in
-      let height, view = actual_window ~dimensions ~width_of detail in
+      let _, view = actual_window ~dimensions ~width_of detail in
       let capacity = view.Ui_panel.capacity and last = view.last in
       let identity = actual_selected_id detail in
       let ended = key detail `End in

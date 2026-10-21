@@ -193,7 +193,7 @@ let format_pace_error why =
   else why
 
 (* Sum exact pool balances; unknown or unsupported balances refuse instead of defaulting. *)
-let query_pool_balance book measure coords =
+let query_pool_balance book coords =
   let rec sum acc = function
     | [] -> Ok acc
     | (c : D.Effect_coordinate.t) :: rest -> (
@@ -361,7 +361,7 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
           })
         pool
     in
-    let* _ = query_pool_balance book measure coords in
+    let* _ = query_pool_balance book coords in
     let* today_pace =
       match
         B.daily_pace book ~measure ~pool:coords ~observed_at:today ~end_exclusive:current_end

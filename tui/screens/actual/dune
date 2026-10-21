@@ -1,4 +1,12 @@
 (library
  (name bakhlo_screen_actual)
  (wrapped false)
- (libraries bakhlo_tui_kit bakhlo_tui_book bakhlo_tui_protocol bakhlo.domain bakhlo.sexp zarith uutf base))
+ (libraries
+  bakhlo_tui_kit
+  bakhlo_tui_book
+  bakhlo_tui_protocol
+  bakhlo.domain
+  bakhlo.sexp
+  zarith
+  uutf
+  base))

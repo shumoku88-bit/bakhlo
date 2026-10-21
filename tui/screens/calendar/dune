@@ -1,4 +1,9 @@
 (library
  (name bakhlo_screen_calendar)
  (wrapped false)
- (libraries bakhlo_tui_kit bakhlo_tui_book bakhlo_tui_protocol bakhlo.sexp base))
+ (libraries
+  bakhlo_tui_kit
+  bakhlo_tui_book
+  bakhlo_tui_protocol
+  bakhlo.sexp
+  base))

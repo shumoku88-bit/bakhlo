@@ -314,7 +314,7 @@ let render_report_lines ~width ~width_of ~book ~report =
   in
   header @ summaries_lines @ unresolved_lines
 
-let render_detail_lines ~width ~width_of ~book ~report ~selected_row =
+let render_detail_lines ~report =
   [
     (O.Heading, "Report Overview");
     (O.Plain, "Period: " ^ report.period.label);

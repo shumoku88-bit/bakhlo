@@ -1,19 +1,18 @@
-# 日々の画面（試用）
+# 日々の画面
 
-LOAMの見た目と操作へ揃える英語UI。現在の`./tools/tui`は先行実装のBonsai_term環境を使う。
-旧Notty画面、両画面比較ベンチ、独立したBonsai配置試作は削除した。NottyライブラリはBonsai描画と
-native renderer検査で引き続き使う。新依存・global環境変更は行わず、通常DuneビルドはUI依存不要。
+LOAMの見た目と操作へ揃える英語UI。端末描画はNotty（`tui/app`）で、通常のDuneビルドと
+`./tools/check`に含まれる。2026-10-21にBonsai_term（OxCaml環境）から置き換えた（本人判断）。
 
-まずLOAMと同じ英語表記で作る。日本語UIは未定で、後からNotty版を作る選択肢も残す。
+まずLOAMと同じ英語表記で作る。日本語UIは未定。
 `Ui_text.tr`は現在の英語表示文言の入口で、日本語対応の実装約束ではない。
 科目名・メモ等のユーザーデータは翻訳しない。
 [UI方針](../docs/UI_DIRECTION.ja.md)、[UI差分管理台帳](../docs/LOAM_UI_GAP_LEDGER.ja.md)も参照。LOAMの正データ・普段の記帳先は変更しない。
 
-## GitHub Actionsでの限定検証
+## GitHub Actionsでの検証
 
-trackedなBonsai UIの変更をmainへpushすると、`/.github/workflows/tui.yml`がLinuxの隔離OxCaml環境でnative buildと`--self-check`を試す。通常の`./tools/tui`は従来どおりローカルの隔離Bonsai試用環境を使用する。CI専用の`BAKHLO_BONSAI_CI=1`でのみGitHub runnerの別switchを使用する。
-
-初回のBonsai native/self-checkはActions run `39094690207`で合格。固定依存cacheも次のrun `39096625299`で保存できた（cache hitによる速度改善は未測定）。`tools/ci-tui-pty`（Expect）でLinux実PTYの4寸法（120×36／80×24／48×14／32×9）、キー／resize／Ctrl-Q／authority bytesを検査する工程を追加した。**PTY新工程のActions実行・結果は未確認の段階**。Mac実IME／フォント、LOAMの実行対照、P7・運用認定は別。Core CIとBonsai TUI CIの合格も独立している。
+`core.yml`がCoreとTUIのビルド・全合成検査と、`tools/ci-tui-pty`（Expect）によるLinux実PTYの
+4寸法（120×36／80×24／48×14／32×9）、キー／resize／Ctrl-Q／authority bytes不変を検査する。
+Mac実IME／フォント、LOAMの実行対照、P7・運用認定は別。
 
 ## 起動
 
@@ -45,8 +44,7 @@ Measure／scaleをreviewして2回目のEnterでだけ作成する。小さい�
 再確認する。reviewのEscape／Editは入力へ戻り、入力のEscapeのみ非保存で終了する。
 非TTY、`--check`、Recoveryその他のload callerは引き続きfail-closed。
 空台帳への自動fallbackはしない。
-ABIが異なるため、現在のCore・台帳・UIソースを`_build/daily-bonsai`で再ビルドする。
-生成先は追跡中のモジュールだけへ更新し、削除済み旧UIソースを残さない。
+`./tools/tui`は通常のDuneビルド（`_build/default/tui/app/bakhlo_tui.exe`）を作ってから起動する。
 
 ## Home / CalendarとCommands
 
@@ -438,7 +436,7 @@ Daily_bookは単一S式v1〜v3・v5を読み、v3（期間付き履歴があれ�
 - **Bakhlo Light / Dark (original)**: 端末配色とは独立したオリジナルテーマ。
   本文・背景・選択・編集枠は固定xterm 256色を使う。24-bit SGRは出さない。
 
-入力カーソルと枠線は本文の文字と分離して描画する。現在のBonsai属性APIにdimがないため、
+入力カーソルと枠線は本文の文字と分離して描画する。端末属性のdimは使わないため、
 補助表示は装飾と配置を抑えて区別する（LOAMのdim表示とは異なる）。
 Space → Commands → Themeで直接変更する。Household setup内からも開ける。
 ↑/↓またはj/kでHomeを含む配色をプレビューし、Enterで確定して台帳とは別のUI設定へ保存する。
@@ -462,8 +460,8 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 - ui_panel：一覧・詳細の共通枠、可視行数、選択追従viewport、整数overflowを避ける端移動。
   ActualとScheduledの描画・ページ送りが同じ規則を使う。対象の意味・キー割当・保存判断は持たない。
 - daily_actions / posting_draft / daily_file：既存の数量・検査・保存境界。
-- bonsai_daily：実描画と入力adapter。会計計算は持たない。
-  Resizeとキーが同じbatchに入るため、寸法はhandler内に捕捉せずstate_machine_with_inputのaction適用時に読む。
+- notty_render / notty_terminal：実描画と入力adapter。会計計算は持たない。
+  イベントごとに端末寸法を読み直すので、resizeとキーが古い寸法を使わない。
 
 ### 共通化の境界（KEEP / 統合 / LOCAL）
 
@@ -472,7 +470,7 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 現在は共有inputの純粋機構だけ実装・検査済み。以下の画面cutoverは未実行で、全画面対応済みではない。
 
 - **KEEP**：`daily_form`のUTF-8 scalar編集とbyte-offset、`daily_overlays`の幅／clip／tailとLocus prefix候補、
-  `ui_panel`の枠・capacity/window/move、Bonsai/Nottyのnative合成・実幅・fit・after-display cursor。
+  `ui_panel`の枠・capacity/window/move、Nottyの合成・実幅・fit・cursor。
 - **統合／切替**：`daily_overlays`に`input_text`／`input_cell`／`cursor_in_rows`を実装済み。
   value窓と1cell caretを一緒に計算し、再帰Columnsの子座標を親へ変換する。現行画面の利用元はまだ切り替えていない。
   `ui_form`の寸法なしpaint＋独立cursorをbounded styled rowsへ切り替え、`ui_panel`の既存geometryへ接続する。
@@ -533,5 +531,5 @@ restore-copyは存在しない別パスへadmittedなbyte-exactコピーを作�
 native rendererは実cell幅・全テーマ・通常／狭い／低い端末で寸法、pane前面・境界、警告、indexed色・
 truecolor不使用、入力adapterを検査する。recovery_checksの故障注入・SIGKILL・cold拒否・照会・確認・復元は維持する。
 既存の会計・codec検査も維持する。synthetic PTYは実入力・終了・通常入力への復帰を確認する。
-既存のBonsai終了処理でEXTPROCだけが変わる場合があり、全termios属性の完全復元保証はない。
+端末終了処理（Notty）で全termios属性が完全に復元される保証はない。
 macOS Terminalのpixel・色味、人間のUX受入、実運用切替の認定は別。現在の結果は[作業記録](../tasks/todo.md)を参照。

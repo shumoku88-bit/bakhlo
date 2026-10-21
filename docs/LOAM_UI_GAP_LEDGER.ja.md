@@ -156,7 +156,7 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 
 | 面 | Bakhlo入口 | LOAM入口（`loam/Loam/Tui/`） |
 | --- | --- | --- |
-| Home／Commands | `bonsai_daily.ml`、`daily_overlays.ml`、controllerのCalendar／Commands描画、`ui_commands.ml` | `Home.lean`、`HomeCommandPalette.lean`、`ReportPicker.lean` |
+| Home／Commands | `tui/screens/calendar`、`daily_overlays.ml`、Shellの Commands 描画、`ui_commands.ml` | `Home.lean`、`HomeCommandPalette.lean`、`ReportPicker.lean` |
 | Record／Actual／Selected Day | `record_session.ml`、`reversal_session.ml`、`date_correction_session.ml`、controllerのedit／reverse／date／Actual／Selected_day | `Record.lean`／`RecordSession.lean`、`ActualWorkspace.lean`、`SelectedDay.lean`／`SelectedDaySession.lean`、`ActualDateCorrection.lean`、`ActualReversal.lean`／`ActualReversalSession.lean`、`EventMerchant.lean` |
 | Scheduled | `ui_workspace.ml`、`scheduled_months.ml`、`scheduled_session.ml`、`scheduled_cancellation_session.ml`、`scheduled_continuation_session.ml`、`scheduled_bulk_session.ml`、`scheduled_generation_session.ml`、`record_session.ml`、controllerのScheduled／cancel／bulk／generate | `ScheduledWorkspace.lean`／`ScheduledWorkspaceSession.lean`、`ScheduledCreation.lean`、`ScheduledCompletion.lean`、`ScheduledCancellation.lean`、`ScheduledReplacement.lean`、`ScheduledBulkEdit.lean`／`ScheduledBulkEditSession.lean`、`ScheduledGeneration.lean`／`ScheduledGenerationSession.lean` |
 | Balances／Reports／Pace | `daily_overlays.ml`、`balance_view_data.ml`、`daily_pace_trend.ml`、controllerのbalance／pace／what-if／trend | `Balances.lean`、`BalanceViewSetupSession.lean`、`RoleBalances.lean`、`ReportsView.lean`／`ReportsSession.lean`、`DailyPaceTrend.lean`／`DailyPacePoolSetupSession.lean`／`CycleBoundarySetupSession.lean`、`DailyPaceWhatIf.lean` |
@@ -190,7 +190,7 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 | controller context | `tui/daily_interaction_context.ml` の問い合わせ、config／form準備、feedback／viewport／寸法 | 入力と描画が同じgeometryを使用。共有契約変更は一人が統合 |
 | controller input | `tui/daily_interaction.ml` の `handle` | キー／paste／overlayとsession／publisher接続。別画面でも同関数の同時編集不可 |
 | controller view | `tui/daily_interaction_view.ml` の `workspace_rows`、`screen`、`resolve_overlay`、`footer`、caret | 描画・配置を入力dispatchから分離。state → context → input／view（右が左を利用）、旧moduleの互換再exportなし |
-| Renderer／テーマ | `tui/bonsai_daily.ml` の `attributes`、`border_attributes`、`lines`／`render`、`tui/ui_preferences.ml` | 見た目を任せられるが全画面へ波及。input adapter／event-loopは同じ依頼に混ぜない |
+| Renderer／テーマ | `tui/app/notty_render.ml` の `attributes`、`border_attributes`、`lines`／`render`、`tui/shell/ui_preferences.ml` | 見た目を任せられるが全画面へ波及。input adapter／event-loopは同じ依頼に混ぜない |
 | 既存描画・回答 | `tui/daily_overlays.ml` の `clip_text`／`wrap_text`／枠、`entry_lines`／`plan_lines`／残高、`bonsai_home_lines` | 幅・金額・会計回答・Homeが同居。担当関数を決め、file全体のformat／renameは禁止 |
 | 共通panel | `tui/ui_panel.ml/.mli` の `capacity`／`window`／`move`／`frame` | Actual／Scheduled等が利用。API変更は専任統合。見た目担当が独自viewportを複製しない |
 | 汎用modal | `tui/ui_form.ml/.mli` の `handle_input`／`render_rows` | 多数のoperationで共有。見た目とSubmit／Cancel規則を分離。Record Previewのgateとは別 |
@@ -198,7 +198,7 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 | Record owner | `tui/record_session.ml/.mli` の `screen`／field描画、`handle`／`review_geometry` | Record・訂正・予定作成／変更／完了で共有。paint変更は可能、寸法／gate変更は安全レビューが必要 |
 | 選択・draft入力 | `tui/ui_workspace.ml/.mli`、`tui/ui_input.ml/.mli`、`tui/daily_form.ml`、`tui/posting_draft.ml` | stable identity・filter・caret／pasteを保持。行番号や見た目で対象を再解釈しない |
 | family／保存境界 | `tui/attention_data.*`、`settlement_data.*`、`locus_roles.*`、`daily_actions.ml`、`daily_file.ml`、`sexp/`、`application/`、`lib/` | 見た目依頼の編集対象外。safe load／writer／semantic修正は別担当・別根拠 |
-| 検証／build | `tui/daily_interaction_checks.ml`、`record_session_checks.ml`、`bonsai_daily.ml` self-check、`tools/build-bonsai-tui` | 共用ファイル。増分test／module登録は統合時に調整。UIはCore CIだけでは検査されない |
+| 検証／build | `tui/scenarios`、`record_session_checks.ml`、`tui/app/test/app_checks.ml`、`./tools/tui --self-check` | 共用ファイル。増分test／module登録は統合時に調整。CoreとTUIは同じCI（`core.yml`）で検査される |
 
 ### 協調ルール
 

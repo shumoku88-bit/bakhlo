@@ -52,8 +52,8 @@ let start_first_run path read_error =
     | First_run.Cancel ->
         outcome := Some First_run_cancelled;
         None
-    | First_run.Create _ when not (First_run.ready_to_create ~dimensions:(width, height) ~width_of:N.width_of state)
-      ->
+    | First_run.Create _
+      when not (First_run.ready_to_create ~dimensions:(width, height) ~width_of:N.width_of state) ->
         Some (First_run.refuse_confirmation state)
     | First_run.Create details ->
         (try
@@ -64,14 +64,17 @@ let start_first_run path read_error =
                      ~scale:details.scale))
          with
         | F.Refused why -> outcome := Some (First_run_failed why)
-        | Unix.Unix_error (error, _, _) -> outcome := Some (First_run_failed (Unix.error_message error))
+        | Unix.Unix_error (error, _, _) ->
+            outcome := Some (First_run_failed (Unix.error_message error))
         | Sys_error why -> outcome := Some (First_run_failed why));
         None
   in
   ignore
     (terminal_loop
        ~paint:(fun (width, height) state ->
-         let rows, cursor = First_run.screen ~dimensions:(width, height) ~width_of:N.width_of state in
+         let rows, cursor =
+           First_run.screen ~dimensions:(width, height) ~width_of:N.width_of state
+         in
          (N.lines P.Terminal rows |> N.fit width height, cursor))
        ~step
        (First_run.initial ~source_path:path ~read_error));

@@ -128,7 +128,7 @@ Poolの設定画面は`daily-pace.tsv`だけを更新し、全境界presetをbyt
 | O03 | 外部会計形式への出力 | hledger出力はユーザー指定で対象外。他形式は別途判定。Daily経路には未接続で、S式が読めることを他形式の対応としない |
 | O04 | Fava | ユーザー指定で対象外。運用切替の必須条件にしない |
 | O05 | Print・診断 | Balancesの画面内Print previewあり。LOAMの同意付き通常端末出力とは未同等 |
-| O06 | 別環境への導入 | 既存の隔離Bonsai環境が必要。standalone配布・新環境の復旧は未認定 |
+| O06 | 別環境への導入 | `./tools/bootstrap`の通常のOCaml環境だけで動く（2026-10-21にBonsai／OxCamlを廃止）。standalone配布・新環境の復旧は未認定 |
 
 ## 既存の限定検証と次の順序
 

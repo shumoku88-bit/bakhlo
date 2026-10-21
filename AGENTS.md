@@ -36,8 +36,7 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   If something could not run, record **not executed**; never fabricate success,
   infer a missing balance or weaken Preview/save refusal.
 - After pushing, inspect the CI run for the **matching commit SHA**
-  (`core.yml`: Core build/tests; `tui.yml`: Linux OxCaml/Bonsai build + synthetic
-  self-check, opt-in `BAKHLO_BONSAI_CI=1`). Core green ≠ TUI green; synthetic green ≠
+  (`core.yml`: Core and TUI build and tests, plus a Linux PTY smoke). Synthetic green ≠
   physical-terminal, IME, paired-parity or P7 acceptance. Investigate failures.
 - Parallel AI work: agree file/function ownership first; shared Shell/API changes are
   serialized. Per-screen state/input/painting live in `tui/screens/<screen>`.
@@ -71,9 +70,10 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   separate decision). Internal structures need not match LOAM; observable results and
   safety behavior must. Cutover is a separate decision (`docs/CUTOVER_CHECKLIST.ja.md`).
 - Today's spending guide is LOAM Home `d` Daily Pace. `docs/UI_DIRECTION.ja.md` owns UI
-  policy: English first (Japanese undecided), Bonsai first (Notty may follow), quiet
-  colors, stable geometry, preserved drafts/selection, visible safety errors. Share UI
-  mechanics only when current callers justify it (`tui/README.md`).
+  policy: English first (Japanese undecided), Notty terminal (user decision 2026-10-21:
+  Bonsai_term was replaced; Bonsai is explored outside Bakhlo), quiet colors, stable
+  geometry, preserved drafts/selection, visible safety errors. Share UI mechanics only
+  when current callers justify it (`tui/README.md`).
 - Exact quantities, distinct currencies, unknown versus zero, real refunds and
   cancellations matter. Never guess facts, round amounts, trim identities or skip
   unsupported input. Preserve payment-plan links and stable IDs.

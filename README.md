@@ -44,8 +44,8 @@ Esc／Cancelは下書きを保持する。
 
 ```sh
 ./tools/bootstrap          # リポジトリ内に隔離したOCaml環境（初回のみ）
-./tools/check              # Coreのビルド・テスト・アーキテクチャ検査・privacy-scan
-./tools/tui --self-check   # Bonsai TUIのビルドと合成検査
+./tools/check              # CoreとTUIのビルド・テスト・アーキテクチャ検査・privacy-scan
+./tools/tui --self-check   # TUIの合成検査だけを回す（./tools/checkにも含まれる）
 ```
 
 - [現在の状態と次の作業](docs/HANDOFF.md)、[作業規則](AGENTS.md)

@@ -282,7 +282,7 @@ let page_size geometry pane =
 
 (* 4. Navigation *)
 
-let move_previous ~book ~width_of geometry t =
+let move_previous ~book ~width_of:_ _geometry t =
   match t.pane with
   | Loci ->
       if t.locus_row = 0 then { t with notice = "No previous Locus row." }
@@ -326,7 +326,7 @@ let move_next ~book ~width_of geometry t =
       if t.detail_scroll >= detail_end then { t with notice = "End of Details." }
       else { t with detail_scroll = t.detail_scroll + 1; notice = "" }
 
-let move_page_up ~book ~width_of geometry t =
+let move_page_up ~book ~width_of:_ geometry t =
   let ps = page_size geometry t.pane in
   match t.pane with
   | Loci ->

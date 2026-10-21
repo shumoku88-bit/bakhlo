@@ -43,11 +43,5 @@ val render_summary_lines :
   report:report ->
   (Daily_overlays.style * string) list
 
-val render_detail_lines :
-  width:int ->
-  width_of:(string -> int) ->
-  book:B.t ->
-  report:report ->
-  (Daily_overlays.style * string) list
-
+val render_detail_lines : book:B.t -> report:report -> (Daily_overlays.style * string) list
 val print_summary : book:B.t -> report:report -> string list

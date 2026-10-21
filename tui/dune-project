@@ -1,0 +1,4 @@
+(lang dune 3.17)
+; Undeclared transitive library use is a compile error: library boundaries are
+; the architecture (see TUI_OWNERSHIP.md and tools/arch).
+(implicit_transitive_deps false)

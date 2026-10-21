@@ -12,7 +12,7 @@ small valid synthetic tree (no product code) and introduces one violation.
   >   layer t/tui/screens/other '(library (name bakhlo_screen_other) (wrapped false) (libraries bakhlo_tui_protocol))'
   >   layer t/tui/screens/pace/test '(test (name pace_checks) (libraries bakhlo_screen_pace))'
   >   layer t/tui/shell '(library (name bakhlo_tui_shell) (wrapped false) (libraries bakhlo_screen_pace bakhlo.store unix))'
-  >   layer t/tui/app '(executable (name main) (libraries bakhlo_tui_shell bonsai_term))'
+  >   layer t/tui/app '(executable (name main) (libraries bakhlo_tui_shell notty-community))'
   >   echo 'let form = Ui_form.create ~id:"pace_editor" ~payload:"x" ()' > t/tui/screens/pace/pace_screen.ml
   >   echo 'let () = Pool_checks.run ()' > t/tui/screens/pace/test/pace_checks.ml
   >   echo 'let run () = ()' > t/tui/screens/pace/test/pool_checks.ml
@@ -67,10 +67,10 @@ A screen may not reach the writer, directly or through operating-system access.
   tui/screens/other/o.ml: screen other layer may not use Daily_actions
   [1]
 
-Only the terminal adapter may use the Bonsai runtime.
+Only the terminal adapter may use the terminal library.
 
-  $ base; layer t/tui/shell '(library (name bakhlo_tui_shell) (wrapped false) (libraries bonsai_term))'; arch_check t
-  tui/shell: shell may not depend on bonsai_term (terminal adapter only)
+  $ base; layer t/tui/shell '(library (name bakhlo_tui_shell) (wrapped false) (libraries notty-community))'; arch_check t
+  tui/shell: shell may not depend on notty-community (terminal adapter only)
   [1]
 
 The Shell may not take back a migrated screen's forms or configuration files.

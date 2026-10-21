@@ -2,9 +2,6 @@
 open Shell_state
 open Shell_dispatch
 
-let workspace_rows ?route_view ~width_of ~width ~height state =
-  match route_view with Some view -> Lazy.force view.Screen.rows | None -> []
-
 let footer ?(dimensions = (80, 24)) ?(width_of = String.length) state =
   match modal_screen_view ~dimensions ~width_of state with
   | Some view -> view.footer
@@ -142,12 +139,8 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
                 ^ draft);
             ]
     in
-    let header_count = List.length headers in
     let body =
-      headers
-      @ workspace_rows ?route_view ~width_of ~width
-          ~height:(max 0 (body_height - header_count))
-          state
+      headers @ match route_view with Some view -> Lazy.force view.Screen.rows | None -> []
     in
     let visible_body = List.filteri (fun i _ -> i < body_height) body in
     let bottom_pad = max 0 (body_height - List.length visible_body) in

@@ -1,4 +1,5 @@
 ; Cross-screen scenarios driven through the Shell with synthetic files.
+
 (library
  (name bakhlo_tui_scenarios)
  (wrapped false)

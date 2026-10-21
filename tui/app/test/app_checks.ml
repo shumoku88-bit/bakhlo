@@ -1,7 +1,7 @@
-(* Whole-program synthetic checks with the Bonsai cell-width function: Shell
+(* Whole-program synthetic checks with the Notty cell-width function: Shell
    sessions, cross-screen scenarios and the terminal adapter. Run with
-   tools/build-bonsai-tui --test app (or tools/tui --self-check). *)
-let width_of = Bonsai_terminal.width_of
+   tools/tui --self-check. *)
+let width_of = Notty_render.width_of
 
 let () =
   (* Run from the build root given by Dune: synthetic examples/ and scratch/ live there. *)
@@ -13,8 +13,7 @@ let () =
     Scheduled_session_checks.self_check ~width_of ();
     Actual_workspace_checks.self_check ~width_of ();
     Scenarios.run ~width_of ();
-    Terminal_checks.run ();
-    Render_parity_checks.run ()
+    Terminal_checks.run ()
   with
   | Daily_file.Refused why ->
       prerr_endline ("self-check failed: " ^ why);

@@ -1,5 +1,11 @@
 ; Pure owner checks; the app runner supplies the native cell-width function.
+
 (library
  (name bakhlo_screen_actual_checks)
  (wrapped false)
- (libraries bakhlo_screen_actual bakhlo_tui_kit bakhlo_tui_book bakhlo.sexp base))
+ (libraries
+  bakhlo_screen_actual
+  bakhlo_tui_kit
+  bakhlo_tui_book
+  bakhlo.sexp
+  base))

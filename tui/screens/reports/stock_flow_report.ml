@@ -232,7 +232,7 @@ let render_summary_lines ~width ~width_of ~book ~(report : report) =
   in
   header @ [ (O.Chrome, th); rule ] @ rows @ [ rule; (O.Heading, total_line); (O.Plain, "") ]
 
-let render_detail_lines ~width ~width_of ~book ~(report : report) =
+let render_detail_lines ~book ~(report : report) =
   let m = report.measure in
   let signed_val z = (if Z.sign z > 0 then "+" else "") ^ B.format book m z ^ " " ^ m in
   let unsigned_val z = B.format book m z ^ " " ^ m in

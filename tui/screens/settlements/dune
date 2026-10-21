@@ -1,4 +1,9 @@
 (library
  (name bakhlo_screen_settlements)
  (wrapped false)
- (libraries bakhlo_tui_kit bakhlo_tui_book bakhlo_tui_protocol bakhlo.sexp zarith))
+ (libraries
+  bakhlo_tui_kit
+  bakhlo_tui_book
+  bakhlo_tui_protocol
+  bakhlo.sexp
+  zarith))

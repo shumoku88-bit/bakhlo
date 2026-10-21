@@ -1,5 +1,5 @@
 #!/usr/bin/env expect
-# Bounded PTY smoke for the tracked Bonsai binary and synthetic fixture.
+# Bounded PTY smoke for the TUI binary and the synthetic fixture.
 # No private data, image snapshots or source modifications. A green smoke
 # establishes key delivery, repaint and non-writing only, not IME or paired
 # LOAM acceptance.

@@ -1,4 +1,4 @@
-name: Core build and tests
+name: Build and tests (Core and TUI)
 
 on:
   push:
@@ -14,6 +14,8 @@ on:
       - "tui/**"
       - "store/**"
       - "tools/check"
+      - "tools/arch/**"
+      - "tools/ci-tui-pty"
       - "dune*"
       - "bakhlo.opam*"
       - ".github/workflows/core.yml"
@@ -29,6 +31,8 @@ on:
       - "tui/**"
       - "store/**"
       - "tools/check"
+      - "tools/arch/**"
+      - "tools/ci-tui-pty"
       - "dune*"
       - "bakhlo.opam*"
       - ".github/workflows/core.yml"
@@ -51,5 +55,12 @@ jobs:
         run: opam install . --deps-only --with-test --locked -y
       - name: Build
         run: opam exec -- dune build
-      - name: Contract and regression tests
+      - name: Contract, regression and synthetic TUI tests
         run: opam exec -- dune runtest
+      # A real PTY: keys, resize, Ctrl-Q, cold reopen and the narrow Record Preview
+      # refusal on the synthetic fixture; never household data, macOS IME or LOAM.
+      - name: Linux PTY keyboard, resize and non-writing matrix
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y --no-install-recommends expect
+          install -d -m 0700 scratch
+          tools/ci-tui-pty _build/default/tui/app/bakhlo_tui.exe examples/daily-book.sexp

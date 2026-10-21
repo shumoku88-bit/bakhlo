@@ -1,2 +1,2 @@
-(* Notty entry point. *)
+(* Terminal entry point. *)
 let () = Daily_cli.main ~run:Notty_terminal.run

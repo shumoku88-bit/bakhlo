@@ -34,11 +34,14 @@ let text ?(attr = A.empty) s = I.string attr (printable s)
 let width_of s = I.width (text s)
 
 let fit width height image =
-  let image = I.crop ~r:(max 0 (I.width image - width)) ~b:(max 0 (I.height image - height)) image in
+  let image =
+    I.crop ~r:(max 0 (I.width image - width)) ~b:(max 0 (I.height image - height)) image
+  in
   I.pad ~r:(max 0 (width - I.width image)) ~b:(max 0 (height - I.height image)) image
 
 let xterm index =
-  if index < 8 then [| A.black; A.red; A.green; A.yellow; A.blue; A.magenta; A.cyan; A.white |].(index)
+  if index < 8 then
+    [| A.black; A.red; A.green; A.yellow; A.blue; A.magenta; A.cyan; A.white |].(index)
   else if index < 16 then
     [|
       A.lightblack;
@@ -56,7 +59,6 @@ let xterm index =
     A.rgb ~r:(cube / 36) ~g:(cube mod 36 / 6) ~b:(cube mod 6)
 
 let color (c : P.color) = xterm c.index
-
 let ( ++ ) = A.( ++ )
 let fg c = A.fg (color c)
 let bg c = A.bg (color c)
@@ -75,22 +77,24 @@ let attributes theme style =
   | Some palette -> (
       match style with
       | C.Plain | C.Calendar_dates | C.Bonsai | C.Entrance | C.Columns _ | C.Input _ ->
-          (fg palette.foreground ++ bg palette.background)
-      | C.Active -> (fg palette.selected_foreground ++ bg palette.selected_background ++ bold)
-      | C.Heading -> (fg palette.foreground ++ bg palette.background ++ bold)
-      | C.Chrome | C.Frame -> (fg palette.heading ++ bg palette.background)
-      | C.Focused_frame -> (fg palette.accent ++ bg palette.panel_background)
-      | C.Status -> (fg palette.status ++ bg palette.background ++ bold)
-      | C.Panel -> (fg palette.panel_foreground ++ bg palette.panel_background)
-      | C.Panel_heading -> (fg palette.panel_foreground ++ bg palette.panel_background ++ bold)
-      | C.Panel_active ->
-          (fg palette.selected_foreground ++ bg palette.selected_background ++ bold))
+          fg palette.foreground ++ bg palette.background
+      | C.Active -> fg palette.selected_foreground ++ bg palette.selected_background ++ bold
+      | C.Heading -> fg palette.foreground ++ bg palette.background ++ bold
+      | C.Chrome | C.Frame -> fg palette.heading ++ bg palette.background
+      | C.Focused_frame -> fg palette.accent ++ bg palette.panel_background
+      | C.Status -> fg palette.status ++ bg palette.background ++ bold
+      | C.Panel -> fg palette.panel_foreground ++ bg palette.panel_background
+      | C.Panel_heading -> fg palette.panel_foreground ++ bg palette.panel_background ++ bold
+      | C.Panel_active -> fg palette.selected_foreground ++ bg palette.selected_background ++ bold)
 
 let border_attributes theme intent =
   match theme with
   | P.Terminal -> (
       (* ANSI slots belong to the terminal's light/dark palette too. *)
-      match intent with `Create -> A.fg A.cyan | `Change -> A.fg A.yellow | `Cancel -> A.fg A.red)
+      match intent with
+      | `Create -> A.fg A.cyan
+      | `Change -> A.fg A.yellow
+      | `Cancel -> A.fg A.red)
   | P.Bakhlo_light | P.Bakhlo_dark ->
       let light = theme = P.Bakhlo_light in
       let index =
@@ -145,12 +149,15 @@ let rec lines ?border ?(base = A.empty) theme rows =
           let edge_attrs =
             match border with
             | Some intent -> border_attributes theme intent
-            | None -> attributes theme (if style = C.Focused_frame then C.Focused_frame else C.Frame)
+            | None ->
+                attributes theme (if style = C.Focused_frame then C.Focused_frame else C.Frame)
           in
           let leaf_attrs = A.fg A.green in
           let entrance_key_attrs = A.(fg cyan ++ st bold) in
           let framed_row = String.starts_with ~prefix:"│" row && String.ends_with ~suffix:"│" row in
-          let ruled_row = String.starts_with ~prefix:"╭" row || String.starts_with ~prefix:"╰" row in
+          let ruled_row =
+            String.starts_with ~prefix:"╭" row || String.starts_with ~prefix:"╰" row
+          in
           let total_cells = width_of row in
           let rec paint cell = function
             | "[" :: a :: b :: "]" :: rest
@@ -198,10 +205,10 @@ let rec lines ?border ?(base = A.empty) theme rows =
   |> I.vcat
 
 (* Theme colours under every run, with a solid backdrop of the same colours. *)
-let page_colors theme = Option.map (fun p -> (fg p.P.foreground ++ bg p.background)) (P.palette theme)
+let page_colors theme = Option.map (fun p -> fg p.P.foreground ++ bg p.background) (P.palette theme)
 
 let panel_colors theme =
-  Option.map (fun p -> (fg p.P.panel_foreground ++ bg p.panel_background)) (P.palette theme)
+  Option.map (fun p -> fg p.P.panel_foreground ++ bg p.panel_background) (P.palette theme)
 
 let backdrop colors image =
   match colors with

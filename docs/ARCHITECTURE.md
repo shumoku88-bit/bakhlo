@@ -19,7 +19,7 @@ tui/app ─> tui/shell ─> tui/screens/<s> ─> tui/protocol ─> tui/book ─>
 | `application/` | `bakhlo.application` | admission and query answers (sources, validity, balances, relations) | domain |
 | `sexp/` | `bakhlo.sexp` | `Daily_book` (the household book, in-place mutations, `Full` reference) and `Book_log` (operation records, snapshot + log load) | application, Parsexp |
 | `store/` | `bakhlo.store` | `Daily_file`: the single writer (append, `F_FULLFSYNC`, compaction, torn-tail stop, copies) | sexp, Unix, a C stub |
-| `tui/` | separate Dune project | Bonsai_term English UI | store and Core |
+| `tui/` | nested Dune project (`tui/dune-project`) | English terminal UI; only `tui/app` uses Notty | store and Core |
 | `loam_read/`, `migrate/` | `bakhlo.loam_read`, `bakhlo.migrate` | read-only LOAM input and its conversion, used only by `./tools/compare` | application, sexp |
 
 Dependencies point inward only. `lib/`, `application/` and `sexp/` are pure: no clock,
@@ -40,7 +40,7 @@ File I/O lives in `store/` and `tui/shell`; terminal effects in `tui/app`.
 ## Portability note (MirageOS)
 
 The pure core (`lib`, `application`, `sexp`) needs only Base, Zarith and Parsexp. Only
-`store/` (Unix, `F_FULLFSYNC` stub) and the TUI are host-specific, so another runtime
-replaces those edges, not the core. An earlier Solo5-SPT boot of `lib` + `application`
+`store/` (Unix, `F_FULLFSYNC` stub) and the TUI (Notty, Unix terminal) are host-specific,
+so another runtime replaces those edges, not the core. An earlier Solo5-SPT boot of `lib` + `application`
 is recorded in `90a5867:docs/VERIFICATION.md` ("Linux native replay and MirageOS/Solo5-SPT
 engine"), with the VM recipe in `90a5867:docs/DEVELOPMENT.md`.

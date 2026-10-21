@@ -1,5 +1,6 @@
 ; Shell: routing, global keys, cross-screen requests, retained Record,
 ; configuration I/O and the publication executor over bakhlo.store.
+
 (library
  (name bakhlo_tui_shell)
  (wrapped false)

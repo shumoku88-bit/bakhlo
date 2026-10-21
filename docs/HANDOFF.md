@@ -14,7 +14,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   `../loam-data` is the frozen LOAM record. Saves flush with `F_FULLFSYNC` (~21 ms);
   a physical power-loss test was not run.
 - Goal: reproduce LOAM's non-budget functionality and interaction (see AGENTS.md
-  Product). English Bonsai TUI: Calendar Home (Day/Month/Year), hierarchical Commands,
+  Product). English Notty TUI: Calendar Home (Day/Month/Year), hierarchical Commands,
   Record/Preview, Actual, Scheduled (Series Calendar, Months, List, create/edit/cancel/
   complete, batch, generation), Selected Day, Balances/Observe, Daily Pace (current,
   What-if, Pool, Trend), Manage Loci/roles, Exchange, Attention, limited settlements,
@@ -47,6 +47,10 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   Loci (4.1 ms each at ~110k synthetic entries). On the latest real-data copy at
   120×36 and 80×24 both UIs reach the same `d`/`m` Previews; Bakhlo saves on an
   isolated copy matched cold reload and `Full`.
+- TUI terminal: Notty since 2026-10-21 (user decision; Bonsai_term and its OxCaml switch
+  removed, Bonsai is explored outside Bakhlo). The TUI is part of the main Dune build, so
+  `./tools/check` and the single CI workflow cover it. The user ran it on a household copy
+  and reported it works; IME and paste were not reported separately.
 - Unqualified: P7 (persistent post-save acknowledgement), power loss, real macOS IME,
   human acceptance.
 
@@ -61,7 +65,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   discard, recovery report, copies).
 - `tui/`: `shell/` (state, dispatch, publication, files), `screens/<screen>/` (per-screen
   state, input, painting), `book/` (pure UI data), `protocol/screen.mli` (Shell ↔ screen
-  contract), `app/` (Bonsai terminal + CLI entry), `scenarios/` (cross-screen checks).
+  contract), `app/` (Notty terminal + CLI entry), `scenarios/` (cross-screen checks).
   Keys, recovery commands and UI rules: [tui/README](../tui/README.md).
 - `loam_read/`, `migrate/`: read-only LOAM input and its pure conversion, used only by
   `./tools/compare` (the cutover import is done).
@@ -77,7 +81,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ```sh
 ./tools/check                 # Core build, tests, architecture check
-./tools/tui --self-check      # Bonsai build + all synthetic TUI suites
+./tools/tui --self-check      # all synthetic TUI suites (also in ./tools/check)
 ./tools/startup-probe         # synthetic storage timings (1k / 36.5k / 109.5k)
 ./tools/privacy-scan [--all]  # no private household text in the repository (in check)
 ./tools/compare refresh       # fresh read-only LOAM copy (see AGENTS.md)

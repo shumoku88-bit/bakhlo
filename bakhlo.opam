@@ -13,6 +13,8 @@ depends: [
   "base" {>= "v0.17" & < "v0.18"}
   "zarith" {>= "1.14" & < "2.0"}
   "parsexp" {= "v0.17.0"}
+  "notty-community" {= "0.2.4"}
+  "uutf" {>= "1.0.0" & < "2.0"}
   "ppx_expect" {with-test & >= "v0.17" & < "v0.18"}
   "base_quickcheck" {with-test & >= "v0.17" & < "v0.18"}
 ]

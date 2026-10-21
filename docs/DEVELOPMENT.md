@@ -50,33 +50,6 @@ helpers. Logical aliases support clean dependency discovery. Cram compiler clien
 currently depend on generated CMIs/wrapper CMI: pinned Dune integration details, not
 API/storage compatibility. Do not suppress missing-CMI warnings or export internals.
 
-### Bonsai isolated linker recipe
-
-`tools/build-bonsai-tui` uses the separate
-`scratch/tui_comparison_review/bonsai-env` switch/root, not the main switch.
-Its Zarith `1.12+ox3` macOS recipe used to pass both MacPorts and Intel Homebrew
-paths unconditionally, embedding `-L/opt/local/lib` in zarith.cmxa even when absent.
-Do not create an empty system directory or suppress linker warnings to mask this.
-
-The user-authorized repair retains the same patched release sources under ignored
-`scratch/tui_comparison_review/zarith-link-path-repair`, pinned as `zarith.1.12+ox3`.
-Only its macOS build recipe drops `-L/opt/local/lib` and `-I/opt/local/include`;
-`-L/usr/local/lib` and `-I/usr/local/include` remain for the installed GMP.
-The local recipe also declares the license stated in the release LICENSE.
-Keep that directory while the local pin exists. The pre-repair switch export is
-`scratch/tui_comparison_review/zarith-link-path-before.export`.
-
-To reproduce the repair in another explicitly authorized isolated switch, use
-`opam source zarith.1.12+ox3 --require-checksums --dir=NEW_DIRECTORY` with that
-switch/root explicitly selected; opam applies the existing Ox patches.
-Edit the extracted `zarith.opam` macOS flags as above, pin the directory with
-`opam pin add zarith.1.12+ox3 NEW_DIRECTORY --kind=path --no-action`,
-then inspect `opam reinstall zarith.1.12+ox3 --show-actions` before reinstalling.
-Require no added/upgraded packages; rebuild reverse dependencies normally rather
-than rewriting installed archives or bypassing their rebuild. Rebuild Bakhlo and
-run native self-check afterward. This is not part of automatic bootstrap/build;
-new environment repair still requires approval.
-
 ## OCaml-aware engineering review
 
 [OCaml-aware design and runtime review](LANGUAGE_AWARE_DESIGN_REVIEW.md) owns the
@@ -90,14 +63,14 @@ Reports are short issue/PR notes; `HANDOFF.md` stays focused on current work.
 
 `.ocamlformat` pins **0.29.0**, target syntax **5.3.0**, default profile and 100-column margin.
 Comment/docstring rewriting is disabled to keep evidence prose intact. Use
-`./tools/format --check` or `./tools/format --apply` (Dune @fmt / fmt); `tui/` (OxCaml 5.2, see
-`tui/.ocamlformat`) is formatted file by file with the same formatter; the wrapper rejects a
+`./tools/format --check` or `./tools/format --apply` (Dune @fmt / fmt, including `tui/`); the wrapper rejects a
 missing/wrong local formatter, never installs or falls back to a global tool. Apply finishes
 with a clean @fmt check: Dune 3.24.2 can return 1 for diffs it has already promoted.
 Formatting is optional developer tooling, NOT a main runtime/test dependency or CI gate;
-`bootstrap`, `check` and normal builds use the main 51 locked packages without it.
-Approved Parsexp v0.17.0 is the only addition to the previous 50; no compiler/existing-package
-upgrades. It belongs to the outer S-expression adapter, not Domain/Application.
+`bootstrap`, `check` and normal builds use the main 56 locked packages without it.
+Additions to the original 50: Parsexp v0.17.0 (outer S-expression adapter) and, on
+2026-10-21, notty-community 0.2.4 with uutf, cppo, ocamlbuild and topkg (TUI terminal adapter;
+the last three are build tools). Neither reaches Domain/Application; no compiler upgrade.
 Separate formatting-only commits from meaning/refactor changes. Do not reflow payload fixtures,
 normalize identities or weaken compiler policy to make layout pass.
 

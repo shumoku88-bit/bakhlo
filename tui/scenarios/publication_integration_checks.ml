@@ -1,7 +1,6 @@
 (* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
 open Interaction_check_fixture
 open Interaction_render_fixture
-open Balances_integration_checks
 
 let run ~width_of ~directory ~path (home : C.state) =
   Retained_record_publication_checks.run ~width_of ~directory home;

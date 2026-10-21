@@ -6,6 +6,24 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Notty adopted; Bonsai_term and OxCaml removed (2026-10-21)
+
+- User decision (2026-10-21) after the trial below and their own run on a household copy,
+  reported as working (IME and paste were not reported separately; missing Daily Pace details
+  came from the copy lacking `config/`): the TUI uses Notty; Bonsai is explored outside Bakhlo.
+- `notty-community 0.2.4` and `uutf` are direct dependencies (ADR 0001); the lock gains exactly
+  `cppo`, `notty-community`, `ocamlbuild`, `topkg`, `uutf` and changes nothing else (56 entries).
+- The TUI is now part of the main Dune workspace (`tui/dune-project` keeps
+  `implicit_transitive_deps false`, `tui/dune` the compiler policy). Building it in the dev
+  profile exposed 19 warnings the release-profile Bonsai build had hidden (unused parameters,
+  a never-built constructor, an unused `rec`, an unused open); all fixed by removing the dead
+  code. Removed: the Bonsai adapter and entry, its checks and parity check,
+  `tools/build-bonsai-tui`, `tools/build-notty-tui`, `tui.yml` and `tui/.ocamlformat`;
+  `tools/tui` builds `_build/default/tui/app/bakhlo_tui.exe`.
+- `./tools/check` (31 s) now runs Core and all 44 TUI suites; `./tools/tui --self-check`,
+  `./tools/format --check` and `tools/ci-tui-pty` on `bakhlo_tui.exe` passed. `core.yml` adds the
+  PTY smoke. The ignored local `scratch/tui_comparison_review/bonsai-env` was not deleted.
+
 ## Notty terminal adapter trial beside Bonsai (2026-10-21)
 
 - User decision (2026-10-21): try Notty in place of Bonsai_term, since the TUI uses none of

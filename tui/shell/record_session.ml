@@ -230,7 +230,7 @@ let set_value t text =
 
 let move_focus t delta =
   let count = field_count t in
-  let rec step f =
+  let step f =
     let next = (f + delta + count) mod count in
     if (is_plan t && next = 1) || (date_kept t && next = 0) then (next + delta + count) mod count
     else next

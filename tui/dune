@@ -1,0 +1,7 @@
+; tui/ is its own Dune project, which does not inherit the root env: repeat the
+; compiler policy (8: missing cases; 9: omitted record fields; 11: redundant cases).
+
+(env
+ (_
+  (flags
+   (:standard -strict-sequence -w +8+9+11 -warn-error +8+9+11))))

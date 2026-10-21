@@ -28,7 +28,6 @@ type command =
   | Cycle_measure of [ `Next | `Prev ]
   | Observe of { locus : string; measure : string; amount : Z.t option }
   | Save_balance_view of { expected : string option; content : string }
-  | Reload
 
 type picker_state = {
   candidates : string list;
@@ -917,7 +916,6 @@ let request_of t next = function
   | Save_balance_view { expected; content } ->
       Screen.Save_config
         { file = "balance-view.tsv"; expected; content; admission = Vocabulary_unchanged }
-  | Reload -> Screen.Reload
 
 let handle env (geometry : Screen.geometry) t input =
   let book, measure, roles, balance_view_text = context env in
