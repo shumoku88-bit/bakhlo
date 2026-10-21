@@ -6,6 +6,19 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Income & Expense as a cycle summary (2026-10-22)
+
+- Default window is the configured cycle containing today (Month/Year/All and [ ]
+  remain); without a preset it keeps the explicit refusal, never an inferred Month.
+- The 80×24 screen answers Income, Expense and Result with the previous window of the
+  same kind and the exact difference, plus Scheduled vs other; rows are sorted by exact
+  amount with a leftover-width bar and never-clipped amounts (at 48 columns the
+  comparison becomes `Δ`). `c` compares windows side by side; inactive Measures stay
+  one line and unresolved role effects follow the totals.
+- Pure checks cover diffs, order, bars and compare widths; scenario checks cover the
+  cycle default and `c`. `./tools/check`, `--self-check` and PTY passed; the read-only
+  latest-data run wrote nothing and left copies unchanged (LOAM has no cycle default).
+
 ## Shared report frame and Observe safety (2026-10-22)
 
 - Observe Preview defaults to `Edit`; `Publish` needs an explicit choice, and Esc from

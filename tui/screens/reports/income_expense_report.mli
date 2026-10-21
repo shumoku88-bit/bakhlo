@@ -1,4 +1,4 @@
-(* Income & Expense Report: period-based P/L analysis by month, cycle, year, or all-time. *)
+(** Income & Expense Report: period-based P/L analysis by month, cycle, year, or all-time. *)
 module B = Bakhlo_sexp.Daily_book
 module Roles = Locus_roles
 
@@ -45,11 +45,21 @@ val resolve_period :
 
 val compute_report : book:B.t -> roles:(string * Roles.role) list -> period:period -> report
 
+val measure_active : measure_summary -> bool
+
 val render_report_lines :
   width:int ->
   width_of:(string -> int) ->
   book:B.t ->
   report:report ->
+  previous:report option ->
+  (Daily_overlays.style * string) list
+
+val render_compare_lines :
+  width:int ->
+  width_of:(string -> int) ->
+  book:B.t ->
+  reports:(period * report) list ->
   (Daily_overlays.style * string) list
 
 val print_summary : book:B.t -> report:report -> string list

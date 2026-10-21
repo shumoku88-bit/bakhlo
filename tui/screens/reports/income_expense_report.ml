@@ -36,7 +36,7 @@ type t = {
 }
 
 let initial () =
-  { preset = Month; period_offset = 0; selected_row = 0; detail_focused = false; detail_scroll = 0 }
+  { preset = Cycle; period_offset = 0; selected_row = 0; detail_focused = false; detail_scroll = 0 }
 
 let preset_label = function
   | Month -> "Month"
@@ -218,67 +218,128 @@ let compute_report ~book ~roles ~period =
 
 (* A Measure is active when the window has any role-classified income or expense.
    Inactive Measures are named once instead of painted as empty blocks. *)
+(* A Measure is active when the window has any role-classified income or expense.
+   Inactive Measures are named once instead of painted as empty blocks. *)
 let measure_active (ms : measure_summary) = ms.income_items <> [] || ms.expense_items <> []
 
 let split_measures summaries = List.partition measure_active summaries
 
-let render_report_lines ~width ~width_of ~book ~report =
+let by_amount_desc (items : line_item list) =
+  List.sort (fun a b -> Z.compare b.amount a.amount) items
+
+let signed book measure value =
+  (if Z.sign value > 0 then "+" else "") ^ O.format_money book measure value
+
+(* Proportional bar in the room that is left after the label and the exact
+   amount. The amount is right-aligned and never clipped; when the room is too
+   small the bar disappears first. *)
+let bar ~room amount max_amount =
+  if room < 3 || Z.sign amount <= 0 || Z.sign max_amount <= 0 then ""
+  else
+    let cells =
+      if Z.gt amount max_amount then room
+      else Z.to_int (Z.div (Z.mul (Z.of_int room) amount) max_amount)
+    in
+    String.concat "" (List.init (max 0 (min room cells)) (fun _ -> "█"))
+
+let item_lines ~width_of ~pad_w ~book ~measure ~with_bar items =
+  let col_locus = max 18 (min 36 (pad_w / 2)) in
+  let col_amt = max 12 (min 22 (pad_w - col_locus - 6)) in
+  let max_amount =
+    List.fold_left (fun acc (it : line_item) -> if Z.gt it.amount acc then it.amount else acc) Z.zero items
+  in
+  List.map
+    (fun (it : line_item) ->
+      let amount = O.format_money book measure it.amount in
+      let amount_cell = O.pad_left ~width_of col_amt amount in
+      let label_cell = O.pad ~width_of col_locus it.label in
+      let bar_room =
+        if not with_bar then 0
+        else max 0 (pad_w - width_of label_cell - width_of amount_cell - 2)
+      in
+      let mark = bar ~room:bar_room it.amount max_amount in
+      ( O.Plain,
+        "  " ^ label_cell ^ "  " ^ amount_cell ^ if mark = "" then "" else "  " ^ mark ))
+    (by_amount_desc items)
+
+let render_report_lines ~width ~width_of ~book ~report ~previous =
   let pad_w = max 0 (width - 4) in
+  let previous_measure measure =
+    Option.bind previous (fun (prev : report) ->
+        List.find_opt (fun (ms : measure_summary) -> ms.measure = measure) prev.summaries)
+  in
   let header =
     [
       (O.Heading, Printf.sprintf "Income & Expense  [%s]" report.period.label);
       ( O.Chrome,
         Printf.sprintf "Window: %s .. %s (exclusive)" report.period.start_day
           report.period.end_exclusive );
+      ( O.Plain,
+        match previous with
+        | None -> "Previous window: none of this kind (nothing inferred)."
+        | Some (prev : report) -> "Previous: " ^ prev.period.label );
       (O.Plain, "");
     ]
   in
-  let render_measure (ms : measure_summary) =
+  let totals_block (ms : measure_summary) =
     let m = ms.measure in
-    let fmt q = O.format_money book m q ^ " " ^ m in
-    let col_locus = max 20 (min 36 (pad_w / 2)) in
-    let col_amt = max 14 (min 20 (pad_w - col_locus - 6)) in
-
-    let format_item (it : line_item) =
-      ( O.Plain,
-        "  "
-        ^ O.pad ~width_of col_locus it.label
-        ^ "  "
-        ^ O.pad_left ~width_of col_amt (fmt it.amount) )
+    let prev = previous_measure m in
+    let prev_of pick = Option.map pick prev in
+    let line label current previous_value =
+      let amount = O.format_money book m current ^ " " ^ m in
+      let assemble detail = Printf.sprintf "  %-10s %14s   %s" label amount detail in
+      let text =
+        match previous_value with
+        | None -> assemble "prev n/a"
+        | Some prev_value ->
+            let delta = Z.sub current prev_value in
+            let detailed =
+              assemble
+                (Printf.sprintf "prev %s  %s" (O.format_money book m prev_value)
+                   (signed book m delta))
+            in
+            (* Keep the difference itself when the full comparison does not fit. *)
+            if width_of detailed <= pad_w then detailed
+            else assemble (Printf.sprintf "Δ %s" (signed book m delta))
+      in
+      (O.Active, text)
     in
-
-    let inc_lines =
-      if ms.income_items = [] then [ (O.Chrome, "  (no income recorded)") ]
-      else List.map format_item ms.income_items
-    in
-    let exp_lines =
-      if ms.expense_items = [] then [ (O.Chrome, "  (no expenses recorded)") ]
-      else List.map format_item ms.expense_items
-    in
-    let savings_style = if Z.sign ms.net_savings >= 0 then O.Active else O.Status in
-    let savings_sign = if Z.sign ms.net_savings > 0 then "+" else "" in
-
     [
       (O.Heading, Printf.sprintf "Currency: %s" m);
-      (O.Chrome, "── Income ──────────────────────────────────────────────────────────");
+      line "Income" ms.total_income (prev_of (fun (p : measure_summary) -> p.total_income));
+      line "Expense" ms.total_expense (prev_of (fun (p : measure_summary) -> p.total_expense));
+      line "Result" ms.net_savings (prev_of (fun (p : measure_summary) -> p.net_savings));
+      ( O.Plain,
+        Printf.sprintf "  split: Scheduled %s  |  other %s"
+          (O.format_money book m ms.scheduled_expense ^ " " ^ m)
+          (O.format_money book m ms.ordinary_expense ^ " " ^ m) );
+      (O.Plain, "");
     ]
-    @ inc_lines
-    @ [
-        (O.Active, "Total Income: " ^ O.pad_left ~width_of (pad_w - 14) (fmt ms.total_income));
-        (O.Chrome, "── Expense ─────────────────────────────────────────────────────────");
-      ]
-    @ exp_lines
-    @ [
-        (O.Active, "Total Expense: " ^ O.pad_left ~width_of (pad_w - 15) (fmt ms.total_expense));
-        (O.Plain, Printf.sprintf "  Scheduled bills:    %s" (fmt ms.scheduled_expense));
-        (O.Plain, Printf.sprintf "  Ordinary spending:  %s" (fmt ms.ordinary_expense));
-        (O.Chrome, "── Net Savings ─────────────────────────────────────────────────────");
-        (savings_style, Printf.sprintf "Net Savings: %s%s" savings_sign (fmt ms.net_savings));
-        (O.Plain, "");
-      ]
+  in
+  let breakdown (ms : measure_summary) =
+    if ms.expense_items = [] then []
+    else
+      (O.Chrome, "  Expense by Locus (largest first)")
+      :: item_lines ~width_of ~pad_w ~book ~measure:ms.measure ~with_bar:true ms.expense_items
+      @ [ (O.Plain, "") ]
+  in
+  let income_breakdown (ms : measure_summary) =
+    if ms.income_items = [] then []
+    else
+      (O.Chrome, "  Income by Locus (largest first)")
+      :: item_lines ~width_of ~pad_w ~book ~measure:ms.measure ~with_bar:false ms.income_items
+      @ [ (O.Plain, "") ]
   in
   let active, inactive = split_measures report.summaries in
-  let summaries_lines = List.concat_map render_measure active in
+  let summaries_lines =
+    List.concat_map
+      (fun (ms : measure_summary) ->
+        totals_block ms @ breakdown ms @ income_breakdown ms)
+      active
+  in
+  let empty_lines =
+    if active = [] then [ (O.Chrome, "  (no role-classified activity in this window)") ] else []
+  in
   let inactive_lines =
     match inactive with
     | [] -> []
@@ -288,9 +349,6 @@ let render_report_lines ~width ~width_of ~book ~report =
             "No activity in this window: "
             ^ String.concat ", " (List.map (fun (ms : measure_summary) -> ms.measure) names) );
         ]
-  in
-  let empty_lines =
-    if active = [] then [ (O.Chrome, "  (no role-classified activity in this window)") ] else []
   in
   let unresolved_lines =
     if report.unresolved_effects = [] then []
@@ -307,6 +365,107 @@ let render_report_lines ~width ~width_of ~book ~report =
   in
   header @ summaries_lines @ empty_lines @ inactive_lines @ unresolved_lines
 
+(* Compare view: the last N windows of the same kind side by side. Rows are the
+   answers; columns are windows. Measures stay separate (one block per Measure). *)
+let render_compare_lines ~width ~width_of ~book ~reports =
+  let pad_w = max 0 (width - 4) in
+  let n_total = List.length reports in
+  let label_w = min 20 (max 12 (pad_w * 30 / 100)) in
+  let room = max 0 (pad_w - label_w - 1) in
+  let col_w = 14 in
+  let fits = max 1 (room / col_w) in
+  let n = min n_total fits in
+  let reports =
+    let skip = max 0 (n_total - n) in
+    List.filteri (fun i _ -> i >= skip) reports
+  in
+  let measures =
+    List.sort_uniq String.compare
+      (List.concat_map (fun (_, (r : report)) -> List.map (fun (ms : measure_summary) -> ms.measure) r.summaries) reports)
+  in
+  let measure_active_in measure =
+    List.exists
+      (fun (_, (r : report)) ->
+        List.exists
+          (fun (ms : measure_summary) -> ms.measure = measure && measure_active ms)
+          r.summaries)
+      reports
+  in
+  let summary_of measure (r : report) =
+    List.find_opt (fun (ms : measure_summary) -> ms.measure = measure) r.summaries
+  in
+  let header =
+    (O.Heading, Printf.sprintf "Compare: %d window(s) of this kind" n)
+    :: ( O.Chrome,
+         "Window: "
+         ^ String.concat "  " (List.map (fun ((p : period), _) -> p.label) reports) )
+    :: [ (O.Plain, "") ]
+  in
+  let cell measure index (ms : measure_summary option) =
+    match ms with
+    | None -> "—"
+    | Some summary ->
+        let value =
+          match index with
+          | 0 -> summary.total_income
+          | 1 -> summary.total_expense
+          | 2 -> summary.scheduled_expense
+          | 3 -> summary.ordinary_expense
+          | _ -> summary.net_savings
+        in
+        O.format_money book measure value
+  in
+  let row measure label index =
+    let cells = List.map (fun (_, r) -> cell measure index (summary_of measure r)) reports in
+    ( O.Plain,
+      "  " ^ O.pad ~width_of label_w label ^ " "
+      ^ String.concat " " (List.map (O.pad_left ~width_of (col_w - 1)) cells) )
+  in
+  let block measure =
+    if not (measure_active_in measure) then []
+    else
+      let top_loci =
+        match List.rev reports with
+        | (_, (newest : report)) :: _ -> (
+            match summary_of measure newest with
+            | None -> []
+            | Some ms -> List.filteri (fun i _ -> i < 6) (by_amount_desc ms.expense_items))
+        | [] -> []
+      in
+      let locus_row (it : line_item) =
+        let cells =
+          List.map
+            (fun (_, (r : report)) ->
+              match summary_of measure r with
+              | None -> "—"
+              | Some ms ->
+                  let amount =
+                    List.fold_left
+                      (fun acc (candidate : line_item) ->
+                        if candidate.locus = it.locus then candidate.amount else acc)
+                      Z.zero ms.expense_items
+                  in
+                  if Z.equal amount Z.zero then "" else O.format_money book measure amount)
+            reports
+        in
+        ( O.Plain,
+          "    " ^ O.pad ~width_of (label_w - 4) it.label ^ " "
+          ^ String.concat " " (List.map (O.pad_left ~width_of (col_w - 1)) cells) )
+      in
+      [
+        (O.Heading, Printf.sprintf "  %s" measure);
+        row measure "Income" 0;
+        row measure "Expense" 1;
+        row measure "  Scheduled" 2;
+        row measure "  other" 3;
+        row measure "Result" 4;
+        (O.Chrome, "  top expense Loci");
+      ]
+      @ List.map locus_row top_loci
+      @ [ (O.Plain, "") ]
+  in
+  header @ List.concat_map block measures
+
 let print_summary ~book ~report =
   let lines = ref [] in
   let add s = lines := s :: !lines in
@@ -322,23 +481,21 @@ let print_summary ~book ~report =
       let fmt q = O.format_money book m q ^ " " ^ m in
       add "";
       add (Printf.sprintf "Currency: %s" m);
-      add "--- Income ---";
-      if ms.income_items = [] then add "  (no income)"
-      else
+      add (Printf.sprintf "Income:  %s" (fmt ms.total_income));
+      add (Printf.sprintf "Expense: %s" (fmt ms.total_expense));
+      add (Printf.sprintf "  Scheduled: %s" (fmt ms.scheduled_expense));
+      add (Printf.sprintf "  other:     %s" (fmt ms.ordinary_expense));
+      add (Printf.sprintf "Result:  %s" (fmt ms.net_savings));
+      if ms.expense_items <> [] then
         List.iter
-          (fun it -> add (Printf.sprintf "  %-28s  %16s" it.label (fmt it.amount)))
-          ms.income_items;
-      add (Printf.sprintf "Total Income:  %s" (fmt ms.total_income));
-      add "--- Expense ---";
-      if ms.expense_items = [] then add "  (no expense)"
-      else
+          (fun (it : line_item) ->
+            add (Printf.sprintf "  %-28s  %16s" it.label (fmt it.amount)))
+          (by_amount_desc ms.expense_items);
+      if ms.income_items <> [] then
         List.iter
-          (fun it -> add (Printf.sprintf "  %-28s  %16s" it.label (fmt it.amount)))
-          ms.expense_items;
-      add (Printf.sprintf "Total Expense: %s" (fmt ms.total_expense));
-      add (Printf.sprintf "  Scheduled:   %s" (fmt ms.scheduled_expense));
-      add (Printf.sprintf "  Ordinary:    %s" (fmt ms.ordinary_expense));
-      add (Printf.sprintf "Net Savings:   %s" (fmt ms.net_savings)))
+          (fun (it : line_item) ->
+            add (Printf.sprintf "  +%-27s  %16s" it.label (fmt it.amount)))
+          (by_amount_desc ms.income_items))
     active;
   if active = [] then add "  (no role-classified activity in this window)";
   (match inactive with

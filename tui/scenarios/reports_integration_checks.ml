@@ -179,7 +179,7 @@ let run ~width_of ~directory (back_home : C.state) =
   require (ie_ctl.workspace.route = W.Income_expense) "route-income-expense";
   let wide_ie = R.screen ~width_of (120, 30) ie_ctl in
   require
-    (contains wide_ie "Income & Expense" && contains wide_ie "Total Expense")
+    (contains wide_ie "Income & Expense" && contains wide_ie "Expense")
     "income-expense-wide-visible";
   let ie_cycle = key ~width_of ie_ctl (`ASCII '2') in
   let wide_cycle = R.screen ~width_of (120, 30) ie_cycle in
@@ -215,6 +215,21 @@ let run ~width_of ~directory (back_home : C.state) =
   require
     (no_modal ie_help_closed && ie_help_closed.workspace.route = W.Income_expense)
     "income-expense-help-escapes";
+  (* The default window is the configured cycle; `c` compares the last windows. *)
+  require
+    (Income_expense_screen.preset ie_ctl.C.screens.income_expense = Income_expense_report.Cycle)
+    "income-expense-defaults-to-cycle";
+  let ie_compare = key ~width_of ie_ctl (`ASCII 'c') in
+  require
+    (Income_expense_screen.comparing ie_compare.C.screens.income_expense)
+    "income-expense-c-compares";
+  require
+    (contains (R.screen ~width_of (140, 40) ie_compare) "Compare:")
+    "income-expense-compare-visible";
+  let ie_single = key ~width_of ie_compare (`ASCII 'c') in
+  require
+    (not (Income_expense_screen.comparing ie_single.C.screens.income_expense))
+    "income-expense-c-returns-to-summary";
   let ie_print = key ~width_of ie_ctl (`ASCII 'p') in
   (match visible_form ie_print with
   | Some f ->

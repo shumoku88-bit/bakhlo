@@ -148,6 +148,94 @@ let self_check () =
     "tf-narrow-detail-is-full-width";
   let tf_table, _ = TF.handle env narrow tf_detail (`Key (`Escape, [])) in
   require (not (TF.detail_focused tf_table)) "tf-escape-returns-to-table";
+
+  (* 8. Cycle summary: previous-window difference, amount order, bars and the
+     side-by-side compare columns. *)
+  let window_fixture =
+    "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
+     (measures (measure jpy 0))\n\
+     (labels (not-supplied))\n\
+     (approved-loci (provided salary food rent travel))\n\
+     (entries\n\
+     \ (entry sep-pay (date 2026-09-02) (memo (none)) (postings (posting salary jpy -1000 \
+     (none)) (posting travel jpy 1000 (none))) (reversal-of (none)))\n\
+     \ (entry sep-food (date 2026-09-03) (memo (none)) (postings (posting food jpy 400 \
+     (none)) (posting travel jpy -400 (none))) (reversal-of (none)))\n\
+     \ (entry sep-rent (date 2026-09-04) (memo (none)) (postings (posting rent jpy 100 \
+     (none)) (posting travel jpy -100 (none))) (reversal-of (none)))\n\
+     \ (entry oct-pay (date 2026-10-02) (memo (none)) (postings (posting salary jpy -123456 \
+     (none)) (posting travel jpy 123456 (none))) (reversal-of (none)))\n\
+     \ (entry oct-food (date 2026-10-03) (memo (none)) (postings (posting food jpy 9000 \
+     (none)) (posting travel jpy -9000 (none))) (reversal-of (none)))\n\
+     \ (entry oct-rent (date 2026-10-04) (memo (none)) (postings (posting rent jpy 1000 \
+     (none)) (posting travel jpy -1000 (none))) (reversal-of (none))))\n\
+     (plans)\n\
+     (support (zero-origin (travel jpy)) (openings) (observations) (presence (not-supplied)))\n"
+  in
+  let window_roles =
+    [ ("salary", Roles.Income); ("food", Roles.Expense); ("rent", Roles.Expense);
+      ("travel", Roles.Asset) ]
+  in
+  let window_book = get (B.of_string window_fixture) in
+  let month offset =
+    get
+      (IncExp.resolve_period ~today:"2026-10-15" ~preset:IncExp.Month ~offset
+         ~boundary_presets_text:(Some boundaries))
+  in
+  let current =
+    IncExp.compute_report ~book:window_book ~roles:window_roles ~period:(month 0)
+  in
+  let previous =
+    IncExp.compute_report ~book:window_book ~roles:window_roles ~period:(month (-1))
+  in
+  let summary =
+    List.map snd
+      (IncExp.render_report_lines ~width:80 ~width_of:String.length ~book:window_book
+         ~report:current ~previous:(Some previous))
+  in
+  require (contains summary "Previous: Month of 2026-09") "ie2-previous-labelled";
+  require (contains summary "prev 1,000  +122,456") "ie2-income-difference-exact";
+  require (contains summary "prev 500  +9,500") "ie2-expense-difference-exact";
+  require (contains summary "prev 500  +112,956") "ie2-result-difference-exact";
+  require (contains summary "Scheduled 0 jpy") "ie2-scheduled-split-shown";
+  let food_line =
+    List.find_index (fun line -> Base.String.is_substring line ~substring:"food") summary
+  in
+  let rent_line =
+    List.find_index (fun line -> Base.String.is_substring line ~substring:"rent") summary
+  in
+  require
+    (match (food_line, rent_line) with Some food, Some rent -> food < rent | _ -> false)
+    "ie2-breakdown-sorted-by-amount";
+  require (contains summary "█") "ie2-bar-present-at-width";
+  let narrow_summary =
+    List.map snd
+      (IncExp.render_report_lines ~width:30 ~width_of:String.length ~book:window_book
+         ~report:current ~previous:(Some previous))
+  in
+  require (not (contains narrow_summary "█")) "ie2-bar-dropped-before-amount";
+  require (contains narrow_summary "9,000") "ie2-amount-kept-at-narrow-width";
+  require (contains narrow_summary "Δ") "ie2-difference-kept-at-narrow-width";
+
+  (* Compare columns fit the width and keep exact amounts. *)
+  let compare_wide =
+    List.map snd
+      (IncExp.render_compare_lines ~width:160 ~width_of:String.length ~book:window_book
+         ~reports:[ (month (-1), previous); (month 0, current) ])
+  in
+  require (contains compare_wide "Compare: 2 window(s)") "ie2-compare-two-windows";
+  require (contains compare_wide "2026-09") "ie2-compare-previous-column";
+  require (contains compare_wide "top expense Loci") "ie2-compare-loci-rows";
+  require (contains compare_wide "123,456") "ie2-compare-income-exact";
+  require (contains compare_wide "1,000") "ie2-compare-previous-income";
+  let compare_narrow =
+    List.map snd
+      (IncExp.render_compare_lines ~width:40 ~width_of:String.length ~book:window_book
+         ~reports:[ (month (-1), previous); (month 0, current) ])
+  in
+  require (contains compare_narrow "Compare: 1 window(s)") "ie2-compare-narrow-fits-one";
+  require (not (contains compare_narrow "2026-09")) "ie2-compare-narrow-drops-oldest";
+  require (contains compare_narrow "123,456") "ie2-compare-narrow-keeps-amount";
   print_endline
     "PASS: shared report frame scroll clamp and position, I&E active measures / money / help / \
      print lines, Transactions Flow selection clamp and narrow-vs-wide detail."
