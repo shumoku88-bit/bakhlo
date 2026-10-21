@@ -57,8 +57,7 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 - Keep private inputs, captures and results in ignored scratch; record only build
   identity, freshness, dimensions, flows, non-private findings and limits. If copying
   or a binary is unavailable, record **latest-data paired comparison not executed**.
-- This workflow authorizes no scheduler or automatic sync, and no deletion of earlier
-  trials or captures.
+- This workflow authorizes no scheduler or automatic sync.
 
 ## Product
 
@@ -114,8 +113,8 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   (names, memos, identifiers, amounts) may enter this repository, its history or commit
   messages. `./tools/check` runs `./tools/privacy-scan` on changed files; run
   `--all` after broad doc edits. Never put private text in the scan's inputs or output.
-  Preserve earlier captures and trial edits in scratch. User decision (2026-10-21):
-  research, experiments and code off the daily-use path (Irmin, formal models, old CLI)
+  User decision (2026-10-21): scratch trials and captures are disposable (no rule keeps
+  them); research, experiments and code off the daily-use path (Irmin, formal models, old CLI)
   live in Git history only.
 - Ordinary tests use synthetic inputs. Do not build/modify the sibling Lean repository
   or copy its source without separate authorization.
