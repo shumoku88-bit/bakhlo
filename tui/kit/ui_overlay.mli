@@ -1,4 +1,3 @@
-(** Positioned transient pane shared by screen owners and the terminal renderer. *)
 type frame = {
   origin_x : int;
   origin_y : int;
@@ -7,13 +6,18 @@ type frame = {
   rows : (Ui_render.style * string) list;
   cursor : (int * int) option;
 }
+(** Positioned transient pane shared by screen owners and the terminal renderer. *)
 
 val modal_width : body:int * int -> int
 (** Width of a centered modal form pane inside the body region. *)
 
 val form :
-  width_of:(string -> int) -> screen:int * int -> body:int * int -> ?pane_width:int ->
-  Ui_form.t -> frame option
+  width_of:(string -> int) ->
+  screen:int * int ->
+  body:int * int ->
+  ?pane_width:int ->
+  Ui_form.t ->
+  frame option
 (** Frame a form centered in the body region; [None] when the body is too small
     to show any frame. The caret position follows the painted rows. *)
 
@@ -22,7 +26,12 @@ val form_fits : width_of:(string -> int) -> body:int * int -> Ui_form.t -> bool
     must refuse otherwise instead of saving content the user could not see. *)
 
 val centered :
-  width_of:(string -> int) -> screen:int * int -> body:int * int -> pane_width:int ->
-  caret:[ `None | `Free | `Bounded ] -> (Ui_render.style * string) list -> frame option
+  width_of:(string -> int) ->
+  screen:int * int ->
+  body:int * int ->
+  pane_width:int ->
+  caret:[ `None | `Free | `Bounded ] ->
+  (Ui_render.style * string) list ->
+  frame option
 (** Center already painted rows in the body region; [None] when the body is too
     small for any frame. [`Bounded] drops a caret outside the terminal. *)

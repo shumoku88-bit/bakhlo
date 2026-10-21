@@ -46,7 +46,7 @@ let render_cases state =
                            amount = String.make 70 '9';
                          };
                        ];
-                    };
+                   };
                  original_amount = None;
                })))
   in
@@ -59,26 +59,39 @@ let render_cases state =
   let cancellation = key (C.open_route rich W.Scheduled) (`ASCII 'x') in
   let cancellation_preview = key cancellation `Enter in
   let source = List.hd (B.plans book) in
-  let continuation_none = with_session rich (E.Scheduled_continuation
-    (Cont.create ~book ~base_revision:rich.session.revision source)) in
+  let continuation_none =
+    with_session rich
+      (E.Scheduled_continuation (Cont.create ~book ~base_revision:rich.session.revision source))
+  in
   let later = { source with id = "render-later"; day = get (Cal.shift_months source.day 1) } in
   let continuation_book = get (B.put_plan book ~replace:false later) in
-  let continuation = with_session rich (E.Scheduled_continuation
-    (Cont.create ~book:continuation_book ~base_revision:rich.session.revision source)) in
+  let continuation =
+    with_session rich
+      (E.Scheduled_continuation
+         (Cont.create ~book:continuation_book ~base_revision:rich.session.revision source))
+  in
   let continuation_review = key (key (key continuation `Tab) `Tab) `Enter in
-  let bulk = with_session rich (E.Scheduled_bulk
-    (get (Bulk.create ~book ~base_revision:rich.session.revision ~from_day:source.day source))) in
-  let bulk_selection = String.fold_left (fun state c -> key state (`ASCII c)) bulk "321"
-    |> fun state -> key state `Enter in
+  let bulk =
+    with_session rich
+      (E.Scheduled_bulk
+         (get (Bulk.create ~book ~base_revision:rich.session.revision ~from_day:source.day source)))
+  in
+  let bulk_selection =
+    String.fold_left (fun state c -> key state (`ASCII c)) bulk "321" |> fun state ->
+    key state `Enter
+  in
   let bulk_preview = key (key bulk_selection (`ASCII 'a')) `Enter in
-  let generate = with_session rich (E.Scheduled_generate
-    (get (Gen.create ~book ~base_revision:rich.session.revision ~source ()))) in
+  let generate =
+    with_session rich
+      (E.Scheduled_generate (get (Gen.create ~book ~base_revision:rich.session.revision ~source ())))
+  in
   let generate_preview = key generate `Enter in
   let detail route =
     let view = C.open_route rich route in
     match route with
-    | W.Selected_day _ | W.Actual | W.Scheduled | W.Income_expense | W.Transactions_flow | W.Stock_flow ->
-        key view (`ASCII 'i')  (* the owner's own detail key *)
+    | W.Selected_day _ | W.Actual | W.Scheduled | W.Income_expense | W.Transactions_flow
+    | W.Stock_flow ->
+        key view (`ASCII 'i') (* the owner's own detail key *)
     | _ -> key view `Tab
   in
   let let_search state = key state (`ASCII '/') |> fun s -> text ~width_of:String.length s "財布" in
@@ -92,11 +105,19 @@ let render_cases state =
     C.open_route home W.Balances;
     C.open_route home W.Daily_pace;
     C.open_plan_record home;
-    { home with overlay = C.Modal_form
-        (Ui_form.create ~id:"render" ~title:"Synthetic form"
-           ~fields:[Ui_form.text_field ~id:"memo" ~label:"Memo"
-             ~value:"Long input / 日本語 / abcdefghijklmnopqrstuvwxyz0123456789" ();
-             Ui_form.action_buttons ()] ()) };
+    {
+      home with
+      overlay =
+        C.Modal_form
+          (Ui_form.create ~id:"render" ~title:"Synthetic form"
+             ~fields:
+               [
+                 Ui_form.text_field ~id:"memo" ~label:"Memo"
+                   ~value:"Long input / 日本語 / abcdefghijklmnopqrstuvwxyz0123456789" ();
+                 Ui_form.action_buttons ();
+               ]
+             ());
+    };
     record;
     review;
     C.request_discard { review with record_visible = false };
@@ -126,8 +147,17 @@ let render_cases state =
     detail W.Balances;
     { home with overlay = C.Commands M.initial };
     { home with overlay = C.Commands { M.page = M.Analysis; selected = 1 } };
-    { home with overlay = C.Themes { selected = 0; original = home.theme; return_menu = M.initial } };
-    { home with screens = { home.screens with calendar_home = Calendar_home.start_jump "2026-10" home.screens.calendar_home } };
+    {
+      home with
+      overlay = C.Themes { selected = 0; original = home.theme; return_menu = M.initial };
+    };
+    {
+      home with
+      screens =
+        {
+          home.screens with
+          calendar_home = Calendar_home.start_jump "2026-10" home.screens.calendar_home;
+        };
+    };
     let_search home;
   ]
-

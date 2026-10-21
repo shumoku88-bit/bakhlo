@@ -38,15 +38,28 @@ let record_dimensions ~dimensions:((width, height) as dimensions) ~width_of stat
 let back state =
   match Calendar_home_screen.back_to_list state.screens.calendar_home with
   | Some calendar_home -> { state with screens = { state.screens with calendar_home } }
-  | None -> match state.drill_parent with
-  | Some W.Actual ->
-      let before = Option.value ~default:state.session.book state.drill_book in
-      let screens, _ = Screen_registry.book_changed W.Actual ~before ~after:state.session.book state.screens in
-      { state with drill_parent = None; drill_book = None;
-        workspace = W.enter state.workspace W.Actual; overlay = No_overlay;
-        screens = { screens with calendar_home = Calendar_home_screen.entered W.Actual
-          ~focus_day:state.workspace.calendar.selected_day screens.calendar_home } }
-  | _ -> open_route state W.Home
+  | None -> (
+      match state.drill_parent with
+      | Some W.Actual ->
+          let before = Option.value ~default:state.session.book state.drill_book in
+          let screens, _ =
+            Screen_registry.book_changed W.Actual ~before ~after:state.session.book state.screens
+          in
+          {
+            state with
+            drill_parent = None;
+            drill_book = None;
+            workspace = W.enter state.workspace W.Actual;
+            overlay = No_overlay;
+            screens =
+              {
+                screens with
+                calendar_home =
+                  Calendar_home_screen.entered W.Actual
+                    ~focus_day:state.workspace.calendar.selected_day screens.calendar_home;
+              };
+          }
+      | _ -> open_route state W.Home)
 
 (* Shell side of the screen owner protocol ({!Screen}). *)
 let screen_env ~config_files state : Screen.env =
@@ -63,10 +76,11 @@ let screen_env ~config_files state : Screen.env =
     settlements = state.settlements;
     blocked = state.blocked;
     draft_retained = has_record_draft state;
-    config = (fun name ->
-      match List.assoc_opt name captured with
-      | Some bytes -> bytes
-      | None -> Error ("Configuration " ^ name ^ " was not declared by this screen."));
+    config =
+      (fun name ->
+        match List.assoc_opt name captured with
+        | Some bytes -> bytes
+        | None -> Error ("Configuration " ^ name ^ " was not declared by this screen."));
   }
 
 (* After a successful reload, an open editor may refuse its captured generation. *)
@@ -76,7 +90,9 @@ let reload state =
   let state =
     match Screen_registry.for_route state.workspace.route with
     | Some (Screen_registry.Owner o) when not (o.modal (o.get state.screens)) ->
-        let value, _ = o.reloaded (screen_env ~config_files:o.config_files state) (o.get state.screens) in
+        let value, _ =
+          o.reloaded (screen_env ~config_files:o.config_files state) (o.get state.screens)
+        in
         { state with screens = o.set state.screens value }
     | _ -> state
   in
@@ -86,7 +102,8 @@ let reload state =
     | None -> state
     | Some (Screen_registry.Owner o) -> (
         let value, request =
-          o.reloaded (screen_env ~config_files:o.config_files state) (o.get state.screens) in
+          o.reloaded (screen_env ~config_files:o.config_files state) (o.get state.screens)
+        in
         let state = { state with screens = o.set state.screens value } in
         match request with
         | Screen.Stop_writes why ->
@@ -95,23 +112,33 @@ let reload state =
 
 (* Home/Calendar [o] and Commands: an empty observation draft over any route. *)
 let open_observe state =
-  { state with screens = { state.screens with
-      observe = Observe_screen.open_editor (screen_env ~config_files:[] state) state.screens.observe } }
+  {
+    state with
+    screens =
+      {
+        state.screens with
+        observe =
+          Observe_screen.open_editor (screen_env ~config_files:[] state) state.screens.observe;
+      };
+  }
 
 let route_layout state =
   match Screen_registry.for_route state.workspace.route with
   | Some (Screen_registry.Owner owner) -> owner.layout
   | None -> Screen.Standard
 
-let canvas_dimensions layout (width, height) = match layout with
-  | Screen.Standard -> width, height
-  | Screen.Workspace -> (if width > 1 then width - 1 else width), max 0 (height - 1)
+let canvas_dimensions layout (width, height) =
+  match layout with
+  | Screen.Standard -> (width, height)
+  | Screen.Workspace -> ((if width > 1 then width - 1 else width), max 0 (height - 1))
 
 let screen_geometry ?layout ~dimensions ~width_of state : Screen.geometry =
   let layout = Option.value ~default:(route_layout state) layout in
   let canvas = canvas_dimensions layout dimensions in
   let width, body = body_dimensions ~dimensions:canvas ~width_of state in
-  let content_height = match layout with Screen.Standard -> max 0 (body - 2) | Screen.Workspace -> body in
+  let content_height =
+    match layout with Screen.Standard -> max 0 (body - 2) | Screen.Workspace -> body
+  in
   { screen = dimensions; body = (width, body); content = (width, content_height); width_of }
 
 (* [saved] hands a configuration save result back to the requesting owner. *)
@@ -127,7 +154,7 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
       let measure =
         match List.map fst (B.measures state.session.book) with
         | [] -> current
-        | measures ->
+        | measures -> (
             let rec next = function
               | [] | [ _ ] -> List.hd measures
               | x :: y :: _ when x = current -> y
@@ -135,28 +162,40 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
             in
             let rec prev acc = function
               | [] -> List.hd (List.rev measures)
-              | [ x ] when x = current -> (match acc with None -> x | Some p -> p)
-              | x :: _ when x = current ->
-                  (match acc with None -> List.hd (List.rev measures) | Some p -> p)
+              | [ x ] when x = current -> ( match acc with None -> x | Some p -> p)
+              | x :: _ when x = current -> (
+                  match acc with None -> List.hd (List.rev measures) | Some p -> p)
               | x :: rest -> prev (Some x) rest
             in
-            (match direction with `Next -> next measures | `Prev -> prev None measures)
+            match direction with `Next -> next measures | `Prev -> prev None measures)
       in
       { state with workspace = { state.workspace with measure } }
   | Screen.Observe { locus; measure; amount } ->
-      { state with screens = { state.screens with
-          observe = Observe_screen.open_editor ~locus ~measure ?amount:(Option.map Z.to_string amount)
-              (screen_env ~config_files:[] state) state.screens.observe } }
+      {
+        state with
+        screens =
+          {
+            state.screens with
+            observe =
+              Observe_screen.open_editor ~locus ~measure ?amount:(Option.map Z.to_string amount)
+                (screen_env ~config_files:[] state)
+                state.screens.observe;
+          };
+      }
   | Screen.Publish (Screen.Observe_quantities { rows; base }) ->
       let state, outcome = publish_observation state ~rows ~base in
       let state, request = published state outcome in
       apply_request ~saved ~published state request
   | Screen.Open_route route -> open_route state route
   | Screen.Back -> back state
-  | Screen.Quit -> state  (* handled by route_screen_input before applying *)
+  | Screen.Quit -> state (* handled by route_screen_input before applying *)
   | Screen.Set_calendar { calendar; clear_message } ->
-      sync { state with workspace = { state.workspace with calendar };
-             message = (if state.blocked || not clear_message then state.message else "") }
+      sync
+        {
+          state with
+          workspace = { state.workspace with calendar };
+          message = (if state.blocked || not clear_message then state.message else "");
+        }
   | Screen.Open_observe -> open_observe state
   | Screen.New_plan -> open_plan_record state
   | Screen.Record_action { action; target } -> (
@@ -174,14 +213,21 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
   | Screen.Drill { day; entry } ->
       let parent = state.workspace.route in
       let drilled = open_route state (W.Selected_day day) in
-      let day = Selected_day_screen.drill ~entry
-          ~parent:(match parent with W.Actual -> "Actual" | _ -> "") drilled.screens.day
-          |> Selected_day_screen.synced state.session.book in
-      { drilled with screens = { drilled.screens with day };
-        drill_parent = Some parent; drill_book = Some state.session.book }
+      let day =
+        Selected_day_screen.drill ~entry
+          ~parent:(match parent with W.Actual -> "Actual" | _ -> "")
+          drilled.screens.day
+        |> Selected_day_screen.synced state.session.book
+      in
+      {
+        drilled with
+        screens = { drilled.screens with day };
+        drill_parent = Some parent;
+        drill_book = Some state.session.book;
+      }
   | Screen.Stop_writes why ->
       { state with blocked = true; message = Option.value ~default:state.message why }
-  | Screen.Publish publication ->
+  | Screen.Publish publication -> (
       let result = execute_publication state publication in
       let outcome = function
         | A.Published _ -> Screen.Published
@@ -191,31 +237,42 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
       in
       (* Editor sessions keep their review open and the Shell reports every
          outcome; Loci and Exchange show refusals and conflicts in their form. *)
-      let shell_reports = match publication with
+      let shell_reports =
+        match publication with
         | Screen.Add_locus _ | Screen.Set_locus_label _ | Screen.Commit_transaction _ -> false
-        | _ -> true in
-      let published_message = match publication with
-        | Screen.Classify_merchant { message; _ } -> Some message | _ -> None in
+        | _ -> true
+      in
+      let published_message =
+        match publication with Screen.Classify_merchant { message; _ } -> Some message | _ -> None
+      in
       let state, request =
         match result with
         | (A.Refused _ | A.Conflict | A.Conflict_base_changed) when not shell_reports ->
             published state (outcome result)
-        | _ -> published (apply_commit_result ?published_message state ~draft:state result) (outcome result)
+        | _ ->
+            published
+              (apply_commit_result ?published_message state ~draft:state result)
+              (outcome result)
       in
       let state = apply_request ~saved ~published state request in
-      (match publication, result with
-       | Screen.Create_plan { plan; offer_pace = true; _ }, A.Published _ -> offer_created_pace state plan.id
-       | _ -> state)
+      match (publication, result) with
+      | Screen.Create_plan { plan; offer_pace = true; _ }, A.Published _ ->
+          offer_created_pace state plan.id
+      | _ -> state)
   | Screen.Save_attention { expected; next } ->
       let result =
-        Result.map (fun () -> next) (Attention_file.save_file state.attention_path ~expected next) in
+        Result.map (fun () -> next) (Attention_file.save_file state.attention_path ~expected next)
+      in
       let state = match result with Ok a -> { state with attention = Ok a } | Error _ -> state in
       let state, request = saved state (Result.map ignore result) in
       apply_request ~saved ~published state request
   | Screen.Save_settlements { expected; next } ->
       let result =
-        Result.map (fun () -> next) (Settlement_file.save_file state.settlement_path ~expected next) in
-      let state = match result with Ok s -> { state with settlements = Ok s } | Error _ -> state in
+        Result.map (fun () -> next) (Settlement_file.save_file state.settlement_path ~expected next)
+      in
+      let state =
+        match result with Ok s -> { state with settlements = Ok s } | Error _ -> state
+      in
       let state, request = saved state (Result.map ignore result) in
       apply_request ~saved ~published state request
   | Screen.Save_config { file; expected; content; admission } ->
@@ -229,12 +286,17 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
 and offer_created_pace state id =
   match List.find_opt (fun (p : B.plan) -> p.id = id) (B.plans state.session.book) with
   | None ->
-      { state with message =
-          state.message ^ " Expected-pace setup unavailable: new Scheduled identity not found." }
+      {
+        state with
+        message =
+          state.message ^ " Expected-pace setup unavailable: new Scheduled identity not found.";
+      }
   | Some plan ->
       let scheduled, request =
         Scheduled_screen.open_created_pace
-          (screen_env ~config_files:Scheduled_screen.config_files state) state.screens.scheduled plan in
+          (screen_env ~config_files:Scheduled_screen.config_files state)
+          state.screens.scheduled plan
+      in
       apply_request { state with screens = { state.screens with scheduled } } request
 
 let pace_env state = screen_env ~config_files:Pace.config_files state
@@ -248,23 +310,34 @@ let owner_layout (o : _ Screen_registry.owner) state =
 
 let apply_owner ~dimensions ~width_of (o : _ Screen_registry.owner) state (value, request) =
   let layout = owner_layout o state in
-  apply_request { state with screens = o.set state.screens value } request
+  apply_request
+    { state with screens = o.set state.screens value }
+    request
     ~saved:(fun state result ->
       let value, request =
-        o.saved (screen_env ~config_files:o.config_files state)
-          (screen_geometry ~layout ~dimensions ~width_of state) result (o.get state.screens) in
+        o.saved
+          (screen_env ~config_files:o.config_files state)
+          (screen_geometry ~layout ~dimensions ~width_of state)
+          result (o.get state.screens)
+      in
       ({ state with screens = o.set state.screens value }, request))
     ~published:(fun state outcome ->
       let value, request =
-        o.published (screen_env ~config_files:o.config_files state)
-          (screen_geometry ~layout ~dimensions ~width_of state) outcome (o.get state.screens) in
+        o.published
+          (screen_env ~config_files:o.config_files state)
+          (screen_geometry ~layout ~dimensions ~width_of state)
+          outcome (o.get state.screens)
+      in
       ({ state with screens = o.set state.screens value }, request))
 
 let owner_input ~dimensions ~width_of (Screen_registry.Owner o) state input =
   let layout = owner_layout o state in
   let value, request =
-    o.handle (screen_env ~config_files:o.config_files state)
-      (screen_geometry ~layout ~dimensions ~width_of state) (o.get state.screens) input in
+    o.handle
+      (screen_env ~config_files:o.config_files state)
+      (screen_geometry ~layout ~dimensions ~width_of state)
+      (o.get state.screens) input
+  in
   match request with
   | Screen.Ignored -> None
   | Screen.Quit -> Some `Quit
@@ -272,37 +345,44 @@ let owner_input ~dimensions ~width_of (Screen_registry.Owner o) state input =
 
 let owner_view ~dimensions ~width_of (Screen_registry.Owner o) state =
   let layout = owner_layout o state in
-  o.view (screen_env ~config_files:o.config_files state)
-    (screen_geometry ~layout ~dimensions ~width_of state) (o.get state.screens)
+  o.view
+    (screen_env ~config_files:o.config_files state)
+    (screen_geometry ~layout ~dimensions ~width_of state)
+    (o.get state.screens)
 
 let modal_screen_input ~dimensions ~width_of state input =
   Option.bind (Screen_registry.modal state.screens) (fun owner ->
-    match owner_input ~dimensions ~width_of owner state input with
-    | Some (`State state) -> Some state
-    | Some `Quit | None -> Some state)
+      match owner_input ~dimensions ~width_of owner state input with
+      | Some (`State state) -> Some state
+      | Some `Quit | None -> Some state)
 
 let route_screen_input ~dimensions ~width_of state input =
   Option.bind (Screen_registry.for_route state.workspace.route) (fun owner ->
-    owner_input ~dimensions ~width_of owner state input)
+      owner_input ~dimensions ~width_of owner state input)
 
 let route_screen_view ~dimensions ~width_of state =
-  Option.map (fun owner -> owner_view ~dimensions ~width_of owner state)
+  Option.map
+    (fun owner -> owner_view ~dimensions ~width_of owner state)
     (Screen_registry.for_route state.workspace.route)
 
 let modal_screen_view ~dimensions ~width_of state =
-  Option.map (fun owner ->
-    let view = owner_view ~dimensions ~width_of owner state in
-    if Calendar_home_screen.ambient state.screens.calendar_home then
-      match route_screen_view ~dimensions ~width_of state with
-      | Some route -> { view with Screen.footer = route.Screen.footer }
-      | None -> view
-    else view)
+  Option.map
+    (fun owner ->
+      let view = owner_view ~dimensions ~width_of owner state in
+      if Calendar_home_screen.ambient state.screens.calendar_home then
+        match route_screen_view ~dimensions ~width_of state with
+        | Some route -> { view with Screen.footer = route.Screen.footer }
+        | None -> view
+      else view)
     (Screen_registry.modal state.screens)
 
 let ambient_screen_input ~dimensions ~width_of state input =
-  let calendar_home, request = Calendar_home_screen.ambient_handle
-      (screen_env ~config_files:[] state) (screen_geometry ~dimensions ~width_of state)
-      state.screens.calendar_home input in
+  let calendar_home, request =
+    Calendar_home_screen.ambient_handle
+      (screen_env ~config_files:[] state)
+      (screen_geometry ~dimensions ~width_of state)
+      state.screens.calendar_home input
+  in
   match request with
   | Screen.Ignored -> None
   | Screen.Stay -> Some { state with screens = { state.screens with calendar_home } }
@@ -318,10 +398,21 @@ let open_command state = function
   | M.Attention -> open_route state W.Attention
   | M.Manage_loci | M.Friendly_locus_names -> open_route state W.Loci
   | M.Exchange ->
-      let default_date = match state.workspace.route with
-        | W.Selected_day day -> day | _ -> state.workspace.calendar.selected_day in
-      { state with overlay = No_overlay; message = "";
-        screens = { state.screens with exchange = Exchange_screen.open_editor ~default_date state.screens.exchange } }
+      let default_date =
+        match state.workspace.route with
+        | W.Selected_day day -> day
+        | _ -> state.workspace.calendar.selected_day
+      in
+      {
+        state with
+        overlay = No_overlay;
+        message = "";
+        screens =
+          {
+            state.screens with
+            exchange = Exchange_screen.open_editor ~default_date state.screens.exchange;
+          };
+      }
   | M.Settlements -> open_route state W.Settlements
   | M.Observe -> { (open_observe state) with overlay = No_overlay; message = "" }
   | M.Home -> open_route state W.Home
@@ -333,11 +424,17 @@ let open_command state = function
   | M.Trend_locus -> open_route state W.Trend_locus
   | M.Calendar -> open_route state W.Calendar
   | M.Pace_pool ->
-      { state with overlay = No_overlay; message = "";
-        screens = { state.screens with pace = Pace.open_pool (pace_env state) state.screens.pace } }
+      {
+        state with
+        overlay = No_overlay;
+        message = "";
+        screens = { state.screens with pace = Pace.open_pool (pace_env state) state.screens.pace };
+      }
   | M.Cycle_boundaries ->
       let pace, request = Pace.open_cycle (pace_env state) state.screens.pace in
-      apply_request { state with overlay = No_overlay; screens = { state.screens with pace } } request
+      apply_request
+        { state with overlay = No_overlay; screens = { state.screens with pace } }
+        request
   | M.Balance_display ->
       let state = open_route state W.Balances in
       let balances, request = Balances.open_config (balances_env state) state.screens.balances in
@@ -348,5 +445,7 @@ let open_command state = function
         | theme :: rest -> if theme = state.theme then i else index (i + 1) rest
       in
       let return_menu = match state.overlay with Commands menu -> menu | _ -> M.initial in
-      { state with overlay = Themes { selected = index 0 P.all_themes;
-                                     original = state.theme; return_menu } }
+      {
+        state with
+        overlay = Themes { selected = index 0 P.all_themes; original = state.theme; return_menu };
+      }

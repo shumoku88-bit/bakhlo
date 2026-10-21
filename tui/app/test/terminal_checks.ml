@@ -1,7 +1,6 @@
 (* Bonsai adapter checks: cell geometry, colours, overlay placement, feedback
    visibility and event translation over the synthetic scenario states. *)
 open Bonsai_terminal
-
 module O = Daily_overlays
 
 let run () =
@@ -12,13 +11,12 @@ let run () =
   let state = C.initial ~config_home:directory (F.load path) in
   let ansi view =
     let buffer = Buffer.create 128 in
-    Notty.Render.to_buffer buffer Notty.Cap.ansi (0, 0) (V.width view, V.height view)
+    Notty.Render.to_buffer buffer Notty.Cap.ansi (0, 0)
+      (V.width view, V.height view)
       (V.Private.notty_image view);
     Buffer.contents buffer
   in
-  let slice left width view =
-    V.crop ~l:left ~r:(max 0 (V.width view - left - width)) view
-  in
+  let slice left width view = V.crop ~l:left ~r:(max 0 (V.width view - left - width)) view in
   let field = lines ~border:`Create P.Terminal [ (C.Input 9, "│ Date: x|y │") ] in
   List.iter
     (fun (intent, terminal_color, light_index, dark_index) ->
@@ -28,53 +26,56 @@ let run () =
           F.require
             (ansi (slice 0 1 field) = ansi (V.text ~attrs:[ B.Attr.fg expected ] "│"))
             "Bonsai-editor-theme-owned-semantic-border")
-        [ P.Terminal, terminal_color;
-          P.Bakhlo_light, B.Attr.Color.xterm_256 light_index;
-          P.Bakhlo_dark, B.Attr.Color.xterm_256 dark_index ])
-    [ `Create, B.Attr.Color.Expert.cyan, 31, 67;
-      `Change, B.Attr.Color.Expert.yellow, 136, 179;
-      `Cancel, B.Attr.Color.Expert.red, 131, 174 ];
-  F.require
-    (ansi (slice 2 7 field) = ansi (V.text "Date: x"))
-    "Bonsai-editor-body-remains-neutral";
+        [
+          (P.Terminal, terminal_color);
+          (P.Bakhlo_light, B.Attr.Color.xterm_256 light_index);
+          (P.Bakhlo_dark, B.Attr.Color.xterm_256 dark_index);
+        ])
+    [
+      (`Create, B.Attr.Color.Expert.cyan, 31, 67);
+      (`Change, B.Attr.Color.Expert.yellow, 136, 179);
+      (`Cancel, B.Attr.Color.Expert.red, 131, 174);
+    ];
+  F.require (ansi (slice 2 7 field) = ansi (V.text "Date: x")) "Bonsai-editor-body-remains-neutral";
   F.require
     (ansi (slice 9 1 field) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "|"))
     "Bonsai-editor-caret-is-distinct";
   let literal = lines ~border:`Create P.Terminal [ (C.Input 9, "│ Date: ||│ │") ] in
-  F.require (ansi (slice 8 1 literal) = ansi (V.text "|"))
-    "Bonsai-literal-bar-is-not-a-caret";
-  F.require (ansi (slice 10 1 literal) = ansi (V.text "│"))
+  F.require (ansi (slice 8 1 literal) = ansi (V.text "|")) "Bonsai-literal-bar-is-not-a-caret";
+  F.require
+    (ansi (slice 10 1 literal) = ansi (V.text "│"))
     "Bonsai-literal-box-glyph-is-not-a-border";
   let dates = lines P.Terminal [ (C.Calendar_dates, "│ [16] 17 │") ] in
   F.require
     (ansi (slice 2 4 dates) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "[16]"))
     "Bonsai-calendar-selected-cell-only";
-  F.require (ansi (slice 7 2 dates) = ansi (V.text "17"))
-    "Bonsai-calendar-neighbor-remains-neutral";
-  let columns = lines P.Terminal [C.Columns (4, C.Plain, C.Active), "財布 x"] in
-  F.require (ansi (slice 0 4 columns) = ansi (V.text "財布"))
+  F.require (ansi (slice 7 2 dates) = ansi (V.text "17")) "Bonsai-calendar-neighbor-remains-neutral";
+  let columns = lines P.Terminal [ (C.Columns (4, C.Plain, C.Active), "財布 x") ] in
+  F.require
+    (ansi (slice 0 4 columns) = ansi (V.text "財布"))
     "Bonsai-columns-retain-unfocused-unicode-pane";
   F.require
     (ansi (slice 5 1 columns) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "x"))
     "Bonsai-columns-focus-only-the-selected-pane";
-  let panes = lines P.Terminal [ C.Columns (3, C.Input 0, C.Active), "|ab 財布" ] in
+  let panes = lines P.Terminal [ (C.Columns (3, C.Input 0, C.Active), "|ab 財布") ] in
   F.require
     (ansi (slice 0 1 panes) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "|")
-     && ansi (slice 1 2 panes) = ansi (V.text "ab")
-     && ansi (slice 4 4 panes) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "財布"))
+    && ansi (slice 1 2 panes) = ansi (V.text "ab")
+    && ansi (slice 4 4 panes) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "財布"))
     "Bonsai-columns-preserve-input-and-independent-active-pane";
-  let panes = lines P.Terminal [ C.Columns (4, C.Plain, C.Input 0), "財布 |ab" ] in
+  let panes = lines P.Terminal [ (C.Columns (4, C.Plain, C.Input 0), "財布 |ab") ] in
   F.require
     (ansi (slice 0 4 panes) = ansi (V.text "財布")
-     && ansi (slice 5 1 panes) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "|")
-     && ansi (slice 6 2 panes) = ansi (V.text "ab"))
+    && ansi (slice 5 1 panes) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "|")
+    && ansi (slice 6 2 panes) = ansi (V.text "ab"))
     "Bonsai-columns-right-caret-does-not-color-left-pane";
-  let nested = lines P.Terminal
-      [ C.Columns (2, C.Plain, C.Columns (4, C.Plain, C.Input 0)), "ab 財布 |x" ] in
+  let nested =
+    lines P.Terminal [ (C.Columns (2, C.Plain, C.Columns (4, C.Plain, C.Input 0)), "ab 財布 |x") ]
+  in
   F.require
     (ansi (slice 0 2 nested) = ansi (V.text "ab")
-     && ansi (slice 3 4 nested) = ansi (V.text "財布")
-     && ansi (slice 8 1 nested) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "|"))
+    && ansi (slice 3 4 nested) = ansi (V.text "財布")
+    && ansi (slice 8 1 nested) = ansi (V.text ~attrs:(attributes P.Terminal C.Active) "|"))
     "Bonsai-nested-columns-preserve-native-caret-style";
   List.iter
     (fun (style, expected) ->
@@ -91,7 +92,8 @@ let run () =
       (C.Focused_frame, B.Attr.many [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.bold ]);
       (C.Panel, B.Attr.empty);
       (C.Panel_heading, B.Attr.bold);
-      (C.Panel_active, B.Attr.many [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.invert; B.Attr.bold ]);
+      ( C.Panel_active,
+        B.Attr.many [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.invert; B.Attr.bold ] );
     ];
   List.iter
     (fun theme ->
@@ -111,7 +113,7 @@ let run () =
               (match P.palette theme with
               | None ->
                   F.require
-                    (not (emits "38;5;") && not (emits "48;"))
+                    ((not (emits "38;5;")) && not (emits "48;"))
                     "Bonsai-terminal-owned-colors-including-editor"
               | Some palette ->
                   let foreground, background =
@@ -130,8 +132,8 @@ let run () =
                   F.require
                     (List.for_all (fun (_, text) -> width_of text = pane_width) rows)
                     (Printf.sprintf "Bonsai-panel-uniform-cell-width:%dx%d:%s" width height
-                       (String.concat "," (List.map (fun (_, text) ->
-                            string_of_int (width_of text)) rows)));
+                       (String.concat ","
+                          (List.map (fun (_, text) -> string_of_int (width_of text)) rows)));
                   F.require
                     (pane_width <= width && List.length rows <= height)
                     "Bonsai-panel-bounded-to-terminal";
@@ -141,7 +143,8 @@ let run () =
                         ~pane_height:(List.length rows)
                     in
                     F.require
-                      (left >= 0 && top >= 0 && left + pane_width <= width
+                      (left >= 0 && top >= 0
+                      && left + pane_width <= width
                       && top + List.length rows <= height)
                       "Bonsai-panel-position-bounded";
                     let buffer = Buffer.create 512 in
@@ -166,16 +169,15 @@ let run () =
       List.iter
         (fun state ->
           let state = { state with C.theme; blocked = true; message = "household-warning" } in
-          let view =
-            render (64, 20) state
-          in
+          let view = render (64, 20) state in
           (* Feedback sits on row 17, or row 16 when a LOAM workspace reserves
              the terminal's last row below the two navigation rows. *)
           let buffer = Buffer.create 128 in
           Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0) (64, 2)
             (V.Private.notty_image (V.crop ~t:16 ~b:2 view));
           F.require
-            (List.exists (fun line -> String.trim line = "household-warning")
+            (List.exists
+               (fun line -> String.trim line = "household-warning")
                (String.split_on_char '\n' (Buffer.contents buffer)))
             "Bonsai-overlay-household-warning-visible")
         (Interaction_render_fixture.render_cases state))
@@ -187,8 +189,12 @@ let run () =
           List.iter
             (fun state ->
               let state =
-                { state with C.theme; blocked = true;
-                  message = String.concat "" (List.init 12 (fun _ -> "Stop 日本語 warning ")) }
+                {
+                  state with
+                  C.theme;
+                  blocked = true;
+                  message = String.concat "" (List.init 12 (fun _ -> "Stop 日本語 warning "));
+                }
               in
               (* A LOAM workspace wraps feedback in its canvas, one column narrower
                  and one row above the reserved last terminal row. *)
@@ -204,23 +210,18 @@ let run () =
               let buffer = Buffer.create 512 in
               let top = height - reserved - 2 - feedback_height in
               F.require (top >= 0) "Bonsai-feedback-bounded";
-              let image =
-                Notty.I.crop ~t:top ~b:(2 + reserved) (V.Private.notty_image view)
-              in
-              Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0)
-                (width, feedback_height) image;
+              let image = Notty.I.crop ~t:top ~b:(2 + reserved) (V.Private.notty_image view) in
+              Notty.Render.to_buffer buffer Notty.Cap.dumb (0, 0) (width, feedback_height) image;
               let expected = Buffer.create 512 in
               let feedback_image =
                 lines theme feedback |> fit width feedback_height |> V.Private.notty_image
               in
-              Notty.Render.to_buffer expected Notty.Cap.dumb (0, 0)
-                (width, feedback_height) feedback_image;
+              Notty.Render.to_buffer expected Notty.Cap.dumb (0, 0) (width, feedback_height)
+                feedback_image;
               let physical_rows text =
                 String.split_on_char '\n' text
                 |> List.map (fun row ->
-                    let rec last n =
-                      if n > 0 && row.[n - 1] = ' ' then last (n - 1) else n
-                    in
+                    let rec last n = if n > 0 && row.[n - 1] = ' ' then last (n - 1) else n in
                     String.sub row 0 (last (String.length row)))
               in
               F.require
@@ -251,8 +252,7 @@ let run () =
   F.require
     (match
        H.handle state
-         (input_of_event
-            (B.Event.Key_press { key = B.Event.Key.ASCII 'r'; mods = [] }))
+         (input_of_event (B.Event.Key_press { key = B.Event.Key.ASCII 'r'; mods = [] }))
      with
     | Some editor -> C.editor_visible editor
     | None -> false)
@@ -271,7 +271,8 @@ let run () =
         match H.handle ~dimensions:(80, 24) ~width_of acc (`Key (`ASCII c, [])) with
         | Some next -> next
         | None -> acc)
-      opened (List.init (String.length "Coffee") (String.get "Coffee"))
+      opened
+      (List.init (String.length "Coffee") (String.get "Coffee"))
   in
   F.require
     (match typed.C.record with
@@ -280,7 +281,8 @@ let run () =
     "Shell-new-record-opens-the-quick-capture";
   F.require (C.editor_visible typed) "Shell-quick-capture-is-open";
   let framed = overlay_screen (80, 24) typed in
-  F.require (match framed with Some rows -> List.length rows = 14 | None -> false)
+  F.require
+    (match framed with Some rows -> List.length rows = 14 | None -> false)
     "Shell-quick-capture-is-one-fourteen-row-overlay";
   let rows = match framed with Some rows -> rows | None -> [] in
   F.require
@@ -289,24 +291,26 @@ let run () =
     "Shell-quick-capture-overlay-is-a-closed-frame";
   F.require
     (List.for_all
-       (fun (i, (_, text)) ->
-         i = 0 || i = 13 || String.starts_with text ~prefix:"│")
+       (fun (i, (_, text)) -> i = 0 || i = 13 || String.starts_with text ~prefix:"│")
        (List.mapi (fun i row -> (i, row)) rows))
     "Shell-quick-capture-overlay-keeps-its-sides-closed";
-  F.require (List.for_all (fun (_, text) -> width_of text = 75) rows)
+  F.require
+    (List.for_all (fun (_, text) -> width_of text = 75) rows)
     "Shell-quick-capture-overlay-rows-share-the-frame-width";
   let footer_rows =
     List.mapi (fun i (_, text) -> (i, text)) rows
     |> List.filter_map (fun (i, text) ->
-           if Base.String.is_substring text ~substring:quick_footer then Some i else None)
+        if Base.String.is_substring text ~substring:quick_footer then Some i else None)
   in
   F.require
-    (footer_rows <> [] && List.length footer_rows = 1
+    (footer_rows <> []
+    && List.length footer_rows = 1
     && List.for_all (fun i -> i > 0 && i < 13) footer_rows)
     "Shell-quick-capture-footer-stays-inside-the-frame";
   let base = R.screen ~width_of (80, 24) typed in
   F.require
-    (not (List.exists (fun (_, text) -> Base.String.is_substring text ~substring:quick_footer) base))
+    (not
+       (List.exists (fun (_, text) -> Base.String.is_substring text ~substring:quick_footer) base))
     "Shell-quick-capture-footer-is-not-detached-on-the-base-screen";
   let carets =
     List.mapi (fun i (style, _) -> match style with O.Input c -> Some (c, i) | _ -> None) rows
@@ -327,10 +331,12 @@ let run () =
      rows and the retained input. *)
   List.iter
     (fun (width, height) ->
-      F.require (overlay_screen (width, height) typed = None)
+      F.require
+        (overlay_screen (width, height) typed = None)
         (Printf.sprintf "Shell-quick-capture-has-no-overlay-at-%dx%d" width height);
       let compact = R.screen ~width_of (width, height) typed in
-      F.require (List.length compact <= height)
+      F.require
+        (List.length compact <= height)
         (Printf.sprintf "Shell-quick-capture-rows-are-bounded-at-%dx%d" width height);
       F.require
         (List.for_all (fun (_, text) -> width_of text <= width) compact)
@@ -347,7 +353,8 @@ let run () =
   (* A warning that leaves no room for the frame drops the frame, not the
      notice. *)
   let warned = { typed with C.message = "household-warning" } in
-  F.require (overlay_screen (57, 16) warned = None)
+  F.require
+    (overlay_screen (57, 16) warned = None)
     "Shell-quick-capture-frame-is-dropped-when-a-warning-leaves-no-room";
   F.require
     (List.exists
@@ -364,5 +371,5 @@ let run () =
     | None -> false)
     "Shell-quick-capture-returns-to-the-framed-modal";
   print_endline
-    "PASS: Bonsai cell-width geometry, cyan/default and indexed colors/no truecolor, front overlays, \
-     visible warnings, English Record and event adapters."
+    "PASS: Bonsai cell-width geometry, cyan/default and indexed colors/no truecolor, front \
+     overlays, visible warnings, English Record and event adapters."

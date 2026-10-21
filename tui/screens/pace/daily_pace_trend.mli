@@ -1,12 +1,7 @@
 (* Daily Pace Trend: retrospective current-truth spending pace analysis over 10d, 30d, month, cycle. *)
 module B = Bakhlo_sexp.Daily_book
 
-type preset =
-  | Ten_days
-  | Thirty_days
-  | Month
-  | Cycle
-  | Previous_cycle
+type preset = Ten_days | Thirty_days | Month | Cycle | Previous_cycle
 
 type day_activity = {
   discretionary_outflow : Z.t;
@@ -113,11 +108,7 @@ val render_history :
     narrow Value / status fallback keeps its selected marker during detail focus. *)
 
 val change_preset :
-  today:string ->
-  boundary_presets_text:string option ->
-  t ->
-  preset ->
-  (t, string) result
+  today:string -> boundary_presets_text:string option -> t -> preset -> (t, string) result
 (** Preset switch preserving the selected calendar date when the old range
     resolves; clamps to the new range, falls back to today when the old
     date is unavailable. A refused new range is an error, never a reset. *)

@@ -2,6 +2,7 @@
    Keep row order, multiplicity and existing keys; never auto-fill a residual. *)
 module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
+
 let tr = Ui_text.tr
 
 type row = {
@@ -54,9 +55,7 @@ let format_residual_error why =
   else
     let line_prefix =
       if Base.String.is_prefix why ~prefix:"row-" then
-        match String.index_opt why ':' with
-        | Some idx -> String.sub why 0 idx ^ ": "
-        | None -> ""
+        match String.index_opt why ':' with Some idx -> String.sub why 0 idx ^ ": " | None -> ""
       else ""
     in
     if Base.String.is_substring why ~substring:"invalid-amount" then

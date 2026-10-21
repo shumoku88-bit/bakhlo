@@ -6,25 +6,9 @@ module Cal = Daily_calendar
 module A = Daily_draft
 module D = Bakhlo_domain
 
-type period_preset =
-  | Month
-  | Cycle
-  | Previous_cycle
-  | Year
-  | All_time
-
-type period = {
-  preset : period_preset;
-  start_day : string;
-  end_exclusive : string;
-  label : string;
-}
-
-type line_item = {
-  locus : string;
-  label : string;
-  amount : Z.t;
-}
+type period_preset = Month | Cycle | Previous_cycle | Year | All_time
+type period = { preset : period_preset; start_day : string; end_exclusive : string; label : string }
+type line_item = { locus : string; label : string; amount : Z.t }
 
 type measure_summary = {
   measure : string;
@@ -52,13 +36,7 @@ type t = {
 }
 
 let initial () =
-  {
-    preset = Month;
-    period_offset = 0;
-    selected_row = 0;
-    detail_focused = false;
-    detail_scroll = 0;
-  }
+  { preset = Month; period_offset = 0; selected_row = 0; detail_focused = false; detail_scroll = 0 }
 
 let preset_label = function
   | Month -> "Month"
@@ -72,14 +50,11 @@ let presets = [ Month; Cycle; Previous_cycle; Year; All_time ]
 let config_lines text =
   String.split_on_char '\n' text
   |> List.filter_map (fun line ->
-         let s = String.trim line in
-         if s = "" || String.starts_with ~prefix:"#" s then None else Some s)
+      let s = String.trim line in
+      if s = "" || String.starts_with ~prefix:"#" s then None else Some s)
 
-let config_token s =
-  s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
-
-let canonical_date day =
-  match A.normalize_date day with Ok c -> c = day | Error _ -> false
+let config_token s = s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
+let canonical_date day = match A.normalize_date day with Ok c -> c = day | Error _ -> false
 
 let rec increasing = function
   | a :: b :: rest -> a < b && increasing (b :: rest)
@@ -89,19 +64,19 @@ let parse_boundary_presets text =
   let lines = config_lines text in
   let rec loop names acc = function
     | [] -> Ok acc
-    | line :: rest ->
+    | line :: rest -> (
         match String.split_on_char '\t' line with
         | name :: dates
-          when config_token name && not (List.mem name names)
+          when config_token name
+               && (not (List.mem name names))
                && List.length dates >= 2
-               && List.for_all canonical_date dates
-               && increasing dates ->
+               && List.for_all canonical_date dates && increasing dates ->
             let rec windows = function
               | a :: b :: tail -> (name, a, b) :: windows (b :: tail)
               | _ -> []
             in
             loop (name :: names) (acc @ windows dates) rest
-        | _ -> Error "Malformed boundary-presets.tsv; no period was inferred."
+        | _ -> Error "Malformed boundary-presets.tsv; no period was inferred.")
   in
   loop [] [] lines
 
@@ -160,7 +135,9 @@ let resolve_period ~today ~preset ~offset ~boundary_presets_text =
               | Some (name, cur_a, cur_b) ->
                   let name_windows = List.filter (fun (n, _, _) -> n = name) windows in
                   let current_idx =
-                    match List.find_index (fun (_, a, b) -> a = cur_a && b = cur_b) name_windows with
+                    match
+                      List.find_index (fun (_, a, b) -> a = cur_a && b = cur_b) name_windows
+                    with
                     | Some idx -> idx
                     | None -> 0
                   in
@@ -172,7 +149,9 @@ let resolve_period ~today ~preset ~offset ~boundary_presets_text =
                     Error "Cycle boundary is outside configured presets."
                   else
                     let _, start_day, end_exclusive = List.nth name_windows target_idx in
-                    let cycle_name = if preset = Previous_cycle then "Previous Cycle" else "Cycle" in
+                    let cycle_name =
+                      if preset = Previous_cycle then "Previous Cycle" else "Cycle"
+                    in
                     Ok
                       {
                         preset;
@@ -184,14 +163,9 @@ let resolve_period ~today ~preset ~offset ~boundary_presets_text =
 let compute_report ~book ~roles ~period =
   let entries = B.entries book in
   let plans = B.plans book in
-  let in_period (e : B.entry) =
-    e.day >= period.start_day && e.day < period.end_exclusive
-  in
+  let in_period (e : B.entry) = e.day >= period.start_day && e.day < period.end_exclusive in
   let period_entries = List.filter in_period entries in
-  let measures =
-    List.map fst (B.measures book)
-    |> List.sort_uniq String.compare
-  in
+  let measures = List.map fst (B.measures book) |> List.sort_uniq String.compare in
   let is_scheduled_payment (e : B.entry) =
     List.exists (fun (p : B.plan) -> p.paid_by = Some e.id) plans
   in
@@ -225,15 +199,12 @@ let compute_report ~book ~roles ~period =
                       let exp = quanta in
                       let cur = Option.value ~default:Z.zero (Hashtbl.find_opt expense_map locus) in
                       Hashtbl.replace expense_map locus (Z.add cur exp);
-                      if is_sched then
-                        scheduled_expense_acc := Z.add !scheduled_expense_acc exp
-                      else
-                        ordinary_expense_acc := Z.add !ordinary_expense_acc exp
+                      if is_sched then scheduled_expense_acc := Z.add !scheduled_expense_acc exp
+                      else ordinary_expense_acc := Z.add !ordinary_expense_acc exp
                   | Some (Asset | Liability | Equity) ->
                       (* Balance sheet accounts; excluded from P/L *)
                       ()
-                  | None ->
-                      unresolved_acc := (e.day, locus, measure, quanta) :: !unresolved_acc)
+                  | None -> unresolved_acc := (e.day, locus, measure, quanta) :: !unresolved_acc)
               e.effects)
           period_entries;
 
@@ -270,18 +241,16 @@ let compute_report ~book ~roles ~period =
         })
       measures
   in
-  {
-    period;
-    summaries;
-    unresolved_effects = List.rev !unresolved_acc;
-  }
+  { period; summaries; unresolved_effects = List.rev !unresolved_acc }
 
 let render_report_lines ~width ~width_of ~book ~report =
   let pad_w = max 0 (width - 4) in
   let header =
     [
       (O.Heading, Printf.sprintf "Income & Expense  [%s]" report.period.label);
-      (O.Chrome, Printf.sprintf "Window: %s .. %s (exclusive)" report.period.start_day report.period.end_exclusive);
+      ( O.Chrome,
+        Printf.sprintf "Window: %s .. %s (exclusive)" report.period.start_day
+          report.period.end_exclusive );
       (O.Plain, "");
     ]
   in
@@ -292,7 +261,11 @@ let render_report_lines ~width ~width_of ~book ~report =
     let col_amt = max 14 (min 20 (pad_w - col_locus - 6)) in
 
     let format_item (it : line_item) =
-      (O.Plain, "  " ^ O.pad ~width_of col_locus it.label ^ "  " ^ O.pad_left ~width_of col_amt (fmt it.amount))
+      ( O.Plain,
+        "  "
+        ^ O.pad ~width_of col_locus it.label
+        ^ "  "
+        ^ O.pad_left ~width_of col_amt (fmt it.amount) )
     in
 
     let inc_lines =
@@ -331,7 +304,8 @@ let render_report_lines ~width ~width_of ~book ~report =
     else
       [
         (O.Status, "── Unresolved Role Effects ─────────────────────────────────────────");
-        (O.Chrome, "Activity exists on accounts without explicit accounting role in accounting-roles.tsv:");
+        ( O.Chrome,
+          "Activity exists on accounts without explicit accounting role in accounting-roles.tsv:" );
       ]
       @ List.map
           (fun (date, locus, m, q) ->
@@ -344,7 +318,8 @@ let render_detail_lines ~width ~width_of ~book ~report ~selected_row =
   [
     (O.Heading, "Report Overview");
     (O.Plain, "Period: " ^ report.period.label);
-    (O.Plain, Printf.sprintf "Date range: %s .. %s" report.period.start_day report.period.end_exclusive);
+    ( O.Plain,
+      Printf.sprintf "Date range: %s .. %s" report.period.start_day report.period.end_exclusive );
     (O.Chrome, "");
     (O.Heading, "Accounting Formula");
     (O.Plain, "  Income  = Sum of negative postings on Income accounts");
@@ -371,7 +346,9 @@ let print_summary ~book ~report =
   let lines = ref [] in
   let add s = lines := s :: !lines in
   add (Printf.sprintf "Income & Expense Report - %s" report.period.label);
-  add (Printf.sprintf "Period: %s through %s (exclusive)" report.period.start_day report.period.end_exclusive);
+  add
+    (Printf.sprintf "Period: %s through %s (exclusive)" report.period.start_day
+       report.period.end_exclusive);
   add "============================================================";
   List.iter
     (fun (ms : measure_summary) ->
@@ -380,11 +357,17 @@ let print_summary ~book ~report =
       add (Printf.sprintf "\nCurrency: %s" m);
       add "--- Income ---";
       if ms.income_items = [] then add "  (no income)"
-      else List.iter (fun it -> add (Printf.sprintf "  %-28s  %16s" it.label (fmt it.amount))) ms.income_items;
+      else
+        List.iter
+          (fun it -> add (Printf.sprintf "  %-28s  %16s" it.label (fmt it.amount)))
+          ms.income_items;
       add (Printf.sprintf "Total Income:  %s" (fmt ms.total_income));
       add "--- Expense ---";
       if ms.expense_items = [] then add "  (no expense)"
-      else List.iter (fun it -> add (Printf.sprintf "  %-28s  %16s" it.label (fmt it.amount))) ms.expense_items;
+      else
+        List.iter
+          (fun it -> add (Printf.sprintf "  %-28s  %16s" it.label (fmt it.amount)))
+          ms.expense_items;
       add (Printf.sprintf "Total Expense: %s" (fmt ms.total_expense));
       add (Printf.sprintf "  Scheduled:   %s" (fmt ms.scheduled_expense));
       add (Printf.sprintf "  Ordinary:    %s" (fmt ms.ordinary_expense));

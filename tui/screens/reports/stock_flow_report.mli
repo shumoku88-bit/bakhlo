@@ -25,11 +25,7 @@ type snapshot = {
 }
 
 type report = snapshot
-
-type t = {
-  preset : IncExp.period_preset;
-  period_offset : int;
-}
+type t = { preset : IncExp.period_preset; period_offset : int }
 
 val initial : unit -> t
 
@@ -54,7 +50,4 @@ val render_detail_lines :
   report:report ->
   (Daily_overlays.style * string) list
 
-val print_summary :
-  book:B.t ->
-  report:report ->
-  string list
+val print_summary : book:B.t -> report:report -> string list

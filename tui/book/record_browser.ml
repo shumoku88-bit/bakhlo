@@ -16,7 +16,8 @@ type t = {
   order : order;
 }
 
-let empty = { selected = 0; selected_id = None; query = ""; locus = None; day = None; order = Newest }
+let empty =
+  { selected = 0; selected_id = None; query = ""; locus = None; day = None; order = Newest }
 
 let identity = function
   | Actual_entry e -> (Actual_row, e.B.id)
@@ -83,7 +84,12 @@ let move t rows delta =
   { t with selected; selected_id = Option.map identity (List.nth_opt rows selected) }
 
 let reset t = { t with selected = 0; selected_id = None }
-let cycle_order t = reset { t with order = (match t.order with Newest -> Oldest | Oldest -> Newest) }
+
+let cycle_order t =
+  reset { t with order = (match t.order with Newest -> Oldest | Oldest -> Newest) }
+
 let with_query t query = reset { t with query }
 let with_locus t locus = reset { t with locus }
-let toggle_day t ~focus_day = reset { t with day = (match t.day with None -> Some focus_day | Some _ -> None) }
+
+let toggle_day t ~focus_day =
+  reset { t with day = (match t.day with None -> Some focus_day | Some _ -> None) }

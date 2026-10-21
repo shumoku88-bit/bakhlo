@@ -26,8 +26,10 @@ let run ~width_of ~directory ~path =
     match visible_form loci_modal_add with
     | Some f ->
         let f2 = Ui_form.set_text f "token" "metro" in
-        let f3 = Ui_form.set_choice f2 "role" 1 in (* Asset *)
-        let f4 = Ui_form.set_focused f3 2 in (* focus confirm button *)
+        let f3 = Ui_form.set_choice f2 "role" 1 in
+        (* Asset *)
+        let f4 = Ui_form.set_focused f3 2 in
+        (* focus confirm button *)
         with_visible_form loci_modal_add f4
     | None -> failwith "expected modal form for admit locus"
   in
@@ -41,16 +43,22 @@ let run ~width_of ~directory ~path =
     let loci = Loci_screen.admitted_loci state.C.session.book in
     let rec find i = function
       | [] -> failwith ("locus not admitted: " ^ locus)
-      | x :: rest -> if x = locus then i else find (i + 1) rest in
-    List.fold_left (fun state _ -> key ~width_of state (`ASCII 'j')) (key ~width_of state `Home)
+      | x :: rest -> if x = locus then i else find (i + 1) rest
+    in
+    List.fold_left
+      (fun state _ -> key ~width_of state (`ASCII 'j'))
+      (key ~width_of state `Home)
       (List.init (find 0 loci) Fun.id)
   in
   (* Roles are an initial assignment only: no replacement, nothing for used Loci. *)
   let replace_refused = key ~width_of (select admitted_state "metro") (`ASCII 'r') in
-  require (no_modal replace_refused
-           && replace_refused.message = C.tr "This Locus already has an accounting role; roles are never replaced.")
+  require
+    (no_modal replace_refused
+    && replace_refused.message
+       = C.tr "This Locus already has an accounting role; roles are never replaced.")
     "loci-r-refuses-role-replacement";
-  require (List.assoc_opt "metro" (Shell_files.accounting_roles replace_refused) = Some Roles.Asset)
+  require
+    (List.assoc_opt "metro" (Shell_files.accounting_roles replace_refused) = Some Roles.Asset)
     "loci-refused-replacement-keeps-role";
   let used =
     match List.find_opt (Loci_screen.locus_used admitted_state.session.book) all_loci with
@@ -58,8 +66,10 @@ let run ~width_of ~directory ~path =
     | None -> failwith "fixture has no used Locus"
   in
   let used_refused = key ~width_of (select admitted_state used) (`ASCII 'r') in
-  require (no_modal used_refused
-           && used_refused.message = C.tr "Already used by Actual or Scheduled evidence; role cannot be assigned.")
+  require
+    (no_modal used_refused
+    && used_refused.message
+       = C.tr "Already used by Actual or Scheduled evidence; role cannot be assigned.")
     "loci-r-refuses-used-locus";
   let admit_modal = key ~width_of used_refused (`ASCII 'n') in
   let admit_tram =
@@ -69,57 +79,91 @@ let run ~width_of ~directory ~path =
         key ~width_of (with_visible_form admit_modal f) `Enter
     | None -> failwith "expected modal form for admit locus"
   in
-  require (no_modal admit_tram && not (List.mem_assoc "tram" (Shell_files.accounting_roles admit_tram)))
+  require
+    (no_modal admit_tram && not (List.mem_assoc "tram" (Shell_files.accounting_roles admit_tram)))
     "admitted-locus-without-role";
   let role_modal = key ~width_of (select admit_tram "tram") (`ASCII 'r') in
   require (visible_form_id role_modal = Some "set_locus_role") "loci-r-opens-set-role-form";
   let submit_role state choice =
     match visible_form state with
     | Some f ->
-        let f = Ui_form.set_focused (Ui_form.set_choice f "role" choice) 1 in (* confirm button *)
+        let f = Ui_form.set_focused (Ui_form.set_choice f "role" choice) 1 in
+        (* confirm button *)
         key ~width_of (with_visible_form state f) `Enter
     | None -> failwith "expected modal form for set locus role"
   in
   let no_choice = submit_role role_modal 0 in
-  require (match visible_form no_choice with Some f -> Ui_form.notice f = "Choose an accounting role." | None -> false)
+  require
+    (match visible_form no_choice with
+    | Some f -> Ui_form.notice f = "Choose an accounting role."
+    | None -> false)
     "loci-role-requires-a-choice";
-  let assigned = submit_role no_choice 5 in (* Expense *)
+  let assigned = submit_role no_choice 5 in
+  (* Expense *)
   require (no_modal assigned) "set-locus-role-submitted";
-  require (List.assoc_opt "tram" (Shell_files.accounting_roles assigned) = Some Roles.Expense)
+  require
+    (List.assoc_opt "tram" (Shell_files.accounting_roles assigned) = Some Roles.Expense)
     "unused-locus-role-assigned-once";
   require (no_modal (key ~width_of assigned (`ASCII 'r'))) "loci-r-refuses-after-initial-assignment";
   let updated_role_state = select assigned "metro" in
   (* Locus label edit test (UI-30) *)
   let label_edit_modal = key ~width_of updated_role_state (`ASCII 'l') in
-  require (match visible_form label_edit_modal with Some f -> Ui_form.id f = "set_locus_label" | None -> false) "l-opens-set-locus-label";
+  require
+    (match visible_form label_edit_modal with
+    | Some f -> Ui_form.id f = "set_locus_label"
+    | None -> false)
+    "l-opens-set-locus-label";
   let label_form_ready =
     match visible_form label_edit_modal with
     | Some f ->
         let f = Ui_form.set_text f "label" "Subway Metro" in
         let f = Ui_form.set_text f "help" "Commute subway pass" in
-        let f = Ui_form.set_focused f 2 in (* focus confirm button *)
+        let f = Ui_form.set_focused f 2 in
+        (* focus confirm button *)
         with_visible_form label_edit_modal f
     | None -> failwith "expected modal form for set locus label"
   in
   let label_review_modal = key ~width_of label_form_ready `Enter in
-  require (match visible_form label_review_modal with Some f -> Ui_form.id f = "review_locus_label" | None -> false) "label-form-enters-review";
+  require
+    (match visible_form label_review_modal with
+    | Some f -> Ui_form.id f = "review_locus_label"
+    | None -> false)
+    "label-form-enters-review";
   (* Test Esc returns to draft *)
   let back_to_label_form = key ~width_of label_review_modal `Escape in
-  require (match visible_form back_to_label_form with Some f -> Ui_form.id f = "set_locus_label" | None -> false) "label-esc-returns-to-edit";
+  require
+    (match visible_form back_to_label_form with
+    | Some f -> Ui_form.id f = "set_locus_label"
+    | None -> false)
+    "label-esc-returns-to-edit";
   let re_review = key ~width_of back_to_label_form `Enter in
-  require (match visible_form re_review with Some f -> Ui_form.id f = "review_locus_label" | None -> false) "label-form-re-review";
+  require
+    (match visible_form re_review with
+    | Some f -> Ui_form.id f = "review_locus_label"
+    | None -> false)
+    "label-form-re-review";
   (* Small terminal refusal *)
   let narrow = key ~dimensions:(30, 10) ~width_of re_review `Enter in
-  require (match visible_form narrow with Some f -> Ui_form.notice f = "Enlarge the terminal to review locus label before saving." | None -> false) "label-save-rejects-narrow-terminal";
+  require
+    (match visible_form narrow with
+    | Some f -> Ui_form.notice f = "Enlarge the terminal to review locus label before saving."
+    | None -> false)
+    "label-save-rejects-narrow-terminal";
   (* Normal terminal save *)
   let label_saved = key ~width_of re_review `Enter in
   require (no_modal label_saved) "label-save-succeeds";
   require (B.label label_saved.session.book "metro" = "Subway Metro") "metro-label-updated";
   require (B.help label_saved.session.book "metro" = "Commute subway pass") "metro-help-updated";
   let narrow_lines = R.screen ~width_of (80, 24) label_saved |> List.map snd in
-  require (List.exists (fun line -> Base.String.is_substring line ~substring:"metro" && Base.String.is_substring line ~substring:"Subway Metro") narrow_lines)
+  require
+    (List.exists
+       (fun line ->
+         Base.String.is_substring line ~substring:"metro"
+         && Base.String.is_substring line ~substring:"Subway Metro")
+       narrow_lines)
     "loci-80x24-list-keeps-label";
-  require (List.exists (fun line -> Base.String.is_substring line ~substring:"represents") narrow_lines)
+  require
+    (List.exists (fun line -> Base.String.is_substring line ~substring:"represents") narrow_lines)
     "loci-80x24-detail-wraps-between-words";
   let reloaded_locus_book = (F.load path).book in
   require (B.label reloaded_locus_book "metro" = "Subway Metro") "metro-label-cold-reloaded";
@@ -129,7 +173,11 @@ let run ~width_of ~directory ~path =
   (* Exchange test *)
   let cmd_root = key ~width_of loci_back (`ASCII ' ') in
   let tx_menu = key ~width_of cmd_root `Enter in
-  let to_exch = key ~width_of (key ~width_of (key ~width_of tx_menu (`Arrow `Down)) (`Arrow `Down)) (`Arrow `Down) in
+  let to_exch =
+    key ~width_of
+      (key ~width_of (key ~width_of tx_menu (`Arrow `Down)) (`Arrow `Down))
+      (`Arrow `Down)
+  in
   let exch_modal = key ~width_of to_exch `Enter in
   require (visible_form_id exch_modal = Some "exchange") "commands-opens-exchange-form";
   (* Validate error on same measure *)
@@ -142,14 +190,16 @@ let run ~width_of ~directory ~path =
         let f = Ui_form.set_text f "destination_locus" "bank" in
         let f = Ui_form.set_text f "destination_measure" "jpy" in
         let f = Ui_form.set_text f "destination_amount" "100" in
-        let f = Ui_form.set_focused f 8 in (* action buttons *)
+        let f = Ui_form.set_focused f 8 in
+        (* action buttons *)
         with_visible_form exch_modal f
     | None -> failwith "expected modal form for exchange"
   in
   let err_submitted = key ~width_of err_form `Enter in
-  require (match visible_form err_submitted with
-           | Some f -> Ui_form.notice f = "Source and destination Measures must differ."
-           | _ -> false)
+  require
+    (match visible_form err_submitted with
+    | Some f -> Ui_form.notice f = "Source and destination Measures must differ."
+    | _ -> false)
     "exchange-rejects-same-measure";
   (* Successful exchange JPY -> EUR *)
   let ok_form =
@@ -168,29 +218,53 @@ let run ~width_of ~directory ~path =
     | None -> failwith "expected modal form for exchange"
   in
   let exch_preview = key ~width_of ok_form `Enter in
-  require (match visible_form exch_preview with Some f -> Ui_form.id f = "review_exchange" | None -> false) "exchange-preview-opened";
+  require
+    (match visible_form exch_preview with
+    | Some f -> Ui_form.id f = "review_exchange"
+    | None -> false)
+    "exchange-preview-opened";
   (* Test Esc returns to draft *)
   let back_to_form = key ~width_of exch_preview `Escape in
-  require (match visible_form back_to_form with Some f -> Ui_form.id f = "exchange" | None -> false) "exchange-esc-returns-to-edit";
+  require
+    (match visible_form back_to_form with Some f -> Ui_form.id f = "exchange" | None -> false)
+    "exchange-esc-returns-to-edit";
   (* Enter again to preview *)
   let exch_preview2 = key ~width_of back_to_form `Enter in
-  require (match visible_form exch_preview2 with Some f -> Ui_form.id f = "review_exchange" | None -> false) "exchange-preview2-opened";
+  require
+    (match visible_form exch_preview2 with
+    | Some f -> Ui_form.id f = "review_exchange"
+    | None -> false)
+    "exchange-preview2-opened";
   (* Publish *)
   let exch_done = key ~width_of exch_preview2 `Enter in
   require (no_modal exch_done) "exchange-committed";
-  require (exch_done.message = "Published and read back. Previous bytes are kept separately.") "exchange-success-message";
+  require
+    (exch_done.message = "Published and read back. Previous bytes are kept separately.")
+    "exchange-success-message";
   let reloaded_book = (F.load path).book in
   let latest_entry = List.hd (List.rev (B.entries reloaded_book)) in
-  require (latest_entry.exchange = Some ("exchange-source", "exchange-destination")) "exchange-keys-retained";
+  require
+    (latest_entry.exchange = Some ("exchange-source", "exchange-destination"))
+    "exchange-keys-retained";
   require (latest_entry.memo = Some "Exchange JPY to EUR") "exchange-memo-retained";
   require (latest_entry.day = "2026-10-14") "exchange-day-retained";
   require (List.length latest_entry.effects = 2) "exchange-has-two-effects";
   let src_eff = List.nth latest_entry.effects 0 in
   let dst_eff = List.nth latest_entry.effects 1 in
   require (D.Identifier.Locus.to_string (D.Effect.locus src_eff) = "wallet") "exchange-source-locus";
-  require (D.Identifier.Measure.to_string (D.Effect.measure src_eff) = "jpy") "exchange-source-measure";
-  require (Z.equal (D.Quantity.quanta (D.Effect.quantity src_eff)) (Z.of_int (-1500))) "exchange-source-amount-negative";
-  require (D.Identifier.Locus.to_string (D.Effect.locus dst_eff) = "bank") "exchange-destination-locus";
-  require (D.Identifier.Measure.to_string (D.Effect.measure dst_eff) = "eur") "exchange-destination-measure";
-  require (Z.equal (D.Quantity.quanta (D.Effect.quantity dst_eff)) (Z.of_int 1000)) "exchange-destination-amount-positive";
+  require
+    (D.Identifier.Measure.to_string (D.Effect.measure src_eff) = "jpy")
+    "exchange-source-measure";
+  require
+    (Z.equal (D.Quantity.quanta (D.Effect.quantity src_eff)) (Z.of_int (-1500)))
+    "exchange-source-amount-negative";
+  require
+    (D.Identifier.Locus.to_string (D.Effect.locus dst_eff) = "bank")
+    "exchange-destination-locus";
+  require
+    (D.Identifier.Measure.to_string (D.Effect.measure dst_eff) = "eur")
+    "exchange-destination-measure";
+  require
+    (Z.equal (D.Quantity.quanta (D.Effect.quantity dst_eff)) (Z.of_int 1000))
+    "exchange-destination-amount-positive";
   exch_done

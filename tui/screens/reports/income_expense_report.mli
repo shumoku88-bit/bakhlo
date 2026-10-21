@@ -2,25 +2,9 @@
 module B = Bakhlo_sexp.Daily_book
 module Roles = Locus_roles
 
-type period_preset =
-  | Month
-  | Cycle
-  | Previous_cycle
-  | Year
-  | All_time
-
-type period = {
-  preset : period_preset;
-  start_day : string;
-  end_exclusive : string;
-  label : string;
-}
-
-type line_item = {
-  locus : string;
-  label : string;
-  amount : Z.t;
-}
+type period_preset = Month | Cycle | Previous_cycle | Year | All_time
+type period = { preset : period_preset; start_day : string; end_exclusive : string; label : string }
+type line_item = { locus : string; label : string; amount : Z.t }
 
 type measure_summary = {
   measure : string;
@@ -59,11 +43,7 @@ val resolve_period :
   boundary_presets_text:string option ->
   (period, string) result
 
-val compute_report :
-  book:B.t ->
-  roles:(string * Roles.role) list ->
-  period:period ->
-  report
+val compute_report : book:B.t -> roles:(string * Roles.role) list -> period:period -> report
 
 val render_report_lines :
   width:int ->
@@ -80,7 +60,4 @@ val render_detail_lines :
   selected_row:int ->
   (Daily_overlays.style * string) list
 
-val print_summary :
-  book:B.t ->
-  report:report ->
-  string list
+val print_summary : book:B.t -> report:report -> string list

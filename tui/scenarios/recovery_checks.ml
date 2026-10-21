@@ -26,8 +26,10 @@ let io_refuses f =
 
 let quantity book locus measure =
   let coordinate : D.Effect_coordinate.t =
-    { locus = C.get_id (D.Identifier.Locus.of_string locus);
-      measure = C.get_id (D.Identifier.Measure.of_string measure) }
+    {
+      locus = C.get_id (D.Identifier.Locus.of_string locus);
+      measure = C.get_id (D.Identifier.Measure.of_string measure);
+    }
   in
   match Q.query (B.image book) coordinate with
   | Ok (Q.Exact x) -> Z.to_string (D.Quantity.quanta (Q.quantity x))
@@ -47,15 +49,24 @@ let self_check () =
       ~quantity:(D.Quantity.of_quanta amount)
   in
   let entry id measure : B.entry =
-    { id; day = "2026-11-03"; memo = Some "合成\"\\\t\000";
+    {
+      id;
+      day = "2026-11-03";
+      memo = Some "合成\"\\\t\000";
       effects = [ posting measure "wallet" (Z.neg huge); posting measure "food" huge ];
-      reversal_of = None; exchange = None; original_amount = None; merchant = None }
+      reversal_of = None;
+      exchange = None;
+      original_amount = None;
+      merchant = None;
+    }
   in
   let payment = entry "recovery-payment" "jpy" in
   (* One publication of two operations: an atomic plan payment and another entry. *)
   let ops =
-    [ L.Put_entry { replace = false; entry = payment; plan = Some "planned-food" };
-      L.Put_entry { replace = false; entry = entry "recovery-eur" "eur"; plan = None } ]
+    [
+      L.Put_entry { replace = false; entry = payment; plan = Some "planned-food" };
+      L.Put_entry { replace = false; entry = entry "recovery-eur" "eur"; plan = None };
+    ]
   in
   let expected_book = B.to_string (get (L.apply_all base ops)) in
   let make name =
@@ -78,7 +89,8 @@ let self_check () =
     require (B.to_string book = expected_book) "recovery-metadata-lost"
   in
   let check_original book =
-    require ((List.hd (B.plans book)).paid_by = None && B.to_string book = B.to_string base)
+    require
+      ((List.hd (B.plans book)).paid_by = None && B.to_string book = B.to_string base)
       "recovery-original-not-kept"
   in
   let readonly_report session =
@@ -117,7 +129,9 @@ let self_check () =
 
   (* A torn final line: reported read-only, stops writes, removed only explicitly. *)
   let torn = make "torn" in
-  let saved = match F.append torn ops with F.Written s -> s | _ -> raise (F.Refused "torn-setup") in
+  let saved =
+    match F.append torn ops with F.Written s -> s | _ -> raise (F.Refused "torn-setup")
+  in
   let next = L.record_line ~seq:2 [ L.Add_locus "after-torn" ] in
   let oc = open_out_gen [ Open_append; Open_binary ] 0o600 torn.path in
   output_string oc (String.sub next 0 (String.length next - 5));
@@ -125,26 +139,32 @@ let self_check () =
   let report = readonly_report torn in
   require
     (report.torn_bytes = String.length next - 5
-    && (match report.selected with Ok s -> s.torn && s.records = 1 | Error _ -> false))
+    && match report.selected with Ok s -> s.torn && s.records = 1 | Error _ -> false)
     "recovery-torn-tail-not-reported";
   check_frozen torn;
   let fresh = directory ^ "/torn-copy.sexp" in
   F.restore_copy ~source:torn.path ~target:fresh;
-  require (F.read fresh = F.read torn.path && (cold (F.load fresh)).blocked)
+  require
+    (F.read fresh = F.read torn.path && (cold (F.load fresh)).blocked)
     "recovery-copy-repaired-or-changed-torn-file";
   io_refuses (fun () -> F.restore_copy ~source:torn.path ~target:fresh);
   let removed, after = F.discard_torn_tail torn.path in
   require
-    (removed = String.length next - 5 && F.read_revision torn.path = saved.revision && not (cold after).blocked)
+    (removed = String.length next - 5
+    && F.read_revision torn.path = saved.revision
+    && not (cold after).blocked)
     "recovery-discard-changed-complete-records";
   check_candidate after.book;
   refuses "no-torn-tail" (fun () -> ignore (F.discard_torn_tail torn.path));
 
   (* Faults after the line is sent: uncertain, confirmed on reload, no retry. *)
   let check_uncertain step =
-    let session = make ("fault-" ^ (match step with F.Appended -> "appended" | F.Synced -> "synced")) in
+    let session =
+      make ("fault-" ^ match step with F.Appended -> "appended" | F.Synced -> "synced")
+    in
     match
-      F.append ~checkpoint:(fun r -> if r = step then raise (Sys_error "synthetic checkpoint failure"))
+      F.append
+        ~checkpoint:(fun r -> if r = step then raise (Sys_error "synthetic checkpoint failure"))
         session ops
     with
     | F.Uncertain { expected } ->
@@ -164,7 +184,8 @@ let self_check () =
         require
           (match
              B.put_entry (F.load session.path).book ~replace:false
-               { payment with id = "duplicate-payment" } ~plan:(Some "planned-food")
+               { payment with id = "duplicate-payment" }
+               ~plan:(Some "planned-food")
            with
           | Error _ -> true
           | Ok _ -> false)
@@ -175,20 +196,30 @@ let self_check () =
 
   (* Evidence the file does not show is never treated as confirmed. *)
   let external_ = make "external-rewrite" in
-  let other = match F.append external_ [ L.Add_locus "external" ] with
-    | F.Written s -> s | _ -> raise (F.Refused "external-setup") in
+  let other =
+    match F.append external_ [ L.Add_locus "external" ] with
+    | F.Written s -> s
+    | _ -> raise (F.Refused "external-setup")
+  in
   let memory =
     C.apply_commit_result ~record_publication:false (cold external_) ~draft:(cold external_)
-      (A.Uncertain { message = "synthetic"; evidence = A.Expected_revision (Interaction_check_fixture.expected_after external_ ops) })
+      (A.Uncertain
+         {
+           message = "synthetic";
+           evidence = A.Expected_revision (Interaction_check_fixture.expected_after external_ ops);
+         })
   in
   let stopped = Shell_dispatch.reload memory in
-  require (stopped.blocked && stopped.pending <> None && F.read_revision external_.path = other.revision)
+  require
+    (stopped.blocked && stopped.pending <> None && F.read_revision external_.path = other.revision)
     "recovery-other-writer-counted-as-confirmation";
 
   (* Child processes die while holding the actual writer lock, not a mock state. *)
   List.iter
     (fun step ->
-      let session = make ("kill-" ^ (match step with F.Appended -> "appended" | F.Synced -> "synced")) in
+      let session =
+        make ("kill-" ^ match step with F.Appended -> "appended" | F.Synced -> "synced")
+      in
       let input, output = Unix.pipe () in
       match Unix.fork () with
       | 0 ->
@@ -215,13 +246,17 @@ let self_check () =
             (fun () ->
               let ready, _, _ = Unix.select [ input ] [] [] 10. in
               require (ready <> []) "recovery-child-checkpoint-timeout";
-              require (Unix.read input (Bytes.create 1) 0 1 = 1) "recovery-child-exited-before-checkpoint";
+              require
+                (Unix.read input (Bytes.create 1) 0 1 = 1)
+                "recovery-child-exited-before-checkpoint";
               Unix.kill pid Sys.sigkill;
               let _, status = Unix.waitpid [] pid in
               reaped := true;
               require (status = Unix.WSIGNALED Sys.sigkill) "recovery-child-not-killed";
               let loaded = F.load session.path in
-              require (loaded.records = 1 && not loaded.torn) "recovery-killed-writer-left-partial-book";
+              require
+                (loaded.records = 1 && not loaded.torn)
+                "recovery-killed-writer-left-partial-book";
               check_candidate loaded.book;
               match F.append loaded [ L.Add_locus "after-kill" ] with
               | F.Written _ -> ()
@@ -287,7 +322,8 @@ let self_check () =
   (match F.append healthy ops with
   | F.Written saved ->
       check_candidate saved.book;
-      require (files (Filename.dirname healthy.path) = [ "book.sexp"; "book.sexp.lock" ])
+      require
+        (files (Filename.dirname healthy.path) = [ "book.sexp"; "book.sexp.lock" ])
         "recovery-normal-save-left-artifacts";
       check_candidate (F.load healthy.path).book
   | _ -> raise (F.Refused "recovery-normal-save-refused"));
@@ -297,5 +333,5 @@ let self_check () =
   print_endline
     "PASS: append-only saves: torn final record reported read-only and removed only explicitly; \
      cold/Ctrl-N/reload/direct-write stops; 2 injected faults + 2 SIGKILL checkpoints; writer \
-     lock, write failure and foreign-change refusals; exact quantities/payment links; no \
-     automatic retry or repair."
+     lock, write failure and foreign-change refusals; exact quantities/payment links; no automatic \
+     retry or repair."

@@ -19,15 +19,25 @@ let start () =
   F.load path
 
 let entry n : B.entry =
-  { id = Printf.sprintf "e%d" n; day = "2026-10-05"; memo = Some "lunch \"x\"\n"; reversal_of = None;
+  {
+    id = Printf.sprintf "e%d" n;
+    day = "2026-10-05";
+    memo = Some "lunch \"x\"\n";
+    reversal_of = None;
     effects = [ O.posting "wallet" "jpy" (-100); O.posting "food" "jpy" 100 ];
-    exchange = None; original_amount = None; merchant = None }
+    exchange = None;
+    original_amount = None;
+    merchant = None;
+  }
 
 let put n = L.Put_entry { replace = false; entry = entry n; plan = None }
 let book_text (s : F.t) = B.to_string s.book
 let written = function F.Written s -> s | _ -> failwith "expected Written"
+
 let describe = function
-  | F.Written _ -> "written" | F.Conflict -> "conflict" | F.Refused_input why -> "refused " ^ why
+  | F.Written _ -> "written"
+  | F.Conflict -> "conflict"
+  | F.Refused_input why -> "refused " ^ why
   | F.Uncertain _ -> "uncertain"
 
 let historical_fixture =
@@ -52,21 +62,23 @@ let%expect_test "each save appends one record and a cold load yields the saved b
   Stdio.printf "records %d; bytes match file: %b; same book: %b; wallet %s\n" cold.records
     (String.equal (F.revision_of_bytes (F.read !s.path)) !s.revision)
     (String.equal (book_text cold) (book_text !s))
-    (O.observable cold.book |> String.split_lines |> List.find_exn ~f:(String.is_prefix ~prefix:"wallet/jpy"));
-  [%expect {| records 5; bytes match file: true; same book: true; wallet wallet/jpy: 49500 (observation) |}]
+    (O.observable cold.book |> String.split_lines
+    |> List.find_exn ~f:(String.is_prefix ~prefix:"wallet/jpy"));
+  [%expect
+    {| records 5; bytes match file: true; same book: true; wallet wallet/jpy: 49500 (observation) |}]
 
 let%expect_test "a saved date correction survives a cold load and preserves the entry" =
   let s = historical_start () in
   let before = find_entry s.book "init" in
-  let saved =
-    written (F.append s [ L.Correct_entry_date { id = "init"; day = "2026-10-09" } ])
-  in
+  let saved = written (F.append s [ L.Correct_entry_date { id = "init"; day = "2026-10-09" } ]) in
   let cold = F.load saved.path in
   let after = find_entry cold.book "init" in
-  Stdio.printf "records %d; date %s; all other fields preserved: %b; same book: %b\n"
-    cold.records after.day (Poly.equal before { after with day = before.day })
+  Stdio.printf "records %d; date %s; all other fields preserved: %b; same book: %b\n" cold.records
+    after.day
+    (Poly.equal before { after with day = before.day })
     (String.equal (book_text cold) (book_text saved));
-  [%expect {|
+  [%expect
+    {|
     records 1; date 2026-10-09; all other fields preserved: true; same book: true
     |}]
 
@@ -78,7 +90,8 @@ let%expect_test "a refused date correction writes no record" =
   Stdio.printf "invalid date: %s\n"
     (describe (F.append s [ L.Correct_entry_date { id = "init"; day = "2026-02-30" } ]));
   Stdio.printf "unchanged: %b\n" (String.equal before (F.read s.path));
-  [%expect {|
+  [%expect
+    {|
     unknown: refused unknown-entry
     invalid date: refused invalid-date
     unchanged: true
@@ -91,9 +104,11 @@ let%expect_test "a refused operation or a changed file writes nothing" =
   Stdio.printf "batch with a refused op: %s\n" (describe (F.append s [ put 2; put 1 ]));
   Stdio.printf "unchanged: %b\n" (String.equal (F.read s.path) before);
   let other = written (F.append (F.load s.path) [ put 7 ]) in
-  Stdio.printf "stale session: %s; other writer kept: %b\n" (describe (F.append s [ put 8 ]))
+  Stdio.printf "stale session: %s; other writer kept: %b\n"
+    (describe (F.append s [ put 8 ]))
     (String.equal (F.revision_of_bytes (F.read s.path)) other.revision);
-  [%expect {|
+  [%expect
+    {|
     duplicate: refused duplicate-entry
     batch with a refused op: refused duplicate-entry
     unchanged: true
@@ -103,13 +118,19 @@ let%expect_test "a refused operation or a changed file writes nothing" =
 let%expect_test "an interruption after the line is sent is uncertain and confirmable" =
   List.iter [ F.Appended; F.Synced ] ~f:(fun step ->
       let s = start () in
-      match F.append ~checkpoint:(fun r -> if Poly.equal r step then raise (Sys_error "fault")) s [ put 1 ] with
+      match
+        F.append
+          ~checkpoint:(fun r -> if Poly.equal r step then raise (Sys_error "fault"))
+          s
+          [ put 1 ]
+      with
       | F.Uncertain { expected } ->
           let cold = F.load s.path in
           Stdio.printf "uncertain; confirmed on reload: %b; not torn: %b\n"
             (F.confirms ~expected cold) (not cold.torn)
       | other -> Stdio.printf "%s\n" (describe other));
-  [%expect {|
+  [%expect
+    {|
     uncertain; confirmed on reload: true; not torn: true
     uncertain; confirmed on reload: true; not torn: true
     |}]
@@ -128,7 +149,8 @@ let%expect_test "a torn final line stops writes until it is explicitly discarded
   Stdio.printf "discarded %d bytes; same book as before: %b\n" removed
     (String.equal (book_text after) (book_text s));
   Stdio.printf "append after discard: %s\n" (describe (F.append after [ put 3 ]));
-  [%expect {|
+  [%expect
+    {|
     torn: true; records 1; report 167 bytes
     append: refused torn-tail
     discarded 167 bytes; same book as before: true
@@ -150,21 +172,27 @@ let%expect_test "compaction keeps the book and the previous file, even when inte
   List.iter [ F.Snapshot_written; F.Previous_kept; F.Replaced ] ~f:(fun step ->
       let s = ref (start ()) in
       s := written (F.append !s [ put 1 ]);
-      let result = F.compact ~checkpoint:(fun r -> if Poly.equal r step then raise (Sys_error "fault")) !s in
+      let result =
+        F.compact ~checkpoint:(fun r -> if Poly.equal r step then raise (Sys_error "fault")) !s
+      in
       let cold = F.load !s.path in
       Stdio.printf "%s; same book: %b\n"
-        (match result with F.Compaction_uncertain -> "uncertain" | F.Compacted _ -> "compacted"
-                         | F.Not_compacted why -> "not compacted " ^ why)
+        (match result with
+        | F.Compaction_uncertain -> "uncertain"
+        | F.Compacted _ -> "compacted"
+        | F.Not_compacted why -> "not compacted " ^ why)
         (String.equal (book_text cold) (book_text !s));
       match F.compact cold with
       | F.Compacted again ->
           let leftovers =
-            Stdlib.Sys.readdir (Stdlib.Filename.dirname again.path) |> Array.to_list
+            Stdlib.Sys.readdir (Stdlib.Filename.dirname again.path)
+            |> Array.to_list
             |> List.count ~f:(String.is_substring ~substring:".compact-")
           in
           Stdio.printf "retry compacted; temporaries left %d\n" leftovers
       | _ -> Stdio.printf "retry failed\n");
-  [%expect {|
+  [%expect
+    {|
     records 0; same book: true; prev is old file: true
     uncertain; same book: true
     retry compacted; temporaries left 0
@@ -189,7 +217,8 @@ let%expect_test "a killed writer leaves the old or the new book" =
                  if Poly.equal r step then (
                    ignore (Unix.write_substring output "!" 0 1);
                    Unix.sleep 3600))
-               s [ put 1 ]);
+               s
+               [ put 1 ]);
           Unix._exit 2
       | pid ->
           Unix.close output;
@@ -201,7 +230,8 @@ let%expect_test "a killed writer leaves the old or the new book" =
           let cold = F.load s.path in
           Stdio.printf "records %d; torn %b; next save: %s\n" cold.records cold.torn
             (describe (F.append cold [ put 2 ])));
-  [%expect {|
+  [%expect
+    {|
     records 1; torn false; next save: written
     records 1; torn false; next save: written
     |}]
@@ -212,5 +242,6 @@ let%expect_test "a book without a final newline still gets records on their own 
   let s = written (F.append (F.load path) [ put 1 ]) in
   let s = written (F.append s [ put 2 ]) in
   let cold = F.load path in
-  Stdio.printf "records %d; same book: %b\n" cold.records (String.equal (book_text cold) (book_text s));
+  Stdio.printf "records %d; same book: %b\n" cold.records
+    (String.equal (book_text cold) (book_text s));
   [%expect {| records 2; same book: true |}]

@@ -6,6 +6,7 @@ type t = Actual_workspace.t
 
 val config_files : string list
 val create : unit -> t
+
 val enter : focus_day:string -> t -> t
 (** Each entry starts from the Shell's focus day. *)
 
@@ -14,5 +15,6 @@ val handle : Screen.env -> Screen.geometry -> t -> Ui_input.input -> t * Screen.
 val saved : Screen.env -> Screen.geometry -> (unit, string) result -> t -> t * Screen.request
 val view : Screen.env -> Screen.geometry -> t -> Screen.view
 
-val book_changed : before:Bakhlo_sexp.Daily_book.t -> after:Bakhlo_sexp.Daily_book.t -> t -> t * string
+val book_changed :
+  before:Bakhlo_sexp.Daily_book.t -> after:Bakhlo_sexp.Daily_book.t -> t -> t * string
 (** Keep the selection across a publication or a drill return; the string is a notice. *)

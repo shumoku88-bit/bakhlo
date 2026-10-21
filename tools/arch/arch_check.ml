@@ -69,10 +69,26 @@ let is_terminal = function App | App_test -> true | _ -> false
 
 (* File access and writing in pure layers. Comments and literals are ignored. *)
 let forbidden_tokens =
-  [ "Durable_append"; "open_out"; "open_out_bin"; "open_out_gen"; "Out_channel";
-    "open_in"; "open_in_bin"; "open_in_gen"; "In_channel"; "Sys.rename"; "Sys.remove";
-    "Sys.mkdir"; "Sys.rmdir"; "Sys.file_exists"; "Sys.readdir"; "Filename.temp_file";
-    "Daily_file"; "Daily_actions" ]
+  [
+    "Durable_append";
+    "open_out";
+    "open_out_bin";
+    "open_out_gen";
+    "Out_channel";
+    "open_in";
+    "open_in_bin";
+    "open_in_gen";
+    "In_channel";
+    "Sys.rename";
+    "Sys.remove";
+    "Sys.mkdir";
+    "Sys.rmdir";
+    "Sys.file_exists";
+    "Sys.readdir";
+    "Filename.temp_file";
+    "Daily_file";
+    "Daily_actions";
+  ]
 
 (* Literals still shared with legacy Shell workflows that have not moved to a
    screen owner yet. Migration debt: this list may only shrink. *)
@@ -82,7 +98,6 @@ type stanza = { kind : string; names : string list; libraries : string list; dir
 
 let errors = ref []
 let fail fmt = Printf.ksprintf (fun s -> errors := s :: !errors) fmt
-
 let read path = In_channel.with_open_bin path In_channel.input_all
 
 let rec walk root rel =
@@ -106,18 +121,22 @@ let field name fields =
 
 let stanzas_of ~where ~dir text =
   match Parsexp.Many.parse_string text with
-  | Error e -> fail "%s: %s" where (Parsexp.Parse_error.message e); []
+  | Error e ->
+      fail "%s: %s" where (Parsexp.Parse_error.message e);
+      []
   | Ok sexps ->
       List.filter_map
         (function
           | Sexp.List (Sexp.Atom kind :: fields)
             when List.mem kind [ "library"; "executable"; "executables"; "test"; "tests" ] ->
               let names =
-                match field "name" fields, field "names" fields with
+                match (field "name" fields, field "names" fields) with
                 | Some n, _ | None, Some n -> atoms n
                 | None, None -> []
               in
-              let libraries = Option.value ~default:[] (Option.map atoms (field "libraries" fields)) in
+              let libraries =
+                Option.value ~default:[] (Option.map atoms (field "libraries" fields))
+              in
               Some { kind; names; libraries; dir }
           | _ -> None)
         sexps
@@ -130,20 +149,32 @@ let lex text =
   let rec code_at i depth =
     if i >= n then ()
     else if i + 1 < n && text.[i] = '(' && text.[i + 1] = '*' then code_at (i + 2) (depth + 1)
-    else if depth > 0 && i + 1 < n && text.[i] = '*' && text.[i + 1] = ')' then code_at (i + 2) (depth - 1)
+    else if depth > 0 && i + 1 < n && text.[i] = '*' && text.[i + 1] = ')' then
+      code_at (i + 2) (depth - 1)
     else if depth > 0 && text.[i] = '"' then skip_string (i + 1) depth
     else if depth > 0 then code_at (i + 1) depth
-    else if text.[i] = '"' then (Buffer.add_char code ' '; Buffer.clear literal; string_at (i + 1))
+    else if text.[i] = '"' then (
+      Buffer.add_char code ' ';
+      Buffer.clear literal;
+      string_at (i + 1))
     else if text.[i] = '\'' && i + 2 < n && text.[i + 2] = '\'' then code_at (i + 3) depth
     else if text.[i] = '\'' && i + 3 < n && text.[i + 1] = '\\' && text.[i + 3] = '\'' then
       code_at (i + 4) depth
-    else (Buffer.add_char code text.[i]; code_at (i + 1) depth)
+    else (
+      Buffer.add_char code text.[i];
+      code_at (i + 1) depth)
   and string_at i =
     if i >= n then ()
-    else if text.[i] = '\\' && i + 1 < n then (Buffer.add_char literal text.[i];
-      Buffer.add_char literal text.[i + 1]; string_at (i + 2))
-    else if text.[i] = '"' then (literals := Buffer.contents literal :: !literals; code_at (i + 1) 0)
-    else (Buffer.add_char literal text.[i]; string_at (i + 1))
+    else if text.[i] = '\\' && i + 1 < n then (
+      Buffer.add_char literal text.[i];
+      Buffer.add_char literal text.[i + 1];
+      string_at (i + 2))
+    else if text.[i] = '"' then (
+      literals := Buffer.contents literal :: !literals;
+      code_at (i + 1) 0)
+    else (
+      Buffer.add_char literal text.[i];
+      string_at (i + 1))
   and skip_string i depth =
     if i >= n then ()
     else if text.[i] = '\\' then skip_string (i + 2) depth
@@ -157,12 +188,18 @@ let code_only text = fst (lex text)
 let literals text = snd (lex text)
 
 let contains_token code token =
-  let re = Str.regexp ("\\(^\\|[^A-Za-z0-9_'.]\\)" ^ Str.quote token ^ "\\($\\|[^A-Za-z0-9_']\\)") in
+  let re =
+    Str.regexp ("\\(^\\|[^A-Za-z0-9_'.]\\)" ^ Str.quote token ^ "\\($\\|[^A-Za-z0-9_']\\)")
+  in
   match Str.search_forward re code 0 with _ -> true | exception Not_found -> false
 
 (* Configuration files and form identities a screen owns. *)
 let owned_literals text =
-  let files = List.filter (fun s -> Filename.check_suffix s ".tsv" && not (String.contains s ' ')) (literals text) in
+  let files =
+    List.filter
+      (fun s -> Filename.check_suffix s ".tsv" && not (String.contains s ' '))
+      (literals text)
+  in
   let ids =
     let re = Str.regexp {|~id:"\([a-z][a-z0-9_]*\)"|} in
     let rec loop pos acc =
@@ -179,7 +216,9 @@ let capitalize = String.capitalize_ascii
 let () =
   let root = if Array.length Sys.argv > 1 then Sys.argv.(1) else "." in
   let tui = Filename.concat root "tui" in
-  if not (Sys.file_exists tui && Sys.is_directory tui) then (prerr_endline "arch_check: no tui directory"; exit 2);
+  if not (Sys.file_exists tui && Sys.is_directory tui) then (
+    prerr_endline "arch_check: no tui directory";
+    exit 2);
   (* 0. Core never depends on the TUI. *)
   let is_tui_library name =
     String.starts_with ~prefix:"bakhlo_tui" name || String.starts_with ~prefix:"bakhlo_screen" name
@@ -187,8 +226,12 @@ let () =
   List.iter
     (fun top ->
       let path = Filename.concat root top in
-      if Sys.is_directory path && top.[0] <> '.' && top.[0] <> '_'
-         && not (List.mem top [ "tui"; "scratch"; "experiments" ]) then
+      if
+        Sys.is_directory path
+        && top.[0] <> '.'
+        && top.[0] <> '_'
+        && not (List.mem top [ "tui"; "scratch"; "experiments" ])
+      then
         List.iter
           (fun (rel, entries) ->
             if List.mem "dune" entries then
@@ -197,7 +240,8 @@ let () =
               List.iter
                 (fun s ->
                   List.iter
-                    (fun dep -> if is_tui_library dep then fail "%s: Core may not depend on %s" file dep)
+                    (fun dep ->
+                      if is_tui_library dep then fail "%s: Core may not depend on %s" file dep)
                     s.libraries)
                 (stanzas_of ~where:file ~dir (read (Filename.concat root file))))
           (walk path []))
@@ -218,13 +262,18 @@ let () =
         else if srcs = [] && not (List.mem "dune" entries) then None
         else
           match layer_of_dir rel with
-          | Error why -> fail "%s" why; None
+          | Error why ->
+              fail "%s" why;
+              None
           | Ok layer ->
               if not (List.mem "dune" entries) then
                 fail "tui/%s: sources without a dune file are never built" (String.concat "/" rel);
               let stanzas =
                 if List.mem "dune" entries then
-                  stanzas_of ~where:("tui/" ^ String.concat "/" (rel @ [ "dune" ])) ~dir:rel (read (Filename.concat tui (String.concat "/" (rel @ [ "dune" ]))))
+                  stanzas_of
+                    ~where:("tui/" ^ String.concat "/" (rel @ [ "dune" ]))
+                    ~dir:rel
+                    (read (Filename.concat tui (String.concat "/" (rel @ [ "dune" ]))))
                 else []
               in
               Some (layer, rel, srcs, stanzas))
@@ -233,7 +282,10 @@ let () =
   let library_layer =
     List.concat_map
       (fun (layer, _, _, stanzas) ->
-        List.concat_map (fun s -> if s.kind = "library" then List.map (fun n -> (n, (layer, s.dir))) s.names else []) stanzas)
+        List.concat_map
+          (fun s ->
+            if s.kind = "library" then List.map (fun n -> (n, (layer, s.dir))) s.names else [])
+          stanzas)
       layered
   in
   (* 2. Library dependencies follow the layer order. *)
@@ -245,23 +297,29 @@ let () =
           List.iter
             (fun dep ->
               (match List.assoc_opt dep library_layer with
-               | None -> ()
-               | Some (_, dep_dir) when dep_dir = rel -> ()
-               | Some (target, _) ->
-                   let allowed =
-                     match layer, target with
-                     | Screen _, Screen _ -> false
-                     | Screen_test a, Screen b -> a = b
-                     | Screen_test _, Screen_test _ -> false
-                     | (Shell | Shell_test | Scenarios | App | App_test), _ -> rank target < rank layer
-                     | _ -> rank target < rank layer && (match target with Screen _ -> false | _ -> true)
-                   in
-                   if not allowed then
-                     fail "%s: %s may not depend on %s (%s)" where (layer_name layer) dep (layer_name target));
+              | None -> ()
+              | Some (_, dep_dir) when dep_dir = rel -> ()
+              | Some (target, _) ->
+                  let allowed =
+                    match (layer, target) with
+                    | Screen _, Screen _ -> false
+                    | Screen_test a, Screen b -> a = b
+                    | Screen_test _, Screen_test _ -> false
+                    | (Shell | Shell_test | Scenarios | App | App_test), _ ->
+                        rank target < rank layer
+                    | _ -> (
+                        rank target < rank layer
+                        && match target with Screen _ -> false | _ -> true)
+                  in
+                  if not allowed then
+                    fail "%s: %s may not depend on %s (%s)" where (layer_name layer) dep
+                      (layer_name target));
               if List.mem dep shell_only && not (is_shell_or_above layer) then
-                fail "%s: %s may not depend on %s (Shell and above only)" where (layer_name layer) dep;
+                fail "%s: %s may not depend on %s (Shell and above only)" where (layer_name layer)
+                  dep;
               if List.mem dep terminal_only && not (is_terminal layer) then
-                fail "%s: %s may not depend on %s (terminal adapter only)" where (layer_name layer) dep)
+                fail "%s: %s may not depend on %s (terminal adapter only)" where (layer_name layer)
+                  dep)
             s.libraries)
         stanzas)
     layered;
@@ -287,7 +345,10 @@ let () =
     List.concat_map
       (fun (layer, _, srcs, _) ->
         match layer with
-        | Screen s -> List.concat_map (fun (_, _, text) -> List.map (fun l -> (l, s)) (owned_literals text)) srcs
+        | Screen s ->
+            List.concat_map
+              (fun (_, _, text) -> List.map (fun l -> (l, s)) (owned_literals text))
+              srcs
         | _ -> [])
       layered
   in
@@ -300,7 +361,8 @@ let () =
               (fun literal ->
                 match List.assoc_opt literal owned with
                 | Some screen when not (List.mem literal legacy_shared_literals) ->
-                    fail "tui/%s/%s: \"%s\" belongs to screen %s" (String.concat "/" rel) file literal screen
+                    fail "tui/%s/%s: \"%s\" belongs to screen %s" (String.concat "/" rel) file
+                      literal screen
                 | _ -> ())
               (literals text))
           srcs)
@@ -325,7 +387,10 @@ let () =
         List.iter
           (fun (_, file, _) ->
             let m = Filename.remove_extension file in
-            if Filename.check_suffix file ".ml" && Filename.check_suffix m "_checks" && not (List.mem m mains) then
+            if
+              Filename.check_suffix file ".ml" && Filename.check_suffix m "_checks"
+              && not (List.mem m mains)
+            then
               let referenced =
                 List.exists
                   (fun main ->
@@ -341,4 +406,6 @@ let () =
     layered;
   match List.rev !errors with
   | [] -> print_endline "arch_check: ok"
-  | errors -> List.iter prerr_endline errors; exit 1
+  | errors ->
+      List.iter prerr_endline errors;
+      exit 1

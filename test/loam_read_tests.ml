@@ -215,9 +215,9 @@ let%expect_test "native read keeps huge quanta, version-one cuts and terminal-on
   List.iter [ "wallet"; "pantry"; "stale" ] ~f:(fun locus ->
       print_endline
         (match Q.query image (F.coordinate locus) with
-         | Ok (Q.Exact _) -> locus ^ ": exact"
-         | Ok (Q.Known_present _) -> locus ^ ": present, no scalar"
-         | Error (Q.Support_unknown _) -> locus ^ ": unknown"));
+        | Ok (Q.Exact _) -> locus ^ ": exact"
+        | Ok (Q.Known_present _) -> locus ^ ": present, no scalar"
+        | Error (Q.Support_unknown _) -> locus ^ ": unknown"));
   [%expect {|
     wallet: exact
     pantry: present, no scalar

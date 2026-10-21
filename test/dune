@@ -61,6 +61,7 @@
   ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_query.cmi))
 
 ; Negative architecture checks: every rule must reject an intentional violation.
+
 (cram
  (applies_to arch)
  (deps %{bin:arch_check}))

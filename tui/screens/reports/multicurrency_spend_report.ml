@@ -5,7 +5,6 @@ module B = Bakhlo_sexp.Daily_book
 module O = Daily_overlays
 module A = Daily_draft
 module D = Bakhlo_domain
-
 module M = Map.Make (String)
 
 type total = { measure : string; quanta : Z.t }
@@ -20,7 +19,6 @@ type exchange_occurrence = {
 }
 
 type unresolved_effect = { event : string; date : string; effect : D.Effect.t }
-
 type original_reason = Unresolved_roles | Exchange_event | No_positive_expense
 
 type original_witness = {
@@ -61,8 +59,7 @@ let add measure quanta totals =
     totals
 
 let totals_of totals =
-  M.bindings totals
-  |> List.map (fun (measure, quanta) -> ({ measure; quanta } : total))
+  M.bindings totals |> List.map (fun (measure, quanta) -> ({ measure; quanta } : total))
 
 let compare_entry (left : B.entry) (right : B.entry) =
   match String.compare left.day right.day with
@@ -104,12 +101,14 @@ let exchange_of_entry (entry : B.entry) =
       | None, _ ->
           Error
             (Printf.sprintf
-               "Exchange source Effect key %s is missing from retained entry %s; no partial occurrence is used."
+               "Exchange source Effect key %s is missing from retained entry %s; no partial \
+                occurrence is used."
                source_key entry.id)
       | _, None ->
           Error
             (Printf.sprintf
-               "Exchange destination Effect key %s is missing from retained entry %s; no partial occurrence is used."
+               "Exchange destination Effect key %s is missing from retained entry %s; no partial \
+                occurrence is used."
                destination_key entry.id))
 
 let step ~role_map (acc : acc) (entry : B.entry) =
@@ -118,27 +117,22 @@ let step ~role_map (acc : acc) (entry : B.entry) =
   | Ok occurrence ->
       let expense_effects =
         List.filter
-          (fun effect ->
-            M.find_opt (effect_locus effect) role_map = Some O.Expense)
+          (fun effect -> M.find_opt (effect_locus effect) role_map = Some O.Expense)
           entry.effects
       in
       let unresolved_nonzero =
         List.filter
           (fun effect ->
-            M.find_opt (effect_locus effect) role_map = None
-            && Z.sign (A.quanta effect) <> 0)
+            M.find_opt (effect_locus effect) role_map = None && Z.sign (A.quanta effect) <> 0)
           entry.effects
       in
       let add_expenses totals =
         List.fold_left
-          (fun totals effect ->
-            add (effect_measure effect) (A.quanta effect) totals)
+          (fun totals effect -> add (effect_measure effect) (A.quanta effect) totals)
           totals expense_effects
       in
       let unresolved effects =
-        List.map
-          (fun effect -> { event = entry.id; date = entry.day; effect })
-          effects
+        List.map (fun effect -> { event = entry.id; date = entry.day; effect }) effects
       in
       let classified =
         match occurrence with
@@ -148,16 +142,14 @@ let step ~role_map (acc : acc) (entry : B.entry) =
               exchange = add_expenses acc.exchange;
               exchanges = occurrence :: acc.exchanges;
               unresolved_exchange =
-                List.rev_append (unresolved unresolved_nonzero)
-                  acc.unresolved_exchange;
+                List.rev_append (unresolved unresolved_nonzero) acc.unresolved_exchange;
             }
         | None ->
             {
               acc with
               ordinary = add_expenses acc.ordinary;
               unresolved_ordinary =
-                List.rev_append (unresolved unresolved_nonzero)
-                  acc.unresolved_ordinary;
+                List.rev_append (unresolved unresolved_nonzero) acc.unresolved_ordinary;
             }
       in
       let original =
@@ -179,16 +171,9 @@ let step ~role_map (acc : acc) (entry : B.entry) =
                       : original_witness)
                     :: classified.uncounted_original;
                 }
-            | None ->
-                if
-                  List.exists
-                    (fun effect -> Z.sign (A.quanta effect) > 0)
-                    expense_effects
-                then
-                  {
-                    classified with
-                    original = add measure quanta classified.original;
-                  }
+            | None -> (
+                if List.exists (fun effect -> Z.sign (A.quanta effect) > 0) expense_effects then
+                  { classified with original = add measure quanta classified.original }
                 else
                   match unresolved_nonzero with
                   | _ :: _ ->
@@ -218,7 +203,7 @@ let step ~role_map (acc : acc) (entry : B.entry) =
                            }
                             : original_witness)
                           :: classified.uncounted_original;
-                      })
+                      }))
       in
       Ok original
 
@@ -239,14 +224,12 @@ let compute ~book ~roles ~start_day ~end_exclusive =
   else
     let role_map =
       List.fold_left
-        (fun map (locus, role) ->
-          if M.mem locus map then map else M.add locus role map)
+        (fun map (locus, role) -> if M.mem locus map then map else M.add locus role map)
         M.empty roles
     in
     let entries =
       B.entries book
-      |> List.filter (fun (entry : B.entry) ->
-             entry.day >= start_day && entry.day < end_exclusive)
+      |> List.filter (fun (entry : B.entry) -> entry.day >= start_day && entry.day < end_exclusive)
       |> List.stable_sort compare_entry
     in
     let empty =
@@ -278,8 +261,7 @@ let compute ~book ~roles ~start_day ~end_exclusive =
             uncounted_original = List.rev acc.uncounted_original;
           }
 
-let amount book measure quanta =
-  O.format_money book measure quanta ^ " " ^ measure
+let amount book measure quanta = O.format_money book measure quanta ^ " " ^ measure
 
 let signed_amount book measure quanta =
   (if Z.sign quanta > 0 then "+" else "") ^ amount book measure quanta
@@ -296,36 +278,30 @@ let effect_line book label (effect : D.Effect.t) =
     | None -> ""
     | Some key -> "  key " ^ D.Identifier.Effect_key.to_string key
   in
-  "  " ^ label ^ "  " ^ signed_amount book measure (A.quanta effect) ^ "  "
-  ^ effect_locus effect ^ key
+  "  " ^ label ^ "  "
+  ^ signed_amount book measure (A.quanta effect)
+  ^ "  " ^ effect_locus effect ^ key
 
 let render_lines ~book (snapshot : snapshot) =
   let total_lines heading empty_text rows =
     (O.Heading, heading)
-    :: (match rows with
-       | [] -> [ (O.Chrome, "  " ^ empty_text) ]
-       | rows ->
-           List.map
-             (fun (row : total) ->
-               (O.Plain, "  " ^ amount book row.measure row.quanta))
-             rows)
+    ::
+    (match rows with
+    | [] -> [ (O.Chrome, "  " ^ empty_text) ]
+    | rows ->
+        List.map (fun (row : total) -> (O.Plain, "  " ^ amount book row.measure row.quanta)) rows)
   in
   let occurrence_lines (occurrence : exchange_occurrence) =
-    let description =
-      match occurrence.description with
-      | None -> ""
-      | Some text -> "  " ^ text
-    in
-    ( O.Plain,
-      occurrence.date ^ description ^ "  [" ^ occurrence.event ^ "]" )
+    let description = match occurrence.description with None -> "" | Some text -> "  " ^ text in
+    (O.Plain, occurrence.date ^ description ^ "  [" ^ occurrence.event ^ "]")
     :: (O.Plain, effect_line book "source" occurrence.source)
     :: (O.Plain, effect_line book "destination" occurrence.destination)
-    :: (match occurrence.extra_effects with
-       | [] -> []
-       | extras ->
-           (O.Chrome, "  extra Effects")
-           :: List.map (fun effect -> (O.Plain, effect_line book "extra" effect))
-                extras)
+    ::
+    (match occurrence.extra_effects with
+    | [] -> []
+    | extras ->
+        (O.Chrome, "  extra Effects")
+        :: List.map (fun effect -> (O.Plain, effect_line book "extra" effect)) extras)
   in
   let unresolved_lines heading rows =
     (O.Heading, Printf.sprintf "%s: %d" heading (List.length rows))
@@ -333,8 +309,7 @@ let render_lines ~book (snapshot : snapshot) =
          (fun (row : unresolved_effect) ->
            ( O.Plain,
              "? " ^ row.date ^ "  " ^ effect_locus row.effect ^ "  "
-             ^ signed_amount book (effect_measure row.effect)
-                 (A.quanta row.effect)
+             ^ signed_amount book (effect_measure row.effect) (A.quanta row.effect)
              ^ "  [" ^ row.event ^ "]" ))
          rows
   in
@@ -350,27 +325,19 @@ let render_lines ~book (snapshot : snapshot) =
   in
   [
     (O.Heading, "Multicurrency Spend");
+    (O.Chrome, Printf.sprintf "Window [%s, %s)" snapshot.start_day snapshot.end_exclusive);
     ( O.Chrome,
-      Printf.sprintf "Window [%s, %s)" snapshot.start_day
-        snapshot.end_exclusive );
-    ( O.Chrome,
-      "Distinct Measures remain separate. No FX rate, valuation, or home currency is inferred."
-    );
-    ( O.Chrome,
-      "This is a read lens over existing evidence, not a Trip transaction type."
-    );
+      "Distinct Measures remain separate. No FX rate, valuation, or home currency is inferred." );
+    (O.Chrome, "This is a read lens over existing evidence, not a Trip transaction type.");
     (O.Plain, "");
   ]
-  @ total_lines "Ordinary accounting Expense"
-      "No classified ordinary Expense in this window."
+  @ total_lines "Ordinary accounting Expense" "No classified ordinary Expense in this window."
       snapshot.ordinary_expense
   @ [ (O.Plain, "") ]
-  @ total_lines "Original presented Expense"
-      "No qualified OriginalAmount evidence in this window."
+  @ total_lines "Original presented Expense" "No qualified OriginalAmount evidence in this window."
       snapshot.original_expense
   @ [ (O.Plain, "") ]
-  @ total_lines "Exchange-associated Expense"
-      "No classified Expense attached to Exchange Events."
+  @ total_lines "Exchange-associated Expense" "No classified Expense attached to Exchange Events."
       snapshot.exchange_expense
   @ [ (O.Plain, ""); (O.Heading, "Exchange occurrences") ]
   @ (match snapshot.exchanges with
@@ -380,22 +347,17 @@ let render_lines ~book (snapshot : snapshot) =
   @ unresolved_lines "Unresolved ordinary Effects" snapshot.unresolved_ordinary
   @ unresolved_lines "Unresolved exchange Effects" snapshot.unresolved_exchange
   @ witness_lines "Unresolved original amounts" snapshot.unresolved_original
-  @ witness_lines "Non-counted original observations"
-      snapshot.uncounted_original
-  @ (if
-       snapshot.unresolved_ordinary = [] && snapshot.unresolved_exchange = []
-     then []
+  @ witness_lines "Non-counted original observations" snapshot.uncounted_original
+  @ (if snapshot.unresolved_ordinary = [] && snapshot.unresolved_exchange = [] then []
      else
        [
          ( O.Status,
-           "Unresolved role evidence exists: classified figures above are not a complete spending total."
-         );
+           "Unresolved role evidence exists: classified figures above are not a complete spending \
+            total." );
        ])
   @ [
+      (O.Chrome, "Exchange quantities are evidence of the exchange occurrence, not spending totals.");
       ( O.Chrome,
-        "Exchange quantities are evidence of the exchange occurrence, not spending totals."
-      );
-      ( O.Chrome,
-        "Original presented amounts remain observations; they are not converted into accounting Measure."
-      );
+        "Original presented amounts remain observations; they are not converted into accounting \
+         Measure." );
     ]

@@ -8,7 +8,11 @@ module B = Bakhlo_sexp.Daily_book
 type t
 
 val initial :
-  book:B.t -> day:string -> measure:string -> roles:(string * Daily_overlays.accounting_role) list -> t
+  book:B.t ->
+  day:string ->
+  measure:string ->
+  roles:(string * Daily_overlays.accounting_role) list ->
+  t
 (** [day] dates the record unless a leading date word names another day; a
     month-day word means its latest occurrence not after [day]. *)
 
@@ -17,10 +21,10 @@ val text : t -> string
 
 type surface = {
   framed : bool;  (** The mode itself, never guessed from the height. *)
-  width : int;    (** Physical cells of the rectangle. *)
+  width : int;  (** Physical cells of the rectangle. *)
   height : int;
-  top : int;      (** First row of the rectangle. *)
-  left : int;     (** First column of the rectangle. *)
+  top : int;  (** First row of the rectangle. *)
+  left : int;  (** First column of the rectangle. *)
 }
 
 val surface : int * int -> surface
@@ -38,9 +42,14 @@ type prefill = {
 type step = Stay of t | Cancel | Preview of prefill | Edit of prefill
 
 val update : book:B.t -> t -> Ui_input.input -> step
+
 val append : t -> string -> t
 (** A single-line paste. *)
 
 val view :
-  book:B.t -> width_of:(string -> int) -> width:int -> height:int -> t ->
+  book:B.t ->
+  width_of:(string -> int) ->
+  width:int ->
+  height:int ->
+  t ->
   (Daily_overlays.style * string) list

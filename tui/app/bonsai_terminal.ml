@@ -30,7 +30,8 @@ let attributes theme style =
       | C.Panel_active -> [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.invert; B.Attr.bold ])
   | Some palette -> (
       match style with
-      | C.Plain | C.Calendar_dates | C.Bonsai | C.Entrance | C.Columns _ | C.Input _ -> [ fg palette.foreground; bg palette.background ]
+      | C.Plain | C.Calendar_dates | C.Bonsai | C.Entrance | C.Columns _ | C.Input _ ->
+          [ fg palette.foreground; bg palette.background ]
       | C.Active -> [ fg palette.selected_foreground; bg palette.selected_background; B.Attr.bold ]
       | C.Heading -> [ fg palette.foreground; bg palette.background; B.Attr.bold ]
       | C.Chrome | C.Frame -> [ fg palette.heading; bg palette.background ]
@@ -81,67 +82,84 @@ let rec lines ?border theme rows =
           let left = String.sub text 0 !split in
           let right_start = min (String.length text) (!split + 1) in
           let right = String.sub text right_start (String.length text - right_start) in
-          V.hcat [ lines ?border theme [left_style, left]; V.text " ";
-                   lines ?border theme [right_style, right] ]
-      | _ ->
-      let glyphs =
-        Uutf.String.fold_utf_8
-          (fun xs _ -> function `Uchar c -> Daily_overlays.utf8 c :: xs | `Malformed _ -> xs)
-          [] text |> List.rev
-      in
-      let body_style =
-        match style with
-        | C.Frame | C.Focused_frame -> C.Chrome
-        | C.Input _ | C.Bonsai | C.Entrance -> C.Plain
-        | style -> style
-      in
-      let edge_attrs =
-        match border with
-        | Some intent -> border_attributes theme intent
-        | None -> attributes theme (if style = C.Focused_frame then C.Focused_frame else C.Frame)
-      in
-      let leaf_attrs = [ B.Attr.fg B.Attr.Color.Expert.green ] in
-      let entrance_key_attrs = [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.bold ] in
-      let framed_row = String.starts_with ~prefix:"│" text && String.ends_with ~suffix:"│" text in
-      let ruled_row = String.starts_with ~prefix:"╭" text || String.starts_with ~prefix:"╰" text in
-      let total_cells = V.width (V.text text) in
-      let rec paint cell = function
-        | "[" :: a :: b :: "]" :: rest
-          when style = C.Calendar_dates && String.length a = 1 && String.length b = 1
-               && a.[0] >= '0' && a.[0] <= '9' && b.[0] >= '0' && b.[0] <= '9' ->
-            (attributes theme C.Active, "[" ^ a ^ b ^ "]") :: paint (cell + 4) rest
-        | glyph :: rest when style = C.Bonsai && (glyph = ":" || glyph = ";") ->
-            (leaf_attrs, glyph) :: paint (cell + 1) rest
-        | key :: " " :: rest
-          when style = C.Entrance
-               && (key = "r" || key = "s" || key = "g" || key = "a" || key = "b" || key = "d")
-               && (cell = 0 || String.get text (max 0 (cell - 1)) = ' ') ->
-            (entrance_key_attrs, key) :: paint (cell + 1) (" " :: rest)
-        | glyph :: rest ->
-            let attrs =
-              if (framed_row && (cell = 0 || cell = total_cells - 1))
-                 || (ruled_row && List.mem glyph [ "─"; "╭"; "╮"; "╰"; "╯" ]) then edge_attrs
-              else if (match style with C.Input caret -> cell = caret | _ -> false) then
-                attributes theme C.Active
-              else attributes theme body_style
-            in
-            (attrs, glyph) :: paint (cell + V.width (V.text glyph)) rest
-        | [] -> []
-      in
-      let runs =
-        List.fold_left
-          (fun runs (attrs, text) ->
-            match runs with
-            | (previous, content) :: rest
-              when B.Attr.equal (B.Attr.many previous) (B.Attr.many attrs) ->
-                (previous, content ^ text) :: rest
-            | _ -> (attrs, text) :: runs)
-          [] (paint 0 glyphs)
-        |> List.rev
-      in
-      match runs with
-      | [] -> V.text " " (* Empty content is still a physical terminal row. *)
-      | _ -> V.hcat (List.map (fun (attrs, text) -> V.text ~attrs text) runs))
+          V.hcat
+            [
+              lines ?border theme [ (left_style, left) ];
+              V.text " ";
+              lines ?border theme [ (right_style, right) ];
+            ]
+      | _ -> (
+          let glyphs =
+            Uutf.String.fold_utf_8
+              (fun xs _ -> function `Uchar c -> Daily_overlays.utf8 c :: xs | `Malformed _ -> xs)
+              [] text
+            |> List.rev
+          in
+          let body_style =
+            match style with
+            | C.Frame | C.Focused_frame -> C.Chrome
+            | C.Input _ | C.Bonsai | C.Entrance -> C.Plain
+            | style -> style
+          in
+          let edge_attrs =
+            match border with
+            | Some intent -> border_attributes theme intent
+            | None ->
+                attributes theme (if style = C.Focused_frame then C.Focused_frame else C.Frame)
+          in
+          let leaf_attrs = [ B.Attr.fg B.Attr.Color.Expert.green ] in
+          let entrance_key_attrs = [ B.Attr.fg B.Attr.Color.Expert.cyan; B.Attr.bold ] in
+          let framed_row =
+            String.starts_with ~prefix:"│" text && String.ends_with ~suffix:"│" text
+          in
+          let ruled_row =
+            String.starts_with ~prefix:"╭" text || String.starts_with ~prefix:"╰" text
+          in
+          let total_cells = V.width (V.text text) in
+          let rec paint cell = function
+            | "[" :: a :: b :: "]" :: rest
+              when style = C.Calendar_dates
+                   && String.length a = 1
+                   && String.length b = 1
+                   && a.[0] >= '0'
+                   && a.[0] <= '9'
+                   && b.[0] >= '0'
+                   && b.[0] <= '9' ->
+                (attributes theme C.Active, "[" ^ a ^ b ^ "]") :: paint (cell + 4) rest
+            | glyph :: rest when style = C.Bonsai && (glyph = ":" || glyph = ";") ->
+                (leaf_attrs, glyph) :: paint (cell + 1) rest
+            | key :: " " :: rest
+              when style = C.Entrance
+                   && (key = "r" || key = "s" || key = "g" || key = "a" || key = "b" || key = "d")
+                   && (cell = 0 || String.get text (max 0 (cell - 1)) = ' ') ->
+                (entrance_key_attrs, key) :: paint (cell + 1) (" " :: rest)
+            | glyph :: rest ->
+                let attrs =
+                  if
+                    (framed_row && (cell = 0 || cell = total_cells - 1))
+                    || (ruled_row && List.mem glyph [ "─"; "╭"; "╮"; "╰"; "╯" ])
+                  then edge_attrs
+                  else if match style with C.Input caret -> cell = caret | _ -> false then
+                    attributes theme C.Active
+                  else attributes theme body_style
+                in
+                (attrs, glyph) :: paint (cell + V.width (V.text glyph)) rest
+            | [] -> []
+          in
+          let runs =
+            List.fold_left
+              (fun runs (attrs, text) ->
+                match runs with
+                | (previous, content) :: rest
+                  when B.Attr.equal (B.Attr.many previous) (B.Attr.many attrs) ->
+                    (previous, content ^ text) :: rest
+                | _ -> (attrs, text) :: runs)
+              [] (paint 0 glyphs)
+            |> List.rev
+          in
+          match runs with
+          | [] -> V.text " " (* Empty content is still a physical terminal row. *)
+          | _ -> V.hcat (List.map (fun (attrs, text) -> V.text ~attrs text) runs)))
   |> V.vcat
 
 let backdrop theme view =
@@ -217,8 +235,11 @@ let app initial ~exit ~dimensions graph =
             match active_dimensions with
             | Bonsai.Computation_status.Inactive -> state
             | Active (dimensions : B.Dimensions.t) -> (
-                match H.handle ~dimensions:(dimensions.width, dimensions.height)
-                  ~width_of state (input_of_event event) with
+                match
+                  H.handle
+                    ~dimensions:(dimensions.width, dimensions.height)
+                    ~width_of state (input_of_event event)
+                with
                 | Some state -> state
                 | None ->
                     Bonsai.Apply_action_context.schedule_event context (exit ());
@@ -248,12 +269,13 @@ let app initial ~exit ~dimensions graph =
     Bonsai.arr2 graph state dimensions ~f:(fun state (dimensions : B.Dimensions.t) ->
         render (dimensions.width, dimensions.height) state)
   in
-  let handler =
-    Bonsai.arr1 graph inject ~f:(fun inject event -> inject (Terminal_event event))
-  in
+  let handler = Bonsai.arr1 graph inject ~f:(fun inject event -> inject (Terminal_event event)) in
   (~view, ~handler)
 
-type first_run_result = First_run_created of F.t | First_run_cancelled | First_run_failed of string
+type first_run_result =
+  | First_run_created of F.t
+  | First_run_cancelled
+  | First_run_failed of string
 
 type first_run_action = First_run_event of B.Event.t
 
@@ -263,31 +285,33 @@ let first_run_app initial ~outcome ~exit ~dimensions graph =
       ~apply_action:(fun context active_dimensions state (First_run_event event) ->
         match active_dimensions with
         | Bonsai.Computation_status.Inactive -> state
-        | Active (dimensions : B.Dimensions.t) ->
-            (match First_run.handle state (input_of_event event) with
-             | First_run.Continue next -> next
-             | First_run.Cancel ->
-                 outcome := Some First_run_cancelled;
-                 Bonsai.Apply_action_context.schedule_event context (exit ());
-                 state
-             | First_run.Create _ when
-                 not (First_run.ready_to_create
-                   ~dimensions:(dimensions.width, dimensions.height) ~width_of state) ->
-                 First_run.refuse_confirmation state
-             | First_run.Create details ->
-                 (try
-                    let session =
-                      F.create_empty ~path:details.destination ~measure:details.measure
-                        ~scale:details.scale
-                    in
-                    outcome := Some (First_run_created session)
-                  with
-                  | F.Refused why -> outcome := Some (First_run_failed why)
-                  | Unix.Unix_error (error, _, _) ->
-                      outcome := Some (First_run_failed (Unix.error_message error))
-                  | Sys_error why -> outcome := Some (First_run_failed why));
-                 Bonsai.Apply_action_context.schedule_event context (exit ());
-                 state))
+        | Active (dimensions : B.Dimensions.t) -> (
+            match First_run.handle state (input_of_event event) with
+            | First_run.Continue next -> next
+            | First_run.Cancel ->
+                outcome := Some First_run_cancelled;
+                Bonsai.Apply_action_context.schedule_event context (exit ());
+                state
+            | First_run.Create _
+              when not
+                     (First_run.ready_to_create
+                        ~dimensions:(dimensions.width, dimensions.height)
+                        ~width_of state) ->
+                First_run.refuse_confirmation state
+            | First_run.Create details ->
+                (try
+                   let session =
+                     F.create_empty ~path:details.destination ~measure:details.measure
+                       ~scale:details.scale
+                   in
+                   outcome := Some (First_run_created session)
+                 with
+                | F.Refused why -> outcome := Some (First_run_failed why)
+                | Unix.Unix_error (error, _, _) ->
+                    outcome := Some (First_run_failed (Unix.error_message error))
+                | Sys_error why -> outcome := Some (First_run_failed why));
+                Bonsai.Apply_action_context.schedule_event context (exit ());
+                state))
       dimensions graph
   in
   let set_cursor = B.Cursor.set_cursor_position graph in
@@ -297,16 +321,17 @@ let first_run_app initial ~outcome ~exit ~dimensions graph =
   in
   Bonsai.Edge.after_display ~here:Stdlib.Lexing.dummy_pos
     (Bonsai.arr2 graph set_cursor cursor_pos ~f:(fun set_cursor cursor_pos ->
-       let cursor =
-         Option.map
-           (fun (x, y) -> { B.Cursor.position = { B.Position.x; y }; kind = B.Cursor.Kind.Default })
-           cursor_pos
-       in
-       set_cursor cursor))
+         let cursor =
+           Option.map
+             (fun (x, y) ->
+               { B.Cursor.position = { B.Position.x; y }; kind = B.Cursor.Kind.Default })
+             cursor_pos
+         in
+         set_cursor cursor))
     graph;
   let view =
     Bonsai.arr2 graph state dimensions ~f:(fun state (dimensions : B.Dimensions.t) ->
-        let width, height = dimensions.width, dimensions.height in
+        let width, height = (dimensions.width, dimensions.height) in
         let rows, _ = First_run.screen ~dimensions:(width, height) ~width_of state in
         lines P.Terminal rows |> fit width height)
   in
@@ -319,16 +344,17 @@ let start_first_run path read_error =
   let outcome = ref None in
   (match
      Async.Thread_safe.block_on_async_exn (fun () ->
-       B.start_with_exit ~dispose:true ~mouse:B.Mouse_reporting.No_mouse_events ~bpaste:true
-         (first_run_app initial ~outcome))
+         B.start_with_exit ~dispose:true ~mouse:B.Mouse_reporting.No_mouse_events ~bpaste:true
+           (first_run_app initial ~outcome))
    with
-   | Ok () -> ()
-   | Error _ -> raise (F.Refused "Bonsai-terminal-unavailable"));
+  | Ok () -> ()
+  | Error _ -> raise (F.Refused "Bonsai-terminal-unavailable"));
   match !outcome with
   | Some (First_run_created session) -> Some session
   | Some First_run_cancelled -> None
   | Some (First_run_failed why) ->
-      prerr_endline ("First-run creation refused: " ^ why ^ ". Inspect the destination; no retry was attempted.");
+      prerr_endline
+        ("First-run creation refused: " ^ why ^ ". Inspect the destination; no retry was attempted.");
       None
   | None -> None
 
@@ -338,9 +364,11 @@ let start_first_run path read_error =
 let compact_on_exit path =
   match F.compact_if_due (F.load path) with
   | None | Some (F.Compacted _) -> ()
-  | Some (F.Not_compacted why) -> prerr_endline ("Compaction skipped: " ^ why ^ ". The book is unchanged.")
+  | Some (F.Not_compacted why) ->
+      prerr_endline ("Compaction skipped: " ^ why ^ ". The book is unchanged.")
   | Some F.Compaction_uncertain ->
-      prerr_endline "Compaction was interrupted. The book is intact (old or new snapshot); reopen to check."
+      prerr_endline
+        "Compaction was interrupted. The book is intact (old or new snapshot); reopen to check."
   | exception (F.Refused _ | Unix.Unix_error _ | Sys_error _) ->
       prerr_endline "Compaction skipped: the book could not be reread. Nothing was changed."
 
@@ -355,8 +383,7 @@ let run_loaded session =
 
 let run path =
   match
-    try Ok (F.load path)
-    with
+    try Ok (F.load path) with
     | F.Refused why -> Error why
     | Unix.Unix_error (error, _, _) -> Error (Unix.error_message error)
     | Sys_error why -> Error why
@@ -364,7 +391,5 @@ let run path =
   | Ok session ->
       F.require (Unix.isatty Unix.stdin && Unix.isatty Unix.stdout) "interactive-tty-required";
       run_loaded session
-  | Error why ->
-      (match start_first_run path why with
-       | None -> ()
-       | Some session -> run_loaded session)
+  | Error why -> (
+      match start_first_run path why with None -> () | Some session -> run_loaded session)

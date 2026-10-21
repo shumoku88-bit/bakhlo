@@ -60,7 +60,8 @@ val reobserve : t -> group -> (t, error) result
     appends itself. Old image/source remain unchanged; no persisted history/write.
     This operation, not group list order in [create], intentionally replaces owners. *)
 
-val reobserve_in_place : t -> cut:Reflected_root_cut.t -> Current_quantity_projection.assertion list -> (t, error) result
+val reobserve_in_place :
+  t -> cut:Reflected_root_cut.t -> Current_quantity_projection.assertion list -> (t, error) result
 (** {!reobserve} of one incoming group under [cut], which must reflect every admitted
     root (see {!Reflected_root_cut.reflecting_all}). Groups losing coordinates are
     restricted, not rebuilt, so in-place deltas survive. *)

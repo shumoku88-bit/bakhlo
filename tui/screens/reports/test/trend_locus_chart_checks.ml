@@ -25,9 +25,7 @@ let has_digit text =
   String.iter (fun c -> if c >= '0' && c <= '9' then found := true) text;
   !found
 
-let bounded width rendered =
-  List.for_all (fun row -> utf8_width row <= width) rendered.C.rows
-
+let bounded width rendered = List.for_all (fun row -> utf8_width row <= width) rendered.C.rows
 let series marker values : C.series = { marker; values = Array.of_list values }
 
 let chart ?(selected = 0) ?(guides = []) ?(annotations = []) ~count series : C.t =
@@ -40,14 +38,18 @@ let () =
   (* A 601-digit amount cannot fit an exact axis and is never cut into another
      printed number. *)
   let huge = Z.add (Z.pow (z 10) 600) (z 7) in
-  let huge_chart = render ~width:40 ~height:6 (chart ~count:2 [ series C.markers.(0) [ Z.neg huge; huge ] ]) in
+  let huge_chart =
+    render ~width:40 ~height:6 (chart ~count:2 [ series C.markers.(0) [ Z.neg huge; huge ] ])
+  in
   require (not huge_chart.C.axis_exact) "601-digit labels cannot fit a narrow exact axis";
   require
     (List.for_all (fun row -> not (has_digit row)) huge_chart.rows)
     "an inexact axis never prints a partial numeric label";
 
   (* Constant, negative and degenerate surfaces stay bounded and sane. *)
-  let constant = render ~width:12 ~height:5 (chart ~count:2 [ series C.markers.(0) [ z 5; z 5 ] ]) in
+  let constant =
+    render ~width:12 ~height:5 (chart ~count:2 [ series C.markers.(0) [ z 5; z 5 ] ])
+  in
   require (bounded 12 constant) "a constant series stays inside the display width";
   let negative =
     render ~width:12 ~height:5 (chart ~count:2 [ series C.markers.(0) [ z (-7); z (-3) ] ])
@@ -66,14 +68,13 @@ let () =
      several x positions does not. *)
   let collide =
     render ~width:30 ~height:6
-      (chart ~count:2
-         [
-           series C.markers.(0) [ z 10; z 20 ]; series C.markers.(1) [ z 10; z 20 ];
-         ])
+      (chart ~count:2 [ series C.markers.(0) [ z 10; z 20 ]; series C.markers.(1) [ z 10; z 20 ] ])
   in
   require (has collide C.collision) "two series sharing a cell show the collision glyph";
   let repeated_values = List.init 8 (fun _ -> z 10) in
-  let repeated = render ~width:8 ~height:4 (chart ~count:8 [ series C.markers.(0) repeated_values ]) in
+  let repeated =
+    render ~width:8 ~height:4 (chart ~count:8 [ series C.markers.(0) repeated_values ])
+  in
   require (has repeated C.markers.(0)) "a plotted series still marks its values";
   require
     (not (has repeated C.collision))
@@ -97,9 +98,7 @@ let () =
     render ~width:20 ~height:8 (chart ~count:2 [ series C.markers.(0) [ z 0; z 100 ] ])
   in
   require (has connected "·") "two exact endpoints are connected along the interior";
-  let isolated =
-    render ~width:20 ~height:8 (chart ~count:1 [ series C.markers.(0) [ z 100 ] ])
-  in
+  let isolated = render ~width:20 ~height:8 (chart ~count:1 [ series C.markers.(0) [ z 100 ] ]) in
   require
     (has isolated C.markers.(0) && not (has isolated "·"))
     "a lone point paints no connecting path";

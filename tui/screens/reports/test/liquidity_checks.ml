@@ -13,7 +13,6 @@ let contains text sub =
 let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
 let is_error = Result.is_error
-
 let z n = Z.of_int n
 
 (* Synthetic book construction: no household file is ever read. *)
@@ -21,35 +20,36 @@ let posting locus measure n =
   Printf.sprintf "(posting %s %s %s (none))" locus measure (Z.to_string n)
 
 let entry id day postings =
-  Printf.sprintf "(entry %s (date %s) (memo (none)) (postings %s) (reversal-of (none)) (exchange (none)))"
-    id day (String.concat " " postings)
+  Printf.sprintf
+    "(entry %s (date %s) (memo (none)) (postings %s) (reversal-of (none)) (exchange (none)))" id day
+    (String.concat " " postings)
 
 let plan ?paid ?cancelled id day measure changes =
   let change (locus, n) = Printf.sprintf "(%s %s)" locus (Z.to_string n) in
   let optional = function None -> "(none)" | Some value -> "(some " ^ value ^ ")" in
-  Printf.sprintf
-    "(plan %s (date %s) (measure %s) (changes %s) (paid-by %s) (cancelled-on %s))"
-    id day measure
+  Printf.sprintf "(plan %s (date %s) (measure %s) (changes %s) (paid-by %s) (cancelled-on %s))" id
+    day measure
     (String.concat " " (List.map change changes))
     (optional paid) (optional cancelled)
 
-let book ?(approved = [ "wallet"; "bank"; "ext"; "ghost"; "present" ])
-    ?support ~entries ~plans () =
+let book ?(approved = [ "wallet"; "bank"; "ext"; "ghost"; "present" ]) ?support ~entries ~plans () =
   Printf.sprintf
     "(bakhlo-daily 3) (scope corrected-entries explicit-plans)\n\
      (measures (measure jpy 0) (measure eur 2))\n\
      (labels (not-supplied)) (approved-loci (provided %s))\n\
-     (entries %s)\n(plans %s)\n%s"
+     (entries %s)\n\
+     (plans %s)\n\
+     %s"
     (String.concat " " approved) entries plans
     (Option.value
        ~default:
-         "(support (zero-origin (wallet jpy) (bank jpy)) (openings) \
-          (observations) (presence (not-supplied)))"
+         "(support (zero-origin (wallet jpy) (bank jpy)) (openings) (observations) (presence \
+          (not-supplied)))"
        support)
 
 let support_flow =
-  "(support (zero-origin (wallet jpy) (bank jpy) (wallet eur)) (openings) \
-   (observations) (presence (not-supplied)))"
+  "(support (zero-origin (wallet jpy) (bank jpy) (wallet eur)) (openings) (observations) (presence \
+   (not-supplied)))"
 
 (* wallet 1000 jpy, bank 500 jpy: current selected 1500. *)
 let flow_entries =
@@ -89,8 +89,7 @@ let coords_wallet_bank = [ ("wallet", "jpy"); ("bank", "jpy") ]
 let compute ?(today = "2026-10-20") ?(through = "2026-10-31") ?(coords = coords_wallet_bank) book =
   R.compute ~book ~today ~coords ~assumed_complete_through:through
 
-let expect_error label result =
-  require (is_error result) (label ^ " must refuse")
+let expect_error label result = require (is_error result) (label ^ " must refuse")
 
 (* ------------------------------------------------------------------ *)
 (* Conditional path: exact selected sum, grouped days, horizon boundary. *)
@@ -102,12 +101,12 @@ let check_report_path () =
     && snapshot.R.assumed_complete_through = "2026-10-31"
     && snapshot.R.measure = "jpy")
     "conditional snapshot must echo the explicit question";
-  require (Z.equal snapshot.R.current_selected (z 1500))
+  require
+    (Z.equal snapshot.R.current_selected (z 1500))
     "current selected balance is the exact sum of the selected coordinates";
   let points =
-    List.map
-      (fun (p : R.point) -> (p.R.date, p.R.scheduled_change, p.R.balance))
-      snapshot.R.points in
+    List.map (fun (p : R.point) -> (p.R.date, p.R.scheduled_change, p.R.balance)) snapshot.R.points
+  in
   require
     (points
     = [
@@ -116,11 +115,13 @@ let check_report_path () =
         ("2026-10-27", z (-100), z 1600);
         ("2026-10-31", z 30, z 1630);
       ])
-    "paths must group same days, include the inclusive horizon, drop paid/cancelled, \
-     later plans and irrelevant overdue plans, and keep a zero-net day point";
-  require (Z.equal (R.final_at_horizon snapshot) (z 1630))
+    "paths must group same days, include the inclusive horizon, drop paid/cancelled, later plans \
+     and irrelevant overdue plans, and keep a zero-net day point";
+  require
+    (Z.equal (R.final_at_horizon snapshot) (z 1630))
     "conditional balance at horizon uses every point";
-  require (Z.equal (R.low_water snapshot) (z 1500))
+  require
+    (Z.equal (R.low_water snapshot) (z 1500))
     "low-water includes the current baseline and every day boundary";
   (* A horizon before a due day excludes it. *)
   let shorter = get (compute ~through:"2026-10-26" flow_book) in
@@ -157,14 +158,17 @@ let compute_refusals () =
          (book ~support:support_flow ~entries:flow_entries
             ~plans:
               (String.concat " "
-                 [
-                   plan "late" "2026-10-10" "jpy" [ ("wallet", z (-10)); ("ext", z 10) ];
-                 ])
-            ())) in
+                 [ plan "late" "2026-10-10" "jpy" [ ("wallet", z (-10)); ("ext", z 10) ] ])
+            ()))
+  in
   expect_error "overdue selected plan" (compute overdue);
-  let due_today = get (B.of_string (book ~entries:""
-    ~plans:(plan "due_today" "2026-10-20" "jpy"
-      [ ("wallet", z (-9)); ("ext", z 9) ]) ())) in
+  let due_today =
+    get
+      (B.of_string
+         (book ~entries:""
+            ~plans:(plan "due_today" "2026-10-20" "jpy" [ ("wallet", z (-9)); ("ext", z 9) ])
+            ()))
+  in
   let today = get (compute ~through:"2026-10-20" ~coords:[ ("wallet", "jpy") ] due_today) in
   require
     (match today.R.points with
@@ -180,24 +184,28 @@ let compute_refusals () =
 
 let check_evidence () =
   let presence_support =
-    "(support (zero-origin (wallet jpy) (bank jpy)) (openings) (observations) \
-     (presence (provided (reflected) (coordinates (present jpy)))))" in
+    "(support (zero-origin (wallet jpy) (bank jpy)) (openings) (observations) (presence (provided \
+     (reflected) (coordinates (present jpy)))))"
+  in
   let present_book =
-    get (B.of_string (book ~support:presence_support ~entries:flow_entries ~plans:" " ())) in
+    get (B.of_string (book ~support:presence_support ~entries:flow_entries ~plans:" " ()))
+  in
   let exact = get (compute ~coords:[ ("wallet", "jpy") ] present_book) in
-  require (Z.equal exact.R.current_selected (z 1000))
+  require
+    (Z.equal exact.R.current_selected (z 1000))
     "a zero-origin coordinate answers an exact current quantity";
   let known_present = compute ~coords:[ ("present", "jpy") ] present_book in
   let unsupported = compute ~coords:[ ("ghost", "jpy") ] present_book in
   require
-    (is_error known_present && is_error unsupported
-    && known_present <> unsupported)
+    (is_error known_present && is_error unsupported && known_present <> unsupported)
     "known-present and unsupported evidence must stay distinct refusals, never zero";
   let zero_book = get (B.of_string (book ~entries:"" ~plans:"" ())) in
   let zero = get (compute ~coords:[ ("wallet", "jpy") ] zero_book) in
-  require (Z.equal zero.R.current_selected Z.zero && zero.R.points = []
-           && Z.equal (R.final_at_horizon zero) Z.zero
-           && Z.equal (R.low_water zero) Z.zero)
+  require
+    (Z.equal zero.R.current_selected Z.zero
+    && zero.R.points = []
+    && Z.equal (R.final_at_horizon zero) Z.zero
+    && Z.equal (R.low_water zero) Z.zero)
     "a supported exact zero with no Scheduled changes is not an unknown amount"
 
 (* ------------------------------------------------------------------ *)
@@ -216,27 +224,28 @@ let check_amounts () =
                  ])
             ~plans:
               (String.concat " "
-                 [
-                   plan "down" "2026-10-25" "jpy" [ ("wallet", z (-200)); ("ext", z 200) ];
-                 ])
-            ())) in
+                 [ plan "down" "2026-10-25" "jpy" [ ("wallet", z (-200)); ("ext", z 200) ] ])
+            ()))
+  in
   let snapshot = get (compute ~coords:[ ("wallet", "jpy") ] negative) in
-  require (Z.equal snapshot.R.current_selected (z (-500)))
+  require
+    (Z.equal snapshot.R.current_selected (z (-500)))
     "negative exact selected balances stay exact";
-  require (Z.equal (R.final_at_horizon snapshot) (z (-700)))
+  require
+    (Z.equal (R.final_at_horizon snapshot) (z (-700)))
     "conditional outflow may take the balance negative";
-  require (Z.equal (R.low_water snapshot) (z (-700)))
+  require
+    (Z.equal (R.low_water snapshot) (z (-700)))
     "low-water reflects a path below the current baseline";
   let lines = R.render_lines ~book:negative snapshot in
   let text = String.concat "\n" (List.map snd lines) in
-  require (contains text "-500")
-    "negative current balance is rendered exactly";
-  require (contains text "-700")
-    "negative conditional horizon balance is rendered exactly";
+  require (contains text "-500") "negative current balance is rendered exactly";
+  require (contains text "-700") "negative conditional horizon balance is rendered exactly";
   (* Scaled EUR: quanta 123456789 at scale 2 is 1,234,567.89, never the raw integer. *)
   let huge = Z.of_string "123456789012345678901234567890" in
   let eur_support =
-    "(support (zero-origin (wallet eur)) (openings) (observations) (presence (not-supplied)))" in
+    "(support (zero-origin (wallet eur)) (openings) (observations) (presence (not-supplied)))"
+  in
   let eur_book =
     get
       (B.of_string
@@ -249,24 +258,25 @@ let check_amounts () =
                  ])
             ~plans:
               (String.concat " "
-                 [
-                   plan "top_up" "2026-10-25" "eur"
-                     [ ("wallet", huge); ("ext", Z.neg huge) ];
-                 ])
-            ())) in
+                 [ plan "top_up" "2026-10-25" "eur" [ ("wallet", huge); ("ext", Z.neg huge) ] ])
+            ()))
+  in
   let eur = get (compute ~coords:[ ("wallet", "eur") ] eur_book) in
-  require (eur.R.measure = "eur" && Z.equal eur.R.current_selected (z 123456789))
+  require
+    (eur.R.measure = "eur" && Z.equal eur.R.current_selected (z 123456789))
     "the selection, not the Shell environment, decides the single Measure";
-  require (Z.equal (R.final_at_horizon eur) (Z.add (z 123456789) huge))
+  require
+    (Z.equal (R.final_at_horizon eur) (Z.add (z 123456789) huge))
     "huge conditional totals stay exact";
-  let eur_text =
-    String.concat "\n" (List.map snd (R.render_lines ~book:eur_book eur)) in
-  require (contains eur_text "1,234,567.89")
+  let eur_text = String.concat "\n" (List.map snd (R.render_lines ~book:eur_book eur)) in
+  require
+    (contains eur_text "1,234,567.89")
     "scaled EUR uses the household scale with grouped digits";
   require
     (not (contains eur_text "123456789012345678901234567890"))
     "raw quanta are never painted as an amount";
-  require (contains eur_text "1,234,567,890,123,456,789,013,580,246.79")
+  require
+    (contains eur_text "1,234,567,890,123,456,789,013,580,246.79")
     "huge scaled amounts are grouped, never clipped into another number"
 
 (* ------------------------------------------------------------------ *)
@@ -277,7 +287,8 @@ let check_display_limit () =
     List.init 14 (fun index ->
         let day = 21 + index in
         if day <= 31 then Printf.sprintf "2026-10-%02d" day
-        else Printf.sprintf "2026-11-%02d" (day - 31)) in
+        else Printf.sprintf "2026-11-%02d" (day - 31))
+  in
   let plans =
     String.concat " "
       (List.mapi
@@ -285,29 +296,25 @@ let check_display_limit () =
            let amount = z (if index = 13 then -200 else 10) in
            plan (Printf.sprintf "p%02d" index) day "jpy"
              [ ("wallet", amount); ("ext", Z.neg amount) ])
-         dates) in
-  let many =
-    get
-      (B.of_string
-         (book ~support:support_flow ~entries:"" ~plans ())) in
+         dates)
+  in
+  let many = get (B.of_string (book ~support:support_flow ~entries:"" ~plans ())) in
   let snapshot = get (compute ~through:"2026-11-05" ~coords:[ ("wallet", "jpy") ] many) in
   require (List.length snapshot.R.points = 14) "all fourteen day points exist";
   require
-    (Z.equal (R.final_at_horizon snapshot) (z (-70))
-    && Z.equal (R.low_water snapshot) (z (-70)))
+    (Z.equal (R.final_at_horizon snapshot) (z (-70)) && Z.equal (R.low_water snapshot) (z (-70)))
     "totals and low-water use every point, not only the displayed rows";
   let lines = R.render_lines ~book:many snapshot in
   let rows = List.map snd lines in
   let shown date = List.exists (fun line -> contains line date) rows in
   let shown_count = List.length (List.filter shown dates) in
   require (shown_count = 12) "at most twelve point rows are displayed";
-  require (not (shown (List.nth dates 12)) && not (shown (List.nth dates 13)))
+  require
+    ((not (shown (List.nth dates 12))) && not (shown (List.nth dates 13)))
     "points beyond the display limit are not painted as rows";
   let text = String.concat "\n" rows in
-  require (contains text "-70")
-    "the omitted points still contribute to the painted horizon total";
-  require (contains text "omitted")
-    "an explicit omitted-count note replaces the hidden rows"
+  require (contains text "-70") "the omitted points still contribute to the painted horizon total";
+  require (contains text "omitted") "an explicit omitted-count note replaces the hidden rows"
 
 (* ------------------------------------------------------------------ *)
 (* Screen owner: unknown-first presentation, explicit Run, draft, no writes. *)
@@ -316,7 +323,8 @@ let screen_env ?(measure = "jpy") ?(today = "2026-10-20") ?(selected_day = today
     ?(balance_view = Some "wallet\tjpy\nbank\tjpy\n") book =
   let config name =
     if name = "balance-view.tsv" then Ok balance_view
-    else Error ("Configuration " ^ name ^ " was not declared by this screen.") in
+    else Error ("Configuration " ^ name ^ " was not declared by this screen.")
+  in
   let env = Screen.env_for_checks ~config ~book ~measure ~today () in
   { env with calendar = get (Daily_calendar.create selected_day) }
 
@@ -329,11 +337,8 @@ let geometry (width, height) : Screen.geometry =
   }
 
 let rows_of view = Lazy.force view.Screen.rows
-let has rows needle =
-  List.exists (fun (_, text) -> contains text needle) rows
-
+let has rows needle = List.exists (fun (_, text) -> contains text needle) rows
 let joined rows = String.concat "\n" (List.map snd rows)
-
 let press env geom t key = S.handle env geom t (`Key (key, []))
 
 let no_write = function
@@ -346,30 +351,34 @@ let check_screen () =
   let created = S.create () in
   expect_error "new report has no result before Run" (S.result env created);
   let opened = S.enter ~focus_day:"2026-10-16" created in
-  require (S.assumption opened = "2026-10-31")
+  require
+    (S.assumption opened = "2026-10-31")
     "first entry seeds the selected day's Gregorian month end";
   require (S.run_focused opened) "first entry focuses Run only";
   expect_error "seeded assumption alone must not query" (S.result env opened);
   let view = S.view env geom opened in
   let rows = rows_of view in
-  require (match rows with
-           | (_, first) :: (_, second) :: _ ->
-               contains first "Forecast path: UNKNOWN"
-               && contains second "Known low-water mark: UNKNOWN"
-           | _ -> false)
+  require
+    (match rows with
+    | (_, first) :: (_, second) :: _ ->
+        contains first "Forecast path: UNKNOWN" && contains second "Known low-water mark: UNKNOWN"
+    | _ -> false)
     "both unconditional statements are UNKNOWN and painted first";
-  require (has rows "Run" && has rows "conditional")
+  require
+    (has rows "Run" && has rows "conditional")
     "Run and the conditional disclaimer are visible";
   List.iter
     (fun (width, height) ->
       let g = geometry (width, height) in
       let v = S.view env g opened in
       let rows = rows_of v in
-      require (List.length rows <= snd g.Screen.content)
+      require
+        (List.length rows <= snd g.Screen.content)
         (Printf.sprintf "rows must fit %dx%d content" width height);
       List.iter
         (fun (_, text) ->
-          require (String.length text <= fst g.Screen.content)
+          require
+            (String.length text <= fst g.Screen.content)
             (Printf.sprintf "row too wide at %dx%d: %S" width height text))
         rows;
       require (has rows "UNKNOWN") "UNKNOWN statements survive every size")
@@ -378,7 +387,8 @@ let check_screen () =
   let field, _ = press env geom opened `Tab in
   require (not (S.run_focused field)) "Tab moves focus to the horizon field";
   let field_view = S.view env geom field in
-  require (Option.is_some field_view.Screen.cursor)
+  require
+    (Option.is_some field_view.Screen.cursor)
     "the physical caret exists only on the focused horizon field";
   expect_error "editing focus never queries" (S.result env field);
   let back_on_run, _ = press env geom field `Enter in
@@ -386,36 +396,35 @@ let check_screen () =
   expect_error "advancing focus is not an explicit Run" (S.result env back_on_run);
   let ran, _ = press env geom back_on_run `Enter in
   let snapshot = get (S.result env ran) in
-  require (snapshot.R.measure = "jpy" && Z.equal (R.final_at_horizon snapshot) (z 1630))
+  require
+    (snapshot.R.measure = "jpy" && Z.equal (R.final_at_horizon snapshot) (z 1630))
     "explicit Run answers in the selected Measure, not the Shell's ambient Measure";
   require
-    (List.for_all
-       (fun (p : R.point) -> p.R.date <= S.assumption ran)
-       snapshot.R.points)
+    (List.for_all (fun (p : R.point) -> p.R.date <= S.assumption ran) snapshot.R.points)
     "the answer follows the typed assumption exactly";
-  require (Option.is_none (S.view env geom ran).Screen.cursor)
-    "no caret while Run has focus";
+  require (Option.is_none (S.view env geom ran).Screen.cursor) "no caret while Run has focus";
   (* Editing the assumption invalidates the prior numbers. *)
   let editing, _ = press env geom ran `Tab in
   let edited, _ = press env geom editing `Backspace in
-  require (S.assumption edited <> "2026-10-31")
-    "Backspace edits the seeded assumption text";
-  expect_error "editing the assumption invalidates the requested answer"
-    (S.result env edited);
+  require (S.assumption edited <> "2026-10-31") "Backspace edits the seeded assumption text";
+  expect_error "editing the assumption invalidates the requested answer" (S.result env edited);
   require (S.run_focused edited = false) "editing keeps the field focused";
   (* Explicit invalid and past horizons are visible refusals with the input kept. *)
   let typed = ref editing in
   List.iter
-    (fun _ -> let t, _ = press env geom !typed `Backspace in typed := t)
+    (fun _ ->
+      let t, _ = press env geom !typed `Backspace in
+      typed := t)
     (List.init (String.length (S.assumption editing)) (fun _ -> ()));
   List.iter
-    (fun ch -> let t, _ = press env geom !typed (`ASCII ch) in typed := t)
+    (fun ch ->
+      let t, _ = press env geom !typed (`ASCII ch) in
+      typed := t)
     ("2026-13-01" |> String.to_seq |> List.of_seq);
   let bad, _ = press env geom !typed `Enter in
   expect_error "invalid explicit assumption refuses" (S.result env bad);
   require (S.assumption bad = "2026-13-01") "a refused assumption keeps the typed text";
-  require (has (rows_of (S.view env geom bad)) "2026-13-01")
-    "the refused assumption stays visible";
+  require (has (rows_of (S.view env geom bad)) "2026-13-01") "the refused assumption stays visible";
   let past_env = screen_env ~selected_day:"2026-09-10" flow_book in
   let past_open = S.enter ~focus_day:"2026-09-10" (S.create ()) in
   require (S.assumption past_open = "2026-09-30") "month end follows the focus day";
@@ -435,17 +444,18 @@ let check_screen () =
   (* m resets to the current Shell focus month end, focusing Run and clearing results. *)
   let feb_env = screen_env ~selected_day:"2026-02-10" flow_book in
   let feb, _ = press feb_env geom ran (`ASCII 'm') in
-  require (S.assumption feb = "2026-02-28")
+  require
+    (S.assumption feb = "2026-02-28")
     "m uses the current calendar focus day, not the entry day";
   require (S.run_focused feb) "m focuses Run";
   expect_error "m clears the requested answer" (S.result feb_env feb);
   let leap_env = screen_env ~selected_day:"2028-02-11" flow_book in
   let leap, _ = press leap_env geom ran (`ASCII 'm') in
-  require (S.assumption leap = "2028-02-29")
-    "m uses the Gregorian month length of the focus month";
+  require (S.assumption leap = "2028-02-29") "m uses the Gregorian month length of the focus month";
   (* Re-entry keeps an edited draft; only m resets it. *)
   let draft = S.enter ~focus_day:"2026-10-16" editing in
-  require (S.assumption draft = S.assumption editing)
+  require
+    (S.assumption draft = S.assumption editing)
     "re-entry preserves an edited assumption draft";
   (* A book change or reload clears the requested numbers; Run is required again. *)
   let changed, _ = S.book_changed ~before:flow_book ~after:flow_book ran in
@@ -463,8 +473,8 @@ let check_screen () =
       press env geom ran (`ASCII 'j');
       press env geom ran (`Page `Down);
       press env geom ran `End;
-      (S.saved env geom (Ok ()) ran);
-      (S.reloaded env ran);
+      S.saved env geom (Ok ()) ran;
+      S.reloaded env ran;
     ];
   ()
 
@@ -477,65 +487,77 @@ let check_configuration_and_resize () =
     (fun (width, height) ->
       let geom = geometry (width, height) in
       let missing_env = screen_env ~balance_view:None flow_book in
-      let missing = fst (press missing_env geom (S.enter ~focus_day:"2026-10-16" (S.create ())) `Enter) in
+      let missing =
+        fst (press missing_env geom (S.enter ~focus_day:"2026-10-16" (S.create ())) `Enter)
+      in
       expect_error "missing selection refuses" (S.result missing_env missing);
-      let malformed_env =
-        screen_env ~balance_view:(Some "wallet\tjpy\nbad row\n") flow_book in
+      let malformed_env = screen_env ~balance_view:(Some "wallet\tjpy\nbad row\n") flow_book in
       let malformed =
-        fst (press malformed_env geom (S.enter ~focus_day:"2026-10-16" (S.create ())) `Enter) in
+        fst (press malformed_env geom (S.enter ~focus_day:"2026-10-16" (S.create ())) `Enter)
+      in
       expect_error "malformed selection refuses" (S.result malformed_env malformed);
       let empty_env = screen_env ~balance_view:(Some "") flow_book in
       let empty =
-        fst (press empty_env geom (S.enter ~focus_day:"2026-10-16" (S.create ())) `Enter) in
+        fst (press empty_env geom (S.enter ~focus_day:"2026-10-16" (S.create ())) `Enter)
+      in
       expect_error "empty selection refuses" (S.result empty_env empty);
       (* Errors are visible and wrapped without stale success numbers. *)
       let rows = rows_of (S.view malformed_env geom malformed) in
-      require (List.length rows <= snd geom.Screen.content)
+      require
+        (List.length rows <= snd geom.Screen.content)
         (Printf.sprintf "error rows must fit %dx%d" width height);
       List.iter
         (fun (_, text) ->
-          require (String.length text <= fst geom.Screen.content)
+          require
+            (String.length text <= fst geom.Screen.content)
             (Printf.sprintf "error row too wide at %dx%d" width height))
         rows)
     dims;
   (* A focus field stays visible and caret-bounded at the smallest sizes. *)
   let env = screen_env flow_book in
-  let geometries = List.concat_map (fun dimensions ->
-    let geom = geometry dimensions in
-    [ geom; { geom with
-        body = (fst geom.body, max 0 (snd geom.body - 1));
-        content = (fst geom.content, max 0 (snd geom.content - 1)) } ]) dims in
+  let geometries =
+    List.concat_map
+      (fun dimensions ->
+        let geom = geometry dimensions in
+        [
+          geom;
+          {
+            geom with
+            body = (fst geom.body, max 0 (snd geom.body - 1));
+            content = (fst geom.content, max 0 (snd geom.content - 1));
+          };
+        ])
+      dims
+  in
   List.iter
     (fun (geom : Screen.geometry) ->
       let width, height = geom.screen in
-      let field, _ =
-        press env geom (S.enter ~focus_day:"2026-10-16" (S.create ())) `Tab in
+      let field, _ = press env geom (S.enter ~focus_day:"2026-10-16" (S.create ())) `Tab in
       let view = S.view env geom field in
       (match view.Screen.cursor with
       | None -> failwith (Printf.sprintf "missing caret at %dx%d" width height)
       | Some (col, row) ->
           require
-            (row >= 0 && row < snd geom.Screen.body && col >= 0
-            && col < fst geom.Screen.body)
+            (row >= 0 && row < snd geom.Screen.body && col >= 0 && col < fst geom.Screen.body)
             (Printf.sprintf "caret outside the Shell body at %dx%d" width height));
-      require (has (rows_of view) (S.assumption field))
-        "the focused assumption stays visible")
+      require (has (rows_of view) (S.assumption field)) "the focused assumption stays visible")
     geometries;
   (* Scrolling reaches the last painted result rows while Run keeps focus. *)
   let geom = geometry (32, 9) in
   let opened = S.enter ~focus_day:"2026-10-16" (S.create ()) in
   let ran, _ = press env geom opened `Enter in
   let before = joined (rows_of (S.view env geom ran)) in
-  require (not (contains before "1,500 jpy"))
+  require
+    (not (contains before "1,500 jpy"))
     "the first viewport has not painted the conditional quantity";
   let scrolled, _ = press env geom ran (`ASCII 'j') in
   let after_j = joined (rows_of (S.view env geom scrolled)) in
   require (after_j <> before) "j scrolls the result";
   let paged, _ = press env geom scrolled (`Page `Down) in
-  require (joined (rows_of (S.view env geom paged)) <> after_j)
-    "Page Down scrolls the result";
+  require (joined (rows_of (S.view env geom paged)) <> after_j) "Page Down scrolls the result";
   let ended, _ = press env geom ran `End in
-  require (contains (joined (rows_of (S.view env geom ended))) "1,500 jpy")
+  require
+    (contains (joined (rows_of (S.view env geom ended))) "1,500 jpy")
     "End reaches the exact conditional low-water quantity";
   ()
 
@@ -548,7 +570,6 @@ let self_check () =
   check_screen ();
   check_configuration_and_resize ();
   print_endline
-    "PASS: Liquidity keeps both unconditional statements UNKNOWN, answers only after \
-     an explicit dated assumption, and exactly covers selected balances, conditional \
-     day paths, low-water, evidence, scale, display limit, draft invalidation and \
-     no-write screen transitions."
+    "PASS: Liquidity keeps both unconditional statements UNKNOWN, answers only after an explicit \
+     dated assumption, and exactly covers selected balances, conditional day paths, low-water, \
+     evidence, scale, display limit, draft invalidation and no-write screen transitions."

@@ -7,12 +7,7 @@ module Cal = Daily_calendar
 module A = Daily_draft
 module Fm = Daily_form
 
-type cadence =
-  | Monthly
-  | Every_two_months
-  | Every_three_months
-  | Every_six_months
-  | Yearly
+type cadence = Monthly | Every_two_months | Every_three_months | Every_six_months | Yearly
 
 let cadence_months = function
   | Monthly -> 1
@@ -28,8 +23,7 @@ let cadence_label = function
   | Every_six_months -> "Every 6 months"
   | Yearly -> "Yearly"
 
-let cadence_options =
-  [ "Monthly"; "Every 2 months"; "Every 3 months"; "Every 6 months"; "Yearly" ]
+let cadence_options = [ "Monthly"; "Every 2 months"; "Every 3 months"; "Every 6 months"; "Yearly" ]
 
 let cadence_of_index = function
   | 1 -> Every_two_months
@@ -40,9 +34,7 @@ let cadence_of_index = function
 
 (* A nominal occurrence with no such calendar day stays unresolved: never clamped. *)
 type slot = { year : int; month : int; nominal_day : int }
-
 type candidate = Dated of string | Missing of slot
-
 type phase = Horizon | Custom | Resolve
 
 (* Monitored replenishment: cadence is fixed by the source plan. *)
@@ -73,103 +65,102 @@ type t = {
   notice : string;
 }
 
-type outcome =
-  | Updated of t
-  | Closed
-  | Publish of B.plan list * string
+type outcome = Updated of t | Closed | Publish of B.plan list * string
 
 let valid_date date =
   match A.normalize_date date with
   | Ok canonical -> canonical = date && A.is_valid_canonical_date canonical
   | Error _ -> false
 
-let default_through day =
-  match Cal.shift_months day 6 with
-  | Ok target -> target
-  | Error _ -> day
+let default_through day = match Cal.shift_months day 6 with Ok target -> target | Error _ -> day
 
 (* A monitored cadence preselects the choice; other month counts have no form. *)
 let create ?cadence_months ?observed_at ~book ~base_revision ~source () =
-  let preset = match cadence_months with
+  let preset =
+    match cadence_months with
     | None -> Some 0
-    | Some 1 -> Some 0 | Some 2 -> Some 1 | Some 3 -> Some 2 | Some 6 -> Some 3 | Some 12 -> Some 4
-    | Some _ -> None in
+    | Some 1 -> Some 0
+    | Some 2 -> Some 1
+    | Some 3 -> Some 2
+    | Some 6 -> Some 3
+    | Some 12 -> Some 4
+    | Some _ -> None
+  in
   if not (List.exists (( = ) source) (B.open_plans book)) then
     Error "Selected Scheduled plan is not open."
-  else match preset with
-  | None -> Error "This monitoring pattern cannot be extended automatically."
-  | Some selected when cadence_months <> None -> (
-      match observed_at with
-      | None -> Error "An explicit observation date is required to extend a monitored plan."
-      | Some observed_at when valid_date observed_at ->
-          Ok
-            {
-              book;
-              source;
-              base_revision;
-              kind =
-                Extend
-                  {
-                    observed_at;
-                    horizon = 0;
-                    custom = "";
-                    date_input = "";
-                    phase = Horizon;
-                    limit = None;
-                    candidates = [];
-                    pending = [];
-                    resolutions = [];
-                  };
-              generated = None;
-              through_day = "";
-              cadence = cadence_of_index selected;
-              choice = 0;
-              scroll = 0;
-              notice = "";
-            }
-      | Some _ -> Error "Observation date must be a real Gregorian date (YYYY-MM-DD).")
-  | Some selected ->
-    let through_val = default_through source.day in
-    let form =
-      Form.create ~id:"scheduled_generate" ~title:"Scheduled / Generate Plans"
-        ~summary:
-          [
-            "Source: " ^ O.visible source.id ^ " (" ^ source.day ^ ")";
-            "Proposes explicit dates; no recurrence rule is persisted.";
-          ]
-        ~fields:
-          [
-            Form.text_field ~id:"through" ~label:"Through (exclusive)" ~value:through_val ();
-            Form.choice_field ~id:"cadence" ~label:"Cadence" ~options:cadence_options ~selected ();
-            Form.action_buttons ~confirm:"Generate Preview" ~cancel:"Cancel" ();
-          ]
-        ()
-    in
-    Ok
-      {
-        book;
-        source;
-        base_revision;
-        kind = General form;
-        generated = None;
-        through_day = through_val;
-        cadence = cadence_of_index selected;
-        choice = 0;
-        scroll = 0;
-        notice = "";
-      }
+  else
+    match preset with
+    | None -> Error "This monitoring pattern cannot be extended automatically."
+    | Some selected when cadence_months <> None -> (
+        match observed_at with
+        | None -> Error "An explicit observation date is required to extend a monitored plan."
+        | Some observed_at when valid_date observed_at ->
+            Ok
+              {
+                book;
+                source;
+                base_revision;
+                kind =
+                  Extend
+                    {
+                      observed_at;
+                      horizon = 0;
+                      custom = "";
+                      date_input = "";
+                      phase = Horizon;
+                      limit = None;
+                      candidates = [];
+                      pending = [];
+                      resolutions = [];
+                    };
+                generated = None;
+                through_day = "";
+                cadence = cadence_of_index selected;
+                choice = 0;
+                scroll = 0;
+                notice = "";
+              }
+        | Some _ -> Error "Observation date must be a real Gregorian date (YYYY-MM-DD).")
+    | Some selected ->
+        let through_val = default_through source.day in
+        let form =
+          Form.create ~id:"scheduled_generate" ~title:"Scheduled / Generate Plans"
+            ~summary:
+              [
+                "Source: " ^ O.visible source.id ^ " (" ^ source.day ^ ")";
+                "Proposes explicit dates; no recurrence rule is persisted.";
+              ]
+            ~fields:
+              [
+                Form.text_field ~id:"through" ~label:"Through (exclusive)" ~value:through_val ();
+                Form.choice_field ~id:"cadence" ~label:"Cadence" ~options:cadence_options ~selected
+                  ();
+                Form.action_buttons ~confirm:"Generate Preview" ~cancel:"Cancel" ();
+              ]
+            ()
+        in
+        Ok
+          {
+            book;
+            source;
+            base_revision;
+            kind = General form;
+            generated = None;
+            through_day = through_val;
+            cadence = cadence_of_index selected;
+            choice = 0;
+            scroll = 0;
+            notice = "";
+          }
 
 let base_revision t = t.base_revision
-
 let with_publish_error t msg = { t with notice = msg; choice = 0 }
-
-let dimensions (width, height) = max 0 width, max 0 height
+let dimensions (width, height) = (max 0 width, max 0 height)
 
 let horizon_labels =
   [ "Next occurrence"; "Next 3 occurrences"; "Next 6 occurrences"; "Custom date..." ]
 
 let month_index year month = (year * 12) + (month - 1)
-
 let month_start year month = Printf.sprintf "%04d-%02d-01" year month
 
 (* The limit is the first day of the month after the [count]-th cadence slot. *)
@@ -192,20 +183,27 @@ let extend_limit t e =
   match e.horizon with
   | 3 ->
       if not (valid_date e.custom) then Error "Enter a real Gregorian date (YYYY-MM-DD)."
-      else if e.custom <= e.observed_at then Error "Fill limit must be strictly after the observation date."
-      else if e.custom <= t.source.day then Error "Fill limit must be strictly after the source date."
+      else if e.custom <= e.observed_at then
+        Error "Fill limit must be strictly after the observation date."
+      else if e.custom <= t.source.day then
+        Error "Fill limit must be strictly after the source date."
       else Ok e.custom
   | horizon -> (
-      match horizon_limit ~cadence_months:(cadence_months t.cadence) ~source_day:t.source.day horizon with
+      match
+        horizon_limit ~cadence_months:(cadence_months t.cadence) ~source_day:t.source.day horizon
+      with
       | Ok limit when limit <= e.observed_at ->
-          Error "This source's fill horizon ends at or before the observation date; choose Custom date."
+          Error
+            "This source's fill horizon ends at or before the observation date; choose Custom date."
       | result -> result)
 
 (* Occurrences come from the original source anchor; a missing nominal day is
    unresolved, never clamped into an invented date. *)
 let extend_candidates ~observed_at ~limit ~cadence_months ~source_day =
   match (Cal.parts source_day, Cal.parts observed_at, Cal.parts limit) with
-  | Ok (source_year, source_month, nominal_day), Ok (observed_year, observed_month, _), Ok (limit_year, limit_month, _) ->
+  | ( Ok (source_year, source_month, nominal_day),
+      Ok (observed_year, observed_month, _),
+      Ok (limit_year, limit_month, _) ) ->
       let observed_index = month_index observed_year observed_month in
       let limit_index = month_index limit_year limit_month in
       let rec loop k acc =
@@ -248,11 +246,13 @@ let extend_plans ~new_id ~(source : B.plan) candidates resolutions =
                 changes = source.changes;
                 paid_by = None;
                 cancelled_on = None;
-              } : B.plan))
+              }
+               : B.plan))
            days)
 
 let typed value = function
-  | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 -> Some (value ^ String.make 1 c)
+  | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
+      Some (value ^ String.make 1 c)
   | `Key (`Uchar c, []) when O.printable_uchar c -> Some (value ^ O.utf8 c)
   | `Key (`Backspace, []) -> Some (Fm.backspace value)
   | _ -> None
@@ -272,7 +272,7 @@ let extend_preview t e limit resolutions plans =
 let enter_extend ~new_id t e =
   match extend_limit t e with
   | Error message -> Updated { t with notice = message }
-  | Ok limit ->
+  | Ok limit -> (
       let candidates =
         extend_candidates ~observed_at:e.observed_at ~limit
           ~cadence_months:(cadence_months t.cadence) ~source_day:t.source.day
@@ -285,7 +285,8 @@ let enter_extend ~new_id t e =
         in
         let missing =
           List.filter_map
-            (function Missing slot when not (List.mem_assoc slot resolutions) -> Some slot | _ -> None)
+            (function
+              | Missing slot when not (List.mem_assoc slot resolutions) -> Some slot | _ -> None)
             candidates
         in
         match missing with
@@ -297,31 +298,42 @@ let enter_extend ~new_id t e =
             Updated
               {
                 t with
-                kind = Extend { e with phase = Resolve; limit = Some limit; date_input = ""; candidates; pending; resolutions };
+                kind =
+                  Extend
+                    {
+                      e with
+                      phase = Resolve;
+                      limit = Some limit;
+                      date_input = "";
+                      candidates;
+                      pending;
+                      resolutions;
+                    };
                 notice = "";
-              }
+              })
 
 let accept_resolution ~new_id t e text =
   match e.limit with
   | None -> Updated t
-  | Some limit ->
+  | Some limit -> (
       let message =
         if not (valid_date text) then Some "Enter a real Gregorian date (YYYY-MM-DD)."
-        else if text < e.observed_at then Some "Resolved date must not precede the observation date."
+        else if text < e.observed_at then
+          Some "Resolved date must not precede the observation date."
         else if text >= limit then Some "Resolved date must be before the fill limit."
         else None
       in
-      (match message with
+      match message with
       | Some message -> Updated { t with notice = message }
       | None -> (
           match e.pending with
           | [] -> Updated t
           | slot :: rest ->
               let resolutions = (slot, text) :: e.resolutions in
-              if rest = [] then (
+              if rest = [] then
                 match extend_plans ~new_id ~source:t.source e.candidates resolutions with
                 | Error message -> Updated { t with notice = message }
-                | Ok plans -> extend_preview t { e with date_input = "" } limit resolutions plans)
+                | Ok plans -> extend_preview t { e with date_input = "" } limit resolutions plans
               else
                 Updated
                   {
@@ -343,7 +355,8 @@ let handle_extend ~new_id t e input =
       if e.horizon = 3 then Updated { t with kind = Extend { e with phase = Custom }; notice = "" }
       else enter_extend ~new_id t e
   | Horizon, _ -> Updated t
-  | Custom, `Key (`Escape, []) -> Updated { t with kind = Extend { e with phase = Horizon }; notice = "" }
+  | Custom, `Key (`Escape, []) ->
+      Updated { t with kind = Extend { e with phase = Horizon }; notice = "" }
   | Custom, `Key (`Enter, []) -> enter_extend ~new_id t e
   | Custom, input -> (
       match typed e.custom input with
@@ -391,25 +404,27 @@ let generate_occurrences ~new_id ~source ~cadence ~through_day =
 let validate_and_generate ~new_id t =
   let through_day = text t "through" in
   let cadence = selected_cadence t in
-  if not (valid_date through_day) then
-    Error "Enter a real Gregorian date (YYYY-MM-DD)."
+  if not (valid_date through_day) then Error "Enter a real Gregorian date (YYYY-MM-DD)."
   else if through_day <= t.source.day then
     Error "Through date must be strictly later than source date."
   else
     let plans = generate_occurrences ~new_id ~source:t.source ~cadence ~through_day in
-    if plans = [] then
-      Error "No occurrences generated before the through date."
-    else
-      Ok (through_day, cadence, plans)
+    if plans = [] then Error "No occurrences generated before the through date."
+    else Ok (through_day, cadence, plans)
 
 let format_plan_changes book (plan : B.plan) =
   let positive =
     List.filter (fun (_, q) -> Z.sign q > 0) plan.changes
-    |> List.map (fun (l, q) -> Printf.sprintf "+%s %s [%s]" (B.format book plan.measure q) (O.visible plan.measure) (O.visible l))
+    |> List.map (fun (l, q) ->
+        Printf.sprintf "+%s %s [%s]" (B.format book plan.measure q) (O.visible plan.measure)
+          (O.visible l))
   in
   let negative =
     List.filter (fun (_, q) -> Z.sign q < 0) plan.changes
-    |> List.map (fun (l, q) -> Printf.sprintf "-%s %s [%s]" (B.format book plan.measure (Z.neg q)) (O.visible plan.measure) (O.visible l))
+    |> List.map (fun (l, q) ->
+        Printf.sprintf "-%s %s [%s]"
+          (B.format book plan.measure (Z.neg q))
+          (O.visible plan.measure) (O.visible l))
   in
   String.concat ", " (negative @ positive)
 
@@ -426,18 +441,12 @@ let preview_rows t plans =
       plans
 
 let viewport ~dimensions:(width, height) ~width_of t =
-  let rows =
-    match t.generated with
-    | Some plans -> preview_rows t plans
-    | None -> []
-  in
+  let rows = match t.generated with Some plans -> preview_rows t plans | None -> [] in
   let wrapped = List.concat_map (O.wrap_text ~width_of (max 1 (width - 6))) rows in
   let view =
     Panel.window
       ~capacity:(Panel.capacity ~height:(max 0 (height - 2)) ~heading:false)
-      ~count:(List.length wrapped)
-      ~scroll:t.scroll
-      ~selected:None
+      ~count:(List.length wrapped) ~scroll:t.scroll ~selected:None
   in
   (wrapped, view)
 
@@ -452,8 +461,7 @@ let handle ~new_id ~blocked ~dimensions:((width, height) as dims) ~width_of t in
       match input with
       | `Key ((`Escape | `ASCII 'q' | `ASCII 'Q'), []) ->
           updated { t with generated = None; choice = 0; scroll = 0; notice = "" }
-      | `Key ((`Tab | `Arrow `Right), []) ->
-          updated { t with choice = (t.choice + 1) mod 2 }
+      | `Key ((`Tab | `Arrow `Right), []) -> updated { t with choice = (t.choice + 1) mod 2 }
       | `Key (`Tab, [ `Shift ]) | `Key (`Arrow `Left, []) ->
           updated { t with choice = (t.choice + 1) mod 2 }
       | `Key (`ASCII 'j', []) | `Key (`Arrow `Down, []) -> move 1
@@ -462,17 +470,16 @@ let handle ~new_id ~blocked ~dimensions:((width, height) as dims) ~width_of t in
       | `Key (`Page `Down, []) -> move (max 1 view.capacity)
       | `Key (`Home, []) -> updated { t with scroll = 0 }
       | `Key (`End, []) -> updated { t with scroll = view.last }
-      | `Key (`Enter, []) ->
-          if t.choice = 0 then
-            Closed
+      | `Key (`Enter, []) -> (
+          if t.choice = 0 then Closed
           else if blocked then
             updated { t with notice = "Writes stopped; generated drafts retained." }
-          else if width < 46 || height < 14 || view.capacity = 0 || (height < 16 && view.last > 0) then
-            updated { t with notice = "Enlarge terminal to review all generated occurrences." }
+          else if width < 46 || height < 14 || view.capacity = 0 || (height < 16 && view.last > 0)
+          then updated { t with notice = "Enlarge terminal to review all generated occurrences." }
           else if view.start < view.last then
             updated { t with notice = "Review to the end before publishing." }
           else
-            (match t.generated with
+            match t.generated with
             | Some plans -> Publish (plans, t.base_revision)
             | None -> updated t)
       | _ -> updated t)
@@ -483,7 +490,16 @@ let handle ~new_id ~blocked ~dimensions:((width, height) as dims) ~width_of t in
           match validate_and_generate ~new_id t with
           | Error message -> updated { t with notice = message }
           | Ok (through_day, cadence, plans) ->
-              updated { t with generated = Some plans; through_day; cadence; choice = 0; scroll = 0; notice = "" })
+              updated
+                {
+                  t with
+                  generated = Some plans;
+                  through_day;
+                  cadence;
+                  choice = 0;
+                  scroll = 0;
+                  notice = "";
+                })
       | _ -> (
           match Form.handle_input form input with
           | Form.Cancel -> Closed
@@ -493,12 +509,20 @@ let handle ~new_id ~blocked ~dimensions:((width, height) as dims) ~width_of t in
               match validate_and_generate ~new_id t with
               | Error message -> updated { t with notice = message }
               | Ok (through_day, cadence, plans) ->
-                  updated { t with generated = Some plans; through_day; cadence; choice = 0; scroll = 0; notice = "" })))
+                  updated
+                    {
+                      t with
+                      generated = Some plans;
+                      through_day;
+                      cadence;
+                      choice = 0;
+                      scroll = 0;
+                      notice = "";
+                    })))
 
 let footer t =
   match (t.generated, t.kind) with
-  | Some _, Extend _ ->
-      [ "Tab choose  Enter confirm"; "PgUp/Dn/End review  Esc edit" ]
+  | Some _, Extend _ -> [ "Tab choose  Enter confirm"; "PgUp/Dn/End review  Esc edit" ]
   | Some _, _ ->
       [
         "Tab/Left/Right select  Enter confirm  Esc cancel";
@@ -519,7 +543,8 @@ let footer t =
 let extend_rows ~width ~width_of t e =
   let room = max 1 (width - 6) in
   let plain lines =
-    List.map (fun text -> (O.Plain, text))
+    List.map
+      (fun text -> (O.Plain, text))
       (List.concat_map (fun line -> O.wrap_text ~width_of room line) lines)
   in
   let info =
@@ -546,7 +571,9 @@ let extend_rows ~width ~width_of t e =
         ((if selected then O.Active else O.Plain), O.clip_text ~width_of room text)
       in
       (info @ List.map row [ 0; 1; 2; 3 ], Some (List.length info + e.horizon))
-  | Custom -> (info @ [ (O.Plain, ""); field_line "Custom fill limit: " e.custom ], Some (List.length info + 1))
+  | Custom ->
+      ( info @ [ (O.Plain, ""); field_line "Custom fill limit: " e.custom ],
+        Some (List.length info + 1) )
   | Resolve -> (
       match e.pending with
       | [] -> (info, None)
@@ -554,8 +581,8 @@ let extend_rows ~width ~width_of t e =
           let nominal =
             plain
               [
-                Printf.sprintf "Nominal day %d does not exist in %04d-%02d." slot.nominal_day slot.year
-                  slot.month;
+                Printf.sprintf "Nominal day %d does not exist in %04d-%02d." slot.nominal_day
+                  slot.year slot.month;
               ]
           in
           let rows =
@@ -581,13 +608,16 @@ let screen ~dimensions:((width, height) as dims) ~width_of t =
       | None, Extend e ->
           let rows, active = extend_rows ~width ~width_of t e in
           let rows = window_rows ~height:(max 0 (height - 1)) rows active in
-          Panel.frame_rows ~width_of ~width ~height:(max 0 (height - 1)) ~focused:true
-            ~title:"Scheduled / Extend Plan" rows
+          Panel.frame_rows ~width_of ~width
+            ~height:(max 0 (height - 1))
+            ~focused:true ~title:"Scheduled / Extend Plan" rows
           @ [ (O.Status, O.clip_text ~width_of width t.notice) ]
       | None, General form ->
-          Panel.frame_rows ~width_of ~width ~height:(max 0 (height - 1)) ~focused:true
-            ~title:(Form.title form)
-            (Form.render_rows ~width:(max 0 (width - 6))
+          Panel.frame_rows ~width_of ~width
+            ~height:(max 0 (height - 1))
+            ~focused:true ~title:(Form.title form)
+            (Form.render_rows
+               ~width:(max 0 (width - 6))
                ~height:(Panel.capacity ~height:(max 0 (height - 1)) ~heading:false)
                ~width_of form)
           @ [ (O.Status, O.clip_text ~width_of width t.notice) ]
@@ -599,8 +629,9 @@ let screen ~dimensions:((width, height) as dims) ~width_of t =
             | General _ -> "Scheduled / Generate / Preview"
           in
           let frame =
-            Panel.frame ~width_of ~width ~height:(max 0 (height - 2)) ~focused:true ~title
-              ~scroll:view.start ~selected:None content
+            Panel.frame ~width_of ~width
+              ~height:(max 0 (height - 2))
+              ~focused:true ~title ~scroll:view.start ~selected:None content
           in
           let action_text =
             if t.choice = 0 then " [Cancel]  Publish all" else " Cancel  [Publish all]"
@@ -612,7 +643,7 @@ let screen ~dimensions:((width, height) as dims) ~width_of t =
             ]
     in
     List.filteri (fun index _ -> index < height) rows
-    |> List.map (fun (style, text) -> style, O.pad ~width_of width text)
+    |> List.map (fun (style, text) -> (style, O.pad ~width_of width text))
 
 let source t = t.source
 let selected_months t = cadence_months (selected_cadence t)

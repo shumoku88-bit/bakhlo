@@ -15,5 +15,9 @@ let () =
     Scenarios.run ~width_of ();
     Terminal_checks.run ()
   with
-  | Daily_file.Refused why -> prerr_endline ("self-check failed: " ^ why); exit 1
-  | exn -> prerr_endline ("self-check exception: " ^ Printexc.to_string exn); exit 1
+  | Daily_file.Refused why ->
+      prerr_endline ("self-check failed: " ^ why);
+      exit 1
+  | exn ->
+      prerr_endline ("self-check exception: " ^ Printexc.to_string exn);
+      exit 1

@@ -33,8 +33,11 @@ let scale_for ?(intervals = 4) values =
       let high = Z.mul (Z.cdiv seed_high step) step in
       let high = if Z.leq high low then Z.add low step else high in
       let count = Z.to_int (Z.div (Z.sub high low) step) + 1 in
-      { range = { low; high }; step;
-        ticks = List.init count (fun i -> Z.add low (Z.mul (Z.of_int i) step)) }
+      {
+        range = { low; high };
+        step;
+        ticks = List.init count (fun i -> Z.add low (Z.mul (Z.of_int i) step));
+      }
 
 let row_for_value height range value =
   if height <= 1 || Z.leq range.high range.low then 0
@@ -43,7 +46,7 @@ let row_for_value height range value =
       Z.ediv (Z.mul (Z.sub value range.low) (Z.of_int (height - 1))) (Z.sub range.high range.low)
     in
     let offset = Z.abs offset in
-    (height - 1) - (if Z.lt offset (Z.of_int (height - 1)) then Z.to_int offset else height - 1)
+    height - 1 - if Z.lt offset (Z.of_int (height - 1)) then Z.to_int offset else height - 1
 
 let x_for_index width count index =
   if width <= 1 || count <= 1 then 0 else min (width - 1) (index * (width - 1) / (count - 1))
@@ -53,9 +56,15 @@ let interpolate left right numerator denominator =
   else Z.add left (Z.ediv (Z.mul (Z.sub right left) (Z.of_int numerator)) (Z.of_int denominator))
 
 let dot_value dx dy =
-  match dx, dy with
-  | 0, 0 -> 1 | 0, 1 -> 2 | 0, 2 -> 4 | 1, 0 -> 8
-  | 1, 1 -> 16 | 1, 2 -> 32 | 0, 3 -> 64 | 1, 3 -> 128
+  match (dx, dy) with
+  | 0, 0 -> 1
+  | 0, 1 -> 2
+  | 0, 2 -> 4
+  | 1, 0 -> 8
+  | 1, 1 -> 16
+  | 1, 2 -> 32
+  | 0, 3 -> 64
+  | 1, 3 -> 128
   | _ -> 0
 
 let glyph mask = if mask = 0 then " " else O.utf8 (Uchar.of_int (0x2800 + mask))
@@ -67,7 +76,7 @@ let braille_glyph sample range width height cell_x cell_y =
   let row value = row_for_value sub_height range value in
   let mask = ref 0 in
   for dx = 0 to 1 do
-    let sub_x = cell_x * 2 + dx in
+    let sub_x = (cell_x * 2) + dx in
     match sample sub_width sub_x with
     | None -> ()
     | Some value ->
@@ -79,7 +88,7 @@ let braille_glyph sample range width height cell_x cell_y =
         let b = if sub_x + 1 >= sub_width then current else toward (sample sub_width (sub_x + 1)) in
         let low = min current (min a b) and high = max current (max a b) in
         for dy = 0 to 3 do
-          let sub_y = cell_y * 4 + dy in
+          let sub_y = (cell_y * 4) + dy in
           if low <= sub_y && sub_y <= high then mask := !mask + dot_value dx dy
         done
   done;
@@ -97,7 +106,7 @@ let qualified_sample values joins width x =
     if remainder = 0 then values.(index)
     else if not (index < Array.length joins && joins.(index)) then None
     else
-      match values.(index), values.(index + 1) with
+      match (values.(index), values.(index + 1)) with
       | Some left, Some right -> Some (interpolate left right remainder denominator)
       | _ -> None
 
@@ -109,7 +118,9 @@ let qualified_rows ~width ~height ~values ~joins ~selected ~range ~connect ~grid
   let markers =
     List.filter_map Fun.id
       (List.init count (fun i ->
-           Option.map (fun v -> (x_for_index width count i, row_for_value height range v)) values.(i)))
+           Option.map
+             (fun v -> (x_for_index width count i, row_for_value height range v))
+             values.(i)))
   in
   let selected_value = if selected >= 0 && selected < count then values.(selected) else None in
   let selected_x = x_for_index width count selected in
@@ -119,9 +130,9 @@ let qualified_rows ~width ~height ~values ~joins ~selected ~range ~connect ~grid
         (List.init width (fun col ->
              let base = if connect then braille_glyph sample range width height col row else " " in
              if selected_value <> None && col = selected_x && selected_y = Some row then "◆"
-             else if col = selected_x then (if base = " " then "│" else base)
+             else if col = selected_x then if base = " " then "│" else base
              else if selected_y <> None && selected_y = Some row && abs (col - selected_x) <= 2 then
-               (if base = " " then "─" else base)
+               if base = " " then "─" else base
              else if List.mem (col, row) markers then "●"
              else if base <> " " then base
              else if List.mem row grid_rows then "┄"
@@ -146,26 +157,33 @@ let line_rows ~width ~height ~values ~selected ~range ~grid_rows =
   let selected_x = x_for_index width count selected in
   let selected_y =
     if count = 0 then 0
-    else row_for_value height range values.(if selected >= 0 && selected < count then selected else count - 1)
+    else
+      row_for_value height range
+        values.(if selected >= 0 && selected < count then selected else count - 1)
   in
   List.init height (fun row ->
       String.concat ""
         (List.init width (fun col ->
              let base = braille_glyph sample range width height col row in
              if col = selected_x && row = selected_y then "◆"
-             else if col = selected_x then (if base = " " then "│" else base)
-             else if row = selected_y && abs (col - selected_x) <= 2 then (if base = " " then "─" else base)
+             else if col = selected_x then if base = " " then "│" else base
+             else if row = selected_y && abs (col - selected_x) <= 2 then
+               if base = " " then "─" else base
              else if List.mem row grid_rows && base = " " then "┄"
              else base)))
 
 let axis_width ~width_of width scale label =
-  min (List.fold_left (fun widest tick -> max widest (width_of (label tick))) 3 scale.ticks) (max 3 (width / 4))
+  min
+    (List.fold_left (fun widest tick -> max widest (width_of (label tick))) 3 scale.ticks)
+    (max 3 (width / 4))
 
 let with_value_axis ~width_of ~axis ~height ~scale ~label ?(note = fun _ -> "") rows =
   let rows = Array.of_list rows in
   List.init height (fun row ->
       let prefix =
-        match List.find_opt (fun tick -> row_for_value height scale.range tick = row) scale.ticks with
+        match
+          List.find_opt (fun tick -> row_for_value height scale.range tick = row) scale.ticks
+        with
         | Some tick ->
             let value = label tick in
             O.pad_left ~width_of axis (if width_of value <= axis then value else "…") ^ " ┤ "

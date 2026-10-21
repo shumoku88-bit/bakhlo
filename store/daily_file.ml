@@ -6,6 +6,7 @@
    not physically tested. No background retry or automatic repair. *)
 module B = Bakhlo_sexp.Daily_book
 module L = Bakhlo_sexp.Book_log
+
 exception Refused of string
 
 let require p why = if not p then raise (Refused why)
@@ -38,7 +39,8 @@ type outcome =
       (** The append may or may not have reached the file; [expected] is the revision
           the file has if it did. *)
 
-let stamp_of (s : Unix.stats) = { dev = s.st_dev; ino = s.st_ino; size = s.st_size; mtime = s.st_mtime }
+let stamp_of (s : Unix.stats) =
+  { dev = s.st_dev; ino = s.st_ino; size = s.st_size; mtime = s.st_mtime }
 
 let read_stamped path =
   let initial = Unix.lstat path in
@@ -65,7 +67,6 @@ let read_stamped path =
       (Buffer.contents b, stamp_of initial))
 
 let read path = fst (read_stamped path)
-
 let writer_locks : (string, int) Hashtbl.t = Hashtbl.create 8
 
 let with_writer path f =
@@ -86,8 +87,8 @@ let with_writer path f =
         (fun () ->
           let stat = Unix.fstat fd and named = Unix.lstat lockpath in
           require
-            (stat.st_kind = Unix.S_REG && named.st_kind = Unix.S_REG
-             && stat.st_dev = named.st_dev && stat.st_ino = named.st_ino)
+            (stat.st_kind = Unix.S_REG && named.st_kind = Unix.S_REG && stat.st_dev = named.st_dev
+           && stat.st_ino = named.st_ino)
             "changed-lock";
           Unix.lockf fd Unix.F_TLOCK 0;
           f ())
@@ -97,6 +98,7 @@ let tail_check = 4096
 let tail_of bytes =
   let n = min tail_check (String.length bytes) in
   String.sub bytes (String.length bytes - n) n
+
 let revision_of ~size ~tail = Printf.sprintf "%d:%s" size (Digest.to_hex (Digest.string tail))
 let revision_of_bytes bytes = revision_of ~size:(String.length bytes) ~tail:(tail_of bytes)
 let read_revision path = revision_of_bytes (read path)
@@ -106,8 +108,17 @@ let of_bytes path bytes stamp =
   | Error why -> raise (Refused ("book-refused: " ^ why))
   | Ok loaded ->
       let size = String.length bytes and tail = tail_of bytes in
-      { path; revision = revision_of ~size ~tail; size; tail; book = loaded.book;
-        records = loaded.records; torn = loaded.torn; torn_bytes = size - loaded.valid_length; stamp }
+      {
+        path;
+        revision = revision_of ~size ~tail;
+        size;
+        tail;
+        book = loaded.book;
+        records = loaded.records;
+        torn = loaded.torn;
+        torn_bytes = size - loaded.valid_length;
+        stamp;
+      }
 
 let load path =
   let bytes, stamp = read_stamped path in
@@ -214,13 +225,15 @@ let append ?(checkpoint = fun _ -> ()) session ops =
   let attempted = ref None in
   try
     require (not session.torn) "torn-tail";
-    let book = match L.apply_all session.book ops with Ok book -> book | Error why -> raise (Refused why) in
+    let book =
+      match L.apply_all session.book ops with Ok book -> book | Error why -> raise (Refused why)
+    in
     let seq = session.records + 1 in
     require (L.decode_record_line ~seq (L.record_line ~seq ops) = Ok ops) "unstable-record";
     let line = appended_bytes session ops in
     with_writer session.path (fun () ->
         if not (unchanged session) then Conflict
-        else (
+        else
           let size = session.size + String.length line in
           let tail = tail_of (session.tail ^ line) in
           let expected = revision_of ~size ~tail in
@@ -237,12 +250,18 @@ let append ?(checkpoint = fun _ -> ()) session ops =
           require (s.st_size = size) "appended-size-changed";
           require (read_tail session.path (String.length line) = line) "appended-readback-changed";
           Written
-            { session with revision = expected; size; tail; book; records = seq; stamp = stamp_of s }))
+            {
+              session with
+              revision = expected;
+              size;
+              tail;
+              book;
+              records = seq;
+              stamp = stamp_of s;
+            })
   with
   | Refused why -> (
-      match !attempted with
-      | Some expected -> Uncertain { expected }
-      | None -> Refused_input why)
+      match !attempted with Some expected -> Uncertain { expected } | None -> Refused_input why)
   | Unix.Unix_error _ | Sys_error _ -> (
       match !attempted with
       | Some expected -> Uncertain { expected }
@@ -269,10 +288,12 @@ let compact ?(checkpoint = fun _ -> ()) session =
   try
     require (not session.torn) "torn-tail";
     let snapshot = B.to_string session.book in
-    require (B.to_string (get "snapshot-refused" (B.of_string snapshot)) = snapshot) "unstable-printer";
+    require
+      (B.to_string (get "snapshot-refused" (B.of_string snapshot)) = snapshot)
+      "unstable-printer";
     with_writer session.path (fun () ->
         if not (unchanged session) then Not_compacted "changed-on-disk"
-        else (
+        else
           let dir = Filename.dirname session.path in
           Sys.readdir dir
           |> Array.iter (fun name ->
@@ -294,9 +315,10 @@ let compact ?(checkpoint = fun _ -> ()) session =
           sync_parent session.path;
           checkpoint Replaced;
           let loaded = load session.path in
-          require (loaded.revision = revision_of_bytes snapshot && loaded.records = 0)
+          require
+            (loaded.revision = revision_of_bytes snapshot && loaded.records = 0)
             "compacted-readback-changed";
-          Compacted loaded))
+          Compacted loaded)
   with
   | Refused why -> if !attempted then Compaction_uncertain else Not_compacted why
   | Unix.Unix_error _ | Sys_error _ ->
@@ -305,7 +327,8 @@ let compact ?(checkpoint = fun _ -> ()) session =
 let compaction_threshold = 200
 
 let compact_if_due session =
-  if session.records >= compaction_threshold && not session.torn then Some (compact session) else None
+  if session.records >= compaction_threshold && not session.torn then Some (compact session)
+  else None
 
 (* Explicit, user-confirmed removal of an interrupted final append. Only an
    unterminated last line is removed; the complete records stay. *)

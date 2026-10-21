@@ -6,18 +6,10 @@ module B = Bakhlo_sexp.Daily_book
 type scope = Focus_day | All_current
 type sort_order = Asc | Desc
 type pane = Loci | Transactions | Details
-
 type t
-
-type command =
-  | Stay
-  | Open_selected of B.entry
-  | Record_new
-  | Back
-  | Redraw
+type command = Stay | Open_selected of B.entry | Record_new | Back | Redraw
 
 val create : focus_date:string -> t
-
 val focus_date : t -> string
 val scope : t -> scope
 val sort_order : t -> sort_order
@@ -28,30 +20,17 @@ val detail_scroll : t -> int
 val search_query : t -> string
 val search_editing : t -> bool
 val notice : t -> string
-
 val selected_locus : book:B.t -> t -> string option
 val selected_entry : book:B.t -> t -> B.entry option
 val visible_entries : book:B.t -> t -> B.entry list
 val loci_for_scope : book:B.t -> t -> string list
 val scope_text : t -> string
 val current_locus_name : book:B.t -> t -> string
-
 val returned_from_detail : before_book:B.t -> after_book:B.t -> t -> t
-
-val normalize_for_bounds :
-  book:B.t ->
-  dimensions:int * int ->
-  width_of:(string -> int) ->
-  t ->
-  t
+val normalize_for_bounds : book:B.t -> dimensions:int * int -> width_of:(string -> int) -> t -> t
 
 val handle :
-  book:B.t ->
-  dimensions:int * int ->
-  width_of:(string -> int) ->
-  t ->
-  Ui_input.input ->
-  t * command
+  book:B.t -> dimensions:int * int -> width_of:(string -> int) -> t -> Ui_input.input -> t * command
 
 val screen :
   book:B.t ->

@@ -20,10 +20,17 @@ val create : unit -> t
 
 type step = Stay of t | Back
 
-val update : book:B.t -> measure:string -> pace:(B.daily_pace, string) result -> t -> Ui_input.input -> step
+val update :
+  book:B.t -> measure:string -> pace:(B.daily_pace, string) result -> t -> Ui_input.input -> step
 (** Digits (and [.] for decimal Measures) and Backspace edit; Esc/q close. *)
 
 val frame :
-  width_of:(string -> int) -> screen:int * int -> body:int * int -> book:B.t -> measure:string ->
-  pace:(B.daily_pace, string) result -> t -> Ui_overlay.frame option
+  width_of:(string -> int) ->
+  screen:int * int ->
+  body:int * int ->
+  book:B.t ->
+  measure:string ->
+  pace:(B.daily_pace, string) result ->
+  t ->
+  Ui_overlay.frame option
 (** Floating 18 rows high from 62×20 body cells, otherwise covering the body. *)

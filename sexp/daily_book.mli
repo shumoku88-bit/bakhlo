@@ -60,8 +60,6 @@ type payload = {
 val of_payload : payload -> (t, string) result
 (** The same whole-book admission as {!of_string}; no defaults or repair. *)
 
-
-
 val entries : t -> entry list
 (** All retained entries in recorded order (oldest to newest). *)
 
@@ -90,6 +88,7 @@ val approved_loci : t -> string list option
 val label : t -> string -> string
 val help : t -> string -> string
 val set_locus_label : t -> id:string -> label:string -> ?help:string -> unit -> (t, string) result
+
 val image : t -> Q.t
 (** Balance answers are always exact. After an in-place record, correction or
     observation the image's admitted source (evidence explanation, cut listings) still describes
@@ -168,6 +167,9 @@ val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) 
     admitted with its Reversal partners only and updates balances in place; anything
     else falls back to whole-book admission. Refusals match {!Full.put_entry}. *)
 
+(** Reference oracle: the same candidates, each re-admitted as a whole book. Every
+    ordinary mutation must agree with its counterpart here (refusal reason or
+    observable book); see test/daily_book_oracle_tests.ml. Never used by the UI. *)
 module Full : sig
   val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) result
   val put_plan : t -> replace:bool -> plan -> (t, string) result
@@ -175,23 +177,18 @@ module Full : sig
   val correct_entry_date : t -> id:string -> day:string -> (t, string) result
 
   val classify_merchant :
-    t -> id:string -> disposition:Bakhlo_application.Event_merchants.disposition -> (t, string) result
+    t ->
+    id:string ->
+    disposition:Bakhlo_application.Event_merchants.disposition ->
+    (t, string) result
 
   val add_locus : t -> string -> (t, string) result
   val observe_quantities : t -> (string * string * Z.t) list -> (t, string) result
-
-  val set_locus_label :
-    t -> id:string -> label:string -> ?help:string -> unit -> (t, string) result
+  val set_locus_label : t -> id:string -> label:string -> ?help:string -> unit -> (t, string) result
 end
-(** Reference oracle: the same candidates, each re-admitted as a whole book. Every
-    ordinary mutation must agree with its counterpart here (refusal reason or
-    observable book); see test/daily_book_oracle_tests.ml. Never used by the UI. *)
 
 val classify_merchant :
-  t ->
-  id:string ->
-  disposition:Bakhlo_application.Event_merchants.disposition ->
-  (t, string) result
+  t -> id:string -> disposition:Bakhlo_application.Event_merchants.disposition -> (t, string) result
 (** Classify the independent Event Merchant disposition for an existing Actual entry.
     First classification only; replacement or reclassification is refused. *)
 
@@ -233,10 +230,10 @@ val pool_at_end_of_day :
     with zero-origin/opening or an unanchored bounded coordinate refuses the whole
     answer; no partial total or invented zero. *)
 
-
 val entry_to_sexp : entry -> Sexplib0.Sexp.t
 val entry_of_sexp : Sexplib0.Sexp.t -> (entry, string) result
 val plan_to_sexp : plan -> Sexplib0.Sexp.t
+
 val plan_of_sexp : Sexplib0.Sexp.t -> (plan, string) result
 (** The book's own v3 entry/plan syntax, for operation logs. Decoding checks
     syntax only; admission happens when the operation is applied. *)

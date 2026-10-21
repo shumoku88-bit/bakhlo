@@ -10,6 +10,7 @@ val config_files : string list
 (** Configuration files whose captured bytes this screen reads. *)
 
 val create : unit -> t
+
 val enter : t -> t
 (** Route entry: trend pane, top of detail, no editor. Retained pool draft survives. *)
 
@@ -27,15 +28,16 @@ val open_cycle : Screen.env -> t -> t * Screen.request
 (** {2 Queries for checks} *)
 
 val form : t -> Ui_form.t option
+
 val with_form : Ui_form.t -> t -> t
 (** Replace the open editor's form content, as typing would. *)
 
 val trend : t -> Daily_pace_trend.t
 val detail_focused : t -> bool
 val detail_scroll : t -> int
-
 val resolve_pool : Screen.env -> (Bakhlo_domain.Effect_coordinate.t list, string) result
 val resolve_window : Screen.env -> (string * string, string) result
+
 val current_pace :
   Screen.env -> (Bakhlo_sexp.Daily_book.daily_pace * string * string, string) result
 

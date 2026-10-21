@@ -17,9 +17,9 @@ let header =
    (entries\n"
 
 let footer =
-  ")\n(plans)\n\
-   (support (zero-origin (a jpy) (b jpy)) (openings) (observations) (presence \
-   (not-supplied)))\n"
+  ")\n\
+   (plans)\n\
+   (support (zero-origin (a jpy) (b jpy)) (openings) (observations) (presence (not-supplied)))\n"
 
 let posting locus n = Printf.sprintf "(posting %s jpy %s (none))" locus (Z.to_string n)
 let ab n = posting "a" n ^ " " ^ posting "b" (Z.neg n)
@@ -38,15 +38,13 @@ let rows =
 let make_book extra = get (B.of_string (header ^ rows ^ extra ^ footer))
 let book = make_book ""
 let changed_book = make_book (row "extra" "2026-10-02" (ab (z 10)))
-
 let boundaries = "household\t2026-10-01\t2026-10-03\t2026-11-01\n"
 let long_boundaries = "long\t2026-08-01\t2026-11-01\n"
 
 let env_with ?(book = book) ?(measure = "jpy") boundaries =
   Screen.env_for_checks
     ~config:(fun name ->
-      if List.mem name S.config_files then Ok (Some boundaries)
-      else Error ("undeclared " ^ name))
+      if List.mem name S.config_files then Ok (Some boundaries) else Error ("undeclared " ^ name))
     ~book ~measure ~today:"2040-01-01" ()
 
 let geometry : Screen.geometry =
@@ -54,13 +52,10 @@ let geometry : Screen.geometry =
 
 let press env owner key = S.handle env geometry owner (`Key (key, []))
 let press_with env owner key mods = S.handle env geometry owner (`Key (key, mods))
-
 let after env owner key = fst (press env owner key)
 
 let press_n env owner key count =
-  let rec loop owner count =
-    if count <= 0 then owner else loop (after env owner key) (count - 1)
-  in
+  let rec loop owner count = if count <= 0 then owner else loop (after env owner key) (count - 1) in
   loop owner count
 
 let type_chars env owner text =
@@ -85,8 +80,7 @@ let () =
     (S.grain owned = R.Cycle && S.scope owned = R.All_history)
     "the initial grain is an all-history cycle";
   require (S.selected env owned = 1) "the initial selection is the last point";
-  require (Result.is_error (S.result env (S.create ())))
-    "an unfocused chart has no clock fallback";
+  require (Result.is_error (S.result env (S.create ()))) "an unfocused chart has no clock fallback";
   let starting_period = S.selected_period owned in
   let starting_index = S.selected env owned in
   ignore (S.view env geometry owned);
@@ -112,13 +106,9 @@ let () =
     (S.grain non_day = R.Month && S.scope non_day = R.All_history)
     "leaving the day grain reports the effective all-history scope";
   let non_day_s = after env non_day (`ASCII 's') in
-  require
-    (S.scope non_day_s = R.All_history)
-    "day scopes are a no-op outside the day grain";
+  require (S.scope non_day_s = R.All_history) "day scopes are a no-op outside the day grain";
   let non_day_S = after env non_day_s (`ASCII 'S') in
-  require
-    (S.scope non_day_S = R.All_history)
-    "S is also a no-op outside the day grain";
+  require (S.scope non_day_S = R.All_history) "S is also a no-op outside the day grain";
   let remembered = after env non_day_S (`ASCII ']') in
   require
     (S.grain remembered = R.Day && S.scope remembered = R.Current_month)
@@ -135,17 +125,11 @@ let () =
   (* Selection movement. *)
   let ended = after env owned `End in
   require (S.selected env ended = 1) "End selects the last point";
-  require
-    (S.selected env (after env ended (`Arrow `Down)) = 1)
-    "next clamps at the last point";
+  require (S.selected env (after env ended (`Arrow `Down)) = 1) "next clamps at the last point";
   let started = after env ended `Home in
   require (S.selected env started = 0) "Home selects the first point";
-  require
-    (S.selected env (after env started (`Arrow `Up)) = 0)
-    "previous clamps at the first point";
-  require
-    (S.selected env (after env started (`Arrow `Right)) = 1)
-    "next advances the selection";
+  require (S.selected env (after env started (`Arrow `Up)) = 0) "previous clamps at the first point";
+  require (S.selected env (after env started (`Arrow `Right)) = 1) "next advances the selection";
 
   (* A grain change keeps the period that contains the old one. *)
   let long_env = env_with long_boundaries in
@@ -189,7 +173,8 @@ let () =
   require (S.picker_target picker = Some plotted) "the picker targets the next empty slot";
   let gap = after env picker (`ASCII '5') in
   require
-    (S.picker_target gap = Some plotted && S.picker_open gap
+    (S.picker_target gap = Some plotted
+    && S.picker_open gap
     && S.coordinates env gap = S.coordinates env picker)
     "a gap slot is refused and keeps the actual target";
   require (S.picker_cursor gap = Some 0) "a refused slot keeps the candidate cursor";
@@ -210,7 +195,7 @@ let () =
     "a plotted coordinate cannot be added twice";
   let added = after env (press_n env picker (`Arrow `Down) 3) `Enter in
   require
-    (not (S.picker_open added)
+    ((not (S.picker_open added))
     && List.length (S.coordinates env added) = plotted + 1
     && List.nth (S.coordinates env added) plotted = coord "delta" "jpy")
     "Enter applies the chosen catalog coordinate to the next empty slot";
@@ -229,8 +214,7 @@ let () =
   let picker_remove = after env owned (`ASCII 'a') in
   let removed = after env picker_remove (`ASCII 'x') in
   require
-    (not (S.picker_open removed)
-    && List.length (S.coordinates env removed) = plotted - 1)
+    ((not (S.picker_open removed)) && List.length (S.coordinates env removed) = plotted - 1)
     "x removes the next empty slot's last occupied series";
   let removed = after env (after env removed (`ASCII 'a')) (`ASCII 'x') in
   require
@@ -239,22 +223,17 @@ let () =
   let picker_keep = after env removed (`ASCII 'a') in
   let kept, kept_request = press env picker_keep (`ASCII 'x') in
   require
-    (S.picker_open kept && kept_request = Screen.Stay
-    && List.length (S.coordinates env kept) = 1)
+    (S.picker_open kept && kept_request = Screen.Stay && List.length (S.coordinates env kept) = 1)
     "the last plotted series cannot be removed";
   let closed, closed_request = press env picker_keep (`ASCII 'q') in
-  require
-    (not (S.picker_open closed) && closed_request = Screen.Stay)
-    "q closes only the picker";
+  require ((not (S.picker_open closed)) && closed_request = Screen.Stay) "q closes only the picker";
   let escaped, escaped_request = press env picker_keep `Escape in
   require
-    (not (S.picker_open escaped) && escaped_request = Screen.Stay)
+    ((not (S.picker_open escaped)) && escaped_request = Screen.Stay)
     "Esc closes only the picker";
   let eur_env = env_with ~measure:"eur" boundaries in
   let inherited = get (S.result eur_env added) in
-  require
-    (inherited.R.measure = "jpy")
-    "an explicit series selection keeps its common measure";
+  require (inherited.R.measure = "jpy") "an explicit series selection keeps its common measure";
   let eur_picker = after eur_env added (`ASCII 'a') in
   let eur_added = after eur_env (press_n eur_env eur_picker (`Arrow `Down) 4) `Enter in
   require
@@ -273,7 +252,7 @@ let () =
   require (S.grain day_owner = R.Day) "the annotation checks run in the day grain";
   let cycle_editor = after env owned (`ASCII 'o') in
   require
-    (not (S.editor_open cycle_editor) && S.overlay_count cycle_editor = 0)
+    ((not (S.editor_open cycle_editor)) && S.overlay_count cycle_editor = 0)
     "o outside the day grain refuses instead of mutating";
   let editor = after env day_owner (`ASCII 'o') in
   require
@@ -281,7 +260,8 @@ let () =
     "o opens an empty annotation editor";
   let empty_enter = after env editor `Enter in
   require
-    (S.editor_open empty_enter && S.editor_field empty_enter = `Name
+    (S.editor_open empty_enter
+    && S.editor_field empty_enter = `Name
     && S.overlay_count empty_enter = 0)
     "Enter never advances an empty annotation name";
   let typed = type_chars env editor "rent" in
@@ -295,9 +275,7 @@ let () =
   let unicode = after env deleted (`Uchar (Uchar.of_int 0x3042)) in
   require (S.editor_name unicode = "rent\227\129\130") "a Unicode character is retained";
   let unicode_deleted = after env unicode `Backspace in
-  require
-    (S.editor_name unicode_deleted = "rent")
-    "backspace removes a whole Unicode character";
+  require (S.editor_name unicode_deleted = "rent") "backspace removes a whole Unicode character";
   let days_field = after env unicode_deleted `Tab in
   require (S.editor_field days_field = `Days) "Tab moves to the days field";
   require
@@ -316,7 +294,8 @@ let () =
     "an invalid separator keeps the entered text instead of selecting another day";
   let cancelled, cancelled_request = press env refused `Escape in
   require
-    (not (S.editor_open cancelled) && S.overlay_count cancelled = 0
+    ((not (S.editor_open cancelled))
+    && S.overlay_count cancelled = 0
     && cancelled_request = Screen.Stay)
     "Esc cancels the annotation without committing";
   let editor = type_chars env (after env day_owner (`ASCII 'o')) "rent" in
@@ -324,7 +303,7 @@ let () =
   require (S.editor_field editor = `Days) "Enter moves from the name to the days field";
   let committed = after env (type_chars env editor "1,2 3.4") `Enter in
   require
-    (not (S.editor_open committed) && S.overlay_count committed = 1)
+    ((not (S.editor_open committed)) && S.overlay_count committed = 1)
     "a valid annotation commits";
   require
     (S.overlays committed = [ ("2026-10", "rent", [ 1; 2; 3; 4 ]) ])
@@ -340,12 +319,14 @@ let () =
   require (S.editor_open zero && S.overlay_count zero = 1) "day zero is refused";
   let long_digits = String.make 96 '1' in
   let big_days =
-    type_chars env (after env (type_chars env (after env day_owner (`ASCII 'o')) "big") `Enter)
+    type_chars env
+      (after env (type_chars env (after env day_owner (`ASCII 'o')) "big") `Enter)
       long_digits
   in
   let huge_refused = after env big_days `Enter in
   require
-    (S.editor_open huge_refused && S.editor_days huge_refused = long_digits
+    (S.editor_open huge_refused
+    && S.editor_days huge_refused = long_digits
     && S.overlay_count huge_refused = 0)
     "a 96-digit day number is refused and its text retained";
   let cancelled = after env zero `Escape in
@@ -360,18 +341,19 @@ let () =
   require (S.overlay_count three = 3) "three session annotations are allowed";
   let fourth = after env three (`ASCII 'o') in
   require
-    (not (S.editor_open fourth) && S.overlay_count fourth = 3)
+    ((not (S.editor_open fourth)) && S.overlay_count fourth = 3)
     "a fourth annotation is refused";
   let guided = after env three (`ASCII 'v') in
   require (S.guides guided <> S.guides three) "v toggles the session guides";
   let cleared = after env guided (`ASCII 'O') in
   require
-    (S.overlay_count cleared = 0 && not (S.guides cleared) && S.grain cleared = R.Day)
+    (S.overlay_count cleared = 0 && (not (S.guides cleared)) && S.grain cleared = R.Day)
     "O clears only session annotations and guides";
 
   (* An annotation keeps the month captured when it was committed. *)
   let month_owner =
-    after long_env (after long_env (S.enter ~focus_day:"2026-10-03" (S.create ())) (`ASCII ']'))
+    after long_env
+      (after long_env (S.enter ~focus_day:"2026-10-03" (S.create ())) (`ASCII ']'))
       (`ASCII ']')
   in
   require (S.grain month_owner = R.Day) "the month capture check runs in the day grain";
@@ -384,26 +366,21 @@ let () =
   require
     (S.overlays oct_committed = [ ("2026-10", "oct", [ 1 ]) ])
     "an annotation captures the month of its selected day";
-  let september_day =
-    press_n long_env (after long_env oct_committed `Home) (`Arrow `Down) 40
-  in
+  let september_day = press_n long_env (after long_env oct_committed `Home) (`Arrow `Down) 40 in
   require
-    (S.overlays september_day = S.overlays oct_committed
-    && S.overlay_count september_day = 1)
+    (S.overlays september_day = S.overlays oct_committed && S.overlay_count september_day = 1)
     "a captured annotation keeps its month and is not repeated after navigation";
-  let sep_editor =
-    type_chars long_env (after long_env september_day (`ASCII 'o')) "sep"
-  in
+  let sep_editor = type_chars long_env (after long_env september_day (`ASCII 'o')) "sep" in
   let sep_committed =
     after long_env (type_chars long_env (after long_env sep_editor `Enter) "2") `Enter
   in
   require
-    (S.overlays sep_committed
-    = [ ("2026-10", "oct", [ 1 ]); ("2026-09", "sep", [ 2 ]) ])
+    (S.overlays sep_committed = [ ("2026-10", "oct", [ 1 ]); ("2026-09", "sep", [ 2 ]) ])
     "annotations keep their captured month and are not repeated across months";
   let year_env = env_with "years\t2025-10-01\t2026-01-01\t2026-11-01\n" in
   let year_owner =
-    after year_env (after year_env (S.enter ~focus_day:"2026-10-03" (S.create ())) (`ASCII ']'))
+    after year_env
+      (after year_env (S.enter ~focus_day:"2026-10-03" (S.create ())) (`ASCII ']'))
       (`ASCII ']')
   in
   require (S.grain year_owner = R.Day) "the cross-year capture check runs in the day grain";
@@ -423,8 +400,7 @@ let () =
     after year_env (type_chars year_env (after year_env new_editor `Enter) "1") `Enter
   in
   require
-    (S.overlays new_committed
-    = [ ("2025-10", "old", [ 1 ]); ("2026-10", "new", [ 1 ]) ])
+    (S.overlays new_committed = [ ("2025-10", "old", [ 1 ]); ("2026-10", "new", [ 1 ]) ])
     "the same calendar month in two years stays distinct";
 
   (* Leaving and modal closing. *)
@@ -446,9 +422,7 @@ let () =
       ~config:(fun _ -> Ok (Some "not a preset"))
       ~book ~measure:"jpy" ~today:"2040-01-01" ()
   in
-  require
-    (Result.is_error (S.result malformed owned))
-    "a malformed config leaves no stale chart";
+  require (Result.is_error (S.result malformed owned)) "a malformed config leaves no stale chart";
   let reloaded = env_with ~book:changed_book boundaries in
   let changed = get (S.result reloaded owned) in
   require
@@ -458,5 +432,5 @@ let () =
   require (Z.equal (total refreshed 0) (z 13)) "Enter refreshes the projection";
   print_endline
     "PASS: Trend/Locus owner focus capture, grain keys with remembered day scope, selection \
-     relocation by prior start, series picker, month-scoped session annotations, modal closing \
-     and stale requery."
+     relocation by prior start, series picker, month-scoped session annotations, modal closing and \
+     stale requery."

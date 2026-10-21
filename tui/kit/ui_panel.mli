@@ -13,15 +13,26 @@ val window : capacity:int -> count:int -> scroll:int -> selected:int option -> w
 
 val frame :
   ?heading:string ->
-  width_of:(string -> int) -> width:int -> height:int -> focused:bool ->
-  title:string -> scroll:int -> selected:int option -> string list ->
+  width_of:(string -> int) ->
+  width:int ->
+  height:int ->
+  focused:bool ->
+  title:string ->
+  scroll:int ->
+  selected:int option ->
+  string list ->
   (Ui_render.style * string) list
 (** Uses the same capacity/window rules as navigation. No domain or publication decisions. *)
 
 val frame_rows :
-  ?inset:int -> ?bottom_label:string ->
-  width_of:(string -> int) -> width:int -> height:int -> focused:bool ->
-  title:string -> (Ui_render.style * string) list ->
+  ?inset:int ->
+  ?bottom_label:string ->
+  width_of:(string -> int) ->
+  width:int ->
+  height:int ->
+  focused:bool ->
+  title:string ->
+  (Ui_render.style * string) list ->
   (Ui_render.style * string) list
 (** Non-selected styled content; input metadata is translated by the frame inset.
     Default [inset=2] preserves the existing comfortable frame; [inset=0]
@@ -32,10 +43,19 @@ val split_widths : int -> int * int
 
 val split :
   ?left_heading:string ->
-  width_of:(string -> int) -> width:int -> height:int ->
-  left_focused:bool -> left_title:string -> left_scroll:int -> left_selected:int option ->
+  width_of:(string -> int) ->
+  width:int ->
+  height:int ->
+  left_focused:bool ->
+  left_title:string ->
+  left_scroll:int ->
+  left_selected:int option ->
   left_rows:string list ->
-  right_focused:bool -> right_title:string -> right_scroll:int -> right_selected:int option ->
-  right_rows:string list -> unit ->
+  right_focused:bool ->
+  right_title:string ->
+  right_scroll:int ->
+  right_selected:int option ->
+  right_rows:string list ->
+  unit ->
   (Ui_render.style * string) list
 (** Two framed panes side by side from 80 cells; narrower shows only the focused pane. *)

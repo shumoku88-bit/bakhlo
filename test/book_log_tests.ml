@@ -35,8 +35,10 @@ let build ~seed ~steps =
         Int.incr written;
         book := next;
         let loaded = get (load (!snapshot ^ Buffer.contents records)) in
-        if not (String.equal (O.observable loaded.book) (O.observable next)) || loaded.torn
-           || loaded.records <> !seq - 1
+        if
+          (not (String.equal (O.observable loaded.book) (O.observable next)))
+          || loaded.torn
+          || loaded.records <> !seq - 1
         then failwith (Printf.sprintf "seed %d step %d: loaded book differs" seed step)
   done;
   (!snapshot ^ Buffer.contents records, !before_last, !seq - 1, !written)
@@ -51,9 +53,7 @@ let%expect_test "snapshot plus records loads to the in-memory book at every step
   [%expect {| records replayed: more than 1000: true |}]
 
 let last_line_start bytes =
-  match String.rindex_from bytes (String.length bytes - 2) '\n' with
-  | Some n -> n + 1
-  | None -> 0
+  match String.rindex_from bytes (String.length bytes - 2) '\n' with Some n -> n + 1 | None -> 0
 
 let%expect_test "an interrupted final append is reported and not applied" =
   let checked = ref 0 in
@@ -63,8 +63,12 @@ let%expect_test "an interrupted final append is reported and not applied" =
       let start = last_line_start file in
       for cut = start + 1 to String.length file - 1 do
         let loaded = get (load (String.sub file ~pos:0 ~len:cut)) in
-        if not (loaded.torn && loaded.records = n - 1 && loaded.valid_length = start
-                && String.equal (O.observable loaded.book) (O.observable before_last))
+        if
+          not
+            (loaded.torn
+            && loaded.records = n - 1
+            && loaded.valid_length = start
+            && String.equal (O.observable loaded.book) (O.observable before_last))
         then failwith (Printf.sprintf "seed %d cut %d: torn tail mishandled" seed cut);
         Int.incr checked
       done
@@ -78,24 +82,32 @@ let%expect_test "damage before the final line refuses the whole file" =
   let base = get (B.of_string O.fixture) in
   let snapshot = B.to_string base in
   let entry n : B.entry =
-    { id = Printf.sprintf "e%d" n; day = "2026-10-05"; memo = Some "lunch"; reversal_of = None;
+    {
+      id = Printf.sprintf "e%d" n;
+      day = "2026-10-05";
+      memo = Some "lunch";
+      reversal_of = None;
       effects = [ O.posting "wallet" "jpy" (-100); O.posting "food" "jpy" 100 ];
-      exchange = None; original_amount = None; merchant = None }
+      exchange = None;
+      original_amount = None;
+      merchant = None;
+    }
   in
   let put n = L.Put_entry { replace = false; entry = entry n; plan = None } in
   let r1 = L.record_line ~seq:1 [ put 1 ] and r2 = L.record_line ~seq:2 [ put 2 ] in
   let r3 = L.record_line ~seq:3 [ put 3 ] in
   let edit line ~pattern ~with_ = String.substr_replace_first line ~pattern ~with_ in
   Stdio.printf "intact: %s\n" (refusal (snapshot ^ r1 ^ r2 ^ r3));
-  Stdio.printf "edited amount: %s\n" (refusal (snapshot ^ edit r1 ~pattern:"100" ~with_:"900" ^ r2 ^ r3));
+  Stdio.printf "edited amount: %s\n"
+    (refusal (snapshot ^ edit r1 ~pattern:"100" ~with_:"900" ^ r2 ^ r3));
   Stdio.printf "garbled line: %s\n" (refusal (snapshot ^ r1 ^ edit r2 ~pattern:")" ~with_:"" ^ r3));
   Stdio.printf "repeated record: %s\n" (refusal (snapshot ^ r1 ^ r1 ^ r2));
   Stdio.printf "missing record: %s\n" (refusal (snapshot ^ r1 ^ r3));
-  Stdio.printf "replay refused: %s\n"
-    (refusal (snapshot ^ r1 ^ L.record_line ~seq:2 [ put 1 ]));
+  Stdio.printf "replay refused: %s\n" (refusal (snapshot ^ r1 ^ L.record_line ~seq:2 [ put 1 ]));
   Stdio.printf "terminated bad final line: %s\n" (refusal (snapshot ^ r1 ^ "(record 2 x)\n"));
   Stdio.printf "plain book: %s\n" (refusal snapshot);
-  [%expect {|
+  [%expect
+    {|
     intact: loaded
     edited amount: log-corrupt-at-record-1
     garbled line: log-corrupt-at-record-2
@@ -107,27 +119,49 @@ let%expect_test "damage before the final line refuses the whole file" =
     |}]
 
 let%expect_test "a record carries every operation kind through its own codec" =
-  let party = Result.ok_or_failwith
-      (Result.map_error ~f:(fun _ -> "party")
-         (Bakhlo_domain.Identifier.External_party.of_string "shop \"quoted\"")) in
+  let party =
+    Result.ok_or_failwith
+      (Result.map_error
+         ~f:(fun _ -> "party")
+         (Bakhlo_domain.Identifier.External_party.of_string "shop \"quoted\""))
+  in
   let plan : B.plan =
-    { id = "p\n2"; day = "2026-10-30"; measure = "jpy"; changes = [ ("bank", Z.of_int (-5)); ("expense", Z.of_int 5) ];
-      paid_by = None; cancelled_on = None }
+    {
+      id = "p\n2";
+      day = "2026-10-30";
+      measure = "jpy";
+      changes = [ ("bank", Z.of_int (-5)); ("expense", Z.of_int 5) ];
+      paid_by = None;
+      cancelled_on = None;
+    }
   in
   let ops =
-    [ L.Put_plan { replace = false; plan };
+    [
+      L.Put_plan { replace = false; plan };
       L.Cancel_plan { id = "p\n2"; day = "2026-10-31" };
       L.Observe [ ("wallet", "jpy", Z.of_string "-123456789012345678901234567890") ];
       L.Add_locus "ghost";
       L.Set_locus_label { id = "ghost"; label = "幽霊 \"x\""; help = None };
       L.Put_entry
-        { replace = false; plan = None;
+        {
+          replace = false;
+          plan = None;
           entry =
-            { id = "m1"; day = "2026-10-06"; memo = Some "tab\tand \\ slash"; reversal_of = None;
+            {
+              id = "m1";
+              day = "2026-10-06";
+              memo = Some "tab\tand \\ slash";
+              reversal_of = None;
               effects = [ O.posting ~key:"a" "wallet" "jpy" (-7); O.posting "food" "jpy" 7 ];
-              exchange = None; original_amount = Some ("usd", Z.of_int 120); merchant = None } };
+              exchange = None;
+              original_amount = Some ("usd", Z.of_int 120);
+              merchant = None;
+            };
+        };
       L.Correct_entry_date { id = "m1"; day = "2026-10-07" };
-      L.Classify_merchant { id = "m1"; disposition = Bakhlo_application.Event_merchants.Merchant party } ]
+      L.Classify_merchant
+        { id = "m1"; disposition = Bakhlo_application.Event_merchants.Merchant party };
+    ]
   in
   let base = get (B.of_string O.fixture) in
   let expected = get (L.apply_all base ops) in
@@ -146,7 +180,8 @@ let historical_fixture =
 let entry book id =
   List.find_exn (B.entries book) ~f:(fun (candidate : B.entry) -> String.equal candidate.id id)
 
-let%expect_test "date correction has its own codec and replays without reapproving historical loci" =
+let%expect_test "date correction has its own codec and replays without reapproving historical loci"
+    =
   let base = get (B.of_string historical_fixture) in
   let before = entry base "init" in
   let op = L.Correct_entry_date { id = "init"; day = "2026-10-09" } in
@@ -157,8 +192,10 @@ let%expect_test "date correction has its own codec and replays without reapprovi
   let loaded = get (load (B.to_string base ^ line)) in
   let after = entry loaded.book "init" in
   Stdio.printf "date %s; all other fields preserved: %b; records %d\n" after.day
-    (Poly.equal before { after with day = before.day }) loaded.records;
-  [%expect {|
+    (Poly.equal before { after with day = before.day })
+    loaded.records;
+  [%expect
+    {|
     decoded init 2026-10-09
     date 2026-10-09; all other fields preserved: true; records 1
     |}]
@@ -171,7 +208,8 @@ let%expect_test "date correction replay refuses invalid input without a partial 
     (attempt (L.Correct_entry_date { id = "missing"; day = "2026-10-09" }));
   Stdio.printf "invalid date: %s\n"
     (attempt (L.Correct_entry_date { id = "init"; day = "2026-02-30" }));
-  [%expect {|
+  [%expect
+    {|
     unknown: log-replay-refused-at-record-1: unknown-entry
     invalid date: log-replay-refused-at-record-1: invalid-date
     |}]

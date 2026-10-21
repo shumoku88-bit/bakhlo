@@ -3,4 +3,10 @@
 (library
  (name bakhlo_migrate)
  (public_name bakhlo.migrate)
- (libraries bakhlo_domain bakhlo_application bakhlo_loam_read bakhlo_sexp base zarith))
+ (libraries
+  bakhlo_domain
+  bakhlo_application
+  bakhlo_loam_read
+  bakhlo_sexp
+  base
+  zarith))

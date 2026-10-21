@@ -1,0 +1,7 @@
+# The TUI builds with OxCaml 5.2 (tools/build-bonsai-tui), where `effect` is an identifier.
+version = 0.29.0
+profile = default
+ocaml-version = 5.2.0
+margin = 100
+wrap-comments = false
+parse-docstrings = false

@@ -22,9 +22,7 @@ let row_title book = function
       entry.day ^ "  " ^ Option.value ~default:"(no description)" entry.memo ^ "  " ^ amount
   | W.Scheduled_plan plan ->
       let total =
-        List.fold_left
-          (fun n (_, v) -> if Z.sign v > 0 then Z.add n v else n)
-          Z.zero plan.changes
+        List.fold_left (fun n (_, v) -> if Z.sign v > 0 then Z.add n v else n) Z.zero plan.changes
       in
       let status =
         if plan.paid_by <> None then "[Paid]"
@@ -41,40 +39,57 @@ let actual_amount book (entry : B.entry) =
     let parts = String.split_on_char '.' amount in
     let whole = List.hd parts in
     let grouped = Buffer.create (String.length amount + 16) in
-    String.iteri (fun i c ->
-      if i > 0 && (String.length whole - i) mod 3 = 0 then Buffer.add_char grouped ',';
-      Buffer.add_char grouped c) whole;
+    String.iteri
+      (fun i c ->
+        if i > 0 && (String.length whole - i) mod 3 = 0 then Buffer.add_char grouped ',';
+        Buffer.add_char grouped c)
+      whole;
     (if Z.sign quanta < 0 then "-" else if Z.sign quanta > 0 then "+" else "")
     ^ Buffer.contents grouped
     ^ (match List.tl parts with [] -> "" | xs -> "." ^ String.concat "." xs)
-    ^ " " ^ measure in
-  let measures = List.sort_uniq String.compare
-    (List.map (fun p -> A.mstr (D.Effect.measure p)) entry.effects) in
+    ^ " " ^ measure
+  in
+  let measures =
+    List.sort_uniq String.compare (List.map (fun p -> A.mstr (D.Effect.measure p)) entry.effects)
+  in
   let positive = List.filter (fun p -> Z.sign (A.quanta p) > 0) entry.effects
   and negative = List.filter (fun p -> Z.sign (A.quanta p) < 0) entry.effects in
   if List.length measures > 1 then Printf.sprintf "multi (%d)" (List.length measures)
   else if List.length positive > 1 || List.length negative > 1 then "split"
-  else match positive, entry.effects with
-    | p :: _, _ | [], [p] -> format p
+  else
+    match (positive, entry.effects) with
+    | p :: _, _ | [], [ p ] -> format p
     | [], [] -> "—"
     | [], _ -> "see details"
 
 let actual_table ~width_of ~width book rows =
   let room = max 0 (width - 6) in
-  let amount_width = min 22 (max 12 (List.fold_left (fun n row ->
-    match row with W.Actual_entry e -> max n (width_of (actual_amount book e))
-    | _ -> n) 0 rows)) in
+  let amount_width =
+    min 22
+      (max 12
+         (List.fold_left
+            (fun n row ->
+              match row with W.Actual_entry e -> max n (width_of (actual_amount book e)) | _ -> n)
+            0 rows))
+  in
   let table date description amount =
     if room < 40 then O.pad ~width_of room description
     else
       let amount = if width_of amount <= amount_width then amount else "see details" in
       O.pad ~width_of 10 date ^ "  "
-      ^ O.pad ~width_of (room - 14 - amount_width) description ^ "  "
-      ^ String.make (max 0 (amount_width - width_of amount)) ' ' ^ amount in
-  let titles = List.map (function
-    | W.Actual_entry e -> table e.day (Option.value ~default:"(no description)" e.memo)
-        (actual_amount book e)
-    | row -> row_title book row) rows in
+      ^ O.pad ~width_of (room - 14 - amount_width) description
+      ^ "  "
+      ^ String.make (max 0 (amount_width - width_of amount)) ' '
+      ^ amount
+  in
+  let titles =
+    List.map
+      (function
+        | W.Actual_entry e ->
+            table e.day (Option.value ~default:"(no description)" e.memo) (actual_amount book e)
+        | row -> row_title book row)
+      rows
+  in
   ("  " ^ table "Date" "Description" "Amount", titles)
 
 let scheduled_table ~width_of ~width book rows =
@@ -97,9 +112,7 @@ let scheduled_table ~width_of ~width book rows =
   let status_w = 11 in
   let row_line (p : B.plan) =
     let total =
-      List.fold_left
-        (fun n (_, v) -> if Z.sign v > 0 then Z.add n v else n)
-        Z.zero p.changes
+      List.fold_left (fun n (_, v) -> if Z.sign v > 0 then Z.add n v else n) Z.zero p.changes
     in
     let status =
       if p.paid_by <> None then "[Paid]"
@@ -112,10 +125,7 @@ let scheduled_table ~width_of ~width book rows =
     else
       let id_w = max 6 (room - 10 - 2 - amount_w - 2 - status_w) in
       O.pad ~width_of 10 p.day ^ "  "
-      ^ O.pad ~width_of id_w (O.visible p.id) ^ "  "
-      ^ O.pad_left ~width_of amount_w amt ^ "  "
-      ^ status
+      ^ O.pad ~width_of id_w (O.visible p.id)
+      ^ "  " ^ O.pad_left ~width_of amount_w amt ^ "  " ^ status
   in
-  List.map (function
-    | W.Scheduled_plan p -> row_line p
-    | row -> row_title book row) rows
+  List.map (function W.Scheduled_plan p -> row_line p | row -> row_title book row) rows

@@ -1,6 +1,18 @@
 type route =
-  | Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace
-  | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow | Liquidity
+  | Home
+  | Calendar
+  | Selected_day of string
+  | Actual
+  | Scheduled
+  | Balances
+  | Daily_pace
+  | Attention
+  | Loci
+  | Settlements
+  | Income_expense
+  | Transactions_flow
+  | Stock_flow
+  | Liquidity
   | Trend_locus
   | Multicurrency_spend
 
@@ -38,7 +50,9 @@ type publication =
   | Reverse_entry of { id : string; day : string; base : string }
   | Correct_entry_date of { id : string; day : string; base : string }
   | Classify_merchant of {
-      id : string; disposition : Bakhlo_application.Event_merchants.disposition; base : string;
+      id : string;
+      disposition : Bakhlo_application.Event_merchants.disposition;
+      base : string;
       message : string;
     }
   | Cancel_plan of { id : string; day : string; base : string }
@@ -46,11 +60,17 @@ type publication =
   | Create_plan of { plan : Bakhlo_sexp.Daily_book.plan; base : string; offer_pace : bool }
 
 type publish_outcome = Published | Publish_refused of string | Publish_conflict | Publish_stopped
-
 type record_target = Entry of Bakhlo_sexp.Daily_book.entry | Plan of Bakhlo_sexp.Daily_book.plan
 
 type record_action =
-  | Edit | Pay | Reverse | Correct_date | Classify_merchant | Cancel | Batch | Generate
+  | Edit
+  | Pay
+  | Reverse
+  | Correct_date
+  | Classify_merchant
+  | Cancel
+  | Batch
+  | Generate
   | Generate_every of int  (** Generate with a monitored cadence in months preselected. *)
 
 type request =
@@ -99,10 +119,20 @@ let no_reload _env t = (t, Stay)
 let env_for_checks ?(accounting_roles = []) ?(config = fun name -> Error ("undeclared " ^ name))
     ~book ~measure ~today () =
   {
-    book; revision = ""; new_id = (let n = ref 0 in fun () -> incr n; Printf.sprintf "check-%d" !n);
-    measure; today; calendar = Result.get_ok (Daily_calendar.create today);
+    book;
+    revision = "";
+    new_id =
+      (let n = ref 0 in
+       fun () ->
+         incr n;
+         Printf.sprintf "check-%d" !n);
+    measure;
+    today;
+    calendar = Result.get_ok (Daily_calendar.create today);
     accounting_roles = lazy accounting_roles;
     attention = Ok Attention_data.empty;
     settlements = Ok Settlement_data.empty;
-    blocked = false; draft_retained = false; config;
+    blocked = false;
+    draft_retained = false;
+    config;
   }

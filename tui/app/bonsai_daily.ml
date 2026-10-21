@@ -1,5 +1,6 @@
 (* Command-line entry: interactive TUI and recovery inspection. *)
 module F = Daily_file
+
 let run = Bonsai_terminal.run
 
 let print_recovery path =
@@ -11,8 +12,9 @@ let print_recovery path =
   | Ok session when session.torn ->
       Printf.printf
         "selected: %d complete records, then an incomplete final record (%d bytes) from an \
-         interrupted save.\nThat save did not complete. Writes stay stopped until you run \
-         --discard-torn-tail; no automatic repair.\n"
+         interrupted save.\n\
+         That save did not complete. Writes stay stopped until you run --discard-torn-tail; no \
+         automatic repair.\n"
         session.records report.torn_bytes;
       3
   | Ok session ->
@@ -44,8 +46,8 @@ let () =
     | _ ->
         prerr_endline
           "Usage: tools/tui --book FILE | --check FILE | --copy-from SOURCE --book FRESH_FILE | \
-           --inspect-recovery --book FILE | --discard-torn-tail --book FILE | \
-           --restore-copy-from SOURCE --book FRESH_FILE";
+           --inspect-recovery --book FILE | --discard-torn-tail --book FILE | --restore-copy-from \
+           SOURCE --book FRESH_FILE";
         exit 2
   with
   | F.Refused why

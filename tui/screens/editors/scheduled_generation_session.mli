@@ -2,11 +2,7 @@
 module B = Bakhlo_sexp.Daily_book
 
 type t
-
-type outcome =
-  | Updated of t
-  | Closed
-  | Publish of B.plan list * string
+type outcome = Updated of t | Closed | Publish of B.plan list * string
 
 val create :
   ?cadence_months:int ->
@@ -21,9 +17,11 @@ val create :
     Gregorian date (0001-01-01 .. 9999-12-31) supplied by the caller; there is no
     fallback and no clock read here. Cadence [None] keeps the general [g] form, which
     ignores [observed_at]. *)
+
 val base_revision : t -> string
 val with_publish_error : t -> string -> t
 val dimensions : int * int -> int * int
+
 val handle :
   new_id:(unit -> string) ->
   blocked:bool ->
@@ -32,11 +30,10 @@ val handle :
   t ->
   Ui_input.input ->
   outcome
+
 val screen :
-  dimensions:int * int ->
-  width_of:(string -> int) ->
-  t ->
-  (Daily_overlays.style * string) list
+  dimensions:int * int -> width_of:(string -> int) -> t -> (Daily_overlays.style * string) list
+
 val footer : t -> string list
 
 (** Read-only queries for checks. *)

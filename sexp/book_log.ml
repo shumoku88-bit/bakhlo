@@ -37,26 +37,29 @@ let opt = function None -> f "none" [] | Some s -> f "some" [ a s ]
 let mode replace = a (if replace then "replace" else "new")
 
 let op_to_sexp = function
-  | Put_entry { replace; entry; plan } -> f "put-entry" [ mode replace; B.entry_to_sexp entry; opt plan ]
+  | Put_entry { replace; entry; plan } ->
+      f "put-entry" [ mode replace; B.entry_to_sexp entry; opt plan ]
   | Correct_entry_date { id; day } -> f "correct-entry-date" [ a id; a day ]
   | Put_plan { replace; plan } -> f "put-plan" [ mode replace; B.plan_to_sexp plan ]
   | Cancel_plan { id; day } -> f "cancel-plan" [ a id; a day ]
-  | Observe rows -> f "observe" (List.map (fun (l, m, q) -> X.List [ a l; a m; a (Z.to_string q) ]) rows)
+  | Observe rows ->
+      f "observe" (List.map (fun (l, m, q) -> X.List [ a l; a m; a (Z.to_string q) ]) rows)
   | Add_locus id -> f "add-locus" [ a id ]
   | Set_locus_label { id; label; help } -> f "set-locus-label" [ a id; a label; opt help ]
   | Classify_merchant { id; disposition } ->
       f "classify-merchant"
-        [ a id;
+        [
+          a id;
           (match disposition with
           | M.Nonmerchant -> f "nonmerchant" []
-          | M.Merchant p -> f "party" [ a (Bakhlo_domain.Identifier.External_party.to_string p) ]) ]
+          | M.Merchant p -> f "party" [ a (Bakhlo_domain.Identifier.External_party.to_string p) ]);
+        ]
 
 let ok = function Ok x -> x | Error _ -> raise Corrupt
 
 let op_of_sexp x =
   let atom = function X.Atom s -> s | X.List _ -> raise Corrupt in
-  let replace = function
-    | X.Atom "replace" -> true | X.Atom "new" -> false | _ -> raise Corrupt in
+  let replace = function X.Atom "replace" -> true | X.Atom "new" -> false | _ -> raise Corrupt in
   let opt = function
     | X.List [ X.Atom "none" ] -> None
     | X.List [ X.Atom "some"; X.Atom s ] -> Some s
@@ -70,16 +73,15 @@ let op_of_sexp x =
   match x with
   | X.List [ X.Atom "put-entry"; r; e; p ] ->
       Put_entry { replace = replace r; entry = ok (B.entry_of_sexp e); plan = opt p }
-  | X.List [ X.Atom "correct-entry-date"; X.Atom id; X.Atom day ] ->
-      Correct_entry_date { id; day }
-  | X.List [ X.Atom "put-plan"; r; p ] -> Put_plan { replace = replace r; plan = ok (B.plan_of_sexp p) }
+  | X.List [ X.Atom "correct-entry-date"; X.Atom id; X.Atom day ] -> Correct_entry_date { id; day }
+  | X.List [ X.Atom "put-plan"; r; p ] ->
+      Put_plan { replace = replace r; plan = ok (B.plan_of_sexp p) }
   | X.List [ X.Atom "cancel-plan"; X.Atom id; X.Atom day ] -> Cancel_plan { id; day }
   | X.List (X.Atom "observe" :: rows) ->
       Observe
         (List.map
            (function
-             | X.List [ X.Atom l; X.Atom m; X.Atom q ] -> (l, m, amount q)
-             | _ -> raise Corrupt)
+             | X.List [ X.Atom l; X.Atom m; X.Atom q ] -> (l, m, amount q) | _ -> raise Corrupt)
            rows)
   | X.List [ X.Atom "add-locus"; X.Atom id ] -> Add_locus id
   | X.List [ X.Atom "set-locus-label"; X.Atom id; X.Atom label; help ] ->
@@ -88,7 +90,10 @@ let op_of_sexp x =
       Classify_merchant { id; disposition = M.Nonmerchant }
   | X.List [ X.Atom "classify-merchant"; X.Atom id; X.List [ X.Atom "party"; p ] ] ->
       Classify_merchant
-        { id; disposition = M.Merchant (ok (Bakhlo_domain.Identifier.External_party.of_string (atom p))) }
+        {
+          id;
+          disposition = M.Merchant (ok (Bakhlo_domain.Identifier.External_party.of_string (atom p)));
+        }
   | _ -> raise Corrupt
 
 let digest body = Digest.to_hex (Digest.string body)
@@ -119,8 +124,11 @@ let snapshot_length bytes =
     | Some n ->
         let next = n + 1 in
         let rest = String.length bytes - next in
-        if String.starts_with ~prefix:(String.sub bytes next (min rest (String.length prefix))) prefix
-           && rest > 0
+        if
+          String.starts_with
+            ~prefix:(String.sub bytes next (min rest (String.length prefix)))
+            prefix
+          && rest > 0
         then next
         else scan next
   in
@@ -143,11 +151,16 @@ let load bytes =
               | exception Corrupt -> Error (Printf.sprintf "log-corrupt-at-record-%d" seq)
               | ops -> (
                   match apply_all book ops with
-                  | Error why -> Error (Printf.sprintf "log-replay-refused-at-record-%d: %s" seq why)
+                  | Error why ->
+                      Error (Printf.sprintf "log-replay-refused-at-record-%d: %s" seq why)
                   | Ok book -> replay book (seq + 1) (n + 1)))
       in
       replay book 1 cut
 
 let decode_record_line ~seq line =
-  let line = if String.ends_with ~suffix:"\n" line then String.sub line 0 (String.length line - 1) else line in
-  match parse_record ~seq line with ops -> Ok ops | exception Corrupt -> Error "record-undecodable"
+  let line =
+    if String.ends_with ~suffix:"\n" line then String.sub line 0 (String.length line - 1) else line
+  in
+  match parse_record ~seq line with
+  | ops -> Ok ops
+  | exception Corrupt -> Error "record-undecodable"

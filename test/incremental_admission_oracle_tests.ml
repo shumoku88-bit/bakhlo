@@ -11,18 +11,18 @@ let fixture =
    (labels (provided (label wallet 財布 現金) (label bank 銀行 預金) (label food 食費 経費)))\n\
    (approved-loci (provided wallet food bank expense reserve))\n\
    (entries\n\
-     (entry init (date 2026-10-01) (memo (some initial))\n\
-       (postings (posting bank jpy 50000 (none)) (posting wallet jpy -50000 (none)))\n\
-       (reversal-of (none))))\n\
+   (entry init (date 2026-10-01) (memo (some initial))\n\
+   (postings (posting bank jpy 50000 (none)) (posting wallet jpy -50000 (none)))\n\
+   (reversal-of (none))))\n\
    (plans\n\
-     (plan rent (date 2026-10-25) (measure jpy) (changes (bank -10000) (expense 10000))\n\
-       (paid-by (none)))\n\
-     (plan sub (date 2026-10-20) (measure usd) (changes (wallet -15) (expense 15))\n\
-       (paid-by (none))))\n\
+   (plan rent (date 2026-10-25) (measure jpy) (changes (bank -10000) (expense 10000))\n\
+   (paid-by (none)))\n\
+   (plan sub (date 2026-10-20) (measure usd) (changes (wallet -15) (expense 15))\n\
+   (paid-by (none))))\n\
    (support (zero-origin (food jpy) (expense jpy) (expense usd))\n\
-     (openings (bank jpy init))\n\
-     (observations (observation (reflected) (quantities (wallet jpy 100000) (wallet usd 500))))\n\
-     (presence (not-supplied)))\n"
+   (openings (bank jpy init))\n\
+   (observations (observation (reflected) (quantities (wallet jpy 100000) (wallet usd 500))))\n\
+   (presence (not-supplied)))\n"
 
 let posting locus measure n key =
   D.Effect.create
@@ -56,7 +56,9 @@ let assert_books_equal label inc full =
   let str_inc = B.to_string inc in
   let str_full = B.to_string full in
   if not (String.equal str_inc str_full) then
-    failwith (Printf.sprintf "[%s] Serialized S-expression mismatch:\nINC:\n%s\nFULL:\n%s" label str_inc str_full);
+    failwith
+      (Printf.sprintf "[%s] Serialized S-expression mismatch:\nINC:\n%s\nFULL:\n%s" label str_inc
+         str_full);
   let loci = [ "wallet"; "bank"; "food"; "expense"; "reserve" ] in
   let measures = [ "jpy"; "eur"; "usd" ] in
   List.iter loci ~f:(fun loc ->
@@ -65,13 +67,16 @@ let assert_books_equal label inc full =
           let q_full = query_str full loc m in
           if not (String.equal q_inc q_full) then
             failwith
-              (Printf.sprintf "[%s] Query mismatch for %s %s: inc=%s full=%s" label loc m q_inc q_full)))
+              (Printf.sprintf "[%s] Query mismatch for %s %s: inc=%s full=%s" label loc m q_inc
+                 q_full)))
 
 let assert_error_equal label res_inc res_full =
   match (res_inc, res_full) with
   | Ok _, Ok _ -> failwith (Printf.sprintf "[%s] Expected errors, but both succeeded" label)
-  | Ok _, Error err -> failwith (Printf.sprintf "[%s] Inc succeeded, but full failed with: %s" label err)
-  | Error err, Ok _ -> failwith (Printf.sprintf "[%s] Inc failed with: %s, but full succeeded" label err)
+  | Ok _, Error err ->
+      failwith (Printf.sprintf "[%s] Inc succeeded, but full failed with: %s" label err)
+  | Error err, Ok _ ->
+      failwith (Printf.sprintf "[%s] Inc failed with: %s, but full succeeded" label err)
   | Error e1, Error e2 ->
       if not (String.equal e1 e2) then
         failwith (Printf.sprintf "[%s] Error reason mismatch: inc=%s full=%s" label e1 e2)
@@ -143,7 +148,8 @@ let%expect_test "incremental admission matches full oracle on sequential transac
     (query_str !book_inc "wallet" "jpy")
     (query_str !book_inc "food" "jpy")
     (query_str !book_inc "wallet" "usd");
-  [%expect {|
+  [%expect
+    {|
     sequential transactions: 4 steps identical
     wallet jpy: 32000; food jpy: 5000; wallet usd: 495
     |}]
@@ -170,10 +176,10 @@ let%expect_test "incremental admission matches full oracle on plan payments" =
   Stdio.printf "plan paid_by match: %b (%s)\n"
     (Option.equal String.equal p_inc.paid_by p_full.paid_by)
     (Option.value_exn p_inc.paid_by);
-  Stdio.printf "bank jpy: %s; expense jpy: %s\n"
-    (query_str inc "bank" "jpy")
+  Stdio.printf "bank jpy: %s; expense jpy: %s\n" (query_str inc "bank" "jpy")
     (query_str inc "expense" "jpy");
-  [%expect {|
+  [%expect
+    {|
     plan paid_by match: true (pay_rent)
     bank jpy: 40000; expense jpy: 10000
     |}]
@@ -198,27 +204,49 @@ let%expect_test "incremental admission matches full oracle on error refusals" =
     (B.put_entry base ~replace:false err_dup ~plan:None)
     (B.put_entry_full base ~replace:false err_dup ~plan:None);
   (* 2. Unapproved locus *)
-  let err_locus = { valid_entry with effects = [ posting "unapproved" "jpy" (-100) None; posting "food" "jpy" 100 None ] } in
+  let err_locus =
+    {
+      valid_entry with
+      effects = [ posting "unapproved" "jpy" (-100) None; posting "food" "jpy" 100 None ];
+    }
+  in
   assert_error_equal "unapproved_locus"
     (B.put_entry base ~replace:false err_locus ~plan:None)
     (B.put_entry_full base ~replace:false err_locus ~plan:None);
   (* 3. Unknown measure *)
-  let err_measure = { valid_entry with effects = [ posting "wallet" "gbp" (-100) None; posting "food" "gbp" 100 None ] } in
+  let err_measure =
+    {
+      valid_entry with
+      effects = [ posting "wallet" "gbp" (-100) None; posting "food" "gbp" 100 None ];
+    }
+  in
   assert_error_equal "unknown_measure"
     (B.put_entry base ~replace:false err_measure ~plan:None)
     (B.put_entry_full base ~replace:false err_measure ~plan:None);
   (* 4. Zero effect *)
-  let err_zero = { valid_entry with effects = [ posting "wallet" "jpy" 0 None; posting "food" "jpy" 0 None ] } in
+  let err_zero =
+    { valid_entry with effects = [ posting "wallet" "jpy" 0 None; posting "food" "jpy" 0 None ] }
+  in
   assert_error_equal "zero_effect"
     (B.put_entry base ~replace:false err_zero ~plan:None)
     (B.put_entry_full base ~replace:false err_zero ~plan:None);
   (* 5. Unbalanced measure *)
-  let err_unbalanced = { valid_entry with effects = [ posting "wallet" "jpy" (-100) None; posting "food" "jpy" 50 None ] } in
+  let err_unbalanced =
+    {
+      valid_entry with
+      effects = [ posting "wallet" "jpy" (-100) None; posting "food" "jpy" 50 None ];
+    }
+  in
   assert_error_equal "unbalanced_measure"
     (B.put_entry base ~replace:false err_unbalanced ~plan:None)
     (B.put_entry_full base ~replace:false err_unbalanced ~plan:None);
   (* 6. Cross-measure unbalanced *)
-  let err_cross = { valid_entry with effects = [ posting "wallet" "jpy" (-100) None; posting "food" "usd" 100 None ] } in
+  let err_cross =
+    {
+      valid_entry with
+      effects = [ posting "wallet" "jpy" (-100) None; posting "food" "usd" 100 None ];
+    }
+  in
   assert_error_equal "cross_measure_unbalanced"
     (B.put_entry base ~replace:false err_cross ~plan:None)
     (B.put_entry_full base ~replace:false err_cross ~plan:None);
@@ -286,7 +314,8 @@ let%expect_test "fallback cases trigger full oracle correctly and match results"
       id = "fx_tx";
       day = "2026-10-08";
       memo = Some "FX trade";
-      effects = [ posting "wallet" "jpy" (-15000) (Some "src"); posting "wallet" "usd" 100 (Some "dst") ];
+      effects =
+        [ posting "wallet" "jpy" (-15000) (Some "src"); posting "wallet" "usd" 100 (Some "dst") ];
       reversal_of = None;
       exchange = Some ("src", "dst");
       original_amount = None;
@@ -318,7 +347,8 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
   let past_tx : B.entry =
     {
       id = "past_e";
-      day = "2026-09-01"; (* Older than init (2026-10-01) *)
+      day = "2026-09-01";
+      (* Older than init (2026-10-01) *)
       memo = Some "Past entry";
       effects = [ posting "wallet" "jpy" (-3000) None; posting "food" "jpy" 3000 None ];
       reversal_of = None;
@@ -373,7 +403,10 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
   assert_books_equal "reversal_entry" inc_rev full_rev;
   assert (B.entry_count inc_rev = 3);
   assert (B.mem_entry inc_rev "rev_e");
-  assert (List.equal String.equal (List.map (B.entries inc_rev) ~f:(fun e -> e.id)) [ "init"; "past_e"; "rev_e" ]);
+  assert (
+    List.equal String.equal
+      (List.map (B.entries inc_rev) ~f:(fun e -> e.id))
+      [ "init"; "past_e"; "rev_e" ]);
 
   (* 5. FX Exchange *)
   let fx_tx : B.entry =
@@ -381,7 +414,8 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
       id = "fx_e";
       day = "2026-10-06";
       memo = Some "FX exchange";
-      effects = [ posting "wallet" "jpy" (-15000) (Some "src"); posting "wallet" "usd" 100 (Some "dst") ];
+      effects =
+        [ posting "wallet" "jpy" (-15000) (Some "src"); posting "wallet" "usd" 100 (Some "dst") ];
       reversal_of = None;
       exchange = Some ("src", "dst");
       original_amount = None;
@@ -412,7 +446,9 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
   assert_books_equal "plan_pay_entry" inc_pay full_pay;
   assert (B.entry_count inc_pay = 5);
   assert (B.mem_entry inc_pay "pay_rent");
-  let paid_plan = Option.value_exn (List.find (B.plans inc_pay) ~f:(fun p -> String.equal p.id "rent")) in
+  let paid_plan =
+    Option.value_exn (List.find (B.plans inc_pay) ~f:(fun p -> String.equal p.id "rent"))
+  in
   assert (Option.equal String.equal paid_plan.paid_by (Some "pay_rent"));
 
   (* 7. S-expression export & reload *)
@@ -424,8 +460,8 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
   assert (List.equal String.equal rec_fwd_ids [ "init"; "past_e"; "rev_e"; "fx_e"; "pay_rent" ]);
   assert (List.equal String.equal rec_rev_ids [ "pay_rent"; "fx_e"; "rev_e"; "past_e"; "init" ]);
   List.iter rec_fwd_ids ~f:(fun id ->
-    assert (B.mem_entry reloaded_rec id);
-    assert (Option.is_some (B.find_entry reloaded_rec id)));
+      assert (B.mem_entry reloaded_rec id);
+      assert (Option.is_some (B.find_entry reloaded_rec id)));
   let loci = [ "wallet"; "bank"; "food"; "expense"; "reserve" ] in
   let measures = [ "jpy"; "usd" ] in
   List.iter loci ~f:(fun l ->
@@ -433,13 +469,13 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
           let q_orig = query_str inc_pay l m in
           let q_rec = query_str reloaded_rec l m in
           if not (String.equal q_orig q_rec) then
-            failwith (Printf.sprintf "roundtrip balance mismatch at (%s, %s): %s vs %s" l m q_orig q_rec)));
+            failwith
+              (Printf.sprintf "roundtrip balance mismatch at (%s, %s): %s vs %s" l m q_orig q_rec)));
 
   Stdio.printf "PR 6b comprehensive regression invariants hold\n";
   [%expect {|
     PR 6b comprehensive regression invariants hold
     |}]
-
 
 let%expect_test "date-only checks agree with full Actual validity admission" =
   let module V = Bakhlo_application.Actual_validity in

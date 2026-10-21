@@ -23,9 +23,12 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
     | None -> Some { state with record_visible = false }
     | Some record -> (
         match
-          S.handle ~new_id:Daily_file.new_id ~book:state.session.book ~base_revision:state.session.revision ~blocked:state.blocked
+          S.handle ~new_id:Daily_file.new_id ~book:state.session.book
+            ~base_revision:state.session.revision ~blocked:state.blocked
             ~dimensions:(record_dimensions ~dimensions ~width_of state)
-            ~width_of (S.with_roles (Shell_files.accounting_roles state) record) input
+            ~width_of
+            (S.with_roles (Shell_files.accounting_roles state) record)
+            input
         with
         | S.Updated record -> Some { state with record = Some record }
         | S.Closed record -> Some { state with record = Some record; record_visible = false }
@@ -41,13 +44,24 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             let draft = { state with record = Some record } in
             if state.blocked then Some draft
             else
-              let next = apply_commit_result ~published_message:"Unresolved recording enabled." state ~draft
-                  (A.commit_add_locus ~session:state.session "suspense") in
-              let enabled = match Bakhlo_sexp.Daily_book.approved_loci next.session.book with
-                | Some loci -> List.mem "suspense" loci | None -> false in
-              Some { next with record_visible = true; record = Some (if enabled
-                then S.after_unresolved_enabled ~book:next.session.book record
-                else S.unresolved_not_enabled record next.message) })
+              let next =
+                apply_commit_result ~published_message:"Unresolved recording enabled." state ~draft
+                  (A.commit_add_locus ~session:state.session "suspense")
+              in
+              let enabled =
+                match Bakhlo_sexp.Daily_book.approved_loci next.session.book with
+                | Some loci -> List.mem "suspense" loci
+                | None -> false
+              in
+              Some
+                {
+                  next with
+                  record_visible = true;
+                  record =
+                    Some
+                      (if enabled then S.after_unresolved_enabled ~book:next.session.book record
+                       else S.unresolved_not_enabled record next.message);
+                })
   else if Option.is_some (Screen_registry.modal state.screens) then
     match input with
     | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Some (reload state)
@@ -63,8 +77,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         let count = List.length P.all_themes in
         match input with
         | `Key ((`Escape | `ASCII 'q'), []) ->
-            Some
-              { state with theme = original; overlay = Commands return_menu }
+            Some { state with theme = original; overlay = Commands return_menu }
         | `Key ((`Arrow `Up | `Arrow `Left | `ASCII 'k'), [])
         | `Key ((`Arrow `Down | `Arrow `Right | `ASCII 'j'), []) ->
             let delta =
@@ -88,12 +101,13 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
     | Modal_form form -> (
         let result =
           match input with
-          | `Key (`ASCII ('r' | 'R'), [`Ctrl]) -> Form.Updated form
-          | _ -> Form.handle_input form input in
+          | `Key (`ASCII ('r' | 'R'), [ `Ctrl ]) -> Form.Updated form
+          | _ -> Form.handle_input form input
+        in
         match result with
         | Form.Cancel -> Some { state with overlay = No_overlay }
-        | Form.Updated _ when input = `Key (`ASCII 'r', [`Ctrl])
-                              || input = `Key (`ASCII 'R', [`Ctrl]) ->
+        | Form.Updated _
+          when input = `Key (`ASCII 'r', [ `Ctrl ]) || input = `Key (`ASCII 'R', [ `Ctrl ]) ->
             Some (reload state)
         | Form.Updated updated -> Some { state with overlay = Modal_form updated }
         | Form.Submit submitted -> (
@@ -101,11 +115,15 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             | "discard_record" ->
                 let width, height = body_dimensions ~dimensions ~width_of state in
                 if width < 48 || height < 12 then
-                  Some { (request_discard state) with
-                    message = (if state.blocked then state.message
-                      else tr "Enlarge the terminal to confirm draft discard.") }
+                  Some
+                    {
+                      (request_discard state) with
+                      message =
+                        (if state.blocked then state.message
+                         else tr "Enlarge the terminal to confirm draft discard.");
+                    }
                 else Some (discard { state with overlay = No_overlay })
-        | _ -> Some state))
+            | _ -> Some state))
     | No_overlay -> (
         let key = match input with `Key (key, mods) -> Some (key, mods) | _ -> None in
         let route_step = lazy (route_screen_input ~dimensions ~width_of state input) in
@@ -123,8 +141,9 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             Some { state with overlay = Commands M.initial }
         | Some ((`Escape | `ASCII 'q'), []) -> Some (back state)
         | Some (`ASCII ('r' | 'n'), []) -> Some (open_record state)
-        | Some (`ASCII ('c' | 'e'), []) | Some (`ASCII 'e', [ `Ctrl ]) -> Some (Shell_record_actions.edit_target state None)
+        | Some (`ASCII ('c' | 'e'), []) | Some (`ASCII 'e', [ `Ctrl ]) ->
+            Some (Shell_record_actions.edit_target state None)
         | _ -> (
             match ambient_screen_input ~dimensions ~width_of state input with
             | Some state -> Some state
-            | None -> match input with `End -> None | _ -> Some state))
+            | None -> ( match input with `End -> None | _ -> Some state)))

@@ -19,9 +19,7 @@ let quanta p = D.Quantity.quanta (D.Effect.quantity p)
 
 type mode = New | Edit of B.entry | Pay of string | Plan_new | Plan_edit of B.plan
 type transaction = { entry : B.entry; replace : bool; plan : string option }
-type payload =
-  | Entry_tx of transaction
-  | Plan_tx of { plan : B.plan; replace : bool }
+type payload = Entry_tx of transaction | Plan_tx of { plan : B.plan; replace : bool }
 
 type single_form = {
   day : string;
@@ -121,8 +119,7 @@ let prepare_pay ~today ~book (p : B.plan) : pay_preparation =
           | Error "measure-scale-not-supplied" ->
               Pay_refused (tr "The Measure scale is not supplied; completion is unavailable.")
           | Error why -> Pay_refused (format_message "Scheduled completion refused (%s)" why)
-          | Ok draft ->
-              Pay_multiple { day = today; measure = p.measure; draft; plan_id = p.id })
+          | Ok draft -> Pay_multiple { day = today; measure = p.measure; draft; plan_id = p.id })
       | Some (from_, to_) ->
           Pay_single
             {
@@ -322,61 +319,74 @@ let build_transaction ~new_id ~book ~mode content : (transaction, transaction_er
         err ~field:Field_currency ~raw:"measure-scale-not-supplied"
           (tr "The Measure scale is not supplied in this book.")
     | _ -> (
-    match D.Movement.validate effects with
-    | Error (D.Movement.Empty :: _) ->
-        err ~raw:"empty-movement" (tr "At least one posting is required.")
-    | Error (D.Movement.Zero_quantity { position } :: _) ->
-        err ~field:Field_amount ~raw:"zero-quantity"
-          (format_message "Posting %d is zero. Enter a nonzero amount." position)
-    | Error (D.Movement.Measure_mismatch { position; expected; actual } :: _) ->
-        err ~field:Field_currency ~raw:"measure-mismatch"
-          (format_message "Posting %d Measure (%s) differs from the other postings (%s)." position
-             (D.Identifier.Measure.to_string actual)
-             (D.Identifier.Measure.to_string expected))
-    | Error (D.Movement.Unbalanced { measure = _; residual = _ } :: _) ->
-        err ~field:Field_amount ~raw:"unbalanced-movement"
-          (tr "The signed postings are unbalanced; their exact sum must be zero.")
-    | Error [] -> err ~raw:"invalid-movement" (tr "Invalid Movement structure.")
-    | Ok _ -> (
-        let memo =
-          match mode with
-          | Edit e when Option.value ~default:"" e.memo = memo_str -> e.memo
-          | New | Pay _ | Edit _ | Plan_new | Plan_edit _ ->
-              if memo_str = "" then None else Some memo_str
-        in
-        let entry, replace, plan =
-          match mode with
-          | Edit e -> ({ e with day; memo; effects }, true, None)
-          | New | Pay _ | Plan_new | Plan_edit _ ->
-              ( { B.id = new_id (); day; memo; effects; reversal_of = None; exchange = None; original_amount; merchant = None },
-                false,
-                match mode with Pay id -> Some id | New | Edit _ | Plan_new | Plan_edit _ -> None )
-        in
-        match B.put_entry book ~replace entry ~plan with
-        | Ok _ -> Ok { entry; replace; plan }
-        | Error "duplicate-entry" ->
-            err ~raw:"duplicate-entry"
-              (format_message "The Actual ID already exists (ID: %s)." entry.id)
-        | Error "measure-scale-not-supplied" ->
-            err ~field:Field_currency ~raw:"measure-scale-not-supplied"
-              (tr "The Measure scale is not supplied in this book.")
-        | Error "locus-unapproved" ->
-            err ~raw:"locus-unapproved" (tr "A Locus is not admitted by the current book.")
-        | Error "plan-already-paid" ->
-            err ~raw:"plan-already-paid" (tr "This Scheduled occurrence is already completed.")
-        | Error "plan-cancelled" ->
-            err ~raw:"plan-cancelled" (tr "This Scheduled occurrence is cancelled.")
-        | Error "unknown-plan" ->
-            err ~raw:"unknown-plan" (tr "The Scheduled occurrence is unavailable.")
-        | Error "entry-admission" ->
-            (* Date has already been proven valid via Actual_validity.valid_date.
+        match D.Movement.validate effects with
+        | Error (D.Movement.Empty :: _) ->
+            err ~raw:"empty-movement" (tr "At least one posting is required.")
+        | Error (D.Movement.Zero_quantity { position } :: _) ->
+            err ~field:Field_amount ~raw:"zero-quantity"
+              (format_message "Posting %d is zero. Enter a nonzero amount." position)
+        | Error (D.Movement.Measure_mismatch { position; expected; actual } :: _) ->
+            err ~field:Field_currency ~raw:"measure-mismatch"
+              (format_message "Posting %d Measure (%s) differs from the other postings (%s)."
+                 position
+                 (D.Identifier.Measure.to_string actual)
+                 (D.Identifier.Measure.to_string expected))
+        | Error (D.Movement.Unbalanced { measure = _; residual = _ } :: _) ->
+            err ~field:Field_amount ~raw:"unbalanced-movement"
+              (tr "The signed postings are unbalanced; their exact sum must be zero.")
+        | Error [] -> err ~raw:"invalid-movement" (tr "Invalid Movement structure.")
+        | Ok _ -> (
+            let memo =
+              match mode with
+              | Edit e when Option.value ~default:"" e.memo = memo_str -> e.memo
+              | New | Pay _ | Edit _ | Plan_new | Plan_edit _ ->
+                  if memo_str = "" then None else Some memo_str
+            in
+            let entry, replace, plan =
+              match mode with
+              | Edit e -> ({ e with day; memo; effects }, true, None)
+              | New | Pay _ | Plan_new | Plan_edit _ ->
+                  ( {
+                      B.id = new_id ();
+                      day;
+                      memo;
+                      effects;
+                      reversal_of = None;
+                      exchange = None;
+                      original_amount;
+                      merchant = None;
+                    },
+                    false,
+                    match mode with
+                    | Pay id -> Some id
+                    | New | Edit _ | Plan_new | Plan_edit _ -> None )
+            in
+            match B.put_entry book ~replace entry ~plan with
+            | Ok _ -> Ok { entry; replace; plan }
+            | Error "duplicate-entry" ->
+                err ~raw:"duplicate-entry"
+                  (format_message "The Actual ID already exists (ID: %s)." entry.id)
+            | Error "measure-scale-not-supplied" ->
+                err ~field:Field_currency ~raw:"measure-scale-not-supplied"
+                  (tr "The Measure scale is not supplied in this book.")
+            | Error "locus-unapproved" ->
+                err ~raw:"locus-unapproved" (tr "A Locus is not admitted by the current book.")
+            | Error "plan-already-paid" ->
+                err ~raw:"plan-already-paid" (tr "This Scheduled occurrence is already completed.")
+            | Error "plan-cancelled" ->
+                err ~raw:"plan-cancelled" (tr "This Scheduled occurrence is cancelled.")
+            | Error "unknown-plan" ->
+                err ~raw:"unknown-plan" (tr "The Scheduled occurrence is unavailable.")
+            | Error "entry-admission" ->
+                (* Date has already been proven valid via Actual_validity.valid_date.
                Therefore this refusal represents a ledger event admission requirement
                (e.g. zero quantity, imbalance, or invalid relation/reversal), NOT a date error. *)
-            err ~raw:"entry-admission"
-              (tr
-                 "Movement admission refused (entry-admission); check conservation and \
-                  relationships.")
-        | Error why -> err ~raw:why (format_message "Record refused (%s). Review the draft." why)))
+                err ~raw:"entry-admission"
+                  (tr
+                     "Movement admission refused (entry-admission); check conservation and \
+                      relationships.")
+            | Error why ->
+                err ~raw:why (format_message "Record refused (%s). Review the draft." why)))
   in
   match content with
   | Single form -> (
@@ -452,7 +462,9 @@ let build_transaction ~new_id ~book ~mode content : (transaction, transaction_er
                 in
                 match effects_res with
                 | Error why -> err ~raw:why (format_message "Invalid Locus (%s)." why)
-                | Ok effects -> validate_and_put ~day:canon_day ~memo_str:form.memo ~effects ~original_amount:None)))
+                | Ok effects ->
+                    validate_and_put ~day:canon_day ~memo_str:form.memo ~effects
+                      ~original_amount:None)))
   | Multiple { day; memo = memo_str; draft; original_amount } -> (
       match normalize_date day with
       | Error _ ->
@@ -473,8 +485,9 @@ let build_transaction ~new_id ~book ~mode content : (transaction, transaction_er
                 err ~raw:why (format_message "%s. Enter a positive amount magnitude." why)
             | Error why when Base.String.is_substring why ~substring:"amount-precision" ->
                 err ~raw:why (format_message "%s. Check the Measure decimal scale." why)
-            | Error why when Base.String.is_substring why ~substring:"division-by-zero"
-                          || Base.String.is_substring why ~substring:"indivisible-amount" ->
+            | Error why
+              when Base.String.is_substring why ~substring:"division-by-zero"
+                   || Base.String.is_substring why ~substring:"indivisible-amount" ->
                 err ~raw:why (R.format_residual_error why)
             | Error why when Base.String.is_substring why ~substring:"empty-locus" ->
                 err ~raw:why (format_message "%s. Select an admitted Locus." why)
@@ -502,8 +515,9 @@ let build_plan ~new_id ~book ~mode ~day ~draft : (B.plan * bool, transaction_err
             err ~raw:why (format_message "%s. Enter a positive amount magnitude." why)
         | Error why when Base.String.is_substring why ~substring:"amount-precision" ->
             err ~raw:why (format_message "%s. Check the Measure decimal scale." why)
-        | Error why when Base.String.is_substring why ~substring:"division-by-zero"
-                      || Base.String.is_substring why ~substring:"indivisible-amount" ->
+        | Error why
+          when Base.String.is_substring why ~substring:"division-by-zero"
+               || Base.String.is_substring why ~substring:"indivisible-amount" ->
             err ~raw:why (R.format_residual_error why)
         | Error why when Base.String.is_substring why ~substring:"empty-locus" ->
             err ~raw:why (format_message "%s. Select an admitted Locus." why)
@@ -517,17 +531,16 @@ let build_plan ~new_id ~book ~mode ~day ~draft : (B.plan * bool, transaction_err
                   (format_message "Posting %d is zero. Enter a nonzero amount." position)
             | Error (D.Movement.Measure_mismatch { position; expected; actual } :: _) ->
                 err ~field:Field_currency ~raw:"measure-mismatch"
-                  (format_message "Posting %d Measure (%s) differs from the other postings (%s)." position
+                  (format_message "Posting %d Measure (%s) differs from the other postings (%s)."
+                     position
                      (D.Identifier.Measure.to_string actual)
                      (D.Identifier.Measure.to_string expected))
             | Error (D.Movement.Unbalanced { measure = _; residual = _ } :: _) ->
                 err ~field:Field_amount ~raw:"unbalanced-movement"
                   (tr "The signed postings are unbalanced; their exact sum must be zero.")
             | Error [] -> err ~raw:"invalid-movement" (tr "Invalid Movement structure.")
-            | Ok _ ->
-                let changes =
-                  List.map (fun e -> (lstr (D.Effect.locus e), quanta e)) effects
-                in
+            | Ok _ -> (
+                let changes = List.map (fun e -> (lstr (D.Effect.locus e), quanta e)) effects in
                 let plan, replace =
                   match mode with
                   | Plan_edit p ->
@@ -542,8 +555,7 @@ let build_plan ~new_id ~book ~mode ~day ~draft : (B.plan * bool, transaction_err
                           cancelled_on = None;
                         },
                         false )
-                  | New | Edit _ | Pay _ ->
-                      failwith "unexpected mode for build_plan"
+                  | New | Edit _ | Pay _ -> failwith "unexpected mode for build_plan"
                 in
                 match B.put_plan book ~replace plan with
                 | Ok _ -> Ok (plan, replace)
@@ -553,11 +565,11 @@ let build_plan ~new_id ~book ~mode ~day ~draft : (B.plan * bool, transaction_err
                 | Error "unknown-plan" ->
                     err ~raw:"unknown-plan" (tr "The Scheduled occurrence is unavailable.")
                 | Error "plan-already-paid" ->
-                    err ~raw:"plan-already-paid" (tr "This Scheduled occurrence is already completed.")
+                    err ~raw:"plan-already-paid"
+                      (tr "This Scheduled occurrence is already completed.")
                 | Error "plan-cancelled" ->
                     err ~raw:"plan-cancelled" (tr "This Scheduled occurrence is cancelled.")
                 | Error "locus-unapproved" ->
                     err ~raw:"locus-unapproved" (tr "A Locus is not admitted by the current book.")
                 | Error why ->
-                    err ~raw:why (format_message "Scheduled refused (%s). Review the draft." why)))
-
+                    err ~raw:why (format_message "Scheduled refused (%s). Review the draft." why))))

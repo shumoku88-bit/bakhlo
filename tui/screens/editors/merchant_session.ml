@@ -17,10 +17,7 @@ type t = {
   base_revision : string;
 }
 
-type outcome =
-  | Updated of t
-  | Closed
-  | Publish of string * M.disposition * string
+type outcome = Updated of t | Closed | Publish of string * M.disposition * string
 
 let create ~base_revision (entry : B.entry) : t =
   {
@@ -38,41 +35,29 @@ let target t = t.target
 let choice t = t.choice
 let party_input t = t.party_input
 let is_preview t = t.mode = Preview
-
 let edit t = { t with mode = Editing; notice = "" }
 let with_publish_error t message = { t with mode = Editing; notice = message }
 
 let valid_token s =
   s <> "" && not (String.contains s '\t' || String.contains s '\n' || String.contains s '\r')
 
-let next_choice = function
-  | Merchant -> Nonmerchant
-  | Nonmerchant -> Merchant
-
-let choice_text = function
-  | Merchant -> "Merchant"
-  | Nonmerchant -> "Nonmerchant"
-
-let description_text t =
-  if t.description = "" then "(no description)"
-  else O.visible t.description
+let next_choice = function Merchant -> Nonmerchant | Nonmerchant -> Merchant
+let choice_text = function Merchant -> "Merchant" | Nonmerchant -> "Nonmerchant"
+let description_text t = if t.description = "" then "(no description)" else O.visible t.description
 
 let proposal_text t =
-  match t.choice with
-  | Merchant -> "Merchant " ^ t.party_input
-  | Nonmerchant -> "Nonmerchant"
+  match t.choice with Merchant -> "Merchant " ^ t.party_input | Nonmerchant -> "Nonmerchant"
 
 let draft_disposition t =
   match t.choice with
-  | Merchant ->
+  | Merchant -> (
       if not (valid_token t.party_input) then
         Error "Merchant party id must be a non-empty single text field."
       else
-        (match D.Identifier.External_party.of_string t.party_input with
+        match D.Identifier.External_party.of_string t.party_input with
         | Ok p -> Ok (M.Merchant p)
         | Error _ -> Error "Merchant party id must be a non-empty single text field.")
-  | Nonmerchant ->
-      Ok M.Nonmerchant
+  | Nonmerchant -> Ok M.Nonmerchant
 
 let dimensions (width, height) =
   if width >= 76 && height >= 21 then (min 76 (width - 4), min 21 (height - 2))
@@ -105,8 +90,7 @@ let content_rows ~width ~width_of t =
       | Nonmerchant -> [ "Party id: (not applicable)" ]
     in
     party_row @ details
-  else
-    details
+  else details
 
 let footer_rows ~width ~width_of t =
   let wrap text = O.wrap_text ~width_of (max 1 (width - 6)) text in
@@ -117,10 +101,9 @@ let footer_rows ~width ~width_of t =
   in
   let footer =
     wrap help
-    @ (if t.mode = Preview then
-        wrap "First classification only; replacement is not available here."
+    @ (if t.mode = Preview then wrap "First classification only; replacement is not available here."
        else [])
-    @ (if t.notice = "" then [] else wrap t.notice)
+    @ if t.notice = "" then [] else wrap t.notice
   in
   footer
 
@@ -135,8 +118,7 @@ let handle ~blocked ~dimensions:(width, height) ~width_of t (input : Ui_input.in
   | Editing -> (
       match input with
       | `Key (`ASCII ('q' | 'Q'), []) | `Key (`Escape, []) -> Closed
-      | `Key (`Tab, _) ->
-          Updated { t with choice = next_choice t.choice; notice = "" }
+      | `Key (`Tab, _) -> Updated { t with choice = next_choice t.choice; notice = "" }
       | `Key (`Backspace, _) -> (
           match t.choice with
           | Merchant ->
@@ -155,10 +137,10 @@ let handle ~blocked ~dimensions:(width, height) ~width_of t (input : Ui_input.in
       | `Key (`Uchar u, _) -> (
           match t.choice with
           | Merchant ->
-              if String.length t.party_input < 80 then
+              if String.length t.party_input < 80 then (
                 let b = Buffer.create 4 in
                 Uutf.Buffer.add_utf_8 b u;
-                Updated { t with party_input = t.party_input ^ Buffer.contents b; notice = "" }
+                Updated { t with party_input = t.party_input ^ Buffer.contents b; notice = "" })
               else Updated t
           | Nonmerchant -> Updated t)
       | `Key (`Enter, []) -> (
@@ -171,12 +153,16 @@ let handle ~blocked ~dimensions:(width, height) ~width_of t (input : Ui_input.in
       | `Key (`ASCII ('q' | 'Q'), []) -> Closed
       | `Key (`Escape, []) | `Key (`ASCII ('e' | 'E'), []) ->
           Updated { t with mode = Editing; notice = "" }
-      | `Key (`Enter, []) ->
+      | `Key (`Enter, []) -> (
           if not (review_visible ~width ~height ~width_of t) then
-            Updated { t with notice = "Enlarge terminal to review the Merchant target and proposal before Publish." }
-          else if blocked then
-            Updated { t with notice = "Writes stopped; draft retained." }
-          else (
+            Updated
+              {
+                t with
+                notice =
+                  "Enlarge terminal to review the Merchant target and proposal before Publish.";
+              }
+          else if blocked then Updated { t with notice = "Writes stopped; draft retained." }
+          else
             match draft_disposition t with
             | Ok disposition -> Publish (t.target, disposition, t.base_revision)
             | Error message -> Updated { t with mode = Editing; notice = message })
@@ -188,8 +174,10 @@ let footer t =
       [ "Tab Merchant/Nonmerchant  Type party id  Enter preview  Esc/q cancel" ]
       @ if t.notice <> "" then [ t.notice ] else []
   | Preview ->
-      [ "Enter publish  Esc/e edit  q cancel";
-        "First classification only; replacement is not available here." ]
+      [
+        "Enter publish  Esc/e edit  q cancel";
+        "First classification only; replacement is not available here.";
+      ]
       @ if t.notice <> "" then [ t.notice ] else []
 
 let screen ~dimensions:(width, height) ~width_of t =
@@ -201,8 +189,7 @@ let screen ~dimensions:(width, height) ~width_of t =
           | Merchant ->
               let prompt = "Party id: " ^ t.party_input in
               (O.Input (width_of prompt), prompt)
-          | Nonmerchant ->
-              (O.Plain, "Party id: (not applicable)")
+          | Nonmerchant -> (O.Plain, "Party id: (not applicable)")
         in
         [
           party_row;
@@ -211,7 +198,7 @@ let screen ~dimensions:(width, height) ~width_of t =
           (O.Plain, "Description: " ^ description_text t);
           (O.Plain, "Disposition: " ^ choice_text t.choice);
         ]
-        @ (if t.notice <> "" then [ (O.Status, t.notice) ] else [])
+        @ if t.notice <> "" then [ (O.Status, t.notice) ] else []
     | Preview ->
         (if t.notice <> "" then [ (O.Status, t.notice) ] else [])
         @ [

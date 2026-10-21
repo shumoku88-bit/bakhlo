@@ -15,7 +15,6 @@ module Panel = Ui_panel
 let tr = Ui_text.tr
 let boundary_file = "boundary-presets.tsv"
 let config_files = [ boundary_file ]
-
 let max_series = 5
 let max_overlays = 3
 let max_name_chars = 32
@@ -173,13 +172,16 @@ let relocate (env : Screen.env) t =
 
 let selected (env : Screen.env) t =
   match project env t with Ok snap -> effective_index t snap | Error _ -> 0
+
 let grain t = t.grain
 let scope t = effective_scope t
 let coordinates (env : Screen.env) t = effective_coordinates env t
 let selected_period t = t.selected_period
 let overlay_count t = List.length t.overlays
+
 let overlays t =
   List.map (fun (overlay : overlay) -> (overlay.month, overlay.name, overlay.days)) t.overlays
+
 let guides t = t.guides
 let notice t = t.notice
 let picker_open t = Option.is_some t.picker
@@ -194,7 +196,8 @@ let editor_field t = match t.editor with Some editor -> editor.field | None -> `
 
 let int_of_part date offset length =
   if String.length date < offset + length then None
-  else match int_of_string_opt (String.sub date offset length) with
+  else
+    match int_of_string_opt (String.sub date offset length) with
     | Some value -> Some value
     | None -> None
 
@@ -207,9 +210,7 @@ let month_length year month =
   match month with
   | 1 | 3 | 5 | 7 | 8 | 10 | 12 -> Some 31
   | 4 | 6 | 9 | 11 -> Some 30
-  | 2 ->
-      Some
-        (if (year mod 4 = 0 && year mod 100 <> 0) || year mod 400 = 0 then 29 else 28)
+  | 2 -> Some (if (year mod 4 = 0 && year mod 100 <> 0) || year mod 400 = 0 then 29 else 28)
   | _ -> None
 
 let utf8_length text =
@@ -259,13 +260,13 @@ let open_picker (env : Screen.env) t =
   let target = if List.length coordinates >= max_series then 0 else List.length coordinates in
   let cursor =
     match List.nth_opt coordinates target with
-    | Some coordinate -> (
+    | Some coordinate ->
         let rec find index = function
           | [] -> 0
           | candidate :: rest ->
               if same_coordinate candidate coordinate then index else find (index + 1) rest
         in
-        find 0 candidates)
+        find 0 candidates
     | None -> 0
   in
   { t with picker = Some { target; cursor; notice = "" } }
@@ -285,9 +286,9 @@ let apply_pick (env : Screen.env) t (picker : picker) =
   let coordinates = effective_coordinates env t in
   match List.nth_opt candidates picker.cursor with
   | None -> (t, Screen.Stay)
-  | Some candidate ->
+  | Some candidate -> (
       let used = List.find_index (fun c -> same_coordinate c candidate) coordinates in
-      (match used with
+      match used with
       | Some index when index <> picker.target ->
           (* A coordinate is plotted once; a duplicate never replaces a slot. *)
           ( { t with picker = Some { picker with notice = "That coordinate is already plotted." } },
@@ -299,8 +300,8 @@ let apply_pick (env : Screen.env) t (picker : picker) =
 let remove_pick (env : Screen.env) t (picker : picker) =
   let coordinates = effective_coordinates env t in
   if List.length coordinates <= 1 then
-    ({ t with picker = Some { picker with notice = "Keep at least one plotted series." } },
-     Screen.Stay)
+    ( { t with picker = Some { picker with notice = "Keep at least one plotted series." } },
+      Screen.Stay )
   else
     (* Removing the next empty slot removes the last occupied one. *)
     let index =
@@ -328,16 +329,15 @@ let split_day_tokens text =
 let selected_month (env : Screen.env) t =
   match project env t with
   | Error _ -> None
-  | Ok snap ->
+  | Ok snap -> (
       let points = points_of snap in
       if Array.length points = 0 then None
       else
         let date = points.(effective_index t snap).R.start_day in
-        (match year_of date, month_of date with
+        match (year_of date, month_of date) with
         | Some year, Some month -> (
             match month_length year month with
-            | Some length ->
-                Some { length; key = Option.value ~default:"" (month_key date) }
+            | Some length -> Some { length; key = Option.value ~default:"" (month_key date) }
             | None -> None)
         | _ -> None)
 
@@ -345,7 +345,7 @@ let parse_days text length =
   let tokens = split_day_tokens text in
   let rec loop seen acc = function
     | [] -> Ok (List.rev acc)
-    | token :: rest ->
+    | token :: rest -> (
         if not (String.for_all (fun c -> c >= '0' && c <= '9') token) then
           Error "Days accept numbers separated by space, comma or dot."
         else
@@ -355,7 +355,7 @@ let parse_days text length =
               if day < 1 || day > length then
                 Error (Printf.sprintf "Day %d does not exist in that month." day)
               else if List.mem day seen then loop seen acc rest
-              else loop (day :: seen) (day :: acc) rest
+              else loop (day :: seen) (day :: acc) rest)
   in
   loop [] [] tokens
 
@@ -390,15 +390,19 @@ let apply_editor t (editor : editor) =
   if name = "" then
     ({ t with editor = Some { editor with notice = "Name the annotation." } }, Screen.Stay)
   else if utf8_length name > max_name_chars then
-    ({ t with editor = Some { editor with notice = "A name holds at most 32 characters." } },
-     Screen.Stay)
+    ( { t with editor = Some { editor with notice = "A name holds at most 32 characters." } },
+      Screen.Stay )
   else
     match parse_days editor.day_text editor.month.length with
     | Error why -> ({ t with editor = Some { editor with notice = why } }, Screen.Stay)
     | Ok [] ->
         ({ t with editor = Some { editor with notice = "Mark at least one day." } }, Screen.Stay)
     | Ok days ->
-        ( { t with overlays = t.overlays @ [ { month = editor.month.key; name; days } ]; editor = None },
+        ( {
+            t with
+            overlays = t.overlays @ [ { month = editor.month.key; name; days } ];
+            editor = None;
+          },
           Screen.Stay )
 
 (* Input *)
@@ -453,12 +457,7 @@ let handle_chart (env : Screen.env) t input =
   | `Key (`ASCII 'o', []) -> stay (open_editor env t)
   | `Key (`ASCII 'O', []) ->
       stay
-        {
-          t with
-          overlays = [];
-          guides = false;
-          notice = "Session annotations and guides cleared.";
-        }
+        { t with overlays = []; guides = false; notice = "Session annotations and guides cleared." }
   | `Key (`ASCII ('v' | 'V'), []) ->
       if t.overlays = [] then stay t else stay { t with guides = not t.guides }
   | _ -> (t, Screen.Ignored)
@@ -479,8 +478,7 @@ let handle_picker (env : Screen.env) t (picker : picker) input =
         stay
           {
             t with
-            picker =
-              Some { picker with notice = "Choose an occupied slot or the next empty slot." };
+            picker = Some { picker with notice = "Choose an occupied slot or the next empty slot." };
           }
   | `Key ((`ASCII 'h' | `Arrow `Left), []) ->
       stay { t with picker = Some (move_cursor candidates picker (-1)) }
@@ -510,7 +508,10 @@ let handle_editor t (editor : editor) input =
             stay { t with editor = Some { editor with notice = "Name the annotation." } }
           else if utf8_length name > max_name_chars then
             stay
-              { t with editor = Some { editor with notice = "A name holds at most 32 characters." } }
+              {
+                t with
+                editor = Some { editor with notice = "A name holds at most 32 characters." };
+              }
           else stay { t with editor = Some { editor with field = `Days; notice = "" } }
       | `Days -> apply_editor t editor)
   | `Key (`ASCII c, []) when c >= ' ' && c <> '\127' ->
@@ -534,22 +535,21 @@ let marker_of index = Chart.markers.(index mod Array.length Chart.markers)
 let rack_text (env : Screen.env) (snap : R.snapshot) =
   Array.to_list snap.R.series
   |> List.mapi (fun index series ->
-         marker_of index ^ " " ^ series.R.label ^ " (" ^ series.R.coordinate.R.locus ^ ")")
+      marker_of index ^ " " ^ series.R.label ^ " (" ^ series.R.coordinate.R.locus ^ ")")
   |> String.concat "  "
 
 let period_line ~width_of ~width t (snap : R.snapshot) index =
   let points = points_of snap in
-  if Array.length points = 0 || index < 0 || index >= Array.length points then
-    "No selected period."
+  if Array.length points = 0 || index < 0 || index >= Array.length points then "No selected period."
   else
     let point = points.(index) in
     let range = point.R.start_day ^ ".." ^ point.R.end_exclusive in
     let window = if point.R.complete then "full window" else "partial window" in
     let full =
       range ^ " • " ^ window
-      ^ (if width >= 64 then Printf.sprintf " • %d calendar days" point.R.observed_days else "")
+      ^ if width >= 64 then Printf.sprintf " • %d calendar days" point.R.observed_days else ""
     in
-    let short = range ^ " • " ^ (if point.R.complete then "full" else "partial") in
+    let short = range ^ " • " ^ if point.R.complete then "full" else "partial" in
     if t.grain = R.Day then point.R.start_day ^ " • day"
     else if width_of full <= width then full
     else if width_of short <= width then short
@@ -560,18 +560,18 @@ let period_line ~width_of ~width t (snap : R.snapshot) index =
 let value_items (env : Screen.env) (snap : R.snapshot) index =
   Array.to_list snap.R.series
   |> List.mapi (fun i series ->
-         let prefix = marker_of i ^ " " ^ series.R.label in
-         let points = series.R.points in
-         if index < 0 || index >= Array.length points then (prefix, "(unavailable)")
-         else (prefix, B.format env.book snap.R.measure points.(index).R.value))
+      let prefix = marker_of i ^ " " ^ series.R.label in
+      let points = series.R.points in
+      if index < 0 || index >= Array.length points then (prefix, "(unavailable)")
+      else (prefix, B.format env.book snap.R.measure points.(index).R.value))
 
 let compact_value_items (env : Screen.env) (snap : R.snapshot) index =
   Array.to_list snap.R.series
   |> List.mapi (fun i series ->
-         let prefix = marker_of i in
-         let points = series.R.points in
-         if index < 0 || index >= Array.length points then (prefix, "(unavailable)")
-         else (prefix, B.format env.book snap.R.measure points.(index).R.value))
+      let prefix = marker_of i in
+      let points = series.R.points in
+      if index < 0 || index >= Array.length points then (prefix, "(unavailable)")
+      else (prefix, B.format env.book snap.R.measure points.(index).R.value))
 
 let fit_item ~width_of width (prefix, amount) =
   let full = prefix ^ " " ^ amount in
@@ -599,24 +599,22 @@ let overlay_legend t =
       "session-only (not saved, not causal): "
       ^ (overlays
         |> List.map (fun (overlay : overlay) ->
-               overlay.month ^ " " ^ overlay.name ^ " "
-               ^ String.concat "," (List.map string_of_int overlay.days))
+            overlay.month ^ " " ^ overlay.name ^ " "
+            ^ String.concat "," (List.map string_of_int overlay.days))
         |> String.concat "  ")
 
 let window_of t count index =
   if t.grain = R.Day && t.scope = R.All_history && count > viewport then
-    let start = max 0 (min (count - viewport) (index - viewport / 2)) in
+    let start = max 0 (min (count - viewport) (index - (viewport / 2))) in
     (start, start + viewport)
   else (0, count)
 
 let chart_series (snap : R.snapshot) start visible =
   Array.to_list snap.R.series
   |> List.mapi (fun index series ->
-         let points = series.R.points in
-         let values =
-           Array.init visible (fun k -> points.(start + k).R.value)
-         in
-         { Chart.marker = marker_of index; values })
+      let points = series.R.points in
+      let values = Array.init visible (fun k -> points.(start + k).R.value) in
+      { Chart.marker = marker_of index; values })
   |> Array.of_list
 
 (* Session annotations mark exact calendar dates: the captured full YYYY-MM
@@ -636,7 +634,7 @@ let annotation_indices t (snap : R.snapshot) start visible =
                 if index < 0 || index >= Array.length points then None
                 else
                   let date = points.(index).R.start_day in
-                  match month_key date, day_of date with
+                  match (month_key date, day_of date) with
                   | Some key, Some day ->
                       if key = overlay.month && List.mem day overlay.days then Some k else None
                   | _ -> None)
@@ -650,9 +648,7 @@ let bounded_rows (geometry : Screen.geometry) rows =
   let width = max 0 width and height = max 0 height in
   let rows = List.filteri (fun i _ -> i < height) rows in
   let rows =
-    List.map
-      (fun (style, text) -> (style, O.clip_text ~width_of:geometry.width_of width text))
-      rows
+    List.map (fun (style, text) -> (style, O.clip_text ~width_of:geometry.width_of width text)) rows
   in
   rows @ List.init (max 0 (height - List.length rows)) (fun _ -> (O.Plain, ""))
 
@@ -671,7 +667,7 @@ let chart_panel (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snap
       Chart.series = chart_series snap start visible;
       count = visible;
       selected = index - start;
-      guides = if t.guides then marked else [];
+      guides = (if t.guides then marked else []);
       annotations;
     }
   in
@@ -680,14 +676,17 @@ let chart_panel (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snap
     let header = List.filteri (fun i _ -> i < height - 3) header in
     let chart_height = max 3 (height - List.length header) in
     let painted =
-      Chart.render ~width:(max 0 (width - 2)) ~height:(max 1 (chart_height - 2)) ~width_of
-        ~label:(fun z -> B.format env.book snap.R.measure z) chart
+      Chart.render
+        ~width:(max 0 (width - 2))
+        ~height:(max 1 (chart_height - 2))
+        ~width_of
+        ~label:(fun z -> B.format env.book snap.R.measure z)
+        chart
     in
     let header =
       if painted.Chart.axis_exact then header
       else
-        (O.Plain, "widen for exact axis values")
-        :: List.filteri (fun i _ -> i < height - 4) header
+        (O.Plain, "widen for exact axis values") :: List.filteri (fun i _ -> i < height - 4) header
     in
     let chart_height = max 3 (height - List.length header) in
     let bottom =
@@ -715,8 +714,7 @@ let chart_rows (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snaps
     else grain ^ " floor average of recorded flow, /day"
   in
   let context =
-    if compact then
-      Printf.sprintf "Measure %s • flow %s • /day • %s" snap.R.measure grain scope
+    if compact then Printf.sprintf "Measure %s • flow %s • /day • %s" snap.R.measure grain scope
     else
       Printf.sprintf "recorded flow • Measure %s • %s • %s • source: %s • observed %s"
         snap.R.measure grain scope snap.R.source snap.R.observed_at
@@ -735,11 +733,9 @@ let chart_rows (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snaps
         ];
     header := !header @ [ (O.Plain, O.clip_text ~width_of width (rack_text env snap)) ]);
   header :=
-    !header
-    @ [ (O.Plain, O.clip_text ~width_of width (period_line ~width_of ~width t snap index)) ];
+    !header @ [ (O.Plain, O.clip_text ~width_of width (period_line ~width_of ~width t snap index)) ];
   let legend = overlay_legend t in
-  if legend <> "" then
-    header := !header @ [ (O.Plain, O.clip_text ~width_of width legend) ];
+  if legend <> "" then header := !header @ [ (O.Plain, O.clip_text ~width_of width legend) ];
   let items = if compact then compact_value_items env snap index else value_items env snap index in
   header := !header @ List.map (fun text -> (O.Plain, text)) (pack_items ~width_of width items);
   chart_panel env geometry t snap !header
@@ -764,8 +760,7 @@ let unavailable_rows (geometry : Screen.geometry) why =
 let rack_line (env : Screen.env) coordinates =
   coordinates
   |> List.mapi (fun slot coordinate ->
-         Printf.sprintf "%d %s %s" (slot + 1) (marker_of slot)
-           (B.label env.book coordinate.R.locus))
+      Printf.sprintf "%d %s %s" (slot + 1) (marker_of slot) (B.label env.book coordinate.R.locus))
   |> String.concat "  "
 
 let picker_rows (env : Screen.env) (geometry : Screen.geometry) t (picker : picker) =
@@ -796,27 +791,25 @@ let picker_rows (env : Screen.env) (geometry : Screen.geometry) t (picker : pick
           in
           let marker = if slot = picker.target then "→ " else "  " in
           (O.Plain, marker ^ text))
-    else if capacity - List.length notice > 1 then
-      [ (O.Plain, rack_line env coordinates) ]
+    else if capacity - List.length notice > 1 then [ (O.Plain, rack_line env coordinates) ]
     else []
   in
   let rows = max 1 (capacity - List.length notice - List.length rack) in
-  let window =
-    Panel.window ~capacity:rows ~count ~scroll:0 ~selected:(Some picker.cursor)
-  in
+  let window = Panel.window ~capacity:rows ~count ~scroll:0 ~selected:(Some picker.cursor) in
   let stop = min count (window.start + window.capacity) in
   let painted =
-    List.init (max 0 (stop - window.start)) (fun i ->
+    List.init
+      (max 0 (stop - window.start))
+      (fun i ->
         let index = window.start + i in
         let candidate = List.nth candidates index in
         let used = List.find_index (fun c -> same_coordinate c candidate) coordinates in
         let text =
-          Printf.sprintf "%s %s (%s)%s" (if index = picker.cursor then ">" else " ")
+          Printf.sprintf "%s %s (%s)%s"
+            (if index = picker.cursor then ">" else " ")
             (B.label env.book candidate.R.locus)
             candidate.R.locus
-            (match used with
-            | Some slot -> Printf.sprintf " [slot %d]" (slot + 1)
-            | None -> "")
+            (match used with Some slot -> Printf.sprintf " [slot %d]" (slot + 1) | None -> "")
         in
         ((if index = picker.cursor then O.Active else O.Plain), text))
   in
@@ -824,9 +817,7 @@ let picker_rows (env : Screen.env) (geometry : Screen.geometry) t (picker : pick
     if picker.target < List.length coordinates then "slot " ^ string_of_int (picker.target + 1)
     else "new slot"
   in
-  let title =
-    Printf.sprintf "Series %s • Measure %s" target (current_measure env t)
-  in
+  let title = Printf.sprintf "Series %s • Measure %s" target (current_measure env t) in
   let rows = notice @ rack @ painted in
   Panel.frame_rows ~inset:0 ~width_of ~width ~height ~focused:true ~title rows
 
@@ -844,8 +835,7 @@ let editor_form (editor : editor) =
     ]
   in
   let form =
-    Ui_form.create ~id:"trend_locus_annotation" ~title ~summary ~fields
-      ~notice:editor.notice ()
+    Ui_form.create ~id:"trend_locus_annotation" ~title ~summary ~fields ~notice:editor.notice ()
   in
   Ui_form.set_focused form (if editor.field = `Name then 0 else 1)
 

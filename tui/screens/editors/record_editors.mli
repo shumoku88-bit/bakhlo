@@ -20,6 +20,7 @@ val config_files : string list
 val create : unit -> t
 val modal : t -> bool
 val active : t -> session option
+
 val open_session : session -> t -> t
 (** Workflows that select a record open its session through the Shell. *)
 

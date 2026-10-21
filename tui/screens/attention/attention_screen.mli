@@ -15,7 +15,9 @@ val view : Screen.env -> Screen.geometry -> t -> Screen.view
 (** {2 Queries for checks} *)
 
 val form : t -> Ui_form.t option
+
 val with_form : Ui_form.t -> t -> t
 (** Replace the open editor's form content, as typing would. *)
+
 val selected : t -> int
 val detail_focused : t -> bool

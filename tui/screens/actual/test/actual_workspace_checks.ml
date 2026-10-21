@@ -12,25 +12,29 @@ let require condition name =
 
 let key ?(mods = []) button : Ui_input.input = `Key (button, mods)
 let char_key c : Ui_input.input = `Key (`ASCII c, [])
-
 let get = function Ok x -> x | Error why -> failwith why
 
 let fixture =
-  "(bakhlo-daily 3)\n(scope corrected-entries explicit-plans)\n\
+  "(bakhlo-daily 3)\n\
+   (scope corrected-entries explicit-plans)\n\
    (measures (measure \"jpy\" 0))\n\
-   (labels (provided (label \"assets:cash\" \"現金\" \"Cash\") (label \"expenses:groceries\" \"食費\" \"Food\") (label \"expenses:rent\" \"家賃\" \"Rent\")))\n\
-   (approved-loci (provided \"assets:cash\" \"expenses:groceries\" \"expenses:rent\"))\n(entries)\n\
+   (labels (provided (label \"assets:cash\" \"現金\" \"Cash\") (label \"expenses:groceries\" \"食費\" \
+   \"Food\") (label \"expenses:rent\" \"家賃\" \"Rent\")))\n\
+   (approved-loci (provided \"assets:cash\" \"expenses:groceries\" \"expenses:rent\"))\n\
+   (entries)\n\
    (plans)\n\
    (support (zero-origin (\"expenses:groceries\" \"jpy\")) (openings)\n\
-     (observations (observation (reflected) (quantities (\"assets:cash\" \"jpy\" 100000))))\n\
-     (presence (not-supplied)))\n"
+   (observations (observation (reflected) (quantities (\"assets:cash\" \"jpy\" 100000))))\n\
+   (presence (not-supplied)))\n"
 
 let add_entry book ~day ~memo ~locus1 ~amt1 ~locus2 ~amt2 =
   let entry =
     get
       (Result.map_error
          (fun error -> error.A.message)
-         (A.build_transaction ~new_id:(fun () -> day ^ ":" ^ memo) ~book ~mode:A.New
+         (A.build_transaction
+            ~new_id:(fun () -> day ^ ":" ^ memo)
+            ~book ~mode:A.New
             (A.Multiple
                {
                  day;
@@ -53,7 +57,7 @@ let add_entry book ~day ~memo ~locus1 ~amt1 ~locus2 ~amt2 =
                            amount = string_of_int (abs amt2);
                          };
                        ];
-                    };
+                   };
                  original_amount = None;
                })))
   in
@@ -61,9 +65,18 @@ let add_entry book ~day ~memo ~locus1 ~amt1 ~locus2 ~amt2 =
 
 let self_check ~width_of () =
   let book = get (B.of_string fixture) in
-  let book = add_entry book ~day:"2026-10-15" ~memo:"Supermarket" ~locus1:"assets:cash" ~amt1:(-1000) ~locus2:"expenses:groceries" ~amt2:1000 in
-  let book = add_entry book ~day:"2026-10-14" ~memo:"Apartment rent" ~locus1:"assets:cash" ~amt1:(-50000) ~locus2:"expenses:rent" ~amt2:50000 in
-  let book = add_entry book ~day:"2026-10-15" ~memo:"Coffee shop" ~locus1:"assets:cash" ~amt1:(-500) ~locus2:"expenses:groceries" ~amt2:500 in
+  let book =
+    add_entry book ~day:"2026-10-15" ~memo:"Supermarket" ~locus1:"assets:cash" ~amt1:(-1000)
+      ~locus2:"expenses:groceries" ~amt2:1000
+  in
+  let book =
+    add_entry book ~day:"2026-10-14" ~memo:"Apartment rent" ~locus1:"assets:cash" ~amt1:(-50000)
+      ~locus2:"expenses:rent" ~amt2:50000
+  in
+  let book =
+    add_entry book ~day:"2026-10-15" ~memo:"Coffee shop" ~locus1:"assets:cash" ~amt1:(-500)
+      ~locus2:"expenses:groceries" ~amt2:500
+  in
 
   let dim_wide = (120, 36) in
   let dim_compact = (80, 24) in
@@ -90,7 +103,7 @@ let self_check ~width_of () =
   let ws, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (key `Tab) in
   require (Act.pane ws = Act.Transactions) "tab-to-transactions";
 
-  let ws, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (key ~mods:[`Shift] `Tab) in
+  let ws, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (key ~mods:[ `Shift ] `Tab) in
   require (Act.pane ws = Act.Loci) "backtab-to-loci";
   let ws, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (char_key 'l') in
   require (Act.pane ws = Act.Transactions) "l-to-transactions";
@@ -116,7 +129,9 @@ let self_check ~width_of () =
   (* Try to open record from Loci pane: refused with notice *)
   let ws_refused, cmd = Act.handle ~book ~dimensions:dim_wide ~width_of ws (key `Enter) in
   require (cmd = Act.Stay) "enter-in-loci-stay";
-  require (Base.String.is_substring (Act.notice ws_refused) ~substring:"Move to the Actuals pane") "loci-open-refused-notice";
+  require
+    (Base.String.is_substring (Act.notice ws_refused) ~substring:"Move to the Actuals pane")
+    "loci-open-refused-notice";
 
   (* Return to row 0 (All loci) *)
   let ws, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (char_key 'k') in
@@ -152,17 +167,23 @@ let self_check ~width_of () =
 
   let no_match, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (char_key '/') in
   let no_match, _ = Act.handle ~book ~dimensions:dim_wide ~width_of no_match (char_key 'z') in
-  List.iter (fun book ->
-    require (Act.visible_entries ~book no_match = []) "empty-visible-entries";
-    require (Act.selected_entry ~book no_match = None) "empty-no-selection";
-    List.iter (fun dimensions ->
-      let rows = Act.screen ~book ~today:"2026-10-20" ~draft_retained:false ~dimensions ~width_of no_match in
-      let contains text = List.exists (fun (_, row) ->
-        Base.String.is_substring row ~substring:text) rows in
-      require (contains "0/0") "empty-range-is-zero";
-      if snd dimensions >= 9 then
-        require (contains "(no matching Actual") "empty-explanation-visible")
-      [ (120, 36); (80, 24); (48, 14); (32, 9); (32, 7) ])
+  List.iter
+    (fun book ->
+      require (Act.visible_entries ~book no_match = []) "empty-visible-entries";
+      require (Act.selected_entry ~book no_match = None) "empty-no-selection";
+      List.iter
+        (fun dimensions ->
+          let rows =
+            Act.screen ~book ~today:"2026-10-20" ~draft_retained:false ~dimensions ~width_of
+              no_match
+          in
+          let contains text =
+            List.exists (fun (_, row) -> Base.String.is_substring row ~substring:text) rows
+          in
+          require (contains "0/0") "empty-range-is-zero";
+          if snd dimensions >= 9 then
+            require (contains "(no matching Actual") "empty-explanation-visible")
+        [ (120, 36); (80, 24); (48, 14); (32, 9); (32, 7) ])
     [ book; get (B.of_string fixture) ];
 
   (* Cancel search: start search then Esc *)
@@ -177,7 +198,9 @@ let self_check ~width_of () =
   require (Act.scope ws = Act.Focus_day) "scope-toggled-to-focus-day";
   let day_results = Act.visible_entries ~book ws in
   require (List.length day_results = 2) "focus-day-filtered-to-2";
-  List.iter (fun (e : B.entry) -> require (e.day = "2026-10-15") "focus-day-entry-matched") day_results;
+  List.iter
+    (fun (e : B.entry) -> require (e.day = "2026-10-15") "focus-day-entry-matched")
+    day_results;
 
   let ws, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (char_key 'f') in
   require (Act.scope ws = Act.All_current) "scope-toggled-back-all";
@@ -195,20 +218,27 @@ let self_check ~width_of () =
   require ((List.hd desc_entries).day = "2026-10-15") "desc-first-is-newest";
 
   (* 7. Enter opens the selected record; i separately focuses Details. *)
-  List.iter (fun state ->
-    let next, command = Act.handle ~book ~dimensions:dim_wide ~width_of state (key `Enter) in
-    require (next = state) "enter-keeps-parent-state";
-    require (match command, Act.selected_entry ~book state with
-      | Act.Open_selected entry, Some selected -> entry.id = selected.id
-      | _ -> false) "enter-opens-selected-once")
+  List.iter
+    (fun state ->
+      let next, command = Act.handle ~book ~dimensions:dim_wide ~width_of state (key `Enter) in
+      require (next = state) "enter-keeps-parent-state";
+      require
+        (match (command, Act.selected_entry ~book state) with
+        | Act.Open_selected entry, Some selected -> entry.id = selected.id
+        | _ -> false)
+        "enter-opens-selected-once")
     [ ws; fst (Act.handle ~book ~dimensions:dim_wide ~width_of ws (char_key 'i')) ];
   let ws_detail, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (char_key 'i') in
   let empty, _ = Act.handle ~book ~dimensions:dim_wide ~width_of no_match (key `Enter) in
-  List.iter (fun state ->
-    let next, command = Act.handle ~book ~dimensions:dim_wide ~width_of state (key `Enter) in
-    require (command = Act.Stay && Act.pane next = Act.pane state
-             && Act.selected_entry ~book next = None
-             && Act.notice next <> "") "enter-empty-refuses-with-notice")
+  List.iter
+    (fun state ->
+      let next, command = Act.handle ~book ~dimensions:dim_wide ~width_of state (key `Enter) in
+      require
+        (command = Act.Stay
+        && Act.pane next = Act.pane state
+        && Act.selected_entry ~book next = None
+        && Act.notice next <> "")
+        "enter-empty-refuses-with-notice")
     [ empty; fst (Act.handle ~book ~dimensions:dim_wide ~width_of empty (char_key 'i')) ];
   let ws, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws_detail (key `Escape) in
   require (Act.pane ws = Act.Transactions) "escape-details-moves-back-to-tx";
@@ -224,15 +254,19 @@ let self_check ~width_of () =
   require (Act.notice ws = "No next Actual row.") "notice-no-next-tx";
 
   (* 9. Screen rendering (wide & compact) without exceptions *)
-  let lines_wide = Act.screen ~book ~today:"2026-10-20" ~draft_retained:false ~dimensions:dim_wide ~width_of ws in
+  let lines_wide =
+    Act.screen ~book ~today:"2026-10-20" ~draft_retained:false ~dimensions:dim_wide ~width_of ws
+  in
   require (List.length lines_wide > 0) "wide-screen-rendered";
-  let lines_compact = Act.screen ~book ~today:"2026-10-20" ~draft_retained:false ~dimensions:dim_compact ~width_of ws in
+  let lines_compact =
+    Act.screen ~book ~today:"2026-10-20" ~draft_retained:false ~dimensions:dim_compact ~width_of ws
+  in
   require (List.length lines_compact > 0) "compact-screen-rendered";
-  let lines_48 = Act.screen ~book ~today:"2026-10-20" ~draft_retained:false ~dimensions:(48, 14) ~width_of ws in
+  let lines_48 =
+    Act.screen ~book ~today:"2026-10-20" ~draft_retained:false ~dimensions:(48, 14) ~width_of ws
+  in
   let coffee_row =
-    List.find_opt
-      (fun (_, line) -> Base.String.is_substring line ~substring:"Coffee shop")
-      lines_48
+    List.find_opt (fun (_, line) -> Base.String.is_substring line ~substring:"Coffee shop") lines_48
   in
   require
     (match coffee_row with
@@ -248,7 +282,9 @@ let self_check ~width_of () =
   (* 11. Capacity & page size bounds *)
   (* Page Down / Home navigation in Transactions *)
   let ws_pg, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws (key (`Page `Down)) in
-  require (Act.transaction_row ws_pg > 0 || List.length (Act.visible_entries ~book ws) <= 1) "page-down-advanced";
+  require
+    (Act.transaction_row ws_pg > 0 || List.length (Act.visible_entries ~book ws) <= 1)
+    "page-down-advanced";
   let ws_home, _ = Act.handle ~book ~dimensions:dim_wide ~width_of ws_pg (key `Home) in
   require (Act.transaction_row ws_home = 0) "home-back-to-0";
 
@@ -259,7 +295,10 @@ let self_check ~width_of () =
   let before_locus = Act.selected_locus ~book ws_locus in
   let before_entry = Act.selected_entry ~book ws_locus in
   let restored = Act.returned_from_detail ~before_book:book ~after_book:book ws_locus in
-  require (Act.selected_locus ~book:book restored = before_locus) "returned-preserves-locus";
-  require (Act.selected_entry ~book:book restored = before_entry) "returned-preserves-entry";
+  require (Act.selected_locus ~book restored = before_locus) "returned-preserves-locus";
+  require (Act.selected_entry ~book restored = before_entry) "returned-preserves-entry";
 
-  Printf.printf "PASS: Actual workspace synthetic checks (3-pane, Loci filter, live search, date/order toggle, details scroll, selection, cursor).\n%!"
+  Printf.printf
+    "PASS: Actual workspace synthetic checks (3-pane, Loci filter, live search, date/order toggle, \
+     details scroll, selection, cursor).\n\
+     %!"

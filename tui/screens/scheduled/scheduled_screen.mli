@@ -5,21 +5,22 @@
 type t
 
 val config_files : string list
+
 val create : Scheduled_months.t -> t
 (** The Months window is captured from the Shell's validated focus day. *)
 
 val enter : focus_day:string -> t -> t
 val modal : t -> bool
 
+val open_created_pace : Screen.env -> t -> Bakhlo_sexp.Daily_book.plan -> t * Screen.request
 (** LOAM runAfterCreation: open the expected-pace follow-up for a Scheduled
     plan the Shell has just published. The occurrence is never re-created. *)
-val open_created_pace :
-  Screen.env -> t -> Bakhlo_sexp.Daily_book.plan -> t * Screen.request
 
 val handle : Screen.env -> Screen.geometry -> t -> Ui_input.input -> t * Screen.request
 val view : Screen.env -> Screen.geometry -> t -> Screen.view
 val saved : Screen.env -> Screen.geometry -> (unit, string) result -> t -> t * Screen.request
 val reloaded : Screen.env -> t -> t * Screen.request
+
 val book_changed :
   before:Bakhlo_sexp.Daily_book.t -> after:Bakhlo_sexp.Daily_book.t -> t -> t * string
 
@@ -29,6 +30,7 @@ val months_view : t -> bool
 val detail_focused : t -> bool
 val scroll : t -> int
 val months : t -> Scheduled_months.t
+
 val browser : t -> Record_browser.t
 (** The current view's browser (List or Months). *)
 

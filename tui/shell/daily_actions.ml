@@ -7,13 +7,17 @@ module L = Bakhlo_sexp.Book_log
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
 let get_id = function Ok x -> x | Error D.Identifier.Empty -> raise (F.Refused "empty-identity")
 let prepare_pay ~book plan = Daily_draft.prepare_pay ~today:(F.today ()) ~book plan
+
 let build_transaction ~book ~mode content =
   Daily_draft.build_transaction ~new_id:F.new_id ~book ~mode content
+
 let build_plan ~book ~mode ~day ~draft =
   Daily_draft.build_plan ~new_id:F.new_id ~book ~mode ~day ~draft
 
 let recovery_message =
-  tr "An interrupted save left an incomplete final record. Writes stopped; exit and use --inspect-recovery."
+  tr
+    "An interrupted save left an incomplete final record. Writes stopped; exit and use \
+     --inspect-recovery."
 
 let recovery_notice ~session = if session.F.torn then Some recovery_message else None
 
@@ -37,7 +41,8 @@ let publish_ops ~session ops : commit_result =
     | F.Refused_input "torn-tail" -> Recovery_blocked
     | F.Refused_input why -> Refused why
     | F.Uncertain { expected } ->
-        Uncertain { message = tr "Save outcome is uncertain."; evidence = Expected_revision expected }
+        Uncertain
+          { message = tr "Save outcome is uncertain."; evidence = Expected_revision expected }
   with
   | Unix.Unix_error (err, fn, arg) ->
       Storage_failed (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
@@ -50,23 +55,21 @@ let commit_transaction ~session ~base_revision (tx : transaction) : commit_resul
 
 let commit_plan ~session ~base_revision ~replace (plan : B.plan) : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
-  else
-    publish_ops ~session [ L.Put_plan { replace; plan } ]
+  else publish_ops ~session [ L.Put_plan { replace; plan } ]
 
-let commit_plan_batch ?(replace = true) ~session ~base_revision (plans : B.plan list) : commit_result =
+let commit_plan_batch ?(replace = true) ~session ~base_revision (plans : B.plan list) :
+    commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
   else if plans = [] then Refused (tr "No Scheduled changes selected.")
   else
     let ids = List.map (fun (p : B.plan) -> p.id) plans in
     if List.length (List.sort_uniq String.compare ids) <> List.length ids then
       Refused (tr "A Scheduled occurrence may be selected only once.")
-    else
-      publish_ops ~session (List.map (fun plan -> L.Put_plan { replace; plan }) plans)
+    else publish_ops ~session (List.map (fun plan -> L.Put_plan { replace; plan }) plans)
 
 let commit_cancel_plan ~session ~base_revision ~id ~day : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
-  else
-    publish_ops ~session [ L.Cancel_plan { id; day } ]
+  else publish_ops ~session [ L.Cancel_plan { id; day } ]
 
 let commit_reverse_entry ~session ~base_revision ~id ~day : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
@@ -76,8 +79,9 @@ let commit_reverse_entry ~session ~base_revision ~id ~day : commit_result =
     | Some target ->
         if target.reversal_of <> None then
           Refused (tr "This entry is already a Reversal; it cannot be reversed.")
-        else if List.exists (fun (e : B.entry) -> e.reversal_of = Some target.id) (B.entries session.book) then
-          Refused (tr "This entry has already been reversed.")
+        else if
+          List.exists (fun (e : B.entry) -> e.reversal_of = Some target.id) (B.entries session.book)
+        then Refused (tr "This entry has already been reversed.")
         else
           let inverse_effects =
             List.map
@@ -110,9 +114,7 @@ let commit_correct_entry_date ~session ~base_revision ~id ~day : commit_result =
 
 let commit_classify_merchant ~session ~base_revision ~id ~disposition : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
-  else
-    publish_ops ~session [ L.Classify_merchant { id; disposition } ]
-
+  else publish_ops ~session [ L.Classify_merchant { id; disposition } ]
 
 let commit_payload ~session ~base_revision = function
   | Entry_tx tx -> commit_transaction ~session ~base_revision tx
@@ -120,8 +122,8 @@ let commit_payload ~session ~base_revision = function
 
 let commit_set_locus_label ~session ~base_revision ~id ~label ?help () : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
-  else
-    publish_ops ~session [ L.Set_locus_label { id; label; help } ]
+  else publish_ops ~session [ L.Set_locus_label { id; label; help } ]
+
 let commit_add_locus ~session name : commit_result =
   let name = String.trim name in
   if String.equal name "" then Refused (tr "Enter the new Locus token.")
@@ -147,11 +149,13 @@ let reload ~session ~pending ~mode : reload_result =
     | Some notice -> Recovery_required (loaded, notice)
     | None -> (
         match pending with
-        | Some (Expected_revision revision) when loaded.revision = revision -> Pending_confirmed loaded
+        | Some (Expected_revision revision) when loaded.revision = revision ->
+            Pending_confirmed loaded
         | Some _ -> Pending_unconfirmed loaded
         | None -> (
             match mode with
-            | (Edit _ | Plan_edit _) when loaded.revision <> session.revision -> Edit_base_changed loaded
+            | (Edit _ | Plan_edit _) when loaded.revision <> session.revision ->
+                Edit_base_changed loaded
             | New | Pay _ | Edit _ | Plan_new | Plan_edit _ -> Reloaded loaded))
   with
   | F.Refused why -> Reload_failed why

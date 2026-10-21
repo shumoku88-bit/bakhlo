@@ -16,7 +16,8 @@ let support_text book coordinate =
       | Q.Current_assertion _ -> "observed")
   | Ok (Q.Known_present _) | Error _ -> "unsupported"
 
-let short_date date = if String.length date > 5 then String.sub date 5 (String.length date - 5) else date
+let short_date date =
+  if String.length date > 5 then String.sub date 5 (String.length date - 5) else date
 
 let lines ~width_of ~width ~book (p : B.daily_pace) =
   let fmt q = O.format_money book p.measure q in
@@ -25,27 +26,34 @@ let lines ~width_of ~width ~book (p : B.daily_pace) =
   let pool_loci = List.map (fun (c, _) -> locus c) p.pool_balances in
   let plans = B.plans book in
   let deductions =
-    List.map (fun (id, quanta) -> (id, quanta, List.find_opt (fun (plan : B.plan) -> plan.id = id) plans))
+    List.map
+      (fun (id, quanta) -> (id, quanta, List.find_opt (fun (plan : B.plan) -> plan.id = id) plans))
       p.plan_deductions
     |> List.stable_sort (fun (_, _, a) (_, _, b) ->
-         let day = function Some (plan : B.plan) -> plan.day | None -> "" in
-         compare (day a) (day b))
+        let day = function Some (plan : B.plan) -> plan.day | None -> "" in
+        compare (day a) (day b))
   in
   (* What a protected occurrence pays into: its receiving Loci outside the pool. *)
   let payee id = function
     | None -> id
     | Some (plan : B.plan) -> (
-        match List.filter (fun (l, q) -> Z.sign q > 0 && not (List.mem l pool_loci)) plan.changes with
+        match
+          List.filter (fun (l, q) -> Z.sign q > 0 && not (List.mem l pool_loci)) plan.changes
+        with
         | [] -> id
         | receiving -> String.concat " + " (List.map (fun (l, _) -> B.label book l) receiving))
   in
-  let pool_rows = List.map (fun (c, q) -> (B.label book (locus c), fmt q, support_text book c)) pool in
+  let pool_rows =
+    List.map (fun (c, q) -> (B.label book (locus c), fmt q, support_text book c)) pool
+  in
   (* Still open after its date: protected until completed or retired. *)
   let deduction_rows =
-    List.map (fun (id, q, plan) ->
+    List.map
+      (fun (id, q, plan) ->
         let day = match plan with Some (plan : B.plan) -> plan.day | None -> "" in
-        (short_date day ^ "  " ^ payee id plan, fmt q,
-         if day <> "" && day < p.observed_at then "overdue, still open" else ""))
+        ( short_date day ^ "  " ^ payee id plan,
+          fmt q,
+          if day <> "" && day < p.observed_at then "overdue, still open" else "" ))
       deductions
   in
   let free = p.available_through_end in
@@ -62,23 +70,32 @@ let lines ~width_of ~width ~book (p : B.daily_pace) =
   let amount_width = List.fold_left (fun w a -> max w (width_of a)) 0 amounts in
   (* [name … amount   note], the amount right-aligned in a shared column. *)
   let row indent name amount note =
-    (O.Plain,
-     O.clip_text ~width_of width
-       (O.pad ~width_of name_width (indent ^ name) ^ "  " ^ O.pad_left ~width_of amount_width amount
-        ^ if note = "" then "" else "   " ^ note))
+    ( O.Plain,
+      O.clip_text ~width_of width
+        (O.pad ~width_of name_width (indent ^ name)
+        ^ "  "
+        ^ O.pad_left ~width_of amount_width amount
+        ^ if note = "" then "" else "   " ^ note) )
   in
   let blank = (O.Plain, "") in
-  [ (O.Plain, O.clip_text ~width_of width
-       (" Today " ^ p.observed_at ^ ": " ^ fmt p.daily_pace_quanta ^ " " ^ p.measure ^ "/day")) ]
-  @ List.map (fun text -> (O.Chrome, text))
+  [
+    ( O.Plain,
+      O.clip_text ~width_of width
+        (" Today " ^ p.observed_at ^ ": " ^ fmt p.daily_pace_quanta ^ " " ^ p.measure ^ "/day") );
+  ]
+  @ List.map
+      (fun text -> (O.Chrome, text))
       (O.wrap_text ~width_of (max 1 width)
          (" = " ^ fmt free ^ " free ÷ " ^ string_of_int p.remaining_days ^ " days left (cycle ends "
-          ^ p.end_exclusive ^ ", exclusive)"))
+        ^ p.end_exclusive ^ ", exclusive)"))
   @ [ blank; row " " "Pool" (fmt p.eligible_pool) (string_of_int (List.length pool) ^ " balances") ]
   @ List.map (fun (name, amount, note) -> row "   " name amount note) pool_rows
-  @ [ blank;
-      row " " "Protected Scheduled" ("-" ^ fmt p.automatic_deductions)
-        (string_of_int (List.length deductions) ^ " before cycle end") ]
+  @ [
+      blank;
+      row " " "Protected Scheduled"
+        ("-" ^ fmt p.automatic_deductions)
+        (string_of_int (List.length deductions) ^ " before cycle end");
+    ]
   @ (if deduction_rows = [] then [ (O.Chrome, "   (none)") ]
      else List.map (fun (name, amount, note) -> row "   " name amount note) deduction_rows)
   @ [ blank; row " " "Free through cycle end" (fmt free) "" ]
@@ -87,7 +104,8 @@ let lines ~width_of ~width ~book (p : B.daily_pace) =
 let explanation_rows ~width_of ~width ~book = function
   | Ok p -> lines ~width_of ~width ~book p
   | Error why ->
-      List.map (fun text -> (O.Chrome, text))
+      List.map
+        (fun text -> (O.Chrome, text))
         (O.wrap_text ~width_of (max 1 width) (" Explanation unavailable (not zero): " ^ why))
 
 type t = { scroll : int }

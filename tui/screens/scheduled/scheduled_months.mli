@@ -19,8 +19,12 @@ val visible_months : t -> string list
 (** Up to six consecutive canonical month starts, capped at 9999-12. *)
 
 val screen :
-  book:B.t -> plans:B.plan list -> dimensions:int * int ->
-  width_of:(string -> int) -> selected:B.plan option -> t ->
+  book:B.t ->
+  plans:B.plan list ->
+  dimensions:int * int ->
+  width_of:(string -> int) ->
+  selected:B.plan option ->
+  t ->
   (Daily_overlays.style * string) list
 (** Read-only body-sized surface. Plans are all current-open explicit occurrences,
     ordered by canonical date and ID, independently of retained List filters. *)

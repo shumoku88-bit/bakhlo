@@ -22,13 +22,8 @@ val result : Screen.env -> t -> (Liquidity_report.snapshot, string) result
     [Error] before Run, after any edit, and after book reload/change. *)
 
 val modal : t -> bool
-
-val handle :
-  Screen.env -> Screen.geometry -> t -> Ui_input.input -> t * Screen.request
-
-val saved :
-  Screen.env -> Screen.geometry -> (unit, string) result -> t -> t * Screen.request
-
+val handle : Screen.env -> Screen.geometry -> t -> Ui_input.input -> t * Screen.request
+val saved : Screen.env -> Screen.geometry -> (unit, string) result -> t -> t * Screen.request
 val reloaded : Screen.env -> t -> t * Screen.request
 
 val book_changed :

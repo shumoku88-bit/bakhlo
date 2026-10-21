@@ -10,8 +10,11 @@ type op =
   | Observe of (string * string * Z.t) list
   | Add_locus of string
   | Set_locus_label of { id : string; label : string; help : string option }
-  | Classify_merchant of { id : string; disposition : Bakhlo_application.Event_merchants.disposition }
-(** Exactly the book mutations the application publishes, with every input they
+  | Classify_merchant of {
+      id : string;
+      disposition : Bakhlo_application.Event_merchants.disposition;
+    }
+      (** Exactly the book mutations the application publishes, with every input they
     need (identities and dates included), so applying one is deterministic. *)
 
 val apply : Daily_book.t -> op -> (Daily_book.t, string) result

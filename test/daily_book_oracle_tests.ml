@@ -21,18 +21,18 @@ let fixture =
    (labels (provided (label wallet 財布 現金) (label bank 銀行 預金)))\n\
    (approved-loci (provided wallet food bank expense))\n\
    (entries\n\
-     (entry init (date 2026-10-01) (memo (some initial))\n\
-       (postings (posting bank jpy 50000 (none)) (posting wallet jpy -50000 (none)))\n\
-       (reversal-of (none))))\n\
+   (entry init (date 2026-10-01) (memo (some initial))\n\
+   (postings (posting bank jpy 50000 (none)) (posting wallet jpy -50000 (none)))\n\
+   (reversal-of (none))))\n\
    (plans\n\
-     (plan rent (date 2026-10-25) (measure jpy) (changes (bank -10000) (expense 10000))\n\
-       (paid-by (none)))\n\
-     (plan sub (date 2026-10-20) (measure usd) (changes (wallet -15) (expense 15))\n\
-       (paid-by (none))))\n\
+   (plan rent (date 2026-10-25) (measure jpy) (changes (bank -10000) (expense 10000))\n\
+   (paid-by (none)))\n\
+   (plan sub (date 2026-10-20) (measure usd) (changes (wallet -15) (expense 15))\n\
+   (paid-by (none))))\n\
    (support (zero-origin (food jpy) (expense jpy) (expense usd))\n\
-     (openings (bank jpy init))\n\
-     (observations (observation (reflected) (quantities (wallet jpy 100000) (wallet usd 500))))\n\
-     (presence (not-supplied)))\n"
+   (openings (bank jpy init))\n\
+   (observations (observation (reflected) (quantities (wallet jpy 100000) (wallet usd 500))))\n\
+   (presence (not-supplied)))\n"
 
 let loci = [| "wallet"; "bank"; "food"; "expense"; "ghost" |]
 let measures = [| "jpy"; "usd"; "xxx" |]
@@ -40,7 +40,6 @@ let entry_ids = [| "init"; "e0"; "e1"; "e2"; "e3"; "e4"; "e5"; "e6" |]
 let plan_ids = [| "rent"; "sub"; "p0"; "p1" |]
 let pick st a = a.(R.int st (Array.length a))
 let chance st n = R.int st 100 < n
-
 let ident of_string s = Result.ok_or_failwith (Result.map_error (of_string s) ~f:(fun _ -> s))
 let locus s = ident D.Identifier.Locus.of_string s
 let measure s = ident D.Identifier.Measure.of_string s
@@ -48,12 +47,11 @@ let coordinate l m : D.Effect_coordinate.t = { locus = locus l; measure = measur
 
 let posting ?key l m n =
   D.Effect.create
-    ~key:(Option.map key ~f:(ident D.Identifier.Effect_key.of_string)) ~locus:(locus l) ~measure:(measure m)
+    ~key:(Option.map key ~f:(ident D.Identifier.Effect_key.of_string))
+    ~locus:(locus l) ~measure:(measure m)
     ~quantity:(D.Quantity.of_quanta (Z.of_int n))
 
-let day st =
-  if chance st 3 then "2026-02-30" else Printf.sprintf "2026-10-%02d" (1 + R.int st 28)
-
+let day st = if chance st 3 then "2026-02-30" else Printf.sprintf "2026-10-%02d" (1 + R.int st 28)
 let amount st = if chance st 3 then 0 else 1 + R.int st 5000
 
 (* Mostly balanced single-Measure postings; occasionally zero or unbalanced. *)
@@ -81,7 +79,8 @@ let fresh_entry st id : B.entry =
     reversal_of = None;
     exchange = None;
     original_amount =
-      (if chance st 10 then Some (pick st [| "jpy"; "usd"; "xxx" |], Z.of_int (pick st [| -5; 0; 120 |]))
+      (if chance st 10 then
+         Some (pick st [| "jpy"; "usd"; "xxx" |], Z.of_int (pick st [| -5; 0; 120 |]))
        else None);
     merchant = None;
   }
@@ -121,12 +120,19 @@ let generate st book =
       let a = 1 + R.int st 5000 and b = 1 + R.int st 50 in
       let dest = if chance st 15 then "jpy" else "usd" in
       let entry =
-        { (fresh_entry st (pick st entry_ids)) with
+        {
+          (fresh_entry st (pick st entry_ids)) with
           effects =
-            [ posting ~key:"s" "wallet" "jpy" (-a);
-              posting ~key:"d" (pick st [| "wallet"; "bank" |]) dest (if chance st 10 then -b else b) ];
+            [
+              posting ~key:"s" "wallet" "jpy" (-a);
+              posting ~key:"d"
+                (pick st [| "wallet"; "bank" |])
+                dest
+                (if chance st 10 then -b else b);
+            ];
           exchange = Some ("s", if chance st 10 then "x" else "d");
-          original_amount = None }
+          original_amount = None;
+        }
       in
       Put_entry { replace = false; entry; plan = None }
   | n when n < 40 -> (
@@ -143,12 +149,18 @@ let generate st book =
                  with that entry's exact inverse. *)
               match (old.reversal_of, existing ()) with
               | Some _, _ | None, None -> { old with reversal_of = None }
-              | None, Some target -> { old with reversal_of = Some target.id; effects = inverse target }
+              | None, Some target ->
+                  { old with reversal_of = Some target.id; effects = inverse target }
             else if chance st 50 then { old with memo = Some "edited" }
             else if chance st 50 then { old with day = day st }
             else { (fresh_entry st old.id) with reversal_of = old.reversal_of }
           in
-          Put_entry { replace = true; entry; plan = (if chance st 5 then Some (pick st plan_ids) else None) })
+          Put_entry
+            {
+              replace = true;
+              entry;
+              plan = (if chance st 5 then Some (pick st plan_ids) else None);
+            })
   | n when n < 68 -> (
       match existing () with
       | None -> Add_locus "ghost"
@@ -183,7 +195,11 @@ let generate st book =
   | n when n < 97 ->
       let label = pick st [| "Wallet"; ""; "  "; "Bad\nline" |] in
       Set_locus_label
-        { id = pick st loci; label; help = (if chance st 50 then None else Some (pick st [| "Cash"; "" |])) }
+        {
+          id = pick st loci;
+          label;
+          help = (if chance st 50 then None else Some (pick st [| "Cash"; "" |]));
+        }
   | _ ->
       let id = match existing () with Some e when chance st 80 -> e.id | _ -> "nobody" in
       let disposition =
@@ -227,12 +243,14 @@ let observable book =
   in
   let pace =
     match
-      B.daily_pace book ~measure:"jpy" ~pool:[ coordinate "wallet" "jpy" ]
+      B.daily_pace book ~measure:"jpy"
+        ~pool:[ coordinate "wallet" "jpy" ]
         ~observed_at:"2026-10-15" ~end_exclusive:"2026-11-01"
     with
     | Ok p ->
         Printf.sprintf "pace %s deductions %s" (Z.to_string p.daily_pace_quanta)
-          (String.concat ~sep:"," (List.map p.plan_deductions ~f:(fun (id, q) -> id ^ "=" ^ Z.to_string q)))
+          (String.concat ~sep:","
+             (List.map p.plan_deductions ~f:(fun (id, q) -> id ^ "=" ^ Z.to_string q)))
     | Error why -> "pace refused " ^ why
   in
   String.concat ~sep:"\n"
@@ -276,7 +294,8 @@ let kind = function
 
 let agree ~seed ~step ~trace label a b =
   match (a, b) with
-  | Ok a, Ok b -> check ~seed ~step ~trace (label ^ ": result differs") (observable a) (observable b)
+  | Ok a, Ok b ->
+      check ~seed ~step ~trace (label ^ ": result differs") (observable a) (observable b)
   | Error a, Error b -> check ~seed ~step ~trace (label ^ ": refusal differs") a b
   | Ok _, Error b -> check ~seed ~step ~trace (label ^ ": only one admitted") "admitted" b
   | Error a, Ok _ -> check ~seed ~step ~trace (label ^ ": only one admitted") a "admitted"
@@ -314,12 +333,24 @@ let%expect_test "every mutation agrees with its cold-loaded twin and its whole-b
       done);
   (* Guard against a generator that only exercises refusals. *)
   List.iter
-    [ "record"; "plan payment"; "replace"; "reversal"; "exchange"; "correct_date"; "observe"; "put_plan"; "cancel_plan";
-      "add_locus"; "classify"; "label" ]
-    ~f:(fun k ->
+    [
+      "record";
+      "plan payment";
+      "replace";
+      "reversal";
+      "exchange";
+      "correct_date";
+      "observe";
+      "put_plan";
+      "cancel_plan";
+      "add_locus";
+      "classify";
+      "label";
+    ] ~f:(fun k ->
       Stdio.printf "%s admitted at least 20 times: %b\n" k
         (Hashtbl.find admitted k |> Option.value ~default:0 >= 20));
-  [%expect {|
+  [%expect
+    {|
     record admitted at least 20 times: true
     plan payment admitted at least 20 times: true
     replace admitted at least 20 times: true
@@ -351,7 +382,7 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
   let after_date = Option.value_exn (B.find_entry dated_book "init") in
   Stdio.printf "date succeeds and changes only date: %b\n"
     (String.equal after_date.day "2026-10-02"
-     && Poly.equal { after_date with day = initial.day } initial);
+    && Poly.equal { after_date with day = initial.day } initial);
   let classified = B.classify_merchant base ~id:"init" ~disposition:M.Nonmerchant in
   let classified_full = B.Full.classify_merchant base ~id:"init" ~disposition:M.Nonmerchant in
   agree ~seed:0 ~step:0 ~trace:[] "dedicated Merchant reference" classified classified_full;
@@ -359,8 +390,10 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
   let after_merchant = Option.value_exn (B.find_entry classified_book "init") in
   Stdio.printf "Merchant succeeds and changes only Merchant: %b\n"
     (Poly.equal after_merchant.merchant (Some M.Nonmerchant)
-     && Poly.equal { after_merchant with merchant = initial.merchant } initial);
-  let correction = B.put_entry base ~replace:true { initial with memo = Some "edited" } ~plan:None in
+    && Poly.equal { after_merchant with merchant = initial.merchant } initial);
+  let correction =
+    B.put_entry base ~replace:true { initial with memo = Some "edited" } ~plan:None
+  in
   let fresh = { initial with id = "fresh"; day = "2026-10-03" } in
   let reversal =
     { fresh with id = "refund"; effects = inverse initial; reversal_of = Some initial.id }
@@ -371,8 +404,7 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
     (result_text (B.put_entry base ~replace:false reversal ~plan:None));
   Stdio.printf "invalid date: %s\n"
     (result_text (B.correct_entry_date base ~id:"init" ~day:"2026-02-30"));
-  Stdio.printf "invalid id: %s\n"
-    (result_text (B.correct_entry_date base ~id:"" ~day:"2026-10-02"));
+  Stdio.printf "invalid id: %s\n" (result_text (B.correct_entry_date base ~id:"" ~day:"2026-10-02"));
   Stdio.printf "unknown date target: %s\n"
     (result_text (B.correct_entry_date base ~id:"nobody" ~day:"2026-10-02"));
   Stdio.printf "unknown Merchant target: %s\n"
@@ -382,7 +414,8 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
   let bad_party = ident D.Identifier.External_party.of_string "bad\tparty" in
   Stdio.printf "invalid Merchant token: %s\n"
     (result_text (B.classify_merchant base ~id:"init" ~disposition:(M.Merchant bad_party)));
-  [%expect {|
+  [%expect
+    {|
     date succeeds and changes only date: true
     Merchant succeeds and changes only Merchant: true
     generic correction: locus-unapproved
@@ -403,9 +436,16 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
 let%expect_test "known gap: incremental record leaves the admitted source stale" =
   let base = get (B.of_string fixture) in
   let entry : B.entry =
-    { id = "late"; day = "2026-10-05"; memo = None;
+    {
+      id = "late";
+      day = "2026-10-05";
+      memo = None;
       effects = [ posting "wallet" "jpy" (-100); posting "food" "jpy" 100 ];
-      reversal_of = None; exchange = None; original_amount = None; merchant = None }
+      reversal_of = None;
+      exchange = None;
+      original_amount = None;
+      merchant = None;
+    }
   in
   let book = get (B.put_entry base ~replace:false entry ~plan:None) in
   let mentions b =
@@ -414,11 +454,11 @@ let%expect_test "known gap: incremental record leaves the admitted source stale"
         String.equal "late"
           (D.Identifier.Event.to_string (D.Event.id (Frontier.terminal_event lineage))))
   in
-  Stdio.printf "answers agree: %b\n"
-    (String.equal (observable book) (observable (cold book)));
+  Stdio.printf "answers agree: %b\n" (String.equal (observable book) (observable (cold book)));
   Stdio.printf "admitted source has new entry: in-memory %b, cold %b\n" (mentions book)
     (mentions (cold book));
-  [%expect {|
+  [%expect
+    {|
     answers agree: true
     admitted source has new entry: in-memory false, cold true
     |}]

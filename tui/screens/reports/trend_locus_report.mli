@@ -3,9 +3,7 @@
 module B = Bakhlo_sexp.Daily_book
 
 type grain = Cycle | Month | Day
-
 type scope = All_history | Current_cycle | Current_month | Last_30_days
-
 type coordinate = { locus : string; measure : string }
 
 type point = {
@@ -16,8 +14,7 @@ type point = {
       (** Full natural calendar/cycle window; the observation Day remains partial.
           Never an evidence or household-coverage claim. *)
   total : Z.t;  (** Exact sum of recorded signed Effects in the window. *)
-  value : Z.t;
-      (** Day: total. Cycle/Month: Euclidean floor total/observed_days. *)
+  value : Z.t;  (** Day: total. Cycle/Month: Euclidean floor total/observed_days. *)
 }
 
 type series = { coordinate : coordinate; label : string; points : point array }

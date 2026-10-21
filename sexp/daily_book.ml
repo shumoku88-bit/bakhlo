@@ -56,7 +56,7 @@ type plan = {
   cancelled_on : string option;
 }
 
-module Entry_map = Map.Make(String)
+module Entry_map = Map.Make (String)
 
 type data = {
   measures : (string * int) list;
@@ -74,13 +74,10 @@ type data = {
   bounded : (D.Effect_coordinate.t * string) list;
 }
 
-type t = {
-  data : data;
-  image : Q.t;
-  entries_cached : entry list Lazy.t;
-}
+type t = { data : data; image : Q.t; entries_cached : entry list Lazy.t }
 
-let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~observations ~presence ~bounded =
+let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~observations ~presence
+    ~bounded =
   let entry_count = List.length entries in
   let entries_rev = List.rev entries in
   let entry_map =
@@ -88,7 +85,8 @@ let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~ob
   in
   let reversed_by =
     List.fold_left
-      (fun m (e : entry) -> Option.fold ~none:m ~some:(fun target -> Entry_map.add target e.id m) e.reversal_of)
+      (fun m (e : entry) ->
+        Option.fold ~none:m ~some:(fun target -> Entry_map.add target e.id m) e.reversal_of)
       Entry_map.empty entries
   in
   {
@@ -167,8 +165,7 @@ let check_plans data =
       require (p.paid_by = None || p.cancelled_on = None) "plan-paid-and-cancelled";
       Option.iter valid_date p.cancelled_on;
       Option.iter
-        (fun id ->
-          require (Entry_map.mem id data.entry_map) "unknown-plan-payment")
+        (fun id -> require (Entry_map.mem id data.entry_map) "unknown-plan-payment")
         p.paid_by)
     data.plans
 
@@ -183,75 +180,73 @@ let entry_event data (e : entry) =
   get "invalid-entry" (D.Event.create ~id:(eid e.id) ~effects:e.effects)
 
 let actual_source events (entries : entry list) =
-    get "entry-admission"
-      (A.Actual_source.create
-         {
-           empty_command with
-           events;
-           validities =
-             List.map
-               (fun (e : entry) -> A.Actual_validity.Base { event = eid e.id; valid_on = e.day })
-               entries;
-           descriptions =
-             List.filter_map
-               (fun (e : entry) ->
-                 Option.map
-                   (fun text ->
-                     ({ A.Event_descriptions.event = eid e.id; text } : A.Event_descriptions.fact))
-                   e.memo)
-               entries;
-           merchants =
-             List.filter_map
-               (fun (e : entry) ->
-                 Option.map
-                   (fun disposition ->
-                     ({ A.Event_merchants.event = eid e.id; disposition } : A.Event_merchants.fact))
-                   e.merchant)
-               entries;
-           reversals =
-             List.filter_map
-               (fun (e : entry) ->
-                 Option.map
-                   (fun target ->
-                     ({ A.Actual_reversals.target = eid target; reversal = eid e.id }
-                       : A.Actual_reversals.fact))
-                   e.reversal_of)
-               entries;
-           original_amounts =
-             List.filter_map
-               (fun (e : entry) ->
-                 Option.map
-                   (fun (m, q) ->
-                     ({
-                        A.Original_amounts.root = eid e.id;
-                        measure = mid m;
-                        quantity = D.Quantity.of_quanta q;
-                      }
-                       : A.Original_amounts.fact))
-                   e.original_amount)
-               entries;
-           exchanges =
-             List.filter_map
-               (fun (e : entry) ->
-                 Option.map
-                   (fun (from_key, to_key) ->
-                     ({
-                        A.Exchange_evidence.event = eid e.id;
-                        source = key from_key;
-                        destination = key to_key;
-                      }
-                       : A.Exchange_evidence.fact))
-                   e.exchange)
-               entries;
-         })
+  get "entry-admission"
+    (A.Actual_source.create
+       {
+         empty_command with
+         events;
+         validities =
+           List.map
+             (fun (e : entry) -> A.Actual_validity.Base { event = eid e.id; valid_on = e.day })
+             entries;
+         descriptions =
+           List.filter_map
+             (fun (e : entry) ->
+               Option.map
+                 (fun text ->
+                   ({ A.Event_descriptions.event = eid e.id; text } : A.Event_descriptions.fact))
+                 e.memo)
+             entries;
+         merchants =
+           List.filter_map
+             (fun (e : entry) ->
+               Option.map
+                 (fun disposition ->
+                   ({ A.Event_merchants.event = eid e.id; disposition } : A.Event_merchants.fact))
+                 e.merchant)
+             entries;
+         reversals =
+           List.filter_map
+             (fun (e : entry) ->
+               Option.map
+                 (fun target ->
+                   ({ A.Actual_reversals.target = eid target; reversal = eid e.id }
+                     : A.Actual_reversals.fact))
+                 e.reversal_of)
+             entries;
+         original_amounts =
+           List.filter_map
+             (fun (e : entry) ->
+               Option.map
+                 (fun (m, q) ->
+                   ({
+                      A.Original_amounts.root = eid e.id;
+                      measure = mid m;
+                      quantity = D.Quantity.of_quanta q;
+                    }
+                     : A.Original_amounts.fact))
+                 e.original_amount)
+             entries;
+         exchanges =
+           List.filter_map
+             (fun (e : entry) ->
+               Option.map
+                 (fun (from_key, to_key) ->
+                   ({
+                      A.Exchange_evidence.event = eid e.id;
+                      source = key from_key;
+                      destination = key to_key;
+                    }
+                     : A.Exchange_evidence.fact))
+                 e.exchange)
+             entries;
+       })
 
 let admit ?entries_cached data =
   check_vocabulary data;
   let known = known_measure data in
   let entries =
-    match entries_cached with
-    | Some c -> Lazy.force c
-    | None -> List.rev data.entries_rev
+    match entries_cached with Some c -> Lazy.force c | None -> List.rev data.entries_rev
   in
   let source = actual_source (List.map (entry_event data) entries) entries in
   check_plans data;
@@ -267,15 +262,16 @@ let admit ?entries_cached data =
   Option.iter (fun (p : Q.presence) -> List.iter known_coord p.coordinates) data.presence;
   (* Explicit claims only; route conflicts are refused when a history is asked. *)
   unique
-    (List.map (fun ((c : D.Effect_coordinate.t), _) -> lstr c.locus ^ "\x00" ^ mstr c.measure)
+    (List.map
+       (fun ((c : D.Effect_coordinate.t), _) -> lstr c.locus ^ "\x00" ^ mstr c.measure)
        data.bounded)
     "duplicate-bounded-history-coordinate";
-  List.iter (fun (c, day) -> known_coord c; valid_date day) data.bounded;
-  let entries_cached =
-    match entries_cached with
-    | Some c -> c
-    | None -> lazy entries
-  in
+  List.iter
+    (fun (c, day) ->
+      known_coord c;
+      valid_date day)
+    data.bounded;
+  let entries_cached = match entries_cached with Some c -> c | None -> lazy entries in
   {
     data;
     image =
@@ -290,8 +286,10 @@ let protect f = try Ok (f ()) with Refused why -> Error why
 let empty ~measure ~scale =
   protect (fun () ->
       admit
-        (make_data ~measures:[ (measure, scale) ] ~labels:None ~approved:(Some [])
-           ~entries:[] ~plans:[] ~origins:[] ~openings:[] ~observations:[] ~presence:None ~bounded:[]))
+        (make_data
+           ~measures:[ (measure, scale) ]
+           ~labels:None ~approved:(Some []) ~entries:[] ~plans:[] ~origins:[] ~openings:[]
+           ~observations:[] ~presence:None ~bounded:[]))
 
 let atom = function X.Atom s -> s | X.List _ -> raise (Refused "expected-atom")
 
@@ -316,6 +314,7 @@ let field_opt name rows =
   | [ xs ] -> Some xs
   | [] -> None
   | _ :: _ -> raise (Refused "duplicate-field")
+
 let fields allowed rows =
   let names =
     List.map
@@ -333,9 +332,9 @@ let optional = function
   | X.List [ X.Atom "none" ] -> None
   | X.List [ X.Atom "some"; X.Atom s ] -> Some s
   | X.Atom _ | X.List _ -> raise (Refused "invalid-optional-value")
+
 let valid_token s =
   s <> "" && not (String.contains s '\t' || String.contains s '\n' || String.contains s '\r')
-
 
 let decode_posting = function
   | X.List [ X.Atom "posting"; X.Atom l; X.Atom m; X.Atom n; k ] -> posting l m n (optional k)
@@ -346,7 +345,8 @@ let decode_entry version = function
       fields
         (if version = "1" then [ "date"; "memo"; "postings"; "reversal-of" ]
          else if version = "2" then [ "date"; "memo"; "postings"; "reversal-of"; "exchange" ]
-         else [ "date"; "memo"; "postings"; "reversal-of"; "exchange"; "original-amount"; "merchant" ])
+         else
+           [ "date"; "memo"; "postings"; "reversal-of"; "exchange"; "original-amount"; "merchant" ])
         rows;
       let exchange =
         if version = "1" then None
@@ -381,7 +381,9 @@ let decode_entry version = function
              | Some [ X.List [ X.Atom "nonmerchant" ] ] -> Some A.Event_merchants.Nonmerchant
              | Some [ X.List [ X.Atom "party"; X.Atom p ] ] ->
                  require (valid_token p) "invalid-merchant-party";
-                 let party = get "invalid-merchant-party" (D.Identifier.External_party.of_string p) in
+                 let party =
+                   get "invalid-merchant-party" (D.Identifier.External_party.of_string p)
+                 in
                  Some (A.Event_merchants.Merchant party)
              | _ -> raise (Refused "invalid-merchant"));
       }
@@ -390,8 +392,7 @@ let decode_entry version = function
 let decode_plan version = function
   | X.List (X.Atom "plan" :: X.Atom id :: rows) ->
       fields
-        (if version = "3" then
-           [ "date"; "measure"; "changes"; "paid-by"; "cancelled-on" ]
+        (if version = "3" then [ "date"; "measure"; "changes"; "paid-by"; "cancelled-on" ]
          else [ "date"; "measure"; "changes"; "paid-by" ])
         rows;
       {
@@ -405,9 +406,7 @@ let decode_plan version = function
               | X.Atom _ | X.List _ -> raise (Refused "invalid-change"))
             (field "changes" rows);
         paid_by = optional (one (field "paid-by" rows));
-        cancelled_on =
-          (if version = "3" then optional (one (field "cancelled-on" rows))
-           else None);
+        cancelled_on = (if version = "3" then optional (one (field "cancelled-on" rows)) else None);
       }
   | X.Atom _ | X.List _ -> raise (Refused "invalid-plan")
 
@@ -445,7 +444,7 @@ let parse_payload version rows =
   let version = if bounded_version then "3" else version in
   fields
     ([ "zero-origin"; "openings"; "observations"; "presence" ]
-     @ if bounded_version then [ "bounded-history" ] else [])
+    @ if bounded_version then [ "bounded-history" ] else [])
     support;
   let bounded =
     if not bounded_version then []
@@ -456,7 +455,7 @@ let parse_payload version rows =
           | X.Atom _ | X.List _ -> raise (Refused "invalid-bounded-history"))
         (field "bounded-history" support)
   in
-  require (not bounded_version || bounded <> []) "empty-bounded-history";
+  require ((not bounded_version) || bounded <> []) "empty-bounded-history";
   let presence =
     match field "presence" support with
     | [ X.List [ X.Atom "not-supplied" ] ] -> None
@@ -471,67 +470,67 @@ let parse_payload version rows =
   in
   let entries = List.map (decode_entry version) (field "entries" rows) in
   ({
-    measures =
-      List.map
-        (function
-          | X.List [ X.Atom "measure"; X.Atom m; X.Atom n ] ->
-              let n = integer n in
-              require (Z.geq n Z.zero && Z.leq n (Z.of_int 9)) "invalid-scale";
-              (m, Z.to_int n)
-          | X.Atom _ | X.List _ -> raise (Refused "invalid-measure"))
-        (field "measures" rows);
-    labels =
-      supplied
-        (function
-          | X.List [ X.Atom "label"; X.Atom id; X.Atom label; X.Atom help ] ->
-              (id, label, help)
-          | X.Atom _ | X.List _ -> raise (Refused "invalid-label"))
-        (field "labels" rows);
-    approved = supplied atom (field "approved-loci" rows);
-    entries;
-    plans = List.map (decode_plan version) (field "plans" rows);
-    origins = List.map decode_coord (field "zero-origin" support);
-    openings =
-      List.map
-        (function
-          | X.List [ X.Atom l; X.Atom m; X.Atom e ] ->
-              ({ Q.coordinate = coord l m; opening_event = eid e } : Q.opening)
-          | X.Atom _ | X.List _ -> raise (Refused "invalid-opening"))
-        (field "openings" support);
-    observations =
-      List.map
-        (function
-          | X.List (X.Atom "observation" :: xs) ->
-              fields [ "reflected"; "quantities" ] xs;
-              {
-                A.Current_quantity_groups.reflected_roots =
-                  List.map (fun x -> eid (atom x)) (field "reflected" xs);
-                assertions =
-                  List.map
-                    (function
-                      | X.List [ X.Atom l; X.Atom m; X.Atom n ] ->
-                          ({
-                             A.Current_quantity_projection.coordinate = coord l m;
-                             quantity = qty n;
-                           }
-                            : A.Current_quantity_projection.assertion)
-                      | X.Atom _ | X.List _ -> raise (Refused "invalid-assertion"))
-                    (field "quantities" xs);
-              }
-          | X.Atom _ | X.List _ -> raise (Refused "invalid-observation"))
-        (field "observations" support);
-    presence;
-    bounded;
-  } : payload)
+     measures =
+       List.map
+         (function
+           | X.List [ X.Atom "measure"; X.Atom m; X.Atom n ] ->
+               let n = integer n in
+               require (Z.geq n Z.zero && Z.leq n (Z.of_int 9)) "invalid-scale";
+               (m, Z.to_int n)
+           | X.Atom _ | X.List _ -> raise (Refused "invalid-measure"))
+         (field "measures" rows);
+     labels =
+       supplied
+         (function
+           | X.List [ X.Atom "label"; X.Atom id; X.Atom label; X.Atom help ] -> (id, label, help)
+           | X.Atom _ | X.List _ -> raise (Refused "invalid-label"))
+         (field "labels" rows);
+     approved = supplied atom (field "approved-loci" rows);
+     entries;
+     plans = List.map (decode_plan version) (field "plans" rows);
+     origins = List.map decode_coord (field "zero-origin" support);
+     openings =
+       List.map
+         (function
+           | X.List [ X.Atom l; X.Atom m; X.Atom e ] ->
+               ({ Q.coordinate = coord l m; opening_event = eid e } : Q.opening)
+           | X.Atom _ | X.List _ -> raise (Refused "invalid-opening"))
+         (field "openings" support);
+     observations =
+       List.map
+         (function
+           | X.List (X.Atom "observation" :: xs) ->
+               fields [ "reflected"; "quantities" ] xs;
+               {
+                 A.Current_quantity_groups.reflected_roots =
+                   List.map (fun x -> eid (atom x)) (field "reflected" xs);
+                 assertions =
+                   List.map
+                     (function
+                       | X.List [ X.Atom l; X.Atom m; X.Atom n ] ->
+                           ({
+                              A.Current_quantity_projection.coordinate = coord l m;
+                              quantity = qty n;
+                            }
+                             : A.Current_quantity_projection.assertion)
+                       | X.Atom _ | X.List _ -> raise (Refused "invalid-assertion"))
+                     (field "quantities" xs);
+               }
+           | X.Atom _ | X.List _ -> raise (Refused "invalid-observation"))
+         (field "observations" support);
+     presence;
+     bounded;
+   }
+    : payload)
 
 let admit_payload (p : payload) =
   protect (fun () ->
-    let data =
-      make_data ~measures:p.measures ~labels:p.labels ~approved:p.approved
-        ~entries:p.entries ~plans:p.plans ~origins:p.origins ~openings:p.openings
-        ~observations:p.observations ~presence:p.presence ~bounded:p.bounded
-    in
-    admit ~entries_cached:(lazy p.entries) data)
+      let data =
+        make_data ~measures:p.measures ~labels:p.labels ~approved:p.approved ~entries:p.entries
+          ~plans:p.plans ~origins:p.origins ~openings:p.openings ~observations:p.observations
+          ~presence:p.presence ~bounded:p.bounded
+      in
+      admit ~entries_cached:(lazy p.entries) data)
 
 let export_payload (t : t) : payload =
   {
@@ -553,11 +552,10 @@ let of_string bytes =
   protect (fun () ->
       match get "syntax" (Parsexp.Many.parse_string bytes) with
       | X.List [ X.Atom "bakhlo-daily"; X.Atom version ] :: rows
-        when version = "1" || version = "2" || version = "3" || version = "5" ->
+        when version = "1" || version = "2" || version = "3" || version = "5" -> (
           let payload = parse_payload version rows in
-          (match admit_payload payload with Ok t -> t | Error why -> raise (Refused why))
+          match admit_payload payload with Ok t -> t | Error why -> raise (Refused why))
       | [] | _ :: _ -> raise (Refused "unsupported-book-header"))
-
 
 let a s = X.Atom s
 let l xs = X.List xs
@@ -584,11 +582,7 @@ let entry_sexp (e : entry) =
            e.effects);
       f "reversal-of" [ opt e.reversal_of ];
       f "exchange"
-        [
-          (match e.exchange with
-          | None -> f "none" []
-          | Some (a_, b_) -> f "keys" [ a a_; a b_ ]);
-        ];
+        [ (match e.exchange with None -> f "none" [] | Some (a_, b_) -> f "keys" [ a a_; a b_ ]) ];
       f "original-amount"
         [
           (match e.original_amount with
@@ -630,55 +624,56 @@ let payload_sexps (b : payload) =
     f "support"
       ([
          f "zero-origin" (List.map coordinate b.origins);
-        f "openings"
-          (List.map
-             (fun (o : Q.opening) ->
-               l
-                 [
-                   a (lstr o.coordinate.locus);
-                   a (mstr o.coordinate.measure);
-                   a (estr o.opening_event);
-                 ])
-             b.openings);
-        f "observations"
-          (List.map
-             (fun (g : A.Current_quantity_groups.group) ->
-               f "observation"
-                 [
-                   f "reflected" (List.map (fun id -> a (estr id)) g.reflected_roots);
-                   f "quantities"
-                     (List.map
-                        (fun (row : A.Current_quantity_projection.assertion) ->
-                          l
-                            [
-                              a (lstr row.coordinate.locus);
-                              a (mstr row.coordinate.measure);
-                              a (qstr row.quantity);
-                            ])
-                        g.assertions);
-                 ])
-             b.observations);
-        f "presence"
-          [
-            (match b.presence with
-            | None -> f "not-supplied" []
-            | Some p ->
-                f "provided"
+         f "openings"
+           (List.map
+              (fun (o : Q.opening) ->
+                l
                   [
-                    f "reflected" (List.map (fun id -> a (estr id)) p.reflected_roots);
-                    f "coordinates" (List.map coordinate p.coordinates);
-                  ]);
-          ];
-      ]
-      @ (if b.bounded = [] then []
-         else
+                    a (lstr o.coordinate.locus);
+                    a (mstr o.coordinate.measure);
+                    a (estr o.opening_event);
+                  ])
+              b.openings);
+         f "observations"
+           (List.map
+              (fun (g : A.Current_quantity_groups.group) ->
+                f "observation"
+                  [
+                    f "reflected" (List.map (fun id -> a (estr id)) g.reflected_roots);
+                    f "quantities"
+                      (List.map
+                         (fun (row : A.Current_quantity_projection.assertion) ->
+                           l
+                             [
+                               a (lstr row.coordinate.locus);
+                               a (mstr row.coordinate.measure);
+                               a (qstr row.quantity);
+                             ])
+                         g.assertions);
+                  ])
+              b.observations);
+         f "presence"
            [
-             f "bounded-history"
-               (List.map
-                  (fun ((c : D.Effect_coordinate.t), day) ->
-                    l [ a (lstr c.locus); a (mstr c.measure); a day ])
-                  b.bounded);
-           ]));
+             (match b.presence with
+             | None -> f "not-supplied" []
+             | Some p ->
+                 f "provided"
+                   [
+                     f "reflected" (List.map (fun id -> a (estr id)) p.reflected_roots);
+                     f "coordinates" (List.map coordinate p.coordinates);
+                   ]);
+           ];
+       ]
+      @
+      if b.bounded = [] then []
+      else
+        [
+          f "bounded-history"
+            (List.map
+               (fun ((c : D.Effect_coordinate.t), day) ->
+                 l [ a (lstr c.locus); a (mstr c.measure); a day ])
+               b.bounded);
+        ]);
   ]
 
 let sexps t =
@@ -706,9 +701,10 @@ let render_into out x =
   let is_tag = function
     | "bakhlo-daily" | "scope" | "measures" | "measure" | "labels" | "label" | "approved-loci"
     | "entries" | "entry" | "date" | "memo" | "postings" | "posting" | "reversal-of" | "exchange"
-    | "keys" | "original-amount" | "amount" | "merchant" | "party" | "nonmerchant" | "plans" | "plan" | "changes" | "paid-by" | "cancelled-on" | "support"
-    | "zero-origin" | "openings" | "observations" | "observation" | "reflected"
-    | "quantities" | "presence" | "bounded-history" | "coordinates" | "provided" | "not-supplied" | "none" | "some" ->
+    | "keys" | "original-amount" | "amount" | "merchant" | "party" | "nonmerchant" | "plans"
+    | "plan" | "changes" | "paid-by" | "cancelled-on" | "support" | "zero-origin" | "openings"
+    | "observations" | "observation" | "reflected" | "quantities" | "presence" | "bounded-history"
+    | "coordinates" | "provided" | "not-supplied" | "none" | "some" ->
         true
     | _ -> false
   in
@@ -805,9 +801,7 @@ let help t id =
   match t.data.labels with
   | None -> ""
   | Some rows -> (
-      match List.find_opt (fun (key, _, _) -> key = id) rows with
-      | None -> ""
-      | Some (_, _, h) -> h)
+      match List.find_opt (fun (key, _, _) -> key = id) rows with None -> "" | Some (_, _, h) -> h)
 
 let scale t m =
   get "unknown-measure"
@@ -830,33 +824,31 @@ let normalize_amount_text text =
   let b = Buffer.create len in
   let rec loop i =
     if i >= len then Buffer.contents b
-    else if i + 2 < len
-            && Char.code text.[i] = 0xEF
-            && Char.code text.[i + 1] = 0xBC then
+    else if i + 2 < len && Char.code text.[i] = 0xEF && Char.code text.[i + 1] = 0xBC then
       let c3 = Char.code text.[i + 2] in
       if c3 >= 0x90 && c3 <= 0x99 then begin
         Buffer.add_char b (Char.chr (Char.code '0' + (c3 - 0x90)));
         loop (i + 3)
-      end else begin
+      end
+      else begin
         (match c3 with
-         | 0x8C -> Buffer.add_char b ','
-         | 0x8E -> Buffer.add_char b '.'
-         | 0x8B -> Buffer.add_char b '+'
-         | 0x8D -> Buffer.add_char b '-'
-         | 0x8A -> Buffer.add_char b '*'
-         | 0x8F -> Buffer.add_char b '/'
-         | 0x88 -> Buffer.add_char b '('
-         | 0x89 -> Buffer.add_char b ')'
-         | _ -> Buffer.add_substring b text i 3);
+        | 0x8C -> Buffer.add_char b ','
+        | 0x8E -> Buffer.add_char b '.'
+        | 0x8B -> Buffer.add_char b '+'
+        | 0x8D -> Buffer.add_char b '-'
+        | 0x8A -> Buffer.add_char b '*'
+        | 0x8F -> Buffer.add_char b '/'
+        | 0x88 -> Buffer.add_char b '('
+        | 0x89 -> Buffer.add_char b ')'
+        | _ -> Buffer.add_substring b text i 3);
         loop (i + 3)
       end
-    else if i + 1 < len && text.[i] = '\xc3'
-            && (text.[i + 1] = '\x97' || text.[i + 1] = '\xb7') then begin
+    else if i + 1 < len && text.[i] = '\xc3' && (text.[i + 1] = '\x97' || text.[i + 1] = '\xb7')
+    then begin
       Buffer.add_char b (if text.[i + 1] = '\x97' then '*' else '/');
       loop (i + 2)
     end
-    else if i + 2 < len && text.[i] = '\xe3'
-            && text.[i + 1] = '\x80' && text.[i + 2] = '\x80' then begin
+    else if i + 2 < len && text.[i] = '\xe3' && text.[i + 1] = '\x80' && text.[i + 2] = '\x80' then begin
       Buffer.add_char b ' ';
       loop (i + 3)
     end
@@ -873,7 +865,8 @@ let parse_whole whole =
   if not (String.contains whole ',') then begin
     require (String.for_all is_digit whole) "invalid-amount";
     whole
-  end else
+  end
+  else
     let groups = String.split_on_char ',' whole in
     match groups with
     | [] -> raise (Refused "invalid-amount")
@@ -882,8 +875,7 @@ let parse_whole whole =
         let len0 = String.length g0 in
         require (len0 >= 1 && len0 <= 3 && String.for_all is_digit g0) "invalid-amount";
         List.iter
-          (fun g ->
-            require (String.length g = 3 && String.for_all is_digit g) "invalid-amount")
+          (fun g -> require (String.length g = 3 && String.for_all is_digit g) "invalid-amount")
           rest;
         String.concat "" groups
 
@@ -892,20 +884,22 @@ let calculate_amount decimals text =
   require (String.length text <= 4096) "invalid-amount";
   let length = String.length text and pos = ref 0 in
   let rec spaces () =
-    if !pos < length && text.[!pos] = ' ' then (incr pos; spaces ())
+    if !pos < length && text.[!pos] = ' ' then (
+      incr pos;
+      spaces ())
   in
   let decimal () =
     spaces ();
     let start = !pos in
-    while !pos < length &&
-          (match text.[!pos] with '0' .. '9' | ',' | '.' -> true | _ -> false) do
+    while !pos < length && match text.[!pos] with '0' .. '9' | ',' | '.' -> true | _ -> false do
       incr pos
     done;
     let raw = String.sub text start (!pos - start) in
     match String.split_on_char '.' raw with
-    | [whole] -> R.of_bigint (integer (parse_whole whole))
-    | [whole; fraction] ->
-        require (fraction <> "" && String.for_all (fun c -> c >= '0' && c <= '9') fraction)
+    | [ whole ] -> R.of_bigint (integer (parse_whole whole))
+    | [ whole; fraction ] ->
+        require
+          (fraction <> "" && String.for_all (fun c -> c >= '0' && c <= '9') fraction)
           "invalid-amount";
         let whole = parse_whole whole in
         R.make (integer (whole ^ fraction)) (Z.pow (Z.of_int 10) (String.length fraction))
@@ -960,22 +954,23 @@ let parse_amount t m text =
       let expression =
         String.exists (function '+' | '-' | '*' | '/' | '(' | ')' -> true | _ -> false) norm
       in
-      if expression then calculate_amount decimals norm else
-      let is_digit c = c >= '0' && c <= '9' in
-      let n =
-        match String.split_on_char '.' norm with
-        | [ whole ] ->
-            let clean_whole = parse_whole whole in
-            Z.mul (integer clean_whole) (Z.pow (Z.of_int 10) decimals)
-        | [ whole; fraction ] ->
-            let clean_whole = parse_whole whole in
-            require (fraction <> "" && String.for_all is_digit fraction) "invalid-amount";
-            require (decimals > 0 && String.length fraction <= decimals) "amount-precision";
-            integer (clean_whole ^ fraction ^ String.make (decimals - String.length fraction) '0')
-        | [] | _ :: _ -> raise (Refused "invalid-amount")
-      in
-      require (Z.sign n > 0) "non-positive-amount";
-      n)
+      if expression then calculate_amount decimals norm
+      else
+        let is_digit c = c >= '0' && c <= '9' in
+        let n =
+          match String.split_on_char '.' norm with
+          | [ whole ] ->
+              let clean_whole = parse_whole whole in
+              Z.mul (integer clean_whole) (Z.pow (Z.of_int 10) decimals)
+          | [ whole; fraction ] ->
+              let clean_whole = parse_whole whole in
+              require (fraction <> "" && String.for_all is_digit fraction) "invalid-amount";
+              require (decimals > 0 && String.length fraction <= decimals) "amount-precision";
+              integer (clean_whole ^ fraction ^ String.make (decimals - String.length fraction) '0')
+          | [] | _ :: _ -> raise (Refused "invalid-amount")
+        in
+        require (Z.sign n > 0) "non-positive-amount";
+        n)
 
 let parse_signed_amount t m text =
   protect (fun () ->
@@ -1004,7 +999,6 @@ let parse_signed_amount t m text =
         | [] | _ :: _ -> raise (Refused "invalid-amount")
       in
       if is_neg then Z.neg n else n)
-
 
 type daily_pace = {
   measure : string;
@@ -1127,8 +1121,8 @@ let plan_candidate t ~replace (p : plan) =
   let effects =
     List.map
       (fun (loc, n) ->
-        D.Effect.create ~locus:(lid loc) ~measure:(mid p.measure)
-          ~quantity:(D.Quantity.of_quanta n) ~key:None)
+        D.Effect.create ~locus:(lid loc) ~measure:(mid p.measure) ~quantity:(D.Quantity.of_quanta n)
+          ~key:None)
       p.changes
   in
   approve_effects t effects;
@@ -1151,7 +1145,9 @@ let cancel_candidate t ~id ~day =
   { t.data with plans }
 
 (* Plans feed no balance answer, so the admitted image is reused unchanged. *)
-let with_plans t data = check_plans data; { t with data }
+let with_plans t data =
+  check_plans data;
+  { t with data }
 
 let put_plan t ~replace p = protect (fun () -> with_plans t (plan_candidate t ~replace p))
 let cancel_plan t ~id ~day = protect (fun () -> with_plans t (cancel_candidate t ~id ~day))
@@ -1161,18 +1157,16 @@ let put_entry_full t ~replace (e : entry) ~plan =
       approve_effects t e.effects;
       let exists = Entry_map.mem e.id t.data.entry_map in
       require (exists = replace) (if replace then "unknown-entry" else "duplicate-entry");
-      if replace then (
-        let old_e = Entry_map.find e.id t.data.entry_map in
-        match old_e.merchant with
-        | Some old_m ->
-            require (e.merchant = Some old_m)
-              "loam: Event Merchant is already classified; replacement is not qualified"
-        | None -> ()
-      );
+      (if replace then
+         let old_e = Entry_map.find e.id t.data.entry_map in
+         match old_e.merchant with
+         | Some old_m ->
+             require (e.merchant = Some old_m)
+               "loam: Event Merchant is already classified; replacement is not qualified"
+         | None -> ());
       let entries =
-        if replace then
-          List.map (fun (row : entry) -> if row.id = e.id then e else row) (entries t)
-        else (entries t) @ [ e ]
+        if replace then List.map (fun (row : entry) -> if row.id = e.id then e else row) (entries t)
+        else entries t @ [ e ]
       in
       let plans =
         match plan with
@@ -1185,11 +1179,9 @@ let put_entry_full t ~replace (e : entry) ~plan =
               t.data.plans
       in
       let data =
-        make_data ~measures:t.data.measures ~labels:t.data.labels
-          ~approved:t.data.approved ~entries ~plans ~origins:t.data.origins
-          ~openings:t.data.openings ~observations:t.data.observations
-          ~presence:t.data.presence
-          ~bounded:t.data.bounded
+        make_data ~measures:t.data.measures ~labels:t.data.labels ~approved:t.data.approved ~entries
+          ~plans ~origins:t.data.origins ~openings:t.data.openings ~observations:t.data.observations
+          ~presence:t.data.presence ~bounded:t.data.bounded
       in
       admit ~entries_cached:(lazy entries) data)
 
@@ -1213,8 +1205,8 @@ let data_with_replaced_entry t (e : entry) =
   let entries_rev =
     List.map (fun (row : entry) -> if row.id = e.id then e else row) t.data.entries_rev
   in
-  ({ t.data with entries_rev; entry_map = Entry_map.add e.id e t.data.entry_map },
-   lazy (List.rev entries_rev))
+  ( { t.data with entries_rev; entry_map = Entry_map.add e.id e t.data.entry_map },
+    lazy (List.rev entries_rev) )
 
 let put_entry_incremental t (e : entry) ~plan =
   protect (fun () ->
@@ -1230,10 +1222,7 @@ let put_entry_incremental t (e : entry) ~plan =
               t.data.plans
       in
       let partners =
-        match e.reversal_of with
-        | None -> []
-        | Some target ->
-            Option.to_list (partner t target)
+        match e.reversal_of with None -> [] | Some target -> Option.to_list (partner t target)
       in
       (* A target may be reversed once (whether it is itself a Reversal is checked
          with it as a partner). *)
@@ -1248,7 +1237,8 @@ let put_entry_incremental t (e : entry) ~plan =
       let entry_count = t.data.entry_count + 1 in
       let reversed_by =
         Option.fold ~none:t.data.reversed_by
-          ~some:(fun target -> Entry_map.add target e.id t.data.reversed_by) e.reversal_of
+          ~some:(fun target -> Entry_map.add target e.id t.data.reversed_by)
+          e.reversal_of
       in
       let data = { t.data with entries_rev; entry_map; entry_count; reversed_by; plans } in
       let image = Q.with_added_effects t.image e.effects in
@@ -1290,7 +1280,8 @@ let put_entry_replace_incremental t (e : entry) =
 let put_entry t ~replace (e : entry) ~plan =
   if not replace then put_entry_incremental t e ~plan
   else if plan = None then
-    try put_entry_replace_incremental t e with Needs_full_admission -> put_entry_full t ~replace e ~plan
+    try put_entry_replace_incremental t e
+    with Needs_full_admission -> put_entry_full t ~replace e ~plan
   else put_entry_full t ~replace e ~plan
 
 let correct_entry_date_candidate t ~id ~day =
@@ -1325,8 +1316,7 @@ let classify_merchant_candidate t ~id ~disposition =
   (match disposition with
   | A.Event_merchants.Merchant p ->
       let tok = D.Identifier.External_party.to_string p in
-      require (valid_token tok)
-        "loam: Merchant party token must be a non-empty single text field"
+      require (valid_token tok) "loam: Merchant party token must be a non-empty single text field"
   | Nonmerchant -> ());
   let updated = { old_entry with merchant = Some disposition } in
   let data, entries_cached = data_with_replaced_entry t updated in
@@ -1352,17 +1342,19 @@ let label_candidate t ~id ~label ?help () =
   ignore (lid id);
   Option.iter (fun ids -> require (List.mem id ids) "locus-not-approved") t.data.approved;
   let valid_str s =
-    s <> "" && String.length s <= 80
+    s <> ""
+    && String.length s <= 80
     && String.for_all (fun c -> Char.code c >= 32 && Char.code c <> 127) s
   in
   let label = String.trim label in
   require (valid_str label) "invalid-label";
-  let existing_help = match t.data.labels with
+  let existing_help =
+    match t.data.labels with
     | None -> None
-    | Some rows ->
+    | Some rows -> (
         match List.find_opt (fun (key, _, _) -> key = id) rows with
         | Some (_, _, h) -> Some h
-        | None -> None
+        | None -> None)
   in
   let resolved_help =
     match help with
@@ -1379,40 +1371,39 @@ let label_candidate t ~id ~label ?help () =
     | Some rows ->
         if List.exists (fun (key, _, _) -> key = id) rows then
           List.map (fun (key, n, h) -> if key = id then new_row else (key, n, h)) rows
-        else
-          rows @ [ new_row ]
+        else rows @ [ new_row ]
   in
   { t.data with labels = Some next_rows }
 
-
 (* Vocabulary feeds no stored fact or balance answer. *)
-let with_vocabulary t data = check_vocabulary data; { t with data }
+let with_vocabulary t data =
+  check_vocabulary data;
+  { t with data }
 
 let add_locus t id = protect (fun () -> with_vocabulary t (add_locus_candidate t id))
 
 let set_locus_label t ~id ~label ?help () =
   protect (fun () -> with_vocabulary t (label_candidate t ~id ~label ?help ()))
 
-
 let observation_assertions t rows =
-      require (rows <> []) "empty-observations";
-      let assertions =
-        List.map
-          (fun (l, m, q) ->
-            let c = coord l m in
-            let known m = require (List.mem_assoc m t.data.measures) "measure-scale-not-supplied" in
-            known m;
-            Option.iter
-              (fun approved -> require (List.mem l approved) "locus-not-approved")
-              t.data.approved;
-            let assertion : A.Current_quantity_projection.assertion =
-              { coordinate = c; quantity = D.Quantity.of_quanta q }
-            in
-            assertion)
-          rows
-      in
-      unique (List.map (fun (l, m, _) -> l ^ "\x00" ^ m) rows) "duplicate-coordinate";
-      assertions
+  require (rows <> []) "empty-observations";
+  let assertions =
+    List.map
+      (fun (l, m, q) ->
+        let c = coord l m in
+        let known m = require (List.mem_assoc m t.data.measures) "measure-scale-not-supplied" in
+        known m;
+        Option.iter
+          (fun approved -> require (List.mem l approved) "locus-not-approved")
+          t.data.approved;
+        let assertion : A.Current_quantity_projection.assertion =
+          { coordinate = c; quantity = D.Quantity.of_quanta q }
+        in
+        assertion)
+      rows
+  in
+  unique (List.map (fun (l, m, _) -> l ^ "\x00" ^ m) rows) "duplicate-coordinate";
+  assertions
 
 (* Every admitted entry is reflected, so the new group's answers are its asserted
    amounts; older groups only lose the re-observed coordinates. *)
@@ -1443,24 +1434,23 @@ let observe_quantities_full t rows =
       let roots =
         List.map A.Correction_frontier.root_id (A.Correction_frontier.lineages frontier)
       in
-      let incoming : A.Current_quantity_groups.group =
-        { reflected_roots = roots; assertions }
-      in
+      let incoming : A.Current_quantity_groups.group = { reflected_roots = roots; assertions } in
       let new_groups =
         match A.Current_quantity_groups.reobserve groups incoming with
         | Ok g -> g
         | Error (A.Current_quantity_groups.Invalid_cut _) -> raise (Refused "invalid-cut")
-        | Error (A.Current_quantity_groups.Invalid_assertions _) -> raise (Refused "invalid-assertions")
-        | Error (A.Current_quantity_groups.Repeated_coordinate _) -> raise (Refused "repeated-coordinate")
+        | Error (A.Current_quantity_groups.Invalid_assertions _) ->
+            raise (Refused "invalid-assertions")
+        | Error (A.Current_quantity_groups.Repeated_coordinate _) ->
+            raise (Refused "repeated-coordinate")
       in
       let new_obs = A.Current_quantity_groups.groups new_groups in
       let data = { t.data with observations = new_obs } in
       admit ~entries_cached:t.entries_cached data)
+
 let has_zero_origin t ~locus ~measure =
   let coordinate = coord locus measure in
-  List.exists
-    (fun candidate -> D.Effect_coordinate.equal candidate coordinate)
-    t.data.origins
+  List.exists (fun candidate -> D.Effect_coordinate.equal candidate coordinate) t.data.origins
 
 let bounded_history_start t ~locus ~measure =
   let coordinate = coord locus measure in
@@ -1516,14 +1506,13 @@ let pool_at_end_of_day t ~measure ~pool ~day =
               (fun (o : Q.opening) -> D.Effect_coordinate.equal o.coordinate c)
               t.data.openings
           in
-          match zero, bounded_history_start t ~locus:(lstr c.locus) ~measure with
+          match (zero, bounded_history_start t ~locus:(lstr c.locus) ~measure) with
           | true, Some _ -> raise (Refused ("history-support-conflict:" ^ label))
           | true, None -> Z.add total (sum c (fun d -> d <= day))
           | false, None -> raise (Refused ("history-support-missing:" ^ label))
           | false, Some first ->
               require (not opening) ("history-support-conflict:" ^ label);
-              require (next_start >= day_number first)
-                ("history-precedes-bounded-start:" ^ label);
+              require (next_start >= day_number first) ("history-precedes-bounded-start:" ^ label);
               let current =
                 match Q.query t.image c with
                 | Ok (Q.Exact answer) -> (
@@ -1550,7 +1539,11 @@ let render_line x =
     | X.Atom s -> Buffer.add_string out (if integer_syntax s then s else quote s)
     | X.List xs ->
         Buffer.add_char out '(';
-        List.iteri (fun n x -> if n > 0 then Buffer.add_char out ' '; go x) xs;
+        List.iteri
+          (fun n x ->
+            if n > 0 then Buffer.add_char out ' ';
+            go x)
+          xs;
         Buffer.add_char out ')'
   in
   go x;
@@ -1561,14 +1554,17 @@ module Full = struct
   let put_entry = put_entry_full
   let put_plan t ~replace p = protect (fun () -> readmit (plan_candidate t ~replace p))
   let cancel_plan t ~id ~day = protect (fun () -> readmit (cancel_candidate t ~id ~day))
+
   let correct_entry_date t ~id ~day =
     protect (fun () ->
         let _, data, _ = correct_entry_date_candidate t ~id ~day in
         readmit data)
+
   let classify_merchant t ~id ~disposition =
     protect (fun () ->
         let _, data, _ = classify_merchant_candidate t ~id ~disposition in
         readmit data)
+
   let observe_quantities = observe_quantities_full
   let add_locus t id = protect (fun () -> readmit (add_locus_candidate t id))
 

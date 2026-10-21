@@ -118,8 +118,7 @@ let%expect_test "daily identical actual facts do not infer scheduled completion"
   let completed = get (B.put_entry base ~replace:false actual ~plan:(Some "planned")) in
   let unlinked = get (B.of_string (B.to_string unlinked)) in
   let completed = get (B.of_string (B.to_string completed)) in
-  Stdio.printf "same entries: %b\n"
-    (Poly.equal (entry_view unlinked) (entry_view completed));
+  Stdio.printf "same entries: %b\n" (Poly.equal (entry_view unlinked) (entry_view completed));
   Stdio.printf "wallet: %s / %s\n"
     (quantity unlinked "wallet" "jpy")
     (quantity completed "wallet" "jpy");
@@ -155,7 +154,9 @@ let%expect_test "daily data preserves explicit exchange and exact foreign quanti
 true
 true|}]
 
-let%expect_test "flexible amount input accepts half/full-width and comma grouping, preserving exact quanta and errors" =
+let%expect_test
+    "flexible amount input accepts half/full-width and comma grouping, preserving exact quanta and \
+     errors" =
   let base = get (B.of_string fixture) in
   (* JPY: scale 0 *)
   let check_jpy s =
@@ -205,7 +206,8 @@ let%expect_test "flexible amount input accepts half/full-width and comma groupin
   check_jpy "-1,000";
   check_jpy "ー１０００";
   check_jpy "1000yen";
-  [%expect {|
+  [%expect
+    {|
 ok 1000
 ok 1000
 ok 1000
@@ -265,7 +267,8 @@ let%expect_test "calculator expressions are exact and do not round or accept mal
   check "jpy" "1,00+2";
   check "jpy" "3+2)";
   check "jpy" "2/0*0";
-  [%expect {|
+  [%expect
+    {|
 500+300 => 800
 2+3*4 => 14
 (2+3)*4 => 20
@@ -361,7 +364,8 @@ let plan id : B.plan =
 
 let cold book = get (B.of_string (B.to_string book))
 
-let%expect_test "canonical daily reflected correction preserves root cut, not old quantity or date" =
+let%expect_test "canonical daily reflected correction preserves root cut, not old quantity or date"
+    =
   let base = get (B.of_string fixture) in
   let original = get (B.put_entry base ~replace:false (entry "e" 100) ~plan:None) in
   let reflected =
@@ -374,17 +378,19 @@ let%expect_test "canonical daily reflected correction preserves root cut, not ol
     cold
       (get
          (B.put_entry book ~replace:true
-            { (entry "e" 6) with day = "1900-01-01"; memo = Some "corrected" } ~plan:None))
+            { (entry "e" 6) with day = "1900-01-01"; memo = Some "corrected" }
+            ~plan:None))
   in
   let unreflected = corrected original and reflected = corrected reflected in
   let fresh = cold (get (B.put_entry reflected ~replace:false (entry "fresh" 20) ~plan:None)) in
   Stdio.printf "wallet: old=%s; corrected unreflected=%s, reflected=%s, fresh=%s\n"
-    (quantity original "wallet" "jpy") (quantity unreflected "wallet" "jpy")
-    (quantity reflected "wallet" "jpy") (quantity fresh "wallet" "jpy");
+    (quantity original "wallet" "jpy")
+    (quantity unreflected "wallet" "jpy")
+    (quantity reflected "wallet" "jpy")
+    (quantity fresh "wallet" "jpy");
   let selected = Option.value_exn (B.find_entry fresh "e") in
-  Stdio.printf "current identity/date: %s %s; rows=%d; food=%s; bank=%s\n"
-    selected.id selected.day (B.entry_count fresh) (quantity fresh "food" "jpy")
-    (quantity fresh "bank" "jpy");
+  Stdio.printf "current identity/date: %s %s; rows=%d; food=%s; bank=%s\n" selected.id selected.day
+    (B.entry_count fresh) (quantity fresh "food" "jpy") (quantity fresh "bank" "jpy");
   let text = B.to_string fresh in
   let reflected_row = "(reflected \"e\")" in
   Fixtures.require (String.is_substring text ~substring:reflected_row) "missing cut fixture";
@@ -396,11 +402,13 @@ let%expect_test "canonical daily reflected correction preserves root cut, not ol
        (B.of_string
           (String.substr_replace_all text ~pattern:reflected_row ~with_:"(reflected e e)")))
     (String.equal "2026-10-03" (Option.value_exn (B.find_entry original "e")).day);
-  [%expect {|wallet: old=900; corrected unreflected=994, reflected=1000, fresh=980
+  [%expect
+    {|wallet: old=900; corrected unreflected=994, reflected=1000, fresh=980
 current identity/date: e 1900-01-01; rows=2; food=26; bank=unknown
 bad cuts refuse: missing=true, duplicate=true; original snapshot unchanged=true|}]
 
-let%expect_test "canonical daily refund correction refuses broken inversion without losing actual refund" =
+let%expect_test
+    "canonical daily refund correction refuses broken inversion without losing actual refund" =
   let base = get (B.of_string fixture) in
   let original = get (B.put_entry base ~replace:false (entry "e" 10) ~plan:None) in
   let refund = { (entry "refund" (-10)) with reversal_of = Some "e" } in
@@ -410,20 +418,24 @@ let%expect_test "canonical daily refund correction refuses broken inversion with
     cold
       (get
          (B.put_entry reversed ~replace:true
-            { (entry "e" 10) with day = "1900-01-01"; memo = Some "corrected date" } ~plan:None))
+            { (entry "e" 10) with day = "1900-01-01"; memo = Some "corrected date" }
+            ~plan:None))
   in
   Stdio.printf "target amount correction refuses=%b; refund amount correction refuses=%b\n"
     (Result.is_error (B.put_entry reversed ~replace:true (entry "e" 6) ~plan:None))
     (Result.is_error
-       (B.put_entry reversed ~replace:true { refund with effects = (entry "refund" (-6)).effects }
+       (B.put_entry reversed ~replace:true
+          { refund with effects = (entry "refund" (-6)).effects }
           ~plan:None));
   Stdio.printf "date-only correction admits: %s; target=%s; rows=%d; wallet=%s\n"
     (Option.value_exn (B.find_entry dated "e")).day
     (Option.value_exn (Option.value_exn (B.find_entry dated "refund")).reversal_of)
     (B.entry_count dated) (quantity dated "wallet" "jpy");
   Stdio.printf "refused source unchanged=%b; bank=%s\n"
-    (String.equal before (B.to_string reversed)) (quantity dated "bank" "jpy");
-  [%expect {|target amount correction refuses=true; refund amount correction refuses=true
+    (String.equal before (B.to_string reversed))
+    (quantity dated "bank" "jpy");
+  [%expect
+    {|target amount correction refuses=true; refund amount correction refuses=true
 date-only correction admits: 1900-01-01; target=e; rows=2; wallet=1000
 refused source unchanged=true; bank=unknown|}]
 
@@ -878,10 +890,10 @@ formatted: 4115226300411522630041152263004115224.63 eur/day
 
 let%expect_test "obsolete budget-only schema cannot be admitted" =
   let base = B.to_string (get (B.of_string fixture)) in
-  let v4 = String.substr_replace_first ~pattern:"(bakhlo-daily 3)"
-      ~with_:"(bakhlo-daily 4)" base in
+  let v4 = String.substr_replace_first ~pattern:"(bakhlo-daily 3)" ~with_:"(bakhlo-daily 4)" base in
   let with_budget = base ^ "\n(budgets (provided))\n" in
-  Stdio.printf "%b %b\n" (Result.is_error (B.of_string v4))
+  Stdio.printf "%b %b\n"
+    (Result.is_error (B.of_string v4))
     (Result.is_error (B.of_string with_budget));
   [%expect {| true true |}]
 
@@ -904,7 +916,8 @@ let%expect_test "parse_signed_amount admits zero, negative, positive at configur
   check "eur" "0";
   check "eur" "10.123";
   check "unknown" "100";
-  [%expect {|
+  [%expect
+    {|
     jpy 100 -> 100
     jpy +100 -> 100
     jpy -100 -> -100
@@ -925,18 +938,25 @@ let%expect_test "observe_quantities updates current balance and persists across 
   let obs1 = get (B.observe_quantities base [ ("wallet", "jpy", Z.of_int 5000) ]) in
   Stdio.printf "after obs1: %s\n" (quantity obs1 "wallet" "jpy");
   let obs2 = get (B.observe_quantities obs1 [ ("bank", "jpy", Z.of_int 120000) ]) in
-  Stdio.printf "after obs2 (wallet, bank): %s, %s\n" (quantity obs2 "wallet" "jpy") (quantity obs2 "bank" "jpy");
+  Stdio.printf "after obs2 (wallet, bank): %s, %s\n" (quantity obs2 "wallet" "jpy")
+    (quantity obs2 "bank" "jpy");
   let re_obs = get (B.observe_quantities obs2 [ ("wallet", "jpy", Z.of_int 4200) ]) in
-  Stdio.printf "after re_obs (wallet, bank): %s, %s\n" (quantity re_obs "wallet" "jpy") (quantity re_obs "bank" "jpy");
+  Stdio.printf "after re_obs (wallet, bank): %s, %s\n" (quantity re_obs "wallet" "jpy")
+    (quantity re_obs "bank" "jpy");
   let cold_book = get (B.of_string (B.to_string re_obs)) in
-  Stdio.printf "cold after re_obs (wallet, bank): %s, %s\n" (quantity cold_book "wallet" "jpy") (quantity cold_book "bank" "jpy");
+  Stdio.printf "cold after re_obs (wallet, bank): %s, %s\n"
+    (quantity cold_book "wallet" "jpy")
+    (quantity cold_book "bank" "jpy");
   let err_unapproved = B.observe_quantities base [ ("unapproved_locus", "jpy", Z.of_int 100) ] in
   let err_unknown_measure = B.observe_quantities base [ ("wallet", "unknown", Z.of_int 100) ] in
   let err_zero_origin = B.observe_quantities base [ ("food", "jpy", Z.of_int 100) ] in
   Stdio.printf "unapproved: %s\n" (match err_unapproved with Error e -> e | Ok _ -> "ok");
-  Stdio.printf "unknown measure: %s\n" (match err_unknown_measure with Error e -> e | Ok _ -> "ok");
-  Stdio.printf "zero origin collision: %s\n" (match err_zero_origin with Error e -> e | Ok _ -> "ok");
-  [%expect {|
+  Stdio.printf "unknown measure: %s\n"
+    (match err_unknown_measure with Error e -> e | Ok _ -> "ok");
+  Stdio.printf "zero origin collision: %s\n"
+    (match err_zero_origin with Error e -> e | Ok _ -> "ok");
+  [%expect
+    {|
     initial wallet: 1000
     after obs1: 5000
     after obs2 (wallet, bank): 5000, 120000
@@ -953,7 +973,8 @@ let%expect_test "observation after an incremental record reflects that record on
   Stdio.printf "after spend: %s\n" (quantity spent "wallet" "jpy");
   let observed = get (B.observe_quantities spent [ ("wallet", "jpy", Z.of_int 900) ]) in
   let cold = get (B.of_string (B.to_string observed)) in
-  Stdio.printf "observed: %s, cold: %s\n" (quantity observed "wallet" "jpy")
+  Stdio.printf "observed: %s, cold: %s\n"
+    (quantity observed "wallet" "jpy")
     (quantity cold "wallet" "jpy");
   [%expect {|
     after spend: 900
@@ -963,19 +984,25 @@ let%expect_test "observation after an incremental record reflects that record on
 let%expect_test "set_locus_label validates, updates labels and preserves across roundtrip" =
   let base = get (B.of_string fixture) in
   Stdio.printf "initial label wallet: %s, help: %s\n" (B.label base "wallet") (B.help base "wallet");
-  let updated = get (B.set_locus_label base ~id:"wallet" ~label:"Personal Wallet" ~help:"Primary cash wallet" ()) in
-  Stdio.printf "after set_locus_label: %s, help: %s\n" (B.label updated "wallet") (B.help updated "wallet");
+  let updated =
+    get
+      (B.set_locus_label base ~id:"wallet" ~label:"Personal Wallet" ~help:"Primary cash wallet" ())
+  in
+  Stdio.printf "after set_locus_label: %s, help: %s\n" (B.label updated "wallet")
+    (B.help updated "wallet");
   let cold = get (B.of_string (B.to_string updated)) in
   Stdio.printf "cold after roundtrip: %s, help: %s\n" (B.label cold "wallet") (B.help cold "wallet");
   let updated2 = get (B.set_locus_label updated ~id:"wallet" ~label:"Cash Wallet" ()) in
-  Stdio.printf "after label only update: %s, help: %s\n" (B.label updated2 "wallet") (B.help updated2 "wallet");
+  Stdio.printf "after label only update: %s, help: %s\n" (B.label updated2 "wallet")
+    (B.help updated2 "wallet");
   let err_unapproved = B.set_locus_label base ~id:"nonexistent" ~label:"Test" () in
   let err_empty_label = B.set_locus_label base ~id:"wallet" ~label:"   " () in
   let err_control_char = B.set_locus_label base ~id:"wallet" ~label:"Wallet\n1" () in
   Stdio.printf "unapproved: %s\n" (match err_unapproved with Error e -> e | Ok _ -> "ok");
   Stdio.printf "empty label: %s\n" (match err_empty_label with Error e -> e | Ok _ -> "ok");
   Stdio.printf "control char: %s\n" (match err_control_char with Error e -> e | Ok _ -> "ok");
-  [%expect {|
+  [%expect
+    {|
     initial label wallet: 財布, help: 現金
     after set_locus_label: Personal Wallet, help: Primary cash wallet
     cold after roundtrip: Personal Wallet, help: Primary cash wallet
@@ -985,63 +1012,97 @@ let%expect_test "set_locus_label validates, updates labels and preserves across 
     control char: invalid-label
   |}]
 
-let%expect_test "original amount retains positive facts across the codec without inferring rates or support" =
+let%expect_test
+    "original amount retains positive facts across the codec without inferring rates or support" =
   let base = get (B.of_string fixture) in
-  let e : B.entry = {
-    id = "orig_tx";
-    day = "2026-10-03";
-    memo = Some "Paris coffee";
-    effects = [ posting "wallet" "jpy" (-1200) None; posting "food" "jpy" 1200 None ];
-    reversal_of = None;
-    exchange = None;
-    original_amount = Some ("eur", Z.of_int 750);
-    merchant = None;
-  } in
+  let e : B.entry =
+    {
+      id = "orig_tx";
+      day = "2026-10-03";
+      memo = Some "Paris coffee";
+      effects = [ posting "wallet" "jpy" (-1200) None; posting "food" "jpy" 1200 None ];
+      reversal_of = None;
+      exchange = None;
+      original_amount = Some ("eur", Z.of_int 750);
+      merchant = None;
+    }
+  in
   let book = get (B.put_entry base ~replace:false e ~plan:None) in
   let stored = Option.value_exn (B.find_entry book "orig_tx") in
-  Stdio.printf "found orig: %s %s\n" (fst (Option.value_exn stored.original_amount)) (Z.to_string (snd (Option.value_exn stored.original_amount)));
+  Stdio.printf "found orig: %s %s\n"
+    (fst (Option.value_exn stored.original_amount))
+    (Z.to_string (snd (Option.value_exn stored.original_amount)));
   let mono_bytes = B.to_string book in
-  Stdio.printf "mono has orig: %b\n" (Base.String.is_substring mono_bytes ~substring:"(original-amount (amount \"eur\" 750))");
+  Stdio.printf "mono has orig: %b\n"
+    (Base.String.is_substring mono_bytes ~substring:"(original-amount (amount \"eur\" 750))");
   let cold_mono = get (B.of_string mono_bytes) in
   let cold_stored = Option.value_exn (B.find_entry cold_mono "orig_tx") in
-  Stdio.printf "cold mono match: %b\n" (Option.equal (fun (m1, q1) (m2, q2) -> String.equal m1 m2 && Z.equal q1 q2) stored.original_amount cold_stored.original_amount);
+  Stdio.printf "cold mono match: %b\n"
+    (Option.equal
+       (fun (m1, q1) (m2, q2) -> String.equal m1 m2 && Z.equal q1 q2)
+       stored.original_amount cold_stored.original_amount);
   (* Support and balance unaffected *)
-  Stdio.printf "wallet jpy: %s, food jpy: %s\n" (quantity book "wallet" "jpy") (quantity book "food" "jpy");
+  Stdio.printf "wallet jpy: %s, food jpy: %s\n" (quantity book "wallet" "jpy")
+    (quantity book "food" "jpy");
   Stdio.printf "wallet eur unchanged: %s\n" (quantity book "wallet" "eur");
   (* Reversals keep target original amount, inverse has None *)
-  let refund : B.entry = {
-    id = "orig_refund";
-    day = "2026-10-04";
-    memo = Some "Refund";
-    effects = [ posting "wallet" "jpy" 1200 None; posting "food" "jpy" (-1200) None ];
-    reversal_of = Some "orig_tx";
-    exchange = None;
-    original_amount = None;
-    merchant = None;
-  } in
+  let refund : B.entry =
+    {
+      id = "orig_refund";
+      day = "2026-10-04";
+      memo = Some "Refund";
+      effects = [ posting "wallet" "jpy" 1200 None; posting "food" "jpy" (-1200) None ];
+      reversal_of = Some "orig_tx";
+      exchange = None;
+      original_amount = None;
+      merchant = None;
+    }
+  in
   let rev_book = get (B.put_entry book ~replace:false refund ~plan:None) in
   let target_in_rev = Option.value_exn (B.find_entry rev_book "orig_tx") in
   let rev_in_rev = Option.value_exn (B.find_entry rev_book "orig_refund") in
-  Stdio.printf "rev target orig: %b, rev entry orig: %b\n" (Option.is_some target_in_rev.original_amount) (Option.is_some rev_in_rev.original_amount);
+  Stdio.printf "rev target orig: %b, rev entry orig: %b\n"
+    (Option.is_some target_in_rev.original_amount)
+    (Option.is_some rev_in_rev.original_amount);
   (* Syntax / domain validation: non-positive amount *)
-  let bad_zero = Base.String.substr_replace_first mono_bytes ~pattern:"(original-amount (amount \"eur\" 750))" ~with_:"(original-amount (amount \"eur\" 0))" in
-  let bad_neg = Base.String.substr_replace_first mono_bytes ~pattern:"(original-amount (amount \"eur\" 750))" ~with_:"(original-amount (amount \"eur\" -10))" in
+  let bad_zero =
+    Base.String.substr_replace_first mono_bytes ~pattern:"(original-amount (amount \"eur\" 750))"
+      ~with_:"(original-amount (amount \"eur\" 0))"
+  in
+  let bad_neg =
+    Base.String.substr_replace_first mono_bytes ~pattern:"(original-amount (amount \"eur\" 750))"
+      ~with_:"(original-amount (amount \"eur\" -10))"
+  in
   Stdio.printf "bad zero: %s\n" (match B.of_string bad_zero with Error e -> e | Ok _ -> "ok");
   Stdio.printf "bad neg: %s\n" (match B.of_string bad_neg with Error e -> e | Ok _ -> "ok");
   (* Unregistered Measure is explicitly refused by admit *)
-  let unreg_entry : B.entry = { e with id = "unreg_tx"; original_amount = Some ("usd", Z.of_int 100) } in
+  let unreg_entry : B.entry =
+    { e with id = "unreg_tx"; original_amount = Some ("usd", Z.of_int 100) }
+  in
   let unreg_res = B.put_entry base ~replace:false unreg_entry ~plan:None in
-  Stdio.printf "unregistered measure refused: %s\n" (match unreg_res with Error e -> e | Ok _ -> "ok");
-  let bad_unreg_sexp = Base.String.substr_replace_first mono_bytes ~pattern:"(original-amount (amount \"eur\" 750))" ~with_:"(original-amount (amount \"usd\" 100))" in
-  Stdio.printf "unregistered measure sexp refused: %s\n" (match B.of_string bad_unreg_sexp with Error e -> e | Ok _ -> "ok");
+  Stdio.printf "unregistered measure refused: %s\n"
+    (match unreg_res with Error e -> e | Ok _ -> "ok");
+  let bad_unreg_sexp =
+    Base.String.substr_replace_first mono_bytes ~pattern:"(original-amount (amount \"eur\" 750))"
+      ~with_:"(original-amount (amount \"usd\" 100))"
+  in
+  Stdio.printf "unregistered measure sexp refused: %s\n"
+    (match B.of_string bad_unreg_sexp with Error e -> e | Ok _ -> "ok");
   (* Registered scale 0 (JPY) is allowed and formats without decimals *)
-  let scale0_entry : B.entry = { e with id = "scale0_tx"; original_amount = Some ("jpy", Z.of_int 5000) } in
+  let scale0_entry : B.entry =
+    { e with id = "scale0_tx"; original_amount = Some ("jpy", Z.of_int 5000) }
+  in
   let scale0_book = get (B.put_entry base ~replace:false scale0_entry ~plan:None) in
   let scale0_stored = Option.value_exn (B.find_entry scale0_book "scale0_tx") in
-  Stdio.printf "scale 0 stored: %s %s\n" (fst (Option.value_exn scale0_stored.original_amount)) (B.format scale0_book (fst (Option.value_exn scale0_stored.original_amount)) (snd (Option.value_exn scale0_stored.original_amount)));
+  Stdio.printf "scale 0 stored: %s %s\n"
+    (fst (Option.value_exn scale0_stored.original_amount))
+    (B.format scale0_book
+       (fst (Option.value_exn scale0_stored.original_amount))
+       (snd (Option.value_exn scale0_stored.original_amount)));
   let scale0_cold = get (B.of_string (B.to_string scale0_book)) in
   Stdio.printf "scale 0 roundtrip: %b\n" (Option.is_some (B.find_entry scale0_cold "scale0_tx"));
-  [%expect {|
+  [%expect
+    {|
     found orig: eur 750
     mono has orig: true
     cold mono match: true
@@ -1055,29 +1116,34 @@ let%expect_test "original amount retains positive facts across the codec without
     scale 0 stored: jpy 5000
     scale 0 roundtrip: true
   |}]
+
 let%expect_test "event merchant classification LOAM-compatible end-to-end semantics" =
   let module M = Bakhlo_application.Event_merchants in
   let base = get (B.of_string fixture) in
-  let e1 : B.entry = {
-    id = "e_merch";
-    day = "2026-10-03";
-    memo = Some "Lunch at cafe";
-    effects = [ posting "wallet" "jpy" (-1200) None; posting "food" "jpy" 1200 None ];
-    reversal_of = None;
-    exchange = None;
-    original_amount = None;
-    merchant = None;
-  } in
-  let e2 : B.entry = {
-    id = "e_nonmerch";
-    day = "2026-10-03";
-    memo = Some "Peer transfer";
-    effects = [ posting "wallet" "jpy" (-500) None; posting "food" "jpy" 500 None ];
-    reversal_of = None;
-    exchange = None;
-    original_amount = None;
-    merchant = None;
-  } in
+  let e1 : B.entry =
+    {
+      id = "e_merch";
+      day = "2026-10-03";
+      memo = Some "Lunch at cafe";
+      effects = [ posting "wallet" "jpy" (-1200) None; posting "food" "jpy" 1200 None ];
+      reversal_of = None;
+      exchange = None;
+      original_amount = None;
+      merchant = None;
+    }
+  in
+  let e2 : B.entry =
+    {
+      id = "e_nonmerch";
+      day = "2026-10-03";
+      memo = Some "Peer transfer";
+      effects = [ posting "wallet" "jpy" (-500) None; posting "food" "jpy" 500 None ];
+      reversal_of = None;
+      exchange = None;
+      original_amount = None;
+      merchant = None;
+    }
+  in
   let book = get (B.put_entry base ~replace:false e1 ~plan:None) in
   let book = get (B.put_entry book ~replace:false e2 ~plan:None) in
 
@@ -1086,14 +1152,19 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
   Stdio.printf "unresolved is None: %b\n" (Option.is_none stored_unresolved.merchant);
 
   let party_shop = party "coffee-shop" in
-  let classified_shop = get (B.classify_merchant book ~id:"e_merch" ~disposition:(M.Merchant party_shop)) in
+  let classified_shop =
+    get (B.classify_merchant book ~id:"e_merch" ~disposition:(M.Merchant party_shop))
+  in
   let entry_shop = Option.value_exn (B.find_entry classified_shop "e_merch") in
   (match entry_shop.merchant with
-  | Some (M.Merchant p) -> Stdio.printf "classified merchant: %s\n" (D.Identifier.External_party.to_string p)
+  | Some (M.Merchant p) ->
+      Stdio.printf "classified merchant: %s\n" (D.Identifier.External_party.to_string p)
   | _ -> Stdio.printf "unexpected merchant state\n");
 
   (* 3. Nonmerchant classification *)
-  let classified_both = get (B.classify_merchant classified_shop ~id:"e_nonmerch" ~disposition:M.Nonmerchant) in
+  let classified_both =
+    get (B.classify_merchant classified_shop ~id:"e_nonmerch" ~disposition:M.Nonmerchant)
+  in
   let entry_nonmerch = Option.value_exn (B.find_entry classified_both "e_nonmerch") in
   (match entry_nonmerch.merchant with
   | Some M.Nonmerchant -> Stdio.printf "classified nonmerchant: true\n"
@@ -1109,10 +1180,17 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
   let cold_e1 = Option.value_exn (B.find_entry cold_mono "e_merch") in
   let cold_e2 = Option.value_exn (B.find_entry cold_mono "e_nonmerch") in
   Stdio.printf "cold mono e1 match: %b; cold mono e2 match: %b\n"
-    (Poly.equal cold_e1.merchant entry_shop.merchant) (Poly.equal cold_e2.merchant entry_nonmerch.merchant);
+    (Poly.equal cold_e1.merchant entry_shop.merchant)
+    (Poly.equal cold_e2.merchant entry_nonmerch.merchant);
 
   (* Old formats without merchant read as None (Unresolved) *)
-  let old_v1 = "(bakhlo-daily 1) (scope corrected-entries explicit-plans) (measures (measure jpy 0)) (labels (provided)) (approved-loci (provided wallet food)) (entries (entry \"e_old\" (date \"2026-10-01\") (memo (none)) (postings (posting wallet jpy -100 (none)) (posting food jpy 100 (none))) (reversal-of (none)))) (plans) (support (zero-origin) (openings) (observations) (presence (not-supplied)))" in
+  let old_v1 =
+    "(bakhlo-daily 1) (scope corrected-entries explicit-plans) (measures (measure jpy 0)) (labels \
+     (provided)) (approved-loci (provided wallet food)) (entries (entry \"e_old\" (date \
+     \"2026-10-01\") (memo (none)) (postings (posting wallet jpy -100 (none)) (posting food jpy \
+     100 (none))) (reversal-of (none)))) (plans) (support (zero-origin) (openings) (observations) \
+     (presence (not-supplied)))"
+  in
   let loaded_v1 = get (B.of_string old_v1) in
   let old_e = Option.value_exn (B.find_entry loaded_v1 "e_old") in
   Stdio.printf "old v1 entry merchant is None: %b\n" (Option.is_none old_e.merchant);
@@ -1122,49 +1200,71 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
   Stdio.printf "repeat classification refused: %s\n"
     (match repeat_res with Error e -> e | Ok _ -> "ok");
 
-  let replace_res = B.put_entry classified_both ~replace:true { entry_shop with merchant = Some M.Nonmerchant } ~plan:None in
+  let replace_res =
+    B.put_entry classified_both ~replace:true
+      { entry_shop with merchant = Some M.Nonmerchant }
+      ~plan:None
+  in
   Stdio.printf "put_entry replacing merchant refused: %s\n"
     (match replace_res with Error e -> e | Ok _ -> "ok");
 
   (* Same merchant preserved on edit is accepted *)
-  let memo_edit_res = B.put_entry classified_both ~replace:true { entry_shop with memo = Some "Updated memo" } ~plan:None in
+  let memo_edit_res =
+    B.put_entry classified_both ~replace:true
+      { entry_shop with memo = Some "Updated memo" }
+      ~plan:None
+  in
   Stdio.printf "put_entry preserving merchant succeeds: %b\n" (Result.is_ok memo_edit_res);
 
   (* 6. Unknown event refusal *)
-  let unknown_res = B.classify_merchant classified_both ~id:"nonexistent" ~disposition:M.Nonmerchant in
-  Stdio.printf "unknown event refused: %s\n"
-    (match unknown_res with Error e -> e | Ok _ -> "ok");
+  let unknown_res =
+    B.classify_merchant classified_both ~id:"nonexistent" ~disposition:M.Nonmerchant
+  in
+  Stdio.printf "unknown event refused: %s\n" (match unknown_res with Error e -> e | Ok _ -> "ok");
 
   (* 7. Invalid party ID refusal *)
   let bad_tab_party = party "bad\tshop" in
-  let bad_tab_res = B.classify_merchant book ~id:"e_merch" ~disposition:(M.Merchant bad_tab_party) in
-  Stdio.printf "party with tab refused: %s\n"
-    (match bad_tab_res with Error e -> e | Ok _ -> "ok");
+  let bad_tab_res =
+    B.classify_merchant book ~id:"e_merch" ~disposition:(M.Merchant bad_tab_party)
+  in
+  Stdio.printf "party with tab refused: %s\n" (match bad_tab_res with Error e -> e | Ok _ -> "ok");
   (* 8. Reversal noninheritance: reversing classified entry produces unresolved reversal *)
-  let refund : B.entry = {
-    id = "refund_merch";
-    day = "2026-10-04";
-    memo = Some "Refund";
-    effects = [ posting "wallet" "jpy" 1200 None; posting "food" "jpy" (-1200) None ];
-    reversal_of = Some "e_merch";
-    exchange = None;
-    original_amount = None;
-    merchant = None;
-  } in
+  let refund : B.entry =
+    {
+      id = "refund_merch";
+      day = "2026-10-04";
+      memo = Some "Refund";
+      effects = [ posting "wallet" "jpy" 1200 None; posting "food" "jpy" (-1200) None ];
+      reversal_of = Some "e_merch";
+      exchange = None;
+      original_amount = None;
+      merchant = None;
+    }
+  in
   let rev_book = get (B.put_entry classified_both ~replace:false refund ~plan:None) in
   let target_in_rev = Option.value_exn (B.find_entry rev_book "e_merch") in
   let refund_in_rev = Option.value_exn (B.find_entry rev_book "refund_merch") in
   Stdio.printf "target in rev retains merchant: %b; reversal entry merchant is None: %b\n"
-    (Option.is_some target_in_rev.merchant) (Option.is_none refund_in_rev.merchant);
+    (Option.is_some target_in_rev.merchant)
+    (Option.is_none refund_in_rev.merchant);
 
   (* 9. Quantities and Daily Pace completely unaffected by Merchant classification *)
-  Stdio.printf "wallet jpy before: %s, after: %s\n"
-    (quantity book "wallet" "jpy") (quantity classified_both "wallet" "jpy");
-  let pace_before = B.daily_pace book ~measure:"jpy" ~pool:[ pace_coordinate "wallet" "jpy" ] ~observed_at:"2026-10-03" ~end_exclusive:"2026-10-05" in
-  let pace_after = B.daily_pace classified_both ~measure:"jpy" ~pool:[ pace_coordinate "wallet" "jpy" ] ~observed_at:"2026-10-03" ~end_exclusive:"2026-10-05" in
+  Stdio.printf "wallet jpy before: %s, after: %s\n" (quantity book "wallet" "jpy")
+    (quantity classified_both "wallet" "jpy");
+  let pace_before =
+    B.daily_pace book ~measure:"jpy"
+      ~pool:[ pace_coordinate "wallet" "jpy" ]
+      ~observed_at:"2026-10-03" ~end_exclusive:"2026-10-05"
+  in
+  let pace_after =
+    B.daily_pace classified_both ~measure:"jpy"
+      ~pool:[ pace_coordinate "wallet" "jpy" ]
+      ~observed_at:"2026-10-03" ~end_exclusive:"2026-10-05"
+  in
   Stdio.printf "pace equal: %b\n"
     (Z.equal (get pace_before).daily_pace_quanta (get pace_after).daily_pace_quanta);
-  [%expect {|
+  [%expect
+    {|
     unresolved is None: true
     classified merchant: coffee-shop
     classified nonmerchant: true
@@ -1230,7 +1330,8 @@ let%expect_test "bounded history support restates past pools and keeps its own e
       ~with_:("(bakhlo-daily " ^ version ^ ")")
   in
   let parse text = match B.of_string text with Ok _ -> "ok" | Error why -> why in
-  Stdio.printf "v4 header: %s; v3 with field: %s\n" (parse (replace_header "4" printed))
+  Stdio.printf "v4 header: %s; v3 with field: %s\n"
+    (parse (replace_header "4" printed))
     (parse (replace_header "3" printed));
   let empty_v5 =
     String.substr_replace_first
@@ -1238,7 +1339,8 @@ let%expect_test "bounded history support restates past pools and keeps its own e
       ~pattern:"(\"wallet\" \"jpy\" \"2026-10-04\")" ~with_:""
   in
   Stdio.printf "empty v5: %s\n" (parse empty_v5);
-  [%expect {|
+  [%expect
+    {|
     unsupported wallet: error:history-support-missing:wallet:jpy
     zero-origin food: 0 100
     start: 2026-10-04

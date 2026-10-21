@@ -14,12 +14,13 @@ let key token = F.identifier D.Identifier.Effect_key.of_string token
 
 let posting token locus n =
   let coordinate = F.coordinate locus in
-  D.Effect.create ~key:(Some (key token)) ~locus:coordinate.locus ~measure:coordinate.measure
+  D.Effect.create
+    ~key:(Some (key token))
+    ~locus:coordinate.locus ~measure:coordinate.measure
     ~quantity:(D.Quantity.of_quanta (Z.of_int n))
 
 let purchase name n =
-  F.observation ~id:(F.id name)
-    ~effects:[ posting "cash" "wallet" (-n); posting "cost" "food" n ]
+  F.observation ~id:(F.id name) ~effects:[ posting "cash" "wallet" (-n); posting "cost" "food" n ]
 
 let command events : S.command =
   {
@@ -65,7 +66,8 @@ let exact image expected =
         "canonical quantity changed"
   | _ -> failwith "canonical exact support lost"
 
-let%expect_test "canonical original reference: current-only fails, complete basis keeps aggregate bounds" =
+let%expect_test
+    "canonical original reference: current-only fails, complete basis keeps aggregate bounds" =
   let original = purchase "original" 10 in
   let middle = purchase "middle" 9 and current = purchase "current" 6 in
   let r = relation "claim" 8 in
@@ -82,9 +84,7 @@ let%expect_test "canonical original reference: current-only fails, complete basi
     "reference changed current selection";
   let basis_raw = { (command [ original ]) with relations = [ r ] } in
   let basis = ok (S.create basis_raw) in
-  let resolved source =
-    Option.value_exn (R.find_by_id (S.relations source) r.id)
-  in
+  let resolved source = Option.value_exn (R.find_by_id (S.relations source) r.id) in
   F.require
     (F.equal_event original (R.source_event (resolved basis))
     && F.equal_effect (R.source_effect (resolved basis)) (R.source_effect (resolved history)))
@@ -95,7 +95,10 @@ let%expect_test "canonical original reference: current-only fails, complete basi
   (match S.create { (command [ current ]) with relations = [ r ] } with
   | Error (Relations (Unknown_event _)) -> ()
   | _ -> failwith "missing original reference ignored");
-  (match S.create { (command [ current ]) with relations = [ { r with source_event = F.id "current" } ] } with
+  (match
+     S.create
+       { (command [ current ]) with relations = [ { r with source_event = F.id "current" } ] }
+   with
   | Error (Relations (Exceeds_source _)) -> ()
   | _ -> failwith "quantity-8 claim silently retargeted to quantity-6 posting");
   List.iter [ raw; basis_raw ] ~f:(fun input ->
@@ -112,11 +115,13 @@ let%expect_test "canonical original reference: current-only fails, complete basi
   Stdio.printf "history=3 rows; reference basis=1 complete original row; current=1 row\n";
   Stdio.printf "wallet=994; original claim=8/10; missing and retargeted sources refuse\n";
   Stdio.printf "history/basis: 8+2 admits, 8+3 refuses; combined C admission is not established\n";
-  [%expect {|history=3 rows; reference basis=1 complete original row; current=1 row
+  [%expect
+    {|history=3 rows; reference basis=1 complete original row; current=1 row
 wallet=994; original claim=8/10; missing and retargeted sources refuse
 history/basis: 8+2 admits, 8+3 refuses; combined C admission is not established|}]
 
-let%expect_test "canonical source predicate: relation admission alone cannot certify original movement" =
+let%expect_test
+    "canonical source predicate: relation admission alone cannot certify original movement" =
   let valid = purchase "original" 10 in
   (* Alternative raw input, not a retained fragment or a substitute operational Event.
      Identical referenced posting, different unreferenced posting, invalid whole row. *)
@@ -138,10 +143,12 @@ let%expect_test "canonical source predicate: relation admission alone cannot cer
   | _ -> failwith "unreferenced posting's balance guard disappeared");
   Stdio.printf "same referenced -10 posting: relation predicate admits both alternatives\n";
   Stdio.printf "whole source: [-10,+10] admits; [-10,+9] refuses residual -1\n";
-  [%expect {|same referenced -10 posting: relation predicate admits both alternatives
+  [%expect
+    {|same referenced -10 posting: relation predicate admits both alternatives
 whole source: [-10,+10] admits; [-10,+9] refuses residual -1|}]
 
-let%expect_test "canonical refund correction: original inverse evidence is not current cancellation" =
+let%expect_test "canonical refund correction: original inverse evidence is not current cancellation"
+    =
   let original = purchase "original" 10 and refund = purchase "refund" (-10) in
   let current = purchase "current" 6 in
   let reversal : V.fact = { target = F.id "original"; reversal = F.id "refund" } in
@@ -165,26 +172,42 @@ let%expect_test "canonical refund correction: original inverse evidence is not c
   (match S.create { (command [ refund; current ]) with reversals = [ reversal ] } with
   | Error (Reversals (Unresolved_endpoints _)) -> ()
   | _ -> failwith "omitted refund target admitted");
-  (match S.create { (command [ refund; current ]) with reversals = [ { reversal with target = F.id "current" } ] } with
+  (match
+     S.create
+       {
+         (command [ refund; current ]) with
+         reversals = [ { reversal with target = F.id "current" } ];
+       }
+   with
   | Error (Reversals (Not_inverse _)) -> ()
   | _ -> failwith "refund evidence retargeted to a non-inverse current row");
   Stdio.printf "history admits correction: current -6 + actual refund 10; wallet=1004\n";
   Stdio.printf "original -10/refund +10 basis stays exact; omission/retargeting refuse\n";
-  [%expect {|history admits correction: current -6 + actual refund 10; wallet=1004
+  [%expect
+    {|history admits correction: current -6 + actual refund 10; wallet=1004
 original -10/refund +10 basis stays exact; omission/retargeting refuse|}]
 
-let%expect_test "canonical reflected correction: keeping basis without root ownership double counts" =
+let%expect_test "canonical reflected correction: keeping basis without root ownership double counts"
+    =
   let original = purchase "original" 10 and current = purchase "current" 6 in
-  let history = ok (S.create { (command [ original; current ]) with corrections = [ F.edge "original" "current" ] }) in
+  let history =
+    ok
+      (S.create
+         { (command [ original; current ]) with corrections = [ F.edge "original" "current" ] })
+  in
   exact (observed history [ "original" ]) 1000;
   exact (observed history []) 994;
-  (match Bakhlo_application.Reflected_root_cut.create ~frontier:(S.frontier history)
-           ~reflected_roots:[ F.id "current" ] with
+  (match
+     Bakhlo_application.Reflected_root_cut.create ~frontier:(S.frontier history)
+       ~reflected_roots:[ F.id "current" ]
+   with
   | Error (Not_root _) -> ()
   | _ -> failwith "terminal spelling accepted as reflected root");
   let flat = ok (S.create (command [ current ])) in
-  (match Bakhlo_application.Reflected_root_cut.create ~frontier:(S.frontier flat)
-           ~reflected_roots:[ F.id "original" ] with
+  (match
+     Bakhlo_application.Reflected_root_cut.create ~frontier:(S.frontier flat)
+       ~reflected_roots:[ F.id "original" ]
+   with
   | Error (Unknown_event _) -> ()
   | _ -> failwith "flattening silently inferred root identity");
   (* A naive union of basis and current is valid as TWO activities, not as C. *)
@@ -193,5 +216,6 @@ let%expect_test "canonical reflected correction: keeping basis without root owne
   exact (observed union []) 984;
   Stdio.printf "history: reflected original=1000, unreflected=994; terminal cut refuses\n";
   Stdio.printf "current-only loses original root; naive basis union gives 994/984, not 1000/994\n";
-  [%expect {|history: reflected original=1000, unreflected=994; terminal cut refuses
+  [%expect
+    {|history: reflected original=1000, unreflected=994; terminal cut refuses
 current-only loses original root; naive basis union gives 994/984, not 1000/994|}]

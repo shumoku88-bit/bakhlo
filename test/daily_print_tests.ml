@@ -10,9 +10,10 @@ let reference_render x =
   let tags =
     String.split_on_char ' '
       "bakhlo-daily scope measures measure labels label approved-loci entries entry date memo \
-       postings posting reversal-of exchange keys original-amount amount merchant party nonmerchant plans plan changes paid-by cancelled-on support \
-       zero-origin openings observations observation reflected quantities presence coordinates \
-       provided not-supplied none some"
+       postings posting reversal-of exchange keys original-amount amount merchant party \
+       nonmerchant plans plan changes paid-by cancelled-on support zero-origin openings \
+       observations observation reflected quantities presence coordinates provided not-supplied \
+       none some"
   in
   let quote s =
     let b = Buffer.create (String.length s + 2) in

@@ -2,26 +2,33 @@
 open Interaction_check_fixture
 
 let bonsai_home_layout_check ~width_of home =
-  let contains rows needle = List.exists
-      (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows in
-  List.iter (fun ((width, height) as dimensions) ->
+  let contains rows needle =
+    List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows
+  in
+  List.iter
+    (fun ((width, height) as dimensions) ->
       let rows = R.screen ~width_of dimensions home in
-      require (List.length rows <= height
-               && List.for_all (fun (_, text) -> width_of text <= width) rows)
+      require
+        (List.length rows <= height && List.for_all (fun (_, text) -> width_of text <= width) rows)
         "bonsai-bounded-layout";
       if height >= 9 then (
-        List.iter (fun label ->
-            require (contains rows label) ("bonsai-entrance-visible-" ^ label))
+        List.iter
+          (fun label -> require (contains rows label) ("bonsai-entrance-visible-" ^ label))
           [ "Record"; "Scheduled"; "Calendar"; "Actual"; "Balances"; "Daily Pace" ];
         require (contains rows "bakhlo") "bonsai-heading-bakhlo-visible");
       let tree_fits = height >= 24 && width >= 32 in
       require (contains rows "\\___________/" = tree_fits) "bonsai-pot-visible-on-fitting-height";
-      require (List.exists (fun (style, _) -> style = C.Bonsai) rows = tree_fits) "bonsai-foliage-style-matches-fit";
+      require
+        (List.exists (fun (style, _) -> style = C.Bonsai) rows = tree_fits)
+        "bonsai-foliage-style-matches-fit";
       if height >= 9 then
-        require (List.exists (fun (style, _) -> style = C.Entrance) rows) "bonsai-entrance-style-present";
-      require (not (contains rows "wallet") && not (contains rows "Net:"))
+        require
+          (List.exists (fun (style, _) -> style = C.Entrance) rows)
+          "bonsai-entrance-style-present";
+      require
+        ((not (contains rows "wallet")) && not (contains rows "Net:"))
         "bonsai-does-not-leak-dashboard-ledger")
-    [ 32, 9; 32, 11; 48, 14; 80, 24; 120, 40; 150, 45 ];
+    [ (32, 9); (32, 11); (48, 14); (80, 24); (120, 40); (150, 45) ];
   let cal = key ~width_of home `Enter in
   require (cal.workspace.route = W.Calendar) "bonsai-enter-opens-calendar";
   let cal_g = key ~width_of home (`ASCII 'g') in
@@ -37,175 +44,252 @@ let bonsai_home_layout_check ~width_of home =
   let pace = key ~width_of home (`ASCII 'd') in
   require (pace.workspace.route = W.Daily_pace) "bonsai-d-opens-daily-pace";
   let ignored_l = key ~width_of home (`ASCII 'l') in
-  require ((same_workspace ignored_l home)) "bonsai-ignores-calendar-nav-l";
+  require (same_workspace ignored_l home) "bonsai-ignores-calendar-nav-l";
   require (H.handle home (`Key (`ASCII 'q', [])) = None) "bonsai-q-exits";
   require (H.handle home (`Key (`Escape, [])) = None) "bonsai-esc-exits";
-  print_endline "PASS: responsive bonsai launcher, entrance layout, optical centering and boundary isolation."
+  print_endline
+    "PASS: responsive bonsai launcher, entrance layout, optical centering and boundary isolation."
 
 let home_layout_check ~width_of home =
   let module D = Bakhlo_domain in
   let day = "2026-10-18" in
-  let posting locus quanta = D.Effect.create ~key:None
+  let posting locus quanta =
+    D.Effect.create ~key:None
       ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
       ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
-      ~quantity:(D.Quantity.of_quanta (Z.of_int quanta)) in
+      ~quantity:(D.Quantity.of_quanta (Z.of_int quanta))
+  in
   let entry : B.entry =
-    { id = "home-layout-entry"; day; memo = Some "選択日の買い物";
+    {
+      id = "home-layout-entry";
+      day;
+      memo = Some "選択日の買い物";
       effects = [ posting "wallet" (-37); posting "food" 37 ];
-      reversal_of = None; exchange = None; original_amount = None; merchant = None } in
+      reversal_of = None;
+      exchange = None;
+      original_amount = None;
+      merchant = None;
+    }
+  in
   let book = get (B.put_entry home.C.session.book ~replace:false entry ~plan:None) in
   let plan : B.plan =
-    { id = "home-layout-plan"; day; measure = "jpy";
-      changes = [ "wallet", Z.of_int (-200); "food", Z.of_int 200 ];
-      paid_by = None; cancelled_on = None } in
+    {
+      id = "home-layout-plan";
+      day;
+      measure = "jpy";
+      changes = [ ("wallet", Z.of_int (-200)); ("food", Z.of_int 200) ];
+      paid_by = None;
+      cancelled_on = None;
+    }
+  in
   let book = get (B.put_plan book ~replace:false plan) in
-  let state = { home with C.session = { home.session with book };
-      workspace = { home.workspace with route = W.Calendar;
-                    calendar = get (Cal.create day) }; message = "" } in
+  let state =
+    {
+      home with
+      C.session = { home.session with book };
+      workspace = { home.workspace with route = W.Calendar; calendar = get (Cal.create day) };
+      message = "";
+    }
+  in
   let state = C.open_route state W.Calendar in
-  let contains rows needle = List.exists
-      (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows in
-  List.iter (fun ((width, height) as dimensions) ->
+  let contains rows needle =
+    List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows
+  in
+  List.iter
+    (fun ((width, height) as dimensions) ->
       let rows = R.screen ~width_of dimensions state in
-      require (List.length rows <= height
-               && List.for_all (fun (_, text) -> width_of text <= width) rows)
+      require
+        (List.length rows <= height && List.for_all (fun (_, text) -> width_of text <= width) rows)
         "home-polish-bounded-layout";
-      require (contains rows "Calendar / 2026-10" && contains rows "Detail / 2026-10-18")
+      require
+        (contains rows "Calendar / 2026-10" && contains rows "Detail / 2026-10-18")
         "home-selected-day-detail-nearby";
-      require (contains rows "Actual 1   Open Scheduled 1" && contains rows "選択日の買い物")
+      require
+        (contains rows "Actual 1   Open Scheduled 1" && contains rows "選択日の買い物")
         "home-day-counts-and-japanese-record-visible";
       require (contains rows "Flow unavailable") "home-does-not-invent-money-flow";
       if width >= 120 then (
         let border_rows = List.filter (fun (_, text) -> String.starts_with ~prefix:"╭" text) rows in
         require (List.length border_rows = 1) "home-wide-two-pane-composition";
-        let last_frame = List.fold_left (fun last (index, (_, text)) ->
-            if String.starts_with ~prefix:"╰" text then index else last) 0
-            (List.mapi (fun index row -> index, row) rows) in
+        let last_frame =
+          List.fold_left
+            (fun last (index, (_, text)) ->
+              if String.starts_with ~prefix:"╰" text then index else last)
+            0
+            (List.mapi (fun index row -> (index, row)) rows)
+        in
         require (last_frame < 20) "home-calendar-not-empty-full-height"))
-    [ 80, 24; 90, 24; 120, 40; 140, 40 ];
-  List.iter (fun ((width, height) as dimensions) ->
+    [ (80, 24); (90, 24); (120, 40); (140, 40) ];
+  List.iter
+    (fun ((width, height) as dimensions) ->
       let rows = R.screen ~width_of dimensions state in
       require (contains rows "[18]") "home-tiny-selected-sunday-visible";
-      require (List.length rows <= height
-               && List.for_all (fun (_, text) -> width_of text <= width) rows)
+      require
+        (List.length rows <= height && List.for_all (fun (_, text) -> width_of text <= width) rows)
         "home-tiny-calendar-cell-width";
       let focused = key ~width_of state `Tab in
       let rows = R.screen ~width_of dimensions focused in
       require (contains rows "Detail / ") "home-small-focused-detail-visible")
-    [ 32, 9; 48, 14 ];
-  let month = { state with workspace = { state.workspace with
-      calendar = { state.workspace.calendar with zoom = Cal.Month } } } in
-  let year = { state with workspace = { state.workspace with
-      calendar = { state.workspace.calendar with zoom = Cal.Year } } } in
-  List.iter (fun state ->
+    [ (32, 9); (48, 14) ];
+  let month =
+    {
+      state with
+      workspace =
+        { state.workspace with calendar = { state.workspace.calendar with zoom = Cal.Month } };
+    }
+  in
+  let year =
+    {
+      state with
+      workspace =
+        { state.workspace with calendar = { state.workspace.calendar with zoom = Cal.Year } };
+    }
+  in
+  List.iter
+    (fun state ->
       let rows = R.screen ~width_of (80, 24) state in
       require (contains rows "Detail / ") "home-period-detail-visible-at-80-columns";
-      require (contains rows "q/Esc Home" && contains rows "Space Commands")
-        "home-primary-footer-not-clipped") [ state; month; year ];
-  let warned = { state with message = "held calendar warning";
-    workspace = { state.workspace with calendar = { state.workspace.calendar with zoom = Cal.Year } } } in
+      require
+        (contains rows "q/Esc Home" && contains rows "Space Commands")
+        "home-primary-footer-not-clipped")
+    [ state; month; year ];
+  let warned =
+    {
+      state with
+      message = "held calendar warning";
+      workspace =
+        { state.workspace with calendar = { state.workspace.calendar with zoom = Cal.Year } };
+    }
+  in
   let escaped = key ~width_of warned `Escape in
-  require (escaped.workspace.calendar.zoom = Cal.Month && escaped.message = warned.message)
+  require
+    (escaped.workspace.calendar.zoom = Cal.Month && escaped.message = warned.message)
     "calendar-escape-zoom-keeps-existing-feedback";
   let quit = key ~width_of warned (`ASCII 'q') in
-  require (quit.workspace.route = W.Home && quit.workspace.calendar.zoom = Cal.Year)
+  require
+    (quit.workspace.route = W.Home && quit.workspace.calendar.zoom = Cal.Year)
     "calendar-q-keeps-zoom-and-returns-home";
   let moved = key ~width_of warned (`ASCII 'l') in
   require (moved.message = "") "calendar-normal-move-clears-unblocked-feedback";
-  let list_page = key ~width_of ~dimensions:(80,24) state (`Page `Down) in
-  require ((calendar_browser list_page).selected = 1 && list_page.workspace.calendar = state.workspace.calendar)
+  let list_page = key ~width_of ~dimensions:(80, 24) state (`Page `Down) in
+  require
+    ((calendar_browser list_page).selected = 1
+    && list_page.workspace.calendar = state.workspace.calendar)
     "calendar-list-page-moves-record-selection-not-date";
   let detail = key ~width_of state `Tab in
-  let detail_page = key ~width_of ~dimensions:(80,24) detail (`Page `Down) in
-  require (calendar_detail detail_page && calendar_scroll detail_page = 16
-           && calendar_browser detail_page = calendar_browser detail)
+  let detail_page = key ~width_of ~dimensions:(80, 24) detail (`Page `Down) in
+  require
+    (calendar_detail detail_page
+    && calendar_scroll detail_page = 16
+    && calendar_browser detail_page = calendar_browser detail)
     "calendar-detail-page-retains-selection-and-raw-offset";
   let parent = C.open_route state W.Home in
   let search = key ~width_of parent (`ASCII '/') |> fun s -> text ~width_of s "選択日" in
   require ((calendar_browser search).query = "") "home-search-does-not-filter-before-enter";
   let searched = key ~width_of search `Enter |> fun s -> key ~width_of s `Enter in
-  require (searched.workspace.route = W.Calendar
-           && List.length (Calendar_home.rows ~book ~calendar:searched.workspace.calendar searched.screens.calendar_home) = 1)
+  require
+    (searched.workspace.route = W.Calendar
+    && List.length
+         (Calendar_home.rows ~book ~calendar:searched.workspace.calendar
+            searched.screens.calendar_home)
+       = 1)
     "home-search-filters-later-calendar-rows";
   let pace = C.open_route state W.Daily_pace in
   let footer = R.footer pace in
   let ambient = key ~width_of pace (`ASCII '/') |> fun s -> text ~width_of s "ambient" in
-  require (Calendar_home.ambient ambient.screens.calendar_home && R.footer ambient = footer
-           && Option.is_some (R.overlay_screen ~dimensions:(80,24) ~width_of ambient))
+  require
+    (Calendar_home.ambient ambient.screens.calendar_home
+    && R.footer ambient = footer
+    && Option.is_some (R.overlay_screen ~dimensions:(80, 24) ~width_of ambient))
     "ambient-search-keeps-underlying-route-footer-and-overlay";
   let ambient = key ~width_of ambient `Enter |> fun s -> C.open_route s W.Calendar in
-  require ((calendar_browser ambient).query = "ambient"
-           && Calendar_home.rows ~book ~calendar:ambient.workspace.calendar ambient.screens.calendar_home = [])
+  require
+    ((calendar_browser ambient).query = "ambient"
+    && Calendar_home.rows ~book ~calendar:ambient.workspace.calendar ambient.screens.calendar_home
+       = [])
     "ambient-search-updates-retained-calendar-query";
   require (B.entry_count home.session.book = 0) "home-polish-mutated-original-book";
-  print_endline "PASS: responsive Home context, compact calendar, tiny Sunday selection, exact period counts and restrained frame height."
+  print_endline
+    "PASS: responsive Home context, compact calendar, tiny Sunday selection, exact period counts \
+     and restrained frame height."
 
 let theme_check ~width_of ~directory home =
   let path = home.C.session.path in
   let before = F.read path in
   require (home.theme = P.Terminal) "theme-default-follows-terminal";
   let retained = C.open_record home in
-  let base = { retained with C.record_visible = false; blocked = true;
-                            message = "household-warning" } in
+  let base =
+    { retained with C.record_visible = false; blocked = true; message = "household-warning" }
+  in
   let unchanged state =
     require
-      (state.C.session == base.session && (same_workspace state base)
-       && state.record = base.record && not state.record_visible
-       && state.blocked && state.message = base.message && F.read path = before)
+      (state.C.session == base.session && same_workspace state base && state.record = base.record
+     && (not state.record_visible) && state.blocked && state.message = base.message
+      && F.read path = before)
       "theme-change-preserves-household-context-draft-and-warning"
   in
   let choose index =
     let setup = { base with C.overlay = C.Commands { M.page = M.Setup; selected = 0 } } in
     let picker = key ~width_of setup `Enter in
-    require (R.footer picker = [ "j/k or Up/Down preview theme"; "Enter save  Esc/q cancel" ])
+    require
+      (R.footer picker = [ "j/k or Up/Down preview theme"; "Enter save  Esc/q cancel" ])
       "theme-picker-contextual-operations";
-    List.fold_left (fun state _ -> key ~width_of state (`Arrow `Down)) picker
-      (List.init index Fun.id)
+    List.fold_left
+      (fun state _ -> key ~width_of state (`Arrow `Down))
+      picker (List.init index Fun.id)
   in
   List.iteri
     (fun index theme ->
       require (P.theme_of_id (P.theme_id theme) = Some theme) "theme-id-roundtrip";
       let saved_before = P.load_theme ~config_home:directory () in
       let preview = choose index in
-      require (preview.theme = theme && P.load_theme ~config_home:directory () = saved_before)
+      require
+        (preview.theme = theme && P.load_theme ~config_home:directory () = saved_before)
         "theme-preview-is-not-saved";
       unchanged preview;
-      List.iter (fun button ->
+      List.iter
+        (fun button ->
           let cancelled = key ~width_of preview button in
-          require (cancelled.theme = base.theme
-                   && P.load_theme ~config_home:directory () = saved_before)
+          require
+            (cancelled.theme = base.theme && P.load_theme ~config_home:directory () = saved_before)
             "theme-cancel-restores-original-without-save";
-          unchanged cancelled) [ `Escape; `ASCII 'q' ];
+          unchanged cancelled)
+        [ `Escape; `ASCII 'q' ];
       let saved = key ~width_of preview `Enter in
-      require (saved.theme = theme && no_modal saved
-               && saved.ui_notice = Some "Theme saved.") "theme-enter-saves";
-      require ((C.initial ~config_home:directory (F.load path)).theme = theme)
-        "theme-cold-reopen";
+      require
+        (saved.theme = theme && no_modal saved && saved.ui_notice = Some "Theme saved.")
+        "theme-enter-saves";
+      require ((C.initial ~config_home:directory (F.load path)).theme = theme) "theme-cold-reopen";
       unchanged saved)
     P.all_themes;
   let root = { base with C.overlay = C.Commands { M.page = M.Root; selected = 4 } } in
   let root_picker = key ~width_of root `Enter in
-  require (match root_picker.overlay with C.Themes _ -> true | _ -> false)
+  require
+    (match root_picker.overlay with C.Themes _ -> true | _ -> false)
     "root-command-palette-opens-theme-directly";
   let cancelled = key ~width_of (key ~width_of root_picker (`Arrow `Down)) `Escape in
-  require (cancelled.overlay = root.overlay && cancelled.theme = base.theme)
+  require
+    (cancelled.overlay = root.overlay && cancelled.theme = base.theme)
     "theme-cancel-restores-exact-command-menu";
   unchanged cancelled;
   let preview = choose 1 in
   let failed = key ~width_of { preview with C.config_home = Some path } `Enter in
-  require (failed.theme = P.Bakhlo_light && no_modal failed
-           && failed.ui_notice = Some
-                "Theme changed for this session only; settings could not be saved.")
+  require
+    (failed.theme = P.Bakhlo_light && no_modal failed
+    && failed.ui_notice = Some "Theme changed for this session only; settings could not be saved.")
     "theme-save-failure-keeps-session-choice-and-reports-limit";
   unchanged failed;
   let settings = Filename.concat directory "ui-theme" in
-  List.iter (fun contents ->
+  List.iter
+    (fun contents ->
       let channel = open_out_bin settings in
-      Fun.protect ~finally:(fun () -> close_out_noerr channel)
+      Fun.protect
+        ~finally:(fun () -> close_out_noerr channel)
         (fun () -> output_string channel contents);
-      require (P.load_theme ~config_home:directory () = P.Terminal)
+      require
+        (P.load_theme ~config_home:directory () = P.Terminal)
         "invalid-theme-falls-back-to-terminal")
     [ "unknown\n"; "bakhlo-light\nbakhlo-dark\n"; String.make 33 'x' ];
   get (P.save_theme ~config_home:directory P.Terminal);
-  print_endline "PASS: terminal/original theme preview, cancel, cold settings and isolated save failure."
-
+  print_endline
+    "PASS: terminal/original theme preview, cancel, cold settings and isolated save failure."

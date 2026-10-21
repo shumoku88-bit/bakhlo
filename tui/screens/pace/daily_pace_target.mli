@@ -18,7 +18,11 @@ type plan = {
 type options = { horizons : plan list; earliest : plan option }
 
 val plan :
-  book:B.t -> B.daily_pace -> target:string -> date:string -> purchase:string ->
+  book:B.t ->
+  B.daily_pace ->
+  target:string ->
+  date:string ->
+  purchase:string ->
   (plan, string) result
 (** Amounts are whole units of the pace Measure (digits only, at most 18). The
     date may be [D], [M-D] or [YYYY-MM-DD]; short forms name the first such day
@@ -39,6 +43,11 @@ val update : book:B.t -> pace:(B.daily_pace, string) result -> t -> Ui_input.inp
     horizon while no date is entered; Esc/q close. Nothing else is input. *)
 
 val frame :
-  width_of:(string -> int) -> screen:int * int -> body:int * int -> book:B.t ->
-  pace:(B.daily_pace, string) result -> t -> Ui_overlay.frame option
+  width_of:(string -> int) ->
+  screen:int * int ->
+  body:int * int ->
+  book:B.t ->
+  pace:(B.daily_pace, string) result ->
+  t ->
+  Ui_overlay.frame option
 (** Floating over Daily Pace from 62×20 cells, otherwise covering the body. *)

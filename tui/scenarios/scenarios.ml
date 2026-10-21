@@ -1,7 +1,6 @@
 (* Cross-screen, publication, recovery and persistence scenarios through the Shell.
    Each suite owns its scenario; this runner only registers them in order. *)
 open Interaction_check_fixture
-
 open Home_integration_checks
 open Ui_primitive_checks
 open Actual_integration_checks

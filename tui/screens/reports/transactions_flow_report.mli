@@ -13,10 +13,7 @@ type row_activity = {
   contributions : (string * Z.t * string * string) list;
 }
 
-type report = {
-  period : IncExp.period;
-  rows : row_activity list;
-}
+type report = { period : IncExp.period; rows : row_activity list }
 
 type t = {
   preset : IncExp.period_preset;
@@ -27,11 +24,7 @@ type t = {
 }
 
 val initial : unit -> t
-
-val compute_report :
-  book:B.t ->
-  period:IncExp.period ->
-  report
+val compute_report : book:B.t -> period:IncExp.period -> report
 
 val render_summary_lines :
   width:int ->
@@ -49,7 +42,4 @@ val render_detail_lines :
   selected_row:int ->
   (Daily_overlays.style * string) list
 
-val print_summary :
-  book:B.t ->
-  report:report ->
-  string list
+val print_summary : book:B.t -> report:report -> string list

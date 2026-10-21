@@ -39,14 +39,26 @@ let create ~frontier ~reflected_roots =
       in
       let remaining_events = Base.List.map remaining_lineages ~f:F.terminal_event in
       Ok
-        { source_frontier = frontier; reflected_roots;
-          is_reflected = (fun id -> Base.Map.mem reflected id); remaining_lineages; remaining_events }
+        {
+          source_frontier = frontier;
+          reflected_roots;
+          is_reflected = (fun id -> Base.Map.mem reflected id);
+          remaining_lineages;
+          remaining_events;
+        }
 
 let source_frontier cut = cut.source_frontier
 let reflected_roots cut = cut.reflected_roots
 let is_reflected cut id = cut.is_reflected id
 
 let reflecting_all ~frontier ~reflected_roots ~is_reflected =
-  { source_frontier = frontier; reflected_roots; is_reflected; remaining_lineages = []; remaining_events = [] }
+  {
+    source_frontier = frontier;
+    reflected_roots;
+    is_reflected;
+    remaining_lineages = [];
+    remaining_events = [];
+  }
+
 let remaining_lineages cut = cut.remaining_lineages
 let remaining_events cut = cut.remaining_events

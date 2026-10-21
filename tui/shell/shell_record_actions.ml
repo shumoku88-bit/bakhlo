@@ -5,10 +5,7 @@ open Shell_state
 let edit_target state target =
   if state.blocked then state
   else if has_record_draft state then
-    {
-      state with
-      message = tr "A draft is retained. Resume or discard it before editing.";
-    }
+    { state with message = tr "A draft is retained. Resume or discard it before editing." }
   else
     match target with
     | Some (Screen.Entry entry) -> (
@@ -25,17 +22,26 @@ let correct_date_target state target =
   if state.blocked then state
   else if has_record_draft state then
     { state with message = tr "A draft is retained. Resume or discard it before changing a date." }
-  else match target with
-  | Some (Screen.Entry entry) ->
-      { (open_editor state (Record_editors.Date_correction (Date.create ~base_revision:state.session.revision entry)))
-        with message = "" }
-  | _ -> { state with message = tr "Select an Actual entry to change its date." }
-
+  else
+    match target with
+    | Some (Screen.Entry entry) ->
+        {
+          (open_editor state
+             (Record_editors.Date_correction
+                (Date.create ~base_revision:state.session.revision entry)))
+          with
+          message = "";
+        }
+    | _ -> { state with message = tr "Select an Actual entry to change its date." }
 
 let cancel_plan_target state target =
   if state.blocked then state
   else if has_record_draft state then
-    { state with message = tr "A draft is retained. Resume or discard it before cancelling a Scheduled occurrence." }
+    {
+      state with
+      message =
+        tr "A draft is retained. Resume or discard it before cancelling a Scheduled occurrence.";
+    }
   else
     match target with
     | Some (Screen.Plan plan) ->
@@ -46,8 +52,12 @@ let cancel_plan_target state target =
         else
           {
             state with
-            screens = (open_editor state (Record_editors.Scheduled_cancel (Cancel.create
-              ~book:state.session.book ~base_revision:state.session.revision ~day:(F.today ()) plan))).screens;
+            screens =
+              (open_editor state
+                 (Record_editors.Scheduled_cancel
+                    (Cancel.create ~book:state.session.book ~base_revision:state.session.revision
+                       ~day:(F.today ()) plan)))
+                .screens;
             message = "";
           }
     | _ -> { state with message = tr "Select an open Scheduled occurrence to cancel." }
@@ -56,24 +66,35 @@ let batch_plan_target state target =
   if state.blocked then state
   else if has_record_draft state then
     { state with message = tr "A draft is retained. Resume or discard it before batch editing." }
-  else match target with
-  | Some (Screen.Plan plan) -> (
-      match Bulk.create ~book:state.session.book ~base_revision:state.session.revision ~from_day:plan.day plan with
-      | Ok editor -> { (open_editor state (Record_editors.Scheduled_bulk editor)) with message = "" }
-      | Error message -> { state with message })
-  | _ -> { state with message = tr "Select an open Scheduled occurrence for batch amount editing." }
+  else
+    match target with
+    | Some (Screen.Plan plan) -> (
+        match
+          Bulk.create ~book:state.session.book ~base_revision:state.session.revision
+            ~from_day:plan.day plan
+        with
+        | Ok editor ->
+            { (open_editor state (Record_editors.Scheduled_bulk editor)) with message = "" }
+        | Error message -> { state with message })
+    | _ ->
+        { state with message = tr "Select an open Scheduled occurrence for batch amount editing." }
 
 let extend_plan_target ?cadence_months state target =
   if state.blocked then state
   else if has_record_draft state then
     { state with message = tr "A draft is retained. Resume or discard it before generating plans." }
-  else match target with
-  | Some (Screen.Plan plan) -> (
-      match Gen.create ?cadence_months ?observed_at:(Option.map (fun _ -> F.today ()) cadence_months)
-          ~book:state.session.book ~base_revision:state.session.revision ~source:plan () with
-      | Ok editor -> { (open_editor state (Record_editors.Scheduled_generate editor)) with message = "" }
-      | Error message -> { state with message })
-  | _ -> { state with message = tr "Select an open Scheduled occurrence to generate." }
+  else
+    match target with
+    | Some (Screen.Plan plan) -> (
+        match
+          Gen.create ?cadence_months
+            ?observed_at:(Option.map (fun _ -> F.today ()) cadence_months)
+            ~book:state.session.book ~base_revision:state.session.revision ~source:plan ()
+        with
+        | Ok editor ->
+            { (open_editor state (Record_editors.Scheduled_generate editor)) with message = "" }
+        | Error message -> { state with message })
+    | _ -> { state with message = tr "Select an open Scheduled occurrence to generate." }
 
 let reverse_entry_target state target =
   if state.blocked then state
@@ -84,16 +105,24 @@ let reverse_entry_target state target =
     | Some (Screen.Entry entry) ->
         if entry.reversal_of <> None then
           { state with message = tr "This entry is already a Reversal; it cannot be reversed." }
-        else if List.exists (fun (e : B.entry) -> e.reversal_of = Some entry.id) (B.entries state.session.book) then
-          { state with message = tr "This entry has already been reversed." }
+        else if
+          List.exists
+            (fun (e : B.entry) -> e.reversal_of = Some entry.id)
+            (B.entries state.session.book)
+        then { state with message = tr "This entry has already been reversed." }
         else
           {
             state with
-            screens = (open_editor state (Record_editors.Reversal (Rev.create ~book:state.session.book
-              ~base_revision:state.session.revision ~day:(F.today ()) entry))).screens;
+            screens =
+              (open_editor state
+                 (Record_editors.Reversal
+                    (Rev.create ~book:state.session.book ~base_revision:state.session.revision
+                       ~day:(F.today ()) entry)))
+                .screens;
             message = "";
           }
     | _ -> { state with message = tr "Select an Actual entry to reverse." }
+
 let classify_merchant_target state target =
   if state.blocked then state
   else if has_record_draft state then
@@ -112,12 +141,14 @@ let classify_merchant_target state target =
         | None ->
             {
               state with
-              screens = (open_editor state (Record_editors.Event_merchant
-                (Merchant.create ~base_revision:state.session.revision entry))).screens;
+              screens =
+                (open_editor state
+                   (Record_editors.Event_merchant
+                      (Merchant.create ~base_revision:state.session.revision entry)))
+                  .screens;
               message = "";
             })
     | _ -> { state with message = tr "Select an Actual entry to classify Merchant." }
-
 
 let pay_target state target =
   if state.blocked then state

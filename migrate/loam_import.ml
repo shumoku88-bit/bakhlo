@@ -18,17 +18,22 @@ let mstr = D.Identifier.Measure.to_string
 let lid s = get "invalid-locus-identity" (D.Identifier.Locus.of_string s)
 let mid s = get "invalid-measure-identity" (D.Identifier.Measure.of_string s)
 let coord l m : D.Effect_coordinate.t = { locus = lid l; measure = mid m }
-let unique values why = require (List.length (List.sort_uniq String.compare values) = List.length values) why
+
+let unique values why =
+  require (List.length (List.sort_uniq String.compare values) = List.length values) why
 
 let token s =
-  require (s <> "" && not (String.exists (function '\t' | '\n' | '\r' -> true | _ -> false) s))
+  require
+    (s <> "" && not (String.exists (function '\t' | '\n' | '\r' -> true | _ -> false) s))
     "invalid-source-token";
   s
 
 let integer s =
   let start = if String.length s > 0 && (s.[0] = '-' || s.[0] = '+') then 1 else 0 in
   require (String.length s > start) "invalid-integer";
-  for n = start to String.length s - 1 do require (s.[n] >= '0' && s.[n] <= '9') "invalid-integer" done;
+  for n = start to String.length s - 1 do
+    require (s.[n] >= '0' && s.[n] <= '9') "invalid-integer"
+  done;
   Z.of_string s
 
 (* Every line ends in a newline; the first is the exact format header. *)
@@ -39,7 +44,8 @@ let rows header bytes =
   | [] | _ :: _ -> raise (Refused "unsupported-source-header")
 
 let section env name =
-  Option.map (fun (s : E.section) -> s.body)
+  Option.map
+    (fun (s : E.section) -> s.body)
     (List.find_opt (fun (s : E.section) -> s.name = name) (E.sections env))
 
 (* LOAM Scheduled lifecycle: occurrences, then completion, retirement and
@@ -74,13 +80,21 @@ let scheduled body =
         | [ "SCHEDULED"; identity; day; measure ] ->
             let rev = match current with None -> rev | Some p -> finish p :: rev in
             scan
-              (Some { B.id = token identity; day; measure = token measure; changes = [];
-                      paid_by = None; cancelled_on = None })
+              (Some
+                 {
+                   B.id = token identity;
+                   day;
+                   measure = token measure;
+                   changes = [];
+                   paid_by = None;
+                   cancelled_on = None;
+                 })
               rev rest
         | [ "CHANGE"; locus; n ] -> (
             match current with
             | None -> raise (Refused "misplaced-scheduled-change")
-            | Some p -> scan (Some { p with changes = (token locus, integer n) :: p.changes }) rev rest)
+            | Some p ->
+                scan (Some { p with changes = (token locus, integer n) :: p.changes }) rev rest)
         | _ -> raise (Refused "unsupported-scheduled-row"))
   in
   let plans = scan None [] (frame "LOAM-SCHEDULED-MEMORY\t1" occurrences) in
@@ -91,29 +105,38 @@ let scheduled body =
         | [ k; s; e ] when k = kind -> (token s, token e)
         | _ -> raise (Refused ("invalid-" ^ String.lowercase_ascii kind)))
   in
-  let completions =
-    pairs "COMPLETION" (frame "LOAM-SCHEDULED-COMPLETION-MEMORY\t1" completions) in
+  let completions = pairs "COMPLETION" (frame "LOAM-SCHEDULED-COMPLETION-MEMORY\t1" completions) in
   let retirements =
-    List.map (fun row ->
+    List.map
+      (fun row ->
         match String.split_on_char '\t' row with
         | [ "RETIREMENT"; s ] -> token s
         | _ -> raise (Refused "invalid-retirement"))
       (frame "LOAM-SCHEDULED-RETIREMENT-MEMORY\t1" retirements)
   in
   let replacements =
-    pairs "REPLACEMENT" (frame "LOAM-SCHEDULED-REPLACEMENT-MEMORY\t1" replacements) in
-  unique (List.map fst completions @ retirements @ List.map fst replacements)
+    pairs "REPLACEMENT" (frame "LOAM-SCHEDULED-REPLACEMENT-MEMORY\t1" replacements)
+  in
+  unique
+    (List.map fst completions @ retirements @ List.map fst replacements)
     "conflicting-source-plan-terminal";
   unique (List.map snd completions) "duplicate-source-completion-actual";
   unique (List.map snd replacements) "duplicate-source-plan-successor";
   let known s = require (List.exists (fun (p : B.plan) -> p.id = s) plans) "unknown-source-plan" in
   List.iter (fun (s, _) -> known s) completions;
   List.iter known retirements;
-  List.iter (fun (s, target) -> known s; known target) replacements;
-  List.iter (fun (p : B.plan) ->
+  List.iter
+    (fun (s, target) ->
+      known s;
+      known target)
+    replacements;
+  List.iter
+    (fun (p : B.plan) ->
       let rec path visited s =
         require (not (List.mem s visited)) "cyclic-source-plans";
-        match List.assoc_opt s replacements with None -> () | Some next -> path (s :: visited) next
+        match List.assoc_opt s replacements with
+        | None -> ()
+        | Some next -> path (s :: visited) next
       in
       path [] p.id)
     plans;
@@ -121,9 +144,11 @@ let scheduled body =
 
 let measures bytes =
   let rows =
-    String.split_on_char '\n' bytes |> List.filter (fun row -> row <> "" && row.[0] <> '#') in
+    String.split_on_char '\n' bytes |> List.filter (fun row -> row <> "" && row.[0] <> '#')
+  in
   let data =
-    List.map (fun row ->
+    List.map
+      (fun row ->
         match String.split_on_char '\t' row with
         | [ identity; text ] ->
             let n = integer text in
@@ -141,7 +166,8 @@ let labels = function
       let rows = String.split_on_char '\n' bytes in
       let rows = match List.rev rows with "" :: rest -> List.rev rest | _ -> rows in
       let data =
-        List.map (fun row ->
+        List.map
+          (fun row ->
             match String.split_on_char '\t' row with
             | [ identity; label; help ] ->
                 require (label <> "" && help <> "") "invalid-source-label";
@@ -153,9 +179,11 @@ let labels = function
       Some data
 
 let approved env =
-  Option.map (fun body ->
+  Option.map
+    (fun body ->
       let vocabulary =
-        List.map (fun row ->
+        List.map
+          (fun row ->
             match String.split_on_char '\t' row with
             | [ "LOCUS"; identity ] -> token identity
             | _ -> raise (Refused "invalid-source-vocabulary"))
@@ -170,7 +198,8 @@ let bounded env =
   match section env "BoundedHistorySupport" with
   | None -> []
   | Some body ->
-      List.map (fun row ->
+      List.map
+        (fun row ->
           match String.split_on_char '\t' row with
           | [ "SUPPORT"; locus; measure; day ] -> (coord locus measure, day)
           | _ -> raise (Refused "invalid-bounded-history-row"))
@@ -183,16 +212,22 @@ let import input =
   let old = get "source-admission" (R.of_string raw) in
   let oldq = R.quantity_image old in
   let source = Q.source oldq in
-  require (unadmitted.source.relations = [] && unadmitted.source.discharges = [])
+  require
+    (unadmitted.source.relations = [] && unadmitted.source.discharges = [])
     "unsupported-settlement-relations";
   let lineages = A.Correction_frontier.lineages (A.Actual_source.frontier source) in
   let root row = estr (A.Correction_frontier.root_id row) in
   let terminal_map =
-    List.map (fun row -> (estr (D.Event.id (A.Correction_frontier.terminal_event row)), root row)) lineages in
+    List.map
+      (fun row -> (estr (D.Event.id (A.Correction_frontier.terminal_event row)), root row))
+      lineages
+  in
   let all_map =
-    List.concat_map (fun row ->
+    List.concat_map
+      (fun row ->
         (estr (D.Event.id (A.Correction_frontier.terminal_event row)), root row)
-        :: List.map (fun (edge : D.Event_correction.t) -> (estr edge.target, root row))
+        :: List.map
+             (fun (edge : D.Event_correction.t) -> (estr edge.target, root row))
              (A.Correction_frontier.correction_path row))
       lineages
   in
@@ -207,7 +242,8 @@ let import input =
     | None -> raise (Refused "unknown-source-plan-payment")
   in
   let reversals =
-    List.map (fun (r : A.Actual_reversals.fact) ->
+    List.map
+      (fun (r : A.Actual_reversals.fact) ->
         (current_root (estr r.reversal), current_root (estr r.target)))
       unadmitted.source.reversals
   in
@@ -215,7 +251,8 @@ let import input =
   and originals = A.Actual_source.original_amounts source
   and exchanges = A.Actual_source.exchanges source in
   let entries =
-    List.map (fun row ->
+    List.map
+      (fun row ->
         let event = A.Correction_frontier.terminal_event row in
         let terminal = D.Event.id event and identity = root row in
         let day =
@@ -233,12 +270,14 @@ let import input =
               facts are not inherited and stay in the LOAM record. *)
            merchant = A.Event_merchants.find_disposition merchants terminal;
            original_amount =
-             Option.map (fun current ->
+             Option.map
+               (fun current ->
                  let fact = A.Original_amounts.retained_fact current in
                  (mstr fact.measure, D.Quantity.quanta fact.quantity))
                (A.Original_amounts.find_current originals terminal);
            exchange =
-             Option.map (fun selection ->
+             Option.map
+               (fun selection ->
                  let fact = A.Exchange_evidence.fact selection in
                  ( D.Identifier.Effect_key.to_string fact.source,
                    D.Identifier.Effect_key.to_string fact.destination ))
@@ -251,18 +290,21 @@ let import input =
      would be a silent loss. *)
   require
     (List.length (List.filter (fun (e : B.entry) -> e.original_amount <> None) entries)
-     = List.length (A.Original_amounts.facts originals))
+    = List.length (A.Original_amounts.facts originals))
     "original-amount-not-current";
   require
     (List.length (List.filter (fun (e : B.entry) -> e.exchange <> None) entries)
-     = List.length (A.Exchange_evidence.facts exchanges))
+    = List.length (A.Exchange_evidence.facts exchanges))
     "exchange-not-current";
   let scheduled_body =
-    match section env "Scheduled" with Some b -> b | None -> raise (Refused "missing-required-section")
+    match section env "Scheduled" with
+    | Some b -> b
+    | None -> raise (Refused "missing-required-section")
   in
   let retained, completions, retirements, replacements = scheduled scheduled_body in
   let plans =
-    List.filter_map (fun (p : B.plan) ->
+    List.filter_map
+      (fun (p : B.plan) ->
         if List.mem p.id retirements || List.mem_assoc p.id replacements then None
         else Some { p with paid_by = Option.map any_root (List.assoc_opt p.id completions) })
       retained
@@ -270,10 +312,13 @@ let import input =
   (* Even discarded or replaced completion endpoints must not be silently repaired. *)
   List.iter (fun (_, event) -> ignore (any_root event)) completions;
   let openings =
-    List.map (fun (o : Q.opening) ->
-        { o with
+    List.map
+      (fun (o : Q.opening) ->
+        {
+          o with
           opening_event =
-            get "invalid-entry-identity" (D.Identifier.Event.of_string (current_root (estr o.opening_event)))
+            get "invalid-entry-identity"
+              (D.Identifier.Event.of_string (current_root (estr o.opening_event)));
         })
       (Q.openings oldq)
   in
@@ -295,37 +340,52 @@ let import input =
   let newq = B.image book in
   let same_premise a b =
     match (Q.premise a, Q.premise b) with
-    | Q.Zero_origin, Q.Zero_origin | Q.Opening _, Q.Opening _ | Q.Current_assertion _, Q.Current_assertion _ -> true
+    | Q.Zero_origin, Q.Zero_origin
+    | Q.Opening _, Q.Opening _
+    | Q.Current_assertion _, Q.Current_assertion _ ->
+        true
     | (Q.Zero_origin | Q.Opening _ | Q.Current_assertion _), _ -> false
   in
   let compare c =
     match (Q.query oldq c, Q.query newq c) with
     | Ok (Q.Exact a), Ok (Q.Exact b) ->
-        require (D.Quantity.equal (Q.quantity a) (Q.quantity b) && same_premise a b)
+        require
+          (D.Quantity.equal (Q.quantity a) (Q.quantity b) && same_premise a b)
           "quantity-or-premise-changed"
     | Ok (Q.Known_present _), Ok (Q.Known_present _) | Error _, Error _ -> ()
     | (Ok _ | Error _), _ -> raise (Refused "quantity-availability-changed")
   in
   let effect_coords =
-    List.concat_map (fun event ->
-        List.map (fun posting -> coord (lstr (D.Effect.locus posting)) (mstr (D.Effect.measure posting)))
+    List.concat_map
+      (fun event ->
+        List.map
+          (fun posting -> coord (lstr (D.Effect.locus posting)) (mstr (D.Effect.measure posting)))
           (D.Event.effects event))
       unadmitted.source.events
   in
   let support_coords =
     payload.origins
     @ List.map (fun (o : Q.opening) -> o.coordinate) payload.openings
-    @ List.concat_map (fun (g : A.Current_quantity_groups.group) ->
+    @ List.concat_map
+        (fun (g : A.Current_quantity_groups.group) ->
           List.map (fun (a : A.Current_quantity_projection.assertion) -> a.coordinate) g.assertions)
         payload.observations
     @ match payload.presence with None -> [] | Some p -> p.coordinates
   in
   let plan_coords =
-    List.concat_map (fun (p : B.plan) -> List.map (fun (l, _) -> coord l p.measure) p.changes) retained in
+    List.concat_map
+      (fun (p : B.plan) -> List.map (fun (l, _) -> coord l p.measure) p.changes)
+      retained
+  in
   let coordinates = effect_coords @ support_coords @ plan_coords in
   List.iter compare coordinates;
-  let loci = List.sort_uniq String.compare (List.map (fun (c : D.Effect_coordinate.t) -> lstr c.locus) coordinates) in
-  List.iter (fun locus -> List.iter (fun (measure, _) -> compare (coord locus measure)) payload.measures) loci;
+  let loci =
+    List.sort_uniq String.compare
+      (List.map (fun (c : D.Effect_coordinate.t) -> lstr c.locus) coordinates)
+  in
+  List.iter
+    (fun locus -> List.iter (fun (measure, _) -> compare (coord locus measure)) payload.measures)
+    loci;
   book
 
 let book input = try Ok (import input) with Refused why -> Error why
@@ -356,13 +416,16 @@ let accounting_roles household =
           | _ -> raise (Refused "unsupported-accounting-role-section")
         in
         let seen = Hashtbl.create (List.length rows) in
-        List.iter (fun row ->
+        List.iter
+          (fun row ->
             match String.split_on_char '\t' row with
             | [ "ROLE"; locus; role ] ->
                 (* Bakhlo role readers trim Locus identities; refuse rather than trim. *)
                 require
-                  (locus <> "" && String.trim locus = locus && not (String.contains locus '\r')
-                   && List.mem role role_tokens)
+                  (locus <> ""
+                  && String.trim locus = locus
+                  && (not (String.contains locus '\r'))
+                  && List.mem role role_tokens)
                   "invalid-accounting-role-row";
                 require (not (Hashtbl.mem seen locus)) "duplicate-accounting-role-locus";
                 Hashtbl.replace seen locus ()

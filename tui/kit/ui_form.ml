@@ -1,20 +1,13 @@
 (* Pure modal form component for Bakhlo TUI dialogs and workflows. *)
 
-type button = {
-  label : string;
-  is_cancel : bool;
-}
+type button = { label : string; is_cancel : bool }
 
 type field_kind =
   | Text of { value : string; placeholder : string }
   | Choice of { options : string list; selected : int }
   | Buttons of { buttons : button list; selected : int }
 
-type field = {
-  id : string;
-  label : string;
-  kind : field_kind;
-}
+type field = { id : string; label : string; kind : field_kind }
 
 type t = {
   id : string;
@@ -26,10 +19,7 @@ type t = {
   notice : string;
 }
 
-type event =
-  | Updated of t
-  | Submit of t
-  | Cancel
+type event = Updated of t | Submit of t | Cancel
 
 let id t = t.id
 let payload t = t.payload
@@ -40,29 +30,21 @@ let focused t = t.focused
 
 let set_focused t idx =
   let count = List.length t.fields in
-  if count = 0 then { t with focused = 0 }
-  else { t with focused = max 0 (min (count - 1) idx) }
+  if count = 0 then { t with focused = 0 } else { t with focused = max 0 (min (count - 1) idx) }
 
-let get_field t fid =
-  List.find_opt (fun (f : field) -> f.id = fid) t.fields
+let get_field t fid = List.find_opt (fun (f : field) -> f.id = fid) t.fields
 
 let update_field t fid fn =
   let fields =
-    List.map
-      (fun (f : field) -> if f.id = fid then { f with kind = fn f.kind } else f)
-      t.fields
+    List.map (fun (f : field) -> if f.id = fid then { f with kind = fn f.kind } else f) t.fields
   in
   { t with fields }
 
 let get_text t fid =
-  match get_field t fid with
-  | Some { kind = Text { value; _ }; _ } -> Some value
-  | _ -> None
+  match get_field t fid with Some { kind = Text { value; _ }; _ } -> Some value | _ -> None
 
 let set_text t fid new_val =
-  update_field t fid (function
-    | Text t -> Text { t with value = new_val }
-    | other -> other)
+  update_field t fid (function Text t -> Text { t with value = new_val } | other -> other)
 
 let get_choice t fid =
   match get_field t fid with
@@ -72,8 +54,7 @@ let get_choice t fid =
 let get_choice_value t fid =
   match get_field t fid with
   | Some { kind = Choice { options; selected }; _ } ->
-      if selected >= 0 && selected < List.length options then
-        Some (List.nth options selected)
+      if selected >= 0 && selected < List.length options then Some (List.nth options selected)
       else None
   | _ -> None
 
@@ -93,8 +74,7 @@ let get_button t fid =
 let get_selected_button t =
   match List.find_opt (fun f -> match f.kind with Buttons _ -> true | _ -> false) t.fields with
   | Some { kind = Buttons { buttons; selected }; _ } ->
-      if selected >= 0 && selected < List.length buttons then
-        Some (List.nth buttons selected)
+      if selected >= 0 && selected < List.length buttons then Some (List.nth buttons selected)
       else None
   | _ -> None
 
@@ -118,24 +98,18 @@ let buttons_field ~id ~buttons ?(selected = 0) () =
 
 let action_buttons ?(id = "action") ?(confirm = "Confirm") ?(cancel = "Cancel") () =
   buttons_field ~id
-    ~buttons:[
-      { label = confirm; is_cancel = false };
-      { label = cancel; is_cancel = true };
-    ]
+    ~buttons:[ { label = confirm; is_cancel = false }; { label = cancel; is_cancel = true } ]
     ()
 
 let create ~id ?(payload = "") ~title ?(summary = []) ?(fields = []) ?(notice = "") () =
   { id; payload; title; summary; fields; focused = 0; notice }
 
 let focused_field t =
-  if t.focused >= 0 && t.focused < List.length t.fields then
-    Some (List.nth t.fields t.focused)
+  if t.focused >= 0 && t.focused < List.length t.fields then Some (List.nth t.fields t.focused)
   else None
 
 let is_focused_on_text t =
-  match focused_field t with
-  | Some { kind = Text _; _ } -> true
-  | _ -> false
+  match focused_field t with Some { kind = Text _; _ } -> true | _ -> false
 
 let is_last_editable_field t index =
   let rec check i = function
@@ -149,10 +123,9 @@ let is_last_editable_field t index =
 let primary_button t =
   let rec find = function
     | [] -> None
-    | { kind = Buttons { buttons; selected }; _ } :: _ ->
-        if selected >= 0 && selected < List.length buttons then
-          Some (List.nth buttons selected)
-        else (match buttons with b :: _ -> Some b | [] -> None)
+    | { kind = Buttons { buttons; selected }; _ } :: _ -> (
+        if selected >= 0 && selected < List.length buttons then Some (List.nth buttons selected)
+        else match buttons with b :: _ -> Some b | [] -> None)
     | _ :: rest -> find rest
   in
   find t.fields
@@ -177,17 +150,12 @@ let handle_input t (input : Ui_input.input) : event =
   | `Key (`Escape, []) -> Cancel
   | `Key (`ASCII ('q' | 'Q'), []) when not (is_focused_on_text t) -> Cancel
   | `Key (`Enter, [ `Ctrl ]) -> (
-      match primary_button t with
-      | Some (b : button) when b.is_cancel -> Cancel
-      | _ -> Submit t)
+      match primary_button t with Some (b : button) when b.is_cancel -> Cancel | _ -> Submit t)
   | `Key (`Tab, [ `Shift ]) -> move_focus (-1)
   | `Key (`Tab, []) -> move_focus 1
   | _ -> (
       match focused_field t with
-      | None -> (
-          match input with
-          | `Key (`Enter, []) -> Submit t
-          | _ -> Updated t)
+      | None -> ( match input with `Key (`Enter, []) -> Submit t | _ -> Updated t)
       | Some (field : field) -> (
           match field.kind with
           | Text { value; _ } -> (
@@ -195,10 +163,10 @@ let handle_input t (input : Ui_input.input) : event =
               | `Key (`Arrow `Up, []) -> move_focus (-1)
               | `Key (`Arrow `Down, []) -> move_focus 1
               | `Key (`Enter, []) ->
-                  if is_last_editable_field t t.focused then (
+                  if is_last_editable_field t t.focused then
                     match primary_button t with
                     | Some (b : button) when b.is_cancel -> Cancel
-                    | _ -> Submit t)
+                    | _ -> Submit t
                   else move_focus 1
               | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
                   let updated = value ^ String.make 1 c in
@@ -222,13 +190,12 @@ let handle_input t (input : Ui_input.input) : event =
               | `Key (`Arrow `Up, []) -> move_focus (-1)
               | `Key (`Arrow `Down, []) -> move_focus 1
               | `Key ((`Arrow `Left | `ASCII 'h'), []) -> change_choice (-1)
-              | `Key ((`Arrow `Right | `ASCII 'l'), []) | `Key (`ASCII ' ', []) ->
-                  change_choice 1
+              | `Key ((`Arrow `Right | `ASCII 'l'), []) | `Key (`ASCII ' ', []) -> change_choice 1
               | `Key (`Enter, []) ->
-                  if is_last_editable_field t t.focused then (
+                  if is_last_editable_field t t.focused then
                     match primary_button t with
                     | Some (b : button) when b.is_cancel -> Cancel
-                    | _ -> Submit t)
+                    | _ -> Submit t
                   else move_focus 1
               | _ -> Updated t)
           | Buttons { buttons; selected } -> (
@@ -249,11 +216,11 @@ let handle_input t (input : Ui_input.input) : event =
               | `Key (`Arrow `Down, []) -> move_focus 1
               | `Key ((`Arrow `Left | `ASCII 'h'), []) -> change_button (-1)
               | `Key ((`Arrow `Right | `ASCII 'l'), []) -> change_button 1
-              | `Key (`Enter, []) -> (
+              | `Key (`Enter, []) ->
                   if selected >= 0 && selected < n then
                     let (btn : button) = List.nth buttons selected in
                     if btn.is_cancel then Cancel else Submit t
-                  else Submit t)
+                  else Submit t
               | _ -> Updated t)))
 
 let render_rows ~width ~height ~width_of t =
@@ -261,7 +228,7 @@ let render_rows ~width ~height ~width_of t =
   let width = max 0 width and height = max 0 height in
   let plain text = (O.Plain, O.clip_text ~width_of width text) in
   let summary = List.concat_map (O.wrap_text ~width_of width) t.summary in
-  let summary = List.map plain (if summary = [] then [] else summary @ [""]) in
+  let summary = List.map plain (if summary = [] then [] else summary @ [ "" ]) in
   let render_field (f : field) =
     let focused = find_field_index t f.id = t.focused in
     let prompt = if f.label = "" then "" else f.label ^ ": " in
@@ -269,50 +236,61 @@ let render_rows ~width ~height ~width_of t =
     | Text { value; _ } when focused ->
         let prompt = O.clip_text ~width_of (max 0 (width - 1)) prompt in
         let inset = width_of prompt in
-        let text, caret = O.input_text ~width_of ~width:(width - inset)
-            ~cursor:None ~caret:"|" value in
-        (Option.fold ~none:O.Plain ~some:(fun col -> O.Input (inset + col)) caret,
-         prompt ^ text)
+        let text, caret =
+          O.input_text ~width_of ~width:(width - inset) ~cursor:None ~caret:"|" value
+        in
+        (Option.fold ~none:O.Plain ~some:(fun col -> O.Input (inset + col)) caret, prompt ^ text)
     | Text { value; placeholder } ->
-        plain (prompt ^ (if value = "" && placeholder <> "" then "(" ^ placeholder ^ ")" else value))
+        plain (prompt ^ if value = "" && placeholder <> "" then "(" ^ placeholder ^ ")" else value)
     | Choice { options; selected } ->
-        let value = if selected < 0 then ""
-          else Option.value ~default:"" (List.nth_opt options selected) in
-        ((if focused then O.Active else O.Plain),
-         O.clip_text ~width_of width (prompt ^ (if focused then "< " ^ value ^ " >" else "  " ^ value)))
+        let value =
+          if selected < 0 then "" else Option.value ~default:"" (List.nth_opt options selected)
+        in
+        ( (if focused then O.Active else O.Plain),
+          O.clip_text ~width_of width
+            (prompt ^ if focused then "< " ^ value ^ " >" else "  " ^ value) )
     | Buttons { buttons; selected } ->
-        let text = List.mapi (fun i (b : button) ->
-            (if i = selected then "> " else "  ") ^ "[" ^ b.label ^ "]") buttons
-          |> String.concat "    " in
+        let text =
+          List.mapi
+            (fun i (b : button) -> (if i = selected then "> " else "  ") ^ "[" ^ b.label ^ "]")
+            buttons
+          |> String.concat "    "
+        in
         ((if focused then O.Active else O.Plain), O.clip_text ~width_of width text)
   in
-  let fields, buttons = List.partition (fun f ->
-      match f.kind with Buttons _ -> false | _ -> true) t.fields in
-  let notice = if t.notice = "" then [""] else O.wrap_text ~width_of width t.notice in
+  let fields, buttons =
+    List.partition (fun f -> match f.kind with Buttons _ -> false | _ -> true) t.fields
+  in
+  let notice = if t.notice = "" then [ "" ] else O.wrap_text ~width_of width t.notice in
   let notice = List.map (fun text -> (O.Status, text)) notice in
-  let rows = summary @ List.map render_field fields @ notice
-    @ (if buttons = [] then [] else plain "" :: List.map render_field buttons) in
+  let rows =
+    summary @ List.map render_field fields @ notice
+    @ if buttons = [] then [] else plain "" :: List.map render_field buttons
+  in
   let rec position id = function
     | [] -> 0
     | (f : field) :: _ when f.id = id -> 0
-    | _ :: rest -> 1 + position id rest in
+    | _ :: rest -> 1 + position id rest
+  in
   let focus =
     match focused_field t with
     | None -> 0
-    | Some field ->
-        (match field.kind with
-        | Buttons _ -> List.length summary + List.length fields + List.length notice + 1
+    | Some field -> (
+        match field.kind with
+        | Buttons _ ->
+            List.length summary + List.length fields + List.length notice + 1
             + position field.id buttons
-        | _ -> List.length summary
-            + position field.id fields)
+        | _ -> List.length summary + position field.id fields)
   in
-  let view = Ui_panel.window ~capacity:height ~count:(List.length rows)
-      ~scroll:0 ~selected:(Some focus) in
+  let view =
+    Ui_panel.window ~capacity:height ~count:(List.length rows) ~scroll:0 ~selected:(Some focus)
+  in
   let shown = List.filteri (fun i _ -> i >= view.start && i - view.start < height) rows in
-  List.mapi (fun i row ->
-      if i + view.start <> focus
-         && ((i = 0 && view.start > 0)
-             || (i = height - 1 && view.start < view.last)) then
-        (O.Status, O.clip_text ~width_of width "… more")
-      else row) shown
-
+  List.mapi
+    (fun i row ->
+      if
+        i + view.start <> focus
+        && ((i = 0 && view.start > 0) || (i = height - 1 && view.start < view.last))
+      then (O.Status, O.clip_text ~width_of width "… more")
+      else row)
+    shown

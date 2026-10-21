@@ -1,5 +1,6 @@
 ; The TUI architecture check runs in the Core workspace, where the tui tree
 ; is visible as data only (see the root dune file).
+
 (executable
  (name arch_check)
  (libraries parsexp sexplib0 str))

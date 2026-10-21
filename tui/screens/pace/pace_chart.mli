@@ -16,19 +16,37 @@ val axis_width : width_of:(string -> int) -> int -> scale -> (Z.t -> string) -> 
 (** Widest tick label (at least 3), at most a quarter of the width (at least 3). *)
 
 val qualified_rows :
-  width:int -> height:int -> values:Z.t option list -> joins:bool list ->
-  selected:int -> range:range -> connect:bool -> grid_rows:int list -> string list
+  width:int ->
+  height:int ->
+  values:Z.t option list ->
+  joins:bool list ->
+  selected:int ->
+  range:range ->
+  connect:bool ->
+  grid_rows:int list ->
+  string list
 (** Day-aligned known values: [joins.(i)] allows a line between day [i] and
     [i + 1]; unknown days are never interpolated. Known days are [●], the
     selected known day [◆], empty grid cells [┄]. *)
 
 val line_rows :
-  width:int -> height:int -> values:Z.t list -> selected:int -> range:range ->
-  grid_rows:int list -> string list
+  width:int ->
+  height:int ->
+  values:Z.t list ->
+  selected:int ->
+  range:range ->
+  grid_rows:int list ->
+  string list
 (** One continuous series with a quiet guide at the selected point. *)
 
 val with_value_axis :
-  width_of:(string -> int) -> axis:int -> height:int -> scale:scale ->
-  label:(Z.t -> string) -> ?note:(int -> string) -> string list -> string list
+  width_of:(string -> int) ->
+  axis:int ->
+  height:int ->
+  scale:scale ->
+  label:(Z.t -> string) ->
+  ?note:(int -> string) ->
+  string list ->
+  string list
 (** Prefix [label ┤ ] on tick rows (a label that does not fit is […]) and
     [note │ ] elsewhere. *)

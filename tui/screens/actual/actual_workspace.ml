@@ -25,12 +25,7 @@ type t = {
   notice : string;
 }
 
-type command =
-  | Stay
-  | Open_selected of B.entry
-  | Record_new
-  | Back
-  | Redraw
+type command = Stay | Open_selected of B.entry | Record_new | Back | Redraw
 
 let create ~focus_date =
   {
@@ -72,17 +67,14 @@ let loci_for_scope ~book t =
     | (e : B.entry) :: rest ->
         let loci = List.map (fun p -> A.lstr (D.Effect.locus p)) e.effects in
         let new_acc =
-          List.fold_left
-            (fun a locus -> if List.mem locus a then a else locus :: a)
-            acc loci
+          List.fold_left (fun a locus -> if List.mem locus a then a else locus :: a) acc loci
         in
         extract_loci new_acc rest
   in
   extract_loci [] records
 
 let selected_locus ~book t =
-  if t.locus_row = 0 then None
-  else List.nth_opt (loci_for_scope ~book t) (t.locus_row - 1)
+  if t.locus_row = 0 then None else List.nth_opt (loci_for_scope ~book t) (t.locus_row - 1)
 
 let contains_insensitive needle haystack =
   if needle = "" then true
@@ -100,8 +92,7 @@ let matches_search ~book t (record : B.entry) =
          (fun p ->
            let token = A.lstr (D.Effect.locus p) in
            let label = B.label book token in
-           contains_insensitive t.search_query token
-           || contains_insensitive t.search_query label)
+           contains_insensitive t.search_query token || contains_insensitive t.search_query label)
          record.effects
 
 let visible_entries ~book t =
@@ -112,22 +103,16 @@ let visible_entries ~book t =
     | Some locus ->
         List.filter
           (fun (record : B.entry) ->
-            List.exists
-              (fun p -> A.lstr (D.Effect.locus p) = locus)
-              record.effects)
+            List.exists (fun p -> A.lstr (D.Effect.locus p) = locus) record.effects)
           by_scope
   in
   let filtered = List.filter (matches_search ~book t) by_locus in
   List.sort
     (fun (a : B.entry) (b : B.entry) ->
       if a.day = b.day then
-        match t.order with
-        | Asc -> String.compare b.id a.id
-        | Desc -> String.compare a.id b.id
+        match t.order with Asc -> String.compare b.id a.id | Desc -> String.compare a.id b.id
       else
-        match t.order with
-        | Asc -> String.compare a.day b.day
-        | Desc -> String.compare b.day a.day)
+        match t.order with Asc -> String.compare a.day b.day | Desc -> String.compare b.day a.day)
     filtered
 
 let selected_entry ~book t =
@@ -141,8 +126,7 @@ let clamp_state ~book t =
   let records = visible_entries ~book t_with_locus in
   let tx_count = List.length records in
   let transaction_row =
-    if tx_count = 0 then 0
-    else min (max 0 t_with_locus.transaction_row) (tx_count - 1)
+    if tx_count = 0 then 0 else min (max 0 t_with_locus.transaction_row) (tx_count - 1)
   in
   { t_with_locus with transaction_row }
 
@@ -153,9 +137,7 @@ let returned_from_detail ~before_book ~after_book t =
     match locus with
     | None -> 0
     | Some token -> (
-        match List.find_index (( = ) token) loci with
-        | Some idx -> idx + 1
-        | None -> 0)
+        match List.find_index (( = ) token) loci with Some idx -> idx + 1 | None -> 0)
   in
   let base =
     {
@@ -180,8 +162,7 @@ let returned_from_detail ~before_book ~after_book t =
       let fresh = clamp_state ~book:after_book { base with detail_scroll = 0 } in
       {
         fresh with
-        notice =
-          "Selected Event no longer matches this list; selection moved to the nearest row.";
+        notice = "Selected Event no longer matches this list; selection moved to the nearest row.";
       }
 
 (* 2. Amount and Details formatting (LOAM ActualWorkspace) *)
@@ -193,8 +174,7 @@ let effect_amount book p =
 (* A simple receiving amount, never a sum across split Effects or Measures. *)
 let amount_summary book (entry : B.entry) =
   let measures =
-    List.sort_uniq String.compare
-      (List.map (fun p -> A.mstr (D.Effect.measure p)) entry.effects)
+    List.sort_uniq String.compare (List.map (fun p -> A.mstr (D.Effect.measure p)) entry.effects)
   in
   let positive = List.filter (fun p -> Z.sign (A.quanta p) > 0) entry.effects
   and negative = List.filter (fun p -> Z.sign (A.quanta p) < 0) entry.effects in
@@ -218,7 +198,8 @@ let description (entry : B.entry) =
    (original amount, reversal, Merchant, exchange, completed Scheduled). *)
 let detail_raw_lines ~book ~width_of ~width (entry_opt : B.entry option) : (O.style * string) list =
   let wrapped style text =
-    List.map (fun line -> (style, " " ^ line)) (O.wrap_text ~width_of (max 1 (width - 1)) text) in
+    List.map (fun line -> (style, " " ^ line)) (O.wrap_text ~width_of (max 1 (width - 1)) text)
+  in
   match entry_opt with
   | None -> wrapped O.Chrome "(no Actual selected)"
   | Some entry ->
@@ -240,7 +221,8 @@ let detail_raw_lines ~book ~width_of ~width (entry_opt : B.entry option) : (O.st
       let extras = after_id (O.entry_lines book entry) in
       wrapped O.Chrome ("Date: " ^ entry.day)
       @ wrapped O.Chrome (Printf.sprintf "Effects (%d):" (List.length entry.effects))
-      @ (if entry.effects = [] then wrapped O.Chrome "(no Effects)" else List.concat_map effect_lines entry.effects)
+      @ (if entry.effects = [] then wrapped O.Chrome "(no Effects)"
+         else List.concat_map effect_lines entry.effects)
       @ [ (O.Plain, "") ]
       @ wrapped O.Plain (description entry)
       @ wrapped O.Chrome ("ID: " ^ O.visible entry.id)
@@ -265,23 +247,25 @@ let panel_geometry (width, height) =
   let panel_height = max 0 (height - context_rows) in
   let terminal = height + 4 in
   let detail_capacity = if terminal >= 48 then 12 else if terminal >= 36 then 10 else 8 in
-  { writable;
+  {
+    writable;
     left_width = min 50 (max 34 (writable * 30 / 100));
     panel_height;
     detail_height = (if panel_height >= 16 then detail_capacity + 1 else 0);
     context_rows;
-    wide = writable >= 98 && panel_height >= 16 }
+    wide = writable >= 98 && panel_height >= 16;
+  }
 
 let terminal_geometry dimensions = panel_geometry dimensions
 
 let detail_bounds g pane =
-  ((if g.wide then g.left_width else g.writable),
-   if g.detail_height > 0 then g.detail_height else if pane = Details then g.panel_height else 0)
+  ( (if g.wide then g.left_width else g.writable),
+    if g.detail_height > 0 then g.detail_height else if pane = Details then g.panel_height else 0 )
 
 let list_height g pane =
   if g.wide && pane = Transactions then g.panel_height else max 0 (g.panel_height - g.detail_height)
 
-let list_capacity pane height = max 0 (height - 2 - (if pane = Loci || height < 4 then 0 else 1))
+let list_capacity pane height = max 0 (height - 2 - if pane = Loci || height < 4 then 0 else 1)
 
 let detail_scroll_limit ~book ~width_of geometry t =
   let width, height = detail_bounds geometry t.pane in
@@ -291,7 +275,8 @@ let detail_scroll_limit ~book ~width_of geometry t =
     max 0 (List.length lines - (height - 2))
 
 let page_size geometry pane =
-  max 1 (match pane with
+  max 1
+    (match pane with
     | Details -> snd (detail_bounds geometry pane) - 2
     | other -> list_capacity other (list_height geometry other))
 
@@ -303,7 +288,13 @@ let move_previous ~book ~width_of geometry t =
       if t.locus_row = 0 then { t with notice = "No previous Locus row." }
       else
         clamp_state ~book
-          { t with locus_row = t.locus_row - 1; transaction_row = 0; detail_scroll = 0; notice = "" }
+          {
+            t with
+            locus_row = t.locus_row - 1;
+            transaction_row = 0;
+            detail_scroll = 0;
+            notice = "";
+          }
   | Transactions ->
       if t.transaction_row = 0 then { t with notice = "No previous Actual row." }
       else { t with transaction_row = t.transaction_row - 1; detail_scroll = 0; notice = "" }
@@ -318,7 +309,13 @@ let move_next ~book ~width_of geometry t =
       let count = List.length (loci_for_scope ~book t) in
       if t.locus_row < count then
         clamp_state ~book
-          { t with locus_row = t.locus_row + 1; transaction_row = 0; detail_scroll = 0; notice = "" }
+          {
+            t with
+            locus_row = t.locus_row + 1;
+            transaction_row = 0;
+            detail_scroll = 0;
+            notice = "";
+          }
       else { t with notice = "No next Locus row." }
   | Transactions ->
       let count = List.length (visible_entries ~book t) in
@@ -336,10 +333,17 @@ let move_page_up ~book ~width_of geometry t =
       if t.locus_row = 0 then { t with notice = "Top of Locus list." }
       else
         clamp_state ~book
-          { t with locus_row = max 0 (t.locus_row - ps); transaction_row = 0; detail_scroll = 0; notice = "" }
+          {
+            t with
+            locus_row = max 0 (t.locus_row - ps);
+            transaction_row = 0;
+            detail_scroll = 0;
+            notice = "";
+          }
   | Transactions ->
       if t.transaction_row = 0 then { t with notice = "Top of Actual list." }
-      else { t with transaction_row = max 0 (t.transaction_row - ps); detail_scroll = 0; notice = "" }
+      else
+        { t with transaction_row = max 0 (t.transaction_row - ps); detail_scroll = 0; notice = "" }
   | Details ->
       if t.detail_scroll = 0 then { t with notice = "Top of Details." }
       else { t with detail_scroll = max 0 (t.detail_scroll - ps); notice = "" }
@@ -353,13 +357,23 @@ let move_page_down ~book ~width_of geometry t =
       if t.locus_row >= count then { t with notice = "End of Locus list." }
       else
         clamp_state ~book
-          { t with locus_row = min count (t.locus_row + ps); transaction_row = 0; detail_scroll = 0; notice = "" }
+          {
+            t with
+            locus_row = min count (t.locus_row + ps);
+            transaction_row = 0;
+            detail_scroll = 0;
+            notice = "";
+          }
   | Transactions ->
       let count = List.length (visible_entries ~book t) in
-      if count = 0 || t.transaction_row + 1 >= count then
-        { t with notice = "End of Actual list." }
+      if count = 0 || t.transaction_row + 1 >= count then { t with notice = "End of Actual list." }
       else
-        { t with transaction_row = min (count - 1) (t.transaction_row + ps); detail_scroll = 0; notice = "" }
+        {
+          t with
+          transaction_row = min (count - 1) (t.transaction_row + ps);
+          detail_scroll = 0;
+          notice = "";
+        }
   | Details ->
       if t.detail_scroll >= detail_end then { t with notice = "End of Details." }
       else { t with detail_scroll = min detail_end (t.detail_scroll + ps); notice = "" }
@@ -392,8 +406,7 @@ let cycle_filter ~book t =
 
 let cycle_order ~book t =
   let order = match t.order with Asc -> Desc | Desc -> Asc in
-  clamp_state ~book
-    { t with order; transaction_row = 0; detail_scroll = 0; notice = "" }
+  clamp_state ~book { t with order; transaction_row = 0; detail_scroll = 0; notice = "" }
 
 let begin_search ~book t =
   clamp_state ~book
@@ -416,8 +429,7 @@ let backspace_utf8 str =
       if idx <= 0 then 0
       else
         let byte = Char.code str.[idx] in
-        if byte land 0b1100_0000 <> 0b1000_0000 then idx
-        else find_last_char_start (idx - 1)
+        if byte land 0b1100_0000 <> 0b1000_0000 then idx else find_last_char_start (idx - 1)
     in
     let last_idx = find_last_char_start (String.length str - 1) in
     String.sub str 0 last_idx
@@ -470,8 +482,7 @@ let handle ~book ~dimensions ~width_of t (input : Ui_input.input) =
     | _ -> (t, Stay)
   else
     match input with
-    | `Key (`ASCII 'j', []) | `Key (`Arrow `Down, _) ->
-        (move_next ~book ~width_of geometry t, Stay)
+    | `Key (`ASCII 'j', []) | `Key (`Arrow `Down, _) -> (move_next ~book ~width_of geometry t, Stay)
     | `Key (`ASCII 'k', []) | `Key (`Arrow `Up, _) ->
         (move_previous ~book ~width_of geometry t, Stay)
     | `Key (`Page `Down, _) -> (move_page_down ~book ~width_of geometry t, Stay)
@@ -512,14 +523,11 @@ let handle ~book ~dimensions ~width_of t (input : Ui_input.input) =
         | Transactions | Details -> (
             match selected_entry ~book t with
             | Some entry -> (t, Open_selected entry)
-            | None ->
-                ({ t with notice = "No current Actual is selected to open." }, Stay))
-        | Loci ->
-            ({ t with notice = "Move to the Actuals pane before opening a record." }, Stay))
+            | None -> ({ t with notice = "No current Actual is selected to open." }, Stay))
+        | Loci -> ({ t with notice = "Move to the Actuals pane before opening a record." }, Stay))
     | `Key (`ASCII ('n' | 'N' | 'r' | 'R'), []) -> (t, Record_new)
     | `Key (`ASCII ('q' | 'Q'), _) | `Key (`Escape, _) ->
-        if t.pane = Details then ({ t with pane = Transactions; notice = "" }, Stay)
-        else (t, Back)
+        if t.pane = Details then ({ t with pane = Transactions; notice = "" }, Stay) else (t, Back)
     | `Key (`ASCII 'l', [ `Ctrl ]) -> (t, Redraw)
     | _ -> (t, Stay)
 
@@ -531,9 +539,7 @@ let scope_text t =
   | All_current -> "All Current"
 
 let current_locus_name ~book t =
-  match selected_locus ~book t with
-  | None -> "All loci"
-  | Some token -> display_locus ~book token
+  match selected_locus ~book t with None -> "All loci" | Some token -> display_locus ~book token
 
 let frame ~width_of ~width ~height ~focused ~title ~bottom rows =
   Panel.frame_rows ~inset:0 ?bottom_label:bottom ~width_of ~width ~height ~focused ~title rows
@@ -541,23 +547,36 @@ let frame ~width_of ~width ~height ~focused ~title ~bottom rows =
 (* Date and amount columns stay fixed while Description receives the rest. *)
 let table_row ~width_of width amount_width date desc amount =
   O.pad ~width_of 10 date ^ "  "
-  ^ O.pad ~width_of (max 0 (width - 10 - amount_width - 4)) desc ^ "  "
-  ^ O.pad_left ~width_of amount_width (if width_of amount <= amount_width then amount else "see details")
+  ^ O.pad ~width_of (max 0 (width - 10 - amount_width - 4)) desc
+  ^ "  "
+  ^ O.pad_left ~width_of amount_width
+      (if width_of amount <= amount_width then amount else "see details")
 
 let list_panel ~book ~width_of t ~records ~loci pane (width, height) title =
   let selected = if pane = Loci then t.locus_row else t.transaction_row in
-  let row_width = width - 5 (* two borders and the three-column selection marker *) in
+  let row_width =
+    width - 5
+    (* two borders and the three-column selection marker *)
+  in
   let tabular = row_width >= 40 in
   let amount_width =
     if pane = Loci then 0
     else
-      min (max 0 (row_width - 26))
-        (min 22 (max 12 (List.fold_left (fun w e -> max w (width_of (amount_summary book e))) 0 records)))
+      min
+        (max 0 (row_width - 26))
+        (min 22
+           (max 12 (List.fold_left (fun w e -> max w (width_of (amount_summary book e))) 0 records)))
   in
   let header =
     if pane = Loci || height < 4 then []
-    else [ (O.Chrome, "   " ^ (if tabular then table_row ~width_of row_width amount_width "Date" "Description" "Amount"
-                              else "Description")) ]
+    else
+      [
+        ( O.Chrome,
+          "   "
+          ^
+          if tabular then table_row ~width_of row_width amount_width "Date" "Description" "Amount"
+          else "Description" );
+      ]
   in
   let rows = list_capacity pane height in
   let start = if selected < rows then 0 else selected + 1 - rows in
@@ -570,8 +589,10 @@ let list_panel ~book ~width_of t ~records ~loci pane (width, height) title =
       else None
     else if index < Array.length records then
       let e = records.(index) in
-      Some (if tabular then table_row ~width_of row_width amount_width e.day (description e) (amount_summary book e)
-            else O.pad ~width_of (max 0 row_width) (description e))
+      Some
+        (if tabular then
+           table_row ~width_of row_width amount_width e.day (description e) (amount_summary book e)
+         else O.pad ~width_of (max 0 row_width) (description e))
     else None
   in
   let active = pane = t.pane in
@@ -581,20 +602,24 @@ let list_panel ~book ~width_of t ~records ~loci pane (width, height) title =
         match label index with
         | Some text ->
             let chosen = index = selected in
-            ((if chosen && active then O.Active else O.Plain),
-             (if chosen then (if active then " > " else " * ") else "   ") ^ text)
+            ( (if chosen && active then O.Active else O.Plain),
+              (if chosen then if active then " > " else " * " else "   ") ^ text )
         | None ->
             (O.Plain, if row = 0 && pane = Transactions then " (no matching Actual records)" else ""))
   in
   let total = if pane = Loci then Array.length loci + 1 else Array.length records in
   let position = if total = 0 then "0/0" else Printf.sprintf "%d/%d" (selected + 1) total in
   let more = if start + rows < total then " ▼" else "" in
-  frame ~width_of ~width ~height ~focused:active ~title ~bottom:(Some (position ^ more)) (header @ content)
+  frame ~width_of ~width ~height ~focused:active ~title
+    ~bottom:(Some (position ^ more))
+    (header @ content)
 
 let detail_panel ~book ~width_of (width, height) t =
   let focused = t.pane = Details in
   let capacity = max 0 (height - 2) in
-  let lines = detail_raw_lines ~book ~width_of ~width:(max 1 (width - 2)) (selected_entry ~book t) in
+  let lines =
+    detail_raw_lines ~book ~width_of ~width:(max 1 (width - 2)) (selected_entry ~book t)
+  in
   let max_scroll = max 0 (List.length lines - capacity) in
   let scroll = min t.detail_scroll max_scroll in
   let visible = List.filteri (fun i _ -> i >= scroll && i < scroll + capacity) lines in
@@ -602,19 +627,28 @@ let detail_panel ~book ~width_of (width, height) t =
   let bottom =
     if focused then
       let indicator =
-        if has_more && can_scroll_up then "▲▼" else if has_more then "▼" else if can_scroll_up then "▲" else "" in
-      Some (if indicator = "" then "[j/k] scroll  [Esc] back"
-            else Printf.sprintf "[j/k] scroll %s  [Esc] back" indicator)
+        if has_more && can_scroll_up then "▲▼"
+        else if has_more then "▼"
+        else if can_scroll_up then "▲"
+        else ""
+      in
+      Some
+        (if indicator = "" then "[j/k] scroll  [Esc] back"
+         else Printf.sprintf "[j/k] scroll %s  [Esc] back" indicator)
     else if has_more then Some "▼ [i] more"
     else None
   in
-  frame ~width_of ~width ~height ~focused ~title:("Details" ^ if focused then " [active]" else "") ~bottom visible
+  frame ~width_of ~width ~height ~focused
+    ~title:("Details" ^ if focused then " [active]" else "")
+    ~bottom visible
 
 let search_line ~width ~width_of t =
   let width = max 0 width in
   if t.search_editing && width > 0 then
     let caption = O.clip_text ~width_of (width - 1) " Search: /" in
-    let query = O.tail_text ~width_of (max 0 (width - width_of caption - 1)) (O.visible t.search_query) in
+    let query =
+      O.tail_text ~width_of (max 0 (width - width_of caption - 1)) (O.visible t.search_query)
+    in
     let text = caption ^ query in
     (O.Input (width_of text), text ^ " ")
   else (O.Chrome, O.clip_text ~width_of width (" Search: /" ^ t.search_query))
@@ -624,55 +658,78 @@ let screen ~book ~today ~draft_retained ~dimensions ~width_of t =
   let loci = loci_for_scope ~book t in
   let t = clamp_state ~book t in
   let records = visible_entries ~book t in
-  let order_tag, order_text = match t.order with Asc -> ("asc", "oldest first") | Desc -> ("desc", "newest first") in
+  let order_tag, order_text =
+    match t.order with Asc -> ("asc", "oldest first") | Desc -> ("desc", "newest first")
+  in
   let left_header =
-    "Loci" ^ (if t.pane = Loci then " [active]" else "") ^ Printf.sprintf " (%d)" (List.length loci) in
+    "Loci" ^ (if t.pane = Loci then " [active]" else "") ^ Printf.sprintf " (%d)" (List.length loci)
+  in
   let right_header =
-    "Actuals" ^ (if t.pane = Transactions then " [active]" else "")
-    ^ Printf.sprintf " (%d, %s, %s)" (List.length records) order_tag order_text in
+    "Actuals"
+    ^ (if t.pane = Transactions then " [active]" else "")
+    ^ Printf.sprintf " (%d, %s, %s)" (List.length records) order_tag order_text
+  in
   let searching = t.search_query <> "" || t.search_editing in
   let context_line =
     if searching then search_line ~width:g.writable ~width_of t
-    else (O.Chrome, O.clip_text ~width_of g.writable
-            (" " ^ scope_text t ^ "  |  " ^ current_locus_name ~book t)) in
+    else
+      ( O.Chrome,
+        O.clip_text ~width_of g.writable (" " ^ scope_text t ^ "  |  " ^ current_locus_name ~book t)
+      )
+  in
   (* Bakhlo keeps its retained-draft warning visible in the workspace title. *)
   let title =
-    (O.Plain, O.clip_text ~width_of g.writable
-       (" Household Actuals Workspace  |  known through " ^ today
-        ^ if draft_retained then "   Draft retained" else "")) in
+    ( O.Plain,
+      O.clip_text ~width_of g.writable
+        (" Household Actuals Workspace  |  known through " ^ today
+        ^ if draft_retained then "   Draft retained" else "") )
+  in
   let context =
     if g.context_rows = 1 && searching then [ context_line ]
-    else List.filteri (fun i _ -> i < g.context_rows) [ title; context_line ] in
-  let list pane width title = list_panel ~book ~width_of t ~records ~loci pane (width, list_height g pane) title in
+    else List.filteri (fun i _ -> i < g.context_rows) [ title; context_line ]
+  in
+  let list pane width title =
+    list_panel ~book ~width_of t ~records ~loci pane (width, list_height g pane) title
+  in
   let detail () = detail_panel ~book ~width_of (detail_bounds g t.pane) t in
   let panels =
     if g.wide then
       let left = list Loci g.left_width left_header @ detail () in
       let right = list Transactions (g.writable - g.left_width - 1) right_header in
-      List.map2 (fun (ls, lt) (rs, rt) -> (O.Columns (g.left_width, ls, rs), lt ^ " " ^ rt)) left right
+      List.map2
+        (fun (ls, lt) (rs, rt) -> (O.Columns (g.left_width, ls, rs), lt ^ " " ^ rt))
+        left right
     else if t.pane = Details && g.detail_height = 0 then detail ()
     else
       let pane = if t.pane = Loci then Loci else Transactions in
       list pane g.writable (if pane = Loci then left_header else right_header)
-      @ (if g.detail_height > 0 then detail () else [])
+      @ if g.detail_height > 0 then detail () else []
   in
   context @ panels
 
 let footer ~dimensions ~width_of t =
   let width, _ = dimensions in
   if t.search_editing then
-    [ "Search input: type text   Backspace delete   Enter keep   Esc clear";
-      "Matches update live across all current Actual evidence." ]
+    [
+      "Search input: type text   Backspace delete   Enter keep   Esc clear";
+      "Matches update live across all current Actual evidence.";
+    ]
   else if t.pane = Details then
-    [ "[j/k] scroll details  [h/l] pane  [Esc/i] return to Actuals";
-      "[Enter] open selected  [d] date  [m] merchant  [n] new  [q] back" ]
+    [
+      "[j/k] scroll details  [h/l] pane  [Esc/i] return to Actuals";
+      "[Enter] open selected  [d] date  [m] merchant  [n] new  [q] back";
+    ]
   else
-    let detailed = "[j/k] select  [h/l] pane  [Tab] cycle  [i] details  [f] filter  [s] sort  [/] search" in
+    let detailed =
+      "[j/k] select  [h/l] pane  [Tab] cycle  [i] details  [f] filter  [s] sort  [/] search"
+    in
     if width_of detailed <= width then
       [ detailed; "[Enter] open selected  [d] date  [m] merchant  [n] new  [q] back" ]
     else
-      [ "[j/k] sel [h/l] pane [Tab] cycle [i] info [f] filter [s] sort [/] search";
-        "[Enter] open [d] date [m] merchant [n] new [q] back" ]
+      [
+        "[j/k] sel [h/l] pane [Tab] cycle [i] info [f] filter [s] sort [/] search";
+        "[Enter] open [d] date [m] merchant [n] new [q] back";
+      ]
 
 (* The search caret sits on the context row that paints the search line. *)
 let cursor_position ~dimensions ~width_of t =
@@ -684,4 +741,8 @@ let cursor_position ~dimensions ~width_of t =
 let detail_window ~book ~dimensions ~width_of t =
   let g = terminal_geometry dimensions in
   let last = detail_scroll_limit ~book ~width_of g t in
-  { Panel.capacity = max 0 (snd (detail_bounds g t.pane) - 2); start = min last t.detail_scroll; last }
+  {
+    Panel.capacity = max 0 (snd (detail_bounds g t.pane) - 2);
+    start = min last t.detail_scroll;
+    last;
+  }

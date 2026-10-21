@@ -77,18 +77,22 @@ let with_added_effects model effects =
 
 let negate change =
   D.Effect.create ~key:(D.Effect.key change) ~locus:(D.Effect.locus change)
-    ~measure:(D.Effect.measure change) ~quantity:(Q.neg (D.Effect.quantity change))
+    ~measure:(D.Effect.measure change)
+    ~quantity:(Q.neg (D.Effect.quantity change))
 
 let with_replaced_effects model ~event ~old_effects ~new_effects =
-  if Base.Map.is_empty model.answers || Reflected_root_cut.is_reflected model.source_cut event then model
+  if Base.Map.is_empty model.answers || Reflected_root_cut.is_reflected model.source_cut event then
+    model
   else
     apply_net model
       (Effect_sum.add_effects Effect_sum.empty (new_effects @ Base.List.map old_effects ~f:negate))
 
 let restrict model ~keep =
-  { model with
+  {
+    model with
     assertions = Base.List.filter model.assertions ~f:(fun (a : assertion) -> keep a.coordinate);
-    answers = Base.Map.filteri model.answers ~f:(fun ~key ~data:_ -> keep key) }
+    answers = Base.Map.filteri model.answers ~f:(fun ~key ~data:_ -> keep key);
+  }
 
 let query model coordinate =
   match Base.Map.find model.answers coordinate with

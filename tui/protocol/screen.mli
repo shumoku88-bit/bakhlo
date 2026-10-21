@@ -17,14 +17,27 @@
 
 (** The Shell's routes; a screen asks for one with [Open_route]. *)
 type route =
-  | Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace
-  | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow | Liquidity
+  | Home
+  | Calendar
+  | Selected_day of string
+  | Actual
+  | Scheduled
+  | Balances
+  | Daily_pace
+  | Attention
+  | Loci
+  | Settlements
+  | Income_expense
+  | Transactions_flow
+  | Stock_flow
+  | Liquidity
   | Trend_locus
   | Multicurrency_spend
 
 type env = {
   book : Bakhlo_sexp.Daily_book.t;
-  revision : string;  (** Revision of the household file the book was read from: a publication base. *)
+  revision : string;
+      (** Revision of the household file the book was read from: a publication base. *)
   new_id : unit -> string;  (** Fresh identity for a new entry or plan. *)
   measure : string;  (** Shell-selected Measure. *)
   calendar : Daily_calendar.t;  (** Shell focus day and zoom, shared by every route. *)
@@ -36,14 +49,17 @@ type env = {
   settlements : (Settlement_data.t, string) result;
       (** Settlement commitments loaded by the Shell; an error is never empty. *)
   blocked : bool;  (** Writes stopped after a conflict, recovery or uncertain outcome. *)
-  draft_retained : bool;  (** A Record draft is retained; workspace screens show it in their context. *)
+  draft_retained : bool;
+      (** A Record draft is retained; workspace screens show it in their context. *)
   config : string -> (string option, string) result;
       (** Bytes of a configuration file captured for this event: [Ok None] is
           missing, never empty; an error is never a default. *)
 }
 
-type layout = Standard | Workspace
-(** Workspace owns its context rows and reserves the terminal's last column
+type layout =
+  | Standard
+  | Workspace
+      (** Workspace owns its context rows and reserves the terminal's last column
     and row. The Shell still owns feedback and the two navigation rows. *)
 
 type geometry = {
@@ -74,7 +90,9 @@ type publication =
   | Reverse_entry of { id : string; day : string; base : string }
   | Correct_entry_date of { id : string; day : string; base : string }
   | Classify_merchant of {
-      id : string; disposition : Bakhlo_application.Event_merchants.disposition; base : string;
+      id : string;
+      disposition : Bakhlo_application.Event_merchants.disposition;
+      base : string;
       message : string;  (** Success report replacing the generic one. *)
     }
   | Cancel_plan of { id : string; day : string; base : string }
@@ -93,7 +111,14 @@ type publish_outcome =
 type record_target = Entry of Bakhlo_sexp.Daily_book.entry | Plan of Bakhlo_sexp.Daily_book.plan
 
 type record_action =
-  | Edit | Pay | Reverse | Correct_date | Classify_merchant | Cancel | Batch | Generate
+  | Edit
+  | Pay
+  | Reverse
+  | Correct_date
+  | Classify_merchant
+  | Cancel
+  | Batch
+  | Generate
   | Generate_every of int  (** Generate with a monitored cadence in months preselected. *)
 
 type request =
@@ -113,7 +138,8 @@ type request =
   | Open_route of route
   | Back  (** Leave this route: to the screen it was drilled from, or Home. *)
   | Quit  (** Leave the application (Home Esc / q). *)
-  | Set_calendar of { calendar : Daily_calendar.t; clear_message : bool }  (** Move the Shell focus day or zoom; Esc zoom-back preserves existing feedback. *)
+  | Set_calendar of { calendar : Daily_calendar.t; clear_message : bool }
+      (** Move the Shell focus day or zoom; Esc zoom-back preserves existing feedback. *)
   | Open_observe  (** Open an empty Observe draft over this route. *)
   | New_plan  (** Open the Scheduled creation editor on the focus day. *)
   | Record_action of { action : record_action; target : record_target option }
@@ -154,6 +180,10 @@ val no_publication : env -> geometry -> publish_outcome -> 'a -> 'a * request
 val env_for_checks :
   ?accounting_roles:(string * Daily_overlays.accounting_role) list ->
   ?config:(string -> (string option, string) result) ->
-  book:Bakhlo_sexp.Daily_book.t -> measure:string -> today:string -> unit -> env
+  book:Bakhlo_sexp.Daily_book.t ->
+  measure:string ->
+  today:string ->
+  unit ->
+  env
 (** A synthetic environment for owner checks: empty sidecars,
     writes allowed, undeclared configuration refused. *)

@@ -76,9 +76,11 @@ let groups t = List.map t.qualified_groups ~f:(fun group -> group.facts)
 
 let reindex t qualified_groups =
   let owners =
-    List.fold qualified_groups ~init:(Map.empty (module Effect_coordinate))
+    List.fold qualified_groups
+      ~init:(Map.empty (module Effect_coordinate))
       ~f:(fun owners qg ->
-        List.fold qg.facts.assertions ~init:owners ~f:(fun owners (assertion : Projection.assertion) ->
+        List.fold qg.facts.assertions ~init:owners
+          ~f:(fun owners (assertion : Projection.assertion) ->
             Map.set owners ~key:assertion.coordinate ~data:qg.projection))
   in
   { t with qualified_groups; owners }
@@ -86,8 +88,11 @@ let reindex t qualified_groups =
 let with_replaced_effects t ~event ~old_effects ~new_effects =
   reindex t
     (List.map t.qualified_groups ~f:(fun qg ->
-         { qg with
-           projection = Projection.with_replaced_effects qg.projection ~event ~old_effects ~new_effects }))
+         {
+           qg with
+           projection =
+             Projection.with_replaced_effects qg.projection ~event ~old_effects ~new_effects;
+         }))
 
 let with_added_effects t effects =
   if List.is_empty effects || List.is_empty t.qualified_groups then t
@@ -148,24 +153,32 @@ let reobserve_in_place t ~cut assertions =
   | Error error -> Error (Invalid_assertions { group_position = 1; error })
   | Ok projection ->
       let incoming =
-        { facts = { reflected_roots = Reflected_root_cut.reflected_roots cut; assertions }; projection }
+        {
+          facts = { reflected_roots = Reflected_root_cut.reflected_roots cut; assertions };
+          projection;
+        }
       in
       let replaced =
-        Set.of_list (module Effect_coordinate)
+        Set.of_list
+          (module Effect_coordinate)
           (List.map assertions ~f:(fun (assertion : Projection.assertion) -> assertion.coordinate))
       in
       let keep coordinate = not (Set.mem replaced coordinate) in
       let reduced =
         List.filter_map t.qualified_groups ~f:(fun group ->
             let kept =
-              List.filter group.facts.assertions ~f:(fun (a : Projection.assertion) -> keep a.coordinate)
+              List.filter group.facts.assertions ~f:(fun (a : Projection.assertion) ->
+                  keep a.coordinate)
             in
             if List.is_empty kept then None
-            else if Int.equal (List.length kept) (List.length group.facts.assertions) then Some group
+            else if Int.equal (List.length kept) (List.length group.facts.assertions) then
+              Some group
             else
               Some
-                { facts = { group.facts with assertions = kept };
-                  projection = Projection.restrict group.projection ~keep })
+                {
+                  facts = { group.facts with assertions = kept };
+                  projection = Projection.restrict group.projection ~keep;
+                })
       in
       let qualified_groups = reduced @ [ incoming ] in
       List.fold_result qualified_groups
@@ -173,4 +186,5 @@ let reobserve_in_place t ~cut assertions =
         ~f:(fun (group_position, owners) group ->
           Result.map (index_group ~group_position owners group) ~f:(fun owners ->
               (group_position + 1, owners)))
-      |> Result.map ~f:(fun (_, owners) -> materialize ~frontier:t.frontier ~qualified_groups owners)
+      |> Result.map ~f:(fun (_, owners) ->
+          materialize ~frontier:t.frontier ~qualified_groups owners)

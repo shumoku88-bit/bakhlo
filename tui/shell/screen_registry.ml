@@ -48,18 +48,19 @@ let create ~scheduled_months =
 
 type 'a owner = {
   layout : Screen.layout;
-  owns : W.route -> bool;  (* false for an editor that opens over any route *)
+  owns : W.route -> bool; (* false for an editor that opens over any route *)
   config_files : string list;
   get : t -> 'a;
   set : t -> 'a -> t;
-  enter : W.route -> focus_day:string -> 'a -> 'a;  (* the Shell's focus day *)
+  enter : W.route -> focus_day:string -> 'a -> 'a; (* the Shell's focus day *)
   modal : 'a -> bool;
   handle : Screen.env -> Screen.geometry -> 'a -> Ui_input.input -> 'a * Screen.request;
   view : Screen.env -> Screen.geometry -> 'a -> Screen.view;
   saved : Screen.env -> Screen.geometry -> (unit, string) result -> 'a -> 'a * Screen.request;
   published : Screen.env -> Screen.geometry -> Screen.publish_outcome -> 'a -> 'a * Screen.request;
   reloaded : Screen.env -> 'a -> 'a * Screen.request;
-  book_changed : before:Bakhlo_sexp.Daily_book.t -> after:Bakhlo_sexp.Daily_book.t -> 'a -> 'a * string;
+  book_changed :
+    before:Bakhlo_sexp.Daily_book.t -> after:Bakhlo_sexp.Daily_book.t -> 'a -> 'a * string;
       (* after a publication or a drill return; the string is a notice *)
 }
 
@@ -73,7 +74,7 @@ let all =
     Owner
       {
         layout = Screen.Workspace;
-        owns = (( = ) W.Daily_pace);
+        owns = ( = ) W.Daily_pace;
         config_files = Daily_pace_screen.config_files;
         get = (fun t -> t.pace);
         set = (fun t pace -> { t with pace });
@@ -89,7 +90,7 @@ let all =
     Owner
       {
         layout = Screen.Standard;
-        owns = (( = ) W.Balances);
+        owns = ( = ) W.Balances;
         config_files = Balances_screen.config_files;
         get = (fun t -> t.balances);
         set = (fun t balances -> { t with balances });
@@ -105,7 +106,7 @@ let all =
     Owner
       {
         layout = Screen.Standard;
-        owns = (( = ) W.Income_expense);
+        owns = ( = ) W.Income_expense;
         config_files = Income_expense_screen.config_files;
         get = (fun t -> t.income_expense);
         set = (fun t income_expense -> { t with income_expense });
@@ -121,7 +122,7 @@ let all =
     Owner
       {
         layout = Screen.Standard;
-        owns = (( = ) W.Transactions_flow);
+        owns = ( = ) W.Transactions_flow;
         config_files = Transactions_flow_screen.config_files;
         get = (fun t -> t.transactions_flow);
         set = (fun t transactions_flow -> { t with transactions_flow });
@@ -137,7 +138,7 @@ let all =
     Owner
       {
         layout = Screen.Standard;
-        owns = (( = ) W.Stock_flow);
+        owns = ( = ) W.Stock_flow;
         config_files = Stock_flow_screen.config_files;
         get = (fun t -> t.stock_flow);
         set = (fun t stock_flow -> { t with stock_flow });
@@ -153,7 +154,7 @@ let all =
     Owner
       {
         layout = Screen.Workspace;
-        owns = (( = ) W.Trend_locus);
+        owns = ( = ) W.Trend_locus;
         config_files = Trend_locus_screen.config_files;
         get = (fun t -> t.trend_locus);
         set = (fun t trend_locus -> { t with trend_locus });
@@ -169,7 +170,7 @@ let all =
     Owner
       {
         layout = Screen.Standard;
-        owns = (( = ) W.Liquidity);
+        owns = ( = ) W.Liquidity;
         config_files = Liquidity_screen.config_files;
         get = (fun t -> t.liquidity);
         set = (fun t liquidity -> { t with liquidity });
@@ -185,7 +186,7 @@ let all =
     Owner
       {
         layout = Screen.Standard;
-        owns = (( = ) W.Multicurrency_spend);
+        owns = ( = ) W.Multicurrency_spend;
         config_files = Multicurrency_spend_screen.config_files;
         get = (fun t -> t.multicurrency_spend);
         set = (fun t multicurrency_spend -> { t with multicurrency_spend });
@@ -201,7 +202,7 @@ let all =
     Owner
       {
         layout = Screen.Standard;
-        owns = (( = ) W.Attention);
+        owns = ( = ) W.Attention;
         config_files = Attention_screen.config_files;
         get = (fun t -> t.attention);
         set = (fun t attention -> { t with attention });
@@ -217,7 +218,7 @@ let all =
     Owner
       {
         layout = Screen.Standard;
-        owns = (( = ) W.Settlements);
+        owns = ( = ) W.Settlements;
         config_files = Settlements_screen.config_files;
         get = (fun t -> t.settlements);
         set = (fun t settlements -> { t with settlements });
@@ -233,7 +234,7 @@ let all =
     Owner
       {
         layout = Screen.Standard;
-        owns = (( = ) W.Loci);
+        owns = ( = ) W.Loci;
         config_files = Loci_screen.config_files;
         get = (fun t -> t.loci);
         set = (fun t loci -> { t with loci });
@@ -297,7 +298,7 @@ let all =
     Owner
       {
         layout = Screen.Workspace;
-        owns = (( = ) W.Actual);
+        owns = ( = ) W.Actual;
         config_files = Actual_screen.config_files;
         get = (fun t -> t.actual);
         set = (fun t actual -> { t with actual });
@@ -313,7 +314,7 @@ let all =
     Owner
       {
         layout = Screen.Standard;
-        owns = (( = ) W.Scheduled);
+        owns = ( = ) W.Scheduled;
         config_files = Scheduled_screen.config_files;
         get = (fun t -> t.scheduled);
         set = (fun t scheduled -> { t with scheduled });
@@ -342,37 +343,49 @@ let all =
         reloaded = Selected_day_screen.reloaded;
         book_changed = Selected_day_screen.book_changed;
       };
-    Owner {
-      layout = Screen.Standard;
-      owns = (function W.Home | W.Calendar -> true | _ -> false);
-      config_files = Calendar_home_screen.config_files;
-      get = (fun t -> t.calendar_home);
-      set = (fun t calendar_home -> { t with calendar_home });
-      enter = (fun _ ~focus_day:_ t -> t); (* notified for every route below *)
-      modal = Calendar_home_screen.modal;
-      handle = Calendar_home_screen.handle;
-      view = Calendar_home_screen.view;
-      saved = no_save;
-      published = Screen.no_publication;
-      reloaded = Calendar_home_screen.reloaded;
-      book_changed = Calendar_home_screen.book_changed;
-    };
+    Owner
+      {
+        layout = Screen.Standard;
+        owns = (function W.Home | W.Calendar -> true | _ -> false);
+        config_files = Calendar_home_screen.config_files;
+        get = (fun t -> t.calendar_home);
+        set = (fun t calendar_home -> { t with calendar_home });
+        enter = (fun _ ~focus_day:_ t -> t);
+        (* notified for every route below *)
+        modal = Calendar_home_screen.modal;
+        handle = Calendar_home_screen.handle;
+        view = Calendar_home_screen.view;
+        saved = no_save;
+        published = Screen.no_publication;
+        reloaded = Calendar_home_screen.reloaded;
+        book_changed = Calendar_home_screen.book_changed;
+      };
   ]
 
 let for_route route = List.find_opt (fun (Owner o) -> o.owns route) all
 let modal t = List.find_opt (fun (Owner o) -> o.modal (o.get t)) all
 
 let enter route ~focus_day t =
-  let t = { t with calendar_home = Calendar_home_screen.entered route ~focus_day t.calendar_home } in
-  match for_route route with Some (Owner o) -> o.set t (o.enter route ~focus_day (o.get t)) | None -> t
+  let t =
+    { t with calendar_home = Calendar_home_screen.entered route ~focus_day t.calendar_home }
+  in
+  match for_route route with
+  | Some (Owner o) -> o.set t (o.enter route ~focus_day (o.get t))
+  | None -> t
 
 (* Let the route's owner keep its place across a book change. *)
 let book_changed route ~before ~after t =
   match for_route route with
-  | Some (Owner o) -> let value, notice = o.book_changed ~before ~after (o.get t) in (o.set t value, notice)
+  | Some (Owner o) ->
+      let value, notice = o.book_changed ~before ~after (o.get t) in
+      (o.set t value, notice)
   | None -> (t, "")
 
 (* A finished publication closes every editor floating over the route. *)
 let dismiss_floating t =
-  { t with observe = Observe_screen.create (); exchange = Exchange_screen.create ();
-           editors = Record_editors.create () }
+  {
+    t with
+    observe = Observe_screen.create ();
+    exchange = Exchange_screen.create ();
+    editors = Record_editors.create ();
+  }

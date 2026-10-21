@@ -4,7 +4,6 @@
 type t
 
 val config_files : string list
-
 val create : unit -> t
 
 val enter : Screen.env -> focus_day:string -> t -> t
@@ -16,7 +15,6 @@ val resume : focus_day:string -> t -> t
     pending entry against the environment. *)
 
 val window : t -> string * string
-
 val source_label : t -> string
 
 val result : t -> (Multicurrency_spend_report.snapshot, string) result
@@ -24,19 +22,11 @@ val result : t -> (Multicurrency_spend_report.snapshot, string) result
     any edit/source change/reset/reload/book change, and after a failed Run. *)
 
 val modal : t -> bool
-
-val handle :
-  Screen.env -> Screen.geometry -> t -> Ui_input.input -> t * Screen.request
-
-val saved :
-  Screen.env -> Screen.geometry -> (unit, string) result -> t -> t * Screen.request
-
+val handle : Screen.env -> Screen.geometry -> t -> Ui_input.input -> t * Screen.request
+val saved : Screen.env -> Screen.geometry -> (unit, string) result -> t -> t * Screen.request
 val reloaded : Screen.env -> t -> t * Screen.request
 
 val book_changed :
-  before:Bakhlo_sexp.Daily_book.t ->
-  after:Bakhlo_sexp.Daily_book.t ->
-  t ->
-  t * string
+  before:Bakhlo_sexp.Daily_book.t -> after:Bakhlo_sexp.Daily_book.t -> t -> t * string
 
 val view : Screen.env -> Screen.geometry -> t -> Screen.view

@@ -3,14 +3,13 @@ module M = Bakhlo_application.Event_merchants
 
 type choice = Merchant | Nonmerchant
 type mode = Editing | Preview
-
 type t
 
 type outcome =
   | Updated of t
   | Closed
   | Publish of string * M.disposition * string
-(** [Publish (target_id, disposition, base_revision)] is an intent, not a saved entry. *)
+      (** [Publish (target_id, disposition, base_revision)] is an intent, not a saved entry. *)
 
 val create : base_revision:string -> B.entry -> t
 val base_revision : t -> string
@@ -20,19 +19,12 @@ val party_input : t -> string
 val is_preview : t -> bool
 val edit : t -> t
 val with_publish_error : t -> string -> t
-
 val dimensions : int * int -> int * int
+
 val handle :
-  blocked:bool ->
-  dimensions:int * int ->
-  width_of:(string -> int) ->
-  t ->
-  Ui_input.input ->
-  outcome
+  blocked:bool -> dimensions:int * int -> width_of:(string -> int) -> t -> Ui_input.input -> outcome
 
 val footer : t -> string list
+
 val screen :
-  dimensions:int * int ->
-  width_of:(string -> int) ->
-  t ->
-  (Daily_overlays.style * string) list
+  dimensions:int * int -> width_of:(string -> int) -> t -> (Daily_overlays.style * string) list

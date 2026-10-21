@@ -7,11 +7,11 @@
    flows of the projection's shared, nonempty windows. *)
 module O = Daily_overlays
 
-let markers = [| "●"; "◆"; "▲"; "■"; "□" |]
 (** The five distinct series markers, in slot order. *)
+let markers = [| "●"; "◆"; "▲"; "■"; "□" |]
 
-let collision = "◎"
 (** Drawn where two series share one cell. *)
+let collision = "◎"
 
 type series = { marker : string; values : Z.t array }
 (** One exact recorded value per shared x position. *)
@@ -47,7 +47,12 @@ let scale series =
   | Some first ->
       let low = ref first.values.(0) and high = ref first.values.(0) in
       Array.iter
-        (fun s -> Array.iter (fun value -> low := Z.min !low value; high := Z.max !high value) s.values)
+        (fun s ->
+          Array.iter
+            (fun value ->
+              low := Z.min !low value;
+              high := Z.max !high value)
+            s.values)
         series;
       let low = !low and high = !high in
       let low, high =
@@ -63,17 +68,15 @@ let scale series =
       let high = if Z.leq high low then Z.add low step else high in
       Some (low, high, step)
 
-
 let row_for_value height low high value =
   if height <= 1 || Z.leq high low then 0
   else
     let offset = Z.ediv (Z.mul (Z.sub value low) (Z.of_int (height - 1))) (Z.sub high low) in
     let offset = if Z.lt offset (Z.of_int (height - 1)) then Z.to_int offset else height - 1 in
-    (height - 1) - offset
+    height - 1 - offset
 
 let x_for_index width count index =
-  if width <= 1 || count <= 1 then 0
-  else min (width - 1) (index * (width - 1) / (count - 1))
+  if width <= 1 || count <= 1 then 0 else min (width - 1) (index * (width - 1) / (count - 1))
 
 let render ~width ~height ~width_of ~label t =
   let width = max 0 width and height = max 0 height in
@@ -108,11 +111,13 @@ let render ~width ~height ~width_of ~label t =
           let sx = if x0 < x1 then 1 else -1 and sy = if y0 < y1 then 1 else -1 in
           let rec walk x y error =
             if get x y = " " then set x y "·";
-            if x <> x1 || y <> y1 then (
+            if x <> x1 || y <> y1 then
               let twice = 2 * error in
               let move_x = twice > -dy and move_y = twice < dx in
-              walk (if move_x then x + sx else x) (if move_y then y + sy else y)
-                (error - (if move_x then dy else 0) + if move_y then dx else 0))
+              walk
+                (if move_x then x + sx else x)
+                (if move_y then y + sy else y)
+                (error - (if move_x then dy else 0) + if move_y then dx else 0)
           in
           walk x0 y0 (dx - dy)
         in
@@ -140,11 +145,11 @@ let render ~width ~height ~width_of ~label t =
                    else collision))
               s.values)
           t.series;
-        if Z.leq low Z.zero && Z.leq Z.zero high then (
-          let y = row_for_value plot_height low high Z.zero in
-          for x = 0 to plot_width - 1 do
-            if get x y = " " then set x y "┄"
-          done);
+        (if Z.leq low Z.zero && Z.leq Z.zero high then
+           let y = row_for_value plot_height low high Z.zero in
+           for x = 0 to plot_width - 1 do
+             if get x y = " " then set x y "┄"
+           done);
         List.iter
           (fun guide ->
             let x = x_for_index plot_width t.count guide in

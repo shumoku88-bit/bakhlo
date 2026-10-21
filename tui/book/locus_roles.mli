@@ -1,11 +1,6 @@
 (** locus_roles.mli - Accounting roles for Loci and the accounting-roles.tsv text format (no file access) *)
 
-type role = Daily_overlays.accounting_role =
-  | Asset
-  | Liability
-  | Equity
-  | Income
-  | Expense
+type role = Daily_overlays.accounting_role = Asset | Liability | Equity | Income | Expense
 
 val role_to_string : role -> string
 val role_of_string : string -> role option
@@ -17,10 +12,8 @@ type t = (string * role) list
 val empty : t
 val get_role : t -> string -> role option
 val set_role : t -> string -> role option -> t
-
 val of_string : string -> t
 val to_string : t -> string
-
 
 val file_name : string
 (** Configuration file holding explicit Locus accounting roles. *)

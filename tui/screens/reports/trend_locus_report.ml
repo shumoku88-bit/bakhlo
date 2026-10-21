@@ -7,9 +7,7 @@ module Cal = Daily_calendar
 module IncExp = Income_expense_report
 
 type grain = Cycle | Month | Day
-
 type scope = All_history | Current_cycle | Current_month | Last_30_days
-
 type coordinate = { locus : string; measure : string }
 
 type point = {
@@ -35,7 +33,6 @@ type snapshot = {
 }
 
 let ( let* ) = Result.bind
-
 let grain_label = function Cycle -> "Cycle" | Month -> "Month" | Day -> "Day"
 
 let scope_label = function
@@ -55,8 +52,9 @@ let day_ordinal day =
       let leap = year mod 400 = 0 || (year mod 4 = 0 && year mod 100 <> 0) in
       Some
         ((365 * prior) + (prior / 4) - (prior / 100) + (prior / 400)
-        + month_starts.(month - 1) + day_of_month
-        + (if leap && month > 2 then 1 else 0))
+        + month_starts.(month - 1)
+        + day_of_month
+        + if leap && month > 2 then 1 else 0)
 
 let days_between start_day end_exclusive =
   match (day_ordinal start_day, day_ordinal end_exclusive) with
@@ -88,22 +86,17 @@ let configured_bounds ~observed_at ~text =
       windows
   in
   let* preset, cycle_start =
-    match
-      List.sort_uniq String.compare (List.map (fun (name, _, _) -> name) containing)
-    with
+    match List.sort_uniq String.compare (List.map (fun (name, _, _) -> name) containing) with
     | [ preset ] -> (
         match List.find_opt (fun (name, _, _) -> name = preset) containing with
         | Some (_, start_day, _) -> Ok (preset, start_day)
         | None -> Error "No explicit boundary preset contains the observation day.")
     | [] -> Error "No explicit boundary preset contains the observation day."
-    | _ ->
-        Error "Multiple boundary presets contain the observation day; selection is ambiguous."
+    | _ -> Error "Multiple boundary presets contain the observation day; selection is ambiguous."
   in
   let windows = List.filter (fun (name, _, _) -> name = preset) windows in
   let history_start =
-    List.fold_left
-      (fun first (_, start_day, _) -> min first start_day)
-      cycle_start windows
+    List.fold_left (fun first (_, start_day, _) -> min first start_day) cycle_start windows
   in
   Ok { preset; history_start; cycle_start; windows }
 
@@ -159,8 +152,7 @@ let window_total (days, sums) start_day end_exclusive =
   Z.sub sums.(lower_bound days end_exclusive) sums.(lower_bound days start_day)
 
 let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates =
-  if not (canonical_date observed_at) then
-    Error "Observation day is not a real Gregorian date."
+  if not (canonical_date observed_at) then Error "Observation day is not a real Gregorian date."
   else
     let* measure = validate_coordinates ~book ~coordinates in
     let* scope_end_exclusive =
@@ -200,8 +192,7 @@ let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates
                   let end_exclusive = min natural_end scope_end_exclusive in
                   if start_day >= end_exclusive then loop natural_end acc
                   else
-                    loop natural_end
-                      ((start_day, end_exclusive, natural_start, natural_end) :: acc)
+                    loop natural_end ((start_day, end_exclusive, natural_start, natural_end) :: acc)
           in
           loop (String.sub scope_start 0 8 ^ "01") []
       | Cycle ->
@@ -233,13 +224,11 @@ let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates
               if
                 Hashtbl.mem selected locus
                 && D.Identifier.Measure.to_string (D.Effect.measure effect) = measure
-              then (
+              then
                 let table = Hashtbl.find daily locus in
                 let quantity = D.Quantity.quanta (D.Effect.quantity effect) in
-                let prior =
-                  Option.value ~default:Z.zero (Hashtbl.find_opt table entry.day)
-                in
-                Hashtbl.replace table entry.day (Z.add prior quantity)))
+                let prior = Option.value ~default:Z.zero (Hashtbl.find_opt table entry.day) in
+                Hashtbl.replace table entry.day (Z.add prior quantity))
             entry.effects)
       (B.entries book);
     let prefix_of locus =
@@ -250,8 +239,7 @@ let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates
       in
       let sums = Array.make (Array.length days + 1) Z.zero in
       Array.iteri
-        (fun index day ->
-          sums.(index + 1) <- Z.add sums.(index) (Hashtbl.find table day))
+        (fun index day -> sums.(index + 1) <- Z.add sums.(index) (Hashtbl.find table day))
         days;
       (days, sums)
     in
@@ -259,9 +247,7 @@ let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates
       let observed_days = days_between start_day end_exclusive in
       let total = window_total days start_day end_exclusive in
       let value =
-        match grain with
-        | Day -> total
-        | Month | Cycle -> Z.ediv total (Z.of_int observed_days)
+        match grain with Day -> total | Month | Cycle -> Z.ediv total (Z.of_int observed_days)
       in
       {
         start_day;

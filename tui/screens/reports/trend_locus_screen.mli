@@ -12,6 +12,7 @@ val config_files : string list
 (** Configuration files this screen reads; the boundary presets only. *)
 
 val create : unit -> t
+
 val enter : focus_day:string -> t -> t
 (** Capture the Shell's focus day as the observation day of the chart. *)
 
@@ -38,6 +39,7 @@ val selected_period : t -> (string * string) option
 (** The selected period, kept across a grain or query change. *)
 
 val grain : t -> Trend_locus_report.grain
+
 val scope : t -> Trend_locus_report.scope
 (** The effective scope; other grains always report {!All_history}. *)
 
@@ -58,6 +60,7 @@ val notice : t -> string
 (** The last notice shown by this screen. *)
 
 val picker_open : t -> bool
+
 val picker_target : t -> int option
 (** The slot the series picker edits. *)
 
@@ -67,5 +70,6 @@ val picker_cursor : t -> int option
 val editor_open : t -> bool
 val editor_name : t -> string
 val editor_days : t -> string
+
 val editor_field : t -> [ `Name | `Days ]
 (** The state of the inline annotation editor, for checks that drive its keys. *)

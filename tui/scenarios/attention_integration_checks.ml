@@ -12,7 +12,8 @@ let run ~width_of (home : C.state) =
     match visible_form modal_add with
     | Some f ->
         let f = Ui_form.set_text f "context" "Renew passport" in
-        let f = Ui_form.set_choice f "due_kind" 2 in (* Due on date *)
+        let f = Ui_form.set_choice f "due_kind" 2 in
+        (* Due on date *)
         let f = Ui_form.set_text f "due_date" "2026-10-01" in
         let f = Ui_form.set_focused f 3 in
         with_visible_form modal_add f
@@ -43,11 +44,15 @@ let run ~width_of (home : C.state) =
   require (contains att_screen "Buy groceries") "attention-item2-context";
   (* Test Tab detail toggle *)
   let att_tab = key ~width_of added_state `Tab in
-  require (Attention_screen.detail_focused att_tab.C.screens.attention) "attention-tab-toggles-detail";
+  require
+    (Attention_screen.detail_focused att_tab.C.screens.attention)
+    "attention-tab-toggles-detail";
   let att_detail_screen = R.screen ~width_of (120, 36) att_tab in
   require (contains att_detail_screen "! OVERDUE") "attention-detail-shows-overdue";
   let att_tab_back = key ~width_of att_tab `Tab in
-  require (not (Attention_screen.detail_focused att_tab_back.C.screens.attention)) "attention-tab-toggles-back";
+  require
+    (not (Attention_screen.detail_focused att_tab_back.C.screens.attention))
+    "attention-tab-toggles-back";
   let att_selected state = Attention_screen.selected state.C.screens.attention in
   let att_end = key ~width_of (key ~width_of added_state (`ASCII 'j')) `End in
   require (att_selected att_end = 1) "attention-end-from-second-selects-last";
@@ -60,7 +65,9 @@ let run ~width_of (home : C.state) =
   require (List.length (open_attentions dropped_state) = 1) "attention-item-dropped";
   (* Test resolve 'r' on second item *)
   let modal_resolve = key ~width_of dropped_state (`ASCII 'r') in
-  require (visible_form_id modal_resolve = Some "resolve_attention") "attention-r-opens-resolve-form";
+  require
+    (visible_form_id modal_resolve = Some "resolve_attention")
+    "attention-r-opens-resolve-form";
   let resolved_state = key ~width_of modal_resolve `Enter in
   require (no_modal resolved_state) "attention-resolve-submitted";
   require (List.length (open_attentions resolved_state) = 0) "attention-all-items-resolved";

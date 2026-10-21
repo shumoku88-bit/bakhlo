@@ -11,12 +11,10 @@ let run_liquidity ~width_of ~directory =
     "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
      (measures (measure jpy 0))\n\
      (labels (not-supplied)) (approved-loci (provided wallet ext))\n\
-     (entries (entry seed (date 2026-01-01) (memo (none)) \
-      (postings (posting wallet jpy 1000 (none)) (posting ext jpy -1000 (none))) \
-      (reversal-of (none))))\n\
+     (entries (entry seed (date 2026-01-01) (memo (none)) (postings (posting wallet jpy 1000 \
+     (none)) (posting ext jpy -1000 (none))) (reversal-of (none))))\n\
      (plans)\n\
-     (support (zero-origin (wallet jpy)) (openings) (observations) \
-      (presence (not-supplied)))\n"
+     (support (zero-origin (wallet jpy)) (openings) (observations) (presence (not-supplied)))\n"
   in
   F.write_new path book_bytes;
   F.write_new (dir ^ "/balance-view.tsv") "wallet\tjpy\n";
@@ -26,25 +24,33 @@ let run_liquidity ~width_of ~directory =
   require
     (match commands.overlay with C.Commands { page = M.Root; _ } -> true | _ -> false)
     "liquidity-space-opens-commands";
-  let analysis_index = Option.get (List.find_index
-    (fun (item, _) -> item = M.Group M.Analysis) (M.items M.Root)) in
-  let analysis = List.fold_left (fun state _ -> key ~width_of state (`ASCII 'j'))
-    commands (List.init analysis_index Fun.id) in
+  let analysis_index =
+    Option.get (List.find_index (fun (item, _) -> item = M.Group M.Analysis) (M.items M.Root))
+  in
+  let analysis =
+    List.fold_left
+      (fun state _ -> key ~width_of state (`ASCII 'j'))
+      commands (List.init analysis_index Fun.id)
+  in
   let analysis = key ~width_of analysis `Enter in
   require
     (match analysis.overlay with C.Commands { page = M.Analysis; _ } -> true | _ -> false)
     "liquidity-reports-analysis-group";
-  let liquidity_index = Option.get (List.find_index
-    (fun (item, _) -> item = M.Action M.Liquidity) (M.items M.Analysis)) in
-  let selected = List.fold_left (fun state _ -> key ~width_of state (`ASCII 'j'))
-    analysis (List.init liquidity_index Fun.id) in
+  let liquidity_index =
+    Option.get (List.find_index (fun (item, _) -> item = M.Action M.Liquidity) (M.items M.Analysis))
+  in
+  let selected =
+    List.fold_left
+      (fun state _ -> key ~width_of state (`ASCII 'j'))
+      analysis
+      (List.init liquidity_index Fun.id)
+  in
   let liquidity = key ~width_of selected `Enter in
   require (liquidity.workspace.route = W.Liquidity) "liquidity-menu-selects-route";
   require (no_modal liquidity) "liquidity-route-has-no-modal";
   let env = X.screen_env ~config_files:Liquidity_screen.config_files liquidity in
   let screen = liquidity.C.screens.liquidity in
-  require (Result.is_error (Liquidity_screen.result env screen))
-    "liquidity-open-has-no-answer";
+  require (Result.is_error (Liquidity_screen.result env screen)) "liquidity-open-has-no-answer";
   let rows = R.screen ~width_of (80, 24) liquidity in
   require (contains rows "Forecast path: UNKNOWN") "liquidity-forecast-stays-unknown";
   require (contains rows "Known low-water mark: UNKNOWN") "liquidity-low-water-stays-unknown";
@@ -52,16 +58,19 @@ let run_liquidity ~width_of ~directory =
   let ran = key ~width_of liquidity `Enter in
   let env = X.screen_env ~config_files:Liquidity_screen.config_files ran in
   let snapshot = get (Liquidity_screen.result env ran.C.screens.liquidity) in
-  require (snapshot.Liquidity_report.measure = "jpy"
-           && Z.equal snapshot.Liquidity_report.current_selected (Z.of_int 1000))
+  require
+    (snapshot.Liquidity_report.measure = "jpy"
+    && Z.equal snapshot.Liquidity_report.current_selected (Z.of_int 1000))
     "liquidity-explicit-run-answers-exact-selected-balance";
   let rows = R.screen ~width_of (80, 24) ran in
   require (contains rows "Forecast path: UNKNOWN") "liquidity-run-keeps-forecast-unknown";
   let home = key ~width_of ran `Escape in
   require (home.workspace.route = W.Home) "liquidity-escape-cancels-back-home";
-  require (String.equal (F.read path) bytes_before)
+  require
+    (String.equal (F.read path) bytes_before)
     "liquidity-flow-leaves-synthetic-book-bytes-unchanged";
-  require (String.equal (F.read (dir ^ "/balance-view.tsv")) "wallet\tjpy\n")
+  require
+    (String.equal (F.read (dir ^ "/balance-view.tsv")) "wallet\tjpy\n")
     "liquidity-flow-never-rewrites-the-selection"
 
 (* Multicurrency Spend: real Commands -> Reports and analysis -> Multicurrency
@@ -80,18 +89,14 @@ let run_multicurrency ~width_of ~directory =
       "(bakhlo-daily 3) (scope corrected-entries explicit-plans)\n\
        (measures (measure jpy 0) (measure eur 2))\n\
        (labels (not-supplied)) (approved-loci (provided wallet bank food rent))\n\
-       (entries \
-        (entry spend-jpy (date %s) (memo (none)) \
-         (postings (posting food jpy 1000 (none)) (posting wallet jpy -1000 (none))) \
-         (reversal-of (none)) (exchange (none)) (original-amount (none)) \
-         (merchant (none))) \
-        (entry spend-eur (date %s) (memo (none)) \
-         (postings (posting rent eur 5000 (none)) (posting bank eur -5000 (none))) \
-         (reversal-of (none)) (exchange (none)) (original-amount (none)) \
-         (merchant (none))))\n\
+       (entries (entry spend-jpy (date %s) (memo (none)) (postings (posting food jpy 1000 (none)) \
+       (posting wallet jpy -1000 (none))) (reversal-of (none)) (exchange (none)) (original-amount \
+       (none)) (merchant (none))) (entry spend-eur (date %s) (memo (none)) (postings (posting rent \
+       eur 5000 (none)) (posting bank eur -5000 (none))) (reversal-of (none)) (exchange (none)) \
+       (original-amount (none)) (merchant (none))))\n\
        (plans)\n\
-       (support (zero-origin (wallet jpy) (bank jpy) (wallet eur) (bank eur)) \
-        (openings) (observations) (presence (not-supplied)))\n"
+       (support (zero-origin (wallet jpy) (bank jpy) (wallet eur) (bank eur)) (openings) \
+       (observations) (presence (not-supplied)))\n"
       month_start month_start
   in
   F.write_new path book_bytes;
@@ -104,67 +109,88 @@ let run_multicurrency ~width_of ~directory =
   require
     (match commands.overlay with C.Commands { page = M.Root; _ } -> true | _ -> false)
     "multicurrency-space-opens-commands";
-  let analysis_index = Option.get (List.find_index
-    (fun (item, _) -> item = M.Group M.Analysis) (M.items M.Root)) in
-  let analysis = List.fold_left (fun state _ -> key ~width_of state (`ASCII 'j'))
-    commands (List.init analysis_index Fun.id) in
+  let analysis_index =
+    Option.get (List.find_index (fun (item, _) -> item = M.Group M.Analysis) (M.items M.Root))
+  in
+  let analysis =
+    List.fold_left
+      (fun state _ -> key ~width_of state (`ASCII 'j'))
+      commands (List.init analysis_index Fun.id)
+  in
   let analysis = key ~width_of analysis `Enter in
   require
     (match analysis.overlay with C.Commands { page = M.Analysis; _ } -> true | _ -> false)
     "multicurrency-reports-analysis-group";
-  let spend_index = Option.get (List.find_index
-    (fun (item, _) -> item = M.Action M.Multicurrency_spend) (M.items M.Analysis)) in
-  let selected = List.fold_left (fun state _ -> key ~width_of state (`ASCII 'j'))
-    analysis (List.init spend_index Fun.id) in
+  let spend_index =
+    Option.get
+      (List.find_index
+         (fun (item, _) -> item = M.Action M.Multicurrency_spend)
+         (M.items M.Analysis))
+  in
+  let selected =
+    List.fold_left
+      (fun state _ -> key ~width_of state (`ASCII 'j'))
+      analysis (List.init spend_index Fun.id)
+  in
   let spend = key ~width_of selected `Enter in
-  require (spend.workspace.route = W.Multicurrency_spend)
-    "multicurrency-menu-selects-route";
+  require (spend.workspace.route = W.Multicurrency_spend) "multicurrency-menu-selects-route";
   require (no_modal spend) "multicurrency-route-has-no-modal";
   let screen = spend.C.screens.multicurrency_spend in
-  require (Result.is_error (Multicurrency_spend_screen.result screen))
+  require
+    (Result.is_error (Multicurrency_spend_screen.result screen))
     "multicurrency-open-has-no-answer";
   let rows = R.screen ~width_of (80, 24) spend in
   require (contains rows "Multicurrency Spend") "multicurrency-heading-visible";
-  require (contains rows "No exchange rate, conversion or home-currency total is inferred.")
+  require
+    (contains rows "No exchange rate, conversion or home-currency total is inferred.")
     "multicurrency-no-conversion-disclaimer";
   let ran = key ~width_of spend `Enter in
-  let snapshot =
-    get (Multicurrency_spend_screen.result ran.C.screens.multicurrency_spend)
-  in
+  let snapshot = get (Multicurrency_spend_screen.result ran.C.screens.multicurrency_spend) in
   let total measure totals =
-    match List.find_opt (fun (row : Multicurrency_spend_report.total) ->
-        row.measure = measure) totals with
+    match
+      List.find_opt (fun (row : Multicurrency_spend_report.total) -> row.measure = measure) totals
+    with
     | Some row -> row.quanta
     | None -> Z.zero
   in
-  require (Z.equal (total "jpy" snapshot.Multicurrency_spend_report.ordinary_expense)
-              (Z.of_int 1000)
-           && Z.equal (total "eur" snapshot.Multicurrency_spend_report.ordinary_expense)
-                (Z.of_int 5000))
+  require
+    (Z.equal (total "jpy" snapshot.Multicurrency_spend_report.ordinary_expense) (Z.of_int 1000)
+    && Z.equal (total "eur" snapshot.Multicurrency_spend_report.ordinary_expense) (Z.of_int 5000))
     "multicurrency-explicit-run-answers-each-Measure-exactly";
   let rows = R.screen ~width_of (80, 24) ran in
-  require (contains rows "1,000 jpy" && contains rows "50.00 eur")
+  require
+    (contains rows "1,000 jpy" && contains rows "50.00 eur")
     "multicurrency-each-Measure-painted-at-its-own-scale";
   let home = key ~width_of ran `Escape in
   require (home.workspace.route = W.Home) "multicurrency-escape-cancels-back-home";
-  require (String.equal (F.read path) bytes_before)
+  require
+    (String.equal (F.read path) bytes_before)
     "multicurrency-flow-leaves-synthetic-book-bytes-unchanged";
-  require (String.equal (F.read (dir ^ "/accounting-roles.tsv")) roles_before)
+  require
+    (String.equal (F.read (dir ^ "/accounting-roles.tsv")) roles_before)
     "multicurrency-flow-never-rewrites-the-roles"
 
 let run ~width_of ~directory (back_home : C.state) =
-  let contains rows needle = List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows in
+  let contains rows needle =
+    List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows
+  in
   (* Test Income & Expense report with Cycle / Month / Year / All-Time *)
   let ie_ctl = C.open_route back_home W.Income_expense in
   require (ie_ctl.workspace.route = W.Income_expense) "route-income-expense";
   let wide_ie = R.screen ~width_of (120, 30) ie_ctl in
-  require (contains wide_ie "Income & Expense" && contains wide_ie "Report Details") "income-expense-wide-visible";
+  require
+    (contains wide_ie "Income & Expense" && contains wide_ie "Report Details")
+    "income-expense-wide-visible";
   let ie_cycle = key ~width_of ie_ctl (`ASCII '2') in
   let wide_cycle = R.screen ~width_of (120, 30) ie_cycle in
-  require (contains wide_cycle "Cycle" || contains wide_cycle "Income & Expense") "income-expense-2-cycle";
+  require
+    (contains wide_cycle "Cycle" || contains wide_cycle "Income & Expense")
+    "income-expense-2-cycle";
   let ie_prev_cycle = key ~width_of ie_cycle (`ASCII '3') in
   let wide_prev_cycle = R.screen ~width_of (120, 30) ie_prev_cycle in
-  require (contains wide_prev_cycle "Cycle" || contains wide_prev_cycle "Period") "income-expense-3-prev-cycle";
+  require
+    (contains wide_prev_cycle "Cycle" || contains wide_prev_cycle "Period")
+    "income-expense-3-prev-cycle";
   let ie_year = key ~width_of ie_prev_cycle (`ASCII '4') in
   let wide_year = R.screen ~width_of (120, 30) ie_year in
   require (contains wide_year "Year") "income-expense-4-year";
@@ -175,16 +201,20 @@ let run ~width_of ~directory (back_home : C.state) =
   let wide_shifted = R.screen ~width_of (120, 30) ie_shifted in
   require (contains wide_shifted "Income & Expense") "income-expense-bracket-shift";
   let ie_detail = key ~width_of ie_ctl `Enter in
-  require (Income_expense_screen.detail_focused ie_detail.C.screens.income_expense) "income-expense-enter-opens-detail";
+  require
+    (Income_expense_screen.detail_focused ie_detail.C.screens.income_expense)
+    "income-expense-enter-opens-detail";
   let ie_back_report = key ~width_of ie_detail `Escape in
-  require (not (Income_expense_screen.detail_focused ie_back_report.C.screens.income_expense) && ie_back_report.workspace.route = W.Income_expense)
+  require
+    ((not (Income_expense_screen.detail_focused ie_back_report.C.screens.income_expense))
+    && ie_back_report.workspace.route = W.Income_expense)
     "income-expense-esc-returns-to-report";
   let ie_print = key ~width_of ie_ctl (`ASCII 'p') in
   (match visible_form ie_print with
-   | Some f ->
-       require (Ui_form.id f = "income_expense_print_preview") "ie-p-opens-print-preview";
-       require (Ui_form.title f = "Income & Expense / Print Preview") "ie-print-title"
-   | None -> failwith "expected ie print preview modal");
+  | Some f ->
+      require (Ui_form.id f = "income_expense_print_preview") "ie-p-opens-print-preview";
+      require (Ui_form.title f = "Income & Expense / Print Preview") "ie-print-title"
+  | None -> failwith "expected ie print preview modal");
   let ie_after_print = key ~width_of ie_print `Escape in
   require (no_modal ie_after_print) "ie-print-escapes";
   let ie_back_home = key ~width_of ie_ctl (`ASCII 'q') in
@@ -201,10 +231,16 @@ let run ~width_of ~directory (back_home : C.state) =
   require (contains (R.screen ~width_of (120, 36) flow_m) "Month of") "flow-preset-month";
   (* 2: Cycle *)
   let flow_cyc = key ~width_of flow_ctl (`ASCII '2') in
-  require (contains (R.screen ~width_of (120, 36) flow_cyc) "Cycle" || contains (R.screen ~width_of (120, 36) flow_cyc) "Transactions Flow") "flow-preset-cycle";
+  require
+    (contains (R.screen ~width_of (120, 36) flow_cyc) "Cycle"
+    || contains (R.screen ~width_of (120, 36) flow_cyc) "Transactions Flow")
+    "flow-preset-cycle";
   (* 3: Previous Cycle *)
   let flow_prev_cyc = key ~width_of flow_ctl (`ASCII '3') in
-  require (contains (R.screen ~width_of (120, 36) flow_prev_cyc) "Cycle" || contains (R.screen ~width_of (120, 36) flow_prev_cyc) "Period") "flow-preset-prev-cycle";
+  require
+    (contains (R.screen ~width_of (120, 36) flow_prev_cyc) "Cycle"
+    || contains (R.screen ~width_of (120, 36) flow_prev_cyc) "Period")
+    "flow-preset-prev-cycle";
   (* 4: Year *)
   let flow_yr = key ~width_of flow_ctl (`ASCII '4') in
   require (contains (R.screen ~width_of (120, 36) flow_yr) "Year") "flow-preset-year";
@@ -215,24 +251,34 @@ let run ~width_of ~directory (back_home : C.state) =
   let flow_shift = key ~width_of flow_m (`ASCII '[') in
   require (contains (R.screen ~width_of (120, 36) flow_shift) "Month of 2026-09") "flow-shift-back";
   let flow_shift_fwd = key ~width_of flow_shift (`ASCII ']') in
-  require (contains (R.screen ~width_of (120, 36) flow_shift_fwd) "Month of 2026-10") "flow-shift-fwd";
+  require
+    (contains (R.screen ~width_of (120, 36) flow_shift_fwd) "Month of 2026-10")
+    "flow-shift-fwd";
   (* Selection navigation with j/k *)
   let flow_j = key ~width_of flow_all (`ASCII 'j') in
-  require (Transactions_flow_screen.selected_row flow_j.C.screens.transactions_flow >= 0) "flow-j-moves-row";
+  require
+    (Transactions_flow_screen.selected_row flow_j.C.screens.transactions_flow >= 0)
+    "flow-j-moves-row";
   let flow_k = key ~width_of flow_j (`ASCII 'k') in
-  require (Transactions_flow_screen.selected_row flow_k.C.screens.transactions_flow = 0) "flow-k-moves-row-back";
+  require
+    (Transactions_flow_screen.selected_row flow_k.C.screens.transactions_flow = 0)
+    "flow-k-moves-row-back";
   (* Detail toggle with Tab *)
   let flow_tab = key ~width_of flow_all `Tab in
-  require (Transactions_flow_screen.detail_focused flow_tab.C.screens.transactions_flow) "flow-tab-toggles-detail";
+  require
+    (Transactions_flow_screen.detail_focused flow_tab.C.screens.transactions_flow)
+    "flow-tab-toggles-detail";
   let flow_tab_back = key ~width_of flow_tab `Tab in
-  require (not (Transactions_flow_screen.detail_focused flow_tab_back.C.screens.transactions_flow)) "flow-tab-toggles-calendar";
+  require
+    (not (Transactions_flow_screen.detail_focused flow_tab_back.C.screens.transactions_flow))
+    "flow-tab-toggles-calendar";
   (* p opens print preview modal *)
   let flow_print = key ~width_of flow_all (`ASCII 'p') in
   (match visible_form flow_print with
-   | Some f ->
-       require (Ui_form.id f = "transactions_flow_print_preview") "flow-p-opens-print-preview";
-       require (Ui_form.title f = "Transactions Flow / Print Preview") "flow-print-title"
-   | None -> failwith "expected flow print preview modal");
+  | Some f ->
+      require (Ui_form.id f = "transactions_flow_print_preview") "flow-p-opens-print-preview";
+      require (Ui_form.title f = "Transactions Flow / Print Preview") "flow-print-title"
+  | None -> failwith "expected flow print preview modal");
   let flow_after_print = key ~width_of flow_print `Escape in
   require (no_modal flow_after_print) "flow-print-escapes";
   let flow_back_home = key ~width_of flow_ctl (`ASCII 'q') in
@@ -250,21 +296,35 @@ let run ~width_of ~directory (back_home : C.state) =
   let refused () =
     require (Result.is_error (stock_flow_result sf_ctl)) "sf-invalid-evidence-refuses";
     let printed = key ~width_of sf_ctl (`ASCII 'p') in
-    require (no_modal printed && printed.message <> "")
+    require
+      (no_modal printed && printed.message <> "")
       "sf-invalid-evidence-cannot-print-numeric-report"
   in
   refused ();
-  List.iter (fun bytes -> configure bytes; refused ())
-    ["bank\tjpy\n"; "wallet\tjpy\n"; "food\tjpy\nbad-row\n";
-     "food\tjpy\nwallet\teur\n"; "food\tjpy\nfood\tjpy\n"; ""];
+  List.iter
+    (fun bytes ->
+      configure bytes;
+      refused ())
+    [
+      "bank\tjpy\n";
+      "wallet\tjpy\n";
+      "food\tjpy\nbad-row\n";
+      "food\tjpy\nwallet\teur\n";
+      "food\tjpy\nfood\tjpy\n";
+      "";
+    ];
   configure "food\tjpy\n";
   let report = get (stock_flow_result sf_ctl) in
-  require (report.measure = "jpy" && Z.equal report.reconstructed_start Z.zero
-           && Z.equal report.reconstructed_end Z.zero)
+  require
+    (report.measure = "jpy"
+    && Z.equal report.reconstructed_start Z.zero
+    && Z.equal report.reconstructed_end Z.zero)
     "sf-explicit-zero-origin-boundaries";
   let detail = key ~width_of sf_ctl `Tab in
   let returned = key ~width_of detail `Escape in
-  require (returned.workspace.route = W.Stock_flow && not (Stock_flow_screen.detail_focused returned.C.screens.stock_flow))
+  require
+    (returned.workspace.route = W.Stock_flow
+    && not (Stock_flow_screen.detail_focused returned.C.screens.stock_flow))
     "sf-detail-return-retains-report";
   let sf_back_home = key ~width_of returned (`ASCII 'q') in
   require (sf_back_home.workspace.route = W.Home) "sf-report-return-home";

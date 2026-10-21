@@ -18,7 +18,8 @@ type t = {
 
 type rendered = {
   rows : string list;  (** Painted plot rows, value axis column included. *)
-  axis_exact : bool;  (** [false] when an exact axis label did not fit; the
+  axis_exact : bool;
+      (** [false] when an exact axis label did not fit; the
       caller then asks for a wider terminal instead of showing a cut number. *)
 }
 
@@ -29,12 +30,7 @@ val collision : string
 (** The glyph drawn where two marks share one cell. *)
 
 val render :
-  width:int ->
-  height:int ->
-  width_of:(string -> int) ->
-  label:(Z.t -> string) ->
-  t ->
-  rendered
+  width:int -> height:int -> width_of:(string -> int) -> label:(Z.t -> string) -> t -> rendered
 (** Paint the chart. [label] renders an exact amount for an axis value. At
     most one extra row carries annotation glyphs for the same x positions;
     every row fits [width] and the result has at most [height] rows. *)

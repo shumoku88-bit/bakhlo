@@ -48,14 +48,11 @@ type style = O.style =
   | Columns of int * style * style
   | Input of int
 
-
 type overlay =
   | No_overlay
   | Commands of M.t
   | Themes of { selected : int; original : P.theme; return_menu : M.t }
   | Modal_form of Form.t
-
-
 
 type state = {
   session : F.t;
@@ -115,8 +112,11 @@ let initial ?config_home session =
   }
 
 let open_editor state session =
-  { state with screens = { state.screens with
-      editors = Record_editors.open_session session state.screens.editors } }
+  {
+    state with
+    screens =
+      { state.screens with editors = Record_editors.open_session session state.screens.editors };
+  }
 
 let has_record_draft state =
   match state.record with None -> false | Some record -> S.has_draft record
@@ -126,34 +126,63 @@ let mode state = match state.record with None -> A.New | Some record -> S.mode r
 
 let sync state =
   let book = state.session.book in
-  let screens = { state.screens with calendar_home = Calendar_home_screen.synchronize
-      ~route:state.workspace.route ~book ~calendar:state.workspace.calendar state.screens.calendar_home } in
-  let screens = match state.workspace.route with
+  let screens =
+    {
+      state.screens with
+      calendar_home =
+        Calendar_home_screen.synchronize ~route:state.workspace.route ~book
+          ~calendar:state.workspace.calendar state.screens.calendar_home;
+    }
+  in
+  let screens =
+    match state.workspace.route with
     | W.Selected_day _ -> { screens with day = Selected_day_screen.synced book screens.day }
-    | _ -> screens in
+    | _ -> screens
+  in
   { state with screens }
 
 let finish_publication ~record_publication state session message =
-  let next = sync { state with session;
-    record = (if record_publication then None else state.record);
-    record_visible = (if record_publication then false else state.record_visible);
-    overlay = No_overlay; pending = None; blocked = false; message = tr message;
-    pending_record_publication = false;
-    screens = Screen_registry.dismiss_floating state.screens } in
   let next =
-    let screens, notice = Screen_registry.book_changed state.workspace.route
-        ~before:state.session.book ~after:session.book next.screens in
-    { next with screens; message = next.message ^ (if notice = "" then "" else "\n" ^ tr notice) }
+    sync
+      {
+        state with
+        session;
+        record = (if record_publication then None else state.record);
+        record_visible = (if record_publication then false else state.record_visible);
+        overlay = No_overlay;
+        pending = None;
+        blocked = false;
+        message = tr message;
+        pending_record_publication = false;
+        screens = Screen_registry.dismiss_floating state.screens;
+      }
+  in
+  let next =
+    let screens, notice =
+      Screen_registry.book_changed state.workspace.route ~before:state.session.book
+        ~after:session.book next.screens
+    in
+    { next with screens; message = (next.message ^ if notice = "" then "" else "\n" ^ tr notice) }
   in
   match (record_publication, mode state) with
   | true, A.Pay id -> (
-      match List.find_opt (fun (p : B.plan) -> p.id = id && p.paid_by <> None) (B.plans session.book) with
+      match
+        List.find_opt (fun (p : B.plan) -> p.id = id && p.paid_by <> None) (B.plans session.book)
+      with
       | Some source ->
-          { (open_editor next (Record_editors.Scheduled_continuation
-              (Cont.create ~book:session.book ~base_revision:session.revision source))) with
-            message = next.message ^ " No additional Scheduled created." }
-      | None -> { next with message = next.message ^
-          " Next-plan inspection unavailable; no additional Scheduled created." })
+          {
+            (open_editor next
+               (Record_editors.Scheduled_continuation
+                  (Cont.create ~book:session.book ~base_revision:session.revision source)))
+            with
+            message = next.message ^ " No additional Scheduled created.";
+          }
+      | None ->
+          {
+            next with
+            message =
+              next.message ^ " Next-plan inspection unavailable; no additional Scheduled created.";
+          })
   | _ -> next
 
 let apply_commit_result ?published_message ?(record_publication = false) state ~draft result =
@@ -179,21 +208,26 @@ let apply_commit_result ?published_message ?(record_publication = false) state ~
   | A.Refused why ->
       { draft with message = A.format_message "Publication refused (%s). Draft retained." why }
   | A.Uncertain { message; evidence } ->
-      let stopped = stopped ~pending:(Some evidence)
-        (A.format_message
-           "Publication outcome is unknown (%s). Do not retry; reload to inspect. Draft retained."
-           message) in
+      let stopped =
+        stopped ~pending:(Some evidence)
+          (A.format_message
+             "Publication outcome is unknown (%s). Do not retry; reload to inspect. Draft retained."
+             message)
+      in
       { stopped with pending_record_publication = record_publication }
 
 let reload state =
-  let state = { state with
-    attention = Attention_file.load_file state.attention_path;
-    settlements = Settlement_file.load_file state.settlement_path;
-  } in
+  let state =
+    {
+      state with
+      attention = Attention_file.load_file state.attention_path;
+      settlements = Settlement_file.load_file state.settlement_path;
+    }
+  in
   match A.reload ~session:state.session ~pending:state.pending ~mode:(mode state) with
   | A.Pending_confirmed session ->
-      finish_publication ~record_publication:state.pending_record_publication
-        state session "The pending publication is present now. No retry."
+      finish_publication ~record_publication:state.pending_record_publication state session
+        "The pending publication is present now. No retry."
   | A.Pending_unconfirmed session ->
       {
         state with
@@ -212,7 +246,14 @@ let reload state =
   | A.Recovery_required (session, message) -> { state with session; blocked = true; message }
   | A.Reloaded session -> (
       match state.overlay with
-      | _ -> sync { state with session; blocked = false; message = tr "Reloaded. Unsaved draft retained." })
+      | _ ->
+          sync
+            {
+              state with
+              session;
+              blocked = false;
+              message = tr "Reloaded. Unsaved draft retained.";
+            })
   | A.Reload_failed why ->
       {
         state with
@@ -230,8 +271,8 @@ let submit state =
           state with
           record =
             Some
-              (S.preview ~new_id:Daily_file.new_id ~book:state.session.book ~base_revision:state.session.revision
-                 ~blocked:state.blocked record);
+              (S.preview ~new_id:Daily_file.new_id ~book:state.session.book
+                 ~base_revision:state.session.revision ~blocked:state.blocked record);
           record_visible = true;
         }
 
@@ -256,12 +297,21 @@ let discard state =
 let request_discard state =
   if not (has_record_draft state) then state
   else
-    let form = Form.create ~id:"discard_record" ~title:"Discard retained draft?"
-      ~summary:["The retained draft will be lost.";
-        "Saved entries and plans will not change."]
-      ~fields:[Form.buttons_field ~id:"actions" ~buttons:[
-        { Form.label = "Keep draft"; is_cancel = true };
-        { Form.label = "Discard draft"; is_cancel = false }] ()] () in
+    let form =
+      Form.create ~id:"discard_record" ~title:"Discard retained draft?"
+        ~summary:[ "The retained draft will be lost."; "Saved entries and plans will not change." ]
+        ~fields:
+          [
+            Form.buttons_field ~id:"actions"
+              ~buttons:
+                [
+                  { Form.label = "Keep draft"; is_cancel = true };
+                  { Form.label = "Discard draft"; is_cancel = false };
+                ]
+              ();
+          ]
+        ()
+    in
     { state with overlay = Modal_form form }
 
 let open_record state =
@@ -277,15 +327,14 @@ let open_record state =
             tr "A Scheduled draft is retained. Resume or discard it before creating a Record.";
         }
     | _ ->
-        let day = match state.workspace.route with
+        let day =
+          match state.workspace.route with
           | W.Selected_day day -> day
-          | _ -> state.workspace.calendar.selected_day in
+          | _ -> state.workspace.calendar.selected_day
+        in
         {
           state with
-          record =
-            Some
-              (S.create ~book:state.session.book ~day
-                 ~measure:state.workspace.measure ());
+          record = Some (S.create ~book:state.session.book ~day ~measure:state.workspace.measure ());
           record_visible = true;
           overlay = No_overlay;
           message = "";
@@ -308,13 +357,22 @@ let open_plan_record state =
     let measure = state.workspace.measure in
     {
       state with
-      screens = (open_editor state (Record_editors.Scheduled_create
-        (Sch.create ~book:state.session.book ~day ~measure))).screens;
+      screens =
+        (open_editor state
+           (Record_editors.Scheduled_create (Sch.create ~book:state.session.book ~day ~measure)))
+          .screens;
       record_visible = false;
       message = "";
     }
 
 let open_route state route =
-  sync { state with workspace = W.enter state.workspace route; overlay = No_overlay;
-                    drill_parent = None; drill_book = None;
-                    screens = Screen_registry.enter route ~focus_day:state.workspace.calendar.selected_day state.screens }
+  sync
+    {
+      state with
+      workspace = W.enter state.workspace route;
+      overlay = No_overlay;
+      drill_parent = None;
+      drill_book = None;
+      screens =
+        Screen_registry.enter route ~focus_day:state.workspace.calendar.selected_day state.screens;
+    }

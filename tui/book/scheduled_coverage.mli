@@ -40,7 +40,11 @@ val missing : cell -> bool
 type row = { rule : rule; cells : cell list; first_missing : string option }
 
 val project :
-  rule list -> plans:B.plan list -> today:string -> months:int -> (string list * row list, string) result
+  rule list ->
+  plans:B.plan list ->
+  today:string ->
+  months:int ->
+  (string list * row list, string) result
 (** [months] consecutive months from today's month. Open plans are unpaid and
     uncancelled; completed plans are paid. Cancelled plans cover nothing.
     Rows follow LOAM order: cadence ascending, undecided last, then name. *)

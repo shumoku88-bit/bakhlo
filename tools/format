@@ -24,8 +24,13 @@ if [ -z "$expected" ] || [ "$actual" != "$expected" ]; then
     exit 1
 fi
 cd "$root"
+# tui/ is data to the main Dune project (it builds with OxCaml), so format it directly
+# with tui/.ocamlformat.
+tui_sources=$(git ls-files 'tui/*.ml' 'tui/*.mli')
 path="$root/_opam/bin:$(dirname -- "$formatter"):$PATH"
 if [ "$command" = fmt ]; then
+    # shellcheck disable=SC2086
+    "$formatter" --inplace $tui_sources
     # Dune can return 1 for promoted formatting diffs. Accept only a clean subsequent check.
     if "$root/tools/opam" exec -- env PATH="$path" dune fmt --root .; then
         :
@@ -34,4 +39,6 @@ if [ "$command" = fmt ]; then
         [ "$status" -eq 1 ] || exit "$status"
     fi
 fi
+# shellcheck disable=SC2086
+"$formatter" --check $tui_sources
 exec "$root/tools/opam" exec -- env PATH="$path" dune build --root . @fmt

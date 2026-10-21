@@ -90,7 +90,8 @@ Reports are short issue/PR notes; `HANDOFF.md` stays focused on current work.
 
 `.ocamlformat` pins **0.29.0**, target syntax **5.3.0**, default profile and 100-column margin.
 Comment/docstring rewriting is disabled to keep evidence prose intact. Use
-`./tools/format --check` or `./tools/format --apply` (Dune @fmt / fmt); the wrapper rejects a
+`./tools/format --check` or `./tools/format --apply` (Dune @fmt / fmt); `tui/` (OxCaml 5.2, see
+`tui/.ocamlformat`) is formatted file by file with the same formatter; the wrapper rejects a
 missing/wrong local formatter, never installs or falls back to a global tool. Apply finishes
 with a clean @fmt check: Dune 3.24.2 can return 1 for diffs it has already promoted.
 Formatting is optional developer tooling, NOT a main runtime/test dependency or CI gate;

@@ -11,18 +11,21 @@ let require condition name =
 
 let key ?(mods = []) button = `Key (button, mods)
 let char_key c = `Key (`ASCII c, [])
-
 let get = function Ok x -> x | Error why -> failwith why
 
 let fixture =
-  "(bakhlo-daily 3)\n(scope corrected-entries explicit-plans)\n\
+  "(bakhlo-daily 3)\n\
+   (scope corrected-entries explicit-plans)\n\
    (measures (measure \"jpy\" 0) (measure \"eur\" 2))\n\
-   (labels (provided (label \"assets:cash\" \"現金\" \"Synthetic cash\") (label \"expenses:groceries\" \"食費\" \"Synthetic food\") (label \"expenses:rent\" \"家賃\" \"Synthetic rent\")))\n\
-   (approved-loci (provided \"assets:cash\" \"expenses:groceries\" \"expenses:rent\"))\n(entries)\n\
+   (labels (provided (label \"assets:cash\" \"現金\" \"Synthetic cash\") (label \
+   \"expenses:groceries\" \"食費\" \"Synthetic food\") (label \"expenses:rent\" \"家賃\" \"Synthetic \
+   rent\")))\n\
+   (approved-loci (provided \"assets:cash\" \"expenses:groceries\" \"expenses:rent\"))\n\
+   (entries)\n\
    (plans)\n\
    (support (zero-origin (\"expenses:groceries\" \"jpy\")) (openings)\n\
-     (observations (observation (reflected) (quantities (\"assets:cash\" \"jpy\" 1000))))\n\
-     (presence (not-supplied)))\n"
+   (observations (observation (reflected) (quantities (\"assets:cash\" \"jpy\" 1000))))\n\
+   (presence (not-supplied)))\n"
 
 let self_check ~width_of () =
   let book = get (B.of_string fixture) in
@@ -38,25 +41,58 @@ let self_check ~width_of () =
   (* 2. Focus movement *)
   (* Focus 0 (Due) -> 1 (P1 Locus) -> 2 (P1 Amount) -> 3 (P2 Locus) -> 4 (P2 Amount)
      -> 5 (Add) -> 6 (Drop) -> 7 (Preview) -> 8 (Cancel) -> 0 (Due) *)
-  let s = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s (key `Tab) with Sch.Updated s -> s | _ -> failwith "tab 1" in
-  let s = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s (key `Tab) with Sch.Updated s -> s | _ -> failwith "tab 2" in
-  let s_prev = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s (key ~mods:[`Shift] `Tab) with Sch.Updated s -> s | _ -> failwith "sh-tab" in
+  let s =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s (key `Tab) with
+    | Sch.Updated s -> s
+    | _ -> failwith "tab 1"
+  in
+  let s =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s (key `Tab) with
+    | Sch.Updated s -> s
+    | _ -> failwith "tab 2"
+  in
+  let s_prev =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s (key ~mods:[ `Shift ] `Tab) with
+    | Sch.Updated s -> s
+    | _ -> failwith "sh-tab"
+  in
   require (Sch.day s_prev = "2026-10-15") "focus-shift-tab-back";
 
   (* 3. Date input guards *)
   let s_due = Sch.create ~book ~day:"" ~measure:"jpy" in
-  let s_due = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_due (char_key 'a') with Sch.Updated s -> s | _ -> failwith "date a" in
-  let s_due = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_due (`Key (`Uchar (Uchar.of_int 0x3042), [])) with Sch.Updated s -> s | _ -> failwith "date uchar" in
+  let s_due =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_due (char_key 'a') with
+    | Sch.Updated s -> s
+    | _ -> failwith "date a"
+  in
+  let s_due =
+    match
+      Sch.handle ~blocked:false ~dimensions:dim ~width_of s_due
+        (`Key (`Uchar (Uchar.of_int 0x3042), []))
+    with
+    | Sch.Updated s -> s
+    | _ -> failwith "date uchar"
+  in
   require (Sch.day s_due = "") "date-ignores-non-date-char";
-  let s_due = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_due (char_key '2') with Sch.Updated s -> s | _ -> failwith "date 2" in
-  let s_due = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_due (char_key '0') with Sch.Updated s -> s | _ -> failwith "date 0" in
+  let s_due =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_due (char_key '2') with
+    | Sch.Updated s -> s
+    | _ -> failwith "date 2"
+  in
+  let s_due =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_due (char_key '0') with
+    | Sch.Updated s -> s
+    | _ -> failwith "date 0"
+  in
   require (Sch.day s_due = "20") "date-accepts-digits";
 
   (* 4. Row addition and 6-row maximum *)
   let s_add = Sch.create ~book ~day:"2026-10-15" ~measure:"jpy" in
   (* Initial: 2 rows. Add 4 times -> 6 rows *)
   let add s =
-    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s (key ~mods:[`Ctrl] (`ASCII 'n')) with
+    match
+      Sch.handle ~blocked:false ~dimensions:dim ~width_of s (key ~mods:[ `Ctrl ] (`ASCII 'n'))
+    with
     | Sch.Updated next -> next
     | _ -> failwith "add row"
   in
@@ -67,7 +103,9 @@ let self_check ~width_of () =
 
   (* 5. Row dropping and 2-row minimum *)
   let drop s =
-    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s (key ~mods:[`Ctrl] (`ASCII 'd')) with
+    match
+      Sch.handle ~blocked:false ~dimensions:dim ~width_of s (key ~mods:[ `Ctrl ] (`ASCII 'd'))
+    with
     | Sch.Updated next -> next
     | _ -> failwith "drop row"
   in
@@ -80,18 +118,36 @@ let self_check ~width_of () =
   (* 6. Locus prefix matching and Enter advancement *)
   let s_loc = Sch.create ~book ~day:"2026-10-15" ~measure:"jpy" in
   (* Move focus to Posting 1 Locus *)
-  let s_loc = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_loc (key `Tab) with Sch.Updated s -> s | _ -> failwith "tab locus" in
+  let s_loc =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_loc (key `Tab) with
+    | Sch.Updated s -> s
+    | _ -> failwith "tab locus"
+  in
   (* Type "as" for "assets:cash" *)
-  let s_loc = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_loc (char_key 'a') with Sch.Updated s -> s | _ -> failwith "type a" in
-  let s_loc = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_loc (char_key 's') with Sch.Updated s -> s | _ -> failwith "type s" in
+  let s_loc =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_loc (char_key 'a') with
+    | Sch.Updated s -> s
+    | _ -> failwith "type a"
+  in
+  let s_loc =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_loc (char_key 's') with
+    | Sch.Updated s -> s
+    | _ -> failwith "type s"
+  in
   let cands = Sch.candidates s_loc in
   require (List.length cands > 0) "candidates-found";
   require (List.hd cands = "assets:cash") "prefix-match-assets-cash";
   (* Enter on Locus commits the selected candidate and advances focus to Amount *)
-  let s_loc = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_loc (key `Enter) with Sch.Updated s -> s | _ -> failwith "enter advance" in
+  let s_loc =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_loc (key `Enter) with
+    | Sch.Updated s -> s
+    | _ -> failwith "enter advance"
+  in
   let s_lines = Sch.screen ~book ~dimensions:dim ~width_of s_loc in
   let screen_text = String.concat "\n" (List.map snd s_lines) in
-  require (Base.String.is_substring screen_text ~substring:"assets:cash") "candidate-committed-to-screen";
+  require
+    (Base.String.is_substring screen_text ~substring:"assets:cash")
+    "candidate-committed-to-screen";
 
   (* 7. Ctrl-U suspense auto-fill *)
   (* Now at Posting 1 Amount. Type "+1000" *)
@@ -99,14 +155,24 @@ let self_check ~width_of () =
     let rec aux s i =
       if i >= String.length str then s
       else
-        let s = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s (char_key str.[i]) with Sch.Updated s -> s | _ -> failwith "type" in
+        let s =
+          match Sch.handle ~blocked:false ~dimensions:dim ~width_of s (char_key str.[i]) with
+          | Sch.Updated s -> s
+          | _ -> failwith "type"
+        in
         aux s (i + 1)
     in
     aux s 0
   in
   let s_amt = type_str "+1000" s_loc in
   (* Press Ctrl-U: balances remainder with suspense posting *)
-  let s_bal = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_amt (key ~mods:[`Ctrl] (`ASCII 'u')) with Sch.Updated s -> s | _ -> failwith "ctrl-u" in
+  let s_bal =
+    match
+      Sch.handle ~blocked:false ~dimensions:dim ~width_of s_amt (key ~mods:[ `Ctrl ] (`ASCII 'u'))
+    with
+    | Sch.Updated s -> s
+    | _ -> failwith "ctrl-u"
+  in
   require (Sch.notice s_bal <> "") "suspense-filled-notice";
   let s_bal_lines = Sch.screen ~book ~dimensions:dim ~width_of s_bal in
   let bal_text = String.concat "\n" (List.map snd s_bal_lines) in
@@ -114,53 +180,112 @@ let self_check ~width_of () =
   require (Base.String.is_substring bal_text ~substring:"-1000") "suspense-amount-balanced";
 
   (* Press Ctrl-U again when balanced: notice reports already balanced *)
-  let s_bal2 = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_bal (key ~mods:[`Ctrl] (`ASCII 'u')) with Sch.Updated s -> s | _ -> failwith "ctrl-u 2" in
-  require (Base.String.is_substring (Sch.notice s_bal2) ~substring:"already balanced") "suspense-already-balanced";
+  let s_bal2 =
+    match
+      Sch.handle ~blocked:false ~dimensions:dim ~width_of s_bal (key ~mods:[ `Ctrl ] (`ASCII 'u'))
+    with
+    | Sch.Updated s -> s
+    | _ -> failwith "ctrl-u 2"
+  in
+  require
+    (Base.String.is_substring (Sch.notice s_bal2) ~substring:"already balanced")
+    "suspense-already-balanced";
 
   (* 8. Preview and LOAM validation *)
   (* Test unbalanced rejection *)
   let s_unbal = Sch.create ~book ~day:"2026-10-15" ~measure:"jpy" in
-  let s_unbal = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_unbal (key `Tab) with Sch.Updated s -> s | _ -> failwith "tab" in
+  let s_unbal =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_unbal (key `Tab) with
+    | Sch.Updated s -> s
+    | _ -> failwith "tab"
+  in
   let s_unbal = type_str "assets:cash" s_unbal in
-  let s_unbal = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_unbal (key `Tab) with Sch.Updated s -> s | _ -> failwith "tab" in
+  let s_unbal =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_unbal (key `Tab) with
+    | Sch.Updated s -> s
+    | _ -> failwith "tab"
+  in
   let s_unbal = type_str "+1000" s_unbal in
-  let s_unbal = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_unbal (key `Tab) with Sch.Updated s -> s | _ -> failwith "tab" in
+  let s_unbal =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_unbal (key `Tab) with
+    | Sch.Updated s -> s
+    | _ -> failwith "tab"
+  in
   let s_unbal = type_str "expenses:groceries" s_unbal in
-  let s_unbal = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_unbal (key `Tab) with Sch.Updated s -> s | _ -> failwith "tab" in
-  let s_unbal = type_str "-500" s_unbal in (* unbalanced! *)
+  let s_unbal =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_unbal (key `Tab) with
+    | Sch.Updated s -> s
+    | _ -> failwith "tab"
+  in
+  let s_unbal = type_str "-500" s_unbal in
+  (* unbalanced! *)
   (* Advance focus to [Preview] and press Enter *)
   let rec to_preview s =
     if Sch.focus s = Sch.first_action s + 2 then s
     else
-      let s = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s (key `Tab) with Sch.Updated s -> s | _ -> failwith "to preview" in
+      let s =
+        match Sch.handle ~blocked:false ~dimensions:dim ~width_of s (key `Tab) with
+        | Sch.Updated s -> s
+        | _ -> failwith "to preview"
+      in
       to_preview s
   in
-  let s_unbal_prev = match Sch.handle ~blocked:false ~dimensions:dim ~width_of (to_preview s_unbal) (key `Enter) with Sch.Updated s -> s | _ -> failwith "enter preview unbal" in
+  let s_unbal_prev =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of (to_preview s_unbal) (key `Enter) with
+    | Sch.Updated s -> s
+    | _ -> failwith "enter preview unbal"
+  in
   require (not (Sch.is_preview s_unbal_prev)) "unbalanced-not-preview";
-  require (Base.String.is_substring (Sch.notice s_unbal_prev) ~substring:"totals differ") "unbalanced-notice";
+  require
+    (Base.String.is_substring (Sch.notice s_unbal_prev) ~substring:"totals differ")
+    "unbalanced-notice";
 
   (* Correct amount to -1000 and enter preview *)
   (* Erase "-500" from row 1 amount field (where s_unbal is focused) *)
-  let s_bal_correct = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_unbal (key `Backspace) with Sch.Updated s -> s | _ -> failwith "bs" in
-  let s_bal_correct = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_bal_correct (key `Backspace) with Sch.Updated s -> s | _ -> failwith "bs" in
-  let s_bal_correct = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_bal_correct (key `Backspace) with Sch.Updated s -> s | _ -> failwith "bs" in
-  let s_bal_correct = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_bal_correct (key `Backspace) with Sch.Updated s -> s | _ -> failwith "bs" in
+  let s_bal_correct =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_unbal (key `Backspace) with
+    | Sch.Updated s -> s
+    | _ -> failwith "bs"
+  in
+  let s_bal_correct =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_bal_correct (key `Backspace) with
+    | Sch.Updated s -> s
+    | _ -> failwith "bs"
+  in
+  let s_bal_correct =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_bal_correct (key `Backspace) with
+    | Sch.Updated s -> s
+    | _ -> failwith "bs"
+  in
+  let s_bal_correct =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_bal_correct (key `Backspace) with
+    | Sch.Updated s -> s
+    | _ -> failwith "bs"
+  in
   let s_bal_correct = type_str "-1000" s_bal_correct in
   let s_ready = to_preview s_bal_correct in
-  let s_preview = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_ready (key `Enter) with Sch.Updated s -> s | _ -> failwith "enter preview" in
+  let s_preview =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_ready (key `Enter) with
+    | Sch.Updated s -> s
+    | _ -> failwith "enter preview"
+  in
   require (Sch.is_preview s_preview) "preview-mode-entered";
 
   (* 9. Preview publication gate and successful publication *)
   (* Tiny terminal gate rejection: height 8 gives preview_capacity < 2 *)
-  let s_tiny_pub = match Sch.handle ~blocked:false ~dimensions:(80, 8) ~width_of s_preview (key `Enter) with
+  let s_tiny_pub =
+    match Sch.handle ~blocked:false ~dimensions:(80, 8) ~width_of s_preview (key `Enter) with
     | Sch.Updated s -> s
     | Sch.Publish _ -> failwith "tiny terminal must not publish"
     | Sch.Closed -> failwith "closed"
   in
-  require (Base.String.is_substring (Sch.notice s_tiny_pub) ~substring:"Enlarge terminal") "tiny-terminal-preview-gate";
+  require
+    (Base.String.is_substring (Sch.notice s_tiny_pub) ~substring:"Enlarge terminal")
+    "tiny-terminal-preview-gate";
 
   (* Normal terminal publication *)
-  let published_draft = match Sch.handle ~blocked:false ~dimensions:(80, 24) ~width_of s_preview (key `Enter) with
+  let published_draft =
+    match Sch.handle ~blocked:false ~dimensions:(80, 24) ~width_of s_preview (key `Enter) with
     | Sch.Publish draft -> draft
     | _ -> failwith "normal terminal publish"
   in
@@ -176,19 +301,30 @@ let self_check ~width_of () =
   let s_prev_rows = Sch.screen ~book ~dimensions:dim ~width_of s_preview in
   let cur_prev = Daily_overlays.cursor_in_rows ~width_of ~width:80 s_prev_rows in
   require (Option.is_none cur_prev) "preview-no-cursor";
-  let s_utf8 = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_amt (key (`Arrow `Left)) with
-    | Sch.Updated next -> next | _ -> failwith "left" in
-  let s_utf8 = match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_utf8 (char_key '9') with
-    | Sch.Updated next -> next | _ -> failwith "insert 9" in
+  let s_utf8 =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_amt (key (`Arrow `Left)) with
+    | Sch.Updated next -> next
+    | _ -> failwith "left"
+  in
+  let s_utf8 =
+    match Sch.handle ~blocked:false ~dimensions:dim ~width_of s_utf8 (char_key '9') with
+    | Sch.Updated next -> next
+    | _ -> failwith "insert 9"
+  in
   let s_utf8_rows = Sch.screen ~book ~dimensions:dim ~width_of s_utf8 in
-  require (List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"+1009|0") s_utf8_rows
-           || List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"+10090|") s_utf8_rows)
+  require
+    (List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"+1009|0") s_utf8_rows
+    || List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"+10090|") s_utf8_rows)
     "scheduled-utf8-caret-editing";
   let s_warn = Sch.with_notice s (String.make 500 'w') in
   let s_warn_rows = Sch.screen ~book ~dimensions:(48, 14) ~width_of s_warn in
-  require (List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"… more") s_warn_rows)
+  require
+    (List.exists (fun (_, t) -> Base.String.is_substring t ~substring:"… more") s_warn_rows)
     "scheduled-long-notice-overflow";
   let s_clean_rows = Sch.screen ~book ~dimensions:(48, 14) ~width_of s in
   let s_short_rows = Sch.screen ~book ~dimensions:(48, 14) ~width_of (Sch.with_notice s "Short") in
   require (List.length s_clean_rows = List.length s_short_rows) "scheduled-short-notice-stable";
-  Printf.printf "PASS: Scheduled creation session synthetic checks (fields, focus, 6-row cap, Date guard, prefix match, Ctrl-U, LOAM preview gate).\n%!"
+  Printf.printf
+    "PASS: Scheduled creation session synthetic checks (fields, focus, 6-row cap, Date guard, \
+     prefix match, Ctrl-U, LOAM preview gate).\n\
+     %!"

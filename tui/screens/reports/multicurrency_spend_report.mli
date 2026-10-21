@@ -17,15 +17,14 @@ type exchange_occurrence = {
 (** The retained exchange Event's exact selected source and destination Effects,
     plus its remaining Effects in recorded order. No rate is derived. *)
 
-type unresolved_effect = {
-  event : string;
-  date : string;
-  effect : Bakhlo_domain.Effect.t;
-}
+type unresolved_effect = { event : string; date : string; effect : Bakhlo_domain.Effect.t }
 (** A nonzero Effect whose Locus has no explicit accounting role in this capture. *)
 
-type original_reason = Unresolved_roles | Exchange_event | No_positive_expense
-(** Why an OriginalAmount observation is retained but not counted as presented
+type original_reason =
+  | Unresolved_roles
+  | Exchange_event
+  | No_positive_expense
+      (** Why an OriginalAmount observation is retained but not counted as presented
     Expense: missing role evidence, an exchange Event, or no positively classified
     Expense Effect. A sign is never inferred for the observation. *)
 
@@ -67,8 +66,7 @@ val compute :
     non-counted witness. An exchange whose selected Effect key is missing refuses
     the whole window instead of dropping or guessing a leg. *)
 
-val render_lines :
-  book:Bakhlo_sexp.Daily_book.t -> snapshot -> (Daily_overlays.style * string) list
+val render_lines : book:Bakhlo_sexp.Daily_book.t -> snapshot -> (Daily_overlays.style * string) list
 (** Full result text in fixed section order, with every unresolved and non-counted
     witness present and every amount exact and grouped at its own Measure scale.
     Logical lines are unwrapped for the caller to wrap. *)
