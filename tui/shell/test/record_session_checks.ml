@@ -325,7 +325,7 @@ let self_check ~width_of () =
   (match handle ~dimensions:(72, 20) overflow (`Key (`Enter, [])) with
   | S.Updated retained ->
       require (contains retained "Review to the end") "overflow-explicit-end-gate"
-  | S.Publish _ | S.Closed _ -> failwith "unreviewed-overflow-published");
+  | S.Publish _ | S.Closed _ | S.Enable_unresolved _ -> failwith "unreviewed-overflow-published");
   let ended =
     match handle ~dimensions:(72, 20) overflow (`Key (`End, [])) with
     | S.Updated t -> t
@@ -352,7 +352,8 @@ let self_check ~width_of () =
   in
   (match handle ~dimensions:(48, 13) compact_end (`Key (`Enter, [])) with
   | S.Updated retained -> require (contains retained "enlarge") "compact-full-preview-refused"
-  | S.Publish _ | S.Closed _ -> failwith "compact-end-bypassed-full-preview-gate");
+  | S.Publish _ | S.Closed _ | S.Enable_unresolved _ ->
+      failwith "compact-end-bypassed-full-preview-gate");
   let keyed =
     {
       tx.entry with

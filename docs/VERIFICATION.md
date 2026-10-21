@@ -5,6 +5,21 @@ None automatically certifies handwritten OCaml, external premise truth or househ
 Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the locked
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
+## TUI formatting and compiler policy (2026-10-21)
+
+- `4e7e023` formats `tui/` (163 of 179 files were unformatted) and the remaining Core files
+  with ocamlformat 0.29.0; `tui/.ocamlformat` targets OxCaml's 5.2 syntax, and
+  `./tools/format --check` now covers `tui/`. Nine interfaces had doc comments squeezed
+  between two declarations; a blank line now fixes their attachment. Formatting only.
+- The TUI project did not inherit the root `-warn-error +8+9+11` (a nested
+  `dune-project`), so three warnings had gone unnoticed: two non-exhaustive matches in
+  `record_session_checks.ml` (missing `Enable_unresolved`, now a failure case) and a
+  useless `with` in `shell_view.ml`. `tools/build-bonsai-tui` now writes the same policy
+  into the TUI project; a temporary partial match fails the build as
+  `Error (warning 8 ...)`.
+- `./tools/check`, `./tools/tui --self-check` (44 suites, no warnings) and
+  `./tools/format --check` passed. Household data not accessed.
+
 
 ## Research and pre-cutover documents moved to Git history (2026-10-21)
 

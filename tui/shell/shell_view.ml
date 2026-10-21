@@ -45,8 +45,7 @@ let quick_surface ~dimensions ~width_of state =
       else
         Some
           {
-            surface with
-            framed = false;
+            Quick_capture.framed = false;
             width = fst canvas;
             height = max 0 (snd canvas - List.length feedback);
             top = 0;
