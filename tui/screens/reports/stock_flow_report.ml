@@ -144,8 +144,8 @@ let compute_report ~book ~measure ~tracked_coords ~(period : IncExp.period) =
 let render_summary_lines ~width ~width_of ~book ~(report : report) =
   let pad_w = max 0 (width - 4) in
   let m = report.measure in
-  let signed_val z = (if Z.sign z > 0 then "+" else "") ^ B.format book m z ^ " " ^ m in
-  let unsigned_val z = B.format book m z ^ " " ^ m in
+  let signed_val z = (if Z.sign z > 0 then "+" else "") ^ O.format_money book m z ^ " " ^ m in
+  let unsigned_val z = O.format_money book m z ^ " " ^ m in
   let header =
     [
       (O.Heading, Printf.sprintf "Stock–Flow  [%s • %s]" report.period.label m);
@@ -201,16 +201,16 @@ let render_summary_lines ~width ~width_of ~book ~(report : report) =
         let name = if label <> "" && label <> c.locus then label ^ "/" ^ m else c.locus ^ "/" ^ m in
         let line =
           "  " ^ O.pad ~width_of col_name name ^ " "
-          ^ O.pad_left ~width_of col_num (B.format book m c.start_balance)
+          ^ O.pad_left ~width_of col_num (O.format_money book m c.start_balance)
           ^ " "
-          ^ O.pad_left ~width_of col_num ("+" ^ B.format book m c.increases)
+          ^ O.pad_left ~width_of col_num ("+" ^ O.format_money book m c.increases)
           ^ " "
-          ^ O.pad_left ~width_of col_num (B.format book m c.decreases)
+          ^ O.pad_left ~width_of col_num (O.format_money book m c.decreases)
           ^ " "
-          ^ O.pad_left ~width_of col_num (B.format book m c.end_balance)
+          ^ O.pad_left ~width_of col_num (O.format_money book m c.end_balance)
           ^ " "
           ^ O.pad_left ~width_of col_num
-              ((if Z.sign c.net_change > 0 then "+" else "") ^ B.format book m c.net_change)
+              ((if Z.sign c.net_change > 0 then "+" else "") ^ O.format_money book m c.net_change)
         in
         (O.Plain, line))
       report.coordinates
@@ -219,71 +219,25 @@ let render_summary_lines ~width ~width_of ~book ~(report : report) =
     "  "
     ^ O.pad ~width_of col_name ("Total (" ^ m ^ ")")
     ^ " "
-    ^ O.pad_left ~width_of col_num (B.format book m report.reconstructed_start)
+    ^ O.pad_left ~width_of col_num (O.format_money book m report.reconstructed_start)
     ^ " "
-    ^ O.pad_left ~width_of col_num ("+" ^ B.format book m report.increases_across_events)
+    ^ O.pad_left ~width_of col_num ("+" ^ O.format_money book m report.increases_across_events)
     ^ " "
-    ^ O.pad_left ~width_of col_num (B.format book m report.decreases_across_events)
+    ^ O.pad_left ~width_of col_num (O.format_money book m report.decreases_across_events)
     ^ " "
-    ^ O.pad_left ~width_of col_num (B.format book m report.reconstructed_end)
+    ^ O.pad_left ~width_of col_num (O.format_money book m report.reconstructed_end)
     ^ " "
     ^ O.pad_left ~width_of col_num
-        ((if Z.sign report.net_change > 0 then "+" else "") ^ B.format book m report.net_change)
+        ((if Z.sign report.net_change > 0 then "+" else "") ^ O.format_money book m report.net_change)
   in
   header @ [ (O.Chrome, th); rule ] @ rows @ [ rule; (O.Heading, total_line); (O.Plain, "") ]
-
-let render_detail_lines ~book ~(report : report) =
-  let m = report.measure in
-  let signed_val z = (if Z.sign z > 0 then "+" else "") ^ B.format book m z ^ " " ^ m in
-  let unsigned_val z = B.format book m z ^ " " ^ m in
-  [
-    (O.Heading, "Stock–Flow Principles & Evidence");
-    ( O.Plain,
-      Printf.sprintf "Period: %s (%s .. %s)" report.period.label report.period.start_day
-        report.period.end_exclusive );
-    (O.Plain, Printf.sprintf "Tracked Measure:                   %s" m);
-    (O.Chrome, "");
-    ( O.Plain,
-      Printf.sprintf "Reconstructed at Start:            %16s"
-        (unsigned_val report.reconstructed_start) );
-    ( O.Plain,
-      Printf.sprintf "Reconstructed at End:              %16s"
-        (unsigned_val report.reconstructed_end) );
-    ( O.Plain,
-      Printf.sprintf "Tracked Increases across Events:   %16s"
-        (signed_val report.increases_across_events) );
-    ( O.Plain,
-      Printf.sprintf "Tracked Decreases across Events:   %16s"
-        (signed_val report.decreases_across_events) );
-    ( O.Active,
-      Printf.sprintf "Net Change in Tracked Balance:     %16s" (signed_val report.net_change) );
-    ( O.Chrome,
-      Printf.sprintf "Current Tracked Balance Now:       %16s" (unsigned_val report.current_tracked)
-    );
-    (O.Chrome, "");
-    (O.Heading, "Principles & Integrity Notes:");
-    ( O.Plain,
-      "  - Historical boundaries require admitted zero-origin support; current quantities alone \
-       are insufficient." );
-    (O.Plain, "  - They are not archived historical balance snapshots.");
-    (O.Plain, "  - Increases/decreases are tracked-balance movements, not income/spending.");
-    (O.Plain, "  - Reconstructed end equals reconstructed start plus net change.");
-    (O.Plain, "  - Single-measure observation only; unlike measures are never summed.");
-    (O.Chrome, "");
-    (O.Plain, "Keys & Navigation:");
-    (O.Plain, "  1-5: Period presets (Month, Cycle, Prev Cycle, Year, All Time)");
-    (O.Plain, "  [ / ]: Shift period back / forward");
-    (O.Plain, "  Tab: Toggle report / detail pane");
-    (O.Plain, "  p: Print preview");
-    (O.Plain, "  Esc / q: Return to Home");
-  ]
 
 let print_summary ~book ~(report : report) =
   let lines = ref [] in
   let add s = lines := s :: !lines in
   let m = report.measure in
-  let signed_val z = (if Z.sign z > 0 then "+" else "") ^ B.format book m z ^ " " ^ m in
-  let unsigned_val z = B.format book m z ^ " " ^ m in
+  let signed_val z = (if Z.sign z > 0 then "+" else "") ^ O.format_money book m z ^ " " ^ m in
+  let unsigned_val z = O.format_money book m z ^ " " ^ m in
   add (Printf.sprintf "Stock–Flow Report - %s (%s)" report.period.label m);
   add
     (Printf.sprintf "Window: %s through %s (exclusive)" report.period.start_day
@@ -313,19 +267,19 @@ let print_summary ~book ~(report : report) =
       let label = B.label book c.locus in
       let name = if label <> "" && label <> c.locus then label ^ "/" ^ m else c.locus ^ "/" ^ m in
       add
-        (Printf.sprintf "  %-22s %12s %12s %12s %12s %12s" name (B.format book m c.start_balance)
-           ("+" ^ B.format book m c.increases)
-           (B.format book m c.decreases) (B.format book m c.end_balance)
-           ((if Z.sign c.net_change > 0 then "+" else "") ^ B.format book m c.net_change)))
+        (Printf.sprintf "  %-22s %12s %12s %12s %12s %12s" name (O.format_money book m c.start_balance)
+           ("+" ^ O.format_money book m c.increases)
+           (O.format_money book m c.decreases) (O.format_money book m c.end_balance)
+           ((if Z.sign c.net_change > 0 then "+" else "") ^ O.format_money book m c.net_change)))
     report.coordinates;
   add "--------------------------------------------------------------------------------";
   add
     (Printf.sprintf "  %-22s %12s %12s %12s %12s %12s"
        ("Total (" ^ m ^ ")")
-       (B.format book m report.reconstructed_start)
-       ("+" ^ B.format book m report.increases_across_events)
-       (B.format book m report.decreases_across_events)
-       (B.format book m report.reconstructed_end)
-       ((if Z.sign report.net_change > 0 then "+" else "") ^ B.format book m report.net_change));
+       (O.format_money book m report.reconstructed_start)
+       ("+" ^ O.format_money book m report.increases_across_events)
+       (O.format_money book m report.decreases_across_events)
+       (O.format_money book m report.reconstructed_end)
+       ((if Z.sign report.net_change > 0 then "+" else "") ^ O.format_money book m report.net_change));
   add "================================================================================";
   List.rev !lines

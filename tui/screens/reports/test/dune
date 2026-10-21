@@ -5,7 +5,8 @@
   stock_flow_checks
   liquidity_checks
   multicurrency_spend_checks
-  boundary_presets_checks)
+  boundary_presets_checks
+  report_frame_checks)
  (libraries
   bakhlo_screen_reports
   bakhlo_tui_book
@@ -13,7 +14,8 @@
   bakhlo_tui_protocol
   bakhlo.domain
   bakhlo.sexp
-  zarith))
+  zarith
+  base))
 
 (test
  (name trend_locus_projection_checks)

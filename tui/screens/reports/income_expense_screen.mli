@@ -14,4 +14,4 @@ val view : Screen.env -> Screen.geometry -> t -> Screen.view
 
 val form : t -> Ui_form.t option
 val preset : t -> Income_expense_report.period_preset
-val detail_focused : t -> bool
+val scroll : t -> int

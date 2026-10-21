@@ -179,7 +179,7 @@ let run ~width_of ~directory (back_home : C.state) =
   require (ie_ctl.workspace.route = W.Income_expense) "route-income-expense";
   let wide_ie = R.screen ~width_of (120, 30) ie_ctl in
   require
-    (contains wide_ie "Income & Expense" && contains wide_ie "Report Details")
+    (contains wide_ie "Income & Expense" && contains wide_ie "Total Expense")
     "income-expense-wide-visible";
   let ie_cycle = key ~width_of ie_ctl (`ASCII '2') in
   let wide_cycle = R.screen ~width_of (120, 30) ie_cycle in
@@ -200,15 +200,21 @@ let run ~width_of ~directory (back_home : C.state) =
   let ie_shifted = key ~width_of ie_ctl (`ASCII '[') in
   let wide_shifted = R.screen ~width_of (120, 30) ie_shifted in
   require (contains wide_shifted "Income & Expense") "income-expense-bracket-shift";
-  let ie_detail = key ~width_of ie_ctl `Enter in
+  (* Formulas and keys live in the [?] overlay, not a permanent pane. *)
+  let ie_help = key ~width_of ie_ctl (`ASCII '?') in
+  (match visible_form ie_help with
+  | Some f ->
+      require (Ui_form.id f = "report_help") "income-expense-help-opens";
+      require
+        (List.exists
+           (fun line -> Base.String.is_substring line ~substring:"Accounting Formula")
+           f.Ui_form.summary)
+        "income-expense-help-shows-formula"
+  | None -> failwith "expected income-expense help overlay");
+  let ie_help_closed = key ~width_of ie_help `Escape in
   require
-    (Income_expense_screen.detail_focused ie_detail.C.screens.income_expense)
-    "income-expense-enter-opens-detail";
-  let ie_back_report = key ~width_of ie_detail `Escape in
-  require
-    ((not (Income_expense_screen.detail_focused ie_back_report.C.screens.income_expense))
-    && ie_back_report.workspace.route = W.Income_expense)
-    "income-expense-esc-returns-to-report";
+    (no_modal ie_help_closed && ie_help_closed.workspace.route = W.Income_expense)
+    "income-expense-help-escapes";
   let ie_print = key ~width_of ie_ctl (`ASCII 'p') in
   (match visible_form ie_print with
   | Some f ->
@@ -320,13 +326,21 @@ let run ~width_of ~directory (back_home : C.state) =
     && Z.equal report.reconstructed_start Z.zero
     && Z.equal report.reconstructed_end Z.zero)
     "sf-explicit-zero-origin-boundaries";
-  let detail = key ~width_of sf_ctl `Tab in
-  let returned = key ~width_of detail `Escape in
+  (* One full-width body: End clamps to the last row and the next step works. *)
+  let tiny = (80, 14) in
+  ignore (R.screen ~width_of:String.length tiny sf_ctl);
+  let sf_end = key ~dimensions:tiny ~width_of:String.length sf_ctl `End in
+  let sf_end_scroll = Stock_flow_screen.scroll sf_end.C.screens.stock_flow in
+  require (sf_end_scroll > 0) "sf-end-scrolls";
+  let sf_step_back = key ~dimensions:tiny ~width_of:String.length sf_end (`ASCII 'k') in
   require
-    (returned.workspace.route = W.Stock_flow
-    && not (Stock_flow_screen.detail_focused returned.C.screens.stock_flow))
-    "sf-detail-return-retains-report";
-  let sf_back_home = key ~width_of returned (`ASCII 'q') in
+    (Stock_flow_screen.scroll sf_step_back.C.screens.stock_flow = sf_end_scroll - 1)
+    "sf-k-after-end-steps-back";
+  let sf_help = key ~width_of sf_ctl (`ASCII '?') in
+  require (visible_form_id sf_help = Some "report_help") "sf-help-opens";
+  let sf_help_closed = key ~width_of sf_help `Escape in
+  require (no_modal sf_help_closed) "sf-help-escapes";
+  let sf_back_home = key ~width_of sf_help_closed (`ASCII 'q') in
   require (sf_back_home.workspace.route = W.Home) "sf-report-return-home";
   run_liquidity ~width_of ~directory;
   run_multicurrency ~width_of ~directory;

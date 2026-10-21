@@ -216,6 +216,12 @@ let compute_report ~book ~roles ~period =
   in
   { period; summaries; unresolved_effects = List.rev !unresolved_acc }
 
+(* A Measure is active when the window has any role-classified income or expense.
+   Inactive Measures are named once instead of painted as empty blocks. *)
+let measure_active (ms : measure_summary) = ms.income_items <> [] || ms.expense_items <> []
+
+let split_measures summaries = List.partition measure_active summaries
+
 let render_report_lines ~width ~width_of ~book ~report =
   let pad_w = max 0 (width - 4) in
   let header =
@@ -229,7 +235,7 @@ let render_report_lines ~width ~width_of ~book ~report =
   in
   let render_measure (ms : measure_summary) =
     let m = ms.measure in
-    let fmt q = B.format book m q ^ " " ^ m in
+    let fmt q = O.format_money book m q ^ " " ^ m in
     let col_locus = max 20 (min 36 (pad_w / 2)) in
     let col_amt = max 14 (min 20 (pad_w - col_locus - 6)) in
 
@@ -271,7 +277,21 @@ let render_report_lines ~width ~width_of ~book ~report =
         (O.Plain, "");
       ]
   in
-  let summaries_lines = List.concat_map render_measure report.summaries in
+  let active, inactive = split_measures report.summaries in
+  let summaries_lines = List.concat_map render_measure active in
+  let inactive_lines =
+    match inactive with
+    | [] -> []
+    | names ->
+        [
+          ( O.Chrome,
+            "No activity in this window: "
+            ^ String.concat ", " (List.map (fun (ms : measure_summary) -> ms.measure) names) );
+        ]
+  in
+  let empty_lines =
+    if active = [] then [ (O.Chrome, "  (no role-classified activity in this window)") ] else []
+  in
   let unresolved_lines =
     if report.unresolved_effects = [] then []
     else
@@ -282,38 +302,10 @@ let render_report_lines ~width ~width_of ~book ~report =
       ]
       @ List.map
           (fun (date, locus, m, q) ->
-            (O.Plain, Printf.sprintf "  %s  %-20s  %s %s" date locus (B.format book m q) m))
+            (O.Plain, Printf.sprintf "  %s  %-20s  %s %s" date locus (O.format_money book m q) m))
           report.unresolved_effects
   in
-  header @ summaries_lines @ unresolved_lines
-
-let render_detail_lines ~report =
-  [
-    (O.Heading, "Report Overview");
-    (O.Plain, "Period: " ^ report.period.label);
-    ( O.Plain,
-      Printf.sprintf "Date range: %s .. %s" report.period.start_day report.period.end_exclusive );
-    (O.Chrome, "");
-    (O.Heading, "Accounting Formula");
-    (O.Plain, "  Income  = Sum of negative postings on Income accounts");
-    (O.Plain, "  Expense = Sum of positive postings on Expense accounts");
-    (O.Plain, "  Savings = Income - Expense");
-    (O.Chrome, "");
-    (O.Heading, "Provenance Distinction");
-    (O.Plain, "  Scheduled bills: paid via Scheduled plan completion");
-    (O.Plain, "  Ordinary: direct ad-hoc transactions");
-    (O.Chrome, "");
-    (O.Heading, "Keys & Navigation");
-    (O.Plain, "  1: Month");
-    (O.Plain, "  2: Cycle (boundary-presets.tsv)");
-    (O.Plain, "  3: Previous Cycle");
-    (O.Plain, "  4: Year");
-    (O.Plain, "  5: All Time");
-    (O.Plain, "  [ / ]: Shift period back / forward");
-    (O.Plain, "  p: Print preview");
-    (O.Plain, "  Tab: Switch report / details");
-    (O.Plain, "  Esc / q: Return to Home");
-  ]
+  header @ summaries_lines @ empty_lines @ inactive_lines @ unresolved_lines
 
 let print_summary ~book ~report =
   let lines = ref [] in
@@ -323,11 +315,13 @@ let print_summary ~book ~report =
     (Printf.sprintf "Period: %s through %s (exclusive)" report.period.start_day
        report.period.end_exclusive);
   add "============================================================";
+  let active, inactive = split_measures report.summaries in
   List.iter
     (fun (ms : measure_summary) ->
       let m = ms.measure in
-      let fmt q = B.format book m q ^ " " ^ m in
-      add (Printf.sprintf "\nCurrency: %s" m);
+      let fmt q = O.format_money book m q ^ " " ^ m in
+      add "";
+      add (Printf.sprintf "Currency: %s" m);
       add "--- Income ---";
       if ms.income_items = [] then add "  (no income)"
       else
@@ -345,12 +339,20 @@ let print_summary ~book ~report =
       add (Printf.sprintf "  Scheduled:   %s" (fmt ms.scheduled_expense));
       add (Printf.sprintf "  Ordinary:    %s" (fmt ms.ordinary_expense));
       add (Printf.sprintf "Net Savings:   %s" (fmt ms.net_savings)))
-    report.summaries;
+    active;
+  if active = [] then add "  (no role-classified activity in this window)";
+  (match inactive with
+  | [] -> ()
+  | names ->
+      add
+        ("No activity in this window: "
+        ^ String.concat ", " (List.map (fun (ms : measure_summary) -> ms.measure) names)));
   if report.unresolved_effects <> [] then begin
-    add "\n--- Unresolved Role Effects ---";
+    add "";
+    add "--- Unresolved Role Effects ---";
     List.iter
       (fun (date, locus, m, q) ->
-        add (Printf.sprintf "  %s  %-20s  %s %s" date locus (B.format book m q) m))
+        add (Printf.sprintf "  %s  %-20s  %s %s" date locus (O.format_money book m q) m))
       report.unresolved_effects
   end;
   List.rev !lines

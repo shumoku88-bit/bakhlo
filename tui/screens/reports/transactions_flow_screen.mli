@@ -16,3 +16,4 @@ val form : t -> Ui_form.t option
 val preset : t -> Income_expense_report.period_preset
 val detail_focused : t -> bool
 val selected_row : t -> int
+val scroll : t -> int

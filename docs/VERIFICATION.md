@@ -6,6 +6,20 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Shared report frame and Observe safety (2026-10-22)
+
+- Observe Preview defaults to `Edit`; `Publish` needs an explicit choice, and Esc from
+  Balances returns to Balances after Observe left the reports palette.
+- Income & Expense, Transactions Flow and Stock–Flow share one full-width frame: `?` help,
+  one clamped scroll model (j/k, PgUp/PgDn, Home/End, g/G) with a `first–last / count`
+  row, and Balances' `format_money`. The formulas pane, `max_int/4` End sentinels and
+  per-screen handlers are gone; Transactions Flow details only from 100 columns (Enter
+  full width below), and I&E lists active Measures and prints real lines (no `\u000a`).
+- Checks, `./tools/check`, `--self-check` and PTY passed. Read-only latest-data I&E/TF/
+  Stock–Flow at 160×45 and 80×24 stayed readable; totals differ only by the post-cutover
+  record missing from the frozen LOAM view; Stock–Flow still refuses without zero-origin
+  support; copy bytes unchanged.
+
 ## Actual render-local reuse and empty-query search (2026-10-21)
 
 - Actual resolves scope/Loci, filtered sorted rows and clamped selection once per
