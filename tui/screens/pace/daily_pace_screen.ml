@@ -618,126 +618,129 @@ let header_summary env t ~width ~width_of =
     let context = today ^ period in
     if width_of context <= width then context else today
 
-let rows (env : Screen.env) (geometry : Screen.geometry) t =
-  let width, body_height = geometry.content in
-  let width_of = geometry.width_of in
-  let context_count = if body_height >= 5 then 2 else if body_height >= 4 then 1 else 0 in
-  let height = max 0 (body_height - context_count) in
-  let context =
-    if context_count = 1 then [ (O.Plain, header_summary env t ~width ~width_of) ]
-    else if context_count = 2 then
-      [
-        ( O.Plain,
-          O.clip_text ~width_of width
-            (" Daily Pace / Trend • " ^ Trend.preset_label t.trend.preset
-           ^ "   [?] why  [w] what-if  [t] target") );
-        (O.Chrome, O.clip_text ~width_of width (header_summary env t ~width ~width_of));
-      ]
-    else []
-  in
+(* Two context rows when there is room (title, then today's summary), one when
+   tight, none in a tiny terminal. *)
+let context_rows env t ~width ~width_of ~body_height =
+  if body_height >= 5 then
+    [
+      ( O.Plain,
+        O.clip_text ~width_of width
+          (" Daily Pace / Trend • " ^ Trend.preset_label t.trend.preset
+         ^ "   [?] why  [w] what-if  [t] target") );
+      (O.Chrome, O.clip_text ~width_of width (header_summary env t ~width ~width_of));
+    ]
+  else if body_height >= 4 then [ (O.Plain, header_summary env t ~width ~width_of) ]
+  else []
+
+let panel ~width_of ~width ~height ~focused ~title ~bottom rows =
+  Panel.frame_rows ~inset:0 ~bottom_label:bottom ~width_of ~width ~height ~focused ~title rows
+
+(* The Selected day panel, scrolled by [t.scroll], with a position label. *)
+let selected_day_panel ~width_of ~width ~height t rows =
   let is_detail = t.pane = Detail_pane in
-  let panel ~width ~height ~focused ~title ~bottom rows =
-    Panel.frame_rows ~inset:0 ~bottom_label:bottom ~width_of ~width ~height ~focused ~title rows
+  let view =
+    Panel.window ~capacity:(max 0 (height - 2)) ~count:(List.length rows) ~scroll:t.scroll
+      ~selected:None
   in
-  let detail_panel ~width ~height rows =
-    let view =
-      Panel.window
-        ~capacity:(max 0 (height - 2))
-        ~count:(List.length rows) ~scroll:t.scroll ~selected:None
-    in
-    let bottom =
-      Printf.sprintf "%d-%d/%d%s%s"
-        (if view.capacity = 0 then 0 else view.start + 1)
-        (min (view.start + view.capacity) (List.length rows))
-        (List.length rows)
-        (if view.start > 0 then " ↑" else "")
-        (if view.start + view.capacity < List.length rows then " ↓" else "")
-    in
-    List.filteri (fun i _ -> i >= view.start && i < view.start + view.capacity) rows
-    |> panel ~width ~height ~focused:is_detail
-         ~title:("Selected day" ^ if is_detail then " [active]" else "")
-         ~bottom
+  let bottom =
+    Printf.sprintf "%d-%d/%d%s%s"
+      (if view.capacity = 0 then 0 else view.start + 1)
+      (min (view.start + view.capacity) (List.length rows))
+      (List.length rows)
+      (if view.start > 0 then " ↑" else "")
+      (if view.start + view.capacity < List.length rows then " ↓" else "")
   in
-  context
-  @
-  match samples env t with
-  | Ok (_, _, samples) ->
-      let count = List.length samples in
-      let selected_idx = max 0 (min (count - 1) t.trend.selected_index) in
+  List.filteri (fun i _ -> i >= view.start && i < view.start + view.capacity) rows
+  |> panel ~width_of ~width ~height ~focused:is_detail
+       ~title:("Selected day" ^ if is_detail then " [active]" else "")
+       ~bottom
+
+(* Chart on top; History beside (wide) or above (narrow) the Selected day panel. *)
+let trend_rows (env : Screen.env) (geometry : Screen.geometry) t ~height samples =
+  let width, _ = geometry.content and width_of = geometry.width_of in
+  let is_detail = t.pane = Detail_pane in
+  let count = List.length samples in
+  let selected_idx = max 0 (min (count - 1) t.trend.selected_index) in
+  let wide, lower_height, detail_width = panel_geometry geometry in
+  let detail_height = if wide then lower_height else if lower_height >= 12 then 6 else 0 in
+  let history_width = if wide then width - detail_width - 1 else width in
+  let history_height = if wide then lower_height else lower_height - detail_height in
+  let detail ~height =
+    selected_day_panel ~width_of ~width:detail_width ~height t
+      (sample_detail ~width_of ~width:detail_width env t samples)
+  in
+  if is_detail && detail_height = 0 then detail ~height
+  else
+    let chart_height = height - lower_height in
+    let chart =
       let title =
         "Trend"
         ^ (if is_detail then "" else " [active]")
         ^ if width >= 38 then " • " ^ Trend.graph_style_label t.trend.graph_style else ""
       in
-      let wide, lower_height, detail_width = panel_geometry geometry in
-      let detail_height = if wide then lower_height else if lower_height >= 12 then 6 else 0 in
-      let history_width = if wide then width - detail_width - 1 else width in
-      let history_height = if wide then lower_height else lower_height - detail_height in
-      let render_detail ~height =
-        let detail_rows = sample_detail ~width_of ~width:detail_width env t samples in
-        detail_panel ~width:detail_width ~height detail_rows
+      let history_capacity = max 0 (history_height - 4) in
+      let start = max 0 (selected_idx - max 0 (history_capacity - 1)) in
+      let position =
+        Printf.sprintf "%d/%d%s"
+          (if count = 0 then 0 else selected_idx + 1)
+          count
+          (if history_capacity = 0 then " • list hidden"
+           else (if start > 0 then " ↑" else "") ^ if start + history_capacity < count then " ↓" else "")
       in
-      if is_detail && detail_height = 0 then render_detail ~height
-      else
-        let chart_height = height - lower_height in
-        let chart =
-          let history_capacity = max 0 (history_height - 4) in
-          let start = max 0 (selected_idx - max 0 (history_capacity - 1)) in
-          let position =
-            Printf.sprintf "%d/%d%s"
-              (if count = 0 then 0 else selected_idx + 1)
-              count
-              (if history_capacity = 0 then " • list hidden"
-               else
-                 (if start > 0 then " ↑" else "")
-                 ^ if start + history_capacity < count then " ↓" else "")
-          in
-          Trend.render_chart
-            ~width:(max 0 (width - 2))
-            ~height:(Panel.capacity ~height:chart_height ~heading:false)
-            ~width_of ~book:env.book ~today:env.today ~measure:env.measure ~samples
-            ~selected_index:selected_idx ~graph_style:t.trend.graph_style
-          |> List.map (fun (style, text) ->
-              ((if is_detail && style = O.Active then O.Plain else style), text))
-          |> panel ~width ~height:chart_height ~focused:(not is_detail) ~title ~bottom:position
-        in
-        let history =
-          Trend.render_history
-            ~width:(max 0 (history_width - 2))
-            ~height:(Panel.capacity ~height:history_height ~heading:false)
-            ~width_of ~book:env.book ~today:env.today ~measure:env.measure ~samples
-            ~selected_index:selected_idx ~detail_focused:is_detail
-          |> panel ~width:history_width ~height:history_height ~focused:(not is_detail)
-               ~title:"History"
-               ~bottom:(Printf.sprintf "%d/%d" (if count = 0 then 0 else selected_idx + 1) count)
-        in
-        let lower =
-          if wide then
-            List.map2
-              (fun (left_style, left_text) (right_style, right_text) ->
-                (O.Columns (history_width, left_style, right_style), left_text ^ " " ^ right_text))
-              history
-              (render_detail ~height:detail_height)
-          else history @ if detail_height = 0 then [] else render_detail ~height:detail_height
-        in
-        chart @ lower
-  | Error why ->
-      if is_detail then
-        detail_panel ~width ~height
-          (List.concat_map (O.wrap_text ~width_of (max 1 (width - 2))) (detail_lines env)
-          |> List.map (fun text -> (O.Plain, text)))
-      else
-        let left_rows =
-          List.concat_map
-            (O.wrap_text ~width_of (max 1 (width - 2)))
-            [
-              tr "Daily Pace unavailable:";
-              why;
-              "Supply an explicit daily-pace.tsv pool and boundary-presets.tsv period.";
-            ]
-        in
-        panel ~width ~height ~focused:true ~title:"Trend [active]" ~bottom:"i for details"
-          (List.map (fun text -> (O.Chrome, text)) left_rows)
+      Trend.render_chart
+        ~width:(max 0 (width - 2))
+        ~height:(Panel.capacity ~height:chart_height ~heading:false)
+        ~width_of ~book:env.book ~today:env.today ~measure:env.measure ~samples
+        ~selected_index:selected_idx ~graph_style:t.trend.graph_style
+      |> List.map (fun (style, text) -> ((if is_detail && style = O.Active then O.Plain else style), text))
+      |> panel ~width_of ~width ~height:chart_height ~focused:(not is_detail) ~title ~bottom:position
+    in
+    let history =
+      Trend.render_history
+        ~width:(max 0 (history_width - 2))
+        ~height:(Panel.capacity ~height:history_height ~heading:false)
+        ~width_of ~book:env.book ~today:env.today ~measure:env.measure ~samples
+        ~selected_index:selected_idx ~detail_focused:is_detail
+      |> panel ~width_of ~width:history_width ~height:history_height ~focused:(not is_detail)
+           ~title:"History"
+           ~bottom:(Printf.sprintf "%d/%d" (if count = 0 then 0 else selected_idx + 1) count)
+    in
+    let lower =
+      if wide then
+        List.map2
+          (fun (left_style, left_text) (right_style, right_text) ->
+            (O.Columns (history_width, left_style, right_style), left_text ^ " " ^ right_text))
+          history (detail ~height:detail_height)
+      else history @ if detail_height = 0 then [] else detail ~height:detail_height
+    in
+    chart @ lower
+
+(* Without a qualified pool and period: the cause, and its details on i. *)
+let unavailable_rows env t ~width_of ~width ~height why =
+  if t.pane = Detail_pane then
+    selected_day_panel ~width_of ~width ~height t
+      (List.concat_map (O.wrap_text ~width_of (max 1 (width - 2))) (detail_lines env)
+      |> List.map (fun text -> (O.Plain, text)))
+  else
+    List.concat_map
+      (O.wrap_text ~width_of (max 1 (width - 2)))
+      [
+        tr "Daily Pace unavailable:";
+        why;
+        "Supply an explicit daily-pace.tsv pool and boundary-presets.tsv period.";
+      ]
+    |> List.map (fun text -> (O.Chrome, text))
+    |> panel ~width_of ~width ~height ~focused:true ~title:"Trend [active]" ~bottom:"i for details"
+
+let rows (env : Screen.env) (geometry : Screen.geometry) t =
+  let width, body_height = geometry.content and width_of = geometry.width_of in
+  let context = context_rows env t ~width ~width_of ~body_height in
+  let height = max 0 (body_height - List.length context) in
+  context
+  @
+  match samples env t with
+  | Ok (_, _, samples) -> trend_rows env geometry t ~height samples
+  | Error why -> unavailable_rows env t ~width_of ~width ~height why
 
 let footer (geometry : Screen.geometry) t =
   let narrow = fst geometry.content < 79 in
