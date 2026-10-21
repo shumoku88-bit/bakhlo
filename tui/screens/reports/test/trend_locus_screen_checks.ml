@@ -482,6 +482,22 @@ let () =
       ~book ~measure:"jpy" ~today:"2040-01-01" ()
   in
   require (Result.is_error (S.result broken owned)) "a config read failure clears the chart";
+  (* An unreadable accounting-roles.tsv refuses the default series by name; an
+     explicit series does not need the roles. *)
+  let roles_broken =
+    { env with Screen.accounting_roles = lazy (Error "accounting-roles.tsv is malformed") }
+  in
+  (match S.result roles_broken owned with
+  | Ok _ -> failwith "a roles read failure must clear the default chart"
+  | Error why ->
+      require (contains why "accounting-roles.tsv") "the refusal names accounting-roles.tsv");
+  let roles_picker = after roles_broken owned (`ASCII 'a') in
+  let roles_explicit =
+    after roles_broken (press_n roles_broken roles_picker (`Arrow `Down) 3) `Enter
+  in
+  require
+    (Result.is_ok (S.result roles_broken roles_explicit))
+    "an explicit series does not need the roles file";
   let malformed =
     Screen.env_for_checks
       ~config:(fun _ -> Ok (Some "not a preset"))

@@ -218,6 +218,33 @@ let self_check () =
   in
   require (contains summary "Current window is partial: day 15 of 31.") "ie2-partial-label";
   require (contains summary "Previous: Month of 2026-09 (same 15 elapsed day(s))") "ie2-partial-previous-label";
+
+  (* A window that has not started is an empty window, not "day 0 of M". *)
+  let future = month 1 in
+  let future_elapsed, future_total = IncExp.elapsed ~today:"2026-10-15" future in
+  require (future_elapsed = 0 && future_total > 0) "ie2-future-window-is-unstarted";
+  let future_report =
+    IncExp.compute_report ~book:window_book ~roles:window_roles ~period:future
+  in
+  let empty_previous =
+    IncExp.compute_report ~book:window_book ~roles:window_roles
+      ~period:(IncExp.truncate_to_days previous.period 0)
+  in
+  require
+    (List.for_all
+       (fun (ms : IncExp.measure_summary) ->
+         Z.equal ms.total_income Z.zero && Z.equal ms.total_expense Z.zero)
+       empty_previous.summaries)
+    "ie2-empty-previous-has-no-flow";
+  let future_summary =
+    List.map snd
+      (IncExp.render_report_lines ~width:80 ~width_of:String.length ~book:window_book
+         ~report:future_report ~today:"2026-10-15" ~previous:(Some empty_previous)
+         ~previous_full:None)
+  in
+  require (contains future_summary "has not started") "ie2-future-window-labelled";
+  require (not (contains future_summary "day 0 of")) "ie2-no-day-zero-label";
+  require (not (contains future_summary "(whole prev")) "ie2-no-whole-previous-when-unstarted";
   require (contains summary "prev 1,000  +122,456") "ie2-income-difference-exact";
   require (contains summary "prev 500  +9,500") "ie2-expense-difference-exact";
   require (contains summary "prev 500  +112,956") "ie2-result-difference-exact";

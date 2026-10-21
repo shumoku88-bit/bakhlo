@@ -123,10 +123,15 @@ let effective_scope t = if t.grain = R.Day then t.scope else R.All_history
 let project (env : Screen.env) t =
   match t.focus_day with
   | None -> Error "No observation day: the Shell has not focused a day for this chart."
-  | Some observed_at ->
-      Result.bind (env.config boundary_file) (fun boundary_presets_text ->
-          R.project ~book:env.book ~observed_at ~boundary_presets_text ~grain:t.grain
-            ~scope:(effective_scope t) ~coordinates:(effective_coordinates env t))
+  | Some observed_at -> (
+      (* The default series needs the roles; an unreadable file is a refusal that
+         names it, never a silent empty chart. *)
+      match (t.coordinates, Lazy.force env.accounting_roles) with
+      | [], Error why -> Error ("Accounting roles unavailable (accounting-roles.tsv): " ^ why)
+      | _ ->
+          Result.bind (env.config boundary_file) (fun boundary_presets_text ->
+              R.project ~book:env.book ~observed_at ~boundary_presets_text ~grain:t.grain
+                ~scope:(effective_scope t) ~coordinates:(effective_coordinates env t)))
 
 let points_of (snap : R.snapshot) =
   if Array.length snap.R.series = 0 then [||] else snap.R.series.(0).R.points
@@ -832,13 +837,12 @@ let chart_rows (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snaps
 let unavailable_rows (geometry : Screen.geometry) why =
   let width, height = geometry.content in
   let width_of = geometry.width_of in
-  let lines =
-    [
-      tr "Trend / Locus unavailable:";
-      why;
-      "Supply an explicit boundary-presets.tsv preset that contains the focused day.";
-    ]
+  let hint =
+    if Base.String.is_substring why ~substring:"accounting-roles.tsv" then
+      "Fix accounting-roles.tsv; no Locus role is guessed."
+    else "Supply an explicit boundary-presets.tsv preset that contains the focused day."
   in
+  let lines = [ tr "Trend / Locus unavailable:"; why; hint ] in
   let wrapped =
     List.concat_map (O.wrap_text ~width_of (max 1 (width - 4))) lines
     |> List.map (fun text -> (O.Plain, text))

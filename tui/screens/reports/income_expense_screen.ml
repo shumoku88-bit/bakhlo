@@ -62,7 +62,9 @@ let previous_pair (env : Screen.env) t (period : IncExp.period) =
         let partial =
           match report env truncated with Ok rep -> Some rep | Error _ -> None
         in
-        (partial, Some full)
+        (* A window that has not started compares with an empty previous window;
+           its whole total would be a misread, so it is not offered. *)
+        (partial, if elapsed = 0 then None else Some full)
 
 let same_window (a : IncExp.period) (b : IncExp.period) =
   a.start_day = b.start_day && a.end_exclusive = b.end_exclusive

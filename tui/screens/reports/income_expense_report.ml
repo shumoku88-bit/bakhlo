@@ -140,9 +140,10 @@ let elapsed ~today (period : period) =
   | _ -> (0, 0)
 
 (* The same window truncated to [days] elapsed days, for a like-for-like
-   comparison with a previous window of the same age. *)
+   comparison with a previous window of the same age. Zero elapsed days is an
+   empty window, never the whole window. *)
 let truncate_to_days (period : period) days =
-  if days <= 0 then period
+  if days <= 0 then { period with end_exclusive = period.start_day }
   else match Cal.shift_days period.start_day days with
     | Ok day -> { period with end_exclusive = day }
     | Error _ -> period
@@ -290,7 +291,9 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~previous ~previou
         Printf.sprintf "Window: %s .. %s (exclusive)" report.period.start_day
           report.period.end_exclusive );
       ( O.Chrome,
-        if total_days > 0 && elapsed_days < total_days then
+        if total_days > 0 && elapsed_days = 0 then
+          "Current window has not started yet: no day has elapsed."
+        else if total_days > 0 && elapsed_days < total_days then
           Printf.sprintf "Current window is partial: day %d of %d." elapsed_days total_days
         else "" );
       ( O.Plain,
@@ -298,7 +301,8 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~previous ~previou
         | None -> "Previous window: none of this kind (nothing inferred)."
         | Some (prev : report) ->
             Printf.sprintf "Previous: %s%s" prev.period.label
-              (if total_days > 0 && elapsed_days < total_days then
+              (if total_days > 0 && elapsed_days = 0 then " (0 elapsed days)"
+               else if total_days > 0 && elapsed_days < total_days then
                  Printf.sprintf " (same %d elapsed day(s))" elapsed_days
                else "") );
       (O.Plain, "");
