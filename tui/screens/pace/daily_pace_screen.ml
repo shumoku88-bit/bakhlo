@@ -88,38 +88,16 @@ let config_token s = s <> "" && String.for_all (fun c -> Char.code c > 32 && Cha
 let captured_text payload = String.sub payload 8 (String.length payload - 8)
 
 let resolve_window (env : Screen.env) =
-  let today = env.today in
-  let canonical_date day =
-    match A.normalize_date day with Ok canonical -> canonical = day | Error _ -> false
-  in
-  let rec increasing = function
-    | a :: b :: rest -> a < b && increasing (b :: rest)
-    | [] | [ _ ] -> true
-  in
-  let rec parse names windows = function
-    | [] -> (
-        match windows with
-        | [ window ] -> Ok window
-        | [] -> Error "No explicit boundary preset contains today."
-        | _ -> Error "Multiple boundary presets contain today; selection is ambiguous.")
-    | line :: rest -> (
-        match String.split_on_char '\t' line with
-        | name :: dates
-          when config_token name
-               && (not (List.mem name names))
-               && List.length dates >= 2
-               && List.for_all canonical_date dates && increasing dates ->
-            let rec window = function
-              | a :: b :: tail -> if a <= today && today < b then Some (a, b) else window (b :: tail)
-              | _ -> None
-            in
-            let windows = match window dates with Some w -> w :: windows | None -> windows in
-            parse (name :: names) windows rest
-        | _ -> Error "Malformed boundary-presets.tsv; no period was inferred.")
-  in
   Result.bind (env.config boundary_file) (function
     | None -> Error "Period not configured (boundary-presets.tsv missing)."
-    | Some text -> parse [] [] (config_lines text))
+    | Some text -> (
+        match Boundary_presets.parse text with
+        | Error () -> Error "Malformed boundary-presets.tsv; no period was inferred."
+        | Ok presets -> (
+            match Boundary_presets.containing env.today presets with
+            | [ (_, start_day, end_exclusive) ] -> Ok (start_day, end_exclusive)
+            | [] -> Error "No explicit boundary preset contains today."
+            | _ -> Error "Multiple boundary presets contain today; selection is ambiguous.")))
 
 let resolve_pool (env : Screen.env) =
   let measure = env.measure in
@@ -264,45 +242,12 @@ let detail_viewport env (geometry : Screen.geometry) t =
 (* Forms *)
 
 let decode_boundary_presets text =
-  let canonical_date day =
-    match A.normalize_date day with Ok canonical -> canonical = day | Error _ -> false
-  in
-  let rec increasing = function
-    | a :: b :: rest -> a < b && increasing (b :: rest)
-    | [] | [ _ ] -> true
-  in
-  let lines =
-    match List.rev (String.split_on_char '\n' text) with
-    | "" :: rest -> List.rev rest
-    | rows -> List.rev rows
-  in
-  let rec loop names acc = function
-    | [] -> Ok (List.rev acc)
-    | line :: rest -> (
-        if String.starts_with ~prefix:"#" (String.trim line) then loop names acc rest
-        else
-          match String.split_on_char '\t' line with
-          | name :: dates
-            when config_token name
-                 && (not (List.mem name names))
-                 && List.length dates >= 2
-                 && List.for_all canonical_date dates && increasing dates ->
-              loop (name :: names) ((name, dates) :: acc) rest
-          | _ -> Error "Boundary preset config malformed. Refusing implicit replacement.")
-  in
-  loop [] [] lines
+  Result.map_error
+    (fun () -> "Boundary preset config malformed. Refusing implicit replacement.")
+    (Boundary_presets.parse text)
 
 let current_window_for presets today =
-  let rec window_in = function
-    | a :: b :: tail -> if a <= today && today < b then Some (a, b) else window_in (b :: tail)
-    | _ -> None
-  in
-  let windows =
-    List.filter_map
-      (fun (name, dates) -> Option.map (fun (a, b) -> (name, a, b)) (window_in dates))
-      presets
-  in
-  match windows with
+  match Boundary_presets.containing today presets with
   | [ w ] -> Ok w
   | [] -> Error "no configured boundary preset contains the current date"
   | _ -> Error "multiple configured boundary presets contain the current date"

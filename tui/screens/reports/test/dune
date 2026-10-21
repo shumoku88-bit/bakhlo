@@ -4,7 +4,8 @@
   reports_checks
   stock_flow_checks
   liquidity_checks
-  multicurrency_spend_checks)
+  multicurrency_spend_checks
+  boundary_presets_checks)
  (libraries
   bakhlo_screen_reports
   bakhlo_tui_book

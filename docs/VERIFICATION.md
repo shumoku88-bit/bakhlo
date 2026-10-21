@@ -6,6 +6,19 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## One boundary-presets parser for every screen (2026-10-21)
+
+- Five copies read `boundary-presets.tsv` (Daily Pace today, its cycle form, Trend, Income &
+  Expense / Trend-Locus, Multicurrency Spend) and disagreed: Daily Pace kept `\r` and spaces
+  (a CRLF file made today's pace "malformed" while its Trend read it), and the cycle form
+  refused blank lines. `tui/book/boundary_presets.ml` is now the only parser: lines trimmed,
+  blank and `#` lines skipped, the same name/date rules; each screen keeps its own refusal
+  wording. A new pure check covers CRLF/comments/blank lines, every refusal and the
+  half-open windows.
+- Guard: a temporary uncommitted dump painted Daily Pace and Actual through a 40-key script at
+  6 sizes × 3 themes (3.4 MB and 2.8 MB of ANSI) before and after; byte-identical.
+  `./tools/check` (45 suites) passed. Household data not accessed.
+
 ## Screen readability and a CI race in the app checks (2026-10-21)
 
 - Scheduled (`35fb94d`): `handle` became a dispatcher; Months and List got named handlers,

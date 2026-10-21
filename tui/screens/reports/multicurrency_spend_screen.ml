@@ -46,39 +46,10 @@ let create () =
 let canonical_day day =
   match A.normalize_date day with Ok normalized -> normalized = day | Error _ -> false
 
-let preset_token text =
-  text <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) text
-
-let rec increasing = function
-  | a :: b :: rest -> a < b && increasing (b :: rest)
-  | [] | [ _ ] -> true
-
-let strip_cr line =
-  let length = String.length line in
-  if length > 0 && line.[length - 1] = '\r' then String.sub line 0 (length - 1) else line
-
-(* The boundary-presets parser lives privately in a sibling; reuse it once a
-   shared API is authorized. Format is identical. *)
 let parse_presets text =
-  let lines =
-    String.split_on_char '\n' text |> List.map strip_cr
-    |> List.filter (fun line ->
-        let trimmed = String.trim line in
-        trimmed <> "" && not (String.starts_with ~prefix:"#" trimmed))
-  in
-  let rec loop names acc = function
-    | [] -> Ok (List.rev acc)
-    | line :: rest -> (
-        match String.split_on_char '\t' line with
-        | name :: dates
-          when preset_token name
-               && (not (List.mem name names))
-               && List.length dates >= 2
-               && List.for_all canonical_day dates && increasing dates ->
-            loop (name :: names) ((name, dates) :: acc) rest
-        | _ -> Error "Malformed boundary-presets.tsv; named presets are unavailable.")
-  in
-  loop [] [] lines
+  Result.map_error
+    (fun () -> "Malformed boundary-presets.tsv; named presets are unavailable.")
+    (Boundary_presets.parse text)
 
 let load_presets (env : Screen.env) =
   match env.config preset_file with

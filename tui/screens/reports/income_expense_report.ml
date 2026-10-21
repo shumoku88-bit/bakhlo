@@ -47,38 +47,11 @@ let preset_label = function
 
 let presets = [ Month; Cycle; Previous_cycle; Year; All_time ]
 
-let config_lines text =
-  String.split_on_char '\n' text
-  |> List.filter_map (fun line ->
-      let s = String.trim line in
-      if s = "" || String.starts_with ~prefix:"#" s then None else Some s)
-
-let config_token s = s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
-let canonical_date day = match A.normalize_date day with Ok c -> c = day | Error _ -> false
-
-let rec increasing = function
-  | a :: b :: rest -> a < b && increasing (b :: rest)
-  | [] | [ _ ] -> true
-
+(* Every window of boundary-presets.tsv as (name, start, end-exclusive). *)
 let parse_boundary_presets text =
-  let lines = config_lines text in
-  let rec loop names acc = function
-    | [] -> Ok acc
-    | line :: rest -> (
-        match String.split_on_char '\t' line with
-        | name :: dates
-          when config_token name
-               && (not (List.mem name names))
-               && List.length dates >= 2
-               && List.for_all canonical_date dates && increasing dates ->
-            let rec windows = function
-              | a :: b :: tail -> (name, a, b) :: windows (b :: tail)
-              | _ -> []
-            in
-            loop (name :: names) (acc @ windows dates) rest
-        | _ -> Error "Malformed boundary-presets.tsv; no period was inferred.")
-  in
-  loop [] [] lines
+  match Boundary_presets.parse text with
+  | Ok presets -> Ok (Boundary_presets.windows presets)
+  | Error () -> Error "Malformed boundary-presets.tsv; no period was inferred."
 
 let resolve_period ~today ~preset ~offset ~boundary_presets_text =
   match preset with
