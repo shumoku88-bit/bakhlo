@@ -5550,3 +5550,25 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
   qualification were **not executed**. Neither `./tools/compare` nor `./ui` ran;
   no household/LOAM data was accessed. Native self-check and latest-data comparison
   remain for the main-checkout review; this does not certify complete future coverage.
+
+## Liquidity integration and latest-data comparison (2026-10-21)
+
+- Integrated `omp/liquidity` (`af2943b`, `caf742e`, rebased on `7fbebd4`; the
+  VERIFICATION append conflict kept both sections). Shared edits are the additive
+  `Liquidity` route / command / registry / title wiring authorized for this slice.
+- The worker could not build `tui/screens/reports/test` in its worktree; on main the owner
+  test failed to compile because it called `Base`, which its test stanza does not link.
+  `4976fa1` replaces those calls with a local substring helper (no new library).
+- On the main checkout: `./tools/check`, `./tools/privacy-scan --all` (no match),
+  `./tools/tui --self-check` (40 PASS, now including the Liquidity owner checks),
+  `git diff --check` and the local native PTY matrix passed.
+- Latest-data paired comparison on generation `capture-1792545422-2755-293b919a` at
+  120×36, read-only (Commands → Reports and analysis → Liquidity, then run the conditional
+  query with the default month-end date): both show `Forecast path: UNKNOWN`,
+  `Known low-water mark: UNKNOWN`, the same default assumed-complete-through date, and both
+  refuse the run for the same overdue selected Scheduled occurrence. Differences: wording
+  of the explanatory lines; Bakhlo repeats the refusal in the body and the feedback line,
+  and the feedback wraps mid-word. Household/config and comparison book SHA-256 unchanged,
+  no file in LOAM's copy modified, AI tmux sessions closed, `clean-copies` passed.
+- A successful conditional path on real data (no overdue selected plan), 80×24, physical
+  terminal/IME and P7 were **not executed**.
