@@ -50,3 +50,20 @@ val with_value_axis :
   string list
 (** Prefix [label ┤ ] on tick rows (a label that does not fit is […]) and
     [note │ ] elsewhere. *)
+
+val multi_line_rows :
+  width:int ->
+  height:int ->
+  series:Z.t list list ->
+  selected:int ->
+  range:range ->
+  grid_rows:int list ->
+  markers:string list ->
+  ?guides:int list ->
+  ?annotations:(string * int list) list ->
+  unit ->
+  string list
+(** Several series on one braille grid. Masks are unioned, so a column never
+    overwrites another series; each series' marker sits on its selected value
+    when that cell carries no line. [guides] mark columns and [annotations]
+    mark a glyph at every listed x. *)

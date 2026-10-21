@@ -4,6 +4,7 @@
 module B = Bakhlo_sexp.Daily_book
 module R = Trend_locus_report
 module S = Trend_locus_screen
+module Roles = Locus_roles
 
 let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
@@ -43,6 +44,7 @@ let long_boundaries = "long\t2026-08-01\t2026-11-01\n"
 
 let env_with ?(book = book) ?(measure = "jpy") boundaries =
   Screen.env_for_checks
+    ~accounting_roles:[ ("a", Roles.Expense); ("b", Roles.Expense) ]
     ~config:(fun name ->
       if List.mem name S.config_files then Ok (Some boundaries) else Error ("undeclared " ^ name))
     ~book ~measure ~today:"2040-01-01" ()
@@ -83,6 +85,59 @@ let () =
   require (Result.is_error (S.result env (S.create ()))) "an unfocused chart has no clock fallback";
   let starting_period = S.selected_period owned in
   let starting_index = S.selected env owned in
+
+  (* Default series: the Expense-role Loci with the most entries in the history. *)
+  let busy_book =
+    make_book (row "busy" "2026-10-02" (posting "b" (z 1) ^ " " ^ posting "c" (z (-1))))
+  in
+  let busy_env = env_with ~book:busy_book boundaries in
+  let busy = S.enter ~focus_day:"2026-10-03" (S.create ()) in
+  let defaults = S.coordinates busy_env busy in
+  require
+    (match defaults with
+    | coordinate :: _ -> coordinate.R.locus = "b" && coordinate.R.measure = "jpy"
+    | [] -> false)
+    "default series start with the busiest Expense Locus";
+  require (List.length defaults <= 3) "at most three default series";
+
+  (* [?] opens the help overlay that now holds the disclaimers. *)
+  let help = after env owned (`ASCII '?') in
+  require (S.modal help) "the help overlay is modal";
+  let help_closed = after env help `Escape in
+  require (not (S.modal help_closed)) "Esc closes the help overlay";
+
+  (* The chart is braille, starts at a zero axis row and names the window ends. *)
+  let painted = (S.view env geometry owned).Screen.rows |> Lazy.force in
+  let is_braille = function
+    | `Uchar u -> let n = Uchar.to_int u in n >= 0x2800 && n <= 0x28FF
+    | `Malformed _ -> false
+  in
+  let has_braille =
+    List.exists
+      (fun (_, text) -> Uutf.String.fold_utf_8 (fun found _ c -> found || is_braille c) false text)
+      painted
+  in
+  require has_braille "the chart paints braille cells";
+  let contains text needle =
+    let length = String.length needle in
+    let rec loop index =
+      index + length <= String.length text
+      && (String.sub text index length = needle || loop (index + 1))
+    in
+    length = 0 || loop 0
+  in
+  let window_start =
+    match get (S.result env owned) with
+    | snap ->
+        let points = (first_series snap).R.points in
+        if Array.length points = 0 then "" else String.sub points.(0).R.start_day 5 5
+  in
+  require
+    (window_start <> "" && List.exists (fun (_, text) -> contains text window_start) painted)
+    "the x axis names the window start";
+  require
+    (List.exists (fun (_, text) -> contains text " jpy") painted)
+    "series values name the Measure";
   ignore (S.view env geometry owned);
   ignore (S.result env owned);
   ignore (after env owned `End);
@@ -192,21 +247,31 @@ let () =
   require
     (S.picker_open duplicate && duplicate_request = Screen.Stay
     && S.coordinates env duplicate = S.coordinates env owned)
-    "a plotted coordinate cannot be added twice";
-  let added = after env (press_n env picker (`Arrow `Down) 3) `Enter in
+    "Enter applies the chosen catalog coordinate to the next empty slot";
+  let catalog = S.catalog env owned in
+  let catalog_index locus =
+    match List.find_index (fun (c : R.coordinate) -> c.R.locus = locus) catalog with
+    | Some index -> index
+    | None -> failwith ("catalog is missing " ^ locus)
+  in
+  let choose name state =
+    let opened = after env state (`ASCII 'a') in
+    after env (press_n env opened (`Arrow `Down) (catalog_index name)) `Enter
+  in
+  let added = choose "delta" owned in
   require
     ((not (S.picker_open added))
     && List.length (S.coordinates env added) = plotted + 1
     && List.nth (S.coordinates env added) plotted = coord "delta" "jpy")
     "Enter applies the chosen catalog coordinate to the next empty slot";
-  let picker4 = after env added (`ASCII 'a') in
-  let added5 = after env (press_n env picker4 (`Arrow `Down) 5) `Enter in
+  let added5 = choose "gamma" added in
   require
     (List.length (S.coordinates env added5) = plotted + 2
     && List.mem (coord "gamma" "jpy") (S.coordinates env added5))
     "a fifth coordinate fills the last slot";
-  let picker5 = after env added5 (`ASCII 'a') in
-  let replaced = after env (press_n env picker5 (`Arrow `Down) 4) `Enter in
+  let full = choose "c" added5 in
+  require (List.length (S.coordinates env full) = 5) "a fifth coordinate fills the last slot";
+  let replaced = choose "epsilon" full in
   require
     (List.length (S.coordinates env replaced) = 5
     && List.nth (S.coordinates env replaced) 0 = coord "epsilon" "jpy")
@@ -216,11 +281,11 @@ let () =
   require
     ((not (S.picker_open removed)) && List.length (S.coordinates env removed) = plotted - 1)
     "x removes the next empty slot's last occupied series";
-  let removed = after env (after env removed (`ASCII 'a')) (`ASCII 'x') in
+  let one_left = after env (after env removed (`ASCII 'a')) (`ASCII 'x') in
   require
-    (List.length (S.coordinates env removed) = plotted - 2)
-    "removal keeps the remaining plotted series";
-  let picker_keep = after env removed (`ASCII 'a') in
+    (List.length (S.coordinates env one_left) = 1)
+    "removal keeps the last plotted series";
+  let picker_keep = after env one_left (`ASCII 'a') in
   let kept, kept_request = press env picker_keep (`ASCII 'x') in
   require
     (S.picker_open kept && kept_request = Screen.Stay && List.length (S.coordinates env kept) = 1)

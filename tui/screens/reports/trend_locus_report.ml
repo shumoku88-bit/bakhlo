@@ -5,6 +5,7 @@ module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
 module Cal = Daily_calendar
 module IncExp = Income_expense_report
+module Roles = Locus_roles
 
 type grain = Cycle | Month | Day
 type scope = All_history | Current_cycle | Current_month | Last_30_days
@@ -116,9 +117,46 @@ let catalog ~book ~measure =
   List.sort_uniq String.compare (admitted @ historical)
   |> List.map (fun locus -> { locus; measure })
 
-let initial_series ~book ~measure =
-  catalog ~book ~measure |> List.filteri (fun index _ -> index < 3)
+let history_start ~observed_at ~boundary_presets_text =
+  Result.map
+    (fun (bounds : bounds) -> bounds.history_start)
+    (configured_bounds ~observed_at ~text:boundary_presets_text)
 
+(* The default series: the three Expense-role Loci with the most recorded
+   entries in the shown history. Ties go to the larger recorded movement first,
+   then to the token, so the choice is deterministic and derived from data. *)
+let initial_series ~book ~measure ~roles ~start_day ~end_exclusive =
+  let role locus = List.assoc_opt locus roles in
+  let table = Hashtbl.create 16 in
+  List.iter
+    (fun (entry : B.entry) ->
+      if entry.day >= start_day && entry.day < end_exclusive then
+        let seen = Hashtbl.create 4 in
+        List.iter
+          (fun (posting : D.Effect.t) ->
+            let locus = D.Identifier.Locus.to_string (D.Effect.locus posting) in
+            if
+              D.Identifier.Measure.to_string (D.Effect.measure posting) = measure
+              && role locus = Some Roles.Expense
+              && not (Hashtbl.mem seen locus)
+            then (
+              Hashtbl.replace seen locus ();
+              let entries, total =
+                Option.value ~default:(0, Z.zero) (Hashtbl.find_opt table locus)
+              in
+              Hashtbl.replace table locus
+                (entries + 1, Z.add total (Z.abs (D.Quantity.quanta (D.Effect.quantity posting))))))
+          entry.effects)
+    (B.entries book);
+  Hashtbl.fold (fun locus (entries, total) acc -> (locus, entries, total) :: acc) table []
+  |> List.sort (fun (a, entries_a, total_a) (b, entries_b, total_b) ->
+      let by_entries = compare entries_b entries_a in
+      if by_entries <> 0 then by_entries
+      else
+        let by_total = Z.compare total_b total_a in
+        if by_total <> 0 then by_total else String.compare a b)
+  |> List.filteri (fun index _ -> index < 3)
+  |> List.map (fun (locus, _, _) -> { locus; measure })
 let validate_coordinates ~book ~(coordinates : coordinate list) =
   match coordinates with
   | [] -> Error "Select at least one Locus."

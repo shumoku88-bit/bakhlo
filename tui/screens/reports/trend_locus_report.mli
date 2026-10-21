@@ -1,6 +1,7 @@
 (* Trend / Locus report: exact recorded Effect flow per Locus x Measure over an
    explicitly configured cycle history. Pure, read-only, no clock, no I/O. *)
 module B = Bakhlo_sexp.Daily_book
+module Roles = Locus_roles
 
 type grain = Cycle | Month | Day
 type scope = All_history | Current_cycle | Current_month | Last_30_days
@@ -35,8 +36,19 @@ val catalog : book:B.t -> measure:string -> coordinate list
     paired with that Measure, deduplicated and sorted for a deterministic order.
     Labels are not part of the coordinate. *)
 
-val initial_series : book:B.t -> measure:string -> coordinate list
-(** First up to three catalog coordinates for [measure]; never inferred seeds. *)
+val history_start : observed_at:string -> boundary_presets_text:string option -> (string, string) result
+(** The first boundary of the explicit preset containing the observation day. *)
+
+val initial_series :
+  book:B.t ->
+  measure:string ->
+  roles:(string * Roles.role) list ->
+  start_day:string ->
+  end_exclusive:string ->
+  coordinate list
+(** The three Expense-role Loci with the most recorded entries in the shown
+    history; ties go to the larger recorded movement, then the token. Fewer are
+    returned when fewer exist; nothing is inferred from a name or a sign. *)
 
 val project :
   book:B.t ->

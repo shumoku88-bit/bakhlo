@@ -59,6 +59,7 @@ val guides : t -> bool
 val notice : t -> string
 (** The last notice shown by this screen. *)
 
+val catalog : Screen.env -> t -> Trend_locus_report.coordinate list
 val picker_open : t -> bool
 
 val picker_target : t -> int option

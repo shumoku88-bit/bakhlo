@@ -12,7 +12,6 @@
 
 ## 要判断
 
-- [ ] Trend / Locus comparisonの既定系列：LOAMは家計の科目3つを固定、Bakhloは先頭の科目で空のグラフになりうる。設定で選べるようにするか。
 - [ ] LOAMのComplete Since（履歴の完全性の記録）をパリティ一覧に入れるか（Daily Paceの過去日に関わる）。
 
 ## 未完了

@@ -6,6 +6,19 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Trend data-driven series and braille chart (2026-10-22)
+
+- The default series are the three Expense-role Loci with the most recorded entries
+  in the shown history (ties: larger movement, then token), derived on every open;
+  `a` still edits the session only and nothing is written to config.
+- The chart reuses the single braille plotter (moved into `tui/kit`, extended for
+  several series): zero-based money axis, per-day values in the shared money format,
+  period labels, and interpolation when points outnumber columns; the coverage
+  disclaimer moved to `?`.
+- Checks cover the busiest-Locus default order, the help overlay, braille output and
+  x labels; `./tools/check`, `--self-check` and the PTY smoke passed. A read-only
+  latest-data run at 160×45/80×24/48×14 matched LOAM's series and wrote nothing.
+
 ## Income & Expense as a cycle summary (2026-10-22)
 
 - Default window is the configured cycle containing today (Month/Year/All and [ ]

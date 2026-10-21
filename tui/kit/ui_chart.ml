@@ -2,7 +2,7 @@
    (floor for the positive divisors used here), as in Lean's Int.
    Unlike LOAM, nice steps are not capped at 10^24: the tick count stays
    bounded by the interval count, so huge amounts still chart. *)
-module O = Daily_overlays
+module O = Ui_render
 
 type range = { low : Z.t; high : Z.t }
 type scale = { range : range; step : Z.t; ticks : Z.t list }
@@ -71,7 +71,7 @@ let glyph mask = if mask = 0 then " " else O.utf8 (Uchar.of_int (0x2800 + mask))
 
 (* Each subpixel column spans from the midpoint with its left neighbour to the
    midpoint with its right one; a missing neighbour contributes its own row. *)
-let braille_glyph sample range width height cell_x cell_y =
+let braille_mask sample range width height cell_x cell_y =
   let sub_width = max 1 (width * 2) and sub_height = max 1 (height * 4) in
   let row value = row_for_value sub_height range value in
   let mask = ref 0 in
@@ -92,7 +92,10 @@ let braille_glyph sample range width height cell_x cell_y =
           if low <= sub_y && sub_y <= high then mask := !mask + dot_value dx dy
         done
   done;
-  glyph !mask
+  !mask
+
+let braille_glyph sample range width height cell_x cell_y =
+  glyph (braille_mask sample range width height cell_x cell_y)
 
 let qualified_sample values joins width x =
   let count = Array.length values in
@@ -190,3 +193,65 @@ let with_value_axis ~width_of ~axis ~height ~scale ~label ?(note = fun _ -> "") 
         | None -> O.pad ~width_of axis (note row) ^ " │ "
       in
       prefix ^ if row < Array.length rows then rows.(row) else "")
+
+(* Several series share one braille grid: masks are unioned so a column never
+   overwrites another series, and each series' marker sits on its selected
+   value when that cell carries no line. *)
+let series_sample values =
+  let values = Array.of_list values in
+  fun sub_width x ->
+    let count = Array.length values in
+    if count = 0 then None
+    else if count = 1 || sub_width <= 1 then Some values.(0)
+    else if x + 1 >= sub_width then Some values.(count - 1)
+    else
+      let denominator = sub_width - 1 in
+      let scaled = x * (count - 1) in
+      let segment = scaled / denominator in
+      let left = values.(segment) in
+      let right = if segment + 1 < count then values.(segment + 1) else left in
+      Some (interpolate left right (scaled mod denominator) denominator)
+
+let multi_line_rows ~width ~height ~series ~selected ~range ~grid_rows ~markers ?(guides = [])
+    ?(annotations = []) () =
+  let width = max 1 width and height = max 1 height in
+  let series = List.map Array.of_list series in
+  let samples = List.map (fun values -> series_sample (Array.to_list values)) series in
+  let count = match series with values :: _ -> Array.length values | [] -> 0 in
+  let mask_at cell_x cell_y =
+    List.fold_left
+      (fun mask sample -> mask lor braille_mask sample range width height cell_x cell_y)
+      0 samples
+  in
+  let selected_x = x_for_index width count selected in
+  let marker_at =
+    List.filter_map
+      (fun (index, values) ->
+        if selected >= 0 && selected < Array.length values && index < List.length markers then
+          Some (selected_x, row_for_value height range values.(selected), List.nth markers index)
+        else None)
+      (List.mapi (fun index values -> (index, values)) series)
+  in
+  let annotation_at =
+    List.concat_map
+      (fun (glyph, positions) ->
+        List.map
+          (fun at -> (x_for_index width count at, glyph))
+          positions)
+      annotations
+  in
+  List.init height (fun row ->
+      String.concat ""
+        (List.init width (fun col ->
+             let mask = mask_at col row in
+             let base = if mask = 0 then " " else glyph mask in
+             match List.find_opt (fun (x, y, _) -> x = col && y = row) marker_at with
+             | Some (_, _, marker) when base = " " -> marker
+             | _ -> (
+                 match List.find_opt (fun (x, _) -> x = col) annotation_at with
+                 | Some (_, annotation) when base = " " -> annotation
+                 | _ ->
+                     if col = selected_x && base = " " then "│"
+                     else if List.mem col guides && base = " " then "┆"
+                     else if List.mem row grid_rows && base = " " then "┄"
+                     else base))))

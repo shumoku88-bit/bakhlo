@@ -4,4 +4,4 @@
 (library
  (name bakhlo_tui_kit)
  (wrapped false)
- (libraries uutf))
+ (libraries uutf zarith))

@@ -693,13 +693,13 @@ let render_chart ~width ~height ~width_of ~book ~today ~measure ~samples ~select
       let axis =
         match numbers with
         | [] -> 3
-        | _ -> Pace_chart.axis_width ~width_of width (Pace_chart.scale_for numbers) label
+        | _ -> Ui_chart.axis_width ~width_of width (Ui_chart.scale_for numbers) label
       in
       let plot =
         match numbers with
         | [] -> [ " No qualified points in this range" ]
         | _ ->
-            let scale = Pace_chart.scale_for numbers in
+            let scale = Ui_chart.scale_for numbers in
             let joins =
               List.init
                 (max 0 (count - 1))
@@ -708,12 +708,12 @@ let render_chart ~width ~height ~width_of ~book ~today ~measure ~samples ~select
                   && arr.(i).end_exclusive = arr.(i + 1).end_exclusive
                   && day_number arr.(i + 1).day = day_number arr.(i).day + 1)
             in
-            Pace_chart.qualified_rows
+            Ui_chart.qualified_rows
               ~width:(max 1 (width - axis - 3))
               ~height:plot_h ~values ~joins ~selected ~range:scale.range
               ~connect:(graph_style = Line)
-              ~grid_rows:(List.map (Pace_chart.row_for_value plot_h scale.range) scale.ticks)
-            |> Pace_chart.with_value_axis ~width_of ~axis ~height:plot_h ~scale ~label
+              ~grid_rows:(List.map (Ui_chart.row_for_value plot_h scale.range) scale.ticks)
+            |> Ui_chart.with_value_axis ~width_of ~axis ~height:plot_h ~scale ~label
       in
       let plot =
         List.init plot_h (fun i ->

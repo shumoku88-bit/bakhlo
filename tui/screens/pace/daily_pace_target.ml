@@ -251,21 +251,21 @@ let resample path count =
            (Z.of_int den)))
 
 let chart_rows ~width_of ~width ~height ~fmt current plan =
-  let scale = Pace_chart.scale_for (plan.target_per_day :: current :: plan.path) in
+  let scale = Ui_chart.scale_for (plan.target_per_day :: current :: plan.path) in
   (* Widen the tick column for the [target] guide label when the plot can afford it. *)
-  let axis = max (Pace_chart.axis_width ~width_of width scale fmt) (min 6 (width / 4)) in
+  let axis = max (Ui_chart.axis_width ~width_of width scale fmt) (min 6 (width / 4)) in
   (* One spare column keeps the target-date marker off the panel border. *)
   let plot_width = max 1 (width - axis - 4) in
   let points =
     if Z.equal plan.purchase Z.zero then plan.path
     else current :: resample plan.path (max 2 (2 * plot_width))
   in
-  let target_row = Pace_chart.row_for_value height scale.range plan.target_per_day in
+  let target_row = Ui_chart.row_for_value height scale.range plan.target_per_day in
   let rows =
-    Pace_chart.line_rows ~width:plot_width ~height ~values:points
+    Ui_chart.line_rows ~width:plot_width ~height ~values:points
       ~selected:(List.length points - 1)
       ~range:scale.range ~grid_rows:[ target_row ]
-    |> Pace_chart.with_value_axis ~width_of ~axis ~height ~scale ~label:fmt ~note:(fun row ->
+    |> Ui_chart.with_value_axis ~width_of ~axis ~height ~scale ~label:fmt ~note:(fun row ->
         if row = target_row && axis >= 6 then "target" else "")
   in
   let date =
