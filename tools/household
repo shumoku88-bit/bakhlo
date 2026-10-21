@@ -1,0 +1,29 @@
+#!/bin/sh
+# Daily household launcher (user decision 2026-10-21): open the household book in the
+# TUI, then on exit commit any change and push it to the household's own Git remote
+# (an off-site backup). A failed push keeps the local commit and is retried next time.
+# BAKHLO_HOUSEHOLD overrides the household directory (default: ../bakhlo-data).
+set -u
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+household=${BAKHLO_HOUSEHOLD:-$root/../bakhlo-data}
+if [ ! -f "$household/book.sexp" ] || [ ! -d "$household/.git" ]; then
+  printf '%s\n' "Household not found or not a Git repository: $household" >&2
+  exit 2
+fi
+cd "$root"
+./tools/tui --book "$household/book.sexp"
+status=$?
+
+git -C "$household" add -A
+if ! git -C "$household" diff --cached --quiet; then
+  git -C "$household" commit -q -m "記帳 $(date '+%Y-%m-%d %H:%M')" \
+    && printf '%s\n' 'Household changes committed.'
+fi
+if [ -n "$(git -C "$household" log --oneline '@{upstream}..' 2>/dev/null)" ]; then
+  if git -C "$household" push -q; then
+    printf '%s\n' 'Household backup pushed.'
+  else
+    printf '%s\n' 'Push failed; the commit is kept locally and will be pushed next time.' >&2
+  fi
+fi
+exit "$status"

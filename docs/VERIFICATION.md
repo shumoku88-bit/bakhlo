@@ -5834,3 +5834,15 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
   and [Bonsai TUI CI 39559417707](https://github.com/shumoku88-bit/bakhlo/actions/runs/39559417707)
   both succeeded (Linux builds the `fsync` branch of the stub).
 - Not executed: physically cutting power, kernel panic, other filesystems.
+
+## Household launcher with automatic backup (2026-10-21)
+
+- User decision: `bakhlo-data` is a Git repository pushed to the private GitHub repository
+  `shumoku88-bit/bakhlo-data` (created with `gh repo create --private`; visibility checked
+  PRIVATE). `tools/household` opens the book in the TUI and on exit commits any change and
+  pushes; a failed push keeps the local commit and is retried on a later exit.
+- Synthetic household with a local bare remote in scratch: no change commits nothing; a
+  change is committed and pushed; an unreachable remote keeps the commit locally
+  (`ahead 1`) and the next exit pushes it; a real tmux terminal run opened the TUI, `q`
+  exited with status 0, and the change reached the remote.
+- The real household was not opened by the AI.

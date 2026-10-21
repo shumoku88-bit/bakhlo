@@ -104,8 +104,10 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 - Cutover (user decision 2026-10-21): the operational household is `../bakhlo-data`
   (imported once by `./tools/import-loam`; see its `LOAM-RECORD.md`). The AI never
   writes it; only the user records through the TUI. AI checks use copies in ignored
-  scratch. `../loam-data` is the frozen LOAM record: never write, recover or
-  synchronize it. Approved: read-only copies of `household.loam` and its config, fresh
+  scratch. The user opens it with `./tools/household`, which on exit commits changes and
+  pushes them to the private GitHub backup `shumoku88-bit/bakhlo-data` (user decision
+  2026-10-21); never make that repository public. `../loam-data` is the frozen LOAM
+  record: never write, recover or synchronize it. Approved: read-only copies of `household.loam` and its config, fresh
   private comparison copies, and bounded read-only inventory of retained operation
   evidence. Keep private data and counts in ignored scratch only; never in fixtures,
   commits or public output. User decision (2026-10-20): no private household text
