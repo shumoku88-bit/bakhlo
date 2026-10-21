@@ -79,7 +79,8 @@ type publication =
     }
   | Cancel_plan of { id : string; day : string; base : string }
   | Plan_batch of { plans : Bakhlo_sexp.Daily_book.plan list; replace : bool; base : string }
-  | Create_plan of { plan : Bakhlo_sexp.Daily_book.plan; base : string }
+  | Create_plan of { plan : Bakhlo_sexp.Daily_book.plan; base : string; offer_pace : bool }
+      (** [offer_pace]: an ordinary creation offers the published plan's expected pace. *)
 
 type publish_outcome =
   | Published  (** Read back; the Shell already reported it and reloaded the book. *)

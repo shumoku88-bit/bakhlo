@@ -19,7 +19,7 @@ let execute_publication state = function
       A.commit_cancel_plan ~session:state.session ~base_revision:base ~id ~day
   | Screen.Plan_batch { plans; replace; base } ->
       A.commit_plan_batch ~replace ~session:state.session ~base_revision:base plans
-  | Screen.Create_plan { plan; base } ->
+  | Screen.Create_plan { plan; base; offer_pace = _ } ->
       A.commit_payload ~session:state.session ~base_revision:base (A.Plan_tx { plan; replace = false })
   | Screen.Observe_quantities _ -> invalid_arg "observations publish through publish_observation"
 

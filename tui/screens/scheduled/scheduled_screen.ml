@@ -14,6 +14,11 @@ let tr = Ui_text.tr
 type view = Coverage_view | Plan_view | Months_view | List_view
 type pane = List_pane | Loci_pane | Detail_pane
 
+(* How the Expected pace chooser was opened. [Created] is the post-publication
+   follow-up of a new Scheduled plan; it offers the published one-off as the
+   default and never generates a future occurrence. *)
+type pace_mode = Paced | Extending | Created
+
 type t = {
   view : view;
   list : RB.t;
@@ -30,7 +35,8 @@ type t = {
   pace : (B.plan * int) option;  (* the Expected pace chooser: source plan, choice *)
   pending : (B.plan * string * int option) option;
   (* monitoring save in flight: source, success notice, cadence to extend with *)
-  pace_extends : bool;  (* the open chooser was entered from e on an unmonitored plan *)
+  pace_mode : pace_mode;
+      (* why the chooser is open: an existing plan, an extend, or a just-created one *)
 }
 
 let coverage_file = "scheduled-coverage.tsv"
@@ -41,7 +47,7 @@ let create months =
   { view = Coverage_view; list = { RB.empty with order = RB.Oldest };
     months_list = { RB.empty with order = RB.Oldest }; months;
     focus_day = ""; pane = List_pane; origin = List_pane; scroll = 0; search = None;
-    coverage_row = 0; coverage_offset = 0; plan_row = 0; pace = None; pending = None; pace_extends = false }
+    coverage_row = 0; coverage_offset = 0; plan_row = 0; pace = None; pending = None; pace_mode = Paced }
 
 (* Monitoring rules are read-side configuration; a missing file is no rule, a
    malformed or unreadable one is an explicit error, never an empty overview. *)
@@ -60,6 +66,7 @@ let current env t =
   match t.view with (Coverage_view | Plan_view) when not (monitored env) -> List_view | v -> v
 
 let modal t = Option.is_some t.search || Option.is_some t.pace
+
 let months_view t = t.view = Months_view
 let detail_focused t = t.pane = Detail_pane
 let scroll t = t.scroll
@@ -235,6 +242,25 @@ let grouped amount =
 let pace_choices = [ ("Monthly", 1); ("Every 2 months", 2); ("Every 3 months", 3);
                      ("Every 6 months", 6); ("Yearly", 12) ]
 
+(* LOAM createdPaceLabels: keep the just-published occurrence, the five
+   cadences, then an explicit undecided. Selection 0 and Esc both leave
+   monitoring unchanged; the occurrence is already published either way. *)
+let created_pace_labels =
+  [ "This occurrence only (leave monitoring unchanged)" ]
+  @ List.map fst pace_choices
+  @ [ "Future pace undecided" ]
+
+(* LOAM runAfterCreation: the Scheduled occurrence is already published, so only
+   its expected pace is offered. An unusable signed-Locus shape refuses before a
+   chooser that could not save anything is shown. *)
+let open_created_pace (env : Screen.env) t plan =
+  match Cov.rule_for plan ~months:1 with
+  | Error _ ->
+      (t, unless_blocked env "The new Scheduled occurrence has no usable signed-Locus shape.")
+  | Ok _ ->
+      ({ t with pace = Some (plan, 0); pace_mode = Created },
+       Screen.Stay)
+
 (* LOAM selectedActionRecord: a Plan Detail occurrence, else the plan's latest. *)
 let action_record env t =
   match t.view, selected_entry env t with
@@ -266,7 +292,7 @@ let save_rule ?extend (env : Screen.env) t (source : B.plan) rule success =
 let change_pace env t =
   match action_record env t with
   | None -> (t, unless_blocked env "No current-open Scheduled occurrence is available for the selected recurring plan.")
-  | Some p -> ({ t with pace = Some (p, 0); pace_extends = false }, Screen.Stay)
+  | Some p -> ({ t with pace = Some (p, 0); pace_mode = Paced }, Screen.Stay)
 
 (* LOAM extendPlan from List / Months: a monitored plan extends on its cadence;
    an unmonitored one first chooses its expected pace, then extends. *)
@@ -278,7 +304,7 @@ let extend_selected (env : Screen.env) t =
       | Some row when List.mem row.rule.every_months [ 1; 2; 3; 6; 12 ] ->
           (t, Screen.Record_action { action = Screen.Generate_every row.rule.every_months; target = Some (Screen.Plan p) })
       | Some _ -> (t, unless_blocked env "This monitoring pattern cannot be extended automatically.")
-      | None -> ({ t with pace = Some (p, 0); pace_extends = true }, Screen.Stay))
+      | None -> ({ t with pace = Some (p, 0); pace_mode = Extending }, Screen.Stay))
 
 let stop_monitoring env t =
   match action_record env t with
@@ -295,25 +321,62 @@ let stop_monitoring env t =
                "Future pace is undecided for this plan. Existing Scheduled occurrences were not changed."))
 
 let handle_pace env t (source, choice) key =
-  let count = List.length pace_choices in
-  match key with
-  | Some ((`Escape | `ASCII 'q'), []) ->
-      ({ t with pace = None; pace_extends = false },
-       Screen.Message (if t.pace_extends then "Extend cancelled; no recurring pattern was selected."
-                       else "Plan monitoring unchanged."))
-  | Some ((`ASCII 'k' | `Arrow `Up), []) | Some (`Tab, [ `Shift ]) ->
-      ({ t with pace = Some (source, (choice + count - 1) mod count) }, Screen.Stay)
-  | Some ((`ASCII 'j' | `Arrow `Down | `Tab), []) ->
-      ({ t with pace = Some (source, (choice + 1) mod count) }, Screen.Stay)
-  | Some (`Enter, []) -> (
-      let label, months = List.nth pace_choices choice in
-      match Cov.rule_for source ~months with
-      | Error why -> (t, unless_blocked env why)
-      | Ok rule ->
-          save_rule ?extend:(if t.pace_extends then Some months else None) env t source rule (fun name ->
-              "Monitoring " ^ name ^ ": " ^ label ^ " from " ^ rule.anchor
-              ^ ". No Scheduled occurrence was created."))
-  | _ -> (t, Screen.Stay)
+  let stay t = (t, Screen.Stay) in
+  let close notice = ({ t with pace = None; pace_mode = Paced }, Screen.Message notice) in
+  match t.pace_mode with
+  | Created ->
+      let count = List.length created_pace_labels in
+      let move delta = stay { t with pace = Some (source, (choice + delta + count) mod count) } in
+      (* LOAM updateCreatedPace: keep the published occurrence, choose a cadence
+         or record an explicit undecided. No future Scheduled is ever created. *)
+      (match key with
+       | Some ((`Escape | `ASCII ('q' | 'Q')), []) ->
+           close "Expected pace unchanged; no future Scheduled created."
+       | Some ((`ASCII 'k' | `Arrow `Up), []) | Some (`Tab, [ `Shift ]) -> move (-1)
+       | Some ((`ASCII 'j' | `Arrow `Down | `Tab), []) -> move 1
+       | Some (`Enter, []) -> (
+           match choice with
+           | 0 -> close "Expected pace unchanged; no future Scheduled created."
+           | n when n = List.length pace_choices + 1 ->
+               (* LOAM undecided: the cadence template with everyMonths 0. *)
+               (match Cov.rule_for source ~months:1 with
+                | Error why -> (t, unless_blocked env why)
+                | Ok template ->
+                    save_rule env t source { template with Cov.every_months = 0 } (fun _ ->
+                        "Expected pace: undecided. No future Scheduled created; use e to extend \
+                         explicitly."))
+           | n -> (
+               match List.nth_opt pace_choices (n - 1) with
+               | None -> (t, unless_blocked env "Invalid pace selection.")
+               | Some (label, months) -> (
+                   match Cov.rule_for source ~months with
+                   | Error why -> (t, unless_blocked env why)
+                   | Ok rule ->
+                       save_rule env t source rule (fun _ ->
+                           "Expected pace: " ^ label ^ " from " ^ rule.anchor
+                           ^ ". No future Scheduled created; use e to extend explicitly."))))
+       | _ -> stay t)
+  | Extending | Paced ->
+      let count = List.length pace_choices in
+      (match key with
+       | Some ((`Escape | `ASCII 'q'), []) ->
+           close
+             (if t.pace_mode = Extending then "Extend cancelled; no recurring pattern was selected."
+              else "Plan monitoring unchanged.")
+       | Some ((`ASCII 'k' | `Arrow `Up), []) | Some (`Tab, [ `Shift ]) ->
+           stay { t with pace = Some (source, (choice + count - 1) mod count) }
+       | Some ((`ASCII 'j' | `Arrow `Down | `Tab), []) ->
+           stay { t with pace = Some (source, (choice + 1) mod count) }
+       | Some (`Enter, []) -> (
+           let label, months = List.nth pace_choices choice in
+           match Cov.rule_for source ~months with
+           | Error why -> (t, unless_blocked env why)
+           | Ok rule ->
+               save_rule ?extend:(if t.pace_mode = Extending then Some months else None) env t source rule
+                 (fun name ->
+                   "Monitoring " ^ name ^ ": " ^ label ^ " from " ^ rule.anchor
+                   ^ ". No Scheduled occurrence was created."))
+       | _ -> stay t)
 
 (* After a monitoring save the overview follows the source plan's row, which
    may move when its cadence changes the order. *)
@@ -324,7 +387,7 @@ let saved env _geometry result t =
       let rec find i = function
         | [] -> t.coverage_row
         | (row : Cov.row) :: rest -> if Cov.matches row.rule source then i else find (i + 1) rest in
-      let t = { t with pace = None; pending = None; pace_extends = false; coverage_row = find 0 rows } in
+      let t = { t with pace = None; pending = None; pace_mode = Paced; coverage_row = find 0 rows } in
       (match extend with
        | None -> (t, Screen.Message notice)
        | Some months ->
@@ -332,24 +395,37 @@ let saved env _geometry result t =
   | Ok (), None -> (t, Screen.Stay)
   | Error why, _ -> ({ t with pending = None }, Screen.Message why)
 
-let pace_paint (geometry : Screen.geometry) book ((source : B.plan), choice) =
+let pace_paint (env : Screen.env) (geometry : Screen.geometry) t ((source : B.plan), choice) =
   let width_of = geometry.width_of and width, height = geometry.content in
+  let book = env.book in
+  let created = t.pace_mode = Created in
+  let labels = if created then created_pace_labels else List.map fst pace_choices in
+  let choice = clamp_index (List.length labels) choice in
   (* LOAM ScheduledReview.summary wording; the amount is Measure-scaled. *)
   let changes = match List.filter (fun (_, q) -> Z.sign q < 0) source.changes,
                       List.filter (fun (_, q) -> Z.sign q > 0) source.changes with
     | [ (from, _) ], [ (into, q) ] -> from ^ " -> " ^ into ^ ": " ^ B.format book source.measure q ^ " " ^ source.measure
     | _ -> string_of_int (List.length source.changes) ^ " movement change(s)  " ^ source.measure in
+  let prompt =
+    if created then "The Scheduled occurrence is already published; choose its expected pace."
+    else "Choose the expected pace of explicit plans."
+  in
   let header = [ (O.Plain, O.clip_text ~width_of width ("Selected: " ^ source.day ^ "  " ^ changes));
-                 (O.Status, "Choose the expected pace of explicit plans.") ] in
+                 (O.Status, O.clip_text ~width_of width prompt) ] in
   let header = if height >= 10 then header else List.filteri (fun i _ -> i = 0) header in
-  let note = if height >= 12 then [ (O.Status, "Monitoring only. No future Scheduled is created.") ] else [] in
-  let panel_h = max 0 (min (List.length pace_choices + 2) (height - List.length header - List.length note)) in
-  let options = List.mapi (fun i (label, _) ->
-      ((if i = choice then O.Active else O.Plain), (if i = choice then "> " else "  ") ^ label)) pace_choices in
+  let note =
+    if height >= 12 then [ (O.Status, "Monitoring only. No future Scheduled is created.") ]
+    else []
+  in
+  let panel_h = max 0 (min (List.length labels + 2) (height - List.length header - List.length note)) in
+  (* The selected choice stays inside the frame when it cannot show them all. *)
+  let first = max 0 (choice - max 1 (panel_h - 2) + 1) in
+  let options = List.filteri (fun i _ -> i >= first) (List.mapi (fun i label ->
+      ((if i = choice then O.Active else O.Plain), (if i = choice then "> " else "  ") ^ label)) labels) in
   header
   @ Panel.frame_rows ~inset:0 ~width_of ~width ~height:panel_h ~focused:true
-      ~bottom_label:(Printf.sprintf "%d/%d" (choice + 1) (List.length pace_choices))
-      ~title:"Expected pace" options
+      ~bottom_label:(Printf.sprintf "%d/%d" (choice + 1) (List.length labels))
+      ~title:(if created then "Expected pace after creation" else "Expected pace") options
   @ note
 
 let pace_width width = if width >= 31 then 11 else 0
@@ -787,7 +863,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
   let rows = rows book t in
   let is_detail = t.pane = Detail_pane in
   match t.pace, t.view with
-  | Some chooser, _ -> pace_paint geometry book chooser
+  | Some chooser, _ -> pace_paint env geometry t chooser
   | None, Coverage_view -> coverage_paint env geometry t
   | None, Plan_view -> plan_paint env geometry t
   | None, Months_view ->
@@ -807,7 +883,9 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
 let footer (geometry : Screen.geometry) t =
   let width = fst geometry.screen in
   match t.view, t.pane with
-  | _ when t.pace <> None -> [ "Enter save monitoring  Up/Down choose  Esc cancel" ]
+  | _ when t.pace <> None ->
+      if t.pace_mode = Created then [ "Enter choose  Up/Down move  Esc keep one" ]
+      else [ "Enter save monitoring  Up/Down choose  Esc cancel" ]
   | Coverage_view, _ ->
       if width >= 79 then
         [ "[j/k] plan  [h/l] months  [Enter] detail  [q] back";
@@ -870,14 +948,20 @@ let view env (geometry : Screen.geometry) t =
            ~notice:(tr "Enter apply; Esc clear") ())) in
   {
     Screen.title = (match t.view, selected_rule env t with
-      | _ when t.pace <> None -> "Scheduled / Plan Monitoring"
+      | _ when t.pace <> None ->
+          if t.pace_mode = Created then "Scheduled / Expected pace after creation"
+          else "Scheduled / Plan Monitoring"
       | Coverage_view, _ -> "Scheduled Series Calendar"
       | Plan_view, Some row -> "Scheduled / Plan / " ^ row.rule.name
       | Plan_view, None -> "Scheduled / Plan"
       | Months_view, _ -> tr "Scheduled / Months"
       | List_view, _ -> tr "Scheduled / List");
     subtitle = (match t.view, selected_rule env t, coverage env with
-      | _ when t.pace <> None -> Screen.Text "Monitoring only; Scheduled occurrences are unchanged."
+      | _ when t.pace <> None ->
+          Screen.Text
+            (if t.pace_mode = Created then
+               "Monitoring only; the published Scheduled occurrence is unchanged."
+             else "Monitoring only; Scheduled occurrences are unchanged.")
       | Coverage_view, _, Ok (months, _) ->
           let width = max 0 (fst geometry.content - 2) in
           let shown = List.filteri (fun i _ -> i >= t.coverage_offset

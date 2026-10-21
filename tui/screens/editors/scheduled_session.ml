@@ -37,6 +37,7 @@ type t = {
   candidate : int;
   notice : string;
   mode : mode;
+  offer_pace : bool;  (* LOAM: an ordinary creation, not a continuation's next Scheduled *)
 }
 
 type outcome =
@@ -55,6 +56,7 @@ let notice t = t.notice
 let focus t = t.focus
 let rows_count t = List.length t.rows
 let with_notice t notice = { t with notice }
+let offers_expected_pace t = t.offer_pace
 
 let with_publish_error t message =
   { t with mode = Editing; notice = message }
@@ -70,6 +72,7 @@ let create ~book ~day ~measure =
     candidate = 0;
     notice = "";
     mode = Editing;
+    offer_pace = true;
   }
 
 let create_from_scheduled ~book (plan : B.plan) =
@@ -100,6 +103,7 @@ let create_from_scheduled ~book (plan : B.plan) =
         candidate = 0;
         notice = "Completion is already published. Enter the next due date, or Esc for completion only.";
         mode = Editing;
+        offer_pace = false;
       }
 
 let field_count t = 1 + (List.length t.rows * 2)
@@ -467,8 +471,9 @@ let handle ~blocked ~dimensions:((width, height) as _dim) ~width_of t (input : U
           | (`Home, []) -> Updated { t with cursor = Some 0 }
           | (`End, []) ->
               Updated { t with cursor = Some (String.length (value t)) }
-          | ((`Arrow `Up | `ASCII 'k'), []) -> Updated (move_candidate t true)
-          | ((`Arrow `Down | `ASCII 'j'), []) -> Updated (move_candidate t false)
+          (* Only arrows move candidates; j and k are text in a Locus such as "bank". *)
+          | (`Arrow `Up, []) -> Updated (move_candidate t true)
+          | (`Arrow `Down, []) -> Updated (move_candidate t false)
           | (`Enter, []) ->
               let act = first_action t in
               let foc = t.focus in

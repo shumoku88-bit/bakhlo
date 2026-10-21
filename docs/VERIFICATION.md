@@ -5706,3 +5706,33 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
   both succeeded.
 - A window with OriginalAmount or Exchange evidence, 80×24, physical terminal/IME and P7
   were **not executed**.
+
+## Scheduled expected pace after creation (2026-10-21)
+
+- LOAM reference (read-only): `ScheduledCreationSession.finishCreated` and
+  `ScheduledCoverageSetupSession.runAfterCreation`. Ordinary creation from the Scheduled
+  workspace or Selected Day offers the published plan's expected pace; the continuation's
+  next Scheduled (`runWithScheduledId`) does not.
+- Bakhlo: the creation editor carries `offer_pace` (true for an ordinary creation, false for
+  a continuation Add) on `Create_plan`. After a confirmed publication the Shell re-reads the
+  plan from the reloaded book and opens the Scheduled owner's chooser as a modal over the
+  current route, so the route, drill and Selected Day are untouched and leaving returns
+  there. Choices: this occurrence only (default, nothing saved), the five cadences, explicit
+  undecided (`0`). Esc saves nothing. No future Scheduled is created. A missing identity or
+  an unusable signed-Locus shape refuses instead of guessing.
+- Found and fixed while testing: the Scheduled creation editor consumed `j`/`k` as
+  candidate moves, so a Locus such as `bank` could not be typed. Only arrows move
+  candidates now.
+- Regressions in `tui/scenarios/scheduled_integration_checks.ml` (`created-pace-*`): offer
+  after ordinary creation, Esc keeps config and returns to List, cadence and undecided save
+  without another plan, Commands creation stays over and returns to the starting route,
+  selection visible/bounded at 32×9, 48×14, 80×24, 120×36. The existing continuation check
+  still requires no modal after Add. Each new check failed with its fix removed (offer hook,
+  `j`/`k`, chooser windowing).
+- `./tools/check`, `./tools/tui --self-check` (44 PASS) and `git diff --check` passed.
+- Synthetic native walkthrough (`examples/daily-book.sexp` copy in scratch): 80×24 create →
+  chooser → Monthly saved `scheduled-coverage.tsv` and returned to List; 48×14 Esc left the
+  coverage bytes unchanged and returned to List; 48×14 Up showed the selected last choice.
+  Book `--check` passed afterwards.
+- Latest-data paired comparison (the flow writes), physical terminal/IME and P7 were
+  **not executed**.

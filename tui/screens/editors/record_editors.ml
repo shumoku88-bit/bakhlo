@@ -166,7 +166,8 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
               B.id = env.new_id (); day = draft.Sch.scheduled_on; measure = draft.Sch.measure;
               changes = draft.Sch.changes; paid_by = None; cancelled_on = None;
             } in
-            (failed, Screen.Publish (Create_plan { plan; base = env.revision })))
+            (failed, Screen.Publish
+               (Create_plan { plan; base = env.revision; offer_pace = Sch.offers_expected_pace e })))
 
 let published _env _geometry outcome t =
   match outcome with

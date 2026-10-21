@@ -861,4 +861,66 @@ let coverage_checks ~width_of ~directory home =
                      (B.plans (F.load epath2).book)))
     "coverage-e-stale-reload-cannot-publish";
 
+  (* LOAM finishCreated (UI-23): an ordinary creation offers the published plan's
+     expected pace over the route it was started from; the plan is never re-created. *)
+  let csub = directory ^ "/coverage-created-" ^ F.new_id () in
+  Unix.mkdir csub 0o700;
+  let crules () =
+    let file = csub ^ "/scheduled-coverage.tsv" in
+    if Sys.file_exists file then F.read file else "" in
+  let create_from state =
+    let typed s text = String.fold_left (fun s c -> key ~width_of s (`ASCII c)) s text in
+    let s = List.fold_left (fun s text -> typed (key ~width_of s `Tab) text) state
+        [ "bank"; "-700"; "wallet"; "700" ] in
+    let previewed = List.fold_left (fun s _ -> key ~width_of s `Tab) s [ 1; 2; 3 ] |> fun s -> key ~width_of s `Enter in
+    key ~width_of previewed `Enter in
+  let created_in path =
+    List.filter (fun (p : B.plan) -> p.changes = [ ("bank", Z.of_int (-700)); ("wallet", Z.of_int 700) ])
+      (B.plans (F.load path).book) in
+  let fresh name =
+    let path = csub ^ "/" ^ name ^ ".sexp" in
+    F.write_new path (B.to_string book);
+    path in
+  let cpath = fresh "list" in
+  let clist = C.open_route (C.initial ~config_home:csub (F.load cpath)) W.Scheduled in
+  require (contains clist "Scheduled / List") "created-pace-fixture-starts-on-list";
+  let cchoosing = create_from (key ~width_of clist (`ASCII 'n')) in
+  require (List.length (created_in cpath) = 1 && not (no_modal cchoosing)
+           && contains cchoosing "Expected pace after creation"
+           && contains cchoosing "> This occurrence only")
+    "created-pace-offered-after-ordinary-creation";
+  let clast = key ~width_of cchoosing (`Arrow `Up) in
+  List.iter (fun dimensions ->
+    let rows = R.screen ~width_of dimensions clast in
+    require (List.length rows <= snd dimensions
+             && List.for_all (fun (_, line) -> width_of line <= fst dimensions) rows
+             && (fst dimensions < 48
+                 || List.exists (fun (_, line) -> Base.String.is_substring line ~substring:"> Future pace undecided") rows))
+      "created-pace-selection-stays-visible-and-bounded") [ 32, 9; 48, 14; 80, 24; 120, 36 ];
+  let ckept = key ~width_of cchoosing `Escape in
+  require (no_modal ckept && contains ckept "Scheduled / List" && crules () = ""
+           && List.length (created_in cpath) = 1
+           && Base.String.is_substring ckept.message ~substring:"Expected pace unchanged; no future Scheduled created.")
+    "created-pace-escape-keeps-config-and-returns";
+  let cmonthly = key ~width_of (key ~width_of cchoosing (`ASCII 'j')) `Enter in
+  require (no_modal cmonthly && contains cmonthly "Scheduled / List"
+           && Base.String.is_substring (crules ()) ~substring:"\t1\tbank\twallet\n"
+           && Base.String.is_substring cmonthly.message ~substring:"Expected pace: Monthly"
+           && List.length (created_in cpath) = 1)
+    "created-pace-cadence-saves-monitoring-without-another-plan";
+  let cundecided = key ~width_of (key ~width_of cchoosing (`Arrow `Up)) `Enter in
+  require (no_modal cundecided && Base.String.is_substring (crules ()) ~substring:"\t0\tbank\twallet\n"
+           && Base.String.is_substring cundecided.message ~substring:"Expected pace: undecided"
+           && List.length (created_in cpath) = 1)
+    "created-pace-undecided-saves-explicitly";
+  let hpath = fresh "home" in
+  let hhome = C.initial ~config_home:csub (F.load hpath) in
+  let hchoosing = create_from (X.open_command hhome M.New_plan) in
+  require (not (no_modal hchoosing) && hchoosing.workspace.route = hhome.workspace.route)
+    "created-pace-from-commands-stays-over-starting-route";
+  let hback = key ~width_of hchoosing `Escape in
+  require (no_modal hback && hback.workspace.route = hhome.workspace.route
+           && List.length (created_in hpath) = 1)
+    "created-pace-escape-returns-to-commands-route";
+
   print_endline "PASS: Scheduled Series Calendar coverage rules/projection, entrance, month window, plan entries/gaps, completion handoff/cancel, view cycle, malformed/missing config and read-only bytes."

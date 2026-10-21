@@ -1,8 +1,8 @@
 # LOAMの機能・見た目・使い勝手をBakhloで再現する
 
-## 中断中（2026-10-21）
+## 再開・完了（2026-10-21）
 
-- [ ] 予定作成直後のExpected pace選択（UI-23の残り）：`omp/created-pace`のworktree（`../bakhlo-omp-scheduled`）に未コミットの途中作業（scheduled_screen.ml/.mli、shell_dispatch.ml）。Shell変更は`shell_dispatch.ml`の`apply_request`のみ承認済み、drillは保持する方針。テスト未完了・未検証。
+- [x] 予定作成直後のExpected pace選択（UI-23の残り）をLOAM finishCreatedと同じく接続。作成フォームのj/k入力不具合も修正。[証拠](../docs/VERIFICATION.md#scheduled-expected-pace-after-creation-2026-10-21)。LOAMとの実データ対照は未実施（保存を伴う）。
 - [x] `95ba940`の同一SHA CIはCore／TUIともsuccess（2026-10-21確認）。
 
 ## Trend / Locus comparisonの残り（2026-10-21）

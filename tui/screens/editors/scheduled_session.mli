@@ -23,6 +23,9 @@ val create_from_scheduled :
   (t, string) result
 
 val is_preview : t -> bool
+val offers_expected_pace : t -> bool
+(** An ordinary creation offers the published plan's expected pace (LOAM
+    finishCreated); a completion's next Scheduled does not. *)
 val day : t -> string
 val measure : t -> string
 val notice : t -> string

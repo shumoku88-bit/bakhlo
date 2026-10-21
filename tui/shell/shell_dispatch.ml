@@ -202,7 +202,10 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
             published state (outcome result)
         | _ -> published (apply_commit_result ?published_message state ~draft:state result) (outcome result)
       in
-      apply_request ~saved ~published state request
+      let state = apply_request ~saved ~published state request in
+      (match publication, result with
+       | Screen.Create_plan { plan; offer_pace = true; _ }, A.Published _ -> offer_created_pace state plan.id
+       | _ -> state)
   | Screen.Save_attention { expected; next } ->
       let result =
         Result.map (fun () -> next) (Attention_file.save_file state.attention_path ~expected next) in
@@ -218,6 +221,21 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
   | Screen.Save_config { file; expected; content; admission } ->
       let state, request = saved state (save_config state ~file ~expected ~content ~admission) in
       apply_request ~saved ~published state request
+
+(* LOAM finishCreated: an ordinary creation offers the published plan's expected
+   pace once, re-read from the reloaded book. The chooser is the Scheduled
+   owner's modal over the current route, so leaving it returns to wherever the
+   creation was started. *)
+and offer_created_pace state id =
+  match List.find_opt (fun (p : B.plan) -> p.id = id) (B.plans state.session.book) with
+  | None ->
+      { state with message =
+          state.message ^ " Expected-pace setup unavailable: new Scheduled identity not found." }
+  | Some plan ->
+      let scheduled, request =
+        Scheduled_screen.open_created_pace
+          (screen_env ~config_files:Scheduled_screen.config_files state) state.screens.scheduled plan in
+      apply_request { state with screens = { state.screens with scheduled } } request
 
 let pace_env state = screen_env ~config_files:Pace.config_files state
 let balances_env state = screen_env ~config_files:Balances.config_files state

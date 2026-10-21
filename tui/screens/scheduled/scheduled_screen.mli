@@ -10,6 +10,12 @@ val create : Scheduled_months.t -> t
 
 val enter : focus_day:string -> t -> t
 val modal : t -> bool
+
+(** LOAM runAfterCreation: open the expected-pace follow-up for a Scheduled
+    plan the Shell has just published. The occurrence is never re-created. *)
+val open_created_pace :
+  Screen.env -> t -> Bakhlo_sexp.Daily_book.plan -> t * Screen.request
+
 val handle : Screen.env -> Screen.geometry -> t -> Ui_input.input -> t * Screen.request
 val view : Screen.env -> Screen.geometry -> t -> Screen.view
 val saved : Screen.env -> Screen.geometry -> (unit, string) result -> t -> t * Screen.request
