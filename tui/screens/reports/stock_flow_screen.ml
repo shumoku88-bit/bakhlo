@@ -48,14 +48,18 @@ let result (env : Screen.env) t =
     in
     rows [] (String.split_on_char '\n' text)
   in
+  (* The debt section needs the roles: an unreadable file is a refusal that names
+     it, never a silently empty section. *)
   let liability_coords tracked_measure =
     match Lazy.force env.accounting_roles with
     | Ok roles ->
-        List.filter_map
-          (fun (locus, role) ->
-            if role = Roles.Liability then Some (locus, tracked_measure) else None)
-          roles
-    | Error _ -> []
+        Ok
+          (List.filter_map
+             (fun (locus, role) ->
+               if role = Roles.Liability then Some (locus, tracked_measure) else None)
+             roles)
+    | Error why ->
+        Error ("Accounting roles unavailable (accounting-roles.tsv): " ^ why)
   in
   Result.bind (env.config balance_view_file) (function
     | None -> Error "Stock–Flow requires an explicit balance-view.tsv selection."
@@ -64,9 +68,11 @@ let result (env : Screen.env) t =
             match tracked_coords with
             | [] -> Error "Stock–Flow requires a nonempty balance-view.tsv selection."
             | (_, measure) :: _ ->
-                Result.bind (P.checked env t.report.preset t.report.period_offset) (fun period ->
-                    StockFlow.compute_report ~book:env.book ~measure ~tracked_coords
-                      ~liability_coords:(liability_coords measure) ~period)))
+                Result.bind (liability_coords measure) (fun liability_coords ->
+                    Result.bind (P.checked env t.report.preset t.report.period_offset)
+                      (fun period ->
+                        StockFlow.compute_report ~book:env.book ~measure ~tracked_coords
+                          ~liability_coords ~period))))
 
 let help_form () =
   Frame.help_form ~title:"Stock–Flow / Help"

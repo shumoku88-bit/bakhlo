@@ -136,6 +136,72 @@ let self_check () =
     = List.map (fun (c : S.coordinate_activity) -> (c.locus, c.start_balance, c.end_balance))
         warm.S.coordinates)
     "a cold reload reconstructs the same boundaries";
+
+  (* All Time: a zero-origin start before all history is exactly zero; a bounded
+     start stays unknown. *)
+  let all_time : I.period =
+    {
+      preset = I.All_time;
+      start_day = "0001-01-01";
+      end_exclusive = "9999-12-31";
+      label = "All Time";
+    }
+  in
+  let all_zero =
+    get
+      (S.compute_report ~book:zero ~measure:"jpy" ~tracked_coords:[ ("a", "jpy") ]
+         ~liability_coords:[] ~period:all_time)
+  in
+  require
+    ((only "a" all_zero).S.start_balance = Some Z.zero)
+    "an All Time zero-origin start is exactly zero";
+  let all_bounded =
+    get
+      (S.compute_report ~book:bounded ~measure:"jpy" ~tracked_coords:[ ("a", "jpy") ]
+         ~liability_coords:[] ~period:all_time)
+  in
+  require
+    ((only "a" all_bounded).S.start_balance = None
+    && (only "a" all_bounded).S.support = S.Before_start "2026-09-15")
+    "an All Time bounded start stays unknown";
+
+  (* The footnote names which total is partial. *)
+  let contains text needle =
+    let length = String.length needle in
+    let rec loop index =
+      index + length <= String.length text
+      && (String.sub text index length = needle || loop (index + 1))
+    in
+    length = 0 || loop 0
+  in
+  let before_lines =
+    List.map snd (S.render_summary_lines ~width:120 ~width_of:String.length ~book:bounded ~report:before)
+  in
+  require
+    (List.exists (fun line -> contains line "start total excludes") before_lines
+    && List.exists (fun line -> contains line "end total still adds every known end") before_lines)
+    "the footnote says which total excludes unknown starts";
+
+  (* The debt section refuses an unreadable accounting-roles.tsv by name. *)
+  let screen_env =
+    Screen.env_for_checks
+      ~config:(fun name ->
+        if name = "balance-view.tsv" then Ok (Some "a\tjpy\n")
+        else if name = "boundary-presets.tsv" then Ok (Some "household\t2026-10-01\t2026-11-01\n")
+        else Error ("undeclared " ^ name))
+      ~book:zero ~measure:"jpy" ~today:"2026-10-22" ()
+  in
+  let screen = Stock_flow_screen.create () in
+  require
+    (Result.is_ok (Stock_flow_screen.result screen_env screen))
+    "a readable roles file reconstructs the debt section";
+  let broken_roles =
+    { screen_env with Screen.accounting_roles = lazy (Error "accounting-roles.tsv is malformed") }
+  in
+  (match Stock_flow_screen.result broken_roles screen with
+  | Ok _ -> failwith "an unreadable roles file must refuse the debt section"
+  | Error why ->
+      require (contains why "accounting-roles.tsv") "the refusal names accounting-roles.tsv");
   print_endline
-    "PASS: Stock-Flow zero-origin and bounded support, unknown starts, listed unsupported \
-     coordinates, liabilities and cold-reload agreement (synthetic)."
+    "PASS: Stock-Flow zero-origin and bounded support, all-time and unknown starts, listed \
+     unsupported coordinates, liabilities, roles refusal and cold-reload agreement (synthetic)."

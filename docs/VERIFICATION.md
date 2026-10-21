@@ -6,6 +6,14 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Stock–Flow follow-ups (2026-10-22)
+
+- The debt section refuses an unreadable `accounting-roles.tsv` by name (like Trend
+  and I&E); the unknown-start footnote now says the start total is the partial one and
+  every known end is still added; All Time gives a zero-origin coordinate an exact 0
+  start while a bounded start stays unknown. Checks cover all three; `./tools/check`,
+  `--self-check`, the PTY smoke and a 160×45 All Time capture passed.
+
 ## Stock–Flow with bounded history (2026-10-22)
 
 - Qualification now uses the same rule as Daily Pace (`pool_at_end_of_day`):

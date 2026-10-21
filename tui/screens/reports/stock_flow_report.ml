@@ -159,33 +159,41 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
           match coordinate_of ~measure locus with
           | Error why -> base (Unsupported why) None None
           | Ok coordinate -> (
-              let start_result = balance_at ~book ~measure ~coordinate ~day:start_day in
-              let end_result = balance_at ~book ~measure ~coordinate ~day:end_day in
               match (zero, bounded) with
               | true, Some _ ->
                   base (Unsupported "zero-origin and bounded history overlap") None None
+              | true, None ->
+                  (* Zero-origin: no Effect can precede the first calendar day, so a
+                     window that starts before all history starts at exactly zero. *)
+                  let start_result =
+                    match start_day with
+                    | None -> Ok Z.zero
+                    | Some day -> balance_at ~book ~measure ~coordinate ~day:(Some day)
+                  in
+                  let end_result = balance_at ~book ~measure ~coordinate ~day:end_day in
+                  base Zero_origin
+                    (match start_result with Ok value -> Some value | Error _ -> None)
+                    (match end_result with Ok value -> Some value | Error _ -> None)
               | false, None -> base (Unsupported "no zero-origin or bounded history") None None
-              | _ -> (
-                  match start_result with
-                  | Error code
-                    when code <> "history-precedes-bounded-start" && code <> "invalid boundary" ->
-                      base (Unsupported (support_reason code)) None None
-                  | _ ->
-                      let support =
-                        match (zero, bounded, start_result) with
-                        | true, None, _ -> Zero_origin
-                        | false, Some start_day, Error "history-precedes-bounded-start" ->
-                            Before_start start_day
-                        | false, Some start_day, _ -> Bounded start_day
-                        | _ -> Unsupported "support unknown"
-                      in
-                      let start_balance =
-                        match start_result with Ok value -> Some value | Error _ -> None
-                      in
-                      let end_balance =
-                        match end_result with Ok value -> Some value | Error _ -> None
-                      in
-                      base support start_balance end_balance))
+              | false, Some first_day ->
+                  let start_result =
+                    match start_day with
+                    | None -> Error "history-precedes-bounded-start"
+                    | Some day -> balance_at ~book ~measure ~coordinate ~day:(Some day)
+                  in
+                  let end_result = balance_at ~book ~measure ~coordinate ~day:end_day in
+                  let support =
+                    match start_result with
+                    | Error "history-precedes-bounded-start" -> Before_start first_day
+                    | Error code -> Unsupported (support_reason code)
+                    | Ok _ -> Bounded first_day
+                  in
+                  (match support with
+                  | Unsupported _ -> base support None None
+                  | Zero_origin | Bounded _ | Before_start _ ->
+                      base support
+                        (match start_result with Ok value -> Some value | Error _ -> None)
+                        (match end_result with Ok value -> Some value | Error _ -> None)))
         in
         let coordinates = List.map classify pool in
         let supported, unsupported =
@@ -297,8 +305,9 @@ let footnote_lines ~book ~measure report =
   in
   (if report.unknown_starts > 0 then
      [
-       Printf.sprintf
-         "  Start/end totals exclude %d coordinate(s) whose start is unknown." report.unknown_starts;
+       Printf.sprintf "  The start total excludes %d coordinate(s) whose start is unknown."
+         report.unknown_starts;
+       "  The end total still adds every known end.";
      ]
    else [])
   @ notes
