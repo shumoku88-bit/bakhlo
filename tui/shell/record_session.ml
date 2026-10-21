@@ -11,7 +11,13 @@ let tr = Ui_text.tr
 
 type original_editor = { measure : string; amount : string; focus : int }
 type row = { key : D.Identifier.Effect_key.t option; locus : string; amount : string }
-type review = { payload : A.payload; base_revision : string; action : int; scroll : int }
+
+type review = {
+  payload : A.payload;
+  base_revision : string;
+  action : int;  (** 0 Publish, 1 Edit, 2 Cancel. *)
+  scroll : int;
+}
 
 type t = {
   mode : A.mode;
@@ -73,16 +79,18 @@ let has_draft t =
       || t.original_amount <> None
       || List.exists (fun (r : row) -> r.amount <> "" || r.locus <> "") t.rows
 
-let create ~book ~day ~measure () =
+let empty_row = { key = None; locus = ""; amount = "" }
+
+let blank ~mode ~focus ~quick ~day ~measure =
   {
-    mode = A.New;
+    mode;
     day;
     description = "";
     measure;
     initial_day = day;
     initial_measure = measure;
-    rows = [ { key = None; locus = ""; amount = "" }; { key = None; locus = ""; amount = "" } ];
-    focus = 1;
+    rows = [ empty_row; empty_row ];
+    focus;
     cursor = None;
     candidate = 0;
     notice = "";
@@ -91,29 +99,14 @@ let create ~book ~day ~measure () =
     original_amount = None;
     original_editor = None;
     enabling = false;
-    quick = Some (Quick_capture.initial ~book ~day ~measure ~roles:[]);
+    quick;
   }
 
-let create_plan ~book:_ ~day ~measure () =
-  {
-    mode = A.Plan_new;
-    day;
-    description = "";
-    measure;
-    initial_day = day;
-    initial_measure = measure;
-    rows = [ { key = None; locus = ""; amount = "" }; { key = None; locus = ""; amount = "" } ];
-    focus = 0;
-    cursor = None;
-    candidate = 0;
-    notice = "";
-    review = None;
-    paste = None;
-    original_amount = None;
-    original_editor = None;
-    enabling = false;
-    quick = None;
-  }
+let create ~book ~day ~measure () =
+  blank ~mode:A.New ~focus:1 ~day ~measure
+    ~quick:(Some (Quick_capture.initial ~book ~day ~measure ~roles:[]))
+
+let create_plan ~book:_ ~day ~measure () = blank ~mode:A.Plan_new ~focus:0 ~quick:None ~day ~measure
 
 let rows_of_draft (draft : R.t) =
   List.map
@@ -128,18 +121,19 @@ let of_edit ~book entry =
       match R.of_effects book entry.B.effects with
       | Error why -> Error why
       | Ok draft ->
-          let t = create ~book ~day:entry.day ~measure:draft.measure () in
+          let t =
+            blank ~mode:(A.Edit entry) ~focus:1 ~quick:None ~day:entry.day ~measure:draft.measure
+          in
           Ok
             {
               t with
-              quick = None;
-              mode = A.Edit entry;
               description = Option.value ~default:"" entry.memo;
               rows = rows_of_draft draft;
               original_amount = entry.original_amount;
             })
 
-let of_edit_plan ~book (plan : B.plan) =
+(* The postings of a still-open Scheduled occurrence. *)
+let open_plan_draft ~book (plan : B.plan) =
   if plan.paid_by <> None then Error (tr "This Scheduled occurrence is already completed.")
   else if plan.cancelled_on <> None then Error (tr "This Scheduled occurrence is cancelled.")
   else
@@ -155,36 +149,27 @@ let of_edit_plan ~book (plan : B.plan) =
         plan.changes
     in
     if List.exists Option.is_none effects then Error (tr "Invalid Scheduled coordinates.")
-    else
-      match R.of_effects book (List.filter_map Fun.id effects) with
-      | Error why -> Error why
-      | Ok draft ->
-          let t = create_plan ~book ~day:plan.day ~measure:plan.measure () in
-          Ok { t with mode = A.Plan_edit plan; rows = rows_of_draft draft }
+    else R.of_effects book (List.filter_map Fun.id effects)
+
+let of_edit_plan ~book (plan : B.plan) =
+  match open_plan_draft ~book plan with
+  | Error why -> Error why
+  | Ok draft ->
+      let t =
+        blank ~mode:(A.Plan_edit plan) ~focus:0 ~quick:None ~day:plan.day ~measure:plan.measure
+      in
+      Ok { t with rows = rows_of_draft draft }
 
 let of_plan ?day ~book (plan : B.plan) =
-  if plan.paid_by <> None then Error (tr "This Scheduled occurrence is already completed.")
-  else if plan.cancelled_on <> None then Error (tr "This Scheduled occurrence is cancelled.")
-  else
-    let effects =
-      List.map
-        (fun (locus, n) ->
-          match
-            (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string plan.measure)
-          with
-          | Ok locus, Ok measure ->
-              Some (D.Effect.create ~key:None ~locus ~measure ~quantity:(D.Quantity.of_quanta n))
-          | Error _, _ | _, Error _ -> None)
-        plan.changes
-    in
-    if List.exists Option.is_none effects then Error (tr "Invalid Scheduled coordinates.")
-    else
-      match R.of_effects book (List.filter_map Fun.id effects) with
-      | Error why -> Error why
-      | Ok draft ->
-          let t = create ~book ~day:(Option.value ~default:plan.day day) ~measure:plan.measure () in
-          Ok { t with quick = None; mode = A.Pay plan.id; rows = rows_of_draft draft }
+  match open_plan_draft ~book plan with
+  | Error why -> Error why
+  | Ok draft ->
+      let day = Option.value ~default:plan.day day in
+      let t = blank ~mode:(A.Pay plan.id) ~focus:1 ~quick:None ~day ~measure:plan.measure in
+      Ok { t with rows = rows_of_draft draft }
 
+(* Focus order: 0 date, 1 description, 2 Measure, then Locus and amount for each
+   posting, then the actions Preview, Add row, Drop row and Cancel from [action_start]. *)
 let action_start t = 3 + (2 * List.length t.rows)
 
 let border_intent t =
@@ -218,18 +203,20 @@ let value t =
     | None -> ""
     | Some r -> if is_locus t then r.locus else r.amount
 
+(* Clear the caret, candidate choice and notice after the field or its text changes. *)
+let settle t = { t with cursor = None; candidate = 0; notice = "" }
+
 let set_value t text =
-  let reset t = { t with cursor = None; candidate = 0; notice = "" } in
   if t.focus = 0 then
     if date_kept t then
       with_notice t (tr "Correction keeps the date; use d on the Actual to change it.")
-    else reset { t with day = text }
-  else if t.focus = 1 then reset { t with description = text }
+    else settle { t with day = text }
+  else if t.focus = 1 then settle { t with description = text }
   else if t.focus = 2 then
-    if List.for_all (fun row -> row.amount = "") t.rows then reset { t with measure = text }
+    if List.for_all (fun row -> row.amount = "") t.rows then settle { t with measure = text }
     else with_notice t (tr "Measure is fixed after amounts are entered.")
   else if t.focus < action_start t then
-    reset
+    settle
       {
         t with
         rows =
@@ -249,7 +236,7 @@ let move_focus t delta =
     if (is_plan t && next = 1) || (date_kept t && next = 0) then (next + delta + count) mod count
     else next
   in
-  { t with focus = step t.focus; cursor = None; candidate = 0; notice = "" }
+  settle { t with focus = step t.focus }
 
 let candidates ~book t = if is_locus t then O.locus_candidates book (value t) else []
 
@@ -261,37 +248,27 @@ let accept ~book t =
 
 let add_row t =
   if List.length t.rows >= 6 then with_notice t (tr "This editor supports up to six posting rows.")
-  else
-    {
-      t with
-      rows = t.rows @ [ { key = None; locus = ""; amount = "" } ];
-      focus = action_start t;
-      candidate = 0;
-      cursor = None;
-      notice = "";
-    }
+  else settle { t with rows = t.rows @ [ empty_row ]; focus = action_start t }
 
 let drop_row t =
   if List.length t.rows <= 2 then with_notice t (tr "Keep at least two postings.")
   else
     let index = min (List.length t.rows - 1) (row_index t) in
     let rows = List.filteri (fun i _ -> i <> index) t.rows in
-    {
-      t with
-      rows;
-      focus = 3 + (2 * min index (List.length rows - 1));
-      cursor = None;
-      candidate = 0;
-      notice = "";
-    }
+    settle { t with rows; focus = 3 + (2 * min index (List.length rows - 1)) }
+
+(* A leading - or + is the posting's direction, not part of the amount. *)
+let split_sign text =
+  let negative = String.starts_with ~prefix:"-" text in
+  if negative || String.starts_with ~prefix:"+" text then
+    (negative, String.sub text 1 (String.length text - 1))
+  else (false, text)
 
 let parse_row_amount ~book ~measure amount_str =
   let trimmed = String.trim amount_str in
   if trimmed = "" then Error "empty"
   else
-    let negative = String.starts_with ~prefix:"-" trimmed in
-    let signed = negative || String.starts_with ~prefix:"+" trimmed in
-    let core = if signed then String.sub trimmed 1 (String.length trimmed - 1) else trimmed in
+    let negative, core = split_sign trimmed in
     match B.parse_amount book measure (String.trim core) with
     | Error why -> Error why
     | Ok quanta ->
@@ -300,6 +277,9 @@ let parse_row_amount ~book ~measure amount_str =
 
 let format_signed ~book ~measure (amount : Z.t) =
   (if Z.sign amount > 0 then "+" else "") ^ B.format book measure amount
+
+(* New postings put the focus on the first action, as after a remainder fill. *)
+let with_rows t rows = settle { t with rows; focus = action_start { t with rows } }
 
 let fill_unresolved_remainder ~book t =
   if t.measure = "" then
@@ -357,15 +337,7 @@ let fill_unresolved_remainder ~book t =
                     amount = format_signed ~book ~measure:t.measure adjustment;
                   }
                 in
-                let next_rows = t.rows @ [ new_row ] in
-                {
-                  t with
-                  rows = next_rows;
-                  focus = action_start { t with rows = next_rows };
-                  candidate = 0;
-                  cursor = None;
-                  notice = "";
-                }
+                with_rows t (t.rows @ [ new_row ])
           | Some idx -> (
               let row = List.nth t.rows idx in
               match parse_row_amount ~book ~measure:t.measure row.amount with
@@ -373,32 +345,15 @@ let fill_unresolved_remainder ~book t =
               | Ok current ->
                   let adjusted = Z.add current adjustment in
                   if Z.equal adjusted Z.zero then
-                    let next_rows = List.filteri (fun i _ -> i <> idx) t.rows in
-                    {
-                      t with
-                      rows = next_rows;
-                      focus = action_start { t with rows = next_rows };
-                      candidate = 0;
-                      cursor = None;
-                      notice = "";
-                    }
+                    with_rows t (List.filteri (fun i _ -> i <> idx) t.rows)
                   else
-                    let next_rows =
-                      List.mapi
-                        (fun i r ->
-                          if i = idx then
-                            { r with amount = format_signed ~book ~measure:t.measure adjusted }
-                          else r)
-                        t.rows
-                    in
-                    {
-                      t with
-                      rows = next_rows;
-                      focus = action_start { t with rows = next_rows };
-                      candidate = 0;
-                      cursor = None;
-                      notice = "";
-                    }))
+                    with_rows t
+                      (List.mapi
+                         (fun i r ->
+                           if i = idx then
+                             { r with amount = format_signed ~book ~measure:t.measure adjusted }
+                           else r)
+                         t.rows)))
 
 let after_unresolved_enabled ~book t =
   let base = { t with enabling = false; notice = "" } in
@@ -416,11 +371,7 @@ let draft t =
     rows =
       List.map
         (fun row ->
-          let negative = String.starts_with ~prefix:"-" row.amount in
-          let signed = negative || String.starts_with ~prefix:"+" row.amount in
-          let amount =
-            if signed then String.sub row.amount 1 (String.length row.amount - 1) else row.amount
-          in
+          let negative, amount = split_sign row.amount in
           (* An Effect key stays only on a posting whose Locus is unchanged. *)
           let key =
             match (t.mode, row.key) with
@@ -475,17 +426,21 @@ let preview ~new_id ~book ~base_revision ~blocked t =
               paste = None;
             })
 
-let insert t text =
-  let updated, cursor = Fm.insert_at ~value:(value t) ~cursor:t.cursor text in
+(* Keep the edit's caret only if the field accepted the new text. *)
+let edit_value t (updated, cursor) =
   let next = set_value t updated in
   if value next = updated then { next with cursor = Some cursor; candidate = 0 }
   else { next with candidate = 0 }
 
-let erase t =
-  let updated, cursor = Fm.erase_at ~value:(value t) ~cursor:t.cursor in
-  let next = set_value t updated in
-  if value next = updated then { next with cursor = Some cursor; candidate = 0 }
-  else { next with candidate = 0 }
+let insert t text = edit_value t (Fm.insert_at ~value:(value t) ~cursor:t.cursor text)
+let erase t = edit_value t (Fm.erase_at ~value:(value t) ~cursor:t.cursor)
+
+(* The original-amount editor has two fields: 0 Measure, 1 amount. *)
+let original_value (ed : original_editor) = if ed.focus = 0 then ed.measure else ed.amount
+
+let edit_original t (ed : original_editor) (updated, cursor) =
+  let ed = if ed.focus = 0 then { ed with measure = updated } else { ed with amount = updated } in
+  { t with original_editor = Some ed; cursor = Some cursor; notice = "" }
 
 let review_lines ~book review =
   match review.payload with
@@ -554,35 +509,33 @@ let format_amount_str ~scale quanta =
 let parse_original_quanta ~scale amount_str =
   let trimmed = String.trim amount_str in
   if trimmed = "" then Error `Invalid
-  else if String.starts_with ~prefix:"-" trimmed then Error `Non_positive
   else
-    let core =
-      if String.starts_with ~prefix:"+" trimmed then String.sub trimmed 1 (String.length trimmed - 1)
-      else trimmed
-    in
-    let core = String.concat "" (String.split_on_char ',' core) in
-    let is_digit c = c >= '0' && c <= '9' in
-    match String.split_on_char '.' core with
-    | [ whole ] ->
-        let whole = String.trim whole in
-        if whole = "" || not (String.for_all is_digit whole) then Error `Invalid
-        else
-          let q = Z.mul (Z.of_string whole) (Z.pow (Z.of_int 10) scale) in
-          if Z.sign q <= 0 then Error `Non_positive else Ok q
-    | [ whole; fraction ] ->
-        let whole = String.trim whole in
-        let fraction = String.trim fraction in
-        let whole_ok = whole = "" || String.for_all is_digit whole in
-        let frac_ok = fraction <> "" && String.for_all is_digit fraction in
-        if not (whole_ok && frac_ok) then Error `Invalid
-        else if String.length fraction > scale then Error `Precision
-        else
-          let whole_val = if whole = "" then Z.zero else Z.of_string whole in
-          let frac_padded = fraction ^ String.make (scale - String.length fraction) '0' in
-          let frac_val = if frac_padded = "" then Z.zero else Z.of_string frac_padded in
-          let q = Z.add (Z.mul whole_val (Z.pow (Z.of_int 10) scale)) frac_val in
-          if Z.sign q <= 0 then Error `Non_positive else Ok q
-    | _ -> Error `Invalid
+    match split_sign trimmed with
+    | true, _ -> Error `Non_positive
+    | false, core -> (
+        let core = String.concat "" (String.split_on_char ',' core) in
+        let is_digit c = c >= '0' && c <= '9' in
+        match String.split_on_char '.' core with
+        | [ whole ] ->
+            let whole = String.trim whole in
+            if whole = "" || not (String.for_all is_digit whole) then Error `Invalid
+            else
+              let q = Z.mul (Z.of_string whole) (Z.pow (Z.of_int 10) scale) in
+              if Z.sign q <= 0 then Error `Non_positive else Ok q
+        | [ whole; fraction ] ->
+            let whole = String.trim whole in
+            let fraction = String.trim fraction in
+            let whole_ok = whole = "" || String.for_all is_digit whole in
+            let frac_ok = fraction <> "" && String.for_all is_digit fraction in
+            if not (whole_ok && frac_ok) then Error `Invalid
+            else if String.length fraction > scale then Error `Precision
+            else
+              let whole_val = if whole = "" then Z.zero else Z.of_string whole in
+              let frac_padded = fraction ^ String.make (scale - String.length fraction) '0' in
+              let frac_val = if frac_padded = "" then Z.zero else Z.of_string frac_padded in
+              let q = Z.add (Z.mul whole_val (Z.pow (Z.of_int 10) scale)) frac_val in
+              if Z.sign q <= 0 then Error `Non_positive else Ok q
+        | _ -> Error `Invalid)
 
 let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
     (input : Ui_input.input) =
@@ -599,12 +552,8 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
       else
         match t.original_editor with
         | Some ed ->
-            let cur_val = if ed.focus = 0 then ed.measure else ed.amount in
-            let updated, cur = Fm.insert_at ~value:cur_val ~cursor:t.cursor text in
-            let next_ed =
-              if ed.focus = 0 then { ed with measure = updated } else { ed with amount = updated }
-            in
-            update { t with original_editor = Some next_ed; cursor = Some cur; notice = "" }
+            update
+              (edit_original t ed (Fm.insert_at ~value:(original_value ed) ~cursor:t.cursor text))
         | None ->
             if t.review <> None || t.focus >= action_start t then update t
             else if t.focus = 0 && not (String.for_all is_date_char (String.trim text)) then
@@ -756,38 +705,28 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                                   notice = "";
                                 }))
               | `Arrow `Left, [] | `Arrow `Right, [] ->
-                  let cur_val = if ed.focus = 0 then ed.measure else ed.amount in
                   let step = if button = `Arrow `Left then -1 else 1 in
                   update
-                    { t with cursor = Some (Fm.move_cursor ~value:cur_val ~cursor:t.cursor step) }
+                    {
+                      t with
+                      cursor =
+                        Some (Fm.move_cursor ~value:(original_value ed) ~cursor:t.cursor step);
+                    }
               | `Home, [] -> update { t with cursor = Some 0 }
               | `End, [] -> update { t with cursor = None }
               | `Backspace, [] ->
-                  let cur_val = if ed.focus = 0 then ed.measure else ed.amount in
-                  let updated, cur = Fm.erase_at ~value:cur_val ~cursor:t.cursor in
-                  let next_ed =
-                    if ed.focus = 0 then { ed with measure = updated }
-                    else { ed with amount = updated }
-                  in
-                  update { t with original_editor = Some next_ed; cursor = Some cur; notice = "" }
+                  update
+                    (edit_original t ed (Fm.erase_at ~value:(original_value ed) ~cursor:t.cursor))
               | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
-                  let cur_val = if ed.focus = 0 then ed.measure else ed.amount in
-                  let updated, cur =
-                    Fm.insert_at ~value:cur_val ~cursor:t.cursor (String.make 1 c)
-                  in
-                  let next_ed =
-                    if ed.focus = 0 then { ed with measure = updated }
-                    else { ed with amount = updated }
-                  in
-                  update { t with original_editor = Some next_ed; cursor = Some cur; notice = "" }
+                  let typed = String.make 1 c in
+                  update
+                    (edit_original t ed
+                       (Fm.insert_at ~value:(original_value ed) ~cursor:t.cursor typed))
               | `Uchar c, [] when O.printable_uchar c ->
-                  let cur_val = if ed.focus = 0 then ed.measure else ed.amount in
-                  let updated, cur = Fm.insert_at ~value:cur_val ~cursor:t.cursor (O.utf8 c) in
-                  let next_ed =
-                    if ed.focus = 0 then { ed with measure = updated }
-                    else { ed with amount = updated }
-                  in
-                  update { t with original_editor = Some next_ed; cursor = Some cur; notice = "" }
+                  let typed = O.utf8 c in
+                  update
+                    (edit_original t ed
+                       (Fm.insert_at ~value:(original_value ed) ~cursor:t.cursor typed))
               | _ -> update t)
           | None -> (
               match (button, mods) with

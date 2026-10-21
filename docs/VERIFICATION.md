@@ -5,6 +5,18 @@ None automatically certifies handwritten OCaml, external premise truth or househ
 Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the locked
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
+
+## Record editor readability (2026-10-21)
+
+- `tui/shell/record_session.ml` (1491 → 1430 lines after formatting): shared `blank`
+  constructor, `open_plan_draft` for Scheduled edit/payment, `settle`/`with_rows` for the
+  repeated caret/candidate/notice reset, `split_sign` for the three sign parsers, helpers for
+  the original-amount editor, and comments on the focus order and review actions. Edits and
+  payments no longer build an unused quick-capture history. No behavior change intended.
+- `./tools/tui --self-check` (44 suites incl. Record, quick capture, original amount and
+  Ctrl-U remainder) and the local PTY smoke `tools/ci-tui-pty` passed. Not compared with LOAM
+  on real data; household data not accessed.
+
 ## TUI formatting and compiler policy (2026-10-21)
 
 - `4e7e023` formats `tui/` (163 of 179 files were unformatted) and the remaining Core files
