@@ -15,9 +15,9 @@ type t = {
 let config_files = [ P.boundary_file ]
 
 let create () =
-  { report = IncExp.initial (); frame = Frame.create (); help = None; preview = None }
+  { report = IncExp.initial (); frame = Frame.create; help = None; preview = None }
 
-let enter t = { t with frame = Frame.create (); help = None; preview = None }
+let enter t = { t with frame = Frame.create; help = None; preview = None }
 let modal t = Option.is_some t.preview || Option.is_some t.help
 let form t = match t.preview with Some f -> Some f | None -> t.help
 let preset t = t.report.preset
@@ -30,6 +30,38 @@ let report (env : Screen.env) period =
   match Lazy.force env.accounting_roles with
   | Ok roles -> Ok (IncExp.compute_report ~book:env.book ~roles ~period)
   | Error why -> Error ("Accounting roles unavailable: " ^ why)
+
+(* One pure description of the body, shared by the renderer and the handler's
+   row count so the frame never mutates during a render. *)
+type content = Body of string * (Daily_overlays.style * string) list | Block of string * (Daily_overlays.style * string) list
+
+let content (env : Screen.env) (geometry : Screen.geometry) t =
+  let width, _ = geometry.content in
+  let width_of = geometry.width_of in
+  match Result.map (report env) (P.checked env t.report.preset t.report.period_offset) with
+  | Ok (Error why) ->
+      Block
+        ( "Income & Expense · Accounting Roles Unavailable",
+          [
+            (Daily_overlays.Heading, Ui_text.tr "Income & Expense unavailable:");
+            (Daily_overlays.Plain, why);
+            (Daily_overlays.Chrome, "Fix accounting-roles.tsv; no Locus role is guessed.");
+          ] )
+  | Ok (Ok rep) ->
+      Body
+        ( Printf.sprintf "Income & Expense • %s" (IncExp.preset_label t.report.preset),
+          IncExp.render_report_lines ~width:(max 0 (width - 4)) ~width_of ~book:env.book ~report:rep )
+  | Error why ->
+      Block
+        ( "Income & Expense · Period Unavailable",
+          [
+            (Daily_overlays.Heading, Ui_text.tr "Report period unavailable:");
+            (Daily_overlays.Plain, why);
+            (Daily_overlays.Chrome, "Supply an explicit boundary-presets.tsv or choose Month / Year.");
+          ] )
+
+let row_count (env : Screen.env) geometry t =
+  match content env geometry t with Body (_, rows) -> List.length rows | Block _ -> 0
 
 let help_form () =
   Frame.help_form ~title:"Income & Expense / Help"
@@ -52,6 +84,7 @@ let help_form () =
 
 let handle (env : Screen.env) geometry t input =
   let stay t = (t, Screen.Stay) in
+  let capacity = Frame.capacity geometry in
   match t.preview with
   | Some form -> stay { t with preview = P.handle_preview form input }
   | None -> (
@@ -60,70 +93,51 @@ let handle (env : Screen.env) geometry t input =
           match input with
           | `Key (`ASCII '?', []) -> stay { t with help = None }
           | _ -> stay { t with help = P.handle_preview form input })
-      | None ->
-          if Frame.handle ~geometry t.frame input then stay t
-          else
-            let scrolled () = { t.frame with Frame.scroll = 0 } in
-            match P.lowercase input with
-            | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
-            | Some (`ASCII '?', []) -> stay { t with help = Some (help_form ()) }
-            | Some (`ASCII ('1' .. '5' as c), []) ->
-                stay
-                  {
-                    t with
-                    frame = scrolled ();
-                    report = { t.report with preset = P.preset_of_key c; period_offset = 0 };
-                  }
-            | Some (`ASCII (('[' | ']') as c), []) ->
-                let delta = if c = '[' then -1 else 1 in
-                stay
-                  {
-                    t with
-                    frame = scrolled ();
-                    report = { t.report with period_offset = t.report.period_offset + delta };
-                  }
-            | Some (`ASCII 'p', []) -> (
-                match
-                  Result.bind (P.checked env t.report.preset t.report.period_offset) (report env)
-                with
-                | Error why -> (t, Screen.Message why)
-                | Ok rep ->
-                    let lines = IncExp.print_summary ~book:env.book ~report:rep in
-                    stay
-                      {
-                        t with
-                        preview =
-                          Some
-                            (P.print_form ~id:"income_expense_print_preview"
-                               ~title:"Income & Expense / Print Preview" lines);
-                      })
-            | _ -> (t, Screen.Ignored))
+      | None -> (
+          match Frame.handle ~count:(row_count env geometry t) ~capacity t.frame input with
+          | Some frame -> stay { t with frame }
+          | None -> (
+              let scrolled = Frame.create in
+              match P.lowercase input with
+              | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
+              | Some (`ASCII '?', []) -> stay { t with help = Some (help_form ()) }
+              | Some (`ASCII ('1' .. '5' as c), []) ->
+                  stay
+                    {
+                      t with
+                      frame = scrolled;
+                      report = { t.report with preset = P.preset_of_key c; period_offset = 0 };
+                    }
+              | Some (`ASCII (('[' | ']') as c), []) ->
+                  let delta = if c = '[' then -1 else 1 in
+                  stay
+                    {
+                      t with
+                      frame = scrolled;
+                      report = { t.report with period_offset = t.report.period_offset + delta };
+                    }
+              | Some (`ASCII 'p', []) -> (
+                  match
+                    Result.bind (P.checked env t.report.preset t.report.period_offset) (report env)
+                  with
+                  | Error why -> (t, Screen.Message why)
+                  | Ok rep ->
+                      let lines = IncExp.print_summary ~book:env.book ~report:rep in
+                      stay
+                        {
+                          t with
+                          preview =
+                            Some
+                              (P.print_form ~id:"income_expense_print_preview"
+                                 ~title:"Income & Expense / Print Preview" lines);
+                        })
+              | _ -> (t, Screen.Ignored))))
 
 let rows (env : Screen.env) (geometry : Screen.geometry) t =
-  let width, _ = geometry.content in
-  let width_of = geometry.width_of in
-  match Result.map (report env) (P.checked env t.report.preset t.report.period_offset) with
-  | Ok (Error why) ->
-      Frame.block ~geometry ~title:"Income & Expense · Accounting Roles Unavailable"
-        [
-          (Daily_overlays.Heading, Ui_text.tr "Income & Expense unavailable:");
-          (Daily_overlays.Plain, why);
-          (Daily_overlays.Chrome, "Fix accounting-roles.tsv; no Locus role is guessed.");
-        ]
-  | Ok (Ok rep) ->
-      let body =
-        IncExp.render_report_lines ~width:(max 0 (width - 4)) ~width_of ~book:env.book ~report:rep
-      in
-      Frame.body ~geometry
-        ~title:(Printf.sprintf "Income & Expense • %s" (IncExp.preset_label t.report.preset))
-        t.frame body
-  | Error why ->
-      Frame.block ~geometry ~title:"Income & Expense · Period Unavailable"
-        [
-          (Daily_overlays.Heading, Ui_text.tr "Report period unavailable:");
-          (Daily_overlays.Plain, why);
-          (Daily_overlays.Chrome, "Supply an explicit boundary-presets.tsv or choose Month / Year.");
-        ]
+  match content env geometry t with
+  | Block (title, rows) -> Frame.block ~geometry ~title rows
+  | Body (title, rows) ->
+      Frame.body ~geometry ~count:(List.length rows) ~title t.frame rows
 
 let view env geometry t =
   let overlay = match t.preview with Some _ -> t.preview | None -> t.help in

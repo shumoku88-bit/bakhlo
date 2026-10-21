@@ -1,19 +1,22 @@
 (* One report frame shared by the report screens: a full-width body, one clamped
-   scroll model with a position row, and a [?] help overlay. Formulas, key
-   lists and principles never take a permanent pane. *)
+   scroll model with a position row, and a [?] help overlay. Formulas, key lists
+   and principles never take a permanent pane. The frame is an immutable value:
+   the handler and the renderer compute the same row count from the screen's pure
+   row builder, so rendering never mutates state. *)
 
-type t = { mutable scroll : int; mutable count : int }
+type t = { scroll : int }
 
-let create () = { scroll = 0; count = 0 }
+let create = { scroll = 0 }
 
-(* Content rows inside one framed panel: two borders and the position row. *)
-let capacity (geometry : Screen.geometry) = max 1 (snd geometry.content - 2)
+(* Content rows inside one framed panel: two borders and the position row. The
+   handler and the body both use this one function. *)
+let capacity (geometry : Screen.geometry) = max 0 (snd geometry.content - 2)
 
-let last ~capacity t = max 0 (t.count - capacity)
-let clamp ~capacity t = t.scroll <- max 0 (min (last ~capacity t) t.scroll)
+let last ~count ~capacity = max 0 (count - capacity)
+let clamp ~count ~capacity t = { scroll = max 0 (min (last ~count ~capacity) t.scroll) }
 
 (* Selection uses the same rendered count, so [End] cannot poison the next step. *)
-let clamp_index t index = if t.count <= 0 then 0 else max 0 (min (t.count - 1) index)
+let clamp_index ~count index = if count <= 0 then 0 else max 0 (min (count - 1) index)
 
 type move = Line of int | Page of int | Top | Bottom
 
@@ -29,26 +32,33 @@ let scroll_move input =
   else if input = key `End || input = key (`ASCII 'G') then Some Bottom
   else None
 
-let apply_move ~capacity t = function
-  | Line delta -> t.scroll <- max 0 (min (last ~capacity t) (t.scroll + delta))
-  | Page delta -> t.scroll <- max 0 (min (last ~capacity t) (t.scroll + (delta * capacity)))
-  | Top -> t.scroll <- 0
-  | Bottom -> t.scroll <- last ~capacity t
+(* The page direction only, for screens that keep their own step or position. *)
+let page_delta = function
+  | Some (`Page `Up, []) | Some (`ASCII 'u', [ `Ctrl ]) -> Some (-1)
+  | Some (`Page `Down, []) | Some (`ASCII 'd', [ `Ctrl ]) -> Some 1
+  | _ -> None
 
-(* Consumes only the shared scroll keys. Returns true when the key was used. *)
-let handle ~geometry t input =
-  match scroll_move input with
-  | Some movement ->
-      apply_move ~capacity:(capacity geometry) t movement;
-      true
-  | None -> false
+let apply ~count ~capacity t = function
+  | Line delta -> { scroll = max 0 (min (last ~count ~capacity) (t.scroll + delta)) }
+  | Page delta -> { scroll = max 0 (min (last ~count ~capacity) (t.scroll + (delta * capacity))) }
+  | Top -> { scroll = 0 }
+  | Bottom -> { scroll = last ~count ~capacity }
 
-let position ~capacity t =
+(* Consumes only the shared scroll keys. *)
+let handle ~count ~capacity t input =
+  Option.map (apply ~count ~capacity t) (scroll_move input)
+
+let position ~count ~capacity t =
   let capacity = max 0 capacity in
-  if t.count = 0 then "0 / 0"
+  if count = 0 then "0 / 0"
   else
-    let start = min t.scroll (max 0 (t.count - capacity)) in
-    Printf.sprintf "%d–%d / %d" (start + 1) (min t.count (start + capacity)) t.count
+    let start = min t.scroll (max 0 (count - capacity)) in
+    Printf.sprintf "%d–%d / %d" (start + 1) (min count (start + capacity)) count
+
+let slice ~capacity t rows =
+  let capacity = max 0 capacity in
+  List.filteri (fun i _ -> i >= t.scroll && i < t.scroll + capacity) rows
+  |> List.map (fun (style, text) -> (style, " " ^ text))
 
 let footer =
   [
@@ -68,26 +78,22 @@ let help_form ~title lines =
       ]
     ()
 
-(* Body rows for the current scroll, with the shared position row. Sets
-   [count] so selection and End clamp against what is actually rendered. *)
-let body ~geometry ~title t rows =
+(* Body rows for the current scroll, with the shared position row. *)
+let body ~geometry ~count ~title t rows =
   let width, height = geometry.Screen.content in
   let capacity = max 0 (height - 2) in
-  t.count <- List.length rows;
-  clamp ~capacity t;
-  let shown =
-    List.map (fun (style, text) -> (style, " " ^ text))
-      (List.filteri (fun i _ -> i >= t.scroll && i < t.scroll + capacity) rows)
-  in
-  Ui_panel.frame_rows ~inset:0 ~bottom_label:(position ~capacity t) ~width_of:geometry.width_of
-    ~width ~height ~focused:true ~title shown
+  let shown = slice ~capacity t rows in
+  Ui_panel.frame_rows ~inset:0
+    ~bottom_label:(position ~count ~capacity t)
+    ~width_of:geometry.width_of ~width ~height ~focused:true ~title shown
 
-(* A single full-width framed block that is not scrollable (refusals, help). *)
+(* A single full-width framed block that is not scrollable (refusals). *)
 let block ~geometry ~title rows =
   let width, height = geometry.Screen.content in
   let capacity = max 0 (height - 2) in
   let shown =
-    List.map (fun (style, text) -> (style, " " ^ text)) (List.filteri (fun i _ -> i < capacity) rows)
+    List.filteri (fun i _ -> i < capacity) rows
+    |> List.map (fun (style, text) -> (style, " " ^ text))
   in
   Ui_panel.frame_rows ~inset:0 ~width_of:geometry.width_of ~width ~height ~focused:true ~title
     shown

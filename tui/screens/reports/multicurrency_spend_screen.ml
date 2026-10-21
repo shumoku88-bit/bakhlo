@@ -5,6 +5,7 @@ module A = Daily_draft
 module Cal = Daily_calendar
 module O = Daily_overlays
 module P = Report_period
+module Frame = Report_frame
 module Report = Multicurrency_spend_report
 
 type kind = Calendar_month | Named of string | Custom
@@ -354,8 +355,8 @@ let handle env geometry t input =
   | Some (`Arrow `Right, []) when t.kind = Calendar_month -> shift_month env 1 t
   | Some ((`ASCII 'k' | `Arrow `Up), []) -> move (-1)
   | Some ((`ASCII 'j' | `Arrow `Down), []) -> move 1
-  | key when Option.is_some (P.page_delta key) ->
-      move (Option.get (P.page_delta key) * max 1 (capacity geometry))
+  | key when Option.is_some (Frame.page_delta key) ->
+      move (Option.get (Frame.page_delta key) * max 1 (capacity geometry))
   | Some (`Home, []) -> ({ t with scroll = 0 }, Screen.Stay)
   | Some (`End, []) -> move max_int
   | _ when t.focus = Start || t.focus = End_field -> (

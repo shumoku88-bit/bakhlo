@@ -51,25 +51,25 @@ let key owner key =
   owner
 
 let self_check () =
-  (* 1. Shared scroll model clamps to the real content, so End does not poison
-     the next step key. *)
-  let frame = Frame.create () in
-  frame.Frame.count <- 200;
+  (* 1. Shared scroll model: immutable, clamped to the real content, so End does
+     not poison the next step key. *)
   let frame_geometry = geometry 120 24 in
   let capacity = Frame.capacity frame_geometry in
-  ignore (Frame.handle ~geometry:frame_geometry frame (`Key (`End, [])));
+  let step frame input =
+    match Frame.handle ~count:200 ~capacity frame input with Some next -> next | None -> frame
+  in
+  let frame = step Frame.create (`Key (`End, [])) in
   require (frame.Frame.scroll = 200 - capacity) "frame-end-clamps-to-last";
-  ignore (Frame.handle ~geometry:frame_geometry frame (`Key (`ASCII 'k', [])));
+  let frame = step frame (`Key (`ASCII 'k', [])) in
   require (frame.Frame.scroll = 199 - capacity) "frame-k-after-end-steps-one";
   require
-    (Frame.position ~capacity frame
-    = Printf.sprintf "%d–199 / 200" (200 - capacity))
+    (Frame.position ~count:200 ~capacity frame = Printf.sprintf "%d–199 / 200" (200 - capacity))
     "frame-position-names-the-visible-window";
-  ignore (Frame.handle ~geometry:(geometry 120 24) frame (`Key (`ASCII 'g', [])));
+  let frame = step frame (`Key (`ASCII 'g', [])) in
   require (frame.Frame.scroll = 0) "frame-g-returns-to-top";
-  ignore (Frame.handle ~geometry:(geometry 120 24) frame (`Key (`Page `Down, [])));
+  let frame = step frame (`Key (`Page `Down, [])) in
   require (frame.Frame.scroll = capacity) "frame-page-down-steps-a-page";
-  require (not (Frame.handle ~geometry:(geometry 120 24) frame (`Key (`ASCII 'x', []))))
+  require (not (Frame.handle ~count:200 ~capacity frame (`Key (`ASCII 'x', [])) = Some frame))
     "frame-ignores-unrelated-keys";
 
   (* 2. Income & Expense: only Measures with activity, shared money format. *)

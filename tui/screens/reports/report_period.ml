@@ -33,11 +33,6 @@ let preview_footer =
 
 let lowercase = Ui_input.key_ignoring_case
 
-(* PgUp/PgDn and Ctrl-U/Ctrl-D page by the terminal height less the chrome. *)
-let page_delta = function
-  | Some (`Page `Up, []) | Some (`ASCII 'u', [ `Ctrl ]) -> Some (-1)
-  | Some (`Page `Down, []) | Some (`ASCII 'd', [ `Ctrl ]) -> Some 1
-  | _ -> None
 
 let view_of ~title ~(geometry : Screen.geometry) ~rows ~footer preview : Screen.view =
   let overlay =
