@@ -1063,12 +1063,7 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
   | Some value -> handle_search env t value input
   | None -> (
       let _, view = detail_window env geometry t in
-      let key =
-        match input with
-        | `Key (`ASCII c, mods) -> Some (`ASCII (Char.lowercase_ascii c), mods)
-        | `Key (key, mods) -> Some (key, mods)
-        | _ -> None
-      in
+      let key = Ui_input.key_ignoring_case input in
       let t = { t with scroll = view.start; view = current env { t with scroll = view.start } } in
       match (t.pace, t.view) with
       | Some chooser, _ -> handle_pace env t chooser key

@@ -91,12 +91,7 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
             | None -> t
             | Some value -> { t with search = Some value }))
   | None -> (
-      let key =
-        match input with
-        | `Key (`ASCII c, mods) -> Some (`ASCII (Char.lowercase_ascii c), mods)
-        | `Key (key, mods) -> Some (key, mods)
-        | _ -> None
-      in
+      let key = Ui_input.key_ignoring_case input in
       match key with
       | Some ((`Escape | `ASCII 'q'), []) ->
           if t.pane = Detail then stay { t with pane = List; scroll = 0 } else (t, Screen.Back)

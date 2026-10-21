@@ -125,12 +125,8 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                 else Some (discard { state with overlay = No_overlay })
             | _ -> Some state))
     | No_overlay -> (
-        let key = match input with `Key (key, mods) -> Some (key, mods) | _ -> None in
         let route_step = lazy (route_screen_input ~dimensions ~width_of state input) in
-        let normalize (key, mods) =
-          match key with `ASCII c -> (`ASCII (Char.lowercase_ascii c), mods) | _ -> (key, mods)
-        in
-        match Option.map normalize key with
+        match Ui_input.key_ignoring_case input with
         | Some (`ASCII 'q', [ `Ctrl ]) -> None
         | Some (`ASCII 'r', [ `Ctrl ]) -> Some (reload state)
         | Some (`ASCII 'n', [ `Ctrl ]) -> Some (request_discard state)

@@ -33,10 +33,7 @@ let handle_preview form input =
 let preview_footer =
   [ "Enter submit  Tab next field  Esc cancel"; "Arrow keys / space to choose options" ]
 
-let lowercase = function
-  | `Key (`ASCII c, mods) -> Some (`ASCII (Char.lowercase_ascii c), mods)
-  | `Key (key, mods) -> Some (key, mods)
-  | _ -> None
+let lowercase = Ui_input.key_ignoring_case
 
 let page_step (geometry : Screen.geometry) = max 1 (snd geometry.screen - 8)
 

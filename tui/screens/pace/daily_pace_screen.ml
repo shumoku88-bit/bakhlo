@@ -444,12 +444,7 @@ let toggle_pane t =
     Screen.Stay )
 
 let handle_screen (env : Screen.env) geometry t input =
-  let key =
-    match input with
-    | `Key (`ASCII c, mods) -> Some (`ASCII (Char.lowercase_ascii c), mods)
-    | `Key (key, mods) -> Some (key, mods)
-    | _ -> None
-  in
+  let key = Ui_input.key_ignoring_case input in
   match key with
   | Some ((`Escape | `ASCII 'q'), []) ->
       if t.pane = Detail_pane then ({ t with pane = Trend_pane; scroll = 0 }, Screen.Stay)

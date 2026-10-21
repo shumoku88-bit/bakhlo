@@ -9,21 +9,9 @@ let role_to_string = function
   | Income -> "INCOME"
   | Expense -> "EXPENSE"
 
-let role_label = function
-  | Asset -> "Asset"
-  | Liability -> "Liability"
-  | Equity -> "Equity"
-  | Income -> "Income"
-  | Expense -> "Expense"
-
-let role_of_string s =
-  match String.uppercase_ascii (String.trim s) with
-  | "ASSET" -> Some Asset
-  | "LIABILITY" -> Some Liability
-  | "EQUITY" -> Some Equity
-  | "INCOME" -> Some Income
-  | "EXPENSE" -> Some Expense
-  | _ -> None
+(* Display labels and parsing are Daily_overlays'; this module owns the file. *)
+let role_label = Daily_overlays.role_to_string
+let role_of_string = Daily_overlays.role_of_string
 
 type t = (string * role) list
 
@@ -33,27 +21,7 @@ let set_role t locus = function
   | None -> List.remove_assoc locus t
   | Some role -> (locus, role) :: List.remove_assoc locus t
 
-let of_string text =
-  let lines = String.split_on_char '\n' text in
-  List.filter_map
-    (fun line ->
-      let line = String.trim line in
-      if line = "" || String.starts_with ~prefix:";" line || String.starts_with ~prefix:"#" line
-      then None
-      else if String.starts_with ~prefix:"LOAM-ACCOUNTING-ROLE-MAP" line then None
-      else
-        let parts = String.split_on_char '\t' line in
-        match parts with
-        | [ "ROLE"; locus; role_str ] -> (
-            match role_of_string role_str with
-            | Some r -> Some (String.trim locus, r)
-            | None -> None)
-        | [ locus; role_str ] -> (
-            match role_of_string role_str with
-            | Some r -> Some (String.trim locus, r)
-            | None -> None)
-        | _ -> None)
-    lines
+let of_string = Daily_overlays.parse_accounting_roles
 
 let to_string t =
   let header = "LOAM-ACCOUNTING-ROLE-MAP\t1\n" in

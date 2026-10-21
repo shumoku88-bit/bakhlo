@@ -21,3 +21,7 @@ type input =
   | `End
   | `Resize of unit
   | `Mouse of unit ]
+
+val key_ignoring_case : input -> (key * modifier list) option
+(** The pressed key with ASCII letters lowercased, so a key works with Shift or Caps
+    Lock alike; [None] for paste markers, resize, mouse and end of input. *)

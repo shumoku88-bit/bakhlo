@@ -21,3 +21,8 @@ type input =
   | `End
   | `Resize of unit
   | `Mouse of unit ]
+
+let key_ignoring_case = function
+  | `Key (`ASCII c, mods) -> Some (`ASCII (Char.lowercase_ascii c), mods)
+  | `Key (key, mods) -> Some (key, mods)
+  | `Paste _ | `End | `Resize _ | `Mouse _ -> None

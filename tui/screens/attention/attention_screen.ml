@@ -140,12 +140,7 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
       | Form.Updated form -> stay { t with editor = Some { editor with form } }
       | Form.Submit submitted -> submit env t submitted)
   | None -> (
-      let key =
-        match input with
-        | `Key (`ASCII c, mods) -> Some (`ASCII (Char.lowercase_ascii c), mods)
-        | `Key (key, mods) -> Some (key, mods)
-        | _ -> None
-      in
+      let key = Ui_input.key_ignoring_case input in
       let page = max 1 (snd geometry.screen - 8) in
       match key with
       | Some ((`Escape | `ASCII 'q'), []) ->

@@ -85,12 +85,7 @@ let ambient_handle (env : Screen.env) (geometry : Screen.geometry) t input =
   let move delta =
     { t with browser = RB.move t.browser (rows ~book:env.book ~calendar:env.calendar t) delta }
   in
-  let key =
-    match input with
-    | `Key (`ASCII c, mods) -> Some (`ASCII (Char.lowercase_ascii c), mods)
-    | `Key (key, mods) -> Some (key, mods)
-    | _ -> None
-  in
+  let key = Ui_input.key_ignoring_case input in
   match t.overlay with
   | Some (Jump value) -> (
       match input with
@@ -145,12 +140,7 @@ let ambient_handle (env : Screen.env) (geometry : Screen.geometry) t input =
 let handle (env : Screen.env) geometry t input =
   if modal t then ambient_handle env geometry t input
   else
-    let key =
-      match input with
-      | `Key (`ASCII c, mods) -> Some (`ASCII (Char.lowercase_ascii c), mods)
-      | `Key (key, mods) -> Some (key, mods)
-      | _ -> None
-    in
+    let key = Ui_input.key_ignoring_case input in
     let stay t = (t, Screen.Stay) in
     let calendar = t.route = Screen.Calendar in
     let action action =
