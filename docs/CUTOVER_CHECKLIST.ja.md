@@ -160,6 +160,8 @@ Attention／Settlement／Exchange → 残るReports／設定／対象内の出�
 持ち越し範囲を確認し、元データと以前の試用を保全する。未変換を不存在にしない。
 正データを二重記帳・自動同期しない。最後にユーザーが切替日と記帳先を明示して決める。
 
+移行の方針（2026-10-21本人決定）は[差分台帳](CUTOVER_DIFF_LEDGER.ja.md)の「全家計データの移行」行にある。
+
 ## 根拠の入口
 
 - Bakhlo：[`Daily_book API`](../sexp/daily_book.mli)、[`操作`](../tui/daily_interaction.ml)、
