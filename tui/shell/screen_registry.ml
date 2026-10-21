@@ -10,6 +10,7 @@ type t = {
   transactions_flow : Transactions_flow_screen.t;
   stock_flow : Stock_flow_screen.t;
   liquidity : Liquidity_screen.t;
+  trend_locus : Trend_locus_screen.t;
   attention : Attention_screen.t;
   settlements : Settlements_screen.t;
   loci : Loci_screen.t;
@@ -30,6 +31,7 @@ let create ~scheduled_months =
     transactions_flow = Transactions_flow_screen.create ();
     stock_flow = Stock_flow_screen.create ();
     liquidity = Liquidity_screen.create ();
+    trend_locus = Trend_locus_screen.create ();
     attention = Attention_screen.create ();
     settlements = Settlements_screen.create ();
     loci = Loci_screen.create ();
@@ -142,6 +144,22 @@ let all =
         handle = Stock_flow_screen.handle;
         view = Stock_flow_screen.view;
         saved = Stock_flow_screen.saved;
+        published = Screen.no_publication;
+        reloaded = Screen.no_reload;
+        book_changed = no_change;
+      };
+    Owner
+      {
+        layout = Screen.Workspace;
+        owns = (( = ) W.Trend_locus);
+        config_files = Trend_locus_screen.config_files;
+        get = (fun t -> t.trend_locus);
+        set = (fun t trend_locus -> { t with trend_locus });
+        enter = (fun _ ~focus_day t -> Trend_locus_screen.enter ~focus_day t);
+        modal = Trend_locus_screen.modal;
+        handle = Trend_locus_screen.handle;
+        view = Trend_locus_screen.view;
+        saved = Trend_locus_screen.saved;
         published = Screen.no_publication;
         reloaded = Screen.no_reload;
         book_changed = no_change;

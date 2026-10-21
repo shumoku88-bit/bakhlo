@@ -311,6 +311,7 @@ let open_command state = function
   | M.Stock_flow -> open_route state W.Stock_flow
   | M.Liquidity -> open_route state W.Liquidity
   | M.Transactions_flow -> open_route state W.Transactions_flow
+  | M.Trend_locus -> open_route state W.Trend_locus
   | M.Calendar -> open_route state W.Calendar
   | M.Pace_pool ->
       { state with overlay = No_overlay; message = "";

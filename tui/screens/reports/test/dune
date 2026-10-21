@@ -1,3 +1,19 @@
 (test
  (name reports_checks)
+ (modules reports_checks stock_flow_checks liquidity_checks)
  (libraries bakhlo_screen_reports bakhlo_tui_book bakhlo_tui_kit bakhlo_tui_protocol bakhlo.domain bakhlo.sexp zarith))
+
+(test
+ (name trend_locus_projection_checks)
+ (modules trend_locus_projection_checks)
+ (libraries bakhlo_screen_reports bakhlo_tui_book bakhlo.domain bakhlo.sexp zarith))
+
+(test
+ (name trend_locus_screen_checks)
+ (modules trend_locus_screen_checks)
+ (libraries bakhlo_screen_reports bakhlo_tui_protocol bakhlo.sexp zarith))
+
+(test
+ (name trend_locus_chart_checks)
+ (modules trend_locus_chart_checks)
+ (libraries bakhlo_screen_reports zarith))

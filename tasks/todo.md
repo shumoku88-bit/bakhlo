@@ -1,5 +1,11 @@
 # LOAMの機能・見た目・使い勝手をBakhloで再現する
 
+## Reports: Trend / Locus comparison（UI-25、2026-10-21）
+
+- [x] LOAMの期間・比較対象・集計と根拠不足の扱いを読取参照し、既存Reports境界を再利用してread-only ownerを追加する。Scheduledは編集しない。
+- [x] Commands → Reports and analysisへ1項目と最小route登録だけを追加し、通貨分離・exact数量・unknown／zero・期間／比較操作を合成回帰と端末で検証する。
+- [x] `./tools/check`、`./tools/tui --self-check`、`git diff --check`を実行し、UI-25／cutover checklist／証拠を更新して`omp/trend-locus`へcommitする（push・main／他worktree変更・実データアクセスなし）。[証拠](../docs/VERIFICATION.md#trend--locus-comparison-report-2026-10-21)
+
 ## Accounting表示をLOAMの構成へ（2026-10-21）
 
 - [x] Evidence details・Answerability Map・次に必要な根拠・全残高の支持一覧を追加し、実データ120×36で件数と行がLOAMと一致。[証拠](../docs/VERIFICATION.md#accounting-evidence-details-as-in-loam-2026-10-21)
