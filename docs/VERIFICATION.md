@@ -5468,6 +5468,10 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
 - Not done: LOAM's expected-pace choice right after creating a plan (needs a Shell hook
   after publication); `e` on an unmonitored plan against LOAM with real data; 80×24;
   physical terminal/IME; P7.
+- Pushed `d1c906e`; matching-SHA
+  [Core CI 39520957571](https://github.com/shumoku88-bit/bakhlo/actions/runs/39520957571)
+  and [Bonsai TUI CI 39520957237](https://github.com/shumoku88-bit/bakhlo/actions/runs/39520957237)
+  both succeeded.
 - `482a9c9`: matching-SHA
   [Core CI 39519824236](https://github.com/shumoku88-bit/bakhlo/actions/runs/39519824236)
   and [Bonsai TUI CI 39519824159](https://github.com/shumoku88-bit/bakhlo/actions/runs/39519824159)
