@@ -29,6 +29,23 @@ let run ~width_of ~directory (back_home : C.state) =
     "refuses-invalid-observe";
   let cancelled_obs = key ~width_of invalid_state `Escape in
   require (no_modal cancelled_obs) "observe-cancel-escapes";
+  (* Observe is a write flow and no longer lives in Reports and analysis. *)
+  require
+    (not
+       (List.exists
+          (fun (_, text) -> Base.String.is_substring text ~substring:"Observe")
+          (M.items M.Analysis)))
+    "observe-not-in-reports-palette";
+  (* Opened from Balances, Esc returns to Balances instead of Home. *)
+  let balances_state = key ~width_of back_home (`ASCII 'b') in
+  require (balances_state.C.workspace.route = W.Balances) "balances-route-for-observe";
+  let observed_from_balances = key ~width_of balances_state (`ASCII 'o') in
+  require (b2_overlay_open observed_from_balances) "observe-opens-from-balances";
+  let escaped_observe = key ~width_of observed_from_balances `Escape in
+  require (no_modal escaped_observe) "observe-esc-closes-editor";
+  require
+    (escaped_observe.C.workspace.route = W.Balances)
+    "observe-esc-returns-to-balances";
   let check_qty book locus measure = b2_check_qty book locus measure in
   let observe_one base_state locus amount =
     let st = key ~width_of base_state (`ASCII 'o') in
@@ -62,7 +79,29 @@ let run ~width_of ~directory (back_home : C.state) =
           | None -> raise (F.Refused "observe-advance"))
       | None -> s
     in
-    pick 0 (pick 1 st)
+    (* The Preview must not publish on Enter: [Edit] is selected first. *)
+    let preview = pick 1 st in
+    let preview_form =
+      match visible_form preview with
+      | Some f -> f
+      | None -> raise (F.Refused "observe-preview-open")
+    in
+    require
+      (Ui_form.get_button preview_form "action" = Some 1)
+      "observe-preview-defaults-to-edit";
+    let edited =
+      match
+        H.handle ~width_of ~dimensions:(100, 30)
+          (with_visible_form preview preview_form)
+          (`Key (`Enter, []))
+      with
+      | Some s -> s
+      | None -> raise (F.Refused "observe-preview-enter")
+    in
+    require
+      (check_qty edited.session.book locus "jpy" = check_qty base_state.session.book locus "jpy")
+      "observe-preview-enter-does-not-publish";
+    pick 0 preview
   in
   let observed_state = observe_one back_home "wallet" "5000" in
   require

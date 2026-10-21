@@ -93,7 +93,9 @@ let preview_form (env : Screen.env) rows ~notice =
       @ [ "Tab select  Enter confirm  e edit  Esc cancel" ])
     ~fields:
       [
-        Form.buttons_field ~id:"action"
+        (* [Edit] is selected first: Enter on an unreviewed Preview must not
+           publish. [Publish] needs an explicit selection. *)
+        Form.buttons_field ~id:"action" ~selected:1
           ~buttons:
             [
               { Form.label = "Publish"; is_cancel = false };
@@ -262,8 +264,8 @@ let view _env (geometry : Screen.geometry) t =
       (match t.editor with
       | Some (Preview _) ->
           [
-            "Left/Right choose  Enter confirm  e edit  Esc cancel";
-            "Full image must fit before Publish; no partial save";
+            "Enter = Edit (default)  Tab/Left/Right select  Esc cancel";
+            "Publish needs an explicit selection; full image must fit; no partial save";
           ]
       | Some (Quantity _) | None ->
           [

@@ -15,7 +15,6 @@ type action =
   | Friendly_locus_names
   | Exchange
   | Settlements
-  | Observe
   | Income_expense
   | Transactions_flow
   | Stock_flow

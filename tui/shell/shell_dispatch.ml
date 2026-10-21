@@ -414,7 +414,6 @@ let open_command state = function
           };
       }
   | M.Settlements -> open_route state W.Settlements
-  | M.Observe -> { (open_observe state) with overlay = No_overlay; message = "" }
   | M.Home -> open_route state W.Home
   | M.Income_expense -> open_route state W.Income_expense
   | M.Stock_flow -> open_route state W.Stock_flow

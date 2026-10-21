@@ -15,7 +15,6 @@ type action =
   | Friendly_locus_names
   | Exchange
   | Settlements
-  | Observe
   | Income_expense
   | Transactions_flow
   | Stock_flow
@@ -63,7 +62,6 @@ let items = function
         (Action Transactions_flow, "Transactions Flow / Activity report");
         (Action Stock_flow, "Stock–Flow / Reconciliation report");
         (Action Trend_locus, "Trend / Locus comparison");
-        (Action Observe, "Observe Quantities / Verified balance");
         (Action Liquidity, "Liquidity / Conditional balance outlook");
         (Action Multicurrency_spend, "Multicurrency Spend");
       ]
