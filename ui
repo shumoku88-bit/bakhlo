@@ -6,9 +6,7 @@ cd "$root"
 umask 077
 usage() {
   printf '%s\n' './ui             Bakhlo comparison copy' \
-    './ui --daily     Copy latest LOAM data, then open a fresh Bakhlo copy' \
     './ui loam        LOAM copy from the same captured generation (no build)' \
-    './ui --refresh   Copy latest LOAM data read-only; retain old captures' \
     './ui --demo      Synthetic-only UI preview' \
     'Space -> Commands -> Theme: terminal colors or Bakhlo Light / Dark'
 }
@@ -16,17 +14,12 @@ if [ "$#" -gt 1 ]; then usage >&2; exit 2; fi
 mode=${1:-bakhlo}
 case "$mode" in
   --help|-h) usage; exit 0 ;;
-  --refresh) exec ./tools/compare refresh ;;
-  bakhlo|loam|--demo|--daily) ;;
+  bakhlo|loam|--demo) ;;
   *) usage >&2; exit 2 ;;
 esac
 if [ ! -t 0 ] || [ ! -t 1 ]; then
   printf '%s\n' 'Run ./ui in an interactive terminal.' >&2
   exit 2
-fi
-if [ "$mode" = --daily ]; then
-  # A failed acquisition must never continue into the previous selected copy.
-  ./tools/compare refresh
 fi
 if [ -L "$root/scratch" ]; then
   printf '%s\n' 'Comparison directories must not be symlinks.' >&2; exit 2
@@ -45,7 +38,7 @@ if [ "$mode" = --demo ]; then
 else
   state=$root/scratch/loam-comparison
   if [ -L "$state" ] || [ -L "$state/CURRENT" ] || [ ! -f "$state/CURRENT" ]; then
-    printf '%s\n' 'No selected comparison copy. Run ./ui --refresh. No demo fallback.' >&2
+    printf '%s\n' 'No selected comparison copy. Run ./tools/compare refresh. No demo fallback.' >&2
     exit 2
   fi
   IFS= read -r capture < "$state/CURRENT"
@@ -62,9 +55,6 @@ else
   trial=$state/$capture
   if [ -L "$trial" ] || [ ! -f "$trial/COMPLETE" ]; then
     printf '%s\n' 'Incomplete comparison copy; nothing opened.' >&2; exit 2
-  fi
-  if [ "$mode" = --daily ]; then
-    printf 'Fresh Bakhlo comparison copy: %s\n' "$capture"
   fi
   if [ "$mode" = loam ]; then
     bin=$root/../loam/.lake/build/bin/loam

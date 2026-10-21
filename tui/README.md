@@ -17,10 +17,8 @@ trackedなBonsai UIの変更をmainへpushすると、`/.github/workflows/tui.ym
 
 ## 起動
 
-Bakhloディレクトリから日々の確認は`./ui --daily`（親のmokoからは`./bakhlo/ui --daily`）。
-普段のLOAMで記帳した内容から新しい比較コピーを取得し、成功時だけBakhloを開く。LOAMは開いたままでよい。
-非対話端末では取得前に拒否し、取得失敗時も古いコピーを開かない。
-`./ui`は選択済みコピーの再訪、`./ui --refresh`は取得のみ。別の端末の`./ui loam`で同じ取得時点のLOAMコピーを開ける。
+普段の記帳は`./tools/household`（家計簿を開き、終了時にcommit・push）。
+LOAMとの比較は`./ui`、別の端末で`./ui loam`（同じ取得世代のコピー）。取得し直すときだけ`./tools/compare refresh`。
 毎回の取得は新しいコピーを作り、両UIの試用編集は以前のコピーに保存したまま次のコピーへ合流しない。
 取得・変換は既存のignoredな私用Daily converterに依存する限定ローカル手順で、単独の移行ツールや正データへの書込みではない。
 未対応のActual証拠、不正な変換、取得中の変更は拒否し、前回の選択とコピーを保持する。
