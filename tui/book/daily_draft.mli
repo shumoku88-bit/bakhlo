@@ -20,17 +20,7 @@ type mode = New | Edit of B.entry | Pay of string | Plan_new | Plan_edit of B.pl
 type transaction = { entry : B.entry; replace : bool; plan : string option }
 type payload = Entry_tx of transaction | Plan_tx of { plan : B.plan; replace : bool }
 
-type single_form = {
-  day : string;
-  measure : string;
-  from_locus : string;
-  to_locus : string;
-  amount : string;
-  memo : string;
-}
-
 type draft_content =
-  | Single of single_form
   | Multiple of {
       day : string;
       memo : string;
@@ -38,30 +28,13 @@ type draft_content =
       original_amount : (string * Z.t) option;
     }
 
-type edit_preparation =
-  | Edit_refused of string
-  | Edit_single of { form : single_form; entry : B.entry }
-  | Edit_multiple of { day : string; measure : string; memo : string; draft : R.t; entry : B.entry }
-
-type pay_preparation =
-  | Pay_refused of string
-  | Pay_single of { form : single_form; plan_id : string }
-  | Pay_multiple of { day : string; measure : string; draft : R.t; plan_id : string }
-
-type field_target =
-  | Field_date
-  | Field_currency
-  | Field_source
-  | Field_destination
-  | Field_amount
-  | Field_memo
-
-type transaction_error = { message : string; field : field_target option; raw_cause : string }
+type transaction_error = { message : string }
 
 val pair : D.Effect.t list -> (D.Effect.t * D.Effect.t) option
-val prepare_edit : book:B.t -> B.entry -> edit_preparation
-val prepare_pay : today:string -> book:B.t -> B.plan -> pay_preparation
-val prepare_postings : book:B.t -> mode:mode -> form:single_form -> (R.t, string) result
+
+val edit_refusal : book:B.t -> B.entry -> string option
+(** Why the Record editor cannot correct this entry, if it cannot. *)
+
 val normalize_date_text : string -> string
 val is_leap_year : int -> bool
 val days_in_month : year:int -> month:int -> int

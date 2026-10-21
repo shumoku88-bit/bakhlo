@@ -6,7 +6,6 @@ module L = Bakhlo_sexp.Book_log
 (* Transitional caller adapters preserve existing controller/test contracts. *)
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
 let get_id = function Ok x -> x | Error D.Identifier.Empty -> raise (F.Refused "empty-identity")
-let prepare_pay ~book plan = Daily_draft.prepare_pay ~today:(F.today ()) ~book plan
 
 let build_transaction ~book ~mode content =
   Daily_draft.build_transaction ~new_id:F.new_id ~book ~mode content

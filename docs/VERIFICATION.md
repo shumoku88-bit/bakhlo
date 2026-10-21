@@ -6,6 +6,17 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Record draft builder: unused paths removed (2026-10-21)
+
+- `tui/book/daily_draft.ml` 575 → 321 lines. Removed the unused two-posting form path
+  (`Single`, `single_form`, `prepare_postings`, `prepare_pay`, `Pay_*`), the never-read
+  `field`/`raw_cause` of `transaction_error`, and `edit_preparation` (now
+  `edit_refusal : string option`). Date, posting and balance checks that were written out two
+  or three times are single functions; their order and every user-visible message are
+  unchanged.
+- `./tools/tui --self-check` (44 suites, no warnings), `./tools/format --check` and the local
+  PTY smoke passed. Household data not accessed.
+
 ## Record editor readability (2026-10-21)
 
 - `tui/shell/record_session.ml` (1491 → 1430 lines after formatting): shared `blank`

@@ -115,9 +115,9 @@ let rows_of_draft (draft : R.t) =
     draft.rows
 
 let of_edit ~book entry =
-  match A.prepare_edit ~book entry with
-  | A.Edit_refused why -> Error why
-  | A.Edit_single _ | A.Edit_multiple _ -> (
+  match A.edit_refusal ~book entry with
+  | Some why -> Error why
+  | None -> (
       match R.of_effects book entry.B.effects with
       | Error why -> Error why
       | Ok draft ->
