@@ -6,6 +6,38 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Actual render-local reuse and empty-query search (2026-10-21)
+
+- Actual resolves scope/Loci, filtered sorted rows and clamped selection once per
+  render, sharing them with context/list/details. Detail scroll limits are computed
+  only for Details navigation. Public unclamped selection and the All-loci fast path
+  remain intact. No persistent cache, state field, API, storage or dependency change.
+  `Record_browser.matches` keeps day/Locus filters while skipping text construction
+  for an empty query. Tests cover both row families, their labels, independent memo
+  search, intersected filters and stale selection; existing lifecycle checks remain.
+- Before/after native executables compared 1,440 synthetic observations: empty and
+  18-entry books (long CJK/huge quantity), 39 keys plus initial state, six geometries
+  (120×36, 80×24, 48×14, 32×9, 20×6, 8×3) and three themes. Serialized rows, footer,
+  cursor, visible/selected IDs, Locus, notice, command and ANSI digests were identical.
+- Paired native measurements on macOS x86_64 / OCaml 5.3.0: median of nine after
+  warmup, synthetic All Current / two Loci / empty query / 80×24, same saved probe
+  source linked before/after. These are CPU-side key/paint costs, not PTY latency:
+
+  | Synthetic entries | Shell Down + Notty image/cursor, before→after | Empty-query filter only, before→after |
+  | ---: | ---: | ---: |
+  | 1,000 | 2.152→1.453 ms | 0.434→0.022 ms |
+  | 10,000 | 23.974→14.018 ms | 4.814→0.257 ms |
+  | 109,500 | 465.517→234.804 ms | 53.078→6.703 ms |
+
+  The 109.5k 16 ms key-response goal is **not met**. Full-list sorting and the
+  unchanged global amount-width scan remain; this is not a claim of complete tuning.
+- `./tools/check`, `./tools/tui --self-check`, the four-size synthetic
+  `tools/ci-tui-pty` matrix and `./tools/privacy-scan --all` passed.
+- Independent pit review found no blockers. Latest-data paired comparison, human/IME
+  acceptance and P7/power-loss testing: **not executed**. No household access.
+  Removed the obsolete Records investigation from the design guide and aligned S1
+  with the already-approved cutover; no new migration or authority decision.
+
 ## Household backup failures are visible (2026-10-21)
 
 - `tools/household` checks staging, index comparison, commit, upstream, pending-log

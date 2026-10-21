@@ -60,8 +60,8 @@ let records_for_scope ~book t =
   | Focus_day -> List.filter (fun (e : B.entry) -> e.day = t.focus_date) all
   | All_current -> all
 
-let loci_for_scope ~book t =
-  let records = records_for_scope ~book t in
+(* First-occurrence Loci order from an already-scoped record list. *)
+let loci_of_records records =
   let rec extract_loci acc = function
     | [] -> List.rev acc
     | (e : B.entry) :: rest ->
@@ -73,8 +73,12 @@ let loci_for_scope ~book t =
   in
   extract_loci [] records
 
+let loci_for_scope ~book t = loci_of_records (records_for_scope ~book t)
+
+let locus_at loci row = if row = 0 then None else List.nth_opt loci (row - 1)
+
 let selected_locus ~book t =
-  if t.locus_row = 0 then None else List.nth_opt (loci_for_scope ~book t) (t.locus_row - 1)
+  if t.locus_row = 0 then None else locus_at (loci_for_scope ~book t) t.locus_row
 
 let contains_insensitive needle haystack =
   if needle = "" then true
@@ -95,16 +99,15 @@ let matches_search ~book t (record : B.entry) =
            contains_insensitive t.search_query token || contains_insensitive t.search_query label)
          record.effects
 
-let visible_entries ~book t =
-  let by_scope = records_for_scope ~book t in
+let filtered_entries ~book t ~records ~locus =
   let by_locus =
-    match selected_locus ~book t with
-    | None -> by_scope
+    match locus with
+    | None -> records
     | Some locus ->
         List.filter
           (fun (record : B.entry) ->
             List.exists (fun p -> A.lstr (D.Effect.locus p) = locus) record.effects)
-          by_scope
+          records
   in
   let filtered = List.filter (matches_search ~book t) by_locus in
   List.sort
@@ -115,20 +118,36 @@ let visible_entries ~book t =
         match t.order with Asc -> String.compare a.day b.day | Desc -> String.compare b.day a.day)
     filtered
 
+(* Resolve one scoped scan into the Loci list, the active Locus, the filtered
+   and sorted rows, and both row indices clamped. The public [visible_entries]
+   deliberately stays unclamped and [selected_entry] returns None for a stale
+   transaction index. *)
+let resolve ~book t =
+  let scoped = records_for_scope ~book t in
+  let loci = loci_of_records scoped in
+  let locus_row = min (max 0 t.locus_row) (List.length loci) in
+  let locus = locus_at loci locus_row in
+  let records = filtered_entries ~book t ~records:scoped ~locus in
+  let tx_count = List.length records in
+  let transaction_row =
+    if tx_count = 0 then 0 else min (max 0 t.transaction_row) (tx_count - 1)
+  in
+  (loci, locus, records, { t with locus_row; transaction_row })
+
+let visible_entries ~book t =
+  let records = records_for_scope ~book t in
+  let locus =
+    if t.locus_row = 0 then None else locus_at (loci_of_records records) t.locus_row
+  in
+  filtered_entries ~book t ~records ~locus
+
 let selected_entry ~book t =
   let records = visible_entries ~book t in
   List.nth_opt records t.transaction_row
 
 let clamp_state ~book t =
-  let loci_count = List.length (loci_for_scope ~book t) in
-  let locus_row = min (max 0 t.locus_row) loci_count in
-  let t_with_locus = { t with locus_row } in
-  let records = visible_entries ~book t_with_locus in
-  let tx_count = List.length records in
-  let transaction_row =
-    if tx_count = 0 then 0 else min (max 0 t_with_locus.transaction_row) (tx_count - 1)
-  in
-  { t_with_locus with transaction_row }
+  let _, _, _, clamped = resolve ~book t in
+  clamped
 
 let returned_from_detail ~before_book ~after_book t =
   let locus = selected_locus ~book:before_book t in
@@ -303,7 +322,6 @@ let move_previous ~book ~width_of:_ _geometry t =
       else { t with detail_scroll = t.detail_scroll - 1; notice = "" }
 
 let move_next ~book ~width_of geometry t =
-  let detail_end = detail_scroll_limit ~book ~width_of geometry t in
   match t.pane with
   | Loci ->
       let count = List.length (loci_for_scope ~book t) in
@@ -323,6 +341,7 @@ let move_next ~book ~width_of geometry t =
         { t with transaction_row = t.transaction_row + 1; detail_scroll = 0; notice = "" }
       else { t with notice = "No next Actual row." }
   | Details ->
+      let detail_end = detail_scroll_limit ~book ~width_of geometry t in
       if t.detail_scroll >= detail_end then { t with notice = "End of Details." }
       else { t with detail_scroll = t.detail_scroll + 1; notice = "" }
 
@@ -350,7 +369,6 @@ let move_page_up ~book ~width_of:_ geometry t =
 
 let move_page_down ~book ~width_of geometry t =
   let ps = page_size geometry t.pane in
-  let detail_end = detail_scroll_limit ~book ~width_of geometry t in
   match t.pane with
   | Loci ->
       let count = List.length (loci_for_scope ~book t) in
@@ -375,6 +393,7 @@ let move_page_down ~book ~width_of geometry t =
           notice = "";
         }
   | Details ->
+      let detail_end = detail_scroll_limit ~book ~width_of geometry t in
       if t.detail_scroll >= detail_end then { t with notice = "End of Details." }
       else { t with detail_scroll = min detail_end (t.detail_scroll + ps); notice = "" }
 
@@ -387,7 +406,6 @@ let move_home ~book t =
   | Details -> { t with detail_scroll = 0; notice = "" }
 
 let move_end ~book ~width_of geometry t =
-  let detail_end = detail_scroll_limit ~book ~width_of geometry t in
   match t.pane with
   | Loci ->
       let count = List.length (loci_for_scope ~book t) in
@@ -397,7 +415,8 @@ let move_end ~book ~width_of geometry t =
       let count = List.length (visible_entries ~book t) in
       let row = if count = 0 then 0 else count - 1 in
       { t with transaction_row = row; detail_scroll = 0; notice = "" }
-  | Details -> { t with detail_scroll = detail_end; notice = "" }
+  | Details ->
+      { t with detail_scroll = detail_scroll_limit ~book ~width_of geometry t; notice = "" }
 
 let cycle_filter ~book t =
   let scope = match t.scope with Focus_day -> All_current | All_current -> Focus_day in
@@ -596,12 +615,10 @@ let list_panel ~book ~width_of t ~records ~loci pane (width, height) title =
     ~bottom:(Some (position ^ more))
     (header @ content)
 
-let detail_panel ~book ~width_of (width, height) t =
+let detail_panel ~book ~width_of (width, height) t ~entry =
   let focused = t.pane = Details in
   let capacity = max 0 (height - 2) in
-  let lines =
-    detail_raw_lines ~book ~width_of ~width:(max 1 (width - 2)) (selected_entry ~book t)
-  in
+  let lines = detail_raw_lines ~book ~width_of ~width:(max 1 (width - 2)) entry in
   let max_scroll = max 0 (List.length lines - capacity) in
   let scroll = min t.detail_scroll max_scroll in
   let visible = List.filteri (fun i _ -> i >= scroll && i < scroll + capacity) lines in
@@ -637,9 +654,7 @@ let search_line ~width ~width_of t =
 
 let screen ~book ~today ~draft_retained ~dimensions ~width_of t =
   let g = panel_geometry dimensions in
-  let loci = loci_for_scope ~book t in
-  let t = clamp_state ~book t in
-  let records = visible_entries ~book t in
+  let loci, locus, records, t = resolve ~book t in
   let order_tag, order_text =
     match t.order with Asc -> ("asc", "oldest first") | Desc -> ("desc", "newest first")
   in
@@ -652,12 +667,14 @@ let screen ~book ~today ~draft_retained ~dimensions ~width_of t =
     ^ Printf.sprintf " (%d, %s, %s)" (List.length records) order_tag order_text
   in
   let searching = t.search_query <> "" || t.search_editing in
+  let locus_name =
+    match locus with None -> "All loci" | Some token -> display_locus ~book token
+  in
   let context_line =
     if searching then search_line ~width:g.writable ~width_of t
     else
       ( O.Chrome,
-        O.clip_text ~width_of g.writable (" " ^ scope_text t ^ "  |  " ^ current_locus_name ~book t)
-      )
+        O.clip_text ~width_of g.writable (" " ^ scope_text t ^ "  |  " ^ locus_name) )
   in
   (* Bakhlo keeps its retained-draft warning visible in the workspace title. *)
   let title =
@@ -673,7 +690,10 @@ let screen ~book ~today ~draft_retained ~dimensions ~width_of t =
   let list pane width title =
     list_panel ~book ~width_of t ~records ~loci pane (width, list_height g pane) title
   in
-  let detail () = detail_panel ~book ~width_of (detail_bounds g t.pane) t in
+  let detail () =
+    detail_panel ~book ~width_of (detail_bounds g t.pane) t
+      ~entry:(List.nth_opt records t.transaction_row)
+  in
   let panels =
     if g.wide then
       let left = list Loci g.left_width left_header @ detail () in

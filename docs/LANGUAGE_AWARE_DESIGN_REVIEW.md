@@ -40,7 +40,7 @@ fragile persistence shortcuts or unnecessary long-lived process overhead.
 4. **Parsing and mmap are workload-specific choices.** Compare existing Parsexp parsing
    against bounded alternatives only for a demonstrated need. Mapped offsets retain the
    backing store's lifetime; truncation/replacement complicates ownership and concurrent
-   mutation can cause SIGBUS. Do not weaken format refusal, CRC, LSN, concurrent-writer or
+   mutation can cause SIGBUS. Do not weaken format refusal, record digest/sequence, concurrent-writer or
    torn-write checks to obtain a faster result. mmap is not the default next step.
 5. **Correctness and longevity survive every optimization.** Preserve unknown versus zero,
    currency separation, correction/payment links, exact quantities, unsupported-operation
@@ -51,32 +51,6 @@ fragile persistence shortcuts or unnecessary long-lived process overhead.
 Comparisons with [LOAM's independent Lean review #1946](https://github.com/shumoku88-bit/loam/issues/1946)
 concern semantic/functional results. Raw times from different workloads, runtimes or hosts
 are not a fair performance ranking.
-
-## First focused candidate — investigation only
-
-Inspect the Records load path in `tui/daily_file.ml`: format acquisition,
-`Durable_append.recover_and_open`, post-recovery readback, `Daily_book.of_string`
-and the separate `Records_book.of_string` used for LSN/CRC consistency.
-The current Daily reader delegates Records decoding to `Records_book.of_string`.
-This is a source-level observation, not a measured performance regression.
-
-Ask whether one already-verified parsed Records value can serve multiple consumers
-**after recovery**, while preserving whole semantic admission, required fresh reads,
-engine/book consistency and race protection. Do not reuse pre-recovery bytes or remove
-an independent verification just because its work resembles another pass.
-
-Nearest owners: `sexp/daily_book.ml`, `sexp/records_book.ml`,
-`sexp/durable_append.ml`, `tui/daily_file.ml`, the related storage/recovery tests,
-and [existing scale/cost evidence](VERIFICATION.md). Respect earlier PR 6 indexing and
-bytes-copy improvements; do not accidentally implement them again.
-Before proposing a change, compare parse counts, bytes read, phase times, memory and
-correctness/refusal outcomes. The storage study now includes monolithic save decomposition
-with `./tools/storage-breakdown`, using observed source copies and an original-owner control;
-it does not measure the Records load candidate above. It also records scratch-only direct
-printing and byte-preserving quote-length trials: less cumulative short-lived allocation
-alone did not establish useful peak-RSS or timing improvement. Read these scoped results
-before adding another probe or repeating existing indexing/GC work. No implementation change is selected
-by this guide.
 
 ## Short report contract
 

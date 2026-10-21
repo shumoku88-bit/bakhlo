@@ -6,6 +6,7 @@
 module B = Bakhlo_sexp.Daily_book
 module A = Daily_draft
 module Act = Actual_workspace
+module RB = Record_browser
 
 let require condition name =
   if not condition then failwith ("FAILED: actual_workspace_check: " ^ name)
@@ -297,6 +298,92 @@ let self_check ~width_of () =
   let restored = Act.returned_from_detail ~before_book:book ~after_book:book ws_locus in
   require (Act.selected_locus ~book restored = before_locus) "returned-preserves-locus";
   require (Act.selected_entry ~book restored = before_entry) "returned-preserves-entry";
+
+  (* 13. Record_browser shares Actual and Scheduled rows; day/locus filters run
+     even when the text query is empty, and text search still covers ID, memo
+     and Locus label. *)
+  let plan_book =
+    let rent_entry =
+      List.find
+        (fun (e : B.entry) -> e.id = "2026-10-14:Apartment rent")
+        (B.entries book)
+    in
+    let plan : B.plan =
+      let changes =
+        match rent_entry.effects with
+        | first :: second :: _ ->
+            [ ("assets:cash", A.quanta first); ("expenses:rent", A.quanta second) ]
+        | _ -> failwith "FAILED: actual_workspace_check: plan fixture effects"
+      in
+      {
+        id = "plan-rent";
+        day = "2026-10-16";
+        measure = "jpy";
+        changes;
+        paid_by = None;
+        cancelled_on = None;
+      }
+    in
+    get (B.put_plan book ~replace:false plan)
+  in
+  let browser_rows browser =
+    RB.visible ~book:plan_book browser (RB.all_rows plan_book)
+  in
+  let identities browser = List.map RB.identity (browser_rows browser) in
+  let all_ids = identities RB.empty in
+  require (List.length all_ids = 4) "browser-empty-query-keeps-all-rows";
+  require
+    (List.exists (fun (family, _) -> family = RB.Actual_row) all_ids
+    && List.exists (fun (family, _) -> family = RB.Scheduled_row) all_ids)
+    "browser-has-actual-and-scheduled";
+  let day_browser = { RB.empty with day = Some "2026-10-15" } in
+  require (List.length (browser_rows day_browser) = 2) "browser-empty-query-day-filter";
+  List.iter
+    (fun row -> require (RB.date row = "2026-10-15") "browser-day-filter-row")
+    (browser_rows day_browser);
+  let locus_browser = { RB.empty with locus = Some "expenses:rent" } in
+  require
+    (identities locus_browser
+    = [ (RB.Scheduled_row, "plan-rent"); (RB.Actual_row, "2026-10-14:Apartment rent") ])
+    "browser-empty-query-locus-filter";
+  require
+    (identities (RB.with_query RB.empty "coffee") = [ (RB.Actual_row, "2026-10-15:Coffee shop") ])
+    "browser-search-memo";
+  require
+    (identities (RB.with_query RB.empty "2026-10-14:Apartment rent")
+    = [ (RB.Actual_row, "2026-10-14:Apartment rent") ])
+    "browser-search-id";
+  require
+    (List.length (identities (RB.with_query RB.empty "食費")) = 2)
+    "browser-search-locus-label";
+  require
+    (identities (RB.with_query RB.empty "plan-rent") = [ (RB.Scheduled_row, "plan-rent") ])
+    "browser-search-scheduled-id";
+  require
+    (browser_rows { day_browser with locus = Some "expenses:rent" } = [])
+    "browser-empty-query-intersects-day-and-locus";
+  require
+    (identities (RB.with_query RB.empty "家賃") = identities locus_browser)
+    "browser-search-label-covers-both-families";
+  let memo_entry =
+    { (List.hd (B.entries book)) with id = "independent-id"; memo = Some "Memo-only token" }
+  in
+  require
+    (RB.matches ~book (RB.with_query RB.empty "memo-only") (RB.Actual_entry memo_entry))
+    "browser-search-memo-independent-of-id";
+
+  (* 14. A transaction index that no longer exists is not clamped by
+     selected_entry, but the render clamps its own local selection. *)
+  let empty_book = get (B.of_string fixture) in
+  require (Act.transaction_row ws = 2) "stale-fixture-row";
+  require (Act.selected_entry ~book:empty_book ws = None) "stale-row-selected-entry-none";
+  let stale_rows =
+    Act.screen ~book:empty_book ~today:"2026-10-20" ~draft_retained:false ~dimensions:dim_wide
+      ~width_of ws
+  in
+  require
+    (List.exists (fun (_, line) -> Base.String.is_substring line ~substring:"0/0") stale_rows)
+    "stale-row-screen-clamps";
 
   Printf.printf
     "PASS: Actual workspace synthetic checks (3-pane, Loci filter, live search, date/order toggle, \

@@ -6,8 +6,8 @@ implementation choices; they are not a claim that every OCaml operation is quali
 ## S1 — One operational authority
 
 Exactly one selected system/data authority owns ordinary household recording.
-During development the existing LOAM remains that authority. Bakhlo
-is not an operational replacement until an explicit qualified cutover.
+Bakhlo has held that authority since the user-approved 2026-10-21 cutover.
+LOAM is a frozen reference, not a second recording authority.
 
 Implementation changes, representation migration, identity normalization, and
 corrections of household facts are distinct operations. Do not silently invent,

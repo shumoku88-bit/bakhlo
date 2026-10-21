@@ -26,21 +26,26 @@ let identity = function
 let date = function Actual_entry e -> e.B.day | Scheduled_plan p -> p.B.day
 
 let matches ~book t row =
-  let text, loci =
+  let day = date row in
+  let loci =
     match row with
-    | Actual_entry e ->
-        ( e.id ^ " " ^ Option.value ~default:"" e.memo,
-          List.map (fun p -> A.lstr (Bakhlo_domain.Effect.locus p)) e.effects )
-    | Scheduled_plan p -> (p.id, List.map fst p.changes)
+    | Actual_entry e -> List.map (fun p -> A.lstr (Bakhlo_domain.Effect.locus p)) e.effects
+    | Scheduled_plan p -> List.map fst p.changes
   in
-  let text =
-    date row ^ " " ^ text ^ " "
-    ^ String.concat " " (List.map (fun id -> id ^ " " ^ B.label book id) loci)
-  in
-  (match t.day with None -> true | Some d -> date row = d)
+  (match t.day with None -> true | Some d -> day = d)
   && (match t.locus with None -> true | Some id -> List.mem id loci)
-  && Base.String.is_substring (String.lowercase_ascii text)
-       ~substring:(String.lowercase_ascii t.query)
+  && (t.query = ""
+      ||
+      let text =
+        match row with
+        | Actual_entry e -> day ^ " " ^ e.id ^ " " ^ Option.value ~default:"" e.memo ^ " "
+        | Scheduled_plan p -> day ^ " " ^ p.id ^ " "
+      in
+      let text =
+        text ^ String.concat " " (List.map (fun id -> id ^ " " ^ B.label book id) loci)
+      in
+      Base.String.is_substring (String.lowercase_ascii text)
+        ~substring:(String.lowercase_ascii t.query))
 
 let all_rows book =
   List.map (fun e -> Actual_entry e) (B.entries book)
