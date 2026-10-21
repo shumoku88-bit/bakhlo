@@ -8,5 +8,4 @@
   bakhlo.domain
   bakhlo.sexp
   zarith
-  uutf
   base))

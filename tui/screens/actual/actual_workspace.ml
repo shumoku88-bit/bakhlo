@@ -453,6 +453,10 @@ let normalize_for_bounds ~book ~dimensions ~width_of t =
 
 (* 5. Event handling *)
 
+(* Panes in screen order, wrapping: Loci, Actuals, Details. *)
+let next_pane = function Loci -> Transactions | Transactions -> Details | Details -> Loci
+let previous_pane = function Loci -> Details | Transactions -> Loci | Details -> Transactions
+
 let handle ~book ~dimensions ~width_of t (input : Ui_input.input) =
   let geometry = terminal_geometry dimensions in
   let t = normalize_for_bounds ~book ~dimensions ~width_of t in
@@ -475,12 +479,10 @@ let handle ~book ~dimensions ~width_of t (input : Ui_input.input) =
     | `Key (`Backspace, _) -> (edit_search ~book t backspace_utf8, Stay)
     | `Key (`ASCII c, _) when c >= ' ' && c <= '~' ->
         (edit_search ~book t (fun curr -> curr ^ String.make 1 c), Stay)
-    | `Key (`Uchar u, _) ->
-        let b = Buffer.create 4 in
-        Uutf.Buffer.add_utf_8 b u;
-        (edit_search ~book t (fun curr -> curr ^ Buffer.contents b), Stay)
+    | `Key (`Uchar u, _) -> (edit_search ~book t (fun curr -> curr ^ O.utf8 u), Stay)
     | _ -> (t, Stay)
   else
+    let focus pane = ({ t with pane; notice = "" }, Stay) in
     match input with
     | `Key (`ASCII 'j', []) | `Key (`Arrow `Down, _) -> (move_next ~book ~width_of geometry t, Stay)
     | `Key (`ASCII 'k', []) | `Key (`Arrow `Up, _) ->
@@ -489,32 +491,12 @@ let handle ~book ~dimensions ~width_of t (input : Ui_input.input) =
     | `Key (`Page `Up, _) -> (move_page_up ~book ~width_of geometry t, Stay)
     | `Key (`Home, _) -> (move_home ~book t, Stay)
     | `Key (`End, _) -> (move_end ~book ~width_of geometry t, Stay)
-    | `Key (`ASCII 'h', []) | `Key (`Arrow `Left, _) ->
-        let prev_pane =
-          match t.pane with Loci -> Details | Transactions -> Loci | Details -> Transactions
-        in
-        ({ t with pane = prev_pane; notice = "" }, Stay)
-    | `Key (`ASCII 'l', []) | `Key (`Arrow `Right, _) ->
-        let next_pane =
-          match t.pane with Loci -> Transactions | Transactions -> Details | Details -> Loci
-        in
-        ({ t with pane = next_pane; notice = "" }, Stay)
+    | `Key (`ASCII 'h', []) | `Key (`Arrow `Left, _) -> focus (previous_pane t.pane)
+    | `Key (`ASCII 'l', []) | `Key (`Arrow `Right, _) -> focus (next_pane t.pane)
     | `Key (`Tab, mods) ->
-        if List.mem `Shift mods then
-          let prev_pane =
-            match t.pane with Loci -> Details | Transactions -> Loci | Details -> Transactions
-          in
-          ({ t with pane = prev_pane; notice = "" }, Stay)
-        else
-          let next_pane =
-            match t.pane with Loci -> Transactions | Transactions -> Details | Details -> Loci
-          in
-          ({ t with pane = next_pane; notice = "" }, Stay)
+        focus (if List.mem `Shift mods then previous_pane t.pane else next_pane t.pane)
     | `Key (`ASCII 'i', []) ->
-        let next_pane =
-          match t.pane with Details -> Transactions | Loci | Transactions -> Details
-        in
-        ({ t with pane = next_pane; notice = "" }, Stay)
+        focus (match t.pane with Details -> Transactions | Loci | Transactions -> Details)
     | `Key (`ASCII 'f', []) -> (cycle_filter ~book t, Stay)
     | `Key (`ASCII 's', []) -> (cycle_order ~book t, Stay)
     | `Key (`ASCII '/', []) -> (begin_search ~book t, Stay)
