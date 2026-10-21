@@ -28,7 +28,9 @@ type t = {
   coverage_offset : int;  (* first visible coverage month *)
   plan_row : int;
   pace : (B.plan * int) option;  (* the Expected pace chooser: source plan, choice *)
-  pending : (B.plan * string) option;  (* monitoring save in flight: source, success notice *)
+  pending : (B.plan * string * int option) option;
+  (* monitoring save in flight: source, success notice, cadence to extend with *)
+  pace_extends : bool;  (* the open chooser was entered from e on an unmonitored plan *)
 }
 
 let coverage_file = "scheduled-coverage.tsv"
@@ -39,7 +41,7 @@ let create months =
   { view = Coverage_view; list = { RB.empty with order = RB.Oldest };
     months_list = { RB.empty with order = RB.Oldest }; months;
     focus_day = ""; pane = List_pane; origin = List_pane; scroll = 0; search = None;
-    coverage_row = 0; coverage_offset = 0; plan_row = 0; pace = None; pending = None }
+    coverage_row = 0; coverage_offset = 0; plan_row = 0; pace = None; pending = None; pace_extends = false }
 
 (* Monitoring rules are read-side configuration; a missing file is no rule, a
    malformed or unreadable one is an explicit error, never an empty overview. *)
@@ -237,11 +239,12 @@ let pace_choices = [ ("Monthly", 1); ("Every 2 months", 2); ("Every 3 months", 3
 let action_record env t =
   match t.view, selected_entry env t with
   | Plan_view, Some (Occurrence (p, _)) -> Some p
+  | (Months_view | List_view), _ -> selected_plan env.book t
   | _ -> latest_plan env t
 
 (* Whole-image replacement against the captured bytes; the Shell refuses a
    changed file. The new image must decode again before it is offered. *)
-let save_rule (env : Screen.env) t (source : B.plan) rule success =
+let save_rule ?extend (env : Screen.env) t (source : B.plan) rule success =
   match env.config coverage_file with
   | Error why -> (t, unless_blocked env why)
   | Ok expected -> (
@@ -256,14 +259,26 @@ let save_rule (env : Screen.env) t (source : B.plan) rule success =
               let name = match List.find_opt (fun (r : Cov.rule) ->
                   r.negative = rule.Cov.negative && r.positive = rule.positive) rules with
                 | Some r -> r.name | None -> rule.name in
-              ({ t with pending = Some (source, success name) },
+              ({ t with pending = Some (source, success name, extend) },
                Screen.Save_config { file = coverage_file; expected; content;
                                     admission = Screen.Household_readable })))
 
 let change_pace env t =
   match action_record env t with
   | None -> (t, unless_blocked env "No current-open Scheduled occurrence is available for the selected recurring plan.")
-  | Some p -> ({ t with pace = Some (p, 0) }, Screen.Stay)
+  | Some p -> ({ t with pace = Some (p, 0); pace_extends = false }, Screen.Stay)
+
+(* LOAM extendPlan from List / Months: a monitored plan extends on its cadence;
+   an unmonitored one first chooses its expected pace, then extends. *)
+let extend_selected (env : Screen.env) t =
+  match selected_plan env.book t with
+  | None -> (t, unless_blocked env "No Scheduled plan is selected to extend.")
+  | Some p -> (
+      match List.find_opt (fun (row : Cov.row) -> Cov.matches row.rule p) (coverage_rows env) with
+      | Some row when List.mem row.rule.every_months [ 1; 2; 3; 6; 12 ] ->
+          (t, Screen.Record_action { action = Screen.Generate_every row.rule.every_months; target = Some (Screen.Plan p) })
+      | Some _ -> (t, unless_blocked env "This monitoring pattern cannot be extended automatically.")
+      | None -> ({ t with pace = Some (p, 0); pace_extends = true }, Screen.Stay))
 
 let stop_monitoring env t =
   match action_record env t with
@@ -282,7 +297,10 @@ let stop_monitoring env t =
 let handle_pace env t (source, choice) key =
   let count = List.length pace_choices in
   match key with
-  | Some ((`Escape | `ASCII 'q'), []) -> ({ t with pace = None }, Screen.Message "Plan monitoring unchanged.")
+  | Some ((`Escape | `ASCII 'q'), []) ->
+      ({ t with pace = None; pace_extends = false },
+       Screen.Message (if t.pace_extends then "Extend cancelled; no recurring pattern was selected."
+                       else "Plan monitoring unchanged."))
   | Some ((`ASCII 'k' | `Arrow `Up), []) | Some (`Tab, [ `Shift ]) ->
       ({ t with pace = Some (source, (choice + count - 1) mod count) }, Screen.Stay)
   | Some ((`ASCII 'j' | `Arrow `Down | `Tab), []) ->
@@ -292,7 +310,7 @@ let handle_pace env t (source, choice) key =
       match Cov.rule_for source ~months with
       | Error why -> (t, unless_blocked env why)
       | Ok rule ->
-          save_rule env t source rule (fun name ->
+          save_rule ?extend:(if t.pace_extends then Some months else None) env t source rule (fun name ->
               "Monitoring " ^ name ^ ": " ^ label ^ " from " ^ rule.anchor
               ^ ". No Scheduled occurrence was created."))
   | _ -> (t, Screen.Stay)
@@ -301,12 +319,16 @@ let handle_pace env t (source, choice) key =
    may move when its cadence changes the order. *)
 let saved env _geometry result t =
   match result, t.pending with
-  | Ok (), Some (source, notice) ->
+  | Ok (), Some (source, notice, extend) ->
       let rows = coverage_rows env in
       let rec find i = function
         | [] -> t.coverage_row
         | (row : Cov.row) :: rest -> if Cov.matches row.rule source then i else find (i + 1) rest in
-      ({ t with pace = None; pending = None; coverage_row = find 0 rows }, Screen.Message notice)
+      let t = { t with pace = None; pending = None; pace_extends = false; coverage_row = find 0 rows } in
+      (match extend with
+       | None -> (t, Screen.Message notice)
+       | Some months ->
+           (t, Screen.Record_action { action = Screen.Generate_every months; target = Some (Screen.Plan source) }))
   | Ok (), None -> (t, Screen.Stay)
   | Error why, _ -> ({ t with pending = None }, Screen.Message why)
 
@@ -670,7 +692,10 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
           stay { t with pane = List_pane; scroll = 0 }
       | Some (`ASCII 'c', []) -> action book t Screen.Pay
       | Some (`ASCII 'x', []) -> action book t Screen.Cancel
-      | Some (`ASCII 'e', ([] | [ `Ctrl ])) -> action book t Screen.Edit
+      | Some (`ASCII 'e', []) -> extend_selected env t
+      | Some (`ASCII ('p' | 'm'), []) -> change_pace env t
+      | Some (`ASCII 's', []) -> stop_monitoring env t
+      | Some (`ASCII 'e', [ `Ctrl ]) -> action book t Screen.Edit
       | Some (`ASCII 'i', []) ->
           stay { t with pane = Detail_pane; origin = List_pane; scroll = 0 }
       | Some (((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)) as k), [])
@@ -715,14 +740,17 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
       | Some (`ASCII 'i', []) -> stay (if detail then t else open_detail { t with scroll = 0 })
       | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
           stay (if detail then { t with pane = t.origin } else open_detail t)
-      | Some (`ASCII ('c' | 'r' | 'x' | 'e' | 'b' | 'g'), []) | Some (`ASCII 'e', [ `Ctrl ]) when t.pane = Loci_pane ->
+      | Some (`ASCII ('c' | 'r' | 'x' | 'e' | 'b' | 'g' | 'p' | 'm' | 's'), []) | Some (`ASCII 'e', [ `Ctrl ]) when t.pane = Loci_pane ->
           (t, unless_blocked env "Focus the Scheduled pane with l before acting on an occurrence.")
       | Some (`ASCII 'c', []) -> action book t Screen.Pay
       | Some (`ASCII 'r', []) -> action book t Screen.Edit
       | Some (`ASCII 'x', []) -> action book t Screen.Cancel
       | Some (`ASCII 'b', []) -> action book t Screen.Batch
       | Some (`ASCII 'g', []) -> action book t Screen.Generate
-      | Some (`ASCII 'e', ([] | [ `Ctrl ])) -> action book t Screen.Edit
+      | Some (`ASCII 'e', []) -> extend_selected env t
+      | Some (`ASCII ('p' | 'm'), []) -> change_pace env t
+      | Some (`ASCII 's', []) -> stop_monitoring env t
+      | Some (`ASCII 'e', [ `Ctrl ]) -> action book t Screen.Edit
       | Some (`ASCII 'n', []) -> (t, Screen.New_plan)
       | Some (`ASCII '/', []) -> stay { t with search = Some (browser t).query }
       | Some (`ASCII 'v', []) ->
@@ -800,7 +828,7 @@ let footer (geometry : Screen.geometry) t =
   | Months_view, _ ->
       if width >= 79 then
         [ "j/k select  h/l months  Enter/c complete  q back";
-          "i/Tab detail  b batch  r/e edit  g generate  x cancel  n new  v List" ]
+          "i/Tab detail  b batch  r edit  e extend  p pace  g gen  x cancel  v List" ]
       else if width >= 47 then
         [ "j/k select  h/l months  Enter complete  q back";
           "i detail b batch r edit x cancel n new v List" ]
@@ -817,7 +845,7 @@ let footer (geometry : Screen.geometry) t =
   | List_view, List_pane ->
       if width >= 79 then
         [ "[j/k] select  [h/l] pane  [f] scope  [Enter] complete  [q] back  [v] views";
-          "[i/Tab] detail  [b] batch  [r/e] edit  [g] generate  [x] cancel  [n] new" ]
+          "[i] detail [b] batch [r] edit [e] extend [p] pace [g] gen [x] cancel [n] new" ]
       else if width >= 47 then
         [ "j/k select [h/l] pane [f] scope [q] back";
           "Enter complete [i] detail [b] batch [x] cancel" ]
@@ -826,7 +854,7 @@ let footer (geometry : Screen.geometry) t =
   | List_view, Detail_pane ->
       if width >= 79 then
         [ "j/k scroll  PgUp/Dn page  Home/End range  Tab pane  q/Esc back";
-          "Enter/c complete  b batch  r/e edit  g generate  x cancel  n new" ]
+          "Enter/c complete  b batch  r edit  e extend  p pace  g gen  x cancel  n new" ]
       else if width >= 47 then
         [ "j/k scroll  PgUp/Dn page  Tab/q back"; "Enter complete  b batch  r edit  x cancel" ]
       else [ "j/k scroll  PgDn page"; "Tab back  Enter complete" ]

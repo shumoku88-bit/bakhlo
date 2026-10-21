@@ -259,7 +259,7 @@ let scheduled_panel_checks ~width_of ~directory home =
     "scheduled-resize-clamps-offset-not-identity";
   search_control_checks ~width_of ~path ~label:"scheduled" ~query:(fun s -> (plan_browser s).query)
     state "panel-plan-03";
-  let editing = key ~width_of state (`ASCII 'e') in
+  let editing = key ~width_of state (`ASCII 'r') in
   let draft = text ~width_of editing "q 日本語" in
   let closed = key ~width_of draft `Escape in
   require ((same_workspace closed state) && C.has_record_draft closed && not closed.record_visible)
@@ -766,6 +766,56 @@ let coverage_checks ~width_of ~directory home =
   let none = C.open_route (C.initial ~config_home:sub (F.load path)) W.Scheduled in
   require (contains none "Scheduled / List") "coverage-missing-config-keeps-list-entrance";
   require (F.read path = before) "coverage-read-only";
+
+  (* LOAM p / m / s / e from List and Months (UI-23): monitoring of the selected
+     plan, and e on an unmonitored plan choosing a pace before extending. *)
+  let lsub = directory ^ "/coverage-list-" ^ F.new_id () in
+  Unix.mkdir lsub 0o700;
+  let transfer = [ ("wallet", Z.of_int (-300)); ("bank", Z.of_int 300) ] in
+  let lbook = List.fold_left (fun b p -> get (B.put_plan b ~replace:false p)) book
+      [ plan "lm-u" (month_after 0 ^ "-05") transfer ] in
+  let lpath = lsub ^ "/book.sexp" in
+  F.write_new lpath (B.to_string lbook);
+  F.write_new (lsub ^ "/scheduled-coverage.tsv") ("groceries\t" ^ month_after 0 ^ "-01\t1\twallet\tfood\n");
+  let lrules () = F.read (lsub ^ "/scheduled-coverage.tsv") in
+  let lbefore = F.read lpath in
+  let lopened = C.open_route (C.initial ~config_home:lsub (F.load lpath)) W.Scheduled in
+  let llist = key ~width_of (key ~width_of lopened (`ASCII 'v')) (`ASCII 'v') in
+  require (contains llist "Scheduled / List" && plan_id llist = Some (Record_browser.Scheduled_row, "lm-u")) "list-monitor-fixture-selects-unmonitored";
+  let lchoosing = key ~width_of llist (`ASCII 'p') in
+  require (not (no_modal lchoosing) && contains lchoosing "Expected pace") "list-p-opens-expected-pace";
+  let lkept = key ~width_of lchoosing `Escape in
+  require (no_modal lkept && Base.String.is_substring lkept.message ~substring:"Plan monitoring unchanged"
+           && lrules () = "groceries\t" ^ month_after 0 ^ "-01\t1\twallet\tfood\n")
+    "list-pace-escape-keeps-config";
+  let lextend = key ~width_of lkept (`ASCII 'e') in
+  require (not (no_modal lextend) && contains lextend "Expected pace") "list-e-unmonitored-asks-pace-first";
+  let lcancel = key ~width_of lextend `Escape in
+  require (no_modal lcancel && Base.String.is_substring lcancel.message ~substring:"Extend cancelled"
+           && F.read lpath = lbefore)
+    "list-e-pace-escape-cancels-extend";
+  let lgen = key ~width_of (key ~width_of lcancel (`ASCII 'e')) `Enter in
+  require ((match session_of lgen with
+            | Some (E.Scheduled_generate g) -> (Gen.source g).id = "lm-u" && Gen.selected_months g = 1
+            | _ -> false)
+           && Base.String.is_substring (lrules ()) ~substring:"\t1\twallet\tbank\n" && F.read lpath = lbefore)
+    "list-e-saves-pace-then-opens-generation";
+  let lclosed = key ~width_of lgen `Escape in
+  let lundecided = key ~width_of lclosed (`ASCII 's') in
+  require (Base.String.is_substring (lrules ()) ~substring:"\t0\twallet\tbank\n"
+           && Base.String.is_substring lundecided.message ~substring:"Future pace is undecided")
+    "list-s-makes-pace-undecided";
+  let lrefused = key ~width_of lundecided (`ASCII 'e') in
+  require (no_modal lrefused && Base.String.is_substring lrefused.message ~substring:"cannot be extended automatically")
+    "list-e-undecided-cannot-extend";
+  let lloci = key ~width_of (key ~width_of lundecided (`ASCII 'h')) (`ASCII 'p') in
+  require (no_modal lloci && Base.String.is_substring lloci.message ~substring:"Focus the Scheduled pane")
+    "list-loci-pane-refuses-monitoring";
+  let lmonths = key ~width_of (key ~width_of lundecided (`ASCII 'v')) (`ASCII 'v') in
+  let lmonths_pace = key ~width_of lmonths (`ASCII 'm') in
+  require (plan_months_view lmonths && not (no_modal lmonths_pace) && contains lmonths_pace "Expected pace")
+    "months-m-opens-expected-pace";
+  require (F.read lpath = lbefore) "list-monitoring-never-writes-the-book";
 
   (* e through the controller: one explicit plan, atomic cold write, then a
      stale reload that must not publish. Synthetic dates derived from today. *)

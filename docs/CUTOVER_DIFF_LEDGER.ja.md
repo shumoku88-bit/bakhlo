@@ -43,7 +43,7 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 | 補充（e）のひな形選び | ✅ 一致（実データ） | 全シリーズで同じ予定をひな形に選ぶ | なし | [補充](VERIFICATION.md#series-calendar-replenishment-2026-10-19) |
 | 補充（e）の入力画面 | 🟨 差あり（選択画面は実データで一致） | LOAMソース参照で次の1／3／6回・排他的な補充期限、周期固定、観測日による候補除外と存在しない月末日の明示入力を接続。exact数量・初期Cancel・Preview末尾／狭小／stale gateを維持。通常gは変更しない。2026-10-21実データ120×36：選択画面（元予定・known through・周期・4択）がLOAMと一致し、次の3回の最初の日付も一致。**差**：LOAMは1回ごとに編集フォーム→個別Previewへ進み（金額などを1件ずつ直せる）、Bakhloは全件を1つのPreviewで元予定と同じ内容のまま作る。LOAMにある「Only reviewed explicit dates will be created.」の案内は選択画面にない（BakhloはPreviewに表示） | 要判断 | UI-12, UI-21, [補充の合成証拠](VERIFICATION.md#scheduled-replenishment-input-and-explicit-dates-2026-10-21) |
 | 周期の変更（p・m）・未定化（s） | ✅ 一致（選択画面は実データ、保存は合成） | Series CalendarとPlan Detailから `scheduled-coverage.tsv` を更新。実データのコピーへの保存照合はしていない | なし | [周期](VERIFICATION.md#series-calendar-pace-and-undecided-2026-10-19) |
-| ListやMonthsからの監視追加、予定作成直後の周期選択 | 🟥 未実装 | 監視していない予定を新しく監視に入れるには、今は監視済みシリーズの予定が必要 | 要判断 | UI-23 |
+| ListやMonthsからの監視追加、予定作成直後の周期選択 | 🟨 一部実装（List／Monthsは実データで一致） | 2026-10-21、List／Monthsの予定欄でLOAMと同じく`p`・`m`（周期を選んで監視）、`s`（未定）、`e`（監視済みならそのまま補充、未監視なら周期を選んでから補充）を接続。編集はLOAMと同じ`r`（Ctrl-eも可）。実データ120×36で`p`の選択画面・Escの案内・`e`の補充画面がLOAMと一致。**予定作成直後の周期選択は未実装**（共有Shellの作成後処理に手を入れる必要がある） | 要判断 | UI-23, [List監視](VERIFICATION.md#scheduled-list-and-months-monitoring-keys-2026-10-21) |
 | 予定の支払い完了 | ⬜ 未確認 | 接続済み（Plan Detail・Listから）。LOAMとの照合未了 | 要判断 | UI-17 |
 | 予定の取り消し | 🟦 意図的な差 | Bakhloは取消日を入力する（既存の日付付き取消の契約） | なし | UI-18 |
 | 予定の置換・一括金額変更 | ⬜ 未確認 | 接続済み、照合未了 | なし | UI-19, UI-20 |

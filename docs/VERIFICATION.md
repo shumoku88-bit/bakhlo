@@ -5436,3 +5436,39 @@ limit before any code; its one uncommitted ledger line in that worktree was left
   [Core CI 39483903041](https://github.com/shumoku88-bit/bakhlo/actions/runs/39483903041)
   and [Bonsai TUI CI 39483903048](https://github.com/shumoku88-bit/bakhlo/actions/runs/39483903048)
   both succeeded.
+
+## Scheduled List and Months monitoring keys (2026-10-21)
+
+Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been written).
+
+- `tui/screens/scheduled/scheduled_screen.ml`, following LOAM `ScheduledWorkspace.lean` /
+  `ScheduledWorkspaceSession.lean`: in List and Months the selected plan accepts `p` / `m`
+  (choose expected pace and save the monitoring rule), `s` (pace undecided) and `e`
+  (extend). `e` on a monitored plan opens generation on its cadence, refuses an undecided or
+  unsupported cadence, and on an unmonitored plan opens the pace chooser first; after that
+  save the generation editor opens from the same plan. Esc there reports `Extend cancelled;
+  no recurring pattern was selected.` and saves nothing. The Loci pane refuses these keys.
+  Edit moved from `e` to `r` (LOAM's replace key; Ctrl-e kept). Guides updated.
+- Only `scheduled-coverage.tsv` is written, through the existing checked whole-image save;
+  the book is never written by these keys.
+- Regressions (`scheduled_integration_checks.ml`, synthetic): List `p` opens and Esc keeps
+  the config; `e` on an unmonitored plan asks first, Esc cancels, Monthly saves the rule
+  and opens generation from that plan with a 1-month cadence; `s` makes it undecided and
+  `e` then refuses; Loci pane refusal; Months `m` opens the chooser; book bytes unchanged.
+  With the screen change reverted the suite fails at `list-p-opens-expected-pace`. Two
+  older checks that edited with `e` now use `r`.
+- `./tools/check`, `./tools/tui --self-check` (39 PASS) and `git diff --check` passed.
+- Latest-data paired comparison on generation `capture-1792541924-84250-293b919a` at
+  120×36, read-only: both List views show 33 plans; `p` opens the same chooser (same
+  selected plan, choices, notes, keys; Bakhlo adds its subtitle line); Esc gives the same
+  `Plan monitoring unchanged.`; `e` on the first (monitored) plan opens the same Extend Plan
+  source, known-through date, pattern and choices; Esc returned both to the List. No save in
+  either app: household/config and comparison book SHA-256 unchanged, no file in LOAM's copy
+  modified, AI tmux sessions closed, `clean-copies` passed.
+- Not done: LOAM's expected-pace choice right after creating a plan (needs a Shell hook
+  after publication); `e` on an unmonitored plan against LOAM with real data; 80×24;
+  physical terminal/IME; P7.
+- `482a9c9`: matching-SHA
+  [Core CI 39519824236](https://github.com/shumoku88-bit/bakhlo/actions/runs/39519824236)
+  and [Bonsai TUI CI 39519824159](https://github.com/shumoku88-bit/bakhlo/actions/runs/39519824159)
+  both succeeded.

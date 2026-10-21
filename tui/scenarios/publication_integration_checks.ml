@@ -219,9 +219,9 @@ let run ~width_of ~directory ~path (home : C.state) =
   let closed_plan = key ~width_of plan_creating `Escape in
   require ((no_modal closed_plan))
     "scheduled-plan-cancel-closes-overlay";
-  let plan_editing = key ~width_of closed_plan (`ASCII 'e') in
+  let plan_editing = key ~width_of closed_plan (`ASCII 'r') in
   require (plan_editing.record_visible && Option.is_some plan_editing.record)
-    "scheduled-key-e-opens-edit";
+    "scheduled-key-r-opens-edit";
   (match S.mode (Option.get plan_editing.record) with
    | Daily_actions.Plan_edit _ -> ()
    | _ -> failwith "scheduled-e-mode-plan-edit");
