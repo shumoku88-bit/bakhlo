@@ -29,6 +29,7 @@
  (package bakhlo)
  (deps
   ../dune
+  ../tools/household
   ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp.cmi
   ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp__.cmi
   ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp__Daily_book.cmi

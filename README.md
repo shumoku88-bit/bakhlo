@@ -27,6 +27,9 @@ Favaとhledgerへの出力は対象外。内部実装・保存構造までLOAM�
 ./ui loam           # 同じ世代のLOAMコピー（別の端末で）
 ```
 
+バックアップの失敗は警告して異常終了する。ローカルの記帳は残り、pushできなかった
+commitは次回に再送する。TUI自体が異常終了した場合は、その終了コードを保つ。
+
 比較コピーは`scratch/loam-comparison`内だけにあり、原本には書き込まない。
 取得し直すときは`./tools/compare refresh`、比較後は`./tools/compare clean-copies`。
 手順と制約は[AGENTS.md](AGENTS.md)の Latest-data comparison。

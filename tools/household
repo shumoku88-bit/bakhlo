@@ -1,7 +1,10 @@
 #!/bin/sh
 # Daily household launcher (user decision 2026-10-21): open the household book in the
 # TUI, then on exit commit any change and push it to the household's own Git remote
-# (an off-site backup). A failed push keeps the local commit and is retried next time.
+# (an off-site backup). A failed push keeps the local commit and is retried next time,
+# even without a new change. Any backup problem (staging, diff, commit, missing
+# upstream, pending log, push) warns, keeps Git's own reason visible, and fails the
+# exit; a nonzero TUI exit is reported unchanged and takes precedence.
 # BAKHLO_HOUSEHOLD overrides the household directory (default: ../bakhlo-data).
 set -u
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
@@ -10,20 +13,49 @@ if [ ! -f "$household/book.sexp" ] || [ ! -d "$household/.git" ]; then
   printf '%s\n' "Household not found or not a Git repository: $household" >&2
   exit 2
 fi
+
+# Warn and stop: a nonzero TUI exit wins; otherwise the backup problem is the failure.
+fail() {
+  printf '%s\n' "$*" >&2
+  if [ "$status" -ne 0 ]; then
+    exit "$status"
+  fi
+  exit 1
+}
+
 cd "$root"
 ./tools/tui --book "$household/book.sexp"
 status=$?
 
-git -C "$household" add -A
-if ! git -C "$household" diff --cached --quiet; then
-  git -C "$household" commit -q -m "記帳 $(date '+%Y-%m-%d %H:%M')" \
-    && printf '%s\n' 'Household changes committed.'
+if ! git -C "$household" add -A; then
+  fail 'Household staging failed; the book was not committed or pushed.'
 fi
-if [ -n "$(git -C "$household" log --oneline '@{upstream}..' 2>/dev/null)" ]; then
-  if git -C "$household" push -q; then
-    printf '%s\n' 'Household backup pushed.'
-  else
-    printf '%s\n' 'Push failed; the commit is kept locally and will be pushed next time.' >&2
+git -C "$household" diff --cached --quiet
+case $? in
+  0) ;;
+  1)
+    if ! git -C "$household" commit -q -m "記帳 $(date '+%Y-%m-%d %H:%M')"; then
+      fail 'Household commit failed; the change stays staged locally.'
+    fi
+    printf '%s\n' 'Household changes committed.'
+    ;;
+  *)
+    fail 'Household diff failed; the book was not committed or pushed.'
+    ;;
+esac
+
+# The upstream probe's "no upstream" error is expected; surface it with our warning.
+if ! git -C "$household" rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1; then
+  fail 'No upstream branch configured; local commits cannot be pushed.'
+fi
+if ! pending=$(git -C "$household" log --oneline '@{upstream}..'); then
+  fail 'Failed to list pending commits; nothing was pushed.'
+fi
+if [ -n "$pending" ]; then
+  if ! git -C "$household" push -q; then
+    fail 'Push failed; the commit is kept locally and will be pushed next time.'
   fi
+  printf '%s\n' 'Household backup pushed.'
 fi
+
 exit "$status"

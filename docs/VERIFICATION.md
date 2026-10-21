@@ -6,6 +6,23 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Household backup failures are visible (2026-10-21)
+
+- `tools/household` checks staging, index comparison, commit, upstream, pending-log
+  and push outcomes. Failures retain Git's diagnostic and stop the backup sequence;
+  a successful TUI then exits 1, while a nonzero TUI status takes precedence. Local
+  commits remain available for the next run's push, even without a new edit. Whole
+  household/config staging remains unchanged; no remote is automatically configured.
+- `test/household.t` uses only synthetic local Git repositories, bare remotes and a
+  fake TUI: clean/saved success, config retention, refused commit, absent upstream,
+  refused push then successful no-edit retry, TUI status priority, staging lock and
+  failed pending-log command. Git settings are isolated and no network is used.
+  `sh -n tools/household` and `dune runtest test --force` passed via `tools/opam`.
+  `./tools/check` and `./tools/tui --self-check` also passed. CI path filters now
+  include launcher-only changes.
+- Operational household and private backup were not accessed. Actual off-site restore,
+  human/IME acceptance and power-loss testing: **not executed**.
+
 ## Accounting uses current entry coordinates after publication (2026-10-21)
 
 - Two read-only pit workers inspected storage and Scheduled. Speculative storage

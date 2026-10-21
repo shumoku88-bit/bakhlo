@@ -13,6 +13,10 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   GitHub backup).
   `../loam-data` is the frozen LOAM record. Saves flush with `F_FULLFSYNC` (~21 ms);
   a physical power-loss test was not run.
+- `tools/household` now stops and reports backup failures (including missing upstream
+  and pending-log errors), preserving Git's reason and any nonzero TUI exit status.
+  Synthetic local-Git tests cover failed commit/push, no-edit retry and config backup;
+  restoring the actual private off-site backup is still untested.
 - Goal: reproduce LOAM's non-budget functionality and interaction (see AGENTS.md
   Product). English Notty TUI: Calendar Home (Day/Month/Year), hierarchical Commands,
   Record/Preview, Actual, Scheduled (Series Calendar, Months, List, create/edit/cancel/
