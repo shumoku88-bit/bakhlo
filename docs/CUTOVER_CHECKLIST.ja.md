@@ -108,7 +108,7 @@ Daily v4・予算APIは非現行。限定コンバータ・既存Book CLI・型�
 | V04 | Stock–Flow | 未接続 | 明示期間・比較と根拠 |
 | V05 | Transactions Flow | 未接続 | gross／net・寄与明細 |
 | V06 | Daily Pace履歴／Locus推移 | 接続済み（`omp/trend-locus`、2026-10-21）：Trend / Locus comparison。同一Measureの記帳済みエフェクト流量を最大5系列・Cycle／Month／Dayで重ね描画、明示`boundary-presets.tsv`の一意プリセットを期間の出所とし、Day範囲（All history／Current cycle／Current month／Last 30 days）・inline系列picker・セッション限定の日注釈を接続 | 残高・支持・予定は使わない。LOAMの10d／30d名称と一致させず、Last 30 days等の明示範囲にする。LOAM実行対照・実機受入・pointer scrub（既存`Ui_input`に座標なし）は未実施。Historical Lociは候補に残す |
-| V07 | Multicurrency Spend | 未接続 | 原額・両替・記帳通貨を区別 |
+| V07 | Multicurrency Spend | 接続：Commands→Reports and analysis→Multicurrency Spend。明示した半開区間[Start, End)のActualだけを、原額・記帳通貨別Expense・両替関連Expense・両替実績に分けて正確に集計 | FXレート・評価額・home currencyを推測せず、Measureを合算しない。役割未設定の効果は不明 witnesses として残し、原額観測は除外理由付きで保持する。合成Shell到達・4寸法描画・読取り専用を確認、native TUI・最新データ対照・本人受入は未実施（[証拠](VERIFICATION.md#multicurrency-spend-2026-10-21)） |
 | V08 | Liquidity | 接続：Commands→Reports and analysis→Liquidity。無条件forecast／known low-waterはUNKNOWN、明示した期限の条件付きselected-balance outlookだけ照会 | Scheduled網羅性は保存しない仮定であり証拠ではない。全選択座標のExact数量・単一Measureを要求し、選択純変動のある期限超過予定は全体拒否。日別net・期限inclusive・全点low-water、scaled Amount。合成Shell到達／描画を確認、native TUI・最新データ対照・本人受入は未実施（[証拠](VERIFICATION.md#liquidity-conditional-selected-balance-outlook-2026-10-21)） |
 | V10 | Attention | 試用：期限あり／なし／不明、追加／解決／取り下げ | strict読込・保存結果・競合拒否を接続。LOAM canonical情報の移行は未認定 |
 | V11 | 今日のDaily Pace／What-if | 一部：現在値、Pool編集、読み取り専用What-if | 履歴Trend未接続。期間は明示presetの一意な選択だけ。負数を丸めない |

@@ -5617,3 +5617,67 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
   and [Bonsai TUI CI 39526740465](https://github.com/shumoku88-bit/bakhlo/actions/runs/39526740465)
   both succeeded.
 - Month / Day grains against LOAM, 80×24, physical terminal/IME and P7 were **not executed**.
+
+
+## Multicurrency Spend (2026-10-21)
+
+- Base: `40754aa`, worker branch `omp/multicurrency`. Only the Reports owner/tests,
+  additive Commands entry and minimal route/registry wiring changed; no Core,
+  shared kit, Scheduled or Balances behavior changed. LOAM sources were read only:
+  `Loam/Review/MultimeasureSpendReview.lean` and the Liquidity/Multicurrency portions of
+  `Loam/Tui/ReportsView.lean`, `ReportsModel.lean`, `ReportWindow.lean`. No LOAM build
+  or source copy.
+- Commands → Reports and analysis → Multicurrency Spend opens a read-only Actual lens.
+  The explicit half-open window `[Start, End)` is seeded from the selected day's calendar
+  month; Start/End are editable and Run queries only on explicit Enter. `m` restores the
+  selected month; `[`/`]` cycle Calendar Month and named `boundary-presets.tsv` sources;
+  arrows shift Calendar Month only. Any edit makes the source explicitly Custom.
+- Four families stay separate and are never converted or merged: ordinary accounting
+  Expense per Measure (non-exchange entries), OriginalAmount presented Expense (counted
+  once per entry with any positive Expense Effect, in the original Measure),
+  exchange-associated Expense (only explicitly Expense-role legs, so fees are not
+  purchase spend), and exact Exchange occurrences (selected source/destination keys plus
+  extra Effects in recorded order). No FX rate, valuation or home currency is inferred.
+- Missing AccountingRole evidence stays visible: every nonzero role-absent Effect is an
+  unresolved witness, and classified figures are explicitly qualified as not a complete
+  spending total. Every original observation is accounted for exactly once — counted,
+  unresolved (missing roles), or non-counted with a reason (exchange event / no positive
+  Expense). No observation is silently dropped and no sign is inferred for it.
+- Lifecycle: an edit, source change, `m`, reload or book change clears the cached answer;
+  a refused Run never leaves stale numbers; date drafts survive errors and re-entry.
+  Named-source coordinates relabel as Custom when preset membership changes. There is no
+  save/publication request; Space opens Commands and q/Esc returns Home.
+- Intentional differences from LOAM: original observations that LOAM drops are retained
+  as explicit non-counted witnesses; all unresolved rows are reachable under scroll
+  (LOAM truncates to six); amounts use the existing exact Measure-scaled formatter
+  (synthetic `5000` at EUR scale 2 means `50.00 eur`, not raw quanta); net-zero Measure
+  rows that were touched are retained. Existing `boundary-presets.tsv` parsers are
+  private in sibling modules, so this owner keeps a local parser of the same format
+  rather than widening a shared API.
+- Executed:
+  - `rtk test ./tools/check` — **PASS** (Core build/tests).
+  - `env OCAMLPARAM=_,keywords=5.2 rtk test opam exec -- dune test --root _build/daily-bonsai --profile release --force tui/screens/reports/test`
+    — **PASS**, including Stock–Flow, Liquidity and the new Multicurrency Spend suite.
+    The isolated workspace reproduces `tools/build-bonsai-tui`'s generated roots with
+    `(implicit_transitive_deps false)`, so undeclared transitive library use is a
+    compile error; the new code uses only the libraries already listed in the existing
+    stanzas (no `Base` in the reports test stanza).
+  - A disposable Shell runner driven through real Commands navigation to
+    Multicurrency Spend, an explicit Run over a synthetic two-Measure book, and the
+    actual rendered screen at 120×36, 80×24, 48×14 and 32×9 — **PASS**. Rendered output
+    showed `50.00 eur` and `1,000 jpy` as separate Measures, the no-conversion
+    disclaimer, scroll cues, and End reaching the final notes. Esc returned Home and the
+    synthetic book and `accounting-roles.tsv` bytes were unchanged.
+  - `rtk git diff --check` and `rtk git diff --cached --check` — **PASS**.
+  - `rtk test ./tools/tui --self-check` — **not executed**: exit 2,
+    `Existing isolated Bonsai environment unavailable; nothing installed.`
+  - `./tools/opam exec -- dune build @tools/arch/runtest` — **not executed**:
+    `Library "parsexp" not found`; verified identical on pristine `origin/main`, so it
+    is an environment limitation, not this change.
+- Two pre-existing scenario failures (`panel-bounded-render`,
+  `flow-screen-shows-gross-column`) abort `Scenarios.run` in this isolated build. Both
+  were reproduced on a pristine `origin/main` workspace built the same way, so they are
+  not caused by this change; the new integration flow was therefore exercised directly.
+- Latest-data paired comparison, physical-terminal/IME acceptance and P7/power-loss
+  qualification were **not executed**. Neither `./tools/compare` nor `./ui` ran;
+  no household/LOAM data was accessed. This does not certify multicurrency parity.

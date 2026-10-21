@@ -11,6 +11,7 @@ type t = {
   stock_flow : Stock_flow_screen.t;
   liquidity : Liquidity_screen.t;
   trend_locus : Trend_locus_screen.t;
+  multicurrency_spend : Multicurrency_spend_screen.t;
   attention : Attention_screen.t;
   settlements : Settlements_screen.t;
   loci : Loci_screen.t;
@@ -32,6 +33,7 @@ let create ~scheduled_months =
     stock_flow = Stock_flow_screen.create ();
     liquidity = Liquidity_screen.create ();
     trend_locus = Trend_locus_screen.create ();
+    multicurrency_spend = Multicurrency_spend_screen.create ();
     attention = Attention_screen.create ();
     settlements = Settlements_screen.create ();
     loci = Loci_screen.create ();
@@ -179,6 +181,22 @@ let all =
         published = Screen.no_publication;
         reloaded = Liquidity_screen.reloaded;
         book_changed = Liquidity_screen.book_changed;
+      };
+    Owner
+      {
+        layout = Screen.Standard;
+        owns = (( = ) W.Multicurrency_spend);
+        config_files = Multicurrency_spend_screen.config_files;
+        get = (fun t -> t.multicurrency_spend);
+        set = (fun t multicurrency_spend -> { t with multicurrency_spend });
+        enter = (fun _ ~focus_day t -> Multicurrency_spend_screen.resume ~focus_day t);
+        modal = Multicurrency_spend_screen.modal;
+        handle = Multicurrency_spend_screen.handle;
+        view = Multicurrency_spend_screen.view;
+        saved = Multicurrency_spend_screen.saved;
+        published = Screen.no_publication;
+        reloaded = Multicurrency_spend_screen.reloaded;
+        book_changed = Multicurrency_spend_screen.book_changed;
       };
     Owner
       {

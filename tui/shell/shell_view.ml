@@ -111,6 +111,7 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
              | W.Stock_flow -> tr "Stock–Flow"
              | W.Liquidity -> tr "Liquidity"
              | W.Trend_locus -> tr "Trend / Locus comparison"
+             | W.Multicurrency_spend -> tr "Multicurrency Spend"
              | W.Settlements -> tr "Settlements"));
           line ~width_of width Chrome
             ((match state.workspace.route with

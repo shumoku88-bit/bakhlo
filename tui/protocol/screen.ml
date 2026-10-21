@@ -2,6 +2,7 @@ type route =
   | Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace
   | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow | Liquidity
   | Trend_locus
+  | Multicurrency_spend
 
 type env = {
   book : Bakhlo_sexp.Daily_book.t;

@@ -417,6 +417,12 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
    盆栽の表示・成長も除外せず調べる。各項目の必要情報、設定／出力の保存先、同意・取消、
    再起動、失敗時の非破壊性まで確認し、派生出力を正データにしない。棚卸しの残りを再確認し、
    予算延期と明示した二項目以外の無断除外を残さない。
+   - [x] Multicurrency Spend（V07）：Commands入口、明示した半開区間`[Start, End)`、
+     原額観測・記帳通貨別Expense・両替関連Expense・両替実績の分離集計、
+     役割未設定effectと除外原額のwitness保持、scaled Amountを接続。
+     FXレート・評価額・home currencyは推測せず、Measureは合算しない。
+     [合成Shell操作・4寸法描画・読取り専用と未実施範囲](../docs/VERIFICATION.md#multicurrency-spend-2026-10-21)。
+     native TUI・最新データ対照・本人受入は未実施で、Reports全体の受入を完了扱いにしない。
    - [x] Liquidity（V08）：Commands入口、明示的な条件付きScheduled期限、Exact選択数量、
      日別path／low-water、scaled Amountを接続。無条件回答はUNKNOWNのまま。
      [合成Shell操作／4寸法描画と未実施範囲](../docs/VERIFICATION.md#liquidity-conditional-selected-balance-outlook-2026-10-21)。
