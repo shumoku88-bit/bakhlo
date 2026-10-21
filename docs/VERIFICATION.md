@@ -5771,3 +5771,29 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
   both succeeded.
 - `./tools/check` and `./tools/tui --self-check` passed. The cutover-day procedure,
   physical terminal/IME and P7 were **not executed**.
+
+## Cutover import command and rehearsal (2026-10-21)
+
+- `./tools/import-loam LOAM_DIRECTORY NEW_BAKHLO_DIRECTORY` (`migrate/bin/import_loam.ml`)
+  reads `household.loam` and `config/`, imports through `Loam_import`, and creates a new
+  directory: `book.sexp`, `attention.loam`, `config/accounting-roles.tsv` from the household
+  section, the other config files byte-exact (budget-only `purpose-catalog.tsv` /
+  `cycle-funding.tsv`, the standalone roles file and lock files stay in LOAM) and
+  `LOAM-RECORD.md` (import time, LOAM location and Git revision, what stays only in LOAM).
+  It writes a `.partial-PID` directory with `O_EXCL` + `fsync`, reads the book back,
+  re-snapshots LOAM and renames last; an existing destination, a destination inside LOAM, a
+  changed source or any import refusal creates no destination. The wrapper reads the
+  revision with `git rev-parse` and `git --no-optional-locks status` (no index write).
+  Account/category role validation moved into `Loam_import.accounting_roles`, shared with
+  `tools/compare`.
+- `test/import_loam.t` (synthetic): files created, budget/lock/standalone-role files left
+  out, household roles and Attention placed, LOAM directory unchanged, existing destination
+  and missing role section refuse without creating anything.
+- Rehearsal on real data into ignored scratch: import succeeded; `book.sexp`,
+  `attention.loam` and the seven config files equal the comparison capture of the same
+  generation. Read-only 120×36 against the LOAM copy of that generation: same number set on
+  Daily Pace, same monitored plans/months and row count on the Series Calendar, Attention
+  two open with the same due dates. Viewing changed no rehearsal file; LOAM household,
+  config, `attention.loam`, `.git/index` and HEAD unchanged; `clean-copies` passed.
+- `./tools/check` and `./tools/tui --self-check` passed. The real cutover, physical
+  terminal/IME and P7 were **not executed**.

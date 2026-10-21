@@ -18,3 +18,7 @@ val book : input -> (Bakhlo_sexp.Daily_book.t, string) result
 val attention : string -> (string option, string) result
 (** The household's Attention section body, which Bakhlo's Attention file reads
     unchanged; [None] when the household has no Attention section. *)
+
+val accounting_roles : string -> (string, string) result
+(** The household AccountingRole section, which is Bakhlo's [accounting-roles.tsv];
+    a missing, malformed, duplicated or space-padded row refuses. *)

@@ -1,0 +1,5 @@
+; Cutover-day import: reads a LOAM directory, creates a new Bakhlo directory.
+
+(executable
+ (name import_loam)
+ (libraries bakhlo_migrate bakhlo_sexp unix))

@@ -72,6 +72,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 ./tools/startup-probe         # synthetic storage timings (1k / 36.5k / 109.5k)
 ./tools/privacy-scan [--all]  # no private household text in the repository (in check)
 ./tools/compare refresh       # fresh read-only LOAM copy (see AGENTS.md)
+./tools/import-loam SRC NEW   # cutover-day import into a NEW directory (LOAM only read)
 ./ui  /  ./ui loam            # paired private copies
 ```
 

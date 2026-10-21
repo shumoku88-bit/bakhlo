@@ -335,3 +335,38 @@ let attention household =
     let env = get "source-envelope" (E.of_string household) in
     Ok (section env "Attention")
   with Refused why -> Error why
+
+(* The household AccountingRole section is already Bakhlo's accounting-roles.tsv. *)
+let role_tokens = [ "ASSET"; "LIABILITY"; "EQUITY"; "INCOME"; "EXPENSE" ]
+
+let accounting_roles household =
+  try
+    let env = get "source-envelope" (E.of_string household) in
+    match section env "AccountingRole" with
+    | None -> Error "accounting-role-authority-missing"
+    | Some body ->
+        let rows =
+          match String.split_on_char '\n' body with
+          | "LOAM-ACCOUNTING-ROLE-MAP\t1" :: rows -> rows
+          | _ -> raise (Refused "unsupported-accounting-role-section")
+        in
+        let rows =
+          match List.rev rows with
+          | "" :: rows -> List.rev rows
+          | _ -> raise (Refused "unsupported-accounting-role-section")
+        in
+        let seen = Hashtbl.create (List.length rows) in
+        List.iter (fun row ->
+            match String.split_on_char '\t' row with
+            | [ "ROLE"; locus; role ] ->
+                (* Bakhlo role readers trim Locus identities; refuse rather than trim. *)
+                require
+                  (locus <> "" && String.trim locus = locus && not (String.contains locus '\r')
+                   && List.mem role role_tokens)
+                  "invalid-accounting-role-row";
+                require (not (Hashtbl.mem seen locus)) "duplicate-accounting-role-locus";
+                Hashtbl.replace seen locus ()
+            | _ -> raise (Refused "invalid-accounting-role-row"))
+          rows;
+        Ok body
+  with Refused why -> Error why

@@ -67,29 +67,8 @@ let file_from (_, _, files) name =
   match List.assoc_opt name files with Some (Some (_, b)) -> Some b | _ -> None
 let needed snapshot name = match file_from snapshot name with
   | Some b -> b | None -> raise (Refused "required-capture-input-missing")
-(* Household AccountingRole evidence is already the accounting-roles.tsv text. *)
-let role_tokens = [ "ASSET"; "LIABILITY"; "EQUITY"; "INCOME"; "EXPENSE" ]
-let accounting_roles env =
-  match List.find_opt (fun (s : E.section) -> s.name = "AccountingRole") (E.sections env) with
-  | None -> raise (Refused "accounting-role-authority-missing")
-  | Some s ->
-      let rows = match String.split_on_char '\n' s.body with
-        | "LOAM-ACCOUNTING-ROLE-MAP\t1" :: rows -> rows
-        | _ -> raise (Refused "unsupported-accounting-role-section") in
-      let rows = match List.rev rows with
-        | "" :: rows -> List.rev rows
-        | _ -> raise (Refused "unsupported-accounting-role-section") in
-      let seen = Hashtbl.create (List.length rows) in
-      List.iter (fun row -> match String.split_on_char '\t' row with
-        | [ "ROLE"; locus; role ] ->
-            (* Bakhlo role readers trim Locus identities; refuse rather than silently trim. *)
-            require (locus <> "" && String.trim locus = locus
-                     && not (String.contains locus '\r')
-                     && List.mem role role_tokens) "invalid-accounting-role-row";
-            require (not (Hashtbl.mem seen locus)) "duplicate-accounting-role-locus";
-            Hashtbl.replace seen locus ()
-        | _ -> raise (Refused "invalid-accounting-role-row")) rows;
-      s.body
+let accounting_roles household =
+  match L.accounting_roles household with Ok body -> body | Error why -> raise (Refused why)
 let convert snapshot =
   let book = match L.book { household = needed snapshot "household.loam";
       measure_presentation = needed snapshot "config/measure-presentation.tsv";
@@ -185,8 +164,8 @@ let refresh ?(between = fun () -> ()) ~source ~state ~baseline () =
     | Some path -> get "previous-import-refused" (B.of_string (bytes (path ^ "/imported.sexp")))
     | None -> get "baseline-candidate-refused" (B.of_string (bytes baseline)) in
   let captured = snapshot source in
-  let envelope = get "household-framing-refused" (E.of_string (needed captured "household.loam")) in
-  let roles = accounting_roles envelope in
+  ignore (get "household-framing-refused" (E.of_string (needed captured "household.loam")));
+  let roles = accounting_roles (needed captured "household.loam") in
   let attention = match L.attention (needed captured "household.loam") with
     | Ok a -> a | Error why -> raise (Refused ("attention-" ^ why)) in
   let book, printed = convert captured in

@@ -4,7 +4,8 @@
  (_
   (inline_tests enabled)
   (binaries
-   (../tools/arch/arch_check.exe as arch_check))))
+   (../tools/arch/arch_check.exe as arch_check)
+   (../migrate/bin/import_loam.exe as import_loam))))
 
 (library
  (name bakhlo_tests)
@@ -84,3 +85,7 @@
 (cram
  (applies_to arch)
  (deps %{bin:arch_check}))
+
+(cram
+ (applies_to import_loam)
+ (deps %{bin:import_loam}))
