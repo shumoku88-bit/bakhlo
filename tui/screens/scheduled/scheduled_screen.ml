@@ -544,6 +544,20 @@ let flow ~width_of width tokens =
          | _ -> token :: lines)
        [] tokens)
 
+(* j/k, PgUp/PgDn (Ctrl-U/D) and Home/End as a signed row delta; [page] rows per page. *)
+let motion_delta ~page = function
+  | `Home -> -max_int
+  | `End -> max_int
+  | `Page `Up | `ASCII 'u' -> -page
+  | `Page `Down | `ASCII 'd' -> page
+  | `ASCII 'k' | `Arrow `Up -> -1
+  | _ -> 1
+
+let batch_latest env t =
+  match latest_plan env t with
+  | Some p -> (t, Screen.Record_action { action = Screen.Batch; target = Some (Screen.Plan p) })
+  | None -> (t, unless_blocked env "Select an explicit Scheduled reference for batch amount editing.")
+
 let handle_coverage (env : Screen.env) t key =
   let stay t = (t, Screen.Stay) and say t m = (t, unless_blocked env m) in
   let count = List.length (coverage_rows env) in
@@ -580,10 +594,7 @@ let handle_coverage (env : Screen.env) t key =
       say t "Press Enter to inspect the selected plan before replacing one occurrence."
   | Some (`ASCII 'x', []) ->
       say t "Press Enter to inspect the selected plan before cancelling one occurrence."
-  | Some (`ASCII 'b', []) -> (
-      match latest_plan env t with
-      | Some p -> (t, Screen.Record_action { action = Screen.Batch; target = Some (Screen.Plan p) })
-      | None -> say t "Select an explicit Scheduled reference for batch amount editing.")
+  | Some (`ASCII 'b', []) -> batch_latest env t
   | Some (`ASCII 'e', []) -> replenish env t
   | Some (`ASCII 'g', []) -> say t "Use e to replenish the selected recurring plan."
   | Some (`ASCII ('p' | 'm'), []) -> change_pace env t
@@ -622,10 +633,7 @@ let handle_plan (env : Screen.env) t key =
   | Some ((`Enter | `ASCII 'c'), []) -> explicit Screen.Pay
   | Some (`ASCII 'r', []) -> explicit Screen.Edit
   | Some (`ASCII 'x', []) -> explicit Screen.Cancel
-  | Some (`ASCII 'b', []) -> (
-      match latest_plan env t with
-      | Some p -> (t, Screen.Record_action { action = Screen.Batch; target = Some (Screen.Plan p) })
-      | None -> say t "Select an explicit Scheduled reference for batch amount editing.")
+  | Some (`ASCII 'b', []) -> batch_latest env t
   | Some (`ASCII 'e', []) -> replenish env t
   | Some (`ASCII 'g', []) -> say t "Use e to replenish the selected recurring plan."
   | Some (`ASCII ('p' | 'm'), []) -> change_pace env t
@@ -927,41 +935,21 @@ let list_paint (env : Screen.env) (geometry : Screen.geometry) t =
   in
   panels @ details
 
-let handle (env : Screen.env) (geometry : Screen.geometry) t input =
-  let book = env.book in
-  let stay t = (t, Screen.Stay) in
-  match t.search with
-  | Some value -> (
-      match input with
-      | `Key (`Escape, []) ->
-          stay
-            (synced book
-               { (with_browser t (RB.with_query (browser t) "")) with search = None; scroll = 0 })
-      | `Key (`Enter, []) ->
-          stay
-            (synced book
-               { (with_browser t (RB.with_query (browser t) value)) with search = None; scroll = 0 })
-      | _ ->
-          stay
-            (match input_text value input with
-            | None -> t
-            | Some value -> { t with search = Some value }))
-  | None -> (
-      let _, view = detail_window env geometry t in
-      let t = { t with scroll = view.start } in
-      let key =
-        match input with
-        | `Key (`ASCII c, mods) -> Some (`ASCII (Char.lowercase_ascii c), mods)
-        | `Key (key, mods) -> Some (key, mods)
-        | _ -> None
-      in
-      let t = { t with view = current env t } in
-      match (t.pace, t.view) with
-      | Some chooser, _ -> handle_pace env t chooser key
-      | None, Coverage_view -> handle_coverage env t key
-      | None, Plan_view -> handle_plan env t key
-      | None, Months_view -> (
-          let detail = t.pane = Detail_pane in
+(* The List search line: Enter applies the query, Esc clears it. *)
+let handle_search (env : Screen.env) t value input =
+  let book = env.book and stay t = (t, Screen.Stay) in
+  let close query =
+    synced book { (with_browser t (RB.with_query (browser t) query)) with search = None; scroll = 0 }
+  in
+  match input with
+  | `Key (`Escape, []) -> stay (close "")
+  | `Key (`Enter, []) -> stay (close value)
+  | _ ->
+      stay (match input_text value input with None -> t | Some value -> { t with search = Some value })
+
+let handle_months (env : Screen.env) (geometry : Screen.geometry) t key =
+  let book = env.book and stay t = (t, Screen.Stay) in
+  let detail = t.pane = Detail_pane in
           match key with
           | Some ((`Escape | `ASCII 'q'), []) ->
               if detail then stay { t with pane = List_pane; scroll = 0 } else (t, Screen.Back)
@@ -991,16 +979,7 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
           | Some (((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)) as k), [])
           | Some ((`ASCII ('u' | 'd') as k), [ `Ctrl ]) ->
               let _, view = detail_window env geometry t in
-              let page = max 1 (if detail then view.capacity else 8) in
-              let delta =
-                match k with
-                | `Home -> -max_int
-                | `End -> max_int
-                | `Page `Up | `ASCII 'u' -> -page
-                | `Page `Down | `ASCII 'd' -> page
-                | `ASCII 'k' | `Arrow `Up -> -1
-                | _ -> 1
-              in
+              let delta = motion_delta ~page:(max 1 (if detail then view.capacity else 8)) k in
               if detail then
                 stay { t with scroll = Panel.move ~last:view.last ~position:view.start delta }
               else
@@ -1013,10 +992,11 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
                 (if detail then { t with pane = List_pane; scroll = 0 }
                  else { t with pane = Detail_pane; origin = List_pane; scroll = 0 })
           | Some (`ASCII 'n', []) -> (t, Screen.New_plan)
-          | _ -> (t, Screen.Ignored))
-      | None, List_view -> (
+          | _ -> (t, Screen.Ignored)
+
+let handle_list (env : Screen.env) (geometry : Screen.geometry) t key =
+  let book = env.book and stay t = (t, Screen.Stay) in
           let detail = t.pane = Detail_pane in
-          let page = 8 in
           let open_detail t = { t with pane = Detail_pane; origin = t.pane } in
           let move_rows delta =
             synced book
@@ -1071,28 +1051,31 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
           | Some ((`ASCII ('u' | 'd') as k), [ `Ctrl ]) ->
               if detail then
                 let _, view = detail_window env geometry t in
-                let delta =
-                  match k with
-                  | `Home -> -max_int
-                  | `End -> max_int
-                  | `Page `Up | `ASCII 'u' -> -view.capacity
-                  | `Page `Down | `ASCII 'd' -> view.capacity
-                  | `ASCII 'k' | `Arrow `Up -> -1
-                  | _ -> 1
-                in
+                let delta = motion_delta ~page:view.capacity k in
                 stay { t with scroll = Panel.move ~last:view.last ~position:view.start delta }
               else
-                let delta =
-                  match k with
-                  | `Home -> -max_int
-                  | `End -> max_int
-                  | `Page `Up | `ASCII 'u' -> -page
-                  | `Page `Down | `ASCII 'd' -> page
-                  | `ASCII 'k' | `Arrow `Up -> -1
-                  | _ -> 1
-                in
+                let delta = motion_delta ~page:8 k in
                 stay (if t.pane = Loci_pane then move_loci delta else move_rows delta)
-          | _ -> (t, Screen.Ignored)))
+          | _ -> (t, Screen.Ignored)
+
+let handle (env : Screen.env) (geometry : Screen.geometry) t input =
+  match t.search with
+  | Some value -> handle_search env t value input
+  | None -> (
+      let _, view = detail_window env geometry t in
+      let key =
+        match input with
+        | `Key (`ASCII c, mods) -> Some (`ASCII (Char.lowercase_ascii c), mods)
+        | `Key (key, mods) -> Some (key, mods)
+        | _ -> None
+      in
+      let t = { t with scroll = view.start; view = current env { t with scroll = view.start } } in
+      match (t.pace, t.view) with
+      | Some chooser, _ -> handle_pace env t chooser key
+      | None, Coverage_view -> handle_coverage env t key
+      | None, Plan_view -> handle_plan env t key
+      | None, Months_view -> handle_months env geometry t key
+      | None, List_view -> handle_list env geometry t key)
 
 let enter ~focus_day t =
   let list =
