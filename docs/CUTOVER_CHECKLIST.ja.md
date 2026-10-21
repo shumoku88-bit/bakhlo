@@ -109,7 +109,7 @@ Daily v4・予算APIは非現行。限定コンバータ・既存Book CLI・型�
 | V05 | Transactions Flow | 未接続 | gross／net・寄与明細 |
 | V06 | Daily Pace履歴／Locus推移 | 未接続 | LOAMの10d／30d／Month／Cycle／Previous Cycleと歴史支持が必要 |
 | V07 | Multicurrency Spend | 未接続 | 原額・両替・記帳通貨を区別 |
-| V08 | Liquidity | 未接続 | 予定網羅性の仮定を明示し、無条件には不明 |
+| V08 | Liquidity | 接続：Commands→Reports and analysis→Liquidity。無条件forecast／known low-waterはUNKNOWN、明示した期限の条件付きselected-balance outlookだけ照会 | Scheduled網羅性は保存しない仮定であり証拠ではない。全選択座標のExact数量・単一Measureを要求し、選択純変動のある期限超過予定は全体拒否。日別net・期限inclusive・全点low-water、scaled Amount。合成Shell到達／描画を確認、native TUI・最新データ対照・本人受入は未実施（[証拠](VERIFICATION.md#liquidity-conditional-selected-balance-outlook-2026-10-21)） |
 | V10 | Attention | 試用：期限あり／なし／不明、追加／解決／取り下げ | strict読込・保存結果・競合拒否を接続。LOAM canonical情報の移行は未認定 |
 | V11 | 今日のDaily Pace／What-if | 一部：現在値、Pool編集、読み取り専用What-if | 履歴Trend未接続。期間は明示presetの一意な選択だけ。負数を丸めない |
 

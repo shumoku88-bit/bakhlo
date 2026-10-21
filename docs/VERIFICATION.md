@@ -5476,3 +5476,77 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
   [Core CI 39519824236](https://github.com/shumoku88-bit/bakhlo/actions/runs/39519824236)
   and [Bonsai TUI CI 39519824159](https://github.com/shumoku88-bit/bakhlo/actions/runs/39519824159)
   both succeeded.
+
+## Liquidity conditional selected-balance outlook (2026-10-21)
+
+- Base: `482a9c9`, implementation `514ce2c`, worker branch `omp/liquidity`.
+  Only the Reports owner/tests,
+  additive Commands entry and minimal route/registry wiring changed; no Core,
+  shared kit, Scheduled or Balances behavior changed. LOAM sources were read only:
+  `Loam/Review/ConditionalBalancePathReview.lean` and the Liquidity portions of
+  `Loam/Tui/ReportsModel.lean` / `ReportsView.lean`. No LOAM build or source copy.
+- Commands → Reports and analysis → Liquidity opens a read-only report.
+  `Forecast path: UNKNOWN` and `Known low-water mark: UNKNOWN` remain unconditional
+  statements before and after Run. Known Scheduled items are not all future flows;
+  no retained complete-future evidence is invented.
+- The first entry displays the selected day's Gregorian month end. Tab/Shift-Tab
+  switches date/Run; Enter on the date only advances focus, Enter on Run accepts the
+  displayed assumption. Backspace edits; `m` resets to the current selected-day
+  month end. The complete-through date is inclusive, ephemeral and not evidence.
+  Edit/reset/reload/book change invalidates the prior answer; drafts survive re-entry.
+  Space opens Commands; q/Esc returns Home. There is no save/publication request.
+- `balance-view.tsv` must be explicit, nonempty, duplicate-free and single-Measure.
+  Every selected coordinate must have an existing Exact current quantity;
+  Known-present/amount-unknown and unsupported remain distinct refusals, never zero
+  or a partial sum. The selection, not the Shell's ambient Measure, chooses the unit.
+  Only existing `Daily_book.open_plans` are used. Nonzero selected-net overdue plans
+  refuse the whole query; foreign-Measure and zero selected-net plans are irrelevant
+  before the overdue check. Due-today and horizon-day changes are included.
+- Conditional inflows/outflows are netted by day with exact `Z.t` arithmetic.
+  Low-water includes the current baseline and every day boundary, not intraday
+  ordering. At most 12 change rows are displayed with an explicit omitted count;
+  final balance and low-water still include every point.
+- Intentional presentation/safety differences from LOAM: amounts use the existing
+  exact Measure-scaled formatter rather than raw integer Quanta (synthetic
+  `12345` at EUR scale 2 means `123.45 eur`); duplicate coordinates refuse rather
+  than being counted twice. Two UNKNOWN rows remain visible while the remainder
+  scrolls. Explanatory limitations precede the path, leaving exact totals reachable
+  with End. Shared Shell header/feedback/footer geometry is unchanged.
+- Synthetic owner regressions cover exact/unknown/zero, mixed Measures, duplicates,
+  canonical dates and due-today/inclusive horizons, overdue selected money versus
+  zero-net internal transfers and unrelated currencies, paid/cancelled exclusion,
+  same-day cross-plan zero, negative/huge scaled amounts, and a hidden 14th point
+  that changes both totals after the 12-row display limit. Screen checks cover
+  explicit Run, invalidation, preserved drafts, leap-year month end, no-write
+  requests, missing/malformed/empty selection, scrolling and four geometries,
+  including focused-date bounds with one additional feedback row.
+- Executed:
+  - `rtk test ./tools/check` — **PASS** (Core build/tests).
+  - `env OCAMLPARAM=_,keywords=5.2 rtk test opam exec -- dune test --root scratch/liquidity-owner.mPrhDX --profile release --force tui/screens/reports/test`
+    — **PASS**, including Stock–Flow and Liquidity. The first attempt refused an
+    invalid synthetic v1 fixture (`unsupported-field`); corrected it to canonical
+    v3 with entry exchange and plan cancellation fields, without changing the parser.
+  - `env OCAMLPARAM=_,keywords=5.2 rtk err opam exec -- dune build --root scratch/liquidity-owner.mPrhDX --profile release smoke/liquidity_smoke.exe`
+    followed by `rtk test scratch/liquidity-owner.mPrhDX/_build/default/smoke/liquidity_smoke.exe scratch/liquidity-owner.mPrhDX`
+    — **PASS**. The disposable runner
+    executed the full `Scenarios.run`, including real Commands-menu navigation to
+    Liquidity and an exact conditional answer over a synthetic book.
+    A subsequent actual-Shell rendering probe exercised 120×36, 80×24, 48×14 and
+    32×9, End scrolling, the physical date-caret cell at each size, and invalid-date
+    refusal without stale amounts. Synthetic book/config bytes were unchanged.
+  - `rtk test ./tools/tui --self-check` — **not executed**: exit 2,
+    `Existing isolated Bonsai environment unavailable; nothing installed.`
+  - `./tools/privacy-scan --all` — **not executed**: no private household reference
+    copy exists under scratch; none was created or accessed to enable this scan.
+  - `rtk git diff --check` and `rtk git diff --cached --check` — **PASS**.
+- Read-only pit review found no contract-violating financial or lifecycle issue;
+  runtime verification above was performed separately by the integration worker.
+- The disposable build used existing installed packages and Parsexp sources under
+  a source-only Dune workspace, OCaml 5.4 with 5.2 keywords, without the native
+  Bonsai application. This is pure-owner/Shell evidence, not native TUI acceptance;
+  temporary sources, binaries and synthetic captures are removed after verification.
+  `tools/ci_tui_pty.py` is unchanged; no Balances text or existing menu entry moved.
+- Latest-data paired comparison, physical-terminal/IME acceptance and P7/power-loss
+  qualification were **not executed**. Neither `./tools/compare` nor `./ui` ran;
+  no household/LOAM data was accessed. Native self-check and latest-data comparison
+  remain for the main-checkout review; this does not certify complete future coverage.
