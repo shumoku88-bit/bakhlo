@@ -1,5 +1,10 @@
 # LOAMの機能・見た目・使い勝手をBakhloで再現する
 
+## Accounting表示をLOAMの構成へ（2026-10-21）
+
+- [x] Evidence details・Answerability Map・次に必要な根拠・全残高の支持一覧を追加し、実データ120×36で件数と行がLOAMと一致。[証拠](../docs/VERIFICATION.md#accounting-evidence-details-as-in-loam-2026-10-21)
+- [ ] 一覧欄で長い説明行が`…`省略される（詳細欄と並ぶため）。80×24の照合。
+
 ## Scheduled 補充 e の入力／Preview（2026-10-21）
 
 - [x] 監視付き`e`をLOAMの次の1／3／6回／Custom排他期限へ接続。観測日以降だけを候補とし、存在しない月末日を明示入力。通常`g`は変更せず、共有変更は許可されたShell constructor呼出しの観測日引渡しだけ。

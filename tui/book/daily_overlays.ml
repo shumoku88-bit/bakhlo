@@ -139,122 +139,6 @@ let represented_coordinates book =
       represented_cache := Some (image, coordinates);
       coordinates
 
-let role_balance_items ~book ~roles =
-  let coordinates = represented_coordinates book in
-  let measures =
-    List.filter (fun measure ->
-        List.exists (fun (c : D.Effect_coordinate.t) -> A.mstr c.measure = measure) coordinates)
-      (List.map fst (B.measures book)) in
-  let items_for_measure measure =
-    let loci_with_roles =
-      List.filter_map (fun (c : D.Effect_coordinate.t) ->
-          if A.mstr c.measure = measure then Some (A.lstr c.locus, List.assoc_opt (A.lstr c.locus) roles)
-          else None)
-        coordinates
-    in
-    let rows_for_role target_role =
-      List.filter_map
-        (fun (locus, r) ->
-          if r = Some target_role then
-            Some (locus, quantity_value ~book ~measure locus)
-          else None)
-        loci_with_roles
-    in
-    let unresolved_loci =
-      List.filter (fun (_, r) -> r = None) loci_with_roles
-    in
-    let stock_roles = [ Asset; Liability; Equity ] in
-    let flow_roles = [ Income; Expense ] in
-
-    let is_role_complete role =
-      let rows = rows_for_role role in
-      List.for_all (fun (_, v) -> match v with Exact _ -> true | _ -> false) rows
-    in
-    let stock_complete =
-      List.for_all is_role_complete stock_roles && unresolved_loci = []
-    in
-    let net_worth_complete =
-      is_role_complete Asset && is_role_complete Liability && unresolved_loci = []
-    in
-
-    let sum_role role =
-      List.fold_left
-        (fun acc (_, v) ->
-          match v with
-          | Exact n -> Z.add acc n
-          | _ -> acc)
-        Z.zero (rows_for_role role)
-    in
-    let known_net_worth = Z.add (sum_role Asset) (sum_role Liability) in
-
-    let section_widgets role =
-      let rows = rows_for_role role in
-      let header = Header_row (role_to_string role) in
-      let account_rows =
-        if rows = [] then [ Header_row "  (no supported rows)" ]
-        else
-          List.map
-            (fun (locus, value) ->
-              Account_row { locus; measure; role = Some role; value })
-            rows
-      in
-      let subtotal =
-        Subtotal_row { role; measure; subtotal = sum_role role }
-      in
-      [ header ] @ account_rows @ [ subtotal; Blank_row ]
-    in
-
-    let stock_sections = List.concat_map section_widgets stock_roles in
-
-    let unresolved_section =
-      if unresolved_loci = [] then []
-      else
-        [ Header_row "Coordinates whose AccountingRole is unresolved:" ]
-        @ List.map
-            (fun (locus, _) ->
-              Account_row
-                {
-                  locus;
-                  measure;
-                  role = None;
-                  value = quantity_value ~book ~measure locus;
-                })
-            unresolved_loci
-        @ [ Blank_row ]
-    in
-
-    let flow_sections =
-      let has_flow =
-        List.exists (fun r -> rows_for_role r <> []) flow_roles
-      in
-      if not has_flow then []
-      else
-        [ Header_row "Flow-role coordinates (Income / Expense):" ]
-        @ List.concat_map section_widgets flow_roles
-    in
-
-    let bs_status = Balance_sheet_status { measure; complete = stock_complete } in
-    let nw_row =
-      Net_worth_row
-        {
-          measure;
-          known_subtotal = known_net_worth;
-          complete = net_worth_complete;
-        }
-    in
-
-    [
-      Header_row ("Measure: " ^ measure);
-      Header_row "Balance Sheet-shaped supported rows";
-      Blank_row;
-    ]
-    @ stock_sections
-    @ unresolved_section
-    @ [ bs_status; Blank_row; nw_row; Blank_row ]
-    @ flow_sections
-  in
-  List.concat_map items_for_measure measures
-
 let current_balance_items ~book ~coords =
   let coords =
     match coords with
@@ -283,6 +167,137 @@ let format_money book measure q =
   done;
   Buffer.add_substring out raw stop (String.length raw - stop);
   Buffer.contents out
+
+(* LOAM Role Balance presentation (Tui/RoleBalances.lean): per-Measure stock
+   sections of exact rows, then the evidence details shared by every Measure.
+   Each represented coordinate is exactly one of: exact with a role, exact with
+   its role unresolved, known present, or unsupported; nothing is coerced to 0. *)
+let role_balance_items ~book ~roles =
+  let rows =
+    List.map (fun (c : D.Effect_coordinate.t) ->
+        let locus = A.lstr c.locus and measure = A.mstr c.measure in
+        (locus, measure, List.assoc_opt locus roles, quantity_value ~book ~measure locus))
+      (represented_coordinates book) in
+  let account (locus, measure, role, value) = Account_row { locus; measure; role; value } in
+  let has_role pred (_, _, role, _) = match role with Some r -> pred r | None -> false in
+  let exact (_, _, _, value) = match value with Exact _ -> true | _ -> false in
+  let present (_, _, _, value) = value = Known_present in
+  let unsupported (_, _, _, value) = value = Unsupported in
+  let unresolved (_, _, role, _) = role = None in
+  let is_flow = function Income | Expense -> true | _ -> false in
+  let in_measure m (_, measure, _, _) = measure = m in
+  (* Role gaps in LOAM's order: exact, then known present, then unsupported. *)
+  let gaps = List.filter (fun r -> unresolved r && exact r) rows
+             @ List.filter (fun r -> unresolved r && present r) rows
+             @ List.filter (fun r -> unresolved r && unsupported r) rows in
+  let sum = List.fold_left (fun acc (_, _, _, value) ->
+      match value with Exact n -> Z.add acc n | _ -> acc) Z.zero in
+  let amount measure n = (if Z.sign n > 0 then "+" else "") ^ format_money book measure n in
+  let signed measure n = amount measure n ^ " " ^ measure in
+  let token_pad = pad ~width_of:String.length 28 in
+  let role_name (_, _, role, _) = match role with Some r -> role_to_string r | None -> "Unresolved role" in
+  let measures =
+    List.filter (fun m ->
+        List.exists (fun r -> in_measure m r && (has_role is_balance_sheet_role r || unresolved r)) rows)
+      (List.map fst (B.measures book)) in
+  let measure_items m =
+    let here = List.filter (in_measure m) rows in
+    let stock_present = List.filter (fun r -> present r && has_role is_balance_sheet_role r) here in
+    let stock_unsupported = List.filter (fun r -> unsupported r && has_role is_balance_sheet_role r) here in
+    let worth_blocked = List.exists (fun r -> (present r || unsupported r) && has_role is_net_worth_role r) here in
+    let gaps_here = List.filter (in_measure m) gaps in
+    let section role =
+      let exact_rows = List.filter (fun r -> exact r && has_role (( = ) role) r) here in
+      [ Header_row (role_to_string role) ]
+      @ (if exact_rows = [] then [ Header_row "  (no supported rows)" ] else List.map account exact_rows)
+      @ [ Subtotal_row { role; measure = m; subtotal = sum exact_rows } ] in
+    let listed title items = if items = [] then [] else Header_row title :: List.map account items in
+    let worth = sum (List.filter (fun r -> exact r && has_role is_net_worth_role r) here) in
+    [ Header_row ("Measure: " ^ m); Header_row "Balance Sheet-shaped supported rows" ]
+    @ section Asset @ [ Blank_row ] @ section Liability @ [ Blank_row ] @ section Equity
+    @ [ Blank_row;
+        Balance_sheet_status { measure = m; complete = stock_present = [] && stock_unsupported = [] && gaps_here = [] } ]
+    @ listed "Known stock-role balances whose exact amount is unknown:" stock_present
+    @ listed "Known stock-role coordinates without current balance support:" stock_unsupported
+    @ listed "Coordinates whose AccountingRole is unresolved:" gaps_here
+    @ [ Blank_row;
+        Net_worth_row { measure = m; known_subtotal = worth; complete = not worth_blocked && gaps_here = [] };
+        Header_row (if not worth_blocked && gaps_here = [] then "Qualified Net Worth: " ^ signed m worth
+                    else "Qualified Net Worth: UNKNOWN");
+        Header_row "Net Worth uses raw Asset + Liability quantity, exactly as the qualified projection model.";
+        Header_row "No cross-Measure valuation or conversion is inferred.";
+        Blank_row ] in
+  let count p = List.length (List.filter p rows) and total = List.length rows in
+  let supported = count exact and classified = count (fun r -> not (unresolved r)) in
+  let bs_present = List.filter (fun r -> present r && has_role is_balance_sheet_role r) rows in
+  let bs_unsupported = List.filter (fun r -> unsupported r && has_role is_balance_sheet_role r) rows in
+  let nw_present = List.filter (fun r -> present r && has_role is_net_worth_role r) rows in
+  let nw_unsupported = List.filter (fun r -> unsupported r && has_role is_net_worth_role r) rows in
+  let flow_gaps = count (fun r -> unsupported r && has_role is_flow r) in
+  let status ok = if ok then "ANSWERABLE" else "BLOCKED" in
+  let blockers present unsupported =
+    Printf.sprintf "(%d amount-unknown, %d unsupported, %d role blockers)"
+      (List.length present) (List.length unsupported) (List.length gaps) in
+  let coordinate (locus, measure, _, _) = locus ^ " / " ^ measure in
+  let text lines = List.map (fun line -> Header_row line) lines in
+  let gap_line (locus, measure, _, value) =
+    "  ? " ^ token_pad locus
+    ^ pad_left ~width_of:String.length 12 (match value with Exact n -> amount measure n | _ -> "?")
+    ^ " " ^ measure ^ "  role unresolved" in
+  let unsupported_line ((locus, measure, _, _) as r) =
+    "  ? " ^ token_pad locus ^ " balance unsupported  " ^ measure ^ "  " ^ role_name r in
+  let present_line ((locus, measure, _, _) as r) =
+    "  ? " ^ token_pad locus ^ " amount unknown, known present  " ^ measure ^ "  " ^ role_name r in
+  let supported_line ((locus, measure, _, value) as r) =
+    "  " ^ token_pad locus
+    ^ pad_left ~width_of:String.length 16 (match value with Exact n -> signed measure n | _ -> "?")
+    ^ "  " ^ role_name r in
+  let by_measure = List.stable_sort (fun (l1, m1, _, _) (l2, m2, _, _) -> compare (m1, l1) (m2, l2)) in
+  let answerability =
+    text ([ "Answerability Map";
+            "Which current accounting questions are justified by existing evidence?";
+            Printf.sprintf "  Exact current quantity support  %d / %d coordinates" supported total;
+            Printf.sprintf "  AccountingRole coverage  %d / %d coordinates" classified total;
+            "  Balance Sheet            "
+            ^ status (bs_present = [] && bs_unsupported = [] && gaps = []) ^ "  " ^ blockers bs_present bs_unsupported;
+            "  Net Worth                "
+            ^ status (nw_present = [] && nw_unsupported = [] && gaps = []) ^ "  " ^ blockers nw_present nw_unsupported;
+            Printf.sprintf "  All current balances     %d / %d current quantities supported" supported total;
+            Printf.sprintf "  Flow-role quantity gaps  %d  (Income / Expense; do not block Balance Sheet or Net Worth)" flow_gaps;
+            "";
+            "Next evidence targets for Balance Sheet / Net Worth:" ]
+          @ List.map (fun r -> "  [amount] " ^ coordinate r ^ "  " ^ role_name r ^ "  known present, exact amount unknown") bs_present
+          @ (if bs_unsupported = [] && bs_present = [] then [ "  No classified stock-role quantity blockers." ]
+             else List.map (fun r -> "  [quantity] " ^ coordinate r ^ "  " ^ role_name r) bs_unsupported)
+          @ (if gaps = [] then [ "  No unresolved AccountingRole blockers." ]
+             else List.map (fun r -> "  [role] " ^ coordinate r ^ "  "
+                                     ^ (if exact r then "quantity known" else "quantity also unsupported")) gaps)
+          @ [ "Known-present evidence proves existence, not an arithmetic amount.";
+              "For an unsupported quantity blocker, explicit support can be zero-origin, opening, or an exact current anchor.";
+              "Add zero-origin only when retained history really begins at zero; never add it just to erase '?'.";
+              "Income / Expense role gaps remain visible here but do not block Balance Sheet or Net Worth." ]) in
+  let classified_rows = List.filter (fun r -> exact r && not (unresolved r)) rows |> by_measure in
+  let classified_present = List.filter (fun r -> present r && not (unresolved r)) rows in
+  let classified_unsupported = List.filter (fun r -> unsupported r && not (unresolved r)) rows in
+  let all_support =
+    text ([ "All current balance support";
+            "Each current item is shown separately; role totals are not substituted for individual rows.";
+            "Exact quantity support: " ^ (if count present = 0 && count unsupported = 0 then "COMPLETE" else "INCOMPLETE");
+            "Role classification: " ^ (if gaps = [] then "COMPLETE" else "INCOMPLETE");
+            "" ]
+          @ (if classified_rows = [] then [ "No classified supported rows." ] else List.map supported_line classified_rows)
+          @ (if gaps = [] then [] else "" :: "Unresolved role frontier:" :: List.map gap_line gaps)
+          @ (if classified_present = [] then []
+             else "" :: "Known-present balances with unknown exact amount:" :: List.map present_line classified_present)
+          @ (if classified_unsupported = [] then []
+             else "" :: "Classified coordinates without current balance support:"
+                  :: List.map unsupported_line classified_unsupported)) in
+  [ Header_row "Current Balances"; Header_row "What do I have and owe now?"; Blank_row ]
+  @ (if measures = [] then [ Header_row "No Balance-Sheet-relevant or unresolved current coordinates are visible." ]
+     else List.concat_map measure_items measures)
+  @ [ Header_row "Evidence details"; Header_row "Why these balance answers are or are not justified."; Blank_row ]
+  @ answerability @ [ Blank_row ] @ all_support
+  @ [ Blank_row; Header_row "A known current amount does not prove that the full history is known." ]
 
 let balance_item_line ?(width_of = String.length) ?(width = max_int) ~book item =
   match item with
@@ -324,17 +339,12 @@ let balance_item_line ?(width_of = String.length) ?(width = max_int) ~book item 
   | Balance_sheet_status { complete; _ } ->
       if complete then "Balance Sheet support: COMPLETE"
       else "Balance Sheet support: INCOMPLETE"
-  | Net_worth_row { measure; known_subtotal; complete } ->
+  | Net_worth_row { measure; known_subtotal; complete = _ } ->
       let sign_str = if Z.sign known_subtotal > 0 then "+" else "" in
       let subtotal_str =
         Printf.sprintf "Known Net Worth subtotal: %s%s %s" sign_str (B.format book measure known_subtotal) measure
       in
-      let qualified_str =
-        if complete then
-          Printf.sprintf "Qualified Net Worth: %s%s %s" sign_str (B.format book measure known_subtotal) measure
-        else "Qualified Net Worth: UNKNOWN"
-      in
-      subtotal_str ^ "  /  " ^ qualified_str
+      subtotal_str
 
 let balance_item_detail ~book item =
   match item with

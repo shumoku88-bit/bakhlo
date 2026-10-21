@@ -5399,3 +5399,40 @@ executed**.
   both succeeded.
 - 80×24, custom date, missing-month-day resolution against LOAM, physical terminal/IME and
   P7 were **not executed**.
+
+## Accounting evidence details as in LOAM (2026-10-21)
+
+Taken over from the stopped `omp/accounting-sections` worker (its model hit a usage
+limit before any code; its one uncommitted ledger line in that worktree was left as is).
+
+- `Daily_overlays.role_balance_items` now follows LOAM `Tui/RoleBalances.lean` and
+  `Review/RoleBalanceAnswerability.lean`: `Current Balances`; per Measure with a stock-role
+  or unresolved coordinate, Asset / Liability / Equity sections of exact rows only, Balance
+  Sheet support, the known-present / unsupported stock lists, unresolved roles, Known and
+  Qualified Net Worth as two lines with LOAM's notes; then `Evidence details`, the
+  Answerability Map (exact support, role coverage, Balance Sheet / Net Worth
+  ANSWERABLE/BLOCKED with counts, all current balances, flow-role gaps), next evidence
+  targets and notes, and `All current balance support`. The per-Measure Income / Expense
+  sections were removed; flow rows appear in the support list as in LOAM. Each represented
+  coordinate is exactly one of exact-with-role, exact-unresolved, known-present or
+  unsupported; nothing is coerced to zero. Amounts keep Bakhlo's Measure-scaled format.
+- The block moved below `format_money`, which it uses. Net Worth's row renders only the
+  known subtotal; the qualified line is its own row.
+- Checks: `balances_integration_checks.ml` requires the Answerability, next-evidence,
+  qualified Net Worth and support lines for a book with two exact unclassified coordinates;
+  `publication_integration_checks.ml` finds `Expense` among all Accounting items instead
+  of on the first 120×30 page.
+- `./tools/check`, `./tools/tui --self-check` (39 PASS) and `git diff --check` passed.
+- Latest-data paired comparison on generation `capture-1792541247-79518-293b919a` at
+  120×36, read-only, paging through both views (script comparison in ignored scratch, no
+  values recorded): Answerability lines, Balance Sheet / Net Worth status lines,
+  Qualified Net Worth, exact quantity / role classification / Balance Sheet support lines,
+  the ten supported rows and the 31 classified unsupported coordinates equal LOAM's; every
+  section is present in both. Difference: Bakhlo's list pane sits beside its detail pane,
+  so the longest explanatory lines are clipped with `…` (their visible prefix equals
+  LOAM's). Household/config SHA-256 and the comparison book unchanged, AI tmux sessions
+  closed, `clean-copies` passed. 80×24, physical terminal/IME and P7 were **not executed**.
+- `4eafbb4`: matching-SHA
+  [Core CI 39483903041](https://github.com/shumoku88-bit/bakhlo/actions/runs/39483903041)
+  and [Bonsai TUI CI 39483903048](https://github.com/shumoku88-bit/bakhlo/actions/runs/39483903048)
+  both succeeded.

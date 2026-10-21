@@ -69,6 +69,17 @@ let balance_display_checks ~width_of ~directory () =
   require (List.mem ("zero", "jpy") represented && not (List.mem ("wallet", "eur") represented)
            && not (List.exists (fun (locus, _) -> locus = "bank") represented))
     "accounting-represents-evidence-coordinates-not-admissions";
+  (* LOAM's evidence details: two exact coordinates, neither with a role. *)
+  let evidence = List.map (O.balance_item_line ~book) (balance_items accounting) in
+  List.iter (fun (expected, name) -> require (List.mem expected evidence) name)
+    [ ("  Exact current quantity support  2 / 2 coordinates", "accounting-answerability-exact-support");
+      ("  AccountingRole coverage  0 / 2 coordinates", "accounting-answerability-role-coverage");
+      ("  Balance Sheet            BLOCKED  (0 amount-unknown, 0 unsupported, 2 role blockers)",
+       "accounting-answerability-balance-sheet-blocked");
+      ("  [role] wallet / jpy  quantity known", "accounting-next-evidence-role-target");
+      ("Qualified Net Worth: UNKNOWN", "accounting-qualified-net-worth-unknown");
+      ("No classified supported rows.", "accounting-all-support-no-classified-rows");
+      ("Role classification: INCOMPLETE", "accounting-all-support-role-incomplete") ];
   List.iter (fun state ->
     let heading = Balances.mode state.C.screens.balances = `Current in
     List.iter (fun dimensions ->

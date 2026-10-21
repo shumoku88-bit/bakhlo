@@ -137,7 +137,10 @@ let run ~width_of ~directory ~path (home : C.state) =
   let bal_with_roles = C.open_route { home with session = F.load path } W.Balances in
   let bal_accounting = key ~width_of bal_with_roles (`ASCII 'v') in
   let wide_with_roles = R.screen ~width_of (120, 30) bal_accounting in
-  require (contains wide_with_roles "Balances / Accounting" && contains wide_with_roles "Asset" && contains wide_with_roles "Expense" && contains wide_with_roles "Net Worth")
+  (* As LOAM, flow roles appear in "All current balance support", below the stock sections. *)
+  let accounting_text = List.map (O.balance_item_line ~book:bal_accounting.C.session.book) (balance_items bal_accounting) in
+  require (contains wide_with_roles "Balances / Accounting" && contains wide_with_roles "Asset" && contains wide_with_roles "Net Worth"
+           && List.exists (fun line -> Base.String.is_substring line ~substring:"Expense") accounting_text)
     "balances-v-toggles-to-accounting-roles";
   let bal_restored_current = key ~width_of bal_accounting (`ASCII 'v') in
   require
