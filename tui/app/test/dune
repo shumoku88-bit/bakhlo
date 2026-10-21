@@ -1,6 +1,6 @@
-; Whole-program checks. They run outside a dependency sandbox because the
-; writer refuses symlinked inputs, from the build root where the synthetic
-; examples/ fixture and a scratch/ directory exist.
+; Whole-program checks. They run outside a dependency sandbox because the writer
+; refuses symlinked inputs, in a fresh temporary directory (not under _build, where
+; Dune removes files it did not produce) seeded with the synthetic examples/ fixture.
 
 (executable
  (name app_checks)

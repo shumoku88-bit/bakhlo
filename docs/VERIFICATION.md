@@ -6,6 +6,18 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Screen readability and a CI race in the app checks (2026-10-21)
+
+- Scheduled (`35fb94d`): `handle` became a dispatcher; Months and List got named handlers,
+  `motion_delta` replaced three copies of the motion-key match. Balances (`1c7408f`): one `move`
+  path replaced six hand-written list/detail motions (973 → 925 lines). No behavior change.
+- CI for `1c7408f` failed: `app_checks` could not find `scratch/examples/daily-book.sexp`
+  right after writing it. The checks ran in `_build/default`, where Dune removes files it did
+  not produce while other rules run; the earlier green run was timing luck. The runner now
+  works in a fresh resolved temporary directory (removed after success, kept on failure).
+  `./tools/check` passed locally after deleting `_build/default/scratch`; household data not
+  accessed.
+
 ## Notty adopted; Bonsai_term and OxCaml removed (2026-10-21)
 
 - User decision (2026-10-21) after the trial below and their own run on a household copy,
