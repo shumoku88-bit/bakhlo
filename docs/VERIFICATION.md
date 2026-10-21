@@ -5734,5 +5734,9 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
   chooser → Monthly saved `scheduled-coverage.tsv` and returned to List; 48×14 Esc left the
   coverage bytes unchanged and returned to List; 48×14 Up showed the selected last choice.
   Book `--check` passed afterwards.
+- `a00acdf`: matching-SHA
+  [Core CI 39547836045](https://github.com/shumoku88-bit/bakhlo/actions/runs/39547836045)
+  and [Bonsai TUI CI 39547835944](https://github.com/shumoku88-bit/bakhlo/actions/runs/39547835944)
+  both succeeded.
 - Latest-data paired comparison (the flow writes), physical terminal/IME and P7 were
   **not executed**.
