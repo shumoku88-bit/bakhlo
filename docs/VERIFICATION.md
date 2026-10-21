@@ -5795,5 +5795,9 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
   Daily Pace, same monitored plans/months and row count on the Series Calendar, Attention
   two open with the same due dates. Viewing changed no rehearsal file; LOAM household,
   config, `attention.loam`, `.git/index` and HEAD unchanged; `clean-copies` passed.
+- `a891bc3`: matching-SHA
+  [Core CI 39553668593](https://github.com/shumoku88-bit/bakhlo/actions/runs/39553668593)
+  succeeded; the TUI workflow is path-filtered and did not run (no TUI or shared library
+  path changed; the local self-check passed).
 - `./tools/check` and `./tools/tui --self-check` passed. The real cutover, physical
   terminal/IME and P7 were **not executed**.
