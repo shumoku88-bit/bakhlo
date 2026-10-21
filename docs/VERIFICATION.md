@@ -5585,3 +5585,35 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
   no file in LOAM's copy modified, AI tmux sessions closed, `clean-copies` passed.
 - A successful conditional path on real data (no overdue selected plan), 80×24, physical
   terminal/IME and P7 were **not executed**.
+
+## Trend / Locus comparison integration and latest-data comparison (2026-10-21)
+
+- Integrated `omp/trend-locus` (`4675805`, rebased on `40754aa`). The worker hit the Codex
+  limit mid-implementation and finished on the fallback parent model `step-5-preview`
+  (deepseek subagents). Rebase conflicts were the two additive report wirings (Liquidity /
+  Trend) in route, command, workspace, title and registry, kept both. The worker had pinned
+  the existing `reports_checks` stanza to `(modules reports_checks stock_flow_checks)` for
+  the arch rule; that would have dropped `liquidity_checks`, so the stanza now lists it and
+  keeps `bakhlo_tui_protocol`. The UI-25 ledger row merges both sides.
+- Review: exact recorded Effect sums per Locus × Measure, refunds keep their own sign,
+  missing/ambiguous boundary configuration is unavailable (never an inferred zero or
+  month). Cycle / Month points show LOAM's integer per-day average, labelled
+  `floor average … /day`; Day points are exact.
+- On the main checkout: `./tools/check`, `./tools/privacy-scan --all` (no match),
+  `./tools/tui --self-check` (43 PASS), `git diff --check` and the local native PTY matrix
+  passed.
+- Latest-data paired comparison on generation `capture-1792548895-22617-293b919a` at
+  120×36, read-only: the same cycle source and periods; with coffee and food added as
+  Bakhlo series 4 and 5, their per-day values equal LOAM's for the current partial cycle and
+  the three previous cycles (script comparison in ignored scratch; values not recorded).
+  Differences: LOAM's default series are three household Loci hard-coded in LOAM's source;
+  Bakhlo takes the first catalog Loci (it cannot carry household tokens), so its default
+  chart can be all zero. LOAM draws interpolated braille lines with a period axis and mouse
+  scrubbing; Bakhlo draws dotted lines with markers, no pointer scrub, and a different
+  header. Household/config and comparison book SHA-256 unchanged, no file in LOAM's copy
+  modified, AI tmux sessions closed, `clean-copies` passed.
+- `40754aa`: matching-SHA
+  [Core CI 39526740489](https://github.com/shumoku88-bit/bakhlo/actions/runs/39526740489)
+  and [Bonsai TUI CI 39526740465](https://github.com/shumoku88-bit/bakhlo/actions/runs/39526740465)
+  both succeeded.
+- Month / Day grains against LOAM, 80×24, physical terminal/IME and P7 were **not executed**.

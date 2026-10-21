@@ -1,5 +1,10 @@
 # LOAMの機能・見た目・使い勝手をBakhloで再現する
 
+## Trend / Locus comparisonの残り（2026-10-21）
+
+- [ ] 既定の系列：LOAMは家計の科目3つを固定、Bakhloは先頭の科目で空のグラフになりうる。設定で既定系列を選べるようにするか要判断。
+- [ ] グラフの描き方（LOAMは補間した点字の線と期間軸）とマウスでの選択。
+
 ## Reports: Trend / Locus comparison（UI-25、2026-10-21）
 
 - [x] LOAMの期間・比較対象・集計と根拠不足の扱いを読取参照し、既存Reports境界を再利用してread-only ownerを追加する。Scheduledは編集しない。
