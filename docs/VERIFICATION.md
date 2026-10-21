@@ -6,48 +6,6 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
-## Actual warm navigation projection (2026-10-21)
-
-- Measured `ee81d31` before changing the mechanism: at 109,500 synthetic entries /
-  three Loci / All Current / empty query / 80×24, median of five, Loci extraction
-  cost 10.423 ms, filter/sort 68.839 ms and the all-row amount-width fold 93.908 ms;
-  full Shell Down + Notty image/cursor cost 245.651 ms (macOS x86_64, OCaml 5.3.0).
-- Actual now retains one disposable process-local projection: immutable book physical
-  identity plus scope/focus date, and only the latest Locus/order/search rows/count.
-  The amount maximum additionally keys the pure width-provider identity; geometry
-  clamps stay live. A changed book (including metadata-only updates sharing its
-  image) or query recomputes, while transaction selection/pane/scroll reuse results.
-  No on-disk cache, new dependency, public API, Shell or storage change.
-- Warm native Shell Down was 2.219 ms (same three-Locus workload, median five).
-  Independent sequential testing used an admitted, cold-loaded synthetic book:
-  109,500 balanced JPY entries, wallet→food/rent alternating, repeated 28-day dates,
-  no plans/support. After one warm paint, 200 read-only keys per geometry cycled
-  Down/End/Up/Home/Page Down/Page Up/Details/scroll/back; full Shell dispatch, Notty
-  image and cursor generation were timed. The entire book digest stayed unchanged.
-
-  | Geometry | Median | p95 | Maximum |
-  | --- | ---: | ---: | ---: |
-  | 120×36 | 3.324 ms | 3.606 ms | 4.059 ms |
-  | 80×24 | 2.456 ms | 2.878 ms | 3.115 ms |
-  | 48×14 | 2.077 ms | 2.446 ms | 2.641 ms |
-  | 32×9 | 1.890 ms | 2.200 ms | 2.308 ms |
-
-  This meets 16 ms for these **warm CPU-side operations**, not every key or physical
-  terminal latency. Cold display remained 193.243 ms and a search change on a fresh
-  book 286.188 ms (median five); cache misses/query changes are not qualified at 16 ms.
-- The original 1,440 output observations and an independent 588-observation guard
-  matched pre-change digests: old→new→old books, date/label updates sharing the image,
-  stale public versus clamped Locus/transaction indices, huge/foreign/split/reversal
-  facts, width-provider changes and six geometries. Permanent tests pin warm row
-  reuse, date/filter/label invalidation, old-book restoration and quantity rendering.
-- Final gates on this slice: `./tools/tui --self-check` passed; `./tools/check`
-  (Core build/tests, TUI, architecture and changed-file privacy scan) passed;
-  `./tools/privacy-scan --all` passed; and the four-size PTY smoke
-  (`tools/ci-tui-pty _build/default/tui/app/bakhlo_tui.exe examples/daily-book.sexp`)
-  passed with unchanged household-file bytes. Exit statuses were captured directly.
-- Independent pit review found no blockers. Household access, latest-data paired
-  comparison, human/IME acceptance and P7/power-loss tests: **not executed**.
-
 ## Actual render-local reuse and empty-query search (2026-10-21)
 
 - Actual resolves scope/Loci, filtered sorted rows and clamped selection once per
@@ -73,6 +31,9 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
   The 109.5k 16 ms key-response goal is **not met**. Full-list sorting and the
   unchanged global amount-width scan remain; this is not a claim of complete tuning.
+  A follow-up process-wide projection cache (`2abf471`, warm keys ≤4.1 ms) was
+  reverted: no slowness has been felt on the household, and it added shared mutable
+  state and retained an old book. Revisit only when Actual is felt slow.
 - `./tools/check`, `./tools/tui --self-check`, the four-size synthetic
   `tools/ci-tui-pty` matrix and `./tools/privacy-scan --all` passed.
 - Independent pit review found no blockers. Latest-data paired comparison, human/IME
