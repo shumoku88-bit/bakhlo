@@ -38,8 +38,8 @@ signed postings. Bytes and IDs differ by format and are not compared.
 The first-run Record flow and search were exercised at 80×24 in separate fresh roots.
 The search roots started with the paired synthetic entry and added `other meal` via
 both UIs; the combined procedure above was not rerun end to end from empty roots. See
-[Record evidence](../../docs/VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)
-and [search evidence](../../docs/VERIFICATION.md#paired-actual-search-2026-10-17).
+[Record evidence](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)
+and [search evidence](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#paired-actual-search-2026-10-17).
 
 ## Known limits
 

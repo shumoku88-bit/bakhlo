@@ -75,9 +75,9 @@ LOAMとの一致だけを正しさの根拠にしない。正常な回答・操�
 意図しない保存・確認不足等の欠陥は再現しない。意味の契約と独立した期待値・拒否条件でも検査する。
 欠陥を避ける意図的な差と未実装の差を検証記録で区別し、仕様か欠陥か不明なら調査・必要に応じて相談する。
 
-[幾何・カーソル・描画安定性の調査](TUI_GEOMETRY_RESEARCH.ja.md)は、合成反例・外部調査・未検証境界の所有文書。
+[幾何・カーソル・描画安定性の調査](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/TUI_GEOMETRY_RESEARCH.ja.md)は、合成反例・外部調査・未検証境界の所有文書。
 G-1/G-3は既存合成実行、G-4はsource確認、G-2は後続修正済みの限定対照として区別する。
-[TUI共有部品の責務設計と移行順序](TUI_LAYOUT_STABILITY_ROADMAP.ja.md)が現行設計を所有する。
+[TUI共有部品の責務設計と移行順序](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md)が現行設計を所有する。
 共有input/再帰metadata→全form利用元→Record/Scheduled→list/detail整合の順に接続し、
 表示機構だけを共有する。sessionの意味・draft・保存gateはlocalに残す。
 Bonsai/Nottyを継続し、独自renderer／幅表・raw ANSIの追加を前提にしない。

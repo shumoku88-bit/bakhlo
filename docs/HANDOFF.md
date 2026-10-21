@@ -34,7 +34,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   corrections that change a Reversal link or touch an opening/presence witness. At
   ~110k synthetic entries: save 0.6 ms, record/refund/exchange <0.01 ms, correction
   4 ms, observation 6 ms, startup 2.2 s (deferred by the user). Details:
-  [long-term storage study](LONG_TERM_STORAGE_STUDY.ja.md) stages 5–9.
+  [long-term storage study](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/LONG_TERM_STORAGE_STUDY.ja.md) stages 5–9.
 - The 2026-10-20 storage work was checked on the latest real-data copy: Core identical
   to pre-today code; Balances and Daily Pace match LOAM; trial saves in TUI (record,
   correction, date correction, merchant, reversal) and 200-record exit compaction
@@ -67,6 +67,9 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   `./tools/compare` (the cutover import is done).
 - Removed 2026-10-21 (in Git at `dfd03d1`): old CLI (`cli/`, `bin/`, `presentation/`,
   `text/`, `sexp/book.ml`), `tools/import-loam`, `experiments/`, `formal/`.
+- Docs removed 2026-10-21 (in Git at `90a5867`): `docs/archive/`, storage and geometry
+  research, capability ledger, LOAM core inventory, references, ADR 0003, and
+  VERIFICATION entries before 2026-10-20. Links to them are permalinks at that commit.
 - Tests: `test/` (Core; `daily_book_oracle_tests.ml`, `book_log_tests.ml`,
   `daily_file_tests.ml` guard the storage work) and the TUI self-check.
 

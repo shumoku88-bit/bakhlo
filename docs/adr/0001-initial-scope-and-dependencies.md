@@ -27,7 +27,7 @@ Status: ACCEPTED by the user's explicit approval on 2026-10-02.
 
 Core and Async are not introduced. Initially no storage dependency was selected. A later
 Unix+SQLite-first roadmap earned isolated trials, not main dependency adoption; the
-[current direction](../ARCHITECTURE.md#selected-product-direction) now pauses canonical SQLite
+[current direction](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/ARCHITECTURE.md#selected-product-direction) now pauses canonical SQLite
 adoption while human-readable canonical text/data sovereignty is evaluated. Optional SQLite
 indexes need a concrete consumer and stay outer/rebuildable, not a second authority. Unix is
 the near-term runtime; MirageOS is an explicit future goal with experimental support, not an

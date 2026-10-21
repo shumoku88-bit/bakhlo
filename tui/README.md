@@ -468,7 +468,7 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 ### 共通化の境界（KEEP / 統合 / LOCAL）
 
 責務・API契約・全利用元・移行順・横断受入の所有文書は
-[TUI共有部品の責務設計と移行順序](../docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md)。
+[TUI共有部品の責務設計と移行順序](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md)。
 現在は共有inputの純粋機構だけ実装・検査済み。以下の画面cutoverは未実行で、全画面対応済みではない。
 
 - **KEEP**：`daily_form`のUTF-8 scalar編集とbyte-offset、`daily_overlays`の幅／clip／tailとLocus prefix候補、

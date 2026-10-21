@@ -3,203 +3,55 @@
 OCamlで作るパーソナル家計簿。記帳と支払い予定を土台に、各種残高・今日の目安・
 必要なレポートで家計のやりくりをする。人間が読める正データを大切にし、AIなしで動く普通の道具を目指す。
 
-**開発中。普段の記帳と正データはまだLOAM。元データを変更せず、まずBakhlo用の候補を試す。**
+**2026-10-21からBakhloで普段の記帳をしている。** 家計簿は`../bakhlo-data`（非公開のGitバックアップ付き）。
+LOAMは凍結し、互換の参照としてだけ使う。
 
 ## 大事にすること
 
 - 金額を整数の最小単位で正確に扱い、異なる通貨を勝手に合算しない。
 - 残高が不明なことと、明示的にゼロであることを区別する。
 - 入力ミスの訂正と、実際の返金・取消を区別する。
-- 正データは訂正済みの明細でよい。修正前は元データやバックアップで別に残せる。
-- 普段はTUI等で編集する。正データの手読み・手編集のしやすさより、長期の保存費用・
-  復元/移行の確実さと短く直接的な実装を優先する。読取・診断可能なテキストは大切にする。
+- 正データは訂正済みの明細でよい。長期の履歴はGitに任せる。
+- 普段はTUIで編集する。手編集のしやすさより、保存費用・復元の確実さと短く直接的な実装を優先する。
 
-永久の訂正ログ、LOAMの全内部構造、教科書化、複数バックエンドは必須条件にしない。
-**LOAMのユーザー向け機能・見た目・操作感と細部を、Bakhloでも体系的に再現する。**
-**予算配分・予算振替・予算消化・用途routing・Budget Windowだけは、実際に必要になるまで延期する。**
-Daily Pace、支払い予定、隣接する非予算機能は対象。以前の「現在よく使う操作だけ」や盆栽成長の除外は適用しない。
-Favaとhledgerへの出力はユーザー指定で対象外。Print／診断や他の外部形式まで一括で除外したものではない。
-予算のための先回りしたAPI・形式・hookは作らない。旧試用の予算APIとv4の削除は現状であり、永久除外の決定ではない。
-安定したID、独立した根拠・対応、原本保全と明示的な移行を守り、実装順による情報削減を避ける。
-内部実装・保存構造・証明装置までLOAMと同じにする必要はない。
+**LOAMのユーザー向け機能・見た目・操作感と細部を、Bakhloでも再現する。**
+予算配分・予算振替・予算消化・用途routing・Budget Windowだけは、実際に必要になるまで延期する。
+Favaとhledgerへの出力は対象外。内部実装・保存構造までLOAMと同じにする必要はない。
 
-## 今できること
-
-- 独立した数量・取引検査と、根拠のある残高／不明の回答。
-- 限定された普通の記帳形式のS式読取と、新しい候補ファイルへの書出し。
-- 新しい家計簿S式をBonsai_termの画面で読み、記帳・終了・再起動・編集・予定の支払いを試せる。
-  保存は記録の追記で、圧縮時に直前のファイルを`.prev`として1世代残す。明細IDは保つ（まだ試用保存）。
-- 金額・日付入力の柔軟化（PR UX-2のパーサを維持）: 全角・半角数字、正しい3桁カンマ区切り、小数通貨、グレゴリオ暦厳守の日付入力（`-`, `/`, `.` 対応）。新UIの日付移動はHome / Calendarの暦ナビ・`t`（今日）・`/`（jump）を使う。
-- 入力エラー表示と下書き保護（PR UX-1の検査境界を維持し、新UIの表記は英語）: 不備や不確定時に入力と下書きを保護し、安全に停止する。
-- 単一S式のDaily台帳で、単発予定の作成・変更・日付付き取消を画面から試せる。
-  取消済み予定は残し、支払い済み／取消済みの再支払いを拒否する。
-- `Daily_book.daily_pace`でLOAM Home `d`相当の今日の目安を計算し、英語のDaily Pace画面で設定・現在の量・予定控除を表示する。
-  対象口座・通貨・観測日・期間末は明示する。現在値・What-if・Pool編集・Trendは接続済み。
-  Trendの今日の値は期限超過の未払い予定も含めて同じCore計算を使う。過去日は全Pool座標のゼロ起点支持を要求し、現在観測だけから過去の残高を推測しない。
-  Pool未設定・不正・混合通貨、期間未設定・不正・曖昧な選択は拒否し、口座や月末を推測しない。
-  Pool編集は既存設定→入力→旧／新Review→明示保存。確認内容が収まらない端末では保存せず、Esc／Editと編集取消で下書きを保持する。
-  別Measure・不正・読めない既存Poolの置換は拒否する。`daily-pace.tsv`だけを保存し、全`boundary-presets.tsv`を保全する。赤字をゼロに丸めない。
-- Daily画面の両替、数量観測、Manage Loci／明示役割設定、Attention、限定的な精算残額管理を試せる。
-  Attention／精算の不正・読込失敗は空やゼロにせずUnavailableとして表示する。
-  保存失敗・協調writer競合では入力と旧状態を残す。これらのsidecarは全家計移行・耐久保存認定ではない。
-- Balances Currentの`c`で現Measureの表示対象を候補一覧からSpaceで選択→確認→保存できる。他Measureは保持し、明示空選択は空表示、
-  不正／読めない`balance-view.tsv`は全件への暗黙の置換をせずUnavailableとして表示する。
-- Observeは同時に確認した複数のLocus × Measure × 数量をAdd→Preview→Publishで一括保存する。
-  未指定座標の観測を保全し、重複・既存支持との衝突・古い台帳・結果不明は拒否／停止する。Preview／Edit／取消は非保存。
-- Daily台帳は単一S式のv1〜v3・v5を読み、v3（期間付き履歴があればv5）を書く。旧試用の予算APIとv4は削除済み。
-- `record` で単一通貨の支出・収入・振替を記録できる。
-- v3 Bookでは `exchange` で両替元と両替先の通貨・数量を明示した両替を記録でき、
-  受け取った現地通貨は通常の `record --measure` で使える。
-- `record` の上書き経路はまだ実データの耐久保存として未確認。元データには使わない。
-
-現在の `bakhlo 1/2/3 ordinary-quantity` Bookは訂正関係を保持する既存形式で、
-支払い予定やLOAM全体を表せる形式ではない。新しい `bakhlo-daily` は別形式で、
-訂正済み明細・予定・独立した数量根拠を扱う。`record` / `exchange` CLIとは混用しない。
-形式を変える場合は明示的に変換し、古いファイルを残す。
-
-## ビルドと試用
+## 使う
 
 ```sh
-./tools/bootstrap
-./tools/check
-./tools/opam exec -- dune exec bakhlo -- --help
-./tools/opam exec -- dune exec bakhlo -- inspect-current-sexp --summary \
-  examples/ordinary-sexp/initial.sexp wallet jpy food jpy
-./tools/opam exec -- dune exec bakhlo -- exchange --help
+./tools/household   # 家計簿を開き、終了時に変更をcommitしてpushする
+./ui --demo         # 合成データだけで試す（scratch/ui-preview）
+./ui                # LOAM比較：最後の取得世代のBakhloコピー
+./ui loam           # 同じ世代のLOAMコピー（別の端末で）
 ```
 
-[合成データの短い例](examples/ordinary-sexp/README.md)で読取・候補作成を試せる。
-`examples/ordinary-sexp/travel.sexp` はJPY→EUR両替、EUR支出、帰国時の逆両替を試すための
-合成データ。両替レートを推測したり、異なる通貨を合算したりしない。
-カード利用を外貨で記録して後日JPY決済と対応づける機能はこのPRの範囲外。
-セットアップはリポジトリ内だけで行う。
+比較コピーは`scratch/loam-comparison`内だけにあり、原本には書き込まない。
+取得し直すときは`./tools/compare refresh`、比較後は`./tools/compare clean-copies`。
+手順と制約は[AGENTS.md](AGENTS.md)の Latest-data comparison。
 
-### 日々の画面を試す
-
-AIが毎日の開発開始時とLOAM更新後の再開時に、最新のLOAM記帳内容を新しく取得し、
-同じ取得世代の隔離コピーでLOAMと最新ビルドのBakhloをAI自身が見比べる。
-その世代を開発前後の比較に使い、通常の端末寸法と必要な狭幅で、対象画面の回答・表示・選択・詳細・戻り等を読み取り操作で確認する。
-Coreの回答変更も対象とし、関係するDaily Pace／Balances等を確認する。細かな操作ごとの再取得は不要。
-AIはまず変更状況を確認し、`./tools/compare refresh`で正データを読み取りコピーしてから、
-`./ui`と`./ui loam`で比較する。ユーザーのプロセスは終了させず、原本に書き込まない。
-LOAMは開いたままでよい。コピー前後で原本が変わった場合や未対応データ等では取得を拒否し、
-前回の選択を保って「最新実データでの比較は未実施」と理由を残す。
-古いコピーや合成テストを最新実データ比較の代わりにせず、合成回帰・本人／IME受入・P7とも区別する。
-家計内容・画面キャプチャはignoredな私用領域だけに残す。定期自動取得は設けない。
-
-普段の記帳は`./tools/household`。LOAMは凍結済みで、比較は最後の取得世代を`./ui`と`./ui loam`で開く。
-取得し直すときだけ`./tools/compare refresh`。
-毎回新しい比較コピーを作るため、Bakhloや比較用LOAMでの試用編集は以前のコピーに残り、次のコピーへは合流しない。
-
-取得は正データに書き込まず、既存の私用変換試行を使って
-対応済みの訂正済み明細・現在／支払済み予定・数量根拠を新しい比較用S式へ変換する。
-日付だけの追記ではなく、過去明細の訂正・日付変更・予定支払いも検査して全体を再生成する。
-差分は前回取込（初回は既存候補）との比較として私用ファイルへ残し、前回コピーや試用編集は上書きしない。
-未対応のActual証拠や変換不備は拒否し、元の全householdとconfigは私用取得コピーに保持する。
-家計簿内の`AccountingRole`を検査し、その本文を比較用`config/accounting-roles.tsv`へ配置する。
-欠落・不正・重複、読取側で識別子が変わる前後空白は取込を拒否し、前の選択を保つ。
-元のconfigは隔離コピーにそのまま残す。既存の`ui-config`の試用設定は上書きせず、引き続き優先する。
-AIの比較終了後は`./tools/compare clean-copies`で今回のLOAM中間コピーを消し、取り込み済みBakhloデータと設定を残す。
-削除後の`./ui loam`には再取得が必要。過去の試用コピーはこの整理では削除しない。
-これは既存のignoredな私用converterに依存するローカル補助で、単独で配布可能な全家計移行・完全バックアップ・正データ切替ではない。
-
-比較コピーは`scratch/loam-comparison`内、テーマ設定は同じ場所の`ui-config`へ隔離する。
-両UIの試用保存先もコピーだけで、通常のLOAM正データには保存しない。
-LOAM側は既存の実行ファイルだけを使い、ビルド・インストールしない。
-`q`で終了。比較コピーが未取得／不正でも合成データや正データへ自動フォールバックしない。
-合成データだけを試す場合は`./ui --demo`（`scratch/ui-preview`を再利用）。
-
-隔離環境を使う。起動は既存の`tools/tui`へ委ね、依存を新規インストールしない。
-別の試用を作る場合は、合成データを新しい場所へコピーする（既存ファイルは置換しない）。
-
-```sh
-umask 077
-mkdir scratch/my-daily-trial
-./tools/tui --copy-from examples/daily-book.sexp --book scratch/my-daily-trial/book.sexp
-./tools/tui --book scratch/my-daily-trial/book.sexp
-```
-
-英語のHome / CalendarからDay / Month / Yearを`z`で切り替え、`/`で日付へ移動する。
+Home / CalendarからDay / Month / Yearを`z`で切り替え、`/`で日付へ移動する。
 `Tab`／`w`でCalendarとDetail、`Space`で階層型Commands。`r`でRecord、`a`でActual、
-`s`でScheduled、`b`でBalances、`d`で現在のDaily Paceへ進む。
-RecordはDescriptionから入力し、許可済みLocus候補と符号付きPostingを使う。
-Enter／Ctrl-SでPreviewを開き、Publish / Edit / Cancelを選ぶ。**Publishを選んでEnterだけが記帳する**。
-Esc／Cancelは下書きを保持する。起動時に台帳を開けない場合、対話的な`--book FILE`だけは
-別の未使用ファイルへの明示的な初期化を提示する。確認画面のEsc／Editは入力へ戻り、
-入力画面のEscだけが初期化を取り消す。既存sourceは変更せず、review後の確定だけで作成する。
-非TTYや`--check`は引き続きfail-closedで、空台帳への自動置換はしない。
-保存先の確認では全パスが表示される寸法を要求し、不正なUTF-8や表示順を変える双方向制御文字を含むパスは拒否する。
-[操作・対応範囲・保存の限界](tui/README.md)も参照。
+`s`でScheduled、`b`でBalances、`d`でDaily Paceへ進む。
+RecordはEnter／Ctrl-SでPreviewを開き、**Publishを選んでEnterしたときだけ記帳する**。
+Esc／Cancelは下書きを保持する。
+金額欄では`500+300`、`(500+300)/2`などの式を整数／有理数で計算する。先頭の`-`／`+`は式全体の向き。
+通貨の最小単位に収まらない結果・ゼロ除算は拒否し、下書きを保持する。
+キー・保存・復旧の詳細は[tui/README](tui/README.md)。
 
-### 保存形式
+## 開発
 
-単一S式ファイルだけを使う。Records形式と年別S式（`bakhlo-annual`）は2026-10-20に削除した（Bakhloは普段使い前のため互換性を残さない）。
-次の方針は差分更新するCore＋追記ログ＋捨てられるスナップショットで、計測は[長期保存調査の第5段階](docs/LONG_TERM_STORAGE_STUDY.ja.md)を参照。現在の正データは引き続きLOAM。
+```sh
+./tools/bootstrap          # リポジトリ内に隔離したOCaml環境（初回のみ）
+./tools/check              # Coreのビルド・テスト・アーキテクチャ検査・privacy-scan
+./tools/tui --self-check   # Bonsai TUIのビルドと合成検査
+```
 
-### UIの方針
+- [現在の状態と次の作業](docs/HANDOFF.md)、[作業規則](AGENTS.md)
+- [構成](docs/ARCHITECTURE.md)、[意味の契約](docs/SEMANTIC_CONTRACT.md)、[開発手順](docs/DEVELOPMENT.md)
+- [UI方針](docs/UI_DIRECTION.ja.md)、[画面別の差分台帳](docs/LOAM_UI_GAP_LEDGER.ja.md)、
+  [普段使い5領域の差分](docs/CUTOVER_DIFF_LEDGER.ja.md)、[LOAM機能の棚卸し](docs/CUTOVER_CHECKLIST.ja.md)
+- [検証記録](docs/VERIFICATION.md)（2026-10-20より前は`90a5867`の同じファイル）
 
-LOAMの機能・見た目・使い勝手を、予算だけを延期してBakhloでも再現する。Calendar Homeの
-Day / Month / Year、盆栽の表示・成長、階層型Commands、記帳・明細・予定・残高・Daily Pace・
-Reports等について、入口だけでなく画面内操作、確認・取消・親画面への復帰と細部まで対象とする。
-新UIはまずLOAMと同じ英語表記で作る。Bakhlo独自の日本語化は未定だが、
-LOAMのlocale切替等の実動作が互換上必要なら棚卸し・照合する。日本語切替を実装済みとは扱わない。
-Bonsaiを先行し、後からNotty版を作る選択肢も残す。共通部品化は目的にせず、
-LOAMで蓄積した共通化のリサーチと既存の利用元に沿って必要な範囲を判断する。
-
-控えめな配色、細い丸角枠、整列と余白、フォーカスだけの強調、下部の通知と操作も揃える。
-狭い端末でも選択対象と正確な金額を読めるようにする。英語UIの土台は接続したが、
-LOAMのrole-aware収支カレンダー、完全なSeries管理、履歴Trend、広い非予算Reportsと日本語切替は未実装。
-原額・Merchantと、実取引への配分を持つ完全な精算対応も未接続。
-具体的な対象と規則は[UI方針](docs/UI_DIRECTION.ja.md)を参照。
-画面別の差分・進捗・分担は[UI差分・並行依頼台帳](docs/LOAM_UI_GAP_LEDGER.ja.md)だけで管理する。
-[順序付き受入計画](tasks/todo.md)に沿い、機能・操作・見た目・検証を分け、同じcontroller／共通部品の同時編集を避ける。
-テーマは初期値のTerminal（端末の明暗・配色に追従）とオリジナルのBakhlo Light／Darkを
-Space → Commands → Themeで直接切り替える（Household setup内からも開ける）。↑/↓でプレビュー、Escで取消、
-EnterでUI設定へ保存し次回起動でも復元する。台帳データは変更しない。
-
-Bakhloはまだ実運用前なので、旧UIとの互換性を維持するための仕組みは残さず整理できる。
-延期中の予算機能の先行実装、新しい会計上の仮定、LOAMの正データ変更、普段の記帳先の切替は含まない。
-
-## コードを見る場所
-
-- `lib/`：識別子・金額・取引の小さな型。
-- `application/`：検査と数量の問い合わせ。
-- `sexp/`：既存Bookと、新しい `Daily_book` の純粋な読取・更新。
-- `tui/`：Bonsai_termの英語UI、共有の操作・表示と、明示的なファイル入出力。
-- `cli/`、`presentation/`、`bin/`：引数・表示・入出力。
-- `loam_read/`：限定された読み取り専用LOAM入力。完全な移行アダプタではない。
-- `test/`：既存のOCamlテスト。
-
-全体の依存・変更owner・ビルド実測と改善判断は
-[アーキテクチャ監査](docs/archive/ARCHITECTURE_AUDIT_2026_10.ja.md)を参照する。
-これは監査時点の地図であり、画面進捗は既存のUI差分台帳を正とする。
-
-## 次の作業と参考
-
-まず[現在の引継ぎ](docs/HANDOFF.md)を見る。
-[機能・保証台帳](docs/CAPABILITY_LEDGER.ja.md)では、LOAMで蓄積した会計上の知見と、
-Bakhloのコア実装・Daily保存・TUI接続・運用認定を別々に確認できる。
-[LOAMの機能棚卸し・乗り換え判定表](docs/CUTOVER_CHECKLIST.ja.md)で、
-互換対象と切替前に必要な条件を確認する。現在の利用頻度だけで非予算機能を除外しない。
-[順序付き受入計画](tasks/todo.md)で一連の生活操作を進め、[UI差分台帳](docs/LOAM_UI_GAP_LEDGER.ja.md)で残る不足を管理する。
-[LOAM互換の機能・見た目と使い勝手](docs/UI_DIRECTION.ja.md)は、英語UIの土台が接続した段階。
-実装・self-check・LOAM対照実行・人間の実機受入・保存／再起動／故障時の保証を区別し、全面互換や運用認定と混同しない。
-保存は単一S式のみ。年別S式とRecordsは削除済みで、次の方針はAGENTS.mdの Storage direction を正とする。
-[論理設計](docs/CANONICAL_DATA_DESIGN.ja.md)は意味・保持境界、
-[長期保存調査](docs/LONG_TERM_STORAGE_STUDY.ja.md)は既存費用を所有する。
-[Irmin Phase 1](docs/archive/IRMIN_STORAGE_RESEARCH.ja.md)・[Phase 2](docs/archive/IRMIN_PHASE2_RESULTS.ja.md)は保存済み。
-HEAD途中書込み故障とdurable Saved未確立のため本体導入を保留。SQLiteは当面使わない。IrminとGitの実験成果は保全する。
-金額欄では `500+300`、`(500+300)/2` などの式を入力できる。全角数字・演算子にも対応し、
-整数／有理数で計算する。通貨の最小単位に収まらない結果・ゼロ除算・非正値は拒否し、下書きを保持する。
-符号付きPostingでは先頭の `-`／`+` が式全体の向きに作用する（`-500+300` は `-(500+300)`）。
-式の途中の単項演算子は使わない。
-詳細は[電卓入力設計メモ](docs/archive/UX3_CALCULATOR_INPUT_DESIGN.ja.md)。LOAMとの実画面対照は未了。
-家計正データは引き続きLOAMが管理し、本番データは変更しない。
-
-- [意味の契約](docs/SEMANTIC_CONTRACT.md)
-- [開発手順](docs/DEVELOPMENT.md)
-- [現在の実装・実験の設計資料](docs/ARCHITECTURE.md)
-- [検証記録と限界](docs/VERIFICATION.md)
-- [電卓入力設計メモ (PR UX-3候補)](docs/archive/UX3_CALCULATOR_INPUT_DESIGN.ja.md)
-
-実データ・秘密情報はGitに入れない。試作の成功だけで本番移行や公開はしない。
+実データ・秘密情報はGitに入れない（`./tools/privacy-scan`）。

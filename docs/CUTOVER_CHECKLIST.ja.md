@@ -164,13 +164,12 @@ Attention／Settlement／Exchange → 残るReports／設定／対象内の出�
 
 ## 根拠の入口
 
-- Bakhlo：[`Daily_book API`](../sexp/daily_book.mli)、[`操作`](../tui/daily_interaction.ml)、
-  [`workspace`](../tui/ui_workspace.ml)、[`保存`](../tui/daily_file.ml)、
-  [`回帰`](../tui/daily_interaction_checks.ml)、[`TUI guide`](../tui/README.md)。
+- Bakhlo：[`Daily_book API`](../sexp/daily_book.mli)、[`Shell`](../tui/shell)、
+  [`保存`](../store/daily_file.ml)、[`回帰`](../tui/scenarios)、[`TUI guide`](../tui/README.md)。
 - LOAM：[`TUI契約`](../../loam/docs/TUI.md)、[`非予算UI進捗`](../../loam/docs/TUI_NON_BUDGET_WORKLIST.md)、
   [`Commands`](../../loam/Loam/Tui/HomeCommandPalette.lean)、
   [`Daily Pace設定`](../../loam/Loam/Config/DailyPaceConfig.lean)、
   [`期間設定`](../../loam/Loam/Config/BoundaryPresetConfig.lean)、
   [`What-if`](../../loam/Loam/Tui/DailyPaceWhatIf.lean)。
-- 会計上の保持境界と運用未認定は[`機能・保証台帳`](CAPABILITY_LEDGER.ja.md)、
+- 会計上の保持境界と運用未認定は[`機能・保証台帳`](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/CAPABILITY_LEDGER.ja.md)、
   [`意味の契約`](SEMANTIC_CONTRACT.md)、[`現在の引継ぎ`](HANDOFF.md)を参照する。

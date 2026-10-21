@@ -51,7 +51,7 @@
 - [x] 同一取得世代（`capture-1792510023-32503-293b919a`）のfresh paired comparisonを120×36と80×24で実施。サジェスト件数・順序、雛形提案、↓移動、Preview遷移・内訳一致を確認。原本不変、`clean-copies`完了。
 - [x] クイック入力をLOAMの枠付きモーダル（枠内フッター）へ揃える（2026-10-21）。合成実画面で80×24／120×36の枠と48×14／32×9の縮退、Tab／Esc・日本語下書き保持を確認。警告が隠れる場合は枠を外し、警告を優先する。[証拠](../docs/VERIFICATION.md#record-quick-capture-framed-modal-2026-10-21)。
 - [x] 枠付きモーダルをmainへcommit／pushし、同一SHAのCore／TUI CIを確認（`810abc9`、両方success）。
-- [x] 比較環境での`accounting-roles.tsv`自動配置（2026-10-21）。家計簿内の必須AccountingRoleをそのまま配置し、欠落・不正・重複・識別子変形は旧CURRENTを保って拒否。合成取込→Quick capture支払側置換→Preview、コピー整理後coldを確認。[証拠](../docs/VERIFICATION.md#comparison-accounting-role-capture-2026-10-21)。
+- [x] 比較環境での`accounting-roles.tsv`自動配置（2026-10-21）。家計簿内の必須AccountingRoleをそのまま配置し、欠落・不正・重複・識別子変形は旧CURRENTを保って拒否。合成取込→Quick capture支払側置換→Preview、コピー整理後coldを確認。[証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#comparison-accounting-role-capture-2026-10-21)。
 - [x] AccountingRole自動配置をmainへcommit／pushし、同一SHAのCore／TUI CIを確認（`97d8dbb`、両方success、workflow_dispatch）。比較取込そのものはローカル合成self-checkで検証。
 
 ## Daily Paceグラフで選択日の垂直ガイド線を表示（2026-10-20）
@@ -215,7 +215,7 @@ LOAMの既存ソース・binaryを読み取り比較し、計算・支持条件�
 レビュー：期間・今日の支出／差、広幅の親位置保持、狭幅Historyと操作案内、Currentの列・表示名・小数通貨・詳細往復を改善。
 Core／arch／35 suitesと両binaryの4寸法、3種のcold新規プロセスで合成確認。未知値・全量・gateは保持。
 下書き修正 `1c34695` と表示変更 `f5ac74a` はmainとmatching Core/TUI CI成功。表示の全面一致・本人受入は未了。
-詳細は[検証記録](../docs/VERIFICATION.md#daily-pace--balances-interaction-parity-pass-2026-10-19)。
+詳細は[検証記録](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#daily-pace--balances-interaction-parity-pass-2026-10-19)。
 
 ## #42 構造再構築（main統合済み・以下は移植途中の履歴）
 
@@ -309,7 +309,7 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
 ### CIによる検証の段階（2026-10-18）
 
 - **段階1、合成self-check合格**：main pushでCore（通常OCaml 5.3）と、対象TUI/Coreソース変更でOxCaml + Bonsai_term native build／`./tools/tui --self-check`を実行する。Core run `39092086513` とTUI run `39094690207`でそれぞれ成功。固定registry revisionとBonsai_term sourceを維持し、Macの私用switchは変更しない。固定依存キャッシュは `4fe9f1d` で追加したが、CI run `39096625299`でcache保存は確認済み。再利用・速度改善は未確認。キャッシュhitでもTUI本体をビルドしself-checkを毎回走らせる。
-- **段階2、部分接続・限定PTY検査済み**：`tools/ci_tui_pty.py` が合成fixtureで起動、キー、Balances、resize（120×36・80×24・48×14・32×9）、Ctrl-Q、authority bytes不変を自動検査する。run `39098165655`では4ケース全件PASS。ただし後続pushによってrun全体はcancelled、その後のrun `39098268276` は全ジョブ成功。新規プロセスによるcold再読込と同じexact残高表示も追加し、run `39098514176` で4寸法すべてPASS。依存cacheのexact hitも確認。**Record Preview狭小拒否／取消（限定PTY）**：run `39099170205`で、80×24の合成2 Postingの下書き→Preview→32×9 Publish拒否→80×24へ戻りEsc非保存→同じプロセスで下書き再開→終了、authority bytes不変を検証済み（[証拠](../docs/VERIFICATION.md#native-pty-record-preview-refusal-and-non-writing-cancellation-2026-10-18)）。**未接続**：Actual／Scheduledのより広いPTY操作、Previewの全行確認gate／正常Publish→cold再読込、保存失敗・結果不明、他通貨、実IME、LOAM binary実行一致。画面描画snapshotのみで受入としない。
+- **段階2、部分接続・限定PTY検査済み**：`tools/ci_tui_pty.py` が合成fixtureで起動、キー、Balances、resize（120×36・80×24・48×14・32×9）、Ctrl-Q、authority bytes不変を自動検査する。run `39098165655`では4ケース全件PASS。ただし後続pushによってrun全体はcancelled、その後のrun `39098268276` は全ジョブ成功。新規プロセスによるcold再読込と同じexact残高表示も追加し、run `39098514176` で4寸法すべてPASS。依存cacheのexact hitも確認。**Record Preview狭小拒否／取消（限定PTY）**：run `39099170205`で、80×24の合成2 Postingの下書き→Preview→32×9 Publish拒否→80×24へ戻りEsc非保存→同じプロセスで下書き再開→終了、authority bytes不変を検証済み（[証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#native-pty-record-preview-refusal-and-non-writing-cancellation-2026-10-18)）。**未接続**：Actual／Scheduledのより広いPTY操作、Previewの全行確認gate／正常Publish→cold再読込、保存失敗・結果不明、他通貨、実IME、LOAM binary実行一致。画面描画snapshotのみで受入としない。
 - **段階3、別受入**：Mac実機IME／フォント／手触り、LOAM同一意味fixture・既存binaryとの比較、保存失敗／P7・実運用資格はCI greenと分ける。CI runnerではLOAM本番／私用台帳を取得しない。
 
 ### 全slice共通の受入証拠
@@ -339,7 +339,7 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
    正常・空・不明・拒否・訂正・返金・複数通貨・保存失敗を再現できる比較前状態を保全する。
    元データや私用取得内容をfixture・公開記録へ移さない。Home／Commands／各入口から
    LOAMのユーザー向け機能を棚卸しし、以下の列挙にない非予算項目もUI差分台帳へ関連付ける。
-   2026-10-16: 現行ソース資料からLOAM `bb208173`／Bakhlo `6b676c5`の影響点をUI-01〜34へ反映し、absent-rootを80×24で限定比較した。別の新規合成rootsでfirst-run、wallet／food admission、JPY scale 0のRecord `paired snack`（wallet -37／food +37）、Preview／Publish、Actual表示とcold reopenを両UIで実行（[証拠](../docs/VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)）。これは単一の正常記帳ケースのみ。空／不明／拒否／訂正／返金／複数通貨／保存失敗fixture、LOAM source/binary対応、初期化Escape対照は未確認。全面受入は未了。
+   2026-10-16: 現行ソース資料からLOAM `bb208173`／Bakhlo `6b676c5`の影響点をUI-01〜34へ反映し、absent-rootを80×24で限定比較した。別の新規合成rootsでfirst-run、wallet／food admission、JPY scale 0のRecord `paired snack`（wallet -37／food +37）、Preview／Publish、Actual表示とcold reopenを両UIで実行（[証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)）。これは単一の正常記帳ケースのみ。空／不明／拒否／訂正／返金／複数通貨／保存失敗fixture、LOAM source/binary対応、初期化Escape対照は未確認。全面受入は未了。
    UI-34 first-run実装を接続。interactive `--book FILE`のmissing sourceでは選択pathを初期destination、
    unreadable existing sourceではblank destinationにする。Measure identifier／scale 0–9を検査し、
    出力先・Measure・scale・履歴等を作らない意味をreview、2段目Enterだけが確定する。
@@ -350,34 +350,34 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
    jpy scale 2をreview→20×5 Enter拒否→80×24で作成→Home起動、`--check` cold reopenを確認。
    別PTYでunreadable sourceはblank destination、Escapeで非保存・source hash維持。非TTY missing
    `--book`は既存拒否を維持。既存destination拒否・bytes保全はself-checkで確認。
-   fresh-rootの単一Record対照を実施済み。LOAM初期化の広い受入、人間のIME受入、P7／運用認定は未了。[UI-34証拠](../docs/VERIFICATION.md#first-run-empty-book-creation)／[paired証拠](../docs/VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)。
+   fresh-rootの単一Record対照を実施済み。LOAM初期化の広い受入、人間のIME受入、P7／運用認定は未了。[UI-34証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#first-run-empty-book-creation)／[paired証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)。
    2026-10-17: 初期化reviewのEscがBakhloだけ即終了していた差を修正。LOAMと同じく入力画面へ戻り、
    path／Measure／scaleを保持する。Editボタンも入力へ戻り、入力画面のEscのみ取消。合成missing-rootを
    80×24で両UI実行し、取消後のroot非存在とBakhlo再review非保存を確認。未読rootの作成／失敗経路、
-   IME・他寸法の対照受入は未了（[証拠](../docs/VERIFICATION.md#paired-first-run-review-cancellation-2026-10-17)）。
+   IME・他寸法の対照受入は未了（[証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#paired-first-run-review-cancellation-2026-10-17)）。
    既存の読めない合成rootでは、両UIとも新規destinationを空にして開始し、別の未使用先のreview→Esc→
    入力復帰→Esc終了で元bytes不変・新規先なし。元rootをdestinationにするとLOAMはreview後、
    Bakhloはreview前に既存先を拒否し、双方元bytes不変。80×24限定、成功createや故障・IMEは未確認
-   （[証拠](../docs/VERIFICATION.md#paired-existing-unreadable-root-first-run-2026-10-17)）。
+   （[証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#paired-existing-unreadable-root-first-run-2026-10-17)）。
    別の既存unreadable合成rootから両UIとも未使用先のreview非保存→明示create→Home→cold reopenに成功。
    元入力・新規authorityのhash不変、Bakhlo新規fileは0600。80×24限定で、故障・他寸法・IME・
-   初回設定全体は未受入（[証拠](../docs/VERIFICATION.md#paired-unreadable-source-creation-and-cold-reopen-2026-10-17)）。
+   初回設定全体は未受入（[証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#paired-unreadable-source-creation-and-cold-reopen-2026-10-17)）。
    32×9で両UIの初期化を取消し、destination非存在。48×14ではBakhloのreviewが保存先を`… more`に
    隠したまま作成できた反例を発見し、描画viewport全行の可視性を確定gateへ反映。修正版で48×14
    非保存拒否→80×24全文確認後に作成→48×14 cold reopen、LOAMは48×14 reviewから作成→cold reopen。
    LOAMのreviewは保存先を省略表示するため、その安全性を一致条件として採用しない。
    `./tools/tui --self-check`／`./tools/check`成功。32×9でのLOAM確定、故障／IME等は未確認
-   （[証拠](../docs/VERIFICATION.md#paired-narrow-first-run-and-hidden-destination-gate-2026-10-17)）。
+   （[証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#paired-narrow-first-run-and-hidden-destination-gate-2026-10-17)）。
 2. [ ] **共有機構を利用元横断で移行・受入する。** 責務・API・全利用元・受入条件は
-   [TUI共有部品の責務設計と移行順序](../docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md) に従う。設計確定のみで実装済みにはしない。
+   [TUI共有部品の責務設計と移行順序](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md) に従う。設計確定のみで実装済みにはしない。
    - 共有input／再帰Input metadataの純粋機構は実装・境界検査・native幅の直接smoke済み。既存Daily_form・tail・native widthを再利用。
    - Ui_formとstyled frame、Modal_form・Jump・Search overlay・Reversal Dateと直接利用元checksは移行済み。
      cursor_offsetとReversalの独立caret計算を削除。Core/native検査と合成tmux成功。LOAM対照・本人受入は未了。
    - RecordのColumns＋recursive caretを同時切替し、Scheduledの同じ入力表示・UTF-8文字移動・focus-following・notice予約・均一幅を接続済み。Sch.cursor_positionを削除し、renderer matrix（8寸法×3テーマ）へScheduled_createを追加・合格。
    - list/detailは既存Ui_panelを維持し、Actualのterminal_geometryをpanel_geometryへ統一、wide tx_heightのpage_size容量整合、
      controller経由のdrill-down/back復帰でAct.returned_from_detailを接続。復帰時の別browser上書きと詳細focus／scroll消失を修正し、限定回帰・合成PTYを確認。横断受入は未了。
-   2026-10-18 #38仕上げ：controllerをState（状態／遷移／保存結果）、Context（問い合わせ／form／共通寸法）、入力dispatch、View（描画／配置）へ4分離し、既存挙動を維持。同じMacの前後実測では表示だけの再コンパイルが6→3 module、共有Contextは6→8、既存leafは7→10であり、全体のcold／warm／self-check高速化は未立証。詳細・読取入口は[検証記録](../docs/VERIFICATION.md#issue-38-final-audit-and-same-mac-development-measurements)。checks分割は費用対効果を判断して[#39](https://github.com/shumoku88-bit/bakhlo/issues/39)へ延期し、Scheduledの機能開発を待たせない。#38原条件の「複数の画面固有ownerへ抽出」は未達なのでopenを維持し、4分離を画面別分離済みとは扱わない。実装SHA `f80f39f79667c39c94453d287459109e57f169fb` のCore run `39107229334`／Bonsai TUI run `39107229537`はいずれもcompleted/success、native self-checkと4寸法PTY／Record Preview拒否を含む。証跡は[同SHAのCI検証欄](../docs/VERIFICATION.md#matching-commit-github-qualification)。
-   2026-10-17: paired Actual search at 80×24 returned one distinct record each for `paired` and `other`, zero for `zzzz`, and both after Escape. In the rebuilt Bakhlo binary, active `/paired` survived resize to 48×14 with full `+37 jpy`; `/other` at 48×14 showed full `+11 jpy`, and Escape plus restore to 80×24 showed both records. The 32×9 Description-only result is from the previous binary, not rerun after the fix. Authority hashes were unchanged ([evidence](../docs/VERIFICATION.md#paired-actual-search-2026-10-17)). Search/amount checks remain bounded, not full consumer acceptance.
+   2026-10-18 #38仕上げ：controllerをState（状態／遷移／保存結果）、Context（問い合わせ／form／共通寸法）、入力dispatch、View（描画／配置）へ4分離し、既存挙動を維持。同じMacの前後実測では表示だけの再コンパイルが6→3 module、共有Contextは6→8、既存leafは7→10であり、全体のcold／warm／self-check高速化は未立証。詳細・読取入口は[検証記録](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#issue-38-final-audit-and-same-mac-development-measurements)。checks分割は費用対効果を判断して[#39](https://github.com/shumoku88-bit/bakhlo/issues/39)へ延期し、Scheduledの機能開発を待たせない。#38原条件の「複数の画面固有ownerへ抽出」は未達なのでopenを維持し、4分離を画面別分離済みとは扱わない。実装SHA `f80f39f79667c39c94453d287459109e57f169fb` のCore run `39107229334`／Bonsai TUI run `39107229537`はいずれもcompleted/success、native self-checkと4寸法PTY／Record Preview拒否を含む。証跡は[同SHAのCI検証欄](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#matching-commit-github-qualification)。
+   2026-10-17: paired Actual search at 80×24 returned one distinct record each for `paired` and `other`, zero for `zzzz`, and both after Escape. In the rebuilt Bakhlo binary, active `/paired` survived resize to 48×14 with full `+37 jpy`; `/other` at 48×14 showed full `+11 jpy`, and Escape plus restore to 80×24 showed both records. The 32×9 Description-only result is from the previous binary, not rerun after the fix. Authority hashes were unchanged ([evidence](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#paired-actual-search-2026-10-17)). Search/amount checks remain bounded, not full consumer acceptance.
    Actual長文検索のG-2限定成功は保持するが、G-1/G-3/G-4や全画面を完了扱いしない。
    幅0／1、長文・CJK、通知、通常／compact、resize、取消でpaintとcaret・保持値・draftを確認する。
    sessionごとのreview／保存gateを維持し、実装・対照実行・本人受入を別々に記録する。IMEは実機で別途受入する。
@@ -400,15 +400,15 @@ LOAMが正データと普段の記帳先のまま。原本や以前の私用候�
 6. [ ] **Balances／Observeを揃える。** 初期表示・Current／Accounting・履歴、数量の根拠と
    不明表示、同時観測画像・複数座標・既存支持の扱い、独立確認と保存後の再照会を照合する。
    正確なゼロ、存在のみ既知、根拠なし、失敗を区別する。Locus／role設定に必要な意味も接続する。
-   2026-10-18: Daily Paceの表示sliceに続き、Balancesの初期座標／狭幅金額消失を修正。4寸法の合成対照・unknown詳細復帰・cold reopenを実行。広い受入は未了（[証拠](../docs/VERIFICATION.md#pace-history-and-narrow-balances-paired-2026-10-18)、画面別残差はUI-24）。
-   **UI-24-B2（表示口座設定・複数座標観測）**：候補pickerの選択／Review／取消／現Measure保存と他Measure保全、ObserveのAdd→Preview→Publish／Editを接続。合成Core/native検査、既存LOAM binary対照、保存後cold再読込、重複／支持衝突／狭小／競合拒否と実保存失敗→結果不明→再送停止を確認（[証拠](../docs/VERIFICATION.md#ui-24-b2-balances-picker-and-grouped-observation-2026-10-18)）。この限定sliceの実装・検証であり、Balances全体・本人受入の完了ではない。
-   **UI-24-V3＋responsive sprint**：80列上下配置と不正設定Print拒否をローカルCore/native self-checkと4寸法PTYで確認。Current／Accountingの座標保持、未知／巨大数量の通貨表示、End→Up／resize、全文スクロールできるPrintの行／バイト上限とEnter取消を追加。Observeの2座標Preview→狭小拒否→Edit→Publish→cold、表示口座のReview取消／保存→coldも合成確認。本人受入・完全なAccounting／外部出力・roles保存安全境界は未了（[証拠](../docs/VERIFICATION.md#daily-pace-and-balances-responsive-completion-sprint-2026-10-18)）。
+   2026-10-18: Daily Paceの表示sliceに続き、Balancesの初期座標／狭幅金額消失を修正。4寸法の合成対照・unknown詳細復帰・cold reopenを実行。広い受入は未了（[証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#pace-history-and-narrow-balances-paired-2026-10-18)、画面別残差はUI-24）。
+   **UI-24-B2（表示口座設定・複数座標観測）**：候補pickerの選択／Review／取消／現Measure保存と他Measure保全、ObserveのAdd→Preview→Publish／Editを接続。合成Core/native検査、既存LOAM binary対照、保存後cold再読込、重複／支持衝突／狭小／競合拒否と実保存失敗→結果不明→再送停止を確認（[証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#ui-24-b2-balances-picker-and-grouped-observation-2026-10-18)）。この限定sliceの実装・検証であり、Balances全体・本人受入の完了ではない。
+   **UI-24-V3＋responsive sprint**：80列上下配置と不正設定Print拒否をローカルCore/native self-checkと4寸法PTYで確認。Current／Accountingの座標保持、未知／巨大数量の通貨表示、End→Up／resize、全文スクロールできるPrintの行／バイト上限とEnter取消を追加。Observeの2座標Preview→狭小拒否→Edit→Publish→cold、表示口座のReview取消／保存→coldも合成確認。本人受入・完全なAccounting／外部出力・roles保存安全境界は未了（[証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#daily-pace-and-balances-responsive-completion-sprint-2026-10-18)）。
    **UI-24一覧・詳細・key guide（2026-10-21、`omp/balances-ui24`）**：CurrentのID、詳細順序とmuted／indent、選択印・位置、80列上下／広幅左右と共通geometryのpage・scrollをLOAMソースに揃えた。レビュー後の誤読防止判断に従い、一覧・詳細・Printはraw Quantaから既存Measureスケール適用額へ戻し、見出しをAmountに統一（正数の「+」なし）。合成回帰はscaled EURとraw表示の拒否を要求。通貨優先のoverflowと追加操作キーも意図的な差。native／最新実データ対照は統合担当へ（[証拠](../docs/VERIFICATION.md#balances-current-list-detail-and-key-guide-2026-10-21)）。全体の受入項目は閉じない。
 7. [ ] **Daily Pace／Trendを揃える。** 明示Pool・通貨・観測日・期間、現在値／What-if・負数、
    Pool／期間設定と履歴Trendの10d／30d／Month／Cycle／Previous Cycle、履歴支持・推移を照合する。
    予定控除・日数・整数演算、欠損／曖昧条件の拒否、設定取消・保存・再起動と既存preset保全を含める。
    Daily Paceを予算扱いして延期せず、月末や名前から条件を推測しない。
-   2026-10-18: History／日別内訳／上下配置を接続し、current-onlyの過去日推測を拒否。ゼロ起点支持あり／なしの合成対照と4寸法・cold reopenを確認。全面の履歴／実機受入は未了（[証拠](../docs/VERIFICATION.md#pace-history-and-narrow-balances-paired-2026-10-18)、残差はUI-33）。
+   2026-10-18: History／日別内訳／上下配置を接続し、current-onlyの過去日推測を拒否。ゼロ起点支持あり／なしの合成対照と4寸法・cold reopenを確認。全面の履歴／実機受入は未了（[証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#pace-history-and-narrow-balances-paired-2026-10-18)、残差はUI-33）。
    responsive sprint：Today表示、短い金額内訳、全幅詳細、選択日の期間切替保持、可視容量に沿うページ／端／resizeを接続・合成4寸法PTY確認。What-ifの金額・根拠を整列し非保存／負数計算を維持。LOAM既存binaryとのcurrent-only 80×24、zero-origin支持120×36の回答一致を確認。全面の履歴・IME／本人受入は閉じない。
    **未完了を維持**：dated bounded-history支持、支払済み／取消済み予定を含む過去Paceは今回未検証。UI-24-B2の成功で履歴受入を閉じない。
 8. [ ] **Attention／Settlement／Exchangeを揃える。** Attentionの期限の意味・追加／解決／撤回、

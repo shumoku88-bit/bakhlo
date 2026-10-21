@@ -1,15 +1,16 @@
 # Contributing
 
-Bakhlo is unreleased and non-operational. Read README and the current
+Bakhlo is unreleased; its maintainer records the household with it daily since
+2026-10-21. Read README and the current
 [handoff](docs/HANDOFF.md); consult relevant semantic/interface contracts for the task.
 Ordinary tests use synthetic data; separately approved private candidate work stays ignored.
-[AGENTS.md](AGENTS.md) also applies to pits. No prototype compatibility promise exists.
+[AGENTS.md](AGENTS.md) also applies to pits. Book or config format changes need an approved migration (AGENTS.md).
 
 ## A useful change
 
 - Names a concrete consumer, observable acceptance criterion and invariant owner.
 - Uses existing tests and independent expectations; adds tools only for a concrete gap.
-- Does not require a new task document, formal model or qualification campaign per change.
+- Does not require a new task document or qualification campaign per change.
 - Removes obsolete code/docs when appropriate; never weakens semantics just to cut lines.
 - Keeps interfaces, verification and handoff current without copying inventories.
 - Is small enough to review and qualify independently.
@@ -20,9 +21,9 @@ cutover require their own decisions. See [accepted dependency budget](docs/adr/0
 
 ## Functional core and explicit edges
 
-Domain/Application compute immutable values. CLI decodes inputs; Presentation renders
-semantic answers; `bin/main.ml` owns actual reads, streams and exit. No hidden clock,
-filesystem, randomness, global business state or reverse UI dependency in the engine.
+Domain/Application/S-expression code computes immutable values; `store/` owns file I/O
+and `tui/shell` the remaining effects. No hidden clock, filesystem, randomness, global
+business state or reverse UI dependency in the engine.
 `Result.bind` sequences values, not effects; `Printf.sprintf` is formatting, not output.
 
 Do not ban every loop/ref or disguise I/O as an ornamental monad. Local mutation needs
@@ -48,9 +49,10 @@ The host qualification is macOS x86_64, not the entire target matrix.
 
 Benchmarks name workload/environment and excluded costs. Formal results name statement,
 assumptions, trust boundary and OCaml correspondence gap. Missing tools or unrun checks
-are limitations, not successes. Production checks never require Lean.
+are limitations, not successes.
 
 Review exact changes and stage only intended checked files. Do not include another
-person's unchecked work. Local commits are allowed; no push or release without authority. Disclose AI assistance honestly; do not invent authorship,
+person's unchecked work. Pushing follows AGENTS.md; no release without authority.
+Disclose AI assistance honestly; do not invent authorship,
 review, experiment results, affiliation or superiority. Licensing is unresolved: resolve
 ownership/attribution and package metadata before source copying or public release.
