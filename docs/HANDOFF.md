@@ -8,7 +8,9 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-10-21)
 
-- Bakhlo is a trial: LOAM remains the operational authority; no cutover is authorized.
+- Cut over on 2026-10-21 (user decision): the household is `../bakhlo-data`, recorded
+  only by the user through the TUI (`./tools/tui --book ../bakhlo-data/book.sexp`).
+  `../loam-data` is the frozen LOAM record. P7 and power loss remain unqualified.
 - Goal: reproduce LOAM's non-budget functionality and interaction (see AGENTS.md
   Product). English Bonsai TUI: Calendar Home (Day/Month/Year), hierarchical Commands,
   Record/Preview, Actual, Scheduled (Series Calendar, Months, List, create/edit/cancel/

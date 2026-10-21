@@ -8,8 +8,9 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 
 ## Principles (user decision: 2026-10-20)
 
-- Bakhlo is not in daily use. Destructive changes to Bakhlo's own code and formats
-  are allowed; prefer deleting obsolete paths to keeping compatibility.
+- Bakhlo is in daily use since the 2026-10-21 cutover. Code may still change freely and
+  obsolete paths are deleted, but a book or config format change needs an explicit,
+  user-approved migration of `../bakhlo-data` (no silent rewrite on load).
 - LOAM is a behavioral reference, not a source of bugs, unsafe behavior or poor UX
   to reproduce. Keep an intentional safer or more correct difference when justified;
   document and test the difference instead of silently calling it parity.
@@ -43,6 +44,8 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 
 ## Latest-data comparison (user decision: 2026-10-19)
 
+- Since the 2026-10-21 cutover LOAM is frozen, so its last generation stays the parity
+  reference; no daily refresh is needed.
 - At a day's start, or after ordinary LOAM data changes, run `./tools/compare refresh`
   (read-only copy of the household/config; LOAM may stay open; changed input refuses
   and keeps the previous CURRENT). Use that one generation for before/after checks.
@@ -97,9 +100,11 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 
 ## Data and authority
 
-- LOAM remains the operational authority. Never write, recover, migrate or synchronize
-  its originals, switch ordinary recording, or perform a cutover without explicit
-  approval. Approved: read-only copies of `household.loam` and its config, fresh
+- Cutover (user decision 2026-10-21): the operational household is `../bakhlo-data`
+  (imported once by `./tools/import-loam`; see its `LOAM-RECORD.md`). The AI never
+  writes it; only the user records through the TUI. AI checks use copies in ignored
+  scratch. `../loam-data` is the frozen LOAM record: never write, recover or
+  synchronize it. Approved: read-only copies of `household.loam` and its config, fresh
   private comparison copies, and bounded read-only inventory of retained operation
   evidence. Keep private data and counts in ignored scratch only; never in fixtures,
   commits or public output. User decision (2026-10-20): no private household text

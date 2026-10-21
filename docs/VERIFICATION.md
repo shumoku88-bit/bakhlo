@@ -5801,3 +5801,16 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
   path changed; the local self-check passed).
 - `./tools/check` and `./tools/tui --self-check` passed. The real cutover, physical
   terminal/IME and P7 were **not executed**.
+
+## Cutover (2026-10-21)
+
+- User decision: cut over today; household under the `moko` directory. LOAM was closed and
+  its data directory had no uncommitted change; the destination did not exist.
+- `./tools/import-loam ../loam-data ../bakhlo-data` succeeded. LOAM household, config,
+  `attention.loam`, `.git/index` and HEAD were unchanged afterwards.
+- `book.sexp` equals the comparison capture of the same generation. On a copy of the new
+  household, read-only 120×36 against the LOAM copy of that generation: identical number sets
+  on Daily Pace, Balances and Scheduled; Attention the same open count and due dates (only
+  today's date and LOAM's position counter differ in display). The new household's files
+  were unchanged by the check; AI sessions closed; `clean-copies` passed.
+- Not executed: systematic per-screen user acceptance, physical IME, P7 and power loss.
