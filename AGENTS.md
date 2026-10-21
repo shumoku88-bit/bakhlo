@@ -73,6 +73,11 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   Bonsai_term was replaced; Bonsai is explored outside Bakhlo), quiet colors, stable
   geometry, preserved drafts/selection, visible safety errors. Share UI mechanics only
   when current callers justify it (`tui/README.md`).
+- Reports (user decision 2026-10-22): improve on LOAM rather than copy it, keeping
+  what LOAM did well (Trend look, I&E summary with Scheduled split, period compare).
+  Order reports by what the household's data shows matters; default to the configured
+  cycle. A Locus with bounded history must still be reported (unknown only before its
+  start), never refuse the whole report.
 - Exact quantities, distinct currencies, unknown versus zero, real refunds and
   cancellations matter. Never guess facts, round amounts, trim identities or skip
   unsupported input. Preserve payment-plan links and stable IDs.
