@@ -6,6 +6,19 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Stock–Flow with bounded history (2026-10-22)
+
+- Qualification now uses the same rule as Daily Pace (`pool_at_end_of_day`):
+  zero-origin or bounded history, no second engine, no fabricated zero; the window
+  defaults to the configured cycle.
+- A window before a coordinate's bounded start shows that start as unknown (—) while
+  others render; unsupported coordinates are listed with their state; rows show
+  start / +In / −Out / end / net and a Liability role keeps its remaining balance.
+- Checks cover zero-origin, bounded after/before start, mixed, unsupported,
+  liabilities and a cold reload; `./tools/check`, `--self-check` and the PTY smoke
+  passed. Read-only 160×45/80×24 captures match LOAM's reconstructed end plus the
+  post-cutover difference; intentional: cycle default, per-coordinate rows.
+
 ## Trend data-driven series and braille chart (2026-10-22)
 
 - The default series are the three Expense-role Loci with the most recorded entries

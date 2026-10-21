@@ -308,6 +308,7 @@ let run ~width_of ~directory (back_home : C.state) =
   Unix.mkdir sf_dir 0o700;
   let sf_path = sf_dir ^ "/book.sexp" in
   F.create_copy ~source:Interaction_check_fixture.example_book ~target:sf_path;
+  F.write_new (sf_dir ^ "/boundary-presets.tsv") "household\t2026-10-01\t2026-11-01\n";
   let sf_ctl = C.open_route (C.initial ~config_home:sf_dir (F.load sf_path)) W.Stock_flow in
   let bv_path = sf_dir ^ "/balance-view.tsv" in
   let configure bytes =
@@ -327,14 +328,24 @@ let run ~width_of ~directory (back_home : C.state) =
       configure bytes;
       refused ())
     [
-      "bank\tjpy\n";
-      "wallet\tjpy\n";
       "food\tjpy\nbad-row\n";
       "food\tjpy\nwallet\teur\n";
       "food\tjpy\nfood\tjpy\n";
       "";
     ];
+  (* A valid selection whose coordinate has no support is listed, not refused. *)
+  configure "wallet\tjpy\n";
+  (match stock_flow_result sf_ctl with
+  | Ok unsupported ->
+      require
+        (unsupported.Stock_flow_report.coordinates = []
+        && unsupported.Stock_flow_report.unsupported <> [])
+        "sf-lists-unsupported-coordinates"
+  | Error why -> failwith ("stock-flow refused a listing: " ^ why));
   configure "food\tjpy\n";
+  require
+    (Stock_flow_screen.preset sf_ctl.C.screens.stock_flow = Income_expense_report.Cycle)
+    "sf-defaults-to-the-configured-cycle";
   let report = get (stock_flow_result sf_ctl) in
   require
     (report.measure = "jpy"

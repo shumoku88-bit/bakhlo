@@ -6,6 +6,7 @@ module StockFlow = Stock_flow_report
 module P = Report_period
 module Frame = Report_frame
 module O = Daily_overlays
+module Roles = Locus_roles
 
 type t = {
   report : StockFlow.t;
@@ -47,6 +48,15 @@ let result (env : Screen.env) t =
     in
     rows [] (String.split_on_char '\n' text)
   in
+  let liability_coords tracked_measure =
+    match Lazy.force env.accounting_roles with
+    | Ok roles ->
+        List.filter_map
+          (fun (locus, role) ->
+            if role = Roles.Liability then Some (locus, tracked_measure) else None)
+          roles
+    | Error _ -> []
+  in
   Result.bind (env.config balance_view_file) (function
     | None -> Error "Stock–Flow requires an explicit balance-view.tsv selection."
     | Some text ->
@@ -55,7 +65,8 @@ let result (env : Screen.env) t =
             | [] -> Error "Stock–Flow requires a nonempty balance-view.tsv selection."
             | (_, measure) :: _ ->
                 Result.bind (P.checked env t.report.preset t.report.period_offset) (fun period ->
-                    StockFlow.compute_report ~book:env.book ~measure ~tracked_coords ~period)))
+                    StockFlow.compute_report ~book:env.book ~measure ~tracked_coords
+                      ~liability_coords:(liability_coords measure) ~period)))
 
 let help_form () =
   Frame.help_form ~title:"Stock–Flow / Help"
@@ -64,12 +75,17 @@ let help_form () =
       "  Why did the tracked balance change between two boundaries?";
       "";
       "Principles";
-      "  - Historical boundaries need admitted support (zero-origin) for every";
-      "    tracked coordinate; a current quantity alone is not history.";
+      "  - History uses the same rule as Daily Pace: admitted zero-origin or";
+      "    bounded history; a current quantity alone is not history.";
+      "  - A window that starts before a coordinate's bounded start shows that";
+      "    start as unknown (—), never as zero.";
+      "  - Coordinates without support are listed with their state instead of";
+      "    rejecting the whole report.";
       "  - Boundary values are reconstructed from current accepted evidence, not";
       "    from archived balance snapshots.";
       "  - Increases/decreases are tracked-balance motion, not income or spending.";
-      "  - One Measure at a time; unlike Measures are never summed or valued.";
+      "  - Liability coordinates keep their remaining end balance, so cycle-to-cycle";
+      "    debt payoff is visible; one Measure at a time is never summed with another.";
       "";
       "Keys";
       "  1-5: Month, Cycle, Previous Cycle, Year, All Time";
