@@ -23,7 +23,7 @@ let fixture =
    (plans)\n\
    (support (zero-origin) (openings) (observations) (presence (not-supplied)))\n"
 
-let effect measure (locus, quanta) =
+let make_effect measure (locus, quanta) =
   D.Effect.create ~key:None
     ~locus:(id (D.Identifier.Locus.of_string locus))
     ~measure:(id (D.Identifier.Measure.of_string measure))
@@ -34,7 +34,7 @@ let entry ?(measure = "jpy") ?reversal_of id day memo postings : B.entry =
     id;
     day;
     memo = Some memo;
-    effects = List.map (effect measure) postings;
+    effects = List.map (make_effect measure) postings;
     reversal_of;
     exchange = None;
     original_amount = None;

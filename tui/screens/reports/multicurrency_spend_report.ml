@@ -18,7 +18,7 @@ type exchange_occurrence = {
   extra_effects : D.Effect.t list;
 }
 
-type unresolved_effect = { event : string; date : string; effect : D.Effect.t }
+type unresolved_effect = { event : string; date : string; posting : D.Effect.t }
 type original_reason = Unresolved_roles | Exchange_event | No_positive_expense
 
 type original_witness = {
@@ -66,11 +66,11 @@ let compare_entry (left : B.entry) (right : B.entry) =
   | 0 -> String.compare left.id right.id
   | order -> order
 
-let effect_locus (effect : D.Effect.t) = A.lstr (D.Effect.locus effect)
-let effect_measure (effect : D.Effect.t) = A.mstr (D.Effect.measure effect)
+let effect_locus (posting : D.Effect.t) = A.lstr (D.Effect.locus posting)
+let effect_measure (posting : D.Effect.t) = A.mstr (D.Effect.measure posting)
 
-let selected_key key (effect : D.Effect.t) =
-  match D.Effect.key effect with
+let selected_key key (posting : D.Effect.t) =
+  match D.Effect.key posting with
   | None -> false
   | Some actual -> String.equal (D.Identifier.Effect_key.to_string actual) key
 
@@ -93,9 +93,9 @@ let exchange_of_entry (entry : B.entry) =
                  destination;
                  extra_effects =
                    List.filter
-                     (fun effect ->
-                       (not (selected_key source_key effect))
-                       && not (selected_key destination_key effect))
+                     (fun posting ->
+                       (not (selected_key source_key posting))
+                       && not (selected_key destination_key posting))
                      entry.effects;
                })
       | None, _ ->
@@ -117,22 +117,22 @@ let step ~role_map (acc : acc) (entry : B.entry) =
   | Ok occurrence ->
       let expense_effects =
         List.filter
-          (fun effect -> M.find_opt (effect_locus effect) role_map = Some O.Expense)
+          (fun posting -> M.find_opt (effect_locus posting) role_map = Some O.Expense)
           entry.effects
       in
       let unresolved_nonzero =
         List.filter
-          (fun effect ->
-            M.find_opt (effect_locus effect) role_map = None && Z.sign (A.quanta effect) <> 0)
+          (fun posting ->
+            M.find_opt (effect_locus posting) role_map = None && Z.sign (A.quanta posting) <> 0)
           entry.effects
       in
       let add_expenses totals =
         List.fold_left
-          (fun totals effect -> add (effect_measure effect) (A.quanta effect) totals)
+          (fun totals posting -> add (effect_measure posting) (A.quanta posting) totals)
           totals expense_effects
       in
       let unresolved effects =
-        List.map (fun effect -> { event = entry.id; date = entry.day; effect }) effects
+        List.map (fun posting -> { event = entry.id; date = entry.day; posting }) effects
       in
       let classified =
         match occurrence with
@@ -172,7 +172,7 @@ let step ~role_map (acc : acc) (entry : B.entry) =
                     :: classified.uncounted_original;
                 }
             | None -> (
-                if List.exists (fun effect -> Z.sign (A.quanta effect) > 0) expense_effects then
+                if List.exists (fun posting -> Z.sign (A.quanta posting) > 0) expense_effects then
                   { classified with original = add measure quanta classified.original }
                 else
                   match unresolved_nonzero with
@@ -271,16 +271,16 @@ let reason_text = function
   | Exchange_event -> "exchange event"
   | No_positive_expense -> "no positive Expense Effect"
 
-let effect_line book label (effect : D.Effect.t) =
-  let measure = effect_measure effect in
+let effect_line book label (posting : D.Effect.t) =
+  let measure = effect_measure posting in
   let key =
-    match D.Effect.key effect with
+    match D.Effect.key posting with
     | None -> ""
     | Some key -> "  key " ^ D.Identifier.Effect_key.to_string key
   in
   "  " ^ label ^ "  "
-  ^ signed_amount book measure (A.quanta effect)
-  ^ "  " ^ effect_locus effect ^ key
+  ^ signed_amount book measure (A.quanta posting)
+  ^ "  " ^ effect_locus posting ^ key
 
 let render_lines ~book (snapshot : snapshot) =
   let total_lines heading empty_text rows =
@@ -301,15 +301,15 @@ let render_lines ~book (snapshot : snapshot) =
     | [] -> []
     | extras ->
         (O.Chrome, "  extra Effects")
-        :: List.map (fun effect -> (O.Plain, effect_line book "extra" effect)) extras)
+        :: List.map (fun posting -> (O.Plain, effect_line book "extra" posting)) extras)
   in
   let unresolved_lines heading rows =
     (O.Heading, Printf.sprintf "%s: %d" heading (List.length rows))
     :: List.map
          (fun (row : unresolved_effect) ->
            ( O.Plain,
-             "? " ^ row.date ^ "  " ^ effect_locus row.effect ^ "  "
-             ^ signed_amount book (effect_measure row.effect) (A.quanta row.effect)
+             "? " ^ row.date ^ "  " ^ effect_locus row.posting ^ "  "
+             ^ signed_amount book (effect_measure row.posting) (A.quanta row.posting)
              ^ "  [" ^ row.event ^ "]" ))
          rows
   in

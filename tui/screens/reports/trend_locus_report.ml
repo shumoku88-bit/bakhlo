@@ -105,9 +105,9 @@ let catalog ~book ~measure =
     List.concat_map
       (fun (entry : B.entry) ->
         List.filter_map
-          (fun (effect : D.Effect.t) ->
-            if D.Identifier.Measure.to_string (D.Effect.measure effect) = measure then
-              Some (D.Identifier.Locus.to_string (D.Effect.locus effect))
+          (fun (posting : D.Effect.t) ->
+            if D.Identifier.Measure.to_string (D.Effect.measure posting) = measure then
+              Some (D.Identifier.Locus.to_string (D.Effect.locus posting))
             else None)
           entry.effects)
       (B.entries book)
@@ -219,14 +219,14 @@ let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates
       (fun (entry : B.entry) ->
         if entry.day >= scope_start && entry.day < scope_end_exclusive then
           List.iter
-            (fun (effect : D.Effect.t) ->
-              let locus = D.Identifier.Locus.to_string (D.Effect.locus effect) in
+            (fun (posting : D.Effect.t) ->
+              let locus = D.Identifier.Locus.to_string (D.Effect.locus posting) in
               if
                 Hashtbl.mem selected locus
-                && D.Identifier.Measure.to_string (D.Effect.measure effect) = measure
+                && D.Identifier.Measure.to_string (D.Effect.measure posting) = measure
               then
                 let table = Hashtbl.find daily locus in
-                let quantity = D.Quantity.quanta (D.Effect.quantity effect) in
+                let quantity = D.Quantity.quanta (D.Effect.quantity posting) in
                 let prior = Option.value ~default:Z.zero (Hashtbl.find_opt table entry.day) in
                 Hashtbl.replace table entry.day (Z.add prior quantity))
             entry.effects)

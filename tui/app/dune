@@ -1,7 +1,16 @@
-; Bonsai terminal adapter and the command-line entry point.
+; Terminal adapters and the command-line entry point. Each adapter builds only
+; where its terminal library is installed (Bonsai_term under OxCaml, Notty on
+; the ordinary compiler); the Notty adapter is a trial beside Bonsai.
+(library
+ (name bakhlo_tui_cli)
+ (wrapped false)
+ (modules daily_cli)
+ (libraries bakhlo.store unix))
+
 (library
  (name bakhlo_tui_terminal)
  (wrapped false)
+ (optional)
  (modules bonsai_terminal)
  (libraries
   bakhlo_tui_kit
@@ -22,4 +31,37 @@
 (executable
  (name bonsai_daily)
  (modules bonsai_daily)
- (libraries bakhlo_tui_terminal bakhlo.store bakhlo.domain bakhlo.sexp zarith unix))
+ (optional)
+ (libraries bakhlo_tui_terminal bakhlo_tui_cli))
+
+(library
+ (name bakhlo_tui_notty_render)
+ (wrapped false)
+ (optional)
+ (modules notty_render)
+ (libraries bakhlo_tui_kit bakhlo_tui_book bakhlo_tui_shell uutf notty-community))
+
+; The OxCaml build carries a newer notty-community whose Term API differs; the
+; loop targets the release used with the ordinary compiler.
+(library
+ (name bakhlo_tui_notty)
+ (wrapped false)
+ (optional)
+ (enabled_if
+  (>= %{ocaml_version} 5.3.0))
+ (modules notty_terminal)
+ (libraries
+  bakhlo_tui_notty_render
+  bakhlo_tui_shell
+  bakhlo.store
+  unix
+  notty-community
+  notty-community.unix))
+
+(executable
+ (name notty_daily)
+ (modules notty_daily)
+ (optional)
+ (enabled_if
+  (>= %{ocaml_version} 5.3.0))
+ (libraries bakhlo_tui_notty bakhlo_tui_cli))

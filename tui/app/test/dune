@@ -1,9 +1,14 @@
 ; Whole-program checks. They run outside a dependency sandbox because the
 ; writer refuses symlinked inputs, from the build root where the synthetic
-; examples/ fixture and a scratch/ directory exist.
+; examples/ fixture and a scratch/ directory exist. The Bonsai build also checks
+; that the Notty painting is byte-identical; the ordinary build runs the same
+; suites with the Notty adapter.
 (executable
  (name app_checks)
+ (modules app_checks terminal_checks render_parity_checks)
+ (optional)
  (libraries
+  bakhlo_tui_notty_render
   bakhlo_tui_kit
   bakhlo_tui_book
   bakhlo_tui_shell
@@ -22,6 +27,37 @@
 
 (rule
  (alias runtest)
+ (enabled_if %{lib-available:bonsai_term})
  (deps %{workspace_root}/examples/daily-book.sexp)
  (action
   (run %{exe:app_checks.exe} %{workspace_root})))
+
+(executable
+ (name notty_app_checks)
+ (modules notty_app_checks notty_terminal_checks)
+ (optional)
+ (enabled_if
+  (>= %{ocaml_version} 5.3.0))
+ (libraries
+  bakhlo_tui_notty_render
+  bakhlo_tui_kit
+  bakhlo_tui_book
+  bakhlo_tui_shell
+  bakhlo_tui_shell_checks
+  bakhlo_screen_actual_checks
+  bakhlo_screen_editors_checks
+  bakhlo_tui_scenarios
+  bakhlo.store
+  bakhlo.domain
+  bakhlo.sexp
+  unix
+  base
+  notty-community))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (>= %{ocaml_version} 5.3.0))
+ (deps %{workspace_root}/examples/daily-book.sexp)
+ (action
+  (run %{exe:notty_app_checks.exe} %{workspace_root})))

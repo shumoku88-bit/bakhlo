@@ -99,7 +99,7 @@ let compute_represented_coordinates image =
   List.iter
     (fun event ->
       List.iter
-        (fun effect -> Hashtbl.replace seen (D.Effect.locus effect, D.Effect.measure effect) ())
+        (fun posting -> Hashtbl.replace seen (D.Effect.locus posting, D.Effect.measure posting) ())
         (D.Event.effects event))
     (Bakhlo_application.Correction_frontier.frontier_events frontier);
   let from_events =

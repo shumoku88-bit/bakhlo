@@ -125,7 +125,7 @@ let submit_editing (env : Screen.env) submitted =
                   refuse
                     (Printf.sprintf "Locus '%s' is not admitted." (String.concat ", " unapproved))
                 else
-                  let effect key locus measure quanta =
+                  let leg key locus measure quanta =
                     D.Effect.create
                       ~key:(Some (Result.get_ok (D.Identifier.Effect_key.of_string key)))
                       ~locus:(Result.get_ok (D.Identifier.Locus.of_string locus))
@@ -140,8 +140,8 @@ let submit_editing (env : Screen.env) submitted =
                       memo;
                       effects =
                         [
-                          effect "exchange-source" src_locus src_measure (Z.neg src_quanta);
-                          effect "exchange-destination" dst_locus dst_measure dst_quanta;
+                          leg "exchange-source" src_locus src_measure (Z.neg src_quanta);
+                          leg "exchange-destination" dst_locus dst_measure dst_quanta;
                         ];
                       reversal_of = None;
                       exchange = Some ("exchange-source", "exchange-destination");

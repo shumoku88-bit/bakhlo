@@ -63,7 +63,7 @@ let rank = function
 (* The writer and operating-system access belong to the Shell and above; the
    terminal runtime belongs to the Bonsai adapter only. *)
 let shell_only = [ "bakhlo.store"; "unix" ]
-let terminal_only = [ "bonsai_term"; "async"; "core"; "notty-community" ]
+let terminal_only = [ "bonsai_term"; "async"; "core"; "notty-community"; "notty-community.unix" ]
 let is_shell_or_above layer = rank layer >= rank Shell
 let is_terminal = function App | App_test -> true | _ -> false
 

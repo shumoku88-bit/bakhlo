@@ -13,7 +13,8 @@ let () =
     Scheduled_session_checks.self_check ~width_of ();
     Actual_workspace_checks.self_check ~width_of ();
     Scenarios.run ~width_of ();
-    Terminal_checks.run ()
+    Terminal_checks.run ();
+    Render_parity_checks.run ()
   with
   | Daily_file.Refused why ->
       prerr_endline ("self-check failed: " ^ why);

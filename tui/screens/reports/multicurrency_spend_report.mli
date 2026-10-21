@@ -17,7 +17,7 @@ type exchange_occurrence = {
 (** The retained exchange Event's exact selected source and destination Effects,
     plus its remaining Effects in recorded order. No rate is derived. *)
 
-type unresolved_effect = { event : string; date : string; effect : Bakhlo_domain.Effect.t }
+type unresolved_effect = { event : string; date : string; posting : Bakhlo_domain.Effect.t }
 (** A nonzero Effect whose Locus has no explicit accounting role in this capture. *)
 
 type original_reason =

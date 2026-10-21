@@ -659,7 +659,7 @@ let actual_browsing_checks ~width_of ~directory home =
 let reversal_checks ~width_of ~directory home =
   let directory = directory ^ "/reversal" in
   Unix.mkdir directory 0o700;
-  let effect locus quantity =
+  let make_effect locus quantity =
     D.Effect.create
       ~key:(Some (C.get_id (D.Identifier.Effect_key.of_string ("reverse-" ^ locus))))
       ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
@@ -671,7 +671,7 @@ let reversal_checks ~width_of ~directory home =
       id = "reverse-target";
       day = "2026-10-10";
       memo = Some "Original / 日本語";
-      effects = [ effect "wallet" (-37); effect "food" 37 ];
+      effects = [ make_effect "wallet" (-37); make_effect "food" 37 ];
       reversal_of = None;
       exchange = None;
       original_amount = None;
@@ -961,7 +961,7 @@ let reversal_checks ~width_of ~directory home =
      stale base, storage refusal, unknown/reload and cold inverse (synthetic)."
 
 let date_correction_checks ~width_of ~directory home =
-  let effect key locus n =
+  let make_effect key locus n =
     D.Effect.create
       ~key:(Some (C.get_id (D.Identifier.Effect_key.of_string key)))
       ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
@@ -973,7 +973,7 @@ let date_correction_checks ~width_of ~directory home =
       id = "date-target";
       day = "2026-10-15";
       memo = Some "Date / 日本語";
-      effects = [ effect "out" "wallet" (-123); effect "in" "food" 123 ];
+      effects = [ make_effect "out" "wallet" (-123); make_effect "in" "food" 123 ];
       reversal_of = None;
       exchange = None;
       original_amount = None;
@@ -1155,7 +1155,7 @@ let date_correction_checks ~width_of ~directory home =
       id = "retained-locus-target";
       day = "2026-10-11";
       memo = Some "Historical Locus";
-      effects = [ effect "retained-out" "wallet" (-456); effect "retained-in" "food" 456 ];
+      effects = [ make_effect "retained-out" "wallet" (-456); make_effect "retained-in" "food" 456 ];
       reversal_of = None;
       exchange = None;
       original_amount = Some ("eur", Z.of_int 789);

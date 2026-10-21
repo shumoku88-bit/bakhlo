@@ -6,6 +6,29 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Notty terminal adapter trial beside Bonsai (2026-10-21)
+
+- User decision (2026-10-21): try Notty in place of Bonsai_term, since the TUI uses none of
+  Bonsai's composition or incrementality. `tui/app/notty_render.ml` paints the Shell rows with
+  the Bonsai adapter's colour and glyph rules; `notty_terminal.ml` drives the Shell with
+  `Notty_unix.Term`; both entry points share `daily_cli.ml`. `effect` identifiers in 12 TUI
+  files were renamed (`posting`, `original`, `leg`, `make_effect`) because OCaml 5.3 reserves
+  the word. Trial dependency: `notty-community 0.2.4` (+ `uutf`, build-only `cppo`) installed
+  locally with `./tools/opam install notty-community.0.2.4`; `bakhlo.opam.locked` unchanged.
+- Under OxCaml both adapters build; a new check renders 1008 Shell states (3 themes × 8 sizes ×
+  42 states) with each and requires byte-identical ANSI, and equal cell widths for control,
+  malformed, CJK, half-width and emoji samples: PASS.
+- With the ordinary compiler, `tools/build-notty-tui --test` runs all 44 suites (shared Shell,
+  screens, scenarios and the ported terminal checks) with the Notty width function: PASS.
+  `tools/ci-tui-pty` on `notty_daily.exe`: all four sizes and the Record Preview refusal PASS.
+- Same Mac, uncached: build 27 s (Bonsai) vs 9 s (Notty); build + self-check 29 s vs 16 s;
+  executable 58.5 MB vs 8.1 MB; idle CPU over 10 s 0.22 s vs 0.00 s; paint + ANSI per frame
+  0.92 ms vs 0.83 ms. External keypress latency could not be compared reliably (Bonsai keeps
+  emitting output; the probe's polling dominates). TUI CI today takes ~3–3.5 min.
+- Not done: macOS IME, paste and terminal restore by the user; CI for the Notty build; removal
+  of Bonsai. Household data not accessed.
+
+
 ## Unused TUI values removed (2026-10-21)
 
 - 21 interface values had no user outside their own module; they are no longer exported.

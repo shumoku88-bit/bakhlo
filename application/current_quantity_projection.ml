@@ -3,13 +3,7 @@ module Coordinate = D.Effect_coordinate
 module Q = D.Quantity
 
 type assertion = { coordinate : Coordinate.t; quantity : Q.t }
-
-type answer = {
-  coordinate : Coordinate.t;
-  asserted_quantity : Q.t;
-  delta : Q.t;
-  quantity : Q.t;
-}
+type answer = { coordinate : Coordinate.t; asserted_quantity : Q.t; delta : Q.t; quantity : Q.t }
 
 type t = {
   source_cut : Reflected_root_cut.t;

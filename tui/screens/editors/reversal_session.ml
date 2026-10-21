@@ -43,11 +43,11 @@ let dimensions (width, height) =
   if width >= 76 && height >= 19 then (min 72 (width - 4), min 24 (height - 2))
   else (max 0 width, max 0 height)
 
-let posting t inverse effect =
-  let quantity = A.quanta effect in
+let posting t inverse original =
+  let quantity = A.quanta original in
   let quantity = if inverse then Z.neg quantity else quantity in
-  let measure = A.mstr (D.Effect.measure effect) in
-  A.lstr (D.Effect.locus effect)
+  let measure = A.mstr (D.Effect.measure original) in
+  A.lstr (D.Effect.locus original)
   ^ "  "
   ^ (if Z.sign quantity > 0 then "+" else "")
   ^ B.format t.book measure quantity ^ " " ^ measure
