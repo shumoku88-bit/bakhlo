@@ -5814,3 +5814,19 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
   today's date and LOAM's position counter differ in display). The new household's files
   were unchanged by the check; AI sessions closed; `clean-copies` passed.
 - Not executed: systematic per-screen user acceptance, physical IME, P7 and power loss.
+
+## Durable save flush (P7, 2026-10-21)
+
+- Gap: on macOS `fsync(2)` does not empty the drive's write cache, so a record reported
+  as written could be lost on power loss. Measured on this Mac (Intel i5-8259U, internal
+  PCIe SSD, macOS 15.7.9; 301-byte append to a 270 KB synthetic file, 60 runs, twice):
+  `fsync` median 0.14–0.20 ms, `F_FULLFSYNC` 20.8 ms (p90 ≤21.3 ms),
+  `F_BARRIERFSYNC` 0.45 ms (ordering only, not durability). Directory `F_FULLFSYNC` works.
+- User decision: use `F_FULLFSYNC`. `store/full_sync_stubs.c` (`fsync` where
+  `F_FULLFSYNC` is undefined) backs `Daily_file.full_sync`, used for appends, new files,
+  parent directories and torn-tail discard; Attention, settlement and config saves go
+  through the same `write_new` / `sync_parent`. A failed flush raises, so an append is
+  reported Uncertain rather than written.
+- `./tools/startup-probe 1000 109500`: save (append + full sync) 21.8 ms median at both
+  sizes. `./tools/check` and `./tools/tui --self-check` (44 PASS) passed.
+- Not executed: physically cutting power, kernel panic, other filesystems.

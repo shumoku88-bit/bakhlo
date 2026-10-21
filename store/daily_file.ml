@@ -1,14 +1,18 @@
 (* One book file: a snapshot followed by appended records (Bakhlo_sexp.Book_log).
-   Publication appends one fsynced record; compaction atomically replaces the file
+   Publication appends one record and flushes it to stable storage (F_FULLFSYNC on
+   macOS) before reporting it written; compaction atomically replaces the file
    with a fresh snapshot and keeps the previous file as [.prev]. Cooperative writers
-   and stable parent namespaces are assumed; not a security sandbox or a qualified
-   power-loss protocol. No background retry or automatic repair. *)
+   and stable parent namespaces are assumed; not a security sandbox. Power loss was
+   not physically tested. No background retry or automatic repair. *)
 module B = Bakhlo_sexp.Daily_book
 module L = Bakhlo_sexp.Book_log
 exception Refused of string
 
 let require p why = if not p then raise (Refused why)
 let get why = function Ok x -> x | Error _ -> raise (Refused why)
+
+(* fsync(2), plus the drive-cache flush macOS needs for durability (full_sync_stubs.c). *)
+external full_sync : Unix.file_descr -> unit = "bakhlo_full_sync"
 
 type stamp = { dev : int; ino : int; size : int; mtime : float }
 
@@ -148,12 +152,12 @@ let write_new path bytes =
     ~finally:(fun () -> Unix.close fd)
     (fun () ->
       write_all fd bytes;
-      Unix.fsync fd);
+      full_sync fd);
   require (read path = bytes) "readback-changed"
 
 let sync_parent path =
   let fd = Unix.openfile (Filename.dirname path) [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
-  Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> Unix.fsync fd)
+  Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> full_sync fd)
 
 let create_empty ~path ~measure ~scale =
   let book = get "empty-book-refused" (B.empty ~measure ~scale) in
@@ -227,7 +231,7 @@ let append ?(checkpoint = fun _ -> ()) session ops =
             (fun () ->
               write_all fd line;
               checkpoint Appended;
-              Unix.fsync fd;
+              full_sync fd;
               checkpoint Synced);
           let s = Unix.lstat session.path in
           require (s.st_size = size) "appended-size-changed";
@@ -312,7 +316,7 @@ let discard_torn_tail path =
       require loaded.torn "no-torn-tail";
       Unix.truncate path loaded.valid_length;
       let fd = Unix.openfile path [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
-      Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> Unix.fsync fd);
+      Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> full_sync fd);
       let after = load path in
       require ((not after.torn) && after.records = loaded.records) "discard-readback-changed";
       (String.length bytes - loaded.valid_length, after))

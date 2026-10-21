@@ -21,6 +21,7 @@ cp tools/startup_probe.ml "$run/"
   -I _build/default/application/.bakhlo_application.objs/byte -I _build/default/application/.bakhlo_application.objs/native \
   -I _build/default/sexp/.bakhlo_sexp.objs/byte -I _build/default/sexp/.bakhlo_sexp.objs/native \
   -I _build/default/store/.bakhlo_store.objs/byte -I _build/default/store/.bakhlo_store.objs/native \
+  -I _build/default/store \
   _build/default/lib/bakhlo_domain.cmxa _build/default/application/bakhlo_application.cmxa \
   _build/default/sexp/bakhlo_sexp.cmxa _build/default/store/bakhlo_store.cmxa "$run/startup_probe.ml" -o "$run/probe"
 for count do

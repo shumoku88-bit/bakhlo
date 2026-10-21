@@ -88,8 +88,9 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   or SQLite. One `.prev` is kept at compaction; long-term history is Git's job. An
   interrupted final record stops writes until explicitly discarded (no auto-repair).
   Compaction runs on TUI exit at 200+ records.
-- Targets at ~30 years (~110k entries): save ≤5 ms, key response ≤16 ms, startup
-  ≤100 ms. Measure with `./tools/startup-probe`. Startup is deferred by the user until
+- Targets at ~30 years (~110k entries): save work ≤5 ms plus the durable flush, key
+  response ≤16 ms, startup ≤100 ms. User decision (2026-10-21): every household write
+  flushes the drive cache (`F_FULLFSYNC` on macOS, ~21 ms here) before it is reported. Measure with `./tools/startup-probe`. Startup is deferred by the user until
   it is felt slow; then a disposable snapshot first, lazy older years only if needed.
 - Every `Daily_book` mutation must agree with `Daily_book.Full` and with a cold reload:
   keep `test/daily_book_oracle_tests.ml` green and extend it before adding a fast path.

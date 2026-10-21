@@ -4,6 +4,9 @@
  (name bakhlo_store)
  (public_name bakhlo.store)
  (wrapped false)
+ (foreign_stubs
+  (language c)
+  (names full_sync_stubs))
  (libraries
   bakhlo_domain
   bakhlo_application
