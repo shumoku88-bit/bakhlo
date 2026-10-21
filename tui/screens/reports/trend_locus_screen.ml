@@ -868,7 +868,7 @@ let view (env : Screen.env) (geometry : Screen.geometry) t : Screen.view =
   in
   {
     Screen.title = tr "Trend / Locus comparison";
-    subtitle = Default;
+    subtitle = Hidden;
     rows =
       lazy
         (bounded_rows geometry

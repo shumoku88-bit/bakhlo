@@ -103,13 +103,13 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
       else
         match route_view with
         | Some view ->
-            [
-              line ~width_of width Heading (tr "Bakhlo" ^ "  /  " ^ view.Screen.title);
-              (match view.subtitle with
-              | Screen.Default -> line ~width_of width Chrome (date_line () ^ draft)
-              | Screen.Text text -> line ~width_of width Chrome (text ^ draft)
-              | Screen.Styled (style, text) -> line ~width_of width style text);
-            ]
+            line ~width_of width Heading (tr "Bakhlo" ^ "  /  " ^ view.Screen.title)
+            ::
+            (match view.subtitle with
+            | Screen.Default -> [ line ~width_of width Chrome (date_line () ^ draft) ]
+            | Screen.Text text -> [ line ~width_of width Chrome (text ^ draft) ]
+            | Screen.Styled (style, text) -> [ line ~width_of width style text ]
+            | Screen.Hidden -> [])
         | None ->
             [
               line ~width_of width Heading

@@ -26,9 +26,6 @@ type report = {
 type t = {
   preset : period_preset;
   period_offset : int;
-  selected_row : int;
-  detail_focused : bool;
-  detail_scroll : int;
 }
 
 val initial : unit -> t
@@ -47,18 +44,25 @@ val compute_report : book:B.t -> roles:(string * Roles.role) list -> period:peri
 
 val measure_active : measure_summary -> bool
 
+val elapsed : today:string -> period -> int * int
+
+val truncate_to_days : period -> int -> period
+
 val render_report_lines :
   width:int ->
   width_of:(string -> int) ->
   book:B.t ->
   report:report ->
+  today:string ->
   previous:report option ->
+  previous_full:report option ->
   (Daily_overlays.style * string) list
 
 val render_compare_lines :
   width:int ->
   width_of:(string -> int) ->
   book:B.t ->
+  today:string ->
   reports:(period * report) list ->
   (Daily_overlays.style * string) list
 

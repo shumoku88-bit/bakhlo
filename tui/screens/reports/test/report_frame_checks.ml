@@ -163,6 +163,8 @@ let self_check () =
      (none)) (posting travel jpy -400 (none))) (reversal-of (none)))\n\
      \ (entry sep-rent (date 2026-09-04) (memo (none)) (postings (posting rent jpy 100 \
      (none)) (posting travel jpy -100 (none))) (reversal-of (none)))\n\
+     \ (entry sep-late (date 2026-09-20) (memo (none)) (postings (posting rent jpy 50000 \
+     (none)) (posting travel jpy -50000 (none))) (reversal-of (none)))\n\
      \ (entry oct-pay (date 2026-10-02) (memo (none)) (postings (posting salary jpy -123456 \
      (none)) (posting travel jpy 123456 (none))) (reversal-of (none)))\n\
      \ (entry oct-food (date 2026-10-03) (memo (none)) (postings (posting food jpy 9000 \
@@ -188,21 +190,44 @@ let self_check () =
   let previous =
     IncExp.compute_report ~book:window_book ~roles:window_roles ~period:(month (-1))
   in
+  (* The current month is 15 days old; the previous month is compared up to the
+     same elapsed day, not to its whole length. *)
+  let elapsed, total = IncExp.elapsed ~today:"2026-10-15" (month 0) in
+  require ((elapsed, total) = (15, 31)) "ie2-elapsed-days";
+  let previous_partial =
+    IncExp.compute_report ~book:window_book ~roles:window_roles
+      ~period:(IncExp.truncate_to_days previous.period elapsed)
+  in
+  require
+    (Z.equal
+       (List.find (fun (ms : IncExp.measure_summary) -> ms.measure = "jpy") previous_partial.summaries)
+         .IncExp.total_expense
+       (Z.of_int 500))
+    "ie2-partial-previous-excludes-late-entry";
+  require
+    (Z.equal
+       (List.find (fun (ms : IncExp.measure_summary) -> ms.measure = "jpy") previous.summaries)
+         .IncExp.total_expense
+       (Z.of_int 50500))
+    "ie2-whole-previous-keeps-late-entry";
   let summary =
     List.map snd
       (IncExp.render_report_lines ~width:80 ~width_of:String.length ~book:window_book
-         ~report:current ~previous:(Some previous))
+         ~report:current ~today:"2026-10-15" ~previous:(Some previous_partial)
+         ~previous_full:(Some previous))
   in
-  require (contains summary "Previous: Month of 2026-09") "ie2-previous-labelled";
+  require (contains summary "Current window is partial: day 15 of 31.") "ie2-partial-label";
+  require (contains summary "Previous: Month of 2026-09 (same 15 elapsed day(s))") "ie2-partial-previous-label";
   require (contains summary "prev 1,000  +122,456") "ie2-income-difference-exact";
   require (contains summary "prev 500  +9,500") "ie2-expense-difference-exact";
   require (contains summary "prev 500  +112,956") "ie2-result-difference-exact";
+  require (contains summary "(whole prev 50,500)") "ie2-whole-previous-secondary";
   require (contains summary "Scheduled 0 jpy") "ie2-scheduled-split-shown";
   let food_line =
-    List.find_index (fun line -> Base.String.is_substring line ~substring:"food") summary
+    List.find_index (fun line -> Base.String.is_substring line ~substring:" food ") summary
   in
   let rent_line =
-    List.find_index (fun line -> Base.String.is_substring line ~substring:"rent") summary
+    List.find_index (fun line -> Base.String.is_substring line ~substring:" rent ") summary
   in
   require
     (match (food_line, rent_line) with Some food, Some rent -> food < rent | _ -> false)
@@ -211,7 +236,8 @@ let self_check () =
   let narrow_summary =
     List.map snd
       (IncExp.render_report_lines ~width:30 ~width_of:String.length ~book:window_book
-         ~report:current ~previous:(Some previous))
+         ~report:current ~today:"2026-10-15" ~previous:(Some previous)
+         ~previous_full:(Some previous))
   in
   require (not (contains narrow_summary "█")) "ie2-bar-dropped-before-amount";
   require (contains narrow_summary "9,000") "ie2-amount-kept-at-narrow-width";
@@ -221,20 +247,23 @@ let self_check () =
   let compare_wide =
     List.map snd
       (IncExp.render_compare_lines ~width:160 ~width_of:String.length ~book:window_book
+         ~today:"2026-10-15"
          ~reports:[ (month (-1), previous); (month 0, current) ])
   in
   require (contains compare_wide "Compare: 2 window(s)") "ie2-compare-two-windows";
-  require (contains compare_wide "2026-09") "ie2-compare-previous-column";
+  require (contains compare_wide "09-01") "ie2-compare-previous-column";
+  require (contains compare_wide "(partial)") "ie2-compare-current-marked-partial";
   require (contains compare_wide "top expense Loci") "ie2-compare-loci-rows";
   require (contains compare_wide "123,456") "ie2-compare-income-exact";
   require (contains compare_wide "1,000") "ie2-compare-previous-income";
   let compare_narrow =
     List.map snd
       (IncExp.render_compare_lines ~width:40 ~width_of:String.length ~book:window_book
+         ~today:"2026-10-15"
          ~reports:[ (month (-1), previous); (month 0, current) ])
   in
   require (contains compare_narrow "Compare: 1 window(s)") "ie2-compare-narrow-fits-one";
-  require (not (contains compare_narrow "2026-09")) "ie2-compare-narrow-drops-oldest";
+  require (not (contains compare_narrow "09-01")) "ie2-compare-narrow-drops-oldest";
   require (contains compare_narrow "123,456") "ie2-compare-narrow-keeps-amount";
   print_endline
     "PASS: shared report frame scroll clamp and position, I&E active measures / money / help / \

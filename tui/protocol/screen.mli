@@ -160,7 +160,7 @@ type request =
 
 (** [Default] is the Shell date line; [Text] gets the Shell's draft notice
     appended; [Styled] is painted as given (e.g. a live search input). *)
-type subtitle = Default | Text of string | Styled of Ui_render.style * string
+type subtitle = Default | Text of string | Styled of Ui_render.style * string | Hidden
 
 type view = {
   title : string;  (** Header path segment after "Bakhlo  /  ". *)

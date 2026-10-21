@@ -134,3 +134,6 @@ let period_contains calendar day =
   | Year -> prefix 4
 
 let title calendar = match calendar.zoom with Day -> "Day" | Month -> "Month" | Year -> "Year"
+
+let day_index text =
+  match parts text with Ok (y, m, d) -> Ok (day_number y m d) | Error why -> Error why

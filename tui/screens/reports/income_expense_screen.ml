@@ -49,6 +49,21 @@ let previous_period (env : Screen.env) t =
     | Ok period -> (
         match report env period with Ok rep -> Some rep | Error _ -> None)
 
+(* The previous window truncated to the current window's elapsed days, plus the
+   whole previous window for secondary text. Both are exact folds of the book. *)
+let previous_pair (env : Screen.env) t (period : IncExp.period) =
+  match previous_period env t with
+  | None -> (None, None)
+  | Some full ->
+      let elapsed, total = IncExp.elapsed ~today:env.today period in
+      if elapsed >= total then (Some full, Some full)
+      else
+        let truncated = IncExp.truncate_to_days full.period elapsed in
+        let partial =
+          match report env truncated with Ok rep -> Some rep | Error _ -> None
+        in
+        (partial, Some full)
+
 let same_window (a : IncExp.period) (b : IncExp.period) =
   a.start_day = b.start_day && a.end_exclusive = b.end_exclusive
 
@@ -101,12 +116,14 @@ let content (env : Screen.env) (geometry : Screen.geometry) t =
             Body
               ( "Income & Expense • Compare",
                 IncExp.render_compare_lines ~width:(max 0 (width - 4)) ~width_of ~book:env.book
+                  ~today:env.today
                   ~reports:(compare_reports env t period rep) )
           else
+            let previous, previous_full = previous_pair env t period in
             Body
               ( Printf.sprintf "Income & Expense • %s" (IncExp.preset_label t.report.preset),
                 IncExp.render_report_lines ~width:(max 0 (width - 4)) ~width_of ~book:env.book
-                  ~report:rep ~previous:(previous_period env t) ))
+                  ~report:rep ~today:env.today ~previous ~previous_full ))
 
 let row_count (env : Screen.env) geometry t =
   match content env geometry t with Body (_, rows) -> List.length rows | Block _ -> 0
@@ -124,7 +141,7 @@ let help_form () =
       "  other: direct ad-hoc spending";
       "";
       "Reading the summary";
-      "  Each total shows the previous window of the same kind and the exact";
+      "  Each total shows the previous window at the same elapsed day and the exact";
       "  difference; expense rows are largest first with a proportional bar.";
       "  Inactive Measures are named once and never painted as zero blocks.";
       "";
@@ -161,7 +178,7 @@ let handle (env : Screen.env) geometry t input =
                     {
                       t with
                       frame = reset;
-                      report = { t.report with preset = P.preset_of_key c; period_offset = 0 };
+                      report = { preset = P.preset_of_key c; period_offset = 0 };
                     }
               | Some (`ASCII (('[' | ']') as c), []) ->
                   let delta = if c = '[' then -1 else 1 in

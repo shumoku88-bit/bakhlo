@@ -166,7 +166,7 @@ let table ~geometry ~width ~title ~count ~selected rows =
   let start = if selected < visible then 0 else selected + 1 - visible in
   let head = List.filteri (fun i _ -> i < header) rows in
   let body = List.filteri (fun i _ -> i >= header + start && i < header + start + visible) rows in
-  let position = Frame.position ~count ~capacity { Frame.scroll = start } in
+  let position = Frame.position ~count ~capacity:visible { Frame.scroll = start } in
   let height = snd geometry.Screen.content in
   Ui_panel.frame_rows ~inset:0 ~bottom_label:position ~width_of:geometry.width_of ~width ~height
     ~focused:true ~title

@@ -102,7 +102,7 @@ type request =
       admission : admission;
     }
 
-type subtitle = Default | Text of string | Styled of Ui_render.style * string
+type subtitle = Default | Text of string | Styled of Ui_render.style * string | Hidden
 
 type view = {
   title : string;

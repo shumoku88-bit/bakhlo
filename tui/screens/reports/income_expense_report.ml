@@ -30,13 +30,10 @@ type report = {
 type t = {
   preset : period_preset;
   period_offset : int;
-  selected_row : int;
-  detail_focused : bool;
-  detail_scroll : int;
 }
 
 let initial () =
-  { preset = Cycle; period_offset = 0; selected_row = 0; detail_focused = false; detail_scroll = 0 }
+  { preset = Cycle; period_offset = 0 }
 
 let preset_label = function
   | Month -> "Month"
@@ -132,6 +129,23 @@ let resolve_period ~today ~preset ~offset ~boundary_presets_text =
                         end_exclusive;
                         label = Printf.sprintf "%s (%s .. %s)" cycle_name start_day end_exclusive;
                       })))
+
+(* How much of [period] has elapsed at [today]: (completed days, total days).
+   A window that has not started yet reports 0; a finished window reports M of M. *)
+let elapsed ~today (period : period) =
+  match (Cal.day_index today, Cal.day_index period.start_day, Cal.day_index period.end_exclusive) with
+  | Ok now, Ok start, Ok stop ->
+      let total = max 0 (stop - start) in
+      (max 0 (min total (now - start + 1)), total)
+  | _ -> (0, 0)
+
+(* The same window truncated to [days] elapsed days, for a like-for-like
+   comparison with a previous window of the same age. *)
+let truncate_to_days (period : period) days =
+  if days <= 0 then period
+  else match Cal.shift_days period.start_day days with
+    | Ok day -> { period with end_exclusive = day }
+    | Error _ -> period
 
 let compute_report ~book ~roles ~period =
   let entries = B.entries book in
@@ -262,30 +276,41 @@ let item_lines ~width_of ~pad_w ~book ~measure ~with_bar items =
         "  " ^ label_cell ^ "  " ^ amount_cell ^ if mark = "" then "" else "  " ^ mark ))
     (by_amount_desc items)
 
-let render_report_lines ~width ~width_of ~book ~report ~previous =
+let render_report_lines ~width ~width_of ~book ~report ~today ~previous ~previous_full =
   let pad_w = max 0 (width - 4) in
-  let previous_measure measure =
-    Option.bind previous (fun (prev : report) ->
-        List.find_opt (fun (ms : measure_summary) -> ms.measure = measure) prev.summaries)
+  let summary_of (source : report option) measure =
+    Option.bind source (fun (rep : report) ->
+        List.find_opt (fun (ms : measure_summary) -> ms.measure = measure) rep.summaries)
   in
+  let elapsed_days, total_days = elapsed ~today report.period in
   let header =
     [
       (O.Heading, Printf.sprintf "Income & Expense  [%s]" report.period.label);
       ( O.Chrome,
         Printf.sprintf "Window: %s .. %s (exclusive)" report.period.start_day
           report.period.end_exclusive );
+      ( O.Chrome,
+        if total_days > 0 && elapsed_days < total_days then
+          Printf.sprintf "Current window is partial: day %d of %d." elapsed_days total_days
+        else "" );
       ( O.Plain,
         match previous with
         | None -> "Previous window: none of this kind (nothing inferred)."
-        | Some (prev : report) -> "Previous: " ^ prev.period.label );
+        | Some (prev : report) ->
+            Printf.sprintf "Previous: %s%s" prev.period.label
+              (if total_days > 0 && elapsed_days < total_days then
+                 Printf.sprintf " (same %d elapsed day(s))" elapsed_days
+               else "") );
       (O.Plain, "");
     ]
   in
   let totals_block (ms : measure_summary) =
     let m = ms.measure in
-    let prev = previous_measure m in
+    let prev = summary_of previous m in
+    let prev_full = summary_of previous_full m in
     let prev_of pick = Option.map pick prev in
-    let line label current previous_value =
+    let full_of pick = Option.map pick prev_full in
+    let line label current previous_value full_value =
       let amount = O.format_money book m current ^ " " ^ m in
       let assemble detail = Printf.sprintf "  %-10s %14s   %s" label amount detail in
       let text =
@@ -302,13 +327,27 @@ let render_report_lines ~width ~width_of ~book ~report ~previous =
             if width_of detailed <= pad_w then detailed
             else assemble (Printf.sprintf "Δ %s" (signed book m delta))
       in
+      (* The whole previous window stays visible when it is a different number and
+         the line still fits; a partial comparison never hides its own delta. *)
+      let text =
+        match (previous_value, full_value) with
+        | Some partial_value, Some full_value when not (Z.equal partial_value full_value) ->
+            let candidate =
+              text ^ Printf.sprintf "  (whole prev %s)" (O.format_money book m full_value)
+            in
+            if width_of candidate <= pad_w then candidate else text
+        | _ -> text
+      in
       (O.Active, text)
     in
     [
       (O.Heading, Printf.sprintf "Currency: %s" m);
-      line "Income" ms.total_income (prev_of (fun (p : measure_summary) -> p.total_income));
-      line "Expense" ms.total_expense (prev_of (fun (p : measure_summary) -> p.total_expense));
-      line "Result" ms.net_savings (prev_of (fun (p : measure_summary) -> p.net_savings));
+      line "Income" ms.total_income (prev_of (fun (p : measure_summary) -> p.total_income))
+        (full_of (fun (p : measure_summary) -> p.total_income));
+      line "Expense" ms.total_expense (prev_of (fun (p : measure_summary) -> p.total_expense))
+        (full_of (fun (p : measure_summary) -> p.total_expense));
+      line "Result" ms.net_savings (prev_of (fun (p : measure_summary) -> p.net_savings))
+        (full_of (fun (p : measure_summary) -> p.net_savings));
       ( O.Plain,
         Printf.sprintf "  split: Scheduled %s  |  other %s"
           (O.format_money book m ms.scheduled_expense ^ " " ^ m)
@@ -367,21 +406,27 @@ let render_report_lines ~width ~width_of ~book ~report ~previous =
 
 (* Compare view: the last N windows of the same kind side by side. Rows are the
    answers; columns are windows. Measures stay separate (one block per Measure). *)
-let render_compare_lines ~width ~width_of ~book ~reports =
+let short_window (period : period) =
+  if String.length period.start_day >= 10 then String.sub period.start_day 5 5 ^ "→"
+  else period.label
+
+let render_compare_lines ~width ~width_of ~book ~today ~reports =
   let pad_w = max 0 (width - 4) in
   let n_total = List.length reports in
-  let label_w = min 20 (max 12 (pad_w * 30 / 100)) in
-  let room = max 0 (pad_w - label_w - 1) in
-  let col_w = 14 in
-  let fits = max 1 (room / col_w) in
+  let col_w = 12 in
+  let fits = max 1 ((max 0 (pad_w - 16)) / col_w) in
   let n = min n_total fits in
   let reports =
     let skip = max 0 (n_total - n) in
     List.filteri (fun i _ -> i >= skip) reports
   in
+  let label_w = max 12 (pad_w - (n * col_w) - n) in
   let measures =
     List.sort_uniq String.compare
-      (List.concat_map (fun (_, (r : report)) -> List.map (fun (ms : measure_summary) -> ms.measure) r.summaries) reports)
+      (List.concat_map
+         (fun (_, (r : report)) ->
+           List.map (fun (ms : measure_summary) -> ms.measure) r.summaries)
+         reports)
   in
   let measure_active_in measure =
     List.exists
@@ -394,11 +439,30 @@ let render_compare_lines ~width ~width_of ~book ~reports =
   let summary_of measure (r : report) =
     List.find_opt (fun (ms : measure_summary) -> ms.measure = measure) r.summaries
   in
+  let current_is_partial =
+    match List.rev reports with
+    | ((p : period), _) :: _ ->
+        let elapsed_days, total_days = elapsed ~today p in
+        total_days > 0 && elapsed_days < total_days
+    | [] -> false
+  in
+  let starts = List.map (fun ((p : period), _) -> p.start_day) reports in
+  let header_cells =
+    List.mapi
+      (fun index (p : period) ->
+        let marker =
+          if index = List.length reports - 1 && current_is_partial then "(partial)" else ""
+        in
+        O.pad_left ~width_of col_w (if marker = "" then short_window p else marker))
+      (List.map fst reports)
+  in
   let header =
     (O.Heading, Printf.sprintf "Compare: %d window(s) of this kind" n)
     :: ( O.Chrome,
-         "Window: "
-         ^ String.concat "  " (List.map (fun ((p : period), _) -> p.label) reports) )
+         "Window starts: "
+         ^ String.concat "  " (List.map (fun day -> String.sub day 5 5) starts) )
+    :: ( O.Plain,
+         "  " ^ O.pad ~width_of label_w "" ^ " " ^ String.concat " " header_cells )
     :: [ (O.Plain, "") ]
   in
   let cell measure index (ms : measure_summary option) =
@@ -419,7 +483,7 @@ let render_compare_lines ~width ~width_of ~book ~reports =
     let cells = List.map (fun (_, r) -> cell measure index (summary_of measure r)) reports in
     ( O.Plain,
       "  " ^ O.pad ~width_of label_w label ^ " "
-      ^ String.concat " " (List.map (O.pad_left ~width_of (col_w - 1)) cells) )
+      ^ String.concat " " (List.map (O.pad_left ~width_of col_w) cells) )
   in
   let block measure =
     if not (measure_active_in measure) then []
@@ -449,8 +513,8 @@ let render_compare_lines ~width ~width_of ~book ~reports =
             reports
         in
         ( O.Plain,
-          "    " ^ O.pad ~width_of (label_w - 4) it.label ^ " "
-          ^ String.concat " " (List.map (O.pad_left ~width_of (col_w - 1)) cells) )
+          "  " ^ O.pad ~width_of label_w it.label ^ " "
+          ^ String.concat " " (List.map (O.pad_left ~width_of col_w) cells) )
       in
       [
         (O.Heading, Printf.sprintf "  %s" measure);

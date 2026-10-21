@@ -44,7 +44,7 @@ let view_of ~title ~(geometry : Screen.geometry) ~rows ~footer preview : Screen.
   in
   {
     title = Ui_text.tr title;
-    subtitle = Default;
+    subtitle = Hidden;
     rows;
     footer = (if is_preview then preview_footer else footer);
     overlay;
