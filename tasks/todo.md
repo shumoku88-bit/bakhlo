@@ -3,7 +3,7 @@
 ## 中断中（2026-10-21）
 
 - [ ] 予定作成直後のExpected pace選択（UI-23の残り）：`omp/created-pace`のworktree（`../bakhlo-omp-scheduled`）に未コミットの途中作業（scheduled_screen.ml/.mli、shell_dispatch.ml）。Shell変更は`shell_dispatch.ml`の`apply_request`のみ承認済み、drillは保持する方針。テスト未完了・未検証。
-- [ ] `95ba940`の同一SHA CIは未確認。
+- [x] `95ba940`の同一SHA CIはCore／TUIともsuccess（2026-10-21確認）。
 
 ## Trend / Locus comparisonの残り（2026-10-21）
 
