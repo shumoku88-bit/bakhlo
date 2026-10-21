@@ -18,7 +18,7 @@
 (** The Shell's routes; a screen asks for one with [Open_route]. *)
 type route =
   | Home | Calendar | Selected_day of string | Actual | Scheduled | Balances | Daily_pace
-  | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow
+  | Attention | Loci | Settlements | Income_expense | Transactions_flow | Stock_flow | Liquidity
 
 type env = {
   book : Bakhlo_sexp.Daily_book.t;

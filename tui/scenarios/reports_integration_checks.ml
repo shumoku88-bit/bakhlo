@@ -1,6 +1,69 @@
 (* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
 open Interaction_check_fixture
 
+(* Liquidity: real Commands -> Reports and analysis -> Liquidity selection,
+   an explicit Run over the synthetic file, then a cancelled return. *)
+let run_liquidity ~width_of ~directory =
+  let dir = directory ^ "/liquidity" in
+  Unix.mkdir dir 0o700;
+  let path = dir ^ "/book.sexp" in
+  let book_bytes =
+    "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
+     (measures (measure jpy 0))\n\
+     (labels (not-supplied)) (approved-loci (provided wallet ext))\n\
+     (entries (entry seed (date 2026-01-01) (memo (none)) \
+      (postings (posting wallet jpy 1000 (none)) (posting ext jpy -1000 (none))) \
+      (reversal-of (none))))\n\
+     (plans)\n\
+     (support (zero-origin (wallet jpy)) (openings) (observations) \
+      (presence (not-supplied)))\n"
+  in
+  F.write_new path book_bytes;
+  F.write_new (dir ^ "/balance-view.tsv") "wallet\tjpy\n";
+  let at_home = C.open_route (C.initial ~config_home:dir (F.load path)) W.Home in
+  let bytes_before = F.read path in
+  let commands = key ~width_of at_home (`ASCII ' ') in
+  require
+    (match commands.overlay with C.Commands { page = M.Root; _ } -> true | _ -> false)
+    "liquidity-space-opens-commands";
+  let analysis_index = Option.get (List.find_index
+    (fun (item, _) -> item = M.Group M.Analysis) (M.items M.Root)) in
+  let analysis = List.fold_left (fun state _ -> key ~width_of state (`ASCII 'j'))
+    commands (List.init analysis_index Fun.id) in
+  let analysis = key ~width_of analysis `Enter in
+  require
+    (match analysis.overlay with C.Commands { page = M.Analysis; _ } -> true | _ -> false)
+    "liquidity-reports-analysis-group";
+  let liquidity_index = Option.get (List.find_index
+    (fun (item, _) -> item = M.Action M.Liquidity) (M.items M.Analysis)) in
+  let selected = List.fold_left (fun state _ -> key ~width_of state (`ASCII 'j'))
+    analysis (List.init liquidity_index Fun.id) in
+  let liquidity = key ~width_of selected `Enter in
+  require (liquidity.workspace.route = W.Liquidity) "liquidity-menu-selects-route";
+  require (no_modal liquidity) "liquidity-route-has-no-modal";
+  let env = X.screen_env ~config_files:Liquidity_screen.config_files liquidity in
+  let screen = liquidity.C.screens.liquidity in
+  require (Result.is_error (Liquidity_screen.result env screen))
+    "liquidity-open-has-no-answer";
+  let rows = R.screen ~width_of (80, 24) liquidity in
+  require (contains rows "Forecast path: UNKNOWN") "liquidity-forecast-stays-unknown";
+  require (contains rows "Known low-water mark: UNKNOWN") "liquidity-low-water-stays-unknown";
+  require (Liquidity_screen.run_focused screen) "liquidity-enter-focuses-run";
+  let ran = key ~width_of liquidity `Enter in
+  let env = X.screen_env ~config_files:Liquidity_screen.config_files ran in
+  let snapshot = get (Liquidity_screen.result env ran.C.screens.liquidity) in
+  require (snapshot.Liquidity_report.measure = "jpy"
+           && Z.equal snapshot.Liquidity_report.current_selected (Z.of_int 1000))
+    "liquidity-explicit-run-answers-exact-selected-balance";
+  let rows = R.screen ~width_of (80, 24) ran in
+  require (contains rows "Forecast path: UNKNOWN") "liquidity-run-keeps-forecast-unknown";
+  let home = key ~width_of ran `Escape in
+  require (home.workspace.route = W.Home) "liquidity-escape-cancels-back-home";
+  require (String.equal (F.read path) bytes_before)
+    "liquidity-flow-leaves-synthetic-book-bytes-unchanged";
+  require (String.equal (F.read (dir ^ "/balance-view.tsv")) "wallet\tjpy\n")
+    "liquidity-flow-never-rewrites-the-selection"
+
 let run ~width_of ~directory (back_home : C.state) =
   let contains rows needle = List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows in
   (* Test Income & Expense report with Cycle / Month / Year / All-Time *)
@@ -117,4 +180,5 @@ let run ~width_of ~directory (back_home : C.state) =
     "sf-detail-return-retains-report";
   let sf_back_home = key ~width_of returned (`ASCII 'q') in
   require (sf_back_home.workspace.route = W.Home) "sf-report-return-home";
+  run_liquidity ~width_of ~directory;
   ()

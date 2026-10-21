@@ -309,6 +309,7 @@ let open_command state = function
   | M.Home -> open_route state W.Home
   | M.Income_expense -> open_route state W.Income_expense
   | M.Stock_flow -> open_route state W.Stock_flow
+  | M.Liquidity -> open_route state W.Liquidity
   | M.Transactions_flow -> open_route state W.Transactions_flow
   | M.Calendar -> open_route state W.Calendar
   | M.Pace_pool ->

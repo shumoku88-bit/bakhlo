@@ -9,6 +9,7 @@ type t = {
   income_expense : Income_expense_screen.t;
   transactions_flow : Transactions_flow_screen.t;
   stock_flow : Stock_flow_screen.t;
+  liquidity : Liquidity_screen.t;
   attention : Attention_screen.t;
   settlements : Settlements_screen.t;
   loci : Loci_screen.t;
@@ -28,6 +29,7 @@ let create ~scheduled_months =
     income_expense = Income_expense_screen.create ();
     transactions_flow = Transactions_flow_screen.create ();
     stock_flow = Stock_flow_screen.create ();
+    liquidity = Liquidity_screen.create ();
     attention = Attention_screen.create ();
     settlements = Settlements_screen.create ();
     loci = Loci_screen.create ();
@@ -143,6 +145,22 @@ let all =
         published = Screen.no_publication;
         reloaded = Screen.no_reload;
         book_changed = no_change;
+      };
+    Owner
+      {
+        layout = Screen.Standard;
+        owns = (( = ) W.Liquidity);
+        config_files = Liquidity_screen.config_files;
+        get = (fun t -> t.liquidity);
+        set = (fun t liquidity -> { t with liquidity });
+        enter = (fun _ ~focus_day t -> Liquidity_screen.enter ~focus_day t);
+        modal = Liquidity_screen.modal;
+        handle = Liquidity_screen.handle;
+        view = Liquidity_screen.view;
+        saved = Liquidity_screen.saved;
+        published = Screen.no_publication;
+        reloaded = Liquidity_screen.reloaded;
+        book_changed = Liquidity_screen.book_changed;
       };
     Owner
       {
