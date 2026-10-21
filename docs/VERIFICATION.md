@@ -5765,5 +5765,9 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
 - Latest-data refresh through the new path succeeded; read-only paired 120×36 Attention:
   both show two open items with the same due information (one dated, one without a due
   date). LOAM household/config bytes unchanged; AI sessions closed; `clean-copies` passed.
+- `eaf8024`: matching-SHA
+  [Core CI 39550727745](https://github.com/shumoku88-bit/bakhlo/actions/runs/39550727745)
+  and [Bonsai TUI CI 39550727699](https://github.com/shumoku88-bit/bakhlo/actions/runs/39550727699)
+  both succeeded.
 - `./tools/check` and `./tools/tui --self-check` passed. The cutover-day procedure,
   physical terminal/IME and P7 were **not executed**.
