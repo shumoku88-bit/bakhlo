@@ -6,6 +6,18 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Daily Pace, Actual and shared input readability (2026-10-21)
+
+- `51b62aa`: Daily Pace `rows` (121 lines) split into context, trend and unavailable parts.
+  `bbbe30a`: the Actual pane cycle is named once. `70e2b73`: nine copies of the
+  case-insensitive key match became `Ui_input.key_ignoring_case`; `Locus_roles` reuses the
+  accounting-roles parser in `Daily_overlays` instead of a copy.
+- Guard for each: the temporary dump (40-key script, 6 sizes × 3 themes) of Daily Pace,
+  Actual, Scheduled and Balances was byte-identical before and after (2.7–3.4 MB each);
+  `./tools/check` (45 suites) passed.
+- Not changed, for a user decision: the accounting-roles reader silently skips malformed
+  lines and unknown role names instead of refusing them.
+
 ## One boundary-presets parser for every screen (2026-10-21)
 
 - Five copies read `boundary-presets.tsv` (Daily Pace today, its cycle form, Trend, Income &
