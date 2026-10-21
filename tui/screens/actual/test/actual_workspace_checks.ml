@@ -385,6 +385,209 @@ let self_check ~width_of () =
     (List.exists (fun (_, line) -> Base.String.is_substring line ~substring:"0/0") stale_rows)
     "stale-row-screen-clamps";
 
+  (* 15. Bounded warm-render cache: selection, focus and scroll reuse the last
+     book/scope/query projection without changing any output; a different book,
+     a label change or another width provider refreshes the cached results; geometry reclamps them. *)
+  let render ?(width_of = width_of) ~book ~dimensions state =
+    Act.screen ~book ~today:"2026-10-20" ~draft_retained:false ~dimensions ~width_of state
+  in
+  let cold book = get (B.of_string (B.to_string book)) in
+  let contains rows text =
+    List.exists (fun (_, line) -> Base.String.is_substring line ~substring:text) rows
+  in
+  let starting = Act.create ~focus_date:"2026-10-15" in
+  let step ?(book = book) ?(dimensions = dim_compact) state input =
+    fst (Act.handle ~book ~dimensions ~width_of state input)
+  in
+  let after ?(book = book) ?(dimensions = dim_compact) inputs =
+    List.fold_left (step ~book ~dimensions) starting inputs
+  in
+  let warm_state =
+    after [ key (`Arrow `Down); key (`Arrow `Down); char_key 'i'; char_key 'j'; char_key 'i' ]
+  in
+  let warm_rows = render ~book ~dimensions:dim_compact warm_state in
+  require
+    (warm_rows = render ~book:(cold book) ~dimensions:dim_compact warm_state)
+    "cache-warm-equals-cold";
+  require (warm_rows = render ~book ~dimensions:dim_compact warm_state) "cache-warm-repeat";
+  let shared_rows = Act.visible_entries ~book starting in
+  let moved = step starting (key (`Arrow `Down)) in
+  require
+    (Act.visible_entries ~book moved == shared_rows)
+    "cache-selection-reuses-query-rows";
+  List.iter
+    (fun (name, inputs) ->
+      let state = after inputs in
+      require
+        (render ~book ~dimensions:dim_compact state
+        = render ~book:(cold book) ~dimensions:dim_compact state)
+        ("cache-warm-" ^ name))
+    [
+      ("down", [ key (`Arrow `Down) ]);
+      ("end", [ key `End ]);
+      ("page", [ key (`Page `Down) ]);
+      ("pane", [ char_key 'h'; char_key 'l' ]);
+      ("details", [ char_key 'i'; char_key 'j' ]);
+      ("locus", [ char_key 'h'; char_key 'j'; char_key 'l' ]);
+      ("order", [ char_key 's' ]);
+      ("scope", [ char_key 'f' ]);
+    ];
+  (* A changed book (appended entry, corrected day, renamed label) must not
+     reuse the previous projection. *)
+  let appended =
+    add_entry book ~day:"2026-10-16" ~memo:"Late entry" ~locus1:"assets:cash" ~amt1:(-700)
+      ~locus2:"expenses:rent" ~amt2:700
+  in
+  let appended_rows = render ~book:appended ~dimensions:dim_compact warm_state in
+  require (appended_rows <> warm_rows) "cache-book-entry-invalidated";
+  require (contains appended_rows "(4,") "cache-book-entry-count";
+  require (contains appended_rows "Late entry") "cache-book-entry-shown";
+  require
+    (appended_rows = render ~book:(cold appended) ~dimensions:dim_compact warm_state)
+    "cache-book-entry-cold";
+  let renamed = get (B.set_locus_label book ~id:"expenses:rent" ~label:"Rent renamed" ()) in
+  let renamed_rows = render ~book:renamed ~dimensions:dim_compact warm_state in
+  require (renamed_rows <> warm_rows) "cache-label-invalidated";
+  require (contains renamed_rows "Rent renamed") "cache-label-shown";
+  require
+    (renamed_rows = render ~book:(cold renamed) ~dimensions:dim_compact warm_state)
+    "cache-label-cold";
+  let focused = after [ char_key 'f' ] in
+  require (List.length (Act.visible_entries ~book focused) = 2) "cache-date-before";
+  let redated =
+    get (B.correct_entry_date book ~id:"2026-10-14:Apartment rent" ~day:"2026-10-15")
+  in
+  require
+    (List.length (Act.visible_entries ~book:redated focused) = 3)
+    "cache-date-membership-invalidated";
+  require
+    (List.length (Act.visible_entries ~book focused) = 2)
+    "cache-date-old-book-restored";
+  let query = "renamed" in
+  let searched =
+    after (char_key '/' :: List.init (String.length query) (fun i -> char_key query.[i]))
+  in
+  require (Act.visible_entries ~book searched = []) "cache-label-query-before";
+  require
+    (List.length (Act.visible_entries ~book:renamed searched) = 1)
+    "cache-label-query-invalidated";
+  require (Act.visible_entries ~book searched = []) "cache-label-old-book-restored";
+  (* Stale selection: a warm projection for one book never leaks into another. *)
+  let stale_rows = render ~book:empty_book ~dimensions:dim_compact ws in
+  require (contains stale_rows "0/0") "cache-stale-count";
+  require
+    (stale_rows = render ~book:(cold empty_book) ~dimensions:dim_compact ws)
+    "cache-stale-cold";
+  (* Another width provider re-measures; switching back restores the paint. *)
+  let double_width text = 2 * String.length text in
+  let doubled = render ~width_of:double_width ~book ~dimensions:dim_compact warm_state in
+  require
+    (doubled = render ~width_of:double_width ~book:(cold book) ~dimensions:dim_compact warm_state)
+    "cache-width-provider-cold";
+  require (doubled <> warm_rows) "cache-width-provider-paint";
+  require (render ~book ~dimensions:dim_compact warm_state = warm_rows) "cache-width-provider-restores";
+  (* Geometry changes apply their own clamp on top of the reused maximum. *)
+  List.iter
+    (fun dimensions ->
+      let state = after ~dimensions [ key (`Arrow `Down) ] in
+      require
+        (render ~book ~dimensions state = render ~book:(cold book) ~dimensions state)
+        "cache-geometry-cold")
+    [ dim_wide; dim_compact; (48, 14); (32, 9); (200, 60) ];
+  (* Exact huge, split and multi-Measure amounts keep their summaries. Quantities
+     are derived from an existing Effect, so no new dependency enters the check. *)
+  let module D = B.D in
+  let identifier = function
+    | Ok value -> value
+    | Error _ -> failwith "FAILED: actual_workspace_check: synthetic identifier"
+  in
+  let post measure locus quantity =
+    D.Effect.create ~key:None
+      ~locus:(identifier (D.Identifier.Locus.of_string locus))
+      ~measure:(identifier (D.Identifier.Measure.of_string measure))
+      ~quantity
+  in
+  let sample_effect = List.hd (List.hd (B.entries book)).effects in
+  let unit = D.Quantity.neg (D.Effect.quantity sample_effect) in
+  let rec doubled times value =
+    if times = 0 then value else doubled (times - 1) (D.Quantity.add value value)
+  in
+  let huge = doubled 180 unit in
+  let twice = D.Quantity.add unit unit in
+  let amount_entry id day memo effects : B.entry =
+    { id; day; memo = Some memo; effects; reversal_of = None; exchange = None;
+      original_amount = None; merchant = None }
+  in
+  let mixed_book =
+    get
+      (B.of_payload
+         {
+           measures = [ ("jpy", 0); ("usd", 2) ];
+           labels = None;
+           approved = Some [ "wallet"; "food"; "rent" ];
+           entries =
+             [
+               amount_entry "synthetic-huge" "2026-10-14" "Huge amount"
+                 [
+                   post "jpy" "wallet" (D.Quantity.neg huge);
+                   post "jpy" "food" huge;
+                 ];
+               amount_entry "synthetic-split" "2026-10-15" "Split amount"
+                 [
+                   post "jpy" "wallet" (D.Quantity.neg twice);
+                   post "jpy" "food" unit;
+                   post "jpy" "rent" unit;
+                 ];
+               amount_entry "synthetic-multi" "2026-10-16" "Two Measures"
+                 [
+                   post "jpy" "wallet" (D.Quantity.neg unit);
+                   post "jpy" "food" unit;
+                   post "usd" "wallet" (D.Quantity.neg unit);
+                   post "usd" "food" unit;
+                 ];
+             ];
+           plans = [];
+           origins = [];
+           openings = [];
+           observations = [];
+           presence = None;
+           bounded = [];
+         })
+  in
+  let mixed_start = Act.create ~focus_date:"2026-10-16" in
+  let mixed_rows = render ~book:mixed_book ~dimensions:dim_compact mixed_start in
+  require (List.length (Act.visible_entries ~book:mixed_book mixed_start) = 3) "cache-mixed-visible";
+  require (contains mixed_rows "split") "cache-split-summary";
+  require (contains mixed_rows "multi (2)") "cache-multi-summary";
+  require (contains mixed_rows "see details") "cache-huge-amount-bounded";
+  require
+    (mixed_rows = render ~book:(cold mixed_book) ~dimensions:dim_compact mixed_start)
+    "cache-mixed-cold";
+  require
+    (render ~book:mixed_book ~dimensions:dim_compact mixed_start = mixed_rows)
+    "cache-mixed-repeat";
+  (* First-occurrence Loci order survives the reused scan. *)
+  let locus_state =
+    List.fold_left (step ~book:mixed_book) mixed_start
+      [ char_key 'h'; char_key 'j'; char_key 'j'; char_key 'j' ]
+  in
+  let order =
+    List.map
+      (fun row ->
+        let state =
+          List.fold_left (step ~book:mixed_book) (step ~book:mixed_book mixed_start (char_key 'h'))
+            (List.init row (fun _ -> char_key 'j'))
+        in
+        Act.selected_locus ~book:mixed_book state)
+      [ 1; 2; 3 ]
+  in
+  require
+    (Act.selected_locus ~book:mixed_book locus_state = Some "rent")
+    "cache-locus-selection";
+  require
+    (order = [ Some "wallet"; Some "food"; Some "rent" ])
+    "cache-locus-first-occurrence-order";
+
   Printf.printf
     "PASS: Actual workspace synthetic checks (3-pane, Loci filter, live search, date/order toggle, \
      details scroll, selection, cursor).\n\

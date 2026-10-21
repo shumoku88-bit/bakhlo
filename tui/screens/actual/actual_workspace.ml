@@ -54,10 +54,10 @@ let notice t = t.notice
 
 (* 1. Data extraction and filtering *)
 
-let records_for_scope ~book t =
+let records_for_scope ~book ~scope ~focus_date =
   let all = B.entries book in
-  match t.scope with
-  | Focus_day -> List.filter (fun (e : B.entry) -> e.day = t.focus_date) all
+  match scope with
+  | Focus_day -> List.filter (fun (e : B.entry) -> e.day = focus_date) all
   | All_current -> all
 
 (* First-occurrence Loci order from an already-scoped record list. *)
@@ -73,9 +73,49 @@ let loci_of_records records =
   in
   extract_loci [] records
 
-let loci_for_scope ~book t = loci_of_records (records_for_scope ~book t)
+(* One process-local projection; [B.t] is immutable and every mutation replaces it.
+   Key on the book, not its image (date/label changes can share that image).
+   Keep only the last scope/query; transaction selection, pane focus and scroll
+   do not change the cached rows. *)
+type projection = {
+  book : B.t;
+  scope_key : scope * string;
+  scoped : B.entry list;
+  loci : string list;
+  mutable query : (string option * sort_order * string) option;
+  mutable rows : B.entry list;
+  mutable count : int;
+  mutable width : ((string -> int) * int) option;
+}
+
+let latest : projection option ref = ref None
+
+(* The scoped scan and its first-occurrence Loci list, recomputed only when the
+   book or the scope/focus date changes. *)
+let projection_for ~book ~scope ~focus_date =
+  match !latest with
+  | Some p when p.book == book && p.scope_key = (scope, focus_date) -> p
+  | _ ->
+      let scoped = records_for_scope ~book ~scope ~focus_date in
+      let p =
+        {
+          book;
+          scope_key = (scope, focus_date);
+          scoped;
+          loci = loci_of_records scoped;
+          query = None;
+          rows = [];
+          count = 0;
+          width = None;
+        }
+      in
+      latest := Some p;
+      p
 
 let locus_at loci row = if row = 0 then None else List.nth_opt loci (row - 1)
+
+let loci_for_scope ~book t =
+  (projection_for ~book ~scope:t.scope ~focus_date:t.focus_date).loci
 
 let selected_locus ~book t =
   if t.locus_row = 0 then None else locus_at (loci_for_scope ~book t) t.locus_row
@@ -86,20 +126,20 @@ let contains_insensitive needle haystack =
     Base.String.is_substring (String.lowercase_ascii haystack)
       ~substring:(String.lowercase_ascii needle)
 
-let matches_search ~book t (record : B.entry) =
-  if t.search_query = "" then true
+let matches_search ~book ~search (record : B.entry) =
+  if search = "" then true
   else
-    contains_insensitive t.search_query (Option.value ~default:"" record.memo)
-    || contains_insensitive t.search_query record.id
-    || contains_insensitive t.search_query record.day
+    contains_insensitive search (Option.value ~default:"" record.memo)
+    || contains_insensitive search record.id
+    || contains_insensitive search record.day
     || List.exists
          (fun p ->
            let token = A.lstr (D.Effect.locus p) in
            let label = B.label book token in
-           contains_insensitive t.search_query token || contains_insensitive t.search_query label)
+           contains_insensitive search token || contains_insensitive search label)
          record.effects
 
-let filtered_entries ~book t ~records ~locus =
+let filtered_entries ~book ~search ~order ~records ~locus =
   let by_locus =
     match locus with
     | None -> records
@@ -109,44 +149,65 @@ let filtered_entries ~book t ~records ~locus =
             List.exists (fun p -> A.lstr (D.Effect.locus p) = locus) record.effects)
           records
   in
-  let filtered = List.filter (matches_search ~book t) by_locus in
+  let filtered = List.filter (matches_search ~book ~search) by_locus in
   List.sort
     (fun (a : B.entry) (b : B.entry) ->
       if a.day = b.day then
-        match t.order with Asc -> String.compare b.id a.id | Desc -> String.compare a.id b.id
+        match order with Asc -> String.compare b.id a.id | Desc -> String.compare a.id b.id
       else
-        match t.order with Asc -> String.compare a.day b.day | Desc -> String.compare b.day a.day)
+        match order with Asc -> String.compare a.day b.day | Desc -> String.compare b.day a.day)
     filtered
 
+(* The filtered and sorted rows for one Locus/order/search query. The public
+   [visible_entries] uses the unclamped row's Locus; the render passes its
+   locally clamped Locus. Both share this one slot. *)
+let query_rows p ~locus ~order ~search =
+  match p.query with
+  | Some (cached_locus, cached_order, cached_search)
+    when cached_locus = locus && cached_order = order && cached_search = search ->
+      p.rows
+  | _ ->
+      let rows = filtered_entries ~book:p.book ~search ~order ~records:p.scoped ~locus in
+      p.query <- Some (locus, order, search);
+      p.rows <- rows;
+      p.count <- List.length rows;
+      p.width <- None;
+      rows
+
 (* Resolve one scoped scan into the Loci list, the active Locus, the filtered
-   and sorted rows, and both row indices clamped. The public [visible_entries]
-   deliberately stays unclamped and [selected_entry] returns None for a stale
-   transaction index. *)
+   and sorted rows with their count, and both row indices clamped. The public
+   [visible_entries] deliberately stays unclamped and [selected_entry] returns
+   None for a stale transaction index. *)
 let resolve ~book t =
-  let scoped = records_for_scope ~book t in
-  let loci = loci_of_records scoped in
+  let p = projection_for ~book ~scope:t.scope ~focus_date:t.focus_date in
+  let loci = p.loci in
   let locus_row = min (max 0 t.locus_row) (List.length loci) in
   let locus = locus_at loci locus_row in
-  let records = filtered_entries ~book t ~records:scoped ~locus in
-  let tx_count = List.length records in
+  let records = query_rows p ~locus ~order:t.order ~search:t.search_query in
+  let tx_count = p.count in
   let transaction_row =
     if tx_count = 0 then 0 else min (max 0 t.transaction_row) (tx_count - 1)
   in
-  (loci, locus, records, { t with locus_row; transaction_row })
+  (loci, locus, records, tx_count, { t with locus_row; transaction_row })
 
 let visible_entries ~book t =
-  let records = records_for_scope ~book t in
-  let locus =
-    if t.locus_row = 0 then None else locus_at (loci_of_records records) t.locus_row
-  in
-  filtered_entries ~book t ~records ~locus
+  let p = projection_for ~book ~scope:t.scope ~focus_date:t.focus_date in
+  let locus = if t.locus_row = 0 then None else locus_at p.loci t.locus_row in
+  query_rows p ~locus ~order:t.order ~search:t.search_query
+
+(* The row count of the same public query, without walking the list. *)
+let visible_count ~book t =
+  let p = projection_for ~book ~scope:t.scope ~focus_date:t.focus_date in
+  let locus = if t.locus_row = 0 then None else locus_at p.loci t.locus_row in
+  ignore (query_rows p ~locus ~order:t.order ~search:t.search_query);
+  p.count
 
 let selected_entry ~book t =
   let records = visible_entries ~book t in
   List.nth_opt records t.transaction_row
 
 let clamp_state ~book t =
-  let _, _, _, clamped = resolve ~book t in
+  let _, _, _, _, clamped = resolve ~book t in
   clamped
 
 let returned_from_detail ~before_book ~after_book t =
@@ -336,7 +397,7 @@ let move_next ~book ~width_of geometry t =
           }
       else { t with notice = "No next Locus row." }
   | Transactions ->
-      let count = List.length (visible_entries ~book t) in
+      let count = visible_count ~book t in
       if t.transaction_row + 1 < count then
         { t with transaction_row = t.transaction_row + 1; detail_scroll = 0; notice = "" }
       else { t with notice = "No next Actual row." }
@@ -383,7 +444,7 @@ let move_page_down ~book ~width_of geometry t =
             notice = "";
           }
   | Transactions ->
-      let count = List.length (visible_entries ~book t) in
+      let count = visible_count ~book t in
       if count = 0 || t.transaction_row + 1 >= count then { t with notice = "End of Actual list." }
       else
         {
@@ -412,7 +473,7 @@ let move_end ~book ~width_of geometry t =
       clamp_state ~book
         { t with locus_row = count; transaction_row = 0; detail_scroll = 0; notice = "" }
   | Transactions ->
-      let count = List.length (visible_entries ~book t) in
+      let count = visible_count ~book t in
       let row = if count = 0 then 0 else count - 1 in
       { t with transaction_row = row; detail_scroll = 0; notice = "" }
   | Details ->
@@ -553,6 +614,23 @@ let table_row ~width_of width amount_width date desc amount =
   ^ O.pad_left ~width_of amount_width
       (if width_of amount <= amount_width then amount else "see details")
 
+(* The global amount maximum for the projected rows, measured when the rows or
+   the cell-width provider change. Only the raw maximum is cached; [list_panel]
+   reapplies the geometry bound for every paint. *)
+let raw_amount_width ~book ~width_of rows =
+  let measure () =
+    List.fold_left (fun w e -> max w (width_of (amount_summary book e))) 0 rows
+  in
+  match !latest with
+  | Some p when p.book == book && p.rows == rows -> (
+      match p.width with
+      | Some (provider, width) when provider == width_of -> width
+      | _ ->
+          let width = measure () in
+          p.width <- Some (width_of, width);
+          width)
+  | _ -> measure ()
+
 let list_panel ~book ~width_of t ~records ~loci pane (width, height) title =
   let selected = if pane = Loci then t.locus_row else t.transaction_row in
   let row_width =
@@ -563,10 +641,8 @@ let list_panel ~book ~width_of t ~records ~loci pane (width, height) title =
   let amount_width =
     if pane = Loci then 0
     else
-      min
-        (max 0 (row_width - 26))
-        (min 22
-           (max 12 (List.fold_left (fun w e -> max w (width_of (amount_summary book e))) 0 records)))
+      min (max 0 (row_width - 26))
+        (min 22 (max 12 (raw_amount_width ~book ~width_of records)))
   in
   let header =
     if pane = Loci || height < 4 then []
@@ -581,7 +657,8 @@ let list_panel ~book ~width_of t ~records ~loci pane (width, height) title =
   in
   let rows = list_capacity pane height in
   let start = if selected < rows then 0 else selected + 1 - rows in
-  let records = Array.of_list records and loci = Array.of_list loci in
+  let records = if pane = Loci then [||] else Array.of_list records
+  and loci = Array.of_list loci in
   let label index =
     if pane = Loci then
       if index = 0 then Some "[All loci]"
@@ -654,7 +731,7 @@ let search_line ~width ~width_of t =
 
 let screen ~book ~today ~draft_retained ~dimensions ~width_of t =
   let g = panel_geometry dimensions in
-  let loci, locus, records, t = resolve ~book t in
+  let loci, locus, records, record_count, t = resolve ~book t in
   let order_tag, order_text =
     match t.order with Asc -> ("asc", "oldest first") | Desc -> ("desc", "newest first")
   in
@@ -664,7 +741,7 @@ let screen ~book ~today ~draft_retained ~dimensions ~width_of t =
   let right_header =
     "Actuals"
     ^ (if t.pane = Transactions then " [active]" else "")
-    ^ Printf.sprintf " (%d, %s, %s)" (List.length records) order_tag order_text
+    ^ Printf.sprintf " (%d, %s, %s)" record_count order_tag order_text
   in
   let searching = t.search_query <> "" || t.search_editing in
   let locus_name =

@@ -17,10 +17,11 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   and pending-log errors), preserving Git's reason and any nonzero TUI exit status.
   Synthetic local-Git tests cover failed commit/push, no-edit retry and config backup;
   restoring the actual private off-site backup is still untested.
-- Actual now reuses scoped/filtered rows within a render; common empty-query search
-  skips text construction. The 1,440-state synthetic frame comparison is unchanged.
-  At 109.5k synthetic entries, native Actual Down+paint fell 466→235 ms (80×24);
-  the 16 ms goal is still unmet. No persistent cache or household access was added.
+- Actual now keeps one process-local book/scope/query projection and amount-width
+  maximum. At 109.5k synthetic entries, warm navigation/paint stayed below 4.1 ms
+  over 200 keys at each of four geometries (CPU side, not terminal latency).
+  Cold display/search changes still take ~193/286 ms. Output/invalidation guards
+  match the baseline; no on-disk cache, storage change or household access.
 - Goal: reproduce LOAM's non-budget functionality and interaction (see AGENTS.md
   Product). English Notty TUI: Calendar Home (Day/Month/Year), hierarchical Commands,
   Record/Preview, Actual, Scheduled (Series Calendar, Months, List, create/edit/cancel/
