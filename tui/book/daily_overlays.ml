@@ -51,27 +51,43 @@ let is_balance_sheet_role = function
 
 let is_net_worth_role = function Asset | Liability -> true | Equity | Income | Expense -> false
 
+(* accounting-roles.tsv: one "ROLE<TAB>Locus<TAB>role" (or "Locus<TAB>role") row per
+   Locus. Blank lines, ";" or "#" comments and the LOAM-ACCOUNTING-ROLE-MAP header
+   are skipped; any other row, an unknown role or a repeated Locus refuses the whole
+   file, so a typo never silently leaves a Locus without its role. *)
 let parse_accounting_roles text =
-  let lines = String.split_on_char '\n' text in
-  List.filter_map
-    (fun line ->
-      let line = String.trim line in
-      if line = "" || String.starts_with ~prefix:";" line || String.starts_with ~prefix:"#" line
-      then None
-      else if String.starts_with ~prefix:"LOAM-ACCOUNTING-ROLE-MAP" line then None
-      else
-        let parts = String.split_on_char '\t' line in
-        match parts with
-        | [ "ROLE"; locus; role_str ] -> (
-            match role_of_string role_str with
-            | Some r -> Some (String.trim locus, r)
-            | None -> None)
-        | [ locus; role_str ] -> (
-            match role_of_string role_str with
-            | Some r -> Some (String.trim locus, r)
-            | None -> None)
-        | _ -> None)
-    lines
+  let row number line =
+    let refuse why = Error (Printf.sprintf "line %d: %s" number why) in
+    let assign locus role =
+      let locus = String.trim locus in
+      match role_of_string role with
+      | _ when locus = "" -> refuse "the Locus is empty"
+      | Some role -> Ok (Some (locus, role))
+      | None -> refuse (Printf.sprintf "unknown role %S" (String.trim role))
+    in
+    let line = String.trim line in
+    if
+      line = ""
+      || String.starts_with ~prefix:";" line
+      || String.starts_with ~prefix:"#" line
+      || String.starts_with ~prefix:"LOAM-ACCOUNTING-ROLE-MAP" line
+    then Ok None
+    else
+      match String.split_on_char '\t' line with
+      | [ "ROLE"; locus; role ] | [ locus; role ] -> assign locus role
+      | _ -> refuse "expected ROLE<TAB>Locus<TAB>role"
+  in
+  let rec loop number acc = function
+    | [] -> Ok (List.rev acc)
+    | line :: rest -> (
+        match row number line with
+        | Error _ as error -> error
+        | Ok None -> loop (number + 1) acc rest
+        | Ok (Some (locus, _)) when List.mem_assoc locus acc ->
+            Error (Printf.sprintf "line %d: Locus %S has a second role" number locus)
+        | Ok (Some assignment) -> loop (number + 1) (assignment :: acc) rest)
+  in
+  loop 1 [] (String.split_on_char '\n' text)
 
 type balance_item =
   | Header_row of string

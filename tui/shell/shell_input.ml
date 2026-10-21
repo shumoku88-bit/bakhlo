@@ -27,7 +27,9 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
             ~base_revision:state.session.revision ~blocked:state.blocked
             ~dimensions:(record_dimensions ~dimensions ~width_of state)
             ~width_of
-            (S.with_roles (Shell_files.accounting_roles state) record)
+            (* Roles only suggest Locus words in quick capture; unreadable roles suggest none,
+               and every role-aware screen shows the refusal itself. *)
+            (S.with_roles (Result.value ~default:[] (Shell_files.accounting_roles state)) record)
             input
         with
         | S.Updated record -> Some { state with record = Some record }

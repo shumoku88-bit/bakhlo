@@ -2,25 +2,6 @@
    files (captured reads and admission-checked atomic saves). Screens only see captured bytes through Screen.env. *)
 open Shell_state
 
-let read_config state name =
-  let directory = Filename.dirname state.session.F.path in
-  let candidates =
-    List.filter_map Fun.id
-      [
-        Option.map (fun home -> Filename.concat home name) state.config_home;
-        Some (Filename.concat directory name);
-        Some (Filename.concat (Filename.concat directory "config") name);
-      ]
-  in
-  let rec read = function
-    | [] -> None
-    | filename :: rest -> (
-        if not (Sys.file_exists filename) then read rest
-        else
-          try Some (F.read filename) with F.Refused _ | Unix.Unix_error _ | Sys_error _ -> Some "")
-  in
-  read candidates
-
 let config_file_path state name =
   let dir = Option.value ~default:(Filename.dirname state.session.F.path) state.config_home in
   let nested = Filename.concat (Filename.concat dir "config") name in
@@ -73,10 +54,12 @@ let write_config_file state name ~expected content =
       Option.iter (fun p -> try Unix.unlink p with Unix.Unix_error _ -> ()) !tmp;
       Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
 
+(* Read where saves write (config_file_path); never an empty list for a bad file. *)
 let accounting_roles state =
-  match read_config state Locus_roles.file_name with
-  | Some text -> O.parse_accounting_roles text
-  | None -> []
+  Result.bind (read_pace_config state Locus_roles.file_name) (function
+    | None -> Ok []
+    | Some text -> O.parse_accounting_roles text)
+  |> Result.map_error (fun why -> Locus_roles.file_name ^ " " ^ why)
 
 let save_config state ~file ~expected ~content ~admission =
   let admitted =

@@ -85,9 +85,12 @@ let locus_used book locus =
 let role_refusal (env : Screen.env) locus =
   if locus_used env.book locus then
     Some (tr "Already used by Actual or Scheduled evidence; role cannot be assigned.")
-  else if List.mem_assoc locus (Lazy.force env.accounting_roles) then
-    Some (tr "This Locus already has an accounting role; roles are never replaced.")
-  else None
+  else
+    match Lazy.force env.accounting_roles with
+    | Error why -> Some (tr "Accounting roles unavailable: " ^ why)
+    | Ok roles when List.mem_assoc locus roles ->
+        Some (tr "This Locus already has an accounting role; roles are never replaced.")
+    | Ok _ -> None
 
 let move (env : Screen.env) t delta =
   let count = List.length (admitted_loci env.book) in
@@ -165,17 +168,20 @@ let label_review_form locus label help =
 (* Replace one role in the captured accounting-roles.tsv; the Shell refuses if
    the file changed since it was captured for this event. *)
 let save_role (env : Screen.env) locus role =
-  Result.map
-    (fun expected ->
-      let roles = match expected with None -> Roles.empty | Some text -> Roles.of_string text in
-      Screen.Save_config
-        {
-          file = roles_file;
-          expected;
-          content = Roles.to_string (Roles.set_role roles locus role);
-          admission = Unconditional;
-        })
-    (env.config roles_file)
+  Result.bind (env.config roles_file) (fun expected ->
+      let current =
+        match expected with None -> Ok Roles.empty | Some text -> Roles.of_string text
+      in
+      Result.map
+        (fun roles ->
+          Screen.Save_config
+            {
+              file = roles_file;
+              expected;
+              content = Roles.to_string (Roles.set_role roles locus role);
+              admission = Unconditional;
+            })
+        (Result.map_error (fun why -> roles_file ^ " " ^ why) current))
 
 let submit (env : Screen.env) (geometry : Screen.geometry) t submitted =
   let keep editor notice =
@@ -383,10 +389,13 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
   let book = env.book in
   let loci = admitted_loci book in
   let roles = Lazy.force env.accounting_roles in
+  let role_of locus = match roles with Ok roles -> List.assoc_opt locus roles | Error _ -> None in
+  (* An unreadable file is "?", never "unassigned". *)
   let role_tag locus =
-    match List.assoc_opt locus roles with
-    | Some r -> "[" ^ Roles.role_label r ^ "]"
-    | None -> "[--]"
+    match (roles, role_of locus) with
+    | Error _, _ -> "[?]"
+    | Ok _, Some r -> "[" ^ Roles.role_label r ^ "]"
+    | Ok _, None -> "[--]"
   in
   (* Columns fit the list pane; when the label would be squeezed out the role
      column yields first, since the detail pane names the role. *)
@@ -412,9 +421,12 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
     | None -> [ tr "No selected locus."; ""; tr "Press 'n' to admit a new coordinate token." ]
     | Some locus ->
         let label = B.label book locus in
-        let role_opt = List.assoc_opt locus roles in
+        let role_opt = role_of locus in
         let role_str =
-          match role_opt with None -> "None / Unassigned" | Some r -> Roles.role_label r
+          match (roles, role_opt) with
+          | Error _, _ -> "Unavailable (" ^ roles_file ^ " unreadable)"
+          | Ok _, None -> "None / Unassigned"
+          | Ok _, Some r -> Roles.role_label r
         in
         let balances =
           List.map
@@ -434,13 +446,14 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
         @ [
             "";
             "Role Impact:";
-            (match role_opt with
-            | Some Roles.Asset -> "  Asset: Positive balance represents owned resources."
-            | Some Roles.Liability -> "  Liability: Positive balance represents debt owed."
-            | Some Roles.Equity -> "  Equity: Capital / opening balance baseline."
-            | Some Roles.Income -> "  Income: Inflow tracking for reporting."
-            | Some Roles.Expense -> "  Expense: Outflow tracking for reporting."
-            | None -> "  Unassigned: Available for general posting; excluded from role summaries.");
+            (match (roles, role_opt) with
+            | Error why, _ -> "  " ^ why
+            | Ok _, Some Roles.Asset -> "  Asset: Positive balance represents owned resources."
+            | Ok _, Some Roles.Liability -> "  Liability: Positive balance represents debt owed."
+            | Ok _, Some Roles.Equity -> "  Equity: Capital / opening balance baseline."
+            | Ok _, Some Roles.Income -> "  Income: Inflow tracking for reporting."
+            | Ok _, Some Roles.Expense -> "  Expense: Outflow tracking for reporting."
+            | Ok _, None -> "  Unassigned: Available for general posting; excluded from role summaries.");
             "";
             "Actions:";
             "  n : Admit new Locus token";

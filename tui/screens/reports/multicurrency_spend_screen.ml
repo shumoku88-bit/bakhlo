@@ -174,8 +174,13 @@ let query (env : Screen.env) t =
         refuse "Enter canonical real Start and End dates, with Start earlier than End (exclusive)."
       else
         match
-          Report.compute ~book:env.book ~roles:(Lazy.force env.accounting_roles)
-            ~start_day:t.start_day ~end_exclusive:t.end_day
+          Result.bind
+            (Result.map_error
+               (fun why -> "Accounting roles unavailable: " ^ why)
+               (Lazy.force env.accounting_roles))
+            (fun roles ->
+              Report.compute ~book:env.book ~roles ~start_day:t.start_day
+                ~end_exclusive:t.end_day)
         with
         | Ok snapshot -> ({ t with answer = Some (Ok snapshot); notice = ""; scroll = 0 }, None)
         | Error why -> ({ t with answer = Some (Error why); notice = why; scroll = 0 }, Some why))

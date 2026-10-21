@@ -135,7 +135,10 @@ let balance_view_coords balance_view_text =
 
 let items ~book ~measure:_ ~roles ~balance_view_text t =
   match t.mode with
-  | `Accounting -> O.role_balance_items ~book ~roles
+  | `Accounting -> (
+      match roles with
+      | Ok roles -> O.role_balance_items ~book ~roles
+      | Error why -> [ O.Header_row ("Accounting roles unavailable: " ^ why) ])
   | `Current -> (
       match balance_view_coords balance_view_text with
       | Ok coords -> O.current_balance_items ~book ~coords

@@ -6,6 +6,23 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## accounting-roles.tsv refuses instead of skipping (2026-10-21)
+
+- User decision (2026-10-21): a malformed `accounting-roles.tsv` is refused, not silently
+  skipped. Before, a bad row, an unknown role name or an unreadable file meant "no role" for
+  that Locus everywhere, and assigning a role in Manage Loci rewrote the file without the
+  skipped rows. Now the parser names the line of a malformed row, unknown role, empty Locus
+  or repeated Locus; the Shell's roles are a result (never an empty list for a bad file) and
+  are read where saves write (`config_file_path`; the separate `read_config` search order is
+  removed). Balances Accounting, Income & Expense and Multicurrency Spend show "Accounting
+  roles unavailable: …", Manage Loci shows `[?]` and refuses role saves; quick capture only
+  loses its role-based Locus suggestions.
+- New checks: accepted header/comments/blank/CRLF, four refusals with line numbers, the
+  Shell error and the Balances Accounting message (a deliberately wrong expectation made
+  the self-check fail). `./tools/check` passed.
+- A scratch copy of the household roles file read cleanly under the new rules (42 rows,
+  1 header, 0 refusals); the copy was deleted. The household was not written.
+
 ## Daily Pace, Actual and shared input readability (2026-10-21)
 
 - `51b62aa`: Daily Pace `rows` (121 lines) split into context, trend and unavailable parts.

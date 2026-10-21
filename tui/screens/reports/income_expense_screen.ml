@@ -13,8 +13,11 @@ let preset t = t.report.preset
 let detail_focused t = t.pane = P.Detail
 let saved _env _geometry _result t = (t, Screen.Stay)
 
+(* Roles decide Income and Expense; an unreadable roles file is a refusal, not "no roles". *)
 let report (env : Screen.env) period =
-  IncExp.compute_report ~book:env.book ~roles:(Lazy.force env.accounting_roles) ~period
+  match Lazy.force env.accounting_roles with
+  | Ok roles -> Ok (IncExp.compute_report ~book:env.book ~roles ~period)
+  | Error why -> Error ("Accounting roles unavailable: " ^ why)
 
 let handle (env : Screen.env) geometry t input =
   let stay t = (t, Screen.Stay) in
@@ -40,10 +43,10 @@ let handle (env : Screen.env) geometry t input =
               scroll = 0;
             }
       | Some (`ASCII 'p', []) -> (
-          match P.checked env t.report.preset t.report.period_offset with
+          match Result.bind (P.checked env t.report.preset t.report.period_offset) (report env) with
           | Error why -> (t, Screen.Message why)
-          | Ok period ->
-              let lines = IncExp.print_summary ~book:env.book ~report:(report env period) in
+          | Ok rep ->
+              let lines = IncExp.print_summary ~book:env.book ~report:rep in
               stay
                 {
                   t with
@@ -68,9 +71,13 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
   let width, _ = geometry.content in
   let width_of = geometry.width_of in
   let left_width, right_width = Ui_panel.split_widths width in
-  match P.checked env t.report.preset t.report.period_offset with
-  | Ok period ->
-      let rep = report env period in
+  match Result.map (report env) (P.checked env t.report.preset t.report.period_offset) with
+  | Ok (Error why) ->
+      P.unavailable ~geometry ~pane:t.pane ~left_title:"Income & Expense"
+        ~right_title:"Accounting Roles Unavailable"
+        [ why; "Fix accounting-roles.tsv; no Locus role is guessed." ]
+        why
+  | Ok (Ok rep) ->
       let left_rows =
         List.map snd
           (IncExp.render_report_lines

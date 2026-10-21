@@ -42,8 +42,9 @@ type env = {
   measure : string;  (** Shell-selected Measure. *)
   calendar : Daily_calendar.t;  (** Shell focus day and zoom, shared by every route. *)
   today : string;
-  accounting_roles : (string * Daily_overlays.accounting_role) list Lazy.t;
-      (** Explicit Locus roles from accounting-roles.tsv; none when absent. *)
+  accounting_roles : ((string * Daily_overlays.accounting_role) list, string) result Lazy.t;
+      (** Explicit Locus roles from accounting-roles.tsv; none when absent, an error
+          (never an empty list) when the file is unreadable or malformed. *)
   attention : (Attention_data.t, string) result;
       (** Attention memory loaded by the Shell; an error is never an empty list. *)
   settlements : (Settlement_data.t, string) result;

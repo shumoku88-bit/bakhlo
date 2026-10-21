@@ -1,7 +1,55 @@
 (* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
 open Interaction_check_fixture
 
+(* The roles the Shell reads; these checks expect a readable file. *)
+let roles_of state =
+  match Shell_files.accounting_roles state with Ok roles -> roles | Error why -> failwith why
+
+(* accounting-roles.tsv is never read as "no roles" when it is malformed or
+   unreadable: the parser names the line, and role-aware screens show the refusal. *)
+let unreadable_roles_checks ~width_of ~directory ~path =
+  let parse = Daily_overlays.parse_accounting_roles in
+  require
+    (parse
+       "LOAM-ACCOUNTING-ROLE-MAP\t1\r\n# comment\n; note\n\nROLE\twallet\tASSET\r\nfood\texpense\n"
+     = Ok [ ("wallet", Daily_overlays.Asset); ("food", Daily_overlays.Expense) ])
+    "roles-header-comments-blank-crlf-accepted";
+  List.iter
+    (fun (label, text, line) ->
+      match parse text with
+      | Error why -> require (Base.String.is_prefix why ~prefix:line) label
+      | Ok _ -> failwith label)
+    [
+      ("roles-unknown-role-refused", "ROLE\twallet\tASSETS\n", "line 1:");
+      ("roles-malformed-row-refused", "ROLE\twallet\n", "line 1:");
+      ("roles-empty-locus-refused", "ROLE\t \tASSET\n", "line 1:");
+      ("roles-repeated-locus-refused", "wallet\tASSET\n\nwallet\tLIABILITY\n", "line 3:");
+    ];
+  let directory = directory ^ "/unreadable-roles" in
+  Unix.mkdir directory 0o700;
+  let book_path = directory ^ "/book.sexp" in
+  F.create_copy ~source:path ~target:book_path;
+  let state = C.initial ~config_home:directory (F.load book_path) in
+  F.write_new (Shell_files.config_file_path state "accounting-roles.tsv") "ROLE\twallet\tASSETS\n";
+  require
+    (match Shell_files.accounting_roles state with
+    | Error why -> Base.String.is_substring why ~substring:"unknown role"
+    | Ok _ -> false)
+    "shell-roles-unreadable-is-an-error-not-empty";
+  let balances = C.open_route state W.Balances in
+  let accounting =
+    match H.handle ~dimensions:(100, 30) ~width_of balances (`Key (`ASCII 'v', [])) with
+    | Some next -> next
+    | None -> balances
+  in
+  require
+    (List.exists
+       (fun (_, row) -> Base.String.is_substring row ~substring:"Accounting roles unavailable")
+       (R.screen ~width_of (100, 30) accounting))
+    "balances-accounting-shows-unreadable-roles"
+
 let run ~width_of ~directory ~path =
+  unreadable_roles_checks ~width_of ~directory ~path;
   (* Manage Loci workflow verification *)
   let current_home = C.initial ~config_home:directory (F.load path) in
   let loci_state = C.open_route current_home W.Loci in
@@ -37,7 +85,7 @@ let run ~width_of ~directory ~path =
   require (no_modal admitted_state) "admit-locus-submitted";
   let all_loci = Loci_screen.admitted_loci admitted_state.session.book in
   require (List.mem "metro" all_loci) "admitted-locus-present-in-catalog";
-  let roles_after = Shell_files.accounting_roles admitted_state in
+  let roles_after = roles_of admitted_state in
   require (List.assoc_opt "metro" roles_after = Some Roles.Asset) "admitted-locus-has-asset-role";
   let select state locus =
     let loci = Loci_screen.admitted_loci state.C.session.book in
@@ -58,7 +106,7 @@ let run ~width_of ~directory ~path =
        = C.tr "This Locus already has an accounting role; roles are never replaced.")
     "loci-r-refuses-role-replacement";
   require
-    (List.assoc_opt "metro" (Shell_files.accounting_roles replace_refused) = Some Roles.Asset)
+    (List.assoc_opt "metro" (roles_of replace_refused) = Some Roles.Asset)
     "loci-refused-replacement-keeps-role";
   let used =
     match List.find_opt (Loci_screen.locus_used admitted_state.session.book) all_loci with
@@ -80,7 +128,7 @@ let run ~width_of ~directory ~path =
     | None -> failwith "expected modal form for admit locus"
   in
   require
-    (no_modal admit_tram && not (List.mem_assoc "tram" (Shell_files.accounting_roles admit_tram)))
+    (no_modal admit_tram && not (List.mem_assoc "tram" (roles_of admit_tram)))
     "admitted-locus-without-role";
   let role_modal = key ~width_of (select admit_tram "tram") (`ASCII 'r') in
   require (visible_form_id role_modal = Some "set_locus_role") "loci-r-opens-set-role-form";
@@ -102,7 +150,7 @@ let run ~width_of ~directory ~path =
   (* Expense *)
   require (no_modal assigned) "set-locus-role-submitted";
   require
-    (List.assoc_opt "tram" (Shell_files.accounting_roles assigned) = Some Roles.Expense)
+    (List.assoc_opt "tram" (roles_of assigned) = Some Roles.Expense)
     "unused-locus-role-assigned-once";
   require (no_modal (key ~width_of assigned (`ASCII 'r'))) "loci-r-refuses-after-initial-assignment";
   let updated_role_state = select assigned "metro" in
