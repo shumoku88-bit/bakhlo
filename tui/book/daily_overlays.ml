@@ -102,22 +102,21 @@ type balance_item =
   | Net_worth_row of { measure : string; known_subtotal : Z.t; complete : bool }
   | Blank_row
 
-(* As LOAM's Role Balance: the represented coordinates are those on the current
-   correction frontier or named by a support family, never the admission list,
-   in exact Locus-then-Measure order. Scanning the frontier costs ~21 ms at 109.5k
-   synthetic entries (tools/startup-probe), so the answer is kept for the last image
-   seen; a publication replaces the image and so recomputes it. *)
+(* Accounting represents current corrected entries plus support coordinates, never
+   the admission list. The image's admitted source may lag in-place mutations, so
+   read Effects from the book itself. Cache by image: effect/support mutations
+   replace it; label, date and plan changes do not change these coordinates. *)
 let represented_cache : (Q.t * D.Effect_coordinate.t list) option ref = ref None
 
-let compute_represented_coordinates image =
-  let frontier = Bakhlo_application.Actual_source.frontier (Q.source image) in
+let compute_represented_coordinates book =
+  let image = B.image book in
   let seen = Hashtbl.create 64 in
   List.iter
-    (fun event ->
+    (fun (entry : B.entry) ->
       List.iter
         (fun posting -> Hashtbl.replace seen (D.Effect.locus posting, D.Effect.measure posting) ())
-        (D.Event.effects event))
-    (Bakhlo_application.Correction_frontier.frontier_events frontier);
+        entry.effects)
+    (B.entries_rev book);
   let from_events =
     Hashtbl.fold
       (fun (locus, measure) () acc -> ({ locus; measure } : D.Effect_coordinate.t) :: acc)
@@ -141,7 +140,7 @@ let represented_coordinates book =
   match !represented_cache with
   | Some (cached, coordinates) when cached == image -> coordinates
   | _ ->
-      let coordinates = compute_represented_coordinates image in
+      let coordinates = compute_represented_coordinates book in
       represented_cache := Some (image, coordinates);
       coordinates
 

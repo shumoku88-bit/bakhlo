@@ -6,6 +6,28 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Accounting uses current entry coordinates after publication (2026-10-21)
+
+- Two read-only pit workers inspected storage and Scheduled. Speculative storage
+  concerns and dismissal of a refused-save chooser were not accepted as established
+  defects or reasons to discard drafts.
+- Confirmed separately: Accounting discovered coordinates through `Q.source (B.image
+  book)`, whose admitted source intentionally lags incremental mutations. A newly
+  used coordinate could be missing until reload, or an old coordinate remain after
+  correction. `Daily_overlays` now scans current corrected entries, retaining the
+  support-coordinate union, exact Locus/Measure identity and image-keyed cache.
+  No storage format, admission or quantity calculation changed.
+- Regression: real synthetic append shows the new coordinate as unsupported (not
+  zero), and matches cold reload and `Daily_book.Full`; after reopening and correcting
+  away its last use, it disappears and again matches cold/Full. The old book's rows
+  remain unchanged. The new-coordinate assertion failed before the fix and passed
+  after it. `./tools/check`, `./tools/tui --self-check` and the four-size synthetic
+  `tools/ci-tui-pty` matrix passed. Both workers reviewed the focused fix with no
+  blockers; the parent checked their reasoning against the actual entry/image code.
+- Household data was not accessed. Latest-data paired comparison, human/IME
+  acceptance and P7/power-loss tests: **not executed**. The underlying admitted-source
+  lag documented in `Daily_book.image` is unchanged, not claimed fixed globally.
+
 ## accounting-roles.tsv refuses instead of skipping (2026-10-21)
 
 - User decision (2026-10-21): a malformed `accounting-roles.tsv` is refused, not silently

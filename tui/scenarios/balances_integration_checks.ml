@@ -103,6 +103,61 @@ let balance_display_checks ~width_of ~directory () =
       ("No classified supported rows.", "accounting-all-support-no-classified-rows");
       ("Role classification: INCOMPLETE", "accounting-all-support-role-incomplete");
     ];
+  let posting locus amount =
+    D.Effect.create ~key:None
+      ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+      ~quantity:(D.Quantity.of_quanta (Z.of_int amount))
+  in
+  let entry : B.entry =
+    {
+      id = "accounting-transfer";
+      day = "2026-10-21";
+      memo = None;
+      effects = [ posting "wallet" (-100); posting "bank" 100 ];
+      reversal_of = None;
+      exchange = None;
+      original_amount = None;
+      merchant = None;
+    }
+  in
+  let live_path = directory ^ "/accounting-publication.sexp" in
+  F.write_new live_path (F.read path);
+  let roles = [ ("wallet", O.Asset); ("bank", O.Asset); ("zero", O.Equity) ] in
+  let accounting_rows book = O.role_balance_items ~book ~roles in
+  let publish session ~replace entry =
+    match F.append session [ L.Put_entry { replace; entry; plan = None } ] with
+    | F.Written session -> session
+    | _ -> raise (F.Refused "accounting-publication-refused")
+  in
+  let live = publish (F.load live_path) ~replace:false entry in
+  require
+    (List.exists
+       (function
+         | O.Account_row { locus = "bank"; measure = "jpy"; value = O.Unsupported; _ } -> true
+         | _ -> false)
+       (accounting_rows live.book))
+    "accounting-new-coordinate-is-visible-without-inventing-support";
+  require
+    (accounting_rows live.book = accounting_rows (F.load live_path).book
+    && accounting_rows live.book
+       = accounting_rows (get (B.Full.put_entry book ~replace:false entry ~plan:None)))
+    "accounting-publication-matches-cold-and-full";
+  let reopened = F.load live_path in
+  let replacement = { entry with effects = [ posting "wallet" (-100); posting "zero" 100 ] } in
+  let corrected = publish reopened ~replace:true replacement in
+  require
+    (accounting_rows corrected.book = accounting_rows (F.load live_path).book
+    && accounting_rows corrected.book
+       = accounting_rows
+           (get (B.Full.put_entry reopened.book ~replace:true replacement ~plan:None))
+    && not
+         (List.exists
+            (function O.Account_row { locus = "bank"; _ } -> true | _ -> false)
+            (accounting_rows corrected.book)))
+    "accounting-correction-removes-unrepresented-coordinate";
+  require (List.map (O.balance_item_line ~book) (balance_items accounting) = evidence)
+    "accounting-old-book-cache-is-not-mutated";
   List.iter
     (fun state ->
       let heading = Balances.mode state.C.screens.balances = `Current in

@@ -24,6 +24,11 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   resize, Tab, Esc and long Japanese drafts retain input. Household warnings take
   priority over the frame. Core, native self-check and the PTY matrix passed.
   This slice did not access household data or repeat the latest-data comparison.
+- Accounting now discovers represented coordinates from current corrected entries,
+  not the admitted source that lags incremental saves. Synthetic append and a
+  correction after reopening match cold reload and `Full`; unsupported stays unknown.
+  Core/TUI checks and the four-size PTY smoke passed. No household access or paired
+  comparison in this slice; the underlying `Daily_book.image` source lag remains.
 - Comparison capture now derives `config/accounting-roles.tsv` from the required
   household `AccountingRole` section, preserving raw config and trial overrides.
   Synthetic refresh and TUI proved payer-role replacement through Preview and cold
