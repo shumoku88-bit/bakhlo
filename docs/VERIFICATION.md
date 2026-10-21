@@ -5681,3 +5681,28 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
 - Latest-data paired comparison, physical-terminal/IME acceptance and P7/power-loss
   qualification were **not executed**. Neither `./tools/compare` nor `./ui` ran;
   no household/LOAM data was accessed. This does not certify multicurrency parity.
+
+## Multicurrency Spend integration and latest-data comparison (2026-10-21)
+
+- Integrated `omp/multicurrency` (`fd7a822`, rebased on `a12ffb2`; worker finished on the
+  `step-5-preview` fallback parent). Conflicts were the third additive report wiring
+  (route, command, workspace, title, registry), all kept; the explicit `reports_checks`
+  module list now includes `multicurrency_spend_checks` (otherwise it would not compile into
+  that test). VERIFICATION sections kept whole; the UI-25 ledger row was rewritten by hand
+  to merge all three reports.
+- On the main checkout: `./tools/check`, `./tools/privacy-scan --all` (no match),
+  `./tools/tui --self-check` (44 PASS), `git diff --check` and the local native PTY matrix
+  passed.
+- Latest-data paired comparison on generation `capture-1792549505-29835-293b919a` at
+  120×36, read-only, default Calendar Month window run in both: the same window, ordinary
+  Expense total, the same four unresolved ordinary Effects (date, Locus, signed amount,
+  record) and the same empty OriginalAmount / Exchange sections. Only difference in values:
+  Bakhlo groups thousands. Explanatory lines and key guide wording differ. Household/config
+  and comparison book SHA-256 unchanged, no file in LOAM's copy modified, AI tmux sessions
+  closed, `clean-copies` passed.
+- `a12ffb2`: matching-SHA
+  [Core CI 39532391852](https://github.com/shumoku88-bit/bakhlo/actions/runs/39532391852)
+  and [Bonsai TUI CI 39532391901](https://github.com/shumoku88-bit/bakhlo/actions/runs/39532391901)
+  both succeeded.
+- A window with OriginalAmount or Exchange evidence, 80×24, physical terminal/IME and P7
+  were **not executed**.
