@@ -66,9 +66,9 @@ Daily v4・予算APIは非現行。限定コンバータ・既存Book CLI・型�
 | S01 | 単発予定の作成 | 試用：Record系のPlan入力・Preview | 単一S式のみ。純粋APIだけの段階から画面接続済み |
 | S02 | 変更・日付付き取消 | 試用：単発Edit／Previewと、日付付き取消modal | paid／cancelledを再利用しない。取消modalのKeep初期選択・独立確認・狭小gateはEdit Previewと別に比較する |
 | S03 | 予定を実績化 | 試用：Actual入力とpaid-byを同時保存 | 単一S式（唯一の形式） |
-| S04 | 未払い・完了・月別を見分ける | 局部：Home sはcurrent-open List／単発detail／検索。枠・viewportはActualと共用 | Series Calendar、六か月Months、Series内Plan Detail、open／completedの併記は未接続。ListのT/PTY成功をそれらの実装済みと数えない |
-| S05 | 次回／複数回／期限まで補充 | 未接続 | 実際の予定を確認して発行する操作が必要。周期から事実を捏造しない |
-| S06 | Expected pace・未補充監視 | 未接続 | 観測設定と明示された予定を分離する |
+| S04 | 未払い・完了・月別を見分ける | 試用：Series Calendar（open／完了✓／欠落!／undecided）、六か月Months、List、Series内Plan Detail | 詳細は[UI差分台帳](LOAM_UI_GAP_LEDGER.ja.md) UI-12〜UI-15。実データ対照の範囲はそこと[差分台帳](CUTOVER_DIFF_LEDGER.ja.md) |
+| S05 | 次回／複数回／期限まで補充 | 試用：監視付き`e`（次の1／3／6回・Custom期限）、通常`g`、完了後の継続Prompt | 明示候補をPreviewして発行。周期から事実を捏造しない（UI-21／UI-22） |
+| S06 | Expected pace・未補充監視 | 試用：Series Calendar・List・Monthsの`p`／`m`／`s`、予定作成直後の周期選択 | 観測設定（`scheduled-coverage.tsv`）と明示予定を分離（UI-23） |
 
 `Ui_workspace.schedule_view`の型があるだけではSeries／Months対応に数えない。
 予定がない日は「義務なし」ではなく、未供給・網羅性不明を維持する。
