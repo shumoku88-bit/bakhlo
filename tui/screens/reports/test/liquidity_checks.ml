@@ -5,6 +5,11 @@ module B = Bakhlo_sexp.Daily_book
 module R = Liquidity_report
 module S = Liquidity_screen
 
+let contains text sub =
+  let n = String.length text and m = String.length sub in
+  let rec at i = i + m <= n && (String.sub text i m = sub || at (i + 1)) in
+  at 0
+
 let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
 let is_error = Result.is_error
@@ -224,9 +229,9 @@ let check_amounts () =
     "low-water reflects a path below the current baseline";
   let lines = R.render_lines ~book:negative snapshot in
   let text = String.concat "\n" (List.map snd lines) in
-  require (Base.String.is_substring text ~substring:"-500")
+  require (contains text "-500")
     "negative current balance is rendered exactly";
-  require (Base.String.is_substring text ~substring:"-700")
+  require (contains text "-700")
     "negative conditional horizon balance is rendered exactly";
   (* Scaled EUR: quanta 123456789 at scale 2 is 1,234,567.89, never the raw integer. *)
   let huge = Z.of_string "123456789012345678901234567890" in
@@ -256,12 +261,12 @@ let check_amounts () =
     "huge conditional totals stay exact";
   let eur_text =
     String.concat "\n" (List.map snd (R.render_lines ~book:eur_book eur)) in
-  require (Base.String.is_substring eur_text ~substring:"1,234,567.89")
+  require (contains eur_text "1,234,567.89")
     "scaled EUR uses the household scale with grouped digits";
   require
-    (not (Base.String.is_substring eur_text ~substring:"123456789012345678901234567890"))
+    (not (contains eur_text "123456789012345678901234567890"))
     "raw quanta are never painted as an amount";
-  require (Base.String.is_substring eur_text ~substring:"1,234,567,890,123,456,789,013,580,246.79")
+  require (contains eur_text "1,234,567,890,123,456,789,013,580,246.79")
     "huge scaled amounts are grouped, never clipped into another number"
 
 (* ------------------------------------------------------------------ *)
@@ -293,15 +298,15 @@ let check_display_limit () =
     "totals and low-water use every point, not only the displayed rows";
   let lines = R.render_lines ~book:many snapshot in
   let rows = List.map snd lines in
-  let shown date = List.exists (fun line -> Base.String.is_substring line ~substring:date) rows in
+  let shown date = List.exists (fun line -> contains line date) rows in
   let shown_count = List.length (List.filter shown dates) in
   require (shown_count = 12) "at most twelve point rows are displayed";
   require (not (shown (List.nth dates 12)) && not (shown (List.nth dates 13)))
     "points beyond the display limit are not painted as rows";
   let text = String.concat "\n" rows in
-  require (Base.String.is_substring text ~substring:"-70")
+  require (contains text "-70")
     "the omitted points still contribute to the painted horizon total";
-  require (Base.String.is_substring text ~substring:"omitted")
+  require (contains text "omitted")
     "an explicit omitted-count note replaces the hidden rows"
 
 (* ------------------------------------------------------------------ *)
@@ -325,7 +330,7 @@ let geometry (width, height) : Screen.geometry =
 
 let rows_of view = Lazy.force view.Screen.rows
 let has rows needle =
-  List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows
+  List.exists (fun (_, text) -> contains text needle) rows
 
 let joined rows = String.concat "\n" (List.map snd rows)
 
@@ -349,8 +354,8 @@ let check_screen () =
   let rows = rows_of view in
   require (match rows with
            | (_, first) :: (_, second) :: _ ->
-               Base.String.is_substring first ~substring:"Forecast path: UNKNOWN"
-               && Base.String.is_substring second ~substring:"Known low-water mark: UNKNOWN"
+               contains first "Forecast path: UNKNOWN"
+               && contains second "Known low-water mark: UNKNOWN"
            | _ -> false)
     "both unconditional statements are UNKNOWN and painted first";
   require (has rows "Run" && has rows "conditional")
@@ -521,7 +526,7 @@ let check_configuration_and_resize () =
   let opened = S.enter ~focus_day:"2026-10-16" (S.create ()) in
   let ran, _ = press env geom opened `Enter in
   let before = joined (rows_of (S.view env geom ran)) in
-  require (not (Base.String.is_substring before ~substring:"1,500 jpy"))
+  require (not (contains before "1,500 jpy"))
     "the first viewport has not painted the conditional quantity";
   let scrolled, _ = press env geom ran (`ASCII 'j') in
   let after_j = joined (rows_of (S.view env geom scrolled)) in
@@ -530,7 +535,7 @@ let check_configuration_and_resize () =
   require (joined (rows_of (S.view env geom paged)) <> after_j)
     "Page Down scrolls the result";
   let ended, _ = press env geom ran `End in
-  require (Base.String.is_substring (joined (rows_of (S.view env geom ended))) ~substring:"1,500 jpy")
+  require (contains (joined (rows_of (S.view env geom ended))) "1,500 jpy")
     "End reaches the exact conditional low-water quantity";
   ()
 
