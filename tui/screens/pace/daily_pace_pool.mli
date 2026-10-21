@@ -15,9 +15,6 @@ val prepare : book:B.t -> measure:string -> config:(string option, string) resul
 
 val measure : t -> string
 
-val rows_from : string -> string -> (string list, string) result
-(** [rows_from measure text]: daily-pace.tsv Loci for [measure], in file order. *)
-
 type step =
   | Stay of t
   | Cancel of t  (** Closed; the caller may retain the draft. *)

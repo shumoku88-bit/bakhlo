@@ -78,11 +78,6 @@ let get_selected_button t =
       else None
   | _ -> None
 
-let get_selected_button_index t =
-  match List.find_opt (fun f -> match f.kind with Buttons _ -> true | _ -> false) t.fields with
-  | Some { kind = Buttons { selected; _ }; _ } -> selected
-  | _ -> 0
-
 let text_field ~id ~label ?(value = "") ?(placeholder = "") () =
   { id; label; kind = Text { value; placeholder } }
 

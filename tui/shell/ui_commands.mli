@@ -36,5 +36,4 @@ val title : page -> string
 val move : t -> int -> t
 val select : t -> outcome
 val back : t -> outcome
-val open_group : t -> t
 val handle : t -> Ui_input.input -> outcome

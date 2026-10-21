@@ -18,7 +18,6 @@ type t = { rows : row list }
 val empty : t
 val outstanding : row -> Z.t
 val is_open : row -> bool
-val open_rows : t -> row list
 val visible_rows : t -> scope -> row list
 val find_row : t -> string -> row option
 val next_id : t -> string

@@ -35,15 +35,11 @@ val pair : D.Effect.t list -> (D.Effect.t * D.Effect.t) option
 val edit_refusal : book:B.t -> B.entry -> string option
 (** Why the Record editor cannot correct this entry, if it cannot. *)
 
-val normalize_date_text : string -> string
 val is_leap_year : int -> bool
 val days_in_month : year:int -> month:int -> int
 val normalize_date : string -> (string, string) result
-val next_calendar_day : int * int * int -> int * int * int
-val prev_calendar_day : int * int * int -> int * int * int
 val shift_calendar_day : string -> int -> (string, string) result
 val is_valid_canonical_date : string -> bool
-val is_valid_date : string -> bool
 
 val build_transaction :
   new_id:(unit -> string) ->

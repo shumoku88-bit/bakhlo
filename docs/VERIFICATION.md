@@ -6,6 +6,15 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Unused TUI values removed (2026-10-21)
+
+- 21 interface values had no user outside their own module; they are no longer exported.
+  A one-off uncached build with `-w +32` (the TUI uses the release profile, where unused
+  values are silent) then found 11 definitions used nowhere, now deleted; a second such build
+  reports none. The permanent compiler policy is unchanged.
+- `./tools/tui --self-check` (44 suites, no warnings), `./tools/check` and
+  `./tools/format --check` passed. Household data not accessed.
+
 ## Record draft builder: unused paths removed (2026-10-21)
 
 - `tui/book/daily_draft.ml` 575 → 321 lines. Removed the unused two-posting form path

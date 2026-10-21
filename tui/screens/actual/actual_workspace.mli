@@ -23,11 +23,9 @@ val notice : t -> string
 val selected_locus : book:B.t -> t -> string option
 val selected_entry : book:B.t -> t -> B.entry option
 val visible_entries : book:B.t -> t -> B.entry list
-val loci_for_scope : book:B.t -> t -> string list
 val scope_text : t -> string
 val current_locus_name : book:B.t -> t -> string
 val returned_from_detail : before_book:B.t -> after_book:B.t -> t -> t
-val normalize_for_bounds : book:B.t -> dimensions:int * int -> width_of:(string -> int) -> t -> t
 
 val handle :
   book:B.t -> dimensions:int * int -> width_of:(string -> int) -> t -> Ui_input.input -> t * command

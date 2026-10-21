@@ -140,7 +140,6 @@ let revalidate t =
   | Calendar_month | Named _ | Custom -> t
 
 let invalidate t = { t with answer = None; notice = ""; scroll = 0 }
-let clear t = { t with answer = None; notice = ""; scroll = 0 }
 
 let enter env ~focus_day t =
   let t = refresh env t in

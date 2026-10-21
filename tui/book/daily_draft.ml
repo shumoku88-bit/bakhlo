@@ -194,9 +194,6 @@ let is_valid_canonical_date day =
               | Ok _ -> true
               | Error _ -> false)))
 
-let is_valid_date day =
-  match normalize_date day with Error _ -> false | Ok canon -> is_valid_canonical_date canon
-
 let refuse message = Error { message }
 let ( let* ) = Result.bind
 

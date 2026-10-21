@@ -12,7 +12,6 @@ val weekday : string -> (int, string) result
 val shift_days : string -> int -> (string, string) result
 val shift_months : string -> int -> (string, string) result
 val shift_years : string -> int -> (string, string) result
-val parse_jump : base:string -> string -> (t, string) result
 val apply : t -> action -> transition
 val month_slots : string -> (string option list, string) result
 val period_contains : t -> string -> bool

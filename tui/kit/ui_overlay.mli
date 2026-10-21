@@ -8,9 +8,6 @@ type frame = {
 }
 (** Positioned transient pane shared by screen owners and the terminal renderer. *)
 
-val modal_width : body:int * int -> int
-(** Width of a centered modal form pane inside the body region. *)
-
 val form :
   width_of:(string -> int) ->
   screen:int * int ->

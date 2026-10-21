@@ -64,9 +64,7 @@ let create () =
   }
 
 let mode t = t.mode
-let pane t = t.pane
 let selected t = t.selected
-let notice t = t.notice
 
 let set_selected selected t =
   let selected = max 0 selected in
@@ -513,11 +511,6 @@ let overlay ~dimensions:((width, _) as _dimensions) ~body_dimensions:((body_w, b
           rows;
           cursor = None;
         }
-
-let cursor_position ~dimensions ~body_dimensions ~width_of t =
-  match overlay ~dimensions ~body_dimensions ~width_of t with
-  | Some frame -> frame.cursor
-  | None -> None
 
 let list_capacity ~heading ~layout = Panel.capacity ~height:layout.list_height ~heading
 

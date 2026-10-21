@@ -9,7 +9,6 @@ type t = { items : item list; closures : closure list }
 let empty = { items = []; closures = [] }
 let is_closed t id = List.exists (fun (c : closure) -> c.attention = id) t.closures
 let open_items t = List.filter (fun (item : item) -> not (is_closed t item.id)) t.items
-let closed_items t = List.filter (fun (item : item) -> is_closed t item.id) t.items
 let find_item t id = List.find_opt (fun (item : item) -> item.id = id) t.items
 
 let next_id t =
@@ -23,8 +22,6 @@ let due_label = function
   | Due_on d -> "Due: " ^ d
   | No_due_date -> "No due date"
   | Due_undetermined -> "Due: timing unknown"
-
-let closure_kind_label = function Resolved -> "Resolved" | Dropped -> "Dropped"
 
 type summary = { open_count : int; overdue_count : int; due_today_count : int }
 

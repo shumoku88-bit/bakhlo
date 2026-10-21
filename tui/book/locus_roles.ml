@@ -25,19 +25,9 @@ let role_of_string s =
   | "EXPENSE" -> Some Expense
   | _ -> None
 
-let all_roles =
-  [
-    (Asset, "Asset");
-    (Liability, "Liability");
-    (Equity, "Equity");
-    (Income, "Income");
-    (Expense, "Expense");
-  ]
-
 type t = (string * role) list
 
 let empty = []
-let get_role t locus = List.assoc_opt locus t
 
 let set_role t locus = function
   | None -> List.remove_assoc locus t

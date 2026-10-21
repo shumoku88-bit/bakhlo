@@ -187,7 +187,6 @@ let surface_dimensions (width, height) =
 let field_count t = action_start t + 4
 let row_index t = max 0 ((t.focus - 3) / 2)
 let is_locus t = t.focus >= 3 && t.focus < action_start t && (t.focus - 3) mod 2 = 0
-let is_amount t = t.focus >= 3 && t.focus < action_start t && (t.focus - 3) mod 2 = 1
 
 (* LOAM Correction: Loci, amounts, signs and rows are editable; the date is kept
    (date-only changes use the dedicated [d] operation). *)

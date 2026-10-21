@@ -45,7 +45,6 @@ val notice : t -> string
 val set_notice : t -> string -> t
 val focused : t -> int
 val set_focused : t -> int -> t
-val get_field : t -> string -> field option
 val find_field_index : t -> string -> int
 val update_field : t -> string -> (field_kind -> field_kind) -> t
 val get_text : t -> string -> string option
@@ -55,7 +54,6 @@ val get_choice_value : t -> string -> string option
 val set_choice : t -> string -> int -> t
 val get_button : t -> string -> int option
 val get_selected_button : t -> button option
-val get_selected_button_index : t -> int
 val handle_input : t -> Ui_input.input -> event
 
 val render_rows :
