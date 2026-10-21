@@ -5829,4 +5829,8 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
   reported Uncertain rather than written.
 - `./tools/startup-probe 1000 109500`: save (append + full sync) 21.8 ms median at both
   sizes. `./tools/check` and `./tools/tui --self-check` (44 PASS) passed.
+- `155b3d5`: matching-SHA
+  [Core CI 39559417699](https://github.com/shumoku88-bit/bakhlo/actions/runs/39559417699)
+  and [Bonsai TUI CI 39559417707](https://github.com/shumoku88-bit/bakhlo/actions/runs/39559417707)
+  both succeeded (Linux builds the `fsync` branch of the stub).
 - Not executed: physically cutting power, kernel panic, other filesystems.
