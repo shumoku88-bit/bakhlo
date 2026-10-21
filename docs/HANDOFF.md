@@ -56,15 +56,17 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   (`SEMANTIC_CONTRACT.md`). No I/O.
 - `sexp/daily_book.ml(i)`: the household book (entries, plans, support), staged
   admission, in-place mutations, `Full` whole-book reference; `sexp/book_log.ml(i)`:
-  operations, record lines, snapshot+log load. `sexp/book.ml` is the older CLI `Book`.
+  operations, record lines, snapshot+log load.
 - `store/daily_file.ml`: the single writer (load, append, compaction, torn-tail
   discard, recovery report, copies).
 - `tui/`: `shell/` (state, dispatch, publication, files), `screens/<screen>/` (per-screen
   state, input, painting), `book/` (pure UI data), `protocol/screen.mli` (Shell ↔ screen
   contract), `app/` (Bonsai terminal + CLI entry), `scenarios/` (cross-screen checks).
   Keys, recovery commands and UI rules: [tui/README](../tui/README.md).
-- `cli/`, `presentation/`, `bin/`, `loam_read/`: older CLI and read-only LOAM input.
-- `migrate/`: the one-time LOAM import (pure; current state only, history stays in LOAM).
+- `loam_read/`, `migrate/`: read-only LOAM input and its pure conversion, used only by
+  `./tools/compare` (the cutover import is done).
+- Removed 2026-10-21 (in Git at `dfd03d1`): old CLI (`cli/`, `bin/`, `presentation/`,
+  `text/`, `sexp/book.ml`), `tools/import-loam`, `experiments/`, `formal/`.
 - Tests: `test/` (Core; `daily_book_oracle_tests.ml`, `book_log_tests.ml`,
   `daily_file_tests.ml` guard the storage work) and the TUI self-check.
 
@@ -76,7 +78,6 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 ./tools/startup-probe         # synthetic storage timings (1k / 36.5k / 109.5k)
 ./tools/privacy-scan [--all]  # no private household text in the repository (in check)
 ./tools/compare refresh       # fresh read-only LOAM copy (see AGENTS.md)
-./tools/import-loam SRC NEW   # cutover-day import into a NEW directory (LOAM only read)
 ./ui  /  ./ui loam            # paired private copies
 ```
 

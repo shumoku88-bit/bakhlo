@@ -4,8 +4,7 @@
  (_
   (inline_tests enabled)
   (binaries
-   (../tools/arch/arch_check.exe as arch_check)
-   (../migrate/bin/import_loam.exe as import_loam))))
+   (../tools/arch/arch_check.exe as arch_check))))
 
 (library
  (name bakhlo_tests)
@@ -13,12 +12,9 @@
  (libraries
   bakhlo_domain
   bakhlo_application
-  bakhlo_text
   bakhlo_loam_read
   bakhlo_sexp
   bakhlo_migrate
-  bakhlo_presentation
-  bakhlo_cli
   bakhlo_store
   base
   zarith
@@ -33,24 +29,9 @@
  (package bakhlo)
  (deps
   ../dune
-  ../examples/current-preview.fixture
-  ../examples/ordinary-quantity.bakhlo
-  ../examples/loam-quantity.loam-input
-  ../examples/ordinary-sexp/initial.sexp
-  ../examples/ordinary-sexp/with-loci.sexp
-  ../examples/ordinary-sexp/purchase.sexp
-  ../examples/ordinary-sexp/correction.sexp
-  ../examples/ordinary-sexp/travel.sexp
   ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp.cmi
   ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp__.cmi
-  ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp__Book.cmi
   ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp__Daily_book.cmi
-  ../text/.bakhlo_text.objs/byte/bakhlo_text.cmi
-  ../text/.bakhlo_text.objs/byte/bakhlo_text__.cmi
-  ../text/.bakhlo_text.objs/byte/bakhlo_text__Input.cmi
-  ../text/.bakhlo_text.objs/byte/bakhlo_text__Read.cmi
-  ../text/.bakhlo_text.objs/byte/bakhlo_text__Propose.cmi
-  %{bin:bakhlo}
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Identifier.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Quantity.cmi
@@ -63,7 +44,6 @@
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Zero_origin_coverage.cmi
   ../application/.bakhlo_application.objs/byte/bakhlo_application.cmi
   ../application/.bakhlo_application.objs/byte/bakhlo_application__.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Movement_check.cmi
   ../application/.bakhlo_application.objs/byte/bakhlo_application__Correction_check.cmi
   ../application/.bakhlo_application.objs/byte/bakhlo_application__Correction_frontier.cmi
   ../application/.bakhlo_application.objs/byte/bakhlo_application__Reflected_root_cut.cmi
@@ -78,14 +58,9 @@
   ../application/.bakhlo_application.objs/byte/bakhlo_application__Open_relations.cmi
   ../application/.bakhlo_application.objs/byte/bakhlo_application__Original_amounts.cmi
   ../application/.bakhlo_application.objs/byte/bakhlo_application__Exchange_evidence.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_query.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_answer.cmi))
+  ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_query.cmi))
 
 ; Negative architecture checks: every rule must reject an intentional violation.
 (cram
  (applies_to arch)
  (deps %{bin:arch_check}))
-
-(cram
- (applies_to import_loam)
- (deps %{bin:import_loam}))

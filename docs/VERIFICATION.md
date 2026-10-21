@@ -6,6 +6,23 @@ Ordinary qualification is macOS x86_64 and isolated Ubuntu 24.04 x86_64 with the
 toolchain; bounded Solo5/SPT engine execution is below, not production support. Other
 targets, storage, full normalized Actual admission, recovery and migration remain open.
 
+## Off-path code removed; PTY smoke moved to Expect (2026-10-21)
+
+- Removed the old CLI (`cli/`, `bin/`, `presentation/`, `text/`, `sexp/book.ml`),
+  `application/{current_quantity_answer,movement_check}`, their tests and fixtures,
+  `migrate/bin` + `tools/import-loam`, `experiments/`, `formal/`,
+  `tools/check-root-cut-laws`, `tasks/issue42` and two experiment workflows; all
+  remain in Git at `dfd03d1`. `bakhlo_sexp` no longer links `unix`.
+- Kept coverage rewired: the LOAM-read test now asks `Current_quantity_query`
+  directly (wallet exact, pantry present, stale unknown — the same three outcomes the
+  CLI exit codes 0/4/3 expressed); the oracle's known-gap test inspects the image's
+  correction frontier instead of the explanation text.
+- `tools/ci_tui_pty.py` → `tools/ci-tui-pty` (Expect), same flows and assertions.
+  Local macOS run: all four dimensions and the Record Preview refusal PASS (34 s);
+  a deliberately wrong expected balance fails. Linux CI result: see the run for the
+  matching SHA.
+- `./tools/check` and `./tools/tui --self-check` passed. Household data not accessed.
+
 ## Trend / Locus comparison report (2026-10-21)
 
 - Branch: `omp/trend-locus`, based on `origin/main` (6 commits behind, not rebased). Read-only LOAM behavioral references only: `Loam/Review/LocusTrendCompareReview.lean` (window/scope/average semantics) and `Loam/Tui/LocusTrendComparePane.lean` (picker, overlays, `withSnapshot` anchor). The sibling Lean repository was not built, modified or copied.

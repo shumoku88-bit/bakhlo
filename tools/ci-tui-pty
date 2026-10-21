@@ -1,0 +1,217 @@
+#!/usr/bin/env expect
+# Bounded PTY smoke for the tracked Bonsai binary and synthetic fixture.
+# No private data, image snapshots or source modifications. A green smoke
+# establishes key delivery, repaint and non-writing only, not IME or paired
+# LOAM acceptance.
+#   tools/ci-tui-pty NATIVE_BINARY SYNTHETIC_FIXTURE
+
+log_user 0
+match_max 100000
+set dimensions {{120 36} {80 24} {48 14} {32 9}}
+# Escape sequences removed before looking for visible text.
+set csi {\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\)|[()][0-9A-Za-z])}
+
+proc fail {message} { error $message }
+
+proc slurp {path} {
+  set channel [open $path rb]
+  set bytes [read $channel]
+  close $channel
+  return $bytes
+}
+
+proc entries {dir} {
+  set names {}
+  foreach name [concat [glob -nocomplain -tails -directory $dir *] \
+                  [glob -nocomplain -tails -types hidden -directory $dir *]] {
+    if {$name ni {. ..}} { lappend names $name }
+  }
+  return [lsort $names]
+}
+
+# One TUI process on its own PTY, sized before exec like a real terminal.
+proc start {binary book width height} {
+  global spawn_id buffer eof
+  set ::env(TERM) xterm-256color
+  set ::env(LANG) C.UTF-8
+  spawn -noecho sh -c {stty rows "$1" cols "$2" && exec "$3" --book "$4"} \
+    sh $height $width $binary $book
+  set ::slave $spawn_out(slave,name)
+  set buffer ""
+  set eof 0
+}
+
+# Collect output for about ms milliseconds; returns what arrived.
+proc pump {ms} {
+  global spawn_id buffer eof
+  set start [string length $buffer]
+  set deadline [expr {[clock milliseconds] + $ms}]
+  while {!$eof && [clock milliseconds] < $deadline} {
+    after 40
+    expect -timeout 0 \
+      -re {.+} { append buffer $expect_out(buffer); exp_continue } \
+      eof { set eof 1 }
+    if {[string length $buffer] > 2000000} { fail "PTY emitted excessive output" }
+  }
+  return [string range $buffer $start end]
+}
+
+proc press {data {ms 350}} {
+  global spawn_id
+  send -- $data
+  return [pump $ms]
+}
+
+proc resize {width height} {
+  global spawn_id slave
+  stty rows $height columns $width < $slave
+  exec kill -WINCH [exp_pid]
+  return [pump 550]
+}
+
+proc wait_for {fragment} {
+  global buffer eof csi
+  set deadline [expr {[clock milliseconds] + 6000}]
+  while {[clock milliseconds] < $deadline} {
+    pump 150
+    regsub -all $csi $buffer {} visible
+    if {[string first $fragment $visible] >= 0} { return }
+    if {$eof} { break }
+  }
+  fail "expected terminal text absent: $fragment"
+}
+
+# Ctrl-Q is the explicit non-saving TUI exit; the process must end with 0.
+proc finish {} {
+  global spawn_id eof
+  if {!$eof} { press "\x11" 400 }
+  set deadline [expr {[clock milliseconds] + 5000}]
+  while {!$eof && [clock milliseconds] < $deadline} { pump 150 }
+  if {!$eof} { fail "TUI did not exit on Ctrl-Q" }
+  set status [lindex [wait] 3]
+  if {$status != 0} { fail "TUI exited with code $status" }
+}
+
+proc stop {} {
+  global spawn_id eof
+  if {!$eof} {
+    catch { exec kill -KILL [exp_pid] }
+    catch { close }
+    catch { wait }
+  }
+}
+
+proc session {binary book width height body} {
+  start $binary $book $width $height
+  set failed [catch { uplevel 1 $body } message options]
+  if {$failed} { stop; return -options $options $message }
+}
+
+proc open_balances {} {
+  wait_for "bakhlo"
+  press "\r"
+  press "b"
+  wait_for "Balances \[active\]"
+  wait_for "1,000"
+}
+
+proc smoke {binary fixture width height root} {
+  set owned [file join $root "${width}x$height"]
+  file mkdir $owned
+  set book [file join $owned book.sexp]
+  file copy $fixture $book
+  set before [slurp $book]
+  if {$width < 80} { set next {80 24} } else { set next {48 14} }
+  # Home -> Calendar -> Balances; inspect the first account, switch mode,
+  # inspect detail, then resize while the same PTY stays alive.
+  session $binary $book $width $height {
+    open_balances
+    foreach key {j k v v "\t" "\x1b"} { press $key }
+    if {[resize {*}$next] eq ""} { fail "no TUI repaint after SIGWINCH" }
+    resize $width $height
+    finish
+  }
+  if {[slurp $book] ne $before} { fail "read-only PTY session modified book bytes" }
+  # A new process, not a redraw: navigation and the exact balance survive cold reload.
+  session $binary $book $width $height {
+    open_balances
+    finish
+  }
+  if {[slurp $book] ne $before} { fail "cold PTY reopen modified book bytes" }
+  if {[entries $owned] ne {book.sexp}} {
+    fail "read-only PTY session created extra authority/config files"
+  }
+  puts "PASS: PTY ${width}x$height -> [join $next x] -> ${width}x$height, keyboard,\
+    exact 1,000, cold reopen, exit, bytes unchanged"
+}
+
+# Valid draft -> narrow Preview refusal -> cancel, no write. Publish is only ever
+# attempted at 32x9, where the shared Record gate must refuse.
+proc smoke_record_preview_refusal {binary fixture root} {
+  global buffer eof
+  set owned [file join $root record-preview-refusal]
+  file mkdir $owned
+  set book [file join $owned book.sexp]
+  file copy $fixture $book
+  set before [slurp $book]
+  session $binary $book 80 24 {
+    wait_for "bakhlo"
+    press "r"
+    # A new Record opens in quick capture; Tab continues in the full form.
+    wait_for "full form"
+    press "\t"
+    wait_for "Record / Edit"
+    # Same synthetic postings as Record_session_checks; typing never writes.
+    foreach key {"PTY snack" "\t\t" wallet "\r" -37 "\t" food "\r" +37 "\r"} { press $key }
+    wait_for "Record / Preview"
+    if {[slurp $book] ne $before} { fail "opening Record Preview wrote authority bytes" }
+    resize 32 9
+    press "\r"
+    if {$eof} { fail "narrow Preview Enter unexpectedly exited TUI" }
+    if {[slurp $book] ne $before} { fail "narrow Preview Enter published hidden evidence" }
+    # Enlarged again, the Preview still exists; Escape closes it and keeps the draft.
+    set buffer ""
+    resize 80 24
+    wait_for "Record / Preview"
+    press "\x1b"
+    if {[slurp $book] ne $before} { fail "Preview Escape wrote authority bytes" }
+    set buffer ""
+    press "r"
+    wait_for "Record / Edit"
+    wait_for "PTY snack"
+    # Ctrl-Q from Home, not from inside an active editor.
+    press "\x1b"
+    finish
+  }
+  if {[slurp $book] ne $before} { fail "Record draft cancel modified authority" }
+  if {[entries $owned] ne {book.sexp}} { fail "Record preview/cancel created unexpected files" }
+  puts "PASS: PTY Record draft -> Preview -> 32x9 Publish refusal -> Escape/cold draft\
+    resume, exact unchanged authority"
+}
+
+if {$argc != 2} {
+  puts stderr "usage: tools/ci-tui-pty NATIVE_BINARY SYNTHETIC_FIXTURE"
+  exit 2
+}
+set binary [file normalize [lindex $argv 0]]
+set fixture [file normalize [lindex $argv 1]]
+if {[file tail $fixture] ne "daily-book.sexp" || [file tail [file dirname $fixture]] ne "examples"} {
+  puts stderr "refuse any noncanonical synthetic fixture"
+  exit 2
+}
+if {[string first "SYNTHETIC ONLY" [slurp $fixture]] < 0} {
+  puts stderr "fixture must explicitly say SYNTHETIC ONLY"
+  exit 2
+}
+set root [exec mktemp -d scratch/ci-pty-XXXXXX]
+file attributes $root -permissions 0700
+set failed [catch {
+  foreach size $dimensions { smoke $binary $fixture {*}$size $root }
+  smoke_record_preview_refusal $binary $fixture $root
+} message]
+file delete -force $root
+if {$failed} {
+  puts stderr "FAIL: $message"
+  exit 1
+}
+puts "PASS: four PTY dimensions and narrow Record Preview non-publication (synthetic, no LOAM/IME claim)"

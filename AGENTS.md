@@ -113,8 +113,10 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   commits or public output. User decision (2026-10-20): no private household text
   (names, memos, identifiers, amounts) may enter this repository, its history or commit
   messages. `./tools/check` runs `./tools/privacy-scan` on changed files; run
-  `--all` after broad doc edits. Never put private text in the scan's inputs or output. Preserve earlier captures, candidates, trial edits and the
-  Irmin research artifacts.
+  `--all` after broad doc edits. Never put private text in the scan's inputs or output.
+  Preserve earlier captures and trial edits in scratch. User decision (2026-10-21):
+  research, experiments and code off the daily-use path (Irmin, formal models, old CLI)
+  live in Git history only.
 - Ordinary tests use synthetic inputs. Do not build/modify the sibling Lean repository
   or copy its source without separate authorization.
 - No new dependency, release or production adoption by implication.

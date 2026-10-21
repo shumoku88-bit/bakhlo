@@ -1,8 +1,8 @@
-; Synthetic package/bootstrap experiments are not part of the product workspace.
+; Local scratch is not part of the product workspace.
 
 ; The tui tree builds only in its isolated OxCaml/Bonsai workspace
 ; (tools/build-bonsai-tui). Here it is data for the architecture check only.
-(dirs :standard \ scratch experiments)
+(dirs :standard \ scratch)
 (data_only_dirs tui)
 
 ; Preserve typed-result/evolution checks even in package/release builds.

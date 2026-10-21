@@ -1,4 +1,0 @@
-(library
- (name bakhlo_presentation)
- (public_name bakhlo.presentation)
- (libraries bakhlo_application bakhlo_domain base zarith))

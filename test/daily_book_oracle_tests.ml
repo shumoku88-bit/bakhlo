@@ -10,7 +10,7 @@ module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
 module Q = Bakhlo_application.Current_quantity_query
 module M = Bakhlo_application.Event_merchants
-module X = Bakhlo_presentation.Current_quantity_explanation
+module Frontier = Bakhlo_application.Correction_frontier
 module R = Stdlib.Random.State
 
 let get = function Ok x -> x | Error why -> failwith why
@@ -397,10 +397,10 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
     |}]
 
 (* KNOWN GAP, pinned on purpose: the in-place record and correction paths update
-   balances but not the image's admitted source, so the evidence explanation omits the
+   balances but not the image's admitted source, so its correction frontier omits the
    new entry until the next whole admission. Answers agree (oracle above). The
    incremental redesign must make both lines say true. *)
-let%expect_test "known gap: incremental record leaves the evidence explanation stale" =
+let%expect_test "known gap: incremental record leaves the admitted source stale" =
   let base = get (B.of_string fixture) in
   let entry : B.entry =
     { id = "late"; day = "2026-10-05"; memo = None;
@@ -408,13 +408,17 @@ let%expect_test "known gap: incremental record leaves the evidence explanation s
       reversal_of = None; exchange = None; original_amount = None; merchant = None }
   in
   let book = get (B.put_entry base ~replace:false entry ~plan:None) in
-  let explain b = snd (X.explain (B.image b) (coordinate "wallet" "jpy")) in
-  let mentions b = String.is_substring (explain b) ~substring:"\"late\"" in
+  let mentions b =
+    let frontier = Bakhlo_application.Actual_source.frontier (Q.source (B.image b)) in
+    List.exists (Frontier.lineages frontier) ~f:(fun lineage ->
+        String.equal "late"
+          (D.Identifier.Event.to_string (D.Event.id (Frontier.terminal_event lineage))))
+  in
   Stdio.printf "answers agree: %b\n"
     (String.equal (observable book) (observable (cold book)));
-  Stdio.printf "explanation mentions new entry: in-memory %b, cold %b\n" (mentions book)
+  Stdio.printf "admitted source has new entry: in-memory %b, cold %b\n" (mentions book)
     (mentions (cold book));
   [%expect {|
     answers agree: true
-    explanation mentions new entry: in-memory false, cold true
+    admitted source has new entry: in-memory false, cold true
     |}]

@@ -1,3 +1,0 @@
-(lang dune 3.0)
-(name bakhlo_irmin_git_year_spike)
-(generate_opam_files false)

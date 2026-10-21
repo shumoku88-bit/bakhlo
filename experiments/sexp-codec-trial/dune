@@ -1,3 +1,0 @@
-(executable
- (name codec_trial)
- (libraries parsexp sexplib0 zarith unix))

@@ -65,28 +65,6 @@ This check does not claim to protect against unsafe OCaml escape hatches.
   [2]
   $ grep -q 'measure' error && grep -Eqi 'record|field|abstract|private' error
 
-The application can be used by a typed client without CLI or presentation CMIs.
-
-  $ cat >application_client.ml <<'EOF'
-  > module A = Bakhlo_application.Movement_check
-  > let inspect effects =
-  >   match A.run { effects } with
-  >   | Ok answer -> Some (A.measure answer, A.effects answer, A.positive_total answer)
-  >   | Error _ -> None
-  > EOF
-  $ application_client application_client.ml
-
-A structured application preview cannot be forged with a false aggregate.
-
-  $ cat >forged_preview.ml <<'EOF'
-  > module A = Bakhlo_application.Movement_check
-  > let forge (movement : Bakhlo_domain.Movement.t) : A.preview =
-  >   { movement; positive_total = Bakhlo_domain.Quantity.zero }
-  > EOF
-  $ application_client forged_preview.ml 2>error
-  [2]
-  $ grep -q 'movement' error && grep -Eqi 'record|field|abstract|private' error
-
 The coordinate's identifier roles remain distinct.
 
   $ cat >wrong_coordinate.ml <<'EOF'
@@ -110,54 +88,7 @@ A supported conditional answer cannot be forged with a guessed zero quantity.
   [2]
   $ grep -q 'coordinate' error && grep -Eqi 'record|field|abstract|private' error
 
-A quantity-answer recipient can consume the projected result without CLI/presentation.
-The value does not expose the raw answer, even though trusted assembly can still access
-raw evidence through the separate original engine API. This is type-level narrowing,
-NOT authorization or protection against unsafe OCaml/process escape hatches.
-
-  $ cat >quantity_answer_client.ml <<'EOF'
-  > module A = Bakhlo_application.Current_quantity_answer
-  > let inspect (answer : A.answer) =
-  >   match answer with
-  >   | Ok (A.Exact a) -> `Exact (A.coordinate a, A.quantity a, A.premise a)
-  >   | Ok (A.Known_present p) -> `Present (A.present_coordinate p)
-  >   | Error (A.Support_unknown { coordinate }) -> `Unknown coordinate
-  > EOF
-  $ application_client quantity_answer_client.ml
-
-Projected exact values cannot be forged or used as a raw premise/cut accessor's argument.
-Presence still cannot be supplied to arithmetic; no source accessor exists on this surface.
-
-  $ cat >forged_quantity_answer.ml <<'EOF'
-  > module A = Bakhlo_application.Current_quantity_answer
-  > let forge coordinate : A.exact =
-  >   { coordinate; quantity = Bakhlo_domain.Quantity.zero; premise = A.Zero_origin }
-  > EOF
-  $ application_client forged_quantity_answer.ml 2>error
-  [2]
-  $ grep -q 'coordinate' error && grep -Eqi 'record|field|abstract|private' error
-  $ cat >raw_premise_from_projection.ml <<'EOF'
-  > let wrong (a : Bakhlo_application.Current_quantity_answer.exact) =
-  >   Bakhlo_application.Current_quantity_query.premise a
-  > EOF
-  $ application_client raw_premise_from_projection.ml 2>error
-  [2]
-  $ grep -q 'Current_quantity_answer.exact' error && grep -q 'Current_quantity_query.exact' error
-  $ cat >quantity_from_projected_presence.ml <<'EOF'
-  > module A = Bakhlo_application.Current_quantity_answer
-  > let wrong (p : A.present) = A.quantity p
-  > EOF
-  $ application_client quantity_from_projected_presence.ml 2>error
-  [2]
-  $ grep -q 'A.present' error && grep -q 'A.exact' error
-  $ cat >source_from_projection.ml <<'EOF'
-  > let wrong = Bakhlo_application.Current_quantity_answer.source
-  > EOF
-  $ application_client source_from_projection.ml 2>error
-  [2]
-  $ grep -q 'source' error && grep -q 'Unbound value' error
-
-An endpoint-closure client compiles without CLI/presentation or private memory fields.
+An endpoint-closure client compiles without private memory fields.
 
   $ cat >correction_client.ml <<'EOF'
   > module D = Bakhlo_domain
@@ -872,54 +803,3 @@ An opening still requires an Event identity, not a Locus.
   $ application_client frontier_is_not_current_source.ml 2>error
   [2]
   $ grep -q 'Correction_frontier.t' error && grep -q 'Actual_source.t' error
-
-Experimental text proposals are usable without CLI/Presentation/runtime CMIs.
-A candidate cannot be forged from arbitrary bytes or replaced with a read image.
-
-  $ cat >text_proposal.ml <<'EOF'
-  > module P = Bakhlo_text.Propose
-  > let propose base id valid_on effects =
-  >   P.append_movement ~base { id; valid_on; effects; description = None }
-  > let inspect candidate = P.base_bytes candidate, P.bytes candidate, P.image candidate
-  > EOF
-  $ application_client -I ../text/.bakhlo_text.objs/byte text_proposal.ml
-  $ cat >forged_candidate.ml <<'EOF'
-  > module P = Bakhlo_text.Propose
-  > let forge base_bytes bytes image : P.candidate = { base_bytes; bytes; image }
-  > EOF
-  $ application_client -I ../text/.bakhlo_text.objs/byte forged_candidate.ml 2>error
-  [2]
-  $ grep -q 'Unbound record field.*base_bytes' error
-  $ cat >image_is_not_candidate.ml <<'EOF'
-  > module P = Bakhlo_text.Propose
-  > let wrong (image : Bakhlo_application.Current_quantity_query.t) = P.bytes image
-  > EOF
-  $ application_client -I ../text/.bakhlo_text.objs/byte image_is_not_candidate.ml 2>error
-  [2]
-  $ grep -q 'Current_quantity_query.t' error && grep -q 'P.candidate' error
-
-A whole-admitted document cannot be assembled from unrelated bytes and an image.
-The typed proposal consumes only the sealed document, not any admitted image.
-
-  $ cat >document_client.ml <<'EOF'
-  > module R = Bakhlo_text.Read
-  > module P = Bakhlo_text.Propose
-  > let propose (base : R.document) id valid_on effects =
-  >   P.append_document ~base { id; valid_on; effects; description = None }
-  > let inspect candidate = R.document_bytes (P.document candidate), R.document_image (P.document candidate)
-  > EOF
-  $ application_client -I ../text/.bakhlo_text.objs/byte document_client.ml
-  $ cat >forged_document.ml <<'EOF'
-  > module R = Bakhlo_text.Read
-  > let forge bytes image : R.document = { bytes; image }
-  > EOF
-  $ application_client -I ../text/.bakhlo_text.objs/byte forged_document.ml 2>error
-  [2]
-  $ grep -q 'Unbound record field.*bytes' error
-  $ cat >image_is_not_document.ml <<'EOF'
-  > module P = Bakhlo_text.Propose
-  > let wrong (base : Bakhlo_application.Current_quantity_query.t) command = P.append_document ~base command
-  > EOF
-  $ application_client -I ../text/.bakhlo_text.objs/byte image_is_not_document.ml 2>error
-  [2]
-  $ grep -q 'Current_quantity_query.t' error && grep -q 'Read.document' error
