@@ -43,6 +43,23 @@ val to_string : t -> string
 (** Serializes the book in the canonical Monolithic S-expression format (v3).
     Trial-only v4 budget data is deliberately unsupported. *)
 
+type payload = {
+  measures : (string * int) list;
+  labels : (string * string * string) list option;
+  approved : string list option;
+  entries : entry list;
+  plans : plan list;
+  origins : D.Effect_coordinate.t list;
+  openings : Q.opening list;
+  observations : Bakhlo_application.Current_quantity_groups.group list;
+  presence : Q.presence option;
+  bounded : (D.Effect_coordinate.t * string) list;
+}
+(** The whole book as supplied facts, for an explicit importer. *)
+
+val of_payload : payload -> (t, string) result
+(** The same whole-book admission as {!of_string}; no defaults or repair. *)
+
 
 
 val entries : t -> entry list

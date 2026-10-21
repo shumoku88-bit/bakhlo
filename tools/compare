@@ -1,5 +1,5 @@
 #!/bin/sh
-# Local comparison refresh using the existing private, scoped LOAM conversion trial.
+# Local comparison refresh through the one-time LOAM import (migrate/).
 set -eu
 umask 077
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
@@ -11,15 +11,13 @@ esac
 trial=$root/scratch/daily_book_candidate_v1
 build=$root/scratch/loam-comparison-tools
 state=$root/scratch/loam-comparison
-if [ ! -f "$trial/daily.ml" ] || [ -L "$root/scratch" ] || [ -L "$build" ] || [ -L "$state" ]; then
-  printf '%s\n' 'Existing private converter unavailable or unsafe comparison directory. Nothing imported.' >&2
+if [ ! -f "$trial/household.sexp" ] || [ -L "$root/scratch" ] || [ -L "$build" ] || [ -L "$state" ]; then
+  printf '%s\n' 'Private baseline unavailable or unsafe comparison directory. Nothing imported.' >&2
   exit 2
 fi
 mkdir -p "$build"
 ./tools/opam exec -- dune build lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa \
-  loam_read/bakhlo_loam_read.cmxa sexp/bakhlo_sexp.cmxa
-# Recompile our existing converter against current native libraries, never LOAM source.
-cp "$trial/daily.ml" "$build/daily.ml"
+  loam_read/bakhlo_loam_read.cmxa sexp/bakhlo_sexp.cmxa migrate/bakhlo_migrate.cmxa
 cp "$root/tools/compare_capture.ml" "$build/compare_capture.ml"
 ./tools/opam exec -- ocamlfind ocamlopt -strict-sequence -w +8+9+11 -warn-error +8+9+11 \
   -package base,zarith,parsexp,unix -linkpkg \
@@ -31,10 +29,12 @@ cp "$root/tools/compare_capture.ml" "$build/compare_capture.ml"
   -I _build/default/loam_read/.bakhlo_loam_read.objs/native \
   -I _build/default/sexp/.bakhlo_sexp.objs/byte \
   -I _build/default/sexp/.bakhlo_sexp.objs/native \
+  -I _build/default/migrate/.bakhlo_migrate.objs/byte \
+  -I _build/default/migrate/.bakhlo_migrate.objs/native \
   -I "$build" \
   _build/default/lib/bakhlo_domain.cmxa _build/default/application/bakhlo_application.cmxa \
-  _build/default/loam_read/bakhlo_loam_read.cmxa _build/default/sexp/bakhlo_sexp.cmxa \
-  "$build/daily.ml" "$build/compare_capture.ml" -o "$build/compare-capture"
+  _build/default/loam_read/bakhlo_loam_read.cmxa _build/default/sexp/bakhlo_sexp.cmxa _build/default/migrate/bakhlo_migrate.cmxa \
+  "$build/compare_capture.ml" -o "$build/compare-capture"
 if [ "$1" = self-check ]; then
   exec "$build/compare-capture" self-check
 fi

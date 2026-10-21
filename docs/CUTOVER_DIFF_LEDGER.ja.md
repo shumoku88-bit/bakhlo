@@ -89,7 +89,7 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 
 | 項目 | 判定 | 内容 | 乗り換え | 根拠 |
 | --- | --- | --- | --- | --- |
-| 全家計データの移行 | 🟥 未実装（方針は決定） | 2026-10-21本人決定：切替日にLOAMを止め、その時点を一度だけ取り込み、照合後に記帳先を切り替える（二重記帳・同期なし）。移すもの：現在の明細・反転・日付訂正・予定と完了・Locus許可・役割・残高根拠・設定・Attention。LOAMの記録（Git管理のフォルダ）にだけ残すもの：訂正の途中経過、取消／置換した予定、予算（Capacity・Routing・purpose-catalog・cycle-funding。予算は使っていない）。切替時、BakhloのデータのそばにLOAMの記録の場所と切替日の案内を置く。残り：変換をリポジトリへ移しAttention・Merchant・元の金額・両替に対応 | **止める** | [乗り換え判定](CUTOVER_CHECKLIST.ja.md#切替は別の判断) |
+| 全家計データの移行 | 🟨 変換は実装、移行手順は未実装 | 2026-10-21本人決定：切替日にLOAMを止め、その時点を一度だけ取り込み、照合後に記帳先を切り替える（二重記帳・同期なし）。移すもの：現在の明細・反転・日付訂正・予定と完了・Locus許可・役割・残高根拠・設定・Attention。LOAMの記録（Git管理のフォルダ）にだけ残すもの：訂正の途中経過、取消／置換した予定、予算（Capacity・Routing・purpose-catalog・cycle-funding。予算は使っていない）。切替時、BakhloのデータのそばにLOAMの記録の場所と切替日の案内を置く。2026-10-21、変換をリポジトリの`migrate/`へ移し、Attention・Merchant・元の金額・両替に対応（[証拠](VERIFICATION.md#loam-import-in-the-repository-2026-10-21)）。残り：切替日に使う取込手順（書き出し・照合・案内の配置） | **止める** | [乗り換え判定](CUTOVER_CHECKLIST.ja.md#切替は別の判断) |
 | 年度の切替（単一帳簿での年またぎ） | ✅ 解決（設計変更） | 年別ファイル分割を廃止し、1冊の帳簿（スナップショット＋追記ログ、200件以上で終了時にまとめ直しと `.prev` 保持）に統一（2026-10-20実データコピーでも追記・200件まとめ直しを確認） | なし | [年別廃止](VERIFICATION.md#records-and-annual-files-removed-2026-10-20), [実データ試し保存・訂正比較](VERIFICATION.md#real-data-trial-saves-exit-compaction-and-unapproved-locus-correction-comparison-2026-10-20) |
 | 保存の確認・電源断（P7） | 🟥 未実装 | 保存完了の永続的な確認と電源断時の安全性が未検証 | **止める** | O01 |
 | バックアップと復旧の手順 | 🟨 差あり | `--inspect-recovery`／`--discard-torn-tail`／`--restore-copy-from` とまとめ直し時の `.prev` 保持はある。長期履歴のGit運用や採用手順は未確定 | 要判断 | O02 |

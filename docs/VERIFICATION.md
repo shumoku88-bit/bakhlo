@@ -5740,3 +5740,30 @@ Taken over from the stopped `omp/scheduled-monitor-add` worker (no code had been
   both succeeded.
 - Latest-data paired comparison (the flow writes), physical terminal/IME and P7 were
   **not executed**.
+
+## LOAM import in the repository (2026-10-21)
+
+- Migration policy (user decision, cutover diff ledger): one import on the cutover day;
+  current state only; correction history, retired/replaced plans and budget stay in the
+  LOAM record.
+- `migrate/loam_import.ml(i)` replaces the private scratch converter. It builds a
+  `Daily_book.payload` and admits it with the book's own `Daily_book.of_payload` (no second
+  admission engine), then requires every coordinate's quantity and premise to equal LOAM's
+  image. New: Merchant / Nonmerchant on the current terminal, root original amounts and
+  exchange keys are carried (superseded-Event Merchant facts are not inherited);
+  bounded-history support is part of the payload; settlement relations refuse;
+  `attention` returns the household Attention section, which Bakhlo reads unchanged.
+- `tools/compare` now links the library; the capture writes `attention.loam` beside the
+  book (the app reads Attention from the book's directory). Its self-check requires the
+  Attention copy and failed with the write removed.
+- `test/loam_import_tests.ml` (synthetic): current-state entries with correction, merchant,
+  original amount, exchange and reversal; completed / retired / replaced plans; bounded
+  history; approved Loci; cold codec; Attention present / absent; refusal of a missing
+  Measure scale and of settlement relations.
+- Equivalence on real data: the old private converter and the new library produced
+  byte-identical books on the three latest comparison generations.
+- Latest-data refresh through the new path succeeded; read-only paired 120×36 Attention:
+  both show two open items with the same due information (one dated, one without a due
+  date). LOAM household/config bytes unchanged; AI sessions closed; `clean-copies` passed.
+- `./tools/check` and `./tools/tui --self-check` passed. The cutover-day procedure,
+  physical terminal/IME and P7 were **not executed**.

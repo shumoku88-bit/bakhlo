@@ -547,6 +547,8 @@ let export_payload (t : t) : payload =
     bounded = t.data.bounded;
   }
 
+let of_payload = admit_payload
+
 let of_string bytes =
   protect (fun () ->
       match get "syntax" (Parsexp.Many.parse_string bytes) with

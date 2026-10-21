@@ -1,0 +1,6 @@
+; The one-time LOAM import (user decision 2026-10-21): pure, no file access.
+
+(library
+ (name bakhlo_migrate)
+ (public_name bakhlo.migrate)
+ (libraries bakhlo_domain bakhlo_application bakhlo_loam_read bakhlo_sexp base zarith))

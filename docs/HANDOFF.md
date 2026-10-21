@@ -60,6 +60,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   contract), `app/` (Bonsai terminal + CLI entry), `scenarios/` (cross-screen checks).
   Keys, recovery commands and UI rules: [tui/README](../tui/README.md).
 - `cli/`, `presentation/`, `bin/`, `loam_read/`: older CLI and read-only LOAM input.
+- `migrate/`: the one-time LOAM import (pure; current state only, history stays in LOAM).
 - Tests: `test/` (Core; `daily_book_oracle_tests.ml`, `book_log_tests.ml`,
   `daily_file_tests.ml` guard the storage work) and the TUI self-check.
 

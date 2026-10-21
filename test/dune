@@ -15,6 +15,7 @@
   bakhlo_text
   bakhlo_loam_read
   bakhlo_sexp
+  bakhlo_migrate
   bakhlo_presentation
   bakhlo_cli
   bakhlo_store

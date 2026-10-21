@@ -1,12 +1,14 @@
-(* Local comparison only. Reuses the previously qualified, private Daily converter.
-   This is not a full-household importer, backup or operational publisher. *)
-module C = Daily
+(* Local comparison only, through the one-time LOAM import (Bakhlo_migrate).
+   This is not a backup or operational publisher. *)
+module L = Bakhlo_migrate.Loam_import
 module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
 module E = Bakhlo_loam_read.Envelope
 exception Refused of string
 let require p why = if not p then raise (Refused why)
 let get why = function Ok x -> x | Error _ -> raise (Refused why)
+let coord l m : D.Effect_coordinate.t =
+  { locus = get "locus" (D.Identifier.Locus.of_string l); measure = get "measure" (D.Identifier.Measure.of_string m) }
 let stat path = try Some (Unix.lstat path) with Unix.Unix_error (Unix.ENOENT, _, _) -> None
 let stamp (s : Unix.stats) =
   s.st_dev, s.st_ino, s.st_kind, s.st_size, s.st_mtime, s.st_ctime, s.st_perm
@@ -65,16 +67,6 @@ let file_from (_, _, files) name =
   match List.assoc_opt name files with Some (Some (_, b)) -> Some b | _ -> None
 let needed snapshot name = match file_from snapshot name with
   | Some b -> b | None -> raise (Refused "required-capture-input-missing")
-(* Explicit LOAM claims only; an absent section is no claim, never inferred support. *)
-let bounded_history raw =
-  let env = get "source-envelope" (E.of_string raw) in
-  match List.find_opt (fun (s : E.section) -> s.name = "BoundedHistorySupport") (E.sections env) with
-  | None -> []
-  | Some s ->
-      List.map (fun row -> match String.split_on_char '\t' row with
-        | [ "SUPPORT"; locus; measure; day ] -> locus, measure, day
-        | _ -> raise (Refused "invalid-bounded-history-row"))
-        (C.rows "LOAM-BOUNDED-HISTORY-SUPPORT\t1" s.body)
 (* Household AccountingRole evidence is already the accounting-roles.tsv text. *)
 let role_tokens = [ "ASSET"; "LIABILITY"; "EQUITY"; "INCOME"; "EXPENSE" ]
 let accounting_roles env =
@@ -99,15 +91,10 @@ let accounting_roles env =
         | _ -> raise (Refused "invalid-accounting-role-row")) rows;
       s.body
 let convert snapshot =
-  let raw = needed snapshot "household.loam" in
-  let candidate, _, _, _ = C.from_loam
-    ~raw
-    ~measure_config:(needed snapshot "config/measure-presentation.tsv")
-    ~label_config:(file_from snapshot "config/locus-catalog.tsv") in
-  let book = get "current-daily-codec-refused" (B.of_string (C.to_string candidate)) in
-  let book = match bounded_history raw with
-    | [] -> book
-    | rows -> get "bounded-history-support-refused" (B.with_bounded_history book rows) in
+  let book = match L.book { household = needed snapshot "household.loam";
+      measure_presentation = needed snapshot "config/measure-presentation.tsv";
+      locus_catalog = file_from snapshot "config/locus-catalog.tsv" } with
+    | Ok book -> book | Error why -> raise (Refused ("source-conversion-" ^ why)) in
   let printed = B.to_string book in
   let cold = get "candidate-cold-read-refused" (B.of_string printed) in
   require (B.to_string cold = printed) "candidate-roundtrip-changed";
@@ -200,6 +187,8 @@ let refresh ?(between = fun () -> ()) ~source ~state ~baseline () =
   let captured = snapshot source in
   let envelope = get "household-framing-refused" (E.of_string (needed captured "household.loam")) in
   let roles = accounting_roles envelope in
+  let attention = match L.attention (needed captured "household.loam") with
+    | Ok a -> a | Error why -> raise (Refused ("attention-" ^ why)) in
   let book, printed = convert captured in
   let name = Printf.sprintf "capture-%d-%d-%06x"
       (int_of_float (Unix.gettimeofday ())) (Unix.getpid ()) (Random.bits ()) in
@@ -219,6 +208,8 @@ let refresh ?(between = fun () -> ()) ~source ~state ~baseline () =
         then write_new (target ^ "/" ^ name) b)
     files;
   write_new (target ^ "/config/accounting-roles.tsv") roles;
+  (* Bakhlo's Attention file reads the household section unchanged. *)
+  Option.iter (write_new (target ^ "/attention.loam")) attention;
   write_new (target ^ "/imported.sexp") printed;
   write_new (target ^ "/book.sexp") printed;
   write_new (target ^ "/delta.private.txt") (delta old book);
@@ -231,6 +222,7 @@ let refresh ?(between = fun () -> ()) ~source ~state ~baseline () =
   Unix.rename selector (state ^ "/CURRENT");
   print_endline "PASS: private comparison refreshed; originals and previous trials unchanged."
 let sample_roles = "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\twallet\tASSET\nROLE\tfood\tEXPENSE\n"
+let sample_attention = "LOAM-ATTENTION-MEMORY\t1\nITEM\tt1\tNO_DUE_DATE\t-\tcheck\n"
 let fixture ~roles ~changed =
   let amount = if changed then 15 else 10 in
   let actual = Printf.sprintf
@@ -250,7 +242,8 @@ let fixture ~roles ~changed =
     "CurrentQuantityAnchor", "LOAM-CURRENT-QUANTITY-ANCHOR\t2\nGROUP\nASSERT\twallet\tjpy\t1000\nEND\n";
     "CurrentQuantityPresence", "LOAM-CURRENT-QUANTITY-PRESENCE\t1\n";
     "BoundedHistorySupport", "LOAM-BOUNDED-HISTORY-SUPPORT\t1\nSUPPORT\twallet\tjpy\t2026-10-01\n";
-    "LocusAdmission", "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\nLOCUS\tfood\n" ]
+    "LocusAdmission", "LOAM-LOCUS-ADMISSION-VOCABULARY\t1\nLOCUS\twallet\nLOCUS\tfood\n";
+    "Attention", sample_attention ]
     @ (match roles with Some body -> [ "AccountingRole", body ] | None -> []) in
   "LOAM-HOUSEHOLD-IMAGE\t2\n" ^ String.concat "" (List.map (fun (name, body) ->
     Printf.sprintf "SECTION\t%s\t%d\n%s" name (String.length body) body) sections)
@@ -314,11 +307,11 @@ let self_check () =
     "correction-or-date-not-selected";
   require ((List.hd (B.plans updated)).paid_by = Some "old") "payment-link-not-remapped";
   let module Q = Bakhlo_application.Current_quantity_query in
-  (match Q.query (B.image updated) (C.coord "wallet" "jpy") with
+  (match Q.query (B.image updated) (coord "wallet" "jpy") with
    | Ok (Q.Exact quantity) -> require (Z.equal (D.Quantity.quanta (Q.quantity quantity))
                                          (Z.of_int 982)) "independent-quantity-expectation"
    | Ok (Q.Known_present _) | Error _ -> raise (Refused "expected-exact-quantity"));
-  let at day = B.pool_at_end_of_day updated ~measure:"jpy" ~pool:[ C.coord "wallet" "jpy" ] ~day in
+  let at day = B.pool_at_end_of_day updated ~measure:"jpy" ~pool:[ coord "wallet" "jpy" ] ~day in
   require (B.bounded_history_start updated ~locus:"wallet" ~measure:"jpy" = Some "2026-10-01"
            && at "2026-10-11" = Ok (Z.of_int 985) && Result.is_error (at "2026-09-29"))
     "bounded-history-not-carried";
@@ -331,6 +324,8 @@ let self_check () =
   (* Household AccountingRole authority owns the Bakhlo config copy; UI copies stay byte-exact. *)
   require (bytes (second ^ "/config/accounting-roles.tsv") = sample_roles)
     "household-roles-not-placed";
+  (* Bakhlo reads the household Attention section unchanged, beside the book. *)
+  require (bytes (second ^ "/attention.loam") = sample_attention) "household-attention-not-placed";
   require (bytes (second ^ "/source/config/accounting-roles.tsv") = standalone_roles
            && bytes (second ^ "/loam-view/config/accounting-roles.tsv") = standalone_roles)
     "standalone-role-copy-changed";
@@ -426,8 +421,6 @@ let () =
   | _ -> raise (Refused "explicit-mode-required")
   with
   | Refused why -> prerr_endline ("Comparison refused: " ^ why ^ "; originals untouched."); exit 2
-  | C.Refused why ->
-      prerr_endline ("Comparison refused: source conversion profile (" ^ why ^ "); originals untouched."); exit 2
   | Unix.Unix_error _ | Sys_error _ ->
       prerr_endline "Comparison refused: filesystem boundary; private artifacts retained, originals untouched."; exit 2
   | _ -> prerr_endline "Comparison refused: unqualified input; private artifacts retained, originals untouched."; exit 2
