@@ -444,12 +444,15 @@ let active_form t =
 
 let has_overlay t = match t.overlay with No_overlay -> false | _ -> true
 
+(* Every Balances overlay is a centred pane at most 64 cells wide. *)
+let overlay_width width = min 64 (max 8 (width - 4))
+
 let overlay ~dimensions:((width, _) as _dimensions) ~body_dimensions:((body_w, body_h) as _body_dim)
     ~width_of t : overlay_frame option =
   match t.overlay with
   | No_overlay -> None
   | Config_picker picker ->
-      let pane_w = min 64 (max 8 (body_w - 4)) in
+      let pane_w = overlay_width body_w in
       let pane_h = min body_h (max 5 (List.length picker.candidates + 3)) in
       let rows =
         List.map
@@ -472,7 +475,7 @@ let overlay ~dimensions:((width, _) as _dimensions) ~body_dimensions:((body_w, b
           cursor = None;
         }
   | Config_review { form; _ } ->
-      let pane_w = min 64 (max 8 (body_w - 4)) in
+      let pane_w = overlay_width body_w in
       let content_width = max 0 (pane_w - 6) in
       let form_rows =
         Form.render_rows ~width:content_width
@@ -492,7 +495,7 @@ let overlay ~dimensions:((width, _) as _dimensions) ~body_dimensions:((body_w, b
       in
       Some { origin_x; origin_y; pane_width = pane_w; pane_height = List.length rows; rows; cursor }
   | Print_preview { form; scroll } ->
-      let pane_width = min 64 (max 8 (body_w - 4)) in
+      let pane_width = overlay_width body_w in
       let content =
         List.concat_map (O.wrap_text ~width_of (max 1 (pane_width - 6))) form.Form.summary
       in
@@ -518,7 +521,7 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~conten
   let layout = layout ~content ~screen_height:(snd dimensions) ~detail:(t.pane = `Detail) in
   match t.overlay with
   | Print_preview { form; scroll } -> (
-      let pane_width = min 64 (max 8 (fst dimensions - 4)) in
+      let pane_width = overlay_width (fst dimensions) in
       let content =
         List.concat_map (O.wrap_text ~width_of (max 1 (pane_width - 6))) form.Form.summary
       in
@@ -528,23 +531,15 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~conten
           ~capacity:(Panel.capacity ~height:pane_height ~heading:false)
           ~count:(List.length content) ~scroll ~selected:None
       in
+      let scroll_to scroll = ({ t with overlay = Print_preview { form; scroll } }, Stay) in
+      let scroll_print delta = scroll_to (Panel.move ~last:view.last ~position:view.start delta) in
       match input with
-      | `Key (`Home, _) -> ({ t with overlay = Print_preview { form; scroll = 0 } }, Stay)
-      | `Key (`End, _) -> ({ t with overlay = Print_preview { form; scroll = view.last } }, Stay)
-      | `Key ((`Page `Up | `ASCII 'u'), _) ->
-          let next_scroll =
-            Panel.move ~last:view.last ~position:view.start (-max 1 view.capacity)
-          in
-          ({ t with overlay = Print_preview { form; scroll = next_scroll } }, Stay)
-      | `Key ((`Page `Down | `ASCII 'd'), _) ->
-          let next_scroll = Panel.move ~last:view.last ~position:view.start (max 1 view.capacity) in
-          ({ t with overlay = Print_preview { form; scroll = next_scroll } }, Stay)
-      | `Key ((`ASCII 'k' | `Arrow `Up), _) ->
-          let next_scroll = Panel.move ~last:view.last ~position:view.start (-1) in
-          ({ t with overlay = Print_preview { form; scroll = next_scroll } }, Stay)
-      | `Key ((`ASCII 'j' | `Arrow `Down), _) ->
-          let next_scroll = Panel.move ~last:view.last ~position:view.start 1 in
-          ({ t with overlay = Print_preview { form; scroll = next_scroll } }, Stay)
+      | `Key (`Home, _) -> scroll_to 0
+      | `Key (`End, _) -> scroll_to view.last
+      | `Key ((`Page `Up | `ASCII 'u'), _) -> scroll_print (-max 1 view.capacity)
+      | `Key ((`Page `Down | `ASCII 'd'), _) -> scroll_print (max 1 view.capacity)
+      | `Key ((`ASCII 'k' | `Arrow `Up), _) -> scroll_print (-1)
+      | `Key ((`ASCII 'j' | `Arrow `Down), _) -> scroll_print 1
       | `Key ((`Escape | `Enter | `ASCII ('q' | 'Q')), _) -> ({ t with overlay = No_overlay }, Stay)
       | _ -> (t, Stay))
   | Config_picker picker -> (
@@ -591,7 +586,7 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~conten
                 in
                 ({ t with overlay = Config_review { picker; form = updated } }, Stay)
               else
-                let pane_w = min 64 (max 8 (fst dimensions - 4)) in
+                let pane_w = overlay_width (fst dimensions) in
                 let body_h = max 0 (snd dimensions - 3) in
                 let rows =
                   Form.render_rows ~width:(max 0 (pane_w - 6)) ~height:max_int ~width_of submitted
@@ -617,19 +612,26 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~conten
                   let content = BalView.to_string (other @ chosen_coords) in
                   (t, Save_balance_view { expected = picker.raw_before; content })))
   | No_overlay -> (
+      let toggle_pane = ({ t with pane = (if t.pane = `List then `Detail else `List) }, Stay) in
+      let count () = List.length (items ~book ~measure ~roles ~balance_view_text t) in
+      (* One motion key: [detail] scrolls the detail by the painted window, [list] moves
+         the selection, clamped to the items. *)
+      let move ~detail ~list =
+        if t.pane = `Detail then
+          let _, view =
+            detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t
+          in
+          ({ t with detail_scroll = Panel.move ~last:view.last ~position:view.start (detail view) }, Stay)
+        else (set_selected (max 0 (min (max 0 (count () - 1)) (t.selected + list))) t, Stay)
+      in
+      let page = list_capacity ~heading:(t.mode = `Current) ~layout in
       match input with
       | `Key ((`Escape | `ASCII ('q' | 'Q')), []) ->
           if t.pane = `Detail then ({ t with pane = `List }, Stay) else (t, Back_to_home)
-      | `Key ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), []) ->
-          let next_pane = if t.pane = `List then `Detail else `List in
-          ({ t with pane = next_pane }, Stay)
-      | `Key ((`Enter | `ASCII ('i' | 'I')), []) ->
-          let pane = if t.pane = `List then `Detail else `List in
-          ({ t with pane }, Stay)
+      | `Key ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), []) -> toggle_pane
+      | `Key ((`Enter | `ASCII ('i' | 'I')), []) -> toggle_pane
       | `Key (`ASCII ' ', []) -> (t, Open_commands)
-      | `Key (`Tab, mods) when mods = [] || mods = [ `Shift ] ->
-          let pane = if t.pane = `List then `Detail else `List in
-          ({ t with pane }, Stay)
+      | `Key (`Tab, mods) when mods = [] || mods = [ `Shift ] -> toggle_pane
       | `Key (`ASCII 'w', []) -> (t, Cycle_measure `Prev)
       | `Key (`ASCII 'v', []) ->
           let prev_coord = selected_coordinate ~book ~measure ~roles ~balance_view_text t in
@@ -661,68 +663,18 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~conten
       | `Key (`Home, []) ->
           if t.pane = `Detail then ({ t with detail_scroll = 0 }, Stay) else (set_selected 0 t, Stay)
       | `Key (`End, []) ->
-          let all_items = items ~book ~measure ~roles ~balance_view_text t in
-          let count = List.length all_items in
           if t.pane = `Detail then
             let _, view =
               detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t
             in
             ({ t with detail_scroll = view.last }, Stay)
-          else (set_selected (count - 1) t, Stay)
-      | `Key ((`Arrow `Up | `ASCII ('k' | 'K')), []) ->
-          let all_items = items ~book ~measure ~roles ~balance_view_text t in
-          let count = List.length all_items in
-          if t.pane = `Detail then
-            let _, view =
-              detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t
-            in
-            let next_scroll = Panel.move ~last:view.last ~position:view.start (-1) in
-            ({ t with detail_scroll = next_scroll }, Stay)
-          else
-            let next_sel = max 0 (min (max 0 (count - 1)) (t.selected - 1)) in
-            (set_selected next_sel t, Stay)
-      | `Key ((`Arrow `Down | `ASCII ('j' | 'J')), []) ->
-          let all_items = items ~book ~measure ~roles ~balance_view_text t in
-          let count = List.length all_items in
-          if t.pane = `Detail then
-            let _, view =
-              detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t
-            in
-            let next_scroll = Panel.move ~last:view.last ~position:view.start 1 in
-            ({ t with detail_scroll = next_scroll }, Stay)
-          else
-            let next_sel = max 0 (min (max 0 (count - 1)) (t.selected + 1)) in
-            (set_selected next_sel t, Stay)
+          else (set_selected (count () - 1) t, Stay)
+      | `Key ((`Arrow `Up | `ASCII ('k' | 'K')), []) -> move ~detail:(fun _ -> -1) ~list:(-1)
+      | `Key ((`Arrow `Down | `ASCII ('j' | 'J')), []) -> move ~detail:(fun _ -> 1) ~list:1
       | `Key ((`Page `Up | `ASCII 'u'), _) ->
-          let all_items = items ~book ~measure ~roles ~balance_view_text t in
-          let count = List.length all_items in
-          if t.pane = `Detail then
-            let _, view =
-              detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t
-            in
-            let next_scroll =
-              Panel.move ~last:view.last ~position:view.start (-max 1 view.capacity)
-            in
-            ({ t with detail_scroll = next_scroll }, Stay)
-          else
-            let step = list_capacity ~heading:(t.mode = `Current) ~layout in
-            let next_sel = max 0 (min (max 0 (count - 1)) (t.selected - step)) in
-            (set_selected next_sel t, Stay)
+          move ~detail:(fun view -> -max 1 view.capacity) ~list:(-page)
       | `Key ((`Page `Down | `ASCII 'd'), _) ->
-          let all_items = items ~book ~measure ~roles ~balance_view_text t in
-          let count = List.length all_items in
-          if t.pane = `Detail then
-            let _, view =
-              detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t
-            in
-            let next_scroll =
-              Panel.move ~last:view.last ~position:view.start (max 1 view.capacity)
-            in
-            ({ t with detail_scroll = next_scroll }, Stay)
-          else
-            let step = list_capacity ~heading:(t.mode = `Current) ~layout in
-            let next_sel = max 0 (min (max 0 (count - 1)) (t.selected + step)) in
-            (set_selected next_sel t, Stay)
+          move ~detail:(fun view -> max 1 view.capacity) ~list:page
       | _ -> (t, Stay))
 
 let screen ~book ~measure ~roles ~balance_view_text ~dimensions:(width, height) ~screen_height
