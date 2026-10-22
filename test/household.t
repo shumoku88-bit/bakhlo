@@ -1,8 +1,9 @@
-The household launcher must run the pushed code in its own worktree and warn and exit
-nonzero on any backup problem, while a nonzero TUI exit is reported unchanged and wins
-over the backup status. Synthetic local Git and bare remotes only: user/global Git
-config, signing and the network are disabled; the fake build installs a fake TUI as the
-launcher binary, tagged with the commit it was built from.
+The household launcher must run the pushed code in its own worktree, from an installed
+copy that a failed build cannot take away, and warn and exit nonzero on any backup
+problem, while a nonzero TUI exit is reported unchanged and wins over the backup
+status. Synthetic local Git and bare remotes only: user/global Git config, signing and
+the network are disabled; the fake build installs a fake TUI as the worktree binary,
+tagged with the commit it was built from, which the launcher copies to .run.
 
   $ export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null GIT_TERMINAL_PROMPT=0
   $ export HOME="$PWD/home"
@@ -73,11 +74,12 @@ The launcher runs its own repository: a fake origin with a pushed main branch.
   >   return $status
   > }
 
-The launcher fetches origin/main, builds it in its own worktree and names the commit it
-runs; nothing is recorded or pushed.
+The launcher fetches origin/main, builds it in its own worktree, installs the built binary
+at a stable path and names the commit it runs; nothing is recorded or pushed.
 
   $ H0="$PWD/h0"; mkhousehold "$H0"; setremote "$H0" "$PWD/r0"
   $ runhh "$H0" 0 0
+  Building bakhlo SHA …
   Running bakhlo from commit SHA
   TUI built from SHA
   $ grep -qF "Running bakhlo from commit $(git -C run rev-parse --short origin/main)" out.log && echo commit-named
@@ -86,12 +88,23 @@ runs; nothing is recorded or pushed.
   worktree-at-origin-main
   $ test -x run/.run/src/_build/default/tui/app/bakhlo_tui.exe && echo worktree-binary-built
   worktree-binary-built
+  $ test -x run/.run/bakhlo_tui.exe && echo stable-copy-installed
+  stable-copy-installed
+
+The launcher runs the installed copy, not the worktree's build output.
+
+  $ printf '#!/bin/sh\nprintf "worktree binary ran\\n"\n' > run/.run/src/_build/default/tui/app/bakhlo_tui.exe
+  $ chmod +x run/.run/src/_build/default/tui/app/bakhlo_tui.exe
+  $ runhh "$H0" 0 0
+  Running bakhlo from commit SHA
+  TUI built from SHA
 
 A moved origin/main is rebuilt and the new commit is run.
 
   $ git -C run commit -q --allow-empty -m moved
   $ git -C run push -q origin main
   $ runhh "$H0" 0 0
+  Building bakhlo SHA …
   Running bakhlo from commit SHA
   TUI built from SHA
   $ grep -qF "TUI built from $(git -C run rev-parse --short origin/main)" out.log && echo rebuilt-at-the-new-commit
@@ -237,11 +250,19 @@ Offline keeps the last built binary and says so.
   $ grep -qF "TUI built from $(git -C run rev-parse --short origin/main)" out.log && echo last-binary-used
   last-binary-used
 
-A failed build keeps the previous binary and names the commit it could not build.
+A failed build keeps the previous binary and names the commit it could not build. The
+failing build removes the target it was going to replace; the installed copy stays.
 
   $ git -C run remote set-url origin "$PWD/remote.git"
   $ cat > run/tools/opam <<'EOF'
   > #!/bin/sh
+  > # A failing build may remove the target it was going to replace.
+  > root=""
+  > while [ "$#" -gt 0 ]; do
+  >   if [ "$1" = "--root" ]; then root=$2; shift 2; continue; fi
+  >   shift
+  > done
+  > rm -f "$root/_build/default/tui/app/bakhlo_tui.exe"
   > printf 'synthetic build failure\n' >&2
   > exit 1
   > EOF
@@ -249,12 +270,15 @@ A failed build keeps the previous binary and names the commit it could not build
   $ git -C run commit -q --allow-empty -m moved2
   $ git -C run push -q origin main
   $ runhh "$H0" 0 0
+  Building bakhlo SHA …
   synthetic build failure
   The build of SHA failed; the last built binary is used.
   Running bakhlo from commit SHA
   TUI built from SHA
   $ grep -qF "TUI built from $(git -C run rev-parse --short HEAD~1)" out.log && echo previous-binary-kept
   previous-binary-kept
+  $ test -x run/.run/bakhlo_tui.exe && echo installed-copy-survived
+  installed-copy-survived
 
 Without any binary the launcher refuses instead of running the shared tree.
 

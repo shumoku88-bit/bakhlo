@@ -10,17 +10,21 @@
 # The launcher runs pushed code only (user decision 2026-10-22): AI workers edit
 # and build the shared tree, so it never runs that tree. It fetches origin/main,
 # keeps an ignored worktree at .run/src detached at that commit, builds the TUI
-# there with the existing switch and runs that binary. Its own _build means no
-# Dune lock conflict with the shared tree. Offline keeps the last built binary;
-# a failed build keeps the last built binary and names the commit; without any
-# binary the launcher refuses.
+# there with the existing switch and installs the built binary at
+# .run/bakhlo_tui.exe, which it always runs. The install copies to a temporary
+# name and renames it, so a failed build (Dune may remove or replace its
+# target) never takes the last good binary away. Its own _build means no Dune
+# lock conflict with the shared tree. Offline keeps the last built binary; a
+# failed build keeps it and names the commit; without any binary the launcher
+# refuses.
 # BAKHLO_HOUSEHOLD overrides the household directory (default: ../bakhlo-data).
 set -u
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 household=${BAKHLO_HOUSEHOLD:-$root/../bakhlo-data}
 run_dir=$root/.run
 worktree=$run_dir/src
-binary=$worktree/_build/default/tui/app/bakhlo_tui.exe
+binary=$run_dir/bakhlo_tui.exe
+target=$worktree/_build/default/tui/app/bakhlo_tui.exe
 stamp=$run_dir/built-commit
 
 if [ ! -f "$household/book.sexp" ] || [ ! -d "$household/.git" ]; then
@@ -69,12 +73,24 @@ if [ -n "$want" ]; then
       warn "The run worktree could not move to $(short "$want"); the last built binary is used."
     fi
   fi
-  if [ -n "$head" ] && [ "$built" != "$head" ]; then
+  # A missing binary is rebuilt too: the stamp alone must not keep the launcher
+  # from running.
+  if [ -n "$head" ] && { [ "$built" != "$head" ] || [ ! -x "$binary" ]; }; then
+    printf 'Building bakhlo %s …\n' "$(short "$head")"
     if "$root/tools/opam" exec -- dune build --root "$worktree" tui/app/bakhlo_tui.exe >/dev/null; then
-      built=$head
-      printf '%s\n' "$built" > "$stamp"
-    else
+      # Install atomically: a copy under a temporary name, then a rename.
+      if cp "$target" "$binary.tmp.$$" && chmod 755 "$binary.tmp.$$" && mv -f "$binary.tmp.$$" "$binary"
+      then
+        built=$head
+        printf '%s\n' "$built" > "$stamp"
+      else
+        rm -f "$binary.tmp.$$"
+        warn "The build of $(short "$head") could not be installed; the last built binary is used."
+      fi
+    elif [ -x "$binary" ]; then
       warn "The build of $(short "$head") failed; the last built binary is used."
+    else
+      warn "The build of $(short "$head") failed; there is no binary to run."
     fi
   fi
 fi

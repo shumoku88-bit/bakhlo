@@ -38,11 +38,16 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 ## The launcher runs pushed code only (2026-10-22)
 
 - `tools/household` fetches `origin/main`, builds it in an ignored worktree at
-  `.run/src` and runs that binary; the shared tree is never run and the commit is
-  named on one line. Offline keeps the last built binary, a failed build keeps it
-  and names the commit, and without any binary the launcher refuses; the backup
-  commit and push are unchanged. Checks cover the moved origin, offline, the failed
-  build and the refusal; `check` and `--self-check` passed.
+  `.run/src` and installs the built binary at `.run/bakhlo_tui.exe` (copied to a
+  temporary name and renamed); it always runs that copy, so a failed later build
+  cannot take the last good binary away. It prints the build it starts, keeps
+  Dune's own errors visible, names the commit on one line, keeps the last
+  installed binary when offline or the build fails, and refuses without any
+  binary; the backup commit and push are unchanged.
+- Checks cover the moved origin, offline, the failed build (its fake build
+  removes the target it would have replaced, and the previous copy still runs),
+  the installed copy being the one that runs, and the refusal; `check` and
+  `--self-check` passed.
 
 ## Stock–Flow debt history from openings (2026-10-22)
 

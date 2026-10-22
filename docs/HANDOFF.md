@@ -18,9 +18,10 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   Synthetic local-Git tests cover failed commit/push, no-edit retry and config backup;
   restoring the actual private off-site backup is still untested.
 - `tools/household` runs pushed code only (user decision 2026-10-22): it fetches
-  `origin/main`, builds it in an ignored worktree at `.run/src` and runs that binary,
-  never the shared tree; it names the commit it runs, keeps the last built binary when
-  offline or the build fails, and refuses without any binary.
+  `origin/main`, builds it in an ignored worktree at `.run/src` and installs the built
+  binary at `.run/bakhlo_tui.exe` (copied to a temporary name and renamed), never the
+  shared tree; it names the commit it runs, prints the build it starts, keeps the last
+  installed binary when offline or the build fails, and refuses without any binary.
 - Trend series are coloured: each series' braille line and its legend entry (name
   and per-day value) share its own colour (the terminal's own ANSI slots in the
   Terminal theme, four indexed palette colours in the Bakhlo themes); a cell
