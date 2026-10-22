@@ -277,17 +277,24 @@ let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers
                 else if List.mem row grid_rows && base = " " then (None, "┄")
                 else (owner, base)))
   in
-  (* Consecutive cells of one owner become one span. *)
+  (* Consecutive cells of one owner become one span; the span's text is built
+     in a buffer, so the rows stay linear in their width. *)
   let spans_of_cells cells =
-    let rec loop owner current acc = function
-      | [] -> List.rev ((owner, current) :: acc)
+    let flush owner buffer acc = (owner, Buffer.contents buffer) :: acc in
+    let rec loop owner buffer acc = function
+      | [] -> List.rev (flush owner buffer acc)
       | (cell_owner, glyph) :: rest ->
-          if cell_owner = owner then loop owner (current ^ glyph) acc rest
-          else loop cell_owner glyph ((owner, current) :: acc) rest
+          if cell_owner = owner then begin
+            Buffer.add_string buffer glyph;
+            loop owner buffer acc rest
+          end else loop cell_owner (Buffer.create 16) (flush owner buffer acc) rest
     in
     match cells with
     | [] -> []
-    | (owner, glyph) :: rest -> loop owner glyph [] rest
+    | (owner, glyph) :: rest ->
+        let buffer = Buffer.create 16 in
+        Buffer.add_string buffer glyph;
+        loop owner buffer [] rest
   in
   List.init height (fun row ->
       let cells = cells_of_row row in

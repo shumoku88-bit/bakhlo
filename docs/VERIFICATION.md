@@ -8,17 +8,9 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
 ## Trend series colours (2026-10-22)
 
-- Each Trend series has its own colour on its braille line and on its legend
-  entry (name and per-day value), so a name and its line match at a glance: the
-  Terminal theme uses the terminal's own ANSI slots (cyan, magenta, yellow,
-  blue), the Bakhlo themes four indexed palette colours. A cell shared by two
-  series takes the later series' colour; the marker glyphs (●◆▲■□) keep the
-  chart readable without colour. Rows carry styled spans through the one
-  rendering path; no truecolor, no fixed background.
-- Checks: distinct series styles, the legend style matching its line, the
-  overlap rule, the monochrome cue, and the theme colours. `./tools/check`,
-  `./tools/tui --self-check` and the PTY smoke passed; a Trend capture at 100×30
-  on a household copy in ignored scratch kept the colours.
+- Each Trend series has its own colour on its braille line and on its legend entry (name and per-day value), so a name and its line match at a glance. The Terminal theme uses the terminal's own ANSI slots (blue, magenta, cyan, red; no yellow, which washes out on a light background, and no red/green pair), the Bakhlo themes keep their tuned indexed colours, and a cell shared by two series takes the later series.
+- The marker glyphs (●◆▲■□) keep the chart readable without colour, the right edge is one border (the plot ends a cell earlier, so nothing doubles or overwrites the frame) and the span building is linear. Rows carry styled spans through the one rendering path; no truecolor, no fixed background.
+- Checks: the series styles, the legend matching its line, the overlap rule, the cue, the theme colours and the single border at 80 and 110 columns; `./tools/check`, `./tools/tui --self-check` and the PTY smoke passed, and a Trend capture at 100×30 on a household copy in ignored scratch kept the colours.
 
 ## Stock–Flow: the opening entry is not a flow, and an unknown Net stays unknown (2026-10-22)
 

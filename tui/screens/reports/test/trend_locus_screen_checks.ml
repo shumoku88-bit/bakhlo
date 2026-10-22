@@ -139,6 +139,56 @@ let () =
     (List.exists (fun (_, text) -> contains text " jpy") painted)
     "series values name the Measure";
 
+  (* The chart's frame border stays single: the selected column's rule and the
+     line's last cell never double or overwrite it. The width is counted in
+     cells, so the frame is measured as it is painted, and the day grain spreads
+     the days over the plot. *)
+  let daily = after env (after env owned (`ASCII ']')) (`ASCII ']') in
+  let at_end = after env daily `End in
+  List.iter
+    (fun width ->
+      let width_of text = Uutf.String.fold_utf_8 (fun cells _ _ -> cells + 1) 0 text in
+      let geometry =
+        {
+          Screen.screen = (width, 30);
+          body = (width, 27);
+          content = (width, 25);
+          width_of;
+        }
+      in
+      let rows = (S.view env geometry at_end).Screen.rows |> Lazy.force in
+      let framed =
+        List.filter_map
+          (fun (_, text) -> if String.starts_with ~prefix:"│" text then Some text else None)
+          rows
+      in
+      require (framed <> []) "the chart is framed";
+      List.iter
+        (fun text ->
+          require (String.ends_with ~suffix:"│" text) "the frame's right border is one cell";
+          require (not (String.ends_with ~suffix:"││" text))
+            "the frame's right border is not doubled")
+        framed;
+      (* The plot never touches the frame: an empty cell separates the chart's
+         content from the border, so the border stays single and no glyph can
+         overwrite it. *)
+      let chart_rows =
+        List.filter
+          (fun (_, text) ->
+            String.starts_with ~prefix:"│" text
+            && (contains text "┤"
+               || contains text "┄"
+               || Uutf.String.fold_utf_8 (fun found _ c -> found || is_braille c) false text))
+          rows
+      in
+      require (chart_rows <> []) "the chart has rows";
+      List.iter
+        (fun (_, text) ->
+          require (String.ends_with ~suffix:" │" text)
+            "the chart keeps an empty cell before the frame's border")
+        chart_rows)
+    [ 80; 110 ];
+
   (* Series colours: each series' line cells and its legend entry carry the
      same style, the styles differ, an overlapping cell takes the later series,
      and the marker glyph keeps the chart readable without colour. *)

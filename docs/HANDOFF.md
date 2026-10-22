@@ -23,11 +23,13 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   shared tree; it names the commit it runs, prints the build it starts, keeps the last
   installed binary when offline or the build fails, and refuses without any binary.
 - Trend series are coloured: each series' braille line and its legend entry (name
-  and per-day value) share its own colour (the terminal's own ANSI slots in the
-  Terminal theme, four indexed palette colours in the Bakhlo themes); a cell
-  shared by two series takes the later one, and the marker glyphs keep the chart
-  readable without colour. Rows carry styled spans through the one rendering
-  path. Synthetic checks, `check`, `--self-check` and the PTY smoke passed.
+  and per-day value) share its own colour (the terminal's own ANSI slots — blue,
+  magenta, cyan, red, no yellow — in the Terminal theme, four indexed palette
+  colours in the Bakhlo themes); a cell shared by two series takes the later one,
+  and the marker glyphs keep the chart readable without colour. The chart's right
+  edge is one border (the plot ends a cell earlier), and rows carry styled spans
+  through the one rendering path. Synthetic checks, `check`, `--self-check` and
+  the PTY smoke passed.
 - Stock–Flow leaves the whole opening entry out of the window's flows: the counterpart
   posting (e.g. opening equity) is not a decrease any more, so the tracked increases
   and decreases cancel again. Start and End still carry that entry, so the motion is

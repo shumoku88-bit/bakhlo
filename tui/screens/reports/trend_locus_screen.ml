@@ -808,7 +808,10 @@ let chart_panel (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snap
     let fmt value = O.format_money env.book snap.R.measure value in
     let scale = UChart.scale_for (Z.zero :: List.concat values) in
     let axis = UChart.axis_width ~width_of width scale fmt in
-    let plot_width = max 1 (width - axis - 5) in
+    (* The plot ends one cell before the frame's border: the selected column's
+       rule would otherwise sit on the border and double it, and the line's last
+       cell would overwrite the frame. *)
+    let plot_width = max 1 (width - axis - 6) in
     let grid_rows =
       List.map (UChart.row_for_value plot_height scale.range) scale.ticks
     in

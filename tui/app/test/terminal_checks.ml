@@ -73,14 +73,31 @@ let run () =
     && ansi (slice 8 1 nested) = ansi (text ~attr:(attributes P.Terminal C.Active) "|"))
     "Notty-nested-columns-preserve-native-caret-style";
   (* The chart series colours: the terminal's own ANSI slots in the Terminal
-     theme, the theme's indexed palette otherwise, and never a truecolor. *)
+     theme, the theme's indexed palette otherwise, and never a truecolor. The
+     Terminal slots must read on a light and on a dark background: no yellow,
+     and no red/green pair. *)
   List.iter
     (fun (theme, expected) ->
       let series = lines theme [ (C.Series 0, "●") ] in
       F.require
         (ansi (slice 0 1 series) = ansi (text ~attr:(A.fg expected) "●"))
         "Notty-series-colour-matches-the-theme")
-    [ (P.Terminal, A.cyan); (P.Bakhlo_light, xterm 25); (P.Bakhlo_dark, xterm 75) ];
+    [ (P.Terminal, A.blue); (P.Bakhlo_light, xterm 25); (P.Bakhlo_dark, xterm 75) ];
+  List.iter
+    (fun index ->
+      let series = lines P.Terminal [ (C.Series index, "●") ] in
+      F.require
+        (ansi (slice 0 1 series) <> ansi (text "●"))
+        "Notty-every-terminal-series-slot-has-a-colour")
+    [ 0; 1; 2; 3 ];
+  F.require
+    (not
+       (List.exists
+          (fun index ->
+            let attr = attributes P.Terminal (C.Series index) in
+            A.equal attr (A.fg A.yellow) || A.equal attr (A.fg A.green))
+          [ 0; 1; 2; 3 ]))
+    "Notty-terminal-series-avoid-yellow-and-green";
   let spanned = lines P.Terminal [ (C.Spans [ (C.Plain, "a"); (C.Series 1, "b") ]), "ab" ] in
   F.require
     (ansi (slice 0 1 spanned) = ansi (text "a")
