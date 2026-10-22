@@ -113,6 +113,11 @@ LOAMで確認したバグ・危険な挙動・低品質なUXは再現要件に�
 | **UI-34** | First-run／Unreadable household | 局部：interactive `--book FILE`のmissing／unreadable first-run、空v3 book＋明示Measure／scale、既存Manage Lociから初Locus admission | **F/O/V/Q** LOAMのdirectory rootとBakhlo単一fileの差、LOAMの未存在root起動・初回設定全体・実機操作は未受入。Permission／失敗境界と運用保証も別途確認 | 80×24 PTYでreview→tiny拒否→resize→exclusive作成→Home／cold `--check`。unreadable sourceはblank先・Escape非保存。fresh-rootのpaired RecordではBakhlo first-run＋Locus admission・保存／coldを実行（LOAM側rootは`loam init`）。self-checkで既存target/source bytes保全・非TTY拒否。詳細：[first-run証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#first-run-empty-book-creation)、[paired証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#fresh-root-paired-record-and-cold-reopen-2026-10-16)、[契約](HANDOFF.md) |
 | **UI-35** | Browse records by year | 未接続：Bakhloに入口・画面なし（2026-10-21にLOAM Commands → Transactionsの棚卸しで発見） | **F/O/V/Q** LOAMは選択日の年から開く読取専用のActual年次履歴（←/→で前後年、↑/↓・PgUp/PgDnでscroll、q/Escで戻る、読めない年は`Year not available`を表示しゼロ扱いしない）。LOAMの年次ファイル読取に依存するため、Bakhloの単一book上で同じ観測結果をどう出すかから決める | LOAM `Loam/Tui/Cli.lean`の`yearHistoryView`／`browseYearHistory`、`HomeCommandPalette.lean`の`.yearHistory`。現在残高・発行の根拠には使わない |
 
+UI-25限定修正（2026-10-22）：Trend / Locusの色切替で各spanの先頭文字が落ちる不具合と、
+低いplotで選択マーカーが線から別の段へずれる投影を修正。
+合成端末で再現・確認（[証拠](VERIFICATION.md#trend-chart-cell-alignment-2026-10-22)）。
+既定系列・pointer scrub・LOAM対照／本人受入の残差は維持。Daily Paceの描画経路は変更しない。
+
 UI-33限定更新（2026-10-19）：最新binaryの[合成対照](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#latest-binary-paired-daily-pace-acceptance-probe-2026-10-19)で
 zero-origin／current-anchor-only × 両binary × 4寸法の16 walksと別4 coldを実行。
 10d履歴の3,077→4,807、partial／unknown、明示Previous Cycleの0／unknownは一致する一方、

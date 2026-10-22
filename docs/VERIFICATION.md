@@ -6,6 +6,29 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Trend chart cell alignment (2026-10-22)
+
+- Reproduced on a synthetic two-series Trend / Locus report in a real tmux PTY:
+  colour changes dropped cells, breaking slopes and moving the selected-day
+  guide left by different amounts on different rows. `Ui_chart.multi_line_spans`
+  now flushes the old span and retains the first glyph of the new span, reusing
+  its buffer. The selected marker's vertical projection uses the same 4×
+  subpixel height as the braille line, rather than a coarse text-row projection
+  that put a marker on a different row in a short plot.
+- Before/after captures at 120×36 and 48×14 show continuous lines and a straight
+  selected-day guide after the span fix; selection and resize were also exercised
+  at 80×24 and 32×9. These are synthetic terminal observations, not physical
+  terminal/font or human acceptance. No accounting values, range selection,
+  Daily Pace chart path, configuration format or storage behaviour changed.
+- The final 48×14 capture also confirms the detached marker is gone. Book and
+  both synthetic config files have identical SHA-256 hashes before/after.
+  Regression checks cover preserved row width, a last-column selection guide
+  after colour transitions, and no detached marker in a three-row plot.
+  The focused `trend_locus_screen_checks.exe`, `./tools/check`,
+  `./tools/tui --self-check` and `./tools/ci-tui-pty` all passed.
+- Household data was not accessed. Latest-data paired comparison, physical
+  terminal/IME and human acceptance **not executed**.
+
 ## Actual: a Year window and year moves (2026-10-22)
 
 - `f` cycles Today/Cycle/Month/Year/All; `{`/`}` move the current period a year (the window containing the current window's first day, moved by a year), so Month 2026-10 goes to Month 2025-10. A Cycle a year away outside the configured presets is refused with its reason; All refuses. The footer names `[{ }] year`.

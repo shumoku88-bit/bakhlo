@@ -248,7 +248,7 @@ let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers
         if selected >= 0 && selected < Array.length values && index < List.length markers then
           Some
             ( selected_x,
-              row_for_value height range values.(selected),
+              row_for_value (height * 4) range values.(selected) / 4,
               List.nth markers index,
               index )
         else None)
@@ -287,7 +287,12 @@ let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers
           if cell_owner = owner then begin
             Buffer.add_string buffer glyph;
             loop owner buffer acc rest
-          end else loop cell_owner (Buffer.create 16) (flush owner buffer acc) rest
+          end else begin
+            let acc = flush owner buffer acc in
+            Buffer.clear buffer;
+            Buffer.add_string buffer glyph;
+            loop cell_owner buffer acc rest
+          end
     in
     match cells with
     | [] -> []

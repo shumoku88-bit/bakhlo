@@ -32,6 +32,13 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   edge is one border (the plot ends a cell earlier), and rows carry styled spans
   through the one rendering path. Synthetic checks, `check`, `--self-check` and
   the PTY smoke passed.
+- Trend / Locus chart colour transitions now preserve every cell: the previous
+  span builder dropped the first glyph after each colour change, shortening rows
+  and staggering the selected-day guide. Selected markers use the braille
+  subpixel height rather than a separate coarse projection, avoiding detached
+  markers in short plots. Synthetic terminal captures reproduce the old
+  misalignment and show aligned rows after the span fix; accounting and storage
+  are unchanged. Verification: [Trend geometry](VERIFICATION.md#trend-chart-cell-alignment-2026-10-22).
 - Stock–Flow leaves the whole opening entry out of the window's flows: the counterpart
   posting (e.g. opening equity) is not a decrease any more, so the tracked increases
   and decreases cancel again. Start and End still carry that entry, so the motion is

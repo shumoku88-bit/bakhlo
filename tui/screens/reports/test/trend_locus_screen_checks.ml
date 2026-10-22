@@ -246,6 +246,46 @@ let () =
   require
     (List.for_all (fun index -> index = 0) (List.concat_map series_indices single))
     "a series without an overlap keeps its own colour";
+  (* Chart cells: an owner change must not drop a cell, or the row loses width
+     and the selection guide drifts out of its column. *)
+  let row_text spans = String.concat "" (List.map snd spans) in
+  let cells text =
+    Uutf.String.fold_utf_8 (fun cells _ cell -> cell :: cells) [] text |> List.rev
+  in
+  let guide = `Uchar (Uchar.of_int 0x2502) in
+  let crossing_spans =
+    Ui_chart.multi_line_spans ~width:8 ~height:4
+      ~series:[ [ z 0; z 100 ]; [ z 100; z 0 ] ]
+      ~selected:1 ~range:{ Ui_chart.low = z 0; high = z 100 } ~grid_rows:[ 1 ]
+      ~markers:[ "●"; "◆" ] ()
+  in
+  let crossing_rows = List.map (fun spans -> cells (row_text spans)) crossing_spans in
+  require
+    (List.for_all (fun row -> List.length row = 8) crossing_rows)
+    "a row keeps every cell when the series' owner changes";
+  let guide_columns =
+    List.concat_map
+      (fun row ->
+        List.mapi (fun column cell -> (column, cell)) row
+        |> List.filter_map (fun (column, cell) -> if cell = guide then Some column else None))
+      crossing_rows
+  in
+  require
+    (guide_columns <> [] && List.for_all (( = ) 7) guide_columns)
+    "the selection guide stays in the last column";
+  (* The selected marker follows the line's sub-pixel row: a flat series at the
+     top of the range keeps its marker on the line, not in the middle row. *)
+  let marker_spans =
+    Ui_chart.multi_line_spans ~width:8 ~height:3 ~series:[ [ z 51; z 51; z 51 ] ]
+      ~selected:1 ~range:{ Ui_chart.low = z 0; high = z 60 } ~grid_rows:[] ~markers:[ "●" ] ()
+  in
+  let marker_top = cells (row_text (List.nth marker_spans 0)) in
+  let marker_middle = cells (row_text (List.nth marker_spans 1)) in
+  require
+    (not (List.mem (`Uchar (Uchar.of_int 0x25CF)) marker_middle))
+    "the middle row carries no detached marker";
+  require (is_braille (List.nth marker_top 3)) "the selected cell keeps the line's braille";
+  require (not (is_braille (List.nth marker_middle 3))) "the middle row carries no line cell";
   ignore (S.view env geometry owned);
   ignore (S.result env owned);
   ignore (after env owned `End);
