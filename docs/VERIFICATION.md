@@ -6,6 +6,21 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Stock–Flow: the opening entry is not a flow, and an unknown Net stays unknown (2026-10-22)
+
+- An opening entry sets balances, so the whole entry is left out of the window's
+  flows: its counterpart posting (e.g. opening equity) is no longer counted as a
+  decrease, and the tracked increases and decreases cancel again. The report names
+  the excluded opening entry and says that it is excluded on both sides.
+- The Net cell is the motion between the two boundaries. With an unknown boundary it
+  shows `—` instead of the in-window motion; the motion itself stays visible in the
+  `+In` / `-Out` columns.
+- Checks: a window containing the opening entry with the counterpart tracked (no flow
+  on either side, the aggregate cancels, the note names the entry) and an undated
+  observation (the Net cell is `—` while `+In` keeps the motion). Both checks fail
+  against the previous code. `./tools/check` and `./tools/tui --self-check` passed.
+  No household data was accessed; the latest-data paired comparison was not executed.
+
 ## The launcher runs pushed code only (2026-10-22)
 
 - `tools/household` fetches `origin/main`, builds it in an ignored worktree at

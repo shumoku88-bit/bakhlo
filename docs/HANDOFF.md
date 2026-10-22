@@ -21,6 +21,12 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   `origin/main`, builds it in an ignored worktree at `.run/src` and runs that binary,
   never the shared tree; it names the commit it runs, keeps the last built binary when
   offline or the build fails, and refuses without any binary.
+- Stock–Flow leaves the whole opening entry out of the window's flows: the counterpart
+  posting (e.g. opening equity) is not a decrease any more, so the tracked increases
+  and decreases cancel again, and the note names the excluded entry. The Net cell is
+  the motion between the two boundaries and stays `—` when a boundary is unknown,
+  instead of the in-window motion. Synthetic checks cover both and fail against the
+  previous code; `check` and `--self-check` passed. No household access.
 - Actual now reuses scoped/filtered rows within a render; common empty-query search
   skips text construction. The 1,440-state synthetic frame comparison is unchanged.
   At 109.5k synthetic entries, native Actual Down+paint fell 466→235 ms (80×24);

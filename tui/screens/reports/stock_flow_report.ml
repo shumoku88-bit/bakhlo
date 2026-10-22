@@ -27,7 +27,7 @@ type coordinate_activity = {
   start_balance : Z.t option;
   increases : Z.t;
   decreases : Z.t;
-  net_change : Z.t;
+  net_change : Z.t option;  (** End minus start; unknown when a boundary is. *)
   end_balance : Z.t option;
   current_balance : Z.t option;
 }
@@ -45,6 +45,7 @@ type snapshot = {
   coordinates : coordinate_activity list;
   liabilities : coordinate_activity list;
   unsupported : (string * string) list;  (** Locus and its support state. *)
+  excluded_openings : string list;  (** Days of the opening entries left out of the flows. *)
 }
 
 type report = snapshot
@@ -129,20 +130,16 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
     let end_day = day_before period.end_exclusive in
     let activities = Hashtbl.create (List.length pool) in
     List.iter (fun (locus, _) -> Hashtbl.add activities locus (Z.zero, Z.zero)) pool;
-    (* The opening entry of each pooled coordinate: its posting sets the balance,
-       so it is never a flow of the window that contains it. *)
-    let opening_events = Hashtbl.create (List.length pool) in
+    (* Every opening entry of the book sets balances, so the whole entry is
+       never a flow of the window that contains it: neither the opening
+       coordinate's posting nor its counterpart's. *)
+    let opening_entries = Hashtbl.create 8 in
     List.iter
-      (fun (locus, _) ->
-        match coordinate_of ~measure locus with
-        | Error _ -> ()
-        | Ok coordinate -> (
-            match opening_of ~book ~coordinate with
-            | None -> ()
-            | Some opening ->
-                Hashtbl.replace opening_events locus
-                  (D.Identifier.Event.to_string opening.opening_event)))
-      pool;
+      (fun (opening : Q.opening) ->
+        Hashtbl.replace opening_entries (D.Identifier.Event.to_string opening.opening_event) ())
+      (Q.openings (B.image book));
+    (* The opening entries that the window excludes, named in the note. *)
+    let excluded_openings = ref [] in
     (* Every recorded Effect of a pooled Locus with its day, so a boundary can be
        reconstructed from Core's exact current quantity. *)
     let dated = Hashtbl.create (List.length pool) in
@@ -167,9 +164,14 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
                 Hashtbl.replace dated locus ((entry.day, quantity) :: previous))
               cells;
             if entry.day >= period.start_day && entry.day < period.end_exclusive then
-              Hashtbl.iter
-                (fun locus quantity ->
-                  if Hashtbl.find_opt opening_events locus <> Some entry.id then begin
+              if Hashtbl.mem opening_entries entry.id then begin
+                (* An opening entry sets the balances: it is not a flow, on
+                   either side. *)
+                if Hashtbl.length cells > 0 then
+                  excluded_openings := entry.day :: !excluded_openings
+              end else
+                Hashtbl.iter
+                  (fun locus quantity ->
                     let positive, negative = Hashtbl.find activities locus in
                     let positive =
                       if Z.sign quantity > 0 then Z.add positive quantity else positive
@@ -177,9 +179,8 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
                     let negative =
                       if Z.sign quantity < 0 then Z.add negative quantity else negative
                     in
-                    Hashtbl.replace activities locus (positive, negative)
-                  end)
-                cells;
+                    Hashtbl.replace activities locus (positive, negative))
+                  cells;
             scan rest
           end
     in
@@ -200,10 +201,13 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
             | O.Known_present | O.Unsupported -> None
           in
           let base support start_balance end_balance =
+            (* The Net cell is the balance motion between the two boundaries: it
+               stays unknown when a boundary is unknown, never the in-window
+               motion alone. *)
             let net_change =
               match (start_balance, end_balance) with
-              | Some start, Some stop -> Z.sub stop start
-              | _ -> Z.add positive negative
+              | Some start, Some stop -> Some (Z.sub stop start)
+              | _ -> None
             in
             {
               locus;
@@ -345,6 +349,7 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
           coordinates = supported;
           liabilities;
           unsupported;
+          excluded_openings = List.sort_uniq String.compare !excluded_openings;
         })
       (scan (B.entries book))
 
@@ -371,14 +376,14 @@ let support_note (c : coordinate_activity) =
   | Opening_on day ->
       Some
         (Printf.sprintf
-           "start unknown; the window starts on the opening entry dated %s, whose posting is not \
-            a flow"
+           "start unknown; the window starts on the opening entry dated %s, whose whole entry is \
+            not a flow"
            day)
   | Opening_inside day ->
       Some
         (Printf.sprintf
-           "start unknown; the window contains the opening entry dated %s, whose posting is not \
-            a flow"
+           "start unknown; the window contains the opening entry dated %s, whose whole entry is \
+            not a flow"
            day)
   | Observation_undated ->
       Some
@@ -395,12 +400,15 @@ let cell ~width_of col text = O.pad_left ~width_of col text
 
 let row_text ~width_of ~col_name ~col_num ~book ~measure (c : coordinate_activity) =
   let amount = function Some value -> O.format_money book measure value | None -> "—" in
+  let net =
+    match c.net_change with Some value -> signed_amount ~book measure value | None -> "—"
+  in
   "  " ^ O.pad ~width_of col_name (coordinate_label ~book ~measure c)
   ^ " " ^ cell ~width_of col_num (amount c.start_balance)
   ^ " " ^ cell ~width_of col_num ("+" ^ O.format_money book measure c.increases)
   ^ " " ^ cell ~width_of col_num (O.format_money book measure c.decreases)
   ^ " " ^ cell ~width_of col_num (amount c.end_balance)
-  ^ " " ^ cell ~width_of col_num (signed_amount ~book measure c.net_change)
+  ^ " " ^ cell ~width_of col_num net
 
 let header_text ~width_of ~col_name ~col_num =
   "  " ^ O.pad ~width_of col_name "Coordinate"
@@ -424,6 +432,14 @@ let footnote_lines ~book ~measure report =
       (fun (locus, reason) -> Printf.sprintf "  %s/%s: %s" locus report.measure reason)
       report.unsupported
   in
+  let excluded =
+    List.map
+      (fun day ->
+        Printf.sprintf
+          "  The opening entry dated %s is excluded from the in-window flows on both sides."
+          day)
+      report.excluded_openings
+  in
   (if report.unknown_starts > 0 then
      [
        Printf.sprintf "  The start total excludes %d coordinate(s) whose start is unknown."
@@ -431,6 +447,7 @@ let footnote_lines ~book ~measure report =
        "  The end total still adds every known end.";
      ]
    else [])
+  @ excluded
   @ notes
   @
   if unsupported = [] then []
@@ -586,14 +603,24 @@ let print_summary ~book ~(report : report) =
   List.iter
     (fun (c : coordinate_activity) ->
       let amount = function Some value -> O.format_money book m value | None -> "—" in
+      let net =
+        match c.net_change with Some value -> signed_val ~book m value | None -> "—"
+      in
       add
         (Printf.sprintf "  %-*s %*s %*s %*s %*s %*s" col_name
            (coordinate_label ~book ~measure:m c)
            col_num (amount c.start_balance) col_num
            ("+" ^ O.format_money book m c.increases)
            col_num (O.format_money book m c.decreases) col_num (amount c.end_balance) col_num
-           (signed_val ~book m c.net_change)))
+           net))
     report.coordinates;
+  List.iter
+    (fun day ->
+      add
+        (Printf.sprintf
+           "  The opening entry dated %s is excluded from the in-window flows on both sides."
+           day))
+    report.excluded_openings;
   List.iter
     (fun (c : coordinate_activity) ->
       match support_note c with

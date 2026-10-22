@@ -222,6 +222,12 @@ let self_check () =
       }
     in
     let opening_event = id_of (D.Identifier.Event.of_string "open") in
+    let equity_coordinate =
+      {
+        D.Effect_coordinate.locus = id_of (D.Identifier.Locus.of_string "opening-equity");
+        measure = id_of (D.Identifier.Measure.of_string "jpy");
+      }
+    in
     get
       (B.of_payload
          {
@@ -256,7 +262,7 @@ let self_check () =
                };
              ];
            plans = [];
-           origins = [];
+           origins = [ equity_coordinate ];
            openings = [ { Q.coordinate; opening_event } ];
            observations = [];
            presence = None;
@@ -299,6 +305,43 @@ let self_check () =
   require
     (List.exists (fun line -> contains line "the window contains the opening entry") early_lines)
     "the row note says the window contains the opening entry";
+
+  (* The opening entry is not a flow on either side: its counterpart posting
+     does not show as a decrease, so the tracked increases and decreases
+     cancel. *)
+  let inside_opening =
+    get
+      (S.compute_report ~book:opening_book ~measure:"jpy"
+         ~tracked_coords:[ ("debt", "jpy"); ("opening-equity", "jpy") ] ~liability_coords:[]
+         ~period:before_open)
+  in
+  require
+    (Z.equal inside_opening.S.increases_across_events Z.zero
+    && Z.equal inside_opening.S.decreases_across_events Z.zero)
+    "the opening entry's counterpart posting is not a flow";
+  require
+    (Z.equal (only "debt" inside_opening).S.increases Z.zero
+    && Z.equal (only "debt" inside_opening).S.decreases Z.zero
+    && Z.equal (only "opening-equity" inside_opening).S.increases Z.zero
+    && Z.equal (only "opening-equity" inside_opening).S.decreases Z.zero)
+    "neither side of the opening entry is a flow";
+  require
+    (inside_opening.S.excluded_openings = [ "2026-09-01" ])
+    "the report names the opening entry it left out of the flows";
+  let inside_lines =
+    List.map
+      snd
+      (S.render_summary_lines ~width:120 ~width_of:String.length ~book:opening_book
+         ~report:inside_opening)
+  in
+  require
+    (List.exists
+       (fun line ->
+         contains line
+           "The opening entry dated 2026-09-01 is excluded from the in-window flows on both \
+            sides")
+       inside_lines)
+    "the note says the opening entry is excluded on both sides";
 
   (* A window that ends before the opening entry: start and end stay unknown. *)
   let before_open : I.period =
@@ -452,6 +495,22 @@ let self_check () =
   require
     (List.exists (fun line -> contains line "the balance before it is not derivable") lines)
     "the note says the balance before the confirmation is not derivable";
+
+  (* The Net cell is the motion between the two boundaries: with an unknown
+     boundary it stays unknown instead of showing the in-window motion. *)
+  let observed_row =
+    List.find_opt
+      (fun line ->
+        String.length line > 10 && String.sub line 2 8 = "debt/jpy" && contains line "+400")
+      lines
+  in
+  (match observed_row with
+  | None -> failwith "the observed debt row must be rendered"
+  | Some line ->
+      let words = List.filter (fun word -> word <> "") (String.split_on_char ' ' line) in
+      require (List.hd (List.rev words) = "—")
+        "an unknown boundary leaves the Net cell unknown";
+      require (List.mem "+400" words) "the in-window motion stays in its own column");
   print_endline
     "PASS: Stock-Flow zero-origin, bounded, opening and observation support, all-time and unknown starts, listed \
      unsupported coordinates, liabilities, roles refusal and cold-reload agreement (synthetic)."

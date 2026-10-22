@@ -21,7 +21,7 @@ type coordinate_activity = {
   start_balance : Z.t option;
   increases : Z.t;
   decreases : Z.t;
-  net_change : Z.t;
+  net_change : Z.t option;  (** End minus start; unknown when a boundary is. *)
   end_balance : Z.t option;
   current_balance : Z.t option;
 }
@@ -39,6 +39,7 @@ type snapshot = {
   coordinates : coordinate_activity list;
   liabilities : coordinate_activity list;
   unsupported : (string * string) list;  (** Locus and its support state. *)
+  excluded_openings : string list;  (** Days of the opening entries left out of the flows. *)
 }
 
 type report = snapshot
