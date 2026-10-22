@@ -13,6 +13,7 @@
   bakhlo_tui_kit
   bakhlo_tui_protocol
   bakhlo.domain
+  bakhlo.application
   bakhlo.sexp
   zarith
   base))

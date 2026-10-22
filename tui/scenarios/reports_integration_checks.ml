@@ -333,8 +333,9 @@ let run ~width_of ~directory (back_home : C.state) =
       "food\tjpy\nfood\tjpy\n";
       "";
     ];
-  (* A valid selection whose coordinate has no support is listed, not refused. *)
-  configure "wallet\tjpy\n";
+  (* A valid selection with no support at all is listed, not refused; the wallet
+     observation is exact but undated, so it is not in this list. *)
+  configure "bank\tjpy\n";
   (match stock_flow_result sf_ctl with
   | Ok unsupported ->
       require

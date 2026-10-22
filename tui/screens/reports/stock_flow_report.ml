@@ -13,6 +13,9 @@ type support =
   | Zero_origin
   | Bounded of string  (** Bounded history start. *)
   | Before_start of string  (** Bounded start lies after the window start. *)
+  | Opening of string  (** Opening entry dated here: the balance is exact from then. *)
+  | Opening_after of string  (** Opening entry lies after the window start. *)
+  | Observation_undated  (** An exact confirmation with no dated boundary. *)
   | Unsupported of string
 
 type coordinate_activity = {
@@ -73,6 +76,45 @@ let balance_at ~book ~measure ~coordinate ~day =
       match B.pool_at_end_of_day book ~measure ~pool:[ coordinate ] ~day with
       | Ok value -> Ok value
       | Error code -> Error (code_of_refusal code))
+
+module Q = Bakhlo_application.Current_quantity_query
+
+(* An opening entry fixes the coordinate from its own date: the forward sum of
+   recorded Effects is then exact, exactly like a bounded start. *)
+let opening_day ~book ~coordinate =
+  match
+    List.find_opt
+      (fun (opening : Q.opening) -> D.Effect_coordinate.equal opening.coordinate coordinate)
+      (Q.openings (B.image book))
+  with
+  | None -> None
+  | Some opening -> (
+      match B.find_entry book (D.Identifier.Event.to_string opening.opening_event) with
+      | Some entry -> Some entry.day
+      | None -> None)
+
+(* An observation is exact from an undated confirmation: no per-day boundary can
+   be derived from the stored group, so it never back-fills a window start. *)
+let observation_exact ~book ~coordinate =
+  match Q.query (B.image book) coordinate with
+  | Ok (Q.Exact answer) -> (
+      match Q.premise answer with Q.Current_assertion _ -> true | _ -> false)
+  | Ok (Q.Known_present _) | Error _ -> false
+
+let forward_sum ~book ~measure ~locus ~day_exclusive =
+  List.fold_left
+    (fun total (entry : B.entry) ->
+      if entry.day >= day_exclusive then total
+      else
+        List.fold_left
+          (fun total (posting : D.Effect.t) ->
+            if
+              A.lstr (D.Effect.locus posting) = locus
+              && A.mstr (D.Effect.measure posting) = measure
+            then Z.add total (A.quanta posting)
+            else total)
+          total entry.effects)
+    Z.zero (B.entries book)
 
 let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : IncExp.period) =
   if
@@ -174,7 +216,37 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
                   base Zero_origin
                     (match start_result with Ok value -> Some value | Error _ -> None)
                     (match end_result with Ok value -> Some value | Error _ -> None)
-              | false, None -> base (Unsupported "no zero-origin or bounded history") None None
+              | false, None -> (
+                  (* An opening entry or an observation makes the coordinate exact
+                     without zero-origin/bounded history. *)
+                  match opening_day ~book ~coordinate with
+                  | Some start ->
+                      let start_known = period.start_day >= start in
+                      let end_known = period.end_exclusive > start in
+                      let start_balance =
+                        if start_known then
+                          Some
+                            (forward_sum ~book ~measure ~locus ~day_exclusive:period.start_day)
+                        else None
+                      in
+                      let end_balance =
+                        if end_known then
+                          Some
+                            (forward_sum ~book ~measure ~locus
+                               ~day_exclusive:period.end_exclusive)
+                        else None
+                      in
+                      base
+                        (if start_known then Opening start else Opening_after start)
+                        start_balance end_balance
+                  | None ->
+                      if observation_exact ~book ~coordinate then
+                        base Observation_undated None None
+                      else
+                        base
+                          (Unsupported
+                             "no zero-origin, bounded, opening or observation support")
+                          None None)
               | false, Some first_day ->
                   let start_result =
                     match start_day with
@@ -190,7 +262,8 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
                   in
                   (match support with
                   | Unsupported _ -> base support None None
-                  | Zero_origin | Bounded _ | Before_start _ ->
+                  | Zero_origin | Bounded _ | Before_start _ | Opening _ | Opening_after _
+                  | Observation_undated ->
                       base support
                         (match start_result with Ok value -> Some value | Error _ -> None)
                         (match end_result with Ok value -> Some value | Error _ -> None)))
@@ -207,7 +280,8 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
             (fun (c : coordinate_activity) ->
               match c.support with
               | Unsupported reason -> (c.locus, reason)
-              | Zero_origin | Bounded _ | Before_start _ -> (c.locus, ""))
+              | Zero_origin | Bounded _ | Before_start _ | Opening _ | Opening_after _
+              | Observation_undated -> (c.locus, ""))
             unsupported
         in
         let sum_known pick =
@@ -262,7 +336,13 @@ let coordinate_label ~book ~measure (c : coordinate_activity) =
 
 let support_note (c : coordinate_activity) =
   match c.support with
-  | Before_start start_day -> Some (Printf.sprintf "start unknown; bounded history starts %s" start_day)
+  | Before_start start_day ->
+      Some (Printf.sprintf "start unknown; bounded history starts %s" start_day)
+  | Opening day -> Some (Printf.sprintf "start known from the opening entry dated %s" day)
+  | Opening_after day ->
+      Some (Printf.sprintf "start unknown; the opening entry is dated %s" day)
+  | Observation_undated ->
+      Some "start unknown; the observation has no dated boundary"
   | Zero_origin | Bounded _ | Unsupported _ -> None
 
 let table_columns pad_w =
@@ -369,6 +449,9 @@ let render_summary_lines ~width ~width_of ~book ~(report : report) =
     match report.liabilities with
     | [] -> []
     | rows_of ->
+        let known_start =
+          List.filter_map (fun (c : coordinate_activity) -> c.start_balance) rows_of
+        in
         let known_end = List.filter_map (fun (c : coordinate_activity) -> c.end_balance) rows_of in
         let known_now =
           List.filter_map
@@ -385,28 +468,42 @@ let render_summary_lines ~width ~width_of ~book ~(report : report) =
           else "Debt remaining"
         in
         ( O.Chrome,
-          if known_end <> [] then "  Liabilities (remaining at window end)"
+          if known_end <> [] then "  Liabilities (start / repaid +In / borrowed -Out / end)"
           else "  Liabilities (end unknown; current quantity only)" )
         :: List.map
              (fun (c : coordinate_activity) ->
-               let end_text =
+               let amount = function
+                 | Some value -> O.format_money book m value
+                 | None -> "—"
+               in
+               let now =
                  match (c.end_balance, c.current_balance) with
-                 | Some value, _ -> O.format_money book m value ^ " " ^ m
-                 | None, Some value -> O.format_money book m value ^ " " ^ m ^ " (now)"
-                 | None, None -> "—"
+                 | Some _, _ -> ""
+                 | None, Some value -> "  now " ^ O.format_money book m value
+                 | None, None -> ""
                in
                let support =
                  match support_note c with Some note -> "  (" ^ note ^ ")" | None -> ""
                in
                ( O.Plain,
-                 Printf.sprintf "    %-28s %18s%s"
+                 Printf.sprintf "    %-22s %10s %10s %10s %10s%s%s"
                    (coordinate_label ~book ~measure:m c)
-                   end_text support ))
+                   (amount c.start_balance)
+                   ("+" ^ O.format_money book m c.increases)
+                   (O.format_money book m c.decreases)
+                   (amount c.end_balance) now support ))
              rows_of
         @ [
             ( O.Plain,
-              Printf.sprintf "    %-28s %18s" total_label
-                (if known_end = [] && known_now = [] then "—" else signed_amount ~book m total ^ " " ^ m) );
+              Printf.sprintf "    %-22s %10s %10s %10s %10s" total_label
+                (if known_start = [] then "—"
+                 else signed_amount ~book m (List.fold_left Z.add Z.zero known_start))
+                ("+" ^ O.format_money book m
+                   (List.fold_left (fun total c -> Z.add total c.increases) Z.zero rows_of))
+                (O.format_money book m
+                   (List.fold_left (fun total c -> Z.add total c.decreases) Z.zero rows_of))
+                (if known_end = [] && known_now = [] then "—"
+                 else signed_amount ~book m total) );
           ]
   in
   header @ [ (O.Chrome, header_text ~width_of ~col_name ~col_num); rule ] @ rows

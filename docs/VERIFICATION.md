@@ -6,6 +6,19 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Stock–Flow debt history from openings (2026-10-22)
+
+- An `openings` entry gives a known history start at the opening entry's own date
+  (forward sum exact from there, unknown before it); a window before it keeps `—`
+  while other coordinates render. No second admission path.
+- Observations stay exact but undated: no per-day boundary is derivable with the
+  existing APIs, so those coordinates report the current quantity only and keep
+  start/end unknown, with the reason in the report's notes.
+- The liabilities section shows start / repaid (`+In`) / borrowed (`−Out`) / end per
+  window plus "now" when unknown. Tests cover opening before/inside, observation,
+  zero-origin and bounded unchanged; `check`, `--self-check`, PTY and a read-only
+  fresh-copy 100×30/80×24 capture passed with unchanged source bytes.
+
 ## Suspense never silently stays pending (2026-10-22)
 
 - Attention gains one derived row when Actual entries touch `suspense` and a

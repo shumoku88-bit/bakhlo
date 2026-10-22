@@ -4,6 +4,16 @@
 module B = Bakhlo_sexp.Daily_book
 module S = Stock_flow_report
 module I = Income_expense_report
+module D = Bakhlo_domain
+module A = Bakhlo_application
+let id_of = function Ok value -> value | Error _ -> failwith "synthetic identifier"
+
+let posting locus amount =
+  D.Effect.create ~key:None
+    ~locus:(id_of (D.Identifier.Locus.of_string locus))
+    ~measure:(id_of (D.Identifier.Measure.of_string "jpy"))
+    ~quantity:(D.Quantity.of_quanta amount)
+module Q = Bakhlo_application.Current_quantity_query
 
 let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
@@ -202,6 +212,147 @@ let self_check () =
   | Ok _ -> failwith "an unreadable roles file must refuse the debt section"
   | Error why ->
       require (contains why "accounting-roles.tsv") "the refusal names accounting-roles.tsv");
+
+  (* Opening support: exact from the opening entry's date, unknown before it. *)
+  let opening_book =
+    let coordinate =
+      {
+        D.Effect_coordinate.locus = id_of (D.Identifier.Locus.of_string "debt");
+        measure = id_of (D.Identifier.Measure.of_string "jpy");
+      }
+    in
+    let opening_event = id_of (D.Identifier.Event.of_string "open") in
+    get
+      (B.of_payload
+         {
+           measures = [ ("jpy", 0) ];
+           labels = None;
+           approved = Some [ "debt"; "cash"; "opening-equity" ];
+           entries =
+             [
+               {
+                 B.id = "open";
+                 day = "2026-09-01";
+                 memo = None;
+                 effects =
+                   [
+                     posting "debt" (z 1000);
+                     posting "opening-equity" (z (-1000));
+                   ];
+                 reversal_of = None;
+                 exchange = None;
+                 original_amount = None;
+                 merchant = None;
+               };
+               {
+                 B.id = "repay";
+                 day = "2026-10-10";
+                 memo = None;
+                 effects = [ posting "debt" (z (-300)); posting "cash" (z 300) ];
+                 reversal_of = None;
+                 exchange = None;
+                 original_amount = None;
+                 merchant = None;
+               };
+             ];
+           plans = [];
+           origins = [];
+           openings = [ { Q.coordinate; opening_event } ];
+           observations = [];
+           presence = None;
+           bounded = [];
+         })
+  in
+  let after_open = get (compute opening_book [ ("debt", "jpy") ]) in
+  let debt = only "debt" after_open in
+  require
+    ((debt.S.support = S.Opening "2026-09-01")
+    && (debt.S.start_balance = Some (z 1000))
+    && (debt.S.end_balance = Some (z 700))
+    && (debt.S.current_balance = Some (z 700))
+    && Z.equal debt.S.decreases (z (-300))
+    && after_open.S.unknown_starts = 0)
+    "an opening makes the window exact and shows the repayment";
+  let before_open : I.period =
+    { period with start_day = "2026-08-01"; end_exclusive = "2026-09-15" }
+  in
+  let early =
+    get
+      (S.compute_report ~book:opening_book ~measure:"jpy" ~tracked_coords:[ ("debt", "jpy") ]
+         ~liability_coords:[] ~period:before_open)
+  in
+  let debt = only "debt" early in
+  require
+    ((debt.S.support = S.Opening_after "2026-09-01")
+    && debt.S.start_balance = None
+    && (debt.S.end_balance = Some (z 1000))
+    && early.S.unknown_starts = 1)
+    "a window before the opening keeps the start unknown";
+
+  (* Observation support is exact but undated: it never back-fills a start. *)
+  let observation_book =
+    let coordinate =
+      {
+        D.Effect_coordinate.locus = id_of (D.Identifier.Locus.of_string "debt");
+        measure = id_of (D.Identifier.Measure.of_string "jpy");
+      }
+    in
+    get
+      (B.of_payload
+         {
+           measures = [ ("jpy", 0) ];
+           labels = None;
+           approved = Some [ "debt"; "cash" ];
+           entries =
+             [
+               {
+                 B.id = "borrow";
+                 day = "2026-10-10";
+                 memo = None;
+                 effects = [ posting "debt" (z 400); posting "cash" (z (-400)) ];
+                 reversal_of = None;
+                 exchange = None;
+                 original_amount = None;
+                 merchant = None;
+               };
+             ];
+           plans = [];
+           origins = [];
+           openings = [];
+           observations =
+             [
+               {
+                 A.Current_quantity_groups.reflected_roots =
+                   [ id_of (D.Identifier.Event.of_string "borrow") ];
+                 assertions =
+                   [
+                     {
+                       A.Current_quantity_projection.coordinate;
+                       quantity = D.Quantity.of_quanta (z 400);
+                     };
+                   ];
+               };
+             ];
+           presence = None;
+           bounded = [];
+         })
+  in
+  let observed = get (compute observation_book [ ("debt", "jpy") ]) in
+  let debt = only "debt" observed in
+  require
+    ((debt.S.support = S.Observation_undated)
+    && debt.S.start_balance = None
+    && debt.S.end_balance = None
+    && (debt.S.current_balance = Some (z 400)))
+    "an observation is undated: current exact, start unknown";
+  let lines =
+    List.map snd
+      (S.render_summary_lines ~width:120 ~width_of:String.length ~book:observation_book
+         ~report:observed)
+  in
+  require
+    (List.exists (fun line -> contains line "no dated boundary") lines)
+    "the note says the observation has no dated boundary";
   print_endline
-    "PASS: Stock-Flow zero-origin and bounded support, all-time and unknown starts, listed \
+    "PASS: Stock-Flow zero-origin, bounded, opening and observation support, all-time and unknown starts, listed \
      unsupported coordinates, liabilities, roles refusal and cold-reload agreement (synthetic)."

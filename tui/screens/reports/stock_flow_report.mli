@@ -7,6 +7,9 @@ type support =
   | Zero_origin
   | Bounded of string  (** Bounded history start. *)
   | Before_start of string  (** Bounded start lies after the window start. *)
+  | Opening of string  (** Opening entry dated here: the balance is exact from then. *)
+  | Opening_after of string  (** Opening entry lies after the window start. *)
+  | Observation_undated  (** An exact confirmation with no dated boundary. *)
   | Unsupported of string
 
 type coordinate_activity = {
