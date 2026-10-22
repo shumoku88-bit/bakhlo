@@ -1,0 +1,9 @@
+(test
+ (name loci_checks)
+ (libraries
+  bakhlo_screen_loci
+  bakhlo_tui_book
+  bakhlo_tui_protocol
+  bakhlo.sexp
+  bakhlo.domain
+  zarith))

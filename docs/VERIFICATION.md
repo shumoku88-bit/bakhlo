@@ -6,6 +6,17 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Suspense never silently stays pending (2026-10-22)
+
+- Attention gains one derived row when Actual entries touch `suspense` and a
+  Measure's balance is non-zero or unknown (exact per-Measure, entry count, oldest
+  date and age); exact zero hides, no support reads "unknown", its detail names
+  Actual `/` then `c`, and `r`/`x` refuse it as a matter.
+- Manage Loci no longer counts `suspense` in "N without role"; its detail says it is
+  the unresolved holding Locus with no role, corrected in Actual.
+- Synthetic tests cover non-zero, zero, multi-Measure, unknown and the count;
+  `check`, `--self-check`, PTY and a read-only fresh-copy capture passed unchanged.
+
 ## Manage Loci: a role is required on admission and may go to a used Locus (2026-10-22)
 
 User decision (2026-10-22): every new Locus gets an accounting role, and a used Locus

@@ -21,3 +21,14 @@ val with_form : Ui_form.t -> t -> t
 
 val selected : t -> int
 val detail_focused : t -> bool
+
+type holding = {
+  balances : (string * string) list;  (** Formatted exact balance, or "unknown". *)
+  entries : int;  (** Actual entries touching [suspense]. *)
+  oldest : string option;
+  age_days : int option;
+}
+
+val suspense_holding : Screen.env -> holding option
+(** One derived signal when Actual entries touch the [suspense] holding Locus and
+    some Measure's balance is non-zero or unknown. An exact zero balance hides it. *)

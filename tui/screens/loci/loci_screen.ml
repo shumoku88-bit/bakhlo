@@ -12,6 +12,9 @@ module Panel = Ui_panel
 let tr = Ui_text.tr
 let roles_file = Roles.file_name
 
+(* The unresolved holding Locus: not an account, and it never takes a role. *)
+let suspense_locus = "suspense"
+
 type pane = List_pane | Detail_pane
 
 type editor =
@@ -413,9 +416,39 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
   let left_rows =
     if loci = [] then [ tr "No admitted loci in this book." ] else List.map locus_line loci
   in
+  let balances_of locus =
+    List.map
+      (fun (m, _) ->
+        Printf.sprintf "  %s: %s" (String.uppercase_ascii m) (O.quantity ~book ~measure:m locus))
+      (B.measures book)
+  in
+  let suspense_detail =
+    [
+      "Locus Token:      " ^ suspense_locus;
+      "Kind:             unresolved recording holding";
+      "";
+      "Current Balances:";
+    ]
+    @ (match balances_of suspense_locus with
+      | [] -> [ "  (no measures)" ]
+      | balances -> balances)
+    @ [
+        "";
+        "This Locus holds Effects whose real account is not yet known. It is not an";
+        "account: it takes no accounting role and is excluded from role summaries.";
+        "";
+        "Resolve it by correcting those entries in Actual:";
+        "  /  search \"suspense\"    c  Correct the entry to its real Locus";
+        "";
+        "Frontiers:";
+        "  n : Admit new Locus token";
+        "  q / Esc : Return to Home";
+      ]
+  in
   let detail =
     match selected_locus env t with
     | None -> [ tr "No selected locus."; ""; tr "Press 'n' to admit a new coordinate token." ]
+    | Some locus when locus = suspense_locus -> suspense_detail
     | Some locus ->
         let label = B.label book locus in
         let role_opt = role_of locus in
@@ -425,13 +458,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
           | Ok _, None -> "None / Unassigned"
           | Ok _, Some r -> Roles.role_label r
         in
-        let balances =
-          List.map
-            (fun (m, _) ->
-              Printf.sprintf "  %s: %s" (String.uppercase_ascii m)
-                (O.quantity ~book ~measure:m locus))
-            (B.measures book)
-        in
+        let balances = balances_of locus in
         [
           "Locus Token:      " ^ locus;
           ("Display Label:    " ^ if label <> "" then label else "(same as token)");
@@ -463,7 +490,11 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
     ~left_title:
       (match
          match roles with
-         | Ok roles -> List.length (List.filter (fun l -> not (List.mem_assoc l roles)) loci)
+         | Ok roles ->
+             List.length
+               (List.filter
+                  (fun l -> l <> suspense_locus && not (List.mem_assoc l roles))
+                  loci)
          | Error _ -> 0
        with
       | 0 -> Printf.sprintf "Manage Loci (%d admitted)" (List.length loci)

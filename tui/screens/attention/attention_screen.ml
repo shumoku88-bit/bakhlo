@@ -24,13 +24,132 @@ let form t = Option.map (fun e -> e.form) t.editor
 let selected t = t.selected
 let detail_focused t = t.pane = Detail_pane
 
+module B = Bakhlo_sexp.Daily_book
+module D = Bakhlo_domain
+module Cal = Daily_calendar
+
+(* The unresolved holding Locus: Effects whose real account is not known yet.
+   It is not an account and never takes a role. *)
+let suspense_locus = "suspense"
+
+type holding = {
+  balances : (string * string) list;  (** Formatted exact balance, or "unknown". *)
+  entries : int;  (** Actual entries touching the holding Locus. *)
+  oldest : string option;
+  age_days : int option;
+}
+
+let suspense_holding (env : Screen.env) : holding option =
+  let book = env.book in
+  let entries, oldest =
+    List.fold_left
+      (fun (count, oldest) (entry : B.entry) ->
+        if
+          List.exists
+            (fun posting -> A.lstr (D.Effect.locus posting) = suspense_locus)
+            entry.effects
+        then
+          let oldest =
+            match oldest with None -> Some entry.day | Some day -> Some (min day entry.day)
+          in
+          (count + 1, oldest)
+        else (count, oldest))
+      (0, None) (B.entries book)
+  in
+  if entries = 0 then None
+  else
+    (* Zero hides, an exact non-zero shows, and no support is "unknown", never 0. *)
+    let balances =
+      List.filter_map
+        (fun (measure, _) ->
+          match O.quantity_value ~book ~measure suspense_locus with
+          | O.Exact quantity when Z.equal quantity Z.zero -> None
+          | O.Exact quantity ->
+              Some (measure, O.format_money book measure quantity ^ " " ^ measure)
+          | O.Known_present -> Some (measure, "unknown")
+          | O.Unsupported -> Some (measure, "unknown (no history support)"))
+        (B.measures book)
+    in
+    if balances = [] then None
+    else
+      let age_days =
+        match oldest with
+        | None -> None
+        | Some day -> (
+            match (Cal.day_index env.today, Cal.day_index day) with
+            | Ok today, Ok then_ -> Some (max 0 (today - then_))
+            | _ -> None)
+      in
+      Some { balances; entries; oldest; age_days }
+
 let open_items (env : Screen.env) =
   match env.attention with Ok t -> Att.open_items t | Error _ -> []
+(* One selectable row: the derived holding signal first, then household matters. *)
+type row = Holding of holding | Matter of Att.item
 
-let selected_item env t = List.nth_opt (open_items env) t.selected
+let row_list env =
+  let matters = List.map (fun item -> Matter item) (open_items env) in
+  match suspense_holding env with Some holding -> Holding holding :: matters | None -> matters
+
+let holding_line ~width_of ~col_due ~col_ctx (holding : holding) =
+  let texts = List.map snd holding.balances in
+  let balances =
+    match texts with
+    | first :: _ when List.for_all (fun text -> text = first) texts ->
+        Printf.sprintf "%d Measures: %s" (List.length texts) first
+    | _ -> String.concat " · " texts
+  in
+  let age =
+    match (holding.oldest, holding.age_days) with
+    | Some day, Some days -> Printf.sprintf " · oldest %s (%d d)" day days
+    | Some day, None -> " · oldest " ^ day
+    | None, _ -> ""
+  in
+  O.pad ~width_of col_due "! holding"
+  ^ "  "
+  ^ O.pad ~width_of col_ctx
+      (Printf.sprintf "suspense: %s · %d %s%s" balances holding.entries
+         (if holding.entries = 1 then "entry" else "entries")
+         age)
+let holding_detail (holding : holding) =
+  [
+    "Suspense holding (unresolved recording):";
+    "  " ^ suspense_locus;
+    "";
+    "Balances:";
+  ]
+  @ List.map
+      (fun (measure, text) -> Printf.sprintf "  %s: %s" (String.uppercase_ascii measure) text)
+      holding.balances
+  @ [
+      "";
+      Printf.sprintf "Actual entries touching suspense: %d" holding.entries;
+      (match (holding.oldest, holding.age_days) with
+      | Some day, Some days -> Printf.sprintf "Oldest such entry: %s (%d days ago)" day days
+      | Some day, None -> "Oldest such entry: " ^ day
+      | None, _ -> "No Actual entry touches suspense.");
+      "";
+      "This Locus holds Effects whose real account is not yet known. It is not an";
+      "account: it takes no role and is excluded from role summaries.";
+      "Resolve it by correcting those entries in Actual:";
+      "  /  search \"suspense\"    c  Correct the entry to its real Locus";
+      "";
+      "Actions:";
+      "  n : Add new attention item";
+      "  Tab / i : Toggle detail scroll";
+      "  j / k   : Select next/previous row";
+      "  q / Esc : Return to Home";
+    ]
+
+let selected_row env t = List.nth_opt (row_list env) t.selected
+
+(* Only a household matter can be resolved or dropped; the holding signal names
+   its own route instead. *)
+let selected_item env t =
+  match selected_row env t with Some (Matter item) -> Some item | _ -> None
 
 let move env t delta =
-  let count = List.length (open_items env) in
+  let count = List.length (row_list env) in
   (* Bounded before adding: Home/End pass +max_int, which would wrap. *)
   if count = 0 then t
   else
@@ -150,6 +269,14 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
       | Some (`ASCII 'n', []) ->
           stay { t with editor = Some { form = add_form ~today:env.today; success = "" } }
       | Some (`ASCII (('r' | 'x') as c), []) -> (
+          match selected_row env t with
+          | Some (Holding _) ->
+              ( t,
+                Screen.Message
+                  (tr
+                     "Suspense is unresolved recording, not a matter: correct those entries in \
+                      Actual (/ search, then c).") )
+          | _ -> (
           match selected_item env t with
           | None ->
               ( t,
@@ -166,7 +293,7 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
                   close_form ~id:"drop_attention" ~title:"Drop Attention" ~confirm:"Confirm Drop"
                     item
               in
-              stay { t with editor = Some { form; success = "" } })
+              stay { t with editor = Some { form; success = "" } }))
       | Some (((`ASCII ('j' | 'k') | `Arrow (`Up | `Down)) as k), []) ->
           let delta = match k with `ASCII 'k' | `Arrow `Up -> -1 | _ -> 1 in
           if detail then stay { t with scroll = max 0 (t.scroll + delta) }
@@ -206,13 +333,17 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
   let width_of = geometry.width_of in
   let today = env.today in
   let items = open_items env in
+  let rows = row_list env in
+  let holding = suspense_holding env in
   let left_title =
     match env.attention with
     | Ok a ->
         let s = Att.summarize ~today a in
+        let marker = if Option.is_some holding then " • suspense" else "" in
         if s.overdue_count > 0 then
-          Printf.sprintf "Attention (%d open • ! %d overdue)" (List.length items) s.overdue_count
-        else Printf.sprintf "Attention (%d open)" (List.length items)
+          Printf.sprintf "Attention (%d open • ! %d overdue%s)" (List.length items)
+            s.overdue_count marker
+        else Printf.sprintf "Attention (%d open%s)" (List.length items) marker
     | Error _ -> "Attention / Unavailable"
   in
   let left_width, right_width = Panel.split_widths width in
@@ -222,6 +353,13 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
   let th =
     "  " ^ O.pad ~width_of col_due "Due" ^ "  " ^ O.pad ~width_of col_ctx "Matter / Context"
   in
+  (* The frame itself paints the selection marker for this row. *)
+  let row_text _idx (row : row) =
+    match row with
+    | Holding h -> holding_line ~width_of ~col_due ~col_ctx h
+    | Matter item ->
+        O.pad ~width_of col_due (Att.due_display ~today item.due) ^ "  " ^ item.context
+  in
   let left_rows =
     match env.attention with
     | Error why ->
@@ -229,23 +367,15 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
           (max 1 (left_width - 6))
           ("Attention unavailable: " ^ why ^ ". Writes refused; Ctrl-R reloads.")
     | Ok _ ->
-        if items = [] then [ tr "No open attention items." ]
-        else
-          [ th; O.rule ~width_of pad_w ]
-          @ List.mapi
-              (fun idx (item : Att.item) ->
-                (if idx = t.selected then "> " else "  ")
-                ^ O.pad ~width_of col_due (Att.due_display ~today item.due)
-                ^ "  " ^ item.context)
-              items
+        if rows = [] then [ tr "No open attention items." ]
+        else [ th; O.rule ~width_of pad_w ] @ List.mapi row_text rows
   in
   let detail =
-    match (env.attention, selected_item env t) with
+    match (env.attention, selected_row env t) with
     | Error why, _ ->
         [ "Attention unavailable (not empty)."; why; "Writes refused; Ctrl-R reloads." ]
-    | Ok _, None ->
-        [ tr "No selected attention item."; ""; tr "Press 'n' to add a household matter." ]
-    | Ok _, Some item ->
+    | Ok _, Some (Holding h) -> holding_detail h
+    | Ok _, Some (Matter item) ->
         let urgency =
           match item.due with
           | Att.Due_on d ->
@@ -275,10 +405,12 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
           "  j / k   : Select next/previous matter";
           "  q / Esc : Return to Home";
         ]
+    | Ok _, None ->
+        [ tr "No selected attention item."; ""; tr "Press 'n' to add a household matter." ]
   in
   let is_detail = t.pane = Detail_pane in
   Panel.split ~width_of ~width ~height ~left_focused:(not is_detail) ~left_title ~left_scroll:0
-    ~left_selected:(if items = [] then None else Some (t.selected + 2))
+    ~left_selected:(if rows = [] then None else Some (t.selected + 2))
     ~left_rows ~right_focused:is_detail ~right_title:"Selected matter"
     ~right_scroll:(if is_detail then t.scroll else 0)
     ~right_selected:None
