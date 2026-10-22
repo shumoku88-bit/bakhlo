@@ -76,7 +76,14 @@ let frame_rows ?(inset = 2) ?bottom_label ~width_of ~width ~height ~focused ~tit
       in
       [ O.panel_border ~width ~style ~inset:0 ~width_of title ]
       @ List.map
-          (fun (row_style, text) -> (row_style, "│" ^ O.pad ~width_of (width - 2) text ^ "│"))
+          (fun (row_style, text) ->
+            match row_style with
+            | O.Spans spans ->
+                (* The border keeps its own cells; the row's spans stay whole. *)
+                let spans = O.fit_spans ~width_of (width - 2) spans in
+                (O.Spans ((O.Plain, "│") :: spans @ [ (O.Plain, "│") ]),
+                 "│" ^ O.spans_text spans ^ "│")
+            | _ -> (row_style, "│" ^ O.pad ~width_of (width - 2) text ^ "│"))
           shown
       @ [ O.panel_bottom ~width ~style ~width_of ~title:(Option.value ~default:"" bottom_label) () ]
   else

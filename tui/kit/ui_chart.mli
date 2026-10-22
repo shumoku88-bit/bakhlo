@@ -39,6 +39,10 @@ val line_rows :
   string list
 (** One continuous series with a quiet guide at the selected point. *)
 
+type spans = (Ui_render.style * string) list
+(** A row of styled spans; the text of the row is the concatenation of its
+    spans, so one chart row can name the series each of its cells belongs to. *)
+
 val with_value_axis :
   width_of:(string -> int) ->
   axis:int ->
@@ -51,7 +55,18 @@ val with_value_axis :
 (** Prefix [label ┤ ] on tick rows (a label that does not fit is […]) and
     [note │ ] elsewhere. *)
 
-val multi_line_rows :
+val with_value_axis_spans :
+  width_of:(string -> int) ->
+  axis:int ->
+  height:int ->
+  scale:scale ->
+  label:(Z.t -> string) ->
+  ?note:(int -> string) ->
+  spans list ->
+  spans list
+(** The same axis for rows of spans: the prefix is a plain span of its own. *)
+
+val multi_line_spans :
   width:int ->
   height:int ->
   series:Z.t list list ->
@@ -62,8 +77,10 @@ val multi_line_rows :
   ?guides:int list ->
   ?annotations:(string * int list) list ->
   unit ->
-  string list
+  spans list
 (** Several series on one braille grid. Masks are unioned, so a column never
     overwrites another series; each series' marker sits on its selected value
     when that cell carries no line. [guides] mark columns and [annotations]
-    mark a glyph at every listed x. *)
+    mark a glyph at every listed x. A cell's span carries the series that owns
+    it: an overlapping cell takes the later series, because one cell can only
+    carry one colour. *)

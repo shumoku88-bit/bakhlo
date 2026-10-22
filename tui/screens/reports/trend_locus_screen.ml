@@ -607,11 +607,22 @@ let handle (env : Screen.env) (_geometry : Screen.geometry) t input =
 
 let marker_of index = markers.(index mod Array.length markers)
 
-let rack_text (snap : R.snapshot) =
-  Array.to_list snap.R.series
-  |> List.mapi (fun index series ->
-      marker_of index ^ " " ^ series.R.label ^ " (" ^ series.R.coordinate.R.locus ^ ")")
-  |> String.concat "  "
+(* The series names carry their own colour, so a name and its line match at a
+   glance; the marker glyph keeps the chart readable without colour. *)
+let rack_spans (snap : R.snapshot) =
+  let items =
+    Array.to_list snap.R.series
+    |> List.mapi (fun index series ->
+        ( O.Series index,
+          marker_of index ^ " " ^ series.R.label ^ " (" ^ series.R.coordinate.R.locus ^ ")" ))
+  in
+  (* The names are separated by a plain gap; the last name has no trailing gap. *)
+  let rec loop acc = function
+    | [] -> List.rev acc
+    | [ item ] -> List.rev (item :: acc)
+    | item :: rest -> loop ((O.Chrome, "  ") :: item :: acc) rest
+  in
+  loop [] items
 
 let period_line ~width_of ~width t (snap : R.snapshot) index =
   let points = points_of snap in
@@ -638,40 +649,51 @@ let rate_value (env : Screen.env) (snap : R.snapshot) value =
   let suffix = if snap.R.grain = R.Day then "" else " /day" in
   O.format_money env.book snap.R.measure value ^ " " ^ snap.R.measure ^ suffix
 
+(* One series entry: its name and its value share the series' colour, so the
+   legend and the line match at a glance. *)
 let value_items (env : Screen.env) (snap : R.snapshot) index =
   Array.to_list snap.R.series
   |> List.mapi (fun i series ->
       let prefix = marker_of i ^ " " ^ series.R.label in
       let points = series.R.points in
-      if index < 0 || index >= Array.length points then (prefix, "(unavailable)")
-      else (prefix, rate_value env snap points.(index).R.value))
+      if index < 0 || index >= Array.length points then (O.Series i, prefix, "(unavailable)")
+      else (O.Series i, prefix, rate_value env snap points.(index).R.value))
 
 let compact_value_items (env : Screen.env) (snap : R.snapshot) index =
   Array.to_list snap.R.series
   |> List.mapi (fun i series ->
       let prefix = marker_of i in
       let points = series.R.points in
-      if index < 0 || index >= Array.length points then (prefix, "(unavailable)")
-      else (prefix, rate_value env snap points.(index).R.value))
+      if index < 0 || index >= Array.length points then (O.Series i, prefix, "(unavailable)")
+      else (O.Series i, prefix, rate_value env snap points.(index).R.value))
 
-let fit_item ~width_of width (prefix, amount) =
+let fit_item ~width_of width (style, prefix, amount) =
   let full = prefix ^ " " ^ amount in
-  if width_of full <= width then full
-  else if width_of (prefix ^ " (widen)") <= width then prefix ^ " (widen)"
-  else if width_of "(widen)" <= width then "(widen)"
-  else ""
+  let text =
+    if width_of full <= width then full
+    else if width_of (prefix ^ " (widen)") <= width then prefix ^ " (widen)"
+    else if width_of "(widen)" <= width then "(widen)"
+    else ""
+  in
+  (style, text)
 
+(* Pack the entries into rows; each entry keeps its own series colour. *)
 let pack_items ~width_of width items =
   let rec pack current acc = function
-    | [] -> List.rev (if current = "" then acc else current :: acc)
-    | (prefix, amount) :: rest ->
-        let item = fit_item ~width_of width (prefix, amount) in
-        let candidate = if current = "" then item else current ^ "  " ^ item in
-        if width_of candidate <= width then pack candidate acc rest
-        else if current = "" then pack "" (item :: acc) rest
-        else pack "" (current :: acc) ((prefix, amount) :: rest)
+    | [] -> List.rev (if current == [] then acc else current :: acc)
+    | item :: rest ->
+        let style, text = fit_item ~width_of width item in
+        let candidate =
+          if current == [] then text else O.spans_text current ^ "  " ^ text
+        in
+        if width_of candidate <= width then
+          pack
+            (if current == [] then [ (style, text) ] else current @ [ (O.Plain, "  "); (style, text) ])
+            acc rest
+        else if current == [] then pack [] [ [ (style, text) ] ] rest
+        else pack [ (style, text) ] (current :: acc) rest
   in
-  pack "" [] items
+  pack [] [] items
 
 let overlay_legend t =
   match t.overlays with
@@ -721,7 +743,14 @@ let bounded_rows (geometry : Screen.geometry) rows =
   let width = max 0 width and height = max 0 height in
   let rows = List.filteri (fun i _ -> i < height) rows in
   let rows =
-    List.map (fun (style, text) -> (style, O.clip_text ~width_of:geometry.width_of width text)) rows
+    List.map
+      (fun (style, text) ->
+        match style with
+        | O.Spans spans ->
+            let spans = O.clip_spans ~width_of:geometry.width_of width spans in
+            (O.Spans spans, O.spans_text spans)
+        | _ -> (style, O.clip_text ~width_of:geometry.width_of width text))
+      rows
   in
   rows @ List.init (max 0 (height - List.length rows)) (fun _ -> (O.Plain, ""))
 
@@ -784,10 +813,10 @@ let chart_panel (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snap
       List.map (UChart.row_for_value plot_height scale.range) scale.ticks
     in
     let rows =
-      UChart.multi_line_rows ~width:plot_width ~height:plot_height ~series:values
+      UChart.multi_line_spans ~width:plot_width ~height:plot_height ~series:values
         ~selected:(index - start) ~range:scale.range ~grid_rows ~markers:(Array.to_list markers)
         ~guides:(if t.guides then marked else []) ~annotations ()
-      |> UChart.with_value_axis ~width_of ~axis ~height:plot_height ~scale ~label:fmt
+      |> UChart.with_value_axis_spans ~width_of ~axis ~height:plot_height ~scale ~label:fmt
     in
     let labels = O.pad ~width_of (axis + 3) "" ^ x_axis_labels points start visible plot_width in
     let bottom =
@@ -799,7 +828,8 @@ let chart_panel (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snap
     let panel =
       Panel.frame_rows ~inset:0 ~bottom_label:bottom ~width_of ~width ~height:chart_height
         ~focused:true ~title:"Trend / Locus comparison"
-        (List.map (fun text -> (O.Plain, text)) (rows @ [ labels ]))
+        (List.map (fun spans -> (O.Spans spans, O.spans_text spans)) rows
+        @ [ (O.Plain, labels) ])
     in
     header @ panel
 
@@ -821,7 +851,8 @@ let chart_rows (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snaps
   let header = ref [] in
   if t.notice <> "" then header := [ (O.Status, O.clip_text ~width_of width t.notice) ];
   header := !header @ [ (O.Heading, heading) ];
-  header := !header @ [ (O.Chrome, O.clip_text ~width_of width (rack_text snap)) ];
+  let rack = O.clip_spans ~width_of width (rack_spans snap) in
+  header := !header @ [ (O.Spans rack, O.spans_text rack) ];
   if not compact then header := !header @ [ (O.Chrome, O.clip_text ~width_of width context) ];
   header :=
     !header
@@ -831,7 +862,11 @@ let chart_rows (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snaps
   let items =
     if compact then compact_value_items env snap index else value_items env snap index
   in
-  header := !header @ List.map (fun text -> (O.Plain, text)) (pack_items ~width_of width items);
+  header :=
+    !header
+    @ List.map
+        (fun spans -> (O.Spans spans, O.spans_text spans))
+        (pack_items ~width_of width items);
   chart_panel env geometry t snap !header
 
 let unavailable_rows (geometry : Screen.geometry) why =

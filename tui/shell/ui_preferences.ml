@@ -35,6 +35,9 @@ type palette = {
   panel_background : color;
   selected_foreground : color;
   selected_background : color;
+  series : color array;
+  (** The chart series colours, in slot order. At most four distinct hues;
+      a further series keeps the plain foreground and its marker glyph. *)
 }
 
 let xterm_color index =
@@ -70,6 +73,17 @@ let palette = function
           (* #ffffff *)
           selected_background = xterm_color 25;
           (* #005faf *)
+          series =
+            [|
+              xterm_color 25;
+              (* #005faf blue *)
+              xterm_color 90;
+              (* #870087 magenta *)
+              xterm_color 130;
+              (* #af5f00 brown *)
+              xterm_color 30;
+              (* #008787 teal *)
+            |];
         }
   | Bakhlo_dark ->
       Some
@@ -92,6 +106,17 @@ let palette = function
           (* #ffffff *)
           selected_background = xterm_color 25;
           (* #005faf *)
+          series =
+            [|
+              xterm_color 75;
+              (* #5fafff blue *)
+              xterm_color 170;
+              (* #d75fd7 magenta *)
+              xterm_color 179;
+              (* #d7af5f sand *)
+              xterm_color 80;
+              (* #5fd7d7 cyan *)
+            |];
         }
 
 let home_from_environment ~bakhlo ~xdg ~home =

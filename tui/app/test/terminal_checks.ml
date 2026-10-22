@@ -72,6 +72,23 @@ let run () =
     && ansi (slice 3 4 nested) = ansi (text "財布")
     && ansi (slice 8 1 nested) = ansi (text ~attr:(attributes P.Terminal C.Active) "|"))
     "Notty-nested-columns-preserve-native-caret-style";
+  (* The chart series colours: the terminal's own ANSI slots in the Terminal
+     theme, the theme's indexed palette otherwise, and never a truecolor. *)
+  List.iter
+    (fun (theme, expected) ->
+      let series = lines theme [ (C.Series 0, "●") ] in
+      F.require
+        (ansi (slice 0 1 series) = ansi (text ~attr:(A.fg expected) "●"))
+        "Notty-series-colour-matches-the-theme")
+    [ (P.Terminal, A.cyan); (P.Bakhlo_light, xterm 25); (P.Bakhlo_dark, xterm 75) ];
+  let spanned = lines P.Terminal [ (C.Spans [ (C.Plain, "a"); (C.Series 1, "b") ]), "ab" ] in
+  F.require
+    (ansi (slice 0 1 spanned) = ansi (text "a")
+    && ansi (slice 1 1 spanned) = ansi (text ~attr:(A.fg A.magenta) "b"))
+    "Notty-span-cells-keep-their-own-style";
+  let neutral = lines P.Terminal [ (C.Series 9, "●") ] in
+  F.require (ansi (slice 0 1 neutral) = ansi (text "●"))
+    "Notty-a-further-series-stays-neutral";
   List.iter
     (fun (style, expected) ->
       F.require (A.equal (attributes P.Terminal style) expected) "Notty-terminal-default-style")

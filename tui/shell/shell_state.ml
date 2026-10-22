@@ -47,6 +47,8 @@ type style = O.style =
   | Panel_active
   | Columns of int * style * style
   | Input of int
+  | Series of int
+  | Spans of (style * string) list
 
 type overlay =
   | No_overlay

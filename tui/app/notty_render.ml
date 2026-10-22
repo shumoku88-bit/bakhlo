@@ -65,6 +65,23 @@ let bg c = A.bg (color c)
 let bold = A.st A.bold
 let active = A.(fg cyan ++ st reverse ++ st bold)
 
+(* The chart series colours: the terminal's own ANSI slots in the Terminal
+   theme, the theme's indexed palette otherwise. Four hues at most, and no
+   red/green pair; a further series stays in the plain foreground and keeps its
+   marker glyph, so the chart still reads in monochrome. *)
+let terminal_series = [ A.cyan; A.magenta; A.yellow; A.blue ]
+
+let series_attributes theme index =
+  match P.palette theme with
+  | None -> (
+      match List.nth_opt terminal_series index with
+      | Some color -> A.fg color
+      | None -> A.empty)
+  | Some palette -> (
+      match List.nth_opt (Array.to_list palette.P.series) index with
+      | Some color -> fg color
+      | None -> fg palette.foreground ++ bg palette.background)
+
 let attributes theme style =
   match P.palette theme with
   | None -> (
@@ -73,7 +90,9 @@ let attributes theme style =
       | C.Active | C.Panel_active -> active
       | C.Focused_frame -> A.(fg cyan ++ st bold)
       | C.Heading | C.Status | C.Panel_heading -> bold
-      | C.Panel | C.Chrome | C.Frame -> A.empty)
+      | C.Panel | C.Chrome | C.Frame -> A.empty
+      | C.Series index -> series_attributes theme index
+      | C.Spans _ -> A.empty)
   | Some palette -> (
       match style with
       | C.Plain | C.Calendar_dates | C.Bonsai | C.Entrance | C.Columns _ | C.Input _ ->
@@ -85,7 +104,9 @@ let attributes theme style =
       | C.Status -> fg palette.status ++ bg palette.background ++ bold
       | C.Panel -> fg palette.panel_foreground ++ bg palette.panel_background
       | C.Panel_heading -> fg palette.panel_foreground ++ bg palette.panel_background ++ bold
-      | C.Panel_active -> fg palette.selected_foreground ++ bg palette.selected_background ++ bold)
+      | C.Panel_active -> fg palette.selected_foreground ++ bg palette.selected_background ++ bold
+      | C.Series index -> series_attributes theme index
+      | C.Spans _ -> fg palette.foreground ++ bg palette.background)
 
 let border_attributes theme intent =
   match theme with
@@ -146,6 +167,19 @@ let rec lines ?border ?(base = A.empty) theme rows =
             | C.Input _ | C.Bonsai | C.Entrance -> C.Plain
             | style -> style
           in
+          (* A row of spans keeps the style of the span each cell belongs to. *)
+          let cell_style =
+            match style with
+            | C.Spans spans ->
+                let rec at cell offset = function
+                  | [] -> C.Plain
+                  | (span_style, text) :: rest ->
+                      let width = width_of text in
+                      if cell < offset + width then span_style else at cell (offset + width) rest
+                in
+                (fun cell -> at cell 0 spans)
+            | _ -> (fun _ -> body_style)
+          in
           let edge_attrs =
             match border with
             | Some intent -> border_attributes theme intent
@@ -184,7 +218,7 @@ let rec lines ?border ?(base = A.empty) theme rows =
                   then edge_attrs
                   else if match style with C.Input caret -> cell = caret | _ -> false then
                     attributes theme C.Active
-                  else attributes theme body_style
+                  else attributes theme (cell_style cell)
                 in
                 (attrs, glyph) :: paint (cell + width_of glyph) rest
             | [] -> []

@@ -31,4 +31,11 @@
 (test
  (name trend_locus_screen_checks)
  (modules trend_locus_screen_checks)
- (libraries bakhlo_screen_reports bakhlo_tui_protocol bakhlo_tui_book bakhlo.sexp zarith uutf))
+ (libraries
+  bakhlo_screen_reports
+  bakhlo_tui_protocol
+  bakhlo_tui_book
+  bakhlo_tui_kit
+  bakhlo.sexp
+  zarith
+  uutf))

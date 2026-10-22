@@ -138,6 +138,64 @@ let () =
   require
     (List.exists (fun (_, text) -> contains text " jpy") painted)
     "series values name the Measure";
+
+  (* Series colours: each series' line cells and its legend entry carry the
+     same style, the styles differ, an overlapping cell takes the later series,
+     and the marker glyph keeps the chart readable without colour. *)
+  let span_styles (style : Ui_render.style) =
+    match style with Ui_render.Spans spans -> spans | _ -> []
+  in
+  let series_indices spans =
+    List.filter_map
+      (fun (style, _) ->
+        match style with Ui_render.Series index -> Some index | _ -> None)
+      spans
+  in
+  let chart_rows =
+    List.filter
+      (fun (_, text) -> Uutf.String.fold_utf_8 (fun found _ c -> found || is_braille c) false text)
+      painted
+  in
+  let chart_series = List.concat_map (fun (style, _) -> series_indices (span_styles style)) chart_rows in
+  require
+    (List.mem 0 chart_series && List.mem 1 chart_series)
+    "each series paints its own cells";
+  let legend_row =
+    List.find_opt (fun (_, text) -> contains text " (" && contains text "●") painted
+  in
+  (match legend_row with
+  | None -> failwith "the legend row must be painted"
+  | Some (style, text) ->
+      require (series_indices (span_styles style) = [ 0; 1 ])
+        "the legend names each series with its own style";
+      require (contains text "●" && contains text "◆")
+        "the legend keeps a marker glyph for the monochrome reading");
+  let value_row =
+    List.find_opt (fun (_, text) -> contains text "/day" && contains text "●") painted
+  in
+  (match value_row with
+  | None -> failwith "the value row must be painted"
+  | Some (style, _) ->
+      require (series_indices (span_styles style) = [ 0; 1 ])
+        "the per-day value carries its series' style");
+  (* The overlap rule: a cell that carries two series takes the later one. *)
+  let range = { Ui_chart.low = z 0; high = z 200 } in
+  let overlapping =
+    Ui_chart.multi_line_spans ~width:8 ~height:4
+      ~series:[ [ z 100; z 100; z 100 ]; [ z 100; z 100; z 100 ] ]
+      ~selected:(-1) ~range ~grid_rows:[] ~markers:[ "●"; "◆" ] ()
+  in
+  let owners = List.concat_map series_indices overlapping in
+  require
+    (owners <> [] && List.for_all (fun index -> index = 1) owners)
+    "an overlapping cell takes the later series' colour";
+  let single =
+    Ui_chart.multi_line_spans ~width:8 ~height:4 ~series:[ [ z 100; z 100; z 100 ] ]
+      ~selected:(-1) ~range ~grid_rows:[] ~markers:[ "●"; "◆" ] ()
+  in
+  require
+    (List.for_all (fun index -> index = 0) (List.concat_map series_indices single))
+    "a series without an overlap keeps its own colour";
   ignore (S.view env geometry owned);
   ignore (S.result env owned);
   ignore (after env owned `End);

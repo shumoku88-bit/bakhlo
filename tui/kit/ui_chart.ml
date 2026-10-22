@@ -180,23 +180,34 @@ let axis_width ~width_of width scale label =
     (List.fold_left (fun widest tick -> max widest (width_of (label tick))) 3 scale.ticks)
     (max 3 (width / 4))
 
+(* The axis prefix of one row: the tick label at that row, or the note. *)
+let axis_prefix ~width_of ~axis ~height ~scale ~label ?(note = fun _ -> "") row =
+  match List.find_opt (fun tick -> row_for_value height scale.range tick = row) scale.ticks with
+  | Some tick ->
+      let value = label tick in
+      O.pad_left ~width_of axis (if width_of value <= axis then value else "…") ^ " ┤ "
+  | None -> O.pad ~width_of axis (note row) ^ " │ "
+
 let with_value_axis ~width_of ~axis ~height ~scale ~label ?(note = fun _ -> "") rows =
   let rows = Array.of_list rows in
   List.init height (fun row ->
-      let prefix =
-        match
-          List.find_opt (fun tick -> row_for_value height scale.range tick = row) scale.ticks
-        with
-        | Some tick ->
-            let value = label tick in
-            O.pad_left ~width_of axis (if width_of value <= axis then value else "…") ^ " ┤ "
-        | None -> O.pad ~width_of axis (note row) ^ " │ "
-      in
+      let prefix = axis_prefix ~width_of ~axis ~height ~scale ~label ~note row in
       prefix ^ if row < Array.length rows then rows.(row) else "")
+
+(* The same axis for rows of spans: the prefix is a plain span of its own. *)
+let with_value_axis_spans ~width_of ~axis ~height ~scale ~label ?(note = fun _ -> "") rows =
+  let rows = Array.of_list rows in
+  List.init height (fun row ->
+      let prefix = axis_prefix ~width_of ~axis ~height ~scale ~label ~note row in
+      if row < Array.length rows then (O.Plain, prefix) :: rows.(row) else [ (O.Plain, prefix) ])
 
 (* Several series share one braille grid: masks are unioned so a column never
    overwrites another series, and each series' marker sits on its selected
    value when that cell carries no line. *)
+type spans = (O.style * string) list
+(** A row of styled spans: the text of the row is the concatenation of its
+    spans, so one chart row can name the series each of its cells belongs to. *)
+
 let series_sample values =
   let values = Array.of_list values in
   fun sub_width x ->
@@ -212,23 +223,34 @@ let series_sample values =
       let right = if segment + 1 < count then values.(segment + 1) else left in
       Some (interpolate left right (scaled mod denominator) denominator)
 
-let multi_line_rows ~width ~height ~series ~selected ~range ~grid_rows ~markers ?(guides = [])
+let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers ?(guides = [])
     ?(annotations = []) () =
   let width = max 1 width and height = max 1 height in
   let series = List.map Array.of_list series in
   let samples = List.map (fun values -> series_sample (Array.to_list values)) series in
   let count = match series with values :: _ -> Array.length values | [] -> 0 in
-  let mask_at cell_x cell_y =
+  (* The cell's dots and the series that owns the cell: an overlapping cell
+     takes the later series' colour, because the braille glyph keeps every
+     series' dots and one cell can only carry one colour. The marker glyphs
+     still name both series. *)
+  let cell_of_series = List.mapi (fun index sample -> (index, sample)) samples in
+  let mask_and_owner cell_x cell_y =
     List.fold_left
-      (fun mask sample -> mask lor braille_mask sample range width height cell_x cell_y)
-      0 samples
+      (fun (mask, owner) (index, sample) ->
+        let bits = braille_mask sample range width height cell_x cell_y in
+        if bits = 0 then (mask, owner) else (mask lor bits, Some index))
+      (0, None) cell_of_series
   in
   let selected_x = x_for_index width count selected in
   let marker_at =
     List.filter_map
       (fun (index, values) ->
         if selected >= 0 && selected < Array.length values && index < List.length markers then
-          Some (selected_x, row_for_value height range values.(selected), List.nth markers index)
+          Some
+            ( selected_x,
+              row_for_value height range values.(selected),
+              List.nth markers index,
+              index )
         else None)
       (List.mapi (fun index values -> (index, values)) series)
   in
@@ -240,18 +262,36 @@ let multi_line_rows ~width ~height ~series ~selected ~range ~grid_rows ~markers 
           positions)
       annotations
   in
+  let cells_of_row row =
+    List.init width (fun col ->
+        let mask, owner = mask_and_owner col row in
+        let base = if mask = 0 then " " else glyph mask in
+        match List.find_opt (fun (x, y, _, _) -> x = col && y = row) marker_at with
+        | Some (_, _, marker, index) when base = " " -> (Some index, marker)
+        | _ -> (
+            match List.find_opt (fun (x, _) -> x = col) annotation_at with
+            | Some (_, annotation) when base = " " -> (None, annotation)
+            | _ ->
+                if col = selected_x && base = " " then (None, "│")
+                else if List.mem col guides && base = " " then (None, "┆")
+                else if List.mem row grid_rows && base = " " then (None, "┄")
+                else (owner, base)))
+  in
+  (* Consecutive cells of one owner become one span. *)
+  let spans_of_cells cells =
+    let rec loop owner current acc = function
+      | [] -> List.rev ((owner, current) :: acc)
+      | (cell_owner, glyph) :: rest ->
+          if cell_owner = owner then loop owner (current ^ glyph) acc rest
+          else loop cell_owner glyph ((owner, current) :: acc) rest
+    in
+    match cells with
+    | [] -> []
+    | (owner, glyph) :: rest -> loop owner glyph [] rest
+  in
   List.init height (fun row ->
-      String.concat ""
-        (List.init width (fun col ->
-             let mask = mask_at col row in
-             let base = if mask = 0 then " " else glyph mask in
-             match List.find_opt (fun (x, y, _) -> x = col && y = row) marker_at with
-             | Some (_, _, marker) when base = " " -> marker
-             | _ -> (
-                 match List.find_opt (fun (x, _) -> x = col) annotation_at with
-                 | Some (_, annotation) when base = " " -> annotation
-                 | _ ->
-                     if col = selected_x && base = " " then "│"
-                     else if List.mem col guides && base = " " then "┆"
-                     else if List.mem row grid_rows && base = " " then "┄"
-                     else base))))
+      let cells = cells_of_row row in
+      spans_of_cells cells
+      |> List.map (fun (owner, text) ->
+             let style = match owner with None -> O.Plain | Some index -> O.Series index in
+             (style, text)))

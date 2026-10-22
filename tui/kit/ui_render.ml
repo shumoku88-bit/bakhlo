@@ -18,6 +18,13 @@ type style =
   | Columns of int * style * style
   (* Physical cell of the actual caret, never inferred from user text. *)
   | Input of int
+  (* The colour of one chart series. The renderer picks it from the theme, so
+     a screen never names a terminal colour. *)
+  | Series of int
+  (* A row built from styled spans; the row's text is the concatenation of its
+     spans. One row can then carry several meanings, e.g. a chart line whose
+     cells belong to different series. *)
+  | Spans of (style * string) list
 
 let panel_width = 34
 
@@ -121,10 +128,50 @@ let pad_left ~width_of width value =
   let text = clip_text ~width_of width value in
   String.make (max 0 (width - width_of text)) ' ' ^ text
 
+(* A row of styled spans: the text of the row is the concatenation of its
+   spans, and every cell keeps the style of the span it belongs to. *)
+let spans_text spans = List.map snd spans |> String.concat ""
+
+let spans_width ~width_of spans =
+  List.fold_left (fun total (_, text) -> total + width_of text) 0 spans
+
+(* Clip a row's spans to the room, keeping the span boundaries. *)
+let clip_spans ~width_of room spans =
+  let rec clip remaining acc = function
+    | [] -> List.rev acc
+    | (style, text) :: rest ->
+        if remaining <= 0 then List.rev acc
+        else
+          let width = width_of text in
+          if width <= remaining then clip (remaining - width) ((style, text) :: acc) rest
+          else
+            let clipped = clip_text ~width_of remaining text in
+            let acc = if clipped = "" then acc else (style, clipped) :: acc in
+            List.rev acc
+  in
+  clip room [] spans
+
+(* Clip or pad a row's spans to the room, keeping the span boundaries. *)
+let fit_spans ~width_of room spans =
+  let clipped = clip_spans ~width_of room spans in
+  let used = spans_width ~width_of clipped in
+  if used >= room then clipped
+  else
+    match List.rev clipped with
+    | [] -> [ (Plain, String.make room ' ') ]
+    | (style, text) :: rest ->
+        List.rev ((style, text ^ String.make (room - used) ' ') :: rest)
+
 let panel_line ?(width = panel_width) ~width_of style text =
   let left = "│ " and right = " │" in
   let room = max 0 (width - width_of left - width_of right) in
-  (style, left ^ pad ~width_of room text ^ right)
+  match style with
+  | Spans spans ->
+      (* The border keeps the row's own style; the padding joins the spans. *)
+      let spans = fit_spans ~width_of room spans in
+      ( Spans ((Plain, left) :: spans @ [ (Plain, right) ]),
+        left ^ spans_text spans ^ right )
+  | _ -> (style, left ^ pad ~width_of room text ^ right)
 
 let rule ~width_of room =
   let cells = max 1 (width_of "─") in
