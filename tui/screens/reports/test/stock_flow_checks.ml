@@ -289,6 +289,58 @@ let self_check () =
     && early.S.unknown_starts = 1)
     "a window before the opening keeps the start unknown";
 
+  (* A window starting exactly on the opening day: the balance before the
+     opening is unknown, so the start is unknown, never zero. *)
+  let on_open : I.period =
+    { period with start_day = "2026-09-01"; end_exclusive = "2026-10-01" }
+  in
+  let exact_day =
+    get
+      (S.compute_report ~book:opening_book ~measure:"jpy" ~tracked_coords:[ ("debt", "jpy") ]
+         ~liability_coords:[] ~period:on_open)
+  in
+  let debt = only "debt" exact_day in
+  require
+    ((debt.S.support = S.Opening_on "2026-09-01")
+    && debt.S.start_balance = None
+    && (debt.S.end_balance = Some (z 1000))
+    && exact_day.S.unknown_starts = 1)
+    "a window starting on the opening day keeps the start unknown";
+
+  (* A cold reload of an opening book agrees with the in-memory book. *)
+  let opening_cold = get (B.of_string (B.to_string opening_book)) in
+  let cold = get (compute opening_cold [ ("debt", "jpy") ]) in
+  let warm = get (compute opening_book [ ("debt", "jpy") ]) in
+  require
+    (List.map
+       (fun (c : S.coordinate_activity) -> (c.locus, c.support, c.start_balance, c.end_balance))
+       cold.S.coordinates
+    = List.map
+        (fun (c : S.coordinate_activity) -> (c.locus, c.support, c.start_balance, c.end_balance))
+        warm.S.coordinates)
+    "a cold reload of an opening book reconstructs the same boundaries";
+
+  (* The liability row prints start / +In / -Out / end in that order. *)
+  let debt_rows =
+    List.map
+      snd
+      (S.render_summary_lines ~width:120 ~width_of:String.length ~book:opening_book
+         ~report:(get (compute ~liabilities:[ ("debt", "jpy") ] opening_book [ ("debt", "jpy") ])))
+  in
+  let debt_line =
+    List.find_opt
+      (fun line -> String.length line > 12 && String.sub line 4 8 = "debt/jpy")
+      debt_rows
+  in
+  (match debt_line with
+  | None -> failwith "the liability row must be rendered"
+  | Some line ->
+      let fields = List.filter (fun word -> word <> "") (String.split_on_char ' ' line) in
+      require
+        (List.filteri (fun index _ -> index < 5) fields
+        = [ "debt/jpy"; "1,000"; "+0"; "-300"; "700" ])
+        "the liability row keeps the start / +In / -Out / end columns");
+
   (* Observation support is exact but undated: it never back-fills a start. *)
   let observation_book =
     let coordinate =
@@ -351,8 +403,8 @@ let self_check () =
          ~report:observed)
   in
   require
-    (List.exists (fun line -> contains line "no dated boundary") lines)
-    "the note says the observation has no dated boundary";
+    (List.exists (fun line -> contains line "the balance before it is not derivable") lines)
+    "the note says the balance before the confirmation is not derivable";
   print_endline
     "PASS: Stock-Flow zero-origin, bounded, opening and observation support, all-time and unknown starts, listed \
      unsupported coordinates, liabilities, roles refusal and cold-reload agreement (synthetic)."

@@ -33,54 +33,86 @@ module Cal = Daily_calendar
 let suspense_locus = "suspense"
 
 type holding = {
-  balances : (string * string) list;  (** Formatted exact balance, or "unknown". *)
+  nets : (string * string) list;  (** Formatted recorded net per Measure. *)
   entries : int;  (** Actual entries touching the holding Locus. *)
   oldest : string option;
   age_days : int option;
 }
 
+(* One pass over the recorded entries: the net of the recorded suspense postings
+   per Measure, how many entries touch suspense and the oldest of them. This is
+   the net of recorded postings, never a balance: the holding Locus has no
+   history support, so no balance can be derived from it. *)
+type scan = { entries : int; oldest : string option; nets : (string * Z.t) list }
+
+let scan_suspense (book : B.t) : scan option =
+  let nets = Hashtbl.create 4 in
+  let entries = ref 0 in
+  let oldest = ref None in
+  List.iter
+    (fun (entry : B.entry) ->
+      let touched = ref false in
+      List.iter
+        (fun (posting : D.Effect.t) ->
+          if A.lstr (D.Effect.locus posting) = suspense_locus then begin
+            touched := true;
+            let measure = A.mstr (D.Effect.measure posting) in
+            let prior = Option.value ~default:Z.zero (Hashtbl.find_opt nets measure) in
+            Hashtbl.replace nets measure (Z.add prior (A.quanta posting))
+          end)
+        entry.effects;
+      if !touched then begin
+        incr entries;
+        oldest := Some (match !oldest with None -> entry.day | Some day -> min day entry.day)
+      end)
+    (B.entries book);
+  if !entries = 0 then None
+  else
+    Some
+      {
+        entries = !entries;
+        oldest = !oldest;
+        nets =
+          List.sort
+            (fun (left, _) (right, _) -> String.compare left right)
+            (Hashtbl.fold (fun measure quantity acc -> (measure, quantity) :: acc) nets []);
+      }
+
+(* One scan per book version: the row list, the detail and the key handler read
+   the same recorded net instead of rescanning the book every frame. *)
+let scan_cache : (B.t * scan option) option ref = ref None
+
+let suspense_scan (book : B.t) : scan option =
+  match !scan_cache with
+  | Some (cached, scan) when cached == book -> scan
+  | _ ->
+      let scan = scan_suspense book in
+      scan_cache := Some (book, scan);
+      scan
+
 let suspense_holding (env : Screen.env) : holding option =
   let book = env.book in
-  let entries, oldest =
-    List.fold_left
-      (fun (count, oldest) (entry : B.entry) ->
-        if
-          List.exists
-            (fun posting -> A.lstr (D.Effect.locus posting) = suspense_locus)
-            entry.effects
-        then
-          let oldest =
-            match oldest with None -> Some entry.day | Some day -> Some (min day entry.day)
-          in
-          (count + 1, oldest)
-        else (count, oldest))
-      (0, None) (B.entries book)
-  in
-  if entries = 0 then None
-  else
-    (* Zero hides, an exact non-zero shows, and no support is "unknown", never 0. *)
-    let balances =
-      List.filter_map
-        (fun (measure, _) ->
-          match O.quantity_value ~book ~measure suspense_locus with
-          | O.Exact quantity when Z.equal quantity Z.zero -> None
-          | O.Exact quantity ->
-              Some (measure, O.format_money book measure quantity ^ " " ^ measure)
-          | O.Known_present -> Some (measure, "unknown")
-          | O.Unsupported -> Some (measure, "unknown (no history support)"))
-        (B.measures book)
-    in
-    if balances = [] then None
-    else
-      let age_days =
-        match oldest with
-        | None -> None
-        | Some day -> (
-            match (Cal.day_index env.today, Cal.day_index day) with
-            | Ok today, Ok then_ -> Some (max 0 (today - then_))
-            | _ -> None)
-      in
-      Some { balances; entries; oldest; age_days }
+  match suspense_scan book with
+  | None -> None
+  | Some scan ->
+      (* Every recorded net zero is nothing pending, so the item hides. *)
+      if List.for_all (fun (_, quantity) -> Z.equal quantity Z.zero) scan.nets then None
+      else
+        let nets =
+          List.map
+            (fun (measure, quantity) ->
+              (measure, O.format_money book measure quantity ^ " " ^ measure))
+            scan.nets
+        in
+        let age_days =
+          match scan.oldest with
+          | None -> None
+          | Some day -> (
+              match (Cal.day_index env.today, Cal.day_index day) with
+              | Ok today, Ok then_ -> Some (max 0 (today - then_))
+              | _ -> None)
+        in
+        Some { nets; entries = scan.entries; oldest = scan.oldest; age_days }
 
 let open_items (env : Screen.env) =
   match env.attention with Ok t -> Att.open_items t | Error _ -> []
@@ -92,12 +124,11 @@ let row_list env =
   match suspense_holding env with Some holding -> Holding holding :: matters | None -> matters
 
 let holding_line ~width_of ~col_due ~col_ctx (holding : holding) =
-  let texts = List.map snd holding.balances in
-  let balances =
-    match texts with
-    | first :: _ when List.for_all (fun text -> text = first) texts ->
-        Printf.sprintf "%d Measures: %s" (List.length texts) first
-    | _ -> String.concat " · " texts
+  let nets =
+    String.concat " · "
+      (List.map
+         (fun (measure, text) -> Printf.sprintf "%s %s" (String.uppercase_ascii measure) text)
+         holding.nets)
   in
   let age =
     match (holding.oldest, holding.age_days) with
@@ -108,7 +139,7 @@ let holding_line ~width_of ~col_due ~col_ctx (holding : holding) =
   O.pad ~width_of col_due "! holding"
   ^ "  "
   ^ O.pad ~width_of col_ctx
-      (Printf.sprintf "suspense: %s · %d %s%s" balances holding.entries
+      (Printf.sprintf "suspense recorded net: %s · %d %s%s" nets holding.entries
          (if holding.entries = 1 then "entry" else "entries")
          age)
 let holding_detail (holding : holding) =
@@ -116,11 +147,11 @@ let holding_detail (holding : holding) =
     "Suspense holding (unresolved recording):";
     "  " ^ suspense_locus;
     "";
-    "Balances:";
+    "Recorded net of the suspense postings (not a balance):";
   ]
   @ List.map
       (fun (measure, text) -> Printf.sprintf "  %s: %s" (String.uppercase_ascii measure) text)
-      holding.balances
+      holding.nets
   @ [
       "";
       Printf.sprintf "Actual entries touching suspense: %d" holding.entries;
@@ -130,8 +161,9 @@ let holding_detail (holding : holding) =
       | None, _ -> "No Actual entry touches suspense.");
       "";
       "This Locus holds Effects whose real account is not yet known. It is not an";
-      "account: it takes no role and is excluded from role summaries.";
-      "Resolve it by correcting those entries in Actual:";
+      "account: it takes no accounting role. The Balances accounting view lists";
+      "it as an unresolved role gap, so Net Worth reads unknown while it holds";
+      "something. Correcting those entries in Actual clears it:";
       "  /  search \"suspense\"    c  Correct the entry to its real Locus";
       "";
       "Actions:";

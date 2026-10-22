@@ -58,7 +58,7 @@ let contains text needle =
   length = 0 || loop 0
 
 let () =
-  (* A non-zero balance shows one signal with its count and oldest entry. *)
+  (* A non-zero recorded net shows one signal with its count and oldest entry. *)
   let nonzero =
     book
       [
@@ -68,9 +68,9 @@ let () =
   in
   let signal = Att.suspense_holding (env nonzero) in
   (match signal with
-  | None -> failwith "a non-zero suspense balance must show a signal"
+  | None -> failwith "a non-zero suspense recorded net must show a signal"
   | Some holding ->
-      require (holding.Att.balances = [ ("jpy", "400 jpy") ]) "suspense balance is exact";
+      require (holding.Att.nets = [ ("jpy", "400 jpy") ]) "suspense recorded net is exact";
       require (holding.Att.entries = 2) "suspense entry count";
       require (holding.Att.oldest = Some "2026-10-04") "oldest suspense entry";
       require (holding.Att.age_days = Some 18) "suspense age in days");
@@ -104,22 +104,29 @@ let () =
       ]
   in
   (match Att.suspense_holding (env multi) with
-  | Some holding -> require (List.length holding.Att.balances = 2) "two Measures stay separate"
+  | Some holding -> require (List.length holding.Att.nets = 2) "two Measures stay separate"
   | None -> failwith "multi-Measure suspense must show");
 
-  (* Without support the amount is unknown, never zero. *)
-  let unknown =
+  (* Without history support the recorded net is still exact: it is a sum of
+     recorded postings, never a balance. *)
+  let unsupported =
     book ~zero:false
       [ entry "a" "2026-10-04" [ posting "suspense" (z 300); posting "cash" (z (-300)) ] ]
   in
-  (match Att.suspense_holding (env unknown) with
+  (match Att.suspense_holding (env unsupported) with
   | Some holding ->
       require
-        (List.for_all
-           (fun (_, text) -> contains text "unknown")
-           holding.Att.balances)
-        "an unsupported suspense balance is unknown, never zero"
-  | None -> failwith "an unknown suspense balance must still show");
+        (holding.Att.nets = [ ("jpy", "300 jpy") ])
+        "a suspense coordinate without history support still has an exact recorded net"
+  | None -> failwith "a recorded suspense net must show");
+
+  (* No suspense entry at all is nothing pending. *)
+  let untouched =
+    book [ entry "a" "2026-10-04" [ posting "cash" (z 300); posting "food" (z (-300)) ] ]
+  in
+  require
+    (Att.suspense_holding (env untouched) = None)
+    "a book without suspense entries hides the signal";
 
 
   (* The list shows the holding row and its detail names the correction route. *)
@@ -132,14 +139,19 @@ let () =
   in
   let shown = view (env nonzero) in
   require (List.exists (fun line -> contains line "! holding") shown) "the holding row is listed";
-  require (List.exists (fun line -> contains line "suspense:") shown) "the row names suspense";
+  require
+    (List.exists (fun line -> contains line "suspense recorded net:") shown)
+    "the row names the recorded net";
   require
     (List.exists (fun line -> contains line "Correct the entry") shown)
     "the detail names the Actual correction route";
+  require
+    (List.exists (fun line -> contains line "unresolved role gap") shown)
+    "the detail says the holding is an unresolved role gap";
   let hidden = view (env zero) in
   require
     (not (List.exists (fun line -> contains line "! holding") hidden))
     "a zero suspense balance hides the row";
   print_endline
-    "PASS: suspense shows one exact/unknown Attention holding only when non-zero and keeps \
+    "PASS: suspense shows one recorded-net Attention holding only when non-zero and keeps \
      Measures separate."

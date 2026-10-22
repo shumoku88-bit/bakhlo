@@ -1,8 +1,9 @@
 (* Stock-Flow Report: single-measure tracked balance motion over explicit
-   boundaries. Support follows the one history rule Daily Pace uses
-   (Daily_book.pool_at_end_of_day): zero-origin or bounded history, never a
-   fabricated zero. Unsupported coordinates are listed, not used to refuse the
-   whole report. *)
+   boundaries. A coordinate is reconstructed on one of the supported routes:
+   zero-origin, bounded history, or an opening entry (exact from the opening
+   entry's own day). An observation is exact only at its confirmation, so it
+   never yields a window boundary. Never a fabricated zero; unsupported
+   coordinates are listed, not used to refuse the whole report. *)
 module B = Bakhlo_sexp.Daily_book
 module IncExp = Income_expense_report
 module O = Daily_overlays
@@ -15,6 +16,7 @@ type support =
   | Before_start of string  (** Bounded start lies after the window start. *)
   | Opening of string  (** Opening entry dated here: the balance is exact from then. *)
   | Opening_after of string  (** Opening entry lies after the window start. *)
+  | Opening_on of string  (** Opening entry is dated on the window's first day. *)
   | Observation_undated  (** An exact confirmation with no dated boundary. *)
   | Unsupported of string
 
@@ -101,21 +103,6 @@ let observation_exact ~book ~coordinate =
       match Q.premise answer with Q.Current_assertion _ -> true | _ -> false)
   | Ok (Q.Known_present _) | Error _ -> false
 
-let forward_sum ~book ~measure ~locus ~day_exclusive =
-  List.fold_left
-    (fun total (entry : B.entry) ->
-      if entry.day >= day_exclusive then total
-      else
-        List.fold_left
-          (fun total (posting : D.Effect.t) ->
-            if
-              A.lstr (D.Effect.locus posting) = locus
-              && A.mstr (D.Effect.measure posting) = measure
-            then Z.add total (A.quanta posting)
-            else total)
-          total entry.effects)
-    Z.zero (B.entries book)
-
 let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : IncExp.period) =
   if
     (not (A.is_valid_canonical_date period.start_day))
@@ -140,6 +127,9 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
     let end_day = day_before period.end_exclusive in
     let activities = Hashtbl.create (List.length pool) in
     List.iter (fun (locus, _) -> Hashtbl.add activities locus (Z.zero, Z.zero)) pool;
+    (* Every recorded Effect of a pooled Locus with its day, so a boundary can be
+       reconstructed from Core's exact current quantity. *)
+    let dated = Hashtbl.create (List.length pool) in
     let cells = Hashtbl.create (List.length pool) in
     let rec scan = function
       | [] -> Ok ()
@@ -155,6 +145,11 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
           if Hashtbl.length cells > 0 && not (A.is_valid_canonical_date entry.day) then
             Error ("Invalid occurrence date: " ^ entry.id)
           else begin
+            Hashtbl.iter
+              (fun locus quantity ->
+                let previous = Option.value ~default:[] (Hashtbl.find_opt dated locus) in
+                Hashtbl.replace dated locus ((entry.day, quantity) :: previous))
+              cells;
             if entry.day >= period.start_day && entry.day < period.end_exclusive then
               Hashtbl.iter
                 (fun locus quantity ->
@@ -169,6 +164,13 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
                 cells;
             scan rest
           end
+    in
+    (* The recorded Effects of one Locus dated on or after a boundary day. *)
+    let recorded_on_or_after locus day =
+      List.fold_left
+        (fun total (entry_day, quantity) ->
+          if entry_day >= day then Z.add total quantity else total)
+        Z.zero (Option.value ~default:[] (Hashtbl.find_opt dated locus))
     in
     Result.map
       (fun () ->
@@ -220,25 +222,24 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
                   (* An opening entry or an observation makes the coordinate exact
                      without zero-origin/bounded history. *)
                   match opening_day ~book ~coordinate with
-                  | Some start ->
-                      let start_known = period.start_day >= start in
-                      let end_known = period.end_exclusive > start in
-                      let start_balance =
-                        if start_known then
-                          Some
-                            (forward_sum ~book ~measure ~locus ~day_exclusive:period.start_day)
-                        else None
+                  | Some opening ->
+                      (* The balance at a boundary day d is Core's exact current
+                         quantity minus the recorded Effects dated on or after d.
+                         It is exact only from the opening entry's own day, so a
+                         window starting on that day has an unknown start. *)
+                      let boundary day =
+                        match current_balance with
+                        | None -> None
+                        | Some quantity ->
+                            if day <= opening then None
+                            else Some (Z.sub quantity (recorded_on_or_after locus day))
                       in
-                      let end_balance =
-                        if end_known then
-                          Some
-                            (forward_sum ~book ~measure ~locus
-                               ~day_exclusive:period.end_exclusive)
-                        else None
+                      let support =
+                        if period.start_day > opening then Opening opening
+                        else if period.start_day = opening then Opening_on opening
+                        else Opening_after opening
                       in
-                      base
-                        (if start_known then Opening start else Opening_after start)
-                        start_balance end_balance
+                      base support (boundary period.start_day) (boundary period.end_exclusive)
                   | None ->
                       if observation_exact ~book ~coordinate then
                         base Observation_undated None None
@@ -263,7 +264,7 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
                   (match support with
                   | Unsupported _ -> base support None None
                   | Zero_origin | Bounded _ | Before_start _ | Opening _ | Opening_after _
-                  | Observation_undated ->
+                  | Opening_on _ | Observation_undated ->
                       base support
                         (match start_result with Ok value -> Some value | Error _ -> None)
                         (match end_result with Ok value -> Some value | Error _ -> None)))
@@ -281,7 +282,7 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
               match c.support with
               | Unsupported reason -> (c.locus, reason)
               | Zero_origin | Bounded _ | Before_start _ | Opening _ | Opening_after _
-              | Observation_undated -> (c.locus, ""))
+              | Opening_on _ | Observation_undated -> (c.locus, ""))
             unsupported
         in
         let sum_known pick =
@@ -341,8 +342,14 @@ let support_note (c : coordinate_activity) =
   | Opening day -> Some (Printf.sprintf "start known from the opening entry dated %s" day)
   | Opening_after day ->
       Some (Printf.sprintf "start unknown; the opening entry is dated %s" day)
+  | Opening_on day ->
+      Some
+        (Printf.sprintf
+           "start unknown; the opening entry is dated %s, the window's first day" day)
   | Observation_undated ->
-      Some "start unknown; the observation has no dated boundary"
+      Some
+        "start unknown; the confirmation is exact, but the balance before it is not derivable, \
+         so the window boundaries stay unknown"
   | Zero_origin | Bounded _ | Unsupported _ -> None
 
 let table_columns pad_w =

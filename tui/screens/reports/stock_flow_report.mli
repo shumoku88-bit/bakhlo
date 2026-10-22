@@ -1,5 +1,6 @@
 (* Stock-Flow Report: single-measure tracked balance motion over explicit
-   boundaries, with the shared zero-origin / bounded-history support rule. *)
+   boundaries, reconstructed on zero-origin, bounded history or an opening
+   entry. *)
 module B = Bakhlo_sexp.Daily_book
 module IncExp = Income_expense_report
 
@@ -9,6 +10,7 @@ type support =
   | Before_start of string  (** Bounded start lies after the window start. *)
   | Opening of string  (** Opening entry dated here: the balance is exact from then. *)
   | Opening_after of string  (** Opening entry lies after the window start. *)
+  | Opening_on of string  (** Opening entry is dated on the window's first day. *)
   | Observation_undated  (** An exact confirmation with no dated boundary. *)
   | Unsupported of string
 
@@ -50,10 +52,12 @@ val compute_report :
   liability_coords:(string * string) list ->
   period:IncExp.period ->
   (report, string) result
-(** Reconstructs the window from the one shared support rule
-    ([Daily_book.pool_at_end_of_day]). A coordinate whose bounded history starts
-    after the window start reports an unknown start (never zero) and stays in the
-    table; a coordinate without support is listed instead of refusing the report. *)
+(** Reconstructs the window on the supported routes: zero-origin, bounded
+    history ([Daily_book.pool_at_end_of_day]) or an opening entry, whose balance
+    is exact from the opening entry's own day and anchored on Core's current
+    quantity. A coordinate whose history starts after the window start reports
+    an unknown start (never zero) and stays in the table; a coordinate without
+    support is listed instead of refusing the report. *)
 
 val render_summary_lines :
   width:int ->

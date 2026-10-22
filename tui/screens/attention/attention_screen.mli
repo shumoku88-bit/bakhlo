@@ -23,7 +23,9 @@ val selected : t -> int
 val detail_focused : t -> bool
 
 type holding = {
-  balances : (string * string) list;  (** Formatted exact balance, or "unknown". *)
+  nets : (string * string) list;
+      (** Formatted net of the recorded suspense postings per Measure that uses
+          them; a recorded net, never a balance. *)
   entries : int;  (** Actual entries touching [suspense]. *)
   oldest : string option;
   age_days : int option;
@@ -31,4 +33,5 @@ type holding = {
 
 val suspense_holding : Screen.env -> holding option
 (** One derived signal when Actual entries touch the [suspense] holding Locus and
-    some Measure's balance is non-zero or unknown. An exact zero balance hides it. *)
+    some Measure's recorded net is not zero. No suspense entry, or every recorded
+    net zero, hides it. *)

@@ -81,8 +81,12 @@ let help_form () =
       "  Why did the tracked balance change between two boundaries?";
       "";
       "Principles";
-      "  - History uses the same rule as Daily Pace: admitted zero-origin or";
-      "    bounded history; a current quantity alone is not history.";
+      "  - A coordinate is reconstructed on one supported route: zero-origin,";
+      "    bounded history (the same rule as Daily Pace) or an opening entry.";
+      "    An opening entry makes the balance exact from its own day; a window";
+      "    starting on that day has an unknown start (—), never as zero.";
+      "  - An observation is exact only at its confirmation: the balance before";
+      "    it is not derivable, so its window boundaries stay unknown.";
       "  - A window that starts before a coordinate's bounded start shows that";
       "    start as unknown (—), never as zero.";
       "  - Coordinates without support are listed with their state instead of";

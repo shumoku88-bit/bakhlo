@@ -79,13 +79,21 @@ let selected_locus (env : Screen.env) t = List.nth_opt (admitted_loci env.book) 
 
 (* A role is an initial assignment and is never replaced. Unlike LOAM a used Locus
    without one may still receive it (user decision 2026-10-22): the role only
-   classifies derived views, so assigning it rewrites no recorded fact. *)
+   classifies derived views, so assigning it rewrites no recorded fact. The
+   unresolved holding Locus is not a case: it never takes a role. *)
+let suspense_role_refusal =
+  tr
+    "suspense is the unresolved holding Locus: it takes no accounting role. Resolve it by \
+     correcting the entries in Actual (/ search \"suspense\", then c)."
+
 let role_refusal (env : Screen.env) locus =
-  match Lazy.force env.accounting_roles with
-  | Error why -> Some (tr "Accounting roles unavailable: " ^ why)
-  | Ok roles when List.mem_assoc locus roles ->
-      Some (tr "This Locus already has an accounting role; roles are never replaced.")
-  | Ok _ -> None
+  if locus = suspense_locus then Some suspense_role_refusal
+  else
+    match Lazy.force env.accounting_roles with
+    | Error why -> Some (tr "Accounting roles unavailable: " ^ why)
+    | Ok roles when List.mem_assoc locus roles ->
+        Some (tr "This Locus already has an accounting role; roles are never replaced.")
+    | Ok _ -> None
 
 let move (env : Screen.env) t delta =
   let count = List.length (admitted_loci env.book) in
@@ -191,12 +199,12 @@ let submit (env : Screen.env) (geometry : Screen.geometry) t submitted =
         (* The role is saved after the admission, so refuse up front whatever would
            leave the new Locus without one. *)
         match
-          ( role_of_index (Option.value ~default:0 (Form.get_choice submitted "role")),
-            role_refusal env token )
+          ( role_refusal env token,
+            role_of_index (Option.value ~default:0 (Form.get_choice submitted "role")) )
         with
-        | None, _ -> keep (fun f -> Admit f) (tr "Choose an accounting role.")
-        | Some _, Some why -> keep (fun f -> Admit f) why
-        | Some role, None ->
+        | Some why, _ -> keep (fun f -> Admit f) why
+        | None, None -> keep (fun f -> Admit f) (tr "Choose an accounting role.")
+        | None, Some role ->
             ( { t with editor = Some (Admit submitted); pending_role = Some (token, role) },
               Screen.Publish (Add_locus token) ))
   | Some (Role _) -> (
@@ -435,9 +443,9 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
     @ [
         "";
         "This Locus holds Effects whose real account is not yet known. It is not an";
-        "account: it takes no accounting role and is excluded from role summaries.";
-        "";
-        "Resolve it by correcting those entries in Actual:";
+        "account: it takes no accounting role. The Balances accounting view lists it";
+        "as an unresolved role gap, so Net Worth reads unknown while it holds";
+        "something. Correcting those entries in Actual clears it:";
         "  /  search \"suspense\"    c  Correct the entry to its real Locus";
         "";
         "Frontiers:";
