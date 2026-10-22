@@ -1,18 +1,90 @@
 #!/bin/sh
-# Daily household launcher (user decision 2026-10-21): open the household book in the
-# TUI, then on exit commit any change and push it to the household's own Git remote
-# (an off-site backup). A failed push keeps the local commit and is retried next time,
-# even without a new change. Any backup problem (staging, diff, commit, missing
-# upstream, pending log, push) warns, keeps Git's own reason visible, and fails the
-# exit; a nonzero TUI exit is reported unchanged and takes precedence.
+# Daily household launcher (user decision 2026-10-21): open the household book in
+# the TUI, then on exit commit any change and push it to the household's own Git
+# remote (an off-site backup). A failed push keeps the local commit and is
+# retried next time, even without a new change. Any backup problem (staging,
+# diff, commit, missing upstream, pending log, push) warns, keeps Git's own
+# reason visible, and fails the exit; a nonzero TUI exit is reported unchanged
+# and takes precedence.
+#
+# The launcher runs pushed code only (user decision 2026-10-22): AI workers edit
+# and build the shared tree, so it never runs that tree. It fetches origin/main,
+# keeps an ignored worktree at .run/src detached at that commit, builds the TUI
+# there with the existing switch and runs that binary. Its own _build means no
+# Dune lock conflict with the shared tree. Offline keeps the last built binary;
+# a failed build keeps the last built binary and names the commit; without any
+# binary the launcher refuses.
 # BAKHLO_HOUSEHOLD overrides the household directory (default: ../bakhlo-data).
 set -u
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 household=${BAKHLO_HOUSEHOLD:-$root/../bakhlo-data}
+run_dir=$root/.run
+worktree=$run_dir/src
+binary=$worktree/_build/default/tui/app/bakhlo_tui.exe
+stamp=$run_dir/built-commit
+
 if [ ! -f "$household/book.sexp" ] || [ ! -d "$household/.git" ]; then
   printf '%s\n' "Household not found or not a Git repository: $household" >&2
   exit 2
 fi
+
+warn() { printf '%s\n' "$*" >&2; }
+short() { printf '%.7s' "$1"; }
+
+# The commit to run: origin/main, fetched now. Offline keeps the last image.
+want=
+if git -C "$root" fetch -q origin main >/dev/null 2>&1; then
+  want=$(git -C "$root" rev-parse --verify --quiet FETCH_HEAD 2>/dev/null || true)
+  [ -n "$want" ] || want=$(git -C "$root" rev-parse --verify --quiet origin/main 2>/dev/null || true)
+  [ -n "$want" ] || warn 'origin/main could not be resolved; the last built binary is used.'
+else
+  warn 'Offline: origin/main could not be fetched; the last built binary is used.'
+fi
+
+# The commit the ready binary was built from, and the commit the worktree holds.
+built=$(cat "$stamp" 2>/dev/null || true)
+head=$(git -C "$worktree" rev-parse --verify --quiet HEAD 2>/dev/null || true)
+
+if [ -n "$want" ]; then
+  if [ -z "$head" ]; then
+    mkdir -p "$run_dir"
+    if ! git -C "$root" worktree add --detach "$worktree" "$want" >/dev/null 2>&1; then
+      # A leftover directory from an interrupted add is ours to clear.
+      if [ -d "$worktree" ] && [ ! -e "$worktree/.git" ]; then
+        rm -rf "$worktree"
+      fi
+      git -C "$root" worktree prune
+      if git -C "$root" worktree add --detach "$worktree" "$want" >/dev/null 2>&1; then
+        head=$want
+      else
+        warn 'The run worktree could not be created; the last built binary is used.'
+      fi
+    else
+      head=$want
+    fi
+  elif [ "$head" != "$want" ]; then
+    if git -C "$worktree" checkout --detach --force "$want" >/dev/null 2>&1; then
+      head=$want
+    else
+      warn "The run worktree could not move to $(short "$want"); the last built binary is used."
+    fi
+  fi
+  if [ -n "$head" ] && [ "$built" != "$head" ]; then
+    if "$root/tools/opam" exec -- dune build --root "$worktree" tui/app/bakhlo_tui.exe >/dev/null; then
+      built=$head
+      printf '%s\n' "$built" > "$stamp"
+    else
+      warn "The build of $(short "$head") failed; the last built binary is used."
+    fi
+  fi
+fi
+
+if [ ! -x "$binary" ]; then
+  printf '%s\n' 'No TUI binary is built for the launcher; run it once online so the pushed code is built.' >&2
+  exit 2
+fi
+[ -n "$built" ] || built=$(git -C "$worktree" rev-parse --verify --quiet HEAD 2>/dev/null || true)
+printf 'Running bakhlo from commit %s\n' "$(short "$built")"
 
 # Warn and stop: a nonzero TUI exit wins; otherwise the backup problem is the failure.
 fail() {
@@ -24,7 +96,7 @@ fail() {
 }
 
 cd "$root"
-./tools/tui --book "$household/book.sexp"
+"$binary" --book "$household/book.sexp"
 status=$?
 
 if ! git -C "$household" add -A; then

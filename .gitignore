@@ -6,6 +6,9 @@ _opam/
 .tools/
 .direnv/
 
+# The launcher's own worktree and build (tools/household runs pushed code only).
+.run/
+
 # Local scratch and editor/OS artifacts
 scratch/
 .DS_Store

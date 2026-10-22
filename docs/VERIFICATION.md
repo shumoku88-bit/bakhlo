@@ -6,6 +6,15 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## The launcher runs pushed code only (2026-10-22)
+
+- `tools/household` fetches `origin/main`, builds it in an ignored worktree at
+  `.run/src` and runs that binary; the shared tree is never run and the commit is
+  named on one line. Offline keeps the last built binary, a failed build keeps it
+  and names the commit, and without any binary the launcher refuses; the backup
+  commit and push are unchanged. Checks cover the moved origin, offline, the failed
+  build and the refusal; `check` and `--self-check` passed.
+
 ## Stock–Flow debt history from openings (2026-10-22)
 
 - An `openings` entry gives a known start at the opening entry's own day: a

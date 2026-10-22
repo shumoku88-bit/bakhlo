@@ -17,6 +17,10 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   and pending-log errors), preserving Git's reason and any nonzero TUI exit status.
   Synthetic local-Git tests cover failed commit/push, no-edit retry and config backup;
   restoring the actual private off-site backup is still untested.
+- `tools/household` runs pushed code only (user decision 2026-10-22): it fetches
+  `origin/main`, builds it in an ignored worktree at `.run/src` and runs that binary,
+  never the shared tree; it names the commit it runs, keeps the last built binary when
+  offline or the build fails, and refuses without any binary.
 - Actual now reuses scoped/filtered rows within a render; common empty-query search
   skips text construction. The 1,440-state synthetic frame comparison is unchanged.
   At 109.5k synthetic entries, native Actual Down+paint fell 466→235 ms (80×24);

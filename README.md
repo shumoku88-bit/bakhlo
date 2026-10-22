@@ -30,6 +30,10 @@ Favaとhledgerへの出力は対象外。内部実装・保存構造までLOAM�
 バックアップの失敗は警告して異常終了する。ローカルの記帳は残り、pushできなかった
 commitは次回に再送する。TUI自体が異常終了した場合は、その終了コードを保つ。
 
+ランチャーは共有ツリーを使わず、push済みの`origin/main`を専用のworktree（`.run/`）で
+ビルドして実行し、実行するcommitを1行で示す。オフラインやビルド失敗時は直前のバイナリ
+を使い、バイナリが1つもなければ起動を拒否する。
+
 比較コピーは`scratch/loam-comparison`内だけにあり、原本には書き込まない。
 取得し直すときは`./tools/compare refresh`、比較後は`./tools/compare clean-copies`。
 手順と制約は[AGENTS.md](AGENTS.md)の Latest-data comparison。
