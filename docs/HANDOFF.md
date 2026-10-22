@@ -147,3 +147,7 @@ After pushing, check CI for the matching commit SHA.
 1. Daily-use parity in the five areas of the cutover diff ledger, ordered by
    `tasks/todo.md`.
 2. Startup snapshot only when startup is felt slow.
+3. Performance optimization, memory tuning, and GADT study:
+   see [PERFORMANCE_AND_GADT_STUDY.ja.md](PERFORMANCE_AND_GADT_STUDY.ja.md).
+   Key focus: Actual `scan_window` O(log N) index (235 ms -> <16 ms target),
+   date/identifier unboxing/interning, and `Current_quantity_query.outcome` GADT.

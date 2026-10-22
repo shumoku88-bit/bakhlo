@@ -13,6 +13,7 @@
 ## 要判断
 
 - [ ] LOAMのComplete Since（履歴の完全性の記録）をパリティ一覧に入れるか（Daily Paceの過去日に関わる）。
+- [ ] パフォーマンス最適化・メモリチューニング・GADT活用の着手順序（[PERFORMANCE_AND_GADT_STUDY.ja.md](../docs/PERFORMANCE_AND_GADT_STUDY.ja.md)）：Actual画面の235ms短縮（日付インデックス化）を最優先とするか。
 
 ## 未完了
 
