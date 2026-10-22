@@ -6,6 +6,13 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Actual by day, opened from Home (2026-10-22)
+
+- Trial (user decision 2026-10-22): Home `Enter` opens the Actual; the Calendar stays on `g` until the user decides. Calendar `a` opens the Actual on the Cycle window containing the selected day, with that day selected.
+- The list is grouped by day: a heading per day (date, weekday, "1 entry"/"N entries", EXPENSE-role total per Measure over the rows shown, so a Locus filter or search keeps count and total consistent), entries indented under it; `+?` marks a role-less effect, an unreadable roles file shows "No day totals: <cause>". A non-date order draws no headings.
+- `f` cycles Today/Cycle/Month/All, `[`/`]` move the window; Cycle and Month come from `Period_window` (tui/book), the one period engine the reports also use. Below 30 terminal rows Details closes (opened by `i`): at 80×24 the list shows 16 rows instead of 6.
+- Checks (synthetic): grouping, headings, totals with/without roles and under a filter, partial marker, roles notice at 80 columns, windows, focus day, compact layout, Home/`g` routes. `./tools/check` (with the architecture check), `./tools/tui --self-check` (47 PASS) and the PTY smoke passed on this commit; captures of a household copy at 100×30 and 80×24 kept its bytes unchanged. The paired comparison with LOAM was not executed.
+
 ## Trend series colours (2026-10-22)
 
 - Each Trend series has its own colour on its braille line and on its legend entry (name and per-day value), so a name and its line match at a glance. The Terminal theme uses the terminal's own ANSI slots (blue, magenta, cyan, red; no yellow, which washes out on a light background, and no red/green pair), the Bakhlo themes keep their tuned indexed colours, and a cell shared by two series takes the later series.

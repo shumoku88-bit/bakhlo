@@ -1,17 +1,42 @@
-(* ActualWorkspace: LOAM-compatible 3-pane Actuals Workspace (UI-03 / UI-04).
-   Owned by actual_workspace.ml. Controller routes here without losing stable identities. *)
+(* ActualWorkspace: the Actuals workspace (UI-03 / UI-04). The list is grouped
+   by day inside a period window; the Screen owns the window and the Shell's
+   environment, the workspace owns the state and the painting. *)
 
 module B = Bakhlo_sexp.Daily_book
+module Roles = Locus_roles
 
-type scope = Focus_day | All_current
-type sort_order = Asc | Desc
+type period = Today | Cycle | Month | All
+type sort_order = Newest | Oldest | Largest
 type pane = Loci | Transactions | Details
+type window = { start_day : string; end_exclusive : string; label : string }
+type roles = ((string * Roles.role) list, string) result
+
+type scope = {
+  window : window;
+  today : string;
+  focus_day : string;
+  (** The day the window was opened on: today, or the Calendar's selected day. *)
+  roles : roles;
+  measure : string;
+}
+
+type context = {
+  book : B.t;
+  scope : scope;
+  warning : string option;
+  (** The window could not be resolved; the list still works and says so. *)
+}
+
 type t
 type command = Stay | Open_selected of B.entry | Record_new | Back | Redraw
 
-val create : focus_date:string -> t
-val focus_date : t -> string
-val scope : t -> scope
+val create : ?focus_day:string -> unit -> t
+(** Opens on the Cycle window containing [focus_day] (default: today), with that
+    day's group selected. *)
+
+val period : t -> period
+val period_offset : t -> int
+val focus_day : t -> string option
 val sort_order : t -> sort_order
 val pane : t -> pane
 val locus_row : t -> int
@@ -20,29 +45,50 @@ val detail_scroll : t -> int
 val search_query : t -> string
 val search_editing : t -> bool
 val notice : t -> string
-val selected_locus : book:B.t -> t -> string option
-val selected_entry : book:B.t -> t -> B.entry option
-val visible_entries : book:B.t -> t -> B.entry list
-val scope_text : t -> string
-val current_locus_name : book:B.t -> t -> string
-val returned_from_detail : before_book:B.t -> after_book:B.t -> t -> t
+
+val set_period : period -> t -> t
+(** The period filter and its window start again at the current window. *)
+
+val set_period_offset : int -> t -> t
+(** The previous or next window of the same period. *)
+
+val set_scope : scope -> t -> t
+(** The scope of the current render, kept for a drill return. *)
+
+val selected_locus : ctx:context -> t -> string option
+val selected_entry : ctx:context -> t -> B.entry option
+val visible_entries : ctx:context -> t -> B.entry list
+val returned_from_detail : before_book:B.t -> after_book:B.t -> t -> t * string
 
 val handle :
-  book:B.t -> dimensions:int * int -> width_of:(string -> int) -> t -> Ui_input.input -> t * command
+  ctx:context ->
+  dimensions:int * int ->
+  width_of:(string -> int) ->
+  t ->
+  Ui_input.input ->
+  t * command
 
 val screen :
-  book:B.t ->
-  today:string ->
+  ctx:context ->
+  total:string option ->
   draft_retained:bool ->
   dimensions:int * int ->
   width_of:(string -> int) ->
   t ->
   (Daily_overlays.style * string) list
 
+val window_total : ctx:context -> string option
+(** The window's EXPENSE total per Measure, in the shared money format; [total]
+    is that text, already formatted for the title. *)
+
 val footer : dimensions:int * int -> width_of:(string -> int) -> t -> string list
 val search_line : width:int -> width_of:(string -> int) -> t -> Daily_overlays.style * string
 val cursor_position : dimensions:int * int -> width_of:(string -> int) -> t -> (int * int) option
 
 val detail_window :
-  book:B.t -> dimensions:int * int -> width_of:(string -> int) -> t -> Ui_panel.window
+  ctx:context ->
+  dimensions:int * int ->
+  width_of:(string -> int) ->
+  t ->
+  Ui_panel.window
 (** Details pane viewport for the content dimensions the workspace is given. *)

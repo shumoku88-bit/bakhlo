@@ -7,5 +7,6 @@
   bakhlo_screen_actual
   bakhlo_tui_kit
   bakhlo_tui_book
+  bakhlo_tui_protocol
   bakhlo.sexp
   base))

@@ -30,7 +30,9 @@ let bonsai_home_layout_check ~width_of home =
         "bonsai-does-not-leak-dashboard-ledger")
     [ (32, 9); (32, 11); (48, 14); (80, 24); (120, 40); (150, 45) ];
   let cal = key ~width_of home `Enter in
-  require (cal.workspace.route = W.Calendar) "bonsai-enter-opens-calendar";
+  require (cal.workspace.route = W.Actual) "bonsai-enter-opens-actual";
+  let back = key ~width_of cal `Escape in
+  require (back.workspace.route = W.Home) "bonsai-actual-escape-returns-home";
   let cal_g = key ~width_of home (`ASCII 'g') in
   require (cal_g.workspace.route = W.Calendar) "bonsai-g-opens-calendar";
   let rec_r = key ~width_of home (`ASCII 'r') in
@@ -186,7 +188,7 @@ let home_layout_check ~width_of home =
   let parent = C.open_route state W.Home in
   let search = key ~width_of parent (`ASCII '/') |> fun s -> text ~width_of s "選択日" in
   require ((calendar_browser search).query = "") "home-search-does-not-filter-before-enter";
-  let searched = key ~width_of search `Enter |> fun s -> key ~width_of s `Enter in
+  let searched = key ~width_of search `Enter |> fun s -> key ~width_of s (`ASCII 'g') in
   require
     (searched.workspace.route = W.Calendar
     && List.length

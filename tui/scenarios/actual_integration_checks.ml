@@ -112,8 +112,9 @@ let actual_browsing_checks ~width_of ~directory home =
       let panel_height = max 0 (content_h - context_rows) in
       let terminal = content_h + 4 in
       let detail_capacity = if terminal >= 48 then 12 else if terminal >= 36 then 10 else 8 in
-      let detail_height = if panel_height >= 16 then detail_capacity + 1 else 0 in
-      let wide = content_w >= 98 && panel_height >= 16 in
+      let tall = panel_height >= 16 && terminal >= 30 in
+      let detail_height = if tall then detail_capacity + 1 else 0 in
+      let wide = content_w >= 98 && tall in
       let tx_h = if wide then panel_height else max 0 (panel_height - detail_height) in
       let expected_page = min 17 (max 1 (tx_h - 2 - if tx_h >= 4 then 1 else 0)) in
       require (actual_row page = expected_page) "actual-list-page-excludes-borders-and-heading";

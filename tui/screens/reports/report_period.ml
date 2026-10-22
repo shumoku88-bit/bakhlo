@@ -2,7 +2,7 @@
    from configured boundaries. *)
 module IncExp = Income_expense_report
 
-let boundary_file = "boundary-presets.tsv"
+let boundary_file = Period_window.boundary_file
 
 let preset_of_key = function
   | '1' -> IncExp.Month

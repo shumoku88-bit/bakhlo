@@ -155,7 +155,7 @@ let handle (env : Screen.env) geometry t input =
     | Some ((`Escape | `ASCII 'q'), []) when not calendar -> (t, Screen.Quit)
     | Some (`ASCII 'g', []) ->
         (t, Screen.Open_route (if calendar then Screen.Home else Screen.Calendar))
-    | Some (`Enter, []) when not calendar -> (t, Screen.Open_route Screen.Calendar)
+    | Some (`Enter, []) when not calendar -> (t, Screen.Open_route Screen.Actual)
     | Some (((`Escape | `ASCII 'q') as key), []) ->
         if t.pane = Detail_pane then stay { t with pane = Calendar_pane; scroll = 0 }
         else if key = `Escape && env.calendar.zoom <> Cal.Day then
@@ -391,7 +391,7 @@ let footer (env : Screen.env) t =
       | Ok a -> Attention_data.badge (Attention_data.summarize ~today:env.today a)
       | Error _ -> ""
     in
-    [ " [Enter] calendar   [i] attention" ^ badge; " [Space] commands   [q] quit" ]
+    [ " [Enter] actual   [g] calendar   [i] attention" ^ badge; " [Space] commands   [q] quit" ]
   else if t.pane = Calendar_pane then
     [
       (match env.calendar.zoom with

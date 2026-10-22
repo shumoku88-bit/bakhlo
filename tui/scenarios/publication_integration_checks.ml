@@ -6,10 +6,11 @@ let run ~width_of ~directory ~path (home : C.state) =
   Retained_record_publication_checks.run ~width_of ~directory home;
   let before = F.read path in
   require (home.workspace.route = W.Home && not home.record_visible) "english-starts-bonsai-home";
-  let cal = key ~width_of home `Enter in
-  require (cal.workspace.route = W.Calendar) "home-enter-opens-calendar";
-  let cal_g = key ~width_of home (`ASCII 'g') in
-  require (cal_g.workspace.route = W.Calendar) "home-g-opens-calendar";
+  let actual = key ~width_of home `Enter in
+  require (actual.workspace.route = W.Actual) "home-enter-opens-actual";
+  require ((key ~width_of actual `Escape).workspace.route = W.Home) "actual-esc-returns-home";
+  let cal = key ~width_of home (`ASCII 'g') in
+  require (cal.workspace.route = W.Calendar) "home-g-opens-calendar";
   let back = key ~width_of cal (`ASCII 'q') in
   require (back.workspace.route = W.Home) "calendar-q-returns-home";
   let back_esc = key ~width_of cal `Escape in

@@ -2,8 +2,14 @@
 module B = Bakhlo_sexp.Daily_book
 module Roles = Locus_roles
 
-type period_preset = Month | Cycle | Previous_cycle | Year | All_time
-type period = { preset : period_preset; start_day : string; end_exclusive : string; label : string }
+type period_preset = Period_window.preset =
+  | Month | Cycle | Previous_cycle | Year | All_time
+type period = Period_window.period = {
+  preset : period_preset;
+  start_day : string;
+  end_exclusive : string;
+  label : string;
+}
 type line_item = { locus : string; label : string; amount : Z.t }
 
 type measure_summary = {

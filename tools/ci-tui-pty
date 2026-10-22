@@ -109,7 +109,10 @@ proc session {binary book width height body} {
 
 proc open_balances {} {
   wait_for "bakhlo"
+  # Home Enter opens the Actual workspace; Esc returns Home, where b opens Balances.
   press "\r"
+  wait_for "Actuals"
+  press "\x1b"
   press "b"
   wait_for "Balances \[active\]"
   wait_for "1,000"

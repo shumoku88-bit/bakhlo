@@ -247,6 +247,12 @@ let same_workspace (a : C.state) (b : C.state) =
   in
   pane a = pane b
 
+(* The Actual's context: the same book, window, day, roles and Measure the
+   screen itself reads from the Shell's environment. *)
+let actual_context (state : C.state) =
+  let env = X.screen_env ~config_files:Actual_screen.config_files state in
+  Actual_screen.context env state.screens.actual
+
 (* The Shell's record-action openers, targeted at what the route owner selects. *)
 let selected_target (state : C.state) =
   let target = function
@@ -257,7 +263,7 @@ let selected_target (state : C.state) =
   | W.Actual ->
       Option.map
         (fun e -> Screen.Entry e)
-        (Act.selected_entry ~book:state.session.book state.screens.actual)
+        (Act.selected_entry ~ctx:(actual_context state) state.screens.actual)
   | W.Scheduled ->
       Option.map
         (fun p -> Screen.Plan p)
@@ -281,12 +287,12 @@ let actual_dims ~dimensions ~width_of (state : C.state) =
 let actual_window ~dimensions ~width_of (state : C.state) =
   let content = actual_dims ~dimensions ~width_of state in
   ( snd content,
-    Act.detail_window ~book:state.session.book ~dimensions:content ~width_of state.screens.actual )
+    Act.detail_window ~ctx:(actual_context state) ~dimensions:content ~width_of state.screens.actual )
 
 let actual_selected_id (state : C.state) =
   Option.map
     (fun (e : B.entry) -> e.id)
-    (Act.selected_entry ~book:state.session.book state.screens.actual)
+    (Act.selected_entry ~ctx:(actual_context state) state.screens.actual)
 
 let actual_detail (state : C.state) = Act.pane state.screens.actual = Act.Details
 
@@ -299,10 +305,10 @@ let actual_query (state : C.state) = Act.search_query state.screens.actual
 let actual_selected (state : C.state) =
   Option.map
     (fun e -> Record_browser.Actual_entry e)
-    (Act.selected_entry ~book:state.session.book state.screens.actual)
+    (Act.selected_entry ~ctx:(actual_context state) state.screens.actual)
 
 let actual_rows (state : C.state) =
-  Act.visible_entries ~book:state.session.book state.screens.actual
+  Act.visible_entries ~ctx:(actual_context state) state.screens.actual
 
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
