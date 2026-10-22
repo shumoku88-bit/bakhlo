@@ -40,11 +40,6 @@ let run () =
   let literal = lines ~border:`Create P.Terminal [ (C.Input 9, "│ Date: ||│ │") ] in
   F.require (ansi (slice 8 1 literal) = ansi (text "|")) "Notty-literal-bar-is-not-a-caret";
   F.require (ansi (slice 10 1 literal) = ansi (text "│")) "Notty-literal-box-glyph-is-not-a-border";
-  let dates = lines P.Terminal [ (C.Calendar_dates, "│ [16] 17 │") ] in
-  F.require
-    (ansi (slice 2 4 dates) = ansi (text ~attr:(attributes P.Terminal C.Active) "[16]"))
-    "Notty-calendar-selected-cell-only";
-  F.require (ansi (slice 7 2 dates) = ansi (text "17")) "Notty-calendar-neighbor-remains-neutral";
   let columns = lines P.Terminal [ (C.Columns (4, C.Plain, C.Active), "財布 x") ] in
   F.require
     (ansi (slice 0 4 columns) = ansi (text "財布"))
@@ -98,14 +93,13 @@ let run () =
             A.equal attr (A.fg A.yellow) || A.equal attr (A.fg A.green))
           [ 0; 1; 2; 3 ]))
     "Notty-terminal-series-avoid-yellow-and-green";
-  let spanned = lines P.Terminal [ (C.Spans [ (C.Plain, "a"); (C.Series 1, "b") ]), "ab" ] in
+  let spanned = lines P.Terminal [ (C.Spans [ (C.Plain, "a"); (C.Series 1, "b") ], "ab") ] in
   F.require
     (ansi (slice 0 1 spanned) = ansi (text "a")
     && ansi (slice 1 1 spanned) = ansi (text ~attr:(A.fg A.magenta) "b"))
     "Notty-span-cells-keep-their-own-style";
   let neutral = lines P.Terminal [ (C.Series 9, "●") ] in
-  F.require (ansi (slice 0 1 neutral) = ansi (text "●"))
-    "Notty-a-further-series-stays-neutral";
+  F.require (ansi (slice 0 1 neutral) = ansi (text "●")) "Notty-a-further-series-stays-neutral";
   List.iter
     (fun (style, expected) ->
       F.require (A.equal (attributes P.Terminal style) expected) "Notty-terminal-default-style")

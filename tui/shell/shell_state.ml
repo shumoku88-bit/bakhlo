@@ -39,7 +39,6 @@ type style = O.style =
   | Chrome
   | Frame
   | Focused_frame
-  | Calendar_dates
   | Bonsai
   | Entrance
   | Panel
@@ -127,21 +126,17 @@ let editor_visible state = state.record_visible
 let mode state = match state.record with None -> A.New | Some record -> S.mode record
 
 let sync state =
-  let book = state.session.book in
-  let screens =
-    {
-      state.screens with
-      calendar_home =
-        Calendar_home_screen.synchronize ~route:state.workspace.route ~book
-          ~calendar:state.workspace.calendar state.screens.calendar_home;
-    }
-  in
-  let screens =
-    match state.workspace.route with
-    | W.Selected_day _ -> { screens with day = Selected_day_screen.synced book screens.day }
-    | _ -> screens
-  in
-  { state with screens }
+  match state.workspace.route with
+  | W.Selected_day _ ->
+      {
+        state with
+        screens =
+          {
+            state.screens with
+            day = Selected_day_screen.synced state.session.book state.screens.day;
+          };
+      }
+  | _ -> state
 
 let finish_publication ~record_publication state session message =
   let next =
@@ -332,7 +327,7 @@ let open_record state =
         let day =
           match state.workspace.route with
           | W.Selected_day day -> day
-          | _ -> state.workspace.calendar.selected_day
+          | _ -> state.workspace.focus_day
         in
         {
           state with
@@ -352,9 +347,7 @@ let open_plan_record state =
     }
   else
     let day =
-      match state.workspace.route with
-      | W.Selected_day d -> d
-      | _ -> state.workspace.calendar.selected_day
+      match state.workspace.route with W.Selected_day d -> d | _ -> state.workspace.focus_day
     in
     let measure = state.workspace.measure in
     {
@@ -375,6 +368,5 @@ let open_route state route =
       overlay = No_overlay;
       drill_parent = None;
       drill_book = None;
-      screens =
-        Screen_registry.enter route ~focus_day:state.workspace.calendar.selected_day state.screens;
+      screens = Screen_registry.enter route ~focus_day:state.workspace.focus_day state.screens;
     }

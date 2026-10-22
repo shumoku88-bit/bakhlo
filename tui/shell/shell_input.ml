@@ -141,7 +141,4 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
         | Some (`ASCII ('r' | 'n'), []) -> Some (open_record state)
         | Some (`ASCII ('c' | 'e'), []) | Some (`ASCII 'e', [ `Ctrl ]) ->
             Some (Shell_record_actions.edit_target state None)
-        | _ -> (
-            match ambient_screen_input ~dimensions ~width_of state input with
-            | Some state -> Some state
-            | None -> ( match input with `End -> None | _ -> Some state)))
+        | _ -> ( match input with `End -> None | _ -> Some state))

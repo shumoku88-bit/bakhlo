@@ -26,7 +26,7 @@ let render_cases state =
          (Daily_actions.build_transaction ~book:home.session.book ~mode:Daily_actions.New
             (Daily_actions.Multiple
                {
-                 day = home.workspace.calendar.selected_day;
+                 day = home.workspace.focus_day;
                  memo = "Synthetic / 日本語";
                  draft =
                    {
@@ -97,8 +97,6 @@ let render_cases state =
   let let_search state = key state (`ASCII '/') |> fun s -> text ~width_of:String.length s "財布" in
   [
     home;
-    key home `Tab;
-    C.open_route home W.Calendar;
     C.open_route home W.Actual;
     C.open_route home W.Scheduled;
     key (C.open_route rich W.Scheduled) (`ASCII 'v');
@@ -141,7 +139,7 @@ let render_cases state =
     detail W.Stock_flow;
     C.open_route home W.Stock_flow;
     generate_preview;
-    detail (W.Selected_day home.workspace.calendar.selected_day);
+    detail (W.Selected_day home.workspace.focus_day);
     detail W.Actual;
     detail W.Scheduled;
     detail W.Balances;
@@ -151,13 +149,5 @@ let render_cases state =
       home with
       overlay = C.Themes { selected = 0; original = home.theme; return_menu = M.initial };
     };
-    {
-      home with
-      screens =
-        {
-          home.screens with
-          calendar_home = Calendar_home.start_jump "2026-10" home.screens.calendar_home;
-        };
-    };
-    let_search home;
+    let_search (C.open_route home W.Actual);
   ]

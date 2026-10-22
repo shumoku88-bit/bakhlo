@@ -1,6 +1,5 @@
 type route = Screen.route =
   | Home
-  | Calendar
   | Selected_day of string
   | Actual
   | Scheduled
@@ -16,9 +15,11 @@ type route = Screen.route =
   | Trend_locus
   | Multicurrency_spend
 
-type t = { route : route; calendar : Daily_calendar.t; measure : string }
+type t = { route : route; focus_day : string; measure : string }
 
 let create ~today ~measure =
-  Result.map (fun calendar -> { route = Home; calendar; measure }) (Daily_calendar.create today)
+  Result.map
+    (fun focus_day -> { route = Home; focus_day; measure })
+    (Daily_draft.normalize_date today)
 
 let enter state route = { state with route }

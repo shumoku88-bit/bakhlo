@@ -21,7 +21,7 @@ type t = {
   actual : Actual_screen.t;
   scheduled : Scheduled_screen.t;
   day : Selected_day_screen.t;
-  calendar_home : Calendar_home_screen.t;
+  home : Home_screen.t;
 }
 
 let create ~scheduled_months =
@@ -43,7 +43,7 @@ let create ~scheduled_months =
     actual = Actual_screen.create ();
     scheduled = Scheduled_screen.create scheduled_months;
     day = Selected_day_screen.create ();
-    calendar_home = Calendar_home_screen.create ();
+    home = Home_screen.create ();
   }
 
 type 'a owner = {
@@ -346,19 +346,18 @@ let all =
     Owner
       {
         layout = Screen.Standard;
-        owns = (function W.Home | W.Calendar -> true | _ -> false);
-        config_files = Calendar_home_screen.config_files;
-        get = (fun t -> t.calendar_home);
-        set = (fun t calendar_home -> { t with calendar_home });
+        owns = ( = ) W.Home;
+        config_files = [];
+        get = (fun t -> t.home);
+        set = (fun t home -> { t with home });
         enter = (fun _ ~focus_day:_ t -> t);
-        (* notified for every route below *)
-        modal = Calendar_home_screen.modal;
-        handle = Calendar_home_screen.handle;
-        view = Calendar_home_screen.view;
+        modal = (fun _ -> false);
+        handle = Home_screen.handle;
+        view = Home_screen.view;
         saved = no_save;
         published = Screen.no_publication;
-        reloaded = Calendar_home_screen.reloaded;
-        book_changed = Calendar_home_screen.book_changed;
+        reloaded = Screen.no_reload;
+        book_changed = no_change;
       };
   ]
 
@@ -366,9 +365,6 @@ let for_route route = List.find_opt (fun (Owner o) -> o.owns route) all
 let modal t = List.find_opt (fun (Owner o) -> o.modal (o.get t)) all
 
 let enter route ~focus_day t =
-  let t =
-    { t with calendar_home = Calendar_home_screen.entered route ~focus_day t.calendar_home }
-  in
   match for_route route with
   | Some (Owner o) -> o.set t (o.enter route ~focus_day (o.get t))
   | None -> t

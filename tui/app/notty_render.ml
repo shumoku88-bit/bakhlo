@@ -78,9 +78,7 @@ let terminal_series = [ A.blue; A.magenta; A.cyan; A.red ]
 let series_attributes theme index =
   match P.palette theme with
   | None -> (
-      match List.nth_opt terminal_series index with
-      | Some color -> A.fg color
-      | None -> A.empty)
+      match List.nth_opt terminal_series index with Some color -> A.fg color | None -> A.empty)
   | Some palette -> (
       match List.nth_opt (Array.to_list palette.P.series) index with
       | Some color -> fg color
@@ -90,7 +88,7 @@ let attributes theme style =
   match P.palette theme with
   | None -> (
       match style with
-      | C.Plain | C.Calendar_dates | C.Bonsai | C.Entrance | C.Columns _ | C.Input _ -> A.empty
+      | C.Plain | C.Bonsai | C.Entrance | C.Columns _ | C.Input _ -> A.empty
       | C.Active | C.Panel_active -> active
       | C.Focused_frame -> A.(fg cyan ++ st bold)
       | C.Heading | C.Status | C.Panel_heading -> bold
@@ -99,7 +97,7 @@ let attributes theme style =
       | C.Spans _ -> A.empty)
   | Some palette -> (
       match style with
-      | C.Plain | C.Calendar_dates | C.Bonsai | C.Entrance | C.Columns _ | C.Input _ ->
+      | C.Plain | C.Bonsai | C.Entrance | C.Columns _ | C.Input _ ->
           fg palette.foreground ++ bg palette.background
       | C.Active -> fg palette.selected_foreground ++ bg palette.selected_background ++ bold
       | C.Heading -> fg palette.foreground ++ bg palette.background ++ bold
@@ -181,8 +179,8 @@ let rec lines ?border ?(base = A.empty) theme rows =
                       let width = width_of text in
                       if cell < offset + width then span_style else at cell (offset + width) rest
                 in
-                (fun cell -> at cell 0 spans)
-            | _ -> (fun _ -> body_style)
+                fun cell -> at cell 0 spans
+            | _ -> fun _ -> body_style
           in
           let edge_attrs =
             match border with
@@ -198,20 +196,11 @@ let rec lines ?border ?(base = A.empty) theme rows =
           in
           let total_cells = width_of row in
           let rec paint cell = function
-            | "[" :: a :: b :: "]" :: rest
-              when style = C.Calendar_dates
-                   && String.length a = 1
-                   && String.length b = 1
-                   && a.[0] >= '0'
-                   && a.[0] <= '9'
-                   && b.[0] >= '0'
-                   && b.[0] <= '9' ->
-                (attributes theme C.Active, "[" ^ a ^ b ^ "]") :: paint (cell + 4) rest
             | glyph :: rest when style = C.Bonsai && (glyph = ":" || glyph = ";") ->
                 (leaf_attrs, glyph) :: paint (cell + 1) rest
             | key :: " " :: rest
               when style = C.Entrance
-                   && (key = "r" || key = "s" || key = "g" || key = "a" || key = "b" || key = "d")
+                   && (key = "r" || key = "s" || key = "a" || key = "b" || key = "d")
                    && (cell = 0 || String.get row (max 0 (cell - 1)) = ' ') ->
                 (entrance_key_attrs, key) :: paint (cell + 1) (" " :: rest)
             | glyph :: rest ->

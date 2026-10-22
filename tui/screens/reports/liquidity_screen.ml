@@ -124,7 +124,7 @@ let handle (env : Screen.env) geometry t input =
       | Ok _ -> clear next
       | Error why -> ({ next with requested = false; notice = why }, Screen.Message why))
   | Some (`ASCII 'm', []) ->
-      let draft = month_end env.calendar.selected_day in
+      let draft = month_end env.today in
       let next = invalidate { t with focus = Run } (Some draft) in
       if draft <> "" then clear next
       else

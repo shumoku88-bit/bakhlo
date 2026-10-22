@@ -9,7 +9,6 @@ type action =
   | Daily_pace
   | Theme
   | Home
-  | Calendar
   | Attention
   | Manage_loci
   | Friendly_locus_names
@@ -43,7 +42,6 @@ let items = function
   | Transactions ->
       [
         (Action Record, "Record / new entry");
-        (Action Calendar, "Calendar / Month flow");
         (Action Actual, "Actual / transactions");
         (Action Exchange, "Exchange / Currency conversion");
       ]

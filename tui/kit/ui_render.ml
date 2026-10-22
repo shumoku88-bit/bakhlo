@@ -8,7 +8,6 @@ type style =
   | Chrome
   | Frame
   | Focused_frame
-  | Calendar_dates
   | Bonsai
   | Entrance
   | Panel
@@ -159,8 +158,7 @@ let fit_spans ~width_of room spans =
   else
     match List.rev clipped with
     | [] -> [ (Plain, String.make room ' ') ]
-    | (style, text) :: rest ->
-        List.rev ((style, text ^ String.make (room - used) ' ') :: rest)
+    | (style, text) :: rest -> List.rev ((style, text ^ String.make (room - used) ' ') :: rest)
 
 let panel_line ?(width = panel_width) ~width_of style text =
   let left = "│ " and right = " │" in
@@ -169,8 +167,7 @@ let panel_line ?(width = panel_width) ~width_of style text =
   | Spans spans ->
       (* The border keeps the row's own style; the padding joins the spans. *)
       let spans = fit_spans ~width_of room spans in
-      ( Spans ((Plain, left) :: spans @ [ (Plain, right) ]),
-        left ^ spans_text spans ^ right )
+      (Spans (((Plain, left) :: spans) @ [ (Plain, right) ]), left ^ spans_text spans ^ right)
   | _ -> (style, left ^ pad ~width_of room text ^ right)
 
 let rule ~width_of room =

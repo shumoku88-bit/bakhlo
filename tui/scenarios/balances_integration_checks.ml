@@ -149,14 +149,14 @@ let balance_display_checks ~width_of ~directory () =
   require
     (accounting_rows corrected.book = accounting_rows (F.load live_path).book
     && accounting_rows corrected.book
-       = accounting_rows
-           (get (B.Full.put_entry reopened.book ~replace:true replacement ~plan:None))
+       = accounting_rows (get (B.Full.put_entry reopened.book ~replace:true replacement ~plan:None))
     && not
          (List.exists
             (function O.Account_row { locus = "bank"; _ } -> true | _ -> false)
             (accounting_rows corrected.book)))
     "accounting-correction-removes-unrepresented-coordinate";
-  require (List.map (O.balance_item_line ~book) (balance_items accounting) = evidence)
+  require
+    (List.map (O.balance_item_line ~book) (balance_items accounting) = evidence)
     "accounting-old-book-cache-is-not-mutated";
   List.iter
     (fun state ->
@@ -225,9 +225,8 @@ let balance_display_checks ~width_of ~directory () =
       let printed_end = key ~dimensions ~width_of printed `End in
       let printed_up = key ~dimensions ~width_of printed_end (`Arrow `Up) in
       require
-        (calendar_scroll printed_end = calendar_scroll at_end
-        && Balances.selected printed_end.C.screens.balances
-           = Balances.selected large.C.screens.balances)
+        (Balances.selected printed_end.C.screens.balances
+        = Balances.selected large.C.screens.balances)
         "balance-print-keeps-parent-context";
       require (Balances.modal printed.screens.balances) "balance-print-overlay-open";
       (match Balances.print_preview_summary printed.screens.balances with
@@ -257,8 +256,7 @@ let balance_display_checks ~width_of ~directory () =
         "balance-print-enter-closes-without-save";
       let closed = key ~dimensions ~width_of printed_end `Escape in
       require
-        (calendar_scroll closed = calendar_scroll at_end
-        && (not (Balances.modal closed.screens.balances))
+        ((not (Balances.modal closed.screens.balances))
         && F.read_revision path = home.session.revision)
         "balance-print-close-preserves-parent-without-save")
     [ (120, 36); (80, 24); (48, 14); (32, 9) ];

@@ -234,13 +234,12 @@ let check_render () =
   require (contains text "Original presented Expense") "the original section is always present";
   require (contains text "Exchange occurrences") "the exchange section is always present"
 
-let screen_env ?(today = "2026-10-20") ?(selected_day = today) book =
+let screen_env ?(today = "2026-10-20") book =
   let config name =
     if name = "boundary-presets.tsv" then Ok None
     else Error ("Configuration " ^ name ^ " was not declared by this screen.")
   in
-  let env = Screen.env_for_checks ~config ~book ~measure:"jpy" ~today ~accounting_roles:roles () in
-  { env with calendar = get (Daily_calendar.create selected_day) }
+  Screen.env_for_checks ~config ~book ~measure:"jpy" ~today ~accounting_roles:roles ()
 
 let geometry (width, height) : Screen.geometry =
   {

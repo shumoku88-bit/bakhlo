@@ -9,7 +9,6 @@ type action =
   | Daily_pace
   | Theme
   | Home
-  | Calendar
   | Attention
   | Manage_loci
   | Friendly_locus_names

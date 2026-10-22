@@ -24,6 +24,12 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   installed binary when offline or the build fails, and refuses without any binary.
   The launcher script itself runs from the working tree; only the TUI binary is pinned
   to `origin/main`.
+- Calendar removed (user decision 2026-10-22): the bonsai Home opens Actual, whose period
+  windows (Cycle / Month / Year) are where periods are browsed and chosen; `g`, the
+  Calendar route, `Screen.env.calendar` and the ambient Calendar input are gone. The Shell
+  keeps one `focus_day` (session start) for new Records and plans. Next slice: an always
+  visible period bar and a period picker in Actual (user choice 2026-10-22).
+  Verification: [Calendar removed](VERIFICATION.md#calendar-removed-2026-10-22).
 - Trend series are coloured: each series' braille line and its legend entry (name
   and per-day value) share its own colour (the terminal's own ANSI slots — blue,
   magenta, cyan, red, no yellow — in the Terminal theme, four indexed palette
@@ -52,7 +58,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   At 109.5k synthetic entries, native Actual Down+paint fell 466→235 ms (80×24);
   the 16 ms goal is still unmet. No persistent cache or household access was added.
 - Goal: reproduce LOAM's non-budget functionality and interaction (see AGENTS.md
-  Product). English Notty TUI: Calendar Home (Day/Month/Year), hierarchical Commands,
+  Product). English Notty TUI: bonsai Home, hierarchical Commands,
   Record/Preview, Actual, Scheduled (Series Calendar, Months, List, create/edit/cancel/
   complete, batch, generation), Selected Day, Balances/Observe, Daily Pace (current,
   What-if, Pool, Trend), Manage Loci/roles, Exchange, Attention, limited settlements,

@@ -319,14 +319,13 @@ let check_display_limit () =
 (* ------------------------------------------------------------------ *)
 (* Screen owner: unknown-first presentation, explicit Run, draft, no writes. *)
 
-let screen_env ?(measure = "jpy") ?(today = "2026-10-20") ?(selected_day = today)
+let screen_env ?(measure = "jpy") ?(today = "2026-10-20")
     ?(balance_view = Some "wallet\tjpy\nbank\tjpy\n") book =
   let config name =
     if name = "balance-view.tsv" then Ok balance_view
     else Error ("Configuration " ^ name ^ " was not declared by this screen.")
   in
-  let env = Screen.env_for_checks ~config ~book ~measure ~today () in
-  { env with calendar = get (Daily_calendar.create selected_day) }
+  Screen.env_for_checks ~config ~book ~measure ~today ()
 
 let geometry (width, height) : Screen.geometry =
   {
@@ -425,7 +424,7 @@ let check_screen () =
   expect_error "invalid explicit assumption refuses" (S.result env bad);
   require (S.assumption bad = "2026-13-01") "a refused assumption keeps the typed text";
   require (has (rows_of (S.view env geom bad)) "2026-13-01") "the refused assumption stays visible";
-  let past_env = screen_env ~selected_day:"2026-09-10" flow_book in
+  let past_env = screen_env flow_book in
   let past_open = S.enter ~focus_day:"2026-09-10" (S.create ()) in
   require (S.assumption past_open = "2026-09-30") "month end follows the focus day";
   let past, _ = press past_env geom past_open `Enter in
@@ -442,14 +441,12 @@ let check_screen () =
   let _, request = press env geom ran (`ASCII ' ') in
   require (request = Screen.Commands) "Space opens the Commands menu";
   (* m resets to the current Shell focus month end, focusing Run and clearing results. *)
-  let feb_env = screen_env ~selected_day:"2026-02-10" flow_book in
+  let feb_env = screen_env ~today:"2026-02-10" flow_book in
   let feb, _ = press feb_env geom ran (`ASCII 'm') in
-  require
-    (S.assumption feb = "2026-02-28")
-    "m uses the current calendar focus day, not the entry day";
+  require (S.assumption feb = "2026-02-28") "m uses today, not the entry day";
   require (S.run_focused feb) "m focuses Run";
   expect_error "m clears the requested answer" (S.result feb_env feb);
-  let leap_env = screen_env ~selected_day:"2028-02-11" flow_book in
+  let leap_env = screen_env ~today:"2028-02-11" flow_book in
   let leap, _ = press leap_env geom ran (`ASCII 'm') in
   require (S.assumption leap = "2028-02-29") "m uses the Gregorian month length of the focus month";
   (* Re-entry keeps an edited draft; only m resets it. *)

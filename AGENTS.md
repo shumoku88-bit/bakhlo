@@ -62,9 +62,11 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 ## Product
 
 - Reproduce LOAM's user-facing non-budget functionality, appearance and interaction
-  (recording/editing, plans, balances, Daily Pace, reports, Calendar Home Day/Month/
-  Year, hierarchical Commands). Budget allocation/transfer/consumption/routing and the
-  Budget Window wait until actually needed — no speculative budget code. Fava and
+  (recording/editing, plans, balances, Daily Pace, reports, hierarchical Commands).
+  User decision (2026-10-22): no Calendar; the bonsai Home opens Actual, whose period
+  windows (Cycle / Month / Year) are where periods are browsed and chosen.
+  Budget allocation/transfer/consumption/routing and the Budget Window wait until
+  actually needed — no speculative budget code. Fava and
   hledger export are out of scope (other output/diagnostics are not, without a
   separate decision). Internal structures need not match LOAM; observable results and
   safety behavior must. Cutover is a separate decision (`docs/CUTOVER_CHECKLIST.ja.md`).

@@ -73,21 +73,12 @@ then global keys. The view composes Shell header/feedback/footer around the
 route owner's rows and draws the modal owner's overlay on top.
 Selected Day owns its retained browser, panes, viewport and deferred search.
 Its search ignores Ctrl-Q/N while typing (Ctrl-R reloads under it, keeping the text),
-and the browser query changes only on Enter or Escape. Calendar's browser is
-unchanged while Selected Day synchronizes its own selection.
+and the browser query changes only on Enter or Escape.
 
-Home and Calendar share `Calendar_home_screen`: one retained browser, pane,
-raw scroll offset and deferred Search/Jump inputs. Home search also filters
-later Calendar visits; the old ambient search on other owners remains visible
-and keeps the underlying route footer. Its searches ignore Ctrl-Q/N; Ctrl-R reloads.
-Every route entry notifies this owner; synchronization resets selection on
-empty external routes, preserves filters/order, and leaves its browser alone
-on Selected Day. A direct drill return to Actual only notifies entry, without
-synchronizing the Calendar browser. Legacy fallback navigation changes this
-owner's private model rather than a Shell pane/browser mirror.
-`Ui_workspace` now contains only route, calendar focus and Measure; Shell
-record actions take the protocol's explicit `Screen.Entry`/`Screen.Plan` target. Calendar focus/zoom remain Shell authority through
-`Set_calendar`; its explicit feedback policy preserves Esc zoom-back warnings.
+Home (`Home_screen`) is stateless: each key opens another route or is ignored.
+There is no Calendar and no ambient fallback input. `Ui_workspace` contains only
+route, the session's focus day and Measure; Shell record actions take the
+protocol's explicit `Screen.Entry`/`Screen.Plan` target.
 Home paints the entire headerless body and alone forces the lazy annual notice.
 The Shell retains the cross-year unavailable frame, including when predecessor
 provenance becomes stale while a guarded screen is already open.

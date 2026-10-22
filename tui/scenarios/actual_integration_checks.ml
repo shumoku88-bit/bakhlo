@@ -235,19 +235,8 @@ let actual_browsing_checks ~width_of ~directory home =
         get (B.put_entry book ~replace:true { (entry n) with day = (entry 16).day } ~plan:None))
       book [ 15; 17 ]
   in
-  let day_base =
-    with_calendar_browser
-      { state with session = { state.session with book = day_book } }
-      {
-        (calendar_browser state) with
-        selected = 7;
-        selected_id = Some (Record_browser.Actual_row, "calendar-parent");
-      }
-  in
+  let day_base = { state with session = { state.session with book = day_book } } in
   let day = C.open_route day_base (W.Selected_day (entry 16).day) in
-  require
-    (calendar_browser day = calendar_browser day_base)
-    "selected-day-entry-preserves-calendar-browser";
   require
     (day_id day = Some (Record_browser.Actual_row, "actual-17")
     && day_id (key ~width_of day (`Arrow `Down)) = Some (Record_browser.Actual_row, "actual-16")
@@ -394,9 +383,6 @@ let actual_browsing_checks ~width_of ~directory home =
         && (key ~width_of reloaded `Enter |> day_browser).query = "purchase 16")
         "selected-day-search-ctrl-r-reloads-and-keeps-search")
     [ 'r'; 'R' ];
-  search_control_checks ~width_of ~path ~label:"home"
-    ~query:(fun s -> (calendar_browser s).query)
-    (C.open_route day W.Home) "purchase";
   let applied = key ~width_of searching `Enter in
   require
     ((day_browser applied).query = "purchase 16"
@@ -418,9 +404,7 @@ let actual_browsing_checks ~width_of ~directory home =
       let bytes = B.to_string day_book in
       F.write_new reload_path bytes;
       let base = C.initial ~config_home:directory (F.load reload_path) in
-      let base =
-        { base with workspace = { base.workspace with calendar = get (Cal.create (entry 16).day) } }
-      in
+      let base = { base with workspace = { base.workspace with focus_day = (entry 16).day } } in
       let detailed : C.state = focus (C.open_route base route) in
       let detailed = { detailed with record = closed.record } in
       let old_scroll = scroll detailed and old_browser = browser detailed in
@@ -462,11 +446,6 @@ let actual_browsing_checks ~width_of ~directory home =
         (fun s -> key ~width_of (key ~width_of s (`ASCII 'i')) `End),
         day_scroll,
         day_browser );
-      ( "calendar",
-        W.Calendar,
-        (fun s -> key ~width_of (key ~width_of s `Tab) (`Page `Down)),
-        calendar_scroll,
-        calendar_browser );
     ];
   let day_path = directory ^ "/selected-day-record.sexp" in
   F.write_new day_path (B.to_string book);
@@ -474,14 +453,14 @@ let actual_browsing_checks ~width_of ~directory home =
     {
       drilled with
       session = F.load day_path;
-      workspace = { drilled.workspace with calendar = get (Cal.create "2024-02-29") };
+      workspace = { drilled.workspace with focus_day = "2024-02-29" };
     }
   in
   let day_draft = prepare_record ~width_of day_parent in
   let day_rows = S.screen ~book ~dimensions:(72, 20) ~width_of (Option.get day_draft.record) in
   require
     (contains day_rows (entry 16).day)
-    "selected-day-record-inherits-route-date-not-background-calendar";
+    "selected-day-record-inherits-route-date-not-the-focus-day";
   let held = key ~width_of day_draft `Escape in
   require
     (same_workspace held day_parent
@@ -492,27 +471,16 @@ let actual_browsing_checks ~width_of ~directory home =
   List.iter
     (fun state ->
       List.iter
-        (fun zoom ->
-          let state =
-            {
-              state with
-              C.workspace =
-                { state.C.workspace with calendar = { state.workspace.calendar with zoom } };
-            }
+        (fun ((width, _) as dimensions) ->
+          let rows = R.screen ~width_of dimensions state in
+          let expected =
+            (entry 16).day ^ if C.has_record_draft state then "   Draft retained" else ""
           in
-          List.iter
-            (fun ((width, _) as dimensions) ->
-              let rows = R.screen ~width_of dimensions state in
-              let expected =
-                (entry 16).day ^ "   Day view"
-                ^ if C.has_record_draft state then "   Draft retained" else ""
-              in
-              require
-                (snd (List.nth rows 1) = Daily_overlays.clip_text ~width_of width expected)
-                "selected-day-context-uses-route-date-and-day-zoom";
-              require (F.read day_path = before) "selected-day-context-does-not-write")
-            [ (32, 9); (48, 14); (80, 24); (120, 36) ])
-        [ Cal.Day; Cal.Month; Cal.Year ])
+          require
+            (snd (List.nth rows 1) = Daily_overlays.clip_text ~width_of width expected)
+            "selected-day-context-uses-route-date";
+          require (F.read day_path = before) "selected-day-context-does-not-write")
+        [ (32, 9); (48, 14); (80, 24); (120, 36) ])
     [ day_parent; held ];
   let resumed = key ~width_of held (`ASCII 'r') in
   require
@@ -778,8 +746,7 @@ let reversal_checks ~width_of ~directory home =
     (fun cancelled ->
       require
         (no_modal cancelled && same_workspace cancelled opened
-        && cancelled.screens.actual = opened.screens.actual
-        && calendar_scroll cancelled = calendar_scroll opened)
+        && cancelled.screens.actual = opened.screens.actual)
         "reversal-cancel-retains-parent")
     [
       key ~width_of opened `Escape;

@@ -163,7 +163,7 @@ let view env (geometry : Screen.geometry) t =
   in
   {
     Screen.title = tr "Selected Day";
-    subtitle = Screen.Text (t.day ^ "   " ^ tr "Day" ^ tr " view");
+    subtitle = Screen.Text t.day;
     rows = lazy (paint env geometry t);
     footer =
       (if t.pane = Detail then

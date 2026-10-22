@@ -1,6 +1,5 @@
 type route = Screen.route =
   | Home
-  | Calendar
   | Selected_day of string
   | Actual
   | Scheduled
@@ -16,7 +15,11 @@ type route = Screen.route =
   | Trend_locus
   | Multicurrency_spend
 
-type t = { route : route; calendar : Daily_calendar.t; measure : string }
+type t = { route : route; focus_day : string; measure : string }
+(** [focus_day]: the day the session started on, the default date of a new
+    Record or plan outside Selected Day. *)
 
 val create : today:string -> measure:string -> (t, string) result
+(** Refuses a [today] that is not a real calendar date. *)
+
 val enter : t -> route -> t

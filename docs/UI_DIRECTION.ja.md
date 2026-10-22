@@ -33,7 +33,7 @@ LOAMの本番データや記帳先の切替は別の判断であり、この方�
 
 ## 言語と操作の基準
 
-- 新UIは英語を先に作る。`Home` / `Calendar` / `Detail` / `Commands` / `Record` /
+- 新UIは英語を先に作る。`Home` / `Detail` / `Commands` / `Record` /
   `Actual` / `Scheduled` / `Balances` / `Daily Pace`等はLOAMと同じ英語表記を使う。
 - Bakhlo独自の日本語UI・翻訳方針は未定。英語先行を実装予定・実装済みへ格上げしない。
   一方、LOAMに存在するlocale設定／切替等のユーザー向け動作は互換対象として照合し、
@@ -44,7 +44,8 @@ LOAMの本番データや記帳先の切替は別の判断であり、この方�
   境界を判断する。似た表示でも異なる操作・意味を万能フォームへ押し込まない。
 - UIの固定文言と、科目の表示名・メモ・安定ID等の台帳データを分ける。
   データを英語へ書き換えない。拒否理由の判断は表示文言ではなく安定した原因や型で行う。
-- Calendar HomeのDay / Month / Year、選択日の画面、階層Commands、操作別画面を採用する。
+- 盆栽Home、選択日の画面、階層Commands、操作別画面を採用する。Calendar（Day / Month / Year）は
+  置かない（本人判断 2026-10-22）。期間の切替・選択はActualの期間窓で行う。
   Homeの`q`は終了、子画面の`q` / `Esc`は一段戻る。LOAMの表示・操作契約を実装前にソースで確認する。
 - `Record`の入力・候補・全体確認・確定と、`Actual` / `Scheduled`の対象選択・詳細・操作を揃える。
   確定キーも旧Bakhloの独自規則を永久互換にせず、LOAMの明示的な確認操作を基準にする。
@@ -102,4 +103,4 @@ LOAMの参考箇所は [TUI.md](../../loam/docs/TUI.md)、[画面別進捗](../.
 [LOAM_UI_GAP_LEDGER.ja.md](LOAM_UI_GAP_LEDGER.ja.md)、実装から保存・失敗・対照実行・手動受入までの
 順序は [tasks/todo.md](../tasks/todo.md) を参照する。参照・比較は既存の権限内に限り、
 LOAMのsourceコピー・build、原本変更、依存追加や運用切替を許可するものではない。
-前段の共通描画の改修は土台であり、Calendarや英語版の互換完成を証明するものではない。
+前段の共通描画の改修は土台であり、英語版の互換完成を証明するものではない。

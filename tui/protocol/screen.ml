@@ -1,6 +1,5 @@
 type route =
   | Home
-  | Calendar
   | Selected_day of string
   | Actual
   | Scheduled
@@ -21,7 +20,6 @@ type env = {
   revision : string;
   new_id : unit -> string;
   measure : string;
-  calendar : Daily_calendar.t;
   today : string;
   accounting_roles : ((string * Daily_overlays.accounting_role) list, string) result Lazy.t;
   attention : (Attention_data.t, string) result;
@@ -87,7 +85,6 @@ type request =
   | Open_route of route
   | Back
   | Quit
-  | Set_calendar of { calendar : Daily_calendar.t; clear_message : bool }
   | Open_observe
   | New_plan
   | Record_action of { action : record_action; target : record_target option }
@@ -128,7 +125,6 @@ let env_for_checks ?(accounting_roles = []) ?(config = fun name -> Error ("undec
          Printf.sprintf "check-%d" !n);
     measure;
     today;
-    calendar = Result.get_ok (Daily_calendar.create today);
     accounting_roles = lazy (Ok accounting_roles);
     attention = Ok Attention_data.empty;
     settlements = Ok Settlement_data.empty;

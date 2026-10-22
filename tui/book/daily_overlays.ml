@@ -689,7 +689,6 @@ let bonsai_home_lines ~width ~height ~width_of ~today =
     [
       ("r", tr "Record");
       ("s", tr "Scheduled");
-      ("g", tr "Calendar");
       ("a", tr "Actual");
       ("b", tr "Balances");
       ("d", tr "Daily Pace");
@@ -703,9 +702,7 @@ let bonsai_home_lines ~width ~height ~width_of ~today =
           (Entrance, center_line ~width ~width_of text))
         entrances
     else
-      let compact =
-        [ "r Record     s Scheduled"; "g Calendar   a Actual"; "b Balances   d Daily Pace" ]
-      in
+      let compact = [ "r Record     s Scheduled"; "a Actual     b Balances"; "d Daily Pace" ] in
       List.map (fun line -> (Entrance, center_line ~width ~width_of line)) compact
   in
   let body = tree_rows @ date_rows @ menu_rows in

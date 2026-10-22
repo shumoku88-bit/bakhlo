@@ -16,7 +16,6 @@ let run ~width_of () =
   F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let home = C.initial ~config_home:directory (F.load path) in
   bonsai_home_layout_check ~width_of home;
-  home_layout_check ~width_of home;
   theme_check ~width_of ~directory home;
   panel_checks ~width_of ();
   input_checks ~width_of ();

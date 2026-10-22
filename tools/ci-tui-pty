@@ -125,7 +125,7 @@ proc smoke {binary fixture width height root} {
   file copy $fixture $book
   set before [slurp $book]
   if {$width < 80} { set next {80 24} } else { set next {48 14} }
-  # Home -> Calendar -> Balances; inspect the first account, switch mode,
+  # Home -> Actual -> Home -> Balances; inspect the first account, switch mode,
   # inspect detail, then resize while the same PTY stays alive.
   session $binary $book $width $height {
     open_balances

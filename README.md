@@ -39,9 +39,8 @@ commitは次回に再送する。TUI自体が異常終了した場合は、そ�
 取得し直すときは`./tools/compare refresh`、比較後は`./tools/compare clean-copies`。
 手順と制約は[AGENTS.md](AGENTS.md)の Latest-data comparison。
 
-Home / CalendarからDay / Month / Yearを`z`で切り替え、`/`で日付へ移動する。
-`Tab`／`w`でCalendarとDetail、`Space`で階層型Commands。`r`でRecord、`a`でActual、
-`s`でScheduled、`b`でBalances、`d`でDaily Paceへ進む。
+盆栽Homeから`Enter`／`a`でActual（期間窓で記録を一覧）、`r`でRecord、`s`でScheduled、
+`b`でBalances、`d`でDaily Paceへ進む。`Space`で階層型Commands。
 RecordはEnter／Ctrl-SでPreviewを開き、**Publishを選んでEnterしたときだけ記帳する**。
 Esc／Cancelは下書きを保持する。
 金額欄では`500+300`、`(500+300)/2`などの式を整数／有理数で計算する。先頭の`-`／`+`は式全体の向き。

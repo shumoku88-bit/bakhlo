@@ -180,8 +180,7 @@ let query (env : Screen.env) t =
                (fun why -> "Accounting roles unavailable: " ^ why)
                (Lazy.force env.accounting_roles))
             (fun roles ->
-              Report.compute ~book:env.book ~roles ~start_day:t.start_day
-                ~end_exclusive:t.end_day)
+              Report.compute ~book:env.book ~roles ~start_day:t.start_day ~end_exclusive:t.end_day)
         with
         | Ok snapshot -> ({ t with answer = Some (Ok snapshot); notice = ""; scroll = 0 }, None)
         | Error why -> ({ t with answer = Some (Error why); notice = why; scroll = 0 }, Some why))
@@ -189,7 +188,7 @@ let query (env : Screen.env) t =
 let apply_source (env : Screen.env) kind t =
   match kind with
   | Calendar_month -> (
-      match month_window env.calendar.selected_day with
+      match month_window env.today with
       | Some (start_day, end_day) ->
           { t with kind; start_day; end_day; answer = None; notice = ""; scroll = 0 }
       | None ->
@@ -201,7 +200,7 @@ let apply_source (env : Screen.env) kind t =
             notice = "Selected day is not a canonical real date; enter dates explicitly.";
           })
   | Named name -> (
-      match named_window t.presets name env.calendar.selected_day with
+      match named_window t.presets name env.today with
       | Some (start_day, end_day) ->
           { t with kind; start_day; end_day; answer = None; notice = ""; scroll = 0 }
       | None ->
@@ -214,7 +213,7 @@ let apply_source (env : Screen.env) kind t =
               Printf.sprintf
                 "Preset %s has no adjacent window containing %s; Run is blocked until the dates \
                  are edited, m is pressed, or the source changes."
-                name env.calendar.selected_day;
+                name env.today;
           })
   | Custom -> { t with kind = Custom }
 
@@ -252,10 +251,7 @@ let edit t value =
 let shift_month (env : Screen.env) delta t =
   let base =
     if canonical_day t.start_day then t.start_day
-    else
-      match month_window env.calendar.selected_day with
-      | Some (start_day, _) -> start_day
-      | None -> ""
+    else match month_window env.today with Some (start_day, _) -> start_day | None -> ""
   in
   match Cal.shift_months base delta with
   | Error why -> ({ t with answer = None; notice = why }, Screen.Message why)
@@ -335,7 +331,7 @@ let handle env geometry t input =
   | Some (`ASCII '[', []) -> cycle_source env (-1) t
   | Some (`ASCII ']', []) -> cycle_source env 1 t
   | Some (`ASCII 'm', []) -> (
-      match month_window env.calendar.selected_day with
+      match month_window env.today with
       | Some (start_day, end_day) ->
           clear_feedback
             {

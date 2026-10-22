@@ -18,7 +18,6 @@
 (** The Shell's routes; a screen asks for one with [Open_route]. *)
 type route =
   | Home
-  | Calendar
   | Selected_day of string
   | Actual
   | Scheduled
@@ -40,7 +39,6 @@ type env = {
       (** Revision of the household file the book was read from: a publication base. *)
   new_id : unit -> string;  (** Fresh identity for a new entry or plan. *)
   measure : string;  (** Shell-selected Measure. *)
-  calendar : Daily_calendar.t;  (** Shell focus day and zoom, shared by every route. *)
   today : string;
   accounting_roles : ((string * Daily_overlays.accounting_role) list, string) result Lazy.t;
       (** Explicit Locus roles from accounting-roles.tsv; none when absent, an error
@@ -139,8 +137,6 @@ type request =
   | Open_route of route
   | Back  (** Leave this route: to the screen it was drilled from, or Home. *)
   | Quit  (** Leave the application (Home Esc / q). *)
-  | Set_calendar of { calendar : Daily_calendar.t; clear_message : bool }
-      (** Move the Shell focus day or zoom; Esc zoom-back preserves existing feedback. *)
   | Open_observe  (** Open an empty Observe draft over this route. *)
   | New_plan  (** Open the Scheduled creation editor on the focus day. *)
   | Record_action of { action : record_action; target : record_target option }

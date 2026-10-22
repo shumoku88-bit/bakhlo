@@ -1,8 +1,0 @@
-(test
- (name calendar_contract_checks)
- (libraries
-  bakhlo_screen_calendar
-  bakhlo_tui_kit
-  bakhlo_tui_book
-  bakhlo_tui_protocol
-  bakhlo.sexp))

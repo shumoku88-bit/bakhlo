@@ -93,11 +93,7 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
     let body_height = max 0 (height - List.length feedback - 2) in
     let route_view = route_screen_view ~dimensions ~width_of state in
     let draft = if has_record_draft state then "   Draft retained" else "" in
-    let date_line () =
-      state.workspace.calendar.selected_day ^ "   "
-      ^ Cal.title state.workspace.calendar
-      ^ tr " view"
-    in
+    let date_line () = state.workspace.focus_day in
     let headers =
       if state.workspace.route = W.Home || layout = Screen.Workspace then []
       else
@@ -117,7 +113,6 @@ let rec screen ?(width_of = String.length) ((width, height) as dimensions) state
                 ^
                 match state.workspace.route with
                 | W.Home -> tr "Home"
-                | W.Calendar -> tr "Calendar"
                 | W.Actual -> tr "Actual"
                 | W.Scheduled -> tr "Scheduled"
                 | W.Selected_day _ -> tr "Selected Day"

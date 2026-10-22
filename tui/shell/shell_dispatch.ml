@@ -36,30 +36,21 @@ let record_dimensions ~dimensions:((width, height) as dimensions) ~width_of stat
     (width, max 0 (height - List.length (feedback_lines ~dimensions ~width_of state)))
 
 let back state =
-  match Calendar_home_screen.back_to_list state.screens.calendar_home with
-  | Some calendar_home -> { state with screens = { state.screens with calendar_home } }
-  | None -> (
-      match state.drill_parent with
-      | Some W.Actual ->
-          let before = Option.value ~default:state.session.book state.drill_book in
-          let screens, _ =
-            Screen_registry.book_changed W.Actual ~before ~after:state.session.book state.screens
-          in
-          {
-            state with
-            drill_parent = None;
-            drill_book = None;
-            workspace = W.enter state.workspace W.Actual;
-            overlay = No_overlay;
-            screens =
-              {
-                screens with
-                calendar_home =
-                  Calendar_home_screen.entered W.Actual
-                    ~focus_day:state.workspace.calendar.selected_day screens.calendar_home;
-              };
-          }
-      | _ -> open_route state W.Home)
+  match state.drill_parent with
+  | Some W.Actual ->
+      let before = Option.value ~default:state.session.book state.drill_book in
+      let screens, _ =
+        Screen_registry.book_changed W.Actual ~before ~after:state.session.book state.screens
+      in
+      {
+        state with
+        drill_parent = None;
+        drill_book = None;
+        workspace = W.enter state.workspace W.Actual;
+        overlay = No_overlay;
+        screens;
+      }
+  | _ -> open_route state W.Home
 
 (* Shell side of the screen owner protocol ({!Screen}). *)
 let screen_env ~config_files state : Screen.env =
@@ -69,7 +60,6 @@ let screen_env ~config_files state : Screen.env =
     revision = state.session.revision;
     new_id = F.new_id;
     measure = state.workspace.measure;
-    calendar = state.workspace.calendar;
     today = F.today ();
     accounting_roles = lazy (accounting_roles state);
     attention = state.attention;
@@ -110,7 +100,7 @@ let reload state =
             { state with blocked = true; message = Option.value ~default:state.message why }
         | _ -> state)
 
-(* Home/Calendar [o] and Commands: an empty observation draft over any route. *)
+(* Home [o] and Commands: an empty observation draft over any route. *)
 let open_observe state =
   {
     state with
@@ -189,13 +179,6 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
   | Screen.Open_route route -> open_route state route
   | Screen.Back -> back state
   | Screen.Quit -> state (* handled by route_screen_input before applying *)
-  | Screen.Set_calendar { calendar; clear_message } ->
-      sync
-        {
-          state with
-          workspace = { state.workspace with calendar };
-          message = (if state.blocked || not clear_message then state.message else "");
-        }
   | Screen.Open_observe -> open_observe state
   | Screen.New_plan -> open_plan_record state
   | Screen.Record_action { action; target } -> (
@@ -367,26 +350,8 @@ let route_screen_view ~dimensions ~width_of state =
 
 let modal_screen_view ~dimensions ~width_of state =
   Option.map
-    (fun owner ->
-      let view = owner_view ~dimensions ~width_of owner state in
-      if Calendar_home_screen.ambient state.screens.calendar_home then
-        match route_screen_view ~dimensions ~width_of state with
-        | Some route -> { view with Screen.footer = route.Screen.footer }
-        | None -> view
-      else view)
+    (fun owner -> owner_view ~dimensions ~width_of owner state)
     (Screen_registry.modal state.screens)
-
-let ambient_screen_input ~dimensions ~width_of state input =
-  let calendar_home, request =
-    Calendar_home_screen.ambient_handle
-      (screen_env ~config_files:[] state)
-      (screen_geometry ~dimensions ~width_of state)
-      state.screens.calendar_home input
-  in
-  match request with
-  | Screen.Ignored -> None
-  | Screen.Stay -> Some { state with screens = { state.screens with calendar_home } }
-  | _ -> None (* Ambient input only changes retained UI state. *)
 
 let open_command state = function
   | M.Record -> open_record { state with overlay = No_overlay }
@@ -401,7 +366,7 @@ let open_command state = function
       let default_date =
         match state.workspace.route with
         | W.Selected_day day -> day
-        | _ -> state.workspace.calendar.selected_day
+        | _ -> state.workspace.focus_day
       in
       {
         state with
@@ -421,7 +386,6 @@ let open_command state = function
   | M.Multicurrency_spend -> open_route state W.Multicurrency_spend
   | M.Transactions_flow -> open_route state W.Transactions_flow
   | M.Trend_locus -> open_route state W.Trend_locus
-  | M.Calendar -> open_route state W.Calendar
   | M.Pace_pool ->
       {
         state with

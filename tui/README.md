@@ -46,20 +46,17 @@ Measure／scaleをreviewして2回目のEnterでだけ作成する。小さい�
 空台帳への自動fallbackはしない。
 `./tools/tui`は通常のDuneビルド（`_build/default/tui/app/bakhlo_tui.exe`）を作ってから起動する。
 
-## Home / CalendarとCommands
+## HomeとCommands
 
-HomeはCalendarと対象期間のActual / ScheduledのDetail。Day / Month / Yearを切り替え、
-日付からSelected Dayへ進む。丸角枠、固定下部操作、折り返す通知、フォーカスと選択マーカーを使う。
-80列付近ではコンパクトなCalendarの下にDetail、120列以上では左右に並べる。
-極小端末ではフォーカス側を優先し、選択日を隠さない。収支の役割は推測せず、Actualとopen Scheduledの件数／存在を示す。
+Homeは盆栽の入口画面で、台帳の中身は表示しない。Calendar（Day / Month / Year）は2026-10-22の本人判断で
+削除した。期間の一覧と選択はActualの期間窓（Today / Cycle / Month / Year / All）が受け持つ。
+新規Record・予定の初期日は起動した日（Selected Dayではその日）。
 
-- `h/l`／`←→`：前後の日・月・年。`k/j`／`↑↓`：週・四半期・年の移動。
-- `z`：Day / Month / Year。`t`：今日。`/`：日付・月・年へ移動（Enter適用、Esc取消）。
-- `Tab`／`w`：Calendar / Detail。`Enter`：Year → Month → Day → Selected Day。
-- `r`：選択日入りRecord。`a`：Actual。`s`：Scheduled。`b`：Balances / Current。`d`：Daily Pace。
+- `Enter`／`a`：Actual。`r`：Record。`s`：Scheduled。`b`：Balances / Current。`d`：Daily Pace。
+  `i`：Attention。`o`：Observe。
 - `Space`：階層Commands。`↑↓`／`j/k`で選択、`→`でグループ、Enterでグループ／画面を開く。
   `←`／`Esc`／`q`／Spaceで一階層戻る。右矢印だけでleafの画面を開かない。
-- `q`：子から親へ、Home / DetailではCalendarへ、Home / Calendarで終了。
+- `q`／`Esc`：子から親へ、Homeで終了。
   閲覧中の`Ctrl-Q`：終了。`Ctrl-R`：明示的な再読込。
 
 CommandsはTransactions、Plans and attention、Reports and analysis、Household setup（Theme、Manage Loci、Daily Pace / spendable accounts、Daily Pace / cycle dates、Balances / visible accounts、Home）。
@@ -404,14 +401,14 @@ Homeで`b`を押すと、LOAM準拠の**Balances / Current**（現在の各口�
 
 ## 対応範囲と差分
 
-新UIはCalendar、階層Commands、英語Record、Actual / Scheduled / Selected Dayの閲覧と詳細、
+新UIは盆栽Home、階層Commands、英語Record、Actual / Scheduled / Selected Dayの閲覧と詳細、
 既存検査・保存への接続を対象にする。LOAMの全会計機能を再実装したものではない。
-role-aware収支カレンダー、完全なSeries／coverage管理・定期補充／監視、履歴Trend、原額・Merchant、
+完全なSeries／coverage管理・定期補充／監視、履歴Trend、原額・Merchant、
 実取引への配分を伴う精算・後日カード決済、広いレポート群は未対応。
 単一S式の予定作成（Scheduled `n`）・変更（`e`）・取消（`x`）・支払い（`c`）は接続済み。
 Actual `x`は元明細を残す正確な反転の新規記帳。
 CommandsからExchange（入力→全文Preview→確定）、Manage Loci／役割設定／表示名（`l`またはHousehold setup `Account / category display names`→Review→保存）、Attention、限定commitment精算へ進める。
-Home／Calendar／Balances `o`はObserve。これらの存在は全LOAM互換を意味しない。
+Home／Balances `o`はObserve。これらの存在は全LOAM互換を意味しない。
 Balancesは既存照会で通貨別に表示し、不明・存在あり量不明・ゼロを区別する。
 Daily Paceは明示pool・Measure・今日・期間末の既存計算を表示する。
 `daily-pace.tsv`／`boundary-presets.tsv`がなければ未設定とし、条件を推測しない。
@@ -423,7 +420,7 @@ Pool編集は取得時点の旧設定と新設定をReviewし、選択ファイ�
 rename後の結果不明は保存成功とせず、現ファイルを確認する。自動rollbackや新しい保存形式は導入していない。
 下書きはプロセス内のみ。競合後も取得時の旧bytesは自動更新しないため、新しい設定からやり直すには再起動が必要（下書きは消える）。
 `boundary-presets.tsv`の他期間・過去境界は変更せず、この画面で期間末を編集しない。
-Trendは現在台帳からの限定的な再構成表示で、ゼロ起点で裏付けられない過去日はUnavailableとなる。LOAMのdated bounded-history支持、支払済み／取消済み予定を含む全履歴の一致は未認定。期間比較は未対応。Calendar選択日を今日の観測日に置き換えない。
+Trendは現在台帳からの限定的な再構成表示で、ゼロ起点で裏付けられない過去日はUnavailableとなる。LOAMのdated bounded-history支持、支払済み／取消済み予定を含む全履歴の一致は未認定。期間比較は未対応。
 Daily_bookは単一S式v1〜v3・v5を読み、v3（期間付き履歴があればv5）を書く。旧予算v4・予算APIは非対応。
 通常Bookのrecord / exchange CLIとは混用せず、未知フィールドを飛ばして保存しない。
 
@@ -445,7 +442,7 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 `$HOME/.config/bakhlo/ui-theme`の順。次回起動でも選択を復元し、設定不備ではTerminalへ戻る。
 設定を保存できない場合はそのセッションだけ変更し、保存できなかったことを通知する。
 
-- daily_calendar / ui_workspace / ui_commands：純粋な暦・画面・選択・階層ナビ。
+- daily_calendar / ui_workspace / ui_commands：純粋な日付計算・画面・階層ナビ。
 - record_session / ui_input：一つの下書き・Previewと入力型。
 - reversal_session：反転の日付と固定snapshotの元／逆Posting確認。ID割当・永続inverse構築・I/Oは持たない。
 - shell_state：Shell state、初期化、route入場・同期、Record下書き保持とpublication結果処理。

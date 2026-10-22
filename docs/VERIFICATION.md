@@ -6,6 +6,12 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Calendar removed (2026-10-22)
+
+- User decision 2026-10-22: the Calendar (Day / Month / Year) is deleted; the Actual's period windows are where periods are browsed and chosen. The bonsai Home stays as its own stateless screen (`tui/screens/home`): `Enter`/`a` Actual, `r`, `s`, `b`, `d`, `i`, `o`, `q`/`Esc` quit; `g` and the Commands entry are gone.
+- Removed with it: the `Calendar` route and screen, `Screen.env.calendar`, `Set_calendar`, the zoom/jump/month-grid code of `Daily_calendar` (now date arithmetic only), the `Calendar_dates` style, and the ambient fallback that let `/` and `j/k` on other screens drive the hidden Calendar browser. The Shell keeps one `focus_day` (the day the session started; Selected Day uses its own day) as the default date of a new Record or plan, as before; Liquidity and Multicurrency Spend default to today. The Selected Day header is the day alone (no "Day view").
+- Checks (synthetic): Home entrances and the absent Calendar entrance at six sizes, Home/Actual routes, Selected Day header at four sizes, Liquidity and Multicurrency defaults; `./tools/check`, `./tools/tui --self-check` and the PTY smoke (`tools/ci-tui-pty`, four sizes and the narrow Preview refusal) passed locally; a tmux capture of a synthetic book at 80×24 and 32×9 showed the five entrances. No household data was accessed; the paired comparison with LOAM was not executed (Calendar has no Bakhlo counterpart now).
+
 ## Trend chart cell alignment (2026-10-22)
 
 - Reproduced on a synthetic two-series Trend / Locus report in a real tmux PTY:

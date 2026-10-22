@@ -9,26 +9,9 @@ let run ~width_of ~directory ~path (home : C.state) =
   let actual = key ~width_of home `Enter in
   require (actual.workspace.route = W.Actual) "home-enter-opens-actual";
   require ((key ~width_of actual `Escape).workspace.route = W.Home) "actual-esc-returns-home";
-  let cal = key ~width_of home (`ASCII 'g') in
-  require (cal.workspace.route = W.Calendar) "home-g-opens-calendar";
-  let back = key ~width_of cal (`ASCII 'q') in
-  require (back.workspace.route = W.Home) "calendar-q-returns-home";
-  let back_esc = key ~width_of cal `Escape in
-  require (back_esc.workspace.route = W.Home) "calendar-esc-returns-home";
-  let back_g = key ~width_of cal (`ASCII 'g') in
-  require (back_g.workspace.route = W.Home) "calendar-g-returns-home";
-  let year = key ~width_of (key ~width_of cal (`ASCII 'z')) (`ASCII 'z') in
-  require (year.workspace.calendar.zoom = Cal.Year) "calendar-year-zoom";
-  let month = key ~width_of year `Enter in
-  let day = key ~width_of month `Enter in
-  let selected = key ~width_of day `Enter in
-  require
-    (selected.workspace.route = W.Selected_day day.workspace.calendar.selected_day)
-    "selected-day-drill";
+  let selected = C.open_route home (W.Selected_day home.workspace.focus_day) in
   require ((key ~width_of selected (`ASCII 'q')).workspace.route = W.Home) "child-q-does-not-quit";
-  let detail = key ~width_of cal `Tab in
-  require (not (calendar_detail (key ~width_of detail (`ASCII 'q')))) "home-detail-q-back";
-  require (H.handle home (`Key (`ASCII 'q', [])) = None) "calendar-q-exits";
+  require (H.handle home (`Key (`ASCII 'q', [])) = None) "home-q-exits";
   let outside_paste =
     match H.handle home (`Paste `Start) with
     | Some state -> state
@@ -46,18 +29,6 @@ let run ~width_of ~directory ~path (home : C.state) =
     && (not (C.has_record_draft outside_paste))
     && F.read path = before)
     "paste-executed-home-commands";
-  let jump =
-    key ~width_of cal (`ASCII '/') |> fun s ->
-    text ~width_of s "2024-2" |> fun s -> key ~width_of s `Enter
-  in
-  require
-    (jump.workspace.calendar.selected_day = "2024-02-01" && jump.workspace.calendar.zoom = Cal.Month)
-    "jump-month";
-  let invalid =
-    key ~width_of jump (`ASCII '/') |> fun s ->
-    text ~width_of s "2024-02-30" |> fun s -> key ~width_of s `Enter
-  in
-  require (invalid.workspace.calendar = jump.workspace.calendar) "invalid-jump-mutated-date";
   require (get (Cal.shift_months "2024-01-31" 1) = "2024-02-29") "calendar-month-clamp";
   require (get (Cal.shift_years "2024-02-29" 1) = "2025-02-28") "calendar-year-clamp";
   require
@@ -271,7 +242,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   let date_only =
     Option.get
       (H.handle ~width_of
-         (key ~width_of (key ~width_of cal (`ASCII 'r')) `Tab)
+         (key ~width_of (key ~width_of home (`ASCII 'r')) `Tab)
          (`Key (`Tab, [ `Shift ])))
   in
   let date_only = key ~width_of date_only `Backspace in
@@ -280,7 +251,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   require
     (C.has_record_draft held_date && resumed_date.record = held_date.record && F.read path = before)
     "record-date-only-draft-survives-cancel-and-resume";
-  let draft = prepare_record ~width_of cal in
+  let draft = prepare_record ~width_of home in
   require (C.has_record_draft draft) "controller-record-draft";
   let review = key ~width_of draft `Enter in
   require (F.read path = before) "preview-published";
