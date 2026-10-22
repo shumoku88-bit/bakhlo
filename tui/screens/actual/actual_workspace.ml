@@ -15,29 +15,27 @@ module Cal = Daily_calendar
 type period = Today | Cycle | Month | Year | All
 type sort_order = Newest | Oldest | Largest
 type pane = Loci | Transactions | Details
-
 type window = { start_day : string; end_exclusive : string; label : string }
-
 type roles = ((string * Roles.role) list, string) result
 
-(** What the workspace reads besides the book: the resolved period window, the
-    day, the accounting roles and the current Measure. *)
 type scope = {
   window : window;
   today : string;
   focus_day : string;
-  (** The day the window was opened on: today, or the Calendar's selected day. *)
+      (** The day the window was opened on: today, or the day of a chosen window. *)
   roles : roles;
   measure : string;
 }
+(** What the workspace reads besides the book: the resolved period window, the
+    day, the accounting roles and the current Measure. *)
 
-(** Everything the workspace reads that the Shell owns. *)
 type context = {
   book : B.t;
   scope : scope;
   warning : string option;
-  (** The window could not be resolved; the list still works and says so. *)
+      (** The window could not be resolved; the list still works and says so. *)
 }
+(** Everything the workspace reads that the Shell owns. *)
 
 type t = {
   period : period;
@@ -50,12 +48,11 @@ type t = {
   search_query : string;
   search_editing : bool;
   notice : string;
-  focus_day : string option;
-  (** The day the workspace was opened on; None is today. *)
+  focus_day : string option;  (** The day the workspace was opened on; None is today. *)
   pending_selection : bool;
-  (** The next resolve selects the focus day's group (or the latest day before it). *)
+      (** The next resolve selects the focus day's group (or the latest day before it). *)
   remembered_scope : scope option;
-  (** The scope of the last render, kept so a drill return restores the
+      (** The scope of the last render, kept so a drill return restores the
       selection in the same window and the same order. *)
 }
 
@@ -92,13 +89,31 @@ let notice t = t.notice
 
 (* The period filter and its window are the Screen's choice; the workspace keeps
    the scope so a drill return restores the selection in the same window. *)
-let set_period period t = { t with period; period_offset = 0; pending_selection = true; notice = "" }
+let set_period period t =
+  { t with period; period_offset = 0; pending_selection = true; notice = "" }
 
 let set_period_offset offset t =
   { t with period_offset = offset; pending_selection = true; notice = "" }
 
 let set_focus_day day t =
   { t with focus_day = Some day; period_offset = 0; pending_selection = true; notice = "" }
+
+let set_window period ~focus_day t =
+  {
+    t with
+    period;
+    focus_day = Some focus_day;
+    period_offset = 0;
+    pending_selection = true;
+    notice = "";
+  }
+
+let period_name = function
+  | Today -> "Day"
+  | Cycle -> "Cycle"
+  | Month -> "Month"
+  | Year -> "Year"
+  | All -> "All"
 
 let set_scope scope t = { t with remembered_scope = Some scope }
 
@@ -170,9 +185,7 @@ let compare_entries ~sort ~roles ~measure (a : B.entry) (b : B.entry) =
       if by_day <> 0 then by_day else String.compare b.id a.id
   | Largest ->
       let by_amount =
-        Z.compare
-          (entry_expense_amount ~roles ~measure b)
-          (entry_expense_amount ~roles ~measure a)
+        Z.compare (entry_expense_amount ~roles ~measure b) (entry_expense_amount ~roles ~measure a)
       in
       if by_amount <> 0 then by_amount else String.compare a.id b.id
 
@@ -194,12 +207,7 @@ let filtered_entries ~ctx t ~records ~locus =
 
 (* A day of the list: its entries, where its first entry sits in the sorted
    list and that day's EXPENSE total. *)
-type group = {
-  day : string;
-  entries : B.entry list;
-  first : int;
-  total : string option;
-}
+type group = { day : string; entries : B.entry list; first : int; total : string option }
 
 (* The EXPENSE total per Measure in the shared money format. A day with an
    effect without a role is partial: the total is marked, never completed. *)
@@ -207,44 +215,61 @@ let totals_text ~book totals partial =
   let parts =
     List.filter_map
       (fun (measure, amount) ->
-        if Z.sign amount = 0 then None
-        else Some (O.format_money book measure amount ^ " " ^ measure))
+        if Z.sign amount = 0 then None else Some (O.format_money book measure amount ^ " " ^ measure))
       totals
   in
   match parts with
   | [] -> if partial then Some "+?" else None
-  | parts -> Some (String.concat " / " parts ^ (if partial then "+?" else ""))
+  | parts -> Some (String.concat " / " parts ^ if partial then "+?" else "")
 
 (* The EXPENSE total of the given entries: a day's shown entries, so its count and
    total describe the same rows under a Locus filter or a search, or the whole
    window for the title. *)
-let shown_total ~ctx entries =
+type expense_roles = { role_book : B.t; table : (string, Roles.role) Hashtbl.t }
+
+let expense_roles ~ctx =
   match ctx.scope.roles with
   | Error _ -> None
   | Ok roles ->
-      let totals = Hashtbl.create 4 and partial = ref false in
+      let table = Hashtbl.create (List.length roles) in
       List.iter
-        (fun (e : B.entry) ->
-          List.iter
-            (fun (posting : D.Effect.t) ->
-              match List.assoc_opt (A.lstr (D.Effect.locus posting)) roles with
-              | Some Roles.Expense ->
-                  let measure = A.mstr (D.Effect.measure posting) in
-                  let sum = Option.value ~default:Z.zero (Hashtbl.find_opt totals measure) in
-                  Hashtbl.replace totals measure (Z.add sum (A.quanta posting))
-              | Some (Roles.Income | Roles.Asset | Roles.Liability | Roles.Equity) -> ()
-              | None -> partial := true)
-            e.effects)
-        entries;
-      let sorted = List.sort (fun (a, _) (b, _) -> String.compare a b) (List.of_seq (Hashtbl.to_seq totals)) in
-      totals_text ~book:ctx.book sorted !partial
+        (fun (locus, role) -> if not (Hashtbl.mem table locus) then Hashtbl.add table locus role)
+        roles;
+      Some { role_book = ctx.book; table }
+
+(* A ledger has few Measures, so the sums are an association list. *)
+let expense_total roles entries =
+  let totals = ref [] and partial = ref false in
+  let add measure amount =
+    let rec go = function
+      | [] -> [ (measure, amount) ]
+      | (m, sum) :: rest when String.equal m measure -> (m, Z.add sum amount) :: rest
+      | pair :: rest -> pair :: go rest
+    in
+    totals := go !totals
+  in
+  List.iter
+    (fun (e : B.entry) ->
+      List.iter
+        (fun (posting : D.Effect.t) ->
+          match Hashtbl.find_opt roles.table (A.lstr (D.Effect.locus posting)) with
+          | Some Roles.Expense -> add (A.mstr (D.Effect.measure posting)) (A.quanta posting)
+          | Some (Roles.Income | Roles.Asset | Roles.Liability | Roles.Equity) -> ()
+          | None -> partial := true)
+        e.effects)
+    entries;
+  let sorted = List.sort (fun (a, _) (b, _) -> String.compare a b) !totals in
+  totals_text ~book:roles.role_book sorted !partial
+
+let shown_total ~ctx entries =
+  Option.bind (expense_roles ~ctx) (fun roles -> expense_total roles entries)
 
 (* Day groups follow the list order; under an amount order there is no day to
    group by, so no header is drawn. *)
 let groups_of_entries ~ctx ~order records =
   match order with
   | Largest -> []
-  | Newest | Oldest -> (
+  | Newest | Oldest ->
       let rec loop acc index = function
         | [] -> List.rev acc
         | (e : B.entry) :: rest ->
@@ -255,11 +280,12 @@ let groups_of_entries ~ctx ~order records =
             in
             loop acc (index + 1) rest
       in
+      let roles = expense_roles ~ctx in
       List.map
         (fun (g : group) ->
           let entries = List.rev g.entries in
-          { g with entries; total = shown_total ~ctx entries })
-        (loop [] 0 records))
+          { g with entries; total = Option.bind roles (fun roles -> expense_total roles entries) })
+        (loop [] 0 records)
 
 (* The selection the workspace opens on: today's group, or the latest day before
    it inside the window. *)
@@ -286,9 +312,7 @@ let resolve ~ctx t =
   let records = filtered_entries ~ctx t ~records:entries ~locus in
   let groups = groups_of_entries ~ctx ~order:t.order records in
   let tx_count = List.length records in
-  let transaction_row =
-    if tx_count = 0 then 0 else min (max 0 t.transaction_row) (tx_count - 1)
-  in
+  let transaction_row = if tx_count = 0 then 0 else min (max 0 t.transaction_row) (tx_count - 1) in
   let transaction_row =
     if t.pending_selection then default_row ~today:ctx.scope.focus_day groups else transaction_row
   in
@@ -323,11 +347,13 @@ let apply_pending ~ctx t =
 let returned_from_detail ~before_book ~after_book t =
   match t.remembered_scope with
   | None -> (t, "")
-  | Some scope ->
+  | Some scope -> (
       let ctx = { book = after_book; scope; warning = None } in
       let before = { book = before_book; scope; warning = None } in
       let locus = selected_locus ~ctx:before t in
-      let loci = loci_of_records (List.filter (in_window ~window:scope.window) (B.entries before_book)) in
+      let loci =
+        loci_of_records (List.filter (in_window ~window:scope.window) (B.entries before_book))
+      in
       let locus_row =
         match locus with
         | None -> 0
@@ -353,13 +379,13 @@ let returned_from_detail ~before_book ~after_book t =
         | Some id -> List.find_index (fun (e : B.entry) -> e.id = id) records
       in
       match row with
-      | Some transaction_row -> { base with transaction_row }, base.notice
+      | Some transaction_row -> ({ base with transaction_row }, base.notice)
       | None ->
           let fresh = clamp_state ~ctx { base with detail_scroll = 0 } in
           let notice =
             "Selected Event no longer matches this list; selection moved to the nearest row."
           in
-          ({ fresh with notice }, notice)
+          ({ fresh with notice }, notice))
 
 (* 2. Amount and Details formatting (LOAM ActualWorkspace) *)
 
@@ -604,8 +630,7 @@ let move_end ~ctx ~width_of geometry t =
       let count = List.length (visible_entries ~ctx t) in
       let row = if count = 0 then 0 else count - 1 in
       { t with transaction_row = row; detail_scroll = 0; notice = "" }
-  | Details ->
-      { t with detail_scroll = detail_scroll_limit ~ctx ~width_of geometry t; notice = "" }
+  | Details -> { t with detail_scroll = detail_scroll_limit ~ctx ~width_of geometry t; notice = "" }
 
 (* The order cycles by date first; the amount order needs the accounting roles,
    so it is refused (not guessed) when the roles file is unreadable. *)
@@ -738,7 +763,7 @@ let frame ~width_of ~width ~height ~focused ~title ~bottom rows =
    day's EXPENSE total. The amount is never cut: a narrower list drops the count
    first and the total last. *)
 let day_header ~width_of ~width (group : group) =
-  let left = group.day ^ (match weekday_name group.day with "" -> "" | name -> " " ^ name) in
+  let left = group.day ^ match weekday_name group.day with "" -> "" | name -> " " ^ name in
   let count =
     match List.length group.entries with 1 -> "1 entry" | n -> Printf.sprintf "%d entries" n
   in
@@ -764,7 +789,8 @@ let table_row ~width_of width amount_width date desc amount =
 (* Under a day group the date is in the header, so only the description and the
    amount are listed, indented under it. *)
 let grouped_row ~width_of width amount_width desc amount =
-  "  " ^ O.pad ~width_of (max 0 (width - amount_width - 4)) desc
+  "  "
+  ^ O.pad ~width_of (max 0 (width - amount_width - 4)) desc
   ^ "  "
   ^ O.pad_left ~width_of amount_width
       (if width_of amount <= amount_width then amount else "see details")
@@ -855,8 +881,8 @@ let list_panel ~book ~width_of t ~records ~groups ~loci pane (width, height) tit
   (* The selected day's header stays in view when the whole day fits. *)
   let header_display = if selected < Array.length header_rows then header_rows.(selected) else -1 in
   let start =
-    if header_display >= 0 && header_display < start && selected_display - header_display < rows then
-      header_display
+    if header_display >= 0 && header_display < start && selected_display - header_display < rows
+    then header_display
     else start
   in
   let visible = List.filteri (fun i _ -> i >= start && i < start + rows) display in
@@ -865,7 +891,9 @@ let list_panel ~book ~width_of t ~records ~groups ~loci pane (width, height) tit
     List.init rows (fun row ->
         match List.nth_opt visible row with
         | Some display_row ->
-            let chosen = match display_row.entry with Some index -> index = selected | None -> false in
+            let chosen =
+              match display_row.entry with Some index -> index = selected | None -> false
+            in
             ( (if chosen && active then O.Active else display_row.style),
               (if chosen then if active then " > " else " * " else "   ") ^ display_row.text )
         | None ->
@@ -918,6 +946,48 @@ let search_line ~width ~width_of t =
 (* The window's EXPENSE total per Measure, for the screen's title line. *)
 let window_total ~ctx = shown_total ~ctx (scan_window ~book:ctx.book ~window:ctx.scope.window)
 
+(* The period bar: every period with the current one bracketed, the window and
+   its EXPENSE total. The amount is never cut: a narrower bar drops the other
+   periods first, then the window. *)
+let period_bar ~width_of ~width ~total t (window : window) =
+  let tab period =
+    if period = t.period then (O.Heading, "[" ^ period_name period ^ "]")
+    else (O.Chrome, period_name period)
+  in
+  let tabs =
+    List.concat
+      (List.mapi
+         (fun i period -> (if i = 0 then [] else [ (O.Plain, " ") ]) @ [ tab period ])
+         [ Today; Cycle; Month; Year; All ])
+  in
+  let part spans = (O.Plain, "  ") :: spans in
+  let window_part label = if t.period = All then [] else part [ (O.Plain, label) ] in
+  (* A cycle within one year names its last day without the year. *)
+  let short =
+    match (t.period, Cal.shift_days window.end_exclusive (-1)) with
+    | Cycle, Ok last when String.sub last 0 5 = String.sub window.start_day 0 5 ->
+        window.start_day ^ ".." ^ String.sub last 5 5
+    | _ -> window.label
+  in
+  let total_part =
+    match total with Some amount -> part [ (O.Plain, "Expense " ^ amount) ] | None -> []
+  in
+  let head = (O.Plain, " Actual") in
+  let fits spans = width_of (Ui_render.spans_text spans) <= width in
+  let spans =
+    List.find_opt fits
+      [
+        (head :: part tabs) @ window_part window.label @ total_part;
+        (head :: part tabs) @ window_part short @ total_part;
+        (head :: part [ tab t.period ]) @ window_part window.label @ total_part;
+        (head :: part [ tab t.period ]) @ window_part short @ total_part;
+        (head :: part [ tab t.period ]) @ total_part;
+        head :: total_part;
+      ]
+    |> Option.value ~default:(Ui_render.clip_spans ~width_of width [ head ])
+  in
+  (O.Spans spans, Ui_render.spans_text spans)
+
 let screen ~ctx ~total ~draft_retained ~dimensions ~width_of t =
   let g = panel_geometry dimensions in
   let loci, locus, records, groups, t = resolve ~ctx t in
@@ -944,10 +1014,9 @@ let screen ~ctx ~total ~draft_retained ~dimensions ~width_of t =
           (fun warning -> warning)
           [
             (match ctx.warning with Some why -> Some why | None -> None);
-            ( match ctx.scope.roles with
-            | Error why ->
-                Some ("No day totals: " ^ why)
-            | Ok _ -> None );
+            (match ctx.scope.roles with
+            | Error why -> Some ("No day totals: " ^ why)
+            | Ok _ -> None);
           ]
       in
       let text =
@@ -958,36 +1027,17 @@ let screen ~ctx ~total ~draft_retained ~dimensions ~width_of t =
       ( O.Chrome,
         O.clip_text ~width_of g.writable
           (" known through " ^ ctx.scope.today
-          ^ if draft_retained then "   Draft retained" else ""
+          ^ (if draft_retained then "   Draft retained" else "")
           ^ "  |  " ^ text) )
   in
-  (* The workspace title names the window and its EXPENSE total. The amount is
-     never cut: a narrower list drops the window first. *)
-  let title =
-    let parts =
-      List.filter_map
-        (fun part -> part)
-        [
-          Some " Actual";
-          Some (ctx.scope.window.label);
-          (match total with Some amount -> Some ("Expense " ^ amount) | None -> None);
-        ]
-    in
-    let full = String.concat "  |  " parts in
-    let text =
-      if width_of full <= g.writable then full
-      else
-        let short = String.concat "  |  " (List.filter_map (fun p -> p) [ Some " Actual"; (match total with Some amount -> Some ("Expense " ^ amount) | None -> None) ]) in
-        if width_of short <= g.writable then short else " Actual"
-    in
-    (O.Plain, O.clip_text ~width_of g.writable text)
-  in
+  let title = period_bar ~width_of ~width:g.writable ~total t ctx.scope.window in
   let context =
     if g.context_rows = 1 && searching then [ context_line ]
     else List.filteri (fun i _ -> i < g.context_rows) [ title; context_line ]
   in
   let list pane width title =
-    list_panel ~book:ctx.book ~width_of t ~records ~groups ~loci pane (width, list_height g pane)
+    list_panel ~book:ctx.book ~width_of t ~records ~groups ~loci pane
+      (width, list_height g pane)
       title
   in
   let detail () =
@@ -1023,7 +1073,8 @@ let footer ~dimensions ~width_of t =
     ]
   else
     let detailed =
-      "[j/k] select  [h/l] pane  [Tab] cycle  [i] details  [f] period  [s] sort  [/] search  [ ] window"
+      "[j/k] select  [h/l] pane  [Tab] cycle  [i] details  [f] period  [s] sort  [/] search  [ ] \
+       window"
     in
     if width_of detailed <= width then
       [ detailed; "[Enter] open selected  [d] date  [m] merchant  [n] new  [q] back  [{ }] year" ]

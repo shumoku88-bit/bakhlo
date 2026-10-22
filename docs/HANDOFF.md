@@ -27,9 +27,11 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 - Calendar removed (user decision 2026-10-22): the bonsai Home opens Actual, whose period
   windows (Cycle / Month / Year) are where periods are browsed and chosen; `g`, the
   Calendar route, `Screen.env.calendar` and the ambient Calendar input are gone. The Shell
-  keeps one `focus_day` (session start) for new Records and plans. Next slice: an always
-  visible period bar and a period picker in Actual (user choice 2026-10-22).
-  Verification: [Calendar removed](VERIFICATION.md#calendar-removed-2026-10-22).
+  keeps one `focus_day` (session start) for new Records and plans. Actual now has a
+  period bar and an `f` period picker (every window with its count and EXPENSE total,
+  user choice 2026-10-22); at 109.5k synthetic entries moving in it takes 11 ms, opening
+  or switching 60–166 ms. Verification: [Calendar removed](VERIFICATION.md#calendar-removed-2026-10-22),
+  [period bar and picker](VERIFICATION.md#actual-period-bar-and-picker-2026-10-22).
 - Trend series are coloured: each series' braille line and its legend entry (name
   and per-day value) share its own colour (the terminal's own ANSI slots — blue,
   magenta, cyan, red, no yellow — in the Terminal theme, four indexed palette

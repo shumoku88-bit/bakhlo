@@ -23,7 +23,8 @@ let fixture =
    (scope corrected-entries explicit-plans)\n\
    (measures (measure \"jpy\" 0))\n\
    (labels (provided (label \"assets:cash\" \"現金\" \"Cash\") (label \"expenses:groceries\" \"食費\" \
-   \"Food\") (label \"expenses:rent\" \"家賃\" \"Rent\") (label \"expenses:unfiled\" \"雑費\" \"Unfiled\")))\n\
+   \"Food\") (label \"expenses:rent\" \"家賃\" \"Rent\") (label \"expenses:unfiled\" \"雑費\" \
+   \"Unfiled\")))\n\
    (approved-loci (provided \"assets:cash\" \"expenses:groceries\" \"expenses:rent\" \
    \"expenses:unfiled\"))\n\
    (entries)\n\
@@ -78,15 +79,10 @@ let roles =
 let month = { Act.start_day = "2026-10-01"; end_exclusive = "2026-11-01"; label = "Month 2026-10" }
 
 let make_ctx ?(roles = Ok roles) ?(window = month) ?(today = "2026-10-15") ?(measure = "jpy") book =
-  {
-    Act.book = book;
-    scope = { Act.window = window; today = today; focus_day = today; roles = roles; measure = measure };
-    warning = None;
-  }
+  { Act.book; scope = { Act.window; today; focus_day = today; roles; measure }; warning = None }
 
 let rows_of ctx t =
-  Act.screen ~ctx:ctx ~total:None ~draft_retained:false ~dimensions:(120, 36)
-    ~width_of:String.length t
+  Act.screen ~ctx ~total:None ~draft_retained:false ~dimensions:(120, 36) ~width_of:String.length t
 
 let contains rows needle =
   List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) rows
@@ -96,8 +92,7 @@ let presets = "Pension\t2026-09-01\t2026-10-01\t2026-11-01\n"
 let env ?(today = "2026-10-15") ?(roles = roles) ?(presets = Some presets) book =
   Screen.env_for_checks ~book ~measure:"jpy" ~today ~accounting_roles:roles
     ~config:(fun name ->
-      if name = "boundary-presets.tsv" then Ok presets
-      else Error ("undeclared " ^ name))
+      if name = "boundary-presets.tsv" then Ok presets else Error ("undeclared " ^ name))
     ()
 
 let self_check ~width_of () =
@@ -177,15 +172,32 @@ let self_check ~width_of () =
 
   (* 5. Unreadable accounting roles: no totals, one notice whose cause stays
      visible at 80 columns and names the file once. *)
-  let broken = { (make_ctx book) with scope = { (make_ctx book).scope with roles = Error "accounting-roles.tsv is malformed" } } in
+  let broken =
+    {
+      (make_ctx book) with
+      scope = { (make_ctx book).scope with roles = Error "accounting-roles.tsv is malformed" };
+    }
+  in
   let rows_broken = rows_of broken ws in
   require (not (contains rows_broken "1,500 jpy")) "unreadable-roles-no-total";
-  require (contains rows_broken "No day totals: accounting-roles.tsv is malformed") "unreadable-roles-notice";
+  require
+    (contains rows_broken "No day totals: accounting-roles.tsv is malformed")
+    "unreadable-roles-notice";
   let rows_broken_80 =
     Act.screen ~ctx:broken ~total:None ~draft_retained:false ~dimensions:dim_compact
       ~width_of:String.length ws
   in
-  require (contains rows_broken_80 "accounting-roles.tsv is malformed") "unreadable-roles-cause-at-80";
+  require
+    (contains rows_broken_80 "accounting-roles.tsv is malformed")
+    "unreadable-roles-cause-at-80";
+  (* A retained draft adds its notice; the cause stays on the line. *)
+  let rows_drafted =
+    Act.screen ~ctx:broken ~total:None ~draft_retained:true ~dimensions:dim_wide
+      ~width_of:String.length ws
+  in
+  require
+    (contains rows_drafted "Draft retained  |  No day totals: accounting-roles.tsv is malformed")
+    "unreadable-roles-cause-kept-with-a-retained-draft";
 
   require (contains rows_broken "Supermarket") "unreadable-roles-list-still-works";
   require (List.length (Act.visible_entries ~ctx:broken ws) = 3) "unreadable-roles-entries-kept";
@@ -211,16 +223,20 @@ let self_check ~width_of () =
   let groceries = step (step (step ws 'h') 'j') 'j' in
   require (Act.selected_locus ~ctx groceries = Some "expenses:groceries") "locus-filter-selected";
   let rows_groceries = rows_of ctx groceries in
-  require (header_has_in rows_groceries "2026-10-15 Thu" "1,500 jpy") "filtered-total-matches-shown-rows";
+  require
+    (header_has_in rows_groceries "2026-10-15 Thu" "1,500 jpy")
+    "filtered-total-matches-shown-rows";
   require (not (contains rows_groceries "2026-10-14 Wed")) "filtered-day-hidden";
 
   (* 5d. At 80x24 Details closes and the list keeps the height; [i] opens it. *)
-  let screen_rows ws = Act.screen ~ctx ~total:None ~draft_retained:false ~dimensions:dim_compact ~width_of:String.length ws in
+  let screen_rows ws =
+    Act.screen ~ctx ~total:None ~draft_retained:false ~dimensions:dim_compact
+      ~width_of:String.length ws
+  in
   let rows_80 = screen_rows ws in
   require (not (contains rows_80 "Details")) "compact-details-collapsed";
   require (List.length rows_80 = snd dim_compact) "compact-list-fills-the-height";
   require (contains (screen_rows (step ws 'i')) "Details") "compact-details-on-i";
-
 
   (* 6. Pane cycling *)
   let ws, _ = Act.handle ~ctx ~dimensions:dim_wide ~width_of ws (key `Tab) in
@@ -320,9 +336,7 @@ let self_check ~width_of () =
   require (Act.sort_order ws = Act.Largest) "order-toggled-amount";
   let amount_entries = Act.visible_entries ~ctx ws in
   require
-    (match amount_entries with
-    | e :: _ when e.memo = Some "Apartment rent" -> true
-    | _ -> false)
+    (match amount_entries with e :: _ when e.memo = Some "Apartment rent" -> true | _ -> false)
     "amount-order-largest-first";
   let rows_amount = rows_of ctx ws in
   require (not (contains rows_amount " entries")) "amount-order-has-no-day-header";
@@ -331,9 +345,13 @@ let self_check ~width_of () =
   require (Act.sort_order ws = Act.Newest) "order-back-to-newest";
 
   (* The amount order needs the roles: without them it is refused, not guessed. *)
-  let broken_ctx = { (make_ctx book) with scope = { (make_ctx book).scope with roles = Error "unreadable" } } in
+  let broken_ctx =
+    { (make_ctx book) with scope = { (make_ctx book).scope with roles = Error "unreadable" } }
+  in
   let ws_amount, _ = Act.handle ~ctx:broken_ctx ~dimensions:dim_wide ~width_of ws (char_key 's') in
-  let ws_amount, _ = Act.handle ~ctx:broken_ctx ~dimensions:dim_wide ~width_of ws_amount (char_key 's') in
+  let ws_amount, _ =
+    Act.handle ~ctx:broken_ctx ~dimensions:dim_wide ~width_of ws_amount (char_key 's')
+  in
   require (Act.sort_order ws_amount = Act.Oldest) "amount-order-refused-without-roles";
   require
     (Base.String.is_substring (Act.notice ws_amount) ~substring:"accounting-roles.tsv")
@@ -379,10 +397,12 @@ let self_check ~width_of () =
   let lines_wide = rows_of ctx ws in
   require (List.length lines_wide > 0) "wide-screen-rendered";
   let lines_compact =
-    Act.screen ~ctx:ctx ~total:None ~draft_retained:false ~dimensions:dim_compact ~width_of ws
+    Act.screen ~ctx ~total:None ~draft_retained:false ~dimensions:dim_compact ~width_of ws
   in
   require (List.length lines_compact > 0) "compact-screen-rendered";
-  let lines_48 = Act.screen ~ctx:ctx ~total:None ~draft_retained:false ~dimensions:(48, 14) ~width_of ws in
+  let lines_48 =
+    Act.screen ~ctx ~total:None ~draft_retained:false ~dimensions:(48, 14) ~width_of ws
+  in
   let coffee_row =
     List.find_opt (fun (_, line) -> Base.String.is_substring line ~substring:"Coffee shop") lines_48
   in
@@ -422,9 +442,7 @@ let self_check ~width_of () =
      and Locus label. *)
   let plan_book =
     let rent_entry =
-      List.find
-        (fun (e : B.entry) -> e.id = "2026-10-14:Apartment rent")
-        (B.entries book)
+      List.find (fun (e : B.entry) -> e.id = "2026-10-14:Apartment rent") (B.entries book)
     in
     let plan : B.plan =
       let changes =
@@ -444,9 +462,7 @@ let self_check ~width_of () =
     in
     get (B.put_plan book ~replace:false plan)
   in
-  let browser_rows browser =
-    RB.visible ~book:plan_book browser (RB.all_rows plan_book)
-  in
+  let browser_rows browser = RB.visible ~book:plan_book browser (RB.all_rows plan_book) in
   let identities browser = List.map RB.identity (browser_rows browser) in
   let all_ids = identities RB.empty in
   require (List.length all_ids = 4) "browser-empty-query-keeps-all-rows";
@@ -471,9 +487,7 @@ let self_check ~width_of () =
     (identities (RB.with_query RB.empty "2026-10-14:Apartment rent")
     = [ (RB.Actual_row, "2026-10-14:Apartment rent") ])
     "browser-search-id";
-  require
-    (List.length (identities (RB.with_query RB.empty "食費")) = 2)
-    "browser-search-locus-label";
+  require (List.length (identities (RB.with_query RB.empty "食費")) = 2) "browser-search-locus-label";
   require
     (identities (RB.with_query RB.empty "plan-rent") = [ (RB.Scheduled_row, "plan-rent") ])
     "browser-search-scheduled-id";
@@ -498,66 +512,204 @@ let self_check ~width_of () =
   let stale_rows = rows_of (make_ctx empty_book) ws in
   require (contains stale_rows "0/0") "stale-row-screen-clamps";
 
-  (* 18. The Screen owns the period filter and its windows. *)
+  (* 18. The Screen owns the period, its windows, the period bar and the picker. *)
   let screen_env = env book in
   let geometry = { Screen.screen = (100, 30); body = (100, 27); content = (100, 27); width_of } in
-  let title_of state = (Sc.view screen_env geometry state).Screen.title in
-  let title_has state needle =
-    Base.String.is_substring (title_of state) ~substring:needle
+  let press ?(env = screen_env) state input = fst (Sc.handle env geometry state input) in
+  let request ?(env = screen_env) state input = snd (Sc.handle env geometry state input) in
+  let keys ?env state inputs =
+    List.fold_left (fun state input -> press ?env state input) state inputs
   in
-  (* The Cycle window is the configured preset that contains today. *)
-  require (title_has (Act.create ()) "Cycle 2026-10-01..2026-11-01") "title-names-the-cycle";
-  require (title_has (Act.create ()) "Expense 51,500 jpy") "title-shows-the-window-total";
+  let title_of state = (Sc.view screen_env geometry state).Screen.title in
+  let title_has state needle = Base.String.is_substring (title_of state) ~substring:needle in
+  let bar ?(geometry = geometry) state =
+    snd (List.hd (Lazy.force (Sc.view screen_env geometry state).Screen.rows))
+  in
+  let overlay ?(env = screen_env) state =
+    match (Sc.view env geometry state).Screen.overlay with
+    | Some frame -> frame.Ui_overlay.rows
+    | None -> []
+  in
+  let refused = function Screen.Message why -> why <> "" | _ -> false in
+  let selected_day state =
+    Option.map
+      (fun (e : B.entry) -> e.day)
+      (Act.selected_entry ~ctx:(Sc.context screen_env state) (Sc.workspace state))
+  in
+  let fresh = Sc.create () in
+  (* The Cycle window is the configured preset that contains today; the last day
+     is named, not the exclusive end. *)
+  require (title_has fresh "Cycle 2026-10-01 .. 2026-10-31") "title-names-the-cycle";
+  require (title_has fresh "Expense 51,500 jpy") "title-shows-the-window-total";
+  (* The period bar names every period, brackets the current one and keeps the total. *)
+  let wide_bar = bar fresh in
+  require
+    (List.for_all
+       (fun needle -> Base.String.is_substring wide_bar ~substring:needle)
+       [
+         "Day"; "[Cycle]"; "Month"; "Year"; "All"; "2026-10-01 .. 2026-10-31"; "Expense 51,500 jpy";
+       ])
+    "period-bar-names-every-period-the-window-and-the-total";
+  require
+    (match List.hd (Lazy.force (Sc.view screen_env geometry fresh).Screen.rows) with
+    | O.Spans spans, _ -> List.mem (O.Heading, "[Cycle]") spans
+    | _ -> false)
+    "period-bar-marks-the-current-period";
+  List.iter
+    (fun width ->
+      let narrow =
+        { geometry with Screen.screen = (width, 24); body = (width, 21); content = (width, 21) }
+      in
+      let text = bar ~geometry:narrow fresh in
+      require (width_of text <= width) "period-bar-fits";
+      require
+        (Base.String.is_substring text ~substring:"Expense 51,500 jpy")
+        "period-bar-keeps-the-total-when-narrow")
+    [ 80; 48; 32 ];
 
   (* A window outside the configured presets is refused, not guessed. *)
-  let ws, request = Sc.handle screen_env geometry (Act.create ()) (char_key ']') in
-  require (Act.period_offset ws = 0) "window-move-refused-outside-the-presets";
+  let moved = press fresh (char_key ']') in
+  require (Act.period_offset (Sc.workspace moved) = 0) "window-move-refused-outside-the-presets";
+  require (refused (request fresh (char_key ']'))) "window-move-refusal-is-reported";
+  let back = press fresh (char_key '[') in
+  require (Act.period_offset (Sc.workspace back) = -1) "window-moved-back";
+  require (title_has back "2026-09-01 .. 2026-09-30") "window-moved-to-the-previous-cycle";
+  let cycle_year = press fresh (char_key '{') in
   require
-    (match request with Screen.Message why -> why <> "" | _ -> false)
-    "window-move-refusal-is-reported";
-  (* The window moves to the previous configured window. *)
-  let ws, _ = Sc.handle screen_env geometry (Act.create ()) (char_key '[') in
-  require (Act.period_offset ws = -1) "window-moved-back";
-  require (title_has ws "2026-09-01") "window-moved-to-the-previous-cycle";
+    (title_has cycle_year "Cycle 2026-10-01 .. 2026-10-31")
+    "year-move-refused-outside-the-presets";
+  require (refused (request fresh (char_key '{'))) "year-move-refusal-is-reported";
 
-  (* The period filter cycles; the window follows it. *)
-  let ws, request = Sc.handle screen_env geometry (Act.create ()) (char_key 'f') in
-  require (Act.period ws = Act.Month) "period-cycles-to-month";
-  require (request <> Screen.Ignored) "period-stays-on-the-route";
-  require (title_has ws "Month 2026-10") "title-names-the-month";
+  (* f opens the picker on the current window: every configured cycle, newest
+     first, with its entry count and total, over the unchanged list. *)
+  let picking = press fresh (char_key 'f') in
+  require
+    (Sc.modal picking && Sc.workspace picking = Sc.workspace fresh)
+    "f-opens-the-picker-over-the-list";
+  let picker = Option.get (Sc.picker picking) in
+  require (Actual_period_picker.period picker = Act.Cycle) "picker-opens-on-the-current-period";
+  require
+    (match Actual_period_picker.selected picker with
+    | Some row ->
+        row.window.start_day = "2026-10-01"
+        && row.now && row.count = 3 && row.total = Some "51,500 jpy"
+    | None -> false)
+    "picker-selects-the-current-window-with-its-count-and-total";
+  let lines = overlay picking in
+  let line_has needle = contains lines needle in
+  require
+    (line_has "Choose period" && line_has "[Cycle]"
+    && line_has "2026-10-01 .. 2026-10-31  now"
+    && line_has "3 entries  51,500 jpy"
+    && line_has "2026-09-01 .. 2026-09-30"
+    && line_has "no entries")
+    "picker-lists-the-cycles-with-counts-and-totals";
+  require
+    (List.for_all (fun (_, text) -> width_of text <= 100) lines
+    && (Sc.view screen_env geometry picking).Screen.footer = Actual_period_picker.footer ~width:100
+    )
+    "picker-fits-and-names-its-keys";
+  require (keys picking [ key `Escape ] = fresh) "picker-escape-leaves-the-list-unchanged";
+  require
+    (keys picking [ char_key 'q' ] = fresh && keys picking [ char_key 'f' ] = fresh)
+    "picker-q-and-f-close";
+
+  (* Enter opens the chosen window; the list opens on its last day. *)
+  let september = keys picking [ char_key 'j'; key `Enter ] in
+  require (not (Sc.modal september)) "picker-enter-closes";
+  require
+    (title_has september "Cycle 2026-09-01 .. 2026-09-30"
+    && Act.focus_day (Sc.workspace september) = Some "2026-09-30")
+    "picker-enter-opens-the-chosen-cycle";
+  (* The months run from the earliest to the latest of the ledger, today and the
+     current window. *)
+  let months = keys september [ char_key 'f'; char_key 'l' ] in
+  let month_lines = overlay months in
+  require
+    (Actual_period_picker.period (Option.get (Sc.picker months)) = Act.Month
+    && contains month_lines "[Month]"
+    && contains month_lines "2026-10  now"
+    && contains month_lines "2026-09"
+    && not (contains month_lines "2026-08"))
+    "picker-l-lists-the-months";
+  require
+    (match Actual_period_picker.selected (Option.get (Sc.picker months)) with
+    | Some row -> row.window.start_day = "2026-09-01"
+    | None -> false)
+    "picker-period-switch-keeps-the-chosen-time";
+  (* Month from today: the current month with today's group selected. *)
+  let month = keys fresh [ char_key 'f'; char_key 'l'; key `Enter ] in
+  require
+    (Act.period (Sc.workspace month) = Act.Month && title_has month "Month 2026-10")
+    "picker-opens-the-month";
+  require (selected_day month = Some "2026-10-15") "month-selects-today";
   (* A year back and forth keeps the period: the same month a year earlier. *)
-  let back, _ = Sc.handle screen_env geometry ws (char_key '{') in
-  require (title_has back "Month 2025-10") "year-back-keeps-the-month";
-  let again, _ = Sc.handle screen_env geometry back (char_key '}') in
-  require (title_has again "Month 2026-10") "year-forward-returns";
-  (* A Cycle a year away is outside the configured presets: refused, not guessed. *)
-  let cycle, request = Sc.handle screen_env geometry (Act.create ()) (char_key '{') in
-  require (title_has cycle "Cycle 2026-10-01..2026-11-01") "year-move-refused-outside-the-presets";
+  let year_back = press month (char_key '{') in
+  require (title_has year_back "Month 2025-10") "year-back-keeps-the-month";
+  require (title_has (press year_back (char_key '}')) "Month 2026-10") "year-forward-returns";
+  let year = keys fresh [ char_key 'f'; char_key 'l'; char_key 'l'; key `Enter ] in
   require
-    (match request with Screen.Message why -> why <> "" | _ -> false)
-    "year-move-refusal-is-reported";
-  let ws, _ = Sc.handle screen_env geometry ws (char_key 'f') in
-  require (Act.period ws = Act.Year) "period-cycles-to-year";
-  require (title_has ws "Year 2026") "title-names-the-year";
-  let ws, _ = Sc.handle screen_env geometry ws (char_key 'f') in
-  require (Act.period ws = Act.All) "period-cycles-to-all";
-  require (title_has ws "All time") "title-names-all-time";
-  let ws, _ = Sc.handle screen_env geometry ws (char_key 'f') in
-  require (Act.period ws = Act.Today) "period-cycles-to-today";
-  require (title_has ws "Day 2026-10-15") "title-names-the-day";
+    (Act.period (Sc.workspace year) = Act.Year && title_has year "Year 2026")
+    "picker-opens-the-year";
+  require
+    (Actual_period_picker.period
+       (Option.get (Sc.picker (keys fresh [ char_key 'f'; key ~mods:[ `Shift ] `Tab ])))
+    = Act.Today)
+    "picker-shift-tab-goes-back";
+  let all = keys fresh [ char_key 'f'; char_key 'h'; char_key 'h'; key `Enter ] in
+  require
+    (Act.period (Sc.workspace all) = Act.All && title_has all "All time")
+    "picker-wraps-to-all";
+  (* Days: the days with entries and today; a past day opens with its entries. *)
+  let days = keys fresh [ char_key 'f'; char_key 'h' ] in
+  let day_lines = overlay days in
+  require
+    (contains day_lines "[Day]"
+    && contains day_lines "2026-10-15 Thu  now"
+    && contains day_lines "2026-10-14 Wed"
+    && contains day_lines "50,000 jpy")
+    "picker-lists-the-days";
+  let day = keys days [ char_key 'j'; key `Enter ] in
+  require
+    (Act.period (Sc.workspace day) = Act.Today
+    && title_has day "Day 2026-10-14 Wed"
+    && selected_day day = Some "2026-10-14")
+    "picker-opens-a-past-day";
 
-  (* Opened from the Calendar on a day, the window contains that day and its group
-     is selected. *)
-  let focused = Sc.enter ~focus_day:"2026-10-14" (Act.create ()) in
-  require (title_has focused "Cycle 2026-10-01..2026-11-01") "focus-day-window";
-  require (title_has (Sc.enter ~focus_day:"2026-09-20" (Act.create ())) "Cycle 2026-09-01..2026-10-01")
-    "focus-day-picks-its-cycle";
-  let focused, _ = Sc.handle screen_env geometry focused (char_key 'z') in
+  (* Without boundary presets the Cycle picker says why; Enter refuses and stays. *)
+  let unconfigured = env ~presets:None book in
+  let bare = press ~env:unconfigured fresh (char_key 'f') in
   require
-    (match Act.selected_entry ~ctx:(Sc.context screen_env focused) focused with
-     | Some e -> e.day = "2026-10-14"
-     | None -> false)
-    "focus-day-selected";
+    (contains (overlay ~env:unconfigured bare) "Cycle not configured in boundary-presets.tsv.")
+    "picker-names-a-missing-cycle";
+  require
+    (Sc.modal (press ~env:unconfigured bare (key `Enter))
+    && refused (request ~env:unconfigured bare (key `Enter)))
+    "picker-refuses-a-missing-cycle";
+  require
+    (title_has (keys ~env:unconfigured bare [ char_key 'l'; key `Enter ]) "Month 2026-10")
+    "picker-month-works-without-presets";
+
+  (* A reload recounts the open picker on the new book, on the same window. *)
+  let grown =
+    add_entry book ~day:"2026-10-16" ~memo:"Bakery" ~locus1:"assets:cash" ~amt1:(-300)
+      ~locus2:"expenses:groceries" ~amt2:300
+  in
+  let reloaded, _ = Sc.reloaded (env grown) picking in
+  require
+    (match Option.bind (Sc.picker reloaded) Actual_period_picker.selected with
+    | Some row ->
+        row.window.start_day = "2026-10-01" && row.count = 4 && row.total = Some "51,800 jpy"
+    | None -> false)
+    "reload-recounts-the-open-picker";
+
+  (* Entered on a day, the window contains that day and its group is selected. *)
+  let focused = Sc.enter ~focus_day:"2026-10-14" (Sc.create ()) in
+  require (title_has focused "Cycle 2026-10-01 .. 2026-10-31") "focus-day-window";
+  require
+    (title_has (Sc.enter ~focus_day:"2026-09-20" (Sc.create ())) "Cycle 2026-09-01 .. 2026-09-30")
+    "focus-day-picks-its-cycle";
+  require (selected_day (press focused (char_key 'z')) = Some "2026-10-14") "focus-day-selected";
 
   Printf.printf
     "PASS: Actual workspace synthetic checks (day groups, totals, partial marker, unreadable \

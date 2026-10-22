@@ -228,7 +228,8 @@ let selected_target (state : C.state) =
   | W.Actual ->
       Option.map
         (fun e -> Screen.Entry e)
-        (Act.selected_entry ~ctx:(actual_context state) state.screens.actual)
+        (Act.selected_entry ~ctx:(actual_context state)
+           (Actual_screen.workspace state.screens.actual))
   | W.Scheduled ->
       Option.map
         (fun p -> Screen.Plan p)
@@ -248,29 +249,33 @@ let actual_dims ~dimensions ~width_of (state : C.state) =
 let actual_window ~dimensions ~width_of (state : C.state) =
   let content = actual_dims ~dimensions ~width_of state in
   ( snd content,
-    Act.detail_window ~ctx:(actual_context state) ~dimensions:content ~width_of state.screens.actual
-  )
+    Act.detail_window ~ctx:(actual_context state) ~dimensions:content ~width_of
+      (Actual_screen.workspace state.screens.actual) )
 
 let actual_selected_id (state : C.state) =
   Option.map
     (fun (e : B.entry) -> e.id)
-    (Act.selected_entry ~ctx:(actual_context state) state.screens.actual)
+    (Act.selected_entry ~ctx:(actual_context state) (Actual_screen.workspace state.screens.actual))
 
-let actual_detail (state : C.state) = Act.pane state.screens.actual = Act.Details
+let actual_detail (state : C.state) =
+  Act.pane (Actual_screen.workspace state.screens.actual) = Act.Details
 
 let actual_scroll state =
-  if actual_detail state then Act.detail_scroll state.C.screens.actual else 0
+  if actual_detail state then Act.detail_scroll (Actual_screen.workspace state.C.screens.actual)
+  else 0
 
-let actual_row (state : C.state) = Act.transaction_row state.screens.actual
-let actual_query (state : C.state) = Act.search_query state.screens.actual
+let actual_row (state : C.state) =
+  Act.transaction_row (Actual_screen.workspace state.screens.actual)
+
+let actual_query (state : C.state) = Act.search_query (Actual_screen.workspace state.screens.actual)
 
 let actual_selected (state : C.state) =
   Option.map
     (fun e -> Record_browser.Actual_entry e)
-    (Act.selected_entry ~ctx:(actual_context state) state.screens.actual)
+    (Act.selected_entry ~ctx:(actual_context state) (Actual_screen.workspace state.screens.actual))
 
 let actual_rows (state : C.state) =
-  Act.visible_entries ~ctx:(actual_context state) state.screens.actual
+  Act.visible_entries ~ctx:(actual_context state) (Actual_screen.workspace state.screens.actual)
 
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)

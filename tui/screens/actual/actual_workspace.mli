@@ -15,7 +15,7 @@ type scope = {
   window : window;
   today : string;
   focus_day : string;
-  (** The day the window was opened on: today, or the Calendar's selected day. *)
+      (** The day the window was opened on: today, or the day of a chosen window. *)
   roles : roles;
   measure : string;
 }
@@ -24,7 +24,7 @@ type context = {
   book : B.t;
   scope : scope;
   warning : string option;
-  (** The window could not be resolved; the list still works and says so. *)
+      (** The window could not be resolved; the list still works and says so. *)
 }
 
 type t
@@ -55,6 +55,16 @@ val set_period_offset : int -> t -> t
 val set_focus_day : string -> t -> t
 (** Opens the same period on the window containing this day. *)
 
+val set_window : period -> focus_day:string -> t -> t
+(** Opens [period] on the window containing [focus_day], selecting that day's
+    group or the latest day before it. *)
+
+val period_name : period -> string
+(** The name the period bar and the picker show. *)
+
+val weekday_name : string -> string
+(** "Mon" .. "Sun"; empty for a date that does not parse. *)
+
 val set_scope : scope -> t -> t
 (** The scope of the current render, kept for a drill return. *)
 
@@ -80,6 +90,20 @@ val screen :
   t ->
   (Daily_overlays.style * string) list
 
+type expense_roles
+
+val expense_roles : ctx:context -> expense_roles option
+(** The accounting roles of [ctx], ready for EXPENSE totals; [None] when they are
+    unreadable. *)
+
+val expense_total : expense_roles -> B.entry list -> string option
+(** The EXPENSE total per Measure of these entries in the shared money format,
+    marked [+?] when an effect has no role. *)
+
+val shown_total : ctx:context -> B.entry list -> string option
+(** The EXPENSE total per Measure of these entries in the shared money format,
+    marked [+?] when an effect has no role; [None] without readable roles. *)
+
 val window_total : ctx:context -> string option
 (** The window's EXPENSE total per Measure, in the shared money format; [total]
     is that text, already formatted for the title. *)
@@ -89,9 +113,5 @@ val search_line : width:int -> width_of:(string -> int) -> t -> Daily_overlays.s
 val cursor_position : dimensions:int * int -> width_of:(string -> int) -> t -> (int * int) option
 
 val detail_window :
-  ctx:context ->
-  dimensions:int * int ->
-  width_of:(string -> int) ->
-  t ->
-  Ui_panel.window
+  ctx:context -> dimensions:int * int -> width_of:(string -> int) -> t -> Ui_panel.window
 (** Details pane viewport for the content dimensions the workspace is given. *)

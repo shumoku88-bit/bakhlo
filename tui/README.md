@@ -69,7 +69,14 @@ Actualは幅が足りる一覧でDate／Description／Amountを整列し、正�
 ActualはLoci／Actuals／Detailsの3ペインと画面内の`/`検索を接続済み。
 検索は入力中に絞り込み、Enterで保持、Escで解除する。長文は可視末尾だけを表示し、
 保持する検索値を切らない。日本語を含む末尾と実カーソルを同じ可視窓に収める。
-`f`は日付scope、`s`はsort、Tab／h/lはpane、`i`はDetails。Actuals／DetailsのEnterは1回で選択明細のSelected Dayを開く。
+一覧は期間窓（Day / Cycle / Month / Year / All）の中を日別にまとめる。最上行の期間バーは全期間を並べて現在を`[ ]`で示し、
+窓（Cycleは最終日まで）とEXPENSE合計を出す。狭い端末では他の期間、次に窓を省き、合計は切らない。
+`f`は期間選択リスト：選んだ期間の全窓を新しい順に、件数とEXPENSE合計（検索・Locus絞込みに関係しない窓全体）と
+今日を含む窓の`now`付きで並べる。`h/l`／Tabで期間、`j/k`・PgUp/PgDn・Home/Endで窓、Enterで開く（今日を含めば今日、
+それ以外は窓の最終日を選択日にする）、Esc/`q`/`f`で閉じる。MonthとYearは台帳の最古から最新・今日まで、Dayは記録のある日と今日、
+Cycleは`boundary-presets.tsv`で表示中の窓を含むプリセット（なければ今日を含むもの）。未設定なら理由を出しEnterは拒否する。
+開いている間はSpace等も選択リストが受け、Ctrl-Rの再読込では件数を数え直す。`[`/`]`は前後の窓、`{`/`}`は1年前後。
+`s`はsort、Tab／h/lはpane、`i`はDetails。Actuals／DetailsのEnterは1回で選択明細のSelected Dayを開く。
 同日の別明細や以前のSelected Day検索へ逸れず、明細IDで選択する。戻ると親Actualの検索・scope・sort・選択・paneを保持する。
 ActualとScheduledの詳細はHome／Endで選択を変えず、ページ送りは可視行数に従う。
 3ペイン全体の最新LOAMとの配置・操作一致は未認定。限定した検索対照と未達範囲はUI差分台帳を参照する。

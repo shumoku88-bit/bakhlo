@@ -13,6 +13,26 @@ let parse_boundary_presets text =
   | Ok presets -> Ok (Boundary_presets.windows presets)
   | Error () -> Error "Malformed boundary-presets.tsv; no period was inferred."
 
+(* The windows of the first preset with a window containing [today], in order, and
+   the index of that window. *)
+let cycle_windows ~today ~boundary_presets_text =
+  match boundary_presets_text with
+  | None -> Error "Cycle not configured in boundary-presets.tsv."
+  | Some text -> (
+      match parse_boundary_presets text with
+      | Error e -> Error e
+      | Ok windows -> (
+          match List.find_opt (fun (_, a, b) -> a <= today && today < b) windows with
+          | None -> Error "No explicit boundary preset contains today."
+          | Some (name, current, _) ->
+              let named =
+                List.filter_map (fun (n, a, b) -> if n = name then Some (a, b) else None) windows
+              in
+              let index =
+                Option.value ~default:0 (List.find_index (fun (a, _) -> a = current) named)
+              in
+              Ok (named, index)))
+
 let resolve ~today ~preset ~offset ~boundary_presets_text =
   match preset with
   | Month -> (
@@ -54,42 +74,21 @@ let resolve ~today ~preset ~offset ~boundary_presets_text =
           label = "All Time (Full Ledger)";
         }
   | Cycle | Previous_cycle -> (
-      match boundary_presets_text with
-      | None -> Error "Cycle not configured in boundary-presets.tsv."
-      | Some text -> (
-          match parse_boundary_presets text with
-          | Error e -> Error e
-          | Ok windows -> (
-              let current_window =
-                List.find_opt (fun (_, a, b) -> a <= today && today < b) windows
-              in
-              match current_window with
-              | None -> Error "No explicit boundary preset contains today."
-              | Some (name, cur_a, cur_b) ->
-                  let name_windows = List.filter (fun (n, _, _) -> n = name) windows in
-                  let current_idx =
-                    match
-                      List.find_index (fun (_, a, b) -> a = cur_a && b = cur_b) name_windows
-                    with
-                    | Some idx -> idx
-                    | None -> 0
-                  in
-                  let target_idx =
-                    if preset = Previous_cycle then current_idx - 1 + offset
-                    else current_idx + offset
-                  in
-                  if target_idx < 0 || target_idx >= List.length name_windows then
-                    Error "Cycle boundary is outside configured presets."
-                  else
-                    let _, start_day, end_exclusive = List.nth name_windows target_idx in
-                    let cycle_name =
-                      if preset = Previous_cycle then "Previous Cycle" else "Cycle"
-                    in
-                    Ok
-                      {
-                        preset;
-                        start_day;
-                        end_exclusive;
-                        label = Printf.sprintf "%s (%s .. %s)" cycle_name start_day end_exclusive;
-                      })))
-
+      match cycle_windows ~today ~boundary_presets_text with
+      | Error e -> Error e
+      | Ok (windows, current_idx) ->
+          let target_idx =
+            if preset = Previous_cycle then current_idx - 1 + offset else current_idx + offset
+          in
+          if target_idx < 0 || target_idx >= List.length windows then
+            Error "Cycle boundary is outside configured presets."
+          else
+            let start_day, end_exclusive = List.nth windows target_idx in
+            let cycle_name = if preset = Previous_cycle then "Previous Cycle" else "Cycle" in
+            Ok
+              {
+                preset;
+                start_day;
+                end_exclusive;
+                label = Printf.sprintf "%s (%s .. %s)" cycle_name start_day end_exclusive;
+              })

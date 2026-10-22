@@ -308,7 +308,7 @@ let all =
         view = Actual_screen.view;
         saved = Actual_screen.saved;
         published = Screen.no_publication;
-        reloaded = Screen.no_reload;
+        reloaded = Actual_screen.reloaded;
         book_changed = Actual_screen.book_changed;
       };
     Owner

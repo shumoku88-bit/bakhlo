@@ -17,3 +17,10 @@ val resolve :
   (period, string) result
 (** The window of [preset] containing [today], moved by [offset] windows. Cycle
     presets resolve only from configured boundaries. *)
+
+val cycle_windows :
+  today:string ->
+  boundary_presets_text:string option ->
+  ((string * string) list * int, string) result
+(** The (start, end-exclusive) windows of the first preset with a window containing
+    [today], in file order, and the index of that window. *)

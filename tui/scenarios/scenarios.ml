@@ -20,6 +20,7 @@ let run ~width_of () =
   panel_checks ~width_of ();
   input_checks ~width_of ();
   actual_browsing_checks ~width_of ~directory home;
+  period_picker_integration_checks ~width_of ~directory home;
   scheduled_panel_checks ~width_of ~directory home;
   reversal_checks ~width_of ~directory home;
   date_correction_checks ~width_of ~directory home;

@@ -1523,15 +1523,19 @@ let event_merchant_integration_checks ~width_of ~directory () =
   (* 1. Actual workspace: search typing non-collision *)
   let actual_view = C.open_route initial_state W.Actual in
   let search_started = Option.get (H.handle ~width_of actual_view (`Key (`ASCII '/', []))) in
-  require (Act.search_editing search_started.screens.actual) "merch-search-editing-active";
+  require
+    (Act.search_editing (Actual_screen.workspace search_started.screens.actual))
+    "merch-search-editing-active";
   let search_typed_m = Option.get (H.handle ~width_of search_started (`Key (`ASCII 'm', []))) in
   require
-    (Act.search_editing search_typed_m.screens.actual
-    && Act.search_query search_typed_m.screens.actual = "m")
+    (Act.search_editing (Actual_screen.workspace search_typed_m.screens.actual)
+    && Act.search_query (Actual_screen.workspace search_typed_m.screens.actual) = "m")
     "merch-typing-m-in-search-updates-query";
   require (no_modal search_typed_m) "merch-search-does-not-open-editor";
   let search_cleared = Option.get (H.handle ~width_of search_typed_m (`Key (`Escape, []))) in
-  require (not (Act.search_editing search_cleared.screens.actual)) "merch-search-cleared";
+  require
+    (not (Act.search_editing (Actual_screen.workspace search_cleared.screens.actual)))
+    "merch-search-cleared";
 
   (* 2. Open Event Merchant editor on unclassified Actual 'e1' *)
   let merch_opened = Option.get (H.handle ~width_of search_cleared (`Key (`ASCII 'm', []))) in
@@ -1973,3 +1977,76 @@ let quick_capture_integration_checks ~width_of ~directory () =
   print_endline
     "PASS: Quick capture through the Shell previews and publishes a repeat of a past Record as a \
      new entry (cold)."
+
+(* The Actual period picker through the Shell: it takes the keys while open
+   (Space does not open Commands), survives a reload, and Enter opens the chosen
+   window; nothing is written. *)
+let period_picker_integration_checks ~width_of ~directory home =
+  let posting locus quanta =
+    D.Effect.create ~key:None
+      ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+      ~quantity:(D.Quantity.of_quanta (Z.of_int quanta))
+  in
+  let entry n : B.entry =
+    {
+      id = Printf.sprintf "picker-%02d" n;
+      day = Printf.sprintf "2026-10-%02d" (n + 1);
+      memo = Some (Printf.sprintf "Synthetic picker purchase %02d" n);
+      effects = [ posting "wallet" (-100 - n); posting "food" (100 + n) ];
+      reversal_of = None;
+      exchange = None;
+      original_amount = None;
+      merchant = None;
+    }
+  in
+  let book =
+    List.fold_left
+      (fun book n -> get (B.put_entry book ~replace:false (entry n) ~plan:None))
+      home.C.session.book (List.init 3 Fun.id)
+  in
+  let path = directory ^ "/actual-picker.sexp" in
+  F.write_new path (B.to_string book);
+  let before = F.read path in
+  let dimensions = (100, 30) in
+  let key = key ~dimensions ~width_of in
+  let overlay state = Option.value ~default:[] (R.overlay_screen ~dimensions ~width_of state) in
+  let has rows needle =
+    List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows
+  in
+  let actual = C.open_route (C.initial ~config_home:directory (F.load path)) W.Actual in
+  let picking = key actual (`ASCII 'f') in
+  require (has (overlay picking) "Choose period") "picker-overlay-painted-through-the-shell";
+  require
+    (List.hd (R.footer picking) = List.hd (Actual_period_picker.footer ~width:100))
+    "picker-footer-replaces-the-list-keys";
+  let spaced = key picking (`ASCII ' ') in
+  require
+    (spaced.overlay = C.No_overlay && has (overlay spaced) "Choose period")
+    "picker-keeps-space-from-the-commands";
+  let months = key picking (`ASCII 'l') in
+  require
+    (has (overlay months) "[Month]" && has (overlay months) "2026-10")
+    "picker-switches-to-months";
+  let reloaded =
+    match H.handle ~dimensions ~width_of months (`Key (`ASCII 'r', [ `Ctrl ])) with
+    | Some state -> state
+    | None -> raise (F.Refused "picker-reload-quit")
+  in
+  require
+    (has (overlay reloaded) "[Month]" && has (overlay reloaded) "3 entries")
+    "picker-survives-a-reload-recounted";
+  let opened = key (key reloaded `End) `Enter in
+  require
+    (opened.workspace.route = W.Actual
+    && R.overlay_screen ~dimensions ~width_of opened = None
+    && has (R.screen ~width_of dimensions opened) "[Month]"
+    && has (R.screen ~width_of dimensions opened) "Synthetic picker purchase 02")
+    "picker-enter-opens-the-oldest-month";
+  let closed = key picking `Escape in
+  require
+    (closed.workspace.route = W.Actual && R.overlay_screen ~dimensions ~width_of closed = None)
+    "picker-escape-returns-to-the-list";
+  require ((key closed `Escape).workspace.route = W.Home) "list-escape-still-returns-home";
+  require (F.read path = before) "picker-never-writes";
+  print_endline "PASS: Actual period picker through the Shell (keys, reload, choose, no writes)."
