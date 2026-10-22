@@ -74,30 +74,22 @@ let admitted_loci book =
 
 let selected_locus (env : Screen.env) t = List.nth_opt (admitted_loci env.book) t.selected
 
-(* As in LOAM, a role is an initial assignment: only a Locus with no role that no
-   Actual or Scheduled evidence uses yet may receive one, and none is replaced. *)
-let locus_used book locus =
-  List.exists
-    (fun (e : B.entry) -> List.exists (fun p -> A.lstr (D.Effect.locus p) = locus) e.effects)
-    (B.entries book)
-  || List.exists (fun (p : B.plan) -> List.mem_assoc locus p.changes) (B.plans book)
-
+(* A role is an initial assignment and is never replaced. Unlike LOAM a used Locus
+   without one may still receive it (user decision 2026-10-22): the role only
+   classifies derived views, so assigning it rewrites no recorded fact. *)
 let role_refusal (env : Screen.env) locus =
-  if locus_used env.book locus then
-    Some (tr "Already used by Actual or Scheduled evidence; role cannot be assigned.")
-  else
-    match Lazy.force env.accounting_roles with
-    | Error why -> Some (tr "Accounting roles unavailable: " ^ why)
-    | Ok roles when List.mem_assoc locus roles ->
-        Some (tr "This Locus already has an accounting role; roles are never replaced.")
-    | Ok _ -> None
+  match Lazy.force env.accounting_roles with
+  | Error why -> Some (tr "Accounting roles unavailable: " ^ why)
+  | Ok roles when List.mem_assoc locus roles ->
+      Some (tr "This Locus already has an accounting role; roles are never replaced.")
+  | Ok _ -> None
 
 let move (env : Screen.env) t delta =
   let count = List.length (admitted_loci env.book) in
   if count = 0 then t else { t with selected = max 0 (min (count - 1) (t.selected + delta)) }
 
 let role_option_strings =
-  [ "(None / Unassigned)"; "Asset"; "Liability"; "Equity"; "Income"; "Expense" ]
+  [ "(Choose a role)"; "Asset"; "Liability"; "Equity"; "Income"; "Expense" ]
 
 let role_of_index = function
   | 1 -> Some Roles.Asset
@@ -113,7 +105,7 @@ let admit_form ~count =
       [
         Printf.sprintf "Currently admitted: %d loci" count;
         "Admission establishes an approved coordinate token in the book.";
-        "An accounting role can be assigned now, or later while the Locus is unused.";
+        "Every new Locus needs an accounting role for reports and balance sheets.";
       ]
     ~fields:
       [
@@ -192,13 +184,18 @@ let submit (env : Screen.env) (geometry : Screen.geometry) t submitted =
   | Some (Admit _) ->
       let token = Option.value ~default:"" (Form.get_text submitted "token") |> String.trim in
       if token = "" then keep (fun f -> Admit f) (tr "Enter the new Locus token.")
-      else
-        let pending_role =
-          Option.map
-            (fun r -> (token, r))
-            (role_of_index (Option.value ~default:0 (Form.get_choice submitted "role")))
-        in
-        ({ t with editor = Some (Admit submitted); pending_role }, Screen.Publish (Add_locus token))
+      else (
+        (* The role is saved after the admission, so refuse up front whatever would
+           leave the new Locus without one. *)
+        match
+          ( role_of_index (Option.value ~default:0 (Form.get_choice submitted "role")),
+            role_refusal env token )
+        with
+        | None, _ -> keep (fun f -> Admit f) (tr "Choose an accounting role.")
+        | Some _, Some why -> keep (fun f -> Admit f) why
+        | Some role, None ->
+            ( { t with editor = Some (Admit submitted); pending_role = Some (token, role) },
+              Screen.Publish (Add_locus token) ))
   | Some (Role _) -> (
       let locus = Form.payload submitted in
       let role = role_of_index (Option.value ~default:0 (Form.get_choice submitted "role")) in
@@ -453,17 +450,24 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
             | Ok _, Some Roles.Equity -> "  Equity: Capital / opening balance baseline."
             | Ok _, Some Roles.Income -> "  Income: Inflow tracking for reporting."
             | Ok _, Some Roles.Expense -> "  Expense: Outflow tracking for reporting."
-            | Ok _, None -> "  Unassigned: Available for general posting; excluded from role summaries.");
+            | Ok _, None -> "  Unassigned: excluded from role summaries; press r to assign one.");
             "";
             "Actions:";
             "  n : Admit new Locus token";
-            "  r : Assign role (unused Locus without one)";
+            "  r : Assign role (Locus without one)";
           ]
   in
   let right_width = if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1 else width in
   let is_detail = t.pane = Detail_pane in
   Panel.split ~width_of ~width ~height ~left_focused:(not is_detail)
-    ~left_title:(Printf.sprintf "Manage Loci (%d admitted)" (List.length loci))
+    ~left_title:
+      (match
+         match roles with
+         | Ok roles -> List.length (List.filter (fun l -> not (List.mem_assoc l roles)) loci)
+         | Error _ -> 0
+       with
+      | 0 -> Printf.sprintf "Manage Loci (%d admitted)" (List.length loci)
+      | n -> Printf.sprintf "Manage Loci (%d, %d without role)" (List.length loci) n)
     ~left_scroll:0
     ~left_selected:(if loci = [] then None else Some t.selected)
     ~left_rows ~right_focused:is_detail ~right_title:"Locus Detail" ~right_scroll:t.scroll

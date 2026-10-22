@@ -98,7 +98,8 @@ let run ~width_of ~directory ~path =
       (key ~width_of state `Home)
       (List.init (find 0 loci) Fun.id)
   in
-  (* Roles are an initial assignment only: no replacement, nothing for used Loci. *)
+  (* Roles are an initial assignment only: never replaced, but a used Locus without
+     one may receive it. *)
   let replace_refused = key ~width_of (select admitted_state "metro") (`ASCII 'r') in
   require
     (no_modal replace_refused
@@ -108,30 +109,43 @@ let run ~width_of ~directory ~path =
   require
     (List.assoc_opt "metro" (roles_of replace_refused) = Some Roles.Asset)
     "loci-refused-replacement-keeps-role";
-  let used =
-    match List.find_opt (Loci_screen.locus_used admitted_state.session.book) all_loci with
-    | Some locus -> locus
-    | None -> failwith "fixture has no used Locus"
-  in
-  let used_refused = key ~width_of (select admitted_state used) (`ASCII 'r') in
-  require
-    (no_modal used_refused
-    && used_refused.message
-       = C.tr "Already used by Actual or Scheduled evidence; role cannot be assigned.")
-    "loci-r-refuses-used-locus";
-  let admit_modal = key ~width_of used_refused (`ASCII 'n') in
-  let admit_tram =
+  (* Admission requires a role: an empty choice is refused and nothing is admitted. *)
+  let admit_modal = key ~width_of admitted_state (`ASCII 'n') in
+  let admit_without_role =
     match visible_form admit_modal with
     | Some f ->
-        let f = Ui_form.set_focused (Ui_form.set_text f "token" "tram") 2 in
+        let f = Ui_form.set_focused (Ui_form.set_text f "token" "bus") 2 in
         key ~width_of (with_visible_form admit_modal f) `Enter
     | None -> failwith "expected modal form for admit locus"
   in
   require
-    (no_modal admit_tram && not (List.mem_assoc "tram" (roles_of admit_tram)))
-    "admitted-locus-without-role";
-  let role_modal = key ~width_of (select admit_tram "tram") (`ASCII 'r') in
-  require (visible_form_id role_modal = Some "set_locus_role") "loci-r-opens-set-role-form";
+    (match visible_form admit_without_role with
+    | Some f -> Ui_form.notice f = "Choose an accounting role."
+    | None -> false)
+    "admit-locus-requires-a-role";
+  require
+    (not (List.mem "bus" (Loci_screen.admitted_loci admit_without_role.session.book)))
+    "admit-without-role-admits-nothing";
+  (* A used Locus without a role (food here) receives its first role once. *)
+  let used_home = directory ^ "/used-locus-role" in
+  Unix.mkdir used_home 0o700;
+  F.create_copy ~source:path ~target:(used_home ^ "/book.sexp");
+  let used_state = C.initial ~config_home:used_home (F.load (used_home ^ "/book.sexp")) in
+  F.write_new (Shell_files.config_file_path used_state "accounting-roles.tsv") "ROLE\twallet\tASSET\n";
+  let used_loci = C.open_route used_state W.Loci in
+  require
+    (List.exists
+       (fun (e : B.entry) ->
+         List.exists (fun p -> Daily_draft.lstr (D.Effect.locus p) = "food") e.effects)
+       (B.entries used_loci.session.book))
+    "fixture-food-is-used";
+  require
+    (List.exists
+       (fun (_, row) -> Base.String.is_substring row ~substring:"without role)")
+       (R.screen ~width_of (100, 30) used_loci))
+    "loci-title-counts-loci-without-role";
+  let role_modal = key ~width_of (select used_loci "food") (`ASCII 'r') in
+  require (visible_form_id role_modal = Some "set_locus_role") "loci-r-opens-for-used-locus";
   let submit_role state choice =
     match visible_form state with
     | Some f ->
@@ -150,10 +164,10 @@ let run ~width_of ~directory ~path =
   (* Expense *)
   require (no_modal assigned) "set-locus-role-submitted";
   require
-    (List.assoc_opt "tram" (roles_of assigned) = Some Roles.Expense)
-    "unused-locus-role-assigned-once";
+    (List.assoc_opt "food" (roles_of assigned) = Some Roles.Expense)
+    "used-locus-role-assigned-once";
   require (no_modal (key ~width_of assigned (`ASCII 'r'))) "loci-r-refuses-after-initial-assignment";
-  let updated_role_state = select assigned "metro" in
+  let updated_role_state = select (key ~width_of admit_without_role `Escape) "metro" in
   (* Locus label edit test (UI-30) *)
   let label_edit_modal = key ~width_of updated_role_state (`ASCII 'l') in
   require

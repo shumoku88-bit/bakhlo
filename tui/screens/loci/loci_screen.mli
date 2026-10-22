@@ -23,7 +23,4 @@ val selected : t -> int
 val admitted_loci : Bakhlo_sexp.Daily_book.t -> string list
 (** Approved loci, or the loci in use when no approval list is supplied. *)
 
-val locus_used : Bakhlo_sexp.Daily_book.t -> string -> bool
-(** Whether any Actual entry or Scheduled plan names the Locus. *)
-
 val detail_focused : t -> bool

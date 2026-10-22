@@ -6,6 +6,25 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Manage Loci: a role is required on admission and may go to a used Locus (2026-10-22)
+
+User decision (2026-10-22): every new Locus gets an accounting role, and a used Locus
+without one may still receive its first role (LOAM refuses used Loci). Roles stay
+initial-only: an assigned role is never replaced.
+
+- `tui/screens/loci/loci_screen.ml`: the admit form refuses `(Choose a role)` and refuses
+  up front when roles are unreadable or the token already has one, so an admission never
+  leaves its Locus without a role. `r` no longer refuses a Locus used by Actual or
+  Scheduled evidence. The list title counts Loci without a role.
+- `setup_integration_checks.ml` (synthetic): admission without a role is refused and
+  admits nothing; on a separate copy whose roles omit a used Locus, the title shows the
+  count, `r` opens, an empty choice is refused, Expense is saved once and a second `r`
+  is refused; replacement is still refused.
+- `./tools/check`, `./tools/tui --self-check` (45 PASS). On a scratch copy of the
+  household (100×30, 80×24) the title read `3 without role` (two used Loci and
+  `suspense`), `r` saved Expense to the copy's roles file; the household's book and
+  roles bytes were unchanged. Physical terminal/IME and human acceptance **not executed**.
+
 ## Stock–Flow follow-ups (2026-10-22)
 
 - The debt section refuses an unreadable `accounting-roles.tsv` by name (like Trend
