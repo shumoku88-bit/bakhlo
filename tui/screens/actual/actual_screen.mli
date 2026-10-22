@@ -1,5 +1,5 @@
 (** Actual route owner: the LOAM three-pane Actuals workspace. The list is
-    grouped by day inside a period window (Today / Cycle / Month / All); the
+    grouped by day inside a period window (Today / Cycle / Month / Year / All); the
     Screen owns the window because only it can read the configured boundary
     presets the reports use. Edit, reverse, date correction and Merchant
     classification of the selected entry are {!Screen.Record_action} requests;

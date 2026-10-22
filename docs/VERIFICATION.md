@@ -6,6 +6,11 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Actual: a Year window and year moves (2026-10-22)
+
+- `f` cycles Today/Cycle/Month/Year/All; `{`/`}` move the current period a year (the window containing the current window's first day, moved by a year), so Month 2026-10 goes to Month 2025-10. A Cycle a year away outside the configured presets is refused with its reason; All refuses. The footer names `[{ }] year`.
+- Checks (synthetic): the Year window, year moves back and forth, the refusal outside the presets. `./tools/check`, `./tools/tui --self-check` and the PTY smoke passed on this commit; a household-copy capture at 100×30 kept its bytes unchanged.
+
 ## Actual by day, opened from Home (2026-10-22)
 
 - Trial (user decision 2026-10-22): Home `Enter` opens the Actual; the Calendar stays on `g` until the user decides. Calendar `a` opens the Actual on the Cycle window containing the selected day, with that day selected.

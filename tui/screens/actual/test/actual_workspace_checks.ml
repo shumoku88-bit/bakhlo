@@ -525,6 +525,20 @@ let self_check ~width_of () =
   require (Act.period ws = Act.Month) "period-cycles-to-month";
   require (request <> Screen.Ignored) "period-stays-on-the-route";
   require (title_has ws "Month 2026-10") "title-names-the-month";
+  (* A year back and forth keeps the period: the same month a year earlier. *)
+  let back, _ = Sc.handle screen_env geometry ws (char_key '{') in
+  require (title_has back "Month 2025-10") "year-back-keeps-the-month";
+  let again, _ = Sc.handle screen_env geometry back (char_key '}') in
+  require (title_has again "Month 2026-10") "year-forward-returns";
+  (* A Cycle a year away is outside the configured presets: refused, not guessed. *)
+  let cycle, request = Sc.handle screen_env geometry (Act.create ()) (char_key '{') in
+  require (title_has cycle "Cycle 2026-10-01..2026-11-01") "year-move-refused-outside-the-presets";
+  require
+    (match request with Screen.Message why -> why <> "" | _ -> false)
+    "year-move-refusal-is-reported";
+  let ws, _ = Sc.handle screen_env geometry ws (char_key 'f') in
+  require (Act.period ws = Act.Year) "period-cycles-to-year";
+  require (title_has ws "Year 2026") "title-names-the-year";
   let ws, _ = Sc.handle screen_env geometry ws (char_key 'f') in
   require (Act.period ws = Act.All) "period-cycles-to-all";
   require (title_has ws "All time") "title-names-all-time";

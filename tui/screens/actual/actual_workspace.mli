@@ -5,7 +5,7 @@
 module B = Bakhlo_sexp.Daily_book
 module Roles = Locus_roles
 
-type period = Today | Cycle | Month | All
+type period = Today | Cycle | Month | Year | All
 type sort_order = Newest | Oldest | Largest
 type pane = Loci | Transactions | Details
 type window = { start_day : string; end_exclusive : string; label : string }
@@ -51,6 +51,9 @@ val set_period : period -> t -> t
 
 val set_period_offset : int -> t -> t
 (** The previous or next window of the same period. *)
+
+val set_focus_day : string -> t -> t
+(** Opens the same period on the window containing this day. *)
 
 val set_scope : scope -> t -> t
 (** The scope of the current render, kept for a drill return. *)

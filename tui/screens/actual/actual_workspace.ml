@@ -1,5 +1,5 @@
 (* ActualWorkspace: the Actuals workspace (UI-03 / UI-04). The list is grouped
-   by day inside a period window (Today / Cycle / Month / All); every day header
+   by day inside a period window (Today / Cycle / Month / Year / All); every day header
    carries that day's EXPENSE-role total per Measure and is marked partial when
    an effect has no role. Loci / Actuals / Details stay a three-pane layout with
    prefix/substring live search and a single-source cursor. *)
@@ -12,7 +12,7 @@ module Panel = Ui_panel
 module Roles = Locus_roles
 module Cal = Daily_calendar
 
-type period = Today | Cycle | Month | All
+type period = Today | Cycle | Month | Year | All
 type sort_order = Newest | Oldest | Largest
 type pane = Loci | Transactions | Details
 
@@ -96,6 +96,9 @@ let set_period period t = { t with period; period_offset = 0; pending_selection 
 
 let set_period_offset offset t =
   { t with period_offset = offset; pending_selection = true; notice = "" }
+
+let set_focus_day day t =
+  { t with focus_day = Some day; period_offset = 0; pending_selection = true; notice = "" }
 
 let set_scope scope t = { t with remembered_scope = Some scope }
 
@@ -1023,11 +1026,11 @@ let footer ~dimensions ~width_of t =
       "[j/k] select  [h/l] pane  [Tab] cycle  [i] details  [f] period  [s] sort  [/] search  [ ] window"
     in
     if width_of detailed <= width then
-      [ detailed; "[Enter] open selected  [d] date  [m] merchant  [n] new  [q] back" ]
+      [ detailed; "[Enter] open selected  [d] date  [m] merchant  [n] new  [q] back  [{ }] year" ]
     else
       [
         "[j/k] sel [h/l] pane [i] info [f] period [s] sort [/] search [ ] window";
-        "[Enter] open [d] date [m] merchant [n] new [q] back";
+        "[Enter] open [d] date [m] merchant [n] new [q] back [{ }] year";
       ]
 
 (* The search caret sits on the context row that paints the search line. *)

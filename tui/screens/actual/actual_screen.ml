@@ -1,5 +1,5 @@
 (* Actual route owner: the LOAM three-pane Actuals workspace. The list is
-   grouped by day inside a period window (Today / Cycle / Month / All); the
+   grouped by day inside a period window (Today / Cycle / Month / Year / All); the
    Screen owns the window because only it can read the configured boundary
    presets the reports use. Record actions on the selected entry are requests to
    the Shell, which owns the retained Record draft and the editor sessions. *)
@@ -25,6 +25,7 @@ let window_label period ~start_day ~end_exclusive =
   | Act.All -> "All time"
   | Act.Today -> "Day " ^ start_day
   | Act.Month -> "Month " ^ String.sub start_day 0 7
+  | Act.Year -> "Year " ^ String.sub start_day 0 4
   | Act.Cycle -> "Cycle " ^ start_day ^ ".." ^ end_exclusive
 
 let anchor (env : Screen.env) t = Option.value (Act.focus_day t) ~default:env.today
@@ -54,8 +55,10 @@ let raw_window (env : Screen.env) t =
                   end_exclusive = next;
                   label = window_label period ~start_day:day ~end_exclusive:next;
                 }))
-  | Act.Cycle | Act.Month ->
-      let preset = if period = Act.Cycle then Pw.Cycle else Pw.Month in
+  | Act.Cycle | Act.Month | Act.Year ->
+      let preset =
+        match period with Act.Cycle -> Pw.Cycle | Act.Month -> Pw.Month | _ -> Pw.Year
+      in
       (match
          Result.bind (env.config Pw.boundary_file) (fun boundary_presets_text ->
              Pw.resolve ~today ~preset ~offset ~boundary_presets_text)
@@ -114,6 +117,21 @@ let move_window (env : Screen.env) t delta =
     | Ok window -> (Act.set_scope (scope_of env candidate window) candidate, Screen.Message "")
     | Error why -> (t, Screen.Message why)
 
+(* The same period one year earlier or later: the window containing the current
+   window's first day moved by a year. *)
+let move_year (env : Screen.env) t delta =
+  match raw_window env t with
+  | _ when Act.period t = Act.All -> (t, Screen.Message "All time has no year to move.")
+  | Error why -> (t, Screen.Message why)
+  | Ok window -> (
+      match Cal.shift_years window.Act.start_day delta with
+      | Error why -> (t, Screen.Message why)
+      | Ok day -> (
+          let candidate = Act.set_focus_day day t in
+          match raw_window env candidate with
+          | Ok window -> (Act.set_scope (scope_of env candidate window) candidate, Screen.Message "")
+          | Error why -> (t, Screen.Message why)))
+
 let handle (env : Screen.env) (geometry : Screen.geometry) t input =
   let typing = Act.search_editing t in
   let ctx = context env t in
@@ -129,12 +147,15 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
           match Act.period t with
           | Act.Today -> Act.Cycle
           | Act.Cycle -> Act.Month
-          | Act.Month -> Act.All
+          | Act.Month -> Act.Year
+          | Act.Year -> Act.All
           | Act.All -> Act.Today
         in
         (Act.set_period period t, Screen.Message "")
     | `Key (`ASCII '[', []) when not typing -> move_window env t (-1)
     | `Key (`ASCII ']', []) when not typing -> move_window env t 1
+    | `Key (`ASCII '{', []) when not typing -> move_year env t (-1)
+    | `Key (`ASCII '}', []) when not typing -> move_year env t 1
     | _ ->
         let next, command =
           Act.handle ~ctx:ctx ~dimensions:geometry.content ~width_of:geometry.width_of t input
