@@ -13,6 +13,18 @@ let posting locus amount =
     ~locus:(id_of (D.Identifier.Locus.of_string locus))
     ~measure:(id_of (D.Identifier.Measure.of_string "jpy"))
     ~quantity:(D.Quantity.of_quanta amount)
+
+let posting_in locus measure amount =
+  D.Effect.create ~key:None
+    ~locus:(id_of (D.Identifier.Locus.of_string locus))
+    ~measure:(id_of (D.Identifier.Measure.of_string measure))
+    ~quantity:(D.Quantity.of_quanta amount)
+
+let posting_keyed locus measure amount key =
+  D.Effect.create ~key:(Some (id_of (D.Identifier.Effect_key.of_string key)))
+    ~locus:(id_of (D.Identifier.Locus.of_string locus))
+    ~measure:(id_of (D.Identifier.Measure.of_string measure))
+    ~quantity:(D.Quantity.of_quanta amount)
 module Q = Bakhlo_application.Current_quantity_query
 
 let get = function Ok x -> x | Error why -> failwith why
@@ -86,7 +98,7 @@ let self_check () =
   require
     (Z.equal transfer.S.increases_across_events (z 30)
     && Z.equal transfer.S.decreases_across_events (z (-30))
-    && Z.equal transfer.S.net_change Z.zero)
+    && transfer.S.net_change = Some Z.zero)
     "per-coordinate in/out cancel for an internal transfer";
 
   (* Bounded history: after the start, before the start, and mixed with
@@ -228,12 +240,27 @@ let self_check () =
         measure = id_of (D.Identifier.Measure.of_string "jpy");
       }
     in
+    let cash_coordinate =
+      {
+        D.Effect_coordinate.locus = id_of (D.Identifier.Locus.of_string "cash");
+        measure = id_of (D.Identifier.Measure.of_string "jpy");
+      }
+    in
+    (* An opening of another Measure: it opens a EUR balance and posts this
+       Measure too, so it must not remove this Measure's flows. *)
+    let eur_coordinate =
+      {
+        D.Effect_coordinate.locus = id_of (D.Identifier.Locus.of_string "eur-debt");
+        measure = id_of (D.Identifier.Measure.of_string "eur");
+      }
+    in
+    let eur_opening_event = id_of (D.Identifier.Event.of_string "eur-open") in
     get
       (B.of_payload
          {
-           measures = [ ("jpy", 0) ];
+           measures = [ ("jpy", 0); ("eur", 2) ];
            labels = None;
-           approved = Some [ "debt"; "cash"; "opening-equity" ];
+           approved = Some [ "debt"; "cash"; "opening-equity"; "eur-debt" ];
            entries =
              [
                {
@@ -251,6 +278,20 @@ let self_check () =
                  merchant = None;
                };
                {
+                 B.id = "eur-open";
+                 day = "2026-09-02";
+                 memo = None;
+                 effects =
+                   [
+                     posting_keyed "cash" "jpy" (z (-100)) "from";
+                     posting_keyed "eur-debt" "eur" (z 500) "to";
+                   ];
+                 reversal_of = None;
+                 exchange = Some ("from", "to");
+                 original_amount = None;
+                 merchant = None;
+               };
+               {
                  B.id = "repay";
                  day = "2026-10-10";
                  memo = None;
@@ -262,8 +303,9 @@ let self_check () =
                };
              ];
            plans = [];
-           origins = [ equity_coordinate ];
-           openings = [ { Q.coordinate; opening_event } ];
+           origins = [ equity_coordinate; cash_coordinate ];
+           openings =
+             [ { Q.coordinate; opening_event }; { Q.coordinate = eur_coordinate; opening_event = eur_opening_event } ];
            observations = [];
            presence = None;
            bounded = [];
@@ -326,7 +368,7 @@ let self_check () =
     && Z.equal (only "opening-equity" inside_opening).S.decreases Z.zero)
     "neither side of the opening entry is a flow";
   require
-    (inside_opening.S.excluded_openings = [ "2026-09-01" ])
+    (inside_opening.S.excluded_openings = [ ("open", "2026-09-01") ])
     "the report names the opening entry it left out of the flows";
   let inside_lines =
     List.map
@@ -338,10 +380,73 @@ let self_check () =
     (List.exists
        (fun line ->
          contains line
-           "The opening entry dated 2026-09-01 is excluded from the in-window flows on both \
+           "The opening entry open dated 2026-09-01 is left out of the in-window flows on both \
             sides")
        inside_lines)
-    "the note says the opening entry is excluded on both sides";
+    "the note names the excluded entry";
+  require
+    (List.exists
+       (fun line -> contains line "Start and End include those entries; +In and -Out do not")
+       inside_lines)
+    "the note says Start and End include the entry while +In and -Out do not";
+
+  (* Start and End still carry the excluded opening entry, so the motion is
+     unknown: the Net cell of the affected row, of the Total row and of the
+     "Net change in tracked balance" line stay unknown. *)
+  let counterpart_only =
+    get
+      (S.compute_report ~book:opening_book ~measure:"jpy"
+         ~tracked_coords:[ ("opening-equity", "jpy") ] ~liability_coords:[]
+         ~period:before_open)
+  in
+  let equity = only "opening-equity" counterpart_only in
+  require
+    ((equity.S.start_balance = Some (z 0))
+    && (equity.S.end_balance = Some (z (-1000)))
+    && (equity.S.net_change = None))
+    "the row that carries the opening entry has an unknown Net";
+  require (counterpart_only.S.net_change = None)
+    "the tracked motion is unknown while an opening entry sits in Start and End";
+  let counterpart_lines =
+    List.map
+      snd
+      (S.render_summary_lines ~width:120 ~width_of:String.length ~book:opening_book
+         ~report:counterpart_only)
+  in
+  require
+    (List.exists
+       (fun line -> contains line "Net change in tracked balance:" && contains line "—")
+       counterpart_lines)
+    "the Net change in tracked balance line stays unknown";
+  let total_line =
+    List.find_opt (fun line -> contains line "Total (jpy)") counterpart_lines
+  in
+  (match total_line with
+  | None -> failwith "the total row must be rendered"
+  | Some line ->
+      let fields = List.filter (fun word -> word <> "") (String.split_on_char ' ' line) in
+      require (List.hd (List.rev fields) = "—") "the total row's Net stays unknown");
+  require
+    ((only "debt" inside_opening).S.net_change = None
+    && (only "opening-equity" inside_opening).S.net_change = None
+    && inside_opening.S.net_change = None)
+    "every row the opening entry touches has an unknown Net";
+
+  (* The exclusion is keyed by (Measure, entry): an opening of another Measure
+     never removes this Measure's flows. *)
+  let other_measure =
+    get
+      (S.compute_report ~book:opening_book ~measure:"jpy" ~tracked_coords:[ ("cash", "jpy") ]
+         ~liability_coords:[] ~period:before_open)
+  in
+  let cash = only "cash" other_measure in
+  require
+    (Z.equal cash.S.decreases (z (-100))
+    && (cash.S.start_balance = Some Z.zero)
+    && (cash.S.end_balance = Some (z (-100)))
+    && (cash.S.net_change = Some (z (-100)))
+    && other_measure.S.excluded_openings = [])
+    "an opening of another Measure leaves this Measure's flows alone";
 
   (* A window that ends before the opening entry: start and end stay unknown. *)
   let before_open : I.period =

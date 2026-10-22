@@ -24,16 +24,21 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
 - An opening entry sets balances, so the whole entry is left out of the window's
   flows: its counterpart posting (e.g. opening equity) is no longer counted as a
-  decrease, and the tracked increases and decreases cancel again. The report names
-  the excluded opening entry and says that it is excluded on both sides.
-- The Net cell is the motion between the two boundaries. With an unknown boundary it
-  shows `—` instead of the in-window motion; the motion itself stays visible in the
-  `+In` / `-Out` columns.
-- Checks: a window containing the opening entry with the counterpart tracked (no flow
-  on either side, the aggregate cancels, the note names the entry) and an undated
-  observation (the Net cell is `—` while `+In` keeps the motion). Both checks fail
-  against the previous code. `./tools/check` and `./tools/tui --self-check` passed.
-  No household data was accessed; the latest-data paired comparison was not executed.
+  decrease, and the tracked increases and decreases cancel again.
+- Start and End still carry that entry, so the motion is unknown: the Net cell of
+  every row the entry touches, of the Total row and of the "Net change in tracked
+  balance" line shows `—`. The note names each excluded entry by its id and says
+  that Start and End include it while `+In` and `-Out` do not. The exclusion is
+  keyed by (Measure, entry), so an opening of another Measure never removes this
+  Measure's flows.
+- Checks: a window containing the opening entry with the counterpart tracked (no
+  flow on either side, the aggregate cancels, the affected rows and the Total row
+  keep an unknown Net, the note names the entry), an opening of another Measure
+  (this Measure's flows stay), and an undated observation (the Net cell is `—`
+  while `+In` keeps the motion). Each check fails against the previous code.
+  `./tools/check` and `./tools/tui --self-check` passed; a Stock–Flow window on a
+  household copy in ignored scratch showed the unknown Net and the note, and the
+  copy's bytes were unchanged. The latest-data paired comparison was not executed.
 
 ## The launcher runs pushed code only (2026-10-22)
 
