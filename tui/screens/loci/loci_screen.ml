@@ -81,19 +81,32 @@ let selected_locus (env : Screen.env) t = List.nth_opt (admitted_loci env.book) 
    without one may still receive it (user decision 2026-10-22): the role only
    classifies derived views, so assigning it rewrites no recorded fact. The
    unresolved holding Locus is not a case: it never takes a role. *)
-let suspense_role_refusal =
-  tr
-    "suspense is the unresolved holding Locus: it takes no accounting role. Resolve it by \
-     correcting the entries in Actual (/ search \"suspense\", then c)."
+type route = Role_assignment | Admission
 
-let role_refusal (env : Screen.env) locus =
-  if locus = suspense_locus then Some suspense_role_refusal
+let suspense_refusal = function
+  | Role_assignment ->
+      tr
+        "suspense is the unresolved holding Locus: it takes no accounting role. Resolve it by \
+         correcting the entries in Actual (/ search \"suspense\", then c)."
+  | Admission ->
+      tr
+        "suspense is the unresolved holding Locus: it is admitted by Record's \"enable unresolved \
+         recording\" (Ctrl-U), never with a role here."
+
+let refusal_for ~route (env : Screen.env) locus =
+  if locus = suspense_locus then Some (suspense_refusal route)
   else
     match Lazy.force env.accounting_roles with
     | Error why -> Some (tr "Accounting roles unavailable: " ^ why)
     | Ok roles when List.mem_assoc locus roles ->
         Some (tr "This Locus already has an accounting role; roles are never replaced.")
     | Ok _ -> None
+
+let role_refusal (env : Screen.env) locus =
+  refusal_for ~route:Role_assignment env locus
+
+let admission_refusal (env : Screen.env) token =
+  refusal_for ~route:Admission env token
 
 let move (env : Screen.env) t delta =
   let count = List.length (admitted_loci env.book) in
@@ -199,7 +212,7 @@ let submit (env : Screen.env) (geometry : Screen.geometry) t submitted =
         (* The role is saved after the admission, so refuse up front whatever would
            leave the new Locus without one. *)
         match
-          ( role_refusal env token,
+          ( admission_refusal env token,
             role_of_index (Option.value ~default:0 (Form.get_choice submitted "role")) )
         with
         | Some why, _ -> keep (fun f -> Admit f) why
@@ -360,7 +373,7 @@ let published (env : Screen.env) _geometry outcome t =
       | None -> (t, Screen.Stay)
       | Some (locus, role) -> (
           match
-            match role_refusal env locus with
+            match admission_refusal env locus with
             | Some why -> Error why
             | None -> save_role env locus (Some role)
           with

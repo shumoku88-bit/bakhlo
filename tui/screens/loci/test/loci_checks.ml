@@ -123,9 +123,14 @@ let () =
   | _ -> failwith "admitting suspense must be refused");
   (match Loci.form submitted with
   | Some form ->
+      let notice = Ui_form.notice form in
+      require (contains notice "unresolved holding") "admission refuses a role for suspense";
       require
-        (contains (Ui_form.notice form) "unresolved holding")
-        "admission refuses a role for suspense"
+        (contains notice "enable unresolved recording")
+        "the admission refusal names Record's enable unresolved recording";
+      require
+        (not (contains notice "Correct the entry"))
+        "the admission refusal does not point at the Actual correction"
   | None -> failwith "the admit form stays open with the refusal");
   print_endline
     "PASS: Manage Loci excludes the suspense holding from the unassigned count, names its \

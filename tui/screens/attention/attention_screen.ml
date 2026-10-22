@@ -33,7 +33,8 @@ module Cal = Daily_calendar
 let suspense_locus = "suspense"
 
 type holding = {
-  nets : (string * string) list;  (** Formatted recorded net per Measure. *)
+  nets : (string * string) list;
+      (** Measure and the formatted recorded net of its suspense postings. *)
   entries : int;  (** Actual entries touching the holding Locus. *)
   oldest : string option;
   age_days : int option;
@@ -95,15 +96,17 @@ let suspense_holding (env : Screen.env) : holding option =
   match suspense_scan book with
   | None -> None
   | Some scan ->
-      (* Every recorded net zero is nothing pending, so the item hides. *)
-      if List.for_all (fun (_, quantity) -> Z.equal quantity Z.zero) scan.nets then None
+      (* A Measure whose recorded net is zero holds nothing pending beside the
+         others; every net zero is nothing pending at all, so the item hides. *)
+      let nets =
+        List.filter_map
+          (fun (measure, quantity) ->
+            if Z.equal quantity Z.zero then None
+            else Some (measure, O.format_money book measure quantity))
+          scan.nets
+      in
+      if nets = [] then None
       else
-        let nets =
-          List.map
-            (fun (measure, quantity) ->
-              (measure, O.format_money book measure quantity ^ " " ^ measure))
-            scan.nets
-        in
         let age_days =
           match scan.oldest with
           | None -> None
@@ -127,7 +130,8 @@ let holding_line ~width_of ~col_due ~col_ctx (holding : holding) =
   let nets =
     String.concat " · "
       (List.map
-         (fun (measure, text) -> Printf.sprintf "%s %s" (String.uppercase_ascii measure) text)
+         (fun (measure, amount) ->
+           Printf.sprintf "%s %s" (String.uppercase_ascii measure) amount)
          holding.nets)
   in
   let age =
@@ -150,7 +154,7 @@ let holding_detail (holding : holding) =
     "Recorded net of the suspense postings (not a balance):";
   ]
   @ List.map
-      (fun (measure, text) -> Printf.sprintf "  %s: %s" (String.uppercase_ascii measure) text)
+      (fun (measure, amount) -> Printf.sprintf "  %s: %s" (String.uppercase_ascii measure) amount)
       holding.nets
   @ [
       "";

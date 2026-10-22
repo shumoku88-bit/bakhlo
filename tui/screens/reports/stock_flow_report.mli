@@ -9,8 +9,9 @@ type support =
   | Bounded of string  (** Bounded history start. *)
   | Before_start of string  (** Bounded start lies after the window start. *)
   | Opening of string  (** Opening entry dated here: the balance is exact from then. *)
-  | Opening_after of string  (** Opening entry lies after the window start. *)
+  | Opening_after of string  (** The window ends before the opening entry. *)
   | Opening_on of string  (** Opening entry is dated on the window's first day. *)
+  | Opening_inside of string  (** The window contains the opening entry. *)
   | Observation_undated  (** An exact confirmation with no dated boundary. *)
   | Unsupported of string
 

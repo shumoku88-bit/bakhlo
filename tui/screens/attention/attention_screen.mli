@@ -24,8 +24,9 @@ val detail_focused : t -> bool
 
 type holding = {
   nets : (string * string) list;
-      (** Formatted net of the recorded suspense postings per Measure that uses
-          them; a recorded net, never a balance. *)
+      (** Measure and the formatted net of its recorded suspense postings; only
+          Measures with a non-zero net are listed, and it is a recorded net,
+          never a balance. *)
   entries : int;  (** Actual entries touching [suspense]. *)
   oldest : string option;
   age_days : int option;

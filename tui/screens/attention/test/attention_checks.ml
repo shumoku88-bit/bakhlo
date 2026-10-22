@@ -70,7 +70,7 @@ let () =
   (match signal with
   | None -> failwith "a non-zero suspense recorded net must show a signal"
   | Some holding ->
-      require (holding.Att.nets = [ ("jpy", "400 jpy") ]) "suspense recorded net is exact";
+      require (holding.Att.nets = [ ("jpy", "400") ]) "suspense recorded net is exact";
       require (holding.Att.entries = 2) "suspense entry count";
       require (holding.Att.oldest = Some "2026-10-04") "oldest suspense entry";
       require (holding.Att.age_days = Some 18) "suspense age in days");
@@ -116,8 +116,33 @@ let () =
   (match Att.suspense_holding (env unsupported) with
   | Some holding ->
       require
-        (holding.Att.nets = [ ("jpy", "300 jpy") ])
+        (holding.Att.nets = [ ("jpy", "300") ])
         "a suspense coordinate without history support still has an exact recorded net"
+  | None -> failwith "a recorded suspense net must show");
+
+  (* A Measure whose recorded net is zero is not listed beside a non-zero one. *)
+  let mixed =
+    book
+      [
+        entry "a" "2026-10-04" [ posting "suspense" (z 400); posting "cash" (z (-400)) ];
+        entry "b" "2026-10-05"
+          [
+            D.Effect.create ~key:None
+              ~locus:(id_of (D.Identifier.Locus.of_string "suspense"))
+              ~measure:(id_of (D.Identifier.Measure.of_string "eur"))
+              ~quantity:(D.Quantity.of_quanta (z 500));
+            D.Effect.create ~key:None
+              ~locus:(id_of (D.Identifier.Locus.of_string "suspense"))
+              ~measure:(id_of (D.Identifier.Measure.of_string "eur"))
+              ~quantity:(D.Quantity.of_quanta (z (-500)));
+          ];
+      ]
+  in
+  (match Att.suspense_holding (env mixed) with
+  | Some holding ->
+      require
+        (holding.Att.nets = [ ("jpy", "400") ])
+        "a Measure whose recorded net is zero is not listed beside a non-zero one"
   | None -> failwith "a recorded suspense net must show");
 
   (* No suspense entry at all is nothing pending. *)
@@ -142,6 +167,15 @@ let () =
   require
     (List.exists (fun line -> contains line "suspense recorded net:") shown)
     "the row names the recorded net";
+  require
+    (List.exists (fun line -> contains line "suspense recorded net: JPY") shown)
+    "the row names the recorded net with its Measure";
+  require
+    (List.exists (fun line -> contains line "JPY: 400") shown)
+    "the detail names the Measure and its amount once";
+  require
+    (not (List.exists (fun line -> contains line "400 jpy") shown))
+    "the Measure is never named twice";
   require
     (List.exists (fun line -> contains line "Correct the entry") shown)
     "the detail names the Actual correction route";

@@ -283,11 +283,49 @@ let self_check () =
   in
   let debt = only "debt" early in
   require
-    ((debt.S.support = S.Opening_after "2026-09-01")
+    ((debt.S.support = S.Opening_inside "2026-09-01")
     && debt.S.start_balance = None
     && (debt.S.end_balance = Some (z 1000))
     && early.S.unknown_starts = 1)
-    "a window before the opening keeps the start unknown";
+    "a window containing the opening keeps the start unknown";
+  require
+    (Z.equal debt.S.increases Z.zero && Z.equal debt.S.decreases Z.zero)
+    "the opening posting is not presented as growth";
+  let early_lines =
+    List.map
+      snd
+      (S.render_summary_lines ~width:120 ~width_of:String.length ~book:opening_book ~report:early)
+  in
+  require
+    (List.exists (fun line -> contains line "the window contains the opening entry") early_lines)
+    "the row note says the window contains the opening entry";
+
+  (* A window that ends before the opening entry: start and end stay unknown. *)
+  let before_open : I.period =
+    { period with start_day = "2026-07-01"; end_exclusive = "2026-08-15" }
+  in
+  let earlier =
+    get
+      (S.compute_report ~book:opening_book ~measure:"jpy" ~tracked_coords:[ ("debt", "jpy") ]
+         ~liability_coords:[] ~period:before_open)
+  in
+  let debt = only "debt" earlier in
+  require
+    ((debt.S.support = S.Opening_after "2026-09-01")
+    && debt.S.start_balance = None
+    && debt.S.end_balance = None
+    && earlier.S.unknown_starts = 1)
+    "a window ending before the opening keeps the start and the end unknown";
+  let earlier_lines =
+    List.map
+      snd
+      (S.render_summary_lines ~width:120 ~width_of:String.length ~book:opening_book
+         ~report:earlier)
+  in
+  require
+    (List.exists (fun line -> contains line "the window ends before the opening entry")
+       earlier_lines)
+    "the row note says the window ends before the opening entry";
 
   (* A window starting exactly on the opening day: the balance before the
      opening is unknown, so the start is unknown, never zero. *)
@@ -306,6 +344,9 @@ let self_check () =
     && (debt.S.end_balance = Some (z 1000))
     && exact_day.S.unknown_starts = 1)
     "a window starting on the opening day keeps the start unknown";
+  require
+    (Z.equal debt.S.increases Z.zero && Z.equal debt.S.decreases Z.zero)
+    "the opening posting on the window's first day is not growth";
 
   (* A cold reload of an opening book agrees with the in-memory book. *)
   let opening_cold = get (B.of_string (B.to_string opening_book)) in
@@ -340,6 +381,12 @@ let self_check () =
         (List.filteri (fun index _ -> index < 5) fields
         = [ "debt/jpy"; "1,000"; "+0"; "-300"; "700" ])
         "the liability row keeps the start / +In / -Out / end columns");
+  require
+    (List.exists (fun line -> contains line "Liabilities (start / +In / -Out / end)") debt_rows)
+    "the liabilities heading names neutral columns";
+  require
+    (not (List.exists (fun line -> contains line "repaid" || contains line "borrowed") debt_rows))
+    "the liabilities heading names no repayment or borrowing";
 
   (* Observation support is exact but undated: it never back-fills a start. *)
   let observation_book =

@@ -15,8 +15,9 @@ type support =
   | Bounded of string  (** Bounded history start. *)
   | Before_start of string  (** Bounded start lies after the window start. *)
   | Opening of string  (** Opening entry dated here: the balance is exact from then. *)
-  | Opening_after of string  (** Opening entry lies after the window start. *)
+  | Opening_after of string  (** The window ends before the opening entry. *)
   | Opening_on of string  (** Opening entry is dated on the window's first day. *)
+  | Opening_inside of string  (** The window contains the opening entry. *)
   | Observation_undated  (** An exact confirmation with no dated boundary. *)
   | Unsupported of string
 
@@ -81,14 +82,15 @@ let balance_at ~book ~measure ~coordinate ~day =
 
 module Q = Bakhlo_application.Current_quantity_query
 
-(* An opening entry fixes the coordinate from its own date: the forward sum of
-   recorded Effects is then exact, exactly like a bounded start. *)
+(* An opening entry fixes the coordinate from its own date: the recorded Effects
+   from there on are then exact, exactly like a bounded start. *)
+let opening_of ~book ~coordinate =
+  List.find_opt
+    (fun (opening : Q.opening) -> D.Effect_coordinate.equal opening.coordinate coordinate)
+    (Q.openings (B.image book))
+
 let opening_day ~book ~coordinate =
-  match
-    List.find_opt
-      (fun (opening : Q.opening) -> D.Effect_coordinate.equal opening.coordinate coordinate)
-      (Q.openings (B.image book))
-  with
+  match opening_of ~book ~coordinate with
   | None -> None
   | Some opening -> (
       match B.find_entry book (D.Identifier.Event.to_string opening.opening_event) with
@@ -127,6 +129,20 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
     let end_day = day_before period.end_exclusive in
     let activities = Hashtbl.create (List.length pool) in
     List.iter (fun (locus, _) -> Hashtbl.add activities locus (Z.zero, Z.zero)) pool;
+    (* The opening entry of each pooled coordinate: its posting sets the balance,
+       so it is never a flow of the window that contains it. *)
+    let opening_events = Hashtbl.create (List.length pool) in
+    List.iter
+      (fun (locus, _) ->
+        match coordinate_of ~measure locus with
+        | Error _ -> ()
+        | Ok coordinate -> (
+            match opening_of ~book ~coordinate with
+            | None -> ()
+            | Some opening ->
+                Hashtbl.replace opening_events locus
+                  (D.Identifier.Event.to_string opening.opening_event)))
+      pool;
     (* Every recorded Effect of a pooled Locus with its day, so a boundary can be
        reconstructed from Core's exact current quantity. *)
     let dated = Hashtbl.create (List.length pool) in
@@ -153,14 +169,16 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
             if entry.day >= period.start_day && entry.day < period.end_exclusive then
               Hashtbl.iter
                 (fun locus quantity ->
-                  let positive, negative = Hashtbl.find activities locus in
-                  let positive =
-                    if Z.sign quantity > 0 then Z.add positive quantity else positive
-                  in
-                  let negative =
-                    if Z.sign quantity < 0 then Z.add negative quantity else negative
-                  in
-                  Hashtbl.replace activities locus (positive, negative))
+                  if Hashtbl.find_opt opening_events locus <> Some entry.id then begin
+                    let positive, negative = Hashtbl.find activities locus in
+                    let positive =
+                      if Z.sign quantity > 0 then Z.add positive quantity else positive
+                    in
+                    let negative =
+                      if Z.sign quantity < 0 then Z.add negative quantity else negative
+                    in
+                    Hashtbl.replace activities locus (positive, negative)
+                  end)
                 cells;
             scan rest
           end
@@ -234,9 +252,15 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
                             if day <= opening then None
                             else Some (Z.sub quantity (recorded_on_or_after locus day))
                       in
+                      (* A window that contains the opening entry has no flow for
+                         it: the opening posting sets the balance. *)
+                      let contains_opening =
+                        period.start_day <= opening && opening < period.end_exclusive
+                      in
                       let support =
                         if period.start_day > opening then Opening opening
                         else if period.start_day = opening then Opening_on opening
+                        else if contains_opening then Opening_inside opening
                         else Opening_after opening
                       in
                       base support (boundary period.start_day) (boundary period.end_exclusive)
@@ -264,7 +288,7 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
                   (match support with
                   | Unsupported _ -> base support None None
                   | Zero_origin | Bounded _ | Before_start _ | Opening _ | Opening_after _
-                  | Opening_on _ | Observation_undated ->
+                  | Opening_on _ | Opening_inside _ | Observation_undated ->
                       base support
                         (match start_result with Ok value -> Some value | Error _ -> None)
                         (match end_result with Ok value -> Some value | Error _ -> None)))
@@ -282,7 +306,7 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
               match c.support with
               | Unsupported reason -> (c.locus, reason)
               | Zero_origin | Bounded _ | Before_start _ | Opening _ | Opening_after _
-              | Opening_on _ | Observation_undated -> (c.locus, ""))
+              | Opening_on _ | Opening_inside _ | Observation_undated -> (c.locus, ""))
             unsupported
         in
         let sum_known pick =
@@ -341,11 +365,21 @@ let support_note (c : coordinate_activity) =
       Some (Printf.sprintf "start unknown; bounded history starts %s" start_day)
   | Opening day -> Some (Printf.sprintf "start known from the opening entry dated %s" day)
   | Opening_after day ->
-      Some (Printf.sprintf "start unknown; the opening entry is dated %s" day)
+      Some
+        (Printf.sprintf
+           "start and end unknown; the window ends before the opening entry dated %s" day)
   | Opening_on day ->
       Some
         (Printf.sprintf
-           "start unknown; the opening entry is dated %s, the window's first day" day)
+           "start unknown; the window starts on the opening entry dated %s, whose posting is not \
+            a flow"
+           day)
+  | Opening_inside day ->
+      Some
+        (Printf.sprintf
+           "start unknown; the window contains the opening entry dated %s, whose posting is not \
+            a flow"
+           day)
   | Observation_undated ->
       Some
         "start unknown; the confirmation is exact, but the balance before it is not derivable, \
@@ -475,7 +509,7 @@ let render_summary_lines ~width ~width_of ~book ~(report : report) =
           else "Debt remaining"
         in
         ( O.Chrome,
-          if known_end <> [] then "  Liabilities (start / repaid +In / borrowed -Out / end)"
+          if known_end <> [] then "  Liabilities (start / +In / -Out / end)"
           else "  Liabilities (end unknown; current quantity only)" )
         :: List.map
              (fun (c : coordinate_activity) ->

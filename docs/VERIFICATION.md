@@ -9,30 +9,33 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 ## Stock–Flow debt history from openings (2026-10-22)
 
 - An `openings` entry gives a known start at the opening entry's own day: a
-  window starting strictly after it is exact; a window starting on that day
-  keeps `—`, because the balance before the opening is unknown.
+  window starting strictly after it is exact; a window that contains the opening
+  entry keeps `—` and shows no flow for it, because the opening posting sets the
+  balance; a window ending before it keeps `—` for the start and the end.
 - Boundaries are anchored on Core's exact current quantity minus the recorded
   Effects dated on or after the boundary day. An observation is exact only at
   its confirmation, so its window boundaries stay unknown.
-- The liabilities section shows start / repaid / borrowed / end per window.
-  Checks cover the opening exactly on the window start, a cold reload of an
-  opening book and the liability row columns; `check`, `--self-check`, the PTY
-  smoke and a read-only fresh-copy capture (100×30, 80×24) passed with the
-  household bytes unchanged.
+- The liabilities section shows start / +In / -Out / end per window: neutral
+  names, because the sign decides which side is a repayment.
+- Checks cover the opening exactly on the window start, a window containing and
+  a window ending before the opening, a cold reload of an opening book and the
+  liability row columns; `check`, `--self-check`, the PTY smoke and a read-only
+  fresh-copy capture (100×30, 80×24) passed with the household bytes unchanged.
 
 ## Suspense never silently stays pending (2026-10-22)
 
 - Attention gains one derived row when Actual entries touch `suspense`: the
-  exact net of the recorded suspense postings per Measure, labelled "recorded
-  net" (not a balance: the holding Locus has no history support), plus the
-  entry count and the oldest entry with its age. No entry, or every recorded
-  net zero, hides it; one scan per book version feeds the row, the detail and
-  the keys.
+  exact net of the recorded suspense postings per Measure that uses them,
+  labelled "recorded net" and never a balance (the holding Locus has no history
+  support); a Measure whose recorded net is zero is not listed. The row also
+  shows the entry count and the oldest entry with its age. No entry, or every
+  recorded net zero, hides it; one scan per book version feeds the row, the
+  detail and the keys.
 - Manage Loci never counts `suspense` in "N without role" and refuses it an
-  accounting role (`r` and admission): it is the unresolved holding, resolved
-  by correcting the entries in Actual. The Balances accounting view lists it
-  as an unresolved role gap and qualifies Net Worth as unknown while it holds
-  something, which is what the texts now say.
+  accounting role: assigning one points at the Actual correction, admitting it
+  points at Record's "enable unresolved recording" (Ctrl-U). It is the
+  unresolved holding, and the Balances accounting view lists it as an unresolved
+  role gap, which qualifies Net Worth as unknown while it holds something.
 - Checks cover the non-zero, zero, multi-Measure, no-entry and unsupported
   cases, the count and both refusals; `check`, `--self-check`, the PTY smoke
   and a read-only fresh-copy capture (100×30, 80×24) passed with the household
