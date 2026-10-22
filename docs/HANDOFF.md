@@ -22,6 +22,8 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   binary at `.run/bakhlo_tui.exe` (copied to a temporary name and renamed), never the
   shared tree; it names the commit it runs, prints the build it starts, keeps the last
   installed binary when offline or the build fails, and refuses without any binary.
+  The launcher script itself runs from the working tree; only the TUI binary is pinned
+  to `origin/main`.
 - Trend series are coloured: each series' braille line and its legend entry (name
   and per-day value) share its own colour (the terminal's own ANSI slots — blue,
   magenta, cyan, red, no yellow — in the Terminal theme, four indexed palette

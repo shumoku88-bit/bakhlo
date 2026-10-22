@@ -34,17 +34,9 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
 ## The launcher runs pushed code only (2026-10-22)
 
-- `tools/household` fetches `origin/main`, builds it in an ignored worktree at
-  `.run/src` and installs the built binary at `.run/bakhlo_tui.exe` (copied to a
-  temporary name and renamed); it always runs that copy, so a failed later build
-  cannot take the last good binary away. It prints the build it starts, keeps
-  Dune's own errors visible, names the commit on one line, keeps the last
-  installed binary when offline or the build fails, and refuses without any
-  binary; the backup commit and push are unchanged.
-- Checks cover the moved origin, offline, the failed build (its fake build
-  removes the target it would have replaced, and the previous copy still runs),
-  the installed copy being the one that runs, and the refusal; `check` and
-  `--self-check` passed.
+- `tools/household` fetches `origin/main`, builds it in an ignored worktree at `.run/src` and installs the built binary at `.run/bakhlo_tui.exe` (copied to a temporary name and renamed); it always runs that copy, so a failed later build cannot take the last good binary away. It prints the build it starts, keeps Dune's errors on stderr without its directory chatter, keeps the last installed binary when offline or the build fails, and refuses without any binary; the backup commit and push are unchanged. The script itself runs from the working tree: only the TUI binary is pinned to `origin/main`.
+- The line that names the commit names the installed one only: without the stamp it says the commit is unknown, never the worktree's HEAD. A stale `.run/src` (a leftover directory with a stale `.git` file) is the launcher's own ignored directory: it is cleared, pruned and made again.
+- Checks cover the moved origin, offline, the failed build (its fake build removes the target it would have replaced, and the previous copy still runs), the installed copy being the one that runs, the stale worktree recovery, the unknown commit, and the refusal; `check` and `--self-check` passed.
 
 ## Stock–Flow debt history from openings (2026-10-22)
 

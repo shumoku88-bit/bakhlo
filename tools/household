@@ -8,15 +8,17 @@
 # and takes precedence.
 #
 # The launcher runs pushed code only (user decision 2026-10-22): AI workers edit
-# and build the shared tree, so it never runs that tree. It fetches origin/main,
-# keeps an ignored worktree at .run/src detached at that commit, builds the TUI
-# there with the existing switch and installs the built binary at
+# and build the shared tree, so it never runs that tree. This script itself runs
+# from the working tree; only the TUI binary is pinned to origin/main. It fetches
+# origin/main, keeps an ignored worktree at .run/src detached at that commit,
+# builds the TUI there with the existing switch and installs the built binary at
 # .run/bakhlo_tui.exe, which it always runs. The install copies to a temporary
 # name and renames it, so a failed build (Dune may remove or replace its
 # target) never takes the last good binary away. Its own _build means no Dune
 # lock conflict with the shared tree. Offline keeps the last built binary; a
 # failed build keeps it and names the commit; without any binary the launcher
-# refuses.
+# refuses. The line that names the commit names the installed one only: without
+# the stamp it says the commit is unknown.
 # BAKHLO_HOUSEHOLD overrides the household directory (default: ../bakhlo-data).
 set -u
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
@@ -53,8 +55,9 @@ if [ -n "$want" ]; then
   if [ -z "$head" ]; then
     mkdir -p "$run_dir"
     if ! git -C "$root" worktree add --detach "$worktree" "$want" >/dev/null 2>&1; then
-      # A leftover directory from an interrupted add is ours to clear.
-      if [ -d "$worktree" ] && [ ! -e "$worktree/.git" ]; then
+      # A leftover directory from an interrupted add is ours to clear: the
+      # launcher owns .run/src, so a stale .git file there goes with it.
+      if [ -d "$worktree" ]; then
         rm -rf "$worktree"
       fi
       git -C "$root" worktree prune
@@ -77,7 +80,8 @@ if [ -n "$want" ]; then
   # from running.
   if [ -n "$head" ] && { [ "$built" != "$head" ] || [ ! -x "$binary" ]; }; then
     printf 'Building bakhlo %s …\n' "$(short "$head")"
-    if "$root/tools/opam" exec -- dune build --root "$worktree" tui/app/bakhlo_tui.exe >/dev/null; then
+    if "$root/tools/opam" exec -- dune build --no-print-directory --root "$worktree" \
+      tui/app/bakhlo_tui.exe >/dev/null; then
       # Install atomically: a copy under a temporary name, then a rename.
       if cp "$target" "$binary.tmp.$$" && chmod 755 "$binary.tmp.$$" && mv -f "$binary.tmp.$$" "$binary"
       then
@@ -99,8 +103,13 @@ if [ ! -x "$binary" ]; then
   printf '%s\n' 'No TUI binary is built for the launcher; run it once online so the pushed code is built.' >&2
   exit 2
 fi
-[ -n "$built" ] || built=$(git -C "$worktree" rev-parse --verify --quiet HEAD 2>/dev/null || true)
-printf 'Running bakhlo from commit %s\n' "$(short "$built")"
+if [ -n "$built" ]; then
+  printf 'Running bakhlo from commit %s\n' "$(short "$built")"
+else
+  # Without the stamp the installed commit is unknown; the worktree's HEAD is
+  # not the commit that was installed.
+  printf '%s\n' 'Running bakhlo from an unknown commit.'
+fi
 
 # Warn and stop: a nonzero TUI exit wins; otherwise the backup problem is the failure.
 fail() {

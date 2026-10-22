@@ -32,7 +32,8 @@ commitは次回に再送する。TUI自体が異常終了した場合は、そ�
 
 ランチャーは共有ツリーを使わず、push済みの`origin/main`を専用のworktree（`.run/`）で
 ビルドして実行し、実行するcommitを1行で示す。オフラインやビルド失敗時は直前のバイナリ
-を使い、バイナリが1つもなければ起動を拒否する。
+を使い、バイナリが1つもなければ起動を拒否する。ランチャー本体（このスクリプト）は
+作業ツリーから実行し、`origin/main`に固定されるのはTUIバイナリだけである。
 
 比較コピーは`scratch/loam-comparison`内だけにあり、原本には書き込まない。
 取得し直すときは`./tools/compare refresh`、比較後は`./tools/compare clean-copies`。

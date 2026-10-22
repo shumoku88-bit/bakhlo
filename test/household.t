@@ -99,6 +99,18 @@ The launcher runs the installed copy, not the worktree's build output.
   Running bakhlo from commit SHA
   TUI built from SHA
 
+A stale run worktree (a leftover directory with a stale .git file) is the launcher's
+own ignored directory: it is cleared and the worktree is made again.
+
+  $ rm -rf run/.run/src
+  $ mkdir -p run/.run/src
+  $ printf 'gitdir: ../.git/worktrees/stale\n' > run/.run/src/.git
+  $ runhh "$H0" 0 0
+  Running bakhlo from commit SHA
+  TUI built from SHA
+  $ test "$(git -C run/.run/src rev-parse HEAD)" = "$(git -C run rev-parse origin/main)" && echo worktree-recovered
+  worktree-recovered
+
 A moved origin/main is rebuilt and the new commit is run.
 
   $ git -C run commit -q --allow-empty -m moved
@@ -279,6 +291,19 @@ failing build removes the target it was going to replace; the installed copy sta
   previous-binary-kept
   $ test -x run/.run/bakhlo_tui.exe && echo installed-copy-survived
   installed-copy-survived
+
+Without the stamp the installed commit is unknown: the launcher says so instead of
+naming the worktree's HEAD.
+
+  $ rm -f run/.run/built-commit
+  $ runhh "$H0" 0 0
+  Building bakhlo SHA …
+  synthetic build failure
+  The build of SHA failed; the last built binary is used.
+  Running bakhlo from an unknown commit.
+  TUI built from SHA
+  $ grep -qF "Running bakhlo from commit" out.log && echo commit-named || echo unknown-commit-named
+  unknown-commit-named
 
 Without any binary the launcher refuses instead of running the shared tree.
 
