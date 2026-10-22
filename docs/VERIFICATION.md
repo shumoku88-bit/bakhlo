@@ -6,6 +6,11 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Actual list keeps its view while the selection moves (2026-10-22)
+
+- User request: moving back up from the end of the Actual list kept the selection on the bottom row and slid the whole list each step. The workspace now keeps the first shown row of the Loci and Actuals lists and moves it only when the selection would leave the view (then it brings the selected day's header in when the whole day fits, as before). Only keys that change the list update it, so opening a day and returning restores the state exactly; a period change starts at the top.
+- Checks (synthetic): from the end, one and three moves up keep the first shown row while the selection moves; forty moves scroll; a move down inside the view keeps it. The check fails with the view update disabled and passes now. `./tools/check` and the PTY smoke passed locally; a tmux capture at 80×24 on a synthetic book showed the view held for six moves and scrolling at the top. No household data was accessed.
+
 ## Actual period bar and picker (2026-10-22)
 
 - User choice 2026-10-22 (with the Calendar removal): the Actual's top row is a period bar ` Actual  Day [Cycle] Month Year All  2026-09-25..10-24  Expense 97,173 jpy` (current period bracketed and bold; a cycle names its last day, not the exclusive end; narrower bars drop the other periods, then the window, never the amount). `f` opens a picker over the list: every window of the period, newest first, with its entry count and EXPENSE total (the whole window, not the search or Locus filter), `now` on the window containing today; `h/l`/Tab change the period, `j/k`/PgUp/PgDn/Home/End move, Enter opens the window (today inside it, else its last day, is the focus), Esc/`q`/`f` close. Months and years span the ledger, today and the current window; days are those with entries and today; cycles are the configured preset (`Period_window.cycle_windows`, now also used by `resolve`). A missing cycle shows its reason and Enter refuses. The picker is modal (Space does not open Commands) and a reload recounts it. Counting is one pass over the ledger with a binary search per entry.

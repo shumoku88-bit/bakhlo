@@ -512,6 +512,59 @@ let self_check ~width_of () =
   let stale_rows = rows_of (make_ctx empty_book) ws in
   require (contains stale_rows "0/0") "stale-row-screen-clamps";
 
+  (* 17b. Moving back up from the end keeps the view until the selection reaches
+     its top row; only then does the list scroll. *)
+  let long_book =
+    List.fold_left
+      (fun book day ->
+        add_entry book
+          ~day:(Printf.sprintf "2026-10-%02d" day)
+          ~memo:(Printf.sprintf "Long %02d" day) ~locus1:"assets:cash" ~amt1:(-100)
+          ~locus2:"expenses:groceries" ~amt2:100)
+      book
+      (List.init 31 (fun i -> i + 1))
+  in
+  let long_ctx = make_ctx long_book in
+  let press_list t input =
+    fst (Act.handle ~ctx:long_ctx ~dimensions:dim_compact ~width_of t input)
+  in
+  let shown t =
+    Act.screen ~ctx:long_ctx ~total:None ~draft_retained:false ~dimensions:dim_compact ~width_of t
+  in
+  (* The first list row under the column header. *)
+  let first_row t =
+    let rec after = function
+      | (_, text) :: next :: _ when Base.String.is_substring text ~substring:"Description" ->
+          snd next
+      | _ :: rest -> after rest
+      | [] -> ""
+    in
+    after (shown t)
+  in
+  let selected_row t =
+    match
+      List.find_opt (fun (_, text) -> Base.String.is_substring text ~substring:" > ") (shown t)
+    with
+    | Some (_, text) -> text
+    | None -> ""
+  in
+  let at_end = press_list (Act.create ()) (key `End) in
+  let up_once = press_list at_end (char_key 'k') in
+  let up_thrice = press_list (press_list up_once (char_key 'k')) (char_key 'k') in
+  require
+    (first_row up_once = first_row at_end
+    && first_row up_thrice = first_row at_end
+    && selected_row up_thrice <> selected_row at_end)
+    "moving-up-from-the-end-keeps-the-view";
+  let far_up =
+    List.fold_left (fun t _ -> press_list t (char_key 'k')) at_end (List.init 40 Fun.id)
+  in
+  require
+    (first_row far_up <> first_row at_end && contains (shown far_up) (selected_row far_up))
+    "the-view-moves-once-the-selection-reaches-its-top";
+  let back_down = press_list far_up (char_key 'j') in
+  require (first_row back_down = first_row far_up) "moving-down-inside-the-view-keeps-it";
+
   (* 18. The Screen owns the period, its windows, the period bar and the picker. *)
   let screen_env = env book in
   let geometry = { Screen.screen = (100, 30); body = (100, 27); content = (100, 27); width_of } in

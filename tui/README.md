@@ -79,6 +79,7 @@ Cycleは`boundary-presets.tsv`で表示中の窓を含むプリセット（な�
 `s`はsort、Tab／h/lはpane、`i`はDetails。Actuals／DetailsのEnterは1回で選択明細のSelected Dayを開く。
 同日の別明細や以前のSelected Day検索へ逸れず、明細IDで選択する。戻ると親Actualの検索・scope・sort・選択・paneを保持する。
 ActualとScheduledの詳細はHome／Endで選択を変えず、ページ送りは可視行数に従う。
+Actualの一覧は表示位置を保ち、選択が表示の外へ出る時だけ必要な分だけ動く（下から上へ戻っても上端に着くまで動かない）。
 3ペイン全体の最新LOAMとの配置・操作一致は未認定。限定した検索対照と未達範囲はUI差分台帳を参照する。
 Actualの`c`はCorrect、ScheduledのEnterは閲覧だけのDetail、`c`は明示的なComplete。
 支払い入力を開く操作だけでは台帳を変更しない。

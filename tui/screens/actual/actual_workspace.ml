@@ -54,6 +54,9 @@ type t = {
   remembered_scope : scope option;
       (** The scope of the last render, kept so a drill return restores the
       selection in the same window and the same order. *)
+  list_tops : int * int;
+      (** The first shown row of the Loci and the Actuals lists: the view moves only
+          when the selection would leave it. *)
 }
 
 type command = Stay | Open_selected of B.entry | Record_new | Back | Redraw
@@ -73,6 +76,7 @@ let create ?focus_day () =
     notice = "";
     pending_selection = true;
     remembered_scope = None;
+    list_tops = (0, 0);
   }
 
 let period t = t.period
@@ -90,13 +94,20 @@ let notice t = t.notice
 (* The period filter and its window are the Screen's choice; the workspace keeps
    the scope so a drill return restores the selection in the same window. *)
 let set_period period t =
-  { t with period; period_offset = 0; pending_selection = true; notice = "" }
+  { t with period; period_offset = 0; pending_selection = true; notice = ""; list_tops = (0, 0) }
 
 let set_period_offset offset t =
-  { t with period_offset = offset; pending_selection = true; notice = "" }
+  { t with period_offset = offset; pending_selection = true; notice = ""; list_tops = (0, 0) }
 
 let set_focus_day day t =
-  { t with focus_day = Some day; period_offset = 0; pending_selection = true; notice = "" }
+  {
+    t with
+    focus_day = Some day;
+    period_offset = 0;
+    pending_selection = true;
+    notice = "";
+    list_tops = (0, 0);
+  }
 
 let set_window period ~focus_day t =
   {
@@ -106,6 +117,7 @@ let set_window period ~focus_day t =
     period_offset = 0;
     pending_selection = true;
     notice = "";
+    list_tops = (0, 0);
   }
 
 let period_name = function
@@ -695,7 +707,7 @@ let normalize_for_bounds ~ctx ~dimensions ~width_of t =
 let next_pane = function Loci -> Transactions | Transactions -> Details | Details -> Loci
 let previous_pane = function Loci -> Details | Transactions -> Loci | Details -> Transactions
 
-let handle ~ctx ~dimensions ~width_of t (input : Ui_input.input) =
+let handle_key ~ctx ~dimensions ~width_of t (input : Ui_input.input) =
   let geometry = terminal_geometry dimensions in
   let t = apply_pending ~ctx t in
   let t = normalize_for_bounds ~ctx ~dimensions ~width_of t in
@@ -841,6 +853,35 @@ let display_rows ~book ~width_of ~row_width ~amount_width ~show_days ~groups ~re
   else List.iter (fun (e : B.entry) -> add_entry O.Plain (entry_text e)) records;
   (List.rev !rows, Array.of_list (List.rev !entry_rows), Array.of_list (List.rev !header_rows))
 
+(* Where the selection sits among the list's rows (a day header precedes its
+   entries under a date order): the selection's row, its day header's row (-1
+   without one) and the number of rows. *)
+let positions t ~records ~groups ~loci pane =
+  match pane with
+  | Loci -> (t.locus_row, -1, List.length loci + 1)
+  | Transactions | Details ->
+      if t.order = Largest then (t.transaction_row, -1, List.length records)
+      else
+        List.fold_left
+          (fun (selected, header, count) (g : group) ->
+            let size = List.length g.entries in
+            if t.transaction_row >= g.first && t.transaction_row < g.first + size then
+              (count + 1 + t.transaction_row - g.first, count, count + 1 + size)
+            else (selected, header, count + 1 + size))
+          (0, -1, 0) groups
+
+let pane_top t = function Loci -> fst t.list_tops | Transactions | Details -> snd t.list_tops
+
+(* The first shown row: the view keeps its place and moves only as far as the
+   selection needs, then brings the selected day's header in when the whole day
+   fits. *)
+let visible_start ~rows ~top (selected, header, count) =
+  let start =
+    if selected < top then selected else if selected >= top + rows then selected - rows + 1 else top
+  in
+  let start = max 0 (min (max 0 (count - rows)) start) in
+  if header >= 0 && header < start && selected - header < rows then header else start
+
 let list_panel ~book ~width_of t ~records ~groups ~loci pane (width, height) title =
   let selected = if pane = Loci then t.locus_row else t.transaction_row in
   let row_width =
@@ -876,14 +917,9 @@ let list_panel ~book ~width_of t ~records ~groups ~loci pane (width, height) tit
   in
   let display_count = List.length display in
   let selected_display = if selected < Array.length entry_rows then entry_rows.(selected) else 0 in
-  let max_start = max 0 (display_count - rows) in
-  let start = max 0 (min max_start (selected_display + 1 - rows)) in
-  (* The selected day's header stays in view when the whole day fits. *)
   let header_display = if selected < Array.length header_rows then header_rows.(selected) else -1 in
   let start =
-    if header_display >= 0 && header_display < start && selected_display - header_display < rows
-    then header_display
-    else start
+    visible_start ~rows ~top:(pane_top t pane) (selected_display, header_display, display_count)
   in
   let visible = List.filteri (fun i _ -> i >= start && i < start + rows) display in
   let active = pane = t.pane in
@@ -905,6 +941,23 @@ let list_panel ~book ~width_of t ~records ~groups ~loci pane (width, height) tit
   frame ~width_of ~width ~height ~focused:active ~title
     ~bottom:(Some (position ^ more))
     (header @ content)
+
+(* A key that changes the lists leaves both where they are shown, so the next
+   key moves the view only as far as the selection needs. A key that changes
+   nothing (opening a day, say) keeps the state as it was. *)
+let handle ~ctx ~dimensions ~width_of t input =
+  let next, command = handle_key ~ctx ~dimensions ~width_of t input in
+  if { next with notice = t.notice } = t then (next, command)
+  else
+    let g = terminal_geometry dimensions in
+    let loci, _, records, groups, resolved = resolve ~ctx next in
+    let top pane =
+      visible_start
+        ~rows:(list_capacity pane (list_height g pane))
+        ~top:(pane_top next pane)
+        (positions resolved ~records ~groups ~loci pane)
+    in
+    ({ next with list_tops = (top Loci, top Transactions) }, command)
 
 let detail_panel ~book ~width_of (width, height) t ~entry =
   let focused = t.pane = Details in
