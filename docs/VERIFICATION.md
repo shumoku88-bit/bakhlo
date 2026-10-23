@@ -6,6 +6,24 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Daily Pace What-if prices a +income (2026-10-23)
+
+- Bakhlo addition to the What-if overlay (`tui/screens/pace/daily_pace_what_if.ml`):
+  a leading `+` prices an immediate income into the selected pool
+  (`floor((available + amount) / days)`), shown as `Income (JPY)` and `After income`.
+  `-` or no sign stays LOAM's purchase; unsigned input paints exactly as before
+  except the hint and first footer line, which now mention `+income`. A sign is
+  accepted only as the first character; at most 18 digits follow. Nothing is written.
+- Synthetic checks: on the one-day sample pace with 500 jpy available, `+200` gives
+  700/day and 700 available, `-200` and `200` give 300/300, and `+`, `+-200`, `--200`
+  are refused (`daily-pace-what-if-signed-income-and-purchase`); typing `+2000+`
+  paints `Income (JPY): +2000`, `After income:`, Available after and the input notice,
+  with no `After purchase` (`daily-pace-what-if-prices-income`). `./tools/check` and
+  `./tools/tui --self-check` passed.
+- **Latest-data paired comparison not executed**: LOAM has no income What-if to
+  compare, and the unsigned path's calculation is unchanged. Human/IME acceptance not
+  executed.
+
 ## Household trial saves and backup restore drill (2026-10-23)
 
 - User request: before relying on today's changes daily, try saving on a copy of

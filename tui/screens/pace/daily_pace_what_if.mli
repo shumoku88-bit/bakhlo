@@ -1,6 +1,8 @@
 (* Read-only Daily Pace purchase scenario (LOAM DailyPaceWhatIf): an immediate
    purchase from the configured pool, not already Scheduled, priced against the
-   current Daily Pace answer as you type. Never publishes or reserves. *)
+   current Daily Pace answer as you type. A leading [+] prices an income into
+   the pool instead (Bakhlo addition); [-] or no sign is a purchase. Never
+   publishes or reserves. *)
 module B = Bakhlo_sexp.Daily_book
 
 type projection = {
@@ -22,7 +24,8 @@ type step = Stay of t | Back
 
 val update :
   book:B.t -> measure:string -> pace:(B.daily_pace, string) result -> t -> Ui_input.input -> step
-(** Digits (and [.] for decimal Measures) and Backspace edit; Esc/q close. *)
+(** A first [+] or [-], digits (and [.] for decimal Measures) and Backspace
+    edit; Esc/q close. *)
 
 val frame :
   width_of:(string -> int) ->

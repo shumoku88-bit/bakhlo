@@ -1,5 +1,6 @@
 (* LOAM DailyPaceWhatIf over Daily_book.daily_pace. Unlike LOAM (JPY only),
-   any pool Measure works at its own scale. *)
+   any pool Measure works at its own scale, and a leading [+] prices an
+   income into the pool ([-] or no sign is a purchase, as in LOAM). *)
 module B = Bakhlo_sexp.Daily_book
 module O = Daily_overlays
 module Panel = Ui_panel
@@ -17,21 +18,32 @@ let unit_name (p : B.daily_pace) = String.uppercase_ascii p.measure
 (* The book's pace Measure, even when today's answer is unavailable. *)
 let units ~measure = String.uppercase_ascii measure
 
+(* [+] is an income, [-] or no sign a purchase; the rest is the amount. *)
+let split_sign input =
+  let rest () = String.sub input 1 (String.length input - 1) in
+  if String.starts_with ~prefix:"+" input then (true, rest ())
+  else if String.starts_with ~prefix:"-" input then (false, rest ())
+  else (false, input)
+
+let income input = fst (split_sign input)
+
 let project ~book (p : B.daily_pace) input =
+  let income, digits = split_sign input in
   let valid =
-    input <> ""
-    && String.length input <= 18
+    digits <> ""
+    && String.length digits <= 18
     && String.for_all
          (fun c -> (c >= '0' && c <= '9') || (c = '.' && scale book p.measure > 0))
-         input
+         digits
   in
   if p.remaining_days <= 0 then Error "No remaining days in this cycle."
-  else if not valid then Error ("Enter a nonnegative " ^ unit_name p ^ " amount (up to 18 digits).")
+  else if not valid then
+    Error ("Enter a " ^ unit_name p ^ " amount, +amount for income (up to 18 digits).")
   else
-    match B.parse_signed_amount book p.measure input with
+    match B.parse_signed_amount book p.measure digits with
     | Error _ -> Error ("Invalid " ^ unit_name p ^ " amount.")
     | Ok quanta ->
-        let after = Z.sub p.available_through_end quanta in
+        let after = (if income then Z.add else Z.sub) p.available_through_end quanta in
         let projected = Z.ediv after (Z.of_int p.remaining_days) in
         Ok
           {
@@ -57,15 +69,26 @@ let update ~book ~measure ~pace t (input : Ui_input.input) =
       let n = String.length t.amount in
       Stay { amount = (if n = 0 then "" else String.sub t.amount 0 (n - 1)); notice = "" }
   | `Key (`ASCII c, []) ->
-      if ((c >= '0' && c <= '9') || (decimal && c = '.')) && String.length t.amount < 18 then
-        Stay { amount = t.amount ^ String.make 1 c; notice = "" }
-      else Stay { t with notice = "Only " ^ units ~measure ^ " digits, at most 18. Esc/q closes." }
+      let sign = (c = '+' || c = '-') && t.amount = "" in
+      if
+        sign
+        || ((c >= '0' && c <= '9') || (decimal && c = '.'))
+           && String.length (snd (split_sign t.amount)) < 18
+      then Stay { amount = t.amount ^ String.make 1 c; notice = "" }
+      else
+        Stay
+          {
+            t with
+            notice =
+              "Only " ^ units ~measure ^ " digits (at most 18) after an optional + or -. Esc/q closes.";
+          }
   | _ -> Stay t
 
 let rows ~width_of ~width ~book ~measure ~pace t =
   let line text = (O.Plain, text) in
   let info text = List.map line (O.wrap_text ~width_of (max 1 width) text) in
-  let label = " Purchase (" ^ units ~measure ^ "): " in
+  let kind = if income t.amount then "Income" else "Purchase" in
+  let label = " " ^ kind ^ " (" ^ units ~measure ^ "): " in
   let input =
     let shown, caret =
       O.input_text ~width_of
@@ -88,13 +111,16 @@ let rows ~width_of ~width ~book ~measure ~pace t =
           line (" Already protected Scheduled: " ^ fmt p.automatic_deductions ^ " " ^ p.measure);
         ]
         @
-        if t.amount = "" then [ line " Enter amount to compare; nothing is recorded." ]
+        if t.amount = "" then
+          info " Enter amount to compare (+amount for income); nothing is recorded."
         else
           match project ~book p t.amount with
           | Error why -> info why
           | Ok r ->
               [
-                line (" After purchase: " ^ fmt r.projected_per_day ^ " " ^ p.measure ^ "/day");
+                line
+                  (" After " ^ String.lowercase_ascii kind ^ ": " ^ fmt r.projected_per_day ^ " "
+                 ^ p.measure ^ "/day");
                 line (" Daily change: " ^ fmt r.change_per_day ^ " " ^ p.measure ^ "/day");
                 line (" Available after: " ^ fmt r.available_after ^ " " ^ p.measure);
               ]))
@@ -102,7 +128,7 @@ let rows ~width_of ~width ~book ~measure ~pace t =
 
 let footer =
   [
-    (O.Chrome, " Immediate purchase from selected Daily Pace pool only.");
+    (O.Chrome, " Immediate purchase (or +income) in selected Daily Pace pool only.");
     (O.Chrome, " Not already Scheduled. No writes or reservations. Esc/q closes.");
   ]
 

@@ -242,8 +242,15 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
   require
     (List.for_all
        (fun substring -> Base.String.is_substring (overlay_text simulated) ~substring)
-       [ "After purchase:"; "Daily change:"; "Available after:"; "Only JPY digits, at most 18." ])
+       [ "After purchase:"; "Daily change:"; "Available after:"; "Only JPY digits (at most 18)" ])
     "daily-pace-what-if-prices-as-typed";
+  let income = type_amount (key ~width_of pace (`ASCII 'w')) "+2000+" in
+  require
+    (List.for_all
+       (fun substring -> Base.String.is_substring (overlay_text income) ~substring)
+       [ "Income (JPY): +2000"; "After income:"; "Available after:"; "Only JPY digits" ]
+    && not (Base.String.is_substring (overlay_text income) ~substring:"After purchase"))
+    "daily-pace-what-if-prices-income";
   let closed_what_if = key ~width_of simulated `Escape in
   require (no_modal closed_what_if) "daily-pace-what-if-closes";
   (* Target plan: read-only overlay; typing never writes, Esc/q close. *)
@@ -334,6 +341,21 @@ let daily_pace_today_sample_checks () =
     && pace.B.remaining_days = 1
     && Z.equal pace.B.daily_pace_quanta (Z.of_int 500))
     "daily-pace-today-core500";
+  (* What-if: a leading + is an income into the pool, - or no sign a purchase. *)
+  let projected input =
+    match Daily_pace_what_if.project ~book pace input with
+    | Ok r -> Some (r.Daily_pace_what_if.projected_per_day, r.available_after)
+    | Error _ -> None
+  in
+  let some a b = Some (Z.of_int a, Z.of_int b) in
+  require
+    (projected "+200" = some 700 700
+    && projected "-200" = some 300 300
+    && projected "200" = some 300 300
+    && projected "+" = None
+    && projected "+-200" = None
+    && projected "--200" = None)
+    "daily-pace-what-if-signed-income-and-purchase";
   let _, _, samples =
     get
       (Trend.compute_samples ~book ~measure:"jpy" ~pool:[ "wallet" ] ~boundary_presets_text:boundary
