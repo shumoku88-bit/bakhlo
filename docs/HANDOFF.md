@@ -57,9 +57,14 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   against the previous code; `check` and `--self-check` passed. No household access.
 - Paired speed on the latest data (2026-10-23): Bakhlo reaches Home in ~51 ms against
   LOAM's ~242 ms and opens Balances and Daily Pace several times faster; moving in
-  Actual's All view is slower (18 / 16 ms against 11 / 8 ms at 120×36 / 80×24) and
-  already at or above the 16 ms target, while the Cycle view stays under it.
+  Actual's All view was slower (18 / 16 ms against 11 / 8 ms at 120×36 / 80×24) and
+  at or above the 16 ms target until the change below; the Cycle view was under it.
   [Evidence](VERIFICATION.md#paired-speed-bakhlo-and-loam-on-the-latest-data-2026-10-23).
+- Actual All view moves (2026-10-23): day totals and row text are built only for
+  shown rows, one key resolves the list once and the amount scan stops at its cap.
+  On the latest data `j` in All fell to 8.8 / 7.3 ms (LOAM 12.6 / 8.3 ms); output
+  is unchanged over a 3,540-state sweep. Synthetic 109.5k All is still ~0.3 s.
+  [Evidence](VERIFICATION.md#actual-all-view-faster-list-moves-2026-10-23).
 - Actual now reuses scoped/filtered rows within a render; common empty-query search
   skips text construction. The 1,440-state synthetic frame comparison is unchanged.
   At 109.5k synthetic entries, native Actual Down+paint fell 466→235 ms (80×24);

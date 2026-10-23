@@ -138,16 +138,19 @@ let scan_window ~book ~window = List.filter (in_window ~window) (B.entries book)
 
 (* First-occurrence Loci order from an already-scoped record list. *)
 let loci_of_records records =
-  let rec extract_loci acc = function
-    | [] -> List.rev acc
-    | (e : B.entry) :: rest ->
-        let loci = List.map (fun p -> A.lstr (D.Effect.locus p)) e.effects in
-        let new_acc =
-          List.fold_left (fun a locus -> if List.mem locus a then a else locus :: a) acc loci
-        in
-        extract_loci new_acc rest
-  in
-  extract_loci [] records
+  let seen = Hashtbl.create 64 and loci = ref [] in
+  List.iter
+    (fun (e : B.entry) ->
+      List.iter
+        (fun p ->
+          let locus = A.lstr (D.Effect.locus p) in
+          if not (Hashtbl.mem seen locus) then begin
+            Hashtbl.add seen locus ();
+            loci := locus :: !loci
+          end)
+        e.effects)
+    records;
+  List.rev !loci
 
 let locus_at loci row = if row = 0 then None else List.nth_opt loci (row - 1)
 
@@ -218,8 +221,8 @@ let filtered_entries ~ctx t ~records ~locus =
     filtered
 
 (* A day of the list: its entries, where its first entry sits in the sorted
-   list and that day's EXPENSE total. *)
-type group = { day : string; entries : B.entry list; first : int; total : string option }
+   list and that day's EXPENSE total, formatted only when its header is shown. *)
+type group = { day : string; entries : B.entry list; first : int; total : string option Lazy.t }
 
 (* The EXPENSE total per Measure in the shared money format. A day with an
    effect without a role is partial: the total is marked, never completed. *)
@@ -288,7 +291,7 @@ let groups_of_entries ~ctx ~order records =
             let acc =
               match acc with
               | g :: gs when g.day = e.day -> { g with entries = e :: g.entries } :: gs
-              | _ -> { day = e.day; entries = [ e ]; first = index; total = None } :: acc
+              | _ -> { day = e.day; entries = [ e ]; first = index; total = lazy None } :: acc
             in
             loop acc (index + 1) rest
       in
@@ -296,7 +299,11 @@ let groups_of_entries ~ctx ~order records =
       List.map
         (fun (g : group) ->
           let entries = List.rev g.entries in
-          { g with entries; total = Option.bind roles (fun roles -> expense_total roles entries) })
+          {
+            g with
+            entries;
+            total = lazy (Option.bind roles (fun roles -> expense_total roles entries));
+          })
         (loop [] 0 records)
 
 (* The selection the workspace opens on: today's group, or the latest day before
@@ -314,21 +321,51 @@ let default_row ~today groups =
   | Some g -> g.first
   | None -> ( match latest_before with Some g -> g.first | None -> 0)
 
-(* Resolve one scan into the Loci list, the active Locus, the filtered and sorted
-   rows, the day groups and both row indices clamped. *)
-let resolve ~ctx t =
+(* One scan of the window: the Loci list, the active Locus, the filtered and
+   sorted rows and the day groups. It depends on the Locus row, the search and
+   the order, never on the selection. *)
+type listing = {
+  loci : string list;
+  locus_index : int;
+  locus : string option;
+  records : B.entry list;
+  groups : group list;
+  count : int;
+}
+
+let listing ~ctx t =
   let entries = scan_window ~book:ctx.book ~window:ctx.scope.window in
   let loci = loci_of_records entries in
-  let locus_row = min (max 0 t.locus_row) (List.length loci) in
-  let locus = locus_at loci locus_row in
+  let locus_index = min (max 0 t.locus_row) (List.length loci) in
+  let locus = locus_at loci locus_index in
   let records = filtered_entries ~ctx t ~records:entries ~locus in
   let groups = groups_of_entries ~ctx ~order:t.order records in
-  let tx_count = List.length records in
-  let transaction_row = if tx_count = 0 then 0 else min (max 0 t.transaction_row) (tx_count - 1) in
+  { loci; locus_index; locus; records; groups; count = List.length records }
+
+(* Both row indices clamped to a listing, and the pending default selection. *)
+let clamp_to ~ctx l t =
+  let transaction_row = if l.count = 0 then 0 else min (max 0 t.transaction_row) (l.count - 1) in
   let transaction_row =
-    if t.pending_selection then default_row ~today:ctx.scope.focus_day groups else transaction_row
+    if t.pending_selection then default_row ~today:ctx.scope.focus_day l.groups
+    else transaction_row
   in
-  (loci, locus, records, groups, { t with locus_row; transaction_row; pending_selection = false })
+  { t with locus_row = l.locus_index; transaction_row; pending_selection = false }
+
+(* Within one key a selection move reuses the listing it was given. *)
+let listing_once ~ctx =
+  let last = ref None in
+  fun t ->
+    let key = (t.locus_row, t.search_query, t.order) in
+    match !last with
+    | Some (k, l) when k = key -> l
+    | _ ->
+        let l = listing ~ctx t in
+        last := Some (key, l);
+        l
+
+let resolve ~ctx t =
+  let l = listing ~ctx t in
+  (l.loci, l.locus, l.records, l.groups, clamp_to ~ctx l t)
 
 let visible_entries ~ctx t =
   let _, _, records, _, _ = resolve ~ctx t in
@@ -345,14 +382,6 @@ let selected_locus ~ctx t =
 let clamp_state ~ctx t =
   let _, _, _, _, clamped = resolve ~ctx t in
   clamped
-
-(* The default selection is applied once, when the workspace opens or the period
-   window moves. *)
-let apply_pending ~ctx t =
-  if t.pending_selection then
-    let _, _, _, _, t = resolve ~ctx t in
-    t
-  else t
 
 (* After a publication the selection stays on the same Event, in the same
    window and the same order. *)
@@ -549,7 +578,7 @@ let move_previous ~ctx ~width_of:_ _geometry t =
       if t.detail_scroll = 0 then { t with notice = "Top of Details." }
       else { t with detail_scroll = t.detail_scroll - 1; notice = "" }
 
-let move_next ~ctx ~width_of geometry t =
+let move_next ~ctx ~lists ~width_of geometry t =
   match t.pane with
   | Loci ->
       let count = List.length (loci_in_scope ~ctx) in
@@ -564,7 +593,7 @@ let move_next ~ctx ~width_of geometry t =
           }
       else { t with notice = "No next Locus row." }
   | Transactions ->
-      let count = List.length (visible_entries ~ctx t) in
+      let count = (lists t).count in
       if t.transaction_row + 1 < count then
         { t with transaction_row = t.transaction_row + 1; detail_scroll = 0; notice = "" }
       else { t with notice = "No next Actual row." }
@@ -595,7 +624,7 @@ let move_page_up ~ctx ~width_of:_ geometry t =
       if t.detail_scroll = 0 then { t with notice = "Top of Details." }
       else { t with detail_scroll = max 0 (t.detail_scroll - ps); notice = "" }
 
-let move_page_down ~ctx ~width_of geometry t =
+let move_page_down ~ctx ~lists ~width_of geometry t =
   let ps = page_size geometry t.pane in
   match t.pane with
   | Loci ->
@@ -611,7 +640,7 @@ let move_page_down ~ctx ~width_of geometry t =
             notice = "";
           }
   | Transactions ->
-      let count = List.length (visible_entries ~ctx t) in
+      let count = (lists t).count in
       if count = 0 || t.transaction_row + 1 >= count then { t with notice = "End of Actual list." }
       else
         {
@@ -632,14 +661,14 @@ let move_home ~ctx t =
   | Transactions -> { t with transaction_row = 0; detail_scroll = 0; notice = "" }
   | Details -> { t with detail_scroll = 0; notice = "" }
 
-let move_end ~ctx ~width_of geometry t =
+let move_end ~ctx ~lists ~width_of geometry t =
   match t.pane with
   | Loci ->
       let count = List.length (loci_in_scope ~ctx) in
       clamp_state ~ctx
         { t with locus_row = count; transaction_row = 0; detail_scroll = 0; notice = "" }
   | Transactions ->
-      let count = List.length (visible_entries ~ctx t) in
+      let count = (lists t).count in
       let row = if count = 0 then 0 else count - 1 in
       { t with transaction_row = row; detail_scroll = 0; notice = "" }
   | Details -> { t with detail_scroll = detail_scroll_limit ~ctx ~width_of geometry t; notice = "" }
@@ -707,9 +736,11 @@ let normalize_for_bounds ~ctx ~dimensions ~width_of t =
 let next_pane = function Loci -> Transactions | Transactions -> Details | Details -> Loci
 let previous_pane = function Loci -> Details | Transactions -> Loci | Details -> Transactions
 
-let handle_key ~ctx ~dimensions ~width_of t (input : Ui_input.input) =
+let handle_key ~ctx ~lists ~dimensions ~width_of t (input : Ui_input.input) =
   let geometry = terminal_geometry dimensions in
-  let t = apply_pending ~ctx t in
+  (* The default selection is applied once, when the workspace opens or the period
+     window moves. *)
+  let t = if t.pending_selection then clamp_to ~ctx (lists t) t else t in
   let t = normalize_for_bounds ~ctx ~dimensions ~width_of t in
   if t.search_editing then
     match input with
@@ -735,12 +766,13 @@ let handle_key ~ctx ~dimensions ~width_of t (input : Ui_input.input) =
   else
     let focus pane = ({ t with pane; notice = "" }, Stay) in
     match input with
-    | `Key (`ASCII 'j', []) | `Key (`Arrow `Down, _) -> (move_next ~ctx ~width_of geometry t, Stay)
+    | `Key (`ASCII 'j', []) | `Key (`Arrow `Down, _) ->
+        (move_next ~ctx ~lists ~width_of geometry t, Stay)
     | `Key (`ASCII 'k', []) | `Key (`Arrow `Up, _) -> (move_previous ~ctx ~width_of geometry t, Stay)
-    | `Key (`Page `Down, _) -> (move_page_down ~ctx ~width_of geometry t, Stay)
+    | `Key (`Page `Down, _) -> (move_page_down ~ctx ~lists ~width_of geometry t, Stay)
     | `Key (`Page `Up, _) -> (move_page_up ~ctx ~width_of geometry t, Stay)
     | `Key (`Home, _) -> (move_home ~ctx t, Stay)
-    | `Key (`End, _) -> (move_end ~ctx ~width_of geometry t, Stay)
+    | `Key (`End, _) -> (move_end ~ctx ~lists ~width_of geometry t, Stay)
     | `Key (`ASCII 'h', []) | `Key (`Arrow `Left, _) -> focus (previous_pane t.pane)
     | `Key (`ASCII 'l', []) | `Key (`Arrow `Right, _) -> focus (next_pane t.pane)
     | `Key (`Tab, mods) ->
@@ -780,7 +812,7 @@ let day_header ~width_of ~width (group : group) =
     match List.length group.entries with 1 -> "1 entry" | n -> Printf.sprintf "%d entries" n
   in
   let head = left ^ "  " ^ count in
-  match group.total with
+  match Lazy.force group.total with
   | None -> if width_of head <= width then head else left
   | Some total ->
       if width_of head + 2 + width_of total <= width then
@@ -809,7 +841,7 @@ let grouped_row ~width_of width amount_width desc amount =
 
 (* The list rows: a header per day (under a date order) and one row per entry.
    The selection marks entries only, so a day header is never chosen. *)
-type display_row = { style : O.style; text : string; entry : int option }
+type display_row = { style : O.style; text : string Lazy.t; entry : int option }
 
 let display_rows ~book ~width_of ~row_width ~amount_width ~show_days ~groups ~records ~loci ~pane =
   let rows = ref [] in
@@ -838,19 +870,19 @@ let display_rows ~book ~width_of ~row_width ~amount_width ~show_days ~groups ~re
     else table_row ~width_of row_width amount_width e.day desc amount_text
   in
   if pane = Loci then begin
-    add_entry O.Plain "[All loci]";
+    add_entry O.Plain (lazy "[All loci]");
     List.iter
       (fun token ->
-        add_entry O.Plain (O.pad ~width_of (max 0 row_width) (display_locus ~book token)))
+        add_entry O.Plain (lazy (O.pad ~width_of (max 0 row_width) (display_locus ~book token))))
       loci
   end
   else if show_days then
     List.iter
       (fun (group : group) ->
-        add_header O.Heading (day_header ~width_of ~width:row_width group);
-        List.iter (fun (e : B.entry) -> add_entry O.Plain (entry_text e)) group.entries)
+        add_header O.Heading (lazy (day_header ~width_of ~width:row_width group));
+        List.iter (fun (e : B.entry) -> add_entry O.Plain (lazy (entry_text e))) group.entries)
       groups
-  else List.iter (fun (e : B.entry) -> add_entry O.Plain (entry_text e)) records;
+  else List.iter (fun (e : B.entry) -> add_entry O.Plain (lazy (entry_text e))) records;
   (List.rev !rows, Array.of_list (List.rev !entry_rows), Array.of_list (List.rev !header_rows))
 
 (* Where the selection sits among the list's rows (a day header precedes its
@@ -889,13 +921,18 @@ let list_panel ~book ~width_of t ~records ~groups ~loci pane (width, height) tit
     (* two borders and the three-column selection marker *)
   in
   let tabular = row_width >= 40 in
+  (* The widest amount, between 12 and 22 cells and within the row; the scan
+     stops once no wider amount could change the column. *)
   let amount_width =
+    let cap = min 22 (max 0 (row_width - 26)) in
     if pane = Loci then 0
+    else if cap <= 12 then cap
     else
-      min
-        (max 0 (row_width - 26))
-        (min 22
-           (max 12 (List.fold_left (fun w e -> max w (width_of (amount_summary book e))) 0 records)))
+      let rec widest w = function
+        | e :: rest when w < cap -> widest (max w (width_of (amount_summary book e))) rest
+        | _ -> w
+      in
+      min cap (max 12 (widest 0 records))
   in
   (* An amount order is not a day order, so no day header is drawn. *)
   let show_days = pane = Transactions && t.order <> Largest in
@@ -931,7 +968,8 @@ let list_panel ~book ~width_of t ~records ~groups ~loci pane (width, height) tit
               match display_row.entry with Some index -> index = selected | None -> false
             in
             ( (if chosen && active then O.Active else display_row.style),
-              (if chosen then if active then " > " else " * " else "   ") ^ display_row.text )
+              (if chosen then if active then " > " else " * " else "   ")
+              ^ Lazy.force display_row.text )
         | None ->
             (O.Plain, if row = 0 && pane = Transactions then " (no matching Actual records)" else ""))
   in
@@ -946,16 +984,18 @@ let list_panel ~book ~width_of t ~records ~groups ~loci pane (width, height) tit
    key moves the view only as far as the selection needs. A key that changes
    nothing (opening a day, say) keeps the state as it was. *)
 let handle ~ctx ~dimensions ~width_of t input =
-  let next, command = handle_key ~ctx ~dimensions ~width_of t input in
+  let lists = listing_once ~ctx in
+  let next, command = handle_key ~ctx ~lists ~dimensions ~width_of t input in
   if { next with notice = t.notice } = t then (next, command)
   else
     let g = terminal_geometry dimensions in
-    let loci, _, records, groups, resolved = resolve ~ctx next in
+    let l = lists next in
+    let resolved = clamp_to ~ctx l next in
     let top pane =
       visible_start
         ~rows:(list_capacity pane (list_height g pane))
         ~top:(pane_top next pane)
-        (positions resolved ~records ~groups ~loci pane)
+        (positions resolved ~records:l.records ~groups:l.groups ~loci:l.loci pane)
     in
     ({ next with list_tops = (top Loci, top Transactions) }, command)
 

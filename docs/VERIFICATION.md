@@ -6,6 +6,53 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Actual All view: faster list moves (2026-10-23)
+
+- User request after the paired measurement: make moving in Actual's All view
+  faster. Changes in `actual_workspace.ml`, all removals of repeated work:
+  each day's EXPENSE total and each list row's text are built only when shown;
+  one key resolves the list once (the move and the kept view share it, through a
+  value local to that key, no stored cache); the amount column's scan stops once
+  the widest possible width is reached; the Loci list uses a hash set instead of
+  `List.mem`. An integer-day sort key was tried and reverted (no measured gain).
+- CPU (the native `Actual_screen` runner another worker left in ignored
+  `scratch/actual-perf-20261023-ActualCPU/`,
+  80×24, Down then forced rows, median of nine after warm-up, before = `af04ab5`
+  from a clean worktree). “probe” books are the three-Measure startup-probe
+  fixtures (occasional 180-bit amounts); “plain” books are one Measure with
+  ordinary jpy amounts, where the amount scan cannot stop early.
+
+  | All, key + paint (ms) | before | after |
+  | --- | ---: | ---: |
+  | probe 1,000 | 9.6 | 1.2 |
+  | probe 10,950 | 86.8 | 25.0 |
+  | probe 109,500 | 1,056.3 | 292.5 |
+  | plain 3,000 | 17.1 | 5.0 |
+  | plain 10,950 | 72.2 | 27.7 |
+  | plain 109,500 | 841.9 | 342.9 |
+
+  Month windows also fell (plain 109,500: 16.4 → 11.1 ms). The 109.5k 16 ms
+  target is still not met: the window scan, the full sort and, for ordinary
+  amounts, the amount scan remain linear per paint.
+- Latest data (one fresh comparison generation, the PTY method of the
+  [paired speed](#paired-speed-bakhlo-and-loam-on-the-latest-data-2026-10-23)
+  entry, five alternating rounds): `j` in All fell from 18.2 / 16.3 ms to
+  8.8 / 7.3 ms at 120×36 / 80×24; LOAM measured 12.6 / 8.3 ms in the same rounds.
+  The Cycle view stays at 6.6 / 4.5 ms. LOAM original hashes were unchanged, no
+  process remained and the copies were cleaned.
+- Output unchanged: a before/after sweep through `Actual_screen` (three synthetic
+  books including mid-width, capped, CJK, split, multi-Measure and role-less
+  amounts; two `today`s; five sizes 120×36 to 20×6; ten key scripts covering
+  moves, panes, Loci, sorts, search, All/Month/Year/Day, `[ ] { }` and Details)
+  compared 3,540 digests of title, rows, footer, overlay, cursor, request and
+  state: all identical. A width-boundary mutation changed 20 of them, hiding day
+  totals 1,439. A new check pins the amount column to the widest amount of the
+  whole list (off screen, capped) and an off-screen day's total; it fails when the
+  scan is limited to the first rows.
+- `./tools/check`, `./tools/tui --self-check` and `tools/ci-tui-pty` passed.
+  Runner, books, sweep and raw results are in ignored
+  `scratch/actual-all-nav-2026-10-23/`. No IME, physical-terminal or human claim.
+
 ## Paired speed: Bakhlo and LOAM on the latest data (2026-10-23)
 
 - User request: compare the two programs' speed on real data. One fresh

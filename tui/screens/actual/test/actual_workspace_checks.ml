@@ -764,6 +764,62 @@ let self_check ~width_of () =
     "focus-day-picks-its-cycle";
   require (selected_day (press focused (char_key 'z')) = Some "2026-10-14") "focus-day-selected";
 
+  (* The amount column is as wide as the widest amount of the whole list (12 to
+     22 cells), also when that row is off screen; a day scrolled into view shows
+     its own total. *)
+  let all = { Act.start_day = "0001-01-01"; end_exclusive = "9999-12-31"; label = "All time" } in
+  (* Daily lunches, the newest with a description long enough to be cut where the
+     amount column begins, and one wide amount on [wide_day]. *)
+  let long_book ~wide_day ~wide =
+    let book = get (B.of_string fixture) in
+    let book =
+      if wide = 0 then book
+      else
+        add_entry book ~day:wide_day ~memo:"Wide" ~locus1:"assets:cash" ~amt1:(-wide)
+          ~locus2:"expenses:rent" ~amt2:wide
+    in
+    List.fold_left
+      (fun book d ->
+        add_entry book
+          ~day:(Printf.sprintf "2026-09-%02d" d)
+          ~memo:(if d = 28 then "Lunch " ^ String.make 120 'x' else Printf.sprintf "Lunch %d" d)
+          ~locus1:"assets:cash" ~amt1:(-500) ~locus2:"expenses:groceries" ~amt2:500)
+      book (List.init 28 (fun d -> d + 1))
+  in
+  let render ~wide_day ~wide =
+    let ctx = make_ctx ~window:all (long_book ~wide_day ~wide) in
+    let ws = Act.create () in
+    let at_end = Act.handle ~ctx ~dimensions:dim_wide ~width_of ws (key `End) |> fst in
+    (rows_of ctx ws, rows_of ctx at_end)
+  in
+  let lunch rows =
+    List.find_map
+      (fun (_, line) -> if contains [ (O.Plain, line) ] "Lunch xxx" then Some line else None)
+      rows
+  in
+  let column wide =
+    let off_screen, at_end = render ~wide_day:"2026-08-01" ~wide in
+    let on_screen, _ = render ~wide_day:"2026-09-27" ~wide in
+    require (not (contains off_screen "Wide")) "wide-amount-off-screen";
+    require (lunch off_screen = lunch on_screen) "amount-column-from-off-screen-row";
+    (lunch off_screen, at_end)
+  in
+  let narrow, _ = column 0 in
+  let wide, at_end = column 9876543210 in
+  require (wide <> narrow) "amount-column-widens";
+  require (contains at_end "9,876,543,210 jpy") "amount-column-shows-the-widest";
+  require (contains at_end "2026-08-01 Sat  1 entry") "off-screen-day-header";
+  require
+    (List.exists
+       (fun (_, line) ->
+         Base.String.is_substring line ~substring:"2026-08-01"
+         && Base.String.is_substring line ~substring:"9,876,543,210 jpy")
+       at_end)
+    "off-screen-day-total";
+  let capped, at_end = column 1234567890123456789 in
+  require (capped <> wide) "amount-column-capped";
+  require (contains at_end "see details") "amount-beyond-the-cap";
+
   Printf.printf
     "PASS: Actual workspace synthetic checks (day groups, totals, partial marker, unreadable \
      roles, period windows, orders, 3-pane navigation, live search, details, selection).\n\
