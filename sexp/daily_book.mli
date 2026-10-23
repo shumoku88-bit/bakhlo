@@ -64,7 +64,7 @@ val entries : t -> entry list
 (** All retained entries in recorded order (oldest to newest). *)
 
 val entries_rev : t -> entry list
-(** All retained entries in reverse recorded order (newest to oldest). O(1). *)
+(** All retained entries in reverse recorded order (newest to oldest). O(N). *)
 
 val entry_count : t -> int
 (** Total number of entries in the book. O(1). *)

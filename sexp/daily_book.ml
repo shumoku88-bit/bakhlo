@@ -57,14 +57,21 @@ type plan = {
 }
 
 module Entry_map = Map.Make (String)
+(* Newest first, so one fold builds the oldest-first list. *)
+module Seq_map = Map.Make (struct
+  type t = int
+
+  let compare a b = Int.compare b a
+end)
 
 type data = {
   measures : (string * int) list;
   labels : (string * string * string) list option;
   approved : string list option;
-  entries_rev : entry list;
-  entry_map : entry Entry_map.t;
-  entry_count : int;
+  ordered : entry Seq_map.t;
+      (** Recorded position to entry, so a correction replaces one node, not a list. *)
+  position : int Entry_map.t;  (** Entry ID to its recorded position. *)
+  entry_count : int;  (** Also the next position: entries are never removed. *)
   reversed_by : string Entry_map.t;  (** Target ID to the ID of the entry reversing it. *)
   plans : plan list;
   origins : D.Effect_coordinate.t list;
@@ -79,9 +86,12 @@ type t = { data : data; image : Q.t; entries_cached : entry list Lazy.t }
 let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~observations ~presence
     ~bounded =
   let entry_count = List.length entries in
-  let entries_rev = List.rev entries in
-  let entry_map =
-    List.fold_left (fun m (e : entry) -> Entry_map.add e.id e m) Entry_map.empty entries
+  let ordered = Seq_map.of_seq (Seq.mapi (fun n e -> (n, e)) (List.to_seq entries)) in
+  let position =
+    List.fold_left
+      (fun (m, n) (e : entry) -> (Entry_map.add e.id n m, n + 1))
+      (Entry_map.empty, 0) entries
+    |> fst
   in
   let reversed_by =
     List.fold_left
@@ -93,8 +103,8 @@ let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~ob
     measures;
     labels;
     approved;
-    entries_rev;
-    entry_map;
+    ordered;
+    position;
     entry_count;
     reversed_by;
     plans;
@@ -104,6 +114,12 @@ let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~ob
     presence;
     bounded;
   }
+
+(* Recorded order, oldest first. *)
+let ordered_entries data = Seq_map.fold (fun _ e acc -> e :: acc) data.ordered []
+
+let lookup data id =
+  Option.map (fun n -> Seq_map.find n data.ordered) (Entry_map.find_opt id data.position)
 
 let empty_command : A.Actual_source.command =
   {
@@ -165,7 +181,7 @@ let check_plans data =
       require (p.paid_by = None || p.cancelled_on = None) "plan-paid-and-cancelled";
       Option.iter valid_date p.cancelled_on;
       Option.iter
-        (fun id -> require (Entry_map.mem id data.entry_map) "unknown-plan-payment")
+        (fun id -> require (Entry_map.mem id data.position) "unknown-plan-payment")
         p.paid_by)
     data.plans
 
@@ -246,7 +262,7 @@ let admit ?entries_cached data =
   check_vocabulary data;
   let known = known_measure data in
   let entries =
-    match entries_cached with Some c -> Lazy.force c | None -> List.rev data.entries_rev
+    match entries_cached with Some c -> Lazy.force c | None -> ordered_entries data
   in
   let source = actual_source (List.map (entry_event data) entries) entries in
   check_plans data;
@@ -778,10 +794,10 @@ let to_string t =
   Buffer.contents out
 
 let entries t = Lazy.force t.entries_cached
-let entries_rev t = t.data.entries_rev
+let entries_rev t = List.rev (entries t)
 let entry_count t = t.data.entry_count
-let find_entry t id = Entry_map.find_opt id t.data.entry_map
-let mem_entry t id = Entry_map.mem id t.data.entry_map
+let find_entry t id = lookup t.data id
+let mem_entry t id = Entry_map.mem id t.data.position
 let plans t = t.data.plans
 let plan_is_open (p : plan) = p.paid_by = None && p.cancelled_on = None
 let open_plans t = List.filter plan_is_open t.data.plans
@@ -1155,10 +1171,10 @@ let cancel_plan t ~id ~day = protect (fun () -> with_plans t (cancel_candidate t
 let put_entry_full t ~replace (e : entry) ~plan =
   protect (fun () ->
       approve_effects t e.effects;
-      let exists = Entry_map.mem e.id t.data.entry_map in
+      let exists = Entry_map.mem e.id t.data.position in
       require (exists = replace) (if replace then "unknown-entry" else "duplicate-entry");
       (if replace then
-         let old_e = Entry_map.find e.id t.data.entry_map in
+         let old_e = Option.get (lookup t.data e.id) in
          match old_e.merchant with
          | Some old_m ->
              require (e.merchant = Some old_m)
@@ -1195,23 +1211,22 @@ let admit_entry_locally ?(endpoints_disjoint = true) t (e : entry) ~partners =
   require endpoints_disjoint "entry-admission";
   ignore (actual_source (event :: partner_events) (e :: partners))
 
-let partner t id = Entry_map.find_opt id t.data.entry_map
+let partner t id = lookup t.data id
 
 let partners_for_entry t (e : entry) =
   List.filter_map (partner t)
     (Option.to_list e.reversal_of @ Option.to_list (Entry_map.find_opt e.id t.data.reversed_by))
 
 let data_with_replaced_entry t (e : entry) =
-  let entries_rev =
-    List.map (fun (row : entry) -> if row.id = e.id then e else row) t.data.entries_rev
+  let data =
+    { t.data with ordered = Seq_map.add (Entry_map.find e.id t.data.position) e t.data.ordered }
   in
-  ( { t.data with entries_rev; entry_map = Entry_map.add e.id e t.data.entry_map },
-    lazy (List.rev entries_rev) )
+  (data, lazy (ordered_entries data))
 
 let put_entry_incremental t (e : entry) ~plan =
   protect (fun () ->
       approve_effects t e.effects;
-      require (not (Entry_map.mem e.id t.data.entry_map)) "duplicate-entry";
+      require (not (Entry_map.mem e.id t.data.position)) "duplicate-entry";
       let plans =
         match plan with
         | None -> t.data.plans
@@ -1232,17 +1247,21 @@ let put_entry_incremental t (e : entry) ~plan =
         | None -> true
       in
       admit_entry_locally ~endpoints_disjoint t e ~partners;
-      let entries_rev = e :: t.data.entries_rev in
-      let entry_map = Entry_map.add e.id e t.data.entry_map in
+      let ordered = Seq_map.add t.data.entry_count e t.data.ordered in
+      let position = Entry_map.add e.id t.data.entry_count t.data.position in
       let entry_count = t.data.entry_count + 1 in
       let reversed_by =
         Option.fold ~none:t.data.reversed_by
           ~some:(fun target -> Entry_map.add target e.id t.data.reversed_by)
           e.reversal_of
       in
-      let data = { t.data with entries_rev; entry_map; entry_count; reversed_by; plans } in
+      let data = { t.data with ordered; position; entry_count; reversed_by; plans } in
       let image = Q.with_added_effects t.image e.effects in
-      let entries_cached = lazy (List.rev data.entries_rev) in
+      (* Extending a list already built is cheaper than walking the map again. *)
+      let entries_cached =
+        if Lazy.is_val t.entries_cached then lazy (Lazy.force t.entries_cached @ [ e ])
+        else lazy (ordered_entries data)
+      in
       { data; image; entries_cached })
 
 exception Needs_full_admission
@@ -1254,7 +1273,7 @@ let put_entry_replace_incremental t (e : entry) =
   protect (fun () ->
       approve_effects t e.effects;
       let old_e =
-        match Entry_map.find_opt e.id t.data.entry_map with
+        match lookup t.data e.id with
         | Some old_e -> old_e
         | None -> raise (Refused "unknown-entry")
       in
@@ -1288,7 +1307,7 @@ let correct_entry_date_candidate t ~id ~day =
   ignore (eid id);
   valid_date day;
   let old_entry =
-    match Entry_map.find_opt id t.data.entry_map with
+    match lookup t.data id with
     | Some e -> e
     | None -> raise (Refused "unknown-entry")
   in
@@ -1307,7 +1326,7 @@ let correct_entry_date t ~id ~day =
 
 let classify_merchant_candidate t ~id ~disposition =
   let old_entry =
-    match Entry_map.find_opt id t.data.entry_map with
+    match lookup t.data id with
     | Some e -> e
     | None -> raise (Refused "loam: Merchant classification requires an existing Event")
   in
@@ -1411,8 +1430,8 @@ let observe_quantities t rows =
   protect (fun () ->
       let assertions = observation_assertions t rows in
       let reflected_roots = List.map (fun (e : entry) -> eid e.id) (entries t) in
-      let entry_map = t.data.entry_map in
-      let is_reflected id = Entry_map.mem (estr id) entry_map in
+      let position = t.data.position in
+      let is_reflected id = Entry_map.mem (estr id) position in
       match Q.reobserve_in_place t.image ~reflected_roots ~is_reflected assertions with
       | Error (Q.Groups (A.Current_quantity_groups.Invalid_cut _)) -> raise (Refused "invalid-cut")
       | Error (Q.Groups (A.Current_quantity_groups.Invalid_assertions _)) ->
@@ -1550,7 +1569,7 @@ let render_line x =
   Buffer.contents out
 
 module Full = struct
-  let readmit data = admit ~entries_cached:(lazy (List.rev data.entries_rev)) data
+  let readmit data = admit ~entries_cached:(lazy (ordered_entries data)) data
   let put_entry = put_entry_full
   let put_plan t ~replace p = protect (fun () -> readmit (plan_candidate t ~replace p))
   let cancel_plan t ~id ~day = protect (fun () -> readmit (cancel_candidate t ~id ~day))

@@ -116,7 +116,7 @@ let compute_represented_coordinates book =
       List.iter
         (fun posting -> Hashtbl.replace seen (D.Effect.locus posting, D.Effect.measure posting) ())
         entry.effects)
-    (B.entries_rev book);
+    (B.entries book);
   let from_events =
     Hashtbl.fold
       (fun (locus, measure) () acc -> ({ locus; measure } : D.Effect_coordinate.t) :: acc)

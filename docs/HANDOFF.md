@@ -83,8 +83,8 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 - Storage (rebuilt 2026-10-20): one book file = single-file S-expression snapshot +
   appended `Book_log` records. Every `Daily_book` mutation is in place except
   corrections that change a Reversal link or touch an opening/presence witness. At
-  ~110k synthetic entries: save 0.6 ms, record/refund/exchange <0.01 ms, correction
-  4 ms, observation 6 ms, startup 2.2 s (deferred by the user). Details:
+  ~110k synthetic entries: save 0.6 ms, record/refund/exchange/correction <0.01 ms
+  (2026-10-23, was ~4.8 ms), observation 6 ms, startup 2.2 s (deferred by the user). Details:
   [long-term storage study](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/LONG_TERM_STORAGE_STUDY.ja.md) stages 5–9.
 - The 2026-10-20 storage work was checked on the latest real-data copy: Core identical
   to pre-today code; Balances and Daily Pace match LOAM; trial saves in TUI (record,
@@ -95,7 +95,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   (including memo-only) and reversal. Bakhlo now has dedicated metadata operations
   for `d` (date-only, `correct-entry-date` log record) and `m` (merchant), preserving
   identity, Effects, links, original amount and plans without reapproving historical
-  Loci (4.1 ms each at ~110k synthetic entries). On the latest real-data copy at
+  Loci (<0.01 ms each at ~110k synthetic entries since [2026-10-23](VERIFICATION.md#entry-corrections-without-rebuilding-the-entry-list-2026-10-23)). On the latest real-data copy at
   120×36 and 80×24 both UIs reach the same `d`/`m` Previews; Bakhlo saves on an
   isolated copy matched cold reload and `Full`.
 - TUI terminal: Notty since 2026-10-21 (user decision; Bonsai_term and its OxCaml switch

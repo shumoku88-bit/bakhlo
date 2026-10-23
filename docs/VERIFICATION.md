@@ -6,6 +6,46 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Entry corrections without rebuilding the entry list (2026-10-23)
+
+- Cause: `Daily_book` kept its entries as one recorded-order list, so every in-place
+  correction (replacement, date-only correction, Merchant classification) rebuilt the
+  whole list. At 109.5k synthetic entries each correction allocated ~326k words and
+  promoted almost all of them to the major heap, which is why its time grew faster
+  than the entry count (×480–680 for ×109.5 entries).
+- Change: the recorded order is a map from position to entry (newest first, so one
+  fold builds the oldest-first list) with an ID → position map; a correction replaces
+  one node, and a new entry extends an already built list. Storage format, `.mli` API
+  and every answer are unchanged. `entries_rev` is now O(N); its one TUI caller
+  (represented coordinates, order-insensitive) uses `entries`.
+- Timing (synthetic one-Measure book, native, in-process; each operation the median of
+  41 calls on the same base book; the table is the median of three runs alternating
+  with `624f40a` built from a clean worktree). “+ list” also builds `B.entries` of the
+  result, as the TUI does after a save. Bench source, raw runs and environment are in
+  ignored `scratch/entry-replace-map-2026-10-23/`.
+
+  | 109.5k entries (ms) | before | after |
+  | --- | ---: | ---: |
+  | Replace existing entry | 4.841 | 0.003 |
+  | Correct entry date | 4.700 | 0.001 |
+  | Classify merchant | 4.679 | 0.001 |
+  | Replace + list | 9.694 | 4.431 |
+  | New entry + list | 3.081 | 3.234 |
+  | `of_string` load (median of 5) | 1,479.6 | 1,460.1 |
+  | Reachable book heap (MiB) | 90.7 | 93.2 |
+
+  At 36.5k: replace 0.348 → 0.003 ms, replace + list 1.934 → 0.534 ms. Per
+  correction at 109.5k: ~1.8k minor words and no promotion (was ~326k promoted).
+  The remaining O(N) cost is building the entry list the TUI reads after a save.
+- Checks: `./tools/check`, `./tools/tui --self-check` and the PTY smoke
+  (`tools/ci-tui-pty`, four sizes) passed locally. The `Full` / cold-reload oracle
+  (`test/daily_book_oracle_tests.ml`, which compares `to_string` order, balances and
+  Daily Pace) fails on two deliberate mutations — a correction written one position
+  off and a new entry put first — and passes on the change.
+- Not executed: TUI save-to-repaint timing, the optional formatter (not installed),
+  household data or latest-data paired comparison (no displayed answer changes; the
+  oracle covers agreement). No P7, power-loss or human acceptance claim.
+
 ## Actual list keeps its view while the selection moves (2026-10-22)
 
 - User request: moving back up from the end of the Actual list kept the selection on the bottom row and slid the whole list each step. The workspace now keeps the first shown row of the Loci and Actuals lists and moves it only when the selection would leave the view (then it brings the selected day's header in when the whole day fits, as before). Only keys that change the list update it, so opening a day and returning restores the state exactly; a period change starts at the top.
