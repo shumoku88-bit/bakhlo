@@ -6,6 +6,47 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Paired speed: Bakhlo and LOAM on the latest data (2026-10-23)
+
+- User request: compare the two programs' speed on real data. One fresh
+  `./tools/compare refresh` generation (frozen LOAM record, read-only copy) opened by
+  both: Bakhlo `edbcc63` (native, `_build/default/tui/app/bakhlo_tui.exe` on the
+  comparison book) and the existing LOAM executable (`../loam` `19f7d319`, binary
+  built 2026-10-20, SHA-256 prefix `4a413fa3df08c149`, `loam tui` on `loam-view`).
+  macOS x86_64, Intel i5-8259U.
+- Method: a scratch OCaml driver ran each program under `script(1)` at 120×36 and
+  80×24 with `TERM=xterm-256color`, sent keys from Home and timed each key from the
+  write to the last output byte of its redraw (a redraw ends after 400 ms of
+  silence; startup after 1 s). Five rounds per size, alternating the programs; the
+  table is the median over rounds and repeated keys. Screen bytes were not kept or
+  read. The terminal emulator's own painting is not included. Startup includes
+  ~22 ms of harness time (`script`, `sh`, `stty`), measured with a trivial command.
+  Bakhlo's Actual opens on the current Cycle; it was moved to All through `f` for the
+  All row, which is LOAM's default Actual view.
+
+  | ms (120×36 / 80×24) | Bakhlo | LOAM |
+  | --- | ---: | ---: |
+  | Startup to first full Home | 51 / 51 | 242 / 246 |
+  | `a` open Actual | 7.6 / 5.9 | 11.4 / 8.8 |
+  | `j` in Actual, Cycle | 7.0 / 4.5 | — |
+  | `j` in Actual, All | 18.2 / 16.3 | 11.3 / 7.5 |
+  | `b` open Balances | 5.2 / 2.6 | 75.7 / 75.4 |
+  | `d` open Daily Pace | 24.2 / 19.5 | 153.8 / 148.0 |
+  | `Esc` back to Home | 1.5 / 1.4 | 102.9 / 102.4 |
+
+- Findings: Bakhlo starts about 4.7× sooner and opens Balances and Daily Pace
+  several times faster. Moving in Actual's All view is slower in Bakhlo and at
+  this household's size is already at or above the 16 ms key target, while the
+  Cycle view stays under it. LOAM's `Esc` waits ~100 ms on every return, which
+  looks like an escape-sequence timeout rather than computation (not confirmed in
+  LOAM's source). A trial LOAM launch before the rounds, its first after the refresh, took 2,079 ms
+  (probably loading its 111 MB binary) and is not in the table; the Bakhlo trial launch took 49 ms.
+- Afterwards: SHA-256 of every `../loam-data` file outside `.git` was identical
+  before and after; no driver process remained; `./tools/compare clean-copies`
+  passed. Driver source, per-run results and the original hashes are in ignored
+  `scratch/perf-paired-2026-10-23/`. Read-only flows only; no writes, IME, human
+  acceptance or physical-terminal timing.
+
 ## Entry corrections without rebuilding the entry list (2026-10-23)
 
 - Cause: `Daily_book` kept its entries as one recorded-order list, so every in-place

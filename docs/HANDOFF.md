@@ -55,6 +55,11 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   and says that Start and End include it while `+In` and `-Out` do not. The
   exclusion is keyed by (Measure, entry). Synthetic checks cover each rule and fail
   against the previous code; `check` and `--self-check` passed. No household access.
+- Paired speed on the latest data (2026-10-23): Bakhlo reaches Home in ~51 ms against
+  LOAM's ~242 ms and opens Balances and Daily Pace several times faster; moving in
+  Actual's All view is slower (18 / 16 ms against 11 / 8 ms at 120×36 / 80×24) and
+  already at or above the 16 ms target, while the Cycle view stays under it.
+  [Evidence](VERIFICATION.md#paired-speed-bakhlo-and-loam-on-the-latest-data-2026-10-23).
 - Actual now reuses scoped/filtered rows within a render; common empty-query search
   skips text construction. The 1,440-state synthetic frame comparison is unchanged.
   At 109.5k synthetic entries, native Actual Down+paint fell 466→235 ms (80×24);
