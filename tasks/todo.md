@@ -13,7 +13,7 @@
 ## 要判断
 
 - [ ] LOAMのComplete Since（履歴の完全性の記録）をパリティ一覧に入れるか（Daily Paceの過去日に関わる）。
-- [ ] パフォーマンス最適化・メモリチューニング・GADT活用の着手順序（[PERFORMANCE_AND_GADT_STUDY.ja.md](../docs/PERFORMANCE_AND_GADT_STUDY.ja.md)）：Actual画面の235ms短縮（日付インデックス化）を最優先とするか。
+- [ ] パフォーマンス最適化の追加着手時期（[調査書](../docs/PERFORMANCE_AND_GADT_STUDY.ja.md)）。金額列幅の早期終了・キー内の重複解決削減・可視行だけの文字列化は `7a7dc9e` で実装済み。残る全件走査・sort の費用を分解してから次を判断する。日付インデックスは範囲抽出費用が支配する場合に検討。追加GADT化は推奨せず、起動最適化の保留を維持。
 
 ## 未完了
 

@@ -6,6 +6,17 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Performance documentation commit review (2026-10-23)
+
+- Documentation only: retained the synthetic investigation's original revisions
+  and measurements, and distinguished them from the Actual optimizations already
+  shipped in `7a7dc9e`. The study, handoff and pending tasks now describe those
+  optimizations as implemented, not as future work. No product code, dependency,
+  configuration or book format changed.
+- `./tools/check`, `./tools/tui --self-check` and `./tools/privacy-scan --all`
+  passed. No new benchmark, latest-data paired comparison, physical-terminal,
+  IME, P7 or power-loss check was executed in this documentation review.
+
 ## Daily Pace What-if prices a +income (2026-10-23)
 
 - Bakhlo addition to the What-if overlay (`tui/screens/pace/daily_pace_what_if.ml`):
@@ -187,6 +198,83 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   `scratch/perf-paired-2026-10-23/`. Read-only flows only; no writes, IME, human
   acceptance or physical-terminal timing.
 
+## Actual CPU baseline and bounded width experiment (2026-10-23)
+
+- Historical baseline, before the Actual optimizations in `7a7dc9e`. The
+  bounded-width scan, one resolution per key and visible-row formatting have since
+  shipped; current integrated results and frame comparisons are in
+  [Actual All view: faster list moves](#actual-all-view-faster-list-moves-2026-10-23).
+
+- Investigation only: no product code or storage/configuration changes in this
+  pass. The measured Actual baseline reports revision
+  `edbcc63fb9b06986c6aa7859b5a92d12f7f84de1` (including the entry-map change below),
+  Darwin x86_64, OCaml 5.3.0. Runner and relevant source SHA-256 values, environment
+  and raw baseline results are in ignored
+  `scratch/actual-perf-20261023-ActualCPU/`.
+- Executed the native `Actual_screen` runner successfully: 80×24 terminal geometry,
+  79×20 content; three-Measure synthetic startup-probe fixtures, including splits,
+  reversals and occasional 180-bit quantities. All and the last calendar Month
+  were chosen through the public period picker. Loading, picker setup and initial
+  entry-list forcing were outside timing. Two warmups, then nine calls from the
+  same initialized state; each call handles Down and forces `view.rows`.
+
+  | Book entries | Window (entries) | Key median ms | Paint median ms | Combined median ms | Allocated MiB, key / paint |
+  | ---: | --- | ---: | ---: | ---: | ---: |
+  | 1,000 | All (1,000) | 1.516 | 4.702 | 6.079 | 1.66 / 4.82 |
+  | 1,000 | Month (100) | 0.157 | 0.472 | 0.629 | 0.17 / 0.54 |
+  | 109,500 | All (109,500) | 382.457 | 720.461 | 1,147.071 | 212.67 / 553.78 |
+  | 109,500 | Month (310) | 11.940 | 12.628 | 25.087 | 0.50 / 1.57 |
+
+- Combined is the median of each call's key + paint, not the sum of the two
+  independent medians. Allocations are cumulative transient allocations per call,
+  not live heap, RSS or proof of a leak. Paint includes owner `view`, footer/cursor
+  construction and forced rows, but not Shell composition, Notty image creation,
+  terminal I/O or PTY latency. This workload is not the earlier two-Locus
+  `234.804 ms` benchmark; the difference is not a measured regression.
+  The "before" row in
+  [the integrated comparison](#actual-all-view-faster-list-moves-2026-10-23) is
+  a later, independent run of the same runner, fixture and warm-up method at
+  `af04ab5` (documentation-only over `edbcc63`); its median differs despite
+  identical output. Use that comparison's paired measurements for the improvement,
+  not this earlier baseline combined with its "after" row.
+- Executed a separate, disposable width-only experiment over the same synthetic
+  fixtures. It copies the current private `amount_summary` faithfully and compares
+  the current full fold with an early exit at
+  `cap = min 22 (max 0 (row_width - 26))`. For `cap <= 12`, the clamp's result is
+  already fixed and no entries need visiting.
+
+  | Width scan, 109,500 entries, row width 74 | Current | Early-exit candidate |
+  | --- | ---: | ---: |
+  | Time, median of 9 after warmup | 83.1969 ms | 0.5429 ms |
+  | Allocated MiB, separate call after compaction | 67.31 | 0.51 |
+  | Entries visited | 109,500 | 823 |
+
+- The width result agreed for empty, huge-first, huge-last and ordinary-only lists
+  over row widths 0–200, and for both full fixtures at widths 10/35/50/74/114.
+  Ordinary-only and huge-last cases still visited every entry at cap 22: worst-case
+  O(N) remains. The scan is an isolated candidate, not an integrated UI speedup;
+  its time cannot be subtracted from the owner baseline as a proven improvement.
+  Source and selected observations: `width_perf.ml`, `selected_observations.txt`
+  in the same ignored directory.
+- Executed a separate date-correction + lazy-list experiment on 109,500 synthetic
+  entries (three warmups, median of 21): mutation 0.011 ms; first `B.entries`
+  7.895 ms and 2.506 MiB allocated; cached `B.entries` 0.001 ms; mutation + first
+  list 7.909 ms. Recorded order, replaced date, original-book immutability and
+  cached-list identity assertions passed. This is not a save-to-repaint timing.
+  Source: `scratch/startup-probe-pjl2w0/list_cost.ml`; selected observations are
+  retained with the Actual experiment. The entry-map change removes list work
+  from mutation, but not the consumer's eventual full list materialization.
+- `./tools/startup-probe 1000 109500` also completed on the reviewed entry-map
+  working tree; evidence is `scratch/startup-probe-pjl2w0/`. Its three modified
+  Core/overlay source hashes agreed before and after the run. These three-Measure
+  measurements are distinct from the paired one-Measure correction study below.
+- Proposals at the time of this investigation: integrate the bounded-width scan first, then reduce
+  repeated resolution and format only visible rows. Month's remaining full-book
+  range scans need separate profiling; a date index does not shrink All's result.
+  No prototype of those broader changes, Core/TUI suite, full-frame comparison,
+  actual terminal/IME, household comparison or save-to-repaint test was executed
+  in this investigation. No new acceptance or durability claim.
+
 ## Entry corrections without rebuilding the entry list (2026-10-23)
 
 - Cause: `Daily_book` kept its entries as one recorded-order list, so every in-place
@@ -226,6 +314,66 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 - Not executed: TUI save-to-repaint timing, the optional formatter (not installed),
   household data or latest-data paired comparison (no displayed answer changes; the
   oracle covers agreement). No P7, power-loss or human acceptance claim.
+
+## Performance and GADT investigation (2026-10-23)
+
+- Historical investigation at `624f40a`, before the entry-map and Actual
+  optimizations. See [entry corrections](#entry-corrections-without-rebuilding-the-entry-list-2026-10-23)
+  and [Actual All view](#actual-all-view-faster-list-moves-2026-10-23) for the
+  subsequent product changes; the measurements below remain the original results.
+
+- Research and documentation only; no product code, configuration or storage format
+  changed. Recommendations and remaining measurements:
+  [performance and GADT study](PERFORMANCE_AND_GADT_STUDY.ja.md).
+- Executed `./tools/startup-probe 1000 109500` successfully on measured revision
+  `624f40a9c18f20a7b539230b6165d5eb68b7d317`, macOS x86_64, OCaml 5.3.0.
+  Synthetic evidence stays in ignored `scratch/startup-probe-xORcT7/`
+  (`environment.txt`, `results.txt`). Performance measurements used synthetic
+  inputs only; no household originals were accessed.
+  Filesystem caches were not flushed; the probe's separate-process “cold” loads
+  are not uncached disk measurements or complete TUI startup measurements.
+
+  | Measurement | 1,000 entries | 109,500 entries |
+  | --- | ---: | ---: |
+  | Parsexp parse only, single timed call | 7.946 ms | 943.494 ms |
+  | `Daily_book.of_string`, single timed call | 21.653 ms | 2,031.585 ms |
+  | Separate-process S-expression load, median of 3 | 27.422 ms | 2,330.027 ms |
+  | Separate-process experimental Marshal load, median of 3 | 5.441 ms | 199.161 ms |
+  | Reachable book heap after compaction | 0.9 MiB | 99.7 MiB |
+  | Reachable query image / entries list | 0.7 / 0.4 MiB | 80.4 / 42.2 MiB |
+  | Replace existing entry, median of 21 | 0.0091 ms | 5.2531 ms |
+  | Correct entry date, median of 21 | 0.0060 ms | 5.5668 ms |
+  | Classify merchant, median of 21 | 0.0060 ms | 4.4470 ms |
+  | Append and full durable sync, median of 21 | 22.2549 ms | 20.9599 ms |
+
+- Heap figures count reachable OCaml words, not RSS or allocation rate. The image
+  and entries share objects: their sizes are not additive. No string-ownership,
+  per-type heap, promotion or GC-pause profile was collected.
+- The experimental snapshot load remains above the 100 ms target at 109,500
+  entries. The probe asserts one balance agrees after an in-memory Marshal
+  round-trip; it does not qualify a production cache, invalidation, log replay or
+  all semantic answers. Startup optimization remains deferred by the user.
+  Replacement and date correction exceed the 5 ms work target in this run;
+  durable-save timings include drive-cache flush and do not isolate CPU save work.
+- Source inspection at the measured revision: Actual sorted resolved records, formatted the whole
+  transaction list before selecting visible rows, scanned global amount widths and
+  repeated resolution during navigation. `B.entries` is in recorded, not date,
+  order. A date-range index cannot reduce the selected set for All (`K = N`).
+  The earlier [All benchmark](#actual-render-local-reuse-and-empty-query-search-2026-10-21)
+  and [period-picker timings](#actual-period-bar-and-picker-2026-10-22) use different
+  workloads and statistics; neither is a current remeasurement.
+- Type inspection: `screen_registry.ml` already uses an existential GADT to pair
+  each screen state with its functions. `Current_quantity_query` already separates
+  abstract `exact` and `present` payloads, with `quantity : exact -> Quantity.t`.
+  The proposed outcome GADT supplies no demonstrated additional guarantee or speed
+  improvement for that boundary. Operation tags alone do not establish validity
+  against the current book.
+- Documentation privacy check: `./tools/privacy-scan --all` completed with no
+  matches. The scanner reads ignored private copies internally without emitting
+  their text; those copies were not used as performance inputs.
+- Not executed in this investigation: Actual key/paint remeasurement, optimization
+  prototypes, Core/TUI tests, PTY/IME or latest-data paired comparison. No claim of
+  performance improvement, human acceptance, P7 or power-loss qualification.
 
 ## Actual list keeps its view while the selection moves (2026-10-22)
 

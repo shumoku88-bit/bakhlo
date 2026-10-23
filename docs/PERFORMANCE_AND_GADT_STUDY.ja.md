@@ -1,158 +1,104 @@
-# Bakhlo パフォーマンス最適化・メモリチューニング・GADT活用 調査書
+# Bakhlo パフォーマンス・メモリ・GADT 調査書
 
-このドキュメントは、Bakhlo（OCaml製家計簿）において **「30年分（~110k entries）の超軽快な動作」** と **「OCamlらしい型安全性・GADTの活用」** を両立させるための技術調査・設計案・引き継ぎ用まとめである。
+**状態: 調査記録と実装後の現在地（2026-10-23）。** 調査自体は製品コード・保存形式・設定を変更せず、使い捨ての合成実験だけを行った。その後の製品への反映は別の変更として区別する。
 
----
+- 実装後の証拠: [Actual All の最適化](VERIFICATION.md#actual-all-view-faster-list-moves-2026-10-23)（`7a7dc9e`）。金額列幅の早期終了・キー内の重複解決削減・可視行だけの文字列化は実装済み。
+- 実装前の証拠: [Actual の CPU 計測と金額幅の実験](VERIFICATION.md#actual-cpu-baseline-and-bounded-width-experiment-2026-10-23)。測定基準は `edbcc63fb9b06986c6aa7859b5a92d12f7f84de1`、Darwin x86_64、OCaml 5.3.0。生データと測定ソースの識別は同節を参照。
+- Core の更新: [entry-map 化の対照計測](VERIFICATION.md#entry-corrections-without-rebuilding-the-entry-list-2026-10-23)。訂正処理単体と、その後の全件リスト化を分ける。
+- 初回の保存・読込・メモリ測定: [検証記録](VERIFICATION.md#performance-and-gadt-investigation-2026-10-23)。基準は `624f40a9c18f20a7b539230b6165d5eb68b7d317`。FS キャッシュは排除していない。
 
-## 1. 背景と現在地
+ラベルの意味:
 
-* **日常運用中（2026-10-21 cutover済み）**:
-  家計簿正データは `../bakhlo-data` にあり、日々の記帳に使われている。
-* **基本方針（AGENTS.mdより）**:
-  * **「最適化の前に計測する。形容詞ではなく数字で示す」**
-  * **「機構・チェックを足す前に、何を削れるかを考える」**
-  * **「正データ（S式・ログ）の保存形式破壊・暗黙マイグレーションは禁止」**
-* **目標値と現状の実測値（109.5k entries 規模）**:
-  | 項目 | 目標 | 現状の実測値 | 判定 | 備考 |
-  |---|---|---|---|---|
-  | **Save時間** | ≤ 5 ms (+ durable fsync) | **0.6 ms** (append), 4.1 ms (date/merchant) | ✅ 達成 | `F_FULLFSYNC` ~21ms |
-  | **キー応答（一般）** | ≤ 16 ms | **11 ms** (期間ピッカー移動) | ✅ 達成 | |
-  | **Actual画面 Down+paint** | ≤ 16 ms | **235 ms** (HANDOFF.md #60) | ❌ **未達** | 466ms→235msまで改善したが依然重い |
-  | **期間切り替え** | ≤ 16 ms | **60〜166 ms** | ❌ **未達** | |
-  | **起動時間（Startup）** | ≤ 100 ms | **2.2 s** (HANDOFF.md #87) | ❌ **未達** | 現在はユーザー判断で保留中 |
+- **確認済み** — 今回の probe で観測した、またはソースを読んで確認した。
+- **仮説** — メカニズムの推測。未計測。
+- **推奨** — 次にやるならこれ、という順序つきの提案。
+- **保留** — 今はやらない。再開条件つき。
+- **未実行** — 今回やっていない。結果を創作しない。
 
----
+## 1. 数字の引用ルール
 
-## 2. パフォーマンス最適化（CPU / レンダリング / 応答性）
+- 今回の保存・読込・メモリ測定と、過去の Actual 計測は区別する。
+- [Actual の既存計測](VERIFICATION.md#actual-render-local-reuse-and-empty-query-search-2026-10-21)の **234.804 ms** は 2026-10-21 の履歴値（All Current / two Loci / 空クエリ / 80×24、キー+Notty の CPU 側、9 回中央値）であり、**現行コードの再計測ではない**。
+- [期間ピッカーの既存計測](VERIFICATION.md#actual-period-bar-and-picker-2026-10-22)は別 workload（best of 5）。All の履歴値と直接比較しない。
+- プロセス全体の projection cache（`2abf471`、warm キー ≤4.1 ms）は、家庭で遅さが感じられていないこと、共有可変状態と古い book の保持を理由に**意図的に撤回済み**。再開条件は「Actual が遅いと感じられたとき」。
 
-### ① 【最優先】Actual画面の `scan_window` を O(N) から O(log N + K) へ
+## 2. 109,500 件で確認できたこと
 
-* **ボトルネックの所在**:
-  `tui/screens/actual/actual_workspace.ml`:
-  ```ocaml
-  let scan_window ~book ~window = List.filter (in_window ~window) (B.entries book)
-  ```
-  カーソルを1行移動する（Downキー等）たびに、109,500件の全リストを何回もフル走査・フィルタ・ソートしている。
-  235ms の大半はここでの CPU 走査および大量の中間リスト確保によるGC負荷。
+目標は保存作業 ≤5 ms + durable flush、キー応答 ≤16 ms、起動 ≤100 ms。結果の数値と統計は[検証記録の表](VERIFICATION.md#performance-and-gadt-investigation-2026-10-23)を参照する。
 
-* **改善設計**:
-  1. `Daily_book.t` 内部に **日付順ソート済み配列**（または日付別バケット・B-treeインデックス）を保持する。
-  2. `Daily_book.entries_in_range : t -> start_day:string -> end_exclusive:string -> entry list` を追加。
-  3. 日付範囲 `[start_day, end_exclusive)` を二分探索（`Array.binary_search`）で特定し、該当範囲の要素のみを取り出す。
-  4. **期待効果**:
-     走査対象が 109,500件 → 数件〜数十件に激減し、Down+paint が **235ms → 1ms 未満** へ短縮。16ms目標を確実に達成可能。
+- **確認済み（実測）**: 初回 baseline では置換・日付訂正が保存作業の目標を超えた。その後の entry-map 化で mutation 単体は短縮したが、最初の `B.entries` に O(N) のリスト再構築が残る。append の full sync、mutation、最初のリスト化、再描画は別の測定境界であり混同しない。
+- **確認済み（実測）**: 研究用 snapshot のロードも起動目標を超えた。別プロセスでの読込であり、FS キャッシュを排除したディスク読込や TUI 全体の起動時間ではない。
+- **測定限界**: reachable heap は RSS・割当量・GC 停止時間ではない。image と entries はオブジェクトを共有するため加算できず、文字列重複の削減可能量もこの値からは分からない。parse と admission の細かな費用配分は未計測。
 
-### ② 中間リストのGCプレッシャー排除（イテレータ / Seq化）
+**確認済み（ソース）**: `Daily_book.entries` は記録順（古い順）を返す。[`sexp/daily_book.mli:63-67`](../sexp/daily_book.mli) のとおりで、日付順ではない。日付 index を足すなら、この順序前提と保存形式を変えない範囲で別に持つ必要がある。
 
-* **現状**:
-  `B.entries`（110k件のリスト）から `List.filter` → `filtered_entries` → `groups_of_entries` と多段のリスト生成が行われており、毎フレーム数千〜数万個の cons セルがマイナーGCに流れ込んでいる。
-* **改善設計**:
-  * ウィンドウ抽出部を `Seq.t` や配列スライス、またはコールバック `iter` 形式にして中間リストのヒープ割り当てを削減する。
+## 3. Actual 画面 — 実装済みの削減と残る費用
 
-### ③ 起動時間の短縮（2.2s → <100ms）
+[`tui/screens/actual/actual_workspace.ml`](../tui/screens/actual/actual_workspace.ml) の調査時点の重複処理は `7a7dc9e` で削減済み:
 
-* **ボトルネック**:
-  110k行の巨大なS式テキスト全体を `Parsexp.Many.parse_string` でAST（`Sexp.t` の膨大な木構造）に展開し、そこから `Daily_book.admit_payload` 内で `Map.Make(String)`（AVL木）に11万件を順次 `add` している。
-* **改善設計**:
-  1. **使い捨てスナップショットキャッシュ（Snapshot + Log）**:
-     * `tools/startup_probe.ml` にすでに実証コードがある通り、コンパクション時に `book.snap`（Marshalまたは独自バイナリ）を保持。
-     * コールド起動時は `book.snap` を即座にロードし、未コンパクションの差分ログ（`Book_log`）のみをリプレイする。
-     * これによりコールド起動は数十ミリ秒で完了する。
-  2. **専用ストリーミングパーサー**:
-     * 汎用 `Parsexp` AST を経由せず、`bakhlo-daily` 構文専用の字句解析器で直接 `entry` レコードを構築する（アロケーションを半減）。
+| 対象 | 現在の状態 |
+|---|---|
+| 金額列幅 | 上限到達で走査を打ち切る。上限に届かない入力では全件走査が残る |
+| キー処理 | 1キー内の移動とscroll調整で解決結果を共有。恒久キャッシュは追加しない |
+| 行の文字列化・日別合計 | 表示する行だけ生成・集計 |
+| 範囲抽出・sort | 全帳簿からの日付窓抽出と、選択された全件のsortが残る |
 
----
+**確認済み（実装後の計測）**: 合成109,500件の All は probe / plain とも16 ms目標が未達。[実装時の検証記録](VERIFICATION.md#actual-all-view-faster-list-moves-2026-10-23)に対照計測の表と3,540状態の表示同一性比較がある。これらは初回 owner baseline とは別の対照計測であり、単独の金額幅実験の時間を差し引いた推定値ではない。
 
-## 3. メモリチューニング（省メモリ・GC負荷軽減）
+**日付 index の評価**: 範囲抽出を O(log N + K) にしても、All 表示では K = N となり選択件数は減らない。月などの狭い窓には候補だが、全件 sort まで解決するものではない。**1 ms / 16 ms を確実に達成する根拠はない**。
 
-110k エントリ規模（約25万〜30万個の `Effect.t`）におけるヒープ削減。
+**次にやるなら**: 残る範囲抽出・sort・通常額の幅走査の寄与を分ける。狭い窓で範囲抽出が支配するなら日付 index を検討し、new / replace / date / merchant / Full / cold / replay で一致させる。記録順・同日内の表示順・保存形式を守り、具体的データ構造・API はまだ決めない。
 
-### ① 重複文字列のインターン化（String Interning / 整数ID化）
-* **現状**:
-  `lib/identifier.ml`:
-  ```ocaml
-  module Measure = struct type t = string ... end
-  module Locus = struct type t = string ... end
-  ```
-  すべての Effect で `measure: string`（99%が `"jpy"`）と `locus: string`（"wallet", "food" など高々数十種）が個別の文字列オブジェクトとして大量重複している。
-* **改善設計**:
-  * 登録された `Locus` / `Measure` を整数ID（またはハッシュコンシング/シンボル）にマッピング。
-  * **効果**: 文字列重複による数MB〜十数MBのヒープ削減。さらに比較が `String.equal`（バイト比較）からポインタ等価性（`==`）や整数比較（1クロック）になり、クエリや集計が高速化。
+**保留**: `Seq` 一律化、GC パラメータ調整。どちらも効果**未計測**。
 
-### ② 日付（`day : string`）の Unboxed 即値化
-* **現状**:
-  各エントリが `"YYYY-MM-DD"`（10バイト文字列 ＝ ヒープ24バイト）を保持。
-* **改善設計**:
-  * 内部表現を通日（エポックからの日数: `type day = private int`）に変更。
-  * **効果**: OCaml の 63-bit 即値（タグ付き整数）として **完全に Unboxed（ヒープ消費ゼロ）** になる。日付比較も `Int.compare` 1命令で完結。
+## 4. 起動
 
-### ③ OCaml GC チューニング
-* TUI起動時にマイナーヒープ（デフォルト数十KB〜数MB）を拡大：
-  ```ocaml
-  Gc.set { (Gc.get ()) with minor_heap_size = 4 * 1024 * 1024 (* 4MB *); space_overhead = 120 }
-  ```
-  短命な一時オブジェクトがメジャーヒープに昇格するのを防ぎ、マイナーGCで瞬時に回収させる。
+**確認済み**: 既存 probe の snapshot は研究用の raw `Marshal` ロードであり、製品キャッシュの実装ではない。今回、起動目標は未達だった。`same balance` の assert は単一残高の比較であり、全意味の一致・キャッシュ失効・差分 log replay の検証ではない。
 
----
+**仮説**: 使い捨て snapshot + 差分 log replay、または中間 AST を減らす解析方法は候補だが、製品としての費用・安全性は未検証。専用パーサーの割当削減率を保証できる測定はない。
 
-## 4. OCamlらしい GADT の適用ポイント
+**保留（既存方針の維持）**: 起動最適化は、ユーザーが遅さを感じるまで着手しない。
 
-### ① `Current_quantity_query.outcome`（Exact vs Known_present の型レベル分離）
-* **対象**: `application/current_quantity_query.mli`
-  ```ocaml
-  (* 現状 *)
-  type outcome = Exact of exact | Known_present of present
-  ```
-* **GADT化案**:
-  ```ocaml
-  type exact_t
-  type present_t
+## 5. メモリ
 
-  type _ outcome =
-    | Exact : exact -> exact_t outcome
-    | Known_present : present -> present_t outcome
-  ```
-* **効能**:
-  残高合算（Sum）や決済処理など、「厳密に確定した値（Exact）のみを受け付ける」関数のシグネチャを型レベルで固定でき、「金額不明な残高を誤って合算してしまう」バグをコンパイル時に完全に排除。
+**確認済み**:
 
-### ② `Book_log.op` とステージ検証（Admission Stages）の連動
-* **対象**: `sexp/book_log.mli`, `sexp/daily_book.ml`
-  `Put_entry`, `Put_plan`, `Observe`, `Add_locus` などの操作種別を GADT でタグ付け：
-  ```ocaml
-  type _ op =
-    | Put_entry : ... -> [`Entry] op
-    | Put_plan : ... -> [`Plan] op
-    | Add_locus : ... -> [`Locus] op
-  ```
-* **効能**:
-  「Entryの追加時はLocusステージの検証をスキップできる」というステージ分割の安全性を、型パラメータによって静的に保証。
+- `Quantity.t` は既に `Z.t`（[`lib/quantity.ml:3`](../lib/quantity.ml)）。unbounded の範囲は維持する。
 
-### ③ `Screen.request` とレスポンス（Effect / Handler）の型安全な結合
-* **対象**: `tui/protocol/screen.mli`
-  画面側が発行する `Publish` や `Save_config` と、Shellから返される `published` / `saved` の型を GADT で1対1に対応づける。
+**未測定**: identifier 文字列の物理的な重複量、共有による削減可能 MiB、比較費用の寄与。通貨の構成比や具体的な削減量は仮定しない。
 
----
+**推奨（小さい順）**:
 
-## 5. 明日調査・着手する際の手順とコマンド
+1. 文字列のまま book 寿命で共有する案をまず実測する。
+2. `==` だけへの置換は、canonicalization 境界の保証がない限りしない。
+3. 日付の int 化は内部候補に留める。S式との検証つき変換が残る。
+4. `Gc.minor_heap_size` は **words** 単位。`4 * 1024 * 1024` は 64-bit で 32 MiB であり 4 MiB ではない。設定コードの導入は現時点で不要。
 
-### ステップ1: 計測環境の確認
-```sh
-cd bakhlo
-./tools/check                 # ビルド・テスト・アーキテクチャ検査
-./tools/tui --self-check      # TUI合成検査
-./tools/startup-probe 109500  # 合成データによるプロファイリング実行
-```
+## 6. GADT — 既にある適切な使用と、増やさない判断
 
-### ステップ2: Actual画面のボトルネック検証
-1. `tui/screens/actual/actual_workspace.ml` の `scan_window` 呼び出し頻度と時間を計測。
-2. `Daily_book` に日付インデックス（二分探索）を追加するプロトタイプを作成し、`Down+paint` の時間を比較。
-   * 目標: 235ms → 16ms 未満
+**確認済み（適切な既存例）**:
 
-### ステップ3: メモリ・型安全性の改善
-1. `Measure` / `Locus` の intern化、または日付の int 化の検討。
-2. `Current_quantity_query.outcome` の GADT化のスコープ確認。
+- [`tui/shell/screen_registry.ml:49-67`](../tui/shell/screen_registry.ml) の existential `Owner : 'a owner -> owner_ref`。画面ごとに異なる状態型と関数を 1 つにまとめる、GADT の正当な用途。
+- [`application/current_quantity_query.mli:49-57,110-119`](../application/current_quantity_query.mli) は `exact` / `present` を abstract にし、`outcome` は通常の variant、`quantity : exact -> Quantity.t` が present の直接利用を既に防いでいる。
 
-> [!IMPORTANT]
-> - `../bakhlo-data` の保存フォーマット（S式・ログ）は変更しないこと。
-> - 計測値は形容詞ではなく数字（ms, MiB）で `docs/VERIFICATION.md` に記録すること。
-> - リモートへの push は mokoさんの承認があるまで行わないこと。
+**判断**:
+
+- `outcome` の GADT 化は**推奨しない**。速度向上の証拠はなく、動的な query 結果に対する `match` は残る。`present` を直接 `quantity` に渡す誤用は既存の抽象型で防げている。
+- `Book_log.op` の op タグ GADT も**推奨しない**。動的帳簿の crossref / witness 不変条件を証明しないし、現状の `apply` 戻り型も共通。
+- `Screen.request` の response-index GADT は具体ニーズが**未確認**。**保留**。
+
+原則: GADT は目標ではなく、既存の型で防げない誤用が具体的にあるときだけ足す。
+
+## 7. 次の限定測定
+
+1. **実行済み**: Actual owner の All / Month、key / paint を同じ合成入力・寸法・集計方法で測った。`startup-probe` とは別の使い捨て runner であり、以前の Shell + Notty ベンチとは直接比較しない。
+2. **実行済み**: 金額幅の全件 fold と上限での早期終了を比較し、空・長大額・通常額・狭小幅で返る列幅の一致を確認した。その後 `7a7dc9e` で製品に組込み、フレーム同一性も比較済み。
+3. **実装済み**: キー内の重複 resolve 削減、日別集計・可視行の文字列化。追加計測では、残る範囲抽出・sort・幅走査の時間と割当量を分ける。
+4. **未実行**: 日付 index、identifier 共有、専用パーサー、GC 調整、GADT の試作。必要な費用が残ると測定できたものだけ検討する。
+
+初回調査では家庭の実時間・PTY レイテンシ・保存から再描画までは未測定。その後の実装時には最新データコピーのPTY計測も行った（上記検証記録）。owner baseline は初回リスト化をタイミング外に置いた定常移動であり、保存後の遅延リスト構築とは別である。
+
+## 8. 制約
+
+- 性能調査は合成入力のみ。正データ原本・兄弟 repo・認証ストアにはアクセスしていない。文書の `privacy-scan --all` は非公開コピーを内部で照合するが、家計の本文は出力しない。
+- 実装変更・新依存・恒久ベンチは追加しない。データへの権限、開発・Git 手順は [AGENTS.md](../AGENTS.md) に従う。

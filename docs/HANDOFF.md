@@ -170,7 +170,13 @@ After pushing, check CI for the matching commit SHA.
 1. Daily-use parity in the five areas of the cutover diff ledger, ordered by
    `tasks/todo.md`.
 2. Startup snapshot only when startup is felt slow.
-3. Performance optimization, memory tuning, and GADT study:
-   see [PERFORMANCE_AND_GADT_STUDY.ja.md](PERFORMANCE_AND_GADT_STUDY.ja.md).
-   Key focus: Actual `scan_window` O(log N) index (235 ms -> <16 ms target),
-   date/identifier unboxing/interning, and `Current_quantity_query.outcome` GADT.
+3. Performance optimization, memory tuning, and GADT investigation updated
+   2026-10-23: [study](PERFORMANCE_AND_GADT_STUDY.ja.md) and
+   [pre-optimization Actual CPU evidence](VERIFICATION.md#actual-cpu-baseline-and-bounded-width-experiment-2026-10-23).
+   The entry-map change shortens mutations, but the first list materialization
+   remains linear. Bounded amount-width scanning, one resolution per key and
+   visible-row formatting shipped in `7a7dc9e`; see the
+   [integrated measurements](VERIFICATION.md#actual-all-view-faster-list-moves-2026-10-23).
+   Further work starts with profiling the remaining scan/sort costs; range indexing
+   remains conditional. GADT expansion has no demonstrated benefit. String sharing
+   needs a heap breakdown; startup optimization stays deferred.
