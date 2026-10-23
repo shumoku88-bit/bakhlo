@@ -719,23 +719,24 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   require (day_at (count - 2) = yesterday) "daily-pace-sel-anchor-prev";
   (* Entry rests on the Ten_days tail: today; h steps to yesterday, l returns. *)
   require (selected_date ten_samples entry = today) "daily-pace-sel-entry-today";
+  (* Today's summary is the second context row of the Workspace body. *)
+  let summary (view : Screen.view) =
+    match Lazy.force view.rows with _ :: (_, text) :: _ -> text | _ -> ""
+  in
   let context =
-    (Pace.view (X.pace_env entry)
-       (X.screen_geometry ~dimensions:(120, 36) ~width_of entry)
-       entry.C.screens.pace)
-      .Screen.subtitle
+    summary
+      (Pace.view (X.pace_env entry)
+         (X.screen_geometry ~dimensions:(120, 36) ~width_of entry)
+         entry.C.screens.pace)
   in
   require
-    (match context with
-    | Screen.Text text ->
-        Base.String.is_substring text ~substring:"1:10d*"
-        && Base.String.is_substring text ~substring:"5:Previous Cycle"
-    | _ -> false)
+    (Base.String.is_substring context ~substring:"1:10d*"
+    && Base.String.is_substring context ~substring:"5:Previous Cycle")
     "daily-pace-context-names-period-choices";
   let env = X.pace_env entry in
   let context_at ?(env = env) width screen =
     let geometry = X.screen_geometry ~dimensions:(width, 24) ~width_of entry in
-    match (Pace.view env geometry screen).Screen.subtitle with Screen.Text text -> text | _ -> ""
+    summary (Pace.view env geometry screen)
   in
   let current = context_at 80 entry.C.screens.pace in
   let pace, _, _ = get (Pace.current_pace env) in

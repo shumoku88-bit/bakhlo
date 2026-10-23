@@ -342,7 +342,7 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
       | Ok pace -> Ok pace
       | Error why -> Error (format_pace_error why)
     in
-    let plans = B.plans book and entries = B.entries book in
+    let plans = B.plans book in
     let activities = compute_activities book measure pool in
     let activity_of day =
       Some (Option.value ~default:zero_activity (Hashtbl.find_opt activities day))
@@ -350,9 +350,11 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
     (* Opening/current observation alone does not certify a complete historical
        interval: Core routes each coordinate through zero-origin or explicit
        bounded-history support, and refuses otherwise. *)
-    let history_pool day =
-      Result.map_error history_reason (B.pool_at_end_of_day book ~measure ~pool:coords ~day)
-    in
+    let days = dates_between start_day through_day in
+    let pools = Hashtbl.create (List.length days) in
+    List.iter2 (Hashtbl.replace pools) days
+      (B.pools_at_end_of_days book ~measure ~pool:coords ~days);
+    let history_pool day = Result.map_error history_reason (Hashtbl.find pools day) in
     let deductions_for day stop =
       List.fold_left
         (fun result (plan : B.plan) ->
@@ -371,7 +373,7 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
             match plan.paid_by with
             | None -> Ok (Z.add total drain)
             | Some id -> (
-                match List.find_opt (fun (entry : B.entry) -> entry.id = id) entries with
+                match B.find_entry book id with
                 | None ->
                     Error
                       ("History unavailable: Scheduled completion Actual " ^ id
@@ -434,7 +436,7 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
                             activity = activity_of day;
                             unavailable = None;
                           })))
-        (dates_between start_day through_day)
+        days
     in
     Ok (start_day, through_day, samples)
 

@@ -6,6 +6,53 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Daily Pace opens faster (2026-10-23)
+
+- User request: make opening Daily Pace faster (it was 23.7 / 21.7 ms at
+  120×36 / 80×24 on the latest data, under LOAM's ~135 ms but above the 16 ms
+  key target). Causes found by sampling: the Shell builds a route's view several
+  times per frame (body, footer, cursor), and every Daily Pace view computed
+  today's pace and all trend samples twice for a subtitle the Workspace layout
+  never paints; each sample day re-scanned every entry for the past pool; each
+  paid plan's entry was found by a linear search, per day.
+- Changes: one view computes today's pace and the samples once, lazily, only for
+  the painted rows (overlays reuse the same pace); the subtitle is `Hidden`, and the
+  checks that read it now read the painted summary row. Core
+  `Daily_book.pools_at_end_of_days` answers many days from one pass (each
+  coordinate's total and its sums by day after the earliest day asked);
+  `pool_at_end_of_day` is its one-day case, so there is one implementation. Paid
+  plans use `find_entry`.
+- CPU of one Daily Pace view with forced rows (native runner, median of 9 or 41,
+  before = `7a7dc9e` from a clean worktree; one-Measure “plain” books with a
+  wallet pool and monthly boundaries; the latest-data copy prints timings and
+  digests only). This runner calls the view once, so it does not include the
+  removed per-frame repeats:
+
+  | Daily Pace view (ms, 120×36 / 80×24) | before | after |
+  | --- | ---: | ---: |
+  | plain 3,000 | 18.1 / 17.0 | 6.1 / 5.3 |
+  | plain 10,950 | 57.1 / 56.6 | 11.9 / 10.6 |
+  | plain 109,500 | 714.5 / 733.8 | 108.0 / 110.0 |
+  | latest-data copy | 7.7 / 7.0 | 1.9 / 1.2 |
+
+- Latest data, PTY (method of the
+  [paired speed](#paired-speed-bakhlo-and-loam-on-the-latest-data-2026-10-23)
+  entry, five alternating rounds, one fresh generation): `d` from Home to the last
+  redraw byte fell from 23.7 / 21.7 ms to 9.5 / 6.6 ms; LOAM measured
+  133.9 / 129.7 ms in the same rounds.
+- Output unchanged: a before/after sweep of the Daily Pace owner (five key scripts
+  over days, all five periods, view styles, details, Why, What-if and Target; four
+  sizes) compared digests of title, rows, footer, overlay, cursor and request:
+  200 identical steps on the latest-data copy (120 distinct painted states) and on
+  two synthetic books. Making paid-plan lookup fail changed 180 of the
+  latest-data steps. A Core test checks that unordered days with a refused date
+  answer as one day each, for zero-origin, bounded and missing-support pools; it
+  fails when the earliest day is not used.
+- `./tools/check`, `./tools/tui --self-check` and `tools/ci-tui-pty` passed. LOAM
+  original hashes were unchanged; the driver's leftover processes were closed and
+  the copies cleaned. Runners, books and raw results are in ignored
+  `scratch/pace-open-2026-10-23/`. No IME, physical-terminal or human claim.
+
 ## Actual All view: faster list moves (2026-10-23)
 
 - User request after the paired measurement: make moving in Actual's All view

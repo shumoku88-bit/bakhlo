@@ -1483,10 +1483,38 @@ let with_bounded_history t rows =
       let bounded = List.map (fun (l, m, day) -> (coord l m, day)) rows in
       admit ~entries_cached:t.entries_cached { t.data with bounded })
 
+(* Per coordinate of [pool], from one pass: the total of its Effects and their
+   sums by recorded day after [from], the earliest day asked about. *)
+let day_sums t pool ~from =
+  let tables = List.map (fun c -> (c, ref Z.zero, ref Entry_map.empty)) pool in
+  List.iter
+    (fun (e : entry) ->
+      List.iter
+        (fun eff ->
+          match
+            List.find_opt
+              (fun ((c : D.Effect_coordinate.t), _, _) ->
+                D.Identifier.Locus.equal (D.Effect.locus eff) c.locus
+                && D.Identifier.Measure.equal (D.Effect.measure eff) c.measure)
+              tables
+          with
+          | None -> ()
+          | Some (_, total, later) ->
+              let q = D.Quantity.quanta (D.Effect.quantity eff) in
+              total := Z.add !total q;
+              if e.day > from then
+                later :=
+                  Entry_map.update e.day
+                    (fun s -> Some (Z.add q (Option.value ~default:Z.zero s)))
+                    !later)
+        e.effects)
+    (entries t);
+  List.map (fun (c, total, later) -> (c, (!total, !later))) tables
+
 (* LOAM's two independent history routes, per coordinate: zero-origin sums
    forward; bounded support subtracts later Effects from the exact current
    anchor. Overlap is refused rather than given a precedence. *)
-let pool_at_end_of_day t ~measure ~pool ~day =
+let pool_at_end_of_day_from ~sums t ~measure ~pool ~day =
   protect (fun () ->
       let next_start = day_number day + 1 in
       ignore (scale t measure);
@@ -1500,22 +1528,18 @@ let pool_at_end_of_day t ~measure ~pool ~day =
              D.Identifier.Measure.equal c.measure selected_measure)
            pool)
         "history-pool-measure-mismatch";
-      let entries = entries t in
-      let sum c keep =
-        List.fold_left
-          (fun total (e : entry) ->
-            if not (keep e.day) then total
-            else
-              List.fold_left
-                (fun total eff ->
-                  if
-                    D.Identifier.Locus.equal (D.Effect.locus eff) c.D.Effect_coordinate.locus
-                    && D.Identifier.Measure.equal (D.Effect.measure eff) c.measure
-                  then Z.add total (D.Quantity.quanta (D.Effect.quantity eff))
-                  else total)
-                total e.effects)
-          Z.zero entries
+      let sums_of c =
+        snd (List.find (fun (c', _) -> D.Effect_coordinate.equal c c') (Lazy.force sums))
       in
+      (* The Effects after [day] (never before [from]), walked back from the latest
+         recorded day. *)
+      let after c =
+        Seq.fold_left
+          (fun total (_, q) -> Z.add total q)
+          Z.zero
+          (Seq.take_while (fun (d, _) -> d > day) (Entry_map.to_rev_seq (snd (sums_of c))))
+      in
+      let through c = Z.sub (fst (sums_of c)) (after c) in
       List.fold_left
         (fun total (c : D.Effect_coordinate.t) ->
           let label = lstr c.locus ^ ":" ^ measure in
@@ -1527,7 +1551,7 @@ let pool_at_end_of_day t ~measure ~pool ~day =
           in
           match (zero, bounded_history_start t ~locus:(lstr c.locus) ~measure) with
           | true, Some _ -> raise (Refused ("history-support-conflict:" ^ label))
-          | true, None -> Z.add total (sum c (fun d -> d <= day))
+          | true, None -> Z.add total (through c)
           | false, None -> raise (Refused ("history-support-missing:" ^ label))
           | false, Some first ->
               require (not opening) ("history-support-conflict:" ^ label);
@@ -1542,8 +1566,16 @@ let pool_at_end_of_day t ~measure ~pool ~day =
                 | Ok (Q.Known_present _) | Error (Q.Support_unknown _) ->
                     raise (Refused ("history-bounded-anchor-missing:" ^ label))
               in
-              Z.add total (Z.sub current (sum c (fun d -> d > day))))
+              Z.add total (Z.sub current (after c)))
         Z.zero pool)
+
+let pools_at_end_of_days t ~measure ~pool ~days =
+  let from = List.fold_left min (match days with d :: _ -> d | [] -> "") days in
+  let sums = lazy (day_sums t pool ~from) in
+  List.map (fun day -> pool_at_end_of_day_from ~sums t ~measure ~pool ~day) days
+
+let pool_at_end_of_day t ~measure ~pool ~day =
+  List.hd (pools_at_end_of_days t ~measure ~pool ~days:[ day ])
 
 (* Entry/plan codec for operation logs: the same v3 syntax and quoting as the book,
    rendered on one line (control characters are escaped, so no raw newline). *)

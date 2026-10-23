@@ -230,6 +230,15 @@ val pool_at_end_of_day :
     with zero-origin/opening or an unanchored bounded coordinate refuses the whole
     answer; no partial total or invented zero. *)
 
+val pools_at_end_of_days :
+  t ->
+  measure:string ->
+  pool:D.Effect_coordinate.t list ->
+  days:string list ->
+  (Z.t, string) result list
+(** {!pool_at_end_of_day} for each of [days], in order, from one pass over the
+    entries. *)
+
 val entry_to_sexp : entry -> Sexplib0.Sexp.t
 val entry_of_sexp : Sexplib0.Sexp.t -> (entry, string) result
 val plan_to_sexp : plan -> Sexplib0.Sexp.t

@@ -569,8 +569,8 @@ let saved _env _geometry result t =
 
 (* Painting *)
 
-let header_summary env t ~width ~width_of =
-  let current = current_pace env in
+let header_summary env t ~today_pace ~history ~width ~width_of =
+  let current = Lazy.force today_pace in
   let today =
     match current with
     | Error _ -> "Today: unavailable (i: cause)"
@@ -591,7 +591,7 @@ let header_summary env t ~width ~width_of =
   in
   let period = if width >= 85 then "   " ^ choices else "   [1-5] period" in
   let spent =
-    match (current, samples env t) with
+    match (current, Lazy.force history) with
     | Ok (pace, _, _), Ok (_, _, samples) -> (
         match List.find_opt (fun (sample : Trend.sample) -> sample.day = env.today) samples with
         | Some { activity = Some activity; pace_quanta = Some _; _ } ->
@@ -615,16 +615,18 @@ let header_summary env t ~width ~width_of =
 
 (* Two context rows when there is room (title, then today's summary), one when
    tight, none in a tiny terminal. *)
-let context_rows env t ~width ~width_of ~body_height =
+let context_rows env t ~today_pace ~history ~width ~width_of ~body_height =
   if body_height >= 5 then
     [
       ( O.Plain,
         O.clip_text ~width_of width
           (" Daily Pace / Trend • " ^ Trend.preset_label t.trend.preset
          ^ "   [?] why  [w] what-if  [t] target") );
-      (O.Chrome, O.clip_text ~width_of width (header_summary env t ~width ~width_of));
+      ( O.Chrome,
+        O.clip_text ~width_of width (header_summary env t ~today_pace ~history ~width ~width_of) );
     ]
-  else if body_height >= 4 then [ (O.Plain, header_summary env t ~width ~width_of) ]
+  else if body_height >= 4 then
+    [ (O.Plain, header_summary env t ~today_pace ~history ~width ~width_of) ]
   else []
 
 let panel ~width_of ~width ~height ~focused ~title ~bottom rows =
@@ -727,13 +729,13 @@ let unavailable_rows env t ~width_of ~width ~height why =
     |> List.map (fun text -> (O.Chrome, text))
     |> panel ~width_of ~width ~height ~focused:true ~title:"Trend [active]" ~bottom:"i for details"
 
-let rows (env : Screen.env) (geometry : Screen.geometry) t =
+let rows (env : Screen.env) (geometry : Screen.geometry) t ~today_pace ~history =
   let width, body_height = geometry.content and width_of = geometry.width_of in
-  let context = context_rows env t ~width ~width_of ~body_height in
+  let context = context_rows env t ~today_pace ~history ~width ~width_of ~body_height in
   let height = max 0 (body_height - List.length context) in
   context
   @
-  match samples env t with
+  match Lazy.force history with
   | Ok (_, _, samples) -> trend_rows env geometry t ~height samples
   | Error why -> unavailable_rows env t ~width_of ~width ~height why
 
@@ -764,11 +766,15 @@ let footer (geometry : Screen.geometry) t =
       [ "[j/k] scroll [v] view [i/q] trend [h/l] day"; "[1-5] period [C-u/d] page [Home/End] ends" ]
 
 let view env (geometry : Screen.geometry) t =
+  (* Today's pace and the trend samples are computed once for the whole view, and
+     only when painted: the Shell asks for the view again for its footer and cursor. *)
+  let today_pace = lazy (current_pace env) and history = lazy (samples env t) in
+  let pace = lazy (Result.map (fun (pace, _, _) -> pace) (Lazy.force today_pace)) in
   let overlay =
     match t.overlay with
     | Target target ->
         Target.frame ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
-          ~book:env.Screen.book ~pace:(target_pace env) target
+          ~book:env.Screen.book ~pace:(Lazy.force pace) target
     | Pool picker ->
         let width, height = geometry.body in
         Pool.rows ~width_of:geometry.width_of ~width ~height picker
@@ -780,18 +786,19 @@ let view env (geometry : Screen.geometry) t =
              ~body:geometry.body ~pane_width:width ~caret:`None
     | What_if what_if ->
         What_if.frame ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
-          ~book:env.Screen.book ~measure:env.Screen.measure ~pace:(target_pace env) what_if
+          ~book:env.Screen.book ~measure:env.Screen.measure ~pace:(Lazy.force pace) what_if
     | Why why ->
         Why.frame ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
-          ~book:env.Screen.book ~pace:(target_pace env) why
+          ~book:env.Screen.book ~pace:(Lazy.force pace) why
     | _ ->
         Option.bind (form t)
           (Ui_overlay.form ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body)
   in
   {
     Screen.title = tr "Daily Pace / Trend" ^ " • " ^ Trend.preset_label t.trend.preset;
-    subtitle = Text (header_summary env t ~width:(fst geometry.screen) ~width_of:geometry.width_of);
-    rows = lazy (rows env geometry t);
+    (* The Workspace layout paints no subtitle; today's summary is a context row. *)
+    subtitle = Hidden;
+    rows = lazy (rows env geometry t ~today_pace ~history);
     footer = footer geometry t;
     overlay;
     cursor = Option.bind overlay (fun frame -> frame.Ui_overlay.cursor);

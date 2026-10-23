@@ -1305,6 +1305,17 @@ let%expect_test "bounded history support restates past pools and keeps its own e
   Stdio.printf "wallet+food 2026-10-04: %s; with bank: %s\n"
     (at bounded [ "wallet"; "food" ] "2026-10-04")
     (at bounded [ "wallet"; "bank" ] "2026-10-04");
+  (* Many days at once, unordered and with a refused date, answer as one day each. *)
+  let days = [ "2026-10-06"; "2026-10-02"; "2026-02-30"; "2026-10-04"; "2026-10-03" ] in
+  List.iter
+    [ [ "wallet"; "food" ]; [ "food" ]; [ "wallet"; "bank" ] ]
+    ~f:(fun loci ->
+      let pool = List.map loci ~f:(fun locus -> pace_coordinate locus "jpy") in
+      Stdio.printf "%s batched as single: %b\n" (String.concat ~sep:"+" loci)
+        (List.equal
+           (fun a b -> String.equal (show a) (show b))
+           (B.pools_at_end_of_days bounded ~measure:"jpy" ~pool ~days)
+           (List.map days ~f:(fun day -> B.pool_at_end_of_day bounded ~measure:"jpy" ~pool ~day))));
   let printed = B.to_string bounded in
   let cold = get (B.of_string printed) in
   Stdio.printf "v5: %b; stable: %b; cold wallet 2026-10-04: %s\n"
@@ -1350,6 +1361,9 @@ let%expect_test "bounded history support restates past pools and keeps its own e
     wallet 2026-10-05: 850
     wallet 2026-10-06: 850
     wallet+food 2026-10-04: 1000; with bank: error:history-support-missing:bank:jpy
+    wallet+food batched as single: true
+    food batched as single: true
+    wallet+bank batched as single: true
     v5: true; stable: true; cold wallet 2026-10-04: 900
     cleared prints v3: true
     conflict: error:history-support-conflict:food:jpy

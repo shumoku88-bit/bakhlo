@@ -65,6 +65,13 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   On the latest data `j` in All fell to 8.8 / 7.3 ms (LOAM 12.6 / 8.3 ms); output
   is unchanged over a 3,540-state sweep. Synthetic 109.5k All is still ~0.3 s.
   [Evidence](VERIFICATION.md#actual-all-view-faster-list-moves-2026-10-23).
+- Daily Pace opens faster (2026-10-23): one view computes today's pace and the
+  samples once (the Workspace layout paints no subtitle, which no longer
+  recomputes them), past pools for all sample days come from one pass
+  (`Daily_book.pools_at_end_of_days`) and paid plans use `find_entry`. On the
+  latest data `d` fell from 23.7 / 21.7 ms to 9.5 / 6.6 ms (LOAM ~130 ms); output
+  is unchanged over a 200-step sweep.
+  [Evidence](VERIFICATION.md#daily-pace-opens-faster-2026-10-23).
 - Actual now reuses scoped/filtered rows within a render; common empty-query search
   skips text construction. The 1,440-state synthetic frame comparison is unchanged.
   At 109.5k synthetic entries, native Actual Down+paint fell 466→235 ms (80×24);
