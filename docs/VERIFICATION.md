@@ -6,6 +6,34 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Household trial saves and backup restore drill (2026-10-23)
+
+- User request: before relying on today's changes daily, try saving on a copy of
+  the household and drill restoring the private backup. Code at `0ffe5b3`.
+- Trial saves: `Daily_file.restore_copy` made a byte-identical copy of
+  `../bakhlo-data/book.sexp` (with its appended records) in ignored scratch. A
+  scratch program used the TUI's single writer (`Daily_file.append`, full sync) to
+  save a memo correction, a date-only correction, a Merchant classification and a
+  new entry, choosing targets the book admits and printing results only. After
+  every save the book equalled a cold reload of the file and the whole-book
+  reference (`Daily_book.Full`), on the printed book and every coordinate's
+  answer. Saves took 20.6–20.8 ms (33.3 ms for the first), almost all the drive
+  flush. Compaction then kept the same book, reloaded cold with no records and
+  left `.prev` equal to the file before; `--check` passed on the result. The
+  household file was unchanged.
+- Restore drill: the backup `shumoku88-bit/bakhlo-data` is private. A fresh clone
+  from GitHub had the household's HEAD and history; all tracked files (book,
+  attention, config, notes) were byte-identical to `../bakhlo-data`, which was
+  clean and pushed. `--restore-copy-from` the cloned book to a fresh file gave a
+  byte-identical book that passed `--check` and `--inspect-recovery` (no
+  interrupted save). Every backed-up version of `book.sexp` in the history
+  passed `--check` (8 of 8). Locks, `.prev` and `.DS_Store` are not backed up by
+  design (`.gitignore`).
+- Afterwards the household repository was unchanged and clean; the clone, restored
+  and trial copies were deleted. The program and its output are in ignored
+  `scratch/trial-save-2026-10-23/`. Not covered: a restore onto another machine,
+  a power cut during a save (P7) and real terminal or IME use.
+
 ## Daily Pace opens faster (2026-10-23)
 
 - User request: make opening Daily Pace faster (it was 23.7 / 21.7 ms at

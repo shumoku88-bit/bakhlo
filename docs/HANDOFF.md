@@ -16,7 +16,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 - `tools/household` now stops and reports backup failures (including missing upstream
   and pending-log errors), preserving Git's reason and any nonzero TUI exit status.
   Synthetic local-Git tests cover failed commit/push, no-edit retry and config backup;
-  restoring the actual private off-site backup is still untested.
+  restoring the private off-site backup was drilled on 2026-10-23 (see below).
 - `tools/household` runs pushed code only (user decision 2026-10-22): it fetches
   `origin/main`, builds it in an ignored worktree at `.run/src` and installs the built
   binary at `.run/bakhlo_tui.exe` (copied to a temporary name and renamed), never the
@@ -72,6 +72,12 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   latest data `d` fell from 23.7 / 21.7 ms to 9.5 / 6.6 ms (LOAM ~130 ms); output
   is unchanged over a 200-step sweep.
   [Evidence](VERIFICATION.md#daily-pace-opens-faster-2026-10-23).
+- Trial saves and restore drill (2026-10-23): on a byte-identical copy of the
+  household, a memo correction, a date-only correction, a Merchant classification,
+  a new entry and compaction through the single writer each matched cold reload
+  and `Full`. A fresh clone of the private backup restored a byte-identical book;
+  every backed-up version passes `--check`.
+  [Evidence](VERIFICATION.md#household-trial-saves-and-backup-restore-drill-2026-10-23).
 - Actual now reuses scoped/filtered rows within a render; common empty-query search
   skips text construction. The 1,440-state synthetic frame comparison is unchanged.
   At 109.5k synthetic entries, native Actual Down+paint fell 466→235 ms (80×24);

@@ -94,7 +94,7 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 | 全家計データの移行 | ✅ 手順あり・実データでリハーサル済み（本番は未実施） | 2026-10-21本人決定：切替日にLOAMを止め、その時点を一度だけ取り込み、照合後に記帳先を切り替える（二重記帳・同期なし）。移すもの：現在の明細・反転・日付訂正・予定と完了・Locus許可・役割・残高根拠・設定・Attention。LOAMの記録（Git管理のフォルダ）にだけ残すもの：訂正の途中経過、取消／置換した予定、予算（Capacity・Routing・purpose-catalog・cycle-funding。予算は使っていない）。切替時、BakhloのデータのそばにLOAMの記録の場所と切替日の案内を置く。2026-10-21、変換をリポジトリの`migrate/`へ移し、Attention・Merchant・元の金額・両替に対応（[証拠](VERIFICATION.md#loam-import-in-the-repository-2026-10-21)）。同日、切替日の取込手順`./tools/import-loam LOAMのフォルダ 新しいBakhloのフォルダ`を追加し、実データのコピーでリハーサル（[証拠](VERIFICATION.md#cutover-import-command-and-rehearsal-2026-10-21)）。本番の実行は切替日に本人が決める | なし | [乗り換え判定](CUTOVER_CHECKLIST.ja.md#切替は別の判断) |
 | 年度の切替（単一帳簿での年またぎ） | ✅ 解決（設計変更） | 年別ファイル分割を廃止し、1冊の帳簿（スナップショット＋追記ログ、200件以上で終了時にまとめ直しと `.prev` 保持）に統一（2026-10-20実データコピーでも追記・200件まとめ直しを確認） | なし | [年別廃止](VERIFICATION.md#records-and-annual-files-removed-2026-10-20), [実データ試し保存・訂正比較](VERIFICATION.md#real-data-trial-saves-exit-compaction-and-unapproved-locus-correction-comparison-2026-10-20) |
 | 保存の確認・電源断（P7） | 🟨 対策済み・実機の電源断は未試験 | 2026-10-21、保存はmacOSのドライブキャッシュまで書き切る`F_FULLFSYNC`を使い、書き切ってから保存完了を表示（1回約21 ms、本人承認）。途中で切れた最後の記録は書込を止めて明示操作で直す。実際に電源を落とす試験はしていない（[証拠](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#durable-save-flush-p7-2026-10-21)） | なし | O01 |
-| バックアップと復旧の手順 | 🟨 復元未検証 | `--inspect-recovery`／`--discard-torn-tail`／`--restore-copy-from` とまとめ直し時の `.prev` 保持はある。普段の終了時にGitへcommit・push。2026-10-21、stage／commit／upstream／pending-log／pushの失敗を警告・異常終了にし、失敗時のローカル保持と次回再送を合成Gitで確認。実際の非公開バックアップからの復元は未実施 | 要判断 | O02, [終了時バックアップ](VERIFICATION.md#household-backup-failures-are-visible-2026-10-21) |
+| バックアップと復旧の手順 | ✅ 復元確認（実データ） | `--inspect-recovery`／`--discard-torn-tail`／`--restore-copy-from` とまとめ直し時の `.prev` 保持はある。普段の終了時にGitへcommit・push。2026-10-21、stage／commit／upstream／pending-log／pushの失敗を警告・異常終了にし、失敗時のローカル保持と次回再送を合成Gitで確認。2026-10-23：GitHubの非公開バックアップを新しく複製すると追跡中の全ファイルが家計と一致し、`--restore-copy-from`で戻した帳簿はバイト一致で`--check`を通り、履歴に残る全版の帳簿も`--check`を通った。別の機械への復元と、保持期間・別媒体は未決 | 要判断 | O02, [復元訓練](VERIFICATION.md#household-trial-saves-and-backup-restore-drill-2026-10-23), [終了時バックアップ](VERIFICATION.md#household-backup-failures-are-visible-2026-10-21) |
 | 本人の実機・日本語入力での確認 | 🟨 本人判断で乗り換え | 2026-10-21、本人が「普段使いできそう」と判断して乗り換え。画面ごとの体系的な受入は未実施 | なし | — |
 | 切替日と記帳先 | ✅ 決定（2026-10-21） | 2026-10-21に本人が決定し乗り換え。記帳先は`../bakhlo-data`、LOAMは凍結した記録。取込後の照合は[証拠](VERIFICATION.md#cutover-2026-10-21) | なし | [乗り換え判定](CUTOVER_CHECKLIST.ja.md#切替は別の判断) |
 | Fava・hledger出力 | 🟦 意図的な差 | 本人の指定で対象外 | なし | — |
@@ -104,4 +104,4 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 - 差を見つけた・直した・照合したら、同じ作業の中でこの台帳の該当行を更新する（判定・差の内容・根拠リンク）。行を消さずに判定を変える。
 - 「✅ 一致」には、どのデータ（実データ／合成）で、どの画面サイズで確かめたかを根拠先に残す。
 - 本人が「この差は許容する」と決めた行は「乗り換え」列を「なし（本人了承 YYYY-MM-DD）」にする。
-- 最終更新：2026-10-23（Daily Paceを開く速さを計測・改善した後）。
+- 最終更新：2026-10-23（バックアップの復元訓練の後）。
