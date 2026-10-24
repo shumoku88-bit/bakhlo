@@ -13,13 +13,6 @@ let build_transaction ~book ~mode content =
 let build_plan ~book ~mode ~day ~draft =
   Daily_draft.build_plan ~new_id:F.new_id ~book ~mode ~day ~draft
 
-let recovery_message =
-  tr
-    "An interrupted save left an incomplete final record. Writes stopped; exit and use \
-     --inspect-recovery."
-
-let recovery_notice ~session = if session.F.torn then Some recovery_message else None
-
 (* The file revision had the save landed. *)
 type uncertain_evidence = Expected_revision of string
 
@@ -27,17 +20,15 @@ type commit_result =
   | Published of F.t
   | Conflict_base_changed
   | Conflict
-  | Recovery_blocked
   | Uncertain of { message : string; evidence : uncertain_evidence }
   | Storage_failed of string
   | Refused of string
 
 let publish_ops ~session ops : commit_result =
   try
-    match F.append session ops with
+    match F.publish session ops with
     | F.Written session -> Published session
     | F.Conflict -> Conflict
-    | F.Refused_input "torn-tail" -> Recovery_blocked
     | F.Refused_input why -> Refused why
     | F.Uncertain { expected } ->
         Uncertain
@@ -138,24 +129,18 @@ type reload_result =
   | Pending_unconfirmed of F.t
   | Edit_base_changed of F.t
   | Reloaded of F.t
-  | Recovery_required of F.t * string
   | Reload_failed of string
 
 let reload ~session ~pending ~mode : reload_result =
   try
     let loaded = F.reload session in
-    match recovery_notice ~session:loaded with
-    | Some notice -> Recovery_required (loaded, notice)
+    match pending with
+    | Some (Expected_revision revision) when loaded.revision = revision -> Pending_confirmed loaded
+    | Some _ -> Pending_unconfirmed loaded
     | None -> (
-        match pending with
-        | Some (Expected_revision revision) when loaded.revision = revision ->
-            Pending_confirmed loaded
-        | Some _ -> Pending_unconfirmed loaded
-        | None -> (
-            match mode with
-            | (Edit _ | Plan_edit _) when loaded.revision <> session.revision ->
-                Edit_base_changed loaded
-            | New | Pay _ | Edit _ | Plan_new | Plan_edit _ -> Reloaded loaded))
+        match mode with
+        | (Edit _ | Plan_edit _) when loaded.revision <> session.revision -> Edit_base_changed loaded
+        | New | Pay _ | Edit _ | Plan_new | Plan_edit _ -> Reloaded loaded)
   with
   | F.Refused why -> Reload_failed why
   | Unix.Unix_error _ | Sys_error _ -> Reload_failed "IO-error"

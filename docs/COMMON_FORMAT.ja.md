@@ -98,8 +98,8 @@ ENDTX
 ```
 
 - `TX` の行：ID、日付、`DESC`（メモ。なければ `DESC` 以降を書かない）。
-- `EFFECT` の行：科目、Measure、符号付きの金額。1件に1行以上。
-- 同じMeasureの `EFFECT` は合計がゼロになる（両替の記帳だけは例外）。
+- `EFFECT` の行：科目、Measure、符号付きの金額、省略できる鍵。1件に1行以上。鍵は、その記帳の中でこの金額を指すID（立替の対応や両替がこの金額を指すときに使う。2026-10-25 追加）。同じ記帳の中で重複しない。
+- 同じMeasureの `EFFECT` は合計がゼロになる（両替の記帳と、両替を取り消す記帳だけは例外）。
 - **TXは記録した順に並べる。日付順ではない。** 訂正しても並びの位置は変えない。
   （残高の根拠のANCHORが「どこまで記録してあったか」をこの並びで表すため）
 - 必要なときだけ、`ENDTX` の前に次の行を足す：
@@ -305,8 +305,9 @@ CLOSE	attention-1	2027-02-20	RESOLVED
 | コード | 拒否すること | 行 |
 |---|---|---|
 | `zero-amount` | `EFFECT` の金額が0（K2） | その行 |
+| `duplicate-key` | 同じ記帳の中で、同じ鍵が2回 | 2回目の `EFFECT` |
 | `no-effect` | `EFFECT` が1行もない | `TX` |
-| `unbalanced` | `EXCHANGE` のない記帳で、どれかのMeasureの合計が0でない | `TX` |
+| `unbalanced` | `EXCHANGE` も `REVERSAL-OF` もない記帳で、どれかのMeasureの合計が0でない（取り消しの記帳は元の記帳をちょうど逆にしたものなので、両替の取り消しは合計が0にならない） | `TX` |
 | `bad-exchange` | `EXCHANGE` の2つのMeasureが同じ、元の合計がマイナスでない、先の合計がプラスでない、またはほかのMeasureの合計が0でない | `EXCHANGE` |
 | `reversal-not-inverse` | `REVERSAL-OF` の記帳が、元の記帳の `EFFECT` をちょうど逆にしたもの（科目・Measure・金額・行の数がすべて合う。並びは問わない）でない（K11） | `REVERSAL-OF` |
 | `reversal-reused` | 同じ記帳が、取り消す側・取り消される側のどちらかとして2回以上出てくる（自分自身を取り消す場合も） | 2回目に出てきた `REVERSAL-OF` |

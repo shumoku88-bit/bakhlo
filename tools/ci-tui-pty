@@ -121,7 +121,7 @@ proc open_balances {} {
 proc smoke {binary fixture width height root} {
   set owned [file join $root "${width}x$height"]
   file mkdir $owned
-  set book [file join $owned book.sexp]
+  set book [file join $owned book.txt]
   file copy $fixture $book
   set before [slurp $book]
   if {$width < 80} { set next {80 24} } else { set next {48 14} }
@@ -141,7 +141,7 @@ proc smoke {binary fixture width height root} {
     finish
   }
   if {[slurp $book] ne $before} { fail "cold PTY reopen modified book bytes" }
-  if {[entries $owned] ne {book.sexp}} {
+  if {[entries $owned] ne {book.txt}} {
     fail "read-only PTY session created extra authority/config files"
   }
   puts "PASS: PTY ${width}x$height -> [join $next x] -> ${width}x$height, keyboard,\
@@ -154,7 +154,7 @@ proc smoke_record_preview_refusal {binary fixture root} {
   global buffer eof
   set owned [file join $root record-preview-refusal]
   file mkdir $owned
-  set book [file join $owned book.sexp]
+  set book [file join $owned book.txt]
   file copy $fixture $book
   set before [slurp $book]
   session $binary $book 80 24 {
@@ -187,7 +187,7 @@ proc smoke_record_preview_refusal {binary fixture root} {
     finish
   }
   if {[slurp $book] ne $before} { fail "Record draft cancel modified authority" }
-  if {[entries $owned] ne {book.sexp}} { fail "Record preview/cancel created unexpected files" }
+  if {[entries $owned] ne {book.txt}} { fail "Record preview/cancel created unexpected files" }
   puts "PASS: PTY Record draft -> Preview -> 32x9 Publish refusal -> Escape/cold draft\
     resume, exact unchanged authority"
 }
@@ -198,7 +198,7 @@ if {$argc != 2} {
 }
 set binary [file normalize [lindex $argv 0]]
 set fixture [file normalize [lindex $argv 1]]
-if {[file tail $fixture] ne "daily-book.sexp" || [file tail [file dirname $fixture]] ne "examples"} {
+if {[file tail $fixture] ne "book.txt" || [file tail [file dirname $fixture]] ne "examples"} {
   puts stderr "refuse any noncanonical synthetic fixture"
   exit 2
 }

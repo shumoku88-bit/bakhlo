@@ -22,6 +22,6 @@
 
 (rule
  (alias runtest)
- (deps %{workspace_root}/examples/daily-book.sexp)
+ (deps %{workspace_root}/examples/book.txt)
  (action
   (run %{exe:app_checks.exe} %{workspace_root})))

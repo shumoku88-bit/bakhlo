@@ -5,8 +5,9 @@
 
 type role = Asset | Liability | Equity | Income | Expense
 
-type posting = { locus : string; measure : string; amount : Z.t }
-(** One signed quantity in the Measure's smallest unit; never zero. *)
+type posting = { locus : string; measure : string; amount : Z.t; key : string option }
+(** One signed quantity in the Measure's smallest unit; never zero. [key] names this
+    Effect inside its TX (unique there), for relations and exchanges that refer to it. *)
 
 type merchant = Merchant of string | Nonmerchant
 
@@ -93,6 +94,7 @@ type code =
   | Bad_scale
   | Bad_hidden
   | Zero_amount
+  | Duplicate_key
   | No_effect
   | Unbalanced
   | Bad_exchange

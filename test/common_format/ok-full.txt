@@ -34,7 +34,7 @@ ENDTX
 TX	tx-0003	2027-01-05	DESC	コンビニ
 EFFECT	coffee	jpy	150
 EFFECT	food	jpy	200
-EFFECT	wallet	jpy	-350
+EFFECT	wallet	jpy	-350	paid-from
 MERCHANT	some-store
 ENDTX
 TX	tx-0004	2027-01-06
@@ -49,9 +49,9 @@ EFFECT	food	jpy	-200
 REVERSAL-OF	tx-0003
 ENDTX
 TX	tx-0006	2027-01-08	DESC	空港で両替
-EFFECT	bank	jpy	-16300
+EFFECT	bank	jpy	-16300	x-from
 EFFECT	fee	jpy	300
-EFFECT	cash-usd	usd	10000
+EFFECT	cash-usd	usd	10000	x-to
 EXCHANGE	jpy	usd
 ENDTX
 TX	tx-0007	2027-01-09	DESC	現地のカフェ

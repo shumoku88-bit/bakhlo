@@ -65,4 +65,4 @@ jobs:
         run: |
           sudo apt-get update -q && sudo apt-get install -y --no-install-recommends expect
           install -d -m 0700 scratch
-          tools/ci-tui-pty _build/default/tui/app/bakhlo_tui.exe examples/daily-book.sexp
+          tools/ci-tui-pty _build/default/tui/app/bakhlo_tui.exe examples/book.txt

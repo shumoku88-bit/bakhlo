@@ -1,0 +1,18 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	usd	2
+LOCUS	bank	銀行	
+LOCUS	cash-usd	ドル現金	
+TX	x1	2027-03-01	DESC	両替
+EFFECT	bank	jpy	-16000	from
+EFFECT	cash-usd	usd	10000	to
+EXCHANGE	jpy	usd
+ENDTX
+TX	x2	2027-03-02	DESC	両替の取り消し
+EFFECT	bank	jpy	16000
+EFFECT	cash-usd	usd	-10000
+REVERSAL-OF	x1
+ENDTX
+ZERO-ORIGIN	bank	jpy
+ZERO-ORIGIN	cash-usd	usd
+END

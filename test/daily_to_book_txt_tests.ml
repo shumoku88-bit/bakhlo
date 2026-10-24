@@ -158,5 +158,5 @@ let%expect_test "what the format cannot represent refuses instead of disappearin
     presence: presence
     roles header: accounting-roles-bad-header
     suspense role: book-txt-suspense-role-line-15
-    effect key: effect-key
+    effect key: converted
     |}]

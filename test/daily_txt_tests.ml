@@ -23,12 +23,13 @@ let%expect_test "every accepted fixture survives Daily_book unchanged" =
     (fun name ->
       let result = round_trip (read (Filename.concat "common_format" name)) in
       Printf.printf "%s: %s\n" name (match result with Ok () -> "same bytes, same answers" | Error why -> why))
-    [ "ok-empty.txt"; "ok-full.txt"; "ok-anchor-delta.txt"; "ok-anchor-start.txt" ];
+    [ "ok-empty.txt"; "ok-full.txt"; "ok-anchor-delta.txt"; "ok-anchor-start.txt"; "ok-exchange-reversal.txt" ];
   [%expect {|
     ok-empty.txt: same bytes, same answers
     ok-full.txt: same bytes, same answers
     ok-anchor-delta.txt: same bytes, same answers
     ok-anchor-start.txt: same bytes, same answers
+    ok-exchange-reversal.txt: same bytes, same answers
     |}]
 
 let%expect_test "generated books survive Daily_book unchanged" =

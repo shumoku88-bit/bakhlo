@@ -16,7 +16,7 @@ let run_liquidity ~width_of ~directory =
      (plans)\n\
      (support (zero-origin (wallet jpy)) (openings) (observations) (presence (not-supplied)))\n"
   in
-  F.write_new path book_bytes;
+  F.write_new path (book_txt_of_sexp book_bytes);
   F.write_new (dir ^ "/balance-view.tsv") "wallet\tjpy\n";
   let at_home = C.open_route (C.initial ~config_home:dir (F.load path)) W.Home in
   let bytes_before = F.read path in
@@ -99,7 +99,7 @@ let run_multicurrency ~width_of ~directory =
        (observations) (presence (not-supplied)))\n"
       month_start month_start
   in
-  F.write_new path book_bytes;
+  F.write_new path (book_txt_of_sexp book_bytes);
   F.write_new (dir ^ "/accounting-roles.tsv")
     "food\tExpense\nrent\tExpense\nwallet\tAsset\nbank\tAsset\n";
   let at_home = C.open_route (C.initial ~config_home:dir (F.load path)) W.Home in

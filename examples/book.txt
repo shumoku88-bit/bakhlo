@@ -1,0 +1,18 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	eur	2
+LOCUS	wallet	財布	現金の例
+LOCUS	food	食費	費目の例
+LOCUS	bank	銀行	口座の例 (SYNTHETIC ONLY: no private household inputs)
+PLAN	planned-food	2026-10-10	jpy
+CHANGE	wallet	-200
+CHANGE	food	200
+ENDPLAN
+ZERO-ORIGIN	food	jpy
+ANCHOR	-
+ASSERT	wallet	jpy	1000
+ENDANCHOR
+ANCHOR	-
+ASSERT	wallet	eur	10000
+ENDANCHOR
+END

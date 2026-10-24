@@ -29,7 +29,7 @@ let publish_observation state ~rows ~base =
   if base <> state.session.revision then ({ state with blocked = true }, Screen.Publish_conflict)
   else
     match
-      try F.append state.session [ Bakhlo_sexp.Book_log.Observe rows ]
+      try F.publish state.session [ Bakhlo_sexp.Book_log.Observe rows ]
       with F.Refused why -> F.Refused_input why
     with
     | F.Written session -> (sync { state with session }, Screen.Published)

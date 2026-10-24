@@ -74,7 +74,7 @@ let fresh_entry st id : B.entry =
   {
     id;
     day = day st;
-    memo = (if chance st 50 then Some "memo" else None);
+    memo = (if chance st 10 then Some "" else if chance st 50 then Some "memo" else None);
     effects = effects st;
     reversal_of = None;
     exchange = None;
@@ -462,3 +462,35 @@ let%expect_test "known gap: incremental record leaves the admitted source stale"
     answers agree: true
     admitted source has new entry: in-memory false, cold true
     |}]
+
+(* The store keeps the in-memory book after a save instead of reading book.txt back, so
+   every mutation of a book.txt-loaded book must equal its book.txt cold reload. A
+   mutation book.txt refuses is only counted: the store then refuses the save. *)
+let txt_cold book =
+  match Bakhlo_sexp.Daily_txt.to_txt book Bakhlo_sexp.Daily_txt.no_sidecars with
+  | Error why -> Error why
+  | Ok (t, _) -> Result.map (Bakhlo_sexp.Daily_txt.of_txt t) ~f:fst
+
+let%expect_test "every mutation of a book.txt-loaded book equals its book.txt cold reload" =
+  let refused = Hashtbl.create (module String) and admitted = ref 0 in
+  for seed = 1 to 200 do
+    let st = R.make [| seed |] in
+    let book = ref (get (txt_cold (get (B.of_string fixture)))) in
+    let trace = ref [] in
+    for step = 1 to 30 do
+      let op = generate st !book in
+      trace := describe op :: !trace;
+      match apply !book op with
+      | Error _ -> ()
+      | Ok next -> (
+          match txt_cold next with
+          | Error why -> Hashtbl.incr refused (kind op ^ ": " ^ why)
+          | Ok cold ->
+              Int.incr admitted;
+              check ~seed ~step ~trace:!trace "not book.txt-cold-equivalent" (observable next) (observable cold);
+              book := next)
+    done
+  done;
+  Stdio.printf "admitted and equal: %b\n" (!admitted > 1000);
+  Hashtbl.iteri refused ~f:(fun ~key ~data -> Stdio.printf "refused by book.txt: %s (%d)\n" key data);
+  [%expect {| admitted and equal: true |}]

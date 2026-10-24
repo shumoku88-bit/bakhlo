@@ -1296,7 +1296,11 @@ let put_entry_replace_incremental t (e : entry) =
       let data, entries_cached = data_with_replaced_entry t e in
       { data; image; entries_cached })
 
+(* An empty memo is no memo, as book.txt writes it, so a saved entry equals its reload. *)
+let no_empty_memo (e : entry) = if e.memo = Some "" then { e with memo = None } else e
+
 let put_entry t ~replace (e : entry) ~plan =
+  let e = no_empty_memo e in
   if not replace then put_entry_incremental t e ~plan
   else if plan = None then
     try put_entry_replace_incremental t e
@@ -1355,7 +1359,14 @@ let add_locus_candidate t id =
   | None -> raise (Refused "locus-policy-not-supplied")
   | Some ids ->
       require (not (List.mem id ids)) "duplicate-locus";
-      { t.data with approved = Some (ids @ [ id ]) }
+      (* book.txt gives every Locus a label, its ID until one is set: keep the same
+         row in memory so a save needs no read-back. *)
+      let labels =
+        Option.map
+          (fun rows -> if List.exists (fun (key, _, _) -> key = id) rows then rows else rows @ [ (id, id, "") ])
+          t.data.labels
+      in
+      { t.data with approved = Some (ids @ [ id ]); labels }
 
 let label_candidate t ~id ~label ?help () =
   ignore (lid id);
@@ -1604,7 +1615,7 @@ let render_line x =
 
 module Full = struct
   let readmit data = admit ~entries_cached:(lazy (ordered_entries data)) data
-  let put_entry = put_entry_full
+  let put_entry t ~replace e ~plan = put_entry_full t ~replace (no_empty_memo e) ~plan
   let put_plan t ~replace p = protect (fun () -> readmit (plan_candidate t ~replace p))
   let cancel_plan t ~id ~day = protect (fun () -> readmit (cancel_candidate t ~id ~day))
 

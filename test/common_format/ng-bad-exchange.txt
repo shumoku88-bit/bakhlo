@@ -12,7 +12,7 @@ EFFECT	wallet	jpy	-200
 ENDTX
 TX	tx-0002	2027-01-06
 EFFECT	wallet	jpy	16000
-EFFECT	cash-usd	usd	10000
+EFFECT	cash-usd	usd	10000	x-to
 EXCHANGE	jpy	usd
 ENDTX
 END

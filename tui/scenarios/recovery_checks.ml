@@ -1,5 +1,5 @@
-(* Synthetic persistence/restart checks of the append-only book; never inspect
-   household inputs. Checkpoint faults and SIGKILL are not hardware power-loss
+(* Synthetic persistence/restart checks of the whole-file book.txt store; never
+   inspect household inputs. Checkpoint faults and SIGKILL are not hardware power-loss
    qualification. *)
 module F = Daily_file
 module C = Shell_state
@@ -13,11 +13,6 @@ module Q = Bakhlo_application.Current_quantity_query
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
 let require = F.require
 let files directory = Sys.readdir directory |> Array.to_list |> List.sort String.compare
-
-let refuses why f =
-  match f () with
-  | () -> raise (F.Refused ("expected refusal " ^ why))
-  | exception F.Refused actual when actual = why -> ()
 
 let io_refuses f =
   match f () with
@@ -40,7 +35,7 @@ let self_check () =
   let directory = "scratch/recovery-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
   let wire = F.read Interaction_check_fixture.example_book in
-  let base = get (B.of_string wire) in
+  let base = (F.load Interaction_check_fixture.example_book).book in
   let huge = Z.of_string "12345678901234567890123456789012" in
   let posting measure locus amount =
     D.Effect.create ~key:None
@@ -72,7 +67,7 @@ let self_check () =
   let make name =
     let parent = directory ^ "/" ^ name in
     Unix.mkdir parent 0o700;
-    let path = parent ^ "/book.sexp" in
+    let path = parent ^ "/book.txt" in
     F.write_new path wire;
     F.load path
   in
@@ -93,83 +88,27 @@ let self_check () =
       ((List.hd (B.plans book)).paid_by = None && B.to_string book = B.to_string base)
       "recovery-original-not-kept"
   in
-  let readonly_report session =
-    let parent = Filename.dirname session.F.path in
-    let before_files = files parent and before_bytes = F.read session.path in
-    let report = F.inspect_recovery session.path in
-    require
-      (files parent = before_files && F.read session.path = before_bytes)
-      "recovery-inspection-mutated-files";
-    report
+  let step_name = function
+    | F.Temp_written -> "temp-written"
+    | F.Previous_kept -> "previous-kept"
+    | F.Replaced -> "replaced"
   in
-  (* An interrupted final append freezes every write path until it is discarded. *)
-  let check_frozen session =
-    let state = cold (F.load session.F.path) in
-    require state.blocked "recovery-cold-open-not-frozen";
-    let reset =
-      match H.handle state (`Key (`ASCII 'N', [ `Ctrl ])) with
-      | Some s -> s
-      | None -> raise (F.Refused "recovery-reset-exited")
-    in
-    require
-      (reset.blocked && (Shell_dispatch.reload reset).blocked && C.submit reset == reset)
-      "recovery-reset-reload-or-submit-bypassed-stop";
-    (match F.append (F.load session.path) ops with
-    | F.Refused_input "torn-tail" -> ()
-    | _ -> raise (F.Refused "recovery-direct-publisher-bypassed-stop"));
-    let result = A.commit_add_locus ~session:(F.load session.path) "new-recovery-only" in
-    require (result = A.Recovery_blocked) "recovery-application-did-not-freeze";
-    let applied =
-      C.apply_commit_result ~record_publication:false (cold session) ~draft:(cold session) result
-    in
-    require applied.blocked "recovery-commit-stop-not-reflected";
-    refuses "torn-tail" (fun () ->
-        F.create_copy ~source:session.path ~target:(session.path ^ ".ordinary-copy"))
-  in
-
-  (* A torn final line: reported read-only, stops writes, removed only explicitly. *)
-  let torn = make "torn" in
-  let saved =
-    match F.append torn ops with F.Written s -> s | _ -> raise (F.Refused "torn-setup")
-  in
-  let next = L.record_line ~seq:2 [ L.Add_locus "after-torn" ] in
-  let oc = open_out_gen [ Open_append; Open_binary ] 0o600 torn.path in
-  output_string oc (String.sub next 0 (String.length next - 5));
-  close_out oc;
-  let report = readonly_report torn in
-  require
-    (report.torn_bytes = String.length next - 5
-    && match report.selected with Ok s -> s.torn && s.records = 1 | Error _ -> false)
-    "recovery-torn-tail-not-reported";
-  check_frozen torn;
-  let fresh = directory ^ "/torn-copy.sexp" in
-  F.restore_copy ~source:torn.path ~target:fresh;
-  require
-    (F.read fresh = F.read torn.path && (cold (F.load fresh)).blocked)
-    "recovery-copy-repaired-or-changed-torn-file";
-  io_refuses (fun () -> F.restore_copy ~source:torn.path ~target:fresh);
-  let removed, after = F.discard_torn_tail torn.path in
-  require
-    (removed = String.length next - 5
-    && F.read_revision torn.path = saved.revision
-    && not (cold after).blocked)
-    "recovery-discard-changed-complete-records";
-  check_candidate after.book;
-  refuses "no-torn-tail" (fun () -> ignore (F.discard_torn_tail torn.path));
-
-  (* Faults after the line is sent: uncertain, confirmed on reload, no retry. *)
+  (* Faults during the replacement: uncertain; a landed save is confirmed on reload
+     and never retried, an unlanded one leaves the original book. *)
   let check_uncertain step =
-    let session =
-      make ("fault-" ^ match step with F.Appended -> "appended" | F.Synced -> "synced")
-    in
+    let session = make ("fault-" ^ step_name step) in
     match
-      F.append
+      F.publish
         ~checkpoint:(fun r -> if r = step then raise (Sys_error "synthetic checkpoint failure"))
         session ops
     with
+    | F.Uncertain { expected } when step <> F.Replaced ->
+        let loaded = F.load session.path in
+        require (not (F.confirms ~expected loaded)) "recovery-unlanded-save-confirmed";
+        check_original loaded.book
     | F.Uncertain { expected } ->
         let loaded = F.load session.path in
-        require (F.confirms ~expected loaded && not loaded.torn) "recovery-sent-line-missing";
+        require (F.confirms ~expected loaded) "recovery-landed-save-missing";
         check_candidate loaded.book;
         let evidence = A.Expected_revision expected in
         let memory =
@@ -192,12 +131,12 @@ let self_check () =
           "recovery-paid-plan-retried"
     | _ -> raise (F.Refused "recovery-fault-reported-success")
   in
-  List.iter check_uncertain [ F.Appended; F.Synced ];
+  List.iter check_uncertain [ F.Temp_written; F.Previous_kept; F.Replaced ];
 
   (* Evidence the file does not show is never treated as confirmed. *)
   let external_ = make "external-rewrite" in
   let other =
-    match F.append external_ [ L.Add_locus "external" ] with
+    match F.publish external_ [ L.Add_locus "external" ] with
     | F.Written s -> s
     | _ -> raise (F.Refused "external-setup")
   in
@@ -217,15 +156,13 @@ let self_check () =
   (* Child processes die while holding the actual writer lock, not a mock state. *)
   List.iter
     (fun step ->
-      let session =
-        make ("kill-" ^ match step with F.Appended -> "appended" | F.Synced -> "synced")
-      in
+      let session = make ("kill-" ^ step_name step) in
       let input, output = Unix.pipe () in
       match Unix.fork () with
       | 0 ->
           Unix.close input;
           ignore
-            (F.append
+            (F.publish
                ~checkpoint:(fun reached ->
                  if reached = step then (
                    ignore (Unix.write_substring output "!" 0 1);
@@ -254,22 +191,22 @@ let self_check () =
               reaped := true;
               require (status = Unix.WSIGNALED Sys.sigkill) "recovery-child-not-killed";
               let loaded = F.load session.path in
-              require
-                (loaded.records = 1 && not loaded.torn)
-                "recovery-killed-writer-left-partial-book";
-              check_candidate loaded.book;
-              match F.append loaded [ L.Add_locus "after-kill" ] with
+              if step = F.Replaced then check_candidate loaded.book else check_original loaded.book;
+              match F.publish loaded [ L.Add_locus "after-kill" ] with
               | F.Written _ -> ()
               | _ -> raise (F.Refused "recovery-killed-writer-kept-lock")))
-    [ F.Appended; F.Synced ];
+    [ F.Temp_written; F.Previous_kept; F.Replaced ];
 
-  (* A real write failure before any byte lands leaves the original book. *)
+  (* A real write failure before any byte lands leaves the original book: the
+     directory refuses the temporary file. *)
   let io_failure = make "real-write-failure" in
-  Unix.chmod io_failure.path 0o400;
-  let failure = F.append io_failure ops in
-  Unix.chmod io_failure.path 0o600;
+  let parent = Filename.dirname io_failure.path in
+  Unix.chmod parent 0o500;
+  let failure = F.publish io_failure ops in
+  Unix.chmod parent 0o700;
   require
-    ((match failure with F.Uncertain _ -> true | _ -> false) && F.read io_failure.path = wire)
+    ((match failure with F.Written _ -> false | F.Uncertain _ | F.Refused_input _ | F.Conflict -> true)
+    && F.read io_failure.path = wire)
     "recovery-real-write-failure-wrote-or-acknowledged";
   check_original (F.load io_failure.path).book;
 
@@ -298,14 +235,14 @@ let self_check () =
           require
             (ready <> [] && Unix.read input (Bytes.create 1) 0 1 = 1)
             "recovery-writer-lock-not-acquired";
-          (match F.append locked ops with
+          (match F.publish locked ops with
           | F.Refused_input "file-or-writer-unavailable" -> ()
           | _ -> raise (F.Refused "recovery-publication-bypassed-writer-lock"));
           require (F.read locked.path = wire) "recovery-lock-failure-mutated-files";
           Unix.kill pid Sys.sigkill;
           ignore (Unix.waitpid [] pid);
           reaped := true));
-  (match F.append locked ops with
+  (match F.publish locked ops with
   | F.Written saved -> check_candidate saved.book
   | _ -> raise (F.Refused "recovery-save-after-lock-release-failed"));
 
@@ -313,17 +250,16 @@ let self_check () =
   let missing = make "missing-selected" in
   Unix.unlink missing.path;
   require
-    (match (F.inspect_recovery missing.path).selected with Error _ -> true | Ok _ -> false)
+    (match F.load_result missing.path with Error _ -> true | Ok _ -> false)
     "recovery-missing-selected-became-empty";
   require (not (Sys.file_exists missing.path)) "recovery-automatically-restored-selected";
 
   let healthy = make "healthy" in
-  require ((readonly_report healthy).torn_bytes = 0) "recovery-healthy-not-clear";
-  (match F.append healthy ops with
+  (match F.publish healthy ops with
   | F.Written saved ->
       check_candidate saved.book;
       require
-        (files (Filename.dirname healthy.path) = [ "book.sexp"; "book.sexp.lock" ])
+        (files (Filename.dirname healthy.path) = [ "book.txt"; "book.txt.lock"; "book.txt.prev" ])
         "recovery-normal-save-left-artifacts";
       check_candidate (F.load healthy.path).book
   | _ -> raise (F.Refused "recovery-normal-save-refused"));
@@ -331,7 +267,7 @@ let self_check () =
 
   Printf.printf "Recovery fixtures (synthetic): %s\n%!" directory;
   print_endline
-    "PASS: append-only saves: torn final record reported read-only and removed only explicitly; \
-     cold/Ctrl-N/reload/direct-write stops; 2 injected faults + 2 SIGKILL checkpoints; writer \
-     lock, write failure and foreign-change refusals; exact quantities/payment links; no automatic \
-     retry or repair."
+    "PASS: whole-file saves: 3 injected faults + 3 SIGKILL checkpoints leave the old or the new \
+     book (landed saves confirmed, never retried); writer lock, write failure and \
+     foreign-change refusals; one .prev and no temporaries after a normal save; exact \
+     quantities/payment links; no automatic retry or repair."

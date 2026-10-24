@@ -34,7 +34,7 @@ let actual_browsing_checks ~width_of ~directory home =
       home.C.session.book (List.init 18 Fun.id)
   in
   let path = directory ^ "/actual-browsing.sexp" in
-  F.write_new path (B.to_string book);
+  F.write_new path (Bakhlo_sexp.Daily_txt.text book);
   let before = F.read path in
   let state = C.open_route (C.initial ~config_home:directory (F.load path)) W.Actual in
   let contains rows needle =
@@ -401,7 +401,7 @@ let actual_browsing_checks ~width_of ~directory home =
   List.iter
     (fun (name, route, focus, scroll, browser) ->
       let reload_path = directory ^ "/" ^ name ^ "-reload.sexp" in
-      let bytes = B.to_string day_book in
+      let bytes = Bakhlo_sexp.Daily_txt.text day_book in
       F.write_new reload_path bytes;
       let base = C.initial ~config_home:directory (F.load reload_path) in
       let base = { base with workspace = { base.workspace with focus_day = (entry 16).day } } in
@@ -448,7 +448,7 @@ let actual_browsing_checks ~width_of ~directory home =
         day_browser );
     ];
   let day_path = directory ^ "/selected-day-record.sexp" in
-  F.write_new day_path (B.to_string book);
+  F.write_new day_path (Bakhlo_sexp.Daily_txt.text book);
   let day_parent =
     {
       drilled with
@@ -649,7 +649,7 @@ let reversal_checks ~width_of ~directory home =
   in
   let book = get (B.put_entry home.C.session.book ~replace:false target ~plan:None) in
   let path = directory ^ "/book.sexp" in
-  F.write_new path (B.to_string book);
+  F.write_new path (Bakhlo_sexp.Daily_txt.text book);
   F.write_new (directory ^ "/input.sexp") (B.to_string book);
   let base = C.initial ~config_home:directory (F.load path) |> fun s -> C.open_route s W.Actual in
   let before = F.read path in
@@ -837,7 +837,7 @@ let reversal_checks ~width_of ~directory home =
   | _ -> raise (F.Refused "reversal-compact-end-bypassed-gate"));
   let changed_target = { target with memo = Some "Concurrent correction" } in
   (match
-     F.append base.session [ L.Put_entry { replace = true; entry = changed_target; plan = None } ]
+     F.publish base.session [ L.Put_entry { replace = true; entry = changed_target; plan = None } ]
    with
   | F.Written _ -> ()
   | _ -> raise (F.Refused "reversal-conflict-setup"));
@@ -914,7 +914,7 @@ let reversal_checks ~width_of ~directory home =
   require
     ((not (Rev.is_preview (editor attempted))) && attempted.pending = unconfirmed.pending)
     "reversal-unknown-stays-stopped-with-date";
-  (match F.append unknown_base.session unknown_op with
+  (match F.publish unknown_base.session unknown_op with
   | F.Written _ -> ()
   | _ -> raise (F.Refused "reversal-ack-setup"));
   let present_bytes = F.read unknown_path in
@@ -965,7 +965,7 @@ let date_correction_checks ~width_of ~directory home =
       (B.put_entry book ~replace:false { target with id = "other"; day = "2026-10-14" } ~plan:None)
   in
   let path = directory ^ "/date-correction.sexp" in
-  F.write_new path (B.to_string book);
+  F.write_new path (Bakhlo_sexp.Daily_txt.text book);
   let before = F.read path in
   let base =
     C.open_route (C.initial ~config_home:directory (F.load path)) (W.Selected_day target.day)
@@ -1142,6 +1142,7 @@ let date_correction_checks ~width_of ~directory home =
   in
   require (retained_bytes <> admitted_bytes) "retained-locus-policy-fixture-changed";
   let retained_book = get (B.of_string retained_bytes) in
+  let retained_bytes = Bakhlo_sexp.Daily_txt.text retained_book in
   require
     (B.approved_loci retained_book = Some [ "wallet"; "bank" ]
     && B.find_entry retained_book retained_target.id = Some retained_target)
@@ -1182,8 +1183,9 @@ let date_correction_checks ~width_of ~directory home =
   let date_saved = key ~width_of date_review `Enter in
   require (no_modal date_saved) "retained-locus-date-publication-closes-editor";
   require
-    (Base.String.is_substring (F.read retained_path) ~substring:"\"correct-entry-date\"")
-    "retained-locus-date-appends-dedicated-operation";
+    (Base.String.is_substring (F.read retained_path)
+       ~substring:("TX\t" ^ retained_target.id ^ "\t2026-10-09"))
+    "retained-locus-date-saves-the-new-date";
   let dated_session = F.load retained_path in
   let dated_target = Option.get (B.find_entry dated_session.book retained_target.id) in
   require
@@ -1240,7 +1242,7 @@ let original_amount_integration_checks ~width_of ~directory () =
      (observations (observation (reflected) (quantities (\"wallet\" \"jpy\" 10000))))\n\
      (presence (not-supplied)))\n"
   in
-  F.write_new path fixture;
+  F.write_new path (book_txt_of_sexp fixture);
   let initial_state = C.initial ~config_home:dir (F.load path) in
   let initial_bytes = F.read path in
 
@@ -1468,7 +1470,7 @@ let original_amount_integration_checks ~width_of ~directory () =
   in
   let updated_book = get (B.put_entry (F.load path).book ~replace:false dummy_entry ~plan:None) in
   let oc = open_out_bin path in
-  output_string oc (B.to_string updated_book);
+  output_string oc (Bakhlo_sexp.Daily_txt.text updated_book);
   close_out oc;
   let changed_disk_bytes = F.read path in
   let stale_pub = Option.get (H.handle ~width_of stale_preview (`Key (`Enter, []))) in
@@ -1516,7 +1518,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
      (observations (observation (reflected) (quantities (\"wallet\" \"jpy\" 10000))))\n\
      (presence (not-supplied)))\n"
   in
-  F.write_new path fixture;
+  F.write_new path (book_txt_of_sexp fixture);
   let initial_state = C.initial ~config_home:dir (F.load path) in
   let initial_bytes = F.read path in
 
@@ -1713,7 +1715,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
     }
   in
   let _ =
-    match F.append cold_session [ L.Put_entry { replace = false; entry = e2; plan = None } ] with
+    match F.publish cold_session [ L.Put_entry { replace = false; entry = e2; plan = None } ] with
     | F.Written s -> s
     | _ -> failwith "pub-e2-fail"
   in
@@ -1754,7 +1756,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
     }
   in
   let _ =
-    match F.append cold_e2_sess [ L.Put_entry { replace = false; entry = e3; plan = None } ] with
+    match F.publish cold_e2_sess [ L.Put_entry { replace = false; entry = e3; plan = None } ] with
     | F.Written s -> s
     | _ -> failwith "pub-e3-fail"
   in
@@ -1814,7 +1816,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   in
   let _ =
     match
-      F.append post_rev_session [ L.Put_entry { replace = false; entry = e_unclass; plan = None } ]
+      F.publish post_rev_session [ L.Put_entry { replace = false; entry = e_unclass; plan = None } ]
     with
     | F.Written s -> s
     | _ -> failwith "pub-unclass-fail"
@@ -1870,7 +1872,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   in
   let concurrent_book = get (B.put_entry (F.load path).book ~replace:false dummy ~plan:None) in
   let oc = open_out_bin path in
-  output_string oc (B.to_string concurrent_book);
+  output_string oc (Bakhlo_sexp.Daily_txt.text concurrent_book);
   close_out oc;
   let stale_pub = Option.get (H.handle ~width_of stale_state (`Key (`Enter, []))) in
   require stale_pub.blocked "merch-stale-conflict-blocked";
@@ -2006,7 +2008,7 @@ let period_picker_integration_checks ~width_of ~directory home =
       home.C.session.book (List.init 3 Fun.id)
   in
   let path = directory ^ "/actual-picker.sexp" in
-  F.write_new path (B.to_string book);
+  F.write_new path (Bakhlo_sexp.Daily_txt.text book);
   let before = F.read path in
   let dimensions = (100, 30) in
   let key = key ~dimensions ~width_of in

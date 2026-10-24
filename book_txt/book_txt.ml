@@ -3,7 +3,7 @@
    stops with its earliest line. Every accepted text is canonical. *)
 
 type role = Asset | Liability | Equity | Income | Expense
-type posting = { locus : string; measure : string; amount : Z.t }
+type posting = { locus : string; measure : string; amount : Z.t; key : string option }
 type merchant = Merchant of string | Nonmerchant
 
 type tx = {
@@ -85,6 +85,7 @@ type code =
   | Bad_scale
   | Bad_hidden
   | Zero_amount
+  | Duplicate_key
   | No_effect
   | Unbalanced
   | Bad_exchange
@@ -134,6 +135,7 @@ let code_name = function
   | Bad_scale -> "bad-scale"
   | Bad_hidden -> "bad-hidden"
   | Zero_amount -> "zero-amount"
+  | Duplicate_key -> "duplicate-key"
   | No_effect -> "no-effect"
   | Unbalanced -> "unbalanced"
   | Bad_exchange -> "bad-exchange"
@@ -276,7 +278,7 @@ let arity = function
   | "LOCUS" -> [ 4; 5 ]
   | "ROLE" -> [ 3 ]
   | "TX" -> [ 3; 5 ]
-  | "EFFECT" -> [ 4 ]
+  | "EFFECT" -> [ 4; 5 ]
   | "REVERSAL-OF" | "MERCHANT" | "PAID-BY" | "CANCELLED" | "ANCHOR" | "ALSO" -> [ 2 ]
   | "ORIGINAL" | "EXCHANGE" | "CHANGE" | "ZERO-ORIGIN" -> [ 3 ]
   | "NONMERCHANT" | "ENDTX" | "ENDPLAN" | "ENDANCHOR" | "END" -> [ 1 ]
@@ -497,8 +499,9 @@ let fields st s =
           (fun r ->
             let a = !at in
             match r.f with
-            | [ "EFFECT"; l; m; q ] ->
-                let e = { locus = token st r.n l; measure = token st r.n m; amount = integer st r.n q } in
+            | "EFFECT" :: l :: m :: q :: key ->
+                let key = match key with [] -> None | [ k ] -> Some (token st r.n k) | _ -> assert false in
+                let e = { locus = token st r.n l; measure = token st r.n m; amount = integer st r.n q; key } in
                 at := { a with effect_ns = a.effect_ns @ [ (r.n, e) ] }
             | [ "REVERSAL-OF"; t ] ->
                 at := { a with tx = { a.tx with reversal_of = Some (token st r.n t) }; reversal_n = r.n }
@@ -628,11 +631,9 @@ let nets (effects : posting list) =
       (e.measure, Z.add v e.amount) :: List.remove_assoc e.measure acc)
     [] effects
 
+(* Effects as a physical multiset: Locus, Measure and amount; keys do not take part. *)
 let sorted_effects (effects : posting list) =
-  List.sort
-    (fun (a : posting) (b : posting) ->
-      match compare (a.locus, a.measure) (b.locus, b.measure) with 0 -> Z.compare a.amount b.amount | c -> c)
-    effects
+  List.map (fun (e : posting) -> (e.locus, e.measure, Z.to_string e.amount)) effects |> List.sort compare
 
 let references st (measures, loci, roles, txs, plans, zero, opening, history, anchors, items, closes) =
   let seen () = Hashtbl.create 16 in
@@ -662,11 +663,13 @@ let references st (measures, loci, roles, txs, plans, zero, opening, history, an
   List.iter
     (fun a ->
       let tx = a.tx in
+      let keys = seen () in
       List.iter
         (fun (n, e) ->
           locus n e.locus;
           measure n e.measure;
-          if Z.equal e.amount Z.zero then fault st Zero_amount n)
+          if Z.equal e.amount Z.zero then fault st Zero_amount n;
+          Option.iter (fun k -> once keys k Duplicate_key n) e.key)
         a.effect_ns;
       if tx.effects = [] then fault st No_effect a.tx_n;
       let nets = nets tx.effects in
@@ -682,7 +685,11 @@ let references st (measures, loci, roles, txs, plans, zero, opening, history, an
             && List.for_all (fun (m, v) -> m = x || m = y || Z.equal v Z.zero) nets
           in
           if not ok then fault st Bad_exchange a.exchange_n
-      | None -> if List.exists (fun (_, v) -> not (Z.equal v Z.zero)) nets then fault st Unbalanced a.tx_n);
+      | None ->
+          (* A reversal is checked as the exact inverse of its target instead; the
+             inverse of an exchange is not balanced either. *)
+          if tx.reversal_of = None && List.exists (fun (_, v) -> not (Z.equal v Z.zero)) nets then
+            fault st Unbalanced a.tx_n);
       (match tx.original with
       | Some (m, q) ->
           measure a.original_n m;
@@ -859,7 +866,9 @@ let to_string t =
   List.iter
     (fun (tx : tx) ->
       line ([ "TX"; tx.id; tx.day ] @ match tx.memo with Some m -> [ "DESC"; escape m ] | None -> []);
-      List.iter (fun e -> line [ "EFFECT"; e.locus; e.measure; z e.amount ]) tx.effects;
+      List.iter
+        (fun e -> line ([ "EFFECT"; e.locus; e.measure; z e.amount ] @ Option.to_list e.key))
+        tx.effects;
       Option.iter (fun target -> line [ "REVERSAL-OF"; target ]) tx.reversal_of;
       Option.iter (fun (m, q) -> line [ "ORIGINAL"; m; z q ]) tx.original;
       Option.iter

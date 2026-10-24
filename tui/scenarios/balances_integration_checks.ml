@@ -6,6 +6,7 @@ let balance_display_checks ~width_of ~directory () =
   Unix.mkdir directory 0o700;
   let path = directory ^ "/book.sexp" in
   F.write_new path
+    @@ book_txt_of_sexp
     "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
      (measures (measure jpy 0) (measure eur 2)) (labels (not-supplied))\n\
      (approved-loci (provided wallet zero bank)) (entries) (plans)\n\
@@ -126,7 +127,7 @@ let balance_display_checks ~width_of ~directory () =
   let roles = [ ("wallet", O.Asset); ("bank", O.Asset); ("zero", O.Equity) ] in
   let accounting_rows book = O.role_balance_items ~book ~roles in
   let publish session ~replace entry =
-    match F.append session [ L.Put_entry { replace; entry; plan = None } ] with
+    match F.publish session [ L.Put_entry { replace; entry; plan = None } ] with
     | F.Written session -> session
     | _ -> raise (F.Refused "accounting-publication-refused")
   in
@@ -330,7 +331,7 @@ let balance_picker_checks ~width_of ~directory () =
   let directory = directory ^ "/balance-picker" in
   Unix.mkdir directory 0o700;
   let path = directory ^ "/book.sexp" in
-  F.write_new path b2_book_fixture;
+  F.write_new path (book_txt_of_sexp b2_book_fixture);
   let bv = directory ^ "/balance-view.tsv" in
   let replace file bytes =
     if Sys.file_exists file then Unix.unlink file;
@@ -471,7 +472,7 @@ let observe_multi_checks ~width_of ~directory () =
   let directory = directory ^ "/observe-multi" in
   Unix.mkdir directory 0o700;
   let path = directory ^ "/book.sexp" in
-  F.write_new path b2_book_fixture;
+  F.write_new path (book_txt_of_sexp b2_book_fixture);
   let fresh_home () = C.initial ~config_home:directory (F.load path) in
   let modal state =
     match visible_form state with Some f -> f | None -> raise (F.Refused "observe-open")
@@ -599,7 +600,7 @@ let observe_multi_checks ~width_of ~directory () =
   (let st = key ~width_of (fresh_home ()) (`ASCII 'o') in
    let st = press (fill st "wallet" "jpy" "11") in
    let st = to_preview st in
-   (match F.append (fresh_home ()).session [ L.Observe [ ("bank", "jpy", Z.of_int 3) ] ] with
+   (match F.publish (fresh_home ()).session [ L.Observe [ ("bank", "jpy", Z.of_int 3) ] ] with
    | F.Written _ -> ()
    | _ -> raise (F.Refused "observe-conflict-setup"));
    let concurrent = F.read path in

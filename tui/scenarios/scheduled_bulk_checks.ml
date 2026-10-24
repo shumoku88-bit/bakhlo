@@ -51,7 +51,7 @@ let self_check ~width_of () =
     List.fold_left (fun book p -> get (B.put_plan book ~replace:false p)) book [ p1; p2; p3 ]
   in
   let source = List.hd (B.plans book) in
-  let base = B.to_string book in
+  let base = Bakhlo_sexp.Daily_txt.text book in
   let path = directory ^ "/controller.sexp" in
   F.write_new path base;
   let base_rev = F.revision_of_bytes base in

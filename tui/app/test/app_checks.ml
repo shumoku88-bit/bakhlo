@@ -8,12 +8,12 @@ let width_of = Notty_render.width_of
    produce there while other rules run. The path is resolved because the writer
    refuses symlinked components (macOS temporary directories are symlinks). *)
 let enter_fresh_directory ~examples_from =
-  let fixture = Filename.concat examples_from "examples/daily-book.sexp" in
+  let fixture = Filename.concat examples_from "examples/book.txt" in
   let bytes = In_channel.with_open_bin fixture In_channel.input_all in
   let dir = Unix.realpath (Filename.temp_dir "bakhlo-app-checks" "") in
   Unix.mkdir (Filename.concat dir "examples") 0o700;
   Unix.mkdir (Filename.concat dir "scratch") 0o700;
-  Out_channel.with_open_bin (Filename.concat dir "examples/daily-book.sexp") (fun channel ->
+  Out_channel.with_open_bin (Filename.concat dir "examples/book.txt") (fun channel ->
       Out_channel.output_string channel bytes);
   Sys.chdir dir;
   dir
@@ -29,6 +29,7 @@ let () =
   (* Dune passes the build root, which holds the synthetic examples/ fixture. *)
   let examples_from = if Array.length Sys.argv = 2 then Unix.realpath Sys.argv.(1) else "." in
   let dir = enter_fresh_directory ~examples_from in
+  Printexc.record_backtrace true;
   try
     Interaction_check_fixture.materialize_example_book ();
     Shell_checks.run ~width_of ();
@@ -41,9 +42,11 @@ let () =
   with
   | Daily_file.Refused why ->
       prerr_endline ("self-check failed: " ^ why ^ " (synthetic files kept in " ^ dir ^ ")");
+      prerr_string (Printexc.get_backtrace ());
       exit 1
   | exn ->
       prerr_endline
         ("self-check exception: " ^ Printexc.to_string exn ^ " (synthetic files kept in " ^ dir
        ^ ")");
+      prerr_string (Printexc.get_backtrace ());
       exit 1

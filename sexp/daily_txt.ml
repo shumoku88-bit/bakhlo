@@ -91,14 +91,10 @@ let roles_text (t : T.t) = lines roles_header (List.map (fun (l, r) -> "ROLE\t" 
 (* ---- Daily_book -> book.txt ---- *)
 
 let tx_of empty_memos (e : B.entry) : T.tx =
-  let keyed = List.filter (fun p -> D.Effect.key p <> None) e.effects in
   let exchange =
     match e.exchange with
-    | None ->
-        if keyed <> [] then refuse "effect-key";
-        None
+    | None -> None
     | Some (source, destination) ->
-        if List.length keyed <> 2 then refuse "effect-key";
         let measure_of key =
           match List.filter (fun p -> Option.map D.Identifier.Effect_key.to_string (D.Effect.key p) = Some key) e.effects with
           | [ p ] -> measure (D.Effect.measure p)
@@ -124,6 +120,7 @@ let tx_of empty_memos (e : B.entry) : T.tx =
             locus = locus (D.Effect.locus p);
             measure = measure (D.Effect.measure p);
             amount = D.Quantity.quanta (D.Effect.quantity p);
+            key = Option.map D.Identifier.Effect_key.to_string (D.Effect.key p);
           })
         e.effects;
     reversal_of = e.reversal_of;
@@ -189,7 +186,8 @@ let loci_of (p : B.payload) ~used =
     List.filter_map (fun (l : T.locus) -> if labelled l.id then None else Some l.id) loci,
     List.filter_map (fun (l : T.locus) -> if l.hidden then Some l.id else None) loci )
 
-let to_txt book sidecars =
+(* The value, its printed text (already admitted) and what was normalised. *)
+let convert book sidecars =
   try
     let p = B.export_payload book in
     (match p.presence with Some pr when pr.coordinates <> [] -> refuse "presence" | _ -> ());
@@ -233,28 +231,43 @@ let to_txt book sidecars =
     match T.of_string text with
     | Error e -> Error (Printf.sprintf "book-txt-%s-line-%d" (T.code_name e.code) e.line)
     | Ok admitted ->
-        if admitted <> target || T.to_string admitted <> text then Error "book-txt-roundtrip"
-        else Ok (admitted, { added_loci; hidden_loci; empty_memos = !empty_memos })
+        (* The printer is deterministic, so an equal value prints to the same text. *)
+        if admitted <> target then Error "book-txt-roundtrip"
+        else Ok (admitted, text, { added_loci; hidden_loci; empty_memos = !empty_memos })
   with Refused why -> Error why
+
+let to_txt book sidecars = Result.map (fun (t, _, n) -> (t, n)) (convert book sidecars)
+let to_text book sidecars = Result.map (fun (_, text, _) -> text) (convert book sidecars)
 
 (* ---- book.txt -> Daily_book ---- *)
 
 let exchange_source = "exchange-source"
 let exchange_destination = "exchange-destination"
 
+(* An exchange names the only negative Effect of its source Measure and the only
+   positive one of its destination Measure, by their keys; an unkeyed one gets a fixed
+   key, which the next save writes out. *)
 let entry_of (tx : T.tx) : B.entry =
   let only sign m =
     match List.filter (fun (e : T.posting) -> e.measure = m && Z.sign e.amount = sign) tx.effects with
     | [ e ] -> e
     | _ -> refuse "exchange-ambiguous"
   in
-  let keys =
+  let named =
     match tx.exchange with
     | None -> []
-    | Some (x, y) -> [ (only (-1) x, exchange_source); (only 1 y, exchange_destination) ]
+    | Some (x, y) ->
+        let pick e fallback =
+          match e.T.key with
+          | Some k -> (e, k)
+          | None ->
+              if List.exists (fun (o : T.posting) -> o.key = Some fallback) tx.effects then refuse "exchange-key-taken";
+              (e, fallback)
+        in
+        [ pick (only (-1) x) exchange_source; pick (only 1 y) exchange_destination ]
   in
   let posting (e : T.posting) =
-    let key = List.find_map (fun (k, name) -> if k == e then Some name else None) keys in
+    let key = match List.find_opt (fun (k, _) -> k == e) named with Some (_, name) -> Some name | None -> e.key in
     D.Effect.create
       ~key:(Option.map (fun k -> get "effect-key-id" (D.Identifier.Effect_key.of_string k)) key)
       ~locus:(get "locus-id" (D.Identifier.Locus.of_string e.locus))
@@ -267,7 +280,7 @@ let entry_of (tx : T.tx) : B.entry =
     memo = tx.memo;
     effects = List.map posting tx.effects;
     reversal_of = tx.reversal_of;
-    exchange = Option.map (fun _ -> (exchange_source, exchange_destination)) tx.exchange;
+    exchange = (match named with [ (_, a); (_, b) ] -> Some (a, b) | _ -> None);
     original_amount = tx.original;
     merchant =
       Option.map
@@ -323,4 +336,4 @@ let of_txt (t : T.t) =
   with Refused why -> Error why
 
 let text ?(sidecars = no_sidecars) book =
-  match to_txt book sidecars with Ok (t, _) -> T.to_string t | Error why -> invalid_arg why
+  match to_text book sidecars with Ok text -> text | Error why -> invalid_arg why

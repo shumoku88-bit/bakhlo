@@ -32,7 +32,7 @@ if [ "$mode" = --demo ]; then
   if [ ! -e "$trial" ]; then
     mkdir -p "$root/scratch"
     mkdir "$trial"
-    ./tools/tui --copy-from examples/daily-book.sexp --book "$trial/book.sexp"
+    ./tools/tui --copy-from examples/book.txt --book "$trial/book.txt"
   fi
   config=$trial/config
 else

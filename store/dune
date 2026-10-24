@@ -1,4 +1,4 @@
-; The single household writer: session load, atomic publication and recovery.
+; The single household writer: session load and atomic whole-file publication of book.txt.
 ; Only the TUI Shell's publication executor may depend on it.
 
 (library
@@ -12,6 +12,7 @@
   bakhlo_domain
   bakhlo_application
   bakhlo_sexp
+  bakhlo_book_txt
   parsexp
   sexplib0
   unix))

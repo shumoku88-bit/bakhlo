@@ -134,13 +134,13 @@ let b2_overlay_open (state : C.state) =
   | C.No_overlay -> Option.is_some (Screen_registry.modal state.screens)
   | _ -> true
 
-(* Regular private copy of the synthetic examples/daily-book.sexp, made by the
+(* Regular private copy of the synthetic examples/book.txt, made by the
    check runner: Dune may provide the original as a symlink, which the writer
    correctly refuses. *)
-let example_book = "scratch/examples/daily-book.sexp"
+let example_book = "scratch/examples/book.txt"
 
 let materialize_example_book () =
-  let bytes = In_channel.with_open_bin "examples/daily-book.sexp" In_channel.input_all in
+  let bytes = In_channel.with_open_bin "examples/book.txt" In_channel.input_all in
   if not (Sys.file_exists "scratch/examples") then Unix.mkdir "scratch/examples" 0o700;
   if Sys.file_exists example_book then Unix.unlink example_book;
   F.write_new example_book bytes
@@ -279,6 +279,9 @@ let actual_rows (state : C.state) =
 
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
+
+(* A synthetic book written as S-expression text, as the book.txt the store reads. *)
+let book_txt_of_sexp sexp = Bakhlo_sexp.Daily_txt.text (get (B.of_string sexp))
 
 let key ?(dimensions = (140, 40)) ?(width_of = String.length) state button =
   match H.handle ~dimensions ~width_of state (`Key (button, [])) with

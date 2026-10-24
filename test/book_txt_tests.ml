@@ -44,7 +44,7 @@ let%expect_test "every conformance fixture is admitted or refused exactly as lis
       | _ -> fail row "bad cases row")
     cases;
   Printf.printf "%d admitted, %d refused, %d failures\n" !accepted !refused !failures;
-  [%expect {| 4 admitted, 58 refused, 0 failures |}]
+  [%expect {| 5 admitted, 59 refused, 0 failures |}]
 
 (* Generated admissible books: balanced jpy TXs with awkward memos, optional
    Merchant and ORIGINAL, plans, and one anchor with ALSO lines after its pointer. *)
@@ -69,8 +69,14 @@ module Generated = struct
                   bind (int_inclusive 0 2) ~f:(fun m ->
                       map (option (int_inclusive 1 500)) ~f:(fun original ->
                           let effects =
-                            List.map
-                              (fun (locus, q) : B.posting -> { locus; measure = "jpy"; amount = Z.of_int q })
+                            List.mapi
+                              (fun j (locus, q) : B.posting ->
+                                {
+                                  locus;
+                                  measure = "jpy";
+                                  amount = Z.of_int q;
+                                  key = (if q mod 7 = 0 then Some (Printf.sprintf "k%d" j) else None);
+                                })
                               lines
                           in
                           let total = List.fold_left (fun s (_, q) -> s + q) 0 lines in
@@ -78,7 +84,7 @@ module Generated = struct
                              id = Printf.sprintf "tx-%03d" i;
                              day = Printf.sprintf "2027-%02d-%02d" (1 + (i mod 12)) (1 + (i mod 28));
                              memo;
-                             effects = effects @ [ { locus = "wallet"; measure = "jpy"; amount = Z.of_int (-total) } ];
+                             effects = effects @ [ { locus = "wallet"; measure = "jpy"; amount = Z.of_int (-total); key = Some "paid-from" } ];
                              reversal_of = None;
                              original = Option.map (fun q -> ("usd", Z.of_int q)) original;
                              merchant = (match m with 0 -> None | 1 -> Some (B.Merchant "shop-1") | _ -> Some B.Nonmerchant);

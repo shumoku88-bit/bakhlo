@@ -23,14 +23,17 @@ type normalised = {
 }
 
 val to_txt : Daily_book.t -> sidecars -> (T.t * normalised, string) result
-(** Refuses what [book.txt] v0 cannot represent: presence with coordinates, Effect keys
-    outside an exchange, a malformed sidecar, and anything {!T.of_string} refuses in the
-    printed result. The value returned is the one read back from that text. *)
+(** Refuses what [book.txt] v0 cannot represent: presence with coordinates, a malformed
+    sidecar, and anything {!T.of_string} refuses in the printed result. Effect keys are
+    kept. The value returned is the one read back from that text. *)
+
+val to_text : Daily_book.t -> sidecars -> (string, string) result
+(** [T.to_string] of {!to_txt}, without printing twice: the text {!to_txt} admitted. *)
 
 val of_txt : T.t -> (Daily_book.t * sidecars, string) result
-(** Admitted by {!Daily_book.of_payload}. An exchange's two keyed Effects are the only
-    negative Effect of its source Measure and the only positive one of its destination
-    Measure; any other shape refuses. *)
+(** Admitted by {!Daily_book.of_payload}. An exchange refers to the only negative Effect
+    of its source Measure and the only positive one of its destination Measure, by their
+    keys; an unkeyed one gets a fixed key. Any other shape refuses. *)
 
 val text : ?sidecars:sidecars -> Daily_book.t -> string
 (** [T.to_string] of {!to_txt}, for fixtures and tools. Raises [Invalid_argument] with

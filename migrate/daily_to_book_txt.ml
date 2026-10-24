@@ -42,7 +42,8 @@ let compare_entries (source : B.entry list) (txs : T.tx list) =
              (fun p (q : T.posting) ->
                locus (D.Effect.locus p) = q.locus
                && measure (D.Effect.measure p) = q.measure
-               && Z.equal (D.Quantity.quanta (D.Effect.quantity p)) q.amount)
+               && Z.equal (D.Quantity.quanta (D.Effect.quantity p)) q.amount
+               && Option.map D.Identifier.Effect_key.to_string (D.Effect.key p) = q.key)
              e.effects tx.effects
       in
       let memo = match e.memo with Some "" -> None | m -> m in

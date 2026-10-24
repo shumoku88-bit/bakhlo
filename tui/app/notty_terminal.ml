@@ -86,23 +86,7 @@ let start_first_run path read_error =
         ("First-run creation refused: " ^ why ^ ". Inspect the destination; no retry was attempted.");
       None
 
-(* After the terminal closes, fold a long record tail into a fresh snapshot (the
-   replaced file is kept as .prev). The file as now on disk is what is compacted;
-   a failure leaves the book as it was and is only reported. *)
-let compact_on_exit path =
-  match F.compact_if_due (F.load path) with
-  | None | Some (F.Compacted _) -> ()
-  | Some (F.Not_compacted why) ->
-      prerr_endline ("Compaction skipped: " ^ why ^ ". The book is unchanged.")
-  | Some F.Compaction_uncertain ->
-      prerr_endline
-        "Compaction was interrupted. The book is intact (old or new snapshot); reopen to check."
-  | exception (F.Refused _ | Unix.Unix_error _ | Sys_error _) ->
-      prerr_endline "Compaction skipped: the book could not be reread. Nothing was changed."
-
-let run_loaded session =
-  run_shell session;
-  compact_on_exit session.F.path
+let run_loaded session = run_shell session
 
 let run path =
   match

@@ -84,7 +84,6 @@ let initial ?config_home session =
   let measure = match B.measures session.F.book with (id, _) :: _ -> id | [] -> "" in
   let today = F.today () in
   let workspace = get (W.create ~today ~measure) in
-  let notice = A.recovery_notice ~session in
   let attention_path = Attention_file.file_path ?config_home session.F.path in
   let attention = Attention_file.load_file attention_path in
   let settlement_path = Settlement_file.file_path ?config_home session.F.path in
@@ -96,9 +95,9 @@ let initial ?config_home session =
     record_visible = false;
     overlay = No_overlay;
     theme = P.load_theme ?config_home ();
-    message = Option.value ~default:"" notice;
+    message = "";
     ui_notice = None;
-    blocked = notice <> None;
+    blocked = false;
     pending = None;
     pending_record_publication = false;
     config_home;
@@ -199,7 +198,6 @@ let apply_commit_result ?published_message ?(record_publication = false) state ~
   | A.Conflict ->
       stopped ~pending:None
         (tr "Another writer changed the book. Draft retained; reload and review.")
-  | A.Recovery_blocked -> stopped A.recovery_message
   | A.Storage_failed why ->
       stopped (A.format_message "Storage failed (%s). Writes stopped; draft retained." why)
   | A.Refused why ->
@@ -240,7 +238,6 @@ let reload state =
         message =
           tr "The edited generation changed. Draft retained; discard explicitly and reselect.";
       }
-  | A.Recovery_required (session, message) -> { state with session; blocked = true; message }
   | A.Reloaded session -> (
       match state.overlay with
       | _ ->
@@ -274,15 +271,13 @@ let submit state =
         }
 
 let discard state =
-  match A.recovery_notice ~session:state.session with
-  | Some message -> { state with blocked = true; message }
-  | None when state.pending <> None ->
-      {
-        state with
-        blocked = true;
-        message = tr "Unconfirmed publication: inspect before discarding or retrying.";
-      }
-  | None ->
+  if state.pending <> None then
+    {
+      state with
+      blocked = true;
+      message = tr "Unconfirmed publication: inspect before discarding or retrying.";
+    }
+  else
       {
         state with
         record = None;
