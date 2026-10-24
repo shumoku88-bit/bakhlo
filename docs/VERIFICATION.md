@@ -6,6 +6,18 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Household migrated to book.txt (2026-10-25)
+
+- User-approved. With no TUI running and both repositories in step with their remotes,
+  `book-txt-storage` was fast-forwarded into `main` and pushed, then `./tools/book-txt migrate`
+  ran on `../bakhlo-data`: conversion and comparison, book.txt written under the writer lock,
+  read back through the store and compared again (every entry, plan and coordinate equal,
+  reprint identical), and one commit replacing `book.sexp`, `config/accounting-roles.tsv` and
+  `attention.loam`, pushed to the private backup. `./tools/tui --check` admits the book.
+- Not executed: opening the migrated household in the TUI; the user does that next.
+- Rollback: revert the household commit (the parent holds the S-expression book and its
+  sidecars) and revert the stage 4b commits on `main`; no force push.
+
 ## The store reads and rewrites book.txt (stage 4b, 2026-10-25)
 
 - Branch `book-txt-storage` (not `main`). `Daily_txt` converts Daily_book <-> book.txt;

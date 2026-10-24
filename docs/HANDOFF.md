@@ -14,13 +14,14 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   Stage 4a done (2026-10-25): `migrate/daily_to_book_txt` and `./tools/book-txt trial`
   convert a copy of the household and compare every entry, plan and current quantity
   ([evidence](VERIFICATION.md#household-copy-converts-to-booktxt-with-every-answer-equal-2026-10-25)).
-  Stage 4b steps 1–5 (2026-10-25) are on the branch `book-txt-storage`, not on `main`:
-  `Daily_txt` converts both ways, `Daily_file` reads and rewrites `book.txt` whole, roles and
-  Attention are sections of the book, and the tools, example and docs use `book.txt`
+  Stage 4b (2026-10-25, user-approved): `Daily_txt` converts both ways, `Daily_file` reads and
+  rewrites `book.txt` whole, roles and Attention are sections of the book, and the tools,
+  example and docs use `book.txt`
   ([evidence](VERIFICATION.md#the-store-reads-and-rewrites-booktxt-stage-4b-2026-10-25)).
-  Step 6, the household migration, waits for the user: merge the branch and migrate
-  `../bakhlo-data` together (`./tools/book-txt migrate`), because `tools/household` runs
-  `origin/main`. Until then the household still uses `book.sexp`.
+  The household was migrated the same day (`./tools/book-txt migrate`,
+  [evidence](VERIFICATION.md#household-migrated-to-booktxt-2026-10-25)): `../bakhlo-data` is
+  now `book.txt`; the last S-expression book is its parent commit. Next: the user opens it
+  with `./tools/household` and checks the screens; then the core work (A).
 - Cut over on 2026-10-21 (user decision): the household is `../bakhlo-data`, recorded
   only by the user through `./tools/household` (TUI, then commit and push to the private
   GitHub backup).
