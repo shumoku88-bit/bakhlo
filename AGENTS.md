@@ -113,9 +113,14 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   scratch. The user opens it with `./tools/household`, which on exit commits changes and
   pushes them to the private GitHub backup `shumoku88-bit/bakhlo-data` (user decision
   2026-10-21); never make that repository public. `../loam-data` is the frozen LOAM
-  record: never write, recover or synchronize it. Approved: read-only copies of `household.loam` and its config, fresh
-  private comparison copies, and bounded read-only inventory of retained operation
-  evidence. Keep private data and counts in ignored scratch only; never in fixtures,
+  reference except for an explicit user-requested reflection of Bakhlo recording
+  history (user decision: this conversation). For that request, AI may write the LOAM
+  original through canonical LOAM commands/publishers, after preserving a recoverable
+  backup and checking duplicates, corrections, reversals and payment-plan links.
+  Never edit canonical `.loam` bytes directly or guess unsupported operations.
+  Bakhlo remains the operational authority; this permits no automatic synchronization
+  or other recovery/write. Read-only copies and bounded retained-operation inventory
+  remain approved. Keep private data and counts in ignored scratch only; never in fixtures,
   commits or public output. User decision (2026-10-20): no private household text
   (names, memos, identifiers, amounts) may enter this repository, its history or commit
   messages. `./tools/check` runs `./tools/privacy-scan` on changed files; run
