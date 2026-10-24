@@ -14,13 +14,13 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   Stage 4a done (2026-10-25): `migrate/daily_to_book_txt` and `./tools/book-txt trial`
   convert a copy of the household and compare every entry, plan and current quantity
   ([evidence](VERIFICATION.md#household-copy-converts-to-booktxt-with-every-answer-equal-2026-10-25)).
-  The household still uses `book.sexp`.
-  Stage 4b, before any migration: the TUI must read and write `book.txt` itself. Today it
-  saves through `Book_log` appends and writes roles (`accounting-roles.tsv`) and Attention
-  (`attention.loam`) as separate files; in `book.txt` they are sections of the one file,
-  rewritten whole on every save. Also reconcile two Bakhlo-only rules with the format:
-  a label's help must be non-empty in `Daily_book` (converted unlabelled loci have empty
-  help) and a Measure scale is limited to 0–9 (the format allows any non-negative scale).
+  Stage 4b steps 1–5 (2026-10-25) are on the branch `book-txt-storage`, not on `main`:
+  `Daily_txt` converts both ways, `Daily_file` reads and rewrites `book.txt` whole, roles and
+  Attention are sections of the book, and the tools, example and docs use `book.txt`
+  ([evidence](VERIFICATION.md#the-store-reads-and-rewrites-booktxt-stage-4b-2026-10-25)).
+  Step 6, the household migration, waits for the user: merge the branch and migrate
+  `../bakhlo-data` together (`./tools/book-txt migrate`), because `tools/household` runs
+  `origin/main`. Until then the household still uses `book.sexp`.
 - Cut over on 2026-10-21 (user decision): the household is `../bakhlo-data`, recorded
   only by the user through `./tools/household` (TUI, then commit and push to the private
   GitHub backup).
@@ -143,9 +143,10 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   (`SEMANTIC_CONTRACT.md`). No I/O.
 - `sexp/daily_book.ml(i)`: the household book (entries, plans, support), staged
   admission, in-place mutations, `Full` whole-book reference; `sexp/book_log.ml(i)`:
-  operations, record lines, snapshot+log load.
-- `store/daily_file.ml`: the single writer (load, append, compaction, torn-tail
-  discard, recovery report, copies).
+  the publication operations; `sexp/daily_txt.ml(i)`: Daily_book <-> book.txt.
+- `book_txt/book_txt.ml(i)`: the common `book.txt` format (read, admit, print, balance).
+- `store/daily_file.ml`: the single writer of `book.txt` (load, whole-file publish,
+  conflict and uncertain outcomes, copies).
 - `tui/`: `shell/` (state, dispatch, publication, files), `screens/<screen>/` (per-screen
   state, input, painting), `book/` (pure UI data), `protocol/screen.mli` (Shell ↔ screen
   contract), `app/` (Notty terminal + CLI entry), `scenarios/` (cross-screen checks).

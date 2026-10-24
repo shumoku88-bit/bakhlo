@@ -70,10 +70,10 @@ else
     printf '%s\n' 'Comparison settings must not be a symlink.' >&2; exit 2
   fi
 fi
-if [ ! -d "$trial" ] || [ -L "$trial/book.sexp" ] || [ ! -f "$trial/book.sexp" ]; then
+if [ ! -d "$trial" ] || [ -L "$trial/book.txt" ] || [ ! -f "$trial/book.txt" ]; then
   printf '%s\n' 'Comparison book unavailable; existing trial was not replaced.' >&2
   exit 2
 fi
 # Theme settings are independent of both ledger copies and ordinary UI settings.
 export BAKHLO_CONFIG_HOME="$config"
-exec ./tools/tui --book "$trial/book.sexp"
+exec ./tools/tui --book "$trial/book.txt"

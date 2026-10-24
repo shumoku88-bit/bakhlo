@@ -29,7 +29,7 @@ binary=$run_dir/bakhlo_tui.exe
 target=$worktree/_build/default/tui/app/bakhlo_tui.exe
 stamp=$run_dir/built-commit
 
-if [ ! -f "$household/book.sexp" ] || [ ! -d "$household/.git" ]; then
+if [ ! -f "$household/book.txt" ] || [ ! -d "$household/.git" ]; then
   printf '%s\n' "Household not found or not a Git repository: $household" >&2
   exit 2
 fi
@@ -121,7 +121,7 @@ fail() {
 }
 
 cd "$root"
-"$binary" --book "$household/book.sexp"
+"$binary" --book "$household/book.txt"
 status=$?
 
 if ! git -C "$household" add -A; then

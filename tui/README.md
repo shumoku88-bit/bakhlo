@@ -34,8 +34,8 @@ LOAMとの比較は`./ui`、別の端末で`./ui loam`（同じ取得世代の�
 ```sh
 umask 077
 mkdir scratch/my-daily-trial
-./tools/tui --copy-from examples/daily-book.sexp --book scratch/my-daily-trial/book.sexp
-./tools/tui --book scratch/my-daily-trial/book.sexp
+./tools/tui --copy-from examples/book.txt --book scratch/my-daily-trial/book.txt
+./tools/tui --book scratch/my-daily-trial/book.txt
 ```
 
 対話的な`--book FILE`で選択台帳がmissing／unreadableなら、別の未使用fileへの明示的な初期化を選べる。
@@ -499,26 +499,21 @@ Attention／commitment精算は主台帳とは別の試用sidecar。未作成だ
 失敗・競合では成功表示を出さず、入力と旧状態を維持する。結果が不明なら再送せず、
 Escでフォームを閉じCtrl-R／再起動で現在内容を確認する。壊れた原本は先に別コピーへ保全する。
 主台帳との複数ファイル原子性、永続Ack／P7、電源断・別ホスト復旧の保証ではない。
-役割設定sidecarは別の未認定境界で、この修正の保証を引き継がない。
+会計上の役割とAttentionは帳簿（`book.txt`）の節で、帳簿と同じ書き手・同じ保存で書く。
 
-帳簿ファイルは単一S式（snapshot）の後ろに保存1回ごとの記録行を追記する形式（`Bakhlo_sexp.Book_log`）。
-保存は協調writerロック下で、読込時からファイルが変わっていない（inode・サイズ・更新時刻・末尾）ことを確かめ、
-記録行1行を追記してfsyncし、末尾を読み戻す。操作は保存前にCoreで適用し、拒否なら何も書かない。
-結果不明（追記中のI/O失敗）では記帳を止め、再読込でファイル末尾がその記録行と一致した場合だけ保存済みとする。
-最後の行が改行で終わらない（保存中断）場合は書込みを止め、自動修復しない。確認してから明示的に切り捨てる。
-終了時に記録が200件以上なら新しいsnapshotへ圧縮し、置き換え前のファイルを`.prev`として1世代残す
-（一時ファイル→hard link→原子的rename。どの時点でも帳簿ファイルは旧または新のsnapshotで同じ帳簿）。
+帳簿ファイルはBakhloとLOAMの共通形式`book.txt`（`docs/COMMON_FORMAT.ja.md`）。会計上の役割とAttentionも含む。
+保存は協調writerロック下で、読込時からファイルが変わっていない（inode・サイズ・更新時刻・中身）ことを確かめ、
+ファイル全体を一時ファイルに書いてfsyncし、今のファイルを`.prev`として1世代残してから原子的にrenameし、
+ディレクトリもfsyncして中身を読み戻す。どの時点でも帳簿ファイルは旧または新の帳簿で、途中の状態は残らない。
+操作は保存前にCoreで適用し、拒否なら何も書かない。結果不明（置き換え中のI/O失敗）では記帳を止め、
+再読込で中身がその保存と一致した場合だけ保存済みとする。S式の帳簿は読まない（移行は`tools/book-txt`）。
 永続した発行後Ack証拠（P7）・電源断・別ホスト復旧は未認定。
 
 ```sh
-./tools/tui --inspect-recovery --book FILE
-./tools/tui --discard-torn-tail --book FILE
 ./tools/tui --restore-copy-from SOURCE --book FRESH_FILE
 ./tools/tui --check FRESH_FILE
 ```
 
-inspectは本文を出さず、完全な記録数と中断された最後の行の有無だけを示す（なし=0、中断あり=3、照会失敗=1）。
-discardは同じwriterロック下で再確認し、改行のない最後の1行だけを除く。完全な記録は変えない。
 restore-copyは存在しない別パスへadmittedなbyte-exactコピーを作り、元を変更しない。
 コピー成功は記帳先切替や済んだ支払いの再送ではない。
 安定した親namespaceと協調writerが前提。電源断・媒体故障・悪意あるwriter・別ホスト復旧は未認定。

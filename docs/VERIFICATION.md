@@ -6,6 +6,36 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## The store reads and rewrites book.txt (stage 4b, 2026-10-25)
+
+- Branch `book-txt-storage` (not `main`). `Daily_txt` converts Daily_book <-> book.txt;
+  `Daily_file` loads only book.txt and publishes by rewriting it whole (temporary file,
+  `F_FULLFSYNC`, `.prev`, rename, directory flush, bytes read back). The session keeps the
+  in-memory book. Roles and Attention are book sections saved through the same writer.
+- `test/daily_book_oracle_tests.ml`: every mutation of a book.txt-loaded book equals its
+  book.txt cold reload (200 seeds x 30 steps, none refused by book.txt). Found and fixed on
+  the way: an added Locus now gets a label row, an empty memo is no memo, a reversal is not
+  balance-checked (an exchange's reversal is not balanced), Effects keep their keys.
+  Removing the empty-memo normalisation fails the oracle.
+- `test/daily_txt_tests.ml`: the 5 accepted fixtures, 2,000 generated books and a converted
+  synthetic household reprint to the same bytes through Daily_book with equal answers.
+- `test/daily_file_tests.ml`, `tui/scenarios/recovery_checks.ml`: three checkpoints by
+  injected fault and by SIGKILL leave the old or the new book (a landed save is confirmed
+  and never retried), a refused temporary file and a held writer lock write nothing, one
+  `.prev` and no temporaries after a normal save, roles and Attention read back as written,
+  an S-expression book is refused unconverted.
+- `./tools/check`, `./tools/tui --self-check` (37 PASS lines), the PTY smoke on
+  `examples/book.txt` and `./tools/compare self-check` passed.
+- Publish timing (synthetic, `scratch/save-format-probe`, median of 7): 60 ms at 1,000
+  entries, 163 ms at 10,950, 513 ms at 45,000; under 100 ms on a household-size copy. Before
+  keeping the in-memory book it was 75 / 348 / 1,347 ms. Converting and re-admitting the
+  whole book on each save is what grows; the core work (A) is to remove it.
+- `./tools/book-txt migrate` rehearsed on a local clone of the household in scratch: book.txt
+  written, read back through the store and compared equal, one commit replacing book.sexp,
+  `accounting-roles.tsv` and `attention.loam`; `--check` admits the result. Not executed:
+  opening the migrated household in the TUI (the PTY smoke accepts only the synthetic
+  fixture), and the real migration.
+
 ## Household copy converts to book.txt with every answer equal (2026-10-25)
 
 - `migrate/daily_to_book_txt.ml` converts a household (`book.sexp` with appended records,

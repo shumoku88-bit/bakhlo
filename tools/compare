@@ -17,7 +17,8 @@ if [ ! -f "$trial/household.sexp" ] || [ -L "$root/scratch" ] || [ -L "$build" ]
 fi
 mkdir -p "$build"
 ./tools/opam exec -- dune build lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa \
-  loam_read/bakhlo_loam_read.cmxa sexp/bakhlo_sexp.cmxa migrate/bakhlo_migrate.cmxa
+  book_txt/bakhlo_book_txt.cmxa loam_read/bakhlo_loam_read.cmxa sexp/bakhlo_sexp.cmxa \
+  migrate/bakhlo_migrate.cmxa
 cp "$root/tools/compare_capture.ml" "$build/compare_capture.ml"
 ./tools/opam exec -- ocamlfind ocamlopt -strict-sequence -w +8+9+11 -warn-error +8+9+11 \
   -package base,zarith,parsexp,unix -linkpkg \
@@ -25,6 +26,8 @@ cp "$root/tools/compare_capture.ml" "$build/compare_capture.ml"
   -I _build/default/lib/.bakhlo_domain.objs/native \
   -I _build/default/application/.bakhlo_application.objs/byte \
   -I _build/default/application/.bakhlo_application.objs/native \
+  -I _build/default/book_txt/.bakhlo_book_txt.objs/byte \
+  -I _build/default/book_txt/.bakhlo_book_txt.objs/native \
   -I _build/default/loam_read/.bakhlo_loam_read.objs/byte \
   -I _build/default/loam_read/.bakhlo_loam_read.objs/native \
   -I _build/default/sexp/.bakhlo_sexp.objs/byte \
@@ -33,7 +36,7 @@ cp "$root/tools/compare_capture.ml" "$build/compare_capture.ml"
   -I _build/default/migrate/.bakhlo_migrate.objs/native \
   -I "$build" \
   _build/default/lib/bakhlo_domain.cmxa _build/default/application/bakhlo_application.cmxa \
-  _build/default/loam_read/bakhlo_loam_read.cmxa _build/default/sexp/bakhlo_sexp.cmxa _build/default/migrate/bakhlo_migrate.cmxa \
+  _build/default/book_txt/bakhlo_book_txt.cmxa _build/default/loam_read/bakhlo_loam_read.cmxa _build/default/sexp/bakhlo_sexp.cmxa _build/default/migrate/bakhlo_migrate.cmxa \
   "$build/compare_capture.ml" -o "$build/compare-capture"
 if [ "$1" = self-check ]; then
   exec "$build/compare-capture" self-check

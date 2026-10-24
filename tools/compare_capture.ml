@@ -2,6 +2,8 @@
    This is not a backup or operational publisher. *)
 module L = Bakhlo_migrate.Loam_import
 module B = Bakhlo_sexp.Daily_book
+module X = Bakhlo_sexp.Daily_txt
+module T = Bakhlo_book_txt.Book_txt
 module D = Bakhlo_domain
 module E = Bakhlo_loam_read.Envelope
 
@@ -247,6 +249,14 @@ let delta before after =
      Both UIs use separate trial copies; neither is operational authority.\n";
   Buffer.contents buffer
 
+(* Bakhlo's book.txt for an imported book, with its roles and Attention sections. *)
+let txt_of ~roles ~attention book = X.text ~sidecars:{ X.roles; attention } book
+
+let book_of_txt text =
+  match T.of_string text with
+  | Error e -> raise (Refused ("book-txt-" ^ T.code_name e.code))
+  | Ok t -> ( match X.of_txt t with Ok pair -> pair | Error why -> raise (Refused why))
+
 let refresh ?(between = fun () -> ()) ~source ~state ~baseline () =
   directory state;
   let old =
@@ -286,11 +296,9 @@ let refresh ?(between = fun () -> ()) ~source ~state ~baseline () =
           if String.starts_with ~prefix:"config/" name && name <> "config/accounting-roles.tsv" then
             write_new (target ^ "/" ^ name) b)
     files;
-  write_new (target ^ "/config/accounting-roles.tsv") roles;
-  (* Bakhlo's Attention file reads the household section unchanged. *)
-  Option.iter (write_new (target ^ "/attention.loam")) attention;
   write_new (target ^ "/imported.sexp") printed;
-  write_new (target ^ "/book.sexp") printed;
+  (* Bakhlo's book.txt holds the household AccountingRole and Attention sections. *)
+  write_new (target ^ "/book.txt") (txt_of ~roles ~attention:(Option.value attention ~default:"") book);
   write_new (target ^ "/delta.private.txt") (delta old book);
   between ();
   require (captured = snapshot source) "source-changed-during-capture";
@@ -399,8 +407,8 @@ let self_check () =
          { trial_entry with id = "fresh"; memo = Some "Bakhlo trial-only addition" }
          ~plan:None)
   in
-  Unix.unlink (first ^ "/book.sexp");
-  write_new (first ^ "/book.sexp") (B.to_string trial_book);
+  Unix.unlink (first ^ "/book.txt");
+  write_new (first ^ "/book.txt") (X.text trial_book);
   Unix.unlink (first ^ "/config/daily-pace.tsv");
   write_new (first ^ "/config/daily-pace.tsv") "food\tjpy\n";
   Unix.unlink (first ^ "/loam-view/household.loam");
@@ -415,7 +423,7 @@ let self_check () =
     List.map
       (fun suffix -> (suffix, bytes (first ^ suffix)))
       [
-        "/book.sexp";
+        "/book.txt";
         "/imported.sexp";
         "/source/household.loam";
         "/source/config/daily-pace.tsv";
@@ -435,10 +443,12 @@ let self_check () =
     preserved;
   let _, expected_fresh = convert (snapshot source) in
   require
-    (bytes (second ^ "/book.sexp") = expected_fresh
+    (bytes (second ^ "/book.txt")
+     = txt_of ~roles:sample_roles ~attention:sample_attention
+         (get "fresh-admission" (B.of_string expected_fresh))
     && bytes (second ^ "/imported.sexp") = expected_fresh)
     "fresh-book-merged-trial-edits";
-  let updated = get "test-cold-admission" (B.of_string (bytes (second ^ "/book.sexp"))) in
+  let updated, sidecars = book_of_txt (bytes (second ^ "/book.txt")) in
   let entry = Option.get (B.find_entry updated "old") in
   require
     (B.entry_count updated = 2
@@ -466,12 +476,10 @@ let self_check () =
   require
     (bytes (second ^ "/loam-view/config/daily-pace.tsv") = "wallet\tjpy\n")
     "loam-config-merged-trial-edits";
-  (* Household AccountingRole authority owns the Bakhlo config copy; UI copies stay byte-exact. *)
-  require
-    (bytes (second ^ "/config/accounting-roles.tsv") = sample_roles)
-    "household-roles-not-placed";
-  (* Bakhlo reads the household Attention section unchanged, beside the book. *)
-  require (bytes (second ^ "/attention.loam") = sample_attention) "household-attention-not-placed";
+  (* Household AccountingRole and Attention are sections of Bakhlo's book.txt; UI copies
+     of the standalone files stay byte-exact. *)
+  require (sidecars.roles = sample_roles) "household-roles-not-placed";
+  require (sidecars.attention = sample_attention) "household-attention-not-placed";
   require
     (bytes (second ^ "/source/config/accounting-roles.tsv") = standalone_roles
     && bytes (second ^ "/loam-view/config/accounting-roles.tsv") = standalone_roles)
@@ -486,10 +494,9 @@ let self_check () =
     List.map
       (fun suffix -> (suffix, bytes (second ^ suffix)))
       [
-        "/book.sexp";
+        "/book.txt";
         "/imported.sexp";
         "/config/daily-pace.tsv";
-        "/config/accounting-roles.tsv";
         "/COMPLETE";
       ]
   in
@@ -525,7 +532,7 @@ let self_check () =
   let role_trial =
     List.map
       (fun suffix -> (suffix, bytes (third ^ suffix)))
-      [ "/book.sexp"; "/config/accounting-roles.tsv"; "/COMPLETE" ]
+      [ "/book.txt"; "/COMPLETE" ]
   in
   let refuse_roles roles why =
     Unix.unlink (source ^ "/household.loam");
@@ -563,8 +570,8 @@ let self_check () =
   let fourth = Option.get (selected state) in
   require (fourth <> third) "empty-role-map-reused-capture";
   require
-    (bytes (fourth ^ "/config/accounting-roles.tsv") = "LOAM-ACCOUNTING-ROLE-MAP\t1\n")
-    "explicit-empty-role-map-not-written";
+    ((snd (book_of_txt (bytes (fourth ^ "/book.txt")))).roles = "")
+    "explicit-empty-role-map-not-placed";
   require
     (bytes (fourth ^ "/source/config/accounting-roles.tsv") = standalone_roles)
     "standalone-role-copy-not-preserved";
