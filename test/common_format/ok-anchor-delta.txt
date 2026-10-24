@@ -1,0 +1,20 @@
+BOOK	1
+MEASURE	jpy	0
+LOCUS	wallet	財布	
+LOCUS	food	食費	
+TX	t1	2027-01-01
+EFFECT	food	jpy	100
+EFFECT	wallet	jpy	-100
+ENDTX
+TX	t2	2027-01-02
+EFFECT	food	jpy	300
+EFFECT	wallet	jpy	-300
+ENDTX
+TX	t3	2027-01-03
+EFFECT	food	jpy	50
+EFFECT	wallet	jpy	-50
+ENDTX
+ANCHOR	t1
+ASSERT	wallet	jpy	1000
+ENDANCHOR
+END

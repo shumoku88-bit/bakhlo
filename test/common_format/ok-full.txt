@@ -1,0 +1,106 @@
+BOOK	1
+MEASURE	jpy	0
+MEASURE	usd	2
+LOCUS	wallet	財布	手元の現金
+LOCUS	bank	銀行	
+LOCUS	food	食費	毎日の食事
+LOCUS	coffee	コーヒー	
+LOCUS	fee	手数料	
+LOCUS	phone	電話代	
+LOCUS	savings	貯金	
+LOCUS	loan-a	借入A	
+LOCUS	equity	開始残高	
+LOCUS	cash-usd	ドル現金	
+LOCUS	suspense	未分類	あとで分ける
+LOCUS	old-phone	旧電話代	解約した回線	HIDDEN
+ROLE	wallet	ASSET
+ROLE	bank	ASSET
+ROLE	food	EXPENSE
+ROLE	coffee	EXPENSE
+ROLE	fee	EXPENSE
+ROLE	phone	EXPENSE
+ROLE	savings	ASSET
+ROLE	loan-a	LIABILITY
+ROLE	equity	EQUITY
+ROLE	cash-usd	ASSET
+TX	tx-0001	2027-01-01	DESC	開始残高
+EFFECT	bank	jpy	50000
+EFFECT	equity	jpy	-50000
+ENDTX
+TX	tx-0002	2027-01-01	DESC	借入の開始残高
+EFFECT	equity	jpy	20000
+EFFECT	loan-a	jpy	-20000
+ENDTX
+TX	tx-0003	2027-01-05	DESC	コンビニ
+EFFECT	coffee	jpy	150
+EFFECT	food	jpy	200
+EFFECT	wallet	jpy	-350
+MERCHANT	some-store
+ENDTX
+TX	tx-0004	2027-01-06
+EFFECT	bank	jpy	-3000
+EFFECT	phone	jpy	3000
+NONMERCHANT
+ENDTX
+TX	tx-0005	2027-01-07	DESC	返品
+EFFECT	wallet	jpy	350
+EFFECT	coffee	jpy	-150
+EFFECT	food	jpy	-200
+REVERSAL-OF	tx-0003
+ENDTX
+TX	tx-0006	2027-01-08	DESC	空港で両替
+EFFECT	bank	jpy	-16300
+EFFECT	fee	jpy	300
+EFFECT	cash-usd	usd	10000
+EXCHANGE	jpy	usd
+ENDTX
+TX	tx-0007	2027-01-09	DESC	現地のカフェ
+EFFECT	cash-usd	usd	-450
+EFFECT	food	usd	450
+ENDTX
+TX	tx-0008	2027-01-10	DESC	カードの外貨払い
+EFFECT	bank	jpy	-1600
+EFFECT	food	jpy	1600
+ORIGINAL	usd	1000
+ENDTX
+TX	tx-0009	2027-01-11	DESC	内容不明の出金\tあとで確認\\済
+EFFECT	suspense	jpy	500
+EFFECT	wallet	jpy	-500
+ENDTX
+TX	tx-0010	2027-01-04	DESC	あとで見つけたレシート
+EFFECT	food	jpy	120
+EFFECT	wallet	jpy	-120
+ENDTX
+TX	tx-0011	2027-01-12	DESC	数えた後の買い物
+EFFECT	food	jpy	80
+EFFECT	wallet	jpy	-80
+ENDTX
+PLAN	plan-0001	2027-01-06	jpy
+CHANGE	bank	-3000
+CHANGE	phone	3000
+PAID-BY	tx-0004
+ENDPLAN
+PLAN	plan-0002	2027-02-06	jpy
+CHANGE	bank	-3000
+CHANGE	phone	3000
+ENDPLAN
+PLAN	plan-0003	2027-03-06	jpy
+CHANGE	bank	-3000
+CHANGE	old-phone	3000
+CANCELLED	2027-01-20
+ENDPLAN
+ZERO-ORIGIN	cash-usd	usd
+OPENING	bank	jpy	tx-0001
+OPENING	loan-a	jpy	tx-0002
+HISTORY-FROM	wallet	jpy	2027-01-01
+ANCHOR	tx-0009
+ALSO	tx-0010
+ASSERT	wallet	jpy	1200
+ASSERT	savings	jpy	0
+ENDANCHOR
+ITEM	attention-1	DUE_ON	2027-02-28	check-the-bill
+ITEM	attention-2	NO_DUE_DATE	-	ask-about-the-fee
+ITEM	attention-3	DUE_UNDETERMINED	-	renewal-letter
+CLOSE	attention-1	2027-02-20	RESOLVED
+CLOSE	attention-3	2027-02-21	DROPPED
+END

@@ -1,0 +1,21 @@
+BOOK	1
+MEASURE	jpy	0
+LOCUS	wallet	財布	
+LOCUS	food	食費	
+ROLE	wallet	ASSET
+ROLE	food	EXPENSE
+TX	tx-0001	2027-01-05	DESC	パン
+EFFECT	food	jpy	200
+EFFECT	wallet	jpy	-200
+ENDTX
+PLAN	plan-1	2027-02-01	jpy
+CHANGE	wallet	-100
+CHANGE	food	100
+PAID-BY	tx-0001
+ENDPLAN
+PLAN	plan-2	2027-03-01	jpy
+CHANGE	wallet	-100
+CHANGE	food	100
+PAID-BY	tx-0001
+ENDPLAN
+END

@@ -31,9 +31,10 @@ LOAMの検証資産を生かしながら、両方を改善していく。
 - ファイル名は `book.txt`、1行目は `BOOK	1`（形式名と版）。形式は拡張子ではなく1行目で見分ける。
 - 最後の行は `END`。これがなければ途中で切れたファイルとみなして拒否する。
   （LOAMの `SECTION 名前 バイト数` の代わり。手で直してもバイト数を数え直さなくてよい）
-- 空行は無視する。コメント行は持たない（書き直すたびに消えてしまうため）。
+- 空行もコメント行も書かない（あれば拒否する）。受け入れるファイルの書き方を1通りにして、
+  「読んで書き直すとバイト単位で元と同じ」にするため（下の「書き出しの決まり」）。
 - 欄の中のテキスト（メモなど）は、LOAMと同じく `\\` `\n` `\r` `\t` でエスケープする。
-- 日付は `YYYY-MM-DD`。IDは空白・タブを含まない文字列。
+- 日付は `YYYY-MM-DD` で、実在する日付。IDは空でなく、空白・タブ・改行を含まない文字列。
 
 並び順は固定する（差分が見やすく、Gitの履歴が読みやすい）：
 
@@ -221,8 +222,144 @@ LOAMの今の仕組みにも同じ穴があり（IDの一覧に後から足す�
 
 ```
 ITEM	attention-1	DUE_ON	2027-02-28	check-the-bill
+ITEM	attention-2	NO_DUE_DATE	-	ask-about-the-fee
 CLOSE	attention-1	2027-02-20	RESOLVED
 ```
+
+- `ITEM` の行：ID、期限の種類（`DUE_ON`・`NO_DUE_DATE`・`DUE_UNDETERMINED`）、期限の日付
+  （`DUE_ON` のときだけ日付、ほかは `-`）、内容（エスケープしたテキスト、空でない）。
+- `CLOSE` の行：閉じる `ITEM` のID、閉じた日、`RESOLVED`（片付いた）か `DROPPED`（やめた）。
+  1つの `ITEM` を閉じられるのは1回だけ。
+
+## 書き出しの決まり
+
+受け入れるファイルは1通りの書き方しかないようにする。だから、どちらの実装でも
+**読んで書き直すと、バイト単位で元のファイルと同じになる**（K13）。
+
+- 節の順：`BOOK` → `MEASURE` → `LOCUS` → `ROLE` → `TX` → `PLAN` → 残高の根拠 → `ATTENTION` → `END`。
+  残高の根拠の中は `ZERO-ORIGIN` → `OPENING` → `HISTORY-FROM` → `ANCHOR`。
+  `ATTENTION` の中は `ITEM` → `CLOSE`。
+- 同じ節の中の並びは、読んだ順のまま書く。新しく足すものは、その節の末尾に足す。
+- `TX` の中：`EFFECT` の行（読んだ順）→ `REVERSAL-OF` → `ORIGINAL` → `MERCHANT` か `NONMERCHANT` →
+  `EXCHANGE`。どれも1回まで。
+- `PLAN` の中：`CHANGE` の行（読んだ順）→ `PAID-BY` か `CANCELLED`。
+- `ANCHOR` の中：`ALSO` の行 → `ASSERT` の行。
+- 整数は10進で、`+` を付けず、先頭に余分な `0` を付けない（`0` そのものはよい）。`-0` は書かない。
+- メモが無い記帳は `DESC` 以降を書かない。空のメモ（`DESC` の後が空）は書かない。
+- `LOCUS` の説明は空でもよい（行は `LOCUS	<ID>	<表示名>	` のようにタブで終わる）。表示名は空にしない。
+
+## 読むときに拒否すること
+
+次のどれかに当たったら、ファイル全体を拒否する（原則4）。実装は、下の**理由のコード**と、
+問題に気づいた**行番号**を返す。行番号は1から数える。どの行かは表の「行」の欄のとおり。
+同じ理由に当たる行がいくつかあるときは、いちばん前の行を返す。
+
+### ファイル全体と行の形
+
+| コード | 拒否すること | 行 |
+|---|---|---|
+| `not-utf8` | UTF-8として読めない | 読めない文字のある行 |
+| `crlf` | 行の終わりが `\r\n` | その行 |
+| `no-final-newline` | 最後の行が改行で終わっていない | 最後の行 |
+| `bad-header` | 1行目が `BOOK	1` でない | 1 |
+| `missing-end` | `END` の行がない | 最後の行 |
+| `after-end` | `END` の後に何かある | `END` の次の行 |
+| `blank-line` | 空行がある | その行 |
+| `unknown-line` | 知らない種類の行、欄の数が違う、`TX` などの外に出てはいけない行が外にある | その行 |
+| `section-order` | 節の順や、`TX`・`PLAN`・`ANCHOR` の中の行の順が違う | 順が崩れた行 |
+| `unclosed-block` | `TX` が `ENDTX` で、`PLAN` が `ENDPLAN` で、`ANCHOR` が `ENDANCHOR` で閉じていない | 閉じていない塊の最初の行 |
+| `bad-token` | IDなどが空、または空白・タブを含む | その行 |
+| `bad-escape` | テキストのエスケープが `\\` `\n` `\r` `\t` 以外、または `\` で終わる | その行 |
+| `empty-text` | 空であってはいけないテキストが空（`DESC` の後、表示名、ATTENTIONの内容） | その行 |
+| `bad-date` | 日付が `YYYY-MM-DD` でない、または実在しない | その行 |
+| `bad-integer` | 整数の書き方が上の決まりと違う | その行 |
+
+### 定義と参照
+
+| コード | 拒否すること | 行 |
+|---|---|---|
+| `duplicate-measure` | 同じMeasureが2回 | 2回目 |
+| `duplicate-locus` | 同じ科目が2回 | 2回目 |
+| `duplicate-role` | 同じ科目の `ROLE` が2回 | 2回目 |
+| `duplicate-tx` | 同じIDの `TX` が2回 | 2回目の `TX` |
+| `duplicate-plan` | 同じIDの `PLAN` が2回 | 2回目の `PLAN` |
+| `duplicate-item` | 同じIDの `ITEM` が2回 | 2回目 |
+| `unknown-measure` | 宣言していないMeasureを使っている | 使っている行 |
+| `unknown-locus` | `LOCUS` の行がない科目を使っている（`ROLE`・`EFFECT`・`CHANGE`・残高の根拠） | 使っている行 |
+| `unknown-tx` | 存在しない記帳を指している（`REVERSAL-OF`・`PAID-BY`・`OPENING`・`ANCHOR`・`ALSO`） | 指している行 |
+| `unknown-item` | 存在しない `ITEM` を閉じている | `CLOSE` の行 |
+| `bad-role` | 役割が5つのどれでもない | その行 |
+| `suspense-role` | 仮置きの科目 `suspense` に役割を付けている（K10） | その行 |
+| `bad-scale` | Measureの桁数が0以上の整数でない | その行 |
+| `bad-hidden` | `LOCUS` の5つ目の欄が `HIDDEN` でない | その行 |
+
+仮置きの科目のIDは `suspense` と決めておく。使うときは、ほかの科目と同じく `LOCUS` の行を書く。
+
+### 記帳（TX）
+
+| コード | 拒否すること | 行 |
+|---|---|---|
+| `zero-amount` | `EFFECT` の金額が0（K2） | その行 |
+| `no-effect` | `EFFECT` が1行もない | `TX` |
+| `unbalanced` | `EXCHANGE` のない記帳で、どれかのMeasureの合計が0でない | `TX` |
+| `bad-exchange` | `EXCHANGE` の2つのMeasureが同じ、元の合計がマイナスでない、先の合計がプラスでない、またはほかのMeasureの合計が0でない | `EXCHANGE` |
+| `reversal-not-inverse` | `REVERSAL-OF` の記帳が、元の記帳の `EFFECT` をちょうど逆にしたもの（科目・Measure・金額・行の数がすべて合う。並びは問わない）でない（K11） | `REVERSAL-OF` |
+| `reversal-reused` | 同じ記帳が、取り消す側・取り消される側のどちらかとして2回以上出てくる（自分自身を取り消す場合も） | 2回目に出てきた `REVERSAL-OF` |
+| `zero-original` | `ORIGINAL` の金額が0 | その行 |
+
+### 予定（PLAN）
+
+| コード | 拒否すること | 行 |
+|---|---|---|
+| `zero-amount` | `CHANGE` の金額が0 | その行 |
+| `no-effect` | `CHANGE` が1行もない | `PLAN` |
+| `unbalanced` | `CHANGE` の合計が0でない | `PLAN` |
+| `paid-by-reused` | 同じ記帳が2つの予定の `PAID-BY` になっている | 2回目の `PAID-BY` |
+
+`PAID-BY` と `CANCELLED` の両方がある予定は、行の順の決まりにより `section-order` で拒否される。
+
+### 残高の根拠
+
+| コード | 拒否すること | 行 |
+|---|---|---|
+| `opening-missing-coordinate` | `OPENING` が指す記帳に、その科目・Measureの `EFFECT` がない | `OPENING` |
+| `support-overlap` | 同じ科目・Measureに、`ZERO-ORIGIN`・`OPENING`・`ASSERT` のうち2つ以上がある。または `ASSERT` が2回ある（どの組でも、後の行） | 後の行 |
+| `duplicate-support` | 同じ科目・Measureの `ZERO-ORIGIN` や `OPENING` や `HISTORY-FROM` が2回 | 2回目 |
+| `history-unanchored` | `HISTORY-FROM` の科目・Measureに `ASSERT` がない（LOAMと同じく、記録が揃っている期間は確かめた残高と組でしか使えない） | `HISTORY-FROM` |
+| `empty-anchor` | `ASSERT` のない `ANCHOR` | `ANCHOR` |
+| `also-redundant` | `ALSO` が、`ANCHOR` の指す記帳と同じか、それより前の記帳を指している | その `ALSO` |
+| `duplicate-also` | 同じ `ANCHOR` の中で同じ記帳を2回 `ALSO` にしている | 2回目 |
+
+### ATTENTION
+
+| コード | 拒否すること | 行 |
+|---|---|---|
+| `bad-due` | 期限の種類が3つのどれでもない、`DUE_ON` なのに日付がない、ほかの種類なのに `-` でない | その行 |
+| `bad-close` | 閉じ方が `RESOLVED` でも `DROPPED` でもない | その行 |
+| `duplicate-close` | 同じ `ITEM` を2回閉じている | 2回目 |
+
+## 今の残高の求め方
+
+見本の期待値と、両方の実装の答えを揃えるための決まり。科目・Measureの組ごとに：
+
+| 根拠 | 今の残高 |
+|---|---|
+| `ZERO-ORIGIN` | その組の `EFFECT` の合計（すべての記帳） |
+| `OPENING` | その組の `EFFECT` の合計（すべての記帳。開始の額は指す記帳に入っている） |
+| `ASSERT`（`ANCHOR` の中） | 確かめた額 ＋ `ANCHOR` が指す記帳より後にあって、`ALSO` に挙がっていない記帳の、その組の `EFFECT` の合計 |
+| どれもない | 不明（0ではない） |
+
+`HISTORY-FROM` は過去の時点の残高にだけ効き、今の残高は変えない。`PLAN` は残高を変えない。
+
+## 見本ファイル集
+
+`test/common_format/` に置く。中身はすべて合成。
+
+- `ok-*.txt`：受け入れるファイル。読んで書き直すと、バイト単位で同じにならなければいけない。
+  同じ名前の `.answers` に、今の残高の期待値を書く（`BALANCE	<科目>	<Measure>	<金額>` か
+  `BALANCE	<科目>	<Measure>	UNKNOWN`）。
+- `ng-*.txt`：拒否するファイル。1つのファイルは決まりを**ちょうど1つだけ**破る。
+- `cases.tsv`：見本ごとの期待（`ok`、または拒否の理由のコードと行番号）。
 
 ## LOAMの検証から引き継ぐもの・手放すもの
 
