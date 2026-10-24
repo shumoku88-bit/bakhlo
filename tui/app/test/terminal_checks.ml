@@ -93,6 +93,13 @@ let run () =
             A.equal attr (A.fg A.yellow) || A.equal attr (A.fg A.green))
           [ 0; 1; 2; 3 ]))
     "Notty-terminal-series-avoid-yellow-and-green";
+  F.require
+    (A.equal (attributes P.Terminal (C.Series 2)) (A.fg A.red)
+    && not
+         (List.exists
+            (fun index -> A.equal (attributes P.Terminal (C.Series index)) (A.fg A.cyan))
+            [ 0; 1; 2 ]))
+    "Notty-three-terminal-series-keep-blue-apart-from-cyan";
   let spanned = lines P.Terminal [ (C.Spans [ (C.Plain, "a"); (C.Series 1, "b") ], "ab") ] in
   F.require
     (ansi (slice 0 1 spanned) = ansi (text "a")

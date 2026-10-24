@@ -6,6 +6,17 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Terminal series colours keep blue apart from cyan (2026-10-24)
+
+- User report after the Trend change: the bluish and the greenish series were
+  hard to tell apart. In the Terminal theme the slots were blue, magenta, cyan,
+  red, so the three default series were blue, magenta and cyan. Cyan is now the
+  fourth slot: three series are blue, magenta and red (still no yellow and no
+  red/green pair). The Bakhlo themes' indexed colours are unchanged.
+- A check requires series 3 to be red and none of the first three to be cyan; it
+  fails on the previous order. `./tools/check` and `./tools/tui --self-check`
+  passed. Not checked on the user's physical terminal.
+
 ## Trend looks and scrolls like LOAM (2026-10-24)
 
 - User report: the Trend / Locus report looked and scrolled nothing like LOAM's.
