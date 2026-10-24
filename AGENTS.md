@@ -89,6 +89,12 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 
 ## Storage (user decision: 2026-10-20)
 
+User decision (2026-10-24): Bakhlo will move to the line-based `book.txt` format shared
+with LOAM (`docs/COMMON_FORMAT.ja.md`), rewritten whole on every save, with a save target
+of ≤100 ms in place of "≤5 ms plus the durable flush". This needs the explicit,
+user-approved migration required by Principles. Until then the rules below still
+describe the household book.
+
 - One book file: the single-file S-expression book followed by appended records
   (`Bakhlo_sexp.Book_log`, `Daily_file.append`). No Records, annual hash-chained files
   or SQLite. One `.prev` is kept at compaction; long-term history is Git's job. An
