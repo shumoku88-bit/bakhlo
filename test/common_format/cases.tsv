@@ -36,6 +36,7 @@ ng-unknown-item.txt	unknown-item	11	存在しないITEMを閉じる
 ng-bad-role.txt	bad-role	6	COSTは役割でない
 ng-suspense-role.txt	suspense-role	8	suspenseに役割
 ng-bad-scale.txt	bad-scale	2	桁数がマイナス
+ng-bad-scale-large.txt	bad-scale	2	桁数が10
 ng-bad-hidden.txt	bad-hidden	4	HIDDENでない5つ目の欄
 ng-zero-amount-tx.txt	zero-amount	8	EFFECTの金額が0
 ng-no-effect-tx.txt	no-effect	7	EFFECTのないTX
@@ -43,7 +44,7 @@ ng-unbalanced-tx.txt	unbalanced	7	合計が10
 ng-bad-exchange.txt	bad-exchange	16	両替の元の合計がプラス
 ng-reversal-not-inverse.txt	reversal-not-inverse	14	半額だけの取り消し
 ng-reversal-reused.txt	reversal-reused	19	tx-0001を2回取り消す
-ng-zero-original.txt	zero-original	10	ORIGINALの金額が0
+ng-bad-original.txt	bad-original	10	ORIGINALの金額が負
 ng-zero-amount-plan.txt	zero-amount	12	CHANGEの金額が0
 ng-no-effect-plan.txt	no-effect	11	CHANGEのないPLAN
 ng-unbalanced-plan.txt	unbalanced	11	CHANGEの合計が-10
@@ -54,6 +55,7 @@ ng-support-overlap.txt	support-overlap	13	ZERO-ORIGINとASSERTが同じ組
 ng-duplicate-support.txt	duplicate-support	12	同じZERO-ORIGINが2回
 ng-history-unanchored.txt	history-unanchored	11	ASSERTのないHISTORY-FROM
 ng-empty-anchor.txt	empty-anchor	11	ASSERTのないANCHOR
+ng-also-redundant-next.txt	also-redundant	16	指す記帳のすぐ次をALSO
 ng-also-redundant.txt	also-redundant	12	指す記帳そのものをALSO
 ng-duplicate-also.txt	duplicate-also	21	同じALSOが2回
 ng-bad-due.txt	bad-due	11	DUE_ONなのに日付がない

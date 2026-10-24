@@ -37,8 +37,8 @@ objs() { for lib in "$@"; do printf -- '-I _build/default/%s/.%s.objs/byte -I _b
   $(objs lib:bakhlo_domain application:bakhlo_application loam_read:bakhlo_loam_read \
     sexp:bakhlo_sexp book_txt:bakhlo_book_txt migrate:bakhlo_migrate) \
   _build/default/lib/bakhlo_domain.cmxa _build/default/application/bakhlo_application.cmxa \
-  _build/default/loam_read/bakhlo_loam_read.cmxa _build/default/sexp/bakhlo_sexp.cmxa \
-  _build/default/book_txt/bakhlo_book_txt.cmxa _build/default/migrate/bakhlo_migrate.cmxa \
+  _build/default/book_txt/bakhlo_book_txt.cmxa _build/default/loam_read/bakhlo_loam_read.cmxa \
+  _build/default/sexp/bakhlo_sexp.cmxa _build/default/migrate/bakhlo_migrate.cmxa \
   "$build/book_txt_trial.ml" -o "$build/book-txt-trial"
 status=0
 "$build/book-txt-trial" "$run/copy" "$run" || status=$?

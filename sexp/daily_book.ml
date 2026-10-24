@@ -154,9 +154,9 @@ let check_vocabulary data =
     (fun rows ->
       unique (List.map (fun (id, _, _) -> id) rows) "duplicate-label";
       List.iter
-        (fun (id, label, help) ->
+        (fun (id, label, _help) ->
           ignore (lid id);
-          require (label <> "" && help <> "") "invalid-label")
+          require (label <> "") "invalid-label")
         rows)
     data.labels;
   Option.iter
@@ -1375,12 +1375,14 @@ let label_candidate t ~id ~label ?help () =
         | Some (_, _, h) -> Some h
         | None -> None)
   in
+  (* An empty retained help (allowed since book.txt) falls back like a missing one. *)
+  let fallback = match existing_help with Some h when h <> "" -> h | _ -> label in
   let resolved_help =
     match help with
     | Some h ->
         let trimmed = String.trim h in
-        if trimmed = "" then Option.value ~default:label existing_help else trimmed
-    | None -> Option.value ~default:label existing_help
+        if trimmed = "" then fallback else trimmed
+    | None -> fallback
   in
   require (valid_str resolved_help) "invalid-label";
   let next_rows =

@@ -98,7 +98,7 @@ type code =
   | Bad_exchange
   | Reversal_not_inverse
   | Reversal_reused
-  | Zero_original
+  | Bad_original
   | Paid_by_reused
   | Opening_missing_coordinate
   | Support_overlap

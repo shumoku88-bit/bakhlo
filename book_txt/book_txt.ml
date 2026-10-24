@@ -90,7 +90,7 @@ type code =
   | Bad_exchange
   | Reversal_not_inverse
   | Reversal_reused
-  | Zero_original
+  | Bad_original
   | Paid_by_reused
   | Opening_missing_coordinate
   | Support_overlap
@@ -139,7 +139,7 @@ let code_name = function
   | Bad_exchange -> "bad-exchange"
   | Reversal_not_inverse -> "reversal-not-inverse"
   | Reversal_reused -> "reversal-reused"
-  | Zero_original -> "zero-original"
+  | Bad_original -> "bad-original"
   | Paid_by_reused -> "paid-by-reused"
   | Opening_missing_coordinate -> "opening-missing-coordinate"
   | Support_overlap -> "support-overlap"
@@ -427,7 +427,7 @@ let fields st s =
         match r.f with
         | [ _; id; scale ] ->
             let id = token st r.n id and q = integer st r.n scale in
-            let ok = Z.geq q Z.zero && Z.fits_int q in
+            let ok = Z.geq q Z.zero && Z.leq q (Z.of_int 9) in
             if canonical_integer scale && not ok then fault st Bad_scale r.n;
             (r.n, (id, if ok then Z.to_int q else 0))
         | _ -> assert false)
@@ -686,7 +686,7 @@ let references st (measures, loci, roles, txs, plans, zero, opening, history, an
       (match tx.original with
       | Some (m, q) ->
           measure a.original_n m;
-          if Z.equal q Z.zero then fault st Zero_original a.original_n
+          if Z.leq q Z.zero then fault st Bad_original a.original_n
       | None -> ());
       match tx.reversal_of with
       | Some target when known a.reversal_n target ->
@@ -753,7 +753,7 @@ let references st (measures, loci, roles, txs, plans, zero, opening, history, an
         (fun (n, t) ->
           (if known n t then
              match pointer with
-             | Some p when Hashtbl.find position t <= p -> fault st Also_redundant n
+             | Some p when Hashtbl.find position t <= p + 1 -> fault st Also_redundant n
              | _ -> ());
           once also t Duplicate_also n)
         a.also_ns;

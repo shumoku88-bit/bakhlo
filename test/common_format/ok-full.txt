@@ -67,13 +67,13 @@ TX	tx-0009	2027-01-11	DESC	内容不明の出金\tあとで確認\\済
 EFFECT	suspense	jpy	500
 EFFECT	wallet	jpy	-500
 ENDTX
-TX	tx-0010	2027-01-04	DESC	あとで見つけたレシート
-EFFECT	food	jpy	120
-EFFECT	wallet	jpy	-120
-ENDTX
-TX	tx-0011	2027-01-12	DESC	数えた後の買い物
+TX	tx-0010	2027-01-12	DESC	数えた後の買い物
 EFFECT	food	jpy	80
 EFFECT	wallet	jpy	-80
+ENDTX
+TX	tx-0011	2027-01-04	DESC	あとで見つけたレシート
+EFFECT	food	jpy	120
+EFFECT	wallet	jpy	-120
 ENDTX
 PLAN	plan-0001	2027-01-06	jpy
 CHANGE	bank	-3000
@@ -94,7 +94,7 @@ OPENING	bank	jpy	tx-0001
 OPENING	loan-a	jpy	tx-0002
 HISTORY-FROM	wallet	jpy	2027-01-01
 ANCHOR	tx-0009
-ALSO	tx-0010
+ALSO	tx-0011
 ASSERT	wallet	jpy	1200
 ASSERT	savings	jpy	0
 ENDANCHOR

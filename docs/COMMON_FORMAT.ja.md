@@ -53,7 +53,7 @@ MEASURE	jpy	0
 MEASURE	usd	2
 ```
 
-2列目がID、3列目が小数点以下の桁数（scale）。
+2列目がID、3列目が小数点以下の桁数（scale、0〜9）。一度使った桁数は変えない（K1）。
 
 ### Locus（口座・科目）
 
@@ -107,7 +107,7 @@ ENDTX
 | 行 | 意味 | 例 |
 |---|---|---|
 | `REVERSAL-OF	<TX ID>` | 返金・取り消し。元の記帳は残す | `REVERSAL-OF	tx-0001` |
-| `ORIGINAL	<Measure>	<金額>` | 外貨の元の金額 | `ORIGINAL	usd	2000` |
+| `ORIGINAL	<Measure>	<金額>` | 外貨の元の金額（正の数） | `ORIGINAL	usd	2000` |
 | `MERCHANT	<店>` / `NONMERCHANT` | 支払先の分類。後から変えてよい | `MERCHANT	some-store` |
 | `EXCHANGE	<元Measure>	<先Measure>` | 両替（下を参照） | `EXCHANGE	jpy	usd` |
 
@@ -295,7 +295,7 @@ CLOSE	attention-1	2027-02-20	RESOLVED
 | `unknown-item` | 存在しない `ITEM` を閉じている | `CLOSE` の行 |
 | `bad-role` | 役割が5つのどれでもない | その行 |
 | `suspense-role` | 仮置きの科目 `suspense` に役割を付けている（K10） | その行 |
-| `bad-scale` | Measureの桁数が0以上の整数でない | その行 |
+| `bad-scale` | Measureの桁数が0〜9の整数でない | その行 |
 | `bad-hidden` | `LOCUS` の5つ目の欄が `HIDDEN` でない | その行 |
 
 仮置きの科目のIDは `suspense` と決めておく。使うときは、ほかの科目と同じく `LOCUS` の行を書く。
@@ -310,7 +310,7 @@ CLOSE	attention-1	2027-02-20	RESOLVED
 | `bad-exchange` | `EXCHANGE` の2つのMeasureが同じ、元の合計がマイナスでない、先の合計がプラスでない、またはほかのMeasureの合計が0でない | `EXCHANGE` |
 | `reversal-not-inverse` | `REVERSAL-OF` の記帳が、元の記帳の `EFFECT` をちょうど逆にしたもの（科目・Measure・金額・行の数がすべて合う。並びは問わない）でない（K11） | `REVERSAL-OF` |
 | `reversal-reused` | 同じ記帳が、取り消す側・取り消される側のどちらかとして2回以上出てくる（自分自身を取り消す場合も） | 2回目に出てきた `REVERSAL-OF` |
-| `zero-original` | `ORIGINAL` の金額が0 | その行 |
+| `bad-original` | `ORIGINAL` の金額が0以下（元の金額は正の数で書く） | その行 |
 
 ### 予定（PLAN）
 
@@ -332,7 +332,7 @@ CLOSE	attention-1	2027-02-20	RESOLVED
 | `duplicate-support` | 同じ科目・Measureの `ZERO-ORIGIN` や `OPENING` や `HISTORY-FROM` が2回 | 2回目 |
 | `history-unanchored` | `HISTORY-FROM` の科目・Measureに `ASSERT` がない（LOAMと同じく、記録が揃っている期間は確かめた残高と組でしか使えない） | `HISTORY-FROM` |
 | `empty-anchor` | `ASSERT` のない `ANCHOR` | `ANCHOR` |
-| `also-redundant` | `ALSO` が、`ANCHOR` の指す記帳と同じか、それより前の記帳を指している | その `ALSO` |
+| `also-redundant` | `ALSO` が、`ANCHOR` の指す記帳か、それより前か、そのすぐ次の記帳を指している（すぐ次なら `ANCHOR` をその記帳にする。同じ範囲の書き方を1通りにするため。`ANCHOR	-` なら最初の記帳がすぐ次） | その `ALSO` |
 | `duplicate-also` | 同じ `ANCHOR` の中で同じ記帳を2回 `ALSO` にしている | 2回目 |
 
 ### ATTENTION

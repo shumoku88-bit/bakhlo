@@ -39,6 +39,14 @@ let () =
           exit 1
       | Ok (t, r) ->
           let text = T.to_string t in
+          let round_trip =
+            match Bakhlo_sexp.Daily_txt.of_txt t with
+            | Error why -> "refused: " ^ why
+            | Ok (daily, sidecars) -> (
+                match (C.check daily t, Bakhlo_sexp.Daily_txt.to_txt daily sidecars) with
+                | Error why, _ | _, Error why -> "refused: " ^ why
+                | Ok _, Ok (back, _) -> if T.to_string back = text then "identical bytes, same answers" else "text differs")
+          in
           write (Filename.concat out "book.txt") text;
           write (Filename.concat out "report.txt")
             (Printf.sprintf "added LOCUS lines: %s\nhidden loci: %s\n" (String.concat " " r.added_loci)
@@ -48,6 +56,7 @@ let () =
             r.unknown;
           Printf.printf "LOCUS lines added for unlabelled loci: %d; hidden loci: %d; empty memos written as none: %d.\n"
             (List.length r.added_loci) (List.length r.hidden_loci) r.empty_memos;
+          Printf.printf "book.txt -> Daily_book -> book.txt: %s.\n" round_trip;
           Printf.printf "Size: book.sexp %d bytes, book.txt %d bytes.\n" (String.length book) (String.length text);
           Printf.printf "Median of 7: Daily_book load %.1f ms; book.txt read %.1f ms, print %.1f ms.\n"
             (median 7 (fun () -> L.load book))

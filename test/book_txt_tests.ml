@@ -44,7 +44,7 @@ let%expect_test "every conformance fixture is admitted or refused exactly as lis
       | _ -> fail row "bad cases row")
     cases;
   Printf.printf "%d admitted, %d refused, %d failures\n" !accepted !refused !failures;
-  [%expect {| 4 admitted, 56 refused, 0 failures |}]
+  [%expect {| 4 admitted, 58 refused, 0 failures |}]
 
 (* Generated admissible books: balanced jpy TXs with awkward memos, optional
    Merchant and ORIGINAL, plans, and one anchor with ALSO lines after its pointer. *)
@@ -92,7 +92,7 @@ module Generated = struct
                 bind (list_with_length bool ~length:count) ~f:(fun picks ->
                     map (int_inclusive (-5000) 5000) ~f:(fun counted ->
                         let ids = List.map (fun (tx : B.tx) -> tx.id) txs in
-                        let also = List.filteri (fun i _ -> i > pointer && List.nth picks i) ids in
+                        let also = List.filteri (fun i _ -> i > pointer + 1 && List.nth picks i) ids in
                         let plans : B.plan list =
                           List.filteri (fun i _ -> i mod 3 = 0) ids
                           |> List.mapi (fun j id : B.plan ->
