@@ -56,7 +56,7 @@ The launcher runs its own repository: a fake origin with a pushed main branch.
   >   git -C "$1" config user.name test
   >   git -C "$1" config user.email test@example.invalid
   >   git -C "$1" config commit.gpgsign false
-  >   : > "$1/book.sexp"
+  >   : > "$1/book.txt"
   >   git -C "$1" add -A
   >   git -C "$1" commit -q -m initial
   > }
@@ -67,7 +67,7 @@ The launcher runs its own repository: a fake origin with a pushed main branch.
   > }
   $ runhh() {
   >   status=0
-  >   (cd run && BAKHLO_HOUSEHOLD="$1" FAKE_TUI_BOOK="$1/book.sexp" \
+  >   (cd run && BAKHLO_HOUSEHOLD="$1" FAKE_TUI_BOOK="$1/book.txt" \
   >     FAKE_TUI_STATUS="$2" FAKE_TUI_EDIT="$3" sh ./tools/household) \
   >     > "$PWD/out.log" 2>&1 || status=$?
   >   sed -e 's/[0-9a-f]\{7,\}/SHA/g' "$PWD/out.log"
@@ -135,7 +135,7 @@ pushed, and the remote configuration is left unchanged.
   Household backup pushed.
   $ git -C "$H1" log --oneline '@{upstream}..'
   $ git -C "$H1" ls-tree -r --name-only HEAD
-  book.sexp
+  book.txt
   config.txt
   $ git -C "$H1" config --get remote.origin.url > after-url
   $ diff before-url after-url && echo remote-url-unchanged
@@ -158,7 +158,7 @@ new commit.
   $ git -C "$H2" rev-list --count HEAD
   1
   $ git -C "$H2" status --porcelain
-  M  book.sexp
+  M  book.txt
 
 No upstream is an explicit warning and a failed exit, never a silent skip.
 

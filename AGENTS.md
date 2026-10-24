@@ -89,19 +89,19 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 
 ## Storage (user decision: 2026-10-20)
 
-User decision (2026-10-24): Bakhlo will move to the line-based `book.txt` format shared
-with LOAM (`docs/COMMON_FORMAT.ja.md`), rewritten whole on every save, with a save target
-of ≤100 ms in place of "≤5 ms plus the durable flush". This needs the explicit,
-user-approved migration required by Principles. Until then the rules below still
-describe the household book.
+User decision (2026-10-24): the household book is the line-based `book.txt` shared with LOAM
+(`docs/COMMON_FORMAT.ja.md`), with the accounting roles and Attention as its sections, rewritten
+whole on every save with a save target of ≤100 ms. A change to its format needs an explicit,
+user-approved migration of `../bakhlo-data` (Principles).
 
-- One book file: the single-file S-expression book followed by appended records
-  (`Bakhlo_sexp.Book_log`, `Daily_file.append`). No Records, annual hash-chained files
-  or SQLite. One `.prev` is kept at compaction; long-term history is Git's job. An
-  interrupted final record stops writes until explicitly discarded (no auto-repair).
-  Compaction runs on TUI exit at 200+ records.
-- Targets at ~30 years (~110k entries): save work ≤5 ms plus the durable flush, key
-  response ≤16 ms, startup ≤100 ms. User decision (2026-10-21): every household write
+- One book file, `book.txt`: every save writes a temporary file, flushes it, keeps the current
+  file as `.prev`, renames and flushes the directory (`Daily_file.publish`). No append log,
+  Records, annual files or SQLite; long-term history is Git's job. The session keeps the
+  in-memory book, which must equal its book.txt reload (oracle tests below). An
+  S-expression book is refused, never converted on load (`tools/book-txt` migrates).
+- Targets: a save ≤100 ms including the durable flush (user decision 2026-10-24; review
+  the storage when it is exceeded), key response ≤16 ms, startup ≤100 ms, measured at
+  the household's size and at ~30 years (~110k entries). User decision (2026-10-21): every household write
   flushes the drive cache (`F_FULLFSYNC` on macOS, ~21 ms here) before it is reported. Measure with `./tools/startup-probe`. Startup is deferred by the user until
   it is felt slow; then a disposable snapshot first, lazy older years only if needed.
 - Every `Daily_book` mutation must agree with `Daily_book.Full` and with a cold reload:
