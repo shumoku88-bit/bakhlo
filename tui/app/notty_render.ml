@@ -66,15 +66,14 @@ let bold = A.st A.bold
 let active = A.(fg cyan ++ st reverse ++ st bold)
 
 (* The chart series colours: the terminal's own ANSI slots in the Terminal
-   theme, the theme's indexed palette otherwise. The Terminal slots must read
-   on a light and on a dark background: yellow washes out on a light one (the
-   user's terminal), blue is weak on a dark one, so the four slots are the ones
-   that carry the difference without a red/green pair and without relying on
-   one hue. Cyan reads close to blue (user report 2026-10-24), so it is the
-   last slot: the three default Trend series are blue, magenta and red. The Bakhlo themes keep their tuned indexed colours. A further
-   series stays in the plain foreground and keeps its marker glyph, so the
-   chart still reads in monochrome. *)
-let terminal_series = [ A.blue; A.magenta; A.red; A.cyan ]
+   theme, the theme's indexed palette otherwise. User choices (2026-10-24):
+   cyan reads close to blue, so it is the last slot, and red stands out too
+   much, so the third is yellow as in LOAM; the three default Trend series are
+   blue, magenta and yellow. No green, which would pair with cyan. The Bakhlo
+   themes keep their tuned indexed colours. A further series stays in the plain
+   foreground and keeps its marker glyph, so the chart still reads in
+   monochrome. *)
+let terminal_series = [ A.blue; A.magenta; A.yellow; A.cyan ]
 
 let series_attributes theme index =
   match P.palette theme with

@@ -32,6 +32,8 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   user choice 2026-10-22); at 109.5k synthetic entries moving in it takes 11 ms, opening
   or switching 60–166 ms. Verification: [Calendar removed](VERIFICATION.md#calendar-removed-2026-10-22),
   [period bar and picker](VERIFICATION.md#actual-period-bar-and-picker-2026-10-22).
+- Terminal-theme chart series are blue, magenta, yellow, then cyan (user choices
+  2026-10-24: cyan was too close to blue, red too loud).
 - Trend / Locus is painted like LOAM's full-screen Trend (user report 2026-10-24: it looked
   and scrolled nothing like it): no frame, two-row series rack, source and Selected lines,
   one coloured value row per series, LOAM's period axis and compact layout; the selected

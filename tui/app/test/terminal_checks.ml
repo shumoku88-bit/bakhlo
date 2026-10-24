@@ -69,8 +69,8 @@ let run () =
     "Notty-nested-columns-preserve-native-caret-style";
   (* The chart series colours: the terminal's own ANSI slots in the Terminal
      theme, the theme's indexed palette otherwise, and never a truecolor. The
-     Terminal slots must read on a light and on a dark background: no yellow,
-     and no red/green pair. *)
+     Terminal slots are the user's choice: blue, magenta, yellow, then cyan;
+     no red and no green. *)
   List.iter
     (fun (theme, expected) ->
       let series = lines theme [ (C.Series 0, "●") ] in
@@ -90,11 +90,11 @@ let run () =
        (List.exists
           (fun index ->
             let attr = attributes P.Terminal (C.Series index) in
-            A.equal attr (A.fg A.yellow) || A.equal attr (A.fg A.green))
+            A.equal attr (A.fg A.red) || A.equal attr (A.fg A.green))
           [ 0; 1; 2; 3 ]))
-    "Notty-terminal-series-avoid-yellow-and-green";
+    "Notty-terminal-series-avoid-red-and-green";
   F.require
-    (A.equal (attributes P.Terminal (C.Series 2)) (A.fg A.red)
+    (A.equal (attributes P.Terminal (C.Series 2)) (A.fg A.yellow)
     && not
          (List.exists
             (fun index -> A.equal (attributes P.Terminal (C.Series index)) (A.fg A.cyan))

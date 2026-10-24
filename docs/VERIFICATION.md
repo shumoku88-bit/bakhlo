@@ -6,6 +6,17 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Terminal series colours: yellow instead of red, as in LOAM (2026-10-24)
+
+- User choice after the previous change: red stood out too much; a yellowish
+  third series, as in LOAM, is preferred. The Terminal slots are now blue,
+  magenta, yellow, cyan, so three series are blue, magenta and yellow; no red or
+  green slot remains. This reverses the earlier rule that yellow washes out on
+  a light background, by the user's own reading. Bakhlo themes unchanged.
+- The checks now require series 3 to be yellow and no slot to be red or green;
+  they fail on the previous order. `./tools/check` and `./tools/tui --self-check`
+  passed. Not checked on the user's physical terminal.
+
 ## Terminal series colours keep blue apart from cyan (2026-10-24)
 
 - User report after the Trend change: the bluish and the greenish series were
