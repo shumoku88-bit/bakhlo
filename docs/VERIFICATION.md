@@ -6,6 +6,22 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Common format reader and printer against the conformance fixtures (2026-10-25)
+
+- `book_txt/` (`Bakhlo_book_txt.Book_txt`) reads and prints the line-based `book.txt`
+  of `docs/COMMON_FORMAT.ja.md`. It is pure, depends only on Zarith and is not yet
+  used by the household path (no `Daily_book` mapping, migration or store).
+- `test/book_txt_tests.ml`: all 58 fixtures in `test/common_format/` behave as
+  `cases.tsv` lists. Each of the 3 accepted books reprints to its exact bytes and gives
+  every `.answers` balance; each of the 55 refused books gives the listed code and line.
+  10,000 generated books (awkward escaped memos, Merchant, ORIGINAL, plans, ANCHOR with
+  ALSO, HISTORY-FROM, ATTENTION) read back equal and reprint to the same bytes.
+- Mutations, each reverted: treating ALSO as empty in `balance` fails the fixture test
+  (`wallet jpy: want 1120, got 1000`); dropping ALSO lines from the printer fails the
+  generated round trip. `./tools/check` and `./tools/tui --self-check` passed.
+- Not executed: comparison with the household data, a LOAM (Lean) implementation, and
+  any timing of this printer against the earlier probe.
+
 ## Terminal series colours: yellow instead of red, as in LOAM (2026-10-24)
 
 - User choice after the previous change: red stood out too much; a yellowish

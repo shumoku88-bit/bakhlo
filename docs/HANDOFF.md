@@ -8,6 +8,12 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-10-21)
 
+- Common format with LOAM (user decision 2026-10-24): spec `docs/COMMON_FORMAT.ja.md`,
+  fixtures `test/common_format/`, reader/printer `book_txt/` (stage 3, 2026-10-25,
+  [evidence](VERIFICATION.md#common-format-reader-and-printer-against-the-conformance-fixtures-2026-10-25)).
+  Next is stage 4: map `Daily_book` to `Book_txt`, convert a copy of the household and
+  compare every balance, entry and plan, then a user-approved migration. The household
+  still uses `book.sexp`.
 - Cut over on 2026-10-21 (user decision): the household is `../bakhlo-data`, recorded
   only by the user through `./tools/household` (TUI, then commit and push to the private
   GitHub backup).

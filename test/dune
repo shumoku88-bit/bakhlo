@@ -16,12 +16,15 @@
   bakhlo_sexp
   bakhlo_migrate
   bakhlo_store
+  bakhlo_book_txt
   base
   zarith
   base_quickcheck
   unix)
  (inline_tests
-  (flags -verbose))
+  (flags -verbose)
+  (deps
+   (glob_files common_format/*)))
  (preprocess
   (pps ppx_expect)))
 

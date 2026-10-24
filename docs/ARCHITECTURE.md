@@ -20,6 +20,7 @@ tui/app ─> tui/shell ─> tui/screens/<s> ─> tui/protocol ─> tui/book ─>
 | `sexp/` | `bakhlo.sexp` | `Daily_book` (the household book, in-place mutations, `Full` reference) and `Book_log` (operation records, snapshot + log load) | application, Parsexp |
 | `store/` | `bakhlo.store` | `Daily_file`: the single writer (append, `F_FULLFSYNC`, compaction, torn-tail stop, copies) | sexp, Unix, a C stub |
 | `tui/` | nested Dune project (`tui/dune-project`) | English terminal UI; only `tui/app` uses Notty | store and Core |
+| `book_txt/` | `bakhlo.book_txt` | `Book_txt`: the line-based `book.txt` shared with LOAM (`docs/COMMON_FORMAT.ja.md`); read, admit, print, current balance. Not yet on the household path | Zarith |
 | `loam_read/`, `migrate/` | `bakhlo.loam_read`, `bakhlo.migrate` | read-only LOAM input and its conversion, used only by `./tools/compare` | application, sexp |
 
 Dependencies point inward only. `lib/`, `application/` and `sexp/` are pure: no clock,

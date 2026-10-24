@@ -1,0 +1,6 @@
+; The line-based book shared with LOAM (docs/COMMON_FORMAT.ja.md). Pure.
+
+(library
+ (name bakhlo_book_txt)
+ (public_name bakhlo.book_txt)
+ (libraries zarith))
