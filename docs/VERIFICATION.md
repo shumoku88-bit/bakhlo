@@ -6,6 +6,66 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Trend looks and scrolls like LOAM (2026-10-24)
+
+- User report: the Trend / Locus report looked and scrolled nothing like LOAM's.
+  One fresh `./tools/compare refresh` generation, Bakhlo (native build of this
+  commit) against the existing LOAM executable (`../loam` `19f7d319`, built
+  2026-10-20, SHA-256 prefix `4a413fa3df08c149`), macOS x86_64, i5-8259U.
+- Causes of the weight, found by sampling the TUI while scrolling: every key and
+  every one of the Shell's several view calls per frame projected the whole
+  report again (default series scan plus the projection), and the Notty renderer
+  found each cell's span style by re-measuring the row's spans from the start
+  (quadratic in a coloured chart row). The Day window also re-centred on every
+  key, so the whole chart slid one column per key.
+- Changes: the owner keeps the projection it painted and reuses it only while
+  the book is the same value and the boundary text, roles, Measure and query are
+  equal (any change projects again; `Enter` drops it); the view projects inside
+  its lazy rows only. The renderer measures each span once per row. The layout
+  follows LOAM `LocusTrendComparePane`: no frame; heading; two-row series rack;
+  source line; `Selected` line (a running window ends on the observation day, a
+  full one names its exclusive end); one value row per series; plot with an
+  eight-cell value axis (wider when a tick label needs it); period axis (Day:
+  first day, selected day, `As of`; Cycle/Month: each window, or the two ends
+  when a window is under eight cells); overlay marker row A/B/C and legend;
+  flowing footer tokens; LOAM's compact layout at 14 rows or fewer. The selected
+  markers win over the line and two in one cell become `◎` (they were hidden
+  whenever the line passed through, which was nearly always); the Day window over
+  all history moves only when the selection leaves it.
+- Intentional differences: an axis label that would touch a higher-priority one
+  is left out (LOAM overwrites it, e.g. `Sep 29t 1`); a missing value stays
+  `(unavailable)` and an amount that does not fit says `exact value: enlarge
+  terminal`, never clipped digits; amounts keep Bakhlo's `564 jpy/day` format;
+  the zero-based value axis and the coverage note in `?` stay; overlapping lines
+  keep both series' dots. Pointer scrub is still absent (no mouse coordinates in
+  `Ui_input`); the plot is one or two rows shorter because the Shell keeps its
+  feedback row.
+- PTY timing (driver of the 2026-10-23 paired-speed entry, 15 `←` in Day after
+  `]]`, last redraw byte, median of 45 keys over three rounds; the renderer-only
+  row is one round of 15):
+
+  | `←` in Trend Day (ms) | 120×36 | 80×24 |
+  | --- | ---: | ---: |
+  | Bakhlo before | 36.0 | 25.9 |
+  | Bakhlo, renderer fix only | 28.4 | 23.9 |
+  | Bakhlo after | 13.7 | 7.0 |
+  | LOAM | 17.9 | 7.9 |
+
+- Owner CPU (disposable runner, one `←` then one view with rows forced, median of
+  21, 120×36): latest-data copy (791 entries) key 2.63 → 0.09 ms, view 8.58 →
+  4.90 ms; synthetic plain 109,500 entries (Day, ~29k points) key 334 → 0.07 ms,
+  view 387 → 3.4 ms. Opening Trend or changing grain/scope/series still projects
+  once: ~150 ms (Cycle) and ~357 ms (Day) at 109,500 entries, unchanged.
+- Captures at 120×36, 80×24 and 48×14 of both programs (Cycle, Day, moves,
+  overlay) match apart from the differences above. Checks: frameless rows fill
+  the width, rack and per-series value styles, marker over line, `◎`, the
+  window kept inside and moved by one when leaving, Selected/As of lines, label
+  omission, re-projection for a changed book, boundary text and roles; each new
+  check fails against a mutation of the rule it covers. `./tools/check` and
+  `./tools/tui --self-check` passed; the copy's book and config bytes were
+  unchanged, the AI's processes closed and `./tools/compare clean-copies` run.
+  No physical-terminal, IME or human acceptance.
+
 ## Performance documentation commit review (2026-10-23)
 
 - Documentation only: retained the synthetic investigation's original revisions

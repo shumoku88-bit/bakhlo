@@ -1,11 +1,13 @@
 (* Trend / Locus comparison: a read-only full-chart owner of recorded EFFECT
-   flow over one explicit Measure.
+   flow over one explicit Measure, painted like LOAM's full-screen Trend
+   (Loam.Tui.LocusTrendComparePane).
 
    The owner never writes a file, never reads the clock and never keeps a stale
-   chart: every projection uses the current book and the current configuration,
-   and a failure clears the chart instead of painting an old one. The selection
-   is an immutable period; the effective point index is derived from the
-   current projection, never cached in mutable state. *)
+   chart: a projection is reused only while its book is the same value and its
+   configuration text, roles, Measure and query are equal, so a changed book or
+   file is projected again and a failure clears the chart instead of painting an
+   old one. The selection is an immutable period; the effective point index is
+   derived from the current projection. *)
 module B = Bakhlo_sexp.Daily_book
 module R = Trend_locus_report
 module O = Daily_overlays
@@ -26,9 +28,6 @@ let compact_height = 14
 
 type overlay = { month : string; name : string; days : int list }
 
-type overlay_annotation = { glyph : string; at : int list }
-(** A painted session annotation: its glyph and its x positions. *)
-
 type month = { length : int; key : string }
 (** The calendar month of the selected point. *)
 
@@ -44,6 +43,17 @@ type editor = {
 type picker = { target : int; cursor : int; notice : string }
 (** The inline series picker: the chosen slot and the candidate cursor. *)
 
+type projection = {
+  book : B.t;  (** Compared physically: every book change is a new value. *)
+  boundary : (string option, string) result;
+  roles : ((string * O.accounting_role) list, string) result;
+  measure : string;
+  query : string option * R.grain * R.scope * R.coordinate list;
+  plotted : R.coordinate list;  (** The effective series. *)
+  outcome : (R.snapshot, string) result;
+}
+(** One projection and everything it was computed from. *)
+
 type t = {
   focus_day : string option;  (** The observation day captured from the Shell. *)
   grain : R.grain;
@@ -51,6 +61,10 @@ type t = {
   coordinates : R.coordinate list;  (** The user's choice; empty means the default. *)
   selected_period : (string * string) option;
       (** The selected period, kept across a grain or query change. *)
+  viewport_start : int;
+      (** First point of the sliding Day window; it moves only when the selection
+          leaves it, as in LOAM. *)
+  projection : projection option;
   picker : picker option;
   editor : editor option;
   overlays : overlay list;  (** Session-only annotations; never persisted. *)
@@ -66,6 +80,8 @@ let create () =
     scope = R.All_history;
     coordinates = [];
     selected_period = None;
+    viewport_start = 0;
+    projection = None;
     picker = None;
     editor = None;
     overlays = [];
@@ -84,30 +100,60 @@ let saved _env _geometry _result t = (t, Screen.Stay)
 let same_coordinate (left : R.coordinate) (right : R.coordinate) =
   left.R.locus = right.R.locus && left.R.measure = right.R.measure
 
-let roles (env : Screen.env) =
-  match Lazy.force env.accounting_roles with Ok roles -> roles | Error _ -> []
+(* Other grains always project the whole recorded history; the chooser keeps
+   the user's Day scope so returning to Day restores it. *)
+let effective_scope t = if t.grain = R.Day then t.scope else R.All_history
 
 (* The default series is derived from the shown history every time: the Expense
    role is the only authority, never a guessed name or sign. *)
-let effective_coordinates (env : Screen.env) t =
-  match t.coordinates with
-  | _ :: _ as coordinates -> coordinates
-  | [] -> (
-      match t.focus_day with
-      | None -> []
-      | Some observed_at -> (
-          match
-            Result.bind (env.config boundary_file)
-              (fun text -> R.history_start ~observed_at ~boundary_presets_text:text)
-          with
+let default_coordinates (env : Screen.env) t ~boundary ~roles =
+  match t.focus_day with
+  | None -> []
+  | Some observed_at -> (
+      match
+        Result.bind boundary (fun text -> R.history_start ~observed_at ~boundary_presets_text:text)
+      with
+      | Error _ -> []
+      | Ok start_day -> (
+          match Cal.shift_days observed_at 1 with
           | Error _ -> []
-          | Ok start_day -> (
-              match Cal.shift_days observed_at 1 with
-              | Error _ -> []
-              | Ok end_exclusive ->
-                  R.initial_series ~book:env.book ~measure:env.measure ~roles:(roles env)
-                    ~start_day ~end_exclusive)))
+          | Ok end_exclusive ->
+              R.initial_series ~book:env.book ~measure:env.measure
+                ~roles:(Result.value ~default:[] roles) ~start_day ~end_exclusive))
 
+let compute (env : Screen.env) t =
+  let boundary = env.config boundary_file in
+  let roles = Lazy.force env.accounting_roles in
+  let query = (t.focus_day, t.grain, effective_scope t, t.coordinates) in
+  match t.projection with
+  | Some p
+    when p.book == env.book && p.boundary = boundary && p.roles = roles
+         && p.measure = env.measure && p.query = query ->
+      p
+  | _ ->
+      let plotted =
+        match t.coordinates with
+        | _ :: _ as coordinates -> coordinates
+        | [] -> default_coordinates env t ~boundary ~roles
+      in
+      let outcome =
+        match t.focus_day with
+        | None -> Error "No observation day: the Shell has not focused a day for this chart."
+        | Some observed_at -> (
+            (* The default series needs the roles; an unreadable file is a refusal
+               that names it, never a silent empty chart. *)
+            match (t.coordinates, roles) with
+            | [], Error why -> Error ("Accounting roles unavailable (accounting-roles.tsv): " ^ why)
+            | _ ->
+                Result.bind boundary (fun boundary_presets_text ->
+                    R.project ~book:env.book ~observed_at ~boundary_presets_text ~grain:t.grain
+                      ~scope:(effective_scope t) ~coordinates:plotted))
+      in
+      { book = env.book; boundary; roles; measure = env.measure; query; plotted; outcome }
+
+let with_projection env t = { t with projection = Some (compute env t) }
+let project env t = (compute env t).outcome
+let effective_coordinates env t = (compute env t).plotted
 
 (* The plotted Measure: an explicit choice keeps its own Measure, so the
    catalog and the formatted amounts never mix Measures. *)
@@ -115,23 +161,6 @@ let current_measure (env : Screen.env) t =
   match effective_coordinates env t with
   | coordinate :: _ -> coordinate.R.measure
   | [] -> env.measure
-
-(* Other grains always project the whole recorded history; the chooser keeps
-   the user's Day scope so returning to Day restores it. *)
-let effective_scope t = if t.grain = R.Day then t.scope else R.All_history
-
-let project (env : Screen.env) t =
-  match t.focus_day with
-  | None -> Error "No observation day: the Shell has not focused a day for this chart."
-  | Some observed_at -> (
-      (* The default series needs the roles; an unreadable file is a refusal that
-         names it, never a silent empty chart. *)
-      match (t.coordinates, Lazy.force env.accounting_roles) with
-      | [], Error why -> Error ("Accounting roles unavailable (accounting-roles.tsv): " ^ why)
-      | _ ->
-          Result.bind (env.config boundary_file) (fun boundary_presets_text ->
-              R.project ~book:env.book ~observed_at ~boundary_presets_text ~grain:t.grain
-                ~scope:(effective_scope t) ~coordinates:(effective_coordinates env t)))
 
 let points_of (snap : R.snapshot) =
   if Array.length snap.R.series = 0 then [||] else snap.R.series.(0).R.points
@@ -196,14 +225,49 @@ let remember_period (env : Screen.env) t =
    remembered period becomes that point's own window, so the next change anchors
    on it. A failure leaves the owner unchanged. *)
 let relocate (env : Screen.env) t =
+  let t = with_projection env t in
   match project env t with
   | Error _ -> t
   | Ok snap -> { t with selected_period = period_at snap (effective_index t snap) }
+
+(* Only Day over all history slides a window over its points (LOAM
+   [usesSlidingDayViewport]); the window moves just enough to keep the
+   selection, so moving inside it never shifts the chart. *)
+let sliding t = t.grain = R.Day && t.scope = R.All_history
+
+let viewport_start_for t ~count ~selected =
+  if (not (sliding t)) || count = 0 then 0
+  else
+    let size = min viewport count in
+    let last_start = count - size in
+    let start = max 0 (min t.viewport_start last_start) in
+    if selected < start then selected
+    else if start + size <= selected then min last_start (selected + 1 - size)
+    else start
+
+let window_of t count selected =
+  let start = viewport_start_for t ~count ~selected in
+  (start, if sliding t then min count (start + viewport) else count)
+
+(* After every key the owner keeps the projection it painted and the window
+   that contains the selection. *)
+let settle env t =
+  let t = with_projection env t in
+  match project env t with
+  | Ok snap ->
+      let count = Array.length (points_of snap) in
+      { t with viewport_start = viewport_start_for t ~count ~selected:(effective_index t snap) }
+  | Error _ -> t
 
 (* Accessors for checks *)
 
 let selected (env : Screen.env) t =
   match project env t with Ok snap -> effective_index t snap | Error _ -> 0
+
+let visible_window (env : Screen.env) t =
+  match project env t with
+  | Ok snap -> window_of t (Array.length (points_of snap)) (effective_index t snap)
+  | Error _ -> (0, 0)
 
 let grain t = t.grain
 let scope t = effective_scope t
@@ -486,22 +550,31 @@ let help_form () =
       ]
     ()
 
+(* A grain change keeps the Day window only while it still slides (LOAM
+   [changeGranularity]). *)
+let regrain t grain =
+  let next = { t with grain } in
+  { next with viewport_start = (if sliding next then t.viewport_start else 0) }
+
 let handle_chart (env : Screen.env) t input =
   let outcome = project env t in
   let stay t = (t, Screen.Stay) in
   match input with
   | `Key (`ASCII ('q' | 'Q'), []) | `Key (`Escape, []) -> (t, Screen.Home)
   | `Key (`ASCII '[', []) ->
-      stay (relocate env { (remember_period env t) with grain = coarser t.grain })
+      stay (relocate env (regrain (remember_period env t) (coarser t.grain)))
   | `Key (`ASCII ']', []) ->
-      stay (relocate env { (remember_period env t) with grain = finer t.grain })
+      stay (relocate env (regrain (remember_period env t) (finer t.grain)))
   | `Key (`ASCII 's', []) ->
       if t.grain = R.Day then
-        stay (relocate env { (remember_period env t) with scope = next_scope t.scope })
+        stay
+          (relocate env { (remember_period env t) with scope = next_scope t.scope; viewport_start = 0 })
       else stay t
   | `Key (`ASCII 'S', []) ->
       if t.grain = R.Day then
-        stay (relocate env { (remember_period env t) with scope = previous_scope t.scope })
+        stay
+          (relocate env
+             { (remember_period env t) with scope = previous_scope t.scope; viewport_start = 0 })
       else stay t
   | `Key ((`ASCII 'h' | `Arrow `Left), []) -> (
       match outcome with Ok snap -> stay (scrub t snap (-1)) | Error _ -> stay t)
@@ -515,7 +588,7 @@ let handle_chart (env : Screen.env) t input =
       match outcome with Ok snap -> stay (jump t snap false) | Error _ -> stay t)
   | `Key (`End, []) -> (
       match outcome with Ok snap -> stay (jump t snap true) | Error _ -> stay t)
-  | `Key (`Enter, []) -> stay t
+  | `Key (`Enter, []) -> stay { t with projection = None }
   | `Key (`ASCII ('a' | 'A'), []) -> stay (open_picker env t)
   | `Key (`ASCII 'o', []) -> stay (open_editor env t)
   | `Key (`ASCII 'O', []) ->
@@ -585,7 +658,7 @@ let handle_editor t (editor : editor) input =
   | _ -> (t, Screen.Ignored)
 
 
-let handle (env : Screen.env) (_geometry : Screen.geometry) t input =
+let handle_owner (env : Screen.env) t input =
   match t.editor with
   | Some editor -> handle_editor t editor input
   | None -> (
@@ -603,140 +676,192 @@ let handle (env : Screen.env) (_geometry : Screen.geometry) t input =
           | Some picker -> handle_picker env t picker input
           | None -> handle_chart env t input))
 
-(* Painting *)
+let handle (env : Screen.env) (_geometry : Screen.geometry) t input =
+  let t, request = handle_owner env t input in
+  (settle env t, request)
+
+(* Painting: LOAM's full-screen Trend layout (Loam.Tui.LocusTrendComparePane):
+   heading, series rack, source and Selected lines, one row per series, the
+   chart with its value axis, the period axis and the session overlays. *)
 
 let marker_of index = markers.(index mod Array.length markers)
+let separator = "   ·   "
 
-(* The series names carry their own colour, so a name and its line match at a
-   glance; the marker glyph keeps the chart readable without colour. *)
-let rack_spans (snap : R.snapshot) =
-  let items =
-    Array.to_list snap.R.series
-    |> List.mapi (fun index series ->
-        ( O.Series index,
-          marker_of index ^ " " ^ series.R.label ^ " (" ^ series.R.coordinate.R.locus ^ ")" ))
-  in
-  (* The names are separated by a plain gap; the last name has no trailing gap. *)
-  let rec loop acc = function
-    | [] -> List.rev acc
-    | [ item ] -> List.rev (item :: acc)
-    | item :: rest -> loop ((O.Chrome, "  ") :: item :: acc) rest
-  in
-  loop [] items
+let month_name = function
+  | "01" -> "Jan" | "02" -> "Feb" | "03" -> "Mar" | "04" -> "Apr"
+  | "05" -> "May" | "06" -> "Jun" | "07" -> "Jul" | "08" -> "Aug"
+  | "09" -> "Sep" | "10" -> "Oct" | "11" -> "Nov" | "12" -> "Dec"
+  | other -> other
 
-let period_line ~width_of ~width t (snap : R.snapshot) index =
+let short_date date =
+  match String.split_on_char '-' date with
+  | [ _; month; day ] ->
+      month_name month ^ " "
+      ^ (match int_of_string_opt day with Some day -> string_of_int day | None -> day)
+  | _ -> date
+
+let long_date date =
+  match String.split_on_char '-' date with
+  | [ year; _; _ ] -> short_date date ^ ", " ^ year
+  | _ -> date
+
+let month_label key =
+  match String.split_on_char '-' key with
+  | [ year; month ] -> month_name month ^ " " ^ year
+  | _ -> key
+
+(* The point still running on the observation day. *)
+let current_partial (snap : R.snapshot) (point : R.point) =
+  (not point.R.complete) && snap.R.observed_at < point.R.end_exclusive
+
+let period_status snap point =
+  if point.R.complete then "complete"
+  else if current_partial snap point then "current partial"
+  else "partial coverage"
+
+let heading = function
+  | R.Cycle -> "Trend   cycle average / day"
+  | R.Month -> "Trend   month average / day"
+  | R.Day -> "Trend   daily amount"
+
+let selected_point (snap : R.snapshot) index =
   let points = points_of snap in
-  if Array.length points = 0 || index < 0 || index >= Array.length points then "No selected period."
+  if index >= 0 && index < Array.length points then Some points.(index) else None
+
+let selected_line (snap : R.snapshot) (point : R.point) =
+  match snap.R.grain with
+  | R.Day ->
+      "Selected   " ^ long_date point.R.start_day
+      ^ if current_partial snap point then separator ^ "current day" else ""
+  | R.Cycle | R.Month ->
+      let last = if current_partial snap point then snap.R.observed_at else point.R.end_exclusive in
+      "Selected   " ^ short_date point.R.start_day ^ " → " ^ short_date last ^ separator
+      ^ period_status snap point
+
+let source_line t (snap : R.snapshot) visible =
+  match snap.R.grain with
+  | R.Day ->
+      let last =
+        Result.value ~default:snap.R.scope_end_exclusive
+          (Cal.shift_days snap.R.scope_end_exclusive (-1))
+      in
+      snap.R.source ^ separator ^ "Range " ^ R.scope_label snap.R.scope ^ "   "
+      ^ short_date snap.R.scope_start ^ " → " ^ short_date last ^ separator ^ "Grain Day"
+      ^ separator ^ snap.R.measure ^ separator ^ "braille"
+      ^ if sliding t then separator ^ string_of_int visible ^ "-day viewport" else ""
+  | grain ->
+      snap.R.source ^ separator ^ "Grain " ^ R.grain_label grain ^ separator ^ snap.R.measure
+      ^ separator ^ "braille"
+
+(* Two rack rows of five slots; a series slot carries its series' colour. *)
+let rack_rows ~width_of (snap : R.snapshot) =
+  let slot index =
+    if index < Array.length snap.R.series then
+      ( O.Series index,
+        Printf.sprintf "[%d %s %s] " (index + 1) (marker_of index)
+          (O.clip_text ~width_of 14 snap.R.series.(index).R.label) )
+    else (O.Chrome, Printf.sprintf "[%d + Add] " (index + 1))
+  in
+  [ (O.Chrome, "Series  ") :: List.init 3 slot; (O.Chrome, "        ") :: List.init 2 (fun i -> slot (i + 3)) ]
+
+(* One series value at the selected period, in the shared money format; a
+   missing point is unavailable, never zero. *)
+let amount_text (env : Screen.env) (snap : R.snapshot) (series : R.series) index =
+  if index < 0 || index >= Array.length series.R.points then "(unavailable)"
   else
-    let point = points.(index) in
-    let range = point.R.start_day ^ ".." ^ point.R.end_exclusive in
-    let window = if point.R.complete then "full window" else "partial window" in
-    let full =
-      range ^ " • " ^ window
-      ^ if width >= 64 then Printf.sprintf " • %d calendar days" point.R.observed_days else ""
-    in
-    let short = range ^ " • " ^ if point.R.complete then "full" else "partial" in
-    if t.grain = R.Day then point.R.start_day ^ " • day"
-    else if width_of full <= width then full
-    else if width_of short <= width then short
-    else
-      let cue = "(widen for full dates)" in
-      if width_of cue <= width then cue else O.clip_text ~width_of width cue
+    O.format_money env.book snap.R.measure series.R.points.(index).R.value
+    ^ " " ^ snap.R.measure
+    ^ if snap.R.grain = R.Day then "" else "/day"
 
-(* One series value at the selected period: the chart's per-day rate, in the
-   shared money format. Exact quanta; the suffix names what the number is. *)
-let rate_value (env : Screen.env) (snap : R.snapshot) value =
-  let suffix = if snap.R.grain = R.Day then "" else " /day" in
-  O.format_money env.book snap.R.measure value ^ " " ^ snap.R.measure ^ suffix
-
-(* One series entry: its name and its value share the series' colour, so the
-   legend and the line match at a glance. *)
-let value_items (env : Screen.env) (snap : R.snapshot) index =
+(* A series row never clips its amount into partial digits: the name gives way
+   first, then the amount is deferred to a wider terminal. *)
+let value_rows ~width_of ~width (env : Screen.env) (snap : R.snapshot) index =
   Array.to_list snap.R.series
-  |> List.mapi (fun i series ->
-      let prefix = marker_of i ^ " " ^ series.R.label in
-      let points = series.R.points in
-      if index < 0 || index >= Array.length points then (O.Series i, prefix, "(unavailable)")
-      else (O.Series i, prefix, rate_value env snap points.(index).R.value))
+  |> List.mapi (fun i (series : R.series) ->
+      let head = marker_of i ^ " " and amount = amount_text env snap series index in
+      let reserved = width_of (head ^ "  " ^ amount) in
+      if reserved > width then [ (O.Series i, head ^ "exact value: enlarge terminal") ]
+      else
+        [
+          (O.Series i, head ^ O.clip_text ~width_of (width - reserved) series.R.label ^ "  ");
+          (O.Plain, amount);
+        ])
 
-let compact_value_items (env : Screen.env) (snap : R.snapshot) index =
-  Array.to_list snap.R.series
-  |> List.mapi (fun i series ->
-      let prefix = marker_of i in
-      let points = series.R.points in
-      if index < 0 || index >= Array.length points then (O.Series i, prefix, "(unavailable)")
-      else (O.Series i, prefix, rate_value env snap points.(index).R.value))
-
-let fit_item ~width_of width (style, prefix, amount) =
-  let full = prefix ^ " " ^ amount in
+let compact_value_row ~width_of ~width (env : Screen.env) (snap : R.snapshot) index i more =
+  let series = snap.R.series.(i) in
+  let head = Printf.sprintf "%d %s " (i + 1) (marker_of i) in
+  let amount = amount_text env snap series index in
+  let more = if more = 0 then "" else Printf.sprintf " (+%d)" more in
+  let reserved = width_of (head ^ amount ^ more ^ " ") in
   let text =
-    if width_of full <= width then full
-    else if width_of (prefix ^ " (widen)") <= width then prefix ^ " (widen)"
-    else if width_of "(widen)" <= width then "(widen)"
-    else ""
+    if reserved > width then head ^ "exact value: enlarge terminal" ^ more
+    else head ^ O.clip_text ~width_of (min 14 (width - reserved)) series.R.label ^ " " ^ amount ^ more
   in
-  (style, text)
+  [ (O.Series i, text) ]
 
-(* Pack the entries into rows; each entry keeps its own series colour. *)
-let pack_items ~width_of width items =
-  let rec pack current acc = function
-    | [] -> List.rev (if current == [] then acc else current :: acc)
-    | item :: rest ->
-        let style, text = fit_item ~width_of width item in
-        let candidate =
-          if current == [] then text else O.spans_text current ^ "  " ^ text
-        in
-        if width_of candidate <= width then
-          pack
-            (if current == [] then [ (style, text) ] else current @ [ (O.Plain, "  "); (style, text) ])
-            acc rest
-        else if current == [] then pack [] [ [ (style, text) ] ] rest
-        else pack [ (style, text) ] (current :: acc) rest
+(* Tokens fill a row and wrap at the width, as LOAM's [flowTokens]. *)
+let flow_tokens ~width_of width tokens =
+  let rec loop line acc = function
+    | [] -> List.rev (if line = "" then acc else line :: acc)
+    | token :: rest ->
+        if line = "" then loop token acc rest
+        else if width_of (line ^ "   " ^ token) <= width then loop (line ^ "   " ^ token) acc rest
+        else loop token (line :: acc) rest
   in
-  pack [] [] items
+  loop "" [] tokens
 
-let overlay_legend t =
-  match t.overlays with
-  | [] -> ""
-  | overlays ->
-      "session-only (not saved, not causal): "
-      ^ (overlays
-        |> List.map (fun (overlay : overlay) ->
-            overlay.month ^ " " ^ overlay.name ^ " "
-            ^ String.concat "," (List.map string_of_int overlay.days))
-        |> String.concat "  ")
+let overlay_marker index = match index with 0 -> "A" | 1 -> "B" | _ -> "C"
 
-let window_of t count index =
-  if t.grain = R.Day && t.scope = R.All_history && count > viewport then
-    let start = max 0 (min (count - viewport) (index - (viewport / 2))) in
-    (start, start + viewport)
-  else (0, count)
+let overlay_contains (overlay : overlay) date =
+  match (month_key date, day_of date) with
+  | Some key, Some day -> key = overlay.month && List.mem day overlay.days
+  | _ -> false
 
-(* Session annotations mark exact calendar dates: the captured full YYYY-MM
-   and the day, never every October or the month of the current selection. *)
-let annotation_indices t (snap : R.snapshot) start visible =
-  if t.grain <> R.Day then []
+(* Session overlays mark exact calendar dates of the shown Day points: one
+   marker row under the axis (A/B/C, [*] where they meet) and a legend. *)
+let overlay_rows ~width_of ~width ~plot_left ~plot_width t (snap : R.snapshot) start visible =
+  if t.grain <> R.Day || t.overlays = [] then []
   else
     let points = points_of snap in
-    if Array.length points = 0 then []
-    else
-      List.mapi
-        (fun slot (overlay : overlay) ->
-          let at =
-            List.filter_map
-              (fun k ->
-                let index = start + k in
-                if index < 0 || index >= Array.length points then None
-                else
-                  let date = points.(index).R.start_day in
-                  match (month_key date, day_of date) with
-                  | Some key, Some day ->
-                      if key = overlay.month && List.mem day overlay.days then Some k else None
-                  | _ -> None)
-              (List.init visible (fun i -> i))
-          in
-          { glyph = string_of_int (slot + 1); at })
-        t.overlays
+    let cells = Array.make plot_width " " in
+    for k = 0 to visible - 1 do
+      let date = points.(start + k).R.start_day in
+      let matching =
+        List.concat
+          (List.mapi
+             (fun index overlay -> if overlay_contains overlay date then [ index ] else [])
+             t.overlays)
+      in
+      let glyph =
+        match matching with [] -> None | [ index ] -> Some (overlay_marker index) | _ -> Some "*"
+      in
+      Option.iter
+        (fun glyph ->
+          let x = UChart.x_for_index plot_width visible k in
+          cells.(x) <- (if cells.(x) = " " then glyph else "*"))
+        glyph
+    done;
+    let legend =
+      ("Overlay session-only · guides " ^ (if t.guides then "on" else "off") ^ " · not saved")
+      :: List.mapi
+           (fun index (overlay : overlay) ->
+             overlay_marker index ^ " " ^ overlay.name ^ " (" ^ month_label overlay.month ^ ": "
+             ^ String.concat " " (List.map string_of_int overlay.days)
+             ^ ")")
+           t.overlays
+    in
+    (O.Plain, String.make plot_left ' ' ^ String.concat "" (Array.to_list cells))
+    :: List.map (fun text -> (O.Chrome, text)) (flow_tokens ~width_of width legend)
+
+let guide_columns ~plot_width t (snap : R.snapshot) start visible =
+  if t.grain <> R.Day || not t.guides then []
+  else
+    let points = points_of snap in
+    List.init visible Fun.id
+    |> List.filter_map (fun k ->
+        if List.exists (fun overlay -> overlay_contains overlay points.(start + k).R.start_day) t.overlays
+        then Some (UChart.x_for_index plot_width visible k)
+        else None)
 
 let bounded_rows (geometry : Screen.geometry) rows =
   let width, height = geometry.content in
@@ -759,118 +884,159 @@ let series_values (snap : R.snapshot) start visible =
   |> List.map (fun series ->
       List.init visible (fun k -> series.R.points.(start + k).R.value))
 
-let annotation_marks t (snap : R.snapshot) start visible =
-  annotation_indices t snap start visible
-  |> List.map (fun (annotation : overlay_annotation) ->
-      (annotation.glyph, annotation.at))
+(* A label of [text] centred on [center] and kept inside the plot. *)
+let placed ~width center text =
+  let text = if String.length text > width then String.sub text 0 width else text in
+  let half = String.length text / 2 in
+  (max 0 (min (center - min center half) (width - String.length text)), text)
 
-let label_at (points : R.point array) start k =
-  let point = points.(start + k) in
-  if String.length point.R.start_day >= 10 then String.sub point.R.start_day 5 5
-  else point.R.start_day
+(* The labels in priority order. Unlike LOAM, which overwrites part of a later
+   label ("Sep 29t 1"), a label that would touch an earlier one is left out. *)
+let overlaid ~width labels =
+  let cells = Bytes.make width ' ' and taken = Array.make width false in
+  let clear start stop =
+    let rec loop i = i >= min width (stop + 1) || ((not taken.(i)) && loop (i + 1)) in
+    loop (max 0 (start - 1))
+  in
+  List.iter
+    (fun (start, text) ->
+      let stop = start + String.length text in
+      if clear start stop then (
+        Bytes.blit_string text 0 cells start (String.length text);
+        Array.fill taken start (String.length text) true))
+    labels;
+  Bytes.to_string cells
 
-(* Up to four evenly spaced x labels under the plot; the last one is kept so the
-   window end is always named. *)
-let x_axis_labels (points : R.point array) start visible plot_width =
-  if visible <= 0 || plot_width <= 0 then ""
-  else
-    let slots = min 4 visible in
-    let cells = Array.make plot_width ' ' in
-    let place position text =
-      let text = if String.length text > plot_width then String.sub text 0 plot_width else text in
-      let start_at = max 0 (min (plot_width - String.length text) position) in
-      String.iteri (fun offset c -> cells.(start_at + offset) <- c) text
-    in
-    for slot = 0 to slots - 1 do
-      let k = if slots = 1 then 0 else (slot * (visible - 1)) / (slots - 1) in
-      let text = label_at points start k in
-      let position = if slot = slots - 1 then plot_width - String.length text else (k * plot_width) / max 1 (visible - 1) in
-      place position text
-    done;
-    String.trim (String.of_seq (Array.to_seq cells))
+let centered width text =
+  let text = if String.length text > width then String.sub text 0 width else text in
+  let left = (width - String.length text) / 2 in
+  String.make left ' ' ^ text ^ String.make (width - String.length text - left) ' '
 
-let chart_panel (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snapshot) header =
-  let width, height = geometry.content in
-  let width_of = geometry.width_of in
+(* The period axis under the plot: Day names its first day, the selected day
+   and the observation day ("As of"); Cycle and Month name every window, or only
+   the ends when a window is narrower than eight cells. Dates are ASCII. *)
+let axis_row ~plot_left ~plot_width (snap : R.snapshot) start visible selected =
   let points = points_of snap in
-  let count = Array.length points in
-  let index = effective_index t snap in
-  let start, stop = window_of t count index in
-  let visible = max 0 (stop - start) in
-  let values = series_values snap start visible in
-  let annotations = annotation_marks t snap start visible in
-  let marked = List.concat_map (fun (_, at) -> at) annotations in
-  if height < 3 then bounded_rows geometry header
+  if visible = 0 then ""
   else
-    let header = List.filteri (fun i _ -> i < height - 3) header in
-    let chart_height = max 3 (height - List.length header) in
-    let plot_height = max 1 (chart_height - 3) in
-    let fmt value = O.format_money env.book snap.R.measure value in
-    let scale = UChart.scale_for (Z.zero :: List.concat values) in
-    let axis = UChart.axis_width ~width_of width scale fmt in
-    (* The plot ends one cell before the frame's border: the selected column's
-       rule would otherwise sit on the border and double it, and the line's last
-       cell would overwrite the frame. *)
-    let plot_width = max 1 (width - axis - 6) in
-    let grid_rows =
-      List.map (UChart.row_for_value plot_height scale.range) scale.ticks
-    in
-    let rows =
-      UChart.multi_line_spans ~width:plot_width ~height:plot_height ~series:values
-        ~selected:(index - start) ~range:scale.range ~grid_rows ~markers:(Array.to_list markers)
-        ~guides:(if t.guides then marked else []) ~annotations ()
-      |> UChart.with_value_axis_spans ~width_of ~axis ~height:plot_height ~scale ~label:fmt
-    in
-    let labels = O.pad ~width_of (axis + 3) "" ^ x_axis_labels points start visible plot_width in
-    let bottom =
-      if visible = 0 then "no points"
+    let first = points.(start) and last = points.(start + visible - 1) in
+    let x k = UChart.x_for_index plot_width visible k in
+    let text =
+      if snap.R.grain = R.Day then
+        let as_of = "As of " ^ short_date snap.R.observed_at in
+        let right =
+          match
+            List.find_opt (fun k -> points.(start + k).R.start_day = snap.R.observed_at)
+              (List.init visible Fun.id)
+          with
+          | Some k -> placed ~width:plot_width (x k) as_of
+          | None -> placed ~width:plot_width (plot_width - 1) (short_date last.R.start_day)
+        in
+        let local = selected - start in
+        let chosen =
+          if local < 0 || local >= visible then []
+          else
+            let day = points.(selected).R.start_day in
+            [
+              placed ~width:plot_width (x local)
+                (if day = snap.R.observed_at then as_of else short_date day);
+            ]
+        in
+        overlaid ~width:plot_width
+          (chosen @ [ right; placed ~width:plot_width 0 (short_date first.R.start_day) ])
+      else if plot_width / visible < 8 then
+        centered plot_width (short_date first.R.start_day ^ "   …   " ^ short_date last.R.start_day)
       else
-        let first = points.(start).R.start_day and last = points.(stop - 1).R.start_day in
-        Printf.sprintf "%s → %s (%d/%d of window)" first last visible count
+        let chunk = max 1 (plot_width / visible) in
+        String.concat ""
+          (List.init visible (fun k ->
+               let point = points.(start + k) in
+               let last =
+                 if current_partial snap point then snap.R.observed_at else point.R.end_exclusive
+               in
+               centered chunk (short_date point.R.start_day ^ " → " ^ short_date last)))
     in
-    let panel =
-      Panel.frame_rows ~inset:0 ~bottom_label:bottom ~width_of ~width ~height:chart_height
-        ~focused:true ~title:"Trend / Locus comparison"
-        (List.map (fun spans -> (O.Spans spans, O.spans_text spans)) rows
-        @ [ (O.Plain, labels) ])
-    in
-    header @ panel
+    String.make plot_left ' ' ^ text
+
+let chart_body (env : Screen.env) ~width_of ~width ~height t (snap : R.snapshot) start visible
+    selected =
+  let fmt value = O.format_money env.book snap.R.measure value in
+  let values = series_values snap start visible in
+  let scale = UChart.scale_for (Z.zero :: List.concat values) in
+  (* LOAM keeps an eight-cell value axis; a wider tick label widens it rather
+     than turning into an ellipsis. *)
+  let axis = max (min 8 (width / 4)) (UChart.axis_width ~width_of width scale fmt) in
+  let plot_left = axis + 3 in
+  let plot_width = max 1 (width - plot_left) in
+  let grid_rows = List.map (UChart.row_for_value height scale.range) scale.ticks in
+  let rows =
+    UChart.multi_line_spans ~width:plot_width ~height ~series:values ~selected:(selected - start)
+      ~range:scale.range ~grid_rows ~markers:(Array.to_list markers)
+      ~guides:(guide_columns ~plot_width t snap start visible)
+      ()
+    |> UChart.with_value_axis_spans ~width_of ~axis ~height ~scale ~label:fmt
+  in
+  (List.map (fun spans -> (O.Spans spans, O.spans_text spans)) rows, plot_left, plot_width)
 
 let chart_rows (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snapshot) =
   let width, height = geometry.content in
   let width_of = geometry.width_of in
-  let compact = height <= compact_height in
-  let index = effective_index t snap in
-  let grain = R.grain_label t.grain in
-  let scope = R.scope_label (effective_scope t) in
-  let heading =
-    if t.grain = R.Day then "Trend   day recorded flow / day"
-    else Printf.sprintf "Trend   %s average / day" (String.lowercase_ascii grain)
+  let screen_height = snd geometry.screen in
+  let compact = screen_height <= compact_height in
+  let tiny = screen_height <= 9 in
+  let points = points_of snap in
+  let count = Array.length points in
+  let selected = effective_index t snap in
+  let start, stop = window_of t count selected in
+  let visible = max 0 (stop - start) in
+  let spans rows = List.map (fun spans -> (O.Spans spans, O.spans_text spans)) rows in
+  let header =
+    match selected_point snap selected with
+    | None -> [ (O.Heading, "Trend   " ^ R.grain_label t.grain); (O.Chrome, "No selected period.") ]
+    | Some point when compact ->
+        let title =
+          "Trend " ^ R.grain_label snap.R.grain
+          ^ (if snap.R.grain = R.Day then "/" ^ R.scope_label snap.R.scope else "")
+          ^ " · " ^ snap.R.measure
+        in
+        let series_count = Array.length snap.R.series in
+        let values =
+          if series_count = 0 then [ [ (O.Chrome, "No series.") ] ]
+          else if tiny then [ compact_value_row ~width_of ~width env snap selected 0 (series_count - 1) ]
+          else List.init series_count (fun i -> compact_value_row ~width_of ~width env snap selected i 0)
+        in
+        [ (O.Heading, title) ]
+        @ (if tiny then []
+           else
+             [ (O.Chrome, if t.notice = "" then "Source " ^ snap.R.source else "Notice " ^ t.notice) ])
+        @ [
+            ( O.Active,
+              if tiny then "Selected " ^ point.R.start_day else selected_line snap point );
+          ]
+        @ spans values
+    | Some point ->
+        [ (O.Heading, heading snap.R.grain) ]
+        @ spans (rack_rows ~width_of snap)
+        @ [ (O.Chrome, source_line t snap visible); (O.Active, selected_line snap point) ]
+        @ spans (value_rows ~width_of ~width env snap selected)
   in
-  let context =
-    Printf.sprintf "%s · Grain %s · %s · braille · source: %s" (current_measure env t) grain
-      scope snap.R.source
+  let notice = if compact || t.notice = "" then [] else [ (O.Status, t.notice) ] in
+  (* The plot takes what the header, axis, overlays and notice leave. *)
+  let fixed = List.length header + 1 + List.length notice in
+  let overlay_reserve =
+    if t.grain = R.Day && t.overlays <> [] then if compact then 1 else 2 else 0
   in
-  let header = ref [] in
-  if t.notice <> "" then header := [ (O.Status, O.clip_text ~width_of width t.notice) ];
-  header := !header @ [ (O.Heading, heading) ];
-  let rack = O.clip_spans ~width_of width (rack_spans snap) in
-  header := !header @ [ (O.Spans rack, O.spans_text rack) ];
-  if not compact then header := !header @ [ (O.Chrome, O.clip_text ~width_of width context) ];
-  header :=
-    !header
-    @ [ (O.Active, O.clip_text ~width_of width (period_line ~width_of ~width t snap index)) ];
-  let legend = overlay_legend t in
-  if legend <> "" then header := !header @ [ (O.Plain, O.clip_text ~width_of width legend) ];
-  let items =
-    if compact then compact_value_items env snap index else value_items env snap index
-  in
-  header :=
-    !header
-    @ List.map
-        (fun spans -> (O.Spans spans, O.spans_text spans))
-        (pack_items ~width_of width items);
-  chart_panel env geometry t snap !header
+  let plot_height = max 1 (height - fixed - overlay_reserve) in
+  if visible = 0 then header @ notice
+  else
+    let body, plot_left, plot_width =
+      chart_body env ~width_of ~width ~height:plot_height t snap start visible selected
+    in
+    let overlays = overlay_rows ~width_of ~width ~plot_left ~plot_width t snap start visible in
+    let overlays = if compact then List.filteri (fun i _ -> i < 1) overlays else overlays in
+    header @ body
+    @ [ (O.Chrome, axis_row ~plot_left ~plot_width snap start visible selected) ]
+    @ overlays @ notice
 
 let unavailable_rows (geometry : Screen.geometry) why =
   let width, height = geometry.content in
@@ -970,29 +1136,39 @@ let editor_form (editor : editor) =
   in
   Ui_form.set_focused form (if editor.field = `Name then 0 else 1)
 
-let footer ~width_of ~width t =
+(* LOAM's Trend tokens, minus the pointer it reads and Bakhlo does not. *)
+let footer ~width_of ~(geometry : Screen.geometry) t =
+  let width = fst geometry.content in
   let line text = O.clip_text ~width_of width text in
+  let two lines = List.map line (List.filteri (fun i _ -> i < 2) lines) in
   match t.editor with
   | Some _ -> [ line "Enter next/apply  Esc cancel"; line "Tab field  session only" ]
   | None when Option.is_some t.help -> [ line "? / Esc close help"; "" ]
   | None -> (
       match t.picker with
-      | Some _ -> [ line "q/Esc close  Enter apply"; line "arrows move  x remove" ]
+      | Some _ -> [ line "↑/↓ choose Locus   1-5 slot   Enter apply"; line "x remove   Esc cancel" ]
+      | None when snd geometry.screen <= compact_height ->
+          if t.grain = R.Day then
+            two
+              ([ "←/→ day [/] grain s/S range"; "a series o overlay q/Esc Home" ]
+              @ if t.overlays = [] then [] else [ "v guides O clear · session only" ])
+          else [ line "←/→ period [/] grain"; line "a series q/Esc Home" ]
       | None ->
-          if width >= 72 then
-            [
-              line "arrows/hjkl select  Home/End  [ ] grain  s/S scope  a series  o annotate  ? help";
-              line "v guides  O clear  Enter refresh  q/Esc Home  Space Commands";
-            ]
-          else if width >= 48 then
-            [
-              line "arrows/hjkl select  [ ] grain  s/S scope";
-              line "a series  o annotate  v guides  q/Esc Home";
-            ]
-          else [ line "q/Esc Home  hjkl select"; line "[ ] grain  s/S scope  a series" ])
+          let day = t.grain = R.Day in
+          let overlay =
+            if not day then []
+            else if t.overlays = [] then [ "o overlay" ]
+            else
+              [ "o overlay"; "v guides " ^ (if t.guides then "off" else "on"); "O clear overlays" ]
+          in
+          two
+            (flow_tokens ~width_of width
+               ([ "←/→ select period"; "Home/End"; "[ / ] grain"; "a series" ]
+               @ (if day then [ "s/S range" ] else [])
+               @ overlay
+               @ [ "? help"; "Space Commands"; "q/Esc Home" ])))
 
 let view (env : Screen.env) (geometry : Screen.geometry) t : Screen.view =
-  let outcome = project env t in
   let overlay =
     match t.editor with
     | Some editor ->
@@ -1014,10 +1190,10 @@ let view (env : Screen.env) (geometry : Screen.geometry) t : Screen.view =
            (match t.picker with
            | Some picker -> picker_rows env geometry t picker
            | None -> (
-               match outcome with
+               match project env t with
                | Ok snap -> chart_rows env geometry t snap
                | Error why -> unavailable_rows geometry why)));
-    footer = footer ~width_of:geometry.width_of ~width:(fst geometry.content) t;
+    footer = footer ~width_of:geometry.width_of ~geometry t;
     overlay;
     cursor = Option.bind overlay (fun frame -> frame.Ui_overlay.cursor);
   }

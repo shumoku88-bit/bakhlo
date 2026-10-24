@@ -2,9 +2,11 @@
 
     A full-chart owner of recorded EFFECT flow for one explicit Measure. The
     owner never writes a file, never reads the clock and never keeps a stale
-    chart: every projection uses the current book and configuration. The
-    selection is an immutable period; the effective point index is derived from
-    the current projection. *)
+    chart: a kept projection is reused only for the same book value and equal
+    configuration, roles, Measure and query, so moving the selection never
+    projects again while any change does. The selection is an immutable period;
+    the effective point index is derived from the current projection. It is
+    painted like LOAM's full-screen Trend. *)
 
 type t
 
@@ -37,6 +39,10 @@ val selected : Screen.env -> t -> int
 
 val selected_period : t -> (string * string) option
 (** The selected period, kept across a grain or query change. *)
+
+val visible_window : Screen.env -> t -> int * int
+(** The shown points [[start, stop)]: every point, except that Day over all
+    history shows 31 and moves only when the selection leaves them. *)
 
 val grain : t -> Trend_locus_report.grain
 

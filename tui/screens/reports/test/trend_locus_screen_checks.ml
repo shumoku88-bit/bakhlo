@@ -126,11 +126,14 @@ let () =
     in
     length = 0 || loop 0
   in
+  (* LOAM's short dates: 2026-10-01 is "Oct 1". *)
   let window_start =
     match get (S.result env owned) with
     | snap ->
         let points = (first_series snap).R.points in
-        if Array.length points = 0 then "" else String.sub points.(0).R.start_day 5 5
+        if Array.length points = 0 then ""
+        else if points.(0).R.start_day = "2026-10-01" then "Oct 1"
+        else failwith "the fixture's first cycle starts on 2026-10-01"
   in
   require
     (window_start <> "" && List.exists (fun (_, text) -> contains text window_start) painted)
@@ -139,10 +142,9 @@ let () =
     (List.exists (fun (_, text) -> contains text " jpy") painted)
     "series values name the Measure";
 
-  (* The chart's frame border stays single: the selected column's rule and the
-     line's last cell never double or overwrite it. The width is counted in
-     cells, so the frame is measured as it is painted, and the day grain spreads
-     the days over the plot. *)
+  (* As in LOAM the chart is not framed: every plot row is the value axis and
+     the plot, exactly the content width, so nothing is clipped; at the last
+     day the selected column's guide is the row's last cell. *)
   let daily = after env (after env owned (`ASCII ']')) (`ASCII ']') in
   let at_end = after env daily `End in
   List.iter
@@ -157,36 +159,29 @@ let () =
         }
       in
       let rows = (S.view env geometry at_end).Screen.rows |> Lazy.force in
-      let framed =
-        List.filter_map
-          (fun (_, text) -> if String.starts_with ~prefix:"│" text then Some text else None)
-          rows
+      require
+        (not (List.exists (fun (_, text) -> String.starts_with ~prefix:"╭" text) rows))
+        "the chart has no frame";
+      let plot_rows =
+        List.filter (fun (_, text) -> contains text " ┤ " || contains text " │ ") rows
       in
-      require (framed <> []) "the chart is framed";
-      List.iter
-        (fun text ->
-          require (String.ends_with ~suffix:"│" text) "the frame's right border is one cell";
-          require (not (String.ends_with ~suffix:"││" text))
-            "the frame's right border is not doubled")
-        framed;
-      (* The plot never touches the frame: an empty cell separates the chart's
-         content from the border, so the border stays single and no glyph can
-         overwrite it. *)
-      let chart_rows =
-        List.filter
-          (fun (_, text) ->
-            String.starts_with ~prefix:"│" text
-            && (contains text "┤"
-               || contains text "┄"
-               || Uutf.String.fold_utf_8 (fun found _ c -> found || is_braille c) false text))
-          rows
-      in
-      require (chart_rows <> []) "the chart has rows";
+      require (plot_rows <> []) "the chart has plot rows";
       List.iter
         (fun (_, text) ->
-          require (String.ends_with ~suffix:" │" text)
-            "the chart keeps an empty cell before the frame's border")
-        chart_rows)
+          require (width_of text = width) "a plot row fills the content width";
+          require
+            (String.ends_with ~suffix:"│" text
+            || String.ends_with ~suffix:"●" text
+            || String.ends_with ~suffix:"◆" text
+            || String.ends_with ~suffix:"◎" text
+            || Uutf.String.fold_utf_8
+                 (fun last _ c -> match c with `Uchar u -> Some u | `Malformed _ -> last)
+                 None text
+               |> Option.fold ~none:false ~some:(fun u ->
+                      let n = Uchar.to_int u in
+                      n >= 0x2800 && n <= 0x28FF))
+            "the last column carries the selected day")
+        plot_rows)
     [ 80; 110 ];
 
   (* Series colours: each series' line cells and its legend entry carry the
@@ -210,24 +205,21 @@ let () =
   require
     (List.mem 0 chart_series && List.mem 1 chart_series)
     "each series paints its own cells";
-  let legend_row =
-    List.find_opt (fun (_, text) -> contains text " (" && contains text "●") painted
-  in
+  let legend_row = List.find_opt (fun (_, text) -> contains text "[1 ●") painted in
   (match legend_row with
   | None -> failwith "the legend row must be painted"
   | Some (style, text) ->
       require (series_indices (span_styles style) = [ 0; 1 ])
-        "the legend names each series with its own style";
+        "the series rack names each series with its own style";
       require (contains text "●" && contains text "◆")
         "the legend keeps a marker glyph for the monochrome reading");
-  let value_row =
-    List.find_opt (fun (_, text) -> contains text "/day" && contains text "●") painted
+  (* As in LOAM each series has its own value row, in its own colour. *)
+  let value_rows =
+    List.filter (fun (_, text) -> contains text "/day" && not (contains text "[1 ")) painted
   in
-  (match value_row with
-  | None -> failwith "the value row must be painted"
-  | Some (style, _) ->
-      require (series_indices (span_styles style) = [ 0; 1 ])
-        "the per-day value carries its series' style");
+  require
+    (List.map (fun (style, _) -> series_indices (span_styles style)) value_rows = [ [ 0 ]; [ 1 ] ])
+    "each series' per-day value row carries its series' style";
   (* The overlap rule: a cell that carries two series takes the later one. *)
   let range = { Ui_chart.low = z 0; high = z 200 } in
   let overlapping =
@@ -284,8 +276,21 @@ let () =
   require
     (not (List.mem (`Uchar (Uchar.of_int 0x25CF)) marker_middle))
     "the middle row carries no detached marker";
-  require (is_braille (List.nth marker_top 3)) "the selected cell keeps the line's braille";
+  require
+    (List.nth marker_top 3 = `Uchar (Uchar.of_int 0x25CF))
+    "as in LOAM the selected marker sits on the line, over its braille";
   require (not (is_braille (List.nth marker_middle 3))) "the middle row carries no line cell";
+  (* Two selected values in one cell share one mark instead of moving either. *)
+  let shared =
+    Ui_chart.multi_line_spans ~width:8 ~height:4
+      ~series:[ [ z 100; z 100; z 100 ]; [ z 100; z 100; z 100 ] ]
+      ~selected:1 ~range ~grid_rows:[] ~markers:[ "●"; "◆" ] ()
+    |> List.map row_text
+  in
+  require
+    (List.exists (fun text -> contains text "◎") shared
+    && not (List.exists (fun text -> contains text "●" || contains text "◆") shared))
+    "two markers in one cell become one shared mark";
   ignore (S.view env geometry owned);
   ignore (S.result env owned);
   ignore (after env owned `End);
@@ -615,6 +620,62 @@ let () =
   require
     (S.overlays new_committed = [ ("2025-10", "old", [ 1 ]); ("2026-10", "new", [ 1 ]) ])
     "the same calendar month in two years stays distinct";
+
+  (* The Day window over all history moves only when the selection leaves it
+     (LOAM [viewportStartFor]); moving inside it keeps every column in place. *)
+  let sliding = after long_env (after long_env (S.enter ~focus_day:"2026-10-03" (S.create ())) (`ASCII ']')) (`ASCII ']') in
+  let sliding = after long_env sliding `End in
+  let count = snd (S.visible_window long_env sliding) in
+  require (S.visible_window long_env sliding = (count - 31, count)) "End shows the last 31 days";
+  let inside = press_n long_env sliding (`Arrow `Left) 30 in
+  require
+    (S.visible_window long_env inside = (count - 31, count)
+    && S.selected long_env inside = count - 31)
+    "moving inside the window keeps it";
+  let leaving = after long_env inside (`Arrow `Left) in
+  require
+    (S.visible_window long_env leaving = (count - 32, count - 1))
+    "leaving the window moves it by one day";
+  let back = press_n long_env leaving (`Arrow `Right) 30 in
+  require
+    (S.visible_window long_env back = (count - 32, count - 1))
+    "moving back inside keeps the moved window";
+  let scoped = after long_env back (`ASCII 's') in
+  require
+    (S.visible_window long_env scoped = (0, snd (S.visible_window long_env scoped)))
+    "a bounded Day range shows all its days";
+
+  (* LOAM's Selected line and period axis. *)
+  let rows_of env owner = (S.view env geometry owner).Screen.rows |> Lazy.force in
+  let has env owner needle = List.exists (fun (_, text) -> contains text needle) (rows_of env owner) in
+  require (has env owned "Selected   Oct 3 → Oct 3   ·   current partial")
+    "a running cycle ends on the observation day";
+  require (has env (after env owned `Home) "Selected   Oct 1 → Oct 3   ·   complete")
+    "a full cycle names its exclusive end";
+  require (has long_env sliding "Selected   Oct 3, 2026   ·   current day")
+    "the observation day is the current day";
+  require (has long_env sliding "As of Oct 3") "the Day axis names the observation day";
+  require (has long_env inside "Sep 3") "the Day axis names the selected day";
+  let before_end = after long_env sliding (`Arrow `Left) in
+  require
+    (List.exists
+       (fun (_, text) -> contains text "Oct 2" && not (contains text "As of"))
+       (rows_of long_env before_end))
+    "a label that would touch the selected day's label is left out, never overwritten";
+
+  (* A kept projection is reused only for the same book and configuration. *)
+  let settled = after env owned (`Arrow `Left) in
+  require (Z.equal (total (get (S.result env settled)) 0) (z 3)) "the settled chart is current";
+  require
+    (Z.equal (total (get (S.result (env_with ~book:changed_book boundaries) settled)) 0) (z 13))
+    "a changed book is projected again";
+  require
+    ((point_of (get (S.result long_env settled)) 0).R.start_day = "2026-08-01")
+    "changed boundaries are projected again";
+  require
+    (Result.is_error
+       (S.result { env with Screen.accounting_roles = lazy (Error "unreadable") } settled))
+    "a changed roles file is projected again";
 
   (* Leaving and modal closing. *)
   let _, quit_request = press env owned (`ASCII 'q') in

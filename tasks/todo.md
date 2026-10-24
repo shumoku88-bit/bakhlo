@@ -17,7 +17,7 @@
 
 ## 未完了
 
-- [ ] Trend / Locus comparisonのグラフ描画（LOAMは補間した点字の線と期間軸）とマウスでの選択。
+- [ ] Trend / Locus comparisonのマウスでの選択（LOAMのclick/drag/wheel scrub。描画とキー操作は2026-10-24にLOAMへ揃えた）。
 - [ ] Accountingの一覧欄で長い説明行が`…`省略される（詳細欄と並ぶため）。80×24で照合。
 - [ ] Daily Pace：同じ端末寸法でcontext／Trend／History／Selected day／feedback／操作案内、
   グラフと日付軸・件数・選択・scroll・戻りを揃え、同じ入力で4寸法・全5期間・known／partial／

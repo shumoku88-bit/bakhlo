@@ -169,17 +169,18 @@ let rec lines ?border ?(base = A.empty) theme rows =
             | C.Input _ | C.Bonsai | C.Entrance -> C.Plain
             | style -> style
           in
-          (* A row of spans keeps the style of the span each cell belongs to. *)
+          (* A row of spans keeps the style of the span each cell belongs to; each
+             span's width is measured once per row, not once per cell. *)
           let cell_style =
             match style with
             | C.Spans spans ->
-                let rec at cell offset = function
-                  | [] -> C.Plain
-                  | (span_style, text) :: rest ->
-                      let width = width_of text in
-                      if cell < offset + width then span_style else at cell (offset + width) rest
+                let styles =
+                  List.concat_map
+                    (fun (span_style, text) -> List.init (width_of text) (fun _ -> span_style))
+                    spans
+                  |> Array.of_list
                 in
-                fun cell -> at cell 0 spans
+                fun cell -> if cell < Array.length styles then styles.(cell) else C.Plain
             | _ -> fun _ -> body_style
           in
           let edge_attrs =

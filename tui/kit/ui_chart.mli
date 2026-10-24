@@ -12,6 +12,10 @@ val scale_for : ?intervals:int -> Z.t list -> scale
 val row_for_value : int -> range -> Z.t -> int
 (** Row 0 is the top. *)
 
+val x_for_index : int -> int -> int -> int
+(** [x_for_index width count index]: the column of point [index] of [count]
+    spread over [width] columns, first and last at the edges. *)
+
 val axis_width : width_of:(string -> int) -> int -> scale -> (Z.t -> string) -> int
 (** Widest tick label (at least 3), at most a quarter of the width (at least 3). *)
 
@@ -75,12 +79,11 @@ val multi_line_spans :
   grid_rows:int list ->
   markers:string list ->
   ?guides:int list ->
-  ?annotations:(string * int list) list ->
   unit ->
   spans list
 (** Several series on one braille grid. Masks are unioned, so a column never
-    overwrites another series; each series' marker sits on its selected value
-    when that cell carries no line. [guides] mark columns and [annotations]
-    mark a glyph at every listed x. A cell's span carries the series that owns
-    it: an overlapping cell takes the later series, because one cell can only
-    carry one colour. *)
+    overwrites another series. As in LOAM, each series' marker sits on its
+    selected value over the line, and two markers in one cell become [◎]; the
+    selected column carries a quiet guide where no line is. [guides] mark
+    columns. A cell's span carries the series that owns it: an overlapping cell
+    takes the later series, because one cell can only carry one colour. *)

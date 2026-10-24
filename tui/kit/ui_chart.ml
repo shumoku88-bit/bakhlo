@@ -223,8 +223,10 @@ let series_sample values =
       let right = if segment + 1 < count then values.(segment + 1) else left in
       Some (interpolate left right (scaled mod denominator) denominator)
 
-let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers ?(guides = [])
-    ?(annotations = []) () =
+type owner = Line of int | Marked | Quiet
+
+let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers ?(guides = []) ()
+    =
   let width = max 1 width and height = max 1 height in
   let series = List.map Array.of_list series in
   let samples = List.map (fun values -> series_sample (Array.to_list values)) series in
@@ -246,36 +248,27 @@ let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers
     List.filter_map
       (fun (index, values) ->
         if selected >= 0 && selected < Array.length values && index < List.length markers then
-          Some
-            ( selected_x,
-              row_for_value (height * 4) range values.(selected) / 4,
-              List.nth markers index,
-              index )
+          Some (row_for_value (height * 4) range values.(selected) / 4, List.nth markers index, index)
         else None)
       (List.mapi (fun index values -> (index, values)) series)
   in
-  let annotation_at =
-    List.concat_map
-      (fun (glyph, positions) ->
-        List.map
-          (fun at -> (x_for_index width count at, glyph))
-          positions)
-      annotations
-  in
+  (* As in LOAM, the selected values' markers win over the line; two markers in
+     one cell become one shared mark rather than a false time position. *)
   let cells_of_row row =
     List.init width (fun col ->
-        let mask, owner = mask_and_owner col row in
-        let base = if mask = 0 then " " else glyph mask in
-        match List.find_opt (fun (x, y, _, _) -> x = col && y = row) marker_at with
-        | Some (_, _, marker, index) when base = " " -> (Some index, marker)
-        | _ -> (
-            match List.find_opt (fun (x, _) -> x = col) annotation_at with
-            | Some (_, annotation) when base = " " -> (None, annotation)
-            | _ ->
-                if col = selected_x && base = " " then (None, "│")
-                else if List.mem col guides && base = " " then (None, "┆")
-                else if List.mem row grid_rows && base = " " then (None, "┄")
-                else (owner, base)))
+        match
+          if col = selected_x then List.filter (fun (y, _, _) -> y = row) marker_at else []
+        with
+        | [ (_, marker, index) ] -> (Line index, marker)
+        | _ :: _ :: _ -> (Marked, "◎")
+        | [] ->
+            let mask, owner = mask_and_owner col row in
+            if mask <> 0 then
+              ((match owner with Some index -> Line index | None -> Quiet), glyph mask)
+            else if col = selected_x then (Quiet, "│")
+            else if List.mem col guides then (Quiet, "┊")
+            else if List.mem row grid_rows then (Quiet, "┄")
+            else (Quiet, " "))
   in
   (* Consecutive cells of one owner become one span; the span's text is built
      in a buffer, so the rows stay linear in their width. *)
@@ -305,5 +298,7 @@ let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers
       let cells = cells_of_row row in
       spans_of_cells cells
       |> List.map (fun (owner, text) ->
-             let style = match owner with None -> O.Plain | Some index -> O.Series index in
+             let style =
+               match owner with Line index -> O.Series index | Marked -> O.Active | Quiet -> O.Chrome
+             in
              (style, text)))

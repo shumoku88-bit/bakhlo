@@ -32,21 +32,15 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   user choice 2026-10-22); at 109.5k synthetic entries moving in it takes 11 ms, opening
   or switching 60–166 ms. Verification: [Calendar removed](VERIFICATION.md#calendar-removed-2026-10-22),
   [period bar and picker](VERIFICATION.md#actual-period-bar-and-picker-2026-10-22).
-- Trend series are coloured: each series' braille line and its legend entry (name
-  and per-day value) share its own colour (the terminal's own ANSI slots — blue,
-  magenta, cyan, red, no yellow — in the Terminal theme, four indexed palette
-  colours in the Bakhlo themes); a cell shared by two series takes the later one,
-  and the marker glyphs keep the chart readable without colour. The chart's right
-  edge is one border (the plot ends a cell earlier), and rows carry styled spans
-  through the one rendering path. Synthetic checks, `check`, `--self-check` and
-  the PTY smoke passed.
-- Trend / Locus chart colour transitions now preserve every cell: the previous
-  span builder dropped the first glyph after each colour change, shortening rows
-  and staggering the selected-day guide. Selected markers use the braille
-  subpixel height rather than a separate coarse projection, avoiding detached
-  markers in short plots. Synthetic terminal captures reproduce the old
-  misalignment and show aligned rows after the span fix; accounting and storage
-  are unchanged. Verification: [Trend geometry](VERIFICATION.md#trend-chart-cell-alignment-2026-10-22).
+- Trend / Locus is painted like LOAM's full-screen Trend (user report 2026-10-24: it looked
+  and scrolled nothing like it): no frame, two-row series rack, source and Selected lines,
+  one coloured value row per series, LOAM's period axis and compact layout; the selected
+  markers sit over the line (`◎` when two share a cell) and the Day window moves only when
+  the selection leaves it. The owner keeps its projection while the book value and config
+  are the same, and the renderer measures each span once per row: `←` in Day takes 13.7 /
+  7.0 ms at 120×36 / 80×24 (was 36.0 / 25.9; LOAM 17.9 / 7.9). Opening or changing grain
+  still projects once (~0.15–0.36 s at 109,500 synthetic entries). Pointer scrub remains
+  absent. Verification: [Trend like LOAM](VERIFICATION.md#trend-looks-and-scrolls-like-loam-2026-10-24).
 - Stock–Flow leaves the whole opening entry out of the window's flows: the counterpart
   posting (e.g. opening equity) is not a decrease any more, so the tracked increases
   and decreases cancel again. Start and End still carry that entry, so the motion is
