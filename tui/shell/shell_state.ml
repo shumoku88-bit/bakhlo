@@ -71,8 +71,6 @@ type state = {
   pending_record_publication : bool;
   config_home : string option;
   paste_blocked : bool;
-  attention_path : string;
-  attention : (Att.t, string) result;
   settlement_path : string;
   settlements : (Stl.t, string) result;
   screens : Screen_registry.t;
@@ -80,12 +78,15 @@ type state = {
   drill_book : B.t option;
 }
 
+(* Attention is a section of the book, read in its former attention.loam text. *)
+let attention (state : state) =
+  let text = state.session.F.sidecars.attention in
+  if text = "" then Ok Att.empty else Att.of_string text
+
 let initial ?config_home session =
   let measure = match B.measures session.F.book with (id, _) :: _ -> id | [] -> "" in
   let today = F.today () in
   let workspace = get (W.create ~today ~measure) in
-  let attention_path = Attention_file.file_path ?config_home session.F.path in
-  let attention = Attention_file.load_file attention_path in
   let settlement_path = Settlement_file.file_path ?config_home session.F.path in
   let settlements = Settlement_file.load_file settlement_path in
   {
@@ -102,8 +103,6 @@ let initial ?config_home session =
     pending_record_publication = false;
     config_home;
     paste_blocked = false;
-    attention_path;
-    attention;
     settlement_path;
     settlements;
     screens = Screen_registry.create ~scheduled_months:(get (Scheduled_months.create ~today));
@@ -215,7 +214,6 @@ let reload state =
   let state =
     {
       state with
-      attention = Attention_file.load_file state.attention_path;
       settlements = Settlement_file.load_file state.settlement_path;
     }
   in

@@ -193,3 +193,26 @@ let%expect_test "only book.txt is read: an S-expression book refuses, nothing is
     (match F.load path with _ -> "loaded" | exception F.Refused why -> "refused " ^ why)
     (String.equal before (F.read path));
   [%expect {| refused book-refused: bad-header at line 1; file unchanged: true |}]
+
+let%expect_test "roles and Attention are saved in book.txt and read back as written" =
+  let s = start () in
+  let sidecars : X.sidecars =
+    {
+      roles = "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\twallet\tASSET\nROLE\tfood\tEXPENSE\n";
+      attention = "LOAM-ATTENTION-MEMORY\t1\nITEM\tattention-1\tNO_DUE_DATE\t-\tcheck\\tthis\n";
+    }
+  in
+  let saved = written (F.publish ~sidecars s []) in
+  let cold = F.load saved.path in
+  Stdio.printf "same roles: %b; same Attention: %b; same book: %b; in book.txt: %b\n"
+    (String.equal cold.sidecars.roles saved.sidecars.roles)
+    (String.equal cold.sidecars.attention saved.sidecars.attention)
+    (String.equal (book_text cold) (book_text saved))
+    (String.is_substring (F.read saved.path) ~substring:"ROLE\twallet\tASSET\n");
+  let cleared = written (F.publish ~sidecars:X.no_sidecars saved []) in
+  let cold = F.load cleared.path in
+  Stdio.printf "cleared: %b\n" (String.equal cold.sidecars.roles "" && String.equal cold.sidecars.attention "");
+  [%expect {|
+    same roles: true; same Attention: true; same book: true; in book.txt: true
+    cleared: true
+    |}]

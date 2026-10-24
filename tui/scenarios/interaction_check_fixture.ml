@@ -49,7 +49,7 @@ let resolve_pace_window (state : C.state) = Pace.resolve_window (X.pace_env stat
 let current_pace_result (state : C.state) = Pace.current_pace (X.pace_env state)
 
 let open_attentions (state : C.state) =
-  match state.attention with Ok t -> Att.open_items t | Error _ -> []
+  match C.attention state with Ok t -> Att.open_items t | Error _ -> []
 
 let settlement_rows (state : C.state) =
   Settlements_screen.rows (X.screen_env ~config_files:[] state) state.screens.settlements
@@ -279,6 +279,14 @@ let actual_rows (state : C.state) =
 
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
+
+(* Store synthetic accounting roles in the book at [path]: roles are a book section. *)
+let put_roles path text =
+  let session = F.load path in
+  let roles = Locus_roles.to_string (get (Daily_overlays.parse_accounting_roles text)) in
+  match F.publish ~sidecars:{ session.F.sidecars with roles } session [] with
+  | F.Written _ -> ()
+  | _ -> raise (F.Refused "put-roles")
 
 (* A synthetic book written as S-expression text, as the book.txt the store reads. *)
 let book_txt_of_sexp sexp = Bakhlo_sexp.Daily_txt.text (get (B.of_string sexp))

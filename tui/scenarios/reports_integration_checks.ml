@@ -100,11 +100,10 @@ let run_multicurrency ~width_of ~directory =
       month_start month_start
   in
   F.write_new path (book_txt_of_sexp book_bytes);
-  F.write_new (dir ^ "/accounting-roles.tsv")
-    "food\tExpense\nrent\tExpense\nwallet\tAsset\nbank\tAsset\n";
+  put_roles path "food\tExpense\nrent\tExpense\nwallet\tAsset\nbank\tAsset\n";
   let at_home = C.open_route (C.initial ~config_home:dir (F.load path)) W.Home in
   let bytes_before = F.read path in
-  let roles_before = F.read (dir ^ "/accounting-roles.tsv") in
+  let roles_before = (F.load path).sidecars.roles in
   let commands = key ~width_of at_home (`ASCII ' ') in
   require
     (match commands.overlay with C.Commands { page = M.Root; _ } -> true | _ -> false)
@@ -167,7 +166,7 @@ let run_multicurrency ~width_of ~directory =
     (String.equal (F.read path) bytes_before)
     "multicurrency-flow-leaves-synthetic-book-bytes-unchanged";
   require
-    (String.equal (F.read (dir ^ "/accounting-roles.tsv")) roles_before)
+    (String.equal (F.load path).sidecars.roles roles_before)
     "multicurrency-flow-never-rewrites-the-roles"
 
 let run ~width_of ~directory (back_home : C.state) =

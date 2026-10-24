@@ -62,7 +62,7 @@ let screen_env ~config_files state : Screen.env =
     measure = state.workspace.measure;
     today = F.today ();
     accounting_roles = lazy (accounting_roles state);
-    attention = state.attention;
+    attention = attention state;
     settlements = state.settlements;
     blocked = state.blocked;
     draft_retained = has_record_draft state;
@@ -243,11 +243,8 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
           offer_created_pace state plan.id
       | _ -> state)
   | Screen.Save_attention { expected; next } ->
-      let result =
-        Result.map (fun () -> next) (Attention_file.save_file state.attention_path ~expected next)
-      in
-      let state = match result with Ok a -> { state with attention = Ok a } | Error _ -> state in
-      let state, request = saved state (Result.map ignore result) in
+      let state, result = save_attention state ~expected next in
+      let state, request = saved state result in
       apply_request ~saved ~published state request
   | Screen.Save_settlements { expected; next } ->
       let result =
@@ -259,7 +256,8 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
       let state, request = saved state (Result.map ignore result) in
       apply_request ~saved ~published state request
   | Screen.Save_config { file; expected; content; admission } ->
-      let state, request = saved state (save_config state ~file ~expected ~content ~admission) in
+      let state, result = save_config state ~file ~expected ~content ~admission in
+      let state, request = saved state result in
       apply_request ~saved ~published state request
 
 (* LOAM finishCreated: an ordinary creation offers the published plan's expected

@@ -914,17 +914,20 @@ let continuation_checks ~width_of ~directory home =
   let done_ = key ~width_of none `Enter in
   require (no_modal done_ && F.read none_path = none_bytes) "continuation-done-never-adds";
   let defer = key ~width_of none `Tab in
-  let failed = key ~width_of { defer with attention_path = directory } `Enter in
+  (* A save the writer refuses: the session no longer matches the file. *)
+  let failed = key ~width_of { defer with session = { defer.session with F.revision = "stale" } } `Enter in
   require
     (F.read none_path = none_bytes
     && (not failed.record_visible)
     && Cont.base_revision (prompt failed) = none.session.revision)
     "continuation-defer-failure-does-not-rollback-completion";
   let deferred = key ~width_of defer `Enter in
-  let attention = get (Attention_file.load_file none.attention_path) in
+  let cold_deferred = F.load none_path in
+  let attention = get (C.attention (C.initial ~config_home:directory cold_deferred)) in
   require
     (no_modal deferred
-    && F.read none_path = none_bytes
+    && B.entries cold_deferred.book = B.entries none.session.book
+    && B.plans cold_deferred.book = B.plans none.session.book
     && List.exists
          (fun (item : Att.item) ->
            item.due = Att.Due_undetermined

@@ -29,8 +29,21 @@ let unreadable_roles_checks ~width_of ~directory ~path =
   Unix.mkdir directory 0o700;
   let book_path = directory ^ "/book.sexp" in
   F.create_copy ~source:path ~target:book_path;
-  let state = C.initial ~config_home:directory (F.load book_path) in
-  F.write_new (Shell_files.config_file_path state "accounting-roles.tsv") "ROLE\twallet\tASSETS\n";
+  (* Roles are a book section: a malformed ROLE line refuses the whole book. *)
+  let bad_path = directory ^ "/bad-role.txt" in
+  F.write_new bad_path
+    (Base.String.substr_replace_first (F.read book_path) ~pattern:"\nPLAN\t"
+       ~with_:"\nROLE\twallet\tASSETS\nPLAN\t");
+  require
+    (match F.load bad_path with _ -> false | exception F.Refused _ -> true)
+    "book-with-unreadable-role-refuses";
+  (* A role text the Shell cannot parse is an error, never no roles, and the role-aware
+     screens show the refusal (an in-memory session; no file can carry it). *)
+  let loaded = F.load book_path in
+  let state =
+    C.initial ~config_home:directory
+      { loaded with sidecars = { loaded.sidecars with roles = "ROLE\twallet\tASSETS\n" } }
+  in
   require
     (match Shell_files.accounting_roles state with
     | Error why -> Base.String.is_substring why ~substring:"unknown role"
@@ -130,8 +143,8 @@ let run ~width_of ~directory ~path =
   let used_home = directory ^ "/used-locus-role" in
   Unix.mkdir used_home 0o700;
   F.create_copy ~source:path ~target:(used_home ^ "/book.sexp");
+  put_roles (used_home ^ "/book.sexp") "ROLE\twallet\tASSET\n";
   let used_state = C.initial ~config_home:used_home (F.load (used_home ^ "/book.sexp")) in
-  F.write_new (Shell_files.config_file_path used_state "accounting-roles.tsv") "ROLE\twallet\tASSET\n";
   let used_loci = C.open_route used_state W.Loci in
   require
     (List.exists

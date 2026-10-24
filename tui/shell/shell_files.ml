@@ -15,7 +15,14 @@ let config_file_path state name =
   in
   if present then nested else Filename.concat dir name
 
+(* The accounting roles are a section of the book: read them from the session in their
+   former accounting-roles.tsv text. *)
+let book_roles state =
+  let text = state.session.F.sidecars.roles in
+  if text = "" then None else Some text
+
 let read_pace_config state name =
+  if name = Locus_roles.file_name then Ok (book_roles state) else
   let path = config_file_path state name in
   try
     let exists =
@@ -61,7 +68,43 @@ let accounting_roles state =
     | Some text -> O.parse_accounting_roles text)
   |> Result.map_error (fun why -> Locus_roles.file_name ^ " " ^ why)
 
-let save_config state ~file ~expected ~content ~admission =
+(* Roles and Attention are sections of the book: saving one rewrites the book through
+   the single writer, with the same conflict and uncertainty outcomes as a record. *)
+let publish_sidecars state sidecars =
+  match F.publish ~sidecars state.session [] with
+  | F.Written session -> ({ state with session }, Ok ())
+  | F.Conflict -> (state, Error "The book changed on disk. Reload before retrying.")
+  | F.Refused_input why -> (state, Error why)
+  | F.Uncertain _ ->
+      ({ state with blocked = true }, Error "Save outcome is uncertain. Do not retry; reload to inspect.")
+
+let save_roles state ~expected ~content =
+  if book_roles state <> expected then (state, Error "Configuration changed. Reopen the editor.")
+  else
+    (* Canonical text, and no roles as no section, as the book reads them back; a
+       malformed text is passed on and refused by the book. *)
+    let content =
+      match O.parse_accounting_roles content with
+      | Ok [] -> ""
+      | Ok roles -> Locus_roles.to_string roles
+      | Error _ -> content
+    in
+    publish_sidecars state { state.session.F.sidecars with roles = content }
+
+let save_attention state ~expected next =
+  match attention state with
+  | Error why -> (state, Error why)
+  | Ok current when current <> expected -> (state, Error "Attention changed. Reload before retrying.")
+  | Ok _ -> (
+      let content = Att.to_string next in
+      match Att.of_string content with
+      | Error why -> (state, Error why)
+      | Ok decoded when decoded <> next -> (state, Error "Attention serialization would change evidence.")
+      | Ok _ ->
+          let content = if next = Att.empty then "" else content in
+          publish_sidecars state { state.session.F.sidecars with attention = content })
+
+let save_config_file state ~file ~expected ~content ~admission =
   let admitted =
     match admission with
     | Screen.Unconditional -> Ok ()
@@ -86,3 +129,7 @@ let save_config state ~file ~expected ~content ~admission =
         | Unix.Unix_error (err, _, _) -> Error (Unix.error_message err))
   in
   Result.bind admitted (fun () -> write_config_file state file ~expected content)
+
+let save_config state ~file ~expected ~content ~admission =
+  if file = Locus_roles.file_name then save_roles state ~expected ~content
+  else (state, save_config_file state ~file ~expected ~content ~admission)

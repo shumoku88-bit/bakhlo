@@ -43,7 +43,8 @@ let run ~width_of () =
   observe_multi_checks ~width_of ~directory ();
   Publication_integration_checks.run ~width_of ~directory ~path home;
   let form_ja = Form_integration_checks.run ~width_of home in
-  Attention_integration_checks.run ~width_of home;
+  (* Attention is saved in the book, which the publication checks have changed. *)
+  Attention_integration_checks.run ~width_of (C.initial ~config_home:directory (F.load path));
   let exchanged = Setup_integration_checks.run ~width_of ~directory ~path in
   let back_home = Settlement_integration_checks.run ~width_of ~directory ~path exchanged in
   Reports_integration_checks.run ~width_of ~directory back_home;

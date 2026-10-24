@@ -124,9 +124,11 @@ let run ~width_of ~directory ~path (home : C.state) =
   require
     (Balances.selected bal_page.C.screens.balances > 0 || count <= 1)
     "balances-page-down-moves-selection";
-  let roles_path = directory ^ "/accounting-roles.tsv" in
-  F.write_new roles_path "ROLE\twallet\tASSET\nROLE\tbank\tASSET\nROLE\tfood\tEXPENSE\n";
-  let bal_with_roles = C.open_route { home with session = F.load path } W.Balances in
+  (* Roles are a book section: give them to a copy, so this book stays as it was. *)
+  let roles_book = directory ^ "/with-roles.txt" in
+  F.create_copy ~source:path ~target:roles_book;
+  put_roles roles_book "ROLE\twallet\tASSET\nROLE\tbank\tASSET\nROLE\tfood\tEXPENSE\n";
+  let bal_with_roles = C.open_route { home with session = F.load roles_book } W.Balances in
   let bal_accounting = key ~width_of bal_with_roles (`ASCII 'v') in
   let wide_with_roles = R.screen ~width_of (120, 30) bal_accounting in
   (* As LOAM, flow roles appear in "All current balance support", below the stock sections. *)

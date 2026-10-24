@@ -4,7 +4,7 @@ open Interaction_check_fixture
 let safety_checks ~width_of ~directory () =
   let dir = directory ^ "/safety" in
   Unix.mkdir dir 0o700;
-  let path = dir ^ "/book.sexp" in
+  let path = dir ^ "/book.txt" in
   F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let home = C.initial ~config_home:dir (F.load path) in
   let contains rows needle =
@@ -30,16 +30,21 @@ let safety_checks ~width_of ~directory () =
   in
   require (get (Att.of_string (Att.to_string att)) = att) "attention-escape-round-trip";
   require (Att.next_id att <> "attention-2") "attention-id-does-not-collide";
-  let att_path = Attention_file.file_path ~config_home:dir path in
-  get (Attention_file.save_file att_path ~expected:Att.empty att);
+  (* Attention is a section of the book: every save goes through the single writer. *)
+  let base = C.initial ~config_home:dir (F.load path) in
+  let saved, result = Shell_files.save_attention base ~expected:Att.empty att in
+  get result;
   require
-    (Result.is_error (Attention_file.save_file att_path ~expected:Att.empty Att.empty))
+    (C.attention saved = Ok att && C.attention (C.initial ~config_home:dir (F.load path)) = Ok att)
+    "attention-saved-in-book";
+  require
+    (Result.is_error (snd (Shell_files.save_attention saved ~expected:Att.empty Att.empty)))
     "attention-stale-write-refused";
-  let att_bytes = F.read att_path in
+  let book_bytes = F.read path in
   let state = C.initial ~config_home:dir (F.load path) in
-  Unix.mkdir (att_path ^ ".lock.block") 0o700;
-  Unix.unlink (att_path ^ ".lock");
-  Unix.rename (att_path ^ ".lock.block") (att_path ^ ".lock");
+  Unix.mkdir (path ^ ".lock.block") 0o700;
+  (try Unix.unlink (path ^ ".lock") with Unix.Unix_error (Unix.ENOENT, _, _) -> ());
+  Unix.rename (path ^ ".lock.block") (path ^ ".lock");
   let adding state = key ~width_of (C.open_route state W.Attention) (`ASCII 'n') in
   let form =
     Option.get (visible_form (adding state)) |> fun f -> Ui_form.set_text f "context" "Retain me"
@@ -47,7 +52,7 @@ let safety_checks ~width_of ~directory () =
   let ready = with_visible_form (adding state) (Ui_form.set_focused form 3) in
   let refused = key ~width_of ready `Enter in
   require
-    (failed refused && refused.attention = state.attention)
+    (failed refused && C.attention refused = C.attention state)
     "attention-save-failure-preserves-state";
   (match visible_form refused with
   | Some f ->
@@ -55,31 +60,21 @@ let safety_checks ~width_of ~directory () =
         (Ui_form.get_text f "context" = Some "Retain me")
         "attention-save-failure-preserves-draft"
   | None -> require false "attention-draft-lost");
-  require (F.read att_path = att_bytes) "attention-save-failure-preserves-file";
-  Unix.rmdir (att_path ^ ".lock");
-  Unix.unlink att_path;
-  F.write_new att_path "broken\n";
-  let broken = C.initial ~config_home:dir (F.load path) in
-  require (Result.is_error broken.attention) "attention-load-failure-is-not-empty";
+  require (F.read path = book_bytes) "attention-save-failure-preserves-file";
+  Unix.rmdir (path ^ ".lock");
+  (* A broken Attention section refuses the whole book, never an empty Attention. *)
+  let broken_path = dir ^ "/broken-attention.txt" in
+  F.write_new broken_path
+    (Base.String.substr_replace_first book_bytes ~pattern:"\nEND\n"
+       ~with_:"\nITEM\tbroken\tDUE_ON\t2026-02-30\tbad date\nEND\n");
   require
-    (contains (R.screen ~width_of (120, 30) (C.open_route broken W.Attention)) "Unavailable")
-    "attention-load-failure-visible";
-  require
-    (failed (key ~width_of (with_visible_form (adding broken) (Ui_form.set_focused form 3)) `Enter))
-    "attention-invalid-load-blocks-save";
-  require (F.read att_path = "broken\n") "attention-invalid-bytes-preserved";
-  Unix.unlink att_path;
-  Unix.mkdir att_path 0o700;
-  require (Result.is_error (Attention_file.load_file att_path)) "attention-nonregular-read-refused";
-  Unix.rmdir att_path;
-  Unix.symlink (dir ^ "/missing-target") att_path;
-  require
-    (Attention_file.file_path ~config_home:dir path = att_path
-    && Result.is_error (Attention_file.load_file att_path))
-    "attention-dangling-link-refuses-without-fallback";
-  Unix.unlink att_path;
-  get (Attention_file.save_file att_path ~expected:Att.empty att);
-  require ((Shell_dispatch.reload broken).attention = Ok att) "explicit-reload-refreshes-sidecar";
+    (match F.load broken_path with _ -> false | exception F.Refused _ -> true)
+    "attention-broken-section-refuses-the-book";
+  (* Another writer's Attention appears after an explicit reload. *)
+  let other = C.initial ~config_home:dir (F.load path) in
+  let att2 = get (Att.add_item att ~id:(Att.next_id att) ~context:"other writer" ~due:Att.No_due_date) in
+  get (snd (Shell_files.save_attention other ~expected:att att2));
+  require (C.attention (Shell_dispatch.reload state) = Ok att2) "explicit-reload-refreshes-attention";
   List.iter
     (fun raw -> require (Result.is_error (Stl.of_string raw)) "settlement-invalid-input-refused")
     [
