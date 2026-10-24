@@ -30,7 +30,7 @@ type plan = {
 type locus = { id : string; label : string; help : string; hidden : bool }
 
 type anchor = {
-  last : string;
+  last : string option;
   also : string list;
   asserts : ((string * string) * Z.t) list;
 }
@@ -465,7 +465,9 @@ let fields st s =
         let n = b.head.n in
         let id, day, memo =
           match b.head.f with
+          | [ _; "-"; day ] -> fault st Bad_token n; ("-", date st n day, None)
           | [ _; id; day ] -> (token st n id, date st n day, None)
+          | [ _; "-"; day; _; _ ] -> fault st Bad_token n; ("-", date st n day, None)
           | [ _; id; day; "DESC"; m ] -> (token st n id, date st n day, Some (text st n m))
           | [ _; id; day; _; _ ] -> fault st Unknown_line n; (token st n id, date st n day, None)
           | _ -> assert false
@@ -556,7 +558,9 @@ let fields st s =
   let anchors =
     List.map
       (fun b ->
-        let last = match b.head.f with [ _; t ] -> token st b.head.n t | _ -> assert false in
+        let last =
+          match b.head.f with [ _; "-" ] -> None | [ _; t ] -> Some (token st b.head.n t) | _ -> assert false
+        in
         let also_ns =
           List.filter_map
             (fun r -> match r.f with [ "ALSO"; t ] -> Some (r.n, token st r.n t) | _ -> None)
@@ -738,7 +742,11 @@ let references st (measures, loci, roles, txs, plans, zero, opening, history, an
   let asserted = seen () in
   List.iter
     (fun a ->
-      let pointer = if known a.anchor_n a.anchor.last then Some (Hashtbl.find position a.anchor.last) else None in
+      let pointer =
+        match a.anchor.last with
+        | None -> Some (-1)
+        | Some t -> if known a.anchor_n t then Some (Hashtbl.find position t) else None
+      in
       if a.assert_ns = [] then fault st Empty_anchor a.anchor_n;
       let also = seen () in
       List.iter
@@ -874,7 +882,7 @@ let to_string t =
   List.iter (fun ((l, m), d) -> line [ "HISTORY-FROM"; l; m; d ]) t.history_from;
   List.iter
     (fun a ->
-      line [ "ANCHOR"; a.last ];
+      line [ "ANCHOR"; Option.value a.last ~default:"-" ];
       List.iter (fun tx -> line [ "ALSO"; tx ]) a.also;
       List.iter (fun ((l, m), q) -> line [ "ASSERT"; l; m; z q ]) a.asserts;
       line [ "ENDANCHOR" ])
@@ -911,6 +919,10 @@ let balance t ~locus ~measure =
   else
     match List.find_map (fun a -> Option.map (fun q -> (a, q)) (List.assoc_opt c a.asserts)) t.anchors with
     | Some (a, q) ->
-        let rec after = function [] -> [] | (tx : tx) :: rest -> if tx.id = a.last then rest else after rest in
+        let rec after = function
+          | [] -> []
+          | (tx : tx) :: rest -> if Some tx.id = a.last then rest else after rest
+        in
+        let after txs = if a.last = None then txs else after txs in
         Known (Z.add q (sum (List.filter (fun (tx : tx) -> not (List.mem tx.id a.also)) (after t.txs))))
     | None -> Unknown

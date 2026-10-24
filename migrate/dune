@@ -1,4 +1,5 @@
-; The one-time LOAM import (user decision 2026-10-21): pure, no file access.
+; The one-time LOAM import (user decision 2026-10-21) and the one-time conversion to the
+; common book.txt (user decision 2026-10-24): pure, no file access.
 
 (library
  (name bakhlo_migrate)
@@ -8,5 +9,6 @@
   bakhlo_application
   bakhlo_loam_read
   bakhlo_sexp
+  bakhlo_book_txt
   base
   zarith))

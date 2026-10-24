@@ -44,7 +44,7 @@ let%expect_test "every conformance fixture is admitted or refused exactly as lis
       | _ -> fail row "bad cases row")
     cases;
   Printf.printf "%d admitted, %d refused, %d failures\n" !accepted !refused !failures;
-  [%expect {| 3 admitted, 55 refused, 0 failures |}]
+  [%expect {| 4 admitted, 56 refused, 0 failures |}]
 
 (* Generated admissible books: balanced jpy TXs with awkward memos, optional
    Merchant and ORIGINAL, plans, and one anchor with ALSO lines after its pointer. *)
@@ -88,7 +88,7 @@ module Generated = struct
     in
     bind (int_inclusive 0 12) ~f:(fun count ->
         bind (all (List.init count tx)) ~f:(fun txs ->
-            bind (int_inclusive 0 (max 0 (count - 1))) ~f:(fun pointer ->
+            bind (int_inclusive (-1) (count - 1)) ~f:(fun pointer ->
                 bind (list_with_length bool ~length:count) ~f:(fun picks ->
                     map (int_inclusive (-5000) 5000) ~f:(fun counted ->
                         let ids = List.map (fun (tx : B.tx) -> tx.id) txs in
@@ -116,7 +116,7 @@ module Generated = struct
                           history_from = (if txs = [] then [] else [ (("wallet", "jpy"), "2027-01-01") ]);
                           anchors =
                             (if txs = [] then []
-                             else [ { last = List.nth ids pointer; also; asserts = [ (("wallet", "jpy"), Z.of_int counted) ] } ]);
+                             else [ { last = (if pointer < 0 then None else Some (List.nth ids pointer)); also; asserts = [ (("wallet", "jpy"), Z.of_int counted) ] } ]);
                           items = [ { id = "attention-1"; due = B.Due_on "2027-02-28"; context = "check\tthis" } ];
                           closes = [];
                         })))))

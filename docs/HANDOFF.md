@@ -11,9 +11,16 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 - Common format with LOAM (user decision 2026-10-24): spec `docs/COMMON_FORMAT.ja.md`,
   fixtures `test/common_format/`, reader/printer `book_txt/` (stage 3, 2026-10-25,
   [evidence](VERIFICATION.md#common-format-reader-and-printer-against-the-conformance-fixtures-2026-10-25)).
-  Next is stage 4: map `Daily_book` to `Book_txt`, convert a copy of the household and
-  compare every balance, entry and plan, then a user-approved migration. The household
-  still uses `book.sexp`.
+  Stage 4a done (2026-10-25): `migrate/daily_to_book_txt` and `./tools/book-txt trial`
+  convert a copy of the household and compare every entry, plan and current quantity
+  ([evidence](VERIFICATION.md#household-copy-converts-to-booktxt-with-every-answer-equal-2026-10-25)).
+  The household still uses `book.sexp`.
+  Stage 4b, before any migration: the TUI must read and write `book.txt` itself. Today it
+  saves through `Book_log` appends and writes roles (`accounting-roles.tsv`) and Attention
+  (`attention.loam`) as separate files; in `book.txt` they are sections of the one file,
+  rewritten whole on every save. Also reconcile two Bakhlo-only rules with the format:
+  a label's help must be non-empty in `Daily_book` (converted unlabelled loci have empty
+  help) and a Measure scale is limited to 0–9 (the format allows any non-negative scale).
 - Cut over on 2026-10-21 (user decision): the household is `../bakhlo-data`, recorded
   only by the user through `./tools/household` (TUI, then commit and push to the private
   GitHub backup).

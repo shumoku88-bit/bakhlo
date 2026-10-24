@@ -6,6 +6,28 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Household copy converts to book.txt with every answer equal (2026-10-25)
+
+- `migrate/daily_to_book_txt.ml` converts a household (`book.sexp` with appended records,
+  `accounting-roles.tsv`, `attention.loam`) to `Book_txt`. It prints and re-admits the
+  result, then compares it with the source `Daily_book`: same entries in recorded order
+  (id, date, memo, Effects, reversal, original amount, Merchant, exchange), same plans, and
+  an equal current quantity at every coordinate named by an Effect or support line
+  (`Current_quantity_query` against `Book_txt.balance`, two separate implementations).
+- `test/daily_to_book_txt_tests.ml`: a synthetic household with an empty memo, reversal,
+  original amount, Merchant, three plan endings, unlabelled and non-approved loci, a
+  non-prefix reflected cut (becomes `ANCHOR` + `ALSO`), an empty cut (`ANCHOR -`) and
+  bounded history converts with the expected text; settlements, presence with
+  coordinates, a bad roles header, a role on `suspense` and an Effect key outside an
+  exchange each refuse. Mutation: dropping ALSO in the conversion refuses with
+  `balance-differs:wallet/jpy`.
+- `./tools/book-txt trial` on the latest household copy (scratch only): conversion and
+  comparison succeeded for every entry, plan and coordinate, the three anchors became
+  pointers without ALSO, and the household files were byte-identical before and after.
+  Counts, names and timings stay in the ignored trial directory.
+- The household is still `book.sexp`; nothing was migrated. `./tools/check` and
+  `./tools/tui --self-check` passed.
+
 ## Common format reader and printer against the conformance fixtures (2026-10-25)
 
 - `book_txt/` (`Bakhlo_book_txt.Book_txt`) reads and prints the line-based `book.txt`

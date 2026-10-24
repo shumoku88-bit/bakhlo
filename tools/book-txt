@@ -1,0 +1,47 @@
+#!/bin/sh
+# Stage 4 trial of the common book.txt (docs/COMMON_FORMAT.ja.md): copy the household's
+# book, roles, Attention and settlements into scratch/, convert the copy and compare it
+# with the source. The household is only read, and must be byte-identical afterwards.
+set -eu
+umask 077
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+cd "$root"
+case "${1:-}" in
+  trial) [ "$#" -eq 1 ] || exit 2 ;;
+  *) printf '%s\n' 'Usage: tools/book-txt trial' >&2; exit 2 ;;
+esac
+source=$(CDPATH= cd -- "$root/../bakhlo-data" 2>/dev/null && pwd -P) || {
+  printf '%s\n' 'No ../bakhlo-data; nothing converted.' >&2; exit 2; }
+[ -f "$source/book.sexp" ] || { printf '%s\n' 'No household book; nothing converted.' >&2; exit 2; }
+[ ! -L "$root/scratch" ] || exit 2
+mkdir -p scratch
+run=$(mktemp -d "$root/scratch/book-txt-trial-XXXXXX")
+files='book.sexp config/accounting-roles.tsv accounting-roles.tsv attention.loam settlements.tsv'
+digest() { (cd "$source" && for f in $files; do [ ! -f "$f" ] || shasum -a 256 "$f"; done); }
+before=$(digest)
+for f in $files; do
+  if [ -f "$source/$f" ]; then mkdir -p "$(dirname "$run/copy/$f")"; cp -p "$source/$f" "$run/copy/$f"; fi
+done
+[ "$before" = "$(digest)" ] || { printf '%s\n' 'The household changed while copying; nothing converted.' >&2; exit 2; }
+build=$run/build
+mkdir "$build"
+./tools/opam exec -- dune build lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa \
+  loam_read/bakhlo_loam_read.cmxa sexp/bakhlo_sexp.cmxa book_txt/bakhlo_book_txt.cmxa \
+  migrate/bakhlo_migrate.cmxa
+cp tools/book_txt_trial.ml "$build/"
+objs() { for lib in "$@"; do printf -- '-I _build/default/%s/.%s.objs/byte -I _build/default/%s/.%s.objs/native ' \
+  "${lib%%:*}" "${lib#*:}" "${lib%%:*}" "${lib#*:}"; done; }
+# shellcheck disable=SC2046
+./tools/opam exec -- ocamlfind ocamlopt -strict-sequence -w +8+9+11 -warn-error +8+9+11 \
+  -package base,zarith,parsexp,unix -linkpkg \
+  $(objs lib:bakhlo_domain application:bakhlo_application loam_read:bakhlo_loam_read \
+    sexp:bakhlo_sexp book_txt:bakhlo_book_txt migrate:bakhlo_migrate) \
+  _build/default/lib/bakhlo_domain.cmxa _build/default/application/bakhlo_application.cmxa \
+  _build/default/loam_read/bakhlo_loam_read.cmxa _build/default/sexp/bakhlo_sexp.cmxa \
+  _build/default/book_txt/bakhlo_book_txt.cmxa _build/default/migrate/bakhlo_migrate.cmxa \
+  "$build/book_txt_trial.ml" -o "$build/book-txt-trial"
+status=0
+"$build/book-txt-trial" "$run/copy" "$run" || status=$?
+[ "$before" = "$(digest)" ] || { printf '%s\n' 'The household changed during the trial.' >&2; exit 2; }
+printf 'Household files byte-identical before and after. Copy and result: %s\n' "$run"
+exit "$status"

@@ -2,6 +2,7 @@ file	expect	line	note
 ok-full.txt	ok	-	すべての種類の行を含む
 ok-empty.txt	ok	-	何もない帳簿
 ok-anchor-delta.txt	ok	-	ANCHORより後の記帳だけを足す（ALSOなし）
+ok-anchor-start.txt	ok	-	記帳が1件もないうちに数えた（ANCHOR -）。ALSOのt2だけは含まれている
 ng-not-utf8.txt	not-utf8	7	メモにUTF-8でないバイト
 ng-crlf.txt	crlf	8	8行目が\r\nで終わる
 ng-no-final-newline.txt	no-final-newline	11	最後のENDの後に改行がない
@@ -16,6 +17,7 @@ ng-section-order.txt	section-order	3	MEASUREがLOCUSより後
 ng-section-order-tx.txt	section-order	10	TXの中でNONMERCHANTの後にEFFECT
 ng-unclosed-block.txt	unclosed-block	7	ENDTXがない
 ng-bad-token.txt	bad-token	7	IDに空白
+ng-bad-token-dash.txt	bad-token	7	TXのIDが-
 ng-bad-escape.txt	bad-escape	7	\xというエスケープ
 ng-empty-text.txt	empty-text	7	DESCの後が空
 ng-bad-date.txt	bad-date	7	2月30日

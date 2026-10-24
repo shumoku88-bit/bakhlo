@@ -60,6 +60,11 @@ type payload = {
 val of_payload : payload -> (t, string) result
 (** The same whole-book admission as {!of_string}; no defaults or repair. *)
 
+val export_payload : t -> payload
+(** The whole book as the facts {!of_payload} admits: entries in recorded order, support
+    families as retained. For an explicit converter; [of_payload (export_payload t)]
+    admits the same book. *)
+
 val entries : t -> entry list
 (** All retained entries in recorded order (oldest to newest). *)
 

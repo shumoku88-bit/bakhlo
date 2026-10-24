@@ -34,7 +34,9 @@ type plan = {
 type locus = { id : string; label : string; help : string; hidden : bool }
 
 type anchor = {
-  last : string;  (** Every TX up to this one in file order is reflected. *)
+  last : string option;
+      (** Every TX up to this one in file order is reflected; [None] ([ANCHOR -]) is a
+          count made before any TX was recorded. *)
   also : string list;  (** Later TXs that are nevertheless reflected. *)
   asserts : ((string * string) * Z.t) list;  (** (Locus, Measure) and counted amount. *)
 }
