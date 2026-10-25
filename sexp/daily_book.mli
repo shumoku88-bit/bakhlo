@@ -43,7 +43,6 @@ type payload = {
   origins : D.Effect_coordinate.t list;
   openings : Q.opening list;
   observations : Bakhlo_application.Current_quantity_groups.group list;
-  presence : Q.presence option;
   bounded : (D.Effect_coordinate.t * string) list;
 }
 (** The whole book as supplied facts, for an explicit importer. *)
@@ -123,8 +122,7 @@ val daily_pace :
     Dates use the existing real YYYY-MM-DD contract; end must be after observation.
     Caller explicitly supplies one known Measure and unique matching coordinates;
     an explicit empty pool is empty, never a fallback for missing configuration.
-    Unknown support or known-present/amount-unknown at ANY selected coordinate
-    refuses the whole calculation; no partial total or invented zero. Neither
+    Unknown support at ANY selected coordinate refuses the whole calculation; no partial total or invented zero. Neither
     catalog membership nor new-write vocabulary selects/authorizes this read pool.
     Overdue open plans still count. Internal transfers and planned inflows deduct
     zero; paid/cancelled plans and other Measures do not count. Signed changes are
@@ -159,7 +157,7 @@ val put_entry_full : t -> replace:bool -> entry -> plan:string option -> (t, str
 
 val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) result
 (** Checked append or replacement. Every new entry, and every correction that keeps
-    its Reversal link and is no opening witness under no presence evidence, is
+    its Reversal link and is no opening witness, is
     admitted with its Reversal partners only and updates balances in place; anything
     else falls back to whole-book admission. Refusals match {!Full.put_entry}. *)
 

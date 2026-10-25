@@ -16,7 +16,6 @@ let test_book_fixture =
    LOCUS\twallet\t財布\tCash\n\
    LOCUS\tbank\t銀行\tBank\n\
    LOCUS\tfood\t食費\tFood\n\
-   LOCUS\tpresent\tpresent\t\n\
    ZERO-ORIGIN\tfood\tjpy\n\
    ANCHOR\t-\n\
    ASSERT\twallet\tjpy\t74500\n\
@@ -26,19 +25,7 @@ let test_book_fixture =
    ENDANCHOR\n\
    END\n"
 
-(* The fixture's book, with presence evidence for present/eur, which book.txt cannot
-   hold, added through the payload. *)
-let fixture_book () =
-  let book = Bakhlo_sexp.Daily_txt.book test_book_fixture in
-  let coordinate : Bakhlo_domain.Effect_coordinate.t =
-    {
-      locus = Result.get_ok (Bakhlo_domain.Identifier.Locus.of_string "present");
-      measure = Result.get_ok (Bakhlo_domain.Identifier.Measure.of_string "eur");
-    }
-  in
-  get
-    (B.of_payload
-       { (B.export_payload book) with presence = Some { reflected_roots = []; coordinates = [ coordinate ] } })
+let fixture_book () = Bakhlo_sexp.Daily_txt.book test_book_fixture
 
 let test_roles = [ ("wallet", O.Asset); ("bank", O.Asset); ("food", O.Expense) ]
 
@@ -253,16 +240,16 @@ let unit_checks ~width_of () =
     (contains (String.concat "" food_detail) "Amount: 0 jpy"
     && contains (String.concat "" food_detail) "State: exact")
     "zero-amount-is-exact-not-unknown";
-  let present_env = env ~book (Ok (Some "present\teur\n")) in
-  let present_detail, _ = Balances.detail_viewport present_env stacked_geometry owner in
+  let unsupported_env = env ~book (Ok (Some "bank\teur\n")) in
+  let unsupported_detail, _ = Balances.detail_viewport unsupported_env stacked_geometry owner in
   require
-    (contains (String.concat "" present_detail) "Amount: ? eur"
-    && contains (String.concat "" present_detail) "State: present, amount unknown")
-    "presence-does-not-become-an-exact-zero";
-  let _, observe_unknown = Balances.handle present_env stacked_geometry owner (char_key 'o') in
+    (contains (String.concat "" unsupported_detail) "Amount: ? eur"
+    && contains (String.concat "" unsupported_detail) "State: unsupported")
+    "unsupported-does-not-become-an-exact-zero";
+  let _, observe_unknown = Balances.handle unsupported_env stacked_geometry owner (char_key 'o') in
   require
-    (observe_unknown = Screen.Observe { locus = "present"; measure = "eur"; amount = None })
-    "observe-keeps-presence-amount-unknown";
+    (observe_unknown = Screen.Observe { locus = "bank"; measure = "eur"; amount = None })
+    "observe-keeps-unsupported-amount-unknown";
   let huge = Z.of_string (String.make 100 '7') in
   let huge_book = get (B.observe_quantities book [ ("wallet", "jpy", Z.neg huge) ]) in
   let huge_env = env ~book:huge_book (Ok (Some "wallet\tjpy\n")) in

@@ -41,7 +41,6 @@ let book ?(zero = true) entries =
                | _ -> failwith "bad fixture coordinate");
          openings = [];
          observations = [];
-         presence = None;
          bounded = [];
        })
 

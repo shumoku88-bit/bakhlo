@@ -320,8 +320,7 @@ let%expect_test
       (Q.create ~source ~zero_origins:[ offset ]
          ~openings:[ { coordinate = usd; opening_event = F.id "e" } ]
          ~groups:
-           [ { reflected_roots = reflected; assertions = [ F.assertion wallet (Z.of_int 100) ] } ]
-         ~presence:(Some { reflected_roots = [ F.id "e" ]; coordinates = [ quiet; stale ] }))
+           [ { reflected_roots = reflected; assertions = [ F.assertion wallet (Z.of_int 100) ] } ])
   in
   let permuted =
     {
@@ -349,7 +348,7 @@ let%expect_test
             ]
             ~f:(fun (coordinate, expected, premise) ->
               match Q.query query coordinate with
-              | Ok (Exact answer) -> (
+              | Ok answer -> (
                   F.require
                     (Z.equal expected (D.Quantity.quanta (Q.quantity answer)))
                     "Measure-specific original-Effect arithmetic changed";
@@ -375,9 +374,9 @@ let%expect_test
             && Z.equal (O.sum_events [ ordinary ] stale) Z.zero)
             "touch oracle fixture";
           match (Q.query query quiet, Q.query query stale) with
-          | Ok (Known_present _), Error (Support_unknown _) -> ()
-          | _ -> failwith "Exchange changed touch-vs-delta presence"));
-  let unsupported = ok (Q.create ~source ~zero_origins:[] ~openings:[] ~groups:[] ~presence:None) in
+          | Error (Support_unknown _), Error (Support_unknown _) -> ()
+          | _ -> failwith "Exchange created support"));
+  let unsupported = ok (Q.create ~source ~zero_origins:[] ~openings:[] ~groups:[]) in
   (match (Q.query unsupported wallet, Q.query unsupported usd) with
   | Error (Support_unknown _), Error (Support_unknown _) -> ()
   | _ -> failwith "exchange activity created support");
@@ -407,7 +406,7 @@ let%expect_test
   | Error _ -> ()
   | Ok _ -> failwith "Exchange became narrower ordinary Movement");
   Stdlib.Printf.printf
-    "exact signed Measure-specific sums/cuts/opening; known-present/unknown distinct; \
+    "exact signed Measure-specific sums/cuts/opening; unknown never zero; \
      metadata/date independent, no rate or activity-derived support\n";
   [%expect
-    {| exact signed Measure-specific sums/cuts/opening; known-present/unknown distinct; metadata/date independent, no rate or activity-derived support |}]
+    {| exact signed Measure-specific sums/cuts/opening; unknown never zero; metadata/date independent, no rate or activity-derived support |}]

@@ -45,14 +45,7 @@ let self_check () =
   let zero = fixture "ZERO-ORIGIN\ta\tjpy\nZERO-ORIGIN\tb\tjpy\n" in
   let anchored = fixture "ZERO-ORIGIN\tb\tjpy\nANCHOR\t-\nASSERT\ta\tjpy\t10\nENDANCHOR\n" in
   let bounded = get (B.with_bounded_history anchored [ ("a", "jpy", "2026-09-15") ]) in
-  (* Presence evidence for c/jpy, which book.txt cannot hold, through the payload. *)
-  let present =
-    let plain = fixture "" in
-    let coordinate : D.Effect_coordinate.t =
-      { locus = id_of (D.Identifier.Locus.of_string "c"); measure = id_of (D.Identifier.Measure.of_string "jpy") }
-    in
-    get (B.of_payload { (B.export_payload plain) with presence = Some { reflected_roots = []; coordinates = [ coordinate ] } })
-  in
+  let unsupported_c = fixture "" in
   let period : I.period =
     { preset = I.Month; start_day = "2026-10-01"; end_exclusive = "2026-11-01"; label = "October" }
   in
@@ -129,7 +122,7 @@ let self_check () =
     "bounded and zero-origin coordinates render together";
 
   (* Unsupported coordinates are listed, not used to refuse the report. *)
-  let unsupported = get (compute present [ ("c", "jpy") ]) in
+  let unsupported = get (compute unsupported_c [ ("c", "jpy") ]) in
   require
     (unsupported.S.coordinates = []
     && List.exists (fun (locus, _) -> locus = "c") unsupported.S.unsupported)
@@ -301,7 +294,6 @@ let self_check () =
            openings =
              [ { Q.coordinate; opening_event }; { Q.coordinate = eur_coordinate; opening_event = eur_opening_event } ];
            observations = [];
-           presence = None;
            bounded = [];
          })
   in
@@ -574,7 +566,6 @@ let self_check () =
                    ];
                };
              ];
-           presence = None;
            bounded = [];
          })
   in

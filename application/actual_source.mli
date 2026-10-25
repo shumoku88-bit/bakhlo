@@ -80,7 +80,7 @@ val create : command -> (t, error) result
     Missing descriptions/dispositions/amounts are allowed; absent relation units remain
     unresolved, not known-none. No inference from other families.
     Text/Merchant facts do not inherit. Amount facts keep roots; only their current
-    terminal association is projected. None of these families creates quantity/presence support.
+    terminal association is projected. None of these families creates quantity support.
     All positions one-based.
     This establishes structural premises only, not factual truth/completeness.
     Error refuses this whole admitted image, not a requirement to terminate a host

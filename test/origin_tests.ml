@@ -29,16 +29,15 @@ let project ~movements ~zero_origins =
           ~effects:(D.Movement.effects movement))
   in
   let source = Fixtures.actual_source events [] in
-  match P.create ~source ~zero_origins ~openings:[] ~groups:[] ~presence:None with
+  match P.create ~source ~zero_origins ~openings:[] ~groups:[] with
   | Ok image -> image
   | Error _ -> failwith "invalid origin fixture"
 
 let exact model coordinate =
   match P.query model coordinate with
-  | Ok (Exact answer) ->
+  | Ok answer ->
       require (same_coordinate (P.coordinate answer) coordinate) "answer coordinate";
       Q.quanta (P.quantity answer)
-  | Ok (Known_present _) -> failwith "origin became weak support"
   | Error (Support_unknown _) -> failwith "supported fixture unavailable"
 
 let unknown model coordinate =

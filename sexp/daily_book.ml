@@ -71,14 +71,12 @@ type data = {
   origins : D.Effect_coordinate.t list;
   openings : Q.opening list;
   observations : A.Current_quantity_groups.group list;
-  presence : Q.presence option;
   bounded : (D.Effect_coordinate.t * string) list;
 }
 
 type t = { data : data; image : Q.t; entries_cached : entry list Lazy.t }
 
-let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~observations ~presence
-    ~bounded =
+let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~observations ~bounded =
   let entry_count = List.length entries in
   let ordered = Seq_map.of_seq (Seq.mapi (fun n e -> (n, e)) (List.to_seq entries)) in
   let position =
@@ -105,7 +103,6 @@ let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~ob
     origins;
     openings;
     observations;
-    presence;
     bounded;
   }
 
@@ -269,7 +266,6 @@ let admit ?entries_cached data =
         (fun (a : A.Current_quantity_projection.assertion) -> known_coord a.coordinate)
         g.assertions)
     data.observations;
-  Option.iter (fun (p : Q.presence) -> List.iter known_coord p.coordinates) data.presence;
   (* Explicit claims only; route conflicts are refused when a history is asked. *)
   unique
     (List.map
@@ -287,7 +283,7 @@ let admit ?entries_cached data =
     image =
       get "support-admission"
         (Q.create ~source ~zero_origins:data.origins ~openings:data.openings
-           ~groups:data.observations ~presence:data.presence);
+           ~groups:data.observations);
     entries_cached;
   }
 
@@ -299,7 +295,7 @@ let empty ~measure ~scale =
         (make_data
            ~measures:[ (measure, scale) ]
            ~labels:None ~approved:(Some []) ~entries:[] ~plans:[] ~origins:[] ~openings:[]
-           ~observations:[] ~presence:None ~bounded:[]))
+           ~observations:[] ~bounded:[]))
 
 let valid_token s =
   s <> "" && not (String.contains s '\t' || String.contains s '\n' || String.contains s '\r')
@@ -313,7 +309,6 @@ type payload = {
   origins : D.Effect_coordinate.t list;
   openings : Q.opening list;
   observations : A.Current_quantity_groups.group list;
-  presence : Q.presence option;
   bounded : (D.Effect_coordinate.t * string) list;
 }
 
@@ -322,7 +317,7 @@ let admit_payload (p : payload) =
       let data =
         make_data ~measures:p.measures ~labels:p.labels ~approved:p.approved ~entries:p.entries
           ~plans:p.plans ~origins:p.origins ~openings:p.openings ~observations:p.observations
-          ~presence:p.presence ~bounded:p.bounded
+          ~bounded:p.bounded
       in
       admit ~entries_cached:(lazy p.entries) data)
 
@@ -336,7 +331,6 @@ let export_payload (t : t) : payload =
     origins = t.data.origins;
     openings = t.data.openings;
     observations = t.data.observations;
-    presence = t.data.presence;
     bounded = t.data.bounded;
   }
 
@@ -614,10 +608,7 @@ let daily_pace t ~measure ~pool ~observed_at ~end_exclusive =
           (fun c ->
             let n =
               match Q.query t.image c with
-              | Ok (Q.Exact answer) -> D.Quantity.quanta (Q.quantity answer)
-              | Ok (Q.Known_present _) ->
-                  raise
-                    (Refused ("daily-pace-balance-amount-unknown:" ^ lstr c.locus ^ ":" ^ measure))
+              | Ok answer -> D.Quantity.quanta (Q.quantity answer)
               | Error (Q.Support_unknown _) ->
                   raise
                     (Refused ("daily-pace-balance-support-unknown:" ^ lstr c.locus ^ ":" ^ measure))
@@ -746,7 +737,7 @@ let put_entry_full t ~replace (e : entry) ~plan =
       let data =
         make_data ~measures:t.data.measures ~labels:t.data.labels ~approved:t.data.approved ~entries
           ~plans ~origins:t.data.origins ~openings:t.data.openings ~observations:t.data.observations
-          ~presence:t.data.presence ~bounded:t.data.bounded
+          ~bounded:t.data.bounded
       in
       admit ~entries_cached:(lazy entries) data)
 
@@ -817,7 +808,7 @@ exception Needs_full_admission
 
 (* A correction keeps the entry's identity and its Reversal role; it is admitted
    with its partner and updates balances in place. Changing the Reversal relation,
-   an opening witness or presence evidence is re-admitted whole. *)
+   or an opening witness is re-admitted whole. *)
 let put_entry_replace_incremental t (e : entry) =
   protect (fun () ->
       approve_effects t e.effects;
@@ -1120,13 +1111,12 @@ let pool_at_end_of_day_from ~sums t ~measure ~pool ~day =
               require (next_start >= day_number first) ("history-precedes-bounded-start:" ^ label);
               let current =
                 match Q.query t.image c with
-                | Ok (Q.Exact answer) -> (
+                | Ok answer -> (
                     match Q.premise answer with
                     | Q.Current_assertion _ -> D.Quantity.quanta (Q.quantity answer)
                     | Q.Zero_origin | Q.Opening _ ->
                         raise (Refused ("history-bounded-anchor-missing:" ^ label)))
-                | Ok (Q.Known_present _) | Error (Q.Support_unknown _) ->
-                    raise (Refused ("history-bounded-anchor-missing:" ^ label))
+                | Error (Q.Support_unknown _) -> raise (Refused ("history-bounded-anchor-missing:" ^ label))
               in
               Z.add total (Z.sub current (after c)))
         Z.zero pool)

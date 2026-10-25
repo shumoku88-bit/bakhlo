@@ -17,9 +17,10 @@ type sidecars = {
 val no_sidecars : sidecars
 
 val to_txt : Daily_book.t -> sidecars -> (T.t, string) result
-(** Refuses what [book.txt] v0 cannot represent: presence with coordinates, a malformed
-    sidecar, and anything {!T.of_string} refuses in the printed result. Effect keys are
-    kept. The value returned is the one read back from that text. *)
+(** Refuses what [book.txt] v0 cannot represent: a malformed sidecar, an entry whose TX
+    would not read back as the same entry, and anything {!T.of_string} refuses in the
+    printed result. Effect keys are kept. The value returned is the one read back from
+    that text. *)
 
 val to_text : Daily_book.t -> sidecars -> (string, string) result
 (** [T.to_string] of {!to_txt}, without printing twice: the text {!to_txt} admitted. *)

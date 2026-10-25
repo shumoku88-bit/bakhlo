@@ -106,9 +106,9 @@ let opening_day ~book ~coordinate =
    be derived from the stored group, so it never back-fills a window start. *)
 let observation_exact ~book ~coordinate =
   match Q.query (B.image book) coordinate with
-  | Ok (Q.Exact answer) -> (
+  | Ok answer -> (
       match Q.premise answer with Q.Current_assertion _ -> true | _ -> false)
-  | Ok (Q.Known_present _) | Error _ -> false
+  | Error _ -> false
 
 let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : IncExp.period) =
   if
@@ -215,7 +215,7 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
           let current_balance =
             match O.quantity_value ~book ~measure locus with
             | O.Exact quantity -> Some quantity
-            | O.Known_present | O.Unsupported -> None
+            | O.Unsupported -> None
           in
           let base support start_balance end_balance =
             (* The Net cell is the balance motion between the two boundaries: it

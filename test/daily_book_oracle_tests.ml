@@ -246,20 +246,8 @@ let apply_full book = function
   | Classify_merchant { id; disposition } -> B.Full.classify_merchant book ~id ~disposition
   | Set_locus_label { id; label; help } -> B.Full.set_locus_label book ~id ~label ?help ()
 
-(* The book's facts: its book.txt, and presence, which book.txt cannot hold. *)
-let facts_text book =
-  let p = B.export_payload book in
-  let presence =
-    match p.presence with
-    | None -> "presence: none"
-    | Some pr ->
-        Printf.sprintf "presence: reflected %s; coordinates %s"
-          (String.concat ~sep:"," (List.map pr.reflected_roots ~f:D.Identifier.Event.to_string))
-          (String.concat ~sep:","
-             (List.map pr.coordinates ~f:(fun (c : D.Effect_coordinate.t) ->
-                  D.Identifier.Locus.to_string c.locus ^ "/" ^ D.Identifier.Measure.to_string c.measure)))
-  in
-  text_of (get (B.of_payload { p with presence = None })) ^ presence
+(* The book's facts: its book.txt. *)
+let facts_text = text_of
 
 (* Everything a caller can read from a book, rendered for exact comparison. *)
 let observable book =
@@ -268,7 +256,7 @@ let observable book =
         List.map [ "jpy"; "usd" ] ~f:(fun m ->
             let answer =
               match Q.query (B.image book) (coordinate l m) with
-              | Ok (Q.Exact x) ->
+              | Ok x ->
                   let premise =
                     match Q.premise x with
                     | Q.Zero_origin -> "zero-origin"
@@ -276,7 +264,6 @@ let observable book =
                     | Q.Current_assertion _ -> "observation"
                   in
                   Printf.sprintf "%s (%s)" (Z.to_string (D.Quantity.quanta (Q.quantity x))) premise
-              | Ok (Q.Known_present _) -> "present"
               | Error (Q.Support_unknown _) -> "unknown"
             in
             Printf.sprintf "%s/%s: %s" l m answer))
@@ -362,21 +349,10 @@ let run ~start ~seed ~steps ~admitted =
 
 let%expect_test "every mutation agrees with its cold-loaded twin and its whole-book reference" =
   let admitted = Hashtbl.create (module String) in
-  (* The second fixture supplies presence evidence, which corrections cannot
-     update in place: it pins the whole-book fallback. *)
-  let plain = book_of_txt fixture in
-  let with_presence =
-    get
-      (B.of_payload
-         {
-           (B.export_payload plain) with
-           presence = Some { reflected_roots = []; coordinates = [ coordinate "bank" "usd" ] };
-         })
-  in
-  List.iter [ plain; with_presence ] ~f:(fun start ->
-      for seed = 1 to 200 do
-        run ~start ~seed ~steps:30 ~admitted
-      done);
+  let start = book_of_txt fixture in
+  for seed = 1 to 200 do
+    run ~start ~seed ~steps:30 ~admitted
+  done;
   (* Guard against a generator that only exercises refusals. *)
   List.iter
     [

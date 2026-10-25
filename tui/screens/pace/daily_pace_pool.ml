@@ -46,12 +46,12 @@ let route book ~measure locus =
   match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string measure) with
   | Ok locus, Ok measure -> (
       match Q.query (B.image book) { D.Effect_coordinate.locus; measure } with
-      | Ok (Q.Exact exact) -> (
+      | Ok exact -> (
           match Q.premise exact with
           | Q.Zero_origin -> Some 0
           | Q.Opening _ -> Some 1
           | Q.Current_assertion _ -> Some 2)
-      | Ok (Q.Known_present _) | Error _ -> None)
+      | Error _ -> None)
   | _ -> None
 
 (* LOAM lists exact current balances grouped by support (zero-origin, opening,

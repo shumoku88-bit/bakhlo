@@ -311,10 +311,10 @@ let%expect_test
     ok
       (Q.create ~source
          ~zero_origins:[ F.coordinate "wallet" ]
-         ~openings:[] ~groups:[] ~presence:None)
+         ~openings:[] ~groups:[])
   in
   (match Q.query image (F.coordinate "wallet") with
-  | Ok (Exact answer) ->
+  | Ok answer ->
       F.require
         (Z.equal
            (D.Quantity.quanta (Q.quantity answer))
@@ -420,11 +420,11 @@ let%expect_test
          (R.reversal_event (Option.value_exn (R.find_by_target (S.reversals corrected) (F.id "e"))))
     )
     "non-Exchange subject correction invented exclusion/retargeting";
-  let empty = ok (Q.create ~source ~zero_origins:[] ~openings:[] ~groups:[] ~presence:None) in
+  let empty = ok (Q.create ~source ~zero_origins:[] ~openings:[] ~groups:[]) in
   F.require
     (Result.is_error (Q.query empty (F.coordinate "wallet")))
     "inverse pair manufactured zero support";
-  let build roots presence_roots =
+  let build roots =
     ok
       (Q.create ~source
          ~zero_origins:[ F.coordinate "offset" ]
@@ -435,18 +435,12 @@ let%expect_test
                reflected_roots = List.map roots ~f:F.id;
                assertions = [ F.assertion (F.coordinate "wallet") (Z.of_int 10) ];
              };
-           ]
-         ~presence:
-           (Some
-              {
-                reflected_roots = List.map presence_roots ~f:F.id;
-                coordinates = List.map [ "quiet"; "stale"; "touch" ] ~f:F.coordinate;
-              }))
+           ])
   in
-  let first = build [ "e" ] [] and both = build [ "r"; "e" ] [ "e"; "r" ] in
+  let first = build [ "e" ] and both = build [ "r"; "e" ] in
   let exact image coordinate expected =
     match Q.query image coordinate with
-    | Ok (Exact answer) ->
+    | Ok answer ->
         F.require
           (Z.equal (D.Quantity.quanta (Q.quantity answer)) (Z.of_int expected))
           "four-support quantity drift"
@@ -461,17 +455,9 @@ let%expect_test
     && O.touches_events [ target; reversal ] (F.coordinate "touch")
     && Z.equal (O.sum_events [ target; reversal ] (F.coordinate "touch")) Z.zero)
     "original Effect touch oracle";
-  (match
-     ( Q.query first (F.coordinate "quiet"),
-       Q.query first (F.coordinate "touch"),
-       Q.query both (F.coordinate "touch"),
-       Q.query both (F.coordinate "stale") )
-   with
-  | Ok (Known_present _), Error _, Ok (Known_present _), Error _ -> ()
-  | _ -> failwith "cancelling Reversal activity ceased to invalidate presence");
   exact first (F.coordinate "wallet") 111;
   Stdlib.Printf.printf
-    "unknown at net zero; origin 5, opening 0, one-endpoint assertion 111/both 10; pair touches \
-     invalidate presence independently of zero; old image immutable\n";
+    "unknown at net zero; origin 5, opening 0, one-endpoint assertion 111/both 10; old image \
+     immutable\n";
   [%expect
-    {| unknown at net zero; origin 5, opening 0, one-endpoint assertion 111/both 10; pair touches invalidate presence independently of zero; old image immutable |}]
+    {| unknown at net zero; origin 5, opening 0, one-endpoint assertion 111/both 10; old image immutable |}]

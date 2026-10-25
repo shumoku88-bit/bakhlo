@@ -69,8 +69,7 @@ let quantity book locus measure =
       (Result.map_error (D.Identifier.Measure.of_string measure) ~f:(fun _ -> "measure"))
   in
   match Q.query (B.image book) { D.Effect_coordinate.locus; measure } with
-  | Ok (Q.Exact x) -> Z.to_string (D.Quantity.quanta (Q.quantity x))
-  | Ok (Q.Known_present _) -> "presence"
+  | Ok x -> Z.to_string (D.Quantity.quanta (Q.quantity x))
   | Error (Q.Support_unknown _) -> "unknown"
 
 let%expect_test "daily replacement and plan payment use current entries, preserving support" =
@@ -717,15 +716,6 @@ let%expect_test "daily pace never substitutes a partial balance or uses mixed du
     (B.daily_pace base ~measure:"jpy"
        ~pool:[ pace_coordinate "wallet" "jpy"; pace_coordinate "wallet" "eur" ]
        ~observed_at:"2026-10-07" ~end_exclusive:"2026-10-14");
-  let presence =
-    get
-      (B.of_payload
-         {
-           (B.export_payload base) with
-           presence = Some { reflected_roots = []; coordinates = [ pace_coordinate "bank" "jpy" ] };
-         })
-  in
-  attempt "nonzero unknown amount" (pace presence ~loci:[ "wallet"; "bank" ] ());
   print_pace (get (pace base ~loci:[] ()));
   let no_policy = get (B.of_payload { (B.export_payload base) with approved = None }) in
   print_pace (get (pace no_policy ()));
@@ -737,7 +727,6 @@ foreign unsupported: daily-pace-balance-support-unknown:wallet:eur
 duplicate: daily-pace-duplicate-coordinate
 unknown measure: unknown-measure
 mixed: daily-pace-pool-measure-mismatch
-nonzero unknown amount: daily-pace-balance-amount-unknown:bank:jpy
 7 0 0 0 0
 7 1000 200 800 114
 catalog is not zero: daily-pace-balance-support-unknown:new:jpy|}]

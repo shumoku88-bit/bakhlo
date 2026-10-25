@@ -9,12 +9,12 @@ module Panel = Ui_panel
 
 let support_text book coordinate =
   match Q.query (B.image book) coordinate with
-  | Ok (Q.Exact exact) -> (
+  | Ok exact -> (
       match Q.premise exact with
       | Q.Zero_origin -> "recorded history"
       | Q.Opening _ -> "opening balance"
       | Q.Current_assertion _ -> "observed")
-  | Ok (Q.Known_present _) | Error _ -> "unsupported"
+  | Error _ -> "unsupported"
 
 let short_date date =
   if String.length date > 5 then String.sub date 5 (String.length date - 5) else date

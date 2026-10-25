@@ -29,8 +29,9 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   import comparison (both UIs now open copies of the household `book.txt`,
   `tools/compare`) and the S-expression book format
   ([evidence](VERIFICATION.md#the-s-expression-book-format-is-removed-core-a-2026-10-25)).
-  Still LOAM-derived and unreachable from `book.txt`: presence evidence in `Daily_book`
-  and the application layer.
+  Presence evidence (nonzero, amount unknown) was removed the same day: `book.txt` cannot
+  hold it and the household never used it. Next in A: the queries still run through the
+  LOAM-derived correction/lineage layer that `book.txt` (current state only) no longer needs.
 - Cut over on 2026-10-21 (user decision): the household is `../bakhlo-data`, recorded
   only by the user through `./tools/household` (TUI, then commit and push to the private
   GitHub backup).
@@ -117,29 +118,14 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   correction after reopening match cold reload and `Full`; unsupported stays unknown.
   Core/TUI checks and the four-size PTY smoke passed. No household access or paired
   comparison in this slice; the underlying `Daily_book.image` source lag remains.
-- Comparison capture now derives `config/accounting-roles.tsv` from the required
-  household `AccountingRole` section, preserving raw config and trial overrides.
-  Synthetic refresh and TUI proved payer-role replacement through Preview and cold
-  reopen after copy cleanup. Missing/malformed roles refuse without changing CURRENT.
-  Latest-data paired comparison was not executed; household data was not accessed.
-- Storage (rebuilt 2026-10-20): one book file = single-file S-expression snapshot +
-  appended `Book_log` records. Every `Daily_book` mutation is in place except
-  corrections that change a Reversal link or touch an opening/presence witness. At
-  ~110k synthetic entries: save 0.6 ms, record/refund/exchange/correction <0.01 ms
-  (2026-10-23, was ~4.8 ms), observation 6 ms, startup 2.2 s (deferred by the user). Details:
-  [long-term storage study](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/LONG_TERM_STORAGE_STUDY.ja.md) stages 5–9.
-- The 2026-10-20 storage work was checked on the latest real-data copy: Core identical
-  to pre-today code; Balances and Daily Pace match LOAM; trial saves in TUI (record,
-  correction, date correction, merchant, reversal) and 200-record exit compaction
-  (keeping byte-identical `.prev`, `records = 0`, matching cold reload and `Full`)
-  verified on an isolated real-data copy (5.90 ms/save incl. `fsync`). For entries
-  whose Loci are no longer in `approved-loci`, both LOAM and Bakhlo refuse `c`
-  (including memo-only) and reversal. Bakhlo now has dedicated metadata operations
-  for `d` (date-only, `correct-entry-date` log record) and `m` (merchant), preserving
-  identity, Effects, links, original amount and plans without reapproving historical
-  Loci (<0.01 ms each at ~110k synthetic entries since [2026-10-23](VERIFICATION.md#entry-corrections-without-rebuilding-the-entry-list-2026-10-23)). On the latest real-data copy at
-  120×36 and 80×24 both UIs reach the same `d`/`m` Previews; Bakhlo saves on an
-  isolated copy matched cold reload and `Full`.
+- Storage (2026-10-25): one `book.txt`, rewritten whole on every save; the session keeps
+  the admitted book, so a save checks and prints only what it changes. Every
+  `Daily_book` mutation is in place except corrections that change a Reversal link or
+  touch an opening witness. Synthetic save 48 ms at 1,000 entries, 90 ms at 45,000,
+  164 ms at 109,500 (over the target there); cold load 168 ms at 10,950 and 1.9 s at
+  109,500 (deferred by the user). Entries whose Loci are hidden keep dedicated date
+  (`d`) and Merchant (`m`) operations; correction and reversal refuse, as in LOAM.
+  Earlier storage designs and their checks: VERIFICATION entries up to 2026-10-25.
 - TUI terminal: Notty since 2026-10-21 (user decision; Bonsai_term and its OxCaml switch
   removed, Bonsai is explored outside Bakhlo). The TUI is part of the main Dune build, so
   `./tools/check` and the single CI workflow cover it. The user ran it on a household copy

@@ -171,11 +171,7 @@ let query_pool_balance book coords =
     | [] -> Ok acc
     | (c : D.Effect_coordinate.t) :: rest -> (
         match Q.query (B.image book) c with
-        | Ok (Q.Exact answer) -> sum (Z.add acc (D.Quantity.quanta (Q.quantity answer))) rest
-        | Ok (Q.Known_present _) ->
-            Error
-              (format_pace_error
-                 ("daily-pace-balance-amount-unknown:" ^ A.lstr c.locus ^ ":" ^ A.mstr c.measure))
+        | Ok answer -> sum (Z.add acc (D.Quantity.quanta (Q.quantity answer))) rest
         | Error (Q.Support_unknown _) ->
             Error
               (format_pace_error

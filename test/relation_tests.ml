@@ -350,7 +350,7 @@ let%expect_test
 
 let%expect_test
     "relation units do not alter Exchange/Reversal/date metadata or independently supplied \
-     quantity/presence" =
+     quantity" =
   let e =
     F.observation ~id:(F.id "e")
       ~effects:
@@ -426,25 +426,19 @@ let%expect_test
                reflected_roots = [ F.id "e" ];
                assertions = [ F.assertion (F.coordinate "wallet") (Z.of_int 10) ];
              };
-           ]
-         ~presence:
-           (Some
-              { reflected_roots = []; coordinates = [ F.coordinate "quiet"; F.coordinate "food" ] }))
+           ])
   in
   let image = build source and baseline = build without in
   List.iter
     [ F.coordinate "offset"; F.coordinate ~unit:"usd" "wallet"; F.coordinate "wallet" ]
     ~f:(fun coordinate ->
       match (Q.query image coordinate, Q.query baseline coordinate) with
-      | Ok (Exact a), Ok (Exact b) ->
+      | Ok a, Ok b ->
           F.require
             (D.Quantity.equal (Q.quantity a) (Q.quantity b))
             "relation changed exact support/delta"
       | _ -> failwith "exact support lost");
-  (match (Q.query image (F.coordinate "quiet"), Q.query image (F.coordinate "food")) with
-  | Ok (Known_present _), Error _ -> ()
-  | _ -> failwith "relation touched presence");
-  let empty = ok (Q.create ~source ~zero_origins:[] ~openings:[] ~groups:[] ~presence:None) in
+  let empty = ok (Q.create ~source ~zero_origins:[] ~openings:[] ~groups:[]) in
   F.require
     (Result.is_error (Q.query empty (F.coordinate "wallet")))
     "relation inferred zero/support at cancelled physical quantity";

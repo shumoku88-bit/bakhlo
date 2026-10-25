@@ -9,7 +9,7 @@ let tr = Ui_text.tr
 
 include Ui_render
 
-type quantity_value = Unsupported | Known_present | Exact of Z.t
+type quantity_value = Unsupported | Exact of Z.t
 
 let quantity_value ~book ~measure locus =
   match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string measure) with
@@ -17,14 +17,12 @@ let quantity_value ~book ~measure locus =
       let coordinate : D.Effect_coordinate.t = { locus; measure } in
       match Q.query (B.image book) coordinate with
       | Error (Q.Support_unknown _) -> Unsupported
-      | Ok (Q.Known_present _) -> Known_present
-      | Ok (Q.Exact e) -> Exact (D.Quantity.quanta (Q.quantity e)))
+      | Ok e -> Exact (D.Quantity.quanta (Q.quantity e)))
   | Error _, _ | _, Error _ -> Unsupported
 
 let quantity ~book ~measure locus =
   match quantity_value ~book ~measure locus with
   | Unsupported -> tr "Unknown"
-  | Known_present -> tr "Present; amount unknown"
   | Exact n -> B.format book measure n
 
 type accounting_role = Asset | Liability | Equity | Income | Expense
@@ -131,9 +129,8 @@ let compute_represented_coordinates book =
       (Bakhlo_application.Current_quantity_groups.groups (Q.source_groups image))
   in
   let from_openings = List.map (fun (o : Q.opening) -> o.coordinate) (Q.openings image) in
-  let from_presence = match Q.presence image with None -> [] | Some p -> p.coordinates in
   List.sort_uniq D.Effect_coordinate.compare
-    (from_events @ Q.zero_origins image @ from_openings @ from_groups @ from_presence)
+    (from_events @ Q.zero_origins image @ from_openings @ from_groups)
 
 let represented_coordinates book =
   let image = B.image book in
@@ -176,7 +173,7 @@ let format_money book measure q =
 (* LOAM Role Balance presentation (Tui/RoleBalances.lean): per-Measure stock
    sections of exact rows, then the evidence details shared by every Measure.
    Each represented coordinate is exactly one of: exact with a role, exact with
-   its role unresolved, known present, or unsupported; nothing is coerced to 0. *)
+   its role unresolved, or unsupported; nothing is coerced to 0. *)
 let role_balance_items ~book ~roles =
   let rows =
     List.map
@@ -188,15 +185,13 @@ let role_balance_items ~book ~roles =
   let account (locus, measure, role, value) = Account_row { locus; measure; role; value } in
   let has_role pred (_, _, role, _) = match role with Some r -> pred r | None -> false in
   let exact (_, _, _, value) = match value with Exact _ -> true | _ -> false in
-  let present (_, _, _, value) = value = Known_present in
   let unsupported (_, _, _, value) = value = Unsupported in
   let unresolved (_, _, role, _) = role = None in
   let is_flow = function Income | Expense -> true | _ -> false in
   let in_measure m (_, measure, _, _) = measure = m in
-  (* Role gaps in LOAM's order: exact, then known present, then unsupported. *)
+  (* Role gaps in LOAM's order: exact, then unsupported. *)
   let gaps =
     List.filter (fun r -> unresolved r && exact r) rows
-    @ List.filter (fun r -> unresolved r && present r) rows
     @ List.filter (fun r -> unresolved r && unsupported r) rows
   in
   let sum =
@@ -220,12 +215,11 @@ let role_balance_items ~book ~roles =
   in
   let measure_items m =
     let here = List.filter (in_measure m) rows in
-    let stock_present = List.filter (fun r -> present r && has_role is_balance_sheet_role r) here in
     let stock_unsupported =
       List.filter (fun r -> unsupported r && has_role is_balance_sheet_role r) here
     in
     let worth_blocked =
-      List.exists (fun r -> (present r || unsupported r) && has_role is_net_worth_role r) here
+      List.exists (fun r -> unsupported r && has_role is_net_worth_role r) here
     in
     let gaps_here = List.filter (in_measure m) gaps in
     let section role =
@@ -244,9 +238,8 @@ let role_balance_items ~book ~roles =
     @ [
         Blank_row;
         Balance_sheet_status
-          { measure = m; complete = stock_present = [] && stock_unsupported = [] && gaps_here = [] };
+          { measure = m; complete = stock_unsupported = [] && gaps_here = [] };
       ]
-    @ listed "Known stock-role balances whose exact amount is unknown:" stock_present
     @ listed "Known stock-role coordinates without current balance support:" stock_unsupported
     @ listed "Coordinates whose AccountingRole is unresolved:" gaps_here
     @ [
@@ -265,17 +258,14 @@ let role_balance_items ~book ~roles =
   in
   let count p = List.length (List.filter p rows) and total = List.length rows in
   let supported = count exact and classified = count (fun r -> not (unresolved r)) in
-  let bs_present = List.filter (fun r -> present r && has_role is_balance_sheet_role r) rows in
   let bs_unsupported =
     List.filter (fun r -> unsupported r && has_role is_balance_sheet_role r) rows
   in
-  let nw_present = List.filter (fun r -> present r && has_role is_net_worth_role r) rows in
   let nw_unsupported = List.filter (fun r -> unsupported r && has_role is_net_worth_role r) rows in
   let flow_gaps = count (fun r -> unsupported r && has_role is_flow r) in
   let status ok = if ok then "ANSWERABLE" else "BLOCKED" in
-  let blockers present unsupported =
-    Printf.sprintf "(%d amount-unknown, %d unsupported, %d role blockers)" (List.length present)
-      (List.length unsupported) (List.length gaps)
+  let blockers unsupported =
+    Printf.sprintf "(%d unsupported, %d role blockers)" (List.length unsupported) (List.length gaps)
   in
   let coordinate (locus, measure, _, _) = locus ^ " / " ^ measure in
   let text lines = List.map (fun line -> Header_row line) lines in
@@ -287,9 +277,6 @@ let role_balance_items ~book ~roles =
   in
   let unsupported_line ((locus, measure, _, _) as r) =
     "  ? " ^ token_pad locus ^ " balance unsupported  " ^ measure ^ "  " ^ role_name r
-  in
-  let present_line ((locus, measure, _, _) as r) =
-    "  ? " ^ token_pad locus ^ " amount unknown, known present  " ^ measure ^ "  " ^ role_name r
   in
   let supported_line ((locus, measure, _, value) as r) =
     "  " ^ token_pad locus
@@ -308,13 +295,11 @@ let role_balance_items ~book ~roles =
          Printf.sprintf "  Exact current quantity support  %d / %d coordinates" supported total;
          Printf.sprintf "  AccountingRole coverage  %d / %d coordinates" classified total;
          "  Balance Sheet            "
-         ^ status (bs_present = [] && bs_unsupported = [] && gaps = [])
-         ^ "  "
-         ^ blockers bs_present bs_unsupported;
+         ^ status (bs_unsupported = [] && gaps = [])
+         ^ "  " ^ blockers bs_unsupported;
          "  Net Worth                "
-         ^ status (nw_present = [] && nw_unsupported = [] && gaps = [])
-         ^ "  "
-         ^ blockers nw_present nw_unsupported;
+         ^ status (nw_unsupported = [] && gaps = [])
+         ^ "  " ^ blockers nw_unsupported;
          Printf.sprintf "  All current balances     %d / %d current quantities supported" supported
            total;
          Printf.sprintf
@@ -324,12 +309,7 @@ let role_balance_items ~book ~roles =
          "";
          "Next evidence targets for Balance Sheet / Net Worth:";
        ]
-      @ List.map
-          (fun r ->
-            "  [amount] " ^ coordinate r ^ "  " ^ role_name r
-            ^ "  known present, exact amount unknown")
-          bs_present
-      @ (if bs_unsupported = [] && bs_present = [] then
+      @ (if bs_unsupported = [] then
            [ "  No classified stock-role quantity blockers." ]
          else List.map (fun r -> "  [quantity] " ^ coordinate r ^ "  " ^ role_name r) bs_unsupported)
       @ (if gaps = [] then [ "  No unresolved AccountingRole blockers." ]
@@ -340,7 +320,6 @@ let role_balance_items ~book ~roles =
                ^ if exact r then "quantity known" else "quantity also unsupported")
              gaps)
       @ [
-          "Known-present evidence proves existence, not an arithmetic amount.";
           "For an unsupported quantity blocker, explicit support can be zero-origin, opening, or \
            an exact current anchor.";
           "Add zero-origin only when retained history really begins at zero; never add it just to \
@@ -350,7 +329,6 @@ let role_balance_items ~book ~roles =
         ])
   in
   let classified_rows = List.filter (fun r -> exact r && not (unresolved r)) rows |> by_measure in
-  let classified_present = List.filter (fun r -> present r && not (unresolved r)) rows in
   let classified_unsupported = List.filter (fun r -> unsupported r && not (unresolved r)) rows in
   let all_support =
     text
@@ -359,17 +337,13 @@ let role_balance_items ~book ~roles =
          "Each current item is shown separately; role totals are not substituted for individual \
           rows.";
          ("Exact quantity support: "
-         ^ if count present = 0 && count unsupported = 0 then "COMPLETE" else "INCOMPLETE");
+         ^ if count unsupported = 0 then "COMPLETE" else "INCOMPLETE");
          ("Role classification: " ^ if gaps = [] then "COMPLETE" else "INCOMPLETE");
          "";
        ]
       @ (if classified_rows = [] then [ "No classified supported rows." ]
          else List.map supported_line classified_rows)
       @ (if gaps = [] then [] else "" :: "Unresolved role frontier:" :: List.map gap_line gaps)
-      @ (if classified_present = [] then []
-         else
-           "" :: "Known-present balances with unknown exact amount:"
-           :: List.map present_line classified_present)
       @
       if classified_unsupported = [] then []
       else
@@ -404,14 +378,12 @@ let balance_item_line ?(width_of = String.length) ?(width = max_int) ~book item 
         | Exact n ->
             (if Z.sign n > 0 then "+" else "") ^ format_money book measure n ^ " " ^ measure
         | Unsupported -> "? unsupported " ^ measure
-        | Known_present -> "? amount unknown, known present " ^ measure
       in
       (* Narrow fallback names the preserved state; exact digits are never truncated. *)
       let short_val =
         match value with
         | Exact _ -> "see details " ^ measure
         | Unsupported -> "? unsupported " ^ measure
-        | Known_present -> "? known present " ^ measure
       in
       let room = max 0 width in
       let val_w = width_of full_val in
@@ -461,8 +433,6 @@ let balance_item_detail ~book item =
             tr
               "Unsupported: No current quantity support is justified for this coordinate. Do not \
                infer zero."
-        | Known_present ->
-            tr "Known present: Presence is known; the exact current amount is unknown, not zero."
       in
       [
         (if label <> "" then Printf.sprintf "%s [%s]" label locus else locus);
@@ -492,7 +462,7 @@ let balance_item_detail ~book item =
         Printf.sprintf "Known exact sum: %s%s %s" sign_str (B.format book measure subtotal) measure;
         "";
         tr "Subtotals sum only exact quantities from supported rows.";
-        tr "Unsupported or known-present rows are not substituted with zero.";
+        tr "Unsupported rows are not substituted with zero.";
       ]
   | Balance_sheet_status { measure; complete } ->
       [
@@ -506,8 +476,8 @@ let balance_item_detail ~book item =
               and explicit roles."
          else
            tr
-             "Incomplete: One or more stock-role coordinates are unsupported, amount-unknown, or \
-              have unresolved roles.");
+             "Incomplete: One or more stock-role coordinates are unsupported or have unresolved \
+              roles.");
       ]
   | Net_worth_row { measure; known_subtotal; complete } ->
       let sign_str = if Z.sign known_subtotal > 0 then "+" else "" in

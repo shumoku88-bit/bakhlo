@@ -52,12 +52,11 @@ let balance_display_checks ~width_of ~directory () =
         (fun width ->
           require (width_of (line ~width (item value)) <= width) "balance-row-fits-real-width")
         [ 0; 1; 8; 26; 42; 80 ])
-    [ O.Exact huge; O.Exact (Z.of_int (-74500)); O.Unsupported; O.Known_present ];
+    [ O.Exact huge; O.Exact (Z.of_int (-74500)); O.Unsupported ];
   require
     (has (line ~width:26 (item O.Unsupported)) "unsupported"
-    && has (line ~width:26 (item O.Known_present)) "present"
     && has (line ~width:26 (item (O.Exact Z.zero))) "0 jpy")
-    "balance-unknown-presence-zero-distinct";
+    "balance-unknown-zero-distinct";
   let view = C.open_route home W.Balances in
   let coordinate state =
     match List.nth_opt (balance_items state) (Balances.selected state.C.screens.balances) with
@@ -101,7 +100,7 @@ let balance_display_checks ~width_of ~directory () =
       ( "  Exact current quantity support  2 / 2 coordinates",
         "accounting-answerability-exact-support" );
       ("  AccountingRole coverage  0 / 2 coordinates", "accounting-answerability-role-coverage");
-      ( "  Balance Sheet            BLOCKED  (0 amount-unknown, 0 unsupported, 2 role blockers)",
+      ( "  Balance Sheet            BLOCKED  (0 unsupported, 2 role blockers)",
         "accounting-answerability-balance-sheet-blocked" );
       ("  [role] wallet / jpy  quantity known", "accounting-next-evidence-role-target");
       ("Qualified Net Worth: UNKNOWN", "accounting-qualified-net-worth-unknown");
@@ -320,7 +319,7 @@ let b2_check_qty book locus measure =
   let locus = C.get_id (D.Identifier.Locus.of_string locus) in
   let measure = C.get_id (D.Identifier.Measure.of_string measure) in
   match Q.query (B.image book) { D.Effect_coordinate.locus; measure } with
-  | Ok (Q.Exact x) -> Z.to_string (D.Quantity.quanta (Q.quantity x))
+  | Ok x -> Z.to_string (D.Quantity.quanta (Q.quantity x))
   | _ -> "unexpected"
 
 let b2_book_fixture =

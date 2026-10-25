@@ -67,7 +67,7 @@ val create : events:Bakhlo_domain.Event_memory.t -> facts:fact list -> (t, error
     source Effect supplies it. Source/order/payloads preserved, positions one-based.
     No physical balance/nonzero/date/correction admission here; Actual_source owns it.
     Source need not be a current terminal/root; no correction/Reversal inheritance,
-    retargeting, implicit fulfillment or quantity/presence support. *)
+    retargeting, implicit fulfillment or quantity support. *)
 
 val source_events : t -> Bakhlo_domain.Event_memory.t
 val facts : t -> fact list

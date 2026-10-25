@@ -5,7 +5,7 @@ type fact = {
 }
 (** One narrow effect-selected cross-Measure exchange claim per retained Event.
     Not a generic Event kind, FX rate, valuation, fee/basis/home-currency semantics
-    or quantity/presence support. Keys are Event-local, never coordinates/positions. *)
+    or quantity support. Keys are Event-local, never coordinates/positions. *)
 
 type t
 type side = Source | Destination

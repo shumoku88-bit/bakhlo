@@ -27,8 +27,7 @@ let quantity book locus measure =
     }
   in
   match Q.query (B.image book) coordinate with
-  | Ok (Q.Exact x) -> Z.to_string (D.Quantity.quanta (Q.quantity x))
-  | Ok (Q.Known_present _) -> "present"
+  | Ok x -> Z.to_string (D.Quantity.quanta (Q.quantity x))
   | Error _ -> "unknown"
 
 let self_check () =

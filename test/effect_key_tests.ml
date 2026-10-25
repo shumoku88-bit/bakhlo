@@ -158,22 +158,18 @@ let%expect_test
     ]
   in
   let openings : Q.opening list = [ { coordinate = opening_c; opening_event = F.id "b" } ] in
-  let presence : Q.presence =
-    { reflected_roots = [ F.id "a" ]; coordinates = [ F.coordinate "quiet"; stale ] }
-  in
   let image events =
     ok
-      (Q.create ~source:(F.actual_source events edges) ~zero_origins:[ offset ] ~openings ~groups
-         ~presence:(Some presence))
+      (Q.create ~source:(F.actual_source events edges) ~zero_origins:[ offset ] ~openings ~groups)
   in
   let keyed = image events and anonymous = image unkeyed in
   List.iter [ wallet; offset; opening_c ] ~f:(fun c ->
       match (Q.query keyed c, Q.query anonymous c) with
-      | Ok (Exact a), Ok (Exact b) ->
+      | Ok a, Ok b ->
           F.require (D.Quantity.equal (Q.quantity a) (Q.quantity b)) "keys affected arithmetic"
       | _ -> failwith "exact support changed");
   (match Q.query keyed wallet with
-  | Ok (Exact a) -> (
+  | Ok a -> (
       match Q.premise a with
       | Current_assertion p ->
           F.require
@@ -181,16 +177,6 @@ let%expect_test
             "independent cut"
       | Zero_origin | Opening _ -> failwith "premise changed")
   | _ -> failwith "anchor unavailable");
-  (match
-     ( Q.query keyed (F.coordinate "quiet"),
-       Q.query anonymous (F.coordinate "quiet"),
-       Q.query keyed stale,
-       Q.query anonymous stale )
-   with
-  | Ok (Known_present _), Ok (Known_present _), Error (Support_unknown _), Error (Support_unknown _)
-    ->
-      ()
-  | _ -> failwith "key presence affected touch/support");
   let retained =
     D.Event_memory.events
       (Bakhlo_application.Correction_frontier.retained_events (S.frontier (Q.source keyed)))
@@ -199,6 +185,6 @@ let%expect_test
     (List.equal F.equal_event events retained)
     "superseded/current keys retained, not retargeted";
   Stdlib.Printf.printf
-    "same key in different Events; all source keys retained; quantities and presence unchanged\n";
+    "same key in different Events; all source keys retained; quantities unchanged\n";
   [%expect
-    {| same key in different Events; all source keys retained; quantities and presence unchanged |}]
+    {| same key in different Events; all source keys retained; quantities unchanged |}]

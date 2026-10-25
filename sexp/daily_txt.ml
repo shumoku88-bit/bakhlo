@@ -237,7 +237,6 @@ let loci_of (p : B.payload) ~used =
 let convert book sidecars =
   try
     let p = B.export_payload book in
-    (match p.presence with Some pr when pr.coordinates <> [] -> refuse "presence" | _ -> ());
     let txs = List.map tx_of p.entries in
     let ids = Array.of_list (List.map (fun (tx : T.tx) -> tx.id) txs) in
     let position = Hashtbl.create 1024 in
@@ -385,7 +384,6 @@ let of_txt (t : T.t) =
         origins = List.map coordinate t.zero_origins;
         openings = List.map (fun (c, tx) : Q.opening -> { coordinate = coordinate c; opening_event = event_id tx }) t.openings;
         observations = List.map group t.anchors;
-        presence = None;
         bounded = List.map (fun (c, day) -> (coordinate c, day)) t.history_from;
       }
     in

@@ -196,8 +196,7 @@ let%expect_test "Merchant source connection preserves four supports, history and
     ok
       (Q.create ~source ~zero_origins:[ offset ]
          ~openings:[ { coordinate = opening; opening_event = F.id "b" } ]
-         ~groups:[ { reflected_roots = [ F.id "a" ]; assertions = [ F.assertion wallet huge ] } ]
-         ~presence:(Some { reflected_roots = [ F.id "a" ]; coordinates = [ quiet; stale ] }))
+         ~groups:[ { reflected_roots = [ F.id "a" ]; assertions = [ F.assertion wallet huge ] } ])
   in
   let dated =
     {
@@ -248,7 +247,7 @@ let%expect_test "Merchant source connection preserves four supports, history and
         ]
         ~f:(fun (coordinate, expected, premise) ->
           match Q.query query coordinate with
-          | Ok (Exact answer) -> (
+          | Ok answer -> (
               F.require
                 (Z.equal expected (D.Quantity.quanta (Q.quantity answer)))
                 "Merchant entered arithmetic";
@@ -274,11 +273,8 @@ let%expect_test "Merchant source connection preserves four supports, history and
         && Z.equal (O.sum_events unreflected stale) Z.zero)
         "touch oracle fixture";
       match (Q.query query quiet, Q.query query stale, Q.query query (F.coordinate "missing")) with
-      | Ok (Known_present present), Error (Support_unknown _), Error (Support_unknown _) ->
-          F.require
-            (F.same_coordinate quiet (Q.present_coordinate present))
-            "presence coordinate changed"
-      | _ -> failwith "classification became exact/presence/unknown support");
+      | Error (Support_unknown _), Error (Support_unknown _), Error (Support_unknown _) -> ()
+      | _ -> failwith "classification created support");
   let retained = S.merchants (Q.source (image source)) in
   F.require
     (List.equal equal_fact facts (M.facts retained)

@@ -6,6 +6,24 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Presence evidence is removed (core A, 2026-10-25)
+
+- Presence ("nonzero, exact amount unknown", from LOAM) could only come from
+  S-expression books: `book.txt` cannot hold it, the migration refused it and the
+  household never had any. Removed from `Current_quantity_query` (the presence type,
+  its three errors and the `Known_present` answer; `query` now returns the exact answer
+  or `Support_unknown`), from `Daily_book` (book data and payload, Daily Pace's
+  `daily-pace-balance-amount-unknown`) and from the TUI (Balances state and detail,
+  Role Balances lists and the Answerability Map's always-zero `amount-unknown` count,
+  Liquidity, Daily Pace, Stock-Flow).
+- Tests: the three presence-only query tests are deleted; the support/cut table now
+  covers three families (1,024 cases, 256 admitted). Checks that only asserted a
+  presence answer are deleted; where they also showed that Merchant, exchange or
+  original amounts create no support, they now assert `Support_unknown`. Display checks
+  that used a present coordinate use an unsupported one. `./tools/check` (including
+  `./tools/tui --self-check`): pass.
+- 42 files, 179 insertions, 791 deletions. The Balances state column keeps its width.
+
 ## The S-expression book format is removed (core A, 2026-10-25)
 
 - `Daily_book` no longer reads or prints S-expression books (v1–v5 reader, printer,

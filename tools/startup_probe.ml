@@ -102,7 +102,7 @@ let mib words = float_of_int (words * 8) /. 1048576.
 
 let balance b =
   match Q.query (B.image b) (coordinate "wallet" "jpy") with
-  | Ok (Q.Exact x) -> Z.to_string (D.Quantity.quanta (Q.quantity x))
+  | Ok x -> Z.to_string (D.Quantity.quanta (Q.quantity x))
   | _ -> "non-exact"
 
 let entry_of_tx (tx : T.tx) : B.entry =

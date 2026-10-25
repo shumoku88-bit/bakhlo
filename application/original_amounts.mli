@@ -4,7 +4,7 @@ type fact = {
   quantity : Bakhlo_domain.Quantity.t;
 }
 (** Independent positive presented/charged amounts, not Event Effects, valuation,
-    exchange rates, acquisition/tax basis, gains or quantity/presence support.
+    exchange rates, acquisition/tax basis, gains or quantity support.
     Facts address stable correction roots; projections never rewrite those facts. *)
 
 type t

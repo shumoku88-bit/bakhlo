@@ -49,7 +49,7 @@ let relation token n : R.fact =
 
 let observed source roots =
   ok
-    (Q.create ~source ~zero_origins:[] ~openings:[] ~presence:None
+    (Q.create ~source ~zero_origins:[] ~openings:[]
        ~groups:
          [
            {
@@ -60,7 +60,7 @@ let observed source roots =
 
 let exact image expected =
   match Q.query image (F.coordinate "wallet") with
-  | Ok (Exact answer) ->
+  | Ok answer ->
       F.require
         (Z.equal (D.Quantity.quanta (Q.quantity answer)) (Z.of_int expected))
         "canonical quantity changed"

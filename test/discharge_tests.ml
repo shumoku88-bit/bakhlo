@@ -403,7 +403,7 @@ let%expect_test
     {| noncurrent relation source and corrected/reversed discharge Event remain original provenance; earlier dates do not infer chronology; prefix rebuild preserves remainder 1 |}]
 
 let%expect_test
-    "discharge accounting remains independent from exact/presence support and Exchange metadata" =
+    "discharge accounting remains independent from exact support and Exchange metadata" =
   let a =
     F.observation ~id:(F.id "a")
       ~effects:
@@ -444,31 +444,25 @@ let%expect_test
                reflected_roots = [ F.id "a" ];
                assertions = [ F.assertion (F.coordinate "wallet") (Z.of_int 10) ];
              };
-           ]
-         ~presence:
-           (Some
-              { reflected_roots = []; coordinates = [ F.coordinate "quiet"; F.coordinate "food" ] }))
+           ])
   in
   let image = build with_discharge and baseline = build without in
   List.iter
     [ F.coordinate "offset"; F.coordinate ~unit:"usd" "wallet"; F.coordinate "wallet" ]
     ~f:(fun coordinate ->
       match (Q.query image coordinate, Q.query baseline coordinate) with
-      | Ok (Exact a), Ok (Exact b) ->
+      | Ok a, Ok b ->
           F.require
             (D.Quantity.equal (Q.quantity a) (Q.quantity b))
             "fulfillment altered physical quantity/support"
       | _ -> failwith "exact support lost");
-  (match (Q.query image (F.coordinate "quiet"), Q.query image (F.coordinate "food")) with
-  | Ok (Known_present _), Error _ -> ()
-  | _ -> failwith "discharge altered presence touch");
   let projected = Option.value_exn (P.find_remainder (S.discharges with_discharge) (id "r")) in
   F.require
     (D.Quantity.equal (P.remaining_quantity projected) D.Quantity.zero
     && Z.equal (D.Quantity.quanta (P.discharged_quantity projected)) (Z.of_int 3))
     "conditional full remainder";
   let no_support =
-    ok (Q.create ~source:with_discharge ~zero_origins:[] ~openings:[] ~groups:[] ~presence:None)
+    ok (Q.create ~source:with_discharge ~zero_origins:[] ~openings:[] ~groups:[])
   in
   F.require
     (Result.is_error (Q.query no_support (F.coordinate "wallet")))

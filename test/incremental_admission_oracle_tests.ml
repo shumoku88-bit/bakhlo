@@ -63,8 +63,7 @@ let query_str book locus measure =
       (Result.map_error (D.Identifier.Measure.of_string measure) ~f:(fun _ -> "measure"))
   in
   match Q.query (B.image book) { D.Effect_coordinate.locus; measure } with
-  | Ok (Q.Exact x) -> Z.to_string (D.Quantity.quanta (Q.quantity x))
-  | Ok (Q.Known_present _) -> "presence"
+  | Ok x -> Z.to_string (D.Quantity.quanta (Q.quantity x))
   | Error (Q.Support_unknown _) -> "unknown"
 
 let assert_books_equal label inc full =

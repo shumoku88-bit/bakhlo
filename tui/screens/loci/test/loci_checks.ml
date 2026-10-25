@@ -40,7 +40,6 @@ let book =
          origins = [];
          openings = [];
          observations = [];
-         presence = None;
          bounded = [];
        })
 

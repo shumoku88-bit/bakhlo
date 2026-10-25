@@ -285,8 +285,7 @@ let%expect_test "source original amounts never become Effects, FX, balance or fo
                    reflected_roots = [ F.id "a" ];
                    assertions = [ F.assertion wallet (Z.of_int 100) ];
                  };
-               ]
-             ~presence:(Some { reflected_roots = [ F.id "a" ]; coordinates = [ quiet; stale ] }))
+               ])
       in
       List.iter
         [
@@ -296,7 +295,7 @@ let%expect_test "source original amounts never become Effects, FX, balance or fo
         ]
         ~f:(fun (coordinate, expected, premise) ->
           match Q.query query coordinate with
-          | Ok (Exact answer) -> (
+          | Ok answer -> (
               F.require
                 (Z.equal expected (D.Quantity.quanta (Q.quantity answer)))
                 "original amount entered arithmetic";
@@ -324,8 +323,8 @@ let%expect_test "source original amounts never become Effects, FX, balance or fo
           Q.query query stale,
           Q.query query (F.coordinate ~unit:" eur " "wallet") )
       with
-      | Ok (Known_present _), Error (Support_unknown _), Error (Support_unknown _) -> ()
-      | _ -> failwith "original amount became presence or missing-Measure quantity");
+      | Error (Support_unknown _), Error (Support_unknown _), Error (Support_unknown _) -> ()
+      | _ -> failwith "original amount created support or a missing-Measure quantity");
   let dated =
     ok
       (S.create

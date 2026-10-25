@@ -423,7 +423,7 @@ L1は、Bakhloがすでに受け入れていること（Bakhlo S5）と同じ。
 | | もの | 関係する検証 |
 |---|---|---|
 | D1 | 立替・貸し借りの対応（Settlement・Relation） | 373〜379、TLA AsynchronousSettlement、SPIN discharge-*、Lean RelationDischargeFrontier |
-| D2 | 「残高はあるが金額は不明」（Presence） | Bakhlo S6 |
+| D2 | 「残高はあるが金額は不明」（Presence）。Bakhloの実装は2026-10-25に外した（`book.txt` に書けず、使っていなかった） | Bakhlo S6 |
 | D3 | 支払先の同一性（同じ店・同じ人） | 263、264 |
 
 ### この形式には関係しないもの

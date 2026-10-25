@@ -153,12 +153,6 @@ let%expect_test "one source retains descriptions without inheritance or four-sup
     Q.create ~source ~zero_origins:[ offset ]
       ~openings:[ { coordinate = opening; opening_event = F.id "b" } ]
       ~groups:[ { reflected_roots = [ F.id "a" ]; assertions = [ F.assertion coordinate huge ] } ]
-      ~presence:
-        (Some
-           {
-             reflected_roots = [ F.id "a" ];
-             coordinates = [ F.coordinate "quiet"; F.coordinate "stale" ];
-           })
   in
   let with_text = ok (image source)
   and without = ok (image (ok (S.create { command with descriptions = [] }))) in
@@ -166,7 +160,7 @@ let%expect_test "one source retains descriptions without inheritance or four-sup
     [ (coordinate, `Assertion); (offset, `Origin); (opening, `Opening) ]
     ~f:(fun (c, expected) ->
       match (Q.query with_text c, Q.query without c) with
-      | Ok (Exact a), Ok (Exact b) ->
+      | Ok a, Ok b ->
           F.require (D.Quantity.equal (Q.quantity a) (Q.quantity b)) "text entered arithmetic";
           List.iter [ a; b ] ~f:(fun answer ->
               F.require (F.same_coordinate c (Q.coordinate answer)) "answer coordinate changed";
@@ -185,19 +179,9 @@ let%expect_test "one source retains descriptions without inheritance or four-sup
                     "independent assertion/cut changed"
               | _ -> failwith "text changed exact premise")
       | _ -> failwith "text changed exact support");
-  (match
-     ( Q.query with_text (F.coordinate "quiet"),
-       Q.query without (F.coordinate "quiet"),
-       Q.query with_text (F.coordinate "missing"),
-       Q.query without (F.coordinate "missing") )
-   with
-  | Ok (Known_present _), Ok (Known_present _), Error (Support_unknown _), Error (Support_unknown _)
-    ->
-      ()
-  | _ -> failwith "text became presence/unknown support");
   (match (Q.query with_text (F.coordinate "stale"), Q.query without (F.coordinate "stale")) with
   | Error (Support_unknown _), Error (Support_unknown _) -> ()
-  | _ -> failwith "text restored stale presence");
+  | _ -> failwith "text restored stale support");
   let descriptions = S.descriptions (Q.source with_text) in
   F.require
     (List.equal equal_fact command.descriptions (E.facts descriptions))

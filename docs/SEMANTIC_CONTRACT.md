@@ -61,8 +61,7 @@ or changes the other's evidence.
 Explicit Reversal is another independent retained relation, not Event correction/deletion.
 Exact physical inversion preserves coordinate/quanta/multiplicity, not Effect key or order;
 combined net zero alone is insufficient. Target admission cannot be inferred backwards
-from its reversal. Neither endpoint is automatically removed from quantities or presence
-activity. Corrections/cuts still own selection, so retained inversion need not mean current
+from its reversal. Neither endpoint is automatically removed from quantities. Corrections/cuts still own selection, so retained inversion need not mean current
 cancellation when they select different observations.
 
 Explicit relation discharge is independent Event/Relation/quantity provenance, not an

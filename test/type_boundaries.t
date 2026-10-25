@@ -760,30 +760,12 @@ The composed query needs an admitted source, not a frontier or separate projecti
   > module A = Bakhlo_application
   > let opening coordinate opening_event : A.Current_quantity_query.opening = { coordinate; opening_event }
   > module Q = A.Current_quantity_query
-  > let create source = Q.create ~source ~zero_origins:[] ~openings:[] ~groups:[] ~presence:None
+  > let create source = Q.create ~source ~zero_origins:[] ~openings:[] ~groups:[]
   > let inspect image coordinate = match Q.query image coordinate with
   >   | Error (Support_unknown { coordinate = _ }) -> None
-  >   | Ok (Exact answer) -> Some (`Exact (Q.quantity answer, Q.premise answer))
-  >   | Ok (Known_present answer) -> Some (`Present (Q.present_coordinate answer, Q.present_evidence answer, Q.present_cut answer))
+  >   | Ok answer -> Some (Q.quantity answer, Q.premise answer)
   > EOF
   $ application_client current_query_client.ml
-
-Presence cannot be consumed as a Quantity or omitted from outcome handling.
-
-  $ cat >presence_is_not_quantity.ml <<'EOF'
-  > module Q = Bakhlo_application.Current_quantity_query
-  > let wrong (answer : Q.present) = Q.quantity answer
-  > EOF
-  $ application_client presence_is_not_quantity.ml 2>error
-  [2]
-  $ grep -q 'Q.present' error && grep -q 'Q.exact' error
-  $ cat >outcome_requires_presence.ml <<'EOF'
-  > module Q = Bakhlo_application.Current_quantity_query
-  > let incomplete (answer : Q.outcome) = match answer with Q.Exact value -> Q.quantity value
-  > EOF
-  $ application_client -w +8 -warn-error +8 outcome_requires_presence.ml 2>error
-  [2]
-  $ grep -q 'warning 8' error && grep -q 'Known_present' error
 
 An opening still requires an Event identity, not a Locus.
 
@@ -798,7 +780,7 @@ An opening still requires an Event identity, not a Locus.
   $ cat >frontier_is_not_current_source.ml <<'EOF'
   > module A = Bakhlo_application
   > let use (source : A.Correction_frontier.t) =
-  >   A.Current_quantity_query.create ~source ~zero_origins:[] ~openings:[] ~groups:[] ~presence:None
+  >   A.Current_quantity_query.create ~source ~zero_origins:[] ~openings:[] ~groups:[]
   > EOF
   $ application_client frontier_is_not_current_source.ml 2>error
   [2]

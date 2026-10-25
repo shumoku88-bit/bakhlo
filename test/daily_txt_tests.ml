@@ -54,7 +54,7 @@ let answers_agree book (t : T.t) =
       { locus = Result.get_ok (D.Identifier.Locus.of_string l); measure = Result.get_ok (D.Identifier.Measure.of_string m) }
     in
     match (Q.query (B.image book) c, T.balance t ~locus:l ~measure:m) with
-    | Ok (Q.Exact x), T.Known b -> Z.equal (D.Quantity.quanta (Q.quantity x)) b
+    | Ok x, T.Known b -> Z.equal (D.Quantity.quanta (Q.quantity x)) b
     | Error (Q.Support_unknown _), T.Unknown -> true
     | _ -> false
   in
@@ -111,30 +111,10 @@ let%expect_test "what book.txt cannot represent refuses instead of disappearing"
   let show label book sidecars =
     Printf.printf "%s: %s\n" label (match X.to_txt book sidecars with Ok _ -> "converted" | Error why -> why)
   in
-  let p = B.export_payload book in
-  (* A coordinate with no support of its own, observed after every entry. *)
-  let supported =
-    t.zero_origins @ List.map fst t.openings @ List.concat_map (fun (a : T.anchor) -> List.map fst a.asserts) t.anchors
-  in
-  let l, m =
-    List.find
-      (fun c -> not (List.mem c supported))
-      (List.concat_map (fun (l : T.locus) -> List.map (fun (m, _) -> (l.id, m)) t.measures) t.loci)
-  in
-  let presence : Q.presence =
-    {
-      reflected_roots = List.map (fun (tx : T.tx) -> Result.get_ok (D.Identifier.Event.of_string tx.id)) t.txs;
-      coordinates = [ { locus = Result.get_ok (D.Identifier.Locus.of_string l); measure = Result.get_ok (D.Identifier.Measure.of_string m) } ];
-    }
-  in
-  (match B.of_payload { p with presence = Some presence } with
-  | Ok with_presence -> show "presence" with_presence sidecars
-  | Error why -> Printf.printf "presence: not admitted by Daily_book (%s)\n" why);
   show "roles header" book { sidecars with roles = "ROLE\tbank\tASSET\n" };
   show "suspense role" book { sidecars with roles = sidecars.roles ^ "ROLE\tsuspense\tASSET\n" };
   show "attention header" book { sidecars with attention = "ITEM\tx\tNO_DUE_DATE\t-\tc\n" };
   [%expect {|
-    presence: presence
     roles header: accounting-roles-bad-header
     suspense role: book-txt-suspense-role-line-26
     attention header: attention-bad-header

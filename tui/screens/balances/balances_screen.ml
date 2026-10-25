@@ -165,11 +165,10 @@ let balance_lines ?(width_of = String.length) ?(width = max_int) ~book items_lis
    Measure-scaled Amount, never a label or a signed adjustment. *)
 let current_amount ~book ~measure = function
   | O.Exact n -> O.format_money book measure n
-  | O.Known_present | O.Unsupported -> "?"
+  | O.Unsupported -> "?"
 
-let current_state ~compact = function
+let current_state = function
   | O.Exact _ -> "exact"
-  | O.Known_present -> if compact then "present, ?" else "present, amount unknown"
   | O.Unsupported -> "unsupported"
 
 (* A table cell never clips a quantity into a different number. *)
@@ -205,7 +204,7 @@ let current_table ~width_of ~width ~book items_list =
                 else
                   match value with
                   | O.Exact _ -> current_amount ~book ~measure value
-                  | O.Known_present | O.Unsupported -> current_state ~compact:true value
+                  | O.Unsupported -> current_state value
               in
               O.pad ~width_of name_width name ^ "  "
               ^ O.pad_left ~width_of quantity_width
@@ -242,7 +241,7 @@ let current_table ~width_of ~width ~book items_list =
               row locus
                 (current_amount ~book ~measure value)
                 measure
-                (current_state ~compact:(state_width < 23) value)
+                (current_state value)
           | item -> O.balance_item_line ~width_of ~width:room ~book item)
         items_list
     in
@@ -254,8 +253,6 @@ let current_detail ~book item =
       let explanation =
         match value with
         | O.Exact _ -> []
-        | O.Known_present ->
-            [ Ui_text.tr "Presence is known; the exact current amount is unknown, not zero." ]
         | O.Unsupported ->
             [
               Ui_text.tr
@@ -266,7 +263,7 @@ let current_detail ~book item =
         "Locus: " ^ locus;
         "Measure: " ^ measure;
         "Amount: " ^ current_amount ~book ~measure value ^ " " ^ measure;
-        "State: " ^ current_state ~compact:false value;
+        "State: " ^ current_state value;
       ]
       @ explanation
       @ [ Ui_text.tr "Locus × Measure; not an Account taxonomy." ]
@@ -300,7 +297,7 @@ let current_print_lines ~book items_list =
           "  " ^ locus ^ "  "
           ^ current_amount ~book ~measure value
           ^ " " ^ measure ^ "  "
-          ^ current_state ~compact:false value
+          ^ current_state value
       | item -> O.balance_item_line ~book item)
     items_list
 

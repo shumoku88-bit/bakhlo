@@ -41,12 +41,6 @@ let compute ~book ~today ~coords ~assumed_complete_through =
         | (locus, _) :: rest -> (
             match O.quantity_value ~book ~measure locus with
             | O.Exact n -> quantities (Z.add total n) rest
-            | O.Known_present ->
-                Error
-                  (Printf.sprintf
-                     "Selected coordinate %s (%s) is known present but its amount is unknown; \
-                      Liquidity never substitutes a partial balance."
-                     locus measure)
             | O.Unsupported ->
                 Error
                   (Printf.sprintf

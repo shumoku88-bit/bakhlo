@@ -329,35 +329,19 @@ let%expect_test "date revision is independent of Event correction and all four s
          ~groups:
            [
              { reflected_roots = [ F.id "a" ]; assertions = [ F.assertion wallet (Z.of_int 100) ] };
-           ]
-         ~presence:
-           (Some
-              {
-                reflected_roots = [ F.id "a" ];
-                coordinates = [ F.coordinate "quiet"; F.coordinate "stale" ];
-              }))
+           ])
   in
   let a = image before and b = image after in
   List.iter
     [ (wallet, 107); (offset, -12); (opening, 0) ]
     ~f:(fun (c, expected) ->
       match (Q.query a c, Q.query b c) with
-      | Ok (Exact left), Ok (Exact right) ->
+      | Ok left, Ok right ->
           F.require
             (D.Quantity.equal (Q.quantity left) (Q.quantity right)
             && Z.equal (D.Quantity.quanta (Q.quantity right)) (Z.of_int expected))
             "date revision changed arithmetic"
       | _ -> failwith "date revision changed exact support");
-  (match
-     ( Q.query a (F.coordinate "quiet"),
-       Q.query b (F.coordinate "quiet"),
-       Q.query a (F.coordinate "stale"),
-       Q.query b (F.coordinate "stale") )
-   with
-  | Ok (Known_present _), Ok (Known_present _), Error (Support_unknown _), Error (Support_unknown _)
-    ->
-      ()
-  | _ -> failwith "date revision changed touch support");
   F.require
     (String.equal
        (V.valid_on (Option.value_exn (V.find_current (S.validity after) (F.id "b"))))
@@ -374,7 +358,7 @@ let%expect_test "date revision is independent of Event correction and all four s
           (Bakhlo_application.Correction_frontier.retained_events (S.frontier after))))
     "date correction discarded Event provenance";
   Stdlib.Printf.printf
-    "separate date/Event frontiers; quantity/presence unchanged; raw provenance and old source \
+    "separate date/Event frontiers; quantity unchanged; raw provenance and old source \
      retained\n";
   [%expect
-    {| separate date/Event frontiers; quantity/presence unchanged; raw provenance and old source retained |}]
+    {| separate date/Event frontiers; quantity unchanged; raw provenance and old source retained |}]

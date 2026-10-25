@@ -29,7 +29,7 @@ let plan ?paid ?cancelled id day measure changes =
   in
   Printf.sprintf "PLAN\t%s\t%s\t%s\n%s%sENDPLAN\n" id day measure (String.concat "" (List.map change changes)) ending
 
-let book ?(approved = [ "wallet"; "bank"; "ext"; "ghost"; "present" ]) ?support ~entries ~plans () =
+let book ?(approved = [ "wallet"; "bank"; "ext"; "ghost" ]) ?support ~entries ~plans () =
   "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\n"
   ^ String.concat "" (List.map (fun l -> Printf.sprintf "LOCUS\t%s\t%s\t\n" l l) approved)
   ^ entries ^ plans
@@ -166,31 +166,17 @@ let compute_refusals () =
     "a due-today change is not overdue and remains inside an inclusive today horizon"
 
 (* ------------------------------------------------------------------ *)
-(* Exact versus known-present versus unsupported evidence. *)
+(* Exact versus unsupported evidence. *)
 
 let check_evidence () =
-  (* Presence evidence for present/jpy, which book.txt cannot hold, through the payload. *)
-  let present_book =
-    let plain = read (book ~entries:flow_entries ~plans:"" ()) in
-    let coordinate : Bakhlo_domain.Effect_coordinate.t =
-      {
-        locus = Result.get_ok (Bakhlo_domain.Identifier.Locus.of_string "present");
-        measure = Result.get_ok (Bakhlo_domain.Identifier.Measure.of_string "jpy");
-      }
-    in
-    get
-      (B.of_payload
-         { (B.export_payload plain) with presence = Some { reflected_roots = []; coordinates = [ coordinate ] } })
-  in
-  let exact = get (compute ~coords:[ ("wallet", "jpy") ] present_book) in
+  let flow_only = read (book ~entries:flow_entries ~plans:"" ()) in
+  let exact = get (compute ~coords:[ ("wallet", "jpy") ] flow_only) in
   require
     (Z.equal exact.R.current_selected (z 1000))
     "a zero-origin coordinate answers an exact current quantity";
-  let known_present = compute ~coords:[ ("present", "jpy") ] present_book in
-  let unsupported = compute ~coords:[ ("ghost", "jpy") ] present_book in
   require
-    (is_error known_present && is_error unsupported && known_present <> unsupported)
-    "known-present and unsupported evidence must stay distinct refusals, never zero";
+    (is_error (compute ~coords:[ ("ghost", "jpy") ] flow_only))
+    "unsupported evidence refuses, never zero";
   let zero_book = read (book ~entries:"" ~plans:"" ()) in
   let zero = get (compute ~coords:[ ("wallet", "jpy") ] zero_book) in
   require
