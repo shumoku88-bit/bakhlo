@@ -33,6 +33,10 @@ val text : ?sidecars:sidecars -> Daily_book.t -> string
 (** [T.to_string] of {!to_txt}, for fixtures and tools. Raises [Invalid_argument] with
     the refusal code. *)
 
+val book : string -> Daily_book.t
+(** The book of a [book.txt] text, for fixtures and tools. Raises [Invalid_argument]
+    with the refusal. *)
+
 val changes :
   T.book -> Daily_book.t -> ?sidecars:sidecars -> Book_log.op list -> (T.book, string) result
 (** [changes txt after ops]: [txt] with the changes [ops] made, [after] being the book

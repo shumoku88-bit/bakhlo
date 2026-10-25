@@ -15,52 +15,40 @@ let require condition why = if not condition then failwith why
 let is_error = Result.is_error
 let z n = Z.of_int n
 
-(* Synthetic book construction: no household file is ever read. *)
-let posting locus measure n =
-  Printf.sprintf "(posting %s %s %s (none))" locus measure (Z.to_string n)
-
-let entry id day postings =
-  Printf.sprintf
-    "(entry %s (date %s) (memo (none)) (postings %s) (reversal-of (none)) (exchange (none)))" id day
-    (String.concat " " postings)
+(* Synthetic book construction in book.txt: no household file is ever read. *)
+let posting locus measure n = Printf.sprintf "EFFECT\t%s\t%s\t%s\n" locus measure (Z.to_string n)
+let entry id day postings = Printf.sprintf "TX\t%s\t%s\n%sENDTX\n" id day (String.concat "" postings)
 
 let plan ?paid ?cancelled id day measure changes =
-  let change (locus, n) = Printf.sprintf "(%s %s)" locus (Z.to_string n) in
-  let optional = function None -> "(none)" | Some value -> "(some " ^ value ^ ")" in
-  Printf.sprintf "(plan %s (date %s) (measure %s) (changes %s) (paid-by %s) (cancelled-on %s))" id
-    day measure
-    (String.concat " " (List.map change changes))
-    (optional paid) (optional cancelled)
+  let change (locus, n) = Printf.sprintf "CHANGE\t%s\t%s\n" locus (Z.to_string n) in
+  let ending =
+    match (paid, cancelled) with
+    | Some tx, _ -> "PAID-BY\t" ^ tx ^ "\n"
+    | None, Some day -> "CANCELLED\t" ^ day ^ "\n"
+    | None, None -> ""
+  in
+  Printf.sprintf "PLAN\t%s\t%s\t%s\n%s%sENDPLAN\n" id day measure (String.concat "" (List.map change changes)) ending
 
 let book ?(approved = [ "wallet"; "bank"; "ext"; "ghost"; "present" ]) ?support ~entries ~plans () =
-  Printf.sprintf
-    "(bakhlo-daily 3) (scope corrected-entries explicit-plans)\n\
-     (measures (measure jpy 0) (measure eur 2))\n\
-     (labels (not-supplied)) (approved-loci (provided %s))\n\
-     (entries %s)\n\
-     (plans %s)\n\
-     %s"
-    (String.concat " " approved) entries plans
-    (Option.value
-       ~default:
-         "(support (zero-origin (wallet jpy) (bank jpy)) (openings) (observations) (presence \
-          (not-supplied)))"
-       support)
+  "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\n"
+  ^ String.concat "" (List.map (fun l -> Printf.sprintf "LOCUS\t%s\t%s\t\n" l l) approved)
+  ^ entries ^ plans
+  ^ Option.value ~default:"ZERO-ORIGIN\twallet\tjpy\nZERO-ORIGIN\tbank\tjpy\n" support
+  ^ "END\n"
 
-let support_flow =
-  "(support (zero-origin (wallet jpy) (bank jpy) (wallet eur)) (openings) (observations) (presence \
-   (not-supplied)))"
+let read text = Bakhlo_sexp.Daily_txt.book text
+let support_flow = "ZERO-ORIGIN\twallet\tjpy\nZERO-ORIGIN\tbank\tjpy\nZERO-ORIGIN\twallet\teur\n"
 
 (* wallet 1000 jpy, bank 500 jpy: current selected 1500. *)
 let flow_entries =
-  String.concat " "
+  String.concat ""
     [
       entry "e1" "2026-10-01" [ posting "wallet" "jpy" (z 1000); posting "bank" "jpy" (z (-1000)) ];
       entry "e2" "2026-10-02" [ posting "bank" "jpy" (z 1500); posting "ext" "jpy" (z (-1500)) ];
     ]
 
 let flow_plans =
-  String.concat " "
+  String.concat ""
     [
       (* Overdue but an internal transfer: zero selected net is dropped before the
          overdue check. *)
@@ -82,7 +70,7 @@ let flow_plans =
     ]
 
 let flow_book =
-  get (B.of_string (book ~support:support_flow ~entries:flow_entries ~plans:flow_plans ()))
+  read (book ~support:support_flow ~entries:flow_entries ~plans:flow_plans ())
 
 let coords_wallet_bank = [ ("wallet", "jpy"); ("bank", "jpy") ]
 
@@ -153,18 +141,16 @@ let compute_refusals () =
     (compute ~coords:[ ("wallet", "jpy"); ("ghost", "jpy") ] flow_book);
   (* Overdue selected money refuses the whole query; it is never shifted or settled. *)
   let overdue =
-    get
-      (B.of_string
+    (read
          (book ~support:support_flow ~entries:flow_entries
             ~plans:
-              (String.concat " "
+              (String.concat ""
                  [ plan "late" "2026-10-10" "jpy" [ ("wallet", z (-10)); ("ext", z 10) ] ])
             ()))
   in
   expect_error "overdue selected plan" (compute overdue);
   let due_today =
-    get
-      (B.of_string
+    (read
          (book ~entries:""
             ~plans:(plan "due_today" "2026-10-20" "jpy" [ ("wallet", z (-9)); ("ext", z 9) ])
             ()))
@@ -183,12 +169,18 @@ let compute_refusals () =
 (* Exact versus known-present versus unsupported evidence. *)
 
 let check_evidence () =
-  let presence_support =
-    "(support (zero-origin (wallet jpy) (bank jpy)) (openings) (observations) (presence (provided \
-     (reflected) (coordinates (present jpy)))))"
-  in
+  (* Presence evidence for present/jpy, which book.txt cannot hold, through the payload. *)
   let present_book =
-    get (B.of_string (book ~support:presence_support ~entries:flow_entries ~plans:" " ()))
+    let plain = read (book ~entries:flow_entries ~plans:"" ()) in
+    let coordinate : Bakhlo_domain.Effect_coordinate.t =
+      {
+        locus = Result.get_ok (Bakhlo_domain.Identifier.Locus.of_string "present");
+        measure = Result.get_ok (Bakhlo_domain.Identifier.Measure.of_string "jpy");
+      }
+    in
+    get
+      (B.of_payload
+         { (B.export_payload plain) with presence = Some { reflected_roots = []; coordinates = [ coordinate ] } })
   in
   let exact = get (compute ~coords:[ ("wallet", "jpy") ] present_book) in
   require
@@ -199,7 +191,7 @@ let check_evidence () =
   require
     (is_error known_present && is_error unsupported && known_present <> unsupported)
     "known-present and unsupported evidence must stay distinct refusals, never zero";
-  let zero_book = get (B.of_string (book ~entries:"" ~plans:"" ())) in
+  let zero_book = read (book ~entries:"" ~plans:"" ()) in
   let zero = get (compute ~coords:[ ("wallet", "jpy") ] zero_book) in
   require
     (Z.equal zero.R.current_selected Z.zero
@@ -213,17 +205,16 @@ let check_evidence () =
 
 let check_amounts () =
   let negative =
-    get
-      (B.of_string
+    (read
          (book ~support:support_flow
             ~entries:
-              (String.concat " "
+              (String.concat ""
                  [
                    entry "n1" "2026-10-01"
                      [ posting "wallet" "jpy" (z (-500)); posting "ext" "jpy" (z 500) ];
                  ])
             ~plans:
-              (String.concat " "
+              (String.concat ""
                  [ plan "down" "2026-10-25" "jpy" [ ("wallet", z (-200)); ("ext", z 200) ] ])
             ()))
   in
@@ -243,21 +234,18 @@ let check_amounts () =
   require (contains text "-700") "negative conditional horizon balance is rendered exactly";
   (* Scaled EUR: quanta 123456789 at scale 2 is 1,234,567.89, never the raw integer. *)
   let huge = Z.of_string "123456789012345678901234567890" in
-  let eur_support =
-    "(support (zero-origin (wallet eur)) (openings) (observations) (presence (not-supplied)))"
-  in
+  let eur_support = "ZERO-ORIGIN\twallet\teur\n" in
   let eur_book =
-    get
-      (B.of_string
+    (read
          (book ~approved:[ "wallet"; "ext" ] ~support:eur_support
             ~entries:
-              (String.concat " "
+              (String.concat ""
                  [
                    entry "x1" "2026-10-01"
                      [ posting "wallet" "eur" (z 123456789); posting "ext" "eur" (z (-123456789)) ];
                  ])
             ~plans:
-              (String.concat " "
+              (String.concat ""
                  [ plan "top_up" "2026-10-25" "eur" [ ("wallet", huge); ("ext", Z.neg huge) ] ])
             ()))
   in
@@ -290,7 +278,7 @@ let check_display_limit () =
         else Printf.sprintf "2026-11-%02d" (day - 31))
   in
   let plans =
-    String.concat " "
+    String.concat ""
       (List.mapi
          (fun index day ->
            let amount = z (if index = 13 then -200 else 10) in
@@ -298,7 +286,7 @@ let check_display_limit () =
              [ ("wallet", amount); ("ext", Z.neg amount) ])
          dates)
   in
-  let many = get (B.of_string (book ~support:support_flow ~entries:"" ~plans ())) in
+  let many = read (book ~support:support_flow ~entries:"" ~plans ()) in
   let snapshot = get (compute ~through:"2026-11-05" ~coords:[ ("wallet", "jpy") ] many) in
   require (List.length snapshot.R.points = 14) "all fourteen day points exist";
   require

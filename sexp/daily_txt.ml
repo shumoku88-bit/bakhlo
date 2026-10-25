@@ -84,9 +84,60 @@ let attention_text (t : T.t) =
 
 let roles_text (t : T.t) = lines roles_header (List.map (fun (l, r) -> "ROLE\t" ^ l ^ "\t" ^ role_name r) t.roles)
 
+(* ---- book.txt -> Daily_book: one TX ---- *)
+
+let exchange_source = "exchange-source"
+let exchange_destination = "exchange-destination"
+
+(* An exchange names the only negative Effect of its source Measure and the only
+   positive one of its destination Measure, by their keys; an unkeyed one gets a fixed
+   key, which the next save writes out. *)
+let entry_of (tx : T.tx) : B.entry =
+  let only sign m =
+    match List.filter (fun (e : T.posting) -> e.measure = m && Z.sign e.amount = sign) tx.effects with
+    | [ e ] -> e
+    | _ -> refuse "exchange-ambiguous"
+  in
+  let named =
+    match tx.exchange with
+    | None -> []
+    | Some (x, y) ->
+        let pick e fallback =
+          match e.T.key with
+          | Some k -> (e, k)
+          | None ->
+              if List.exists (fun (o : T.posting) -> o.key = Some fallback) tx.effects then refuse "exchange-key-taken";
+              (e, fallback)
+        in
+        [ pick (only (-1) x) exchange_source; pick (only 1 y) exchange_destination ]
+  in
+  let posting (e : T.posting) =
+    let key = match List.find_opt (fun (k, _) -> k == e) named with Some (_, name) -> Some name | None -> e.key in
+    D.Effect.create
+      ~key:(Option.map (fun k -> get "effect-key-id" (D.Identifier.Effect_key.of_string k)) key)
+      ~locus:(get "locus-id" (D.Identifier.Locus.of_string e.locus))
+      ~measure:(get "measure-id" (D.Identifier.Measure.of_string e.measure))
+      ~quantity:(D.Quantity.of_quanta e.amount)
+  in
+  {
+    id = tx.id;
+    day = tx.day;
+    memo = tx.memo;
+    effects = List.map posting tx.effects;
+    reversal_of = tx.reversal_of;
+    exchange = (match named with [ (_, a); (_, b) ] -> Some (a, b) | _ -> None);
+    original_amount = tx.original;
+    merchant =
+      Option.map
+        (function
+          | T.Merchant s -> M.Merchant (get "merchant-id" (D.Identifier.External_party.of_string s))
+          | T.Nonmerchant -> M.Nonmerchant)
+        tx.merchant;
+  }
+
 (* ---- Daily_book -> book.txt ---- *)
 
-let tx_of (e : B.entry) : T.tx =
+let tx_of_entry (e : B.entry) : T.tx =
   let exchange =
     match e.exchange with
     | None -> None
@@ -121,6 +172,15 @@ let tx_of (e : B.entry) : T.tx =
         e.merchant;
     exchange;
   }
+
+(* The TX of an entry, which must read back as that same entry: book.txt names an
+   exchange by its Measures, so an exchange whose legs are not the only negative and
+   positive Effects of those Measures refuses instead of saving a book that would not
+   load. *)
+let tx_of e =
+  let tx = tx_of_entry e in
+  if entry_of tx <> e then refuse "entry-not-representable";
+  tx
 
 let plan_of (p : B.plan) : T.plan =
   {
@@ -289,55 +349,6 @@ let changes txt after ?sidecars ops =
 
 (* ---- book.txt -> Daily_book ---- *)
 
-let exchange_source = "exchange-source"
-let exchange_destination = "exchange-destination"
-
-(* An exchange names the only negative Effect of its source Measure and the only
-   positive one of its destination Measure, by their keys; an unkeyed one gets a fixed
-   key, which the next save writes out. *)
-let entry_of (tx : T.tx) : B.entry =
-  let only sign m =
-    match List.filter (fun (e : T.posting) -> e.measure = m && Z.sign e.amount = sign) tx.effects with
-    | [ e ] -> e
-    | _ -> refuse "exchange-ambiguous"
-  in
-  let named =
-    match tx.exchange with
-    | None -> []
-    | Some (x, y) ->
-        let pick e fallback =
-          match e.T.key with
-          | Some k -> (e, k)
-          | None ->
-              if List.exists (fun (o : T.posting) -> o.key = Some fallback) tx.effects then refuse "exchange-key-taken";
-              (e, fallback)
-        in
-        [ pick (only (-1) x) exchange_source; pick (only 1 y) exchange_destination ]
-  in
-  let posting (e : T.posting) =
-    let key = match List.find_opt (fun (k, _) -> k == e) named with Some (_, name) -> Some name | None -> e.key in
-    D.Effect.create
-      ~key:(Option.map (fun k -> get "effect-key-id" (D.Identifier.Effect_key.of_string k)) key)
-      ~locus:(get "locus-id" (D.Identifier.Locus.of_string e.locus))
-      ~measure:(get "measure-id" (D.Identifier.Measure.of_string e.measure))
-      ~quantity:(D.Quantity.of_quanta e.amount)
-  in
-  {
-    id = tx.id;
-    day = tx.day;
-    memo = tx.memo;
-    effects = List.map posting tx.effects;
-    reversal_of = tx.reversal_of;
-    exchange = (match named with [ (_, a); (_, b) ] -> Some (a, b) | _ -> None);
-    original_amount = tx.original;
-    merchant =
-      Option.map
-        (function
-          | T.Merchant s -> M.Merchant (get "merchant-id" (D.Identifier.External_party.of_string s))
-          | T.Nonmerchant -> M.Nonmerchant)
-        tx.merchant;
-  }
-
 let of_txt (t : T.t) =
   try
     let ids = Array.of_list (List.map (fun (tx : T.tx) -> tx.id) t.txs) in
@@ -385,3 +396,8 @@ let of_txt (t : T.t) =
 
 let text ?(sidecars = no_sidecars) book =
   match to_text book sidecars with Ok text -> text | Error why -> invalid_arg why
+
+let book text =
+  match T.of_string text with
+  | Error e -> invalid_arg (Printf.sprintf "%s at line %d" (T.code_name e.code) e.line)
+  | Ok t -> ( match of_txt t with Ok (book, _) -> book | Error why -> invalid_arg why)

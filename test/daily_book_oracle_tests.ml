@@ -1,7 +1,7 @@
 (* Cold-equivalence oracle for Daily_book mutations.
 
-   Any book reached in memory must be indistinguishable from the book cold-loaded
-   from its own serialization (a whole admission), and every mutation must give the
+   Any book reached in memory must be indistinguishable from the same facts admitted
+   again as a whole book, and every mutation must give the
    same result on both: same refusal reason, or the same observable book. This is
    the safety net for incremental paths: a shortcut that leaves derived state stale
    shows up as a difference here even when its own result looks plausible. *)
@@ -15,24 +15,49 @@ module R = Stdlib.Random.State
 
 let get = function Ok x -> x | Error why -> failwith why
 
+(* Test books are written in book.txt, the household format. *)
+let book_of_txt text =
+  match Bakhlo_book_txt.Book_txt.of_string text with
+  | Error e -> failwith (Printf.sprintf "fixture refused: %s at line %d" (Bakhlo_book_txt.Book_txt.code_name e.code) e.line)
+  | Ok t -> fst (get (Bakhlo_sexp.Daily_txt.of_txt t))
+
+let text_of book = get (Bakhlo_sexp.Daily_txt.to_text book Bakhlo_sexp.Daily_txt.no_sidecars)
+
 let fixture =
-  "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
-   (measures (measure jpy 0) (measure usd 2))\n\
-   (labels (provided (label wallet 財布 現金) (label bank 銀行 預金)))\n\
-   (approved-loci (provided wallet food bank expense))\n\
-   (entries\n\
-   (entry init (date 2026-10-01) (memo (some initial))\n\
-   (postings (posting bank jpy 50000 (none)) (posting wallet jpy -50000 (none)))\n\
-   (reversal-of (none))))\n\
-   (plans\n\
-   (plan rent (date 2026-10-25) (measure jpy) (changes (bank -10000) (expense 10000))\n\
-   (paid-by (none)))\n\
-   (plan sub (date 2026-10-20) (measure usd) (changes (wallet -15) (expense 15))\n\
-   (paid-by (none))))\n\
-   (support (zero-origin (food jpy) (expense jpy) (expense usd))\n\
-   (openings (bank jpy init))\n\
-   (observations (observation (reflected) (quantities (wallet jpy 100000) (wallet usd 500))))\n\
-   (presence (not-supplied)))\n"
+  "BOOK\t1\n\
+   MEASURE\tjpy\t0\n\
+   MEASURE\tusd\t2\n\
+   LOCUS\twallet\t財布\t現金\n\
+   LOCUS\tbank\t銀行\t預金\n\
+   LOCUS\tfood\tfood\t\n\
+   LOCUS\texpense\texpense\t\n\
+   TX\tinit\t2026-10-01\tDESC\tinitial\n\
+   EFFECT\tbank\tjpy\t50000\n\
+   EFFECT\twallet\tjpy\t-50000\n\
+   ENDTX\n\
+   PLAN\trent\t2026-10-25\tjpy\n\
+   CHANGE\tbank\t-10000\n\
+   CHANGE\texpense\t10000\n\
+   ENDPLAN\n\
+   PLAN\tsub\t2026-10-20\tusd\n\
+   CHANGE\twallet\t-15\n\
+   CHANGE\texpense\t15\n\
+   ENDPLAN\n\
+   ZERO-ORIGIN\tfood\tjpy\n\
+   ZERO-ORIGIN\texpense\tjpy\n\
+   ZERO-ORIGIN\texpense\tusd\n\
+   OPENING\tbank\tjpy\tinit\n\
+   ANCHOR\t-\n\
+   ASSERT\twallet\tjpy\t100000\n\
+   ASSERT\twallet\tusd\t500\n\
+   ENDANCHOR\n\
+   END\n"
+
+(* The fixture with wallet and bank kept but no longer offered for new entries. *)
+let hidden_fixture =
+  String.substr_replace_first
+    (String.substr_replace_first fixture ~pattern:"LOCUS\twallet\t財布\t現金\n" ~with_:"LOCUS\twallet\t財布\t現金\tHIDDEN\n")
+    ~pattern:"LOCUS\tbank\t銀行\t預金\n" ~with_:"LOCUS\tbank\t銀行\t預金\tHIDDEN\n"
 
 let loci = [| "wallet"; "bank"; "food"; "expense"; "ghost" |]
 let measures = [| "jpy"; "usd"; "xxx" |]
@@ -221,6 +246,21 @@ let apply_full book = function
   | Classify_merchant { id; disposition } -> B.Full.classify_merchant book ~id ~disposition
   | Set_locus_label { id; label; help } -> B.Full.set_locus_label book ~id ~label ?help ()
 
+(* The book's facts: its book.txt, and presence, which book.txt cannot hold. *)
+let facts_text book =
+  let p = B.export_payload book in
+  let presence =
+    match p.presence with
+    | None -> "presence: none"
+    | Some pr ->
+        Printf.sprintf "presence: reflected %s; coordinates %s"
+          (String.concat ~sep:"," (List.map pr.reflected_roots ~f:D.Identifier.Event.to_string))
+          (String.concat ~sep:","
+             (List.map pr.coordinates ~f:(fun (c : D.Effect_coordinate.t) ->
+                  D.Identifier.Locus.to_string c.locus ^ "/" ^ D.Identifier.Measure.to_string c.measure)))
+  in
+  text_of (get (B.of_payload { p with presence = None })) ^ presence
+
 (* Everything a caller can read from a book, rendered for exact comparison. *)
 let observable book =
   let answers =
@@ -254,11 +294,12 @@ let observable book =
     | Error why -> "pace refused " ^ why
   in
   String.concat ~sep:"\n"
-    ((B.to_string book :: answers)
+    ((facts_text book :: answers)
     @ [ pace; Printf.sprintf "entries %d" (B.entry_count book) ]
     @ List.map (B.open_plans book) ~f:(fun p -> "open " ^ p.id))
 
-let cold book = get (B.of_string (B.to_string book))
+(* The same facts admitted again as a whole book. *)
+let cold book = get (B.of_payload (B.export_payload book))
 
 (* First differing line with a little context, so a failure stays readable. *)
 let first_difference a b =
@@ -300,9 +341,9 @@ let agree ~seed ~step ~trace label a b =
   | Ok _, Error b -> check ~seed ~step ~trace (label ^ ": only one admitted") "admitted" b
   | Error a, Ok _ -> check ~seed ~step ~trace (label ^ ": only one admitted") a "admitted"
 
-let run ~fixture ~seed ~steps ~admitted =
+let run ~start ~seed ~steps ~admitted =
   let st = R.make [| seed |] in
-  let book = ref (get (B.of_string fixture)) in
+  let book = ref start in
   let trace = ref [] in
   for step = 1 to steps do
     let op = generate st !book in
@@ -323,13 +364,18 @@ let%expect_test "every mutation agrees with its cold-loaded twin and its whole-b
   let admitted = Hashtbl.create (module String) in
   (* The second fixture supplies presence evidence, which corrections cannot
      update in place: it pins the whole-book fallback. *)
+  let plain = book_of_txt fixture in
   let with_presence =
-    String.substr_replace_first fixture ~pattern:"(presence (not-supplied))"
-      ~with_:"(presence (provided (reflected) (coordinates (bank usd))))"
+    get
+      (B.of_payload
+         {
+           (B.export_payload plain) with
+           presence = Some { reflected_roots = []; coordinates = [ coordinate "bank" "usd" ] };
+         })
   in
-  List.iter [ fixture; with_presence ] ~f:(fun fixture ->
+  List.iter [ plain; with_presence ] ~f:(fun start ->
       for seed = 1 to 200 do
-        run ~fixture ~seed ~steps:30 ~admitted
+        run ~start ~seed ~steps:30 ~admitted
       done);
   (* Guard against a generator that only exercises refusals. *)
   List.iter
@@ -368,12 +414,7 @@ let%expect_test "every mutation agrees with its cold-loaded twin and its whole-b
 let result_text = function Ok _ -> "ok" | Error why -> why
 
 let%expect_test "date and Merchant-only changes accept retained unapproved Loci" =
-  let unapproved =
-    String.substr_replace_first fixture
-      ~pattern:"(approved-loci (provided wallet food bank expense))"
-      ~with_:"(approved-loci (provided food expense))"
-  in
-  let base = get (B.of_string unapproved) in
+  let base = book_of_txt hidden_fixture in
   let initial = Option.value_exn (B.find_entry base "init") in
   let dated = B.correct_entry_date base ~id:"init" ~day:"2026-10-02" in
   let dated_full = B.Full.correct_entry_date base ~id:"init" ~day:"2026-10-02" in
@@ -434,7 +475,7 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
    new entry until the next whole admission. Answers agree (oracle above). The
    incremental redesign must make both lines say true. *)
 let%expect_test "known gap: incremental record leaves the admitted source stale" =
-  let base = get (B.of_string fixture) in
+  let base = book_of_txt fixture in
   let entry : B.entry =
     {
       id = "late";
@@ -475,7 +516,7 @@ let%expect_test "every mutation of a book.txt-loaded book equals its book.txt co
   let refused = Hashtbl.create (module String) and admitted = ref 0 in
   for seed = 1 to 200 do
     let st = R.make [| seed |] in
-    let book = ref (get (txt_cold (get (B.of_string fixture)))) in
+    let book = ref (get (txt_cold (book_of_txt fixture))) in
     let trace = ref [] in
     for step = 1 to 30 do
       let op = generate st !book in
@@ -505,7 +546,7 @@ let%expect_test "every save's book.txt changes equal the whole conversion" =
   let saved = ref 0 and refused = Hashtbl.create (module String) in
   for seed = 1 to 200 do
     let st = R.make [| seed |] in
-    let book = ref (get (txt_cold (get (B.of_string fixture)))) in
+    let book = ref (get (txt_cold (book_of_txt fixture))) in
     let txt = ref (Result.ok_or_failwith (Result.map_error (T.read (X.text !book)) ~f:(fun e -> T.code_name e.code))) in
     let trace = ref [] in
     for step = 1 to 30 do

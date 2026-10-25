@@ -6,4 +6,6 @@
   bakhlo_tui_book
   bakhlo_tui_kit
   bakhlo.sexp
+  bakhlo.domain
+  bakhlo.application
   zarith))

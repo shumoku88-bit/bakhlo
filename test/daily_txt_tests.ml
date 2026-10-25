@@ -139,3 +139,41 @@ let%expect_test "what book.txt cannot represent refuses instead of disappearing"
     suspense role: book-txt-suspense-role-line-26
     attention header: attention-bad-header
     |}]
+
+(* book.txt names an exchange by its Measures; an exchange with a second positive
+   Effect in its destination Measure cannot be read back as the same entry, so it is
+   refused by the whole conversion and by a save instead of being written. *)
+let%expect_test "an exchange book.txt cannot read back is refused, never written" =
+  let t = Result.get_ok (T.of_string (read "common_format/ok-full.txt")) in
+  let book, sidecars = Result.get_ok (X.of_txt t) in
+  let leg ?key l m q =
+    D.Effect.create
+      ~key:(Option.map (fun k -> Result.get_ok (D.Identifier.Effect_key.of_string k)) key)
+      ~locus:(Result.get_ok (D.Identifier.Locus.of_string l))
+      ~measure:(Result.get_ok (D.Identifier.Measure.of_string m))
+      ~quantity:(D.Quantity.of_quanta (Z.of_int q))
+  in
+  let entry : B.entry =
+    {
+      id = "fx-extra";
+      day = "2027-02-01";
+      memo = None;
+      effects =
+        [ leg ~key:"s" "wallet" "jpy" (-1500); leg ~key:"d" "wallet" "usd" 1000; leg "food" "usd" 50; leg "fee" "usd" (-50) ];
+      reversal_of = None;
+      exchange = Some ("s", "d");
+      original_amount = None;
+      merchant = None;
+    }
+  in
+  let op = Bakhlo_sexp.Book_log.Put_entry { replace = false; entry; plan = None } in
+  match B.put_entry book ~replace:false entry ~plan:None with
+  | Error why -> Printf.printf "Daily_book refused: %s\n" why
+  | Ok after ->
+      Printf.printf "whole conversion: %s\n" (match X.to_txt after sidecars with Ok _ -> "written" | Error why -> why);
+      let txt = Result.get_ok (T.read (T.to_string t)) in
+      Printf.printf "save: %s\n" (match X.changes txt after [ op ] with Ok _ -> "written" | Error why -> why);
+      [%expect {|
+        whole conversion: exchange-ambiguous
+        save: exchange-ambiguous
+        |}]

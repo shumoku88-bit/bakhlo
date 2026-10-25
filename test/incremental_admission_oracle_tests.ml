@@ -4,25 +4,40 @@ module D = Bakhlo_domain
 module Q = Bakhlo_application.Current_quantity_query
 
 let get = function Ok x -> x | Error why -> failwith why
+let book_of_txt = Daily_book_oracle_tests.book_of_txt
+let text_of = Daily_book_oracle_tests.text_of
 
 let fixture =
-  "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
-   (measures (measure jpy 0) (measure eur 2) (measure usd 2))\n\
-   (labels (provided (label wallet 財布 現金) (label bank 銀行 預金) (label food 食費 経費)))\n\
-   (approved-loci (provided wallet food bank expense reserve))\n\
-   (entries\n\
-   (entry init (date 2026-10-01) (memo (some initial))\n\
-   (postings (posting bank jpy 50000 (none)) (posting wallet jpy -50000 (none)))\n\
-   (reversal-of (none))))\n\
-   (plans\n\
-   (plan rent (date 2026-10-25) (measure jpy) (changes (bank -10000) (expense 10000))\n\
-   (paid-by (none)))\n\
-   (plan sub (date 2026-10-20) (measure usd) (changes (wallet -15) (expense 15))\n\
-   (paid-by (none))))\n\
-   (support (zero-origin (food jpy) (expense jpy) (expense usd))\n\
-   (openings (bank jpy init))\n\
-   (observations (observation (reflected) (quantities (wallet jpy 100000) (wallet usd 500))))\n\
-   (presence (not-supplied)))\n"
+  "BOOK\t1\n\
+   MEASURE\tjpy\t0\n\
+   MEASURE\teur\t2\n\
+   MEASURE\tusd\t2\n\
+   LOCUS\twallet\t財布\t現金\n\
+   LOCUS\tbank\t銀行\t預金\n\
+   LOCUS\tfood\t食費\t経費\n\
+   LOCUS\texpense\texpense\t\n\
+   LOCUS\treserve\treserve\t\n\
+   TX\tinit\t2026-10-01\tDESC\tinitial\n\
+   EFFECT\tbank\tjpy\t50000\n\
+   EFFECT\twallet\tjpy\t-50000\n\
+   ENDTX\n\
+   PLAN\trent\t2026-10-25\tjpy\n\
+   CHANGE\tbank\t-10000\n\
+   CHANGE\texpense\t10000\n\
+   ENDPLAN\n\
+   PLAN\tsub\t2026-10-20\tusd\n\
+   CHANGE\twallet\t-15\n\
+   CHANGE\texpense\t15\n\
+   ENDPLAN\n\
+   ZERO-ORIGIN\tfood\tjpy\n\
+   ZERO-ORIGIN\texpense\tjpy\n\
+   ZERO-ORIGIN\texpense\tusd\n\
+   OPENING\tbank\tjpy\tinit\n\
+   ANCHOR\t-\n\
+   ASSERT\twallet\tjpy\t100000\n\
+   ASSERT\twallet\tusd\t500\n\
+   ENDANCHOR\n\
+   END\n"
 
 let posting locus measure n key =
   D.Effect.create
@@ -53,11 +68,11 @@ let query_str book locus measure =
   | Error (Q.Support_unknown _) -> "unknown"
 
 let assert_books_equal label inc full =
-  let str_inc = B.to_string inc in
-  let str_full = B.to_string full in
+  let str_inc = text_of inc in
+  let str_full = text_of full in
   if not (String.equal str_inc str_full) then
     failwith
-      (Printf.sprintf "[%s] Serialized S-expression mismatch:\nINC:\n%s\nFULL:\n%s" label str_inc
+      (Printf.sprintf "[%s] book.txt mismatch:\nINC:\n%s\nFULL:\n%s" label str_inc
          str_full);
   let loci = [ "wallet"; "bank"; "food"; "expense"; "reserve" ] in
   let measures = [ "jpy"; "eur"; "usd" ] in
@@ -82,7 +97,7 @@ let assert_error_equal label res_inc res_full =
         failwith (Printf.sprintf "[%s] Error reason mismatch: inc=%s full=%s" label e1 e2)
 
 let%expect_test "incremental admission matches full oracle on sequential transactions" =
-  let base = get (B.of_string fixture) in
+  let base = book_of_txt fixture in
   let book_inc = ref base in
   let book_full = ref base in
   let steps =
@@ -155,7 +170,7 @@ let%expect_test "incremental admission matches full oracle on sequential transac
     |}]
 
 let%expect_test "incremental admission matches full oracle on plan payments" =
-  let base = get (B.of_string fixture) in
+  let base = book_of_txt fixture in
   let rent_payment : B.entry =
     {
       id = "pay_rent";
@@ -185,7 +200,7 @@ let%expect_test "incremental admission matches full oracle on plan payments" =
     |}]
 
 let%expect_test "incremental admission matches full oracle on error refusals" =
-  let base = get (B.of_string fixture) in
+  let base = book_of_txt fixture in
   let valid_entry : B.entry =
     {
       id = "valid";
@@ -271,7 +286,7 @@ let%expect_test "incremental admission matches full oracle on error refusals" =
     |}]
 
 let%expect_test "fallback cases trigger full oracle correctly and match results" =
-  let base = get (B.of_string fixture) in
+  let base = book_of_txt fixture in
   (* 1. replace = true *)
   let orig : B.entry =
     {
@@ -332,7 +347,7 @@ let%expect_test "fallback cases trigger full oracle correctly and match results"
     |}]
 
 let%expect_test "PR 6b entry map index and reversed list invariants" =
-  let base = get (B.of_string fixture) in
+  let base = book_of_txt fixture in
   (* 1. Initial Monolithic state check *)
   assert (B.entry_count base = 1);
   assert (B.mem_entry base "init");
@@ -451,9 +466,8 @@ let%expect_test "PR 6b entry map index and reversed list invariants" =
   in
   assert (Option.equal String.equal paid_plan.paid_by (Some "pay_rent"));
 
-  (* 7. S-expression export & reload *)
-  let rec_str = B.to_string inc_pay in
-  let reloaded_rec = get (B.of_string rec_str) in
+  (* 7. book.txt export & reload *)
+  let reloaded_rec = book_of_txt (text_of inc_pay) in
   assert (B.entry_count reloaded_rec = 5);
   let rec_fwd_ids = List.map (B.entries reloaded_rec) ~f:(fun e -> e.id) in
   let rec_rev_ids = List.map (B.entries_rev reloaded_rec) ~f:(fun e -> e.id) in

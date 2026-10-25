@@ -14,11 +14,9 @@ let fresh_path () =
   let dir = Stdlib.Filename.temp_dir "bakhlo-store-" "" in
   Stdlib.Filename.concat dir "book.txt"
 
-let write_book path sexp = F.write_new path (X.text (get (B.of_string sexp)))
-
 let start () =
   let path = fresh_path () in
-  write_book path O.fixture;
+  F.write_new path O.fixture;
   F.load path
 
 let entry n : B.entry =
@@ -34,7 +32,7 @@ let entry n : B.entry =
   }
 
 let put n = L.Put_entry { replace = false; entry = entry n; plan = None }
-let book_text (s : F.t) = B.to_string s.book
+let book_text (s : F.t) = O.text_of s.book
 let written = function F.Written s -> s | _ -> failwith "expected Written"
 
 let describe = function
@@ -43,14 +41,9 @@ let describe = function
   | F.Refused_input why -> "refused " ^ why
   | F.Uncertain _ -> "uncertain"
 
-let historical_fixture =
-  String.substr_replace_first O.fixture
-    ~pattern:"(approved-loci (provided wallet food bank expense))"
-    ~with_:"(approved-loci (provided food expense))"
-
 let historical_start () =
   let path = fresh_path () in
-  write_book path historical_fixture;
+  F.write_new path O.hidden_fixture;
   F.load path
 
 let find_entry book id =
@@ -187,7 +180,7 @@ let%expect_test "a killed writer leaves the old or the new book" =
 
 let%expect_test "only book.txt is read: an S-expression book refuses, nothing is converted" =
   let path = fresh_path () in
-  F.write_new path (B.to_string (get (B.of_string O.fixture)));
+  F.write_new path "(bakhlo-daily 3) (scope corrected-entries explicit-plans)\n";
   let before = F.read path in
   Stdio.printf "%s; file unchanged: %b\n"
     (match F.load path with _ -> "loaded" | exception F.Refused why -> "refused " ^ why)

@@ -31,33 +31,27 @@ let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
 let z = Z.of_int
 
-let fixture ?(version = "1") support =
-  get
-    (B.of_string
-       ("(bakhlo-daily " ^ version ^ ") (scope corrected-entries explicit-plans)\n"
-      ^ "(measures (measure jpy 0) (measure eur 2))\n"
-      ^ "(labels (not-supplied)) (approved-loci (provided a b c))\n" ^ "(entries\n"
-      ^ " (entry before (date 2026-09-30) (memo (none)) (postings (posting a jpy 20 (none)) \
-         (posting b jpy -20 (none))) (reversal-of (none)))\n"
-      ^ " (entry within (date 2026-10-16) (memo (none)) (postings (posting a jpy 10 (none)) \
-         (posting a jpy 20 (none)) (posting b jpy -30 (none))) (reversal-of (none)))\n"
-      ^ " (entry end (date 2026-11-01) (memo (none)) (postings (posting a jpy 40 (none)) \
-         (posting b jpy -40 (none))) (reversal-of (none))))\n"
-      ^ "(plans) (support " ^ support ^ ")"))
+let fixture support =
+  Bakhlo_sexp.Daily_txt.book
+    ("BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\nLOCUS\ta\ta\t\nLOCUS\tb\tb\t\nLOCUS\tc\tc\t\n"
+   ^ "TX\tbefore\t2026-09-30\nEFFECT\ta\tjpy\t20\nEFFECT\tb\tjpy\t-20\nENDTX\n"
+   ^ "TX\twithin\t2026-10-16\nEFFECT\ta\tjpy\t10\nEFFECT\ta\tjpy\t20\nEFFECT\tb\tjpy\t-30\nENDTX\n"
+   ^ "TX\tend\t2026-11-01\nEFFECT\ta\tjpy\t40\nEFFECT\tb\tjpy\t-40\nENDTX\n" ^ support ^ "END\n")
+
+(* What a save and a cold load give. *)
+let cold_of book = Bakhlo_sexp.Daily_txt.book (Bakhlo_sexp.Daily_txt.text book)
 
 let self_check () =
-  let zero =
-    fixture "(zero-origin (a jpy) (b jpy)) (openings) (observations) (presence (not-supplied))"
-  in
-  let anchored =
-    fixture
-      "(zero-origin (b jpy)) (openings) (observations (observation (reflected) (quantities (a jpy 10)))) (presence (not-supplied))"
-  in
+  let zero = fixture "ZERO-ORIGIN\ta\tjpy\nZERO-ORIGIN\tb\tjpy\n" in
+  let anchored = fixture "ZERO-ORIGIN\tb\tjpy\nANCHOR\t-\nASSERT\ta\tjpy\t10\nENDANCHOR\n" in
   let bounded = get (B.with_bounded_history anchored [ ("a", "jpy", "2026-09-15") ]) in
+  (* Presence evidence for c/jpy, which book.txt cannot hold, through the payload. *)
   let present =
-    fixture
-      "(zero-origin) (openings) (observations) (presence (provided (reflected) (coordinates (c \
-       jpy))))"
+    let plain = fixture "" in
+    let coordinate : D.Effect_coordinate.t =
+      { locus = id_of (D.Identifier.Locus.of_string "c"); measure = id_of (D.Identifier.Measure.of_string "jpy") }
+    in
+    get (B.of_payload { (B.export_payload plain) with presence = Some { reflected_roots = []; coordinates = [ coordinate ] } })
   in
   let period : I.period =
     { preset = I.Month; start_day = "2026-10-01"; end_exclusive = "2026-11-01"; label = "October" }
@@ -149,7 +143,7 @@ let self_check () =
     "liability coordinates keep their end balance";
 
   (* A cold reload agrees with the in-memory book. *)
-  let reloaded = get (B.of_string (B.to_string zero)) in
+  let reloaded = cold_of zero in
   let cold = get (compute reloaded [ ("a", "jpy"); ("b", "jpy") ]) in
   let warm = get (compute zero [ ("a", "jpy"); ("b", "jpy") ]) in
   require
@@ -497,7 +491,7 @@ let self_check () =
     "the opening posting on the window's first day is not growth";
 
   (* A cold reload of an opening book agrees with the in-memory book. *)
-  let opening_cold = get (B.of_string (B.to_string opening_book)) in
+  let opening_cold = cold_of opening_book in
   let cold = get (compute opening_cold [ ("debt", "jpy") ]) in
   let warm = get (compute opening_book [ ("debt", "jpy") ]) in
   require

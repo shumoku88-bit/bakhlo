@@ -9,18 +9,36 @@ let char_key c : Ui_input.input = `Key (`ASCII c, [])
 let get = function Ok x -> x | Error why -> failwith why
 
 let test_book_fixture =
-  "(bakhlo-daily 3)\n\
-   (scope corrected-entries explicit-plans)\n\
-   (measures (measure \"jpy\" 0) (measure \"eur\" 2) (measure \"unambiguously-long-currency\" 0))\n\
-   (labels (provided (label \"wallet\" \"財布\" \"Cash\") (label \"bank\" \"銀行\" \"Bank\") (label \
-   \"food\" \"食費\" \"Food\")))\n\
-   (approved-loci (provided \"wallet\" \"bank\" \"food\" \"present\"))\n\
-   (entries)\n\
-   (plans)\n\
-   (support (zero-origin (\"food\" \"jpy\")) (openings)\n\
-   (observations (observation (reflected) (quantities (\"wallet\" \"jpy\" 74500) (\"wallet\" \
-   \"eur\" 12345) (\"wallet\" \"unambiguously-long-currency\" 4567) (\"bank\" \"jpy\" 200000))))\n\
-   (presence (provided (reflected) (coordinates (\"present\" \"eur\")))))\n"
+  "BOOK\t1\n\
+   MEASURE\tjpy\t0\n\
+   MEASURE\teur\t2\n\
+   MEASURE\tunambiguously-long-currency\t0\n\
+   LOCUS\twallet\t財布\tCash\n\
+   LOCUS\tbank\t銀行\tBank\n\
+   LOCUS\tfood\t食費\tFood\n\
+   LOCUS\tpresent\tpresent\t\n\
+   ZERO-ORIGIN\tfood\tjpy\n\
+   ANCHOR\t-\n\
+   ASSERT\twallet\tjpy\t74500\n\
+   ASSERT\twallet\teur\t12345\n\
+   ASSERT\twallet\tunambiguously-long-currency\t4567\n\
+   ASSERT\tbank\tjpy\t200000\n\
+   ENDANCHOR\n\
+   END\n"
+
+(* The fixture's book, with presence evidence for present/eur, which book.txt cannot
+   hold, added through the payload. *)
+let fixture_book () =
+  let book = Bakhlo_sexp.Daily_txt.book test_book_fixture in
+  let coordinate : Bakhlo_domain.Effect_coordinate.t =
+    {
+      locus = Result.get_ok (Bakhlo_domain.Identifier.Locus.of_string "present");
+      measure = Result.get_ok (Bakhlo_domain.Identifier.Measure.of_string "eur");
+    }
+  in
+  get
+    (B.of_payload
+       { (B.export_payload book) with presence = Some { reflected_roots = []; coordinates = [ coordinate ] } })
 
 let test_roles = [ ("wallet", O.Asset); ("bank", O.Asset); ("food", O.Expense) ]
 
@@ -36,7 +54,7 @@ let geometry ?(dimensions = (80, 24)) ~width_of () : Screen.geometry =
   { screen = dimensions; body = dimensions; content = (width, max 0 (height - 5)); width_of }
 
 let unit_checks ~width_of () =
-  let book = get (B.of_string test_book_fixture) in
+  let book = fixture_book () in
   let none = env ~book (Ok None) in
   let owner = Balances.create () in
   require (Balances.mode owner = `Current) "initial-mode-current";
@@ -194,7 +212,7 @@ let unit_checks ~width_of () =
     && not (List.exists (fun line -> contains line "12,345") eur_print.Ui_form.summary))
     "print-shares-scaled-amount-with-current-list";
   (* Scale-2 edges: exact one minor unit both signs and exact zero keep decimals. *)
-  let edge_book = get (B.of_string test_book_fixture) in
+  let edge_book = fixture_book () in
   let edge_book =
     get
       (B.observe_quantities edge_book
