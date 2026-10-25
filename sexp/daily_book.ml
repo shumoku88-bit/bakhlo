@@ -30,7 +30,7 @@ let integer s =
 let unique xs why = require (List.length (List.sort_uniq String.compare xs) = List.length xs) why
 let coord l m : D.Effect_coordinate.t = { locus = lid l; measure = mid m }
 
-type entry = {
+type entry = Records.entry = {
   id : string;
   day : string;
   memo : string option;
@@ -41,7 +41,7 @@ type entry = {
   merchant : A.Event_merchants.disposition option;
 }
 
-type plan = {
+type plan = Records.plan = {
   id : string;
   day : string;
   measure : string;

@@ -216,6 +216,12 @@ let change_of (v : B.t) s : B.change =
         ( v.items @ [ { id = fresh; due = No_due_date; context = "later" } ],
           v.closes @ [ { item = pick [ "attention-1"; "missing"; fresh ] s; day = "2027-08-01"; kind = Dropped } ] )
   | 12 -> Set_roles (v.roles @ [ (pick [ "phone"; "wallet"; "nowhere" ] s, B.Expense) ])
+  | _ when s / 14 mod 2 = 0 ->
+      Set_history
+        (match s / 28 mod 3 with
+        | 0 -> [ (("wallet", "jpy"), "2027-01-01") ]
+        | 1 -> [ (("food", "jpy"), "2027-02-30") ]
+        | _ -> [ (("nowhere", "jpy"), "2027-01-01") ])
   | _ -> Replace_tx (plain "missing" "2027-01-01" (spend "food" 1))
 
 (* The value the changes describe, without any check; [None] if a TX to replace is missing. *)
@@ -241,6 +247,7 @@ let raw_apply (v : B.t) changes =
           | Set_loci loci -> Some { v with loci }
           | Set_roles roles -> Some { v with roles }
           | Set_anchors anchors -> Some { v with anchors }
+          | Set_history history_from -> Some { v with history_from }
           | Set_attention (items, closes) -> Some { v with items; closes }))
     (Some v) changes
 

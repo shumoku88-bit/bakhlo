@@ -113,6 +113,9 @@ type code =
   | Bad_close
   | Duplicate_close
 
+val valid_date : string -> bool
+(** A real [YYYY-MM-DD] day from 0001-01-01, as every date field requires. *)
+
 val code_name : code -> string
 (** The specification's reason code, e.g. ["unbalanced"]. *)
 
@@ -163,6 +166,7 @@ type change =
   | Set_loci of locus list
   | Set_roles of (string * role) list
   | Set_anchors of anchor list
+  | Set_history of ((string * string) * string) list  (** The [HISTORY-FROM] lines. *)
   | Set_attention of item list * close list
 
 val change : book -> change list -> (book, string) result

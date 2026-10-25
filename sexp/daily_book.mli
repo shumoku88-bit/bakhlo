@@ -6,7 +6,7 @@ module D = Bakhlo_domain
 
 module Q = Bakhlo_application.Current_quantity_query
 
-type entry = {
+type entry = Records.entry = {
   id : string;
   day : string;
   memo : string option;
@@ -17,7 +17,7 @@ type entry = {
   merchant : Bakhlo_application.Event_merchants.disposition option;
 }
 
-type plan = {
+type plan = Records.plan = {
   id : string;
   day : string;
   measure : string;

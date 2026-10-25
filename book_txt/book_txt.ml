@@ -971,6 +971,7 @@ type change =
   | Set_loci of locus list
   | Set_roles of (string * role) list
   | Set_anchors of anchor list
+  | Set_history of ((string * string) * string) list
   | Set_attention of item list * close list
 
 (* Record or forget that TX [id] reverses [target]. *)
@@ -1127,6 +1128,7 @@ let apply (b, touched) = function
   | Set_loci loci -> ({ b with value = { b.value with loci } }, touched)
   | Set_roles roles -> ({ b with value = { b.value with roles } }, touched)
   | Set_anchors anchors -> (recount { b with value = { b.value with anchors } }, touched)
+  | Set_history history_from -> ({ b with value = { b.value with history_from } }, touched)
   | Set_attention (items, closes) -> ({ b with value = { b.value with items; closes } }, touched)
 
 (* A TX outside the text being checked: its rules report at line 0. *)
