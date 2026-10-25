@@ -164,7 +164,7 @@ let change_of (v : B.t) s : B.change =
   let spend locus q = [ posting locus q; posting "wallet" (-q) ] in
   let inverse (tx : B.tx) = List.rev_map (fun (e : B.posting) -> { e with amount = Z.neg e.amount }) tx.effects in
   match s mod 14 with
-  | 0 | 1 -> Add_tx (plain fresh "2027-03-01" (spend (pick [ "food"; "fee"; "phone"; "nowhere" ] (s / 7)) (1 + (s mod 900))))
+  | 0 | 1 -> Add_tx (plain fresh "2027-03-01" (spend (pick [ "food"; "fee"; "phone"; "nowhere" ] (s / 14)) (1 + (s mod 900))))
   | 2 when ids <> [] -> Add_tx (plain (pick ids s) "2027-03-02" (spend "food" 5))
   | 3 when ids <> [] -> Add_tx { (plain fresh "2027-03-03" (inverse (some_tx ()))) with reversal_of = Some (some_tx ()).id }
   | 4 when ids <> [] ->
@@ -175,7 +175,7 @@ let change_of (v : B.t) s : B.change =
   | 6 when ids <> [] ->
       let tx = some_tx () in
       Replace_tx
-        (match s / 7 mod 4 with
+        (match s / 14 mod 4 with
         | 0 -> { tx with effects = [ posting "food" 10; posting "wallet" (-9) ] }
         | 1 -> { tx with effects = [ posting "food" 0; posting "wallet" 0 ] }
         | 2 -> { tx with day = "2027-02-30" }
@@ -199,12 +199,12 @@ let change_of (v : B.t) s : B.change =
       in
       Put_plan p
   | 9 -> (
-      match s / 7 mod 3 with
+      match s / 14 mod 3 with
       | 0 -> Set_loci (v.loci @ [ { id = "travel"; label = "旅行"; help = ""; hidden = s mod 2 = 0 } ])
       | 1 -> Set_loci (List.filteri (fun i _ -> i <> s mod List.length v.loci) v.loci)
       | _ -> Set_loci (List.map (fun (l : B.locus) -> { l with label = (if s mod 5 = 0 then "" else l.label ^ "!") }) v.loci))
   | 10 -> (
-      match (s / 7 mod 4, v.anchors) with
+      match (s / 14 mod 4, v.anchors) with
       | 3, _ -> Set_anchors [ { last = Some "-"; also = []; asserts = [ (("wallet", "jpy"), Z.of_int 5) ] } ]
       | 0, a :: rest -> Set_anchors ({ a with asserts = List.map (fun (c, _) -> (c, Z.of_int s)) a.asserts } :: rest)
       | 1, _ -> Set_anchors []
@@ -244,8 +244,27 @@ let raw_apply (v : B.t) changes =
           | Set_attention (items, closes) -> Some { v with items; closes }))
     (Some v) changes
 
+(* [B.quantity] against the specification's [B.balance] at every Locus and Measure. *)
+let balances_agree book =
+  let v = B.value book in
+  List.iter
+    (fun (l : B.locus) ->
+      List.iter
+        (fun (measure, _) ->
+          let indexed = B.quantity book ~locus:l.id ~measure in
+          let consistent =
+            match (indexed, B.balance v ~locus:l.id ~measure) with
+            | None, B.Unknown -> true
+            | Some { amount; support = Counted { counted; since } }, B.Known q -> Z.equal amount q && Z.equal amount (Z.add counted since)
+            | Some { amount; support = Zero_origin | Opening _ }, B.Known q -> Z.equal amount q
+            | _ -> false
+          in
+          if not consistent then failwith (Printf.sprintf "indexed balance differs at %s/%s:\n%s" l.id measure (B.to_string v)))
+        v.measures)
+    v.loci
+
 let%expect_test "a change is admitted exactly when the whole file would admit its result" =
-  let admitted = ref 0 and refused = ref 0 in
+  let admitted = ref 0 and refused = ref 0 and anchor_changes = ref 0 in
   Base_quickcheck.Test.run_exn
     (module struct
       type t = B.t * int list
@@ -262,6 +281,7 @@ let%expect_test "a change is admitted exactly when the whole file would admit it
     ~config:{ Base_quickcheck.Test.default_config with seed = Deterministic "book-txt-change"; test_count = 3_000 }
     ~f:(fun (start, seeds) ->
       let book = ref (Result.get_ok (B.read (B.to_string start))) in
+      balances_agree !book;
       let rec batches = function
         | [] -> ()
         | s :: rest ->
@@ -279,8 +299,10 @@ let%expect_test "a change is admitted exactly when the whole file would admit it
             (match (B.change !book changes, expected) with
             | Ok after, Some raw ->
                 incr admitted;
+                if List.exists (function B.Set_anchors _ -> true | _ -> false) changes then incr anchor_changes;
                 if B.value after <> raw then failwith "admitted a different value";
                 if B.print after <> B.to_string raw then failwith "printed text differs";
+                balances_agree after;
                 book := after
             | Error _, None -> incr refused
             | Ok _, None ->
@@ -298,5 +320,6 @@ let%expect_test "a change is admitted exactly when the whole file would admit it
             batches rest
       in
       batches seeds);
-  Printf.printf "agreed with the whole-file reader: %b admitted, %b refused\n" (!admitted > 5000) (!refused > 5000);
-  [%expect {| agreed with the whole-file reader: true admitted, true refused |}]
+  Printf.printf "agreed with the whole-file reader: %b admitted, %b refused, %b anchor changes\n" (!admitted > 5000)
+    (!refused > 5000) (!anchor_changes > 300);
+  [%expect {| agreed with the whole-file reader: true admitted, true refused, true anchor changes |}]

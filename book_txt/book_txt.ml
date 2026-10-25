@@ -943,6 +943,13 @@ let to_string t =
 
 module Smap = Map.Make (String)
 module Imap = Map.Make (Int)
+module Sset = Set.Make (String)
+
+module Cmap = Map.Make (struct
+  type t = string * string
+
+  let compare = compare
+end)
 
 type book = {
   value : t;
@@ -951,6 +958,10 @@ type book = {
   printed : (string * string) Imap.t;  (* position -> the TX ID and its printed block *)
   next : int;  (* position of the next TX *)
   size : int;  (* bytes in [printed] *)
+  totals : Z.t Cmap.t;  (* (Locus, Measure) -> the sum of every Effect there *)
+  anchored : (int * Sset.t) list;  (* per anchor: the position of [last] (-1 for -), [also] *)
+  counted : (int * Z.t) Cmap.t;  (* asserted coordinate -> its anchor's index and the count *)
+  since : Z.t Cmap.t;  (* asserted coordinate -> its Effects that the count does not reflect *)
 }
 
 type change =
@@ -973,6 +984,51 @@ let tx_text tx =
   print_tx b tx;
   Buffer.contents b
 
+(* ---- current balances, kept with every change ---- *)
+
+let add_to c q map = Cmap.update c (fun v -> Some (Z.add q (Option.value v ~default:Z.zero))) map
+
+(* Whether the count of anchor [(last, also)] leaves out TX [id] at position [i]. *)
+let unreflected (last, also) i id = i > last && not (Sset.mem id also)
+
+(* [b] with the Effects of TX [tx] at position [i] added, or taken away ([sign] -1). *)
+let count_tx sign i (tx : tx) b =
+  List.fold_left
+    (fun b (e : posting) ->
+      let c = (e.locus, e.measure) and q = if sign < 0 then Z.neg e.amount else e.amount in
+      let since =
+        match Cmap.find_opt c b.counted with
+        | Some (k, _) when unreflected (List.nth b.anchored k) i tx.id -> add_to c q b.since
+        | _ -> b.since
+      in
+      { b with totals = add_to c q b.totals; since })
+    b tx.effects
+
+(* The anchor indexes and the Effects each count leaves out, from the whole book. *)
+let recount b =
+  let anchors = b.value.anchors in
+  let pos id = match Smap.find_opt id b.index with Some (i, _) -> i | None -> max_int in
+  let anchored =
+    List.map (fun a -> ((match a.last with None -> -1 | Some id -> pos id), Sset.of_list a.also)) anchors
+  in
+  let counted =
+    List.fold_left
+      (fun (k, m) a -> (k + 1, List.fold_left (fun m (c, q) -> Cmap.add c (k, q) m) m a.asserts))
+      (0, Cmap.empty) anchors
+    |> snd
+  in
+  let b = { b with anchored; counted; since = Cmap.map (fun _ -> Z.zero) counted } in
+  Smap.fold
+    (fun _ (i, (tx : tx)) b ->
+      List.fold_left
+        (fun b (e : posting) ->
+          let c = (e.locus, e.measure) in
+          match Cmap.find_opt c b.counted with
+          | Some (k, _) when unreflected (List.nth b.anchored k) i tx.id -> { b with since = add_to c e.amount b.since }
+          | _ -> b)
+        b tx.effects)
+    b.index b
+
 (* [texts] gives each TX's printed lines, in file order. *)
 let book_of ?texts value =
   let texts = ref (match texts with Some ts -> ts | None -> List.map tx_text value.txs) in
@@ -987,9 +1043,22 @@ let book_of ?texts value =
         printed = Imap.add b.next (tx.id, s) b.printed;
         next = b.next + 1;
         size = b.size + String.length s;
+        totals = List.fold_left (fun m (e : posting) -> add_to (e.locus, e.measure) e.amount m) b.totals tx.effects;
       })
-    { value; index = Smap.empty; reversed_by = Smap.empty; printed = Imap.empty; next = 0; size = 0 }
+    {
+      value;
+      index = Smap.empty;
+      reversed_by = Smap.empty;
+      printed = Imap.empty;
+      next = 0;
+      size = 0;
+      totals = Cmap.empty;
+      anchored = [];
+      counted = Cmap.empty;
+      since = Cmap.empty;
+    }
     value.txs
+  |> recount
 
 (* Each TX block of an admitted text, in file order. An admitted text is canonical, so
    these are the lines the TX prints to. *)
@@ -1023,20 +1092,23 @@ let apply (b, touched) = function
   | Add_tx tx ->
       if Smap.mem tx.id b.index then refuse Duplicate_tx 0;
       let s = tx_text tx in
-      ( {
-          value = { b.value with txs = b.value.txs @ [ tx ] };
-          index = Smap.add tx.id (b.next, tx) b.index;
-          reversed_by = (match tx.reversal_of with Some x -> reverses tx.id x b.reversed_by | None -> b.reversed_by);
-          printed = Imap.add b.next (tx.id, s) b.printed;
-          next = b.next + 1;
-          size = b.size + String.length s;
-        },
+      ( count_tx 1 b.next tx
+          {
+            b with
+            value = { b.value with txs = b.value.txs @ [ tx ] };
+            index = Smap.add tx.id (b.next, tx) b.index;
+            reversed_by = (match tx.reversal_of with Some x -> reverses tx.id x b.reversed_by | None -> b.reversed_by);
+            printed = Imap.add b.next (tx.id, s) b.printed;
+            next = b.next + 1;
+            size = b.size + String.length s;
+          },
         tx.id :: touched )
   | Replace_tx tx ->
       let i, old = match Smap.find_opt tx.id b.index with Some found -> found | None -> refuse Unknown_tx 0 in
       let s = tx_text tx in
       let reversed_by = match old.reversal_of with Some x -> unreverses old.id x b.reversed_by | None -> b.reversed_by in
-      ( {
+      ( count_tx 1 i tx @@ count_tx (-1) i old
+        @@ {
           b with
           value = { b.value with txs = List.map (fun (x : tx) -> if x.id = tx.id then tx else x) b.value.txs };
           index = Smap.add tx.id (i, tx) b.index;
@@ -1054,7 +1126,7 @@ let apply (b, touched) = function
       ({ b with value = { b.value with plans } }, touched)
   | Set_loci loci -> ({ b with value = { b.value with loci } }, touched)
   | Set_roles roles -> ({ b with value = { b.value with roles } }, touched)
-  | Set_anchors anchors -> ({ b with value = { b.value with anchors } }, touched)
+  | Set_anchors anchors -> (recount { b with value = { b.value with anchors } }, touched)
   | Set_attention (items, closes) -> ({ b with value = { b.value with items; closes } }, touched)
 
 (* A TX outside the text being checked: its rules report at line 0. *)
@@ -1148,3 +1220,20 @@ let balance t ~locus ~measure =
         let after txs = if a.last = None then txs else after txs in
         Known (Z.add q (sum (List.filter (fun (tx : tx) -> not (List.mem tx.id a.also)) (after t.txs))))
     | None -> Unknown
+
+type support = Zero_origin | Opening of string | Counted of { counted : Z.t; since : Z.t }
+type quantity = { amount : Z.t; support : support }
+
+let quantity b ~locus ~measure =
+  let c = (locus, measure) in
+  let total () = Option.value (Cmap.find_opt c b.totals) ~default:Z.zero in
+  if List.mem c b.value.zero_origins then Some { amount = total (); support = Zero_origin }
+  else
+    match List.assoc_opt c b.value.openings with
+    | Some tx -> Some { amount = total (); support = Opening tx }
+    | None -> (
+        match Cmap.find_opt c b.counted with
+        | Some (_, counted) ->
+            let since = Option.value (Cmap.find_opt c b.since) ~default:Z.zero in
+            Some { amount = Z.add counted since; support = Counted { counted; since } }
+        | None -> None)

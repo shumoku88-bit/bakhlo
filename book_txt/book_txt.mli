@@ -172,3 +172,18 @@ val change : book -> change list -> (book, string) result
     does not exist, or ["not-canonical"] when the printed text would read back as a
     different value. Every line except the untouched TXs is read back with the same
     reader; the untouched TXs are not read again unless a Measure or Locus is left out. *)
+
+(** {1 Current balances of the admitted book} *)
+
+type support =
+  | Zero_origin
+  | Opening of string  (** The opening TX. *)
+  | Counted of { counted : Z.t; since : Z.t }
+      (** An [ASSERT]: the counted amount, and the Effects its count does not reflect. *)
+
+type quantity = { amount : Z.t; support : support }
+
+val quantity : book -> locus:string -> measure:string -> quantity option
+(** {!balance} of [value b] ([None] for [Unknown]) and the support it rests on, from
+    totals kept with every change instead of a walk over the TXs
+    (test/book_txt_tests.ml). *)
