@@ -98,10 +98,10 @@ user-approved migration of `../bakhlo-data` (Principles).
 - One book file, `book.txt`: every save writes a temporary file, flushes it, keeps the current
   file as `.prev`, renames and flushes the directory (`Daily_file.publish`). No append log,
   Records, annual files or SQLite; long-term history is Git's job. The session keeps the
-  in-memory book, which must equal its book.txt reload (oracle tests below), and the
-  admitted book.txt: a save checks and prints only what it changes. `Book_txt.change`
-  must admit exactly what reading the whole printed file admits (`test/book_txt_tests.ml`),
-  and `Daily_txt.changes` must equal the whole conversion (oracle). An
+  in-memory book, whose state is the admitted book.txt (`Daily_book` over
+  `Book_txt.book`): a save checks and prints only what it changes. `Book_txt.change`
+  must admit exactly what reading the whole printed file admits, and `Book_txt.quantity`
+  must equal the specification's balance (`test/book_txt_tests.ml`). An
   S-expression book is refused, never converted on load (the one-time migration tool,
   `tools/book-txt`, is in Git history up to `6a22ba6`).
 - Targets: a save ≤100 ms including the durable flush (user decision 2026-10-24; review
@@ -109,9 +109,9 @@ user-approved migration of `../bakhlo-data` (Principles).
   the household's size and at ~30 years (~110k entries). User decision (2026-10-21): every household write
   flushes the drive cache (`F_FULLFSYNC` on macOS, ~21 ms here) before it is reported. Measure with `./tools/startup-probe`. Startup is deferred by the user until
   it is felt slow; then a disposable snapshot first, lazy older years only if needed.
-- Every `Daily_book` mutation must agree with `Daily_book.Full` and with a cold reload:
-  keep `test/daily_book_oracle_tests.ml` green and extend it before adding a fast path.
-  Reuse the existing semantic checks (e.g. run `Actual_source` on the changed entries);
+- Every `Daily_book` mutation must agree with the cold reload of its book.txt: keep
+  `test/daily_book_oracle_tests.ml` green and extend it before adding a fast path. Its
+  admission is `Book_txt.change` (the whole-file rules) after Bakhlo's write policies;
   no second admission engine, dummy Events or surrogate correction histories.
 - Persistent post-save acknowledgement (P7) and power loss stay unqualified and
   separate from everyday work.

@@ -1,21 +1,26 @@
-(* The household book in memory. Its file form is book.txt (Daily_txt). The
-   existing Application owns quantities, reversal and exchange admission. *)
+(* The household book in memory: an admitted book.txt (Book_txt.book) and, for the
+   screens, its TXs as entries. Every change is one Book_txt change, admitted by the
+   specification's rules after Bakhlo's own write policies: Loci offered for new
+   entries, open plans only, a Merchant set once. Balances come from the totals the
+   admitted book keeps. Pure. *)
 module D = Bakhlo_domain
+module T = Bakhlo_book_txt.Book_txt
+module M = Bakhlo_application.Event_merchants
 module R = Q
-module A = Bakhlo_application
-module Q = A.Current_quantity_query
+module Smap = Map.Make (String)
+module Imap = Map.Make (Int)
 
 exception Refused of string
 
 let require p why = if not p then raise (Refused why)
 let get why = function Ok x -> x | Error _ -> raise (Refused why)
+let protect f = try Ok (f ()) with Refused why -> Error why
 let eid s = get "invalid-entry-id" (D.Identifier.Event.of_string s)
 let lid s = get "invalid-locus" (D.Identifier.Locus.of_string s)
 let mid s = get "invalid-measure" (D.Identifier.Measure.of_string s)
-let key s = get "invalid-posting-key" (D.Identifier.Effect_key.of_string s)
-let estr = D.Identifier.Event.to_string
 let lstr = D.Identifier.Locus.to_string
 let mstr = D.Identifier.Measure.to_string
+let valid_date day = require (T.valid_date day) "invalid-date"
 
 let integer_syntax s =
   let len = String.length s in
@@ -27,9 +32,6 @@ let integer s =
   require (integer_syntax s) "invalid-integer";
   Z.of_string s
 
-let unique xs why = require (List.length (List.sort_uniq String.compare xs) = List.length xs) why
-let coord l m : D.Effect_coordinate.t = { locus = lid l; measure = mid m }
-
 type entry = Records.entry = {
   id : string;
   day : string;
@@ -38,7 +40,7 @@ type entry = Records.entry = {
   reversal_of : string option;
   exchange : (string * string) option;
   original_amount : (string * Z.t) option;
-  merchant : A.Event_merchants.disposition option;
+  merchant : M.disposition option;
 }
 
 type plan = Records.plan = {
@@ -50,321 +52,169 @@ type plan = Records.plan = {
   cancelled_on : string option;
 }
 
-module Entry_map = Map.Make (String)
-(* Newest first, so one fold builds the oldest-first list. *)
-module Seq_map = Map.Make (struct
-  type t = int
-
-  let compare a b = Int.compare b a
-end)
-
-type data = {
-  measures : (string * int) list;
-  labels : (string * string * string) list option;
-  approved : string list option;
-  ordered : entry Seq_map.t;
-      (** Recorded position to entry, so a correction replaces one node, not a list. *)
-  position : int Entry_map.t;  (** Entry ID to its recorded position. *)
-  entry_count : int;  (** Also the next position: entries are never removed. *)
-  reversed_by : string Entry_map.t;  (** Target ID to the ID of the entry reversing it. *)
-  plans : plan list;
-  origins : D.Effect_coordinate.t list;
-  openings : Q.opening list;
-  observations : A.Current_quantity_groups.group list;
-  bounded : (D.Effect_coordinate.t * string) list;
+type t = {
+  txt : T.book;
+  ordered : entry Imap.t;  (* TX position -> its entry *)
+  position : int Smap.t;  (* entry ID -> TX position *)
+  cached : entry list Lazy.t;  (* recorded order *)
 }
 
-type t = { data : data; image : Q.t; entries_cached : entry list Lazy.t }
+(* ---- entries <-> TXs ---- *)
 
-let make_data ~measures ~labels ~approved ~entries ~plans ~origins ~openings ~observations ~bounded =
-  let entry_count = List.length entries in
-  let ordered = Seq_map.of_seq (Seq.mapi (fun n e -> (n, e)) (List.to_seq entries)) in
-  let position =
+let exchange_source = "exchange-source"
+let exchange_destination = "exchange-destination"
+
+(* An exchange names the only negative Effect of its source Measure and the only
+   positive one of its destination Measure, by their keys; an unkeyed one gets a fixed
+   key, which the next save writes out. *)
+let entry_of (tx : T.tx) : entry =
+  let only sign m =
+    match List.filter (fun (e : T.posting) -> e.measure = m && Z.sign e.amount = sign) tx.effects with
+    | [ e ] -> e
+    | _ -> raise (Refused "exchange-ambiguous")
+  in
+  let named =
+    match tx.exchange with
+    | None -> []
+    | Some (x, y) ->
+        let pick e fallback =
+          match e.T.key with
+          | Some k -> (e, k)
+          | None ->
+              if List.exists (fun (o : T.posting) -> o.key = Some fallback) tx.effects then
+                raise (Refused "exchange-key-taken");
+              (e, fallback)
+        in
+        [ pick (only (-1) x) exchange_source; pick (only 1 y) exchange_destination ]
+  in
+  let posting (e : T.posting) =
+    let key = match List.find_opt (fun (k, _) -> k == e) named with Some (_, name) -> Some name | None -> e.key in
+    D.Effect.create
+      ~key:(Option.map (fun k -> get "effect-key-id" (D.Identifier.Effect_key.of_string k)) key)
+      ~locus:(lid e.locus) ~measure:(mid e.measure) ~quantity:(D.Quantity.of_quanta e.amount)
+  in
+  {
+    id = tx.id;
+    day = tx.day;
+    memo = tx.memo;
+    effects = List.map posting tx.effects;
+    reversal_of = tx.reversal_of;
+    exchange = (match named with [ (_, a); (_, b) ] -> Some (a, b) | _ -> None);
+    original_amount = tx.original;
+    merchant =
+      Option.map
+        (function
+          | T.Merchant s -> M.Merchant (get "merchant-id" (D.Identifier.External_party.of_string s))
+          | T.Nonmerchant -> M.Nonmerchant)
+        tx.merchant;
+  }
+
+let tx_of_entry (e : entry) : T.tx =
+  let key p = Option.map D.Identifier.Effect_key.to_string (D.Effect.key p) in
+  let measure_of k =
+    match List.filter (fun p -> key p = Some k) e.effects with
+    | [ p ] -> mstr (D.Effect.measure p)
+    | _ -> raise (Refused "exchange-key")
+  in
+  {
+    id = e.id;
+    day = e.day;
+    memo = (match e.memo with Some "" -> None | m -> m);
+    effects =
+      List.map
+        (fun p : T.posting ->
+          {
+            locus = lstr (D.Effect.locus p);
+            measure = mstr (D.Effect.measure p);
+            amount = D.Quantity.quanta (D.Effect.quantity p);
+            key = key p;
+          })
+        e.effects;
+    reversal_of = e.reversal_of;
+    original = e.original_amount;
+    merchant =
+      Option.map
+        (function M.Merchant p -> T.Merchant (D.Identifier.External_party.to_string p) | M.Nonmerchant -> T.Nonmerchant)
+        e.merchant;
+    exchange = Option.map (fun (s, d) -> (measure_of s, measure_of d)) e.exchange;
+  }
+
+(* The TX of an entry, which must read back as that same entry: book.txt names an
+   exchange by its Measures, so an exchange whose legs are not the only negative and
+   positive Effects of those Measures refuses instead of saving a book that would not
+   load. *)
+let tx_of e =
+  let tx = tx_of_entry e in
+  if entry_of tx <> e then raise (Refused "entry-not-representable");
+  tx
+
+let plan_of (p : plan) : T.plan =
+  {
+    id = p.id;
+    day = p.day;
+    measure = p.measure;
+    changes = p.changes;
+    ending =
+      (match (p.paid_by, p.cancelled_on) with
+      | Some tx, _ -> Some (T.Paid_by tx)
+      | None, Some day -> Some (T.Cancelled day)
+      | None, None -> None);
+  }
+
+let plan_back (p : T.plan) : plan =
+  {
+    id = p.id;
+    day = p.day;
+    measure = p.measure;
+    changes = p.changes;
+    paid_by = (match p.ending with Some (T.Paid_by tx) -> Some tx | _ -> None);
+    cancelled_on = (match p.ending with Some (T.Cancelled d) -> Some d | _ -> None);
+  }
+
+(* ---- the book ---- *)
+
+let make txt =
+  let entries = List.map entry_of (T.value txt).txs in
+  let ordered, position, _ =
     List.fold_left
-      (fun (m, n) (e : entry) -> (Entry_map.add e.id n m, n + 1))
-      (Entry_map.empty, 0) entries
-    |> fst
+      (fun (o, p, i) (e : entry) -> (Imap.add i e o, Smap.add e.id i p, i + 1))
+      (Imap.empty, Smap.empty, 0) entries
   in
-  let reversed_by =
-    List.fold_left
-      (fun m (e : entry) ->
-        Option.fold ~none:m ~some:(fun target -> Entry_map.add target e.id m) e.reversal_of)
-      Entry_map.empty entries
-  in
-  {
-    measures;
-    labels;
-    approved;
-    ordered;
-    position;
-    entry_count;
-    reversed_by;
-    plans;
-    origins;
-    openings;
-    observations;
-    bounded;
-  }
+  { txt; ordered; position; cached = lazy entries }
 
-(* Recorded order, oldest first. *)
-let ordered_entries data = Seq_map.fold (fun _ e acc -> e :: acc) data.ordered []
-
-let lookup data id =
-  Option.map (fun n -> Seq_map.find n data.ordered) (Entry_map.find_opt id data.position)
-
-let empty_command : A.Actual_source.command =
-  {
-    events = [];
-    validities = [];
-    validity_corrections = [];
-    corrections = [];
-    descriptions = [];
-    merchants = [];
-    original_amounts = [];
-    exchanges = [];
-    reversals = [];
-    relations = [];
-    discharges = [];
-  }
-
-let valid_date day = require (A.Actual_validity.valid_date day) "invalid-date"
-
-(* Admission stages. A mutation that changes only one family may run only that
-   family's stage on an admitted book: the other stages depend on nothing it
-   changes, so they would pass again, and stage order keeps the same first refusal. *)
-let known_measure data m = require (List.mem_assoc m data.measures) "measure-scale-not-supplied"
-
-let check_vocabulary data =
-  unique (List.map fst data.measures) "duplicate-measure";
-  List.iter
-    (fun (m, n) ->
-      ignore (mid m);
-      require (n >= 0 && n <= 9) "invalid-scale")
-    data.measures;
-  Option.iter
-    (fun rows ->
-      unique (List.map (fun (id, _, _) -> id) rows) "duplicate-label";
-      List.iter
-        (fun (id, label, _help) ->
-          ignore (lid id);
-          require (label <> "") "invalid-label")
-        rows)
-    data.labels;
-  Option.iter
-    (fun ids ->
-      unique ids "duplicate-approved-locus";
-      List.iter (fun id -> ignore (lid id)) ids)
-    data.approved
-
-let check_plans data =
-  let known = known_measure data in
-  unique (List.map (fun (p : plan) -> p.id) data.plans) "duplicate-plan";
-  unique (List.filter_map (fun (p : plan) -> p.paid_by) data.plans) "duplicate-plan-payment";
-  List.iter
-    (fun (p : plan) ->
-      require (p.id <> "") "invalid-plan-id";
-      valid_date p.day;
-      known p.measure;
-      List.iter (fun (l, _) -> ignore (lid l)) p.changes;
-      require
-        (Z.equal Z.zero (List.fold_left (fun total (_, n) -> Z.add total n) Z.zero p.changes))
-        "unbalanced-plan";
-      require (p.paid_by = None || p.cancelled_on = None) "plan-paid-and-cancelled";
-      Option.iter valid_date p.cancelled_on;
-      Option.iter
-        (fun id -> require (Entry_map.mem id data.position) "unknown-plan-payment")
-        p.paid_by)
-    data.plans
-
-(* The entry stage: per entry, known Measures then Event construction; then the
-   Actual source over those entries. Every Actual check concerns one entry or one
-   Reversal pair, so running it over an entry and its partners admits exactly that
-   entry's share of the whole-book check. *)
-let entry_event data (e : entry) =
-  let known = known_measure data in
-  List.iter (fun p -> known (mstr (D.Effect.measure p))) e.effects;
-  Option.iter (fun (m, _) -> known m) e.original_amount;
-  get "invalid-entry" (D.Event.create ~id:(eid e.id) ~effects:e.effects)
-
-let actual_source events (entries : entry list) =
-  get "entry-admission"
-    (A.Actual_source.create
-       {
-         empty_command with
-         events;
-         validities =
-           List.map
-             (fun (e : entry) -> A.Actual_validity.Base { event = eid e.id; valid_on = e.day })
-             entries;
-         descriptions =
-           List.filter_map
-             (fun (e : entry) ->
-               Option.map
-                 (fun text ->
-                   ({ A.Event_descriptions.event = eid e.id; text } : A.Event_descriptions.fact))
-                 e.memo)
-             entries;
-         merchants =
-           List.filter_map
-             (fun (e : entry) ->
-               Option.map
-                 (fun disposition ->
-                   ({ A.Event_merchants.event = eid e.id; disposition } : A.Event_merchants.fact))
-                 e.merchant)
-             entries;
-         reversals =
-           List.filter_map
-             (fun (e : entry) ->
-               Option.map
-                 (fun target ->
-                   ({ A.Actual_reversals.target = eid target; reversal = eid e.id }
-                     : A.Actual_reversals.fact))
-                 e.reversal_of)
-             entries;
-         original_amounts =
-           List.filter_map
-             (fun (e : entry) ->
-               Option.map
-                 (fun (m, q) ->
-                   ({
-                      A.Original_amounts.root = eid e.id;
-                      measure = mid m;
-                      quantity = D.Quantity.of_quanta q;
-                    }
-                     : A.Original_amounts.fact))
-                 e.original_amount)
-             entries;
-         exchanges =
-           List.filter_map
-             (fun (e : entry) ->
-               Option.map
-                 (fun (from_key, to_key) ->
-                   ({
-                      A.Exchange_evidence.event = eid e.id;
-                      source = key from_key;
-                      destination = key to_key;
-                    }
-                     : A.Exchange_evidence.fact))
-                 e.exchange)
-             entries;
-       })
-
-let admit ?entries_cached data =
-  check_vocabulary data;
-  let known = known_measure data in
-  let entries =
-    match entries_cached with Some c -> Lazy.force c | None -> ordered_entries data
-  in
-  let source = actual_source (List.map (entry_event data) entries) entries in
-  check_plans data;
-  let known_coord (c : D.Effect_coordinate.t) = known (mstr c.measure) in
-  List.iter known_coord data.origins;
-  List.iter (fun (o : Q.opening) -> known_coord o.coordinate) data.openings;
-  List.iter
-    (fun (g : A.Current_quantity_groups.group) ->
-      List.iter
-        (fun (a : A.Current_quantity_projection.assertion) -> known_coord a.coordinate)
-        g.assertions)
-    data.observations;
-  (* Explicit claims only; route conflicts are refused when a history is asked. *)
-  unique
-    (List.map
-       (fun ((c : D.Effect_coordinate.t), _) -> lstr c.locus ^ "\x00" ^ mstr c.measure)
-       data.bounded)
-    "duplicate-bounded-history-coordinate";
-  List.iter
-    (fun (c, day) ->
-      known_coord c;
-      valid_date day)
-    data.bounded;
-  let entries_cached = match entries_cached with Some c -> c | None -> lazy entries in
-  {
-    data;
-    image =
-      get "support-admission"
-        (Q.create ~source ~zero_origins:data.origins ~openings:data.openings
-           ~groups:data.observations);
-    entries_cached;
-  }
-
-let protect f = try Ok (f ()) with Refused why -> Error why
+let of_txt txt = protect (fun () -> make txt)
+let txt t = t.txt
+let value t = T.value t.txt
 
 let empty ~measure ~scale =
   protect (fun () ->
-      admit
-        (make_data
-           ~measures:[ (measure, scale) ]
-           ~labels:None ~approved:(Some []) ~entries:[] ~plans:[] ~origins:[] ~openings:[]
-           ~observations:[] ~bounded:[]))
+      ignore (mid measure);
+      require (scale >= 0 && scale <= 9) "invalid-scale";
+      match T.read (Printf.sprintf "BOOK\t1\nMEASURE\t%s\t%d\nEND\n" measure scale) with
+      | Ok b -> make b
+      | Error _ -> raise (Refused "invalid-measure"))
 
-let valid_token s =
-  s <> "" && not (String.contains s '\t' || String.contains s '\n' || String.contains s '\r')
-
-type payload = {
-  measures : (string * int) list;
-  labels : (string * string * string) list option;
-  approved : string list option;
-  entries : entry list;
-  plans : plan list;
-  origins : D.Effect_coordinate.t list;
-  openings : Q.opening list;
-  observations : A.Current_quantity_groups.group list;
-  bounded : (D.Effect_coordinate.t * string) list;
-}
-
-let admit_payload (p : payload) =
-  protect (fun () ->
-      let data =
-        make_data ~measures:p.measures ~labels:p.labels ~approved:p.approved ~entries:p.entries
-          ~plans:p.plans ~origins:p.origins ~openings:p.openings ~observations:p.observations
-          ~bounded:p.bounded
-      in
-      admit ~entries_cached:(lazy p.entries) data)
-
-let export_payload (t : t) : payload =
-  {
-    measures = t.data.measures;
-    labels = t.data.labels;
-    approved = t.data.approved;
-    entries = Lazy.force t.entries_cached;
-    plans = t.data.plans;
-    origins = t.data.origins;
-    openings = t.data.openings;
-    observations = t.data.observations;
-    bounded = t.data.bounded;
-  }
-
-let of_payload = admit_payload
-
-let entries t = Lazy.force t.entries_cached
+let entries t = Lazy.force t.cached
 let entries_rev t = List.rev (entries t)
-let entry_count t = t.data.entry_count
-let find_entry t id = lookup t.data id
-let mem_entry t id = Entry_map.mem id t.data.position
-let plans t = t.data.plans
+let entry_count t = T.tx_count t.txt
+let find_entry t id = Option.map (fun i -> Imap.find i t.ordered) (Smap.find_opt id t.position)
+let mem_entry t id = Smap.mem id t.position
+let plans t = List.map plan_back (value t).plans
 let plan_is_open (p : plan) = p.paid_by = None && p.cancelled_on = None
-let open_plans t = List.filter plan_is_open t.data.plans
-let measures t = t.data.measures
-let approved_loci t = t.data.approved
-let image t = t.image
-
-let label t id =
-  match t.data.labels with
-  | None -> id
-  | Some rows -> (
-      match List.find_opt (fun (key, _, _) -> key = id) rows with
-      | None -> id
-      | Some (_, name, _) -> name)
-
-let help t id =
-  match t.data.labels with
-  | None -> ""
-  | Some rows -> (
-      match List.find_opt (fun (key, _, _) -> key = id) rows with None -> "" | Some (_, _, h) -> h)
+let open_plans t = List.filter plan_is_open (plans t)
+let measures t = (value t).measures
+let offered t = List.filter_map (fun (l : T.locus) -> if l.hidden then None else Some l.id) (value t).loci
+let approved_loci t = Some (offered t)
+let locus_row t id = List.find_opt (fun (l : T.locus) -> l.id = id) (value t).loci
+let label t id = match locus_row t id with Some l -> l.label | None -> id
+let help t id = match locus_row t id with Some l -> l.help | None -> ""
+let quantity t ~locus ~measure = T.quantity t.txt ~locus ~measure
+let has_zero_origin t ~locus ~measure = List.mem (locus, measure) (value t).zero_origins
+let openings t = (value t).openings
+let bounded_history_start t ~locus ~measure = List.assoc_opt (locus, measure) (value t).history_from
 
 let scale t m =
-  get "unknown-measure"
-    (match List.assoc_opt m t.data.measures with Some n -> Ok n | None -> Error ())
+  get "unknown-measure" (match List.assoc_opt m (measures t) with Some n -> Ok n | None -> Error ())
 
 let format t m n =
   let decimals = scale t m in
@@ -587,6 +437,12 @@ let day_number text =
   + day
   + if leap && month > 2 then 1 else 0
 
+
+let pool_balance t (c : D.Effect_coordinate.t) =
+  match quantity t ~locus:(lstr c.locus) ~measure:(mstr c.measure) with
+  | Some q -> Some q.amount
+  | None -> None
+
 let daily_pace t ~measure ~pool ~observed_at ~end_exclusive =
   protect (fun () ->
       let first = day_number observed_at and last = day_number end_exclusive in
@@ -598,36 +454,24 @@ let daily_pace t ~measure ~pool ~observed_at ~end_exclusive =
         (List.length (List.sort_uniq D.Effect_coordinate.compare pool) = List.length pool)
         "daily-pace-duplicate-coordinate";
       require
-        (List.for_all
-           (fun (c : D.Effect_coordinate.t) ->
-             D.Identifier.Measure.equal c.measure selected_measure)
-           pool)
+        (List.for_all (fun (c : D.Effect_coordinate.t) -> D.Identifier.Measure.equal c.measure selected_measure) pool)
         "daily-pace-pool-measure-mismatch";
       let pool_balances =
         List.map
-          (fun c ->
-            let n =
-              match Q.query t.image c with
-              | Ok answer -> D.Quantity.quanta (Q.quantity answer)
-              | Error (Q.Support_unknown _) ->
-                  raise
-                    (Refused ("daily-pace-balance-support-unknown:" ^ lstr c.locus ^ ":" ^ measure))
-            in
-            (c, n))
+          (fun (c : D.Effect_coordinate.t) ->
+            match pool_balance t c with
+            | Some n -> (c, n)
+            | None -> raise (Refused ("daily-pace-balance-support-unknown:" ^ lstr c.locus ^ ":" ^ measure)))
           pool
       in
-      let selected locus =
-        List.exists (fun (c : D.Effect_coordinate.t) -> lstr c.locus = locus) pool
-      in
+      let selected locus = List.exists (fun (c : D.Effect_coordinate.t) -> lstr c.locus = locus) pool in
       let plan_deductions =
         open_plans t
         |> List.filter_map (fun (p : plan) ->
             if p.measure <> measure || p.day >= end_exclusive then None
             else
               let net =
-                List.fold_left
-                  (fun total (locus, n) -> if selected locus then Z.add total n else total)
-                  Z.zero p.changes
+                List.fold_left (fun total (locus, n) -> if selected locus then Z.add total n else total) Z.zero p.changes
               in
               if Z.sign net < 0 then Some (p.id, Z.neg net) else None)
       in
@@ -649,397 +493,10 @@ let daily_pace t ~measure ~pool ~observed_at ~end_exclusive =
         daily_pace_quanta = Z.ediv available_through_end (Z.of_int remaining_days);
       })
 
-let approve_effects t effects =
-  match t.data.approved with
-  | None -> raise (Refused "locus-policy-not-supplied")
-  | Some ids ->
-      List.iter
-        (fun p -> require (List.mem (lstr (D.Effect.locus p)) ids) "locus-unapproved")
-        effects
-
-let find_plan t id =
-  match List.find_opt (fun (p : plan) -> p.id = id) t.data.plans with
-  | Some p -> p
-  | None -> raise (Refused "unknown-plan")
-
-let require_open_plan (p : plan) =
-  require (p.paid_by = None) "plan-already-paid";
-  require (p.cancelled_on = None) "plan-cancelled"
-
-(* Every mutation builds its candidate once. The ordinary entry point checks only
-   the stages the change can affect (see the admission stages); [Full] re-admits
-   the whole candidate and is the reference the oracle compares against. *)
-let plan_candidate t ~replace (p : plan) =
-  require (plan_is_open p) "plan-terminal-not-input";
-  let exists = List.exists (fun (row : plan) -> row.id = p.id) t.data.plans in
-  require (exists = replace) (if replace then "unknown-plan" else "duplicate-plan");
-  if replace then require_open_plan (find_plan t p.id);
-  let effects =
-    List.map
-      (fun (loc, n) ->
-        D.Effect.create ~locus:(lid loc) ~measure:(mid p.measure) ~quantity:(D.Quantity.of_quanta n)
-          ~key:None)
-      p.changes
-  in
-  approve_effects t effects;
-  ignore (get "invalid-plan-movement" (D.Movement.validate effects));
-  let plans =
-    if replace then List.map (fun (row : plan) -> if row.id = p.id then p else row) t.data.plans
-    else t.data.plans @ [ p ]
-  in
-  { t.data with plans }
-
-let cancel_candidate t ~id ~day =
-  let selected = find_plan t id in
-  require_open_plan selected;
-  valid_date day;
-  let plans =
-    List.map
-      (fun (p : plan) -> if p.id = id then { p with cancelled_on = Some day } else p)
-      t.data.plans
-  in
-  { t.data with plans }
-
-(* Plans feed no balance answer, so the admitted image is reused unchanged. *)
-let with_plans t data =
-  check_plans data;
-  { t with data }
-
-let put_plan t ~replace p = protect (fun () -> with_plans t (plan_candidate t ~replace p))
-let cancel_plan t ~id ~day = protect (fun () -> with_plans t (cancel_candidate t ~id ~day))
-
-let put_entry_full t ~replace (e : entry) ~plan =
-  protect (fun () ->
-      approve_effects t e.effects;
-      let exists = Entry_map.mem e.id t.data.position in
-      require (exists = replace) (if replace then "unknown-entry" else "duplicate-entry");
-      (if replace then
-         let old_e = Option.get (lookup t.data e.id) in
-         match old_e.merchant with
-         | Some old_m ->
-             require (e.merchant = Some old_m)
-               "loam: Event Merchant is already classified; replacement is not qualified"
-         | None -> ());
-      let entries =
-        if replace then List.map (fun (row : entry) -> if row.id = e.id then e else row) (entries t)
-        else entries t @ [ e ]
-      in
-      let plans =
-        match plan with
-        | None -> t.data.plans
-        | Some id ->
-            require (not replace) "cannot-attach-plan-on-edit";
-            require_open_plan (find_plan t id);
-            List.map
-              (fun (p : plan) -> if p.id = id then { p with paid_by = Some e.id } else p)
-              t.data.plans
-      in
-      let data =
-        make_data ~measures:t.data.measures ~labels:t.data.labels ~approved:t.data.approved ~entries
-          ~plans ~origins:t.data.origins ~openings:t.data.openings ~observations:t.data.observations
-          ~bounded:t.data.bounded
-      in
-      admit ~entries_cached:(lazy entries) data)
-
-(* The local share of admission for one changed entry: its known Measures and
-   Event, then the Actual source over the entry and its Reversal partners. The
-   only whole-book Actual rule, disjoint Reversal endpoints, is checked against
-   the [reversed_by] index by the callers. *)
-let admit_entry_locally ?(endpoints_disjoint = true) t (e : entry) ~partners =
-  let event = entry_event t.data e in
-  let partner_events = List.map (entry_event t.data) partners in
-  require endpoints_disjoint "entry-admission";
-  ignore (actual_source (event :: partner_events) (e :: partners))
-
-let partner t id = lookup t.data id
-
-let partners_for_entry t (e : entry) =
-  List.filter_map (partner t)
-    (Option.to_list e.reversal_of @ Option.to_list (Entry_map.find_opt e.id t.data.reversed_by))
-
-let data_with_replaced_entry t (e : entry) =
-  let data =
-    { t.data with ordered = Seq_map.add (Entry_map.find e.id t.data.position) e t.data.ordered }
-  in
-  (data, lazy (ordered_entries data))
-
-let put_entry_incremental t (e : entry) ~plan =
-  protect (fun () ->
-      approve_effects t e.effects;
-      require (not (Entry_map.mem e.id t.data.position)) "duplicate-entry";
-      let plans =
-        match plan with
-        | None -> t.data.plans
-        | Some id ->
-            require_open_plan (find_plan t id);
-            List.map
-              (fun (p : plan) -> if p.id = id then { p with paid_by = Some e.id } else p)
-              t.data.plans
-      in
-      let partners =
-        match e.reversal_of with None -> [] | Some target -> Option.to_list (partner t target)
-      in
-      (* A target may be reversed once (whether it is itself a Reversal is checked
-         with it as a partner). *)
-      let endpoints_disjoint =
-        match e.reversal_of with
-        | Some target -> not (Entry_map.mem target t.data.reversed_by)
-        | None -> true
-      in
-      admit_entry_locally ~endpoints_disjoint t e ~partners;
-      let ordered = Seq_map.add t.data.entry_count e t.data.ordered in
-      let position = Entry_map.add e.id t.data.entry_count t.data.position in
-      let entry_count = t.data.entry_count + 1 in
-      let reversed_by =
-        Option.fold ~none:t.data.reversed_by
-          ~some:(fun target -> Entry_map.add target e.id t.data.reversed_by)
-          e.reversal_of
-      in
-      let data = { t.data with ordered; position; entry_count; reversed_by; plans } in
-      let image = Q.with_added_effects t.image e.effects in
-      (* Extending a list already built is cheaper than walking the map again. *)
-      let entries_cached =
-        if Lazy.is_val t.entries_cached then lazy (Lazy.force t.entries_cached @ [ e ])
-        else lazy (ordered_entries data)
-      in
-      { data; image; entries_cached })
-
-exception Needs_full_admission
-
-(* A correction keeps the entry's identity and its Reversal role; it is admitted
-   with its partner and updates balances in place. Changing the Reversal relation,
-   or an opening witness is re-admitted whole. *)
-let put_entry_replace_incremental t (e : entry) =
-  protect (fun () ->
-      approve_effects t e.effects;
-      let old_e =
-        match lookup t.data e.id with
-        | Some old_e -> old_e
-        | None -> raise (Refused "unknown-entry")
-      in
-      (match old_e.merchant with
-      | Some old_m ->
-          require (e.merchant = Some old_m)
-            "loam: Event Merchant is already classified; replacement is not qualified"
-      | None -> ());
-      if old_e.reversal_of <> e.reversal_of then raise Needs_full_admission;
-      let partners = partners_for_entry t e in
-      admit_entry_locally t e ~partners;
-      let image =
-        match
-          Q.with_replaced_effects t.image ~event:(eid e.id) ~old_effects:old_e.effects
-            ~new_effects:e.effects
-        with
-        | Some image -> image
-        | None -> raise Needs_full_admission
-      in
-      let data, entries_cached = data_with_replaced_entry t e in
-      { data; image; entries_cached })
-
-(* An empty memo is no memo, as book.txt writes it, so a saved entry equals its reload. *)
-let no_empty_memo (e : entry) = if e.memo = Some "" then { e with memo = None } else e
-
-let put_entry t ~replace (e : entry) ~plan =
-  let e = no_empty_memo e in
-  if not replace then put_entry_incremental t e ~plan
-  else if plan = None then
-    try put_entry_replace_incremental t e
-    with Needs_full_admission -> put_entry_full t ~replace e ~plan
-  else put_entry_full t ~replace e ~plan
-
-let correct_entry_date_candidate t ~id ~day =
-  ignore (eid id);
-  valid_date day;
-  let old_entry =
-    match lookup t.data id with
-    | Some e -> e
-    | None -> raise (Refused "unknown-entry")
-  in
-  let updated = { old_entry with day } in
-  let data, entries_cached = data_with_replaced_entry t updated in
-  (updated, data, entries_cached)
-
-let correct_entry_date t ~id ~day =
-  protect (fun () ->
-      let _, data, entries_cached = correct_entry_date_candidate t ~id ~day in
-      (* The existing entry and every fact except its base date are already
-         admitted. [valid_date] is the complete new condition for this
-         structurally date-only replacement; [Full] remains the whole-book
-         oracle. *)
-      { data; image = t.image; entries_cached })
-
-let classify_merchant_candidate t ~id ~disposition =
-  let old_entry =
-    match lookup t.data id with
-    | Some e -> e
-    | None -> raise (Refused "loam: Merchant classification requires an existing Event")
-  in
-  if old_entry.merchant <> None then
-    raise (Refused "loam: Event Merchant is already classified; replacement is not qualified");
-  (match disposition with
-  | A.Event_merchants.Merchant p ->
-      let tok = D.Identifier.External_party.to_string p in
-      require (valid_token tok) "loam: Merchant party token must be a non-empty single text field"
-  | Nonmerchant -> ());
-  let updated = { old_entry with merchant = Some disposition } in
-  let data, entries_cached = data_with_replaced_entry t updated in
-  (updated, data, entries_cached)
-
-let classify_merchant t ~id ~disposition =
-  protect (fun () ->
-      let _, data, entries_cached = classify_merchant_candidate t ~id ~disposition in
-      (* The Event and its Effects/links are unchanged and already admitted.
-         The candidate performs the complete new Merchant checks: target
-         existence, first classification and a valid disposition token. *)
-      { data; image = t.image; entries_cached })
-
-let add_locus_candidate t id =
-  ignore (lid id);
-  match t.data.approved with
-  | None -> raise (Refused "locus-policy-not-supplied")
-  | Some ids ->
-      require (not (List.mem id ids)) "duplicate-locus";
-      (* book.txt gives every Locus a label, its ID until one is set: keep the same
-         row in memory so a save needs no read-back. *)
-      let labels =
-        Option.map
-          (fun rows -> if List.exists (fun (key, _, _) -> key = id) rows then rows else rows @ [ (id, id, "") ])
-          t.data.labels
-      in
-      { t.data with approved = Some (ids @ [ id ]); labels }
-
-let label_candidate t ~id ~label ?help () =
-  ignore (lid id);
-  Option.iter (fun ids -> require (List.mem id ids) "locus-not-approved") t.data.approved;
-  let valid_str s =
-    s <> ""
-    && String.length s <= 80
-    && String.for_all (fun c -> Char.code c >= 32 && Char.code c <> 127) s
-  in
-  let label = String.trim label in
-  require (valid_str label) "invalid-label";
-  let existing_help =
-    match t.data.labels with
-    | None -> None
-    | Some rows -> (
-        match List.find_opt (fun (key, _, _) -> key = id) rows with
-        | Some (_, _, h) -> Some h
-        | None -> None)
-  in
-  (* An empty retained help (allowed since book.txt) falls back like a missing one. *)
-  let fallback = match existing_help with Some h when h <> "" -> h | _ -> label in
-  let resolved_help =
-    match help with
-    | Some h ->
-        let trimmed = String.trim h in
-        if trimmed = "" then fallback else trimmed
-    | None -> fallback
-  in
-  require (valid_str resolved_help) "invalid-label";
-  let next_rows =
-    let new_row = (id, label, resolved_help) in
-    match t.data.labels with
-    | None -> [ new_row ]
-    | Some rows ->
-        if List.exists (fun (key, _, _) -> key = id) rows then
-          List.map (fun (key, n, h) -> if key = id then new_row else (key, n, h)) rows
-        else rows @ [ new_row ]
-  in
-  { t.data with labels = Some next_rows }
-
-(* Vocabulary feeds no stored fact or balance answer. *)
-let with_vocabulary t data =
-  check_vocabulary data;
-  { t with data }
-
-let add_locus t id = protect (fun () -> with_vocabulary t (add_locus_candidate t id))
-
-let set_locus_label t ~id ~label ?help () =
-  protect (fun () -> with_vocabulary t (label_candidate t ~id ~label ?help ()))
-
-let observation_assertions t rows =
-  require (rows <> []) "empty-observations";
-  let assertions =
-    List.map
-      (fun (l, m, q) ->
-        let c = coord l m in
-        let known m = require (List.mem_assoc m t.data.measures) "measure-scale-not-supplied" in
-        known m;
-        Option.iter
-          (fun approved -> require (List.mem l approved) "locus-not-approved")
-          t.data.approved;
-        let assertion : A.Current_quantity_projection.assertion =
-          { coordinate = c; quantity = D.Quantity.of_quanta q }
-        in
-        assertion)
-      rows
-  in
-  unique (List.map (fun (l, m, _) -> l ^ "\x00" ^ m) rows) "duplicate-coordinate";
-  assertions
-
-(* Every admitted entry is reflected, so the new group's answers are its asserted
-   amounts; older groups only lose the re-observed coordinates. *)
-let observe_quantities t rows =
-  protect (fun () ->
-      let assertions = observation_assertions t rows in
-      let reflected_roots = List.map (fun (e : entry) -> eid e.id) (entries t) in
-      let position = t.data.position in
-      let is_reflected id = Entry_map.mem (estr id) position in
-      match Q.reobserve_in_place t.image ~reflected_roots ~is_reflected assertions with
-      | Error (Q.Groups (A.Current_quantity_groups.Invalid_cut _)) -> raise (Refused "invalid-cut")
-      | Error (Q.Groups (A.Current_quantity_groups.Invalid_assertions _)) ->
-          raise (Refused "invalid-assertions")
-      | Error (Q.Groups (A.Current_quantity_groups.Repeated_coordinate _)) ->
-          raise (Refused "repeated-coordinate")
-      | Error _ -> raise (Refused "support-admission")
-      | Ok image ->
-          let observations = A.Current_quantity_groups.groups (Q.source_groups image) in
-          { t with data = { t.data with observations }; image })
-
-let observe_quantities_full t rows =
-  protect (fun () ->
-      let assertions = observation_assertions t rows in
-      (* An incrementally extended image keeps its admission-time frontier; the
-         reflected cut must cover every current entry or they count twice. *)
-      let groups = Q.source_groups (admit ~entries_cached:t.entries_cached t.data).image in
-      let frontier = A.Current_quantity_groups.source_frontier groups in
-      let roots =
-        List.map A.Correction_frontier.root_id (A.Correction_frontier.lineages frontier)
-      in
-      let incoming : A.Current_quantity_groups.group = { reflected_roots = roots; assertions } in
-      let new_groups =
-        match A.Current_quantity_groups.reobserve groups incoming with
-        | Ok g -> g
-        | Error (A.Current_quantity_groups.Invalid_cut _) -> raise (Refused "invalid-cut")
-        | Error (A.Current_quantity_groups.Invalid_assertions _) ->
-            raise (Refused "invalid-assertions")
-        | Error (A.Current_quantity_groups.Repeated_coordinate _) ->
-            raise (Refused "repeated-coordinate")
-      in
-      let new_obs = A.Current_quantity_groups.groups new_groups in
-      let data = { t.data with observations = new_obs } in
-      admit ~entries_cached:t.entries_cached data)
-
-let has_zero_origin t ~locus ~measure =
-  let coordinate = coord locus measure in
-  List.exists (fun candidate -> D.Effect_coordinate.equal candidate coordinate) t.data.origins
-
-let bounded_history_start t ~locus ~measure =
-  let coordinate = coord locus measure in
-  List.find_map
-    (fun (candidate, day) ->
-      if D.Effect_coordinate.equal candidate coordinate then Some day else None)
-    t.data.bounded
-
-let with_bounded_history t rows =
-  protect (fun () ->
-      let bounded = List.map (fun (l, m, day) -> (coord l m, day)) rows in
-      admit ~entries_cached:t.entries_cached { t.data with bounded })
-
-(* Per coordinate of [pool], from one pass: the total of its Effects and their
-   sums by recorded day after [from], the earliest day asked about. *)
+(* Per coordinate of [pool], from one pass: the total of its Effects and their sums by
+   recorded day after [from], the earliest day asked about. *)
 let day_sums t pool ~from =
-  let tables = List.map (fun c -> (c, ref Z.zero, ref Entry_map.empty)) pool in
+  let tables = List.map (fun c -> (c, ref Z.zero, ref Smap.empty)) pool in
   List.iter
     (fun (e : entry) ->
       List.iter
@@ -1056,17 +513,14 @@ let day_sums t pool ~from =
               let q = D.Quantity.quanta (D.Effect.quantity eff) in
               total := Z.add !total q;
               if e.day > from then
-                later :=
-                  Entry_map.update e.day
-                    (fun s -> Some (Z.add q (Option.value ~default:Z.zero s)))
-                    !later)
+                later := Smap.update e.day (fun s -> Some (Z.add q (Option.value ~default:Z.zero s))) !later)
         e.effects)
     (entries t);
   List.map (fun (c, total, later) -> (c, (!total, !later))) tables
 
-(* LOAM's two independent history routes, per coordinate: zero-origin sums
-   forward; bounded support subtracts later Effects from the exact current
-   anchor. Overlap is refused rather than given a precedence. *)
+(* Two routes, per coordinate: zero-origin sums forward; a history start subtracts
+   later Effects from the current count. book.txt gives a history start only to a
+   counted coordinate, and a count never shares one with zero-origin or an opening. *)
 let pool_at_end_of_day_from ~sums t ~measure ~pool ~day =
   protect (fun () ->
       let next_start = day_number day + 1 in
@@ -1076,47 +530,31 @@ let pool_at_end_of_day_from ~sums t ~measure ~pool ~day =
         (List.length (List.sort_uniq D.Effect_coordinate.compare pool) = List.length pool)
         "history-duplicate-coordinate";
       require
-        (List.for_all
-           (fun (c : D.Effect_coordinate.t) ->
-             D.Identifier.Measure.equal c.measure selected_measure)
-           pool)
+        (List.for_all (fun (c : D.Effect_coordinate.t) -> D.Identifier.Measure.equal c.measure selected_measure) pool)
         "history-pool-measure-mismatch";
-      let sums_of c =
-        snd (List.find (fun (c', _) -> D.Effect_coordinate.equal c c') (Lazy.force sums))
-      in
-      (* The Effects after [day] (never before [from]), walked back from the latest
-         recorded day. *)
+      let sums_of c = snd (List.find (fun (c', _) -> D.Effect_coordinate.equal c c') (Lazy.force sums)) in
+      (* The Effects after [day] (never before [from]), walked back from the latest day. *)
       let after c =
         Seq.fold_left
           (fun total (_, q) -> Z.add total q)
           Z.zero
-          (Seq.take_while (fun (d, _) -> d > day) (Entry_map.to_rev_seq (snd (sums_of c))))
+          (Seq.take_while (fun (d, _) -> d > day) (Smap.to_rev_seq (snd (sums_of c))))
       in
       let through c = Z.sub (fst (sums_of c)) (after c) in
       List.fold_left
         (fun total (c : D.Effect_coordinate.t) ->
-          let label = lstr c.locus ^ ":" ^ measure in
-          let zero = List.exists (D.Effect_coordinate.equal c) t.data.origins in
-          let opening =
-            List.exists
-              (fun (o : Q.opening) -> D.Effect_coordinate.equal o.coordinate c)
-              t.data.openings
-          in
-          match (zero, bounded_history_start t ~locus:(lstr c.locus) ~measure) with
-          | true, Some _ -> raise (Refused ("history-support-conflict:" ^ label))
-          | true, None -> Z.add total (through c)
-          | false, None -> raise (Refused ("history-support-missing:" ^ label))
-          | false, Some first ->
-              require (not opening) ("history-support-conflict:" ^ label);
+          let locus = lstr c.locus in
+          let label = locus ^ ":" ^ measure in
+          match bounded_history_start t ~locus ~measure with
+          | None ->
+              require (has_zero_origin t ~locus ~measure) ("history-support-missing:" ^ label);
+              Z.add total (through c)
+          | Some first ->
               require (next_start >= day_number first) ("history-precedes-bounded-start:" ^ label);
               let current =
-                match Q.query t.image c with
-                | Ok answer -> (
-                    match Q.premise answer with
-                    | Q.Current_assertion _ -> D.Quantity.quanta (Q.quantity answer)
-                    | Q.Zero_origin | Q.Opening _ ->
-                        raise (Refused ("history-bounded-anchor-missing:" ^ label)))
-                | Error (Q.Support_unknown _) -> raise (Refused ("history-bounded-anchor-missing:" ^ label))
+                match quantity t ~locus ~measure with
+                | Some { amount; support = T.Counted _ } -> amount
+                | Some _ | None -> raise (Refused ("history-bounded-anchor-missing:" ^ label))
               in
               Z.add total (Z.sub current (after c)))
         Z.zero pool)
@@ -1126,28 +564,218 @@ let pools_at_end_of_days t ~measure ~pool ~days =
   let sums = lazy (day_sums t pool ~from) in
   List.map (fun day -> pool_at_end_of_day_from ~sums t ~measure ~pool ~day) days
 
-let pool_at_end_of_day t ~measure ~pool ~day =
-  List.hd (pools_at_end_of_days t ~measure ~pool ~days:[ day ])
+let pool_at_end_of_day t ~measure ~pool ~day = List.hd (pools_at_end_of_days t ~measure ~pool ~days:[ day ])
 
-module Full = struct
-  let readmit data = admit ~entries_cached:(lazy (ordered_entries data)) data
-  let put_entry t ~replace e ~plan = put_entry_full t ~replace (no_empty_memo e) ~plan
-  let put_plan t ~replace p = protect (fun () -> readmit (plan_candidate t ~replace p))
-  let cancel_plan t ~id ~day = protect (fun () -> readmit (cancel_candidate t ~id ~day))
+(* ---- changes ---- *)
 
-  let correct_entry_date t ~id ~day =
-    protect (fun () ->
-        let _, data, _ = correct_entry_date_candidate t ~id ~day in
-        readmit data)
+(* A Book_txt refusal as the reason the screens know: support lines refuse as
+   "support-admission", everything about a TX as "entry-admission". *)
+let refusal = function
+  | "support-overlap" | "duplicate-support" | "history-unanchored" | "empty-anchor" | "also-redundant"
+  | "duplicate-also" | "opening-missing-coordinate" ->
+      "support-admission"
+  | _ -> "entry-admission"
 
-  let classify_merchant t ~id ~disposition =
-    protect (fun () ->
-        let _, data, _ = classify_merchant_candidate t ~id ~disposition in
-        readmit data)
+let commit t changes = match T.change t.txt changes with Ok txt -> txt | Error code -> raise (Refused (refusal code))
 
-  let observe_quantities = observe_quantities_full
-  let add_locus t id = protect (fun () -> readmit (add_locus_candidate t id))
+(* The book after [txt] took [e] in at the end ([replace] false) or in its place. *)
+let with_entry t txt (e : entry) ~replace =
+  if replace then
+    let i = Smap.find e.id t.position in
+    let ordered = Imap.add i e t.ordered in
+    { t with txt; ordered; cached = lazy (List.map snd (Imap.bindings ordered)) }
+  else
+    let i = entry_count t in
+    let ordered = Imap.add i e t.ordered in
+    let cached =
+      if Lazy.is_val t.cached then lazy (Lazy.force t.cached @ [ e ]) else lazy (List.map snd (Imap.bindings ordered))
+    in
+    { txt; ordered; position = Smap.add e.id i t.position; cached }
 
-  let set_locus_label t ~id ~label ?help () =
-    protect (fun () -> readmit (label_candidate t ~id ~label ?help ()))
-end
+let known_measure t m = require (List.mem_assoc m (measures t)) "measure-scale-not-supplied"
+
+let approve_effects t effects =
+  let ids = offered t in
+  List.iter (fun p -> require (List.mem (lstr (D.Effect.locus p)) ids) "locus-unapproved") effects
+
+let find_plan t id =
+  match List.find_opt (fun (p : plan) -> p.id = id) (plans t) with Some p -> p | None -> raise (Refused "unknown-plan")
+
+let require_open_plan (p : plan) =
+  require (p.paid_by = None) "plan-already-paid";
+  require (p.cancelled_on = None) "plan-cancelled"
+
+let merchant_classified = "loam: Event Merchant is already classified; replacement is not qualified"
+
+(* An empty memo is no memo, as book.txt writes it, so a saved entry equals its reload. *)
+let no_empty_memo (e : entry) = if e.memo = Some "" then { e with memo = None } else e
+
+(* The entry's own fields, before the specification's rules: its identity, date and
+   the Measures it names. *)
+let check_entry t (e : entry) =
+  ignore (eid e.id);
+  List.iter (fun p -> known_measure t (mstr (D.Effect.measure p))) e.effects;
+  Option.iter (fun (m, _) -> known_measure t m) e.original_amount;
+  ignore (get "invalid-entry" (D.Event.create ~id:(eid e.id) ~effects:e.effects));
+  require (T.valid_date e.day) "entry-admission"
+
+let put_entry t ~replace (e : entry) ~plan =
+  protect (fun () ->
+      let e = no_empty_memo e in
+      approve_effects t e.effects;
+      require (mem_entry t e.id = replace) (if replace then "unknown-entry" else "duplicate-entry");
+      (if replace then
+         match (Option.get (find_entry t e.id)).merchant with
+         | Some m -> require (e.merchant = Some m) merchant_classified
+         | None -> ());
+      let paid =
+        match plan with
+        | None -> []
+        | Some id ->
+            require (not replace) "cannot-attach-plan-on-edit";
+            let p = find_plan t id in
+            require_open_plan p;
+            [ T.Put_plan (plan_of { p with paid_by = Some e.id }) ]
+      in
+      check_entry t e;
+      (* A malformed exchange is a TX the rules refuse. *)
+      let tx = try tx_of e with Refused ("exchange-key" | "exchange-ambiguous") -> raise (Refused "entry-admission") in
+      with_entry t (commit t ((if replace then T.Replace_tx tx else T.Add_tx tx) :: paid)) e ~replace)
+
+(* Only the date changes; the Effects are not admitted again, so Loci no longer
+   offered for new entries are kept. *)
+let correct_entry_date t ~id ~day =
+  protect (fun () ->
+      ignore (eid id);
+      valid_date day;
+      let old = match find_entry t id with Some e -> e | None -> raise (Refused "unknown-entry") in
+      let e = { old with day } in
+      with_entry t (commit t [ T.Replace_tx (tx_of e) ]) e ~replace:true)
+
+let valid_token s = s <> "" && not (String.contains s '\t' || String.contains s '\n' || String.contains s '\r')
+
+let classify_merchant t ~id ~disposition =
+  protect (fun () ->
+      let old =
+        match find_entry t id with
+        | Some e -> e
+        | None -> raise (Refused "loam: Merchant classification requires an existing Event")
+      in
+      require (old.merchant = None) merchant_classified;
+      (match disposition with
+      | M.Merchant p ->
+          require
+            (valid_token (D.Identifier.External_party.to_string p))
+            "loam: Merchant party token must be a non-empty single text field"
+      | M.Nonmerchant -> ());
+      let e = { old with merchant = Some disposition } in
+      with_entry t (commit t [ T.Replace_tx (tx_of e) ]) e ~replace:true)
+
+let put_plan t ~replace (p : plan) =
+  protect (fun () ->
+      require (plan_is_open p) "plan-terminal-not-input";
+      let exists = List.exists (fun (row : plan) -> row.id = p.id) (plans t) in
+      require (exists = replace) (if replace then "unknown-plan" else "duplicate-plan");
+      if replace then require_open_plan (find_plan t p.id);
+      let effects =
+        List.map
+          (fun (loc, n) -> D.Effect.create ~locus:(lid loc) ~measure:(mid p.measure) ~quantity:(D.Quantity.of_quanta n) ~key:None)
+          p.changes
+      in
+      approve_effects t effects;
+      ignore (get "invalid-plan-movement" (D.Movement.validate effects));
+      require (p.id <> "") "invalid-plan-id";
+      valid_date p.day;
+      known_measure t p.measure;
+      { t with txt = commit t [ T.Put_plan (plan_of p) ] })
+
+let cancel_plan t ~id ~day =
+  protect (fun () ->
+      let p = find_plan t id in
+      require_open_plan p;
+      valid_date day;
+      { t with txt = commit t [ T.Put_plan (plan_of { p with cancelled_on = Some day }) ] })
+
+(* A new Locus is offered for new entries, its label its ID until one is set; a hidden
+   one is offered again. *)
+let add_locus t id =
+  protect (fun () ->
+      ignore (lid id);
+      require (not (List.mem id (offered t))) "duplicate-locus";
+      let loci = (value t).loci in
+      let loci =
+        if List.exists (fun (l : T.locus) -> l.id = id) loci then
+          List.map (fun (l : T.locus) -> if l.id = id then { l with hidden = false } else l) loci
+        else loci @ [ { T.id; label = id; help = ""; hidden = false } ]
+      in
+      { t with txt = commit t [ T.Set_loci loci ] })
+
+let set_locus_label t ~id ~label ?help () =
+  protect (fun () ->
+      ignore (lid id);
+      require (List.mem id (offered t)) "locus-not-approved";
+      let valid_str s = s <> "" && String.length s <= 80 && String.for_all (fun c -> Char.code c >= 32 && Char.code c <> 127) s in
+      let label = String.trim label in
+      require (valid_str label) "invalid-label";
+      (* An empty retained help falls back like a missing one. *)
+      let fallback = match locus_row t id with Some l when l.help <> "" -> l.help | _ -> label in
+      let help =
+        match help with
+        | Some h ->
+            let trimmed = String.trim h in
+            if trimmed = "" then fallback else trimmed
+        | None -> fallback
+      in
+      require (valid_str help) "invalid-label";
+      let loci = List.map (fun (l : T.locus) -> if l.id = id then { l with label; help } else l) (value t).loci in
+      { t with txt = commit t [ T.Set_loci loci ] })
+
+(* One count of current quantities, reflecting every recorded TX: a new anchor at the
+   last TX; older anchors lose the coordinates counted again, and are dropped when
+   nothing is left. *)
+let observe_quantities t rows =
+  protect (fun () ->
+      require (rows <> []) "empty-observations";
+      List.iter
+        (fun (l, m, _) ->
+          ignore (lid l);
+          ignore (mid m);
+          known_measure t m;
+          require (List.mem l (offered t)) "locus-not-approved")
+        rows;
+      let coords = List.map (fun (l, m, _) -> (l, m)) rows in
+      require (List.length (List.sort_uniq compare coords) = List.length coords) "duplicate-coordinate";
+      let older =
+        List.filter_map
+          (fun (a : T.anchor) ->
+            match List.filter (fun (c, _) -> not (List.mem c coords)) a.asserts with
+            | [] -> None
+            | asserts -> Some { a with asserts })
+          (value t).anchors
+      in
+      let last = match List.rev (value t).txs with (tx : T.tx) :: _ -> Some tx.id | [] -> None in
+      let fresh = { T.last; also = []; asserts = List.map (fun (l, m, q) -> ((l, m), q)) rows } in
+      { t with txt = commit t [ T.Set_anchors (older @ [ fresh ]) ] })
+
+let with_bounded_history t rows =
+  protect (fun () ->
+      List.iter
+        (fun (l, m, day) ->
+          ignore (lid l);
+          ignore (mid m);
+          known_measure t m;
+          valid_date day)
+        rows;
+      let coords = List.map (fun (l, m, _) -> (l, m)) rows in
+      require (List.length (List.sort_uniq compare coords) = List.length coords) "duplicate-bounded-history-coordinate";
+      { t with txt = commit t [ T.Set_history (List.map (fun (l, m, day) -> ((l, m), day)) rows) ] })
+
+(* ---- the other sections of book.txt ---- *)
+
+let roles t = (value t).roles
+let attention t = ((value t).items, (value t).closes)
+
+let with_sections t ~roles ~items ~closes =
+  match T.change t.txt [ T.Set_roles roles; T.Set_attention (items, closes) ] with
+  | Ok txt -> Ok { t with txt }
+  | Error code -> Error ("book-txt-" ^ code)

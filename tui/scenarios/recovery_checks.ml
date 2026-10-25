@@ -20,15 +20,7 @@ let io_refuses f =
   | exception (Unix.Unix_error _ | Sys_error _) -> ()
 
 let quantity book locus measure =
-  let coordinate : D.Effect_coordinate.t =
-    {
-      locus = C.get_id (D.Identifier.Locus.of_string locus);
-      measure = C.get_id (D.Identifier.Measure.of_string measure);
-    }
-  in
-  match Q.query (B.image book) coordinate with
-  | Ok x -> Z.to_string (D.Quantity.quanta (Q.quantity x))
-  | Error _ -> "unknown"
+  match B.quantity book ~locus ~measure with Some q -> Z.to_string q.amount | None -> "unknown"
 
 let self_check () =
   let directory = "scratch/recovery-check-" ^ F.new_id () in

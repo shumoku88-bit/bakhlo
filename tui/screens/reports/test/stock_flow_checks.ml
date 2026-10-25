@@ -214,88 +214,15 @@ let self_check () =
 
   (* Opening support: exact from the opening entry's date, unknown before it. *)
   let opening_book =
-    let coordinate =
-      {
-        D.Effect_coordinate.locus = id_of (D.Identifier.Locus.of_string "debt");
-        measure = id_of (D.Identifier.Measure.of_string "jpy");
-      }
-    in
-    let opening_event = id_of (D.Identifier.Event.of_string "open") in
-    let equity_coordinate =
-      {
-        D.Effect_coordinate.locus = id_of (D.Identifier.Locus.of_string "opening-equity");
-        measure = id_of (D.Identifier.Measure.of_string "jpy");
-      }
-    in
-    let cash_coordinate =
-      {
-        D.Effect_coordinate.locus = id_of (D.Identifier.Locus.of_string "cash");
-        measure = id_of (D.Identifier.Measure.of_string "jpy");
-      }
-    in
-    (* An opening of another Measure: it opens a EUR balance and posts this
-       Measure too, so it must not remove this Measure's flows. *)
-    let eur_coordinate =
-      {
-        D.Effect_coordinate.locus = id_of (D.Identifier.Locus.of_string "eur-debt");
-        measure = id_of (D.Identifier.Measure.of_string "eur");
-      }
-    in
-    let eur_opening_event = id_of (D.Identifier.Event.of_string "eur-open") in
-    get
-      (B.of_payload
-         {
-           measures = [ ("jpy", 0); ("eur", 2) ];
-           labels = None;
-           approved = Some [ "debt"; "cash"; "opening-equity"; "eur-debt" ];
-           entries =
-             [
-               {
-                 B.id = "open";
-                 day = "2026-09-01";
-                 memo = None;
-                 effects =
-                   [
-                     posting "debt" (z 1000);
-                     posting "opening-equity" (z (-1000));
-                   ];
-                 reversal_of = None;
-                 exchange = None;
-                 original_amount = None;
-                 merchant = None;
-               };
-               {
-                 B.id = "eur-open";
-                 day = "2026-09-02";
-                 memo = None;
-                 effects =
-                   [
-                     posting_keyed "cash" "jpy" (z (-100)) "from";
-                     posting_keyed "eur-debt" "eur" (z 500) "to";
-                   ];
-                 reversal_of = None;
-                 exchange = Some ("from", "to");
-                 original_amount = None;
-                 merchant = None;
-               };
-               {
-                 B.id = "repay";
-                 day = "2026-10-10";
-                 memo = None;
-                 effects = [ posting "debt" (z (-300)); posting "cash" (z 300) ];
-                 reversal_of = None;
-                 exchange = None;
-                 original_amount = None;
-                 merchant = None;
-               };
-             ];
-           plans = [];
-           origins = [ equity_coordinate; cash_coordinate ];
-           openings =
-             [ { Q.coordinate; opening_event }; { Q.coordinate = eur_coordinate; opening_event = eur_opening_event } ];
-           observations = [];
-           bounded = [];
-         })
+    Bakhlo_sexp.Daily_txt.book
+      "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\nLOCUS\tdebt\tdebt\t\nLOCUS\tcash\tcash\t\n\
+       LOCUS\topening-equity\topening-equity\t\nLOCUS\teur-debt\teur-debt\t\n\
+       TX\topen\t2026-09-01\nEFFECT\tdebt\tjpy\t1000\nEFFECT\topening-equity\tjpy\t-1000\nENDTX\n\
+       TX\teur-open\t2026-09-02\nEFFECT\tcash\tjpy\t-100\tfrom\nEFFECT\teur-debt\teur\t500\tto\n\
+       EXCHANGE\tjpy\teur\nENDTX\n\
+       TX\trepay\t2026-10-10\nEFFECT\tdebt\tjpy\t-300\nEFFECT\tcash\tjpy\t300\nENDTX\n\
+       ZERO-ORIGIN\topening-equity\tjpy\nZERO-ORIGIN\tcash\tjpy\n\
+       OPENING\tdebt\tjpy\topen\nOPENING\teur-debt\teur\teur-open\nEND\n"
   in
   let after_open = get (compute opening_book [ ("debt", "jpy") ]) in
   let debt = only "debt" after_open in
@@ -524,50 +451,10 @@ let self_check () =
 
   (* Observation support is exact but undated: it never back-fills a start. *)
   let observation_book =
-    let coordinate =
-      {
-        D.Effect_coordinate.locus = id_of (D.Identifier.Locus.of_string "debt");
-        measure = id_of (D.Identifier.Measure.of_string "jpy");
-      }
-    in
-    get
-      (B.of_payload
-         {
-           measures = [ ("jpy", 0) ];
-           labels = None;
-           approved = Some [ "debt"; "cash" ];
-           entries =
-             [
-               {
-                 B.id = "borrow";
-                 day = "2026-10-10";
-                 memo = None;
-                 effects = [ posting "debt" (z 400); posting "cash" (z (-400)) ];
-                 reversal_of = None;
-                 exchange = None;
-                 original_amount = None;
-                 merchant = None;
-               };
-             ];
-           plans = [];
-           origins = [];
-           openings = [];
-           observations =
-             [
-               {
-                 A.Current_quantity_groups.reflected_roots =
-                   [ id_of (D.Identifier.Event.of_string "borrow") ];
-                 assertions =
-                   [
-                     {
-                       A.Current_quantity_projection.coordinate;
-                       quantity = D.Quantity.of_quanta (z 400);
-                     };
-                   ];
-               };
-             ];
-           bounded = [];
-         })
+    Bakhlo_sexp.Daily_txt.book
+      "BOOK\t1\nMEASURE\tjpy\t0\nLOCUS\tdebt\tdebt\t\nLOCUS\tcash\tcash\t\n\
+       TX\tborrow\t2026-10-10\nEFFECT\tdebt\tjpy\t400\nEFFECT\tcash\tjpy\t-400\nENDTX\n\
+       ANCHOR\tborrow\nASSERT\tdebt\tjpy\t400\nENDANCHOR\nEND\n"
   in
   let observed = get (compute observation_book [ ("debt", "jpy") ]) in
   let debt = only "debt" observed in

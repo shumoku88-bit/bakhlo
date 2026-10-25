@@ -22,16 +22,21 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   [evidence](VERIFICATION.md#household-migrated-to-booktxt-2026-10-25)): `../bakhlo-data` is
   now `book.txt`; the last S-expression book is its parent commit. The user opened it and
   reported the screens look fine (2026-10-25). Core A, step 1 (2026-10-25): a save checks and
-  prints only what it changes (`Book_txt.change`, `Daily_txt.changes`); 90 ms at 45,000
-  synthetic entries, 164 ms at 109,500 (over the target there; I/O-bound)
+  prints only what it changes (`Book_txt.change`); 90 ms at 45,000 synthetic entries,
+  164 ms at 109,500 (over the target there; I/O-bound)
   ([evidence](VERIFICATION.md#a-save-checks-and-prints-only-what-it-changes-core-a-step-1-2026-10-25)).
   Old layers removed the same day: the book.txt migration tool and append log, the LOAM
   import comparison (both UIs now open copies of the household `book.txt`,
   `tools/compare`) and the S-expression book format
   ([evidence](VERIFICATION.md#the-s-expression-book-format-is-removed-core-a-2026-10-25)).
   Presence evidence (nonzero, amount unknown) was removed the same day: `book.txt` cannot
-  hold it and the household never used it. Next in A: the queries still run through the
-  LOAM-derived correction/lineage layer that `book.txt` (current state only) no longer needs.
+  hold it and the household never used it. `Daily_book` now runs on book.txt itself (an
+  admitted `Book_txt.book`, changes through `Book_txt.change`, balances from the totals it
+  keeps); its answers equal the previous core on random operations and on a household
+  copy, and a cold load is about 40% faster
+  ([evidence](VERIFICATION.md#daily-book-runs-on-booktxt-core-a-2026-10-25)). Next in A:
+  delete the application layer's correction/lineage machinery; the book and the screens
+  use only its Merchant type and date check.
 - Cut over on 2026-10-21 (user decision): the household is `../bakhlo-data`, recorded
   only by the user through `./tools/household` (TUI, then commit and push to the private
   GitHub backup).
@@ -113,11 +118,6 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   resize, Tab, Esc and long Japanese drafts retain input. Household warnings take
   priority over the frame. Core, native self-check and the PTY matrix passed.
   This slice did not access household data or repeat the latest-data comparison.
-- Accounting now discovers represented coordinates from current corrected entries,
-  not the admitted source that lags incremental saves. Synthetic append and a
-  correction after reopening match cold reload and `Full`; unsupported stays unknown.
-  Core/TUI checks and the four-size PTY smoke passed. No household access or paired
-  comparison in this slice; the underlying `Daily_book.image` source lag remains.
 - Storage (2026-10-25): one `book.txt`, rewritten whole on every save; the session keeps
   the admitted book, so a save checks and prints only what it changes. Every
   `Daily_book` mutation is in place except corrections that change a Reversal link or
@@ -137,9 +137,10 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 - `lib/`, `application/`: pure exact-quantity, admission and query semantics
   (`SEMANTIC_CONTRACT.md`). No I/O.
-- `sexp/daily_book.ml(i)`: the household book (entries, plans, support), staged
-  admission, in-place mutations, `Full` whole-book reference; `sexp/book_log.ml(i)`:
-  the publication operations; `sexp/daily_txt.ml(i)`: Daily_book <-> book.txt.
+- `sexp/daily_book.ml(i)`: the household book on book.txt (an admitted `Book_txt.book`
+  and its TXs as entries; changes, balances, Daily Pace, past-day pools);
+  `sexp/book_log.ml(i)`: the publication operations; `sexp/daily_txt.ml(i)`: the roles
+  and Attention sections in their text formats, and fixture helpers.
 - `book_txt/book_txt.ml(i)`: the common `book.txt` format (read, admit, print, balance).
 - `store/daily_file.ml`: the single writer of `book.txt` (load, whole-file publish,
   conflict and uncertain outcomes, copies).

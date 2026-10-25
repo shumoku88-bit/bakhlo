@@ -2,9 +2,8 @@
    accounting roles and Attention. Every publication rewrites the whole file: write a
    temporary file and flush it to stable storage (F_FULLFSYNC on macOS), keep the
    current file as [.prev], rename, flush the directory, and check the bytes read back.
-   The new session keeps the in-memory book, which equals its book.txt reload, and the
-   admitted book.txt, so a save checks and prints only what its operations change
-   (Daily_txt.changes). Cooperative writers and stable parent namespaces are assumed;
+   The session keeps the book, whose admitted book.txt equals the file, so a save checks
+   and prints only what its operations change. Cooperative writers and stable parent namespaces are assumed;
    not a security sandbox. Power loss was not physically tested. No background retry or
    automatic repair. *)
 module B = Bakhlo_sexp.Daily_book
@@ -27,7 +26,6 @@ type t = {
   revision : string;  (** {!revision_of_bytes} of the file this session last saw. *)
   book : B.t;
   sidecars : X.sidecars;  (** The book's roles and Attention, as the TUI reads them. *)
-  txt : T.book;  (** The admitted book.txt of [book] and [sidecars]. *)
   stamp : stamp;
 }
 
@@ -97,9 +95,9 @@ let of_bytes path bytes stamp =
   match T.read bytes with
   | Error e -> raise (Refused (Printf.sprintf "book-refused: %s at line %d" (T.code_name e.code) e.line))
   | Ok txt -> (
-      match X.of_txt (T.value txt) with
+      match B.of_txt txt with
       | Error why -> raise (Refused ("book-refused: " ^ why))
-      | Ok (book, sidecars) -> { path; revision = revision_of_bytes bytes; book; sidecars; txt; stamp })
+      | Ok book -> { path; revision = revision_of_bytes bytes; book; sidecars = X.sidecars_of book; stamp })
 
 let load path =
   let bytes, stamp = read_stamped path in
@@ -151,8 +149,9 @@ let sync_parent path =
   let fd = Unix.openfile (Filename.dirname path) [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
   Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> full_sync fd)
 
-(* The book.txt text of a book with its roles and Attention. *)
-let text_of book sidecars = match X.to_text book sidecars with Ok text -> text | Error why -> raise (Refused why)
+(* The book.txt text of a book with these roles and Attention. *)
+let text_of book sidecars =
+  match X.with_sidecars book sidecars with Ok book -> T.print (B.txt book) | Error why -> raise (Refused why)
 
 let create_empty ~path ~measure ~scale =
   let book = get "empty-book-refused" (B.empty ~measure ~scale) in
@@ -199,23 +198,24 @@ let replace ~checkpoint path bytes =
   sync_parent path;
   checkpoint Replaced
 
-(* The book after [ops] and its book.txt with [sidecars]: only what they change is
-   checked and printed again. *)
+(* The book after [ops] and, when given, these roles and Attention. *)
 let saved ?sidecars session ops =
   let book = match L.apply_all session.book ops with Ok book -> book | Error why -> raise (Refused why) in
-  match X.changes session.txt book ?sidecars ops with Ok txt -> (book, txt) | Error why -> raise (Refused why)
+  match sidecars with
+  | None -> book
+  | Some s -> ( match X.with_sidecars book s with Ok book -> book | Error why -> raise (Refused why))
 
 (* The revision the file has once [publish] writes [ops] (and [sidecars]). *)
-let revision_after ?sidecars session ops = revision_of_bytes (T.print (snd (saved ?sidecars session ops)))
+let revision_after ?sidecars session ops = revision_of_bytes (T.print (B.txt (saved ?sidecars session ops)))
 
 (* Checkpoints are for deterministic fault/child-process interruption checks;
    ordinary callers use the no-op default and cannot bypass any gate. *)
 let publish ?(checkpoint = fun _ -> ()) ?sidecars session ops =
   let attempted = ref None in
   try
-    let book, txt = saved ?sidecars session ops in
-    let sidecars = Option.value sidecars ~default:session.sidecars in
-    let bytes = T.print txt in
+    let book = saved ?sidecars session ops in
+    let sidecars = X.sidecars_of book in
+    let bytes = T.print (B.txt book) in
     with_writer session.path (fun () ->
         if not (unchanged session) then Conflict
         else
@@ -225,7 +225,7 @@ let publish ?(checkpoint = fun _ -> ()) ?sidecars session ops =
           (* The in-memory book equals its book.txt reload (test/daily_book_oracle_tests.ml),
              so only the bytes are read back. *)
           require (read session.path = bytes) "published-readback-changed";
-          Written { session with revision = expected; book; sidecars; txt; stamp = stamp_of (Unix.lstat session.path) })
+          Written { session with revision = expected; book; sidecars; stamp = stamp_of (Unix.lstat session.path) })
   with
   | Refused why -> (
       match !attempted with Some expected -> Uncertain { expected } | None -> Refused_input why)

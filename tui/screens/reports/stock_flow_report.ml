@@ -85,30 +85,20 @@ let balance_at ~book ~measure ~coordinate ~day =
       | Ok value -> Ok value
       | Error code -> Error (code_of_refusal code))
 
-module Q = Bakhlo_application.Current_quantity_query
 
 (* An opening entry fixes the coordinate from its own date: the recorded Effects
    from there on are then exact, exactly like a bounded start. *)
-let opening_of ~book ~coordinate =
-  List.find_opt
-    (fun (opening : Q.opening) -> D.Effect_coordinate.equal opening.coordinate coordinate)
-    (Q.openings (B.image book))
-
-let opening_day ~book ~coordinate =
-  match opening_of ~book ~coordinate with
+let opening_day ~book ~(coordinate : D.Effect_coordinate.t) =
+  match List.assoc_opt (A.lstr coordinate.locus, A.mstr coordinate.measure) (B.openings book) with
   | None -> None
-  | Some opening -> (
-      match B.find_entry book (D.Identifier.Event.to_string opening.opening_event) with
-      | Some entry -> Some entry.day
-      | None -> None)
+  | Some tx -> Option.map (fun (entry : B.entry) -> entry.day) (B.find_entry book tx)
 
 (* An observation is exact from an undated confirmation: no per-day boundary can
    be derived from the stored group, so it never back-fills a window start. *)
-let observation_exact ~book ~coordinate =
-  match Q.query (B.image book) coordinate with
-  | Ok answer -> (
-      match Q.premise answer with Q.Current_assertion _ -> true | _ -> false)
-  | Error _ -> false
+let observation_exact ~book ~(coordinate : D.Effect_coordinate.t) =
+  match B.quantity book ~locus:(A.lstr coordinate.locus) ~measure:(A.mstr coordinate.measure) with
+  | Some { support = Counted _; _ } -> true
+  | _ -> false
 
 let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : IncExp.period) =
   if
@@ -143,13 +133,8 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
     | Error _ -> ()
     | Ok measure_id ->
         List.iter
-          (fun (opening : Q.opening) ->
-            if D.Identifier.Measure.equal opening.coordinate.D.Effect_coordinate.measure measure_id
-            then
-              Hashtbl.replace opening_entries
-                (D.Identifier.Event.to_string opening.opening_event)
-                ())
-          (Q.openings (B.image book)));
+          (fun ((_, m), tx) -> if m = D.Identifier.Measure.to_string measure_id then Hashtbl.replace opening_entries tx ())
+          (B.openings book));
     (* The opening entries that the window excludes, named in the note, and the
        rows whose Start and End still carry their effect. *)
     let excluded_openings = ref [] in

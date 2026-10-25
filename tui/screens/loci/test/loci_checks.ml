@@ -5,43 +5,12 @@ module D = Bakhlo_domain
 module Loci = Loci_screen
 module Roles = Locus_roles
 
-let get = function Ok x -> x | Error why -> failwith why
-let id_of = function Ok value -> value | Error _ -> failwith "synthetic identifier"
 let require condition why = if not condition then failwith why
-let z = Z.of_int
-
-let posting locus amount =
-  D.Effect.create ~key:None
-    ~locus:(id_of (D.Identifier.Locus.of_string locus))
-    ~measure:(id_of (D.Identifier.Measure.of_string "jpy"))
-    ~quantity:(D.Quantity.of_quanta amount)
 
 let book =
-  get
-    (B.of_payload
-       {
-         measures = [ ("jpy", 0) ];
-         labels = None;
-         approved = Some [ "suspense"; "cash"; "food" ];
-         entries =
-           [
-             {
-               B.id = "a";
-               day = "2026-10-04";
-               memo = None;
-               effects = [ posting "suspense" (z 10); posting "food" (z (-10)) ];
-               reversal_of = None;
-               exchange = None;
-               original_amount = None;
-               merchant = None;
-             };
-           ];
-         plans = [];
-         origins = [];
-         openings = [];
-         observations = [];
-         bounded = [];
-       })
+  Bakhlo_sexp.Daily_txt.book
+    "BOOK\t1\nMEASURE\tjpy\t0\nLOCUS\tsuspense\tsuspense\t\nLOCUS\tcash\tcash\t\nLOCUS\tfood\tfood\t\n\
+     TX\ta\t2026-10-04\nEFFECT\tsuspense\tjpy\t10\nEFFECT\tfood\tjpy\t-10\nENDTX\nEND\n"
 
 let geometry : Screen.geometry =
   { screen = (120, 36); body = (120, 33); content = (120, 32); width_of = String.length }

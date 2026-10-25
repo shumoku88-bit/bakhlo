@@ -20,29 +20,21 @@ let entry id day effects : B.entry =
   { id; day; memo = None; effects; reversal_of = None; exchange = None;
     original_amount = None; merchant = None }
 
+(* A book.txt with these entries recorded in order and, by default, zero-origin
+   support for suspense. *)
 let book ?(zero = true) entries =
-  get
-    (B.of_payload
-       {
-         measures = [ ("jpy", 0); ("eur", 2) ];
-         labels = None;
-         approved = Some [ "suspense"; "cash"; "food" ];
-         entries;
-         plans = [];
-         origins =
-           (if zero then [ "suspense/jpy"; "suspense/eur" ] else []) |> List.map (fun text ->
-               match String.split_on_char '/' text with
-               | [ locus; measure ] ->
-                   {
-                     D.Effect_coordinate.locus =
-                       id_of (D.Identifier.Locus.of_string locus);
-                     measure = id_of (D.Identifier.Measure.of_string measure);
-                   }
-               | _ -> failwith "bad fixture coordinate");
-         openings = [];
-         observations = [];
-         bounded = [];
-       })
+  let base =
+    "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\nLOCUS\tsuspense\tsuspense\t\nLOCUS\tcash\tcash\t\n\
+     LOCUS\tfood\tfood\t\nEND\n"
+  in
+  let recorded =
+    List.fold_left (fun b e -> get (B.put_entry b ~replace:false e ~plan:None)) (Bakhlo_sexp.Daily_txt.book base) entries
+  in
+  if not zero then recorded
+  else
+    let text = Bakhlo_sexp.Daily_txt.text recorded in
+    Bakhlo_sexp.Daily_txt.book
+      (String.sub text 0 (String.length text - 4) ^ "ZERO-ORIGIN\tsuspense\tjpy\nZERO-ORIGIN\tsuspense\teur\nEND\n")
 
 let env ?(roles = [ ("cash", Roles.Asset) ]) book =
   Screen.env_for_checks ~accounting_roles:roles ~book ~measure:"jpy" ~today:"2026-10-22" ()

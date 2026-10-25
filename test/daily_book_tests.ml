@@ -68,9 +68,9 @@ let quantity book locus measure =
     Result.ok_or_failwith
       (Result.map_error (D.Identifier.Measure.of_string measure) ~f:(fun _ -> "measure"))
   in
-  match Q.query (B.image book) { D.Effect_coordinate.locus; measure } with
-  | Ok x -> Z.to_string (D.Quantity.quanta (Q.quantity x))
-  | Error (Q.Support_unknown _) -> "unknown"
+  match B.quantity book ~locus:(D.Identifier.Locus.to_string locus) ~measure:(D.Identifier.Measure.to_string measure) with
+  | Some q -> Z.to_string q.amount
+  | None -> "unknown"
 
 let%expect_test "daily replacement and plan payment use current entries, preserving support" =
   let base = book_of_txt fixture in
@@ -529,9 +529,6 @@ let%expect_test "plan writes reject unsupported drafts without modifying the bas
   attempt "cancellation injection" (put { (plan "new") with cancelled_on = Some "2026-10-04" });
   attempt "missing cancel" (B.cancel_plan base ~id:"missing" ~day:"2026-10-04");
   attempt "invalid cancel date" (B.cancel_plan base ~id:"planned" ~day:"2026-02-30");
-  (* book.txt always supplies the policy; a payload can still leave it out. *)
-  let no_policy = get (B.of_payload { (B.export_payload base) with approved = None }) in
-  attempt "policy missing" (B.put_plan no_policy ~replace:false (plan "new"));
   let historical =
     book_of_txt
       (fixture
@@ -555,7 +552,6 @@ payment injection: plan-terminal-not-input
 cancellation injection: plan-terminal-not-input
 missing cancel: unknown-plan
 invalid cancel date: invalid-date
-policy missing: locus-policy-not-supplied
 cancel historical: true
 unchanged: true|}]
 
@@ -717,19 +713,18 @@ let%expect_test "daily pace never substitutes a partial balance or uses mixed du
        ~pool:[ pace_coordinate "wallet" "jpy"; pace_coordinate "wallet" "eur" ]
        ~observed_at:"2026-10-07" ~end_exclusive:"2026-10-14");
   print_pace (get (pace base ~loci:[] ()));
-  let no_policy = get (B.of_payload { (B.export_payload base) with approved = None }) in
-  print_pace (get (pace no_policy ()));
   let missing_locus = get (B.add_locus base "new") in
   attempt "catalog is not zero" (pace missing_locus ~loci:[ "new" ] ());
   [%expect
-    {|partial pool: daily-pace-balance-support-unknown:bank:jpy
-foreign unsupported: daily-pace-balance-support-unknown:wallet:eur
-duplicate: daily-pace-duplicate-coordinate
-unknown measure: unknown-measure
-mixed: daily-pace-pool-measure-mismatch
-7 0 0 0 0
-7 1000 200 800 114
-catalog is not zero: daily-pace-balance-support-unknown:new:jpy|}]
+    {|
+    partial pool: daily-pace-balance-support-unknown:bank:jpy
+    foreign unsupported: daily-pace-balance-support-unknown:wallet:eur
+    duplicate: daily-pace-duplicate-coordinate
+    unknown measure: unknown-measure
+    mixed: daily-pace-pool-measure-mismatch
+    7 0 0 0 0
+    catalog is not zero: daily-pace-balance-support-unknown:new:jpy
+    |}]
 
 let%expect_test
     "daily pace uses calendar days including leap centuries and refuses invalid horizons" =
@@ -1230,13 +1225,14 @@ let%expect_test "bounded history support restates past pools and survives book.t
     (at cold [ "wallet" ] "2026-10-04");
   let cleared = get (B.with_bounded_history bounded []) in
   Stdio.printf "cleared has none: %b\n" (not (String.is_substring (text_of cleared) ~substring:"HISTORY-FROM"));
-  let conflict = get (B.with_bounded_history book [ ("food", "jpy", "2026-10-01") ]) in
-  Stdio.printf "conflict: %s\n" (at conflict [ "food" ] "2026-10-04");
-  let unanchored = get (B.with_bounded_history book [ ("bank", "jpy", "2026-10-01") ]) in
-  Stdio.printf "unanchored: %s\n" (at unanchored [ "bank" ] "2026-10-04");
   let refusal rows =
     match B.with_bounded_history book rows with Ok _ -> "ok" | Error why -> why
   in
+  (* book.txt needs a count wherever a history starts, and a count never shares a
+     coordinate with zero-origin support. *)
+  Stdio.printf "with zero-origin: %s; without a count: %s\n"
+    (refusal [ ("food", "jpy", "2026-10-01") ])
+    (refusal [ ("bank", "jpy", "2026-10-01") ]);
   Stdio.printf "duplicate: %s; date: %s; measure: %s\n"
     (refusal [ ("wallet", "jpy", "2026-10-04"); ("wallet", "jpy", "2026-10-05") ])
     (refusal [ ("wallet", "jpy", "2026-02-30") ])
@@ -1256,7 +1252,6 @@ let%expect_test "bounded history support restates past pools and survives book.t
     wallet+bank batched as single: true
     HISTORY-FROM line: true; stable: true; cold wallet 2026-10-04: 900
     cleared has none: true
-    conflict: error:history-support-conflict:food:jpy
-    unanchored: error:history-bounded-anchor-missing:bank:jpy
+    with zero-origin: support-admission; without a count: support-admission
     duplicate: duplicate-bounded-history-coordinate; date: invalid-date; measure: measure-scale-not-supplied
     |}]

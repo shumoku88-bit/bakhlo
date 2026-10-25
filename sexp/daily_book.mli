@@ -1,10 +1,11 @@
-module D = Bakhlo_domain
-(** The household book in memory, independent of UI and filesystem: entries, plans,
-    vocabulary and quantity support, admitted as a whole and changed in place. Its
-    file form is book.txt ({!Daily_txt}). Exchange and dated plan cancellation remain
-    explicit. *)
+(** The household book in memory: an admitted book.txt ({!Bakhlo_book_txt.Book_txt.book})
+    and, for the screens, its TXs as entries. Every change is one Book_txt change,
+    admitted by the specification's rules after Bakhlo's own write policies: Loci
+    offered for new entries, open plans only, a Merchant set once. Balances come from
+    the totals the admitted book keeps. Pure: no file access. *)
 
-module Q = Bakhlo_application.Current_quantity_query
+module D = Bakhlo_domain
+module T = Bakhlo_book_txt.Book_txt
 
 type entry = Records.entry = {
   id : string;
@@ -12,7 +13,7 @@ type entry = Records.entry = {
   memo : string option;
   effects : D.Effect.t list;
   reversal_of : string option;
-  exchange : (string * string) option;
+  exchange : (string * string) option;  (** Source and destination Effect keys. *)
   original_amount : (string * Z.t) option;
   merchant : Bakhlo_application.Event_merchants.disposition option;
 }
@@ -30,69 +31,61 @@ type plan = Records.plan = {
 
 type t
 
+val of_txt : T.book -> (t, string) result
+(** The book of an admitted book.txt. Refuses a TX that would not read back as the same
+    entry (an exchange whose legs are not the only Effects of their sign in their
+    Measures). *)
+
+val txt : t -> T.book
+(** Its book.txt; [T.print] gives the bytes to save. *)
+
 val empty : measure:string -> scale:int -> (t, string) result
-(** An empty book with one explicitly supplied Measure/scale and no admitted Loci,
-    entries, plans, or quantity evidence. *)
-
-type payload = {
-  measures : (string * int) list;
-  labels : (string * string * string) list option;
-  approved : string list option;
-  entries : entry list;
-  plans : plan list;
-  origins : D.Effect_coordinate.t list;
-  openings : Q.opening list;
-  observations : Bakhlo_application.Current_quantity_groups.group list;
-  bounded : (D.Effect_coordinate.t * string) list;
-}
-(** The whole book as supplied facts, for an explicit importer. *)
-
-val of_payload : payload -> (t, string) result
-(** The whole-book admission; no defaults or repair. *)
-
-val export_payload : t -> payload
-(** The whole book as the facts {!of_payload} admits: entries in recorded order, support
-    families as retained. For an explicit converter; [of_payload (export_payload t)]
-    admits the same book. *)
+(** One Measure with its scale and nothing else. *)
 
 val entries : t -> entry list
-(** All retained entries in recorded order (oldest to newest). *)
+(** Recorded order, oldest first. *)
 
 val entries_rev : t -> entry list
-(** All retained entries in reverse recorded order (newest to oldest). O(N). *)
-
 val entry_count : t -> int
-(** Total number of entries in the book. O(1). *)
-
 val find_entry : t -> string -> entry option
-(** Look up an entry by ID via immutable index. O(log N). *)
-
 val mem_entry : t -> string -> bool
-(** Check whether an entry ID exists in the book via immutable index. O(log N). *)
 
 val plans : t -> plan list
-(** All retained plans, including paid and cancelled ones, in stored order. *)
+(** All plans, paid and cancelled ones included, in stored order. *)
 
 val plan_is_open : plan -> bool
-
 val open_plans : t -> plan list
-(** Currently unpaid and uncancelled only; not a claim of real-world completeness. *)
-
 val measures : t -> (string * int) list
+
 val approved_loci : t -> string list option
+(** The Loci offered for new entries (not [HIDDEN]); always [Some]. *)
+
 val label : t -> string -> string
 val help : t -> string -> string
-val set_locus_label : t -> id:string -> label:string -> ?help:string -> unit -> (t, string) result
 
-val image : t -> Q.t
-(** Balance answers are always exact. After an in-place record, correction or
-    observation the image's admitted source (evidence explanation, cut listings) still describes
-    the last whole admission; reload or re-admit before explaining evidence. *)
+val quantity : t -> locus:string -> measure:string -> T.quantity option
+(** The current balance and the support it rests on; [None] is unknown, never zero. *)
+
+val has_zero_origin : t -> locus:string -> measure:string -> bool
+
+val openings : t -> ((string * string) * string) list
+(** Each opening: its (Locus, Measure) and opening TX. *)
+
+val bounded_history_start : t -> locus:string -> measure:string -> string option
+(** The [HISTORY-FROM] day: every change of this coordinate from that day on is a
+    recorded TX. *)
+
+val roles : t -> (string * T.role) list
+val attention : t -> T.item list * T.close list
 
 val format : t -> string -> Z.t -> string
 
 val parse_amount : t -> string -> string -> (Z.t, string) result
-(** Positive exact decimal or arithmetic input (+, -, *, /, parentheses) at the explicitly supplied scale. No rounding. *)
+(** Positive exact decimal or arithmetic input (+, -, *, /, parentheses) at the
+    Measure's scale. No rounding. *)
+
+val parse_signed_amount : t -> string -> string -> (Z.t, string) result
+(** Signed or zero exact decimal input at the Measure's scale. No rounding. *)
 
 type daily_pace = {
   measure : string;
@@ -106,9 +99,6 @@ type daily_pace = {
   available_through_end : Z.t;
   daily_pace_quanta : Z.t;
 }
-(** Disposable current-book answer with exact components. Coordinate order follows
-    the supplied pool; positive per-occurrence deductions follow retained plan order.
-    This is neither stored household state nor spending permission. *)
 
 val daily_pace :
   t ->
@@ -117,119 +107,56 @@ val daily_pace :
   observed_at:string ->
   end_exclusive:string ->
   (daily_pace, string) result
-(** LOAM Home d's current balance-pool guide, not a purpose-budget guide:
-    (exact pool quantities - open-plan net drains before exclusive end) / days.
-    Dates use the existing real YYYY-MM-DD contract; end must be after observation.
-    Caller explicitly supplies one known Measure and unique matching coordinates;
-    an explicit empty pool is empty, never a fallback for missing configuration.
-    Unknown support at ANY selected coordinate refuses the whole calculation; no partial total or invented zero. Neither
-    catalog membership nor new-write vocabulary selects/authorizes this read pool.
-    Overdue open plans still count. Internal transfers and planned inflows deduct
-    zero; paid/cancelled plans and other Measures do not count. Signed changes are
-    netted within each occurrence, never across different plans.
-    Integer-quanta division floors negative deficits (positive divisor), with no
-    clamping, floating point, conversion or machine-sized amount arithmetic.
-    One immutable book owns both quantities and plans. observed_at is a caller's
-    current observation coordinate, NOT an as-of filter or historical replay;
-    the function reads no clock. No claim of plan completeness or balance freshness. *)
-
-val put_plan : t -> replace:bool -> plan -> (t, string) result
-(** Append a new open plan or replace an existing open one with the same ID.
-    Caller supplies identity/date/Measure/exact signed changes, with both terminal
-    fields None. No ID allocation or I/O. Checks current vocabulary and nonempty,
-    nonzero balanced single-Measure Movement, then checks the plan stage only. Closed
-    plans cannot be changed/reopened. Other plans, entries and support are preserved. *)
-
-val cancel_plan : t -> id:string -> day:string -> (t, string) result
-(** Close an existing open plan with an explicitly supplied real cancellation date,
-    retaining its ID, scheduled date and changes. No payment, deletion or physical
-    balance change. Paid/already-cancelled/missing plans refuse. Cancellation does
-    not require the historical loci to remain approved for new writes. *)
-
-val correct_entry_date : t -> id:string -> day:string -> (t, string) result
-(** Change only the validity date of one retained entry. The Event identity,
-    Effects (including keys), Reversal/exchange links, amount, memo and Merchant
-    disposition are preserved. Historical Loci need not remain approved because
-    no Effect changes or is newly admitted. *)
-
-val put_entry_full : t -> replace:bool -> entry -> plan:string option -> (t, string) result
-(** Reference oracle: complete whole-book admission verification without incremental fast path. *)
-
-val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) result
-(** Checked append or replacement. Every new entry, and every correction that keeps
-    its Reversal link and is no opening witness, is
-    admitted with its Reversal partners only and updates balances in place; anything
-    else falls back to whole-book admission. Refusals match {!Full.put_entry}. *)
-
-(** Reference oracle: the same candidates, each re-admitted as a whole book. Every
-    ordinary mutation must agree with its counterpart here (refusal reason or
-    observable book); see test/daily_book_oracle_tests.ml. Never used by the UI. *)
-module Full : sig
-  val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) result
-  val put_plan : t -> replace:bool -> plan -> (t, string) result
-  val cancel_plan : t -> id:string -> day:string -> (t, string) result
-  val correct_entry_date : t -> id:string -> day:string -> (t, string) result
-
-  val classify_merchant :
-    t ->
-    id:string ->
-    disposition:Bakhlo_application.Event_merchants.disposition ->
-    (t, string) result
-
-  val add_locus : t -> string -> (t, string) result
-  val observe_quantities : t -> (string * string * Z.t) list -> (t, string) result
-  val set_locus_label : t -> id:string -> label:string -> ?help:string -> unit -> (t, string) result
-end
-
-val classify_merchant :
-  t -> id:string -> disposition:Bakhlo_application.Event_merchants.disposition -> (t, string) result
-(** Classify the independent Event Merchant disposition for an existing Actual entry.
-    First classification only; replacement or reclassification is refused. *)
-
-val add_locus : t -> string -> (t, string) result
-(** Explicit vocabulary addition only; never supplies zero balance or a role. *)
-
-val parse_signed_amount : t -> string -> string -> (Z.t, string) result
-(** Signed or zero exact decimal input at the explicitly supplied scale. No rounding. *)
-
-val observe_quantities : t -> (string * string * Z.t) list -> (t, string) result
-(** Observe one reconciliation group of current quantities for one or more coordinates
-    (locus, measure, quantity_quanta) observed together against the current stable-root cut.
-    The new group reflects every admitted entry, so it is built in place; older groups
-    keep their answers for the coordinates they still own. Matches {!Full}.
-    Unmentioned prior observations are preserved; re-observed coordinates are replaced.
-    Refuses if any coordinate overlaps zero-origin or opening support, or if Locus/Measure
-    is invalid, or if duplicate coordinates are supplied. *)
-
-val has_zero_origin : t -> locus:string -> measure:string -> bool
-(** Whether the coordinate has admitted zero-origin support. Does not imply
-    support for any nonzero opening or observation family. *)
-
-val bounded_history_start : t -> locus:string -> measure:string -> string option
-(** Explicit bounded-history claim: every real change of this coordinate from the
-    start of the returned day is represented by retained Actual entries. Never
-    inferred from equal endpoints, an opening or a current observation. *)
-
-val with_bounded_history : t -> (string * string * string) list -> (t, string) result
-(** Replace the whole bounded-history image with (locus, measure, start day) rows.
-    Refuses duplicate coordinates, invalid dates and unknown Measures. In book.txt these
-    are its HISTORY-FROM lines. *)
+(** LOAM Home d's current balance-pool guide: (exact pool balances - open-plan net
+    drains before the exclusive end) / days. An unknown balance at any selected
+    coordinate refuses the whole answer; overdue open plans still count; internal
+    transfers and planned inflows deduct zero; integer division floors negative
+    deficits. Reads no clock. *)
 
 val pool_at_end_of_day :
   t -> measure:string -> pool:D.Effect_coordinate.t list -> day:string -> (Z.t, string) result
-(** Exact pool total at the end of [day] (= start of the next day), restated from
-    current truth. Each coordinate needs exactly one route: zero-origin (forward
-    sum) or bounded history starting no later than the next day with an exact
-    current observation (current minus later Effects). Missing support, overlap
-    with zero-origin/opening or an unanchored bounded coordinate refuses the whole
-    answer; no partial total or invented zero. *)
+(** The pool at the end of [day], restated from current truth: each coordinate needs
+    zero-origin (forward sum) or a history start no later than the next day with a
+    current count (count minus later Effects). Anything else refuses the whole answer. *)
 
 val pools_at_end_of_days :
-  t ->
-  measure:string ->
-  pool:D.Effect_coordinate.t list ->
-  days:string list ->
-  (Z.t, string) result list
-(** {!pool_at_end_of_day} for each of [days], in order, from one pass over the
-    entries. *)
+  t -> measure:string -> pool:D.Effect_coordinate.t list -> days:string list -> (Z.t, string) result list
+(** {!pool_at_end_of_day} for each day, from one pass over the entries. *)
 
+(** {1 Changes}
+
+    Each refuses with a reason and leaves the book as it was. *)
+
+val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) result
+(** A new entry at the end, or the entry with this ID in its place. Its Loci must be
+    offered for new entries; [plan] pays an open plan (new entries only); a classified
+    Merchant cannot be replaced. An empty memo is no memo. *)
+
+val correct_entry_date : t -> id:string -> day:string -> (t, string) result
+(** Only the date; a Locus no longer offered may stay. *)
+
+val classify_merchant :
+  t -> id:string -> disposition:Bakhlo_application.Event_merchants.disposition -> (t, string) result
+(** First classification only. *)
+
+val put_plan : t -> replace:bool -> plan -> (t, string) result
+(** A new open plan, or an open one replaced. *)
+
+val cancel_plan : t -> id:string -> day:string -> (t, string) result
+
+val add_locus : t -> string -> (t, string) result
+(** Offer a Locus for new entries: a new one labelled with its ID, or a hidden one again. *)
+
+val set_locus_label : t -> id:string -> label:string -> ?help:string -> unit -> (t, string) result
+
+val observe_quantities : t -> (string * string * Z.t) list -> (t, string) result
+(** One count of current quantities reflecting every recorded TX. Older counts keep
+    the coordinates not counted again. Refuses a coordinate with zero-origin or opening
+    support, an unknown Measure, a Locus not offered, or a repeated coordinate. *)
+
+val with_bounded_history : t -> (string * string * string) list -> (t, string) result
+(** Replace every history start with (Locus, Measure, day) rows; each needs a count. *)
+
+val with_sections :
+  t -> roles:(string * T.role) list -> items:T.item list -> closes:T.close list -> (t, string) result
+(** Replace the accounting roles and the Attention items and closes. *)

@@ -4,17 +4,14 @@ module B = Bakhlo_sexp.Daily_book
 module O = Daily_overlays
 module A = Daily_draft
 module D = Bakhlo_domain
-module Q = Bakhlo_application.Current_quantity_query
 module Panel = Ui_panel
 
-let support_text book coordinate =
-  match Q.query (B.image book) coordinate with
-  | Ok exact -> (
-      match Q.premise exact with
-      | Q.Zero_origin -> "recorded history"
-      | Q.Opening _ -> "opening balance"
-      | Q.Current_assertion _ -> "observed")
-  | Error _ -> "unsupported"
+let support_text book (coordinate : D.Effect_coordinate.t) =
+  match B.quantity book ~locus:(A.lstr coordinate.locus) ~measure:(A.mstr coordinate.measure) with
+  | Some { support = Zero_origin; _ } -> "recorded history"
+  | Some { support = Opening _; _ } -> "opening balance"
+  | Some { support = Counted _; _ } -> "observed"
+  | None -> "unsupported"
 
 let short_date date =
   if String.length date > 5 then String.sub date 5 (String.length date - 5) else date

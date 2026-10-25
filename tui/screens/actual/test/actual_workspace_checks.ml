@@ -37,7 +37,7 @@ let add_entry book ~day ~memo ~locus1 ~amt1 ~locus2 ~amt2 =
       (Result.map_error
          (fun error -> error.A.message)
          (A.build_transaction
-            ~new_id:(fun () -> day ^ ":" ^ memo)
+            ~new_id:(fun () -> day ^ ":" ^ String.map (fun c -> if c = ' ' then '-' else c) memo)
             ~book ~mode:A.New
             (A.Multiple
                {
@@ -440,7 +440,7 @@ let self_check ~width_of () =
      and Locus label. *)
   let plan_book =
     let rent_entry =
-      List.find (fun (e : B.entry) -> e.id = "2026-10-14:Apartment rent") (B.entries book)
+      List.find (fun (e : B.entry) -> e.id = "2026-10-14:Apartment-rent") (B.entries book)
     in
     let plan : B.plan =
       let changes =
@@ -476,14 +476,14 @@ let self_check ~width_of () =
   let locus_browser = { RB.empty with locus = Some "expenses:rent" } in
   require
     (identities locus_browser
-    = [ (RB.Scheduled_row, "plan-rent"); (RB.Actual_row, "2026-10-14:Apartment rent") ])
+    = [ (RB.Scheduled_row, "plan-rent"); (RB.Actual_row, "2026-10-14:Apartment-rent") ])
     "browser-empty-query-locus-filter";
   require
-    (identities (RB.with_query RB.empty "coffee") = [ (RB.Actual_row, "2026-10-15:Coffee shop") ])
+    (identities (RB.with_query RB.empty "coffee") = [ (RB.Actual_row, "2026-10-15:Coffee-shop") ])
     "browser-search-memo";
   require
-    (identities (RB.with_query RB.empty "2026-10-14:Apartment rent")
-    = [ (RB.Actual_row, "2026-10-14:Apartment rent") ])
+    (identities (RB.with_query RB.empty "2026-10-14:Apartment-rent")
+    = [ (RB.Actual_row, "2026-10-14:Apartment-rent") ])
     "browser-search-id";
   require (List.length (identities (RB.with_query RB.empty "食費")) = 2) "browser-search-locus-label";
   require

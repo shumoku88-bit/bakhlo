@@ -1,11 +1,9 @@
 (* Synthetic startup/snapshot/save/in-memory response probe. Measurement only:
    Marshal here is a disposable-cache candidate, not a storage format. *)
 module D = Bakhlo_domain
-module Q = Bakhlo_application.Current_quantity_query
 module M = Bakhlo_application.Event_merchants
 module B = Bakhlo_sexp.Daily_book
 module L = Bakhlo_sexp.Book_log
-module X = Bakhlo_sexp.Daily_txt
 module T = Bakhlo_book_txt.Book_txt
 module F = Daily_file
 
@@ -101,9 +99,7 @@ let median name k f =
 let mib words = float_of_int (words * 8) /. 1048576.
 
 let balance b =
-  match Q.query (B.image b) (coordinate "wallet" "jpy") with
-  | Ok x -> Z.to_string (D.Quantity.quanta (Q.quantity x))
-  | _ -> "non-exact"
+  match B.quantity b ~locus:"wallet" ~measure:"jpy" with Some q -> Z.to_string q.amount | None -> "unknown"
 
 let entry_of_tx (tx : T.tx) : B.entry =
   {
@@ -144,7 +140,7 @@ let () =
       let path = Filename.concat dir "book.txt" in
       let bytes = time "read book.txt bytes" (fun () -> read path) in
       let txt = time "Book_txt.read" (fun () -> get (Result.map_error (fun e -> T.code_name e.T.code) (T.read bytes))) in
-      let b, _ = time "Daily_txt.of_txt" (fun () -> get (X.of_txt (T.value txt))) in
+      let b = time "Daily_book.of_txt" (fun () -> get (B.of_txt txt)) in
       Gc.compact ();
       Printf.printf "%-32s %10.1f MiB\n" "live book (reachable)" (mib (Obj.reachable_words (Obj.repr b)));
       Printf.printf "%-32s %10.1f MiB\n" "live book.txt (reachable)" (mib (Obj.reachable_words (Obj.repr txt)));

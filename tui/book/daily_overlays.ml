@@ -2,7 +2,6 @@
    Controllers and editors own navigation; these primitives never publish. *)
 module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
-module Q = Bakhlo_application.Current_quantity_query
 module A = Daily_draft
 
 let tr = Ui_text.tr
@@ -12,13 +11,7 @@ include Ui_render
 type quantity_value = Unsupported | Exact of Z.t
 
 let quantity_value ~book ~measure locus =
-  match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string measure) with
-  | Ok locus, Ok measure -> (
-      let coordinate : D.Effect_coordinate.t = { locus; measure } in
-      match Q.query (B.image book) coordinate with
-      | Error (Q.Support_unknown _) -> Unsupported
-      | Ok e -> Exact (D.Quantity.quanta (Q.quantity e)))
-  | Error _, _ | _, Error _ -> Unsupported
+  match B.quantity book ~locus ~measure with Some q -> Exact q.amount | None -> Unsupported
 
 let quantity ~book ~measure locus =
   match quantity_value ~book ~measure locus with
@@ -100,45 +93,30 @@ type balance_item =
   | Net_worth_row of { measure : string; known_subtotal : Z.t; complete : bool }
   | Blank_row
 
-(* Accounting represents current corrected entries plus support coordinates, never
-   the admission list. The image's admitted source may lag in-place mutations, so
-   read Effects from the book itself. Cache by image: effect/support mutations
-   replace it; label, date and plan changes do not change these coordinates. *)
-let represented_cache : (Q.t * D.Effect_coordinate.t list) option ref = ref None
+(* Accounting represents the coordinates of current Effects and support lines, never
+   the admission list. Cached by the book.txt value, which every change replaces. *)
+let represented_cache : (Bakhlo_book_txt.Book_txt.book * D.Effect_coordinate.t list) option ref = ref None
 
 let compute_represented_coordinates book =
-  let image = B.image book in
-  let seen = Hashtbl.create 64 in
-  List.iter
-    (fun (entry : B.entry) ->
-      List.iter
-        (fun posting -> Hashtbl.replace seen (D.Effect.locus posting, D.Effect.measure posting) ())
-        entry.effects)
-    (B.entries book);
-  let from_events =
-    Hashtbl.fold
-      (fun (locus, measure) () acc -> ({ locus; measure } : D.Effect_coordinate.t) :: acc)
-      seen []
+  let v = Bakhlo_book_txt.Book_txt.value (B.txt book) in
+  let coordinate (l, m) : D.Effect_coordinate.t option =
+    match (D.Identifier.Locus.of_string l, D.Identifier.Measure.of_string m) with
+    | Ok locus, Ok measure -> Some { locus; measure }
+    | _ -> None
   in
-  let from_groups =
-    List.concat_map
-      (fun (group : Bakhlo_application.Current_quantity_groups.group) ->
-        List.map
-          (fun (a : Bakhlo_application.Current_quantity_projection.assertion) -> a.coordinate)
-          group.assertions)
-      (Bakhlo_application.Current_quantity_groups.groups (Q.source_groups image))
-  in
-  let from_openings = List.map (fun (o : Q.opening) -> o.coordinate) (Q.openings image) in
-  List.sort_uniq D.Effect_coordinate.compare
-    (from_events @ Q.zero_origins image @ from_openings @ from_groups)
+  List.concat_map (fun (tx : Bakhlo_book_txt.Book_txt.tx) -> List.map (fun (e : Bakhlo_book_txt.Book_txt.posting) -> (e.locus, e.measure)) tx.effects) v.txs
+  @ v.zero_origins @ List.map fst v.openings
+  @ List.concat_map (fun (a : Bakhlo_book_txt.Book_txt.anchor) -> List.map fst a.asserts) v.anchors
+  |> List.sort_uniq compare |> List.filter_map coordinate
+  |> List.sort_uniq D.Effect_coordinate.compare
 
 let represented_coordinates book =
-  let image = B.image book in
+  let txt = B.txt book in
   match !represented_cache with
-  | Some (cached, coordinates) when cached == image -> coordinates
+  | Some (cached, coordinates) when cached == txt -> coordinates
   | _ ->
       let coordinates = compute_represented_coordinates book in
-      represented_cache := Some (image, coordinates);
+      represented_cache := Some (txt, coordinates);
       coordinates
 
 let current_balance_items ~book ~coords =

@@ -5,7 +5,6 @@ module B = Bakhlo_sexp.Daily_book
 module O = Daily_overlays
 module A = Daily_draft
 module D = Bakhlo_domain
-module Q = Bakhlo_application.Current_quantity_query
 
 type t = {
   measure : string;
@@ -43,16 +42,11 @@ let rows_from measure text =
 (* The support route of an exact current balance: 0 zero-origin, 1 opening,
    2 current observation; [None] when the balance is not exact. *)
 let route book ~measure locus =
-  match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string measure) with
-  | Ok locus, Ok measure -> (
-      match Q.query (B.image book) { D.Effect_coordinate.locus; measure } with
-      | Ok exact -> (
-          match Q.premise exact with
-          | Q.Zero_origin -> Some 0
-          | Q.Opening _ -> Some 1
-          | Q.Current_assertion _ -> Some 2)
-      | Error _ -> None)
-  | _ -> None
+  match B.quantity book ~locus ~measure with
+  | Some { support = Zero_origin; _ } -> Some 0
+  | Some { support = Opening _; _ } -> Some 1
+  | Some { support = Counted _; _ } -> Some 2
+  | None -> None
 
 (* LOAM lists exact current balances grouped by support (zero-origin, opening,
    current observation), each group in first-appearance order over the

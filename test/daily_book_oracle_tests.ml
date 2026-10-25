@@ -1,27 +1,21 @@
 (* Cold-equivalence oracle for Daily_book mutations.
 
-   Any book reached in memory must be indistinguishable from the same facts admitted
-   again as a whole book, and every mutation must give the
-   same result on both: same refusal reason, or the same observable book. This is
-   the safety net for incremental paths: a shortcut that leaves derived state stale
-   shows up as a difference here even when its own result looks plausible. *)
+   The store keeps the in-memory book after a save instead of reading book.txt back,
+   so any book reached in memory must be indistinguishable from the cold reload of its
+   book.txt, and every mutation must give the same result on both: the same refusal
+   reason, or the same observable book. A change that leaves the entries, the balance
+   totals or the printed TXs stale shows up as a difference here. *)
 open Base
 module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
-module Q = Bakhlo_application.Current_quantity_query
 module M = Bakhlo_application.Event_merchants
-module Frontier = Bakhlo_application.Correction_frontier
 module R = Stdlib.Random.State
 
 let get = function Ok x -> x | Error why -> failwith why
 
 (* Test books are written in book.txt, the household format. *)
-let book_of_txt text =
-  match Bakhlo_book_txt.Book_txt.of_string text with
-  | Error e -> failwith (Printf.sprintf "fixture refused: %s at line %d" (Bakhlo_book_txt.Book_txt.code_name e.code) e.line)
-  | Ok t -> fst (get (Bakhlo_sexp.Daily_txt.of_txt t))
-
-let text_of book = get (Bakhlo_sexp.Daily_txt.to_text book Bakhlo_sexp.Daily_txt.no_sidecars)
+let book_of_txt = Bakhlo_sexp.Daily_txt.book
+let text_of book = Bakhlo_sexp.Daily_txt.text book
 
 let fixture =
   "BOOK\t1\n\
@@ -235,19 +229,8 @@ let generate st book =
 
 let apply = apply
 
-(* The whole-book reference for the same operation. *)
-let apply_full book = function
-  | Put_entry { replace; entry; plan } -> B.Full.put_entry book ~replace entry ~plan
-  | Correct_entry_date { id; day } -> B.Full.correct_entry_date book ~id ~day
-  | Observe rows -> B.Full.observe_quantities book rows
-  | Put_plan { replace; plan } -> B.Full.put_plan book ~replace plan
-  | Cancel_plan { id; day } -> B.Full.cancel_plan book ~id ~day
-  | Add_locus l -> B.Full.add_locus book l
-  | Classify_merchant { id; disposition } -> B.Full.classify_merchant book ~id ~disposition
-  | Set_locus_label { id; label; help } -> B.Full.set_locus_label book ~id ~label ?help ()
-
-(* The book's facts: its book.txt. *)
-let facts_text = text_of
+(* The book's facts: the exact book.txt it saves, sections included. *)
+let facts_text book = Bakhlo_book_txt.Book_txt.print (B.txt book)
 
 (* Everything a caller can read from a book, rendered for exact comparison. *)
 let observable book =
@@ -255,16 +238,16 @@ let observable book =
     List.concat_map (Array.to_list loci) ~f:(fun l ->
         List.map [ "jpy"; "usd" ] ~f:(fun m ->
             let answer =
-              match Q.query (B.image book) (coordinate l m) with
-              | Ok x ->
-                  let premise =
-                    match Q.premise x with
-                    | Q.Zero_origin -> "zero-origin"
-                    | Q.Opening _ -> "opening"
-                    | Q.Current_assertion _ -> "observation"
+              match B.quantity book ~locus:l ~measure:m with
+              | Some q ->
+                  let support =
+                    match q.support with
+                    | Zero_origin -> "zero-origin"
+                    | Opening _ -> "opening"
+                    | Counted _ -> "observation"
                   in
-                  Printf.sprintf "%s (%s)" (Z.to_string (D.Quantity.quanta (Q.quantity x))) premise
-              | Error (Q.Support_unknown _) -> "unknown"
+                  Printf.sprintf "%s (%s)" (Z.to_string q.amount) support
+              | None -> "unknown"
             in
             Printf.sprintf "%s/%s: %s" l m answer))
   in
@@ -285,8 +268,11 @@ let observable book =
     @ [ pace; Printf.sprintf "entries %d" (B.entry_count book) ]
     @ List.map (B.open_plans book) ~f:(fun p -> "open " ^ p.id))
 
-(* The same facts admitted again as a whole book. *)
-let cold book = get (B.of_payload (B.export_payload book))
+(* What a cold load of its book.txt gives. *)
+let cold book =
+  match Bakhlo_book_txt.Book_txt.read (facts_text book) with
+  | Ok txt -> get (B.of_txt txt)
+  | Error e -> failwith (Bakhlo_book_txt.Book_txt.code_name e.code)
 
 (* First differing line with a little context, so a failure stays readable. *)
 let first_difference a b =
@@ -337,7 +323,6 @@ let run ~start ~seed ~steps ~admitted =
     trace := describe op :: !trace;
     let result = apply !book op in
     agree ~seed ~step ~trace:!trace "cold twin" result (apply (cold !book) op);
-    agree ~seed ~step ~trace:!trace "whole-book reference" result (apply_full !book op);
     match result with
     | Ok next ->
         Hashtbl.incr admitted (kind op);
@@ -347,7 +332,7 @@ let run ~start ~seed ~steps ~admitted =
     | Error _ -> ()
   done
 
-let%expect_test "every mutation agrees with its cold-loaded twin and its whole-book reference" =
+let%expect_test "every mutation agrees with its book.txt cold-loaded twin" =
   let admitted = Hashtbl.create (module String) in
   let start = book_of_txt fixture in
   for seed = 1 to 200 do
@@ -393,16 +378,12 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
   let base = book_of_txt hidden_fixture in
   let initial = Option.value_exn (B.find_entry base "init") in
   let dated = B.correct_entry_date base ~id:"init" ~day:"2026-10-02" in
-  let dated_full = B.Full.correct_entry_date base ~id:"init" ~day:"2026-10-02" in
-  agree ~seed:0 ~step:0 ~trace:[] "dedicated date reference" dated dated_full;
   let dated_book = get dated in
   let after_date = Option.value_exn (B.find_entry dated_book "init") in
   Stdio.printf "date succeeds and changes only date: %b\n"
     (String.equal after_date.day "2026-10-02"
     && Poly.equal { after_date with day = initial.day } initial);
   let classified = B.classify_merchant base ~id:"init" ~disposition:M.Nonmerchant in
-  let classified_full = B.Full.classify_merchant base ~id:"init" ~disposition:M.Nonmerchant in
-  agree ~seed:0 ~step:0 ~trace:[] "dedicated Merchant reference" classified classified_full;
   let classified_book = get classified in
   let after_merchant = Option.value_exn (B.find_entry classified_book "init") in
   Stdio.printf "Merchant succeeds and changes only Merchant: %b\n"
@@ -446,104 +427,3 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
     invalid Merchant token: loam: Merchant party token must be a non-empty single text field
     |}]
 
-(* KNOWN GAP, pinned on purpose: the in-place record and correction paths update
-   balances but not the image's admitted source, so its correction frontier omits the
-   new entry until the next whole admission. Answers agree (oracle above). The
-   incremental redesign must make both lines say true. *)
-let%expect_test "known gap: incremental record leaves the admitted source stale" =
-  let base = book_of_txt fixture in
-  let entry : B.entry =
-    {
-      id = "late";
-      day = "2026-10-05";
-      memo = None;
-      effects = [ posting "wallet" "jpy" (-100); posting "food" "jpy" 100 ];
-      reversal_of = None;
-      exchange = None;
-      original_amount = None;
-      merchant = None;
-    }
-  in
-  let book = get (B.put_entry base ~replace:false entry ~plan:None) in
-  let mentions b =
-    let frontier = Bakhlo_application.Actual_source.frontier (Q.source (B.image b)) in
-    List.exists (Frontier.lineages frontier) ~f:(fun lineage ->
-        String.equal "late"
-          (D.Identifier.Event.to_string (D.Event.id (Frontier.terminal_event lineage))))
-  in
-  Stdio.printf "answers agree: %b\n" (String.equal (observable book) (observable (cold book)));
-  Stdio.printf "admitted source has new entry: in-memory %b, cold %b\n" (mentions book)
-    (mentions (cold book));
-  [%expect
-    {|
-    answers agree: true
-    admitted source has new entry: in-memory false, cold true
-    |}]
-
-(* The store keeps the in-memory book after a save instead of reading book.txt back, so
-   every mutation of a book.txt-loaded book must equal its book.txt cold reload. A
-   mutation book.txt refuses is only counted: the store then refuses the save. *)
-let txt_cold book =
-  match Bakhlo_sexp.Daily_txt.to_txt book Bakhlo_sexp.Daily_txt.no_sidecars with
-  | Error why -> Error why
-  | Ok t -> Result.map (Bakhlo_sexp.Daily_txt.of_txt t) ~f:fst
-
-let%expect_test "every mutation of a book.txt-loaded book equals its book.txt cold reload" =
-  let refused = Hashtbl.create (module String) and admitted = ref 0 in
-  for seed = 1 to 200 do
-    let st = R.make [| seed |] in
-    let book = ref (get (txt_cold (book_of_txt fixture))) in
-    let trace = ref [] in
-    for step = 1 to 30 do
-      let op = generate st !book in
-      trace := describe op :: !trace;
-      match apply !book op with
-      | Error _ -> ()
-      | Ok next -> (
-          match txt_cold next with
-          | Error why -> Hashtbl.incr refused (kind op ^ ": " ^ why)
-          | Ok cold ->
-              Int.incr admitted;
-              check ~seed ~step ~trace:!trace "not book.txt-cold-equivalent" (observable next) (observable cold);
-              book := next)
-    done
-  done;
-  Stdio.printf "admitted and equal: %b\n" (!admitted > 1000);
-  Hashtbl.iteri refused ~f:(fun ~key ~data -> Stdio.printf "refused by book.txt: %s (%d)\n" key data);
-  [%expect {| admitted and equal: true |}]
-
-(* The store saves through [Daily_txt.changes] instead of converting the whole book, so
-   after every mutation (and pairs of them in one save) the changed book.txt must be
-   the whole conversion of the new book: the same value and the same bytes. *)
-let%expect_test "every save's book.txt changes equal the whole conversion" =
-  let module X = Bakhlo_sexp.Daily_txt in
-  let module T = Bakhlo_book_txt.Book_txt in
-  let whole book = X.to_txt book X.no_sidecars in
-  let saved = ref 0 and refused = Hashtbl.create (module String) in
-  for seed = 1 to 200 do
-    let st = R.make [| seed |] in
-    let book = ref (get (txt_cold (book_of_txt fixture))) in
-    let txt = ref (Result.ok_or_failwith (Result.map_error (T.read (X.text !book)) ~f:(fun e -> T.code_name e.code))) in
-    let trace = ref [] in
-    for step = 1 to 30 do
-      let ops = List.init (if chance st 6 then 3 else if chance st 4 then 2 else 1) ~f:(fun _ -> generate st !book) in
-      trace := String.concat ~sep:" + " (List.map ops ~f:describe) :: !trace;
-      match Bakhlo_sexp.Book_log.apply_all !book ops with
-      | Error _ -> ()
-      | Ok next -> (
-          match (whole next, X.changes !txt next ops) with
-          | Error why, Error _ -> Hashtbl.incr refused ("both: " ^ why)
-          | Ok want, Ok changed ->
-              Int.incr saved;
-              check ~seed ~step ~trace:!trace "changed value differs from the whole conversion" (T.to_string want)
-                (T.to_string (T.value changed));
-              check ~seed ~step ~trace:!trace "printed bytes differ" (T.to_string want) (T.print changed);
-              book := next;
-              txt := changed
-          | Error why, Ok _ -> check ~seed ~step ~trace:!trace "changes admit a refused book" ("refused: " ^ why) "admitted"
-          | Ok _, Error why -> check ~seed ~step ~trace:!trace "changes refuse an admitted book" "admitted" ("refused: " ^ why))
-    done
-  done;
-  Stdio.printf "saved and equal: %b\n" (!saved > 1000);
-  Hashtbl.iteri refused ~f:(fun ~key ~data -> Stdio.printf "refused by book.txt: %s (%d)\n" key data);
-  [%expect {| saved and equal: true |}]

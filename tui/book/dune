@@ -9,6 +9,7 @@
   bakhlo.domain
   bakhlo.application
   bakhlo.sexp
+  bakhlo.book_txt
   zarith
   uutf
   base))

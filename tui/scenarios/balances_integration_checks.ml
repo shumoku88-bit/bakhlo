@@ -145,15 +145,15 @@ let balance_display_checks ~width_of ~directory () =
   require
     (accounting_rows live.book = accounting_rows (F.load live_path).book
     && accounting_rows live.book
-       = accounting_rows (get (B.Full.put_entry book ~replace:false entry ~plan:None)))
-    "accounting-publication-matches-cold-and-full";
+       = accounting_rows (get (B.put_entry book ~replace:false entry ~plan:None)))
+    "accounting-publication-matches-cold-and-in-memory";
   let reopened = F.load live_path in
   let replacement = { entry with effects = [ posting "wallet" (-100); posting "zero" 100 ] } in
   let corrected = publish reopened ~replace:true replacement in
   require
     (accounting_rows corrected.book = accounting_rows (F.load live_path).book
     && accounting_rows corrected.book
-       = accounting_rows (get (B.Full.put_entry reopened.book ~replace:true replacement ~plan:None))
+       = accounting_rows (get (B.put_entry reopened.book ~replace:true replacement ~plan:None))
     && not
          (List.exists
             (function O.Account_row { locus = "bank"; _ } -> true | _ -> false)
@@ -315,12 +315,7 @@ let b2_overlay_text ~width_of dimensions state =
   | Some rows -> String.concat "\n" (List.map snd rows)
 
 let b2_check_qty book locus measure =
-  let module Q = Bakhlo_application.Current_quantity_query in
-  let locus = C.get_id (D.Identifier.Locus.of_string locus) in
-  let measure = C.get_id (D.Identifier.Measure.of_string measure) in
-  match Q.query (B.image book) { D.Effect_coordinate.locus; measure } with
-  | Ok x -> Z.to_string (D.Quantity.quanta (Q.quantity x))
-  | _ -> "unexpected"
+  match B.quantity book ~locus ~measure with Some q -> Z.to_string q.amount | None -> "unexpected"
 
 let b2_book_fixture =
   "BOOK\t1\n\

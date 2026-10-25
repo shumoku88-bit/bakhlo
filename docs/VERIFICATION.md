@@ -6,6 +6,33 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Daily_book runs on book.txt (core A, 2026-10-25)
+
+- `Daily_book` is now an admitted `Book_txt.book` plus its TXs as entries. Every change
+  is one `Book_txt.change` after Bakhlo's write policies, with the refusal reasons the
+  screens know; balances, Daily Pace and past-day pools come from the totals the
+  admitted book keeps (`Book_txt.quantity`, mutation-checked against the specification's
+  balance). The previous implementation, its whole-book reference `Full`, the payload
+  and the two-way conversion in `Daily_txt` are gone; `Daily_txt` keeps the roles and
+  Attention sections in their text formats. The screens use `Daily_book.quantity` and
+  `Daily_book.openings` instead of the application layer's image.
+- Before the switch (`ffd019c`), the new core ran next to the old one on the oracle's
+  random operations (300 seeds × 30 saves of 1–3 operations, plus re-offering a hidden
+  Locus and an overdue plan): both admitted or refused with the same reason, and every
+  admitted step left the same book.txt bytes, entries, plans, balances with their
+  support, Daily Pace and past-day pools. All 12 mutations of the new core were caught.
+- Deliberate differences: `book.txt` refuses a history start without a count, so
+  `with_bounded_history` refuses it at once (it used to be accepted in memory and then
+  fail to save); the past-day "support conflict" and "count missing" refusals can no
+  longer occur. A test entry ID containing a space (invalid in book.txt) was fixed.
+- On a scratch copy of the household (removed afterwards; only booleans printed): the
+  old core (`ffd019c`) and the new one gave the same 181 answer lines (entry and plan
+  counts, every Locus × Measure balance with its support), and the new one prints the
+  file's exact bytes. The household Git tree stayed clean.
+- Synthetic, this Mac: cold load 1,000 / 10,950 / 45,000 entries ≈ 9 / 100 / 420 ms
+  (before ≈ 12 / 168 / 750 ms); save ≈ 49 / 65 / 97–106 ms (45,000: three runs, each the
+  median of 21; 90 ms before the switch). `./tools/check` and `./tools/tui --self-check`: pass.
+
 ## Presence evidence is removed (core A, 2026-10-25)
 
 - Presence ("nonzero, exact amount unknown", from LOAM) could only come from

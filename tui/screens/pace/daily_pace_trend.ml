@@ -4,7 +4,6 @@ module O = Daily_overlays
 module Cal = Daily_calendar
 module A = Daily_draft
 module D = Bakhlo_domain
-module Q = Bakhlo_application.Current_quantity_query
 module Panel = Ui_panel
 
 type preset = Ten_days | Thirty_days | Month | Cycle | Previous_cycle
@@ -170,9 +169,9 @@ let query_pool_balance book coords =
   let rec sum acc = function
     | [] -> Ok acc
     | (c : D.Effect_coordinate.t) :: rest -> (
-        match Q.query (B.image book) c with
-        | Ok answer -> sum (Z.add acc (D.Quantity.quanta (Q.quantity answer))) rest
-        | Error (Q.Support_unknown _) ->
+        match B.quantity book ~locus:(A.lstr c.locus) ~measure:(A.mstr c.measure) with
+        | Some q -> sum (Z.add acc q.amount) rest
+        | None ->
             Error
               (format_pace_error
                  ("daily-pace-balance-support-unknown:" ^ A.lstr c.locus ^ ":" ^ A.mstr c.measure)))
