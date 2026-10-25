@@ -141,9 +141,10 @@ let roundtrip_empty scale =
   match B.empty ~measure:"jpy" ~scale with
   | Error why -> failwith ("first-run-check: " ^ why)
   | Ok book -> (
-      match B.of_string (B.to_string book) with
+      let module X = Bakhlo_sexp.Daily_txt in
+      match Result.bind (X.to_txt book X.no_sidecars) X.of_txt with
       | Error why -> failwith ("first-run-check: empty-book-roundtrip: " ^ why)
-      | Ok cold -> cold)
+      | Ok (cold, _) -> cold)
 
 let check ~width_of () =
   let require ok why = if not ok then failwith ("first-run-check: " ^ why) in

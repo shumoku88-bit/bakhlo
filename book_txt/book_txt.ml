@@ -973,10 +973,13 @@ let tx_text tx =
   print_tx b tx;
   Buffer.contents b
 
-let book_of value =
+(* [texts] gives each TX's printed lines, in file order. *)
+let book_of ?texts value =
+  let texts = ref (match texts with Some ts -> ts | None -> List.map tx_text value.txs) in
   List.fold_left
     (fun b (tx : tx) ->
-      let s = tx_text tx in
+      let s = List.hd !texts in
+      texts := List.tl !texts;
       {
         b with
         index = Smap.add tx.id (b.next, tx) b.index;
@@ -988,7 +991,21 @@ let book_of value =
     { value; index = Smap.empty; reversed_by = Smap.empty; printed = Imap.empty; next = 0; size = 0 }
     value.txs
 
-let read data = Result.map book_of (of_string data)
+(* Each TX block of an admitted text, in file order. An admitted text is canonical, so
+   these are the lines the TX prints to. *)
+let tx_blocks data =
+  let rec go at start acc =
+    if at >= String.length data then List.rev acc
+    else
+      let stop = String.index_from data at '\n' + 1 in
+      let line_is s = stop - at = String.length s + 1 && String.sub data at (String.length s) = s in
+      if String.length data - at > 3 && String.sub data at 3 = "TX\t" then go stop at acc
+      else if line_is "ENDTX" then go stop (-1) (String.sub data start (stop - start) :: acc)
+      else go stop start acc
+  in
+  go 0 (-1) []
+
+let read data = Result.map (fun value -> book_of ~texts:(tx_blocks data) value) (of_string data)
 let value b = b.value
 let position b id = Option.map fst (Smap.find_opt id b.index)
 let id_at b i = Option.map fst (Imap.find_opt i b.printed)
