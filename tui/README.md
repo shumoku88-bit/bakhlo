@@ -17,16 +17,11 @@ Mac実IME／フォント、LOAMの実行対照、P7・運用認定は別。
 ## 起動
 
 普段の記帳は`./tools/household`（家計簿を開き、終了時にcommit・push）。
-LOAMとの比較は`./ui`、別の端末で`./ui loam`（同じ取得世代のコピー）。取得し直すときだけ`./tools/compare refresh`。
-毎回の取得は新しいコピーを作り、両UIの試用編集は以前のコピーに保存したまま次のコピーへ合流しない。
-取得・変換は既存のignoredな私用Daily converterに依存する限定ローカル手順で、単独の移行ツールや正データへの書込みではない。
-未対応のActual証拠、不正な変換、取得中の変更は拒否し、前回の選択とコピーを保持する。
-差分は日付フィルタではなく安定ID／全内容で比較し、新しい対応範囲の台帳全体を再生成する。
-元のhouseholdとconfig、以前のコピー、変換外の家計証拠・旧版は私用scratchに保持する。
-比較後は`./tools/compare clean-copies`で今回のLOAM中間コピーを削除し、Bakhloデータ・設定・過去の試用を残す。
-削除後にLOAM側を再比較する場合は新しく取得する。
-両UIの試用保存はそれぞれのコピーだけ。通常のLOAM正データや私用候補は上書きしない。
-テーマ設定は`scratch/loam-comparison/ui-config`へ隔離する。欠損時に合成データや正データへ戻らない。
+LOAMとの比較は`./ui`、別の端末で`./ui loam`。どちらも家計簿の同じ`book.txt`の、別々のコピーを開く
+（LOAMは共通形式を直接読む。2026-10-25本人決定）。取り直すときだけ`./tools/compare refresh`。
+毎回の取得は新しい世代を作り、両UIの試用編集はそれぞれのコピーにだけ残る。家計簿は読むだけで、
+写している間に変わったら選ばない。比較後は`./tools/compare clean-copies`で選択中以外の世代を消す。
+テーマ設定は`scratch/comparison/ui-config`へ隔離する。欠損時に合成データや正データへ戻らない。
 合成確認は`./ui --demo`（既存の`scratch/ui-preview`を再利用）。Homeの`q`で終了する。
 
 別の試用は合成データを新しいignoredディレクトリへコピーする。既存試用を上書きしない。
@@ -524,7 +519,7 @@ restore-copyは存在しない別パスへadmittedなbyte-exactコピーを作�
 ```sh
 ./tools/check
 ./tools/tui --self-check
-./tools/compare self-check  # 合成入力だけでコピー・差分・取得拒否を確認
+./tools/compare self-check  # 合成入力だけでコピー・世代・シンボリックリンク拒否を確認
 ```
 
 合成データで暦・階層操作・Record入力／Preview／Publish／Edit／Cancel、数量・支払い対応、競合・結果不明を検査する。

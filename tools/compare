@@ -1,48 +1,94 @@
 #!/bin/sh
-# Local comparison refresh through the one-time LOAM import (migrate/).
+# Side-by-side comparison of Bakhlo and LOAM on copies of the household's book.txt.
+# User decision 2026-10-25: LOAM reads the shared book.txt itself, so both UIs open
+# copies of the same file instead of a LOAM import.
+#
+#   tools/compare refresh       copy book.txt and config/ into a new generation under
+#                               scratch/comparison (one copy per UI) and select it.
+#                               The household is only read; if it changes while being
+#                               copied, nothing is selected.
+#   tools/compare clean-copies  remove every generation except the selected one.
+#   tools/compare self-check    refresh and clean-copies on a synthetic household.
+#
+# BAKHLO_HOUSEHOLD overrides the household directory (default: ../bakhlo-data).
+# ./ui opens the Bakhlo copy, ./ui loam the LOAM copy.
 set -eu
 umask 077
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 cd "$root"
 case "${1:-}" in
-  refresh|self-check|clean-copies) [ "$#" -eq 1 ] || exit 2 ;;
-  *) printf '%s\n' 'Usage: tools/compare refresh | self-check | clean-copies' >&2; exit 2 ;;
+  refresh|clean-copies|self-check) [ "$#" -eq 1 ] || exit 2 ;;
+  *) printf '%s\n' 'Usage: tools/compare refresh | clean-copies | self-check' >&2; exit 2 ;;
 esac
-trial=$root/scratch/daily_book_candidate_v1
-build=$root/scratch/loam-comparison-tools
-state=$root/scratch/loam-comparison
-if [ ! -f "$trial/household.sexp" ] || [ -L "$root/scratch" ] || [ -L "$build" ] || [ -L "$state" ]; then
-  printf '%s\n' 'Private baseline unavailable or unsafe comparison directory. Nothing imported.' >&2
-  exit 2
-fi
-mkdir -p "$build"
-./tools/opam exec -- dune build lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa \
-  book_txt/bakhlo_book_txt.cmxa loam_read/bakhlo_loam_read.cmxa sexp/bakhlo_sexp.cmxa \
-  migrate/bakhlo_migrate.cmxa
-cp "$root/tools/compare_capture.ml" "$build/compare_capture.ml"
-./tools/opam exec -- ocamlfind ocamlopt -strict-sequence -w +8+9+11 -warn-error +8+9+11 \
-  -package base,zarith,parsexp,unix -linkpkg \
-  -I _build/default/lib/.bakhlo_domain.objs/byte \
-  -I _build/default/lib/.bakhlo_domain.objs/native \
-  -I _build/default/application/.bakhlo_application.objs/byte \
-  -I _build/default/application/.bakhlo_application.objs/native \
-  -I _build/default/book_txt/.bakhlo_book_txt.objs/byte \
-  -I _build/default/book_txt/.bakhlo_book_txt.objs/native \
-  -I _build/default/loam_read/.bakhlo_loam_read.objs/byte \
-  -I _build/default/loam_read/.bakhlo_loam_read.objs/native \
-  -I _build/default/sexp/.bakhlo_sexp.objs/byte \
-  -I _build/default/sexp/.bakhlo_sexp.objs/native \
-  -I _build/default/migrate/.bakhlo_migrate.objs/byte \
-  -I _build/default/migrate/.bakhlo_migrate.objs/native \
-  -I "$build" \
-  _build/default/lib/bakhlo_domain.cmxa _build/default/application/bakhlo_application.cmxa \
-  _build/default/book_txt/bakhlo_book_txt.cmxa _build/default/loam_read/bakhlo_loam_read.cmxa _build/default/sexp/bakhlo_sexp.cmxa _build/default/migrate/bakhlo_migrate.cmxa \
-  "$build/compare_capture.ml" -o "$build/compare-capture"
+state=${BAKHLO_COMPARISON:-$root/scratch/comparison}
+
+fail() { printf '%s\n' "$1" >&2; exit 2; }
+
+# One digest line per household file the copies take.
+digest() { (cd "$1" && find book.txt config -type f 2>/dev/null | LC_ALL=C sort | while IFS= read -r f; do shasum -a 256 "$f"; done); }
+
+refresh() {
+  source=$(CDPATH= cd -- "${BAKHLO_HOUSEHOLD:-$root/../bakhlo-data}" 2>/dev/null && pwd -P) ||
+    fail 'No household directory; nothing copied.'
+  [ -f "$source/book.txt" ] && [ ! -L "$source/book.txt" ] || fail 'No regular household book.txt; nothing copied.'
+  [ ! -L "$source/config" ] || fail 'The household config must not be a symlink; nothing copied.'
+  [ ! -L "$state" ] && [ ! -L "$(dirname "$state")" ] || fail 'Comparison directories must not be symlinks.'
+  mkdir -p "$state"
+  before=$(digest "$source")
+  target=$(mktemp -d "$state/capture-XXXXXX")
+  for view in bakhlo loam; do
+    mkdir "$target/$view"
+    cp -p "$source/book.txt" "$target/$view/book.txt"
+    if [ -d "$source/config" ]; then cp -pR "$source/config" "$target/$view/config"; fi
+  done
+  after=$(digest "$source")
+  [ "$before" = "$after" ] || fail "The household changed while copying; $target is not selected."
+  for view in bakhlo loam; do
+    [ "$(digest "$target/$view")" = "$before" ] || fail "Copy $target/$view differs from the household; not selected."
+  done
+  printf '%s\n' 'Read-only copies of one household generation; not a backup.' > "$target/COMPLETE"
+  printf '%s\n' "$(basename "$target")" > "$state/CURRENT.tmp"
+  mv "$state/CURRENT.tmp" "$state/CURRENT"
+  printf 'PASS: comparison copies in %s; the household is unchanged.\n' "$target"
+}
+
+clean_copies() {
+  [ -d "$state" ] || { printf '%s\n' 'No comparison copies.'; return 0; }
+  [ ! -L "$state" ] || fail 'Comparison directories must not be symlinks.'
+  current=$(cat "$state/CURRENT" 2>/dev/null || true)
+  for dir in "$state"/capture-*; do
+    [ -d "$dir" ] || continue
+    [ "$(basename "$dir")" = "$current" ] && continue
+    rm -rf -- "$dir"
+  done
+  printf 'PASS: kept only %s.\n' "${current:-no generation}"
+}
+
 if [ "$1" = self-check ]; then
-  exec "$build/compare-capture" self-check
+  work=$(mktemp -d "${TMPDIR:-/tmp}/bakhlo-compare-check-XXXXXX")
+  trap 'rm -rf -- "$work"' EXIT
+  mkdir -p "$work/household/config"
+  cp examples/book.txt "$work/household/book.txt"
+  printf 'food\tjpy\n' > "$work/household/config/daily-pace.tsv"
+  BAKHLO_HOUSEHOLD=$work/household BAKHLO_COMPARISON=$work/state "$0" refresh > /dev/null
+  first=$(cat "$work/state/CURRENT")
+  printf 'changed\n' >> "$work/household/config/daily-pace.tsv"
+  BAKHLO_HOUSEHOLD=$work/household BAKHLO_COMPARISON=$work/state "$0" refresh > /dev/null
+  second=$(cat "$work/state/CURRENT")
+  [ "$first" != "$second" ] || fail 'FAIL: refresh reused the selected generation.'
+  cmp -s "$work/household/book.txt" "$work/state/$second/loam/book.txt" || fail 'FAIL: LOAM copy differs.'
+  cmp -s "$work/household/config/daily-pace.tsv" "$work/state/$second/bakhlo/config/daily-pace.tsv" ||
+    fail 'FAIL: Bakhlo config copy differs.'
+  ! cmp -s "$work/state/$first/bakhlo/config/daily-pace.tsv" "$work/household/config/daily-pace.tsv" ||
+    fail 'FAIL: the earlier generation changed.'
+  mkdir "$work/linked" && ln -s "$work/household/book.txt" "$work/linked/book.txt"
+  if BAKHLO_HOUSEHOLD=$work/linked BAKHLO_COMPARISON=$work/state "$0" refresh > /dev/null 2>&1; then
+    fail 'FAIL: a symlinked book.txt was copied.'
+  fi
+  BAKHLO_COMPARISON=$work/state "$0" clean-copies > /dev/null
+  [ ! -e "$work/state/$first" ] && [ -f "$work/state/$second/COMPLETE" ] || fail 'FAIL: clean-copies kept the wrong generations.'
+  printf '%s\n' 'PASS: comparison copies are exact, new per refresh, symlinks refused, clean-copies keeps the selected one (synthetic).'
+  exit 0
 fi
-if [ "$1" = clean-copies ]; then
-  exec "$build/compare-capture" clean-copies "$state"
-fi
-source=$(CDPATH= cd -- "$root/../loam-data" && pwd -P)
-exec "$build/compare-capture" refresh "$source" "$state" "$trial/household.sexp"
+if [ "$1" = clean-copies ]; then clean_copies; exit 0; fi
+refresh

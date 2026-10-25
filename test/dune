@@ -12,9 +12,7 @@
  (libraries
   bakhlo_domain
   bakhlo_application
-  bakhlo_loam_read
   bakhlo_sexp
-  bakhlo_migrate
   bakhlo_store
   bakhlo_book_txt
   base

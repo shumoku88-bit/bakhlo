@@ -43,17 +43,18 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
 
 ## Latest-data comparison (user decision: 2026-10-19)
 
-- Since the 2026-10-21 cutover LOAM is frozen, so its last generation stays the parity
-  reference; no daily refresh is needed.
-- At a day's start, or after ordinary LOAM data changes, run `./tools/compare refresh`
-  (read-only copy of the household/config; LOAM may stay open; changed input refuses
-  and keeps the previous CURRENT). Use that one generation for before/after checks.
-- Compare Bakhlo (`./ui`) and LOAM (`./ui loam`) on their private copies from the same
+- User decision (2026-10-25): LOAM reads the shared `book.txt` itself, so both UIs open
+  copies of the same household `book.txt` (the LOAM import comparison is in Git up to
+  `502d570`). `./tools/compare refresh` copies `../bakhlo-data/book.txt` and `config/`
+  into a new generation under `scratch/comparison`, one copy per UI (read only; a
+  household changed while copying is refused and the previous CURRENT stays). Use that
+  one generation for before/after checks.
+- Compare Bakhlo (`./ui`) and LOAM (`./ui loam`) on their copies from the same
   generation for changed screens and for Core changes affecting displayed answers, at
   the user's normal and a narrow geometry. Read-only flows only unless the user
   explicitly asks for writes; verify household/config bytes are unchanged afterwards.
-- Then close only the AI's processes and run `./tools/compare clean-copies`. Never
-  fall back to originals or an old capture; never terminate the user's LOAM.
+- Then close only the AI's processes and run `./tools/compare clean-copies` (keeps the
+  selected generation). Never fall back to originals or an old capture.
 - Keep private inputs, captures and results in ignored scratch; record only build
   identity, freshness, dimensions, flows, non-private findings and limits. If copying
   or a binary is unavailable, record **latest-data paired comparison not executed**.

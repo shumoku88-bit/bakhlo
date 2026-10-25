@@ -6,6 +6,23 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Both UIs compare on copies of the household book.txt (2026-10-25)
+
+- User decision: LOAM reads the shared `book.txt`, so `tools/compare refresh` copies the
+  household `book.txt` and `config/` into `scratch/comparison/capture-*/{bakhlo,loam}`
+  and `./ui` / `./ui loam` open those copies. Removed: `loam_read/`, `migrate/`
+  (the LOAM import), `tools/compare_capture.ml` and their tests (in Git up to `502d570`).
+- `./tools/compare self-check` (synthetic): copies are byte-identical, every refresh makes
+  a new generation and leaves the earlier one unchanged, a symlinked `book.txt` is
+  refused, `clean-copies` keeps only the selected generation.
+- Real refresh on the household (read only; its Git tree stayed clean): the Bakhlo copy
+  passes `./tools/tui --check`, and the existing LOAM executable's `doctor` accepts the
+  LOAM copy (exit 0, no error lines; outputs not kept). The two UIs were not opened.
+- `tools/privacy-scan` now also takes the free-text fields of those copies (Locus
+  labels and help, memos, Merchants, Attention) that an S-expression book would have
+  quoted. Five generic words matched synthetic fixtures and were recorded in the
+  ignored baseline after review; `--all`: 1,269 tokens, 454 files, no match.
+
 ## A save checks and prints only what it changes (core A, step 1, 2026-10-25)
 
 - Implementation: `Book_txt.book` is an admitted `book.txt` value with its TX index and

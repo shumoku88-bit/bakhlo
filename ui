@@ -5,8 +5,8 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 cd "$root"
 umask 077
 usage() {
-  printf '%s\n' './ui             Bakhlo comparison copy' \
-    './ui loam        LOAM copy from the same captured generation (no build)' \
+  printf '%s\n' './ui             Bakhlo on the selected copy of the household book.txt' \
+    './ui loam        LOAM on its own copy of the same book.txt (no build)' \
     './ui --demo      Synthetic-only UI preview' \
     'Space -> Commands -> Theme: terminal colors or Bakhlo Light / Dark'
 }
@@ -36,7 +36,7 @@ if [ "$mode" = --demo ]; then
   fi
   config=$trial/config
 else
-  state=$root/scratch/loam-comparison
+  state=$root/scratch/comparison
   if [ -L "$state" ] || [ -L "$state/CURRENT" ] || [ ! -f "$state/CURRENT" ]; then
     printf '%s\n' 'No selected comparison copy. Run ./tools/compare refresh. No demo fallback.' >&2
     exit 2
@@ -58,14 +58,15 @@ else
   fi
   if [ "$mode" = loam ]; then
     bin=$root/../loam/.lake/build/bin/loam
-    if [ ! -x "$bin" ] || [ -L "$trial/loam-view" ] || [ ! -d "$trial/loam-view" ]; then
+    if [ ! -x "$bin" ] || [ -L "$trial/loam" ] || [ ! -f "$trial/loam/book.txt" ]; then
       printf '%s\n' 'Existing LOAM executable or comparison copy unavailable. No build or live fallback.' >&2
       exit 2
     fi
-    printf '%s\n' 'LOAM comparison copy only; ordinary recording remains in your usual LOAM.'
-    exec "$bin" tui "$trial/loam-view"
+    printf '%s\n' 'LOAM on a comparison copy only; the household is recorded in Bakhlo.'
+    exec "$bin" tui "$trial/loam"
   fi
   config=$state/ui-config
+  trial=$trial/bakhlo
   if [ -L "$config" ]; then
     printf '%s\n' 'Comparison settings must not be a symlink.' >&2; exit 2
   fi

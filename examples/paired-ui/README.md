@@ -17,7 +17,7 @@ mkdir -p scratch/paired-ui-LOAM-UNIQUE scratch/paired-ui-BAKHLO-UNIQUE
 Bakhlo:
 
 ```sh
-./tools/tui --book scratch/paired-ui-BAKHLO-UNIQUE/book.sexp
+./tools/tui --book scratch/paired-ui-BAKHLO-UNIQUE/book.txt
 ```
 
 In each UI, explicitly admit `wallet` and `food` through Commands → Household setup → Manage Loci. In Bakhlo, first-run creates an empty book with Measure `jpy`, scale `0`; confirm the displayed destination before creation. Use unique unused paths under `scratch/` for each run.

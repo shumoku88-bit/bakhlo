@@ -35,8 +35,9 @@ commitは次回に再送する。TUI自体が異常終了した場合は、そ�
 を使い、バイナリが1つもなければ起動を拒否する。ランチャー本体（このスクリプト）は
 作業ツリーから実行し、`origin/main`に固定されるのはTUIバイナリだけである。
 
-比較コピーは`scratch/loam-comparison`内だけにあり、原本には書き込まない。
-取得し直すときは`./tools/compare refresh`、比較後は`./tools/compare clean-copies`。
+比較コピーは`scratch/comparison`内だけにあり、原本には書き込まない（家計簿の`book.txt`を
+Bakhlo用とLOAM用に1つずつ写す）。取り直すときは`./tools/compare refresh`、比較後は
+`./tools/compare clean-copies`。
 手順と制約は[AGENTS.md](AGENTS.md)の Latest-data comparison。
 
 盆栽Homeから`Enter`／`a`でActual（期間窓で記録を一覧）、`r`でRecord、`s`でScheduled、

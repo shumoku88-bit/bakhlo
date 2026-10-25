@@ -21,7 +21,6 @@ tui/app ─> tui/shell ─> tui/screens/<s> ─> tui/protocol ─> tui/book ─>
 | `store/` | `bakhlo.store` | `Daily_file`: the single writer of `book.txt` (load, whole-file publish with `F_FULLFSYNC` and `.prev`, conflict and uncertain outcomes, copies). The session keeps the admitted book, so a save checks and prints only what it changes | sexp, book_txt, Unix, a C stub |
 | `tui/` | nested Dune project (`tui/dune-project`) | English terminal UI; only `tui/app` uses Notty | store and Core |
 | `book_txt/` | `bakhlo.book_txt` | `Book_txt`: the line-based `book.txt` shared with LOAM (`docs/COMMON_FORMAT.ja.md`); read, admit, print, current balance, and the admitted `book` whose `change` admits a change by the same rules without re-reading untouched TXs. The household store reads and writes it | Zarith |
-| `loam_read/`, `migrate/` | `bakhlo.loam_read`, `bakhlo.migrate` | read-only LOAM input and its conversion, used only by `./tools/compare` | application, sexp |
 
 Dependencies point inward only. `lib/`, `application/`, `book_txt/` and `sexp/` are pure: no clock,
 filesystem, randomness or global state; every input is an explicit immutable value.

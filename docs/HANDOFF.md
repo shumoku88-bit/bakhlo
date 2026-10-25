@@ -157,8 +157,9 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   state, input, painting), `book/` (pure UI data), `protocol/screen.mli` (Shell ↔ screen
   contract), `app/` (Notty terminal + CLI entry), `scenarios/` (cross-screen checks).
   Keys, recovery commands and UI rules: [tui/README](../tui/README.md).
-- `loam_read/`, `migrate/`: read-only LOAM input and its pure conversion, used only by
-  `./tools/compare` (the cutover import is done).
+- Removed 2026-10-25 (in Git at `502d570`): `loam_read/`, `migrate/` and the LOAM import
+  comparison (`tools/compare_capture.ml`); `tools/compare` now copies the household
+  `book.txt` for both UIs. The book.txt migration tool is in Git at `6a22ba6`.
 - Removed 2026-10-21 (in Git at `dfd03d1`): old CLI (`cli/`, `bin/`, `presentation/`,
   `text/`, `sexp/book.ml`), `tools/import-loam`, `experiments/`, `formal/`.
 - Docs removed 2026-10-21 (in Git at `90a5867`): `docs/archive/`, storage and geometry
@@ -172,10 +173,10 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 ```sh
 ./tools/check                 # Core build, tests, architecture check
 ./tools/tui --self-check      # all synthetic TUI suites (also in ./tools/check)
-./tools/startup-probe         # synthetic storage timings (1k / 36.5k / 109.5k)
+./tools/startup-probe         # synthetic load, save and response timings (1k / 36.5k / 109.5k)
 ./tools/privacy-scan [--all]  # no private household text in the repository (in check)
-./tools/compare refresh       # fresh read-only LOAM copy (see AGENTS.md)
-./ui  /  ./ui loam            # paired private copies
+./tools/compare refresh       # fresh copies of the household book.txt (see AGENTS.md)
+./ui  /  ./ui loam            # Bakhlo and LOAM on those copies
 ```
 
 Use a fresh ignored trial directory for manual runs; never overwrite a previous one.
