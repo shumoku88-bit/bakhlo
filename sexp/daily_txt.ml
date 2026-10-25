@@ -1,6 +1,4 @@
-(* Daily_book <-> book.txt. The forward direction was first written as the one-time
-   household conversion (migrate/Daily_to_book_txt); both directions now live here so
-   the store can read and write book.txt. *)
+(* Daily_book <-> book.txt, both directions, and the book.txt changes of one save. *)
 module T = Bakhlo_book_txt.Book_txt
 module B = Daily_book
 module D = Bakhlo_domain
@@ -12,8 +10,6 @@ module M = Bakhlo_application.Event_merchants
 type sidecars = { roles : string; attention : string }
 
 let no_sidecars = { roles = ""; attention = "" }
-
-type normalised = { added_loci : string list; hidden_loci : string list; empty_memos : int }
 
 exception Refused of string
 
@@ -90,7 +86,7 @@ let roles_text (t : T.t) = lines roles_header (List.map (fun (l, r) -> "ROLE\t" 
 
 (* ---- Daily_book -> book.txt ---- *)
 
-let tx_of empty_memos (e : B.entry) : T.tx =
+let tx_of (e : B.entry) : T.tx =
   let exchange =
     match e.exchange with
     | None -> None
@@ -102,13 +98,7 @@ let tx_of empty_memos (e : B.entry) : T.tx =
         in
         Some (measure_of source, measure_of destination)
   in
-  let memo =
-    match e.memo with
-    | Some "" ->
-        incr empty_memos;
-        None
-    | m -> m
-  in
+  let memo = match e.memo with Some "" -> None | m -> m in
   {
     id = e.id;
     day = e.day;
@@ -181,18 +171,14 @@ let loci_of (p : B.payload) ~used =
         | None -> { id; label = id; help = ""; hidden = hidden id })
       !order
   in
-  let labelled id = List.exists (fun (k, _, _) -> k = id) labels in
-  ( loci,
-    List.filter_map (fun (l : T.locus) -> if labelled l.id then None else Some l.id) loci,
-    List.filter_map (fun (l : T.locus) -> if l.hidden then Some l.id else None) loci )
+  loci
 
-(* The value, its printed text (already admitted) and what was normalised. *)
+(* The value and its printed text, already admitted. *)
 let convert book sidecars =
   try
     let p = B.export_payload book in
     (match p.presence with Some pr when pr.coordinates <> [] -> refuse "presence" | _ -> ());
-    let empty_memos = ref 0 in
-    let txs = List.map (tx_of empty_memos) p.entries in
+    let txs = List.map tx_of p.entries in
     let ids = Array.of_list (List.map (fun (tx : T.tx) -> tx.id) txs) in
     let position = Hashtbl.create 1024 in
     Array.iteri (fun i id -> Hashtbl.replace position id i) ids;
@@ -213,7 +199,7 @@ let convert book sidecars =
       @ List.concat_map (fun (pl : B.plan) -> List.map fst pl.changes) p.plans
       @ List.map fst roles
     in
-    let loci, added_loci, hidden_loci = loci_of p ~used in
+    let loci = loci_of p ~used in
     let target : T.t =
       {
         measures = p.measures;
@@ -235,11 +221,11 @@ let convert book sidecars =
     | Ok admitted ->
         (* The printer is deterministic, so an equal value prints to the same text. *)
         if admitted <> target then Error "book-txt-roundtrip"
-        else Ok (admitted, text, { added_loci; hidden_loci; empty_memos = !empty_memos })
+        else Ok (admitted, text)
   with Refused why -> Error why
 
-let to_txt book sidecars = Result.map (fun (t, _, n) -> (t, n)) (convert book sidecars)
-let to_text book sidecars = Result.map (fun (_, text, _) -> text) (convert book sidecars)
+let to_txt book sidecars = Result.map fst (convert book sidecars)
+let to_text book sidecars = Result.map snd (convert book sidecars)
 
 (* ---- one save: the changes its operations make ---- *)
 
@@ -251,7 +237,7 @@ module L = Book_log
    before, the result is [to_txt after] (test/daily_book_oracle_tests.ml). *)
 let changes txt after ?sidecars ops =
   try
-    let tx id = match B.find_entry after id with Some e -> tx_of (ref 0) e | None -> refuse "entry-missing" in
+    let tx id = match B.find_entry after id with Some e -> tx_of e | None -> refuse "entry-missing" in
     let plan id =
       match List.find_opt (fun (p : B.plan) -> p.id = id) (B.plans after) with
       | Some p -> T.Put_plan (plan_of p)
@@ -272,8 +258,7 @@ let changes txt after ?sidecars ops =
     let p = lazy (B.export_payload after) in
     let loci =
       if List.exists (function L.Add_locus _ | Set_locus_label _ -> true | _ -> false) ops then
-        let loci, _, _ = loci_of (Lazy.force p) ~used:[] in
-        [ T.Set_loci loci ]
+        [ T.Set_loci (loci_of (Lazy.force p) ~used:[]) ]
       else []
     in
     (* TXs added by this save follow the existing ones, in the order they were added. *)

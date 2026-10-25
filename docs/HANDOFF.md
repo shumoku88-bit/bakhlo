@@ -164,7 +164,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 - Docs removed 2026-10-21 (in Git at `90a5867`): `docs/archive/`, storage and geometry
   research, capability ledger, LOAM core inventory, references, ADR 0003, and
   VERIFICATION entries before 2026-10-20. Links to them are permalinks at that commit.
-- Tests: `test/` (Core; `daily_book_oracle_tests.ml`, `book_log_tests.ml`,
+- Tests: `test/` (Core; `daily_book_oracle_tests.ml`, `book_txt_tests.ml`,
   `daily_file_tests.ml` guard the storage work) and the TUI self-check.
 
 ## Verify and continue

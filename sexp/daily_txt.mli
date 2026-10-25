@@ -16,13 +16,7 @@ type sidecars = {
 
 val no_sidecars : sidecars
 
-type normalised = {
-  added_loci : string list;  (** LOCUS lines for loci without a label *)
-  hidden_loci : string list;  (** loci outside the approved new-write loci *)
-  empty_memos : int;  (** [Some ""] memos written as no memo *)
-}
-
-val to_txt : Daily_book.t -> sidecars -> (T.t * normalised, string) result
+val to_txt : Daily_book.t -> sidecars -> (T.t, string) result
 (** Refuses what [book.txt] v0 cannot represent: presence with coordinates, a malformed
     sidecar, and anything {!T.of_string} refuses in the printed result. Effect keys are
     kept. The value returned is the one read back from that text. *)

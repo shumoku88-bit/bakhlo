@@ -1,10 +1,68 @@
-(* book.txt -> Daily_book -> book.txt is the identity, and the Daily_book in between
-   answers like the book.txt value (Daily_to_book_txt.check). *)
+(* book.txt -> Daily_book -> book.txt is the identity, the Daily_book in between
+   answers like the book.txt value through a separate implementation (entries, plans
+   and every current quantity), and what book.txt cannot represent refuses. *)
 module X = Bakhlo_sexp.Daily_txt
 module T = Bakhlo_book_txt.Book_txt
-module C = Bakhlo_migrate.Daily_to_book_txt
+module B = Bakhlo_sexp.Daily_book
+module D = Bakhlo_domain
+module Q = Bakhlo_application.Current_quantity_query
+module M = Bakhlo_application.Event_merchants
 
 let read path = In_channel.with_open_bin path In_channel.input_all
+let locus = D.Identifier.Locus.to_string
+let measure = D.Identifier.Measure.to_string
+
+(* The book's entries, plans and current quantities against the book.txt value, read
+   through Daily_book's own query and Book_txt.balance. *)
+let answers_agree book (t : T.t) =
+  let entry_equal (e : B.entry) (tx : T.tx) =
+    List.length e.effects = List.length tx.effects
+    && List.for_all2
+         (fun p (q : T.posting) ->
+           locus (D.Effect.locus p) = q.locus
+           && measure (D.Effect.measure p) = q.measure
+           && Z.equal (D.Quantity.quanta (D.Effect.quantity p)) q.amount
+           && Option.map D.Identifier.Effect_key.to_string (D.Effect.key p) = q.key)
+         e.effects tx.effects
+    && e.id = tx.id && e.day = tx.day && e.memo = tx.memo && e.reversal_of = tx.reversal_of
+    && e.original_amount = tx.original
+    && Option.map
+         (function M.Merchant p -> Some (D.Identifier.External_party.to_string p) | M.Nonmerchant -> None)
+         e.merchant
+       = Option.map (function T.Merchant s -> Some s | T.Nonmerchant -> None) tx.merchant
+    && Option.is_some e.exchange = Option.is_some tx.exchange
+  in
+  let plan_equal (p : B.plan) (q : T.plan) =
+    let ending =
+      match q.ending with
+      | Some (T.Paid_by t) -> (Some t, None)
+      | Some (T.Cancelled d) -> (None, Some d)
+      | None -> (None, None)
+    in
+    p.id = q.id && p.day = q.day && p.measure = q.measure && p.changes = q.changes
+    && (p.paid_by, p.cancelled_on) = ending
+  in
+  let same_length a b = List.length a = List.length b in
+  let coordinates =
+    List.concat_map (fun (tx : T.tx) -> List.map (fun (e : T.posting) -> (e.locus, e.measure)) tx.effects) t.txs
+    @ t.zero_origins @ List.map fst t.openings @ List.map fst t.history_from
+    @ List.concat_map (fun (a : T.anchor) -> List.map fst a.asserts) t.anchors
+    |> List.sort_uniq compare
+  in
+  let quantity (l, m) =
+    let c : D.Effect_coordinate.t =
+      { locus = Result.get_ok (D.Identifier.Locus.of_string l); measure = Result.get_ok (D.Identifier.Measure.of_string m) }
+    in
+    match (Q.query (B.image book) c, T.balance t ~locus:l ~measure:m) with
+    | Ok (Q.Exact x), T.Known b -> Z.equal (D.Quantity.quanta (Q.quantity x)) b
+    | Error (Q.Support_unknown _), T.Unknown -> true
+    | _ -> false
+  in
+  same_length (B.entries book) t.txs
+  && List.for_all2 entry_equal (B.entries book) t.txs
+  && same_length (B.plans book) t.plans
+  && List.for_all2 plan_equal (B.plans book) t.plans
+  && List.for_all quantity coordinates
 
 let round_trip text =
   match T.of_string text with
@@ -13,10 +71,11 @@ let round_trip text =
       match X.of_txt t with
       | Error why -> Error ("of_txt: " ^ why)
       | Ok (book, sidecars) -> (
-          match (C.check book t, X.to_txt book sidecars) with
-          | Error why, _ -> Error ("check: " ^ why)
-          | _, Error why -> Error ("to_txt: " ^ why)
-          | Ok _, Ok (back, _) -> if T.to_string back = text then Ok () else Error "reprinted text differs"))
+          if not (answers_agree book t) then Error "answers differ"
+          else
+            match X.to_txt book sidecars with
+            | Error why -> Error ("to_txt: " ^ why)
+            | Ok back -> if T.to_string back = text then Ok () else Error "reprinted text differs"))
 
 let%expect_test "every accepted fixture survives Daily_book unchanged" =
   List.iter
@@ -46,16 +105,37 @@ let%expect_test "generated books survive Daily_book unchanged" =
     (match !failures with [] -> "none" | fs -> String.concat " | " (List.rev fs));
   [%expect {| 2000 generated books; failures: none |}]
 
-let%expect_test "a converted household is already in the stable form" =
-  let sidecars : X.sidecars =
-    { roles = Daily_to_book_txt_tests.roles; attention = Daily_to_book_txt_tests.attention }
+let%expect_test "what book.txt cannot represent refuses instead of disappearing" =
+  let t = Result.get_ok (T.of_string (read "common_format/ok-full.txt")) in
+  let book, sidecars = Result.get_ok (X.of_txt t) in
+  let show label book sidecars =
+    Printf.printf "%s: %s\n" label (match X.to_txt book sidecars with Ok _ -> "converted" | Error why -> why)
   in
-  match Bakhlo_sexp.Book_log.load (Daily_to_book_txt_tests.book Daily_to_book_txt_tests.entries) with
-  | Error why -> print_endline why
-  | Ok loaded -> (
-      match X.to_txt loaded.book sidecars with
-      | Error why -> print_endline why
-      | Ok (t, _) ->
-          print_endline
-            (match round_trip (T.to_string t) with Ok () -> "stable after one conversion" | Error why -> why);
-          [%expect {| stable after one conversion |}])
+  let p = B.export_payload book in
+  (* A coordinate with no support of its own, observed after every entry. *)
+  let supported =
+    t.zero_origins @ List.map fst t.openings @ List.concat_map (fun (a : T.anchor) -> List.map fst a.asserts) t.anchors
+  in
+  let l, m =
+    List.find
+      (fun c -> not (List.mem c supported))
+      (List.concat_map (fun (l : T.locus) -> List.map (fun (m, _) -> (l.id, m)) t.measures) t.loci)
+  in
+  let presence : Q.presence =
+    {
+      reflected_roots = List.map (fun (tx : T.tx) -> Result.get_ok (D.Identifier.Event.of_string tx.id)) t.txs;
+      coordinates = [ { locus = Result.get_ok (D.Identifier.Locus.of_string l); measure = Result.get_ok (D.Identifier.Measure.of_string m) } ];
+    }
+  in
+  (match B.of_payload { p with presence = Some presence } with
+  | Ok with_presence -> show "presence" with_presence sidecars
+  | Error why -> Printf.printf "presence: not admitted by Daily_book (%s)\n" why);
+  show "roles header" book { sidecars with roles = "ROLE\tbank\tASSET\n" };
+  show "suspense role" book { sidecars with roles = sidecars.roles ^ "ROLE\tsuspense\tASSET\n" };
+  show "attention header" book { sidecars with attention = "ITEM\tx\tNO_DUE_DATE\t-\tc\n" };
+  [%expect {|
+    presence: presence
+    roles header: accounting-roles-bad-header
+    suspense role: book-txt-suspense-role-line-26
+    attention header: attention-bad-header
+    |}]

@@ -469,7 +469,7 @@ let%expect_test "known gap: incremental record leaves the admitted source stale"
 let txt_cold book =
   match Bakhlo_sexp.Daily_txt.to_txt book Bakhlo_sexp.Daily_txt.no_sidecars with
   | Error why -> Error why
-  | Ok (t, _) -> Result.map (Bakhlo_sexp.Daily_txt.of_txt t) ~f:fst
+  | Ok t -> Result.map (Bakhlo_sexp.Daily_txt.of_txt t) ~f:fst
 
 let%expect_test "every mutation of a book.txt-loaded book equals its book.txt cold reload" =
   let refused = Hashtbl.create (module String) and admitted = ref 0 in
@@ -501,7 +501,7 @@ let%expect_test "every mutation of a book.txt-loaded book equals its book.txt co
 let%expect_test "every save's book.txt changes equal the whole conversion" =
   let module X = Bakhlo_sexp.Daily_txt in
   let module T = Bakhlo_book_txt.Book_txt in
-  let whole book = Result.map (X.to_txt book X.no_sidecars) ~f:fst in
+  let whole book = X.to_txt book X.no_sidecars in
   let saved = ref 0 and refused = Hashtbl.create (module String) in
   for seed = 1 to 200 do
     let st = R.make [| seed |] in

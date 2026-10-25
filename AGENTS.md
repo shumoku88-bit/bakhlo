@@ -101,7 +101,8 @@ user-approved migration of `../bakhlo-data` (Principles).
   admitted book.txt: a save checks and prints only what it changes. `Book_txt.change`
   must admit exactly what reading the whole printed file admits (`test/book_txt_tests.ml`),
   and `Daily_txt.changes` must equal the whole conversion (oracle). An
-  S-expression book is refused, never converted on load (`tools/book-txt` migrates).
+  S-expression book is refused, never converted on load (the one-time migration tool,
+  `tools/book-txt`, is in Git history up to `6a22ba6`).
 - Targets: a save ≤100 ms including the durable flush (user decision 2026-10-24; review
   the storage when it is exceeded), key response ≤16 ms, startup ≤100 ms, measured at
   the household's size and at ~30 years (~110k entries). User decision (2026-10-21): every household write
