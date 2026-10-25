@@ -14,21 +14,27 @@ let require condition why = if not condition then failwith why
 let z = Z.of_int
 
 let fixture =
-  "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
-   (measures (measure jpy 0) (measure eur 2))\n\
-   (labels (not-supplied))\n\
-   (approved-loci (provided salary food travel))\n\
-   (entries\n\
-   \ (entry pay (date 2026-10-02) (memo (none)) (postings (posting salary jpy -123456 \
-   (none)) (posting travel jpy 123456 (none))) (reversal-of (none)))\n\
-   \ (entry meal (date 2026-10-03) (memo (none)) (postings (posting food jpy 1234 \
-   (none)) (posting travel jpy -1234 (none))) (reversal-of (none))))\n\
-   (plans)\n\
-   (support (zero-origin (travel jpy) (salary jpy) (food jpy)) (openings) (observations) \
-   (presence (not-supplied)))\n"
+  "BOOK\t1\n\
+   MEASURE\tjpy\t0\n\
+   MEASURE\teur\t2\n\
+   LOCUS\tsalary\tsalary\t\n\
+   LOCUS\tfood\tfood\t\n\
+   LOCUS\ttravel\ttravel\t\n\
+   TX\tpay\t2026-10-02\n\
+   EFFECT\tsalary\tjpy\t-123456\n\
+   EFFECT\ttravel\tjpy\t123456\n\
+   ENDTX\n\
+   TX\tmeal\t2026-10-03\n\
+   EFFECT\tfood\tjpy\t1234\n\
+   EFFECT\ttravel\tjpy\t-1234\n\
+   ENDTX\n\
+   ZERO-ORIGIN\ttravel\tjpy\n\
+   ZERO-ORIGIN\tsalary\tjpy\n\
+   ZERO-ORIGIN\tfood\tjpy\n\
+   END\n"
 
 let roles = [ ("salary", Roles.Income); ("food", Roles.Expense); ("travel", Roles.Asset) ]
-let book = get (B.of_string fixture)
+let book = Bakhlo_sexp.Daily_txt.book fixture
 
 let boundaries = "household\t2026-10-01\t2026-11-01\n"
 
@@ -152,33 +158,47 @@ let self_check () =
   (* 8. Cycle summary: previous-window difference, amount order, bars and the
      side-by-side compare columns. *)
   let window_fixture =
-    "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
-     (measures (measure jpy 0))\n\
-     (labels (not-supplied))\n\
-     (approved-loci (provided salary food rent travel))\n\
-     (entries\n\
-     \ (entry sep-pay (date 2026-09-02) (memo (none)) (postings (posting salary jpy -1000 \
-     (none)) (posting travel jpy 1000 (none))) (reversal-of (none)))\n\
-     \ (entry sep-food (date 2026-09-03) (memo (none)) (postings (posting food jpy 400 \
-     (none)) (posting travel jpy -400 (none))) (reversal-of (none)))\n\
-     \ (entry sep-rent (date 2026-09-04) (memo (none)) (postings (posting rent jpy 100 \
-     (none)) (posting travel jpy -100 (none))) (reversal-of (none)))\n\
-     \ (entry sep-late (date 2026-09-20) (memo (none)) (postings (posting rent jpy 50000 \
-     (none)) (posting travel jpy -50000 (none))) (reversal-of (none)))\n\
-     \ (entry oct-pay (date 2026-10-02) (memo (none)) (postings (posting salary jpy -123456 \
-     (none)) (posting travel jpy 123456 (none))) (reversal-of (none)))\n\
-     \ (entry oct-food (date 2026-10-03) (memo (none)) (postings (posting food jpy 9000 \
-     (none)) (posting travel jpy -9000 (none))) (reversal-of (none)))\n\
-     \ (entry oct-rent (date 2026-10-04) (memo (none)) (postings (posting rent jpy 1000 \
-     (none)) (posting travel jpy -1000 (none))) (reversal-of (none))))\n\
-     (plans)\n\
-     (support (zero-origin (travel jpy)) (openings) (observations) (presence (not-supplied)))\n"
-  in
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     LOCUS\tsalary\tsalary\t\n\
+     LOCUS\tfood\tfood\t\n\
+     LOCUS\trent\trent\t\n\
+     LOCUS\ttravel\ttravel\t\n\
+     TX\tsep-pay\t2026-09-02\n\
+     EFFECT\tsalary\tjpy\t-1000\n\
+     EFFECT\ttravel\tjpy\t1000\n\
+     ENDTX\n\
+     TX\tsep-food\t2026-09-03\n\
+     EFFECT\tfood\tjpy\t400\n\
+     EFFECT\ttravel\tjpy\t-400\n\
+     ENDTX\n\
+     TX\tsep-rent\t2026-09-04\n\
+     EFFECT\trent\tjpy\t100\n\
+     EFFECT\ttravel\tjpy\t-100\n\
+     ENDTX\n\
+     TX\tsep-late\t2026-09-20\n\
+     EFFECT\trent\tjpy\t50000\n\
+     EFFECT\ttravel\tjpy\t-50000\n\
+     ENDTX\n\
+     TX\toct-pay\t2026-10-02\n\
+     EFFECT\tsalary\tjpy\t-123456\n\
+     EFFECT\ttravel\tjpy\t123456\n\
+     ENDTX\n\
+     TX\toct-food\t2026-10-03\n\
+     EFFECT\tfood\tjpy\t9000\n\
+     EFFECT\ttravel\tjpy\t-9000\n\
+     ENDTX\n\
+     TX\toct-rent\t2026-10-04\n\
+     EFFECT\trent\tjpy\t1000\n\
+     EFFECT\ttravel\tjpy\t-1000\n\
+     ENDTX\n\
+     ZERO-ORIGIN\ttravel\tjpy\n\
+     END\n" in
   let window_roles =
     [ ("salary", Roles.Income); ("food", Roles.Expense); ("rent", Roles.Expense);
       ("travel", Roles.Asset) ]
   in
-  let window_book = get (B.of_string window_fixture) in
+  let window_book = Bakhlo_sexp.Daily_txt.book window_fixture in
   let month offset =
     get
       (IncExp.resolve_period ~today:"2026-10-15" ~preset:IncExp.Month ~offset

@@ -650,7 +650,7 @@ let reversal_checks ~width_of ~directory home =
   let book = get (B.put_entry home.C.session.book ~replace:false target ~plan:None) in
   let path = directory ^ "/book.sexp" in
   F.write_new path (Bakhlo_sexp.Daily_txt.text book);
-  F.write_new (directory ^ "/input.sexp") (B.to_string book);
+  F.write_new (directory ^ "/input.sexp") (Bakhlo_sexp.Daily_txt.text book);
   let base = C.initial ~config_home:directory (F.load path) |> fun s -> C.open_route s W.Actual in
   let before = F.read path in
   let names () = Sys.readdir directory |> Array.to_list |> List.sort String.compare in
@@ -793,7 +793,7 @@ let reversal_checks ~width_of ~directory home =
     }
   in
   F.write_new (directory ^ "/large-input.sexp")
-    (B.to_string (get (B.put_entry home.session.book ~replace:false long_target ~plan:None)));
+    (Bakhlo_sexp.Daily_txt.text (get (B.put_entry home.session.book ~replace:false long_target ~plan:None)));
   let long =
     Rev.create ~book ~base_revision:(F.revision_of_bytes before) ~day:"2026-10-09" long_target
   in
@@ -1134,14 +1134,15 @@ let date_correction_checks ~width_of ~directory home =
   let retained_admitted =
     get (B.put_entry retained_admitted ~replace:false retained_target ~plan:(Some retained_plan.id))
   in
-  let admitted_bytes = B.to_string retained_admitted in
+  let admitted_bytes = Bakhlo_sexp.Daily_txt.text retained_admitted in
+  (* food stays in the book but is no longer offered for new entries. *)
   let retained_bytes =
-    Base.String.substr_replace_first admitted_bytes
-      ~pattern:"(approved-loci (provided \"wallet\" \"food\" \"bank\"))"
-      ~with_:"(approved-loci (provided \"wallet\" \"bank\"))"
+    String.split_on_char '\n' admitted_bytes
+    |> List.map (fun line -> if String.starts_with ~prefix:"LOCUS\tfood\t" line then line ^ "\tHIDDEN" else line)
+    |> String.concat "\n"
   in
   require (retained_bytes <> admitted_bytes) "retained-locus-policy-fixture-changed";
-  let retained_book = get (B.of_string retained_bytes) in
+  let retained_book = Bakhlo_sexp.Daily_txt.book retained_bytes in
   let retained_bytes = Bakhlo_sexp.Daily_txt.text retained_book in
   require
     (B.approved_loci retained_book = Some [ "wallet"; "bank" ]
@@ -1231,18 +1232,18 @@ let original_amount_integration_checks ~width_of ~directory () =
   Unix.mkdir dir 0o700;
   let path = dir ^ "/book.sexp" in
   let fixture =
-    "(bakhlo-daily 3)\n\
-     (scope corrected-entries explicit-plans)\n\
-     (measures (measure \"jpy\" 0) (measure \"usd\" 2))\n\
-     (labels (provided (label \"wallet\" \"財布\" \"Cash\") (label \"food\" \"食費\" \"Food\")))\n\
-     (approved-loci (provided \"wallet\" \"food\"))\n\
-     (entries)\n\
-     (plans)\n\
-     (support (zero-origin (\"food\" \"jpy\")) (openings)\n\
-     (observations (observation (reflected) (quantities (\"wallet\" \"jpy\" 10000))))\n\
-     (presence (not-supplied)))\n"
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     MEASURE\tusd\t2\n\
+     LOCUS\twallet\t財布\tCash\n\
+     LOCUS\tfood\t食費\tFood\n\
+     ZERO-ORIGIN\tfood\tjpy\n\
+     ANCHOR\t-\n\
+     ASSERT\twallet\tjpy\t10000\n\
+     ENDANCHOR\n\
+     END\n"
   in
-  F.write_new path (book_txt_of_sexp fixture);
+  F.write_new path fixture;
   let initial_state = C.initial ~config_home:dir (F.load path) in
   let initial_bytes = F.read path in
 
@@ -1505,20 +1506,22 @@ let event_merchant_integration_checks ~width_of ~directory () =
   Unix.mkdir dir 0o700;
   let path = dir ^ "/book.sexp" in
   let fixture =
-    "(bakhlo-daily 3)\n\
-     (scope corrected-entries explicit-plans)\n\
-     (measures (measure \"jpy\" 0) (measure \"usd\" 2))\n\
-     (labels (provided (label \"wallet\" \"財布\" \"Cash\") (label \"food\" \"食費\" \"Food\")))\n\
-     (approved-loci (provided \"wallet\" \"food\"))\n\
-     (entries (entry \"e1\" (date \"2026-10-10\") (memo (some \"Sanwa shopping\"))\n\
-     (postings (posting \"wallet\" \"jpy\" -3000 (none)) (posting \"food\" \"jpy\" 3000 (none)))\n\
-     (reversal-of (none)) (exchange (none)) (original-amount (none)) (merchant (none))))\n\
-     (plans)\n\
-     (support (zero-origin (\"food\" \"jpy\")) (openings)\n\
-     (observations (observation (reflected) (quantities (\"wallet\" \"jpy\" 10000))))\n\
-     (presence (not-supplied)))\n"
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     MEASURE\tusd\t2\n\
+     LOCUS\twallet\t財布\tCash\n\
+     LOCUS\tfood\t食費\tFood\n\
+     TX\te1\t2026-10-10\tDESC\tSanwa shopping\n\
+     EFFECT\twallet\tjpy\t-3000\n\
+     EFFECT\tfood\tjpy\t3000\n\
+     ENDTX\n\
+     ZERO-ORIGIN\tfood\tjpy\n\
+     ANCHOR\t-\n\
+     ASSERT\twallet\tjpy\t10000\n\
+     ENDANCHOR\n\
+     END\n"
   in
-  F.write_new path (book_txt_of_sexp fixture);
+  F.write_new path fixture;
   let initial_state = C.initial ~config_home:dir (F.load path) in
   let initial_bytes = F.read path in
 

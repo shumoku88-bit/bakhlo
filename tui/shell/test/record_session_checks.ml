@@ -10,22 +10,25 @@ let require condition cause = if not condition then failwith cause
 let get = function Ok x -> x | Error why -> failwith why
 
 let fixture =
-  "(bakhlo-daily 3)\n\
-   (scope corrected-entries explicit-plans)\n\
-   (measures (measure \"jpy\" 0) (measure \"eur\" 2))\n\
-   (labels (provided (label \"wallet\" \"財布\" \"Synthetic cash\") (label \"food\" \"食費\" \
-   \"Synthetic food\")))\n\
-   (approved-loci (provided \"wallet\" \"food\" \"bank\"))\n\
-   (entries)\n\
-   (plans (plan \"scheduled-1\" (date \"2026-10-10\") (measure \"jpy\")\n\
-   (changes (\"wallet\" -200) (\"food\" 200)) (paid-by (none)) (cancelled-on (none))))\n\
-   (support (zero-origin (\"food\" \"jpy\")) (openings)\n\
-   (observations (observation (reflected) (quantities (\"wallet\" \"jpy\" 1000))))\n\
-   (presence (not-supplied)))\n"
+  "BOOK\t1\n\
+   MEASURE\tjpy\t0\n\
+   MEASURE\teur\t2\n\
+   LOCUS\twallet\t財布\tSynthetic cash\n\
+   LOCUS\tfood\t食費\tSynthetic food\n\
+   LOCUS\tbank\tbank\t\n\
+   PLAN\tscheduled-1\t2026-10-10\tjpy\n\
+   CHANGE\twallet\t-200\n\
+   CHANGE\tfood\t200\n\
+   ENDPLAN\n\
+   ZERO-ORIGIN\tfood\tjpy\n\
+   ANCHOR\t-\n\
+   ASSERT\twallet\tjpy\t1000\n\
+   ENDANCHOR\n\
+   END\n"
 
 let self_check ~width_of () =
-  let book = get (B.of_string fixture) in
-  let before = B.to_string book in
+  let book = Bakhlo_sexp.Daily_txt.book fixture in
+  let before = Bakhlo_sexp.Daily_txt.text book in
   let dimensions = (100, 30) and base_revision = "synthetic-generation" in
   let handle ?(book = book) ?(blocked = false) ?(dimensions = dimensions) state input =
     S.handle ~new_id:Daily_file.new_id ~book ~base_revision ~blocked ~dimensions ~width_of state
@@ -502,17 +505,14 @@ let self_check ~width_of () =
        "Unresolved recording was not enabled: locus-policy-not-supplied")
     "ctrl-u-enable-failure-returns-with-cause";
   let suspense_fixture =
-    "(bakhlo-daily 3)\n\
-     (scope corrected-entries explicit-plans)\n\
-     (measures (measure \"jpy\" 0))\n\
-     (labels (provided (label \"wallet\" \"財布\" \"Synthetic cash\") (label \"food\" \"食費\" \
-     \"Synthetic food\") (label \"suspense\" \"仮払\" \"Synthetic suspense\")))\n\
-     (approved-loci (provided \"wallet\" \"food\" \"suspense\"))\n\
-     (entries)\n\
-     (plans)\n\
-     (support (zero-origin (\"food\" \"jpy\")) (openings) (observations) (presence (not-supplied)))\n"
-  in
-  let s_book = get (B.of_string suspense_fixture) in
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     LOCUS\twallet\t財布\tSynthetic cash\n\
+     LOCUS\tfood\t食費\tSynthetic food\n\
+     LOCUS\tsuspense\t仮払\tSynthetic suspense\n\
+     ZERO-ORIGIN\tfood\tjpy\n\
+     END\n" in
+  let s_book = Bakhlo_sexp.Daily_txt.book suspense_fixture in
   require
     (contains
        (S.after_unresolved_enabled ~book:s_book no_suspense_editor)
@@ -824,4 +824,4 @@ let self_check ~width_of () =
     && (match List.nth compact 7 with O.Chrome, text -> text <> "" | _ -> false)
     && List.for_all (fun (_, line) -> width_of line <= 32) compact)
     "quick-compact-terminal-uses-the-whole-area-unframed";
-  require (B.to_string book = before) "record-checks-leave-book-unchanged"
+  require (Bakhlo_sexp.Daily_txt.text book = before) "record-checks-leave-book-unchanged"

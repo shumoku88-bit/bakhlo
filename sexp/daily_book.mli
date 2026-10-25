@@ -1,9 +1,8 @@
 module D = Bakhlo_domain
-(** A corrected-entry S-expression book, independent of UI and filesystem.
-    Reads v1..v3; writes v3. Trial budget format v4 is not supported.
-    Exchange and dated plan cancellation remain explicit.
-    Reading never rewrites a file; conversion uses explicit output/publication
-    with the old input kept separately. Full-household migration is not claimed. *)
+(** The household book in memory, independent of UI and filesystem: entries, plans,
+    vocabulary and quantity support, admitted as a whole and changed in place. Its
+    file form is book.txt ({!Daily_txt}). Exchange and dated plan cancellation remain
+    explicit. *)
 
 module Q = Bakhlo_application.Current_quantity_query
 
@@ -32,16 +31,8 @@ type plan = {
 type t
 
 val empty : measure:string -> scale:int -> (t, string) result
-(** A v3-ready empty book with one explicitly supplied Measure/scale and no
-    admitted Loci, entries, plans, or quantity evidence. *)
-
-val of_string : string -> (t, string) result
-(** Reader for the single-file S-expression book (v1..v3, v5). Domain invariants
-    are uniformly validated. Does not perform automatic rewriting or migration. *)
-
-val to_string : t -> string
-(** Serializes the book in the canonical Monolithic S-expression format (v3).
-    Trial-only v4 budget data is deliberately unsupported. *)
+(** An empty book with one explicitly supplied Measure/scale and no admitted Loci,
+    entries, plans, or quantity evidence. *)
 
 type payload = {
   measures : (string * int) list;
@@ -58,7 +49,7 @@ type payload = {
 (** The whole book as supplied facts, for an explicit importer. *)
 
 val of_payload : payload -> (t, string) result
-(** The same whole-book admission as {!of_string}; no defaults or repair. *)
+(** The whole-book admission; no defaults or repair. *)
 
 val export_payload : t -> payload
 (** The whole book as the facts {!of_payload} admits: entries in recorded order, support
@@ -223,8 +214,8 @@ val bounded_history_start : t -> locus:string -> measure:string -> string option
 
 val with_bounded_history : t -> (string * string * string) list -> (t, string) result
 (** Replace the whole bounded-history image with (locus, measure, start day) rows.
-    Refuses duplicate coordinates, invalid dates and unknown Measures. Such a book
-    prints as monolithic v5 and has no Records v1 or annual form (both refuse). *)
+    Refuses duplicate coordinates, invalid dates and unknown Measures. In book.txt these
+    are its HISTORY-FROM lines. *)
 
 val pool_at_end_of_day :
   t -> measure:string -> pool:D.Effect_coordinate.t list -> day:string -> (Z.t, string) result
@@ -244,13 +235,3 @@ val pools_at_end_of_days :
 (** {!pool_at_end_of_day} for each of [days], in order, from one pass over the
     entries. *)
 
-val entry_to_sexp : entry -> Sexplib0.Sexp.t
-val entry_of_sexp : Sexplib0.Sexp.t -> (entry, string) result
-val plan_to_sexp : plan -> Sexplib0.Sexp.t
-
-val plan_of_sexp : Sexplib0.Sexp.t -> (plan, string) result
-(** The book's own v3 entry/plan syntax, for operation logs. Decoding checks
-    syntax only; admission happens when the operation is applied. *)
-
-val render_line : Sexplib0.Sexp.t -> string
-(** One-line rendering with the book printer's quoting; never contains a newline. *)

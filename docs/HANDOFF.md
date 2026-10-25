@@ -25,8 +25,12 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   prints only what it changes (`Book_txt.change`, `Daily_txt.changes`); 90 ms at 45,000
   synthetic entries, 164 ms at 109,500 (over the target there; I/O-bound)
   ([evidence](VERIFICATION.md#a-save-checks-and-prints-only-what-it-changes-core-a-step-1-2026-10-25)).
-  Next in A: remove the migration and S-expression book layers now that the household is
-  `book.txt`.
+  Old layers removed the same day: the book.txt migration tool and append log, the LOAM
+  import comparison (both UIs now open copies of the household `book.txt`,
+  `tools/compare`) and the S-expression book format
+  ([evidence](VERIFICATION.md#the-s-expression-book-format-is-removed-core-a-2026-10-25)).
+  Still LOAM-derived and unreachable from `book.txt`: presence evidence in `Daily_book`
+  and the application layer.
 - Cut over on 2026-10-21 (user decision): the household is `../bakhlo-data`, recorded
   only by the user through `./tools/household` (TUI, then commit and push to the private
   GitHub backup).

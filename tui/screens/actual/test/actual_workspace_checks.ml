@@ -19,19 +19,17 @@ let char_key c : Ui_input.input = `Key (`ASCII c, [])
 let get = function Ok x -> x | Error why -> failwith why
 
 let fixture =
-  "(bakhlo-daily 3)\n\
-   (scope corrected-entries explicit-plans)\n\
-   (measures (measure \"jpy\" 0))\n\
-   (labels (provided (label \"assets:cash\" \"現金\" \"Cash\") (label \"expenses:groceries\" \"食費\" \
-   \"Food\") (label \"expenses:rent\" \"家賃\" \"Rent\") (label \"expenses:unfiled\" \"雑費\" \
-   \"Unfiled\")))\n\
-   (approved-loci (provided \"assets:cash\" \"expenses:groceries\" \"expenses:rent\" \
-   \"expenses:unfiled\"))\n\
-   (entries)\n\
-   (plans)\n\
-   (support (zero-origin (\"expenses:groceries\" \"jpy\")) (openings)\n\
-   (observations (observation (reflected) (quantities (\"assets:cash\" \"jpy\" 100000))))\n\
-   (presence (not-supplied)))\n"
+  "BOOK\t1\n\
+   MEASURE\tjpy\t0\n\
+   LOCUS\tassets:cash\t現金\tCash\n\
+   LOCUS\texpenses:groceries\t食費\tFood\n\
+   LOCUS\texpenses:rent\t家賃\tRent\n\
+   LOCUS\texpenses:unfiled\t雑費\tUnfiled\n\
+   ZERO-ORIGIN\texpenses:groceries\tjpy\n\
+   ANCHOR\t-\n\
+   ASSERT\tassets:cash\tjpy\t100000\n\
+   ENDANCHOR\n\
+   END\n"
 
 let add_entry book ~day ~memo ~locus1 ~amt1 ~locus2 ~amt2 =
   let entry =
@@ -96,7 +94,7 @@ let env ?(today = "2026-10-15") ?(roles = roles) ?(presets = Some presets) book 
     ()
 
 let self_check ~width_of () =
-  let book = get (B.of_string fixture) in
+  let book = Bakhlo_sexp.Daily_txt.book fixture in
   let book =
     add_entry book ~day:"2026-10-15" ~memo:"Supermarket" ~locus1:"assets:cash" ~amt1:(-1000)
       ~locus2:"expenses:groceries" ~amt2:1000
@@ -318,7 +316,7 @@ let self_check ~width_of () =
           if snd dimensions >= 9 then
             require (contains rows "(no matching Actual") "empty-explanation-visible")
         [ (120, 36); (80, 24); (48, 14); (32, 9); (32, 7) ])
-    [ book; get (B.of_string fixture) ];
+    [ book; Bakhlo_sexp.Daily_txt.book fixture ];
 
   let ws, _ = Act.handle ~ctx ~dimensions:dim_wide ~width_of ws (char_key '/') in
   let ws, _ = Act.handle ~ctx ~dimensions:dim_wide ~width_of ws (key `Escape) in
@@ -506,7 +504,7 @@ let self_check ~width_of () =
 
   (* 17. A transaction index that no longer exists is not clamped by
      selected_entry, but the render clamps its own local selection. *)
-  let empty_book = get (B.of_string fixture) in
+  let empty_book = Bakhlo_sexp.Daily_txt.book fixture in
   require (Act.transaction_row ws = 2) "stale-fixture-row";
   require (Act.selected_entry ~ctx:(make_ctx empty_book) ws = None) "stale-row-selected-entry-none";
   let stale_rows = rows_of (make_ctx empty_book) ws in
@@ -771,7 +769,7 @@ let self_check ~width_of () =
   (* Daily lunches, the newest with a description long enough to be cut where the
      amount column begins, and one wide amount on [wide_day]. *)
   let long_book ~wide_day ~wide =
-    let book = get (B.of_string fixture) in
+    let book = Bakhlo_sexp.Daily_txt.book fixture in
     let book =
       if wide = 0 then book
       else

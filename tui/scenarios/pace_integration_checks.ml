@@ -313,16 +313,20 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
 (* Today's sample uses Current; past-day reconstruction is kept separate. *)
 let daily_pace_today_sample_checks () =
   let book =
-    get
-      (B.of_string
-         ("(bakhlo-daily 1)\n" ^ "(scope corrected-entries explicit-plans)\n"
-        ^ "(measures (measure \"jpy\" 0))\n" ^ "(labels (provided))\n"
-        ^ "(approved-loci (provided \"wallet\" \"food\"))\n" ^ "(entries)\n" ^ "(plans\n"
-        ^ "  (plan \"unpaid-yesterday\" (date \"2026-06-14\") (measure \"jpy\")\n"
-        ^ "    (changes (\"wallet\" -500) (\"food\" 500)) (paid-by (none))))\n" ^ "(support\n"
-        ^ "  (zero-origin (\"food\" \"jpy\"))\n" ^ "  (openings)\n" ^ "  (observations\n"
-        ^ "    (observation (reflected) (quantities (\"wallet\" \"jpy\" 1000))))\n"
-        ^ "  (presence (not-supplied)))\n"))
+    Bakhlo_sexp.Daily_txt.book
+      "BOOK\t1\n\
+       MEASURE\tjpy\t0\n\
+       LOCUS\twallet\twallet\t\n\
+       LOCUS\tfood\tfood\t\n\
+       PLAN\tunpaid-yesterday\t2026-06-14\tjpy\n\
+       CHANGE\twallet\t-500\n\
+       CHANGE\tfood\t500\n\
+       ENDPLAN\n\
+       ZERO-ORIGIN\tfood\tjpy\n\
+       ANCHOR\t-\n\
+       ASSERT\twallet\tjpy\t1000\n\
+       ENDANCHOR\n\
+       END\n"
   in
   let today = "2026-06-15" and stop = "2026-06-16" in
   let coord locus : D.Effect_coordinate.t =
@@ -402,18 +406,22 @@ let daily_pace_today_sample_checks () =
     "daily-pace-bounded-history-route";
   (* Known zero-origin for every pool locus: past reconstruction is supported. *)
   let supported_book =
-    get
-      (B.of_string
-         ("(bakhlo-daily 1)\n" ^ "(scope corrected-entries explicit-plans)\n"
-        ^ "(measures (measure \"jpy\" 0))\n" ^ "(labels (provided))\n"
-        ^ "(approved-loci (provided \"wallet\" \"food\"))\n"
-        ^ "(entries (entry seed (date 2026-06-01) (memo (none))"
-        ^ " (postings (posting wallet jpy 1000 (none)) (posting food jpy -1000 (none)))"
-        ^ " (reversal-of (none))))\n(plans\n"
-        ^ "  (plan \"unpaid-yesterday\" (date \"2026-06-14\") (measure \"jpy\")\n"
-        ^ "    (changes (\"wallet\" -500) (\"food\" 500)) (paid-by (none))))\n" ^ "(support\n"
-        ^ "  (zero-origin (\"wallet\" \"jpy\") (\"food\" \"jpy\"))\n" ^ "  (openings)\n"
-        ^ "  (observations)\n" ^ "  (presence (not-supplied)))\n"))
+    Bakhlo_sexp.Daily_txt.book
+      "BOOK\t1\n\
+       MEASURE\tjpy\t0\n\
+       LOCUS\twallet\twallet\t\n\
+       LOCUS\tfood\tfood\t\n\
+       TX\tseed\t2026-06-01\n\
+       EFFECT\twallet\tjpy\t1000\n\
+       EFFECT\tfood\tjpy\t-1000\n\
+       ENDTX\n\
+       PLAN\tunpaid-yesterday\t2026-06-14\tjpy\n\
+       CHANGE\twallet\t-500\n\
+       CHANGE\tfood\t500\n\
+       ENDPLAN\n\
+       ZERO-ORIGIN\twallet\tjpy\n\
+       ZERO-ORIGIN\tfood\tjpy\n\
+       END\n"
   in
   let _, _, supported_history =
     get
@@ -494,49 +502,71 @@ let daily_pace_today_sample_checks () =
    vs reserved, intra-pool netting, reversal pairing and measure isolation. *)
 let daily_pace_activity_checks () =
   let text =
-    "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
-     (measures (measure jpy 0) (measure eur 2)) (labels (not-supplied))\n\
-     (approved-loci (provided wallet food bank))\n\
-     (entries\n\
-     (entry seed (date 2026-10-01) (memo (none))\n\
-     (postings (posting wallet jpy 10000 (none)) (posting food jpy -10000 (none)))\n\
-     (reversal-of (none)))\n\
-     (entry e_eur (date 2026-10-11) (memo (none))\n\
-     (postings (posting wallet eur -999 (none)) (posting food eur 999 (none)))\n\
-     (reversal-of (none)))\n\
-     (entry e_disc (date 2026-10-12) (memo (none))\n\
-     (postings (posting wallet jpy -500 (none)) (posting food jpy 500 (none)))\n\
-     (reversal-of (none)))\n\
-     (entry e_pay (date 2026-10-13) (memo (none))\n\
-     (postings (posting wallet jpy -300 (none)) (posting food jpy 300 (none)))\n\
-     (reversal-of (none)))\n\
-     (entry e_trans (date 2026-10-14) (memo (none))\n\
-     (postings (posting wallet jpy -200 (none)) (posting bank jpy 200 (none)))\n\
-     (reversal-of (none)))\n\
-     (entry e_t (date 2026-10-15) (memo (none))\n\
-     (postings (posting wallet jpy -100 (none)) (posting food jpy 100 (none)))\n\
-     (reversal-of (none)))\n\
-     (entry e_r (date 2026-10-15) (memo (none))\n\
-     (postings (posting wallet jpy 100 (none)) (posting food jpy -100 (none)))\n\
-     (reversal-of (some e_t)))\n\
-     (entry e_orig (date 2026-10-16) (memo (none))\n\
-     (postings (posting wallet jpy -400 (none)) (posting food jpy 400 (none)))\n\
-     (reversal-of (none)))\n\
-     (entry e_rev (date 2026-10-17) (memo (none))\n\
-     (postings (posting wallet jpy 400 (none)) (posting food jpy -400 (none)))\n\
-     (reversal-of (some e_orig))))\n\
-     (plans\n\
-     (plan p_eur (date 2026-10-11) (measure eur) (changes (wallet -999) (food 999)) (paid-by (some \
-     e_eur)))\n\
-     (plan p_sched (date 2026-10-13) (measure jpy) (changes (wallet -300) (food 300)) (paid-by \
-     (some e_pay)))\n\
-     (plan p_orig (date 2026-10-16) (measure jpy) (changes (wallet -400) (food 400)) (paid-by \
-     (some e_orig))))\n\
-     (support (zero-origin (wallet jpy) (food jpy) (bank jpy)) (openings)\n\
-     (observations)\n\
-     (presence (not-supplied)))"
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     MEASURE\teur\t2\n\
+     LOCUS\twallet\twallet\t\n\
+     LOCUS\tfood\tfood\t\n\
+     LOCUS\tbank\tbank\t\n\
+     TX\tseed\t2026-10-01\n\
+     EFFECT\twallet\tjpy\t10000\n\
+     EFFECT\tfood\tjpy\t-10000\n\
+     ENDTX\n\
+     TX\te_eur\t2026-10-11\n\
+     EFFECT\twallet\teur\t-999\n\
+     EFFECT\tfood\teur\t999\n\
+     ENDTX\n\
+     TX\te_disc\t2026-10-12\n\
+     EFFECT\twallet\tjpy\t-500\n\
+     EFFECT\tfood\tjpy\t500\n\
+     ENDTX\n\
+     TX\te_pay\t2026-10-13\n\
+     EFFECT\twallet\tjpy\t-300\n\
+     EFFECT\tfood\tjpy\t300\n\
+     ENDTX\n\
+     TX\te_trans\t2026-10-14\n\
+     EFFECT\twallet\tjpy\t-200\n\
+     EFFECT\tbank\tjpy\t200\n\
+     ENDTX\n\
+     TX\te_t\t2026-10-15\n\
+     EFFECT\twallet\tjpy\t-100\n\
+     EFFECT\tfood\tjpy\t100\n\
+     ENDTX\n\
+     TX\te_r\t2026-10-15\n\
+     EFFECT\twallet\tjpy\t100\n\
+     EFFECT\tfood\tjpy\t-100\n\
+     REVERSAL-OF\te_t\n\
+     ENDTX\n\
+     TX\te_orig\t2026-10-16\n\
+     EFFECT\twallet\tjpy\t-400\n\
+     EFFECT\tfood\tjpy\t400\n\
+     ENDTX\n\
+     TX\te_rev\t2026-10-17\n\
+     EFFECT\twallet\tjpy\t400\n\
+     EFFECT\tfood\tjpy\t-400\n\
+     REVERSAL-OF\te_orig\n\
+     ENDTX\n\
+     PLAN\tp_eur\t2026-10-11\teur\n\
+     CHANGE\twallet\t-999\n\
+     CHANGE\tfood\t999\n\
+     PAID-BY\te_eur\n\
+     ENDPLAN\n\
+     PLAN\tp_sched\t2026-10-13\tjpy\n\
+     CHANGE\twallet\t-300\n\
+     CHANGE\tfood\t300\n\
+     PAID-BY\te_pay\n\
+     ENDPLAN\n\
+     PLAN\tp_orig\t2026-10-16\tjpy\n\
+     CHANGE\twallet\t-400\n\
+     CHANGE\tfood\t400\n\
+     PAID-BY\te_orig\n\
+     ENDPLAN\n\
+     ZERO-ORIGIN\twallet\tjpy\n\
+     ZERO-ORIGIN\tfood\tjpy\n\
+     ZERO-ORIGIN\tbank\tjpy\n\
+     END\n"
   in
-  let book = get (B.of_string text) in
+  let book = Bakhlo_sexp.Daily_txt.book text in
   let boundary = Some "cycle\t2026-10-10\t2026-10-28\n" in
   let _, _, samples =
     get
@@ -988,13 +1018,14 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
 (* Integer graph geometry, qualified joins and exact currency presentation. *)
 let daily_pace_graph_render_checks ~width_of () =
   let book =
-    get
-      (B.of_string
-         ("(bakhlo-daily 1)\n" ^ "(scope corrected-entries explicit-plans)\n"
-        ^ "(measures (measure \"jpy\" 0) (measure \"eur\" 2))\n" ^ "(labels (provided))\n"
-        ^ "(approved-loci (provided \"wallet\"))\n" ^ "(entries)\n" ^ "(plans)\n" ^ "(support\n"
-        ^ "  (zero-origin (\"wallet\" \"jpy\") (\"wallet\" \"eur\"))\n" ^ "(openings)\n"
-        ^ "  (observations)\n" ^ "  (presence (not-supplied)))\n"))
+    Bakhlo_sexp.Daily_txt.book
+      "BOOK\t1\n\
+       MEASURE\tjpy\t0\n\
+       MEASURE\teur\t2\n\
+       LOCUS\twallet\twallet\t\n\
+       ZERO-ORIGIN\twallet\tjpy\n\
+       ZERO-ORIGIN\twallet\teur\n\
+       END\n"
   in
   let sample ~day ?(q = 4464) ?(stop = "2026-11-01") () =
     {

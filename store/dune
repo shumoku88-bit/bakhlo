@@ -13,6 +13,5 @@
   bakhlo_application
   bakhlo_sexp
   bakhlo_book_txt
-  parsexp
   sexplib0
   unix))

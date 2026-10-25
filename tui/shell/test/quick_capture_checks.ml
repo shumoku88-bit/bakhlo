@@ -10,18 +10,18 @@ let get = function Ok x -> x | Error why -> failwith why
 let id = function Ok x -> x | Error _ -> failwith "synthetic-identifier"
 
 let fixture =
-  "(bakhlo-daily 3)\n\
-   (scope corrected-entries explicit-plans)\n\
-   (measures (measure \"jpy\" 0) (measure \"usd\" 2))\n\
-   (labels (provided (label \"food\" \"食費\" \"Synthetic\") (label \"drinks\" \"飲み物\" \
-   \"Synthetic\") (label \"wallet\" \"財布\" \"Synthetic\")\n\
-   (label \"card\" \"カード\" \"Synthetic\") (label \"synthpay\" \"SynthPay\" \"Synthetic\") (label \
-   \"books\" \"本\" \"Synthetic\")))\n\
-   (approved-loci (provided \"food\" \"drinks\" \"wallet\" \"card\" \"synthpay\" \"books\" \
-   \"synthnet\" \"synthbank\"))\n\
-   (entries)\n\
-   (plans)\n\
-   (support (zero-origin) (openings) (observations) (presence (not-supplied)))\n"
+  "BOOK\t1\n\
+   MEASURE\tjpy\t0\n\
+   MEASURE\tusd\t2\n\
+   LOCUS\tfood\t食費\tSynthetic\n\
+   LOCUS\tdrinks\t飲み物\tSynthetic\n\
+   LOCUS\twallet\t財布\tSynthetic\n\
+   LOCUS\tcard\tカード\tSynthetic\n\
+   LOCUS\tsynthpay\tSynthPay\tSynthetic\n\
+   LOCUS\tbooks\t本\tSynthetic\n\
+   LOCUS\tsynthnet\tsynthnet\t\n\
+   LOCUS\tsynthbank\tsynthbank\t\n\
+   END\n"
 
 let make_effect measure (locus, quanta) =
   D.Effect.create ~key:None
@@ -46,7 +46,7 @@ let self_check ~width_of () =
   let book =
     List.fold_left
       (fun book e -> get (B.put_entry book ~replace:false e ~plan:None))
-      (get (B.of_string fixture))
+      (Bakhlo_sexp.Daily_txt.book fixture)
       [
         entry "q1" "2026-10-01" "本屋" [ ("books", 1200); ("synthpay", -1200) ];
         entry "q2" "2026-10-02" "パン屋" bakery;

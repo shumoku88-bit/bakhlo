@@ -17,30 +17,34 @@ let is_error = Result.is_error
 let expect_error label result = require (is_error result) (label ^ " must refuse")
 let z n = Z.of_int n
 
-(* Synthetic book construction: no household file is ever read. *)
+(* Synthetic book construction in book.txt: no household file is ever read. *)
 let posting ?key locus measure n =
-  let key = match key with None -> "(none)" | Some k -> "(some " ^ k ^ ")" in
-  Printf.sprintf "(posting %s %s %s %s)" locus measure (Z.to_string n) key
+  Printf.sprintf "EFFECT\t%s\t%s\t%s%s\n" locus measure (Z.to_string n)
+    (match key with None -> "" | Some k -> "\t" ^ k)
 
-let entry ?(exchange = "(none)") ?(original = "(none)") ?memo id day postings =
-  Printf.sprintf
-    "(entry %s (date %s) (memo %s) (postings %s) (reversal-of (none)) (exchange %s) \
-     (original-amount %s) (merchant (none)))"
-    id day
-    (match memo with None -> "(none)" | Some text -> "(some " ^ text ^ ")")
-    (String.concat " " postings) exchange original
+(* [exchange] is the source and destination Measure, [original] its Measure and amount. *)
+let entry ?exchange ?original ?memo id day postings =
+  Printf.sprintf "TX\t%s\t%s%s\n%s%s%sENDTX\n" id day
+    (match memo with None -> "" | Some text -> "\tDESC\t" ^ text)
+    (String.concat "" postings)
+    (match original with None -> "" | Some (m, n) -> Printf.sprintf "ORIGINAL\t%s\t%d\n" m n)
+    (match exchange with None -> "" | Some (x, y) -> Printf.sprintf "EXCHANGE\t%s\t%s\n" x y)
 
+(* Loci outside [approved] that entries use are kept, hidden from new entries. *)
 let book ?(approved = [ "wallet"; "bank"; "ext"; "mystery"; "hotel"; "shop" ])
-    ?(measures = "(measure jpy 0) (measure eur 2) (measure usd 2)") ~entries ~plans () =
-  Printf.sprintf
-    "(bakhlo-daily 3) (scope corrected-entries explicit-plans)\n\
-     (measures %s)\n\
-     (labels (not-supplied)) (approved-loci (provided %s))\n\
-     (entries %s)\n\
-     (plans %s)\n\
-     (support (zero-origin (wallet jpy) (bank jpy) (ext jpy) (wallet eur) (bank eur) (ext eur) \
-     (wallet usd) (bank usd) (ext usd)) (openings) (observations) (presence (not-supplied)))"
-    measures (String.concat " " approved) entries plans
+    ?(measures = [ ("jpy", 0); ("eur", 2); ("usd", 2) ]) ~entries ~plans () =
+  let locus hidden l = Printf.sprintf "LOCUS\t%s\t%s\t%s\n" l l (if hidden then "\tHIDDEN" else "") in
+  let support =
+    List.concat_map (fun m -> List.map (fun l -> Printf.sprintf "ZERO-ORIGIN\t%s\t%s\n" l m) [ "wallet"; "bank"; "ext" ])
+      [ "jpy"; "eur"; "usd" ]
+  in
+  "BOOK\t1\n"
+  ^ String.concat "" (List.map (fun (m, scale) -> Printf.sprintf "MEASURE\t%s\t%d\n" m scale) measures)
+  ^ String.concat "" (List.map (locus false) approved)
+  ^ String.concat "" (List.map (locus true) [ "food"; "rent" ])
+  ^ entries ^ plans ^ String.concat "" support ^ "END\n"
+
+let read text = Bakhlo_sexp.Daily_txt.book text
 
 (* jpy 0 scale, eur/usd scale 2. A refund nets its Expense Measure; an unclassified
    Locus never joins any total. Counterparty loci carry explicit Asset roles, so
@@ -55,7 +59,7 @@ let roles =
   ]
 
 let mixed_entries =
-  String.concat " "
+  String.concat ""
     [
       entry "e1" "2026-10-01" [ posting "food" "jpy" (z 1000); posting "wallet" "jpy" (z (-1000)) ];
       (* A negative Expense Effect (refund) reduces that Measure, never zeroes it. *)
@@ -67,7 +71,7 @@ let mixed_entries =
       entry "e5" "2026-11-05" [ posting "food" "jpy" (z 9999); posting "wallet" "jpy" (z (-9999)) ];
     ]
 
-let mixed_book = get (B.of_string (book ~entries:mixed_entries ~plans:" " ()))
+let mixed_book = read (book ~entries:mixed_entries ~plans:"" ())
 
 let total_of measure totals =
   match List.find_opt (fun (row : R.total) -> row.measure = measure) totals with
@@ -110,32 +114,31 @@ let check_families () =
     "an End before Start refuses"
 
 let originals_entries =
-  String.concat " "
+  String.concat ""
     [
       (* Counted once per Event, in the original Measure, not the accounting one. *)
-      entry ~original:"(amount usd 30000)" "o1" "2026-10-06"
+      entry ~original:("usd", 30000) "o1" "2026-10-06"
         [ posting "food" "jpy" (z 1000); posting "wallet" "jpy" (z (-1000)) ];
       (* Two positive Expense Effects still count the original only once. *)
-      entry ~original:"(amount usd 15000)" "o2" "2026-10-07"
+      entry ~original:("usd", 15000) "o2" "2026-10-07"
         [
           posting "food" "eur" (z 2000);
           posting "rent" "eur" (z 3000);
           posting "bank" "eur" (z (-5000));
         ];
       (* No positive Expense but an unresolved nonzero Effect: unresolved witness. *)
-      entry ~original:"(amount ils 20000)" "o3" "2026-10-08"
+      entry ~original:("ils", 20000) "o3" "2026-10-08"
         [ posting "mystery" "usd" (z 500); posting "wallet" "usd" (z (-500)) ];
       (* Fully classified with no positive Expense and nothing unresolved: retained,
          never silently dropped and never called unresolved. *)
-      entry ~original:"(amount jpy 400)" "o4" "2026-10-09"
+      entry ~original:("jpy", 400) "o4" "2026-10-09"
         [ posting "food" "jpy" (z (-400)); posting "wallet" "jpy" (z 400) ];
     ]
 
 let originals_book =
-  get
-    (B.of_string
-       (book ~measures:"(measure jpy 0) (measure eur 2) (measure usd 2) (measure ils 2)"
-          ~entries:originals_entries ~plans:" " ()))
+  (read
+       (book ~measures:[ ("jpy", 0); ("eur", 2); ("usd", 2); ("ils", 2) ]
+          ~entries:originals_entries ~plans:"" ()))
 
 let check_originals () =
   let snapshot =
@@ -163,23 +166,25 @@ let check_originals () =
     "the non-counted original carries its reason"
 
 (* One exchange with exact source/destination legs plus an extra Effect. The fee is
-   only exchange-associated Expense when its Locus is explicitly Expense-role. *)
+   only exchange-associated Expense when its Locus is explicitly Expense-role. It is
+   paid in the source Measure on top of the source leg: book.txt names the legs by
+   their Measures, so an Effect of a leg's sign in that leg's Measure could not be
+   read back, and Daily_book admits extra Effects only in the two Measures. *)
 let exchange_entries =
-  String.concat " "
+  String.concat ""
     [
-      entry ~exchange:"(keys src dst)" ~memo:"trip-exchange" "x1" "2026-10-10"
+      entry ~exchange:("jpy", "eur") ~memo:"trip-exchange" "x1" "2026-10-10"
         [
-          posting ~key:"src" "wallet" "jpy" (z (-100000));
+          posting ~key:"src" "wallet" "jpy" (z (-100100));
           posting ~key:"dst" "wallet" "eur" (z 5000);
-          posting "food" "eur" (z 100);
-          posting "ext" "eur" (z (-100));
+          posting "food" "jpy" (z 100);
         ];
       (* A second exchange in another Measure pair, same window. *)
-      entry ~exchange:"(keys s2 d2)" "x2" "2026-10-11"
+      entry ~exchange:("jpy", "usd") "x2" "2026-10-11"
         [ posting ~key:"s2" "bank" "jpy" (z (-50000)); posting ~key:"d2" "wallet" "usd" (z 3000) ];
     ]
 
-let exchange_book = get (B.of_string (book ~entries:exchange_entries ~plans:" " ()))
+let exchange_book = read (book ~entries:exchange_entries ~plans:"" ())
 
 let check_exchanges () =
   let snapshot =
@@ -190,16 +195,16 @@ let check_exchanges () =
   require
     (first.event = "x1" && first.date = "2026-10-10"
     && first.description = Some "trip-exchange"
-    && Z.equal (Daily_draft.quanta first.source) (z (-100000))
+    && Z.equal (Daily_draft.quanta first.source) (z (-100100))
     && Z.equal (Daily_draft.quanta first.destination) (z 5000)
-    && List.length first.extra_effects = 2)
+    && List.length first.extra_effects = 1)
     "the occurrence keeps its exact selected legs and remaining Effects";
   require
-    (total_of "eur" snapshot.R.exchange_expense = Some (z 100))
+    (total_of "jpy" snapshot.R.exchange_expense = Some (z 100))
     "the explicitly Expense-role fee is exchange-associated, not purchase spend";
   require
     (List.for_all
-       (fun (row : R.total) -> row.measure <> "jpy" && row.measure <> "usd")
+       (fun (row : R.total) -> row.measure <> "eur" && row.measure <> "usd")
        snapshot.R.exchange_expense)
     "exchange legs are never treated as spend by themselves";
   require (snapshot.R.ordinary_expense = []) "exchange Events do not join ordinary Expense";

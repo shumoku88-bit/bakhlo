@@ -17,18 +17,18 @@ let step ~width_of ~dims s input =
   | S.Publish _ -> raise (F.Refused "unexpected-generate-publish")
 
 let fixture =
-  "(bakhlo-daily 3)\n\
-   (scope corrected-entries explicit-plans)\n\
-   (measures (measure \"jpy\" 0) (measure \"eur\" 2))\n\
-   (labels (provided (label \"cash\" \"Cash\" \"Synthetic\") (label \"food\" \"Food\" \
-   \"Synthetic\")))\n\
-   (approved-loci (provided \"cash\" \"food\"))\n\
-   (entries)\n\
-   (plans)\n\
-   (support (zero-origin (\"food\" \"jpy\") (\"food\" \"eur\")) (openings)\n\
-   (observations (observation (reflected) (quantities (\"cash\" \"jpy\" 1000) (\"cash\" \"eur\" \
-   10000))))\n\
-   (presence (not-supplied)))\n"
+  "BOOK\t1\n\
+   MEASURE\tjpy\t0\n\
+   MEASURE\teur\t2\n\
+   LOCUS\tcash\tCash\tSynthetic\n\
+   LOCUS\tfood\tFood\tSynthetic\n\
+   ZERO-ORIGIN\tfood\tjpy\n\
+   ZERO-ORIGIN\tfood\teur\n\
+   ANCHOR\t-\n\
+   ASSERT\tcash\tjpy\t1000\n\
+   ASSERT\tcash\teur\t10000\n\
+   ENDANCHOR\n\
+   END\n"
 
 let plan id day measure cents : B.plan =
   {
@@ -43,7 +43,7 @@ let plan id day measure cents : B.plan =
 let self_check ~width_of () =
   let directory = "scratch/scheduled-generate-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
-  let book = get (B.of_string fixture) in
+  let book = Bakhlo_sexp.Daily_txt.book fixture in
   let source = plan "source-plan" "2026-10-15" "eur" (Z.of_int 5000) in
   let book = get (B.put_plan book ~replace:false source) in
   let base = Bakhlo_sexp.Daily_txt.text book in

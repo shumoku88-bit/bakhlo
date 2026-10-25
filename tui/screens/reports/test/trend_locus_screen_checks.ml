@@ -12,22 +12,15 @@ let z = Z.of_int
 let coord locus measure : R.coordinate = { locus; measure }
 
 let header =
-  "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
-   (measures (measure jpy 0) (measure eur 2))\n\
-   (labels (not-supplied)) (approved-loci (provided a b c delta epsilon gamma))\n\
-   (entries\n"
+  "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\n"
+  ^ String.concat "" (List.map (fun l -> Printf.sprintf "LOCUS\t%s\t%s\t\n" l l) [ "a"; "b"; "c"; "delta"; "epsilon"; "gamma" ])
 
-let footer =
-  ")\n\
-   (plans)\n\
-   (support (zero-origin (a jpy) (b jpy)) (openings) (observations) (presence (not-supplied)))\n"
+let footer = "ZERO-ORIGIN\ta\tjpy\nZERO-ORIGIN\tb\tjpy\nEND\n"
 
-let posting locus n = Printf.sprintf "(posting %s jpy %s (none))" locus (Z.to_string n)
-let ab n = posting "a" n ^ " " ^ posting "b" (Z.neg n)
+let posting locus n = Printf.sprintf "EFFECT\t%s\tjpy\t%s\n" locus (Z.to_string n)
+let ab n = posting "a" n ^ posting "b" (Z.neg n)
 
-let row id day postings =
-  Printf.sprintf " (entry %s (date %s) (memo (none)) (postings %s) (reversal-of (none)))\n" id day
-    postings
+let row id day postings = Printf.sprintf "TX\t%s\t%s\n%sENDTX\n" id day postings
 
 let rows =
   row "sep" "2026-09-30" (ab (z 900))
@@ -36,7 +29,7 @@ let rows =
   ^ row "oct3" "2026-10-03" (ab (z (-4)))
   ^ row "oct4" "2026-10-04" (ab (z 100))
 
-let make_book extra = get (B.of_string (header ^ rows ^ extra ^ footer))
+let make_book extra = Bakhlo_sexp.Daily_txt.book (header ^ rows ^ extra ^ footer)
 let book = make_book ""
 let changed_book = make_book (row "extra" "2026-10-02" (ab (z 10)))
 let boundaries = "household\t2026-10-01\t2026-10-03\t2026-11-01\n"
@@ -88,7 +81,7 @@ let () =
 
   (* Default series: the Expense-role Loci with the most entries in the history. *)
   let busy_book =
-    make_book (row "busy" "2026-10-02" (posting "b" (z 1) ^ " " ^ posting "c" (z (-1))))
+    make_book (row "busy" "2026-10-02" (posting "b" (z 1) ^ posting "c" (z (-1))))
   in
   let busy_env = env_with ~book:busy_book boundaries in
   let busy = S.enter ~focus_day:"2026-10-03" (S.create ()) in

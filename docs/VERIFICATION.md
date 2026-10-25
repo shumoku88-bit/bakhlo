@@ -6,6 +6,30 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## The S-expression book format is removed (core A, 2026-10-25)
+
+- `Daily_book` no longer reads or prints S-expression books (v1–v5 reader, printer,
+  entry/plan codec, about 500 lines); its file form is only `book.txt` (`Daily_txt`).
+  Every core and TUI test fixture is now `book.txt` text, converted from the former
+  S-expression by the former codec itself, so each fixture holds the same book.
+  Tests of the S-expression format itself are deleted (`daily_print_tests.ml`,
+  version headers, the budget-only schema, `old v1` Merchant); their semantic
+  parts stay (exact huge amounts, memo bytes, support families, Merchant and
+  original-amount round trips) through `book.txt`. The oracle's cold twin is the
+  same facts admitted again (`of_payload (export_payload b)`); the book.txt cold
+  reload and the save-changes oracles are unchanged. Presence, which `book.txt`
+  cannot hold, is still tested by adding it through the payload (oracle, Daily Pace,
+  Balances, Liquidity, Stock-Flow). `store/` and `sexp/` no longer use Parsexp.
+- Found while converting: an exchange with a second Effect of a leg's sign in that
+  leg's Measure (possible through a correction, not the exchange screen) was saved,
+  and its `book.txt` would then refuse the whole book at the next cold load. A save
+  and the whole conversion now require every TX to read back as exactly its entry
+  (`b6870e0`; test in `test/daily_txt_tests.ml`, mutation-checked). The household
+  loads, so it holds no such entry. The Multicurrency Spend fixture's exchange fee
+  moved to the source Measure (Daily_book admits extra exchange Effects only in the
+  two Measures; book.txt reads a leg as the only Effect of its sign there).
+- `./tools/check` and `./tools/tui --self-check`: pass.
+
 ## Both UIs compare on copies of the household book.txt (2026-10-25)
 
 - User decision: LOAM reads the shared `book.txt`, so `tools/compare refresh` copies the

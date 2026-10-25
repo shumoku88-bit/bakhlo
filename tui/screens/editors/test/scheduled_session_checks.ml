@@ -11,24 +11,22 @@ let require condition name =
 
 let key ?(mods = []) button = `Key (button, mods)
 let char_key c = `Key (`ASCII c, [])
-let get = function Ok x -> x | Error why -> failwith why
 
 let fixture =
-  "(bakhlo-daily 3)\n\
-   (scope corrected-entries explicit-plans)\n\
-   (measures (measure \"jpy\" 0) (measure \"eur\" 2))\n\
-   (labels (provided (label \"assets:cash\" \"現金\" \"Synthetic cash\") (label \
-   \"expenses:groceries\" \"食費\" \"Synthetic food\") (label \"expenses:rent\" \"家賃\" \"Synthetic \
-   rent\")))\n\
-   (approved-loci (provided \"assets:cash\" \"expenses:groceries\" \"expenses:rent\"))\n\
-   (entries)\n\
-   (plans)\n\
-   (support (zero-origin (\"expenses:groceries\" \"jpy\")) (openings)\n\
-   (observations (observation (reflected) (quantities (\"assets:cash\" \"jpy\" 1000))))\n\
-   (presence (not-supplied)))\n"
+  "BOOK\t1\n\
+   MEASURE\tjpy\t0\n\
+   MEASURE\teur\t2\n\
+   LOCUS\tassets:cash\t現金\tSynthetic cash\n\
+   LOCUS\texpenses:groceries\t食費\tSynthetic food\n\
+   LOCUS\texpenses:rent\t家賃\tSynthetic rent\n\
+   ZERO-ORIGIN\texpenses:groceries\tjpy\n\
+   ANCHOR\t-\n\
+   ASSERT\tassets:cash\tjpy\t1000\n\
+   ENDANCHOR\n\
+   END\n"
 
 let self_check ~width_of () =
-  let book = get (B.of_string fixture) in
+  let book = Bakhlo_sexp.Daily_txt.book fixture in
 
   (* 1. Initial state *)
   let s = Sch.create ~book ~day:"2026-10-15" ~measure:"jpy" in

@@ -288,9 +288,6 @@ let put_roles path text =
   | F.Written _ -> ()
   | _ -> raise (F.Refused "put-roles")
 
-(* A synthetic book written as S-expression text, as the book.txt the store reads. *)
-let book_txt_of_sexp sexp = Bakhlo_sexp.Daily_txt.text (get (B.of_string sexp))
-
 let key ?(dimensions = (140, 40)) ?(width_of = String.length) state button =
   match H.handle ~dimensions ~width_of state (`Key (button, [])) with
   | Some state -> state

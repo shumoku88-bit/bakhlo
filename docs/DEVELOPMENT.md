@@ -112,7 +112,7 @@ representative trial and fresh version/config review, not a blind version-check 
 ## Other runtimes
 
 Unix (macOS, Linux) is the runtime. MirageOS may be tried as an experiment: keep the pure
-core on Base + Zarith (+ Parsexp in `sexp/`) and put runtime-specific code in a separate edge
+core on Base + Zarith and put runtime-specific code in a separate edge
 beside `store/`, never in admission or query meaning. Earlier SQLite, Irmin and Solo5-SPT
 trials and the Lima VM recipe are in Git at `90a5867` (`docs/DEVELOPMENT.md`,
 `docs/VERIFICATION.md`).

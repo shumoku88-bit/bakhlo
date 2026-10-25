@@ -6,13 +6,17 @@ let balance_display_checks ~width_of ~directory () =
   Unix.mkdir directory 0o700;
   let path = directory ^ "/book.sexp" in
   F.write_new path
-    @@ book_txt_of_sexp
-    "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
-     (measures (measure jpy 0) (measure eur 2)) (labels (not-supplied))\n\
-     (approved-loci (provided wallet zero bank)) (entries) (plans)\n\
-     (support (zero-origin (zero jpy)) (openings)\n\
-     (observations (observation (reflected) (quantities (wallet jpy 74500))))\n\
-     (presence (not-supplied)))";
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     MEASURE\teur\t2\n\
+     LOCUS\twallet\twallet\t\n\
+     LOCUS\tzero\tzero\t\n\
+     LOCUS\tbank\tbank\t\n\
+     ZERO-ORIGIN\tzero\tjpy\n\
+     ANCHOR\t-\n\
+     ASSERT\twallet\tjpy\t74500\n\
+     ENDANCHOR\n\
+     END\n";
   let home = C.initial ~config_home:directory (F.load path) in
   let book = home.session.book in
   let item value = O.Account_row { locus = "wallet"; measure = "jpy"; role = None; value } in
@@ -320,18 +324,24 @@ let b2_check_qty book locus measure =
   | _ -> "unexpected"
 
 let b2_book_fixture =
-  "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
-   (measures (measure jpy 0) (measure eur 2)) (labels (not-supplied))\n\
-   (approved-loci (provided wallet bank food zero)) (entries) (plans)\n\
-   (support (zero-origin (zero jpy)) (openings)\n\
-   (observations (observation (reflected) (quantities (food jpy 5500))))\n\
-   (presence (not-supplied)))"
+  "BOOK\t1\n\
+   MEASURE\tjpy\t0\n\
+   MEASURE\teur\t2\n\
+   LOCUS\twallet\twallet\t\n\
+   LOCUS\tbank\tbank\t\n\
+   LOCUS\tfood\tfood\t\n\
+   LOCUS\tzero\tzero\t\n\
+   ZERO-ORIGIN\tzero\tjpy\n\
+   ANCHOR\t-\n\
+   ASSERT\tfood\tjpy\t5500\n\
+   ENDANCHOR\n\
+   END\n"
 
 let balance_picker_checks ~width_of ~directory () =
   let directory = directory ^ "/balance-picker" in
   Unix.mkdir directory 0o700;
   let path = directory ^ "/book.sexp" in
-  F.write_new path (book_txt_of_sexp b2_book_fixture);
+  F.write_new path b2_book_fixture;
   let bv = directory ^ "/balance-view.tsv" in
   let replace file bytes =
     if Sys.file_exists file then Unix.unlink file;
@@ -472,7 +482,7 @@ let observe_multi_checks ~width_of ~directory () =
   let directory = directory ^ "/observe-multi" in
   Unix.mkdir directory 0o700;
   let path = directory ^ "/book.sexp" in
-  F.write_new path (book_txt_of_sexp b2_book_fixture);
+  F.write_new path b2_book_fixture;
   let fresh_home () = C.initial ~config_home:directory (F.load path) in
   let modal state =
     match visible_form state with Some f -> f | None -> raise (F.Refused "observe-open")

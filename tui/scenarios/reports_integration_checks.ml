@@ -8,15 +8,18 @@ let run_liquidity ~width_of ~directory =
   Unix.mkdir dir 0o700;
   let path = dir ^ "/book.sexp" in
   let book_bytes =
-    "(bakhlo-daily 1) (scope corrected-entries explicit-plans)\n\
-     (measures (measure jpy 0))\n\
-     (labels (not-supplied)) (approved-loci (provided wallet ext))\n\
-     (entries (entry seed (date 2026-01-01) (memo (none)) (postings (posting wallet jpy 1000 \
-     (none)) (posting ext jpy -1000 (none))) (reversal-of (none))))\n\
-     (plans)\n\
-     (support (zero-origin (wallet jpy)) (openings) (observations) (presence (not-supplied)))\n"
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     LOCUS\twallet\twallet\t\n\
+     LOCUS\text\text\t\n\
+     TX\tseed\t2026-01-01\n\
+     EFFECT\twallet\tjpy\t1000\n\
+     EFFECT\text\tjpy\t-1000\n\
+     ENDTX\n\
+     ZERO-ORIGIN\twallet\tjpy\n\
+     END\n"
   in
-  F.write_new path (book_txt_of_sexp book_bytes);
+  F.write_new path book_bytes;
   F.write_new (dir ^ "/balance-view.tsv") "wallet\tjpy\n";
   let at_home = C.open_route (C.initial ~config_home:dir (F.load path)) W.Home in
   let bytes_before = F.read path in
@@ -86,20 +89,14 @@ let run_multicurrency ~width_of ~directory =
   let month_start = String.sub today 0 8 ^ "01" in
   let book_bytes =
     Printf.sprintf
-      "(bakhlo-daily 3) (scope corrected-entries explicit-plans)\n\
-       (measures (measure jpy 0) (measure eur 2))\n\
-       (labels (not-supplied)) (approved-loci (provided wallet bank food rent))\n\
-       (entries (entry spend-jpy (date %s) (memo (none)) (postings (posting food jpy 1000 (none)) \
-       (posting wallet jpy -1000 (none))) (reversal-of (none)) (exchange (none)) (original-amount \
-       (none)) (merchant (none))) (entry spend-eur (date %s) (memo (none)) (postings (posting rent \
-       eur 5000 (none)) (posting bank eur -5000 (none))) (reversal-of (none)) (exchange (none)) \
-       (original-amount (none)) (merchant (none))))\n\
-       (plans)\n\
-       (support (zero-origin (wallet jpy) (bank jpy) (wallet eur) (bank eur)) (openings) \
-       (observations) (presence (not-supplied)))\n"
+      "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\nLOCUS\twallet\twallet\t\nLOCUS\tbank\tbank\t\n\
+       LOCUS\tfood\tfood\t\nLOCUS\trent\trent\t\nTX\tspend-jpy\t%s\nEFFECT\tfood\tjpy\t1000\n\
+       EFFECT\twallet\tjpy\t-1000\nENDTX\nTX\tspend-eur\t%s\nEFFECT\trent\teur\t5000\n\
+       EFFECT\tbank\teur\t-5000\nENDTX\nZERO-ORIGIN\twallet\tjpy\nZERO-ORIGIN\tbank\tjpy\n\
+       ZERO-ORIGIN\twallet\teur\nZERO-ORIGIN\tbank\teur\nEND\n"
       month_start month_start
   in
-  F.write_new path (book_txt_of_sexp book_bytes);
+  F.write_new path book_bytes;
   put_roles path "food\tExpense\nrent\tExpense\nwallet\tAsset\nbank\tAsset\n";
   let at_home = C.open_route (C.initial ~config_home:dir (F.load path)) W.Home in
   let bytes_before = F.read path in
