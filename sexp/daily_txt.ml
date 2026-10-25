@@ -147,15 +147,15 @@ let plan_of (p : B.plan) : T.plan =
   }
 
 (* A reflected-root cut as the longest recorded prefix it contains plus later ALSO roots. *)
-let anchor_of position ids (g : G.group) : T.anchor =
+let anchor_of ~position ~id_at (g : G.group) : T.anchor =
   let roots = List.map event g.reflected_roots in
-  let pos r = match Hashtbl.find_opt position r with Some n -> n | None -> refuse "anchor-root-missing" in
+  let pos r = match position r with Some n -> n | None -> refuse "anchor-root-missing" in
   let inside = Hashtbl.create 64 in
   List.iter (fun r -> Hashtbl.replace inside (pos r) ()) roots;
   let rec prefix k = if Hashtbl.mem inside k then prefix (k + 1) else k in
   let k = prefix 0 in
   {
-    last = (if k = 0 then None else Some ids.(k - 1));
+    last = (if k = 0 then None else Some (id_at (k - 1)));
     also = List.filter (fun r -> pos r >= k) roots |> List.sort (fun a b -> compare (pos a) (pos b));
     asserts = List.map (fun (a : P.assertion) -> (coord a.coordinate, D.Quantity.quanta a.quantity)) g.assertions;
   }
@@ -200,7 +200,9 @@ let convert book sidecars =
     let items, closes = attention_of sidecars.attention in
     let zero_origins = List.map coord p.origins in
     let openings = List.map (fun (o : Q.opening) -> (coord o.coordinate, event o.opening_event)) p.openings in
-    let anchors = List.map (anchor_of position ids) p.observations in
+    let anchors =
+      List.map (anchor_of ~position:(Hashtbl.find_opt position) ~id_at:(Array.get ids)) p.observations
+    in
     let history_from = List.map (fun (c, day) -> (coord c, day)) p.bounded in
     let used =
       List.concat_map (fun (tx : T.tx) -> List.map (fun (e : T.posting) -> e.locus) tx.effects) txs
@@ -238,6 +240,67 @@ let convert book sidecars =
 
 let to_txt book sidecars = Result.map (fun (t, _, n) -> (t, n)) (convert book sidecars)
 let to_text book sidecars = Result.map (fun (_, text, _) -> text) (convert book sidecars)
+
+(* ---- one save: the changes its operations make ---- *)
+
+module L = Book_log
+
+(* [txt] after [ops], where [after] is the book after them: each entry and plan they
+   touch as [after] has it, the loci or anchors again when an operation changes them,
+   and the roles and Attention of [sidecars]. When [txt] is [to_txt] of the book
+   before, the result is [to_txt after] (test/daily_book_oracle_tests.ml). *)
+let changes txt after ?sidecars ops =
+  try
+    let tx id = match B.find_entry after id with Some e -> tx_of (ref 0) e | None -> refuse "entry-missing" in
+    let plan id =
+      match List.find_opt (fun (p : B.plan) -> p.id = id) (B.plans after) with
+      | Some p -> T.Put_plan (plan_of p)
+      | None -> refuse "plan-missing"
+    in
+    let records =
+      List.concat_map
+        (function
+          | L.Put_entry { replace; entry; plan = paid } ->
+              (if replace then T.Replace_tx (tx entry.id) else T.Add_tx (tx entry.id))
+              :: List.map plan (Option.to_list paid)
+          | Correct_entry_date { id; _ } | Classify_merchant { id; _ } -> [ T.Replace_tx (tx id) ]
+          | Put_plan { plan = p; _ } -> [ plan p.id ]
+          | Cancel_plan { id; _ } -> [ plan id ]
+          | Observe _ | Add_locus _ | Set_locus_label _ -> [])
+        ops
+    in
+    let p = lazy (B.export_payload after) in
+    let loci =
+      if List.exists (function L.Add_locus _ | Set_locus_label _ -> true | _ -> false) ops then
+        let loci, _, _ = loci_of (Lazy.force p) ~used:[] in
+        [ T.Set_loci loci ]
+      else []
+    in
+    (* TXs added by this save follow the existing ones, in the order they were added. *)
+    let added = List.filter_map (function T.Add_tx (tx : T.tx) -> Some tx.id | _ -> None) records in
+    let count = T.tx_count txt in
+    let position id =
+      match T.position txt id with
+      | Some n -> Some n
+      | None -> Option.map (fun (n, _) -> count + n) (List.find_opt (fun (_, a) -> a = id) (List.mapi (fun n a -> (n, a)) added))
+    in
+    let id_at k = if k < count then Option.get (T.id_at txt k) else List.nth added (k - count) in
+    let anchors =
+      if List.exists (function L.Observe _ -> true | _ -> false) ops then
+        [ T.Set_anchors (List.map (anchor_of ~position ~id_at) (Lazy.force p).observations) ]
+      else []
+    in
+    let sidecars =
+      match sidecars with
+      | None -> []
+      | Some s ->
+          let items, closes = attention_of s.attention in
+          [ T.Set_roles (roles_of s.roles); T.Set_attention (items, closes) ]
+    in
+    match T.change txt (records @ loci @ anchors @ sidecars) with
+    | Ok txt -> Ok txt
+    | Error code -> Error ("book-txt-" ^ code)
+  with Refused why -> Error why
 
 (* ---- book.txt -> Daily_book ---- *)
 

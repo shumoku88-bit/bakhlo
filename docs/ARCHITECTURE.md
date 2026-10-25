@@ -17,10 +17,10 @@ tui/app ─> tui/shell ─> tui/screens/<s> ─> tui/protocol ─> tui/book ─>
 |---|---|---|---|
 | `lib/` | `bakhlo.domain` | identifiers, exact quantities, Effects, Events, corrections | Base, Zarith |
 | `application/` | `bakhlo.application` | admission and query answers (sources, validity, balances, relations) | domain |
-| `sexp/` | `bakhlo.sexp` | `Daily_book` (the household book, in-place mutations, `Full` reference), `Book_log` (the publication operations) and `Daily_txt` (Daily_book <-> book.txt, both directions) | application, book_txt, Parsexp |
-| `store/` | `bakhlo.store` | `Daily_file`: the single writer of `book.txt` (load, whole-file publish with `F_FULLFSYNC` and `.prev`, conflict and uncertain outcomes, copies) | sexp, book_txt, Unix, a C stub |
+| `sexp/` | `bakhlo.sexp` | `Daily_book` (the household book, in-place mutations, `Full` reference), `Book_log` (the publication operations) and `Daily_txt` (Daily_book <-> book.txt, both directions, and the book.txt changes of one save) | application, book_txt, Parsexp |
+| `store/` | `bakhlo.store` | `Daily_file`: the single writer of `book.txt` (load, whole-file publish with `F_FULLFSYNC` and `.prev`, conflict and uncertain outcomes, copies). The session keeps the admitted book, so a save checks and prints only what it changes | sexp, book_txt, Unix, a C stub |
 | `tui/` | nested Dune project (`tui/dune-project`) | English terminal UI; only `tui/app` uses Notty | store and Core |
-| `book_txt/` | `bakhlo.book_txt` | `Book_txt`: the line-based `book.txt` shared with LOAM (`docs/COMMON_FORMAT.ja.md`); read, admit, print, current balance. The household store reads and writes it | Zarith |
+| `book_txt/` | `bakhlo.book_txt` | `Book_txt`: the line-based `book.txt` shared with LOAM (`docs/COMMON_FORMAT.ja.md`); read, admit, print, current balance, and the admitted `book` whose `change` admits a change by the same rules without re-reading untouched TXs. The household store reads and writes it | Zarith |
 | `loam_read/`, `migrate/` | `bakhlo.loam_read`, `bakhlo.migrate` | read-only LOAM input and its conversion, used only by `./tools/compare`; `Daily_to_book_txt`, the household's conversion to `book.txt`, used only by `./tools/book-txt` (trial and migrate) | application, sexp |
 
 Dependencies point inward only. `lib/`, `application/`, `book_txt/` and `sexp/` are pure: no clock,

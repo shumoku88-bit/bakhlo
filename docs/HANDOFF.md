@@ -20,8 +20,13 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   ([evidence](VERIFICATION.md#the-store-reads-and-rewrites-booktxt-stage-4b-2026-10-25)).
   The household was migrated the same day (`./tools/book-txt migrate`,
   [evidence](VERIFICATION.md#household-migrated-to-booktxt-2026-10-25)): `../bakhlo-data` is
-  now `book.txt`; the last S-expression book is its parent commit. Next: the user opens it
-  with `./tools/household` and checks the screens; then the core work (A).
+  now `book.txt`; the last S-expression book is its parent commit. The user opened it and
+  reported the screens look fine (2026-10-25). Core A, step 1 (2026-10-25): a save checks and
+  prints only what it changes (`Book_txt.change`, `Daily_txt.changes`); 90 ms at 45,000
+  synthetic entries, 164 ms at 109,500 (over the target there; I/O-bound)
+  ([evidence](VERIFICATION.md#a-save-checks-and-prints-only-what-it-changes-core-a-step-1-2026-10-25)).
+  Next in A: remove the migration and S-expression book layers now that the household is
+  `book.txt`.
 - Cut over on 2026-10-21 (user decision): the household is `../bakhlo-data`, recorded
   only by the user through `./tools/household` (TUI, then commit and push to the private
   GitHub backup).

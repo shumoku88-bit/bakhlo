@@ -190,6 +190,8 @@ let escape s =
     Buffer.contents b
 
 let unescape s =
+  if not (String.exists (function '\\' | '\r' -> true | _ -> false) s) then Some s
+  else
   let b = Buffer.create (String.length s) in
   let rec go i =
     if i >= String.length s then Some (Buffer.contents b)
@@ -635,80 +637,78 @@ let nets (effects : posting list) =
 let sorted_effects (effects : posting list) =
   List.map (fun (e : posting) -> (e.locus, e.measure, Z.to_string e.amount)) effects |> List.sort compare
 
-let references st (measures, loci, roles, txs, plans, zero, opening, history, anchors, items, closes) =
-  let seen () = Hashtbl.create 16 in
-  let once tbl key code n = if Hashtbl.mem tbl key then fault st code n else Hashtbl.add tbl key () in
+let seen () = Hashtbl.create 16
+let once st tbl key code n = if Hashtbl.mem tbl key then fault st code n else Hashtbl.add tbl key ()
+
+(* Measures, Loci and roles; returns the Measure and Locus checks other lines use. *)
+let definitions st measures loci roles =
   let measure_set = seen () and locus_set = seen () in
-  List.iter (fun (n, (id, _)) -> once measure_set id Duplicate_measure n) measures;
-  List.iter (fun (n, (l : locus)) -> once locus_set l.id Duplicate_locus n) loci;
+  List.iter (fun (n, (id, _)) -> once st measure_set id Duplicate_measure n) measures;
+  List.iter (fun (n, (l : locus)) -> once st locus_set l.id Duplicate_locus n) loci;
   let measure n m = if not (Hashtbl.mem measure_set m) then fault st Unknown_measure n in
   let locus n l = if not (Hashtbl.mem locus_set l) then fault st Unknown_locus n in
   let role_set = seen () in
   List.iter
     (fun (n, (l, _)) ->
       locus n l;
-      once role_set l Duplicate_role n;
+      once st role_set l Duplicate_role n;
       if l = "suspense" then fault st Suspense_role n)
     roles;
-  let by_id = Hashtbl.create 64 and position = Hashtbl.create 64 in
-  List.iteri
-    (fun i a ->
-      if Hashtbl.mem by_id a.tx.id then fault st Duplicate_tx a.tx_n
-      else (
-        Hashtbl.add by_id a.tx.id a.tx;
-        Hashtbl.add position a.tx.id i))
-    txs;
-  let known n id = if Hashtbl.mem by_id id then true else (fault st Unknown_tx n; false) in
-  let reversal_ends = seen () in
+  (measure, locus)
+
+(* The rules of one TX. [reversal id n target] checks that the target of reversal
+   [id] is known and that the two endpoints take part in no other reversal, and
+   returns the target TX. *)
+let tx_rules st ~measure ~locus ~reversal a =
+  let tx = a.tx in
+  let keys = seen () in
   List.iter
-    (fun a ->
-      let tx = a.tx in
-      let keys = seen () in
-      List.iter
-        (fun (n, e) ->
-          locus n e.locus;
-          measure n e.measure;
-          if Z.equal e.amount Z.zero then fault st Zero_amount n;
-          Option.iter (fun k -> once keys k Duplicate_key n) e.key)
-        a.effect_ns;
-      if tx.effects = [] then fault st No_effect a.tx_n;
-      let nets = nets tx.effects in
-      (match tx.exchange with
-      | Some (x, y) ->
-          measure a.exchange_n x;
-          measure a.exchange_n y;
-          let net m = Option.value (List.assoc_opt m nets) ~default:Z.zero in
-          let ok =
-            x <> y
-            && Z.lt (net x) Z.zero
-            && Z.gt (net y) Z.zero
-            && List.for_all (fun (m, v) -> m = x || m = y || Z.equal v Z.zero) nets
-          in
-          if not ok then fault st Bad_exchange a.exchange_n
-      | None ->
-          (* A reversal is checked as the exact inverse of its target instead; the
-             inverse of an exchange is not balanced either. *)
-          if tx.reversal_of = None && List.exists (fun (_, v) -> not (Z.equal v Z.zero)) nets then
-            fault st Unbalanced a.tx_n);
-      (match tx.original with
-      | Some (m, q) ->
-          measure a.original_n m;
-          if Z.leq q Z.zero then fault st Bad_original a.original_n
-      | None -> ());
-      match tx.reversal_of with
-      | Some target when known a.reversal_n target ->
-          if tx.id = target || Hashtbl.mem reversal_ends tx.id || Hashtbl.mem reversal_ends target then
-            fault st Reversal_reused a.reversal_n;
-          Hashtbl.replace reversal_ends tx.id ();
-          Hashtbl.replace reversal_ends target ();
-          let inverse = List.map (fun e -> { e with amount = Z.neg e.amount }) (Hashtbl.find by_id target).effects in
+    (fun (n, e) ->
+      locus n e.locus;
+      measure n e.measure;
+      if Z.equal e.amount Z.zero then fault st Zero_amount n;
+      Option.iter (fun k -> once st keys k Duplicate_key n) e.key)
+    a.effect_ns;
+  if tx.effects = [] then fault st No_effect a.tx_n;
+  let nets = nets tx.effects in
+  (match tx.exchange with
+  | Some (x, y) ->
+      measure a.exchange_n x;
+      measure a.exchange_n y;
+      let net m = Option.value (List.assoc_opt m nets) ~default:Z.zero in
+      let ok =
+        x <> y
+        && Z.lt (net x) Z.zero
+        && Z.gt (net y) Z.zero
+        && List.for_all (fun (m, v) -> m = x || m = y || Z.equal v Z.zero) nets
+      in
+      if not ok then fault st Bad_exchange a.exchange_n
+  | None ->
+      (* A reversal is checked as the exact inverse of its target instead; the
+         inverse of an exchange is not balanced either. *)
+      if tx.reversal_of = None && List.exists (fun (_, v) -> not (Z.equal v Z.zero)) nets then
+        fault st Unbalanced a.tx_n);
+  (match tx.original with
+  | Some (m, q) ->
+      measure a.original_n m;
+      if Z.leq q Z.zero then fault st Bad_original a.original_n
+  | None -> ());
+  match tx.reversal_of with
+  | Some target -> (
+      match reversal tx.id a.reversal_n target with
+      | Some (target : tx) ->
+          let inverse = List.map (fun e -> { e with amount = Z.neg e.amount }) target.effects in
           if sorted_effects tx.effects <> sorted_effects inverse then fault st Reversal_not_inverse a.reversal_n
-      | Some _ | None -> ())
-    txs;
+      | None -> ())
+  | None -> ()
+
+(* Every line after the TX section. [find] gives a TX and its position in file order;
+   [known] reports an unknown TX. *)
+let after_txs st ~measure ~locus ~known ~find (plans, zero, opening, history, anchors, items, closes) =
   let plan_set = seen () and paid = seen () in
   List.iter
     (fun p ->
-      once plan_set p.plan.id Duplicate_plan p.plan_n;
+      once st plan_set p.plan.id Duplicate_plan p.plan_n;
       measure p.plan_n p.plan.measure;
       List.iter
         (fun (n, (l, q)) ->
@@ -719,11 +719,11 @@ let references st (measures, loci, roles, txs, plans, zero, opening, history, an
       else if not (Z.equal (List.fold_left (fun s (_, q) -> Z.add s q) Z.zero p.plan.changes) Z.zero) then
         fault st Unbalanced p.plan_n;
       match p.plan.ending with
-      | Some (Paid_by t) when known p.paid_n t -> once paid t Paid_by_reused p.paid_n
+      | Some (Paid_by t) when known p.paid_n t -> once st paid t Paid_by_reused p.paid_n
       | _ -> ())
     plans;
   let supported = seen () in
-  let claim n c = once supported c Support_overlap n in
+  let claim n c = once st supported c Support_overlap n in
   let coordinate n (l, m) = locus n l; measure n m in
   let zero_set = seen () in
   List.iter
@@ -738,9 +738,8 @@ let references st (measures, loci, roles, txs, plans, zero, opening, history, an
   List.iter
     (fun (n, (((l, m) as c), t)) ->
       coordinate n c;
-      if known n t
-         && not (List.exists (fun e -> e.locus = l && e.measure = m) (Hashtbl.find by_id t).effects)
-      then fault st Opening_missing_coordinate n;
+      if known n t && not (List.exists (fun e -> e.locus = l && e.measure = m) (snd (find t)).effects) then
+        fault st Opening_missing_coordinate n;
       if Hashtbl.mem opening_set c then fault st Duplicate_support n
       else (
         Hashtbl.add opening_set c ();
@@ -752,7 +751,7 @@ let references st (measures, loci, roles, txs, plans, zero, opening, history, an
       let pointer =
         match a.anchor.last with
         | None -> Some (-1)
-        | Some t -> if known a.anchor_n t then Some (Hashtbl.find position t) else None
+        | Some t -> if known a.anchor_n t then Some (fst (find t)) else None
       in
       if a.assert_ns = [] then fault st Empty_anchor a.anchor_n;
       let also = seen () in
@@ -760,9 +759,9 @@ let references st (measures, loci, roles, txs, plans, zero, opening, history, an
         (fun (n, t) ->
           (if known n t then
              match pointer with
-             | Some p when Hashtbl.find position t <= p + 1 -> fault st Also_redundant n
+             | Some p when fst (find t) <= p + 1 -> fault st Also_redundant n
              | _ -> ());
-          once also t Duplicate_also n)
+          once st also t Duplicate_also n)
         a.also_ns;
       List.iter
         (fun (n, (c, _)) ->
@@ -775,44 +774,63 @@ let references st (measures, loci, roles, txs, plans, zero, opening, history, an
   List.iter
     (fun (n, (c, _)) ->
       coordinate n c;
-      once history_set c Duplicate_support n)
+      once st history_set c Duplicate_support n)
     history;
   List.iter (fun (n, (c, _)) -> if not (Hashtbl.mem asserted c) then fault st History_unanchored n) history;
   let item_set = seen () and closed = seen () in
-  List.iter (fun (n, (i : item)) -> once item_set i.id Duplicate_item n) items;
+  List.iter (fun (n, (i : item)) -> once st item_set i.id Duplicate_item n) items;
   List.iter
     (fun (n, c) ->
       if not (Hashtbl.mem item_set c.item) then fault st Unknown_item n;
-      once closed c.item Duplicate_close n)
+      once st closed c.item Duplicate_close n)
     closes
+
+let references st (measures, loci, roles, txs, plans, zero, opening, history, anchors, items, closes) =
+  let measure, locus = definitions st measures loci roles in
+  let by_id = Hashtbl.create (List.length txs) in
+  List.iteri
+    (fun i a ->
+      if Hashtbl.mem by_id a.tx.id then fault st Duplicate_tx a.tx_n else Hashtbl.add by_id a.tx.id (i, a.tx))
+    txs;
+  let known n id = if Hashtbl.mem by_id id then true else (fault st Unknown_tx n; false) in
+  let find = Hashtbl.find by_id in
+  (* Endpoints of the reversals so far, in file order: a later reuse is the fault. *)
+  let ends = Hashtbl.create 64 in
+  List.iter
+    (fun a ->
+      tx_rules st ~measure ~locus a ~reversal:(fun id n target ->
+          if not (known n target) then None
+          else (
+            if id = target || Hashtbl.mem ends id || Hashtbl.mem ends target then fault st Reversal_reused n;
+            Hashtbl.replace ends id ();
+            Hashtbl.replace ends target ();
+            Some (snd (find target)))))
+    txs;
+  after_txs st ~measure ~locus ~known ~find (plans, zero, opening, history, anchors, items, closes)
 
 (* ---- reading ---- *)
 
 let lines_of data =
   if data = "" then refuse Bad_header 1;
   let st = stage () in
-  let parts = String.split_on_char '\n' data in
-  let parts =
-    if String.ends_with ~suffix:"\n" data then List.rev (List.tl (List.rev parts))
-    else (
-      fault st No_final_newline (List.length parts);
-      parts)
-  in
+  let size = String.length data in
+  let count = ref (if data.[size - 1] = '\n' then 0 else 1) in
+  String.iter (fun c -> if c = '\n' then incr count) data;
+  if data.[size - 1] <> '\n' then fault st No_final_newline !count;
+  (* One pass: line [i] runs from [start] to the next newline or the end. *)
+  let start = ref 0 in
   let lines =
-    List.mapi
-      (fun i line ->
-        let line =
-          if String.ends_with ~suffix:"\r" line then (
-            fault st Crlf (i + 1);
-            String.sub line 0 (String.length line - 1))
-          else line
-        in
+    Array.init !count (fun i ->
+        let stop = match String.index_from_opt data !start '\n' with Some j -> j | None -> size in
+        let len = stop - !start in
+        let crlf = len > 0 && data.[stop - 1] = '\r' in
+        if crlf then fault st Crlf (i + 1);
+        let line = String.sub data !start (if crlf then len - 1 else len) in
         if not (String.is_valid_utf_8 line) then fault st Not_utf8 (i + 1);
+        start := stop + 1;
         line)
-      parts
   in
   close st;
-  let lines = Array.of_list lines in
   if lines.(0) <> "BOOK\t1" then refuse Bad_header 1;
   let rec find_end i = if i >= Array.length lines then None else if lines.(i) = "END" then Some i else find_end (i + 1) in
   match find_end 0 with
@@ -821,80 +839,83 @@ let lines_of data =
       if i + 1 < Array.length lines then refuse After_end (i + 2);
       lines
 
+(* The first three stages: bytes and lines, block structure and order, field syntax. *)
+let syntax data =
+  let sections = structure (lines_of data) in
+  let st = stage () in
+  let typed = fields st sections in
+  close st;
+  typed
+
+let value_of (measures, loci, roles, txs, plans, zero, opening, history, anchors, items, closes) =
+  {
+    measures = List.map snd measures;
+    loci = List.map snd loci;
+    roles = List.map snd roles;
+    txs = List.map (fun a -> a.tx) txs;
+    plans = List.map (fun p -> p.plan) plans;
+    zero_origins = List.map snd zero;
+    openings = List.map snd opening;
+    history_from = List.map snd history;
+    anchors = List.map (fun a -> a.anchor) anchors;
+    items = List.map snd items;
+    closes = List.map snd closes;
+  }
+
 let of_string data =
   try
-    let sections = structure (lines_of data) in
-    let st = stage () in
-    let typed = fields st sections in
-    close st;
+    let typed = syntax data in
     let st = stage () in
     references st typed;
     close st;
-    let measures, loci, roles, txs, plans, zero, opening, history, anchors, items, closes = typed in
-    Ok
-      {
-        measures = List.map snd measures;
-        loci = List.map snd loci;
-        roles = List.map snd roles;
-        txs = List.map (fun a -> a.tx) txs;
-        plans = List.map (fun p -> p.plan) plans;
-        zero_origins = List.map snd zero;
-        openings = List.map snd opening;
-        history_from = List.map snd history;
-        anchors = List.map (fun a -> a.anchor) anchors;
-        items = List.map snd items;
-        closes = List.map snd closes;
-      }
+    Ok (value_of typed)
   with Refused e -> Error e
 
 (* ---- writing ---- *)
 
-let to_string t =
-  let b = Buffer.create 4096 in
-  let line fields =
-    Buffer.add_string b (String.concat "\t" fields);
-    Buffer.add_char b '\n'
-  in
-  let z = Z.to_string in
-  line [ "BOOK"; "1" ];
-  List.iter (fun (id, scale) -> line [ "MEASURE"; id; string_of_int scale ]) t.measures;
+let line b fields =
+  Buffer.add_string b (String.concat "\t" fields);
+  Buffer.add_char b '\n'
+
+let z = Z.to_string
+
+(* BOOK, MEASURE, LOCUS and ROLE lines. *)
+let print_head b t =
+  line b [ "BOOK"; "1" ];
+  List.iter (fun (id, scale) -> line b [ "MEASURE"; id; string_of_int scale ]) t.measures;
   List.iter
     (fun (l : locus) ->
-      line ([ "LOCUS"; l.id; escape l.label; escape l.help ] @ if l.hidden then [ "HIDDEN" ] else []))
+      line b ([ "LOCUS"; l.id; escape l.label; escape l.help ] @ if l.hidden then [ "HIDDEN" ] else []))
     t.loci;
-  List.iter (fun (l, r) -> line [ "ROLE"; l; role_name r ]) t.roles;
-  List.iter
-    (fun (tx : tx) ->
-      line ([ "TX"; tx.id; tx.day ] @ match tx.memo with Some m -> [ "DESC"; escape m ] | None -> []);
-      List.iter
-        (fun e -> line ([ "EFFECT"; e.locus; e.measure; z e.amount ] @ Option.to_list e.key))
-        tx.effects;
-      Option.iter (fun target -> line [ "REVERSAL-OF"; target ]) tx.reversal_of;
-      Option.iter (fun (m, q) -> line [ "ORIGINAL"; m; z q ]) tx.original;
-      Option.iter
-        (function Merchant p -> line [ "MERCHANT"; p ] | Nonmerchant -> line [ "NONMERCHANT" ])
-        tx.merchant;
-      Option.iter (fun (x, y) -> line [ "EXCHANGE"; x; y ]) tx.exchange;
-      line [ "ENDTX" ])
-    t.txs;
+  List.iter (fun (l, r) -> line b [ "ROLE"; l; role_name r ]) t.roles
+
+let print_tx b (tx : tx) =
+  line b ([ "TX"; tx.id; tx.day ] @ match tx.memo with Some m -> [ "DESC"; escape m ] | None -> []);
+  List.iter (fun e -> line b ([ "EFFECT"; e.locus; e.measure; z e.amount ] @ Option.to_list e.key)) tx.effects;
+  Option.iter (fun target -> line b [ "REVERSAL-OF"; target ]) tx.reversal_of;
+  Option.iter (fun (m, q) -> line b [ "ORIGINAL"; m; z q ]) tx.original;
+  Option.iter (function Merchant p -> line b [ "MERCHANT"; p ] | Nonmerchant -> line b [ "NONMERCHANT" ]) tx.merchant;
+  Option.iter (fun (x, y) -> line b [ "EXCHANGE"; x; y ]) tx.exchange;
+  line b [ "ENDTX" ]
+
+(* Every line after the TX section, END included. *)
+let print_tail b t =
   List.iter
     (fun (p : plan) ->
-      line [ "PLAN"; p.id; p.day; p.measure ];
-      List.iter (fun (l, q) -> line [ "CHANGE"; l; z q ]) p.changes;
-      Option.iter
-        (function Paid_by tx -> line [ "PAID-BY"; tx ] | Cancelled d -> line [ "CANCELLED"; d ])
-        p.ending;
-      line [ "ENDPLAN" ])
+      line b [ "PLAN"; p.id; p.day; p.measure ];
+      List.iter (fun (l, q) -> line b [ "CHANGE"; l; z q ]) p.changes;
+      Option.iter (function Paid_by tx -> line b [ "PAID-BY"; tx ] | Cancelled d -> line b [ "CANCELLED"; d ]) p.ending;
+      line b [ "ENDPLAN" ])
     t.plans;
-  List.iter (fun (l, m) -> line [ "ZERO-ORIGIN"; l; m ]) t.zero_origins;
-  List.iter (fun ((l, m), tx) -> line [ "OPENING"; l; m; tx ]) t.openings;
-  List.iter (fun ((l, m), d) -> line [ "HISTORY-FROM"; l; m; d ]) t.history_from;
+  List.iter (fun (l, m) -> line b [ "ZERO-ORIGIN"; l; m ]) t.zero_origins;
+  List.iter (fun ((l, m), tx) -> line b [ "OPENING"; l; m; tx ]) t.openings;
+  List.iter (fun ((l, m), d) -> line b [ "HISTORY-FROM"; l; m; d ]) t.history_from;
   List.iter
     (fun a ->
-      line [ "ANCHOR"; Option.value a.last ~default:"-" ];
-      List.iter (fun tx -> line [ "ALSO"; tx ]) a.also;
-      List.iter (fun ((l, m), q) -> line [ "ASSERT"; l; m; z q ]) a.asserts;
-      line [ "ENDANCHOR" ])
+      line b [ "ANCHOR"; Option.value a.last ~default:"-" ];
+      List.iter (fun tx -> line b [ "ALSO"; tx ]) a.also;
+      List.iter (fun ((l, m), q) -> line b [ "ASSERT"; l; m; z q ]) a.asserts;
+      line b [ "ENDANCHOR" ])
     t.anchors;
   List.iter
     (fun (i : item) ->
@@ -904,13 +925,188 @@ let to_string t =
         | No_due_date -> ("NO_DUE_DATE", "-")
         | Due_undetermined -> ("DUE_UNDETERMINED", "-")
       in
-      line [ "ITEM"; i.id; kind; when_; escape i.context ])
+      line b [ "ITEM"; i.id; kind; when_; escape i.context ])
     t.items;
   List.iter
-    (fun c -> line [ "CLOSE"; c.item; c.day; (match c.kind with Resolved -> "RESOLVED" | Dropped -> "DROPPED") ])
+    (fun c -> line b [ "CLOSE"; c.item; c.day; (match c.kind with Resolved -> "RESOLVED" | Dropped -> "DROPPED") ])
     t.closes;
-  line [ "END" ];
+  line b [ "END" ]
+
+let to_string t =
+  let b = Buffer.create 4096 in
+  print_head b t;
+  List.iter (print_tx b) t.txs;
+  print_tail b t;
   Buffer.contents b
+
+(* ---- the admitted book and its changes ---- *)
+
+module Smap = Map.Make (String)
+module Imap = Map.Make (Int)
+
+type book = {
+  value : t;
+  index : (int * tx) Smap.t;  (* TX by ID, with its position in file order *)
+  reversed_by : string list Smap.t;  (* target -> the TXs reversing it; one in an admitted book *)
+  printed : (string * string) Imap.t;  (* position -> the TX ID and its printed block *)
+  next : int;  (* position of the next TX *)
+  size : int;  (* bytes in [printed] *)
+}
+
+type change =
+  | Add_tx of tx
+  | Replace_tx of tx
+  | Put_plan of plan
+  | Set_loci of locus list
+  | Set_roles of (string * role) list
+  | Set_anchors of anchor list
+  | Set_attention of item list * close list
+
+(* Record or forget that TX [id] reverses [target]. *)
+let reverses id target map = Smap.update target (fun rs -> Some (id :: Option.value rs ~default:[])) map
+
+let unreverses id target map =
+  Smap.update target (function Some rs -> (match List.filter (( <> ) id) rs with [] -> None | rs -> Some rs) | None -> None) map
+
+let tx_text tx =
+  let b = Buffer.create 256 in
+  print_tx b tx;
+  Buffer.contents b
+
+let book_of value =
+  List.fold_left
+    (fun b (tx : tx) ->
+      let s = tx_text tx in
+      {
+        b with
+        index = Smap.add tx.id (b.next, tx) b.index;
+        reversed_by = (match tx.reversal_of with Some x -> reverses tx.id x b.reversed_by | None -> b.reversed_by);
+        printed = Imap.add b.next (tx.id, s) b.printed;
+        next = b.next + 1;
+        size = b.size + String.length s;
+      })
+    { value; index = Smap.empty; reversed_by = Smap.empty; printed = Imap.empty; next = 0; size = 0 }
+    value.txs
+
+let read data = Result.map book_of (of_string data)
+let value b = b.value
+let position b id = Option.map fst (Smap.find_opt id b.index)
+let id_at b i = Option.map fst (Imap.find_opt i b.printed)
+let tx_count b = b.next
+
+let print b =
+  let buf = Buffer.create (b.size + 65536) in
+  print_head buf b.value;
+  Imap.iter (fun _ (_, s) -> Buffer.add_string buf s) b.printed;
+  print_tail buf b.value;
+  Buffer.contents buf
+
+(* The value after one change, without any check; the TX IDs it touched. *)
+let apply (b, touched) = function
+  | Add_tx tx ->
+      if Smap.mem tx.id b.index then refuse Duplicate_tx 0;
+      let s = tx_text tx in
+      ( {
+          value = { b.value with txs = b.value.txs @ [ tx ] };
+          index = Smap.add tx.id (b.next, tx) b.index;
+          reversed_by = (match tx.reversal_of with Some x -> reverses tx.id x b.reversed_by | None -> b.reversed_by);
+          printed = Imap.add b.next (tx.id, s) b.printed;
+          next = b.next + 1;
+          size = b.size + String.length s;
+        },
+        tx.id :: touched )
+  | Replace_tx tx ->
+      let i, old = match Smap.find_opt tx.id b.index with Some found -> found | None -> refuse Unknown_tx 0 in
+      let s = tx_text tx in
+      let reversed_by = match old.reversal_of with Some x -> unreverses old.id x b.reversed_by | None -> b.reversed_by in
+      ( {
+          b with
+          value = { b.value with txs = List.map (fun (x : tx) -> if x.id = tx.id then tx else x) b.value.txs };
+          index = Smap.add tx.id (i, tx) b.index;
+          reversed_by = (match tx.reversal_of with Some x -> reverses tx.id x reversed_by | None -> reversed_by);
+          printed = Imap.add i (tx.id, s) b.printed;
+          size = b.size - String.length (snd (Imap.find i b.printed)) + String.length s;
+        },
+        tx.id :: touched )
+  | Put_plan p ->
+      let plans = b.value.plans in
+      let plans =
+        if List.exists (fun (q : plan) -> q.id = p.id) plans then List.map (fun (q : plan) -> if q.id = p.id then p else q) plans
+        else plans @ [ p ]
+      in
+      ({ b with value = { b.value with plans } }, touched)
+  | Set_loci loci -> ({ b with value = { b.value with loci } }, touched)
+  | Set_roles roles -> ({ b with value = { b.value with roles } }, touched)
+  | Set_anchors anchors -> ({ b with value = { b.value with anchors } }, touched)
+  | Set_attention (items, closes) -> ({ b with value = { b.value with items; closes } }, touched)
+
+(* A TX outside the text being checked: its rules report at line 0. *)
+let at_zero (tx : tx) =
+  { tx; tx_n = 0; effect_ns = List.map (fun e -> (0, e)) tx.effects; reversal_n = 0; original_n = 0; exchange_n = 0 }
+
+exception Not_canonical
+
+(* Admit [b], the book [before] after changes that touched the TXs [touched], by the
+   rules the whole file is read with. Every line except the untouched TXs is printed
+   and read back by the first three stages, and must read back as the same value.
+   The reference stage then checks those lines against the whole book's TX index.
+   An untouched TX is affected only through the Loci, which keep every entry here
+   (otherwise the whole book is read again; no change touches the Measures), and
+   through a reversal of a touched TX, which is checked again. *)
+let admit ~before b touched =
+  let v = b.value in
+  let kept (l : locus) = List.exists (fun (k : locus) -> k.id = l.id) v.loci in
+  if not (List.for_all kept before.value.loci) then (
+    match of_string (to_string v) with
+    | Ok back -> if back <> v then raise Not_canonical
+    | Error e -> raise (Refused e))
+  else
+    let changed = List.map (fun id -> snd (Smap.find id b.index)) (List.sort_uniq compare touched) in
+    let text = Buffer.create 4096 in
+    print_head text v;
+    List.iter (print_tx text) changed;
+    print_tail text v;
+    let ((measures, loci, roles, txs, plans, zero, opening, history, anchors, items, closes) as typed) =
+      syntax (Buffer.contents text)
+    in
+    if value_of typed <> { v with txs = changed } then raise Not_canonical;
+    let st = stage () in
+    let measure, locus = definitions st measures loci roles in
+    let find id = Smap.find id b.index in
+    let known n id = if Smap.mem id b.index then true else (fault st Unknown_tx n; false) in
+    (* Reversal [id] of [target]: neither endpoint takes part in another reversal. A
+       reversal of [id] itself, [id] included, is checked as a partner and refuses
+       [id] as a target that is a reversal. *)
+    let reversal id n target =
+      if not (known n target) then None
+      else
+        let (_ : int), (x : tx) = find target in
+        let other = List.exists (( <> ) id) (Option.value (Smap.find_opt target b.reversed_by) ~default:[]) in
+        if x.reversal_of <> None || other then fault st Reversal_reused n;
+        Some x
+    in
+    List.iter (tx_rules st ~measure ~locus ~reversal) txs;
+    let partners =
+      List.filter_map
+        (fun (tx : tx) ->
+          match Smap.find_opt tx.id b.reversed_by with
+          | Some rs -> Some (List.filter_map (fun r -> if List.mem r touched then None else Some (at_zero (snd (find r)))) rs)
+          | None -> None)
+        changed
+      |> List.concat
+    in
+    List.iter (tx_rules st ~measure ~locus ~reversal) partners;
+    after_txs st ~measure ~locus ~known ~find (plans, zero, opening, history, anchors, items, closes);
+    close st
+
+let change b changes =
+  try
+    let after, touched = List.fold_left apply (b, []) changes in
+    admit ~before:b after touched;
+    Ok after
+  with
+  | Refused e -> Error (code_name e.code)
+  | Not_canonical -> Error "not-canonical"
 
 (* ---- answers ---- *)
 

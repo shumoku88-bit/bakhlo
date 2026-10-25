@@ -97,7 +97,10 @@ user-approved migration of `../bakhlo-data` (Principles).
 - One book file, `book.txt`: every save writes a temporary file, flushes it, keeps the current
   file as `.prev`, renames and flushes the directory (`Daily_file.publish`). No append log,
   Records, annual files or SQLite; long-term history is Git's job. The session keeps the
-  in-memory book, which must equal its book.txt reload (oracle tests below). An
+  in-memory book, which must equal its book.txt reload (oracle tests below), and the
+  admitted book.txt: a save checks and prints only what it changes. `Book_txt.change`
+  must admit exactly what reading the whole printed file admits (`test/book_txt_tests.ml`),
+  and `Daily_txt.changes` must equal the whole conversion (oracle). An
   S-expression book is refused, never converted on load (`tools/book-txt` migrates).
 - Targets: a save ≤100 ms including the durable flush (user decision 2026-10-24; review
   the storage when it is exceeded), key response ≤16 ms, startup ≤100 ms, measured at

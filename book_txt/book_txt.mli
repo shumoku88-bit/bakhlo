@@ -133,3 +133,42 @@ val balance : t -> locus:string -> measure:string -> balance
 (** Current quantity by the specification's rule: ZERO-ORIGIN or OPENING sum every
     Effect; an ASSERT adds Effects of TXs after its anchor's [last] that are not in
     [also]; no support is [Unknown], never zero. Assumes an admitted value. *)
+
+(** {1 The admitted book}
+
+    What a writer keeps between saves: an admitted value with the index its changes
+    are checked against and each TX's printed lines, so a change neither re-reads nor
+    re-prints the TXs it leaves alone. *)
+
+type book
+
+val read : string -> (book, error) result
+(** {!of_string}, keeping the index. *)
+
+val value : book -> t
+
+val position : book -> string -> int option
+(** A TX's zero-based position in file order. *)
+
+val id_at : book -> int -> string option
+val tx_count : book -> int
+
+val print : book -> string
+(** [to_string (value b)], reusing each untouched TX's printed lines. *)
+
+type change =
+  | Add_tx of tx  (** After the last TX; its ID is new. *)
+  | Replace_tx of tx  (** The TX with this ID, in its place. *)
+  | Put_plan of plan  (** The plan with this ID in its place, or a new one at the end. *)
+  | Set_loci of locus list
+  | Set_roles of (string * role) list
+  | Set_anchors of anchor list
+  | Set_attention of item list * close list
+
+val change : book -> change list -> (book, string) result
+(** Apply the changes in order to the value and admit the result: [Ok b'] exactly when
+    [of_string (to_string (value b'))] is [Ok (value b')] (test/book_txt_tests.ml).
+    [Error] is the specification's reason code, ["unknown-tx"] for replacing a TX that
+    does not exist, or ["not-canonical"] when the printed text would read back as a
+    different value. Every line except the untouched TXs is read back with the same
+    reader; the untouched TXs are not read again unless a Measure or Locus is left out. *)

@@ -6,6 +6,54 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## A save checks and prints only what it changes (core A, step 1, 2026-10-25)
+
+- Implementation: `Book_txt.book` is an admitted `book.txt` value with its TX index and
+  each TX's printed lines. `Book_txt.change` applies changes (add or replace a TX, put
+  a plan, set the loci, roles, anchors or Attention) and admits the result with the
+  whole-file reader's own code: every line except the untouched TXs is printed and
+  read back through the first three stages, and the reference rules (now shared as
+  `definitions`, `tx_rules` and `after_txs`) run against the index. Untouched
+  reversals of a touched TX are checked again; a change that drops a Locus re-reads
+  the whole book. `Daily_txt.changes` turns a save's operations into those changes,
+  and `Daily_file` keeps the admitted book in the session and prints it instead of
+  converting and re-reading the whole book. Reads fill one buffer of the file's size,
+  and the post-save check compares the bytes read back instead of their digest.
+- Tests (`./tools/check`, `./tools/tui --self-check`: pass): 64 fixtures unchanged
+  (5 admitted, 59 refused, same codes and lines). New: 3,000 generated books with 12
+  random changes each, valid and invalid; `change` admits exactly when the whole-file
+  reader admits the printed result as the same value, and `print` is that text
+  (more than 5,000 batches each way). New oracle: 200 seeds × 30 saves of 1–3
+  operations; the changed book.txt equals the whole conversion in value and bytes.
+- Mutation checks: turning off the partner recheck, the target-is-a-reversal rule,
+  the other-reverser rule, the canonical read-back, the Locus fallback, the head or
+  tail checks, the duplicate-TX check or the reverser-index update each fails the
+  generated test. In the operation mapping, dropping plan payments, date corrections,
+  Merchant, cancellation, loci, anchors, or the order of TXs added in one save each
+  fails the oracle. Clauses that no input could reach were removed instead: the
+  Measure comparison, a self-reversal check and a reversed-ID check (the partner
+  recheck refuses those).
+- Measured (synthetic, this Mac, median of 11 saves in one process):
+
+  | Entries | Before | After |
+  |---:|---:|---:|
+  | 1,000 | 51 ms | 48 ms |
+  | 10,950 | 148 ms | 66 ms |
+  | 45,000 | about 513 ms | 90 ms |
+  | 109,500 | not measured (the whole conversion alone was 914 ms) | 164 ms |
+
+  At 109,500 the remaining time is I/O: checking the file is unchanged (read plus
+  MD5, 34 ms), the new revision's MD5, writing with `F_FULLFSYNC` and reading back.
+  The ≤100 ms target holds to about 45,000 entries (about 28 years at the household's
+  pace), **not at the AGENTS.md ~110k size**. Book_txt reading is 61 → 54 ms at
+  10,950 entries; a cold load is unchanged (168 ms at 10,950, 1.9 s at 109,500).
+- On a scratch copy of the household (removed afterwards; only booleans and times
+  printed): the loaded book prints to the file's exact bytes; a synthetic entry plus
+  a count saved through the changes equals the whole conversion in value and bytes,
+  and a cold reload equals the session. The first save in a fresh process took
+  69–72 ms over 12 runs; later saves in one process take about 49 ms. The household
+  itself was only read (digest unchanged).
+
 ## LOAM reads and writes the shared book (2026-10-25)
 
 - Implementation: LOAM's `BookTxt` codec and `BookTxtBridge` now connect the

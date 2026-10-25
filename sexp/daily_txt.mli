@@ -38,3 +38,11 @@ val of_txt : T.t -> (Daily_book.t * sidecars, string) result
 val text : ?sidecars:sidecars -> Daily_book.t -> string
 (** [T.to_string] of {!to_txt}, for fixtures and tools. Raises [Invalid_argument] with
     the refusal code. *)
+
+val changes :
+  T.book -> Daily_book.t -> ?sidecars:sidecars -> Book_log.op list -> (T.book, string) result
+(** [changes txt after ops]: [txt] with the changes [ops] made, [after] being the book
+    after them; with [sidecars], also its roles and Attention. Admitted by
+    {!T.change}, so the untouched TXs are neither checked nor printed again. When
+    [txt] holds [to_txt] of the book before the operations, the result holds
+    [to_txt after] (test/daily_book_oracle_tests.ml). *)

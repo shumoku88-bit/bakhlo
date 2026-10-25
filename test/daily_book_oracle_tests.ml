@@ -494,3 +494,39 @@ let%expect_test "every mutation of a book.txt-loaded book equals its book.txt co
   Stdio.printf "admitted and equal: %b\n" (!admitted > 1000);
   Hashtbl.iteri refused ~f:(fun ~key ~data -> Stdio.printf "refused by book.txt: %s (%d)\n" key data);
   [%expect {| admitted and equal: true |}]
+
+(* The store saves through [Daily_txt.changes] instead of converting the whole book, so
+   after every mutation (and pairs of them in one save) the changed book.txt must be
+   the whole conversion of the new book: the same value and the same bytes. *)
+let%expect_test "every save's book.txt changes equal the whole conversion" =
+  let module X = Bakhlo_sexp.Daily_txt in
+  let module T = Bakhlo_book_txt.Book_txt in
+  let whole book = Result.map (X.to_txt book X.no_sidecars) ~f:fst in
+  let saved = ref 0 and refused = Hashtbl.create (module String) in
+  for seed = 1 to 200 do
+    let st = R.make [| seed |] in
+    let book = ref (get (txt_cold (get (B.of_string fixture)))) in
+    let txt = ref (Result.ok_or_failwith (Result.map_error (T.read (X.text !book)) ~f:(fun e -> T.code_name e.code))) in
+    let trace = ref [] in
+    for step = 1 to 30 do
+      let ops = List.init (if chance st 6 then 3 else if chance st 4 then 2 else 1) ~f:(fun _ -> generate st !book) in
+      trace := String.concat ~sep:" + " (List.map ops ~f:describe) :: !trace;
+      match Bakhlo_sexp.Book_log.apply_all !book ops with
+      | Error _ -> ()
+      | Ok next -> (
+          match (whole next, X.changes !txt next ops) with
+          | Error why, Error _ -> Hashtbl.incr refused ("both: " ^ why)
+          | Ok want, Ok changed ->
+              Int.incr saved;
+              check ~seed ~step ~trace:!trace "changed value differs from the whole conversion" (T.to_string want)
+                (T.to_string (T.value changed));
+              check ~seed ~step ~trace:!trace "printed bytes differ" (T.to_string want) (T.print changed);
+              book := next;
+              txt := changed
+          | Error why, Ok _ -> check ~seed ~step ~trace:!trace "changes admit a refused book" ("refused: " ^ why) "admitted"
+          | Ok _, Error why -> check ~seed ~step ~trace:!trace "changes refuse an admitted book" "admitted" ("refused: " ^ why))
+    done
+  done;
+  Stdio.printf "saved and equal: %b\n" (!saved > 1000);
+  Hashtbl.iteri refused ~f:(fun ~key ~data -> Stdio.printf "refused by book.txt: %s (%d)\n" key data);
+  [%expect {| saved and equal: true |}]
