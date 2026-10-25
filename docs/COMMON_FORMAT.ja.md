@@ -1,9 +1,16 @@
-# 共通形式（草案 v0）
+# 共通形式 v0
 
 BakhloとLOAMが同じ正データを読み書きするための形式。v0の項目は2026-10-24にすべて決めた
-（末尾の「決めたこと」）。Bakhloには読み書きの部品 `book_txt/` がある（2026-10-25、見本58件と
-ランダムな帳簿1万件で確認）。**家計簿はまだこの形式で保存していない**（移行は段階4）。
-LOAMにはまだ実装がない。
+（末尾の「決めたこと」）。Bakhloの読み書きは `book_txt/`、LOAM側は
+`Loam/Persistence/BookTxt.lean` と `BookTxtBridge.lean` に実装した。
+Bakhlo家計簿の移行は2026-10-25に完了した記録がある（`docs/VERIFICATION.md`）。
+LOAMの共通形式対応は合成データで検証したが、正データの操作・運用切替は行っていない。
+
+共通見本64件（受入5・拒否59）はLOAMでも理由・行番号・再出力バイト列・残高が一致した。
+受入見本は通常のLOAM更新経路でも保存・再読込し、LOAMの残高計算と照合した。
+BakhloとLOAMの実際のwriterによる相互排他、およびLOAM記帳→Bakhlo再保存→LOAM再読込も
+合成データで確認した。見本の場所は `test/common_format/`、LOAM側の入口は
+`./tools/test-product common-format` と `lake exe bookTxtChecks conformance <見本ディレクトリ>`。
 
 2026-10-24 決定：BakhloとLOAMで正データを共有する方向で、S式からこの形式へ移る。
 LOAMの検証資産を生かしながら、両方を改善していく。

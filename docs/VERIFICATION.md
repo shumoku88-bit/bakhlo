@@ -6,6 +6,43 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## LOAM reads and writes the shared book (2026-10-25)
+
+- Implementation: LOAM's `BookTxt` codec and `BookTxtBridge` now connect the
+  shared file to its existing household/TUI publishers. Current corrections
+  collapse to stable root IDs; scales, labels, roles and Attention stay inside
+  the book. Legacy household generations retain their own format and behavior.
+  The common specification's stale “not migrated / no LOAM implementation”
+  introduction was updated. No household data was accessed or migrated here.
+- Build: `lake build loam loamTui Loam.DurableProofs` passed on macOS x86_64.
+  This checks the existing durable proof surface, not a new formal proof of
+  the shared codec. Broader research-model replay was not run.
+- Tests: LOAM `lake test` passed, including native `bookTxtChecks`. The shared
+  corpus passed all 64 cases (5 accepted, 59 refused): exact refusal code/line,
+  canonical bytes, expected quantities, actual LOAM quantity projection, and
+  unrelated Attention mutation followed by cold reload.
+- Synthetic native scenarios passed: record/correction/date/merchant/reversal,
+  plan creation/cancellation/completion/batch/continuation, metadata ownership,
+  used-scale refusal (including original amounts), immutable common yearly
+  checkpoints, stale/busy writers, malformed/missing-current recovery, symlink
+  refusal, stale-stage cleanup and same-inode previous-link cleanup. Exchange
+  checks include zero-net additional Measures, explicit-key collisions,
+  duplicate physical postings and anonymous reversals.
+- Runtime smoke: the real LOAM CLI recorded a synthetic movement, the real
+  Bakhlo store loaded and rewrote its exact canonical bytes, then LOAM's
+  `doctor` accepted the cold reload. The actual two writers excluded each other
+  in both directions and reacquired after release. LOAM's native PTY displayed
+  an in-book transaction and labels; Actual, Scheduled, Balances, resize,
+  return and Calendar → launcher → quit were exercised on synthetic data.
+- Launcher regression: `tests/test_launcher_build_check.py` passed all 19 tests;
+  shared native-source changes now invalidate its cached build receipt.
+- Not executed: real-household acceptance/cutover, Linux runtime, physical
+  power-loss testing, commits or pushes. The LOAM data-directory default is unchanged.
+- Committed later as LOAM `c8cd0d3c` by a second pass that re-ran, on macOS x86_64,
+  the build, `lake test` (exit 0), `./tools/test-product common-format`, the 64-case
+  corpus and the launcher tests. That pass replaced two synthetic test labels that
+  LOAM's privacy guard refused. LOAM CI does not run.
+
 ## Household migrated to book.txt (2026-10-25)
 
 - User-approved. With no TUI running and both repositories in step with their remotes,
