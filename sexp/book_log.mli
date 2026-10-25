@@ -12,7 +12,7 @@ type op =
   | Set_locus_label of { id : string; label : string; help : string option }
   | Classify_merchant of {
       id : string;
-      disposition : Bakhlo_application.Event_merchants.disposition;
+      disposition : Records.disposition;
     }
 
 val apply : Daily_book.t -> op -> (Daily_book.t, string) result

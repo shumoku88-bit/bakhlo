@@ -1,7 +1,6 @@
 open Base
 module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
-module Q = Bakhlo_application.Current_quantity_query
 module T = Bakhlo_book_txt.Book_txt
 
 let get = function Ok x -> x | Error why -> failwith why
@@ -388,7 +387,7 @@ let%expect_test "canonical daily reflected correction preserves root cut, not ol
     (B.entry_count fresh) (quantity fresh "food" "jpy") (quantity fresh "bank" "jpy");
   let text = text_of fresh in
   let reflected_row = "ANCHOR\te\n" in
-  Fixtures.require (String.is_substring text ~substring:reflected_row) "missing cut fixture";
+  if not (String.is_substring text ~substring:reflected_row) then failwith "missing cut fixture";
   Stdio.printf "bad cuts refuse: missing=%b, duplicate=%b; original snapshot unchanged=%b\n"
     (Result.is_error (T.of_string (String.substr_replace_all text ~pattern:reflected_row ~with_:"ANCHOR\tmissing\n")))
     (Result.is_error
@@ -1033,7 +1032,7 @@ let%expect_test
   |}]
 
 let%expect_test "event merchant classification LOAM-compatible end-to-end semantics" =
-  let module M = Bakhlo_application.Event_merchants in
+  let module M = Bakhlo_sexp.Records in
   let base = book_of_txt fixture in
   let e1 : B.entry =
     {

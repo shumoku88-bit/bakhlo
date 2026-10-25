@@ -11,7 +11,6 @@
  (package bakhlo)
  (libraries
   bakhlo_domain
-  bakhlo_application
   bakhlo_sexp
   bakhlo_store
   bakhlo_book_txt
@@ -39,28 +38,10 @@
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Quantity.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Effect.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Event.cmi
-  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Event_memory.cmi
-  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Event_correction.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Movement.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Effect_coordinate.cmi
-  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Zero_origin_coverage.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Correction_check.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Correction_frontier.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Reflected_root_cut.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_projection.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_groups.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Actual_reversals.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Actual_source.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Actual_validity.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Event_descriptions.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Event_merchants.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Relation_discharges.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Open_relations.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Original_amounts.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Exchange_evidence.cmi
-  ../application/.bakhlo_application.objs/byte/bakhlo_application__Current_quantity_query.cmi))
+  ../book_txt/.bakhlo_book_txt.objs/byte/bakhlo_book_txt.cmi
+  ../book_txt/.bakhlo_book_txt.objs/byte/bakhlo_book_txt__Book_txt.cmi))
 
 ; Negative architecture checks: every rule must reject an intentional violation.
 

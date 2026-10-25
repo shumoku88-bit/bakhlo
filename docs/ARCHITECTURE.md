@@ -10,19 +10,18 @@ The previous long version (storage research, the old CLI, client options) is in 
 ```text
 tui/app ─> tui/shell ─> tui/screens/<s> ─> tui/protocol ─> tui/book ─> tui/kit
                │                                              │
-               └─> store ─> sexp ─> application ─> lib <──────┘
+               └─> store ─> sexp ─> book_txt, lib <───────────┘
 ```
 
 | Directory | Library | Role | Dependencies |
 |---|---|---|---|
-| `lib/` | `bakhlo.domain` | identifiers, exact quantities, Effects, Events, corrections | Base, Zarith |
-| `application/` | `bakhlo.application` | admission and query answers (sources, validity, balances, relations) | domain |
-| `sexp/` | `bakhlo.sexp` | `Daily_book` (the household book: an admitted `Book_txt.book` and its TXs as entries; every change is one `Book_txt.change` after Bakhlo's write policies; balances, Daily Pace and past-day pools), `Book_log` (the publication operations) and `Daily_txt` (the roles and Attention sections in their text formats; fixtures) | domain, book_txt, application (`Event_merchants` only) |
+| `lib/` | `bakhlo.domain` | identifiers, exact quantities, Effects, Events, Movements | Base, Zarith |
+| `sexp/` | `bakhlo.sexp` | `Daily_book` (the household book: an admitted `Book_txt.book` and its TXs as entries; every change is one `Book_txt.change` after Bakhlo's write policies; balances, Daily Pace and past-day pools), `Book_log` (the publication operations) and `Daily_txt` (the roles and Attention sections in their text formats; fixtures) | domain, book_txt |
 | `store/` | `bakhlo.store` | `Daily_file`: the single writer of `book.txt` (load, whole-file publish with `F_FULLFSYNC` and `.prev`, conflict and uncertain outcomes, copies). The session keeps the admitted book, so a save checks and prints only what it changes | sexp, book_txt, Unix, a C stub |
 | `tui/` | nested Dune project (`tui/dune-project`) | English terminal UI; only `tui/app` uses Notty | store and Core |
 | `book_txt/` | `bakhlo.book_txt` | `Book_txt`: the line-based `book.txt` shared with LOAM (`docs/COMMON_FORMAT.ja.md`); read, admit, print, current balance, and the admitted `book` whose `change` admits a change by the same rules without re-reading untouched TXs. The household store reads and writes it | Zarith |
 
-Dependencies point inward only. `lib/`, `application/`, `book_txt/` and `sexp/` are pure: no clock,
+Dependencies point inward only. `lib/`, `book_txt/` and `sexp/` are pure: no clock,
 filesystem, randomness or global state; every input is an explicit immutable value.
 File I/O lives in `store/` and `tui/shell`; terminal effects in `tui/app`.
 
@@ -40,8 +39,8 @@ File I/O lives in `store/` and `tui/shell`; terminal effects in `tui/app`.
 
 ## Portability note (MirageOS)
 
-The pure core (`lib`, `application`, `book_txt`, `sexp`) needs only Base and Zarith. Only
+The pure core (`lib`, `book_txt`, `sexp`) needs only Base and Zarith. Only
 `store/` (Unix, `F_FULLFSYNC` stub) and the TUI (Notty, Unix terminal) are host-specific,
-so another runtime replaces those edges, not the core. An earlier Solo5-SPT boot of `lib` + `application`
+so another runtime replaces those edges, not the core. An earlier Solo5-SPT boot of `lib` and the former `application/`
 is recorded in `90a5867:docs/VERIFICATION.md` ("Linux native replay and MirageOS/Solo5-SPT
 engine"), with the VM recipe in `90a5867:docs/DEVELOPMENT.md`.

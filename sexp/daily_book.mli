@@ -15,7 +15,7 @@ type entry = Records.entry = {
   reversal_of : string option;
   exchange : (string * string) option;  (** Source and destination Effect keys. *)
   original_amount : (string * Z.t) option;
-  merchant : Bakhlo_application.Event_merchants.disposition option;
+  merchant : Records.disposition option;
 }
 
 type plan = Records.plan = {
@@ -136,7 +136,7 @@ val correct_entry_date : t -> id:string -> day:string -> (t, string) result
 (** Only the date; a Locus no longer offered may stay. *)
 
 val classify_merchant :
-  t -> id:string -> disposition:Bakhlo_application.Event_merchants.disposition -> (t, string) result
+  t -> id:string -> disposition:Records.disposition -> (t, string) result
 (** First classification only. *)
 
 val put_plan : t -> replace:bool -> plan -> (t, string) result

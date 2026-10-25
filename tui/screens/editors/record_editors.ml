@@ -153,7 +153,7 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
       | Merchant.Publish (id, disposition, base) ->
           let disp_text =
             match disposition with
-            | Bakhlo_application.Event_merchants.Nonmerchant -> "Nonmerchant"
+            | Bakhlo_sexp.Records.Nonmerchant -> "Nonmerchant"
             | Merchant p -> "Merchant " ^ D.Identifier.External_party.to_string p
           in
           ( keep (Event_merchant (Merchant.edit e)),

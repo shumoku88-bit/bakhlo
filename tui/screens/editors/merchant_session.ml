@@ -1,5 +1,5 @@
 module B = Bakhlo_sexp.Daily_book
-module M = Bakhlo_application.Event_merchants
+module M = Bakhlo_sexp.Records
 module D = Bakhlo_domain
 module O = Daily_overlays
 module Panel = Ui_panel

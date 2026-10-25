@@ -172,27 +172,7 @@ let shift_calendar_day date_str step =
       if y < 1 || y > 9999 then Error "date-out-of-range"
       else Ok (Printf.sprintf "%04d-%02d-%02d" y m d)
 
-let is_valid_canonical_date day =
-  match D.Identifier.Event.of_string "date-check" with
-  | Error _ -> false
-  | Ok eid -> (
-      match D.Event.create ~id:eid ~effects:[] with
-      | Error _ -> false
-      | Ok event -> (
-          match D.Event_memory.of_events [ event ] with
-          | Error _ -> false
-          | Ok events -> (
-              match
-                Bakhlo_application.Actual_validity.create ~events
-                  ~facts:
-                    [
-                      Bakhlo_application.Actual_validity.Base
-                        { event = D.Event.id event; valid_on = day };
-                    ]
-                  ~corrections:[]
-              with
-              | Ok _ -> true
-              | Error _ -> false)))
+let is_valid_canonical_date day = Bakhlo_book_txt.Book_txt.valid_date day
 
 let refuse message = Error { message }
 let ( let* ) = Result.bind

@@ -10,7 +10,6 @@
   (names full_sync_stubs))
  (libraries
   bakhlo_domain
-  bakhlo_application
   bakhlo_sexp
   bakhlo_book_txt
   sexplib0

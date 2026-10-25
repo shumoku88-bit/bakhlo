@@ -1,7 +1,7 @@
 (* The publication operations, applied all-or-nothing with the same Daily_book
    functions the application uses. Pure: no file access. *)
 module B = Daily_book
-module M = Bakhlo_application.Event_merchants
+module M = Records
 
 type op =
   | Put_entry of { replace : bool; entry : B.entry; plan : string option }

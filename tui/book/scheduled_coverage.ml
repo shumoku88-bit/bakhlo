@@ -1,7 +1,6 @@
 (* LOAM Series Calendar: replaceable monitoring rules compared with explicit
    plans by exact signed-Locus shape. Read-only; no recurrence is inferred. *)
 module B = Bakhlo_sexp.Daily_book
-module A = Bakhlo_application
 
 type rule = {
   name : string;
@@ -25,7 +24,7 @@ let loci text =
 let decode_row row =
   match String.split_on_char '\t' row with
   | [ name; anchor; every; negative; positive ]
-    when token name && A.Actual_validity.valid_date anchor && digits every -> (
+    when token name && Bakhlo_book_txt.Book_txt.valid_date anchor && digits every -> (
       match (loci negative, loci positive) with
       | Some negative, Some positive ->
           Some { name; anchor; every_months = int_of_string every; negative; positive }
@@ -68,7 +67,7 @@ let matches rule (p : B.plan) =
   signed p (fun s -> s < 0) = rule.negative && signed p (fun s -> s > 0) = rule.positive
 
 let month_index date =
-  if not (A.Actual_validity.valid_date date) then None
+  if not (Bakhlo_book_txt.Book_txt.valid_date date) then None
   else Some ((int_of_string (String.sub date 0 4) * 12) + int_of_string (String.sub date 5 2) - 1)
 
 let expected_at rule target =

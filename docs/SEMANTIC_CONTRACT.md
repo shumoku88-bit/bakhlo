@@ -3,6 +3,21 @@
 Preservation obligations distilled from existing LOAM policy. These constrain
 implementation choices; they are not a claim that every OCaml operation is qualified.
 
+## The core
+
+The household book is `book.txt`. Its specification (`docs/COMMON_FORMAT.ja.md`, with the
+conformance fixtures in `test/common_format/`) defines what a book may hold and how a
+balance is answered; `Book_txt.change` admits a change by exactly those rules. On top of
+them, Bakhlo applies its own write policies (`sexp/daily_book.ml`):
+
+- new entries, plans and counts use only Loci offered for new entries (not `HIDDEN`);
+  a date-only or Merchant-only change keeps a Locus that is no longer offered;
+- only an open plan can be paid, replaced or cancelled; payment and cancellation are final;
+- a Merchant, once classified, is not replaced (user decision 2026-10-24 allows changing
+  it later; not yet implemented);
+- an empty memo is no memo;
+- an entry is saved only if its TX reads back as the same entry.
+
 ## S1 — One operational authority
 
 Exactly one selected system/data authority owns ordinary household recording.
@@ -48,8 +63,7 @@ data. An explicitly converted candidate may retain the corrected entry/date and
 keep earlier versions in the original data or separate backups. Verify the selected
 entries, quantities and meaningful links; this is not full evidence-history parity.
 
-Existing formats that retain corrections still follow their declared frontiers.
-Do not silently alter those APIs or use cached status to bypass their selection.
+book.txt keeps the current state; earlier versions live in Git, not in a correction graph.
 Actual refunds, reversals, cancellations and payment-plan fulfillment are not input
 correction history and must not disappear during simplification.
 
@@ -61,14 +75,10 @@ or changes the other's evidence.
 Explicit Reversal is another independent retained relation, not Event correction/deletion.
 Exact physical inversion preserves coordinate/quanta/multiplicity, not Effect key or order;
 combined net zero alone is insufficient. Target admission cannot be inferred backwards
-from its reversal. Neither endpoint is automatically removed from quantities. Corrections/cuts still own selection, so retained inversion need not mean current
-cancellation when they select different observations.
+from its reversal. Neither endpoint is automatically removed from quantities.
 
-Explicit relation discharge is independent Event/Relation/quantity provenance, not an
-extra physical Effect or relation retraction. Remainders are conditional projections over
-qualified supplied evidence; they do not establish physical balance support or real-world
-fulfillment completeness. Corrections/Reversal do not silently transfer/deactivate those
-retained references. Unknown relation identity never becomes zero remaining quantity.
+Settlement and relation discharges are not in book.txt v0; adding them is a format change
+(`COMMON_FORMAT.ja.md`, D1) to qualify with LOAM's verification first.
 
 ## S6 — Unknown is not zero
 
@@ -76,14 +86,13 @@ Absence, uncertainty, incompleteness, unsupported questions, invalid input, and
 storage failure are not successful empty answers. In particular, balance
 answerability may require explicit origin evidence beyond observed activity.
 
-Known nonzero with an unknown exact amount is weaker than an exact Quantity;
-never substitute a scalar or feed that evidence to arithmetic. Expose useful
-distinctions in typed results without one universal error or completeness model.
+Expose useful distinctions in typed results without one universal error or
+completeness model.
 
 ## S7 — UI and projections do not own household meaning
 
-UI collects drafts and renders answers. Shared application boundaries own
-admission and publication. UI must not allocate durable identity, choose canonical
+UI collects drafts and renders answers. The book (`Daily_book` over `Book_txt`) owns
+admission and the store (`Daily_file`) owns publication. UI must not allocate durable identity, choose canonical
 files, implement recovery, or independently compute authoritative household facts.
 
 Exports and caches remain disposable unless separately promoted by an explicit

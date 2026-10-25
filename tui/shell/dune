@@ -23,7 +23,6 @@
   bakhlo_screen_day
   bakhlo.store
   bakhlo.domain
-  bakhlo.application
   bakhlo.sexp
   zarith
   unix

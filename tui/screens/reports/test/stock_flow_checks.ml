@@ -5,7 +5,6 @@ module B = Bakhlo_sexp.Daily_book
 module S = Stock_flow_report
 module I = Income_expense_report
 module D = Bakhlo_domain
-module A = Bakhlo_application
 let id_of = function Ok value -> value | Error _ -> failwith "synthetic identifier"
 
 let posting locus amount =
@@ -25,7 +24,6 @@ let posting_keyed locus measure amount key =
     ~locus:(id_of (D.Identifier.Locus.of_string locus))
     ~measure:(id_of (D.Identifier.Measure.of_string measure))
     ~quantity:(D.Quantity.of_quanta amount)
-module Q = Bakhlo_application.Current_quantity_query
 
 let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why

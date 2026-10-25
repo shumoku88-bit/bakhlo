@@ -35,7 +35,7 @@ and clears inherited OCaml search-path overrides, not the whole OS environment.
 ./tools/opam exec -- dune runtest -p bakhlo --force
 ./tools/opam exec -- dune build --root . @install
 ./tools/opam exec -- dune build --root . \
-  lib/bakhlo_domain.cmxa application/bakhlo_application.cmxa
+  lib/bakhlo_domain.cmxa book_txt/bakhlo_book_txt.cmxa sexp/bakhlo_sexp.cmxa
 ./tools/opam list --installed --short --columns=name,version
 ```
 
@@ -45,8 +45,7 @@ tests/[verification](VERIFICATION.md), not another inventory here. Package tests
 explicitly enable inline tests; `-p` already selects root, so never combine it with
 `--root`.
 
-The public Application namespace is explicitly curated, excluding arithmetic-only
-helpers. Logical aliases support clean dependency discovery. Cram compiler clients
+Cram compiler clients
 currently depend on generated CMIs/wrapper CMI: pinned Dune integration details, not
 API/storage compatibility. Do not suppress missing-CMI warnings or export internals.
 
@@ -70,7 +69,7 @@ Formatting is optional developer tooling, NOT a main runtime/test dependency or 
 `bootstrap`, `check` and normal builds use the main 56 locked packages without it.
 Additions to the original 50: Parsexp v0.17.0 (outer S-expression adapter) and, on
 2026-10-21, notty-community 0.2.4 with uutf, cppo, ocamlbuild and topkg (TUI terminal adapter;
-the last three are build tools). Neither reaches Domain/Application; no compiler upgrade.
+the last three are build tools). Neither reaches the Domain or the book; no compiler upgrade.
 Separate formatting-only commits from meaning/refactor changes. Do not reflow payload fixtures,
 normalize identities or weaken compiler policy to make layout pass.
 

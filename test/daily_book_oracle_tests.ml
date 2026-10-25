@@ -8,7 +8,7 @@
 open Base
 module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
-module M = Bakhlo_application.Event_merchants
+module M = Bakhlo_sexp.Records
 module R = Stdlib.Random.State
 
 let get = function Ok x -> x | Error why -> failwith why

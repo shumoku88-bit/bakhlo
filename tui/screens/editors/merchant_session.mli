@@ -1,5 +1,5 @@
 module B = Bakhlo_sexp.Daily_book
-module M = Bakhlo_application.Event_merchants
+module M = Bakhlo_sexp.Records
 
 type choice = Merchant | Nonmerchant
 type mode = Editing | Preview

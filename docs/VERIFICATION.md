@@ -6,6 +6,21 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## The application layer is removed (core A, 2026-10-25)
+
+- User decision: with `Daily_book` on book.txt, the application layer (correction
+  frontier, reflected-root cuts, Actual source, relations and discharges, current-quantity
+  groups and query) and its tests, ports of LOAM's semantic checks, are removed; Git keeps
+  them up to `42ce0fc`. The Merchant disposition type moved to `Records`, and the screens'
+  date checks use `Book_txt.valid_date`. The domain modules nothing used any more
+  (`Event_correction`, `Event_memory`, `Zero_origin_coverage`) went with it.
+- 121 files, 79 insertions, 11,362 deletions (application 2,758; tests and models
+  8,444; domain 72). The type-boundary cram test keeps its domain checks and now also
+  checks that an admitted `Book_txt.book` cannot be built by hand.
+- `docs/SEMANTIC_CONTRACT.md` names the core: the book.txt specification plus Bakhlo's
+  listed write policies; the parts about correction frontiers, relation discharges and
+  presence were updated. `./tools/check` and `./tools/tui --self-check`: pass.
+
 ## Daily_book runs on book.txt (core A, 2026-10-25)
 
 - `Daily_book` is now an admitted `Book_txt.book` plus its TXs as entries. Every change

@@ -23,7 +23,6 @@
   bakhlo_tui_shell
   bakhlo.store
   bakhlo.domain
-  bakhlo.application
   bakhlo.sexp
   zarith
   unix

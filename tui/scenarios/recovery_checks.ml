@@ -8,7 +8,6 @@ module A = Daily_actions
 module B = Bakhlo_sexp.Daily_book
 module L = Bakhlo_sexp.Book_log
 module D = Bakhlo_domain
-module Q = Bakhlo_application.Current_quantity_query
 
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
 let require = F.require

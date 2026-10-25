@@ -5,7 +5,7 @@
    admitted book keeps. Pure. *)
 module D = Bakhlo_domain
 module T = Bakhlo_book_txt.Book_txt
-module M = Bakhlo_application.Event_merchants
+module M = Records
 module R = Q
 module Smap = Map.Make (String)
 module Imap = Map.Make (Int)

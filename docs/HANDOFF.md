@@ -35,8 +35,8 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   keeps); its answers equal the previous core on random operations and on a household
   copy, and a cold load is about 40% faster
   ([evidence](VERIFICATION.md#daily-book-runs-on-booktxt-core-a-2026-10-25)). Next in A:
-  delete the application layer's correction/lineage machinery; the book and the screens
-  use only its Merchant type and date check.
+  the application layer's correction/lineage machinery was then removed
+  ([evidence](VERIFICATION.md#the-application-layer-is-removed-core-a-2026-10-25)).
 - Cut over on 2026-10-21 (user decision): the household is `../bakhlo-data`, recorded
   only by the user through `./tools/household` (TUI, then commit and push to the private
   GitHub backup).
@@ -135,8 +135,8 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Code map
 
-- `lib/`, `application/`: pure exact-quantity, admission and query semantics
-  (`SEMANTIC_CONTRACT.md`). No I/O.
+- `lib/`: identifiers, exact quantities, Effects, Events, Movements. No I/O. The former
+  `application/` (correction frontier, cuts, sources, relations) is in Git up to `42ce0fc`.
 - `sexp/daily_book.ml(i)`: the household book on book.txt (an admitted `Book_txt.book`
   and its TXs as entries; changes, balances, Daily Pace, past-day pools);
   `sexp/book_log.ml(i)`: the publication operations; `sexp/daily_txt.ml(i)`: the roles

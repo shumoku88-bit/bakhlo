@@ -1211,7 +1211,7 @@ let date_correction_checks ~width_of ~directory home =
        = {
            retained_target with
            day = "2026-10-09";
-           merchant = Some (Bakhlo_application.Event_merchants.Merchant party);
+           merchant = Some (Bakhlo_sexp.Records.Merchant party);
          }
     && B.plans merchant_cold.book = B.plans retained_book
     && B.approved_loci merchant_cold.book = Some [ "wallet"; "bank" ])
@@ -1498,7 +1498,7 @@ let original_amount_integration_checks ~width_of ~directory () =
      unknown result."
 
 let event_merchant_integration_checks ~width_of ~directory () =
-  let module EM = Bakhlo_application.Event_merchants in
+  let module EM = Bakhlo_sexp.Records in
   let dir = directory ^ "/event-merchant-integration" in
   let contains rows needle =
     List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) rows
