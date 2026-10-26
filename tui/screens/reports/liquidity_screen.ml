@@ -104,12 +104,10 @@ let remainder (env : Screen.env) (geometry : Screen.geometry) t =
   in
   [ field_row geometry t; run_row t ] @ disclaimer @ status
 
-let capacity (geometry : Screen.geometry) = max 0 (snd geometry.content - 2)
-
 let handle (env : Screen.env) geometry t input =
   let clear t = (t, Screen.Message "") in
   let move delta =
-    let last = max 0 (List.length (remainder env geometry t) - capacity geometry) in
+    let last = max 0 (List.length (remainder env geometry t) - Frame.capacity geometry) in
     ({ t with scroll = Ui_panel.move ~last ~position:t.scroll delta }, Screen.Stay)
   in
   match P.lowercase input with
@@ -133,7 +131,7 @@ let handle (env : Screen.env) geometry t input =
   | Some ((`ASCII 'k' | `Arrow `Up), []) -> move (-1)
   | Some ((`ASCII 'j' | `Arrow `Down), []) -> move 1
   | key when Option.is_some (Frame.page_delta key) ->
-      move (Option.get (Frame.page_delta key) * max 1 (capacity geometry))
+      move (Option.get (Frame.page_delta key) * max 1 (Frame.capacity geometry))
   | Some (`Home, []) -> ({ t with scroll = 0 }, Screen.Stay)
   | Some (`End, []) -> move max_int
   | _ when t.focus = Field -> (
@@ -153,8 +151,8 @@ let view (env : Screen.env) (geometry : Screen.geometry) t =
   let top = [ (O.Plain, "Forecast path: UNKNOWN"); (O.Plain, "Known low-water mark: UNKNOWN") ] in
   let body = remainder env geometry t in
   let window =
-    Ui_panel.window ~capacity:(capacity geometry) ~count:(List.length body) ~scroll:t.scroll
-      ~selected:(if t.focus = Field then Some 0 else None)
+    Ui_panel.window ~capacity:(Frame.capacity geometry) ~count:(List.length body)
+      ~scroll:t.scroll ~selected:(if t.focus = Field then Some 0 else None)
   in
   let visible =
     List.filteri (fun i _ -> i >= window.start && i < window.start + window.capacity) body

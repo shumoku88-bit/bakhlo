@@ -612,15 +612,7 @@ let screen ~dimensions:((width, height) as dims) ~width_of t =
             ~height:(max 0 (height - 1))
             ~focused:true ~title:"Scheduled / Extend Plan" rows
           @ [ (O.Status, O.clip_text ~width_of width t.notice) ]
-      | None, General form ->
-          Panel.frame_rows ~width_of ~width
-            ~height:(max 0 (height - 1))
-            ~focused:true ~title:(Form.title form)
-            (Form.render_rows
-               ~width:(max 0 (width - 6))
-               ~height:(Panel.capacity ~height:(max 0 (height - 1)) ~heading:false)
-               ~width_of form)
-          @ [ (O.Status, O.clip_text ~width_of width t.notice) ]
+      | None, General form -> Form.render_panel ~status:t.notice ~width_of ~width ~height form
       | Some _, _ ->
           let content, view = viewport ~dimensions:dims ~width_of t in
           let title =
@@ -628,19 +620,11 @@ let screen ~dimensions:((width, height) as dims) ~width_of t =
             | Extend _ -> "Scheduled / Extend / Preview"
             | General _ -> "Scheduled / Generate / Preview"
           in
-          let frame =
-            Panel.frame ~width_of ~width
-              ~height:(max 0 (height - 2))
-              ~focused:true ~title ~scroll:view.start ~selected:None content
-          in
           let action_text =
             if t.choice = 0 then " [Cancel]  Publish all" else " Cancel  [Publish all]"
           in
-          frame
-          @ [
-              (O.Status, O.clip_text ~width_of width t.notice);
-              (O.Active, O.clip_text ~width_of width action_text);
-            ]
+          Panel.preview ~width_of ~width ~height ~title ~scroll:view.start ~notice:t.notice
+            ~action:action_text content
     in
     List.filteri (fun index _ -> index < height) rows
     |> List.map (fun (style, text) -> (style, O.pad ~width_of width text))

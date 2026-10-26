@@ -828,28 +828,17 @@ let action_line ~width_of width t =
     | Some index -> label index (List.nth labels index)
     | None -> tr "[Preview] … [Cancel]"
 
-let sub_border ~width_of ~width ?(style = O.Frame) ?(sub = "") title =
+let sub_border ~width_of ~width ?(style = O.Frame) title =
   if width < 4 then (style, O.pad ~width_of width "")
   else
-    let left_decor = "╭ " and right_decor = if sub = "" then "╮" else " " ^ sub ^ " ╮" in
+    let left_decor = "╭ " and right_decor = "╮" in
     let min_decor = width_of left_decor + width_of right_decor in
     if width <= min_decor then (style, O.pad ~width_of width (O.clip_text ~width_of width "╭──╮"))
     else
-      let available = width - min_decor in
-      let sub_room = if sub = "" then 0 else min (available / 2) (width_of sub + 1) in
-      let title_room = max 0 (available - sub_room) in
-      let title_clipped = O.clip_text ~width_of title_room (tr title) in
-      let sub_clipped =
-        if sub = "" then "" else " " ^ O.clip_text ~width_of (max 0 (sub_room - 1)) sub
-      in
-      let used =
-        width_of left_decor + width_of title_clipped + width_of sub_clipped + width_of right_decor
-      in
-      let rule_len = max 0 (width - used) in
+      let title_clipped = O.clip_text ~width_of (width - min_decor) (tr title) in
+      let rule_len = max 0 (width - min_decor - width_of title_clipped) in
       let raw =
-        left_decor ^ title_clipped ^ " "
-        ^ O.rule ~width_of (max 0 (rule_len - 1))
-        ^ sub_clipped ^ right_decor
+        left_decor ^ title_clipped ^ " " ^ O.rule ~width_of (max 0 (rule_len - 1)) ^ right_decor
       in
       (style, O.pad ~width_of width (O.clip_text ~width_of width raw))
 

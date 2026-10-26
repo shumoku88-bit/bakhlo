@@ -58,3 +58,13 @@ val handle_input : t -> Ui_input.input -> event
 
 val render_rows :
   width:int -> height:int -> width_of:(string -> int) -> t -> (Ui_render.style * string) list
+
+val render_panel :
+  ?status:string ->
+  width_of:(string -> int) ->
+  width:int ->
+  height:int ->
+  t ->
+  (Ui_render.style * string) list
+(** [t] framed as a focused modal of [height] rows. With [status] the frame uses
+    one row fewer and the clipped notice occupies the last row. *)

@@ -134,12 +134,7 @@ let footer t =
 
 let screen ~dimensions:((width, height) as dimensions) ~width_of t =
   let rows =
-    if not t.preview then
-      Panel.frame_rows ~width_of ~width ~height ~focused:true ~title:(Form.title t.form)
-        (Form.render_rows
-           ~width:(max 0 (width - 6))
-           ~height:(Panel.capacity ~height ~heading:false)
-           ~width_of t.form)
+    if not t.preview then Form.render_panel ~width_of ~width ~height t.form
     else
       let rows, view = viewport ~dimensions ~width_of t in
       let actions =
@@ -147,13 +142,8 @@ let screen ~dimensions:((width, height) as dimensions) ~width_of t =
         |> List.mapi (fun i label -> if t.action = i then "[" ^ label ^ "]" else label)
         |> String.concat "  "
       in
-      Panel.frame ~width_of ~width
-        ~height:(max 0 (height - 2))
-        ~focused:true ~title:"Actual / Reverse / Preview" ~scroll:view.start ~selected:None rows
-      @ [
-          (O.Status, O.clip_text ~width_of width (Form.notice t.form));
-          (O.Active, O.clip_text ~width_of width (" " ^ actions));
-        ]
+      Panel.preview ~width_of ~width ~height ~title:"Actual / Reverse / Preview"
+        ~scroll:view.start ~notice:(Form.notice t.form) ~action:(" " ^ actions) rows
   in
   List.filteri (fun i _ -> i < max 0 height) rows
   |> List.map (fun (style, text) -> (style, O.pad ~width_of width text))

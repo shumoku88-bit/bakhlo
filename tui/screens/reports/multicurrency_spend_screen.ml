@@ -264,8 +264,8 @@ let shift_month (env : Screen.env) delta t =
 let wrapped ~width_of width style text =
   List.map (fun line -> (style, line)) (O.wrap_text ~width_of (max 1 width) text)
 
-let fixed_count (geometry : Screen.geometry) = if snd geometry.content < 6 then 3 else 4
-let capacity (geometry : Screen.geometry) = max 0 (snd geometry.content - fixed_count geometry)
+let capacity (geometry : Screen.geometry) =
+  max 0 (snd geometry.content - if snd geometry.content < 6 then 3 else 4)
 
 let body (env : Screen.env) (geometry : Screen.geometry) t =
   let width, _ = geometry.content in
@@ -390,10 +390,9 @@ let view env (geometry : Screen.geometry) t =
   let fixed =
     List.map (fun (style, text) -> (style, O.clip_text ~width_of (max 0 width) text)) fixed
   in
-  let cap = max 0 (height - List.length fixed) in
   let all = body env geometry t in
-  let scroll = min t.scroll (max 0 (List.length all - cap)) in
-  let pane = Ui_panel.window ~capacity:cap ~count:(List.length all) ~scroll ~selected:None in
+  let count = List.length all in
+  let pane = Ui_panel.window ~capacity:(capacity geometry) ~count ~scroll:t.scroll ~selected:None in
   let visible =
     List.filteri (fun index _ -> index >= pane.start && index < pane.start + pane.capacity) all
   in

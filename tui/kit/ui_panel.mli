@@ -38,6 +38,19 @@ val frame_rows :
     Default [inset=2] preserves the existing comfortable frame; [inset=0]
     uses the whole inner rectangle, matching LOAM workspaces. *)
 
+val preview :
+  width_of:(string -> int) ->
+  width:int ->
+  height:int ->
+  title:string ->
+  scroll:int ->
+  notice:string ->
+  action:string ->
+  string list ->
+  (Ui_render.style * string) list
+(** A scrolled frame over [rows] that uses two rows fewer than [height], followed
+    by a clipped [Status] notice row and a clipped [Active] action row. *)
+
 val split_widths : int -> int * int
 (** Left and right pane widths of a two-pane browser; equal full widths below 80 cells. *)
 

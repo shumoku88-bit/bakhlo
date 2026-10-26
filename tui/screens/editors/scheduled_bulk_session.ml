@@ -333,14 +333,7 @@ let screen ~dimensions:((width, height) as dimensions) ~width_of session =
   else
     let rows =
       if (not session.selecting) && session.preview_plans = None then
-        Panel.frame_rows ~width_of ~width
-          ~height:(max 0 (height - 1))
-          ~focused:true ~title:(Form.title session.form)
-          (Form.render_rows
-             ~width:(max 0 (width - 6))
-             ~height:(Panel.capacity ~height:(max 0 (height - 1)) ~heading:false)
-             ~width_of session.form)
-        @ [ (O.Status, O.clip_text ~width_of width session.notice) ]
+        Form.render_panel ~status:session.notice ~width_of ~width ~height session.form
       else
         let content, view = viewport ~dimensions ~width_of session in
         let frame =

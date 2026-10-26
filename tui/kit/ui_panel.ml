@@ -119,6 +119,14 @@ let frame_rows ?(inset = 2) ?bottom_label ~width_of ~width ~height ~focused ~tit
             (style, text))
         painted
 
+let preview ~width_of ~width ~height ~title ~scroll ~notice ~action rows =
+  frame ~width_of ~width ~height:(max 0 (height - 2)) ~focused:true ~title ~scroll ~selected:None
+    rows
+  @ [
+      (O.Status, O.clip_text ~width_of width notice);
+      (O.Active, O.clip_text ~width_of width action);
+    ]
+
 let split_widths width =
   if width < 80 then (width, width)
   else

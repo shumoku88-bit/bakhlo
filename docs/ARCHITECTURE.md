@@ -25,6 +25,10 @@ Dependencies point inward only. `lib/`, `book_txt/` and `sexp/` are pure: no clo
 filesystem, randomness or global state; every input is an explicit immutable value.
 File I/O lives in `store/` and `tui/shell`; terminal effects in `tui/app`.
 
+Matching editor layouts share `Ui_form.render_panel` for forms and
+`Ui_panel.preview` for previews with notice/action rows. These helpers only own
+frame geometry; each editor keeps its content, actions and terminal-size guards.
+
 ## What enforces it
 
 - Dune libraries: an undeclared dependency does not compile (`implicit_transitive_deps
