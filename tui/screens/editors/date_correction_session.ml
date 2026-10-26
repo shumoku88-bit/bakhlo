@@ -44,19 +44,11 @@ let viewport ~dimensions:(width, height) ~width_of t =
     ]
     |> List.concat_map (O.wrap_text ~width_of (max 1 (width - 6)))
   in
-  let view =
-    Panel.window
-      ~capacity:(Panel.capacity ~height:(max 0 (height - 2)) ~heading:false)
-      ~count:(List.length rows) ~scroll:t.scroll ~selected:None
-  in
-  (rows, view)
+  (rows, Panel.preview_window ~height ~count:(List.length rows) ~scroll:t.scroll ())
 
 let handle ~blocked ~dimensions:((width, height) as dimensions) ~width_of t input =
   let _, view = viewport ~dimensions ~width_of t in
   let t = { t with scroll = view.start } in
-  let move delta =
-    Updated { t with scroll = Panel.move ~last:view.last ~position:view.start delta }
-  in
   match input with
   | `Key (`ASCII ('q' | 'Q'), []) -> Closed
   | `Key (`Escape, []) -> if t.preview then Updated (edit t) else Closed
@@ -79,12 +71,8 @@ let handle ~blocked ~dimensions:((width, height) as dimensions) ~width_of t inpu
                   }
             | _ -> Updated (with_notice t "Enter a real Gregorian date.")))
   | `Key (`ASCII ('e' | 'E'), []) -> Updated (edit t)
-  | `Key ((`Arrow `Up | `ASCII 'k'), []) -> move (-1)
-  | `Key ((`Arrow `Down | `ASCII 'j'), []) -> move 1
-  | `Key (`Page `Up, []) -> move (-max 1 view.capacity)
-  | `Key (`Page `Down, []) -> move (max 1 view.capacity)
-  | `Key (`Home, []) -> Updated { t with scroll = 0 }
-  | `Key (`End, []) -> Updated { t with scroll = view.last }
+  | `Key ((`Arrow (`Up | `Down) | `ASCII ('j' | 'k') | `Page _ | `Home | `End), []) ->
+      Updated { t with scroll = Panel.review_scroll view input }
   | `Key (`Enter, []) ->
       if blocked then Updated (with_notice t "Writes stopped; date retained.")
       else if width < 46 || height < 14 || view.capacity = 0 then

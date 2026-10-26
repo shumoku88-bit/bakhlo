@@ -104,15 +104,12 @@ let help_form () =
       "  p: print preview   ?: this help   Esc/q: Home";
     ]
 
-(* The body plan, shared by the renderer and the handler's row count. *)
-type content = Body of string * (O.style * string) list | Block of string * (O.style * string) list
-
 let content (env : Screen.env) (geometry : Screen.geometry) t =
   let width, _ = geometry.content in
   let width_of = geometry.width_of in
   match result env t with
   | Ok rep ->
-      Body
+      Frame.Body
         ( Printf.sprintf "Stock–Flow • %s (%s)" (IncExp.preset_label t.report.preset) rep.measure,
           StockFlow.render_summary_lines ~width:(max 0 (width - 4)) ~width_of ~book:env.book
             ~report:rep )
@@ -126,68 +123,53 @@ let content (env : Screen.env) (geometry : Screen.geometry) t =
       let wrap style text =
         List.map (fun line -> (style, line)) (O.wrap_text ~width_of (max 1 (width - 6)) text)
       in
-      Block
+      Frame.Block
         ( "Stock–Flow · Unavailable",
           (O.Heading, Ui_text.tr "Stock–Flow unavailable:")
           :: wrap O.Plain why @ wrap O.Chrome remedy )
 
-let row_count (env : Screen.env) geometry t =
-  match content env geometry t with Body (_, rows) -> List.length rows | Block _ -> 0
-
 let handle (env : Screen.env) geometry t input =
   let stay t = (t, Screen.Stay) in
   let capacity = Frame.capacity geometry in
-  match t.preview with
-  | Some form -> stay { t with preview = P.handle_preview form input }
+  match P.handle_overlays ~preview:t.preview ~help:t.help input with
+  | Some (preview, help) -> stay { t with preview; help }
   | None -> (
-      match t.help with
-      | Some form -> (
-          match input with
-          | `Key (`ASCII '?', []) -> stay { t with help = None }
-          | _ -> stay { t with help = P.handle_preview form input })
+      match
+        Frame.handle ~count:(Frame.count (content env geometry t)) ~capacity t.frame input
+      with
+      | Some frame -> stay { t with frame }
       | None -> (
-          match Frame.handle ~count:(row_count env geometry t) ~capacity t.frame input with
-          | Some frame -> stay { t with frame }
-          | None -> (
-              let reset = Frame.create in
-              match P.lowercase input with
-              | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
-              | Some (`ASCII '?', []) -> stay { t with help = Some (help_form ()) }
-              | Some (`ASCII ('1' .. '5' as c), []) ->
+          let reset = Frame.create in
+          match P.lowercase input with
+          | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
+          | Some (`ASCII '?', []) -> stay { t with help = Some (help_form ()) }
+          | Some (`ASCII ('1' .. '5' as c), []) ->
+              stay
+                { t with frame = reset; report = { preset = P.preset_of_key c; period_offset = 0 } }
+          | Some (`ASCII (('[' | ']') as c), []) ->
+              let delta = if c = '[' then -1 else 1 in
+              stay
+                {
+                  t with
+                  frame = reset;
+                  report = { t.report with period_offset = t.report.period_offset + delta };
+                }
+          | Some (`ASCII 'p', []) -> (
+              match result env t with
+              | Ok rep ->
+                  let lines = StockFlow.print_summary ~book:env.book ~report:rep in
                   stay
                     {
                       t with
-                      frame = reset;
-                      report = { preset = P.preset_of_key c; period_offset = 0 };
+                      preview =
+                        Some
+                          (P.print_form ~id:"stock_flow_print_preview"
+                             ~title:"Stock–Flow / Print Preview" lines);
                     }
-              | Some (`ASCII (('[' | ']') as c), []) ->
-                  let delta = if c = '[' then -1 else 1 in
-                  stay
-                    {
-                      t with
-                      frame = reset;
-                      report = { t.report with period_offset = t.report.period_offset + delta };
-                    }
-              | Some (`ASCII 'p', []) -> (
-                  match result env t with
-                  | Ok rep ->
-                      let lines = StockFlow.print_summary ~book:env.book ~report:rep in
-                      stay
-                        {
-                          t with
-                          preview =
-                            Some
-                              (P.print_form ~id:"stock_flow_print_preview"
-                                 ~title:"Stock–Flow / Print Preview" lines);
-                        }
-                  | Error why -> (t, Screen.Message why))
-              | _ -> (t, Screen.Ignored))))
+              | Error why -> (t, Screen.Message why))
+          | _ -> (t, Screen.Ignored)))
 
-let rows (env : Screen.env) (geometry : Screen.geometry) t =
-  match content env geometry t with
-  | Block (title, rows) -> Frame.block ~geometry ~title rows
-  | Body (title, rows) ->
-      Frame.body ~geometry ~count:(List.length rows) ~title t.frame rows
+let rows env geometry t = Frame.rows ~geometry t.frame (content env geometry t)
 
 let view env geometry t =
   let overlay = match t.preview with Some _ -> t.preview | None -> t.help in

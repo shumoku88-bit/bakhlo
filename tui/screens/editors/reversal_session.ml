@@ -68,21 +68,13 @@ let review_rows t =
 
 let viewport ~dimensions:(width, height) ~width_of t =
   let rows = List.concat_map (O.wrap_text ~width_of (max 1 (width - 6))) (review_rows t) in
-  let view =
-    Panel.window
-      ~capacity:(Panel.capacity ~height:(max 0 (height - 2)) ~heading:false)
-      ~count:(List.length rows) ~scroll:t.scroll ~selected:None
-  in
-  (rows, view)
+  (rows, Panel.preview_window ~height ~count:(List.length rows) ~scroll:t.scroll ())
 
 let with_notice t notice = { t with form = Form.set_notice t.form (tr notice) }
 
 let handle ~blocked ~dimensions:((width, height) as dimensions) ~width_of t input =
   let _, view = viewport ~dimensions ~width_of t in
   let t = { t with scroll = view.start } in
-  let move delta =
-    Updated { t with scroll = Panel.move ~last:view.last ~position:view.start delta }
-  in
   match input with
   | `Key (`ASCII ('q' | 'Q'), []) -> Closed
   | `Key (`Escape, []) -> if t.preview then Updated (edit t) else Closed
@@ -111,12 +103,9 @@ let handle ~blocked ~dimensions:((width, height) as dimensions) ~width_of t inpu
   | `Key ((`Tab | `Arrow `Right), []) -> Updated { t with action = (t.action + 1) mod 3 }
   | `Key (`Tab, [ `Shift ]) | `Key (`Arrow `Left, []) ->
       Updated { t with action = (t.action + 2) mod 3 }
-  | `Key ((`Arrow `Up | `ASCII 'k'), []) -> move (-1)
-  | `Key ((`Arrow `Down | `ASCII 'j'), []) -> move 1
-  | `Key (`Page `Up, []) | `Key (`ASCII 'u', [ `Ctrl ]) -> move (-max 1 view.capacity)
-  | `Key (`Page `Down, []) | `Key (`ASCII 'd', [ `Ctrl ]) -> move (max 1 view.capacity)
-  | `Key (`Home, []) -> Updated { t with scroll = 0 }
-  | `Key (`End, []) -> Updated { t with scroll = view.last }
+  | `Key ((`Arrow (`Up | `Down) | `ASCII ('j' | 'k') | `Page _ | `Home | `End), [])
+  | `Key (`ASCII ('u' | 'd'), [ `Ctrl ]) ->
+      Updated { t with scroll = Panel.review_scroll view input }
   | `Key (`Enter, []) ->
       if t.action = 1 then Updated (edit t)
       else if t.action = 2 then Closed

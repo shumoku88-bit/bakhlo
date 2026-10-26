@@ -127,6 +127,20 @@ let preview ~width_of ~width ~height ~title ~scroll ~notice ~action rows =
       (O.Active, O.clip_text ~width_of width action);
     ]
 
+let preview_window ?selected ~height ~count ~scroll () =
+  window ~capacity:(capacity ~height:(max 0 (height - 2)) ~heading:false) ~count ~scroll ~selected
+
+let review_scroll view input =
+  let move delta = move ~last:view.last ~position:view.start delta in
+  match input with
+  | `Key ((`Arrow `Up | `ASCII 'k'), []) -> move (-1)
+  | `Key ((`Arrow `Down | `ASCII 'j'), []) -> move 1
+  | `Key (`Page `Up, []) | `Key (`ASCII 'u', [ `Ctrl ]) -> move (-max 1 view.capacity)
+  | `Key (`Page `Down, []) | `Key (`ASCII 'd', [ `Ctrl ]) -> move (max 1 view.capacity)
+  | `Key (`Home, []) -> 0
+  | `Key (`End, []) -> view.last
+  | _ -> view.start
+
 let split_widths width =
   if width < 80 then (width, width)
   else

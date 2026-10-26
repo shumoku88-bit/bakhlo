@@ -73,17 +73,10 @@ let handle ~dimensions:((width, height) as dimensions) ~width_of t input =
   if t.reviewing then
     let _, view = viewport ~dimensions ~width_of t in
     let t = { t with scroll = view.start } in
-    let move delta =
-      Updated { t with scroll = Panel.move ~last:view.last ~position:view.start delta }
-    in
     match input with
     | `Key ((`Escape | `ASCII 'q'), []) -> Updated { t with reviewing = false; scroll = 0 }
-    | `Key ((`Arrow `Up | `ASCII 'k'), []) -> move (-1)
-    | `Key ((`Arrow `Down | `ASCII 'j'), []) -> move 1
-    | `Key (`Page `Up, []) -> move (-max 1 view.capacity)
-    | `Key (`Page `Down, []) -> move (max 1 view.capacity)
-    | `Key (`Home, []) -> Updated { t with scroll = 0 }
-    | `Key (`End, []) -> Updated { t with scroll = view.last }
+    | `Key ((`Arrow (`Up | `Down) | `ASCII ('j' | 'k') | `Page _ | `Home | `End), []) ->
+        Updated { t with scroll = Panel.review_scroll view input }
     | _ -> Updated t
   else
     match input with

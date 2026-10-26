@@ -112,52 +112,46 @@ let handle (env : Screen.env) geometry t input =
                    ~title:"Transactions Flow / Print Preview" lines);
           }
   in
-  match t.preview with
-  | Some form -> stay { t with preview = P.handle_preview form input }
+  match P.handle_overlays ~preview:t.preview ~help:t.help input with
+  | Some (preview, help) -> stay { t with preview; help }
   | None -> (
-      match t.help with
-      | Some form -> (
-          match input with
-          | `Key (`ASCII '?', []) -> stay { t with help = None }
-          | _ -> stay { t with help = P.handle_preview form input })
-      | None ->
-          let leave_detail = stay { t with detail = false; detail_frame = Frame.create } in
-          if t.detail then
-            match
-              Frame.handle ~count:(detail_count env geometry t) ~capacity:(Frame.capacity geometry)
-                t.detail_frame input
-            with
-            | Some detail_frame -> stay { t with detail_frame }
-            | None -> (
-                match P.lowercase input with
-                | Some ((`Escape | `ASCII 'q' | `ASCII 'i' | `Tab | `Enter), _) -> leave_detail
-                | Some (`ASCII '?', []) -> stay { t with help = Some (help_form ()) }
-                | Some (`ASCII 'p', []) -> print ()
-                | Some (`ASCII ('1' .. '5' as c), []) -> period (P.preset_of_key c) 0
-                | Some (`ASCII (('[' | ']') as c), []) ->
-                    period t.report.preset (t.report.period_offset + if c = '[' then -1 else 1)
-                | _ -> (t, Screen.Ignored))
-          else
+      let leave_detail = stay { t with detail = false; detail_frame = Frame.create } in
+      if t.detail then
+        match
+          Frame.handle ~count:(detail_count env geometry t) ~capacity:(Frame.capacity geometry)
+            t.detail_frame input
+        with
+        | Some detail_frame -> stay { t with detail_frame }
+        | None -> (
             match P.lowercase input with
-            | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
+            | Some ((`Escape | `ASCII 'q' | `ASCII 'i' | `Tab | `Enter), _) -> leave_detail
             | Some (`ASCII '?', []) -> stay { t with help = Some (help_form ()) }
             | Some (`ASCII 'p', []) -> print ()
             | Some (`ASCII ('1' .. '5' as c), []) -> period (P.preset_of_key c) 0
             | Some (`ASCII (('[' | ']') as c), []) ->
                 period t.report.preset (t.report.period_offset + if c = '[' then -1 else 1)
-            | Some ((`ASCII 'j' | `Arrow `Down), []) -> select 1
-            | Some ((`ASCII 'k' | `Arrow `Up), []) -> select (-1)
-            | Some (`Page `Down, []) | Some (`ASCII 'd', [ `Ctrl ]) ->
-                select (max 1 (Frame.capacity geometry - 1))
-            | Some (`Page `Up, []) | Some (`ASCII 'u', [ `Ctrl ]) ->
-                select (-(max 1 (Frame.capacity geometry - 1)))
-            | Some (`Home, []) | Some (`ASCII 'g', []) ->
-                stay { t with report = { t.report with selected_row = 0 } }
-            | Some (`End, []) | Some (`ASCII 'G', []) ->
-                stay { t with report = { t.report with selected_row = Frame.clamp_index ~count:count max_int } }
-            | Some ((`Enter | `ASCII 'i' | `Tab), _) ->
-                stay { t with detail = true; detail_frame = Frame.create }
             | _ -> (t, Screen.Ignored))
+      else
+        match P.lowercase input with
+        | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
+        | Some (`ASCII '?', []) -> stay { t with help = Some (help_form ()) }
+        | Some (`ASCII 'p', []) -> print ()
+        | Some (`ASCII ('1' .. '5' as c), []) -> period (P.preset_of_key c) 0
+        | Some (`ASCII (('[' | ']') as c), []) ->
+            period t.report.preset (t.report.period_offset + if c = '[' then -1 else 1)
+        | Some ((`ASCII 'j' | `Arrow `Down), []) -> select 1
+        | Some ((`ASCII 'k' | `Arrow `Up), []) -> select (-1)
+        | Some (`Page `Down, []) | Some (`ASCII 'd', [ `Ctrl ]) ->
+            select (max 1 (Frame.capacity geometry - 1))
+        | Some (`Page `Up, []) | Some (`ASCII 'u', [ `Ctrl ]) ->
+            select (-(max 1 (Frame.capacity geometry - 1)))
+        | Some (`Home, []) | Some (`ASCII 'g', []) ->
+            stay { t with report = { t.report with selected_row = 0 } }
+        | Some (`End, []) | Some (`ASCII 'G', []) ->
+            stay { t with report = { t.report with selected_row = Frame.clamp_index ~count:count max_int } }
+        | Some ((`Enter | `ASCII 'i' | `Tab), _) ->
+            stay { t with detail = true; detail_frame = Frame.create }
+        | _ -> (t, Screen.Ignored))
 
 let table ~geometry ~width ~title ~count ~selected rows =
   let capacity = Frame.capacity geometry in

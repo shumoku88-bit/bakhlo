@@ -50,3 +50,14 @@ let view_of ~title ~(geometry : Screen.geometry) ~rows ~footer preview : Screen.
     overlay;
     cursor = Option.bind overlay (fun frame -> frame.Ui_overlay.cursor);
   }
+
+(* An open print preview takes every key first, then an open help, which [?] also
+   closes. The new (preview, help) pair, or [None] when neither is open. *)
+let handle_overlays ~preview ~help input =
+  match (preview, help) with
+  | Some form, _ -> Some (handle_preview form input, help)
+  | None, Some form -> (
+      match input with
+      | `Key (`ASCII '?', []) -> Some (None, None)
+      | _ -> Some (None, handle_preview form input))
+  | None, None -> None

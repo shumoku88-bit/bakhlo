@@ -211,20 +211,14 @@ let viewport ~dimensions:(width, height) ~width_of session =
                lines)
              candidate_rows)
   in
-  let view =
-    Panel.window
-      ~capacity:(Panel.capacity ~height:(max 0 (height - 2)) ~heading:false)
-      ~count:(List.length rows) ~scroll:session.scroll ~selected:!selected_line
-  in
-  (rows, view)
+  ( rows,
+    Panel.preview_window ?selected:!selected_line ~height ~count:(List.length rows)
+      ~scroll:session.scroll () )
 
 let handle ~blocked ~dimensions:((width, height) as dimensions) ~width_of session input =
   let _, view = viewport ~dimensions ~width_of session in
   let session = { session with scroll = view.start } in
   let updated session = Updated session in
-  let move amount =
-    Updated { session with scroll = Panel.move ~last:view.last ~position:view.start amount }
-  in
   match input with
   | `Key ((`Escape | `ASCII 'q' | `ASCII 'Q'), []) ->
       if session.preview_plans <> None then
@@ -236,12 +230,8 @@ let handle ~blocked ~dimensions:((width, height) as dimensions) ~width_of sessio
           updated { session with choice = (session.choice + 1) mod 3 }
       | `Key (`Tab, [ `Shift ]) | `Key (`Arrow `Left, []) ->
           updated { session with choice = (session.choice + 2) mod 3 }
-      | `Key (`ASCII 'j', []) | `Key (`Arrow `Down, []) -> move 1
-      | `Key (`ASCII 'k', []) | `Key (`Arrow `Up, []) -> move (-1)
-      | `Key (`Page `Up, []) -> move (-max 1 view.capacity)
-      | `Key (`Page `Down, []) -> move (max 1 view.capacity)
-      | `Key (`Home, []) -> updated { session with scroll = 0 }
-      | `Key (`End, []) -> updated { session with scroll = view.last }
+      | `Key ((`Arrow (`Up | `Down) | `ASCII ('j' | 'k') | `Page _ | `Home | `End), []) ->
+          updated { session with scroll = Panel.review_scroll view input }
       | `Key (`Enter, []) -> (
           if session.choice = 0 then updated { session with preview_plans = None; scroll = 0 }
           else if session.choice = 2 then Closed

@@ -97,3 +97,15 @@ let block ~geometry ~title rows =
   in
   Ui_panel.frame_rows ~inset:0 ~width_of:geometry.width_of ~width ~height ~focused:true ~title
     shown
+
+(* A report's body plan, shared by the renderer and the handler's row count:
+   scrollable rows, or a fixed block (refusals). *)
+type content =
+  | Body of string * (Ui_render.style * string) list
+  | Block of string * (Ui_render.style * string) list
+
+let count = function Body (_, rows) -> List.length rows | Block _ -> 0
+
+let rows ~geometry t = function
+  | Block (title, rows) -> block ~geometry ~title rows
+  | Body (title, rows) -> body ~geometry ~count:(List.length rows) ~title t rows

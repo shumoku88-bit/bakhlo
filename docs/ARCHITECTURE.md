@@ -26,8 +26,11 @@ filesystem, randomness or global state; every input is an explicit immutable val
 File I/O lives in `store/` and `tui/shell`; terminal effects in `tui/app`.
 
 Matching editor layouts share `Ui_form.render_panel` for forms and
-`Ui_panel.preview` for previews with notice/action rows. These helpers only own
-frame geometry; each editor keeps its content, actions and terminal-size guards.
+`Ui_panel.preview` for previews with notice/action rows, and `Ui_panel.preview_window`
+/ `review_scroll` for the review's window and scroll keys. These helpers only own
+frame geometry and scrolling; each editor keeps its content, actions, key set and
+terminal-size guards. Report screens share `Report_frame.content` (scrollable body
+or refusal block) and `Report_period.handle_overlays` (print preview, then help).
 
 ## What enforces it
 

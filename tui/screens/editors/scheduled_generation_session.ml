@@ -443,18 +443,12 @@ let preview_rows t plans =
 let viewport ~dimensions:(width, height) ~width_of t =
   let rows = match t.generated with Some plans -> preview_rows t plans | None -> [] in
   let wrapped = List.concat_map (O.wrap_text ~width_of (max 1 (width - 6))) rows in
-  let view =
-    Panel.window
-      ~capacity:(Panel.capacity ~height:(max 0 (height - 2)) ~heading:false)
-      ~count:(List.length wrapped) ~scroll:t.scroll ~selected:None
-  in
-  (wrapped, view)
+  (wrapped, Panel.preview_window ~height ~count:(List.length wrapped) ~scroll:t.scroll ())
 
 let handle ~new_id ~blocked ~dimensions:((width, height) as dims) ~width_of t input =
   let _, view = viewport ~dimensions:dims ~width_of t in
   let t = { t with scroll = view.start } in
   let updated t = Updated t in
-  let move n = Updated { t with scroll = Panel.move ~last:view.last ~position:view.start n } in
   match (t.generated, t.kind) with
   | None, Extend e -> handle_extend ~new_id t e input
   | Some _, _ -> (
@@ -464,12 +458,8 @@ let handle ~new_id ~blocked ~dimensions:((width, height) as dims) ~width_of t in
       | `Key ((`Tab | `Arrow `Right), []) -> updated { t with choice = (t.choice + 1) mod 2 }
       | `Key (`Tab, [ `Shift ]) | `Key (`Arrow `Left, []) ->
           updated { t with choice = (t.choice + 1) mod 2 }
-      | `Key (`ASCII 'j', []) | `Key (`Arrow `Down, []) -> move 1
-      | `Key (`ASCII 'k', []) | `Key (`Arrow `Up, []) -> move (-1)
-      | `Key (`Page `Up, []) -> move (-max 1 view.capacity)
-      | `Key (`Page `Down, []) -> move (max 1 view.capacity)
-      | `Key (`Home, []) -> updated { t with scroll = 0 }
-      | `Key (`End, []) -> updated { t with scroll = view.last }
+      | `Key ((`Arrow (`Up | `Down) | `ASCII ('j' | 'k') | `Page _ | `Home | `End), []) ->
+          updated { t with scroll = Panel.review_scroll view input }
       | `Key (`Enter, []) -> (
           if t.choice = 0 then Closed
           else if blocked then

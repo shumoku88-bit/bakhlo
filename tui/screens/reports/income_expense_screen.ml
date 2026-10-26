@@ -87,16 +87,12 @@ let compare_reports (env : Screen.env) t (current : IncExp.period) (rep : IncExp
     in
     collect 6 t.report.period_offset []
 
-type content =
-  | Body of string * (Daily_overlays.style * string) list
-  | Block of string * (Daily_overlays.style * string) list
-
 let content (env : Screen.env) (geometry : Screen.geometry) t =
   let width, _ = geometry.content in
   let width_of = geometry.width_of in
   match P.checked env t.report.preset t.report.period_offset with
   | Error why ->
-      Block
+      Frame.Block
         ( "Income & Expense · Period Unavailable",
           [
             (Daily_overlays.Heading, Ui_text.tr "Report period unavailable:");
@@ -106,7 +102,7 @@ let content (env : Screen.env) (geometry : Screen.geometry) t =
   | Ok period -> (
       match report env period with
       | Error why ->
-          Block
+          Frame.Block
             ( "Income & Expense · Accounting Roles Unavailable",
               [
                 (Daily_overlays.Heading, Ui_text.tr "Income & Expense unavailable:");
@@ -115,20 +111,18 @@ let content (env : Screen.env) (geometry : Screen.geometry) t =
               ] )
       | Ok rep ->
           if t.compare then
-            Body
+            Frame.Body
               ( "Income & Expense • Compare",
                 IncExp.render_compare_lines ~width:(max 0 (width - 4)) ~width_of ~book:env.book
                   ~today:env.today
                   ~reports:(compare_reports env t period rep) )
           else
             let previous, previous_full = previous_pair env t period in
-            Body
+            Frame.Body
               ( Printf.sprintf "Income & Expense • %s" (IncExp.preset_label t.report.preset),
                 IncExp.render_report_lines ~width:(max 0 (width - 4)) ~width_of ~book:env.book
                   ~report:rep ~today:env.today ~previous ~previous_full ))
 
-let row_count (env : Screen.env) geometry t =
-  match content env geometry t with Body (_, rows) -> List.length rows | Block _ -> 0
 
 let help_form () =
   Frame.help_form ~title:"Income & Expense / Help"
@@ -158,61 +152,49 @@ let help_form () =
 let handle (env : Screen.env) geometry t input =
   let stay t = (t, Screen.Stay) in
   let capacity = Frame.capacity geometry in
-  match t.preview with
-  | Some form -> stay { t with preview = P.handle_preview form input }
+  match P.handle_overlays ~preview:t.preview ~help:t.help input with
+  | Some (preview, help) -> stay { t with preview; help }
   | None -> (
-      match t.help with
-      | Some form -> (
-          match input with
-          | `Key (`ASCII '?', []) -> stay { t with help = None }
-          | _ -> stay { t with help = P.handle_preview form input })
+      match
+        Frame.handle ~count:(Frame.count (content env geometry t)) ~capacity t.frame input
+      with
+      | Some frame -> stay { t with frame }
       | None -> (
-          match Frame.handle ~count:(row_count env geometry t) ~capacity t.frame input with
-          | Some frame -> stay { t with frame }
-          | None -> (
-              let reset = Frame.create in
-              match P.lowercase input with
-              | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
-              | Some (`ASCII '?', []) -> stay { t with help = Some (help_form ()) }
-              | Some (`ASCII 'c', []) -> stay { t with compare = not t.compare; frame = reset }
-              | Some (`ASCII ('1' .. '5' as c), []) ->
-                  stay
-                    {
-                      t with
-                      frame = reset;
-                      report = { preset = P.preset_of_key c; period_offset = 0 };
-                    }
-              | Some (`ASCII (('[' | ']') as c), []) ->
-                  let delta = if c = '[' then -1 else 1 in
-                  stay
-                    {
-                      t with
-                      frame = reset;
-                      report = { t.report with period_offset = t.report.period_offset + delta };
-                    }
-              | Some (`ASCII 'p', []) -> (
-                  match P.checked env t.report.preset t.report.period_offset with
+          let reset = Frame.create in
+          match P.lowercase input with
+          | Some ((`Escape | `ASCII 'q'), []) -> (t, Screen.Home)
+          | Some (`ASCII '?', []) -> stay { t with help = Some (help_form ()) }
+          | Some (`ASCII 'c', []) -> stay { t with compare = not t.compare; frame = reset }
+          | Some (`ASCII ('1' .. '5' as c), []) ->
+              stay
+                { t with frame = reset; report = { preset = P.preset_of_key c; period_offset = 0 } }
+          | Some (`ASCII (('[' | ']') as c), []) ->
+              let delta = if c = '[' then -1 else 1 in
+              stay
+                {
+                  t with
+                  frame = reset;
+                  report = { t.report with period_offset = t.report.period_offset + delta };
+                }
+          | Some (`ASCII 'p', []) -> (
+              match P.checked env t.report.preset t.report.period_offset with
+              | Error why -> (t, Screen.Message why)
+              | Ok period -> (
+                  match report env period with
                   | Error why -> (t, Screen.Message why)
-                  | Ok period -> (
-                      match report env period with
-                      | Error why -> (t, Screen.Message why)
-                      | Ok rep ->
-                          let lines = IncExp.print_summary ~book:env.book ~report:rep in
-                          stay
-                            {
-                              t with
-                              preview =
-                                Some
-                                  (P.print_form ~id:"income_expense_print_preview"
-                                     ~title:"Income & Expense / Print Preview" lines);
-                            }))
-              | _ -> (t, Screen.Ignored))))
+                  | Ok rep ->
+                      let lines = IncExp.print_summary ~book:env.book ~report:rep in
+                      stay
+                        {
+                          t with
+                          preview =
+                            Some
+                              (P.print_form ~id:"income_expense_print_preview"
+                                 ~title:"Income & Expense / Print Preview" lines);
+                        }))
+          | _ -> (t, Screen.Ignored)))
 
-let rows (env : Screen.env) (geometry : Screen.geometry) t =
-  match content env geometry t with
-  | Block (title, rows) -> Frame.block ~geometry ~title rows
-  | Body (title, rows) ->
-      Frame.body ~geometry ~count:(List.length rows) ~title t.frame rows
+let rows env geometry t = Frame.rows ~geometry t.frame (content env geometry t)
 
 let view env geometry t =
   let overlay = match t.preview with Some _ -> t.preview | None -> t.help in
