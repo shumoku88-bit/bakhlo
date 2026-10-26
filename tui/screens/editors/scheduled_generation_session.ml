@@ -474,41 +474,29 @@ let handle ~new_id ~blocked ~dimensions:((width, height) as dims) ~width_of t in
             | None -> updated t)
       | _ -> updated t)
   | None, General form -> (
+      let generate t =
+        match validate_and_generate ~new_id t with
+        | Error message -> updated { t with notice = message }
+        | Ok (through_day, cadence, plans) ->
+            updated
+              {
+                t with
+                generated = Some plans;
+                through_day;
+                cadence;
+                choice = 0;
+                scroll = 0;
+                notice = "";
+              }
+      in
       match input with
       | `Key ((`Escape | `ASCII 'q' | `ASCII 'Q'), []) -> Closed
-      | `Key (`Enter, []) -> (
-          match validate_and_generate ~new_id t with
-          | Error message -> updated { t with notice = message }
-          | Ok (through_day, cadence, plans) ->
-              updated
-                {
-                  t with
-                  generated = Some plans;
-                  through_day;
-                  cadence;
-                  choice = 0;
-                  scroll = 0;
-                  notice = "";
-                })
+      | `Key (`Enter, []) -> generate t
       | _ -> (
           match Form.handle_input form input with
           | Form.Cancel -> Closed
           | Form.Updated form -> updated { t with kind = General form; notice = "" }
-          | Form.Submit form -> (
-              let t = { t with kind = General form } in
-              match validate_and_generate ~new_id t with
-              | Error message -> updated { t with notice = message }
-              | Ok (through_day, cadence, plans) ->
-                  updated
-                    {
-                      t with
-                      generated = Some plans;
-                      through_day;
-                      cadence;
-                      choice = 0;
-                      scroll = 0;
-                      notice = "";
-                    })))
+          | Form.Submit form -> generate { t with kind = General form }))
 
 let footer t =
   match (t.generated, t.kind) with

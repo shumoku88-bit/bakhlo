@@ -487,15 +487,7 @@ let handle_screen (env : Screen.env) geometry t input =
         | None when paging -> history_page geometry
         | None -> 1
       in
-      let delta =
-        match k with
-        | `Home -> -max_int
-        | `End -> max_int
-        | `Page `Up | `ASCII 'u' -> -page
-        | `Page `Down | `ASCII 'd' -> page
-        | `ASCII 'k' | `Arrow `Up -> -1
-        | _ -> 1
-      in
+      let delta = Ui_input.motion_delta ~page k in
       match view with
       | Some view ->
           ({ t with scroll = Panel.move ~last:view.last ~position:view.start delta }, Screen.Stay)

@@ -141,11 +141,15 @@ let handle_input t (input : Ui_input.input) : event =
       let next = (t.focused + delta + count) mod count in
       Updated { t with focused = next }
   in
+  let primary () =
+    match primary_button t with Some (b : button) when b.is_cancel -> Cancel | _ -> Submit t
+  in
+  (* Enter on the last editable field acts as the primary button; elsewhere it advances. *)
+  let enter () = if is_last_editable_field t t.focused then primary () else move_focus 1 in
   match input with
   | `Key (`Escape, []) -> Cancel
   | `Key (`ASCII ('q' | 'Q'), []) when not (is_focused_on_text t) -> Cancel
-  | `Key (`Enter, [ `Ctrl ]) -> (
-      match primary_button t with Some (b : button) when b.is_cancel -> Cancel | _ -> Submit t)
+  | `Key (`Enter, [ `Ctrl ]) -> primary ()
   | `Key (`Tab, [ `Shift ]) -> move_focus (-1)
   | `Key (`Tab, []) -> move_focus 1
   | _ -> (
@@ -157,12 +161,7 @@ let handle_input t (input : Ui_input.input) : event =
               match input with
               | `Key (`Arrow `Up, []) -> move_focus (-1)
               | `Key (`Arrow `Down, []) -> move_focus 1
-              | `Key (`Enter, []) ->
-                  if is_last_editable_field t t.focused then
-                    match primary_button t with
-                    | Some (b : button) when b.is_cancel -> Cancel
-                    | _ -> Submit t
-                  else move_focus 1
+              | `Key (`Enter, []) -> enter ()
               | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
                   let updated = value ^ String.make 1 c in
                   Updated (set_text { t with notice = "" } field.id updated)
@@ -186,12 +185,7 @@ let handle_input t (input : Ui_input.input) : event =
               | `Key (`Arrow `Down, []) -> move_focus 1
               | `Key ((`Arrow `Left | `ASCII 'h'), []) -> change_choice (-1)
               | `Key ((`Arrow `Right | `ASCII 'l'), []) | `Key (`ASCII ' ', []) -> change_choice 1
-              | `Key (`Enter, []) ->
-                  if is_last_editable_field t t.focused then
-                    match primary_button t with
-                    | Some (b : button) when b.is_cancel -> Cancel
-                    | _ -> Submit t
-                  else move_focus 1
+              | `Key (`Enter, []) -> enter ()
               | _ -> Updated t)
           | Buttons { buttons; selected } -> (
               let n = List.length buttons in

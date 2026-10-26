@@ -73,8 +73,10 @@ let add_row t ~id ?label ~debtor ~creditor ~measure ~committed ?(source_event = 
     if valid_row new_row then Ok { rows = t.rows @ [ new_row ] }
     else Error "Invalid settlement commitment."
 
-let settle_row t ~id ~amount =
-  if Z.leq amount Z.zero then Error "Settlement amount must be greater than zero."
+(* [apply] a positive [amount] no larger than the commitment's remaining balance;
+   [noun] names the amount in the refusals. *)
+let take_from_outstanding t ~id ~amount ~nonpositive ~noun apply =
+  if Z.leq amount Z.zero then Error nonpositive
   else
     match find_row t id with
     | None -> Error (Printf.sprintf "Commitment %s not found." id)
@@ -82,28 +84,20 @@ let settle_row t ~id ~amount =
         let rem = outstanding r in
         if Z.gt amount rem then
           Error
-            (Printf.sprintf "Amount %s exceeds remaining balance %s." (Z.to_string amount)
+            (Printf.sprintf "%s %s exceeds remaining balance %s." noun (Z.to_string amount)
                (Z.to_string rem))
         else
-          let updated = { r with settled = Z.add r.settled amount } in
+          let updated = apply r in
           let rows = List.map (fun x -> if String.equal x.id id then updated else x) t.rows in
           Ok { rows }
 
+let settle_row t ~id ~amount =
+  take_from_outstanding t ~id ~amount ~nonpositive:"Settlement amount must be greater than zero."
+    ~noun:"Amount" (fun r -> { r with settled = Z.add r.settled amount })
+
 let reduce_row t ~id ~amount =
-  if Z.leq amount Z.zero then Error "Reduction amount must be greater than zero."
-  else
-    match find_row t id with
-    | None -> Error (Printf.sprintf "Commitment %s not found." id)
-    | Some r ->
-        let rem = outstanding r in
-        if Z.gt amount rem then
-          Error
-            (Printf.sprintf "Reduction amount %s exceeds remaining balance %s." (Z.to_string amount)
-               (Z.to_string rem))
-        else
-          let updated = { r with extinguished = Z.add r.extinguished amount } in
-          let rows = List.map (fun x -> if String.equal x.id id then updated else x) t.rows in
-          Ok { rows }
+  take_from_outstanding t ~id ~amount ~nonpositive:"Reduction amount must be greater than zero."
+    ~noun:"Reduction amount" (fun r -> { r with extinguished = Z.add r.extinguished amount })
 
 let retract_row t ~id =
   match find_row t id with

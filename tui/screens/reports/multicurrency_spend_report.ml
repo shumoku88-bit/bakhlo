@@ -156,20 +156,14 @@ let step ~role_map (acc : acc) (entry : B.entry) =
         match entry.original_amount with
         | None -> classified
         | Some (measure, quanta) -> (
+            let witness reason : original_witness =
+              { event = entry.id; date = entry.day; measure; quanta; reason }
+            in
             match occurrence with
             | Some _ ->
                 {
                   classified with
-                  uncounted_original =
-                    ({
-                       event = entry.id;
-                       date = entry.day;
-                       measure;
-                       quanta;
-                       reason = Exchange_event;
-                     }
-                      : original_witness)
-                    :: classified.uncounted_original;
+                  uncounted_original = witness Exchange_event :: classified.uncounted_original;
                 }
             | None -> (
                 if List.exists (fun posting -> Z.sign (A.quanta posting) > 0) expense_effects then
@@ -180,29 +174,13 @@ let step ~role_map (acc : acc) (entry : B.entry) =
                       {
                         classified with
                         unresolved_original =
-                          ({
-                             event = entry.id;
-                             date = entry.day;
-                             measure;
-                             quanta;
-                             reason = Unresolved_roles;
-                           }
-                            : original_witness)
-                          :: classified.unresolved_original;
+                          witness Unresolved_roles :: classified.unresolved_original;
                       }
                   | [] ->
                       {
                         classified with
                         uncounted_original =
-                          ({
-                             event = entry.id;
-                             date = entry.day;
-                             measure;
-                             quanta;
-                             reason = No_positive_expense;
-                           }
-                            : original_witness)
-                          :: classified.uncounted_original;
+                          witness No_positive_expense :: classified.uncounted_original;
                       }))
       in
       Ok original

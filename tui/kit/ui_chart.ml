@@ -141,11 +141,10 @@ let qualified_rows ~width ~height ~values ~joins ~selected ~range ~connect ~grid
              else if List.mem row grid_rows then "┄"
              else " ")))
 
-let line_rows ~width ~height ~values ~selected ~range ~grid_rows =
-  let width = max 1 width and height = max 1 height in
+let series_sample values =
   let values = Array.of_list values in
-  let count = Array.length values in
-  let sample sub_width x =
+  fun sub_width x ->
+    let count = Array.length values in
     if count = 0 then None
     else if count = 1 || sub_width <= 1 then Some values.(0)
     else if x + 1 >= sub_width then Some values.(count - 1)
@@ -156,7 +155,12 @@ let line_rows ~width ~height ~values ~selected ~range ~grid_rows =
       let left = values.(segment) in
       let right = if segment + 1 < count then values.(segment + 1) else left in
       Some (interpolate left right (scaled mod denominator) denominator)
-  in
+
+let line_rows ~width ~height ~values ~selected ~range ~grid_rows =
+  let width = max 1 width and height = max 1 height in
+  let sample = series_sample values in
+  let values = Array.of_list values in
+  let count = Array.length values in
   let selected_x = x_for_index width count selected in
   let selected_y =
     if count = 0 then 0
@@ -207,21 +211,6 @@ let with_value_axis_spans ~width_of ~axis ~height ~scale ~label ?(note = fun _ -
 type spans = (O.style * string) list
 (** A row of styled spans: the text of the row is the concatenation of its
     spans, so one chart row can name the series each of its cells belongs to. *)
-
-let series_sample values =
-  let values = Array.of_list values in
-  fun sub_width x ->
-    let count = Array.length values in
-    if count = 0 then None
-    else if count = 1 || sub_width <= 1 then Some values.(0)
-    else if x + 1 >= sub_width then Some values.(count - 1)
-    else
-      let denominator = sub_width - 1 in
-      let scaled = x * (count - 1) in
-      let segment = scaled / denominator in
-      let left = values.(segment) in
-      let right = if segment + 1 < count then values.(segment + 1) else left in
-      Some (interpolate left right (scaled mod denominator) denominator)
 
 type owner = Line of int | Marked | Quiet
 

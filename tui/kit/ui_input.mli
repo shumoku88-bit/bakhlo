@@ -25,3 +25,7 @@ type input =
 val key_ignoring_case : input -> (key * modifier list) option
 (** The pressed key with ASCII letters lowercased, so a key works with Shift or Caps
     Lock alike; [None] for paste markers, resize, mouse and end of input. *)
+
+val motion_delta : page:int -> key -> int
+(** j/k and Up/Down, PgUp/PgDn (or u/d, as Ctrl-U/D arrive) and Home/End as a signed
+    row delta with [page] rows per page; any other key moves down one row. *)

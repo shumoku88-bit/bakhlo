@@ -434,20 +434,7 @@ let effect_amount book p =
   let measure = A.mstr (D.Effect.measure p) in
   O.format_money book measure (A.quanta p) ^ " " ^ measure
 
-(* A simple receiving amount, never a sum across split Effects or Measures. *)
-let amount_summary book (entry : B.entry) =
-  let measures =
-    List.sort_uniq String.compare (List.map (fun p -> A.mstr (D.Effect.measure p)) entry.effects)
-  in
-  let positive = List.filter (fun p -> Z.sign (A.quanta p) > 0) entry.effects
-  and negative = List.filter (fun p -> Z.sign (A.quanta p) < 0) entry.effects in
-  if List.length measures > 1 then Printf.sprintf "multi (%d)" (List.length measures)
-  else if List.length positive > 1 || List.length negative > 1 then "split"
-  else
-    match (positive, entry.effects) with
-    | p :: _, _ | [], [ p ] -> effect_amount book p
-    | [], [] -> "—"
-    | [], _ -> "see details"
+let amount_summary book entry = Record_lines.amount_summary ~format:(effect_amount book) entry
 
 let display_locus ~book token =
   let label = B.label book token in

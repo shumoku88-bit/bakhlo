@@ -153,13 +153,8 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
 
 let view env (geometry : Screen.geometry) t =
   let overlay =
-    Option.bind t.search (fun value ->
-        let body_w, _ = geometry.body in
-        Ui_overlay.form ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
-          ~pane_width:(min 54 (max 8 (body_w - 4)))
-          (Ui_form.create ~id:"search" ~title:(tr "Search Actual / Scheduled")
-             ~fields:[ Ui_form.text_field ~id:"value" ~label:"" ~value () ]
-             ~notice:(tr "Enter apply; Esc clear") ()))
+    Option.bind t.search
+      (RB.search_overlay ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body)
   in
   {
     Screen.title = tr "Selected Day";

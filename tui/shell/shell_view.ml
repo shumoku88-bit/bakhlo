@@ -210,26 +210,6 @@ type overlay_frame = Ui_overlay.frame = {
 let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state :
     overlay_frame option =
   let body_w, body_h = body_dimensions ~dimensions ~width_of state in
-  let framed_form ~pane_w form =
-    let content_width = max 0 (pane_w - 6) in
-    let form_rows =
-      Form.render_rows ~width:content_width
-        ~height:(Panel.capacity ~height:body_h ~heading:false)
-        ~width_of form
-    in
-    let pane_h = min body_h (max 5 (List.length form_rows + 2)) in
-    let rows =
-      Panel.frame_rows ~width_of ~width:pane_w ~height:pane_h ~focused:true ~title:(Form.title form)
-        form_rows
-    in
-    let origin_x = max 0 ((width - pane_w) / 2) in
-    let origin_y = max 0 ((body_h - pane_h) / 2) in
-    let cursor =
-      O.cursor_in_rows ~width_of ~width:pane_w rows
-      |> Option.map (fun (col, row) -> (origin_x + col, origin_y + row))
-    in
-    Some { origin_x; origin_y; pane_width = pane_w; pane_height = List.length rows; rows; cursor }
-  in
   if state.record_visible then
     match state.record with
     | None -> None
@@ -311,22 +291,11 @@ let resolve_overlay ~dimensions:((width, height) as dimensions) ~width_of state 
         let pane_w = min 54 (max 8 (body_w - 4)) in
         let items = List.map P.theme_label P.all_themes in
         let pane_h = min body_h (max 5 (List.length items + 2)) in
-        let rows =
-          Panel.frame ~width_of ~width:pane_w ~height:pane_h ~focused:true ~title:(tr "Theme")
-            ~scroll:0 ~selected:(Some selected) items
-        in
-        let origin_x = max 0 ((width - pane_w) / 2) in
-        let origin_y = max 0 ((body_h - pane_h) / 2) in
-        Some
-          {
-            origin_x;
-            origin_y;
-            pane_width = pane_w;
-            pane_height = List.length rows;
-            rows;
-            cursor = None;
-          }
-    | Modal_form form -> framed_form ~pane_w:(min 64 (max 8 (body_w - 4))) form
+        Panel.frame ~width_of ~width:pane_w ~height:pane_h ~focused:true ~title:(tr "Theme")
+          ~scroll:0 ~selected:(Some selected) items
+        |> Ui_overlay.centered ~width_of ~screen:dimensions ~body:(body_w, body_h)
+             ~pane_width:pane_w ~caret:`None
+    | Modal_form form -> Ui_overlay.form ~width_of ~screen:dimensions ~body:(body_w, body_h) form
     | No_overlay -> None
 
 let overlay_screen ~dimensions ~width_of state =

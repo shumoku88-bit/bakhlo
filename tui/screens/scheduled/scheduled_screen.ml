@@ -544,15 +544,6 @@ let flow ~width_of width tokens =
          | _ -> token :: lines)
        [] tokens)
 
-(* j/k, PgUp/PgDn (Ctrl-U/D) and Home/End as a signed row delta; [page] rows per page. *)
-let motion_delta ~page = function
-  | `Home -> -max_int
-  | `End -> max_int
-  | `Page `Up | `ASCII 'u' -> -page
-  | `Page `Down | `ASCII 'd' -> page
-  | `ASCII 'k' | `Arrow `Up -> -1
-  | _ -> 1
-
 let batch_latest env t =
   match latest_plan env t with
   | Some p -> (t, Screen.Record_action { action = Screen.Batch; target = Some (Screen.Plan p) })
@@ -979,7 +970,7 @@ let handle_months (env : Screen.env) (geometry : Screen.geometry) t key =
           | Some (((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)) as k), [])
           | Some ((`ASCII ('u' | 'd') as k), [ `Ctrl ]) ->
               let _, view = detail_window env geometry t in
-              let delta = motion_delta ~page:(max 1 (if detail then view.capacity else 8)) k in
+              let delta = Ui_input.motion_delta ~page:(max 1 (if detail then view.capacity else 8)) k in
               if detail then
                 stay { t with scroll = Panel.move ~last:view.last ~position:view.start delta }
               else
@@ -1051,10 +1042,10 @@ let handle_list (env : Screen.env) (geometry : Screen.geometry) t key =
           | Some ((`ASCII ('u' | 'd') as k), [ `Ctrl ]) ->
               if detail then
                 let _, view = detail_window env geometry t in
-                let delta = motion_delta ~page:view.capacity k in
+                let delta = Ui_input.motion_delta ~page:view.capacity k in
                 stay { t with scroll = Panel.move ~last:view.last ~position:view.start delta }
               else
-                let delta = motion_delta ~page:8 k in
+                let delta = Ui_input.motion_delta ~page:8 k in
                 stay (if t.pane = Loci_pane then move_loci delta else move_rows delta)
           | _ -> (t, Screen.Ignored)
 
@@ -1200,13 +1191,8 @@ let footer (geometry : Screen.geometry) t =
 let view env (geometry : Screen.geometry) t =
   let t = { t with view = current env t } in
   let overlay =
-    Option.bind t.search (fun value ->
-        let body_w, _ = geometry.body in
-        Ui_overlay.form ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
-          ~pane_width:(min 54 (max 8 (body_w - 4)))
-          (Ui_form.create ~id:"search" ~title:(tr "Search Actual / Scheduled")
-             ~fields:[ Ui_form.text_field ~id:"value" ~label:"" ~value () ]
-             ~notice:(tr "Enter apply; Esc clear") ()))
+    Option.bind t.search
+      (RB.search_overlay ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body)
   in
   {
     Screen.title =

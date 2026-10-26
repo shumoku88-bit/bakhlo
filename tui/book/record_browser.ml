@@ -98,3 +98,11 @@ let with_locus t locus = reset { t with locus }
 
 let toggle_day t ~focus_day =
   reset { t with day = (match t.day with None -> Some focus_day | Some _ -> None) }
+
+(* The search pane shared by Selected Day and Scheduled, editing [value]. *)
+let search_overlay ~width_of ~screen ~body:((body_w, _) as body) value =
+  Ui_overlay.form ~width_of ~screen ~body
+    ~pane_width:(min 54 (max 8 (body_w - 4)))
+    (Ui_form.create ~id:"search" ~title:(Ui_text.tr "Search Actual / Scheduled")
+       ~fields:[ Ui_form.text_field ~id:"value" ~label:"" ~value () ]
+       ~notice:(Ui_text.tr "Enter apply; Esc clear") ())

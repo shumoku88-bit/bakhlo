@@ -26,3 +26,11 @@ let key_ignoring_case = function
   | `Key (`ASCII c, mods) -> Some (`ASCII (Char.lowercase_ascii c), mods)
   | `Key (key, mods) -> Some (key, mods)
   | `Paste _ | `End | `Resize _ | `Mouse _ -> None
+
+let motion_delta ~page = function
+  | `Home -> -max_int
+  | `End -> max_int
+  | `Page `Up | `ASCII 'u' -> -page
+  | `Page `Down | `ASCII 'd' -> page
+  | `ASCII 'k' | `Arrow `Up -> -1
+  | _ -> 1

@@ -31,6 +31,9 @@ Matching editor layouts share `Ui_form.render_panel` for forms and
 frame geometry and scrolling; each editor keeps its content, actions, key set and
 terminal-size guards. Report screens share `Report_frame.content` (scrollable body
 or refusal block) and `Report_period.handle_overlays` (print preview, then help).
+Centred overlays go through `Ui_overlay.form` / `centered`, row motion keys through
+`Ui_input.motion_delta`, and Selected Day and Scheduled share
+`Record_browser.search_overlay`.
 
 ## What enforces it
 

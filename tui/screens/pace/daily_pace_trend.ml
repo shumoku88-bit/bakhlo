@@ -76,6 +76,16 @@ let parse_boundary_presets text =
   | Ok presets -> Ok (Boundary_presets.windows presets)
   | Error () -> Error "Malformed boundary-presets.tsv; no period was inferred."
 
+(* Every window and the one window containing [today]. *)
+let current_window ~today = function
+  | None -> Error "Period not configured (boundary-presets.tsv missing)."
+  | Some text ->
+      Result.bind (parse_boundary_presets text) (fun windows ->
+          match List.filter (fun (_, a, b) -> a <= today && today < b) windows with
+          | [ current ] -> Ok (windows, current)
+          | [] -> Error "No explicit boundary preset contains today."
+          | _ -> Error "Multiple boundary presets contain today; selection is ambiguous.")
+
 let resolve_range ~today ~preset ~boundary_presets_text =
   match preset with
   | Ten_days ->
@@ -87,42 +97,21 @@ let resolve_range ~today ~preset ~boundary_presets_text =
   | Month ->
       let start = String.sub today 0 8 ^ "01" in
       Ok (start, today, None)
-  | Cycle -> (
-      match boundary_presets_text with
-      | None -> Error "Period not configured (boundary-presets.tsv missing)."
-      | Some text -> (
-          match parse_boundary_presets text with
-          | Error e -> Error e
-          | Ok windows -> (
-              let matching = List.filter (fun (_, a, b) -> a <= today && today < b) windows in
-              match matching with
-              | [ (_, a, b) ] -> Ok (a, today, Some b)
-              | [] -> Error "No explicit boundary preset contains today."
-              | _ -> Error "Multiple boundary presets contain today; selection is ambiguous.")))
-  | Previous_cycle -> (
-      match boundary_presets_text with
-      | None -> Error "Period not configured (boundary-presets.tsv missing)."
-      | Some text -> (
-          match parse_boundary_presets text with
-          | Error e -> Error e
-          | Ok windows -> (
-              let current = List.filter (fun (_, a, b) -> a <= today && today < b) windows in
-              match current with
-              | [ (name, a, _) ] -> (
-                  let prev_through =
-                    match Cal.shift_days a (-1) with Ok d -> d | Error e -> failwith e
-                  in
-                  let prev =
-                    List.filter
-                      (fun (n, pa, pb) -> n = name && pa <= prev_through && prev_through < pb)
-                      windows
-                  in
-                  match prev with
-                  | [ (_, pa, pb) ] when pb = a -> Ok (pa, prev_through, Some pb)
-                  | _ ->
-                      Error "Previous cycle boundary is not explicitly configured or not adjacent.")
-              | [] -> Error "No explicit boundary preset contains today."
-              | _ -> Error "Multiple boundary presets contain today; selection is ambiguous.")))
+  | Cycle ->
+      Result.map
+        (fun (_, (_, a, b)) -> (a, today, Some b))
+        (current_window ~today boundary_presets_text)
+  | Previous_cycle ->
+      Result.bind (current_window ~today boundary_presets_text) (fun (windows, (name, a, _)) ->
+          let prev_through = match Cal.shift_days a (-1) with Ok d -> d | Error e -> failwith e in
+          let prev =
+            List.filter
+              (fun (n, pa, pb) -> n = name && pa <= prev_through && prev_through < pb)
+              windows
+          in
+          match prev with
+          | [ (_, pa, pb) ] when pb = a -> Ok (pa, prev_through, Some pb)
+          | _ -> Error "Previous cycle boundary is not explicitly configured or not adjacent.")
 
 let day_number text =
   match Cal.parts text with

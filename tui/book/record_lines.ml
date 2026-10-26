@@ -32,7 +32,23 @@ let row_title book = function
       let amt = B.format book plan.measure total in
       plan.day ^ "  " ^ plan.id ^ "  " ^ amt ^ " " ^ plan.measure ^ "  " ^ status
 
-let actual_amount book (entry : B.entry) =
+(* A simple receiving amount shown by [format], never a sum across split Effects or
+   Measures. *)
+let amount_summary ~format (entry : B.entry) =
+  let measures =
+    List.sort_uniq String.compare (List.map (fun p -> A.mstr (D.Effect.measure p)) entry.effects)
+  in
+  let positive = List.filter (fun p -> Z.sign (A.quanta p) > 0) entry.effects
+  and negative = List.filter (fun p -> Z.sign (A.quanta p) < 0) entry.effects in
+  if List.length measures > 1 then Printf.sprintf "multi (%d)" (List.length measures)
+  else if List.length positive > 1 || List.length negative > 1 then "split"
+  else
+    match (positive, entry.effects) with
+    | p :: _, _ | [], [ p ] -> format p
+    | [], [] -> "—"
+    | [], _ -> "see details"
+
+let actual_amount book entry =
   let format p =
     let measure = A.mstr (D.Effect.measure p) and quanta = A.quanta p in
     let amount = B.format book measure (Z.abs quanta) in
@@ -49,18 +65,7 @@ let actual_amount book (entry : B.entry) =
     ^ (match List.tl parts with [] -> "" | xs -> "." ^ String.concat "." xs)
     ^ " " ^ measure
   in
-  let measures =
-    List.sort_uniq String.compare (List.map (fun p -> A.mstr (D.Effect.measure p)) entry.effects)
-  in
-  let positive = List.filter (fun p -> Z.sign (A.quanta p) > 0) entry.effects
-  and negative = List.filter (fun p -> Z.sign (A.quanta p) < 0) entry.effects in
-  if List.length measures > 1 then Printf.sprintf "multi (%d)" (List.length measures)
-  else if List.length positive > 1 || List.length negative > 1 then "split"
-  else
-    match (positive, entry.effects) with
-    | p :: _, _ | [], [ p ] -> format p
-    | [], [] -> "—"
-    | [], _ -> "see details"
+  amount_summary ~format entry
 
 let actual_table ~width_of ~width book rows =
   let room = max 0 (width - 6) in
