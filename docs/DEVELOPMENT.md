@@ -8,10 +8,23 @@
 ```
 
 Bootstrap downloads checksummed opam 2.6.0, initializes a repository-local root
-without shell hooks, compiles OCaml 5.3.0 and installs the locked test/runtime set.
+without shell hooks, compiles OCaml 5.4.1 and installs the locked test/runtime set.
 First setup needs network/time/disk; later runs reuse it. No global OCaml or shell
-configuration is changed. [ADR 0002](adr/0002-isolated-development-baseline.md) owns
-exact version/snapshot rationale and prior fresh-switch qualification.
+configuration is changed. An existing switch built with another compiler is never
+upgraded in place: bootstrap fails closed. Start from a fresh checkout, or keep the old
+unit (`_opam/`, `.opam-root/`, `_build/`, plus the formatter artifacts `.tools/format`,
+`.tools/format-root` and `.tools/format-compiler`) as a restorable backup in a private
+ignored location, then recreate the root and switch at the original paths. Keep
+`_build/` in that unit: a stale one leaves stale CMIs. Restore a moved unit whole at its
+original paths together with the matching tracked compiler pin, lock, bootstrap, CI and
+formatter configuration; it is backup, never a switch to build or run from the new
+location. The rest of `.tools/` stays in place, including the checked opam binary. This
+covers ignored development state only, no household file.
+[ADR 0002](adr/0002-isolated-development-baseline.md) owns
+exact version/snapshot rationale and fresh-switch qualification, including the 5.4.1
+replay. The main checkout performed this cutover at its permanent prefix on 2026-10-27;
+cold build, forced tests, PTY, formatter and editor/REPL acceptance are in
+[verification](VERIFICATION.md).
 
 Prerequisites: curl, git, C compiler, make, tar, patch, pkg-config, detectable GMP
 headers/library, sha256sum or shasum. Install missing OS prerequisites yourself:
@@ -39,7 +52,9 @@ and clears inherited OCaml search-path overrides, not the whole OS environment.
 ./tools/opam list --installed --short --columns=name,version
 ```
 
-`tools/check` builds @all and forces tests. Root traversal excludes `scratch`.
+`tools/check` builds @all, forces tests, then runs `tools/privacy-scan`, which reports
+`not executed` when no household copy exists under `scratch/`. Root traversal excludes
+`scratch`.
 Seeds, counts and finite scopes are in
 tests/[verification](VERIFICATION.md), not another inventory here. Package tests
 explicitly enable inline tests; `-p` already selects root, so never combine it with
@@ -60,7 +75,7 @@ Reports are short issue/PR notes; `HANDOFF.md` stays focused on current work.
 
 ## Optional formatting
 
-`.ocamlformat` pins **0.29.0**, target syntax **5.3.0**, default profile and 100-column margin.
+`.ocamlformat` pins **0.29.0**, target syntax **5.4.1**, default profile and 100-column margin.
 Comment/docstring rewriting is disabled to keep evidence prose intact. Use
 `./tools/format --check` or `./tools/format --apply` (Dune @fmt / fmt, including `tui/`); the wrapper rejects a
 missing/wrong local formatter, never installs or falls back to a global tool. Apply finishes
@@ -69,7 +84,8 @@ Formatting is optional developer tooling, NOT a main runtime/test dependency or 
 `bootstrap`, `check` and normal builds use the main 56 locked packages without it.
 Additions to the original 50: Parsexp v0.17.0 (outer S-expression adapter) and, on
 2026-10-21, notty-community 0.2.4 with uutf, cppo, ocamlbuild and topkg (TUI terminal adapter;
-the last three are build tools). Neither reaches the Domain or the book; no compiler upgrade.
+the last three are build tools). Neither reaches the Domain or the book; neither addition
+required a compiler upgrade.
 Separate formatting-only commits from meaning/refactor changes. Do not reflow payload fixtures,
 normalize identities or weaken compiler policy to make layout pass.
 
@@ -78,7 +94,13 @@ a separate ignored root/switch, and complete aliases of the already bootstrapped
 Aliases prevent opam stripping a managed compiler path and accidentally selecting a global
 compiler/`.opt`/helper. No system install, shell/editor hooks, third-party patch or main lock
 change. The tool is tied to the main compiler's current location; recreate after relocation.
-Qualified here on macOS x86_64 only; this is not a fresh-platform formatter bootstrap claim.
+Qualified on macOS x86_64 on 2026-10-27 by recreating this formatter root with
+`ocaml-system.5.4.1`, Dune 3.24.2 and ocamlformat 0.29.0 from the recipe below; a 5.4.1
+formatting target and the wrapper's version/pin checks passed. `./tools/format --check`
+is not clean: the same 15 pre-existing source/Dune layout diffs and nested `tui/` config
+warnings appear on the 5.3.0 and 5.4.1 baselines, so fix layouts in their own commits and
+never mass-apply while changing the compiler. No other platform's formatter bootstrap is
+claimed.
 
 ```sh
 ./tools/bootstrap
@@ -88,16 +110,16 @@ for executable in "$PWD"/_opam/bin/ocaml*; do
   case "$name" in ocamlfind|ocamlbuild*) continue ;; esac
   ln -sf "$executable" ".tools/format-compiler/bin/$name"
 done
-.tools/format-compiler/bin/ocamlc -version  # must be 5.3.0
+.tools/format-compiler/bin/ocamlc -version  # must be 5.4.1
 fmt_opam() {
   env PATH="$PWD/.tools/format-compiler/bin:$PATH" \
     OPAMROOT="$PWD/.tools/format-root" OPAMSWITCH= \
-    OPAMVAR_sys_ocaml_version=5.3.0 OPAMNODEPEXTS=true OPAMNOENVNOTICE=true \
+    OPAMVAR_sys_ocaml_version=5.4.1 OPAMNODEPEXTS=true OPAMNOENVNOTICE=true \
     .tools/opam "$@"
 }
 fmt_opam init --bare --no-setup --yes default \
   "git+file://$PWD/.opam-root/repo/default#ac27950e5eac6c981ad809dff370c937820b7893"
-fmt_opam switch create "$PWD/.tools/format" ocaml-system.5.3.0 --yes --no-depexts
+fmt_opam switch create "$PWD/.tools/format" ocaml-system.5.4.1 --yes --no-depexts
 fmt_opam install --switch "$PWD/.tools/format" \
   dune.3.24.2 ocamlformat.0.29.0 --yes --no-depexts
 ./tools/format --check
@@ -122,7 +144,11 @@ Track manifests, lock and bootstrap. Never commit `.tools/`, `.opam-root/`, `_op
 `_build/`, install output or `scratch/`. Opam logs may expose environment/local paths;
 do not publish wholesale. Scratch is excluded from Dune discovery as well as Git.
 `tools/check` fixes project root so nested experimental copies do not run parent tests.
-Relocating a compiled switch is unsupported; recreate it in a new checkout.
+Relocating a compiled switch is unsupported for use; recreate it in the original checkout.
+Moving the old unit aside as a backup and restoring it whole at its original paths is
+supported; keep `_build/`, `.tools/format`, `.tools/format-root` and
+`.tools/format-compiler` with it, or stale CMIs and a formatter pointing at a missing
+compiler follow.
 
 ## Dependency changes
 

@@ -6,6 +6,110 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## OCaml 5.4.1 locked baseline replay (stage, 2026-10-27)
+
+- Scope: a separate ignored stage copy of this tree, not the main checkout, whose 5.3.0
+  root/switch and `_build/` were left as they were. No household file, private comparison
+  copy or LOAM data was read or written; only the tracked synthetic fixture
+  `examples/book.txt` was used. This entry records the stage copy only; the main
+  checkout's cutover at its permanent prefix is the next entry.
+- Toolchain: checked local opam 2.6.0, frozen registry
+  `ac27950e5eac6c981ad809dff370c937820b7893`, a new repository-local root and an OCaml
+  5.4.1 switch, Dune 3.24.2, Base v0.17.3, Zarith 1.14, ppx_expect v0.17.3 and
+  Base_quickcheck v0.17.1 with the locked `--with-test` set. The regenerated lock moved
+  only the three compiler entries (`ocaml`, `ocaml-base-compiler`, `ocaml-compiler`) to
+  5.4.1; every other pin is unchanged.
+- `./tools/bootstrap` (locked, with test dependencies): pass. An existing switch holding
+  another compiler is still refused, so the fail-closed guard survived the replay, and
+  nothing is installed on the OS.
+- `./tools/opam exec -- dune build --root . @all`: pass.
+  `./tools/opam exec -- dune runtest --root . --force`: pass, run with `env -i` and
+  temporary `HOME`/`XDG` directories, without an `OCAMLPARAM` workaround.
+- `tools/ci-tui-pty _build/default/tui/app/bakhlo_tui.exe examples/book.txt` (real PTY,
+  synthetic fixture): pass at 120×36, 80×24, 48×14 and 32×9, including resize, cold
+  reopen, exactly 1,000 entries, Ctrl-Q and the Record Preview refusal at 32×9. The
+  fixture bytes were unchanged and no extra authority writes appeared. macOS x86_64 PTY
+  evidence only: no LOAM, IME, physical-terminal or household claim.
+- Optional formatter, recreated with the documented recipe (`ocaml-system.5.4.1`,
+  `dune.3.24.2`, `ocamlformat.0.29.0`, same frozen registry): a 5.4.1 formatting target
+  and the wrapper's version/pin checks passed. `./tools/format --check` FAILS: 15
+  pre-existing source/Dune layout diffs plus nested `tui/` config warnings, no `Error`
+  lines. The main 5.3.0 baseline fails the same command on the same 15 files with
+  identical correction hunks, so this is neither a 5.4.1 formatter regression nor a green
+  gate; nothing was mass-formatted.
+- Linux CI (`.github/workflows/core.yml`) now pins 5.4.1 with the locked install; it was
+  not run and nothing was committed or pushed.
+- Excluded: `tools/check` as a wrapper. Its build and forced-test steps were run directly
+  (above); its last step `tools/privacy-scan` was not run, since it needs the ignored
+  household copies under `scratch/`, which this replay did not create or read. Also
+  excluded: the formatter vendor's own test suite, ordinary source-package `opam install`
+  qualification, and any household or LOAM acceptance.
+- Follow-up: that cutover was completed on the main checkout on 2026-10-27 through this
+  qualified bootstrap (see below). No stage copy is reused as evidence for the main
+  checkout.
+
+## OCaml 5.4.1 main checkout cutover (2026-10-27)
+
+- Permanent prefix: the main checkout's 5.3.0 unit was moved whole into a private ignored
+  backup, `.tools/ocaml-5.3.0-backup.<id>/`, holding `_opam/`, `.opam-root/` and `_build/`
+  plus the formatter artifacts `format`, `format-root` and `format-compiler` from
+  `.tools/`, with a `switch.export` inventory and the initial source archive. The checked
+  `.tools/opam` binary stayed in place; a fresh repository-local root and switch were
+  bootstrapped at the original paths. No stage or temporary prefix remains in the root,
+  switch, findlib or formatter-root configuration. The compiler was built at the correct
+  prefix on the stage and again here; no compiled switch was relocated for use.
+- Backup preservation and restore: selected formatter directories were preserved with the
+  old switch, not the whole `.tools/`. The backup is restorable but not runnable: restoring
+  it means moving the unit whole back to its original paths *and* restoring the matching
+  tracked 5.3.0 pin/lock/bootstrap/CI/formatter configuration from the pre-migration
+  commit, because `tools/bootstrap` now pins 5.4.1 and still refuses a switch holding
+  another compiler, and `tools/format` refuses a wrong local formatter. This is ignored
+  development state only and contains no household file.
+- Bootstrap: `./tools/bootstrap` passed at the permanent prefix with the checked opam
+  2.6.0, the frozen registry `ac27950e5eac6c981ad809dff370c937820b7893` and the regenerated
+  lock. The lock has 56 entries including the compiler: only `ocaml`,
+  `ocaml-base-compiler` and `ocaml-compiler` moved to 5.4.1, and the other 53 pins are
+  unchanged. Local ocaml-lsp 1.26.0 and utop 2.17 were installed compiler-matched as
+  editor/REPL tools outside the tracked lock; the locked bootstrap re-ran clean and no
+  business lock entry changed.
+- Cold build and tests: from a newly created `_build/`,
+  `./tools/opam exec -- dune build --root . @all` passed and
+  `./tools/opam exec -- dune runtest --root . --force` passed under `env -i` with synthetic
+  `HOME`/`XDG` directories, without an `OCAMLPARAM` workaround. The retained 5.3.0
+  `_build/` stayed inside the backup and was never mixed with the new tree. Compilation and
+  test results establish those behaviors; they are not a formal proof of the whole code
+  base.
+- PTY: `tools/ci-tui-pty _build/default/tui/app/bakhlo_tui.exe examples/book.txt` passed on
+  the synthetic fixture at the same four sizes as the stage replay (120×36, 80×24, 48×14,
+  32×9), with preview non-publication and byte-unchanged fixture. macOS x86_64 only.
+- Formatter: the optional root was recreated at the permanent prefix with the documented
+  recipe (`ocaml-system.5.4.1`, `dune.3.24.2`, `ocamlformat.0.29.0`); the wrapper's version
+  and pin checks passed. `./tools/format --check` exits 1 with exactly the same 15
+  pre-existing source/Dune layout hunks and nested `tui/` config warnings as the captured
+  pre-migration 5.3.0 baseline (the unified hunks were compared byte for byte; no
+  additional errors), so the gate is red at baseline here too and nothing was
+  mass-formatted.
+- Editor binary: a macOS GUI Emacs smoke under a clean, Finder-like `PATH` opened the real
+  tracked `lib/quantity.ml` read-only and selected 5.4.1. The live ocaml-lsp process was
+  verified by PID and `lsof` to be the binary inside the main `_opam`, version 1.26. `Z.t`
+  hover, Zarith completion and the intentional string-to-int Flymake error behaved as
+  expected, with no missing-RPC or inconsistent-assumptions warning; line numbers were on
+  and the tool bar off. This checks the real editor binary and project selection, not an
+  editor/IDE matrix.
+- REPLs: in that same Emacs process, independent project and unrelated study UTop REPLs
+  evaluated `Sys.ocaml_version` as 5.4.1 with `OPAM_SWITCH_PREFIX` pointing at the main
+  `_opam`, while the study REPL's default prefix was unchanged. `#require "base"` plus
+  `Base.Int.(20 + 22) = 42` passed, and leaving the project REPL left the study REPL
+  evaluating 42. The synthetic `HOME`/history guards belonged to the test process only.
+- Source: the migration changed tracked environment pins/configuration and these documents
+  only; application and test source is unchanged.
+- Unrun and excluded: Linux CI (`.github/workflows/core.yml`, now pinning 5.4.1) was not
+  run, and nothing was committed or pushed. No real household, LOAM, IME or operational
+  `.run` data was migrated or accepted. `tools/check` was not used as a wrapper because its
+  `privacy-scan` step reads the real copies under `scratch/`; its build and forced-test
+  steps were run directly. The formatter vendor's own test suite and ordinary
+  source-package `opam install` qualification remain unqualified.
+
 ## The application layer is removed (core A, 2026-10-25)
 
 - User decision: with `Daily_book` on book.txt, the application layer (correction

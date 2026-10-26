@@ -26,9 +26,9 @@ depends: [
   "jane-street-headers" {= "v0.17.0" & with-test}
   "jst-config" {= "v0.17.0" & with-test}
   "notty-community" {= "0.2.4"}
-  "ocaml" {= "5.3.0"}
-  "ocaml-base-compiler" {= "5.3.0"}
-  "ocaml-compiler" {= "5.3.0"}
+  "ocaml" {= "5.4.1"}
+  "ocaml-base-compiler" {= "5.4.1"}
+  "ocaml-compiler" {= "5.4.1"}
   "ocaml-compiler-libs" {= "v0.17.0" & with-test}
   "ocaml-config" {= "3"}
   "ocaml-options-vanilla" {= "1"}
