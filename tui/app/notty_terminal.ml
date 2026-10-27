@@ -12,9 +12,47 @@ let show term image cursor =
   Term.image term image;
   Term.cursor term cursor
 
+(* stty on the terminal, its output, or [None] when it cannot run or refuses. *)
+let stty args =
+  match Unix.pipe ~cloexec:true () with
+  | exception Unix.Unix_error _ -> None
+  | output, input -> (
+      let quiet = Unix.openfile "/dev/null" [ Unix.O_WRONLY; Unix.O_CLOEXEC ] 0 in
+      let started =
+        Fun.protect
+          ~finally:(fun () ->
+            Unix.close input;
+            Unix.close quiet)
+          (fun () ->
+            try
+              Some
+                (Unix.create_process "/bin/stty"
+                   (Array.of_list ("stty" :: args))
+                   Unix.stdin input quiet)
+            with Unix.Unix_error _ -> None)
+      in
+      let text = In_channel.input_all (Unix.in_channel_of_descr output) in
+      Unix.close output;
+      match started with
+      | None -> None
+      | Some pid -> (
+          match Unix.waitpid [] pid with _, Unix.WEXITED 0 -> Some (String.trim text) | _ -> None))
+
+(* macOS gives Ctrl-O to the terminal driver (VDISCARD) while IEXTEN is on, which
+   Notty leaves set, so the Record's Ctrl-O would never arrive. The session unsets
+   it and afterwards restores the exact previous settings. Without a terminal or
+   stty nothing changes. *)
+let with_ctrl_o f =
+  match if Unix.isatty Unix.stdin then stty [ "-g" ] else None with
+  | None -> f ()
+  | Some saved ->
+      ignore (stty [ "discard"; "undef" ]);
+      Fun.protect ~finally:(fun () -> ignore (stty [ saved ])) f
+
 (* One terminal session: paint, wait for an event, let [step] decide. Every event
    reads the current terminal size, so a resize and a key never use stale geometry. *)
 let terminal_loop ~paint ~step initial =
+  with_ctrl_o @@ fun () ->
   let term = Term.create ~dispose:true ~mouse:false ~bpaste:true () in
   let rec loop state =
     let dimensions = Term.size term in

@@ -89,7 +89,7 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
 - [x] Recordの段階を一つの`phase`型に（Quick／Form／Original／Enabling／Review）。確認中の貼り付けが
   裏のフォームに入っていた不具合も解消。
 
-残る候補（未着手）：macOSでCtrl-Oが端末ドライバ（VDISCARD）に取られ、原額入力が開かない。
+- [x] macOSでCtrl-Oが端末ドライバ（VDISCARD）に取られ原額入力が開かなかった：起動中だけ外し、終了時に元へ戻す。
 [検証記録](../docs/VERIFICATION.md#old-names-removed-from-the-household-book-and-shell-2026-10-27)。
 
 ## 要判断

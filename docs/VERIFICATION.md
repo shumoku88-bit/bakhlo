@@ -23,9 +23,19 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   capture (empty, typed), form, original-amount editor, back, Ctrl-U, held draft and
   reopened draft. All 20 frames are byte-identical. Household unchanged; copies cleaned.
   Preview was not reached on the copy (synthetic checks cover it).
-- Found, **not fixed**: on macOS the terminal driver takes Ctrl-O (VDISCARD, with
-  IEXTEN on), so Ctrl-O never reaches Bakhlo and the original-amount editor does not
-  open; the captures above used `stty discard undef`.
+- Found then: on macOS the terminal driver takes Ctrl-O (VDISCARD, with IEXTEN on, which
+  Notty leaves set), so Ctrl-O never reached Bakhlo; the captures above used
+  `stty discard undef`. Fixed below.
+
+## Ctrl-O reaches Bakhlo on macOS (2026-10-27)
+
+- The terminal session saves `stty -g`, unsets `discard`, and restores the saved
+  settings after Notty's own revert (also on an exception). Without a terminal or
+  `/bin/stty` nothing changes. No C was added.
+- tmux PTY on macOS, `./ui --demo` (synthetic), no `stty` prefix: Ctrl-O opens
+  `Record / Original amount`; after quitting, `stty -g` equals the value before and
+  `discard = ^O`. One `/bin/stty` run takes 3.07 ms (mean of 50): about 6 ms at start
+  and 3 ms at exit. `./tools/check` passed. Linux PTY smoke runs in CI.
 
 ## Income & Expense compares Locus bars with a chosen window (2026-10-27)
 
