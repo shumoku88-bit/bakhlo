@@ -52,7 +52,7 @@
   Daily_fileの公開面と設定/Settlement置換の共通化は、同じ意味を保てる範囲で絞る。
 - [x] 統合レビュー：正確なdiff、全体check/self-check/整形、変更画面の最新コピー対照、
   原本非変更を確認する。台帳・検証記録を更新する。
-- [ ] 検証した単位でcommit/pushし、該当CIを確認する。
+- [x] 検証した単位でcommit/pushし、該当CIを確認する。
 
 ### 実装レビュー
 
@@ -65,6 +65,10 @@ Observe／roles／Attentionも成立不明のrevisionを保持し、保存成立
 旧Bakhlo／LOAM／新Bakhloへ開き、Bakhlo前後26画面は候補IDを除き一致。原本／コピー非変更。
 Recordの全phase統合、全エラー型の再設計、Daily_overlaysの分割、旧名前の一括変更は今回に
 含めていない。今回の変更と別の設計判断として扱い、将来用の仕組みは増やしていない。
+
+4つの実装commitをmainへpush済み。最終実装`21cfb92`と一致する
+[CI](https://github.com/shumoku88-bit/bakhlo/actions/runs/40486524266)で、Linuxのbuild・全回帰・
+PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文書のみの変更。
 
 ## 要判断
 

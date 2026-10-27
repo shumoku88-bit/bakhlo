@@ -28,6 +28,10 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 - Passed: clean unrestricted `./tools/check`, `./tools/tui --self-check`,
   `./tools/format --check`, `git diff --check`, and `./tools/privacy-scan --all`.
   Independent source review found no remaining blocker. P7/power loss remain unqualified.
+- Matching implementation commit `21cfb920422e13e6a6053bf10f7cb37a09234041`
+  passed [CI run 40486524266](https://github.com/shumoku88-bit/bakhlo/actions/runs/40486524266):
+  Linux build, all contract/regression/TUI tests, and the PTY keyboard/resize/non-writing
+  matrix. The subsequent completion note changes documentation only.
 
 ## Recording changes on latest read-only copies (2026-10-27)
 
