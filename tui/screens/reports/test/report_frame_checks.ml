@@ -241,12 +241,18 @@ let self_check () =
   let summary =
     List.map snd
       (IncExp.render_report_lines ~width:80 ~width_of:String.length ~book:window_book
-         ~report:current ~today:"2026-10-15" ~previous:(Some previous_partial)
-         ~previous_full:(Some previous))
+         ~report:current ~today:"2026-10-15"
+         ~comparison:
+           (Some
+              {
+                IncExp.window = previous.period;
+                same_age = previous_partial;
+                whole = Some previous;
+              }))
   in
-  require (contains summary "Current window is partial: day 15 of 31.") "ie2-partial-label";
+  require (contains summary "2026-10-01 .. 2026-10-31  ·  day 15 of 31") "ie2-partial-label";
   require
-    (contains summary "Previous: Month of 2026-09 (same 15 elapsed day(s))")
+    (contains summary "vs  2026-09-01 .. 2026-09-30  (first 15 days)")
     "ie2-partial-previous-label";
 
   (* A window that has not started is an empty window, not "day 0 of M". *)
@@ -267,16 +273,17 @@ let self_check () =
   let future_summary =
     List.map snd
       (IncExp.render_report_lines ~width:80 ~width_of:String.length ~book:window_book
-         ~report:future_report ~today:"2026-10-15" ~previous:(Some empty_previous)
-         ~previous_full:None)
+         ~report:future_report ~today:"2026-10-15"
+         ~comparison:
+           (Some { IncExp.window = previous.period; same_age = empty_previous; whole = None }))
   in
-  require (contains future_summary "has not started") "ie2-future-window-labelled";
+  require (contains future_summary "not started") "ie2-future-window-labelled";
   require (not (contains future_summary "day 0 of")) "ie2-no-day-zero-label";
-  require (not (contains future_summary "(whole prev")) "ie2-no-whole-previous-when-unstarted";
-  require (contains summary "prev 1,000  +122,456") "ie2-income-difference-exact";
-  require (contains summary "prev 500  +9,500") "ie2-expense-difference-exact";
-  require (contains summary "prev 500  +112,956") "ie2-result-difference-exact";
-  require (contains summary "(whole prev 50,500)") "ie2-whole-previous-secondary";
+  require (not (contains future_summary "(whole ")) "ie2-no-whole-previous-when-unstarted";
+  require (contains summary "vs 1,000  +122,456") "ie2-income-difference-exact";
+  require (contains summary "vs 500  +9,500") "ie2-expense-difference-exact";
+  require (contains summary "vs 500  +112,956") "ie2-result-difference-exact";
+  require (contains summary "(whole 50,500)") "ie2-whole-previous-secondary";
   require (contains summary "Scheduled 0 jpy") "ie2-scheduled-split-shown";
   let food_line =
     List.find_index (fun line -> Base.String.is_substring line ~substring:" food ") summary
@@ -291,12 +298,81 @@ let self_check () =
   let narrow_summary =
     List.map snd
       (IncExp.render_report_lines ~width:30 ~width_of:String.length ~book:window_book
-         ~report:current ~today:"2026-10-15" ~previous:(Some previous)
-         ~previous_full:(Some previous))
+         ~report:current ~today:"2026-10-15"
+         ~comparison:
+           (Some { IncExp.window = previous.period; same_age = previous; whole = Some previous }))
   in
   require (not (contains narrow_summary "█")) "ie2-bar-dropped-before-amount";
   require (contains narrow_summary "9,000") "ie2-amount-kept-at-narrow-width";
   require (contains narrow_summary "Δ") "ie2-difference-kept-at-narrow-width";
+
+  (* Under each Locus bar, the compared window's amount and bar on one scale; a
+     Locus spent on only in the compared window follows at this window's zero. *)
+  let pair_fixture =
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     LOCUS\tfood\tfood\t\n\
+     LOCUS\tbooks\tbooks\t\n\
+     LOCUS\twallet\twallet\t\n\
+     TX\tsep-books\t2026-09-03\n\
+     EFFECT\tbooks\tjpy\t700\n\
+     EFFECT\twallet\tjpy\t-700\n\
+     ENDTX\n\
+     TX\toct-food\t2026-10-03\n\
+     EFFECT\tfood\tjpy\t350\n\
+     EFFECT\twallet\tjpy\t-350\n\
+     ENDTX\n\
+     ZERO-ORIGIN\twallet\tjpy\n\
+     END\n"
+  in
+  let pair_book = Bakhlo_household.Daily_txt.book pair_fixture in
+  let pair_roles = [ ("food", Roles.Expense); ("books", Roles.Expense); ("wallet", Roles.Asset) ] in
+  let pair_report period =
+    IncExp.compute_report ~book:pair_book ~roles:pair_roles ~period:(month period)
+  in
+  let sep = pair_report (-1) in
+  let paired =
+    List.map snd
+      (IncExp.render_report_lines ~width:100 ~width_of:String.length ~book:pair_book
+         ~report:(pair_report 0) ~today:"2026-10-31"
+         ~comparison:(Some { IncExp.window = sep.period; same_age = sep; whole = Some sep }))
+  in
+  let index_of needle =
+    List.find_index (fun line -> Base.String.is_substring line ~substring:needle) paired
+  in
+  let line_at i = Option.value ~default:"" (Option.bind i (List.nth_opt paired)) in
+  let food = index_of " food " and books = index_of " books " in
+  let next i = Option.map (fun i -> i + 1) i in
+  require (contains paired "█ this  ░ compared") "ie2-pair-legend";
+  require
+    (Base.String.is_substring (line_at food) ~substring:"350"
+    && Base.String.is_substring (line_at food) ~substring:"█")
+    "ie2-pair-this-window-bar";
+  require
+    (Base.String.is_substring (line_at (next food)) ~substring:" 0"
+    && not (Base.String.is_substring (line_at (next food)) ~substring:"░"))
+    "ie2-pair-compared-exact-zero";
+  require
+    (match (food, books) with Some f, Some b -> f < b | _ -> false)
+    "ie2-pair-only-compared-follows";
+  require
+    (Base.String.is_substring (line_at books) ~substring:" 0"
+    && Base.String.is_substring (line_at (next books)) ~substring:"700"
+    && Base.String.is_substring (line_at (next books)) ~substring:"░")
+    "ie2-pair-only-compared-bar";
+  (* One scale: the compared 700 is the longest bar, this window's 350 half of it. *)
+  let cells glyph line =
+    List.length (Base.String.substr_index_all line ~may_overlap:false ~pattern:glyph)
+  in
+  let food_cells = cells "█" (line_at food) and books_cells = cells "░" (line_at (next books)) in
+  require (books_cells > 0 && abs ((2 * food_cells) - books_cells) <= 1) "ie2-pair-one-scale";
+  let unpaired =
+    List.map snd
+      (IncExp.render_report_lines ~width:100 ~width_of:String.length ~book:pair_book
+         ~report:(pair_report 0) ~today:"2026-10-31" ~comparison:None)
+  in
+  require (not (contains unpaired "░")) "ie2-no-comparison-no-compared-bars";
+  require (contains unpaired "no such earlier window") "ie2-no-comparison-named";
 
   (* Compare columns fit the width and keep exact amounts. *)
   let compare_wide =

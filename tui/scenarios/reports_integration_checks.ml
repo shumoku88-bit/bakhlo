@@ -226,21 +226,49 @@ let run ~width_of ~directory (back_home : C.state) =
   require
     (no_modal ie_help_closed && ie_help_closed.workspace.route = W.Income_expense)
     "income-expense-help-escapes";
-  (* The default window is the configured cycle; `c` compares the last windows. *)
+  (* The default window is the configured cycle; `c` chooses the compared window
+     from a list, `t` shows the last windows side by side. *)
   require
     (Income_expense_screen.preset ie_ctl.C.screens.income_expense = Income_expense_report.Cycle)
     "income-expense-defaults-to-cycle";
-  let ie_compare = key ~width_of ie_ctl (`ASCII 'c') in
+  let ie_month = key ~width_of ie_ctl (`ASCII '1') in
   require
-    (Income_expense_screen.comparing ie_compare.C.screens.income_expense)
-    "income-expense-c-compares";
+    (Income_expense_screen.back ie_month.C.screens.income_expense = 1)
+    "income-expense-vs-previous";
+  require (contains (R.screen ~width_of (120, 30) ie_month) "vs  ") "income-expense-vs-line";
+  let ie_picker = key ~width_of ie_month (`ASCII 'c') in
+  require
+    (Option.is_some (Income_expense_screen.picker ie_picker.C.screens.income_expense))
+    "income-expense-c-opens-picker";
+  let picker_screen =
+    Option.value ~default:[] (R.overlay_screen ~dimensions:(120, 30) ~width_of ie_picker)
+  in
+  require (contains picker_screen "Compare with") "income-expense-picker-titled";
+  require (contains picker_screen "previous") "income-expense-picker-names-previous";
+  let ie_picker_closed = key ~width_of ie_picker `Escape in
+  require
+    (Option.is_none (Income_expense_screen.picker ie_picker_closed.C.screens.income_expense)
+    && ie_picker_closed.workspace.route = W.Income_expense)
+    "income-expense-picker-escape-stays";
+  let ie_chosen = key ~width_of ie_picker `Enter in
+  require
+    (Option.is_none (Income_expense_screen.picker ie_chosen.C.screens.income_expense)
+    && Income_expense_screen.back ie_chosen.C.screens.income_expense = 1)
+    "income-expense-picker-enter-chooses";
+  let ie_all_time = key ~width_of ie_month (`ASCII '5') in
+  let ie_all_c = key ~width_of ie_all_time (`ASCII 'c') in
+  require
+    (Option.is_none (Income_expense_screen.picker ie_all_c.C.screens.income_expense))
+    "income-expense-all-time-has-no-picker";
+  let ie_compare = key ~width_of ie_ctl (`ASCII 't') in
+  require (Income_expense_screen.table ie_compare.C.screens.income_expense) "income-expense-t-table";
   require
     (contains (R.screen ~width_of (140, 40) ie_compare) "Compare:")
     "income-expense-compare-visible";
-  let ie_single = key ~width_of ie_compare (`ASCII 'c') in
+  let ie_single = key ~width_of ie_compare (`ASCII 't') in
   require
-    (not (Income_expense_screen.comparing ie_single.C.screens.income_expense))
-    "income-expense-c-returns-to-summary";
+    (not (Income_expense_screen.table ie_single.C.screens.income_expense))
+    "income-expense-t-returns-to-summary";
   let ie_print = key ~width_of ie_ctl (`ASCII 'p') in
   (match visible_form ie_print with
   | Some f ->

@@ -6,6 +6,23 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Income & Expense compares Locus bars with a chosen window (2026-10-27)
+
+- The header is two lines (shown window with its day count, compared window at the
+  same age). Each Locus has the compared window's amount and a `░` bar under its `█`
+  bar on one scale; a Locus spent on only in the compared window follows at exact 0.
+  `c` opens a list of up to 24 earlier windows of the same kind with their EXPENSE
+  totals; the side-by-side table moved to `t`. The comparison is kept as a distance
+  from the shown window and moves with `[ ]`.
+- Synthetic checks: paired lines, exact zero, compared-only Locus, one scale, legend
+  dropped when narrow, picker open/escape/choose, All Time without picker, table on `t`.
+  `./tools/check`, `./tools/tui --self-check`, `./tools/format --check` passed.
+- Latest read-only copy (`tools/compare refresh`), Bakhlo only, 125×45 and 80×24:
+  Cycle summary, picker (three earlier cycles), choosing an older window, `[` shift.
+  Household unchanged; copies cleaned. LOAM not compared (new behaviour). Human
+  acceptance not yet given. `./ui` now accepts upper-case letters in the selected
+  copy's name (`mktemp` makes them; it refused before).
+
 ## Old names removed from the household book and Shell (2026-10-27)
 
 - `Records` and `Book_log` folded into `Daily_book` (`change`, `apply`); `sexp/`

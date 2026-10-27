@@ -34,6 +34,7 @@ type report = {
   unresolved_effects : (string * string * string * Z.t) list;
 }
 
+type comparison = { window : period; same_age : report; whole : report option }
 type t = { preset : period_preset; period_offset : int }
 
 let initial () = { preset = Cycle; period_offset = 0 }
@@ -169,65 +170,122 @@ let signed book measure value =
 (* Proportional bar in the room that is left after the label and the exact
    amount. The amount is right-aligned and never clipped; when the room is too
    small the bar disappears first. *)
-let bar ~room amount max_amount =
+let bar ~glyph ~room amount max_amount =
   if room < 3 || Z.sign amount <= 0 || Z.sign max_amount <= 0 then ""
   else
     let cells =
       if Z.gt amount max_amount then room
       else Z.to_int (Z.div (Z.mul (Z.of_int room) amount) max_amount)
     in
-    String.concat "" (List.init (max 0 (min room cells)) (fun _ -> "█"))
+    String.concat "" (List.init (max 0 (min room cells)) (fun _ -> glyph))
 
-let item_lines ~width_of ~pad_w ~book ~measure ~with_bar items =
+let this_glyph = "█"
+let compared_glyph = "░"
+
+(* One line per Locus; with a comparison, the compared window's amount and bar sit
+   under it in the quiet style, on the same scale. Loci that appear only in the
+   compared window follow at this window's exact zero. *)
+let item_lines ~width_of ~pad_w ~book ~measure ~with_bar ~compared items =
   let col_locus = max 18 (min 36 (pad_w / 2)) in
   let col_amt = max 12 (min 22 (pad_w - col_locus - 6)) in
+  let amount_of locus list =
+    match List.find_opt (fun (it : line_item) -> it.locus = locus) list with
+    | Some it -> it.amount
+    | None -> Z.zero
+  in
+  let rows =
+    let here = by_amount_desc items in
+    match compared with
+    | None -> List.map (fun (it : line_item) -> (it, None)) here
+    | Some before ->
+        let only_before =
+          List.filter
+            (fun (it : line_item) ->
+              not (List.exists (fun (b : line_item) -> b.locus = it.locus) items))
+            (by_amount_desc before)
+        in
+        List.map (fun (it : line_item) -> (it, Some (amount_of it.locus before))) here
+        @ List.map
+            (fun (it : line_item) -> ({ it with amount = Z.zero }, Some it.amount))
+            only_before
+  in
   let max_amount =
     List.fold_left
-      (fun acc (it : line_item) -> if Z.gt it.amount acc then it.amount else acc)
-      Z.zero items
+      (fun acc ((it : line_item), before) ->
+        List.fold_left Z.max acc (it.amount :: Option.to_list before))
+      Z.zero rows
   in
-  List.map
-    (fun (it : line_item) ->
-      let amount = O.format_money book measure it.amount in
-      let amount_cell = O.pad_left ~width_of col_amt amount in
-      let label_cell = O.pad ~width_of col_locus it.label in
-      let bar_room =
-        if not with_bar then 0 else max 0 (pad_w - width_of label_cell - width_of amount_cell - 2)
-      in
-      let mark = bar ~room:bar_room it.amount max_amount in
-      (O.Plain, "  " ^ label_cell ^ "  " ^ amount_cell ^ if mark = "" then "" else "  " ^ mark))
-    (by_amount_desc items)
+  let line ~glyph label amount =
+    let amount_cell = O.pad_left ~width_of col_amt (O.format_money book measure amount) in
+    let label_cell = O.pad ~width_of col_locus label in
+    let bar_room =
+      if not with_bar then 0 else max 0 (pad_w - width_of label_cell - width_of amount_cell - 2)
+    in
+    let mark = bar ~glyph ~room:bar_room amount max_amount in
+    "  " ^ label_cell ^ "  " ^ amount_cell ^ if mark = "" then "" else "  " ^ mark
+  in
+  List.concat_map
+    (fun ((it : line_item), before) ->
+      (O.Plain, line ~glyph:this_glyph it.label it.amount)
+      ::
+      (match before with
+      | None -> []
+      | Some amount -> [ (O.Chrome, line ~glyph:compared_glyph "" amount) ]))
+    rows
 
-let render_report_lines ~width ~width_of ~book ~report ~today ~previous ~previous_full =
+let last_day (period : period) =
+  match Cal.shift_days period.end_exclusive (-1) with Ok day -> day | Error _ -> period.start_day
+
+(* A window by its first and last day, as the Actual's period picker names it. *)
+let span (period : period) = period.start_day ^ " .. " ^ last_day period
+
+let render_report_lines ~width ~width_of ~book ~report ~today ~comparison =
   let pad_w = max 0 (width - 4) in
   let summary_of (source : report option) measure =
     Option.bind source (fun (rep : report) ->
         List.find_opt (fun (ms : measure_summary) -> ms.measure = measure) rep.summaries)
   in
+  let previous = Option.map (fun c -> c.same_age) comparison in
+  let previous_full = Option.bind comparison (fun c -> c.whole) in
   let elapsed_days, total_days = elapsed ~today report.period in
+  let started = not (total_days > 0 && elapsed_days = 0) in
+  let partial = total_days > 0 && elapsed_days < total_days in
+  (* Two lines: this window and how far it has run, then the compared window at
+     the same age. *)
   let header =
     [
-      (O.Heading, Printf.sprintf "Income & Expense  [%s]" report.period.label);
-      ( O.Chrome,
-        Printf.sprintf "Window: %s .. %s (exclusive)" report.period.start_day
-          report.period.end_exclusive );
-      ( O.Chrome,
-        if total_days > 0 && elapsed_days = 0 then
-          "Current window has not started yet: no day has elapsed."
-        else if total_days > 0 && elapsed_days < total_days then
-          Printf.sprintf "Current window is partial: day %d of %d." elapsed_days total_days
+      ( O.Heading,
+        span report.period
+        ^
+        if not started then "  ·  not started"
+        else if partial then Printf.sprintf "  ·  day %d of %d" elapsed_days total_days
         else "" );
       ( O.Plain,
-        match previous with
-        | None -> "Previous window: none of this kind (nothing inferred)."
-        | Some (prev : report) ->
-            Printf.sprintf "Previous: %s%s" prev.period.label
-              (if total_days > 0 && elapsed_days = 0 then " (0 elapsed days)"
-               else if total_days > 0 && elapsed_days < total_days then
-                 Printf.sprintf " (same %d elapsed day(s))" elapsed_days
-               else "") );
+        match comparison with
+        | None -> "vs  no such earlier window (c chooses one; nothing is inferred)"
+        | Some c ->
+            "vs  " ^ span c.window
+            ^
+            if not started then "  (0 days)"
+            else if partial then Printf.sprintf "  (first %d days)" elapsed_days
+            else "" );
       (O.Plain, "");
     ]
+  in
+  let legend =
+    match comparison with
+    | None -> ""
+    | Some _ -> Printf.sprintf "   %s this  %s compared" this_glyph compared_glyph
+  in
+  (* A Measure absent from the compared window has no flow there: exact zeros. *)
+  (* The legend only where it fits beside the heading; a narrow pane has no bars. *)
+  let fitting heading legend =
+    if width_of (heading ^ legend) <= pad_w then heading ^ legend else heading
+  in
+  let compared_items measure pick =
+    match comparison with
+    | None -> None
+    | Some _ -> Some (match summary_of previous measure with Some s -> pick s | None -> [])
   in
   let totals_block (ms : measure_summary) =
     let m = ms.measure in
@@ -240,12 +298,12 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~previous ~previou
       let assemble detail = Printf.sprintf "  %-10s %14s   %s" label amount detail in
       let text =
         match previous_value with
-        | None -> assemble "prev n/a"
+        | None -> assemble "vs n/a"
         | Some prev_value ->
             let delta = Z.sub current prev_value in
             let detailed =
               assemble
-                (Printf.sprintf "prev %s  %s"
+                (Printf.sprintf "vs %s  %s"
                    (O.format_money book m prev_value)
                    (signed book m delta))
             in
@@ -253,13 +311,13 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~previous ~previou
             if width_of detailed <= pad_w then detailed
             else assemble (Printf.sprintf "Δ %s" (signed book m delta))
       in
-      (* The whole previous window stays visible when it is a different number and
+      (* The whole compared window stays visible when it is a different number and
          the line still fits; a partial comparison never hides its own delta. *)
       let text =
         match (previous_value, full_value) with
         | Some partial_value, Some full_value when not (Z.equal partial_value full_value) ->
             let candidate =
-              text ^ Printf.sprintf "  (whole prev %s)" (O.format_money book m full_value)
+              text ^ Printf.sprintf "  (whole %s)" (O.format_money book m full_value)
             in
             if width_of candidate <= pad_w then candidate else text
         | _ -> text
@@ -287,15 +345,19 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~previous ~previou
   let breakdown (ms : measure_summary) =
     if ms.expense_items = [] then []
     else
-      (O.Chrome, "  Expense by Locus (largest first)")
-      :: item_lines ~width_of ~pad_w ~book ~measure:ms.measure ~with_bar:true ms.expense_items
+      (O.Chrome, fitting "  Expense by Locus (largest first)" legend)
+      :: item_lines ~width_of ~pad_w ~book ~measure:ms.measure ~with_bar:true
+           ~compared:(compared_items ms.measure (fun s -> s.expense_items))
+           ms.expense_items
       @ [ (O.Plain, "") ]
   in
   let income_breakdown (ms : measure_summary) =
     if ms.income_items = [] then []
     else
       (O.Chrome, "  Income by Locus (largest first)")
-      :: item_lines ~width_of ~pad_w ~book ~measure:ms.measure ~with_bar:false ms.income_items
+      :: item_lines ~width_of ~pad_w ~book ~measure:ms.measure ~with_bar:false
+           ~compared:(compared_items ms.measure (fun s -> s.income_items))
+           ms.income_items
       @ [ (O.Plain, "") ]
   in
   let active, inactive = split_measures report.summaries in

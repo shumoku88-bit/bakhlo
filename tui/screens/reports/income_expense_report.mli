@@ -31,6 +31,13 @@ type report = {
   unresolved_effects : (string * string * string * Z.t) list;
 }
 
+type comparison = {
+  window : period;  (** The compared window, whole. *)
+  same_age : report;
+      (** It up to as many days as this window has run; all of it when this one is over. *)
+  whole : report option;  (** All of it, while this window is partial and has started. *)
+}
+
 type t = { preset : period_preset; period_offset : int }
 
 val initial : unit -> t
@@ -50,14 +57,16 @@ val measure_active : measure_summary -> bool
 val elapsed : today:string -> period -> int * int
 val truncate_to_days : period -> int -> period
 
+val span : period -> string
+(** A window by its first and last day. *)
+
 val render_report_lines :
   width:int ->
   width_of:(string -> int) ->
   book:B.t ->
   report:report ->
   today:string ->
-  previous:report option ->
-  previous_full:report option ->
+  comparison:comparison option ->
   (Daily_overlays.style * string) list
 
 val render_compare_lines :
