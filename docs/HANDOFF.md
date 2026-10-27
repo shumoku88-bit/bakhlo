@@ -8,6 +8,11 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-10-27)
 
+- Naming pass (2026-10-27): `sexp/` is now `household/` (`bakhlo_household`);
+  `Daily_book` owns its entry/plan types and the published `change`s (`Records`,
+  `Book_log` removed). No behaviour change.
+  [Evidence](VERIFICATION.md#old-names-removed-from-the-household-book-and-shell-2026-10-27).
+
 - Code-quality pass (2026-10-27): exact amount text has one pure owner; Scheduled
   Ctrl-U shares Preview's parsing and preserves balanced rows; Record choices use
   named variants. Store sessions are private records, auxiliary writers share only

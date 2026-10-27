@@ -70,6 +70,19 @@ Recordの全phase統合、全エラー型の再設計、Daily_overlaysの分割�
 [CI](https://github.com/shumoku88-bit/bakhlo/actions/runs/40486524266)で、Linuxのbuild・全回帰・
 PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文書のみの変更。
 
+## 旧設計の名前を取り除く（2026-10-27、続き）
+
+前回見送った「旧名前の整理」の続き。意味・形式・画面は変えない。
+
+- [x] `Records`・`Book_log`を`Daily_book`へ畳み込み（`change`・`apply`）、未使用の識別子型を削除。
+- [x] `sexp/`（S式を持たない）を`household/`（`bakhlo_household`）へ改名。テスト用bookも`*.txt`。
+- [x] `Daily_actions`の基底revision検査を一箇所に。空の`legacy_shared_literals`を削除。
+- [ ] push後、該当SHAのCIを確認する。
+
+残る候補（未着手）：`Daily_actions.get`／`get_id`がテスト補助を兼ねて`Shell_state`経由で
+公開されている点、`Daily_overlays`の責務分割、Recordのphase統合。
+[検証記録](../docs/VERIFICATION.md#old-names-removed-from-the-household-book-and-shell-2026-10-27)。
+
 ## 要判断
 
 - [ ] LOAMのComplete Since（履歴の完全性の記録）をパリティ一覧に入れるか（Daily Paceの過去日に関わる）。

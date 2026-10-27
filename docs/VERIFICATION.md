@@ -6,6 +6,20 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Old names removed from the household book and Shell (2026-10-27)
+
+- `Records` and `Book_log` folded into `Daily_book` (`change`, `apply`); `sexp/`
+  (`bakhlo_sexp`) renamed `household/` (`bakhlo_household`); unused `Relation` and
+  `Validity_revision` identifiers removed; synthetic test books named `*.txt`;
+  `Daily_actions.publish_onto` names the base-revision guard; the empty
+  `legacy_shared_literals` exemption removed from the architecture check.
+- No behaviour change intended: no format, UI text, admission rule or ordering of
+  refusals changed (the reversal and batch commits keep their explicit order).
+- Passed: `./tools/check`, `./tools/tui --self-check`, `./tools/format --check`,
+  `git diff --check`, `./tools/privacy-scan --all`, `./tools/startup-probe 1000`
+  (builds and runs; synthetic only). Not executed: latest-data paired comparison
+  (no screen or displayed answer changed), physical terminal/IME, P7/power loss.
+
 ## Book publications retain one kind of recovery evidence (2026-10-27)
 
 - Ordinary recording, Observe and roles/Attention share the store-outcome mapping.
