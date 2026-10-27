@@ -3,7 +3,7 @@ include Daily_draft
 module F = Daily_file
 module B = Bakhlo_household.Daily_book
 
-(* Transitional caller adapters preserve existing controller/test contracts. *)
+(* Refusals in the Shell are the writer's: [get] and [get_id] raise [Daily_file.Refused]. *)
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
 let get_id = function Ok x -> x | Error D.Identifier.Empty -> raise (F.Refused "empty-identity")
 
@@ -37,15 +37,17 @@ let publish_changes ?sidecars ~session changes : commit_result =
       Storage_failed (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
   | Sys_error msg -> Storage_failed msg
 
-let commit_transaction ~session ~base_revision (tx : transaction) : commit_result =
+(* Publish only onto the revision the draft was made from. *)
+let publish_onto ~session ~base_revision changes =
   if base_revision <> session.F.revision then Conflict_base_changed
-  else
-    publish_changes ~session
-      [ B.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ]
+  else publish_changes ~session changes
+
+let commit_transaction ~session ~base_revision (tx : transaction) : commit_result =
+  publish_onto ~session ~base_revision
+    [ B.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ]
 
 let commit_plan ~session ~base_revision ~replace (plan : B.plan) : commit_result =
-  if base_revision <> session.F.revision then Conflict_base_changed
-  else publish_changes ~session [ B.Put_plan { replace; plan } ]
+  publish_onto ~session ~base_revision [ B.Put_plan { replace; plan } ]
 
 let commit_plan_batch ?(replace = true) ~session ~base_revision (plans : B.plan list) :
     commit_result =
@@ -58,8 +60,7 @@ let commit_plan_batch ?(replace = true) ~session ~base_revision (plans : B.plan 
     else publish_changes ~session (List.map (fun plan -> B.Put_plan { replace; plan }) plans)
 
 let commit_cancel_plan ~session ~base_revision ~id ~day : commit_result =
-  if base_revision <> session.F.revision then Conflict_base_changed
-  else publish_changes ~session [ B.Cancel_plan { id; day } ]
+  publish_onto ~session ~base_revision [ B.Cancel_plan { id; day } ]
 
 let commit_reverse_entry ~session ~base_revision ~id ~day : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
@@ -100,26 +101,22 @@ let commit_reverse_entry ~session ~base_revision ~id ~day : commit_result =
             [ B.Put_entry { replace = false; entry = reversal; plan = None } ]
 
 let commit_correct_entry_date ~session ~base_revision ~id ~day : commit_result =
-  if base_revision <> session.F.revision then Conflict_base_changed
-  else publish_changes ~session [ B.Correct_entry_date { id; day } ]
+  publish_onto ~session ~base_revision [ B.Correct_entry_date { id; day } ]
 
 let commit_observations ~session ~base_revision rows : commit_result =
-  if base_revision <> session.F.revision then Conflict_base_changed
-  else publish_changes ~session [ B.Observe rows ]
+  publish_onto ~session ~base_revision [ B.Observe rows ]
 
 let commit_sidecars ~session sidecars : commit_result = publish_changes ~sidecars ~session []
 
 let commit_classify_merchant ~session ~base_revision ~id ~disposition : commit_result =
-  if base_revision <> session.F.revision then Conflict_base_changed
-  else publish_changes ~session [ B.Classify_merchant { id; disposition } ]
+  publish_onto ~session ~base_revision [ B.Classify_merchant { id; disposition } ]
 
 let commit_payload ~session ~base_revision = function
   | Entry_tx tx -> commit_transaction ~session ~base_revision tx
   | Plan_tx { plan; replace } -> commit_plan ~session ~base_revision ~replace plan
 
 let commit_set_locus_label ~session ~base_revision ~id ~label ?help () : commit_result =
-  if base_revision <> session.F.revision then Conflict_base_changed
-  else publish_changes ~session [ B.Set_locus_label { id; label; help } ]
+  publish_onto ~session ~base_revision [ B.Set_locus_label { id; label; help } ]
 
 let commit_add_locus ~session name : commit_result =
   let name = String.trim name in

@@ -90,10 +90,6 @@ let forbidden_tokens =
     "Daily_actions";
   ]
 
-(* Literals still shared with legacy Shell workflows that have not moved to a
-   screen owner yet. Migration debt: this list may only shrink. *)
-let legacy_shared_literals : string list = []
-
 type stanza = { kind : string; names : string list; libraries : string list; dir : string list }
 
 let errors = ref []
@@ -360,7 +356,7 @@ let () =
             List.iter
               (fun literal ->
                 match List.assoc_opt literal owned with
-                | Some screen when not (List.mem literal legacy_shared_literals) ->
+                | Some screen ->
                     fail "tui/%s/%s: \"%s\" belongs to screen %s" (String.concat "/" rel) file
                       literal screen
                 | _ -> ())
