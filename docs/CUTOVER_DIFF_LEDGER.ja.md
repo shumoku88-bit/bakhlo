@@ -46,6 +46,7 @@ LOAMからBakhloへ普段の記帳を移す前に、**本人が「何が同じ�
 | 周期の変更（p・m）・未定化（s） | ✅ 一致（選択画面は実データ、保存は合成） | Series CalendarとPlan Detailから `scheduled-coverage.tsv` を更新。実データのコピーへの保存照合はしていない | なし | [周期](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/VERIFICATION.md#series-calendar-pace-and-undecided-2026-10-19) |
 | ListやMonthsからの監視追加、予定作成直後の周期選択 | ✅ 一致（List／Monthsは実データ）＋⬜ 作成直後は合成のみ | 2026-10-21、List／Monthsの予定欄でLOAMと同じく`p`・`m`（周期を選んで監視）、`s`（未定）、`e`（監視済みならそのまま補充、未監視なら周期を選んでから補充）を接続。編集はLOAMと同じ`r`（Ctrl-eも可）。実データ120×36で`p`の選択画面・Escの案内・`e`の補充画面がLOAMと一致。2026-10-21、予定作成直後の周期選択もLOAMと同じく接続（この回だけ／5周期／未定、Escは監視を変えず、作成を始めた画面へ戻る。完了後の「次の予定を追加」では出さない）。LOAMとの並べた照合は未実施（保存を伴うため） | 要判断 | UI-23, [List監視](VERIFICATION.md#scheduled-list-and-months-monitoring-keys-2026-10-21), [作成直後](VERIFICATION.md#scheduled-expected-pace-after-creation-2026-10-21) |
 | 予定の支払い完了 | ⬜ 未確認 | 接続済み（Plan Detail・Listから）。LOAMとの照合未了 | 要判断 | UI-17 |
+| 予定作成の差額補完（Ctrl-U） | ⬜ LOAM対照未了、修正の合成回帰済み | 2026-10-27：均衡済み3行の誤削除、既存差額の誤計算、カンマ入り金額の無視を修正。任意精度で計算し、不正入力では下書きを保持する。LOAMとの境界入力の操作対照は未実施 | なし | UI-16, [差額補完の回帰](VERIFICATION.md#scheduled-remainder-preserves-exact-drafts-2026-10-27) |
 | 予定の取り消し | 🟦 意図的な差 | Bakhloは取消日を入力する（既存の日付付き取消の契約） | なし | UI-18 |
 | 予定の置換・一括金額変更 | ⬜ 未確認 | 接続済み、照合未了 | なし | UI-19, UI-20 |
 | Months・List | 🟨 差あり（局部整合・合成確認） | LOAMソース参照でListの日付／ID昇順・Loci／日付filter・列・固定focus／8件page・Enter完了と詳細復帰、Monthsのカード・inline詳細を整合。scale付きAmount・検索／全文詳細は保持。共有Shell外枠は変更せず、両binaryの実行対照・本人受入は未実施 | なし | UI-14, UI-15, [合成証拠](VERIFICATION.md#scheduled-months-and-list-local-parity-2026-10-21) |

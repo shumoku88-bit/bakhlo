@@ -25,8 +25,101 @@ let fixture =
    ENDANCHOR\n\
    END\n"
 
+(* Exercise the public editor through to the exact candidate, rather than trusting
+   a success notice or a substring in the painted form. *)
+let check_remainder ~book ~width_of () =
+  let dimensions = (100, 30) in
+  let update session input =
+    match Sch.handle ~blocked:false ~dimensions ~width_of session input with
+    | Sch.Updated next -> next
+    | _ -> failwith "remainder editor unexpectedly closed or published"
+  in
+  let tab session = update session (key `Tab) in
+  let type_text text session =
+    String.fold_left (fun session c -> update session (char_key c)) session text
+  in
+  let focus index session =
+    let rec loop remaining session =
+      if Sch.focus session = index then session
+      else if remaining = 0 then failwith "remainder focus did not converge"
+      else loop (remaining - 1) (tab session)
+    in
+    loop 20 session
+  in
+  let edit rows =
+    let session = Sch.create ~book ~day:"2026-10-15" ~measure:"jpy" in
+    let session =
+      List.fold_left
+        (fun session _ -> update session (key ~mods:[ `Ctrl ] (`ASCII 'n')))
+        session
+        (List.filteri (fun i _ -> i >= 2) rows)
+      |> focus 1
+    in
+    List.fold_left
+      (fun session (locus, amount) -> session |> type_text locus |> tab |> type_text amount |> tab)
+      session rows
+  in
+  let balance session = update session (key ~mods:[ `Ctrl ] (`ASCII 'u')) in
+  let candidate session =
+    let session = focus (Sch.first_action session + 2) session |> fun s -> update s (key `Enter) in
+    require (Sch.is_preview session) ("remainder-preview: " ^ Sch.notice session);
+    match Sch.handle ~blocked:false ~dimensions ~width_of session (key `Enter) with
+    | Sch.Publish draft -> draft
+    | _ -> failwith "remainder preview did not offer its candidate"
+  in
+  let expect changes session name =
+    let draft = candidate session in
+    let expected = List.map (fun (locus, amount) -> (locus, Z.of_string amount)) changes in
+    require (draft.Sch.changes = expected) name;
+    require
+      (Z.equal (List.fold_left (fun total (_, n) -> Z.add total n) Z.zero draft.changes) Z.zero)
+      (name ^ "-conserves")
+  in
+  let balanced = [ ("assets:cash", "+1000"); ("expenses:rent", "-500"); ("unresolved", "-500") ] in
+  expect balanced (edit balanced |> balance |> balance) "balanced-three-postings-retained";
+  let changed = [ ("assets:cash", "+1000"); ("expenses:rent", "-400"); ("unresolved", "-500") ] in
+  expect
+    [ ("assets:cash", "1000"); ("expenses:rent", "-400"); ("unresolved", "-600") ]
+    (edit changed |> balance |> balance)
+    "existing-suspense-replaced-from-other-postings";
+  expect
+    [ ("assets:cash", "1000"); ("unresolved", "-1000") ]
+    (edit [ ("assets:cash", "+1,000"); ("", "") ] |> balance)
+    "comma-amount-balances-like-preview";
+  let huge = "1000000000000000000000000000000" in
+  expect
+    [ ("assets:cash", huge); ("unresolved", "-" ^ huge) ]
+    (edit [ ("assets:cash", huge); ("", "") ] |> balance)
+    "remainder-is-exact-beyond-machine-int";
+  let unchanged rows expected_notice =
+    let before = edit rows in
+    let after = balance before in
+    require
+      (Sch.notice after = expected_notice)
+      ("remainder-refusal-is-explicit: " ^ Sch.notice after);
+    let paint session = Sch.screen ~book ~dimensions ~width_of (Sch.with_notice session "") in
+    require (paint before = paint after) "remainder-refusal-keeps-every-field"
+  in
+  unchanged
+    [ ("assets:cash", "+1+"); ("", "") ]
+    "Enter a nonzero signed integer jpy amount for every posting.";
+  unchanged
+    [ ("assets:cash", "+1000"); ("expenses:rent", "") ]
+    "Enter a nonzero signed integer jpy amount for every posting.";
+  unchanged [ ("", "+1000"); ("", "") ] "Enter a valid Locus token for every posting.";
+  unchanged
+    [ ("assets:cash", "+1000"); ("unresolved", "-+") ]
+    "Enter a nonzero signed integer jpy amount for every posting.";
+  unchanged
+    [ ("assets:cash", "+1000"); ("unresolved", "-400"); ("suspense:other", "-500") ]
+    "Choose one suspense posting before balancing the remainder.";
+  unchanged
+    [ ("assets:cash", "+1000"); ("expenses:rent", "-1000"); ("unresolved", "-500") ]
+    "Other postings already balance; edit or remove suspense explicitly."
+
 let self_check ~width_of () =
   let book = Bakhlo_sexp.Daily_txt.book fixture in
+  check_remainder ~book ~width_of ();
 
   (* 1. Initial state *)
   let s = Sch.create ~book ~day:"2026-10-15" ~measure:"jpy" in

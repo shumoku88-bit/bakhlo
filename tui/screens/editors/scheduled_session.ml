@@ -188,69 +188,85 @@ let drop_row t =
     let rows = drop_last t.rows in
     { t with rows; focus = 0; cursor = None; candidate = 0; notice = "" }
 
-(* Ctrl-U: automatic balancing remainder / suspense row filling *)
+(* Both Preview and the remainder helper read signed integer quanta, including
+   commas, without narrowing amounts to machine integers. *)
+let parse_signed_integer text =
+  let clean = String.trim text |> String.split_on_char ',' |> String.concat "" in
+  try Some (Z.of_string clean) with Invalid_argument _ -> None
+
+let amount_error t =
+  A.format_message "Enter a nonzero signed integer %s amount for every posting." t.measure
+
+let empty_row r = String.trim r.locus = "" && String.trim r.amount = ""
+
+let is_suspense r =
+  let locus = String.lowercase_ascii (String.trim r.locus) in
+  locus = "unresolved" || Base.String.is_prefix locus ~prefix:"suspense"
+
+(* Ctrl-U changes at most one destination. In particular, an existing suspense
+   amount is not part of the total used to replace it, and balanced rows stay put. *)
 let auto_fill_suspense t =
-  let parse_amt str =
-    let clean = String.trim str in
-    let clean =
-      if String.starts_with ~prefix:"+" clean then String.sub clean 1 (String.length clean - 1)
-      else clean
-    in
-    try Some (int_of_string clean) with _ -> None
+  let indexed = List.mapi (fun i row -> (i, row)) t.rows in
+  let suspense = List.filter (fun (_, row) -> is_suspense row) indexed in
+  let rec amounts acc = function
+    | [] -> Ok (List.rev acc)
+    | (i, row) :: rest when empty_row row -> amounts ((i, Z.zero) :: acc) rest
+    | (_, row) :: _ when String.trim row.locus = "" ->
+        Error (tr "Enter a valid Locus token for every posting.")
+    | (i, row) :: rest when is_suspense row && String.trim row.amount = "" ->
+        amounts ((i, Z.zero) :: acc) rest
+    | (i, row) :: rest -> (
+        match parse_signed_integer row.amount with
+        | Some amount when not (Z.equal amount Z.zero) -> amounts ((i, amount) :: acc) rest
+        | _ -> Error (amount_error t))
   in
-  let is_suspense loc =
-    let l = String.lowercase_ascii loc in
-    l = "unresolved" || Base.String.is_prefix l ~prefix:"suspense"
-  in
-  let total = ref 0 in
-  let non_empty_count = ref 0 in
-  let suspense_idx = ref None in
-  List.iteri
-    (fun i r ->
-      if String.trim r.locus <> "" || String.trim r.amount <> "" then incr non_empty_count;
-      if is_suspense r.locus then suspense_idx := Some i;
-      match parse_amt r.amount with Some a -> total := !total + a | None -> ())
-    t.rows;
-  let remainder = - !total in
-  if remainder = 0 then
-    match !suspense_idx with
-    | Some idx when List.length t.rows > 2 ->
-        let rows = List.filteri (fun i _ -> i <> idx) t.rows in
-        { t with rows; notice = tr "Remainder balanced; removed suspense posting." }
-    | _ -> { t with notice = tr "Postings are already balanced." }
-  else
-    let rem_str =
-      if remainder > 0 then "+" ^ string_of_int remainder else string_of_int remainder
-    in
-    match !suspense_idx with
-    | Some idx ->
-        let rows =
-          List.mapi (fun i r -> if i = idx then { r with amount = rem_str } else r) t.rows
-        in
-        { t with rows; notice = tr "Adjusted suspense posting to balance remainder." }
-    | None -> (
-        let empty_idx =
-          let rec find i = function
-            | [] -> None
-            | r :: rest ->
-                if String.trim r.locus = "" && String.trim r.amount = "" then Some i
-                else find (i + 1) rest
-          in
-          find 0 t.rows
-        in
-        match empty_idx with
-        | Some idx ->
-            let rows =
-              List.mapi
-                (fun i r -> if i = idx then { locus = "unresolved"; amount = rem_str } else r)
-                t.rows
+  match suspense with
+  | _ :: _ :: _ ->
+      { t with notice = tr "Choose one suspense posting before balancing the remainder." }
+  | [] | [ _ ] -> (
+      match amounts [] indexed with
+      | Error notice -> { t with notice }
+      | Ok amounts -> (
+          let total = List.fold_left (fun acc (_, amount) -> Z.add acc amount) Z.zero amounts in
+          if Z.equal total Z.zero then { t with notice = tr "Postings are already balanced." }
+          else
+            let destination =
+              match suspense with
+              | [ (i, _) ] -> Some i
+              | _ -> Option.map fst (List.find_opt (fun (_, row) -> empty_row row) indexed)
             in
-            { t with rows; notice = tr "Filled empty posting with suspense remainder." }
-        | None ->
-            if List.length t.rows < 6 then
-              let rows = t.rows @ [ { locus = "unresolved"; amount = rem_str } ] in
-              { t with rows; notice = tr "Added suspense posting to balance remainder." }
-            else { t with notice = tr "Cannot add suspense posting; maximum of 6 rows reached." })
+            let other_total =
+              List.fold_left
+                (fun acc (i, amount) -> if Some i = destination then acc else Z.add acc amount)
+                Z.zero amounts
+            in
+            let remainder = Z.neg other_total in
+            if Z.equal remainder Z.zero then
+              {
+                t with
+                notice = tr "Other postings already balance; edit or remove suspense explicitly.";
+              }
+            else
+              let amount = (if Z.sign remainder > 0 then "+" else "") ^ Z.to_string remainder in
+              match destination with
+              | Some index ->
+                  let rows =
+                    List.mapi
+                      (fun i row ->
+                        if i <> index then row
+                        else if empty_row row then { locus = "unresolved"; amount }
+                        else { row with amount })
+                      t.rows
+                  in
+                  { t with rows; notice = tr "Adjusted suspense posting to balance remainder." }
+              | None when List.length t.rows < 6 ->
+                  {
+                    t with
+                    rows = t.rows @ [ { locus = "unresolved"; amount } ];
+                    notice = tr "Added suspense posting to balance remainder.";
+                  }
+              | None ->
+                  { t with notice = tr "Cannot add suspense posting; maximum of 6 rows reached." }))
 
 let insert t text =
   let cur_val = value t in
@@ -304,27 +320,9 @@ let validate_draft t : (draft_tx, string) result =
         | [] -> Ok (List.rev acc, pos_total)
         | r :: rest -> (
             let loc = String.trim r.locus in
-            let amt_str = String.trim r.amount in
-            let amt_clean =
-              if String.starts_with ~prefix:"+" amt_str then
-                String.sub amt_str 1 (String.length amt_str - 1)
-              else amt_str
-            in
-            let amt_opt =
-              try
-                let clean = String.concat "" (String.split_on_char ',' amt_clean) in
-                Some (Z.of_string clean)
-              with _ -> None
-            in
-            match amt_opt with
-            | None ->
-                Error
-                  (A.format_message "Enter a nonzero signed integer %s amount for every posting."
-                     t.measure)
-            | Some z when Z.equal z Z.zero ->
-                Error
-                  (A.format_message "Enter a nonzero signed integer %s amount for every posting."
-                     t.measure)
+            match parse_signed_integer r.amount with
+            | None -> Error (amount_error t)
+            | Some z when Z.equal z Z.zero -> Error (amount_error t)
             | Some amt ->
                 if loc = "" then Error (tr "Enter a valid Locus token for every posting.")
                 else

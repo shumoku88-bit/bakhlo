@@ -6,6 +6,21 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Scheduled remainder preserves exact drafts (2026-10-27)
+
+- Preview and Ctrl-U now share signed-integer parsing, using `Z.t`. A balanced
+  three-row draft keeps every row; replacing suspense excludes its old amount.
+  Invalid input, ambiguous suspense destinations and a zero replacement keep the
+  draft intact with an explicit notice.
+- Public `Scheduled_session.handle` tests inspect the exact candidate and its
+  conservation: existing suspense, repeated Ctrl-U, comma grouping, amounts beyond
+  machine integers, malformed amounts and unchanged fields on refusal.
+- The new tests fail against `086c3aa`'s implementation (balanced three-row case)
+  and pass against the fix. Targeted native tests and the integrated full check,
+  TUI self-check and formatting check passed. Preview/save guards remain in place.
+- Synthetic checks establish the repaired helper; no LOAM edge-case parity or
+  physical-terminal/IME acceptance is inferred from them.
+
 ## Amount text has one pure owner (2026-10-27)
 
 - From `086c3aa`: `sexp/amount.ml` owns exact decimal/expression input and display;
