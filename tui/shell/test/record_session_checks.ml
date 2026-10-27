@@ -858,4 +858,30 @@ let self_check ~width_of () =
     && (match List.nth compact 7 with O.Chrome, text -> text <> "" | _ -> false)
     && List.for_all (fun (_, line) -> width_of line <= 32) compact)
     "quick-compact-terminal-uses-the-whole-area-unframed";
+  (* One phase at a time: Esc holds the draft from the Preview, the original-amount
+     editor and the suspense confirmation, and the held Record reopens on its form. *)
+  List.iter
+    (fun (title, state) ->
+      match handle state (`Key (`Escape, [])) with
+      | S.Closed held ->
+          require
+            (S.has_draft held && contains held "Record / Edit" && not (contains held title))
+            ("phase-escape-holds-the-draft-on-the-form: " ^ title)
+      | _ -> failwith ("phase-escape-closes: " ^ title))
+    [
+      ("Record / Preview", review);
+      ("Record / Original amount", orig_editor);
+      ("Unresolved recording / Enable", no_suspense_editor);
+    ];
+  (* A paste during the suspense confirmation does not reach the form behind it. *)
+  let pasted_while_confirming =
+    List.fold_left update no_suspense_editor [ `Paste `Start; `Key (`ASCII 'x', []); `Paste `End ]
+  in
+  require
+    (contains pasted_while_confirming "Unresolved recording / Enable")
+    "paste-keeps-the-suspense-confirmation";
+  let confirmed_form = key pasted_while_confirming (`ASCII 'e') in
+  require
+    (contains confirmed_form "wallet" && not (contains confirmed_form "walletx"))
+    "paste-during-confirmation-leaves-the-draft";
   require (Bakhlo_household.Daily_txt.text book = before) "record-checks-leave-book-unchanged"

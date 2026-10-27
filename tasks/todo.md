@@ -86,7 +86,10 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
   Balancesの行は`screens/balances/balance_items`（`.mli`付き）、盆栽はHome画面へ。未使用の
   `progress_bar`を削除。
 
-残る候補（未着手）：Recordのphase統合。
+- [x] Recordの段階を一つの`phase`型に（Quick／Form／Original／Enabling／Review）。確認中の貼り付けが
+  裏のフォームに入っていた不具合も解消。
+
+残る候補（未着手）：macOSでCtrl-Oが端末ドライバ（VDISCARD）に取られ、原額入力が開かない。
 [検証記録](../docs/VERIFICATION.md#old-names-removed-from-the-household-book-and-shell-2026-10-27)。
 
 ## 要判断

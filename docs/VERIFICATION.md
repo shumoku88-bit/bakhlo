@@ -6,6 +6,27 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Record is in one phase at a time (2026-10-27)
+
+- `Record_session.t` kept its phase in four fields (`quick`, `original_editor`,
+  `enabling`, `review`); one `phase` variant (`Quick | Form | Original | Enabling |
+  Review`) now holds it, so no two can be set together. `paste` stays separate (a
+  paste can arrive in any phase).
+- Changes found while doing so: a paste during the suspense confirmation used to be
+  typed into the hidden form; it is now ignored (a new check fails on the old code).
+  The test-only `Shell_state.submit` could put a Preview over the quick capture;
+  Edit from such a Preview now returns to the form.
+- New checks: Esc from Preview, original-amount editor and suspense confirmation holds
+  the draft and reopens on the form; the paste case above. `./tools/check`,
+  `./tools/tui --self-check`, `./tools/format --check` passed.
+- Latest read-only copy, previous and new Bakhlo, 125×45 and 80×24: Home, quick
+  capture (empty, typed), form, original-amount editor, back, Ctrl-U, held draft and
+  reopened draft. All 20 frames are byte-identical. Household unchanged; copies cleaned.
+  Preview was not reached on the copy (synthetic checks cover it).
+- Found, **not fixed**: on macOS the terminal driver takes Ctrl-O (VDISCARD, with
+  IEXTEN on), so Ctrl-O never reaches Bakhlo and the original-amount editor does not
+  open; the captures above used `stty discard undef`.
+
 ## Income & Expense compares Locus bars with a chosen window (2026-10-27)
 
 - The header is two lines (shown window with its day count, compared window at the
