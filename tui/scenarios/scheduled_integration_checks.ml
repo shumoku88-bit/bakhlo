@@ -915,7 +915,9 @@ let continuation_checks ~width_of ~directory home =
   require (no_modal done_ && F.read none_path = none_bytes) "continuation-done-never-adds";
   let defer = key ~width_of none `Tab in
   (* A save the writer refuses: the session no longer matches the file. *)
-  let failed = key ~width_of { defer with session = { defer.session with F.revision = "stale" } } `Enter in
+  let failed =
+    key ~width_of { defer with session = { defer.session with F.revision = "stale" } } `Enter
+  in
   require
     (F.read none_path = none_bytes
     && (not failed.record_visible)

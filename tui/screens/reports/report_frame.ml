@@ -11,7 +11,6 @@ let create = { scroll = 0 }
 (* Content rows inside one framed panel: two borders and the position row. The
    handler and the body both use this one function. *)
 let capacity (geometry : Screen.geometry) = max 0 (snd geometry.content - 2)
-
 let last ~count ~capacity = max 0 (count - capacity)
 let clamp ~count ~capacity t = { scroll = max 0 (min (last ~count ~capacity) t.scroll) }
 
@@ -45,8 +44,7 @@ let apply ~count ~capacity t = function
   | Bottom -> { scroll = last ~count ~capacity }
 
 (* Consumes only the shared scroll keys. *)
-let handle ~count ~capacity t input =
-  Option.map (apply ~count ~capacity t) (scroll_move input)
+let handle ~count ~capacity t input = Option.map (apply ~count ~capacity t) (scroll_move input)
 
 let position ~count ~capacity t =
   let capacity = max 0 capacity in
@@ -83,8 +81,7 @@ let body ~geometry ~count ~title t rows =
   let width, height = geometry.Screen.content in
   let capacity = max 0 (height - 2) in
   let shown = slice ~capacity t rows in
-  Ui_panel.frame_rows ~inset:0
-    ~bottom_label:(position ~count ~capacity t)
+  Ui_panel.frame_rows ~inset:0 ~bottom_label:(position ~count ~capacity t)
     ~width_of:geometry.width_of ~width ~height ~focused:true ~title shown
 
 (* A single full-width framed block that is not scrollable (refusals). *)
@@ -95,8 +92,7 @@ let block ~geometry ~title rows =
     List.filteri (fun i _ -> i < capacity) rows
     |> List.map (fun (style, text) -> (style, " " ^ text))
   in
-  Ui_panel.frame_rows ~inset:0 ~width_of:geometry.width_of ~width ~height ~focused:true ~title
-    shown
+  Ui_panel.frame_rows ~inset:0 ~width_of:geometry.width_of ~width ~height ~focused:true ~title shown
 
 (* A report's body plan, shared by the renderer and the handler's row count:
    scrollable rows, or a fixed block (refusals). *)

@@ -9,8 +9,16 @@ let require condition why = if not condition then failwith why
 
 let book =
   Bakhlo_sexp.Daily_txt.book
-    "BOOK\t1\nMEASURE\tjpy\t0\nLOCUS\tsuspense\tsuspense\t\nLOCUS\tcash\tcash\t\nLOCUS\tfood\tfood\t\n\
-     TX\ta\t2026-10-04\nEFFECT\tsuspense\tjpy\t10\nEFFECT\tfood\tjpy\t-10\nENDTX\nEND\n"
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     LOCUS\tsuspense\tsuspense\t\n\
+     LOCUS\tcash\tcash\t\n\
+     LOCUS\tfood\tfood\t\n\
+     TX\ta\t2026-10-04\n\
+     EFFECT\tsuspense\tjpy\t10\n\
+     EFFECT\tfood\tjpy\t-10\n\
+     ENDTX\n\
+     END\n"
 
 let geometry : Screen.geometry =
   { screen = (120, 36); body = (120, 33); content = (120, 32); width_of = String.length }
@@ -86,9 +94,7 @@ let () =
   let submitted, request =
     Loci.handle env geometry (Loci.with_form ready opened) (`Key (`Enter, []))
   in
-  (match request with
-  | Screen.Stay -> ()
-  | _ -> failwith "admitting suspense must be refused");
+  (match request with Screen.Stay -> () | _ -> failwith "admitting suspense must be refused");
   (match Loci.form submitted with
   | Some form ->
       let notice = Ui_form.notice form in

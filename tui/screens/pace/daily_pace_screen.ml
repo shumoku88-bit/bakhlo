@@ -628,8 +628,9 @@ let panel ~width_of ~width ~height ~focused ~title ~bottom rows =
 let selected_day_panel ~width_of ~width ~height t rows =
   let is_detail = t.pane = Detail_pane in
   let view =
-    Panel.window ~capacity:(max 0 (height - 2)) ~count:(List.length rows) ~scroll:t.scroll
-      ~selected:None
+    Panel.window
+      ~capacity:(max 0 (height - 2))
+      ~count:(List.length rows) ~scroll:t.scroll ~selected:None
   in
   let bottom =
     Printf.sprintf "%d-%d/%d%s%s"
@@ -674,15 +675,19 @@ let trend_rows (env : Screen.env) (geometry : Screen.geometry) t ~height samples
           (if count = 0 then 0 else selected_idx + 1)
           count
           (if history_capacity = 0 then " • list hidden"
-           else (if start > 0 then " ↑" else "") ^ if start + history_capacity < count then " ↓" else "")
+           else
+             (if start > 0 then " ↑" else "")
+             ^ if start + history_capacity < count then " ↓" else "")
       in
       Trend.render_chart
         ~width:(max 0 (width - 2))
         ~height:(Panel.capacity ~height:chart_height ~heading:false)
         ~width_of ~book:env.book ~today:env.today ~measure:env.measure ~samples
         ~selected_index:selected_idx ~graph_style:t.trend.graph_style
-      |> List.map (fun (style, text) -> ((if is_detail && style = O.Active then O.Plain else style), text))
-      |> panel ~width_of ~width ~height:chart_height ~focused:(not is_detail) ~title ~bottom:position
+      |> List.map (fun (style, text) ->
+          ((if is_detail && style = O.Active then O.Plain else style), text))
+      |> panel ~width_of ~width ~height:chart_height ~focused:(not is_detail) ~title
+           ~bottom:position
     in
     let history =
       Trend.render_history

@@ -139,7 +139,9 @@ let render_summary_lines ~width ~width_of ~book ~report ~selected_row =
             if label <> "" && label <> r.locus then Printf.sprintf "%s/%s" label r.measure
             else Printf.sprintf "%s/%s" r.locus r.measure
           in
-          let net_str = (if Z.sign r.net > 0 then "+" else "") ^ O.format_money book r.measure r.net in
+          let net_str =
+            (if Z.sign r.net > 0 then "+" else "") ^ O.format_money book r.measure r.net
+          in
           let gross_str = O.format_money book r.measure r.gross in
           let pos_str = "+" ^ O.format_money book r.measure r.positive in
           let neg_str = O.format_money book r.measure r.negative in
@@ -195,14 +197,19 @@ let render_detail_lines ~book ~report ~selected_row =
           ( O.Plain,
             Printf.sprintf "Net Activity:   %s%s %s"
               (if Z.sign r.net > 0 then "+" else "")
-              (O.format_money book r.measure r.net) r.measure );
+              (O.format_money book r.measure r.net)
+              r.measure );
           ( O.Plain,
-            Printf.sprintf "Gross Volume:   %s %s" (O.format_money book r.measure r.gross) r.measure );
-          ( O.Plain,
-            Printf.sprintf "Total Inflows:  +%s %s" (O.format_money book r.measure r.positive) r.measure
+            Printf.sprintf "Gross Volume:   %s %s" (O.format_money book r.measure r.gross) r.measure
           );
           ( O.Plain,
-            Printf.sprintf "Total Outflows: %s %s" (O.format_money book r.measure r.negative) r.measure );
+            Printf.sprintf "Total Inflows:  +%s %s"
+              (O.format_money book r.measure r.positive)
+              r.measure );
+          ( O.Plain,
+            Printf.sprintf "Total Outflows: %s %s"
+              (O.format_money book r.measure r.negative)
+              r.measure );
           (O.Plain, Printf.sprintf "Total Events:   %d transactions" r.active_events);
           (O.Chrome, "");
           (O.Heading, "Contributing Transactions:");
@@ -213,7 +220,8 @@ let render_detail_lines ~book ~report ~selected_row =
           (fun (date, quanta, memo, id) ->
             let amt =
               (if Z.sign quanta > 0 then "+" else "")
-              ^ O.format_money book r.measure quanta ^ " " ^ r.measure
+              ^ O.format_money book r.measure quanta
+              ^ " " ^ r.measure
             in
             let desc = if memo = "" then "[" ^ id ^ "]" else memo ^ "  [" ^ id ^ "]" in
             (O.Plain, Printf.sprintf "  %s  %14s  %s" date amt desc))
@@ -240,7 +248,9 @@ let print_summary ~book ~(report : report) =
         else r.locus ^ "/" ^ r.measure
       in
       let net =
-        (if Z.sign r.net > 0 then "+" else "") ^ O.format_money book r.measure r.net ^ " " ^ r.measure
+        (if Z.sign r.net > 0 then "+" else "")
+        ^ O.format_money book r.measure r.net
+        ^ " " ^ r.measure
       in
       let gross = O.format_money book r.measure r.gross ^ " " ^ r.measure in
       let pos = "+" ^ O.format_money book r.measure r.positive in

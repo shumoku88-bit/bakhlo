@@ -11,7 +11,6 @@ let no_sidecars = { roles = ""; attention = "" }
 exception Refused of string
 
 let refuse why = raise (Refused why)
-
 let roles_header = "LOAM-ACCOUNTING-ROLE-MAP\t1"
 let attention_header = "LOAM-ATTENTION-MEMORY\t1"
 
@@ -54,20 +53,32 @@ let roles_of text =
 
 (* attention.loam rows are book.txt's ITEM/CLOSE lines: admit them through Book_txt. *)
 let attention_of text =
-  let body = try rows ~header:attention_header text with Refused why -> refuse ("attention-" ^ why) in
-  match T.of_string (String.concat "" (List.map (fun r -> r ^ "\n") (("BOOK\t1" :: body) @ [ "END" ]))) with
+  let body =
+    try rows ~header:attention_header text with Refused why -> refuse ("attention-" ^ why)
+  in
+  match
+    T.of_string (String.concat "" (List.map (fun r -> r ^ "\n") (("BOOK\t1" :: body) @ [ "END" ])))
+  with
   | Ok t -> (t.items, t.closes)
   | Error e -> refuse ("attention-" ^ T.code_name e.code)
 
 let lines header rows = if rows = [] then "" else String.concat "\n" (header :: rows) ^ "\n"
 
 let attention_text (items, closes) =
-  let printed = T.to_string { (T.of_string "BOOK\t1\nEND\n" |> Result.get_ok) with items; closes } in
-  let body = String.split_on_char '\n' printed |> List.filter (fun l -> l <> "" && l <> "BOOK\t1" && l <> "END") in
+  let printed =
+    T.to_string { (T.of_string "BOOK\t1\nEND\n" |> Result.get_ok) with items; closes }
+  in
+  let body =
+    String.split_on_char '\n' printed
+    |> List.filter (fun l -> l <> "" && l <> "BOOK\t1" && l <> "END")
+  in
   lines attention_header body
 
-let roles_text roles = lines roles_header (List.map (fun (l, r) -> "ROLE\t" ^ l ^ "\t" ^ role_name r) roles)
-let sidecars_of book = { roles = roles_text (B.roles book); attention = attention_text (B.attention book) }
+let roles_text roles =
+  lines roles_header (List.map (fun (l, r) -> "ROLE\t" ^ l ^ "\t" ^ role_name r) roles)
+
+let sidecars_of book =
+  { roles = roles_text (B.roles book); attention = attention_text (B.attention book) }
 
 let with_sidecars book s =
   match (roles_of s.roles, attention_of s.attention) with

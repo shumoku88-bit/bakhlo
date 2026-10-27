@@ -12,7 +12,7 @@ let unreadable_roles_checks ~width_of ~directory ~path =
   require
     (parse
        "LOAM-ACCOUNTING-ROLE-MAP\t1\r\n# comment\n; note\n\nROLE\twallet\tASSET\r\nfood\texpense\n"
-     = Ok [ ("wallet", Daily_overlays.Asset); ("food", Daily_overlays.Expense) ])
+    = Ok [ ("wallet", Daily_overlays.Asset); ("food", Daily_overlays.Expense) ])
     "roles-header-comments-blank-crlf-accepted";
   List.iter
     (fun (label, text, line) ->

@@ -10,6 +10,7 @@ type t = (string * role) list
 
 val empty : t
 val set_role : t -> string -> role option -> t
+
 val of_string : string -> (t, string) result
 (** Refuses a malformed row, an unknown role or a repeated Locus (with its line). *)
 

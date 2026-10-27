@@ -14,7 +14,10 @@ let self_check () =
   require (Boundary_presets.parse plain = expected) "plain-presets";
   (* CRLF, comments, blank lines and surrounding spaces read the same. *)
   let crlf =
-    "# cycles\r\npension\t2026-08-15\t2026-10-15\t2026-12-15\r\n\r\n  salary\t2026-10-01\t2026-11-01  \r\n"
+    "# cycles\r\n\
+     pension\t2026-08-15\t2026-10-15\t2026-12-15\r\n\
+     \r\n\
+    \  salary\t2026-10-01\t2026-11-01  \r\n"
   in
   require (Boundary_presets.parse crlf = expected) "crlf-comment-blank-presets";
   List.iter

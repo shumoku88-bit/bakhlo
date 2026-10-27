@@ -10,12 +10,10 @@ let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
 let z = Z.of_int
 let coord locus measure : T.coordinate = { locus; measure }
-
 let posting locus measure n = Printf.sprintf "EFFECT\t%s\t%s\t%s\n" locus measure (Z.to_string n)
 
 (* One balanced jpy pair: the signed effect lands on a, its counter-effect on b. *)
 let ab n = posting "a" "jpy" n ^ posting "b" "jpy" (Z.neg n)
-
 let row id day postings = Printf.sprintf "TX\t%s\t%s\n%sENDTX\n" id day postings
 
 (* Loci in [approved] are offered for new entries; those in [hidden] are only recorded. *)
@@ -126,8 +124,7 @@ let catalog_checks () =
     "catalog is admitted plus recorded identities, never inferred roles";
   let historical =
     fixture ~approved:[] ~hidden:[ "a"; "b"; "d" ]
-      (row "h1" "2026-10-02"
-         (ab (z 5) ^ posting "d" "eur" (z 700) ^ posting "a" "eur" (z (-700))))
+      (row "h1" "2026-10-02" (ab (z 5) ^ posting "d" "eur" (z 700) ^ posting "a" "eur" (z (-700))))
   in
   require
     (T.catalog ~book:historical ~measure:"jpy" = [ coord "a" "jpy"; coord "b" "jpy" ])

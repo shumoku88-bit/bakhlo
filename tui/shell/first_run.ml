@@ -142,7 +142,8 @@ let roundtrip_empty scale =
   | Error why -> failwith ("first-run-check: " ^ why)
   | Ok book -> (
       let module X = Bakhlo_sexp.Daily_txt in
-      try X.book (X.text book) with Invalid_argument why -> failwith ("first-run-check: empty-book-roundtrip: " ^ why))
+      try X.book (X.text book)
+      with Invalid_argument why -> failwith ("first-run-check: empty-book-roundtrip: " ^ why))
 
 let check ~width_of () =
   let require ok why = if not ok then failwith ("first-run-check: " ^ why) in

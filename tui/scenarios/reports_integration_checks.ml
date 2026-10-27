@@ -89,11 +89,26 @@ let run_multicurrency ~width_of ~directory =
   let month_start = String.sub today 0 8 ^ "01" in
   let book_bytes =
     Printf.sprintf
-      "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\nLOCUS\twallet\twallet\t\nLOCUS\tbank\tbank\t\n\
-       LOCUS\tfood\tfood\t\nLOCUS\trent\trent\t\nTX\tspend-jpy\t%s\nEFFECT\tfood\tjpy\t1000\n\
-       EFFECT\twallet\tjpy\t-1000\nENDTX\nTX\tspend-eur\t%s\nEFFECT\trent\teur\t5000\n\
-       EFFECT\tbank\teur\t-5000\nENDTX\nZERO-ORIGIN\twallet\tjpy\nZERO-ORIGIN\tbank\tjpy\n\
-       ZERO-ORIGIN\twallet\teur\nZERO-ORIGIN\tbank\teur\nEND\n"
+      "BOOK\t1\n\
+       MEASURE\tjpy\t0\n\
+       MEASURE\teur\t2\n\
+       LOCUS\twallet\twallet\t\n\
+       LOCUS\tbank\tbank\t\n\
+       LOCUS\tfood\tfood\t\n\
+       LOCUS\trent\trent\t\n\
+       TX\tspend-jpy\t%s\n\
+       EFFECT\tfood\tjpy\t1000\n\
+       EFFECT\twallet\tjpy\t-1000\n\
+       ENDTX\n\
+       TX\tspend-eur\t%s\n\
+       EFFECT\trent\teur\t5000\n\
+       EFFECT\tbank\teur\t-5000\n\
+       ENDTX\n\
+       ZERO-ORIGIN\twallet\tjpy\n\
+       ZERO-ORIGIN\tbank\tjpy\n\
+       ZERO-ORIGIN\twallet\teur\n\
+       ZERO-ORIGIN\tbank\teur\n\
+       END\n"
       month_start month_start
   in
   F.write_new path book_bytes;
@@ -323,12 +338,7 @@ let run ~width_of ~directory (back_home : C.state) =
     (fun bytes ->
       configure bytes;
       refused ())
-    [
-      "food\tjpy\nbad-row\n";
-      "food\tjpy\nwallet\teur\n";
-      "food\tjpy\nfood\tjpy\n";
-      "";
-    ];
+    [ "food\tjpy\nbad-row\n"; "food\tjpy\nwallet\teur\n"; "food\tjpy\nfood\tjpy\n"; "" ];
   (* A valid selection with no support at all is listed, not refused; the wallet
      observation is exact but undated, so it is not in this list. *)
   configure "bank\tjpy\n";

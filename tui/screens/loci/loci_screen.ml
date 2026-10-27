@@ -102,18 +102,14 @@ let refusal_for ~route (env : Screen.env) locus =
         Some (tr "This Locus already has an accounting role; roles are never replaced.")
     | Ok _ -> None
 
-let role_refusal (env : Screen.env) locus =
-  refusal_for ~route:Role_assignment env locus
-
-let admission_refusal (env : Screen.env) token =
-  refusal_for ~route:Admission env token
+let role_refusal (env : Screen.env) locus = refusal_for ~route:Role_assignment env locus
+let admission_refusal (env : Screen.env) token = refusal_for ~route:Admission env token
 
 let move (env : Screen.env) t delta =
   let count = List.length (admitted_loci env.book) in
   if count = 0 then t else { t with selected = max 0 (min (count - 1) (t.selected + delta)) }
 
-let role_option_strings =
-  [ "(Choose a role)"; "Asset"; "Liability"; "Equity"; "Income"; "Expense" ]
+let role_option_strings = [ "(Choose a role)"; "Asset"; "Liability"; "Equity"; "Income"; "Expense" ]
 
 let role_of_index = function
   | 1 -> Some Roles.Asset
@@ -205,10 +201,10 @@ let submit (env : Screen.env) (geometry : Screen.geometry) t submitted =
   in
   match t.editor with
   | None -> (t, Screen.Stay)
-  | Some (Admit _) ->
+  | Some (Admit _) -> (
       let token = Option.value ~default:"" (Form.get_text submitted "token") |> String.trim in
       if token = "" then keep (fun f -> Admit f) (tr "Enter the new Locus token.")
-      else (
+      else
         (* The role is saved after the admission, so refuse up front whatever would
            leave the new Locus without one. *)
         match
@@ -450,9 +446,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
       "";
       "Current Balances:";
     ]
-    @ (match balances_of suspense_locus with
-      | [] -> [ "  (no measures)" ]
-      | balances -> balances)
+    @ (match balances_of suspense_locus with [] -> [ "  (no measures)" ] | balances -> balances)
     @ [
         "";
         "This Locus holds Effects whose real account is not yet known. It is not an";
@@ -513,9 +507,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
          match roles with
          | Ok roles ->
              List.length
-               (List.filter
-                  (fun l -> l <> suspense_locus && not (List.mem_assoc l roles))
-                  loci)
+               (List.filter (fun l -> l <> suspense_locus && not (List.mem_assoc l roles)) loci)
          | Error _ -> 0
        with
       | 0 -> Printf.sprintf "Manage Loci (%d admitted)" (List.length loci)

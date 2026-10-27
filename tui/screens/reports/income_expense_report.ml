@@ -6,14 +6,15 @@ module Cal = Daily_calendar
 module A = Daily_draft
 module D = Bakhlo_domain
 
-type period_preset = Period_window.preset =
-  | Month | Cycle | Previous_cycle | Year | All_time
+type period_preset = Period_window.preset = Month | Cycle | Previous_cycle | Year | All_time
+
 type period = Period_window.period = {
   preset : period_preset;
   start_day : string;
   end_exclusive : string;
   label : string;
 }
+
 type line_item = { locus : string; label : string; amount : Z.t }
 
 type measure_summary = {
@@ -33,13 +34,9 @@ type report = {
   unresolved_effects : (string * string * string * Z.t) list;
 }
 
-type t = {
-  preset : period_preset;
-  period_offset : int;
-}
+type t = { preset : period_preset; period_offset : int }
 
-let initial () =
-  { preset = Cycle; period_offset = 0 }
+let initial () = { preset = Cycle; period_offset = 0 }
 
 let preset_label = function
   | Month -> "Month"
@@ -49,14 +46,15 @@ let preset_label = function
   | All_time -> "All Time"
 
 let presets = [ Month; Cycle; Previous_cycle; Year; All_time ]
-
 let parse_boundary_presets = Period_window.parse_boundary_presets
 let resolve_period = Period_window.resolve
 
 (* How much of [period] has elapsed at [today]: (completed days, total days).
    A window that has not started yet reports 0; a finished window reports M of M. *)
 let elapsed ~today (period : period) =
-  match (Cal.day_index today, Cal.day_index period.start_day, Cal.day_index period.end_exclusive) with
+  match
+    (Cal.day_index today, Cal.day_index period.start_day, Cal.day_index period.end_exclusive)
+  with
   | Ok now, Ok start, Ok stop ->
       let total = max 0 (stop - start) in
       (max 0 (min total (now - start + 1)), total)
@@ -67,7 +65,8 @@ let elapsed ~today (period : period) =
    empty window, never the whole window. *)
 let truncate_to_days (period : period) days =
   if days <= 0 then { period with end_exclusive = period.start_day }
-  else match Cal.shift_days period.start_day days with
+  else
+    match Cal.shift_days period.start_day days with
     | Ok day -> { period with end_exclusive = day }
     | Error _ -> period
 
@@ -159,7 +158,6 @@ let compute_report ~book ~roles ~period =
 (* A Measure is active when the window has any role-classified income or expense.
    Inactive Measures are named once instead of painted as empty blocks. *)
 let measure_active (ms : measure_summary) = ms.income_items <> [] || ms.expense_items <> []
-
 let split_measures summaries = List.partition measure_active summaries
 
 let by_amount_desc (items : line_item list) =
@@ -184,7 +182,9 @@ let item_lines ~width_of ~pad_w ~book ~measure ~with_bar items =
   let col_locus = max 18 (min 36 (pad_w / 2)) in
   let col_amt = max 12 (min 22 (pad_w - col_locus - 6)) in
   let max_amount =
-    List.fold_left (fun acc (it : line_item) -> if Z.gt it.amount acc then it.amount else acc) Z.zero items
+    List.fold_left
+      (fun acc (it : line_item) -> if Z.gt it.amount acc then it.amount else acc)
+      Z.zero items
   in
   List.map
     (fun (it : line_item) ->
@@ -192,12 +192,10 @@ let item_lines ~width_of ~pad_w ~book ~measure ~with_bar items =
       let amount_cell = O.pad_left ~width_of col_amt amount in
       let label_cell = O.pad ~width_of col_locus it.label in
       let bar_room =
-        if not with_bar then 0
-        else max 0 (pad_w - width_of label_cell - width_of amount_cell - 2)
+        if not with_bar then 0 else max 0 (pad_w - width_of label_cell - width_of amount_cell - 2)
       in
       let mark = bar ~room:bar_room it.amount max_amount in
-      ( O.Plain,
-        "  " ^ label_cell ^ "  " ^ amount_cell ^ if mark = "" then "" else "  " ^ mark ))
+      (O.Plain, "  " ^ label_cell ^ "  " ^ amount_cell ^ if mark = "" then "" else "  " ^ mark))
     (by_amount_desc items)
 
 let render_report_lines ~width ~width_of ~book ~report ~today ~previous ~previous_full =
@@ -247,7 +245,8 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~previous ~previou
             let delta = Z.sub current prev_value in
             let detailed =
               assemble
-                (Printf.sprintf "prev %s  %s" (O.format_money book m prev_value)
+                (Printf.sprintf "prev %s  %s"
+                   (O.format_money book m prev_value)
                    (signed book m delta))
             in
             (* Keep the difference itself when the full comparison does not fit. *)
@@ -269,11 +268,14 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~previous ~previou
     in
     [
       (O.Heading, Printf.sprintf "Currency: %s" m);
-      line "Income" ms.total_income (prev_of (fun (p : measure_summary) -> p.total_income))
+      line "Income" ms.total_income
+        (prev_of (fun (p : measure_summary) -> p.total_income))
         (full_of (fun (p : measure_summary) -> p.total_income));
-      line "Expense" ms.total_expense (prev_of (fun (p : measure_summary) -> p.total_expense))
+      line "Expense" ms.total_expense
+        (prev_of (fun (p : measure_summary) -> p.total_expense))
         (full_of (fun (p : measure_summary) -> p.total_expense));
-      line "Result" ms.net_savings (prev_of (fun (p : measure_summary) -> p.net_savings))
+      line "Result" ms.net_savings
+        (prev_of (fun (p : measure_summary) -> p.net_savings))
         (full_of (fun (p : measure_summary) -> p.net_savings));
       ( O.Plain,
         Printf.sprintf "  split: Scheduled %s  |  other %s"
@@ -299,8 +301,7 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~previous ~previou
   let active, inactive = split_measures report.summaries in
   let summaries_lines =
     List.concat_map
-      (fun (ms : measure_summary) ->
-        totals_block ms @ breakdown ms @ income_breakdown ms)
+      (fun (ms : measure_summary) -> totals_block ms @ breakdown ms @ income_breakdown ms)
       active
   in
   let empty_lines =
@@ -341,7 +342,7 @@ let render_compare_lines ~width ~width_of ~book ~today ~reports =
   let pad_w = max 0 (width - 4) in
   let n_total = List.length reports in
   let col_w = 12 in
-  let fits = max 1 ((max 0 (pad_w - 16)) / col_w) in
+  let fits = max 1 (max 0 (pad_w - 16) / col_w) in
   let n = min n_total fits in
   let reports =
     let skip = max 0 (n_total - n) in
@@ -351,8 +352,7 @@ let render_compare_lines ~width ~width_of ~book ~today ~reports =
   let measures =
     List.sort_uniq String.compare
       (List.concat_map
-         (fun (_, (r : report)) ->
-           List.map (fun (ms : measure_summary) -> ms.measure) r.summaries)
+         (fun (_, (r : report)) -> List.map (fun (ms : measure_summary) -> ms.measure) r.summaries)
          reports)
   in
   let measure_active_in measure =
@@ -386,10 +386,8 @@ let render_compare_lines ~width ~width_of ~book ~today ~reports =
   let header =
     (O.Heading, Printf.sprintf "Compare: %d window(s) of this kind" n)
     :: ( O.Chrome,
-         "Window starts: "
-         ^ String.concat "  " (List.map (fun day -> String.sub day 5 5) starts) )
-    :: ( O.Plain,
-         "  " ^ O.pad ~width_of label_w "" ^ " " ^ String.concat " " header_cells )
+         "Window starts: " ^ String.concat "  " (List.map (fun day -> String.sub day 5 5) starts) )
+    :: (O.Plain, "  " ^ O.pad ~width_of label_w "" ^ " " ^ String.concat " " header_cells)
     :: [ (O.Plain, "") ]
   in
   let cell measure index (ms : measure_summary option) =
@@ -479,13 +477,11 @@ let print_summary ~book ~report =
       add (Printf.sprintf "Result:  %s" (fmt ms.net_savings));
       if ms.expense_items <> [] then
         List.iter
-          (fun (it : line_item) ->
-            add (Printf.sprintf "  %-28s  %16s" it.label (fmt it.amount)))
+          (fun (it : line_item) -> add (Printf.sprintf "  %-28s  %16s" it.label (fmt it.amount)))
           (by_amount_desc ms.expense_items);
       if ms.income_items <> [] then
         List.iter
-          (fun (it : line_item) ->
-            add (Printf.sprintf "  +%-27s  %16s" it.label (fmt it.amount)))
+          (fun (it : line_item) -> add (Printf.sprintf "  +%-27s  %16s" it.label (fmt it.amount)))
           (by_amount_desc ms.income_items))
     active;
   if active = [] then add "  (no role-classified activity in this window)";

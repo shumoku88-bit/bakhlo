@@ -35,7 +35,7 @@ type snapshot = {
   increases_across_events : Z.t;
   decreases_across_events : Z.t;
   net_change : Z.t option;
-  (** The tracked motion. Unknown when an opening entry was left out of the
+      (** The tracked motion. Unknown when an opening entry was left out of the
       flows: Start and End still carry it, so the motion is not the sum of the
       in-window flows. *)
   current_tracked : Z.t;  (** Sum of the known current quantities. *)
@@ -43,7 +43,7 @@ type snapshot = {
   liabilities : coordinate_activity list;
   unsupported : (string * string) list;  (** Locus and its support state. *)
   excluded_openings : (string * string) list;
-  (** The id and the day of each opening entry left out of the flows. *)
+      (** The id and the day of each opening entry left out of the flows. *)
 }
 
 type report = snapshot

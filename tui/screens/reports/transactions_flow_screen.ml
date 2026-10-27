@@ -20,11 +20,15 @@ type t = {
 let config_files = [ P.boundary_file ]
 
 let create () =
-  { report = Flow.initial (); detail_frame = Frame.create; detail = false; help = None; preview = None }
+  {
+    report = Flow.initial ();
+    detail_frame = Frame.create;
+    detail = false;
+    help = None;
+    preview = None;
+  }
 
-let enter t =
-  { t with detail_frame = Frame.create; detail = false; help = None; preview = None }
-
+let enter t = { t with detail_frame = Frame.create; detail = false; help = None; preview = None }
 let modal t = Option.is_some t.preview || Option.is_some t.help
 let form t = match t.preview with Some f -> Some f | None -> t.help
 let preset t = t.report.preset
@@ -54,7 +58,8 @@ let help_form () =
 
 let period_of (env : Screen.env) t = P.checked env t.report.preset t.report.period_offset
 
-let report_of (env : Screen.env) t = Result.map (fun period -> Flow.compute_report ~book:env.book ~period) (period_of env t)
+let report_of (env : Screen.env) t =
+  Result.map (fun period -> Flow.compute_report ~book:env.book ~period) (period_of env t)
 
 let coordinate_count (env : Screen.env) t =
   match report_of env t with Ok rep -> List.length rep.rows | Error _ -> 0
@@ -77,7 +82,8 @@ let detail_lines (env : Screen.env) (geometry : Screen.geometry) t =
   | Ok rep ->
       List.concat_map
         (O.wrap_text ~width_of:geometry.width_of (max 1 (detail_width geometry - 4)))
-        (List.map snd (Flow.render_detail_lines ~book:env.book ~report:rep ~selected_row:(selected env t)))
+        (List.map snd
+           (Flow.render_detail_lines ~book:env.book ~report:rep ~selected_row:(selected env t)))
 
 let detail_count (env : Screen.env) geometry t = List.length (detail_lines env geometry t)
 
@@ -85,7 +91,7 @@ let handle (env : Screen.env) geometry t input =
   let stay t = (t, Screen.Stay) in
   let count = coordinate_count env t in
   let select delta =
-    let next = Frame.clamp_index ~count:count (t.report.selected_row + delta) in
+    let next = Frame.clamp_index ~count (t.report.selected_row + delta) in
     stay { t with report = { t.report with selected_row = next } }
   in
   let period preset offset =
@@ -144,11 +150,12 @@ let handle (env : Screen.env) geometry t input =
         | Some (`Page `Down, []) | Some (`ASCII 'd', [ `Ctrl ]) ->
             select (max 1 (Frame.capacity geometry - 1))
         | Some (`Page `Up, []) | Some (`ASCII 'u', [ `Ctrl ]) ->
-            select (-(max 1 (Frame.capacity geometry - 1)))
+            select (-max 1 (Frame.capacity geometry - 1))
         | Some (`Home, []) | Some (`ASCII 'g', []) ->
             stay { t with report = { t.report with selected_row = 0 } }
         | Some (`End, []) | Some (`ASCII 'G', []) ->
-            stay { t with report = { t.report with selected_row = Frame.clamp_index ~count:count max_int } }
+            stay
+              { t with report = { t.report with selected_row = Frame.clamp_index ~count max_int } }
         | Some ((`Enter | `ASCII 'i' | `Tab), _) ->
             stay { t with detail = true; detail_frame = Frame.create }
         | _ -> (t, Screen.Ignored))
@@ -180,19 +187,20 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
         ]
   | Ok rep ->
       let count = List.length rep.rows in
-      let selected = Frame.clamp_index ~count:count t.report.selected_row in
-      let title =
-        Printf.sprintf "Transactions Flow • %s" (IncExp.preset_label t.report.preset)
-      in
+      let selected = Frame.clamp_index ~count t.report.selected_row in
+      let title = Printf.sprintf "Transactions Flow • %s" (IncExp.preset_label t.report.preset) in
       let left_width = max 60 (min (width * 2 / 3) (width - 36)) in
       let table_rows width =
-        Flow.render_summary_lines ~width:(max 0 (width - 4)) ~width_of ~book:env.book ~report:rep
-          ~selected_row:selected
+        Flow.render_summary_lines
+          ~width:(max 0 (width - 4))
+          ~width_of ~book:env.book ~report:rep ~selected_row:selected
       in
       let detail_rows = List.map (fun text -> (O.Plain, text)) (detail_lines env geometry t) in
       if wide then
         let right_width = width - left_width - 1 in
-        let left = table ~geometry ~width:left_width ~title ~count ~selected (table_rows left_width) in
+        let left =
+          table ~geometry ~width:left_width ~title ~count ~selected (table_rows left_width)
+        in
         let right_geometry : Screen.geometry =
           { geometry with Screen.content = (right_width, snd geometry.content) }
         in
@@ -223,6 +231,4 @@ let view env geometry t =
         "Enter/Tab detail  1-5 period  [ / ] shift  p print  q/Esc Home";
       ]
   in
-  P.view_of ~title:"Transactions Flow" ~geometry
-    ~rows:(lazy (rows env geometry t))
-    overlay ~footer
+  P.view_of ~title:"Transactions Flow" ~geometry ~rows:(lazy (rows env geometry t)) overlay ~footer

@@ -1,15 +1,17 @@
-(** Income & Expense Report: period-based P/L analysis by month, cycle, year, or all-time. *)
 module B = Bakhlo_sexp.Daily_book
+(** Income & Expense Report: period-based P/L analysis by month, cycle, year, or all-time. *)
+
 module Roles = Locus_roles
 
-type period_preset = Period_window.preset =
-  | Month | Cycle | Previous_cycle | Year | All_time
+type period_preset = Period_window.preset = Month | Cycle | Previous_cycle | Year | All_time
+
 type period = Period_window.period = {
   preset : period_preset;
   start_day : string;
   end_exclusive : string;
   label : string;
 }
+
 type line_item = { locus : string; label : string; amount : Z.t }
 
 type measure_summary = {
@@ -29,10 +31,7 @@ type report = {
   unresolved_effects : (string * string * string * Z.t) list;
 }
 
-type t = {
-  preset : period_preset;
-  period_offset : int;
-}
+type t = { preset : period_preset; period_offset : int }
 
 val initial : unit -> t
 val preset_label : period_preset -> string
@@ -47,11 +46,8 @@ val resolve_period :
   (period, string) result
 
 val compute_report : book:B.t -> roles:(string * Roles.role) list -> period:period -> report
-
 val measure_active : measure_summary -> bool
-
 val elapsed : today:string -> period -> int * int
-
 val truncate_to_days : period -> int -> period
 
 val render_report_lines :

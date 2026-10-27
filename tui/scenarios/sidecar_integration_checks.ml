@@ -72,9 +72,13 @@ let safety_checks ~width_of ~directory () =
     "attention-broken-section-refuses-the-book";
   (* Another writer's Attention appears after an explicit reload. *)
   let other = C.initial ~config_home:dir (F.load path) in
-  let att2 = get (Att.add_item att ~id:(Att.next_id att) ~context:"other writer" ~due:Att.No_due_date) in
+  let att2 =
+    get (Att.add_item att ~id:(Att.next_id att) ~context:"other writer" ~due:Att.No_due_date)
+  in
   get (snd (Shell_files.save_attention other ~expected:att att2));
-  require (C.attention (Shell_dispatch.reload state) = Ok att2) "explicit-reload-refreshes-attention";
+  require
+    (C.attention (Shell_dispatch.reload state) = Ok att2)
+    "explicit-reload-refreshes-attention";
   List.iter
     (fun raw -> require (Result.is_error (Stl.of_string raw)) "settlement-invalid-input-refused")
     [

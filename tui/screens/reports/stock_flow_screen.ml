@@ -17,16 +17,12 @@ type t = {
 
 let balance_view_file = "balance-view.tsv"
 let config_files = [ P.boundary_file; balance_view_file ]
-
-let create () =
-  { report = StockFlow.initial (); frame = Frame.create; help = None; preview = None }
-
+let create () = { report = StockFlow.initial (); frame = Frame.create; help = None; preview = None }
 let enter t = { t with frame = Frame.create; help = None; preview = None }
 let modal t = Option.is_some t.preview || Option.is_some t.help
 let form t = match t.preview with Some f -> Some f | None -> t.help
 let preset t = t.report.preset
 let scroll t = t.frame.Frame.scroll
-
 let saved _env _geometry _result t = (t, Screen.Stay)
 
 let result (env : Screen.env) t =
@@ -58,8 +54,7 @@ let result (env : Screen.env) t =
              (fun (locus, role) ->
                if role = Roles.Liability then Some (locus, tracked_measure) else None)
              roles)
-    | Error why ->
-        Error ("Accounting roles unavailable (accounting-roles.tsv): " ^ why)
+    | Error why -> Error ("Accounting roles unavailable (accounting-roles.tsv): " ^ why)
   in
   Result.bind (env.config balance_view_file) (function
     | None -> Error "Stock–Flow requires an explicit balance-view.tsv selection."
@@ -111,8 +106,9 @@ let content (env : Screen.env) (geometry : Screen.geometry) t =
   | Ok rep ->
       Frame.Body
         ( Printf.sprintf "Stock–Flow • %s (%s)" (IncExp.preset_label t.report.preset) rep.measure,
-          StockFlow.render_summary_lines ~width:(max 0 (width - 4)) ~width_of ~book:env.book
-            ~report:rep )
+          StockFlow.render_summary_lines
+            ~width:(max 0 (width - 4))
+            ~width_of ~book:env.book ~report:rep )
   | Error why ->
       let remedy =
         if Base.String.is_substring why ~substring:"Historical start unsupported" then
@@ -125,8 +121,8 @@ let content (env : Screen.env) (geometry : Screen.geometry) t =
       in
       Frame.Block
         ( "Stock–Flow · Unavailable",
-          (O.Heading, Ui_text.tr "Stock–Flow unavailable:")
-          :: wrap O.Plain why @ wrap O.Chrome remedy )
+          ((O.Heading, Ui_text.tr "Stock–Flow unavailable:") :: wrap O.Plain why)
+          @ wrap O.Chrome remedy )
 
 let handle (env : Screen.env) geometry t input =
   let stay t = (t, Screen.Stay) in
@@ -134,9 +130,7 @@ let handle (env : Screen.env) geometry t input =
   match P.handle_overlays ~preview:t.preview ~help:t.help input with
   | Some (preview, help) -> stay { t with preview; help }
   | None -> (
-      match
-        Frame.handle ~count:(Frame.count (content env geometry t)) ~capacity t.frame input
-      with
+      match Frame.handle ~count:(Frame.count (content env geometry t)) ~capacity t.frame input with
       | Some frame -> stay { t with frame }
       | None -> (
           let reset = Frame.create in

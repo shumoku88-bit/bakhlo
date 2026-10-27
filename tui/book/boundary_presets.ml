@@ -5,7 +5,9 @@ let token text = text <> "" && String.for_all (fun c -> Char.code c > 32 && Char
 let canonical day =
   match Daily_draft.normalize_date day with Ok normalized -> normalized = day | Error _ -> false
 
-let rec increasing = function a :: (b :: _ as rest) -> a < b && increasing rest | [] | [ _ ] -> true
+let rec increasing = function
+  | a :: (b :: _ as rest) -> a < b && increasing rest
+  | [] | [ _ ] -> true
 
 let parse text =
   let lines =
@@ -27,7 +29,10 @@ let parse text =
   loop [] [] lines
 
 let windows presets =
-  let rec pairs name = function a :: (b :: _ as rest) -> (name, a, b) :: pairs name rest | _ -> [] in
+  let rec pairs name = function
+    | a :: (b :: _ as rest) -> (name, a, b) :: pairs name rest
+    | _ -> []
+  in
   List.concat_map (fun (name, dates) -> pairs name dates) presets
 
 let containing day presets = List.filter (fun (_, a, b) -> a <= day && day < b) (windows presets)

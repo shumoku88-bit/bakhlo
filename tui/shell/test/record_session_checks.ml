@@ -511,7 +511,8 @@ let self_check ~width_of () =
      LOCUS\tfood\t食費\tSynthetic food\n\
      LOCUS\tsuspense\t仮払\tSynthetic suspense\n\
      ZERO-ORIGIN\tfood\tjpy\n\
-     END\n" in
+     END\n"
+  in
   let s_book = Bakhlo_sexp.Daily_txt.book suspense_fixture in
   require
     (contains

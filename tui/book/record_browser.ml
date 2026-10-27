@@ -35,17 +35,15 @@ let matches ~book t row =
   (match t.day with None -> true | Some d -> day = d)
   && (match t.locus with None -> true | Some id -> List.mem id loci)
   && (t.query = ""
-      ||
-      let text =
-        match row with
-        | Actual_entry e -> day ^ " " ^ e.id ^ " " ^ Option.value ~default:"" e.memo ^ " "
-        | Scheduled_plan p -> day ^ " " ^ p.id ^ " "
-      in
-      let text =
-        text ^ String.concat " " (List.map (fun id -> id ^ " " ^ B.label book id) loci)
-      in
-      Base.String.is_substring (String.lowercase_ascii text)
-        ~substring:(String.lowercase_ascii t.query))
+     ||
+     let text =
+       match row with
+       | Actual_entry e -> day ^ " " ^ e.id ^ " " ^ Option.value ~default:"" e.memo ^ " "
+       | Scheduled_plan p -> day ^ " " ^ p.id ^ " "
+     in
+     let text = text ^ String.concat " " (List.map (fun id -> id ^ " " ^ B.label book id) loci) in
+     Base.String.is_substring (String.lowercase_ascii text)
+       ~substring:(String.lowercase_ascii t.query))
 
 let all_rows book =
   List.map (fun e -> Actual_entry e) (B.entries book)
@@ -103,6 +101,8 @@ let toggle_day t ~focus_day =
 let search_overlay ~width_of ~screen ~body:((body_w, _) as body) value =
   Ui_overlay.form ~width_of ~screen ~body
     ~pane_width:(min 54 (max 8 (body_w - 4)))
-    (Ui_form.create ~id:"search" ~title:(Ui_text.tr "Search Actual / Scheduled")
+    (Ui_form.create ~id:"search"
+       ~title:(Ui_text.tr "Search Actual / Scheduled")
        ~fields:[ Ui_form.text_field ~id:"value" ~label:"" ~value () ]
-       ~notice:(Ui_text.tr "Enter apply; Esc clear") ())
+       ~notice:(Ui_text.tr "Enter apply; Esc clear")
+       ())

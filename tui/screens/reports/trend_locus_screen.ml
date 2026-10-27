@@ -11,7 +11,9 @@
 module B = Bakhlo_sexp.Daily_book
 module R = Trend_locus_report
 module O = Daily_overlays
+
 let markers = [| "●"; "◆"; "▲"; "■"; "□" |]
+
 module UChart = Ui_chart
 module Cal = Daily_calendar
 module Panel = Ui_panel
@@ -92,6 +94,7 @@ let create () =
 
 let enter ~focus_day t =
   { t with focus_day = Some focus_day; picker = None; editor = None; help = None }
+
 let modal t = Option.is_some t.editor || Option.is_some t.help
 let saved _env _geometry _result t = (t, Screen.Stay)
 
@@ -127,8 +130,8 @@ let compute (env : Screen.env) t =
   let query = (t.focus_day, t.grain, effective_scope t, t.coordinates) in
   match t.projection with
   | Some p
-    when p.book == env.book && p.boundary = boundary && p.roles = roles
-         && p.measure = env.measure && p.query = query ->
+    when p.book == env.book && p.boundary = boundary && p.roles = roles && p.measure = env.measure
+         && p.query = query ->
       p
   | _ ->
       let plotted =
@@ -561,14 +564,13 @@ let handle_chart (env : Screen.env) t input =
   let stay t = (t, Screen.Stay) in
   match input with
   | `Key (`ASCII ('q' | 'Q'), []) | `Key (`Escape, []) -> (t, Screen.Home)
-  | `Key (`ASCII '[', []) ->
-      stay (relocate env (regrain (remember_period env t) (coarser t.grain)))
-  | `Key (`ASCII ']', []) ->
-      stay (relocate env (regrain (remember_period env t) (finer t.grain)))
+  | `Key (`ASCII '[', []) -> stay (relocate env (regrain (remember_period env t) (coarser t.grain)))
+  | `Key (`ASCII ']', []) -> stay (relocate env (regrain (remember_period env t) (finer t.grain)))
   | `Key (`ASCII 's', []) ->
       if t.grain = R.Day then
         stay
-          (relocate env { (remember_period env t) with scope = next_scope t.scope; viewport_start = 0 })
+          (relocate env
+             { (remember_period env t) with scope = next_scope t.scope; viewport_start = 0 })
       else stay t
   | `Key (`ASCII 'S', []) ->
       if t.grain = R.Day then
@@ -657,7 +659,6 @@ let handle_editor t (editor : editor) input =
       stay { t with editor = Some (insert_text editor (O.utf8 c)) }
   | _ -> (t, Screen.Ignored)
 
-
 let handle_owner (env : Screen.env) t input =
   match t.editor with
   | Some editor -> handle_editor t editor input
@@ -688,16 +689,25 @@ let marker_of index = markers.(index mod Array.length markers)
 let separator = "   ·   "
 
 let month_name = function
-  | "01" -> "Jan" | "02" -> "Feb" | "03" -> "Mar" | "04" -> "Apr"
-  | "05" -> "May" | "06" -> "Jun" | "07" -> "Jul" | "08" -> "Aug"
-  | "09" -> "Sep" | "10" -> "Oct" | "11" -> "Nov" | "12" -> "Dec"
+  | "01" -> "Jan"
+  | "02" -> "Feb"
+  | "03" -> "Mar"
+  | "04" -> "Apr"
+  | "05" -> "May"
+  | "06" -> "Jun"
+  | "07" -> "Jul"
+  | "08" -> "Aug"
+  | "09" -> "Sep"
+  | "10" -> "Oct"
+  | "11" -> "Nov"
+  | "12" -> "Dec"
   | other -> other
 
 let short_date date =
   match String.split_on_char '-' date with
-  | [ _; month; day ] ->
+  | [ _; month; day ] -> (
       month_name month ^ " "
-      ^ (match int_of_string_opt day with Some day -> string_of_int day | None -> day)
+      ^ match int_of_string_opt day with Some day -> string_of_int day | None -> day)
   | _ -> date
 
 let long_date date =
@@ -762,7 +772,10 @@ let rack_rows ~width_of (snap : R.snapshot) =
           (O.clip_text ~width_of 14 snap.R.series.(index).R.label) )
     else (O.Chrome, Printf.sprintf "[%d + Add] " (index + 1))
   in
-  [ (O.Chrome, "Series  ") :: List.init 3 slot; (O.Chrome, "        ") :: List.init 2 (fun i -> slot (i + 3)) ]
+  [
+    (O.Chrome, "Series  ") :: List.init 3 slot;
+    (O.Chrome, "        ") :: List.init 2 (fun i -> slot (i + 3));
+  ]
 
 (* One series value at the selected period, in the shared money format; a
    missing point is unavailable, never zero. *)
@@ -795,7 +808,8 @@ let compact_value_row ~width_of ~width (env : Screen.env) (snap : R.snapshot) in
   let reserved = width_of (head ^ amount ^ more ^ " ") in
   let text =
     if reserved > width then head ^ "exact value: enlarge terminal" ^ more
-    else head ^ O.clip_text ~width_of (min 14 (width - reserved)) series.R.label ^ " " ^ amount ^ more
+    else
+      head ^ O.clip_text ~width_of (min 14 (width - reserved)) series.R.label ^ " " ^ amount ^ more
   in
   [ (O.Series i, text) ]
 
@@ -859,7 +873,10 @@ let guide_columns ~plot_width t (snap : R.snapshot) start visible =
     let points = points_of snap in
     List.init visible Fun.id
     |> List.filter_map (fun k ->
-        if List.exists (fun overlay -> overlay_contains overlay points.(start + k).R.start_day) t.overlays
+        if
+          List.exists
+            (fun overlay -> overlay_contains overlay points.(start + k).R.start_day)
+            t.overlays
         then Some (UChart.x_for_index plot_width visible k)
         else None)
 
@@ -881,8 +898,7 @@ let bounded_rows (geometry : Screen.geometry) rows =
 
 let series_values (snap : R.snapshot) start visible =
   Array.to_list snap.R.series
-  |> List.map (fun series ->
-      List.init visible (fun k -> series.R.points.(start + k).R.value))
+  |> List.map (fun series -> List.init visible (fun k -> series.R.points.(start + k).R.value))
 
 (* A label of [text] centred on [center] and kept inside the plot. *)
 let placed ~width center text =
@@ -926,7 +942,8 @@ let axis_row ~plot_left ~plot_width (snap : R.snapshot) start visible selected =
         let as_of = "As of " ^ short_date snap.R.observed_at in
         let right =
           match
-            List.find_opt (fun k -> points.(start + k).R.start_day = snap.R.observed_at)
+            List.find_opt
+              (fun k -> points.(start + k).R.start_day = snap.R.observed_at)
               (List.init visible Fun.id)
           with
           | Some k -> placed ~width:plot_width (x k) as_of
@@ -1002,17 +1019,19 @@ let chart_rows (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snaps
         let series_count = Array.length snap.R.series in
         let values =
           if series_count = 0 then [ [ (O.Chrome, "No series.") ] ]
-          else if tiny then [ compact_value_row ~width_of ~width env snap selected 0 (series_count - 1) ]
-          else List.init series_count (fun i -> compact_value_row ~width_of ~width env snap selected i 0)
+          else if tiny then
+            [ compact_value_row ~width_of ~width env snap selected 0 (series_count - 1) ]
+          else
+            List.init series_count (fun i ->
+                compact_value_row ~width_of ~width env snap selected i 0)
         in
         [ (O.Heading, title) ]
         @ (if tiny then []
            else
-             [ (O.Chrome, if t.notice = "" then "Source " ^ snap.R.source else "Notice " ^ t.notice) ])
-        @ [
-            ( O.Active,
-              if tiny then "Selected " ^ point.R.start_day else selected_line snap point );
-          ]
+             [
+               (O.Chrome, if t.notice = "" then "Source " ^ snap.R.source else "Notice " ^ t.notice);
+             ])
+        @ [ (O.Active, if tiny then "Selected " ^ point.R.start_day else selected_line snap point) ]
         @ spans values
     | Some point ->
         [ (O.Heading, heading snap.R.grain) ]
@@ -1159,7 +1178,7 @@ let footer ~width_of ~(geometry : Screen.geometry) t =
             if not day then []
             else if t.overlays = [] then [ "o overlay" ]
             else
-              [ "o overlay"; "v guides " ^ (if t.guides then "off" else "on"); "O clear overlays" ]
+              [ "o overlay"; ("v guides " ^ if t.guides then "off" else "on"); "O clear overlays" ]
           in
           two
             (flow_tokens ~width_of width
@@ -1177,8 +1196,8 @@ let view (env : Screen.env) (geometry : Screen.geometry) t : Screen.view =
     | None -> (
         match t.help with
         | Some form ->
-            Ui_overlay.form ~width_of:geometry.width_of ~screen:geometry.screen
-              ~body:geometry.body form
+            Ui_overlay.form ~width_of:geometry.width_of ~screen:geometry.screen ~body:geometry.body
+              form
         | None -> None)
   in
   {

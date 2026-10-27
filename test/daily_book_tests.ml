@@ -4,7 +4,6 @@ module D = Bakhlo_domain
 module T = Bakhlo_book_txt.Book_txt
 
 let get = function Ok x -> x | Error why -> failwith why
-
 let book_of_txt = Daily_book_oracle_tests.book_of_txt
 let text_of = Daily_book_oracle_tests.text_of
 
@@ -67,7 +66,11 @@ let quantity book locus measure =
     Result.ok_or_failwith
       (Result.map_error (D.Identifier.Measure.of_string measure) ~f:(fun _ -> "measure"))
   in
-  match B.quantity book ~locus:(D.Identifier.Locus.to_string locus) ~measure:(D.Identifier.Measure.to_string measure) with
+  match
+    B.quantity book
+      ~locus:(D.Identifier.Locus.to_string locus)
+      ~measure:(D.Identifier.Measure.to_string measure)
+  with
   | Some q -> Z.to_string q.amount
   | None -> "unknown"
 
@@ -97,11 +100,13 @@ let%expect_test "daily identical entry facts need independent observation cuts" 
   let unreflected = get (B.put_entry base ~replace:false (entry "e" 100) ~plan:None) in
   let unreflected = cold unreflected in
   let reflected =
-    book_of_txt (String.substr_replace_all (text_of unreflected) ~pattern:"ANCHOR\t-\n" ~with_:"ANCHOR\te\n")
+    book_of_txt
+      (String.substr_replace_all (text_of unreflected) ~pattern:"ANCHOR\t-\n" ~with_:"ANCHOR\te\n")
   in
   let unsupported_base =
     book_of_txt
-      (String.substr_replace_all fixture ~pattern:"ANCHOR\t-\nASSERT\twallet\tjpy\t1000\nENDANCHOR\n" ~with_:"")
+      (String.substr_replace_all fixture
+         ~pattern:"ANCHOR\t-\nASSERT\twallet\tjpy\t1000\nENDANCHOR\n" ~with_:"")
   in
   let unsupported = get (B.put_entry unsupported_base ~replace:false (entry "e" 100) ~plan:None) in
   Stdio.printf "same entries: %b\n"
@@ -295,9 +300,19 @@ let%expect_test "calculator expressions are exact and do not round or accept mal
 let%expect_test "a book.txt round trip keeps every support family, huge amounts and memo bytes" =
   let huge = "1234567890123456789012345678901234567890" in
   let text =
-    "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\nLOCUS\twallet\twallet\t\nLOCUS\tfood\tfood\t\n\
-     LOCUS\tbank\tbank\t\nTX\tseed\t2026-10-03\tDESC\tseed\nEFFECT\twallet\tjpy\t100\tw\n\
-     EFFECT\tfood\tjpy\t-100\nENDTX\nZERO-ORIGIN\tfood\tjpy\nOPENING\twallet\tjpy\tseed\nANCHOR\t-\n\
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     MEASURE\teur\t2\n\
+     LOCUS\twallet\twallet\t\n\
+     LOCUS\tfood\tfood\t\n\
+     LOCUS\tbank\tbank\t\n\
+     TX\tseed\t2026-10-03\tDESC\tseed\n\
+     EFFECT\twallet\tjpy\t100\tw\n\
+     EFFECT\tfood\tjpy\t-100\n\
+     ENDTX\n\
+     ZERO-ORIGIN\tfood\tjpy\n\
+     OPENING\twallet\tjpy\tseed\n\
+     ANCHOR\t-\n\
      ASSERT\tbank\teur\t" ^ huge ^ "\nENDANCHOR\nEND\n"
   in
   let base = book_of_txt text in
@@ -366,7 +381,8 @@ let%expect_test "canonical daily reflected correction preserves root cut, not ol
   let base = book_of_txt fixture in
   let original = get (B.put_entry base ~replace:false (entry "e" 100) ~plan:None) in
   let reflected =
-    book_of_txt (String.substr_replace_all (text_of original) ~pattern:"ANCHOR\t-\n" ~with_:"ANCHOR\te\n")
+    book_of_txt
+      (String.substr_replace_all (text_of original) ~pattern:"ANCHOR\t-\n" ~with_:"ANCHOR\te\n")
   in
   let corrected book =
     cold
@@ -389,9 +405,12 @@ let%expect_test "canonical daily reflected correction preserves root cut, not ol
   let reflected_row = "ANCHOR\te\n" in
   if not (String.is_substring text ~substring:reflected_row) then failwith "missing cut fixture";
   Stdio.printf "bad cuts refuse: missing=%b, duplicate=%b; original snapshot unchanged=%b\n"
-    (Result.is_error (T.of_string (String.substr_replace_all text ~pattern:reflected_row ~with_:"ANCHOR\tmissing\n")))
     (Result.is_error
-       (T.of_string (String.substr_replace_all text ~pattern:reflected_row ~with_:"ANCHOR\te\nALSO\te\n")))
+       (T.of_string
+          (String.substr_replace_all text ~pattern:reflected_row ~with_:"ANCHOR\tmissing\n")))
+    (Result.is_error
+       (T.of_string
+          (String.substr_replace_all text ~pattern:reflected_row ~with_:"ANCHOR\te\nALSO\te\n")))
     (String.equal "2026-10-03" (Option.value_exn (B.find_entry original "e")).day);
   [%expect
     {|wallet: old=900; corrected unreflected=994, reflected=1000, fresh=980
@@ -531,8 +550,10 @@ let%expect_test "plan writes reject unsupported drafts without modifying the bas
   let historical =
     book_of_txt
       (fixture
-      |> String.substr_replace_first ~pattern:"LOCUS\twallet\t財布\t現金\n" ~with_:"LOCUS\twallet\t財布\t現金\tHIDDEN\n"
-      |> String.substr_replace_first ~pattern:"LOCUS\tfood\tfood\t\n" ~with_:"LOCUS\tfood\tfood\t\tHIDDEN\n")
+      |> String.substr_replace_first ~pattern:"LOCUS\twallet\t財布\t現金\n"
+           ~with_:"LOCUS\twallet\t財布\t現金\tHIDDEN\n"
+      |> String.substr_replace_first ~pattern:"LOCUS\tfood\tfood\t\n"
+           ~with_:"LOCUS\tfood\tfood\t\tHIDDEN\n")
   in
   Stdio.printf "cancel historical: %b\n"
     (Result.is_ok (B.cancel_plan historical ~id:"planned" ~day:"2026-10-04"));
@@ -561,7 +582,8 @@ let%expect_test "a huge foreign plan amount survives the book.txt round trip exa
     { (plan "foreign") with measure = "eur"; changes = [ ("wallet", Z.neg huge); ("food", huge) ] }
   in
   let book = cold (get (B.put_plan base ~replace:false foreign)) in
-  Stdio.printf "exact: %b\n" (Z.equal (snd (List.last_exn (List.last_exn (B.plans book)).changes)) huge);
+  Stdio.printf "exact: %b\n"
+    (Z.equal (snd (List.last_exn (List.last_exn (B.plans book)).changes)) huge);
   [%expect {| exact: true |}]
 
 let pace_coordinate locus measure : D.Effect_coordinate.t =
@@ -806,7 +828,9 @@ let%expect_test
   in
   print_pace (get (pace deficit ()));
   let negative =
-    book_of_txt (String.substr_replace_all fixture ~pattern:"ASSERT\twallet\tjpy\t1000\n" ~with_:"ASSERT\twallet\tjpy\t-1000\n")
+    book_of_txt
+      (String.substr_replace_all fixture ~pattern:"ASSERT\twallet\tjpy\t1000\n"
+         ~with_:"ASSERT\twallet\tjpy\t-1000\n")
   in
   print_pace (get (pace negative ()));
   [%expect
@@ -951,7 +975,8 @@ let%expect_test
     (fst (Option.value_exn stored.original_amount))
     (Z.to_string (snd (Option.value_exn stored.original_amount)));
   let mono_bytes = text_of book in
-  Stdio.printf "book.txt has orig: %b\n" (Base.String.is_substring mono_bytes ~substring:"ORIGINAL\teur\t750\n");
+  Stdio.printf "book.txt has orig: %b\n"
+    (Base.String.is_substring mono_bytes ~substring:"ORIGINAL\teur\t750\n");
   let cold_mono = book_of_txt mono_bytes in
   let cold_stored = Option.value_exn (B.find_entry cold_mono "orig_tx") in
   Stdio.printf "cold mono match: %b\n"
@@ -983,10 +1008,12 @@ let%expect_test
     (Option.is_some rev_in_rev.original_amount);
   (* Syntax / domain validation: non-positive amount *)
   let bad_zero =
-    Base.String.substr_replace_first mono_bytes ~pattern:"ORIGINAL\teur\t750\n" ~with_:"ORIGINAL\teur\t0\n"
+    Base.String.substr_replace_first mono_bytes ~pattern:"ORIGINAL\teur\t750\n"
+      ~with_:"ORIGINAL\teur\t0\n"
   in
   let bad_neg =
-    Base.String.substr_replace_first mono_bytes ~pattern:"ORIGINAL\teur\t750\n" ~with_:"ORIGINAL\teur\t-10\n"
+    Base.String.substr_replace_first mono_bytes ~pattern:"ORIGINAL\teur\t750\n"
+      ~with_:"ORIGINAL\teur\t-10\n"
   in
   let refusal text = match T.of_string text with Error e -> T.code_name e.code | Ok _ -> "ok" in
   Stdio.printf "bad zero: %s\n" (refusal bad_zero);
@@ -999,7 +1026,8 @@ let%expect_test
   Stdio.printf "unregistered measure refused: %s\n"
     (match unreg_res with Error e -> e | Ok _ -> "ok");
   let bad_unreg_txt =
-    Base.String.substr_replace_first mono_bytes ~pattern:"ORIGINAL\teur\t750\n" ~with_:"ORIGINAL\tusd\t100\n"
+    Base.String.substr_replace_first mono_bytes ~pattern:"ORIGINAL\teur\t750\n"
+      ~with_:"ORIGINAL\tusd\t100\n"
   in
   Stdio.printf "unregistered measure book.txt refused: %s\n" (refusal bad_unreg_txt);
   (* Registered scale 0 (JPY) is allowed and formats without decimals *)
@@ -1088,7 +1116,8 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
   let mono_bytes = text_of classified_both in
   Stdio.printf "book.txt has merchant party: %b\n"
     (Base.String.is_substring mono_bytes ~substring:"MERCHANT\tcoffee-shop\n");
-  Stdio.printf "book.txt has nonmerchant: %b\n" (Base.String.is_substring mono_bytes ~substring:"NONMERCHANT\n");
+  Stdio.printf "book.txt has nonmerchant: %b\n"
+    (Base.String.is_substring mono_bytes ~substring:"NONMERCHANT\n");
   let cold_mono = book_of_txt mono_bytes in
   let cold_e1 = Option.value_exn (B.find_entry cold_mono "e_merch") in
   let cold_e2 = Option.value_exn (B.find_entry cold_mono "e_nonmerch") in
@@ -1223,7 +1252,8 @@ let%expect_test "bounded history support restates past pools and survives book.t
     (String.equal (text_of cold) printed)
     (at cold [ "wallet" ] "2026-10-04");
   let cleared = get (B.with_bounded_history bounded []) in
-  Stdio.printf "cleared has none: %b\n" (not (String.is_substring (text_of cleared) ~substring:"HISTORY-FROM"));
+  Stdio.printf "cleared has none: %b\n"
+    (not (String.is_substring (text_of cleared) ~substring:"HISTORY-FROM"));
   let refusal rows =
     match B.with_bounded_history book rows with Ok _ -> "ok" | Error why -> why
   in
@@ -1235,7 +1265,8 @@ let%expect_test "bounded history support restates past pools and survives book.t
   Stdio.printf "duplicate: %s; date: %s; measure: %s\n"
     (refusal [ ("wallet", "jpy", "2026-10-04"); ("wallet", "jpy", "2026-10-05") ])
     (refusal [ ("wallet", "jpy", "2026-02-30") ])
-    (refusal [ ("wallet", "usd", "2026-10-04") ]);  [%expect
+    (refusal [ ("wallet", "usd", "2026-10-04") ]);
+  [%expect
     {|
     unsupported wallet: error:history-support-missing:wallet:jpy
     zero-origin food: 0 100

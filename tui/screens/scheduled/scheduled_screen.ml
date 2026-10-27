@@ -547,7 +547,8 @@ let flow ~width_of width tokens =
 let batch_latest env t =
   match latest_plan env t with
   | Some p -> (t, Screen.Record_action { action = Screen.Batch; target = Some (Screen.Plan p) })
-  | None -> (t, unless_blocked env "Select an explicit Scheduled reference for batch amount editing.")
+  | None ->
+      (t, unless_blocked env "Select an explicit Scheduled reference for batch amount editing.")
 
 let handle_coverage (env : Screen.env) t key =
   let stay t = (t, Screen.Stay) and say t m = (t, unless_blocked env m) in
@@ -930,124 +931,118 @@ let list_paint (env : Screen.env) (geometry : Screen.geometry) t =
 let handle_search (env : Screen.env) t value input =
   let book = env.book and stay t = (t, Screen.Stay) in
   let close query =
-    synced book { (with_browser t (RB.with_query (browser t) query)) with search = None; scroll = 0 }
+    synced book
+      { (with_browser t (RB.with_query (browser t) query)) with search = None; scroll = 0 }
   in
   match input with
   | `Key (`Escape, []) -> stay (close "")
   | `Key (`Enter, []) -> stay (close value)
   | _ ->
-      stay (match input_text value input with None -> t | Some value -> { t with search = Some value })
+      stay
+        (match input_text value input with
+        | None -> t
+        | Some value -> { t with search = Some value })
 
 let handle_months (env : Screen.env) (geometry : Screen.geometry) t key =
   let book = env.book and stay t = (t, Screen.Stay) in
   let detail = t.pane = Detail_pane in
-          match key with
-          | Some ((`Escape | `ASCII 'q'), []) ->
-              if detail then stay { t with pane = List_pane; scroll = 0 } else (t, Screen.Back)
-          | Some (`ASCII 'b', []) -> action book t Screen.Batch
-          | Some (`ASCII 'g', []) -> action book t Screen.Generate
-          | Some (`ASCII 'v', []) ->
-              (toggle_view env book { t with pane = List_pane; scroll = 0 }, unless_blocked env "")
-          | Some (((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)) as k), []) when not detail -> (
-              let delta = match k with `ASCII 'h' | `Arrow `Left -> -1 | _ -> 1 in
-              match Months.shift t.months delta with
-              | Ok months -> stay { t with months }
-              | Error message -> (t, unless_blocked env message))
-          | Some (`ASCII ('f' | '/'), []) ->
-              (t, unless_blocked env "Months uses all current-open plans; v opens filtered List.")
-          | Some (`Enter, []) -> action book t Screen.Pay
-          | Some (`ASCII 'r', []) -> action book t Screen.Edit
-          | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), []) ->
-              stay { t with pane = List_pane; scroll = 0 }
-          | Some (`ASCII 'c', []) -> action book t Screen.Pay
-          | Some (`ASCII 'x', []) -> action book t Screen.Cancel
-          | Some (`ASCII 'e', []) -> extend_selected env t
-          | Some (`ASCII ('p' | 'm'), []) -> change_pace env t
-          | Some (`ASCII 's', []) -> stop_monitoring env t
-          | Some (`ASCII 'e', [ `Ctrl ]) -> action book t Screen.Edit
-          | Some (`ASCII 'i', []) ->
-              stay { t with pane = Detail_pane; origin = List_pane; scroll = 0 }
-          | Some (((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)) as k), [])
-          | Some ((`ASCII ('u' | 'd') as k), [ `Ctrl ]) ->
-              let _, view = detail_window env geometry t in
-              let delta = Ui_input.motion_delta ~page:(max 1 (if detail then view.capacity else 8)) k in
-              if detail then
-                stay { t with scroll = Panel.move ~last:view.last ~position:view.start delta }
-              else
-                let t = synced book t in
-                stay
-                  (follow_months book
-                     { (with_browser t (RB.move (browser t) (rows book t) delta)) with scroll = 0 })
-          | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
-              stay
-                (if detail then { t with pane = List_pane; scroll = 0 }
-                 else { t with pane = Detail_pane; origin = List_pane; scroll = 0 })
-          | Some (`ASCII 'n', []) -> (t, Screen.New_plan)
-          | _ -> (t, Screen.Ignored)
+  match key with
+  | Some ((`Escape | `ASCII 'q'), []) ->
+      if detail then stay { t with pane = List_pane; scroll = 0 } else (t, Screen.Back)
+  | Some (`ASCII 'b', []) -> action book t Screen.Batch
+  | Some (`ASCII 'g', []) -> action book t Screen.Generate
+  | Some (`ASCII 'v', []) ->
+      (toggle_view env book { t with pane = List_pane; scroll = 0 }, unless_blocked env "")
+  | Some (((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)) as k), []) when not detail -> (
+      let delta = match k with `ASCII 'h' | `Arrow `Left -> -1 | _ -> 1 in
+      match Months.shift t.months delta with
+      | Ok months -> stay { t with months }
+      | Error message -> (t, unless_blocked env message))
+  | Some (`ASCII ('f' | '/'), []) ->
+      (t, unless_blocked env "Months uses all current-open plans; v opens filtered List.")
+  | Some (`Enter, []) -> action book t Screen.Pay
+  | Some (`ASCII 'r', []) -> action book t Screen.Edit
+  | Some ((`ASCII ('h' | 'l') | `Arrow (`Left | `Right)), []) ->
+      stay { t with pane = List_pane; scroll = 0 }
+  | Some (`ASCII 'c', []) -> action book t Screen.Pay
+  | Some (`ASCII 'x', []) -> action book t Screen.Cancel
+  | Some (`ASCII 'e', []) -> extend_selected env t
+  | Some (`ASCII ('p' | 'm'), []) -> change_pace env t
+  | Some (`ASCII 's', []) -> stop_monitoring env t
+  | Some (`ASCII 'e', [ `Ctrl ]) -> action book t Screen.Edit
+  | Some (`ASCII 'i', []) -> stay { t with pane = Detail_pane; origin = List_pane; scroll = 0 }
+  | Some (((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)) as k), [])
+  | Some ((`ASCII ('u' | 'd') as k), [ `Ctrl ]) ->
+      let _, view = detail_window env geometry t in
+      let delta = Ui_input.motion_delta ~page:(max 1 (if detail then view.capacity else 8)) k in
+      if detail then stay { t with scroll = Panel.move ~last:view.last ~position:view.start delta }
+      else
+        let t = synced book t in
+        stay
+          (follow_months book
+             { (with_browser t (RB.move (browser t) (rows book t) delta)) with scroll = 0 })
+  | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
+      stay
+        (if detail then { t with pane = List_pane; scroll = 0 }
+         else { t with pane = Detail_pane; origin = List_pane; scroll = 0 })
+  | Some (`ASCII 'n', []) -> (t, Screen.New_plan)
+  | _ -> (t, Screen.Ignored)
 
 let handle_list (env : Screen.env) (geometry : Screen.geometry) t key =
   let book = env.book and stay t = (t, Screen.Stay) in
-          let detail = t.pane = Detail_pane in
-          let open_detail t = { t with pane = Detail_pane; origin = t.pane } in
-          let move_rows delta =
-            synced book
-              (with_browser { t with scroll = 0 } (RB.move (browser t) (rows book t) delta))
-          in
-          let move_loci delta =
-            let last = List.length (loci book t) and row = locus_row book t in
-            let row =
-              if delta > 0 then row + min delta (last - row)
-              else if delta < -row then 0
-              else row + delta
-            in
-            set_locus book t row
-          in
-          match key with
-          | Some ((`Escape | `ASCII 'q'), []) ->
-              if detail then stay { t with pane = t.origin; scroll = 0 } else (t, Screen.Back)
-          | (Some ((`ASCII ('h' | 'l') as k), []) | Some ((`Arrow (`Left | `Right) as k), []))
-            when not detail ->
-              stay
-                {
-                  t with
-                  pane = (match k with `ASCII 'h' | `Arrow `Left -> Loci_pane | _ -> List_pane);
-                }
-          | Some (`ASCII 'f', []) ->
-              let browser = RB.toggle_day (RB.with_locus (browser t) None) ~focus_day:t.focus_day in
-              stay (synced book (with_browser { t with pane = List_pane; scroll = 0 } browser))
-          | Some (`Enter, []) -> if t.pane = Loci_pane then stay t else action book t Screen.Pay
-          | Some (`ASCII 'i', []) -> stay (if detail then t else open_detail { t with scroll = 0 })
-          | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
-              stay (if detail then { t with pane = t.origin } else open_detail t)
-          | Some (`ASCII ('c' | 'r' | 'x' | 'e' | 'b' | 'g' | 'p' | 'm' | 's'), [])
-          | Some (`ASCII 'e', [ `Ctrl ])
-            when t.pane = Loci_pane ->
-              ( t,
-                unless_blocked env "Focus the Scheduled pane with l before acting on an occurrence."
-              )
-          | Some (`ASCII 'c', []) -> action book t Screen.Pay
-          | Some (`ASCII 'r', []) -> action book t Screen.Edit
-          | Some (`ASCII 'x', []) -> action book t Screen.Cancel
-          | Some (`ASCII 'b', []) -> action book t Screen.Batch
-          | Some (`ASCII 'g', []) -> action book t Screen.Generate
-          | Some (`ASCII 'e', []) -> extend_selected env t
-          | Some (`ASCII ('p' | 'm'), []) -> change_pace env t
-          | Some (`ASCII 's', []) -> stop_monitoring env t
-          | Some (`ASCII 'e', [ `Ctrl ]) -> action book t Screen.Edit
-          | Some (`ASCII 'n', []) -> (t, Screen.New_plan)
-          | Some (`ASCII '/', []) -> stay { t with search = Some (browser t).query }
-          | Some (`ASCII 'v', []) ->
-              (toggle_view env book { t with pane = List_pane; scroll = 0 }, unless_blocked env "")
-          | Some (((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)) as k), [])
-          | Some ((`ASCII ('u' | 'd') as k), [ `Ctrl ]) ->
-              if detail then
-                let _, view = detail_window env geometry t in
-                let delta = Ui_input.motion_delta ~page:view.capacity k in
-                stay { t with scroll = Panel.move ~last:view.last ~position:view.start delta }
-              else
-                let delta = Ui_input.motion_delta ~page:8 k in
-                stay (if t.pane = Loci_pane then move_loci delta else move_rows delta)
-          | _ -> (t, Screen.Ignored)
+  let detail = t.pane = Detail_pane in
+  let open_detail t = { t with pane = Detail_pane; origin = t.pane } in
+  let move_rows delta =
+    synced book (with_browser { t with scroll = 0 } (RB.move (browser t) (rows book t) delta))
+  in
+  let move_loci delta =
+    let last = List.length (loci book t) and row = locus_row book t in
+    let row =
+      if delta > 0 then row + min delta (last - row) else if delta < -row then 0 else row + delta
+    in
+    set_locus book t row
+  in
+  match key with
+  | Some ((`Escape | `ASCII 'q'), []) ->
+      if detail then stay { t with pane = t.origin; scroll = 0 } else (t, Screen.Back)
+  | (Some ((`ASCII ('h' | 'l') as k), []) | Some ((`Arrow (`Left | `Right) as k), []))
+    when not detail ->
+      stay
+        { t with pane = (match k with `ASCII 'h' | `Arrow `Left -> Loci_pane | _ -> List_pane) }
+  | Some (`ASCII 'f', []) ->
+      let browser = RB.toggle_day (RB.with_locus (browser t) None) ~focus_day:t.focus_day in
+      stay (synced book (with_browser { t with pane = List_pane; scroll = 0 } browser))
+  | Some (`Enter, []) -> if t.pane = Loci_pane then stay t else action book t Screen.Pay
+  | Some (`ASCII 'i', []) -> stay (if detail then t else open_detail { t with scroll = 0 })
+  | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
+      stay (if detail then { t with pane = t.origin } else open_detail t)
+  | Some (`ASCII ('c' | 'r' | 'x' | 'e' | 'b' | 'g' | 'p' | 'm' | 's'), [])
+  | Some (`ASCII 'e', [ `Ctrl ])
+    when t.pane = Loci_pane ->
+      (t, unless_blocked env "Focus the Scheduled pane with l before acting on an occurrence.")
+  | Some (`ASCII 'c', []) -> action book t Screen.Pay
+  | Some (`ASCII 'r', []) -> action book t Screen.Edit
+  | Some (`ASCII 'x', []) -> action book t Screen.Cancel
+  | Some (`ASCII 'b', []) -> action book t Screen.Batch
+  | Some (`ASCII 'g', []) -> action book t Screen.Generate
+  | Some (`ASCII 'e', []) -> extend_selected env t
+  | Some (`ASCII ('p' | 'm'), []) -> change_pace env t
+  | Some (`ASCII 's', []) -> stop_monitoring env t
+  | Some (`ASCII 'e', [ `Ctrl ]) -> action book t Screen.Edit
+  | Some (`ASCII 'n', []) -> (t, Screen.New_plan)
+  | Some (`ASCII '/', []) -> stay { t with search = Some (browser t).query }
+  | Some (`ASCII 'v', []) ->
+      (toggle_view env book { t with pane = List_pane; scroll = 0 }, unless_blocked env "")
+  | Some (((`Home | `End | `Page _ | `ASCII ('j' | 'k') | `Arrow (`Up | `Down)) as k), [])
+  | Some ((`ASCII ('u' | 'd') as k), [ `Ctrl ]) ->
+      if detail then
+        let _, view = detail_window env geometry t in
+        let delta = Ui_input.motion_delta ~page:view.capacity k in
+        stay { t with scroll = Panel.move ~last:view.last ~position:view.start delta }
+      else
+        let delta = Ui_input.motion_delta ~page:8 k in
+        stay (if t.pane = Loci_pane then move_loci delta else move_rows delta)
+  | _ -> (t, Screen.Ignored)
 
 let handle (env : Screen.env) (geometry : Screen.geometry) t input =
   match t.search with

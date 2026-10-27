@@ -18,13 +18,7 @@ type t = {
 let config_files = [ P.boundary_file ]
 
 let create () =
-  {
-    report = IncExp.initial ();
-    frame = Frame.create;
-    compare = false;
-    help = None;
-    preview = None;
-  }
+  { report = IncExp.initial (); frame = Frame.create; compare = false; help = None; preview = None }
 
 let enter t = { t with frame = Frame.create; compare = false; help = None; preview = None }
 let modal t = Option.is_some t.preview || Option.is_some t.help
@@ -32,7 +26,6 @@ let form t = match t.preview with Some f -> Some f | None -> t.help
 let preset t = t.report.preset
 let scroll t = t.frame.Frame.scroll
 let comparing t = t.compare
-
 let saved _env _geometry _result t = (t, Screen.Stay)
 
 (* Roles decide Income and Expense; an unreadable roles file is a refusal, not "no roles". *)
@@ -46,8 +39,7 @@ let previous_period (env : Screen.env) t =
   else
     match P.checked env t.report.preset (t.report.period_offset - 1) with
     | Error _ -> None
-    | Ok period -> (
-        match report env period with Ok rep -> Some rep | Error _ -> None)
+    | Ok period -> ( match report env period with Ok rep -> Some rep | Error _ -> None)
 
 (* The previous window truncated to the current window's elapsed days, plus the
    whole previous window for secondary text. Both are exact folds of the book. *)
@@ -59,9 +51,7 @@ let previous_pair (env : Screen.env) t (period : IncExp.period) =
       if elapsed >= total then (Some full, Some full)
       else
         let truncated = IncExp.truncate_to_days full.period elapsed in
-        let partial =
-          match report env truncated with Ok rep -> Some rep | Error _ -> None
-        in
+        let partial = match report env truncated with Ok rep -> Some rep | Error _ -> None in
         (* A window that has not started compares with an empty previous window;
            its whole total would be a misread, so it is not offered. *)
         (partial, if elapsed = 0 then None else Some full)
@@ -78,9 +68,10 @@ let compare_reports (env : Screen.env) t (current : IncExp.period) (rep : IncExp
       else
         match P.checked env t.report.preset offset with
         | Error _ -> acc
-        | Ok period ->
-            if same_window period current then collect (remaining - 1) (offset - 1) ((period, rep) :: acc)
-            else (
+        | Ok period -> (
+            if same_window period current then
+              collect (remaining - 1) (offset - 1) ((period, rep) :: acc)
+            else
               match report env period with
               | Error _ -> acc
               | Ok r -> collect (remaining - 1) (offset - 1) ((period, r) :: acc))
@@ -97,7 +88,8 @@ let content (env : Screen.env) (geometry : Screen.geometry) t =
           [
             (Daily_overlays.Heading, Ui_text.tr "Report period unavailable:");
             (Daily_overlays.Plain, why);
-            (Daily_overlays.Chrome, "Supply an explicit boundary-presets.tsv or choose Month / Year.");
+            ( Daily_overlays.Chrome,
+              "Supply an explicit boundary-presets.tsv or choose Month / Year." );
           ] )
   | Ok period -> (
       match report env period with
@@ -113,16 +105,17 @@ let content (env : Screen.env) (geometry : Screen.geometry) t =
           if t.compare then
             Frame.Body
               ( "Income & Expense • Compare",
-                IncExp.render_compare_lines ~width:(max 0 (width - 4)) ~width_of ~book:env.book
-                  ~today:env.today
+                IncExp.render_compare_lines
+                  ~width:(max 0 (width - 4))
+                  ~width_of ~book:env.book ~today:env.today
                   ~reports:(compare_reports env t period rep) )
           else
             let previous, previous_full = previous_pair env t period in
             Frame.Body
               ( Printf.sprintf "Income & Expense • %s" (IncExp.preset_label t.report.preset),
-                IncExp.render_report_lines ~width:(max 0 (width - 4)) ~width_of ~book:env.book
-                  ~report:rep ~today:env.today ~previous ~previous_full ))
-
+                IncExp.render_report_lines
+                  ~width:(max 0 (width - 4))
+                  ~width_of ~book:env.book ~report:rep ~today:env.today ~previous ~previous_full ))
 
 let help_form () =
   Frame.help_form ~title:"Income & Expense / Help"
@@ -155,9 +148,7 @@ let handle (env : Screen.env) geometry t input =
   match P.handle_overlays ~preview:t.preview ~help:t.help input with
   | Some (preview, help) -> stay { t with preview; help }
   | None -> (
-      match
-        Frame.handle ~count:(Frame.count (content env geometry t)) ~capacity t.frame input
-      with
+      match Frame.handle ~count:(Frame.count (content env geometry t)) ~capacity t.frame input with
       | Some frame -> stay { t with frame }
       | None -> (
           let reset = Frame.create in

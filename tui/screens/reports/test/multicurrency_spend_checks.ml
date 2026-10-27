@@ -33,13 +33,18 @@ let entry ?exchange ?original ?memo id day postings =
 (* Loci outside [approved] that entries use are kept, hidden from new entries. *)
 let book ?(approved = [ "wallet"; "bank"; "ext"; "mystery"; "hotel"; "shop" ])
     ?(measures = [ ("jpy", 0); ("eur", 2); ("usd", 2) ]) ~entries ~plans () =
-  let locus hidden l = Printf.sprintf "LOCUS\t%s\t%s\t%s\n" l l (if hidden then "\tHIDDEN" else "") in
+  let locus hidden l =
+    Printf.sprintf "LOCUS\t%s\t%s\t%s\n" l l (if hidden then "\tHIDDEN" else "")
+  in
   let support =
-    List.concat_map (fun m -> List.map (fun l -> Printf.sprintf "ZERO-ORIGIN\t%s\t%s\n" l m) [ "wallet"; "bank"; "ext" ])
+    List.concat_map
+      (fun m ->
+        List.map (fun l -> Printf.sprintf "ZERO-ORIGIN\t%s\t%s\n" l m) [ "wallet"; "bank"; "ext" ])
       [ "jpy"; "eur"; "usd" ]
   in
   "BOOK\t1\n"
-  ^ String.concat "" (List.map (fun (m, scale) -> Printf.sprintf "MEASURE\t%s\t%d\n" m scale) measures)
+  ^ String.concat ""
+      (List.map (fun (m, scale) -> Printf.sprintf "MEASURE\t%s\t%d\n" m scale) measures)
   ^ String.concat "" (List.map (locus false) approved)
   ^ String.concat "" (List.map (locus true) [ "food"; "rent" ])
   ^ entries ^ plans ^ String.concat "" support ^ "END\n"
@@ -136,9 +141,10 @@ let originals_entries =
     ]
 
 let originals_book =
-  (read
-       (book ~measures:[ ("jpy", 0); ("eur", 2); ("usd", 2); ("ils", 2) ]
-          ~entries:originals_entries ~plans:"" ()))
+  read
+    (book
+       ~measures:[ ("jpy", 0); ("eur", 2); ("usd", 2); ("ils", 2) ]
+       ~entries:originals_entries ~plans:"" ())
 
 let check_originals () =
   let snapshot =

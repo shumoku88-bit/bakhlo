@@ -151,8 +151,8 @@ let view (env : Screen.env) (geometry : Screen.geometry) t =
   let top = [ (O.Plain, "Forecast path: UNKNOWN"); (O.Plain, "Known low-water mark: UNKNOWN") ] in
   let body = remainder env geometry t in
   let window =
-    Ui_panel.window ~capacity:(Frame.capacity geometry) ~count:(List.length body)
-      ~scroll:t.scroll ~selected:(if t.focus = Field then Some 0 else None)
+    Ui_panel.window ~capacity:(Frame.capacity geometry) ~count:(List.length body) ~scroll:t.scroll
+      ~selected:(if t.focus = Field then Some 0 else None)
   in
   let visible =
     List.filteri (fun i _ -> i >= window.start && i < window.start + window.capacity) body

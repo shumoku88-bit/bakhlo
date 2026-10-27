@@ -26,7 +26,6 @@ let test_book_fixture =
    END\n"
 
 let fixture_book () = Bakhlo_sexp.Daily_txt.book test_book_fixture
-
 let test_roles = [ ("wallet", O.Asset); ("bank", O.Asset); ("food", O.Expense) ]
 
 let env ~book balance_view_text : Screen.env =

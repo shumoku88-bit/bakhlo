@@ -17,7 +17,9 @@ let z n = Z.of_int n
 
 (* Synthetic book construction in book.txt: no household file is ever read. *)
 let posting locus measure n = Printf.sprintf "EFFECT\t%s\t%s\t%s\n" locus measure (Z.to_string n)
-let entry id day postings = Printf.sprintf "TX\t%s\t%s\n%sENDTX\n" id day (String.concat "" postings)
+
+let entry id day postings =
+  Printf.sprintf "TX\t%s\t%s\n%sENDTX\n" id day (String.concat "" postings)
 
 let plan ?paid ?cancelled id day measure changes =
   let change (locus, n) = Printf.sprintf "CHANGE\t%s\t%s\n" locus (Z.to_string n) in
@@ -27,7 +29,9 @@ let plan ?paid ?cancelled id day measure changes =
     | None, Some day -> "CANCELLED\t" ^ day ^ "\n"
     | None, None -> ""
   in
-  Printf.sprintf "PLAN\t%s\t%s\t%s\n%s%sENDPLAN\n" id day measure (String.concat "" (List.map change changes)) ending
+  Printf.sprintf "PLAN\t%s\t%s\t%s\n%s%sENDPLAN\n" id day measure
+    (String.concat "" (List.map change changes))
+    ending
 
 let book ?(approved = [ "wallet"; "bank"; "ext"; "ghost" ]) ?support ~entries ~plans () =
   "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\n"
@@ -69,9 +73,7 @@ let flow_plans =
       plan "later" "2026-11-01" "jpy" [ ("wallet", z 40); ("ext", z (-40)) ];
     ]
 
-let flow_book =
-  read (book ~support:support_flow ~entries:flow_entries ~plans:flow_plans ())
-
+let flow_book = read (book ~support:support_flow ~entries:flow_entries ~plans:flow_plans ())
 let coords_wallet_bank = [ ("wallet", "jpy"); ("bank", "jpy") ]
 
 let compute ?(today = "2026-10-20") ?(through = "2026-10-31") ?(coords = coords_wallet_bank) book =
@@ -141,19 +143,19 @@ let compute_refusals () =
     (compute ~coords:[ ("wallet", "jpy"); ("ghost", "jpy") ] flow_book);
   (* Overdue selected money refuses the whole query; it is never shifted or settled. *)
   let overdue =
-    (read
-         (book ~support:support_flow ~entries:flow_entries
-            ~plans:
-              (String.concat ""
-                 [ plan "late" "2026-10-10" "jpy" [ ("wallet", z (-10)); ("ext", z 10) ] ])
-            ()))
+    read
+      (book ~support:support_flow ~entries:flow_entries
+         ~plans:
+           (String.concat ""
+              [ plan "late" "2026-10-10" "jpy" [ ("wallet", z (-10)); ("ext", z 10) ] ])
+         ())
   in
   expect_error "overdue selected plan" (compute overdue);
   let due_today =
-    (read
-         (book ~entries:""
-            ~plans:(plan "due_today" "2026-10-20" "jpy" [ ("wallet", z (-9)); ("ext", z 9) ])
-            ()))
+    read
+      (book ~entries:""
+         ~plans:(plan "due_today" "2026-10-20" "jpy" [ ("wallet", z (-9)); ("ext", z 9) ])
+         ())
   in
   let today = get (compute ~through:"2026-10-20" ~coords:[ ("wallet", "jpy") ] due_today) in
   require
@@ -191,18 +193,18 @@ let check_evidence () =
 
 let check_amounts () =
   let negative =
-    (read
-         (book ~support:support_flow
-            ~entries:
-              (String.concat ""
-                 [
-                   entry "n1" "2026-10-01"
-                     [ posting "wallet" "jpy" (z (-500)); posting "ext" "jpy" (z 500) ];
-                 ])
-            ~plans:
-              (String.concat ""
-                 [ plan "down" "2026-10-25" "jpy" [ ("wallet", z (-200)); ("ext", z 200) ] ])
-            ()))
+    read
+      (book ~support:support_flow
+         ~entries:
+           (String.concat ""
+              [
+                entry "n1" "2026-10-01"
+                  [ posting "wallet" "jpy" (z (-500)); posting "ext" "jpy" (z 500) ];
+              ])
+         ~plans:
+           (String.concat ""
+              [ plan "down" "2026-10-25" "jpy" [ ("wallet", z (-200)); ("ext", z 200) ] ])
+         ())
   in
   let snapshot = get (compute ~coords:[ ("wallet", "jpy") ] negative) in
   require
@@ -222,18 +224,18 @@ let check_amounts () =
   let huge = Z.of_string "123456789012345678901234567890" in
   let eur_support = "ZERO-ORIGIN\twallet\teur\n" in
   let eur_book =
-    (read
-         (book ~approved:[ "wallet"; "ext" ] ~support:eur_support
-            ~entries:
-              (String.concat ""
-                 [
-                   entry "x1" "2026-10-01"
-                     [ posting "wallet" "eur" (z 123456789); posting "ext" "eur" (z (-123456789)) ];
-                 ])
-            ~plans:
-              (String.concat ""
-                 [ plan "top_up" "2026-10-25" "eur" [ ("wallet", huge); ("ext", Z.neg huge) ] ])
-            ()))
+    read
+      (book ~approved:[ "wallet"; "ext" ] ~support:eur_support
+         ~entries:
+           (String.concat ""
+              [
+                entry "x1" "2026-10-01"
+                  [ posting "wallet" "eur" (z 123456789); posting "ext" "eur" (z (-123456789)) ];
+              ])
+         ~plans:
+           (String.concat ""
+              [ plan "top_up" "2026-10-25" "eur" [ ("wallet", huge); ("ext", Z.neg huge) ] ])
+         ())
   in
   let eur = get (compute ~coords:[ ("wallet", "eur") ] eur_book) in
   require

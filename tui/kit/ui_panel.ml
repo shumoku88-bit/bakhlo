@@ -81,8 +81,8 @@ let frame_rows ?(inset = 2) ?bottom_label ~width_of ~width ~height ~focused ~tit
             | O.Spans spans ->
                 (* The border keeps its own cells; the row's spans stay whole. *)
                 let spans = O.fit_spans ~width_of (width - 2) spans in
-                (O.Spans ((O.Plain, "│") :: spans @ [ (O.Plain, "│") ]),
-                 "│" ^ O.spans_text spans ^ "│")
+                ( O.Spans (((O.Plain, "│") :: spans) @ [ (O.Plain, "│") ]),
+                  "│" ^ O.spans_text spans ^ "│" )
             | _ -> (row_style, "│" ^ O.pad ~width_of (width - 2) text ^ "│"))
           shown
       @ [ O.panel_bottom ~width ~style ~width_of ~title:(Option.value ~default:"" bottom_label) () ]
@@ -120,11 +120,11 @@ let frame_rows ?(inset = 2) ?bottom_label ~width_of ~width ~height ~focused ~tit
         painted
 
 let preview ~width_of ~width ~height ~title ~scroll ~notice ~action rows =
-  frame ~width_of ~width ~height:(max 0 (height - 2)) ~focused:true ~title ~scroll ~selected:None
-    rows
+  frame ~width_of ~width
+    ~height:(max 0 (height - 2))
+    ~focused:true ~title ~scroll ~selected:None rows
   @ [
-      (O.Status, O.clip_text ~width_of width notice);
-      (O.Active, O.clip_text ~width_of width action);
+      (O.Status, O.clip_text ~width_of width notice); (O.Active, O.clip_text ~width_of width action);
     ]
 
 let preview_window ?selected ~height ~count ~scroll () =

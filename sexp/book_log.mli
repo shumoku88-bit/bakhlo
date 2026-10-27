@@ -10,10 +10,7 @@ type op =
   | Observe of (string * string * Z.t) list
   | Add_locus of string
   | Set_locus_label of { id : string; label : string; help : string option }
-  | Classify_merchant of {
-      id : string;
-      disposition : Records.disposition;
-    }
+  | Classify_merchant of { id : string; disposition : Records.disposition }
 
 val apply : Daily_book.t -> op -> (Daily_book.t, string) result
 (** The ordinary [Daily_book] mutation for this operation. *)

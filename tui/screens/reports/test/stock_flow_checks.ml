@@ -5,6 +5,7 @@ module B = Bakhlo_sexp.Daily_book
 module S = Stock_flow_report
 module I = Income_expense_report
 module D = Bakhlo_domain
+
 let id_of = function Ok value -> value | Error _ -> failwith "synthetic identifier"
 
 let posting locus amount =
@@ -20,7 +21,8 @@ let posting_in locus measure amount =
     ~quantity:(D.Quantity.of_quanta amount)
 
 let posting_keyed locus measure amount key =
-  D.Effect.create ~key:(Some (id_of (D.Identifier.Effect_key.of_string key)))
+  D.Effect.create
+    ~key:(Some (id_of (D.Identifier.Effect_key.of_string key)))
     ~locus:(id_of (D.Identifier.Locus.of_string locus))
     ~measure:(id_of (D.Identifier.Measure.of_string measure))
     ~quantity:(D.Quantity.of_quanta amount)
@@ -56,12 +58,13 @@ let self_check () =
   let refuses book coords =
     require (Result.is_error (compute book coords)) "stock-flow must refuse an invalid question"
   in
-  List.iter (refuses zero)
-    [ []; [ ("a", "jpy"); ("a", "jpy") ]; [ ("a", "jpy"); ("b", "eur") ] ];
+  List.iter (refuses zero) [ []; [ ("a", "jpy"); ("a", "jpy") ]; [ ("a", "jpy"); ("b", "eur") ] ];
   require
     (Result.is_error
-       (S.compute_report ~book:zero ~measure:"jpy" ~tracked_coords:[ ("a", "jpy") ]
-          ~liability_coords:[] ~period:{ period with end_exclusive = period.start_day }))
+       (S.compute_report ~book:zero ~measure:"jpy"
+          ~tracked_coords:[ ("a", "jpy") ]
+          ~liability_coords:[]
+          ~period:{ period with end_exclusive = period.start_day }))
     "an empty date window must refuse";
 
   (* Zero-origin: forward sums stay exact. *)
@@ -69,11 +72,11 @@ let self_check () =
   let a = only "a" zero_report in
   require (a.S.support = S.Zero_origin) "zero-origin support is named";
   require
-    ((a.S.start_balance = Some (z 20))
-    && (a.S.end_balance = Some (z 50))
+    (a.S.start_balance = Some (z 20)
+    && a.S.end_balance = Some (z 50)
     && Z.equal a.S.increases (z 30)
     && Z.equal a.S.decreases Z.zero
-    && (a.S.current_balance = Some (z 90))
+    && a.S.current_balance = Some (z 90)
     && zero_report.S.unknown_starts = 0)
     "zero-origin start, flow and end stay exact";
   let transfer = get (compute zero [ ("b", "jpy"); ("a", "jpy") ]) in
@@ -91,10 +94,10 @@ let self_check () =
   let after = get (compute bounded [ ("a", "jpy") ]) in
   let a = only "a" after in
   require
-    ((a.S.support = S.Bounded "2026-09-15")
-    && (a.S.start_balance = Some (z 30))
-    && (a.S.end_balance = Some (z 60))
-    && (a.S.current_balance = Some (z 100))
+    (a.S.support = S.Bounded "2026-09-15"
+    && a.S.start_balance = Some (z 30)
+    && a.S.end_balance = Some (z 60)
+    && a.S.current_balance = Some (z 100)
     && after.S.unknown_starts = 0)
     "a window after the bounded start reconstructs both boundaries";
   let before_period : I.period =
@@ -102,14 +105,15 @@ let self_check () =
   in
   let before =
     get
-      (S.compute_report ~book:bounded ~measure:"jpy" ~tracked_coords:[ ("a", "jpy") ]
+      (S.compute_report ~book:bounded ~measure:"jpy"
+         ~tracked_coords:[ ("a", "jpy") ]
          ~liability_coords:[] ~period:before_period)
   in
   let a = only "a" before in
   require
-    ((a.S.support = S.Before_start "2026-09-15")
+    (a.S.support = S.Before_start "2026-09-15"
     && a.S.start_balance = None
-    && (a.S.end_balance = Some (z 30))
+    && a.S.end_balance = Some (z 30)
     && before.S.unknown_starts = 1
     && Z.equal before.S.reconstructed_start Z.zero)
     "a window before the bounded start reports an unknown start, never zero";
@@ -138,9 +142,11 @@ let self_check () =
   let cold = get (compute reloaded [ ("a", "jpy"); ("b", "jpy") ]) in
   let warm = get (compute zero [ ("a", "jpy"); ("b", "jpy") ]) in
   require
-    (List.map (fun (c : S.coordinate_activity) -> (c.locus, c.start_balance, c.end_balance))
+    (List.map
+       (fun (c : S.coordinate_activity) -> (c.locus, c.start_balance, c.end_balance))
        cold.S.coordinates
-    = List.map (fun (c : S.coordinate_activity) -> (c.locus, c.start_balance, c.end_balance))
+    = List.map
+        (fun (c : S.coordinate_activity) -> (c.locus, c.start_balance, c.end_balance))
         warm.S.coordinates)
     "a cold reload reconstructs the same boundaries";
 
@@ -156,7 +162,8 @@ let self_check () =
   in
   let all_zero =
     get
-      (S.compute_report ~book:zero ~measure:"jpy" ~tracked_coords:[ ("a", "jpy") ]
+      (S.compute_report ~book:zero ~measure:"jpy"
+         ~tracked_coords:[ ("a", "jpy") ]
          ~liability_coords:[] ~period:all_time)
   in
   require
@@ -164,7 +171,8 @@ let self_check () =
     "an All Time zero-origin start is exactly zero";
   let all_bounded =
     get
-      (S.compute_report ~book:bounded ~measure:"jpy" ~tracked_coords:[ ("a", "jpy") ]
+      (S.compute_report ~book:bounded ~measure:"jpy"
+         ~tracked_coords:[ ("a", "jpy") ]
          ~liability_coords:[] ~period:all_time)
   in
   require
@@ -182,7 +190,8 @@ let self_check () =
     length = 0 || loop 0
   in
   let before_lines =
-    List.map snd (S.render_summary_lines ~width:120 ~width_of:String.length ~book:bounded ~report:before)
+    List.map snd
+      (S.render_summary_lines ~width:120 ~width_of:String.length ~book:bounded ~report:before)
   in
   require
     (List.exists (fun line -> contains line "start total excludes") before_lines
@@ -213,22 +222,39 @@ let self_check () =
   (* Opening support: exact from the opening entry's date, unknown before it. *)
   let opening_book =
     Bakhlo_sexp.Daily_txt.book
-      "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\nLOCUS\tdebt\tdebt\t\nLOCUS\tcash\tcash\t\n\
-       LOCUS\topening-equity\topening-equity\t\nLOCUS\teur-debt\teur-debt\t\n\
-       TX\topen\t2026-09-01\nEFFECT\tdebt\tjpy\t1000\nEFFECT\topening-equity\tjpy\t-1000\nENDTX\n\
-       TX\teur-open\t2026-09-02\nEFFECT\tcash\tjpy\t-100\tfrom\nEFFECT\teur-debt\teur\t500\tto\n\
-       EXCHANGE\tjpy\teur\nENDTX\n\
-       TX\trepay\t2026-10-10\nEFFECT\tdebt\tjpy\t-300\nEFFECT\tcash\tjpy\t300\nENDTX\n\
-       ZERO-ORIGIN\topening-equity\tjpy\nZERO-ORIGIN\tcash\tjpy\n\
-       OPENING\tdebt\tjpy\topen\nOPENING\teur-debt\teur\teur-open\nEND\n"
+      "BOOK\t1\n\
+       MEASURE\tjpy\t0\n\
+       MEASURE\teur\t2\n\
+       LOCUS\tdebt\tdebt\t\n\
+       LOCUS\tcash\tcash\t\n\
+       LOCUS\topening-equity\topening-equity\t\n\
+       LOCUS\teur-debt\teur-debt\t\n\
+       TX\topen\t2026-09-01\n\
+       EFFECT\tdebt\tjpy\t1000\n\
+       EFFECT\topening-equity\tjpy\t-1000\n\
+       ENDTX\n\
+       TX\teur-open\t2026-09-02\n\
+       EFFECT\tcash\tjpy\t-100\tfrom\n\
+       EFFECT\teur-debt\teur\t500\tto\n\
+       EXCHANGE\tjpy\teur\n\
+       ENDTX\n\
+       TX\trepay\t2026-10-10\n\
+       EFFECT\tdebt\tjpy\t-300\n\
+       EFFECT\tcash\tjpy\t300\n\
+       ENDTX\n\
+       ZERO-ORIGIN\topening-equity\tjpy\n\
+       ZERO-ORIGIN\tcash\tjpy\n\
+       OPENING\tdebt\tjpy\topen\n\
+       OPENING\teur-debt\teur\teur-open\n\
+       END\n"
   in
   let after_open = get (compute opening_book [ ("debt", "jpy") ]) in
   let debt = only "debt" after_open in
   require
-    ((debt.S.support = S.Opening "2026-09-01")
-    && (debt.S.start_balance = Some (z 1000))
-    && (debt.S.end_balance = Some (z 700))
-    && (debt.S.current_balance = Some (z 700))
+    (debt.S.support = S.Opening "2026-09-01"
+    && debt.S.start_balance = Some (z 1000)
+    && debt.S.end_balance = Some (z 700)
+    && debt.S.current_balance = Some (z 700)
     && Z.equal debt.S.decreases (z (-300))
     && after_open.S.unknown_starts = 0)
     "an opening makes the window exact and shows the repayment";
@@ -237,22 +263,22 @@ let self_check () =
   in
   let early =
     get
-      (S.compute_report ~book:opening_book ~measure:"jpy" ~tracked_coords:[ ("debt", "jpy") ]
+      (S.compute_report ~book:opening_book ~measure:"jpy"
+         ~tracked_coords:[ ("debt", "jpy") ]
          ~liability_coords:[] ~period:before_open)
   in
   let debt = only "debt" early in
   require
-    ((debt.S.support = S.Opening_inside "2026-09-01")
+    (debt.S.support = S.Opening_inside "2026-09-01"
     && debt.S.start_balance = None
-    && (debt.S.end_balance = Some (z 1000))
+    && debt.S.end_balance = Some (z 1000)
     && early.S.unknown_starts = 1)
     "a window containing the opening keeps the start unknown";
   require
     (Z.equal debt.S.increases Z.zero && Z.equal debt.S.decreases Z.zero)
     "the opening posting is not presented as growth";
   let early_lines =
-    List.map
-      snd
+    List.map snd
       (S.render_summary_lines ~width:120 ~width_of:String.length ~book:opening_book ~report:early)
   in
   require
@@ -265,8 +291,8 @@ let self_check () =
   let inside_opening =
     get
       (S.compute_report ~book:opening_book ~measure:"jpy"
-         ~tracked_coords:[ ("debt", "jpy"); ("opening-equity", "jpy") ] ~liability_coords:[]
-         ~period:before_open)
+         ~tracked_coords:[ ("debt", "jpy"); ("opening-equity", "jpy") ]
+         ~liability_coords:[] ~period:before_open)
   in
   require
     (Z.equal inside_opening.S.increases_across_events Z.zero
@@ -282,8 +308,7 @@ let self_check () =
     (inside_opening.S.excluded_openings = [ ("open", "2026-09-01") ])
     "the report names the opening entry it left out of the flows";
   let inside_lines =
-    List.map
-      snd
+    List.map snd
       (S.render_summary_lines ~width:120 ~width_of:String.length ~book:opening_book
          ~report:inside_opening)
   in
@@ -307,20 +332,20 @@ let self_check () =
   let counterpart_only =
     get
       (S.compute_report ~book:opening_book ~measure:"jpy"
-         ~tracked_coords:[ ("opening-equity", "jpy") ] ~liability_coords:[]
-         ~period:before_open)
+         ~tracked_coords:[ ("opening-equity", "jpy") ]
+         ~liability_coords:[] ~period:before_open)
   in
   let equity = only "opening-equity" counterpart_only in
   require
-    ((equity.S.start_balance = Some (z 0))
-    && (equity.S.end_balance = Some (z (-1000)))
-    && (equity.S.net_change = None))
+    (equity.S.start_balance = Some (z 0)
+    && equity.S.end_balance = Some (z (-1000))
+    && equity.S.net_change = None)
     "the row that carries the opening entry has an unknown Net";
-  require (counterpart_only.S.net_change = None)
+  require
+    (counterpart_only.S.net_change = None)
     "the tracked motion is unknown while an opening entry sits in Start and End";
   let counterpart_lines =
-    List.map
-      snd
+    List.map snd
       (S.render_summary_lines ~width:120 ~width_of:String.length ~book:opening_book
          ~report:counterpart_only)
   in
@@ -329,9 +354,7 @@ let self_check () =
        (fun line -> contains line "Net change in tracked balance:" && contains line "—")
        counterpart_lines)
     "the Net change in tracked balance line stays unknown";
-  let total_line =
-    List.find_opt (fun line -> contains line "Total (jpy)") counterpart_lines
-  in
+  let total_line = List.find_opt (fun line -> contains line "Total (jpy)") counterpart_lines in
   (match total_line with
   | None -> failwith "the total row must be rendered"
   | Some line ->
@@ -347,15 +370,16 @@ let self_check () =
      never removes this Measure's flows. *)
   let other_measure =
     get
-      (S.compute_report ~book:opening_book ~measure:"jpy" ~tracked_coords:[ ("cash", "jpy") ]
+      (S.compute_report ~book:opening_book ~measure:"jpy"
+         ~tracked_coords:[ ("cash", "jpy") ]
          ~liability_coords:[] ~period:before_open)
   in
   let cash = only "cash" other_measure in
   require
     (Z.equal cash.S.decreases (z (-100))
-    && (cash.S.start_balance = Some Z.zero)
-    && (cash.S.end_balance = Some (z (-100)))
-    && (cash.S.net_change = Some (z (-100)))
+    && cash.S.start_balance = Some Z.zero
+    && cash.S.end_balance = Some (z (-100))
+    && cash.S.net_change = Some (z (-100))
     && other_measure.S.excluded_openings = [])
     "an opening of another Measure leaves this Measure's flows alone";
 
@@ -365,42 +389,39 @@ let self_check () =
   in
   let earlier =
     get
-      (S.compute_report ~book:opening_book ~measure:"jpy" ~tracked_coords:[ ("debt", "jpy") ]
+      (S.compute_report ~book:opening_book ~measure:"jpy"
+         ~tracked_coords:[ ("debt", "jpy") ]
          ~liability_coords:[] ~period:before_open)
   in
   let debt = only "debt" earlier in
   require
-    ((debt.S.support = S.Opening_after "2026-09-01")
-    && debt.S.start_balance = None
-    && debt.S.end_balance = None
-    && earlier.S.unknown_starts = 1)
+    (debt.S.support = S.Opening_after "2026-09-01"
+    && debt.S.start_balance = None && debt.S.end_balance = None && earlier.S.unknown_starts = 1)
     "a window ending before the opening keeps the start and the end unknown";
   let earlier_lines =
-    List.map
-      snd
-      (S.render_summary_lines ~width:120 ~width_of:String.length ~book:opening_book
-         ~report:earlier)
+    List.map snd
+      (S.render_summary_lines ~width:120 ~width_of:String.length ~book:opening_book ~report:earlier)
   in
   require
-    (List.exists (fun line -> contains line "the window ends before the opening entry")
+    (List.exists
+       (fun line -> contains line "the window ends before the opening entry")
        earlier_lines)
     "the row note says the window ends before the opening entry";
 
   (* A window starting exactly on the opening day: the balance before the
      opening is unknown, so the start is unknown, never zero. *)
-  let on_open : I.period =
-    { period with start_day = "2026-09-01"; end_exclusive = "2026-10-01" }
-  in
+  let on_open : I.period = { period with start_day = "2026-09-01"; end_exclusive = "2026-10-01" } in
   let exact_day =
     get
-      (S.compute_report ~book:opening_book ~measure:"jpy" ~tracked_coords:[ ("debt", "jpy") ]
+      (S.compute_report ~book:opening_book ~measure:"jpy"
+         ~tracked_coords:[ ("debt", "jpy") ]
          ~liability_coords:[] ~period:on_open)
   in
   let debt = only "debt" exact_day in
   require
-    ((debt.S.support = S.Opening_on "2026-09-01")
+    (debt.S.support = S.Opening_on "2026-09-01"
     && debt.S.start_balance = None
-    && (debt.S.end_balance = Some (z 1000))
+    && debt.S.end_balance = Some (z 1000)
     && exact_day.S.unknown_starts = 1)
     "a window starting on the opening day keeps the start unknown";
   require
@@ -422,8 +443,7 @@ let self_check () =
 
   (* The liability row prints start / +In / -Out / end in that order. *)
   let debt_rows =
-    List.map
-      snd
+    List.map snd
       (S.render_summary_lines ~width:120 ~width_of:String.length ~book:opening_book
          ~report:(get (compute ~liabilities:[ ("debt", "jpy") ] opening_book [ ("debt", "jpy") ])))
   in
@@ -450,17 +470,25 @@ let self_check () =
   (* Observation support is exact but undated: it never back-fills a start. *)
   let observation_book =
     Bakhlo_sexp.Daily_txt.book
-      "BOOK\t1\nMEASURE\tjpy\t0\nLOCUS\tdebt\tdebt\t\nLOCUS\tcash\tcash\t\n\
-       TX\tborrow\t2026-10-10\nEFFECT\tdebt\tjpy\t400\nEFFECT\tcash\tjpy\t-400\nENDTX\n\
-       ANCHOR\tborrow\nASSERT\tdebt\tjpy\t400\nENDANCHOR\nEND\n"
+      "BOOK\t1\n\
+       MEASURE\tjpy\t0\n\
+       LOCUS\tdebt\tdebt\t\n\
+       LOCUS\tcash\tcash\t\n\
+       TX\tborrow\t2026-10-10\n\
+       EFFECT\tdebt\tjpy\t400\n\
+       EFFECT\tcash\tjpy\t-400\n\
+       ENDTX\n\
+       ANCHOR\tborrow\n\
+       ASSERT\tdebt\tjpy\t400\n\
+       ENDANCHOR\n\
+       END\n"
   in
   let observed = get (compute observation_book [ ("debt", "jpy") ]) in
   let debt = only "debt" observed in
   require
-    ((debt.S.support = S.Observation_undated)
-    && debt.S.start_balance = None
-    && debt.S.end_balance = None
-    && (debt.S.current_balance = Some (z 400)))
+    (debt.S.support = S.Observation_undated
+    && debt.S.start_balance = None && debt.S.end_balance = None
+    && debt.S.current_balance = Some (z 400))
     "an observation is undated: current exact, start unknown";
   let lines =
     List.map snd
@@ -483,9 +511,9 @@ let self_check () =
   | None -> failwith "the observed debt row must be rendered"
   | Some line ->
       let words = List.filter (fun word -> word <> "") (String.split_on_char ' ' line) in
-      require (List.hd (List.rev words) = "—")
-        "an unknown boundary leaves the Net cell unknown";
+      require (List.hd (List.rev words) = "—") "an unknown boundary leaves the Net cell unknown";
       require (List.mem "+400" words) "the in-window motion stays in its own column");
   print_endline
-    "PASS: Stock-Flow zero-origin, bounded, opening and observation support, all-time and unknown starts, listed \
-     unsupported coordinates, liabilities, roles refusal and cold-reload agreement (synthetic)."
+    "PASS: Stock-Flow zero-origin, bounded, opening and observation support, all-time and unknown \
+     starts, listed unsupported coordinates, liabilities, roles refusal and cold-reload agreement \
+     (synthetic)."

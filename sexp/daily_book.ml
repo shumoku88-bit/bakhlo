@@ -54,9 +54,9 @@ type plan = Records.plan = {
 
 type t = {
   txt : T.book;
-  ordered : entry Imap.t;  (* TX position -> its entry *)
-  position : int Smap.t;  (* entry ID -> TX position *)
-  cached : entry list Lazy.t;  (* recorded order *)
+  ordered : entry Imap.t; (* TX position -> its entry *)
+  position : int Smap.t; (* entry ID -> TX position *)
+  cached : entry list Lazy.t; (* recorded order *)
 }
 
 (* ---- entries <-> TXs ---- *)
@@ -69,7 +69,9 @@ let exchange_destination = "exchange-destination"
    key, which the next save writes out. *)
 let entry_of (tx : T.tx) : entry =
   let only sign m =
-    match List.filter (fun (e : T.posting) -> e.measure = m && Z.sign e.amount = sign) tx.effects with
+    match
+      List.filter (fun (e : T.posting) -> e.measure = m && Z.sign e.amount = sign) tx.effects
+    with
     | [ e ] -> e
     | _ -> raise (Refused "exchange-ambiguous")
   in
@@ -88,7 +90,11 @@ let entry_of (tx : T.tx) : entry =
         [ pick (only (-1) x) exchange_source; pick (only 1 y) exchange_destination ]
   in
   let posting (e : T.posting) =
-    let key = match List.find_opt (fun (k, _) -> k == e) named with Some (_, name) -> Some name | None -> e.key in
+    let key =
+      match List.find_opt (fun (k, _) -> k == e) named with
+      | Some (_, name) -> Some name
+      | None -> e.key
+    in
     D.Effect.create
       ~key:(Option.map (fun k -> get "effect-key-id" (D.Identifier.Effect_key.of_string k)) key)
       ~locus:(lid e.locus) ~measure:(mid e.measure) ~quantity:(D.Quantity.of_quanta e.amount)
@@ -134,7 +140,9 @@ let tx_of_entry (e : entry) : T.tx =
     original = e.original_amount;
     merchant =
       Option.map
-        (function M.Merchant p -> T.Merchant (D.Identifier.External_party.to_string p) | M.Nonmerchant -> T.Nonmerchant)
+        (function
+          | M.Merchant p -> T.Merchant (D.Identifier.External_party.to_string p)
+          | M.Nonmerchant -> T.Nonmerchant)
         e.merchant;
     exchange = Option.map (fun (s, d) -> (measure_of s, measure_of d)) e.exchange;
   }
@@ -203,7 +211,10 @@ let plans t = List.map plan_back (value t).plans
 let plan_is_open (p : plan) = p.paid_by = None && p.cancelled_on = None
 let open_plans t = List.filter plan_is_open (plans t)
 let measures t = (value t).measures
-let offered t = List.filter_map (fun (l : T.locus) -> if l.hidden then None else Some l.id) (value t).loci
+
+let offered t =
+  List.filter_map (fun (l : T.locus) -> if l.hidden then None else Some l.id) (value t).loci
+
 let approved_loci t = Some (offered t)
 let locus_row t id = List.find_opt (fun (l : T.locus) -> l.id = id) (value t).loci
 let label t id = match locus_row t id with Some l -> l.label | None -> id
@@ -214,7 +225,8 @@ let openings t = (value t).openings
 let bounded_history_start t ~locus ~measure = List.assoc_opt (locus, measure) (value t).history_from
 
 let scale t m =
-  get "unknown-measure" (match List.assoc_opt m (measures t) with Some n -> Ok n | None -> Error ())
+  get "unknown-measure"
+    (match List.assoc_opt m (measures t) with Some n -> Ok n | None -> Error ())
 
 let format t m n =
   let decimals = scale t m in
@@ -437,7 +449,6 @@ let day_number text =
   + day
   + if leap && month > 2 then 1 else 0
 
-
 let pool_balance t (c : D.Effect_coordinate.t) =
   match quantity t ~locus:(lstr c.locus) ~measure:(mstr c.measure) with
   | Some q -> Some q.amount
@@ -454,24 +465,33 @@ let daily_pace t ~measure ~pool ~observed_at ~end_exclusive =
         (List.length (List.sort_uniq D.Effect_coordinate.compare pool) = List.length pool)
         "daily-pace-duplicate-coordinate";
       require
-        (List.for_all (fun (c : D.Effect_coordinate.t) -> D.Identifier.Measure.equal c.measure selected_measure) pool)
+        (List.for_all
+           (fun (c : D.Effect_coordinate.t) ->
+             D.Identifier.Measure.equal c.measure selected_measure)
+           pool)
         "daily-pace-pool-measure-mismatch";
       let pool_balances =
         List.map
           (fun (c : D.Effect_coordinate.t) ->
             match pool_balance t c with
             | Some n -> (c, n)
-            | None -> raise (Refused ("daily-pace-balance-support-unknown:" ^ lstr c.locus ^ ":" ^ measure)))
+            | None ->
+                raise
+                  (Refused ("daily-pace-balance-support-unknown:" ^ lstr c.locus ^ ":" ^ measure)))
           pool
       in
-      let selected locus = List.exists (fun (c : D.Effect_coordinate.t) -> lstr c.locus = locus) pool in
+      let selected locus =
+        List.exists (fun (c : D.Effect_coordinate.t) -> lstr c.locus = locus) pool
+      in
       let plan_deductions =
         open_plans t
         |> List.filter_map (fun (p : plan) ->
             if p.measure <> measure || p.day >= end_exclusive then None
             else
               let net =
-                List.fold_left (fun total (locus, n) -> if selected locus then Z.add total n else total) Z.zero p.changes
+                List.fold_left
+                  (fun total (locus, n) -> if selected locus then Z.add total n else total)
+                  Z.zero p.changes
               in
               if Z.sign net < 0 then Some (p.id, Z.neg net) else None)
       in
@@ -513,7 +533,10 @@ let day_sums t pool ~from =
               let q = D.Quantity.quanta (D.Effect.quantity eff) in
               total := Z.add !total q;
               if e.day > from then
-                later := Smap.update e.day (fun s -> Some (Z.add q (Option.value ~default:Z.zero s))) !later)
+                later :=
+                  Smap.update e.day
+                    (fun s -> Some (Z.add q (Option.value ~default:Z.zero s)))
+                    !later)
         e.effects)
     (entries t);
   List.map (fun (c, total, later) -> (c, (!total, !later))) tables
@@ -530,9 +553,14 @@ let pool_at_end_of_day_from ~sums t ~measure ~pool ~day =
         (List.length (List.sort_uniq D.Effect_coordinate.compare pool) = List.length pool)
         "history-duplicate-coordinate";
       require
-        (List.for_all (fun (c : D.Effect_coordinate.t) -> D.Identifier.Measure.equal c.measure selected_measure) pool)
+        (List.for_all
+           (fun (c : D.Effect_coordinate.t) ->
+             D.Identifier.Measure.equal c.measure selected_measure)
+           pool)
         "history-pool-measure-mismatch";
-      let sums_of c = snd (List.find (fun (c', _) -> D.Effect_coordinate.equal c c') (Lazy.force sums)) in
+      let sums_of c =
+        snd (List.find (fun (c', _) -> D.Effect_coordinate.equal c c') (Lazy.force sums))
+      in
       (* The Effects after [day] (never before [from]), walked back from the latest day. *)
       let after c =
         Seq.fold_left
@@ -564,19 +592,21 @@ let pools_at_end_of_days t ~measure ~pool ~days =
   let sums = lazy (day_sums t pool ~from) in
   List.map (fun day -> pool_at_end_of_day_from ~sums t ~measure ~pool ~day) days
 
-let pool_at_end_of_day t ~measure ~pool ~day = List.hd (pools_at_end_of_days t ~measure ~pool ~days:[ day ])
+let pool_at_end_of_day t ~measure ~pool ~day =
+  List.hd (pools_at_end_of_days t ~measure ~pool ~days:[ day ])
 
 (* ---- changes ---- *)
 
 (* A Book_txt refusal as the reason the screens know: support lines refuse as
    "support-admission", everything about a TX as "entry-admission". *)
 let refusal = function
-  | "support-overlap" | "duplicate-support" | "history-unanchored" | "empty-anchor" | "also-redundant"
-  | "duplicate-also" | "opening-missing-coordinate" ->
+  | "support-overlap" | "duplicate-support" | "history-unanchored" | "empty-anchor"
+  | "also-redundant" | "duplicate-also" | "opening-missing-coordinate" ->
       "support-admission"
   | _ -> "entry-admission"
 
-let commit t changes = match T.change t.txt changes with Ok txt -> txt | Error code -> raise (Refused (refusal code))
+let commit t changes =
+  match T.change t.txt changes with Ok txt -> txt | Error code -> raise (Refused (refusal code))
 
 (* The book after [txt] took [e] in at the end ([replace] false) or in its place. *)
 let with_entry t txt (e : entry) ~replace =
@@ -588,7 +618,8 @@ let with_entry t txt (e : entry) ~replace =
     let i = entry_count t in
     let ordered = Imap.add i e t.ordered in
     let cached =
-      if Lazy.is_val t.cached then lazy (Lazy.force t.cached @ [ e ]) else lazy (List.map snd (Imap.bindings ordered))
+      if Lazy.is_val t.cached then lazy (Lazy.force t.cached @ [ e ])
+      else lazy (List.map snd (Imap.bindings ordered))
     in
     { txt; ordered; position = Smap.add e.id i t.position; cached }
 
@@ -599,7 +630,9 @@ let approve_effects t effects =
   List.iter (fun p -> require (List.mem (lstr (D.Effect.locus p)) ids) "locus-unapproved") effects
 
 let find_plan t id =
-  match List.find_opt (fun (p : plan) -> p.id = id) (plans t) with Some p -> p | None -> raise (Refused "unknown-plan")
+  match List.find_opt (fun (p : plan) -> p.id = id) (plans t) with
+  | Some p -> p
+  | None -> raise (Refused "unknown-plan")
 
 let require_open_plan (p : plan) =
   require (p.paid_by = None) "plan-already-paid";
@@ -639,8 +672,13 @@ let put_entry t ~replace (e : entry) ~plan =
       in
       check_entry t e;
       (* A malformed exchange is a TX the rules refuse. *)
-      let tx = try tx_of e with Refused ("exchange-key" | "exchange-ambiguous") -> raise (Refused "entry-admission") in
-      with_entry t (commit t ((if replace then T.Replace_tx tx else T.Add_tx tx) :: paid)) e ~replace)
+      let tx =
+        try tx_of e
+        with Refused ("exchange-key" | "exchange-ambiguous") -> raise (Refused "entry-admission")
+      in
+      with_entry t
+        (commit t ((if replace then T.Replace_tx tx else T.Add_tx tx) :: paid))
+        e ~replace)
 
 (* Only the date changes; the Effects are not admitted again, so Loci no longer
    offered for new entries are kept. *)
@@ -648,11 +686,14 @@ let correct_entry_date t ~id ~day =
   protect (fun () ->
       ignore (eid id);
       valid_date day;
-      let old = match find_entry t id with Some e -> e | None -> raise (Refused "unknown-entry") in
+      let old =
+        match find_entry t id with Some e -> e | None -> raise (Refused "unknown-entry")
+      in
       let e = { old with day } in
       with_entry t (commit t [ T.Replace_tx (tx_of e) ]) e ~replace:true)
 
-let valid_token s = s <> "" && not (String.contains s '\t' || String.contains s '\n' || String.contains s '\r')
+let valid_token s =
+  s <> "" && not (String.contains s '\t' || String.contains s '\n' || String.contains s '\r')
 
 let classify_merchant t ~id ~disposition =
   protect (fun () ->
@@ -679,7 +720,9 @@ let put_plan t ~replace (p : plan) =
       if replace then require_open_plan (find_plan t p.id);
       let effects =
         List.map
-          (fun (loc, n) -> D.Effect.create ~locus:(lid loc) ~measure:(mid p.measure) ~quantity:(D.Quantity.of_quanta n) ~key:None)
+          (fun (loc, n) ->
+            D.Effect.create ~locus:(lid loc) ~measure:(mid p.measure)
+              ~quantity:(D.Quantity.of_quanta n) ~key:None)
           p.changes
       in
       approve_effects t effects;
@@ -714,7 +757,11 @@ let set_locus_label t ~id ~label ?help () =
   protect (fun () ->
       ignore (lid id);
       require (List.mem id (offered t)) "locus-not-approved";
-      let valid_str s = s <> "" && String.length s <= 80 && String.for_all (fun c -> Char.code c >= 32 && Char.code c <> 127) s in
+      let valid_str s =
+        s <> ""
+        && String.length s <= 80
+        && String.for_all (fun c -> Char.code c >= 32 && Char.code c <> 127) s
+      in
       let label = String.trim label in
       require (valid_str label) "invalid-label";
       (* An empty retained help falls back like a missing one. *)
@@ -727,7 +774,11 @@ let set_locus_label t ~id ~label ?help () =
         | None -> fallback
       in
       require (valid_str help) "invalid-label";
-      let loci = List.map (fun (l : T.locus) -> if l.id = id then { l with label; help } else l) (value t).loci in
+      let loci =
+        List.map
+          (fun (l : T.locus) -> if l.id = id then { l with label; help } else l)
+          (value t).loci
+      in
       { t with txt = commit t [ T.Set_loci loci ] })
 
 (* One count of current quantities, reflecting every recorded TX: a new anchor at the
@@ -744,7 +795,9 @@ let observe_quantities t rows =
           require (List.mem l (offered t)) "locus-not-approved")
         rows;
       let coords = List.map (fun (l, m, _) -> (l, m)) rows in
-      require (List.length (List.sort_uniq compare coords) = List.length coords) "duplicate-coordinate";
+      require
+        (List.length (List.sort_uniq compare coords) = List.length coords)
+        "duplicate-coordinate";
       let older =
         List.filter_map
           (fun (a : T.anchor) ->
@@ -767,7 +820,9 @@ let with_bounded_history t rows =
           valid_date day)
         rows;
       let coords = List.map (fun (l, m, _) -> (l, m)) rows in
-      require (List.length (List.sort_uniq compare coords) = List.length coords) "duplicate-bounded-history-coordinate";
+      require
+        (List.length (List.sort_uniq compare coords) = List.length coords)
+        "duplicate-bounded-history-coordinate";
       { t with txt = commit t [ T.Set_history (List.map (fun (l, m, day) -> ((l, m), day)) rows) ] })
 
 (* ---- the other sections of book.txt ---- *)

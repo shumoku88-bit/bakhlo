@@ -288,7 +288,8 @@ let render_panel ?status ~width_of ~width ~height t =
   let frame_height = match status with None -> height | Some _ -> max 0 (height - 1) in
   let panel =
     Ui_panel.frame_rows ~width_of ~width ~height:frame_height ~focused:true ~title:t.title
-      (render_rows ~width:(max 0 (width - 6))
+      (render_rows
+         ~width:(max 0 (width - 6))
          ~height:(Ui_panel.capacity ~height:frame_height ~heading:false)
          ~width_of t)
   in

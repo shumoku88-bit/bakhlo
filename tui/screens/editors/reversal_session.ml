@@ -131,8 +131,8 @@ let screen ~dimensions:((width, height) as dimensions) ~width_of t =
         |> List.mapi (fun i label -> if t.action = i then "[" ^ label ^ "]" else label)
         |> String.concat "  "
       in
-      Panel.preview ~width_of ~width ~height ~title:"Actual / Reverse / Preview"
-        ~scroll:view.start ~notice:(Form.notice t.form) ~action:(" " ^ actions) rows
+      Panel.preview ~width_of ~width ~height ~title:"Actual / Reverse / Preview" ~scroll:view.start
+        ~notice:(Form.notice t.form) ~action:(" " ^ actions) rows
   in
   List.filteri (fun i _ -> i < max 0 height) rows
   |> List.map (fun (style, text) -> (style, O.pad ~width_of width text))

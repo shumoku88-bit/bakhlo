@@ -119,6 +119,7 @@ let suspense_holding (env : Screen.env) : holding option =
 
 let open_items (env : Screen.env) =
   match env.attention with Ok t -> Att.open_items t | Error _ -> []
+
 (* One selectable row: the derived holding signal first, then household matters. *)
 type row = Holding of holding | Matter of Att.item
 
@@ -130,8 +131,7 @@ let holding_line ~width_of ~col_due ~col_ctx (holding : holding) =
   let nets =
     String.concat " · "
       (List.map
-         (fun (measure, amount) ->
-           Printf.sprintf "%s %s" (String.uppercase_ascii measure) amount)
+         (fun (measure, amount) -> Printf.sprintf "%s %s" (String.uppercase_ascii measure) amount)
          holding.nets)
   in
   let age =
@@ -146,6 +146,7 @@ let holding_line ~width_of ~col_due ~col_ctx (holding : holding) =
       (Printf.sprintf "suspense recorded net: %s · %d %s%s" nets holding.entries
          (if holding.entries = 1 then "entry" else "entries")
          age)
+
 let holding_detail (holding : holding) =
   [
     "Suspense holding (unresolved recording):";
@@ -313,23 +314,23 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
                      "Suspense is unresolved recording, not a matter: correct those entries in \
                       Actual (/ search, then c).") )
           | _ -> (
-          match selected_item env t with
-          | None ->
-              ( t,
-                Screen.Message
-                  (tr
-                     (if c = 'r' then "No attention item selected to resolve."
-                      else "No attention item selected to drop.")) )
-          | Some item ->
-              let form =
-                if c = 'r' then
-                  close_form ~id:"resolve_attention" ~title:"Resolve Attention"
-                    ~confirm:"Confirm Resolve" item
-                else
-                  close_form ~id:"drop_attention" ~title:"Drop Attention" ~confirm:"Confirm Drop"
-                    item
-              in
-              stay { t with editor = Some { form; success = "" } }))
+              match selected_item env t with
+              | None ->
+                  ( t,
+                    Screen.Message
+                      (tr
+                         (if c = 'r' then "No attention item selected to resolve."
+                          else "No attention item selected to drop.")) )
+              | Some item ->
+                  let form =
+                    if c = 'r' then
+                      close_form ~id:"resolve_attention" ~title:"Resolve Attention"
+                        ~confirm:"Confirm Resolve" item
+                    else
+                      close_form ~id:"drop_attention" ~title:"Drop Attention"
+                        ~confirm:"Confirm Drop" item
+                  in
+                  stay { t with editor = Some { form; success = "" } }))
       | Some (((`ASCII ('j' | 'k') | `Arrow (`Up | `Down)) as k), []) ->
           let delta = match k with `ASCII 'k' | `Arrow `Up -> -1 | _ -> 1 in
           if detail then stay { t with scroll = max 0 (t.scroll + delta) }
@@ -377,8 +378,8 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
         let s = Att.summarize ~today a in
         let marker = if Option.is_some holding then " • suspense" else "" in
         if s.overdue_count > 0 then
-          Printf.sprintf "Attention (%d open • ! %d overdue%s)" (List.length items)
-            s.overdue_count marker
+          Printf.sprintf "Attention (%d open • ! %d overdue%s)" (List.length items) s.overdue_count
+            marker
         else Printf.sprintf "Attention (%d open%s)" (List.length items) marker
     | Error _ -> "Attention / Unavailable"
   in
@@ -393,8 +394,7 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
   let row_text _idx (row : row) =
     match row with
     | Holding h -> holding_line ~width_of ~col_due ~col_ctx h
-    | Matter item ->
-        O.pad ~width_of col_due (Att.due_display ~today item.due) ^ "  " ^ item.context
+    | Matter item -> O.pad ~width_of col_due (Att.due_display ~today item.due) ^ "  " ^ item.context
   in
   let left_rows =
     match env.attention with

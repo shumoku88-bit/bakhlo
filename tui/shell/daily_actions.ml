@@ -139,7 +139,8 @@ let reload ~session ~pending ~mode : reload_result =
     | Some _ -> Pending_unconfirmed loaded
     | None -> (
         match mode with
-        | (Edit _ | Plan_edit _) when loaded.revision <> session.revision -> Edit_base_changed loaded
+        | (Edit _ | Plan_edit _) when loaded.revision <> session.revision ->
+            Edit_base_changed loaded
         | New | Pay _ | Edit _ | Plan_new | Plan_edit _ -> Reloaded loaded)
   with
   | F.Refused why -> Reload_failed why

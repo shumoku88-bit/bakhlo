@@ -214,8 +214,7 @@ type spans = (O.style * string) list
 
 type owner = Line of int | Marked | Quiet
 
-let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers ?(guides = []) ()
-    =
+let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers ?(guides = []) () =
   let width = max 1 width and height = max 1 height in
   let series = List.map Array.of_list series in
   let samples = List.map (fun values -> series_sample (Array.to_list values)) series in
@@ -237,7 +236,8 @@ let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers
     List.filter_map
       (fun (index, values) ->
         if selected >= 0 && selected < Array.length values && index < List.length markers then
-          Some (row_for_value (height * 4) range values.(selected) / 4, List.nth markers index, index)
+          Some
+            (row_for_value (height * 4) range values.(selected) / 4, List.nth markers index, index)
         else None)
       (List.mapi (fun index values -> (index, values)) series)
   in
@@ -245,9 +245,7 @@ let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers
      one cell become one shared mark rather than a false time position. *)
   let cells_of_row row =
     List.init width (fun col ->
-        match
-          if col = selected_x then List.filter (fun (y, _, _) -> y = row) marker_at else []
-        with
+        match if col = selected_x then List.filter (fun (y, _, _) -> y = row) marker_at else [] with
         | [ (_, marker, index) ] -> (Line index, marker)
         | _ :: _ :: _ -> (Marked, "◎")
         | [] ->
@@ -269,7 +267,8 @@ let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers
           if cell_owner = owner then begin
             Buffer.add_string buffer glyph;
             loop owner buffer acc rest
-          end else begin
+          end
+          else begin
             let acc = flush owner buffer acc in
             Buffer.clear buffer;
             Buffer.add_string buffer glyph;
@@ -287,7 +286,7 @@ let multi_line_spans ~width ~height ~series ~selected ~range ~grid_rows ~markers
       let cells = cells_of_row row in
       spans_of_cells cells
       |> List.map (fun (owner, text) ->
-             let style =
-               match owner with Line index -> O.Series index | Marked -> O.Active | Quiet -> O.Chrome
-             in
-             (style, text)))
+          let style =
+            match owner with Line index -> O.Series index | Marked -> O.Active | Quiet -> O.Chrome
+          in
+          (style, text)))

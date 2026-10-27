@@ -22,20 +22,21 @@ let book_roles state =
   if text = "" then None else Some text
 
 let read_pace_config state name =
-  if name = Locus_roles.file_name then Ok (book_roles state) else
-  let path = config_file_path state name in
-  try
-    let exists =
-      try
-        let _ = Unix.lstat path in
-        true
-      with Unix.Unix_error (Unix.ENOENT, _, _) -> false
-    in
-    if exists then Ok (Some (F.read path)) else Ok None
-  with
-  | F.Refused why | Sys_error why -> Error why
-  | Unix.Unix_error (err, fn, arg) ->
-      Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
+  if name = Locus_roles.file_name then Ok (book_roles state)
+  else
+    let path = config_file_path state name in
+    try
+      let exists =
+        try
+          let _ = Unix.lstat path in
+          true
+        with Unix.Unix_error (Unix.ENOENT, _, _) -> false
+      in
+      if exists then Ok (Some (F.read path)) else Ok None
+    with
+    | F.Refused why | Sys_error why -> Error why
+    | Unix.Unix_error (err, fn, arg) ->
+        Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
 
 let write_config_file state name ~expected content =
   let path = config_file_path state name in
@@ -76,7 +77,8 @@ let publish_sidecars state sidecars =
   | F.Conflict -> (state, Error "The book changed on disk. Reload before retrying.")
   | F.Refused_input why -> (state, Error why)
   | F.Uncertain _ ->
-      ({ state with blocked = true }, Error "Save outcome is uncertain. Do not retry; reload to inspect.")
+      ( { state with blocked = true },
+        Error "Save outcome is uncertain. Do not retry; reload to inspect." )
 
 let save_roles state ~expected ~content =
   if book_roles state <> expected then (state, Error "Configuration changed. Reopen the editor.")
@@ -94,12 +96,14 @@ let save_roles state ~expected ~content =
 let save_attention state ~expected next =
   match attention state with
   | Error why -> (state, Error why)
-  | Ok current when current <> expected -> (state, Error "Attention changed. Reload before retrying.")
+  | Ok current when current <> expected ->
+      (state, Error "Attention changed. Reload before retrying.")
   | Ok _ -> (
       let content = Att.to_string next in
       match Att.of_string content with
       | Error why -> (state, Error why)
-      | Ok decoded when decoded <> next -> (state, Error "Attention serialization would change evidence.")
+      | Ok decoded when decoded <> next ->
+          (state, Error "Attention serialization would change evidence.")
       | Ok _ ->
           let content = if next = Att.empty then "" else content in
           publish_sidecars state { state.session.F.sidecars with attention = content })

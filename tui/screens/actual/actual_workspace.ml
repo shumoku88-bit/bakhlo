@@ -346,8 +346,7 @@ let listing ~ctx t =
 let clamp_to ~ctx l t =
   let transaction_row = if l.count = 0 then 0 else min (max 0 t.transaction_row) (l.count - 1) in
   let transaction_row =
-    if t.pending_selection then default_row ~today:ctx.scope.focus_day l.groups
-    else transaction_row
+    if t.pending_selection then default_row ~today:ctx.scope.focus_day l.groups else transaction_row
   in
   { t with locus_row = l.locus_index; transaction_row; pending_selection = false }
 

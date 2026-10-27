@@ -43,9 +43,7 @@ let run ~width_of ~directory (back_home : C.state) =
   require (b2_overlay_open observed_from_balances) "observe-opens-from-balances";
   let escaped_observe = key ~width_of observed_from_balances `Escape in
   require (no_modal escaped_observe) "observe-esc-closes-editor";
-  require
-    (escaped_observe.C.workspace.route = W.Balances)
-    "observe-esc-returns-to-balances";
+  require (escaped_observe.C.workspace.route = W.Balances) "observe-esc-returns-to-balances";
   let check_qty book locus measure = b2_check_qty book locus measure in
   let observe_one base_state locus amount =
     let st = key ~width_of base_state (`ASCII 'o') in
@@ -86,9 +84,7 @@ let run ~width_of ~directory (back_home : C.state) =
       | Some f -> f
       | None -> raise (F.Refused "observe-preview-open")
     in
-    require
-      (Ui_form.get_button preview_form "action" = Some 1)
-      "observe-preview-defaults-to-edit";
+    require (Ui_form.get_button preview_form "action" = Some 1) "observe-preview-defaults-to-edit";
     let edited =
       match
         H.handle ~width_of ~dimensions:(100, 30)

@@ -13,13 +13,14 @@ let coord locus measure : R.coordinate = { locus; measure }
 
 let header =
   "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\n"
-  ^ String.concat "" (List.map (fun l -> Printf.sprintf "LOCUS\t%s\t%s\t\n" l l) [ "a"; "b"; "c"; "delta"; "epsilon"; "gamma" ])
+  ^ String.concat ""
+      (List.map
+         (fun l -> Printf.sprintf "LOCUS\t%s\t%s\t\n" l l)
+         [ "a"; "b"; "c"; "delta"; "epsilon"; "gamma" ])
 
 let footer = "ZERO-ORIGIN\ta\tjpy\nZERO-ORIGIN\tb\tjpy\nEND\n"
-
 let posting locus n = Printf.sprintf "EFFECT\t%s\tjpy\t%s\n" locus (Z.to_string n)
 let ab n = posting "a" n ^ posting "b" (Z.neg n)
-
 let row id day postings = Printf.sprintf "TX\t%s\t%s\n%sENDTX\n" id day postings
 
 let rows =
@@ -80,9 +81,7 @@ let () =
   let starting_index = S.selected env owned in
 
   (* Default series: the Expense-role Loci with the most entries in the history. *)
-  let busy_book =
-    make_book (row "busy" "2026-10-02" (posting "b" (z 1) ^ posting "c" (z (-1))))
-  in
+  let busy_book = make_book (row "busy" "2026-10-02" (posting "b" (z 1) ^ posting "c" (z (-1)))) in
   let busy_env = env_with ~book:busy_book boundaries in
   let busy = S.enter ~focus_day:"2026-10-03" (S.create ()) in
   let defaults = S.coordinates busy_env busy in
@@ -102,7 +101,9 @@ let () =
   (* The chart is braille, starts at a zero axis row and names the window ends. *)
   let painted = (S.view env geometry owned).Screen.rows |> Lazy.force in
   let is_braille = function
-    | `Uchar u -> let n = Uchar.to_int u in n >= 0x2800 && n <= 0x28FF
+    | `Uchar u ->
+        let n = Uchar.to_int u in
+        n >= 0x2800 && n <= 0x28FF
     | `Malformed _ -> false
   in
   let has_braille =
@@ -144,12 +145,7 @@ let () =
     (fun width ->
       let width_of text = Uutf.String.fold_utf_8 (fun cells _ _ -> cells + 1) 0 text in
       let geometry =
-        {
-          Screen.screen = (width, 30);
-          body = (width, 27);
-          content = (width, 25);
-          width_of;
-        }
+        { Screen.screen = (width, 30); body = (width, 27); content = (width, 25); width_of }
       in
       let rows = (S.view env geometry at_end).Screen.rows |> Lazy.force in
       require
@@ -171,8 +167,8 @@ let () =
                  (fun last _ c -> match c with `Uchar u -> Some u | `Malformed _ -> last)
                  None text
                |> Option.fold ~none:false ~some:(fun u ->
-                      let n = Uchar.to_int u in
-                      n >= 0x2800 && n <= 0x28FF))
+                   let n = Uchar.to_int u in
+                   n >= 0x2800 && n <= 0x28FF))
             "the last column carries the selected day")
         plot_rows)
     [ 80; 110 ];
@@ -185,8 +181,7 @@ let () =
   in
   let series_indices spans =
     List.filter_map
-      (fun (style, _) ->
-        match style with Ui_render.Series index -> Some index | _ -> None)
+      (fun (style, _) -> match style with Ui_render.Series index -> Some index | _ -> None)
       spans
   in
   let chart_rows =
@@ -194,17 +189,19 @@ let () =
       (fun (_, text) -> Uutf.String.fold_utf_8 (fun found _ c -> found || is_braille c) false text)
       painted
   in
-  let chart_series = List.concat_map (fun (style, _) -> series_indices (span_styles style)) chart_rows in
-  require
-    (List.mem 0 chart_series && List.mem 1 chart_series)
-    "each series paints its own cells";
+  let chart_series =
+    List.concat_map (fun (style, _) -> series_indices (span_styles style)) chart_rows
+  in
+  require (List.mem 0 chart_series && List.mem 1 chart_series) "each series paints its own cells";
   let legend_row = List.find_opt (fun (_, text) -> contains text "[1 ●") painted in
   (match legend_row with
   | None -> failwith "the legend row must be painted"
   | Some (style, text) ->
-      require (series_indices (span_styles style) = [ 0; 1 ])
+      require
+        (series_indices (span_styles style) = [ 0; 1 ])
         "the series rack names each series with its own style";
-      require (contains text "●" && contains text "◆")
+      require
+        (contains text "●" && contains text "◆")
         "the legend keeps a marker glyph for the monochrome reading");
   (* As in LOAM each series has its own value row, in its own colour. *)
   let value_rows =
@@ -225,7 +222,8 @@ let () =
     (owners <> [] && List.for_all (fun index -> index = 1) owners)
     "an overlapping cell takes the later series' colour";
   let single =
-    Ui_chart.multi_line_spans ~width:8 ~height:4 ~series:[ [ z 100; z 100; z 100 ] ]
+    Ui_chart.multi_line_spans ~width:8 ~height:4
+      ~series:[ [ z 100; z 100; z 100 ] ]
       ~selected:(-1) ~range ~grid_rows:[] ~markers:[ "●"; "◆" ] ()
   in
   require
@@ -234,15 +232,14 @@ let () =
   (* Chart cells: an owner change must not drop a cell, or the row loses width
      and the selection guide drifts out of its column. *)
   let row_text spans = String.concat "" (List.map snd spans) in
-  let cells text =
-    Uutf.String.fold_utf_8 (fun cells _ cell -> cell :: cells) [] text |> List.rev
-  in
+  let cells text = Uutf.String.fold_utf_8 (fun cells _ cell -> cell :: cells) [] text |> List.rev in
   let guide = `Uchar (Uchar.of_int 0x2502) in
   let crossing_spans =
     Ui_chart.multi_line_spans ~width:8 ~height:4
       ~series:[ [ z 0; z 100 ]; [ z 100; z 0 ] ]
-      ~selected:1 ~range:{ Ui_chart.low = z 0; high = z 100 } ~grid_rows:[ 1 ]
-      ~markers:[ "●"; "◆" ] ()
+      ~selected:1
+      ~range:{ Ui_chart.low = z 0; high = z 100 }
+      ~grid_rows:[ 1 ] ~markers:[ "●"; "◆" ] ()
   in
   let crossing_rows = List.map (fun spans -> cells (row_text spans)) crossing_spans in
   require
@@ -261,8 +258,11 @@ let () =
   (* The selected marker follows the line's sub-pixel row: a flat series at the
      top of the range keeps its marker on the line, not in the middle row. *)
   let marker_spans =
-    Ui_chart.multi_line_spans ~width:8 ~height:3 ~series:[ [ z 51; z 51; z 51 ] ]
-      ~selected:1 ~range:{ Ui_chart.low = z 0; high = z 60 } ~grid_rows:[] ~markers:[ "●" ] ()
+    Ui_chart.multi_line_spans ~width:8 ~height:3
+      ~series:[ [ z 51; z 51; z 51 ] ]
+      ~selected:1
+      ~range:{ Ui_chart.low = z 0; high = z 60 }
+      ~grid_rows:[] ~markers:[ "●" ] ()
   in
   let marker_top = cells (row_text (List.nth marker_spans 0)) in
   let marker_middle = cells (row_text (List.nth marker_spans 1)) in
@@ -428,9 +428,7 @@ let () =
     ((not (S.picker_open removed)) && List.length (S.coordinates env removed) = plotted - 1)
     "x removes the next empty slot's last occupied series";
   let one_left = after env (after env removed (`ASCII 'a')) (`ASCII 'x') in
-  require
-    (List.length (S.coordinates env one_left) = 1)
-    "removal keeps the last plotted series";
+  require (List.length (S.coordinates env one_left) = 1) "removal keeps the last plotted series";
   let picker_keep = after env one_left (`ASCII 'a') in
   let kept, kept_request = press env picker_keep (`ASCII 'x') in
   require
@@ -616,7 +614,11 @@ let () =
 
   (* The Day window over all history moves only when the selection leaves it
      (LOAM [viewportStartFor]); moving inside it keeps every column in place. *)
-  let sliding = after long_env (after long_env (S.enter ~focus_day:"2026-10-03" (S.create ())) (`ASCII ']')) (`ASCII ']') in
+  let sliding =
+    after long_env
+      (after long_env (S.enter ~focus_day:"2026-10-03" (S.create ())) (`ASCII ']'))
+      (`ASCII ']')
+  in
   let sliding = after long_env sliding `End in
   let count = snd (S.visible_window long_env sliding) in
   require (S.visible_window long_env sliding = (count - 31, count)) "End shows the last 31 days";
@@ -640,12 +642,17 @@ let () =
 
   (* LOAM's Selected line and period axis. *)
   let rows_of env owner = (S.view env geometry owner).Screen.rows |> Lazy.force in
-  let has env owner needle = List.exists (fun (_, text) -> contains text needle) (rows_of env owner) in
-  require (has env owned "Selected   Oct 3 → Oct 3   ·   current partial")
+  let has env owner needle =
+    List.exists (fun (_, text) -> contains text needle) (rows_of env owner)
+  in
+  require
+    (has env owned "Selected   Oct 3 → Oct 3   ·   current partial")
     "a running cycle ends on the observation day";
-  require (has env (after env owned `Home) "Selected   Oct 1 → Oct 3   ·   complete")
+  require
+    (has env (after env owned `Home) "Selected   Oct 1 → Oct 3   ·   complete")
     "a full cycle names its exclusive end";
-  require (has long_env sliding "Selected   Oct 3, 2026   ·   current day")
+  require
+    (has long_env sliding "Selected   Oct 3, 2026   ·   current day")
     "the observation day is the current day";
   require (has long_env sliding "As of Oct 3") "the Day axis names the observation day";
   require (has long_env inside "Sep 3") "the Day axis names the selected day";

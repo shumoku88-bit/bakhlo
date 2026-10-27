@@ -23,10 +23,8 @@ let main ~run =
            --restore-copy-from SOURCE --book FRESH_FILE";
         exit 2
   with
-  | F.Refused why
-    when Array.length Sys.argv > 1
-         && List.mem Sys.argv.(1)
-              [ "--restore-copy-from" ] ->
+  | F.Refused why when Array.length Sys.argv > 1 && List.mem Sys.argv.(1) [ "--restore-copy-from" ]
+    ->
       prerr_endline ("Recovery refused: " ^ why ^ "; no automatic adoption or retry.");
       exit 1
   | F.Refused _ | Unix.Unix_error _ | Sys_error _ ->

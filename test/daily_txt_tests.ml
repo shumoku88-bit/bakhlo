@@ -23,8 +23,15 @@ let%expect_test "every accepted fixture survives Daily_book unchanged" =
     (fun name ->
       let result = round_trip (read (Filename.concat "common_format" name)) in
       Printf.printf "%s: %s\n" name (match result with Ok () -> "same bytes" | Error why -> why))
-    [ "ok-empty.txt"; "ok-full.txt"; "ok-anchor-delta.txt"; "ok-anchor-start.txt"; "ok-exchange-reversal.txt" ];
-  [%expect {|
+    [
+      "ok-empty.txt";
+      "ok-full.txt";
+      "ok-anchor-delta.txt";
+      "ok-anchor-start.txt";
+      "ok-exchange-reversal.txt";
+    ];
+  [%expect
+    {|
     ok-empty.txt: same bytes
     ok-full.txt: same bytes
     ok-anchor-delta.txt: same bytes
@@ -36,7 +43,12 @@ let%expect_test "generated books survive Daily_book unchanged" =
   let checks = ref 0 and failures = ref [] in
   Base_quickcheck.Test.run_exn
     (module Book_txt_tests.Generated)
-    ~config:{ Base_quickcheck.Test.default_config with seed = Deterministic "daily-txt-v1"; test_count = 2_000 }
+    ~config:
+      {
+        Base_quickcheck.Test.default_config with
+        seed = Deterministic "daily-txt-v1";
+        test_count = 2_000;
+      }
     ~f:(fun t ->
       incr checks;
       match round_trip (T.to_string t) with
@@ -49,11 +61,15 @@ let%expect_test "generated books survive Daily_book unchanged" =
 let%expect_test "malformed sections refuse instead of disappearing" =
   let book = X.book (read "common_format/ok-full.txt") in
   let sidecars = X.sidecars_of book in
-  let show label s = Printf.printf "%s: %s\n" label (match X.with_sidecars book s with Ok _ -> "kept" | Error why -> why) in
+  let show label s =
+    Printf.printf "%s: %s\n" label
+      (match X.with_sidecars book s with Ok _ -> "kept" | Error why -> why)
+  in
   show "roles header" { sidecars with roles = "ROLE\tbank\tASSET\n" };
   show "suspense role" { sidecars with roles = sidecars.roles ^ "ROLE\tsuspense\tASSET\n" };
   show "attention header" { sidecars with attention = "ITEM\tx\tNO_DUE_DATE\t-\tc\n" };
-  [%expect {|
+  [%expect
+    {|
     roles header: accounting-roles-bad-header
     suspense role: book-txt-suspense-role
     attention header: attention-bad-header
@@ -76,12 +92,21 @@ let%expect_test "an exchange book.txt cannot read back is refused, never written
       id = "fx-extra";
       day = "2027-02-01";
       memo = None;
-      effects = [ leg ~key:"s" "wallet" "jpy" (-1500); leg ~key:"d" "wallet" "usd" 1000; leg "food" "usd" 50; leg "fee" "usd" (-50) ];
+      effects =
+        [
+          leg ~key:"s" "wallet" "jpy" (-1500);
+          leg ~key:"d" "wallet" "usd" 1000;
+          leg "food" "usd" 50;
+          leg "fee" "usd" (-50);
+        ];
       reversal_of = None;
       exchange = Some ("s", "d");
       original_amount = None;
       merchant = None;
     }
   in
-  Printf.printf "save: %s\n" (match B.put_entry book ~replace:false entry ~plan:None with Ok _ -> "written" | Error why -> why);
+  Printf.printf "save: %s\n"
+    (match B.put_entry book ~replace:false entry ~plan:None with
+    | Ok _ -> "written"
+    | Error why -> why);
   [%expect {| save: entry-admission |}]

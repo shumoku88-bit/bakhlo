@@ -75,7 +75,8 @@ let self_check () =
   in
   let check_original book =
     require
-      ((List.hd (B.plans book)).paid_by = None && Bakhlo_sexp.Daily_txt.text book = Bakhlo_sexp.Daily_txt.text base)
+      ((List.hd (B.plans book)).paid_by = None
+      && Bakhlo_sexp.Daily_txt.text book = Bakhlo_sexp.Daily_txt.text base)
       "recovery-original-not-kept"
   in
   let step_name = function
@@ -195,7 +196,9 @@ let self_check () =
   let failure = F.publish io_failure ops in
   Unix.chmod parent 0o700;
   require
-    ((match failure with F.Written _ -> false | F.Uncertain _ | F.Refused_input _ | F.Conflict -> true)
+    ((match failure with
+       | F.Written _ -> false
+       | F.Uncertain _ | F.Refused_input _ | F.Conflict -> true)
     && F.read io_failure.path = wire)
     "recovery-real-write-failure-wrote-or-acknowledged";
   check_original (F.load io_failure.path).book;
@@ -258,6 +261,6 @@ let self_check () =
   Printf.printf "Recovery fixtures (synthetic): %s\n%!" directory;
   print_endline
     "PASS: whole-file saves: 3 injected faults + 3 SIGKILL checkpoints leave the old or the new \
-     book (landed saves confirmed, never retried); writer lock, write failure and \
-     foreign-change refusals; one .prev and no temporaries after a normal save; exact \
-     quantities/payment links; no automatic retry or repair."
+     book (landed saves confirmed, never retried); writer lock, write failure and foreign-change \
+     refusals; one .prev and no temporaries after a normal save; exact quantities/payment links; \
+     no automatic retry or repair."

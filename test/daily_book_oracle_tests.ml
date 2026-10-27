@@ -50,7 +50,8 @@ let fixture =
 (* The fixture with wallet and bank kept but no longer offered for new entries. *)
 let hidden_fixture =
   String.substr_replace_first
-    (String.substr_replace_first fixture ~pattern:"LOCUS\twallet\t財布\t現金\n" ~with_:"LOCUS\twallet\t財布\t現金\tHIDDEN\n")
+    (String.substr_replace_first fixture ~pattern:"LOCUS\twallet\t財布\t現金\n"
+       ~with_:"LOCUS\twallet\t財布\t現金\tHIDDEN\n")
     ~pattern:"LOCUS\tbank\t銀行\t預金\n" ~with_:"LOCUS\tbank\t銀行\t預金\tHIDDEN\n"
 
 let loci = [| "wallet"; "bank"; "food"; "expense"; "ghost" |]
@@ -426,4 +427,3 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
     duplicate Merchant: loam: Event Merchant is already classified; replacement is not qualified
     invalid Merchant token: loam: Merchant party token must be a non-empty single text field
     |}]
-

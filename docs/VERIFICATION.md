@@ -6,6 +6,42 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Optional formatting brought clean, layout only (2026-10-27)
+
+- Scope: the optional ocamlformat target on the main checkout, whose tree was clean at the
+  `2b14c2b` 5.4.1 cutover. Layout only: no source semantics, serialization, fixture,
+  generator or public API behavior was changed, and the root `.ocamlformat` stayed as
+  pinned (0.29.0, default profile, target 5.4.1, margin 100, `wrap-comments = false`,
+  `parse-docstrings = false`, so evidence prose is not reflowed).
+- Config visibility: `tui/` carries its own `dune-project`, which kept the root
+  `.ocamlformat` from reaching it, so the TUI tree had been left unformatted behind
+  missing-configuration warnings. The added `tui/.ocamlformat` is a symlink to the root
+  file: one canonical pinned config on both sides of the nested project boundary, no
+  duplicated pins, no warning suppressed and no target skipped.
+- Apply: `./tools/format --apply` exited 0 with a clean environment, temporary `HOME`/`XDG`
+  directories and a minimal `PATH`/`LANG`/`TERM`; the wrapper's own post-apply `@fmt`
+  check passed. It corrected 70 tracked source/Dune files of layout only, 57 of them under
+  `tui/`.
+- Check: `./tools/format --check` afterwards exited 0 with 0 bytes on stdout and 0 bytes on
+  stderr, no warning and no `Error` line. ocamlformat's own AST/comment-preservation checks
+  ran in these runs; nothing about the check itself was relaxed.
+- Build and tests: `./tools/opam exec -- dune build --root . @all` and
+  `./tools/opam exec -- dune runtest --root . --force` passed with the temporary
+  `HOME`/`XDG` directories and without any inherited `OCAML*` workaround, so the layout
+  edits left the synthetic Core/TUI suites as they were.
+- Native runtime: the real `_build/default/tui/app/bakhlo_tui.exe --check examples/book.txt`
+  exited 0 and admitted the synthetic daily book with no payload output;
+  `tools/ci-tui-pty` on the same binary exited 0 at 120×36, 80×24, 48×14 and 32×9 with
+  resize, keyboard, the exact `1,000` balance display, cold reopen and exit,
+  unchanged fixture bytes, and unchanged authority after the Record draft, Preview and 32×9
+  Publish-refusal steps plus Escape and cold draft resume. macOS x86_64 synthetic evidence
+  only: no LOAM, IME or household claim.
+- Excluded: `tools/check` and `tools/privacy-scan` as wrappers, the operational wrappers
+  and `.run` state, Linux CI (not run) and the formatter vendor's own test suite. No
+  permanent test was added, since this change is layout-only and the existing suite plus
+  the native checks above are what was exercised. Nothing was committed or pushed for this
+  entry.
+
 ## OCaml 5.4.1 locked baseline replay (stage, 2026-10-27)
 
 - Scope: a separate ignored stage copy of this tree, not the main checkout, whose 5.3.0
@@ -36,7 +72,8 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   pre-existing source/Dune layout diffs plus nested `tui/` config warnings, no `Error`
   lines. The main 5.3.0 baseline fails the same command on the same 15 files with
   identical correction hunks, so this is neither a 5.4.1 formatter regression nor a green
-  gate; nothing was mass-formatted.
+  gate; nothing was mass-formatted. Historical state: the layouts were corrected afterwards
+  on the main checkout (see the formatting entry above).
 - Linux CI (`.github/workflows/core.yml`) now pins 5.4.1 with the locked install; it was
   not run and nothing was committed or pushed.
 - Excluded: `tools/check` as a wrapper. Its build and forced-test steps were run directly
@@ -88,7 +125,8 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   pre-existing source/Dune layout hunks and nested `tui/` config warnings as the captured
   pre-migration 5.3.0 baseline (the unified hunks were compared byte for byte; no
   additional errors), so the gate is red at baseline here too and nothing was
-  mass-formatted.
+  mass-formatted. This records the state at cutover only; the layouts were brought clean
+  later on 2026-10-27 (see the formatting entry above).
 - Editor binary: a macOS GUI Emacs smoke under a clean, Finder-like `PATH` opened the real
   tracked `lib/quantity.ml` read-only and selected 5.4.1. The live ocaml-lsp process was
   verified by PID and `lsof` to be the binary inside the main `_opam`, version 1.26. `Z.t`

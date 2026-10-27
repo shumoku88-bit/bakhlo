@@ -118,17 +118,23 @@ let%expect_test "a refused operation or a changed file writes nothing" =
     stale session: conflict; other writer kept: true
     |}]
 
-let%expect_test "an interrupted save is uncertain, leaves the old or the new book and is confirmable" =
+let%expect_test
+    "an interrupted save is uncertain, leaves the old or the new book and is confirmable" =
   List.iter [ F.Temp_written; F.Previous_kept; F.Replaced ] ~f:(fun step ->
       let s = start () in
       let old_text = book_text s in
       match
-        F.publish ~checkpoint:(fun r -> if Poly.equal r step then raise (Sys_error "fault")) s [ put 1 ]
+        F.publish
+          ~checkpoint:(fun r -> if Poly.equal r step then raise (Sys_error "fault"))
+          s
+          [ put 1 ]
       with
       | F.Uncertain { expected } ->
           let cold = F.load s.path in
           let next = written (F.publish cold [ put 2 ]) in
-          Stdio.printf "uncertain; new book on disk: %b; old book otherwise: %b; next save leaves %d temporaries\n"
+          Stdio.printf
+            "uncertain; new book on disk: %b; old book otherwise: %b; next save leaves %d \
+             temporaries\n"
             (F.confirms ~expected cold)
             (F.confirms ~expected cold || String.equal (book_text cold) old_text)
             (temporaries next.path)
@@ -167,9 +173,13 @@ let%expect_test "a killed writer leaves the old or the new book" =
           ignore (Unix.waitpid [] pid);
           Unix.close input;
           let cold = F.load s.path in
-          let has_e1 = List.exists (B.entries cold.book) ~f:(fun (e : B.entry) -> String.equal e.id "e1") in
+          let has_e1 =
+            List.exists (B.entries cold.book) ~f:(fun (e : B.entry) -> String.equal e.id "e1")
+          in
           Stdio.printf "%s book; next save: %s\n"
-            (if has_e1 then "new" else if String.equal (book_text cold) old_text then "old" else "OTHER")
+            (if has_e1 then "new"
+             else if String.equal (book_text cold) old_text then "old"
+             else "OTHER")
             (describe (F.publish cold [ put 2 ])));
   [%expect
     {|
@@ -204,8 +214,10 @@ let%expect_test "roles and Attention are saved in book.txt and read back as writ
     (String.is_substring (F.read saved.path) ~substring:"ROLE\twallet\tASSET\n");
   let cleared = written (F.publish ~sidecars:X.no_sidecars saved []) in
   let cold = F.load cleared.path in
-  Stdio.printf "cleared: %b\n" (String.equal cold.sidecars.roles "" && String.equal cold.sidecars.attention "");
-  [%expect {|
+  Stdio.printf "cleared: %b\n"
+    (String.equal cold.sidecars.roles "" && String.equal cold.sidecars.attention "");
+  [%expect
+    {|
     same roles: true; same Attention: true; same book: true; in book.txt: true
     cleared: true
     |}]

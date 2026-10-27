@@ -173,7 +173,6 @@ let shift_calendar_day date_str step =
       else Ok (Printf.sprintf "%04d-%02d-%02d" y m d)
 
 let is_valid_canonical_date day = Bakhlo_book_txt.Book_txt.valid_date day
-
 let refuse message = Error { message }
 let ( let* ) = Result.bind
 

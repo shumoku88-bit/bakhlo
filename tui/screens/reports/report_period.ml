@@ -15,7 +15,6 @@ let checked (env : Screen.env) preset offset =
   Result.bind (env.config boundary_file) (fun boundary_presets_text ->
       IncExp.resolve_period ~today:env.today ~preset ~offset ~boundary_presets_text)
 
-
 let print_form ~id ~title lines =
   Ui_form.create ~id ~title:(Ui_text.tr title) ~summary:lines
     ~fields:[ Ui_form.action_buttons ~confirm:(Ui_text.tr "Done") ~cancel:(Ui_text.tr "Close") () ]
@@ -32,7 +31,6 @@ let preview_footer =
   [ "Enter submit  Tab next field  Esc cancel"; "Arrow keys / space to choose options" ]
 
 let lowercase = Ui_input.key_ignoring_case
-
 
 let view_of ~title ~(geometry : Screen.geometry) ~rows ~footer preview : Screen.view =
   let overlay =

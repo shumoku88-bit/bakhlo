@@ -95,7 +95,8 @@ type balance_item =
 
 (* Accounting represents the coordinates of current Effects and support lines, never
    the admission list. Cached by the book.txt value, which every change replaces. *)
-let represented_cache : (Bakhlo_book_txt.Book_txt.book * D.Effect_coordinate.t list) option ref = ref None
+let represented_cache : (Bakhlo_book_txt.Book_txt.book * D.Effect_coordinate.t list) option ref =
+  ref None
 
 let compute_represented_coordinates book =
   let v = Bakhlo_book_txt.Book_txt.value (B.txt book) in
@@ -104,7 +105,10 @@ let compute_represented_coordinates book =
     | Ok locus, Ok measure -> Some { locus; measure }
     | _ -> None
   in
-  List.concat_map (fun (tx : Bakhlo_book_txt.Book_txt.tx) -> List.map (fun (e : Bakhlo_book_txt.Book_txt.posting) -> (e.locus, e.measure)) tx.effects) v.txs
+  List.concat_map
+    (fun (tx : Bakhlo_book_txt.Book_txt.tx) ->
+      List.map (fun (e : Bakhlo_book_txt.Book_txt.posting) -> (e.locus, e.measure)) tx.effects)
+    v.txs
   @ v.zero_origins @ List.map fst v.openings
   @ List.concat_map (fun (a : Bakhlo_book_txt.Book_txt.anchor) -> List.map fst a.asserts) v.anchors
   |> List.sort_uniq compare |> List.filter_map coordinate
@@ -196,9 +200,7 @@ let role_balance_items ~book ~roles =
     let stock_unsupported =
       List.filter (fun r -> unsupported r && has_role is_balance_sheet_role r) here
     in
-    let worth_blocked =
-      List.exists (fun r -> unsupported r && has_role is_net_worth_role r) here
-    in
+    let worth_blocked = List.exists (fun r -> unsupported r && has_role is_net_worth_role r) here in
     let gaps_here = List.filter (in_measure m) gaps in
     let section role =
       let exact_rows = List.filter (fun r -> exact r && has_role (( = ) role) r) here in
@@ -215,8 +217,7 @@ let role_balance_items ~book ~roles =
     @ section Asset @ [ Blank_row ] @ section Liability @ [ Blank_row ] @ section Equity
     @ [
         Blank_row;
-        Balance_sheet_status
-          { measure = m; complete = stock_unsupported = [] && gaps_here = [] };
+        Balance_sheet_status { measure = m; complete = stock_unsupported = [] && gaps_here = [] };
       ]
     @ listed "Known stock-role coordinates without current balance support:" stock_unsupported
     @ listed "Coordinates whose AccountingRole is unresolved:" gaps_here
@@ -287,8 +288,7 @@ let role_balance_items ~book ~roles =
          "";
          "Next evidence targets for Balance Sheet / Net Worth:";
        ]
-      @ (if bs_unsupported = [] then
-           [ "  No classified stock-role quantity blockers." ]
+      @ (if bs_unsupported = [] then [ "  No classified stock-role quantity blockers." ]
          else List.map (fun r -> "  [quantity] " ^ coordinate r ^ "  " ^ role_name r) bs_unsupported)
       @ (if gaps = [] then [ "  No unresolved AccountingRole blockers." ]
          else
@@ -314,8 +314,7 @@ let role_balance_items ~book ~roles =
          "All current balance support";
          "Each current item is shown separately; role totals are not substituted for individual \
           rows.";
-         ("Exact quantity support: "
-         ^ if count unsupported = 0 then "COMPLETE" else "INCOMPLETE");
+         ("Exact quantity support: " ^ if count unsupported = 0 then "COMPLETE" else "INCOMPLETE");
          ("Role classification: " ^ if gaps = [] then "COMPLETE" else "INCOMPLETE");
          "";
        ]

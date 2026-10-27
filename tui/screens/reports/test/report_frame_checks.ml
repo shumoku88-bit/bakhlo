@@ -35,7 +35,6 @@ let fixture =
 
 let roles = [ ("salary", Roles.Income); ("food", Roles.Expense); ("travel", Roles.Asset) ]
 let book = Bakhlo_sexp.Daily_txt.book fixture
-
 let boundaries = "household\t2026-10-01\t2026-11-01\n"
 
 let env =
@@ -46,9 +45,15 @@ let env =
     ~book ~measure:"jpy" ~today:"2026-10-15" ()
 
 let geometry width height : Screen.geometry =
-  { screen = (width, height); body = (width, height - 3); content = (width, height - 4); width_of = String.length }
+  {
+    screen = (width, height);
+    body = (width, height - 3);
+    content = (width, height - 4);
+    width_of = String.length;
+  }
 
 let paint view = List.map snd (Lazy.force view.Screen.rows)
+
 let contains rows text =
   List.exists (fun line -> Base.String.is_substring line ~substring:text) rows
 
@@ -75,7 +80,8 @@ let self_check () =
   require (frame.Frame.scroll = 0) "frame-g-returns-to-top";
   let frame = step frame (`Key (`Page `Down, [])) in
   require (frame.Frame.scroll = capacity) "frame-page-down-steps-a-page";
-  require (not (Frame.handle ~count:200 ~capacity frame (`Key (`ASCII 'x', [])) = Some frame))
+  require
+    (not (Frame.handle ~count:200 ~capacity frame (`Key (`ASCII 'x', [])) = Some frame))
     "frame-ignores-unrelated-keys";
 
   (* 2. Income & Expense: only Measures with activity, shared money format. *)
@@ -89,9 +95,7 @@ let self_check () =
   (* 3. Income & Expense: [?] opens the shared help overlay and Esc closes it. *)
   let ie_help = key ie (`ASCII '?') in
   require (IE.modal ie_help) "ie-help-is-modal";
-  require
-    (Option.map Ui_form.id (IE.form ie_help) = Some "report_help")
-    "ie-help-form-id";
+  require (Option.map Ui_form.id (IE.form ie_help) = Some "report_help") "ie-help-form-id";
   let ie_help_closed, _ = IE.handle env (geometry 160 45) ie_help (`Key (`Escape, [])) in
   require (not (IE.modal ie_help_closed)) "ie-help-escapes";
   (* 4. Income & Expense: scrolling works and End then k steps back by one.
@@ -119,7 +123,8 @@ let self_check () =
   require
     (not
        (List.exists
-          (fun line -> String.contains line '\n' || Base.String.is_substring line ~substring:"\\u000a")
+          (fun line ->
+            String.contains line '\n' || Base.String.is_substring line ~substring:"\\u000a")
           printed))
     "ie-print-lines-are-real-lines";
   require (List.exists (fun line -> line = "") printed) "ie-print-separates-measures";
@@ -193,10 +198,15 @@ let self_check () =
      EFFECT\ttravel\tjpy\t-1000\n\
      ENDTX\n\
      ZERO-ORIGIN\ttravel\tjpy\n\
-     END\n" in
+     END\n"
+  in
   let window_roles =
-    [ ("salary", Roles.Income); ("food", Roles.Expense); ("rent", Roles.Expense);
-      ("travel", Roles.Asset) ]
+    [
+      ("salary", Roles.Income);
+      ("food", Roles.Expense);
+      ("rent", Roles.Expense);
+      ("travel", Roles.Asset);
+    ]
   in
   let window_book = Bakhlo_sexp.Daily_txt.book window_fixture in
   let month offset =
@@ -204,12 +214,8 @@ let self_check () =
       (IncExp.resolve_period ~today:"2026-10-15" ~preset:IncExp.Month ~offset
          ~boundary_presets_text:(Some boundaries))
   in
-  let current =
-    IncExp.compute_report ~book:window_book ~roles:window_roles ~period:(month 0)
-  in
-  let previous =
-    IncExp.compute_report ~book:window_book ~roles:window_roles ~period:(month (-1))
-  in
+  let current = IncExp.compute_report ~book:window_book ~roles:window_roles ~period:(month 0) in
+  let previous = IncExp.compute_report ~book:window_book ~roles:window_roles ~period:(month (-1)) in
   (* The current month is 15 days old; the previous month is compared up to the
      same elapsed day, not to its whole length. *)
   let elapsed, total = IncExp.elapsed ~today:"2026-10-15" (month 0) in
@@ -220,7 +226,9 @@ let self_check () =
   in
   require
     (Z.equal
-       (List.find (fun (ms : IncExp.measure_summary) -> ms.measure = "jpy") previous_partial.summaries)
+       (List.find
+          (fun (ms : IncExp.measure_summary) -> ms.measure = "jpy")
+          previous_partial.summaries)
          .IncExp.total_expense
        (Z.of_int 500))
     "ie2-partial-previous-excludes-late-entry";
@@ -237,15 +245,15 @@ let self_check () =
          ~previous_full:(Some previous))
   in
   require (contains summary "Current window is partial: day 15 of 31.") "ie2-partial-label";
-  require (contains summary "Previous: Month of 2026-09 (same 15 elapsed day(s))") "ie2-partial-previous-label";
+  require
+    (contains summary "Previous: Month of 2026-09 (same 15 elapsed day(s))")
+    "ie2-partial-previous-label";
 
   (* A window that has not started is an empty window, not "day 0 of M". *)
   let future = month 1 in
   let future_elapsed, future_total = IncExp.elapsed ~today:"2026-10-15" future in
   require (future_elapsed = 0 && future_total > 0) "ie2-future-window-is-unstarted";
-  let future_report =
-    IncExp.compute_report ~book:window_book ~roles:window_roles ~period:future
-  in
+  let future_report = IncExp.compute_report ~book:window_book ~roles:window_roles ~period:future in
   let empty_previous =
     IncExp.compute_report ~book:window_book ~roles:window_roles
       ~period:(IncExp.truncate_to_days previous.period 0)

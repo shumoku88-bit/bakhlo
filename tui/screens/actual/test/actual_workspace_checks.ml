@@ -778,11 +778,11 @@ let self_check ~width_of () =
     in
     List.fold_left
       (fun book d ->
-        add_entry book
-          ~day:(Printf.sprintf "2026-09-%02d" d)
+        add_entry book ~day:(Printf.sprintf "2026-09-%02d" d)
           ~memo:(if d = 28 then "Lunch " ^ String.make 120 'x' else Printf.sprintf "Lunch %d" d)
           ~locus1:"assets:cash" ~amt1:(-500) ~locus2:"expenses:groceries" ~amt2:500)
-      book (List.init 28 (fun d -> d + 1))
+      book
+      (List.init 28 (fun d -> d + 1))
   in
   let render ~wide_day ~wide =
     let ctx = make_ctx ~window:all (long_book ~wide_day ~wide) in

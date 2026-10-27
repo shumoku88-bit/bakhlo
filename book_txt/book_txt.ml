@@ -28,13 +28,7 @@ type plan = {
 }
 
 type locus = { id : string; label : string; help : string; hidden : bool }
-
-type anchor = {
-  last : string option;
-  also : string list;
-  asserts : ((string * string) * Z.t) list;
-}
-
+type anchor = { last : string option; also : string list; asserts : ((string * string) * Z.t) list }
 type due = Due_on of string | No_due_date | Due_undetermined
 type close_kind = Resolved | Dropped
 type item = { id : string; due : due; context : string }
@@ -192,23 +186,33 @@ let escape s =
 let unescape s =
   if not (String.exists (function '\\' | '\r' -> true | _ -> false) s) then Some s
   else
-  let b = Buffer.create (String.length s) in
-  let rec go i =
-    if i >= String.length s then Some (Buffer.contents b)
-    else
-      match s.[i] with
-      | '\r' -> None
-      | '\\' when i + 1 < String.length s -> (
-          match s.[i + 1] with
-          | '\\' -> Buffer.add_char b '\\'; go (i + 2)
-          | 'n' -> Buffer.add_char b '\n'; go (i + 2)
-          | 'r' -> Buffer.add_char b '\r'; go (i + 2)
-          | 't' -> Buffer.add_char b '\t'; go (i + 2)
-          | _ -> None)
-      | '\\' -> None
-      | c -> Buffer.add_char b c; go (i + 1)
-  in
-  go 0
+    let b = Buffer.create (String.length s) in
+    let rec go i =
+      if i >= String.length s then Some (Buffer.contents b)
+      else
+        match s.[i] with
+        | '\r' -> None
+        | '\\' when i + 1 < String.length s -> (
+            match s.[i + 1] with
+            | '\\' ->
+                Buffer.add_char b '\\';
+                go (i + 2)
+            | 'n' ->
+                Buffer.add_char b '\n';
+                go (i + 2)
+            | 'r' ->
+                Buffer.add_char b '\r';
+                go (i + 2)
+            | 't' ->
+                Buffer.add_char b '\t';
+                go (i + 2)
+            | _ -> None)
+        | '\\' -> None
+        | c ->
+            Buffer.add_char b c;
+            go (i + 1)
+    in
+    go 0
 
 let is_digit c = c >= '0' && c <= '9'
 
@@ -228,7 +232,9 @@ let valid_date s =
 let canonical_integer s =
   s = "0"
   ||
-  let body = if String.length s > 0 && s.[0] = '-' then String.sub s 1 (String.length s - 1) else s in
+  let body =
+    if String.length s > 0 && s.[0] = '-' then String.sub s 1 (String.length s - 1) else s
+  in
   String.length body > 0 && body.[0] <> '0' && String.for_all is_digit body
 
 (* Field readers report into a stage and return a placeholder on failure; a stage
@@ -239,7 +245,9 @@ let token st n s =
 
 let text st n ?(may_be_empty = false) s =
   match unescape s with
-  | None -> fault st Bad_escape n; ""
+  | None ->
+      fault st Bad_escape n;
+      ""
   | Some v ->
       if s = "" && not may_be_empty then fault st Empty_text n;
       v
@@ -459,7 +467,9 @@ let fields st s =
             let l = token st r.n l in
             match role_of name with
             | Some role -> (r.n, (l, role))
-            | None -> fault st Bad_role r.n; (r.n, (l, Asset)))
+            | None ->
+                fault st Bad_role r.n;
+                (r.n, (l, Asset)))
         | _ -> assert false)
       s.s_roles
   in
@@ -469,11 +479,17 @@ let fields st s =
         let n = b.head.n in
         let id, day, memo =
           match b.head.f with
-          | [ _; "-"; day ] -> fault st Bad_token n; ("-", date st n day, None)
+          | [ _; "-"; day ] ->
+              fault st Bad_token n;
+              ("-", date st n day, None)
           | [ _; id; day ] -> (token st n id, date st n day, None)
-          | [ _; "-"; day; _; _ ] -> fault st Bad_token n; ("-", date st n day, None)
+          | [ _; "-"; day; _; _ ] ->
+              fault st Bad_token n;
+              ("-", date st n day, None)
           | [ _; id; day; "DESC"; m ] -> (token st n id, date st n day, Some (text st n m))
-          | [ _; id; day; _; _ ] -> fault st Unknown_line n; (token st n id, date st n day, None)
+          | [ _; id; day; _; _ ] ->
+              fault st Unknown_line n;
+              (token st n id, date st n day, None)
           | _ -> assert false
         in
         let at =
@@ -502,15 +518,30 @@ let fields st s =
             let a = !at in
             match r.f with
             | "EFFECT" :: l :: m :: q :: key ->
-                let key = match key with [] -> None | [ k ] -> Some (token st r.n k) | _ -> assert false in
-                let e = { locus = token st r.n l; measure = token st r.n m; amount = integer st r.n q; key } in
+                let key =
+                  match key with [] -> None | [ k ] -> Some (token st r.n k) | _ -> assert false
+                in
+                let e =
+                  {
+                    locus = token st r.n l;
+                    measure = token st r.n m;
+                    amount = integer st r.n q;
+                    key;
+                  }
+                in
                 at := { a with effect_ns = a.effect_ns @ [ (r.n, e) ] }
             | [ "REVERSAL-OF"; t ] ->
-                at := { a with tx = { a.tx with reversal_of = Some (token st r.n t) }; reversal_n = r.n }
+                at :=
+                  {
+                    a with
+                    tx = { a.tx with reversal_of = Some (token st r.n t) };
+                    reversal_n = r.n;
+                  }
             | [ "ORIGINAL"; m; q ] ->
                 let o = (token st r.n m, integer st r.n q) in
                 at := { a with tx = { a.tx with original = Some o }; original_n = r.n }
-            | [ "MERCHANT"; p ] -> at := { a with tx = { a.tx with merchant = Some (Merchant (token st r.n p)) } }
+            | [ "MERCHANT"; p ] ->
+                at := { a with tx = { a.tx with merchant = Some (Merchant (token st r.n p)) } }
             | [ "NONMERCHANT" ] -> at := { a with tx = { a.tx with merchant = Some Nonmerchant } }
             | [ "EXCHANGE"; x; y ] ->
                 let x = token st r.n x and y = token st r.n y in
@@ -535,7 +566,9 @@ let fields st s =
           (fun r ->
             match r.f with
             | [ "CHANGE"; l; q ] -> changes := (r.n, (token st r.n l, integer st r.n q)) :: !changes
-            | [ "PAID-BY"; t ] -> ending := Some (Paid_by (token st r.n t)); paid_n := r.n
+            | [ "PAID-BY"; t ] ->
+                ending := Some (Paid_by (token st r.n t));
+                paid_n := r.n
             | [ "CANCELLED"; d ] -> ending := Some (Cancelled (date st r.n d))
             | _ -> assert false)
           b.inner;
@@ -548,23 +581,34 @@ let fields st s =
         })
       s.s_plans
   in
-  let coordinate st r = match r.f with _ :: l :: m :: _ -> (token st r.n l, token st r.n m) | _ -> assert false in
+  let coordinate st r =
+    match r.f with _ :: l :: m :: _ -> (token st r.n l, token st r.n m) | _ -> assert false
+  in
   let zero = List.map (fun r -> (r.n, coordinate st r)) s.s_zero in
   let opening =
     List.map
-      (fun r -> match r.f with [ _; _; _; t ] -> (r.n, (coordinate st r, token st r.n t)) | _ -> assert false)
+      (fun r ->
+        match r.f with
+        | [ _; _; _; t ] -> (r.n, (coordinate st r, token st r.n t))
+        | _ -> assert false)
       s.s_opening
   in
   let history =
     List.map
-      (fun r -> match r.f with [ _; _; _; d ] -> (r.n, (coordinate st r, date st r.n d)) | _ -> assert false)
+      (fun r ->
+        match r.f with
+        | [ _; _; _; d ] -> (r.n, (coordinate st r, date st r.n d))
+        | _ -> assert false)
       s.s_history
   in
   let anchors =
     List.map
       (fun b ->
         let last =
-          match b.head.f with [ _; "-" ] -> None | [ _; t ] -> Some (token st b.head.n t) | _ -> assert false
+          match b.head.f with
+          | [ _; "-" ] -> None
+          | [ _; t ] -> Some (token st b.head.n t)
+          | _ -> assert false
         in
         let also_ns =
           List.filter_map
@@ -575,7 +619,8 @@ let fields st s =
           List.filter_map
             (fun r ->
               match r.f with
-              | [ "ASSERT"; l; m; q ] -> Some (r.n, ((token st r.n l, token st r.n m), integer st r.n q))
+              | [ "ASSERT"; l; m; q ] ->
+                  Some (r.n, ((token st r.n l, token st r.n m), integer st r.n q))
               | _ -> None)
             b.inner
         in
@@ -595,12 +640,16 @@ let fields st s =
             let id = token st r.n id in
             let due =
               match kind with
-              | "DUE_ON" when when_ = "-" -> fault st Bad_due r.n; No_due_date
+              | "DUE_ON" when when_ = "-" ->
+                  fault st Bad_due r.n;
+                  No_due_date
               | "DUE_ON" -> Due_on (date st r.n when_)
               | "NO_DUE_DATE" | "DUE_UNDETERMINED" ->
                   if when_ <> "-" then fault st Bad_due r.n;
                   if kind = "NO_DUE_DATE" then No_due_date else Due_undetermined
-              | _ -> fault st Bad_due r.n; No_due_date
+              | _ ->
+                  fault st Bad_due r.n;
+                  No_due_date
             in
             (r.n, { id; due; context = text st r.n context })
         | _ -> assert false)
@@ -616,7 +665,9 @@ let fields st s =
               match kind with
               | "RESOLVED" -> Resolved
               | "DROPPED" -> Dropped
-              | _ -> fault st Bad_close r.n; Resolved
+              | _ ->
+                  fault st Bad_close r.n;
+                  Resolved
             in
             (r.n, { item; day; kind })
         | _ -> assert false)
@@ -635,7 +686,8 @@ let nets (effects : posting list) =
 
 (* Effects as a physical multiset: Locus, Measure and amount; keys do not take part. *)
 let sorted_effects (effects : posting list) =
-  List.map (fun (e : posting) -> (e.locus, e.measure, Z.to_string e.amount)) effects |> List.sort compare
+  List.map (fun (e : posting) -> (e.locus, e.measure, Z.to_string e.amount)) effects
+  |> List.sort compare
 
 let seen () = Hashtbl.create 16
 let once st tbl key code n = if Hashtbl.mem tbl key then fault st code n else Hashtbl.add tbl key ()
@@ -698,13 +750,15 @@ let tx_rules st ~measure ~locus ~reversal a =
       match reversal tx.id a.reversal_n target with
       | Some (target : tx) ->
           let inverse = List.map (fun e -> { e with amount = Z.neg e.amount }) target.effects in
-          if sorted_effects tx.effects <> sorted_effects inverse then fault st Reversal_not_inverse a.reversal_n
+          if sorted_effects tx.effects <> sorted_effects inverse then
+            fault st Reversal_not_inverse a.reversal_n
       | None -> ())
   | None -> ()
 
 (* Every line after the TX section. [find] gives a TX and its position in file order;
    [known] reports an unknown TX. *)
-let after_txs st ~measure ~locus ~known ~find (plans, zero, opening, history, anchors, items, closes) =
+let after_txs st ~measure ~locus ~known ~find (plans, zero, opening, history, anchors, items, closes)
+    =
   let plan_set = seen () and paid = seen () in
   List.iter
     (fun p ->
@@ -716,15 +770,19 @@ let after_txs st ~measure ~locus ~known ~find (plans, zero, opening, history, an
           if Z.equal q Z.zero then fault st Zero_amount n)
         p.change_ns;
       if p.change_ns = [] then fault st No_effect p.plan_n
-      else if not (Z.equal (List.fold_left (fun s (_, q) -> Z.add s q) Z.zero p.plan.changes) Z.zero) then
-        fault st Unbalanced p.plan_n;
+      else if
+        not (Z.equal (List.fold_left (fun s (_, q) -> Z.add s q) Z.zero p.plan.changes) Z.zero)
+      then fault st Unbalanced p.plan_n;
       match p.plan.ending with
       | Some (Paid_by t) when known p.paid_n t -> once st paid t Paid_by_reused p.paid_n
       | _ -> ())
     plans;
   let supported = seen () in
   let claim n c = once st supported c Support_overlap n in
-  let coordinate n (l, m) = locus n l; measure n m in
+  let coordinate n (l, m) =
+    locus n l;
+    measure n m
+  in
   let zero_set = seen () in
   List.iter
     (fun (n, c) ->
@@ -738,8 +796,10 @@ let after_txs st ~measure ~locus ~known ~find (plans, zero, opening, history, an
   List.iter
     (fun (n, (((l, m) as c), t)) ->
       coordinate n c;
-      if known n t && not (List.exists (fun e -> e.locus = l && e.measure = m) (snd (find t)).effects) then
-        fault st Opening_missing_coordinate n;
+      if
+        known n t
+        && not (List.exists (fun e -> e.locus = l && e.measure = m) (snd (find t)).effects)
+      then fault st Opening_missing_coordinate n;
       if Hashtbl.mem opening_set c then fault st Duplicate_support n
       else (
         Hashtbl.add opening_set c ();
@@ -776,7 +836,9 @@ let after_txs st ~measure ~locus ~known ~find (plans, zero, opening, history, an
       coordinate n c;
       once st history_set c Duplicate_support n)
     history;
-  List.iter (fun (n, (c, _)) -> if not (Hashtbl.mem asserted c) then fault st History_unanchored n) history;
+  List.iter
+    (fun (n, (c, _)) -> if not (Hashtbl.mem asserted c) then fault st History_unanchored n)
+    history;
   let item_set = seen () and closed = seen () in
   List.iter (fun (n, (i : item)) -> once st item_set i.id Duplicate_item n) items;
   List.iter
@@ -785,14 +847,21 @@ let after_txs st ~measure ~locus ~known ~find (plans, zero, opening, history, an
       once st closed c.item Duplicate_close n)
     closes
 
-let references st (measures, loci, roles, txs, plans, zero, opening, history, anchors, items, closes) =
+let references st (measures, loci, roles, txs, plans, zero, opening, history, anchors, items, closes)
+    =
   let measure, locus = definitions st measures loci roles in
   let by_id = Hashtbl.create (List.length txs) in
   List.iteri
     (fun i a ->
-      if Hashtbl.mem by_id a.tx.id then fault st Duplicate_tx a.tx_n else Hashtbl.add by_id a.tx.id (i, a.tx))
+      if Hashtbl.mem by_id a.tx.id then fault st Duplicate_tx a.tx_n
+      else Hashtbl.add by_id a.tx.id (i, a.tx))
     txs;
-  let known n id = if Hashtbl.mem by_id id then true else (fault st Unknown_tx n; false) in
+  let known n id =
+    if Hashtbl.mem by_id id then true
+    else (
+      fault st Unknown_tx n;
+      false)
+  in
   let find = Hashtbl.find by_id in
   (* Endpoints of the reversals so far, in file order: a later reuse is the fault. *)
   let ends = Hashtbl.create 64 in
@@ -801,7 +870,8 @@ let references st (measures, loci, roles, txs, plans, zero, opening, history, an
       tx_rules st ~measure ~locus a ~reversal:(fun id n target ->
           if not (known n target) then None
           else (
-            if id = target || Hashtbl.mem ends id || Hashtbl.mem ends target then fault st Reversal_reused n;
+            if id = target || Hashtbl.mem ends id || Hashtbl.mem ends target then
+              fault st Reversal_reused n;
             Hashtbl.replace ends id ();
             Hashtbl.replace ends target ();
             Some (snd (find target)))))
@@ -832,7 +902,9 @@ let lines_of data =
   in
   close st;
   if lines.(0) <> "BOOK\t1" then refuse Bad_header 1;
-  let rec find_end i = if i >= Array.length lines then None else if lines.(i) = "END" then Some i else find_end (i + 1) in
+  let rec find_end i =
+    if i >= Array.length lines then None else if lines.(i) = "END" then Some i else find_end (i + 1)
+  in
   match find_end 0 with
   | None -> refuse Missing_end (Array.length lines)
   | Some i ->
@@ -885,16 +957,21 @@ let print_head b t =
   List.iter (fun (id, scale) -> line b [ "MEASURE"; id; string_of_int scale ]) t.measures;
   List.iter
     (fun (l : locus) ->
-      line b ([ "LOCUS"; l.id; escape l.label; escape l.help ] @ if l.hidden then [ "HIDDEN" ] else []))
+      line b
+        ([ "LOCUS"; l.id; escape l.label; escape l.help ] @ if l.hidden then [ "HIDDEN" ] else []))
     t.loci;
   List.iter (fun (l, r) -> line b [ "ROLE"; l; role_name r ]) t.roles
 
 let print_tx b (tx : tx) =
   line b ([ "TX"; tx.id; tx.day ] @ match tx.memo with Some m -> [ "DESC"; escape m ] | None -> []);
-  List.iter (fun e -> line b ([ "EFFECT"; e.locus; e.measure; z e.amount ] @ Option.to_list e.key)) tx.effects;
+  List.iter
+    (fun e -> line b ([ "EFFECT"; e.locus; e.measure; z e.amount ] @ Option.to_list e.key))
+    tx.effects;
   Option.iter (fun target -> line b [ "REVERSAL-OF"; target ]) tx.reversal_of;
   Option.iter (fun (m, q) -> line b [ "ORIGINAL"; m; z q ]) tx.original;
-  Option.iter (function Merchant p -> line b [ "MERCHANT"; p ] | Nonmerchant -> line b [ "NONMERCHANT" ]) tx.merchant;
+  Option.iter
+    (function Merchant p -> line b [ "MERCHANT"; p ] | Nonmerchant -> line b [ "NONMERCHANT" ])
+    tx.merchant;
   Option.iter (fun (x, y) -> line b [ "EXCHANGE"; x; y ]) tx.exchange;
   line b [ "ENDTX" ]
 
@@ -904,7 +981,10 @@ let print_tail b t =
     (fun (p : plan) ->
       line b [ "PLAN"; p.id; p.day; p.measure ];
       List.iter (fun (l, q) -> line b [ "CHANGE"; l; z q ]) p.changes;
-      Option.iter (function Paid_by tx -> line b [ "PAID-BY"; tx ] | Cancelled d -> line b [ "CANCELLED"; d ]) p.ending;
+      Option.iter
+        (function
+          | Paid_by tx -> line b [ "PAID-BY"; tx ] | Cancelled d -> line b [ "CANCELLED"; d ])
+        p.ending;
       line b [ "ENDPLAN" ])
     t.plans;
   List.iter (fun (l, m) -> line b [ "ZERO-ORIGIN"; l; m ]) t.zero_origins;
@@ -928,7 +1008,14 @@ let print_tail b t =
       line b [ "ITEM"; i.id; kind; when_; escape i.context ])
     t.items;
   List.iter
-    (fun c -> line b [ "CLOSE"; c.item; c.day; (match c.kind with Resolved -> "RESOLVED" | Dropped -> "DROPPED") ])
+    (fun c ->
+      line b
+        [
+          "CLOSE";
+          c.item;
+          c.day;
+          (match c.kind with Resolved -> "RESOLVED" | Dropped -> "DROPPED");
+        ])
     t.closes;
   line b [ "END" ]
 
@@ -953,15 +1040,15 @@ end)
 
 type book = {
   value : t;
-  index : (int * tx) Smap.t;  (* TX by ID, with its position in file order *)
-  reversed_by : string list Smap.t;  (* target -> the TXs reversing it; one in an admitted book *)
-  printed : (string * string) Imap.t;  (* position -> the TX ID and its printed block *)
-  next : int;  (* position of the next TX *)
-  size : int;  (* bytes in [printed] *)
-  totals : Z.t Cmap.t;  (* (Locus, Measure) -> the sum of every Effect there *)
-  anchored : (int * Sset.t) list;  (* per anchor: the position of [last] (-1 for -), [also] *)
-  counted : (int * Z.t) Cmap.t;  (* asserted coordinate -> its anchor's index and the count *)
-  since : Z.t Cmap.t;  (* asserted coordinate -> its Effects that the count does not reflect *)
+  index : (int * tx) Smap.t; (* TX by ID, with its position in file order *)
+  reversed_by : string list Smap.t; (* target -> the TXs reversing it; one in an admitted book *)
+  printed : (string * string) Imap.t; (* position -> the TX ID and its printed block *)
+  next : int; (* position of the next TX *)
+  size : int; (* bytes in [printed] *)
+  totals : Z.t Cmap.t; (* (Locus, Measure) -> the sum of every Effect there *)
+  anchored : (int * Sset.t) list; (* per anchor: the position of [last] (-1 for -), [also] *)
+  counted : (int * Z.t) Cmap.t; (* asserted coordinate -> its anchor's index and the count *)
+  since : Z.t Cmap.t; (* asserted coordinate -> its Effects that the count does not reflect *)
 }
 
 type change =
@@ -975,10 +1062,15 @@ type change =
   | Set_attention of item list * close list
 
 (* Record or forget that TX [id] reverses [target]. *)
-let reverses id target map = Smap.update target (fun rs -> Some (id :: Option.value rs ~default:[])) map
+let reverses id target map =
+  Smap.update target (fun rs -> Some (id :: Option.value rs ~default:[])) map
 
 let unreverses id target map =
-  Smap.update target (function Some rs -> (match List.filter (( <> ) id) rs with [] -> None | rs -> Some rs) | None -> None) map
+  Smap.update target
+    (function
+      | Some rs -> ( match List.filter (( <> ) id) rs with [] -> None | rs -> Some rs)
+      | None -> None)
+    map
 
 let tx_text tx =
   let b = Buffer.create 256 in
@@ -1010,7 +1102,9 @@ let recount b =
   let anchors = b.value.anchors in
   let pos id = match Smap.find_opt id b.index with Some (i, _) -> i | None -> max_int in
   let anchored =
-    List.map (fun a -> ((match a.last with None -> -1 | Some id -> pos id), Sset.of_list a.also)) anchors
+    List.map
+      (fun a -> ((match a.last with None -> -1 | Some id -> pos id), Sset.of_list a.also))
+      anchors
   in
   let counted =
     List.fold_left
@@ -1025,7 +1119,8 @@ let recount b =
         (fun b (e : posting) ->
           let c = (e.locus, e.measure) in
           match Cmap.find_opt c b.counted with
-          | Some (k, _) when unreflected (List.nth b.anchored k) i tx.id -> { b with since = add_to c e.amount b.since }
+          | Some (k, _) when unreflected (List.nth b.anchored k) i tx.id ->
+              { b with since = add_to c e.amount b.since }
           | _ -> b)
         b tx.effects)
     b.index b
@@ -1040,11 +1135,17 @@ let book_of ?texts value =
       {
         b with
         index = Smap.add tx.id (b.next, tx) b.index;
-        reversed_by = (match tx.reversal_of with Some x -> reverses tx.id x b.reversed_by | None -> b.reversed_by);
+        reversed_by =
+          (match tx.reversal_of with
+          | Some x -> reverses tx.id x b.reversed_by
+          | None -> b.reversed_by);
         printed = Imap.add b.next (tx.id, s) b.printed;
         next = b.next + 1;
         size = b.size + String.length s;
-        totals = List.fold_left (fun m (e : posting) -> add_to (e.locus, e.measure) e.amount m) b.totals tx.effects;
+        totals =
+          List.fold_left
+            (fun m (e : posting) -> add_to (e.locus, e.measure) e.amount m)
+            b.totals tx.effects;
       })
     {
       value;
@@ -1098,30 +1199,47 @@ let apply (b, touched) = function
             b with
             value = { b.value with txs = b.value.txs @ [ tx ] };
             index = Smap.add tx.id (b.next, tx) b.index;
-            reversed_by = (match tx.reversal_of with Some x -> reverses tx.id x b.reversed_by | None -> b.reversed_by);
+            reversed_by =
+              (match tx.reversal_of with
+              | Some x -> reverses tx.id x b.reversed_by
+              | None -> b.reversed_by);
             printed = Imap.add b.next (tx.id, s) b.printed;
             next = b.next + 1;
             size = b.size + String.length s;
           },
         tx.id :: touched )
   | Replace_tx tx ->
-      let i, old = match Smap.find_opt tx.id b.index with Some found -> found | None -> refuse Unknown_tx 0 in
+      let i, old =
+        match Smap.find_opt tx.id b.index with Some found -> found | None -> refuse Unknown_tx 0
+      in
       let s = tx_text tx in
-      let reversed_by = match old.reversal_of with Some x -> unreverses old.id x b.reversed_by | None -> b.reversed_by in
+      let reversed_by =
+        match old.reversal_of with
+        | Some x -> unreverses old.id x b.reversed_by
+        | None -> b.reversed_by
+      in
       ( count_tx 1 i tx @@ count_tx (-1) i old
         @@ {
-          b with
-          value = { b.value with txs = List.map (fun (x : tx) -> if x.id = tx.id then tx else x) b.value.txs };
-          index = Smap.add tx.id (i, tx) b.index;
-          reversed_by = (match tx.reversal_of with Some x -> reverses tx.id x reversed_by | None -> reversed_by);
-          printed = Imap.add i (tx.id, s) b.printed;
-          size = b.size - String.length (snd (Imap.find i b.printed)) + String.length s;
-        },
+             b with
+             value =
+               {
+                 b.value with
+                 txs = List.map (fun (x : tx) -> if x.id = tx.id then tx else x) b.value.txs;
+               };
+             index = Smap.add tx.id (i, tx) b.index;
+             reversed_by =
+               (match tx.reversal_of with
+               | Some x -> reverses tx.id x reversed_by
+               | None -> reversed_by);
+             printed = Imap.add i (tx.id, s) b.printed;
+             size = b.size - String.length (snd (Imap.find i b.printed)) + String.length s;
+           },
         tx.id :: touched )
   | Put_plan p ->
       let plans = b.value.plans in
       let plans =
-        if List.exists (fun (q : plan) -> q.id = p.id) plans then List.map (fun (q : plan) -> if q.id = p.id then p else q) plans
+        if List.exists (fun (q : plan) -> q.id = p.id) plans then
+          List.map (fun (q : plan) -> if q.id = p.id then p else q) plans
         else plans @ [ p ]
       in
       ({ b with value = { b.value with plans } }, touched)
@@ -1133,7 +1251,14 @@ let apply (b, touched) = function
 
 (* A TX outside the text being checked: its rules report at line 0. *)
 let at_zero (tx : tx) =
-  { tx; tx_n = 0; effect_ns = List.map (fun e -> (0, e)) tx.effects; reversal_n = 0; original_n = 0; exchange_n = 0 }
+  {
+    tx;
+    tx_n = 0;
+    effect_ns = List.map (fun e -> (0, e)) tx.effects;
+    reversal_n = 0;
+    original_n = 0;
+    exchange_n = 0;
+  }
 
 exception Not_canonical
 
@@ -1147,24 +1272,32 @@ exception Not_canonical
 let admit ~before b touched =
   let v = b.value in
   let kept (l : locus) = List.exists (fun (k : locus) -> k.id = l.id) v.loci in
-  if not (List.for_all kept before.value.loci) then (
+  if not (List.for_all kept before.value.loci) then
     match of_string (to_string v) with
     | Ok back -> if back <> v then raise Not_canonical
-    | Error e -> raise (Refused e))
+    | Error e -> raise (Refused e)
   else
-    let changed = List.map (fun id -> snd (Smap.find id b.index)) (List.sort_uniq compare touched) in
+    let changed =
+      List.map (fun id -> snd (Smap.find id b.index)) (List.sort_uniq compare touched)
+    in
     let text = Buffer.create 4096 in
     print_head text v;
     List.iter (print_tx text) changed;
     print_tail text v;
-    let ((measures, loci, roles, txs, plans, zero, opening, history, anchors, items, closes) as typed) =
+    let ((measures, loci, roles, txs, plans, zero, opening, history, anchors, items, closes) as
+         typed) =
       syntax (Buffer.contents text)
     in
     if value_of typed <> { v with txs = changed } then raise Not_canonical;
     let st = stage () in
     let measure, locus = definitions st measures loci roles in
     let find id = Smap.find id b.index in
-    let known n id = if Smap.mem id b.index then true else (fault st Unknown_tx n; false) in
+    let known n id =
+      if Smap.mem id b.index then true
+      else (
+        fault st Unknown_tx n;
+        false)
+    in
     (* Reversal [id] of [target]: neither endpoint takes part in another reversal. A
        reversal of [id] itself, [id] included, is checked as a partner and refuses
        [id] as a target that is a reversal. *)
@@ -1172,7 +1305,9 @@ let admit ~before b touched =
       if not (known n target) then None
       else
         let (_ : int), (x : tx) = find target in
-        let other = List.exists (( <> ) id) (Option.value (Smap.find_opt target b.reversed_by) ~default:[]) in
+        let other =
+          List.exists (( <> ) id) (Option.value (Smap.find_opt target b.reversed_by) ~default:[])
+        in
         if x.reversal_of <> None || other then fault st Reversal_reused n;
         Some x
     in
@@ -1181,7 +1316,11 @@ let admit ~before b touched =
       List.filter_map
         (fun (tx : tx) ->
           match Smap.find_opt tx.id b.reversed_by with
-          | Some rs -> Some (List.filter_map (fun r -> if List.mem r touched then None else Some (at_zero (snd (find r)))) rs)
+          | Some rs ->
+              Some
+                (List.filter_map
+                   (fun r -> if List.mem r touched then None else Some (at_zero (snd (find r))))
+                   rs)
           | None -> None)
         changed
       |> List.concat
@@ -1213,14 +1352,17 @@ let balance t ~locus ~measure =
   in
   if List.mem c t.zero_origins || List.mem_assoc c t.openings then Known (sum t.txs)
   else
-    match List.find_map (fun a -> Option.map (fun q -> (a, q)) (List.assoc_opt c a.asserts)) t.anchors with
+    match
+      List.find_map (fun a -> Option.map (fun q -> (a, q)) (List.assoc_opt c a.asserts)) t.anchors
+    with
     | Some (a, q) ->
         let rec after = function
           | [] -> []
           | (tx : tx) :: rest -> if Some tx.id = a.last then rest else after rest
         in
         let after txs = if a.last = None then txs else after txs in
-        Known (Z.add q (sum (List.filter (fun (tx : tx) -> not (List.mem tx.id a.also)) (after t.txs))))
+        Known
+          (Z.add q (sum (List.filter (fun (tx : tx) -> not (List.mem tx.id a.also)) (after t.txs))))
     | None -> Unknown
 
 type support = Zero_origin | Opening of string | Counted of { counted : Z.t; since : Z.t }

@@ -793,7 +793,8 @@ let reversal_checks ~width_of ~directory home =
     }
   in
   F.write_new (directory ^ "/large-input.sexp")
-    (Bakhlo_sexp.Daily_txt.text (get (B.put_entry home.session.book ~replace:false long_target ~plan:None)));
+    (Bakhlo_sexp.Daily_txt.text
+       (get (B.put_entry home.session.book ~replace:false long_target ~plan:None)));
   let long =
     Rev.create ~book ~base_revision:(F.revision_of_bytes before) ~day:"2026-10-09" long_target
   in
@@ -1138,7 +1139,8 @@ let date_correction_checks ~width_of ~directory home =
   (* food stays in the book but is no longer offered for new entries. *)
   let retained_bytes =
     String.split_on_char '\n' admitted_bytes
-    |> List.map (fun line -> if String.starts_with ~prefix:"LOCUS\tfood\t" line then line ^ "\tHIDDEN" else line)
+    |> List.map (fun line ->
+        if String.starts_with ~prefix:"LOCUS\tfood\t" line then line ^ "\tHIDDEN" else line)
     |> String.concat "\n"
   in
   require (retained_bytes <> admitted_bytes) "retained-locus-policy-fixture-changed";

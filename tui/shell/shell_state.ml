@@ -211,12 +211,7 @@ let apply_commit_result ?published_message ?(record_publication = false) state ~
       { stopped with pending_record_publication = record_publication }
 
 let reload state =
-  let state =
-    {
-      state with
-      settlements = Settlement_file.load_file state.settlement_path;
-    }
-  in
+  let state = { state with settlements = Settlement_file.load_file state.settlement_path } in
   match A.reload ~session:state.session ~pending:state.pending ~mode:(mode state) with
   | A.Pending_confirmed session ->
       finish_publication ~record_publication:state.pending_record_publication state session
@@ -276,13 +271,13 @@ let discard state =
       message = tr "Unconfirmed publication: inspect before discarding or retrying.";
     }
   else
-      {
-        state with
-        record = None;
-        record_visible = false;
-        blocked = false;
-        message = tr "Draft discarded explicitly.";
-      }
+    {
+      state with
+      record = None;
+      record_visible = false;
+      blocked = false;
+      message = tr "Draft discarded explicitly.";
+    }
 
 let request_discard state =
   if not (has_record_draft state) then state

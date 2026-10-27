@@ -157,6 +157,7 @@ let initial_series ~book ~measure ~roles ~start_day ~end_exclusive =
         if by_total <> 0 then by_total else String.compare a b)
   |> List.filteri (fun index _ -> index < 3)
   |> List.map (fun (locus, _, _) -> { locus; measure })
+
 let validate_coordinates ~book ~(coordinates : coordinate list) =
   match coordinates with
   | [] -> Error "Select at least one Locus."

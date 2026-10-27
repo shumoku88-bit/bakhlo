@@ -56,7 +56,9 @@ let read_stamped path =
       (* Exactly the size the file had when opened, then the end of the file. *)
       let size = initial.st_size in
       let b = Bytes.create size in
-      let rec fill n = if n < size then match Unix.read fd b n (size - n) with 0 -> n | k -> fill (n + k) else n in
+      let rec fill n =
+        if n < size then match Unix.read fd b n (size - n) with 0 -> n | k -> fill (n + k) else n
+      in
       require (fill 0 = size && Unix.read fd (Bytes.create 1) 0 1 = 0) "changed-during-read";
       require (check (Unix.fstat fd) && check (Unix.lstat path)) "changed-during-read";
       (Bytes.unsafe_to_string b, stamp_of initial))
@@ -88,16 +90,20 @@ let with_writer path f =
           Unix.lockf fd Unix.F_TLOCK 0;
           f ())
 
-let revision_of_bytes bytes = Printf.sprintf "%d:%s" (String.length bytes) (Digest.to_hex (Digest.string bytes))
+let revision_of_bytes bytes =
+  Printf.sprintf "%d:%s" (String.length bytes) (Digest.to_hex (Digest.string bytes))
+
 let read_revision path = revision_of_bytes (read path)
 
 let of_bytes path bytes stamp =
   match T.read bytes with
-  | Error e -> raise (Refused (Printf.sprintf "book-refused: %s at line %d" (T.code_name e.code) e.line))
+  | Error e ->
+      raise (Refused (Printf.sprintf "book-refused: %s at line %d" (T.code_name e.code) e.line))
   | Ok txt -> (
       match B.of_txt txt with
       | Error why -> raise (Refused ("book-refused: " ^ why))
-      | Ok book -> { path; revision = revision_of_bytes bytes; book; sidecars = X.sidecars_of book; stamp })
+      | Ok book ->
+          { path; revision = revision_of_bytes bytes; book; sidecars = X.sidecars_of book; stamp })
 
 let load path =
   let bytes, stamp = read_stamped path in
@@ -151,7 +157,9 @@ let sync_parent path =
 
 (* The book.txt text of a book with these roles and Attention. *)
 let text_of book sidecars =
-  match X.with_sidecars book sidecars with Ok book -> T.print (B.txt book) | Error why -> raise (Refused why)
+  match X.with_sidecars book sidecars with
+  | Ok book -> T.print (B.txt book)
+  | Error why -> raise (Refused why)
 
 let create_empty ~path ~measure ~scale =
   let book = get "empty-book-refused" (B.empty ~measure ~scale) in
@@ -166,7 +174,8 @@ let create_empty ~path ~measure ~scale =
    modification time, and the same bytes. *)
 let unchanged session =
   match Unix.lstat session.path with
-  | s when stamp_of s = session.stamp && s.st_kind = Unix.S_REG -> read_revision session.path = session.revision
+  | s when stamp_of s = session.stamp && s.st_kind = Unix.S_REG ->
+      read_revision session.path = session.revision
   | _ -> false
   | exception Unix.Unix_error (Unix.ENOENT, _, _) -> false
 
@@ -182,7 +191,8 @@ let replace ~checkpoint path bytes =
   let dir = Filename.dirname path in
   Sys.readdir dir
   |> Array.iter (fun name ->
-      if String.starts_with ~prefix:(temp_prefix path) name then Unix.unlink (Filename.concat dir name));
+      if String.starts_with ~prefix:(temp_prefix path) name then
+        Unix.unlink (Filename.concat dir name));
   let suffix = nonce () in
   let tmp = path ^ ".publish-" ^ suffix in
   write_new tmp bytes;
@@ -200,13 +210,17 @@ let replace ~checkpoint path bytes =
 
 (* The book after [ops] and, when given, these roles and Attention. *)
 let saved ?sidecars session ops =
-  let book = match L.apply_all session.book ops with Ok book -> book | Error why -> raise (Refused why) in
+  let book =
+    match L.apply_all session.book ops with Ok book -> book | Error why -> raise (Refused why)
+  in
   match sidecars with
   | None -> book
-  | Some s -> ( match X.with_sidecars book s with Ok book -> book | Error why -> raise (Refused why))
+  | Some s -> (
+      match X.with_sidecars book s with Ok book -> book | Error why -> raise (Refused why))
 
 (* The revision the file has once [publish] writes [ops] (and [sidecars]). *)
-let revision_after ?sidecars session ops = revision_of_bytes (T.print (B.txt (saved ?sidecars session ops)))
+let revision_after ?sidecars session ops =
+  revision_of_bytes (T.print (B.txt (saved ?sidecars session ops)))
 
 (* Checkpoints are for deterministic fault/child-process interruption checks;
    ordinary callers use the no-op default and cannot bypass any gate. *)
@@ -225,7 +239,14 @@ let publish ?(checkpoint = fun _ -> ()) ?sidecars session ops =
           (* The in-memory book equals its book.txt reload (test/daily_book_oracle_tests.ml),
              so only the bytes are read back. *)
           require (read session.path = bytes) "published-readback-changed";
-          Written { session with revision = expected; book; sidecars; stamp = stamp_of (Unix.lstat session.path) })
+          Written
+            {
+              session with
+              revision = expected;
+              book;
+              sidecars;
+              stamp = stamp_of (Unix.lstat session.path);
+            })
   with
   | Refused why -> (
       match !attempted with Some expected -> Uncertain { expected } | None -> Refused_input why)

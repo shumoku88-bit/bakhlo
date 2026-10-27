@@ -77,7 +77,10 @@ Reports are short issue/PR notes; `HANDOFF.md` stays focused on current work.
 
 `.ocamlformat` pins **0.29.0**, target syntax **5.4.1**, default profile and 100-column margin.
 Comment/docstring rewriting is disabled to keep evidence prose intact. Use
-`./tools/format --check` or `./tools/format --apply` (Dune @fmt / fmt, including `tui/`); the wrapper rejects a
+`./tools/format --check` or `./tools/format --apply` (Dune @fmt / fmt, including `tui/`).
+`tui/` carries its own `dune-project`, which keeps the root `.ocamlformat` from reaching it,
+so `tui/.ocamlformat` is a symlink to `../.ocamlformat`: one canonical pinned config on both
+sides of that nested project boundary, not a second copy to keep in step. The wrapper rejects a
 missing/wrong local formatter, never installs or falls back to a global tool. Apply finishes
 with a clean @fmt check: Dune 3.24.2 can return 1 for diffs it has already promoted.
 Formatting is optional developer tooling, NOT a main runtime/test dependency or CI gate;
@@ -96,11 +99,13 @@ compiler/`.opt`/helper. No system install, shell/editor hooks, third-party patch
 change. The tool is tied to the main compiler's current location; recreate after relocation.
 Qualified on macOS x86_64 on 2026-10-27 by recreating this formatter root with
 `ocaml-system.5.4.1`, Dune 3.24.2 and ocamlformat 0.29.0 from the recipe below; a 5.4.1
-formatting target and the wrapper's version/pin checks passed. `./tools/format --check`
-is not clean: the same 15 pre-existing source/Dune layout diffs and nested `tui/` config
-warnings appear on the 5.3.0 and 5.4.1 baselines, so fix layouts in their own commits and
-never mass-apply while changing the compiler. No other platform's formatter bootstrap is
-claimed.
+formatting target and the wrapper's version/pin checks passed. At compiler migration time
+`./tools/format --check` was not clean: the same 15 pre-existing source/Dune layout diffs
+and the nested `tui/` config warnings appeared on the 5.3.0 and 5.4.1 baselines. Those
+layouts were corrected in a formatting-only change on 2026-10-27, so the check now exits 0
+with no warnings, `tui/` included ([verification](VERIFICATION.md)). Fix layouts in their
+own commits and never mass-apply while changing the compiler. No other platform's formatter
+bootstrap is claimed.
 
 ```sh
 ./tools/bootstrap

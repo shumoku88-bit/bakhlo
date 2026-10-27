@@ -17,28 +17,43 @@ let posting locus amount =
     ~quantity:(D.Quantity.of_quanta amount)
 
 let entry id day effects : B.entry =
-  { id; day; memo = None; effects; reversal_of = None; exchange = None;
-    original_amount = None; merchant = None }
+  {
+    id;
+    day;
+    memo = None;
+    effects;
+    reversal_of = None;
+    exchange = None;
+    original_amount = None;
+    merchant = None;
+  }
 
 (* A book.txt with these entries recorded in order and, by default, zero-origin
    support for suspense. *)
 let book ?(zero = true) entries =
   let base =
-    "BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\nLOCUS\tsuspense\tsuspense\t\nLOCUS\tcash\tcash\t\n\
-     LOCUS\tfood\tfood\t\nEND\n"
+    "BOOK\t1\n\
+     MEASURE\tjpy\t0\n\
+     MEASURE\teur\t2\n\
+     LOCUS\tsuspense\tsuspense\t\n\
+     LOCUS\tcash\tcash\t\n\
+     LOCUS\tfood\tfood\t\n\
+     END\n"
   in
   let recorded =
-    List.fold_left (fun b e -> get (B.put_entry b ~replace:false e ~plan:None)) (Bakhlo_sexp.Daily_txt.book base) entries
+    List.fold_left
+      (fun b e -> get (B.put_entry b ~replace:false e ~plan:None))
+      (Bakhlo_sexp.Daily_txt.book base) entries
   in
   if not zero then recorded
   else
     let text = Bakhlo_sexp.Daily_txt.text recorded in
     Bakhlo_sexp.Daily_txt.book
-      (String.sub text 0 (String.length text - 4) ^ "ZERO-ORIGIN\tsuspense\tjpy\nZERO-ORIGIN\tsuspense\teur\nEND\n")
+      (String.sub text 0 (String.length text - 4)
+      ^ "ZERO-ORIGIN\tsuspense\tjpy\nZERO-ORIGIN\tsuspense\teur\nEND\n")
 
 let env ?(roles = [ ("cash", Roles.Asset) ]) book =
   Screen.env_for_checks ~accounting_roles:roles ~book ~measure:"jpy" ~today:"2026-10-22" ()
-
 
 let contains text needle =
   let length = String.length needle in
@@ -144,7 +159,6 @@ let () =
     (Att.suspense_holding (env untouched) = None)
     "a book without suspense entries hides the signal";
 
-
   (* The list shows the holding row and its detail names the correction route. *)
   let geometry : Screen.geometry =
     { screen = (120, 36); body = (120, 33); content = (120, 32); width_of = String.length }
@@ -178,5 +192,5 @@ let () =
     (not (List.exists (fun line -> contains line "! holding") hidden))
     "a zero suspense balance hides the row";
   print_endline
-    "PASS: suspense shows one recorded-net Attention holding only when non-zero and keeps \
-     Measures separate."
+    "PASS: suspense shows one recorded-net Attention holding only when non-zero and keeps Measures \
+     separate."

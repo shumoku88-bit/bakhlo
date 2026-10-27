@@ -167,9 +167,7 @@ let current_amount ~book ~measure = function
   | O.Exact n -> O.format_money book measure n
   | O.Unsupported -> "?"
 
-let current_state = function
-  | O.Exact _ -> "exact"
-  | O.Unsupported -> "unsupported"
+let current_state = function O.Exact _ -> "exact" | O.Unsupported -> "unsupported"
 
 (* A table cell never clips a quantity into a different number. *)
 let quantity_cell ~width_of ~width quantity =
@@ -238,10 +236,7 @@ let current_table ~width_of ~width ~book items_list =
       List.map
         (function
           | O.Account_row { locus; measure; value; _ } ->
-              row locus
-                (current_amount ~book ~measure value)
-                measure
-                (current_state value)
+              row locus (current_amount ~book ~measure value) measure (current_state value)
           | item -> O.balance_item_line ~width_of ~width:room ~book item)
         items_list
     in
@@ -296,8 +291,7 @@ let current_print_lines ~book items_list =
       | O.Account_row { locus; measure; value; _ } ->
           "  " ^ locus ^ "  "
           ^ current_amount ~book ~measure value
-          ^ " " ^ measure ^ "  "
-          ^ current_state value
+          ^ " " ^ measure ^ "  " ^ current_state value
       | item -> O.balance_item_line ~book item)
     items_list
 
@@ -621,7 +615,8 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~conten
           let _, view =
             detail_viewport ~layout ~width_of ~book ~measure ~roles ~balance_view_text t
           in
-          ({ t with detail_scroll = Panel.move ~last:view.last ~position:view.start (detail view) }, Stay)
+          ( { t with detail_scroll = Panel.move ~last:view.last ~position:view.start (detail view) },
+            Stay )
         else (set_selected (max 0 (min (max 0 (count () - 1)) (t.selected + list))) t, Stay)
       in
       let page = list_capacity ~heading:(t.mode = `Current) ~layout in

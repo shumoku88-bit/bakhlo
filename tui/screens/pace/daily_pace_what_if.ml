@@ -80,7 +80,8 @@ let update ~book ~measure ~pace t (input : Ui_input.input) =
           {
             t with
             notice =
-              "Only " ^ units ~measure ^ " digits (at most 18) after an optional + or -. Esc/q closes.";
+              "Only " ^ units ~measure
+              ^ " digits (at most 18) after an optional + or -. Esc/q closes.";
           }
   | _ -> Stay t
 

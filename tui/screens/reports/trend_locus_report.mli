@@ -36,7 +36,8 @@ val catalog : book:B.t -> measure:string -> coordinate list
     paired with that Measure, deduplicated and sorted for a deterministic order.
     Labels are not part of the coordinate. *)
 
-val history_start : observed_at:string -> boundary_presets_text:string option -> (string, string) result
+val history_start :
+  observed_at:string -> boundary_presets_text:string option -> (string, string) result
 (** The first boundary of the explicit preset containing the observation day. *)
 
 val initial_series :

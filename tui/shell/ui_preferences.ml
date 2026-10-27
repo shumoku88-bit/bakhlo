@@ -36,7 +36,7 @@ type palette = {
   selected_foreground : color;
   selected_background : color;
   series : color array;
-  (** The chart series colours, in slot order. At most four distinct hues;
+      (** The chart series colours, in slot order. At most four distinct hues;
       a further series keeps the plain foreground and its marker glyph. *)
 }
 

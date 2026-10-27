@@ -77,7 +77,6 @@ val bounded_history_start : t -> locus:string -> measure:string -> string option
 
 val roles : t -> (string * T.role) list
 val attention : t -> T.item list * T.close list
-
 val format : t -> string -> Z.t -> string
 
 val parse_amount : t -> string -> string -> (Z.t, string) result
@@ -120,7 +119,11 @@ val pool_at_end_of_day :
     current count (count minus later Effects). Anything else refuses the whole answer. *)
 
 val pools_at_end_of_days :
-  t -> measure:string -> pool:D.Effect_coordinate.t list -> days:string list -> (Z.t, string) result list
+  t ->
+  measure:string ->
+  pool:D.Effect_coordinate.t list ->
+  days:string list ->
+  (Z.t, string) result list
 (** {!pool_at_end_of_day} for each day, from one pass over the entries. *)
 
 (** {1 Changes}
@@ -135,8 +138,7 @@ val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) 
 val correct_entry_date : t -> id:string -> day:string -> (t, string) result
 (** Only the date; a Locus no longer offered may stay. *)
 
-val classify_merchant :
-  t -> id:string -> disposition:Records.disposition -> (t, string) result
+val classify_merchant : t -> id:string -> disposition:Records.disposition -> (t, string) result
 (** First classification only. *)
 
 val put_plan : t -> replace:bool -> plan -> (t, string) result
@@ -158,5 +160,9 @@ val with_bounded_history : t -> (string * string * string) list -> (t, string) r
 (** Replace every history start with (Locus, Measure, day) rows; each needs a count. *)
 
 val with_sections :
-  t -> roles:(string * T.role) list -> items:T.item list -> closes:T.close list -> (t, string) result
+  t ->
+  roles:(string * T.role) list ->
+  items:T.item list ->
+  closes:T.close list ->
+  (t, string) result
 (** Replace the accounting roles and the Attention items and closes. *)
