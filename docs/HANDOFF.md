@@ -8,6 +8,15 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-10-27)
 
+- Later the same day: Income & Expense keeps the comparison in the bar graph (each
+  Locus has the compared window's `░` bar under its `█` bar; `c` chooses the window from
+  a list, `t` is the old side-by-side table); the Record is in one `phase` at a time
+  (Quick | Form | Original | Enabling | Review), which also stopped a paste during the
+  suspense confirmation reaching the hidden form; Ctrl-O now reaches Bakhlo on macOS
+  (the session unsets the terminal's `discard` and restores it). Next candidates are
+  in `tasks/todo.md` (次の候補).
+  [Evidence](VERIFICATION.md#record-is-in-one-phase-at-a-time-2026-10-27).
+
 - Naming pass (2026-10-27): `sexp/` is now `household/` (`bakhlo_household`);
   `Daily_book` owns its entry/plan types and the published `change`s (`Records`,
   `Book_log` removed). No behaviour change.

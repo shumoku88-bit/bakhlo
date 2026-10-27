@@ -16,6 +16,10 @@ HANDOFF or the ledgers and evidence in `docs/VERIFICATION.md`, never here.
   document and test the difference instead of silently calling it parity.
 - Before adding a mechanism, check, document or safety layer, ask what can be removed
   instead. Do not grow a protocol, format or doc to work around an earlier choice.
+- User decision (2026-10-27): Bakhlo should read like a program a woodworker made by
+  hand with care. Fit parts by their types instead of glue helpers; name things for
+  what the household means (not an earlier design); finish the parts nobody sees
+  (tests, tools, file names); prefer removing to adding; one owner per rule.
 - Measure before optimizing; state the result as numbers, not adjectives.
 - Report outcomes faithfully: code connected, synthetic tests, latest-data paired
   comparison, human/IME acceptance and P7/power-loss are separate claims.

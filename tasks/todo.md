@@ -92,6 +92,15 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
 - [x] macOSでCtrl-Oが端末ドライバ（VDISCARD）に取られ原額入力が開かなかった：起動中だけ外し、終了時に元へ戻す。
 [検証記録](../docs/VERIFICATION.md#old-names-removed-from-the-household-book-and-shell-2026-10-27)。
 
+### 次の候補（未着手、急ぎなし）
+
+- [ ] Income & Expenseの比較（Locusごとの2本のバー、`c`で比較windowを選ぶ）をmokoが使ってみた感想を聞き、
+  並べ方（今の2本並び／グラフを上下に2つ）を決める。過去サイクルも「同じ経過日数」で比べたいかも確認する
+  （今は表示windowが途中のときだけ日数をそろえる）。
+- [ ] `Daily_overlays`（共有の金額・数量・記録行の書式、`include Ui_render`）に`.mli`を付けて公開面を絞る。
+- [ ] `Daily_`という接頭辞（`Daily_book`・`Daily_file`・`Daily_draft`・`Daily_actions`…）が今の中身に
+  合っているか見直す。変えるなら一度に一つ、意味の言える名前へ。
+
 ## 要判断
 
 - [ ] LOAMのComplete Since（履歴の完全性の記録）をパリティ一覧に入れるか（Daily Paceの過去日に関わる）。
