@@ -23,7 +23,7 @@ val selected : t -> int
 val set_selected : int -> t -> t
 val detail_focused : t -> bool
 val form : t -> Ui_form.t option
-val items : Screen.env -> t -> Daily_overlays.balance_item list
+val items : Screen.env -> t -> Balance_items.balance_item list
 val detail_viewport : Screen.env -> Screen.geometry -> t -> string list * Ui_panel.window
 val print_fits : string list -> bool
 val print_preview_form : Screen.env -> t -> Ui_form.t

@@ -48,7 +48,7 @@ type picker = { target : int; cursor : int; notice : string }
 type projection = {
   book : B.t;  (** Compared physically: every book change is a new value. *)
   boundary : (string option, string) result;
-  roles : ((string * O.accounting_role) list, string) result;
+  roles : ((string * Locus_roles.role) list, string) result;
   measure : string;
   query : string option * R.grain * R.scope * R.coordinate list;
   plotted : R.coordinate list;  (** The effective series. *)

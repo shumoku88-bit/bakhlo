@@ -117,7 +117,7 @@ let step ~role_map (acc : acc) (entry : B.entry) =
   | Ok occurrence ->
       let expense_effects =
         List.filter
-          (fun posting -> M.find_opt (effect_locus posting) role_map = Some O.Expense)
+          (fun posting -> M.find_opt (effect_locus posting) role_map = Some Locus_roles.Expense)
           entry.effects
       in
       let unresolved_nonzero =

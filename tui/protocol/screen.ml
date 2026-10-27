@@ -21,7 +21,7 @@ type env = {
   new_id : unit -> string;
   measure : string;
   today : string;
-  accounting_roles : ((string * Daily_overlays.accounting_role) list, string) result Lazy.t;
+  accounting_roles : ((string * Locus_roles.role) list, string) result Lazy.t;
   attention : (Attention_data.t, string) result;
   settlements : (Settlement_data.t, string) result;
   blocked : bool;

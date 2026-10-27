@@ -194,7 +194,7 @@ let complete plan =
   && List.for_all (fun l -> match l.quanta with Some q -> Z.sign q > 0 | None -> false) plan.lines
   && sum (receiving_lines plan) = sum (paying_lines plan)
 
-let pays role = role = Some O.Asset || role = Some O.Liability
+let pays role = role = Some Locus_roles.Asset || role = Some Locus_roles.Liability
 
 (* Put one named Locus into the plan (LOAM supply): a present Locus only takes the
    amount; otherwise it replaces the line with the same role or the only line on
@@ -374,7 +374,7 @@ type t = {
   cursor : int;
   past : past list;
   catalog : (string * string) list;
-  roles : (string * O.accounting_role) list;
+  roles : (string * Locus_roles.role) list;
 }
 
 let initial ~book ~day ~measure ~roles =

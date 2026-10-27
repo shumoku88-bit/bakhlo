@@ -53,7 +53,7 @@ type snapshot = {
 
 val compute :
   book:Bakhlo_household.Daily_book.t ->
-  roles:(string * Daily_overlays.accounting_role) list ->
+  roles:(string * Locus_roles.role) list ->
   start_day:string ->
   end_exclusive:string ->
   (snapshot, string) result

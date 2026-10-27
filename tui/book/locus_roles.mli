@@ -1,6 +1,6 @@
 (** locus_roles.mli - Accounting roles for Loci and the accounting-roles.tsv text format (no file access) *)
 
-type role = Daily_overlays.accounting_role = Asset | Liability | Equity | Income | Expense
+type role = Asset | Liability | Equity | Income | Expense
 
 val role_to_string : role -> string
 val role_of_string : string -> role option

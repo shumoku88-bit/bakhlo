@@ -167,10 +167,10 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 
 | 面 | Bakhlo入口 | LOAM入口（`loam/Loam/Tui/`） |
 | --- | --- | --- |
-| Home／Commands | `tui/screens/home`、`daily_overlays.ml`、Shellの Commands 描画、`ui_commands.ml` | `Home.lean`、`HomeCommandPalette.lean`、`ReportPicker.lean` |
+| Home／Commands | `tui/screens/home`（盆栽を含む）、Shellの Commands 描画、`ui_commands.ml` | `Home.lean`、`HomeCommandPalette.lean`、`ReportPicker.lean` |
 | Record／Actual／Selected Day | `record_session.ml`、`reversal_session.ml`、`date_correction_session.ml`、controllerのedit／reverse／date／Actual／Selected_day | `Record.lean`／`RecordSession.lean`、`ActualWorkspace.lean`、`SelectedDay.lean`／`SelectedDaySession.lean`、`ActualDateCorrection.lean`、`ActualReversal.lean`／`ActualReversalSession.lean`、`EventMerchant.lean` |
 | Scheduled | `ui_workspace.ml`、`scheduled_months.ml`、`scheduled_session.ml`、`scheduled_cancellation_session.ml`、`scheduled_continuation_session.ml`、`scheduled_bulk_session.ml`、`scheduled_generation_session.ml`、`record_session.ml`、controllerのScheduled／cancel／bulk／generate | `ScheduledWorkspace.lean`／`ScheduledWorkspaceSession.lean`、`ScheduledCreation.lean`、`ScheduledCompletion.lean`、`ScheduledCancellation.lean`、`ScheduledReplacement.lean`、`ScheduledBulkEdit.lean`／`ScheduledBulkEditSession.lean`、`ScheduledGeneration.lean`／`ScheduledGenerationSession.lean` |
-| Balances／Reports／Pace | `daily_overlays.ml`、`balance_view_data.ml`、`daily_pace_trend.ml`、controllerのbalance／pace／what-if／trend | `Balances.lean`、`BalanceViewSetupSession.lean`、`RoleBalances.lean`、`ReportsView.lean`／`ReportsSession.lean`、`DailyPaceTrend.lean`／`DailyPacePoolSetupSession.lean`／`CycleBoundarySetupSession.lean`、`DailyPaceWhatIf.lean` |
+| Balances／Reports／Pace | `screens/balances/balance_items.ml`、`locus_roles.ml`、`balance_view_data.ml`、`daily_pace_trend.ml`、controllerのbalance／pace／what-if／trend | `Balances.lean`、`BalanceViewSetupSession.lean`、`RoleBalances.lean`、`ReportsView.lean`／`ReportsSession.lean`、`DailyPaceTrend.lean`／`DailyPacePoolSetupSession.lean`／`CycleBoundarySetupSession.lean`、`DailyPaceWhatIf.lean` |
 | Household setup／first-run | `first_run.ml`、`daily_interaction_context.ml`のconfig/form準備と`daily_interaction.ml`の入力接続 | `LocusLabelSetup.lean`／`LocusLabelSetupSession.lean`、`FirstRun.lean` |
 | Attention／Settlement／Exchange | 各data module、controllerのform／action／一覧 | `AttentionAdministration.lean`／`AttentionAdministrationSession.lean`、`SettlementWorkspace.lean`、`SettlementAction.lean`、`Exchange.lean`／`ExchangeSession.lean` |
 

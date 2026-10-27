@@ -103,7 +103,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   let balances_view = C.open_route home W.Balances in
   require
     (match balance_items balances_view with
-    | O.Account_row { locus = "wallet"; measure = "jpy"; _ } :: _ -> true
+    | Balance_items.Account_row { locus = "wallet"; measure = "jpy"; _ } :: _ -> true
     | _ -> false)
     "balances-initial-selection-is-first-coordinate";
   let bal_detail_open = key ~width_of balances_view `Enter in
@@ -134,7 +134,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   (* As LOAM, flow roles appear in "All current balance support", below the stock sections. *)
   let accounting_text =
     List.map
-      (O.balance_item_line ~book:bal_accounting.C.session.book)
+      (Balance_items.balance_item_line ~book:bal_accounting.C.session.book)
       (balance_items bal_accounting)
   in
   require
@@ -148,7 +148,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   require
     (Balances.mode bal_restored_current.screens.balances = `Current
     && List.for_all
-         (function O.Account_row _ -> true | _ -> false)
+         (function Balance_items.Account_row _ -> true | _ -> false)
          (balance_items bal_restored_current))
     "balances-current-restores-neutral-coordinate-rows";
   let bv_path = directory ^ "/balance-view.tsv" in
@@ -188,7 +188,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   let acct_idx =
     let rec find i = function
       | [] -> 0
-      | Daily_overlays.Account_row _ :: _ -> i
+      | Balance_items.Account_row _ :: _ -> i
       | _ :: rest -> find (i + 1) rest
     in
     find 0 items

@@ -28,7 +28,7 @@ val has_draft : t -> bool
 val is_plan : t -> bool
 val with_notice : t -> string -> t
 
-val with_roles : (string * Daily_overlays.accounting_role) list -> t -> t
+val with_roles : (string * Locus_roles.role) list -> t -> t
 (** Accounting roles for quick capture's Locus words (the Shell reads them). *)
 
 val after_unresolved_enabled : book:B.t -> t -> t

@@ -26,7 +26,9 @@ let test_book_fixture =
    END\n"
 
 let fixture_book () = Bakhlo_household.Daily_txt.book test_book_fixture
-let test_roles = [ ("wallet", O.Asset); ("bank", O.Asset); ("food", O.Expense) ]
+
+let test_roles =
+  [ ("wallet", Locus_roles.Asset); ("bank", Locus_roles.Asset); ("food", Locus_roles.Expense) ]
 
 let env ~book balance_view_text : Screen.env =
   Screen.env_for_checks ~accounting_roles:test_roles ~book ~measure:"jpy" ~today:"2026-10-18"
@@ -54,7 +56,7 @@ let unit_checks ~width_of () =
   require (List.length items_cur > 0) "items-current-nonempty";
   require
     (match List.nth_opt items_cur (Balances.selected owner) with
-    | Some (O.Account_row _) -> true
+    | Some (Balance_items.Account_row _) -> true
     | _ -> false)
     "first-coord-present";
 
@@ -70,10 +72,12 @@ let unit_checks ~width_of () =
   require (Balances.title owner_acct = "Balances / Accounting") "title-accounting";
   let items_acct = Balances.items bv owner_acct in
   require
-    (List.exists (function O.Header_row "Asset" -> true | _ -> false) items_acct)
+    (List.exists (function Balance_items.Header_row "Asset" -> true | _ -> false) items_acct)
     "acct-has-asset-header";
   require
-    (List.exists (function O.Subtotal_row { role = O.Asset; _ } -> true | _ -> false) items_acct)
+    (List.exists
+       (function Balance_items.Subtotal_row { role = Locus_roles.Asset; _ } -> true | _ -> false)
+       items_acct)
     "acct-has-asset-subtotal";
 
   (* 4. Toggle back to Current preserves selected coordinate *)

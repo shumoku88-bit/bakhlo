@@ -16,6 +16,11 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 - `Daily_draft`/`Daily_actions`/`Shell_state` no longer export the raising `get`/`get_id`:
   Daily Pace builds coordinates with `Daily_draft.coordinate` (a result), the Shell
   checks its start-up date explicitly, and the scenario fixture keeps the test helper.
+- `Daily_overlays` split (668 → 151 lines): accounting roles have one owner,
+  `Locus_roles` (file token and display label); the Balances rows moved verbatim to
+  `screens/balances/balance_items` behind an `.mli`; the bonsai to the Home screen;
+  the unused `progress_bar` removed. Synthetic Balances/Home checks pass unchanged;
+  latest-data paired comparison of Balances and Home **not executed** for this move.
 - No behaviour change intended: no format, UI text, admission rule or ordering of
   refusals changed (the reversal and batch commits keep their explicit order).
 - Passed: `./tools/check`, `./tools/tui --self-check`, `./tools/format --check`,

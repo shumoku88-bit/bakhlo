@@ -137,29 +137,29 @@ let items ~book ~measure:_ ~roles ~balance_view_text t =
   match t.mode with
   | `Accounting -> (
       match roles with
-      | Ok roles -> O.role_balance_items ~book ~roles
-      | Error why -> [ O.Header_row ("Accounting roles unavailable: " ^ why) ])
+      | Ok roles -> Balance_items.role_balance_items ~book ~roles
+      | Error why -> [ Balance_items.Header_row ("Accounting roles unavailable: " ^ why) ])
   | `Current -> (
       match balance_view_coords balance_view_text with
-      | Ok coords -> O.current_balance_items ~book ~coords
-      | Error why -> [ O.Header_row ("Balance view unavailable: " ^ why) ])
+      | Ok coords -> Balance_items.current_balance_items ~book ~coords
+      | Error why -> [ Balance_items.Header_row ("Balance view unavailable: " ^ why) ])
 
 let selected_coordinate ~book ~measure ~roles ~balance_view_text t =
   let all_items = items ~book ~measure ~roles ~balance_view_text t in
   match List.nth_opt all_items t.selected with
-  | Some (O.Account_row { locus; measure; _ }) -> Some (locus, measure)
+  | Some (Balance_items.Account_row { locus; measure; _ }) -> Some (locus, measure)
   | _ -> None
 
 let selected_account ~book ~measure ~roles ~balance_view_text t =
   let all_items = items ~book ~measure ~roles ~balance_view_text t in
   match List.nth_opt all_items t.selected with
-  | Some (O.Account_row { locus; measure; value; _ }) ->
+  | Some (Balance_items.Account_row { locus; measure; value; _ }) ->
       let amount = match value with O.Exact n -> Some n | _ -> None in
       Some (locus, measure, amount)
   | _ -> None
 
 let balance_lines ?(width_of = String.length) ?(width = max_int) ~book items_list =
-  List.map (O.balance_item_line ~width_of ~width ~book) items_list
+  List.map (Balance_items.balance_item_line ~width_of ~width ~book) items_list
 
 (* Current presents the selected Locus × Measure evidence: the exact ID and the
    Measure-scaled Amount, never a label or a signed adjustment. *)
@@ -178,7 +178,7 @@ let current_table ~width_of ~width ~book items_list =
   let measure_width =
     List.fold_left
       (fun size -> function
-        | O.Account_row { measure; _ } -> max size (width_of measure) | _ -> size)
+        | Balance_items.Account_row { measure; _ } -> max size (width_of measure) | _ -> size)
       7 items_list
   in
   (* Preserve the Measure before the Locus; if neither fits, show no digits. *)
@@ -195,7 +195,7 @@ let current_table ~width_of ~width ~book items_list =
     let lines =
       List.map
         (function
-          | O.Account_row { locus; measure; value; _ } ->
+          | Balance_items.Account_row { locus; measure; value; _ } ->
               let name, identified = name locus measure in
               let quantity =
                 if not identified then "see details"
@@ -207,7 +207,7 @@ let current_table ~width_of ~width ~book items_list =
               O.pad ~width_of name_width name ^ "  "
               ^ O.pad_left ~width_of quantity_width
                   (quantity_cell ~width_of ~width:quantity_width quantity)
-          | item -> O.balance_item_line ~width_of ~width:room ~book item)
+          | item -> Balance_items.balance_item_line ~width_of ~width:room ~book item)
         items_list
     in
     ("Locus / Measure  Value / state", lines)
@@ -217,7 +217,7 @@ let current_table ~width_of ~width ~book items_list =
     let desired =
       List.fold_left
         (fun size -> function
-          | O.Account_row { measure; value; _ } ->
+          | Balance_items.Account_row { measure; value; _ } ->
               max size (width_of (current_amount ~book ~measure value))
           | _ -> size)
         12 items_list
@@ -235,16 +235,16 @@ let current_table ~width_of ~width ~book items_list =
     let lines =
       List.map
         (function
-          | O.Account_row { locus; measure; value; _ } ->
+          | Balance_items.Account_row { locus; measure; value; _ } ->
               row locus (current_amount ~book ~measure value) measure (current_state value)
-          | item -> O.balance_item_line ~width_of ~width:room ~book item)
+          | item -> Balance_items.balance_item_line ~width_of ~width:room ~book item)
         items_list
     in
     (row "Locus" "Amount" "Measure" "State", lines)
 
 let current_detail ~book item =
   match item with
-  | O.Account_row { locus; measure; value; _ } ->
+  | Balance_items.Account_row { locus; measure; value; _ } ->
       let explanation =
         match value with
         | O.Exact _ -> []
@@ -262,14 +262,14 @@ let current_detail ~book item =
       ]
       @ explanation
       @ [ Ui_text.tr "Locus × Measure; not an Account taxonomy." ]
-  | item -> O.balance_item_detail ~book item
+  | item -> Balance_items.balance_item_detail ~book item
 
 let detail_lines ~book t items_list =
   match List.nth_opt items_list t.selected with
   | None -> [ Ui_text.tr "No balances are selected in the current balance view." ]
   | Some item -> (
       match t.mode with
-      | `Accounting -> O.balance_item_detail ~book item
+      | `Accounting -> Balance_items.balance_item_detail ~book item
       | `Current -> current_detail ~book item)
 
 let detail_rows ~width_of ~width ~book t items_list =
@@ -288,11 +288,11 @@ let detail_rows ~width_of ~width ~book t items_list =
 let current_print_lines ~book items_list =
   List.map
     (function
-      | O.Account_row { locus; measure; value; _ } ->
+      | Balance_items.Account_row { locus; measure; value; _ } ->
           "  " ^ locus ^ "  "
           ^ current_amount ~book ~measure value
           ^ " " ^ measure ^ "  " ^ current_state value
-      | item -> O.balance_item_line ~book item)
+      | item -> Balance_items.balance_item_line ~book item)
     items_list
 
 let balance_print_fits rows =
@@ -640,7 +640,8 @@ let handle ~blocked ~book ~measure ~roles ~balance_view_text ~dimensions ~conten
                 match
                   List.find_index
                     (function
-                      | O.Account_row r -> r.locus = locus && r.measure = measure | _ -> false)
+                      | Balance_items.Account_row r -> r.locus = locus && r.measure = measure
+                      | _ -> false)
                     next_items
                 with
                 | Some idx -> idx

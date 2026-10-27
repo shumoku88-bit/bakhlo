@@ -19,9 +19,11 @@ let balance_display_checks ~width_of ~directory () =
      END\n";
   let home = C.initial ~config_home:directory (F.load path) in
   let book = home.session.book in
-  let item value = O.Account_row { locus = "wallet"; measure = "jpy"; role = None; value } in
+  let item value =
+    Balance_items.Account_row { locus = "wallet"; measure = "jpy"; role = None; value }
+  in
   let exact = item (O.Exact (Z.of_int 74500)) in
-  let line ~width row = O.balance_item_line ~width_of ~width ~book row in
+  let line ~width row = Balance_items.balance_item_line ~width_of ~width ~book row in
   let has text needle = Base.String.is_substring text ~substring:needle in
   require (has (line ~width:26 exact) "+74,500 jpy") "balance-narrow-exact-amount";
   let huge = Z.of_string (String.make 100 '7') in
@@ -31,17 +33,23 @@ let balance_display_checks ~width_of ~directory () =
     "balance-unfit-quantity-is-not-partial-digits";
   List.iter
     (fun measure ->
-      let row = O.Account_row { locus = "wallet"; measure; role = None; value = O.Unsupported } in
+      let row =
+        Balance_items.Account_row { locus = "wallet"; measure; role = None; value = O.Unsupported }
+      in
       require
-        (has (O.balance_item_line ~width_of ~width:26 ~book row) measure)
+        (has (Balance_items.balance_item_line ~width_of ~width:26 ~book row) measure)
         "balance-unknown-row-keeps-measure";
-      let row = O.Account_row { locus = "wallet"; measure; role = None; value = O.Exact huge } in
+      let row =
+        Balance_items.Account_row { locus = "wallet"; measure; role = None; value = O.Exact huge }
+      in
       require
-        (has (O.balance_item_line ~width_of ~width:26 ~book row) measure)
+        (has (Balance_items.balance_item_line ~width_of ~width:26 ~book row) measure)
         "balance-huge-cue-keeps-measure")
     [ "jpy"; "eur" ];
   require
-    (has (O.balance_item_line ~width_of ~book huge_item) (O.format_money book "jpy" huge))
+    (has
+       (Balance_items.balance_item_line ~width_of ~book huge_item)
+       (O.format_money book "jpy" huge))
     "balance-unbounded-print-retains-huge-quantity";
   require
     (O.format_money book "eur" (Z.of_int (-123456)) = "-1,234.56")
@@ -60,13 +68,14 @@ let balance_display_checks ~width_of ~directory () =
   let view = C.open_route home W.Balances in
   let coordinate state =
     match List.nth_opt (balance_items state) (Balances.selected state.C.screens.balances) with
-    | Some (O.Account_row { locus; measure; _ }) -> Some (locus, measure)
+    | Some (Balance_items.Account_row { locus; measure; _ }) -> Some (locus, measure)
     | _ -> None
   in
   let wallet_index =
     Option.get
       (List.find_index
-         (function O.Account_row { locus = "wallet"; measure = "jpy"; _ } -> true | _ -> false)
+         (function
+           | Balance_items.Account_row { locus = "wallet"; measure = "jpy"; _ } -> true | _ -> false)
          (balance_items view))
   in
   let wallet =
@@ -84,7 +93,8 @@ let balance_display_checks ~width_of ~directory () =
   (* As LOAM: Accounting represents evidence coordinates, not admission x Measure. *)
   let represented =
     List.filter_map
-      (function O.Account_row { locus; measure; _ } -> Some (locus, measure) | _ -> None)
+      (function
+        | Balance_items.Account_row { locus; measure; _ } -> Some (locus, measure) | _ -> None)
       (balance_items accounting)
   in
   require
@@ -93,7 +103,7 @@ let balance_display_checks ~width_of ~directory () =
     && not (List.exists (fun (locus, _) -> locus = "bank") represented))
     "accounting-represents-evidence-coordinates-not-admissions";
   (* LOAM's evidence details: two exact coordinates, neither with a role. *)
-  let evidence = List.map (O.balance_item_line ~book) (balance_items accounting) in
+  let evidence = List.map (Balance_items.balance_item_line ~book) (balance_items accounting) in
   List.iter
     (fun (expected, name) -> require (List.mem expected evidence) name)
     [
@@ -127,8 +137,10 @@ let balance_display_checks ~width_of ~directory () =
   in
   let live_path = directory ^ "/accounting-publication.txt" in
   F.write_new live_path (F.read path);
-  let roles = [ ("wallet", O.Asset); ("bank", O.Asset); ("zero", O.Equity) ] in
-  let accounting_rows book = O.role_balance_items ~book ~roles in
+  let roles =
+    [ ("wallet", Locus_roles.Asset); ("bank", Locus_roles.Asset); ("zero", Locus_roles.Equity) ]
+  in
+  let accounting_rows book = Balance_items.role_balance_items ~book ~roles in
   let publish session ~replace entry =
     match F.publish session [ B.Put_entry { replace; entry; plan = None } ] with
     | F.Written session -> session
@@ -138,7 +150,9 @@ let balance_display_checks ~width_of ~directory () =
   require
     (List.exists
        (function
-         | O.Account_row { locus = "bank"; measure = "jpy"; value = O.Unsupported; _ } -> true
+         | Balance_items.Account_row { locus = "bank"; measure = "jpy"; value = O.Unsupported; _ }
+           ->
+             true
          | _ -> false)
        (accounting_rows live.book))
     "accounting-new-coordinate-is-visible-without-inventing-support";
@@ -156,11 +170,11 @@ let balance_display_checks ~width_of ~directory () =
        = accounting_rows (get (B.put_entry reopened.book ~replace:true replacement ~plan:None))
     && not
          (List.exists
-            (function O.Account_row { locus = "bank"; _ } -> true | _ -> false)
+            (function Balance_items.Account_row { locus = "bank"; _ } -> true | _ -> false)
             (accounting_rows corrected.book)))
     "accounting-correction-removes-unrepresented-coordinate";
   require
-    (List.map (O.balance_item_line ~book) (balance_items accounting) = evidence)
+    (List.map (Balance_items.balance_item_line ~book) (balance_items accounting) = evidence)
     "accounting-old-book-cache-is-not-mutated";
   List.iter
     (fun state ->
@@ -286,7 +300,7 @@ let balance_display_checks ~width_of ~directory () =
     && not (Balances.modal (key ~width_of refusal `Enter).C.screens.balances))
     "balance-print-refusal-enter-closes";
   require
-    (O.current_balance_items ~book ~coords:(Some []) = [])
+    (Balance_items.current_balance_items ~book ~coords:(Some []) = [])
     "balance-empty-has-no-selectable-placeholder";
   F.write_new (directory ^ "/balance-view.tsv") "";
   let empty = R.screen ~width_of (32, 9) view |> List.map snd |> String.concat "\n" in

@@ -7,4 +7,5 @@
   bakhlo_tui_protocol
   bakhlo.domain
   bakhlo.household
+  bakhlo.book_txt
   zarith))

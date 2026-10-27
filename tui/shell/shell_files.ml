@@ -57,7 +57,7 @@ let write_config_file state name ~expected content =
 let accounting_roles state =
   Result.bind (read_pace_config state Locus_roles.file_name) (function
     | None -> Ok []
-    | Some text -> O.parse_accounting_roles text)
+    | Some text -> Locus_roles.of_string text)
   |> Result.map_error (fun why -> Locus_roles.file_name ^ " " ^ why)
 
 (* Roles and Attention are sections of the book: saving one rewrites the book through
@@ -87,7 +87,7 @@ let save_roles state ~expected ~content =
     (* Canonical text, and no roles as no section, as the book reads them back; a
        malformed text is passed on and refused by the book. *)
     let content =
-      match O.parse_accounting_roles content with
+      match Locus_roles.of_string content with
       | Ok [] -> ""
       | Ok roles -> Locus_roles.to_string roles
       | Error _ -> content

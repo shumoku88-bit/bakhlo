@@ -56,11 +56,11 @@ let read text = Bakhlo_household.Daily_txt.book text
    only a genuinely unclassified Locus is an unresolved witness. *)
 let roles =
   [
-    ("food", Daily_overlays.Expense);
-    ("rent", Daily_overlays.Expense);
-    ("wallet", Daily_overlays.Asset);
-    ("bank", Daily_overlays.Asset);
-    ("ext", Daily_overlays.Asset);
+    ("food", Locus_roles.Expense);
+    ("rent", Locus_roles.Expense);
+    ("wallet", Locus_roles.Asset);
+    ("bank", Locus_roles.Asset);
+    ("ext", Locus_roles.Asset);
   ]
 
 let mixed_entries =

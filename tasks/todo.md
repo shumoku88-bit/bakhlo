@@ -82,7 +82,11 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
 - [x] `get`／`get_id`（例外を投げる汎用補助）を本番から除く。座標は`Daily_draft.coordinate`が
   `result`で返し、起動時の検査は`Shell_state.initial`に明示、テスト補助はscenario fixtureへ。
 
-残る候補（未着手）：`Daily_overlays`の責務分割、Recordのphase統合。
+- [x] `Daily_overlays`を分割：会計役割は`Locus_roles`へ一本化（表示ラベルとファイル用トークン）、
+  Balancesの行は`screens/balances/balance_items`（`.mli`付き）、盆栽はHome画面へ。未使用の
+  `progress_bar`を削除。
+
+残る候補（未着手）：Recordのphase統合。
 [検証記録](../docs/VERIFICATION.md#old-names-removed-from-the-household-book-and-shell-2026-10-27)。
 
 ## 要判断

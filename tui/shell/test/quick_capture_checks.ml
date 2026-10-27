@@ -60,12 +60,12 @@ let self_check ~width_of () =
   in
   let roles =
     [
-      ("food", O.Expense);
-      ("drinks", O.Expense);
-      ("books", O.Expense);
-      ("wallet", O.Asset);
-      ("card", O.Liability);
-      ("synthpay", O.Asset);
+      ("food", Locus_roles.Expense);
+      ("drinks", Locus_roles.Expense);
+      ("books", Locus_roles.Expense);
+      ("wallet", Locus_roles.Asset);
+      ("card", Locus_roles.Liability);
+      ("synthpay", Locus_roles.Asset);
     ]
   in
   let start = Q.initial ~book ~day:"2026-10-19" ~measure:"jpy" ~roles in

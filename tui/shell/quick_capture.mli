@@ -8,15 +8,11 @@ module B = Bakhlo_household.Daily_book
 type t
 
 val initial :
-  book:B.t ->
-  day:string ->
-  measure:string ->
-  roles:(string * Daily_overlays.accounting_role) list ->
-  t
+  book:B.t -> day:string -> measure:string -> roles:(string * Locus_roles.role) list -> t
 (** [day] dates the record unless a leading date word names another day; a
     month-day word means its latest occurrence not after [day]. *)
 
-val with_roles : (string * Daily_overlays.accounting_role) list -> t -> t
+val with_roles : (string * Locus_roles.role) list -> t -> t
 val text : t -> string
 
 type surface = {

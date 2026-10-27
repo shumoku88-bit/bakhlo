@@ -8,11 +8,11 @@ let roles_of state =
 (* accounting-roles.tsv is never read as "no roles" when it is malformed or
    unreadable: the parser names the line, and role-aware screens show the refusal. *)
 let unreadable_roles_checks ~width_of ~directory ~path =
-  let parse = Daily_overlays.parse_accounting_roles in
+  let parse = Locus_roles.of_string in
   require
     (parse
        "LOAM-ACCOUNTING-ROLE-MAP\t1\r\n# comment\n; note\n\nROLE\twallet\tASSET\r\nfood\texpense\n"
-    = Ok [ ("wallet", Daily_overlays.Asset); ("food", Daily_overlays.Expense) ])
+    = Ok [ ("wallet", Locus_roles.Asset); ("food", Locus_roles.Expense) ])
     "roles-header-comments-blank-crlf-accepted";
   List.iter
     (fun (label, text, line) ->

@@ -40,7 +40,7 @@ type env = {
   new_id : unit -> string;  (** Fresh identity for a new entry or plan. *)
   measure : string;  (** Shell-selected Measure. *)
   today : string;
-  accounting_roles : ((string * Daily_overlays.accounting_role) list, string) result Lazy.t;
+  accounting_roles : ((string * Locus_roles.role) list, string) result Lazy.t;
       (** Explicit Locus roles from accounting-roles.tsv; none when absent, an error
           (never an empty list) when the file is unreadable or malformed. *)
   attention : (Attention_data.t, string) result;
@@ -177,7 +177,7 @@ val no_publication : env -> geometry -> publish_outcome -> 'a -> 'a * request
 (** [published] of an owner that never publishes. *)
 
 val env_for_checks :
-  ?accounting_roles:(string * Daily_overlays.accounting_role) list ->
+  ?accounting_roles:(string * Locus_roles.role) list ->
   ?config:(string -> (string option, string) result) ->
   book:Bakhlo_household.Daily_book.t ->
   measure:string ->
