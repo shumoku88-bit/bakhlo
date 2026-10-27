@@ -121,6 +121,13 @@ fail() {
 }
 
 cd "$root"
+# Notty keeps the terminal's VMIN/VTIME, and a TUI run earlier in the same tab
+# can leave VMIN=0: every read then returns at once with no input, which Notty
+# takes as end of input, so the TUI closes right after its first paint. Restore
+# blocking reads first; Notty puts back these settings when it exits.
+if [ -t 0 ]; then
+  stty min 1 time 0
+fi
 "$binary" --book "$household/book.txt"
 status=$?
 
