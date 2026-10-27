@@ -96,6 +96,39 @@ let self_check ~width_of () =
   require
     (List.map A.quanta tx.entry.effects = [ Z.of_int (-100); Z.of_int 100 ])
     "signed-conservation";
+  (* Selecting an action wraps in either direction without changing the reviewed
+     payload. Edit and Cancel remain available while publication is blocked. *)
+  let previous state = update state (`Key (`Tab, [ `Shift ])) in
+  List.iter
+    (fun navigate ->
+      let wrapped = navigate review in
+      match handle wrapped (`Key (`Enter, [])) with
+      | S.Publish (A.Entry_tx selected, base, _) ->
+          require
+            (selected = tx && base = base_revision)
+            "review-action-wrap-preserves-reviewed-payload"
+      | _ -> failwith "review-action-wrap-returns-to-publish")
+    [
+      (fun t -> key (key (key t `Tab) `Tab) `Tab);
+      (fun t -> previous (previous (previous t)));
+      (fun t -> key (key (key t (`Arrow `Right)) (`Arrow `Right)) (`Arrow `Right));
+      (fun t -> key (key (key t (`Arrow `Left)) (`Arrow `Left)) (`Arrow `Left));
+    ];
+  let cancel = previous review in
+  require (S.border_intent cancel = `Cancel) "review-backward-selects-cancel";
+  (match handle ~blocked:true cancel (`Key (`Enter, [])) with
+  | S.Closed retained ->
+      require
+        (S.has_draft retained && contains retained "q 食事")
+        "blocked-review-cancel-retains-draft"
+  | _ -> failwith "blocked-review-cancel-is-available");
+  let edit = previous cancel in
+  (match handle ~blocked:true edit (`Key (`Enter, [])) with
+  | S.Updated retained ->
+      require
+        (contains retained "Record / Edit" && contains retained "q 食事")
+        "blocked-review-edit-retains-draft"
+  | _ -> failwith "blocked-review-edit-is-available");
   require
     (A.format_message "Locus %s is already admitted." "財布" = "Locus 財布 is already admitted.")
     "catalog-translates-template-not-user-data";

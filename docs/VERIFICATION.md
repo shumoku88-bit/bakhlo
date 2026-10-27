@@ -6,6 +6,18 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Record choices are explicit states (2026-10-27)
+
+- Review uses named Publish/Edit/Cancel variants with exhaustive navigation and
+  Enter dispatch. Original-amount editing names the Measure/amount field instead
+  of encoding it as an integer. The public editor API is unchanged.
+- Added public-input checks cover forward/backward wrap without changing the
+  payload or reviewed revision, and Edit/Cancel while writes are stopped without
+  losing the draft. Existing Record, original-amount and cross-screen tests pass.
+- Integrated `./tools/check`, `./tools/tui --self-check` and formatting passed.
+  This slice does not redesign every modal phase or change the review-size,
+  review-to-end, stale-generation or publication guards.
+
 ## Scheduled remainder preserves exact drafts (2026-10-27)
 
 - Preview and Ctrl-U now share signed-integer parsing, using `Z.t`. A balanced

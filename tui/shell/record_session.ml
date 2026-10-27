@@ -9,15 +9,24 @@ module Fm = Daily_form
 
 let tr = Ui_text.tr
 
-type original_editor = { measure : string; amount : string; focus : int }
+type original_field = Original_measure | Original_amount
+type original_editor = { measure : string; amount : string; field : original_field }
 type row = { key : D.Identifier.Effect_key.t option; locus : string; amount : string }
+type review_action = Publish_action | Edit_action | Cancel_action
 
-type review = {
-  payload : A.payload;
-  base_revision : string;
-  action : int;  (** 0 Publish, 1 Edit, 2 Cancel. *)
-  scroll : int;
-}
+let next_review_action = function
+  | Publish_action -> Edit_action
+  | Edit_action -> Cancel_action
+  | Cancel_action -> Publish_action
+
+let previous_review_action = function
+  | Publish_action -> Cancel_action
+  | Edit_action -> Publish_action
+  | Cancel_action -> Edit_action
+
+let review_action_index = function Publish_action -> 0 | Edit_action -> 1 | Cancel_action -> 2
+
+type review = { payload : A.payload; base_revision : string; action : review_action; scroll : int }
 
 type t = {
   mode : A.mode;
@@ -173,7 +182,10 @@ let of_plan ?day ~book (plan : B.plan) =
 let action_start t = 3 + (2 * List.length t.rows)
 
 let border_intent t =
-  if match t.review with Some review -> review.action = 2 | None -> t.focus = action_start t + 3
+  if
+    match t.review with
+    | Some review -> review.action = Cancel_action
+    | None -> t.focus = action_start t + 3
   then `Cancel
   else
     match t.mode with
@@ -396,7 +408,13 @@ let preview ~new_id ~book ~base_revision ~blocked t =
         {
           t with
           review =
-            Some { payload = A.Plan_tx { plan; replace }; base_revision; action = 0; scroll = 0 };
+            Some
+              {
+                payload = A.Plan_tx { plan; replace };
+                base_revision;
+                action = Publish_action;
+                scroll = 0;
+              };
           notice = "";
           paste = None;
         }
@@ -420,7 +438,13 @@ let preview ~new_id ~book ~base_revision ~blocked t =
             {
               t with
               review =
-                Some { payload = A.Entry_tx transaction; base_revision; action = 0; scroll = 0 };
+                Some
+                  {
+                    payload = A.Entry_tx transaction;
+                    base_revision;
+                    action = Publish_action;
+                    scroll = 0;
+                  };
               notice = "";
               paste = None;
             })
@@ -434,11 +458,16 @@ let edit_value t (updated, cursor) =
 let insert t text = edit_value t (Fm.insert_at ~value:(value t) ~cursor:t.cursor text)
 let erase t = edit_value t (Fm.erase_at ~value:(value t) ~cursor:t.cursor)
 
-(* The original-amount editor has two fields: 0 Measure, 1 amount. *)
-let original_value (ed : original_editor) = if ed.focus = 0 then ed.measure else ed.amount
+(* The original-amount editor keeps its field choice separate from the draft's focus. *)
+let original_value (ed : original_editor) =
+  match ed.field with Original_measure -> ed.measure | Original_amount -> ed.amount
 
 let edit_original t (ed : original_editor) (updated, cursor) =
-  let ed = if ed.focus = 0 then { ed with measure = updated } else { ed with amount = updated } in
+  let ed =
+    match ed.field with
+    | Original_measure -> { ed with measure = updated }
+    | Original_amount -> { ed with amount = updated }
+  in
   { t with original_editor = Some ed; cursor = Some cursor; notice = "" }
 
 let review_lines ~book review =
@@ -598,9 +627,14 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
       | Some review -> (
           match (button, mods) with
           | `Tab, [] | `Arrow `Right, [] ->
-              update { t with review = Some { review with action = (review.action + 1) mod 3 } }
+              update
+                { t with review = Some { review with action = next_review_action review.action } }
           | `Tab, [ `Shift ] | `Arrow `Left, [] ->
-              update { t with review = Some { review with action = (review.action + 2) mod 3 } }
+              update
+                {
+                  t with
+                  review = Some { review with action = previous_review_action review.action };
+                }
           | `Arrow `Up, [] | `ASCII 'k', [] ->
               update (scroll_review ~book ~dimensions ~width_of t (-1) None)
           | `Arrow `Down, [] | `ASCII 'j', [] ->
@@ -611,27 +645,28 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
               update (scroll_review ~book ~dimensions ~width_of t 2 None)
           | `Home, [] -> update (scroll_review ~book ~dimensions ~width_of t 0 (Some false))
           | `End, [] -> update (scroll_review ~book ~dimensions ~width_of t 0 (Some true))
-          | `Enter, [] ->
-              if review.action = 1 then update { t with review = None; notice = "" }
-              else if review.action = 2 then Closed { t with review = None }
-              else if blocked then
-                update (with_notice t (tr "Writes are stopped; the draft is retained."))
-              else
-                let width, height = dimensions in
-                let capacity, _, scroll, last =
-                  review_geometry ~book ~dimensions ~width_of t review
-                in
-                if width < 32 || height < 12 || capacity < 1 then
-                  update
-                    (with_notice t
-                       (tr "Not enough room to review publication; enlarge the terminal."))
-                else if height < 16 && last > 0 then
-                  update
-                    (with_notice t
-                       (tr "Not enough room for the whole preview; enlarge the terminal."))
-                else if scroll < last then
-                  update (with_notice t (tr "Review to the end before Publish."))
-                else Publish (review.payload, review.base_revision, t)
+          | `Enter, [] -> (
+              match review.action with
+              | Edit_action -> update { t with review = None; notice = "" }
+              | Cancel_action -> Closed { t with review = None }
+              | Publish_action when blocked ->
+                  update (with_notice t (tr "Writes are stopped; the draft is retained."))
+              | Publish_action ->
+                  let width, height = dimensions in
+                  let capacity, _, scroll, last =
+                    review_geometry ~book ~dimensions ~width_of t review
+                  in
+                  if width < 32 || height < 12 || capacity < 1 then
+                    update
+                      (with_notice t
+                         (tr "Not enough room to review publication; enlarge the terminal."))
+                  else if height < 16 && last > 0 then
+                    update
+                      (with_notice t
+                         (tr "Not enough room for the whole preview; enlarge the terminal."))
+                  else if scroll < last then
+                    update (with_notice t (tr "Review to the end before Publish."))
+                  else Publish (review.payload, review.base_revision, t))
           | _ -> update t)
       | None when blocked -> update t
       | None -> (
@@ -642,7 +677,15 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                   update
                     {
                       t with
-                      original_editor = Some { ed with focus = 1 - ed.focus };
+                      original_editor =
+                        Some
+                          {
+                            ed with
+                            field =
+                              (match ed.field with
+                              | Original_measure -> Original_amount
+                              | Original_amount -> Original_measure);
+                          };
                       cursor = None;
                       notice = "";
                     }
@@ -675,11 +718,11 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                              (A.format_message "Measure '%s' scale is not configured in this book."
                                 trimmed_m))
                     | Some scale -> (
-                        if ed.focus = 0 then
+                        if ed.field = Original_measure then
                           update
                             {
                               t with
-                              original_editor = Some { ed with focus = 1 };
+                              original_editor = Some { ed with field = Original_amount };
                               cursor = None;
                               notice = "";
                             }
@@ -746,13 +789,17 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                     | A.New -> (
                         match t.original_amount with
                         | None ->
-                            let ed = { measure = ""; amount = ""; focus = 0 } in
+                            let ed = { measure = ""; amount = ""; field = Original_measure } in
                             update { t with original_editor = Some ed; cursor = None; notice = "" }
                         | Some (m, q) -> (
                             match List.assoc_opt m (B.measures book) with
                             | Some scale ->
                                 let ed =
-                                  { measure = m; amount = format_amount_str ~scale q; focus = 0 }
+                                  {
+                                    measure = m;
+                                    amount = format_amount_str ~scale q;
+                                    field = Original_measure;
+                                  }
                                 in
                                 update
                                   { t with original_editor = Some ed; cursor = None; notice = "" }
@@ -815,7 +862,7 @@ let field_text ~width_of width active cursor label text =
 let action_line ~width_of width t =
   let selected, labels =
     match t.review with
-    | Some review -> (Some review.action, [ "Publish"; "Edit"; "Cancel" ])
+    | Some review -> (Some (review_action_index review.action), [ "Publish"; "Edit"; "Cancel" ])
     | None ->
         ( (if t.focus >= action_start t then Some (t.focus - action_start t) else None),
           [ "Preview"; "Add row"; "Drop row"; "Cancel" ] )
@@ -900,10 +947,10 @@ let original_amount_screen ~book:_ ~dimensions:(width, height) ~width_of t (ed :
   let footer_h = List.length navigation + List.length feedback_rows in
   let avail = max 0 (height - 1 - footer_h) in
   let m_text, m_caret =
-    field_text ~width_of (width - 2) (ed.focus = 0) t.cursor "Measure" ed.measure
+    field_text ~width_of (width - 2) (ed.field = Original_measure) t.cursor "Measure" ed.measure
   in
   let a_text, a_caret =
-    field_text ~width_of (width - 2) (ed.focus = 1) t.cursor "Amount" ed.amount
+    field_text ~width_of (width - 2) (ed.field = Original_amount) t.cursor "Amount" ed.amount
   in
   let m_s = match m_caret with Some c -> O.Input (1 + c) | None -> O.Plain in
   let a_s = match a_caret with Some c -> O.Input (1 + c) | None -> O.Plain in
