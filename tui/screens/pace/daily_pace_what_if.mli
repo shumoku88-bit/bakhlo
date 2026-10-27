@@ -3,7 +3,7 @@
    current Daily Pace answer as you type. A leading [+] prices an income into
    the pool instead (Bakhlo addition); [-] or no sign is a purchase. Never
    publishes or reserves. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 
 type projection = {
   current_per_day : Z.t;

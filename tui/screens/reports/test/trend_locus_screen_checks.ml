@@ -1,7 +1,7 @@
 (* Trend / Locus owner checks: focus-day capture, grain and scope keys, selection
    clamping and containment, inline series picker, session annotations, modal
    closing and stale-config/book requery. Synthetic books only. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module R = Trend_locus_report
 module S = Trend_locus_screen
 module Roles = Locus_roles
@@ -30,7 +30,7 @@ let rows =
   ^ row "oct3" "2026-10-03" (ab (z (-4)))
   ^ row "oct4" "2026-10-04" (ab (z 100))
 
-let make_book extra = Bakhlo_sexp.Daily_txt.book (header ^ rows ^ extra ^ footer)
+let make_book extra = Bakhlo_household.Daily_txt.book (header ^ rows ^ extra ^ footer)
 let book = make_book ""
 let changed_book = make_book (row "extra" "2026-10-02" (ab (z 10)))
 let boundaries = "household\t2026-10-01\t2026-10-03\t2026-11-01\n"

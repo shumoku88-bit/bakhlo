@@ -1,6 +1,6 @@
 (* A browsable list of Actual entries and Scheduled plans: text / Locus / day
    filters, order, and a selection that follows the stable record identity. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module A = Daily_draft
 
 type family = Actual_row | Scheduled_row

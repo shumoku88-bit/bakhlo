@@ -1,4 +1,4 @@
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module F = Daily_file
 module A = Daily_actions
 module S = Scheduled_bulk_session
@@ -43,7 +43,7 @@ let plan id day measure cents : B.plan =
 let self_check ~width_of () =
   let directory = "scratch/scheduled-bulk-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
-  let book = Bakhlo_sexp.Daily_txt.book fixture in
+  let book = Bakhlo_household.Daily_txt.book fixture in
   let p1 = plan "bulk-a" "2026-10-15" "eur" (Z.of_int 1200)
   and p2 = plan "bulk-b" "2026-10-16" "eur" (Z.of_int 2500)
   and p3 = plan "bulk-jpy" "2026-10-17" "jpy" (Z.of_int 90) in
@@ -51,7 +51,7 @@ let self_check ~width_of () =
     List.fold_left (fun book p -> get (B.put_plan book ~replace:false p)) book [ p1; p2; p3 ]
   in
   let source = List.hd (B.plans book) in
-  let base = Bakhlo_sexp.Daily_txt.text book in
+  let base = Bakhlo_household.Daily_txt.text book in
   let path = directory ^ "/controller.sexp" in
   F.write_new path base;
   let base_rev = F.revision_of_bytes base in

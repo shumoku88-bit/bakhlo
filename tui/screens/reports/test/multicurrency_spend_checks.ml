@@ -1,7 +1,7 @@
 (* Multicurrency Spend: one explicit half-open Actual window kept as separate
    exact families. Original amounts, recorded Expense per Measure and exchange
    legs are never converted, merged or silently dropped. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module R = Multicurrency_spend_report
 module S = Multicurrency_spend_screen
 module D = Bakhlo_domain
@@ -49,7 +49,7 @@ let book ?(approved = [ "wallet"; "bank"; "ext"; "mystery"; "hotel"; "shop" ])
   ^ String.concat "" (List.map (locus true) [ "food"; "rent" ])
   ^ entries ^ plans ^ String.concat "" support ^ "END\n"
 
-let read text = Bakhlo_sexp.Daily_txt.book text
+let read text = Bakhlo_household.Daily_txt.book text
 
 (* jpy 0 scale, eur/usd scale 2. A refund nets its Expense Measure; an unclassified
    Locus never joins any total. Counterparty loci carry explicit Asset roles, so

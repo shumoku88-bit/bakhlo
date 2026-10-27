@@ -39,6 +39,6 @@ val resolve_pool : Screen.env -> (Bakhlo_domain.Effect_coordinate.t list, string
 val resolve_window : Screen.env -> (string * string, string) result
 
 val current_pace :
-  Screen.env -> (Bakhlo_sexp.Daily_book.daily_pace * string * string, string) result
+  Screen.env -> (Bakhlo_household.Daily_book.daily_pace * string * string, string) result
 
 val detail_viewport : Screen.env -> Screen.geometry -> t -> Ui_panel.window

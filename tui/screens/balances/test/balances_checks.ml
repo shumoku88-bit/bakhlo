@@ -1,5 +1,5 @@
 (* Balances screen owner checks through the Screen contract only (pure, no files). *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module O = Daily_overlays
 module Balances = Balances_screen
 
@@ -25,7 +25,7 @@ let test_book_fixture =
    ENDANCHOR\n\
    END\n"
 
-let fixture_book () = Bakhlo_sexp.Daily_txt.book test_book_fixture
+let fixture_book () = Bakhlo_household.Daily_txt.book test_book_fixture
 let test_roles = [ ("wallet", O.Asset); ("bank", O.Asset); ("food", O.Expense) ]
 
 let env ~book balance_view_text : Screen.env =

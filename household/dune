@@ -1,4 +1,4 @@
 (library
- (name bakhlo_sexp)
- (public_name bakhlo.sexp)
+ (name bakhlo_household)
+ (public_name bakhlo.household)
  (libraries bakhlo_domain bakhlo_book_txt base zarith))

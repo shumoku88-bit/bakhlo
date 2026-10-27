@@ -208,7 +208,7 @@ LOAM側はread-only参照。詳細な保持／writerは各sessionの先を読む
 | 反転owner | `tui/reversal_session.ml/.mli` のDate／Preview／gate | 捕捉したtarget・book・baseで描画し、意図だけを返す。逆Actualの構築・ID・publicationは既存writer。共通formへ確定判断を移さない |
 | Record owner | `tui/record_session.ml/.mli` の `screen`／field描画、`handle`／`review_geometry` | Record・訂正・予定作成／変更／完了で共有。paint変更は可能、寸法／gate変更は安全レビューが必要 |
 | 選択・draft入力 | `tui/ui_workspace.ml/.mli`、`tui/ui_input.ml/.mli`、`tui/daily_form.ml`、`tui/posting_draft.ml` | stable identity・filter・caret／pasteを保持。行番号や見た目で対象を再解釈しない |
-| family／保存境界 | `tui/attention_data.*`、`settlement_data.*`、`locus_roles.*`、`daily_actions.ml`、`daily_file.ml`、`sexp/`、`application/`、`lib/` | 見た目依頼の編集対象外。safe load／writer／semantic修正は別担当・別根拠 |
+| family／保存境界 | `tui/attention_data.*`、`settlement_data.*`、`locus_roles.*`、`daily_actions.ml`、`daily_file.ml`、`household/`、`application/`、`lib/` | 見た目依頼の編集対象外。safe load／writer／semantic修正は別担当・別根拠 |
 | 検証／build | `tui/scenarios`、`record_session_checks.ml`、`tui/app/test/app_checks.ml`、`./tools/tui --self-check` | 共用ファイル。増分test／module登録は統合時に調整。CoreとTUIは同じCI（`core.yml`）で検査される |
 
 ### 協調ルール

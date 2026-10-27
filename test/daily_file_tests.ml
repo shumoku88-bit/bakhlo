@@ -3,8 +3,8 @@
    and killed writers never yield a partial book, and nothing but book.txt is read. *)
 open Base
 module F = Daily_file
-module B = Bakhlo_sexp.Daily_book
-module X = Bakhlo_sexp.Daily_txt
+module B = Bakhlo_household.Daily_book
+module X = Bakhlo_household.Daily_txt
 module O = Daily_book_oracle_tests
 
 let get = function Ok x -> x | Error why -> failwith why

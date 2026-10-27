@@ -1,7 +1,7 @@
 (* Trend / Locus projection checks: exact recorded Effect flow, explicit cycle
    history, effective scopes, window completeness and refusals. Synthetic books
    only; no wording, layout or default-count assertions. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module T = Trend_locus_report
 module O = Daily_overlays
@@ -19,7 +19,7 @@ let row id day postings = Printf.sprintf "TX\t%s\t%s\n%sENDTX\n" id day postings
 (* Loci in [approved] are offered for new entries; those in [hidden] are only recorded. *)
 let fixture ?(approved = [ "a"; "b"; "c"; "gamma" ]) ?(hidden = []) entries =
   let locus suffix l = Printf.sprintf "LOCUS\t%s\t%s\t%s\n" l l suffix in
-  Bakhlo_sexp.Daily_txt.book
+  Bakhlo_household.Daily_txt.book
     ("BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\n"
     ^ String.concat "" (List.map (locus "") approved)
     ^ String.concat "" (List.map (locus "\tHIDDEN") hidden)

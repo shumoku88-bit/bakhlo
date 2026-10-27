@@ -15,7 +15,7 @@
   bakhlo_tui_scenarios
   bakhlo.store
   bakhlo.domain
-  bakhlo.sexp
+  bakhlo.household
   unix
   base
   notty-community))

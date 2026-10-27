@@ -48,7 +48,7 @@ and clears inherited OCaml search-path overrides, not the whole OS environment.
 ./tools/opam exec -- dune runtest -p bakhlo --force
 ./tools/opam exec -- dune build --root . @install
 ./tools/opam exec -- dune build --root . \
-  lib/bakhlo_domain.cmxa book_txt/bakhlo_book_txt.cmxa sexp/bakhlo_sexp.cmxa
+  lib/bakhlo_domain.cmxa book_txt/bakhlo_book_txt.cmxa household/bakhlo_household.cmxa
 ./tools/opam list --installed --short --columns=name,version
 ```
 

@@ -109,7 +109,7 @@ escape hatch for a file shared with an unmigrated workflow; it may not grow.
 - `tui/app/test/app_checks` runs Shell session checks, owner checks, cross-screen scenarios
   and Notty adapter checks with the real cell width, outside Dune's sandbox
   (the writer refuses symlinked inputs) from a materialized synthetic copy of
-  `examples/daily-book.sexp`.
+  `examples/book.txt`.
 - The 34 suite PASS lines are compared with `efda2a3` after every slice;
   assertion labels and conditions were compared when files moved
   (40 conditions changed only where state moved into an owner; none weakened).

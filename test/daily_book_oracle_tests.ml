@@ -6,15 +6,15 @@
    reason, or the same observable book. A change that leaves the entries, the balance
    totals or the printed TXs stale shows up as a difference here. *)
 open Base
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module R = Stdlib.Random.State
 
 let get = function Ok x -> x | Error why -> failwith why
 
 (* Test books are written in book.txt, the household format. *)
-let book_of_txt = Bakhlo_sexp.Daily_txt.book
-let text_of book = Bakhlo_sexp.Daily_txt.text book
+let book_of_txt = Bakhlo_household.Daily_txt.book
+let text_of book = Bakhlo_household.Daily_txt.text book
 
 let fixture =
   "BOOK\t1\n\

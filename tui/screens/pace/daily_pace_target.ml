@@ -1,7 +1,7 @@
 (* LOAM DailyPaceTarget over the current Daily Pace answer. Exact Z quanta;
    Euclidean division as in Lean's Int. Unlike LOAM (JPY only), any Measure
    works: inputs are whole units of the pace Measure, scaled to its quanta. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module O = Daily_overlays
 module A = Daily_draft
 module Cal = Daily_calendar

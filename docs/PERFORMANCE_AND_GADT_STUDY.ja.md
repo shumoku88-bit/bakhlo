@@ -30,7 +30,7 @@
 - **確認済み（実測）**: 研究用 snapshot のロードも起動目標を超えた。別プロセスでの読込であり、FS キャッシュを排除したディスク読込や TUI 全体の起動時間ではない。
 - **測定限界**: reachable heap は RSS・割当量・GC 停止時間ではない。image と entries はオブジェクトを共有するため加算できず、文字列重複の削減可能量もこの値からは分からない。parse と admission の細かな費用配分は未計測。
 
-**確認済み（ソース）**: `Daily_book.entries` は記録順（古い順）を返す。[`sexp/daily_book.mli:63-67`](../sexp/daily_book.mli) のとおりで、日付順ではない。日付 index を足すなら、この順序前提と保存形式を変えない範囲で別に持つ必要がある。
+**確認済み（ソース）**: `Daily_book.entries` は記録順（古い順）を返す。[`household/daily_book.mli:63-67`](../sexp/daily_book.mli) のとおりで、日付順ではない。日付 index を足すなら、この順序前提と保存形式を変えない範囲で別に持つ必要がある。
 
 ## 3. Actual 画面 — 実装済みの削減と残る費用
 

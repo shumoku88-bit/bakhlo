@@ -313,7 +313,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
 (* Today's sample uses Current; past-day reconstruction is kept separate. *)
 let daily_pace_today_sample_checks () =
   let book =
-    Bakhlo_sexp.Daily_txt.book
+    Bakhlo_household.Daily_txt.book
       "BOOK\t1\n\
        MEASURE\tjpy\t0\n\
        LOCUS\twallet\twallet\t\n\
@@ -406,7 +406,7 @@ let daily_pace_today_sample_checks () =
     "daily-pace-bounded-history-route";
   (* Known zero-origin for every pool locus: past reconstruction is supported. *)
   let supported_book =
-    Bakhlo_sexp.Daily_txt.book
+    Bakhlo_household.Daily_txt.book
       "BOOK\t1\n\
        MEASURE\tjpy\t0\n\
        LOCUS\twallet\twallet\t\n\
@@ -566,7 +566,7 @@ let daily_pace_activity_checks () =
      ZERO-ORIGIN\tbank\tjpy\n\
      END\n"
   in
-  let book = Bakhlo_sexp.Daily_txt.book text in
+  let book = Bakhlo_household.Daily_txt.book text in
   let boundary = Some "cycle\t2026-10-10\t2026-10-28\n" in
   let _, _, samples =
     get
@@ -1018,7 +1018,7 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
 (* Integer graph geometry, qualified joins and exact currency presentation. *)
 let daily_pace_graph_render_checks ~width_of () =
   let book =
-    Bakhlo_sexp.Daily_txt.book
+    Bakhlo_household.Daily_txt.book
       "BOOK\t1\n\
        MEASURE\tjpy\t0\n\
        MEASURE\teur\t2\n\

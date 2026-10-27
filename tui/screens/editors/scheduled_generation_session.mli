@@ -1,5 +1,5 @@
 (* Scheduled generation: proposes explicit later occurrences without storing recurrence. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 
 type t
 type outcome = Updated of t | Closed | Publish of B.plan list * string

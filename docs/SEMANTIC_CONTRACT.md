@@ -8,7 +8,7 @@ implementation choices; they are not a claim that every OCaml operation is quali
 The household book is `book.txt`. Its specification (`docs/COMMON_FORMAT.ja.md`, with the
 conformance fixtures in `test/common_format/`) defines what a book may hold and how a
 balance is answered; `Book_txt.change` admits a change by exactly those rules. On top of
-them, Bakhlo applies its own write policies (`sexp/daily_book.ml`):
+them, Bakhlo applies its own write policies (`household/daily_book.ml`):
 
 - new entries, plans and counts use only Loci offered for new entries (not `HIDDEN`);
   a date-only or Merchant-only change keeps a Locus that is no longer offered;

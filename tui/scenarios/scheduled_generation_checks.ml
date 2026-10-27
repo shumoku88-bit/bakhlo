@@ -1,4 +1,4 @@
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module F = Daily_file
 module A = Daily_actions
 module S = Scheduled_generation_session
@@ -43,10 +43,10 @@ let plan id day measure cents : B.plan =
 let self_check ~width_of () =
   let directory = "scratch/scheduled-generate-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
-  let book = Bakhlo_sexp.Daily_txt.book fixture in
+  let book = Bakhlo_household.Daily_txt.book fixture in
   let source = plan "source-plan" "2026-10-15" "eur" (Z.of_int 5000) in
   let book = get (B.put_plan book ~replace:false source) in
-  let base = Bakhlo_sexp.Daily_txt.text book in
+  let base = Bakhlo_household.Daily_txt.text book in
   let path = directory ^ "/controller.sexp" in
   F.write_new path base;
   let base_rev = F.revision_of_bytes base in
@@ -264,7 +264,7 @@ let self_check ~width_of () =
     ]
   in
   let book2 = List.fold_left (fun b p -> get (B.put_plan b ~replace:false p)) book extra in
-  let base2 = Bakhlo_sexp.Daily_txt.text book2 in
+  let base2 = Bakhlo_household.Daily_txt.text book2 in
   let rev2 = F.revision_of_bytes base2 in
   let open_plan id = List.find (fun (p : B.plan) -> p.id = id) (B.plans book2) in
   let monitored ?cadence ?observed (s : B.plan) =
@@ -548,7 +548,7 @@ let self_check ~width_of () =
     get (B.put_plan cold.book ~replace:false (plan "outside" "2026-10-16" "eur" (Z.of_int 1)))
   in
   let tmp = e_path ^ ".tmp" in
-  F.write_new tmp (Bakhlo_sexp.Daily_txt.text changed_book);
+  F.write_new tmp (Bakhlo_household.Daily_txt.text changed_book);
   Unix.rename tmp e_path;
   let stale_sess = F.load e_path in
   require

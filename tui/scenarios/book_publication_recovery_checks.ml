@@ -56,14 +56,14 @@ let run ~width_of ~directory () =
     [ B.Observe [ ("wallet", "jpy", Z.of_int 2345) ] ]
     None
     (fun state result -> fst (Shell_publication.observation_result state result));
-  let roles : Bakhlo_sexp.Daily_txt.sidecars =
+  let roles : Bakhlo_household.Daily_txt.sidecars =
     { roles = "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\twallet\tASSET\n"; attention = "" }
   in
   check "roles" [] (Some roles) (fun state result -> fst (Shell_files.sidecars_result state result));
   let attention =
     get (Att.add_item Att.empty ~id:"synthetic-recovery" ~context:"Review" ~due:Att.No_due_date)
   in
-  let sidecars : Bakhlo_sexp.Daily_txt.sidecars =
+  let sidecars : Bakhlo_household.Daily_txt.sidecars =
     { roles = ""; attention = Att.to_string attention }
   in
   check "attention" [] (Some sidecars) (fun state result ->

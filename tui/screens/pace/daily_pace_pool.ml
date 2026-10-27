@@ -1,7 +1,7 @@
 (* LOAM DailyPacePoolSetup choose/review over Bakhlo's captured-bytes save.
    Two deliberate additions: review refuses to save unless every row is
    visible, and balances dropped from an earlier pool are named in review. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module O = Daily_overlays
 module A = Daily_draft
 module D = Bakhlo_domain

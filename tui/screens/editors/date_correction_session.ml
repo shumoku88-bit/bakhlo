@@ -1,5 +1,5 @@
 (* Date-only editing keeps the captured Actual intact until the existing publisher accepts it. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module A = Daily_draft
 module O = Daily_overlays
 module Form = Ui_form

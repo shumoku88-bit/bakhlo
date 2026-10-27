@@ -13,17 +13,17 @@ mkdir -p scratch
 run=$(mktemp -d "$root/scratch/startup-probe-XXXXXX")
 printf '%s\n' "Synthetic evidence: $run"
 { date -u '+%Y-%m-%dT%H:%M:%SZ'; git rev-parse HEAD; uname -sm; ./tools/opam exec -- ocamlopt -version; } > "$run/environment.txt"
-./tools/opam exec -- dune build lib/bakhlo_domain.cmxa book_txt/bakhlo_book_txt.cmxa sexp/bakhlo_sexp.cmxa store/bakhlo_store.cmxa
+./tools/opam exec -- dune build lib/bakhlo_domain.cmxa book_txt/bakhlo_book_txt.cmxa household/bakhlo_household.cmxa store/bakhlo_store.cmxa
 cp tools/startup_probe.ml "$run/"
 ./tools/opam exec -- ocamlfind ocamlopt -strict-sequence -w +8+9+11 -warn-error +8+9+11 \
   -package base,zarith,parsexp,unix -linkpkg \
   -I _build/default/lib/.bakhlo_domain.objs/byte -I _build/default/lib/.bakhlo_domain.objs/native \
   -I _build/default/book_txt/.bakhlo_book_txt.objs/byte -I _build/default/book_txt/.bakhlo_book_txt.objs/native \
-  -I _build/default/sexp/.bakhlo_sexp.objs/byte -I _build/default/sexp/.bakhlo_sexp.objs/native \
+  -I _build/default/household/.bakhlo_household.objs/byte -I _build/default/household/.bakhlo_household.objs/native \
   -I _build/default/store/.bakhlo_store.objs/byte -I _build/default/store/.bakhlo_store.objs/native \
   -I _build/default/store \
   _build/default/lib/bakhlo_domain.cmxa \
-  _build/default/book_txt/bakhlo_book_txt.cmxa _build/default/sexp/bakhlo_sexp.cmxa _build/default/store/bakhlo_store.cmxa "$run/startup_probe.ml" -o "$run/probe"
+  _build/default/book_txt/bakhlo_book_txt.cmxa _build/default/household/bakhlo_household.cmxa _build/default/store/bakhlo_store.cmxa "$run/startup_probe.ml" -o "$run/probe"
 for count do
   dir="$run/entries-$count"
   mkdir "$dir"

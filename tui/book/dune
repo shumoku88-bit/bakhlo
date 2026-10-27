@@ -7,7 +7,7 @@
  (libraries
   bakhlo_tui_kit
   bakhlo.domain
-  bakhlo.sexp
+  bakhlo.household
   bakhlo.book_txt
   zarith
   uutf

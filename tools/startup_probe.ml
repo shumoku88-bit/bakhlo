@@ -1,7 +1,7 @@
 (* Synthetic startup/snapshot/save/in-memory response probe. Measurement only:
    Marshal here is a disposable-cache candidate, not a storage format. *)
 module D = Bakhlo_domain
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module T = Bakhlo_book_txt.Book_txt
 module F = Daily_file
 

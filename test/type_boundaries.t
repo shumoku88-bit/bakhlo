@@ -97,7 +97,7 @@ printed lines cannot be supplied by hand.
 A store session can be read by callers, but its admitted book, file path and
 revision cannot be replaced independently of the writer.
 
-  $ store_client() { ocamlfind ocamlc -package base,zarith,sexplib0,unix -I ../store/.bakhlo_store.objs/byte -I ../sexp/.bakhlo_sexp.objs/byte -I ../book_txt/.bakhlo_book_txt.objs/byte -I ../lib/.bakhlo_domain.objs/byte -c "$@"; }
+  $ store_client() { ocamlfind ocamlc -package base,zarith,sexplib0,unix -I ../store/.bakhlo_store.objs/byte -I ../sexp/.bakhlo_household.objs/byte -I ../book_txt/.bakhlo_book_txt.objs/byte -I ../lib/.bakhlo_domain.objs/byte -c "$@"; }
   $ cat >session_reader.ml <<'EOF'
   > let facts (session : Daily_file.t) =
   >   (session.path, session.revision, session.book, session.sidecars)

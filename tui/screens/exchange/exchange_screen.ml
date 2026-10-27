@@ -1,7 +1,7 @@
 (* Exchange: one direct exchange between two Measures as a single entry with a
    negative source and a positive destination Effect. No rate is inferred.
    The reviewed entry is published against the bytes it was reviewed from. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module A = Daily_draft
 module Form = Ui_form

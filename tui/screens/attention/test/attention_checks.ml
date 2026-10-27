@@ -1,6 +1,6 @@
 (* Suspense never silently stays pending: one derived Attention signal for the
    unresolved holding Locus, and Manage Loci never counts it as unassigned. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module Att = Attention_screen
 module Roles = Locus_roles
@@ -43,12 +43,13 @@ let book ?(zero = true) entries =
   let recorded =
     List.fold_left
       (fun b e -> get (B.put_entry b ~replace:false e ~plan:None))
-      (Bakhlo_sexp.Daily_txt.book base) entries
+      (Bakhlo_household.Daily_txt.book base)
+      entries
   in
   if not zero then recorded
   else
-    let text = Bakhlo_sexp.Daily_txt.text recorded in
-    Bakhlo_sexp.Daily_txt.book
+    let text = Bakhlo_household.Daily_txt.text recorded in
+    Bakhlo_household.Daily_txt.book
       (String.sub text 0 (String.length text - 4)
       ^ "ZERO-ORIGIN\tsuspense\tjpy\nZERO-ORIGIN\tsuspense\teur\nEND\n")
 

@@ -2,7 +2,7 @@
    account picker and print preview. The picker saves balance-view.tsv only
    through the Shell, with the bytes captured when it opened. *)
 
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module O = Daily_overlays
 module Form = Ui_form

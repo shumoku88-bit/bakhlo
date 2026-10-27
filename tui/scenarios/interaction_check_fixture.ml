@@ -3,7 +3,7 @@ module C = Shell_state
 module H = Shell_input
 module X = Shell_dispatch
 module R = Shell_view
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module F = Daily_file
 module W = Ui_workspace
 module Cal = Daily_calendar
@@ -149,7 +149,7 @@ let materialize_example_book () =
 let load_synthetic_book book =
   let directory = Filename.temp_dir ~temp_dir:"scratch" "book-fixture-" "" in
   let path = Filename.concat directory "book.txt" in
-  let module Text = Bakhlo_sexp.Daily_txt in
+  let module Text = Bakhlo_household.Daily_txt in
   F.write_new path (Text.text ~sidecars:(Text.sidecars_of book) book);
   F.load path
 

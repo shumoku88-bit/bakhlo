@@ -23,7 +23,7 @@
   bakhlo_tui_shell
   bakhlo.store
   bakhlo.domain
-  bakhlo.sexp
+  bakhlo.household
   zarith
   unix
   uutf

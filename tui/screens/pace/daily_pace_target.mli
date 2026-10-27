@@ -3,7 +3,7 @@
    that still reaches the target, or a few candidate horizons and the earliest
    reachable day. Assumes no income and no new Scheduled before the date; never
    publishes, reserves or forecasts a later cycle. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 
 type plan = {
   target_per_day : Z.t;

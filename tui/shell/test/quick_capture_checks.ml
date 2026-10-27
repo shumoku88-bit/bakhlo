@@ -1,6 +1,6 @@
 (* Quick capture checks, the cases of LOAM TuiRecord.checkQuickCapture on a
    synthetic book. Pure: nothing is written or published. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module O = Daily_overlays
 module Q = Quick_capture
@@ -46,7 +46,7 @@ let self_check ~width_of () =
   let book =
     List.fold_left
       (fun book e -> get (B.put_entry book ~replace:false e ~plan:None))
-      (Bakhlo_sexp.Daily_txt.book fixture)
+      (Bakhlo_household.Daily_txt.book fixture)
       [
         entry "q1" "2026-10-01" "本屋" [ ("books", 1200); ("synthpay", -1200) ];
         entry "q2" "2026-10-02" "パン屋" bakery;

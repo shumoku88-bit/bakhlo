@@ -6,8 +6,8 @@
    and prints only what its operations change. Cooperative writers and stable parent namespaces are assumed;
    not a security sandbox. Power loss was not physically tested. No background retry or
    automatic repair. *)
-module B = Bakhlo_sexp.Daily_book
-module X = Bakhlo_sexp.Daily_txt
+module B = Bakhlo_household.Daily_book
+module X = Bakhlo_household.Daily_txt
 module T = Bakhlo_book_txt.Book_txt
 
 exception Refused of string

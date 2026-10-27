@@ -1,8 +1,8 @@
 (* book.txt -> Daily_book -> book.txt is the identity, the roles and Attention sections
    read and print in their text formats, and what book.txt cannot hold refuses. *)
-module X = Bakhlo_sexp.Daily_txt
+module X = Bakhlo_household.Daily_txt
 module T = Bakhlo_book_txt.Book_txt
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 
 let read path = In_channel.with_open_bin path In_channel.input_all

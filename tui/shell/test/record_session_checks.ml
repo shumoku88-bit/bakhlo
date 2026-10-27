@@ -1,6 +1,6 @@
 (* Pure synthetic Record contract checks. No ledger files, publication or locale
    settings are written. Preview may allocate the existing random Actual identity. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module A = Daily_actions
 module S = Record_session
 module D = Bakhlo_domain
@@ -27,8 +27,8 @@ let fixture =
    END\n"
 
 let self_check ~width_of () =
-  let book = Bakhlo_sexp.Daily_txt.book fixture in
-  let before = Bakhlo_sexp.Daily_txt.text book in
+  let book = Bakhlo_household.Daily_txt.book fixture in
+  let before = Bakhlo_household.Daily_txt.text book in
   let dimensions = (100, 30) and base_revision = "synthetic-generation" in
   let handle ?(book = book) ?(blocked = false) ?(dimensions = dimensions) state input =
     S.handle ~new_id:Daily_file.new_id ~book ~base_revision ~blocked ~dimensions ~width_of state
@@ -546,7 +546,7 @@ let self_check ~width_of () =
      ZERO-ORIGIN\tfood\tjpy\n\
      END\n"
   in
-  let s_book = Bakhlo_sexp.Daily_txt.book suspense_fixture in
+  let s_book = Bakhlo_household.Daily_txt.book suspense_fixture in
   require
     (contains
        (S.after_unresolved_enabled ~book:s_book no_suspense_editor)
@@ -858,4 +858,4 @@ let self_check ~width_of () =
     && (match List.nth compact 7 with O.Chrome, text -> text <> "" | _ -> false)
     && List.for_all (fun (_, line) -> width_of line <= 32) compact)
     "quick-compact-terminal-uses-the-whole-area-unframed";
-  require (Bakhlo_sexp.Daily_txt.text book = before) "record-checks-leave-book-unchanged"
+  require (Bakhlo_household.Daily_txt.text book = before) "record-checks-leave-book-unchanged"

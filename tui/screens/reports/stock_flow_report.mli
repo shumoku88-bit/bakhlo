@@ -1,7 +1,7 @@
 (* Stock-Flow Report: single-measure tracked balance motion over explicit
    boundaries, reconstructed on zero-origin, bounded history or an opening
    entry. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module IncExp = Income_expense_report
 
 type support =

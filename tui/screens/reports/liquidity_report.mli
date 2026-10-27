@@ -12,7 +12,7 @@ type snapshot = {
 }
 
 val compute :
-  book:Bakhlo_sexp.Daily_book.t ->
+  book:Bakhlo_household.Daily_book.t ->
   today:string ->
   coords:(string * string) list ->
   assumed_complete_through:string ->
@@ -29,6 +29,7 @@ val final_at_horizon : snapshot -> Z.t
 val low_water : snapshot -> Z.t
 (** Lowest day-boundary balance including the current baseline. *)
 
-val render_lines : book:Bakhlo_sexp.Daily_book.t -> snapshot -> (Daily_overlays.style * string) list
+val render_lines :
+  book:Bakhlo_household.Daily_book.t -> snapshot -> (Daily_overlays.style * string) list
 (** Full exact Measure-scaled result text; at most 12 point rows plus an
     omitted-count note, while both totals still use every point. *)

@@ -16,7 +16,7 @@ type route =
   | Multicurrency_spend
 
 type env = {
-  book : Bakhlo_sexp.Daily_book.t;
+  book : Bakhlo_household.Daily_book.t;
   revision : string;
   new_id : unit -> string;
   measure : string;
@@ -49,16 +49,19 @@ type publication =
   | Correct_entry_date of { id : string; day : string; base : string }
   | Classify_merchant of {
       id : string;
-      disposition : Bakhlo_sexp.Daily_book.disposition;
+      disposition : Bakhlo_household.Daily_book.disposition;
       base : string;
       message : string;
     }
   | Cancel_plan of { id : string; day : string; base : string }
-  | Plan_batch of { plans : Bakhlo_sexp.Daily_book.plan list; replace : bool; base : string }
-  | Create_plan of { plan : Bakhlo_sexp.Daily_book.plan; base : string; offer_pace : bool }
+  | Plan_batch of { plans : Bakhlo_household.Daily_book.plan list; replace : bool; base : string }
+  | Create_plan of { plan : Bakhlo_household.Daily_book.plan; base : string; offer_pace : bool }
 
 type publish_outcome = Published | Publish_refused of string | Publish_conflict | Publish_stopped
-type record_target = Entry of Bakhlo_sexp.Daily_book.entry | Plan of Bakhlo_sexp.Daily_book.plan
+
+type record_target =
+  | Entry of Bakhlo_household.Daily_book.entry
+  | Plan of Bakhlo_household.Daily_book.plan
 
 type record_action =
   | Edit

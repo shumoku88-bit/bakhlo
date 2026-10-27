@@ -6,7 +6,7 @@
   bakhlo_tui_book
   bakhlo_tui_protocol
   bakhlo.domain
-  bakhlo.sexp
+  bakhlo.household
   zarith
   uutf
   base))

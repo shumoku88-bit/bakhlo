@@ -1,5 +1,5 @@
 (* Local reversal review; only the existing publisher constructs the durable inverse. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module A = Daily_draft
 module O = Daily_overlays

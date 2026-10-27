@@ -13,7 +13,7 @@
   bakhlo_tui_kit
   bakhlo_tui_protocol
   bakhlo.domain
-  bakhlo.sexp
+  bakhlo.household
   zarith
   base))
 
@@ -24,7 +24,7 @@
   bakhlo_screen_reports
   bakhlo_tui_book
   bakhlo.domain
-  bakhlo.sexp
+  bakhlo.household
   zarith))
 
 (test
@@ -35,6 +35,6 @@
   bakhlo_tui_protocol
   bakhlo_tui_book
   bakhlo_tui_kit
-  bakhlo.sexp
+  bakhlo.household
   zarith
   uutf))

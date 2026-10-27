@@ -6,7 +6,7 @@
     plans, recurrence or Series identity; a missing month only says that no
     explicit open or completed plan of that shape is retained there. *)
 
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 
 type rule = {
   name : string;

@@ -1,4 +1,4 @@
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 (** Income & Expense Report: period-based P/L analysis by month, cycle, year, or all-time. *)
 
 module Roles = Locus_roles

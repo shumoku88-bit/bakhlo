@@ -33,5 +33,5 @@ val reloaded : Screen.env -> t -> t * Screen.request
 val view : Screen.env -> Screen.geometry -> t -> Screen.view
 
 val book_changed :
-  before:Bakhlo_sexp.Daily_book.t -> after:Bakhlo_sexp.Daily_book.t -> t -> t * string
+  before:Bakhlo_household.Daily_book.t -> after:Bakhlo_household.Daily_book.t -> t -> t * string
 (** Keep the selection across a publication or a drill return; the string is a notice. *)

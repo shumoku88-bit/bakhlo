@@ -1,6 +1,6 @@
 (* Manage Loci: the unresolved holding Locus is never counted as unassigned and
    its detail names the way to resolve it, not a role. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module Loci = Loci_screen
 module Roles = Locus_roles
@@ -8,7 +8,7 @@ module Roles = Locus_roles
 let require condition why = if not condition then failwith why
 
 let book =
-  Bakhlo_sexp.Daily_txt.book
+  Bakhlo_household.Daily_txt.book
     "BOOK\t1\n\
      MEASURE\tjpy\t0\n\
      LOCUS\tsuspense\tsuspense\t\n\

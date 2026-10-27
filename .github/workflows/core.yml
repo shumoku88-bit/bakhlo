@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - "lib/**"
-      - "sexp/**"
+      - "household/**"
       - "book_txt/**"
       - "test/**"
       - "examples/**"
@@ -21,7 +21,7 @@ on:
   pull_request:
     paths:
       - "lib/**"
-      - "sexp/**"
+      - "household/**"
       - "book_txt/**"
       - "test/**"
       - "examples/**"

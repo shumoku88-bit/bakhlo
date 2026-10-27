@@ -12,7 +12,7 @@ val create : Scheduled_months.t -> t
 val enter : focus_day:string -> t -> t
 val modal : t -> bool
 
-val open_created_pace : Screen.env -> t -> Bakhlo_sexp.Daily_book.plan -> t * Screen.request
+val open_created_pace : Screen.env -> t -> Bakhlo_household.Daily_book.plan -> t * Screen.request
 (** LOAM runAfterCreation: open the expected-pace follow-up for a Scheduled
     plan the Shell has just published. The occurrence is never re-created. *)
 
@@ -22,7 +22,7 @@ val saved : Screen.env -> Screen.geometry -> (unit, string) result -> t -> t * S
 val reloaded : Screen.env -> t -> t * Screen.request
 
 val book_changed :
-  before:Bakhlo_sexp.Daily_book.t -> after:Bakhlo_sexp.Daily_book.t -> t -> t * string
+  before:Bakhlo_household.Daily_book.t -> after:Bakhlo_household.Daily_book.t -> t -> t * string
 
 (** Read-only queries for checks. *)
 
@@ -35,8 +35,8 @@ val browser : t -> Record_browser.t
 (** The current view's browser (List or Months). *)
 
 val list_browser : t -> Record_browser.t
-val rows : Bakhlo_sexp.Daily_book.t -> t -> Record_browser.row list
-val synced : Bakhlo_sexp.Daily_book.t -> t -> t
-val selected_plan : Bakhlo_sexp.Daily_book.t -> t -> Bakhlo_sexp.Daily_book.plan option
+val rows : Bakhlo_household.Daily_book.t -> t -> Record_browser.row list
+val synced : Bakhlo_household.Daily_book.t -> t -> t
+val selected_plan : Bakhlo_household.Daily_book.t -> t -> Bakhlo_household.Daily_book.plan option
 val detail_window : Screen.env -> Screen.geometry -> t -> int * Ui_panel.window
-val with_query : Bakhlo_sexp.Daily_book.t -> t -> string -> t
+val with_query : Bakhlo_household.Daily_book.t -> t -> string -> t

@@ -1,7 +1,7 @@
 (* Stock–Flow computation: the one shared support rule (zero-origin or bounded
    history), unknown starts before a bounded start, unsupported coordinates
    listed instead of refusing the report, and a cold reload agreeing. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module S = Stock_flow_report
 module I = Income_expense_report
 module D = Bakhlo_domain
@@ -32,14 +32,14 @@ let require condition why = if not condition then failwith why
 let z = Z.of_int
 
 let fixture support =
-  Bakhlo_sexp.Daily_txt.book
+  Bakhlo_household.Daily_txt.book
     ("BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\nLOCUS\ta\ta\t\nLOCUS\tb\tb\t\nLOCUS\tc\tc\t\n"
    ^ "TX\tbefore\t2026-09-30\nEFFECT\ta\tjpy\t20\nEFFECT\tb\tjpy\t-20\nENDTX\n"
    ^ "TX\twithin\t2026-10-16\nEFFECT\ta\tjpy\t10\nEFFECT\ta\tjpy\t20\nEFFECT\tb\tjpy\t-30\nENDTX\n"
    ^ "TX\tend\t2026-11-01\nEFFECT\ta\tjpy\t40\nEFFECT\tb\tjpy\t-40\nENDTX\n" ^ support ^ "END\n")
 
 (* What a save and a cold load give. *)
-let cold_of book = Bakhlo_sexp.Daily_txt.book (Bakhlo_sexp.Daily_txt.text book)
+let cold_of book = Bakhlo_household.Daily_txt.book (Bakhlo_household.Daily_txt.text book)
 
 let self_check () =
   let zero = fixture "ZERO-ORIGIN\ta\tjpy\nZERO-ORIGIN\tb\tjpy\n" in
@@ -221,7 +221,7 @@ let self_check () =
 
   (* Opening support: exact from the opening entry's date, unknown before it. *)
   let opening_book =
-    Bakhlo_sexp.Daily_txt.book
+    Bakhlo_household.Daily_txt.book
       "BOOK\t1\n\
        MEASURE\tjpy\t0\n\
        MEASURE\teur\t2\n\
@@ -469,7 +469,7 @@ let self_check () =
 
   (* Observation support is exact but undated: it never back-fills a start. *)
   let observation_book =
-    Bakhlo_sexp.Daily_txt.book
+    Bakhlo_household.Daily_txt.book
       "BOOK\t1\n\
        MEASURE\tjpy\t0\n\
        LOCUS\tdebt\tdebt\t\n\

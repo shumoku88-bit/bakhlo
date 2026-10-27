@@ -1,7 +1,7 @@
 (* Observe Quantities: exact observed quantities added row by row and
    published together as one reconciliation group. The draft keeps the bytes
    it started from; a changed or uncertain generation stops writes. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module Form = Ui_form
 
 let tr = Ui_text.tr

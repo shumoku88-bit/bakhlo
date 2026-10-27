@@ -1,6 +1,6 @@
 (* LOAM DailyPaceWhy over Daily_book.daily_pace: the answer already carries
    its pool balances and per-occurrence deductions; this only labels them. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module O = Daily_overlays
 module A = Daily_draft
 module D = Bakhlo_domain

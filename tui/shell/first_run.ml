@@ -1,4 +1,4 @@
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module O = Daily_overlays
 module Form = Ui_form
@@ -141,7 +141,7 @@ let roundtrip_empty scale =
   match B.empty ~measure:"jpy" ~scale with
   | Error why -> failwith ("first-run-check: " ^ why)
   | Ok book -> (
-      let module X = Bakhlo_sexp.Daily_txt in
+      let module X = Bakhlo_household.Daily_txt in
       try X.book (X.text book)
       with Invalid_argument why -> failwith ("first-run-check: empty-book-roundtrip: " ^ why))
 

@@ -1,5 +1,5 @@
 (* Income & Expense Report: period-based P/L analysis by month, cycle, year, or all-time. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module Roles = Locus_roles
 module O = Daily_overlays
 module Cal = Daily_calendar

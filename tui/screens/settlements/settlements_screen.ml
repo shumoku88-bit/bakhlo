@@ -1,7 +1,7 @@
 (* Settlements: reimbursement and external-obligation commitments with exact
    remaining amounts, and the Add / Settle / Reduce / Retract editors. Saved
    only through the Shell against the commitments this editor started from. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module Stl = Settlement_data
 module O = Daily_overlays
 module Form = Ui_form

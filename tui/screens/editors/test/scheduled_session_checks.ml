@@ -3,7 +3,7 @@
    Locus prefix matching, Ctrl-U suspense auto-fill, LOAM validation rules,
    Preview navigation and tiny-terminal publication gates. *)
 
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module Sch = Scheduled_session
 
 let require condition name =
@@ -118,7 +118,7 @@ let check_remainder ~book ~width_of () =
     "Other postings already balance; edit or remove suspense explicitly."
 
 let self_check ~width_of () =
-  let book = Bakhlo_sexp.Daily_txt.book fixture in
+  let book = Bakhlo_household.Daily_txt.book fixture in
   check_remainder ~book ~width_of ();
 
   (* 1. Initial state *)

@@ -1,4 +1,4 @@
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 
 type t
 type outcome = Updated of t | Closed | Publish of string * string * string

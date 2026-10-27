@@ -11,7 +11,7 @@
  (package bakhlo)
  (libraries
   bakhlo_domain
-  bakhlo_sexp
+  bakhlo_household
   bakhlo_store
   bakhlo_book_txt
   base
@@ -30,10 +30,10 @@
  (deps
   ../dune
   ../tools/household
-  ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp.cmi
-  ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp__.cmi
-  ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp__Daily_book.cmi
-  ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp__Daily_txt.cmi
+  ../household/.bakhlo_household.objs/byte/bakhlo_household.cmi
+  ../household/.bakhlo_household.objs/byte/bakhlo_household__.cmi
+  ../household/.bakhlo_household.objs/byte/bakhlo_household__Daily_book.cmi
+  ../household/.bakhlo_household.objs/byte/bakhlo_household__Daily_txt.cmi
   ../store/.bakhlo_store.objs/byte/daily_file.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Identifier.cmi

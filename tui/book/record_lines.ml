@@ -1,6 +1,6 @@
 (* One-line presentations of Actual entries and Scheduled plans for record lists:
    exact amounts, never a guessed total for split or multi-Measure entries. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module A = Daily_draft
 module O = Daily_overlays

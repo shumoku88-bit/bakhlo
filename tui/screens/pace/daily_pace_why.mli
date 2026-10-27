@@ -2,7 +2,7 @@
    with how its current quantity is supported, each protected Scheduled
    occurrence before cycle end, and the division that yields the pace. Only the
    terms of the same [Daily_book.daily_pace] answer; no arithmetic of its own. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 
 val lines :
   width_of:(string -> int) ->

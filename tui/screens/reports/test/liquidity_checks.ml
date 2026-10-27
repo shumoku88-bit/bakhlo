@@ -1,7 +1,7 @@
 (* Liquidity: conditional selected-balance outlook over explicitly selected
    balance-view coordinates. Both unconditional statements stay UNKNOWN; numbers
    exist only after an explicitly accepted assumed-complete-through horizon. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module R = Liquidity_report
 module S = Liquidity_screen
 
@@ -40,7 +40,7 @@ let book ?(approved = [ "wallet"; "bank"; "ext"; "ghost" ]) ?support ~entries ~p
   ^ Option.value ~default:"ZERO-ORIGIN\twallet\tjpy\nZERO-ORIGIN\tbank\tjpy\n" support
   ^ "END\n"
 
-let read text = Bakhlo_sexp.Daily_txt.book text
+let read text = Bakhlo_household.Daily_txt.book text
 let support_flow = "ZERO-ORIGIN\twallet\tjpy\nZERO-ORIGIN\tbank\tjpy\nZERO-ORIGIN\twallet\teur\n"
 
 (* wallet 1000 jpy, bank 500 jpy: current selected 1500. *)

@@ -1,5 +1,5 @@
 open Base
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module T = Bakhlo_book_txt.Book_txt
 

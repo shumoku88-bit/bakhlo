@@ -1,6 +1,6 @@
 (* One single-Measure posting draft. No facts, ID allocation, clock or I/O.
    Keep row order, multiplicity and existing keys; never auto-fill a residual. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 
 let tr = Ui_text.tr

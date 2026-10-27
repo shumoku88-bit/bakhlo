@@ -8,8 +8,8 @@ type stamp
 type t = private {
   path : string;
   revision : string;
-  book : Bakhlo_sexp.Daily_book.t;
-  sidecars : Bakhlo_sexp.Daily_txt.sidecars;
+  book : Bakhlo_household.Daily_book.t;
+  sidecars : Bakhlo_household.Daily_txt.sidecars;
   stamp : stamp;
 }
 
@@ -29,15 +29,18 @@ type publication_step = Temp_written | Previous_kept | Replaced
 
 val publish :
   ?checkpoint:(publication_step -> unit) ->
-  ?sidecars:Bakhlo_sexp.Daily_txt.sidecars ->
+  ?sidecars:Bakhlo_household.Daily_txt.sidecars ->
   t ->
-  Bakhlo_sexp.Daily_book.change list ->
+  Bakhlo_household.Daily_book.change list ->
   outcome
 (** Admit changes, refuse a changed file, then durably replace and read back.
     [checkpoint] is for deterministic fault and interruption checks. *)
 
 val revision_after :
-  ?sidecars:Bakhlo_sexp.Daily_txt.sidecars -> t -> Bakhlo_sexp.Daily_book.change list -> string
+  ?sidecars:Bakhlo_household.Daily_txt.sidecars ->
+  t ->
+  Bakhlo_household.Daily_book.change list ->
+  string
 (** The expected revision of the admitted candidate, without writing it. *)
 
 val confirms : expected:string -> t -> bool

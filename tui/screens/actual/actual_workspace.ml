@@ -4,7 +4,7 @@
    an effect has no role. Loci / Actuals / Details stay a three-pane layout with
    prefix/substring live search and a single-source cursor. *)
 
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module A = Daily_draft
 module O = Daily_overlays

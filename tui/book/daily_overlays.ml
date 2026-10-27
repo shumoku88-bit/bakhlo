@@ -1,6 +1,6 @@
 (* Shared physical terminal geometry and read-only evidence formatting.
    Controllers and editors own navigation; these primitives never publish. *)
-module B = Bakhlo_sexp.Daily_book
+module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module A = Daily_draft
 

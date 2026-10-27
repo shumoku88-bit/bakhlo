@@ -4,6 +4,6 @@
   bakhlo_screen_attention
   bakhlo_tui_book
   bakhlo_tui_protocol
-  bakhlo.sexp
+  bakhlo.household
   bakhlo.domain
   zarith))
