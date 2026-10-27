@@ -209,7 +209,7 @@ let actual_browsing_checks ~width_of ~directory home =
       let same_day_book =
         get (B.put_entry book ~replace:true { (entry 15) with day = (entry 16).day } ~plan:None)
       in
-      let parent = { at_second with session = { at_second.session with book = same_day_book } } in
+      let parent = { at_second with session = load_synthetic_book same_day_book } in
       let parent =
         with_day_browser parent
           {
@@ -235,7 +235,7 @@ let actual_browsing_checks ~width_of ~directory home =
         get (B.put_entry book ~replace:true { (entry n) with day = (entry 16).day } ~plan:None))
       book [ 15; 17 ]
   in
-  let day_base = { state with session = { state.session with book = day_book } } in
+  let day_base = { state with session = load_synthetic_book day_book } in
   let day = C.open_route day_base (W.Selected_day (entry 16).day) in
   require
     (day_id day = Some (Record_browser.Actual_row, "actual-17")
@@ -526,7 +526,7 @@ let actual_browsing_checks ~width_of ~directory home =
   let corrected_book =
     get (B.put_entry book ~replace:true { (entry 16) with day = "2026-09-01" } ~plan:None)
   in
-  let corrected = { drilled with session = { drilled.session with book = corrected_book } } in
+  let corrected = { drilled with session = load_synthetic_book corrected_book } in
   let returned_corrected = key ~width_of corrected `Escape in
   require
     (actual_selected_id returned_corrected = Some "actual-16"
@@ -553,7 +553,7 @@ let actual_browsing_checks ~width_of ~directory home =
     "actual-return-preserves-filter-order-locus-detail-and-scroll";
   let refreshed =
     C.finish_publication ~record_publication:false filtered
-      { filtered.session with book = corrected_book }
+      (load_synthetic_book corrected_book)
       "Synthetic publication"
   in
   require
@@ -569,7 +569,7 @@ let actual_browsing_checks ~width_of ~directory home =
   in
   let unmatched =
     C.finish_publication ~record_publication:false filtered
-      { filtered.session with book = unmatched_book }
+      (load_synthetic_book unmatched_book)
       "Synthetic publication"
   in
   require
@@ -766,9 +766,7 @@ let reversal_checks ~width_of ~directory home =
   let paste = input paste (`Paste `End) in
   require (same_review paste) "reversal-paste-cannot-confirm-or-cancel";
   unchanged "reversal-input-review-cancel-refusal-do-not-write-or-allocate-artifacts";
-  let missing =
-    { review with session = { review.session with path = directory ^ "/missing/book.sexp" } }
-  in
+  let missing = { review with session = unavailable_session review.session } in
   let failed = key ~width_of missing `Enter in
   require
     (is_reversal failed
@@ -1023,9 +1021,7 @@ let date_correction_checks ~width_of ~directory home =
     input s (`Key (`Enter, [])) |> fun s -> input s (`Paste `End)
   in
   require (pasted.overlay = review.overlay && F.read path = before) "date-paste-cannot-confirm";
-  let missing =
-    { review with session = { review.session with path = directory ^ "/absent-date/book.sexp" } }
-  in
+  let missing = { review with session = unavailable_session review.session } in
   let failed = key ~width_of missing `Enter in
   require
     (Date.day (editor failed) = "2026-10-12"
@@ -1437,16 +1433,14 @@ let original_amount_integration_checks ~width_of ~directory () =
   in
   let fail_preview = Option.get (H.handle ~width_of new_rec (`Key (`ASCII 's', [ `Ctrl ]))) in
   let fail_preview = Option.get (H.handle ~width_of fail_preview (`Key (`End, []))) in
-  let fail_state =
-    { fail_preview with session = { fail_preview.session with path = dir ^ "/missing/book.sexp" } }
-  in
+  let fail_state = { fail_preview with session = unavailable_session fail_preview.session } in
   let fail_attempt = H.handle ~width_of fail_state (`Key (`Enter, [])) |> Option.get in
   require
     (fail_attempt.record_visible && F.read path = published_bytes)
     "orig-save-failure-preserves-draft-and-disk";
 
   (* 4. Stale (stale detection): Concurrent disk modification stops publication and preserves draft *)
-  let stale_preview = { fail_preview with session = { fail_preview.session with path } } in
+  let stale_preview = fail_preview in
   let dummy_entry : B.entry =
     {
       id = "dummy_tx";
@@ -1838,19 +1832,14 @@ let event_merchant_integration_checks ~width_of ~directory () =
       ed_fail [ 't'; 'o'; 'o'; 'l'; 's' ]
   in
   let ed_fail_prev = Option.get (H.handle ~width_of ed_fail_typed (`Key (`Enter, []))) in
-  let bad_path_state =
-    {
-      ed_fail_prev with
-      session = { ed_fail_prev.session with path = dir ^ "/missing_dir/book.sexp" };
-    }
-  in
+  let bad_path_state = { ed_fail_prev with session = unavailable_session ed_fail_prev.session } in
   let fail_pub = Option.get (H.handle ~width_of bad_path_state (`Key (`Enter, []))) in
   require
     (Option.is_some (session_of fail_pub) && F.read path = cur_bytes)
     "merch-save-fail-preserves-draft-and-disk";
 
   (* 8. Stale conflict: another writer modified disk *)
-  let stale_state = { ed_fail_prev with session = { ed_fail_prev.session with path } } in
+  let stale_state = ed_fail_prev in
   let dummy : B.entry =
     {
       id = "dummy_concurrent";

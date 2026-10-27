@@ -40,26 +40,17 @@ let read_pace_config state name =
 
 let write_config_file state name ~expected content =
   let path = config_file_path state name in
-  let tmp = ref None in
   try
     F.with_writer path (fun () ->
         match read_pace_config state name with
         | Error why -> Error why
         | Ok current when current <> expected -> Error "Configuration changed. Reopen the editor."
         | Ok _ ->
-            let target = path ^ ".tmp-" ^ F.nonce () in
-            tmp := Some target;
-            F.write_new target content;
-            Sys.rename target path;
-            F.sync_parent path;
-            F.require (F.read path = content) "config-readback-changed";
+            F.write_atomic path content;
             Ok ())
   with
-  | F.Refused why | Sys_error why ->
-      Option.iter (fun p -> try Unix.unlink p with Unix.Unix_error _ -> ()) !tmp;
-      Error why
+  | F.Refused why | Sys_error why -> Error why
   | Unix.Unix_error (err, fn, arg) ->
-      Option.iter (fun p -> try Unix.unlink p with Unix.Unix_error _ -> ()) !tmp;
       Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
 
 (* Read where saves write (config_file_path); never an empty list for a bad file. *)
@@ -71,14 +62,24 @@ let accounting_roles state =
 
 (* Roles and Attention are sections of the book: saving one rewrites the book through
    the single writer, with the same conflict and uncertainty outcomes as a record. *)
+let sidecars_result state result =
+  let next =
+    match result with
+    | A.Published session -> sync { state with session }
+    | _ -> apply_commit_result state ~draft:state result
+  in
+  let saved =
+    match result with
+    | A.Published _ -> Ok ()
+    | A.Conflict | A.Conflict_base_changed ->
+        Error "The book changed on disk. Reload before retrying."
+    | A.Refused why | A.Storage_failed why -> Error why
+    | A.Uncertain _ -> Error "Save outcome is uncertain. Do not retry; reload to inspect."
+  in
+  (next, saved)
+
 let publish_sidecars state sidecars =
-  match F.publish ~sidecars state.session [] with
-  | F.Written session -> ({ state with session }, Ok ())
-  | F.Conflict -> (state, Error "The book changed on disk. Reload before retrying.")
-  | F.Refused_input why -> (state, Error why)
-  | F.Uncertain _ ->
-      ( { state with blocked = true },
-        Error "Save outcome is uncertain. Do not retry; reload to inspect." )
+  sidecars_result state (A.commit_sidecars ~session:state.session sidecars)
 
 let save_roles state ~expected ~content =
   if book_roles state <> expected then (state, Error "Configuration changed. Reopen the editor.")

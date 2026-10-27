@@ -155,6 +155,20 @@ let sync_parent path =
   let fd = Unix.openfile (Filename.dirname path) [ Unix.O_RDONLY; Unix.O_CLOEXEC ] 0 in
   Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> full_sync fd)
 
+(* Configuration and settlements have their own admission and conflict checks.
+   Under their writer lock, they share this replacement mechanism. Unlike a book
+   publication, this makes no previous-book copy. Failure is reported to the
+   caller even if rename has already happened; it never retries the write. *)
+let write_atomic path bytes =
+  let temporary = path ^ ".tmp-" ^ nonce () in
+  Fun.protect
+    ~finally:(fun () -> try Unix.unlink temporary with Unix.Unix_error _ -> ())
+    (fun () ->
+      write_new temporary bytes;
+      Unix.rename temporary path;
+      sync_parent path;
+      require (read path = bytes) "replacement-readback-changed")
+
 (* The book.txt text of a book with these roles and Attention. *)
 let text_of book sidecars =
   match X.with_sidecars book sidecars with

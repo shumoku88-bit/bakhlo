@@ -15,6 +15,7 @@ let run ~width_of () =
   let path = directory ^ "/book.sexp" in
   F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let home = C.initial ~config_home:directory (F.load path) in
+  Book_publication_recovery_checks.run ~width_of ~directory ();
   bonsai_home_layout_check ~width_of home;
   theme_check ~width_of ~directory home;
   panel_checks ~width_of ();

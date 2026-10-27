@@ -38,7 +38,6 @@ let serialize_row r =
     ]
 
 let save_file path ~expected t =
-  let tmp = ref None in
   try
     Daily_file.with_writer path (fun () ->
         match load_file path with
@@ -55,17 +54,9 @@ let save_file path ~expected t =
             | Ok decoded when decoded <> t ->
                 Error "Settlement serialization would change evidence."
             | Ok _ ->
-                let target = path ^ ".tmp-" ^ Daily_file.nonce () in
-                tmp := Some target;
-                Daily_file.write_new target content;
-                Sys.rename target path;
-                Daily_file.sync_parent path;
-                Daily_file.require (Daily_file.read path = content) "settlements-readback-changed";
+                Daily_file.write_atomic path content;
                 Ok ()))
   with
-  | Daily_file.Refused why | Sys_error why ->
-      Option.iter (fun p -> try Unix.unlink p with Unix.Unix_error _ -> ()) !tmp;
-      Error why
+  | Daily_file.Refused why | Sys_error why -> Error why
   | Unix.Unix_error (err, fn, arg) ->
-      Option.iter (fun p -> try Unix.unlink p with Unix.Unix_error _ -> ()) !tmp;
       Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)

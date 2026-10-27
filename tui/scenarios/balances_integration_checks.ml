@@ -198,9 +198,7 @@ let balance_display_checks ~width_of ~directory () =
     (has painted "74,500" && has painted "jpy" && not (has painted "+74,500"))
     "balance-tiny-first-coordinate-shows-scaled-amount-and-measure";
   let huge_book = get (B.observe_quantities book [ ("wallet", "jpy", Z.neg huge) ]) in
-  let large =
-    C.open_route { home with session = { home.session with book = huge_book } } W.Balances
-  in
+  let large = C.open_route { home with session = load_synthetic_book huge_book } W.Balances in
   List.iter
     (fun dimensions ->
       let detail = key ~dimensions ~width_of large (`ASCII 'i') in
@@ -281,7 +279,7 @@ let balance_display_checks ~width_of ~directory () =
   require
     (Ui_form.id refused = "balance_print_refused" && F.read_revision path = home.session.revision)
     "balance-print-refuses-real-oversized-quantity-without-save";
-  let oversized_view = { view with session = { view.session with book = oversized } } in
+  let oversized_view = { view with session = load_synthetic_book oversized } in
   let refusal = key ~width_of oversized_view (`ASCII 'p') in
   require
     (Option.map Ui_form.id (Balances.form refusal.screens.balances) = Some "balance_print_refused"

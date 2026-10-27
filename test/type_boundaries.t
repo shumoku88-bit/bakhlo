@@ -93,3 +93,21 @@ printed lines cannot be supplied by hand.
   $ book_client forged_book.ml 2>error
   [2]
   $ grep -Eqi 'record|field|abstract|unbound' error
+
+A store session can be read by callers, but its admitted book, file path and
+revision cannot be replaced independently of the writer.
+
+  $ store_client() { ocamlfind ocamlc -package base,zarith,sexplib0,unix -I ../store/.bakhlo_store.objs/byte -I ../sexp/.bakhlo_sexp.objs/byte -I ../book_txt/.bakhlo_book_txt.objs/byte -I ../lib/.bakhlo_domain.objs/byte -c "$@"; }
+  $ cat >session_reader.ml <<'EOF'
+  > let facts (session : Daily_file.t) =
+  >   (session.path, session.revision, session.book, session.sidecars)
+  > let reload = Daily_file.reload
+  > EOF
+  $ store_client session_reader.ml
+  $ cat >forged_session.ml <<'EOF'
+  > let forge (session : Daily_file.t) book =
+  >   { session with book; path = "different-book.txt"; revision = "forged" }
+  > EOF
+  $ store_client forged_session.ml 2>error
+  [2]
+  $ grep -qi 'private' error && grep -q 'Daily_file.t' error

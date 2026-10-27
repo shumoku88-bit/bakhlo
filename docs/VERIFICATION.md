@@ -6,6 +6,55 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Book publications retain one kind of recovery evidence (2026-10-27)
+
+- Ordinary recording, Observe and roles/Attention share the store-outcome mapping.
+  All retain the expected revision when a book publication is uncertain. Reload
+  confirms a landed save without retry; an unconfirmed save remains stopped.
+  Screen owners still own their modal responses and admission rules.
+- `Daily_file.t` is a private record with an abstract file stamp. A negative
+  compilation test rejects replacing book/path/revision; read-only clients compile.
+  Scenario fixtures now load actual synthetic files and use real external writes
+  or removed destinations for conflict/failure checks. An impossible malformed
+  session was replaced by an explicit screen error environment; refusal assertions remain.
+- Configuration and settlements share `write_atomic` under their existing locks.
+  A new storage test covers creation, replacement, no `.prev` and temporary cleanup
+  after failed rename. Their post-rename failures still return an error requiring
+  inspection; this does not give auxiliary files book-publication recovery evidence.
+- New cross-screen tests inject real writer faults before replacement and after
+  durable replacement for Observe, roles and Attention. They assert retained
+  expected revision, no retry on reload, confirmed/unconfirmed behavior, stale
+  observation refusal and exact retention of unrelated Record drafts.
+- Passed: clean unrestricted `./tools/check`, `./tools/tui --self-check`,
+  `./tools/format --check`, `git diff --check`, and `./tools/privacy-scan --all`.
+  Independent source review found no remaining blocker. P7/power loss remain unqualified.
+
+## Recording changes on latest read-only copies (2026-10-27)
+
+- One fresh generation from `tools/compare refresh` was used for old Bakhlo,
+  existing LOAM and new Bakhlo throughout. Actual PTY dimensions: 120×36 and 80×24.
+  Flows: Record quick capture → Edit → valid Preview → cancel; Scheduled overview
+  → Months → List → new → cancel; Balances and Daily Pace display.
+- Old Bakhlo was `.run/bakhlo_tui.exe`, whose build stamp was `086c3aa`.
+  SHA256: `2b36c095372ad70bde003c6cf8fd50cc188636f66aaa6ab126e95060a1fea167`.
+  New native binary SHA256:
+  `5c84646bc234afe2680b6f67d07a2e040087b8e04e9a705fb49de70c77f40777`.
+  Existing LOAM binary SHA256:
+  `d7a1ef1b4274cb255f6b9da3ec0c23716862127d3d71a1d7344ef08f1b8b6c04`.
+  Its source checkout was `7190af22`; correspondence to that binary is not established.
+- Bakhlo before/after: 24 captured frames were byte-identical. The two Record
+  Preview frames were identical after substituting only their generated candidate
+  ID (one substitution in each). Scheduled creation cancelled back to List in all
+  three programs. LOAM was exercised on the same generation; this is not a claim
+  of complete visual parity or semantic comparison of every displayed value.
+  Its Balances `v` did not follow Bakhlo's Accounting route, so that extra view was not paired.
+- Book/config SHA256s of the original and both copies were unchanged after each
+  session batch. Private captures and inputs remain in ignored scratch only.
+  The AI's own PTY processes were closed; `tools/compare clean-copies` kept only
+  the selected generation. No household or comparison-book save was performed.
+- Not executed: household save trials, full LOAM edge-case parity, physical IME,
+  human acceptance, P7 and power loss.
+
 ## Record choices are explicit states (2026-10-27)
 
 - Review uses named Publish/Edit/Cancel variants with exhaustive navigation and

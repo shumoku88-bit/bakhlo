@@ -24,16 +24,15 @@ type commit_result =
   | Storage_failed of string
   | Refused of string
 
-let publish_ops ~session ops : commit_result =
-  try
-    match F.publish session ops with
-    | F.Written session -> Published session
-    | F.Conflict -> Conflict
-    | F.Refused_input why -> Refused why
-    | F.Uncertain { expected } ->
-        Uncertain
-          { message = tr "Save outcome is uncertain."; evidence = Expected_revision expected }
-  with
+let publication_result = function
+  | F.Written session -> Published session
+  | F.Conflict -> Conflict
+  | F.Refused_input why -> Refused why
+  | F.Uncertain { expected } ->
+      Uncertain { message = tr "Save outcome is uncertain."; evidence = Expected_revision expected }
+
+let publish_ops ?sidecars ~session ops : commit_result =
+  try publication_result (F.publish ?sidecars session ops) with
   | Unix.Unix_error (err, fn, arg) ->
       Storage_failed (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
   | Sys_error msg -> Storage_failed msg
@@ -101,6 +100,12 @@ let commit_reverse_entry ~session ~base_revision ~id ~day : commit_result =
 let commit_correct_entry_date ~session ~base_revision ~id ~day : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
   else publish_ops ~session [ L.Correct_entry_date { id; day } ]
+
+let commit_observations ~session ~base_revision rows : commit_result =
+  if base_revision <> session.F.revision then Conflict_base_changed
+  else publish_ops ~session [ L.Observe rows ]
+
+let commit_sidecars ~session sidecars : commit_result = publish_ops ~sidecars ~session []
 
 let commit_classify_merchant ~session ~base_revision ~id ~disposition : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed

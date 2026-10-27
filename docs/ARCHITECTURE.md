@@ -25,6 +25,14 @@ Dependencies point inward only. `lib/`, `book_txt/` and `sexp/` are pure: no clo
 filesystem, randomness or global state; every input is an explicit immutable value.
 File I/O lives in `store/` and `tui/shell`; terminal effects in `tui/app`.
 
+`sexp/amount.ml` owns exact amount text and arithmetic independently of a book;
+`Daily_book` supplies the admitted Measure scale and keeps its existing input API.
+`Daily_file.t` is a private record: callers may read the session, but cannot replace
+its book, path or revision separately. Observe, roles and Attention use the same
+publication-result mapping and pending-revision recovery as ordinary recording.
+Configuration and settlements keep their own admission and conflict checks and
+share only the durable file-replacement mechanism (`Daily_file.write_atomic`).
+
 Matching editor layouts share `Ui_form.render_panel` for forms and
 `Ui_panel.preview` for previews with notice/action rows, and `Ui_panel.preview_window`
 / `review_scroll` for the review's window and scroll keys. These helpers only own

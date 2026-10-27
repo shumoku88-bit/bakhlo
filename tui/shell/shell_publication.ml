@@ -24,15 +24,26 @@ let execute_publication state = function
         (A.Plan_tx { plan; replace = false })
   | Screen.Observe_quantities _ -> invalid_arg "observations publish through publish_observation"
 
-(* Observations map their store outcomes directly. *)
+let publish_outcome = function
+  | A.Published _ -> Screen.Published
+  | A.Refused why -> Screen.Publish_refused why
+  | A.Conflict | A.Conflict_base_changed -> Screen.Publish_conflict
+  | A.Uncertain _ | A.Storage_failed _ -> Screen.Publish_stopped
+
+(* Observe keeps its modal until the owner receives the result. Storage failures
+   and uncertain evidence use the same transition as ordinary recording. *)
+let observation_result state result =
+  let state =
+    match result with
+    | A.Published session -> sync { state with session }
+    | _ -> apply_commit_result state ~draft:state result
+  in
+  let outcome =
+    match result with
+    | A.Refused why -> Screen.Publish_refused ("Observation refused: " ^ why)
+    | _ -> publish_outcome result
+  in
+  (state, outcome)
+
 let publish_observation state ~rows ~base =
-  if base <> state.session.revision then ({ state with blocked = true }, Screen.Publish_conflict)
-  else
-    match
-      try F.publish state.session [ Bakhlo_sexp.Book_log.Observe rows ]
-      with F.Refused why -> F.Refused_input why
-    with
-    | F.Written session -> (sync { state with session }, Screen.Published)
-    | F.Conflict -> ({ state with blocked = true }, Screen.Publish_conflict)
-    | F.Refused_input why -> (state, Screen.Publish_refused ("Observation refused: " ^ why))
-    | F.Uncertain _ -> ({ state with blocked = true }, Screen.Publish_stopped)
+  observation_result state (A.commit_observations ~session:state.session ~base_revision:base rows)

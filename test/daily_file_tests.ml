@@ -54,6 +54,31 @@ let temporaries path =
   |> Array.to_list
   |> List.count ~f:(String.is_substring ~substring:".publish-")
 
+let%expect_test "auxiliary file replacement shares cleanup, never a book previous copy" =
+  let path = fresh_path () in
+  F.with_writer path (fun () -> F.write_atomic path "first\n");
+  F.with_writer path (fun () -> F.write_atomic path "second\n");
+  Stdio.printf "replaced: %b; previous copy: %b\n"
+    (String.equal (F.read path) "second\n")
+    (Stdlib.Sys.file_exists (F.prev_path path));
+  let blocked = fresh_path () in
+  Unix.mkdir blocked 0o700;
+  let before = Stdlib.Sys.readdir (Stdlib.Filename.dirname blocked) |> Array.length in
+  let refused =
+    match F.write_atomic blocked "refused\n" with
+    | () -> false
+    | exception Unix.Unix_error _ -> true
+  in
+  let after = Stdlib.Sys.readdir (Stdlib.Filename.dirname blocked) |> Array.length in
+  Stdio.printf "rename refused: %b; target retained: %b; temporary removed: %b\n" refused
+    (Poly.equal (Unix.lstat blocked).st_kind Unix.S_DIR)
+    (before = after);
+  [%expect
+    {|
+    replaced: true; previous copy: false
+    rename refused: true; target retained: true; temporary removed: true
+    |}]
+
 let%expect_test "each save rewrites book.txt, keeps the previous file and a cold load yields it" =
   let s = ref (start ()) in
   let before = ref (F.read !s.path) in

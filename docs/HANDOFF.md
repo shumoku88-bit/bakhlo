@@ -6,7 +6,15 @@ Per-screen progress: [UI gap ledger](LOAM_UI_GAP_LEDGER.ja.md). Daily-use summar
 [VERIFICATION](VERIFICATION.md). The previous long handoff (per-feature evidence up
 to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
-## Where things stand (2026-10-21)
+## Where things stand (2026-10-27)
+
+- Code-quality pass (2026-10-27): exact amount text has one pure owner; Scheduled
+  Ctrl-U shares Preview's parsing and preserves balanced rows; Record choices use
+  named variants. Store sessions are private records, auxiliary writers share only
+  file replacement, and Observe/roles/Attention retain uncertain revision evidence
+  for reload confirmation. Full checks and fault-injection regressions pass; latest
+  copies at 120×36/80×24 preserve the inspected Bakhlo frames except candidate IDs.
+  [Evidence and limits](VERIFICATION.md#book-publications-retain-one-kind-of-recovery-evidence-2026-10-27).
 
 - Common format with LOAM (user decision 2026-10-24): spec `docs/COMMON_FORMAT.ja.md`,
   fixtures `test/common_format/`, reader/printer `book_txt/` (stage 3, 2026-10-25,

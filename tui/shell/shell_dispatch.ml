@@ -212,12 +212,6 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
       { state with blocked = true; message = Option.value ~default:state.message why }
   | Screen.Publish publication -> (
       let result = execute_publication state publication in
-      let outcome = function
-        | A.Published _ -> Screen.Published
-        | A.Refused why -> Screen.Publish_refused why
-        | A.Conflict | A.Conflict_base_changed -> Screen.Publish_conflict
-        | _ -> Screen.Publish_stopped
-      in
       (* Editor sessions keep their review open and the Shell reports every
          outcome; Loci and Exchange show refusals and conflicts in their form. *)
       let shell_reports =
@@ -231,11 +225,11 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
       let state, request =
         match result with
         | (A.Refused _ | A.Conflict | A.Conflict_base_changed) when not shell_reports ->
-            published state (outcome result)
+            published state (publish_outcome result)
         | _ ->
             published
               (apply_commit_result ?published_message state ~draft:state result)
-              (outcome result)
+              (publish_outcome result)
       in
       let state = apply_request ~saved ~published state request in
       match (publication, result) with

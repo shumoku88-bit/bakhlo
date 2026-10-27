@@ -48,14 +48,23 @@
   成功値・拒否理由を保つ。既存の生成/入力テストで検証する。
 - [x] Record状態：Reviewの操作をvariantで表す。画面段階のoptionの関係を調べ、
   無理のない範囲で暗黙の状態の約束を型へ移す。既存の操作・描画回帰で検証する。
-- [ ] 保存境界：通常記帳・Observe・roles/Attentionの成立不明の証拠と復旧経路を揃える。
+- [x] 保存境界：通常記帳・Observe・roles/Attentionの成立不明の証拠と復旧経路を揃える。
   Daily_fileの公開面と設定/Settlement置換の共通化は、同じ意味を保てる範囲で絞る。
-- [ ] 統合レビュー：正確なdiff、全体check/self-check/整形、変更画面の最新コピー対照、
-  原本非変更を確認する。台帳・検証記録を更新し、検証した単位でcommit/pushと該当CIを確認する。
+- [x] 統合レビュー：正確なdiff、全体check/self-check/整形、変更画面の最新コピー対照、
+  原本非変更を確認する。台帳・検証記録を更新する。
+- [ ] 検証した単位でcommit/pushし、該当CIを確認する。
 
 ### 実装レビュー
 
-進行中。名称の全面変更や将来用の抽象化は先行させず、現在の呼出側が必要とする境界を整える。
+金額の文法は専用の純粋モジュールへ、差額補完はPreviewと同じ解析へ、Recordの有限な選択は
+variantへ整理した。保存sessionはprivate recordで内容・パス・revisionの個別差替えを禁止。
+Observe／roles／Attentionも成立不明のrevisionを保持し、保存成立の確認と無関係なRecordの
+保持を実ファイルの故障注入で検証した。設定／Settlementは置換機構だけを共有した。
+
+全体check・self-check・整形・全体privacy scan成功。最新の同一コピー世代を通常幅と狭幅で
+旧Bakhlo／LOAM／新Bakhloへ開き、Bakhlo前後26画面は候補IDを除き一致。原本／コピー非変更。
+Recordの全phase統合、全エラー型の再設計、Daily_overlaysの分割、旧名前の一括変更は今回に
+含めていない。今回の変更と別の設計判断として扱い、将来用の仕組みは増やしていない。
 
 ## 要判断
 

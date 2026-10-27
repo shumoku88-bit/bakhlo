@@ -33,6 +33,8 @@
   ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp.cmi
   ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp__.cmi
   ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp__Daily_book.cmi
+  ../sexp/.bakhlo_sexp.objs/byte/bakhlo_sexp__Daily_txt.cmi
+  ../store/.bakhlo_store.objs/byte/daily_file.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Identifier.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Quantity.cmi

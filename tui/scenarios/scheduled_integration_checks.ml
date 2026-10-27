@@ -491,12 +491,7 @@ let cancellation_checks ~width_of ~directory home =
   require
     (no_modal guarded && guarded.record = held.record && C.has_record_draft guarded)
     "cancel-does-not-destroy-record-draft";
-  let missing =
-    {
-      selected with
-      session = { selected.session with path = directory ^ "/absent-cancel/book.sexp" };
-    }
-  in
+  let missing = { selected with session = unavailable_session selected.session } in
   let failed = key ~width_of missing `Enter in
   require
     (Cancel.day (editor failed) = "2026-10-16"
@@ -915,9 +910,11 @@ let continuation_checks ~width_of ~directory home =
   require (no_modal done_ && F.read none_path = none_bytes) "continuation-done-never-adds";
   let defer = key ~width_of none `Tab in
   (* A save the writer refuses: the session no longer matches the file. *)
-  let failed =
-    key ~width_of { defer with session = { defer.session with F.revision = "stale" } } `Enter
-  in
+  let stale_session = load_synthetic_book none.session.book in
+  (match F.publish stale_session [ L.Add_locus "concurrent" ] with
+  | F.Written _ -> ()
+  | _ -> raise (F.Refused "continuation-concurrent-fixture"));
+  let failed = key ~width_of { defer with session = stale_session } `Enter in
   require
     (F.read none_path = none_bytes
     && (not failed.record_visible)

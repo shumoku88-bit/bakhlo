@@ -51,7 +51,7 @@ let render_cases state =
                })))
   in
   let book = get (B.put_entry home.session.book ~replace:false entry.entry ~plan:None) in
-  let rich = { home with session = { home.session with book } } in
+  let rich = { home with session = load_synthetic_book book } in
   let reversal = key (C.open_route rich W.Actual) (`ASCII 'x') in
   let reversal_preview = key reversal `Enter in
   let date = key (C.open_route rich W.Actual) (`ASCII 'd') in

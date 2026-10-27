@@ -145,6 +145,26 @@ let materialize_example_book () =
   if Sys.file_exists example_book then Unix.unlink example_book;
   F.write_new example_book bytes
 
+(* Render and navigation fixtures still use real sessions: the admitted book,
+   revision and file stamp always describe the same synthetic file. *)
+let load_synthetic_book book =
+  let directory = Filename.temp_dir ~temp_dir:"scratch" "book-fixture-" "" in
+  let path = Filename.concat directory "book.txt" in
+  let module Text = Bakhlo_sexp.Daily_txt in
+  F.write_new path (Text.text ~sidecars:(Text.sidecars_of book) book);
+  F.load path
+
+(* Exercise a missing destination after a valid load, rather than forging the
+   session's path. The original fixture remains available for later checks. *)
+let unavailable_session (session : F.t) =
+  let directory = Filename.temp_dir ~temp_dir:"scratch" "unavailable-book-" "" in
+  let path = Filename.concat directory "book.txt" in
+  F.create_copy ~source:session.path ~target:path;
+  let loaded = F.load path in
+  Unix.unlink path;
+  Unix.rmdir directory;
+  loaded
+
 (* The open record editor session, whichever route it floats over. *)
 module E = Record_editors
 

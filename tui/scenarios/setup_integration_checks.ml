@@ -37,28 +37,25 @@ let unreadable_roles_checks ~width_of ~directory ~path =
   require
     (match F.load bad_path with _ -> false | exception F.Refused _ -> true)
     "book-with-unreadable-role-refuses";
-  (* A role text the Shell cannot parse is an error, never no roles, and the role-aware
-     screens show the refusal (an in-memory session; no file can carry it). *)
+  (* The store cannot create a session with malformed roles. Exercise the screen's
+     error contract directly instead of constructing an impossible session. *)
   let loaded = F.load book_path in
-  let state =
-    C.initial ~config_home:directory
-      { loaded with sidecars = { loaded.sidecars with roles = "ROLE\twallet\tASSETS\n" } }
+  let state = C.initial ~config_home:directory loaded in
+  let env =
+    { (X.balances_env state) with accounting_roles = lazy (parse "ROLE\twallet\tASSETS\n") }
   in
   require
-    (match Shell_files.accounting_roles state with
+    (match Lazy.force env.accounting_roles with
     | Error why -> Base.String.is_substring why ~substring:"unknown role"
     | Ok _ -> false)
-    "shell-roles-unreadable-is-an-error-not-empty";
-  let balances = C.open_route state W.Balances in
-  let accounting =
-    match H.handle ~dimensions:(100, 30) ~width_of balances (`Key (`ASCII 'v', [])) with
-    | Some next -> next
-    | None -> balances
-  in
+    "roles-unreadable-is-an-error-not-empty";
+  let geometry = X.screen_geometry ~dimensions:(100, 30) ~width_of state in
+  let accounting, _ = Balances.handle env geometry (Balances.create ()) (`Key (`ASCII 'v', [])) in
+  let view = Balances.view env geometry accounting in
   require
     (List.exists
        (fun (_, row) -> Base.String.is_substring row ~substring:"Accounting roles unavailable")
-       (R.screen ~width_of (100, 30) accounting))
+       (Lazy.force view.rows))
     "balances-accounting-shows-unreadable-roles"
 
 let run ~width_of ~directory ~path =
