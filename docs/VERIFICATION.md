@@ -6,6 +6,40 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Amount text has one pure owner (2026-10-27)
+
+- From `086c3aa`: `sexp/amount.ml` owns exact decimal/expression input and display;
+  the public `Daily_book` API still supplies the Measure scale. Positive and signed
+  input retain their different syntax and refusal precedence; decimal conversion is shared.
+- New input-boundary and display/parse tests cover scales 0 through 9 and quantities
+  beyond machine integers. The new tests plus existing `daily_book_tests.ml` ran 28
+  tests successfully; the complete Core/oracle/storage tests also passed.
+- The integrated working tree passed `./tools/check`, `./tools/tui --self-check` and
+  `./tools/format --check`. The first sandboxed run picked up macOS Xcode diagnostics;
+  after clearing generated build output, the unrestricted full run passed. No test
+  expectations were changed to accommodate those diagnostics.
+- No dependency, book format or public input API changed. Latest-copy UI comparison
+  is recorded separately for the integrated recording changes.
+
+## Code quality review (2026-10-27)
+
+- Read-only source review at `086c3aa`, matching remote HEAD; initial tree clean.
+  Inspected Core, book.txt admission, store, TUI owners/kit/protocol/Shell and their tests.
+  No product code changes. Review conclusions are in `tasks/todo.md`.
+- Passed: `./tools/check` (Core, TUI, architecture, privacy),
+  `./tools/tui --self-check`, `./tools/format --check`.
+- A temporary OCaml program linked existing build artifacts and called the public
+  `Scheduled_session.handle` API with synthetic inputs at 80×24 (ASCII width function).
+  Ctrl-U removed the balancing suspense row from `+1000 / -500 / unresolved:-500`;
+  recalculating `+1000 / -400 / unresolved:-500` also left unequal totals.
+  Preview refused both with `Scheduled posting totals differ.`
+  With `+1,000` and an empty second row, Ctrl-U incorrectly said postings were already
+  balanced. Preview refused the incomplete draft. These cases pass through the ordinary
+  amount-input handler; no private state access or household files were used.
+  The existing synthetic suites pass despite these gaps. No erroneous publication was shown.
+- Not executed: latest-data paired comparison, physical-terminal/IME acceptance, P7,
+  power loss. This was a code-quality review, not a behavioral parity or acceptance pass.
+
 ## Optional formatting brought clean, layout only (2026-10-27)
 
 - Scope: the optional ocamlformat target on the main checkout, whose tree was clean at the
