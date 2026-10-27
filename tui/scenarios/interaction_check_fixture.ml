@@ -8,7 +8,6 @@ module F = Daily_file
 module W = Ui_workspace
 module Cal = Daily_calendar
 module M = Ui_commands
-module L = Bakhlo_sexp.Book_log
 
 (* The file revision once the store appends [ops] to [session]. *)
 let expected_after (session : F.t) ops = F.revision_after session ops

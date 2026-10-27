@@ -1,9 +1,7 @@
 (* Synthetic startup/snapshot/save/in-memory response probe. Measurement only:
    Marshal here is a disposable-cache candidate, not a storage format. *)
 module D = Bakhlo_domain
-module M = Bakhlo_sexp.Records
 module B = Bakhlo_sexp.Daily_book
-module L = Bakhlo_sexp.Book_log
 module T = Bakhlo_book_txt.Book_txt
 module F = Daily_file
 
@@ -173,7 +171,7 @@ let () =
           get (B.correct_entry_date b ~id:"tx-000001" ~day:"2030-01-02"));
       let merchant = id (D.Identifier.External_party.of_string "probe-merchant") in
       median "classify_merchant (first)" 21 (fun () ->
-          get (B.classify_merchant b ~id:"tx-000001" ~disposition:(M.Merchant merchant)));
+          get (B.classify_merchant b ~id:"tx-000001" ~disposition:(B.Merchant merchant)));
       median "observe" 21 (fun () ->
           get (B.observe_quantities b [ ("wallet", "jpy", Z.of_int 5000) ]));
       median "balance query" 101 (fun () -> balance b);
@@ -188,7 +186,7 @@ let () =
       median "save (whole file + full sync)" 21 (fun () ->
           incr n;
           let e = { e with id = Printf.sprintf "save-%d" !n; day = "2030-01-02" } in
-          match F.publish !session [ L.Put_entry { replace = false; entry = e; plan = None } ] with
+          match F.publish !session [ B.Put_entry { replace = false; entry = e; plan = None } ] with
           | F.Written s -> session := s
           | _ -> failwith "save-refused")
   | _ ->

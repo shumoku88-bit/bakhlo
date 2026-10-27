@@ -911,7 +911,7 @@ let continuation_checks ~width_of ~directory home =
   let defer = key ~width_of none `Tab in
   (* A save the writer refuses: the session no longer matches the file. *)
   let stale_session = load_synthetic_book none.session.book in
-  (match F.publish stale_session [ L.Add_locus "concurrent" ] with
+  (match F.publish stale_session [ B.Add_locus "concurrent" ] with
   | F.Written _ -> ()
   | _ -> raise (F.Refused "continuation-concurrent-fixture"));
   let failed = key ~width_of { defer with session = stale_session } `Enter in
@@ -958,7 +958,7 @@ let continuation_checks ~width_of ~directory home =
     | S.Publish (Daily_actions.Entry_tx tx, _, _) -> tx
     | _ -> raise (F.Refused "continuation-uncertain-intent")
   in
-  let op = [ L.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ] in
+  let op = [ B.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ] in
   let unknown =
     C.apply_commit_result ~record_publication:true pay ~draft:pay
       (Daily_actions.Uncertain

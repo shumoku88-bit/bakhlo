@@ -5,7 +5,6 @@
    admitted book keeps. Pure. *)
 module D = Bakhlo_domain
 module T = Bakhlo_book_txt.Book_txt
-module M = Records
 module Smap = Map.Make (String)
 module Imap = Map.Make (Int)
 
@@ -21,7 +20,11 @@ let lstr = D.Identifier.Locus.to_string
 let mstr = D.Identifier.Measure.to_string
 let valid_date day = require (T.valid_date day) "invalid-date"
 
-type entry = Records.entry = {
+(* Whom the household regards as supplying what an entry acquired: a party, or
+   explicitly nobody. An entry without one is unclassified. *)
+type disposition = Merchant of D.Identifier.External_party.t | Nonmerchant
+
+type entry = {
   id : string;
   day : string;
   memo : string option;
@@ -29,10 +32,10 @@ type entry = Records.entry = {
   reversal_of : string option;
   exchange : (string * string) option;
   original_amount : (string * Z.t) option;
-  merchant : M.disposition option;
+  merchant : disposition option;
 }
 
-type plan = Records.plan = {
+type plan = {
   id : string;
   day : string;
   measure : string;
@@ -99,8 +102,8 @@ let entry_of (tx : T.tx) : entry =
     merchant =
       Option.map
         (function
-          | T.Merchant s -> M.Merchant (get "merchant-id" (D.Identifier.External_party.of_string s))
-          | T.Nonmerchant -> M.Nonmerchant)
+          | T.Merchant s -> Merchant (get "merchant-id" (D.Identifier.External_party.of_string s))
+          | T.Nonmerchant -> Nonmerchant)
         tx.merchant;
   }
 
@@ -130,8 +133,8 @@ let tx_of_entry (e : entry) : T.tx =
     merchant =
       Option.map
         (function
-          | M.Merchant p -> T.Merchant (D.Identifier.External_party.to_string p)
-          | M.Nonmerchant -> T.Nonmerchant)
+          | Merchant p -> T.Merchant (D.Identifier.External_party.to_string p)
+          | Nonmerchant -> T.Nonmerchant)
         e.merchant;
     exchange = Option.map (fun (s, d) -> (measure_of s, measure_of d)) e.exchange;
   }
@@ -515,11 +518,11 @@ let classify_merchant t ~id ~disposition =
       in
       require (old.merchant = None) merchant_classified;
       (match disposition with
-      | M.Merchant p ->
+      | Merchant p ->
           require
             (valid_token (D.Identifier.External_party.to_string p))
             "loam: Merchant party token must be a non-empty single text field"
-      | M.Nonmerchant -> ());
+      | Nonmerchant -> ());
       let e = { old with merchant = Some disposition } in
       with_entry t (commit t [ T.Replace_tx (tx_of e) ]) e ~replace:true)
 
@@ -645,3 +648,28 @@ let with_sections t ~roles ~items ~closes =
   match T.change t.txt [ T.Set_roles roles; T.Set_attention (items, closes) ] with
   | Ok txt -> Ok { t with txt }
   | Error code -> Error ("book-txt-" ^ code)
+
+(* ---- publication ---- *)
+
+type change =
+  | Put_entry of { replace : bool; entry : entry; plan : string option }
+  | Correct_entry_date of { id : string; day : string }
+  | Put_plan of { replace : bool; plan : plan }
+  | Cancel_plan of { id : string; day : string }
+  | Observe of (string * string * Z.t) list
+  | Add_locus of string
+  | Set_locus_label of { id : string; label : string; help : string option }
+  | Classify_merchant of { id : string; disposition : disposition }
+
+let apply_one t = function
+  | Put_entry { replace; entry; plan } -> put_entry t ~replace entry ~plan
+  | Correct_entry_date { id; day } -> correct_entry_date t ~id ~day
+  | Put_plan { replace; plan } -> put_plan t ~replace plan
+  | Cancel_plan { id; day } -> cancel_plan t ~id ~day
+  | Observe rows -> observe_quantities t rows
+  | Add_locus id -> add_locus t id
+  | Set_locus_label { id; label; help } -> set_locus_label t ~id ~label ?help ()
+  | Classify_merchant { id; disposition } -> classify_merchant t ~id ~disposition
+
+let apply t changes =
+  List.fold_left (fun t c -> Result.bind t (fun t -> apply_one t c)) (Ok t) changes

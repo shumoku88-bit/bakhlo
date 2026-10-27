@@ -31,13 +31,13 @@ val publish :
   ?checkpoint:(publication_step -> unit) ->
   ?sidecars:Bakhlo_sexp.Daily_txt.sidecars ->
   t ->
-  Bakhlo_sexp.Book_log.op list ->
+  Bakhlo_sexp.Daily_book.change list ->
   outcome
 (** Admit changes, refuse a changed file, then durably replace and read back.
     [checkpoint] is for deterministic fault and interruption checks. *)
 
 val revision_after :
-  ?sidecars:Bakhlo_sexp.Daily_txt.sidecars -> t -> Bakhlo_sexp.Book_log.op list -> string
+  ?sidecars:Bakhlo_sexp.Daily_txt.sidecars -> t -> Bakhlo_sexp.Daily_book.change list -> string
 (** The expected revision of the admitted candidate, without writing it. *)
 
 val confirms : expected:string -> t -> bool

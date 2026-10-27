@@ -836,7 +836,7 @@ let reversal_checks ~width_of ~directory home =
   | _ -> raise (F.Refused "reversal-compact-end-bypassed-gate"));
   let changed_target = { target with memo = Some "Concurrent correction" } in
   (match
-     F.publish base.session [ L.Put_entry { replace = true; entry = changed_target; plan = None } ]
+     F.publish base.session [ B.Put_entry { replace = true; entry = changed_target; plan = None } ]
    with
   | F.Written _ -> ()
   | _ -> raise (F.Refused "reversal-conflict-setup"));
@@ -888,7 +888,7 @@ let reversal_checks ~width_of ~directory home =
   let unknown_review = key ~width_of (key ~width_of unknown_base (`ASCII 'x')) `Enter in
   let unknown_op =
     [
-      L.Put_entry
+      B.Put_entry
         { replace = false; entry = { reversal with id = "unknown-reversal" }; plan = None };
     ]
   in
@@ -1206,11 +1206,7 @@ let date_correction_checks ~width_of ~directory home =
   require
     (no_modal merchant_saved
     && merchant_target
-       = {
-           retained_target with
-           day = "2026-10-09";
-           merchant = Some (Bakhlo_sexp.Records.Merchant party);
-         }
+       = { retained_target with day = "2026-10-09"; merchant = Some (B.Merchant party) }
     && B.plans merchant_cold.book = B.plans retained_book
     && B.approved_loci merchant_cold.book = Some [ "wallet"; "bank" ])
     "retained-locus-merchant-cold-preserves-identity-effects-link-original-amount";
@@ -1494,7 +1490,6 @@ let original_amount_integration_checks ~width_of ~directory () =
      unknown result."
 
 let event_merchant_integration_checks ~width_of ~directory () =
-  let module EM = Bakhlo_sexp.Records in
   let dir = directory ^ "/event-merchant-integration" in
   let contains rows needle =
     List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) rows
@@ -1670,8 +1665,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   let cold_session = F.load path in
   let cold_e1 = Option.get (B.find_entry cold_session.book "e1") in
   require
-    (cold_e1.merchant
-    = Some (EM.Merchant (C.get_id (D.Identifier.External_party.of_string "sanwa"))))
+    (cold_e1.merchant = Some (B.Merchant (C.get_id (D.Identifier.External_party.of_string "sanwa"))))
     "merch-cold-verified";
 
   (* Detail view in Actual displays 'Merchant: Merchant sanwa' *)
@@ -1714,7 +1708,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
     }
   in
   let _ =
-    match F.publish cold_session [ L.Put_entry { replace = false; entry = e2; plan = None } ] with
+    match F.publish cold_session [ B.Put_entry { replace = false; entry = e2; plan = None } ] with
     | F.Written s -> s
     | _ -> failwith "pub-e2-fail"
   in
@@ -1727,7 +1721,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   require (e2_pub.message = "Published Nonmerchant for e2.") "merch-e2-pub-message";
   let cold_e2_sess = F.load path in
   let cold_e2 = Option.get (B.find_entry cold_e2_sess.book "e2") in
-  require (cold_e2.merchant = Some EM.Nonmerchant) "merch-e2-cold-nonmerchant";
+  require (cold_e2.merchant = Some B.Nonmerchant) "merch-e2-cold-nonmerchant";
 
   (* 5. Selected Day workspace integration *)
   let e3 : B.entry =
@@ -1755,7 +1749,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
     }
   in
   let _ =
-    match F.publish cold_e2_sess [ L.Put_entry { replace = false; entry = e3; plan = None } ] with
+    match F.publish cold_e2_sess [ B.Put_entry { replace = false; entry = e3; plan = None } ] with
     | F.Written s -> s
     | _ -> failwith "pub-e3-fail"
   in
@@ -1785,7 +1779,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   let orig_entry = Option.get (B.find_entry post_rev_session.book "e3") in
   require
     (orig_entry.merchant
-    = Some (EM.Merchant (C.get_id (D.Identifier.External_party.of_string "bakery"))))
+    = Some (B.Merchant (C.get_id (D.Identifier.External_party.of_string "bakery"))))
     "original-entry-retains-merchant";
 
   (* 7. Save failure retains draft *)
@@ -1815,7 +1809,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   in
   let _ =
     match
-      F.publish post_rev_session [ L.Put_entry { replace = false; entry = e_unclass; plan = None } ]
+      F.publish post_rev_session [ B.Put_entry { replace = false; entry = e_unclass; plan = None } ]
     with
     | F.Written s -> s
     | _ -> failwith "pub-unclass-fail"

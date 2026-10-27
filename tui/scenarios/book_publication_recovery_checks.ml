@@ -2,7 +2,6 @@
    lost. Actual writer checkpoints exercise both an unlanded and a landed save. *)
 open Interaction_check_fixture
 module A = Daily_actions
-module L = Bakhlo_sexp.Book_log
 
 let run ~width_of ~directory () =
   let fresh name =
@@ -54,7 +53,7 @@ let run ~width_of ~directory () =
       [ F.Temp_written; F.Replaced ]
   in
   check "observe"
-    [ L.Observe [ ("wallet", "jpy", Z.of_int 2345) ] ]
+    [ B.Observe [ ("wallet", "jpy", Z.of_int 2345) ] ]
     None
     (fun state result -> fst (Shell_publication.observation_result state result));
   let roles : Bakhlo_sexp.Daily_txt.sidecars =

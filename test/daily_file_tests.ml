@@ -5,7 +5,6 @@ open Base
 module F = Daily_file
 module B = Bakhlo_sexp.Daily_book
 module X = Bakhlo_sexp.Daily_txt
-module L = Bakhlo_sexp.Book_log
 module O = Daily_book_oracle_tests
 
 let get = function Ok x -> x | Error why -> failwith why
@@ -31,7 +30,7 @@ let entry n : B.entry =
     merchant = None;
   }
 
-let put n = L.Put_entry { replace = false; entry = entry n; plan = None }
+let put n = B.Put_entry { replace = false; entry = entry n; plan = None }
 let book_text (s : F.t) = O.text_of s.book
 let written = function F.Written s -> s | _ -> failwith "expected Written"
 
@@ -102,7 +101,7 @@ let%expect_test "each save rewrites book.txt, keeps the previous file and a cold
 let%expect_test "a saved date correction survives a cold load and preserves the entry" =
   let s = historical_start () in
   let before = find_entry s.book "init" in
-  let saved = written (F.publish s [ L.Correct_entry_date { id = "init"; day = "2026-10-09" } ]) in
+  let saved = written (F.publish s [ B.Correct_entry_date { id = "init"; day = "2026-10-09" } ]) in
   let cold = F.load saved.path in
   let after = find_entry cold.book "init" in
   Stdio.printf "date %s; all other fields preserved: %b; same book: %b\n" after.day
@@ -114,9 +113,9 @@ let%expect_test "a refused date correction writes nothing" =
   let s = historical_start () in
   let before = F.read s.path in
   Stdio.printf "unknown: %s\n"
-    (describe (F.publish s [ L.Correct_entry_date { id = "missing"; day = "2026-10-09" } ]));
+    (describe (F.publish s [ B.Correct_entry_date { id = "missing"; day = "2026-10-09" } ]));
   Stdio.printf "invalid date: %s\n"
-    (describe (F.publish s [ L.Correct_entry_date { id = "init"; day = "2026-02-30" } ]));
+    (describe (F.publish s [ B.Correct_entry_date { id = "init"; day = "2026-02-30" } ]));
   Stdio.printf "unchanged: %b\n" (String.equal before (F.read s.path));
   [%expect
     {|

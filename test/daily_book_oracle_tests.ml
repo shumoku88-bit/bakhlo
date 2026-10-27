@@ -8,7 +8,6 @@
 open Base
 module B = Bakhlo_sexp.Daily_book
 module D = Bakhlo_domain
-module M = Bakhlo_sexp.Records
 module R = Stdlib.Random.State
 
 let get = function Ok x -> x | Error why -> failwith why
@@ -105,25 +104,24 @@ let fresh_entry st id : B.entry =
     merchant = None;
   }
 
-(* The oracle drives exactly the operations a book log records. *)
-open Bakhlo_sexp.Book_log
+(* The oracle drives exactly the changes the Shell publishes. *)
 
 let describe = function
-  | Put_entry { replace; entry; plan } ->
+  | B.Put_entry { replace; entry; plan } ->
       Printf.sprintf "put replace=%b id=%s day=%s rev=%s plan=%s effects=%d" replace entry.id
         entry.day
         (Option.value entry.reversal_of ~default:"-")
         (Option.value plan ~default:"-") (List.length entry.effects)
-  | Correct_entry_date { id; day } -> Printf.sprintf "correct_date %s %s" id day
-  | Observe rows ->
+  | B.Correct_entry_date { id; day } -> Printf.sprintf "correct_date %s %s" id day
+  | B.Observe rows ->
       "observe "
       ^ String.concat ~sep:","
           (List.map rows ~f:(fun (l, m, q) -> Printf.sprintf "%s/%s=%s" l m (Z.to_string q)))
-  | Put_plan { replace; plan } -> Printf.sprintf "put_plan replace=%b id=%s" replace plan.id
-  | Cancel_plan { id; day } -> Printf.sprintf "cancel_plan %s %s" id day
-  | Add_locus l -> "add_locus " ^ l
-  | Classify_merchant { id; _ } -> "classify " ^ id
-  | Set_locus_label { id; label; _ } -> Printf.sprintf "label %s %S" id label
+  | B.Put_plan { replace; plan } -> Printf.sprintf "put_plan replace=%b id=%s" replace plan.id
+  | B.Cancel_plan { id; day } -> Printf.sprintf "cancel_plan %s %s" id day
+  | B.Add_locus l -> "add_locus " ^ l
+  | B.Classify_merchant { id; _ } -> "classify " ^ id
+  | B.Set_locus_label { id; label; _ } -> Printf.sprintf "label %s %S" id label
 
 let generate st book =
   let existing () =
@@ -134,7 +132,7 @@ let generate st book =
   match R.int st 100 with
   | n when n < 30 ->
       let plan = if chance st 15 then Some (pick st plan_ids) else None in
-      Put_entry { replace = false; entry = fresh_entry st (pick st entry_ids); plan }
+      B.Put_entry { replace = false; entry = fresh_entry st (pick st entry_ids); plan }
   | n when n < 35 ->
       (* Exchange: keyed source and destination in two Measures; sometimes malformed. *)
       let a = 1 + R.int st 5000 and b = 1 + R.int st 50 in
@@ -154,14 +152,14 @@ let generate st book =
           original_amount = None;
         }
       in
-      Put_entry { replace = false; entry; plan = None }
+      B.Put_entry { replace = false; entry; plan = None }
   | n when n < 40 -> (
       match existing () with
-      | None -> Correct_entry_date { id = "nobody"; day = day st }
-      | Some old -> Correct_entry_date { id = old.id; day = day st })
+      | None -> B.Correct_entry_date { id = "nobody"; day = day st }
+      | Some old -> B.Correct_entry_date { id = old.id; day = day st })
   | n when n < 55 -> (
       match existing () with
-      | None -> Add_locus "ghost"
+      | None -> B.Add_locus "ghost"
       | Some old ->
           let entry =
             if chance st 15 then
@@ -175,7 +173,7 @@ let generate st book =
             else if chance st 50 then { old with day = day st }
             else { (fresh_entry st old.id) with reversal_of = old.reversal_of }
           in
-          Put_entry
+          B.Put_entry
             {
               replace = true;
               entry;
@@ -183,7 +181,7 @@ let generate st book =
             })
   | n when n < 68 -> (
       match existing () with
-      | None -> Add_locus "ghost"
+      | None -> B.Add_locus "ghost"
       | Some target ->
           let entry =
             {
@@ -193,10 +191,10 @@ let generate st book =
               original_amount = None;
             }
           in
-          Put_entry { replace = false; entry; plan = None })
+          B.Put_entry { replace = false; entry; plan = None })
   | n when n < 80 ->
       let row () = (pick st loci, pick st measures, Z.of_int (R.int st 200_000 - 50_000)) in
-      Observe (if chance st 30 then [ row (); row () ] else [ row () ])
+      B.Observe (if chance st 30 then [ row (); row () ] else [ row () ])
   | n when n < 88 ->
       let a = Z.of_int (1 + R.int st 9000) in
       let plan : B.plan =
@@ -209,12 +207,12 @@ let generate st book =
           cancelled_on = None;
         }
       in
-      Put_plan { replace = chance st 50; plan }
-  | n when n < 94 -> Cancel_plan { id = pick st plan_ids; day = day st }
-  | n when n < 95 -> Add_locus "ghost"
+      B.Put_plan { replace = chance st 50; plan }
+  | n when n < 94 -> B.Cancel_plan { id = pick st plan_ids; day = day st }
+  | n when n < 95 -> B.Add_locus "ghost"
   | n when n < 97 ->
       let label = pick st [| "Wallet"; ""; "  "; "Bad\nline" |] in
-      Set_locus_label
+      B.Set_locus_label
         {
           id = pick st loci;
           label;
@@ -223,12 +221,12 @@ let generate st book =
   | _ ->
       let id = match existing () with Some e when chance st 80 -> e.id | _ -> "nobody" in
       let disposition =
-        if chance st 50 then M.Nonmerchant
-        else M.Merchant (ident D.Identifier.External_party.of_string "shop")
+        if chance st 50 then B.Nonmerchant
+        else B.Merchant (ident D.Identifier.External_party.of_string "shop")
       in
-      Classify_merchant { id; disposition }
+      B.Classify_merchant { id; disposition }
 
-let apply = apply
+let apply book change = B.apply book [ change ]
 
 (* The book's facts: the exact book.txt it saves, sections included. *)
 let facts_text book = Bakhlo_book_txt.Book_txt.print (B.txt book)
@@ -294,18 +292,18 @@ let check ~seed ~step ~trace label a b =
 
 (* Kind of each operation, to show the generator admits every family. *)
 let kind = function
-  | Put_entry { replace = true; _ } -> "replace"
-  | Put_entry { entry = { reversal_of = Some _; _ }; _ } -> "reversal"
-  | Put_entry { entry = { exchange = Some _; _ }; replace = false; _ } -> "exchange"
-  | Put_entry { plan = Some _; _ } -> "plan payment"
-  | Put_entry _ -> "record"
-  | Correct_entry_date _ -> "correct_date"
-  | Observe _ -> "observe"
-  | Put_plan _ -> "put_plan"
-  | Cancel_plan _ -> "cancel_plan"
-  | Add_locus _ -> "add_locus"
-  | Set_locus_label _ -> "label"
-  | Classify_merchant _ -> "classify"
+  | B.Put_entry { replace = true; _ } -> "replace"
+  | B.Put_entry { entry = { reversal_of = Some _; _ }; _ } -> "reversal"
+  | B.Put_entry { entry = { exchange = Some _; _ }; replace = false; _ } -> "exchange"
+  | B.Put_entry { plan = Some _; _ } -> "plan payment"
+  | B.Put_entry _ -> "record"
+  | B.Correct_entry_date _ -> "correct_date"
+  | B.Observe _ -> "observe"
+  | B.Put_plan _ -> "put_plan"
+  | B.Cancel_plan _ -> "cancel_plan"
+  | B.Add_locus _ -> "add_locus"
+  | B.Set_locus_label _ -> "label"
+  | B.Classify_merchant _ -> "classify"
 
 let agree ~seed ~step ~trace label a b =
   match (a, b) with
@@ -384,11 +382,11 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
   Stdio.printf "date succeeds and changes only date: %b\n"
     (String.equal after_date.day "2026-10-02"
     && Poly.equal { after_date with day = initial.day } initial);
-  let classified = B.classify_merchant base ~id:"init" ~disposition:M.Nonmerchant in
+  let classified = B.classify_merchant base ~id:"init" ~disposition:B.Nonmerchant in
   let classified_book = get classified in
   let after_merchant = Option.value_exn (B.find_entry classified_book "init") in
   Stdio.printf "Merchant succeeds and changes only Merchant: %b\n"
-    (Poly.equal after_merchant.merchant (Some M.Nonmerchant)
+    (Poly.equal after_merchant.merchant (Some B.Nonmerchant)
     && Poly.equal { after_merchant with merchant = initial.merchant } initial);
   let correction =
     B.put_entry base ~replace:true { initial with memo = Some "edited" } ~plan:None
@@ -407,12 +405,12 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
   Stdio.printf "unknown date target: %s\n"
     (result_text (B.correct_entry_date base ~id:"nobody" ~day:"2026-10-02"));
   Stdio.printf "unknown Merchant target: %s\n"
-    (result_text (B.classify_merchant base ~id:"nobody" ~disposition:M.Nonmerchant));
+    (result_text (B.classify_merchant base ~id:"nobody" ~disposition:B.Nonmerchant));
   Stdio.printf "duplicate Merchant: %s\n"
-    (result_text (B.classify_merchant classified_book ~id:"init" ~disposition:M.Nonmerchant));
+    (result_text (B.classify_merchant classified_book ~id:"init" ~disposition:B.Nonmerchant));
   let bad_party = ident D.Identifier.External_party.of_string "bad\tparty" in
   Stdio.printf "invalid Merchant token: %s\n"
-    (result_text (B.classify_merchant base ~id:"init" ~disposition:(M.Merchant bad_party)));
+    (result_text (B.classify_merchant base ~id:"init" ~disposition:(B.Merchant bad_party)));
   [%expect
     {|
     date succeeds and changes only date: true

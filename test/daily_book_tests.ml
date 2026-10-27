@@ -1060,7 +1060,6 @@ let%expect_test
   |}]
 
 let%expect_test "event merchant classification LOAM-compatible end-to-end semantics" =
-  let module M = Bakhlo_sexp.Records in
   let base = book_of_txt fixture in
   let e1 : B.entry =
     {
@@ -1095,21 +1094,21 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
 
   let party_shop = party "coffee-shop" in
   let classified_shop =
-    get (B.classify_merchant book ~id:"e_merch" ~disposition:(M.Merchant party_shop))
+    get (B.classify_merchant book ~id:"e_merch" ~disposition:(B.Merchant party_shop))
   in
   let entry_shop = Option.value_exn (B.find_entry classified_shop "e_merch") in
   (match entry_shop.merchant with
-  | Some (M.Merchant p) ->
+  | Some (B.Merchant p) ->
       Stdio.printf "classified merchant: %s\n" (D.Identifier.External_party.to_string p)
   | _ -> Stdio.printf "unexpected merchant state\n");
 
   (* 3. Nonmerchant classification *)
   let classified_both =
-    get (B.classify_merchant classified_shop ~id:"e_nonmerch" ~disposition:M.Nonmerchant)
+    get (B.classify_merchant classified_shop ~id:"e_nonmerch" ~disposition:B.Nonmerchant)
   in
   let entry_nonmerch = Option.value_exn (B.find_entry classified_both "e_nonmerch") in
   (match entry_nonmerch.merchant with
-  | Some M.Nonmerchant -> Stdio.printf "classified nonmerchant: true\n"
+  | Some B.Nonmerchant -> Stdio.printf "classified nonmerchant: true\n"
   | _ -> Stdio.printf "unexpected nonmerchant state\n");
 
   (* 4. book.txt round trip *)
@@ -1126,13 +1125,13 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
     (Poly.equal cold_e2.merchant entry_nonmerch.merchant);
 
   (* 5. Duplicate refusal: reclassification / replacement explicitly rejected *)
-  let repeat_res = B.classify_merchant classified_both ~id:"e_merch" ~disposition:M.Nonmerchant in
+  let repeat_res = B.classify_merchant classified_both ~id:"e_merch" ~disposition:B.Nonmerchant in
   Stdio.printf "repeat classification refused: %s\n"
     (match repeat_res with Error e -> e | Ok _ -> "ok");
 
   let replace_res =
     B.put_entry classified_both ~replace:true
-      { entry_shop with merchant = Some M.Nonmerchant }
+      { entry_shop with merchant = Some B.Nonmerchant }
       ~plan:None
   in
   Stdio.printf "put_entry replacing merchant refused: %s\n"
@@ -1148,14 +1147,14 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
 
   (* 6. Unknown event refusal *)
   let unknown_res =
-    B.classify_merchant classified_both ~id:"nonexistent" ~disposition:M.Nonmerchant
+    B.classify_merchant classified_both ~id:"nonexistent" ~disposition:B.Nonmerchant
   in
   Stdio.printf "unknown event refused: %s\n" (match unknown_res with Error e -> e | Ok _ -> "ok");
 
   (* 7. Invalid party ID refusal *)
   let bad_tab_party = party "bad\tshop" in
   let bad_tab_res =
-    B.classify_merchant book ~id:"e_merch" ~disposition:(M.Merchant bad_tab_party)
+    B.classify_merchant book ~id:"e_merch" ~disposition:(B.Merchant bad_tab_party)
   in
   Stdio.printf "party with tab refused: %s\n" (match bad_tab_res with Error e -> e | Ok _ -> "ok");
   (* 8. Reversal noninheritance: reversing classified entry produces unresolved reversal *)

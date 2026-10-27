@@ -7,7 +7,11 @@
 module D = Bakhlo_domain
 module T = Bakhlo_book_txt.Book_txt
 
-type entry = Records.entry = {
+(** Whom the household regards as supplying what an entry acquired: a party, or
+    explicitly nobody. An entry without one is unclassified. *)
+type disposition = Merchant of D.Identifier.External_party.t | Nonmerchant
+
+type entry = {
   id : string;
   day : string;
   memo : string option;
@@ -15,10 +19,10 @@ type entry = Records.entry = {
   reversal_of : string option;
   exchange : (string * string) option;  (** Source and destination Effect keys. *)
   original_amount : (string * Z.t) option;
-  merchant : Records.disposition option;
+  merchant : disposition option;
 }
 
-type plan = Records.plan = {
+type plan = {
   id : string;
   day : string;
   measure : string;
@@ -138,7 +142,7 @@ val put_entry : t -> replace:bool -> entry -> plan:string option -> (t, string) 
 val correct_entry_date : t -> id:string -> day:string -> (t, string) result
 (** Only the date; a Locus no longer offered may stay. *)
 
-val classify_merchant : t -> id:string -> disposition:Records.disposition -> (t, string) result
+val classify_merchant : t -> id:string -> disposition:disposition -> (t, string) result
 (** First classification only. *)
 
 val put_plan : t -> replace:bool -> plan -> (t, string) result
@@ -166,3 +170,21 @@ val with_sections :
   closes:T.close list ->
   (t, string) result
 (** Replace the accounting roles and the Attention items and closes. *)
+
+(** {1 Publication} *)
+
+(** The changes the Shell publishes, with every input they need (identities and dates
+    included), so applying them is deterministic. Each is the change above of the same
+    name. *)
+type change =
+  | Put_entry of { replace : bool; entry : entry; plan : string option }
+  | Correct_entry_date of { id : string; day : string }
+  | Put_plan of { replace : bool; plan : plan }
+  | Cancel_plan of { id : string; day : string }
+  | Observe of (string * string * Z.t) list
+  | Add_locus of string
+  | Set_locus_label of { id : string; label : string; help : string option }
+  | Classify_merchant of { id : string; disposition : disposition }
+
+val apply : t -> change list -> (t, string) result
+(** All changes in order, or the first refusal; never a partial book. *)

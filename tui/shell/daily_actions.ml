@@ -1,7 +1,7 @@
 (* Single publication coordinator. Pure candidate construction lives in Daily_draft. *)
 include Daily_draft
 module F = Daily_file
-module L = Bakhlo_sexp.Book_log
+module B = Bakhlo_sexp.Daily_book
 
 (* Transitional caller adapters preserve existing controller/test contracts. *)
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
@@ -31,8 +31,8 @@ let publication_result = function
   | F.Uncertain { expected } ->
       Uncertain { message = tr "Save outcome is uncertain."; evidence = Expected_revision expected }
 
-let publish_ops ?sidecars ~session ops : commit_result =
-  try publication_result (F.publish ?sidecars session ops) with
+let publish_changes ?sidecars ~session changes : commit_result =
+  try publication_result (F.publish ?sidecars session changes) with
   | Unix.Unix_error (err, fn, arg) ->
       Storage_failed (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
   | Sys_error msg -> Storage_failed msg
@@ -40,11 +40,12 @@ let publish_ops ?sidecars ~session ops : commit_result =
 let commit_transaction ~session ~base_revision (tx : transaction) : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
   else
-    publish_ops ~session [ L.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ]
+    publish_changes ~session
+      [ B.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ]
 
 let commit_plan ~session ~base_revision ~replace (plan : B.plan) : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
-  else publish_ops ~session [ L.Put_plan { replace; plan } ]
+  else publish_changes ~session [ B.Put_plan { replace; plan } ]
 
 let commit_plan_batch ?(replace = true) ~session ~base_revision (plans : B.plan list) :
     commit_result =
@@ -54,11 +55,11 @@ let commit_plan_batch ?(replace = true) ~session ~base_revision (plans : B.plan 
     let ids = List.map (fun (p : B.plan) -> p.id) plans in
     if List.length (List.sort_uniq String.compare ids) <> List.length ids then
       Refused (tr "A Scheduled occurrence may be selected only once.")
-    else publish_ops ~session (List.map (fun plan -> L.Put_plan { replace; plan }) plans)
+    else publish_changes ~session (List.map (fun plan -> B.Put_plan { replace; plan }) plans)
 
 let commit_cancel_plan ~session ~base_revision ~id ~day : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
-  else publish_ops ~session [ L.Cancel_plan { id; day } ]
+  else publish_changes ~session [ B.Cancel_plan { id; day } ]
 
 let commit_reverse_entry ~session ~base_revision ~id ~day : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
@@ -95,21 +96,22 @@ let commit_reverse_entry ~session ~base_revision ~id ~day : commit_result =
               merchant = None;
             }
           in
-          publish_ops ~session [ L.Put_entry { replace = false; entry = reversal; plan = None } ]
+          publish_changes ~session
+            [ B.Put_entry { replace = false; entry = reversal; plan = None } ]
 
 let commit_correct_entry_date ~session ~base_revision ~id ~day : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
-  else publish_ops ~session [ L.Correct_entry_date { id; day } ]
+  else publish_changes ~session [ B.Correct_entry_date { id; day } ]
 
 let commit_observations ~session ~base_revision rows : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
-  else publish_ops ~session [ L.Observe rows ]
+  else publish_changes ~session [ B.Observe rows ]
 
-let commit_sidecars ~session sidecars : commit_result = publish_ops ~sidecars ~session []
+let commit_sidecars ~session sidecars : commit_result = publish_changes ~sidecars ~session []
 
 let commit_classify_merchant ~session ~base_revision ~id ~disposition : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
-  else publish_ops ~session [ L.Classify_merchant { id; disposition } ]
+  else publish_changes ~session [ B.Classify_merchant { id; disposition } ]
 
 let commit_payload ~session ~base_revision = function
   | Entry_tx tx -> commit_transaction ~session ~base_revision tx
@@ -117,13 +119,13 @@ let commit_payload ~session ~base_revision = function
 
 let commit_set_locus_label ~session ~base_revision ~id ~label ?help () : commit_result =
   if base_revision <> session.F.revision then Conflict_base_changed
-  else publish_ops ~session [ L.Set_locus_label { id; label; help } ]
+  else publish_changes ~session [ B.Set_locus_label { id; label; help } ]
 
 let commit_add_locus ~session name : commit_result =
   let name = String.trim name in
   if String.equal name "" then Refused (tr "Enter the new Locus token.")
   else
-    match publish_ops ~session [ L.Add_locus name ] with
+    match publish_changes ~session [ B.Add_locus name ] with
     | Refused "duplicate-locus" -> Refused (format_message "Locus %s is already admitted." name)
     | Refused "locus-policy-not-supplied" -> Refused (tr "Locus admission policy is not supplied.")
     | Refused why -> Refused (format_message "Locus admission refused (%s)" why)

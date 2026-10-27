@@ -43,30 +43,6 @@ module Effect_key : sig
   include Base.Comparator.S with type t := t
 end
 
-(** 独立した関係単位の識別子 *)
-module Relation : sig
-  type t
-
-  val of_string : string -> (t, error) result
-  val to_string : t -> string
-  val equal : t -> t -> bool
-  val compare : t -> t -> int
-
-  include Base.Comparator.S with type t := t
-end
-
-(** 日付改訂の主張を識別するための識別子 *)
-module Validity_revision : sig
-  type t
-
-  val of_string : string -> (t, error) result
-  val to_string : t -> string
-  val equal : t -> t -> bool
-  val compare : t -> t -> int
-
-  include Base.Comparator.S with type t := t
-end
-
 (** 事象（取引・記録）そのものの識別子（例: "E1", "tx-2024-001"） *)
 module Event : sig
   type t

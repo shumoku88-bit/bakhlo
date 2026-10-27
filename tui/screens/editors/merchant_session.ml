@@ -1,5 +1,4 @@
 module B = Bakhlo_sexp.Daily_book
-module M = Bakhlo_sexp.Records
 module D = Bakhlo_domain
 module O = Daily_overlays
 module Panel = Ui_panel
@@ -17,7 +16,7 @@ type t = {
   base_revision : string;
 }
 
-type outcome = Updated of t | Closed | Publish of string * M.disposition * string
+type outcome = Updated of t | Closed | Publish of string * B.disposition * string
 
 let create ~base_revision (entry : B.entry) : t =
   {
@@ -55,9 +54,9 @@ let draft_disposition t =
         Error "Merchant party id must be a non-empty single text field."
       else
         match D.Identifier.External_party.of_string t.party_input with
-        | Ok p -> Ok (M.Merchant p)
+        | Ok p -> Ok (B.Merchant p)
         | Error _ -> Error "Merchant party id must be a non-empty single text field.")
-  | Nonmerchant -> Ok M.Nonmerchant
+  | Nonmerchant -> Ok B.Nonmerchant
 
 let dimensions (width, height) =
   if width >= 76 && height >= 21 then (min 76 (width - 4), min 21 (height - 2))

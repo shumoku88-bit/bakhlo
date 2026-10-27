@@ -90,7 +90,7 @@ type publication =
   | Correct_entry_date of { id : string; day : string; base : string }
   | Classify_merchant of {
       id : string;
-      disposition : Bakhlo_sexp.Records.disposition;
+      disposition : Bakhlo_sexp.Daily_book.disposition;
       base : string;
       message : string;  (** Success report replacing the generic one. *)
     }

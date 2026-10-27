@@ -7,7 +7,6 @@
    not a security sandbox. Power loss was not physically tested. No background retry or
    automatic repair. *)
 module B = Bakhlo_sexp.Daily_book
-module L = Bakhlo_sexp.Book_log
 module X = Bakhlo_sexp.Daily_txt
 module T = Bakhlo_book_txt.Book_txt
 
@@ -222,26 +221,26 @@ let replace ~checkpoint path bytes =
   sync_parent path;
   checkpoint Replaced
 
-(* The book after [ops] and, when given, these roles and Attention. *)
-let saved ?sidecars session ops =
+(* The book after [changes] and, when given, these roles and Attention. *)
+let saved ?sidecars session changes =
   let book =
-    match L.apply_all session.book ops with Ok book -> book | Error why -> raise (Refused why)
+    match B.apply session.book changes with Ok book -> book | Error why -> raise (Refused why)
   in
   match sidecars with
   | None -> book
   | Some s -> (
       match X.with_sidecars book s with Ok book -> book | Error why -> raise (Refused why))
 
-(* The revision the file has once [publish] writes [ops] (and [sidecars]). *)
-let revision_after ?sidecars session ops =
-  revision_of_bytes (T.print (B.txt (saved ?sidecars session ops)))
+(* The revision the file has once [publish] writes [changes] (and [sidecars]). *)
+let revision_after ?sidecars session changes =
+  revision_of_bytes (T.print (B.txt (saved ?sidecars session changes)))
 
 (* Checkpoints are for deterministic fault/child-process interruption checks;
    ordinary callers use the no-op default and cannot bypass any gate. *)
-let publish ?(checkpoint = fun _ -> ()) ?sidecars session ops =
+let publish ?(checkpoint = fun _ -> ()) ?sidecars session changes =
   let attempted = ref None in
   try
-    let book = saved ?sidecars session ops in
+    let book = saved ?sidecars session changes in
     let sidecars = X.sidecars_of book in
     let bytes = T.print (B.txt book) in
     with_writer session.path (fun () ->

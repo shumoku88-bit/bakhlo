@@ -6,7 +6,6 @@ module C = Shell_state
 module H = Shell_input
 module A = Daily_actions
 module B = Bakhlo_sexp.Daily_book
-module L = Bakhlo_sexp.Book_log
 module D = Bakhlo_domain
 
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
@@ -49,11 +48,11 @@ let self_check () =
   (* One publication of two operations: an atomic plan payment and another entry. *)
   let ops =
     [
-      L.Put_entry { replace = false; entry = payment; plan = Some "planned-food" };
-      L.Put_entry { replace = false; entry = entry "recovery-eur" "eur"; plan = None };
+      B.Put_entry { replace = false; entry = payment; plan = Some "planned-food" };
+      B.Put_entry { replace = false; entry = entry "recovery-eur" "eur"; plan = None };
     ]
   in
-  let expected_book = Bakhlo_sexp.Daily_txt.text (get (L.apply_all base ops)) in
+  let expected_book = Bakhlo_sexp.Daily_txt.text (get (B.apply base ops)) in
   let make name =
     let parent = directory ^ "/" ^ name in
     Unix.mkdir parent 0o700;
@@ -127,7 +126,7 @@ let self_check () =
   (* Evidence the file does not show is never treated as confirmed. *)
   let external_ = make "external-rewrite" in
   let other =
-    match F.publish external_ [ L.Add_locus "external" ] with
+    match F.publish external_ [ B.Add_locus "external" ] with
     | F.Written s -> s
     | _ -> raise (F.Refused "external-setup")
   in
@@ -183,7 +182,7 @@ let self_check () =
               require (status = Unix.WSIGNALED Sys.sigkill) "recovery-child-not-killed";
               let loaded = F.load session.path in
               if step = F.Replaced then check_candidate loaded.book else check_original loaded.book;
-              match F.publish loaded [ L.Add_locus "after-kill" ] with
+              match F.publish loaded [ B.Add_locus "after-kill" ] with
               | F.Written _ -> ()
               | _ -> raise (F.Refused "recovery-killed-writer-kept-lock")))
     [ F.Temp_written; F.Previous_kept; F.Replaced ];

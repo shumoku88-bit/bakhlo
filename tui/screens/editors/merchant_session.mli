@@ -1,5 +1,4 @@
 module B = Bakhlo_sexp.Daily_book
-module M = Bakhlo_sexp.Records
 
 type choice = Merchant | Nonmerchant
 type mode = Editing | Preview
@@ -8,7 +7,7 @@ type t
 type outcome =
   | Updated of t
   | Closed
-  | Publish of string * M.disposition * string
+  | Publish of string * B.disposition * string
       (** [Publish (target_id, disposition, base_revision)] is an intent, not a saved entry. *)
 
 val create : base_revision:string -> B.entry -> t

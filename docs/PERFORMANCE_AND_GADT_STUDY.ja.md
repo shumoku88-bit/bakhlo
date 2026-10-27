@@ -84,7 +84,7 @@
 **判断**:
 
 - `outcome` の GADT 化は**推奨しない**。速度向上の証拠はなく、動的な query 結果に対する `match` は残る。`present` を直接 `quantity` に渡す誤用は既存の抽象型で防げている。
-- `Book_log.op` の op タグ GADT も**推奨しない**。動的帳簿の crossref / witness 不変条件を証明しないし、現状の `apply` 戻り型も共通。
+- `Daily_book.change` のタグ GADT も**推奨しない**。動的帳簿の crossref / witness 不変条件を証明しないし、現状の `apply` 戻り型も共通。
 - `Screen.request` の response-index GADT は具体ニーズが**未確認**。**保留**。
 
 原則: GADT は目標ではなく、既存の型で防げない誤用が具体的にあるときだけ足す。
