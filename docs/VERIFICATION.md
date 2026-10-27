@@ -22,6 +22,8 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   Household unchanged; copies cleaned. LOAM not compared (new behaviour). Human
   acceptance not yet given. `./ui` now accepts upper-case letters in the selected
   copy's name (`mktemp` makes them; it refused before).
+- Matching commit `83f52d9` passed
+  [CI run 40493821778](https://github.com/shumoku88-bit/bakhlo/actions/runs/40493821778).
 
 ## Old names removed from the household book and Shell (2026-10-27)
 
