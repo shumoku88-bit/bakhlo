@@ -12,7 +12,7 @@ let run ~width_of () =
   Recovery_checks.self_check ();
   let directory = "scratch/english-ui-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
-  let path = directory ^ "/book.sexp" in
+  let path = directory ^ "/book.txt" in
   F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let home = C.initial ~config_home:directory (F.load path) in
   Book_publication_recovery_checks.run ~width_of ~directory ();

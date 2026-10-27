@@ -6,7 +6,7 @@ open Interaction_check_fixture
 let run_liquidity ~width_of ~directory =
   let dir = directory ^ "/liquidity" in
   Unix.mkdir dir 0o700;
-  let path = dir ^ "/book.sexp" in
+  let path = dir ^ "/book.txt" in
   let book_bytes =
     "BOOK\t1\n\
      MEASURE\tjpy\t0\n\
@@ -82,7 +82,7 @@ let run_liquidity ~width_of ~directory =
 let run_multicurrency ~width_of ~directory =
   let dir = directory ^ "/multicurrency" in
   Unix.mkdir dir 0o700;
-  let path = dir ^ "/book.sexp" in
+  let path = dir ^ "/book.txt" in
   (* The window seeds from the current calendar month, so the synthetic entries
      must fall inside it. *)
   let today = F.today () in
@@ -317,7 +317,7 @@ let run ~width_of ~directory (back_home : C.state) =
   require (flow_back_home.workspace.route = W.Home) "flow-q-back-to-home";
   let sf_dir = directory ^ "/stock-flow" in
   Unix.mkdir sf_dir 0o700;
-  let sf_path = sf_dir ^ "/book.sexp" in
+  let sf_path = sf_dir ^ "/book.txt" in
   F.create_copy ~source:Interaction_check_fixture.example_book ~target:sf_path;
   F.write_new (sf_dir ^ "/boundary-presets.tsv") "household\t2026-10-01\t2026-11-01\n";
   let sf_ctl = C.open_route (C.initial ~config_home:sf_dir (F.load sf_path)) W.Stock_flow in

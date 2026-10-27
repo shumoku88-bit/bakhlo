@@ -159,7 +159,7 @@ let check ~width_of () =
     ~finally:(fun () ->
       List.iter
         (fun name -> try Unix.unlink (Filename.concat root name) with _ -> ())
-        [ "source"; "existing"; "new.sexp" ];
+        [ "source"; "existing"; "new.txt" ];
       try Unix.rmdir root with _ -> ())
     (fun () ->
       let source = Filename.concat root "source" in
@@ -192,7 +192,7 @@ let check ~width_of () =
       require (Result.is_error (B.empty ~measure:"jpy" ~scale:10)) "invalid-scale-refused";
       let form = match absent.phase with Editing form -> form | _ -> assert false in
       let form =
-        Form.set_text form "destination" (Filename.concat root "new.sexp") |> fun form ->
+        Form.set_text form "destination" (Filename.concat root "new.txt") |> fun form ->
         Form.set_text form "measure" "jpy" |> fun form ->
         Form.set_text form "scale" "0" |> fun form ->
         Form.set_focused form (Form.find_field_index form "action")
@@ -211,7 +211,7 @@ let check ~width_of () =
         (Sys.file_exists source
         && In_channel.with_open_bin source In_channel.input_all = source_bytes)
         "source-preserved";
-      require (not (Sys.file_exists (Filename.concat root "new.sexp"))) "review-did-not-write";
+      require (not (Sys.file_exists (Filename.concat root "new.txt"))) "review-did-not-write";
       require (not (ready_to_create ~dimensions:(32, 9) ~width_of reviewed)) "small-review-refused";
       require
         (ready_to_create ~dimensions:(80, 24) ~width_of reviewed)
@@ -230,18 +230,18 @@ let check ~width_of () =
           | Continue { phase = Editing _ } -> ()
           | _ -> failwith "first-run-check: invisible-or-reordered-path-accepted")
         [ "abc\226\128\174txt"; "abc\255txt" ];
-      let japanese = Form.set_text form "destination" (Filename.concat root "家計.sexp") in
+      let japanese = Form.set_text form "destination" (Filename.concat root "家計.txt") in
       (match handle { phase = Editing japanese } (`Key (`Enter, [])) with
       | Continue { phase = Reviewing _ } -> ()
       | _ -> failwith "first-run-check: valid-unicode-path-refused");
       (match handle (refuse_confirmation reviewed) (`Key (`Escape, [])) with
       | Continue { phase = Editing form } ->
           require
-            (Form.get_text form "destination" = Some (Filename.concat root "new.sexp")
+            (Form.get_text form "destination" = Some (Filename.concat root "new.txt")
             && Form.get_text form "measure" = Some "jpy"
             && Form.get_text form "scale" = Some "0")
             "review-escape-retains-input";
-          require (not (Sys.file_exists (Filename.concat root "new.sexp"))) "review-escape-no-write";
+          require (not (Sys.file_exists (Filename.concat root "new.txt"))) "review-escape-no-write";
           require
             (match handle { phase = Editing form } (`Key (`Escape, [])) with
             | Cancel -> true
@@ -255,7 +255,7 @@ let check ~width_of () =
       require
         (match handle reviewed (`Key (`Enter, [])) with
         | Create { destination; measure = "jpy"; scale = 0 } ->
-            destination = Filename.concat root "new.sexp"
+            destination = Filename.concat root "new.txt"
         | _ -> false)
         "second-enter-requests-create";
       let existing = Filename.concat root "existing" in
@@ -272,9 +272,7 @@ let check ~width_of () =
       | Continue { phase = Editing form; _ } ->
           require (String.length (Form.notice form) > 0) "existing-target-refused"
       | _ -> failwith "first-run-check: existing-target-transition");
-      let created =
-        F.create_empty ~path:(Filename.concat root "new.sexp") ~measure:"jpy" ~scale:0
-      in
+      let created = F.create_empty ~path:(Filename.concat root "new.txt") ~measure:"jpy" ~scale:0 in
       require
         (F.read_revision created.F.path = created.F.revision
         && B.measures created.F.book = [ ("jpy", 0) ]

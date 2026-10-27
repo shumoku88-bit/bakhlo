@@ -52,7 +52,7 @@ let self_check ~width_of () =
   in
   let source = List.hd (B.plans book) in
   let base = Bakhlo_household.Daily_txt.text book in
-  let path = directory ^ "/controller.sexp" in
+  let path = directory ^ "/controller.txt" in
   F.write_new path base;
   let base_rev = F.revision_of_bytes base in
   let state =
@@ -166,7 +166,7 @@ let self_check ~width_of () =
   match S.handle ~blocked:false ~dimensions:(80, 24) ~width_of s (key `Enter) with
   | S.Publish (plans, captured) ->
       require (captured = base_rev && List.length plans = 2) "selected-replacements";
-      let path = directory ^ "/book.sexp" in
+      let path = directory ^ "/book.txt" in
       F.write_new path base;
       let session = F.load path in
       (match A.commit_plan_batch ~session ~base_revision:captured plans with

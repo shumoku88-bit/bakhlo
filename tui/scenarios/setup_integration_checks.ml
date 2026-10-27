@@ -27,7 +27,7 @@ let unreadable_roles_checks ~width_of ~directory ~path =
     ];
   let directory = directory ^ "/unreadable-roles" in
   Unix.mkdir directory 0o700;
-  let book_path = directory ^ "/book.sexp" in
+  let book_path = directory ^ "/book.txt" in
   F.create_copy ~source:path ~target:book_path;
   (* Roles are a book section: a malformed ROLE line refuses the whole book. *)
   let bad_path = directory ^ "/bad-role.txt" in
@@ -139,9 +139,9 @@ let run ~width_of ~directory ~path =
   (* A used Locus without a role (food here) receives its first role once. *)
   let used_home = directory ^ "/used-locus-role" in
   Unix.mkdir used_home 0o700;
-  F.create_copy ~source:path ~target:(used_home ^ "/book.sexp");
-  put_roles (used_home ^ "/book.sexp") "ROLE\twallet\tASSET\n";
-  let used_state = C.initial ~config_home:used_home (F.load (used_home ^ "/book.sexp")) in
+  F.create_copy ~source:path ~target:(used_home ^ "/book.txt");
+  put_roles (used_home ^ "/book.txt") "ROLE\twallet\tASSET\n";
+  let used_state = C.initial ~config_home:used_home (F.load (used_home ^ "/book.txt")) in
   let used_loci = C.open_route used_state W.Loci in
   require
     (List.exists

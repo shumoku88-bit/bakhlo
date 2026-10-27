@@ -4,7 +4,7 @@ open Interaction_check_fixture
 let balance_display_checks ~width_of ~directory () =
   let directory = directory ^ "/balance-display" in
   Unix.mkdir directory 0o700;
-  let path = directory ^ "/book.sexp" in
+  let path = directory ^ "/book.txt" in
   F.write_new path
     "BOOK\t1\n\
      MEASURE\tjpy\t0\n\
@@ -125,7 +125,7 @@ let balance_display_checks ~width_of ~directory () =
       merchant = None;
     }
   in
-  let live_path = directory ^ "/accounting-publication.sexp" in
+  let live_path = directory ^ "/accounting-publication.txt" in
   F.write_new live_path (F.read path);
   let roles = [ ("wallet", O.Asset); ("bank", O.Asset); ("zero", O.Equity) ] in
   let accounting_rows book = O.role_balance_items ~book ~roles in
@@ -332,7 +332,7 @@ let b2_book_fixture =
 let balance_picker_checks ~width_of ~directory () =
   let directory = directory ^ "/balance-picker" in
   Unix.mkdir directory 0o700;
-  let path = directory ^ "/book.sexp" in
+  let path = directory ^ "/book.txt" in
   F.write_new path b2_book_fixture;
   let bv = directory ^ "/balance-view.tsv" in
   let replace file bytes =
@@ -473,7 +473,7 @@ let balance_picker_checks ~width_of ~directory () =
 let observe_multi_checks ~width_of ~directory () =
   let directory = directory ^ "/observe-multi" in
   Unix.mkdir directory 0o700;
-  let path = directory ^ "/book.sexp" in
+  let path = directory ^ "/book.txt" in
   F.write_new path b2_book_fixture;
   let fresh_home () = C.initial ~config_home:directory (F.load path) in
   let modal state =

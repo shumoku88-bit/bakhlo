@@ -366,7 +366,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   require
     (no_modal try_double_reverse && try_double_reverse.message <> "")
     "double-reversal-blocked";
-  let cancel_ledger_path = directory ^ "/cancel_plan.sexp" in
+  let cancel_ledger_path = directory ^ "/cancel_plan.txt" in
   F.write_new cancel_ledger_path (F.read path);
   let cancel_session = F.load cancel_ledger_path in
   let cancel_ctl = C.initial cancel_session |> fun s -> C.open_route s W.Scheduled in

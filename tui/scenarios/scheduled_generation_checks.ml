@@ -47,7 +47,7 @@ let self_check ~width_of () =
   let source = plan "source-plan" "2026-10-15" "eur" (Z.of_int 5000) in
   let book = get (B.put_plan book ~replace:false source) in
   let base = Bakhlo_household.Daily_txt.text book in
-  let path = directory ^ "/controller.sexp" in
+  let path = directory ^ "/controller.txt" in
   F.write_new path base;
   let base_rev = F.revision_of_bytes base in
 
@@ -183,7 +183,7 @@ let self_check ~width_of () =
         "generated-occurrence-exact-changes";
 
       (* Commit via A.commit_plan_batch *)
-      let book_path = directory ^ "/book.sexp" in
+      let book_path = directory ^ "/book.txt" in
       F.write_new book_path base;
       let sess = F.load book_path in
       (match A.commit_plan_batch ~replace:false ~session:sess ~base_revision:captured plans with
@@ -530,7 +530,7 @@ let self_check ~width_of () =
       "e-huge-exact-quanta";
     (plans, captured)
   in
-  let e_path = directory ^ "/e-atomic.sexp" in
+  let e_path = directory ^ "/e-atomic.txt" in
   F.write_new e_path base2;
   let sess = F.load e_path in
   (match A.commit_plan_batch ~replace:false ~session:sess ~base_revision:rev2 (fst huge_pub) with

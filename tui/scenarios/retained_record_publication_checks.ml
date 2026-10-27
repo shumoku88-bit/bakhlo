@@ -5,7 +5,7 @@ module A = Daily_actions
 
 let run ~width_of ~directory (home : C.state) =
   let fresh name =
-    let path = directory ^ "/retained-record-" ^ name ^ ".sexp" in
+    let path = directory ^ "/retained-record-" ^ name ^ ".txt" in
     F.write_new path (F.read home.session.path);
     C.initial ~config_home:directory (F.load path)
   in

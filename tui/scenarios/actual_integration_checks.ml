@@ -33,7 +33,7 @@ let actual_browsing_checks ~width_of ~directory home =
       (fun book n -> get (B.put_entry book ~replace:false (entry n) ~plan:None))
       home.C.session.book (List.init 18 Fun.id)
   in
-  let path = directory ^ "/actual-browsing.sexp" in
+  let path = directory ^ "/actual-browsing.txt" in
   F.write_new path (Bakhlo_household.Daily_txt.text book);
   let before = F.read path in
   let state = C.open_route (C.initial ~config_home:directory (F.load path)) W.Actual in
@@ -400,7 +400,7 @@ let actual_browsing_checks ~width_of ~directory home =
      preserve that viewport and a retained Record without accepting bad bytes. *)
   List.iter
     (fun (name, route, focus, scroll, browser) ->
-      let reload_path = directory ^ "/" ^ name ^ "-reload.sexp" in
+      let reload_path = directory ^ "/" ^ name ^ "-reload.txt" in
       let bytes = Bakhlo_household.Daily_txt.text day_book in
       F.write_new reload_path bytes;
       let base = C.initial ~config_home:directory (F.load reload_path) in
@@ -447,7 +447,7 @@ let actual_browsing_checks ~width_of ~directory home =
         day_scroll,
         day_browser );
     ];
-  let day_path = directory ^ "/selected-day-record.sexp" in
+  let day_path = directory ^ "/selected-day-record.txt" in
   F.write_new day_path (Bakhlo_household.Daily_txt.text book);
   let day_parent =
     {
@@ -648,9 +648,9 @@ let reversal_checks ~width_of ~directory home =
     }
   in
   let book = get (B.put_entry home.C.session.book ~replace:false target ~plan:None) in
-  let path = directory ^ "/book.sexp" in
+  let path = directory ^ "/book.txt" in
   F.write_new path (Bakhlo_household.Daily_txt.text book);
-  F.write_new (directory ^ "/input.sexp") (Bakhlo_household.Daily_txt.text book);
+  F.write_new (directory ^ "/input.txt") (Bakhlo_household.Daily_txt.text book);
   let base = C.initial ~config_home:directory (F.load path) |> fun s -> C.open_route s W.Actual in
   let before = F.read path in
   let names () = Sys.readdir directory |> Array.to_list |> List.sort String.compare in
@@ -790,7 +790,7 @@ let reversal_checks ~width_of ~directory home =
       effects = [ eur_effect "wallet" (Z.neg large); eur_effect "food" large ];
     }
   in
-  F.write_new (directory ^ "/large-input.sexp")
+  F.write_new (directory ^ "/large-input.txt")
     (Bakhlo_household.Daily_txt.text
        (get (B.put_entry home.session.book ~replace:false long_target ~plan:None)));
   let long =
@@ -880,7 +880,7 @@ let reversal_checks ~width_of ~directory home =
         && Z.equal (Daily_actions.quanta inverse) (Z.neg (Daily_actions.quanta original)))
         "reversal-cold-exact-inverse-keys-coordinates")
     target.effects reversal.effects;
-  let unknown_path = directory ^ "/unknown.sexp" in
+  let unknown_path = directory ^ "/unknown.txt" in
   F.write_new unknown_path before;
   let unknown_base =
     C.initial ~config_home:directory (F.load unknown_path) |> fun s -> C.open_route s W.Actual
@@ -963,7 +963,7 @@ let date_correction_checks ~width_of ~directory home =
     get
       (B.put_entry book ~replace:false { target with id = "other"; day = "2026-10-14" } ~plan:None)
   in
-  let path = directory ^ "/date-correction.sexp" in
+  let path = directory ^ "/date-correction.txt" in
   F.write_new path (Bakhlo_household.Daily_txt.text book);
   let before = F.read path in
   let base =
@@ -1044,7 +1044,7 @@ let date_correction_checks ~width_of ~directory home =
   require
     (actual_selected_id saved = Some target.id && actual_row saved = 1)
     "date-actual-save-follows-moved-id";
-  let day_path = directory ^ "/date-selected-day.sexp" in
+  let day_path = directory ^ "/date-selected-day.txt" in
   F.write_new day_path before;
   let drilled =
     C.open_route (C.initial ~config_home:directory (F.load day_path)) W.Actual |> fun s ->
@@ -1146,7 +1146,7 @@ let date_correction_checks ~width_of ~directory home =
     (B.approved_loci retained_book = Some [ "wallet"; "bank" ]
     && B.find_entry retained_book retained_target.id = Some retained_target)
     "retained-locus-fixture-loads-with-stable-entry";
-  let retained_path = directory ^ "/retained-locus-mutations.sexp" in
+  let retained_path = directory ^ "/retained-locus-mutations.txt" in
   F.write_new retained_path retained_bytes;
   let retained_initial () =
     C.open_route (C.initial ~config_home:directory (F.load retained_path)) W.Actual
@@ -1224,7 +1224,7 @@ let original_amount_integration_checks ~width_of ~directory () =
     S.screen ~book:s.C.session.book ~dimensions:(80, 24) ~width_of (Option.get s.C.record)
   in
   Unix.mkdir dir 0o700;
-  let path = dir ^ "/book.sexp" in
+  let path = dir ^ "/book.txt" in
   let fixture =
     "BOOK\t1\n\
      MEASURE\tjpy\t0\n\
@@ -1495,7 +1495,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
     List.exists (fun (_, line) -> Base.String.is_substring line ~substring:needle) rows
   in
   Unix.mkdir dir 0o700;
-  let path = dir ^ "/book.sexp" in
+  let path = dir ^ "/book.txt" in
   let fixture =
     "BOOK\t1\n\
      MEASURE\tjpy\t0\n\
@@ -1875,7 +1875,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
 let unresolved_enable_checks ~width_of ~directory () =
   let dir = directory ^ "/unresolved-enable" in
   Unix.mkdir dir 0o700;
-  let path = dir ^ "/book.sexp" in
+  let path = dir ^ "/book.txt" in
   F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let home = C.initial ~config_home:dir (F.load path) in
   let book = home.session.book in
@@ -1932,7 +1932,7 @@ let unresolved_enable_checks ~width_of ~directory () =
 let quick_capture_integration_checks ~width_of ~directory () =
   let dir = directory ^ "/quick-capture" in
   Unix.mkdir dir 0o700;
-  let path = dir ^ "/book.sexp" in
+  let path = dir ^ "/book.txt" in
   F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let home = C.initial ~config_home:dir (F.load path) in
   let first =
@@ -1995,7 +1995,7 @@ let period_picker_integration_checks ~width_of ~directory home =
       (fun book n -> get (B.put_entry book ~replace:false (entry n) ~plan:None))
       home.C.session.book (List.init 3 Fun.id)
   in
-  let path = directory ^ "/actual-picker.sexp" in
+  let path = directory ^ "/actual-picker.txt" in
   F.write_new path (Bakhlo_household.Daily_txt.text book);
   let before = F.read path in
   let dimensions = (100, 30) in

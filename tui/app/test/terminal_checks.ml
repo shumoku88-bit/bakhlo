@@ -9,7 +9,7 @@ module O = Daily_overlays
 let run () =
   let directory = "scratch/terminal-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
-  let path = directory ^ "/book.sexp" in
+  let path = directory ^ "/book.txt" in
   F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let state = C.initial ~config_home:directory (F.load path) in
   let ansi image =

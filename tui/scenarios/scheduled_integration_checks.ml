@@ -28,7 +28,7 @@ let list_scope_checks ~width_of ~directory home =
       home.C.session.book (B.open_plans home.session.book)
   in
   let book = List.fold_left (fun book p -> get (B.put_plan book ~replace:false p)) closing plans in
-  let path = directory ^ "/scheduled-list-scope.sexp" in
+  let path = directory ^ "/scheduled-list-scope.txt" in
   F.write_new path (Bakhlo_household.Daily_txt.text book);
   let before = F.read path in
   let initial = C.initial ~config_home:directory (F.load path) in
@@ -289,7 +289,7 @@ let scheduled_panel_checks ~width_of ~directory home =
       (fun book n -> get (B.put_plan book ~replace:false (plan n)))
       home.C.session.book (List.init 20 Fun.id)
   in
-  let path = directory ^ "/scheduled-panels.sexp" in
+  let path = directory ^ "/scheduled-panels.txt" in
   F.write_new path (Bakhlo_household.Daily_txt.text book);
   let before = F.read path in
   let state = C.open_route (C.initial ~config_home:directory (F.load path)) W.Scheduled in
@@ -416,7 +416,7 @@ let cancellation_checks ~width_of ~directory home =
     }
   in
   let book = get (B.put_plan home.C.session.book ~replace:false plan) in
-  let path = directory ^ "/cancellation.sexp" in
+  let path = directory ^ "/cancellation.txt" in
   F.write_new path (Bakhlo_household.Daily_txt.text book);
   let before = F.read path in
   let base =
@@ -588,7 +588,7 @@ let months_checks ~width_of ~directory home =
     get (B.put_plan book ~replace:false closed) |> fun book ->
     get (B.cancel_plan book ~id:closed.id ~day:"2026-11-01")
   in
-  let path = directory ^ "/months.sexp" in
+  let path = directory ^ "/months.txt" in
   F.write_new path (Bakhlo_household.Daily_txt.text book);
   let before = F.read path in
   let initial = C.initial ~config_home:directory (F.load path) in
@@ -832,7 +832,7 @@ let continuation_checks ~width_of ~directory home =
     | Some state -> state
     | None -> raise (F.Refused "continuation-controller-exit")
   in
-  let path = directory ^ "/continuation.sexp" in
+  let path = directory ^ "/continuation.txt" in
   let completed = complete path book source in
   let after_payment = F.read path in
   let paid_source =
@@ -903,7 +903,7 @@ let continuation_checks ~width_of ~directory home =
     && F.read_revision path = cold.revision
     && Cont.base_revision (prompt stale) = completed.session.revision)
     "continuation-reload-does-not-bless-stale-awareness";
-  let none_path = directory ^ "/continuation-none.sexp" in
+  let none_path = directory ^ "/continuation-none.txt" in
   let none = complete none_path source_book source in
   let none_bytes = F.read none_path in
   let done_ = key ~width_of none `Enter in
@@ -942,7 +942,7 @@ let continuation_checks ~width_of ~directory home =
         && List.for_all (fun (_, line) -> width_of line <= fst dimensions) rows)
         "continuation-choices-tiny-bounds")
     [ (0, 0); (1, 1); (32, 4); (32, 9) ];
-  let uncertain_path = directory ^ "/continuation-uncertain.sexp" in
+  let uncertain_path = directory ^ "/continuation-uncertain.txt" in
   F.write_new uncertain_path (Bakhlo_household.Daily_txt.text source_book);
   let base =
     C.open_route (C.initial ~config_home:directory (F.load uncertain_path)) W.Scheduled |> fun s ->
@@ -1072,7 +1072,7 @@ let coverage_checks ~width_of ~directory home =
   in
   let sub = directory ^ "/coverage-" ^ F.new_id () in
   Unix.mkdir sub 0o700;
-  let path = sub ^ "/book.sexp" in
+  let path = sub ^ "/book.txt" in
   F.write_new path (Bakhlo_household.Daily_txt.text book);
   F.write_new (sub ^ "/scheduled-coverage.tsv")
     ("groceries\t" ^ month_after 0 ^ "-01\t1\twallet\tfood\nbills\t" ^ month_after 0
@@ -1232,7 +1232,7 @@ let coverage_checks ~width_of ~directory home =
       book
       [ plan "lm-u" (month_after 0 ^ "-05") transfer ]
   in
-  let lpath = lsub ^ "/book.sexp" in
+  let lpath = lsub ^ "/book.txt" in
   F.write_new lpath (Bakhlo_household.Daily_txt.text lbook);
   F.write_new
     (lsub ^ "/scheduled-coverage.tsv")
@@ -1308,7 +1308,7 @@ let coverage_checks ~width_of ~directory home =
   in
   let ebook = get (B.put_plan ebook ~replace:false (plan "e-base" (month_after 0 ^ "-28") food)) in
   let ebook = get (B.put_plan ebook ~replace:false (plan "e-src" (month_after 1 ^ "-28") food)) in
-  let epath = esub ^ "/book.sexp" in
+  let epath = esub ^ "/book.txt" in
   F.write_new epath (Bakhlo_household.Daily_txt.text ebook);
   F.write_new
     (esub ^ "/scheduled-coverage.tsv")
@@ -1331,7 +1331,7 @@ let coverage_checks ~width_of ~directory home =
     && eplan.cancelled_on = None)
     "coverage-e-publishes-one-explicit-plan-atomically-cold";
 
-  let epath2 = esub ^ "/stale.sexp" in
+  let epath2 = esub ^ "/stale.txt" in
   F.write_new epath2 (Bakhlo_household.Daily_txt.text ebook);
   let estate2 = C.open_route (C.initial ~config_home:esub (F.load epath2)) W.Scheduled in
   let epending = key ~width_of (key ~width_of (key ~width_of estate2 (`ASCII 'e')) `Enter) `Tab in
@@ -1376,7 +1376,7 @@ let coverage_checks ~width_of ~directory home =
       (B.plans (F.load path).book)
   in
   let fresh name =
-    let path = csub ^ "/" ^ name ^ ".sexp" in
+    let path = csub ^ "/" ^ name ^ ".txt" in
     F.write_new path (Bakhlo_household.Daily_txt.text book);
     path
   in
