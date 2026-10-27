@@ -298,6 +298,7 @@ let actual_rows (state : C.state) =
 
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
+let get_id = function Ok id -> id | Error D.Identifier.Empty -> raise (F.Refused "empty-identity")
 
 (* Store synthetic accounting roles in the book at [path]: roles are a book section. *)
 let put_roles path text =

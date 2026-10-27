@@ -309,14 +309,13 @@ let compute_samples ~book ~measure ~pool ~boundary_presets_text ~today ~preset =
       | [ (_, _, stop) ] -> Ok stop
       | _ -> Error ("No explicit cycle boundary for " ^ day ^ ".")
     in
-    let coords =
-      List.map
-        (fun locus ->
-          {
-            D.Effect_coordinate.locus = A.get_id (D.Identifier.Locus.of_string locus);
-            measure = A.get_id (D.Identifier.Measure.of_string measure);
-          })
-        pool
+    let* coords =
+      List.fold_right
+        (fun locus coords ->
+          let* coords = coords in
+          let* coordinate = A.coordinate ~locus ~measure in
+          Ok (coordinate :: coords))
+        pool (Ok [])
     in
     let* _ = query_pool_balance book coords in
     let* today_pace =

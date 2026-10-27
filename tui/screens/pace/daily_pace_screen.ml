@@ -106,14 +106,9 @@ let resolve_pool (env : Screen.env) =
     | line :: rest -> (
         match String.split_on_char '\t' line with
         | [ locus; m ] when config_token locus && m = measure && config_token m ->
-            let coordinate =
-              {
-                D.Effect_coordinate.locus = A.get_id (D.Identifier.Locus.of_string locus);
-                measure = A.get_id (D.Identifier.Measure.of_string m);
-              }
-            in
-            if List.mem coordinate acc then Error "Duplicate Daily Pace coordinate."
-            else coordinates (coordinate :: acc) rest
+            Result.bind (A.coordinate ~locus ~measure:m) (fun coordinate ->
+                if List.mem coordinate acc then Error "Duplicate Daily Pace coordinate."
+                else coordinates (coordinate :: acc) rest)
         | _ -> Error "Malformed daily-pace.tsv or mismatched Measure; no rows were skipped.")
   in
   Result.bind (env.config pool_file) (function

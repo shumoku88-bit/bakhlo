@@ -13,6 +13,9 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   `Validity_revision` identifiers removed; synthetic test books named `*.txt`;
   `Daily_actions.publish_onto` names the base-revision guard; the empty
   `legacy_shared_literals` exemption removed from the architecture check.
+- `Daily_draft`/`Daily_actions`/`Shell_state` no longer export the raising `get`/`get_id`:
+  Daily Pace builds coordinates with `Daily_draft.coordinate` (a result), the Shell
+  checks its start-up date explicitly, and the scenario fixture keeps the test helper.
 - No behaviour change intended: no format, UI text, admission rule or ordering of
   refusals changed (the reversal and batch commits keep their explicit order).
 - Passed: `./tools/check`, `./tools/tui --self-check`, `./tools/format --check`,

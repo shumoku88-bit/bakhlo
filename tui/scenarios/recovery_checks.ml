@@ -28,8 +28,8 @@ let self_check () =
   let huge = Z.of_string "12345678901234567890123456789012" in
   let posting measure locus amount =
     D.Effect.create ~key:None
-      ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
-      ~measure:(C.get_id (D.Identifier.Measure.of_string measure))
+      ~locus:(Interaction_check_fixture.get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(Interaction_check_fixture.get_id (D.Identifier.Measure.of_string measure))
       ~quantity:(D.Quantity.of_quanta amount)
   in
   let entry id measure : B.entry =

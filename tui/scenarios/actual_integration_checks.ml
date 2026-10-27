@@ -4,8 +4,8 @@ open Interaction_check_fixture
 let actual_browsing_checks ~width_of ~directory home =
   let posting ?(measure = "jpy") locus quanta =
     D.Effect.create ~key:None
-      ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
-      ~measure:(C.get_id (D.Identifier.Measure.of_string measure))
+      ~locus:(get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(get_id (D.Identifier.Measure.of_string measure))
       ~quantity:(D.Quantity.of_quanta quanta)
   in
   let huge = Z.of_string (String.make 70 '9') in
@@ -630,9 +630,9 @@ let reversal_checks ~width_of ~directory home =
   Unix.mkdir directory 0o700;
   let make_effect locus quantity =
     D.Effect.create
-      ~key:(Some (C.get_id (D.Identifier.Effect_key.of_string ("reverse-" ^ locus))))
-      ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
-      ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+      ~key:(Some (get_id (D.Identifier.Effect_key.of_string ("reverse-" ^ locus))))
+      ~locus:(get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
       ~quantity:(D.Quantity.of_quanta (Z.of_int quantity))
   in
   let target : B.entry =
@@ -779,8 +779,8 @@ let reversal_checks ~width_of ~directory home =
   let large = Z.of_string (String.make 225 '9' ^ "03") in
   let eur_effect locus n =
     D.Effect.create ~key:None
-      ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
-      ~measure:(C.get_id (D.Identifier.Measure.of_string "eur"))
+      ~locus:(get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(get_id (D.Identifier.Measure.of_string "eur"))
       ~quantity:(D.Quantity.of_quanta n)
   in
   let long_target =
@@ -930,9 +930,9 @@ let reversal_checks ~width_of ~directory home =
 let date_correction_checks ~width_of ~directory home =
   let make_effect key locus n =
     D.Effect.create
-      ~key:(Some (C.get_id (D.Identifier.Effect_key.of_string key)))
-      ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
-      ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+      ~key:(Some (get_id (D.Identifier.Effect_key.of_string key)))
+      ~locus:(get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
       ~quantity:(D.Quantity.of_quanta (Z.of_int n))
   in
   let target : B.entry =
@@ -1200,7 +1200,7 @@ let date_correction_checks ~width_of ~directory home =
   in
   let merchant_review = key ~width_of merchant_edit `Enter in
   let merchant_saved = key ~width_of merchant_review `Enter in
-  let party = C.get_id (D.Identifier.External_party.of_string "historical-shop") in
+  let party = get_id (D.Identifier.External_party.of_string "historical-shop") in
   let merchant_cold = F.load retained_path in
   let merchant_target = Option.get (B.find_entry merchant_cold.book retained_target.id) in
   require
@@ -1445,13 +1445,13 @@ let original_amount_integration_checks ~width_of ~directory () =
       effects =
         [
           D.Effect.create
-            ~locus:(C.get_id (D.Identifier.Locus.of_string "wallet"))
-            ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+            ~locus:(get_id (D.Identifier.Locus.of_string "wallet"))
+            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
             ~quantity:(D.Quantity.of_quanta (Z.of_int (-100)))
             ~key:None;
           D.Effect.create
-            ~locus:(C.get_id (D.Identifier.Locus.of_string "food"))
-            ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+            ~locus:(get_id (D.Identifier.Locus.of_string "food"))
+            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
             ~quantity:(D.Quantity.of_quanta (Z.of_int 100))
             ~key:None;
         ];
@@ -1665,7 +1665,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   let cold_session = F.load path in
   let cold_e1 = Option.get (B.find_entry cold_session.book "e1") in
   require
-    (cold_e1.merchant = Some (B.Merchant (C.get_id (D.Identifier.External_party.of_string "sanwa"))))
+    (cold_e1.merchant = Some (B.Merchant (get_id (D.Identifier.External_party.of_string "sanwa"))))
     "merch-cold-verified";
 
   (* Detail view in Actual displays 'Merchant: Merchant sanwa' *)
@@ -1691,13 +1691,13 @@ let event_merchant_integration_checks ~width_of ~directory () =
       effects =
         [
           D.Effect.create
-            ~locus:(C.get_id (D.Identifier.Locus.of_string "wallet"))
-            ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+            ~locus:(get_id (D.Identifier.Locus.of_string "wallet"))
+            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
             ~quantity:(D.Quantity.of_quanta (Z.of_int 500))
             ~key:None;
           D.Effect.create
-            ~locus:(C.get_id (D.Identifier.Locus.of_string "food"))
-            ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+            ~locus:(get_id (D.Identifier.Locus.of_string "food"))
+            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
             ~quantity:(D.Quantity.of_quanta (Z.of_int (-500)))
             ~key:None;
         ];
@@ -1732,13 +1732,13 @@ let event_merchant_integration_checks ~width_of ~directory () =
       effects =
         [
           D.Effect.create
-            ~locus:(C.get_id (D.Identifier.Locus.of_string "wallet"))
-            ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+            ~locus:(get_id (D.Identifier.Locus.of_string "wallet"))
+            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
             ~quantity:(D.Quantity.of_quanta (Z.of_int (-400)))
             ~key:None;
           D.Effect.create
-            ~locus:(C.get_id (D.Identifier.Locus.of_string "food"))
-            ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+            ~locus:(get_id (D.Identifier.Locus.of_string "food"))
+            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
             ~quantity:(D.Quantity.of_quanta (Z.of_int 400))
             ~key:None;
         ];
@@ -1779,7 +1779,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   let orig_entry = Option.get (B.find_entry post_rev_session.book "e3") in
   require
     (orig_entry.merchant
-    = Some (B.Merchant (C.get_id (D.Identifier.External_party.of_string "bakery"))))
+    = Some (B.Merchant (get_id (D.Identifier.External_party.of_string "bakery"))))
     "original-entry-retains-merchant";
 
   (* 7. Save failure retains draft *)
@@ -1791,13 +1791,13 @@ let event_merchant_integration_checks ~width_of ~directory () =
       effects =
         [
           D.Effect.create
-            ~locus:(C.get_id (D.Identifier.Locus.of_string "wallet"))
-            ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+            ~locus:(get_id (D.Identifier.Locus.of_string "wallet"))
+            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
             ~quantity:(D.Quantity.of_quanta (Z.of_int (-1500)))
             ~key:None;
           D.Effect.create
-            ~locus:(C.get_id (D.Identifier.Locus.of_string "food"))
-            ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+            ~locus:(get_id (D.Identifier.Locus.of_string "food"))
+            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
             ~quantity:(D.Quantity.of_quanta (Z.of_int 1500))
             ~key:None;
         ];
@@ -1842,13 +1842,13 @@ let event_merchant_integration_checks ~width_of ~directory () =
       effects =
         [
           D.Effect.create
-            ~locus:(C.get_id (D.Identifier.Locus.of_string "wallet"))
-            ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+            ~locus:(get_id (D.Identifier.Locus.of_string "wallet"))
+            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
             ~quantity:(D.Quantity.of_quanta (Z.of_int (-10)))
             ~key:None;
           D.Effect.create
-            ~locus:(C.get_id (D.Identifier.Locus.of_string "food"))
-            ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+            ~locus:(get_id (D.Identifier.Locus.of_string "food"))
+            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
             ~quantity:(D.Quantity.of_quanta (Z.of_int 10))
             ~key:None;
         ];
@@ -1974,8 +1974,8 @@ let quick_capture_integration_checks ~width_of ~directory () =
 let period_picker_integration_checks ~width_of ~directory home =
   let posting locus quanta =
     D.Effect.create ~key:None
-      ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
-      ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+      ~locus:(get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
       ~quantity:(D.Quantity.of_quanta (Z.of_int quanta))
   in
   let entry n : B.entry =

@@ -3,10 +3,6 @@ include Daily_draft
 module F = Daily_file
 module B = Bakhlo_household.Daily_book
 
-(* Refusals in the Shell are the writer's: [get] and [get_id] raise [Daily_file.Refused]. *)
-let get = function Ok x -> x | Error why -> raise (F.Refused why)
-let get_id = function Ok x -> x | Error D.Identifier.Empty -> raise (F.Refused "empty-identity")
-
 let build_transaction ~book ~mode content =
   Daily_draft.build_transaction ~new_id:F.new_id ~book ~mode content
 

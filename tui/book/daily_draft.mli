@@ -6,12 +6,12 @@ module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module R = Posting_draft
 
-exception Refused of string
-
 val tr : string -> string
 val format_message : ('a, unit, string) format -> 'a
-val get : ('a, string) result -> 'a
-val get_id : ('a, D.Identifier.error) result -> 'a
+
+val coordinate : locus:string -> measure:string -> (D.Effect_coordinate.t, string) result
+(** The balance coordinate of a Locus and a Measure token; an empty one is refused. *)
+
 val lstr : D.Identifier.Locus.t -> string
 val mstr : D.Identifier.Measure.t -> string
 val quanta : D.Effect.t -> Z.t

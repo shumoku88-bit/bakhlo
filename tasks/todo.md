@@ -79,8 +79,10 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
 - [x] `Daily_actions`の基底revision検査を一箇所に。空の`legacy_shared_literals`を削除。
 - [x] push後、該当SHAのCIを確認する（`08383f6`、[run 40489301603](https://github.com/shumoku88-bit/bakhlo/actions/runs/40489301603) 成功）。
 
-残る候補（未着手）：`Daily_actions.get`／`get_id`がテスト補助を兼ねて`Shell_state`経由で
-公開されている点、`Daily_overlays`の責務分割、Recordのphase統合。
+- [x] `get`／`get_id`（例外を投げる汎用補助）を本番から除く。座標は`Daily_draft.coordinate`が
+  `result`で返し、起動時の検査は`Shell_state.initial`に明示、テスト補助はscenario fixtureへ。
+
+残る候補（未着手）：`Daily_overlays`の責務分割、Recordのphase統合。
 [検証記録](../docs/VERIFICATION.md#old-names-removed-from-the-household-book-and-shell-2026-10-27)。
 
 ## 要判断

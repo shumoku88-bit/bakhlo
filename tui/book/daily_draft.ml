@@ -9,10 +9,11 @@ let tr = Ui_text.tr
 let format_message format =
   Printf.sprintf (Scanf.format_from_string (tr (string_of_format format)) format)
 
-exception Refused of string
+let coordinate ~locus ~measure =
+  match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string measure) with
+  | Ok locus, Ok measure -> Ok { D.Effect_coordinate.locus; measure }
+  | _ -> Error "A balance coordinate needs a Locus and a Measure."
 
-let get = function Ok x -> x | Error why -> raise (Refused why)
-let get_id = function Ok x -> x | Error D.Identifier.Empty -> raise (Refused "empty-identity")
 let lstr = D.Identifier.Locus.to_string
 let mstr = D.Identifier.Measure.to_string
 let quanta p = D.Quantity.quanta (D.Effect.quantity p)

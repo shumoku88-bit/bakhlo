@@ -331,8 +331,8 @@ let daily_pace_today_sample_checks () =
   let today = "2026-06-15" and stop = "2026-06-16" in
   let coord locus : D.Effect_coordinate.t =
     {
-      D.Effect_coordinate.locus = C.get_id (D.Identifier.Locus.of_string locus);
-      measure = C.get_id (D.Identifier.Measure.of_string "jpy");
+      D.Effect_coordinate.locus = get_id (D.Identifier.Locus.of_string locus);
+      measure = get_id (D.Identifier.Measure.of_string "jpy");
     }
   in
   let pool = [ coord "wallet" ] in

@@ -109,8 +109,8 @@ let balance_display_checks ~width_of ~directory () =
     ];
   let posting locus amount =
     D.Effect.create ~key:None
-      ~locus:(C.get_id (D.Identifier.Locus.of_string locus))
-      ~measure:(C.get_id (D.Identifier.Measure.of_string "jpy"))
+      ~locus:(get_id (D.Identifier.Locus.of_string locus))
+      ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
       ~quantity:(D.Quantity.of_quanta (Z.of_int amount))
   in
   let entry : B.entry =

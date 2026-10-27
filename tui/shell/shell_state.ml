@@ -26,8 +26,6 @@ module Balances = Balances_screen
 module Pace = Daily_pace_screen
 
 let tr = Ui_text.tr
-let get = A.get
-let get_id = A.get_id
 
 type input = Ui_input.input
 
@@ -86,7 +84,11 @@ let attention (state : state) =
 let initial ?config_home session =
   let measure = match B.measures session.F.book with (id, _) :: _ -> id | [] -> "" in
   let today = F.today () in
-  let workspace = get (W.create ~today ~measure) in
+  let workspace, scheduled_months =
+    match (W.create ~today ~measure, Scheduled_months.create ~today) with
+    | Ok workspace, Ok months -> (workspace, months)
+    | Error why, _ | _, Error why -> raise (F.Refused why)
+  in
   let settlement_path = Settlement_file.file_path ?config_home session.F.path in
   let settlements = Settlement_file.load_file settlement_path in
   {
@@ -105,7 +107,7 @@ let initial ?config_home session =
     paste_blocked = false;
     settlement_path;
     settlements;
-    screens = Screen_registry.create ~scheduled_months:(get (Scheduled_months.create ~today));
+    screens = Screen_registry.create ~scheduled_months;
     drill_parent = None;
     drill_book = None;
   }
