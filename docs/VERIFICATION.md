@@ -19,6 +19,9 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   `git diff --check`, `./tools/privacy-scan --all`, `./tools/startup-probe 1000`
   (builds and runs; synthetic only). Not executed: latest-data paired comparison
   (no screen or displayed answer changed), physical terminal/IME, P7/power loss.
+- Matching commit `08383f6` passed
+  [CI run 40489301603](https://github.com/shumoku88-bit/bakhlo/actions/runs/40489301603)
+  (Linux build, all tests, PTY matrix).
 
 ## Book publications retain one kind of recovery evidence (2026-10-27)
 

@@ -77,7 +77,7 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
 - [x] `Records`・`Book_log`を`Daily_book`へ畳み込み（`change`・`apply`）、未使用の識別子型を削除。
 - [x] `sexp/`（S式を持たない）を`household/`（`bakhlo_household`）へ改名。テスト用bookも`*.txt`。
 - [x] `Daily_actions`の基底revision検査を一箇所に。空の`legacy_shared_literals`を削除。
-- [ ] push後、該当SHAのCIを確認する。
+- [x] push後、該当SHAのCIを確認する（`08383f6`、[run 40489301603](https://github.com/shumoku88-bit/bakhlo/actions/runs/40489301603) 成功）。
 
 残る候補（未着手）：`Daily_actions.get`／`get_id`がテスト補助を兼ねて`Shell_state`経由で
 公開されている点、`Daily_overlays`の責務分割、Recordのphase統合。
