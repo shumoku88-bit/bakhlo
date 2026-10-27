@@ -36,6 +36,10 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   `Record / Original amount`; after quitting, `stty -g` equals the value before and
   `discard = ^O`. One `/bin/stty` run takes 3.07 ms (mean of 50): about 6 ms at start
   and 3 ms at exit. `./tools/check` passed. Linux PTY smoke runs in CI.
+- Matching commits passed CI: `56a9c3d` (Record phase,
+  [run 40500348271](https://github.com/shumoku88-bit/bakhlo/actions/runs/40500348271)) and `9858bc7`
+  (Ctrl-O, [run 40501489204](https://github.com/shumoku88-bit/bakhlo/actions/runs/40501489204)),
+  including the Linux PTY keyboard/resize matrix.
 
 ## Income & Expense compares Locus bars with a chosen window (2026-10-27)
 
