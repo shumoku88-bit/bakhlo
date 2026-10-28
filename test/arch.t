@@ -4,7 +4,7 @@ small valid synthetic tree (no product code) and introduces one violation.
   $ layer() { mkdir -p "$1"; printf '%s\n' "$2" > "$1/dune"; }
   $ base() {
   >   rm -rf t; mkdir t
-  >   layer t/lib '(library (name core_lib))'
+  >   layer t/household '(library (name core_lib))'
   >   layer t/tui/kit '(library (name bakhlo_tui_kit) (wrapped false))'
   >   layer t/tui/book '(library (name bakhlo_tui_book) (wrapped false) (libraries bakhlo_tui_kit))'
   >   layer t/tui/protocol '(library (name bakhlo_tui_protocol) (wrapped false) (libraries bakhlo_tui_book))'
@@ -26,8 +26,8 @@ A valid tree passes; I/O words inside comments and strings are not code.
 
 Core may not depend on the TUI.
 
-  $ base; layer t/lib '(library (name core_lib) (libraries bakhlo_tui_kit))'; arch_check t
-  lib/dune: Core may not depend on bakhlo_tui_kit
+  $ base; layer t/household '(library (name core_lib) (libraries bakhlo_tui_kit))'; arch_check t
+  household/dune: Core may not depend on bakhlo_tui_kit
   [1]
 
 UI primitives may not depend on a screen (or anything above them).

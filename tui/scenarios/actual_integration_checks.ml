@@ -1193,7 +1193,7 @@ let date_correction_checks ~width_of ~directory home =
   in
   let merchant_review = key ~width_of merchant_edit `Enter in
   let merchant_saved = key ~width_of merchant_review `Enter in
-  let party = get_id (D.Identifier.External_party.of_string "historical-shop") in
+  let party = "historical-shop" in
   let merchant_cold = F.load retained_path in
   let merchant_target = Option.get (B.find_entry merchant_cold.book retained_target.id) in
   require
@@ -1659,9 +1659,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   (* Cold read verifies entry is classified as Merchant sanwa *)
   let cold_session = F.load path in
   let cold_e1 = Option.get (B.find_entry cold_session.book "e1") in
-  require
-    (cold_e1.merchant = Some (B.Merchant (get_id (D.Identifier.External_party.of_string "sanwa"))))
-    "merch-cold-verified";
+  require (cold_e1.merchant = Some (B.Merchant "sanwa")) "merch-cold-verified";
 
   (* Detail view in Actual displays 'Merchant: Merchant sanwa' *)
   let actual_post = C.open_route (C.initial ~config_home:dir cold_session) W.Actual in
@@ -1776,10 +1774,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   let rev_entry = List.find (fun (e : B.entry) -> e.reversal_of = Some "e3") rev_entries in
   require (rev_entry.merchant = None) "reversal-entry-has-no-merchant";
   let orig_entry = Option.get (B.find_entry post_rev_session.book "e3") in
-  require
-    (orig_entry.merchant
-    = Some (B.Merchant (get_id (D.Identifier.External_party.of_string "bakery"))))
-    "original-entry-retains-merchant";
+  require (orig_entry.merchant = Some (B.Merchant "bakery")) "original-entry-retains-merchant";
 
   (* 7. Save failure retains draft *)
   let e_unclass : B.entry =

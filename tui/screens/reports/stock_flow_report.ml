@@ -8,7 +8,6 @@ module B = Bakhlo_household.Book
 module IncExp = Income_expense_report
 module O = Ui_render
 module A = Draft
-module D = Bakhlo_domain
 
 type support =
   | Zero_origin
@@ -125,14 +124,9 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
        its counterpart's. The exclusion is keyed by (Measure, entry): an opening
        of another Measure never removes this Measure's flows. *)
     let opening_entries = Hashtbl.create 8 in
-    (match D.Identifier.Measure.of_string measure with
-    | Error _ -> ()
-    | Ok measure_id ->
-        List.iter
-          (fun ((_, m), tx) ->
-            if m = D.Identifier.Measure.to_string measure_id then
-              Hashtbl.replace opening_entries tx ())
-          (B.openings book));
+    List.iter
+      (fun ((_, m), tx) -> if m = measure then Hashtbl.replace opening_entries tx ())
+      (B.openings book);
     (* The opening entries that the window excludes, named in the note, and the
        rows whose Start and End still carry their effect. *)
     let excluded_openings = ref [] in

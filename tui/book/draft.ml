@@ -1,6 +1,5 @@
 (* Pure draft construction and validation. IDs and dates are supplied by the caller. *)
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module R = Posting_draft
 
 let tr = Ui_text.tr

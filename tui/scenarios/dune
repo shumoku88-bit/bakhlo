@@ -22,7 +22,6 @@
   bakhlo_screen_day
   bakhlo_tui_shell
   bakhlo.store
-  bakhlo.domain
   bakhlo.household
   zarith
   unix

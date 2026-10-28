@@ -2,7 +2,6 @@
    quantities; admission, display names and accounting roles are all saved in the
    book. *)
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module A = Draft
 module O = Ui_render
 module Roles = Locus_roles

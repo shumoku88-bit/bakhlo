@@ -1,7 +1,6 @@
 (* Controller state, navigation and publication-result transitions. *)
 (* English-first workspace controller. UI state never owns accounting facts. *)
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module F = Book_file
 module O = Ui_render
 module P = Ui_preferences

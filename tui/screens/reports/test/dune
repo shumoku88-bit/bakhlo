@@ -12,7 +12,6 @@
   bakhlo_tui_book
   bakhlo_tui_kit
   bakhlo_tui_protocol
-  bakhlo.domain
   bakhlo.household
   zarith
   base))
@@ -20,12 +19,7 @@
 (test
  (name trend_locus_projection_checks)
  (modules trend_locus_projection_checks)
- (libraries
-  bakhlo_screen_reports
-  bakhlo_tui_book
-  bakhlo.domain
-  bakhlo.household
-  zarith))
+ (libraries bakhlo_screen_reports bakhlo_tui_book bakhlo.household zarith))
 
 (test
  (name trend_locus_screen_checks)

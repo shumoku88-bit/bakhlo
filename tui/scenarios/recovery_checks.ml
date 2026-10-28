@@ -5,7 +5,6 @@ module F = Book_file
 module C = Shell_state
 module H = Shell_input
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 
 let get = function Ok x -> x | Error why -> raise (F.Refused why)
 let require = F.require

@@ -3,7 +3,6 @@
 module B = Bakhlo_household.Book
 module O = Ui_render
 module A = Draft
-module D = Bakhlo_domain
 module Panel = Ui_panel
 
 let support_text book (coordinate : B.coordinate) =

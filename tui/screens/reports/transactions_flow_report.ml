@@ -3,7 +3,6 @@ module B = Bakhlo_household.Book
 module IncExp = Income_expense_report
 module O = Ui_render
 module A = Draft
-module D = Bakhlo_domain
 
 type row_activity = {
   locus : string;

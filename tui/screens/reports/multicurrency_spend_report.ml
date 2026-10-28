@@ -4,7 +4,6 @@
 module B = Bakhlo_household.Book
 module O = Ui_render
 module A = Draft
-module D = Bakhlo_domain
 module M = Map.Make (String)
 
 type total = { measure : string; quanta : Z.t }

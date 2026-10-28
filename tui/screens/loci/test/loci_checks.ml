@@ -1,7 +1,6 @@
 (* Manage Loci: the unresolved holding Locus is never counted as unassigned and
    its detail names the way to resolve it, not a role. *)
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module Loci = Loci_screen
 module Roles = Locus_roles
 

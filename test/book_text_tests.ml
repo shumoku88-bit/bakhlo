@@ -2,7 +2,6 @@
    does not admit refuses instead of being written. *)
 module T = Bakhlo_book_txt.Book_txt
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 
 let read path = In_channel.with_open_bin path In_channel.input_all
 let get = function Ok x -> x | Error why -> failwith why

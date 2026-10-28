@@ -14,7 +14,6 @@
   bakhlo_screen_editors_checks
   bakhlo_tui_scenarios
   bakhlo.store
-  bakhlo.domain
   bakhlo.household
   unix
   base

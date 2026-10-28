@@ -2,7 +2,6 @@
    history, effective scopes, window completeness and refusals. Synthetic books
    only; no wording, layout or default-count assertions. *)
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module T = Trend_locus_report
 
 (* Fixtures are book.txt text; one that does not read is a broken test. *)

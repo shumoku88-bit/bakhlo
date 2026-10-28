@@ -135,7 +135,7 @@ let classify_merchant_target state target =
             let disp_text =
               match disposition with
               | Bakhlo_household.Book.Nonmerchant -> "Nonmerchant"
-              | Merchant p -> "Merchant " ^ D.Identifier.External_party.to_string p
+              | Merchant p -> "Merchant " ^ p
             in
             { state with message = "Merchant already classified: " ^ disp_text ^ "." }
         | None ->

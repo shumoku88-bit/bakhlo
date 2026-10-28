@@ -3,7 +3,6 @@ module B = Bakhlo_household.Book
     capability is available here. The caller supplies dates and fresh identities;
     a reviewed candidate retains its identity until that review is replaced. *)
 
-module D = Bakhlo_domain
 module R = Posting_draft
 
 val coordinate : locus:string -> measure:string -> (B.coordinate, string) result

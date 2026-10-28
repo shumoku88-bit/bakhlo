@@ -4,7 +4,6 @@
 module B = Bakhlo_household.Book
 module R = Multicurrency_spend_report
 module S = Multicurrency_spend_screen
-module D = Bakhlo_domain
 
 (* Fixtures are book.txt text; one that does not read is a broken test. *)
 let book_of_text text =

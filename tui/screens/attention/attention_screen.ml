@@ -25,7 +25,6 @@ let selected t = t.selected
 let detail_focused t = t.pane = Detail_pane
 
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 
 (* The unresolved holding Locus: Effects whose real account is not known yet.
    It is not an account and never takes a role. *)

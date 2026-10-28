@@ -2,7 +2,6 @@
 module B = Bakhlo_household.Book
 module O = Ui_render
 module A = Draft
-module D = Bakhlo_domain
 module Panel = Ui_panel
 
 type preset = Ten_days | Thirty_days | Month | Cycle | Previous_cycle

@@ -4,7 +4,6 @@
 module B = Bakhlo_household.Book
 module O = Ui_render
 module A = Draft
-module D = Bakhlo_domain
 
 type posting = { locus : string; signed : Z.t }
 type past = { description : string; date : string; postings : posting list }

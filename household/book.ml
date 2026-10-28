@@ -3,7 +3,6 @@
    specification's rules after Bakhlo's own write policies: Loci offered for new
    entries, open plans only, a Merchant set once. Balances come from the totals the
    admitted book keeps. Pure. *)
-module D = Bakhlo_domain
 module T = Bakhlo_book_txt.Book_txt
 module Smap = Map.Make (String)
 module Imap = Map.Make (Int)
@@ -13,14 +12,12 @@ exception Refused of string
 let require p why = if not p then raise (Refused why)
 let get why = function Ok x -> x | Error _ -> raise (Refused why)
 let protect f = try Ok (f ()) with Refused why -> Error why
-let eid s = get "invalid-entry-id" (D.Identifier.Event.of_string s)
-let lid s = get "invalid-locus" (D.Identifier.Locus.of_string s)
-let mid s = get "invalid-measure" (D.Identifier.Measure.of_string s)
+let nonempty why s = require (s <> "") why
 let valid_date day = require (T.valid_date day) "invalid-date"
 
 (* Whom the household regards as supplying what an entry acquired: a party, or
    explicitly nobody. An entry without one is unclassified. *)
-type disposition = Merchant of D.Identifier.External_party.t | Nonmerchant
+type disposition = Merchant of string | Nonmerchant
 type posting = T.posting = { locus : string; measure : string; amount : Z.t; key : string option }
 type coordinate = { locus : string; measure : string }
 
@@ -96,11 +93,7 @@ let entry_of (tx : T.tx) : entry =
     exchange = (match named with [ (_, a); (_, b) ] -> Some (a, b) | _ -> None);
     original_amount = tx.original;
     merchant =
-      Option.map
-        (function
-          | T.Merchant s -> Merchant (get "merchant-id" (D.Identifier.External_party.of_string s))
-          | T.Nonmerchant -> Nonmerchant)
-        tx.merchant;
+      Option.map (function T.Merchant s -> Merchant s | T.Nonmerchant -> Nonmerchant) tx.merchant;
   }
 
 let tx_of_entry (e : entry) : T.tx =
@@ -117,11 +110,7 @@ let tx_of_entry (e : entry) : T.tx =
     reversal_of = e.reversal_of;
     original = e.original_amount;
     merchant =
-      Option.map
-        (function
-          | Merchant p -> T.Merchant (D.Identifier.External_party.to_string p)
-          | Nonmerchant -> T.Nonmerchant)
-        e.merchant;
+      Option.map (function Merchant p -> T.Merchant p | Nonmerchant -> T.Nonmerchant) e.merchant;
     exchange = Option.map (fun (s, d) -> (measure_of s, measure_of d)) e.exchange;
   }
 
@@ -181,7 +170,7 @@ let value t = T.value t.txt
 
 let empty ~measure ~scale =
   protect (fun () ->
-      ignore (mid measure);
+      nonempty "invalid-measure" measure;
       require (scale >= 0 && scale <= 9) "invalid-scale";
       match T.read (Printf.sprintf "BOOK\t1\nMEASURE\t%s\t%d\nEND\n" measure scale) with
       | Ok b -> make b
@@ -444,7 +433,7 @@ let no_empty_memo (e : entry) = if e.memo = Some "" then { e with memo = None } 
 (* The entry's own fields, before the specification's rules: its identity, date and
    the Measures it names. *)
 let check_entry t (e : entry) =
-  ignore (eid e.id);
+  nonempty "invalid-entry-id" e.id;
   List.iter (fun (p : posting) -> known_measure t p.measure) e.effects;
   Option.iter (fun (m, _) -> known_measure t m) e.original_amount;
   require (T.valid_date e.day) "entry-admission"
@@ -481,7 +470,7 @@ let put_entry t ~replace (e : entry) ~plan =
    offered for new entries are kept. *)
 let correct_entry_date t ~id ~day =
   protect (fun () ->
-      ignore (eid id);
+      nonempty "invalid-entry-id" id;
       valid_date day;
       let old =
         match find_entry t id with Some e -> e | None -> raise (Refused "unknown-entry")
@@ -502,9 +491,7 @@ let classify_merchant t ~id ~disposition =
       require (old.merchant = None) merchant_classified;
       (match disposition with
       | Merchant p ->
-          require
-            (valid_token (D.Identifier.External_party.to_string p))
-            "loam: Merchant party token must be a non-empty single text field"
+          require (valid_token p) "loam: Merchant party token must be a non-empty single text field"
       | Nonmerchant -> ());
       let e = { old with merchant = Some disposition } in
       with_entry t (commit t [ T.Replace_tx (tx_of e) ]) e ~replace:true)
@@ -532,7 +519,7 @@ let cancel_plan t ~id ~day =
    one is offered again. *)
 let add_locus t id =
   protect (fun () ->
-      ignore (lid id);
+      nonempty "invalid-locus" id;
       require (not (List.mem id (offered t))) "duplicate-locus";
       let loci = (value t).loci in
       let loci =
@@ -544,7 +531,7 @@ let add_locus t id =
 
 let set_locus_label t ~id ~label ?help () =
   protect (fun () ->
-      ignore (lid id);
+      nonempty "invalid-locus" id;
       require (List.mem id (offered t)) "locus-not-approved";
       let valid_str s =
         s <> ""
@@ -578,8 +565,8 @@ let observe_quantities t rows =
       require (rows <> []) "empty-observations";
       List.iter
         (fun (l, m, _) ->
-          ignore (lid l);
-          ignore (mid m);
+          nonempty "invalid-locus" l;
+          nonempty "invalid-measure" m;
           known_measure t m;
           require (List.mem l (offered t)) "locus-not-approved")
         rows;
@@ -603,8 +590,8 @@ let with_bounded_history t rows =
   protect (fun () ->
       List.iter
         (fun (l, m, day) ->
-          ignore (lid l);
-          ignore (mid m);
+          nonempty "invalid-locus" l;
+          nonempty "invalid-measure" m;
           known_measure t m;
           valid_date day)
         rows;

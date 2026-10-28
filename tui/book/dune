@@ -4,11 +4,4 @@
 (library
  (name bakhlo_tui_book)
  (wrapped false)
- (libraries
-  bakhlo_tui_kit
-  bakhlo.domain
-  bakhlo.household
-  bakhlo.book_txt
-  zarith
-  uutf
-  base))
+ (libraries bakhlo_tui_kit bakhlo.household bakhlo.book_txt zarith uutf base))

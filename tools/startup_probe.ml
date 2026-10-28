@@ -1,19 +1,12 @@
 (* Synthetic startup/snapshot/save/in-memory response probe. Measurement only:
    Marshal here is a disposable-cache candidate, not a storage format. *)
-module D = Bakhlo_domain
 module B = Bakhlo_household.Book
 module T = Bakhlo_book_txt.Book_txt
 module F = Book_file
 
 let get = function Ok x -> x | Error why -> failwith why
 let id = function Ok x -> x | Error _ -> failwith "invalid-id"
-
-let coordinate locus measure : B.coordinate =
-  {
-    locus = id (D.Identifier.Locus.of_string locus);
-    measure = id (D.Identifier.Measure.of_string measure);
-  }
-
+let coordinate locus measure : B.coordinate = { locus; measure }
 let currencies = [| "jpy"; "eur"; "usd" |]
 let amount i = if i mod 997 = 0 then Z.shift_left Z.one 180 else Z.of_int (100 + (i mod 500))
 
@@ -162,7 +155,7 @@ let () =
           get (B.put_entry b ~replace:true { old with memo = Some "x" } ~plan:None));
       median "correct_entry_date" 21 (fun () ->
           get (B.correct_entry_date b ~id:"tx-000001" ~day:"2030-01-02"));
-      let merchant = id (D.Identifier.External_party.of_string "probe-merchant") in
+      let merchant = "probe-merchant" in
       median "classify_merchant (first)" 21 (fun () ->
           get (B.classify_merchant b ~id:"tx-000001" ~disposition:(B.Merchant merchant)));
       median "observe" 21 (fun () ->

@@ -1,7 +1,6 @@
 (* Suspense never silently stays pending: one derived Attention signal for the
    unresolved holding Locus, and Manage Loci never counts it as unassigned. *)
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module Att = Attention_screen
 module Roles = Locus_roles
 

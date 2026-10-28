@@ -3,7 +3,6 @@ module B = Bakhlo_household.Book
 module Roles = Locus_roles
 module O = Ui_render
 module A = Draft
-module D = Bakhlo_domain
 
 type period_preset = Period_window.preset = Month | Cycle | Previous_cycle | Year | All_time
 

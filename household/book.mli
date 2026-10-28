@@ -4,12 +4,11 @@
     offered for new entries, open plans only, a Merchant set once. Balances come from
     the totals the admitted book keeps. Pure: no file access. *)
 
-module D = Bakhlo_domain
 module T = Bakhlo_book_txt.Book_txt
 
 (** Whom the household regards as supplying what an entry acquired: a party, or
     explicitly nobody. An entry without one is unclassified. *)
-type disposition = Merchant of D.Identifier.External_party.t | Nonmerchant
+type disposition = Merchant of string | Nonmerchant
 
 type posting = T.posting = { locus : string; measure : string; amount : Z.t; key : string option }
 (** One signed change in the Measure's smallest unit, exactly as book.txt holds it. *)

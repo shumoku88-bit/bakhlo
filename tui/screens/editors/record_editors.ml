@@ -5,7 +5,6 @@
    is reviewed against the bytes the session started from, and the Shell
    reports each outcome; a failed one leaves the session open in its review. *)
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module Att = Attention_data
 module Rev = Reversal_session
 module Date = Date_correction_session
@@ -152,7 +151,7 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
           let disp_text =
             match disposition with
             | Bakhlo_household.Book.Nonmerchant -> "Nonmerchant"
-            | Merchant p -> "Merchant " ^ D.Identifier.External_party.to_string p
+            | Merchant p -> "Merchant " ^ p
           in
           ( keep (Event_merchant (Merchant.edit e)),
             Screen.Publish

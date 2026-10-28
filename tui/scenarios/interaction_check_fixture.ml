@@ -27,7 +27,6 @@ module Gen = Scheduled_generation_session
 module P = Ui_preferences
 module Att = Attention_data
 module Roles = Locus_roles
-module D = Bakhlo_domain
 module Stl = Settlement_data
 module Trend = Daily_pace_trend
 module O = Ui_render
@@ -300,7 +299,6 @@ let actual_rows (state : C.state) =
 
 let require = F.require
 let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
-let get_id = function Ok id -> id | Error D.Identifier.Empty -> raise (F.Refused "empty-identity")
 
 (* Store synthetic accounting roles in the book at [path]: roles are a book section. *)
 let put_roles path roles =

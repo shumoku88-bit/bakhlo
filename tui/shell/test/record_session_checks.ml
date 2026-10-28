@@ -2,7 +2,6 @@
    settings are written. Preview may allocate the existing random Actual identity. *)
 module B = Bakhlo_household.Book
 module S = Record_session
-module D = Bakhlo_domain
 module O = Ui_render
 
 (* Fixtures are book.txt text; one that does not read is a broken test. *)
@@ -30,6 +29,25 @@ let fixture =
    END\n"
 
 let self_check ~width_of () =
+  (* A draft names the first row that keeps its postings from being one balanced
+     single-Measure Movement, before Preview; book.txt admission decides the save. *)
+  let posting locus measure n : B.posting = { locus; measure; amount = Z.of_int n; key = None } in
+  let fault = Posting_draft.movement_fault in
+  require (fault [] = Some Posting_draft.Empty) "draft-fault-empty";
+  require
+    (fault [ posting "wallet" "jpy" (-5); posting "food" "jpy" 0 ] = Some (Posting_draft.Zero 2))
+    "draft-fault-zero-names-its-row";
+  require
+    (fault [ posting "wallet" "jpy" (-5); posting "food" "eur" 0 ] = Some (Posting_draft.Zero 2))
+    "draft-fault-zero-before-measure-on-one-row";
+  require
+    (fault [ posting "wallet" "jpy" (-5); posting "food" "eur" 5 ]
+    = Some (Posting_draft.Measure_differs { position = 2; expected = "jpy"; actual = "eur" }))
+    "draft-fault-measure-names-both";
+  require
+    (fault [ posting "wallet" "jpy" (-5); posting "food" "jpy" 4 ] = Some Posting_draft.Unbalanced)
+    "draft-fault-unbalanced";
+  require (fault [ posting "wallet" "jpy" (-5); posting "food" "jpy" 5 ] = None) "draft-fault-none";
   let book = book_of_text fixture in
   let before = Bakhlo_household.Book.print book in
   let dimensions = (100, 30) and base_revision = "synthetic-generation" in

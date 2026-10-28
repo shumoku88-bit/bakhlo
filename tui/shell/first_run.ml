@@ -1,5 +1,4 @@
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module O = Ui_render
 module Form = Ui_form
 module F = Book_file
@@ -60,26 +59,23 @@ let validate form =
         | `Malformed _ -> true)
       false destination
   then error "Book file path contains invalid UTF-8 or bidirectional controls."
+  else if measure = "" then error "Enter a valid Measure token."
+  else if scale_text = "" || not (String.for_all (fun c -> c >= '0' && c <= '9') scale_text) then
+    error "Enter a decimal scale from 0 to 9."
   else
-    match D.Identifier.Measure.of_string measure with
-    | Error _ -> error "Enter a valid Measure token."
-    | Ok _ -> (
-        if scale_text = "" || not (String.for_all (fun c -> c >= '0' && c <= '9') scale_text) then
-          error "Enter a decimal scale from 0 to 9."
-        else
-          match int_of_string_opt scale_text with
-          | Some scale when scale <= 9 -> (
-              let parent = Filename.dirname destination in
-              try
-                if (Unix.stat parent).Unix.st_kind <> Unix.S_DIR then
-                  error "The destination parent must be an existing directory."
-                else
-                  try
-                    ignore (Unix.lstat destination);
-                    error "That file already exists; choose an unused destination."
-                  with Unix.Unix_error (Unix.ENOENT, _, _) -> Ok { destination; measure; scale }
-              with Unix.Unix_error _ -> error "The destination parent is unavailable.")
-          | _ -> error "Enter a decimal scale from 0 to 9.")
+    match int_of_string_opt scale_text with
+    | Some scale when scale <= 9 -> (
+        let parent = Filename.dirname destination in
+        try
+          if (Unix.stat parent).Unix.st_kind <> Unix.S_DIR then
+            error "The destination parent must be an existing directory."
+          else
+            try
+              ignore (Unix.lstat destination);
+              error "That file already exists; choose an unused destination."
+            with Unix.Unix_error (Unix.ENOENT, _, _) -> Ok { destination; measure; scale }
+        with Unix.Unix_error _ -> error "The destination parent is unavailable.")
+    | _ -> error "Enter a decimal scale from 0 to 9."
 
 let review_form details =
   Form.create ~id:"first_run_review" ~title:"Review new household"

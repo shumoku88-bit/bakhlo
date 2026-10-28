@@ -1,5 +1,4 @@
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module O = Ui_render
 module Panel = Ui_panel
 
@@ -49,13 +48,10 @@ let proposal_text t =
 
 let draft_disposition t =
   match t.choice with
-  | Merchant -> (
+  | Merchant ->
       if not (valid_token t.party_input) then
         Error "Merchant party id must be a non-empty single text field."
-      else
-        match D.Identifier.External_party.of_string t.party_input with
-        | Ok p -> Ok (B.Merchant p)
-        | Error _ -> Error "Merchant party id must be a non-empty single text field.")
+      else Ok (B.Merchant t.party_input)
   | Nonmerchant -> Ok B.Nonmerchant
 
 let dimensions (width, height) =

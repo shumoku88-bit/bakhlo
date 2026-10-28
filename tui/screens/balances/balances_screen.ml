@@ -3,7 +3,6 @@
    through the Shell, with the bytes captured when it opened. *)
 
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module O = Ui_render
 module Form = Ui_form
 module Panel = Ui_panel

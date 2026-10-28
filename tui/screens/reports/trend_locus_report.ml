@@ -2,7 +2,6 @@
    explicitly configured cycle history. Read-only; no balance, support,
    role or household-coverage inference. *)
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module IncExp = Income_expense_report
 module Roles = Locus_roles
 

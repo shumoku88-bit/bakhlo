@@ -1,7 +1,6 @@
 (* One-line presentations of Actual entries and Scheduled plans for record lists:
    exact amounts, never a guessed total for split or multi-Measure entries. *)
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module A = Draft
 module O = Ui_render
 module W = Record_browser

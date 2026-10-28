@@ -7,7 +7,6 @@
    totals or the printed TXs stale shows up as a difference here. *)
 open Base
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module R = Stdlib.Random.State
 
 let get = function Ok x -> x | Error why -> failwith why
@@ -62,8 +61,8 @@ let roles : Bakhlo_book_txt.Book_txt.role array = [| Asset; Liability; Equity; I
 let attention_ids = [| "attention-1"; "attention-2"; "bad id"; "" |]
 let chance st n = R.int st 100 < n
 let ident of_string s = Result.ok_or_failwith (Result.map_error (of_string s) ~f:(fun _ -> s))
-let locus s = ident D.Identifier.Locus.of_string s
-let measure s = ident D.Identifier.Measure.of_string s
+let locus s = s
+let measure s = s
 let coordinate locus measure : B.coordinate = { locus; measure }
 let posting ?key l m n = { B.key; locus = l; measure = m; amount = Z.of_int n }
 let day st = if chance st 3 then "2026-02-30" else Printf.sprintf "2026-10-%02d" (1 + R.int st 28)
@@ -239,10 +238,7 @@ let generate st book =
         }
   | _ ->
       let id = match existing () with Some e when chance st 80 -> e.id | _ -> "nobody" in
-      let disposition =
-        if chance st 50 then B.Nonmerchant
-        else B.Merchant (ident D.Identifier.External_party.of_string "shop")
-      in
+      let disposition = if chance st 50 then B.Nonmerchant else B.Merchant "shop" in
       B.Classify_merchant { id; disposition }
 
 let apply book change = B.apply book [ change ]
@@ -433,7 +429,7 @@ let%expect_test "date and Merchant-only changes accept retained unapproved Loci"
     (result_text (B.classify_merchant base ~id:"nobody" ~disposition:B.Nonmerchant));
   Stdio.printf "duplicate Merchant: %s\n"
     (result_text (B.classify_merchant classified_book ~id:"init" ~disposition:B.Nonmerchant));
-  let bad_party = ident D.Identifier.External_party.of_string "bad\tparty" in
+  let bad_party = "bad\tparty" in
   Stdio.printf "invalid Merchant token: %s\n"
     (result_text (B.classify_merchant base ~id:"init" ~disposition:(B.Merchant bad_party)));
   [%expect

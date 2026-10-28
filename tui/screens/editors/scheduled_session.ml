@@ -3,7 +3,6 @@
    No Description, recurrence, routing, or Actual evidence. *)
 
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module A = Draft
 module O = Ui_render
 module Panel = Ui_panel

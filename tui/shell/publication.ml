@@ -2,7 +2,6 @@
    draft was made from, and reloading after an outcome that could not be confirmed. *)
 module F = Book_file
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 
 let tr = Ui_text.tr
 

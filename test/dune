@@ -10,7 +10,6 @@
  (name bakhlo_tests)
  (package bakhlo)
  (libraries
-  bakhlo_domain
   bakhlo_household
   bakhlo_store
   bakhlo_book_txt
@@ -34,13 +33,6 @@
   ../household/.bakhlo_household.objs/byte/bakhlo_household__.cmi
   ../household/.bakhlo_household.objs/byte/bakhlo_household__Book.cmi
   ../store/.bakhlo_store.objs/byte/book_file.cmi
-  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain.cmi
-  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Identifier.cmi
-  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Quantity.cmi
-  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Effect.cmi
-  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Event.cmi
-  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Movement.cmi
-  ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Effect_coordinate.cmi
   ../book_txt/.bakhlo_book_txt.objs/byte/bakhlo_book_txt.cmi
   ../book_txt/.bakhlo_book_txt.objs/byte/bakhlo_book_txt__Book_txt.cmi))
 

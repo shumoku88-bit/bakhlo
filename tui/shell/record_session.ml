@@ -2,7 +2,6 @@
    only an explicit selected Publish action requests the existing publisher. *)
 module B = Bakhlo_household.Book
 module A = Draft
-module D = Bakhlo_domain
 module R = Posting_draft
 module O = Ui_render
 
@@ -706,12 +705,7 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
           | `ASCII 'o', [ `Ctrl ] -> update { t with phase = Form; cursor = None; notice = "" }
           | `Enter, [] -> (
               let trimmed_m = String.trim ed.measure in
-              if
-                trimmed_m = ""
-                || (not (safe_text trimmed_m))
-                || String.contains trimmed_m ' '
-                || Result.is_error (D.Identifier.Measure.of_string trimmed_m)
-              then
+              if trimmed_m = "" || (not (safe_text trimmed_m)) || String.contains trimmed_m ' ' then
                 update (with_notice t (tr "Enter a nonempty single-line original Measure token."))
               else
                 match List.assoc_opt trimmed_m (B.measures book) with

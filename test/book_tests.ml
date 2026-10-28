@@ -1,6 +1,5 @@
 open Base
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module T = Bakhlo_book_txt.Book_txt
 
 let get = function Ok x -> x | Error why -> failwith why
@@ -28,10 +27,7 @@ let fixture =
    END\n"
 
 let posting locus measure n key : B.posting = { locus; measure; amount = Z.of_int n; key }
-
-let party s =
-  Result.ok_or_failwith
-    (Result.map_error (D.Identifier.External_party.of_string s) ~f:(fun _ -> "party"))
+let party s = s
 
 let entry id n : B.entry =
   {
@@ -46,21 +42,9 @@ let entry id n : B.entry =
   }
 
 let quantity book locus measure =
-  let locus =
-    Result.ok_or_failwith
-      (Result.map_error (D.Identifier.Locus.of_string locus) ~f:(fun _ -> "locus"))
-  in
-  let measure =
-    Result.ok_or_failwith
-      (Result.map_error (D.Identifier.Measure.of_string measure) ~f:(fun _ -> "measure"))
-  in
-  match
-    B.quantity book
-      ~locus:(D.Identifier.Locus.to_string locus)
-      ~measure:(D.Identifier.Measure.to_string measure)
-  with
-  | Some q -> Z.to_string q.amount
-  | None -> "unknown"
+  let locus = locus in
+  let measure = measure in
+  match B.quantity book ~locus ~measure with Some q -> Z.to_string q.amount | None -> "unknown"
 
 let%expect_test "daily replacement and plan payment use current entries, preserving support" =
   let base = book_of_txt fixture in
@@ -1078,8 +1062,7 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
   in
   let entry_shop = Option.value_exn (B.find_entry classified_shop "e_merch") in
   (match entry_shop.merchant with
-  | Some (B.Merchant p) ->
-      Stdio.printf "classified merchant: %s\n" (D.Identifier.External_party.to_string p)
+  | Some (B.Merchant p) -> Stdio.printf "classified merchant: %s\n" p
   | _ -> Stdio.printf "unexpected merchant state\n");
 
   (* 3. Nonmerchant classification *)

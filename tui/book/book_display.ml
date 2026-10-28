@@ -2,7 +2,6 @@
    candidates, and the detail lines of Actual entries, Scheduled plans and Previews.
    Read-only; nothing here publishes. *)
 module B = Bakhlo_household.Book
-module D = Bakhlo_domain
 module A = Draft
 
 let tr = Ui_text.tr
@@ -78,7 +77,7 @@ let entry_lines book (entry : B.entry) =
       match entry.merchant with
       | None -> tr "Unresolved"
       | Some Nonmerchant -> tr "Nonmerchant"
-      | Some (Merchant p) -> tr "Merchant " ^ visible (D.Identifier.External_party.to_string p));
+      | Some (Merchant p) -> tr "Merchant " ^ visible p);
     ]
   @ (match entry.exchange with
     | None -> []
