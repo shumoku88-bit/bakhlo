@@ -63,8 +63,8 @@ A screen may not reach the writer, directly or through operating-system access.
   tui/book/b.ml: book layer may not use Out_channel
   [1]
 
-  $ base; echo 'let commit = Daily_actions.commit_payload' > t/tui/screens/other/o.ml; arch_check t
-  tui/screens/other/o.ml: screen other layer may not use Daily_actions
+  $ base; echo 'let commit = Publication.payload' > t/tui/screens/other/o.ml; arch_check t
+  tui/screens/other/o.ml: screen other layer may not use Publication
   [1]
 
 Only the terminal adapter may use the terminal library.

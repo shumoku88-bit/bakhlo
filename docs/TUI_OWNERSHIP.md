@@ -43,7 +43,7 @@ publication results) → `shell_record_actions` (Record_action targets),
 (ledger publications through the single writer) → `shell_dispatch` (env,
 geometry, owner input/view, request application, reload, back, Commands,
 annual rollover) → `shell_input` and `shell_view`. `screen_registry` lists
-every owner; `daily_actions` and `record_session` are the retained Record
+every owner; `publication` and `record_session` are the retained Record
 flow over `bakhlo.store`.
 
 ## The screen contract (`tui/protocol/screen.mli`)
@@ -90,7 +90,7 @@ rejects: Core depending on TUI libraries; a library depending on a higher or
 sibling layer (screen to screen, screen to Shell, kit to anything); `bakhlo.store`
 or `unix` below the Shell; Notty outside `tui/app`; file access or writer
 tokens (`Durable_append`, `open_out`, `Sys.rename`, `Book_file`,
-`Daily_actions`, …) in kit/book/protocol/screens; the Shell mentioning a
+`Publication`, …) in kit/book/protocol/screens; the Shell mentioning a
 migrated screen's form ids, field ids or configuration files; sources in a
 directory without a Dune stanza or outside a known layer; and `*_checks`
 modules that their runner never calls; and the Shell using `Record_browser`

@@ -1,7 +1,6 @@
 (* Every book.txt publisher retains the same evidence when acknowledgement is
    lost. Actual writer checkpoints exercise both an unlanded and a landed save. *)
 open Interaction_check_fixture
-module A = Daily_actions
 
 let run ~width_of ~directory () =
   let fresh name =
@@ -27,7 +26,7 @@ let run ~width_of ~directory () =
             ~checkpoint:(fun reached ->
               if reached = checkpoint then raise (Sys_error "synthetic lost acknowledgement"))
             ?sidecars state.session ops
-          |> A.publication_result
+          |> Publication.of_file_outcome
         in
         let stopped = receive state result in
         retained state stopped;

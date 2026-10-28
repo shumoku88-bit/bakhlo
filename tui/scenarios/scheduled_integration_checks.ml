@@ -133,9 +133,7 @@ let list_scope_checks ~width_of ~directory home =
   let paying = key ~width_of paged `Enter in
   require
     (paying.record_visible
-    && (match S.mode (Option.get paying.record) with
-      | Daily_actions.Pay id -> id = "page-03"
-      | _ -> false)
+    && (match S.mode (Option.get paying.record) with Draft.Pay id -> id = "page-03" | _ -> false)
     && (not (plan_detail paying))
     && F.read path = before)
     "list-enter-completes-the-selected-occurrence-without-writing";
@@ -168,10 +166,7 @@ let list_scope_checks ~width_of ~directory home =
   let paid = key ~width_of (key ~width_of origin (`ASCII 'l')) `Enter in
   require
     (paid.record_visible
-    &&
-    match S.mode (Option.get paid.record) with
-    | Daily_actions.Pay id -> id = "scope-a"
-    | _ -> false)
+    && match S.mode (Option.get paid.record) with Draft.Pay id -> id = "scope-a" | _ -> false)
     "list-occurrence-pane-enter-completes-the-selection";
   let paid_closed = key ~width_of paid `Escape in
   let queried = with_plan_query all "scope-c" in
@@ -237,7 +232,7 @@ let list_scope_checks ~width_of ~directory home =
     (toggled_pay.record_visible
     &&
     match S.mode (Option.get toggled_pay.record) with
-    | Daily_actions.Pay id -> id = "scope-a"
+    | Draft.Pay id -> id = "scope-a"
     | _ -> false)
     "list-w-twice-restores-the-occurrence-pane-selection";
   let huged = with_plan_query all "scope-huge" in
@@ -673,9 +668,7 @@ let months_checks ~width_of ~directory home =
   let paying = key ~width_of months `Enter in
   require
     (paying.record_visible
-    && (match S.mode (Option.get paying.record) with
-      | Daily_actions.Pay id -> id = "month-02"
-      | _ -> false)
+    && (match S.mode (Option.get paying.record) with Draft.Pay id -> id = "month-02" | _ -> false)
     && F.read path = before)
     "months-enter-opens-selected-completion-without-publishing";
   let cancelled_pay = key ~width_of paying `Escape in
@@ -954,16 +947,16 @@ let continuation_checks ~width_of ~directory home =
         ~blocked:false ~dimensions:(140, 40) ~width_of (Option.get pay.record)
         (`Key (`Enter, []))
     with
-    | S.Publish (Daily_actions.Entry_tx tx, _, _) -> tx
+    | S.Publish (Draft.Entry_tx tx, _, _) -> tx
     | _ -> raise (F.Refused "continuation-uncertain-intent")
   in
   let op = [ B.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ] in
   let unknown =
-    C.apply_commit_result ~record_publication:true pay ~draft:pay
-      (Daily_actions.Uncertain
+    C.apply_outcome ~record_publication:true pay ~draft:pay
+      (Publication.Uncertain
          {
            message = "synthetic lost acknowledgement";
-           evidence = Daily_actions.Expected_revision (expected_after base.session op);
+           evidence = Publication.Expected_revision (expected_after base.session op);
          })
   in
   let unconfirmed = Shell_dispatch.reload unknown in
@@ -1115,9 +1108,7 @@ let coverage_checks ~width_of ~directory home =
   let paying = key ~width_of detail `Enter in
   require
     (paying.record_visible
-    && (match S.mode (Option.get paying.record) with
-      | Daily_actions.Pay id -> id = "cov-a"
-      | _ -> false)
+    && (match S.mode (Option.get paying.record) with Draft.Pay id -> id = "cov-a" | _ -> false)
     && F.read path = before)
     "coverage-plan-enter-opens-completion-without-publishing";
   let cancelled = key ~width_of paying `Escape in

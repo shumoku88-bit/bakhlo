@@ -1,19 +1,14 @@
-(* Single publication coordinator. Pure candidate construction lives in Draft. *)
-include Draft
+(* Publishing to the book file: each change the Shell asks for, onto the revision its
+   draft was made from, and reloading after an outcome that could not be confirmed. *)
 module F = Book_file
 module B = Bakhlo_household.Book
+module D = Bakhlo_domain
 
 let tr = Ui_text.tr
 
-let build_transaction ~book ~mode content =
-  Draft.build_transaction ~new_id:F.new_id ~book ~mode content
-
-let build_plan ~book ~mode ~day ~draft = Draft.build_plan ~new_id:F.new_id ~book ~mode ~day ~draft
-
-(* The file revision had the save landed. *)
 type uncertain_evidence = Expected_revision of string
 
-type commit_result =
+type outcome =
   | Published of F.t
   | Conflict_base_changed
   | Conflict
@@ -21,45 +16,43 @@ type commit_result =
   | Storage_failed of string
   | Refused of string
 
-let publication_result = function
+let of_file_outcome = function
   | F.Written session -> Published session
   | F.Conflict -> Conflict
   | F.Refused_input why -> Refused why
   | F.Uncertain { expected } ->
       Uncertain { message = tr "Save outcome is uncertain."; evidence = Expected_revision expected }
 
-let publish_changes ?sidecars ~session changes : commit_result =
-  try publication_result (F.publish ?sidecars session changes) with
+let changes ?sidecars ~session requested : outcome =
+  try of_file_outcome (F.publish ?sidecars session requested) with
   | Unix.Unix_error (err, fn, arg) ->
       Storage_failed (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
   | Sys_error msg -> Storage_failed msg
 
 (* Publish only onto the revision the draft was made from. *)
-let publish_onto ~session ~base_revision changes =
-  if base_revision <> session.F.revision then Conflict_base_changed
-  else publish_changes ~session changes
+let onto ~session ~base_revision requested =
+  if base_revision <> session.F.revision then Conflict_base_changed else changes ~session requested
 
-let commit_transaction ~session ~base_revision (tx : transaction) : commit_result =
-  publish_onto ~session ~base_revision
+let transaction ~session ~base_revision (tx : Draft.transaction) : outcome =
+  onto ~session ~base_revision
     [ B.Put_entry { replace = tx.replace; entry = tx.entry; plan = tx.plan } ]
 
-let commit_plan ~session ~base_revision ~replace (plan : B.plan) : commit_result =
-  publish_onto ~session ~base_revision [ B.Put_plan { replace; plan } ]
+let plan ~session ~base_revision ~replace (plan : B.plan) : outcome =
+  onto ~session ~base_revision [ B.Put_plan { replace; plan } ]
 
-let commit_plan_batch ?(replace = true) ~session ~base_revision (plans : B.plan list) :
-    commit_result =
+let plan_batch ?(replace = true) ~session ~base_revision (plans : B.plan list) : outcome =
   if base_revision <> session.F.revision then Conflict_base_changed
   else if plans = [] then Refused (tr "No Scheduled changes selected.")
   else
     let ids = List.map (fun (p : B.plan) -> p.id) plans in
     if List.length (List.sort_uniq String.compare ids) <> List.length ids then
       Refused (tr "A Scheduled occurrence may be selected only once.")
-    else publish_changes ~session (List.map (fun plan -> B.Put_plan { replace; plan }) plans)
+    else changes ~session (List.map (fun plan -> B.Put_plan { replace; plan }) plans)
 
-let commit_cancel_plan ~session ~base_revision ~id ~day : commit_result =
-  publish_onto ~session ~base_revision [ B.Cancel_plan { id; day } ]
+let cancel_plan ~session ~base_revision ~id ~day : outcome =
+  onto ~session ~base_revision [ B.Cancel_plan { id; day } ]
 
-let commit_reverse_entry ~session ~base_revision ~id ~day : commit_result =
+let reverse_entry ~session ~base_revision ~id ~day : outcome =
   if base_revision <> session.F.revision then Conflict_base_changed
   else
     match B.find_entry session.book id with
@@ -94,46 +87,45 @@ let commit_reverse_entry ~session ~base_revision ~id ~day : commit_result =
               merchant = None;
             }
           in
-          publish_changes ~session
-            [ B.Put_entry { replace = false; entry = reversal; plan = None } ]
+          changes ~session [ B.Put_entry { replace = false; entry = reversal; plan = None } ]
 
-let commit_correct_entry_date ~session ~base_revision ~id ~day : commit_result =
-  publish_onto ~session ~base_revision [ B.Correct_entry_date { id; day } ]
+let correct_entry_date ~session ~base_revision ~id ~day : outcome =
+  onto ~session ~base_revision [ B.Correct_entry_date { id; day } ]
 
-let commit_observations ~session ~base_revision rows : commit_result =
-  publish_onto ~session ~base_revision [ B.Observe rows ]
+let observations ~session ~base_revision rows : outcome =
+  onto ~session ~base_revision [ B.Observe rows ]
 
-let commit_sidecars ~session sidecars : commit_result = publish_changes ~sidecars ~session []
+let sidecars ~session sidecars : outcome = changes ~sidecars ~session []
 
-let commit_classify_merchant ~session ~base_revision ~id ~disposition : commit_result =
-  publish_onto ~session ~base_revision [ B.Classify_merchant { id; disposition } ]
+let classify_merchant ~session ~base_revision ~id ~disposition : outcome =
+  onto ~session ~base_revision [ B.Classify_merchant { id; disposition } ]
 
-let commit_payload ~session ~base_revision = function
-  | Entry_tx tx -> commit_transaction ~session ~base_revision tx
-  | Plan_tx { plan; replace } -> commit_plan ~session ~base_revision ~replace plan
+let payload ~session ~base_revision = function
+  | Draft.Entry_tx tx -> transaction ~session ~base_revision tx
+  | Draft.Plan_tx { plan = p; replace } -> plan ~session ~base_revision ~replace p
 
-let commit_set_locus_label ~session ~base_revision ~id ~label ?help () : commit_result =
-  publish_onto ~session ~base_revision [ B.Set_locus_label { id; label; help } ]
+let set_locus_label ~session ~base_revision ~id ~label ?help () : outcome =
+  onto ~session ~base_revision [ B.Set_locus_label { id; label; help } ]
 
-let commit_add_locus ~session name : commit_result =
+let add_locus ~session name : outcome =
   let name = String.trim name in
   if String.equal name "" then Refused (tr "Enter the new Locus token.")
   else
-    match publish_changes ~session [ B.Add_locus name ] with
+    match changes ~session [ B.Add_locus name ] with
     | Refused "duplicate-locus" ->
         Refused (Ui_text.format_message "Locus %s is already admitted." name)
     | Refused "locus-policy-not-supplied" -> Refused (tr "Locus admission policy is not supplied.")
     | Refused why -> Refused (Ui_text.format_message "Locus admission refused (%s)" why)
     | result -> result
 
-type reload_result =
+type reload_outcome =
   | Pending_confirmed of F.t
   | Pending_unconfirmed of F.t
   | Edit_base_changed of F.t
   | Reloaded of F.t
   | Reload_failed of string
 
-let reload ~session ~pending ~mode : reload_result =
+let reload ~session ~pending ~mode : reload_outcome =
   try
     let loaded = F.reload session in
     match pending with
@@ -141,9 +133,9 @@ let reload ~session ~pending ~mode : reload_result =
     | Some _ -> Pending_unconfirmed loaded
     | None -> (
         match mode with
-        | (Edit _ | Plan_edit _) when loaded.revision <> session.revision ->
+        | (Draft.Edit _ | Plan_edit _) when loaded.revision <> session.revision ->
             Edit_base_changed loaded
-        | New | Pay _ | Edit _ | Plan_new | Plan_edit _ -> Reloaded loaded)
+        | Draft.New | Pay _ | Edit _ | Plan_new | Plan_edit _ -> Reloaded loaded)
   with
   | F.Refused why -> Reload_failed why
   | Unix.Unix_error _ | Sys_error _ -> Reload_failed "IO-error"

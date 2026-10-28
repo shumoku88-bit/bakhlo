@@ -1,6 +1,5 @@
 module B = Bakhlo_household.Book
 module F = Book_file
-module A = Daily_actions
 module S = Scheduled_bulk_session
 module C = Shell_state
 module H = Shell_input
@@ -169,8 +168,8 @@ let self_check ~width_of () =
       let path = directory ^ "/book.txt" in
       F.write_new path base;
       let session = F.load path in
-      (match A.commit_plan_batch ~session ~base_revision:captured plans with
-      | A.Published _ -> ()
+      (match Publication.plan_batch ~session ~base_revision:captured plans with
+      | Publication.Published _ -> ()
       | _ -> raise (F.Refused "batch-commit-failed"));
       let cold = F.load path in
       let a = List.find (fun (p : B.plan) -> p.id = "bulk-a") (B.plans cold.book)
@@ -196,26 +195,29 @@ let self_check ~width_of () =
       in
       require
         (match
-           A.commit_plan_batch ~session ~base_revision:session.revision [ List.hd plans; invalid ]
+           Publication.plan_batch ~session ~base_revision:session.revision
+             [ List.hd plans; invalid ]
          with
-        | A.Refused _ -> true
+        | Publication.Refused _ -> true
         | _ -> false)
         "late-invalid-plan-refused";
       require (F.read path = unchanged) "late-invalid-no-partial-write";
       let duplicate =
-        A.commit_plan_batch ~session ~base_revision:session.revision
+        Publication.plan_batch ~session ~base_revision:session.revision
           [ List.hd plans; List.hd plans ]
       in
-      require (match duplicate with A.Refused _ -> true | _ -> false) "duplicate-refused";
+      require
+        (match duplicate with Publication.Refused _ -> true | _ -> false)
+        "duplicate-refused";
       require (F.read path = unchanged) "duplicate-no-write";
       require
-        (match A.commit_plan_batch ~session ~base_revision:"stale" plans with
-        | A.Conflict_base_changed -> true
+        (match Publication.plan_batch ~session ~base_revision:"stale" plans with
+        | Publication.Conflict_base_changed -> true
         | _ -> false)
         "stale-refused";
       require
-        (match A.commit_plan_batch ~session ~base_revision:session.revision [] with
-        | A.Refused _ -> true
+        (match Publication.plan_batch ~session ~base_revision:session.revision [] with
+        | Publication.Refused _ -> true
         | _ -> false)
         "empty-refused";
       print_endline

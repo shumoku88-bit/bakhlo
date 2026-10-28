@@ -87,7 +87,7 @@ let forbidden_tokens =
     "Sys.readdir";
     "Filename.temp_file";
     "Book_file";
-    "Daily_actions";
+    "Publication";
   ]
 
 type stanza = { kind : string; names : string list; libraries : string list; dir : string list }

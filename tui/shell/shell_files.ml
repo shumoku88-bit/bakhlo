@@ -65,21 +65,21 @@ let accounting_roles state =
 let sidecars_result state result =
   let next =
     match result with
-    | A.Published session -> sync { state with session }
-    | _ -> apply_commit_result state ~draft:state result
+    | Publication.Published session -> sync { state with session }
+    | _ -> apply_outcome state ~draft:state result
   in
   let saved =
     match result with
-    | A.Published _ -> Ok ()
-    | A.Conflict | A.Conflict_base_changed ->
+    | Publication.Published _ -> Ok ()
+    | Publication.Conflict | Publication.Conflict_base_changed ->
         Error "The book changed on disk. Reload before retrying."
-    | A.Refused why | A.Storage_failed why -> Error why
-    | A.Uncertain _ -> Error "Save outcome is uncertain. Do not retry; reload to inspect."
+    | Publication.Refused why | Publication.Storage_failed why -> Error why
+    | Publication.Uncertain _ -> Error "Save outcome is uncertain. Do not retry; reload to inspect."
   in
   (next, saved)
 
 let publish_sidecars state sidecars =
-  sidecars_result state (A.commit_sidecars ~session:state.session sidecars)
+  sidecars_result state (Publication.sidecars ~session:state.session sidecars)
 
 let save_roles state ~expected ~content =
   if book_roles state <> expected then (state, Error "Configuration changed. Reopen the editor.")

@@ -3,7 +3,6 @@
 module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module F = Book_file
-module A = Daily_actions
 module O = Ui_render
 module P = Ui_preferences
 module W = Ui_workspace
@@ -62,7 +61,7 @@ type state = {
   message : string;
   ui_notice : string option;
   blocked : bool;
-  pending : A.uncertain_evidence option;
+  pending : Publication.uncertain_evidence option;
   (* A confirmed publication clears only the requesting Record, even if hidden
      while waiting for reload. Other screen publications may share this state. *)
   pending_record_publication : bool;
@@ -122,7 +121,7 @@ let has_record_draft state =
   match state.record with None -> false | Some record -> S.has_draft record
 
 let editor_visible state = state.record_visible
-let mode state = match state.record with None -> A.New | Some record -> S.mode record
+let mode state = match state.record with None -> Draft.New | Some record -> S.mode record
 
 let sync state =
   match state.workspace.route with
@@ -161,7 +160,7 @@ let finish_publication ~record_publication state session message =
     { next with screens; message = (next.message ^ if notice = "" then "" else "\n" ^ tr notice) }
   in
   match (record_publication, mode state) with
-  | true, A.Pay id -> (
+  | true, Draft.Pay id -> (
       match
         List.find_opt (fun (p : B.plan) -> p.id = id && p.paid_by <> None) (B.plans session.book)
       with
@@ -181,7 +180,7 @@ let finish_publication ~record_publication state session message =
           })
   | _ -> next
 
-let apply_commit_result ?published_message ?(record_publication = false) state ~draft result =
+let apply_outcome ?published_message ?(record_publication = false) state ~draft result =
   let published session default_msg =
     let msg = match published_message with Some m -> m | None -> default_msg in
     finish_publication ~record_publication state session msg
@@ -190,22 +189,22 @@ let apply_commit_result ?published_message ?(record_publication = false) state ~
     { draft with blocked = true; pending; message }
   in
   match result with
-  | A.Published session ->
+  | Publication.Published session ->
       published session "Published and read back. Previous bytes are kept separately."
-  | A.Conflict_base_changed ->
+  | Publication.Conflict_base_changed ->
       stopped ~pending:None
         (tr "The preview generation changed. Draft retained; reload and review.")
-  | A.Conflict ->
+  | Publication.Conflict ->
       stopped ~pending:None
         (tr "Another writer changed the book. Draft retained; reload and review.")
-  | A.Storage_failed why ->
+  | Publication.Storage_failed why ->
       stopped (Ui_text.format_message "Storage failed (%s). Writes stopped; draft retained." why)
-  | A.Refused why ->
+  | Publication.Refused why ->
       {
         draft with
         message = Ui_text.format_message "Publication refused (%s). Draft retained." why;
       }
-  | A.Uncertain { message; evidence } ->
+  | Publication.Uncertain { message; evidence } ->
       let stopped =
         stopped ~pending:(Some evidence)
           (Ui_text.format_message
@@ -216,18 +215,18 @@ let apply_commit_result ?published_message ?(record_publication = false) state ~
 
 let reload state =
   let state = { state with settlements = Settlement_file.load_file state.settlement_path } in
-  match A.reload ~session:state.session ~pending:state.pending ~mode:(mode state) with
-  | A.Pending_confirmed session ->
+  match Publication.reload ~session:state.session ~pending:state.pending ~mode:(mode state) with
+  | Publication.Pending_confirmed session ->
       finish_publication ~record_publication:state.pending_record_publication state session
         "The pending publication is present now. No retry."
-  | A.Pending_unconfirmed session ->
+  | Publication.Pending_unconfirmed session ->
       {
         state with
         session;
         blocked = true;
         message = tr "Reloaded; the previous publication is still unconfirmed. No retry.";
       }
-  | A.Edit_base_changed session ->
+  | Publication.Edit_base_changed session ->
       {
         state with
         session;
@@ -235,7 +234,7 @@ let reload state =
         message =
           tr "The edited generation changed. Draft retained; discard explicitly and reselect.";
       }
-  | A.Reloaded session -> (
+  | Publication.Reloaded session -> (
       match state.overlay with
       | _ ->
           sync
@@ -245,7 +244,7 @@ let reload state =
               blocked = false;
               message = tr "Reloaded. Unsaved draft retained.";
             })
-  | A.Reload_failed why ->
+  | Publication.Reload_failed why ->
       {
         state with
         blocked = true;

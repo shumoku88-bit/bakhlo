@@ -4,7 +4,6 @@
 module F = Book_file
 module C = Shell_state
 module H = Shell_input
-module A = Daily_actions
 module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 
@@ -100,10 +99,10 @@ let self_check () =
         let loaded = F.load session.path in
         require (F.confirms ~expected loaded) "recovery-landed-save-missing";
         check_candidate loaded.book;
-        let evidence = A.Expected_revision expected in
+        let evidence = Publication.Expected_revision expected in
         let memory =
-          C.apply_commit_result ~record_publication:false (cold session) ~draft:(cold session)
-            (A.Uncertain { message = "一括書換の成否が不確定です"; evidence })
+          C.apply_outcome ~record_publication:false (cold session) ~draft:(cold session)
+            (Publication.Uncertain { message = "一括書換の成否が不確定です"; evidence })
         in
         require memory.blocked "recovery-uncertain-not-stopped";
         let resumed = Shell_dispatch.reload memory in
@@ -131,11 +130,12 @@ let self_check () =
     | _ -> raise (F.Refused "external-setup")
   in
   let memory =
-    C.apply_commit_result ~record_publication:false (cold external_) ~draft:(cold external_)
-      (A.Uncertain
+    C.apply_outcome ~record_publication:false (cold external_) ~draft:(cold external_)
+      (Publication.Uncertain
          {
            message = "synthetic";
-           evidence = A.Expected_revision (Interaction_check_fixture.expected_after external_ ops);
+           evidence =
+             Publication.Expected_revision (Interaction_check_fixture.expected_after external_ ops);
          })
   in
   let stopped = Shell_dispatch.reload memory in

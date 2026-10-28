@@ -1,7 +1,6 @@
 (* Pure synthetic Record contract checks. No ledger files, publication or locale
    settings are written. Preview may allocate the existing random Actual identity. *)
 module B = Bakhlo_household.Book
-module A = Daily_actions
 module S = Record_session
 module D = Bakhlo_domain
 module O = Ui_render
@@ -85,7 +84,7 @@ let self_check ~width_of () =
   | _ -> failwith "escape-cancels-without-publishing");
   let tx =
     match handle review (`Key (`Enter, [])) with
-    | S.Publish (A.Entry_tx tx, base, retained) ->
+    | S.Publish (Draft.Entry_tx tx, base, retained) ->
         require
           (base = base_revision && S.has_draft retained)
           "publication-carries-generation-and-draft";
@@ -94,7 +93,7 @@ let self_check ~width_of () =
   in
   require (tx.entry.memo = Some "q 食事") "publication-preserves-description";
   require
-    (List.map A.quanta tx.entry.effects = [ Z.of_int (-100); Z.of_int 100 ])
+    (List.map Draft.quanta tx.entry.effects = [ Z.of_int (-100); Z.of_int 100 ])
     "signed-conservation";
   (* Selecting an action wraps in either direction without changing the reviewed
      payload. Edit and Cancel remain available while publication is blocked. *)
@@ -103,7 +102,7 @@ let self_check ~width_of () =
     (fun navigate ->
       let wrapped = navigate review in
       match handle wrapped (`Key (`Enter, [])) with
-      | S.Publish (A.Entry_tx selected, base, _) ->
+      | S.Publish (Draft.Entry_tx selected, base, _) ->
           require
             (selected = tx && base = base_revision)
             "review-action-wrap-preserves-reviewed-payload"
@@ -134,9 +133,9 @@ let self_check ~width_of () =
     "catalog-translates-template-not-user-data";
   let matched = prepare ~locus_query:"wall" () |> fun t -> key t `Enter in
   (match handle matched (`Key (`Enter, [])) with
-  | S.Publish (A.Entry_tx selected, _, _) ->
+  | S.Publish (Draft.Entry_tx selected, _, _) ->
       require
-        (A.lstr (D.Effect.locus (List.hd selected.entry.effects)) = "wallet")
+        (Draft.lstr (D.Effect.locus (List.hd selected.entry.effects)) = "wallet")
         "search-accepts-exact-stored-id"
   | _ -> failwith "filtered-locus-acceptance");
   ignore (get (B.put_entry book ~replace:tx.replace tx.entry ~plan:tx.plan));
@@ -180,9 +179,9 @@ let self_check ~width_of () =
     "exact-unbalanced-refusal";
   let calculated = prepare ~amount:"(500+300)/2" () |> fun t -> key t `Enter in
   (match handle calculated (`Key (`Enter, [])) with
-  | S.Publish (A.Entry_tx tx, _, _) ->
+  | S.Publish (Draft.Entry_tx tx, _, _) ->
       require
-        (List.map A.quanta tx.entry.effects = [ Z.of_int (-400); Z.of_int 400 ])
+        (List.map Draft.quanta tx.entry.effects = [ Z.of_int (-400); Z.of_int 400 ])
         "calculator-record-publishes-exact-quanta"
   | _ -> failwith "calculator-record-review-refused");
   let invalid = prepare ~amount:"500/0" () |> fun t -> key t `Enter in
@@ -197,9 +196,9 @@ let self_check ~width_of () =
     key t `Enter |> fun t -> key t `End
   in
   (match handle huge_review (`Key (`Enter, [])) with
-  | S.Publish (A.Entry_tx tx, _, _) ->
+  | S.Publish (Draft.Entry_tx tx, _, _) ->
       require
-        (Z.equal (List.nth (List.map A.quanta tx.entry.effects) 1) (Z.of_string huge))
+        (Z.equal (List.nth (List.map Draft.quanta tx.entry.effects) 1) (Z.of_string huge))
         "huge-exact-quantity"
   | _ -> failwith "huge-review-is-not-partial-number");
   let edit_book = get (B.put_entry book ~replace:false tx.entry ~plan:None) in
@@ -221,7 +220,7 @@ let self_check ~width_of () =
     S.preview ~new_id:Book_file.new_id ~book:edit_book ~base_revision ~blocked:false edit
   in
   (match handle ~book:edit_book edit_review (`Key (`Enter, [])) with
-  | S.Publish (A.Entry_tx next, _, _) ->
+  | S.Publish (Draft.Entry_tx next, _, _) ->
       require
         (next.entry.id = tx.entry.id && next.entry.effects = tx.entry.effects && next.replace)
         "edit-preserves-identity-structure"
@@ -232,7 +231,7 @@ let self_check ~width_of () =
     S.preview ~new_id:Book_file.new_id ~book ~base_revision ~blocked:false completion
   in
   (match handle completion (`Key (`Enter, [])) with
-  | S.Publish (A.Entry_tx next, _, _) ->
+  | S.Publish (Draft.Entry_tx next, _, _) ->
       require
         (next.plan = Some plan.id && next.entry.day = "2026-10-11")
         "scheduled-link-and-actual-day"
@@ -292,7 +291,7 @@ let self_check ~width_of () =
     [ (32, 9); (48, 14); (80, 24); (120, 36) ];
   let mid_review = key (ctrl mid_edit 's') `End in
   (match handle mid_review (`Key (`Enter, [])) with
-  | S.Publish (A.Entry_tx next, _, _) ->
+  | S.Publish (Draft.Entry_tx next, _, _) ->
       require
         (next.entry.memo = Some (String.concat "" (List.init 24 (fun _ -> "長い説明")) ^ "終食端"))
         "record-resize-retains-whole-mid-string-edited-draft"
@@ -368,7 +367,7 @@ let self_check ~width_of () =
     | _ -> failwith "review-end-navigation"
   in
   (match handle ~dimensions:(72, 20) ended (`Key (`Enter, [])) with
-  | S.Publish (A.Entry_tx next, _, _) ->
+  | S.Publish (Draft.Entry_tx next, _, _) ->
       require (next.entry.memo = Some long_description) "ended-review-retains-whole-payload";
       let count =
         List.length
@@ -416,7 +415,7 @@ let self_check ~width_of () =
     S.preview ~new_id:Book_file.new_id ~book:keyed_book ~base_revision ~blocked:false keyed_editor
   in
   (match handle ~book:keyed_book keyed_review (`Key (`Enter, [])) with
-  | S.Publish (A.Entry_tx next, _, _) ->
+  | S.Publish (Draft.Entry_tx next, _, _) ->
       require
         (next.entry.id = keyed.id && next.entry.effects = keyed.effects)
         "edit-preserves-posting-keys";
@@ -435,13 +434,13 @@ let self_check ~width_of () =
     S.preview ~new_id:Book_file.new_id ~book:keyed_book ~base_revision ~blocked:false relocated
   in
   (match handle ~book:keyed_book relocated_review (`Key (`Enter, [])) with
-  | S.Publish (A.Entry_tx next, _, _) ->
+  | S.Publish (Draft.Entry_tx next, _, _) ->
       let keys = List.map D.Effect.key next.entry.effects in
       require
         (next.entry.id = keyed.id
         && List.nth keys 0 = None
         && List.nth keys 1 = D.Effect.key (List.nth keyed.effects 1)
-        && A.lstr (D.Effect.locus (List.hd next.entry.effects)) = "bank")
+        && Draft.lstr (D.Effect.locus (List.hd next.entry.effects)) = "bank")
         "edit-locus-change-drops-only-its-key";
       let edited_book = get (B.put_entry keyed_book ~replace:true next.entry ~plan:next.plan) in
       require
@@ -611,7 +610,7 @@ let self_check ~width_of () =
   require (not (S.has_draft plan_draft)) "fresh-plan-draft-is-empty";
   require (S.has_draft (key plan_draft `Backspace)) "date-only-plan-edit-is-retained";
   require (S.has_draft (key (key plan_draft `Tab) `Backspace)) "measure-only-plan-edit-is-retained";
-  require (S.mode plan_draft = A.Plan_new) "is-plan-identified";
+  require (S.mode plan_draft = Draft.Plan_new) "is-plan-identified";
   require (contains plan_draft "Scheduled / Create") "plan-create-title";
   require (S.border_intent plan_draft = `Create) "plan-create-border-intent";
   let plan_draft = key (key plan_draft `Tab) `Tab in
@@ -623,7 +622,7 @@ let self_check ~width_of () =
   let plan_review = key plan_draft `Enter in
   require (contains plan_review "Scheduled / Preview") "plan-preview-title";
   (match handle plan_review (`Key (`Enter, [])) with
-  | S.Publish (A.Plan_tx { plan = new_p; replace }, base, retained) ->
+  | S.Publish (Draft.Plan_tx { plan = new_p; replace }, base, retained) ->
       require (base = base_revision && S.has_draft retained) "plan-publish-carries-generation";
       require (not replace) "new-plan-replace-is-false";
       require (new_p.day = "2026-10-15") "new-plan-due-day";
@@ -640,7 +639,7 @@ let self_check ~width_of () =
         S.preview ~new_id:Book_file.new_id ~book:plan_book ~base_revision ~blocked:false plan_editor
       in
       (match handle ~book:plan_book plan_edit_review (`Key (`Enter, [])) with
-      | S.Publish (A.Plan_tx { plan = edited_p; replace = edit_replace }, _, _) ->
+      | S.Publish (Draft.Plan_tx { plan = edited_p; replace = edit_replace }, _, _) ->
           require edit_replace "edited-plan-replace-is-true";
           require (edited_p.id = new_p.id) "edited-plan-preserves-id";
           require (edited_p.day = new_p.day) "edited-plan-preserves-day"
@@ -746,7 +745,7 @@ let self_check ~width_of () =
 
   (* Publish carries exact original amount *)
   (match handle orig_preview (`Key (`Enter, [])) with
-  | S.Publish (A.Entry_tx tx, _, _) ->
+  | S.Publish (Draft.Entry_tx tx, _, _) ->
       require
         (tx.entry.original_amount = Some ("eur", Z.of_int 3000))
         "orig-amount-published-quanta";

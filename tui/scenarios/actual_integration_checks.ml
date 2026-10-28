@@ -508,7 +508,7 @@ let actual_browsing_checks ~width_of ~directory home =
     | [ e ] ->
         e.day = (entry 16).day
         && e.memo = Some "English UI / 日本語のメモ"
-        && List.map Daily_actions.quanta e.effects = [ Z.of_int (-37); Z.of_int 37 ]
+        && List.map Draft.quanta e.effects = [ Z.of_int (-37); Z.of_int 37 ]
     | _ -> false)
     "selected-day-record-cold-retains-route-date-and-exact-postings";
   let back = key ~width_of saved (`ASCII 'q') in
@@ -879,7 +879,7 @@ let reversal_checks ~width_of ~directory home =
         (D.Effect.locus original = D.Effect.locus inverse
         && D.Effect.measure original = D.Effect.measure inverse
         && D.Effect.key original = D.Effect.key inverse
-        && Z.equal (Daily_actions.quanta inverse) (Z.neg (Daily_actions.quanta original)))
+        && Z.equal (Draft.quanta inverse) (Z.neg (Draft.quanta original)))
         "reversal-cold-exact-inverse-keys-coordinates")
     target.effects reversal.effects;
   let unknown_path = directory ^ "/unknown.txt" in
@@ -898,12 +898,11 @@ let reversal_checks ~width_of ~directory home =
     with_session unknown_review (E.Reversal (Rev.with_publish_error (editor unknown_review)))
   in
   let unknown () =
-    C.apply_commit_result ~record_publication:false unknown_review ~draft
-      (Daily_actions.Uncertain
+    C.apply_outcome ~record_publication:false unknown_review ~draft
+      (Publication.Uncertain
          {
            message = "synthetic lost acknowledgement";
-           evidence =
-             Daily_actions.Expected_revision (expected_after unknown_base.session unknown_op);
+           evidence = Publication.Expected_revision (expected_after unknown_base.session unknown_op);
          })
   in
   let unconfirmed = input (unknown ()) (`Key (`ASCII 'r', [ `Ctrl ])) in
@@ -1475,11 +1474,11 @@ let original_amount_integration_checks ~width_of ~directory () =
 
   (* 5. 結果不明 (unknown result): Uncertain commit preserves draft and file *)
   let uncertain_attempt =
-    C.apply_commit_result ~record_publication:true stale_preview ~draft:stale_preview
-      (Daily_actions.Uncertain
+    C.apply_outcome ~record_publication:true stale_preview ~draft:stale_preview
+      (Publication.Uncertain
          {
            message = "synthetic lost acknowledgement";
-           evidence = Daily_actions.Expected_revision (F.revision_of_bytes changed_disk_bytes);
+           evidence = Publication.Expected_revision (F.revision_of_bytes changed_disk_bytes);
          })
   in
   require

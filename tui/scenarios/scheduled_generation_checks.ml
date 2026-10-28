@@ -1,6 +1,5 @@
 module B = Bakhlo_household.Book
 module F = Book_file
-module A = Daily_actions
 module S = Scheduled_generation_session
 module C = Shell_state
 module H = Shell_input
@@ -182,12 +181,12 @@ let self_check ~width_of () =
         (List.for_all (fun (p : B.plan) -> p.measure = "eur" && p.changes = source.changes) plans)
         "generated-occurrence-exact-changes";
 
-      (* Commit via A.commit_plan_batch *)
+      (* Commit via Publication.plan_batch *)
       let book_path = directory ^ "/book.txt" in
       F.write_new book_path base;
       let sess = F.load book_path in
-      (match A.commit_plan_batch ~replace:false ~session:sess ~base_revision:captured plans with
-      | A.Published _ -> ()
+      (match Publication.plan_batch ~replace:false ~session:sess ~base_revision:captured plans with
+      | Publication.Published _ -> ()
       | _ -> raise (F.Refused "atomic-commit-failed"));
 
       (* Cold restart readback proves all plans are present on disk *)
@@ -533,8 +532,8 @@ let self_check ~width_of () =
   let e_path = directory ^ "/e-atomic.txt" in
   F.write_new e_path base2;
   let sess = F.load e_path in
-  (match A.commit_plan_batch ~replace:false ~session:sess ~base_revision:rev2 (fst huge_pub) with
-  | A.Published _ -> ()
+  (match Publication.plan_batch ~replace:false ~session:sess ~base_revision:rev2 (fst huge_pub) with
+  | Publication.Published _ -> ()
   | _ -> raise (F.Refused "e-atomic-cold-commit-failed"));
   let cold = F.load e_path in
   let cold_plan = List.find (fun (p : B.plan) -> p.day = "2026-11-15") (B.plans cold.book) in
@@ -553,9 +552,9 @@ let self_check ~width_of () =
   let stale_sess = F.load e_path in
   require
     (match
-       A.commit_plan_batch ~replace:false ~session:stale_sess ~base_revision:rev2 (fst fresh)
+       Publication.plan_batch ~replace:false ~session:stale_sess ~base_revision:rev2 (fst fresh)
      with
-    | A.Conflict_base_changed -> true
+    | Publication.Conflict_base_changed -> true
     | _ -> false)
     "e-stale-batch-refused";
   let after = F.load e_path in

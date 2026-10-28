@@ -22,9 +22,9 @@ let render_cases state =
   let entry =
     get
       (Result.map_error
-         (fun error -> error.Daily_actions.message)
-         (Daily_actions.build_transaction ~book:home.session.book ~mode:Daily_actions.New
-            (Daily_actions.Multiple
+         (fun error -> error.Draft.message)
+         (Draft.build_transaction ~new_id:Book_file.new_id ~book:home.session.book ~mode:Draft.New
+            (Draft.Multiple
                {
                  day = home.workspace.focus_day;
                  memo = "Synthetic / 日本語";

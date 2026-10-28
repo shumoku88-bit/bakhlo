@@ -1,7 +1,6 @@
 (* Publications belong to their requesting editor, including uncertain outcomes.
    All files are synthetic copies isolated from the calling suite's book. *)
 open Interaction_check_fixture
-module A = Daily_actions
 
 let run ~width_of ~directory (home : C.state) =
   let fresh name =
@@ -83,11 +82,11 @@ let run ~width_of ~directory (home : C.state) =
   let held = key ~width_of (prepare_record ~width_of base) `Escape in
   let saved = rename held "Uncertain rename" in
   let uncertain =
-    C.apply_commit_result held ~draft:held
-      (A.Uncertain
+    C.apply_outcome held ~draft:held
+      (Publication.Uncertain
          {
            message = "Synthetic lost acknowledgement";
-           evidence = A.Expected_revision saved.session.revision;
+           evidence = Publication.Expected_revision saved.session.revision;
          })
   in
   unchanged_record held uncertain "other-uncertain-retains-record";
@@ -103,11 +102,11 @@ let run ~width_of ~directory (home : C.state) =
   let review = key ~width_of (prepare_record ~width_of base) `Enter in
   let saved = key ~width_of review `Enter in
   let uncertain =
-    C.apply_commit_result ~record_publication:true review ~draft:review
-      (A.Uncertain
+    C.apply_outcome ~record_publication:true review ~draft:review
+      (Publication.Uncertain
          {
            message = "Synthetic lost acknowledgement";
-           evidence = A.Expected_revision saved.session.revision;
+           evidence = Publication.Expected_revision saved.session.revision;
          })
   in
   unchanged_record review uncertain "own-uncertain-retains-record";
@@ -123,9 +122,12 @@ let run ~width_of ~directory (home : C.state) =
     "own-confirmed-publication-clears-draft-even-after-hide";
   List.iter
     (fun result ->
-      let refused = C.apply_commit_result held ~draft:held result in
+      let refused = C.apply_outcome held ~draft:held result in
       unchanged_record held refused "failed-publication-retains-other-record")
-    [ A.Storage_failed "Synthetic storage failure"; A.Refused "Synthetic refusal" ];
+    [
+      Publication.Storage_failed "Synthetic storage failure";
+      Publication.Refused "Synthetic refusal";
+    ];
   print_endline
     "PASS: retained Record/Pay drafts survive unrelated publication and recovery; own publication \
      clears, stale Preview refuses."

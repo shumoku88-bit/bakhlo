@@ -224,16 +224,17 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
       in
       let state, request =
         match result with
-        | (A.Refused _ | A.Conflict | A.Conflict_base_changed) when not shell_reports ->
+        | (Publication.Refused _ | Publication.Conflict | Publication.Conflict_base_changed)
+          when not shell_reports ->
             published state (publish_outcome result)
         | _ ->
             published
-              (apply_commit_result ?published_message state ~draft:state result)
+              (apply_outcome ?published_message state ~draft:state result)
               (publish_outcome result)
       in
       let state = apply_request ~saved ~published state request in
       match (publication, result) with
-      | Screen.Create_plan { plan; offer_pace = true; _ }, A.Published _ ->
+      | Screen.Create_plan { plan; offer_pace = true; _ }, Publication.Published _ ->
           offer_created_pace state plan.id
       | _ -> state)
   | Screen.Save_attention { expected; next } ->
