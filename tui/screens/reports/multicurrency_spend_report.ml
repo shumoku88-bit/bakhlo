@@ -193,9 +193,9 @@ let rec run ~role_map acc = function
       | Ok acc -> run ~role_map acc rest)
 
 let compute ~book ~roles ~start_day ~end_exclusive =
-  if not (A.is_valid_canonical_date start_day) then
+  if not (Day.is_valid start_day) then
     Error "Multicurrency Spend requires a real canonical Start date (YYYY-MM-DD)."
-  else if not (A.is_valid_canonical_date end_exclusive) then
+  else if not (Day.is_valid end_exclusive) then
     Error "The exclusive End date must be a real YYYY-MM-DD calendar date."
   else if start_day >= end_exclusive then
     Error "The exclusive End date must be after the Start date."

@@ -60,8 +60,8 @@ let handle ~blocked ~dimensions:((width, height) as dimensions) ~width_of t inpu
           let t = { t with form } in
           if blocked then Updated (with_notice t "Writes stopped; date retained.")
           else
-            match A.normalize_date (day t) with
-            | Ok day when A.is_valid_canonical_date day ->
+            match Day.normalize (day t) with
+            | Ok day when Day.is_valid day ->
                 Updated
                   {
                     t with

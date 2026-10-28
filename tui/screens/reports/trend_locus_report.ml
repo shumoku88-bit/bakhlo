@@ -62,7 +62,7 @@ let days_between start_day end_exclusive =
   | _ -> invalid_arg "Trend_locus_report: point window is not a real date range"
 
 let canonical_date day =
-  match Daily_draft.normalize_date day with Ok canonical -> canonical = day | Error _ -> false
+  match Day.normalize day with Ok canonical -> canonical = day | Error _ -> false
 
 type bounds = {
   preset : string;

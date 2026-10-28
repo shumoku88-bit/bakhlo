@@ -93,10 +93,10 @@ let submit_editing (env : Screen.env) submitted =
     && (not (String.contains s '\n'))
     && not (String.contains s '\r')
   in
-  match A.normalize_date (text "date") with
+  match Day.normalize (text "date") with
   | Error _ -> refuse (tr "Invalid date (YYYY-MM-DD).")
   | Ok canon_day -> (
-      if not (A.is_valid_canonical_date canon_day) then
+      if not (Day.is_valid canon_day) then
         refuse (tr "Enter a real calendar date in YYYY-MM-DD form.")
       else if not (valid_token src_locus) then
         refuse (tr "Source Locus must be a nonempty single-line token.")

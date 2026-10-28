@@ -41,9 +41,7 @@ let valid_row r =
   && (match r.effective_on with
     | None -> true
     | Some day -> (
-        match Daily_draft.normalize_date day with
-        | Ok canonical -> canonical = day
-        | Error _ -> false))
+        match Day.normalize day with Ok canonical -> canonical = day | Error _ -> false))
   && ((r.source_event = "" && r.source_effect = "")
      || (valid_token r.source_event && valid_token r.source_effect))
   && Z.gt r.committed Z.zero && Z.geq r.settled Z.zero && Z.geq r.extinguished Z.zero

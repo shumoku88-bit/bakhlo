@@ -67,8 +67,8 @@ type t = {
 type outcome = Updated of t | Closed | Publish of B.plan list * string
 
 let valid_date date =
-  match A.normalize_date date with
-  | Ok canonical -> canonical = date && A.is_valid_canonical_date canonical
+  match Day.normalize date with
+  | Ok canonical -> canonical = date && Day.is_valid canonical
   | Error _ -> false
 
 let default_through day = match Day.shift_months day 6 with Ok target -> target | Error _ -> day
@@ -211,7 +211,7 @@ let extend_candidates ~observed_at ~limit ~cadence_months ~source_day =
         else
           let year = index / 12 and month = (index mod 12) + 1 in
           if year > 9999 || index < observed_index then loop (k + 1) acc
-          else if nominal_day > A.days_in_month ~year ~month then
+          else if nominal_day > Day.days_in_month ~year ~month then
             if month_start year month < limit then
               loop (k + 1) (Missing { year; month; nominal_day } :: acc)
             else loop (k + 1) acc

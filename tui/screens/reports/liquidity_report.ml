@@ -22,9 +22,8 @@ let signed book measure n =
 
 let compute ~book ~today ~coords ~assumed_complete_through =
   let horizon = assumed_complete_through in
-  if not (A.is_valid_canonical_date today) then
-    Error "Liquidity requires a real canonical today date."
-  else if not (A.is_valid_canonical_date horizon) then
+  if not (Day.is_valid today) then Error "Liquidity requires a real canonical today date."
+  else if not (Day.is_valid horizon) then
     Error "The assumed complete-through date must be a real YYYY-MM-DD calendar date."
   else if String.compare horizon today < 0 then
     Error "The assumed complete-through date is inclusive and cannot precede today."
@@ -63,7 +62,7 @@ let compute ~book ~today ~coords ~assumed_complete_through =
                       Z.zero plan.changes
                 in
                 if Z.equal net Z.zero then changes acc rest
-                else if not (A.is_valid_canonical_date plan.day) then
+                else if not (Day.is_valid plan.day) then
                   Error
                     (Printf.sprintf
                        "Selected Scheduled plan %s has an invalid due date; Liquidity refuses."

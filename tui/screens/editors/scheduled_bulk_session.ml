@@ -34,8 +34,8 @@ let positive_loci (plan : B.plan) =
 let shape plan = (negative_loci plan, positive_loci plan)
 
 let valid_date date =
-  match A.normalize_date date with
-  | Ok canonical -> canonical = date && A.is_valid_canonical_date canonical
+  match Day.normalize date with
+  | Ok canonical -> canonical = date && Day.is_valid canonical
   | Error _ -> false
 
 let matching_candidates book (source : B.plan) =

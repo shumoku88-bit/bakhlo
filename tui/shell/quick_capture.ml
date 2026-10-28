@@ -316,7 +316,7 @@ let make_plan ~book ~measure catalog roles template (parsed : parsed) =
 (* A leading date word (2026-10-18, 10-18 or 10/18) once a separator follows it. *)
 type dated = { word : string; lead : string; date : string option; body : string }
 
-let valid_iso iso = A.normalize_date iso = Ok iso
+let valid_iso iso = Day.normalize iso = Ok iso
 let pad2 s = if String.length s = 1 then "0" ^ s else s
 
 let resolve_date ~today word =

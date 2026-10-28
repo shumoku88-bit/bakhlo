@@ -96,7 +96,7 @@ let unescape_text s =
   loop 0
 
 let valid_token s = s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
-let valid_date s = match Daily_draft.normalize_date s with Ok day -> day = s | Error _ -> false
+let valid_date s = match Day.normalize s with Ok day -> day = s | Error _ -> false
 
 let add_item t ~id ~context ~due =
   if not (valid_token id) then Error "Invalid Attention ID."

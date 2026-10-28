@@ -100,10 +100,8 @@ let observation_exact ~book ~(coordinate : D.Effect_coordinate.t) =
   | _ -> false
 
 let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : IncExp.period) =
-  if
-    (not (A.is_valid_canonical_date period.start_day))
-    || not (A.is_valid_canonical_date period.end_exclusive)
-  then Error "loam: stock-flow endpoints must be real YYYY-MM-DD calendar dates"
+  if (not (Day.is_valid period.start_day)) || not (Day.is_valid period.end_exclusive) then
+    Error "loam: stock-flow endpoints must be real YYYY-MM-DD calendar dates"
   else if String.compare period.start_day period.end_exclusive >= 0 then
     Error "loam: stock-flow start must be earlier than end"
   else if tracked_coords = [] then
@@ -156,7 +154,7 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
                 let prior = Option.value ~default:Z.zero (Hashtbl.find_opt cells locus) in
                 Hashtbl.replace cells locus (Z.add prior (A.quanta posting)))
             entry.effects;
-          if Hashtbl.length cells > 0 && not (A.is_valid_canonical_date entry.day) then
+          if Hashtbl.length cells > 0 && not (Day.is_valid entry.day) then
             Error ("Invalid occurrence date: " ^ entry.id)
           else begin
             Hashtbl.iter

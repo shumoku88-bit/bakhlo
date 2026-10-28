@@ -44,7 +44,7 @@ let create () =
   }
 
 let canonical_day day =
-  match A.normalize_date day with Ok normalized -> normalized = day | Error _ -> false
+  match Day.normalize day with Ok normalized -> normalized = day | Error _ -> false
 
 let parse_presets text =
   Result.map_error

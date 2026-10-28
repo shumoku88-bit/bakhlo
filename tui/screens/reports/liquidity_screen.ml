@@ -24,7 +24,8 @@ let create () = { draft = None; focus = Field; scroll = 0; requested = false; no
 
 let month_end day =
   match Day.parts day with
-  | Ok (year, month, _) -> Printf.sprintf "%04d-%02d-%02d" year month (A.days_in_month ~year ~month)
+  | Ok (year, month, _) ->
+      Printf.sprintf "%04d-%02d-%02d" year month (Day.days_in_month ~year ~month)
   | Error _ -> ""
 
 let enter ~focus_day t =

@@ -18,8 +18,6 @@ type route = Screen.route =
 type t = { route : route; focus_day : string; measure : string }
 
 let create ~today ~measure =
-  Result.map
-    (fun focus_day -> { route = Home; focus_day; measure })
-    (Daily_draft.normalize_date today)
+  Result.map (fun focus_day -> { route = Home; focus_day; measure }) (Day.normalize today)
 
 let enter state route = { state with route }

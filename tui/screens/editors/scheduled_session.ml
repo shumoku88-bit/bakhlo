@@ -311,9 +311,9 @@ let erase t =
 (* Validation logic aligned with LOAM ScheduledCreation.lean:132-157 *)
 let validate_draft t : (draft_tx, string) result =
   let date_str = String.trim t.day in
-  match A.normalize_date date_str with
+  match Day.normalize date_str with
   | Error _ -> Error (tr "Scheduled date must be a real calendar date in YYYY-MM-DD form.")
-  | Ok canon_date when not (A.is_valid_canonical_date canon_date) ->
+  | Ok canon_date when not (Day.is_valid canon_date) ->
       Error (tr "Scheduled date must be a real calendar date in YYYY-MM-DD form.")
   | Ok canon_date -> (
       let rec check_rows acc pos_total = function

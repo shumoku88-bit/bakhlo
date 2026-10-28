@@ -259,10 +259,10 @@ let submit (env : Screen.env) t submitted =
           | 0 -> Ok Att.No_due_date
           | 1 -> Ok Att.Due_undetermined
           | 2 -> (
-              match A.normalize_date due_date with
+              match Day.normalize due_date with
               | Error _ -> Error (tr "Invalid date (YYYY-MM-DD).")
               | Ok canon_day ->
-                  if not (A.is_valid_canonical_date canon_day) then
+                  if not (Day.is_valid canon_day) then
                     Error (tr "Enter a real calendar date in YYYY-MM-DD form.")
                   else Ok (Att.Due_on canon_day))
           | _ -> Ok Att.No_due_date

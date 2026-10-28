@@ -65,7 +65,7 @@ let target_amount ~book (p : B.daily_pace) target =
   else amount ~book p ("Target " ^ String.uppercase_ascii p.measure ^ "/day") target
 
 let shift day n = match Day.shift_days day n with Ok d -> Some d | Error _ -> None
-let valid_date date = A.normalize_date date = Ok date
+let valid_date date = Day.normalize date = Ok date
 
 (* [D]/[DD] and [M-D]/[MM-DD] name the first such day after today and before
    cycle end; any other spelling is returned unchanged for full validation. *)
