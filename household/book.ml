@@ -426,7 +426,12 @@ let refusal = function
       "support-admission"
   | _ -> "entry-admission"
 
-let commit t changes =
+(* A plan's changes are one Movement; book.txt says how they are not one. *)
+let plan_refusal = function
+  | "no-effect" | "zero-amount" | "unbalanced" -> "invalid-plan-movement"
+  | code -> refusal code
+
+let commit ?(refusal = refusal) t changes =
   match T.change t.txt changes with Ok txt -> txt | Error code -> raise (Refused (refusal code))
 
 (* The book after [txt] took [e] in at the end ([replace] false) or in its place. *)
@@ -446,9 +451,11 @@ let with_entry t txt (e : entry) ~replace =
 
 let known_measure t m = require (List.mem_assoc m (measures t)) "measure-scale-not-supplied"
 
-let approve_effects t effects =
+let approve_loci t loci =
   let ids = offered t in
-  List.iter (fun p -> require (List.mem (lstr (D.Effect.locus p)) ids) "locus-unapproved") effects
+  List.iter (fun locus -> require (List.mem locus ids) "locus-unapproved") loci
+
+let approve_effects t effects = approve_loci t (List.map (fun p -> lstr (D.Effect.locus p)) effects)
 
 let find_plan t id =
   match List.find_opt (fun (p : plan) -> p.id = id) (plans t) with
@@ -470,7 +477,6 @@ let check_entry t (e : entry) =
   ignore (eid e.id);
   List.iter (fun p -> known_measure t (mstr (D.Effect.measure p))) e.effects;
   Option.iter (fun (m, _) -> known_measure t m) e.original_amount;
-  ignore (get "invalid-entry" (D.Event.create ~id:(eid e.id) ~effects:e.effects));
   require (T.valid_date e.day) "entry-admission"
 
 let put_entry t ~replace (e : entry) ~plan =
@@ -539,19 +545,11 @@ let put_plan t ~replace (p : plan) =
       let exists = List.exists (fun (row : plan) -> row.id = p.id) (plans t) in
       require (exists = replace) (if replace then "unknown-plan" else "duplicate-plan");
       if replace then require_open_plan (find_plan t p.id);
-      let effects =
-        List.map
-          (fun (loc, n) ->
-            D.Effect.create ~locus:(lid loc) ~measure:(mid p.measure)
-              ~quantity:(D.Quantity.of_quanta n) ~key:None)
-          p.changes
-      in
-      approve_effects t effects;
-      ignore (get "invalid-plan-movement" (D.Movement.validate effects));
+      approve_loci t (List.map fst p.changes);
       require (p.id <> "") "invalid-plan-id";
       valid_date p.day;
       known_measure t p.measure;
-      { t with txt = commit t [ T.Put_plan (plan_of p) ] })
+      { t with txt = commit ~refusal:plan_refusal t [ T.Put_plan (plan_of p) ] })
 
 let cancel_plan t ~id ~day =
   protect (fun () ->
