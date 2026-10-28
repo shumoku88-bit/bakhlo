@@ -223,23 +223,23 @@ let%expect_test "only book.txt is read: an S-expression book refuses, nothing is
 
 let%expect_test "roles and Attention are saved in book.txt and read back as written" =
   let s = start () in
-  let sidecars : X.sidecars =
-    {
-      roles = "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\twallet\tASSET\nROLE\tfood\tEXPENSE\n";
-      attention = "LOAM-ATTENTION-MEMORY\t1\nITEM\tattention-1\tNO_DUE_DATE\t-\tcheck\\tthis\n";
-    }
+  let roles = [ ("food", Bakhlo_book_txt.Book_txt.Expense); ("wallet", Asset) ] in
+  let items : Bakhlo_book_txt.Book_txt.item list =
+    [ { id = "attention-1"; due = No_due_date; context = "check\tthis" } ]
   in
-  let saved = written (F.publish ~sidecars s []) in
+  let saved = written (F.publish s [ B.Set_roles roles; B.Set_attention { items; closes = [] } ]) in
   let cold = F.load saved.path in
   Stdio.printf "same roles: %b; same Attention: %b; same book: %b; in book.txt: %b\n"
-    (String.equal cold.sidecars.roles saved.sidecars.roles)
-    (String.equal cold.sidecars.attention saved.sidecars.attention)
+    (Poly.equal (B.roles cold.book) roles)
+    (Poly.equal (B.attention cold.book) (items, []))
     (String.equal (book_text cold) (book_text saved))
     (String.is_substring (F.read saved.path) ~substring:"ROLE\twallet\tASSET\n");
-  let cleared = written (F.publish ~sidecars:X.no_sidecars saved []) in
+  let cleared =
+    written (F.publish saved [ B.Set_roles []; B.Set_attention { items = []; closes = [] } ])
+  in
   let cold = F.load cleared.path in
   Stdio.printf "cleared: %b\n"
-    (String.equal cold.sidecars.roles "" && String.equal cold.sidecars.attention "");
+    (List.is_empty (B.roles cold.book) && Poly.equal (B.attention cold.book) ([], []));
   [%expect
     {|
     same roles: true; same Attention: true; same book: true; in book.txt: true

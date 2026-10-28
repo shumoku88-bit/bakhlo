@@ -23,8 +23,8 @@ let of_file_outcome = function
   | F.Uncertain { expected } ->
       Uncertain { message = tr "Save outcome is uncertain."; evidence = Expected_revision expected }
 
-let changes ?sidecars ~session requested : outcome =
-  try of_file_outcome (F.publish ?sidecars session requested) with
+let changes ~session requested : outcome =
+  try of_file_outcome (F.publish session requested) with
   | Unix.Unix_error (err, fn, arg) ->
       Storage_failed (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
   | Sys_error msg -> Storage_failed msg
@@ -95,7 +95,10 @@ let correct_entry_date ~session ~base_revision ~id ~day : outcome =
 let observations ~session ~base_revision rows : outcome =
   onto ~session ~base_revision [ B.Observe rows ]
 
-let sidecars ~session sidecars : outcome = changes ~sidecars ~session []
+let roles ~session roles : outcome = changes ~session [ B.Set_roles roles ]
+
+let attention ~session ~items ~closes : outcome =
+  changes ~session [ B.Set_attention { items; closes } ]
 
 let classify_merchant ~session ~base_revision ~id ~disposition : outcome =
   onto ~session ~base_revision [ B.Classify_merchant { id; disposition } ]

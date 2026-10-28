@@ -80,6 +80,10 @@ type request =
   | Reload
   | Cycle_measure of [ `Next | `Prev ]
   | Observe of { locus : string; measure : string; amount : Z.t option }
+  | Save_roles of {
+      expected : (string * Locus_roles.role) list;
+      next : (string * Locus_roles.role) list;
+    }
   | Save_attention of { expected : Attention_data.t; next : Attention_data.t }
   | Save_settlements of { expected : Settlement_data.t; next : Settlement_data.t }
   | Open_route of route

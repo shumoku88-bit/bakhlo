@@ -5,26 +5,9 @@ open Interaction_check_fixture
 let roles_of state =
   match Shell_files.accounting_roles state with Ok roles -> roles | Error why -> failwith why
 
-(* accounting-roles.tsv is never read as "no roles" when it is malformed or
-   unreadable: the parser names the line, and role-aware screens show the refusal. *)
+(* Roles are a book section: a malformed ROLE line refuses the whole book, and a
+   role-aware screen shows unavailable roles as a refusal, never as "no roles". *)
 let unreadable_roles_checks ~width_of ~directory ~path =
-  let parse = Locus_roles.of_string in
-  require
-    (parse
-       "LOAM-ACCOUNTING-ROLE-MAP\t1\r\n# comment\n; note\n\nROLE\twallet\tASSET\r\nfood\texpense\n"
-    = Ok [ ("wallet", Locus_roles.Asset); ("food", Locus_roles.Expense) ])
-    "roles-header-comments-blank-crlf-accepted";
-  List.iter
-    (fun (label, text, line) ->
-      match parse text with
-      | Error why -> require (Base.String.is_prefix why ~prefix:line) label
-      | Ok _ -> failwith label)
-    [
-      ("roles-unknown-role-refused", "ROLE\twallet\tASSETS\n", "line 1:");
-      ("roles-malformed-row-refused", "ROLE\twallet\n", "line 1:");
-      ("roles-empty-locus-refused", "ROLE\t \tASSET\n", "line 1:");
-      ("roles-repeated-locus-refused", "wallet\tASSET\n\nwallet\tLIABILITY\n", "line 3:");
-    ];
   let directory = directory ^ "/unreadable-roles" in
   Unix.mkdir directory 0o700;
   let book_path = directory ^ "/book.txt" in
@@ -42,7 +25,7 @@ let unreadable_roles_checks ~width_of ~directory ~path =
   let loaded = F.load book_path in
   let state = C.initial ~config_home:directory loaded in
   let env =
-    { (X.balances_env state) with accounting_roles = lazy (parse "ROLE\twallet\tASSETS\n") }
+    { (X.balances_env state) with accounting_roles = lazy (Error "synthetic unknown role") }
   in
   require
     (match Lazy.force env.accounting_roles with
@@ -140,7 +123,7 @@ let run ~width_of ~directory ~path =
   let used_home = directory ^ "/used-locus-role" in
   Unix.mkdir used_home 0o700;
   F.create_copy ~source:path ~target:(used_home ^ "/book.txt");
-  put_roles (used_home ^ "/book.txt") "ROLE\twallet\tASSET\n";
+  put_roles (used_home ^ "/book.txt") [ ("wallet", Asset) ];
   let used_state = C.initial ~config_home:used_home (F.load (used_home ^ "/book.txt")) in
   let used_loci = C.open_route used_state W.Loci in
   require

@@ -127,7 +127,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   (* Roles are a book section: give them to a copy, so this book stays as it was. *)
   let roles_book = directory ^ "/with-roles.txt" in
   F.create_copy ~source:path ~target:roles_book;
-  put_roles roles_book "ROLE\twallet\tASSET\nROLE\tbank\tASSET\nROLE\tfood\tEXPENSE\n";
+  put_roles roles_book [ ("bank", Asset); ("food", Expense); ("wallet", Asset) ];
   let bal_with_roles = C.open_route { home with session = F.load roles_book } W.Balances in
   let bal_accounting = key ~width_of bal_with_roles (`ASCII 'v') in
   let wide_with_roles = R.screen ~width_of (120, 30) bal_accounting in

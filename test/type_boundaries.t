@@ -100,7 +100,7 @@ revision cannot be replaced independently of the writer.
   $ store_client() { ocamlfind ocamlc -package base,zarith,sexplib0,unix -I ../store/.bakhlo_store.objs/byte -I ../sexp/.bakhlo_household.objs/byte -I ../book_txt/.bakhlo_book_txt.objs/byte -I ../lib/.bakhlo_domain.objs/byte -c "$@"; }
   $ cat >session_reader.ml <<'EOF'
   > let facts (session : Book_file.t) =
-  >   (session.path, session.revision, session.book, session.sidecars)
+  >   (session.path, session.revision, session.book)
   > let reload = Book_file.reload
   > EOF
   $ store_client session_reader.ml

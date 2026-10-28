@@ -303,10 +303,9 @@ let get = function Ok value -> value | Error cause -> raise (F.Refused cause)
 let get_id = function Ok id -> id | Error D.Identifier.Empty -> raise (F.Refused "empty-identity")
 
 (* Store synthetic accounting roles in the book at [path]: roles are a book section. *)
-let put_roles path text =
+let put_roles path roles =
   let session = F.load path in
-  let roles = Locus_roles.to_string (get (Locus_roles.of_string text)) in
-  match F.publish ~sidecars:{ session.F.sidecars with roles } session [] with
+  match F.publish session [ B.Set_roles roles ] with
   | F.Written _ -> ()
   | _ -> raise (F.Refused "put-roles")
 

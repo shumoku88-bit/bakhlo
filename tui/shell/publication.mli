@@ -54,7 +54,16 @@ val set_locus_label :
   outcome
 
 val add_locus : session:Book_file.t -> string -> outcome
-val sidecars : session:Book_file.t -> Bakhlo_household.Daily_txt.sidecars -> outcome
+
+val roles : session:Book_file.t -> (string * Locus_roles.role) list -> outcome
+(** Replace the accounting roles section. *)
+
+val attention :
+  session:Book_file.t ->
+  items:Attention_data.item list ->
+  closes:Attention_data.close list ->
+  outcome
+(** Replace the Attention section. *)
 
 type reload_outcome =
   | Pending_confirmed of Book_file.t

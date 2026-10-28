@@ -112,10 +112,10 @@ let run_multicurrency ~width_of ~directory =
       month_start month_start
   in
   F.write_new path book_bytes;
-  put_roles path "food\tExpense\nrent\tExpense\nwallet\tAsset\nbank\tAsset\n";
+  put_roles path [ ("bank", Asset); ("food", Expense); ("rent", Expense); ("wallet", Asset) ];
   let at_home = C.open_route (C.initial ~config_home:dir (F.load path)) W.Home in
   let bytes_before = F.read path in
-  let roles_before = (F.load path).sidecars.roles in
+  let roles_before = B.roles (F.load path).book in
   let commands = key ~width_of at_home (`ASCII ' ') in
   require
     (match commands.overlay with C.Commands { page = M.Root; _ } -> true | _ -> false)
@@ -177,9 +177,7 @@ let run_multicurrency ~width_of ~directory =
   require
     (String.equal (F.read path) bytes_before)
     "multicurrency-flow-leaves-synthetic-book-bytes-unchanged";
-  require
-    (String.equal (F.load path).sidecars.roles roles_before)
-    "multicurrency-flow-never-rewrites-the-roles"
+  require (B.roles (F.load path).book = roles_before) "multicurrency-flow-never-rewrites-the-roles"
 
 let run ~width_of ~directory (back_home : C.state) =
   let contains rows needle =

@@ -4,14 +4,7 @@
 exception Refused of string
 
 type stamp
-
-type t = private {
-  path : string;
-  revision : string;
-  book : Bakhlo_household.Book.t;
-  sidecars : Bakhlo_household.Daily_txt.sidecars;
-  stamp : stamp;
-}
+type t = private { path : string; revision : string; book : Bakhlo_household.Book.t; stamp : stamp }
 
 type outcome =
   | Written of t
@@ -28,16 +21,11 @@ val create_empty : path:string -> measure:string -> scale:int -> t
 type publication_step = Temp_written | Previous_kept | Replaced
 
 val publish :
-  ?checkpoint:(publication_step -> unit) ->
-  ?sidecars:Bakhlo_household.Daily_txt.sidecars ->
-  t ->
-  Bakhlo_household.Book.change list ->
-  outcome
+  ?checkpoint:(publication_step -> unit) -> t -> Bakhlo_household.Book.change list -> outcome
 (** Admit changes, refuse a changed file, then durably replace and read back.
     [checkpoint] is for deterministic fault and interruption checks. *)
 
-val revision_after :
-  ?sidecars:Bakhlo_household.Daily_txt.sidecars -> t -> Bakhlo_household.Book.change list -> string
+val revision_after : t -> Bakhlo_household.Book.change list -> string
 (** The expected revision of the admitted candidate, without writing it. *)
 
 val confirms : expected:string -> t -> bool

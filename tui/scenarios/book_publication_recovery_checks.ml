@@ -15,7 +15,7 @@ let run ~width_of ~directory () =
       && after.record_visible = before.record_visible)
       "book-publication-retains-unrelated-record"
   in
-  let check name ops sidecars receive =
+  let check name ops receive =
     List.iter
       (fun checkpoint ->
         let state = fresh (name ^ if checkpoint = F.Replaced then "-landed" else "-unlanded") in
@@ -25,7 +25,7 @@ let run ~width_of ~directory () =
           F.publish
             ~checkpoint:(fun reached ->
               if reached = checkpoint then raise (Sys_error "synthetic lost acknowledgement"))
-            ?sidecars state.session ops
+            state.session ops
           |> Publication.of_file_outcome
         in
         let stopped = receive state result in
@@ -53,20 +53,16 @@ let run ~width_of ~directory () =
   in
   check "observe"
     [ B.Observe [ ("wallet", "jpy", Z.of_int 2345) ] ]
-    None
     (fun state result -> fst (Shell_publication.observation_result state result));
-  let roles : Bakhlo_household.Daily_txt.sidecars =
-    { roles = "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\twallet\tASSET\n"; attention = "" }
-  in
-  check "roles" [] (Some roles) (fun state result -> fst (Shell_files.sidecars_result state result));
+  check "roles"
+    [ B.Set_roles [ ("wallet", Asset) ] ]
+    (fun state result -> fst (Shell_files.section_result state result));
   let attention =
     get (Att.add_item Att.empty ~id:"synthetic-recovery" ~context:"Review" ~due:Att.No_due_date)
   in
-  let sidecars : Bakhlo_household.Daily_txt.sidecars =
-    { roles = ""; attention = Att.to_string attention }
-  in
-  check "attention" [] (Some sidecars) (fun state result ->
-      fst (Shell_files.sidecars_result state result));
+  check "attention"
+    [ B.Set_attention { items = attention.items; closes = attention.closes } ]
+    (fun state result -> fst (Shell_files.section_result state result));
   let state = fresh "stale-observe" in
   let before = F.read state.session.path in
   let stale, outcome =

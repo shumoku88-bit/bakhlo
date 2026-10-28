@@ -1,6 +1,6 @@
 (* Manage Loci: admitted Locus tokens with their roles, labels and current
-   quantities; admission and display names are ledger publications, accounting
-   roles a checked configuration save of accounting-roles.tsv. *)
+   quantities; admission, display names and accounting roles are all saved in the
+   book. *)
 module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module A = Draft
@@ -10,7 +10,6 @@ module Form = Ui_form
 module Panel = Ui_panel
 
 let tr = Ui_text.tr
-let roles_file = Roles.file_name
 
 (* The unresolved holding Locus: not an account, and it never takes a role. *)
 let suspense_locus = "suspense"
@@ -38,7 +37,7 @@ type t = {
   pending_role : (string * Roles.role) option;
 }
 
-let config_files = [ roles_file ]
+let config_files = []
 let create () = { selected = 0; pane = List_pane; scroll = 0; editor = None; pending_role = None }
 let enter t = { t with pane = List_pane; scroll = 0; editor = None }
 let modal t = Option.is_some t.editor
@@ -144,7 +143,7 @@ let role_form ~locus =
       [
         "Target Locus: " ^ locus;
         "Initial assignment only: an assigned role is never replaced.";
-        "Saved to accounting-roles.tsv for role-aware balance sheets and reports.";
+        "Saved in the book for role-aware balance sheets and reports.";
       ]
     ~fields:
       [
@@ -177,23 +176,11 @@ let label_review_form locus label help =
     ~fields:[ Form.action_buttons ~confirm:"Save display name" ~cancel:"Edit" () ]
     ()
 
-(* Replace one role in the captured accounting-roles.tsv; the Shell refuses if
-   the file changed since it was captured for this event. *)
+(* Assign one role; the Shell refuses if the roles changed since this event. *)
 let save_role (env : Screen.env) locus role =
-  Result.bind (env.config roles_file) (fun expected ->
-      let current =
-        match expected with None -> Ok Roles.empty | Some text -> Roles.of_string text
-      in
-      Result.map
-        (fun roles ->
-          Screen.Save_config
-            {
-              file = roles_file;
-              expected;
-              content = Roles.to_string (Roles.set_role roles locus role);
-              admission = Unconditional;
-            })
-        (Result.map_error (fun why -> roles_file ^ " " ^ why) current))
+  Result.map
+    (fun expected -> Screen.Save_roles { expected; next = Roles.set_role expected locus role })
+    (Lazy.force env.accounting_roles)
 
 let submit (env : Screen.env) (geometry : Screen.geometry) t submitted =
   let keep editor notice =
@@ -470,7 +457,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
         let role_opt = role_of locus in
         let role_str =
           match (roles, role_opt) with
-          | Error _, _ -> "Unavailable (" ^ roles_file ^ " unreadable)"
+          | Error why, _ -> "Unavailable (" ^ why ^ ")"
           | Ok _, None -> "None / Unassigned"
           | Ok _, Some r -> Roles.role_label r
         in

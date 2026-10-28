@@ -1,4 +1,4 @@
-(** attention_data.mli - Attention model, serialization, and lifecycle operations *)
+(** Attention as the book holds it, and adding and closing items. *)
 
 module T = Bakhlo_book_txt.Book_txt
 
@@ -20,5 +20,3 @@ type summary = { open_count : int; overdue_count : int; due_today_count : int }
 val summarize : today:string -> t -> summary
 val badge : ?width:int -> summary -> string
 val due_display : today:string -> due -> string
-val of_string : string -> (t, string) result
-val to_string : t -> string

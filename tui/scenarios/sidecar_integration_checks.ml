@@ -13,22 +13,10 @@ let safety_checks ~width_of ~directory () =
   let failed state =
     match visible_form state with Some f -> Ui_form.notice f <> "" | None -> false
   in
-  List.iter
-    (fun raw -> require (Result.is_error (Att.of_string raw)) "attention-invalid-input-refused")
-    [
-      "unknown-row\n";
-      "LOAM-ATTENTION-MEMORY\t2\n";
-      "ITEM\ta\tDUE_ON\t2026-02-30\tbad date\n";
-      "ITEM\ta\tDUE_ON\t2026/10/14\tnoncanonical date\n";
-      "ITEM\ta\tNO_DUE_DATE\t-\tbad\\x\n";
-      "ITEM\ta\tNO_DUE_DATE\t-\tfirst\nITEM\ta\tNO_DUE_DATE\t-\tduplicate\n";
-      "CLOSE\tmissing\t2026-10-14\tRESOLVED\n";
-    ];
   let att =
     get
       (Att.add_item Att.empty ~id:"attention-2" ~context:"合成\\text\nnext" ~due:Att.Due_undetermined)
   in
-  require (get (Att.of_string (Att.to_string att)) = att) "attention-escape-round-trip";
   require (Att.next_id att <> "attention-2") "attention-id-does-not-collide";
   (* Attention is a section of the book: every save goes through the single writer. *)
   let base = C.initial ~config_home:dir (F.load path) in

@@ -7,7 +7,6 @@
    not a security sandbox. Power loss was not physically tested. No background retry or
    automatic repair. *)
 module B = Bakhlo_household.Book
-module X = Bakhlo_household.Daily_txt
 module T = Bakhlo_book_txt.Book_txt
 
 exception Refused of string
@@ -24,7 +23,6 @@ type t = {
   path : string;
   revision : string;  (** {!revision_of_bytes} of the file this session last saw. *)
   book : B.t;
-  sidecars : X.sidecars;  (** The book's roles and Attention, as the TUI reads them. *)
   stamp : stamp;
 }
 
@@ -101,8 +99,7 @@ let of_bytes path bytes stamp =
   | Ok txt -> (
       match B.of_txt txt with
       | Error why -> raise (Refused ("book-refused: " ^ why))
-      | Ok book ->
-          { path; revision = revision_of_bytes bytes; book; sidecars = X.sidecars_of book; stamp })
+      | Ok book -> { path; revision = revision_of_bytes bytes; book; stamp })
 
 let load path =
   let bytes, stamp = read_stamped path in
@@ -168,15 +165,9 @@ let write_atomic path bytes =
       sync_parent path;
       require (read path = bytes) "replacement-readback-changed")
 
-(* The book.txt text of a book with these roles and Attention. *)
-let text_of book sidecars =
-  match X.with_sidecars book sidecars with
-  | Ok book -> T.print (B.txt book)
-  | Error why -> raise (Refused why)
-
 let create_empty ~path ~measure ~scale =
   let book = get "empty-book-refused" (B.empty ~measure ~scale) in
-  let bytes = text_of book X.no_sidecars in
+  let bytes = T.print (B.txt book) in
   write_new path bytes;
   sync_parent path;
   let session = load path in
@@ -221,27 +212,19 @@ let replace ~checkpoint path bytes =
   sync_parent path;
   checkpoint Replaced
 
-(* The book after [changes] and, when given, these roles and Attention. *)
-let saved ?sidecars session changes =
-  let book =
-    match B.apply session.book changes with Ok book -> book | Error why -> raise (Refused why)
-  in
-  match sidecars with
-  | None -> book
-  | Some s -> (
-      match X.with_sidecars book s with Ok book -> book | Error why -> raise (Refused why))
+(* The book after [changes]. *)
+let saved session changes =
+  match B.apply session.book changes with Ok book -> book | Error why -> raise (Refused why)
 
-(* The revision the file has once [publish] writes [changes] (and [sidecars]). *)
-let revision_after ?sidecars session changes =
-  revision_of_bytes (T.print (B.txt (saved ?sidecars session changes)))
+(* The revision the file has once [publish] writes [changes]. *)
+let revision_after session changes = revision_of_bytes (T.print (B.txt (saved session changes)))
 
 (* Checkpoints are for deterministic fault/child-process interruption checks;
    ordinary callers use the no-op default and cannot bypass any gate. *)
-let publish ?(checkpoint = fun _ -> ()) ?sidecars session changes =
+let publish ?(checkpoint = fun _ -> ()) session changes =
   let attempted = ref None in
   try
-    let book = saved ?sidecars session changes in
-    let sidecars = X.sidecars_of book in
+    let book = saved session changes in
     let bytes = T.print (B.txt book) in
     with_writer session.path (fun () ->
         if not (unchanged session) then Conflict
@@ -253,13 +236,7 @@ let publish ?(checkpoint = fun _ -> ()) ?sidecars session changes =
              so only the bytes are read back. *)
           require (read session.path = bytes) "published-readback-changed";
           Written
-            {
-              session with
-              revision = expected;
-              book;
-              sidecars;
-              stamp = stamp_of (Unix.lstat session.path);
-            })
+            { session with revision = expected; book; stamp = stamp_of (Unix.lstat session.path) })
   with
   | Refused why -> (
       match !attempted with Some expected -> Uncertain { expected } | None -> Refused_input why)

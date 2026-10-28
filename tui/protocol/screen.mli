@@ -130,6 +130,10 @@ type request =
   | Cycle_measure of [ `Next | `Prev ]  (** Change the Shell-selected Measure. *)
   | Observe of { locus : string; measure : string; amount : Z.t option }
       (** Open the Observe editor for this coordinate; [amount] is a known current value. *)
+  | Save_roles of {
+      expected : (string * Locus_roles.role) list;
+      next : (string * Locus_roles.role) list;
+    }  (** Replace the accounting roles if they still equal [expected]; answered by [saved]. *)
   | Save_attention of { expected : Attention_data.t; next : Attention_data.t }
       (** Replace the Attention memory if it still equals [expected]; answered by [saved]. *)
   | Save_settlements of { expected : Settlement_data.t; next : Settlement_data.t }
@@ -182,5 +186,5 @@ val env_for_checks :
   today:string ->
   unit ->
   env
-(** A synthetic environment for owner checks: empty sidecars,
+(** A synthetic environment for owner checks: no roles or Attention,
     writes allowed, undeclared configuration refused. *)

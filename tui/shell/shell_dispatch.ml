@@ -250,8 +250,12 @@ let rec apply_request ?(saved = fun state _ -> (state, Screen.Stay))
       in
       let state, request = saved state (Result.map ignore result) in
       apply_request ~saved ~published state request
+  | Screen.Save_roles { expected; next } ->
+      let state, result = save_roles state ~expected next in
+      let state, request = saved state result in
+      apply_request ~saved ~published state request
   | Screen.Save_config { file; expected; content; admission } ->
-      let state, result = save_config state ~file ~expected ~content ~admission in
+      let result = save_config state ~file ~expected ~content ~admission in
       let state, request = saved state result in
       apply_request ~saved ~published state request
 

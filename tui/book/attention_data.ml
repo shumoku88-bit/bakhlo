@@ -1,5 +1,3 @@
-(* Attention model, serialization, and lifecycle operations *)
-
 module T = Bakhlo_book_txt.Book_txt
 
 type due = T.due = Due_on of string | No_due_date | Due_undetermined
@@ -57,46 +55,6 @@ let due_display ~today = function
   | No_due_date -> "no due date"
   | Due_undetermined -> "due unknown"
 
-let escape_text s =
-  let b = Buffer.create (String.length s * 2) in
-  String.iter
-    (function
-      | '\\' -> Buffer.add_string b "\\\\"
-      | '\n' -> Buffer.add_string b "\\n"
-      | '\r' -> Buffer.add_string b "\\r"
-      | '\t' -> Buffer.add_string b "\\t"
-      | c -> Buffer.add_char b c)
-    s;
-  Buffer.contents b
-
-let unescape_text s =
-  let b = Buffer.create (String.length s) in
-  let len = String.length s in
-  let rec loop i =
-    if i >= len then Ok (Buffer.contents b)
-    else if s.[i] = '\\' then
-      if i + 1 >= len then Error "dangling backslash"
-      else
-        match s.[i + 1] with
-        | '\\' ->
-            Buffer.add_char b '\\';
-            loop (i + 2)
-        | 'n' ->
-            Buffer.add_char b '\n';
-            loop (i + 2)
-        | 'r' ->
-            Buffer.add_char b '\r';
-            loop (i + 2)
-        | 't' ->
-            Buffer.add_char b '\t';
-            loop (i + 2)
-        | _ -> Error "invalid escape"
-    else (
-      Buffer.add_char b s.[i];
-      loop (i + 1))
-  in
-  loop 0
-
 let valid_token s = s <> "" && String.for_all (fun c -> Char.code c > 32 && Char.code c <> 127) s
 let valid_date s = match Day.normalize s with Ok day -> day = s | Error _ -> false
 
@@ -122,51 +80,3 @@ let close_item t ~id ~known_on ~kind =
         else
           let close = { item = id; day = known_on; kind } in
           Ok { t with closes = t.closes @ [ close ] }
-
-let of_string text =
-  let rec parse t header = function
-    | [] -> Ok t
-    | line :: rest ->
-        let trimmed = String.trim line in
-        if trimmed = "" || String.starts_with ~prefix:"#" trimmed then parse t header rest
-        else if line = "LOAM-ATTENTION-MEMORY\t1" && (not header) && t = empty then
-          parse t true rest
-        else
-          let item id due escaped_context =
-            Result.bind (unescape_text escaped_context) (fun context ->
-                add_item t ~id ~context ~due)
-          in
-          let updated =
-            match String.split_on_char '\t' line with
-            | [ "ITEM"; id; "DUE_ON"; date; context ] -> item id (Due_on date) context
-            | [ "ITEM"; id; "NO_DUE_DATE"; "-"; context ] -> item id No_due_date context
-            | [ "ITEM"; id; "DUE_UNDETERMINED"; "-"; context ] -> item id Due_undetermined context
-            | [ "CLOSE"; id; known_on; "RESOLVED" ] -> close_item t ~id ~known_on ~kind:Resolved
-            | [ "CLOSE"; id; known_on; "DROPPED" ] -> close_item t ~id ~known_on ~kind:Dropped
-            | _ -> Error "Malformed or unsupported Attention row."
-          in
-          Result.bind updated (fun t -> parse t header rest)
-  in
-  parse empty false (String.split_on_char '\n' text)
-
-let to_string t =
-  let b = Buffer.create 1024 in
-  Buffer.add_string b "LOAM-ATTENTION-MEMORY\t1\n";
-  List.iter
-    (fun (item : item) ->
-      let due_kind, date_str =
-        match item.due with
-        | Due_on d -> ("DUE_ON", d)
-        | No_due_date -> ("NO_DUE_DATE", "-")
-        | Due_undetermined -> ("DUE_UNDETERMINED", "-")
-      in
-      Buffer.add_string b
-        (Printf.sprintf "ITEM\t%s\t%s\t%s\t%s\n" item.id due_kind date_str
-           (escape_text item.context)))
-    t.items;
-  List.iter
-    (fun (c : close) ->
-      let kind_str = match c.kind with Resolved -> "RESOLVED" | Dropped -> "DROPPED" in
-      Buffer.add_string b (Printf.sprintf "CLOSE\t%s\t%s\t%s\n" c.item c.day kind_str))
-    t.closes;
-  Buffer.contents b

@@ -74,10 +74,10 @@ type state = {
   drill_book : B.t option;
 }
 
-(* Attention is a section of the book, read in its former attention.loam text. *)
-let attention (state : state) =
-  let text = state.session.F.sidecars.attention in
-  if text = "" then Ok Att.empty else Att.of_string text
+(* Attention is a section of the book, admitted with it. *)
+let attention (state : state) : (Att.t, string) result =
+  let items, closes = B.attention state.session.book in
+  Ok { Att.items; closes }
 
 let initial ?config_home session =
   let measure = match B.measures session.F.book with (id, _) :: _ -> id | [] -> "" in
