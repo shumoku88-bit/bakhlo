@@ -108,10 +108,10 @@ let submit_editing (env : Screen.env) submitted =
       else if String.equal src_measure dst_measure then
         refuse (tr "Source and destination Measures must differ.")
       else
-        match B.parse_amount env.book src_measure (text "source_amount") with
+        match B.parse_amount env.book ~measure:src_measure (text "source_amount") with
         | Error why -> refuse (amount_refusal "Source" src_measure why)
         | Ok src_quanta -> (
-            match B.parse_amount env.book dst_measure (text "destination_amount") with
+            match B.parse_amount env.book ~measure:dst_measure (text "destination_amount") with
             | Error why -> refuse (amount_refusal "Destination" dst_measure why)
             | Ok dst_quanta ->
                 let unapproved =

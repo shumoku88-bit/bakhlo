@@ -125,7 +125,7 @@ let submit (env : Screen.env) t submitted =
       else if creditor = "" then stay (tr "Enter creditor endpoint.")
       else if measure = "" then stay (tr "Enter measure token.")
       else
-        match B.parse_amount env.book measure (text "amount") with
+        match B.parse_amount env.book ~measure (text "amount") with
         | Error why -> stay (amount_refusal ~positive:true measure why)
         | Ok committed ->
             let label = match text "label" with "" -> None | l -> Some l in
@@ -147,7 +147,7 @@ let submit (env : Screen.env) t submitted =
               (fun s -> Stl.retract_row s ~id)
               (Printf.sprintf "Retracted commitment %s." id)
           else
-            match B.parse_amount env.book r.measure (text "amount") with
+            match B.parse_amount env.book ~measure:r.measure (text "amount") with
             | Error why -> stay (amount_refusal ~positive:false r.measure why)
             | Ok amount ->
                 let verb = if kind_idx = 0 then "Settled" else "Reduced" in

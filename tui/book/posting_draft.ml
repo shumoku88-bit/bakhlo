@@ -61,7 +61,7 @@ let amounts book draft =
   let rec loop position = function
     | [] -> Ok []
     | row :: rest -> (
-        match B.parse_amount book draft.measure row.amount with
+        match B.parse_amount book ~measure:draft.measure row.amount with
         | Error why -> Error (Printf.sprintf "row-%d: %s" position why)
         | Ok n -> (
             match loop (position + 1) rest with

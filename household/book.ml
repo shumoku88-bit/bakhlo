@@ -204,12 +204,12 @@ let scale t m =
 
 let format t m n = Amount.format ~decimals:(scale t m) n
 
-let parse_amount t m text =
+let parse_amount t ~measure:m text =
   match protect (fun () -> scale t m) with
   | Error _ as error -> error
   | Ok decimals -> Amount.parse_positive ~decimals text
 
-let parse_signed_amount t m text =
+let parse_signed_amount t ~measure:m text =
   (* Empty input refuses before Measure lookup, as it does in the signed editor. *)
   if String.trim text = "" then Error "empty-amount"
   else

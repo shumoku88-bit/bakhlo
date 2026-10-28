@@ -96,7 +96,8 @@ let text session field = Option.value ~default:"" (Form.get_text session.form fi
 let in_range (plan : B.plan) from_day through_day =
   plan.day >= from_day && (through_day = "" || plan.day <= through_day)
 
-let amount session = B.parse_amount session.book session.source.measure (text session "amount")
+let amount session =
+  B.parse_amount session.book ~measure:session.source.measure (text session "amount")
 
 let eligible session =
   let from_day = text session "from" and through_day = text session "through" in

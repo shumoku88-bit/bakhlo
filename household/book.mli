@@ -95,11 +95,11 @@ val roles : t -> (string * T.role) list
 val attention : t -> T.item list * T.close list
 val format : t -> string -> Z.t -> string
 
-val parse_amount : t -> string -> string -> (Z.t, string) result
+val parse_amount : t -> measure:string -> string -> (Z.t, string) result
 (** Positive exact decimal or arithmetic input (+, -, *, /, parentheses) at the
     Measure's scale. No rounding. *)
 
-val parse_signed_amount : t -> string -> string -> (Z.t, string) result
+val parse_signed_amount : t -> measure:string -> string -> (Z.t, string) result
 (** Signed or zero exact decimal input at the Measure's scale. No rounding. *)
 
 type daily_pace = {

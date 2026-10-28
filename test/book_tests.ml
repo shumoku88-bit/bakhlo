@@ -132,7 +132,7 @@ let%expect_test "daily data preserves explicit exchange and exact foreign quanti
   Stdio.printf "%s %s\n" (quantity cold "wallet" "jpy") (quantity cold "wallet" "eur");
   Stdio.printf "%b\n"
     (Result.is_error (B.put_entry base ~replace:false { e with exchange = None } ~plan:None));
-  Stdio.printf "%b\n" (Result.is_error (B.parse_amount base "eur" "1.234"));
+  Stdio.printf "%b\n" (Result.is_error (B.parse_amount base ~measure:"eur" "1.234"));
   [%expect {|900 unknown
 true
 true|}]
@@ -143,12 +143,12 @@ let%expect_test
   let base = get (B.read fixture) in
   (* JPY: scale 0 *)
   let check_jpy s =
-    match B.parse_amount base "jpy" s with
+    match B.parse_amount base ~measure:"jpy" s with
     | Ok n -> Stdio.printf "ok %s\n" (Z.to_string n)
     | Error err -> Stdio.printf "err %s\n" err
   in
   let check_eur s =
-    match B.parse_amount base "eur" s with
+    match B.parse_amount base ~measure:"eur" s with
     | Ok n -> Stdio.printf "ok %s\n" (Z.to_string n)
     | Error err -> Stdio.printf "err %s\n" err
   in
@@ -229,7 +229,7 @@ err invalid-amount
 let%expect_test "calculator expressions are exact and do not round or accept malformed inputs" =
   let book = get (B.read fixture) in
   let check measure text =
-    match B.parse_amount book measure text with
+    match B.parse_amount book ~measure text with
     | Ok n -> Stdio.printf "%s => %s\n" text (Z.to_string n)
     | Error why -> Stdio.printf "%s => %s\n" text why
   in
@@ -811,7 +811,7 @@ formatted: 4115226300411522630041152263004115224.63 eur/day
 let%expect_test "parse_signed_amount admits zero, negative, positive at configured scale" =
   let book = get (B.read fixture) in
   let check m text =
-    match B.parse_signed_amount book m text with
+    match B.parse_signed_amount book ~measure:m text with
     | Ok n -> Stdio.printf "%s %s -> %s\n" m text (Z.to_string n)
     | Error why -> Stdio.printf "%s %s -> error:%s\n" m text why
   in

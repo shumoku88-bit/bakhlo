@@ -281,7 +281,7 @@ let parse_row_amount ~book ~measure amount_str =
   if trimmed = "" then Error "empty"
   else
     let negative, core = split_sign trimmed in
-    match B.parse_amount book measure (String.trim core) with
+    match B.parse_amount book ~measure (String.trim core) with
     | Error why -> Error why
     | Ok quanta ->
         if Z.equal quanta Z.zero then Error "zero"

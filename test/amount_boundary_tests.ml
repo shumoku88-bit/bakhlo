@@ -7,8 +7,8 @@ let%expect_test "amount entry points preserve their distinct input policies and 
   let book = get (B.empty ~measure:"unit" ~scale:2) in
   let check measure text =
     Printf.printf "%s / %s\n"
-      (result_text (B.parse_amount book measure text))
-      (result_text (B.parse_signed_amount book measure text))
+      (result_text (B.parse_amount book ~measure text))
+      (result_text (B.parse_signed_amount book ~measure text))
   in
   check "missing" "";
   check "missing" " ";
@@ -47,9 +47,11 @@ let%expect_test "displayed exact quanta parse back at every admitted scale" =
         List.iter
           (fun signed ->
             let text = B.format book "unit" signed in
-            if not (Z.equal signed (get (B.parse_signed_amount book "unit" text))) then
+            if not (Z.equal signed (get (B.parse_signed_amount book ~measure:"unit" text))) then
               failwith "signed display round trip";
-            if Z.sign signed > 0 && not (Z.equal signed (get (B.parse_amount book "unit" text)))
+            if
+              Z.sign signed > 0
+              && not (Z.equal signed (get (B.parse_amount book ~measure:"unit" text)))
             then failwith "positive display round trip")
           [ n; Z.neg n ])
       values

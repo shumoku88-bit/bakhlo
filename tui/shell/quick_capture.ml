@@ -271,7 +271,7 @@ let fill plan =
       }
 
 let quanta book measure text =
-  match B.parse_amount book measure text with Ok q -> Some q | Error _ -> None
+  match B.parse_amount book ~measure text with Ok q -> Some q | Error _ -> None
 
 let make_plan ~book ~measure catalog roles template (parsed : parsed) =
   let total = Option.bind parsed.total (quanta book measure) in

@@ -40,7 +40,7 @@ let project ~book (p : B.daily_pace) input =
   else if not valid then
     Error ("Enter a " ^ unit_name p ^ " amount, +amount for income (up to 18 digits).")
   else
-    match B.parse_signed_amount book p.measure digits with
+    match B.parse_signed_amount book ~measure:p.measure digits with
     | Error _ -> Error ("Invalid " ^ unit_name p ^ " amount.")
     | Ok quanta ->
         let after = (if income then Z.add else Z.sub) p.available_through_end quanta in
