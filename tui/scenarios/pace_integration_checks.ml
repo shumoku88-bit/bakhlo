@@ -20,7 +20,7 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
     F.write_new path bytes
   in
   let remove path = if Sys.file_exists path then Unix.unlink path in
-  let today = F.today () in
+  let today = Clock.today () in
   let stop = get (Day.shift_days today 7) in
   let view () = C.open_route { home with session = F.load path } W.Daily_pace in
   (* Painted rows carry frame glyphs and padding; drop them and clip each row to
@@ -739,7 +739,7 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
   let path = directory ^ "/book.txt" in
   F.create_copy ~source:Interaction_check_fixture.example_book ~target:path;
   let home = C.initial ~config_home:directory (F.load path) in
-  let today = F.today () in
+  let today = Clock.today () in
   let stop = get (Day.shift_days today 7) in
   let yesterday = get (Day.shift_days today (-1)) in
   let boundary_text = "cycle\t" ^ today ^ "\t" ^ stop ^ "\n" in
@@ -1438,8 +1438,8 @@ let pool_review_checks ~width_of ~directory () =
   let windows_path = directory ^ "/boundary-presets.tsv" in
   let before = "wallet\tjpy\n" and after = "food\tjpy\n" in
   let boundaries =
-    "old\t1900-01-01\t1901-01-01\ncycle\t" ^ F.today () ^ "\t"
-    ^ get (Day.shift_days (F.today ()) 7)
+    "old\t1900-01-01\t1901-01-01\ncycle\t" ^ Clock.today () ^ "\t"
+    ^ get (Day.shift_days (Clock.today ()) 7)
     ^ "\n"
   in
   F.write_new pool_path before;

@@ -82,7 +82,7 @@ let attention (state : state) =
 
 let initial ?config_home session =
   let measure = match B.measures session.F.book with (id, _) :: _ -> id | [] -> "" in
-  let today = F.today () in
+  let today = Clock.today () in
   let workspace, scheduled_months =
     match (W.create ~today ~measure, Scheduled_months.create ~today) with
     | Ok workspace, Ok months -> (workspace, months)

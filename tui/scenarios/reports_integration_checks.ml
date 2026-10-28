@@ -85,7 +85,7 @@ let run_multicurrency ~width_of ~directory =
   let path = dir ^ "/book.txt" in
   (* The window seeds from the current calendar month, so the synthetic entries
      must fall inside it. *)
-  let today = F.today () in
+  let today = Clock.today () in
   let month_start = String.sub today 0 8 ^ "01" in
   let book_bytes =
     Printf.sprintf

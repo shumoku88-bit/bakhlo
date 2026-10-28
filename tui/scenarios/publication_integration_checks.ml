@@ -220,7 +220,7 @@ let run ~width_of ~directory ~path (home : C.state) =
   let windows_path = directory ^ "/boundary-presets.tsv" in
   F.write_new pace_path "wallet\tjpy\n";
   F.write_new windows_path
-    ("test-cycle\t" ^ F.today () ^ "\t" ^ get (Day.shift_days (F.today ()) 7) ^ "\n");
+    ("test-cycle\t" ^ Clock.today () ^ "\t" ^ get (Day.shift_days (Clock.today ()) 7) ^ "\n");
   let completion = key ~width_of inspected (`ASCII 'c') in
   require completion.record_visible "scheduled-completion-explicit";
   let _ = C.discard completion in

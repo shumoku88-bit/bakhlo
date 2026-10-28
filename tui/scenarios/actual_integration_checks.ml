@@ -870,7 +870,7 @@ let reversal_checks ~width_of ~directory home =
   require
     (no_modal fresh
     && B.find_entry cold.book target.id = Some changed_target
-    && reversal.day = F.today ()
+    && reversal.day = Clock.today ()
     && List.length reversal.effects = List.length target.effects)
     "reversal-cold-readback-original-and-relation";
   List.iter2

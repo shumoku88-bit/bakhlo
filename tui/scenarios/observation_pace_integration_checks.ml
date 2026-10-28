@@ -177,9 +177,10 @@ let run ~width_of ~directory (back_home : C.state) =
     | None -> failwith "expected cycle boundaries modal"
   in
   require (Ui_form.get_text cyc_form "name" = Some "test-cycle") "cyc-loads-active-preset-name";
-  let new_stop = get (Day.shift_days (F.today ()) 14) in
+  let new_stop = get (Day.shift_days (Clock.today ()) 14) in
   let cyc_edited =
-    with_visible_form cyc_state (Ui_form.set_text cyc_form "dates" (F.today () ^ ", " ^ new_stop))
+    with_visible_form cyc_state
+      (Ui_form.set_text cyc_form "dates" (Clock.today () ^ ", " ^ new_stop))
   in
   let cyc_reviewed = key ~width_of (key ~width_of cyc_edited `Enter) `Enter in
   require (F.read windows_path = boundaries_before) "cyc-review-does-not-save";
@@ -196,7 +197,7 @@ let run ~width_of ~directory (back_home : C.state) =
   let cyc_published = key ~width_of (key ~width_of (key ~width_of cyc_esc `Enter) `Enter) `Enter in
   require
     (no_modal cyc_published
-    && F.read windows_path = "test-cycle\t" ^ F.today () ^ "\t" ^ new_stop ^ "\n")
+    && F.read windows_path = "test-cycle\t" ^ Clock.today () ^ "\t" ^ new_stop ^ "\n")
     "cyc-boundaries-saved";
   let setup_menu = { cyc_published with overlay = C.Commands { M.page = M.Setup; selected = 4 } } in
   let from_cmd = key ~width_of setup_menu `Enter in

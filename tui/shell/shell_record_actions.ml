@@ -56,7 +56,7 @@ let cancel_plan_target state target =
               (open_editor state
                  (Record_editors.Scheduled_cancel
                     (Cancel.create ~book:state.session.book ~base_revision:state.session.revision
-                       ~day:(F.today ()) plan)))
+                       ~day:(Clock.today ()) plan)))
                 .screens;
             message = "";
           }
@@ -88,7 +88,7 @@ let extend_plan_target ?cadence_months state target =
     | Some (Screen.Plan plan) -> (
         match
           Gen.create ?cadence_months
-            ?observed_at:(Option.map (fun _ -> F.today ()) cadence_months)
+            ?observed_at:(Option.map (fun _ -> Clock.today ()) cadence_months)
             ~book:state.session.book ~base_revision:state.session.revision ~source:plan ()
         with
         | Ok editor ->
@@ -117,7 +117,7 @@ let reverse_entry_target state target =
               (open_editor state
                  (Record_editors.Reversal
                     (Rev.create ~book:state.session.book ~base_revision:state.session.revision
-                       ~day:(F.today ()) entry)))
+                       ~day:(Clock.today ()) entry)))
                 .screens;
             message = "";
           }
@@ -160,7 +160,7 @@ let pay_target state target =
   else
     match target with
     | Some (Screen.Plan plan) -> (
-        match S.of_plan ~day:(F.today ()) ~book:state.session.book plan with
+        match S.of_plan ~day:(Clock.today ()) ~book:state.session.book plan with
         | Ok record -> { state with record = Some record; record_visible = true; message = "" }
         | Error why -> { state with message = why })
     | Some (Screen.Entry _) | None ->

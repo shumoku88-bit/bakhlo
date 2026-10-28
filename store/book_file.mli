@@ -63,4 +63,3 @@ val write_atomic : string -> string -> unit
 
 val require : bool -> string -> unit
 val new_id : unit -> string
-val today : unit -> string

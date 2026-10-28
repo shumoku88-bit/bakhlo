@@ -339,7 +339,7 @@ let scheduled_panel_checks ~width_of ~directory home =
       require ((not (plan_detail back)) && plan_id back = identity) "scheduled-back-keeps-selection";
       let scoped = key state (`ASCII 'f') in
       require
-        ((plan_list scoped).day = Some (F.today ())
+        ((plan_list scoped).day = Some (Clock.today ())
         && (plan_list scoped).locus = None && (plan_list scoped).selected = 0
         && not (plan_detail scoped))
         "scheduled-f-day-scope-clears-locus-and-selection";
@@ -760,7 +760,7 @@ let months_checks ~width_of ~directory home =
   let cold = F.load path in
   require
     (List.find (fun (p : B.plan) -> p.id = "month-02") (B.plans cold.book)
-     = { (List.nth plans 2) with cancelled_on = Some (F.today ()) }
+     = { (List.nth plans 2) with cancelled_on = Some (Clock.today ()) }
     && B.entries cold.book = B.entries book
     && plan_id retired = Some (Record_browser.Scheduled_row, "month-03")
     && plan_list retired = list_browser)
@@ -1045,7 +1045,7 @@ let coverage_checks ~width_of ~directory home =
     ];
   require (Cov.of_string "" = Ok []) "coverage-empty-file-no-rules";
   (* Screen: today's month, independent of the wall clock. *)
-  let today = F.today () in
+  let today = Clock.today () in
   let month_after n =
     let index =
       (int_of_string (String.sub today 0 4) * 12) + int_of_string (String.sub today 5 2) - 1 + n
