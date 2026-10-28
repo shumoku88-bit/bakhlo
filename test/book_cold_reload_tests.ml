@@ -64,7 +64,7 @@ let chance st n = R.int st 100 < n
 let ident of_string s = Result.ok_or_failwith (Result.map_error (of_string s) ~f:(fun _ -> s))
 let locus s = ident D.Identifier.Locus.of_string s
 let measure s = ident D.Identifier.Measure.of_string s
-let coordinate l m : D.Effect_coordinate.t = { locus = locus l; measure = measure m }
+let coordinate locus measure : B.coordinate = { locus; measure }
 let posting ?key l m n = { B.key; locus = l; measure = m; amount = Z.of_int n }
 let day st = if chance st 3 then "2026-02-30" else Printf.sprintf "2026-10-%02d" (1 + R.int st 28)
 

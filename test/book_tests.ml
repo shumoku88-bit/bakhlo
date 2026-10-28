@@ -574,15 +574,7 @@ let%expect_test "a huge foreign plan amount survives the book.txt round trip exa
     (Z.equal (snd (List.last_exn (List.last_exn (B.plans book)).changes)) huge);
   [%expect {| exact: true |}]
 
-let pace_coordinate locus measure : D.Effect_coordinate.t =
-  {
-    locus =
-      Result.ok_or_failwith
-        (Result.map_error (D.Identifier.Locus.of_string locus) ~f:(fun _ -> "locus"));
-    measure =
-      Result.ok_or_failwith
-        (Result.map_error (D.Identifier.Measure.of_string measure) ~f:(fun _ -> "measure"));
-  }
+let pace_coordinate locus measure : B.coordinate = { locus; measure }
 
 let pace book ?(measure = "jpy") ?(loci = [ "wallet" ]) ?(observed_at = "2026-10-07")
     ?(end_exclusive = "2026-10-14") () =
@@ -635,7 +627,7 @@ let%expect_test
   let answer = get (pace book ~loci:[ "wallet"; "bank" ] ()) in
   print_pace answer;
   List.iter answer.pool_balances ~f:(fun (coordinate, n) ->
-      Stdio.printf "%s=%s\n" (D.Identifier.Locus.to_string coordinate.locus) (Z.to_string n));
+      Stdio.printf "%s=%s\n" coordinate.locus (Z.to_string n));
   List.iter answer.plan_deductions ~f:(fun (id, n) -> Stdio.printf "%s=%s\n" id (Z.to_string n));
   print_pace (get (pace book ()));
   let permuted = get (pace book ~loci:[ "bank"; "wallet" ] ()) in

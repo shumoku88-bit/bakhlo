@@ -6,8 +6,8 @@ module A = Draft
 module D = Bakhlo_domain
 module Panel = Ui_panel
 
-let support_text book (coordinate : D.Effect_coordinate.t) =
-  match B.quantity book ~locus:(A.lstr coordinate.locus) ~measure:(A.mstr coordinate.measure) with
+let support_text book (coordinate : B.coordinate) =
+  match B.quantity book ~locus:coordinate.locus ~measure:coordinate.measure with
   | Some { support = Zero_origin; _ } -> "recorded history"
   | Some { support = Opening _; _ } -> "opening balance"
   | Some { support = Counted _; _ } -> "observed"
@@ -18,7 +18,7 @@ let short_date date =
 
 let lines ~width_of ~width ~book (p : B.daily_pace) =
   let fmt q = Book_display.format_money book p.measure q in
-  let locus (c : D.Effect_coordinate.t) = A.lstr c.locus in
+  let locus (c : B.coordinate) = c.locus in
   let pool = List.stable_sort (fun (_, a) (_, b) -> Z.compare b a) p.pool_balances in
   let pool_loci = List.map (fun (c, _) -> locus c) p.pool_balances in
   let plans = B.plans book in

@@ -14,6 +14,9 @@ type disposition = Merchant of D.Identifier.External_party.t | Nonmerchant
 type posting = T.posting = { locus : string; measure : string; amount : Z.t; key : string option }
 (** One signed change in the Measure's smallest unit, exactly as book.txt holds it. *)
 
+type coordinate = { locus : string; measure : string }
+(** A balance cell: one Locus in one Measure. *)
+
 type entry = {
   id : string;
   day : string;
@@ -105,7 +108,7 @@ type daily_pace = {
   observed_at : string;
   end_exclusive : string;
   remaining_days : int;
-  pool_balances : (D.Effect_coordinate.t * Z.t) list;
+  pool_balances : (coordinate * Z.t) list;
   plan_deductions : (string * Z.t) list;
   eligible_pool : Z.t;
   automatic_deductions : Z.t;
@@ -116,7 +119,7 @@ type daily_pace = {
 val daily_pace :
   t ->
   measure:string ->
-  pool:D.Effect_coordinate.t list ->
+  pool:coordinate list ->
   observed_at:string ->
   end_exclusive:string ->
   (daily_pace, string) result
@@ -127,17 +130,13 @@ val daily_pace :
     deficits. Reads no clock. *)
 
 val pool_at_end_of_day :
-  t -> measure:string -> pool:D.Effect_coordinate.t list -> day:string -> (Z.t, string) result
+  t -> measure:string -> pool:coordinate list -> day:string -> (Z.t, string) result
 (** The pool at the end of [day], restated from current truth: each coordinate needs
     zero-origin (forward sum) or a history start no later than the next day with a
     current count (count minus later Effects). Anything else refuses the whole answer. *)
 
 val pools_at_end_of_days :
-  t ->
-  measure:string ->
-  pool:D.Effect_coordinate.t list ->
-  days:string list ->
-  (Z.t, string) result list
+  t -> measure:string -> pool:coordinate list -> days:string list -> (Z.t, string) result list
 (** {!pool_at_end_of_day} for each day, from one pass over the entries. *)
 
 (** {1 Changes}

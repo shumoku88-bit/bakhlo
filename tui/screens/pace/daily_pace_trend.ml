@@ -156,13 +156,13 @@ let format_pace_error why =
 let query_pool_balance book coords =
   let rec sum acc = function
     | [] -> Ok acc
-    | (c : D.Effect_coordinate.t) :: rest -> (
-        match B.quantity book ~locus:(A.lstr c.locus) ~measure:(A.mstr c.measure) with
+    | (c : B.coordinate) :: rest -> (
+        match B.quantity book ~locus:c.locus ~measure:c.measure with
         | Some q -> sum (Z.add acc q.amount) rest
         | None ->
             Error
               (format_pace_error
-                 ("daily-pace-balance-support-unknown:" ^ A.lstr c.locus ^ ":" ^ A.mstr c.measure)))
+                 ("daily-pace-balance-support-unknown:" ^ c.locus ^ ":" ^ c.measure)))
   in
   sum Z.zero coords
 

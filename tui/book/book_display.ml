@@ -49,7 +49,7 @@ let entry_lines book (entry : B.entry) =
   [ tr "Effects (exact quantities):" ]
   @ List.concat
       (List.mapi
-         (fun n p ->
+         (fun n (p : B.posting) ->
            let locus = p.B.locus and measure = p.B.measure in
            [
              Ui_text.format_message "Posting %d: %s [%s]" (n + 1)

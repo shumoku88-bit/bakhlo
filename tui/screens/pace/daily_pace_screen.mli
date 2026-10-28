@@ -35,7 +35,7 @@ val with_form : Ui_form.t -> t -> t
 val trend : t -> Daily_pace_trend.t
 val detail_focused : t -> bool
 val detail_scroll : t -> int
-val resolve_pool : Screen.env -> (Bakhlo_domain.Effect_coordinate.t list, string) result
+val resolve_pool : Screen.env -> (Bakhlo_household.Book.coordinate list, string) result
 val resolve_window : Screen.env -> (string * string, string) result
 val current_pace : Screen.env -> (Bakhlo_household.Book.daily_pace * string * string, string) result
 val detail_viewport : Screen.env -> Screen.geometry -> t -> Ui_panel.window

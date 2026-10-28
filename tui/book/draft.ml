@@ -6,13 +6,9 @@ module R = Posting_draft
 let tr = Ui_text.tr
 let format_message = Ui_text.format_message
 
-let coordinate ~locus ~measure =
-  match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string measure) with
-  | Ok locus, Ok measure -> Ok { D.Effect_coordinate.locus; measure }
-  | _ -> Error "A balance coordinate needs a Locus and a Measure."
-
-let lstr = D.Identifier.Locus.to_string
-let mstr = D.Identifier.Measure.to_string
+let coordinate ~locus ~measure : (B.coordinate, string) result =
+  if locus = "" || measure = "" then Error "A balance coordinate needs a Locus and a Measure."
+  else Ok { locus; measure }
 
 type mode = New | Edit of B.entry | Pay of string | Plan_new | Plan_edit of B.plan
 type transaction = { entry : B.entry; replace : bool; plan : string option }

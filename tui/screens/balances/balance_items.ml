@@ -22,15 +22,12 @@ type balance_item =
 
 (* Accounting represents the coordinates of current Effects and support lines, never
    the admission list. Cached by the book.txt value, which every change replaces. *)
-let represented_cache : (Bakhlo_book_txt.Book_txt.book * D.Effect_coordinate.t list) option ref =
-  ref None
+let represented_cache : (Bakhlo_book_txt.Book_txt.book * B.coordinate list) option ref = ref None
 
 let compute_represented_coordinates book =
   let v = Bakhlo_book_txt.Book_txt.value (B.txt book) in
-  let coordinate (l, m) : D.Effect_coordinate.t option =
-    match (D.Identifier.Locus.of_string l, D.Identifier.Measure.of_string m) with
-    | Ok locus, Ok measure -> Some { locus; measure }
-    | _ -> None
+  let coordinate (locus, measure) : B.coordinate option =
+    if locus = "" || measure = "" then None else Some { locus; measure }
   in
   List.concat_map
     (fun (tx : Bakhlo_book_txt.Book_txt.tx) ->
@@ -38,8 +35,7 @@ let compute_represented_coordinates book =
     v.txs
   @ v.zero_origins @ List.map fst v.openings
   @ List.concat_map (fun (a : Bakhlo_book_txt.Book_txt.anchor) -> List.map fst a.asserts) v.anchors
-  |> List.sort_uniq compare |> List.filter_map coordinate
-  |> List.sort_uniq D.Effect_coordinate.compare
+  |> List.sort_uniq compare |> List.filter_map coordinate |> List.sort_uniq compare
 
 let represented_coordinates book =
   let txt = B.txt book in
@@ -72,8 +68,8 @@ let current_balance_items ~book ~coords =
 let role_balance_items ~book ~roles =
   let rows =
     List.map
-      (fun (c : D.Effect_coordinate.t) ->
-        let locus = A.lstr c.locus and measure = A.mstr c.measure in
+      (fun (c : B.coordinate) ->
+        let locus = c.locus and measure = c.measure in
         (locus, measure, List.assoc_opt locus roles, quantity_value ~book ~measure locus))
       (represented_coordinates book)
   in

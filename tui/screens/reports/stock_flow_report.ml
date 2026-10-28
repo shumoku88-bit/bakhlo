@@ -71,10 +71,8 @@ let support_reason = function
 let day_before day =
   match Day.shift_days day (-1) with Ok previous -> Some previous | Error _ -> None
 
-let coordinate_of ~measure locus : (D.Effect_coordinate.t, string) result =
-  match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string measure) with
-  | Ok locus, Ok measure -> Ok { D.Effect_coordinate.locus; measure }
-  | _ -> Error "invalid coordinate token"
+let coordinate_of ~measure locus : (B.coordinate, string) result =
+  if locus = "" || measure = "" then Error "invalid coordinate token" else Ok { locus; measure }
 
 (* Start or end balance for one coordinate through the shared support rule. *)
 let balance_at ~book ~measure ~coordinate ~day =
@@ -87,15 +85,15 @@ let balance_at ~book ~measure ~coordinate ~day =
 
 (* An opening entry fixes the coordinate from its own date: the recorded Effects
    from there on are then exact, exactly like a bounded start. *)
-let opening_day ~book ~(coordinate : D.Effect_coordinate.t) =
-  match List.assoc_opt (A.lstr coordinate.locus, A.mstr coordinate.measure) (B.openings book) with
+let opening_day ~book ~(coordinate : B.coordinate) =
+  match List.assoc_opt (coordinate.locus, coordinate.measure) (B.openings book) with
   | None -> None
   | Some tx -> Option.map (fun (entry : B.entry) -> entry.day) (B.find_entry book tx)
 
 (* An observation is exact from an undated confirmation: no per-day boundary can
    be derived from the stored group, so it never back-fills a window start. *)
-let observation_exact ~book ~(coordinate : D.Effect_coordinate.t) =
-  match B.quantity book ~locus:(A.lstr coordinate.locus) ~measure:(A.mstr coordinate.measure) with
+let observation_exact ~book ~(coordinate : B.coordinate) =
+  match B.quantity book ~locus:coordinate.locus ~measure:coordinate.measure with
   | Some { support = Counted _; _ } -> true
   | _ -> false
 

@@ -329,12 +329,7 @@ let daily_pace_today_sample_checks () =
        END\n"
   in
   let today = "2026-06-15" and stop = "2026-06-16" in
-  let coord locus : D.Effect_coordinate.t =
-    {
-      D.Effect_coordinate.locus = get_id (D.Identifier.Locus.of_string locus);
-      measure = get_id (D.Identifier.Measure.of_string "jpy");
-    }
-  in
+  let coord locus : Bakhlo_household.Book.coordinate = { locus; measure = "jpy" } in
   let pool = [ coord "wallet" ] in
   let boundary = Some ("cycle\t" ^ today ^ "\t" ^ stop ^ "\n") in
   let pace = get (B.daily_pace book ~measure:"jpy" ~pool ~observed_at:today ~end_exclusive:stop) in
@@ -1521,7 +1516,7 @@ let pool_review_checks ~width_of ~directory () =
   let cold = fresh () in
   require
     (match resolve_pace_pool cold with
-    | Ok [ coordinate ] -> Draft.lstr coordinate.D.Effect_coordinate.locus = "food"
+    | Ok [ coordinate ] -> coordinate.locus = "food"
     | _ -> false)
     "pool-save-cold-reopen";
   List.iter

@@ -127,7 +127,7 @@ let current_pace (env : Screen.env) =
 
 let samples (env : Screen.env) t =
   Result.bind (resolve_pool env) (fun pool_coords ->
-      let pool_loci = List.map (fun c -> A.lstr c.D.Effect_coordinate.locus) pool_coords in
+      let pool_loci = List.map (fun (c : B.coordinate) -> c.locus) pool_coords in
       Result.bind (env.config boundary_file) (fun boundary_text ->
           Trend.compute_samples ~book:env.book ~measure:env.measure ~pool:pool_loci
             ~boundary_presets_text:boundary_text ~today:env.today ~preset:t.trend.preset))

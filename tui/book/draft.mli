@@ -6,11 +6,8 @@ module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module R = Posting_draft
 
-val coordinate : locus:string -> measure:string -> (D.Effect_coordinate.t, string) result
+val coordinate : locus:string -> measure:string -> (B.coordinate, string) result
 (** The balance coordinate of a Locus and a Measure token; an empty one is refused. *)
-
-val lstr : D.Identifier.Locus.t -> string
-val mstr : D.Identifier.Measure.t -> string
 
 type mode = New | Edit of B.entry | Pay of string | Plan_new | Plan_edit of B.plan
 type transaction = { entry : B.entry; replace : bool; plan : string option }

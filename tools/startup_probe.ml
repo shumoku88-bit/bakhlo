@@ -8,7 +8,7 @@ module F = Book_file
 let get = function Ok x -> x | Error why -> failwith why
 let id = function Ok x -> x | Error _ -> failwith "invalid-id"
 
-let coordinate locus measure : D.Effect_coordinate.t =
+let coordinate locus measure : B.coordinate =
   {
     locus = id (D.Identifier.Locus.of_string locus);
     measure = id (D.Identifier.Measure.of_string measure);

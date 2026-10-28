@@ -16,14 +16,13 @@ let protect f = try Ok (f ()) with Refused why -> Error why
 let eid s = get "invalid-entry-id" (D.Identifier.Event.of_string s)
 let lid s = get "invalid-locus" (D.Identifier.Locus.of_string s)
 let mid s = get "invalid-measure" (D.Identifier.Measure.of_string s)
-let lstr = D.Identifier.Locus.to_string
-let mstr = D.Identifier.Measure.to_string
 let valid_date day = require (T.valid_date day) "invalid-date"
 
 (* Whom the household regards as supplying what an entry acquired: a party, or
    explicitly nobody. An entry without one is unclassified. *)
 type disposition = Merchant of D.Identifier.External_party.t | Nonmerchant
 type posting = T.posting = { locus : string; measure : string; amount : Z.t; key : string option }
+type coordinate = { locus : string; measure : string }
 
 type entry = {
   id : string;
@@ -234,7 +233,7 @@ type daily_pace = {
   observed_at : string;
   end_exclusive : string;
   remaining_days : int;
-  pool_balances : (D.Effect_coordinate.t * Z.t) list;
+  pool_balances : (coordinate * Z.t) list;
   plan_deductions : (string * Z.t) list;
   eligible_pool : Z.t;
   automatic_deductions : Z.t;
@@ -257,10 +256,8 @@ let day_number text =
   + day
   + if leap && month > 2 then 1 else 0
 
-let pool_balance t (c : D.Effect_coordinate.t) =
-  match quantity t ~locus:(lstr c.locus) ~measure:(mstr c.measure) with
-  | Some q -> Some q.amount
-  | None -> None
+let pool_balance t (c : coordinate) =
+  match quantity t ~locus:c.locus ~measure:c.measure with Some q -> Some q.amount | None -> None
 
 let daily_pace t ~measure ~pool ~observed_at ~end_exclusive =
   protect (fun () ->
@@ -268,29 +265,22 @@ let daily_pace t ~measure ~pool ~observed_at ~end_exclusive =
       let remaining_days = last - first in
       require (remaining_days > 0) "daily-pace-non-positive-horizon";
       ignore (scale t measure);
-      let selected_measure = mid measure in
       require
-        (List.length (List.sort_uniq D.Effect_coordinate.compare pool) = List.length pool)
+        (List.length (List.sort_uniq compare pool) = List.length pool)
         "daily-pace-duplicate-coordinate";
       require
-        (List.for_all
-           (fun (c : D.Effect_coordinate.t) ->
-             D.Identifier.Measure.equal c.measure selected_measure)
-           pool)
+        (List.for_all (fun (c : coordinate) -> c.measure = measure) pool)
         "daily-pace-pool-measure-mismatch";
       let pool_balances =
         List.map
-          (fun (c : D.Effect_coordinate.t) ->
+          (fun (c : coordinate) ->
             match pool_balance t c with
             | Some n -> (c, n)
             | None ->
-                raise
-                  (Refused ("daily-pace-balance-support-unknown:" ^ lstr c.locus ^ ":" ^ measure)))
+                raise (Refused ("daily-pace-balance-support-unknown:" ^ c.locus ^ ":" ^ measure)))
           pool
       in
-      let selected locus =
-        List.exists (fun (c : D.Effect_coordinate.t) -> lstr c.locus = locus) pool
-      in
+      let selected locus = List.exists (fun (c : coordinate) -> c.locus = locus) pool in
       let plan_deductions =
         open_plans t
         |> List.filter_map (fun (p : plan) ->
@@ -331,8 +321,7 @@ let day_sums t pool ~from =
         (fun (eff : posting) ->
           match
             List.find_opt
-              (fun ((c : D.Effect_coordinate.t), _, _) ->
-                eff.locus = lstr c.locus && eff.measure = mstr c.measure)
+              (fun ((c : coordinate), _, _) -> eff.locus = c.locus && eff.measure = c.measure)
               tables
           with
           | None -> ()
@@ -355,19 +344,13 @@ let pool_at_end_of_day_from ~sums t ~measure ~pool ~day =
   protect (fun () ->
       let next_start = day_number day + 1 in
       ignore (scale t measure);
-      let selected_measure = mid measure in
       require
-        (List.length (List.sort_uniq D.Effect_coordinate.compare pool) = List.length pool)
+        (List.length (List.sort_uniq compare pool) = List.length pool)
         "history-duplicate-coordinate";
       require
-        (List.for_all
-           (fun (c : D.Effect_coordinate.t) ->
-             D.Identifier.Measure.equal c.measure selected_measure)
-           pool)
+        (List.for_all (fun (c : coordinate) -> c.measure = measure) pool)
         "history-pool-measure-mismatch";
-      let sums_of c =
-        snd (List.find (fun (c', _) -> D.Effect_coordinate.equal c c') (Lazy.force sums))
-      in
+      let sums_of c = snd (List.find (fun (c', _) -> c = c') (Lazy.force sums)) in
       (* The Effects after [day] (never before [from]), walked back from the latest day. *)
       let after c =
         Seq.fold_left
@@ -377,8 +360,8 @@ let pool_at_end_of_day_from ~sums t ~measure ~pool ~day =
       in
       let through c = Z.sub (fst (sums_of c)) (after c) in
       List.fold_left
-        (fun total (c : D.Effect_coordinate.t) ->
-          let locus = lstr c.locus in
+        (fun total (c : coordinate) ->
+          let locus = c.locus in
           let label = locus ^ ":" ^ measure in
           match bounded_history_start t ~locus ~measure with
           | None ->
