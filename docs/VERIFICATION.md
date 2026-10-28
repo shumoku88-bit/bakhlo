@@ -6,6 +6,13 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## User use of today's build (2026-10-28)
+
+- moko recorded entries and checked balances on the household through `./tools/household`, first
+  with the build of `1b4a0b7` and then of `42b01fa` (every code change of the day), and reported
+  it looked fine. This is the user's own use report, not a paired LOAM comparison; IME,
+  P7 and power loss remain unqualified.
+
 ## Checks finished by hand after the rewrites (2026-10-28)
 
 - Test-only cleanup in `dcebd51` (34 files, +265 / −376): one way to build a fixture book

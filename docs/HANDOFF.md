@@ -12,6 +12,8 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   postings, book.txt admission is the one owner of movement rules, and loading is faster
   (`Book.of_txt` −23% at 109,500 synthetic entries).
   [Evidence](VERIFICATION.md#the-typed-effect-layer-is-removed-entries-are-booktxt-postings-2026-10-28).
+  moko used the household with the day's last build (`42b01fa`) and reported it fine
+  ([report](VERIFICATION.md#user-use-of-todays-build-2026-10-28)).
 
 - 2026-10-28, later: modules are named for what they are: `Book`, `Book_file`, `Draft`,
   `Publication`, `Day`, `Line_edit`, `Command_line`, `Book_display`; date rules have one owner
