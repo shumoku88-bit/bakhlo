@@ -103,6 +103,14 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
   減らせるか調べる。まず測る：画面ごとに似た処理（枠・行の描画、スクロール、一覧の選択、狭幅の処理など）が
   どれだけ重なっているかを数え、削る価値の大きい順に並べてmokoに見せる。例：`record_session.ml`の
   `sub_border`／`inner_line`と`Ui_panel`。共通化は今いる利用者で正当化できるものだけ（`tui/README.md`）。
+  - 調査結果（2026-10-28、本体25,321行・テスト16,289行）：画面固有の処理が大半で、大きな重複はない。
+    削る価値の順に (1) 一覧の上下移動：20ファイルが矢印・j/kを自前で処理し、共有のキー表が2つあって
+    食い違う（`Ui_input.motion_delta`は素のu/dでページ、`Report_frame.scroll_move`はCtrl-u/dとg/G）。
+    LOAMの画面ごとのキーを確かめてからでないと揃えられない。(2) テストだけが使う公開値42個と、どこも
+    使わない公開値3個（`Locus_roles.role_to_string`／`role_of_string`、`Actual_workspace.shown_total`は
+    内部でだけ使用）。(3) 小さな重複：Scheduledの`grouped`（`format_money`と同じ）、`clamp_index`が2箇所、
+    Recordの`sub_border`は`Ui_render.panel_border ~inset:0`と通常幅で同じ文字列。(4) `.mli`のない21モジュール
+    （3,841行、主にshell）は未使用の値をコンパイラが指摘できない。
 
 ## 要判断
 

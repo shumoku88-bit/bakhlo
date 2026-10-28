@@ -18,6 +18,8 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 - `./tools/check`, `./tools/tui --self-check` (48 suites), `./tools/format --check`
   passed. No intended change to any screen; **latest-data paired comparison not
   executed**. No household access.
+- Matching commit `78651c4` passed CI
+  ([run 40647691925](https://github.com/shumoku88-bit/bakhlo/actions/runs/40647691925)).
 
 ## Record is in one phase at a time (2026-10-27)
 
