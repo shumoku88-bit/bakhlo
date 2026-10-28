@@ -26,6 +26,10 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   roles changed. Reopen the editor."
 - `./tools/check`, `./tools/tui --self-check` (48), `./tools/format --check` passed for each
   commit. **Latest-data paired comparison not executed**; no household access.
+- Matching CI passed: `6cbe852` ([run 40654684035](https://github.com/shumoku88-bit/bakhlo/actions/runs/40654684035)),
+  `4bb2092` ([run 40655924901](https://github.com/shumoku88-bit/bakhlo/actions/runs/40655924901)),
+  `fbe252f` ([run 40657687785](https://github.com/shumoku88-bit/bakhlo/actions/runs/40657687785)); the renames
+  through `e4e6cad` ([run 40653803413](https://github.com/shumoku88-bit/bakhlo/actions/runs/40653803413)).
 
 ## Modules named for what they are (2026-10-28)
 
