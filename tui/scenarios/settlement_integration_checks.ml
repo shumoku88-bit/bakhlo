@@ -1,7 +1,49 @@
 (* Commitment settlements through the Shell on a synthetic book. *)
 open Interaction_check_fixture
 
+(* A Measure with decimals reads at its scale: 1,050.00 eur is 105000 smallest units and
+   is shown, pre-filled and settled as 1,050.00, never as 105000. *)
+let decimal_measure_checks ~width_of ~directory =
+  let dir = directory ^ "/settlement-decimals" in
+  Unix.mkdir dir 0o700;
+  let path = dir ^ "/book.txt" in
+  F.create_copy ~source:example_book ~target:path;
+  let screen = C.open_route (C.initial ~config_home:dir (F.load path)) W.Settlements in
+  let contains rows needle =
+    List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows
+  in
+  let adding = key ~width_of screen (`ASCII 'n') in
+  let added =
+    match visible_form adding with
+    | Some f ->
+        let f = Ui_form.set_text f "label" "Synthetic ticket" in
+        let f = Ui_form.set_text f "debtor" "yamada" in
+        let f = Ui_form.set_text f "creditor" "household" in
+        let f = Ui_form.set_text f "measure" "eur" in
+        let f = Ui_form.set_text f "amount" "1050.00" in
+        key ~width_of (with_visible_form adding (Ui_form.set_focused f 5)) `Enter
+    | None -> failwith "expected modal form for add settlement"
+  in
+  require
+    (match settlement_rows added with
+    | [ r ] -> Z.equal (Stl.outstanding r) (Z.of_int 105000)
+    | _ -> false)
+    "decimal-commitment-stored-in-smallest-units";
+  let rows = R.screen ~width_of (120, 30) added in
+  require
+    (contains rows "1,050.00" && not (contains rows "105000"))
+    "decimal-commitment-shown-at-scale";
+  let acting = key ~width_of added (`ASCII 'a') in
+  match visible_form acting with
+  | Some f ->
+      require (Ui_form.get_text f "amount" = Some "1050.00") "decimal-remaining-prefilled-at-scale";
+      let f = Ui_form.set_focused (Ui_form.set_choice f "action_kind" 0) 2 in
+      let settled = key ~width_of (with_visible_form acting f) `Enter in
+      require (settlement_rows settled = []) "decimal-prefilled-amount-settles-the-commitment"
+  | None -> failwith "expected modal form for action settlement"
+
 let run ~width_of ~directory ~path (exch_done : C.state) =
+  decimal_measure_checks ~width_of ~directory;
   (* Settlements (UI-27, UI-28) test suite *)
   let contains rows needle =
     List.exists (fun (_, text) -> Base.String.is_substring text ~substring:needle) rows

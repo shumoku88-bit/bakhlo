@@ -36,7 +36,11 @@ val add_row :
   unit ->
   (t, string) result
 
-val settle_row : t -> id:string -> amount:Z.t -> (t, string) result
-val reduce_row : t -> id:string -> amount:Z.t -> (t, string) result
+val settle_row : t -> show:(Z.t -> string) -> id:string -> amount:Z.t -> (t, string) result
+
+val reduce_row : t -> show:(Z.t -> string) -> id:string -> amount:Z.t -> (t, string) result
+(** A positive amount no larger than the remaining balance; [show] writes amounts in
+    the refusal. *)
+
 val retract_row : t -> id:string -> (t, string) result
 val of_string : string -> (t, string) result

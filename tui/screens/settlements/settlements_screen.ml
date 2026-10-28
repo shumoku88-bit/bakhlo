@@ -57,7 +57,19 @@ let add_form (env : Screen.env) =
       ]
     ()
 
-let action_form (r : Stl.row) =
+(* A commitment amount in its Measure's exact decimals, grouped like every other amount.
+   The commitments file may name a Measure the book does not declare: its scale is then
+   unknown, so the smallest units are shown, marked "?", never guessed. *)
+let declared (env : Screen.env) measure = List.mem_assoc measure (B.measures env.book)
+
+let amount (env : Screen.env) measure q =
+  if declared env measure then Book_display.format_money env.book measure q else Z.to_string q ^ "?"
+
+(* An amount as the Amount field reads it back: exact decimals, no grouping. *)
+let amount_input (env : Screen.env) measure q =
+  if declared env measure then B.format env.book measure q else Z.to_string q
+
+let action_form env (r : Stl.row) =
   let rem = Stl.outstanding r in
   let desc = match r.label with Some l -> l | None -> r.id in
   Form.create ~id:"action_settlement" ~payload:r.id ~title:("Settlement Action / " ^ r.id)
@@ -65,8 +77,9 @@ let action_form (r : Stl.row) =
       [
         "Target: " ^ desc;
         Printf.sprintf "Direction: %s -> %s" r.debtor r.creditor;
-        Printf.sprintf "Committed: %s %s  Remaining: %s %s" (Z.to_string r.committed) r.measure
-          (Z.to_string rem) r.measure;
+        Printf.sprintf "Committed: %s %s  Remaining: %s %s"
+          (amount env r.measure r.committed)
+          r.measure (amount env r.measure rem) r.measure;
       ]
     ~fields:
       [
@@ -74,7 +87,7 @@ let action_form (r : Stl.row) =
           ~options:
             [ "Settle (Payment received/made)"; "Reduce without payment"; "Retract commitment" ]
           ~selected:0 ();
-        Form.text_field ~id:"amount" ~label:"Amount" ~value:(Z.to_string rem) ();
+        Form.text_field ~id:"amount" ~label:"Amount" ~value:(amount_input env r.measure rem) ();
         Form.action_buttons ~confirm:"Confirm Action" ~cancel:"Cancel" ();
       ]
     ()
@@ -149,13 +162,15 @@ let submit (env : Screen.env) t submitted =
           else
             match B.parse_amount env.book ~measure:r.measure (text "amount") with
             | Error why -> stay (amount_refusal ~positive:false r.measure why)
-            | Ok amount ->
+            | Ok quanta ->
                 let verb = if kind_idx = 0 then "Settled" else "Reduced" in
                 commit env t submitted
                   (fun s ->
-                    if kind_idx = 0 then Stl.settle_row s ~id ~amount
-                    else Stl.reduce_row s ~id ~amount)
-                  (Printf.sprintf "%s %s on %s." verb (Z.to_string amount) id)))
+                    let show = amount env r.measure in
+                    if kind_idx = 0 then Stl.settle_row s ~show ~id ~amount:quanta
+                    else Stl.reduce_row s ~show ~id ~amount:quanta)
+                  (Printf.sprintf "%s %s %s on %s." verb (amount env r.measure quanta) r.measure id)
+          ))
   | _ -> (t, Screen.Stay)
 
 (* Legacy navigation is kept: Esc/q always returns Home, Enter/i only open the
@@ -178,7 +193,7 @@ let handle (env : Screen.env) (geometry : Screen.geometry) t input =
       | Some (`ASCII 'a', []) -> (
           match selected_row env t with
           | None -> (t, Screen.Message (tr "No commitment selected."))
-          | Some r -> stay { t with editor = Some { form = action_form r; success = "" } })
+          | Some r -> stay { t with editor = Some { form = action_form env r; success = "" } })
       | Some (`ASCII 's', []) -> stay (cycle_scope env t)
       | Some ((`Tab | `ASCII 'w'), []) | Some (`Tab, [ `Shift ]) ->
           stay { t with pane = (if detail then List_pane else Detail_pane); scroll = 0 }
@@ -230,7 +245,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
     let rem = Stl.outstanding r in
     let status = if Z.equal rem Z.zero then "done" else "" in
     let trunc_desc = if String.length desc > 22 then String.sub desc 0 19 ^ "..." else desc in
-    Printf.sprintf "%-22s  %10s %-4s %s" trunc_desc (Z.to_string rem) r.measure status
+    Printf.sprintf "%-22s  %10s %-4s %s" trunc_desc (amount env r.measure rem) r.measure status
   in
   let left_rows =
     match env.settlements with
@@ -257,25 +272,34 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
           "Description: " ^ desc;
           "Direction:   " ^ r.debtor ^ " -> " ^ r.creditor;
           "Measure:     " ^ r.measure;
-          "Committed:   " ^ Z.to_string r.committed ^ " " ^ r.measure;
-          "Settled:     " ^ Z.to_string r.settled ^ " " ^ r.measure;
-          "Adjusted:    " ^ Z.to_string r.extinguished ^ " " ^ r.measure;
-          "Remaining:   " ^ Z.to_string rem ^ " " ^ r.measure;
-          "Effective:   " ^ effective;
-          "";
-          "Allocations:";
-          (if Z.gt r.settled Z.zero then
-             Printf.sprintf "  Settled payment: %s %s" (Z.to_string r.settled) r.measure
-           else "  Direct settlement: (none)");
-          (if Z.gt r.extinguished Z.zero then
-             Printf.sprintf "  Non-payment reduction: %s %s" (Z.to_string r.extinguished) r.measure
-           else "  Reductions: (none)");
-          "";
-          "Actions:";
-          "  a / Enter : Settlement action (Settle / Reduce / Retract)";
-          "  s         : Cycle scope (Open only <-> All current)";
-          "  n         : Add new settlement commitment";
+          "Committed:   " ^ amount env r.measure r.committed ^ " " ^ r.measure;
+          "Settled:     " ^ amount env r.measure r.settled ^ " " ^ r.measure;
+          "Adjusted:    " ^ amount env r.measure r.extinguished ^ " " ^ r.measure;
+          "Remaining:   " ^ amount env r.measure rem ^ " " ^ r.measure;
         ]
+        @ (if declared env r.measure then []
+           else
+             [
+               r.measure ^ " is not declared in the book: amounts marked ? are its smallest units.";
+             ])
+        @ [
+            "Effective:   " ^ effective;
+            "";
+            "Allocations:";
+            (if Z.gt r.settled Z.zero then
+               Printf.sprintf "  Settled payment: %s %s" (amount env r.measure r.settled) r.measure
+             else "  Direct settlement: (none)");
+            (if Z.gt r.extinguished Z.zero then
+               Printf.sprintf "  Non-payment reduction: %s %s"
+                 (amount env r.measure r.extinguished)
+                 r.measure
+             else "  Reductions: (none)");
+            "";
+            "Actions:";
+            "  a / Enter : Settlement action (Settle / Reduce / Retract)";
+            "  s         : Cycle scope (Open only <-> All current)";
+            "  n         : Add new settlement commitment";
+          ]
   in
   let right_width = if width >= 80 then width - max 36 (min 58 (width * 52 / 100)) - 1 else width in
   let is_detail = t.pane = Detail_pane in

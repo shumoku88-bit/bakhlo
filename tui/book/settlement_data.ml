@@ -72,8 +72,8 @@ let add_row t ~id ?label ~debtor ~creditor ~measure ~committed ?(source_event = 
     else Error "Invalid settlement commitment."
 
 (* [apply] a positive [amount] no larger than the commitment's remaining balance;
-   [noun] names the amount in the refusals. *)
-let take_from_outstanding t ~id ~amount ~nonpositive ~noun apply =
+   [noun] names the amount in the refusals, and [show] how an amount reads. *)
+let take_from_outstanding t ~show ~id ~amount ~nonpositive ~noun apply =
   if Z.leq amount Z.zero then Error nonpositive
   else
     match find_row t id with
@@ -81,21 +81,21 @@ let take_from_outstanding t ~id ~amount ~nonpositive ~noun apply =
     | Some r ->
         let rem = outstanding r in
         if Z.gt amount rem then
-          Error
-            (Printf.sprintf "%s %s exceeds remaining balance %s." noun (Z.to_string amount)
-               (Z.to_string rem))
+          Error (Printf.sprintf "%s %s exceeds remaining balance %s." noun (show amount) (show rem))
         else
           let updated = apply r in
           let rows = List.map (fun x -> if String.equal x.id id then updated else x) t.rows in
           Ok { rows }
 
-let settle_row t ~id ~amount =
-  take_from_outstanding t ~id ~amount ~nonpositive:"Settlement amount must be greater than zero."
-    ~noun:"Amount" (fun r -> { r with settled = Z.add r.settled amount })
+let settle_row t ~show ~id ~amount =
+  take_from_outstanding t ~show ~id ~amount
+    ~nonpositive:"Settlement amount must be greater than zero." ~noun:"Amount" (fun r ->
+      { r with settled = Z.add r.settled amount })
 
-let reduce_row t ~id ~amount =
-  take_from_outstanding t ~id ~amount ~nonpositive:"Reduction amount must be greater than zero."
-    ~noun:"Reduction amount" (fun r -> { r with extinguished = Z.add r.extinguished amount })
+let reduce_row t ~show ~id ~amount =
+  take_from_outstanding t ~show ~id ~amount
+    ~nonpositive:"Reduction amount must be greater than zero." ~noun:"Reduction amount" (fun r ->
+      { r with extinguished = Z.add r.extinguished amount })
 
 let retract_row t ~id =
   match find_row t id with
