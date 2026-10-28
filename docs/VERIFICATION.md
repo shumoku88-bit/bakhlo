@@ -6,6 +6,21 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Screens take roles and Attention as plain book values (2026-10-28)
+
+- `Screen.env.accounting_roles` is a list (was a `result Lazy.t`) and `env.attention` an
+  `Attention_data.t` (was a `result`): both are admitted with the book. The unreachable
+  "unavailable" branches in Actual (its scope, amount order and day totals), Attention, Home,
+  the Record editors, Balances, Loci, Income & Expense, Multicurrency, Stock–Flow and Trend are
+  deleted, with the checks that built those states (+194 / −393 lines). Kept: a malformed `ROLE`
+  line refuses the whole book; changed roles re-project Trend; an explicit Trend series needs no
+  roles; a retained Actual draft shows its notice.
+- Visible wording: the Income & Expense heading for activity on Loci without a role no longer
+  names accounting-roles.tsv (Bakhlo's own heading; LOAM has none). No other reachable text
+  changed.
+- `./tools/check`, `./tools/tui --self-check` (48), `./tools/format --check` passed. **Latest-data
+  paired comparison not executed**; no household access.
+
 ## Roles and Attention are typed book changes; Daily_txt is removed (2026-10-28)
 
 - Before: the Shell read roles and Attention as the former accounting-roles.tsv /

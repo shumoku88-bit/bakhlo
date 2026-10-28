@@ -14,6 +14,8 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   Roles and Attention are now typed book changes (`Set_roles` / `Set_attention`) and
   `Daily_txt` is removed; same bytes as before on synthetic copies.
   [Evidence](VERIFICATION.md#roles-and-attention-are-typed-book-changes-daily_txt-is-removed-2026-10-28).
+  Screens now take roles and Attention as plain book values (no "unavailable" branches).
+  [Evidence](VERIFICATION.md#screens-take-roles-and-attention-as-plain-book-values-2026-10-28).
 
 - 2026-10-28: `Daily_overlays` is `Book_display` (with a `.mli`; book values only, no
   `include Ui_render`). The I&E comparison stays as two bars per Locus (moko).

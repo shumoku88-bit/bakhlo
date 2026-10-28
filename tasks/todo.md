@@ -109,9 +109,10 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
   → `Book.change`に`Set_roles`/`Set_attention`（cold reload照合を先に拡張）、TUIの役割・Attentionの型は`Book_txt`の型、
   Loci画面は`Save_roles`、`Book_file`の`sidecars`と文字列書式・解析を削除、`Book.read`/`Book.print`。旧・新バイナリで
   同じ操作をした合成コピーはバイト一致。
-- [ ] 次の候補（moko判断待ち）：役割とAttentionは帳簿と一緒に受理済みなので、`Screen.env`の`accounting_roles`/`attention`の
-  `result`（と`Lazy`）を外し、約10画面の「役割を読めない」分岐を消す。`accounting-roles.tsv`と書いた表示文言
-  （I&Eの「役割のない科目」の見出しは実際に出る）も直す。Locus追加と役割設定を1回の保存にまとめるのも候補。
+- [x] 役割とAttentionは帳簿と一緒に受理済みなので、`Screen.env`の`accounting_roles`/`attention`から`result`と`Lazy`を外し、
+  約10画面の「役割を読めない」分岐と、その不可能な状態を作っていたチェックを消した（2026-10-28、moko承認）。
+  I&Eの「役割のない科目」の見出しから`accounting-roles.tsv`を外した。
+- [ ] 候補：Locus追加と役割設定を1回の保存にまとめる（今は追加のあと別に役割を保存する）。
   `Draft`の`lstr`/`mstr`/`quanta`も同じ根（`Book`のAPIが文字列、Effectは型）。
 - [ ] TUIのコード量（2026-10-27計測：本体約28,000行、テスト・シナリオ約16,300行。コアは約3,500行）を
   減らせるか調べる。まず測る：画面ごとに似た処理（枠・行の描画、スクロール、一覧の選択、狭幅の処理など）が
