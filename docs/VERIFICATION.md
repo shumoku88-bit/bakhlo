@@ -20,6 +20,8 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   its role) fails on the previous code and passes now. `./tools/check`, self-check (48),
   format passed. Matching CI for the previous commit `d06fd48` passed
   ([run 40659456788](https://github.com/shumoku88-bit/bakhlo/actions/runs/40659456788)).
+- Matching CI for `bd6f02f` passed
+  ([run 40660280357](https://github.com/shumoku88-bit/bakhlo/actions/runs/40660280357)).
 
 ## Screens take roles and Attention as plain book values (2026-10-28)
 
