@@ -101,11 +101,17 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
   `Command_line`、`Book_file`（`today`は`Clock`へ。`new_id`は乱数の読み手を共有するので残す）、`Book`、`Draft`
   （`format_message`は`Ui_text`へ）、`Publication`（`include Draft`をやめ`.mli`付き。`Publish`は画面の意図の
   コンストラクタと重なるので避けた）。`Daily_pace_*`は家計の言葉なのでそのまま。
-- [ ] `Daily_txt`を消す（調査済み、未着手・moko判断待ち）：`Book`は会計区分とAttentionを型で持つのに、
+- [x] `Daily_txt`を消した（2026-10-28、moko承認）：`Book`は会計区分とAttentionを型で持つのに、
   `Daily_txt`が旧ファイル形式（accounting-roles.tsv・attention.loam）の文字列へ印字し、Shellが`Locus_roles`・
   `Attention_data`へ解析し直し、保存時にまた解析する往復がある。`Locus_roles.role`は`Book_txt.role`と同じ、
   `Attention_data`の項目も`Book_txt`の`item`/`close`とほぼ同じ。画面が`Book`の型を直接使い、保存は`Book.change`に
   すれば、文字列の書式・解析と`Book_file`の`sidecars`がなくなる。保存の意味に触れるので、cold reload照合を先に広げる。
+  → `Book.change`に`Set_roles`/`Set_attention`（cold reload照合を先に拡張）、TUIの役割・Attentionの型は`Book_txt`の型、
+  Loci画面は`Save_roles`、`Book_file`の`sidecars`と文字列書式・解析を削除、`Book.read`/`Book.print`。旧・新バイナリで
+  同じ操作をした合成コピーはバイト一致。
+- [ ] 次の候補（moko判断待ち）：役割とAttentionは帳簿と一緒に受理済みなので、`Screen.env`の`accounting_roles`/`attention`の
+  `result`（と`Lazy`）を外し、約10画面の「役割を読めない」分岐を消す。`accounting-roles.tsv`と書いた表示文言
+  （I&Eの「役割のない科目」の見出しは実際に出る）も直す。Locus追加と役割設定を1回の保存にまとめるのも候補。
   `Draft`の`lstr`/`mstr`/`quanta`も同じ根（`Book`のAPIが文字列、Effectは型）。
 - [ ] TUIのコード量（2026-10-27計測：本体約28,000行、テスト・シナリオ約16,300行。コアは約3,500行）を
   減らせるか調べる。まず測る：画面ごとに似た処理（枠・行の描画、スクロール、一覧の選択、狭幅の処理など）が

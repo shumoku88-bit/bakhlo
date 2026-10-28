@@ -6,6 +6,27 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Roles and Attention are typed book changes; Daily_txt is removed (2026-10-28)
+
+- Before: the Shell read roles and Attention as the former accounting-roles.tsv /
+  attention.loam text that `Daily_txt` printed from the book, parsed it into the TUI's copies of
+  the types, printed it again to save, and `Daily_txt` parsed it once more. Now `Book.change` has
+  `Set_roles` and `Set_attention`; `Locus_roles.role` and `Attention_data`'s item/close are
+  `Book_txt`'s types; the Loci screen asks for `Save_roles { expected; next }`; `Book_file` has no
+  `sidecars`; `Book.read` / `Book.print` replace the fixture helpers; `Daily_txt` and the section
+  text formats are deleted (+119 / −374 and +157 / −223 lines in the two larger commits).
+- The cold-reload oracle generates both new changes (unknown and repeated Loci, bad ids and
+  dates, escaped context, closes of missing items), each admitted at least 20 times, before
+  the Shell uses them.
+- Same bytes: the previous commit (`8a2589f`, temporary worktree, removed) and the new binary
+  were driven by the same tmux keystrokes at 120×36 on two copies of the synthetic
+  `examples/book.txt`: two roles assigned in opposite orders, an Attention item with a
+  backslash added and resolved. The two books are byte-identical (SHA-256 `058caa4d…`).
+- Visible wording: the role form says "Saved in the book"; a stale role save says "Accounting
+  roles changed. Reopen the editor."
+- `./tools/check`, `./tools/tui --self-check` (48), `./tools/format --check` passed for each
+  commit. **Latest-data paired comparison not executed**; no household access.
+
 ## Modules named for what they are (2026-10-28)
 
 - Renamed, one commit each, with every reference, test file and current doc: `Daily_calendar`

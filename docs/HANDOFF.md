@@ -10,8 +10,10 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 - 2026-10-28, later: modules are named for what they are: `Book`, `Book_file`, `Draft`,
   `Publication`, `Day`, `Line_edit`, `Command_line`, `Book_display`; date rules have one owner
-  (`Day`). `Daily_txt` is next: it can likely be removed (see `tasks/todo.md`).
-  [Evidence](VERIFICATION.md#modules-named-for-what-they-are-2026-10-28).
+  (`Day`). [Evidence](VERIFICATION.md#modules-named-for-what-they-are-2026-10-28).
+  Roles and Attention are now typed book changes (`Set_roles` / `Set_attention`) and
+  `Daily_txt` is removed; same bytes as before on synthetic copies.
+  [Evidence](VERIFICATION.md#roles-and-attention-are-typed-book-changes-daily_txt-is-removed-2026-10-28).
 
 - 2026-10-28: `Daily_overlays` is `Book_display` (with a `.mli`; book values only, no
   `include Ui_render`). The I&E comparison stays as two bars per Locus (moko).
