@@ -53,7 +53,8 @@ val set_locus_label :
   unit ->
   outcome
 
-val add_locus : session:Book_file.t -> string -> outcome
+val add_locus : session:Book_file.t -> ?role:Locus_roles.role -> string -> outcome
+(** Admit a Locus and, when given, its accounting role, in one save. *)
 
 val roles : session:Book_file.t -> (string * Locus_roles.role) list -> outcome
 (** Replace the accounting roles section. *)

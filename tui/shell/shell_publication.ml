@@ -3,7 +3,7 @@
 open Shell_state
 
 let execute_publication state = function
-  | Screen.Add_locus token -> Publication.add_locus ~session:state.session token
+  | Screen.Add_locus { token; role } -> Publication.add_locus ~session:state.session ~role token
   | Screen.Set_locus_label { locus; label; help } ->
       Publication.set_locus_label ~session:state.session ~base_revision:state.session.revision
         ~id:locus ~label ~help ()

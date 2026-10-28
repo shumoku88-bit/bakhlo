@@ -41,7 +41,7 @@ type geometry = {
 type admission = Unconditional | Household_readable | Vocabulary_unchanged
 
 type publication =
-  | Add_locus of string
+  | Add_locus of { token : string; role : Locus_roles.role }
   | Set_locus_label of { locus : string; label : string; help : string }
   | Commit_transaction of { transaction : Draft.transaction; base : string }
   | Observe_quantities of { rows : (string * string * Z.t) list; base : string }

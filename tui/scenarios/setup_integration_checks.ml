@@ -59,6 +59,13 @@ let run ~width_of ~directory ~path =
   require (List.mem "metro" all_loci) "admitted-locus-present-in-catalog";
   let roles_after = roles_of admitted_state in
   require (List.assoc_opt "metro" roles_after = Some Roles.Asset) "admitted-locus-has-asset-role";
+  (* One save: the book it replaced has neither the Locus nor its role. *)
+  require
+    (not
+       (Base.String.is_substring
+          (F.read (F.prev_path admitted_state.session.F.path))
+          ~substring:"\tmetro\t"))
+    "admitted-locus-and-role-are-one-save";
   let select state locus =
     let loci = Loci_screen.admitted_loci state.C.session.book in
     let rec find i = function

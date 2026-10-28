@@ -77,7 +77,8 @@ type admission =
 (** A household ledger change the Shell publishes through the single writer
     against its current session; answered by the owner's [published]. *)
 type publication =
-  | Add_locus of string
+  | Add_locus of { token : string; role : Locus_roles.role }
+      (** Admit a Locus together with its accounting role, in one save. *)
   | Set_locus_label of { locus : string; label : string; help : string }
   | Commit_transaction of { transaction : Draft.transaction; base : string }
       (** Publish an entry reviewed against [base]; a different file refuses. *)

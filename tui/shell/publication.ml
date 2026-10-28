@@ -110,11 +110,17 @@ let payload ~session ~base_revision = function
 let set_locus_label ~session ~base_revision ~id ~label ?help () : outcome =
   onto ~session ~base_revision [ B.Set_locus_label { id; label; help } ]
 
-let add_locus ~session name : outcome =
+let add_locus ~session ?role name : outcome =
   let name = String.trim name in
   if String.equal name "" then Refused (tr "Enter the new Locus token.")
   else
-    match changes ~session [ B.Add_locus name ] with
+    let role =
+      match role with
+      | None -> []
+      | Some role ->
+          [ B.Set_roles (Locus_roles.set_role (B.roles session.F.book) name (Some role)) ]
+    in
+    match changes ~session (B.Add_locus name :: role) with
     | Refused "duplicate-locus" ->
         Refused (Ui_text.format_message "Locus %s is already admitted." name)
     | Refused "locus-policy-not-supplied" -> Refused (tr "Locus admission policy is not supplied.")

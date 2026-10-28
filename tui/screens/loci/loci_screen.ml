@@ -29,16 +29,10 @@ type editor =
     }
 
 (* A role chosen while admitting is saved once the admission is read back. *)
-type t = {
-  selected : int;
-  pane : pane;
-  scroll : int;
-  editor : editor option;
-  pending_role : (string * Roles.role) option;
-}
+type t = { selected : int; pane : pane; scroll : int; editor : editor option }
 
 let config_files = []
-let create () = { selected = 0; pane = List_pane; scroll = 0; editor = None; pending_role = None }
+let create () = { selected = 0; pane = List_pane; scroll = 0; editor = None }
 let enter t = { t with pane = List_pane; scroll = 0; editor = None }
 let modal t = Option.is_some t.editor
 let selected t = t.selected
@@ -188,8 +182,8 @@ let submit (env : Screen.env) (geometry : Screen.geometry) t submitted =
       let token = Option.value ~default:"" (Form.get_text submitted "token") |> String.trim in
       if token = "" then keep (fun f -> Admit f) (tr "Enter the new Locus token.")
       else
-        (* The role is saved after the admission, so refuse up front whatever would
-           leave the new Locus without one. *)
+        (* The Locus and its role are saved together; refuse up front what the role
+           would be refused for. *)
         match
           ( admission_refusal env token,
             role_of_index (Option.value ~default:0 (Form.get_choice submitted "role")) )
@@ -197,8 +191,8 @@ let submit (env : Screen.env) (geometry : Screen.geometry) t submitted =
         | Some why, _ -> keep (fun f -> Admit f) why
         | None, None -> keep (fun f -> Admit f) (tr "Choose an accounting role.")
         | None, Some role ->
-            ( { t with editor = Some (Admit submitted); pending_role = Some (token, role) },
-              Screen.Publish (Add_locus token) ))
+            ({ t with editor = Some (Admit submitted) }, Screen.Publish (Add_locus { token; role }))
+      )
   | Some (Role _) -> (
       let locus = Form.payload submitted in
       let role = role_of_index (Option.value ~default:0 (Form.get_choice submitted "role")) in
@@ -329,32 +323,16 @@ let saved _env _geometry result t =
         Screen.Message (Printf.sprintf "Set accounting role for %s to %s." locus role_str) )
   | Some (Role form), Error why ->
       ({ t with editor = Some (Role (Form.set_notice form why)) }, Screen.Stay)
-  | None, Error why ->
-      (* Role chosen during admission: the locus is admitted, the role is not. *)
-      (t, Screen.Message ("Locus admitted; accounting role not saved: " ^ why))
   | _, Ok () -> (t, Screen.Stay)
-  | Some (Admit _ | Label _ | Label_review _), Error _ -> (t, Screen.Stay)
+  | (None | Some (Admit _ | Label _ | Label_review _)), Error _ -> (t, Screen.Stay)
 
-let published (env : Screen.env) _geometry outcome t =
+let published _env _geometry outcome t =
   let notice why = (with_form (Form.set_notice (Option.get (form t)) why) t, Screen.Stay) in
   match (outcome, t.editor) with
   | _, None -> (t, Screen.Stay)
   | Screen.Publish_refused why, Some _ -> notice why
   | Screen.Publish_conflict, Some _ -> notice (tr "File changed on disk. Reload to inspect.")
-  | Screen.Publish_stopped, Some _ -> ({ t with editor = None; pending_role = None }, Screen.Stay)
-  | Screen.Published, Some (Admit _) -> (
-      let pending = t.pending_role in
-      let t = { t with editor = None; pending_role = None } in
-      match pending with
-      | None -> (t, Screen.Stay)
-      | Some (locus, role) -> (
-          match
-            match admission_refusal env locus with
-            | Some why -> Error why
-            | None -> Ok (save_role env locus (Some role))
-          with
-          | Ok request -> (t, request)
-          | Error why -> (t, Screen.Message ("Locus admitted; accounting role not saved: " ^ why))))
+  | Screen.Publish_stopped, Some _ -> ({ t with editor = None }, Screen.Stay)
   | Screen.Published, Some _ -> ({ t with editor = None }, Screen.Stay)
 
 (* Detail prose breaks between words, continuing at the line's indent; a word
