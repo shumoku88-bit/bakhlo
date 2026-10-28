@@ -111,6 +111,9 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
     内部でだけ使用）。(3) 小さな重複：Scheduledの`grouped`（`format_money`と同じ）、`clamp_index`が2箇所、
     Recordの`sub_border`は`Ui_render.panel_border ~inset:0`と通常幅で同じ文字列。(4) `.mli`のない21モジュール
     （3,841行、主にshell）は未使用の値をコンパイラが指摘できない。
+  - [x] (3)と(2)の不要な3個を片付けた（2026-10-28）：`grouped`は`format_money`へ、`clamp_index`は`Ui_panel`に一つ
+    （`Ui_form`の3箇所も）、3個は非公開に。Recordの`sub_border`／`sub_bottom`は残す：題名が幅いっぱいになる
+    約30セル以下で`panel_border`と切り詰め方が違い、LOAMに合わせた狭幅のRecord枠が変わるため。
 
 ## 要判断
 

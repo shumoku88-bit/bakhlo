@@ -8,6 +8,9 @@ val capacity : height:int -> heading:bool -> int
 val move : last:int -> position:int -> int -> int
 (** Clamp first, then move without integer overflow, including [min_int]/[max_int]. *)
 
+val clamp_index : count:int -> int -> int
+(** The nearest index of a [count]-row list; 0 when it is empty. *)
+
 val window : capacity:int -> count:int -> scroll:int -> selected:int option -> window
 (** A selected row follows the viewport; otherwise use the clamped scroll offset. *)
 

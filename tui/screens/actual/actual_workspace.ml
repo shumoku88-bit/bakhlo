@@ -277,6 +277,8 @@ let expense_total roles entries =
   let sorted = List.sort (fun (a, _) (b, _) -> String.compare a b) !totals in
   totals_text ~book:roles.role_book sorted !partial
 
+(* The EXPENSE total per Measure of these entries in the shared money format,
+   marked [+?] when an effect has no role; [None] without readable roles. *)
 let shown_total ~ctx entries =
   Option.bind (expense_roles ~ctx) (fun roles -> expense_total roles entries)
 

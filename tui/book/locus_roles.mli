@@ -2,8 +2,6 @@
 
 type role = Asset | Liability | Equity | Income | Expense
 
-val role_to_string : role -> string
-val role_of_string : string -> role option
 val role_label : role -> string
 
 type t = (string * role) list

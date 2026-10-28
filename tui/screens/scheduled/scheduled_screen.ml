@@ -218,11 +218,10 @@ type plan_entry =
   | Missing_month of string
 
 let coverage_rows env = match coverage env with Ok (_, rows) -> rows | Error _ -> []
-let clamp_index count i = if count = 0 then 0 else max 0 (min (count - 1) i)
 
 let selected_rule env t =
   let rows = coverage_rows env in
-  List.nth_opt rows (clamp_index (List.length rows) t.coverage_row)
+  List.nth_opt rows (Panel.clamp_index ~count:(List.length rows) t.coverage_row)
 
 let plan_entries (env : Screen.env) (row : Cov.row) =
   let explicit =
@@ -241,7 +240,7 @@ let plan_entries (env : Screen.env) (row : Cov.row) =
 let selected_entry env t =
   Option.bind (selected_rule env t) (fun row ->
       let entries = plan_entries env row in
-      List.nth_opt entries (clamp_index (List.length entries) t.plan_row))
+      List.nth_opt entries (Panel.clamp_index ~count:(List.length entries) t.plan_row))
 
 (* LOAM extends from the latest current-open occurrence of the monitored shape. *)
 let latest_plan env t =
@@ -276,19 +275,6 @@ let replenish env t =
       ( t,
         Screen.Record_action
           { action = Screen.Generate_every rule.every_months; target = Some (Screen.Plan p) } )
-
-(* LOAM groups the whole part by three digits; the exact fraction is kept. *)
-let grouped amount =
-  match String.split_on_char '.' amount with
-  | [] -> amount
-  | whole :: rest ->
-      let b = Buffer.create (String.length amount + 8) in
-      String.iteri
-        (fun i c ->
-          if i > 0 && (String.length whole - i) mod 3 = 0 then Buffer.add_char b ',';
-          Buffer.add_char b c)
-        whole;
-      String.concat "." (Buffer.contents b :: rest)
 
 (* --- Monitoring edits (LOAM p / s): only scheduled-coverage.tsv changes --- *)
 
@@ -484,7 +470,7 @@ let pace_paint (env : Screen.env) (geometry : Screen.geometry) t ((source : B.pl
   let book = env.book in
   let created = t.pace_mode = Created in
   let labels = if created then created_pace_labels else List.map fst pace_choices in
-  let choice = clamp_index (List.length labels) choice in
+  let choice = Panel.clamp_index ~count:(List.length labels) choice in
   (* LOAM ScheduledReview.summary wording; the amount is Measure-scaled. *)
   let changes =
     match
@@ -553,7 +539,7 @@ let batch_latest env t =
 let handle_coverage (env : Screen.env) t key =
   let stay t = (t, Screen.Stay) and say t m = (t, unless_blocked env m) in
   let count = List.length (coverage_rows env) in
-  let row = clamp_index count t.coverage_row in
+  let row = Panel.clamp_index ~count t.coverage_row in
   let months = match coverage env with Ok (months, _) -> List.length months | Error _ -> 0 in
   match key with
   | Some (`ASCII 'k', []) | Some (`Arrow `Up, []) ->
@@ -565,7 +551,7 @@ let handle_coverage (env : Screen.env) t key =
   | Some (`Page `Up, []) | Some (`ASCII 'u', [ `Ctrl ]) ->
       stay { t with coverage_row = row - min row 8 }
   | Some (`Page `Down, []) | Some (`ASCII 'd', [ `Ctrl ]) ->
-      stay { t with coverage_row = clamp_index count (row + 8) }
+      stay { t with coverage_row = Panel.clamp_index ~count (row + 8) }
   | Some (`Home, []) -> stay { t with coverage_row = 0 }
   | Some (`End, []) -> stay { t with coverage_row = max 0 (count - 1) }
   | Some (`ASCII 'h', []) | Some (`Arrow `Left, []) ->
@@ -601,7 +587,7 @@ let handle_plan (env : Screen.env) t key =
   let count =
     match selected_rule env t with Some row -> List.length (plan_entries env row) | None -> 0
   in
-  let at = clamp_index count t.plan_row in
+  let at = Panel.clamp_index ~count t.plan_row in
   let explicit action =
     match selected_entry env { t with plan_row = at } with
     | Some (Occurrence (p, _)) -> (t, Screen.Record_action { action; target = Some (Screen.Plan p) })
@@ -617,7 +603,7 @@ let handle_plan (env : Screen.env) t key =
       else say t "Already at the last plan entry."
   | Some (`Page `Up, []) | Some (`ASCII 'u', [ `Ctrl ]) -> stay { t with plan_row = at - min at 8 }
   | Some (`Page `Down, []) | Some (`ASCII 'd', [ `Ctrl ]) ->
-      stay { t with plan_row = clamp_index count (at + 8) }
+      stay { t with plan_row = Panel.clamp_index ~count (at + 8) }
   | Some (`Home, []) -> stay { t with plan_row = 0 }
   | Some (`End, []) -> stay { t with plan_row = max 0 (count - 1) }
   | Some (`ASCII ('h' | 'l'), []) | Some (`Arrow (`Left | `Right), []) ->
@@ -667,7 +653,7 @@ let coverage_paint (env : Screen.env) (geometry : Screen.geometry) t =
       @ legend
   | Ok (months, rows) ->
       let count = List.length rows in
-      let selected = clamp_index count t.coverage_row in
+      let selected = Panel.clamp_index ~count t.coverage_row in
       let shown_months =
         List.filteri
           (fun i _ -> i >= t.coverage_offset && i - t.coverage_offset < month_window inner_w)
@@ -715,7 +701,7 @@ let entry_quantity book = function
         ( List.filter (fun (_, q) -> Z.sign q < 0) p.B.changes,
           List.filter (fun (_, q) -> Z.sign q > 0) p.B.changes )
       with
-      | [ _ ], [ (_, q) ] -> grouped (B.format book p.measure q) ^ " " ^ p.measure
+      | [ _ ], [ (_, q) ] -> Book_display.format_money book p.measure q ^ " " ^ p.measure
       | _ -> Printf.sprintf "split (%d)" (List.length p.changes))
 
 let plan_paint (env : Screen.env) (geometry : Screen.geometry) t =
@@ -743,7 +729,7 @@ let plan_paint (env : Screen.env) (geometry : Screen.geometry) t =
   | Some row ->
       let entries = plan_entries env row in
       let total = List.length entries in
-      let at = clamp_index total t.plan_row in
+      let at = Panel.clamp_index ~count:total t.plan_row in
       let show_header = inner_h >= 2 && inner_w >= 42 in
       let capacity = max 1 (inner_h - if show_header then 1 else 0) in
       let start = trailing_start at capacity in

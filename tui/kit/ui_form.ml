@@ -61,9 +61,7 @@ let get_choice_value t fid =
 let set_choice t fid sel =
   update_field t fid (function
     | Choice c ->
-        let count = List.length c.options in
-        let s = if count = 0 then 0 else max 0 (min (count - 1) sel) in
-        Choice { c with selected = s }
+        Choice { c with selected = Ui_panel.clamp_index ~count:(List.length c.options) sel }
     | other -> other)
 
 let get_button t fid =
@@ -82,14 +80,12 @@ let text_field ~id ~label ?(value = "") ?(placeholder = "") () =
   { id; label; kind = Text { value; placeholder } }
 
 let choice_field ~id ~label ~options ?(selected = 0) () =
-  let count = List.length options in
-  let sel = if count = 0 then 0 else max 0 (min (count - 1) selected) in
-  { id; label; kind = Choice { options; selected = sel } }
+  let selected = Ui_panel.clamp_index ~count:(List.length options) selected in
+  { id; label; kind = Choice { options; selected } }
 
 let buttons_field ~id ~buttons ?(selected = 0) () =
-  let count = List.length buttons in
-  let sel = if count = 0 then 0 else max 0 (min (count - 1) selected) in
-  { id; label = ""; kind = Buttons { buttons; selected = sel } }
+  let selected = Ui_panel.clamp_index ~count:(List.length buttons) selected in
+  { id; label = ""; kind = Buttons { buttons; selected } }
 
 let action_buttons ?(id = "action") ?(confirm = "Confirm") ?(cancel = "Cancel") () =
   buttons_field ~id

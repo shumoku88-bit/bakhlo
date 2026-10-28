@@ -15,7 +15,6 @@ let last ~count ~capacity = max 0 (count - capacity)
 let clamp ~count ~capacity t = { scroll = max 0 (min (last ~count ~capacity) t.scroll) }
 
 (* Selection uses the same rendered count, so [End] cannot poison the next step. *)
-let clamp_index ~count index = if count <= 0 then 0 else max 0 (min (count - 1) index)
 
 type move = Line of int | Page of int | Top | Bottom
 

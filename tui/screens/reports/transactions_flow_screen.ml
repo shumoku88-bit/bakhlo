@@ -65,7 +65,7 @@ let coordinate_count (env : Screen.env) t =
   match report_of env t with Ok rep -> List.length rep.rows | Error _ -> 0
 
 let selected (env : Screen.env) t =
-  Frame.clamp_index ~count:(coordinate_count env t) t.report.selected_row
+  Ui_panel.clamp_index ~count:(coordinate_count env t) t.report.selected_row
 
 (* Detail lines at the width the detail actually gets, so the handler's clamp
    and the renderer agree. *)
@@ -91,7 +91,7 @@ let handle (env : Screen.env) geometry t input =
   let stay t = (t, Screen.Stay) in
   let count = coordinate_count env t in
   let select delta =
-    let next = Frame.clamp_index ~count (t.report.selected_row + delta) in
+    let next = Ui_panel.clamp_index ~count (t.report.selected_row + delta) in
     stay { t with report = { t.report with selected_row = next } }
   in
   let period preset offset =
@@ -155,7 +155,10 @@ let handle (env : Screen.env) geometry t input =
             stay { t with report = { t.report with selected_row = 0 } }
         | Some (`End, []) | Some (`ASCII 'G', []) ->
             stay
-              { t with report = { t.report with selected_row = Frame.clamp_index ~count max_int } }
+              {
+                t with
+                report = { t.report with selected_row = Ui_panel.clamp_index ~count max_int };
+              }
         | Some ((`Enter | `ASCII 'i' | `Tab), _) ->
             stay { t with detail = true; detail_frame = Frame.create }
         | _ -> (t, Screen.Ignored))
@@ -187,7 +190,7 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
         ]
   | Ok rep ->
       let count = List.length rep.rows in
-      let selected = Frame.clamp_index ~count t.report.selected_row in
+      let selected = Ui_panel.clamp_index ~count t.report.selected_row in
       let title = Printf.sprintf "Transactions Flow • %s" (IncExp.preset_label t.report.preset) in
       let left_width = max 60 (min (width * 2 / 3) (width - 36)) in
       let table_rows width =

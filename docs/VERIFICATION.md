@@ -6,6 +6,20 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## One clamp, one amount grouping (2026-10-28)
+
+- `Ui_panel.clamp_index` is the one nearest-index rule (Scheduled and Report_frame had
+  their own; `Ui_form` had it inline three times). Scheduled's `grouped` is gone: its one
+  caller (a positive amount) uses `Book_display.format_money`. `Locus_roles.role_to_string`
+  / `role_of_string` and `Actual_workspace.shown_total` are no longer exported (used only
+  inside their modules).
+- Record's `sub_border` / `sub_bottom` were compared with `Ui_render.panel_border ~inset:0`
+  / `panel_bottom` for widths 0–140 and the Record's titles (temporary probe, removed):
+  identical except where the title nearly fills the width (up to ~30 cells), where they
+  clip differently, and below 2 cells, where the shared ones overflow. Kept as they are.
+- `./tools/check`, `./tools/tui --self-check` (48), `./tools/format --check` passed.
+  No intended screen change; **latest-data paired comparison not executed**.
+
 ## Book values have one display module (2026-10-28)
 
 - `Daily_overlays` (no overlays; it re-exported `Ui_render` by `include`) is now

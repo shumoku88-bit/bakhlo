@@ -100,10 +100,6 @@ val expense_total : expense_roles -> B.entry list -> string option
 (** The EXPENSE total per Measure of these entries in the shared money format,
     marked [+?] when an effect has no role. *)
 
-val shown_total : ctx:context -> B.entry list -> string option
-(** The EXPENSE total per Measure of these entries in the shared money format,
-    marked [+?] when an effect has no role; [None] without readable roles. *)
-
 val window_total : ctx:context -> string option
 (** The window's EXPENSE total per Measure, in the shared money format; [total]
     is that text, already formatted for the title. *)

@@ -11,6 +11,8 @@ let move ~last ~position delta =
   else if delta < -position then 0
   else position + delta
 
+let clamp_index ~count index = if count <= 0 then 0 else max 0 (min (count - 1) index)
+
 let window ~capacity ~count ~scroll ~selected =
   let capacity = max 0 capacity and count = max 0 count in
   let last = max 0 (count - capacity) in
