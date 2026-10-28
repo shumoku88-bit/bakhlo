@@ -324,7 +324,7 @@ let fill_unresolved_remainder ~book t =
                         remainder.")
               | Error _ ->
                   Error
-                    (A.format_message
+                    (Ui_text.format_message
                        "Posting %d amount '%s' is not a valid nonzero amount for unresolved \
                         remainder assistance."
                        (idx + 1) row.amount)
@@ -427,7 +427,8 @@ let preview ~new_id ~book ~base_revision ~blocked t =
   else
     match t.original_amount with
     | Some (m, _) when not (List.mem_assoc m (B.measures book)) ->
-        with_notice t (A.format_message "Measure '%s' scale is not configured in this book." m)
+        with_notice t
+          (Ui_text.format_message "Measure '%s' scale is not configured in this book." m)
     | _ -> (
         match
           A.build_transaction ~new_id ~book ~mode:t.mode
@@ -721,8 +722,8 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                 | None ->
                     update
                       (with_notice t
-                         (A.format_message "Measure '%s' scale is not configured in this book."
-                            trimmed_m))
+                         (Ui_text.format_message
+                            "Measure '%s' scale is not configured in this book." trimmed_m))
                 | Some scale -> (
                     if ed.field = Original_measure then
                       update
@@ -737,7 +738,7 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                       | Error `Precision | Error `Invalid ->
                           update
                             (with_notice t
-                               (A.format_message
+                               (Ui_text.format_message
                                   "Enter a positive original amount with at most %d decimal places."
                                   scale))
                       | Error `Non_positive ->
@@ -809,7 +810,7 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
                         | None ->
                             update
                               (with_notice t
-                                 (A.format_message
+                                 (Ui_text.format_message
                                     "Measure '%s' scale is not configured in this book." m))))
                 | A.Plan_new | A.Plan_edit _ -> update t)
           | `Tab, [] -> update (move_focus t 1)
@@ -1224,7 +1225,7 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
                           let amount_idx = 4 + (2 * abs_idx) in
                           let l_text, l_caret =
                             field_text ~width_of (p_width - 2) (t.focus = locus_idx) t.cursor
-                              (A.format_message "Posting %d" (abs_idx + 1))
+                              (Ui_text.format_message "Posting %d" (abs_idx + 1))
                               row.locus
                           in
                           let a_text, a_caret =
@@ -1245,7 +1246,7 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
                     in
                     let p_context =
                       O.clip_text ~width_of (p_width - 2)
-                        (A.format_message "Signed %s · decimal scale per Measure" t.measure)
+                        (Ui_text.format_message "Signed %s · decimal scale per Measure" t.measure)
                     in
                     let p_context_line = inner_line ~width_of ~width:p_width O.Chrome p_context in
                     let p_pad_len = max 0 (p_height - 2 - List.length posting_rows - 1) in
@@ -1384,7 +1385,7 @@ let screen ?surface ~book ~dimensions:(width, height) ~width_of t =
                              [
                                field
                                  (3 + (2 * index))
-                                 (A.format_message "Posting %d" (index + 1))
+                                 (Ui_text.format_message "Posting %d" (index + 1))
                                  row.locus;
                                field (4 + (2 * index)) "Amount" row.amount;
                              ])

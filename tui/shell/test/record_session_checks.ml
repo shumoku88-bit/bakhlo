@@ -130,7 +130,7 @@ let self_check ~width_of () =
         "blocked-review-edit-retains-draft"
   | _ -> failwith "blocked-review-edit-is-available");
   require
-    (A.format_message "Locus %s is already admitted." "財布" = "Locus 財布 is already admitted.")
+    (Ui_text.format_message "Locus %s is already admitted." "財布" = "Locus 財布 is already admitted.")
     "catalog-translates-template-not-user-data";
   let matched = prepare ~locus_query:"wall" () |> fun t -> key t `Enter in
   (match handle matched (`Key (`Enter, [])) with

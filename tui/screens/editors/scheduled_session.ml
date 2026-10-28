@@ -194,7 +194,7 @@ let parse_signed_integer text =
   try Some (Z.of_string clean) with Invalid_argument _ -> None
 
 let amount_error t =
-  A.format_message "Enter a nonzero signed integer %s amount for every posting." t.measure
+  Ui_text.format_message "Enter a nonzero signed integer %s amount for every posting." t.measure
 
 let empty_row r = String.trim r.locus = "" && String.trim r.amount = ""
 
@@ -613,7 +613,7 @@ let screen ~book:_ ~dimensions:(width, height) ~width_of t =
              (List.mapi
                 (fun i r ->
                   [
-                    field_row (1 + (2 * i)) (A.format_message "Posting %d" (i + 1)) r.locus;
+                    field_row (1 + (2 * i)) (Ui_text.format_message "Posting %d" (i + 1)) r.locus;
                     field_row (2 + (2 * i)) ("  " ^ t.measure) r.amount;
                   ])
                 t.rows)

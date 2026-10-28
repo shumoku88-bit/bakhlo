@@ -6,9 +6,6 @@ module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module R = Posting_draft
 
-val tr : string -> string
-val format_message : ('a, unit, string) format -> 'a
-
 val coordinate : locus:string -> measure:string -> (D.Effect_coordinate.t, string) result
 (** The balance coordinate of a Locus and a Measure token; an empty one is refused. *)
 

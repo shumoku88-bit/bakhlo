@@ -316,7 +316,8 @@ let balance_item_detail ~book item =
       let support_text =
         match value with
         | Exact n ->
-            A.format_message "Exact current balance: %s %s" (format_money book measure n) measure
+            Ui_text.format_message "Exact current balance: %s %s" (format_money book measure n)
+              measure
         | Unsupported ->
             tr
               "Unsupported: No current quantity support is justified for this coordinate. Do not \

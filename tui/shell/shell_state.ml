@@ -199,13 +199,16 @@ let apply_commit_result ?published_message ?(record_publication = false) state ~
       stopped ~pending:None
         (tr "Another writer changed the book. Draft retained; reload and review.")
   | A.Storage_failed why ->
-      stopped (A.format_message "Storage failed (%s). Writes stopped; draft retained." why)
+      stopped (Ui_text.format_message "Storage failed (%s). Writes stopped; draft retained." why)
   | A.Refused why ->
-      { draft with message = A.format_message "Publication refused (%s). Draft retained." why }
+      {
+        draft with
+        message = Ui_text.format_message "Publication refused (%s). Draft retained." why;
+      }
   | A.Uncertain { message; evidence } ->
       let stopped =
         stopped ~pending:(Some evidence)
-          (A.format_message
+          (Ui_text.format_message
              "Publication outcome is unknown (%s). Do not retry; reload to inspect. Draft retained."
              message)
       in
@@ -246,7 +249,7 @@ let reload state =
       {
         state with
         blocked = true;
-        message = A.format_message "Reload failed (%s). Existing book and draft retained." why;
+        message = Ui_text.format_message "Reload failed (%s). Existing book and draft retained." why;
       }
 
 let submit state =

@@ -3,6 +3,8 @@ include Draft
 module F = Book_file
 module B = Bakhlo_household.Book
 
+let tr = Ui_text.tr
+
 let build_transaction ~book ~mode content =
   Draft.build_transaction ~new_id:F.new_id ~book ~mode content
 
@@ -118,9 +120,10 @@ let commit_add_locus ~session name : commit_result =
   if String.equal name "" then Refused (tr "Enter the new Locus token.")
   else
     match publish_changes ~session [ B.Add_locus name ] with
-    | Refused "duplicate-locus" -> Refused (format_message "Locus %s is already admitted." name)
+    | Refused "duplicate-locus" ->
+        Refused (Ui_text.format_message "Locus %s is already admitted." name)
     | Refused "locus-policy-not-supplied" -> Refused (tr "Locus admission policy is not supplied.")
-    | Refused why -> Refused (format_message "Locus admission refused (%s)" why)
+    | Refused why -> Refused (Ui_text.format_message "Locus admission refused (%s)" why)
     | result -> result
 
 type reload_result =

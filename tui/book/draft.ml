@@ -4,10 +4,7 @@ module D = Bakhlo_domain
 module R = Posting_draft
 
 let tr = Ui_text.tr
-
-(* Translate stable format templates before inserting household values. *)
-let format_message format =
-  Printf.sprintf (Scanf.format_from_string (tr (string_of_format format)) format)
+let format_message = Ui_text.format_message
 
 let coordinate ~locus ~measure =
   match (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string measure) with

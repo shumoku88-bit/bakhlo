@@ -52,7 +52,7 @@ let entry_lines book (entry : B.entry) =
          (fun n p ->
            let locus = A.lstr (D.Effect.locus p) and measure = A.mstr (D.Effect.measure p) in
            [
-             A.format_message "Posting %d: %s [%s]" (n + 1)
+             Ui_text.format_message "Posting %d: %s [%s]" (n + 1)
                (visible (B.label book locus))
                (visible locus);
              ("  "
@@ -98,7 +98,7 @@ let plan_lines book (plan : B.plan) =
   [ tr "Expected Effects (exact quantities):" ]
   @ List.mapi
       (fun n (locus, amount) ->
-        A.format_message "Posting %d: %s [%s]  %s" (n + 1)
+        Ui_text.format_message "Posting %d: %s [%s]  %s" (n + 1)
           (visible (B.label book locus))
           (visible locus) (signed book plan.measure amount))
       plan.changes
