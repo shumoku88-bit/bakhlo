@@ -1,10 +1,9 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Actual and Selected Day through the Shell on synthetic books: browsing, period windows,
+   editing, reversal and publication. *)
 open Interaction_check_fixture
 
 let actual_browsing_checks ~width_of ~directory home =
-  let posting ?(measure = "jpy") locus quanta =
-    { Bakhlo_household.Book.key = None; locus; measure; amount = quanta }
-  in
+  let posting ?(measure = "jpy") locus quanta = { B.key = None; locus; measure; amount = quanta } in
   let huge = Z.of_string (String.make 70 '9') in
   let entry n : B.entry =
     {
@@ -31,7 +30,7 @@ let actual_browsing_checks ~width_of ~directory home =
       home.C.session.book (List.init 18 Fun.id)
   in
   let path = directory ^ "/actual-browsing.txt" in
-  F.write_new path (Bakhlo_household.Book.print book);
+  F.write_new path (B.print book);
   let before = F.read path in
   let state = C.open_route (C.initial ~config_home:directory (F.load path)) W.Actual in
   let contains rows needle =
@@ -400,7 +399,7 @@ let actual_browsing_checks ~width_of ~directory home =
   List.iter
     (fun (name, route, focus, scroll, browser) ->
       let reload_path = directory ^ "/" ^ name ^ "-reload.txt" in
-      let bytes = Bakhlo_household.Book.print day_book in
+      let bytes = B.print day_book in
       F.write_new reload_path bytes;
       let base = C.initial ~config_home:directory (F.load reload_path) in
       let base = { base with workspace = { base.workspace with focus_day = (entry 16).day } } in
@@ -447,7 +446,7 @@ let actual_browsing_checks ~width_of ~directory home =
         day_browser );
     ];
   let day_path = directory ^ "/selected-day-record.txt" in
-  F.write_new day_path (Bakhlo_household.Book.print book);
+  F.write_new day_path (B.print book);
   let day_parent =
     {
       drilled with
@@ -505,8 +504,7 @@ let actual_browsing_checks ~width_of ~directory home =
     | [ e ] ->
         e.day = (entry 16).day
         && e.memo = Some "English UI / 日本語のメモ"
-        && List.map (fun (p : Bakhlo_household.Book.posting) -> p.amount) e.effects
-           = [ Z.of_int (-37); Z.of_int 37 ]
+        && List.map (fun (p : B.posting) -> p.amount) e.effects = [ Z.of_int (-37); Z.of_int 37 ]
     | _ -> false)
     "selected-day-record-cold-retains-route-date-and-exact-postings";
   let back = key ~width_of saved (`ASCII 'q') in
@@ -605,7 +603,7 @@ let actual_browsing_checks ~width_of ~directory home =
     && corrected.effects = (entry 16).effects)
     "actual-correction-cold-retains-id-date-description-and-postings";
   (* LOAM Correction may also change a posting's Locus under the same ID. *)
-  let first_locus (e : B.entry) = (List.hd e.effects).Bakhlo_household.Book.locus in
+  let first_locus (e : B.entry) = (List.hd e.effects).B.locus in
   let target = if first_locus corrected = "bank" then "wallet" else "bank" in
   let relocating = key ~width_of published (`ASCII 'c') in
   let relocating = key ~width_of (key ~width_of relocating `Tab) `Tab in
@@ -629,12 +627,7 @@ let reversal_checks ~width_of ~directory home =
   let directory = directory ^ "/reversal" in
   Unix.mkdir directory 0o700;
   let make_effect locus quantity =
-    {
-      Bakhlo_household.Book.key = Some ("reverse-" ^ locus);
-      locus;
-      measure = "jpy";
-      amount = Z.of_int quantity;
-    }
+    { B.key = Some ("reverse-" ^ locus); locus; measure = "jpy"; amount = Z.of_int quantity }
   in
   let target : B.entry =
     {
@@ -650,8 +643,8 @@ let reversal_checks ~width_of ~directory home =
   in
   let book = get (B.put_entry home.C.session.book ~replace:false target ~plan:None) in
   let path = directory ^ "/book.txt" in
-  F.write_new path (Bakhlo_household.Book.print book);
-  F.write_new (directory ^ "/input.txt") (Bakhlo_household.Book.print book);
+  F.write_new path (B.print book);
+  F.write_new (directory ^ "/input.txt") (B.print book);
   let base = C.initial ~config_home:directory (F.load path) |> fun s -> C.open_route s W.Actual in
   let before = F.read path in
   let names () = Sys.readdir directory |> Array.to_list |> List.sort String.compare in
@@ -778,9 +771,7 @@ let reversal_checks ~width_of ~directory home =
     "reversal-storage-refusal-keeps-date-target-and-base";
   unchanged "reversal-failed-storage-keeps-original";
   let large = Z.of_string (String.make 225 '9' ^ "03") in
-  let eur_effect locus n =
-    { Bakhlo_household.Book.key = None; locus; measure = "eur"; amount = n }
-  in
+  let eur_effect locus n = { B.key = None; locus; measure = "eur"; amount = n } in
   let long_target =
     {
       target with
@@ -789,8 +780,7 @@ let reversal_checks ~width_of ~directory home =
     }
   in
   F.write_new (directory ^ "/large-input.txt")
-    (Bakhlo_household.Book.print
-       (get (B.put_entry home.session.book ~replace:false long_target ~plan:None)));
+    (B.print (get (B.put_entry home.session.book ~replace:false long_target ~plan:None)));
   let long =
     Rev.create ~book ~base_revision:(F.revision_of_bytes before) ~day:"2026-10-09" long_target
   in
@@ -925,9 +915,7 @@ let reversal_checks ~width_of ~directory home =
      stale base, storage refusal, unknown/reload and cold inverse (synthetic)."
 
 let date_correction_checks ~width_of ~directory home =
-  let make_effect key locus n =
-    { Bakhlo_household.Book.key = Some key; locus; measure = "jpy"; amount = Z.of_int n }
-  in
+  let make_effect key locus n = { B.key = Some key; locus; measure = "jpy"; amount = Z.of_int n } in
   let target : B.entry =
     {
       id = "date-target";
@@ -957,7 +945,7 @@ let date_correction_checks ~width_of ~directory home =
       (B.put_entry book ~replace:false { target with id = "other"; day = "2026-10-14" } ~plan:None)
   in
   let path = directory ^ "/date-correction.txt" in
-  F.write_new path (Bakhlo_household.Book.print book);
+  F.write_new path (B.print book);
   let before = F.read path in
   let base =
     C.open_route (C.initial ~config_home:directory (F.load path)) (W.Selected_day target.day)
@@ -1124,7 +1112,7 @@ let date_correction_checks ~width_of ~directory home =
   let retained_admitted =
     get (B.put_entry retained_admitted ~replace:false retained_target ~plan:(Some retained_plan.id))
   in
-  let admitted_bytes = Bakhlo_household.Book.print retained_admitted in
+  let admitted_bytes = B.print retained_admitted in
   (* food stays in the book but is no longer offered for new entries. *)
   let retained_bytes =
     String.split_on_char '\n' admitted_bytes
@@ -1133,8 +1121,8 @@ let date_correction_checks ~width_of ~directory home =
     |> String.concat "\n"
   in
   require (retained_bytes <> admitted_bytes) "retained-locus-policy-fixture-changed";
-  let retained_book = book_of_text retained_bytes in
-  let retained_bytes = Bakhlo_household.Book.print retained_book in
+  let retained_book = get (B.read retained_bytes) in
+  let retained_bytes = B.print retained_book in
   require
     (B.approved_loci retained_book = Some [ "wallet"; "bank" ]
     && B.find_entry retained_book retained_target.id = Some retained_target)
@@ -1437,18 +1425,8 @@ let original_amount_integration_checks ~width_of ~directory () =
       memo = None;
       effects =
         [
-          {
-            Bakhlo_household.Book.key = None;
-            locus = "wallet";
-            measure = "jpy";
-            amount = Z.of_int (-100);
-          };
-          {
-            Bakhlo_household.Book.key = None;
-            locus = "food";
-            measure = "jpy";
-            amount = Z.of_int 100;
-          };
+          { B.key = None; locus = "wallet"; measure = "jpy"; amount = Z.of_int (-100) };
+          { B.key = None; locus = "food"; measure = "jpy"; amount = Z.of_int 100 };
         ];
       reversal_of = None;
       exchange = None;
@@ -1458,7 +1436,7 @@ let original_amount_integration_checks ~width_of ~directory () =
   in
   let updated_book = get (B.put_entry (F.load path).book ~replace:false dummy_entry ~plan:None) in
   let oc = open_out_bin path in
-  output_string oc (Bakhlo_household.Book.print updated_book);
+  output_string oc (B.print updated_book);
   close_out oc;
   let changed_disk_bytes = F.read path in
   let stale_pub = Option.get (H.handle ~width_of stale_preview (`Key (`Enter, []))) in
@@ -1683,18 +1661,8 @@ let event_merchant_integration_checks ~width_of ~directory () =
       memo = Some "Peer refund";
       effects =
         [
-          {
-            Bakhlo_household.Book.key = None;
-            locus = "wallet";
-            measure = "jpy";
-            amount = Z.of_int 500;
-          };
-          {
-            Bakhlo_household.Book.key = None;
-            locus = "food";
-            measure = "jpy";
-            amount = Z.of_int (-500);
-          };
+          { B.key = None; locus = "wallet"; measure = "jpy"; amount = Z.of_int 500 };
+          { B.key = None; locus = "food"; measure = "jpy"; amount = Z.of_int (-500) };
         ];
       reversal_of = None;
       exchange = None;
@@ -1726,18 +1694,8 @@ let event_merchant_integration_checks ~width_of ~directory () =
       memo = Some "Bakery visit";
       effects =
         [
-          {
-            Bakhlo_household.Book.key = None;
-            locus = "wallet";
-            measure = "jpy";
-            amount = Z.of_int (-400);
-          };
-          {
-            Bakhlo_household.Book.key = None;
-            locus = "food";
-            measure = "jpy";
-            amount = Z.of_int 400;
-          };
+          { B.key = None; locus = "wallet"; measure = "jpy"; amount = Z.of_int (-400) };
+          { B.key = None; locus = "food"; measure = "jpy"; amount = Z.of_int 400 };
         ];
       reversal_of = None;
       exchange = None;
@@ -1784,18 +1742,8 @@ let event_merchant_integration_checks ~width_of ~directory () =
       memo = Some "Hardware store";
       effects =
         [
-          {
-            Bakhlo_household.Book.key = None;
-            locus = "wallet";
-            measure = "jpy";
-            amount = Z.of_int (-1500);
-          };
-          {
-            Bakhlo_household.Book.key = None;
-            locus = "food";
-            measure = "jpy";
-            amount = Z.of_int 1500;
-          };
+          { B.key = None; locus = "wallet"; measure = "jpy"; amount = Z.of_int (-1500) };
+          { B.key = None; locus = "food"; measure = "jpy"; amount = Z.of_int 1500 };
         ];
       reversal_of = None;
       exchange = None;
@@ -1837,18 +1785,8 @@ let event_merchant_integration_checks ~width_of ~directory () =
       memo = None;
       effects =
         [
-          {
-            Bakhlo_household.Book.key = None;
-            locus = "wallet";
-            measure = "jpy";
-            amount = Z.of_int (-10);
-          };
-          {
-            Bakhlo_household.Book.key = None;
-            locus = "food";
-            measure = "jpy";
-            amount = Z.of_int 10;
-          };
+          { B.key = None; locus = "wallet"; measure = "jpy"; amount = Z.of_int (-10) };
+          { B.key = None; locus = "food"; measure = "jpy"; amount = Z.of_int 10 };
         ];
       reversal_of = None;
       exchange = None;
@@ -1858,7 +1796,7 @@ let event_merchant_integration_checks ~width_of ~directory () =
   in
   let concurrent_book = get (B.put_entry (F.load path).book ~replace:false dummy ~plan:None) in
   let oc = open_out_bin path in
-  output_string oc (Bakhlo_household.Book.print concurrent_book);
+  output_string oc (B.print concurrent_book);
   close_out oc;
   let stale_pub = Option.get (H.handle ~width_of stale_state (`Key (`Enter, []))) in
   require stale_pub.blocked "merch-stale-conflict-blocked";
@@ -1951,10 +1889,7 @@ let quick_capture_integration_checks ~width_of ~directory () =
   let same (a : B.entry) (b : B.entry) =
     let postings (e : B.entry) =
       List.sort compare
-        (List.map
-           (fun (p : Bakhlo_household.Book.posting) ->
-             (p.Bakhlo_household.Book.locus, Z.to_string p.Bakhlo_household.Book.amount))
-           e.effects)
+        (List.map (fun (p : B.posting) -> (p.B.locus, Z.to_string p.amount)) e.effects)
     in
     a.memo = b.memo && postings a = postings b
   in
@@ -1971,9 +1906,7 @@ let quick_capture_integration_checks ~width_of ~directory () =
    (Space does not open Commands), survives a reload, and Enter opens the chosen
    window; nothing is written. *)
 let period_picker_integration_checks ~width_of ~directory home =
-  let posting locus quanta =
-    { Bakhlo_household.Book.key = None; locus; measure = "jpy"; amount = Z.of_int quanta }
-  in
+  let posting locus quanta = { B.key = None; locus; measure = "jpy"; amount = Z.of_int quanta } in
   let entry n : B.entry =
     {
       id = Printf.sprintf "picker-%02d" n;
@@ -1992,7 +1925,7 @@ let period_picker_integration_checks ~width_of ~directory home =
       home.C.session.book (List.init 3 Fun.id)
   in
   let path = directory ^ "/actual-picker.txt" in
-  F.write_new path (Bakhlo_household.Book.print book);
+  F.write_new path (B.print book);
   let before = F.read path in
   let dimensions = (100, 30) in
   let key = key ~dimensions ~width_of in

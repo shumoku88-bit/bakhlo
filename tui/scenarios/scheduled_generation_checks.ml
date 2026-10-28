@@ -42,7 +42,7 @@ let plan id day measure cents : B.plan =
 let self_check ~width_of () =
   let directory = "scratch/scheduled-generate-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
-  let book = Interaction_check_fixture.book_of_text fixture in
+  let book = Interaction_check_fixture.get (B.read fixture) in
   let source = plan "source-plan" "2026-10-15" "eur" (Z.of_int 5000) in
   let book = get (B.put_plan book ~replace:false source) in
   let base = Bakhlo_household.Book.print book in

@@ -1,4 +1,4 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Render cases shared by the scenario checks: real Shell states at fixed geometries. *)
 open Interaction_check_fixture
 
 let render_cases state =

@@ -1,4 +1,4 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Observe and Daily Pace together through the Shell on synthetic books. *)
 open Interaction_check_fixture
 open Balances_integration_checks
 

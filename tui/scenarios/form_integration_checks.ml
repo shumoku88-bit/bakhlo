@@ -1,4 +1,4 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Shared forms through the Shell: fields, choices and the caret. *)
 open Interaction_check_fixture
 
 let run ~width_of (home : C.state) =

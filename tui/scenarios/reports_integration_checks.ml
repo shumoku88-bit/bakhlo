@@ -1,4 +1,4 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Reports through the Shell on synthetic books. *)
 open Interaction_check_fixture
 
 (* Liquidity: real Commands -> Reports and analysis -> Liquidity selection,

@@ -5,10 +5,6 @@ module B = Bakhlo_household.Book
 module S = Stock_flow_report
 module I = Income_expense_report
 
-(* Fixtures are book.txt text; one that does not read is a broken test. *)
-let book_of_text text =
-  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
-
 let id_of = function Ok value -> value | Error _ -> failwith "synthetic identifier"
 let posting locus amount = { B.key = None; locus; measure = "jpy"; amount }
 let posting_in locus measure amount = { B.key = None; locus; measure; amount }
@@ -18,14 +14,19 @@ let require condition why = if not condition then failwith why
 let z = Z.of_int
 
 let fixture support =
-  book_of_text
-    ("BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\nLOCUS\ta\ta\t\nLOCUS\tb\tb\t\nLOCUS\tc\tc\t\n"
-   ^ "TX\tbefore\t2026-09-30\nEFFECT\ta\tjpy\t20\nEFFECT\tb\tjpy\t-20\nENDTX\n"
-   ^ "TX\twithin\t2026-10-16\nEFFECT\ta\tjpy\t10\nEFFECT\ta\tjpy\t20\nEFFECT\tb\tjpy\t-30\nENDTX\n"
-   ^ "TX\tend\t2026-11-01\nEFFECT\ta\tjpy\t40\nEFFECT\tb\tjpy\t-40\nENDTX\n" ^ support ^ "END\n")
+  get
+  @@ B.read
+       ("BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\nLOCUS\ta\ta\t\nLOCUS\tb\tb\t\nLOCUS\tc\tc\t\n"
+      ^ "TX\tbefore\t2026-09-30\nEFFECT\ta\tjpy\t20\nEFFECT\tb\tjpy\t-20\nENDTX\n"
+      ^ "TX\twithin\t2026-10-16\n\
+         EFFECT\ta\tjpy\t10\n\
+         EFFECT\ta\tjpy\t20\n\
+         EFFECT\tb\tjpy\t-30\n\
+         ENDTX\n" ^ "TX\tend\t2026-11-01\nEFFECT\ta\tjpy\t40\nEFFECT\tb\tjpy\t-40\nENDTX\n"
+      ^ support ^ "END\n")
 
 (* What a save and a cold load give. *)
-let cold_of book = book_of_text (Bakhlo_household.Book.print book)
+let cold_of book = get (B.read (Bakhlo_household.Book.print book))
 
 let self_check () =
   let zero = fixture "ZERO-ORIGIN\ta\tjpy\nZERO-ORIGIN\tb\tjpy\n" in
@@ -200,32 +201,33 @@ let self_check () =
 
   (* Opening support: exact from the opening entry's date, unknown before it. *)
   let opening_book =
-    book_of_text
-      "BOOK\t1\n\
-       MEASURE\tjpy\t0\n\
-       MEASURE\teur\t2\n\
-       LOCUS\tdebt\tdebt\t\n\
-       LOCUS\tcash\tcash\t\n\
-       LOCUS\topening-equity\topening-equity\t\n\
-       LOCUS\teur-debt\teur-debt\t\n\
-       TX\topen\t2026-09-01\n\
-       EFFECT\tdebt\tjpy\t1000\n\
-       EFFECT\topening-equity\tjpy\t-1000\n\
-       ENDTX\n\
-       TX\teur-open\t2026-09-02\n\
-       EFFECT\tcash\tjpy\t-100\tfrom\n\
-       EFFECT\teur-debt\teur\t500\tto\n\
-       EXCHANGE\tjpy\teur\n\
-       ENDTX\n\
-       TX\trepay\t2026-10-10\n\
-       EFFECT\tdebt\tjpy\t-300\n\
-       EFFECT\tcash\tjpy\t300\n\
-       ENDTX\n\
-       ZERO-ORIGIN\topening-equity\tjpy\n\
-       ZERO-ORIGIN\tcash\tjpy\n\
-       OPENING\tdebt\tjpy\topen\n\
-       OPENING\teur-debt\teur\teur-open\n\
-       END\n"
+    get
+    @@ B.read
+         "BOOK\t1\n\
+          MEASURE\tjpy\t0\n\
+          MEASURE\teur\t2\n\
+          LOCUS\tdebt\tdebt\t\n\
+          LOCUS\tcash\tcash\t\n\
+          LOCUS\topening-equity\topening-equity\t\n\
+          LOCUS\teur-debt\teur-debt\t\n\
+          TX\topen\t2026-09-01\n\
+          EFFECT\tdebt\tjpy\t1000\n\
+          EFFECT\topening-equity\tjpy\t-1000\n\
+          ENDTX\n\
+          TX\teur-open\t2026-09-02\n\
+          EFFECT\tcash\tjpy\t-100\tfrom\n\
+          EFFECT\teur-debt\teur\t500\tto\n\
+          EXCHANGE\tjpy\teur\n\
+          ENDTX\n\
+          TX\trepay\t2026-10-10\n\
+          EFFECT\tdebt\tjpy\t-300\n\
+          EFFECT\tcash\tjpy\t300\n\
+          ENDTX\n\
+          ZERO-ORIGIN\topening-equity\tjpy\n\
+          ZERO-ORIGIN\tcash\tjpy\n\
+          OPENING\tdebt\tjpy\topen\n\
+          OPENING\teur-debt\teur\teur-open\n\
+          END\n"
   in
   let after_open = get (compute opening_book [ ("debt", "jpy") ]) in
   let debt = only "debt" after_open in
@@ -448,19 +450,20 @@ let self_check () =
 
   (* Observation support is exact but undated: it never back-fills a start. *)
   let observation_book =
-    book_of_text
-      "BOOK\t1\n\
-       MEASURE\tjpy\t0\n\
-       LOCUS\tdebt\tdebt\t\n\
-       LOCUS\tcash\tcash\t\n\
-       TX\tborrow\t2026-10-10\n\
-       EFFECT\tdebt\tjpy\t400\n\
-       EFFECT\tcash\tjpy\t-400\n\
-       ENDTX\n\
-       ANCHOR\tborrow\n\
-       ASSERT\tdebt\tjpy\t400\n\
-       ENDANCHOR\n\
-       END\n"
+    get
+    @@ B.read
+         "BOOK\t1\n\
+          MEASURE\tjpy\t0\n\
+          LOCUS\tdebt\tdebt\t\n\
+          LOCUS\tcash\tcash\t\n\
+          TX\tborrow\t2026-10-10\n\
+          EFFECT\tdebt\tjpy\t400\n\
+          EFFECT\tcash\tjpy\t-400\n\
+          ENDTX\n\
+          ANCHOR\tborrow\n\
+          ASSERT\tdebt\tjpy\t400\n\
+          ENDANCHOR\n\
+          END\n"
   in
   let observed = get (compute observation_book [ ("debt", "jpy") ]) in
   let debt = only "debt" observed in

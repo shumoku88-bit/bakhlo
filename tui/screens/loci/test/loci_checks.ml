@@ -4,24 +4,22 @@ module B = Bakhlo_household.Book
 module Loci = Loci_screen
 module Roles = Locus_roles
 
-(* Fixtures are book.txt text; one that does not read is a broken test. *)
-let book_of_text text =
-  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
-
+let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
 
 let book =
-  book_of_text
-    "BOOK\t1\n\
-     MEASURE\tjpy\t0\n\
-     LOCUS\tsuspense\tsuspense\t\n\
-     LOCUS\tcash\tcash\t\n\
-     LOCUS\tfood\tfood\t\n\
-     TX\ta\t2026-10-04\n\
-     EFFECT\tsuspense\tjpy\t10\n\
-     EFFECT\tfood\tjpy\t-10\n\
-     ENDTX\n\
-     END\n"
+  get
+  @@ B.read
+       "BOOK\t1\n\
+        MEASURE\tjpy\t0\n\
+        LOCUS\tsuspense\tsuspense\t\n\
+        LOCUS\tcash\tcash\t\n\
+        LOCUS\tfood\tfood\t\n\
+        TX\ta\t2026-10-04\n\
+        EFFECT\tsuspense\tjpy\t10\n\
+        EFFECT\tfood\tjpy\t-10\n\
+        ENDTX\n\
+        END\n"
 
 let geometry : Screen.geometry =
   { screen = (120, 36); body = (120, 33); content = (120, 32); width_of = String.length }

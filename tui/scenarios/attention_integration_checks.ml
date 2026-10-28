@@ -1,4 +1,4 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Attention through the Shell on a synthetic book. *)
 open Interaction_check_fixture
 
 let run ~width_of (home : C.state) =

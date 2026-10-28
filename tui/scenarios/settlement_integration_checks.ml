@@ -1,4 +1,4 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Commitment settlements through the Shell on a synthetic book. *)
 open Interaction_check_fixture
 
 let run ~width_of ~directory ~path (exch_done : C.state) =

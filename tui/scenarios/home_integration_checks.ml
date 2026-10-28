@@ -1,4 +1,4 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Home through the Shell: the bonsai launcher, entrance layout and theme settings. *)
 open Interaction_check_fixture
 
 let bonsai_home_layout_check ~width_of home =

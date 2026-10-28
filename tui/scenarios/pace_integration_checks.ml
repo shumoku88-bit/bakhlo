@@ -1,4 +1,5 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Daily Pace through the Shell on synthetic books: today's pace, What-if, Pool, Trend and
+   settings. *)
 open Interaction_check_fixture
 
 (* Selected day rows carry LOAM's one-space indent; drop it to rejoin wraps. *)
@@ -313,20 +314,21 @@ let daily_pace_trend_fail_closed_checks ~width_of ~directory () =
 (* Today's sample uses Current; past-day reconstruction is kept separate. *)
 let daily_pace_today_sample_checks () =
   let book =
-    book_of_text
-      "BOOK\t1\n\
-       MEASURE\tjpy\t0\n\
-       LOCUS\twallet\twallet\t\n\
-       LOCUS\tfood\tfood\t\n\
-       PLAN\tunpaid-yesterday\t2026-06-14\tjpy\n\
-       CHANGE\twallet\t-500\n\
-       CHANGE\tfood\t500\n\
-       ENDPLAN\n\
-       ZERO-ORIGIN\tfood\tjpy\n\
-       ANCHOR\t-\n\
-       ASSERT\twallet\tjpy\t1000\n\
-       ENDANCHOR\n\
-       END\n"
+    get
+    @@ B.read
+         "BOOK\t1\n\
+          MEASURE\tjpy\t0\n\
+          LOCUS\twallet\twallet\t\n\
+          LOCUS\tfood\tfood\t\n\
+          PLAN\tunpaid-yesterday\t2026-06-14\tjpy\n\
+          CHANGE\twallet\t-500\n\
+          CHANGE\tfood\t500\n\
+          ENDPLAN\n\
+          ZERO-ORIGIN\tfood\tjpy\n\
+          ANCHOR\t-\n\
+          ASSERT\twallet\tjpy\t1000\n\
+          ENDANCHOR\n\
+          END\n"
   in
   let today = "2026-06-15" and stop = "2026-06-16" in
   let coord locus : Bakhlo_household.Book.coordinate = { locus; measure = "jpy" } in
@@ -401,22 +403,23 @@ let daily_pace_today_sample_checks () =
     "daily-pace-bounded-history-route";
   (* Known zero-origin for every pool locus: past reconstruction is supported. *)
   let supported_book =
-    book_of_text
-      "BOOK\t1\n\
-       MEASURE\tjpy\t0\n\
-       LOCUS\twallet\twallet\t\n\
-       LOCUS\tfood\tfood\t\n\
-       TX\tseed\t2026-06-01\n\
-       EFFECT\twallet\tjpy\t1000\n\
-       EFFECT\tfood\tjpy\t-1000\n\
-       ENDTX\n\
-       PLAN\tunpaid-yesterday\t2026-06-14\tjpy\n\
-       CHANGE\twallet\t-500\n\
-       CHANGE\tfood\t500\n\
-       ENDPLAN\n\
-       ZERO-ORIGIN\twallet\tjpy\n\
-       ZERO-ORIGIN\tfood\tjpy\n\
-       END\n"
+    get
+    @@ B.read
+         "BOOK\t1\n\
+          MEASURE\tjpy\t0\n\
+          LOCUS\twallet\twallet\t\n\
+          LOCUS\tfood\tfood\t\n\
+          TX\tseed\t2026-06-01\n\
+          EFFECT\twallet\tjpy\t1000\n\
+          EFFECT\tfood\tjpy\t-1000\n\
+          ENDTX\n\
+          PLAN\tunpaid-yesterday\t2026-06-14\tjpy\n\
+          CHANGE\twallet\t-500\n\
+          CHANGE\tfood\t500\n\
+          ENDPLAN\n\
+          ZERO-ORIGIN\twallet\tjpy\n\
+          ZERO-ORIGIN\tfood\tjpy\n\
+          END\n"
   in
   let _, _, supported_history =
     get
@@ -561,7 +564,7 @@ let daily_pace_activity_checks () =
      ZERO-ORIGIN\tbank\tjpy\n\
      END\n"
   in
-  let book = book_of_text text in
+  let book = get (B.read text) in
   let boundary = Some "cycle\t2026-10-10\t2026-10-28\n" in
   let _, _, samples =
     get
@@ -1013,14 +1016,15 @@ let daily_pace_selection_clamp_checks ~width_of ~directory () =
 (* Integer graph geometry, qualified joins and exact currency presentation. *)
 let daily_pace_graph_render_checks ~width_of () =
   let book =
-    book_of_text
-      "BOOK\t1\n\
-       MEASURE\tjpy\t0\n\
-       MEASURE\teur\t2\n\
-       LOCUS\twallet\twallet\t\n\
-       ZERO-ORIGIN\twallet\tjpy\n\
-       ZERO-ORIGIN\twallet\teur\n\
-       END\n"
+    get
+    @@ B.read
+         "BOOK\t1\n\
+          MEASURE\tjpy\t0\n\
+          MEASURE\teur\t2\n\
+          LOCUS\twallet\twallet\t\n\
+          ZERO-ORIGIN\twallet\tjpy\n\
+          ZERO-ORIGIN\twallet\teur\n\
+          END\n"
   in
   let sample ~day ?(q = 4464) ?(stop = "2026-11-01") () =
     {

@@ -1,7 +1,8 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Saves besides entries (Attention, commitments, Pace settings) on synthetic books: a refused
+   or failed save keeps the draft and the file. *)
 open Interaction_check_fixture
 
-let safety_checks ~width_of ~directory () =
+let run ~width_of ~directory () =
   let dir = directory ^ "/safety" in
   Unix.mkdir dir 0o700;
   let path = dir ^ "/book.txt" in
@@ -197,5 +198,5 @@ let safety_checks ~width_of ~directory () =
     (no_modal saved && F.read pool_path = "food\tjpy\n" && not (Sys.file_exists windows_path))
     "pool-save-does-not-invent-period";
   print_endline
-    "PASS: sidecar refusal/draft preservation, strict inputs, explicit Pace, negative What-if and \
-     non-destructive Pool edits."
+    "PASS: Attention, commitment and Pace setting saves refuse without losing drafts, strict \
+     inputs, explicit Pace, negative What-if and non-destructive Pool edits."

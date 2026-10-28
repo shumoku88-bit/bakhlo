@@ -1,4 +1,4 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Household setup through the Shell: Loci, accounting roles and exchanges on synthetic books. *)
 open Interaction_check_fixture
 
 (* The roles the Shell reads from the book. *)
@@ -114,10 +114,7 @@ let run ~width_of ~directory ~path =
   let used_loci = C.open_route used_state W.Loci in
   require
     (List.exists
-       (fun (e : B.entry) ->
-         List.exists
-           (fun (p : Bakhlo_household.Book.posting) -> p.Bakhlo_household.Book.locus = "food")
-           e.effects)
+       (fun (e : B.entry) -> List.exists (fun (p : B.posting) -> p.locus = "food") e.effects)
        (B.entries used_loci.session.book))
     "fixture-food-is-used";
   require
@@ -294,14 +291,10 @@ let run ~width_of ~directory ~path =
   require (List.length latest_entry.effects = 2) "exchange-has-two-effects";
   let src_eff = List.nth latest_entry.effects 0 in
   let dst_eff = List.nth latest_entry.effects 1 in
-  require (src_eff.Bakhlo_household.Book.locus = "wallet") "exchange-source-locus";
-  require (src_eff.Bakhlo_household.Book.measure = "jpy") "exchange-source-measure";
-  require
-    (Z.equal src_eff.Bakhlo_household.Book.amount (Z.of_int (-1500)))
-    "exchange-source-amount-negative";
-  require (dst_eff.Bakhlo_household.Book.locus = "bank") "exchange-destination-locus";
-  require (dst_eff.Bakhlo_household.Book.measure = "eur") "exchange-destination-measure";
-  require
-    (Z.equal dst_eff.Bakhlo_household.Book.amount (Z.of_int 1000))
-    "exchange-destination-amount-positive";
+  require (src_eff.B.locus = "wallet") "exchange-source-locus";
+  require (src_eff.B.measure = "jpy") "exchange-source-measure";
+  require (Z.equal src_eff.B.amount (Z.of_int (-1500))) "exchange-source-amount-negative";
+  require (dst_eff.B.locus = "bank") "exchange-destination-locus";
+  require (dst_eff.B.measure = "eur") "exchange-destination-measure";
+  require (Z.equal dst_eff.B.amount (Z.of_int 1000)) "exchange-destination-amount-positive";
   exch_done

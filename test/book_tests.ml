@@ -3,11 +3,10 @@ module B = Bakhlo_household.Book
 module T = Bakhlo_book_txt.Book_txt
 
 let get = function Ok x -> x | Error why -> failwith why
-let book_of_txt = Book_cold_reload_tests.book_of_txt
 let text_of = Book_cold_reload_tests.text_of
 
 (* What a save and a cold load give: the book read back from its book.txt. *)
-let cold book = book_of_txt (text_of book)
+let cold book = get (B.read (text_of book))
 
 let fixture =
   "BOOK\t1\n\
@@ -47,7 +46,7 @@ let quantity book locus measure =
   match B.quantity book ~locus ~measure with Some q -> Z.to_string q.amount | None -> "unknown"
 
 let%expect_test "daily replacement and plan payment use current entries, preserving support" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let added = get (B.put_entry base ~replace:false (entry "e" 100) ~plan:None) in
   let edited =
     get (B.put_entry added ~replace:true { (entry "e" 150) with day = "2026-09-01" } ~plan:None)
@@ -68,17 +67,20 @@ unknown unknown
 let entry_view book = B.entries book
 
 let%expect_test "daily identical entry facts need independent observation cuts" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let unreflected = get (B.put_entry base ~replace:false (entry "e" 100) ~plan:None) in
   let unreflected = cold unreflected in
   let reflected =
-    book_of_txt
-      (String.substr_replace_all (text_of unreflected) ~pattern:"ANCHOR\t-\n" ~with_:"ANCHOR\te\n")
+    get
+    @@ B.read
+         (String.substr_replace_all (text_of unreflected) ~pattern:"ANCHOR\t-\n"
+            ~with_:"ANCHOR\te\n")
   in
   let unsupported_base =
-    book_of_txt
-      (String.substr_replace_all fixture
-         ~pattern:"ANCHOR\t-\nASSERT\twallet\tjpy\t1000\nENDANCHOR\n" ~with_:"")
+    get
+    @@ B.read
+         (String.substr_replace_all fixture
+            ~pattern:"ANCHOR\t-\nASSERT\twallet\tjpy\t1000\nENDANCHOR\n" ~with_:"")
   in
   let unsupported = get (B.put_entry unsupported_base ~replace:false (entry "e" 100) ~plan:None) in
   Stdio.printf "same entries: %b\n"
@@ -93,7 +95,7 @@ wallet: 900 / 1000
 missing support: unknown|}]
 
 let%expect_test "daily identical actual facts do not infer scheduled completion" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let actual = entry "payment" 200 in
   let unlinked = get (B.put_entry base ~replace:false actual ~plan:None) in
   let completed = get (B.put_entry base ~replace:false actual ~plan:(Some "planned")) in
@@ -111,7 +113,7 @@ wallet: 800 / 800
 open plans: 1 / 0|}]
 
 let%expect_test "daily data preserves explicit exchange and exact foreign quantities" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let e : B.entry =
     {
       id = "fx";
@@ -138,7 +140,7 @@ true|}]
 let%expect_test
     "flexible amount input accepts half/full-width and comma grouping, preserving exact quanta and \
      errors" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   (* JPY: scale 0 *)
   let check_jpy s =
     match B.parse_amount base "jpy" s with
@@ -225,7 +227,7 @@ err invalid-amount
 |}]
 
 let%expect_test "calculator expressions are exact and do not round or accept malformed inputs" =
-  let book = book_of_txt fixture in
+  let book = get (B.read fixture) in
   let check measure text =
     match B.parse_amount book measure text with
     | Ok n -> Stdio.printf "%s => %s\n" text (Z.to_string n)
@@ -287,7 +289,7 @@ let%expect_test "a book.txt round trip keeps every support family, huge amounts 
      ANCHOR\t-\n\
      ASSERT\tbank\teur\t" ^ huge ^ "\nENDANCHOR\nEND\n"
   in
-  let base = book_of_txt text in
+  let base = get (B.read text) in
   let memo = "引用\"\\\t\n\000\194\133" in
   let row = List.hd_exn (B.entries base) in
   let updated = get (B.put_entry base ~replace:true { row with memo = Some memo } ~plan:None) in
@@ -304,7 +306,7 @@ let%expect_test "a book.txt round trip keeps every support family, huge amounts 
   let updated = get (B.put_plan updated ~replace:false planned) in
   let updated = get (B.cancel_plan updated ~id:planned.id ~day:"2026-10-04") in
   let bytes = text_of updated in
-  let cold = book_of_txt bytes in
+  let cold = get (B.read bytes) in
   Stdio.printf "%s %s %s %s\n" (quantity cold "wallet" "jpy") (quantity cold "food" "jpy")
     (quantity cold "bank" "jpy") (quantity cold "wallet" "eur");
   Stdio.printf "%b %b %b\n"
@@ -315,7 +317,7 @@ let%expect_test "a book.txt round trip keeps every support family, huge amounts 
 true true true|}]
 
 let%expect_test "daily refunds, syntax and unknown fields cannot disappear" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let added = get (B.put_entry base ~replace:false (entry "e" 100) ~plan:None) in
   let refund =
     {
@@ -350,11 +352,12 @@ let plan id : B.plan =
 
 let%expect_test "canonical daily reflected correction preserves root cut, not old quantity or date"
     =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let original = get (B.put_entry base ~replace:false (entry "e" 100) ~plan:None) in
   let reflected =
-    book_of_txt
-      (String.substr_replace_all (text_of original) ~pattern:"ANCHOR\t-\n" ~with_:"ANCHOR\te\n")
+    get
+    @@ B.read
+         (String.substr_replace_all (text_of original) ~pattern:"ANCHOR\t-\n" ~with_:"ANCHOR\te\n")
   in
   let corrected book =
     cold
@@ -391,7 +394,7 @@ bad cuts refuse: missing=true, duplicate=true; original snapshot unchanged=true|
 
 let%expect_test
     "canonical daily refund correction refuses broken inversion without losing actual refund" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let original = get (B.put_entry base ~replace:false (entry "e" 10) ~plan:None) in
   let refund = { (entry "refund" (-10)) with reversal_of = Some "e" } in
   let reversed = cold (get (B.put_entry original ~replace:false refund ~plan:None)) in
@@ -422,7 +425,7 @@ date-only correction admits: 1900-01-01; target=e; rows=2; wallet=1000
 refused source unchanged=true; bank=unknown|}]
 
 let%expect_test "plans create, replace and cancel without physical activity or lost rows" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let added = get (B.put_plan base ~replace:false (plan "other")) in
   let changed : B.plan =
     {
@@ -461,7 +464,7 @@ other 2026-11-01 4 false 2026-10-04
 true 0 true|}]
 
 let%expect_test "plan payment stays atomic, terminal plans cannot change or reopen" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let other = get (B.put_plan base ~replace:false (plan "other")) in
   let paid =
     cold (get (B.put_entry other ~replace:false (entry "payment" 180) ~plan:(Some "planned")))
@@ -497,7 +500,7 @@ reuse cancelled ID: duplicate-plan
 1 810|}]
 
 let%expect_test "plan writes reject unsupported drafts without modifying the base" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let before = text_of base in
   let attempt name result =
     Stdio.printf "%s: %s\n" name
@@ -520,12 +523,13 @@ let%expect_test "plan writes reject unsupported drafts without modifying the bas
   attempt "missing cancel" (B.cancel_plan base ~id:"missing" ~day:"2026-10-04");
   attempt "invalid cancel date" (B.cancel_plan base ~id:"planned" ~day:"2026-02-30");
   let historical =
-    book_of_txt
-      (fixture
-      |> String.substr_replace_first ~pattern:"LOCUS\twallet\t財布\t現金\n"
-           ~with_:"LOCUS\twallet\t財布\t現金\tHIDDEN\n"
-      |> String.substr_replace_first ~pattern:"LOCUS\tfood\tfood\t\n"
-           ~with_:"LOCUS\tfood\tfood\t\tHIDDEN\n")
+    get
+    @@ B.read
+         (fixture
+         |> String.substr_replace_first ~pattern:"LOCUS\twallet\t財布\t現金\n"
+              ~with_:"LOCUS\twallet\t財布\t現金\tHIDDEN\n"
+         |> String.substr_replace_first ~pattern:"LOCUS\tfood\tfood\t\n"
+              ~with_:"LOCUS\tfood\tfood\t\tHIDDEN\n")
   in
   Stdio.printf "cancel historical: %b\n"
     (Result.is_ok (B.cancel_plan historical ~id:"planned" ~day:"2026-10-04"));
@@ -548,7 +552,7 @@ cancel historical: true
 unchanged: true|}]
 
 let%expect_test "a huge foreign plan amount survives the book.txt round trip exactly" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let huge = Z.of_string "1234567890123456789012345678901234567890" in
   let foreign =
     { (plan "foreign") with measure = "eur"; changes = [ ("wallet", Z.neg huge); ("food", huge) ] }
@@ -579,7 +583,7 @@ let%expect_test
     String.substr_replace_all fixture ~pattern:"ASSERT\twallet\tjpy\t1000\n"
       ~with_:"ASSERT\twallet\tjpy\t30000\nASSERT\tbank\tjpy\t0\n"
   in
-  let base = book_of_txt text in
+  let base = get (B.read text) in
   let base =
     get
       (B.put_plan base ~replace:true
@@ -629,7 +633,7 @@ pool order independent: true, no mutation: true|}]
 
 let%expect_test
     "daily pace follows current plan edits, cancellations, payment edits and actual refunds" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   print_pace (get (pace base ()));
   let changed =
     get
@@ -684,7 +688,7 @@ payment still linked: payment
 
 let%expect_test "daily pace never substitutes a partial balance or uses mixed duplicate coordinates"
     =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let attempt name result =
     Stdio.printf "%s: %s\n" name
       (match result with Ok _ -> "unexpected success" | Error why -> why)
@@ -713,7 +717,7 @@ let%expect_test "daily pace never substitutes a partial balance or uses mixed du
 
 let%expect_test
     "daily pace uses calendar days including leap centuries and refuses invalid horizons" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   List.iter
     [
       ("2026-12-31", "2027-01-01");
@@ -769,7 +773,7 @@ let%expect_test
     String.substr_replace_all fixture ~pattern:"ASSERT\twallet\tjpy\t1000\n"
       ~with_:("ASSERT\twallet\tjpy\t1000\nASSERT\twallet\teur\t" ^ huge ^ "\n")
   in
-  let base = book_of_txt text in
+  let base = get (B.read text) in
   let foreign =
     {
       (plan "foreign") with
@@ -792,9 +796,10 @@ let%expect_test
   in
   print_pace (get (pace deficit ()));
   let negative =
-    book_of_txt
-      (String.substr_replace_all fixture ~pattern:"ASSERT\twallet\tjpy\t1000\n"
-         ~with_:"ASSERT\twallet\tjpy\t-1000\n")
+    get
+    @@ B.read
+         (String.substr_replace_all fixture ~pattern:"ASSERT\twallet\tjpy\t1000\n"
+            ~with_:"ASSERT\twallet\tjpy\t-1000\n")
   in
   print_pace (get (pace negative ()));
   [%expect
@@ -804,7 +809,7 @@ formatted: 4115226300411522630041152263004115224.63 eur/day
 7 -1000 200 -1200 -172|}]
 
 let%expect_test "parse_signed_amount admits zero, negative, positive at configured scale" =
-  let book = book_of_txt fixture in
+  let book = get (B.read fixture) in
   let check m text =
     match B.parse_signed_amount book m text with
     | Ok n -> Stdio.printf "%s %s -> %s\n" m text (Z.to_string n)
@@ -839,7 +844,7 @@ let%expect_test "parse_signed_amount admits zero, negative, positive at configur
   |}]
 
 let%expect_test "observe_quantities updates current balance and persists across roundtrip" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   Stdio.printf "initial wallet: %s\n" (quantity base "wallet" "jpy");
   let obs1 = get (B.observe_quantities base [ ("wallet", "jpy", Z.of_int 5000) ]) in
   Stdio.printf "after obs1: %s\n" (quantity obs1 "wallet" "jpy");
@@ -874,7 +879,7 @@ let%expect_test "observe_quantities updates current balance and persists across 
   |}]
 
 let%expect_test "observation after an incremental record reflects that record once" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let spent = get (B.put_entry base ~replace:false (entry "after_obs" 100) ~plan:None) in
   Stdio.printf "after spend: %s\n" (quantity spent "wallet" "jpy");
   let observed = get (B.observe_quantities spent [ ("wallet", "jpy", Z.of_int 900) ]) in
@@ -888,7 +893,7 @@ let%expect_test "observation after an incremental record reflects that record on
   |}]
 
 let%expect_test "set_locus_label validates, updates labels and preserves across roundtrip" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   Stdio.printf "initial label wallet: %s, help: %s\n" (B.label base "wallet") (B.help base "wallet");
   let updated =
     get
@@ -920,7 +925,7 @@ let%expect_test "set_locus_label validates, updates labels and preserves across 
 
 let%expect_test
     "original amount retains positive facts across the codec without inferring rates or support" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let e : B.entry =
     {
       id = "orig_tx";
@@ -941,7 +946,7 @@ let%expect_test
   let mono_bytes = text_of book in
   Stdio.printf "book.txt has orig: %b\n"
     (Base.String.is_substring mono_bytes ~substring:"ORIGINAL\teur\t750\n");
-  let cold_mono = book_of_txt mono_bytes in
+  let cold_mono = get (B.read mono_bytes) in
   let cold_stored = Option.value_exn (B.find_entry cold_mono "orig_tx") in
   Stdio.printf "cold mono match: %b\n"
     (Option.equal
@@ -1024,7 +1029,7 @@ let%expect_test
   |}]
 
 let%expect_test "event merchant classification LOAM-compatible end-to-end semantics" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let e1 : B.entry =
     {
       id = "e_merch";
@@ -1080,7 +1085,7 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
     (Base.String.is_substring mono_bytes ~substring:"MERCHANT\tcoffee-shop\n");
   Stdio.printf "book.txt has nonmerchant: %b\n"
     (Base.String.is_substring mono_bytes ~substring:"NONMERCHANT\n");
-  let cold_mono = book_of_txt mono_bytes in
+  let cold_mono = get (B.read mono_bytes) in
   let cold_e1 = Option.value_exn (B.find_entry cold_mono "e_merch") in
   let cold_e2 = Option.value_exn (B.find_entry cold_mono "e_nonmerch") in
   Stdio.printf "cold mono e1 match: %b; cold mono e2 match: %b\n"
@@ -1174,7 +1179,7 @@ let%expect_test "event merchant classification LOAM-compatible end-to-end semant
   |}]
 
 let%expect_test "bounded history support restates past pools and survives book.txt" =
-  let base = book_of_txt fixture in
+  let base = get (B.read fixture) in
   let dated id day n = { (entry id n) with day } in
   let book = get (B.put_entry base ~replace:false (dated "a" "2026-10-03" 100) ~plan:None) in
   let book = get (B.put_entry book ~replace:false (dated "b" "2026-10-05" 50) ~plan:None) in
@@ -1208,7 +1213,7 @@ let%expect_test "bounded history support restates past pools and survives book.t
            (B.pools_at_end_of_days bounded ~measure:"jpy" ~pool ~days)
            (List.map days ~f:(fun day -> B.pool_at_end_of_day bounded ~measure:"jpy" ~pool ~day))));
   let printed = text_of bounded in
-  let cold = book_of_txt printed in
+  let cold = get (B.read printed) in
   Stdio.printf "HISTORY-FROM line: %b; stable: %b; cold wallet 2026-10-04: %s\n"
     (String.is_substring printed ~substring:"HISTORY-FROM\twallet\tjpy\t2026-10-04\n")
     (String.equal (text_of cold) printed)

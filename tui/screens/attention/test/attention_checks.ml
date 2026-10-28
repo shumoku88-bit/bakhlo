@@ -4,10 +4,6 @@ module B = Bakhlo_household.Book
 module Att = Attention_screen
 module Roles = Locus_roles
 
-(* Fixtures are book.txt text; one that does not read is a broken test. *)
-let book_of_text text =
-  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
-
 let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
 let z = Z.of_int
@@ -40,14 +36,16 @@ let book ?(zero = true) entries =
   let recorded =
     List.fold_left
       (fun b e -> get (B.put_entry b ~replace:false e ~plan:None))
-      (book_of_text base) entries
+      (get (B.read base))
+      entries
   in
   if not zero then recorded
   else
     let text = Bakhlo_household.Book.print recorded in
-    book_of_text
-      (String.sub text 0 (String.length text - 4)
-      ^ "ZERO-ORIGIN\tsuspense\tjpy\nZERO-ORIGIN\tsuspense\teur\nEND\n")
+    get
+    @@ B.read
+         (String.sub text 0 (String.length text - 4)
+         ^ "ZERO-ORIGIN\tsuspense\tjpy\nZERO-ORIGIN\tsuspense\teur\nEND\n")
 
 let env ?(roles = [ ("cash", Roles.Asset) ]) book =
   Screen.env_for_checks ~accounting_roles:roles ~book ~measure:"jpy" ~today:"2026-10-22" ()

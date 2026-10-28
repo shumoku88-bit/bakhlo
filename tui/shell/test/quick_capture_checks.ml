@@ -4,10 +4,6 @@ module B = Bakhlo_household.Book
 module O = Ui_render
 module Q = Quick_capture
 
-(* Fixtures are book.txt text; one that does not read is a broken test. *)
-let book_of_text text =
-  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
-
 let require condition cause = if not condition then failwith cause
 let get = function Ok x -> x | Error why -> failwith why
 let id = function Ok x -> x | Error _ -> failwith "synthetic-identifier"
@@ -45,7 +41,7 @@ let self_check ~width_of () =
   let book =
     List.fold_left
       (fun book e -> get (B.put_entry book ~replace:false e ~plan:None))
-      (book_of_text fixture)
+      (get (B.read fixture))
       [
         entry "q1" "2026-10-01" "本屋" [ ("books", 1200); ("synthpay", -1200) ];
         entry "q2" "2026-10-02" "パン屋" bakery;

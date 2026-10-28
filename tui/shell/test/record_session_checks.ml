@@ -4,10 +4,6 @@ module B = Bakhlo_household.Book
 module S = Record_session
 module O = Ui_render
 
-(* Fixtures are book.txt text; one that does not read is a broken test. *)
-let book_of_text text =
-  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
-
 let require condition cause = if not condition then failwith cause
 let get = function Ok x -> x | Error why -> failwith why
 
@@ -48,8 +44,8 @@ let self_check ~width_of () =
     (fault [ posting "wallet" "jpy" (-5); posting "food" "jpy" 4 ] = Some Posting_draft.Unbalanced)
     "draft-fault-unbalanced";
   require (fault [ posting "wallet" "jpy" (-5); posting "food" "jpy" 5 ] = None) "draft-fault-none";
-  let book = book_of_text fixture in
-  let before = Bakhlo_household.Book.print book in
+  let book = get (B.read fixture) in
+  let before = B.print book in
   let dimensions = (100, 30) and base_revision = "synthetic-generation" in
   let handle ?(book = book) ?(blocked = false) ?(dimensions = dimensions) state input =
     S.handle ~new_id:Book_file.new_id ~book ~base_revision ~blocked ~dimensions ~width_of state
@@ -115,8 +111,7 @@ let self_check ~width_of () =
   in
   require (tx.entry.memo = Some "q 食事") "publication-preserves-description";
   require
-    (List.map (fun (p : Bakhlo_household.Book.posting) -> p.amount) tx.entry.effects
-    = [ Z.of_int (-100); Z.of_int 100 ])
+    (List.map (fun (p : B.posting) -> p.amount) tx.entry.effects = [ Z.of_int (-100); Z.of_int 100 ])
     "signed-conservation";
   (* Selecting an action wraps in either direction without changing the reviewed
      payload. Edit and Cancel remain available while publication is blocked. *)
@@ -157,9 +152,7 @@ let self_check ~width_of () =
   let matched = prepare ~locus_query:"wall" () |> fun t -> key t `Enter in
   (match handle matched (`Key (`Enter, [])) with
   | S.Publish (Draft.Entry_tx selected, _, _) ->
-      require
-        ((List.hd selected.entry.effects).Bakhlo_household.Book.locus = "wallet")
-        "search-accepts-exact-stored-id"
+      require ((List.hd selected.entry.effects).B.locus = "wallet") "search-accepts-exact-stored-id"
   | _ -> failwith "filtered-locus-acceptance");
   ignore (get (B.put_entry book ~replace:tx.replace tx.entry ~plan:tx.plan));
   (match handle ~blocked:true review (`Key (`Enter, [])) with
@@ -204,7 +197,7 @@ let self_check ~width_of () =
   (match handle calculated (`Key (`Enter, [])) with
   | S.Publish (Draft.Entry_tx tx, _, _) ->
       require
-        (List.map (fun (p : Bakhlo_household.Book.posting) -> p.amount) tx.entry.effects
+        (List.map (fun (p : B.posting) -> p.amount) tx.entry.effects
         = [ Z.of_int (-400); Z.of_int 400 ])
         "calculator-record-publishes-exact-quanta"
   | _ -> failwith "calculator-record-review-refused");
@@ -223,9 +216,7 @@ let self_check ~width_of () =
   | S.Publish (Draft.Entry_tx tx, _, _) ->
       require
         (Z.equal
-           (List.nth
-              (List.map (fun (p : Bakhlo_household.Book.posting) -> p.amount) tx.entry.effects)
-              1)
+           (List.nth (List.map (fun (p : B.posting) -> p.amount) tx.entry.effects) 1)
            (Z.of_string huge))
         "huge-exact-quantity"
   | _ -> failwith "huge-review-is-not-partial-number");
@@ -459,7 +450,7 @@ let self_check ~width_of () =
         (next.entry.id = keyed.id
         && List.nth keys 0 = None
         && List.nth keys 1 = (List.nth keyed.effects 1).key
-        && (List.hd next.entry.effects).Bakhlo_household.Book.locus = "bank")
+        && (List.hd next.entry.effects).B.locus = "bank")
         "edit-locus-change-drops-only-its-key";
       let edited_book = get (B.put_entry keyed_book ~replace:true next.entry ~plan:next.plan) in
       require
@@ -565,7 +556,7 @@ let self_check ~width_of () =
      ZERO-ORIGIN\tfood\tjpy\n\
      END\n"
   in
-  let s_book = book_of_text suspense_fixture in
+  let s_book = get (B.read suspense_fixture) in
   require
     (contains
        (S.after_unresolved_enabled ~book:s_book no_suspense_editor)
@@ -902,4 +893,4 @@ let self_check ~width_of () =
   require
     (contains confirmed_form "wallet" && not (contains confirmed_form "walletx"))
     "paste-during-confirmation-leaves-the-draft";
-  require (Bakhlo_household.Book.print book = before) "record-checks-leave-book-unchanged"
+  require (B.print book = before) "record-checks-leave-book-unchanged"

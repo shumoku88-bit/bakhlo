@@ -1,4 +1,5 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Publication through the Shell: saves, conflicts, reloads and cold read-back on synthetic
+   books. *)
 open Interaction_check_fixture
 open Interaction_render_fixture
 

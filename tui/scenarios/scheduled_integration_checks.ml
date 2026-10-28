@@ -1,4 +1,5 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Scheduled through the Shell on synthetic books: lists, months, editing, completion and
+   generation. *)
 open Interaction_check_fixture
 
 (* UI-15 List: ascending day/id, the local Loci pane, the day scope, fixed

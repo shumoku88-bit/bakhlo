@@ -1,4 +1,4 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Balances and Observe through the Shell on synthetic books. *)
 open Interaction_check_fixture
 
 let balance_display_checks ~width_of ~directory () =
@@ -119,9 +119,7 @@ let balance_display_checks ~width_of ~directory () =
       ("No classified supported rows.", "accounting-all-support-no-classified-rows");
       ("Role classification: INCOMPLETE", "accounting-all-support-role-incomplete");
     ];
-  let posting locus amount =
-    { Bakhlo_household.Book.key = None; locus; measure = "jpy"; amount = Z.of_int amount }
-  in
+  let posting locus amount = { B.key = None; locus; measure = "jpy"; amount = Z.of_int amount } in
   let entry : B.entry =
     {
       id = "accounting-transfer";

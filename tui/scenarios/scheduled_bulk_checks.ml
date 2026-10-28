@@ -42,7 +42,7 @@ let plan id day measure cents : B.plan =
 let self_check ~width_of () =
   let directory = "scratch/scheduled-bulk-check-" ^ F.new_id () in
   Unix.mkdir directory 0o700;
-  let book = Interaction_check_fixture.book_of_text fixture in
+  let book = Interaction_check_fixture.get (B.read fixture) in
   let p1 = plan "bulk-a" "2026-10-15" "eur" (Z.of_int 1200)
   and p2 = plan "bulk-b" "2026-10-16" "eur" (Z.of_int 2500)
   and p3 = plan "bulk-jpy" "2026-10-17" "jpy" (Z.of_int 90) in

@@ -1,4 +1,4 @@
-(* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
+(* Shared UI primitives: line input and panels. *)
 open Interaction_check_fixture
 
 let input_checks ~width_of () =

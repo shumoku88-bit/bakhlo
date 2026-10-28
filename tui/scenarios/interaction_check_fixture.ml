@@ -140,9 +140,6 @@ let materialize_example_book () =
   if Sys.file_exists example_book then Unix.unlink example_book;
   F.write_new example_book bytes
 
-(* Fixtures are book.txt text; one that does not read is a broken test. *)
-let book_of_text text = match B.read text with Ok book -> book | Error why -> failwith why
-
 (* Render and navigation fixtures still use real sessions: the admitted book,
    revision and file stamp always describe the same synthetic file. *)
 let load_synthetic_book book =

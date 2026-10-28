@@ -51,7 +51,7 @@ let run ~width_of () =
   Reports_integration_checks.run ~width_of ~directory back_home;
   Observation_pace_integration_checks.run ~width_of ~directory back_home;
   Form_integration_checks.cursor_checks ~width_of home form_ja;
-  Sidecar_integration_checks.safety_checks ~width_of ~directory ();
+  Save_safety_checks.run ~width_of ~directory ();
   print_endline
     "PASS: English Calendar / Commands / Record / child navigation / exact cold save and safety \
      guards.";

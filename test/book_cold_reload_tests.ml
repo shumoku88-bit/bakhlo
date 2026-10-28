@@ -12,7 +12,6 @@ module R = Stdlib.Random.State
 let get = function Ok x -> x | Error why -> failwith why
 
 (* Test books are written in book.txt, the household format. *)
-let book_of_txt text = get (B.read text)
 let text_of = B.print
 
 let fixture =
@@ -350,7 +349,7 @@ let run ~start ~seed ~steps ~admitted =
 
 let%expect_test "every mutation agrees with its book.txt cold-loaded twin" =
   let admitted = Hashtbl.create (module String) in
-  let start = book_of_txt fixture in
+  let start = get (B.read fixture) in
   for seed = 1 to 200 do
     run ~start ~seed ~steps:30 ~admitted
   done;
@@ -395,7 +394,7 @@ let%expect_test "every mutation agrees with its book.txt cold-loaded twin" =
 let result_text = function Ok _ -> "ok" | Error why -> why
 
 let%expect_test "date and Merchant-only changes accept retained unapproved Loci" =
-  let base = book_of_txt hidden_fixture in
+  let base = get (B.read hidden_fixture) in
   let initial = Option.value_exn (B.find_entry base "init") in
   let dated = B.correct_entry_date base ~id:"init" ~day:"2026-10-02" in
   let dated_book = get dated in

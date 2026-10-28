@@ -2,10 +2,6 @@
    model with a real clamp, [?] help instead of a permanent pane, active-Measure
    filtering, shared money formatting and a line-per-line print preview. *)
 
-(* Fixtures are book.txt text; one that does not read is a broken test. *)
-let book_of_text text =
-  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
-
 module B = Bakhlo_household.Book
 module IE = Income_expense_screen
 module TF = Transactions_flow_screen
@@ -38,7 +34,7 @@ let fixture =
    END\n"
 
 let roles = [ ("salary", Roles.Income); ("food", Roles.Expense); ("travel", Roles.Asset) ]
-let book = book_of_text fixture
+let book = get (B.read fixture)
 let boundaries = "household\t2026-10-01\t2026-11-01\n"
 
 let env =
@@ -212,7 +208,7 @@ let self_check () =
       ("travel", Roles.Asset);
     ]
   in
-  let window_book = book_of_text window_fixture in
+  let window_book = get (B.read window_fixture) in
   let month offset =
     get
       (IncExp.resolve_period ~today:"2026-10-15" ~preset:IncExp.Month ~offset
@@ -329,7 +325,7 @@ let self_check () =
      ZERO-ORIGIN\twallet\tjpy\n\
      END\n"
   in
-  let pair_book = book_of_text pair_fixture in
+  let pair_book = get (B.read pair_fixture) in
   let pair_roles = [ ("food", Roles.Expense); ("books", Roles.Expense); ("wallet", Roles.Asset) ] in
   let pair_report period =
     IncExp.compute_report ~book:pair_book ~roles:pair_roles ~period:(month period)
