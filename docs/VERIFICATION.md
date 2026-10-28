@@ -6,6 +6,25 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## The typed Effect layer is removed; entries are book.txt postings (2026-10-28)
+
+- Five commits: `Book` stops re-checking with `Event.create` / `Movement.validate` (`1e8276b`; a
+  plan's book.txt refusal still reads `invalid-plan-movement`); an entry's effects are
+  `Book.posting = Book_txt.posting` (`a74b1de`); a balance coordinate is `Book.coordinate`
+  (`57d1fdc`); `lib/` is deleted (`abcb39e`, 88 files, +90 / −883). The draft's per-row messages
+  come from `Posting_draft.movement_fault`, with new checks for each fault and their order.
+- Coverage of the deleted `lib/` tests: exact amounts beyond 64 bits and identifier bytes by the
+  book.txt round-trip tests (fixtures and 2,000 generated books); zero, empty and unbalanced
+  movements and repeated keys by the conformance fixtures (`ng-zero-amount-*`, `ng-no-effect-*`,
+  `ng-unbalanced-*`, `ng-duplicate-key`, `ng-bad-token*`).
+- `tools/startup-probe` had not linked since the store gained its C stub; fixed (`2d3dd83`).
+  Synthetic probe, one run each, 109,500 entries, before / after the posting change:
+  `Book.of_txt` 154.5 / 119.1 ms, cold load 1,142 / 1,026 ms (mean of 3), live book 104.1 /
+  94.9 MiB; saves unchanged (184 / 181 ms, I/O-bound). Single runs: noise is likely.
+- Each commit: `./tools/check`, self-check (48), format passed. CI for `a74b1de` passed
+  ([run 40674284884](https://github.com/shumoku88-bit/bakhlo/actions/runs/40674284884)).
+  **Latest-data paired comparison not executed**; no household access.
+
 ## Admitting a Locus saves it and its role together (2026-10-28)
 
 - Before: the Loci screen published `Add_locus`, then saved the role as a second write; a

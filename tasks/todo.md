@@ -114,7 +114,7 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
   I&Eの「役割のない科目」の見出しから`accounting-roles.tsv`を外した。
 - [x] Locus追加と役割設定を1回の保存にまとめた（2026-10-28、moko依頼）：`Add_locus { token; role }`、途中で失敗すると
   役割のないLocusが残る2回目の保存と、その「役割は保存されていない」表示がなくなった。
-- [ ] 型のEffect（`lib/`）とbook.txtの二重構造（2026-10-28調査、moko判断待ち）：`lib/`（334行）の規則
+- [x] 型のEffect（`lib/`）とbook.txtの二重構造（2026-10-28調査、(B)をmoko承認・実施）：`lib/`（334行）の規則
   （空ID・0金額・不釣り合い・鍵の重複）はbook.txtの受理（`bad-token`・`zero-amount`・`unbalanced`・`duplicate-key`）が
   すべて、より厳しく持つ。`Book`は読むたびにpostingを型のEffectへ、保存のたびに戻し、`Event.create`・
   `Movement.validate`で受理の一部をもう一度行う（AGENTS.mdの「第二の受理エンジンを作らない」に反する形）。
@@ -122,7 +122,9 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
   （`Book`にも同じ定義）。型が実際に働くのは、Draftの事前チェック（何行目が0か等の表示）、Daily Paceの
   プール座標、5か所のEffect組み立て。`Bakhlo_domain`を使うのは本番46・テスト22ファイル。
   方向：(A) `Book`のAPIも型で揃える、(B) entryをbook.txtの形（文字列と整数）にして`lib/`を消す。
-  `Draft`の`lstr`/`mstr`/`quanta`も同じ根（`Book`のAPIが文字列、Effectは型）。
+  → (B)を5段で実施：`Book`の二重受理をやめる、entryのeffectsを`Book.posting`（=`Book_txt.posting`）に、
+  座標を`Book.coordinate`に、`lib/`と関連テストを削除（行ごとの下書きチェックは`Posting_draft.movement_fault`）。
+- [ ] 候補：科目と通貨に「book.txtで受理済み」の抽象型を付ける（型は確かめ済みの印、という形で安全性を足す）。
 - [ ] TUIのコード量（2026-10-27計測：本体約28,000行、テスト・シナリオ約16,300行。コアは約3,500行）を
   減らせるか調べる。まず測る：画面ごとに似た処理（枠・行の描画、スクロール、一覧の選択、狭幅の処理など）が
   どれだけ重なっているかを数え、削る価値の大きい順に並べてmokoに見せる。例：`record_session.ml`の

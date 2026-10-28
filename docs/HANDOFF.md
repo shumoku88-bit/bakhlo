@@ -8,6 +8,11 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-10-28)
 
+- 2026-10-28, latest: the typed Effect layer (`lib/`) is removed. An entry holds book.txt
+  postings, book.txt admission is the one owner of movement rules, and loading is faster
+  (`Book.of_txt` −23% at 109,500 synthetic entries).
+  [Evidence](VERIFICATION.md#the-typed-effect-layer-is-removed-entries-are-booktxt-postings-2026-10-28).
+
 - 2026-10-28, later: modules are named for what they are: `Book`, `Book_file`, `Draft`,
   `Publication`, `Day`, `Line_edit`, `Command_line`, `Book_display`; date rules have one owner
   (`Day`). [Evidence](VERIFICATION.md#modules-named-for-what-they-are-2026-10-28).
