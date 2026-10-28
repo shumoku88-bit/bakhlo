@@ -27,7 +27,8 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   The detail pane's Actions lines wrapped inside words (existing); fixed below.
 - The settlement detail pane now breaks between words: `wrap_words` moved from the Loci screen
   to `Ui_render`, now used by both. A check over widths 80–140 (a split word leaves its first
-  part on screen without the whole word) fails on the previous code and passes now.
+  part on screen without the whole word) fails on the previous code and passes now. Matching CI
+  for `343b094` passed ([run 40689484017](https://github.com/shumoku88-bit/bakhlo/actions/runs/40689484017)).
 
 ## User use of today's build (2026-10-28)
 
