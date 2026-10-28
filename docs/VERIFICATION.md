@@ -6,6 +6,21 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Admitting a Locus saves it and its role together (2026-10-28)
+
+- Before: the Loci screen published `Add_locus`, then saved the role as a second write; a
+  failure in between left an admitted Locus without the role its form required. Now the screen
+  asks for `Add_locus { token; role }` and `Publication.add_locus` publishes `Add_locus` and
+  `Set_roles` in one save (+30 / −37 lines).
+- Synthetic copies, previous and new binary, same tmux keystrokes at 120×36: admit `aaa-travel`
+  (Expense), then `zzz-gift` (Income). The books are byte-identical (SHA-256 `6a34aeb2…`). The
+  old binary's `book.txt.prev` holds `zzz-gift` admitted without its role (the in-between state
+  existed on disk); the new one holds the book before that admission.
+- New check `admitted-locus-and-role-are-one-save` (the replaced book holds neither the Locus nor
+  its role) fails on the previous code and passes now. `./tools/check`, self-check (48),
+  format passed. Matching CI for the previous commit `d06fd48` passed
+  ([run 40659456788](https://github.com/shumoku88-bit/bakhlo/actions/runs/40659456788)).
+
 ## Screens take roles and Attention as plain book values (2026-10-28)
 
 - `Screen.env.accounting_roles` is a list (was a `result Lazy.t`) and `env.attention` an
