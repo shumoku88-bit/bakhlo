@@ -8,10 +8,10 @@ type outcome =
       (** [Publish (target_id, reversal_day, base_revision)] is an intent, not a saved entry. *)
 
 val create :
-  book:Bakhlo_household.Daily_book.t ->
+  book:Bakhlo_household.Book.t ->
   base_revision:string ->
   day:string ->
-  Bakhlo_household.Daily_book.entry ->
+  Bakhlo_household.Book.entry ->
   t
 
 val is_preview : t -> bool

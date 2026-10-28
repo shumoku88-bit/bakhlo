@@ -8,7 +8,7 @@
    file is projected again and a failure clears the chart instead of painting an
    old one. The selection is an immutable period; the effective point index is
    derived from the current projection. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module R = Trend_locus_report
 module O = Ui_render
 

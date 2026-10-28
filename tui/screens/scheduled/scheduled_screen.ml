@@ -2,7 +2,7 @@
    monitored plan's occurrences and gaps), a six-month Months view and a
    filtered List with a detail pane. Completion, editing, cancellation, batch amounts and
    generation of the selected plan are record actions handled by the Shell. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module O = Ui_render
 module RB = Record_browser
 module Months = Scheduled_months

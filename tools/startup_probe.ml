@@ -1,7 +1,7 @@
 (* Synthetic startup/snapshot/save/in-memory response probe. Measurement only:
    Marshal here is a disposable-cache candidate, not a storage format. *)
 module D = Bakhlo_domain
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module T = Bakhlo_book_txt.Book_txt
 module F = Book_file
 
@@ -150,7 +150,7 @@ let () =
         time "Book_txt.read" (fun () ->
             get (Result.map_error (fun e -> T.code_name e.T.code) (T.read bytes)))
       in
-      let b = time "Daily_book.of_txt" (fun () -> get (B.of_txt txt)) in
+      let b = time "Book.of_txt" (fun () -> get (B.of_txt txt)) in
       Gc.compact ();
       Printf.printf "%-32s %10.1f MiB\n" "live book (reachable)"
         (mib (Obj.reachable_words (Obj.repr b)));

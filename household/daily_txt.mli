@@ -8,16 +8,16 @@ type sidecars = {
 
 val no_sidecars : sidecars
 
-val sidecars_of : Daily_book.t -> sidecars
+val sidecars_of : Book.t -> sidecars
 (** The book's roles and Attention in those formats. *)
 
-val with_sidecars : Daily_book.t -> sidecars -> (Daily_book.t, string) result
+val with_sidecars : Book.t -> sidecars -> (Book.t, string) result
 (** The book with these roles and this Attention; a malformed text refuses. *)
 
-val text : ?sidecars:sidecars -> Daily_book.t -> string
+val text : ?sidecars:sidecars -> Book.t -> string
 (** The book.txt bytes of a book, with [sidecars] (default none). For fixtures and
     tools; raises [Invalid_argument] with the refusal. *)
 
-val book : string -> Daily_book.t
+val book : string -> Book.t
 (** The book of a book.txt text. For fixtures and tools; raises [Invalid_argument]
     with the refusal. *)

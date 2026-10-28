@@ -1,4 +1,4 @@
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module F = Book_file
 module A = Daily_actions
 module S = Scheduled_bulk_session

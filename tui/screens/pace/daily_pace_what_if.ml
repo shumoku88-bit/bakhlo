@@ -1,7 +1,7 @@
-(* LOAM DailyPaceWhatIf over Daily_book.daily_pace. Unlike LOAM (JPY only),
+(* LOAM DailyPaceWhatIf over Book.daily_pace. Unlike LOAM (JPY only),
    any pool Measure works at its own scale, and a leading [+] prices an
    income into the pool ([-] or no sign is a purchase, as in LOAM). *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module O = Ui_render
 module Panel = Ui_panel
 

@@ -1,13 +1,13 @@
-(* book.txt -> Daily_book -> book.txt is the identity, the roles and Attention sections
+(* book.txt -> Book -> book.txt is the identity, the roles and Attention sections
    read and print in their text formats, and what book.txt cannot hold refuses. *)
 module X = Bakhlo_household.Daily_txt
 module T = Bakhlo_book_txt.Book_txt
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 
 let read path = In_channel.with_open_bin path In_channel.input_all
 
-(* Read into a Daily_book, then print it with the sections it read. *)
+(* Read into a Book, then print it with the sections it read. *)
 let round_trip text =
   match T.read text with
   | Error e -> Error (Printf.sprintf "not admitted: %s at %d" (T.code_name e.code) e.line)
@@ -18,7 +18,7 @@ let round_trip text =
           let back = X.text ~sidecars:(X.sidecars_of book) book in
           if back = text then Ok () else Error "reprinted text differs")
 
-let%expect_test "every accepted fixture survives Daily_book unchanged" =
+let%expect_test "every accepted fixture survives Book unchanged" =
   List.iter
     (fun name ->
       let result = round_trip (read (Filename.concat "common_format" name)) in
@@ -39,7 +39,7 @@ let%expect_test "every accepted fixture survives Daily_book unchanged" =
     ok-exchange-reversal.txt: same bytes
     |}]
 
-let%expect_test "generated books survive Daily_book unchanged" =
+let%expect_test "generated books survive Book unchanged" =
   let checks = ref 0 and failures = ref [] in
   Base_quickcheck.Test.run_exn
     (module Book_txt_tests.Generated)

@@ -1,4 +1,4 @@
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module O = Ui_render
 module Form = Ui_form

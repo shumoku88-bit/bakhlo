@@ -1,7 +1,7 @@
 (* How book values read on screen: exact quantities and grouped amounts, Locus
    candidates, and the detail lines of Actual entries, Scheduled plans and Previews.
    Read-only; nothing here publishes. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module A = Daily_draft
 

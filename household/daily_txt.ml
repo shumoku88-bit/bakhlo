@@ -2,7 +2,7 @@
    screens read (accounting-roles.tsv, attention.loam), and book.txt text for
    fixtures and tools. *)
 module T = Bakhlo_book_txt.Book_txt
-module B = Daily_book
+module B = Book
 
 type sidecars = { roles : string; attention : string }
 

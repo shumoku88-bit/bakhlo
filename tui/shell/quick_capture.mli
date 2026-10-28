@@ -3,7 +3,7 @@
    same description are proposed as templates. Nothing is retained or published
    here: a complete line goes to Record's own Preview, anything else to the full
    form prefilled. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 
 type t
 

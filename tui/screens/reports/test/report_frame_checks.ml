@@ -2,7 +2,7 @@
    model with a real clamp, [?] help instead of a permanent pane, active-Measure
    filtering, shared money formatting and a line-per-line print preview. *)
 
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module IE = Income_expense_screen
 module TF = Transactions_flow_screen
 module Frame = Report_frame

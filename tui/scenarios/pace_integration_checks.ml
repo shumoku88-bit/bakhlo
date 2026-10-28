@@ -495,8 +495,8 @@ let daily_pace_today_sample_checks () =
     | _ -> false)
     "daily-pace-deficit-sample";
   print_endline
-    "PASS: Daily Pace today sample equals Daily_book.daily_pace (synthetic overdue plan, exclusive \
-     end, deficit)."
+    "PASS: Daily Pace today sample equals Book.daily_pace (synthetic overdue plan, exclusive end, \
+     deficit)."
 
 (* Activity classification is source-agnostic: discretionary vs scheduled-settled
    vs reserved, intra-pool netting, reversal pairing and measure isolation. *)

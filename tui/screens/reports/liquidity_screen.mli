@@ -27,6 +27,6 @@ val saved : Screen.env -> Screen.geometry -> (unit, string) result -> t -> t * S
 val reloaded : Screen.env -> t -> t * Screen.request
 
 val book_changed :
-  before:Bakhlo_household.Daily_book.t -> after:Bakhlo_household.Daily_book.t -> t -> t * string
+  before:Bakhlo_household.Book.t -> after:Bakhlo_household.Book.t -> t -> t * string
 
 val view : Screen.env -> Screen.geometry -> t -> Screen.view

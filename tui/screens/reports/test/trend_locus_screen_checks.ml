@@ -1,7 +1,7 @@
 (* Trend / Locus owner checks: focus-day capture, grain and scope keys, selection
    clamping and containment, inline series picker, session annotations, modal
    closing and stale-config/book requery. Synthetic books only. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module R = Trend_locus_report
 module S = Trend_locus_screen
 module Roles = Locus_roles

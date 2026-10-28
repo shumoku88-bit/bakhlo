@@ -1,4 +1,4 @@
-(* Cold-equivalence oracle for Daily_book mutations.
+(* Cold-equivalence oracle for Book mutations.
 
    The store keeps the in-memory book after a save instead of reading book.txt back,
    so any book reached in memory must be indistinguishable from the cold reload of its
@@ -6,7 +6,7 @@
    reason, or the same observable book. A change that leaves the entries, the balance
    totals or the printed TXs stale shows up as a difference here. *)
 open Base
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module R = Stdlib.Random.State
 

@@ -1,7 +1,7 @@
 (* LOAM QuickCapture over the retained Actual entries. Templates are rebuilt
    from the book on every keystroke; amounts are exact quanta at the Measure's
    scale. The record date defaults to Record's own day (LOAM: today). *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module O = Ui_render
 module A = Daily_draft
 module D = Bakhlo_domain

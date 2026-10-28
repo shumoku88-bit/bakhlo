@@ -1,6 +1,6 @@
 (* Pure synthetic Record contract checks. No ledger files, publication or locale
    settings are written. Preview may allocate the existing random Actual identity. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module A = Daily_actions
 module S = Record_session
 module D = Bakhlo_domain

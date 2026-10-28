@@ -19,7 +19,7 @@ val label : Actual_workspace.period -> window -> string
 (** The window as the period bar and the list name it. *)
 
 val windows :
-  book:Bakhlo_household.Daily_book.t ->
+  book:Bakhlo_household.Book.t ->
   today:string ->
   reference:string ->
   cycle:((string * string) list, string) result ->

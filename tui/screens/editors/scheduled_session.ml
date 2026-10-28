@@ -2,7 +2,7 @@
    Edits one explicit due date plus signed single-Measure postings (2 to 6 rows).
    No Description, recurrence, routing, or Actual evidence. *)
 
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module A = Daily_draft
 module O = Ui_render

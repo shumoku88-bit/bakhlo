@@ -2,7 +2,7 @@
    by day inside a period window; the Screen owns the window and the Shell's
    environment, the workspace owns the state and the painting. *)
 
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module Roles = Locus_roles
 
 type period = Today | Cycle | Month | Year | All

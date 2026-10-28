@@ -1,7 +1,7 @@
 (* Multicurrency Spend: one explicit half-open Actual window kept as separate
    exact families. Current entry evidence is read directly; no FX rate,
    valuation, home currency or cross-Measure arithmetic is inferred. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module O = Ui_render
 module A = Daily_draft
 module D = Bakhlo_domain

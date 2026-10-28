@@ -51,7 +51,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
                   (A.commit_add_locus ~session:state.session "suspense")
               in
               let enabled =
-                match Bakhlo_household.Daily_book.approved_loci next.session.book with
+                match Bakhlo_household.Book.approved_loci next.session.book with
                 | Some loci -> List.mem "suspense" loci
                 | None -> false
               in

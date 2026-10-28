@@ -1,4 +1,4 @@
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 (** Pure editing vocabulary and candidate construction. No filesystem or publisher
     capability is available here. The caller supplies dates and fresh identities;
     a reviewed candidate retains its identity until that review is replaced. *)

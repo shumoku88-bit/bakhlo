@@ -1,7 +1,7 @@
 (* Daily Pace: today's spending guide, its retrospective trend and the explicit
    pool / cycle-boundary editors. Configuration bytes are captured in each
    form's payload; saving goes through the Shell with those captured bytes. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module A = Daily_draft
 module O = Ui_render

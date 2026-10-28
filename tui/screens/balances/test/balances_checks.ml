@@ -1,5 +1,5 @@
 (* Balances screen owner checks through the Screen contract only (pure, no files). *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module O = Ui_render
 module Balances = Balances_screen
 

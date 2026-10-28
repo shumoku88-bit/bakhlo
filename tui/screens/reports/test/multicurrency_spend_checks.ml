@@ -1,7 +1,7 @@
 (* Multicurrency Spend: one explicit half-open Actual window kept as separate
    exact families. Original amounts, recorded Expense per Measure and exchange
    legs are never converted, merged or silently dropped. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module R = Multicurrency_spend_report
 module S = Multicurrency_spend_screen
 module D = Bakhlo_domain
@@ -175,7 +175,7 @@ let check_originals () =
    only exchange-associated Expense when its Locus is explicitly Expense-role. It is
    paid in the source Measure on top of the source leg: book.txt names the legs by
    their Measures, so an Effect of a leg's sign in that leg's Measure could not be
-   read back, and Daily_book admits extra Effects only in the two Measures. *)
+   read back, and Book admits extra Effects only in the two Measures. *)
 let exchange_entries =
   String.concat ""
     [

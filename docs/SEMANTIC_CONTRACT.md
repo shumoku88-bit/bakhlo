@@ -8,7 +8,7 @@ implementation choices; they are not a claim that every OCaml operation is quali
 The household book is `book.txt`. Its specification (`docs/COMMON_FORMAT.ja.md`, with the
 conformance fixtures in `test/common_format/`) defines what a book may hold and how a
 balance is answered; `Book_txt.change` admits a change by exactly those rules. On top of
-them, Bakhlo applies its own write policies (`household/daily_book.ml`):
+them, Bakhlo applies its own write policies (`household/book.ml`):
 
 - new entries, plans and counts use only Loci offered for new entries (not `HIDDEN`);
   a date-only or Merchant-only change keeps a Locus that is no longer offered;
@@ -91,7 +91,7 @@ completeness model.
 
 ## S7 — UI and projections do not own household meaning
 
-UI collects drafts and renders answers. The book (`Daily_book` over `Book_txt`) owns
+UI collects drafts and renders answers. The book (`Book` over `Book_txt`) owns
 admission and the store (`Book_file`) owns publication. UI must not allocate durable identity, choose canonical
 files, implement recovery, or independently compute authoritative household facts.
 

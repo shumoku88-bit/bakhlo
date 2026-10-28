@@ -1,2 +1,2 @@
-module Daily_book = Daily_book
+module Book = Book
 module Daily_txt = Daily_txt

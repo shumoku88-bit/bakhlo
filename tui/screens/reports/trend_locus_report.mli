@@ -1,6 +1,6 @@
 (* Trend / Locus report: exact recorded Effect flow per Locus x Measure over an
    explicitly configured cycle history. Pure, read-only, no clock, no I/O. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module Roles = Locus_roles
 
 type grain = Cycle | Month | Day

@@ -102,9 +102,9 @@ let picker_windows = 24
 let picker_rows (env : Screen.env) t (current : IncExp.period) =
   let oldest =
     List.fold_left
-      (fun day (e : Bakhlo_household.Daily_book.entry) -> if e.day < day then e.day else day)
+      (fun day (e : Bakhlo_household.Book.entry) -> if e.day < day then e.day else day)
       current.start_day
-      (Bakhlo_household.Daily_book.entries env.book)
+      (Bakhlo_household.Book.entries env.book)
   in
   let year_before =
     match Day.shift_years current.start_day (-1) with Ok day -> day | Error _ -> ""

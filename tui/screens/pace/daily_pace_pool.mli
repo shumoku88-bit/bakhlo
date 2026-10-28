@@ -1,7 +1,7 @@
 (* Daily Pace spendable-pool picker (LOAM DailyPacePoolSetup): choose explicit
    exact-current balances of one Measure. Query configuration only; it never
    assigns roles, creates balances or infers membership from names. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 
 type t
 

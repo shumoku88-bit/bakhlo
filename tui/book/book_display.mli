@@ -2,7 +2,7 @@
     candidates, and the detail lines of Actual entries, Scheduled plans and Previews.
     Read-only; nothing here publishes. *)
 
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 
 type quantity_value = Unsupported | Exact of Z.t
 

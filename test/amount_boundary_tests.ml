@@ -1,4 +1,4 @@
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 
 let get = function Ok x -> x | Error why -> failwith why
 let result_text = function Ok n -> Z.to_string n | Error why -> why

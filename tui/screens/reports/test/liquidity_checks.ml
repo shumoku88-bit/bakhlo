@@ -1,7 +1,7 @@
 (* Liquidity: conditional selected-balance outlook over explicitly selected
    balance-view coordinates. Both unconditional statements stay UNKNOWN; numbers
    exist only after an explicitly accepted assumed-complete-through horizon. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module R = Liquidity_report
 module S = Liquidity_screen
 

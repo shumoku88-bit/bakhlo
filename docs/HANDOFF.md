@@ -163,7 +163,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 - `lib/`: identifiers, exact quantities, Effects, Events, Movements. No I/O. The former
   `application/` (correction frontier, cuts, sources, relations) is in Git up to `42ce0fc`.
-- `household/daily_book.ml(i)`: the household book on book.txt (an admitted `Book_txt.book`
+- `household/book.ml(i)`: the household book on book.txt (an admitted `Book_txt.book`
   and its TXs as entries; changes, balances, Daily Pace, past-day pools, the changes the Shell publishes);
   `household/daily_txt.ml(i)`: the roles
   and Attention sections in their text formats, and fixture helpers.
@@ -182,7 +182,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 - Docs removed 2026-10-21 (in Git at `90a5867`): `docs/archive/`, storage and geometry
   research, capability ledger, LOAM core inventory, references, ADR 0003, and
   VERIFICATION entries before 2026-10-20. Links to them are permalinks at that commit.
-- Tests: `test/` (Core; `daily_book_oracle_tests.ml`, `book_txt_tests.ml`,
+- Tests: `test/` (Core; `book_cold_reload_tests.ml`, `book_txt_tests.ml`,
   `book_file_tests.ml` guard the storage work) and the TUI self-check.
 
 ## Verify and continue

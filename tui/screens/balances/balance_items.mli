@@ -15,19 +15,14 @@ type balance_item =
   | Blank_row
 
 val current_balance_items :
-  book:Bakhlo_household.Daily_book.t -> coords:(string * string) list option -> balance_item list
+  book:Bakhlo_household.Book.t -> coords:(string * string) list option -> balance_item list
 (** One row per (Locus, Measure); [None] is every offered Locus in every Measure. *)
 
-val role_balance_items :
-  book:Bakhlo_household.Daily_book.t -> roles:Locus_roles.t -> balance_item list
+val role_balance_items : book:Bakhlo_household.Book.t -> roles:Locus_roles.t -> balance_item list
 (** Per-Measure stock sections, then the evidence shared by every Measure, over the
     coordinates the book represents (current Effects and support lines). *)
 
 val balance_item_line :
-  ?width_of:(string -> int) ->
-  ?width:int ->
-  book:Bakhlo_household.Daily_book.t ->
-  balance_item ->
-  string
+  ?width_of:(string -> int) -> ?width:int -> book:Bakhlo_household.Book.t -> balance_item -> string
 
-val balance_item_detail : book:Bakhlo_household.Daily_book.t -> balance_item -> string list
+val balance_item_detail : book:Bakhlo_household.Book.t -> balance_item -> string list

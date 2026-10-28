@@ -1,7 +1,7 @@
 (* Liquidity: CONDITIONAL selected-balance path under one explicit assumption.
    Unlike Daily Pace this keeps future conditional inflows and refuses overdue
    selected changes; it never claims a forecast path or a known low-water mark. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module O = Ui_render
 module A = Daily_draft
 

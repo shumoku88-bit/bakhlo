@@ -4,7 +4,7 @@
    entry's own day). An observation is exact only at its confirmation, so it
    never yields a window boundary. Never a fabricated zero; unsupported
    coordinates are listed, not used to refuse the whole report. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module IncExp = Income_expense_report
 module O = Ui_render
 module A = Daily_draft

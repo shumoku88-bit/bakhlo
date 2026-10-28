@@ -1,5 +1,5 @@
 (* Scheduled generation: proposes explicit later occurrences without storing recurrence. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module O = Ui_render
 module Panel = Ui_panel
 module Form = Ui_form

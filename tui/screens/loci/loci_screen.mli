@@ -20,7 +20,7 @@ val form : t -> Ui_form.t option
 val with_form : Ui_form.t -> t -> t
 val selected : t -> int
 
-val admitted_loci : Bakhlo_household.Daily_book.t -> string list
+val admitted_loci : Bakhlo_household.Book.t -> string list
 (** Approved loci, or the loci in use when no approval list is supplied. *)
 
 val detail_focused : t -> bool

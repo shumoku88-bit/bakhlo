@@ -1,6 +1,6 @@
 (* LOAM Series Calendar: replaceable monitoring rules compared with explicit
    plans by exact signed-Locus shape. Read-only; no recurrence is inferred. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 
 type rule = {
   name : string;

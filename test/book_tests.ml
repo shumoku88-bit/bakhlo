@@ -1,11 +1,11 @@
 open Base
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module T = Bakhlo_book_txt.Book_txt
 
 let get = function Ok x -> x | Error why -> failwith why
-let book_of_txt = Daily_book_oracle_tests.book_of_txt
-let text_of = Daily_book_oracle_tests.text_of
+let book_of_txt = Book_cold_reload_tests.book_of_txt
+let text_of = Book_cold_reload_tests.text_of
 
 (* What a save and a cold load give: the book read back from its book.txt. *)
 let cold book = book_of_txt (text_of book)

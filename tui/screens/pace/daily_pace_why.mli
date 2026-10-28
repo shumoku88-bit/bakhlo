@@ -1,8 +1,8 @@
 (* Why today's Daily Pace is what it is (LOAM DailyPaceWhy): each Pool balance
    with how its current quantity is supported, each protected Scheduled
    occurrence before cycle end, and the division that yields the pace. Only the
-   terms of the same [Daily_book.daily_pace] answer; no arithmetic of its own. *)
-module B = Bakhlo_household.Daily_book
+   terms of the same [Book.daily_pace] answer; no arithmetic of its own. *)
+module B = Bakhlo_household.Book
 
 val lines :
   width_of:(string -> int) ->

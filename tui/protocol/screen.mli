@@ -34,7 +34,7 @@ type route =
   | Multicurrency_spend
 
 type env = {
-  book : Bakhlo_household.Daily_book.t;
+  book : Bakhlo_household.Book.t;
   revision : string;
       (** Revision of the household file the book was read from: a publication base. *)
   new_id : unit -> string;  (** Fresh identity for a new entry or plan. *)
@@ -90,13 +90,13 @@ type publication =
   | Correct_entry_date of { id : string; day : string; base : string }
   | Classify_merchant of {
       id : string;
-      disposition : Bakhlo_household.Daily_book.disposition;
+      disposition : Bakhlo_household.Book.disposition;
       base : string;
       message : string;  (** Success report replacing the generic one. *)
     }
   | Cancel_plan of { id : string; day : string; base : string }
-  | Plan_batch of { plans : Bakhlo_household.Daily_book.plan list; replace : bool; base : string }
-  | Create_plan of { plan : Bakhlo_household.Daily_book.plan; base : string; offer_pace : bool }
+  | Plan_batch of { plans : Bakhlo_household.Book.plan list; replace : bool; base : string }
+  | Create_plan of { plan : Bakhlo_household.Book.plan; base : string; offer_pace : bool }
       (** [offer_pace]: an ordinary creation offers the published plan's expected pace. *)
 
 type publish_outcome =
@@ -107,9 +107,7 @@ type publish_outcome =
 
 (** A record a browser acts on, and the editor workflows the Shell opens for it
     (the Shell owns the retained Record draft and the editor sessions). *)
-type record_target =
-  | Entry of Bakhlo_household.Daily_book.entry
-  | Plan of Bakhlo_household.Daily_book.plan
+type record_target = Entry of Bakhlo_household.Book.entry | Plan of Bakhlo_household.Book.plan
 
 type record_action =
   | Edit
@@ -179,7 +177,7 @@ val no_publication : env -> geometry -> publish_outcome -> 'a -> 'a * request
 val env_for_checks :
   ?accounting_roles:(string * Locus_roles.role) list ->
   ?config:(string -> (string option, string) result) ->
-  book:Bakhlo_household.Daily_book.t ->
+  book:Bakhlo_household.Book.t ->
   measure:string ->
   today:string ->
   unit ->

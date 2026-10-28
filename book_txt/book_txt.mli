@@ -1,6 +1,6 @@
 (** The line-based book shared with LOAM: [book.txt], format [BOOK 1]
     (docs/COMMON_FORMAT.ja.md). Syntax and file-local admission only: no mapping to
-    [Daily_book], no I/O, no clock. Every accepted text is canonical, so
+    [Book], no I/O, no clock. Every accepted text is canonical, so
     [to_string (of_string s)] returns [s] byte for byte. *)
 
 type role = Asset | Liability | Equity | Income | Expense

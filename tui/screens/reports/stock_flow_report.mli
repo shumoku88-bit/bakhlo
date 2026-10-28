@@ -1,7 +1,7 @@
 (* Stock-Flow Report: single-measure tracked balance motion over explicit
    boundaries, reconstructed on zero-origin, bounded history or an opening
    entry. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module IncExp = Income_expense_report
 
 type support =
@@ -59,7 +59,7 @@ val compute_report :
   period:IncExp.period ->
   (report, string) result
 (** Reconstructs the window on the supported routes: zero-origin, bounded
-    history ([Daily_book.pool_at_end_of_day]) or an opening entry, whose balance
+    history ([Book.pool_at_end_of_day]) or an opening entry, whose balance
     is exact from the opening entry's own day and anchored on Core's current
     quantity. A coordinate whose history starts after the window start reports
     an unknown start (never zero) and stays in the table; a coordinate without

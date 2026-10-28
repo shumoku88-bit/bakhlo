@@ -1,7 +1,7 @@
 (* Trend / Locus projection checks: exact recorded Effect flow, explicit cycle
    history, effective scopes, window completeness and refusals. Synthetic books
    only; no wording, layout or default-count assertions. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module T = Trend_locus_report
 

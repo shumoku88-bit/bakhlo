@@ -6,7 +6,7 @@
    and prints only what its operations change. Cooperative writers and stable parent namespaces are assumed;
    not a security sandbox. Power loss was not physically tested. No background retry or
    automatic repair. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module X = Bakhlo_household.Daily_txt
 module T = Bakhlo_book_txt.Book_txt
 
@@ -249,7 +249,7 @@ let publish ?(checkpoint = fun _ -> ()) ?sidecars session changes =
           let expected = revision_of_bytes bytes in
           attempted := Some expected;
           replace ~checkpoint session.path bytes;
-          (* The in-memory book equals its book.txt reload (test/daily_book_oracle_tests.ml),
+          (* The in-memory book equals its book.txt reload (test/book_cold_reload_tests.ml),
              so only the bytes are read back. *)
           require (read session.path = bytes) "published-readback-changed";
           Written

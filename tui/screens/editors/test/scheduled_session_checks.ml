@@ -3,7 +3,7 @@
    Locus prefix matching, Ctrl-U suspense auto-fill, LOAM validation rules,
    Preview navigation and tiny-terminal publication gates. *)
 
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module Sch = Scheduled_session
 
 let require condition name =

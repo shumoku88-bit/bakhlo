@@ -60,7 +60,7 @@ type 'a owner = {
   published : Screen.env -> Screen.geometry -> Screen.publish_outcome -> 'a -> 'a * Screen.request;
   reloaded : Screen.env -> 'a -> 'a * Screen.request;
   book_changed :
-    before:Bakhlo_household.Daily_book.t -> after:Bakhlo_household.Daily_book.t -> 'a -> 'a * string;
+    before:Bakhlo_household.Book.t -> after:Bakhlo_household.Book.t -> 'a -> 'a * string;
       (* after a publication or a drill return; the string is a notice *)
 }
 

@@ -1,4 +1,4 @@
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 
 type choice = Merchant | Nonmerchant
 type mode = Editing | Preview

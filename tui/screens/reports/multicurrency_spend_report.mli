@@ -52,7 +52,7 @@ type snapshot = {
     token; effect lists follow entry date then stable ID, then recorded order. *)
 
 val compute :
-  book:Bakhlo_household.Daily_book.t ->
+  book:Bakhlo_household.Book.t ->
   roles:(string * Locus_roles.role) list ->
   start_day:string ->
   end_exclusive:string ->
@@ -66,7 +66,7 @@ val compute :
     non-counted witness. An exchange whose selected Effect key is missing refuses
     the whole window instead of dropping or guessing a leg. *)
 
-val render_lines : book:Bakhlo_household.Daily_book.t -> snapshot -> (Ui_render.style * string) list
+val render_lines : book:Bakhlo_household.Book.t -> snapshot -> (Ui_render.style * string) list
 (** Full result text in fixed section order, with every unresolved and non-counted
     witness present and every amount exact and grouped at its own Measure scale.
     Logical lines are unwrapped for the caller to wrap. *)

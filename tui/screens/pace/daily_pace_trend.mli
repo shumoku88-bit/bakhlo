@@ -1,5 +1,5 @@
 (* Daily Pace Trend: retrospective current-truth spending pace analysis over 10d, 30d, month, cycle. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 
 type preset = Ten_days | Thirty_days | Month | Cycle | Previous_cycle
 

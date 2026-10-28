@@ -13,10 +13,10 @@ type draft_tx = {
 
 type outcome = Updated of t | Closed | Publish of draft_tx
 
-val create : book:Bakhlo_household.Daily_book.t -> day:string -> measure:string -> t
+val create : book:Bakhlo_household.Book.t -> day:string -> measure:string -> t
 
 val create_from_scheduled :
-  book:Bakhlo_household.Daily_book.t -> Bakhlo_household.Daily_book.plan -> (t, string) result
+  book:Bakhlo_household.Book.t -> Bakhlo_household.Book.plan -> (t, string) result
 
 val is_preview : t -> bool
 
@@ -41,7 +41,7 @@ val handle :
 val footer : t -> string list
 
 val screen :
-  book:Bakhlo_household.Daily_book.t ->
+  book:Bakhlo_household.Book.t ->
   dimensions:int * int ->
   width_of:(string -> int) ->
   t ->

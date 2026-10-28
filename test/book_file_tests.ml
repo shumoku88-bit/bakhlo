@@ -3,9 +3,9 @@
    and killed writers never yield a partial book, and nothing but book.txt is read. *)
 open Base
 module F = Book_file
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module X = Bakhlo_household.Daily_txt
-module O = Daily_book_oracle_tests
+module O = Book_cold_reload_tests
 
 let get = function Ok x -> x | Error why -> failwith why
 

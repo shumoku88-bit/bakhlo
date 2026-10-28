@@ -1,7 +1,7 @@
 (* Stock–Flow computation: the one shared support rule (zero-origin or bounded
    history), unknown starts before a bounded start, unsupported coordinates
    listed instead of refusing the report, and a cold reload agreeing. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module S = Stock_flow_report
 module I = Income_expense_report
 module D = Bakhlo_domain

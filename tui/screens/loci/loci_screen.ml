@@ -1,7 +1,7 @@
 (* Manage Loci: admitted Locus tokens with their roles, labels and current
    quantities; admission and display names are ledger publications, accounting
    roles a checked configuration save of accounting-roles.tsv. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module A = Daily_draft
 module O = Ui_render

@@ -1,5 +1,5 @@
 (* Transactions Flow Report: incidence matrix of activity per coordinate, sorted by gross volume. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module IncExp = Income_expense_report
 
 type row_activity = {

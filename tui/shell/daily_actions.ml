@@ -1,7 +1,7 @@
 (* Single publication coordinator. Pure candidate construction lives in Daily_draft. *)
 include Daily_draft
 module F = Book_file
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 
 let build_transaction ~book ~mode content =
   Daily_draft.build_transaction ~new_id:F.new_id ~book ~mode content

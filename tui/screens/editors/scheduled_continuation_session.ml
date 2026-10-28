@@ -1,5 +1,5 @@
 (* Read-only awareness after completion; similar plans never assert recurrence. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module O = Ui_render
 module Panel = Ui_panel
 

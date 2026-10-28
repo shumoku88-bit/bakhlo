@@ -1,6 +1,6 @@
 (* Quick capture checks, the cases of LOAM TuiRecord.checkQuickCapture on a
    synthetic book. Pure: nothing is written or published. *)
-module B = Bakhlo_household.Daily_book
+module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module O = Ui_render
 module Q = Quick_capture
