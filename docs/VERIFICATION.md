@@ -12,7 +12,8 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   (`get (B.read text)`, the 14 `book_of_text` copies removed), short posting fields, the
   `save_safety_checks` name, and headers for the 15 scenario files that pointed to a document
   that never existed in Git. No check changed what it asserts. `./tools/check`, self-check (48),
-  format passed.
+  format passed. Matching CI passed
+  ([run 40678337619](https://github.com/shumoku88-bit/bakhlo/actions/runs/40678337619)).
 
 ## The typed Effect layer is removed; entries are book.txt postings (2026-10-28)
 
