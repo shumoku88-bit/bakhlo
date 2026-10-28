@@ -16,7 +16,9 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 - New check `decimal_measure_checks` (add, show, pre-fill and settle 1,050.00 EUR through the
   Shell on a copy of the synthetic example) fails on the previous code at
   `decimal-commitment-shown-at-scale` and passes now. `./tools/check`, self-check (48), format
-  passed (`b78c1f2`).
+  passed (`b78c1f2`). Matching CI passed for `b78c1f2`
+  ([run 40684192463](https://github.com/shumoku88-bit/bakhlo/actions/runs/40684192463)) and the label change
+  `ff0f7b3` ([run 40681499059](https://github.com/shumoku88-bit/bakhlo/actions/runs/40681499059)).
 - The admitted-type pilot stopped at design; the
   [study](ADMITTED_TYPES_STUDY.ja.md) records why and how to re-attempt.
 
