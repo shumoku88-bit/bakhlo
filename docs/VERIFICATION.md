@@ -19,6 +19,8 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   clip differently, and below 2 cells, where the shared ones overflow. Kept as they are.
 - `./tools/check`, `./tools/tui --self-check` (48), `./tools/format --check` passed.
   No intended screen change; **latest-data paired comparison not executed**.
+- Matching commit `27db550` passed CI
+  ([run 40649271643](https://github.com/shumoku88-bit/bakhlo/actions/runs/40649271643)).
 
 ## Book values have one display module (2026-10-28)
 

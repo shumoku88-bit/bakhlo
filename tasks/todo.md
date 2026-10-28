@@ -114,6 +114,12 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
   - [x] (3)と(2)の不要な3個を片付けた（2026-10-28）：`grouped`は`format_money`へ、`clamp_index`は`Ui_panel`に一つ
     （`Ui_form`の3箇所も）、3個は非公開に。Recordの`sub_border`／`sub_bottom`は残す：題名が幅いっぱいになる
     約30セル以下で`panel_border`と切り詰め方が違い、LOAMに合わせた狭幅のRecord枠が変わるため。
+  - (1)のLOAM確認（2026-10-28、LOAMソースを読んだだけ）：LOAMにも画面共通のキー表はない。行は↑↓・j/k・J/K、
+    ページはPgUp/PgDn（Selected Day・Balances・Attention・Trend・Whyと各ヘルプはCtrl-U/Dも、Actual・
+    Scheduledの一覧はなし）、端はHome/End。素のu/d/g/Gは画面ごとの操作（日付訂正、監視解除、I&Eの表示切替）。
+    Bakhloの`motion_delta`の呼び出し元はCtrl付きのu/dしか渡さないので、素のu/dで動く画面はない。
+    Reportsの`g`/`G`＝端はBakhloの選択（ヘルプに記載、I&Eの表示切替は`t`）。揃えるならLOAMの和集合
+    （J/KとCtrl-U/Dを全一覧へ）で、Actual・Scheduled一覧などにキーが増える。要mokoの判断。
 
 ## 要判断
 
