@@ -6,6 +6,20 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Settlement amounts read at their Measure's scale (2026-10-28)
+
+- Before: commitments printed raw smallest units (1,050.00 EUR as "105000 eur") and the action
+  form pre-filled "105000", which the Amount field read as 105000.00 and refused. Now amounts
+  are shown like every other amount and pre-filled as "1050.00"; `Settlement_data` refusals use
+  the same rendering. A Measure the book does not declare is shown in smallest units with "?",
+  explained in the detail pane. JPY looks as before. LOAM has no equivalent screen.
+- New check `decimal_measure_checks` (add, show, pre-fill and settle 1,050.00 EUR through the
+  Shell on a copy of the synthetic example) fails on the previous code at
+  `decimal-commitment-shown-at-scale` and passes now. `./tools/check`, self-check (48), format
+  passed (`b78c1f2`).
+- The admitted-type pilot stopped at design; the
+  [study](ADMITTED_TYPES_STUDY.ja.md) records why and how to re-attempt.
+
 ## User use of today's build (2026-10-28)
 
 - moko recorded entries and checked balances on the household through `./tools/household`, first

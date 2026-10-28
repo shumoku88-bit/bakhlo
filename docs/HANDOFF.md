@@ -217,6 +217,9 @@ After pushing, check CI for the matching commit SHA.
 
 ## Next candidates
 
+- Re-attempting admitted Measure / Locus types (stopped at design on 2026-10-28): start from the
+  [study](ADMITTED_TYPES_STUDY.ja.md), which states the constraint, the options, the success and
+  stop criteria and how to verify.
 1. Daily-use parity in the five areas of the cutover diff ledger, ordered by
    `tasks/todo.md`.
 2. Startup snapshot only when startup is felt slow.
