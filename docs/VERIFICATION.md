@@ -6,6 +6,21 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Modules named for what they are (2026-10-28)
+
+- Renamed, one commit each, with every reference, test file and current doc: `Daily_calendar`
+  → `Day`, `Daily_form` → `Line_edit`, `Daily_cli` → `Command_line`, `Daily_file` → `Book_file`,
+  `Daily_book` → `Book` (tests `book_tests.ml`, `book_cold_reload_tests.ml`), `Daily_draft` →
+  `Draft`, `Daily_actions` → `Publication`. Dated history (this file, earlier HANDOFF entries,
+  the performance study) keeps the old names.
+- Moved with them: the date rules from `Draft` into `Day` (code identical apart from names),
+  `today` from `Book_file` to the Shell's `Clock`, `format_message` from `Draft` to
+  `Ui_text`; `Publication` no longer includes `Draft` and has a `.mli`, as does `Line_edit`.
+  The architecture check forbids `Publication` in pure layers in place of `Daily_actions`.
+- One visible change: `--check` prints "household book admitted" (nothing reads it).
+- Each commit: `./tools/check`, `./tools/tui --self-check` (48), `./tools/format --check`
+  passed. **Latest-data paired comparison not executed** (no intended screen change).
+
 ## One clamp, one amount grouping (2026-10-28)
 
 - `Ui_panel.clamp_index` is the one nearest-index rule (Scheduled and Report_frame had

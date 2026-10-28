@@ -97,8 +97,16 @@ PTY入力/resize/非保存検査がすべて成功。後続の完了記録は文
 - [x] Income & Expenseの比較：今の2本並びのままでよい（moko、2026-10-28）。
 - [x] `Daily_overlays`を`Book_display`（`.mli`付き、帳簿の値の表示だけ）へ。描画部品は`Ui_render`から直接使う。
   Record一覧の金額の桁区切りも`format_money`へ一本化（2026-10-28）。
-- [ ] `Daily_`という接頭辞（`Daily_book`・`Daily_file`・`Daily_draft`・`Daily_actions`…）が今の中身に
-  合っているか見直す。変えるなら一度に一つ、意味の言える名前へ。
+- [x] `Daily_`接頭辞の見直し（2026-10-28、moko承認の名前と順番）：`Day`（日付の規則も一つに）、`Line_edit`、
+  `Command_line`、`Book_file`（`today`は`Clock`へ。`new_id`は乱数の読み手を共有するので残す）、`Book`、`Draft`
+  （`format_message`は`Ui_text`へ）、`Publication`（`include Draft`をやめ`.mli`付き。`Publish`は画面の意図の
+  コンストラクタと重なるので避けた）。`Daily_pace_*`は家計の言葉なのでそのまま。
+- [ ] `Daily_txt`を消す（調査済み、未着手・moko判断待ち）：`Book`は会計区分とAttentionを型で持つのに、
+  `Daily_txt`が旧ファイル形式（accounting-roles.tsv・attention.loam）の文字列へ印字し、Shellが`Locus_roles`・
+  `Attention_data`へ解析し直し、保存時にまた解析する往復がある。`Locus_roles.role`は`Book_txt.role`と同じ、
+  `Attention_data`の項目も`Book_txt`の`item`/`close`とほぼ同じ。画面が`Book`の型を直接使い、保存は`Book.change`に
+  すれば、文字列の書式・解析と`Book_file`の`sidecars`がなくなる。保存の意味に触れるので、cold reload照合を先に広げる。
+  `Draft`の`lstr`/`mstr`/`quanta`も同じ根（`Book`のAPIが文字列、Effectは型）。
 - [ ] TUIのコード量（2026-10-27計測：本体約28,000行、テスト・シナリオ約16,300行。コアは約3,500行）を
   減らせるか調べる。まず測る：画面ごとに似た処理（枠・行の描画、スクロール、一覧の選択、狭幅の処理など）が
   どれだけ重なっているかを数え、削る価値の大きい順に並べてmokoに見せる。例：`record_session.ml`の

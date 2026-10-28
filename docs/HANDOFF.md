@@ -8,6 +8,11 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 
 ## Where things stand (2026-10-28)
 
+- 2026-10-28, later: modules are named for what they are: `Book`, `Book_file`, `Draft`,
+  `Publication`, `Day`, `Line_edit`, `Command_line`, `Book_display`; date rules have one owner
+  (`Day`). `Daily_txt` is next: it can likely be removed (see `tasks/todo.md`).
+  [Evidence](VERIFICATION.md#modules-named-for-what-they-are-2026-10-28).
+
 - 2026-10-28: `Daily_overlays` is `Book_display` (with a `.mli`; book values only, no
   `include Ui_render`). The I&E comparison stays as two bars per Locus (moko).
   [Evidence](VERIFICATION.md#book-values-have-one-display-module-2026-10-28).
