@@ -116,8 +116,7 @@ let suspense_holding (env : Screen.env) : holding option =
         in
         Some { nets; entries = scan.entries; oldest = scan.oldest; age_days }
 
-let open_items (env : Screen.env) =
-  match env.attention with Ok t -> Att.open_items t | Error _ -> []
+let open_items (env : Screen.env) = Att.open_items env.attention
 
 (* One selectable row: the derived holding signal first, then household matters. *)
 type row = Holding of holding | Matter of Att.item
@@ -234,10 +233,7 @@ let commit (env : Screen.env) t submitted update success =
   in
   if env.blocked then refused "Writes stopped. Reload to inspect."
   else
-    match
-      Result.bind env.attention (fun expected ->
-          Result.map (fun next -> (expected, next)) (update expected))
-    with
+    match Result.map (fun next -> (env.attention, next)) (update env.attention) with
     | Error why -> refused why
     | Ok (expected, next) ->
         ( { t with editor = Some { form = submitted; success } },
@@ -372,15 +368,12 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
   let rows = row_list env in
   let holding = suspense_holding env in
   let left_title =
-    match env.attention with
-    | Ok a ->
-        let s = Att.summarize ~today a in
-        let marker = if Option.is_some holding then " • suspense" else "" in
-        if s.overdue_count > 0 then
-          Printf.sprintf "Attention (%d open • ! %d overdue%s)" (List.length items) s.overdue_count
-            marker
-        else Printf.sprintf "Attention (%d open%s)" (List.length items) marker
-    | Error _ -> "Attention / Unavailable"
+    let s = Att.summarize ~today env.attention in
+    let marker = if Option.is_some holding then " • suspense" else "" in
+    if s.overdue_count > 0 then
+      Printf.sprintf "Attention (%d open • ! %d overdue%s)" (List.length items) s.overdue_count
+        marker
+    else Printf.sprintf "Attention (%d open%s)" (List.length items) marker
   in
   let left_width, right_width = Panel.split_widths width in
   let pad_w = max 0 (left_width - 4) in
@@ -396,21 +389,13 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
     | Matter item -> O.pad ~width_of col_due (Att.due_display ~today item.due) ^ "  " ^ item.context
   in
   let left_rows =
-    match env.attention with
-    | Error why ->
-        O.wrap_text ~width_of
-          (max 1 (left_width - 6))
-          ("Attention unavailable: " ^ why ^ ". Writes refused; Ctrl-R reloads.")
-    | Ok _ ->
-        if rows = [] then [ tr "No open attention items." ]
-        else [ th; O.rule ~width_of pad_w ] @ List.mapi row_text rows
+    if rows = [] then [ tr "No open attention items." ]
+    else [ th; O.rule ~width_of pad_w ] @ List.mapi row_text rows
   in
   let detail =
-    match (env.attention, selected_row env t) with
-    | Error why, _ ->
-        [ "Attention unavailable (not empty)."; why; "Writes refused; Ctrl-R reloads." ]
-    | Ok _, Some (Holding h) -> holding_detail h
-    | Ok _, Some (Matter item) ->
+    match selected_row env t with
+    | Some (Holding h) -> holding_detail h
+    | Some (Matter item) ->
         let urgency =
           match item.due with
           | Att.Due_on d ->
@@ -440,8 +425,7 @@ let rows (env : Screen.env) (geometry : Screen.geometry) t =
           "  j / k   : Select next/previous matter";
           "  q / Esc : Return to Home";
         ]
-    | Ok _, None ->
-        [ tr "No selected attention item."; ""; tr "Press 'n' to add a household matter." ]
+    | None -> [ tr "No selected attention item."; ""; tr "Press 'n' to add a household matter." ]
   in
   let is_detail = t.pane = Detail_pane in
   Panel.split ~width_of ~width ~height ~left_focused:(not is_detail) ~left_title ~left_scroll:0

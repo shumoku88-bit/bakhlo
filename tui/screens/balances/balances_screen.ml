@@ -135,10 +135,7 @@ let balance_view_coords balance_view_text =
 
 let items ~book ~measure:_ ~roles ~balance_view_text t =
   match t.mode with
-  | `Accounting -> (
-      match roles with
-      | Ok roles -> Balance_items.role_balance_items ~book ~roles
-      | Error why -> [ Balance_items.Header_row ("Accounting roles unavailable: " ^ why) ])
+  | `Accounting -> Balance_items.role_balance_items ~book ~roles
   | `Current -> (
       match balance_view_coords balance_view_text with
       | Ok coords -> Balance_items.current_balance_items ~book ~coords
@@ -854,7 +851,7 @@ let form = active_form
 let detail_focused t = t.pane = `Detail
 
 let context (env : Screen.env) =
-  (env.book, env.measure, Lazy.force env.accounting_roles, env.config "balance-view.tsv")
+  (env.book, env.measure, env.accounting_roles, env.config "balance-view.tsv")
 
 let request_of t next = function
   | Stay when next.notice <> "" && next.notice <> t.notice -> Screen.Message next.notice

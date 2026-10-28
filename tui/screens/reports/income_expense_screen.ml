@@ -44,11 +44,9 @@ let back t = t.back
 let picker t = t.picker
 let saved _env _geometry _result t = (t, Screen.Stay)
 
-(* Roles decide Income and Expense; an unreadable roles file is a refusal, not "no roles". *)
+(* Roles decide Income and Expense. *)
 let report (env : Screen.env) period =
-  match Lazy.force env.accounting_roles with
-  | Ok roles -> Ok (IncExp.compute_report ~book:env.book ~roles ~period)
-  | Error why -> Error ("Accounting roles unavailable: " ^ why)
+  IncExp.compute_report ~book:env.book ~roles:env.accounting_roles ~period
 
 (* The window [back] windows before the shown one, if it resolves. *)
 let earlier (env : Screen.env) t back =
@@ -58,20 +56,17 @@ let earlier (env : Screen.env) t back =
 (* The compared window up to the shown window's elapsed days, and all of it while
    the shown window is partial. Both are exact folds of the book. *)
 let comparison (env : Screen.env) t (period : IncExp.period) =
-  Option.bind (earlier env t t.back) (fun window ->
-      match report env window with
-      | Error _ -> None
-      | Ok whole -> (
-          let elapsed, total = IncExp.elapsed ~today:env.today period in
-          if elapsed >= total then Some { IncExp.window; same_age = whole; whole = Some whole }
-          else
-            match report env (IncExp.truncate_to_days window elapsed) with
-            | Error _ -> None
-            | Ok same_age ->
-                (* A window that has not started compares with an empty window; the
-                   whole one would be a misread, so it is not offered. *)
-                Some { IncExp.window; same_age; whole = (if elapsed = 0 then None else Some whole) }
-          ))
+  Option.map
+    (fun window ->
+      let whole = report env window in
+      let elapsed, total = IncExp.elapsed ~today:env.today period in
+      if elapsed >= total then { IncExp.window; same_age = whole; whole = Some whole }
+      else
+        let same_age = report env (IncExp.truncate_to_days window elapsed) in
+        (* A window that has not started compares with an empty window; the whole one
+           would be a misread, so it is not offered. *)
+        { IncExp.window; same_age; whole = (if elapsed = 0 then None else Some whole) })
+    (earlier env t t.back)
 
 let same_window (a : IncExp.period) (b : IncExp.period) =
   a.start_day = b.start_day && a.end_exclusive = b.end_exclusive
@@ -85,13 +80,10 @@ let table_reports (env : Screen.env) t (current : IncExp.period) (rep : IncExp.r
       else
         match P.checked env t.report.preset offset with
         | Error _ -> acc
-        | Ok period -> (
+        | Ok period ->
             if same_window period current then
               collect (remaining - 1) (offset - 1) ((period, rep) :: acc)
-            else
-              match report env period with
-              | Error _ -> acc
-              | Ok r -> collect (remaining - 1) (offset - 1) ((period, r) :: acc))
+            else collect (remaining - 1) (offset - 1) ((period, report env period) :: acc)
     in
     collect 6 t.report.period_offset []
 
@@ -125,18 +117,20 @@ let picker_rows (env : Screen.env) t (current : IncExp.period) =
       match earlier env t back with
       | None -> List.rev acc
       | Some window when back > 1 && window.end_exclusive <= oldest -> List.rev acc
-      | Some window -> (
-          match report env window with
-          | Error _ -> List.rev acc
-          | Ok rep ->
-              let note =
-                if back = 1 then "previous"
-                else if window.start_day = year_before then "a year earlier"
-                else ""
-              in
-              collect (back + 1)
-                ({ Picker.offset = back; label = IncExp.span window; note; total = total rep }
-                :: acc))
+      | Some window ->
+          let note =
+            if back = 1 then "previous"
+            else if window.start_day = year_before then "a year earlier"
+            else ""
+          in
+          collect (back + 1)
+            ({
+               Picker.offset = back;
+               label = IncExp.span window;
+               note;
+               total = total (report env window);
+             }
+            :: acc)
   in
   collect 1 []
 
@@ -152,31 +146,21 @@ let content (env : Screen.env) (geometry : Screen.geometry) t =
             (Ui_render.Plain, why);
             (Ui_render.Chrome, "Supply an explicit boundary-presets.tsv or choose Month / Year.");
           ] )
-  | Ok period -> (
-      match report env period with
-      | Error why ->
-          Frame.Block
-            ( "Income & Expense · Accounting Roles Unavailable",
-              [
-                (Ui_render.Heading, Ui_text.tr "Income & Expense unavailable:");
-                (Ui_render.Plain, why);
-                (Ui_render.Chrome, "Fix accounting-roles.tsv; no Locus role is guessed.");
-              ] )
-      | Ok rep ->
-          if t.table then
-            Frame.Body
-              ( "Income & Expense • Compare",
-                IncExp.render_compare_lines
-                  ~width:(max 0 (width - 4))
-                  ~width_of ~book:env.book ~today:env.today
-                  ~reports:(table_reports env t period rep) )
-          else
-            Frame.Body
-              ( Printf.sprintf "Income & Expense • %s" (IncExp.preset_label t.report.preset),
-                IncExp.render_report_lines
-                  ~width:(max 0 (width - 4))
-                  ~width_of ~book:env.book ~report:rep ~today:env.today
-                  ~comparison:(comparison env t period) ))
+  | Ok period ->
+      let rep = report env period in
+      if t.table then
+        Frame.Body
+          ( "Income & Expense • Compare",
+            IncExp.render_compare_lines
+              ~width:(max 0 (width - 4))
+              ~width_of ~book:env.book ~today:env.today ~reports:(table_reports env t period rep) )
+      else
+        Frame.Body
+          ( Printf.sprintf "Income & Expense • %s" (IncExp.preset_label t.report.preset),
+            IncExp.render_report_lines
+              ~width:(max 0 (width - 4))
+              ~width_of ~book:env.book ~report:rep ~today:env.today
+              ~comparison:(comparison env t period) )
 
 let help_form () =
   Frame.help_form ~title:"Income & Expense / Help"
@@ -261,19 +245,16 @@ let handle (env : Screen.env) geometry t input =
               | Some (`ASCII 'p', []) -> (
                   match P.checked env t.report.preset t.report.period_offset with
                   | Error why -> (t, Screen.Message why)
-                  | Ok period -> (
-                      match report env period with
-                      | Error why -> (t, Screen.Message why)
-                      | Ok rep ->
-                          let lines = IncExp.print_summary ~book:env.book ~report:rep in
-                          stay
-                            {
-                              t with
-                              preview =
-                                Some
-                                  (P.print_form ~id:"income_expense_print_preview"
-                                     ~title:"Income & Expense / Print Preview" lines);
-                            }))
+                  | Ok period ->
+                      let lines = IncExp.print_summary ~book:env.book ~report:(report env period) in
+                      stay
+                        {
+                          t with
+                          preview =
+                            Some
+                              (P.print_form ~id:"income_expense_print_preview"
+                                 ~title:"Income & Expense / Print Preview" lines);
+                        })
               | _ -> (t, Screen.Ignored))))
 
 let rows env geometry t = Frame.rows ~geometry t.frame (content env geometry t)

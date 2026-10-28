@@ -23,7 +23,7 @@ let safety_checks ~width_of ~directory () =
   let saved, result = Shell_files.save_attention base ~expected:Att.empty att in
   get result;
   require
-    (C.attention saved = Ok att && C.attention (C.initial ~config_home:dir (F.load path)) = Ok att)
+    (C.attention saved = att && C.attention (C.initial ~config_home:dir (F.load path)) = att)
     "attention-saved-in-book";
   require
     (Result.is_error (snd (Shell_files.save_attention saved ~expected:Att.empty Att.empty)))
@@ -64,9 +64,7 @@ let safety_checks ~width_of ~directory () =
     get (Att.add_item att ~id:(Att.next_id att) ~context:"other writer" ~due:Att.No_due_date)
   in
   get (snd (Shell_files.save_attention other ~expected:att att2));
-  require
-    (C.attention (Shell_dispatch.reload state) = Ok att2)
-    "explicit-reload-refreshes-attention";
+  require (C.attention (Shell_dispatch.reload state) = att2) "explicit-reload-refreshes-attention";
   List.iter
     (fun raw -> require (Result.is_error (Stl.of_string raw)) "settlement-invalid-input-refused")
     [

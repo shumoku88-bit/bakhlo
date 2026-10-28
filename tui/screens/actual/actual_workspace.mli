@@ -9,14 +9,13 @@ type period = Today | Cycle | Month | Year | All
 type sort_order = Newest | Oldest | Largest
 type pane = Loci | Transactions | Details
 type window = { start_day : string; end_exclusive : string; label : string }
-type roles = ((string * Roles.role) list, string) result
 
 type scope = {
   window : window;
   today : string;
   focus_day : string;
       (** The day the window was opened on: today, or the day of a chosen window. *)
-  roles : roles;
+  roles : (string * Roles.role) list;
   measure : string;
 }
 
@@ -92,9 +91,8 @@ val screen :
 
 type expense_roles
 
-val expense_roles : ctx:context -> expense_roles option
-(** The accounting roles of [ctx], ready for EXPENSE totals; [None] when they are
-    unreadable. *)
+val expense_roles : ctx:context -> expense_roles
+(** The accounting roles of [ctx], ready for EXPENSE totals. *)
 
 val expense_total : expense_roles -> B.entry list -> string option
 (** The EXPENSE total per Measure of these entries in the shared money format,

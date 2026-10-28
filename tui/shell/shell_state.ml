@@ -75,9 +75,9 @@ type state = {
 }
 
 (* Attention is a section of the book, admitted with it. *)
-let attention (state : state) : (Att.t, string) result =
+let attention (state : state) : Att.t =
   let items, closes = B.attention state.session.book in
-  Ok { Att.items; closes }
+  { Att.items; closes }
 
 let initial ?config_home session =
   let measure = match B.measures session.F.book with (id, _) :: _ -> id | [] -> "" in

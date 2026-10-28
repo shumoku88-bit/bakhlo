@@ -80,7 +80,7 @@ let roles =
 
 let month = { Act.start_day = "2026-10-01"; end_exclusive = "2026-11-01"; label = "Month 2026-10" }
 
-let make_ctx ?(roles = Ok roles) ?(window = month) ?(today = "2026-10-15") ?(measure = "jpy") book =
+let make_ctx ?(roles = roles) ?(window = month) ?(today = "2026-10-15") ?(measure = "jpy") book =
   { Act.book; scope = { Act.window; today; focus_day = today; roles; measure }; warning = None }
 
 let rows_of ctx t =
@@ -172,37 +172,12 @@ let self_check ~width_of () =
   require (contains rows_unknown "1,500 jpy+?") "partial-total-is-marked";
   require (not (contains rows_unknown "1,800 jpy")) "partial-total-is-not-guessed";
 
-  (* 5. Unreadable accounting roles: no totals, one notice whose cause stays
-     visible at 80 columns and names the file once. *)
-  let broken =
-    {
-      (make_ctx book) with
-      scope = { (make_ctx book).scope with roles = Error "accounting-roles.tsv is malformed" };
-    }
-  in
-  let rows_broken = rows_of broken ws in
-  require (not (contains rows_broken "1,500 jpy")) "unreadable-roles-no-total";
-  require
-    (contains rows_broken "No day totals: accounting-roles.tsv is malformed")
-    "unreadable-roles-notice";
-  let rows_broken_80 =
-    Act.screen ~ctx:broken ~total:None ~draft_retained:false ~dimensions:dim_compact
-      ~width_of:String.length ws
-  in
-  require
-    (contains rows_broken_80 "accounting-roles.tsv is malformed")
-    "unreadable-roles-cause-at-80";
-  (* A retained draft adds its notice; the cause stays on the line. *)
+  (* 5. A retained draft adds its notice to the context line. *)
   let rows_drafted =
-    Act.screen ~ctx:broken ~total:None ~draft_retained:true ~dimensions:dim_wide
+    Act.screen ~ctx:(make_ctx book) ~total:None ~draft_retained:true ~dimensions:dim_wide
       ~width_of:String.length ws
   in
-  require
-    (contains rows_drafted "Draft retained  |  No day totals: accounting-roles.tsv is malformed")
-    "unreadable-roles-cause-kept-with-a-retained-draft";
-
-  require (contains rows_broken "Supermarket") "unreadable-roles-list-still-works";
-  require (List.length (Act.visible_entries ~ctx:broken ws) = 3) "unreadable-roles-entries-kept";
+  require (contains rows_drafted "Draft retained") "retained-draft-notice";
 
   (* 5b. Day headers are headings with a counted noun; entries sit under them. *)
   let header_has_in rows day text =
@@ -345,19 +320,6 @@ let self_check ~width_of () =
   require (contains rows_amount "2026-10-14") "amount-order-keeps-the-date-column";
   let ws, _ = Act.handle ~ctx ~dimensions:dim_wide ~width_of ws (char_key 's') in
   require (Act.sort_order ws = Act.Newest) "order-back-to-newest";
-
-  (* The amount order needs the roles: without them it is refused, not guessed. *)
-  let broken_ctx =
-    { (make_ctx book) with scope = { (make_ctx book).scope with roles = Error "unreadable" } }
-  in
-  let ws_amount, _ = Act.handle ~ctx:broken_ctx ~dimensions:dim_wide ~width_of ws (char_key 's') in
-  let ws_amount, _ =
-    Act.handle ~ctx:broken_ctx ~dimensions:dim_wide ~width_of ws_amount (char_key 's')
-  in
-  require (Act.sort_order ws_amount = Act.Oldest) "amount-order-refused-without-roles";
-  require
-    (Base.String.is_substring (Act.notice ws_amount) ~substring:"accounting-roles.tsv")
-    "amount-order-refusal-names-the-file";
 
   (* 10. Enter opens the selected record; i separately focuses Details. *)
   List.iter

@@ -383,8 +383,7 @@ let render_report_lines ~width ~width_of ~book ~report ~today ~comparison =
     else
       [
         (O.Status, "── Unresolved Role Effects ─────────────────────────────────────────");
-        ( O.Chrome,
-          "Activity exists on accounts without explicit accounting role in accounting-roles.tsv:" );
+        (O.Chrome, "Activity exists on accounts without an explicit accounting role:");
       ]
       @ List.map
           (fun (date, locus, m, q) ->

@@ -87,7 +87,7 @@ let scope_of (env : Screen.env) ws window =
     Act.window;
     today = env.today;
     focus_day = anchor env ws;
-    roles = Lazy.force env.accounting_roles;
+    roles = env.accounting_roles;
     measure = env.measure;
   }
 

@@ -1,13 +1,12 @@
 (* Synthetic controller integration checks; see docs/RECONSTRUCTION_TEST_MAP.ja.md. *)
 open Interaction_check_fixture
 
-(* The roles the Shell reads; these checks expect a readable file. *)
-let roles_of state =
-  match Shell_files.accounting_roles state with Ok roles -> roles | Error why -> failwith why
+(* The roles the Shell reads from the book. *)
+let roles_of state = B.roles state.C.session.book
 
-(* Roles are a book section: a malformed ROLE line refuses the whole book, and a
-   role-aware screen shows unavailable roles as a refusal, never as "no roles". *)
-let unreadable_roles_checks ~width_of ~directory ~path =
+(* Roles are a book section: a malformed ROLE line refuses the whole book, so no
+   screen ever sees unreadable roles. *)
+let unreadable_roles_checks ~directory ~path =
   let directory = directory ^ "/unreadable-roles" in
   Unix.mkdir directory 0o700;
   let book_path = directory ^ "/book.txt" in
@@ -19,30 +18,10 @@ let unreadable_roles_checks ~width_of ~directory ~path =
        ~with_:"\nROLE\twallet\tASSETS\nPLAN\t");
   require
     (match F.load bad_path with _ -> false | exception F.Refused _ -> true)
-    "book-with-unreadable-role-refuses";
-  (* The store cannot create a session with malformed roles. Exercise the screen's
-     error contract directly instead of constructing an impossible session. *)
-  let loaded = F.load book_path in
-  let state = C.initial ~config_home:directory loaded in
-  let env =
-    { (X.balances_env state) with accounting_roles = lazy (Error "synthetic unknown role") }
-  in
-  require
-    (match Lazy.force env.accounting_roles with
-    | Error why -> Base.String.is_substring why ~substring:"unknown role"
-    | Ok _ -> false)
-    "roles-unreadable-is-an-error-not-empty";
-  let geometry = X.screen_geometry ~dimensions:(100, 30) ~width_of state in
-  let accounting, _ = Balances.handle env geometry (Balances.create ()) (`Key (`ASCII 'v', [])) in
-  let view = Balances.view env geometry accounting in
-  require
-    (List.exists
-       (fun (_, row) -> Base.String.is_substring row ~substring:"Accounting roles unavailable")
-       (Lazy.force view.rows))
-    "balances-accounting-shows-unreadable-roles"
+    "book-with-unreadable-role-refuses"
 
 let run ~width_of ~directory ~path =
-  unreadable_roles_checks ~width_of ~directory ~path;
+  unreadable_roles_checks ~directory ~path;
   (* Manage Loci workflow verification *)
   let current_home = C.initial ~config_home:directory (F.load path) in
   let loci_state = C.open_route current_home W.Loci in

@@ -1,7 +1,7 @@
 (** Manage Loci screen owner: admitted Locus tokens with roles, labels and
     current quantities. Admission and display names are ledger publications
-    ({!Screen.Publish}); accounting roles are a checked save of
-    accounting-roles.tsv ({!Screen.Save_config}). *)
+    ({!Screen.Publish}); an accounting role is a checked save of the book's roles
+    ({!Screen.Save_roles}). *)
 
 type t
 

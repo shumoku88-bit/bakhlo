@@ -15,14 +15,13 @@ type period = Today | Cycle | Month | Year | All
 type sort_order = Newest | Oldest | Largest
 type pane = Loci | Transactions | Details
 type window = { start_day : string; end_exclusive : string; label : string }
-type roles = ((string * Roles.role) list, string) result
 
 type scope = {
   window : window;
   today : string;
   focus_day : string;
       (** The day the window was opened on: today, or the day of a chosen window. *)
-  roles : roles;
+  roles : (string * Roles.role) list;
   measure : string;
 }
 (** What the workspace reads besides the book: the resolved period window, the
@@ -174,18 +173,15 @@ let matches_search ~book t (record : B.entry) =
 
 (* The entry's EXPENSE total in one Measure: the amount order of the list. *)
 let entry_expense_amount ~roles ~measure (entry : B.entry) =
-  match roles with
-  | Error _ -> Z.zero
-  | Ok roles ->
-      List.fold_left
-        (fun acc (posting : D.Effect.t) ->
-          let locus = A.lstr (D.Effect.locus posting) in
-          if
-            A.mstr (D.Effect.measure posting) = measure
-            && List.assoc_opt locus roles = Some Roles.Expense
-          then Z.add acc (A.quanta posting)
-          else acc)
-        Z.zero entry.effects
+  List.fold_left
+    (fun acc (posting : D.Effect.t) ->
+      let locus = A.lstr (D.Effect.locus posting) in
+      if
+        A.mstr (D.Effect.measure posting) = measure
+        && List.assoc_opt locus roles = Some Roles.Expense
+      then Z.add acc (A.quanta posting)
+      else acc)
+    Z.zero entry.effects
 
 (* The day order follows the list order; within one day the entries keep the
    order the workspace has always shown. *)
@@ -243,14 +239,12 @@ let totals_text ~book totals partial =
 type expense_roles = { role_book : B.t; table : (string, Roles.role) Hashtbl.t }
 
 let expense_roles ~ctx =
-  match ctx.scope.roles with
-  | Error _ -> None
-  | Ok roles ->
-      let table = Hashtbl.create (List.length roles) in
-      List.iter
-        (fun (locus, role) -> if not (Hashtbl.mem table locus) then Hashtbl.add table locus role)
-        roles;
-      Some { role_book = ctx.book; table }
+  let roles = ctx.scope.roles in
+  let table = Hashtbl.create (List.length roles) in
+  List.iter
+    (fun (locus, role) -> if not (Hashtbl.mem table locus) then Hashtbl.add table locus role)
+    roles;
+  { role_book = ctx.book; table }
 
 (* A ledger has few Measures, so the sums are an association list. *)
 let expense_total roles entries =
@@ -277,9 +271,8 @@ let expense_total roles entries =
   totals_text ~book:roles.role_book sorted !partial
 
 (* The EXPENSE total per Measure of these entries in the shared money format,
-   marked [+?] when an effect has no role; [None] without readable roles. *)
-let shown_total ~ctx entries =
-  Option.bind (expense_roles ~ctx) (fun roles -> expense_total roles entries)
+   marked [+?] when an effect has no role. *)
+let shown_total ~ctx entries = expense_total (expense_roles ~ctx) entries
 
 (* Day groups follow the list order; under an amount order there is no day to
    group by, so no header is drawn. *)
@@ -301,11 +294,7 @@ let groups_of_entries ~ctx ~order records =
       List.map
         (fun (g : group) ->
           let entries = List.rev g.entries in
-          {
-            g with
-            entries;
-            total = lazy (Option.bind roles (fun roles -> expense_total roles entries));
-          })
+          { g with entries; total = lazy (expense_total roles entries) })
         (loop [] 0 records)
 
 (* The selection the workspace opens on: today's group, or the latest day before
@@ -661,20 +650,12 @@ let move_end ~ctx ~lists ~width_of geometry t =
       { t with transaction_row = row; detail_scroll = 0; notice = "" }
   | Details -> { t with detail_scroll = detail_scroll_limit ~ctx ~width_of geometry t; notice = "" }
 
-(* The order cycles by date first; the amount order needs the accounting roles,
-   so it is refused (not guessed) when the roles file is unreadable. *)
+(* The order cycles by date first, then by EXPENSE amount. *)
 let cycle_order ~ctx t =
   let reset order =
     clamp_state ~ctx { t with order; transaction_row = 0; detail_scroll = 0; notice = "" }
   in
-  match t.order with
-  | Newest -> reset Oldest
-  | Oldest -> (
-      match ctx.scope.roles with
-      | Error _ ->
-          { t with notice = "Amount order needs accounting-roles.tsv; the order was not changed." }
-      | Ok _ -> reset Largest)
-  | Largest -> reset Newest
+  match t.order with Newest -> reset Oldest | Oldest -> reset Largest | Largest -> reset Newest
 
 let begin_search ~ctx t =
   clamp_state ~ctx
@@ -1093,12 +1074,7 @@ let screen ~ctx ~total ~draft_retained ~dimensions ~width_of t =
       let warnings =
         List.filter_map
           (fun warning -> warning)
-          [
-            (match ctx.warning with Some why -> Some why | None -> None);
-            (match ctx.scope.roles with
-            | Error why -> Some ("No day totals: " ^ why)
-            | Ok _ -> None);
-          ]
+          [ (match ctx.warning with Some why -> Some why | None -> None) ]
       in
       let text =
         match warnings with

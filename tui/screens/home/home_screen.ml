@@ -88,11 +88,7 @@ let handle (_ : Screen.env) (_ : Screen.geometry) t input =
 
 let view (env : Screen.env) (geometry : Screen.geometry) () =
   let width, height = geometry.body in
-  let badge =
-    match env.attention with
-    | Ok a -> Attention_data.badge (Attention_data.summarize ~today:env.today a)
-    | Error _ -> ""
-  in
+  let badge = Attention_data.badge (Attention_data.summarize ~today:env.today env.attention) in
   {
     Screen.title = tr "Home";
     subtitle = Screen.Default;

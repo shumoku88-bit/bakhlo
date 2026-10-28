@@ -45,9 +45,6 @@ let write_config_file state name ~expected content =
   | Unix.Unix_error (err, fn, arg) ->
       Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
 
-(* The accounting roles are a section of the book, admitted with it. *)
-let accounting_roles state = Ok (B.roles state.session.book)
-
 (* Roles and Attention are sections of the book: saving one rewrites the book through
    the single writer, with the same conflict and uncertainty outcomes as a record. *)
 let section_result state result =
@@ -72,13 +69,10 @@ let save_roles state ~expected next =
   else section_result state (Publication.roles ~session:state.session next)
 
 let save_attention state ~expected (next : Att.t) =
-  match attention state with
-  | Error why -> (state, Error why)
-  | Ok current when current <> expected ->
-      (state, Error "Attention changed. Reload before retrying.")
-  | Ok _ ->
-      section_result state
-        (Publication.attention ~session:state.session ~items:next.items ~closes:next.closes)
+  if attention state <> expected then (state, Error "Attention changed. Reload before retrying.")
+  else
+    section_result state
+      (Publication.attention ~session:state.session ~items:next.items ~closes:next.closes)
 
 let save_config state ~file ~expected ~content ~admission =
   let admitted =

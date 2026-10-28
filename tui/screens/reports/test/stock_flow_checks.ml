@@ -202,7 +202,7 @@ let self_check () =
     && List.exists (fun line -> contains line "end total still adds every known end") before_lines)
     "the footnote says which total excludes unknown starts";
 
-  (* The debt section refuses an unreadable accounting-roles.tsv by name. *)
+  (* The debt section is built from the book's roles. *)
   let screen_env =
     Screen.env_for_checks
       ~config:(fun name ->
@@ -214,14 +214,7 @@ let self_check () =
   let screen = Stock_flow_screen.create () in
   require
     (Result.is_ok (Stock_flow_screen.result screen_env screen))
-    "a readable roles file reconstructs the debt section";
-  let broken_roles =
-    { screen_env with Screen.accounting_roles = lazy (Error "accounting-roles.tsv is malformed") }
-  in
-  (match Stock_flow_screen.result broken_roles screen with
-  | Ok _ -> failwith "an unreadable roles file must refuse the debt section"
-  | Error why ->
-      require (contains why "accounting-roles.tsv") "the refusal names accounting-roles.tsv");
+    "the debt section is built from the book's roles";
 
   (* Opening support: exact from the opening entry's date, unknown before it. *)
   let opening_book =

@@ -21,8 +21,8 @@ type env = {
   new_id : unit -> string;
   measure : string;
   today : string;
-  accounting_roles : ((string * Locus_roles.role) list, string) result Lazy.t;
-  attention : (Attention_data.t, string) result;
+  accounting_roles : (string * Locus_roles.role) list;
+  attention : Attention_data.t;
   settlements : (Settlement_data.t, string) result;
   blocked : bool;
   draft_retained : bool;
@@ -129,8 +129,8 @@ let env_for_checks ?(accounting_roles = []) ?(config = fun name -> Error ("undec
          Printf.sprintf "check-%d" !n);
     measure;
     today;
-    accounting_roles = lazy (Ok accounting_roles);
-    attention = Ok Attention_data.empty;
+    accounting_roles;
+    attention = Attention_data.empty;
     settlements = Ok Settlement_data.empty;
     blocked = false;
     draft_retained = false;

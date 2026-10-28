@@ -76,21 +76,19 @@ let continuation_input (env : Screen.env) prompt outcome =
       if env.blocked then stay (updated "Writes stopped; completion remains published.")
       else
         let update =
-          Result.bind env.attention (fun expected ->
-              let id = Att.next_id expected in
-              let context =
-                "Decide continuation after " ^ source.B.id ^ " (scheduled " ^ source.day ^ "): "
-                ^ String.concat "; "
-                    (List.map
-                       (fun (locus, amount) ->
-                         locus ^ " "
-                         ^ B.format env.book source.measure amount
-                         ^ " " ^ source.measure)
-                       source.changes)
-              in
-              Result.map
-                (fun next -> (expected, next, id))
-                (Att.add_item expected ~id ~context ~due:Att.Due_undetermined))
+          let expected = env.attention in
+          let id = Att.next_id expected in
+          let context =
+            "Decide continuation after " ^ source.B.id ^ " (scheduled " ^ source.day ^ "): "
+            ^ String.concat "; "
+                (List.map
+                   (fun (locus, amount) ->
+                     locus ^ " " ^ B.format env.book source.measure amount ^ " " ^ source.measure)
+                   source.changes)
+          in
+          Result.map
+            (fun next -> (expected, next, id))
+            (Att.add_item expected ~id ~context ~due:Att.Due_undetermined)
         in
         match update with
         | Error why ->

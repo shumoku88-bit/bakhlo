@@ -914,7 +914,7 @@ let continuation_checks ~width_of ~directory home =
     "continuation-defer-failure-does-not-rollback-completion";
   let deferred = key ~width_of defer `Enter in
   let cold_deferred = F.load none_path in
-  let attention = get (C.attention (C.initial ~config_home:directory cold_deferred)) in
+  let attention = C.attention (C.initial ~config_home:directory cold_deferred) in
   require
     (no_modal deferred
     && B.entries cold_deferred.book = B.entries none.session.book

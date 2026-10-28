@@ -47,7 +47,7 @@ type picker = { target : int; cursor : int; notice : string }
 type projection = {
   book : B.t;  (** Compared physically: every book change is a new value. *)
   boundary : (string option, string) result;
-  roles : ((string * Locus_roles.role) list, string) result;
+  roles : (string * Locus_roles.role) list;
   measure : string;
   query : string option * R.grain * R.scope * R.coordinate list;
   plotted : R.coordinate list;  (** The effective series. *)
@@ -120,12 +120,12 @@ let default_coordinates (env : Screen.env) t ~boundary ~roles =
           match Day.shift_days observed_at 1 with
           | Error _ -> []
           | Ok end_exclusive ->
-              R.initial_series ~book:env.book ~measure:env.measure
-                ~roles:(Result.value ~default:[] roles) ~start_day ~end_exclusive))
+              R.initial_series ~book:env.book ~measure:env.measure ~roles ~start_day ~end_exclusive)
+      )
 
 let compute (env : Screen.env) t =
   let boundary = env.config boundary_file in
-  let roles = Lazy.force env.accounting_roles in
+  let roles = env.accounting_roles in
   let query = (t.focus_day, t.grain, effective_scope t, t.coordinates) in
   match t.projection with
   | Some p
@@ -141,15 +141,10 @@ let compute (env : Screen.env) t =
       let outcome =
         match t.focus_day with
         | None -> Error "No observation day: the Shell has not focused a day for this chart."
-        | Some observed_at -> (
-            (* The default series needs the roles; an unreadable file is a refusal
-               that names it, never a silent empty chart. *)
-            match (t.coordinates, roles) with
-            | [], Error why -> Error ("Accounting roles unavailable (accounting-roles.tsv): " ^ why)
-            | _ ->
-                Result.bind boundary (fun boundary_presets_text ->
-                    R.project ~book:env.book ~observed_at ~boundary_presets_text ~grain:t.grain
-                      ~scope:(effective_scope t) ~coordinates:plotted))
+        | Some observed_at ->
+            Result.bind boundary (fun boundary_presets_text ->
+                R.project ~book:env.book ~observed_at ~boundary_presets_text ~grain:t.grain
+                  ~scope:(effective_scope t) ~coordinates:plotted)
       in
       { book = env.book; boundary; roles; measure = env.measure; query; plotted; outcome }
 
@@ -1059,11 +1054,7 @@ let chart_rows (env : Screen.env) (geometry : Screen.geometry) t (snap : R.snaps
 let unavailable_rows (geometry : Screen.geometry) why =
   let width, height = geometry.content in
   let width_of = geometry.width_of in
-  let hint =
-    if Base.String.is_substring why ~substring:"accounting-roles.tsv" then
-      "Fix accounting-roles.tsv; no Locus role is guessed."
-    else "Supply an explicit boundary-presets.tsv preset that contains the focused day."
-  in
+  let hint = "Supply an explicit boundary-presets.tsv preset that contains the focused day." in
   let lines = [ tr "Trend / Locus unavailable:"; why; hint ] in
   let wrapped =
     List.concat_map (O.wrap_text ~width_of (max 1 (width - 4))) lines

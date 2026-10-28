@@ -45,9 +45,7 @@ let pace_detail_viewport ~dimensions ~width_of (state : C.state) =
 let resolve_pace_pool (state : C.state) = Pace.resolve_pool (X.pace_env state)
 let resolve_pace_window (state : C.state) = Pace.resolve_window (X.pace_env state)
 let current_pace_result (state : C.state) = Pace.current_pace (X.pace_env state)
-
-let open_attentions (state : C.state) =
-  match C.attention state with Ok t -> Att.open_items t | Error _ -> []
+let open_attentions (state : C.state) = Att.open_items (C.attention state)
 
 let settlement_rows (state : C.state) =
   Settlements_screen.rows (X.screen_env ~config_files:[] state) state.screens.settlements

@@ -91,9 +91,7 @@ let rows ~ctx ~today period windows =
         label = label period window;
         now = contains window today;
         count = List.length entries;
-        total =
-          (if entries = [] then None
-           else Option.bind roles (fun roles -> Act.expense_total roles entries));
+        total = (if entries = [] then None else Act.expense_total roles entries);
       })
 
 let index_of rows reference =

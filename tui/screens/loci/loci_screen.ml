@@ -94,12 +94,9 @@ let suspense_refusal = function
 
 let refusal_for ~route (env : Screen.env) locus =
   if locus = suspense_locus then Some (suspense_refusal route)
-  else
-    match Lazy.force env.accounting_roles with
-    | Error why -> Some (tr "Accounting roles unavailable: " ^ why)
-    | Ok roles when List.mem_assoc locus roles ->
-        Some (tr "This Locus already has an accounting role; roles are never replaced.")
-    | Ok _ -> None
+  else if List.mem_assoc locus env.accounting_roles then
+    Some (tr "This Locus already has an accounting role; roles are never replaced.")
+  else None
 
 let role_refusal (env : Screen.env) locus = refusal_for ~route:Role_assignment env locus
 let admission_refusal (env : Screen.env) token = refusal_for ~route:Admission env token
@@ -178,9 +175,8 @@ let label_review_form locus label help =
 
 (* Assign one role; the Shell refuses if the roles changed since this event. *)
 let save_role (env : Screen.env) locus role =
-  Result.map
-    (fun expected -> Screen.Save_roles { expected; next = Roles.set_role expected locus role })
-    (Lazy.force env.accounting_roles)
+  let expected = env.accounting_roles in
+  Screen.Save_roles { expected; next = Roles.set_role expected locus role }
 
 let submit (env : Screen.env) (geometry : Screen.geometry) t submitted =
   let keep editor notice =
@@ -209,10 +205,7 @@ let submit (env : Screen.env) (geometry : Screen.geometry) t submitted =
       match (role_refusal env locus, role) with
       | Some why, _ -> keep (fun f -> Role f) why
       | None, None -> keep (fun f -> Role f) (tr "Choose an accounting role.")
-      | None, Some _ -> (
-          match save_role env locus role with
-          | Error why -> keep (fun f -> Role f) why
-          | Ok request -> ({ t with editor = Some (Role submitted) }, request)))
+      | None, Some _ -> ({ t with editor = Some (Role submitted) }, save_role env locus role))
   | Some (Label _) ->
       let locus = Form.payload submitted in
       let text id = Option.value ~default:"" (Form.get_text submitted id) |> String.trim in
@@ -358,7 +351,7 @@ let published (env : Screen.env) _geometry outcome t =
           match
             match admission_refusal env locus with
             | Some why -> Error why
-            | None -> save_role env locus (Some role)
+            | None -> Ok (save_role env locus (Some role))
           with
           | Ok request -> (t, request)
           | Error why -> (t, Screen.Message ("Locus admitted; accounting role not saved: " ^ why))))
@@ -392,14 +385,9 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
   let width_of = geometry.width_of in
   let book = env.book in
   let loci = admitted_loci book in
-  let roles = Lazy.force env.accounting_roles in
-  let role_of locus = match roles with Ok roles -> List.assoc_opt locus roles | Error _ -> None in
-  (* An unreadable file is "?", never "unassigned". *)
+  let role_of locus = List.assoc_opt locus env.accounting_roles in
   let role_tag locus =
-    match (roles, role_of locus) with
-    | Error _, _ -> "[?]"
-    | Ok _, Some r -> "[" ^ Roles.role_label r ^ "]"
-    | Ok _, None -> "[--]"
+    match role_of locus with Some r -> "[" ^ Roles.role_label r ^ "]" | None -> "[--]"
   in
   (* Columns fit the list pane; when the label would be squeezed out the role
      column yields first, since the detail pane names the role. *)
@@ -456,10 +444,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
         let label = B.label book locus in
         let role_opt = role_of locus in
         let role_str =
-          match (roles, role_opt) with
-          | Error why, _ -> "Unavailable (" ^ why ^ ")"
-          | Ok _, None -> "None / Unassigned"
-          | Ok _, Some r -> Roles.role_label r
+          match role_opt with None -> "None / Unassigned" | Some r -> Roles.role_label r
         in
         let balances = balances_of locus in
         [
@@ -473,14 +458,13 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
         @ [
             "";
             "Role Impact:";
-            (match (roles, role_opt) with
-            | Error why, _ -> "  " ^ why
-            | Ok _, Some Roles.Asset -> "  Asset: Positive balance represents owned resources."
-            | Ok _, Some Roles.Liability -> "  Liability: Positive balance represents debt owed."
-            | Ok _, Some Roles.Equity -> "  Equity: Capital / opening balance baseline."
-            | Ok _, Some Roles.Income -> "  Income: Inflow tracking for reporting."
-            | Ok _, Some Roles.Expense -> "  Expense: Outflow tracking for reporting."
-            | Ok _, None -> "  Unassigned: excluded from role summaries; press r to assign one.");
+            (match role_opt with
+            | Some Roles.Asset -> "  Asset: Positive balance represents owned resources."
+            | Some Roles.Liability -> "  Liability: Positive balance represents debt owed."
+            | Some Roles.Equity -> "  Equity: Capital / opening balance baseline."
+            | Some Roles.Income -> "  Income: Inflow tracking for reporting."
+            | Some Roles.Expense -> "  Expense: Outflow tracking for reporting."
+            | None -> "  Unassigned: excluded from role summaries; press r to assign one.");
             "";
             "Actions:";
             "  n : Admit new Locus token";
@@ -492,11 +476,10 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
   Panel.split ~width_of ~width ~height ~left_focused:(not is_detail)
     ~left_title:
       (match
-         match roles with
-         | Ok roles ->
-             List.length
-               (List.filter (fun l -> l <> suspense_locus && not (List.mem_assoc l roles)) loci)
-         | Error _ -> 0
+         List.length
+           (List.filter
+              (fun l -> l <> suspense_locus && not (List.mem_assoc l env.accounting_roles))
+              loci)
        with
       | 0 -> Printf.sprintf "Manage Loci (%d admitted)" (List.length loci)
       | n -> Printf.sprintf "Manage Loci (%d, %d without role)" (List.length loci) n)

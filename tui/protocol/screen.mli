@@ -40,11 +40,9 @@ type env = {
   new_id : unit -> string;  (** Fresh identity for a new entry or plan. *)
   measure : string;  (** Shell-selected Measure. *)
   today : string;
-  accounting_roles : ((string * Locus_roles.role) list, string) result Lazy.t;
-      (** Explicit Locus roles from accounting-roles.tsv; none when absent, an error
-          (never an empty list) when the file is unreadable or malformed. *)
-  attention : (Attention_data.t, string) result;
-      (** Attention memory loaded by the Shell; an error is never an empty list. *)
+  accounting_roles : (string * Locus_roles.role) list;
+      (** The book's explicit Locus roles, admitted with it; a Locus without one has none. *)
+  attention : Attention_data.t;  (** The book's Attention, admitted with it. *)
   settlements : (Settlement_data.t, string) result;
       (** Settlement commitments loaded by the Shell; an error is never empty. *)
   blocked : bool;  (** Writes stopped after a conflict, recovery or uncertain outcome. *)

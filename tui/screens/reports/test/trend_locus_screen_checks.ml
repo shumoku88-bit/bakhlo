@@ -677,9 +677,8 @@ let () =
     ((point_of (get (S.result long_env settled)) 0).R.start_day = "2026-08-01")
     "changed boundaries are projected again";
   require
-    (Result.is_error
-       (S.result { env with Screen.accounting_roles = lazy (Error "unreadable") } settled))
-    "a changed roles file is projected again";
+    (S.result { env with Screen.accounting_roles = [] } settled <> S.result env settled)
+    "changed roles are projected again";
 
   (* Leaving and modal closing. *)
   let _, quit_request = press env owned (`ASCII 'q') in
@@ -695,22 +694,13 @@ let () =
       ~book ~measure:"jpy" ~today:"2040-01-01" ()
   in
   require (Result.is_error (S.result broken owned)) "a config read failure clears the chart";
-  (* An unreadable accounting-roles.tsv refuses the default series by name; an
-     explicit series does not need the roles. *)
-  let roles_broken =
-    { env with Screen.accounting_roles = lazy (Error "accounting-roles.tsv is malformed") }
-  in
-  (match S.result roles_broken owned with
-  | Ok _ -> failwith "a roles read failure must clear the default chart"
-  | Error why ->
-      require (contains why "accounting-roles.tsv") "the refusal names accounting-roles.tsv");
-  let roles_picker = after roles_broken owned (`ASCII 'a') in
-  let roles_explicit =
-    after roles_broken (press_n roles_broken roles_picker (`Arrow `Down) 3) `Enter
-  in
+  (* An explicit series does not need the roles. *)
+  let no_roles = { env with Screen.accounting_roles = [] } in
+  let roles_picker = after no_roles owned (`ASCII 'a') in
+  let roles_explicit = after no_roles (press_n no_roles roles_picker (`Arrow `Down) 3) `Enter in
   require
-    (Result.is_ok (S.result roles_broken roles_explicit))
-    "an explicit series does not need the roles file";
+    (Result.is_ok (S.result no_roles roles_explicit))
+    "an explicit series does not need the roles";
   let malformed =
     Screen.env_for_checks
       ~config:(fun _ -> Ok (Some "not a preset"))
