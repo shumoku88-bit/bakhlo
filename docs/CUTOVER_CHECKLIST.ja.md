@@ -165,7 +165,7 @@ Attention／Settlement／Exchange → 残るReports／設定／対象内の出�
 ## 根拠の入口
 
 - Bakhlo：[`Daily_book API`](../sexp/daily_book.mli)、[`Shell`](../tui/shell)、
-  [`保存`](../store/daily_file.ml)、[`回帰`](../tui/scenarios)、[`TUI guide`](../tui/README.md)。
+  [`保存`](../store/book_file.ml)、[`回帰`](../tui/scenarios)、[`TUI guide`](../tui/README.md)。
 - LOAM：[`TUI契約`](../../loam/docs/TUI.md)、[`非予算UI進捗`](../../loam/docs/TUI_NON_BUDGET_WORKLIST.md)、
   [`Commands`](../../loam/Loam/Tui/HomeCommandPalette.lean)、
   [`Daily Pace設定`](../../loam/Loam/Config/DailyPaceConfig.lean)、

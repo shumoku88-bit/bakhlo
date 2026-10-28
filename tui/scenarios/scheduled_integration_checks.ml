@@ -950,7 +950,7 @@ let continuation_checks ~width_of ~directory home =
   let pay = C.submit (Interaction_check_fixture.pay_selected base) in
   let tx =
     match
-      S.handle ~new_id:Daily_file.new_id ~book:source_book ~base_revision:pay.session.revision
+      S.handle ~new_id:Book_file.new_id ~book:source_book ~base_revision:pay.session.revision
         ~blocked:false ~dimensions:(140, 40) ~width_of (Option.get pay.record)
         (`Key (`Enter, []))
     with

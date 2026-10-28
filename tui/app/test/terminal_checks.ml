@@ -1,7 +1,7 @@
 (* Notty adapter checks: cell geometry, colours, overlay placement, feedback visibility
    and event translation over the synthetic scenario states (ported from Bonsai). *)
 open Notty_render
-module F = Daily_file
+module F = Book_file
 module X = Shell_dispatch
 module H = Shell_input
 module O = Ui_render

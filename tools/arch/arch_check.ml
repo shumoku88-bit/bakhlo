@@ -86,7 +86,7 @@ let forbidden_tokens =
     "Sys.file_exists";
     "Sys.readdir";
     "Filename.temp_file";
-    "Daily_file";
+    "Book_file";
     "Daily_actions";
   ]
 

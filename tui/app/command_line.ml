@@ -1,6 +1,6 @@
 (* Command-line entry shared by the terminal adapters: interactive TUI, checks and
    checked copies. [run] opens the TUI on a household book. *)
-module F = Daily_file
+module F = Book_file
 
 let main ~run =
   try

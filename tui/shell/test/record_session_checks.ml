@@ -31,7 +31,7 @@ let self_check ~width_of () =
   let before = Bakhlo_household.Daily_txt.text book in
   let dimensions = (100, 30) and base_revision = "synthetic-generation" in
   let handle ?(book = book) ?(blocked = false) ?(dimensions = dimensions) state input =
-    S.handle ~new_id:Daily_file.new_id ~book ~base_revision ~blocked ~dimensions ~width_of state
+    S.handle ~new_id:Book_file.new_id ~book ~base_revision ~blocked ~dimensions ~width_of state
       input
   in
   let update ?book ?blocked ?dimensions state input =
@@ -218,7 +218,7 @@ let self_check ~width_of () =
   in
   require (not (contains (text shifted "2") "keeps the date")) "edit-focus-skips-kept-date";
   let edit_review =
-    S.preview ~new_id:Daily_file.new_id ~book:edit_book ~base_revision ~blocked:false edit
+    S.preview ~new_id:Book_file.new_id ~book:edit_book ~base_revision ~blocked:false edit
   in
   (match handle ~book:edit_book edit_review (`Key (`Enter, [])) with
   | S.Publish (A.Entry_tx next, _, _) ->
@@ -229,7 +229,7 @@ let self_check ~width_of () =
   let plan = List.hd (B.plans book) in
   let completion = get (S.of_plan ~day:"2026-10-11" ~book plan) in
   let completion =
-    S.preview ~new_id:Daily_file.new_id ~book ~base_revision ~blocked:false completion
+    S.preview ~new_id:Book_file.new_id ~book ~base_revision ~blocked:false completion
   in
   (match handle completion (`Key (`Enter, [])) with
   | S.Publish (A.Entry_tx next, _, _) ->
@@ -413,7 +413,7 @@ let self_check ~width_of () =
   let keyed_book = get (B.put_entry book ~replace:false keyed ~plan:(Some plan.id)) in
   let keyed_editor = get (S.of_edit ~book:keyed_book keyed) in
   let keyed_review =
-    S.preview ~new_id:Daily_file.new_id ~book:keyed_book ~base_revision ~blocked:false keyed_editor
+    S.preview ~new_id:Book_file.new_id ~book:keyed_book ~base_revision ~blocked:false keyed_editor
   in
   (match handle ~book:keyed_book keyed_review (`Key (`Enter, [])) with
   | S.Publish (A.Entry_tx next, _, _) ->
@@ -432,7 +432,7 @@ let self_check ~width_of () =
     List.fold_left (fun t _ -> key t `Backspace) t (List.init 20 Fun.id) |> fun t -> text t "bank"
   in
   let relocated_review =
-    S.preview ~new_id:Daily_file.new_id ~book:keyed_book ~base_revision ~blocked:false relocated
+    S.preview ~new_id:Book_file.new_id ~book:keyed_book ~base_revision ~blocked:false relocated
   in
   (match handle ~book:keyed_book relocated_review (`Key (`Enter, [])) with
   | S.Publish (A.Entry_tx next, _, _) ->
@@ -555,7 +555,7 @@ let self_check ~width_of () =
     "ctrl-u-enabled-returns-to-draft-with-notice";
   let s_create () = full (S.create ~book:s_book ~day:"2026-10-11" ~measure:"jpy" ()) in
   let s_handle ?(blocked = false) ?(dimensions = dimensions) state input =
-    S.handle ~new_id:Daily_file.new_id ~book:s_book ~base_revision ~blocked ~dimensions ~width_of
+    S.handle ~new_id:Book_file.new_id ~book:s_book ~base_revision ~blocked ~dimensions ~width_of
       state input
   in
   let s_update ?blocked ?dimensions state input =
@@ -637,8 +637,7 @@ let self_check ~width_of () =
       require (contains plan_editor "Scheduled / Edit") "plan-edit-title";
       require (S.border_intent plan_editor = `Change) "plan-edit-border-intent";
       let plan_edit_review =
-        S.preview ~new_id:Daily_file.new_id ~book:plan_book ~base_revision ~blocked:false
-          plan_editor
+        S.preview ~new_id:Book_file.new_id ~book:plan_book ~base_revision ~blocked:false plan_editor
       in
       (match handle ~book:plan_book plan_edit_review (`Key (`Enter, [])) with
       | S.Publish (A.Plan_tx { plan = edited_p; replace = edit_replace }, _, _) ->

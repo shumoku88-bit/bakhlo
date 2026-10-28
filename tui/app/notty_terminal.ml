@@ -4,7 +4,7 @@ module Term = Notty_unix.Term
 module C = Shell_state
 module H = Shell_input
 module R = Shell_view
-module F = Daily_file
+module F = Book_file
 module P = Ui_preferences
 module N = Notty_render
 

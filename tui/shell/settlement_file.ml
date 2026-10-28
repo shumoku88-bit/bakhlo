@@ -14,9 +14,9 @@ let load_file path =
         true
       with Unix.Unix_error (Unix.ENOENT, _, _) -> false
     in
-    if exists then of_string (Daily_file.read path) else Ok empty
+    if exists then of_string (Book_file.read path) else Ok empty
   with
-  | Daily_file.Refused why | Sys_error why -> Error why
+  | Book_file.Refused why | Sys_error why -> Error why
   | Unix.Unix_error (err, fn, arg) ->
       Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)
 
@@ -39,7 +39,7 @@ let serialize_row r =
 
 let save_file path ~expected t =
   try
-    Daily_file.with_writer path (fun () ->
+    Book_file.with_writer path (fun () ->
         match load_file path with
         | Error why -> Error why
         | Ok current when current <> expected ->
@@ -54,9 +54,9 @@ let save_file path ~expected t =
             | Ok decoded when decoded <> t ->
                 Error "Settlement serialization would change evidence."
             | Ok _ ->
-                Daily_file.write_atomic path content;
+                Book_file.write_atomic path content;
                 Ok ()))
   with
-  | Daily_file.Refused why | Sys_error why -> Error why
+  | Book_file.Refused why | Sys_error why -> Error why
   | Unix.Unix_error (err, fn, arg) ->
       Error (Printf.sprintf "%s (%s %s)" (Unix.error_message err) fn arg)

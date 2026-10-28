@@ -89,7 +89,7 @@ Dune enforces declared library use. `tools/arch/arch_check.ml` additionally
 rejects: Core depending on TUI libraries; a library depending on a higher or
 sibling layer (screen to screen, screen to Shell, kit to anything); `bakhlo.store`
 or `unix` below the Shell; Notty outside `tui/app`; file access or writer
-tokens (`Durable_append`, `open_out`, `Sys.rename`, `Daily_file`,
+tokens (`Durable_append`, `open_out`, `Sys.rename`, `Book_file`,
 `Daily_actions`, …) in kit/book/protocol/screens; the Shell mentioning a
 migrated screen's form ids, field ids or configuration files; sources in a
 directory without a Dune stanza or outside a known layer; and `*_checks`

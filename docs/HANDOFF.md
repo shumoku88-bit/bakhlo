@@ -168,7 +168,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   `household/daily_txt.ml(i)`: the roles
   and Attention sections in their text formats, and fixture helpers.
 - `book_txt/book_txt.ml(i)`: the common `book.txt` format (read, admit, print, balance).
-- `store/daily_file.ml`: the single writer of `book.txt` (load, whole-file publish,
+- `store/book_file.ml`: the single writer of `book.txt` (load, whole-file publish,
   conflict and uncertain outcomes, copies).
 - `tui/`: `shell/` (state, dispatch, publication, files), `screens/<screen>/` (per-screen
   state, input, painting), `book/` (pure UI data), `protocol/screen.mli` (Shell ↔ screen
@@ -183,7 +183,7 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   research, capability ledger, LOAM core inventory, references, ADR 0003, and
   VERIFICATION entries before 2026-10-20. Links to them are permalinks at that commit.
 - Tests: `test/` (Core; `daily_book_oracle_tests.ml`, `book_txt_tests.ml`,
-  `daily_file_tests.ml` guard the storage work) and the TUI self-check.
+  `book_file_tests.ml` guard the storage work) and the TUI self-check.
 
 ## Verify and continue
 

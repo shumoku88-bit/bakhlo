@@ -2,7 +2,7 @@ module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
 module O = Ui_render
 module Form = Ui_form
-module F = Daily_file
+module F = Book_file
 
 type details = { destination : string; measure : string; scale : int }
 type phase = Editing of Form.t | Reviewing of Form.t * Form.t * details

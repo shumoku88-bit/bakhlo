@@ -99,15 +99,15 @@ revision cannot be replaced independently of the writer.
 
   $ store_client() { ocamlfind ocamlc -package base,zarith,sexplib0,unix -I ../store/.bakhlo_store.objs/byte -I ../sexp/.bakhlo_household.objs/byte -I ../book_txt/.bakhlo_book_txt.objs/byte -I ../lib/.bakhlo_domain.objs/byte -c "$@"; }
   $ cat >session_reader.ml <<'EOF'
-  > let facts (session : Daily_file.t) =
+  > let facts (session : Book_file.t) =
   >   (session.path, session.revision, session.book, session.sidecars)
-  > let reload = Daily_file.reload
+  > let reload = Book_file.reload
   > EOF
   $ store_client session_reader.ml
   $ cat >forged_session.ml <<'EOF'
-  > let forge (session : Daily_file.t) book =
+  > let forge (session : Book_file.t) book =
   >   { session with book; path = "different-book.txt"; revision = "forged" }
   > EOF
   $ store_client forged_session.ml 2>error
   [2]
-  $ grep -qi 'private' error && grep -q 'Daily_file.t' error
+  $ grep -qi 'private' error && grep -q 'Book_file.t' error

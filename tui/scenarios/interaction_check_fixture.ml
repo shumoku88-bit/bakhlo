@@ -4,7 +4,7 @@ module H = Shell_input
 module X = Shell_dispatch
 module R = Shell_view
 module B = Bakhlo_household.Daily_book
-module F = Daily_file
+module F = Book_file
 module W = Ui_workspace
 module M = Ui_commands
 

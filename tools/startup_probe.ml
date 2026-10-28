@@ -3,7 +3,7 @@
 module D = Bakhlo_domain
 module B = Bakhlo_household.Daily_book
 module T = Bakhlo_book_txt.Book_txt
-module F = Daily_file
+module F = Book_file
 
 let get = function Ok x -> x | Error why -> failwith why
 let id = function Ok x -> x | Error _ -> failwith "invalid-id"

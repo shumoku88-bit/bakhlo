@@ -459,7 +459,7 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 - ui_render / book_display / ui_text：cell幅・枠（ui_render）、帳簿の値の表示（book_display：正確な数量・桁区切り金額・Locus候補・Actual／Scheduled／Previewの詳細行）、将来の言語カタログ入口。
 - ui_panel：一覧・詳細の共通枠、可視行数、選択追従viewport、整数overflowを避ける端移動。
   ActualとScheduledの描画・ページ送りが同じ規則を使う。対象の意味・キー割当・保存判断は持たない。
-- daily_actions / posting_draft / daily_file：既存の数量・検査・保存境界。
+- daily_actions / posting_draft / book_file：既存の数量・検査・保存境界。
 - notty_render / notty_terminal：実描画と入力adapter。会計計算は持たない。
   イベントごとに端末寸法を読み直すので、resizeとキーが古い寸法を使わない。
 

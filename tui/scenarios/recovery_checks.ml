@@ -1,7 +1,7 @@
 (* Synthetic persistence/restart checks of the whole-file book.txt store; never
    inspect household inputs. Checkpoint faults and SIGKILL are not hardware power-loss
    qualification. *)
-module F = Daily_file
+module F = Book_file
 module C = Shell_state
 module H = Shell_input
 module A = Daily_actions

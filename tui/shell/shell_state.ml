@@ -2,7 +2,7 @@
 (* English-first workspace controller. UI state never owns accounting facts. *)
 module B = Bakhlo_household.Daily_book
 module D = Bakhlo_domain
-module F = Daily_file
+module F = Book_file
 module A = Daily_actions
 module O = Ui_render
 module P = Ui_preferences
@@ -259,7 +259,7 @@ let submit state =
           state with
           record =
             Some
-              (S.preview ~new_id:Daily_file.new_id ~book:state.session.book
+              (S.preview ~new_id:Book_file.new_id ~book:state.session.book
                  ~base_revision:state.session.revision ~blocked:state.blocked record);
           record_visible = true;
         }

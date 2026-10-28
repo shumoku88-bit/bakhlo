@@ -2,7 +2,7 @@
    the previous one as .prev, a cold load always yields the saved book, interruptions
    and killed writers never yield a partial book, and nothing but book.txt is read. *)
 open Base
-module F = Daily_file
+module F = Book_file
 module B = Bakhlo_household.Daily_book
 module X = Bakhlo_household.Daily_txt
 module O = Daily_book_oracle_tests

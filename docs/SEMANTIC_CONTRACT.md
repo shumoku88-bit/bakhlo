@@ -92,7 +92,7 @@ completeness model.
 ## S7 — UI and projections do not own household meaning
 
 UI collects drafts and renders answers. The book (`Daily_book` over `Book_txt`) owns
-admission and the store (`Daily_file`) owns publication. UI must not allocate durable identity, choose canonical
+admission and the store (`Book_file`) owns publication. UI must not allocate durable identity, choose canonical
 files, implement recovery, or independently compute authoritative household facts.
 
 Exports and caches remain disposable unless separately promoted by an explicit

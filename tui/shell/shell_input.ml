@@ -23,7 +23,7 @@ let handle ?(dimensions = (80, 24)) ?(width_of = String.length) state (input : i
     | None -> Some { state with record_visible = false }
     | Some record -> (
         match
-          S.handle ~new_id:Daily_file.new_id ~book:state.session.book
+          S.handle ~new_id:Book_file.new_id ~book:state.session.book
             ~base_revision:state.session.revision ~blocked:state.blocked
             ~dimensions:(record_dimensions ~dimensions ~width_of state)
             ~width_of

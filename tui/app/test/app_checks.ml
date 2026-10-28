@@ -40,7 +40,7 @@ let () =
     (* Kept on failure for inspection; removed once everything passed. *)
     remove_tree dir
   with
-  | Daily_file.Refused why ->
+  | Book_file.Refused why ->
       prerr_endline ("self-check failed: " ^ why ^ " (synthetic files kept in " ^ dir ^ ")");
       prerr_string (Printexc.get_backtrace ());
       exit 1

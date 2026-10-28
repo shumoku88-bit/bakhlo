@@ -1,5 +1,5 @@
 module B = Bakhlo_household.Daily_book
-module F = Daily_file
+module F = Book_file
 module A = Daily_actions
 module S = Scheduled_generation_session
 module C = Shell_state
@@ -11,7 +11,7 @@ let key button = `Key (button, [])
 let text s = List.init (String.length s) (fun i -> `Key (`ASCII s.[i], []))
 
 let step ~width_of ~dims s input =
-  match S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:dims ~width_of s input with
+  match S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:dims ~width_of s input with
   | S.Updated s -> s
   | S.Closed -> raise (F.Refused "generate-session-closed")
   | S.Publish _ -> raise (F.Refused "unexpected-generate-publish")
@@ -110,7 +110,7 @@ let self_check ~width_of () =
   in
   let still_form label state =
     match
-      S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of state
+      S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of state
         (key `Escape)
     with
     | S.Closed -> ()
@@ -143,7 +143,7 @@ let self_check ~width_of () =
   let preview = step ~width_of ~dims:(80, 24) valid (key `Enter) in
   (* Default action is Cancel: Enter closes session *)
   (match
-     S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of preview
+     S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of preview
        (key `Enter)
    with
   | S.Closed -> ()
@@ -168,7 +168,7 @@ let self_check ~width_of () =
   (* Scroll to End and publish successfully *)
   let ended = step ~width_of ~dims:(80, 16) to_publish (key `End) in
   (match
-     S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(80, 16) ~width_of ended
+     S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(80, 16) ~width_of ended
        (key `Enter)
    with
   | S.Publish (plans, captured) ->
@@ -280,7 +280,7 @@ let self_check ~width_of () =
   let preview_horizon t = tap t `Enter in
   let publish t =
     match
-      S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of
+      S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of
         (feed t [ key `Tab; key `End ])
         (key `Enter)
     with
@@ -329,7 +329,7 @@ let self_check ~width_of () =
   List.iter
     (fun button ->
       match
-        S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of
+        S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of
           (next source)
           (key (`ASCII button))
       with
@@ -360,13 +360,13 @@ let self_check ~width_of () =
   (* Preset exceeding the supported calendar refuses without closing. *)
   let overflow = preview_horizon (next ~observed:"9999-12-15" (open_plan "max")) in
   (match
-     S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of overflow
+     S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of overflow
        (key `Enter)
    with
   | S.Updated _ -> ()
   | _ -> raise (F.Refused "e-horizon-overflow-must-stay"));
   (match
-     S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of overflow
+     S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of overflow
        (key `Escape)
    with
   | S.Closed -> ()
@@ -421,7 +421,7 @@ let self_check ~width_of () =
   require (days (fst retained_resolution) = [ "2026-02-28" ]) "e-preview-escape-retains-resolution";
   let prompt = preview_horizon (editor ~cadence:1 ~observed:"2026-01-31" (open_plan "month-end")) in
   (match
-     S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of prompt
+     S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of prompt
        (key `Escape)
    with
   | S.Closed -> ()
@@ -454,7 +454,7 @@ let self_check ~width_of () =
     "e-observed-day-inclusive";
   let past_preset = preview_horizon (next ~observed:"2026-10-20" (open_plan "old-20")) in
   (match
-     S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of past_preset
+     S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of past_preset
        (key `Escape)
    with
   | S.Closed -> ()
@@ -463,7 +463,7 @@ let self_check ~width_of () =
   (* 13. Hidden preview safety: blocked, tiny, review-to-end. *)
   let blocked =
     match
-      S.handle ~new_id:Daily_file.new_id ~blocked:true ~dimensions:(80, 24) ~width_of
+      S.handle ~new_id:Book_file.new_id ~blocked:true ~dimensions:(80, 24) ~width_of
         (tap (preview_horizon (next source)) `Tab)
         (key `Enter)
     with
@@ -472,7 +472,7 @@ let self_check ~width_of () =
   in
   let blocked_pub =
     match
-      S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of
+      S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(80, 24) ~width_of
         (press blocked `End) (key `Enter)
     with
     | S.Publish (plans, _) -> plans
@@ -483,14 +483,14 @@ let self_check ~width_of () =
   let to_publish = tap big `Tab in
   let tiny =
     match
-      S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(32, 9) ~width_of to_publish
+      S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(32, 9) ~width_of to_publish
         (key `Enter)
     with
     | S.Updated t -> t
     | _ -> raise (F.Refused "e-tiny-must-not-publish")
   in
   (match
-     S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(32, 9) ~width_of tiny
+     S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(32, 9) ~width_of tiny
        (key `Enter)
    with
   | S.Updated _ -> ()
@@ -498,7 +498,7 @@ let self_check ~width_of () =
   let unreviewed = press ~dims:(80, 16) to_publish `Home in
   let unreviewed =
     match
-      S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(80, 16) ~width_of unreviewed
+      S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(80, 16) ~width_of unreviewed
         (key `Enter)
     with
     | S.Updated t -> t
@@ -506,7 +506,7 @@ let self_check ~width_of () =
   in
   let ended = press ~dims:(80, 16) unreviewed `End in
   (match
-     S.handle ~new_id:Daily_file.new_id ~blocked:false ~dimensions:(80, 16) ~width_of ended
+     S.handle ~new_id:Book_file.new_id ~blocked:false ~dimensions:(80, 16) ~width_of ended
        (key `Enter)
    with
   | S.Publish (plans, _) ->

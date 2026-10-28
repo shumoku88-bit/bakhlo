@@ -100,7 +100,7 @@ whole on every save with a save target of ≤100 ms. A change to its format need
 user-approved migration of `../bakhlo-data` (Principles).
 
 - One book file, `book.txt`: every save writes a temporary file, flushes it, keeps the current
-  file as `.prev`, renames and flushes the directory (`Daily_file.publish`). No append log,
+  file as `.prev`, renames and flushes the directory (`Book_file.publish`). No append log,
   Records, annual files or SQLite; long-term history is Git's job. The session keeps the
   in-memory book, whose state is the admitted book.txt (`Daily_book` over
   `Book_txt.book`): a save checks and prints only what it changes. `Book_txt.change`
