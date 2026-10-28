@@ -21,8 +21,11 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   Synthetic probe, one run each, 109,500 entries, before / after the posting change:
   `Book.of_txt` 154.5 / 119.1 ms, cold load 1,142 / 1,026 ms (mean of 3), live book 104.1 /
   94.9 MiB; saves unchanged (184 / 181 ms, I/O-bound). Single runs: noise is likely.
-- Each commit: `./tools/check`, self-check (48), format passed. CI for `a74b1de` passed
-  ([run 40674284884](https://github.com/shumoku88-bit/bakhlo/actions/runs/40674284884)).
+- Each commit: `./tools/check`, self-check (48), format passed. Matching CI passed for every
+  step: `1e8276b` ([run 40670846157](https://github.com/shumoku88-bit/bakhlo/actions/runs/40670846157)),
+  `a74b1de` ([run 40674284884](https://github.com/shumoku88-bit/bakhlo/actions/runs/40674284884)),
+  `57d1fdc` ([run 40674711160](https://github.com/shumoku88-bit/bakhlo/actions/runs/40674711160)),
+  `abcb39e` ([run 40675435059](https://github.com/shumoku88-bit/bakhlo/actions/runs/40675435059)).
   **Latest-data paired comparison not executed**; no household access.
 
 ## Admitting a Locus saves it and its role together (2026-10-28)
