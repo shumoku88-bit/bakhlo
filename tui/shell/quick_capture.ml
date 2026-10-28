@@ -19,11 +19,11 @@ let history book measure =
       let memo = Option.value ~default:"" e.memo in
       if
         e.reversal_of <> None || List.mem e.id reversed || memo = ""
-        || not (List.for_all (fun p -> A.mstr (D.Effect.measure p) = measure) e.effects)
+        || not (List.for_all (fun (p : B.posting) -> p.B.measure = measure) e.effects)
       then None
       else
         let postings =
-          List.map (fun p -> { locus = A.lstr (D.Effect.locus p); signed = A.quanta p }) e.effects
+          List.map (fun (p : B.posting) -> { locus = p.B.locus; signed = p.B.amount }) e.effects
           |> List.stable_sort (fun a b ->
               match compare a.locus b.locus with 0 -> Z.compare a.signed b.signed | c -> c)
         in

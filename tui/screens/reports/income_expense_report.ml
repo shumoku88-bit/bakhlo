@@ -92,10 +92,10 @@ let compute_report ~book ~roles ~period =
           (fun (e : B.entry) ->
             let is_sched = is_scheduled_payment e in
             List.iter
-              (fun eff ->
-                if A.mstr (D.Effect.measure eff) = measure then
-                  let locus = A.lstr (D.Effect.locus eff) in
-                  let quanta = A.quanta eff in
+              (fun (eff : B.posting) ->
+                if eff.B.measure = measure then
+                  let locus = eff.B.locus in
+                  let quanta = eff.B.amount in
                   match List.assoc_opt locus roles with
                   | Some Roles.Income ->
                       (* Credit is negative in raw effects; positive income is -quanta *)

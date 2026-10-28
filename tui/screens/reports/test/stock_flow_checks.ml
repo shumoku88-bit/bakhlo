@@ -11,26 +11,9 @@ let book_of_text text =
   match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
 
 let id_of = function Ok value -> value | Error _ -> failwith "synthetic identifier"
-
-let posting locus amount =
-  D.Effect.create ~key:None
-    ~locus:(id_of (D.Identifier.Locus.of_string locus))
-    ~measure:(id_of (D.Identifier.Measure.of_string "jpy"))
-    ~quantity:(D.Quantity.of_quanta amount)
-
-let posting_in locus measure amount =
-  D.Effect.create ~key:None
-    ~locus:(id_of (D.Identifier.Locus.of_string locus))
-    ~measure:(id_of (D.Identifier.Measure.of_string measure))
-    ~quantity:(D.Quantity.of_quanta amount)
-
-let posting_keyed locus measure amount key =
-  D.Effect.create
-    ~key:(Some (id_of (D.Identifier.Effect_key.of_string key)))
-    ~locus:(id_of (D.Identifier.Locus.of_string locus))
-    ~measure:(id_of (D.Identifier.Measure.of_string measure))
-    ~quantity:(D.Quantity.of_quanta amount)
-
+let posting locus amount = { B.key = None; locus; measure = "jpy"; amount }
+let posting_in locus measure amount = { B.key = None; locus; measure; amount }
+let posting_keyed locus measure amount key = { B.key = Some key; locus; measure; amount }
 let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
 let z = Z.of_int

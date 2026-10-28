@@ -50,18 +50,13 @@ let entry_lines book (entry : B.entry) =
   @ List.concat
       (List.mapi
          (fun n p ->
-           let locus = A.lstr (D.Effect.locus p) and measure = A.mstr (D.Effect.measure p) in
+           let locus = p.B.locus and measure = p.B.measure in
            [
              Ui_text.format_message "Posting %d: %s [%s]" (n + 1)
                (visible (B.label book locus))
                (visible locus);
-             ("  "
-             ^ signed book measure (A.quanta p)
-             ^
-             match D.Effect.key p with
-             | None -> ""
-             | Some key -> " / " ^ tr "Key:" ^ " " ^ visible (D.Identifier.Effect_key.to_string key)
-             );
+             ("  " ^ signed book measure p.B.amount
+             ^ match p.B.key with None -> "" | Some key -> " / " ^ tr "Key:" ^ " " ^ visible key);
            ])
          entry.effects)
   @ [
@@ -129,11 +124,11 @@ let preview_lines book (transaction : A.transaction) =
   match transaction.entry.effects with
   | [] -> []
   | first :: _ ->
-      let measure = A.mstr (D.Effect.measure first) in
+      let measure = first.B.measure in
       let total =
         List.fold_left
           (fun n posting ->
-            let value = A.quanta posting in
+            let value = posting.B.amount in
             if Z.sign value > 0 then Z.add n value else n)
           Z.zero transaction.entry.effects
       in

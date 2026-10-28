@@ -97,7 +97,8 @@ let self_check ~width_of () =
   in
   require (tx.entry.memo = Some "q 食事") "publication-preserves-description";
   require
-    (List.map Draft.quanta tx.entry.effects = [ Z.of_int (-100); Z.of_int 100 ])
+    (List.map (fun (p : Bakhlo_household.Book.posting) -> p.amount) tx.entry.effects
+    = [ Z.of_int (-100); Z.of_int 100 ])
     "signed-conservation";
   (* Selecting an action wraps in either direction without changing the reviewed
      payload. Edit and Cancel remain available while publication is blocked. *)
@@ -139,7 +140,7 @@ let self_check ~width_of () =
   (match handle matched (`Key (`Enter, [])) with
   | S.Publish (Draft.Entry_tx selected, _, _) ->
       require
-        (Draft.lstr (D.Effect.locus (List.hd selected.entry.effects)) = "wallet")
+        ((List.hd selected.entry.effects).Bakhlo_household.Book.locus = "wallet")
         "search-accepts-exact-stored-id"
   | _ -> failwith "filtered-locus-acceptance");
   ignore (get (B.put_entry book ~replace:tx.replace tx.entry ~plan:tx.plan));
@@ -185,7 +186,8 @@ let self_check ~width_of () =
   (match handle calculated (`Key (`Enter, [])) with
   | S.Publish (Draft.Entry_tx tx, _, _) ->
       require
-        (List.map Draft.quanta tx.entry.effects = [ Z.of_int (-400); Z.of_int 400 ])
+        (List.map (fun (p : Bakhlo_household.Book.posting) -> p.amount) tx.entry.effects
+        = [ Z.of_int (-400); Z.of_int 400 ])
         "calculator-record-publishes-exact-quanta"
   | _ -> failwith "calculator-record-review-refused");
   let invalid = prepare ~amount:"500/0" () |> fun t -> key t `Enter in
@@ -202,7 +204,11 @@ let self_check ~width_of () =
   (match handle huge_review (`Key (`Enter, [])) with
   | S.Publish (Draft.Entry_tx tx, _, _) ->
       require
-        (Z.equal (List.nth (List.map Draft.quanta tx.entry.effects) 1) (Z.of_string huge))
+        (Z.equal
+           (List.nth
+              (List.map (fun (p : Bakhlo_household.Book.posting) -> p.amount) tx.entry.effects)
+              1)
+           (Z.of_string huge))
         "huge-exact-quantity"
   | _ -> failwith "huge-review-is-not-partial-number");
   let edit_book = get (B.put_entry book ~replace:false tx.entry ~plan:None) in
@@ -400,16 +406,7 @@ let self_check ~width_of () =
       id = "keyed-edit";
       effects =
         List.mapi
-          (fun n posting ->
-            D.Effect.create
-              ~key:
-                (Some
-                   (get
-                      (match D.Identifier.Effect_key.of_string ("key-" ^ string_of_int n) with
-                      | Ok key -> Ok key
-                      | Error _ -> Error "synthetic-key")))
-              ~locus:(D.Effect.locus posting) ~measure:(D.Effect.measure posting)
-              ~quantity:(D.Effect.quantity posting))
+          (fun n (posting : B.posting) -> { posting with key = Some ("key-" ^ string_of_int n) })
           tx.entry.effects;
     }
   in
@@ -439,12 +436,12 @@ let self_check ~width_of () =
   in
   (match handle ~book:keyed_book relocated_review (`Key (`Enter, [])) with
   | S.Publish (Draft.Entry_tx next, _, _) ->
-      let keys = List.map D.Effect.key next.entry.effects in
+      let keys = List.map (fun (p : B.posting) -> p.key) next.entry.effects in
       require
         (next.entry.id = keyed.id
         && List.nth keys 0 = None
-        && List.nth keys 1 = D.Effect.key (List.nth keyed.effects 1)
-        && Draft.lstr (D.Effect.locus (List.hd next.entry.effects)) = "bank")
+        && List.nth keys 1 = (List.nth keyed.effects 1).key
+        && (List.hd next.entry.effects).Bakhlo_household.Book.locus = "bank")
         "edit-locus-change-drops-only-its-key";
       let edited_book = get (B.put_entry keyed_book ~replace:true next.entry ~plan:next.plan) in
       require

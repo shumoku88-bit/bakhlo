@@ -125,13 +125,7 @@ let submit_editing (env : Screen.env) submitted =
                   refuse
                     (Printf.sprintf "Locus '%s' is not admitted." (String.concat ", " unapproved))
                 else
-                  let leg key locus measure quanta =
-                    D.Effect.create
-                      ~key:(Some (Result.get_ok (D.Identifier.Effect_key.of_string key)))
-                      ~locus:(Result.get_ok (D.Identifier.Locus.of_string locus))
-                      ~measure:(Result.get_ok (D.Identifier.Measure.of_string measure))
-                      ~quantity:(D.Quantity.of_quanta quanta)
-                  in
+                  let leg key locus measure amount = { B.key = Some key; locus; measure; amount } in
                   let memo = match text "memo" with "" -> None | m -> Some m in
                   let entry =
                     {

@@ -53,12 +53,12 @@ let scan_suspense (book : B.t) : scan option =
     (fun (entry : B.entry) ->
       let touched = ref false in
       List.iter
-        (fun (posting : D.Effect.t) ->
-          if A.lstr (D.Effect.locus posting) = suspense_locus then begin
+        (fun (posting : B.posting) ->
+          if posting.B.locus = suspense_locus then begin
             touched := true;
-            let measure = A.mstr (D.Effect.measure posting) in
+            let measure = posting.B.measure in
             let prior = Option.value ~default:Z.zero (Hashtbl.find_opt nets measure) in
-            Hashtbl.replace nets measure (Z.add prior (A.quanta posting))
+            Hashtbl.replace nets measure (Z.add prior posting.B.amount)
           end)
         entry.effects;
       if !touched then begin

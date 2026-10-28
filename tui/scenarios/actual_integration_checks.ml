@@ -3,10 +3,7 @@ open Interaction_check_fixture
 
 let actual_browsing_checks ~width_of ~directory home =
   let posting ?(measure = "jpy") locus quanta =
-    D.Effect.create ~key:None
-      ~locus:(get_id (D.Identifier.Locus.of_string locus))
-      ~measure:(get_id (D.Identifier.Measure.of_string measure))
-      ~quantity:(D.Quantity.of_quanta quanta)
+    { Bakhlo_household.Book.key = None; locus; measure; amount = quanta }
   in
   let huge = Z.of_string (String.make 70 '9') in
   let entry n : B.entry =
@@ -508,7 +505,8 @@ let actual_browsing_checks ~width_of ~directory home =
     | [ e ] ->
         e.day = (entry 16).day
         && e.memo = Some "English UI / 日本語のメモ"
-        && List.map Draft.quanta e.effects = [ Z.of_int (-37); Z.of_int 37 ]
+        && List.map (fun (p : Bakhlo_household.Book.posting) -> p.amount) e.effects
+           = [ Z.of_int (-37); Z.of_int 37 ]
     | _ -> false)
     "selected-day-record-cold-retains-route-date-and-exact-postings";
   let back = key ~width_of saved (`ASCII 'q') in
@@ -607,7 +605,7 @@ let actual_browsing_checks ~width_of ~directory home =
     && corrected.effects = (entry 16).effects)
     "actual-correction-cold-retains-id-date-description-and-postings";
   (* LOAM Correction may also change a posting's Locus under the same ID. *)
-  let first_locus (e : B.entry) = Draft.lstr (D.Effect.locus (List.hd e.effects)) in
+  let first_locus (e : B.entry) = (List.hd e.effects).Bakhlo_household.Book.locus in
   let target = if first_locus corrected = "bank" then "wallet" else "bank" in
   let relocating = key ~width_of published (`ASCII 'c') in
   let relocating = key ~width_of (key ~width_of relocating `Tab) `Tab in
@@ -631,11 +629,12 @@ let reversal_checks ~width_of ~directory home =
   let directory = directory ^ "/reversal" in
   Unix.mkdir directory 0o700;
   let make_effect locus quantity =
-    D.Effect.create
-      ~key:(Some (get_id (D.Identifier.Effect_key.of_string ("reverse-" ^ locus))))
-      ~locus:(get_id (D.Identifier.Locus.of_string locus))
-      ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-      ~quantity:(D.Quantity.of_quanta (Z.of_int quantity))
+    {
+      Bakhlo_household.Book.key = Some ("reverse-" ^ locus);
+      locus;
+      measure = "jpy";
+      amount = Z.of_int quantity;
+    }
   in
   let target : B.entry =
     {
@@ -780,10 +779,7 @@ let reversal_checks ~width_of ~directory home =
   unchanged "reversal-failed-storage-keeps-original";
   let large = Z.of_string (String.make 225 '9' ^ "03") in
   let eur_effect locus n =
-    D.Effect.create ~key:None
-      ~locus:(get_id (D.Identifier.Locus.of_string locus))
-      ~measure:(get_id (D.Identifier.Measure.of_string "eur"))
-      ~quantity:(D.Quantity.of_quanta n)
+    { Bakhlo_household.Book.key = None; locus; measure = "eur"; amount = n }
   in
   let long_target =
     {
@@ -874,12 +870,12 @@ let reversal_checks ~width_of ~directory home =
     && List.length reversal.effects = List.length target.effects)
     "reversal-cold-readback-original-and-relation";
   List.iter2
-    (fun original inverse ->
+    (fun (original : B.posting) (inverse : B.posting) ->
       require
-        (D.Effect.locus original = D.Effect.locus inverse
-        && D.Effect.measure original = D.Effect.measure inverse
-        && D.Effect.key original = D.Effect.key inverse
-        && Z.equal (Draft.quanta inverse) (Z.neg (Draft.quanta original)))
+        (original.locus = inverse.locus
+        && original.measure = inverse.measure
+        && original.key = inverse.key
+        && Z.equal inverse.amount (Z.neg original.amount))
         "reversal-cold-exact-inverse-keys-coordinates")
     target.effects reversal.effects;
   let unknown_path = directory ^ "/unknown.txt" in
@@ -930,11 +926,7 @@ let reversal_checks ~width_of ~directory home =
 
 let date_correction_checks ~width_of ~directory home =
   let make_effect key locus n =
-    D.Effect.create
-      ~key:(Some (get_id (D.Identifier.Effect_key.of_string key)))
-      ~locus:(get_id (D.Identifier.Locus.of_string locus))
-      ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-      ~quantity:(D.Quantity.of_quanta (Z.of_int n))
+    { Bakhlo_household.Book.key = Some key; locus; measure = "jpy"; amount = Z.of_int n }
   in
   let target : B.entry =
     {
@@ -1445,16 +1437,18 @@ let original_amount_integration_checks ~width_of ~directory () =
       memo = None;
       effects =
         [
-          D.Effect.create
-            ~locus:(get_id (D.Identifier.Locus.of_string "wallet"))
-            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-            ~quantity:(D.Quantity.of_quanta (Z.of_int (-100)))
-            ~key:None;
-          D.Effect.create
-            ~locus:(get_id (D.Identifier.Locus.of_string "food"))
-            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-            ~quantity:(D.Quantity.of_quanta (Z.of_int 100))
-            ~key:None;
+          {
+            Bakhlo_household.Book.key = None;
+            locus = "wallet";
+            measure = "jpy";
+            amount = Z.of_int (-100);
+          };
+          {
+            Bakhlo_household.Book.key = None;
+            locus = "food";
+            measure = "jpy";
+            amount = Z.of_int 100;
+          };
         ];
       reversal_of = None;
       exchange = None;
@@ -1691,16 +1685,18 @@ let event_merchant_integration_checks ~width_of ~directory () =
       memo = Some "Peer refund";
       effects =
         [
-          D.Effect.create
-            ~locus:(get_id (D.Identifier.Locus.of_string "wallet"))
-            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-            ~quantity:(D.Quantity.of_quanta (Z.of_int 500))
-            ~key:None;
-          D.Effect.create
-            ~locus:(get_id (D.Identifier.Locus.of_string "food"))
-            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-            ~quantity:(D.Quantity.of_quanta (Z.of_int (-500)))
-            ~key:None;
+          {
+            Bakhlo_household.Book.key = None;
+            locus = "wallet";
+            measure = "jpy";
+            amount = Z.of_int 500;
+          };
+          {
+            Bakhlo_household.Book.key = None;
+            locus = "food";
+            measure = "jpy";
+            amount = Z.of_int (-500);
+          };
         ];
       reversal_of = None;
       exchange = None;
@@ -1732,16 +1728,18 @@ let event_merchant_integration_checks ~width_of ~directory () =
       memo = Some "Bakery visit";
       effects =
         [
-          D.Effect.create
-            ~locus:(get_id (D.Identifier.Locus.of_string "wallet"))
-            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-            ~quantity:(D.Quantity.of_quanta (Z.of_int (-400)))
-            ~key:None;
-          D.Effect.create
-            ~locus:(get_id (D.Identifier.Locus.of_string "food"))
-            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-            ~quantity:(D.Quantity.of_quanta (Z.of_int 400))
-            ~key:None;
+          {
+            Bakhlo_household.Book.key = None;
+            locus = "wallet";
+            measure = "jpy";
+            amount = Z.of_int (-400);
+          };
+          {
+            Bakhlo_household.Book.key = None;
+            locus = "food";
+            measure = "jpy";
+            amount = Z.of_int 400;
+          };
         ];
       reversal_of = None;
       exchange = None;
@@ -1791,16 +1789,18 @@ let event_merchant_integration_checks ~width_of ~directory () =
       memo = Some "Hardware store";
       effects =
         [
-          D.Effect.create
-            ~locus:(get_id (D.Identifier.Locus.of_string "wallet"))
-            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-            ~quantity:(D.Quantity.of_quanta (Z.of_int (-1500)))
-            ~key:None;
-          D.Effect.create
-            ~locus:(get_id (D.Identifier.Locus.of_string "food"))
-            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-            ~quantity:(D.Quantity.of_quanta (Z.of_int 1500))
-            ~key:None;
+          {
+            Bakhlo_household.Book.key = None;
+            locus = "wallet";
+            measure = "jpy";
+            amount = Z.of_int (-1500);
+          };
+          {
+            Bakhlo_household.Book.key = None;
+            locus = "food";
+            measure = "jpy";
+            amount = Z.of_int 1500;
+          };
         ];
       reversal_of = None;
       exchange = None;
@@ -1842,16 +1842,18 @@ let event_merchant_integration_checks ~width_of ~directory () =
       memo = None;
       effects =
         [
-          D.Effect.create
-            ~locus:(get_id (D.Identifier.Locus.of_string "wallet"))
-            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-            ~quantity:(D.Quantity.of_quanta (Z.of_int (-10)))
-            ~key:None;
-          D.Effect.create
-            ~locus:(get_id (D.Identifier.Locus.of_string "food"))
-            ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-            ~quantity:(D.Quantity.of_quanta (Z.of_int 10))
-            ~key:None;
+          {
+            Bakhlo_household.Book.key = None;
+            locus = "wallet";
+            measure = "jpy";
+            amount = Z.of_int (-10);
+          };
+          {
+            Bakhlo_household.Book.key = None;
+            locus = "food";
+            measure = "jpy";
+            amount = Z.of_int 10;
+          };
         ];
       reversal_of = None;
       exchange = None;
@@ -1955,7 +1957,8 @@ let quick_capture_integration_checks ~width_of ~directory () =
     let postings (e : B.entry) =
       List.sort compare
         (List.map
-           (fun p -> (Draft.lstr (D.Effect.locus p), Z.to_string (Draft.quanta p)))
+           (fun (p : Bakhlo_household.Book.posting) ->
+             (p.Bakhlo_household.Book.locus, Z.to_string p.Bakhlo_household.Book.amount))
            e.effects)
     in
     a.memo = b.memo && postings a = postings b
@@ -1974,10 +1977,7 @@ let quick_capture_integration_checks ~width_of ~directory () =
    window; nothing is written. *)
 let period_picker_integration_checks ~width_of ~directory home =
   let posting locus quanta =
-    D.Effect.create ~key:None
-      ~locus:(get_id (D.Identifier.Locus.of_string locus))
-      ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-      ~quantity:(D.Quantity.of_quanta (Z.of_int quanta))
+    { Bakhlo_household.Book.key = None; locus; measure = "jpy"; amount = Z.of_int quanta }
   in
   let entry n : B.entry =
     {

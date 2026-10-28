@@ -11,7 +11,6 @@ val coordinate : locus:string -> measure:string -> (D.Effect_coordinate.t, strin
 
 val lstr : D.Identifier.Locus.t -> string
 val mstr : D.Identifier.Measure.t -> string
-val quanta : D.Effect.t -> Z.t
 
 type mode = New | Edit of B.entry | Pay of string | Plan_new | Plan_edit of B.plan
 type transaction = { entry : B.entry; replace : bool; plan : string option }
@@ -27,7 +26,7 @@ type draft_content =
 
 type transaction_error = { message : string }
 
-val pair : D.Effect.t list -> (D.Effect.t * D.Effect.t) option
+val pair : B.posting list -> (B.posting * B.posting) option
 
 val edit_refusal : book:B.t -> B.entry -> string option
 (** Why the Record editor cannot correct this entry, if it cannot. *)

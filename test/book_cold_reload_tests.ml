@@ -65,13 +65,7 @@ let ident of_string s = Result.ok_or_failwith (Result.map_error (of_string s) ~f
 let locus s = ident D.Identifier.Locus.of_string s
 let measure s = ident D.Identifier.Measure.of_string s
 let coordinate l m : D.Effect_coordinate.t = { locus = locus l; measure = measure m }
-
-let posting ?key l m n =
-  D.Effect.create
-    ~key:(Option.map key ~f:(ident D.Identifier.Effect_key.of_string))
-    ~locus:(locus l) ~measure:(measure m)
-    ~quantity:(D.Quantity.of_quanta (Z.of_int n))
-
+let posting ?key l m n = { B.key; locus = l; measure = m; amount = Z.of_int n }
 let day st = if chance st 3 then "2026-02-30" else Printf.sprintf "2026-10-%02d" (1 + R.int st 28)
 
 (* Attention as the Attention screen writes it, and the odd item it must not. *)
@@ -95,10 +89,7 @@ let effects st =
   else if chance st 20 then [ posting "wallet" m (-a); posting other m (a - 1); posting "food" m 1 ]
   else base
 
-let inverse (e : B.entry) =
-  List.map e.effects ~f:(fun p ->
-      D.Effect.create ~key:(D.Effect.key p) ~locus:(D.Effect.locus p) ~measure:(D.Effect.measure p)
-        ~quantity:(D.Quantity.neg (D.Effect.quantity p)))
+let inverse (e : B.entry) = List.map e.effects ~f:(fun p -> { p with B.amount = Z.neg p.amount })
 
 let fresh_entry st id : B.entry =
   {

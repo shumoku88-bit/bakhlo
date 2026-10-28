@@ -13,7 +13,6 @@ let coordinate ~locus ~measure =
 
 let lstr = D.Identifier.Locus.to_string
 let mstr = D.Identifier.Measure.to_string
-let quanta p = D.Quantity.quanta (D.Effect.quantity p)
 
 type mode = New | Edit of B.entry | Pay of string | Plan_new | Plan_edit of B.plan
 type transaction = { entry : B.entry; replace : bool; plan : string option }
@@ -27,13 +26,13 @@ type draft_content =
       original_amount : (string * Z.t) option;
     }
 
-let pair effects =
+let pair (effects : B.posting list) =
   match effects with
   | [ a; b ]
-    when D.Identifier.Measure.equal (D.Effect.measure a) (D.Effect.measure b)
-         && Z.sign (quanta a) * Z.sign (quanta b) = -1
-         && Z.equal (Z.add (quanta a) (quanta b)) Z.zero ->
-      Some (if Z.sign (quanta a) < 0 then (a, b) else (b, a))
+    when a.measure = b.measure
+         && Z.sign a.amount * Z.sign b.amount = -1
+         && Z.equal (Z.add a.amount b.amount) Z.zero ->
+      Some (if Z.sign a.amount < 0 then (a, b) else (b, a))
   | [] | _ :: _ -> None
 
 (* Why the Record editor cannot correct this entry, if it cannot. *)
@@ -84,19 +83,17 @@ let draft_effects ~book draft =
   | Error why -> refuse (format_message "Invalid postings (%s)." why)
 
 let balanced effects =
-  match D.Movement.validate effects with
-  | Ok _ -> Ok ()
-  | Error (D.Movement.Empty :: _) -> refuse (tr "At least one posting is required.")
-  | Error (D.Movement.Zero_quantity { position } :: _) ->
+  match R.movement_fault effects with
+  | None -> Ok ()
+  | Some R.Empty -> refuse (tr "At least one posting is required.")
+  | Some (R.Zero position) ->
       refuse (format_message "Posting %d is zero. Enter a nonzero amount." position)
-  | Error (D.Movement.Measure_mismatch { position; expected; actual } :: _) ->
+  | Some (R.Measure_differs { position; expected; actual }) ->
       refuse
         (format_message "Posting %d Measure (%s) differs from the other postings (%s)." position
-           (D.Identifier.Measure.to_string actual)
-           (D.Identifier.Measure.to_string expected))
-  | Error (D.Movement.Unbalanced { measure = _; residual = _ } :: _) ->
+           actual expected)
+  | Some R.Unbalanced ->
       refuse (tr "The signed postings are unbalanced; their exact sum must be zero.")
-  | Error [] -> refuse (tr "Invalid Movement structure.")
 
 let build_transaction ~new_id ~book ~mode
     (Multiple { day; memo = memo_str; draft; original_amount }) :
@@ -153,7 +150,7 @@ let build_plan ~new_id ~book ~mode ~day ~draft : (B.plan * bool, transaction_err
   let* day = canonical_day day in
   let* effects = draft_effects ~book draft in
   let* () = balanced effects in
-  let changes = List.map (fun e -> (lstr (D.Effect.locus e), quanta e)) effects in
+  let changes = List.map (fun (e : B.posting) -> (e.locus, e.amount)) effects in
   let plan, replace =
     match mode with
     | Plan_edit p -> ({ p with day; measure = draft.R.measure; changes }, true)

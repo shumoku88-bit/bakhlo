@@ -148,11 +148,11 @@ let compute_report ~book ~measure ~tracked_coords ~liability_coords ~(period : I
       | (entry : B.entry) :: rest ->
           Hashtbl.clear cells;
           List.iter
-            (fun posting ->
-              let locus = A.lstr (D.Effect.locus posting) in
-              if A.mstr (D.Effect.measure posting) = measure && Hashtbl.mem activities locus then
+            (fun (posting : B.posting) ->
+              let locus = posting.B.locus in
+              if posting.B.measure = measure && Hashtbl.mem activities locus then
                 let prior = Option.value ~default:Z.zero (Hashtbl.find_opt cells locus) in
-                Hashtbl.replace cells locus (Z.add prior (A.quanta posting)))
+                Hashtbl.replace cells locus (Z.add prior posting.B.amount))
             entry.effects;
           if Hashtbl.length cells > 0 && not (Day.is_valid entry.day) then
             Error ("Invalid occurrence date: " ^ entry.id)

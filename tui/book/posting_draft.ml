@@ -5,20 +5,41 @@ module D = Bakhlo_domain
 
 let tr = Ui_text.tr
 
-type row = {
-  key : D.Identifier.Effect_key.t option;
-  locus : string;
-  negative : bool;
-  amount : string;
-}
-
+type row = { key : string option; locus : string; negative : bool; amount : string }
 type t = { measure : string; rows : row list }
 
-let of_effects book effects =
-  match D.Movement.validate effects with
-  | Error _ -> Error "single-measure-movement-required"
-  | Ok movement ->
-      let measure = D.Identifier.Measure.to_string (D.Movement.measure movement) in
+type movement_fault =
+  | Empty
+  | Zero of int  (** The posting's position, from 1. *)
+  | Measure_differs of { position : int; expected : string; actual : string }
+  | Unbalanced
+
+(* The first way these postings are not one balanced single-Measure Movement, in
+   posting order (a zero before a differing Measure on the same posting), so the
+   draft can name the row. book.txt admission stays the authority on saving. *)
+let movement_fault (effects : B.posting list) =
+  match effects with
+  | [] -> Some Empty
+  | first :: _ -> (
+      let rec scan position = function
+        | [] -> None
+        | (p : B.posting) :: rest ->
+            if Z.equal p.amount Z.zero then Some (Zero position)
+            else if p.measure <> first.measure then
+              Some (Measure_differs { position; expected = first.measure; actual = p.measure })
+            else scan (position + 1) rest
+      in
+      match scan 1 effects with
+      | Some _ as fault -> fault
+      | None ->
+          let sum = List.fold_left (fun s (p : B.posting) -> Z.add s p.amount) Z.zero effects in
+          if Z.equal sum Z.zero then None else Some Unbalanced)
+
+let of_effects book (effects : B.posting list) =
+  match (movement_fault effects, effects) with
+  | Some _, _ | None, [] -> Error "single-measure-movement-required"
+  | None, first :: _ ->
+      let measure = first.measure in
       if not (List.mem_assoc measure (B.measures book)) then Error "measure-scale-not-supplied"
       else
         Ok
@@ -26,11 +47,11 @@ let of_effects book effects =
             measure;
             rows =
               List.map
-                (fun p ->
-                  let n = D.Quantity.quanta (D.Effect.quantity p) in
+                (fun (p : B.posting) ->
+                  let n = p.amount in
                   {
-                    key = D.Effect.key p;
-                    locus = D.Identifier.Locus.to_string (D.Effect.locus p);
+                    key = p.key;
+                    locus = p.locus;
                     negative = Z.sign n < 0;
                     amount = B.format book measure (Z.abs n);
                   })
@@ -78,24 +99,21 @@ let residual book draft =
 let effects book draft =
   match amounts book draft with
   | Error _ as error -> error
-  | Ok ns -> (
-      match D.Identifier.Measure.of_string draft.measure with
-      | Error D.Identifier.Empty -> Error "empty-measure"
-      | Ok measure ->
-          let rec loop position rows quantities =
-            match (rows, quantities) with
-            | [], [] -> Ok []
-            | row :: rows, n :: ns -> (
-                match D.Identifier.Locus.of_string row.locus with
-                | Error D.Identifier.Empty -> Error (Printf.sprintf "row-%d: empty-locus" position)
-                | Ok locus -> (
-                    match loop (position + 1) rows ns with
-                    | Error _ as error -> error
-                    | Ok rest ->
-                        Ok
-                          (D.Effect.create ~key:row.key ~locus ~measure
-                             ~quantity:(D.Quantity.of_quanta n)
-                          :: rest)))
-            | [], _ :: _ | _ :: _, [] -> Error "draft-row-count-mismatch"
-          in
-          loop 1 draft.rows ns)
+  | Ok ns ->
+      if draft.measure = "" then Error "empty-measure"
+      else
+        let rec loop position rows quantities =
+          match (rows, quantities) with
+          | [], [] -> Ok []
+          | row :: rows, n :: ns -> (
+              if row.locus = "" then Error (Printf.sprintf "row-%d: empty-locus" position)
+              else
+                match loop (position + 1) rows ns with
+                | Error _ as error -> error
+                | Ok rest ->
+                    Ok
+                      ({ B.key = row.key; locus = row.locus; measure = draft.measure; amount = n }
+                      :: rest))
+          | [], _ :: _ | _ :: _, [] -> Error "draft-row-count-mismatch"
+        in
+        loop 1 draft.rows ns

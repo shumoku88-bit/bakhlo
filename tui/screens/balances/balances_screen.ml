@@ -114,8 +114,7 @@ let admitted_loci book =
   | _ ->
       let from_entries =
         List.concat_map
-          (fun (e : B.entry) ->
-            List.map (fun p -> D.Identifier.Locus.to_string (D.Effect.locus p)) e.effects)
+          (fun (e : B.entry) -> List.map (fun (p : B.posting) -> p.B.locus) e.effects)
           (B.entries book)
       in
       let from_plans =

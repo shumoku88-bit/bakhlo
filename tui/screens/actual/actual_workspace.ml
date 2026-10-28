@@ -140,8 +140,8 @@ let loci_of_records records =
   List.iter
     (fun (e : B.entry) ->
       List.iter
-        (fun p ->
-          let locus = A.lstr (D.Effect.locus p) in
+        (fun (p : B.posting) ->
+          let locus = p.B.locus in
           if not (Hashtbl.mem seen locus) then begin
             Hashtbl.add seen locus ();
             loci := locus :: !loci
@@ -165,8 +165,8 @@ let matches_search ~book t (record : B.entry) =
     || contains_insensitive t.search_query record.id
     || contains_insensitive t.search_query record.day
     || List.exists
-         (fun p ->
-           let token = A.lstr (D.Effect.locus p) in
+         (fun (p : B.posting) ->
+           let token = p.B.locus in
            let label = B.label book token in
            contains_insensitive t.search_query token || contains_insensitive t.search_query label)
          record.effects
@@ -174,12 +174,10 @@ let matches_search ~book t (record : B.entry) =
 (* The entry's EXPENSE total in one Measure: the amount order of the list. *)
 let entry_expense_amount ~roles ~measure (entry : B.entry) =
   List.fold_left
-    (fun acc (posting : D.Effect.t) ->
-      let locus = A.lstr (D.Effect.locus posting) in
-      if
-        A.mstr (D.Effect.measure posting) = measure
-        && List.assoc_opt locus roles = Some Roles.Expense
-      then Z.add acc (A.quanta posting)
+    (fun acc (posting : B.posting) ->
+      let locus = posting.B.locus in
+      if posting.B.measure = measure && List.assoc_opt locus roles = Some Roles.Expense then
+        Z.add acc posting.B.amount
       else acc)
     Z.zero entry.effects
 
@@ -207,7 +205,7 @@ let filtered_entries ~ctx t ~records ~locus =
     | Some locus ->
         List.filter
           (fun (record : B.entry) ->
-            List.exists (fun p -> A.lstr (D.Effect.locus p) = locus) record.effects)
+            List.exists (fun (p : B.posting) -> p.B.locus = locus) record.effects)
           records
   in
   let filtered = List.filter (matches_search ~book t) by_locus in
@@ -260,9 +258,9 @@ let expense_total roles entries =
   List.iter
     (fun (e : B.entry) ->
       List.iter
-        (fun (posting : D.Effect.t) ->
-          match Hashtbl.find_opt roles.table (A.lstr (D.Effect.locus posting)) with
-          | Some Roles.Expense -> add (A.mstr (D.Effect.measure posting)) (A.quanta posting)
+        (fun (posting : B.posting) ->
+          match Hashtbl.find_opt roles.table posting.B.locus with
+          | Some Roles.Expense -> add posting.B.measure posting.B.amount
           | Some (Roles.Income | Roles.Asset | Roles.Liability | Roles.Equity) -> ()
           | None -> partial := true)
         e.effects)
@@ -420,9 +418,9 @@ let returned_from_detail ~before_book ~after_book t =
 
 (* 2. Amount and Details formatting (LOAM ActualWorkspace) *)
 
-let effect_amount book p =
-  let measure = A.mstr (D.Effect.measure p) in
-  Book_display.format_money book measure (A.quanta p) ^ " " ^ measure
+let effect_amount book (p : B.posting) =
+  let measure = p.B.measure in
+  Book_display.format_money book measure p.B.amount ^ " " ^ measure
 
 let amount_summary book entry = Record_lines.amount_summary ~format:(effect_amount book) entry
 
@@ -450,7 +448,7 @@ let detail_raw_lines ~book ~width_of ~width (entry_opt : B.entry option) : (O.st
   | Some entry ->
       let effect_lines p =
         let amount = effect_amount book p in
-        let label = display_locus ~book (A.lstr (D.Effect.locus p)) in
+        let label = display_locus ~book p.B.locus in
         let amount_width = width_of amount in
         if amount_width + 4 <= width then
           [ (O.Plain, " " ^ O.pad ~width_of (width - amount_width - 3) label ^ "  " ^ amount) ]

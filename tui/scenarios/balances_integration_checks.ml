@@ -120,10 +120,7 @@ let balance_display_checks ~width_of ~directory () =
       ("Role classification: INCOMPLETE", "accounting-all-support-role-incomplete");
     ];
   let posting locus amount =
-    D.Effect.create ~key:None
-      ~locus:(get_id (D.Identifier.Locus.of_string locus))
-      ~measure:(get_id (D.Identifier.Measure.of_string "jpy"))
-      ~quantity:(D.Quantity.of_quanta (Z.of_int amount))
+    { Bakhlo_household.Book.key = None; locus; measure = "jpy"; amount = Z.of_int amount }
   in
   let entry : B.entry =
     {

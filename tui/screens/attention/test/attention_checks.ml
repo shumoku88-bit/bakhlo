@@ -10,15 +10,9 @@ let book_of_text text =
   match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
 
 let get = function Ok x -> x | Error why -> failwith why
-let id_of = function Ok value -> value | Error _ -> failwith "synthetic identifier"
 let require condition why = if not condition then failwith why
 let z = Z.of_int
-
-let posting locus amount =
-  D.Effect.create ~key:None
-    ~locus:(id_of (D.Identifier.Locus.of_string locus))
-    ~measure:(id_of (D.Identifier.Measure.of_string "jpy"))
-    ~quantity:(D.Quantity.of_quanta amount)
+let posting locus amount = { B.key = None; locus; measure = "jpy"; amount }
 
 let entry id day effects : B.entry =
   {
@@ -102,14 +96,8 @@ let () =
         entry "a" "2026-10-04" [ posting "suspense" (z 400); posting "cash" (z (-400)) ];
         entry "b" "2026-10-05"
           [
-            D.Effect.create ~key:None
-              ~locus:(id_of (D.Identifier.Locus.of_string "suspense"))
-              ~measure:(id_of (D.Identifier.Measure.of_string "eur"))
-              ~quantity:(D.Quantity.of_quanta (z 500));
-            D.Effect.create ~key:None
-              ~locus:(id_of (D.Identifier.Locus.of_string "cash"))
-              ~measure:(id_of (D.Identifier.Measure.of_string "eur"))
-              ~quantity:(D.Quantity.of_quanta (z (-500)));
+            { B.key = None; locus = "suspense"; measure = "eur"; amount = z 500 };
+            { B.key = None; locus = "cash"; measure = "eur"; amount = z (-500) };
           ];
       ]
   in
@@ -137,14 +125,8 @@ let () =
         entry "a" "2026-10-04" [ posting "suspense" (z 400); posting "cash" (z (-400)) ];
         entry "b" "2026-10-05"
           [
-            D.Effect.create ~key:None
-              ~locus:(id_of (D.Identifier.Locus.of_string "suspense"))
-              ~measure:(id_of (D.Identifier.Measure.of_string "eur"))
-              ~quantity:(D.Quantity.of_quanta (z 500));
-            D.Effect.create ~key:None
-              ~locus:(id_of (D.Identifier.Locus.of_string "suspense"))
-              ~measure:(id_of (D.Identifier.Measure.of_string "eur"))
-              ~quantity:(D.Quantity.of_quanta (z (-500)));
+            { B.key = None; locus = "suspense"; measure = "eur"; amount = z 500 };
+            { B.key = None; locus = "suspense"; measure = "eur"; amount = z (-500) };
           ];
       ]
   in

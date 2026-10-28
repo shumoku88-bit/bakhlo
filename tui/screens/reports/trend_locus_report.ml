@@ -105,10 +105,8 @@ let catalog ~book ~measure =
     List.concat_map
       (fun (entry : B.entry) ->
         List.filter_map
-          (fun (posting : D.Effect.t) ->
-            if D.Identifier.Measure.to_string (D.Effect.measure posting) = measure then
-              Some (D.Identifier.Locus.to_string (D.Effect.locus posting))
-            else None)
+          (fun (posting : B.posting) ->
+            if posting.B.measure = measure then Some posting.B.locus else None)
           entry.effects)
       (B.entries book)
   in
@@ -132,10 +130,10 @@ let initial_series ~book ~measure ~roles ~start_day ~end_exclusive =
       if entry.day >= start_day && entry.day < end_exclusive then
         let seen = Hashtbl.create 4 in
         List.iter
-          (fun (posting : D.Effect.t) ->
-            let locus = D.Identifier.Locus.to_string (D.Effect.locus posting) in
+          (fun (posting : B.posting) ->
+            let locus = posting.B.locus in
             if
-              D.Identifier.Measure.to_string (D.Effect.measure posting) = measure
+              posting.B.measure = measure
               && role locus = Some Roles.Expense
               && not (Hashtbl.mem seen locus)
             then (
@@ -143,8 +141,7 @@ let initial_series ~book ~measure ~roles ~start_day ~end_exclusive =
               let entries, total =
                 Option.value ~default:(0, Z.zero) (Hashtbl.find_opt table locus)
               in
-              Hashtbl.replace table locus
-                (entries + 1, Z.add total (Z.abs (D.Quantity.quanta (D.Effect.quantity posting))))))
+              Hashtbl.replace table locus (entries + 1, Z.add total (Z.abs posting.B.amount))))
           entry.effects)
     (B.entries book);
   Hashtbl.fold (fun locus (entries, total) acc -> (locus, entries, total) :: acc) table []
@@ -257,14 +254,11 @@ let project ~book ~observed_at ~boundary_presets_text ~grain ~scope ~coordinates
       (fun (entry : B.entry) ->
         if entry.day >= scope_start && entry.day < scope_end_exclusive then
           List.iter
-            (fun (posting : D.Effect.t) ->
-              let locus = D.Identifier.Locus.to_string (D.Effect.locus posting) in
-              if
-                Hashtbl.mem selected locus
-                && D.Identifier.Measure.to_string (D.Effect.measure posting) = measure
-              then
+            (fun (posting : B.posting) ->
+              let locus = posting.B.locus in
+              if Hashtbl.mem selected locus && posting.B.measure = measure then
                 let table = Hashtbl.find daily locus in
-                let quantity = D.Quantity.quanta (D.Effect.quantity posting) in
+                let quantity = posting.B.amount in
                 let prior = Option.value ~default:Z.zero (Hashtbl.find_opt table entry.day) in
                 Hashtbl.replace table entry.day (Z.add prior quantity))
             entry.effects)

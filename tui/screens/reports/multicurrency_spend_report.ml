@@ -13,12 +13,12 @@ type exchange_occurrence = {
   event : string;
   date : string;
   description : string option;
-  source : D.Effect.t;
-  destination : D.Effect.t;
-  extra_effects : D.Effect.t list;
+  source : B.posting;
+  destination : B.posting;
+  extra_effects : B.posting list;
 }
 
-type unresolved_effect = { event : string; date : string; posting : D.Effect.t }
+type unresolved_effect = { event : string; date : string; posting : B.posting }
 type original_reason = Unresolved_roles | Exchange_event | No_positive_expense
 
 type original_witness = {
@@ -66,13 +66,11 @@ let compare_entry (left : B.entry) (right : B.entry) =
   | 0 -> String.compare left.id right.id
   | order -> order
 
-let effect_locus (posting : D.Effect.t) = A.lstr (D.Effect.locus posting)
-let effect_measure (posting : D.Effect.t) = A.mstr (D.Effect.measure posting)
+let effect_locus (posting : B.posting) = posting.B.locus
+let effect_measure (posting : B.posting) = posting.B.measure
 
-let selected_key key (posting : D.Effect.t) =
-  match D.Effect.key posting with
-  | None -> false
-  | Some actual -> String.equal (D.Identifier.Effect_key.to_string actual) key
+let selected_key key (posting : B.posting) =
+  match posting.B.key with None -> false | Some actual -> String.equal actual key
 
 let exchange_of_entry (entry : B.entry) =
   match entry.exchange with
@@ -117,18 +115,19 @@ let step ~role_map (acc : acc) (entry : B.entry) =
   | Ok occurrence ->
       let expense_effects =
         List.filter
-          (fun posting -> M.find_opt (effect_locus posting) role_map = Some Locus_roles.Expense)
+          (fun (posting : B.posting) ->
+            M.find_opt (effect_locus posting) role_map = Some Locus_roles.Expense)
           entry.effects
       in
       let unresolved_nonzero =
         List.filter
           (fun posting ->
-            M.find_opt (effect_locus posting) role_map = None && Z.sign (A.quanta posting) <> 0)
+            M.find_opt (effect_locus posting) role_map = None && Z.sign posting.B.amount <> 0)
           entry.effects
       in
       let add_expenses totals =
         List.fold_left
-          (fun totals posting -> add (effect_measure posting) (A.quanta posting) totals)
+          (fun totals posting -> add (effect_measure posting) posting.B.amount totals)
           totals expense_effects
       in
       let unresolved effects =
@@ -166,8 +165,11 @@ let step ~role_map (acc : acc) (entry : B.entry) =
                   uncounted_original = witness Exchange_event :: classified.uncounted_original;
                 }
             | None -> (
-                if List.exists (fun posting -> Z.sign (A.quanta posting) > 0) expense_effects then
-                  { classified with original = add measure quanta classified.original }
+                if
+                  List.exists
+                    (fun (posting : B.posting) -> Z.sign posting.B.amount > 0)
+                    expense_effects
+                then { classified with original = add measure quanta classified.original }
                 else
                   match unresolved_nonzero with
                   | _ :: _ ->
@@ -249,15 +251,11 @@ let reason_text = function
   | Exchange_event -> "exchange event"
   | No_positive_expense -> "no positive Expense Effect"
 
-let effect_line book label (posting : D.Effect.t) =
+let effect_line book label (posting : B.posting) =
   let measure = effect_measure posting in
-  let key =
-    match D.Effect.key posting with
-    | None -> ""
-    | Some key -> "  key " ^ D.Identifier.Effect_key.to_string key
-  in
+  let key = match posting.B.key with None -> "" | Some key -> "  key " ^ key in
   "  " ^ label ^ "  "
-  ^ signed_amount book measure (A.quanta posting)
+  ^ signed_amount book measure posting.B.amount
   ^ "  " ^ effect_locus posting ^ key
 
 let render_lines ~book (snapshot : snapshot) =
@@ -287,7 +285,7 @@ let render_lines ~book (snapshot : snapshot) =
          (fun (row : unresolved_effect) ->
            ( O.Plain,
              "? " ^ row.date ^ "  " ^ effect_locus row.posting ^ "  "
-             ^ signed_amount book (effect_measure row.posting) (A.quanta row.posting)
+             ^ signed_amount book (effect_measure row.posting) row.posting.B.amount
              ^ "  [" ^ row.event ^ "]" ))
          rows
   in

@@ -12,10 +12,10 @@ let row_title book = function
   | W.Actual_entry entry ->
       let amount =
         match entry.B.effects with
-        | [ a; b ] when D.Identifier.Measure.equal (D.Effect.measure a) (D.Effect.measure b) ->
-            let positive = if Z.sign (A.quanta a) > 0 then a else b in
-            let measure = A.mstr (D.Effect.measure positive) in
-            let amount = B.format book measure (A.quanta positive) in
+        | [ a; b ] when a.B.measure = b.B.measure ->
+            let positive = if Z.sign a.B.amount > 0 then a else b in
+            let measure = positive.B.measure in
+            let amount = B.format book measure positive.B.amount in
             if String.length amount > 20 then tr "see details" else amount ^ " " ^ measure
         | _ -> tr "split / see details"
       in
@@ -36,10 +36,10 @@ let row_title book = function
    Measures. *)
 let amount_summary ~format (entry : B.entry) =
   let measures =
-    List.sort_uniq String.compare (List.map (fun p -> A.mstr (D.Effect.measure p)) entry.effects)
+    List.sort_uniq String.compare (List.map (fun (p : B.posting) -> p.B.measure) entry.effects)
   in
-  let positive = List.filter (fun p -> Z.sign (A.quanta p) > 0) entry.effects
-  and negative = List.filter (fun p -> Z.sign (A.quanta p) < 0) entry.effects in
+  let positive = List.filter (fun (p : B.posting) -> Z.sign p.B.amount > 0) entry.effects
+  and negative = List.filter (fun (p : B.posting) -> Z.sign p.B.amount < 0) entry.effects in
   if List.length measures > 1 then Printf.sprintf "multi (%d)" (List.length measures)
   else if List.length positive > 1 || List.length negative > 1 then "split"
   else
@@ -49,8 +49,8 @@ let amount_summary ~format (entry : B.entry) =
     | [], _ -> "see details"
 
 let actual_amount book entry =
-  let format p =
-    let measure = A.mstr (D.Effect.measure p) and quanta = A.quanta p in
+  let format (p : B.posting) =
+    let measure = p.B.measure and quanta = p.B.amount in
     (if Z.sign quanta < 0 then "-" else if Z.sign quanta > 0 then "+" else "")
     ^ Book_display.format_money book measure (Z.abs quanta)
     ^ " " ^ measure

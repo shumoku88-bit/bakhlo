@@ -65,12 +65,7 @@ let reverse_entry ~session ~base_revision ~id ~day : outcome =
         then Refused (tr "This entry has already been reversed.")
         else
           let inverse_effects =
-            List.map
-              (fun e ->
-                D.Effect.create ~key:(D.Effect.key e) ~locus:(D.Effect.locus e)
-                  ~measure:(D.Effect.measure e)
-                  ~quantity:(D.Quantity.neg (D.Effect.quantity e)))
-              target.effects
+            List.map (fun (e : B.posting) -> { e with amount = Z.neg e.amount }) target.effects
           in
           let reversal : B.entry =
             {

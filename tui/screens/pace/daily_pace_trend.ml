@@ -241,11 +241,8 @@ let compute_activities book measure pool =
       else
         let delta =
           List.fold_left
-            (fun acc eff ->
-              if
-                A.mstr (D.Effect.measure eff) = measure
-                && List.mem (A.lstr (D.Effect.locus eff)) pool
-              then Z.add acc (A.quanta eff)
+            (fun acc (eff : B.posting) ->
+              if eff.B.measure = measure && List.mem eff.B.locus pool then Z.add acc eff.B.amount
               else acc)
             Z.zero e.effects
         in

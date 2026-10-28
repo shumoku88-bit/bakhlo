@@ -10,7 +10,7 @@ let tr = Ui_text.tr
 
 type original_field = Original_measure | Original_amount
 type original_editor = { measure : string; amount : string; field : original_field }
-type row = { key : D.Identifier.Effect_key.t option; locus : string; amount : string }
+type row = { key : string option; locus : string; amount : string }
 type review_action = Publish_action | Edit_action | Cancel_action
 
 let next_review_action = function
@@ -154,13 +154,9 @@ let open_plan_draft ~book (plan : B.plan) =
   else
     let effects =
       List.map
-        (fun (locus, n) ->
-          match
-            (D.Identifier.Locus.of_string locus, D.Identifier.Measure.of_string plan.measure)
-          with
-          | Ok locus, Ok measure ->
-              Some (D.Effect.create ~key:None ~locus ~measure ~quantity:(D.Quantity.of_quanta n))
-          | Error _, _ | _, Error _ -> None)
+        (fun (locus, amount) ->
+          if locus = "" || plan.measure = "" then None
+          else Some { B.key = None; locus; measure = plan.measure; amount })
         plan.changes
     in
     if List.exists Option.is_none effects then Error (tr "Invalid Scheduled coordinates.")
@@ -395,7 +391,7 @@ let draft t =
             | A.Edit entry, Some key ->
                 if
                   List.exists
-                    (fun p -> D.Effect.key p = Some key && A.lstr (D.Effect.locus p) = row.locus)
+                    (fun (p : B.posting) -> p.B.key = Some key && p.B.locus = row.locus)
                     entry.B.effects
                 then Some key
                 else None

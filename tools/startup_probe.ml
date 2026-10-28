@@ -115,14 +115,7 @@ let entry_of_tx (tx : T.tx) : B.entry =
     exchange = None;
     original_amount = None;
     merchant = None;
-    effects =
-      List.map
-        (fun (p : T.posting) ->
-          D.Effect.create ~key:None
-            ~locus:(id (D.Identifier.Locus.of_string p.locus))
-            ~measure:(id (D.Identifier.Measure.of_string p.measure))
-            ~quantity:(D.Quantity.of_quanta p.amount))
-        tx.effects;
+    effects = List.map (fun (p : T.posting) : B.posting -> { p with key = None }) tx.effects;
   }
 
 let () =

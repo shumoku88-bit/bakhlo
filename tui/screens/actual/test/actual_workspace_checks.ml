@@ -412,7 +412,7 @@ let self_check ~width_of () =
       let changes =
         match rent_entry.effects with
         | first :: second :: _ ->
-            [ ("assets:cash", A.quanta first); ("expenses:rent", A.quanta second) ]
+            [ ("assets:cash", first.B.amount); ("expenses:rent", second.B.amount) ]
         | _ -> failwith "FAILED: actual_workspace_check: plan fixture effects"
       in
       {

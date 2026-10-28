@@ -205,8 +205,8 @@ let check_exchanges () =
   require
     (first.event = "x1" && first.date = "2026-10-10"
     && first.description = Some "trip-exchange"
-    && Z.equal (Draft.quanta first.source) (z (-100100))
-    && Z.equal (Draft.quanta first.destination) (z 5000)
+    && Z.equal first.source.Bakhlo_household.Book.amount (z (-100100))
+    && Z.equal first.destination.Bakhlo_household.Book.amount (z 5000)
     && List.length first.extra_effects = 1)
     "the occurrence keeps its exact selected legs and remaining Effects";
   require

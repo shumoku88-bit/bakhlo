@@ -10,14 +10,14 @@ type exchange_occurrence = {
   event : string;
   date : string;
   description : string option;
-  source : Bakhlo_domain.Effect.t;
-  destination : Bakhlo_domain.Effect.t;
-  extra_effects : Bakhlo_domain.Effect.t list;
+  source : Bakhlo_household.Book.posting;
+  destination : Bakhlo_household.Book.posting;
+  extra_effects : Bakhlo_household.Book.posting list;
 }
 (** The retained exchange Event's exact selected source and destination Effects,
     plus its remaining Effects in recorded order. No rate is derived. *)
 
-type unresolved_effect = { event : string; date : string; posting : Bakhlo_domain.Effect.t }
+type unresolved_effect = { event : string; date : string; posting : Bakhlo_household.Book.posting }
 (** A nonzero Effect whose Locus has no explicit accounting role in this capture. *)
 
 type original_reason =

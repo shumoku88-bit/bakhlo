@@ -115,7 +115,9 @@ let run ~width_of ~directory ~path =
   require
     (List.exists
        (fun (e : B.entry) ->
-         List.exists (fun p -> Draft.lstr (D.Effect.locus p) = "food") e.effects)
+         List.exists
+           (fun (p : Bakhlo_household.Book.posting) -> p.Bakhlo_household.Book.locus = "food")
+           e.effects)
        (B.entries used_loci.session.book))
     "fixture-food-is-used";
   require
@@ -292,20 +294,14 @@ let run ~width_of ~directory ~path =
   require (List.length latest_entry.effects = 2) "exchange-has-two-effects";
   let src_eff = List.nth latest_entry.effects 0 in
   let dst_eff = List.nth latest_entry.effects 1 in
-  require (D.Identifier.Locus.to_string (D.Effect.locus src_eff) = "wallet") "exchange-source-locus";
+  require (src_eff.Bakhlo_household.Book.locus = "wallet") "exchange-source-locus";
+  require (src_eff.Bakhlo_household.Book.measure = "jpy") "exchange-source-measure";
   require
-    (D.Identifier.Measure.to_string (D.Effect.measure src_eff) = "jpy")
-    "exchange-source-measure";
-  require
-    (Z.equal (D.Quantity.quanta (D.Effect.quantity src_eff)) (Z.of_int (-1500)))
+    (Z.equal src_eff.Bakhlo_household.Book.amount (Z.of_int (-1500)))
     "exchange-source-amount-negative";
+  require (dst_eff.Bakhlo_household.Book.locus = "bank") "exchange-destination-locus";
+  require (dst_eff.Bakhlo_household.Book.measure = "eur") "exchange-destination-measure";
   require
-    (D.Identifier.Locus.to_string (D.Effect.locus dst_eff) = "bank")
-    "exchange-destination-locus";
-  require
-    (D.Identifier.Measure.to_string (D.Effect.measure dst_eff) = "eur")
-    "exchange-destination-measure";
-  require
-    (Z.equal (D.Quantity.quanta (D.Effect.quantity dst_eff)) (Z.of_int 1000))
+    (Z.equal dst_eff.Bakhlo_household.Book.amount (Z.of_int 1000))
     "exchange-destination-amount-positive";
   exch_done

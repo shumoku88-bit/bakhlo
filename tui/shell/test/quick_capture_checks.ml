@@ -27,11 +27,7 @@ let fixture =
    LOCUS\tsynthbank\tsynthbank\t\n\
    END\n"
 
-let make_effect measure (locus, quanta) =
-  D.Effect.create ~key:None
-    ~locus:(id (D.Identifier.Locus.of_string locus))
-    ~measure:(id (D.Identifier.Measure.of_string measure))
-    ~quantity:(D.Quantity.of_quanta (Z.of_int quanta))
+let make_effect measure (locus, quanta) = { B.key = None; locus; measure; amount = Z.of_int quanta }
 
 let entry ?(measure = "jpy") ?reversal_of id day memo postings : B.entry =
   {

@@ -11,11 +11,14 @@ module T = Bakhlo_book_txt.Book_txt
     explicitly nobody. An entry without one is unclassified. *)
 type disposition = Merchant of D.Identifier.External_party.t | Nonmerchant
 
+type posting = T.posting = { locus : string; measure : string; amount : Z.t; key : string option }
+(** One signed change in the Measure's smallest unit, exactly as book.txt holds it. *)
+
 type entry = {
   id : string;
   day : string;
   memo : string option;
-  effects : D.Effect.t list;
+  effects : posting list;
   reversal_of : string option;
   exchange : (string * string) option;  (** Source and destination Effect keys. *)
   original_amount : (string * Z.t) option;

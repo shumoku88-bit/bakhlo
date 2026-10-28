@@ -23,12 +23,13 @@ let valid_date day = require (T.valid_date day) "invalid-date"
 (* Whom the household regards as supplying what an entry acquired: a party, or
    explicitly nobody. An entry without one is unclassified. *)
 type disposition = Merchant of D.Identifier.External_party.t | Nonmerchant
+type posting = T.posting = { locus : string; measure : string; amount : Z.t; key : string option }
 
 type entry = {
   id : string;
   day : string;
   memo : string option;
-  effects : D.Effect.t list;
+  effects : posting list;
   reversal_of : string option;
   exchange : (string * string) option;
   original_amount : (string * Z.t) option;
@@ -81,15 +82,11 @@ let entry_of (tx : T.tx) : entry =
         in
         [ pick (only (-1) x) exchange_source; pick (only 1 y) exchange_destination ]
   in
+  (* An exchange leg without its own key is named by the key the exchange gives it. *)
   let posting (e : T.posting) =
-    let key =
-      match List.find_opt (fun (k, _) -> k == e) named with
-      | Some (_, name) -> Some name
-      | None -> e.key
-    in
-    D.Effect.create
-      ~key:(Option.map (fun k -> get "effect-key-id" (D.Identifier.Effect_key.of_string k)) key)
-      ~locus:(lid e.locus) ~measure:(mid e.measure) ~quantity:(D.Quantity.of_quanta e.amount)
+    match List.find_opt (fun (k, _) -> k == e) named with
+    | Some (_, name) -> { e with key = Some name }
+    | None -> e
   in
   {
     id = tx.id;
@@ -108,26 +105,16 @@ let entry_of (tx : T.tx) : entry =
   }
 
 let tx_of_entry (e : entry) : T.tx =
-  let key p = Option.map D.Identifier.Effect_key.to_string (D.Effect.key p) in
   let measure_of k =
-    match List.filter (fun p -> key p = Some k) e.effects with
-    | [ p ] -> mstr (D.Effect.measure p)
+    match List.filter (fun (p : posting) -> p.key = Some k) e.effects with
+    | [ p ] -> p.measure
     | _ -> raise (Refused "exchange-key")
   in
   {
     id = e.id;
     day = e.day;
     memo = (match e.memo with Some "" -> None | m -> m);
-    effects =
-      List.map
-        (fun p : T.posting ->
-          {
-            locus = lstr (D.Effect.locus p);
-            measure = mstr (D.Effect.measure p);
-            amount = D.Quantity.quanta (D.Effect.quantity p);
-            key = key p;
-          })
-        e.effects;
+    effects = e.effects;
     reversal_of = e.reversal_of;
     original = e.original_amount;
     merchant =
@@ -341,17 +328,16 @@ let day_sums t pool ~from =
   List.iter
     (fun (e : entry) ->
       List.iter
-        (fun eff ->
+        (fun (eff : posting) ->
           match
             List.find_opt
               (fun ((c : D.Effect_coordinate.t), _, _) ->
-                D.Identifier.Locus.equal (D.Effect.locus eff) c.locus
-                && D.Identifier.Measure.equal (D.Effect.measure eff) c.measure)
+                eff.locus = lstr c.locus && eff.measure = mstr c.measure)
               tables
           with
           | None -> ()
           | Some (_, total, later) ->
-              let q = D.Quantity.quanta (D.Effect.quantity eff) in
+              let q = eff.amount in
               total := Z.add !total q;
               if e.day > from then
                 later :=
@@ -455,7 +441,8 @@ let approve_loci t loci =
   let ids = offered t in
   List.iter (fun locus -> require (List.mem locus ids) "locus-unapproved") loci
 
-let approve_effects t effects = approve_loci t (List.map (fun p -> lstr (D.Effect.locus p)) effects)
+let approve_effects t (effects : posting list) =
+  approve_loci t (List.map (fun (p : posting) -> p.locus) effects)
 
 let find_plan t id =
   match List.find_opt (fun (p : plan) -> p.id = id) (plans t) with
@@ -475,7 +462,7 @@ let no_empty_memo (e : entry) = if e.memo = Some "" then { e with memo = None } 
    the Measures it names. *)
 let check_entry t (e : entry) =
   ignore (eid e.id);
-  List.iter (fun p -> known_measure t (mstr (D.Effect.measure p))) e.effects;
+  List.iter (fun (p : posting) -> known_measure t p.measure) e.effects;
   Option.iter (fun (m, _) -> known_measure t m) e.original_amount;
   require (T.valid_date e.day) "entry-admission"
 

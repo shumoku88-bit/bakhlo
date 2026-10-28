@@ -57,10 +57,8 @@ let appearance_order book ~measure =
     List.fold_left
       (fun acc (e : B.entry) ->
         List.fold_left
-          (fun acc posting ->
-            if D.Identifier.Measure.to_string (D.Effect.measure posting) = measure then
-              add acc (A.lstr (D.Effect.locus posting))
-            else acc)
+          (fun acc (posting : B.posting) ->
+            if posting.B.measure = measure then add acc posting.B.locus else acc)
           acc e.effects)
       [] (B.entries book)
   in

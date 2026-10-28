@@ -260,12 +260,7 @@ let refusal_checks () =
     "more than five coordinates refuse";
   refuses ?config:(Some config) primary observation [ coord "a" "usd" ] "an unknown measure refuses"
 
-let make_effect locus measure quanta =
-  let identifier what = function Ok x -> x | Error _ -> failwith ("invalid " ^ what) in
-  D.Effect.create ~key:None
-    ~locus:(identifier "locus" (D.Identifier.Locus.of_string locus))
-    ~measure:(identifier "measure" (D.Identifier.Measure.of_string measure))
-    ~quantity:(D.Quantity.of_quanta quanta)
+let make_effect locus measure quanta = { B.key = None; locus; measure; amount = quanta }
 
 let mutation_checks () =
   let row ~id ~day n : B.entry =

@@ -29,7 +29,7 @@ let matches ~book t row =
   let day = date row in
   let loci =
     match row with
-    | Actual_entry e -> List.map (fun p -> A.lstr (Bakhlo_domain.Effect.locus p)) e.effects
+    | Actual_entry e -> List.map (fun (p : B.posting) -> p.locus) e.effects
     | Scheduled_plan p -> List.map fst p.changes
   in
   (match t.day with None -> true | Some d -> day = d)

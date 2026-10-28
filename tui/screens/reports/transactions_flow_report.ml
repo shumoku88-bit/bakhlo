@@ -44,10 +44,10 @@ let compute_report ~book ~(period : IncExp.period) =
   List.iter
     (fun (e : B.entry) ->
       List.iter
-        (fun eff ->
-          let locus = A.lstr (D.Effect.locus eff) in
-          let measure = A.mstr (D.Effect.measure eff) in
-          let quanta = A.quanta eff in
+        (fun (eff : B.posting) ->
+          let locus = eff.B.locus in
+          let measure = eff.B.measure in
+          let quanta = eff.B.amount in
           let key = (locus, measure) in
           let pos, neg, ev_count, contribs =
             match Hashtbl.find_opt table key with

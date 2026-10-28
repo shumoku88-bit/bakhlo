@@ -27,19 +27,7 @@ let fixture =
    ENDANCHOR\n\
    END\n"
 
-let posting locus measure n key =
-  D.Effect.create
-    ~locus:
-      (Result.ok_or_failwith
-         (Result.map_error (D.Identifier.Locus.of_string locus) ~f:(fun _ -> "locus")))
-    ~measure:
-      (Result.ok_or_failwith
-         (Result.map_error (D.Identifier.Measure.of_string measure) ~f:(fun _ -> "measure")))
-    ~quantity:(D.Quantity.of_quanta (Z.of_int n))
-    ~key:
-      (Option.map key ~f:(fun key ->
-           Result.ok_or_failwith
-             (Result.map_error (D.Identifier.Effect_key.of_string key) ~f:(fun _ -> "key"))))
+let posting locus measure n key : B.posting = { locus; measure; amount = Z.of_int n; key }
 
 let party s =
   Result.ok_or_failwith

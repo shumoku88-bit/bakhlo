@@ -71,13 +71,7 @@ let%expect_test "a role for the holding Locus is refused, never written" =
    refuses it instead of writing it. *)
 let%expect_test "an exchange book.txt cannot read back is refused, never written" =
   let book = get (B.read (read "common_format/ok-full.txt")) in
-  let leg ?key l m q =
-    D.Effect.create
-      ~key:(Option.map (fun k -> Result.get_ok (D.Identifier.Effect_key.of_string k)) key)
-      ~locus:(Result.get_ok (D.Identifier.Locus.of_string l))
-      ~measure:(Result.get_ok (D.Identifier.Measure.of_string m))
-      ~quantity:(D.Quantity.of_quanta (Z.of_int q))
-  in
+  let leg ?key l m q = { B.key; locus = l; measure = m; amount = Z.of_int q } in
   let entry : B.entry =
     {
       id = "fx-extra";

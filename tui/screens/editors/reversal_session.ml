@@ -44,11 +44,10 @@ let dimensions (width, height) =
   else (max 0 width, max 0 height)
 
 let posting t inverse original =
-  let quantity = A.quanta original in
+  let quantity = original.B.amount in
   let quantity = if inverse then Z.neg quantity else quantity in
-  let measure = A.mstr (D.Effect.measure original) in
-  A.lstr (D.Effect.locus original)
-  ^ "  "
+  let measure = original.B.measure in
+  original.B.locus ^ "  "
   ^ (if Z.sign quantity > 0 then "+" else "")
   ^ B.format t.book measure quantity ^ " " ^ measure
 
