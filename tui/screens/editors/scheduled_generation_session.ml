@@ -4,7 +4,6 @@ module O = Ui_render
 module Panel = Ui_panel
 module Form = Ui_form
 module A = Daily_draft
-module Fm = Daily_form
 
 type cadence = Monthly | Every_two_months | Every_three_months | Every_six_months | Yearly
 
@@ -253,7 +252,7 @@ let typed value = function
   | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
       Some (value ^ String.make 1 c)
   | `Key (`Uchar c, []) when O.printable_uchar c -> Some (value ^ O.utf8 c)
-  | `Key (`Backspace, []) -> Some (Fm.backspace value)
+  | `Key (`Backspace, []) -> Some (Line_edit.backspace value)
   | _ -> None
 
 let extend_preview t e limit resolutions plans =

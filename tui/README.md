@@ -469,7 +469,7 @@ Esc／qは変更前の配色と元のCommands選択へ戻す。選択日・一�
 [TUI共有部品の責務設計と移行順序](https://github.com/shumoku88-bit/bakhlo/blob/90a5867/docs/TUI_LAYOUT_STABILITY_ROADMAP.ja.md)。
 現在は共有inputの純粋機構だけ実装・検査済み。以下の画面cutoverは未実行で、全画面対応済みではない。
 
-- **KEEP**：`daily_form`のUTF-8 scalar編集とbyte-offset、`ui_render`の幅／clip／tail、`book_display`のLocus prefix候補、
+- **KEEP**：`line_edit`のUTF-8 scalar編集とbyte-offset、`ui_render`の幅／clip／tail、`book_display`のLocus prefix候補、
   `ui_panel`の枠・capacity/window/move、Nottyの合成・実幅・fit・cursor。
 - **統合／切替**：`ui_render`に`input_text`／`input_cell`／`cursor_in_rows`を実装済み。
   value窓と1cell caretを一緒に計算し、再帰Columnsの子座標を親へ変換する。現行画面の利用元はまだ切り替えていない。

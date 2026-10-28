@@ -141,7 +141,7 @@ let handle (env : Screen.env) geometry t input =
           clear (invalidate t (Some (value ^ String.make 1 c)))
       | `Key (`Uchar c, []) when O.printable_uchar c ->
           clear (invalidate t (Some (value ^ O.utf8 c)))
-      | `Key (`Backspace, []) -> clear (invalidate t (Some (Daily_form.backspace value)))
+      | `Key (`Backspace, []) -> clear (invalidate t (Some (Line_edit.backspace value)))
       | _ -> (t, Screen.Ignored))
   | _ -> (t, Screen.Ignored)
 

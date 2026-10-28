@@ -7,7 +7,6 @@ module D = Bakhlo_domain
 module A = Daily_draft
 module O = Ui_render
 module Panel = Ui_panel
-module Fm = Daily_form
 
 let tr = Ui_text.tr
 
@@ -278,7 +277,7 @@ let insert t text =
     in
     if allowed = "" then t
     else
-      let updated, cursor = Fm.insert_at ~value:cur_val ~cursor:t.cursor allowed in
+      let updated, cursor = Line_edit.insert ~value:cur_val ~cursor:t.cursor allowed in
       let truncated = if String.length updated > 10 then String.sub updated 0 10 else updated in
       let next = set_value t truncated in
       { next with cursor = Some (min (String.length truncated) cursor); candidate = 0; notice = "" }
@@ -294,17 +293,17 @@ let insert t text =
     in
     if allowed = "" then t
     else
-      let updated, cursor = Fm.insert_at ~value:cur_val ~cursor:t.cursor allowed in
+      let updated, cursor = Line_edit.insert ~value:cur_val ~cursor:t.cursor allowed in
       let next = set_value t updated in
       { next with cursor = Some cursor; candidate = 0; notice = "" }
   else
-    let updated, cursor = Fm.insert_at ~value:cur_val ~cursor:t.cursor text in
+    let updated, cursor = Line_edit.insert ~value:cur_val ~cursor:t.cursor text in
     let next = set_value t updated in
     { next with cursor = Some cursor; candidate = 0; notice = "" }
 
 let erase t =
   let cur_val = value t in
-  let updated, cursor = Fm.erase_at ~value:cur_val ~cursor:t.cursor in
+  let updated, cursor = Line_edit.erase ~value:cur_val ~cursor:t.cursor in
   let next = set_value t updated in
   { next with cursor = Some cursor; candidate = 0; notice = "" }
 
@@ -436,12 +435,12 @@ let handle ~blocked ~dimensions:((width, height) as _dim) ~width_of t (input : U
           | `ASCII 'd', [ `Ctrl ] -> Updated (drop_row t)
           | `Arrow `Left, [] ->
               Updated
-                { t with cursor = Some (Fm.move_cursor ~value:(value t) ~cursor:t.cursor (-1)) }
+                { t with cursor = Some (Line_edit.move ~value:(value t) ~cursor:t.cursor (-1)) }
           | `Arrow `Right, [] ->
               if active_locus t <> None then Updated (accept_candidate t)
               else
                 Updated
-                  { t with cursor = Some (Fm.move_cursor ~value:(value t) ~cursor:t.cursor 1) }
+                  { t with cursor = Some (Line_edit.move ~value:(value t) ~cursor:t.cursor 1) }
           | `Home, [] -> Updated { t with cursor = Some 0 }
           | `End, [] -> Updated { t with cursor = Some (String.length (value t)) }
           (* Only arrows move candidates; j and k are text in a Locus such as "bank". *)

@@ -89,7 +89,7 @@ let input_text ~width_of ~width ~cursor ~caret value =
   if width <= 0 then ("", None)
   else if width_of caret <> 1 then (clip_text ~width_of width value, None)
   else
-    let pos = Daily_form.cursor_pos ~value cursor in
+    let pos = Line_edit.position ~value cursor in
     let left = visible (String.sub value 0 pos) in
     let left = tail_text ~width_of (width - 1) left in
     let column = width_of left in

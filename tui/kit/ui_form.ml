@@ -165,7 +165,7 @@ let handle_input t (input : Ui_input.input) : event =
                   let updated = value ^ Ui_render.utf8 c in
                   Updated (set_text { t with notice = "" } field.id updated)
               | `Key (`Backspace, []) ->
-                  let updated = Daily_form.backspace value in
+                  let updated = Line_edit.backspace value in
                   Updated (set_text { t with notice = "" } field.id updated)
               | _ -> Updated t)
           | Choice { options; selected } -> (

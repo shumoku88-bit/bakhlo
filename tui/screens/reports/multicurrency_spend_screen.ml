@@ -360,7 +360,7 @@ let handle env geometry t input =
       | `Key (`ASCII c, []) when Char.code c >= 32 && Char.code c <> 127 ->
           clear_feedback (edit t (value ^ String.make 1 c))
       | `Key (`Uchar c, []) when O.printable_uchar c -> clear_feedback (edit t (value ^ O.utf8 c))
-      | `Key (`Backspace, []) -> clear_feedback (edit t (Daily_form.backspace value))
+      | `Key (`Backspace, []) -> clear_feedback (edit t (Line_edit.backspace value))
       | _ -> (t, Screen.Ignored))
   | _ -> (t, Screen.Ignored)
 

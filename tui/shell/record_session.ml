@@ -5,7 +5,6 @@ module A = Daily_draft
 module D = Bakhlo_domain
 module R = Posting_draft
 module O = Ui_render
-module Fm = Daily_form
 
 let tr = Ui_text.tr
 
@@ -462,8 +461,8 @@ let edit_value t (updated, cursor) =
   if value next = updated then { next with cursor = Some cursor; candidate = 0 }
   else { next with candidate = 0 }
 
-let insert t text = edit_value t (Fm.insert_at ~value:(value t) ~cursor:t.cursor text)
-let erase t = edit_value t (Fm.erase_at ~value:(value t) ~cursor:t.cursor)
+let insert t text = edit_value t (Line_edit.insert ~value:(value t) ~cursor:t.cursor text)
+let erase t = edit_value t (Line_edit.erase ~value:(value t) ~cursor:t.cursor)
 
 (* The original-amount editor keeps its field choice separate from the draft's focus. *)
 let original_value (ed : original_editor) =
@@ -587,7 +586,8 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
         | Quick q -> update { t with phase = Quick (Quick_capture.append q text) }
         | Original ed ->
             update
-              (edit_original t ed (Fm.insert_at ~value:(original_value ed) ~cursor:t.cursor text))
+              (edit_original t ed
+                 (Line_edit.insert ~value:(original_value ed) ~cursor:t.cursor text))
         | Review _ | Enabling -> update t
         | Form ->
             if t.focus >= action_start t then update t
@@ -756,22 +756,23 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
               update
                 {
                   t with
-                  cursor = Some (Fm.move_cursor ~value:(original_value ed) ~cursor:t.cursor step);
+                  cursor = Some (Line_edit.move ~value:(original_value ed) ~cursor:t.cursor step);
                 }
           | `Home, [] -> update { t with cursor = Some 0 }
           | `End, [] -> update { t with cursor = None }
           | `Backspace, [] ->
-              update (edit_original t ed (Fm.erase_at ~value:(original_value ed) ~cursor:t.cursor))
+              update
+                (edit_original t ed (Line_edit.erase ~value:(original_value ed) ~cursor:t.cursor))
           | `ASCII c, [] when Char.code c >= 32 && Char.code c <> 127 ->
               let typed = String.make 1 c in
               update
                 (edit_original t ed
-                   (Fm.insert_at ~value:(original_value ed) ~cursor:t.cursor typed))
+                   (Line_edit.insert ~value:(original_value ed) ~cursor:t.cursor typed))
           | `Uchar c, [] when O.printable_uchar c ->
               let typed = O.utf8 c in
               update
                 (edit_original t ed
-                   (Fm.insert_at ~value:(original_value ed) ~cursor:t.cursor typed))
+                   (Line_edit.insert ~value:(original_value ed) ~cursor:t.cursor typed))
           | _ -> update t)
       | Form -> (
           match (button, mods) with
@@ -834,7 +835,7 @@ let rec handle ~new_id ~book ~base_revision ~blocked ~dimensions ~width_of t
           | `Arrow `Left, [] | `Arrow `Right, [] ->
               let step = if button = `Arrow `Left then -1 else 1 in
               update
-                { t with cursor = Some (Fm.move_cursor ~value:(value t) ~cursor:t.cursor step) }
+                { t with cursor = Some (Line_edit.move ~value:(value t) ~cursor:t.cursor step) }
           | `Home, [] -> update { t with cursor = Some 0 }
           | `End, [] -> update { t with cursor = None }
           | `Backspace, [] when t.focus < action_start t -> update (erase t)
