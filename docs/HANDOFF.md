@@ -14,6 +14,9 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
   [Evidence](VERIFICATION.md#the-typed-effect-layer-is-removed-entries-are-booktxt-postings-2026-10-28).
   moko used the household with the day's last build (`42b01fa`) and reported it fine
   ([report](VERIFICATION.md#user-use-of-todays-build-2026-10-28)).
+  A latest-data comparison of the Bakhlo before and after the day's rework found 41 of 42
+  frames identical (the 42nd is the intended settlement word wrap)
+  ([evidence](VERIFICATION.md#latest-data-before-and-after-comparison-2026-10-28)).
 
 - 2026-10-28, later: modules are named for what they are: `Book`, `Book_file`, `Draft`,
   `Publication`, `Day`, `Line_edit`, `Command_line`, `Book_display`; date rules have one owner

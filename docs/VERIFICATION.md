@@ -6,6 +6,27 @@ Ordinary qualification is macOS x86_64 and Ubuntu 24.04 x86_64 (CI) with the loc
 toolchain. This file keeps entries from 2026-10-20 on; earlier ones (including the bounded
 Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
 
+## Latest-data before and after comparison (2026-10-28)
+
+- Copies: `./tools/compare refresh` (`capture-JVENCf`, latest household book.txt and config).
+  Bakhlo before the day's rework (`210504a`, built in a temporary worktree) and after it
+  (`140a84d`), same copy, same keys, tmux at 120×36 and 80×24, one fresh session per screen: Home,
+  Actual (list, moved, details, period picker), Scheduled (and moved), Balances (current,
+  accounting), Daily Pace, Attention, Record quick capture, Manage Loci, Settlements, and every
+  report (Balances, Income & Expense, Transactions Flow, Stock–Flow, Trend, Liquidity,
+  Multicurrency). Each capture was checked to show its screen and the move keys to change it.
+- Result: 41 of 42 frames byte-identical. The one difference is the intended word wrap of the
+  settlement detail pane at 80×24 (its empty-state line no longer breaks inside a word).
+- LOAM (existing build, its copy, same day) at both sizes for Home, Actual, Scheduled, Balances,
+  Daily Pace and Attention: every amount of four or more digits on Balances and Daily Pace
+  appears on both sides and none on one side only. Actual differs only by the known Bakhlo
+  choices (it opens on the Cycle window with a period total and day totals; LOAM opens on All).
+  Amounts below 1,000 were not compared by this method.
+- Household: all 13 files byte-identical before and after, no Git changes; both copies
+  identical to the household book.txt. AI tmux sessions closed, `./tools/compare clean-copies`
+  kept only the selected generation. Captures stay in ignored scratch; no private text here.
+- Not covered: writes, IME, physical-terminal acceptance beyond moko's own use, P7, power loss.
+
 ## Settlement amounts read at their Measure's scale (2026-10-28)
 
 - Before: commitments printed raw smallest units (1,050.00 EUR as "105000 eur") and the action
