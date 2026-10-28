@@ -307,7 +307,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
     ~left_selected:(if visible = [] then None else Some t.selected)
     ~left_rows ~right_focused:is_detail ~right_title:"Commitment Details" ~right_scroll:t.scroll
     ~right_selected:None
-    ~right_rows:(List.concat_map (O.wrap_text ~width_of (max 1 (right_width - 6))) detail)
+    ~right_rows:(List.concat_map (O.wrap_words ~width_of (max 1 (right_width - 6))) detail)
     ()
 
 let view env (geometry : Screen.geometry) t =

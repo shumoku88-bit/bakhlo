@@ -334,29 +334,6 @@ let published _env _geometry outcome t =
   | Screen.Publish_stopped, Some _ -> ({ t with editor = None }, Screen.Stay)
   | Screen.Published, Some _ -> ({ t with editor = None }, Screen.Stay)
 
-(* Detail prose breaks between words, continuing at the line's indent; a word
-   wider than the room falls back to the character wrap. *)
-let wrap_words ~width_of room text =
-  let body = String.trim text in
-  let rec leading i = if i < String.length text && text.[i] = ' ' then leading (i + 1) else i in
-  let indent = String.make (leading 0) ' ' in
-  let room' = room - String.length indent in
-  if body = "" || width_of text <= room || room' < 8 then O.wrap_text ~width_of room text
-  else
-    let words = List.filter (( <> ) "") (String.split_on_char ' ' body) in
-    let lines, current =
-      List.fold_left
-        (fun (lines, current) word ->
-          let next = if current = "" then word else current ^ " " ^ word in
-          if width_of next <= room' then (lines, next)
-          else if current = "" then (lines, word)
-          else (current :: lines, word))
-        ([], "") words
-    in
-    List.concat_map
-      (fun line -> List.map (fun piece -> indent ^ piece) (O.wrap_text ~width_of room' line))
-      (List.rev (current :: lines))
-
 let paint (env : Screen.env) (geometry : Screen.geometry) t =
   let width, height = geometry.content in
   let width_of = geometry.width_of in
@@ -464,7 +441,7 @@ let paint (env : Screen.env) (geometry : Screen.geometry) t =
     ~left_selected:(if loci = [] then None else Some t.selected)
     ~left_rows ~right_focused:is_detail ~right_title:"Locus Detail" ~right_scroll:t.scroll
     ~right_selected:None
-    ~right_rows:(List.concat_map (wrap_words ~width_of (max 1 (right_width - 6))) detail)
+    ~right_rows:(List.concat_map (O.wrap_words ~width_of (max 1 (right_width - 6))) detail)
     ()
 
 let view env (geometry : Screen.geometry) t =

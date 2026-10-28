@@ -33,6 +33,16 @@ let decimal_measure_checks ~width_of ~directory =
   require
     (contains rows "1,050.00" && not (contains rows "105000"))
     "decimal-commitment-shown-at-scale";
+  (* The detail pane breaks between words, never inside one, at any width: a word split
+     across lines leaves its first part on screen without the whole word. *)
+  let split_word rows part whole = contains rows part && not (contains rows whole) in
+  require
+    (List.for_all
+       (fun width ->
+         let rows = R.screen ~width_of (width, 30) added in
+         not (split_word rows "(Settl" "(Settle" || split_word rows "commi" "commitment"))
+       (List.init 61 (fun n -> 80 + n)))
+    "settlement-detail-wraps-between-words";
   let acting = key ~width_of added (`ASCII 'a') in
   match visible_form acting with
   | Some f ->

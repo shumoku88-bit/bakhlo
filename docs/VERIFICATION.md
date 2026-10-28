@@ -23,8 +23,11 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   [study](ADMITTED_TYPES_STUDY.ja.md) records why and how to re-attempt.
 - moko added a 1,050.00 EUR commitment in `./ui --demo` (synthetic example copy) and saw
   `1,050.00 eur` in the list and Committed / Remaining, `0.00 eur` for Settled / Adjusted
-  (screenshot, 2026-10-28). The pre-filled settle step was not reported. The detail pane's
-  Actions lines wrap inside words (existing, unrelated to this fix).
+  (screenshot, 2026-10-28), then settled it with the pre-filled amount and reported it worked.
+  The detail pane's Actions lines wrapped inside words (existing); fixed below.
+- The settlement detail pane now breaks between words: `wrap_words` moved from the Loci screen
+  to `Ui_render`, now used by both. A check over widths 80–140 (a split word leaves its first
+  part on screen without the whole word) fails on the previous code and passes now.
 
 ## User use of today's build (2026-10-28)
 

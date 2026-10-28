@@ -205,6 +205,29 @@ let wrap_text ~width_of room text =
     in
     List.rev (last :: lines)
 
+(* Detail prose breaks between words, continuing at the line's indent; a word
+   wider than the room falls back to the character wrap. *)
+let wrap_words ~width_of room text =
+  let body = String.trim text in
+  let rec leading i = if i < String.length text && text.[i] = ' ' then leading (i + 1) else i in
+  let indent = String.make (leading 0) ' ' in
+  let room' = room - String.length indent in
+  if body = "" || width_of text <= room || room' < 8 then wrap_text ~width_of room text
+  else
+    let words = List.filter (( <> ) "") (String.split_on_char ' ' body) in
+    let lines, current =
+      List.fold_left
+        (fun (lines, current) word ->
+          let next = if current = "" then word else current ^ " " ^ word in
+          if width_of next <= room' then (lines, next)
+          else if current = "" then (lines, word)
+          else (current :: lines, word))
+        ([], "") words
+    in
+    List.concat_map
+      (fun line -> List.map (fun piece -> indent ^ piece) (wrap_text ~width_of room' line))
+      (List.rev (current :: lines))
+
 let review_page ~dimensions:(width, height) ~width_of lines scroll =
   let width = max 4 (min 76 (width - 4)) in
   let capacity = max 1 (height - 7) in
