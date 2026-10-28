@@ -5,10 +5,14 @@ module D = Bakhlo_domain
 module Loci = Loci_screen
 module Roles = Locus_roles
 
+(* Fixtures are book.txt text; one that does not read is a broken test. *)
+let book_of_text text =
+  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
+
 let require condition why = if not condition then failwith why
 
 let book =
-  Bakhlo_household.Daily_txt.book
+  book_of_text
     "BOOK\t1\n\
      MEASURE\tjpy\t0\n\
      LOCUS\tsuspense\tsuspense\t\n\

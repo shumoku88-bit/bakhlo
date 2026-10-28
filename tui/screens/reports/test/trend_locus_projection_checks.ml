@@ -5,6 +5,10 @@ module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 module T = Trend_locus_report
 
+(* Fixtures are book.txt text; one that does not read is a broken test. *)
+let book_of_text text =
+  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
+
 let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
 let z = Z.of_int
@@ -18,7 +22,7 @@ let row id day postings = Printf.sprintf "TX\t%s\t%s\n%sENDTX\n" id day postings
 (* Loci in [approved] are offered for new entries; those in [hidden] are only recorded. *)
 let fixture ?(approved = [ "a"; "b"; "c"; "gamma" ]) ?(hidden = []) entries =
   let locus suffix l = Printf.sprintf "LOCUS\t%s\t%s\t%s\n" l l suffix in
-  Bakhlo_household.Daily_txt.book
+  book_of_text
     ("BOOK\t1\nMEASURE\tjpy\t0\nMEASURE\teur\t2\n"
     ^ String.concat "" (List.map (locus "") approved)
     ^ String.concat "" (List.map (locus "\tHIDDEN") hidden)

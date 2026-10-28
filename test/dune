@@ -33,7 +33,6 @@
   ../household/.bakhlo_household.objs/byte/bakhlo_household.cmi
   ../household/.bakhlo_household.objs/byte/bakhlo_household__.cmi
   ../household/.bakhlo_household.objs/byte/bakhlo_household__Book.cmi
-  ../household/.bakhlo_household.objs/byte/bakhlo_household__Daily_txt.cmi
   ../store/.bakhlo_store.objs/byte/book_file.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain.cmi
   ../lib/.bakhlo_domain.objs/byte/bakhlo_domain__Identifier.cmi

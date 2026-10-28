@@ -141,9 +141,9 @@ let roundtrip_empty scale =
   match B.empty ~measure:"jpy" ~scale with
   | Error why -> failwith ("first-run-check: " ^ why)
   | Ok book -> (
-      let module X = Bakhlo_household.Daily_txt in
-      try X.book (X.text book)
-      with Invalid_argument why -> failwith ("first-run-check: empty-book-roundtrip: " ^ why))
+      match B.read (B.print book) with
+      | Ok book -> book
+      | Error why -> failwith ("first-run-check: empty-book-roundtrip: " ^ why))
 
 let check ~width_of () =
   let require ok why = if not ok then failwith ("first-run-check: " ^ why) in

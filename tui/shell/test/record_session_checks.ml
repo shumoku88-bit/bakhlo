@@ -5,6 +5,10 @@ module S = Record_session
 module D = Bakhlo_domain
 module O = Ui_render
 
+(* Fixtures are book.txt text; one that does not read is a broken test. *)
+let book_of_text text =
+  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
+
 let require condition cause = if not condition then failwith cause
 let get = function Ok x -> x | Error why -> failwith why
 
@@ -26,8 +30,8 @@ let fixture =
    END\n"
 
 let self_check ~width_of () =
-  let book = Bakhlo_household.Daily_txt.book fixture in
-  let before = Bakhlo_household.Daily_txt.text book in
+  let book = book_of_text fixture in
+  let before = Bakhlo_household.Book.print book in
   let dimensions = (100, 30) and base_revision = "synthetic-generation" in
   let handle ?(book = book) ?(blocked = false) ?(dimensions = dimensions) state input =
     S.handle ~new_id:Book_file.new_id ~book ~base_revision ~blocked ~dimensions ~width_of state
@@ -546,7 +550,7 @@ let self_check ~width_of () =
      ZERO-ORIGIN\tfood\tjpy\n\
      END\n"
   in
-  let s_book = Bakhlo_household.Daily_txt.book suspense_fixture in
+  let s_book = book_of_text suspense_fixture in
   require
     (contains
        (S.after_unresolved_enabled ~book:s_book no_suspense_editor)
@@ -883,4 +887,4 @@ let self_check ~width_of () =
   require
     (contains confirmed_form "wallet" && not (contains confirmed_form "walletx"))
     "paste-during-confirmation-leaves-the-draft";
-  require (Bakhlo_household.Daily_txt.text book = before) "record-checks-leave-book-unchanged"
+  require (Bakhlo_household.Book.print book = before) "record-checks-leave-book-unchanged"

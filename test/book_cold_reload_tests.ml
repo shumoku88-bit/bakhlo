@@ -13,8 +13,8 @@ module R = Stdlib.Random.State
 let get = function Ok x -> x | Error why -> failwith why
 
 (* Test books are written in book.txt, the household format. *)
-let book_of_txt = Bakhlo_household.Daily_txt.book
-let text_of book = Bakhlo_household.Daily_txt.text book
+let book_of_txt text = get (B.read text)
+let text_of = B.print
 
 let fixture =
   "BOOK\t1\n\

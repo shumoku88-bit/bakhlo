@@ -487,7 +487,7 @@ Actual長文検索の限定成功を全画面合格やIME受入へ拡張しな�
 
 ## 保存と復旧の限界
 
-Attention／commitment精算は主台帳とは別の試用sidecar。未作成だけを空の試用として扱い、
+commitment精算は主台帳とは別の試用sidecar（Attentionと会計区分は帳簿の節で、記録と同じ単一writerで保存する）。未作成だけを空の試用として扱い、
 不正行・不正数量・重複・読込失敗は拒否し、Unavailableと原因を表示する。
 選択したsidecarはセッション中に固定し、Ctrl-Rで明示的に再読込する。
 既存writer lockで状態を再確認し、同期した一時ファイルのrenameとreadbackを使う。

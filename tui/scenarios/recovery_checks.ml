@@ -51,7 +51,7 @@ let self_check () =
       B.Put_entry { replace = false; entry = entry "recovery-eur" "eur"; plan = None };
     ]
   in
-  let expected_book = Bakhlo_household.Daily_txt.text (get (B.apply base ops)) in
+  let expected_book = Bakhlo_household.Book.print (get (B.apply base ops)) in
   let make name =
     let parent = directory ^ "/" ^ name in
     Unix.mkdir parent 0o700;
@@ -69,12 +69,12 @@ let self_check () =
       && quantity book "bank" "jpy" = "unknown")
       "recovery-quantity-or-unknown-lost";
     require ((List.hd (B.plans book)).paid_by = Some payment.id) "recovery-payment-link-lost";
-    require (Bakhlo_household.Daily_txt.text book = expected_book) "recovery-metadata-lost"
+    require (Bakhlo_household.Book.print book = expected_book) "recovery-metadata-lost"
   in
   let check_original book =
     require
       ((List.hd (B.plans book)).paid_by = None
-      && Bakhlo_household.Daily_txt.text book = Bakhlo_household.Daily_txt.text base)
+      && Bakhlo_household.Book.print book = Bakhlo_household.Book.print base)
       "recovery-original-not-kept"
   in
   let step_name = function

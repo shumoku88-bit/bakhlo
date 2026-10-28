@@ -4,7 +4,6 @@
 open Base
 module F = Book_file
 module B = Bakhlo_household.Book
-module X = Bakhlo_household.Daily_txt
 module O = Book_cold_reload_tests
 
 let get = function Ok x -> x | Error why -> failwith why

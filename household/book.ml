@@ -184,6 +184,13 @@ let make txt =
 
 let of_txt txt = protect (fun () -> make txt)
 let txt t = t.txt
+
+let read text =
+  match T.read text with
+  | Error e -> Error (Printf.sprintf "%s at line %d" (T.code_name e.code) e.line)
+  | Ok txt -> of_txt txt
+
+let print t = T.print t.txt
 let value t = T.value t.txt
 
 let empty ~measure ~scale =

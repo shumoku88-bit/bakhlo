@@ -3,6 +3,10 @@ module B = Bakhlo_household.Book
 module O = Ui_render
 module Balances = Balances_screen
 
+(* Fixtures are book.txt text; one that does not read is a broken test. *)
+let book_of_text text =
+  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
+
 let require condition name = if not condition then failwith ("FAILED: balances_owner_check: " ^ name)
 let key ?(mods = []) button : Ui_input.input = `Key (button, mods)
 let char_key c : Ui_input.input = `Key (`ASCII c, [])
@@ -25,7 +29,7 @@ let test_book_fixture =
    ENDANCHOR\n\
    END\n"
 
-let fixture_book () = Bakhlo_household.Daily_txt.book test_book_fixture
+let fixture_book () = book_of_text test_book_fixture
 
 let test_roles =
   [ ("wallet", Locus_roles.Asset); ("bank", Locus_roles.Asset); ("food", Locus_roles.Expense) ]

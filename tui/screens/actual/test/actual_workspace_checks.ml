@@ -3,6 +3,10 @@
    the amount order, and the existing 3-pane navigation, live search, details
    and cursor behaviour. *)
 
+(* Fixtures are book.txt text; one that does not read is a broken test. *)
+let book_of_text text =
+  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
+
 module B = Bakhlo_household.Book
 module A = Draft
 module Act = Actual_workspace
@@ -94,7 +98,7 @@ let env ?(today = "2026-10-15") ?(roles = roles) ?(presets = Some presets) book 
     ()
 
 let self_check ~width_of () =
-  let book = Bakhlo_household.Daily_txt.book fixture in
+  let book = book_of_text fixture in
   let book =
     add_entry book ~day:"2026-10-15" ~memo:"Supermarket" ~locus1:"assets:cash" ~amt1:(-1000)
       ~locus2:"expenses:groceries" ~amt2:1000
@@ -316,7 +320,7 @@ let self_check ~width_of () =
           if snd dimensions >= 9 then
             require (contains rows "(no matching Actual") "empty-explanation-visible")
         [ (120, 36); (80, 24); (48, 14); (32, 9); (32, 7) ])
-    [ book; Bakhlo_household.Daily_txt.book fixture ];
+    [ book; book_of_text fixture ];
 
   let ws, _ = Act.handle ~ctx ~dimensions:dim_wide ~width_of ws (char_key '/') in
   let ws, _ = Act.handle ~ctx ~dimensions:dim_wide ~width_of ws (key `Escape) in
@@ -504,7 +508,7 @@ let self_check ~width_of () =
 
   (* 17. A transaction index that no longer exists is not clamped by
      selected_entry, but the render clamps its own local selection. *)
-  let empty_book = Bakhlo_household.Daily_txt.book fixture in
+  let empty_book = book_of_text fixture in
   require (Act.transaction_row ws = 2) "stale-fixture-row";
   require (Act.selected_entry ~ctx:(make_ctx empty_book) ws = None) "stale-row-selected-entry-none";
   let stale_rows = rows_of (make_ctx empty_book) ws in
@@ -769,7 +773,7 @@ let self_check ~width_of () =
   (* Daily lunches, the newest with a description long enough to be cut where the
      amount column begins, and one wide amount on [wide_day]. *)
   let long_book ~wide_day ~wide =
-    let book = Bakhlo_household.Daily_txt.book fixture in
+    let book = book_of_text fixture in
     let book =
       if wide = 0 then book
       else

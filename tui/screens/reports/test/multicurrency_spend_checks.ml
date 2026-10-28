@@ -6,6 +6,10 @@ module R = Multicurrency_spend_report
 module S = Multicurrency_spend_screen
 module D = Bakhlo_domain
 
+(* Fixtures are book.txt text; one that does not read is a broken test. *)
+let book_of_text text =
+  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
+
 let contains text sub =
   let n = String.length text and m = String.length sub in
   let rec at i = i + m <= n && (String.sub text i m = sub || at (i + 1)) in
@@ -49,7 +53,7 @@ let book ?(approved = [ "wallet"; "bank"; "ext"; "mystery"; "hotel"; "shop" ])
   ^ String.concat "" (List.map (locus true) [ "food"; "rent" ])
   ^ entries ^ plans ^ String.concat "" support ^ "END\n"
 
-let read text = Bakhlo_household.Daily_txt.book text
+let read text = book_of_text text
 
 (* jpy 0 scale, eur/usd scale 2. A refund nets its Expense Measure; an unclassified
    Locus never joins any total. Counterparty loci carry explicit Asset roles, so

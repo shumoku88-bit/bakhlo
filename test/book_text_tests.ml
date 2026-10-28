@@ -1,13 +1,13 @@
-(* book.txt -> Book -> book.txt is the identity, the roles and Attention sections
-   read and print in their text formats, and what book.txt cannot hold refuses. *)
-module X = Bakhlo_household.Daily_txt
+(* book.txt -> Book -> book.txt is the identity, and what book.txt cannot hold or Bakhlo
+   does not admit refuses instead of being written. *)
 module T = Bakhlo_book_txt.Book_txt
 module B = Bakhlo_household.Book
 module D = Bakhlo_domain
 
 let read path = In_channel.with_open_bin path In_channel.input_all
+let get = function Ok x -> x | Error why -> failwith why
 
-(* Read into a Book, then print it with the sections it read. *)
+(* Read into a Book, then print it. *)
 let round_trip text =
   match T.read text with
   | Error e -> Error (Printf.sprintf "not admitted: %s at %d" (T.code_name e.code) e.line)
@@ -15,7 +15,7 @@ let round_trip text =
       match B.of_txt txt with
       | Error why -> Error ("of_txt: " ^ why)
       | Ok book ->
-          let back = X.text ~sidecars:(X.sidecars_of book) book in
+          let back = B.print book in
           if back = text then Ok () else Error "reprinted text differs")
 
 let%expect_test "every accepted fixture survives Book unchanged" =
@@ -58,28 +58,19 @@ let%expect_test "generated books survive Book unchanged" =
     (match !failures with [] -> "none" | fs -> String.concat " | " (List.rev fs));
   [%expect {| 2000 generated books; failures: none |}]
 
-let%expect_test "malformed sections refuse instead of disappearing" =
-  let book = X.book (read "common_format/ok-full.txt") in
-  let sidecars = X.sidecars_of book in
-  let show label s =
-    Printf.printf "%s: %s\n" label
-      (match X.with_sidecars book s with Ok _ -> "kept" | Error why -> why)
-  in
-  show "roles header" { sidecars with roles = "ROLE\tbank\tASSET\n" };
-  show "suspense role" { sidecars with roles = sidecars.roles ^ "ROLE\tsuspense\tASSET\n" };
-  show "attention header" { sidecars with attention = "ITEM\tx\tNO_DUE_DATE\t-\tc\n" };
-  [%expect
-    {|
-    roles header: accounting-roles-bad-header
-    suspense role: book-txt-suspense-role
-    attention header: attention-bad-header
-    |}]
+let%expect_test "a role for the holding Locus is refused, never written" =
+  let book = get (B.read (read "common_format/ok-full.txt")) in
+  Printf.printf "suspense role: %s\n"
+    (match B.set_roles book (B.roles book @ [ ("suspense", T.Asset) ]) with
+    | Ok _ -> "kept"
+    | Error why -> why);
+  [%expect {| suspense role: book-txt-suspense-role |}]
 
 (* book.txt names an exchange by its Measures; an exchange with a second positive
    Effect in its destination Measure cannot be read back as the same entry, so a save
    refuses it instead of writing it. *)
 let%expect_test "an exchange book.txt cannot read back is refused, never written" =
-  let book = X.book (read "common_format/ok-full.txt") in
+  let book = get (B.read (read "common_format/ok-full.txt")) in
   let leg ?key l m q =
     D.Effect.create
       ~key:(Option.map (fun k -> Result.get_ok (D.Identifier.Effect_key.of_string k)) key)

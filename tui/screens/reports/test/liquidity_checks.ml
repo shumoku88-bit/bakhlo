@@ -5,6 +5,10 @@ module B = Bakhlo_household.Book
 module R = Liquidity_report
 module S = Liquidity_screen
 
+(* Fixtures are book.txt text; one that does not read is a broken test. *)
+let book_of_text text =
+  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
+
 let contains text sub =
   let n = String.length text and m = String.length sub in
   let rec at i = i + m <= n && (String.sub text i m = sub || at (i + 1)) in
@@ -40,7 +44,7 @@ let book ?(approved = [ "wallet"; "bank"; "ext"; "ghost" ]) ?support ~entries ~p
   ^ Option.value ~default:"ZERO-ORIGIN\twallet\tjpy\nZERO-ORIGIN\tbank\tjpy\n" support
   ^ "END\n"
 
-let read text = Bakhlo_household.Daily_txt.book text
+let read text = book_of_text text
 let support_flow = "ZERO-ORIGIN\twallet\tjpy\nZERO-ORIGIN\tbank\tjpy\nZERO-ORIGIN\twallet\teur\n"
 
 (* wallet 1000 jpy, bank 500 jpy: current selected 1500. *)

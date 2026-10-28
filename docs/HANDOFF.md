@@ -169,9 +169,8 @@ to 2026-10-19) is in Git at `9c3246c:docs/HANDOFF.md`.
 - `lib/`: identifiers, exact quantities, Effects, Events, Movements. No I/O. The former
   `application/` (correction frontier, cuts, sources, relations) is in Git up to `42ce0fc`.
 - `household/book.ml(i)`: the household book on book.txt (an admitted `Book_txt.book`
-  and its TXs as entries; changes, balances, Daily Pace, past-day pools, the changes the Shell publishes);
-  `household/daily_txt.ml(i)`: the roles
-  and Attention sections in their text formats, and fixture helpers.
+  and its TXs as entries; changes, balances, Daily Pace, past-day pools, the changes the Shell
+  publishes, roles and Attention included; its book.txt text with `read` and `print`).
 - `book_txt/book_txt.ml(i)`: the common `book.txt` format (read, admit, print, balance).
 - `store/book_file.ml`: the single writer of `book.txt` (load, whole-file publish,
   conflict and uncertain outcomes, copies).

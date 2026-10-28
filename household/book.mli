@@ -43,6 +43,13 @@ val of_txt : T.book -> (t, string) result
 val txt : t -> T.book
 (** Its book.txt; [T.print] gives the bytes to save. *)
 
+val read : string -> (t, string) result
+(** The book of a book.txt text; a refusal names the format code and line, or why
+    {!of_txt} refuses. *)
+
+val print : t -> string
+(** Its book.txt bytes. *)
+
 val empty : measure:string -> scale:int -> (t, string) result
 (** One Measure with its scale and nothing else. *)
 

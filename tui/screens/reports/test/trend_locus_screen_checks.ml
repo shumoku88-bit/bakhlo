@@ -6,6 +6,10 @@ module R = Trend_locus_report
 module S = Trend_locus_screen
 module Roles = Locus_roles
 
+(* Fixtures are book.txt text; one that does not read is a broken test. *)
+let book_of_text text =
+  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
+
 let get = function Ok x -> x | Error why -> failwith why
 let require condition why = if not condition then failwith why
 let z = Z.of_int
@@ -30,7 +34,7 @@ let rows =
   ^ row "oct3" "2026-10-03" (ab (z (-4)))
   ^ row "oct4" "2026-10-04" (ab (z 100))
 
-let make_book extra = Bakhlo_household.Daily_txt.book (header ^ rows ^ extra ^ footer)
+let make_book extra = book_of_text (header ^ rows ^ extra ^ footer)
 let book = make_book ""
 let changed_book = make_book (row "extra" "2026-10-02" (ab (z 10)))
 let boundaries = "household\t2026-10-01\t2026-10-03\t2026-11-01\n"

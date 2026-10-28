@@ -5,6 +5,10 @@ module D = Bakhlo_domain
 module Att = Attention_screen
 module Roles = Locus_roles
 
+(* Fixtures are book.txt text; one that does not read is a broken test. *)
+let book_of_text text =
+  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
+
 let get = function Ok x -> x | Error why -> failwith why
 let id_of = function Ok value -> value | Error _ -> failwith "synthetic identifier"
 let require condition why = if not condition then failwith why
@@ -43,13 +47,12 @@ let book ?(zero = true) entries =
   let recorded =
     List.fold_left
       (fun b e -> get (B.put_entry b ~replace:false e ~plan:None))
-      (Bakhlo_household.Daily_txt.book base)
-      entries
+      (book_of_text base) entries
   in
   if not zero then recorded
   else
-    let text = Bakhlo_household.Daily_txt.text recorded in
-    Bakhlo_household.Daily_txt.book
+    let text = Bakhlo_household.Book.print recorded in
+    book_of_text
       (String.sub text 0 (String.length text - 4)
       ^ "ZERO-ORIGIN\tsuspense\tjpy\nZERO-ORIGIN\tsuspense\teur\nEND\n")
 

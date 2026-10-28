@@ -3,6 +3,10 @@
    Locus prefix matching, Ctrl-U suspense auto-fill, LOAM validation rules,
    Preview navigation and tiny-terminal publication gates. *)
 
+(* Fixtures are book.txt text; one that does not read is a broken test. *)
+let book_of_text text =
+  match Bakhlo_household.Book.read text with Ok book -> book | Error why -> failwith why
+
 module B = Bakhlo_household.Book
 module Sch = Scheduled_session
 
@@ -118,7 +122,7 @@ let check_remainder ~book ~width_of () =
     "Other postings already balance; edit or remove suspense explicitly."
 
 let self_check ~width_of () =
-  let book = Bakhlo_household.Daily_txt.book fixture in
+  let book = book_of_text fixture in
   check_remainder ~book ~width_of ();
 
   (* 1. Initial state *)
