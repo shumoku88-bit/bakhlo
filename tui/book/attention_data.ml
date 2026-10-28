@@ -1,13 +1,15 @@
 (* Attention model, serialization, and lifecycle operations *)
 
-type due = Due_on of string | No_due_date | Due_undetermined
-type closure_kind = Resolved | Dropped
-type item = { id : string; context : string; due : due }
-type closure = { attention : string; known_on : string; kind : closure_kind }
-type t = { items : item list; closures : closure list }
+module T = Bakhlo_book_txt.Book_txt
 
-let empty = { items = []; closures = [] }
-let is_closed t id = List.exists (fun (c : closure) -> c.attention = id) t.closures
+type due = T.due = Due_on of string | No_due_date | Due_undetermined
+type close_kind = T.close_kind = Resolved | Dropped
+type item = T.item = { id : string; due : due; context : string }
+type close = T.close = { item : string; day : string; kind : close_kind }
+type t = { items : item list; closes : close list }
+
+let empty = { items = []; closes = [] }
+let is_closed t id = List.exists (fun (c : close) -> c.item = id) t.closes
 let open_items t = List.filter (fun (item : item) -> not (is_closed t item.id)) t.items
 let find_item t id = List.find_opt (fun (item : item) -> item.id = id) t.items
 
@@ -118,8 +120,8 @@ let close_item t ~id ~known_on ~kind =
     | Some _ ->
         if is_closed t id then Error (Printf.sprintf "Attention '%s' is already closed." id)
         else
-          let closure = { attention = id; known_on; kind } in
-          Ok { t with closures = t.closures @ [ closure ] }
+          let close = { item = id; day = known_on; kind } in
+          Ok { t with closes = t.closes @ [ close ] }
 
 let of_string text =
   let rec parse t header = function
@@ -163,8 +165,8 @@ let to_string t =
            (escape_text item.context)))
     t.items;
   List.iter
-    (fun (c : closure) ->
+    (fun (c : close) ->
       let kind_str = match c.kind with Resolved -> "RESOLVED" | Dropped -> "DROPPED" in
-      Buffer.add_string b (Printf.sprintf "CLOSE\t%s\t%s\t%s\n" c.attention c.known_on kind_str))
-    t.closures;
+      Buffer.add_string b (Printf.sprintf "CLOSE\t%s\t%s\t%s\n" c.item c.day kind_str))
+    t.closes;
   Buffer.contents b

@@ -1,6 +1,6 @@
 (** locus_roles.mli - Accounting roles for Loci and the accounting-roles.tsv text format (no file access) *)
 
-type role = Asset | Liability | Equity | Income | Expense
+type role = Bakhlo_book_txt.Book_txt.role = Asset | Liability | Equity | Income | Expense
 
 val role_label : role -> string
 

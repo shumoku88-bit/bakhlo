@@ -1,6 +1,6 @@
 (** locus_roles.ml - Accounting roles for Loci and the accounting-roles.tsv text format *)
 
-type role = Asset | Liability | Equity | Income | Expense
+type role = Bakhlo_book_txt.Book_txt.role = Asset | Liability | Equity | Income | Expense
 
 let role_to_string = function
   | Asset -> "ASSET"
