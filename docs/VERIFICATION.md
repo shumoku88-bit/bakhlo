@@ -21,6 +21,10 @@ Solo5-SPT engine boot) are in Git at `90a5867:docs/VERIFICATION.md`.
   `ff0f7b3` ([run 40681499059](https://github.com/shumoku88-bit/bakhlo/actions/runs/40681499059)).
 - The admitted-type pilot stopped at design; the
   [study](ADMITTED_TYPES_STUDY.ja.md) records why and how to re-attempt.
+- moko added a 1,050.00 EUR commitment in `./ui --demo` (synthetic example copy) and saw
+  `1,050.00 eur` in the list and Committed / Remaining, `0.00 eur` for Settled / Adjusted
+  (screenshot, 2026-10-28). The pre-filled settle step was not reported. The detail pane's
+  Actions lines wrap inside words (existing, unrelated to this fix).
 
 ## User use of today's build (2026-10-28)
 
