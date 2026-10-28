@@ -644,10 +644,13 @@ let with_bounded_history t rows =
 let roles t = (value t).roles
 let attention t = ((value t).items, (value t).closes)
 
-let with_sections t ~roles ~items ~closes =
-  match T.change t.txt [ T.Set_roles roles; T.Set_attention (items, closes) ] with
+let set_section t change =
+  match T.change t.txt [ change ] with
   | Ok txt -> Ok { t with txt }
   | Error code -> Error ("book-txt-" ^ code)
+
+let set_roles t roles = set_section t (T.Set_roles roles)
+let set_attention t ~items ~closes = set_section t (T.Set_attention (items, closes))
 
 (* ---- publication ---- *)
 
@@ -660,6 +663,8 @@ type change =
   | Add_locus of string
   | Set_locus_label of { id : string; label : string; help : string option }
   | Classify_merchant of { id : string; disposition : disposition }
+  | Set_roles of (string * T.role) list
+  | Set_attention of { items : T.item list; closes : T.close list }
 
 let apply_one t = function
   | Put_entry { replace; entry; plan } -> put_entry t ~replace entry ~plan
@@ -670,6 +675,8 @@ let apply_one t = function
   | Add_locus id -> add_locus t id
   | Set_locus_label { id; label; help } -> set_locus_label t ~id ~label ?help ()
   | Classify_merchant { id; disposition } -> classify_merchant t ~id ~disposition
+  | Set_roles roles -> set_roles t roles
+  | Set_attention { items; closes } -> set_attention t ~items ~closes
 
 let apply t changes =
   List.fold_left (fun t c -> Result.bind t (fun t -> apply_one t c)) (Ok t) changes

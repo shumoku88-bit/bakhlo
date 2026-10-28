@@ -58,6 +58,8 @@ let measures = [| "jpy"; "usd"; "xxx" |]
 let entry_ids = [| "init"; "e0"; "e1"; "e2"; "e3"; "e4"; "e5"; "e6" |]
 let plan_ids = [| "rent"; "sub"; "p0"; "p1" |]
 let pick st a = a.(R.int st (Array.length a))
+let roles : Bakhlo_book_txt.Book_txt.role array = [| Asset; Liability; Equity; Income; Expense |]
+let attention_ids = [| "attention-1"; "attention-2"; "bad id"; "" |]
 let chance st n = R.int st 100 < n
 let ident of_string s = Result.ok_or_failwith (Result.map_error (of_string s) ~f:(fun _ -> s))
 let locus s = ident D.Identifier.Locus.of_string s
@@ -71,6 +73,15 @@ let posting ?key l m n =
     ~quantity:(D.Quantity.of_quanta (Z.of_int n))
 
 let day st = if chance st 3 then "2026-02-30" else Printf.sprintf "2026-10-%02d" (1 + R.int st 28)
+
+(* Attention as the Attention screen writes it, and the odd item it must not. *)
+let attention_item st : Bakhlo_book_txt.Book_txt.item =
+  {
+    id = pick st attention_ids;
+    due = (match R.int st 3 with 0 -> Due_on (day st) | 1 -> No_due_date | _ -> Due_undetermined);
+    context = pick st [| "Call the bank"; "two\nlines"; "tab\there"; "日本語"; "" |];
+  }
+
 let amount st = if chance st 3 then 0 else 1 + R.int st 5000
 
 (* Mostly balanced single-Measure postings; occasionally zero or unbalanced. *)
@@ -122,6 +133,9 @@ let describe = function
   | B.Add_locus l -> "add_locus " ^ l
   | B.Classify_merchant { id; _ } -> "classify " ^ id
   | B.Set_locus_label { id; label; _ } -> Printf.sprintf "label %s %S" id label
+  | B.Set_roles roles -> Printf.sprintf "roles %d" (List.length roles)
+  | B.Set_attention { items; closes } ->
+      Printf.sprintf "attention %d items %d closes" (List.length items) (List.length closes)
 
 let generate st book =
   let existing () =
@@ -195,7 +209,7 @@ let generate st book =
   | n when n < 80 ->
       let row () = (pick st loci, pick st measures, Z.of_int (R.int st 200_000 - 50_000)) in
       B.Observe (if chance st 30 then [ row (); row () ] else [ row () ])
-  | n when n < 88 ->
+  | n when n < 84 ->
       let a = Z.of_int (1 + R.int st 9000) in
       let plan : B.plan =
         {
@@ -208,6 +222,20 @@ let generate st book =
         }
       in
       B.Put_plan { replace = chance st 50; plan }
+  | n when n < 86 ->
+      let roles = List.init (R.int st 4) ~f:(fun _ -> (pick st loci, pick st roles)) in
+      B.Set_roles (if chance st 50 then List.dedup_and_sort roles ~compare:Poly.compare else roles)
+  | n when n < 88 ->
+      let items = List.init (R.int st 3) ~f:(fun _ -> attention_item st) in
+      let closes =
+        List.init (R.int st 2) ~f:(fun _ : Bakhlo_book_txt.Book_txt.close ->
+            {
+              item = pick st attention_ids;
+              day = day st;
+              kind = (if chance st 50 then Resolved else Dropped);
+            })
+      in
+      B.Set_attention { items; closes }
   | n when n < 94 -> B.Cancel_plan { id = pick st plan_ids; day = day st }
   | n when n < 95 -> B.Add_locus "ghost"
   | n when n < 97 ->
@@ -304,6 +332,8 @@ let kind = function
   | B.Add_locus _ -> "add_locus"
   | B.Set_locus_label _ -> "label"
   | B.Classify_merchant _ -> "classify"
+  | B.Set_roles _ -> "roles"
+  | B.Set_attention _ -> "attention"
 
 let agree ~seed ~step ~trace label a b =
   match (a, b) with
@@ -352,6 +382,8 @@ let%expect_test "every mutation agrees with its book.txt cold-loaded twin" =
       "add_locus";
       "classify";
       "label";
+      "roles";
+      "attention";
     ] ~f:(fun k ->
       Stdio.printf "%s admitted at least 20 times: %b\n" k
         (Hashtbl.find admitted k |> Option.value ~default:0 >= 20));
@@ -369,6 +401,8 @@ let%expect_test "every mutation agrees with its book.txt cold-loaded twin" =
     add_locus admitted at least 20 times: true
     classify admitted at least 20 times: true
     label admitted at least 20 times: true
+    roles admitted at least 20 times: true
+    attention admitted at least 20 times: true
     |}]
 
 let result_text = function Ok _ -> "ok" | Error why -> why

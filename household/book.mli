@@ -163,13 +163,12 @@ val observe_quantities : t -> (string * string * Z.t) list -> (t, string) result
 val with_bounded_history : t -> (string * string * string) list -> (t, string) result
 (** Replace every history start with (Locus, Measure, day) rows; each needs a count. *)
 
-val with_sections :
-  t ->
-  roles:(string * T.role) list ->
-  items:T.item list ->
-  closes:T.close list ->
-  (t, string) result
-(** Replace the accounting roles and the Attention items and closes. *)
+val set_roles : t -> (string * T.role) list -> (t, string) result
+(** Replace the accounting roles, in the order given. Refuses a Locus without a
+    [LOCUS] line or a Locus given twice. *)
+
+val set_attention : t -> items:T.item list -> closes:T.close list -> (t, string) result
+(** Replace the Attention items and closes, in the order given. *)
 
 (** {1 Publication} *)
 
@@ -185,6 +184,8 @@ type change =
   | Add_locus of string
   | Set_locus_label of { id : string; label : string; help : string option }
   | Classify_merchant of { id : string; disposition : disposition }
+  | Set_roles of (string * T.role) list
+  | Set_attention of { items : T.item list; closes : T.close list }
 
 val apply : t -> change list -> (t, string) result
 (** All changes in order, or the first refusal; never a partial book. *)

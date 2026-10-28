@@ -82,7 +82,7 @@ let sidecars_of book =
 
 let with_sidecars book s =
   match (roles_of s.roles, attention_of s.attention) with
-  | roles, (items, closes) -> B.with_sections book ~roles ~items ~closes
+  | roles, (items, closes) -> Result.bind (B.set_roles book roles) (B.set_attention ~items ~closes)
   | exception Refused why -> Error why
 
 let text ?(sidecars = no_sidecars) book =
